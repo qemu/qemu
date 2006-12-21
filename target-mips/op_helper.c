@@ -74,8 +74,92 @@ void do_raise_exception_direct (uint32_t exception)
 #undef MEMSUFFIX
 #endif
 
+#ifdef MIPS_HAS_MIPS64
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+/* Those might call libgcc functions.  */
+void do_dsll (void)
+{
+    T0 = T0 << T1;
+}
+
+void do_dsll32 (void)
+{
+    T0 = T0 << (T1 + 32);
+}
+
+void do_dsra (void)
+{
+    T0 = (int64_t)T0 >> T1;
+}
+
+void do_dsra32 (void)
+{
+    T0 = (int64_t)T0 >> (T1 + 32);
+}
+
+void do_dsrl (void)
+{
+    T0 = T0 >> T1;
+}
+
+void do_dsrl32 (void)
+{
+    T0 = T0 >> (T1 + 32);
+}
+
+void do_drotr (void)
+{
+    target_ulong tmp;
+
+    if (T1) {
+       tmp = T0 << (0x40 - T1);
+       T0 = (T0 >> T1) | tmp;
+    } else
+       T0 = T1;
+}
+
+void do_drotr32 (void)
+{
+    target_ulong tmp;
+
+    if (T1) {
+       tmp = T0 << (0x40 - (32 + T1));
+       T0 = (T0 >> (32 + T1)) | tmp;
+    } else
+       T0 = T1;
+}
+
+void do_dsllv (void)
+{
+    T0 = T1 << (T0 & 0x3F);
+}
+
+void do_dsrav (void)
+{
+    T0 = (int64_t)T1 >> (T0 & 0x3F);
+}
+
+void do_dsrlv (void)
+{
+    T0 = T1 >> (T0 & 0x3F);
+}
+
+void do_drotrv (void)
+{
+    target_ulong tmp;
+
+    T0 &= 0x3F;
+    if (T0) {
+       tmp = T1 << (0x40 - T0);
+       T0 = (T1 >> T0) | tmp;
+    } else
+       T0 = T1;
+}
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+#endif /* MIPS_HAS_MIPS64 */
+
 /* 64 bits arithmetic for 32 bits hosts */
-#if (HOST_LONG_BITS == 32)
+#if TARGET_LONG_BITS > HOST_LONG_BITS
 static inline uint64_t get_HILO (void)
 {
     return ((uint64_t)env->HI << 32) | (uint64_t)env->LO;
@@ -83,8 +167,8 @@ static inline uint64_t get_HILO (void)
 
 static inline void set_HILO (uint64_t HILO)
 {
-    env->LO = HILO & 0xFFFFFFFF;
-    env->HI = HILO >> 32;
+    env->LO = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI = (int32_t)(HILO >> 32);
 }
 
 void do_mult (void)
@@ -94,7 +178,7 @@ void do_mult (void)
 
 void do_multu (void)
 {
-    set_HILO((uint64_t)T0 * (uint64_t)T1);
+    set_HILO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
 }
 
 void do_madd (void)
@@ -109,7 +193,7 @@ void do_maddu (void)
 {
     uint64_t tmp;
 
-    tmp = ((uint64_t)T0 * (uint64_t)T1);
+    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
     set_HILO(get_HILO() + tmp);
 }
 
@@ -125,8 +209,38 @@ void do_msubu (void)
 {
     uint64_t tmp;
 
-    tmp = ((uint64_t)T0 * (uint64_t)T1);
+    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
     set_HILO(get_HILO() - tmp);
+}
+#endif
+
+#ifdef MIPS_HAS_MIPS64
+void do_dmult (void)
+{
+    /* XXX */
+    set_HILO((int64_t)T0 * (int64_t)T1);
+}
+
+void do_dmultu (void)
+{
+    /* XXX */
+    set_HILO((uint64_t)T0 * (uint64_t)T1);
+}
+
+void do_ddiv (void)
+{
+    if (T1 != 0) {
+        env->LO = (int64_t)T0 / (int64_t)T1;
+        env->HI = (int64_t)T0 % (int64_t)T1;
+    }
+}
+
+void do_ddivu (void)
+{
+    if (T1 != 0) {
+        env->LO = T0 / T1;
+        env->HI = T0 % T1;
+    }
 }
 #endif
 
@@ -215,12 +329,12 @@ static const uint32_t configmask[] = {
 /* CP0 helpers */
 void do_mfc0_random (void)
 {
-    T0 = cpu_mips_get_random(env);
+    T0 = (int32_t)cpu_mips_get_random(env);
 }
 
 void do_mfc0_count (void)
 {
-    T0 = cpu_mips_get_count(env);
+    T0 = (int32_t)cpu_mips_get_count(env);
 }
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
@@ -343,7 +457,7 @@ static void fill_tlb (int idx)
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb[idx];
-    tlb->VPN = env->CP0_EntryHi & 0xFFFFE000;
+    tlb->VPN = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     tlb->ASID = env->CP0_EntryHi & 0xFF;
     size = env->CP0_PageMask >> 13;
     size = 4 * (size + 1);
@@ -388,7 +502,7 @@ void do_tlbp (void)
     uint8_t ASID;
     int i;
 
-    tag = env->CP0_EntryHi & 0xFFFFE000;
+    tag = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     ASID = env->CP0_EntryHi & 0xFF;
     for (i = 0; i < MIPS_TLB_NB; i++) {
         tlb = &env->tlb[i];
@@ -442,16 +556,16 @@ void do_tlbr (void)
 
 #endif /* !CONFIG_USER_ONLY */
 
-void op_dump_ldst (const unsigned char *func)
+void dump_ldst (const unsigned char *func)
 {
     if (loglevel)
-        fprintf(logfile, "%s => %08x %08x\n", __func__, T0, T1);
+        fprintf(logfile, "%s => " TLSZ " " TLSZ "\n", __func__, T0, T1);
 }
 
 void dump_sc (void)
 {
     if (loglevel) {
-        fprintf(logfile, "%s %08x at %08x (%08x)\n", __func__,
+        fprintf(logfile, "%s " TLSZ " at " TLSZ " (" TLSZ ")\n", __func__,
                 T1, T0, env->CP0_LLAddr);
     }
 }
@@ -459,7 +573,7 @@ void dump_sc (void)
 void debug_eret (void)
 {
     if (loglevel) {
-        fprintf(logfile, "ERET: pc %08x EPC %08x ErrorEPC %08x (%d)\n",
+        fprintf(logfile, "ERET: pc " TLSZ " EPC " TLSZ " ErrorEPC " TLSZ " (%d)\n",
                 env->PC, env->CP0_EPC, env->CP0_ErrorEPC,
                 env->hflags & MIPS_HFLAG_ERL ? 1 : 0);
     }
@@ -478,13 +592,13 @@ void do_pmon (int function)
         break;
     case 3:
     case 12:
-        printf("%c", env->gpr[4] & 0xFF);
+        printf("%c", (char)(env->gpr[4] & 0xFF));
         break;
     case 17:
         break;
     case 158:
         {
-            unsigned char *fmt = (void *)env->gpr[4];
+            unsigned char *fmt = (void *)(unsigned long)env->gpr[4];
             printf("%s", fmt);
         }
         break;

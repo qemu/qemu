@@ -31,6 +31,7 @@
 #include "disas.h"
 
 //#define MIPS_DEBUG_DISAS
+//#define MIPS_DEBUG_SIGN_EXTENSIONS
 //#define MIPS_SINGLE_STEP
 
 #ifdef USE_DIRECT_JUMP
@@ -502,7 +503,7 @@ enum {
 #define MIPS_DEBUG(fmt, args...)                                              \
 do {                                                                          \
     if (loglevel & CPU_LOG_TB_IN_ASM) {                                       \
-        fprintf(logfile, "%08x: %08x " fmt "\n",                              \
+        fprintf(logfile, TLSZ ": %08x " fmt "\n",                             \
                 ctx->pc, ctx->opcode , ##args);                               \
     }                                                                         \
 } while (0)
@@ -621,6 +622,8 @@ OP_LD_TABLE(dr);
 OP_ST_TABLE(d);
 OP_ST_TABLE(dl);
 OP_ST_TABLE(dr);
+OP_LD_TABLE(ld);
+OP_ST_TABLE(cd);
 #endif
 OP_LD_TABLE(w);
 OP_LD_TABLE(wu);
@@ -1417,7 +1420,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     case OPC_J:
     case OPC_JAL:
         /* Jump to immediate */
-        btarget = ((ctx->pc + 4) & 0xF0000000) | offset;
+        btarget = ((ctx->pc + 4) & (int32_t)0xF0000000) | offset;
         break;
     case OPC_JR:
     case OPC_JALR:
@@ -2927,21 +2930,21 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
     switch (op) {
     case OPC_BC1F:
         gen_op_bc1f();
-        MIPS_DEBUG("bc1f %08x", btarget);
+        MIPS_DEBUG("bc1f " TLSZ, btarget);
         goto not_likely;
     case OPC_BC1FL:
         gen_op_bc1f();
-        MIPS_DEBUG("bc1fl %08x", btarget);
+        MIPS_DEBUG("bc1fl " TLSZ, btarget);
         goto likely;
     case OPC_BC1T:
         gen_op_bc1t();
-        MIPS_DEBUG("bc1t %08x", btarget);
+        MIPS_DEBUG("bc1t " TLSZ, btarget);
     not_likely:
         ctx->hflags |= MIPS_HFLAG_BC;
         break;
     case OPC_BC1TL:
         gen_op_bc1t();
-        MIPS_DEBUG("bc1tl %08x", btarget);
+        MIPS_DEBUG("bc1tl " TLSZ, btarget);
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
         break;
@@ -2952,7 +2955,7 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
     }
     gen_op_set_bcond();
 
-    MIPS_DEBUG("enter ds: cond %02x target %08x",
+    MIPS_DEBUG("enter ds: cond %02x target " TLSZ,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
 
@@ -3351,30 +3354,6 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 /* SmartMIPS extension to MIPS32 */
 
 #ifdef MIPS_HAS_MIPS64
-static void gen_arith64 (DisasContext *ctx, uint32_t opc)
-{
-    if (func == 0x02 && rd == 0) {
-        /* NOP */
-        return;
-    }
-    if (rs == 0 || rt == 0) {
-        gen_op_reset_T0();
-        gen_op_save64();
-    } else {
-        gen_op_load_gpr_T0(rs);
-        gen_op_load_gpr_T1(rt);
-        gen_op_save64();
-        if (func & 0x01)
-            gen_op_mul64u();
-        else
-            gen_op_mul64s();
-    }
-    if (func & 0x02)
-        gen_op_add64();
-    else
-        gen_op_sub64();
-}
-
 /* Coprocessor 3 (FPU) */
 
 /* MDMX extension to MIPS64 */
@@ -3407,7 +3386,7 @@ static void decode_opc (DisasContext *ctx)
 
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
         /* Handle blikely not taken case */
-        MIPS_DEBUG("blikely condition (%08x)", ctx->pc + 4);
+        MIPS_DEBUG("blikely condition (" TLSZ ")", ctx->pc + 4);
         gen_blikely(ctx);
     }
     op = MASK_OP_MAJOR(ctx->opcode);
@@ -4011,13 +3990,46 @@ void fpu_dump_state(CPUState *env, FILE *f,
 void dump_fpu (CPUState *env)
 {
     if (loglevel) { 
-       fprintf(logfile, "pc=0x%08x HI=0x%08x LO=0x%08x ds %04x %08x %d\n",
+       fprintf(logfile, "pc=0x" TLSZ " HI=0x" TLSZ " LO=0x" TLSZ " ds %04x " TLSZ " %d\n",
                env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
 }
 
 #endif /* MIPS_USES_FPU */
+
+#if defined(MIPS_HAS_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
+/* Debug help: The architecture requires 32bit code to maintain proper
+   sign-extened values on 64bit machines.  */
+
+#define SIGN_EXT_P(val) ((((val) & ~0x7fffffff) == 0) || (((val) & ~0x7fffffff) == ~0x7fffffff))
+
+void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
+                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                     int flags)
+{
+    int i;
+
+    if (!SIGN_EXT_P(env->PC))
+        cpu_fprintf(f, "BROKEN: pc=0x" TLSZ "\n", env->PC);
+    if (!SIGN_EXT_P(env->HI))
+        cpu_fprintf(f, "BROKEN: HI=0x" TLSZ "\n", env->HI);
+    if (!SIGN_EXT_P(env->LO))
+        cpu_fprintf(f, "BROKEN: LO=0x" TLSZ "\n", env->LO);
+    if (!SIGN_EXT_P(env->btarget))
+        cpu_fprintf(f, "BROKEN: btarget=0x" TLSZ "\n", env->btarget);
+
+    for (i = 0; i < 32; i++) {
+        if (!SIGN_EXT_P(env->gpr[i]))
+            cpu_fprintf(f, "BROKEN: %s=0x" TLSZ "\n", regnames[i], env->gpr[i]);
+    }
+
+    if (!SIGN_EXT_P(env->CP0_EPC))
+        cpu_fprintf(f, "BROKEN: EPC=0x" TLSZ "\n", env->CP0_EPC);
+    if (!SIGN_EXT_P(env->CP0_LLAddr))
+        cpu_fprintf(f, "BROKEN: LLAddr=0x" TLSZ "\n", env->CP0_LLAddr);
+}
+#endif
 
 void cpu_dump_state (CPUState *env, FILE *f, 
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
@@ -4026,12 +4038,12 @@ void cpu_dump_state (CPUState *env, FILE *f,
     uint32_t c0_status;
     int i;
     
-    cpu_fprintf(f, "pc=0x%08x HI=0x%08x LO=0x%08x ds %04x %08x %d\n",
+    cpu_fprintf(f, "pc=0x" TLSZ " HI=0x" TLSZ " LO=0x" TLSZ " ds %04x " TLSZ " %d\n",
                 env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %s %08x", regnames[i], env->gpr[i]);
+        cpu_fprintf(f, " %s " TLSZ, regnames[i], env->gpr[i]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
@@ -4044,13 +4056,16 @@ void cpu_dump_state (CPUState *env, FILE *f,
     if (env->hflags & MIPS_HFLAG_EXL)
         c0_status |= (1 << CP0St_EXL);
 
-    cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x%08x\n",
+    cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TLSZ "\n",
                 c0_status, env->CP0_Cause, env->CP0_EPC);
-    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%08x\n",
+    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TLSZ "\n",
                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
 #ifdef MIPS_USES_FPU
     if (c0_status & (1 << CP0St_CU1))
         fpu_dump_state(env, f, cpu_fprintf, flags);
+#endif
+#if defined(MIPS_HAS_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
+    cpu_mips_check_sign_extensions(env, f, cpu_fprintf, flags);
 #endif
 }
 
@@ -4082,14 +4097,14 @@ void cpu_reset (CPUMIPSState *env)
     } else {
         env->CP0_ErrorEPC = env->PC;
     }
-    env->PC = 0xBFC00000;
+    env->PC = (int32_t)0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
     env->CP0_random = MIPS_TLB_NB - 1;
     env->tlb_in_use = MIPS_TLB_NB;
 #endif
     env->CP0_Wired = 0;
     /* SMP not implemented */
-    env->CP0_EBase = 0x80000000;
+    env->CP0_EBase = (int32_t)0x80000000;
 #if defined(MIPS_CONFIG0)
     env->CP0_Config0 = MIPS_CONFIG0;
     env->CP0_Config1 = MIPS_CONFIG1;

@@ -15,6 +15,13 @@ typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 #endif
 
+/* target_ulong size spec */
+#ifdef MIPS_HAS_MIPS64
+#define TLSZ "%016llx"
+#else
+#define TLSZ "%08x"
+#endif
+
 typedef union fpr_t fpr_t;
 union fpr_t {
     float64  fd;   /* ieee double precision */
@@ -55,7 +62,12 @@ struct CPUMIPSState {
     target_ulong gpr[32];
     /* Special registers */
     target_ulong PC;
-    uint32_t HI, LO;
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    target_ulong t0;
+    target_ulong t1;
+    target_ulong t2;
+#endif
+    target_ulong HI, LO;
     uint32_t DCR; /* ? */
 #if defined(MIPS_USES_FPU)
     /* Floating point registers */
@@ -106,7 +118,7 @@ struct CPUMIPSState {
     uint32_t CP0_PageGrain;
     uint32_t CP0_Wired;
     uint32_t CP0_HWREna;
-    uint32_t CP0_BadVAddr;
+    target_ulong CP0_BadVAddr;
     uint32_t CP0_Count;
     uint64_t CP0_EntryHi;
     uint32_t CP0_Compare;
@@ -146,9 +158,9 @@ struct CPUMIPSState {
 #define CP0Ca_WP   22
 #define CP0Ca_IP    8
 #define CP0Ca_EC    2
-    uint32_t CP0_EPC;
+    target_ulong CP0_EPC;
     uint32_t CP0_PRid;
-    uint32_t CP0_EBase;
+    target_ulong CP0_EBase;
     uint32_t CP0_Config0;
 #define CP0C0_M    31
 #define CP0C0_K23  28
@@ -198,7 +210,7 @@ struct CPUMIPSState {
 #define CP0C3_MT   2
 #define CP0C3_SM   1
 #define CP0C3_TL   0
-    uint32_t CP0_LLAddr;
+    target_ulong CP0_LLAddr;
     uint32_t CP0_WatchLo;
     uint32_t CP0_WatchHi;
     uint32_t CP0_XContext;
@@ -226,14 +238,14 @@ struct CPUMIPSState {
     uint32_t CP0_TraceControl2;
     uint32_t CP0_UserTraceData;
     uint32_t CP0_TraceBPC;
-    uint32_t CP0_DEPC;
+    target_ulong CP0_DEPC;
     //~ uint32_t CP0_ErrCtl;
     uint32_t CP0_Performance0;
     uint32_t CP0_TagLo;
     uint32_t CP0_DataLo;
     uint32_t CP0_TagHi;
     uint32_t CP0_DataHi;
-    uint32_t CP0_ErrorEPC;
+    target_ulong CP0_ErrorEPC;
     uint32_t CP0_DESAVE;
     /* Qemu */
     int interrupt_request;

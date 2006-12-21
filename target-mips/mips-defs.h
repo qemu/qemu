@@ -15,7 +15,8 @@
 
 #if (MIPS_CPU == MIPS_R4Kc)
 /* 32 bits target */
-#define TARGET_LONG_BITS 32
+#undef MIPS_HAS_MIPS64
+//#define MIPS_HAS_MIPS64 1
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
 /* Uses MIPS R4Kx enhancements to MIPS32 architecture */
@@ -70,7 +71,7 @@
  (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL))
 #elif (MIPS_CPU == MIPS_R4Kp)
 /* 32 bits target */
-#define TARGET_LONG_BITS 32
+#undef MIPS_HAS_MIPS64
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
 /* Uses MIPS R4Kx enhancements to MIPS32 architecture */
@@ -81,11 +82,17 @@
 #else
 #error "MIPS CPU not defined"
 /* Reminder for other flags */
-//#define TARGET_MIPS64
+//#undef MIPS_HAS_MIPS64
 //#define MIPS_USES_FPU
 #endif
 
 /* No FPU register support */
 #undef MIPS_USES_FPU
+
+#ifdef MIPS_HAS_MIPS64
+#define TARGET_LONG_BITS 64
+#else
+#define TARGET_LONG_BITS 32
+#endif
 
 #endif /* !defined (__QEMU_MIPS_DEFS_H__) */

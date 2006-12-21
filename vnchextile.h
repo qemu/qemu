@@ -119,7 +119,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	for (j = 0; j < h; j++) {
 	    int has_color = 0;
 	    int min_x = -1;
-	    pixel_t color;
+	    pixel_t color = 0; /* shut up gcc */
 
 	    for (i = 0; i < w; i++) {
 		if (!has_color) {

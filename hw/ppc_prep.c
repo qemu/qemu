@@ -525,7 +525,6 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 {
     CPUState *env;
     char buf[1024];
-    SetIRQFunc *set_irq;
     m48t59_t *nvram;
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;

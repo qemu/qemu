@@ -140,13 +140,7 @@ CALL_FROM_TB2(func, arg0, arg1);
 #include "op_template.c"
 #undef REG
 
-#define TN T0
-#include "op_template.c"
-#undef TN
-#define TN T1
-#include "op_template.c"
-#undef TN
-#define TN T2
+#define TN
 #include "op_template.c"
 #undef TN
 
@@ -334,7 +328,7 @@ void op_store_LO (void)
 /* Arithmetic */
 void op_add (void)
 {
-    T0 += T1;
+    T0 = (int32_t)((int32_t)T0 + (int32_t)T1);
     RETURN();
 }
 
@@ -342,18 +336,19 @@ void op_addo (void)
 {
     target_ulong tmp;
 
-    tmp = T0;
-    T0 += T1;
+    tmp = (int32_t)T0;
+    T0 = (int32_t)T0 + (int32_t)T1;
     if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 31) {
-       /* operands of same sign, result different sign */
+        /* operands of same sign, result different sign */
         CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
     }
+    T0 = (int32_t)T0;
     RETURN();
 }
 
 void op_sub (void)
 {
-    T0 -= T1;
+    T0 = (int32_t)((int32_t)T0 - (int32_t)T1);
     RETURN();
 }
 
@@ -361,26 +356,27 @@ void op_subo (void)
 {
     target_ulong tmp;
 
-    tmp = T0;
+    tmp = (int32_t)T0;
     T0 = (int32_t)T0 - (int32_t)T1;
     if (((tmp ^ T1) & (tmp ^ T0)) >> 31) {
-       /* operands of different sign, first operand and result different sign */
+        /* operands of different sign, first operand and result different sign */
         CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
     }
+    T0 = (int32_t)T0;
     RETURN();
 }
 
 void op_mul (void)
 {
-    T0 = (int32_t)T0 * (int32_t)T1;
+    T0 = (int32_t)((int32_t)T0 * (int32_t)T1);
     RETURN();
 }
 
 void op_div (void)
 {
     if (T1 != 0) {
-        env->LO = (int32_t)T0 / (int32_t)T1;
-        env->HI = (int32_t)T0 % (int32_t)T1;
+        env->LO = (int32_t)((int32_t)T0 / (int32_t)T1);
+        env->HI = (int32_t)((int32_t)T0 % (int32_t)T1);
     }
     RETURN();
 }
@@ -388,11 +384,91 @@ void op_div (void)
 void op_divu (void)
 {
     if (T1 != 0) {
+        env->LO = (int32_t)((uint32_t)T0 / (uint32_t)T1);
+        env->HI = (int32_t)((uint32_t)T0 % (uint32_t)T1);
+    }
+    RETURN();
+}
+
+#ifdef MIPS_HAS_MIPS64
+/* Arithmetic */
+void op_dadd (void)
+{
+    T0 += T1;
+    RETURN();
+}
+
+void op_daddo (void)
+{
+    target_long tmp;
+
+    tmp = T0;
+    T0 += T1;
+    if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 63) {
+        /* operands of same sign, result different sign */
+        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
+    }
+    RETURN();
+}
+
+void op_dsub (void)
+{
+    T0 -= T1;
+    RETURN();
+}
+
+void op_dsubo (void)
+{
+    target_long tmp;
+
+    tmp = T0;
+    T0 = (int64_t)T0 - (int64_t)T1;
+    if (((tmp ^ T1) & (tmp ^ T0)) >> 63) {
+        /* operands of different sign, first operand and result different sign */
+        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
+    }
+    RETURN();
+}
+
+void op_dmul (void)
+{
+    T0 = (int64_t)T0 * (int64_t)T1;
+    RETURN();
+}
+
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+/* Those might call libgcc functions.  */
+void op_ddiv (void)
+{
+    do_ddiv();
+    RETURN();
+}
+
+void op_ddivu (void)
+{
+    do_ddivu();
+    RETURN();
+}
+#else
+void op_ddiv (void)
+{
+    if (T1 != 0) {
+        env->LO = (int64_t)T0 / (int64_t)T1;
+        env->HI = (int64_t)T0 % (int64_t)T1;
+    }
+    RETURN();
+}
+
+void op_ddivu (void)
+{
+    if (T1 != 0) {
         env->LO = T0 / T1;
         env->HI = T0 % T1;
     }
     RETURN();
 }
+#endif
+#endif /* MIPS_HAS_MIPS64 */
 
 /* Logical */
 void op_and (void)
@@ -421,19 +497,19 @@ void op_xor (void)
 
 void op_sll (void)
 {
-    T0 = T0 << T1;
+    T0 = (int32_t)((uint32_t)T0 << (uint32_t)T1);
     RETURN();
 }
 
 void op_sra (void)
 {
-    T0 = (int32_t)T0 >> T1;
+    T0 = (int32_t)((int32_t)T0 >> (uint32_t)T1);
     RETURN();
 }
 
 void op_srl (void)
 {
-    T0 = T0 >> T1;
+    T0 = (int32_t)((uint32_t)T0 >> (uint32_t)T1);
     RETURN();
 }
 
@@ -442,8 +518,8 @@ void op_rotr (void)
     target_ulong tmp;
 
     if (T1) {
-       tmp = T0 << (0x20 - T1);
-       T0 = (T0 >> T1) | tmp;
+       tmp = (int32_t)((uint32_t)T0 << (0x20 - (uint32_t)T1));
+       T0 = (int32_t)((uint32_t)T0 >> (uint32_t)T1) | tmp;
     } else
        T0 = T1;
     RETURN();
@@ -451,19 +527,19 @@ void op_rotr (void)
 
 void op_sllv (void)
 {
-    T0 = T1 << (T0 & 0x1F);
+    T0 = (int32_t)((uint32_t)T1 << ((uint32_t)T0 & 0x1F));
     RETURN();
 }
 
 void op_srav (void)
 {
-    T0 = (int32_t)T1 >> (T0 & 0x1F);
+    T0 = (int32_t)((int32_t)T1 >> (T0 & 0x1F));
     RETURN();
 }
 
 void op_srlv (void)
 {
-    T0 = T1 >> (T0 & 0x1F);
+    T0 = (int32_t)((uint32_t)T1 >> (T0 & 0x1F));
     RETURN();
 }
 
@@ -473,8 +549,8 @@ void op_rotrv (void)
 
     T0 &= 0x1F;
     if (T0) {
-       tmp = T1 << (0x20 - T0);
-       T0 = (T1 >> T0) | tmp;
+       tmp = (int32_t)((uint32_t)T1 << (0x20 - T0));
+       T0 = (int32_t)((uint32_t)T1 >> T0) | tmp;
     } else
        T0 = T1;
     RETURN();
@@ -484,7 +560,7 @@ void op_clo (void)
 {
     int n;
 
-    if (T0 == (target_ulong)-1) {
+    if (T0 == ~((target_ulong)0)) {
         T0 = 32;
     } else {
         for (n = 0; n < 32; n++) {
@@ -514,67 +590,213 @@ void op_clz (void)
     RETURN();
 }
 
+#ifdef MIPS_HAS_MIPS64
+
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+/* Those might call libgcc functions.  */
+void op_dsll (void)
+{
+    CALL_FROM_TB0(do_dsll);
+    RETURN();
+}
+
+void op_dsll32 (void)
+{
+    CALL_FROM_TB0(do_dsll32);
+    RETURN();
+}
+
+void op_dsra (void)
+{
+    CALL_FROM_TB0(do_dsra);
+    RETURN();
+}
+
+void op_dsra32 (void)
+{
+    CALL_FROM_TB0(do_dsra32);
+    RETURN();
+}
+
+void op_dsrl (void)
+{
+    CALL_FROM_TB0(do_dsrl);
+    RETURN();
+}
+
+void op_dsrl32 (void)
+{
+    CALL_FROM_TB0(do_dsrl32);
+    RETURN();
+}
+
+void op_drotr (void)
+{
+    CALL_FROM_TB0(do_drotr);
+    RETURN();
+}
+
+void op_drotr32 (void)
+{
+    CALL_FROM_TB0(do_drotr32);
+    RETURN();
+}
+
+void op_dsllv (void)
+{
+    CALL_FROM_TB0(do_dsllv);
+    RETURN();
+}
+
+void op_dsrav (void)
+{
+    CALL_FROM_TB0(do_dsrav);
+    RETURN();
+}
+
+void op_dsrlv (void)
+{
+    CALL_FROM_TB0(do_dsrlv);
+    RETURN();
+}
+
+void op_drotrv (void)
+{
+    CALL_FROM_TB0(do_drotrv);
+    RETURN();
+}
+
+#else /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+void op_dsll (void)
+{
+    T0 = T0 << T1;
+    RETURN();
+}
+
+void op_dsll32 (void)
+{
+    T0 = T0 << (T1 + 32);
+    RETURN();
+}
+
+void op_dsra (void)
+{
+    T0 = (int64_t)T0 >> T1;
+    RETURN();
+}
+
+void op_dsra32 (void)
+{
+    T0 = (int64_t)T0 >> (T1 + 32);
+    RETURN();
+}
+
+void op_dsrl (void)
+{
+    T0 = T0 >> T1;
+    RETURN();
+}
+
+void op_dsrl32 (void)
+{
+    T0 = T0 >> (T1 + 32);
+    RETURN();
+}
+
+void op_drotr (void)
+{
+    target_ulong tmp;
+
+    if (T1) {
+       tmp = T0 << (0x40 - T1);
+       T0 = (T0 >> T1) | tmp;
+    } else
+       T0 = T1;
+    RETURN();
+}
+
+void op_drotr32 (void)
+{
+    target_ulong tmp;
+
+    if (T1) {
+       tmp = T0 << (0x40 - (32 + T1));
+       T0 = (T0 >> (32 + T1)) | tmp;
+    } else
+       T0 = T1;
+    RETURN();
+}
+
+void op_dsllv (void)
+{
+    T0 = T1 << (T0 & 0x3F);
+    RETURN();
+}
+
+void op_dsrav (void)
+{
+    T0 = (int64_t)T1 >> (T0 & 0x3F);
+    RETURN();
+}
+
+void op_dsrlv (void)
+{
+    T0 = T1 >> (T0 & 0x3F);
+    RETURN();
+}
+
+void op_drotrv (void)
+{
+    target_ulong tmp;
+
+    T0 &= 0x3F;
+    if (T0) {
+       tmp = T1 << (0x40 - T0);
+       T0 = (T1 >> T0) | tmp;
+    } else
+       T0 = T1;
+    RETURN();
+}
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+void op_dclo (void)
+{
+    int n;
+
+    if (T0 == ~((target_ulong)0)) {
+        T0 = 64;
+    } else {
+        for (n = 0; n < 64; n++) {
+            if (!(T0 & (1ULL << 63)))
+                break;
+            T0 = T0 << 1;
+        }
+        T0 = n;
+    }
+    RETURN();
+}
+
+void op_dclz (void)
+{
+    int n;
+
+    if (T0 == 0) {
+        T0 = 64;
+    } else {
+        for (n = 0; n < 64; n++) {
+            if (T0 & (1ULL << 63))
+                break;
+            T0 = T0 << 1;
+        }
+        T0 = n;
+    }
+    RETURN();
+}
+#endif
+
 /* 64 bits arithmetic */
-#if (HOST_LONG_BITS == 64)
-static inline uint64_t get_HILO (void)
-{
-    return ((uint64_t)env->HI << 32) | (uint64_t)env->LO;
-}
-
-static inline void set_HILO (uint64_t HILO)
-{
-    env->LO = HILO & 0xFFFFFFFF;
-    env->HI = HILO >> 32;
-}
-
-void op_mult (void)
-{
-    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    RETURN();
-}
-
-void op_multu (void)
-{
-    set_HILO((uint64_t)T0 * (uint64_t)T1);
-    RETURN();
-}
-
-void op_madd (void)
-{
-    int64_t tmp;
-
-    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    set_HILO((int64_t)get_HILO() + tmp);
-    RETURN();
-}
-
-void op_maddu (void)
-{
-    uint64_t tmp;
-
-    tmp = ((uint64_t)T0 * (uint64_t)T1);
-    set_HILO(get_HILO() + tmp);
-    RETURN();
-}
-
-void op_msub (void)
-{
-    int64_t tmp;
-
-    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    set_HILO((int64_t)get_HILO() - tmp);
-    RETURN();
-}
-
-void op_msubu (void)
-{
-    uint64_t tmp;
-
-    tmp = ((uint64_t)T0 * (uint64_t)T1);
-    set_HILO(get_HILO() - tmp);
-    RETURN();
-}
-#else
+#if TARGET_LONG_BITS > HOST_LONG_BITS
 void op_mult (void)
 {
     CALL_FROM_TB0(do_mult);
@@ -608,6 +830,81 @@ void op_msub (void)
 void op_msubu (void)
 {
     CALL_FROM_TB0(do_msubu);
+    RETURN();
+}
+
+#else /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+static inline uint64_t get_HILO (void)
+{
+    return ((uint64_t)env->HI << 32) | ((uint64_t)(uint32_t)env->LO);
+}
+
+static inline void set_HILO (uint64_t HILO)
+{
+    env->LO = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI = (int32_t)(HILO >> 32);
+}
+
+void op_mult (void)
+{
+    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+    RETURN();
+}
+
+void op_multu (void)
+{
+    set_HILO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+    RETURN();
+}
+
+void op_madd (void)
+{
+    int64_t tmp;
+
+    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+    set_HILO((int64_t)get_HILO() + tmp);
+    RETURN();
+}
+
+void op_maddu (void)
+{
+    uint64_t tmp;
+
+    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+    set_HILO(get_HILO() + tmp);
+    RETURN();
+}
+
+void op_msub (void)
+{
+    int64_t tmp;
+
+    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+    set_HILO((int64_t)get_HILO() - tmp);
+    RETURN();
+}
+
+void op_msubu (void)
+{
+    uint64_t tmp;
+
+    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+    set_HILO(get_HILO() - tmp);
+    RETURN();
+}
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+#ifdef MIPS_HAS_MIPS64
+void op_dmult (void)
+{
+    CALL_FROM_TB0(do_dmult);
+    RETURN();
+}
+
+void op_dmultu (void)
+{
+    CALL_FROM_TB0(do_dmultu);
     RETURN();
 }
 #endif
@@ -735,7 +1032,7 @@ void op_jnz_T2 (void)
 /* CP0 functions */
 void op_mfc0_index (void)
 {
-    T0 = env->CP0_index;
+    T0 = (int32_t)(env->CP0_index);
     RETURN();
 }
 
@@ -765,25 +1062,25 @@ void op_mfc0_context (void)
 
 void op_mfc0_pagemask (void)
 {
-    T0 = env->CP0_PageMask;
+    T0 = (int32_t)env->CP0_PageMask;
     RETURN();
 }
 
 void op_mfc0_pagegrain (void)
 {
-    T0 = env->CP0_PageGrain;
+    T0 = (int32_t)env->CP0_PageGrain;
     RETURN();
 }
 
 void op_mfc0_wired (void)
 {
-    T0 = env->CP0_Wired;
+    T0 = (int32_t)env->CP0_Wired;
     RETURN();
 }
 
 void op_mfc0_hwrena (void)
 {
-    T0 = env->CP0_HWREna;
+    T0 = (int32_t)env->CP0_HWREna;
     RETURN();
 }
 
@@ -807,13 +1104,13 @@ void op_mfc0_entryhi (void)
 
 void op_mfc0_compare (void)
 {
-    T0 = env->CP0_Compare;
+    T0 = (int32_t)env->CP0_Compare;
     RETURN();
 }
 
 void op_mfc0_status (void)
 {
-    T0 = env->CP0_Status;
+    T0 = (int32_t)env->CP0_Status;
     if (env->hflags & MIPS_HFLAG_UM)
         T0 |= (1 << CP0St_UM);
     if (env->hflags & MIPS_HFLAG_ERL)
@@ -825,19 +1122,19 @@ void op_mfc0_status (void)
 
 void op_mfc0_intctl (void)
 {
-    T0 = env->CP0_IntCtl;
+    T0 = (int32_t)env->CP0_IntCtl;
     RETURN();
 }
 
 void op_mfc0_srsctl (void)
 {
-    T0 = env->CP0_SRSCtl;
+    T0 = (int32_t)env->CP0_SRSCtl;
     RETURN();
 }
 
 void op_mfc0_cause (void)
 {
-    T0 = env->CP0_Cause;
+    T0 = (int32_t)env->CP0_Cause;
     RETURN();
 }
 
@@ -849,7 +1146,7 @@ void op_mfc0_epc (void)
 
 void op_mfc0_prid (void)
 {
-    T0 = env->CP0_PRid;
+    T0 = (int32_t)env->CP0_PRid;
     RETURN();
 }
 
@@ -861,25 +1158,25 @@ void op_mfc0_ebase (void)
 
 void op_mfc0_config0 (void)
 {
-    T0 = env->CP0_Config0;
+    T0 = (int32_t)env->CP0_Config0;
     RETURN();
 }
 
 void op_mfc0_config1 (void)
 {
-    T0 = env->CP0_Config1;
+    T0 = (int32_t)env->CP0_Config1;
     RETURN();
 }
 
 void op_mfc0_config2 (void)
 {
-    T0 = env->CP0_Config2;
+    T0 = (int32_t)env->CP0_Config2;
     RETURN();
 }
 
 void op_mfc0_config3 (void)
 {
-    T0 = env->CP0_Config3;
+    T0 = (int32_t)env->CP0_Config3;
     RETURN();
 }
 
@@ -891,13 +1188,13 @@ void op_mfc0_lladdr (void)
 
 void op_mfc0_watchlo0 (void)
 {
-    T0 = env->CP0_WatchLo;
+    T0 = (int32_t)env->CP0_WatchLo;
     RETURN();
 }
 
 void op_mfc0_watchhi0 (void)
 {
-    T0 = env->CP0_WatchHi;
+    T0 = (int32_t)env->CP0_WatchHi;
     RETURN();
 }
 
@@ -915,7 +1212,7 @@ void op_mfc0_framemask (void)
 
 void op_mfc0_debug (void)
 {
-    T0 = env->CP0_Debug;
+    T0 = (int32_t)env->CP0_Debug;
     if (env->hflags & MIPS_HFLAG_DM)
         T0 |= 1 << CP0DB_DM;
     RETURN();
@@ -929,31 +1226,31 @@ void op_mfc0_depc (void)
 
 void op_mfc0_performance0 (void)
 {
-    T0 = env->CP0_Performance0;
+    T0 = (int32_t)env->CP0_Performance0;
     RETURN();
 }
 
 void op_mfc0_taglo (void)
 {
-    T0 = env->CP0_TagLo;
+    T0 = (int32_t)env->CP0_TagLo;
     RETURN();
 }
 
 void op_mfc0_datalo (void)
 {
-    T0 = env->CP0_DataLo;
+    T0 = (int32_t)env->CP0_DataLo;
     RETURN();
 }
 
 void op_mfc0_taghi (void)
 {
-    T0 = env->CP0_TagHi;
+    T0 = (int32_t)env->CP0_TagHi;
     RETURN();
 }
 
 void op_mfc0_datahi (void)
 {
-    T0 = env->CP0_DataHi;
+    T0 = (int32_t)env->CP0_DataHi;
     RETURN();
 }
 
@@ -965,7 +1262,7 @@ void op_mfc0_errorepc (void)
 
 void op_mfc0_desave (void)
 {
-    T0 = env->CP0_DESAVE;
+    T0 = (int32_t)env->CP0_DESAVE;
     RETURN();
 }
 
@@ -979,7 +1276,7 @@ void op_mtc0_entrylo0 (void)
 {
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo0 = T0 & 0x3FFFFFFFUL;
+    env->CP0_EntryLo0 = T0 & (int32_t)0x3FFFFFFF;
     RETURN();
 }
 
@@ -987,7 +1284,7 @@ void op_mtc0_entrylo1 (void)
 {
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo1 = T0 & 0x3FFFFFFFUL;
+    env->CP0_EntryLo1 = T0 & (int32_t)0x3FFFFFFF;
     RETURN();
 }
 
@@ -1037,7 +1334,7 @@ void op_mtc0_entryhi (void)
 
     /* 1k pages not implemented */
     /* Ignore MIPS64 TLB for now */
-    val = T0 & 0xFFFFE0FF;
+    val = T0 & (int32_t)0xFFFFE0FF;
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
     /* If the ASID changes, flush qemu's TLB.  */
@@ -1056,7 +1353,7 @@ void op_mtc0_status (void)
 {
     uint32_t val, old, mask;
 
-    val = T0 & 0xFA78FF01;
+    val = T0 & (int32_t)0xFA78FF01;
     old = env->CP0_Status;
     if (T0 & (1 << CP0St_UM))
         env->hflags |= MIPS_HFLAG_UM;
@@ -1107,7 +1404,7 @@ void op_mtc0_cause (void)
 {
     uint32_t val, old;
 
-    val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x000C00300);
+    val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x00C00300);
     old = env->CP0_Cause;
     env->CP0_Cause = val;
 #if 0
@@ -1134,7 +1431,7 @@ void op_mtc0_ebase (void)
 {
     /* vectored interrupts not implemented */
     /* Multi-CPU not implemented */
-    env->CP0_EBase = 0x80000000 | (T0 & 0x3FFFF000);
+    env->CP0_EBase = (int32_t)0x80000000 | (T0 & 0x3FFFF000);
     RETURN();
 }
 
@@ -1204,7 +1501,7 @@ void op_mtc0_performance0 (void)
 
 void op_mtc0_taglo (void)
 {
-    env->CP0_TagLo = T0 & 0xFFFFFCF6;
+    env->CP0_TagLo = T0 & (int32_t)0xFFFFFCF6;
     RETURN();
 }
 
@@ -1787,7 +2084,7 @@ void op_ext(void)
     unsigned int pos = PARAM1;
     unsigned int size = PARAM2;
 
-    T0 = (T1 >> pos) & ((1 << size) - 1);
+    T0 = ((uint32_t)T1 >> pos) & ((1 << size) - 1);
     RETURN();
 }
 
@@ -1797,13 +2094,33 @@ void op_ins(void)
     unsigned int size = PARAM2;
     target_ulong mask = ((1 << size) - 1) << pos;
 
-    T0 = (T2 & ~mask) | ((T1 << pos) & mask);
+    T0 = (T2 & ~mask) | (((uint32_t)T1 << pos) & mask);
     RETURN();
 }
 
 void op_wsbh(void)
 {
     T0 = ((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF);
+    RETURN();
+}
+
+#ifdef MIPS_HAS_MIPS64
+void op_dext(void)
+{
+    unsigned int pos = PARAM1;
+    unsigned int size = PARAM2;
+
+    T0 = (T1 >> pos) & ((1 << size) - 1);
+    RETURN();
+}
+
+void op_dins(void)
+{
+    unsigned int pos = PARAM1;
+    unsigned int size = PARAM2;
+    target_ulong mask = ((1 << size) - 1) << pos;
+
+    T0 = (T2 & ~mask) | ((T1 << pos) & mask);
     RETURN();
 }
 
@@ -1818,6 +2135,7 @@ void op_dshd(void)
     T0 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
     RETURN();
 }
+#endif
 
 void op_seb(void)
 {

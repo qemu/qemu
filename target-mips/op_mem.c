@@ -75,6 +75,7 @@ void glue(op_sw, MEMSUFFIX) (void)
 
 /* "half" load and stores.  We must do the memory access inline,
    or fault handling won't work.  */
+/* XXX: This is broken, CP0_BADVADDR has the wrong (aligned) value. */
 void glue(op_lwl, MEMSUFFIX) (void)
 {
     uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
@@ -124,6 +125,72 @@ void glue(op_sc, MEMSUFFIX) (void)
     }
     RETURN();
 }
+
+#ifdef MIPS_HAS_MIPS64
+void glue(op_ld, MEMSUFFIX) (void)
+{
+    T0 = glue(ldq, MEMSUFFIX)(T0);
+    RETURN();
+}
+
+void glue(op_sd, MEMSUFFIX) (void)
+{
+    glue(stq, MEMSUFFIX)(T0, T1);
+    RETURN();
+}
+
+/* "half" load and stores.  We must do the memory access inline,
+   or fault handling won't work.  */
+void glue(op_ldl, MEMSUFFIX) (void)
+{
+    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
+    CALL_FROM_TB1(glue(do_ldl, MEMSUFFIX), tmp);
+    RETURN();
+}
+
+void glue(op_ldr, MEMSUFFIX) (void)
+{
+    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
+    CALL_FROM_TB1(glue(do_ldr, MEMSUFFIX), tmp);
+    RETURN();
+}
+
+void glue(op_sdl, MEMSUFFIX) (void)
+{
+    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
+    tmp = CALL_FROM_TB1(glue(do_sdl, MEMSUFFIX), tmp);
+    glue(stq, MEMSUFFIX)(T0 & ~7, tmp);
+    RETURN();
+}
+
+void glue(op_sdr, MEMSUFFIX) (void)
+{
+    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
+    tmp = CALL_FROM_TB1(glue(do_sdr, MEMSUFFIX), tmp);
+    glue(stq, MEMSUFFIX)(T0 & ~7, tmp);
+    RETURN();
+}
+
+void glue(op_lld, MEMSUFFIX) (void)
+{
+    T1 = T0;
+    T0 = glue(ldq, MEMSUFFIX)(T0);
+    env->CP0_LLAddr = T1;
+    RETURN();
+}
+
+void glue(op_scd, MEMSUFFIX) (void)
+{
+    CALL_FROM_TB0(dump_sc);
+    if (T0 == env->CP0_LLAddr) {
+        glue(stq, MEMSUFFIX)(T0, T1);
+        T0 = 1;
+    } else {
+        T0 = 0;
+    }
+    RETURN();
+}
+#endif /* MIPS_HAS_MIPS64 */
 
 #ifdef MIPS_USES_FPU
 void glue(op_lwc1, MEMSUFFIX) (void)

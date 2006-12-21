@@ -1,3 +1,32 @@
+2006-12-21 17:50  ths
+
+	* hw/ppc_prep.c: Remove unused variable.
+
+2006-12-21 17:50  ths
+
+	* vnchextile.h: Silence a spurious gcc warning.
+
+2006-12-21 17:49  ths
+
+	* dyngen.c: Fix compiler warnings, add signed versions of some swab
+	  functions.
+
+2006-12-21 14:48  ths
+
+	* hw/mips_r4k.c, target-mips/cpu.h, target-mips/helper.c,
+	  target-mips/op.c, target-mips/op_helper.c,
+	  target-mips/translate.c: Scrap SIGN_EXTEND32.
+
+2006-12-21 02:19  ths
+
+	* hw/mips_r4k.c, target-mips/cpu.h, target-mips/exec.h,
+	  target-mips/fop_template.c, target-mips/helper.c,
+	  target-mips/mips-defs.h, target-mips/op.c,
+	  target-mips/op_helper.c, target-mips/op_helper_mem.c,
+	  target-mips/op_mem.c, target-mips/op_template.c,
+	  target-mips/translate.c: Preliminiary MIPS64 support, disabled by
+	  default due to performance impact.
+
 2006-12-19 04:31  pbrook
 
 	* configure: Look for gcc3 (Anthony Liguori).
