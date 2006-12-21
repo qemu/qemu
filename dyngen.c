@@ -127,10 +127,12 @@
 typedef int32_t host_long;
 typedef uint32_t host_ulong;
 #define swabls(x) swab32s(x)
+#define swablss(x) swab32ss(x)
 #else
 typedef int64_t host_long;
 typedef uint64_t host_ulong;
 #define swabls(x) swab64s(x)
+#define swablss(x) swab64ss(x)
 #endif
 
 #ifdef ELF_USES_RELOCA
@@ -284,7 +286,17 @@ void swab32s(uint32_t *p)
     *p = bswap32(*p);
 }
 
+void swab32ss(int32_t *p)
+{
+    *p = bswap32(*p);
+}
+
 void swab64s(uint64_t *p)
+{
+    *p = bswap64(*p);
+}
+
+void swab64ss(int64_t *p)
 {
     *p = bswap64(*p);
 }
@@ -397,7 +409,7 @@ void elf_swap_rel(ELF_RELOC *rel)
     swabls(&rel->r_offset);
     swabls(&rel->r_info);
 #ifdef ELF_USES_RELOCA
-    swabls(&rel->r_addend);
+    swablss(&rel->r_addend);
 #endif
 }
 
@@ -505,7 +517,7 @@ int load_object(const char *filename)
     }
 
     sec = &shdr[ehdr.e_shstrndx];
-    shstr = sdata[ehdr.e_shstrndx];
+    shstr = (char *)sdata[ehdr.e_shstrndx];
 
     /* swap relocations */
     for(i = 0; i < ehdr.e_shnum; i++) {
@@ -541,7 +553,7 @@ int load_object(const char *filename)
     strtab_sec = &shdr[symtab_sec->sh_link];
 
     symtab = (ElfW(Sym) *)sdata[symtab_sec - shdr];
-    strtab = sdata[symtab_sec->sh_link];
+    strtab = (char *)sdata[symtab_sec->sh_link];
     
     nb_syms = symtab_sec->sh_size / sizeof(ElfW(Sym));
     if (do_swap) {
