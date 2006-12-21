@@ -6159,7 +6159,7 @@ void register_machines(void)
 #if defined(TARGET_I386)
     qemu_register_machine(&pc_machine);
     qemu_register_machine(&isapc_machine);
-    qemu_register_machine(&scu2_machine);
+    //~ qemu_register_machine(&scu2_machine);
 #elif defined(TARGET_PPC)
     qemu_register_machine(&heathrow_machine);
     qemu_register_machine(&core99_machine);
@@ -6330,8 +6330,6 @@ void Init_qemu(void)
   rb_define_method();
 #endif
 }
-#else
-#error ohne ruby
 #endif
 
 #if defined(CONFIG_DLL)

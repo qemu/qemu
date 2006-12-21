@@ -552,6 +552,10 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd)
         pci_ne2000_init(bus, nd);
     } else if (strcmp(nd->model, "dp83816") == 0) {
         pci_dp83816_init(bus, nd);
+    } else if (strcmp(nd->model, "i82551") == 0) {
+      pci_i82551_init(bus, nd);
+    } else if (strcmp(nd->model, "i82557b") == 0) {
+      pci_i82557b_init(bus, nd);
     } else if (strcmp(nd->model, "i82559") == 0) {
         pci_eepro100_init(bus, nd);
     } else if (strcmp(nd->model, "rtl8139") == 0) {

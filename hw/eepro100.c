@@ -87,8 +87,6 @@
 #define i82559ER        0x82559e
 #define i82562          0x82562
 
-#define DEVICE          i82559ER
-
 #define EEPROM_SIZE     64
 
 #define PCI_MEM_SIZE            (4 * KiB)
@@ -259,6 +257,7 @@ typedef struct {
     VLANClientState *vc;
 #endif
     uint8_t scb_stat;           /* SCB stat/ack byte */
+    uint8_t int_stat;           /* PCI interrupt status */
     uint32_t region[3];         /* PCI region addresses */
     uint8_t macaddr[6];
     uint32_t statcounter[19];
@@ -354,23 +353,45 @@ enum scb_stat_ack {
     stat_ack_tx = (stat_ack_cu_idle | stat_ack_cu_cmd_done),
 };
 
+static void disable_interrupt(EEPRO100State * s)
+{
+    if (s->int_stat) {
+        logout("interrupt disabled\n");
+        pci_set_irq(s->pci_dev, 0, 0);
+        s->int_stat = 0;
+    }
+}
+
+static void enable_interrupt(EEPRO100State * s)
+{
+    if (!s->int_stat) {
+        logout("interrupt enabled\n");
+        pci_set_irq(s->pci_dev, 0, 1);
+        s->int_stat = 1;
+    }
+}
+
 static void eepro100_acknowledge(EEPRO100State * s)
 {
     s->scb_stat &= ~s->mem[SCBAck];
     s->mem[SCBAck] = s->scb_stat;
     if (s->scb_stat == 0) {
-        pci_set_irq(s->pci_dev, 0, 0);
+        disable_interrupt(s);
     }
 }
 
-static void eepro100_interrupt(EEPRO100State * s, uint8_t mask, uint8_t stat)
+static void eepro100_interrupt(EEPRO100State * s, uint8_t stat)
 {
+    uint8_t mask = ~s->mem[SCBIntmask];
     s->mem[SCBAck] |= stat;
-    s->scb_stat = s->mem[SCBAck];
-    if (!(s->mem[SCBIntmask] & (mask | 0x01))) {
-        /* SCB maske and SCB Bit M do not disable interrupt. */
-        logout("interrupt handling\n");
-        pci_set_irq(s->pci_dev, 0, 1);
+    stat = s->scb_stat = s->mem[SCBAck];
+    stat &= (mask | 0x0f);
+    //~ stat &= (~s->mem[SCBIntmask] | 0x0xf);
+    if (stat && (mask & 0x01)) {
+        /* SCB mask and SCB Bit M do not disable interrupt. */
+        enable_interrupt(s);
+    } else if (s->int_stat) {
+        disable_interrupt(s);
     }
 }
 
@@ -378,44 +399,46 @@ static void eepro100_cx_interrupt(EEPRO100State * s)
 {
     /* CU completed action command. */
     /* Transmit not ok (82557 only, not in emulation). */
-    eepro100_interrupt(s, 0x80, 0x80);
+    eepro100_interrupt(s, 0x80);
 }
 
 static void eepro100_cna_interrupt(EEPRO100State * s)
 {
     /* CU left the active state. */
-    eepro100_interrupt(s, 0x20, 0x20);
+    eepro100_interrupt(s, 0x20);
 }
 
 static void eepro100_fr_interrupt(EEPRO100State * s)
 {
     /* RU received a complete frame. */
-    eepro100_interrupt(s, 0x40, 0x40);
+    eepro100_interrupt(s, 0x40);
 }
 
+#if 0
 static void eepro100_rnr_interrupt(EEPRO100State * s)
 {
     /* RU is not ready. */
-    eepro100_interrupt(s, 0x10, 0x10);
+    eepro100_interrupt(s, 0x10);
 }
+#endif
 
 static void eepro100_mdi_interrupt(EEPRO100State * s)
 {
     /* MDI completed read or write cycle. */
-    eepro100_interrupt(s, 0x00, 0x08);
+    eepro100_interrupt(s, 0x08);
 }
 
-#if 0
 static void eepro100_swi_interrupt(EEPRO100State * s)
 {
     /* Software has requested an interrupt. */
-    eepro100_interrupt(s, 0x00, 0x04);
+    eepro100_interrupt(s, 0x04);
 }
 
+#if 0
 static void eepro100_fcp_interrupt(EEPRO100State * s)
 {
     /* Flow control pause interrupt (82558 and later). */
-    eepro100_interrupt(s, 0x04, 0x01);
+    eepro100_interrupt(s, 0x01);
 }
 #endif
 
@@ -503,6 +526,8 @@ static void pci_reset(EEPRO100State * s)
         PCI_CONFIG_16(PCI_STATUS, 0x2810);
         PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
         break;
+    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1029);
+    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1030);       /* 82559 InBusiness 10/100 */
     default:
         logout("Device %X is undefined!\n", device);
     }
@@ -549,7 +574,7 @@ static const char *reg[PCI_IO_SIZE / 4] = {
     "Command/Status",
     "General Pointer",
     "Port",
-    "EPROM/Flash Control",
+    "EEPROM/Flash Control",
     "MDI Control",
     "Receive DMA Byte Count",
     "Flow control register",
@@ -697,7 +722,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         s->cu_offset = le32_to_cpu(tx.link);
         switch (cmd) {
         case CmdNOp:
-            missing("nop");
+            /* Do nothing. */
             break;
         case CmdIASetup:
             cpu_physical_memory_read(cb_address + 8, &s->macaddr[0], 6);
@@ -707,7 +732,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             cpu_physical_memory_read(cb_address + 8, &s->configuration[0],
                                      sizeof(s->configuration));
             logout("configuration: %s\n", nic_dump(&s->configuration[0], 16));
-            /* Write new status (success). */
+            break;
         case CmdMulticastList:
             //~ missing("multicast list");
             break;
@@ -805,11 +830,11 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             eepro100_cx_interrupt(s);
         }
         if (bit_el) {
-            /* CPU becomes idle. */
+            /* CU becomes idle. */
             set_cu_state(s, cu_idle);
             eepro100_cna_interrupt(s);
         } else if (bit_s) {
-            /* CPU becomes suspended. */
+            /* CU becomes suspended. */
             set_cu_state(s, cu_suspended);
             eepro100_cna_interrupt(s);
         } else {
@@ -1170,7 +1195,7 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
     case SCBeeprom:
         val = eepro100_read_eeprom(s);
         break;
-    case 0x1b:                 /* power management driver register */
+    case 0x1b:                 /* PMDR (power management driver register) */
         val = 0;
         logout("addr=%s val=0x%02x\n", regname(addr), val);
         break;
@@ -1258,6 +1283,10 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         eepro100_write_command(s, val);
         break;
     case SCBIntmask:
+        if (val & BIT(1)) {
+            eepro100_swi_interrupt(s);
+        }
+        eepro100_interrupt(s, 0);
         break;
     case SCBPort + 3:
         logout("addr=%s val=0x%02x\n", regname(addr), val);
@@ -1286,6 +1315,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
         break;
     case SCBCmd:
         eepro100_write_command(s, val);
+        eepro100_write1(s, SCBIntmask, val >> 8);
         break;
     case SCBeeprom:
         eepro100_write_eeprom(s->eeprom, val);
@@ -1717,5 +1747,11 @@ void pci_i82551_init(PCIBus * bus, NICInfo * nd)
     nic_init(bus, nd, "i82551", i82551);
     //~ uint8_t *pci_conf = d->dev.config;
 }
+
+void pci_i82557b_init(PCIBus * bus, NICInfo * nd)
+{
+    nic_init(bus, nd, "i82557b", i82557B);
+}
+
 
 /* eof */
