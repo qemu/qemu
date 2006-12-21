@@ -51,6 +51,9 @@
 #include <linux/cdrom.h>
 #include <linux/fd.h>
 #endif
+#ifdef __FreeBSD__
+#include <sys/disk.h>
+#endif
 
 //#define DEBUG_FLOPPY
 
