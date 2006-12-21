@@ -68,17 +68,19 @@ ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
 
+ifndef CONFIG_WIN32
 ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux),)
 CONFIG_RUBY=yes
 DEFINES += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
 ifeq ($(TARGET_ARCH), i386)
-CONFIG_SCU2=yes
-DEFINES += -DLOCAL_INIT=scu2_init
+# CONFIG_SCU2=yes
+# DEFINES += -DLOCAL_INIT=scu2_init
 endif
 LIBS += -lruby1.8
 QEMU_RUBY := qemu.so
 PROGS += $(QEMU_RUBY)
 endif
+endif # CONFIG_WIN32
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS:=$(CFLAGS) -fomit-frame-pointer
