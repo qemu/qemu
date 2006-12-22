@@ -867,7 +867,7 @@ void sdl_display_init(DisplayState *ds, int full_screen);
 void cocoa_display_init(DisplayState *ds, int full_screen);
 
 /* vnc.c */
-void vnc_display_init(DisplayState *ds, int display);
+void vnc_display_init(DisplayState *ds, const char *display);
 
 /* ide.c */
 #define MAX_DISKS 4

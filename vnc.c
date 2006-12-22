@@ -1101,10 +1101,18 @@ static void vnc_listen_read(void *opaque)
     }
 }
 
-void vnc_display_init(DisplayState *ds, int display)
+extern int parse_host_port(struct sockaddr_in *saddr, const char *str);
+
+void vnc_display_init(DisplayState *ds, const char *arg)
 {
-    struct sockaddr_in addr;
+    struct sockaddr *addr;
+    struct sockaddr_in iaddr;
+#ifndef _WIN32
+    struct sockaddr_un uaddr;
+#endif
     int reuse_addr, ret;
+    socklen_t addrlen;
+    const char *p;
     VncState *vs;
 
     vs = qemu_mallocz(sizeof(VncState));
@@ -1126,25 +1134,60 @@ void vnc_display_init(DisplayState *ds, int display)
     if (!vs->kbd_layout)
 	exit(1);
 
-    vs->lsock = socket(PF_INET, SOCK_STREAM, 0);
-    if (vs->lsock == -1) {
-	fprintf(stderr, "Could not create socket\n");
-	exit(1);
+    vs->ds->data = NULL;
+    vs->ds->dpy_update = vnc_dpy_update;
+    vs->ds->dpy_resize = vnc_dpy_resize;
+    vs->ds->dpy_refresh = vnc_dpy_refresh;
+
+    memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
+
+    vnc_dpy_resize(vs->ds, 640, 400);
+
+#ifndef _WIN32
+    if (strstart(arg, "unix:", &p)) {
+	addr = (struct sockaddr *)&uaddr;
+	addrlen = sizeof(uaddr);
+
+	vs->lsock = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (vs->lsock == -1) {
+	    fprintf(stderr, "Could not create socket\n");
+	    exit(1);
+	}
+
+	uaddr.sun_family = AF_UNIX;
+	memset(uaddr.sun_path, 0, 108);
+	snprintf(uaddr.sun_path, 108, "%s", p);
+
+	unlink(uaddr.sun_path);
+    } else
+#endif
+    {
+	addr = (struct sockaddr *)&iaddr;
+	addrlen = sizeof(iaddr);
+
+	vs->lsock = socket(PF_INET, SOCK_STREAM, 0);
+	if (vs->lsock == -1) {
+	    fprintf(stderr, "Could not create socket\n");
+	    exit(1);
+	}
+
+	if (parse_host_port(&iaddr, arg) < 0) {
+	    fprintf(stderr, "Could not parse VNC address\n");
+	    exit(1);
+	}
+	    
+	iaddr.sin_port = htons(ntohs(iaddr.sin_port) + 5900);
+
+	reuse_addr = 1;
+	ret = setsockopt(vs->lsock, SOL_SOCKET, SO_REUSEADDR,
+			 (const char *)&reuse_addr, sizeof(reuse_addr));
+	if (ret == -1) {
+	    fprintf(stderr, "setsockopt() failed\n");
+	    exit(1);
+	}
     }
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(5900 + display);
-    memset(&addr.sin_addr, 0, sizeof(addr.sin_addr));
-
-    reuse_addr = 1;
-    ret = setsockopt(vs->lsock, SOL_SOCKET, SO_REUSEADDR,
-		     (const char *)&reuse_addr, sizeof(reuse_addr));
-    if (ret == -1) {
-	fprintf(stderr, "setsockopt() failed\n");
-	exit(1);
-    }
-
-    if (bind(vs->lsock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+    if (bind(vs->lsock, addr, addrlen) == -1) {
 	fprintf(stderr, "bind() failed\n");
 	exit(1);
     }
@@ -1158,13 +1201,4 @@ void vnc_display_init(DisplayState *ds, int display)
     if (ret == -1) {
 	exit(1);
     }
-
-    vs->ds->data = NULL;
-    vs->ds->dpy_update = vnc_dpy_update;
-    vs->ds->dpy_resize = vnc_dpy_resize;
-    vs->ds->dpy_refresh = vnc_dpy_refresh;
-
-    memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
-
-    vnc_dpy_resize(vs->ds, 640, 400);
 }

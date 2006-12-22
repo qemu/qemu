@@ -152,7 +152,7 @@ int win2k_install_hack = 0;
 int usb_enabled = 0;
 static VLANState *first_vlan;
 int smp_cpus = 1;
-int vnc_display = -1;
+const char *vnc_display;
 #if defined(TARGET_SPARC)
 #define MAX_CPUS 16
 #elif defined(TARGET_I386)
@@ -6818,11 +6818,7 @@ int main(int argc, char **argv)
                 }
                 break;
 	    case QEMU_OPTION_vnc:
-		vnc_display = atoi(optarg);
-		if (vnc_display < 0) {
-		    fprintf(stderr, "Invalid VNC display\n");
-		    exit(1);
-		}
+		vnc_display = optarg;
 		break;
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
@@ -6946,7 +6942,7 @@ int main(int argc, char **argv)
     /* terminal init */
     if (nographic) {
         dumb_display_init(ds);
-    } else if (vnc_display != -1) {
+    } else if (vnc_display != NULL) {
 	vnc_display_init(ds, vnc_display);
     } else {
 #if defined(CONFIG_SDL)
