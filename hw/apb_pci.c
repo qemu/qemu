@@ -251,8 +251,8 @@ PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
     d->config[0x0E] = 0x00; // header_type
 
     /* APB secondary busses */
-    secondary = pci_bridge_init(s->bus, 8, 0x108e5000, pci_apb_map_irq);
-    pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq);
+    secondary = pci_bridge_init(s->bus, 8, 0x108e5000, pci_apb_map_irq, "Advanced PCI Bus secondary bridge 1");
+    pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq, "Advanced PCI Bus secondary bridge 2");
     return secondary;
 }
 
