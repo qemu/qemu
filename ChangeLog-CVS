@@ -1,3 +1,39 @@
+2006-12-22 20:25  ths
+
+	* vl.c: Support for unidirectional pipes, by Ed Swierk.
+
+2006-12-22 18:29  ths
+
+	* vl.c: Fix -cdrom breakage.
+
+2006-12-22 17:34  ths
+
+	* qemu-doc.texi, vl.c, vl.h, hw/pc.c: SCSI emulation improvements,
+	  by Chuck Brazie.
+
+2006-12-22 15:19  ths
+
+	* block-raw.c: Build fix for AIO (-dummy) on Windows, by Stefan
+	  Weil.
+
+2006-12-22 15:11  ths
+
+	* block.c, monitor.c, qemu-img.c, vl.h: Escape filname printout
+	  properly, by Anthony Liguori and Julian Seward.
+
+2006-12-22 03:14  ths
+
+	* hw/ide.c: Fix CDROM change, by Anthony Liguori.
+
+2006-12-22 03:11  ths
+
+	* qemu-doc.texi, vl.c: Daemonize option, by Anthony Liguori.
+
+2006-12-22 03:09  ths
+
+	* qemu-doc.texi, vl.c, vl.h, vnc.c: Unix domain socket support for
+	  VNC, by Anthony Liguori.
+
 2006-12-21 20:46  ths
 
 	* qemu-doc.texi, qemu_socket.h, vl.c: Run monitor over unix domain

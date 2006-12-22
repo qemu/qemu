@@ -688,23 +688,21 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     if (i440fx_state) {
         i440fx_init_memory_mappings(i440fx_state);
     }
-#if 0
-    /* ??? Need to figure out some way for the user to
-       specify SCSI devices.  */
     if (pci_enabled) {
         void *scsi;
-        BlockDriverState *bdrv;
 
-        scsi = lsi_scsi_init(pci_bus, -1);
-        bdrv = bdrv_new("scsidisk");
-        bdrv_open(bdrv, "scsi_disk.img", 0);
-        lsi_scsi_attach(scsi, bdrv, -1);
-        bdrv = bdrv_new("scsicd");
-        bdrv_open(bdrv, "scsi_cd.iso", 0);
-        bdrv_set_type_hint(bdrv, BDRV_TYPE_CDROM);
-        lsi_scsi_attach(scsi, bdrv, -1);
+        if (scsi_hba_lsi > 0) {
+            if (!(scsi = lsi_scsi_init(pci_bus, -1))) {
+                 exit(1);
+            }
+            for(i = 0; i < MAX_SCSI_DISKS; i++) {
+                if (scsi_disks_info[i].adapter == SCSI_LSI_53C895A &&
+                    scsi_disks_info[i].device_type != SCSI_NONE) {
+                    lsi_scsi_attach(scsi, bs_scsi_table[i], scsi_disks_info[i].id);
+                }
+            }
+        }
     }
-#endif
 }
 
 static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,

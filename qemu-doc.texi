@@ -223,10 +223,16 @@ using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 Boot on floppy (a), hard disk (c) or CD-ROM (d). Hard disk boot is
 the default.
 
+@item -disk ide,img=file[,hdx=a..dd][,type=disk|cdrom]
+Use @var{file} as the IDE disk/CD-ROM image. The defaults are: hdx=a,type=disk
+
+@item -disk scsi,img=file[,sdx=a..g][,type=disk|cdrom][,id=n]
+Use @var{file} as the SCSI disk/CD-ROM image. The defaults are: sdx=a,type=disk,id='auto assign'
+
 @item -snapshot
 Write to temporary files instead of disk image files. In this case,
 the raw disk image you use is not written back. You can however force
-the write back by pressing @key{C-a s} (@pxref{disk_images}). 
+the write back by pressing @key{C-a s} (@pxref{disk_images}).
 
 @item -no-fd-bootchk
 Disable boot signature checking for floppy disks in Bochs BIOS. It may
@@ -247,14 +253,21 @@ command line application. The emulated serial port is redirected on
 the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 
-@item -vnc d
+@item -vnc display
 
 Normally, QEMU uses SDL to display the VGA output.  With this option,
-you can have QEMU listen on VNC display @var{d} and redirect the VGA
+you can have QEMU listen on VNC display @var{display} and redirect the VGA
 display over the VNC session.  It is very useful to enable the usb
 tablet device when using this option (option @option{-usbdevice
 tablet}). When using the VNC display, you must use the @option{-k}
-option to set the keyboard layout.
+option to set the keyboard layout if you are not using en-us.
+
+@var{display} may be in the form @var{interface:d}, in which case connections
+will only be allowed from @var{interface} on display @var{d}. Optionally,
+@var{interface} can be omitted.  @var{display} can also be in the form
+@var{unix:path} where @var{path} is the location of a unix socket to listen for
+connections on.
+
 
 @item -k language
 
@@ -301,6 +314,12 @@ Start in full screen.
 @item -pidfile file
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
+
+@item -daemonize
+Daemonize the QEMU process after initialization.  QEMU will not detach from
+standard IO until it is ready to receive connections on any of its devices.
+This option is a useful way for external programs to launch QEMU without having
+to cope with initialization race conditions.
 
 @item -win2k-hack
 Use it when installing Windows 2000 to avoid a disk full bug. After

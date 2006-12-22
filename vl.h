@@ -871,7 +871,7 @@ void sdl_display_init(DisplayState *ds, int full_screen);
 void cocoa_display_init(DisplayState *ds, int full_screen);
 
 /* vnc.c */
-void vnc_display_init(DisplayState *ds, int display);
+void vnc_display_init(DisplayState *ds, const char *display);
 
 /* ide.c */
 #define MAX_DISKS 4
@@ -1246,9 +1246,30 @@ int scsi_write_data(SCSIDevice *s, uint32_t tag);
 void scsi_cancel_io(SCSIDevice *s, uint32_t tag);
 uint8_t *scsi_get_buf(SCSIDevice *s, uint32_t tag);
 
+enum scsi_host_adapters {
+    SCSI_LSI_53C895A
+};
+enum scsi_devices {
+    SCSI_CDROM,
+    SCSI_DISK,
+    SCSI_NONE
+};
+typedef enum scsi_host_adapters scsi_host_adapters;
+typedef enum scsi_devices scsi_devices;
+typedef struct SCSIDiskInfo {
+    scsi_host_adapters adapter;
+    int id;
+    scsi_devices device_type;
+} SCSIDiskInfo;
+
+#define MAX_SCSI_DISKS 7
+extern BlockDriverState *bs_scsi_table[MAX_SCSI_DISKS];
+extern SCSIDiskInfo scsi_disks_info[MAX_SCSI_DISKS];
+
 /* lsi53c895a.c */
 void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *lsi_scsi_init(PCIBus *bus, int devfn);
+extern int scsi_hba_lsi; // Count of scsi disks/cdrom using this lsi adapter
 
 /* integratorcp.c */
 extern QEMUMachine integratorcp926_machine;
@@ -1333,6 +1354,7 @@ void monitor_init(CharDriverState *hd, int show_banner);
 void term_puts(const char *str);
 void term_vprintf(const char *fmt, va_list ap);
 void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+void term_print_filename(const char *filename);
 void term_flush(void);
 void term_print_help(void);
 void monitor_readline(const char *prompt, int is_password,
