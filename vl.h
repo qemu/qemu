@@ -1318,6 +1318,7 @@ void monitor_init(CharDriverState *hd, int show_banner);
 void term_puts(const char *str);
 void term_vprintf(const char *fmt, va_list ap);
 void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+void term_print_filename(const char *filename);
 void term_flush(void);
 void term_print_help(void);
 void monitor_readline(const char *prompt, int is_password,

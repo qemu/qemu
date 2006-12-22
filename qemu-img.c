@@ -113,6 +113,11 @@ void term_printf(const char *fmt, ...)
     va_end(ap);
 }
 
+void term_print_filename(const char *filename)
+{
+    term_printf(filename);
+}
+
 void __attribute__((noreturn)) error(const char *fmt, ...) 
 {
     va_list ap;

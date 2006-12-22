@@ -868,9 +868,12 @@ void bdrv_info(void)
             term_printf(" locked=%d", bs->locked);
         }
         if (bs->drv) {
-            term_printf(" file=%s", bs->filename);
-            if (bs->backing_file[0] != '\0')
-                term_printf(" backing_file=%s", bs->backing_file);
+            term_printf(" file=");
+	    term_print_filename(bs->filename);
+            if (bs->backing_file[0] != '\0') {
+                term_printf(" backing_file=");
+		term_print_filename(bs->backing_file);
+	    }
             term_printf(" ro=%d", bs->read_only);
             term_printf(" drv=%s", bs->drv->format_name);
             if (bs->encrypted)

@@ -106,6 +106,33 @@ void term_printf(const char *fmt, ...)
     va_end(ap);
 }
 
+void term_print_filename(const char *filename)
+{
+    int i;
+
+    for (i = 0; filename[i]; i++) {
+	switch (filename[i]) {
+	case ' ':
+	case '"':
+	case '\\':
+	    term_printf("\\%c", filename[i]);
+	    break;
+	case '\t':
+	    term_printf("\\t");
+	    break;
+	case '\r':
+	    term_printf("\\r");
+	    break;
+	case '\n':
+	    term_printf("\\n");
+	    break;
+	default:
+	    term_printf("%c", filename[i]);
+	    break;
+	}
+    }
+}
+
 static int monitor_fprintf(FILE *stream, const char *fmt, ...)
 {
     va_list ap;
