@@ -2223,7 +2223,9 @@ static void udp_chr_add_read_handler(CharDriverState *chr,
 }
 
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
-int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
+#ifndef _WIN32
+static int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
+#endif
 int parse_host_src_port(struct sockaddr_in *haddr,
                         struct sockaddr_in *saddr,
                         const char *str);
@@ -2818,7 +2820,8 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     return 0;
 }
 
-int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
+#ifndef _WIN32
+static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 {
     const char *p;
     int len;
@@ -2835,6 +2838,7 @@ int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 
     return 0;
 }
+#endif
 
 /* find or alloc a new VLAN */
 VLANState *qemu_find_vlan(int id)
