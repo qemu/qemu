@@ -163,6 +163,7 @@ const char *vnc_display;
 int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
+int daemonize = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -6018,6 +6019,9 @@ void help(void)
            "-no-reboot      exit instead of rebooting\n"
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
+#ifndef _WIN32
+	   "-daemonize      daemonize QEMU after initializing\n"
+#endif
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -6098,6 +6102,7 @@ enum {
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_no_reboot,
+    QEMU_OPTION_daemonize,
 };
 
 typedef struct QEMUOption {
@@ -6178,6 +6183,7 @@ const QEMUOption qemu_options[] = {
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
+    { "daemonize", 0, QEMU_OPTION_daemonize },
     { NULL },
 };
 
@@ -6408,6 +6414,7 @@ int main(int argc, char **argv)
     QEMUMachine *machine;
     char usb_devices[MAX_USB_CMDLINE][128];
     int usb_devices_index;
+    int fds[2];
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -6826,9 +6833,60 @@ int main(int argc, char **argv)
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
                 break;
+	    case QEMU_OPTION_daemonize:
+		daemonize = 1;
+		break;
             }
         }
     }
+
+#ifndef _WIN32
+    if (daemonize && !nographic && vnc_display == NULL) {
+	fprintf(stderr, "Can only daemonize if using -nographic or -vnc\n");
+	daemonize = 0;
+    }
+
+    if (daemonize) {
+	pid_t pid;
+
+	if (pipe(fds) == -1)
+	    exit(1);
+
+	pid = fork();
+	if (pid > 0) {
+	    uint8_t status;
+	    ssize_t len;
+
+	    close(fds[1]);
+
+	again:
+	    len = read(fds[0], &status, 1);
+	    if (len == -1 && (errno == EINTR))
+		goto again;
+	    
+	    if (len != 1 || status != 0)
+		exit(1);
+	    else
+		exit(0);
+	} else if (pid < 0)
+	    exit(1);
+
+	setsid();
+
+	pid = fork();
+	if (pid > 0)
+	    exit(0);
+	else if (pid < 0)
+	    exit(1);
+
+	umask(027);
+	chdir("/");
+
+        signal(SIGTSTP, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+    }
+#endif
 
 #ifdef USE_KQEMU
     if (smp_cpus > 1)
@@ -7026,6 +7084,30 @@ int main(int argc, char **argv)
         if (start_emulation) {
             vm_start();
         }
+    }
+
+    if (daemonize) {
+	uint8_t status = 0;
+	ssize_t len;
+	int fd;
+
+    again1:
+	len = write(fds[1], &status, 1);
+	if (len == -1 && (errno == EINTR))
+	    goto again1;
+
+	if (len != 1)
+	    exit(1);
+
+	fd = open("/dev/null", O_RDWR);
+	if (fd == -1)
+	    exit(1);
+
+	dup2(fd, 0);
+	dup2(fd, 1);
+	dup2(fd, 2);
+
+	close(fd);
     }
 
     main_loop();

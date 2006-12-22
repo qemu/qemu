@@ -309,6 +309,12 @@ Start in full screen.
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
 
+@item -daemonize
+Daemonize the QEMU process after initialization.  QEMU will not detach from
+standard IO until it is ready to receive connections on any of its devices.
+This option is a useful way for external programs to launch QEMU without having
+to cope with initialization race conditions.
+
 @item -win2k-hack
 Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
