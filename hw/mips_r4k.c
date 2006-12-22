@@ -23,9 +23,6 @@
 
 #define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
-//~ #define MIPS_CPS (100 * 1000 * 1000)
-#define MIPS_CPS (150 * 1000 * 1000 / 2)
-
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
