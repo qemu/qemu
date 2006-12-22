@@ -281,7 +281,7 @@ int register_ioport_write(int start, int length, int size,
     for(i = start; i < start + length; i += size) {
         ioport_write_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            hw_error("register_ioport_read: invalid opaque");
+            hw_error("register_ioport_write: invalid opaque");
         ioport_opaque[i] = opaque;
     }
     return 0;
@@ -1096,7 +1096,7 @@ static void null_chr_add_read_handler(CharDriverState *chr,
 {
 }
 
-CharDriverState *qemu_chr_open_null(void)
+static CharDriverState *qemu_chr_open_null(void)
 {
     CharDriverState *chr;
 
@@ -1264,7 +1264,7 @@ static void fd_chr_add_read_handler(CharDriverState *chr,
 }
 
 /* open a character device to a unix fd */
-CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
+static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
 {
     CharDriverState *chr;
     FDCharDriver *s;
@@ -1285,7 +1285,7 @@ CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     return chr;
 }
 
-CharDriverState *qemu_chr_open_file_out(const char *file_out)
+static CharDriverState *qemu_chr_open_file_out(const char *file_out)
 {
     int fd_out;
 
@@ -1295,7 +1295,7 @@ CharDriverState *qemu_chr_open_file_out(const char *file_out)
     return qemu_chr_open_fd(-1, fd_out);
 }
 
-CharDriverState *qemu_chr_open_pipe(const char *filename)
+static CharDriverState *qemu_chr_open_pipe(const char *filename)
 {
     int fd_in, fd_out;
     char filename_in[256], filename_out[256];
@@ -1520,7 +1520,7 @@ static void term_init(void)
     fcntl(0, F_SETFL, O_NONBLOCK);
 }
 
-CharDriverState *qemu_chr_open_stdio(void)
+static CharDriverState *qemu_chr_open_stdio(void)
 {
     CharDriverState *chr;
 
@@ -1546,7 +1546,7 @@ CharDriverState *qemu_chr_open_stdio(void)
 }
 
 #if defined(__linux__)
-CharDriverState *qemu_chr_open_pty(void)
+static CharDriverState *qemu_chr_open_pty(void)
 {
     struct termios tty;
     char slave_name[1024];
@@ -1685,7 +1685,7 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-CharDriverState *qemu_chr_open_tty(const char *filename)
+static CharDriverState *qemu_chr_open_tty(const char *filename)
 {
     CharDriverState *chr;
     int fd;
@@ -1739,7 +1739,7 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-CharDriverState *qemu_chr_open_pp(const char *filename)
+static CharDriverState *qemu_chr_open_pp(const char *filename)
 {
     CharDriverState *chr;
     int fd;
@@ -1766,7 +1766,7 @@ CharDriverState *qemu_chr_open_pp(const char *filename)
 }
 
 #else
-CharDriverState *qemu_chr_open_pty(void)
+static CharDriverState *qemu_chr_open_pty(void)
 {
     return NULL;
 }
@@ -1984,7 +1984,7 @@ static void win_chr_add_read_handler(CharDriverState *chr,
     s->win_opaque = opaque;
 }
 
-CharDriverState *qemu_chr_open_win(const char *filename)
+static CharDriverState *qemu_chr_open_win(const char *filename)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2087,7 +2087,7 @@ static int win_chr_pipe_init(WinCharState *s, const char *filename)
 }
 
 
-CharDriverState *qemu_chr_open_win_pipe(const char *filename)
+static CharDriverState *qemu_chr_open_win_pipe(const char *filename)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2113,7 +2113,7 @@ CharDriverState *qemu_chr_open_win_pipe(const char *filename)
     return chr;
 }
 
-CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
+static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2133,7 +2133,7 @@ CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     return chr;
 }
     
-CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
+static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 {
     HANDLE fd_out;
     
@@ -2223,12 +2223,14 @@ static void udp_chr_add_read_handler(CharDriverState *chr,
 }
 
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
-int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
+#ifndef _WIN32
+static int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
+#endif
 int parse_host_src_port(struct sockaddr_in *haddr,
                         struct sockaddr_in *saddr,
                         const char *str);
 
-CharDriverState *qemu_chr_open_udp(const char *def)
+static CharDriverState *qemu_chr_open_udp(const char *def)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
@@ -2818,7 +2820,8 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     return 0;
 }
 
-int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
+#ifndef _WIN32
+static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 {
     const char *p;
     int len;
@@ -2835,6 +2838,7 @@ int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 
     return 0;
 }
+#endif
 
 /* find or alloc a new VLAN */
 VLANState *qemu_find_vlan(int id)
@@ -3691,7 +3695,7 @@ static int get_param_value(char *buf, int buf_size,
     return 0;
 }
 
-int net_client_init(const char *str)
+static int net_client_init(const char *str)
 {
     const char *p;
     char *q;
@@ -5880,7 +5884,7 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
     *pre = re;
 }
 
-void qemu_system_reset(void)
+static void qemu_system_reset(void)
 {
     QEMUResetEntry *re;
 
