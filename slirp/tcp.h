@@ -110,12 +110,6 @@ struct tcphdr {
 #define TCP_MAX_WINSHIFT	14	/* maximum window shift */
 
 /*
- * User-settable options (used with setsockopt).
- */
-#define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
-/* #define	TCP_MAXSEG	0x02 */	/* set maximum segment size */
-
-/*
  * TCP FSM state definitions.
  * Per RFC793, September, 1981.
  */
