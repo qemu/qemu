@@ -1297,12 +1297,23 @@ CharDriverState *qemu_chr_open_file_out(const char *file_out)
 
 CharDriverState *qemu_chr_open_pipe(const char *filename)
 {
-    int fd;
+    int fd_in, fd_out;
+    char filename_in[256], filename_out[256];
 
-    fd = open(filename, O_RDWR | O_BINARY);
-    if (fd < 0)
-        return NULL;
-    return qemu_chr_open_fd(fd, fd);
+    snprintf(filename_in, 256, "%s.in", filename);
+    snprintf(filename_out, 256, "%s.out", filename);
+    fd_in = open(filename_in, O_RDWR | O_BINARY);
+    fd_out = open(filename_out, O_RDWR | O_BINARY);
+    if (fd_in < 0 || fd_out < 0) {
+	if (fd_in >= 0)
+	    close(fd_in);
+	if (fd_out >= 0)
+	    close(fd_out);
+        fd_in = fd_out = open(filename, O_RDWR | O_BINARY);
+        if (fd_in < 0)
+            return NULL;
+    }
+    return qemu_chr_open_fd(fd_in, fd_out);
 }
 
 
