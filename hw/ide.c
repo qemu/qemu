@@ -1481,6 +1481,17 @@ static void ide_atapi_cmd(IDEState *s)
     }
 }
 
+/* called when the inserted state of the media has changed */
+static void cdrom_change_cb(void *opaque)
+{
+    IDEState *s = opaque;
+    int64_t nb_sectors;
+
+    /* XXX: send interrupt too */
+    bdrv_get_geometry(s->bs, &nb_sectors);
+    s->nb_sectors = nb_sectors;
+}
+
 static void ide_cmd_lba48_transform(IDEState *s, int lba48)
 {
     s->lba48 = lba48;
@@ -2111,6 +2122,7 @@ static void ide_init2(IDEState *ide_state,
             }
             if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
                 s->is_cdrom = 1;
+		bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
             }
         }
         s->drive_serial = drive_serial++;
