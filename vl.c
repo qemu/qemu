@@ -6749,7 +6749,7 @@ int main(int argc, char **argv)
                        "hdx=a,img=", "hdx=b,img=", "hdx=c,img=", "hdx=d,img=" };
 
                     hd_index = popt->index - QEMU_OPTION_hda;
-                    if (num_ide_disks >= MAX_DISKS){
+                    if (num_ide_disks >= MAX_DISKS) {
                         fprintf(stderr, "qemu: too many IDE disks defined.\n");
                         exit(1);
                     }
@@ -6868,7 +6868,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_cdrom:
                 {
-                    char buf[24];
+                    char buf[22];
                     if (num_ide_disks >= MAX_DISKS) {
                         fprintf(stderr, "qemu: too many IDE disks/cdroms defined.\n");
                         exit(1);
@@ -6876,11 +6876,11 @@ int main(int argc, char **argv)
                     snprintf(buf, sizeof(buf), "type=cdrom,hdx=%c,img=", cdrom_index + 'a');
                     /* Build new disk IDE syntax string */
                     pstrcpy(ide_options[cdrom_index],
-                            25,
+                            22,
                             buf);
                     /* Add on image filename */
-                    pstrcpy(&(ide_options[cdrom_index][24]),
-                            sizeof(ide_options[0])-24,
+                    pstrcpy(&(ide_options[cdrom_index][21]),
+                            sizeof(ide_options[0])-21,
                             optarg);
                     num_ide_disks++;
                 }
