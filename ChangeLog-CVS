@@ -1,3 +1,12 @@
+2006-12-22 23:35  pbrook
+
+	* hw/apb_pci.c: Sparc64 build fix (Igor Kovalenko).
+
+2006-12-22 22:20  ths
+
+	* vl.c: Windows build fix, namespace cleanup, fix error message, by
+	  Stefan Weil.
+
 2006-12-22 20:25  ths
 
 	* vl.c: Support for unidirectional pipes, by Ed Swierk.
