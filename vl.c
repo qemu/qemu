@@ -3918,10 +3918,12 @@ static int disk_options_init(int num_ide_disks,
         }
     }
 
+#if 0
     if (cdrom_index >= 0 && (!ide_cdrom_created)) {
         bs_table[cdrom_index] = bdrv_new("cdrom");
         bdrv_set_type_hint(bs_table[cdrom_index], BDRV_TYPE_CDROM);
     }
+#endif
 
     for(i = 0; i < num_scsi_disks; i++) {
 
@@ -6728,9 +6730,6 @@ int main(int argc, char **argv)
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i][0] = '\0';
     serial_device_index = 0;
-#if defined(TARGET_AR7)
-    pstrcpy(serial_devices[1], sizeof(serial_devices[0]), "null");
-#endif
 
     pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc");
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
@@ -7235,7 +7234,7 @@ int main(int argc, char **argv)
 #endif
     linux_boot = (kernel_filename != NULL);
 
-#if !defined(TARGET_AR7)
+#if 0
     if (!linux_boot &&
         num_ide_disks == 0 &&
         fd_filename[0] == '\0')
