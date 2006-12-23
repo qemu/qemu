@@ -188,7 +188,7 @@ extern int printf(const char *, ...);
 #endif
 
 /* force GCC to generate only one epilog at the end of the function */
-#define FORCE_RET() asm volatile ("");
+#define FORCE_RET() __asm__ __volatile__("" : : : "memory");
 
 #ifndef OPPROTO
 #define OPPROTO

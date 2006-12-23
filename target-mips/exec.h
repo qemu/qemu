@@ -45,9 +45,9 @@ register host_uint_t T2 asm(AREG3);
 #endif
 
 #if defined (DEBUG_OP)
-#define RETURN() __asm__ __volatile__("nop");
+# define RETURN() __asm__ __volatile__("nop" : : : "memory");
 #else
-#define RETURN() __asm__ __volatile__("");
+# define RETURN() __asm__ __volatile__("" : : : "memory");
 #endif
 
 #include "cpu.h"
