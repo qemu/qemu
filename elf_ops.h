@@ -167,7 +167,7 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     if (!phdr)
         goto fail;
     if (read(fd, phdr, size) != size)
-        goto fail1;
+        goto fail;
     if (must_swab) {
         for(i = 0; i < ehdr.e_phnum; i++) {
             ph = &phdr[i];
@@ -184,9 +184,9 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
             data = qemu_mallocz(mem_size);
             if (ph->p_filesz > 0) {
                 if (lseek(fd, ph->p_offset, SEEK_SET) < 0)
-                    goto fail2;
+                    goto fail;
                 if (read(fd, data, ph->p_filesz) != ph->p_filesz)
-                    goto fail2;
+                    goto fail;
             }
             addr = ph->p_vaddr + virt_to_phys_addend;
 
@@ -200,11 +200,8 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     }
     qemu_free(phdr);
     return total_size;
-fail2:
+ fail:
     qemu_free(data);
-fail1:
     qemu_free(phdr);
-fail:
     return -1;
 }
-
