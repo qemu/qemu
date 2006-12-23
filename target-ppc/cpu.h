@@ -32,6 +32,8 @@
 
 #define TARGET_HAS_ICE 1
 
+#define ELF_MACHINE	EM_PPC
+
 /* XXX: this should be tunable: PowerPC 601 & 64 bits PowerPC
  *                              have different cache line sizes
  */

@@ -11,7 +11,6 @@
 
 #define BIOS_FILENAME "mips_bios.bin"
 //#define BIOS_FILENAME "system.bin"
-#define KERNEL_LOAD_ADDR (int32_t)0x80010000
 #ifdef MIPS_HAS_MIPS64
 #define INITRD_LOAD_ADDR (int64_t)0x80800000
 #else
@@ -86,14 +85,9 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
             entry = (int32_t)entry;
         env->PC = entry;
     } else {
-        kernel_size = load_image(kernel_filename,
-                                 phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
-        if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
-            exit(1);
-        }
-        env->PC = KERNEL_LOAD_ADDR;
+        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                kernel_filename);
+        exit(1);
     }
 
     /* load initrd */

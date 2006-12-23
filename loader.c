@@ -197,7 +197,7 @@ static void *load_at(int fd, int offset, int size)
 int load_elf(const char *filename, int64_t virt_to_phys_addend,
              uint64_t *pentry)
 {
-    int fd, data_order, must_swab, ret;
+    int fd, data_order, host_data_order, must_swab, ret;
     uint8_t e_ident[EI_NIDENT];
 
     fd = open(filename, O_RDONLY | O_BINARY);
@@ -218,7 +218,15 @@ int load_elf(const char *filename, int64_t virt_to_phys_addend,
     data_order = ELFDATA2LSB;
 #endif
     must_swab = data_order != e_ident[EI_DATA];
-    
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    host_data_order = ELFDATA2MSB;
+#else
+    host_data_order = ELFDATA2LSB;
+#endif
+    if (host_data_order != e_ident[EI_DATA])
+        return -1;
+
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
         ret = load_elf64(fd, virt_to_phys_addend, must_swab, pentry);

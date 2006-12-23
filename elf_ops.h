@@ -153,6 +153,9 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
         glue(bswap_ehdr, SZ)(&ehdr);
     }
 
+    if (ELF_MACHINE != ehdr.e_machine)
+        goto fail;
+
     if (pentry)
    	*pentry = (uint64_t)ehdr.e_entry;
 
@@ -164,7 +167,7 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     if (!phdr)
         goto fail;
     if (read(fd, phdr, size) != size)
-        goto fail;
+        goto fail1;
     if (must_swab) {
         for(i = 0; i < ehdr.e_phnum; i++) {
             ph = &phdr[i];
@@ -181,9 +184,9 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
             data = qemu_mallocz(mem_size);
             if (ph->p_filesz > 0) {
                 if (lseek(fd, ph->p_offset, SEEK_SET) < 0)
-                    goto fail;
+                    goto fail2;
                 if (read(fd, data, ph->p_filesz) != ph->p_filesz)
-                    goto fail;
+                    goto fail2;
             }
             addr = ph->p_vaddr + virt_to_phys_addend;
 
@@ -197,9 +200,11 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     }
     qemu_free(phdr);
     return total_size;
- fail:
+fail2:
     qemu_free(data);
+fail1:
     qemu_free(phdr);
+fail:
     return -1;
 }
 

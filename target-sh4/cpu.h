@@ -25,6 +25,8 @@
 #define TARGET_LONG_BITS 32
 #define TARGET_HAS_ICE 1
 
+#define ELF_MACHINE	EM_SH
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"

@@ -3,6 +3,8 @@
 
 #define TARGET_HAS_ICE 1
 
+#define ELF_MACHINE	EM_MIPS
+
 #include "config.h"
 #include "mips-defs.h"
 #include "cpu-defs.h"

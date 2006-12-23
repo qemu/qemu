@@ -19,6 +19,12 @@
 
 #define TARGET_HAS_ICE 1
 
+#if !defined(TARGET_SPARC64)
+#define ELF_MACHINE	EM_SPARC
+#else
+#define ELF_MACHINE	EM_SPARCV9
+#endif
+
 /*#define EXCP_INTERRUPT 0x100*/
 
 /* trap definitions */
