@@ -288,7 +288,7 @@ echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo ""
-echo "NOTE: The object files are build at the place where configure is launched"
+echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
 fi
 

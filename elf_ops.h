@@ -153,6 +153,9 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
         glue(bswap_ehdr, SZ)(&ehdr);
     }
 
+    if (ELF_MACHINE != ehdr.e_machine)
+        goto fail;
+
     if (pentry)
    	*pentry = (uint64_t)ehdr.e_entry;
 
@@ -202,4 +205,3 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     qemu_free(phdr);
     return -1;
 }
-

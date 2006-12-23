@@ -1,3 +1,35 @@
+2006-12-23 16:37  pbrook
+
+	* vl.c: Solaris SMBD hacks (Ben Taylor).
+
+2006-12-23 16:18  ths
+
+	* elf_ops.h: Simplify error handling again.
+
+2006-12-23 15:18  ths
+
+	* elf_ops.h, loader.c, hw/mips_r4k.c, target-arm/cpu.h,
+	  target-i386/cpu.h, target-m68k/cpu.h, target-mips/cpu.h,
+	  target-ppc/cpu.h, target-sh4/cpu.h, target-sparc/cpu.h: Check ELF
+	  binaries for machine type and endianness.
+
+2006-12-23 01:49  ths
+
+	* dyngen-exec.h, target-mips/exec.h, target-ppc/exec.h: Use memory
+	  barriers in FORCE_RET / RETURN.
+
+2006-12-23 01:33  ths
+
+	* configure: Fix spelling.
+
+2006-12-23 01:23  ths
+
+	* hw/mips_r4k.c: More serial ports for the mips machine.
+
+2006-12-23 01:03  ths
+
+	* slirp/tcp.h: Fix build warning on Windows.
+
 2006-12-22 23:35  pbrook
 
 	* hw/apb_pci.c: Sparc64 build fix (Igor Kovalenko).

@@ -36,6 +36,12 @@
 
 #define TARGET_HAS_ICE 1
 
+#ifdef TARGET_X86_64
+#define ELF_MACHINE	EM_X86_64
+#else
+#define ELF_MACHINE	EM_386
+#endif
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"

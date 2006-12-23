@@ -14,7 +14,6 @@
 
 #define BIOS_FILENAME "mips_bios.bin"
 //#define BIOS_FILENAME "system.bin"
-#define KERNEL_LOAD_ADDR (int32_t)0x80010000
 #ifdef MIPS_HAS_MIPS64
 #define INITRD_LOAD_ADDR (int64_t)0x80800000
 #else
@@ -26,6 +25,9 @@
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
+
+static int serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 
 extern FILE *logfile;
 
@@ -88,14 +90,9 @@ void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
             entry = (int32_t)entry;
         env->PC = entry;
     } else {
-        kernel_size = load_image(kernel_filename,
-                                 phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
-        if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
-            exit(1);
-        }
-        env->PC = KERNEL_LOAD_ADDR;
+        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                kernel_filename);
+        exit(1);
     }
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
@@ -210,7 +207,13 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
 
-    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            serial_init(&pic_set_irq_new, isa_pic,
+                        serial_io[i], serial_irq[i], serial_hds[i]);
+        }
+    }
+
     isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
                  vga_ram_size);
 
