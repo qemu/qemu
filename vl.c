@@ -89,6 +89,11 @@
 #include "exec-all.h"
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
+#ifdef __sun__
+#define SMBD_COMMAND "/usr/sfw/sbin/smbd"
+#else
+#define SMBD_COMMAND "/usr/sbin/smbd"
+#endif
 
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
@@ -3084,8 +3089,8 @@ void net_slirp_smb(const char *exported_dir)
     fclose(f);
     atexit(smb_exit);
 
-    snprintf(smb_cmdline, sizeof(smb_cmdline), "/usr/sbin/smbd -s %s",
-             smb_conf);
+    snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -s %s",
+             SMBD_COMMAND, smb_conf);
     
     slirp_add_exec(0, smb_cmdline, 4, 139);
 }
