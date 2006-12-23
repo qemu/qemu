@@ -111,8 +111,14 @@ struct tcphdr {
 
 /*
  * User-settable options (used with setsockopt).
+ *
+ * We don't use the system headers on unix because we have conflicting
+ * local structures. We can't avoid the system definitions on Windows,
+ * so we undefine them.
  */
+#undef TCP_NODELAY
 #define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
+#undef TCP_MAXSEG
 /* #define	TCP_MAXSEG	0x02 */	/* set maximum segment size */
 
 /*
