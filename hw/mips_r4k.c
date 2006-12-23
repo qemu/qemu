@@ -24,6 +24,9 @@ static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
 
+static int serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
+
 extern FILE *logfile;
 
 static PITState *pit; /* PIT i8254 */
@@ -195,7 +198,13 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
 
-    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            serial_init(&pic_set_irq_new, isa_pic,
+                        serial_io[i], serial_irq[i], serial_hds[i]);
+        }
+    }
+
     isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
                  vga_ram_size);
 
