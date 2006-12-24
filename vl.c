@@ -3881,7 +3881,7 @@ static int disk_options_init(int num_ide_disks,
             }
 
             if (cdrom_device) {
-                snprintf(dev_name, sizeof(dev_name), "cdrom%c", i);
+                snprintf(dev_name, sizeof(dev_name), "cdrom%u", i);
             } else {
                 snprintf(dev_name, sizeof(dev_name), "hd%c", i + 'a');
             }
@@ -3979,7 +3979,7 @@ static int disk_options_init(int num_ide_disks,
         }
 
         if (cdrom_device) {
-            snprintf(dev_name, sizeof(buf), "cdrom%c", scsi_index);
+            snprintf(dev_name, sizeof(buf), "cdrom%u", scsi_index);
             scsi_disks_info[scsi_index].device_type = SCSI_CDROM;
         } else {
             snprintf(dev_name, sizeof(buf), "sd%c", scsi_index + 'a');

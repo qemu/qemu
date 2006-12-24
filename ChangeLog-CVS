@@ -1,3 +1,7 @@
+2006-12-23 23:51  ths
+
+	* vl.c: Null character instead of numeric null.
+
 2006-12-23 16:37  pbrook
 
 	* vl.c: Solaris SMBD hacks (Ben Taylor).
