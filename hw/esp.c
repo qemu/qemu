@@ -43,6 +43,8 @@ do { printf("ESP: " fmt , ##args); } while (0)
 
 #define ESP_MAXREG 0x3f
 #define TI_BUFSZ 32
+/* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
+#define ESP_MAX_DEVS      7
 
 typedef struct ESPState ESPState;
 
@@ -526,11 +528,33 @@ static int esp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
+{
+    ESPState *s = (ESPState *)opaque;
+
+    if (id < 0) {
+        for (id = 0; id < ESP_MAX_DEVS; id++) {
+            if (s->scsi_dev[id] == NULL)
+                break;
+        }
+    }
+    if (id >= ESP_MAX_DEVS) {
+        DPRINTF("Bad Device ID %d\n", id);
+        return;
+    }
+    if (s->scsi_dev[id]) {
+        DPRINTF("Destroying device %d\n", id);
+        scsi_disk_destroy(s->scsi_dev[id]);
+    }
+    DPRINTF("Attaching block device %d\n", id);
+    /* Command queueing is not implemented.  */
+    s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
+}
+
 void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque)
 {
     ESPState *s;
     int esp_io_memory;
-    int i;
 
     s = qemu_mallocz(sizeof(ESPState));
     if (!s)
@@ -546,13 +570,6 @@ void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque)
 
     register_savevm("esp", espaddr, 2, esp_save, esp_load, s);
     qemu_register_reset(esp_reset, s);
-    for (i = 0; i < MAX_DISKS; i++) {
-        if (bs_table[i]) {
-            /* Command queueing is not implemented.  */
-            s->scsi_dev[i] =
-                scsi_disk_init(bs_table[i], 0, esp_command_complete, s);
-        }
-    }
 
     return s;
 }
