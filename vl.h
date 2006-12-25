@@ -1117,6 +1117,7 @@ void *slavio_misc_init(uint32_t base, int irq);
 void slavio_set_power_fail(void *opaque, int power_failing);
 
 /* esp.c */
+void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque);
 void esp_reset(void *opaque);
 
@@ -1247,7 +1248,8 @@ void scsi_cancel_io(SCSIDevice *s, uint32_t tag);
 uint8_t *scsi_get_buf(SCSIDevice *s, uint32_t tag);
 
 enum scsi_host_adapters {
-    SCSI_LSI_53C895A
+    SCSI_LSI_53C895A,
+    SCSI_ESP
 };
 enum scsi_devices {
     SCSI_CDROM,

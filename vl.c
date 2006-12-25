@@ -3927,8 +3927,12 @@ static int disk_options_init(int num_ide_disks,
 
     for(i = 0; i < num_scsi_disks; i++) {
 
+#if !defined(TARGET_SPARC) || defined(TARGET_SPARC64)
         temp_adapter = SCSI_LSI_53C895A;
         scsi_hba_lsi++;
+#else
+        temp_adapter = SCSI_ESP;
+#endif
 
         /*Check for sdx= parameter */
         if (get_param_value(buf, sizeof(buf), "sdx", scsi_disk_options[i])) {
@@ -4000,6 +4004,9 @@ static int disk_options_init(int num_ide_disks,
         } else {
             fprintf(stderr, "qemu: SCSI disk image not specified for sd%c \n", i + 'a');
             return -1;
+        }
+        if (cdrom_device) {
+            bdrv_set_type_hint(bs_scsi_table[scsi_index], BDRV_TYPE_CDROM);
         }
     }
 
@@ -6930,6 +6937,8 @@ int main(int argc, char **argv)
                 kernel_cmdline = optarg;
                 break;
             case QEMU_OPTION_cdrom:
+#if !defined(TARGET_SPARC) || defined(TARGET_SPARC64)
+                /* Assume boot cdrom is IDE */
                 {
                     char buf[22];
                     if (num_ide_disks >= MAX_DISKS) {
@@ -6947,6 +6956,27 @@ int main(int argc, char **argv)
                             optarg);
                     num_ide_disks++;
                 }
+#else
+                /* Assume boot cdrom is SCSI */
+                {
+                    char buf[27];
+                    if (num_scsi_disks >= MAX_SCSI_DISKS) {
+                        fprintf(stderr, "qemu: too many SCSI disks/cdroms defined.\n");
+                        exit(1);
+                    }
+                    snprintf(buf, sizeof(buf), "type=cdrom,sdx=%c,id=%d,img=",
+                             num_scsi_disks + 'a', num_scsi_disks + 2);
+                    /* Build new disk SCSI syntax string */
+                    pstrcpy(scsi_options[num_scsi_disks],
+                            27,
+                            buf);
+                    /* Add on image filename */
+                    pstrcpy(&(scsi_options[num_scsi_disks][26]),
+                            sizeof(scsi_options[0])-26,
+                            optarg);
+                    num_scsi_disks++;
+                }
+#endif
                 break;
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
@@ -7237,6 +7267,7 @@ int main(int argc, char **argv)
 #if 0
     if (!linux_boot &&
         num_ide_disks == 0 &&
+        num_scsi_disks == 0 &&
         fd_filename[0] == '\0')
         help();
 #endif
