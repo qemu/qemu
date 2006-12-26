@@ -752,8 +752,8 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     DBG_FLT("p=%x\n", (int)p);
 
     /* Copy argv/envp.  */
-    p = copy_strings(p, bprm->argc, bprm->argv);
     p = copy_strings(p, bprm->envc, bprm->envp);
+    p = copy_strings(p, bprm->argc, bprm->argv);
     /* Align stack.  */
     sp = p & ~(target_ulong)(sizeof(target_ulong) - 1);
     sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p, 1);
