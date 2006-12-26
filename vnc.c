@@ -1109,10 +1109,10 @@ void vnc_display_init(DisplayState *ds, const char *arg)
     struct sockaddr_in iaddr;
 #ifndef _WIN32
     struct sockaddr_un uaddr;
+    const char *p;
 #endif
     int reuse_addr, ret;
     socklen_t addrlen;
-    const char *p;
     VncState *vs;
 
     vs = qemu_mallocz(sizeof(VncState));
