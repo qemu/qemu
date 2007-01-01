@@ -243,11 +243,6 @@ for opt do
   esac
 done
 
-# Checking for CFLAGS
-if test -z "$CFLAGS"; then
-    CFLAGS="-O2"
-fi
-
 if test x"$show_help" = x"yes" ; then
 cat << EOF
 

@@ -5,14 +5,14 @@ include config-host.mak
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
 	speed test test2 html dvi info
 
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing -I.
+CFLAGS+=-Wall -O2 -g -fno-strict-aliasing -I.
 ifdef CONFIG_DARWIN
 CFLAGS+= -mdynamic-no-pic
 endif
 ifeq ($(ARCH),sparc)
 CFLAGS+=-mcpu=ultrasparc
 endif
-LDFLAGS=-g
+LDFLAGS+=-g
 LIBS=
 DEFINES+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 TOOLS=qemu-img$(EXESUF)
