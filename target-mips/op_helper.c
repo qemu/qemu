@@ -162,12 +162,12 @@ void do_drotrv (void)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 static inline uint64_t get_HILO (void)
 {
-    return ((uint64_t)env->HI << 32) | (uint64_t)env->LO;
+    return (env->HI << 32) | (uint32_t)env->LO;
 }
 
 static inline void set_HILO (uint64_t HILO)
 {
-    env->LO = (int32_t)(HILO & 0xFFFFFFFF);
+    env->LO = (int32_t)HILO;
     env->HI = (int32_t)(HILO >> 32);
 }
 
@@ -547,10 +547,10 @@ void do_tlbr (void)
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     size = (tlb->end - tlb->VPN) >> 12;
     env->CP0_PageMask = (size - 1) << 13;
-    env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2)
-		| (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
-    env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2)
-		| (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
+    env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2) |
+                        (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
+    env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
+                        (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
 }
 #endif
 

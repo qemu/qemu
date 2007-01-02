@@ -1,3 +1,32 @@
+2007-01-02 20:33  pbrook
+
+	* hw/arm_gic.c: Arm GIC stuck interrupt fix.
+
+2007-01-01 22:31  ths
+
+	* Makefile, configure: Fix Makefile weirdness.
+
+2007-01-01 21:35  ths
+
+	* target-mips/op.c: Fix bad data type.
+
+2007-01-01 21:34  ths
+
+	* target-mips/op_helper_mem.c: Fix lwl/lwr for 64bit emulation,
+	  also debug output spec for 64bit emulation.
+
+2007-01-01 21:32  ths
+
+	* target-mips/op_helper.c: Simplify code and fix formatting.
+
+2007-01-01 21:31  ths
+
+	* hw/mips_r4k.c: Fix initrd load address.
+
+2007-01-01 15:14  pbrook
+
+	* disas.c: Remove duplicate TARGET_M68K case.
+
 2006-12-26 19:27  pbrook
 
 	* linux-user/flatload.c: bFLT loader commandline fix.

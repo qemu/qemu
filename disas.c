@@ -194,8 +194,6 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #else
     print_insn = print_insn_little_mips;
 #endif
-#elif defined(TARGET_M68K)
-    print_insn = print_insn_m68k;
 #elif defined(TARGET_SH4)
     disasm_info.mach = bfd_mach_sh4;
     print_insn = print_insn_sh;
@@ -395,8 +393,6 @@ void monitor_disas(CPUState *env,
 #else
     print_insn = print_insn_little_mips;
 #endif
-#elif defined(TARGET_M68K)
-    print_insn = print_insn_m68k;
 #else
     term_printf("0x" TARGET_FMT_lx
 		": Asm output not supported on this arch\n", pc);

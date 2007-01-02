@@ -1330,7 +1330,7 @@ void op_mtc0_count (void)
 
 void op_mtc0_entryhi (void)
 {
-    uint32_t old, val;
+    target_ulong old, val;
 
     /* 1k pages not implemented */
     /* Ignore MIPS64 TLB for now */

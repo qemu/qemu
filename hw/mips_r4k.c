@@ -15,7 +15,7 @@
 #define BIOS_FILENAME "mips_bios.bin"
 //#define BIOS_FILENAME "system.bin"
 #ifdef MIPS_HAS_MIPS64
-#define INITRD_LOAD_ADDR (int64_t)0x80800000
+#define INITRD_LOAD_ADDR (int64_t)(int32_t)0x80800000
 #else
 #define INITRD_LOAD_ADDR (int32_t)0x80800000
 #endif
