@@ -17,7 +17,7 @@
 
 #ifdef DEBUG_GIC
 #define DPRINTF(fmt, args...) \
-do { printf("arm_gic: " fmt , (int)s->base, ##args); } while (0)
+do { printf("arm_gic: " fmt , ##args); } while (0)
 #else
 #define DPRINTF(fmt, args...) do {} while(0)
 #endif
@@ -135,7 +135,10 @@ static void gic_set_irq(void *opaque, int irq, int level)
 static void gic_set_running_irq(gic_state *s, int irq)
 {
     s->running_irq = irq;
-    s->running_priority = s->priority[irq];
+    if (irq == 1023)
+        s->running_priority = 0x100;
+    else
+        s->running_priority = s->priority[irq];
     gic_update(s);
 }
 
@@ -160,7 +163,7 @@ static uint32_t gic_acknowledge_irq(gic_state *s)
 static void gic_complete_irq(gic_state * s, int irq)
 {
     int update = 0;
-    DPRINTF("EIO %d\n", irq);
+    DPRINTF("EOI %d\n", irq);
     if (s->running_irq == 1023)
         return; /* No active IRQ.  */
     if (irq != 1023) {
