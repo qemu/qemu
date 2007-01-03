@@ -1,3 +1,13 @@
+2007-01-03 16:20  bellard
+
+	* monitor.c: memsave monitor command
+
+2007-01-03 16:18  bellard
+
+	* target-mips/: exec.h, helper.c, op_helper.c: moved
+	  invalidate_tlb() to helper.c as a work around for gcc 3.2.2 bug -
+	  suppressed invalid tb_invalidate_page_range() calls
+
 2007-01-02 20:33  pbrook
 
 	* hw/arm_gic.c: Arm GIC stuck interrupt fix.
