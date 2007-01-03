@@ -642,6 +642,36 @@ static void do_print(int count, int format, int size, unsigned int valh, unsigne
     term_printf("\n");
 }
 
+static void do_memory_save(unsigned int valh, unsigned int vall, 
+                           uint32_t size, const char *filename)
+{
+    FILE *f;
+    target_long addr = GET_TLONG(valh, vall);
+    uint32_t l;
+    CPUState *env;
+    uint8_t buf[1024];
+
+    env = mon_get_cpu();
+    if (!env)
+        return;
+
+    f = fopen(filename, "wb");
+    if (!f) {
+        term_printf("could not open '%s'\n", filename);
+        return;
+    }
+    while (size != 0) {
+        l = sizeof(buf);
+        if (l > size)
+            l = size;
+        cpu_memory_rw_debug(env, addr, buf, l, 0);
+        fwrite(buf, 1, l, f);
+        addr += l;
+        size -= l;
+    }
+    fclose(f);
+}
+
 static void do_sum(uint32_t start, uint32_t size)
 {
     uint32_t addr;
@@ -1218,6 +1248,8 @@ static term_cmd_t term_cmds[] = {
 #endif
      { "stopcapture", "i", do_stop_capture,
        "capture index", "stop capture" },
+    { "memsave", "lis", do_memory_save, 
+      "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
     { NULL, NULL, }, 
 };
 
