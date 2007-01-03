@@ -376,53 +376,11 @@ void cpu_mips_tlb_flush (CPUState *env, int flush_global)
     env->tlb_in_use = MIPS_TLB_NB;
 }
 
-static void invalidate_tlb (int idx, int use_extra)
-{
-    tlb_t *tlb;
-    target_ulong addr;
-    uint8_t ASID;
-
-    ASID = env->CP0_EntryHi & 0xFF;
-
-    tlb = &env->tlb[idx];
-    /* The qemu TLB is flushed then the ASID changes, so no need to
-       flush these entries again.  */
-    if (tlb->G == 0 && tlb->ASID != ASID) {
-        return;
-    }
-
-    if (use_extra && env->tlb_in_use < MIPS_TLB_MAX) {
-        /* For tlbwr, we can shadow the discarded entry into
-	   a new (fake) TLB entry, as long as the guest can not
-	   tell that it's there.  */
-        env->tlb[env->tlb_in_use] = *tlb;
-        env->tlb_in_use++;
-        return;
-    }
-
-    if (tlb->V0) {
-        tb_invalidate_page_range(tlb->PFN[0], tlb->end - tlb->VPN);
-        addr = tlb->VPN;
-        while (addr < tlb->end) {
-            tlb_flush_page (env, addr);
-            addr += TARGET_PAGE_SIZE;
-        }
-    }
-    if (tlb->V1) {
-        tb_invalidate_page_range(tlb->PFN[1], tlb->end2 - tlb->end);
-        addr = tlb->end;
-        while (addr < tlb->end2) {
-            tlb_flush_page (env, addr);
-            addr += TARGET_PAGE_SIZE;
-        }
-    }
-}
-
 static void mips_tlb_flush_extra (CPUState *env, int first)
 {
     /* Discard entries from env->tlb[first] onwards.  */
     while (env->tlb_in_use > first) {
-        invalidate_tlb(--env->tlb_in_use, 0);
+        invalidate_tlb(env, --env->tlb_in_use, 0);
     }
 }
 
@@ -459,7 +417,7 @@ void do_tlbwi (void)
 
     /* Wildly undefined effects for CP0_index containing a too high value and
        MIPS_TLB_NB not being a power of two.  But so does real silicon.  */
-    invalidate_tlb(env->CP0_index & (MIPS_TLB_NB - 1), 0);
+    invalidate_tlb(env, env->CP0_index & (MIPS_TLB_NB - 1), 0);
     fill_tlb(env->CP0_index & (MIPS_TLB_NB - 1));
 }
 
@@ -467,7 +425,7 @@ void do_tlbwr (void)
 {
     int r = cpu_mips_get_random(env);
 
-    invalidate_tlb(r, 1);
+    invalidate_tlb(env, r, 1);
     fill_tlb(r);
 }
 
