@@ -6234,7 +6234,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
-           "-boot [a|c|d]   boot on floppy (a), hard disk (c) or CD-ROM (d)\n"
+           "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-disk ide,img=file[,hdx=a..dd][,type=disk|cdrom] \n"
            "                defaults are: hdx=a,type=disk \n"
            "-disk scsi,img=file[,sdx=a..g][,type=disk|cdrom][,id=n]  \n"
@@ -7056,7 +7056,7 @@ int main(int argc, char **argv)
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
                 if (boot_device != 'a' && 
-#ifdef TARGET_SPARC
+#if defined(TARGET_SPARC) || defined(TARGET_I386)
 		    // Network boot
 		    boot_device != 'n' &&
 #endif
@@ -7377,6 +7377,28 @@ int main(int argc, char **argv)
         if (net_client_init(net_clients[i]) < 0)
             exit(1);
     }
+
+#ifdef TARGET_I386
+    if (boot_device == 'n') {
+	for (i = 0; i < nb_nics; i++) {
+	    const char *model = nd_table[i].model;
+	    char buf[1024];
+	    if (model == NULL)
+		model = "ne2k_pci";
+	    snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
+	    if (get_image_size(buf) > 0) {
+		option_rom[nb_option_roms] = strdup(buf);
+		nb_option_roms++;
+		break;
+	    }
+	}
+	if (i == nb_nics) {
+	    fprintf(stderr, "No valid PXE rom found for network device\n");
+	    exit(1);
+	}
+	boot_device = 'c'; /* to prevent confusion by the BIOS */
+    }
+#endif
 
     /* init the memory */
     phys_ram_size = ram_size + vga_ram_size + bios_size;

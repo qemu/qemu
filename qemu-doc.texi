@@ -219,9 +219,9 @@ Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
 @option{-cdrom} at the same time). You can use the host CD-ROM by
 using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 
-@item -boot [a|c|d]
-Boot on floppy (a), hard disk (c) or CD-ROM (d). Hard disk boot is
-the default.
+@item -boot [a|c|d|n]
+Boot on floppy (a), hard disk (c), CD-ROM (d), or Etherboot (n). Hard disk boot
+is the default.
 
 @item -disk ide,img=file[,hdx=a..dd][,type=disk|cdrom]
 Use @var{file} as the IDE disk/CD-ROM image. The defaults are: hdx=a,type=disk

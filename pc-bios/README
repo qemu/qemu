@@ -14,3 +14,9 @@
 - OpenBIOS (http://www.openbios.org/) is a free (GPL v2) portable
   firmware implementation. The goal is to implement a 100% IEEE
   1275-1994 (referred to as Open Firmware) compliant firmware.
+
+- The PXE roms come from Rom-o-Matic etherboot 5.4.2.
+  pcnet32:pcnet32 -- [0x1022,0x2000]
+  ns8390:winbond940 -- [0x1050,0x0940]
+  rtl8139:rtl8139 -- [0x10ec,0x8139]
+  http://rom-o-matic.net/
