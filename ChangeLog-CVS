@@ -1,3 +1,8 @@
+2007-01-05 21:55  ths
+
+	* linux-user/syscall.c: Support fcntl F_GETLK64, F_SETLK64,
+	  F_SETLKW64, by Kirill A. Shutemov.
+
 2007-01-05 19:58  ths
 
 	* vl.h, hw/ide.c: Fix for hard disk translation hints, by Volker
