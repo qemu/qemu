@@ -154,6 +154,10 @@ extern int usb_enabled;
 extern int smp_cpus;
 extern int no_quit;
 
+#define MAX_OPTION_ROMS 16
+extern const char *option_rom[MAX_OPTION_ROMS];
+extern int nb_option_roms;
+
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)

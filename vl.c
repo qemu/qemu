@@ -174,6 +174,8 @@ int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
 int daemonize = 0;
+const char *option_rom[MAX_OPTION_ROMS];
+int nb_option_roms;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -6336,6 +6338,7 @@ void help(void)
 #ifndef _WIN32
 	   "-daemonize      daemonize QEMU after initializing\n"
 #endif
+	   "-option-rom rom load a file, rom, into the option ROM space\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -6418,6 +6421,7 @@ enum {
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_disk,
+    QEMU_OPTION_option_rom,
 };
 
 typedef struct QEMUOption {
@@ -6500,6 +6504,7 @@ const QEMUOption qemu_options[] = {
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "daemonize", 0, QEMU_OPTION_daemonize },
+    { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
     { NULL },
 };
 
@@ -7276,6 +7281,14 @@ int main(int argc, char **argv)
 	    case QEMU_OPTION_daemonize:
 		daemonize = 1;
 		break;
+	    case QEMU_OPTION_option_rom:
+		if (nb_option_roms >= MAX_OPTION_ROMS) {
+		    fprintf(stderr, "Too many option ROMs\n");
+		    exit(1);
+		}
+		option_rom[nb_option_roms] = optarg;
+		nb_option_roms++;
+		break;
             }
         }
     }
@@ -7367,6 +7380,15 @@ int main(int argc, char **argv)
 
     /* init the memory */
     phys_ram_size = ram_size + vga_ram_size + bios_size;
+
+    for (i = 0; i < nb_option_roms; i++) {
+	int ret = get_image_size(option_rom[i]);
+	if (ret == -1) {
+	    fprintf(stderr, "Could not load option rom '%s'\n", option_rom[i]);
+	    exit(1);
+	}
+	phys_ram_size += ret;
+    }
 
     phys_ram_base = qemu_vmalloc(phys_ram_size);
     if (!phys_ram_base) {

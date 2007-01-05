@@ -326,6 +326,10 @@ Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
 
+@item -option-rom file
+Load the contents of file as an option ROM.  This option is useful to load
+things like EtherBoot.
+
 @end table
 
 USB options:
