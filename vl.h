@@ -260,11 +260,13 @@ int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 #endif
 
+typedef struct QEMUBH QEMUBH;
+
 /* character device */
 
 #define CHR_EVENT_BREAK 0 /* serial break char */
 #define CHR_EVENT_FOCUS 1 /* focus to this terminal (modal input needed) */
-
+#define CHR_EVENT_RESET 2 /* new connection established */
 
 
 #define CHR_IOCTL_SERIAL_SET_PARAMS   1
@@ -295,6 +297,7 @@ typedef struct CharDriverState {
     void (*chr_send_event)(struct CharDriverState *chr, int event);
     void (*chr_close)(struct CharDriverState *chr);
     void *opaque;
+    QEMUBH *bh;
 } CharDriverState;
 
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
@@ -305,6 +308,7 @@ void qemu_chr_add_read_handler(CharDriverState *s,
                                IOReadHandler *fd_read, void *opaque);
 void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event);
 int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
+void qemu_chr_reset(CharDriverState *s);
 
 /* consoles */
 
@@ -513,7 +517,6 @@ void do_delvm(const char *name);
 void do_info_snapshots(void);
 
 /* bottom halves */
-typedef struct QEMUBH QEMUBH;
 typedef void QEMUBHFunc(void *opaque);
 
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
