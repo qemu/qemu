@@ -28,13 +28,34 @@
 /**************************************************************/
 
 #define HEADER_MAGIC "Bochs Virtual HD Image"
-#define HEADER_VERSION 0x00010000
+#define HEADER_VERSION 0x00020000
+#define HEADER_V1 0x00010000
 #define HEADER_SIZE 512
 
 #define REDOLOG_TYPE "Redolog"
 #define GROWING_TYPE "Growing"
 
 // not allocated: 0xffffffff
+
+// always little-endian
+struct bochs_header_v1 {
+    char magic[32]; // "Bochs Virtual HD Image"
+    char type[16]; // "Redolog"
+    char subtype[16]; // "Undoable" / "Volatile" / "Growing"
+    uint32_t version;
+    uint32_t header; // size of header
+    
+    union {
+	struct {
+	    uint32_t catalog; // num of entries
+	    uint32_t bitmap; // bitmap size
+	    uint32_t extent; // extent size
+	    uint64_t disk; // disk size
+	    char padding[HEADER_SIZE - 64 - 8 - 20];
+	} redolog;
+	char padding[HEADER_SIZE - 64 - 8];
+    } extra;
+};
 
 // always little-endian
 struct bochs_header {
@@ -49,8 +70,9 @@ struct bochs_header {
 	    uint32_t catalog; // num of entries
 	    uint32_t bitmap; // bitmap size
 	    uint32_t extent; // extent size
+	    uint32_t reserved; // for ???
 	    uint64_t disk; // disk size
-	    char padding[HEADER_SIZE - 64 - 8 - 20];
+	    char padding[HEADER_SIZE - 64 - 8 - 24];
 	} redolog;
 	char padding[HEADER_SIZE - 64 - 8];
     } extra;
@@ -79,7 +101,8 @@ static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
     if (!strcmp(bochs->magic, HEADER_MAGIC) &&
 	!strcmp(bochs->type, REDOLOG_TYPE) &&
 	!strcmp(bochs->subtype, GROWING_TYPE) &&
-	(le32_to_cpu(bochs->version) == HEADER_VERSION))
+	((le32_to_cpu(bochs->version) == HEADER_VERSION) ||
+	(le32_to_cpu(bochs->version) == HEADER_V1)))
 	return 100;
 
     return 0;
@@ -90,6 +113,7 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
     BDRVBochsState *s = bs->opaque;
     int fd, i;
     struct bochs_header bochs;
+    struct bochs_header_v1 header_v1;
 
     fd = open(filename, O_RDWR | O_BINARY);
     if (fd < 0) {
@@ -109,11 +133,17 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
     if (strcmp(bochs.magic, HEADER_MAGIC) ||
         strcmp(bochs.type, REDOLOG_TYPE) ||
         strcmp(bochs.subtype, GROWING_TYPE) ||
-	(le32_to_cpu(bochs.version) != HEADER_VERSION)) {
+	((le32_to_cpu(bochs.version) != HEADER_VERSION) &&
+	(le32_to_cpu(bochs.version) != HEADER_V1))) {
         goto fail;
     }
 
-    bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
+    if (le32_to_cpu(bochs.version) == HEADER_V1) {
+      memcpy(&header_v1, &bochs, sizeof(bochs));
+      bs->total_sectors = le64_to_cpu(header_v1.extra.redolog.disk) / 512;
+    } else {
+      bs->total_sectors = le64_to_cpu(bochs.extra.redolog.disk) / 512;
+    }
 
     lseek(s->fd, le32_to_cpu(bochs.header), SEEK_SET);
 
