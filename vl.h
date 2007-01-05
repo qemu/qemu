@@ -616,9 +616,11 @@ void bdrv_flush(BlockDriverState *bs);
 #define BDRV_TYPE_HD     0
 #define BDRV_TYPE_CDROM  1
 #define BDRV_TYPE_FLOPPY 2
-#define BIOS_ATA_TRANSLATION_AUTO 0
-#define BIOS_ATA_TRANSLATION_NONE 1
-#define BIOS_ATA_TRANSLATION_LBA  2
+#define BIOS_ATA_TRANSLATION_AUTO   0
+#define BIOS_ATA_TRANSLATION_NONE   1
+#define BIOS_ATA_TRANSLATION_LBA    2
+#define BIOS_ATA_TRANSLATION_LARGE  3
+#define BIOS_ATA_TRANSLATION_RECHS  4
 
 void bdrv_set_geometry_hint(BlockDriverState *bs, 
                             int cyls, int heads, int secs);
