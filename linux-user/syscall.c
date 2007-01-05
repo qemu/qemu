@@ -1727,6 +1727,8 @@ static long do_fcntl(int fd, int cmd, target_ulong arg)
 {
     struct flock fl;
     struct target_flock *target_fl;
+    struct flock64 fl64;
+    struct target_flock64 *target_fl64;
     long ret;
 
     switch(cmd) {
@@ -1756,10 +1758,27 @@ static long do_fcntl(int fd, int cmd, target_ulong arg)
         break;
         
     case TARGET_F_GETLK64:
+        ret = fcntl(fd, cmd >> 1, &fl64);
+        if (ret == 0) {
+            lock_user_struct(target_fl64, arg, 0);
+            target_fl64->l_type = tswap16(fl64.l_type) >> 1;
+            target_fl64->l_whence = tswap16(fl64.l_whence);
+            target_fl64->l_start = tswapl(fl64.l_start);
+            target_fl64->l_len = tswapl(fl64.l_len);
+            target_fl64->l_pid = tswapl(fl64.l_pid);
+            unlock_user_struct(target_fl64, arg, 1);
+        }
+		break;
     case TARGET_F_SETLK64:
     case TARGET_F_SETLKW64:
-        ret = -1;
-        errno = EINVAL;
+        lock_user_struct(target_fl64, arg, 1);
+        fl64.l_type = tswap16(target_fl64->l_type) >> 1;
+        fl64.l_whence = tswap16(target_fl64->l_whence);
+        fl64.l_start = tswapl(target_fl64->l_start);
+        fl64.l_len = tswapl(target_fl64->l_len);
+        fl64.l_pid = tswap16(target_fl64->l_pid);
+        unlock_user_struct(target_fl64, arg, 0);
+		ret = fcntl(fd, cmd >> 1, &fl64);
         break;
 
     case F_GETFL:
