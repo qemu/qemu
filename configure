@@ -103,7 +103,7 @@ targetos=`uname -s`
 case $targetos in
 CYGWIN*)
 mingw32="yes"
-CFLAGS="-O2 -mno-cygwin"
+OS_CFLAGS="-mno-cygwin"
 ;;
 MINGW32*)
 mingw32="yes"
@@ -126,6 +126,7 @@ oss="yes"
 Darwin)
 bsd="yes"
 darwin="yes"
+OS_CFLAGS="-mdynamic-no-pic"
 ;;
 SunOS)
 solaris="yes"
@@ -242,6 +243,10 @@ for opt do
   ;;
   esac
 done
+
+# default flags for all hosts
+CFLAGS="$CFLAGS -Wall -O2 -g -fno-strict-aliasing"
+LDFLAGS="$LDFLAGS -g"
 
 if test x"$show_help" = x"yes" ; then
 cat << EOF
@@ -605,6 +610,7 @@ fi
 echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
 echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak
+echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
