@@ -1673,8 +1673,9 @@ enqueue:
 #else
 	    cur_drv->last_sect = fdctrl->fifo[3];
 #endif
-	    /* Bochs BIOS is buggy and don't send format informations
-	     * for each sector. So, pretend all's done right now...
+	    /* TODO: implement format using DMA expected by the Bochs BIOS
+	     * and Linux fdformat (read 3 bytes per sector via DMA and fill
+	     * the sector with the specified fill byte
 	     */
 	    fdctrl->data_state &= ~FD_STATE_FORMAT;
 	    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
