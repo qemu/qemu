@@ -45,6 +45,10 @@
 #define O_BINARY 0
 #endif
 
+#ifdef __sun__
+#define ENOMEDIUM 4097
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #define fsync _commit
