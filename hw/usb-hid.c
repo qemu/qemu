@@ -39,6 +39,7 @@ typedef struct USBMouseState {
     int x, y;
     int kind;
     int mouse_grabbed;
+    QEMUPutMouseEntry *eh_entry;
 } USBMouseState;
 
 /* mostly the same values as the Bochs USB Mouse device */
@@ -259,7 +260,8 @@ static int usb_mouse_poll(USBMouseState *s, uint8_t *buf, int len)
     int dx, dy, dz, b, l;
 
     if (!s->mouse_grabbed) {
-	qemu_add_mouse_event_handler(usb_mouse_event, s, 0);
+	s->eh_entry = qemu_add_mouse_event_handler(usb_mouse_event, s,
+                                                  0, "QEMU USB Mouse");
 	s->mouse_grabbed = 1;
     }
     
@@ -295,7 +297,8 @@ static int usb_tablet_poll(USBMouseState *s, uint8_t *buf, int len)
     int dz, b, l;
 
     if (!s->mouse_grabbed) {
-	qemu_add_mouse_event_handler(usb_tablet_event, s, 1);
+	s->eh_entry = qemu_add_mouse_event_handler(usb_tablet_event, s,
+                                                  1, "QEMU USB Tablet");
 	s->mouse_grabbed = 1;
     }
     
@@ -503,7 +506,7 @@ static void usb_mouse_handle_destroy(USBDevice *dev)
 {
     USBMouseState *s = (USBMouseState *)dev;
 
-    qemu_add_mouse_event_handler(NULL, NULL, 0);
+    qemu_remove_mouse_event_handler(s->eh_entry);
     qemu_free(s);
 }
 

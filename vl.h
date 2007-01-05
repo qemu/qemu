@@ -172,12 +172,28 @@ extern int no_quit;
 typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
 
+typedef struct QEMUPutMouseEntry {
+    QEMUPutMouseEvent *qemu_put_mouse_event;
+    void *qemu_put_mouse_event_opaque;
+    int qemu_put_mouse_event_absolute;
+    char *qemu_put_mouse_event_name;
+
+    /* used internally by qemu for handling mice */
+    struct QEMUPutMouseEntry *next;
+} QEMUPutMouseEntry;
+
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque);
-void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque, int absolute);
+QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
+                                                void *opaque, int absolute,
+                                                const char *name);
+void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry);
 
 void kbd_put_keycode(int keycode);
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
 int kbd_mouse_is_absolute(void);
+
+void do_info_mice(void);
+void do_mouse_set(int index);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */

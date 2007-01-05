@@ -781,6 +781,8 @@ show all USB host devices
 show information about active capturing
 @item info snapshots
 show list of VM snapshots
+@item info mice
+show which guest mouse is receiving events
 @end table
 
 @item q or quit
@@ -794,6 +796,20 @@ Change a removable media.
 
 @item screendump filename
 Save screen into PPM image @var{filename}.
+
+@item mouse_move dx dy [dz]
+Move the active mouse to the specified coordinates @var{dx} @var{dy}
+with optional scroll axis @var{dz}.
+
+@item mouse_button val
+Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
+
+@item mouse_set index
+Set which mouse device receives events at given @var{index}, index
+can be obtained with
+@example
+info mice
+@end example
 
 @item wavcapture filename [frequency [bits [channels]]]
 Capture audio into @var{filename}. Using sample rate @var{frequency}

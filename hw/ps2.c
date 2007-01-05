@@ -560,7 +560,7 @@ void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
     s->common.update_arg = update_arg;
     ps2_reset(&s->common);
     register_savevm("ps2mouse", 0, 2, ps2_mouse_save, ps2_mouse_load, s);
-    qemu_add_mouse_event_handler(ps2_mouse_event, s, 0);
+    qemu_add_mouse_event_handler(ps2_mouse_event, s, 0, "QEMU PS/2 Mouse");
     qemu_register_reset(ps2_reset, &s->common);
     return s;
 }
