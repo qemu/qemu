@@ -406,5 +406,5 @@ void adb_mouse_init(ADBBusState *bus)
     d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
                             adb_mouse_reset, s);
     adb_mouse_reset(d);
-    qemu_add_mouse_event_handler(adb_mouse_event, d, 0);
+    qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");
 }

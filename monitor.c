@@ -1243,6 +1243,8 @@ static term_cmd_t term_cmds[] = {
       "dx dy [dz]", "send mouse move events" },
     { "mouse_button", "i", do_mouse_button, 
       "state", "change mouse button state (1=L, 2=M, 4=R)" },
+    { "mouse_set", "i", do_mouse_set,
+      "index", "set which mouse device receives events" },
 #ifdef HAS_AUDIO
     { "wavcapture", "si?i?i?", do_wav_capture,
       "path [frequency bits channels]",
@@ -1294,6 +1296,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show capture information" },
     { "snapshots", "", do_info_snapshots,
       "", "show the currently saved VM snapshots" },
+    { "mice", "", do_info_mice,
+      "", "show which guest mouse is receiving events" },
     { NULL, NULL, },
 };
 

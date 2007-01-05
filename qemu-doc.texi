@@ -219,9 +219,9 @@ Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
 @option{-cdrom} at the same time). You can use the host CD-ROM by
 using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 
-@item -boot [a|c|d]
-Boot on floppy (a), hard disk (c) or CD-ROM (d). Hard disk boot is
-the default.
+@item -boot [a|c|d|n]
+Boot on floppy (a), hard disk (c), CD-ROM (d), or Etherboot (n). Hard disk boot
+is the default.
 
 @item -disk ide,img=file[,hdx=a..dd][,type=disk|cdrom]
 Use @var{file} as the IDE disk/CD-ROM image. The defaults are: hdx=a,type=disk
@@ -325,6 +325,10 @@ to cope with initialization race conditions.
 Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
+
+@item -option-rom file
+Load the contents of file as an option ROM.  This option is useful to load
+things like EtherBoot.
 
 @end table
 
@@ -781,6 +785,8 @@ show all USB host devices
 show information about active capturing
 @item info snapshots
 show list of VM snapshots
+@item info mice
+show which guest mouse is receiving events
 @end table
 
 @item q or quit
@@ -794,6 +800,20 @@ Change a removable medium.
 
 @item screendump filename
 Save screen into PPM image @var{filename}.
+
+@item mouse_move dx dy [dz]
+Move the active mouse to the specified coordinates @var{dx} @var{dy}
+with optional scroll axis @var{dz}.
+
+@item mouse_button val
+Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
+
+@item mouse_set index
+Set which mouse device receives events at given @var{index}, index
+can be obtained with
+@example
+info mice
+@end example
 
 @item wavcapture filename [frequency [bits [channels]]]
 Capture audio into @var{filename}. Using sample rate @var{frequency}

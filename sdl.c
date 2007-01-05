@@ -319,6 +319,7 @@ static void sdl_show_cursor(void)
 {
     if (!kbd_mouse_is_absolute()) {
         SDL_ShowCursor(1);
+        SDL_SetCursor(sdl_cursor_normal);
     }
 }
 
@@ -364,6 +365,9 @@ static void sdl_send_mouse_event(int dz)
 	SDL_GetMouseState(&dx, &dy);
 	dx = dx * 0x7FFF / width;
 	dy = dy * 0x7FFF / height;
+    } else if (absolute_enabled) {
+	sdl_show_cursor();
+	absolute_enabled = 0;
     }
 
     kbd_mouse_event(dx, dy, dz, buttons);
@@ -502,7 +506,8 @@ static void sdl_refresh(DisplayState *ds)
             }
             break;
         case SDL_MOUSEMOTION:
-            if (gui_grab || kbd_mouse_is_absolute()) {
+            if (gui_grab || kbd_mouse_is_absolute() ||
+                absolute_enabled) {
                 sdl_send_mouse_event(0);
             }
             break;

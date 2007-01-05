@@ -682,7 +682,7 @@ void slavio_serial_ms_kbd_init(int base, int irq)
     slavio_serial_io_memory = cpu_register_io_memory(0, slavio_serial_mem_read, slavio_serial_mem_write, s);
     cpu_register_physical_memory(base, SERIAL_MAXADDR, slavio_serial_io_memory);
 
-    qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0);
+    qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0, "QEMU Sun Mouse");
     qemu_add_kbd_event_handler(sunkbd_event, &s->chn[1]);
     qemu_register_reset(slavio_serial_reset, s);
     slavio_serial_reset(s);

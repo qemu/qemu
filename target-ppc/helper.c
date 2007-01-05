@@ -1113,8 +1113,6 @@ void do_interrupt (CPUState *env)
         }
         goto store_next;
     case EXCP_TRACE: /* 0x0D00 */
-        /* XXX: TODO */
-        cpu_abort(env, "Trace exception is not implemented yet !\n");
         goto store_next;
     case EXCP_PERF: /* 0x0F00 */
         /* XXX: TODO */

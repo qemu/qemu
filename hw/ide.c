@@ -2069,7 +2069,7 @@ static void ide_init2(IDEState *ide_state,
 {
     IDEState *s;
     static int drive_serial = 1;
-    int i, cylinders, heads, secs, translation;
+    int i, cylinders, heads, secs, translation, lba_detected = 0;
     int64_t nb_sectors;
 
     for(i = 0; i < 2; i++) {
@@ -2083,6 +2083,7 @@ static void ide_init2(IDEState *ide_state,
             s->nb_sectors = nb_sectors;
             /* if a geometry hint is available, use it */
             bdrv_get_geometry_hint(s->bs, &cylinders, &heads, &secs);
+            translation = bdrv_get_translation_hint(s->bs);
             if (cylinders != 0) {
                 s->cylinders = cylinders;
                 s->heads = heads;
@@ -2093,6 +2094,7 @@ static void ide_init2(IDEState *ide_state,
                         /* if heads > 16, it means that a BIOS LBA
                            translation was active, so the default
                            hardware geometry is OK */
+                        lba_detected = 1;
                         goto default_geometry;
                     } else {
                         s->cylinders = cylinders;
@@ -2100,7 +2102,6 @@ static void ide_init2(IDEState *ide_state,
                         s->sectors = secs;
                         /* disable any translation to be in sync with
                            the logical geometry */
-                        translation = bdrv_get_translation_hint(s->bs);
                         if (translation == BIOS_ATA_TRANSLATION_AUTO) {
                             bdrv_set_translation_hint(s->bs,
                                                       BIOS_ATA_TRANSLATION_NONE);
@@ -2117,6 +2118,15 @@ static void ide_init2(IDEState *ide_state,
                     s->cylinders = cylinders;
                     s->heads = 16;
                     s->sectors = 63;
+                    if ((lba_detected == 1) && (translation == BIOS_ATA_TRANSLATION_AUTO)) {
+                      if ((s->cylinders * s->heads) <= 131072) {
+                        bdrv_set_translation_hint(s->bs,
+                                                  BIOS_ATA_TRANSLATION_LARGE);
+                      } else {
+                        bdrv_set_translation_hint(s->bs,
+                                                  BIOS_ATA_TRANSLATION_LBA);
+                      }
+                    }
                 }
                 bdrv_set_geometry_hint(s->bs, s->cylinders, s->heads, s->sectors);
             }

@@ -5,19 +5,18 @@
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
 	speed test test2 html dvi info
 
-CFLAGS+=-Wall -O2 -g -fno-strict-aliasing -I.
-ifdef CONFIG_DARWIN
-CFLAGS+= -mdynamic-no-pic
-endif
+BASE_CFLAGS=
+BASE_LDFLAGS=
+
+BASE_CFLAGS += $(OS_CFLAGS)
 ifeq ($(ARCH),sparc)
-CFLAGS+=-mcpu=ultrasparc
+BASE_CFLAGS += -mcpu=ultrasparc
 endif
-LDFLAGS+=-g
+CPPFLAGS += -I. -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LIBS=
-DEFINES+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 TOOLS=qemu-img$(EXESUF)
 ifdef CONFIG_STATIC
-LDFLAGS+=-static
+BASE_LDFLAGS += -static
 endif
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1
@@ -41,10 +40,10 @@ subdir-%: dyngen$(EXESUF)
 recurse-all: $(patsubst %,subdir-%, $(TARGET_DIRS))
 
 qemu-img$(EXESUF): qemu-img.c block.c block-raw.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c block-bochs.c block-vpc.c block-vvfat.c block-qcow2.c
-	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
+	$(CC) -DQEMU_TOOL $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 dyngen$(EXESUF): dyngen.c
-	$(HOST_CC) $(CFLAGS) $(DEFINES) -o $@ $^
+	$(HOST_CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -o $@ $^
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
@@ -79,7 +78,8 @@ install: all $(if $(BUILD_DOCS),install-doc)
 	$(INSTALL) -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
 	mkdir -p "$(DESTDIR)$(datadir)"
 	for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
-			video.x openbios-sparc32 linux_boot.bin; do \
+		video.x openbios-sparc32 linux_boot.bin pxe-ne2k_pci.bin \
+		pxe-rtl8139.bin pxe-pcnet.bin; do \
 		$(INSTALL) -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
 	done
 ifndef CONFIG_WIN32

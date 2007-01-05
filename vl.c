@@ -174,6 +174,8 @@ int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
 int daemonize = 0;
+const char *option_rom[MAX_OPTION_ROMS];
+int nb_option_roms;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -463,9 +465,8 @@ void hw_error(const char *fmt, ...)
 
 static QEMUPutKBDEvent *qemu_put_kbd_event;
 static void *qemu_put_kbd_event_opaque;
-static QEMUPutMouseEvent *qemu_put_mouse_event;
-static void *qemu_put_mouse_event_opaque;
-static int qemu_put_mouse_event_absolute;
+static QEMUPutMouseEntry *qemu_put_mouse_event_head;
+static QEMUPutMouseEntry *qemu_put_mouse_event_current;
 
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
 {
@@ -473,11 +474,68 @@ void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
     qemu_put_kbd_event = func;
 }
 
-void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque, int absolute)
+QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
+                                                void *opaque, int absolute,
+                                                const char *name)
 {
-    qemu_put_mouse_event_opaque = opaque;
-    qemu_put_mouse_event = func;
-    qemu_put_mouse_event_absolute = absolute;
+    QEMUPutMouseEntry *s, *cursor;
+
+    s = qemu_mallocz(sizeof(QEMUPutMouseEntry));
+    if (!s)
+        return NULL;
+
+    s->qemu_put_mouse_event = func;
+    s->qemu_put_mouse_event_opaque = opaque;
+    s->qemu_put_mouse_event_absolute = absolute;
+    s->qemu_put_mouse_event_name = qemu_strdup(name);
+    s->next = NULL;
+
+    if (!qemu_put_mouse_event_head) {
+        qemu_put_mouse_event_head = qemu_put_mouse_event_current = s;
+        return s;
+    }
+
+    cursor = qemu_put_mouse_event_head;
+    while (cursor->next != NULL)
+        cursor = cursor->next;
+
+    cursor->next = s;
+    qemu_put_mouse_event_current = s;
+
+    return s;
+}
+
+void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
+{
+    QEMUPutMouseEntry *prev = NULL, *cursor;
+
+    if (!qemu_put_mouse_event_head || entry == NULL)
+        return;
+
+    cursor = qemu_put_mouse_event_head;
+    while (cursor != NULL && cursor != entry) {
+        prev = cursor;
+        cursor = cursor->next;
+    }
+
+    if (cursor == NULL) // does not exist or list empty
+        return;
+    else if (prev == NULL) { // entry is head
+        qemu_put_mouse_event_head = cursor->next;
+        if (qemu_put_mouse_event_current == entry)
+            qemu_put_mouse_event_current = cursor->next;
+        qemu_free(entry->qemu_put_mouse_event_name);
+        qemu_free(entry);
+        return;
+    }
+
+    prev->next = entry->next;
+
+    if (qemu_put_mouse_event_current == entry)
+        qemu_put_mouse_event_current = prev;
+
+    qemu_free(entry->qemu_put_mouse_event_name);
+    qemu_free(entry);
 }
 
 void kbd_put_keycode(int keycode)
@@ -489,15 +547,72 @@ void kbd_put_keycode(int keycode)
 
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
 {
-    if (qemu_put_mouse_event) {
-        qemu_put_mouse_event(qemu_put_mouse_event_opaque, 
-                             dx, dy, dz, buttons_state);
+    QEMUPutMouseEvent *mouse_event;
+    void *mouse_event_opaque;
+
+    if (!qemu_put_mouse_event_current) {
+        return;
+    }
+
+    mouse_event =
+        qemu_put_mouse_event_current->qemu_put_mouse_event;
+    mouse_event_opaque =
+        qemu_put_mouse_event_current->qemu_put_mouse_event_opaque;
+
+    if (mouse_event) {
+        mouse_event(mouse_event_opaque, dx, dy, dz, buttons_state);
     }
 }
 
 int kbd_mouse_is_absolute(void)
 {
-    return qemu_put_mouse_event_absolute;
+    if (!qemu_put_mouse_event_current)
+        return 0;
+
+    return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
+}
+
+void do_info_mice(void)
+{
+    QEMUPutMouseEntry *cursor;
+    int index = 0;
+
+    if (!qemu_put_mouse_event_head) {
+        term_printf("No mouse devices connected\n");
+        return;
+    }
+
+    term_printf("Mouse devices available:\n");
+    cursor = qemu_put_mouse_event_head;
+    while (cursor != NULL) {
+        term_printf("%c Mouse #%d: %s\n",
+                    (cursor == qemu_put_mouse_event_current ? '*' : ' '),
+                    index, cursor->qemu_put_mouse_event_name);
+        index++;
+        cursor = cursor->next;
+    }
+}
+
+void do_mouse_set(int index)
+{
+    QEMUPutMouseEntry *cursor;
+    int i = 0;
+
+    if (!qemu_put_mouse_event_head) {
+        term_printf("No mouse devices connected\n");
+        return;
+    }
+
+    cursor = qemu_put_mouse_event_head;
+    while (cursor != NULL && index != i) {
+        i++;
+        cursor = cursor->next;
+    }
+
+    if (cursor != NULL)
+        qemu_put_mouse_event_current = cursor;
+    else
+        term_printf("Mouse at given index not found\n");
 }
 
 /* compute with 96 bit intermediate result: (a*b)/c */
@@ -6123,7 +6238,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
-           "-boot [a|c|d]   boot on floppy (a), hard disk (c) or CD-ROM (d)\n"
+           "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-disk ide,img=file[,hdx=a..dd][,type=disk|cdrom] \n"
            "                defaults are: hdx=a,type=disk \n"
            "-disk scsi,img=file[,sdx=a..g][,type=disk|cdrom][,id=n]  \n"
@@ -6227,6 +6342,7 @@ void help(void)
 #ifndef _WIN32
 	   "-daemonize      daemonize QEMU after initializing\n"
 #endif
+	   "-option-rom rom load a file, rom, into the option ROM space\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -6309,6 +6425,7 @@ enum {
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_disk,
+    QEMU_OPTION_option_rom,
 };
 
 typedef struct QEMUOption {
@@ -6391,6 +6508,7 @@ const QEMUOption qemu_options[] = {
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "daemonize", 0, QEMU_OPTION_daemonize },
+    { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
     { NULL },
 };
 
@@ -6981,7 +7099,7 @@ int main(int argc, char **argv)
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
                 if (boot_device != 'a' && 
-#ifdef TARGET_SPARC
+#if defined(TARGET_SPARC) || defined(TARGET_I386)
 		    // Network boot
 		    boot_device != 'n' &&
 #endif
@@ -7206,6 +7324,14 @@ int main(int argc, char **argv)
 	    case QEMU_OPTION_daemonize:
 		daemonize = 1;
 		break;
+	    case QEMU_OPTION_option_rom:
+		if (nb_option_roms >= MAX_OPTION_ROMS) {
+		    fprintf(stderr, "Too many option ROMs\n");
+		    exit(1);
+		}
+		option_rom[nb_option_roms] = optarg;
+		nb_option_roms++;
+		break;
             }
         }
     }
@@ -7298,8 +7424,39 @@ int main(int argc, char **argv)
             exit(1);
     }
 
+#ifdef TARGET_I386
+    if (boot_device == 'n') {
+	for (i = 0; i < nb_nics; i++) {
+	    const char *model = nd_table[i].model;
+	    char buf[1024];
+	    if (model == NULL)
+		model = "ne2k_pci";
+	    snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
+	    if (get_image_size(buf) > 0) {
+		option_rom[nb_option_roms] = strdup(buf);
+		nb_option_roms++;
+		break;
+	    }
+	}
+	if (i == nb_nics) {
+	    fprintf(stderr, "No valid PXE rom found for network device\n");
+	    exit(1);
+	}
+	boot_device = 'c'; /* to prevent confusion by the BIOS */
+    }
+#endif
+
     /* init the memory */
     phys_ram_size = ram_size + vga_ram_size + bios_size;
+
+    for (i = 0; i < nb_option_roms; i++) {
+	int ret = get_image_size(option_rom[i]);
+	if (ret == -1) {
+	    fprintf(stderr, "Could not load option rom '%s'\n", option_rom[i]);
+	    exit(1);
+	}
+	phys_ram_size += ret;
+    }
 
     phys_ram_base = qemu_vmalloc(phys_ram_size);
     if (!phys_ram_base) {

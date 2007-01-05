@@ -188,6 +188,11 @@ void ps2_write_keyboard(void *opaque, int val)
         case 0x05:
             ps2_queue(&s->common, KBD_REPLY_RESEND);
             break;
+        case 0xf0:
+            fprintf(stderr, "%s:%u %s\n", __FILE__, __LINE__, __func__);
+            ps2_queue(&s->common, KBD_REPLY_ACK);
+            abort();
+            break;
         case KBD_CMD_GET_ID:
             ps2_queue(&s->common, KBD_REPLY_ACK);
             ps2_queue(&s->common, 0xab);
@@ -242,6 +247,7 @@ void ps2_write_keyboard(void *opaque, int val)
 
 void ps2_keyboard_set_translation(void *opaque, int mode)
 {
+    fprintf(stderr, "%s:%u %s(%d)\n", __FILE__, __LINE__, __func__, mode);
     PS2KbdState *s = (PS2KbdState *)opaque;
     s->translate = mode;
 }
@@ -545,6 +551,7 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
+    s->translate = 1;
     ps2_reset(&s->common);
     register_savevm("ps2kbd", 0, 2, ps2_kbd_save, ps2_kbd_load, s);
     qemu_add_kbd_event_handler(ps2_put_keycode, s);
@@ -560,7 +567,7 @@ void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
     s->common.update_arg = update_arg;
     ps2_reset(&s->common);
     register_savevm("ps2mouse", 0, 2, ps2_mouse_save, ps2_mouse_load, s);
-    qemu_add_mouse_event_handler(ps2_mouse_event, s, 0);
+    qemu_add_mouse_event_handler(ps2_mouse_event, s, 0, "QEMU PS/2 Mouse");
     qemu_register_reset(ps2_reset, &s->common);
     return s;
 }

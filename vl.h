@@ -45,6 +45,10 @@
 #define O_BINARY 0
 #endif
 
+#ifdef __sun__
+#define ENOMEDIUM 4097
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #define fsync _commit
@@ -153,6 +157,10 @@ extern int usb_enabled;
 extern int smp_cpus;
 extern int no_quit;
 
+#define MAX_OPTION_ROMS 16
+extern const char *option_rom[MAX_OPTION_ROMS];
+extern int nb_option_roms;
+
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
@@ -173,12 +181,28 @@ extern int no_quit;
 typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
 
+typedef struct QEMUPutMouseEntry {
+    QEMUPutMouseEvent *qemu_put_mouse_event;
+    void *qemu_put_mouse_event_opaque;
+    int qemu_put_mouse_event_absolute;
+    char *qemu_put_mouse_event_name;
+
+    /* used internally by qemu for handling mice */
+    struct QEMUPutMouseEntry *next;
+} QEMUPutMouseEntry;
+
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque);
-void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque, int absolute);
+QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
+                                                void *opaque, int absolute,
+                                                const char *name);
+void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry);
 
 void kbd_put_keycode(int keycode);
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
 int kbd_mouse_is_absolute(void);
+
+void do_info_mice(void);
+void do_mouse_set(int index);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */
@@ -594,9 +618,11 @@ void bdrv_flush(BlockDriverState *bs);
 #define BDRV_TYPE_HD     0
 #define BDRV_TYPE_CDROM  1
 #define BDRV_TYPE_FLOPPY 2
-#define BIOS_ATA_TRANSLATION_AUTO 0
-#define BIOS_ATA_TRANSLATION_NONE 1
-#define BIOS_ATA_TRANSLATION_LBA  2
+#define BIOS_ATA_TRANSLATION_AUTO   0
+#define BIOS_ATA_TRANSLATION_NONE   1
+#define BIOS_ATA_TRANSLATION_LBA    2
+#define BIOS_ATA_TRANSLATION_LARGE  3
+#define BIOS_ATA_TRANSLATION_RECHS  4
 
 void bdrv_set_geometry_hint(BlockDriverState *bs, 
                             int cyls, int heads, int secs);

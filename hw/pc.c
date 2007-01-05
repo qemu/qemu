@@ -451,7 +451,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     int ret, linux_boot, initrd_size, i;
-    unsigned long bios_offset, vga_bios_offset;
+    unsigned long bios_offset, vga_bios_offset, option_rom_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
     int piix3_devfn = -1;
@@ -518,6 +518,23 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x100000 - isa_bios_size, 
                                  isa_bios_size, 
                                  (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
+
+    option_rom_offset = 0;
+    for (i = 0; i < nb_option_roms; i++) {
+	int offset = bios_offset + bios_size + option_rom_offset;
+	int size;
+
+	size = load_image(option_rom[i], phys_ram_base + offset);
+	if ((size + option_rom_offset) > 0x10000) {
+	    fprintf(stderr, "Too many option ROMS\n");
+	    exit(1);
+	}
+	cpu_register_physical_memory(0xd0000 + option_rom_offset,
+				     size, offset | IO_MEM_ROM);
+	option_rom_offset += size + 2047;
+	option_rom_offset -= (option_rom_offset % 2048);
+    }
+
     /* map all the bios at the top of memory */
     cpu_register_physical_memory((uint32_t)(-bios_size), 
                                  bios_size, bios_offset | IO_MEM_ROM);

@@ -44,6 +44,8 @@
 #endif
 
 #ifdef __sun__
+#define _POSIX_PTHREAD_SEMANTICS 1
+#include <signal.h>
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__

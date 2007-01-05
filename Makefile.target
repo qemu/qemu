@@ -14,15 +14,16 @@ TARGET_BASE_ARCH:=sparc
 endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
-DEFINES=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH)
+CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH)
 ifdef CONFIG_USER_ONLY
 VPATH+=:$(SRC_PATH)/linux-user
-DEFINES+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
+CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
 endif
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing
+BASE_CFLAGS=
+BASE_LDFLAGS=
 #CFLAGS+=-Werror
-CFLAGS += -MMD
-LDFLAGS=-g
+BASE_CFLAGS += -MMD
+BASE_LDFLAGS += -g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen$(EXESUF)
@@ -65,16 +66,16 @@ endif
 endif # !CONFIG_USER_ONLY
 
 ifdef CONFIG_STATIC
-LDFLAGS+=-static
+BASE_LDFLAGS+=-static
 endif
 
 ifndef CONFIG_WIN32
 ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux),)
 CONFIG_RUBY=yes
-DEFINES += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
+CPPFLAGS += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
 ifeq ($(TARGET_ARCH), i386)
 # CONFIG_SCU2=yes
-# DEFINES += -DLOCAL_INIT=scu2_init
+# CPPFLAGS += -DLOCAL_INIT=scu2_init
 endif
 LIBS += -lruby1.8
 QEMU_RUBY := qemu.so
@@ -82,15 +83,17 @@ PROGS += $(QEMU_RUBY)
 endif
 endif # CONFIG_WIN32
 
+# We require -O2 to avoid the stack setup prologue in EXIT_TB
+OP_CFLAGS = -Wall -O2 -g -fno-strict-aliasing
+
 ifeq ($(ARCH),i386)
-HELPER_CFLAGS:=$(CFLAGS) -fomit-frame-pointer
-OP_CFLAGS:=$(CFLAGS) -mpreferred-stack-boundary=2 -fomit-frame-pointer
+HELPER_CFLAGS+=-fomit-frame-pointer
+OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
 OP_CFLAGS+= -falign-functions=0 -fno-gcse
 else
 OP_CFLAGS+= -malign-functions=0
 endif
-
 ifdef TARGET_GPROF
 USE_I386_LD=y
 endif
@@ -98,76 +101,76 @@ ifdef CONFIG_STATIC
 USE_I386_LD=y
 endif
 ifdef USE_I386_LD
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386.ld
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
 # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
 # that the kernel ELF loader considers as an executable. I think this
 # is the simplest way to make it self virtualizable!
-LDFLAGS+=-Wl,-shared
+BASE_LDFLAGS+=-Wl,-shared
 endif
 endif
 
 ifeq ($(ARCH),x86_64)
-OP_CFLAGS=$(CFLAGS) -falign-functions=0
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/x86_64.ld
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),ppc)
-CFLAGS+= -D__powerpc__
-OP_CFLAGS=$(CFLAGS)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/ppc.ld
+CPPFLAGS+= -D__powerpc__
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),s390)
-OP_CFLAGS=$(CFLAGS)
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/s390.ld
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),sparc)
 ifeq ($(CONFIG_SOLARIS),yes)
-CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g2 -ffixed-g3
-LDFLAGS+=-m32
-OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -fno-omit-frame-pointer -ffixed-i0
+BASE_CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g2 -ffixed-g3
+BASE_LDFLAGS+=-m32
+OP_CFLAGS+=-fno-delayed-branch -fno-omit-frame-pointer -ffixed-i0
 else
-CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
-LDFLAGS+=-m32
-OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+BASE_CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+BASE_LDFLAGS+=-m32
+OP_CFLAGS+=-fno-delayed-branch -ffixed-i0
 HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
 # -static is used to avoid g1/g3 usage by the dynamic linker
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc.ld -static
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
 endif
 endif
 
 ifeq ($(ARCH),sparc64)
-CFLAGS+=-mcpu=ultrasparc -m64 -ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
-LDFLAGS+=-m64
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc64.ld
-OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+BASE_CFLAGS+=-mcpu=ultrasparc -m64 -ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
+BASE_LDFLAGS+=-m64
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+OP_CFLAGS+=-mcpu=ultrasparc -m64 -ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7 -fno-delayed-branch -ffixed-i0
 endif
 
 ifeq ($(ARCH),alpha)
-# -msmall-data is not used because we want two-instruction relocations
-# for the constant constructions
-OP_CFLAGS=-Wall -O2 -g
+# -msmall-data is not used for OP_CFLAGS because we want two-instruction
+# relocations for the constant constructions
 # Ensure there's only a single GP
-CFLAGS += -msmall-data
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/alpha.ld
+BASE_CFLAGS+=-msmall-data
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),ia64)
-CFLAGS += -mno-sdata
-OP_CFLAGS=$(CFLAGS)
-LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
+BASE_CFLAGS+=-mno-sdata
+OP_CFLAGS+=-mno-sdata
+BASE_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),arm)
-OP_CFLAGS=$(CFLAGS) -mno-sched-prolog -fno-omit-frame-pointer
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/arm.ld
+OP_CFLAGS+=-mno-sched-prolog -fno-omit-frame-pointer
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),m68k)
-OP_CFLAGS=$(CFLAGS) -fomit-frame-pointer
-LDFLAGS+=-Wl,-T,m68k.ld
+OP_CFLAGS+=-fomit-frame-pointer
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),mips)
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
@@ -176,13 +179,14 @@ OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
 endif
 
 ifeq ($(CONFIG_DARWIN),yes)
-OP_CFLAGS+= -mdynamic-no-pic
 LIBS+=-lmx
 endif
 
+OP_CFLAGS+=$(OS_CFLAGS)
+
 #########################################################
 
-DEFINES+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LIBS+=-lm
 ifndef CONFIG_USER_ONLY
 LIBS+=-lz
@@ -196,8 +200,8 @@ endif
 
 # profiling code
 ifdef TARGET_GPROF
-LDFLAGS+=-p
-main.o: CFLAGS+=-p
+BASE_LDFLAGS+=-p
+main.o: BASE_CFLAGS+=-p
 endif
 
 OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
@@ -228,7 +232,7 @@ LIBOBJS+=fpu/softfloat.o
 else
 LIBOBJS+=fpu/softfloat-native.o
 endif
-DEFINES+=-I$(SRC_PATH)/fpu
+CPPFLAGS+=-I$(SRC_PATH)/fpu
 
 ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=helper.o helper2.o
@@ -308,7 +312,7 @@ endif
 all: $(PROGS)
 
 $(QEMU_USER): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(CC) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^  $(LIBS)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
 # the address space (31 bit so sign extending doesn't matter)
@@ -344,7 +348,7 @@ LIBS += -lole32 -ldxguid
 endif
 ifdef CONFIG_FMOD
 AUDIODRV += fmodaudio.o
-audio.o fmodaudio.o: DEFINES := -I$(CONFIG_FMOD_INC) $(DEFINES)
+audio.o fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
 LIBS += $(CONFIG_FMOD_LIB)
 endif
 ifdef CONFIG_ADLIB
@@ -370,14 +374,14 @@ VL_OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o acpi.o piix_pci.o
 VL_OBJS+= usb-uhci.o
-DEFINES += -DHAS_AUDIO
+CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
 VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
-DEFINES += -DHAS_AUDIO
+CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
 VL_OBJS += dma.o
@@ -436,7 +440,7 @@ COCOA_LIBS+=-framework CoreAudio
 endif
 endif
 ifdef CONFIG_SLIRP
-DEFINES+=-I$(SRC_PATH)/slirp
+CPPFLAGS+=-I$(SRC_PATH)/slirp
 SLIRP_OBJS=cksum.o if.o ip_icmp.o ip_input.o ip_output.o \
 slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o \
 tcp_subr.o tcp_timer.o udp.o bootp.o debug.o tftp.o
@@ -459,7 +463,7 @@ endif
 endif
 endif
 ifdef TARGET_GPROF
-vl.o: CFLAGS+=-p
+vl.o: BASE_CFLAGS+=-p
 VL_LDFLAGS+=-p
 endif
 
@@ -487,22 +491,22 @@ $(QEMU_RUBY): $(VL_OBJS) libqemu.a
 endif
 
 cocoa.o: cocoa.m
-	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 sdl.o: sdl.c keymaps.c sdl_keysym.h
-	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h
-	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 sdlaudio.o: sdlaudio.c
-	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 depend: $(SRCS)
-	$(CC) -MM $(CFLAGS) $(DEFINES) $^ 1>.depend
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $^ 1>.depend
 
 vldepend: $(VL_OBJS:.o=.c)
-	$(CC) -MM $(CFLAGS) $(DEFINES) $^ 1>.depend
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $^ 1>.depend
 
 # libqemu 
 
@@ -526,26 +530,26 @@ gen-op.h: op.o $(DYNGEN)
 	$(DYNGEN) -g -o $@ $<
 
 op.o: op.c
-	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
 ifeq ($(TARGET_BASE_ARCH), i386)
 # XXX: rename helper.c to op_helper.c
 helper.o: helper.c
-	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 else
 op_helper.o: op_helper.c
-	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 endif
 
 cpu-exec.o: cpu-exec.c
-	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 op.o: op.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h ops_sse.h
@@ -587,10 +591,10 @@ endif
 $(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 %.o: %.S
-	$(CC) $(DEFINES) -c -o $@ $<
+	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
 	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o fpu/*.o
