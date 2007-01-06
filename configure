@@ -509,6 +509,25 @@ fi # sdl compile test
 fi # cross compilation
 fi # -z $sdl
 
+##########################################
+# alsa sound support libraries
+
+if test "$alsa" = "yes" ; then
+  cat > $TMPC << EOF
+#include <alsa/asoundlib.h>
+int main(void) { snd_pcm_t **handle; return snd_pcm_close(*handle); }
+EOF
+  if $cc -o $TMPE $TMPC -lasound 2> /dev/null ; then
+    :
+  else
+    echo
+    echo "Error: Could not find alsa"
+    echo "Make sure to have the alsa libs and headers installed."
+    echo
+    exit 1
+  fi
+fi
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html`" ] && [ -x "`which pod2man`" ]; then
   build_docs="yes"

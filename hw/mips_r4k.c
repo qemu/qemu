@@ -12,7 +12,11 @@
 #include "vl.h"
 #include "mips_display.h"       /* mips_display_init */
 
+#ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
+#else
+#define BIOS_FILENAME "mipsel_bios.bin"
+#endif
 //#define BIOS_FILENAME "system.bin"
 #ifdef MIPS_HAS_MIPS64
 #define INITRD_LOAD_ADDR (int64_t)(int32_t)0x80800000
@@ -144,7 +148,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     unsigned long bios_offset;
-    int ret;
+    int bios_size;
     CPUState *env;
     static RTCState *rtc_state;
     int i;
@@ -172,13 +176,10 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
        run. */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
-        __func__, phys_ram_base, ram_size, bios_offset);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    if ((ret > 0) && (ret <= BIOS_SIZE)) {
-        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
-        cpu_register_physical_memory((uint32_t)(0x1fc00000),
-                                     ret, bios_offset | IO_MEM_ROM);
+    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
+	cpu_register_physical_memory((uint32_t)(0x1fc00000),
+				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
     } else {
         /* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",

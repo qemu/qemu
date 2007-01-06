@@ -53,6 +53,7 @@ typedef struct term_cmd_t {
 } term_cmd_t;
 
 static CharDriverState *monitor_hd;
+static int hide_banner;
 
 static term_cmd_t term_cmds[];
 static const term_cmd_t info_cmds[];
@@ -2440,15 +2441,24 @@ static void monitor_start_input(void)
     readline_start("(qemu) ", 0, monitor_handle_command1, NULL);
 }
 
+static void term_event(void *opaque, int event)
+{
+    if (event != CHR_EVENT_RESET)
+	return;
+
+    if (!hide_banner)
+	    term_printf("QEMU %s monitor - type 'help' for more information\n",
+			QEMU_VERSION);
+    monitor_start_input();
+}
+
 void monitor_init(CharDriverState *hd, int show_banner)
 {
     monitor_hd = hd;
-    if (show_banner) {
-        term_printf("QEMU %s monitor - type 'help' for more information\n",
-                    QEMU_VERSION);
-    }
+    hide_banner = !show_banner;
+
     qemu_chr_add_read_handler(hd, term_can_read, term_read, NULL);
-    monitor_start_input();
+    qemu_chr_add_event_handler(hd, term_event);
 }
 
 /* XXX: use threads ? */

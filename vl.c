@@ -1165,6 +1165,23 @@ void quit_timers(void)
 /***********************************************************/
 /* character device */
 
+static void qemu_chr_reset_bh(void *opaque)
+{
+    CharDriverState *s = opaque;
+    if (s->chr_event)
+	s->chr_event(s, CHR_EVENT_RESET);
+    qemu_bh_delete(s->bh);
+    s->bh = NULL;
+}
+
+void qemu_chr_reset(CharDriverState *s)
+{
+    if (s->bh == NULL) {
+	s->bh = qemu_bh_new(qemu_chr_reset_bh, s);
+	qemu_bh_schedule(s->bh);
+    }
+}
+
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len)
 {
     return s->chr_write(s, buf, len);
@@ -1402,6 +1419,9 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     chr->opaque = s;
     chr->chr_write = fd_chr_write;
     chr->chr_add_read_handler = fd_chr_add_read_handler;
+
+    qemu_chr_reset(chr);
+
     return chr;
 }
 
@@ -1819,6 +1839,7 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     if (!chr)
         return NULL;
     chr->chr_ioctl = tty_serial_ioctl;
+    qemu_chr_reset(chr);
     return chr;
 }
 
@@ -1882,6 +1903,9 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
     chr->chr_write = null_chr_write;
     chr->chr_add_read_handler = null_chr_add_read_handler;
     chr->chr_ioctl = pp_ioctl;
+
+    qemu_chr_reset(chr);
+
     return chr;
 }
 
@@ -2127,6 +2151,7 @@ static CharDriverState *qemu_chr_open_win(const char *filename)
         free(chr);
         return NULL;
     }
+    qemu_chr_reset(chr);
     return chr;
 }
 
@@ -2230,6 +2255,7 @@ static CharDriverState *qemu_chr_open_win_pipe(const char *filename)
         free(chr);
         return NULL;
     }
+    qemu_chr_reset(chr);
     return chr;
 }
 
@@ -2250,6 +2276,7 @@ static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     chr->opaque = s;
     chr->chr_write = win_chr_write;
     chr->chr_add_read_handler = win_chr_add_read_handler;
+    qemu_chr_reset(chr);
     return chr;
 }
     
@@ -2537,6 +2564,7 @@ static void tcp_chr_connect(void *opaque)
     s->connected = 1;
     qemu_set_fd_handler2(s->fd, tcp_chr_read_poll,
                          tcp_chr_read, NULL, chr);
+    qemu_chr_reset(chr);
 }
 
 #define IACSET(x,a,b,c) x[0] = a; x[1] = b; x[2] = c;

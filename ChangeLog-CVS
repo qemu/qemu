@@ -1,3 +1,26 @@
+2007-01-06 03:24  ths
+
+	* hw/mips_r4k.c: Unbreak the last patch.
+
+2007-01-06 02:37  ths
+
+	* hw/mips_r4k.c: Different MIPS BIOS binary names per endianness,
+	  and more relaxed size rules for the binaries, by Alec Voropay.
+
+2007-01-06 00:48  ths
+
+	* pc-bios/: pxe-ne2k_pci.bin, pxe-pcnet.bin, pxe-rtl8139.bin: Add
+	  new Etherboot ROMs for PXE boot.
+
+2007-01-05 23:01  ths
+
+	* console.c, monitor.c, vl.c, vl.h: Reinitialize monitor upon
+	  reconnect, by Anthony Liguori.
+
+2007-01-05 22:25  ths
+
+	* configure: Configure check for alsa, by Bernhard Fischer.
+
 2007-01-05 21:55  ths
 
 	* linux-user/syscall.c: Support fcntl F_GETLK64, F_SETLK64,

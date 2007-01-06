@@ -1086,5 +1086,7 @@ CharDriverState *text_console_init(DisplayState *ds)
     s->t_attrib = s->t_attrib_default;
     text_console_resize(s);
 
+    qemu_chr_reset(chr);
+
     return chr;
 }
