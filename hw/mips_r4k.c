@@ -9,7 +9,7 @@
 */
 #include "vl.h"
 
-#ifdef TARGET_BIG_ENDIAN
+#ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
 #else
 #define BIOS_FILENAME "mipsel_bios.bin"
@@ -165,7 +165,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
-    if (bios_size > 0 & bios_size <= BIOS_SIZE) {
+    if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
 	cpu_register_physical_memory((uint32_t)(0x1fc00000),
 				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
     } else {
