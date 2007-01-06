@@ -1813,10 +1813,33 @@ uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr)
     return p->phys_offset;
 }
 
+#if defined(DEBUG_UNASSIGNED)
+#if defined(TARGET_MIPS)
+#include <assert.h>
+static const char *backtrace(char *buffer, size_t length)
+{
+    char *p = buffer;
+    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->PC));
+    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->gpr[31]));
+    assert((p - buffer) < length);
+    return buffer;
+}
+#else
+static const char *backtrace(char *buffer, size_t length)
+{
+    return "unknown caller";
+}
+#endif /* TARGET_MIPS */
+#endif /* DEBUG_UNASSIGNED */
+
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
 #ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem read  0x%08x\n", (int)addr);
+    char buffer[256];
+    printf("Unassigned mem read  0x%08x %s\n", (int)addr, backtrace(buffer, sizeof(buffer)));
+#if defined(TARGET_MIPS)
+    vm_stop(0);
+#endif /* TARGET_MIPS */
 #endif
     return 0;
 }
@@ -1824,7 +1847,9 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 #ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write 0x%08x = 0x%x\n", (int)addr, val);
+    char buffer[256];
+    printf("Unassigned mem write 0x%08x = 0x%x %s\n", (int)addr, val, backtrace(buffer, sizeof(buffer)));
+    vm_stop(0);
 #endif
 }
 
