@@ -251,6 +251,7 @@ typedef struct {
     NICState nic[2];
     uint16_t phy[32];
     CharDriverState *gpio_display;
+    SerialState *serial[2];
     uint32_t intmask[2];
     uint8_t *cpmac[2];
     uint8_t *vlynq[2];
@@ -1828,6 +1829,8 @@ static const char *const uart_write_names[] = {
     "SCR"
 };
 
+static const int uart_interrupt[] = { 15, 16 };
+
 static uint32_t uart_read(unsigned index, uint32_t addr)
 {
     uint32_t val;
@@ -1837,14 +1840,11 @@ static uint32_t uart_read(unsigned index, uint32_t addr)
         reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
     }
     assert(reg < 8);
-    val = cpu_inb(av.cpu_env, port);
+    val = serial_read(av.serial[index], reg);
     if (reg != 5) {
         TRACE(UART, logout("uart%u[%s]=0x%08x\n", index, uart_read_names[reg], val));
     }
     return val;
-        //~ name = "uart1";
-        //~ logflag = UART;
-        //~ val = cpu_inb(av.cpu_env, UART_MEM_TO_IO(addr));
 }
 
 static void uart_write(unsigned index, uint32_t addr, uint32_t val)
@@ -1862,8 +1862,7 @@ static void uart_write(unsigned index, uint32_t addr, uint32_t val)
     if (reg == 3) {
         dlab[index] = (val & 0x80);
     }
-    cpu_outb(av.cpu_env, port, val);
-    //~ VALUE(AVALANCHE_UART0_BASE, av.uart0) = val;
+    serial_write(av.serial[index], reg, val);
 }
 
 /*****************************************************************************
@@ -2645,15 +2644,17 @@ static void ar7_serial_init(CPUState * env)
      * In this case we open a second console here because
      * we need it for full hardware emulation.
      */
+    unsigned index;
     av.cpu_env = env;
     if (serial_hds[1] == 0) {
         serial_hds[1] = qemu_chr_open("vc");
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
-    serial_16450_init(ar7_irq, IRQ_OPAQUE,
-                      UART_MEM_TO_IO(AVALANCHE_UART0_BASE), 15, serial_hds[0]);
-    serial_16450_init(ar7_irq, IRQ_OPAQUE,
-                      UART_MEM_TO_IO(AVALANCHE_UART1_BASE), 16, serial_hds[1]);
+    for (index = 0; index < 2; index++) {
+        av.serial[index] = serial_16450_init(ar7_irq, IRQ_OPAQUE,
+                                             0, uart_interrupt[index],
+                                             serial_hds[index]);
+    }
     /* Select 1st serial console as default (because we don't have VGA). */
     console_select(1);
 }
@@ -2871,10 +2872,6 @@ void ar7_init(CPUState * env)
     //~ register_ioport_write(addr + offset, 0x100, 4, ar7_io_memwrite, 0);
     //~ }
     //~ {
-    //~ struct SerialState state = {
-    //~ base: 0,
-    //~ it_shift: 0
-    //~ };
     //~ s_io_memory = cpu_register_io_memory(&state, mips_mm_read, mips_mm_write, 0);
     //~ cpu_register_physical_memory(0x08610000, 0x2000, s_io_memory);
     //~ }

@@ -1007,6 +1007,8 @@ SerialState *serial_16550_init(SetIRQFunc *set_irq, void *opaque,
 SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
                              target_ulong base, int it_shift,
                              int irq, CharDriverState *chr);
+void serial_write(void *opaque, uint32_t addr, uint32_t val);
+uint32_t serial_read(void *opaque, uint32_t addr);
 
 /* parallel.c */
 

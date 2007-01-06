@@ -105,6 +105,8 @@
 
 #endif
 
+static int serial_instance;
+
 struct SerialState {
     uint16_t divider;
     uint8_t rbr; /* receive register */
@@ -184,7 +186,7 @@ static void serial_update_parameters(SerialState *s)
 #endif
 }
 
-static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+void serial_write(void *opaque, uint32_t addr, uint32_t val)
 {
     SerialState *s = opaque;
     unsigned char ch;
@@ -260,7 +262,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
+uint32_t serial_read(void *opaque, uint32_t addr)
 {
     SerialState *s = opaque;
     uint32_t ret;
@@ -427,10 +429,15 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     s->base = base;
     serial_reset(s);
 
-    register_savevm("serial", base, SERIAL_VERSION, serial_save, serial_load, s);
+    register_savevm("serial", serial_instance, SERIAL_VERSION,
+                    serial_save, serial_load, s);
+    serial_instance++;
 
-    register_ioport_write(base, 8, 1, serial_ioport_write, s);
-    register_ioport_read(base, 8, 1, serial_ioport_read, s);
+    if (base != 0) {
+        register_ioport_write(base, 8, 1, serial_write, s);
+        register_ioport_read(base, 8, 1, serial_read, s);
+    }
+
     s->chr = chr;
     qemu_chr_add_read_handler(chr, serial_can_receive1, serial_receive1, s);
     qemu_chr_add_event_handler(chr, serial_event);
