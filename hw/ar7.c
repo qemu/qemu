@@ -73,8 +73,7 @@ struct IoState {
 #define INTC    0
 #define MDIO    0               /* polled, so very noisy */
 #define RESET   0
-#define UART0   0
-#define UART1   0
+#define UART    0
 #define VLYNQ   0
 #define WDOG    0
 #define OTHER   0
@@ -87,8 +86,7 @@ struct IoState {
 #define INTC    1
 #define MDIO    1               /* polled, so very noisy */
 #define RESET   1
-#define UART0   0
-#define UART1   0
+#define UART    1
 #define VLYNQ   1
 #define WDOG    1
 #define OTHER   1
@@ -267,10 +265,10 @@ typedef struct {
     uint8_t cpmac0[0x800];      // 0x08610000
     uint8_t emif[0x100];        // 0x08610800
     uint8_t gpio[32];           // 0x08610900
-    uint32_t gpio_dummy[0x38];
-    uint32_t clock_control[0x40];       // 0x08610a00
+    uint8_t gpio_dummy[4 * 0x38];
+    uint8_t clock_control[0x100];       // 0x08610a00
     // 0x08610a80 struct _ohio_clock_pll
-    uint32_t clock_dummy[0x18];
+    //~ uint32_t clock_dummy[0x18];
     uint32_t watchdog[0x20];    // 0x08610b00 struct _ohio_clock_pll
     uint32_t timer0[2];         // 0x08610c00
     uint32_t timer1[2];         // 0x08610d00
@@ -445,6 +443,43 @@ static void ar7_irq(void *opaque, int irq_num, int level)
     default:
         logout("(%p,%d,%d)\n", opaque, irq_num, level);
     }
+}
+
+/*****************************************************************************
+ *
+ * Clock emulation.
+ *
+ ****************************************************************************/
+
+static uint32_t clock_read(unsigned offset)
+{
+    uint32_t val = reg_read(av.clock_control, offset);
+    unsigned index = offset / 4;
+    if (index == 0x0c || index == 0x14 || index == 0x1c || index == 0x24) {
+        /* Reset PLL status bit. */
+        if (val == 4) {
+            val &= ~1;
+        } else {
+            val |= 1;
+        }
+    }
+    TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", index, val, backtrace()));
+    return val;
+}
+
+static void clock_write(unsigned offset, uint32_t val)
+{
+    TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", offset / 4, val, backtrace()));
+    if (offset == 0) {
+        uint32_t oldpowerstate =
+            reg_read(av.clock_control, 0) >> 30;
+        uint32_t newpowerstate = val;
+        if (oldpowerstate != newpowerstate) {
+            TRACE(CLOCK, logout("change power state from %u to %u\n",
+                                oldpowerstate, newpowerstate));
+        }
+    }
+    reg_write(av.clock_control, offset, val);
 }
 
 /*****************************************************************************
@@ -918,6 +953,9 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
         uint8_t buffer[MAX_ETH_FRAME_SIZE + 4];
         cpphy_tcb_t tcb;
 
+        loop:
+
+        length = 0;
         cpu_physical_memory_read(address, (uint8_t *) & tcb, sizeof(tcb));
         uint32_t next = le32_to_cpu(tcb.next);
         uint32_t addr = le32_to_cpu(tcb.buff);
@@ -971,7 +1009,11 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
         //~ statusreg_inc(index, CPMAC_TXBROADCASTFRAMES);
         //~ statusreg_inc(index, CPMAC_TXMULTICASTFRAMES);
 
-        assert(next == 0);
+        if (next != 0) {
+            TRACE(RXTX, logout("more data to send...\n"));
+            address = next;
+            goto loop;
+        }
     }
 }
 
@@ -1760,6 +1802,72 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
 
 /*****************************************************************************
  *
+ * UART emulation.
+ *
+ ****************************************************************************/
+
+static const char *const uart_read_names[] = {
+    "RBR",
+    "IER",
+    "IIR",
+    "LCR",
+    "MCR",
+    "LSR",
+    "MSR",
+    "SCR"
+};
+
+static const char *const uart_write_names[] = {
+    "TBR",
+    "IER",
+    "FCR",
+    "LCR",
+    "MCR",
+    "LSR",
+    "MSR",
+    "SCR"
+};
+
+static uint32_t uart_read(unsigned index, uint32_t addr)
+{
+    uint32_t val;
+    int port = UART_MEM_TO_IO(addr);
+    unsigned reg = port;
+    if (index == 1) {
+        reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
+    }
+    assert(reg < 8);
+    val = cpu_inb(av.cpu_env, port);
+    if (reg != 5) {
+        TRACE(UART, logout("uart%u[%s]=0x%08x\n", index, uart_read_names[reg], val));
+    }
+    return val;
+        //~ name = "uart1";
+        //~ logflag = UART;
+        //~ val = cpu_inb(av.cpu_env, UART_MEM_TO_IO(addr));
+}
+
+static void uart_write(unsigned index, uint32_t addr, uint32_t val)
+{
+    static uint32_t dlab[2];
+    int port = UART_MEM_TO_IO(addr);
+    unsigned reg = port;
+    if (index == 1) {
+        reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
+    }
+    assert(reg < 8);
+    if (reg != 0 || dlab[index]) {
+        TRACE(UART, logout("uart%u[%s]=0x%08x\n", index, uart_write_names[reg], val));
+    }
+    if (reg == 3) {
+        dlab[index] = (val & 0x80);
+    }
+    cpu_outb(av.cpu_env, port, val);
+    //~ VALUE(AVALANCHE_UART0_BASE, av.uart0) = val;
+}
+
+/*****************************************************************************
+ *
  * VLYNQ emulation.
  *
  ****************************************************************************/
@@ -2269,18 +2377,8 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = 0;
         val = ar7_gpio_read(addr - AVALANCHE_GPIO_BASE);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
-        name = "clock";
-        logflag = CLOCK;
-        index = (addr - AVALANCHE_CLOCK_BASE) / 4;
-        val = av.clock_control[index];
-        if (index == 0x0c || index == 0x14 || index == 0x1c || index == 0x24) {
-            /* Reset PLL status bit. */
-            if (val == 4) {
-                val &= ~1;
-            } else {
-                val |= 1;
-            }
-        }
+        logflag = 0;
+        val = clock_read(addr - AVALANCHE_CLOCK_BASE);
     } else if (INRANGE(AVALANCHE_WATCHDOG_BASE, av.watchdog)) {
         name = "watchdog";
         logflag = WDOG;
@@ -2289,14 +2387,11 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         name = "timer0";
         val = VALUE(AVALANCHE_TIMER0_BASE, av.timer0);
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
-        name = "uart0";
-        logflag = UART0;
-        val = cpu_inb(av.cpu_env, UART_MEM_TO_IO(addr));
-        //~ val = VALUE(AVALANCHE_UART0_BASE, av.uart0);
+        logflag = 0;
+        val = uart_read(0, addr);
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
-        name = "uart1";
-        logflag = UART1;
-        val = cpu_inb(av.cpu_env, UART_MEM_TO_IO(addr));
+        logflag = 0;
+        val = uart_read(1, addr);
     } else if (INRANGE(AVALANCHE_USB_SLAVE_BASE, av.usb)) {
         name = "usb slave";
         val = VALUE(AVALANCHE_USB_SLAVE_BASE, av.usb);
@@ -2391,21 +2486,8 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = 0;
         ar7_gpio_write(addr - AVALANCHE_GPIO_BASE, val);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
-        name = "clock control";
-        logflag = CLOCK;
-        index = (addr - AVALANCHE_CLOCK_BASE) / 4;
-        TRACE(CLOCK, logout("addr 0x%08lx (clock) = %04x\n",
-                            (unsigned long)addr, val));
-        if (index == 0) {
-            uint32_t oldpowerstate =
-                VALUE(AVALANCHE_CLOCK_BASE, av.clock_control) >> 30;
-            uint32_t newpowerstate = val;
-            if (oldpowerstate != newpowerstate) {
-                TRACE(CLOCK, logout("change power state from %u to %u\n",
-                                    oldpowerstate, newpowerstate));
-            }
-        }
-        VALUE(AVALANCHE_CLOCK_BASE, av.clock_control) = val;
+        logflag = 0;
+        clock_write(addr - AVALANCHE_CLOCK_BASE, val);
     } else if (INRANGE(AVALANCHE_WATCHDOG_BASE, av.watchdog)) {
         //~ name = "watchdog";
         logflag = 0;
@@ -2414,14 +2496,11 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "timer0";
         VALUE(AVALANCHE_TIMER0_BASE, av.timer0) = val;
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
-        name = "uart0";
-        logflag = UART0;
-        cpu_outb(av.cpu_env, UART_MEM_TO_IO(addr), val);
-        //~ VALUE(AVALANCHE_UART0_BASE, av.uart0) = val;
+        logflag = 0;
+        uart_write(0, addr, val);
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
-        name = "uart1";
-        logflag = UART1;
-        cpu_outb(av.cpu_env, UART_MEM_TO_IO(addr), val);
+        logflag = 0;
+        uart_write(1, addr, val);
     } else if (INRANGE(AVALANCHE_USB_SLAVE_BASE, av.usb)) {
         name = "usb slave";
         VALUE(AVALANCHE_USB_SLAVE_BASE, av.usb) = val;
@@ -3109,5 +3188,10 @@ AR7     ar7_mdio_write          [cpphy_mdio_user_access][cpphy_mdio_usermdio[USE
 AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
 AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
 AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
+
+0xa8610f14  if (SIO0_LS&SIO_LS_RX)
+
+sinus original:
+uart divider=34 speed=441176 parity=N data=8 stop=1
 
 */
