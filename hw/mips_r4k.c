@@ -9,7 +9,11 @@
 */
 #include "vl.h"
 
+#ifdef TARGET_BIG_ENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
+#else
+#define BIOS_FILENAME "mipsel_bios.bin"
+#endif
 //#define BIOS_FILENAME "system.bin"
 #ifdef MIPS_HAS_MIPS64
 #define INITRD_LOAD_ADDR (int64_t)(int32_t)0x80800000
@@ -136,7 +140,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     unsigned long bios_offset;
-    int ret;
+    int bios_size;
     CPUState *env;
     static RTCState *rtc_state;
     int i;
@@ -160,8 +164,8 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
        run. */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    if (ret == BIOS_SIZE) {
+    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    if (bios_size > 0 & bios_size <= BIOS_SIZE) {
 	cpu_register_physical_memory((uint32_t)(0x1fc00000),
 				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
     } else {
