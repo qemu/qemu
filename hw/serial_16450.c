@@ -21,9 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <assert.h>     /* assert */
 #include "vl.h"
 
+#define logout(fmt, args...) fprintf(stderr, "SIO\t%-24s" fmt, __func__, ##args)
+
 #define SERIAL_VERSION 2
+
+#define CONFIG_16550A
 
 //#define DEBUG_SERIAL
 
@@ -41,10 +46,12 @@
 #define UART_IIR_THRI	0x02	/* Transmitter holding register empty */
 #define UART_IIR_RDI	0x04	/* Receiver data interrupt */
 #define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
+#if defined(CONFIG_16550A)
 #define UART_IIR_CTI    0x0C    /* Character Timeout Indication */
 
 #define UART_IIR_FENF   0x80    /* Fifo enabled, but not functioning */
 #define UART_IIR_FE     0xC0    /* Fifo enabled */
+#endif
 
 /*
  * These are the definitions for the Modem Control Register
@@ -76,11 +83,34 @@
 #define UART_LSR_OE	0x02	/* Overrun error indicator */
 #define UART_LSR_DR	0x01	/* Receiver data ready */
 
+#if defined(CONFIG_16550A)
+
+/*
+ * These are the definitions for the Fifo Control Register
+ */
+
+#define UART_FCR_ITL_MASQ   0xC0 /* Masq for Interrupt Trigger Level */
+
+#define UART_FCR_ITL_1      0x00 /* 1 byte Interrupt Trigger Level */
+#define UART_FCR_ITL_4      0x40 /* 4 bytes Interrupt Trigger Level */
+#define UART_FCR_ITL_8      0x80 /* 8 bytes Interrupt Trigger Level */
+#define UART_FCR_ITL_14     0xC0 /* 14 bytes Interrupt Trigger Level */
+
+#define UART_FCR_DMS        0x08    /* DMA Mode Select */
+#define UART_FCR_XFR        0x04    /* XMIT Fifo Reset */
+#define UART_FCR_RFR        0x02    /* RCVR Fifo Reset */
+#define UART_FCR_FE         0x01    /* FIFO Enable */
+
+#define UART_FIFO_LENGTH    16     /* 16550A Fifo Length */
+
+#endif
+
 struct SerialState {
     uint16_t divider;
     uint8_t rbr; /* receive register */
     uint8_t ier;
     uint8_t iir; /* read only */
+    uint8_t fcr; /* write only */
     uint8_t lcr;
     uint8_t mcr;
     uint8_t lsr; /* read only */
@@ -95,7 +125,8 @@ struct SerialState {
     CharDriverState *chr;
     int last_break_enable;
     target_ulong base;
-    int it_shift;
+    //~ int it_shift;
+    uint8_t fifo[UART_FIFO_LENGTH];
 };
 
 static void serial_update_irq(SerialState *s)
@@ -140,14 +171,16 @@ static void serial_update_parameters(SerialState *s)
     if (s->divider == 0)
         return;
     speed = 115200 / s->divider;
+    speed = 12500000 / s->divider;
+    speed = 15000000 / s->divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
-#if 0
-    printf("speed=%d parity=%c data=%d stop=%d\n", 
-           speed, parity, data_bits, stop_bits);
+#if 1
+    printf("uart divider=%d speed=%d parity=%c data=%d stop=%d\n", 
+           s->divider, speed, parity, data_bits, stop_bits);
 #endif
 }
 
@@ -156,7 +189,8 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     SerialState *s = opaque;
     unsigned char ch;
     
-    addr &= 7;
+    addr -= s->base;
+    assert(addr < 8);
 #ifdef DEBUG_SERIAL
     printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
 #endif
@@ -191,6 +225,14 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         }
         break;
     case 2:
+        /* fifo control register */
+        if (!(s->fcr & 0x01) && (val & 0x01)) {
+            logout("enable fifo\n");
+        } else if ((s->fcr & 0x01) && !(val & 0x01)) {
+            logout("disable fifo\n");
+            memset(s->fifo, 0, sizeof(s->fifo));
+        }
+        s->fcr = val;
         break;
     case 3:
         {
@@ -223,7 +265,8 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
     SerialState *s = opaque;
     uint32_t ret;
 
-    addr &= 7;
+    addr -= s->base;
+    assert(addr < 8);
     switch(addr) {
     default:
     case 0:
@@ -355,11 +398,25 @@ static int serial_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void serial_reset(void *opaque)
+{
+    SerialState *s = (SerialState *)opaque;
+    s->ier = 0;
+    s->iir = UART_IIR_NO_INT;
+    s->fcr = 0;
+    s->lcr = 0;
+    s->mcr = 0;
+    s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
+    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
+}
+
 /* If fd is zero, it means that the serial device uses the console */
 SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
                                int irq, CharDriverState *chr)
 {
     SerialState *s;
+
+    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
 
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
@@ -367,9 +424,8 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     s->set_irq = set_irq;
     s->irq_opaque = opaque;
     s->irq = irq;
-    s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
-    s->iir = UART_IIR_NO_INT;
-    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
+    s->base = base;
+    serial_reset(s);
 
     register_savevm("serial", base, SERIAL_VERSION, serial_save, serial_load, s);
 
@@ -378,5 +434,7 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     s->chr = chr;
     qemu_chr_add_read_handler(chr, serial_can_receive1, serial_receive1, s);
     qemu_chr_add_event_handler(chr, serial_event);
+    qemu_register_reset(serial_reset, s);
+
     return s;
 }
