@@ -558,6 +558,8 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd)
       pci_i82557b_init(bus, nd);
     } else if (strcmp(nd->model, "i82559") == 0) {
         pci_eepro100_init(bus, nd);
+    } else if (strcmp(nd->model, "i82559er") == 0) {
+        pci_i82559er_init(bus, nd);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
         pci_rtl8139_init(bus, nd);
     } else if (strcmp(nd->model, "pcnet") == 0) {

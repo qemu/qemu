@@ -19,13 +19,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- */
-
-/* References:
+ *
+ * Tested features (i82559):
+ *      PXE boot (i386) no valid link
+ *      Linux networking (i386) ok
+ *
+ * References:
  *
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
  */
+
+#warning "PXE boot still not working!"
 
 #include <assert.h>
 #include <stddef.h>             /* offsetof */
@@ -1743,7 +1748,6 @@ void pci_eepro100_init(PCIBus * bus, NICInfo * nd)
 
 void pci_i82551_init(PCIBus * bus, NICInfo * nd)
 {
-    /* PCIEEPRO100State *d = */
     nic_init(bus, nd, "i82551", i82551);
     //~ uint8_t *pci_conf = d->dev.config;
 }
@@ -1753,5 +1757,9 @@ void pci_i82557b_init(PCIBus * bus, NICInfo * nd)
     nic_init(bus, nd, "i82557b", i82557B);
 }
 
+void pci_i82559er_init(PCIBus * bus, NICInfo * nd)
+{
+    nic_init(bus, nd, "i82559er", i82559ER);
+}
 
 /* eof */

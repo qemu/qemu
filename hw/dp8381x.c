@@ -26,6 +26,10 @@
  *      Big-Endian-Mode
  *      many details
  *
+ * Tested features (dp83816):
+ *      PXE boot (i386) ok
+ *      Linux networking (i386) ok
+ *
  * Untested features:
  *      big endian host cpu
  */
@@ -461,7 +465,6 @@ static int dp8381x_can_receive(void *opaque)
     dp8381x_t *s = opaque;
 
     logout("\n");
-    missing("");
 
     /* TODO: handle queued receive data. */
     return s->rx_state == active;
@@ -938,6 +941,9 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
     } else if (addr == DP8381X_BMCR) {  /* 0x80 */
         val = bmcr_read(s);
         logging = 0;
+    } else if (addr == DP8381X_BMSR) {  /* 0x84 */
+        val = dp8381x_readw(d, addr);
+        logging = 0;
     } else if (addr == DP8381X_ANAR) {  /* 0x90 */
         /* Needed for Windows. */
         val = anar_read(s);
@@ -1203,48 +1209,56 @@ static void dp8381x_writel(pci_dp8381x_t * d, target_phys_addr_t addr,
 
 static uint32_t dp8381x_ioport_readb(void *opaque, uint32_t addr)
 {
-    int ret = 0;
-    logout("addr=%s val=0x%02x\n", dp8381x_regname(addr), ret);
-    missing("port mapped I/O not implemented");
-    return ret;
+    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
+    dp8381x_t *s = &d->dp8381x;
+    addr -= s->region[0];
+    logout("addr=%s\n", dp8381x_regname(addr));
+    return dp8381x_readb(d, addr);
 }
 
 static uint32_t dp8381x_ioport_readw(void *opaque, uint32_t addr)
 {
-    int ret = 0;
-    logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), ret);
-    missing("port mapped I/O not implemented");
-    return ret;
+    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
+    dp8381x_t *s = &d->dp8381x;
+    addr -= s->region[0];
+    logout("addr=%s\n", dp8381x_regname(addr));
+    return dp8381x_readw(d, addr);
 }
 
 static uint32_t dp8381x_ioport_readl(void *opaque, uint32_t addr)
 {
-    int ret = 0;
-    logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), ret);
-    missing("port mapped I/O not implemented");
-    return ret;
+    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
+    dp8381x_t *s = &d->dp8381x;
+    addr -= s->region[0];
+    logout("addr=%s\n", dp8381x_regname(addr));
+    return dp8381x_readl(d, addr);
 }
 
 static void dp8381x_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
+    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
+    dp8381x_t *s = &d->dp8381x;
+    addr -= s->region[0];
     logout("addr=%s val=0x%02x\n", dp8381x_regname(addr), val);
-    missing("port mapped I/O not implemented");
+    dp8381x_writeb(d, addr, val);
 }
 
 static void dp8381x_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-#if 0
-    dp8381x_t *s = opaque;
-    int page, index;
-#endif
+    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
+    dp8381x_t *s = &d->dp8381x;
+    addr -= s->region[0];
     logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), val);
-    missing("port mapped I/O not implemented");
+    dp8381x_writew(d, addr, val);
 }
 
 static void dp8381x_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
+    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
+    dp8381x_t *s = &d->dp8381x;
+    addr -= s->region[0];
     logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), val);
-    missing("port mapped I/O not implemented");
+    dp8381x_writel(d, addr, val);
 }
 
 static void dp8381x_io_map(PCIDevice * pci_dev, int region_num,
@@ -1257,12 +1271,12 @@ static void dp8381x_io_map(PCIDevice * pci_dev, int region_num,
     assert(region_num == 0);
     s->region[region_num] = addr;
 
-    register_ioport_read(addr, size, 1, dp8381x_ioport_readb, s);
-    register_ioport_read(addr, size, 2, dp8381x_ioport_readw, s);
-    register_ioport_read(addr, size, 4, dp8381x_ioport_readl, s);
-    register_ioport_write(addr, size, 1, dp8381x_ioport_writeb, s);
-    register_ioport_write(addr, size, 2, dp8381x_ioport_writew, s);
-    register_ioport_write(addr, size, 4, dp8381x_ioport_writel, s);
+    register_ioport_read(addr, size, 1, dp8381x_ioport_readb, d);
+    register_ioport_read(addr, size, 2, dp8381x_ioport_readw, d);
+    register_ioport_read(addr, size, 4, dp8381x_ioport_readl, d);
+    register_ioport_write(addr, size, 1, dp8381x_ioport_writeb, d);
+    register_ioport_write(addr, size, 2, dp8381x_ioport_writew, d);
+    register_ioport_write(addr, size, 4, dp8381x_ioport_writel, d);
 }
 
 /*****************************************************************************
