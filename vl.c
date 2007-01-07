@@ -114,8 +114,6 @@
 /* XXX: use a two level table to limit memory usage */
 #define MAX_IOPORTS 65536
 
-#define DISK_OPTIONS_SIZE 256
-
 const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
 void *ioport_opaque[MAX_IOPORTS];
@@ -126,9 +124,6 @@ IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
-BlockDriverState *bs_scsi_table[MAX_SCSI_DISKS];
-SCSIDiskInfo scsi_disks_info[MAX_SCSI_DISKS];
-int scsi_hba_lsi; /* Count of scsi disks/cdrom using this lsi adapter */
 int vga_ram_size;
 int bios_size;
 static DisplayState display_state;
@@ -3983,178 +3978,6 @@ void do_info_network(void)
     }
 }
 
-/* Parse IDE and SCSI disk options */
-static int disk_options_init(int num_ide_disks,
-                             char ide_disk_options[][DISK_OPTIONS_SIZE],
-                             int snapshot,
-                             int num_scsi_disks,
-                             char scsi_disk_options[][DISK_OPTIONS_SIZE],
-                             int cdrom_index,
-                             int cyls,
-                             int heads,
-                             int secs,
-                             int translation)
-{
-    char buf[256];
-    char dev_name[64];
-    int id, i, j;
-    int cdrom_device;
-    int ide_cdrom_created = 0;
-    int scsi_index;
-    scsi_host_adapters temp_adapter;
-
-    /* Process any IDE disks/cdroms */
-    for (i=0; i< num_ide_disks; i++) {
-        for (j=0; j<MAX_DISKS; j++) {
-            if (ide_disk_options[j][0] == '\0')
-                continue;
-
-            if (get_param_value(buf, sizeof(buf),"type",ide_disk_options[j])) {
-                if (!strcmp(buf, "disk")) {
-                    cdrom_device = 0;
-                } else if (!strcmp(buf, "cdrom")) {
-                    cdrom_device = 1;
-                    ide_cdrom_created = 1;
-                } else {
-                    fprintf(stderr, "qemu: invalid IDE disk type= value: %s\n", buf);
-                    return -1;
-                }
-            } else {
-                cdrom_device = 0;
-            }
-
-            if (cdrom_device) {
-                snprintf(dev_name, sizeof(dev_name), "cdrom%c", i + '0');
-            } else {
-                snprintf(dev_name, sizeof(dev_name), "hd%c", i + 'a');
-            }
-
-            if (!(get_param_value(buf, sizeof(buf),"img",ide_disk_options[j]))) {
-                fprintf(stderr, "qemu: missing IDE disk img= value.\n");
-                return -1;
-            }
-
-            if (!(bs_table[i] = bdrv_new(dev_name))) {
-                fprintf(stderr, "qemu: unable to create new block device for:%s\n",dev_name);
-                return -1;
-            }
-
-            if (cdrom_device) {
-                bdrv_set_type_hint(bs_table[i], BDRV_TYPE_CDROM);
-            }
-
-            if (bdrv_open(bs_table[i], buf, snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
-                fprintf(stderr, "qemu: could not open hard disk image: '%s'\n",
-                        buf);
-                return -1;
-            }
-            if (i == 0 && cyls != 0) {
-                bdrv_set_geometry_hint(bs_table[i], cyls, heads, secs);
-                bdrv_set_translation_hint(bs_table[i], translation);
-            }
-            ide_disk_options[j][0] = '\0';
-
-            if (i == cdrom_index) {
-                cdrom_index = -1;
-            }
-            break; /* finished with this IDE device*/
-        }
-    }
-
-    if (cdrom_index >= 0 && (!ide_cdrom_created)) {
-        bs_table[cdrom_index] = bdrv_new("cdrom");
-        bdrv_set_type_hint(bs_table[cdrom_index], BDRV_TYPE_CDROM);
-    }
-
-    for(i = 0; i < num_scsi_disks; i++) {
-
-#if !defined(TARGET_SPARC) || defined(TARGET_SPARC64)
-        temp_adapter = SCSI_LSI_53C895A;
-        scsi_hba_lsi++;
-#else
-        temp_adapter = SCSI_ESP;
-#endif
-
-        /*Check for sdx= parameter */
-        if (get_param_value(buf, sizeof(buf), "sdx", scsi_disk_options[i])) {
-            if (buf[0] >= 'a' && buf[0] <= 'g') {
-                scsi_index = buf[0] - 'a';
-            } else{
-                fprintf(stderr, "qemu: sdx= option for SCSI must be one letter from a-g. %s \n",buf);
-                exit(1);
-            }
-        } else {
-             scsi_index = 0;
-        }
-
-        /* Check for SCSI id specified. */
-        if (get_param_value(buf, sizeof(buf),"id",scsi_disk_options[i])) {
-            id = strtol(buf, NULL, 0);
-            if (id < 0 || id > 6) {
-                fprintf(stderr, "qemu: SCSI id must be from 0-6: %d\n", id);
-                return -1;
-            }
-            /* Check if id already used */
-            for(j = 0; j < MAX_SCSI_DISKS; j++) {
-                if (scsi_disks_info[j].device_type != SCSI_NONE &&
-                    j != i &&
-                    scsi_disks_info[j].adapter == temp_adapter &&
-                    scsi_disks_info[j].id == id  ) {
-                    fprintf(stderr, "qemu: SCSI id already used: %u\n", id);
-                    return -1;
-                }
-            }
-        } else {
-            id = -1;
-        }
-        scsi_disks_info[i].adapter = temp_adapter;
-        scsi_disks_info[i].id = id;
-
-        if (get_param_value(buf, sizeof(buf),"type",scsi_disk_options[i])) {
-            if (!strcmp(buf, "disk")) {
-                cdrom_device = 0;
-            } else if (!strcmp(buf, "cdrom")) {
-                cdrom_device = 1;
-            } else {
-                fprintf(stderr, "qemu: invalid SCSI disk type= value: %s\n", buf);
-                return -1;
-            }
-        } else {
-            cdrom_device = 0;
-        }
-
-        if (cdrom_device) {
-            snprintf(dev_name, sizeof(buf), "cdrom%c", scsi_index + '0');
-            scsi_disks_info[scsi_index].device_type = SCSI_CDROM;
-        } else {
-            snprintf(dev_name, sizeof(buf), "sd%c", scsi_index + 'a');
-            scsi_disks_info[scsi_index].device_type = SCSI_DISK;
-        }
-
-        if (!(bs_scsi_table[scsi_index] = bdrv_new(dev_name))) {
-            fprintf(stderr, "qemu: unable to create new block device for:%s\n",dev_name);
-            return -1;
-        }
-
-        /* Get image filename from options and then try to open it */
-        if (get_param_value(buf, sizeof(buf),"img",scsi_disk_options[i])) {
-            if (bdrv_open(bs_scsi_table[scsi_index], buf, 0) < 0) {
-                fprintf(stderr, "qemu: could not open SCSI disk image img='%s'\n",buf);
-                return -1;
-            }
-        } else {
-            fprintf(stderr, "qemu: SCSI disk image not specified for sd%c \n", i + 'a');
-            return -1;
-        }
-        if (cdrom_device) {
-            bdrv_set_type_hint(bs_scsi_table[scsi_index], BDRV_TYPE_CDROM);
-        }
-    }
-
-    return 0;
-}
-
-
 /***********************************************************/
 /* USB devices */
 
@@ -6263,10 +6086,6 @@ void help(void)
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
-           "-disk ide,img=file[,hdx=a..dd][,type=disk|cdrom] \n"
-           "                defaults are: hdx=a,type=disk \n"
-           "-disk scsi,img=file[,sdx=a..g][,type=disk|cdrom][,id=n]  \n"
-           "                defaults are: sdx=a,type=disk,id='auto assign' \n"
            "-snapshot       write to temporary files instead of disk image files\n"
 #ifdef CONFIG_SDL
            "-no-quit        disable SDL window close capability\n"
@@ -6448,7 +6267,6 @@ enum {
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_daemonize,
-    QEMU_OPTION_disk,
     QEMU_OPTION_option_rom,
 };
 
@@ -6524,8 +6342,7 @@ const QEMUOption qemu_options[] = {
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
     { "smp", HAS_ARG, QEMU_OPTION_smp },
     { "vnc", HAS_ARG, QEMU_OPTION_vnc },
-    { "disk", HAS_ARG, QEMU_OPTION_disk },
-    
+
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
@@ -6744,11 +6561,7 @@ int main(int argc, char **argv)
     int i, cdrom_index;
     int snapshot, linux_boot;
     const char *initrd_filename;
-    const char *fd_filename[MAX_FD];
-    char scsi_options[MAX_SCSI_DISKS] [DISK_OPTIONS_SIZE];
-    char ide_options[MAX_DISKS] [DISK_OPTIONS_SIZE];
-    int num_ide_disks;
-    int num_scsi_disks;
+    const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
@@ -6803,19 +6616,10 @@ int main(int argc, char **argv)
     register_machines();
     machine = first_machine;
     initrd_filename = NULL;
-    for(i = 0; i < MAX_SCSI_DISKS; i++) {
-        scsi_disks_info[i].device_type = SCSI_NONE;
-        bs_scsi_table[i] = NULL;
-    }
-
-    num_ide_disks = 0;
-    num_scsi_disks = 0;
-
     for(i = 0; i < MAX_FD; i++)
         fd_filename[i] = NULL;
-    for(i = 0; i < MAX_DISKS; i++) {
-        ide_options[i][0] =  '\0';
-    }
+    for(i = 0; i < MAX_DISKS; i++)
+        hd_filename[i] = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
     bios_size = BIOS_SIZE;
@@ -6859,16 +6663,7 @@ int main(int argc, char **argv)
             break;
         r = argv[optind];
         if (r[0] != '-') {
-
-        /* Build new disk IDE syntax string */
-        pstrcpy(ide_options[0],
-                14,
-                "hdx=a,img=");
-        /*Add on image filename */
-        pstrcpy(&(ide_options[0][13]),
-                sizeof(ide_options[0])-13,
-                argv[optind++]);
-        num_ide_disks++;
+            hd_filename[0] = argv[optind++];
         } else {
             const QEMUOption *popt;
 
@@ -6918,75 +6713,10 @@ int main(int argc, char **argv)
             case QEMU_OPTION_hdd:
                 {
                     int hd_index;
-                    const char newIDE_DiskSyntax [][10] = {
-                       "hdx=a,img=", "hdx=b,img=", "hdx=c,img=", "hdx=d,img=" };
-
                     hd_index = popt->index - QEMU_OPTION_hda;
-                    if (num_ide_disks >= MAX_DISKS) {
-                        fprintf(stderr, "qemu: too many IDE disks defined.\n");
-                        exit(1);
-                    }
-                    /* Build new disk IDE syntax string */
-                    pstrcpy(ide_options[hd_index],
-                            11,
-                            newIDE_DiskSyntax[hd_index]);
-                    /* Add on image filename */
-                    pstrcpy(&(ide_options[hd_index][10]),
-                            sizeof(ide_options[0])-10,
-                            optarg);
-                    num_ide_disks++;
-                }
-                break;
-            case QEMU_OPTION_disk: /*Combined IDE and SCSI, for disk and CDROM */
-                {
-                    const char *p_input_char;
-                    char *p_output_string;
-                    char device[64];
-                    int disk_index;
-
-                    p_input_char = optarg;
-                    p_output_string = device;
-                    while (*p_input_char != '\0' && *p_input_char != ',') {
-                        if ((p_output_string - device) < sizeof(device) - 1)
-                            *p_output_string++ = *p_input_char;
-                        p_input_char++;
-                    }
-                    *p_output_string = '\0';
-                    if (*p_input_char == ',')
-                        p_input_char++;
-
-                    if (!strcmp(device, "scsi")) {
-                        if (num_scsi_disks >= MAX_SCSI_DISKS) {
-                            fprintf(stderr, "qemu: too many SCSI disks defined.\n");
-                            exit(1);
-                        }
-                        pstrcpy(scsi_options[num_scsi_disks],
-                                sizeof(scsi_options[0]),
-                                p_input_char);
-                        num_scsi_disks++;
-                    } else if (!strcmp(device,"ide")) {
-                        if (num_ide_disks >= MAX_DISKS) {
-                            fprintf(stderr, "qemu: too many IDE disks/cdroms defined.\n");
-                            exit(1);
-                        }
-                        disk_index = 0; /* default is hda */
-                        if (get_param_value(device, sizeof(device),"hdx",p_input_char)) {
-                            if (device[0] >= 'a' && device[0] <= 'd') {
-                                disk_index = device[0] - 'a';
-                            } else {
-                                fprintf(stderr, "qemu: invalid IDE disk hdx= value: %s\n", device);
-                                return -1;
-                            }
-                        }
-                        else disk_index=0;
-                        pstrcpy(ide_options[disk_index],
-                                sizeof(ide_options[0]),
-                                p_input_char);
-                        num_ide_disks++;
-                    } else {
-                        fprintf(stderr, "qemu: -disk option must specify IDE or SCSI: %s \n",device);
-                        exit(1);
-                    }
+                    hd_filename[hd_index] = optarg;
+                    if (hd_index == cdrom_index)
+                        cdrom_index = -1;
                 }
                 break;
             case QEMU_OPTION_snapshot:
@@ -7040,46 +6770,9 @@ int main(int argc, char **argv)
                 kernel_cmdline = optarg;
                 break;
             case QEMU_OPTION_cdrom:
-#if !defined(TARGET_SPARC) || defined(TARGET_SPARC64)
-                /* Assume boot cdrom is IDE */
-                {
-                    char buf[22];
-                    if (num_ide_disks >= MAX_DISKS) {
-                        fprintf(stderr, "qemu: too many IDE disks/cdroms defined.\n");
-                        exit(1);
-                    }
-                    snprintf(buf, sizeof(buf), "type=cdrom,hdx=%c,img=", cdrom_index + 'a');
-                    /* Build new disk IDE syntax string */
-                    pstrcpy(ide_options[cdrom_index],
-                            22,
-                            buf);
-                    /* Add on image filename */
-                    pstrcpy(&(ide_options[cdrom_index][21]),
-                            sizeof(ide_options[0])-21,
-                            optarg);
-                    num_ide_disks++;
+                if (cdrom_index >= 0) {
+                    hd_filename[cdrom_index] = optarg;
                 }
-#else
-                /* Assume boot cdrom is SCSI */
-                {
-                    char buf[27];
-                    if (num_scsi_disks >= MAX_SCSI_DISKS) {
-                        fprintf(stderr, "qemu: too many SCSI disks/cdroms defined.\n");
-                        exit(1);
-                    }
-                    snprintf(buf, sizeof(buf), "type=cdrom,sdx=%c,id=%d,img=",
-                             num_scsi_disks + 'a', num_scsi_disks + 2);
-                    /* Build new disk SCSI syntax string */
-                    pstrcpy(scsi_options[num_scsi_disks],
-                            27,
-                            buf);
-                    /* Add on image filename */
-                    pstrcpy(&(scsi_options[num_scsi_disks][26]),
-                            sizeof(scsi_options[0])-26,
-                            optarg);
-                    num_scsi_disks++;
-                }
-#endif
                 break;
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
@@ -7376,10 +7069,18 @@ int main(int argc, char **argv)
     linux_boot = (kernel_filename != NULL);
 
     if (!linux_boot &&
-        num_ide_disks == 0 &&
-        num_scsi_disks == 0 &&
+        hd_filename[0] == '\0' && 
+        (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
         help();
+
+    /* boot to floppy or the default cd if no hard disk defined yet */
+    if (hd_filename[0] == '\0' && boot_device == 'c') {
+        if (fd_filename[0] != '\0')
+            boot_device = 'a';
+        else
+            boot_device = 'd';
+    }
 
     setvbuf(stdout, NULL, _IOLBF, 0);
     
@@ -7446,22 +7147,31 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    /* we always create the cdrom drive, even if no disk is there */
     bdrv_init();
-
-    /* open the virtual block devices, disks or CDRoms */
-    if (disk_options_init(num_ide_disks,ide_options,snapshot,
-                          num_scsi_disks,scsi_options,
-                          cdrom_index,
-                          cyls, heads, secs, translation)){
-        exit(1);
+    if (cdrom_index >= 0) {
+        bs_table[cdrom_index] = bdrv_new("cdrom");
+        bdrv_set_type_hint(bs_table[cdrom_index], BDRV_TYPE_CDROM);
     }
 
-    /* boot to floppy or default cd if no hard disk */
-    if (num_ide_disks == 0 && boot_device == 'c') {
-        if (fd_filename[0] != '\0')
-            boot_device = 'a';
-        else
-            boot_device = 'd';
+    /* open the virtual block devices */
+    for(i = 0; i < MAX_DISKS; i++) {
+        if (hd_filename[i]) {
+            if (!bs_table[i]) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "hd%c", i + 'a');
+                bs_table[i] = bdrv_new(buf);
+            }
+            if (bdrv_open(bs_table[i], hd_filename[i], snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
+                fprintf(stderr, "qemu: could not open hard disk image '%s'\n",
+                        hd_filename[i]);
+                exit(1);
+            }
+            if (i == 0 && cyls != 0) {
+                bdrv_set_geometry_hint(bs_table[i], cyls, heads, secs);
+                bdrv_set_translation_hint(bs_table[i], translation);
+            }
+        }
     }
 
     /* we always create at least one floppy disk */

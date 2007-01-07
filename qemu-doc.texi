@@ -223,12 +223,6 @@ using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 Boot on floppy (a), hard disk (c), CD-ROM (d), or Etherboot (n). Hard disk boot
 is the default.
 
-@item -disk ide,img=file[,hdx=a..dd][,type=disk|cdrom]
-Use @var{file} as the IDE disk/CD-ROM image. The defaults are: hdx=a,type=disk
-
-@item -disk scsi,img=file[,sdx=a..g][,type=disk|cdrom][,id=n]
-Use @var{file} as the SCSI disk/CD-ROM image. The defaults are: sdx=a,type=disk,id='auto assign'
-
 @item -snapshot
 Write to temporary files instead of disk image files. In this case,
 the raw disk image you use is not written back. You can however force

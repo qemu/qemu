@@ -262,12 +262,6 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[1], serial_hds[0]);
     fdctrl_init(PHYS_JJ_FLOPPY_IRQ, 0, 1, PHYS_JJ_FDC, fd_table);
     main_esp = esp_init(bs_table, PHYS_JJ_ESP, dma);
-    for (i = 0; i < MAX_SCSI_DISKS; i++) {
-        if (scsi_disks_info[i].adapter == SCSI_ESP &&
-            scsi_disks_info[i].device_type != SCSI_NONE) {
-            esp_scsi_attach(main_esp, bs_scsi_table[i], scsi_disks_info[i].id);
-        }
-    }
     slavio_misc = slavio_misc_init(PHYS_JJ_SLAVIO, PHYS_JJ_ME_IRQ);
     cs_init(PHYS_JJ_CS, PHYS_JJ_CS_IRQ, slavio_intctl);
     sparc32_dma_set_reset_data(dma, main_esp, main_lance);
