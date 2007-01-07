@@ -271,5 +271,15 @@ static name2keysym_t name2keysym[]={
 {"Num_Lock", 0xff7f},    /* XK_Num_Lock */
 {"Pause", 0xff13},       /* XK_Pause */
 {"Escape", 0xff1b},      /* XK_Escape */
+
+    /* localized keys */
+{"BackApostrophe", 0xff21},
+{"Muhenkan", 0xff22},
+{"Katakana", 0xff25},
+{"Zenkaku_Hankaku", 0xff29},
+{"Henkan_Mode_Real", 0xff23},
+{"Henkan_Mode_Ultra", 0xff3e},
+{"backslash_ja", 0xffa5},
+
 {0,0},
 };
