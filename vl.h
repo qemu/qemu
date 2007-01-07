@@ -102,16 +102,18 @@ static inline char *realpath(const char *path, char *resolved_path)
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+/* cutils.c */
+void pstrcpy(char *buf, int buf_size, const char *str);
+char *pstrcat(char *buf, int buf_size, const char *s);
+int strstart(const char *str, const char *val, const char **ptr);
+int stristart(const char *str, const char *val, const char **ptr);
+
 /* vl.c */
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
 void hw_error(const char *fmt, ...);
 
 extern const char *bios_dir;
-
-void pstrcpy(char *buf, int buf_size, const char *str);
-char *pstrcat(char *buf, int buf_size, const char *s);
-int strstart(const char *str, const char *val, const char **ptr);
 
 extern int vm_running;
 

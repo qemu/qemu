@@ -306,49 +306,6 @@ void isa_unassign_ioport(int start, int length)
 
 /***********************************************************/
 
-void pstrcpy(char *buf, int buf_size, const char *str)
-{
-    int c;
-    char *q = buf;
-
-    if (buf_size <= 0)
-        return;
-
-    for(;;) {
-        c = *str++;
-        if (c == 0 || q >= buf + buf_size - 1)
-            break;
-        *q++ = c;
-    }
-    *q = '\0';
-}
-
-/* strcat and truncate. */
-char *pstrcat(char *buf, int buf_size, const char *s)
-{
-    int len;
-    len = strlen(buf);
-    if (len < buf_size) 
-        pstrcpy(buf + len, buf_size - len, s);
-    return buf;
-}
-
-int strstart(const char *str, const char *val, const char **ptr)
-{
-    const char *p, *q;
-    p = str;
-    q = val;
-    while (*q != '\0') {
-        if (*p != *q)
-            return 0;
-        p++;
-        q++;
-    }
-    if (ptr)
-        *ptr = p;
-    return 1;
-}
-
 void cpu_outb(CPUState *env, int addr, int val)
 {
 #ifdef DEBUG_IOPORT
