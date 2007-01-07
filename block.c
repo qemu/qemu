@@ -59,6 +59,11 @@ static BlockDriver *first_drv;
 int path_is_absolute(const char *path)
 {
     const char *p;
+#ifdef _WIN32
+    /* specific case for names like: "\\.\d:" */
+    if (*path == '/' || *path == '\\')
+        return 1;
+#endif
     p = strchr(path, ':');
     if (p)
         p++;
