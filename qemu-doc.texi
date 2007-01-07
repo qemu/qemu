@@ -1079,14 +1079,25 @@ line option or modify the device permissions accordingly).
 
 @subsubsection Windows
 
-On Windows you can use any host drives as QEMU drive. The prefered
-syntax is the driver letter (e.g. @file{d:}). The alternate syntax
-@file{\\.\d:} is supported. @file{/dev/cdrom} is supported as an alias
-to the first CDROM drive.
+@table @code
+@item CD
+The prefered syntax is the drive letter (e.g. @file{d:}). The
+alternate syntax @file{\\.\d:} is supported. @file{/dev/cdrom} is
+supported as an alias to the first CDROM drive.
 
 Currently there is no specific code to handle removable medias, so it
 is better to use the @code{change} or @code{eject} monitor commands to
 change or eject media.
+@item Hard disks
+Hard disks can be used with the syntax: @file{\\.\PhysicalDriveN}
+where @var{N} is the drive number (0 is the first hard disk).
+
+WARNING: unless you know what you do, it is better to only make
+READ-ONLY accesses to the hard disk otherwise you may corrupt your
+host data (use the @option{-snapshot} command line so that the
+modifications are written in a temporary file).
+@end table
+
 
 @subsubsection Mac OS X
 

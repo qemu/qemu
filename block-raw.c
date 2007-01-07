@@ -838,6 +838,7 @@ BlockDriver bdrv_host_device = {
 
 #define FTYPE_FILE 0
 #define FTYPE_CD     1
+#define FTYPE_HARDDISK 2
 
 typedef struct BDRVRawState {
     HANDLE hfile;
@@ -1098,6 +1099,9 @@ static int64_t raw_getlength(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
     ULARGE_INTEGER available, total, total_free; 
+    DISK_GEOMETRY dg;
+    DWORD count;
+    BOOL status;
 
     switch(s->type) {
     case FTYPE_FILE:
@@ -1109,6 +1113,14 @@ static int64_t raw_getlength(BlockDriverState *bs)
         if (!GetDiskFreeSpaceEx(s->drive_path, &available, &total, &total_free))
             return -EIO;
         l.QuadPart = total.QuadPart;
+        break;
+    case FTYPE_HARDDISK:
+        status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                                 NULL, 0, &dg, sizeof(dg), &count, NULL);
+        if (status != FALSE) {
+            l.QuadPart = dg.Cylinders.QuadPart * dg.TracksPerCylinder
+                * dg.SectorsPerTrack * dg.BytesPerSector;
+        }
         break;
     default:
         return -EIO;
@@ -1216,6 +1228,8 @@ static int find_device_type(BlockDriverState *bs, const char *filename)
 
     if (strstart(filename, "\\\\.\\", &p) ||
         strstart(filename, "//./", &p)) {
+        if (stristart(p, "PhysicalDrive", NULL))
+            return FTYPE_HARDDISK;
         snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", p[0]);
         type = GetDriveType(s->drive_path);
         if (type == DRIVE_CDROM)
@@ -1248,7 +1262,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
     s->type = find_device_type(bs, filename);
-
+    
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
     } else {
