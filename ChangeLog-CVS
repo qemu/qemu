@@ -1,3 +1,12 @@
+2007-01-07 18:33  bellard
+
+	* block-raw.c: removed redundant qemu_aio_flush()
+
+2007-01-07 18:27  bellard
+
+	* block-raw.c, block.c: win32 block device fixes (initial patch by
+	  kazu)
+
 2007-01-07 18:12  bellard
 
 	* vnc_keysym.h, keymaps/ja: Japanese keyboard patch (kazu)
