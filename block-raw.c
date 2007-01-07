@@ -906,13 +906,13 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         create_flags = OPEN_EXISTING;
     }
 #ifdef QEMU_TOOL
-    overlapped = 0;
+    overlapped = FILE_ATTRIBUTE_NORMAL;
 #else
     overlapped = FILE_FLAG_OVERLAPPED;
 #endif
     s->hfile = CreateFile(filename, access_flags, 
                           FILE_SHARE_READ, NULL,
-                          create_flags, overlapped, 0);
+                          create_flags, overlapped, NULL);
     if (s->hfile == INVALID_HANDLE_VALUE) 
         return -1;
     return 0;
@@ -962,6 +962,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     return ret_count;
 }
 
+#if 0
 #ifndef QEMU_TOOL
 static void raw_aio_cb(void *opaque)
 {
@@ -1064,10 +1065,12 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
     qemu_aio_release(acb);
 #endif
 }
+#endif /* #if 0 */
 
 static void raw_flush(BlockDriverState *bs)
 {
-    /* XXX: add it */
+    BDRVRawState *s = bs->opaque;
+    FlushFileBuffers(s->hfile);
 }
 
 static void raw_close(BlockDriverState *bs)
@@ -1136,6 +1139,10 @@ void qemu_aio_init(void)
 }
 
 void qemu_aio_poll(void)
+{
+}
+
+void qemu_aio_flush(void)
 {
 }
 
@@ -1254,13 +1261,13 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     create_flags = OPEN_EXISTING;
 
 #ifdef QEMU_TOOL
-    overlapped = 0;
+    overlapped = FILE_ATTRIBUTE_NORMAL;
 #else
     overlapped = FILE_FLAG_OVERLAPPED;
 #endif
     s->hfile = CreateFile(filename, access_flags, 
                           FILE_SHARE_READ, NULL,
-                          create_flags, overlapped, 0);
+                          create_flags, overlapped, NULL);
     if (s->hfile == INVALID_HANDLE_VALUE) 
         return -1;
     return 0;

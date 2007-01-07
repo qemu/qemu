@@ -56,12 +56,6 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
 static BlockDriverState *bdrv_first;
 static BlockDriver *first_drv;
 
-#ifdef _WIN32
-#define PATH_SEP '\\'
-#else
-#define PATH_SEP '/'
-#endif
-
 int path_is_absolute(const char *path)
 {
     const char *p;
@@ -70,7 +64,11 @@ int path_is_absolute(const char *path)
         p++;
     else
         p = path;
-    return (*p == PATH_SEP);
+#ifdef _WIN32
+    return (*p == '/' || *p == '\\');
+#else
+    return (*p == '/');
+#endif
 }
 
 /* if filename is absolute, just copy it to dest. Otherwise, build a
@@ -93,7 +91,15 @@ void path_combine(char *dest, int dest_size,
             p++;
         else
             p = base_path;
-        p1 = strrchr(base_path, PATH_SEP);
+        p1 = strrchr(base_path, '/');
+#ifdef _WIN32
+        {
+            const char *p2;
+            p2 = strrchr(base_path, '\\');
+            if (!p1 || p2 > p1)
+                p1 = p2;
+        }
+#endif
         if (p1)
             p1++;
         else
@@ -168,7 +174,10 @@ int bdrv_create(BlockDriver *drv,
 #ifdef _WIN32
 void get_tmp_filename(char *filename, int size)
 {
-    tmpnam(filename);
+    char temp_dir[MAX_PATH];
+    
+    GetTempPath(MAX_PATH, temp_dir);
+    GetTempFileName(temp_dir, "qem", 0, filename);
 }
 #else
 void get_tmp_filename(char *filename, int size)
@@ -996,7 +1005,11 @@ char *get_human_readable_size(char *buf, int buf_size, int64_t size)
 char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
 {
     char buf1[128], date_buf[128], clock_buf[128];
+#ifdef _WIN32
+    struct tm *ptm;
+#else
     struct tm tm;
+#endif
     time_t ti;
     int64_t secs;
 
@@ -1006,11 +1019,15 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
                  "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
     } else {
         ti = sn->date_sec;
-#ifndef _WIN32
+#ifdef _WIN32
+        ptm = localtime(&ti);
+        strftime(date_buf, sizeof(date_buf),
+                 "%Y-%m-%d %H:%M:%S", ptm);
+#else
         localtime_r(&ti, &tm);
-#endif
         strftime(date_buf, sizeof(date_buf),
                  "%Y-%m-%d %H:%M:%S", &tm);
+#endif
         secs = sn->vm_clock_nsec / 1000000000;
         snprintf(clock_buf, sizeof(clock_buf),
                  "%02d:%02d:%02d.%03d",
