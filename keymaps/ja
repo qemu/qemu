@@ -103,3 +103,6 @@ underscore 0x73 shift
 Henkan_Mode 0x79
 Katakana 0x70
 Muhenkan 0x7b
+Henkan_Mode_Real 0x79
+Henkan_Mode_Ultra 0x79
+backslash_ja 0x73
