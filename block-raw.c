@@ -1146,10 +1146,6 @@ void qemu_aio_flush(void)
 {
 }
 
-void qemu_aio_flush(void)
-{
-}
-
 void qemu_aio_wait_start(void)
 {
 }
