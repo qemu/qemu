@@ -1279,31 +1279,9 @@ int scsi_write_data(SCSIDevice *s, uint32_t tag);
 void scsi_cancel_io(SCSIDevice *s, uint32_t tag);
 uint8_t *scsi_get_buf(SCSIDevice *s, uint32_t tag);
 
-enum scsi_host_adapters {
-    SCSI_LSI_53C895A,
-    SCSI_ESP
-};
-enum scsi_devices {
-    SCSI_CDROM,
-    SCSI_DISK,
-    SCSI_NONE
-};
-typedef enum scsi_host_adapters scsi_host_adapters;
-typedef enum scsi_devices scsi_devices;
-typedef struct SCSIDiskInfo {
-    scsi_host_adapters adapter;
-    int id;
-    scsi_devices device_type;
-} SCSIDiskInfo;
-
-#define MAX_SCSI_DISKS 7
-extern BlockDriverState *bs_scsi_table[MAX_SCSI_DISKS];
-extern SCSIDiskInfo scsi_disks_info[MAX_SCSI_DISKS];
-
 /* lsi53c895a.c */
 void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *lsi_scsi_init(PCIBus *bus, int devfn);
-extern int scsi_hba_lsi; // Count of scsi disks/cdrom using this lsi adapter
 
 /* integratorcp.c */
 extern QEMUMachine integratorcp926_machine;

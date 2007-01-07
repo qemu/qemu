@@ -1,3 +1,17 @@
+2007-01-07 21:42  ths
+
+	* qemu-doc.texi, vl.c, vl.h, hw/pc.c, hw/sun4m.c: Revert -disk
+	  patch, as requested by Fabrice. The general idea of this patch is
+	  sound, but the implementation is just too ugly.
+
+2007-01-07 20:38  pbrook
+
+	* check_ops.sh: Script to check for missing FORCE_RET.
+
+2007-01-07 19:22  bellard
+
+	* block.c: path_is_absolute() fix for win32
+
 2007-01-07 18:33  bellard
 
 	* block-raw.c: removed redundant qemu_aio_flush()
