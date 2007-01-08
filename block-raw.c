@@ -841,7 +841,7 @@ BlockDriver bdrv_host_device = {
 #define FTYPE_FILE 0
 #define FTYPE_CD     1
 #define FTYPE_FD     2
-#define FTYPE_HD     3
+#define FTYPE_HARDDISK 3
 
 typedef struct BDRVRawState {
     HANDLE hfile;
@@ -1101,13 +1101,13 @@ static int64_t raw_getlength(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
     ULARGE_INTEGER available, total, total_free;
+#if 0
+    DISK_GEOMETRY dg;
+#else
     DISK_GEOMETRY_EX disk_geometry;
-    OVERLAPPED ov;
-    DWORD ret_count;
-
-    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
-
-    l.QuadPart = -EIO;
+#endif
+    DWORD count;
+    BOOL status;
 
     switch(s->type) {
     case FTYPE_FILE:
@@ -1120,16 +1120,22 @@ static int64_t raw_getlength(BlockDriverState *bs)
             return -EIO;
         l.QuadPart = total.QuadPart;
         break;
-    case FTYPE_HD:
-        memset(&ov, 0, sizeof(ov));
-        if (DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
-                            NULL, 0,
-                            &disk_geometry, sizeof(disk_geometry),
-                            NULL, &ov)) {
-            if (GetOverlappedResult(s->hfile, &ov, &ret_count, TRUE)) {
-                l = disk_geometry.DiskSize;
-            }
+    case FTYPE_HARDDISK:
+#if 0
+        status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                                 NULL, 0, &dg, sizeof(dg), &count, NULL);
+        if (status != FALSE) {
+            l.QuadPart = dg.Cylinders.QuadPart * dg.TracksPerCylinder
+                * dg.SectorsPerTrack * dg.BytesPerSector;
         }
+#else
+        status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
+                            NULL, 0, &disk_geometry, sizeof(disk_geometry),
+                            NULL, NULL));
+        if (status != FALSE) {
+            l = disk_geometry.DiskSize;
+        }
+#endif
         break;
     default:
         return -EIO;
@@ -1235,11 +1241,10 @@ static int find_device_type(BlockDriverState *bs, const char *filename)
     UINT type;
     const char *p;
 
-    if (strstart(filename, "//./PhysicalDrive", &p)) {
-        snprintf(s->drive_path, sizeof(s->drive_path), "%s", filename);
-        return FTYPE_HD;
-    } else if (strstart(filename, "\\\\.\\", &p) ||
+    if (strstart(filename, "\\\\.\\", &p) ||
         strstart(filename, "//./", &p)) {
+        if (stristart(p, "PhysicalDrive", NULL))
+            return FTYPE_HARDDISK;
         snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", p[0]);
         type = GetDriveType(s->drive_path);
         if (type == DRIVE_CDROM)
@@ -1276,7 +1281,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
     s->type = find_device_type(bs, filename);
-
+    
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
     } else {

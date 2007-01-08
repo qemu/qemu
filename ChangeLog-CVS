@@ -1,3 +1,13 @@
+2007-01-07 23:43  bellard
+
+	* block-raw.c, qemu-doc.texi: win32: physical drive support
+	  (initial patch by kazu)
+
+2007-01-07 23:04  bellard
+
+	* Makefile, Makefile.target, cutils.c, qemu-img.c, vl.c, vl.h:
+	  added cutils.c
+
 2007-01-07 21:42  ths
 
 	* qemu-doc.texi, vl.c, vl.h, hw/pc.c, hw/sun4m.c: Revert -disk
