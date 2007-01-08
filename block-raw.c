@@ -1131,7 +1131,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
 #else
         status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
                             NULL, 0, &disk_geometry, sizeof(disk_geometry),
-                            NULL, NULL));
+                            NULL, NULL);
         if (status != FALSE) {
             l = disk_geometry.DiskSize;
         }
