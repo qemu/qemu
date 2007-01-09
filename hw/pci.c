@@ -546,24 +546,24 @@ void pci_info(void)
 }
 
 /* Initialize a PCI NIC.  */
-void pci_nic_init(PCIBus *bus, NICInfo *nd)
+void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     if (strcmp(nd->model, "ne2k_pci") == 0) {
-        pci_ne2000_init(bus, nd);
+        pci_ne2000_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "dp83816") == 0) {
-        pci_dp83816_init(bus, nd);
+        pci_dp83816_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "i82551") == 0) {
-      pci_i82551_init(bus, nd);
+      pci_i82551_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "i82557b") == 0) {
-      pci_i82557b_init(bus, nd);
+      pci_i82557b_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "i82559") == 0) {
-        pci_eepro100_init(bus, nd);
+        pci_eepro100_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "i82559er") == 0) {
-        pci_i82559er_init(bus, nd);
+        pci_i82559er_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
-        pci_rtl8139_init(bus, nd);
+        pci_rtl8139_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "pcnet") == 0) {
-        pci_pcnet_init(bus, nd);
+        pci_pcnet_init(bus, nd, devfn);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
         exit (1);

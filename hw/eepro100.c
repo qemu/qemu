@@ -1733,7 +1733,7 @@ static void nic_init(PCIBus * bus, NICInfo * nd,
     register_savevm(name, 0, 3, nic_save, nic_load, s);
 }
 
-void pci_eepro100_init(PCIBus * bus, NICInfo * nd)
+void pci_eepro100_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     /* PCIEEPRO100State *d = */
     nic_init(bus, nd, "eepro100", i82559ER);
@@ -1746,18 +1746,18 @@ void pci_eepro100_init(PCIBus * bus, NICInfo * nd)
 #endif
 }
 
-void pci_i82551_init(PCIBus * bus, NICInfo * nd)
+void pci_i82551_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     nic_init(bus, nd, "i82551", i82551);
     //~ uint8_t *pci_conf = d->dev.config;
 }
 
-void pci_i82557b_init(PCIBus * bus, NICInfo * nd)
+void pci_i82557b_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     nic_init(bus, nd, "i82557b", i82557B);
 }
 
-void pci_i82559er_init(PCIBus * bus, NICInfo * nd)
+void pci_i82559er_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     nic_init(bus, nd, "i82559er", i82559ER);
 }

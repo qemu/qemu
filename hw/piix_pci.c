@@ -196,7 +196,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state)
 
 /* PIIX3 PCI to ISA bridge */
 
-static PCIDevice *piix3_dev;
+PCIDevice *piix3_dev;
 
 /* just used for simpler irq handling. */
 #define PCI_IRQ_WORDS   ((PCI_DEVICES_MAX + 31) / 32)
@@ -273,13 +273,13 @@ static int piix_load(QEMUFile* f, void *opaque, int version_id)
     return pci_device_load(d, f);
 }
 
-int piix3_init(PCIBus *bus)
+int piix3_init(PCIBus *bus, int devfn)
 {
     PCIDevice *d;
     uint8_t *pci_conf;
 
     d = pci_register_device(bus, "PIIX3", sizeof(PCIDevice),
-                                    -1, NULL, NULL);
+                                    devfn, NULL, NULL);
     register_savevm("PIIX3", 0, 2, piix_save, piix_load, d);
 
     piix3_dev = d;
@@ -287,8 +287,8 @@ int piix3_init(PCIBus *bus)
 
     pci_conf[0x00] = 0x86; // Intel
     pci_conf[0x01] = 0x80;
-    pci_conf[0x02] = 0x00; // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
-    pci_conf[0x03] = 0x70;
+    pci_conf[0x02] = 0x10; // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
+    pci_conf[0x03] = 0x71;
     pci_conf[0x0a] = 0x01; // class_sub = PCI_ISA
     pci_conf[0x0b] = 0x06; // class_base = PCI_bridge
     pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic

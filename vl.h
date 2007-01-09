@@ -797,7 +797,7 @@ typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *pic, int devfn_min, int nirq);
 
-void pci_nic_init(PCIBus *bus, NICInfo *nd);
+void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
@@ -825,7 +825,7 @@ PCIBus *pci_vpb_init(void *pic, int irq, int realview);
 /* piix_pci.c */
 PCIBus *i440fx_init(PCIDevice **pi440fx_state);
 void i440fx_set_smm(PCIDevice *d, int val);
-int piix3_init(PCIBus *bus);
+int piix3_init(PCIBus *bus, int devfn);
 void i440fx_init_memory_mappings(PCIDevice *d);
 
 /* openpic.c */
@@ -959,28 +959,28 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
 /* dp8381x.c */
 
-void pci_dp83815_init(PCIBus *bus, NICInfo *nd);
-void pci_dp83816_init(PCIBus *bus, NICInfo *nd);
+void pci_dp83815_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_dp83816_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* eepro100.c */
 
-void pci_eepro100_init(PCIBus *bus, NICInfo *nd);
-void pci_i82551_init(PCIBus *bus, NICInfo *nd);
-void pci_i82557b_init(PCIBus *bus, NICInfo *nd);
-void pci_i82559er_init(PCIBus *bus, NICInfo *nd);
+void pci_eepro100_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_i82551_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_i82557b_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_i82559er_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* ne2000.c */
 
 void isa_ne2000_init(int base, int irq, NICInfo *nd);
-void pci_ne2000_init(PCIBus *bus, NICInfo *nd);
+void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* rtl8139.c */
 
-void pci_rtl8139_init(PCIBus *bus, NICInfo *nd);
+void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* pcnet.c */
 
-void pci_pcnet_init(PCIBus *bus, NICInfo *nd);
+void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 void pcnet_h_reset(void *opaque);
 void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque);
 
@@ -1082,6 +1082,9 @@ void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
 int qemu_register_ar7_machines(void);
 int qemu_register_mips_machines(void);
 extern QEMUMachine mips_machine;
+
+/* malta.c */
+extern QEMUMachine malta_machine;
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);

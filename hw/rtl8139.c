@@ -3409,7 +3409,7 @@ static void rtl8139_timer(void *opaque)
 }
 #endif /* RTL8139_ONBOARD_TIMER */
 
-void pci_rtl8139_init(PCIBus *bus, NICInfo *nd)
+void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCIRTL8139State *d;
     RTL8139State *s;
@@ -3417,7 +3417,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd)
     
     d = (PCIRTL8139State *)pci_register_device(bus,
                                               "RTL8139", sizeof(PCIRTL8139State),
-                                              -1, 
+                                              devfn, 
                                               NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0xec; /* Realtek 8139 */

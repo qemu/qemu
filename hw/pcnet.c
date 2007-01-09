@@ -1889,7 +1889,7 @@ static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
     cpu_physical_memory_read(addr, buf, len);
 }
 
-void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
+void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCNetState *d;
     uint8_t *pci_conf;
@@ -1900,7 +1900,7 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
 #endif
 
     d = (PCNetState *)pci_register_device(bus, "PCNet", sizeof(PCNetState),
-                                          -1, NULL, NULL);
+                                          devfn, NULL, NULL);
                                           
     pci_conf = d->dev.config;
     

@@ -385,26 +385,39 @@ VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
+VL_OBJS += $(SOUND_HW) $(AUDIODRV)
+VL_OBJS += ar7.o
+VL_OBJS += acpi.o
+VL_OBJS += cirrus_vga.o
 VL_OBJS += dma.o
+VL_OBJS += fdc.o
+VL_OBJS += gt64120.o
 VL_OBJS += i8254.o
 VL_OBJS += i8259.o
 VL_OBJS += ide.o
 VL_OBJS += mc146818rtc.o
+VL_OBJS += malta.o
+VL_OBJS += mixeng.o
 VL_OBJS += mips_display.o
 VL_OBJS += mips_r4k.o
 VL_OBJS += mips_timer.o
-#~ VL_OBJS += #pckbd.o fdc.o m48t59.o
+VL_OBJS += pckbd.o
+#~ m48t59.o
+VL_OBJS += parallel.o
 VL_OBJS += pflash.o
 VL_OBJS += pflash_amd.o
 VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
+VL_OBJS += piix_pci.o
+VL_OBJS += ps2.o
 VL_OBJS += serial.o
 VL_OBJS += serial_16450.o
 #~ VL_OBJS += serial_16550a.o
-VL_OBJS += ar7.o
+VL_OBJS += usb-uhci.o
 ifdef CONFIG_SDL
 VL_OBJS += vga.o
 endif
+DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

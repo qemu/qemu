@@ -1553,7 +1553,7 @@ void pci_dp83815_init(PCIBus * bus, NICInfo * nd)
     //~ pci_dp8381x_init(bus, nd, DP83816AVNG);
 }
 #else
-void pci_dp83816_init(PCIBus * bus, NICInfo * nd)
+void pci_dp83816_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     logout("\n");
     pci_dp8381x_init(bus, nd, DP83816AVNG);

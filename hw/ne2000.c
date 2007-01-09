@@ -784,7 +784,7 @@ static void ne2000_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
 }
 
-void pci_ne2000_init(PCIBus *bus, NICInfo *nd)
+void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCINE2000State *d;
     NE2000State *s;
@@ -792,7 +792,7 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd)
     
     d = (PCINE2000State *)pci_register_device(bus,
                                               "NE2000", sizeof(PCINE2000State),
-                                              -1, 
+                                              devfn, 
                                               NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0xec; // Realtek 8029

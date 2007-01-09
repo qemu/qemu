@@ -436,7 +436,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         for(i = 0; i < nb_nics; i++) {
             if (!nd_table[i].model)
                 nd_table[i].model = "ne2k_pci";
-            pci_nic_init(pci_bus, &nd_table[i]);
+            pci_nic_init(pci_bus, &nd_table[i], -1);
         }
         
         pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
@@ -483,7 +483,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
         
         for(i = 0; i < nb_nics; i++) {
-            pci_ne2000_init(pci_bus, &nd_table[i]);
+            pci_ne2000_init(pci_bus, &nd_table[i], -1);
         }
         
 #if 1
