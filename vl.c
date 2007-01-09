@@ -3886,7 +3886,9 @@ static int net_client_init(const char *str)
             if (net_tap_fd_init(vlan, fd))
                 ret = 0;
         } else {
-            get_param_value(ifname, sizeof(ifname), "ifname", p);
+            if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
+                ifname[0] = '\0';
+            }
             if (get_param_value(setup_script, sizeof(setup_script), "script", p) == 0) {
                 pstrcpy(setup_script, sizeof(setup_script), DEFAULT_NETWORK_SCRIPT);
             }
