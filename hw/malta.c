@@ -64,6 +64,24 @@ static void pic_irq_request(void *opaque, int level)
     }
 }
 
+/* MIPS ASCII display */
+#define ASCII_DISPLAY_POS_BASE 0x1f000418
+static char mips_display_text[8];
+static CharDriverState *mips_display;
+static void malta_display_writel(target_phys_addr_t addr, uint32_t val)
+{
+    if (mips_display == 0) {
+        mips_display = qemu_chr_open("vc");
+        qemu_chr_printf(mips_display, "MIPS Display\r\n");
+        qemu_chr_printf(mips_display, "+----------+\r\n");
+    }
+    if (addr >= ASCII_DISPLAY_POS_BASE && addr < ASCII_DISPLAY_POS_BASE + 4 * 2 * 8) {
+        unsigned index = (addr - ASCII_DISPLAY_POS_BASE) / 4 / 2;
+        mips_display_text[index] = (char)val;
+        qemu_chr_printf(mips_display, "\r| %-8.8s |", mips_display_text);
+    }
+}
+
 /* Malta FPGA */
 static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 {
@@ -178,7 +196,8 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
     case 0x000440:
     case 0x000448:
     case 0x000450:
-	break;
+        malta_display_writel(addr, val);
+        break;
 
     /* SOFTRES Register */
     case 0x000500:
@@ -485,7 +504,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     } else {	    
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + bios_offset);
-        if (ret != BIOS_SIZE) {
+        if ((ret <= 0) && (ret > BIOS_SIZE)) {
             fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
   	            buf);
             exit(1);
