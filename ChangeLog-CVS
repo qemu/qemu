@@ -1,3 +1,26 @@
+2007-01-10 17:25  ths
+
+	* vl.h: Increase MIPS BIOS from 128kB to 4MB, by Aurelien Jarno.
+
+2007-01-10 17:23  ths
+
+	* vl.h, hw/pc.c, hw/piix_pci.c: Devfn number for the PIIX3
+	  southbridge, by Aurelien Jarno.
+
+2007-01-10 17:17  ths
+
+	* vl.h, hw/ne2000.c, hw/pc.c, hw/pci.c, hw/pcnet.c, hw/ppc_chrp.c,
+	  hw/realview.c, hw/rtl8139.c, hw/sun4u.c, hw/versatilepb.c: Devfn
+	  number for network PCI cards, by Aurelien Jarno.
+
+2007-01-10 12:46  ths
+
+	* hw/sun4m.c: Restore SCSI disk attaching, by Igor Kovalenko.
+
+2007-01-09 20:44  bellard
+
+	* vl.c: ifname arg fix
+
 2007-01-07 23:43  bellard
 
 	* block-raw.c, qemu-doc.texi: win32: physical drive support
