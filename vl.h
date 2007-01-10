@@ -807,6 +807,9 @@ void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
                         pci_map_irq_fn map_irq, const char *name);
 
+/* malta.c */
+PCIBus *pci_gt64120_init(void *pic);
+
 /* prep_pci.c */
 PCIBus *pci_prep_init(void);
 
