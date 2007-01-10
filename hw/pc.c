@@ -599,7 +599,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state);
-        piix3_devfn = piix3_init(pci_bus);
+        piix3_devfn = piix3_init(pci_bus, -1);
     } else {
         pci_bus = NULL;
     }

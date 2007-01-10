@@ -821,7 +821,7 @@ PCIBus *pci_vpb_init(void *pic, int irq, int realview);
 /* piix_pci.c */
 PCIBus *i440fx_init(PCIDevice **pi440fx_state);
 void i440fx_set_smm(PCIDevice *d, int val);
-int piix3_init(PCIBus *bus);
+int piix3_init(PCIBus *bus, int devfn);
 void i440fx_init_memory_mappings(PCIDevice *d);
 
 /* openpic.c */
