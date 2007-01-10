@@ -344,7 +344,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
             nd_table[i].model = "ne2k_pci";
-	pci_nic_init(pci_bus, &nd_table[i]);
+	pci_nic_init(pci_bus, &nd_table[i], -1);
     }
 
     pci_cmd646_ide_init(pci_bus, bs_table, 1);

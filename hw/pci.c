@@ -544,14 +544,14 @@ void pci_info(void)
 }
 
 /* Initialize a PCI NIC.  */
-void pci_nic_init(PCIBus *bus, NICInfo *nd)
+void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     if (strcmp(nd->model, "ne2k_pci") == 0) {
-        pci_ne2000_init(bus, nd);
+        pci_ne2000_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
-        pci_rtl8139_init(bus, nd);
+        pci_rtl8139_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "pcnet") == 0) {
-        pci_pcnet_init(bus, nd);
+        pci_pcnet_init(bus, nd, devfn);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
         exit (1);

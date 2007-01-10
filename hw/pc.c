@@ -668,7 +668,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         if (strcmp(nd->model, "ne2k_isa") == 0) {
             pc_init_ne2k_isa(nd);
         } else if (pci_enabled) {
-            pci_nic_init(pci_bus, nd);
+            pci_nic_init(pci_bus, nd, -1);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
             exit(1);

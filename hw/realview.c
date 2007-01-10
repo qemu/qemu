@@ -71,7 +71,7 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
         if (strcmp(nd->model, "smc91c111") == 0) {
             smc91c111_init(nd, 0x4e000000, pic, 28);
         } else {
-            pci_nic_init(pci_bus, nd);
+            pci_nic_init(pci_bus, nd, -1);
         }
     }
 
