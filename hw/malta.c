@@ -59,7 +59,7 @@ static void pic_irq_request(void *opaque, int level)
         env->CP0_Cause |= 0x00000400;
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
     } else {
-	env->CP0_Cause &= ~0x00000400;
+        env->CP0_Cause &= ~0x00000400;
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
@@ -72,13 +72,15 @@ static void malta_display_writel(target_phys_addr_t addr, uint32_t val)
 {
     if (mips_display == 0) {
         mips_display = qemu_chr_open("vc");
-        qemu_chr_printf(mips_display, "MIPS Display\r\n");
-        qemu_chr_printf(mips_display, "+----------+\r\n");
+        qemu_chr_printf(mips_display, "\e[HMIPS Display\r\n");
+        qemu_chr_printf(mips_display, "+--------+\r\n");
+        qemu_chr_printf(mips_display, "+        +\r\n");
+        qemu_chr_printf(mips_display, "+--------+\r\n");
     }
     if (addr >= ASCII_DISPLAY_POS_BASE && addr < ASCII_DISPLAY_POS_BASE + 4 * 2 * 8) {
         unsigned index = (addr - ASCII_DISPLAY_POS_BASE) / 4 / 2;
         mips_display_text[index] = (char)val;
-        qemu_chr_printf(mips_display, "\r| %-8.8s |", mips_display_text);
+        qemu_chr_printf(mips_display, "\e[H\n\n|\e[32m%-8.8s\e[00m|", mips_display_text);
     }
 }
 
@@ -93,73 +95,73 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
     /* SWITCH Register */
     case 0x000200:
         val = 0x00000000;		/* All switches closed */
-	break;
+        break;
 
     /* STATUS Register */
     case 0x000208:
 #ifdef TARGET_WORDS_BIGENDIAN
-	val = 0x00000012;
+        val = 0x00000012;
 #else
-	val = 0x00000010;
+        val = 0x00000010;
 #endif
         break;
 
     /* JMPRS Register */
     case 0x000210:
         val = 0x00;
-	break;
+        break;
 
     /* LEDBAR Register */
     case 0x000408:
         val = s->leds;
-	break;
+        break;
 
     /* BRKRES Register */
     case 0x000508:
         val = s->brk;
-	break;
+        break;
 
     /* GPOUT Register */
     case 0x000a00:
         val = s->gpout;
-	break;
+        break;
 
     /* XXX: implement a real I2C controller */
 
     /* GPINP Register */
     case 0x000a08:
-	/* IN = OUT until a real I2C control is implemented */
-	if (s->i2csel)
+        /* IN = OUT until a real I2C control is implemented */
+        if (s->i2csel)
             val = s->i2cout;
         else
             val = 0x00;
-	break;
+        break;
 
     /* I2CINP Register */
     case 0x000b00:
         val = 0x00000003;
-	break;
+        break;
 
     /* I2COE Register */
     case 0x000b08:
         val = s->i2coe;
-	break;
+        break;
 
     /* I2COUT Register */
     case 0x000b10:
         val = s->i2cout;
-	break;
+        break;
 
     /* I2CSEL Register */
     case 0x000b18:
         val = s->i2cout;
-	break;
+        break;
 
     default:
 #if 0
         printf ("malta_fpga_read: Bad register offset 0x%x\n", (int)addr);
 #endif
-	break;
+        break;
     }
     return val;
 }
@@ -183,10 +185,10 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
     /* XXX: implement a 8-LED array */
     case 0x000408:
         s->leds = val & 0xff;
-	break;
+        break;
 
     /* ASCIIWORD, ASCIIPOS0 to ASCIIPOS7 Registers */
-    /* XXX: implement a 8-character ASCII display */
+    /* 8-character ASCII display */
     case 0x000410:
     case 0x000418:
     case 0x000420:
@@ -201,34 +203,34 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     /* SOFTRES Register */
     case 0x000500:
-	if (val == 0x42)
+        if (val == 0x42)
             qemu_system_reset_request ();
-	break;
+        break;
 
     /* BRKRES Register */
     case 0x000508:
         s->brk = val & 0xff;
-	break;
+        break;
 
     /* GPOUT Register */
     case 0x000a00:
         s->gpout = val & 0xff;
-	break;
+        break;
 
     /* I2COE Register */
     case 0x000b08:
         s->i2coe = val & 0x03;
-	break;
+        break;
 
     /* I2COUT Register */
     case 0x000b10:
         s->i2cout = val & 0x03;
-	break;
+        break;
 
     /* I2CSEL Register */
     case 0x000b18:
         s->i2cout = val & 0x01;
-	break;
+        break;
 
     default:
 #if 0
@@ -327,8 +329,8 @@ static void network_init (PCIBus *pci_bus)
         if (i == 0  && strcmp(nd->model, "pcnet") == 0) {
             /* The malta board has a PCNet card using PCI SLOT 11 */
             pci_nic_init(pci_bus, nd, 88);
-	} else {
-	    pci_nic_init(pci_bus, nd, -1);
+        } else {
+            pci_nic_init(pci_bus, nd, -1);
         }
     }
 }
@@ -438,7 +440,7 @@ static int64_t load_kernel (CPUState *env)
     if (initrd_size > 0)
         prom_set(index++, "rd_start=0x%08x rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
     else
-	prom_set(index++, env->kernel_cmdline);
+        prom_set(index++, env->kernel_cmdline);
 
     /* Setup minimum environment variables */
     prom_set(index++, "memsize");
@@ -495,20 +497,20 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
        the later case, just write a small bootloader to the flash 
        location. */
     if (kernel_filename) {
-	env->ram_size = ram_size;
-	env->kernel_filename = kernel_filename;
-	env->kernel_cmdline = kernel_cmdline;
-	env->initrd_filename = initrd_filename;
-	kernel_addr = load_kernel(env);
-	write_bootloader(env, bios_offset, kernel_addr);
+        env->ram_size = ram_size;
+        env->kernel_filename = kernel_filename;
+        env->kernel_cmdline = kernel_cmdline;
+        env->initrd_filename = initrd_filename;
+        kernel_addr = load_kernel(env);
+        write_bootloader(env, bios_offset, kernel_addr);
     } else {	    
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + bios_offset);
         if ((ret <= 0) && (ret > BIOS_SIZE)) {
             fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-  	            buf);
+                    buf);
             exit(1);
-        }	   
+        }
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
