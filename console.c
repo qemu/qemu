@@ -122,6 +122,7 @@ struct TextConsole {
     int total_height;
     int backscroll_height;
     int x, y;
+    int x_saved, y_saved;
     int y_displayed;
     int y_base;
     TextAttributes t_attrib_default; /* default text attributes */
@@ -791,12 +792,10 @@ static void console_putchar(TextConsole *s, int ch)
             /* TODO: has to be implemented */
             break;
         case 14:
-            /* character set 0 */
-            /* TODO: has to be implemented */
+            /* SI (shift in), character set 0 (ignored) */
             break;
         case 15:
-            /* character set 1 */
-            /* TODO: has to be implemented */
+            /* SO (shift out), character set 1 (ignored) */
             break;
         case 27:    /* esc (introducing an escape sequence) */
             s->state = TTY_STATE_ESC;
@@ -845,6 +844,7 @@ static void console_putchar(TextConsole *s, int ch)
             s->state = TTY_STATE_NORM;
             switch(ch) {
             case 'A':
+                /* move cursor up */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
@@ -854,6 +854,7 @@ static void console_putchar(TextConsole *s, int ch)
                 }
                 break;
             case 'B':
+                /* move cursor down */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
@@ -863,6 +864,7 @@ static void console_putchar(TextConsole *s, int ch)
                 }
                 break;
             case 'C':
+                /* move cursor right */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
@@ -872,6 +874,7 @@ static void console_putchar(TextConsole *s, int ch)
                 }
                 break;
             case 'D':
+                /* move cursor left */
                 if (s->esc_params[0] == 0) {
                     s->esc_params[0] = 1;
                 }
@@ -965,9 +968,13 @@ static void console_putchar(TextConsole *s, int ch)
                 break;
             case 's':
                 /* save cursor position */
+                s->x_saved = s->x;
+                s->y_saved = s->y;
                 break;
             case 'u':
                 /* restore cursor position */
+                s->x = s->x_saved;
+                s->y = s->y_saved;
                 break;
             default:
                 fprintf(stderr, "unhandled escape character '%c'\n", ch);
