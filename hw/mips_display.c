@@ -66,7 +66,7 @@ static void io_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
     } else if (addr >= ASCII_DISPLAY_POS_BASE && addr < ASCII_DISPLAY_POS_BASE + 4 * 2 * 8) {
         unsigned index = (addr - ASCII_DISPLAY_POS_BASE) / 4 / 2;
         mips_display_text[index] = (char)value;
-        qemu_chr_printf(mips_display, "\r| %-8.8s |", mips_display_text);
+        qemu_chr_printf(mips_display, "\e[3;3H\e[32m%-8.8s\e[32m", mips_display_text);
     } else {
         logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
     }
@@ -98,6 +98,8 @@ void mips_display_init(CPUState *env, const char *devname)
     mips_display = qemu_chr_open(devname);
     if (!strcmp(devname, "vc")) {
         qemu_chr_printf(mips_display, "MIPS Display\r\n");
+        qemu_chr_printf(mips_display, "+----------+\r\n");
+        qemu_chr_printf(mips_display, "+          +\r\n");
         qemu_chr_printf(mips_display, "+----------+\r\n");
     }
 }
