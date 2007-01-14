@@ -807,7 +807,7 @@ void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
                         pci_map_irq_fn map_irq, const char *name);
 
-/* malta.c */
+/* mips_malta.c */
 PCIBus *pci_gt64120_init(void *pic);
 
 /* prep_pci.c */
@@ -1079,15 +1079,15 @@ extern QEMUMachine prep_machine;
 extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
 
+/* mips_malta.c */
+extern QEMUMachine mips_malta_machine;
+
 /* mips_r4k.c */
 void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                       const char *kernel_cmdline, const char *initrd_filename);
 int qemu_register_ar7_machines(void);
 int qemu_register_mips_machines(void);
 extern QEMUMachine mips_machine;
-
-/* malta.c */
-extern QEMUMachine malta_machine;
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);
