@@ -296,3 +296,8 @@ int piix3_init(PCIBus *bus, int devfn)
     piix3_reset(d);
     return d->devfn;
 }
+
+int piix4_init(PCIBus *bus, int devfn)
+{
+    return piix3_init(bus, devfn);
+}
