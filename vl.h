@@ -835,6 +835,9 @@ typedef struct HeathrowPICS HeathrowPICS;
 void heathrow_pic_set_irq(void *opaque, int num, int level);
 HeathrowPICS *heathrow_pic_init(int *pmem_index);
 
+/* gt64xxx.c */
+PCIBus *pci_gt64120_init(void *pic);
+
 #ifdef HAS_AUDIO
 struct soundhw {
     const char *name;
