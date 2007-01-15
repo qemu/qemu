@@ -302,6 +302,7 @@ typedef struct CharDriverState {
     QEMUBH *bh;
 } CharDriverState;
 
+CharDriverState *qemu_chr_open(const char *filename);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
 void qemu_chr_send_event(CharDriverState *s, int event);
@@ -824,6 +825,8 @@ void i440fx_set_smm(PCIDevice *d, int val);
 int piix3_init(PCIBus *bus, int devfn);
 void i440fx_init_memory_mappings(PCIDevice *d);
 
+int piix4_init(PCIBus *bus, int devfn);
+
 /* openpic.c */
 typedef struct openpic_t openpic_t;
 void openpic_set_irq(void *opaque, int n_IRQ, int level);
@@ -1058,6 +1061,9 @@ extern QEMUMachine heathrow_machine;
 
 /* mips_r4k.c */
 extern QEMUMachine mips_machine;
+
+/* mips_malta.c */
+extern QEMUMachine mips_malta_machine;
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);
