@@ -197,6 +197,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state)
 /* PIIX3 PCI to ISA bridge */
 
 PCIDevice *piix3_dev;
+PCIDevice *piix4_dev;
 
 /* just used for simpler irq handling. */
 #define PCI_IRQ_WORDS   ((PCI_DEVICES_MAX + 31) / 32)
@@ -259,6 +260,44 @@ static void piix3_reset(PCIDevice *d)
     pci_conf[0xae] = 0x00;
 }
 
+static void piix4_reset(PCIDevice *d)
+{
+    uint8_t *pci_conf = d->config;
+
+    pci_conf[0x04] = 0x07; // master, memory and I/O
+    pci_conf[0x05] = 0x00;
+    pci_conf[0x06] = 0x00;
+    pci_conf[0x07] = 0x02; // PCI_status_devsel_medium
+    pci_conf[0x4c] = 0x4d;
+    pci_conf[0x4e] = 0x03;
+    pci_conf[0x4f] = 0x00;
+    pci_conf[0x60] = 0x0a; // PCI A -> IRQ 10
+    pci_conf[0x61] = 0x0a; // PCI B -> IRQ 10
+    pci_conf[0x62] = 0x0b; // PCI C -> IRQ 11
+    pci_conf[0x63] = 0x0b; // PCI D -> IRQ 11
+    pci_conf[0x69] = 0x02;
+    pci_conf[0x70] = 0x80;
+    pci_conf[0x76] = 0x0c;
+    pci_conf[0x77] = 0x0c;
+    pci_conf[0x78] = 0x02;
+    pci_conf[0x79] = 0x00;
+    pci_conf[0x80] = 0x00;
+    pci_conf[0x82] = 0x00;
+    pci_conf[0xa0] = 0x08;
+    pci_conf[0xa0] = 0x08;
+    pci_conf[0xa2] = 0x00;
+    pci_conf[0xa3] = 0x00;
+    pci_conf[0xa4] = 0x00;
+    pci_conf[0xa5] = 0x00;
+    pci_conf[0xa6] = 0x00;
+    pci_conf[0xa7] = 0x00;
+    pci_conf[0xa8] = 0x0f;
+    pci_conf[0xaa] = 0x00;
+    pci_conf[0xab] = 0x00;
+    pci_conf[0xac] = 0x00;
+    pci_conf[0xae] = 0x00;
+}
+
 static void piix_save(QEMUFile* f, void *opaque)
 {
     PCIDevice *d = opaque;
@@ -294,5 +333,29 @@ int piix3_init(PCIBus *bus, int devfn)
     pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic
 
     piix3_reset(d);
+    return d->devfn;
+}
+
+int piix4_init(PCIBus *bus, int devfn)
+{
+    PCIDevice *d;
+    uint8_t *pci_conf;
+
+    d = pci_register_device(bus, "PIIX4", sizeof(PCIDevice),
+                                    devfn, NULL, NULL);
+    register_savevm("PIIX4", 0, 2, piix_save, piix_load, d);
+
+    piix4_dev = d;
+    pci_conf = d->config;
+
+    pci_conf[0x00] = 0x86; // Intel
+    pci_conf[0x01] = 0x80;
+    pci_conf[0x02] = 0x10; // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
+    pci_conf[0x03] = 0x71;
+    pci_conf[0x0a] = 0x01; // class_sub = PCI_ISA
+    pci_conf[0x0b] = 0x06; // class_base = PCI_bridge
+    pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic
+
+    piix4_reset(d);
     return d->devfn;
 }
