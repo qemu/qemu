@@ -2621,12 +2621,28 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             gen_sto_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
             break;
         case 0x6e: /* movd mm, ea */
-            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 0);
-            gen_op_movl_mm_T0_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+#ifdef TARGET_X86_64
+            if (s->dflag == 2) {
+                gen_ldst_modrm(s, modrm, OT_QUAD, OR_TMP0, 0);
+                gen_op_movq_mm_T0_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+            } else 
+#endif
+            {
+                gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 0);
+                gen_op_movl_mm_T0_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+            }
             break;
         case 0x16e: /* movd xmm, ea */
-            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 0);
-            gen_op_movl_mm_T0_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+#ifdef TARGET_X86_64
+            if (s->dflag == 2) {
+                gen_ldst_modrm(s, modrm, OT_QUAD, OR_TMP0, 0);
+                gen_op_movq_mm_T0_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+            } else 
+#endif
+            {
+                gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 0);
+                gen_op_movl_mm_T0_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+            }
             break;
         case 0x6f: /* movq mm, ea */
             if (mod != 3) {
@@ -2750,12 +2766,28 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                         offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)));
             break;
         case 0x7e: /* movd ea, mm */
-            gen_op_movl_T0_mm_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
-            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 1);
+#ifdef TARGET_X86_64
+            if (s->dflag == 2) {
+                gen_op_movq_T0_mm_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+                gen_ldst_modrm(s, modrm, OT_QUAD, OR_TMP0, 1);
+            } else 
+#endif
+            {
+                gen_op_movl_T0_mm_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+                gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 1);
+            }
             break;
         case 0x17e: /* movd ea, xmm */
-            gen_op_movl_T0_mm_xmm(offsetof(CPUX86State,xmm_regs[reg]));
-            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 1);
+#ifdef TARGET_X86_64
+            if (s->dflag == 2) {
+                gen_op_movq_T0_mm_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+                gen_ldst_modrm(s, modrm, OT_QUAD, OR_TMP0, 1);
+            } else 
+#endif
+            {
+                gen_op_movl_T0_mm_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+                gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 1);
+            }
             break;
         case 0x27e: /* movq xmm, ea */
             if (mod != 3) {

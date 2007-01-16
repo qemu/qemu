@@ -558,6 +558,25 @@ void OPPROTO glue(op_movl_T0_mm, SUFFIX) (void)
     T0 = s->L(0);
 }
 
+#ifdef TARGET_X86_64
+void OPPROTO glue(op_movq_mm_T0, SUFFIX) (void)
+{
+    Reg *d;
+    d = (Reg *)((char *)env + PARAM1);
+    d->Q(0) = T0;
+#if SHIFT == 1
+    d->Q(1) = 0;
+#endif
+}
+
+void OPPROTO glue(op_movq_T0_mm, SUFFIX) (void)
+{
+    Reg *s;
+    s = (Reg *)((char *)env + PARAM1);
+    T0 = s->Q(0);
+}
+#endif
+
 #if SHIFT == 0
 void OPPROTO glue(op_pshufw, SUFFIX) (void)
 {
