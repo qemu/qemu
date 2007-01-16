@@ -127,7 +127,7 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
     /* 0x68000000 PCI mem 1.  */
     /* 0x6c000000 PCI mem 2.  */
 
-    arm_load_kernel(ram_size, kernel_filename, kernel_cmdline,
+    arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
                     initrd_filename, 0x33b);
 }
 

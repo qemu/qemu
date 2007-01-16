@@ -1317,7 +1317,7 @@ void *arm_gic_init(uint32_t base, void *parent, int parent_irq);
 
 /* arm_boot.c */
 
-void arm_load_kernel(int ram_size, const char *kernel_filename,
+void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      const char *kernel_cmdline, const char *initrd_filename,
                      int board_id);
 
