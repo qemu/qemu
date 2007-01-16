@@ -50,7 +50,6 @@
 #include "disas.h"              /* lookup_symbol */
 #include "exec-all.h"           /* logfile */
 #include "hw/ar7.h"             /* ar7_init */
-#include "hw/mips_display.h"    /* mips_display_init */
 #include "hw/pflash.h"          /* pflash_amd_register, ... */
 
 static int bigendian;
@@ -3069,7 +3068,6 @@ static void mips_ar7_common_init (int ram_size,
     //~ cpu_mips_irqctrl_init();
 
     ar7_init(env);
-    mips_display_init(env, "vc");
 }
 
 static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,

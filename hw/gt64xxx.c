@@ -245,42 +245,42 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     /* CPU Configuration Register */
     case GT_CPU:
         s->regs[GT_CPU] = val;
-	gt64120_pci_mapping(s);
-	break;
+        gt64120_pci_mapping(s);
+        break;
     case GT_MULTI:
         break;
 
     /* CPU Address Decode */
     case GT_PCI0IOLD:
         s->regs[GT_PCI0IOLD]    = val & 0x00007fff;
-	s->regs[GT_PCI0IOREMAP] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        s->regs[GT_PCI0IOREMAP] = val & 0x000007ff;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI0M0LD:
         s->regs[GT_PCI0M0LD]    = val & 0x00007fff;
-	s->regs[GT_PCI0M0REMAP] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        s->regs[GT_PCI0M0REMAP] = val & 0x000007ff;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI0M1LD:
         s->regs[GT_PCI0M1LD]    = val & 0x00007fff;
-	s->regs[GT_PCI0M1REMAP] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        s->regs[GT_PCI0M1REMAP] = val & 0x000007ff;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI1IOLD:
         s->regs[GT_PCI1IOLD]    = val & 0x00007fff;
-	s->regs[GT_PCI1IOREMAP] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        s->regs[GT_PCI1IOREMAP] = val & 0x000007ff;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI1M0LD:
         s->regs[GT_PCI1M0LD]    = val & 0x00007fff;
-	s->regs[GT_PCI1M0REMAP] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        s->regs[GT_PCI1M0REMAP] = val & 0x000007ff;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI1M1LD:
         s->regs[GT_PCI1M1LD]    = val & 0x00007fff;
-	s->regs[GT_PCI1M1REMAP] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        s->regs[GT_PCI1M1REMAP] = val & 0x000007ff;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI0IOHD:
     case GT_PCI0M0HD:
     case GT_PCI0M1HD:
@@ -288,8 +288,8 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_PCI1M0HD:
     case GT_PCI1M1HD:
         s->regs[saddr] = val & 0x0000007f;
-	gt64120_pci_mapping(s);
-	break;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI0IOREMAP:
     case GT_PCI0M0REMAP:
     case GT_PCI0M1REMAP:
@@ -297,8 +297,8 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_PCI1M0REMAP:
     case GT_PCI1M1REMAP:
         s->regs[saddr] = val & 0x000007ff;
-	gt64120_pci_mapping(s);
-	break;
+        gt64120_pci_mapping(s);
+        break;
 
     /* CPU Error Report */
     case GT_CPUERR_ADDRLO:
@@ -314,19 +314,19 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_ECC_MEM:
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
-	break;
+        break;
 
     /* PCI Internal */
     case GT_PCI0_CMD:
     case GT_PCI1_CMD:
         s->regs[saddr] = val & 0x0401fc0f;
-	break;
+        break;
     case GT_PCI0_CFGADDR:
-	s->pci->config_reg = val & 0x80fffffc;
-	break;
+        s->pci->config_reg = val & 0x80fffffc;
+        break;
     case GT_PCI0_CFGDATA:
-	pci_host_data_writel(s->pci, 0, val);
-	break;
+        pci_host_data_writel(s->pci, 0, val);
+        break;
 
     default:
 #if 0
@@ -355,7 +355,7 @@ static uint32_t gt64120_readl (void *opaque,
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
         return 0;
-	break;
+        break;
 
     /* ECC */
     case GT_ECC_ERRDATALO:
@@ -364,7 +364,7 @@ static uint32_t gt64120_readl (void *opaque,
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
         return 0;
-	break;
+        break;
 
     case GT_CPU:
     case GT_MULTI:
@@ -388,22 +388,22 @@ static uint32_t gt64120_readl (void *opaque,
     case GT_PCI1IOREMAP:
     case GT_PCI1M0REMAP:
     case GT_PCI1M1REMAP:
-	val = s->regs[saddr];
+        val = s->regs[saddr];
         break;
     case GT_PCI0_IACK:
  	val = pic_intack_read(isa_pic);
-	break;
+        break;
 
     /* PCI Internal */
     case GT_PCI0_CFGADDR:
-	val = s->pci->config_reg;
-	break;
+        val = s->pci->config_reg;
+        break;
     case GT_PCI0_CFGDATA:
-	val = pci_host_data_readl(s->pci, 0);
-	break;
+        val = pci_host_data_readl(s->pci, 0);
+        break;
 
     default:
-	val = s->regs[saddr];
+        val = s->regs[saddr];
 #if 0
         printf ("gt64120_readl: Bad register offset 0x%x\n", (int)addr);
 #endif
@@ -437,20 +437,20 @@ static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
         return 3;
       /* AMD 79C973 Ethernet */
       case 11:
-	return 0;
+        return 0;
       /* Crystal 4281 Sound */
       case 12:
-	return 0;
+        return 0;
       /* PCI slot 1 to 4 */
       case 18 ... 21:
-	return ((slot - 18) + irq_num) & 0x03;
+        return ((slot - 18) + irq_num) & 0x03;
       /* Unknown device, don't do any translation */
       default:
-	return irq_num;
-    }	    
+        return irq_num;
+    }
 }
 
-extern PCIDevice *piix3_dev;
+extern PCIDevice *piix4_dev;
 static int pci_irq_levels[4];
 
 static void pci_gt64120_set_irq(void *pic, int irq_num, int level)
@@ -461,13 +461,13 @@ static void pci_gt64120_set_irq(void *pic, int irq_num, int level)
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
-    pic_irq = piix3_dev->config[0x60 + irq_num];
+    pic_irq = piix4_dev->config[0x60 + irq_num];
     if (pic_irq < 16) {
         /* The pic level is the logical OR of all the PCI irqs mapped
            to it */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == piix3_dev->config[0x60 + i])
+            if (pic_irq == piix4_dev->config[0x60 + i])
                 pic_level |= pci_irq_levels[i];
         }
         pic_set_irq(pic_irq, pic_level);
@@ -531,7 +531,7 @@ void gt64120_reset(void *opaque)
 #endif
     s->regs[GT_PCI0_IACK]     = 0x00000000;
     s->regs[GT_PCI1_IACK]     = 0x00000000;
-  
+
     gt64120_pci_mapping(s);
 }
 
@@ -545,15 +545,16 @@ PCIBus *pci_gt64120_init(void *pic)
     s->pci = qemu_mallocz(sizeof(GT64120PCIState));
     gt64120_reset(s);
 
-    s->pci->bus = pci_register_bus(pci_gt64120_set_irq, pci_gt64120_map_irq, pic, 144, 4);
+    s->pci->bus = pci_register_bus(pci_gt64120_set_irq, pci_gt64120_map_irq,
+                                   pic, 144, 4);
 
     gt64120 = cpu_register_io_memory(0, gt64120_read,
                                      gt64120_write, s);
     cpu_register_physical_memory(0x1be00000LL, 0x1000, gt64120);
 
-    d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice), 
+    d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice),
                             0, NULL, NULL);
-    
+
     d->config[0x00] = 0xab; // vendor_id
     d->config[0x01] = 0x11;
     d->config[0x02] = 0x46; // device_id
@@ -565,9 +566,9 @@ PCIBus *pci_gt64120_init(void *pic)
     d->config[0x08] = 0x10;
     d->config[0x09] = 0x00;
     d->config[0x0A] = 0x80;
-    d->config[0x0B] = 0x05; 
+    d->config[0x0B] = 0x05;
     d->config[0x0C] = 0x08;
-    d->config[0x0D] = 0x40; 
+    d->config[0x0D] = 0x40;
     d->config[0x0E] = 0x00;
     d->config[0x0F] = 0x00;
     d->config[0x17] = 0x08;
@@ -579,5 +580,3 @@ PCIBus *pci_gt64120_init(void *pic)
 
     return s->pci->bus;
 }
-
-

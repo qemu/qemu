@@ -2,7 +2,7 @@
  * QEMU Malta board support
  *
  * Copyright (c) 2006 Aurelien Jarno
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -75,12 +75,12 @@ static void malta_fpga_update_display(void *opaque)
 
     for (i = 7 ; i >= 0 ; i--) {
         if (s->leds & (1 << i))
-	    leds_text[i] = '#';
+            leds_text[i] = '#';
 	else
-	    leds_text[i] = ' ';
-    }	    
+            leds_text[i] = ' ';
+    }
     leds_text[8] = '\0';
-    
+
     qemu_chr_printf(s->display, "\e[H\n\n|\e[31m%-8.8s\e[00m|\r\n", leds_text);
     qemu_chr_printf(s->display, "\n\n\n\n|\e[32m%-8.8s\e[00m|", s->display_text);
 }
@@ -103,74 +103,74 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
     /* STATUS Register */
     case 0x00208:
 #ifdef TARGET_WORDS_BIGENDIAN
-	val = 0x00000012;
+        val = 0x00000012;
 #else
-	val = 0x00000010;
+        val = 0x00000010;
 #endif
         break;
 
     /* JMPRS Register */
     case 0x00210:
         val = 0x00;
-	break;
+        break;
 
     /* LEDBAR Register */
     case 0x00408:
         val = s->leds;
-	break;
+        break;
 
     /* BRKRES Register */
     case 0x00508:
         val = s->brk;
-	break;
+        break;
 
     /* GPOUT Register */
     case 0x00a00:
         val = s->gpout;
-	break;
+        break;
 
     /* XXX: implement a real I2C controller */
 
     /* GPINP Register */
     case 0x00a08:
-	/* IN = OUT until a real I2C control is implemented */
-	if (s->i2csel)
+        /* IN = OUT until a real I2C control is implemented */
+        if (s->i2csel)
             val = s->i2cout;
         else
             val = 0x00;
-	break;
+        break;
 
     /* I2CINP Register */
     case 0x00b00:
         val = 0x00000003;
-	break;
+        break;
 
     /* I2COE Register */
     case 0x00b08:
         val = s->i2coe;
-	break;
+        break;
 
     /* I2COUT Register */
     case 0x00b10:
         val = s->i2cout;
-	break;
+        break;
 
     /* I2CSEL Register */
     case 0x00b18:
         val = s->i2cout;
-	break;
+        break;
 
     default:
 #if 0
         printf ("malta_fpga_read: Bad register offset 0x%x\n", (int)addr);
 #endif
-	break;
+        break;
     }
     return val;
 }
 
 static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
+                              uint32_t val)
 {
     MaltaFPGAState *s = opaque;
     uint32_t saddr;
@@ -191,13 +191,13 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
     /* XXX: implement a 8-LED array */
     case 0x00408:
         s->leds = val & 0xff;
-	break;
+        break;
 
     /* ASCIIWORD Register */
     case 0x00410:
-	snprintf(s->display_text, 9, "%08X", val); 
+        snprintf(s->display_text, 9, "%08X", val);
         malta_fpga_update_display(s);
-	break;
+        break;
 
     /* ASCIIPOS0 to ASCIIPOS7 Registers */
     case 0x00418:
@@ -208,40 +208,40 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
     case 0x00440:
     case 0x00448:
     case 0x00450:
-	s->display_text[(saddr - 0x00418) >> 3] = (char) val;
+        s->display_text[(saddr - 0x00418) >> 3] = (char) val;
         malta_fpga_update_display(s);
-	break;
+        break;
 
     /* SOFTRES Register */
     case 0x00500:
-	if (val == 0x42)
+        if (val == 0x42)
             qemu_system_reset_request ();
-	break;
+        break;
 
     /* BRKRES Register */
     case 0x00508:
         s->brk = val & 0xff;
-	break;
+        break;
 
     /* GPOUT Register */
     case 0x00a00:
         s->gpout = val & 0xff;
-	break;
+        break;
 
     /* I2COE Register */
     case 0x00b08:
         s->i2coe = val & 0x03;
-	break;
+        break;
 
     /* I2COUT Register */
     case 0x00b10:
         s->i2cout = val & 0x03;
-	break;
+        break;
 
     /* I2CSEL Register */
     case 0x00b18:
         s->i2cout = val & 0x01;
-	break;
+        break;
 
     default:
 #if 0
@@ -300,7 +300,7 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base)
     qemu_chr_printf(s->display, "+--------+\r\n");
     qemu_chr_printf(s->display, "+        +\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
-    
+
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
 
@@ -355,8 +355,8 @@ static void network_init (PCIBus *pci_bus)
         if (i == 0  && strcmp(nd->model, "pcnet") == 0) {
             /* The malta board has a PCNet card using PCI SLOT 11 */
             pci_nic_init(pci_bus, nd, 88);
-	} else {
-	    pci_nic_init(pci_bus, nd, -1);
+        } else {
+            pci_nic_init(pci_bus, nd, -1);
         }
     }
 }
@@ -364,16 +364,16 @@ static void network_init (PCIBus *pci_bus)
 /* ROM and pseudo bootloader
 
    The following code implements a very very simple bootloader. It first
-   loads the registers a0 to a3 to the values expected by the OS, and 
+   loads the registers a0 to a3 to the values expected by the OS, and
    then jump at the kernel address.
 
-   The bootloader should pass the locations of the kernel arguments and 
+   The bootloader should pass the locations of the kernel arguments and
    environment variables tables. Those tables contain the 32-bit address
    of NULL terminated strings. The environment variables table should be
    terminated by a NULL address.
 
    For a simpler implementation, the number of kernel arguments is fixed
-   to two (the name of the kernel and the command line), and the two 
+   to two (the name of the kernel and the command line), and the two
    tables are actually the same one.
 
    The registers a0 to a3 should contain the following values:
@@ -394,13 +394,13 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
 
     /* Second part of the bootloader */
     p = (uint32_t *) (phys_ram_base + bios_offset + 0x040);
-    stl_raw(p++, 0x3c040000); 				    /* lui a0, 0 */ 
+    stl_raw(p++, 0x3c040000); 				    /* lui a0, 0 */
     stl_raw(p++, 0x34840002);                               /* ori a0, a0, 2 */
-    stl_raw(p++, 0x3c050000 | ((ENVP_ADDR) >> 16));         /* lui a1, high(ENVP_ADDR) */ 
+    stl_raw(p++, 0x3c050000 | ((ENVP_ADDR) >> 16));         /* lui a1, high(ENVP_ADDR) */
     stl_raw(p++, 0x34a50000 | ((ENVP_ADDR) & 0xffff));      /* ori a1, a0, low(ENVP_ADDR) */
-    stl_raw(p++, 0x3c060000 | ((ENVP_ADDR + 8) >> 16));     /* lui a2, high(ENVP_ADDR + 8) */ 
+    stl_raw(p++, 0x3c060000 | ((ENVP_ADDR + 8) >> 16));     /* lui a2, high(ENVP_ADDR + 8) */
     stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));  /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x3c070000 | ((env->ram_size) >> 16));     /* lui a3, high(env->ram_size) */ 
+    stl_raw(p++, 0x3c070000 | ((env->ram_size) >> 16));     /* lui a3, high(env->ram_size) */
     stl_raw(p++, 0x34e70000 | ((env->ram_size) & 0xffff));  /* ori a3, a3, low(env->ram_size) */
     stl_raw(p++, 0x3c1f0000 | ((kernel_addr) >> 16));       /* lui ra, high(kernel_addr) */;
     stl_raw(p++, 0x37ff0000 | ((kernel_addr) & 0xffff));    /* ori ra, ra, low(kernel_addr) */
@@ -416,14 +416,14 @@ static void prom_set(int index, const char *string, ...)
     char *s;
 
     if (index >= ENVP_NB_ENTRIES)
-      return;
+        return;
 
     p = (uint32_t *) (phys_ram_base + ENVP_ADDR + VIRT_TO_PHYS_ADDEND);
     p += index;
 
     if (string == NULL) {
-      stl_raw(p, 0);	  
-      return;
+        stl_raw(p, 0);
+        return;
     }
 
     table_addr = ENVP_ADDR + sizeof(uint32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
@@ -444,8 +444,8 @@ static int64_t load_kernel (CPUState *env)
     long initrd_size;
 
     if (load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr) < 0) {
-      fprintf(stderr, "qemu: could not load kernel '%s'\n",
-              env->kernel_filename);
+        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                env->kernel_filename);
       exit(1);
     }
 
@@ -466,7 +466,7 @@ static int64_t load_kernel (CPUState *env)
     if (initrd_size > 0)
         prom_set(index++, "rd_start=0x%08x rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
     else
-	prom_set(index++, env->kernel_cmdline);
+        prom_set(index++, env->kernel_cmdline);
 
     /* Setup minimum environment variables */
     prom_set(index++, "memsize");
@@ -520,23 +520,23 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* Load a BIOS image except if a kernel image has been specified. In
-       the later case, just write a small bootloader to the flash 
+       the later case, just write a small bootloader to the flash
        location. */
     if (kernel_filename) {
-	env->ram_size = ram_size;
-	env->kernel_filename = kernel_filename;
-	env->kernel_cmdline = kernel_cmdline;
-	env->initrd_filename = initrd_filename;
-	kernel_addr = load_kernel(env);
-	write_bootloader(env, bios_offset, kernel_addr);
-    } else {	    
+        env->ram_size = ram_size;
+        env->kernel_filename = kernel_filename;
+        env->kernel_cmdline = kernel_cmdline;
+        env->initrd_filename = initrd_filename;
+        kernel_addr = load_kernel(env);
+        write_bootloader(env, bios_offset, kernel_addr);
+    } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + bios_offset);
         if (ret != BIOS_SIZE) {
             fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-  	            buf);
+                    buf);
             exit(1);
-        }	   
+        }
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
@@ -572,7 +572,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     parallel_init(0x378, 7, parallel_hds[0]);
     /* XXX: The floppy controller does not work correctly, something is
        probably wrong */
-    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table); 
+    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
 
     /* Sound card */
 #ifdef HAS_AUDIO

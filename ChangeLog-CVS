@@ -1,3 +1,16 @@
+2007-01-16 00:58  ths
+
+	* Makefile.target, vl.c, vl.h, hw/mips_malta.c: MIPS Malta system
+	  and devices support, by Aurelien Jarno and Stefan Weil.
+
+2007-01-15 19:32  ths
+
+	* vl.h, hw/gt64xxx.c: Gallileo GT64xxx support, by Aurelien Jarno.
+
+2007-01-15 18:08  ths
+
+	* hw/piix_pci.c: PIIX4 support, by Aurelien Jarno.
+
 2007-01-10 17:25  ths
 
 	* vl.h: Increase MIPS BIOS from 128kB to 4MB, by Aurelien Jarno.

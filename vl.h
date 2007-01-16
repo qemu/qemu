@@ -807,9 +807,6 @@ void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
                         pci_map_irq_fn map_irq, const char *name);
 
-/* mips_malta.c */
-PCIBus *pci_gt64120_init(void *pic);
-
 /* prep_pci.c */
 PCIBus *pci_prep_init(void);
 
@@ -831,6 +828,8 @@ void i440fx_set_smm(PCIDevice *d, int val);
 int piix3_init(PCIBus *bus, int devfn);
 void i440fx_init_memory_mappings(PCIDevice *d);
 
+int piix4_init(PCIBus *bus, int devfn);
+
 /* openpic.c */
 typedef struct openpic_t openpic_t;
 void openpic_set_irq(void *opaque, int n_IRQ, int level);
@@ -841,6 +840,9 @@ openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
 typedef struct HeathrowPICS HeathrowPICS;
 void heathrow_pic_set_irq(void *opaque, int num, int level);
 HeathrowPICS *heathrow_pic_init(int *pmem_index);
+
+/* gt64xxx.c */
+PCIBus *pci_gt64120_init(void *pic);
 
 #ifdef HAS_AUDIO
 struct soundhw {
@@ -1079,15 +1081,15 @@ extern QEMUMachine prep_machine;
 extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
 
-/* mips_malta.c */
-extern QEMUMachine mips_malta_machine;
-
 /* mips_r4k.c */
 void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                       const char *kernel_cmdline, const char *initrd_filename);
 int qemu_register_ar7_machines(void);
 int qemu_register_mips_machines(void);
 extern QEMUMachine mips_machine;
+
+/* mips_malta.c */
+extern QEMUMachine mips_malta_machine;
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);
