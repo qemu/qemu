@@ -80,12 +80,12 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
     }
 
     kernel_size = load_elf(kernel_filename, 0, &entry);
-    if (kernel_size) {
+    if (kernel_size >= 0) {
         /* An ELF image.  Jump to the entry point.  */
         env->regs[15] = entry & 0xfffffffe;
         env->thumb = entry & 1;
     } else {
-        /* Raw binary image. Assume it is a Limux zImage.  */
+        /* Raw binary image. Assume it is a Linux zImage.  */
         kernel_size = load_image(kernel_filename,
                                  phys_ram_base + KERNEL_LOAD_ADDR);
         if (kernel_size < 0) {
