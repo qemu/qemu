@@ -26,6 +26,9 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #endif
+#ifdef HOST_SOLARIS
+#include <sys/modctl.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
