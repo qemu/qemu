@@ -1,3 +1,25 @@
+2007-01-17 16:15  ths
+
+	* hw/mips_malta.c: Disable Malta floppy controller for now, by
+	  Aurelien Jarno.
+
+2007-01-17 09:59  pbrook
+
+	* hw/arm_boot.c: ARM boot fix (Jason Wessel).
+
+2007-01-17 00:02  ths
+
+	* console.c: Improved console handling, thanks Stefan Weil.
+
+2007-01-16 20:28  bellard
+
+	* target-i386/: ops_sse.h, translate.c: fixed movd mmx/sse insn
+
+2007-01-16 19:54  pbrook
+
+	* vl.h, hw/arm_boot.c, hw/integratorcp.c, hw/realview.c,
+	  hw/versatilepb.c: ARM ELF loader.
+
 2007-01-16 00:58  ths
 
 	* Makefile.target, vl.c, vl.h, hw/mips_malta.c: MIPS Malta system

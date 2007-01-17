@@ -64,42 +64,52 @@ static void set_kernel_args(uint32_t ram_size, int initrd_size,
     stl_raw(p++, 0);
 }
 
-void arm_load_kernel(int ram_size, const char *kernel_filename,
+void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      const char *kernel_cmdline, const char *initrd_filename,
                      int board_id)
 {
     int kernel_size;
     int initrd_size;
     int n;
+    uint64_t entry;
 
     /* Load the kernel.  */
     if (!kernel_filename) {
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
     }
-    kernel_size = load_image(kernel_filename,
-                             phys_ram_base + KERNEL_LOAD_ADDR);
-    if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-        exit(1);
-    }
-    if (initrd_filename) {
-        initrd_size = load_image(initrd_filename,
-                                 phys_ram_base + INITRD_LOAD_ADDR);
-        if (initrd_size < 0) {
-            fprintf(stderr, "qemu: could not load initrd '%s'\n",
-                    initrd_filename);
+
+    kernel_size = load_elf(kernel_filename, 0, &entry);
+    if (kernel_size >= 0) {
+        /* An ELF image.  Jump to the entry point.  */
+        env->regs[15] = entry & 0xfffffffe;
+        env->thumb = entry & 1;
+    } else {
+        /* Raw binary image. Assume it is a Linux zImage.  */
+        kernel_size = load_image(kernel_filename,
+                                 phys_ram_base + KERNEL_LOAD_ADDR);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
             exit(1);
         }
-    } else {
-        initrd_size = 0;
+        if (initrd_filename) {
+            initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + INITRD_LOAD_ADDR);
+            if (initrd_size < 0) {
+                fprintf(stderr, "qemu: could not load initrd '%s'\n",
+                        initrd_filename);
+                exit(1);
+            }
+        } else {
+            initrd_size = 0;
+        }
+        bootloader[1] |= board_id & 0xff;
+        bootloader[2] |= (board_id >> 8) & 0xff;
+        bootloader[5] = KERNEL_ARGS_ADDR;
+        bootloader[6] = KERNEL_LOAD_ADDR;
+        for (n = 0; n < sizeof(bootloader) / 4; n++)
+            stl_raw(phys_ram_base + (n * 4), bootloader[n]);
+        set_kernel_args(ram_size, initrd_size, kernel_cmdline);
     }
-    bootloader[1] |= board_id & 0xff;
-    bootloader[2] |= (board_id >> 8) & 0xff;
-    bootloader[5] = KERNEL_ARGS_ADDR;
-    bootloader[6] = KERNEL_LOAD_ADDR;
-    for (n = 0; n < sizeof(bootloader) / 4; n++)
-        stl_raw(phys_ram_base + (n * 4), bootloader[n]);
-    set_kernel_args(ram_size, initrd_size, kernel_cmdline);
 }
 

@@ -250,7 +250,7 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
     /*  0x101f3000 UART2.  */
     /* 0x101f4000 SSPI.  */
 
-    arm_load_kernel(ram_size, kernel_filename, kernel_cmdline,
+    arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
                     initrd_filename, board_id);
 }
 
