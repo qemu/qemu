@@ -94,7 +94,8 @@ cocoa="no"
 check_gfx="yes"
 check_gcc="yes"
 softmmu="yes"
-user="no"
+linux_user="no"
+darwin_user="no"
 build_docs="no"
 uname_release=""
 
@@ -126,6 +127,7 @@ oss="yes"
 Darwin)
 bsd="yes"
 darwin="yes"
+darwin_user="yes"
 OS_CFLAGS="-mdynamic-no-pic"
 ;;
 SunOS)
@@ -134,7 +136,7 @@ solaris="yes"
 *)
 oss="yes"
 linux="yes"
-user="yes"
+linux_user="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -151,6 +153,11 @@ if [ "$solaris" = "yes" ] ; then
     make="gmake"
     install="ginstall"
     solarisrev=`uname -r | cut -f2 -d.`
+    if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+        if test "$solarisrev" -gt 10 ; then
+            kqemu="yes"
+        fi
+    fi
 fi
 
 # find source path
@@ -235,9 +242,13 @@ for opt do
   ;;
   --enable-system) softmmu="yes"
   ;;
-  --disable-user) user="no"
+  --disable-linux-user) linux_user="no"
   ;;
-  --enable-user) user="yes"
+  --enable-linux-user) linux_user="yes"
+  ;;
+  --disable-darwin-user) darwin_user="no"
+  ;;
+  --enable-darwin-user) darwin_user="yes"
   ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
@@ -282,8 +293,10 @@ echo "  --enable-fmod            enable FMOD audio driver"
 echo "  --enabled-dsound         enable DirectSound audio driver"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
-echo "  --enable-user            enable all linux usermode emulation targets"
-echo "  --disable-user           disable all linux usermode emulation targets"
+echo "  --enable-linux-user      enable all linux usermode emulation targets"
+echo "  --disable-linux-user     disable all linux usermode emulation targets"
+echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
+echo "  --disable-darwin-user    disable all darwin usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
@@ -403,8 +416,12 @@ if test -z "$target_list" ; then
         target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu arm-softmmu"
     fi
 # the following are Linux specific
-    if [ "$user" = "yes" ] ; then
-        target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user m68k-user $target_list"
+    if [ "$linux_user" = "yes" ] ; then
+        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user $target_list"
+    fi
+# the following are Darwin specific
+    if [ "$darwin_user" = "yes" ] ; then
+        target_list="i386-darwin-user ppc-darwin-user $target_list"
     fi
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
@@ -782,6 +799,16 @@ if expr $target : '.*-user' > /dev/null ; then
   target_user_only="yes"
 fi
 
+target_linux_user="no"
+if expr $target : '.*-linux-user' > /dev/null ; then
+  target_linux_user="yes"
+fi
+
+target_darwin_user="no"
+if expr $target : '.*-darwin-user' > /dev/null ; then
+  target_darwin_user="yes"
+fi
+
 if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
         -a "$sdl" = "no" -a "$cocoa" = "no" ; then
     echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
@@ -794,7 +821,7 @@ fi
 
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
-if test "$target" = "arm-user" -o "$target" = "armeb-user" ; then
+if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
 if test "$target_user_only" = "no" ; then
@@ -888,6 +915,14 @@ fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=yes" >> $config_mak
   echo "#define CONFIG_USER_ONLY 1" >> $config_h
+fi
+if test "$target_linux_user" = "yes" ; then
+  echo "CONFIG_LINUX_USER=yes" >> $config_mak
+  echo "#define CONFIG_LINUX_USER 1" >> $config_h
+fi
+if test "$target_darwin_user" = "yes" ; then
+  echo "CONFIG_DARWIN_USER=yes" >> $config_mak
+  echo "#define CONFIG_DARWIN_USER 1" >> $config_h
 fi
 
 if test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" -o "$target_cpu" = "sparc" -o "$target_cpu" = "sparc64" -o "$target_cpu" = "m68k"; then

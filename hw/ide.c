@@ -394,6 +394,7 @@ typedef struct PCIIDEState {
 } PCIIDEState;
 
 static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
+static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -1063,11 +1064,17 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
         size = max_size;
     s->lba = -1; /* no sector read */
     s->packet_transfer_size = size;
+    s->io_buffer_size = size;    /* dma: send the reply data as one chunk */
     s->elementary_transfer_size = 0;
     s->io_buffer_index = 0;
 
-    s->status = READY_STAT;
-    ide_atapi_cmd_reply_end(s);
+    if (s->atapi_dma) {
+    	s->status = READY_STAT | DRQ_STAT;
+	ide_dma_start(s, ide_atapi_cmd_read_dma_cb);
+    } else {
+    	s->status = READY_STAT;
+    	ide_atapi_cmd_reply_end(s);
+    }
 }
 
 /* start a CD-CDROM read command */
@@ -1099,14 +1106,23 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     }
 
     if (s->io_buffer_size > 0) {
-        if (s->cd_sector_size == 2352) {
-            n = 1;
-            cd_data_to_raw(s->io_buffer, s->lba);
-        } else {
-            n = s->io_buffer_size >> 11;
-        }
+	/*
+	 * For a cdrom read sector command (s->lba != -1),
+	 * adjust the lba for the next s->io_buffer_size chunk
+	 * and dma the current chunk.
+	 * For a command != read (s->lba == -1), just transfer
+	 * the reply data.
+	 */
+	if (s->lba != -1) {
+	    if (s->cd_sector_size == 2352) {
+		n = 1;
+		cd_data_to_raw(s->io_buffer, s->lba);
+	    } else {
+		n = s->io_buffer_size >> 11;
+	    }
+	    s->lba += n;
+	}
         s->packet_transfer_size -= s->io_buffer_size;
-        s->lba += n;
         if (dma_buf_rw(bm, 1) == 0)
             goto eot;
     }
@@ -1170,7 +1186,8 @@ static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
                                int sector_size)
 {
 #ifdef DEBUG_IDE_ATAPI
-    printf("read: LBA=%d nb_sectors=%d\n", lba, nb_sectors);
+    printf("read %s: LBA=%d nb_sectors=%d\n", s->atapi_dma ? "dma" : "pio",
+	lba, nb_sectors);
 #endif
     if (s->atapi_dma) {
         ide_atapi_cmd_read_dma(s, lba, nb_sectors, sector_size);

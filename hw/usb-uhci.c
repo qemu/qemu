@@ -87,7 +87,7 @@ typedef struct UHCIState {
        is to allow multiple pending requests.  */
     uint32_t async_qh;
     USBPacket usb_packet;
-    uint8_t usb_buf[1280];
+    uint8_t usb_buf[2048];
 } UHCIState;
 
 typedef struct UHCI_TD {

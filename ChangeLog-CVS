@@ -1,3 +1,63 @@
+2007-01-20 02:12  ths
+
+	* hw/ide.c: Add more ATAPI CDROM DMA support, by Juergen Keil.
+
+2007-01-20 01:29  ths
+
+	* hw/mips_malta.c: Fix typo.
+
+2007-01-20 01:27  ths
+
+	* hw/mips_malta.c: Change display colors, the LED bar is green and
+	  the text display is red.
+
+2007-01-19 18:56  ths
+
+	* target-mips/TODO: Note more issues.
+
+2007-01-18 23:43  ths
+
+	* block.c: Darwin build fix, by Pierre d'Herbemont.
+
+2007-01-18 23:14  ths
+
+	* Changelog: Add Darwin userspace emulation to Changelog.
+
+2007-01-18 21:06  ths
+
+	* Makefile.target, configure, gdbstub.c: Darwin userspace
+	  emulation, by Pierre d'Herbemont.
+
+2007-01-18 01:22  ths
+
+	* block-raw.c: Fix CDROM permission check, by Kazu
+	  <kazoo@r3.dion.ne.jp>.
+
+2007-01-18 00:35  ths
+
+	* hw/gt64xxx.c: Big endian support for Gallileo, by Aurelien Jarno.
+
+2007-01-18 00:31  ths
+
+	* configure, kqemu.c, osdep.c: Kqemu support for Solaris, by Ben
+	  Taylor.
+
+2007-01-18 00:08  ths
+
+	* hw/usb-uhci.c: Fix USB buffer size, by Herbert Xu.
+
+2007-01-17 23:47  ths
+
+	* slirp/udp.c: Slirp UDP fix, by Jason Wessel.
+
+2007-01-17 22:32  ths
+
+	* Changelog: Note newsworthy changes.
+
+2007-01-17 21:03  ths
+
+	* target-mips/TODO: Keep track of mips related issues.
+
 2007-01-17 16:15  ths
 
 	* hw/mips_malta.c: Disable Malta floppy controller for now, by

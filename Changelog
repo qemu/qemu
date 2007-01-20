@@ -7,6 +7,9 @@ version 0.8.3:
   - Linux: specific host CDROM and floppy support
   - SMM support
   - Moved PCI init, MP table init and ACPI table init to Bochs BIOS
+  - Support for MIPS32 Release 2 instruction set (Thiemo Seufer)
+  - MIPS Malta system emulation (Aurelien Jarno, Stefan Weil)
+  - Darwin userspace emulation (Pierre d'Herbemont)
 
 version 0.8.2:
 

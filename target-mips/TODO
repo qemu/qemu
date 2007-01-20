@@ -1,0 +1,28 @@
+Unsolved issues/bugs in the mips/mipsel backend
+-----------------------------------------------
+
+General
+-------
+- TLB fails cornercase at address wrap around
+- [ls][dw][lr] report broken (aligned) BadVAddr
+- Missing per-CPU instruction decoding, currently all implemented
+  instructions are regarded as valid
+- pcnet32 does not work for little endian emulation on big endian host
+  (probably not mips specific, but observable for mips-malta)
+
+MIPS64
+------
+- No 64bit TLB support
+- no 64bit wide registers for FPU
+- 64bit mul/div handling broken
+- DM[FT]C not implemented
+
+"Generic" 4Kc system emulation
+------------------------------
+- Doesn't correspond to any real hardware.
+
+MALTA system emulation
+----------------------
+- We fake firmware support instead of doing the real thing
+- 2.4 Kernels receive spurious PIIX4 interrupts, indicates some
+  divergence from actual hardware.

@@ -15,7 +15,11 @@ endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH)
-ifdef CONFIG_USER_ONLY
+ifdef CONFIG_DARWIN_USER
+VPATH+=:$(SRC_PATH)/darwin-user
+CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
+endif
+ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user
 CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
 endif
@@ -103,10 +107,12 @@ endif
 ifdef USE_I386_LD
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
+ifdef CONFIG_LINUX_USER
 # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
 # that the kernel ELF loader considers as an executable. I think this
 # is the simplest way to make it self virtualizable!
 BASE_LDFLAGS+=-Wl,-shared
+endif
 endif
 endif
 
@@ -116,7 +122,9 @@ endif
 
 ifeq ($(ARCH),ppc)
 CPPFLAGS+= -D__powerpc__
+ifdef CONFIG_LINUX_USER
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
 endif
 
 ifeq ($(ARCH),s390)
@@ -204,6 +212,7 @@ BASE_LDFLAGS+=-p
 main.o: BASE_CFLAGS+=-p
 endif
 
+ifdef CONFIG_LINUX_USER
 OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
       elfload.o linuxload.o
 ifdef TARGET_HAS_BFLT
@@ -221,6 +230,12 @@ endif
 ifeq ($(TARGET_ARCH), m68k)
 OBJS+= m68k-sim.o m68k-semi.o
 endif
+endif #CONFIG_LINUX_USER
+
+ifdef CONFIG_DARWIN_USER
+OBJS= main.o commpage.o machload.o mmap.o osdep.o signal.o syscall.o thunk.o
+endif
+
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 

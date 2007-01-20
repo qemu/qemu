@@ -814,7 +814,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             goto breakpoint_error;
         }
         break;
-#ifdef CONFIG_USER_ONLY
+#ifdef CONFIG_LINUX_USER
     case 'q':
         if (strncmp(p, "Offsets", 7) == 0) {
             TaskState *ts = env->opaque;

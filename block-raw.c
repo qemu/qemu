@@ -926,8 +926,13 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
                           create_flags, overlapped, NULL);
-    if (s->hfile == INVALID_HANDLE_VALUE) 
+    if (s->hfile == INVALID_HANDLE_VALUE) {
+        int err = GetLastError();
+
+        if (err == ERROR_ACCESS_DENIED)
+            return -EACCES;
         return -1;
+    }
     return 0;
 }
 
@@ -1306,8 +1311,13 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
                           create_flags, overlapped, NULL);
-    if (s->hfile == INVALID_HANDLE_VALUE) 
+    if (s->hfile == INVALID_HANDLE_VALUE) {
+        int err = GetLastError();
+
+        if (err == ERROR_ACCESS_DENIED)
+            return -EACCES;
         return -1;
+    }
     return 0;
 }
 

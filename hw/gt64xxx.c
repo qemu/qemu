@@ -240,14 +240,19 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     GT64120State *s = opaque;
     uint32_t saddr;
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+
     saddr = (addr & 0xfff) >> 2;
     switch (saddr) {
-    /* CPU Configuration Register */
+
+    /* CPU Configuration */
     case GT_CPU:
         s->regs[GT_CPU] = val;
-        gt64120_pci_mapping(s);
         break;
     case GT_MULTI:
+	/* Read-only register as only one GT64xxx is present on the CPU bus */
         break;
 
     /* CPU Address Decode */
@@ -306,6 +311,13 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_CPUERR_DATALO:
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
+	/* Read-only registers, do nothing */
+        break;
+
+    /* CPU Sync Barrier */
+    case GT_PCI0SYNC:
+    case GT_PCI1SYNC:
+	/* Read-only registers, do nothing */
         break;
 
     /* ECC */
@@ -314,6 +326,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_ECC_MEM:
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
+        /* Read-only registers, do nothing */
         break;
 
     /* PCI Internal */
@@ -326,6 +339,16 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         break;
     case GT_PCI0_CFGDATA:
         pci_host_data_writel(s->pci, 0, val);
+        break;
+
+    /* SDRAM Parameters */
+    case GT_SDRAM_B0:
+    case GT_SDRAM_B1:
+    case GT_SDRAM_B2:
+    case GT_SDRAM_B3:
+        /* We don't simulate electrical parameters of the SDRAM.
+           Accept, but ignore the values. */
+        s->regs[saddr] = val;
         break;
 
     default:
@@ -348,13 +371,31 @@ static uint32_t gt64120_readl (void *opaque,
 
     switch (saddr) {
 
+    /* CPU Configuration */
+    case GT_MULTI:
+        /* Only one GT64xxx is present on the CPU bus, return
+           the initial value */
+        val = s->regs[saddr];
+        break;
+
     /* CPU Error Report */
     case GT_CPUERR_ADDRLO:
     case GT_CPUERR_ADDRHI:
     case GT_CPUERR_DATALO:
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
-        return 0;
+        /* Emulated memory has no error, always return the initial
+           values */ 
+        val = s->regs[saddr];
+        break;
+
+    /* CPU Sync Barrier */
+    case GT_PCI0SYNC:
+    case GT_PCI1SYNC:
+        /* Reading those register should empty all FIFO on the PCI
+           bus, which are not emulated. The return value should be
+           a random value that should be ignored. */
+        val = 0xc000ffee; 
         break;
 
     /* ECC */
@@ -363,11 +404,12 @@ static uint32_t gt64120_readl (void *opaque,
     case GT_ECC_MEM:
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
-        return 0;
+        /* Emulated memory has no error, always return the initial
+           values */ 
+        val = s->regs[saddr];
         break;
 
     case GT_CPU:
-    case GT_MULTI:
     case GT_PCI0IOLD:
     case GT_PCI0M0LD:
     case GT_PCI0M1LD:
@@ -394,6 +436,16 @@ static uint32_t gt64120_readl (void *opaque,
  	val = pic_intack_read(isa_pic);
         break;
 
+    /* SDRAM Parameters */
+    case GT_SDRAM_B0:
+    case GT_SDRAM_B1:
+    case GT_SDRAM_B2:
+    case GT_SDRAM_B3:
+        /* We don't simulate electrical parameters of the SDRAM.
+           Just return the last written value. */
+        val = s->regs[saddr];
+        break;
+
     /* PCI Internal */
     case GT_PCI0_CFGADDR:
         val = s->pci->config_reg;
@@ -410,7 +462,11 @@ static uint32_t gt64120_readl (void *opaque,
         break;
     }
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    return bswap32(val);
+#else
     return val;
+#endif
 }
 
 static CPUWriteMemoryFunc *gt64120_write[] = {
@@ -520,6 +576,12 @@ void gt64120_reset(void *opaque)
     s->regs[GT_ECC_MEM]       = 0x00000000;
     s->regs[GT_ECC_CALC]      = 0x00000000;
     s->regs[GT_ECC_ERRADDR]   = 0x00000000;
+
+    /* SDRAM Parameters */
+    s->regs[GT_SDRAM_B0]      = 0x00000005;    
+    s->regs[GT_SDRAM_B1]      = 0x00000005;    
+    s->regs[GT_SDRAM_B2]      = 0x00000005;    
+    s->regs[GT_SDRAM_B3]      = 0x00000005;    
 
     /* PCI Internal FIXME: not complete*/
 #ifdef TARGET_WORDS_BIGENDIAN

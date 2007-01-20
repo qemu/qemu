@@ -81,8 +81,8 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_printf(s->display, "\e[H\n\n|\e[31m%-8.8s\e[00m|\r\n", leds_text);
-    qemu_chr_printf(s->display, "\n\n\n\n|\e[32m%-8.8s\e[00m|", s->display_text);
+    qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
+    qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
 }
 
 static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
@@ -291,7 +291,7 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base)
     cpu_register_physical_memory(base, 0x100000, malta);
 
     s->display = qemu_chr_open("vc");
-    qemu_chr_printf(s->display, "\e[HMalta LEBDAR\r\n");
+    qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
     qemu_chr_printf(s->display, "+        +\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
