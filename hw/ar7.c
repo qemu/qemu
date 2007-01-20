@@ -54,6 +54,8 @@
 
 static int bigendian;
 
+#define INITRD_LOAD_ADDR (int32_t)0x00700000
+
 #define MAX_ETH_FRAME_SIZE 1514
 
 #if 0
@@ -3029,38 +3031,51 @@ static void mips_ar7_common_init (int ram_size,
 
         /* a0 = argc, a1 = argv, a2 = envp */
         env->gpr[4] = 0;
-        env->gpr[5] = 0;
-        env->gpr[6] = 0;
+        env->gpr[5] = INITRD_LOAD_ADDR;
+        env->gpr[6] = INITRD_LOAD_ADDR;
 
         /* Set SP (needed for some kernels) - normally set by bootloader. */
         env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
 
-#if 0 /* disable buggy code */
-        /* load initrd */
         if (initrd_filename) {
-            // code is buggy (wrong address)!!!
-            target_ulong initrd_base = INITRD_LOAD_ADDR;
-            target_ulong initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + initrd_base);
-            if (initrd_size == (target_ulong) -1) {
-            if (load_image(initrd_filename,
-                           phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
-                == (target_ulong) -1) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+            /* Load kernel parameters (argv, envp) from file. */
+            uint8_t *address = phys_ram_base + 4 * KiB + INITRD_LOAD_ADDR;
+            uint8_t **argv;
+            uint8_t **arg0;
+            target_ulong size = load_image(initrd_filename, address);
+            target_ulong i;
+            if (size == (target_ulong) -1) {
+                fprintf(stderr, "qemu: could not load kernel parameters '%s'\n",
                         initrd_filename);
                 exit(1);
             }
+            /* Replace all linefeeds by null bytes. */
+            for (i = 0; i < size; i++) {
+                uint8_t c = address[i];
+                if (c == '\n') {
+                    address[i] = '\0';
+                }
+            }
+            /* Build argv and envp vectors (behind data). */
+            argv = (uint8_t **)(address + (i + 3 - (i % 3)));
+            arg0 = argv;
+            *argv++ = (uint8_t *)(INITRD_LOAD_ADDR);
+            printf("arg = %s\n", address);
+            for (i = 0; i < size;) {
+                uint8_t c = address[i++];
+                if (c == '\0') {
+                    *argv++ = (uint8_t *)(INITRD_LOAD_ADDR + i);
+                    printf("arg = %s\n", address + i);
+                    if (address[i++] == '\0' && argc == 0) {
+                      *argv++ = (uint8_t *)0;
+                      printf("argc = %d\n", argv - arg0 - 2);
+                      env->gpr[4] = argv - arg0 - 2;
+                      env->gpr[6] = INITRD_LOAD_ADDR + i;
+                      //~ break;
+                    }
+                }
+            }
         }
-
-        /* Store command line. */
-        if (kernel_cmdline && *kernel_cmdline) {
-            // code is buggy (wrong address)!!!
-            strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
-            /* FIXME: little endian support */
-            *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-            *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
-        }
-#endif
     }
 
     /* Init internal devices */
