@@ -54,7 +54,16 @@
 
 static int bigendian;
 
-#define INITRD_LOAD_ADDR (int32_t)0x00700000
+/* physical address of kernel */
+#define KERNEL_LOAD_ADDR 0x14000000
+
+/* physical address of kernel parameters */
+#define INITRD_LOAD_ADDR 0x14700000
+
+#define K1(physaddr) ((physaddr) + 0x80000000)
+
+#define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
+
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -2893,8 +2902,6 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-#define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
-
 static void mips_ar7_common_init (int ram_size,
                     uint16_t flash_manufacturer, uint16_t flash_type,
                     const char *kernel_filename, const char *kernel_cmdline,
@@ -2964,12 +2971,12 @@ static void mips_ar7_common_init (int ram_size,
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
     cpu_register_physical_memory(0, 4 * KiB, IO_MEM_RAM);
 
-    /* 16 MiB external RAM at physical address 0x14000000.
+    /* 16 MiB external RAM at physical address KERNEL_LOAD_ADDR.
        More memory can be selected with command line option -m. */
     if (ram_size > 100 * MiB) {
             ram_size = 16 * MiB;
     }
-    cpu_register_physical_memory(0x14000000, ram_size, (4 * KiB) | IO_MEM_RAM);
+    cpu_register_physical_memory(KERNEL_LOAD_ADDR, ram_size, (4 * KiB) | IO_MEM_RAM);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
@@ -3026,20 +3033,21 @@ static void mips_ar7_common_init (int ram_size,
                         kernel_filename);
                 exit(1);
             }
-            env->PC = 0x94000000;
+            env->PC = K1(KERNEL_LOAD_ADDR);
         }
 
         /* a0 = argc, a1 = argv, a2 = envp */
         env->gpr[4] = 0;
-        env->gpr[5] = INITRD_LOAD_ADDR;
-        env->gpr[6] = INITRD_LOAD_ADDR;
+        env->gpr[5] = K1(INITRD_LOAD_ADDR);
+        env->gpr[6] = K1(INITRD_LOAD_ADDR);
 
         /* Set SP (needed for some kernels) - normally set by bootloader. */
         env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
 
         if (initrd_filename) {
             /* Load kernel parameters (argv, envp) from file. */
-            uint8_t *address = phys_ram_base + 4 * KiB + INITRD_LOAD_ADDR;
+            uint8_t *address = phys_ram_base + 4 * KiB + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
+            int argc;
             uint8_t **argv;
             uint8_t **arg0;
             target_ulong size = load_image(initrd_filename, address);
@@ -3057,20 +3065,24 @@ static void mips_ar7_common_init (int ram_size,
                 }
             }
             /* Build argv and envp vectors (behind data). */
-            argv = (uint8_t **)(address + (i + 3 - (i % 3)));
+            argc = 0;
+            i = ((i + 3) & ~3);
+            argv = (uint8_t **)(address + i);
+            env->gpr[5] = K1(INITRD_LOAD_ADDR + i);
             arg0 = argv;
-            *argv++ = (uint8_t *)(INITRD_LOAD_ADDR);
+            *argv = (uint8_t *)K1(INITRD_LOAD_ADDR);
             printf("arg = %s\n", address);
             for (i = 0; i < size;) {
                 uint8_t c = address[i++];
                 if (c == '\0') {
-                    *argv++ = (uint8_t *)(INITRD_LOAD_ADDR + i);
+                    *++argv = (uint8_t *)K1(INITRD_LOAD_ADDR + i);
                     printf("arg = %s\n", address + i);
-                    if (address[i++] == '\0' && argc == 0) {
-                      *argv++ = (uint8_t *)0;
-                      printf("argc = %d\n", argv - arg0 - 2);
-                      env->gpr[4] = argv - arg0 - 2;
-                      env->gpr[6] = INITRD_LOAD_ADDR + i;
+                    if (address[i] == '\0' && argc == 0) {
+                      argc = argv - arg0;
+                      *argv = (uint8_t *)0;
+                      printf("argc = %d\n", argc);
+                      env->gpr[4] = argc;
+                      env->gpr[6] = env->gpr[5] + 4 * (argc + 1);
                       //~ break;
                     }
                 }
