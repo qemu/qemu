@@ -270,11 +270,13 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
 
 static int serial_can_receive(SerialState *s)
 {
+    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
     return !(s->lsr & UART_LSR_DR);
 }
 
 static void serial_receive_byte(SerialState *s, int ch)
 {
+    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
     s->rbr = ch;
     s->lsr |= UART_LSR_DR;
     serial_update_irq(s);
@@ -349,6 +351,8 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
                          int base, int irq, CharDriverState *chr)
 {
     SerialState *s;
+
+    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
 
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
