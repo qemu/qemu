@@ -1838,7 +1838,7 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
     char buffer[256];
     printf("Unassigned mem read  0x%08x %s\n", (int)addr, backtrace(buffer, sizeof(buffer)));
 #if defined(TARGET_MIPS)
-    vm_stop(0);
+    //~ vm_stop(0);
 #endif /* TARGET_MIPS */
 #endif
     return 0;
@@ -1849,7 +1849,7 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
 #ifdef DEBUG_UNASSIGNED
     char buffer[256];
     printf("Unassigned mem write 0x%08x = 0x%x %s\n", (int)addr, val, backtrace(buffer, sizeof(buffer)));
-    vm_stop(0);
+    //~ vm_stop(0);
 #endif
 }
 
