@@ -32,6 +32,8 @@ flash: mtd[3] 0x903C0000 - 0x903E0000 (tffs)
 flash: mtd[4] 0x903E0000 - 0x90400000 (tffs)
 flash: mtd[5] 0x900a1b00 - 0x900c0000 (hidden filesystem)
 
+These addresses are only examples. They differ for different flash sizes.
+
 BRN bootloader flash layout
 ===========================
 Files:
@@ -308,39 +310,66 @@ end
 module Adam2
   #~ FLASHIMAGE = "boot/adam2-flashimage.bin"
   FLASHIMAGE = "boot/test/flashimage.bin"
-  MTD0start = 0x000c0000
-  MTD1start = 0x00010000
-  MTD2start = 0x00000000
-  MTD3start = 0x003c0000
-  MTD4start = 0x003e0000
-  MTD0end = MTD3start
-  MTD1end = MTD0start
-  MTD0size = MTD0end - MTD0start
-  MTD1size = MTD0start - MTD1start
+  FLASHSIZE = 4 * MiB
+  if FLASHSIZE == 2 * MiB
+    MTD0start = 0x00000000
+    MTD1start = 0x00010000
+    MTD2start = 0x00000000
+    MTD3start = 0x00780000
+    MTD4start = 0x007c0000
+    MTD0end = MTD0start
+    #~ MTD1end = MTD3start
+    MTD1end = 0x00800000
+    MTD0size = MTD0end - MTD0start
+    MTD1size = MTD1end - MTD1start
+  elsif FLASHSIZE == 4 * MiB
+    # 4 MiB flash
+    MTD0start = 0x000c0000
+    MTD1start = 0x00010000
+    MTD2start = 0x00000000
+    MTD3start = 0x003c0000
+    MTD4start = 0x003e0000
+    MTD0end = MTD3start
+    MTD1end = MTD0start
+    MTD0size = MTD0end - MTD0start
+    MTD1size = MTD0start - MTD1start
+  elsif FLASHSIZE == 8 * MiB
+    raise
+    # 8 MiB flash
+    #~ mtd0    0x90000000,0x90000000    # filesystem
+    #~ mtd1    0x90010000,0x90780000    # kernel
+    #~ mtd2    0x90000000,0x90010000    # ADAM2
+    #~ mtd3    0x90780000,0x907C0000
+    #~ mtd4    0x907C0000,0x90800000
+  else
+    raise
+  end
 
   def self.loadfilesystem(filename)
     flashimage = Flashimage.new(FLASHIMAGE)
     flashimage.data[MTD0start ... MTD0end] = "\xff" * MTD0size
-    kernel = nil
+    data = nil
     File.open(filename, 'rb') { |f|
-      kernel = f.read
+      data = f.read
     }
-    puts("Filesystem size: 0x%08x byte" % kernel.size)
-    kernelsize = kernel.size - 8
-    flashimage.data[MTD0start ... MTD0start + kernelsize] = kernel[0 ... kernelsize]
+    puts("Filesystem size: #{'0x%08x' % data.size} byte (max #{'0x%08x' % MTD0size}")
+    datasize = data.size - 8
+    raise if datasize > MTD0size
+    flashimage.data[MTD0start ... MTD0start + datasize] = data[0 ... datasize]
     flashimage.write
   end
 
   def self.loadkernel(filename)
     flashimage = Flashimage.new(FLASHIMAGE)
     flashimage.data[MTD1start ... MTD1end] = "\xff" * MTD1size
-    kernel = nil
+    data = nil
     File.open(filename, 'rb') { |f|
-      kernel = f.read
+      data = f.read
     }
-    puts("Kernel size: 0x%08x byte" % kernel.size)
-    kernelsize = kernel.size - 8
-    flashimage.data[MTD1start ... MTD1start + kernelsize] = kernel[0 ... kernelsize]
+    puts("Kernel size: #{'0x%08x' % data.size} byte (max #{'0x%08x' % MTD1size}")
+    datasize = data.size - 8
+    raise if datasize > MTD1size
+    flashimage.data[MTD1start ... MTD1start + datasize] = data[0 ... datasize]
     flashimage.write
   end
 end # Adam2
@@ -375,7 +404,7 @@ elsif command == 'load-code'
 	# Load code partition from file into flash.
 	loadpart('code', ARGV[1])
 elsif command == 'load-filesystem'
-	# Load kernel from file into flash (AVM).
+	# Load filesystem from file into flash (AVM).
 	Adam2.loadfilesystem(ARGV[1])
 elsif command == 'load-kernel'
 	# Load kernel from file into flash (AVM).
