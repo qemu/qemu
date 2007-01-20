@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <assert.h>
+#include <assert.h>     /* assert */
 #include "vl.h"
 
 //#define DEBUG_CONSOLE
@@ -417,6 +417,9 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     console_print_text_attributes(t_attrib, ch);
 #endif
 
+    assert(x * FONT_WIDTH < ds->width);
+    assert(y * FONT_HEIGHT < ds->height);
+
     if (t_attrib->invers) {
         bgcol = color_table[t_attrib->bold][t_attrib->fgcol];
         fgcol = color_table[t_attrib->bold][t_attrib->bgcol];
@@ -541,7 +544,7 @@ static void console_show_cursor(TextConsole *s, int show)
         y = y1 - s->y_displayed;
         if (y < 0)
             y += s->total_height;
-        if (y < s->height) {
+        if (s->x < s->width && y < s->height) {
             c = &s->cells[y1 * s->width + s->x];
             if (show) {
                 TextAttributes t_attrib = s->t_attrib_default;
@@ -661,7 +664,6 @@ static void console_handle_escape(TextConsole *s)
 {
     int i;
 
-    assert(s->nb_esc_params != 0);
     for (i=0; i<s->nb_esc_params; i++) {
         switch (s->esc_params[i]) {
             case 0: /* reset all console attributes to default */
@@ -810,7 +812,7 @@ static void console_putchar(TextConsole *s, int ch)
             c->t_attrib = s->t_attrib;
             update_xy(s, s->x, s->y);
             s->x++;
-#if 0
+#if 0 /* line wrap disabled */
             if (s->x >= s->width) {
                 s->x = 0;
                 console_put_lf(s);
@@ -839,8 +841,10 @@ static void console_putchar(TextConsole *s, int ch)
             s->nb_esc_params++;
             if (ch == ';')
                 break;
+#ifdef DEBUG_CONSOLE
             fprintf(stderr, "escape sequence CSI%d;%d%c, %d parameters\n",
                     s->esc_params[0], s->esc_params[1], ch, s->nb_esc_params);
+#endif
             s->state = TTY_STATE_NORM;
             switch(ch) {
             case 'A':
@@ -955,8 +959,6 @@ static void console_putchar(TextConsole *s, int ch)
                         console_clear_xy(s, x, s->y);
                     }
                     break;
-                default:
-                    assert(0);
                 }
                 break;
             case 'm':
@@ -977,7 +979,9 @@ static void console_putchar(TextConsole *s, int ch)
                 s->y = s->y_saved;
                 break;
             default:
+#ifdef DEBUG_CONSOLE
                 fprintf(stderr, "unhandled escape character '%c'\n", ch);
+#endif
                 break;
             }
             break;
