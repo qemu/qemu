@@ -171,6 +171,7 @@ int no_reboot = 0;
 int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
+int semihosting_enabled = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -6227,6 +6228,7 @@ enum {
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
+    QEMU_OPTION_semihosting
 };
 
 typedef struct QEMUOption {
@@ -6309,6 +6311,9 @@ const QEMUOption qemu_options[] = {
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
+#if defined(TARGET_ARM)
+    { "semihosting", 0, QEMU_OPTION_semihosting },
+#endif
     { NULL },
 };
 
@@ -6970,6 +6975,9 @@ int main(int argc, char **argv)
 		option_rom[nb_option_roms] = optarg;
 		nb_option_roms++;
 		break;
+            case QEMU_OPTION_semihosting:
+                semihosting_enabled = 1;
+                break;
             }
         }
     }

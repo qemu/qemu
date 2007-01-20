@@ -397,6 +397,7 @@ VL_OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
 VL_OBJS+= arm_boot.o pl011.o pl050.o pl080.o pl110.o pl190.o
 VL_OBJS+= versatile_pci.o
 VL_OBJS+= arm_gic.o realview.o arm_sysctl.o
+VL_OBJS+= arm-semi.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
 VL_OBJS+= shix.o sh7750.o sh7750_regnames.o tc58128.o

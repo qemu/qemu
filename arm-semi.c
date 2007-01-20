@@ -1,7 +1,8 @@
 /*
  *  Arm "Angel" semihosting syscalls
  * 
- *  Copyright (c) 2005 CodeSourcery, LLC. Written by Paul Brook.
+ *  Copyright (c) 2005, 2007 CodeSourcery.
+ *  Written by Paul Brook.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,9 +27,14 @@
 #include <stdio.h>
 #include <time.h>
 
+#include "cpu.h"
+#ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 
 #define ARM_ANGEL_HEAP_SIZE (128 * 1024 * 1024)
+#else
+#include "vl.h"
+#endif
 
 #define SYS_OPEN        0x01
 #define SYS_CLOSE       0x02
@@ -70,12 +76,71 @@ int open_modeflags[12] = {
     O_RDWR | O_CREAT | O_APPEND | O_BINARY
 };
 
+#ifdef CONFIG_USER_ONLY
 static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
 {
-  if (code == (uint32_t)-1)
-      ts->swi_errno = errno;
-  return code;
+    if (code == (uint32_t)-1)
+        ts->swi_errno = errno;
+    return code;
 }
+#else
+static inline uint32_t set_swi_errno(CPUState *env, uint32_t code)
+{
+    return code;
+}
+
+static uint32_t softmmu_tget32(CPUState *env, uint32_t addr)
+{
+    uint32_t val;
+
+    cpu_memory_rw_debug(env, addr, (uint8_t *)&val, 4, 0);
+    return tswap32(val);
+}
+static uint32_t softmmu_tget8(CPUState *env, uint32_t addr)
+{
+    uint8_t val;
+
+    cpu_memory_rw_debug(env, addr, &val, 1, 0);
+    return val;
+}
+#define tget32(p) softmmu_tget32(env, p)
+#define tget8(p) softmmu_tget8(env, p)
+
+static void *softmmu_lock_user(CPUState *env, uint32_t addr, uint32_t len,
+                               int copy)
+{
+    char *p;
+    /* TODO: Make this something that isn't fixed size.  */
+    p = malloc(len);
+    if (copy)
+        cpu_memory_rw_debug(env, addr, p, len, 0);
+    return p;
+}
+#define lock_user(p, len, copy) softmmu_lock_user(env, p, len, copy)
+static char *softmmu_lock_user_string(CPUState *env, uint32_t addr)
+{
+    char *p;
+    char *s;
+    uint8_t c;
+    /* TODO: Make this something that isn't fixed size.  */
+    s = p = malloc(1024);
+    do {
+        cpu_memory_rw_debug(env, addr, &c, 1, 0);
+        addr++;
+        *(p++) = c;
+    } while (c);
+    return s;
+}
+#define lock_user_string(p) softmmu_lock_user_string(env, p)
+static void softmmu_unlock_user(CPUState *env, void *p, target_ulong addr,
+                                target_ulong len)
+{
+    if (len)
+        cpu_memory_rw_debug(env, addr, p, len, 1);
+    free(p);
+}
+#define unlock_user(s, args, len) softmmu_unlock_user(env, s, args, len)
+#endif
 
 #define ARG(n) tget32(args + (n) * 4)
 #define SET_ARG(n, val) tput32(args + (n) * 4,val)
@@ -85,13 +150,18 @@ uint32_t do_arm_semihosting(CPUState *env)
     char * s;
     int nr;
     uint32_t ret;
+    uint32_t len;
+#ifdef CONFIG_USER_ONLY
     TaskState *ts = env->opaque;
+#else
+    CPUState *ts = env;
+#endif
 
     nr = env->regs[0];
     args = env->regs[1];
     switch (nr) {
     case SYS_OPEN:
-        s = (char *)g2h(ARG(0));
+        s = lock_user_string(ARG(0));
         if (ARG(1) >= 12)
           return (uint32_t)-1;
         if (strcmp(s, ":tt") == 0) {
@@ -100,7 +170,9 @@ uint32_t do_arm_semihosting(CPUState *env)
             else
                 return STDOUT_FILENO;
         }
-        return set_swi_errno(ts, open(s, open_modeflags[ARG(1)], 0644));
+        ret = set_swi_errno(ts, open(s, open_modeflags[ARG(1)], 0644));
+        unlock_user(s, ARG(0), 0);
+        return ret;
     case SYS_CLOSE:
         return set_swi_errno(ts, close(ARG(0)));
     case SYS_WRITEC:
@@ -115,12 +187,20 @@ uint32_t do_arm_semihosting(CPUState *env)
         unlock_user(s, args, 0);
         return ret;
     case SYS_WRITE:
-        ret = set_swi_errno(ts, write(ARG(0), g2h(ARG(1)), ARG(2)));
+        len = ARG(2);
+        s = lock_user(ARG(1), len, 1);
+        ret = set_swi_errno(ts, write(ARG(0), s, len));
+        unlock_user(s, ARG(1), 0);
         if (ret == (uint32_t)-1)
             return -1;
         return ARG(2) - ret;
     case SYS_READ:
-        ret = set_swi_errno(ts, read(ARG(0), g2h(ARG(1)), ARG(2)));
+        len = ARG(2);
+        s = lock_user(ARG(1), len, 0);
+	do
+	  ret = set_swi_errno(ts, read(ARG(0), s, len));
+	while (ret == -1 && errno == EINTR);
+        unlock_user(s, ARG(1), len);
         if (ret == (uint32_t)-1)
             return -1;
         return ARG(2) - ret;
@@ -146,19 +226,36 @@ uint32_t do_arm_semihosting(CPUState *env)
         /* XXX: Not implemented.  */
         return -1;
     case SYS_REMOVE:
-        return set_swi_errno(ts, remove((char *)g2h(ARG(0))));
+        s = lock_user_string(ARG(0));
+        ret =  set_swi_errno(ts, remove(s));
+        unlock_user(s, ARG(0), 0);
+        return ret;
     case SYS_RENAME:
-        return set_swi_errno(ts, rename((char *)g2h(ARG(0)),
-                             (char *)g2h(ARG(2))));
+        {
+            char *s2;
+            s = lock_user_string(ARG(0));
+            s2 = lock_user_string(ARG(2));
+            ret = set_swi_errno(ts, rename(s, s2));
+            unlock_user(s2, ARG(2), 0);
+            unlock_user(s, ARG(0), 0);
+            return ret;
+        }
     case SYS_CLOCK:
         return clock() / (CLOCKS_PER_SEC / 100);
     case SYS_TIME:
         return set_swi_errno(ts, time(NULL));
     case SYS_SYSTEM:
-        return set_swi_errno(ts, system((char *)g2h(ARG(0))));
+        s = lock_user_string(ARG(0));
+        ret = set_swi_errno(ts, system(s));
+        unlock_user(s, ARG(0), 0);
     case SYS_ERRNO:
+#ifdef CONFIG_USER_ONLY
         return ts->swi_errno;
+#else
+        return 0;
+#endif
     case SYS_GET_CMDLINE:
+#ifdef CONFIG_USER_ONLY
         /* Build a commandline from the original argv.  */
         {
             char **arg = ts->info->host_argv;
@@ -194,12 +291,16 @@ uint32_t do_arm_semihosting(CPUState *env)
             /* Return success if commandline fit into buffer.  */
             return *arg ? -1 : 0;
         }
+#else
+      return -1;
+#endif
     case SYS_HEAPINFO:
         {
             uint32_t *ptr;
             uint32_t limit;
 
-            /* Some C llibraries assume the heap immediately follows .bss, so
+#ifdef CONFIG_USER_ONLY
+            /* Some C libraries assume the heap immediately follows .bss, so
                allocate it using sbrk.  */
             if (!ts->heap_limit) {
                 long ret;
@@ -216,12 +317,22 @@ uint32_t do_arm_semihosting(CPUState *env)
                 ts->heap_limit = limit;
             }
               
-            page_unprotect_range (ARG(0), 32);
-            ptr = (uint32_t *)g2h(ARG(0));
+            ptr = lock_user(ARG(0), 16, 0);
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);
             ptr[2] = tswap32(ts->stack_base);
             ptr[3] = tswap32(0); /* Stack limit.  */
+            unlock_user(ptr, ARG(0), 16);
+#else
+            limit = ram_size;
+            ptr = lock_user(ARG(0), 16, 0);
+            /* TODO: Make this use the limit of the loaded application.  */
+            ptr[0] = tswap32(limit / 2);
+            ptr[1] = tswap32(limit);
+            ptr[2] = tswap32(limit); /* Stack base */
+            ptr[3] = tswap32(0); /* Stack limit.  */
+            unlock_user(ptr, ARG(0), 16);
+#endif
             return 0;
         }
     case SYS_EXIT:
@@ -232,4 +343,3 @@ uint32_t do_arm_semihosting(CPUState *env)
         abort();
     }
 }
-
