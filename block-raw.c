@@ -139,6 +139,8 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
 
     lseek(s->fd, offset, SEEK_SET);
     ret = read(s->fd, buf, count);
+    if (ret < 0)
+        printf("%s:%u - error %d\n", __FILE__, __LINE__, errno);
     return ret;
 }
 
@@ -154,6 +156,8 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 
     lseek(s->fd, offset, SEEK_SET);
     ret = write(s->fd, buf, count);
+    if (ret < 0)
+        printf("%s:%u - error %d\n", __FILE__, __LINE__, errno);
     return ret;
 }
 
@@ -604,10 +608,15 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
         open_flags |= O_NONBLOCK;
+    } else if (strstart(filename, "/dev/hd", NULL)) {
+        printf("raw disk i/o %s, flags 0x%04x\n", filename, open_flags);
+        open_flags |= O_DIRECT;
     }
 #endif
     fd = open(filename, open_flags, 0644);
     if (fd < 0) {
+        printf("%s:%u - error %d\n", __FILE__, __LINE__, errno);
+        perror(filename);
         ret = -errno;
         if (ret == -EROFS)
             ret = -EACCES;
