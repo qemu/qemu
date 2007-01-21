@@ -3,7 +3,6 @@ Unsolved issues/bugs in the mips/mipsel backend
 
 General
 -------
-- TLB fails cornercase at address wrap around
 - [ls][dw][lr] report broken (aligned) BadVAddr
 - Missing per-CPU instruction decoding, currently all implemented
   instructions are regarded as valid

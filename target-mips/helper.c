@@ -50,7 +50,7 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) &&
-            tlb->VPN == tag && address < tlb->end2) {
+            tlb->VPN == tag) {
             /* TLB match */
             n = (address >> TARGET_PAGE_BITS) & 1;
             /* Check access rights */
@@ -429,7 +429,6 @@ void do_interrupt (CPUState *env)
 void invalidate_tlb (CPUState *env, int idx, int use_extra)
 {
     tlb_t *tlb;
-    target_ulong addr;
     uint8_t ASID;
 
     ASID = env->CP0_EntryHi & 0xFF;
@@ -450,19 +449,8 @@ void invalidate_tlb (CPUState *env, int idx, int use_extra)
         return;
     }
 
-    if (tlb->V0) {
-        addr = tlb->VPN;
-        while (addr < tlb->end) {
-            tlb_flush_page (env, addr);
-            addr += TARGET_PAGE_SIZE;
-        }
-    }
-    if (tlb->V1) {
-        addr = tlb->end;
-        while (addr < tlb->end2) {
-            tlb_flush_page (env, addr);
-            addr += TARGET_PAGE_SIZE;
-        }
-    }
+    if (tlb->V0)
+            tlb_flush_page (env, tlb->VPN);
+    if (tlb->V1)
+            tlb_flush_page (env, tlb->VPN + TARGET_PAGE_SIZE);
 }
-

@@ -411,16 +411,11 @@ static void mips_tlb_flush_extra (CPUState *env, int first)
 static void fill_tlb (int idx)
 {
     tlb_t *tlb;
-    int size;
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb[idx];
     tlb->VPN = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     tlb->ASID = env->CP0_EntryHi & 0xFF;
-    size = env->CP0_PageMask >> 13;
-    size = 4 * (size + 1);
-    tlb->end = tlb->VPN + (1 << (8 + size));
-    tlb->end2 = tlb->end + (1 << (8 + size));
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
     tlb->V0 = (env->CP0_EntryLo0 & 2) != 0;
     tlb->D0 = (env->CP0_EntryLo0 & 4) != 0;
@@ -491,7 +486,6 @@ void do_tlbr (void)
 {
     tlb_t *tlb;
     uint8_t ASID;
-    int size;
 
     ASID = env->CP0_EntryHi & 0xFF;
     tlb = &env->tlb[env->CP0_index & (MIPS_TLB_NB - 1)];
@@ -503,8 +497,6 @@ void do_tlbr (void)
     mips_tlb_flush_extra(env, MIPS_TLB_NB);
 
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
-    size = (tlb->end - tlb->VPN) >> 12;
-    env->CP0_PageMask = (size - 1) << 13;
     env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2) |
                         (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
     env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
