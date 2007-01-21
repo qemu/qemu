@@ -92,7 +92,7 @@ hello-mipsel: hello-mips.c
 # XXX: find a way to compile easily a test for each arch
 test2:
 	@for arch in i386 arm armeb sparc ppc mips mipsel; do \
-           ../$${arch}-user/qemu-$${arch} $${arch}/ls -l linux-test.c ; \
+           ../$${arch}-linux-user/qemu-$${arch} $${arch}/ls -l linux-test.c ; \
         done
 
 clean:

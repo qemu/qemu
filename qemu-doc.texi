@@ -661,6 +661,11 @@ Exit instead of rebooting.
 
 @item -loadvm file
 Start right away with a saved state (@code{loadvm} in monitor)
+
+@item -semihosting
+Enable "Angel" semihosting interface (ARM target machines only).
+Note that this allows guest direct access to the host filesystem,
+so should only be used with trusted guest OS.
 @end table
 
 @c man end

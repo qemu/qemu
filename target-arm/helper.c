@@ -105,6 +105,8 @@ void switch_mode(CPUState *env, int mode)
 
 #else
 
+extern int semihosting_enabled;
+
 /* Map CPU modes onto saved register banks.  */
 static inline int bank_number (int mode)
 {
@@ -175,6 +177,22 @@ void do_interrupt(CPUARMState *env)
             offset = 4;
         break;
     case EXCP_SWI:
+        if (semihosting_enabled) {
+            /* Check for semihosting interrupt.  */
+            if (env->thumb) {
+                mask = lduw_code(env->regs[15] - 2) & 0xff;
+            } else {
+                mask = ldl_code(env->regs[15] - 4) & 0xffffff;
+            }
+            /* Only intercept calls from privileged modes, to provide some
+               semblance of security.  */
+            if (((mask == 0x123456 && !env->thumb)
+                    || (mask == 0xab && env->thumb))
+                  && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
+                env->regs[0] = do_arm_semihosting(env);
+                return;
+            }
+        }
         new_mode = ARM_CPU_MODE_SVC;
         addr = 0x08;
         mask = CPSR_I;

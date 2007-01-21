@@ -1,3 +1,13 @@
+2007-01-20 18:12  pbrook
+
+	* Makefile.target, arm-semi.c, qemu-doc.texi, vl.c, vl.h,
+	  linux-user/arm-semi.c, target-arm/helper.c: Add ARM Angel
+	  semihosting to system emulation.
+
+2007-01-20 17:52  pbrook
+
+	* tests/Makefile: Fix "make test2".
+
 2007-01-20 02:12  ths
 
 	* hw/ide.c: Add more ATAPI CDROM DMA support, by Juergen Keil.
@@ -25,8 +35,12 @@
 
 2007-01-18 21:06  ths
 
-	* Makefile.target, configure, gdbstub.c: Darwin userspace
-	  emulation, by Pierre d'Herbemont.
+	* Makefile.target, configure, gdbstub.c, darwin-user/commpage.c,
+	  darwin-user/ioctls.h, darwin-user/ioctls_types.h,
+	  darwin-user/machload.c, darwin-user/main.c, darwin-user/mmap.c,
+	  darwin-user/qemu.h, darwin-user/signal.c, darwin-user/syscall.c,
+	  darwin-user/syscalls.h: Darwin userspace emulation, by Pierre
+	  d'Herbemont.
 
 2007-01-18 01:22  ths
 
