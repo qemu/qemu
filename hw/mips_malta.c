@@ -38,6 +38,7 @@
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
+#define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
 
 extern FILE *logfile;
 
@@ -45,6 +46,7 @@ typedef struct {
     uint32_t leds;
     uint32_t brk;
     uint32_t gpout;
+    uint32_t i2cin;
     uint32_t i2coe;
     uint32_t i2cout;
     uint32_t i2csel;
@@ -83,6 +85,133 @@ static void malta_fpga_update_display(void *opaque)
 
     qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
     qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+}
+
+/*
+ * EEPROM 24C01 / 24C02 emulation.
+ *
+ * Emulation for serial EEPROMs:
+ * 24C01 - 1024 bit (128 x 8)
+ * 24C02 - 2048 bit (256 x 8)
+ *
+ * Typical device names include Microchip 24C02SC or SGS Thomson ST24C02.
+ */
+
+struct _eeprom24c0x_t {
+  uint8_t tick;
+  uint8_t address;
+  uint8_t command;
+  uint8_t ack;
+  uint8_t scl;
+  uint8_t sda;
+  uint16_t size;
+  uint8_t data;
+  uint8_t contents[256];
+};
+
+typedef struct _eeprom24c0x_t eeprom24c0x_t;
+
+static eeprom24c0x_t eeprom = {
+    //~ # Determine Size in Mbit
+    //~ #     SIZE = SDRAM_WIDTH * NUM_DEVICE_BANKS * 2 ^ (NUM_ROW_BITS + NUM_COL_BITS)
+    //~ 4 * 2 * 2 ^ 8
+    contents: {
+        0x80, 0x08, 0x04,
+        /* HAL_SPD_GET_NUM_ROW_BITS                3 */
+        0x0d,
+        /* HAL_SPD_GET_NUM_COL_BITS                4 */
+        0x0a,
+        /* HAL_SPD_GET_NUM_MODULE_BANKS            5 */
+        1,
+        /* HAL_SPD_GET_SDRAM_WIDTH                 6 */
+        0x48,
+        0, 0, 0, 0,
+        /* HAL_SPD_GET_CONFIG_TYPE                 11 */
+        0x00,
+        /* HAL_SPD_GET_REFRESH_RATE                12 */
+        0x05,
+        0,
+        /* HAL_SPD_GET_ERROR_CHECK_WIDTH           14 */
+        0x08,
+        0,
+        /* burst length (16) */
+        8,      /* must be 8 */
+        /* HAL_SPD_GET_NUM_DEVICE_BANKS            17 */
+        4,      /* must be 2 or 4 */
+        /* HAL_SPD_GET_CAS_LAT                     18 */
+        2,      /* must be 2 */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* HAL_SPD_GET_ROW_DENSITY                 31 */
+        0x40,
+        0,
+    },
+};
+
+static uint8_t eeprom24c0x_read()
+{
+    logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
+        eeprom.tick, eeprom.scl, eeprom.sda, eeprom.data);
+    return eeprom.sda;
+}
+
+static void eeprom24c0x_write(int scl, int sda)
+{
+    //~ uint8_t scl = eeprom.scl;
+    //~ uint8_t sda = eeprom.sda;
+    if (eeprom.scl && scl && (eeprom.sda != sda)) {
+        logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda, sda ? "stop" : "start");
+        if (!sda) {
+            eeprom.tick = 1;
+            eeprom.command = 0;
+        }
+    } else if (eeprom.tick == 0 && !eeprom.ack) {
+        /* Waiting for start. */
+        logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+    } else if (!eeprom.scl && scl) {
+        logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+        if (eeprom.ack) {
+            logout("\ti2c ack bit = 0\n");
+            sda = 0;
+            eeprom.ack = 0;
+        } else if (eeprom.sda == sda) {
+            uint8_t bit = (sda != 0);
+            logout("\ti2c bit = %d\n", bit);
+            if (eeprom.tick < 9) {
+                eeprom.command <<= 1;
+                eeprom.command += bit;
+                eeprom.tick++;
+                if (eeprom.tick == 9) {
+                    logout("\tcommand 0x%04x, %s\n", eeprom.command, bit ? "read" : "write");
+                    eeprom.ack = 1;
+                }
+            } else if (eeprom.tick < 17) {
+                if (eeprom.command & 1) {
+                    sda = ((eeprom.data & 0x80) != 0);
+                }
+                eeprom.address <<= 1;
+                eeprom.address += bit;
+                eeprom.tick++;
+                eeprom.data <<= 1;
+                if (eeprom.tick == 17) {
+                    eeprom.data = eeprom.contents[eeprom.address];
+                    logout("\taddress 0x%04x, data 0x%02x\n", eeprom.address, eeprom.data);
+                    eeprom.ack = 1;
+                    eeprom.tick = 0;
+                }
+            } else if (eeprom.tick >= 17) {
+                sda = 0;
+            }
+        } else {
+            logout("\tsda changed with raising scl\n");
+        }
+    } else {
+        logout("%u: scl = %u->%u, sda = %u->%u\n", eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+    }
+    eeprom.scl = scl;
+    eeprom.sda = sda;
 }
 
 static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
@@ -142,7 +271,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* I2CINP Register */
     case 0x00b00:
-        val = 0x00000003;
+        val = ((s->i2cin & ~1) | eeprom24c0x_read());
         break;
 
     /* I2COE Register */
@@ -157,7 +286,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* I2CSEL Register */
     case 0x00b18:
-        val = s->i2cout;
+        val = s->i2csel;
         break;
 
     default:
@@ -166,6 +295,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 #endif
         break;
     }
+    logout("0x%08x = 0x%08x\n", saddr, val);
     return val;
 }
 
@@ -174,6 +304,7 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 {
     MaltaFPGAState *s = opaque;
     uint32_t saddr;
+    int logging = 1;
 
     saddr = (addr & 0xfffff);
 
@@ -235,12 +366,14 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     /* I2COUT Register */
     case 0x00b10:
-        s->i2cout = val & 0x03;
+        eeprom24c0x_write(val & 0x02, val & 0x01);
+        s->i2cout = val;
+        logging = 0;
         break;
 
     /* I2CSEL Register */
     case 0x00b18:
-        s->i2cout = val & 0x01;
+        s->i2csel = val & 0x01;
         break;
 
     default:
@@ -248,6 +381,11 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
         printf ("malta_fpga_write: Bad register offset 0x%x\n", (int)addr);
 #endif
         break;
+    }
+
+    if (logging) {
+        logout("0x%08x = 0x%08x (oe = 0x%08x, out = 0x%08x, sel = 0x%08x)\n",
+                saddr, val, s->i2coe, s->i2cout, s->i2csel);
     }
 }
 
@@ -270,6 +408,7 @@ void malta_fpga_reset(void *opaque)
     s->leds   = 0x00;
     s->brk    = 0x0a;
     s->gpout  = 0x00;
+    s->i2cin  = 0x3;
     s->i2coe  = 0x0;
     s->i2cout = 0x3;
     s->i2csel = 0x1;
@@ -532,7 +671,9 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + bios_offset);
-        if (ret != BIOS_SIZE) {
+        logout("BIOS 0x%08x...0x%08x (max 0x%08x)\n",
+            0x1fc00000, 0x1fc00000 + ret, 0x1fc00000 + BIOS_SIZE);
+        if (ret <= 0 || ret > BIOS_SIZE) {
             fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
                     buf);
             exit(1);
@@ -588,3 +729,29 @@ QEMUMachine mips_malta_machine = {
     "MIPS Malta Core LV",
     mips_malta_init,
 };
+
+
+/*
+http://memorytesters.com/ramcheck/rc_ap3.htm
+
+9fc00c64 <hal_malta_init_sdram>:
+9fc00c64:       03e0f021        move    s8,ra
+9fc00c68:       3c17b400        lui     s7,0xb400
+9fc00c6c:       240800df        li      t0,223
+9fc00c70:       aee80068        sw      t0,104(s7)
+9fc00c74:       3c17bbe0        lui     s7,0xbbe0
+9fc00c78:       3c080001        lui     t0,0x1
+9fc00c7c:       35080001        ori     t0,t0,0x1
+9fc00c80:       aee80c00        sw      t0,3072(s7)
+9fc00c84:       3c0800ff        lui     t0,0xff
+9fc00c88:       3508ffff        ori     t0,t0,0xffff
+
+9fc00ecc:       1000006c        b       9fc01080 <error>
+
+9fc0106c <noerror>:
+9fc0106c:       00001021        move    v0,zero
+9fc01070:       02111820        add     v1,s0,s1
+9fc01074:       03c0f821        move    ra,s8
+9fc01078:       03e00008        jr      ra
+9fc0107c:       00000000        nop
+*/
