@@ -159,6 +159,7 @@ extern int usb_enabled;
 extern int smp_cpus;
 extern int no_quit;
 extern int semihosting_enabled;
+extern int autostart;
 
 #define MAX_OPTION_ROMS 16
 extern const char *option_rom[MAX_OPTION_ROMS];

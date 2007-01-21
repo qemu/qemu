@@ -1,3 +1,12 @@
+2007-01-21 23:40  ths
+
+	* Makefile.target: Add dependency for fop_template.c.
+
+2007-01-21 17:47  pbrook
+
+	* gdbstub.c, vl.c, vl.h: Don't resume guest when gdb connection
+	  terminates and -S specified.
+
 2007-01-21 04:13  ths
 
 	* target-mips/TODO: TLB address wraparound hopefully fixed now.

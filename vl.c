@@ -172,6 +172,7 @@ int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
+int autostart = 1;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -6564,7 +6565,6 @@ int main(int argc, char **argv)
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
-    int start_emulation = 1;
     char net_clients[MAX_NET_CLIENTS][256];
     int nb_net_clients;
     int optind;
@@ -6879,7 +6879,7 @@ int main(int argc, char **argv)
                 bios_dir = optarg;
                 break;
             case QEMU_OPTION_S:
-                start_emulation = 0;
+                autostart = 0;
                 break;
 	    case QEMU_OPTION_k:
 		keyboard_layout = optarg;
@@ -7300,7 +7300,7 @@ int main(int argc, char **argv)
     {
         /* XXX: simplify init */
         read_passwords();
-        if (start_emulation) {
+        if (autostart) {
             vm_start();
         }
     }
