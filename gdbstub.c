@@ -987,7 +987,8 @@ static void gdb_read(void *opaque)
         qemu_del_vm_stop_handler(gdb_vm_stopped, s);
         qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         qemu_free(s);
-        vm_start();
+        if (autostart)
+            vm_start();
     } else {
         for(i = 0; i < size; i++)
             gdb_read_byte(s, buf[i]);
