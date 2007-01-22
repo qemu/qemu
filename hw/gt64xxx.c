@@ -216,6 +216,7 @@ typedef target_phys_addr_t pci_addr_t;
 #define GT_PCI0_HICMASK    	(0xca4 >> 2)
 #define GT_PCI1_SERR1MASK    	(0xca8 >> 2)
 
+#define logout(fmt, args...) fprintf(stderr, "GT64XXX\t%-24s" fmt, __func__, ##args)
 
 typedef PCIHostState GT64120PCIState;
 
@@ -231,6 +232,7 @@ static void gt64120_pci_mapping(GT64120State *s)
     /* Update IO mapping */
     start = s->regs[GT_PCI0IOLD] << 21;
     length = ((s->regs[GT_PCI0IOHD] + 1) - (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
+    logout("start = 0x%08x, length = 0x%08x\n", start, length);
     isa_mmio_init(start, length);
 }
 
@@ -245,6 +247,8 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
 #endif
 
     saddr = (addr & 0xfff) >> 2;
+    logout("addr = 0x%08x, val = 0x%08x\n", saddr, val);
+
     switch (saddr) {
 
     /* CPU Configuration */
@@ -462,6 +466,7 @@ static uint32_t gt64120_readl (void *opaque,
         break;
     }
 
+    logout("addr = 0x%08x, val = 0x%08x\n", saddr, val);
 #ifdef TARGET_WORDS_BIGENDIAN
     return bswap32(val);
 #else
