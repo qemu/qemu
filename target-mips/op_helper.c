@@ -416,6 +416,7 @@ static void fill_tlb (int idx)
     tlb = &env->tlb[idx];
     tlb->VPN = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     tlb->ASID = env->CP0_EntryHi & 0xFF;
+    tlb->PageMask = env->CP0_PageMask;
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
     tlb->V0 = (env->CP0_EntryLo0 & 2) != 0;
     tlb->D0 = (env->CP0_EntryLo0 & 4) != 0;
@@ -497,6 +498,7 @@ void do_tlbr (void)
     mips_tlb_flush_extra(env, MIPS_TLB_NB);
 
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
+    env->CP0_PageMask = tlb->PageMask;
     env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2) |
                         (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
     env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |

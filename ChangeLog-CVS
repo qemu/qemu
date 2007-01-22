@@ -1,3 +1,12 @@
+2007-01-22 21:57  ths
+
+	* target-mips/TODO: Update TODO.
+
+2007-01-22 21:50  ths
+
+	* target-mips/: cpu.h, helper.c, op_helper.c: Fix PageMask
+	  handling, second part.
+
 2007-01-21 23:40  ths
 
 	* Makefile.target: Add dependency for fop_template.c.
