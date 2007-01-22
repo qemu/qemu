@@ -1819,8 +1819,12 @@ uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr)
 static const char *backtrace(char *buffer, size_t length)
 {
     char *p = buffer;
-    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->PC));
-    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->gpr[31]));
+    if (cpu_single_env) {
+        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->PC));
+        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->gpr[31]));
+    } else {
+        p += sprintf(p, "[cpu not running]");
+    }
     assert((p - buffer) < length);
     return buffer;
 }
