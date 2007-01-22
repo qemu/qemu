@@ -129,6 +129,7 @@ typedef enum {
 #define I28F016S3	0x00aa
 #define I28F016B3T	0x00d0
 #define I28F016B3B	0x00d1
+#define I28F160S5	0x00d0
 #define I28F160B3T	0x8890
 #define I28F160B3B	0x8891
 #define I28F160C3B	0x88c3

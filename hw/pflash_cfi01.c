@@ -540,7 +540,6 @@ pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
 
     /* Currently, only one flash chip is supported. */
     assert(id0 == MANUFACTURER_INTEL);
-    assert(id1 == I28F160C3B);
 
     total_len = sector_len * nb_blocs;
 
@@ -608,6 +607,16 @@ pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
         pfl->cfi_table[0x32] = (nb_blocs - 2) >> 8;	// 0x00
         pfl->cfi_table[0x33] = (sector_len >> 8);	// 0x00
         pfl->cfi_table[0x34] = (sector_len >> 16);	// 0x01
+    } else if (id0 == MANUFACTURER_INTEL && (id1 == I28F160S5)) {
+        static const uint8_t data[] = {
+          /* 0x10 */ 'Q',  'R',  'Y',  0x01, 0x00, 0x31, 0x00, 0x00,
+          /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x55, 0x27, 0x55, 0x03,
+          /* 0x20 */ 0x06, 0x0a, 0x0f, 0x04, 0x04, 0x04, 0x04, 0x15,
+          /* 0x28 */ 0x02, 0x00, 0x05, 0x00, 0x01, 0x1f, 0x00, 0x00,
+          /* 0x30 */ 0x01, 'P',  'R',  'I',  '1',  '0',  0x0f, 0x00,
+          /* 0x38 */ 0x00, 0x00, 0x01, 0x03, 0x00, 0x50, 0x50, 0x00,
+        };
+        memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
     } else {
         assert(0);
     }
