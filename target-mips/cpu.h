@@ -44,8 +44,7 @@ union fpr_t {
 typedef struct tlb_t tlb_t;
 struct tlb_t {
     target_ulong VPN;
-    target_ulong end;
-    target_ulong end2;
+    uint_fast32_t PageMask;
     uint_fast8_t ASID;
     uint_fast16_t G:1;
     uint_fast16_t C0:3;

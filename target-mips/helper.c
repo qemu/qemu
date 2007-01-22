@@ -41,23 +41,26 @@ enum {
 static int map_address (CPUState *env, target_ulong *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
-    target_ulong tag = address & (TARGET_PAGE_MASK << 1);
-    uint8_t ASID = env->CP0_EntryHi & 0xFF;
-    tlb_t *tlb;
-    int i, n;
+    int i;
 
     for (i = 0; i < env->tlb_in_use; i++) {
-        tlb = &env->tlb[i];
+        tlb_t *tlb = &env->tlb[i];
+        /* 1k pages are not supported. */
+        uint8_t ASID = env->CP0_EntryHi & 0xFF;
+        target_ulong mask = tlb->PageMask | 0x1FFF;
+        target_ulong tag = address & ~mask;
+        int n;
+
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) &&
             tlb->VPN == tag) {
             /* TLB match */
-            n = (address >> TARGET_PAGE_BITS) & 1;
+            n = !!(address & mask & ~(mask >> 1));
             /* Check access rights */
            if (!(n ? tlb->V1 : tlb->V0))
                 return TLBRET_INVALID;
            if (rw == 0 || (n ? tlb->D1 : tlb->D0)) {
-                *physical = tlb->PFN[n] | (address & ~TARGET_PAGE_MASK);
+                *physical = tlb->PFN[n] | (address & (mask >> 1));
                 *prot = PAGE_READ;
                 if (n ? tlb->D1 : tlb->D0)
                     *prot |= PAGE_WRITE;
@@ -420,9 +423,10 @@ void do_interrupt (CPUState *env)
 void invalidate_tlb (CPUState *env, int idx, int use_extra)
 {
     tlb_t *tlb;
-    uint8_t ASID;
-
-    ASID = env->CP0_EntryHi & 0xFF;
+    target_ulong addr;
+    target_ulong end;
+    uint8_t ASID = env->CP0_EntryHi & 0xFF;
+    target_ulong mask;
 
     tlb = &env->tlb[idx];
     /* The qemu TLB is flushed then the ASID changes, so no need to
@@ -440,8 +444,23 @@ void invalidate_tlb (CPUState *env, int idx, int use_extra)
         return;
     }
 
-    if (tlb->V0)
-            tlb_flush_page (env, tlb->VPN);
-    if (tlb->V1)
-            tlb_flush_page (env, tlb->VPN + TARGET_PAGE_SIZE);
+    /* 1k pages are not supported. */
+    mask = tlb->PageMask | 0x1FFF;
+    if (tlb->V0) {
+        addr = tlb->VPN;
+        end = addr | (mask >> 1);
+        while (addr < end) {
+            tlb_flush_page (env, addr);
+            addr += TARGET_PAGE_SIZE;
+        }
+    }
+    if (tlb->V1) {
+        addr = tlb->VPN | ((mask >> 1) + 1);
+        addr = tlb->VPN + TARGET_PAGE_SIZE;
+        end = addr | mask;
+        while (addr < end) {
+            tlb_flush_page (env, addr);
+            addr += TARGET_PAGE_SIZE;
+        }
+    }
 }
