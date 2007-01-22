@@ -1786,6 +1786,10 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
 
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + size;
+
+#define logout(fmt, args...) fprintf(stderr, "QEMU\t%-24s" fmt, __func__, ##args)
+    logout(" 0x%08x...0x%08x, size 0x%08lx, phys_offset 0x%08lx\n",
+        start_addr, end_addr, size, phys_offset);
     for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
         p->phys_offset = phys_offset;
