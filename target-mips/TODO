@@ -14,7 +14,8 @@ MIPS64
 - No 64bit TLB support
 - no 64bit wide registers for FPU
 - 64bit mul/div handling broken
-- DM[FT]C not implemented
+- DM[FT]C not implemented, M[FT]C does not cut sign extensions in all
+  cases.
 
 "Generic" 4Kc system emulation
 ------------------------------
@@ -23,5 +24,5 @@ MIPS64
 MALTA system emulation
 ----------------------
 - We fake firmware support instead of doing the real thing
-- 2.4 Kernels receive spurious PIIX4 interrupts, indicates some
-  divergence from actual hardware.
+- Linux 2.4/2.6 Kernels receive spurious PIIX4 interrupts, noisy on 2.4,
+  silent on 2.6, indicates some divergence from actual hardware.
