@@ -653,12 +653,15 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     MaltaFPGAState *malta_fpga;
     int ret;
 
+    logout("RAM size = %d MiB\n", ram_size / 1024 / 1024);
+
     env = cpu_init();
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    cpu_register_physical_memory(ram_size, ram_size, IO_MEM_RAM);
 
     /* Map the bios at two physical locations, as on the real board */
     bios_offset = ram_size + vga_ram_size;
