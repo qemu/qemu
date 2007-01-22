@@ -125,7 +125,8 @@ BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
-static int bios_size;
+int bios_size;
+int flash_size;
 static DisplayState display_state;
 int nographic;
 const char* keyboard_layout = NULL;
@@ -6629,6 +6630,7 @@ int main(int argc, char **argv)
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
     bios_size = BIOS_SIZE;
+    flash_size = FLASH_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
@@ -7141,17 +7143,17 @@ int main(int argc, char **argv)
     }
 #endif
 
-    /* init the memory */
-    phys_ram_size = ram_size + vga_ram_size + bios_size;
-
     for (i = 0; i < nb_option_roms; i++) {
-	int ret = get_image_size(option_rom[i]);
-	if (ret == -1) {
-	    fprintf(stderr, "Could not load option rom '%s'\n", option_rom[i]);
-	    exit(1);
-	}
-	phys_ram_size += ret;
+        int ret = get_image_size(option_rom[i]);
+        if (ret == -1) {
+            fprintf(stderr, "Could not load option rom '%s'\n", option_rom[i]);
+            exit(1);
+        }
+        flash_size += ret;
     }
+
+    /* init the memory */
+    phys_ram_size = ram_size + vga_ram_size + bios_size + flash_size;
 
     phys_ram_base = qemu_vmalloc(phys_ram_size);
     if (!phys_ram_base) {

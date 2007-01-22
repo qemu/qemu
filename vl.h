@@ -147,6 +147,8 @@ void qemu_system_powerdown(void);
 void main_loop_wait(int timeout);
 
 extern int ram_size;
+extern int bios_size;
+extern int flash_size;
 extern int rtc_utc;
 extern int cirrus_vga_enabled;
 extern int graphic_width;
@@ -168,12 +170,14 @@ extern int nb_option_roms;
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
+#define FLASH_SIZE (0 * 1024)
 #elif defined(TARGET_MIPS)
 //~ #define BIOS_SIZE (128 * 1024)
-/* BIOS_SIZE is used for all ROM / flash memory */
-#define BIOS_SIZE (16 * 1024 * 1024)
+#define BIOS_SIZE (256 * 1024)
+#define FLASH_SIZE (16 * 1024 * 1024)
 #else
 #define BIOS_SIZE ((256 + 64) * 1024)
+#define FLASH_SIZE (0 * 1024)
 #endif
 
 /* keyboard/mouse support */
