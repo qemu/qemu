@@ -216,7 +216,13 @@ typedef target_phys_addr_t pci_addr_t;
 #define GT_PCI0_HICMASK    	(0xca4 >> 2)
 #define GT_PCI1_SERR1MASK    	(0xca8 >> 2)
 
+//~ #define DEBUG
+
+#if defined(DEBUG)
 #define logout(fmt, args...) fprintf(stderr, "GT64XXX\t%-24s" fmt, __func__, ##args)
+#else
+#define logout(fmt, args...) ((void)0)
+#endif
 
 typedef PCIHostState GT64120PCIState;
 
