@@ -411,10 +411,10 @@ void do_tlbwi (void)
        that might be a further win.  */
     mips_tlb_flush_extra (env, MIPS_TLB_NB);
 
-    /* Wildly undefined effects for CP0_index containing a too high value and
+    /* Wildly undefined effects for CP0_Index containing a too high value and
        MIPS_TLB_NB not being a power of two.  But so does real silicon.  */
-    invalidate_tlb(env, env->CP0_index & (MIPS_TLB_NB - 1), 0);
-    fill_tlb(env->CP0_index & (MIPS_TLB_NB - 1));
+    invalidate_tlb(env, env->CP0_Index & (MIPS_TLB_NB - 1), 0);
+    fill_tlb(env->CP0_Index & (MIPS_TLB_NB - 1));
 }
 
 void do_tlbwr (void)
@@ -439,7 +439,7 @@ void do_tlbp (void)
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
             /* TLB match */
-            env->CP0_index = i;
+            env->CP0_Index = i;
             break;
         }
     }
@@ -455,7 +455,7 @@ void do_tlbp (void)
 	    }
 	}
 
-        env->CP0_index |= 0x80000000;
+        env->CP0_Index |= 0x80000000;
     }
 }
 
@@ -465,7 +465,7 @@ void do_tlbr (void)
     uint8_t ASID;
 
     ASID = env->CP0_EntryHi & 0xFF;
-    tlb = &env->tlb[env->CP0_index & (MIPS_TLB_NB - 1)];
+    tlb = &env->tlb[env->CP0_Index & (MIPS_TLB_NB - 1)];
 
     /* If this will change the current ASID, flush qemu's TLB.  */
     if (ASID != tlb->ASID)

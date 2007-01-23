@@ -1032,7 +1032,7 @@ void op_jnz_T2 (void)
 /* CP0 functions */
 void op_mfc0_index (void)
 {
-    T0 = (int32_t)(env->CP0_index);
+    T0 = env->CP0_Index;
     RETURN();
 }
 
@@ -1044,49 +1044,49 @@ void op_mfc0_random (void)
 
 void op_mfc0_entrylo0 (void)
 {
-    T0 = env->CP0_EntryLo0;
+    T0 = (int32_t)env->CP0_EntryLo0;
     RETURN();
 }
 
 void op_mfc0_entrylo1 (void)
 {
-    T0 = env->CP0_EntryLo1;
+    T0 = (int32_t)env->CP0_EntryLo1;
     RETURN();
 }
 
 void op_mfc0_context (void)
 {
-    T0 = env->CP0_Context;
+    T0 = (int32_t)env->CP0_Context;
     RETURN();
 }
 
 void op_mfc0_pagemask (void)
 {
-    T0 = (int32_t)env->CP0_PageMask;
+    T0 = env->CP0_PageMask;
     RETURN();
 }
 
 void op_mfc0_pagegrain (void)
 {
-    T0 = (int32_t)env->CP0_PageGrain;
+    T0 = env->CP0_PageGrain;
     RETURN();
 }
 
 void op_mfc0_wired (void)
 {
-    T0 = (int32_t)env->CP0_Wired;
+    T0 = env->CP0_Wired;
     RETURN();
 }
 
 void op_mfc0_hwrena (void)
 {
-    T0 = (int32_t)env->CP0_HWREna;
+    T0 = env->CP0_HWREna;
     RETURN();
 }
 
 void op_mfc0_badvaddr (void)
 {
-    T0 = env->CP0_BadVAddr;
+    T0 = (int32_t)env->CP0_BadVAddr;
     RETURN();
 }
 
@@ -1098,19 +1098,19 @@ void op_mfc0_count (void)
 
 void op_mfc0_entryhi (void)
 {
-    T0 = env->CP0_EntryHi;
+    T0 = (int32_t)env->CP0_EntryHi;
     RETURN();
 }
 
 void op_mfc0_compare (void)
 {
-    T0 = (int32_t)env->CP0_Compare;
+    T0 = env->CP0_Compare;
     RETURN();
 }
 
 void op_mfc0_status (void)
 {
-    T0 = (int32_t)env->CP0_Status;
+    T0 = env->CP0_Status;
     if (env->hflags & MIPS_HFLAG_UM)
         T0 |= (1 << CP0St_UM);
     if (env->hflags & MIPS_HFLAG_ERL)
@@ -1122,67 +1122,73 @@ void op_mfc0_status (void)
 
 void op_mfc0_intctl (void)
 {
-    T0 = (int32_t)env->CP0_IntCtl;
+    T0 = env->CP0_IntCtl;
     RETURN();
 }
 
 void op_mfc0_srsctl (void)
 {
-    T0 = (int32_t)env->CP0_SRSCtl;
+    T0 = env->CP0_SRSCtl;
+    RETURN();
+}
+
+void op_mfc0_srsmap (void)
+{
+    T0 = env->CP0_SRSMap;
     RETURN();
 }
 
 void op_mfc0_cause (void)
 {
-    T0 = (int32_t)env->CP0_Cause;
+    T0 = env->CP0_Cause;
     RETURN();
 }
 
 void op_mfc0_epc (void)
 {
-    T0 = env->CP0_EPC;
+    T0 = (int32_t)env->CP0_EPC;
     RETURN();
 }
 
 void op_mfc0_prid (void)
 {
-    T0 = (int32_t)env->CP0_PRid;
+    T0 = env->CP0_PRid;
     RETURN();
 }
 
 void op_mfc0_ebase (void)
 {
-    T0 = env->CP0_EBase;
+    T0 = (int32_t)env->CP0_EBase;
     RETURN();
 }
 
 void op_mfc0_config0 (void)
 {
-    T0 = (int32_t)env->CP0_Config0;
+    T0 = env->CP0_Config0;
     RETURN();
 }
 
 void op_mfc0_config1 (void)
 {
-    T0 = (int32_t)env->CP0_Config1;
+    T0 = env->CP0_Config1;
     RETURN();
 }
 
 void op_mfc0_config2 (void)
 {
-    T0 = (int32_t)env->CP0_Config2;
+    T0 = env->CP0_Config2;
     RETURN();
 }
 
 void op_mfc0_config3 (void)
 {
-    T0 = (int32_t)env->CP0_Config3;
+    T0 = env->CP0_Config3;
     RETURN();
 }
 
 void op_mfc0_lladdr (void)
 {
-    T0 = env->CP0_LLAddr >> 4;
+    T0 = (int32_t)env->CP0_LLAddr >> 4;
     RETURN();
 }
 
@@ -1194,13 +1200,13 @@ void op_mfc0_watchlo0 (void)
 
 void op_mfc0_watchhi0 (void)
 {
-    T0 = (int32_t)env->CP0_WatchHi;
+    T0 = env->CP0_WatchHi;
     RETURN();
 }
 
 void op_mfc0_xcontext (void)
 {
-    T0 = env->CP0_XContext;
+    T0 = (int32_t)env->CP0_XContext;
     RETURN();
 }
 
@@ -1212,7 +1218,7 @@ void op_mfc0_framemask (void)
 
 void op_mfc0_debug (void)
 {
-    T0 = (int32_t)env->CP0_Debug;
+    T0 = env->CP0_Debug;
     if (env->hflags & MIPS_HFLAG_DM)
         T0 |= 1 << CP0DB_DM;
     RETURN();
@@ -1220,55 +1226,55 @@ void op_mfc0_debug (void)
 
 void op_mfc0_depc (void)
 {
-    T0 = env->CP0_DEPC;
+    T0 = (int32_t)env->CP0_DEPC;
     RETURN();
 }
 
 void op_mfc0_performance0 (void)
 {
-    T0 = (int32_t)env->CP0_Performance0;
+    T0 = env->CP0_Performance0;
     RETURN();
 }
 
 void op_mfc0_taglo (void)
 {
-    T0 = (int32_t)env->CP0_TagLo;
+    T0 = env->CP0_TagLo;
     RETURN();
 }
 
 void op_mfc0_datalo (void)
 {
-    T0 = (int32_t)env->CP0_DataLo;
+    T0 = env->CP0_DataLo;
     RETURN();
 }
 
 void op_mfc0_taghi (void)
 {
-    T0 = (int32_t)env->CP0_TagHi;
+    T0 = env->CP0_TagHi;
     RETURN();
 }
 
 void op_mfc0_datahi (void)
 {
-    T0 = (int32_t)env->CP0_DataHi;
+    T0 = env->CP0_DataHi;
     RETURN();
 }
 
 void op_mfc0_errorepc (void)
 {
-    T0 = env->CP0_ErrorEPC;
+    T0 = (int32_t)env->CP0_ErrorEPC;
     RETURN();
 }
 
 void op_mfc0_desave (void)
 {
-    T0 = (int32_t)env->CP0_DESAVE;
+    T0 = env->CP0_DESAVE;
     RETURN();
 }
 
 void op_mtc0_index (void)
 {
-    env->CP0_index = (env->CP0_index & 0x80000000) | (T0 & (MIPS_TLB_NB - 1));
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (MIPS_TLB_NB - 1));
     RETURN();
 }
 
@@ -1276,7 +1282,7 @@ void op_mtc0_entrylo0 (void)
 {
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo0 = T0 & (int32_t)0x3FFFFFFF;
+    env->CP0_EntryLo0 = (int32_t)T0 & 0x3FFFFFFF;
     RETURN();
 }
 
@@ -1284,7 +1290,7 @@ void op_mtc0_entrylo1 (void)
 {
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo1 = T0 & (int32_t)0x3FFFFFFF;
+    env->CP0_EntryLo1 = (int32_t)T0 & 0x3FFFFFFF;
     RETURN();
 }
 
@@ -1334,7 +1340,7 @@ void op_mtc0_entryhi (void)
 
     /* 1k pages not implemented */
     /* Ignore MIPS64 TLB for now */
-    val = T0 & (int32_t)0xFFFFE0FF;
+    val = (int32_t)T0 & 0xFFFFE0FF;
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
     /* If the ASID changes, flush qemu's TLB.  */
@@ -1353,7 +1359,7 @@ void op_mtc0_status (void)
 {
     uint32_t val, old, mask;
 
-    val = T0 & (int32_t)0xFA78FF01;
+    val = (int32_t)T0 & 0xFA78FF01;
     old = env->CP0_Status;
     if (T0 & (1 << CP0St_UM))
         env->hflags |= MIPS_HFLAG_UM;
@@ -1400,6 +1406,13 @@ void op_mtc0_srsctl (void)
     RETURN();
 }
 
+void op_mtc0_srsmap (void)
+{
+    /* shadow registers not implemented */
+    env->CP0_SRSMap = 0;
+    RETURN();
+}
+
 void op_mtc0_cause (void)
 {
     uint32_t val, old;
@@ -1423,7 +1436,7 @@ void op_mtc0_cause (void)
 
 void op_mtc0_epc (void)
 {
-    env->CP0_EPC = T0;
+    env->CP0_EPC = (int32_t)T0;
     RETURN();
 }
 
@@ -1455,7 +1468,7 @@ void op_mtc0_config2 (void)
 
 void op_mtc0_watchlo0 (void)
 {
-    env->CP0_WatchLo = T0;
+    env->CP0_WatchLo = (int32_t)T0;
     RETURN();
 }
 
@@ -1467,7 +1480,7 @@ void op_mtc0_watchhi0 (void)
 
 void op_mtc0_xcontext (void)
 {
-    env->CP0_XContext = T0; /* XXX */
+    env->CP0_XContext = (int32_t)T0; /* XXX */
     RETURN();
 }
 
@@ -1489,7 +1502,7 @@ void op_mtc0_debug (void)
 
 void op_mtc0_depc (void)
 {
-    env->CP0_DEPC = T0;
+    env->CP0_DEPC = (int32_t)T0;
     RETURN();
 }
 
@@ -1501,7 +1514,7 @@ void op_mtc0_performance0 (void)
 
 void op_mtc0_taglo (void)
 {
-    env->CP0_TagLo = T0 & (int32_t)0xFFFFFCF6;
+    env->CP0_TagLo = T0 & 0xFFFFFCF6;
     RETURN();
 }
 
@@ -1525,13 +1538,146 @@ void op_mtc0_datahi (void)
 
 void op_mtc0_errorepc (void)
 {
-    env->CP0_ErrorEPC = T0;
+    env->CP0_ErrorEPC = (int32_t)T0;
     RETURN();
 }
 
 void op_mtc0_desave (void)
 {
     env->CP0_DESAVE = T0;
+    RETURN();
+}
+
+void op_dmfc0_entrylo0 (void)
+{
+    T0 = env->CP0_EntryLo0;
+    RETURN();
+}
+
+void op_dmfc0_entrylo1 (void)
+{
+    T0 = env->CP0_EntryLo1;
+    RETURN();
+}
+
+void op_dmfc0_context (void)
+{
+    T0 = env->CP0_Context;
+    RETURN();
+}
+
+void op_dmfc0_badvaddr (void)
+{
+    T0 = env->CP0_BadVAddr;
+    RETURN();
+}
+
+void op_dmfc0_entryhi (void)
+{
+    T0 = env->CP0_EntryHi;
+    RETURN();
+}
+
+void op_dmfc0_epc (void)
+{
+    T0 = env->CP0_EPC;
+    RETURN();
+}
+
+void op_dmfc0_ebase (void)
+{
+    T0 = env->CP0_EBase;
+    RETURN();
+}
+
+void op_dmfc0_lladdr (void)
+{
+    T0 = env->CP0_LLAddr >> 4;
+    RETURN();
+}
+
+void op_dmfc0_watchlo0 (void)
+{
+    T0 = env->CP0_WatchLo;
+    RETURN();
+}
+
+void op_dmfc0_xcontext (void)
+{
+    T0 = env->CP0_XContext;
+    RETURN();
+}
+
+void op_dmfc0_depc (void)
+{
+    T0 = env->CP0_DEPC;
+    RETURN();
+}
+
+void op_dmfc0_errorepc (void)
+{
+    T0 = env->CP0_ErrorEPC;
+    RETURN();
+}
+
+void op_dmtc0_entrylo0 (void)
+{
+    /* Large physaddr not implemented */
+    /* 1k pages not implemented */
+    env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
+    RETURN();
+}
+
+void op_dmtc0_entrylo1 (void)
+{
+    /* Large physaddr not implemented */
+    /* 1k pages not implemented */
+    env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
+    RETURN();
+}
+
+void op_dmtc0_context (void)
+{
+    env->CP0_Context = (env->CP0_Context & ~0x007FFFFF) | (T0 & 0x007FFFF0);
+    RETURN();
+}
+
+void op_dmtc0_epc (void)
+{
+    env->CP0_EPC = T0;
+    RETURN();
+}
+
+void op_dmtc0_ebase (void)
+{
+    /* vectored interrupts not implemented */
+    /* Multi-CPU not implemented */
+    /* XXX: 64bit addressing broken */
+    env->CP0_EBase = (int32_t)0x80000000 | (T0 & 0x3FFFF000);
+    RETURN();
+}
+
+void op_dmtc0_watchlo0 (void)
+{
+    env->CP0_WatchLo = T0;
+    RETURN();
+}
+
+void op_dmtc0_xcontext (void)
+{
+    env->CP0_XContext = T0; /* XXX */
+    RETURN();
+}
+
+void op_dmtc0_depc (void)
+{
+    env->CP0_DEPC = T0;
+    RETURN();
+}
+
+void op_dmtc0_errorepc (void)
+{
+    env->CP0_ErrorEPC = T0;
     RETURN();
 }
 
