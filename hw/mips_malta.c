@@ -23,6 +23,7 @@
  */
 
 #include "vl.h"
+#include "pflash.h"
 
 #define BIOS_FILENAME           "mips_bios.bin"
 #ifdef MIPS_HAS_MIPS64
@@ -38,7 +39,16 @@
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
-#define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
+#define KiB     1024
+#define MiB     (KiB * KiB)
+
+//~ #define DEBUG
+
+#if defined(DEBUG)
+#  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
+#else
+#  define logout(fmt, args...) ((void)0)
+#endif
 
 extern FILE *logfile;
 
@@ -97,6 +107,14 @@ static void malta_fpga_update_display(void *opaque)
  * Typical device names include Microchip 24C02SC or SGS Thomson ST24C02.
  */
 
+//~ #define DEBUG
+
+#if defined(DEBUG)
+#  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
+#else
+#  define logout(fmt, args...) ((void)0)
+#endif
+
 struct _eeprom24c0x_t {
   uint8_t tick;
   uint8_t address;
@@ -125,34 +143,6 @@ static eeprom24c0x_t eeprom = {
         /* 00000050: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         /* 00000060: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         /* 00000070: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x64,0xF4,
-        //~ 0x80, 0x08, 0x04,
-        //~ /* HAL_SPD_GET_NUM_ROW_BITS                3 */
-        //~ 0x0d,
-        //~ /* HAL_SPD_GET_NUM_COL_BITS                4 */
-        //~ 0x0a,
-        //~ /* HAL_SPD_GET_NUM_MODULE_BANKS            5 */
-        //~ 1,
-        //~ /* HAL_SPD_GET_SDRAM_WIDTH                 6 */
-        //~ 0x48,
-        //~ 0, 0, 0, 0,
-        //~ /* HAL_SPD_GET_CONFIG_TYPE                 11 */
-        //~ 0x00,
-        //~ /* HAL_SPD_GET_REFRESH_RATE                12 */
-        //~ 0x05,
-        //~ 0,
-        //~ /* HAL_SPD_GET_ERROR_CHECK_WIDTH           14 */
-        //~ 0x08,
-        //~ 0,
-        //~ /* burst length (16) */
-        //~ 8,      /* must be 8 */
-        //~ /* HAL_SPD_GET_NUM_DEVICE_BANKS            17 */
-        //~ 4,      /* must be 2 or 4 */
-        //~ /* HAL_SPD_GET_CAS_LAT                     18 */
-        //~ 2,      /* must be 2 */
-        //~ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        //~ /* HAL_SPD_GET_ROW_DENSITY                 31 */
-        //~ 0x40,
-        //~ 0,
     },
 };
 
@@ -222,6 +212,14 @@ static void eeprom24c0x_write(int scl, int sda)
     eeprom.scl = scl;
     eeprom.sda = sda;
 }
+
+#define DEBUG
+
+#if defined(DEBUG)
+#  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
+#else
+#  define logout(fmt, args...) ((void)0)
+#endif
 
 static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 {
@@ -661,7 +659,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
-    cpu_register_physical_memory(ram_size, ram_size, IO_MEM_RAM);
 
     /* Map the bios at two physical locations, as on the real board */
     bios_offset = ram_size + vga_ram_size;
@@ -690,6 +687,9 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
                     buf);
             exit(1);
         }
+        //~ pflash_t *pf;
+        //~ pf = pflash_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
+                             //~ MANUFACTURER_INTEL, I28F160S5);
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
@@ -718,6 +718,10 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     pit = pit_init(0x40, 0);
     DMA_init(0);
 
+    pci_cirrus_vga_init(pci_bus, 
+                        ds, phys_ram_base + ram_size, ram_size, 
+                        vga_ram_size);
+
     /* Super I/O */
     kbd_init();
     rtc_state = rtc_init(0x70, 8);
@@ -734,6 +738,9 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* Network card */
     network_init(pci_bus);
+
+    /* Select 1st serial console as default (because we don't have VGA). */
+    console_select(1);
 }
 
 QEMUMachine mips_malta_machine = {
