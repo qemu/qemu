@@ -3099,7 +3099,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            rn = "PRid";
            break;
         case 1:
-           gen_op_dmfc0_ebase();
+           gen_op_mfc0_ebase();
            rn = "EBase";
            break;
         default:
@@ -3683,7 +3683,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            rn = "PRid";
            break;
         case 1:
-           gen_op_dmtc0_ebase();
+           gen_op_mtc0_ebase();
            rn = "EBase";
            break;
         default:
@@ -5305,7 +5305,7 @@ void cpu_reset (CPUMIPSState *env)
 #endif
     env->CP0_Wired = 0;
     /* SMP not implemented */
-    env->CP0_EBase = (int32_t)0x80000000;
+    env->CP0_EBase = 0x80000000;
     env->CP0_Config0 = MIPS_CONFIG0;
     env->CP0_Config1 = MIPS_CONFIG1;
     env->CP0_Config2 = MIPS_CONFIG2;

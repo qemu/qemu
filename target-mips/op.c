@@ -1158,7 +1158,7 @@ void op_mfc0_prid (void)
 
 void op_mfc0_ebase (void)
 {
-    T0 = (int32_t)env->CP0_EBase;
+    T0 = env->CP0_EBase;
     RETURN();
 }
 
@@ -1423,7 +1423,7 @@ void op_mtc0_ebase (void)
 {
     /* vectored interrupts not implemented */
     /* Multi-CPU not implemented */
-    env->CP0_EBase = (int32_t)0x80000000 | (T0 & 0x3FFFF000);
+    env->CP0_EBase = 0x80000000 | (T0 & 0x3FFFF000);
     RETURN();
 }
 
@@ -1563,12 +1563,6 @@ void op_dmfc0_epc (void)
     RETURN();
 }
 
-void op_dmfc0_ebase (void)
-{
-    T0 = env->CP0_EBase;
-    RETURN();
-}
-
 void op_dmfc0_lladdr (void)
 {
     T0 = env->CP0_LLAddr >> 4;
@@ -1624,15 +1618,6 @@ void op_dmtc0_context (void)
 void op_dmtc0_epc (void)
 {
     env->CP0_EPC = T0;
-    RETURN();
-}
-
-void op_dmtc0_ebase (void)
-{
-    /* vectored interrupts not implemented */
-    /* Multi-CPU not implemented */
-    /* XXX: 64bit addressing broken */
-    env->CP0_EBase = (int32_t)0x80000000 | (T0 & 0x3FFFF000);
     RETURN();
 }
 
