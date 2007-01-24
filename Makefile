@@ -128,7 +128,8 @@ dvi: qemu-doc.dvi qemu-tech.dvi
 
 html: qemu-doc.html qemu-tech.html
 
-FILE=qemu-$(shell cat VERSION)
+VERSION ?= $(shell cat VERSION)
+FILE = qemu-$(VERSION)
 
 # tar release (use 'make -k tar' on a checkouted tree)
 tar:
