@@ -1,3 +1,26 @@
+2007-01-24 19:01  ths
+
+	* target-mips/: cpu.h, op.c, translate.c: EBase is limited to
+	  KSEG0/KSEG1 even on 64bit CPUs.
+
+2007-01-24 02:47  ths
+
+	* Makefile.target, cpu-exec.c, vl.h, hw/gt64xxx.c, hw/i8259.c,
+	  hw/mips_int.c, hw/mips_malta.c, hw/mips_r4k.c, hw/mips_timer.c,
+	  target-mips/cpu.h, target-mips/exec.h, target-mips/op.c,
+	  target-mips/op_helper.c: Reworking MIPS interrupt handling, by
+	  Aurelien Jarno.
+
+2007-01-24 02:12  ths
+
+	* hw/ide.c: Fix DMA timeouts on FreeBSD, by Carlo Marcelo Arenas
+	  Belon.
+
+2007-01-23 23:45  ths
+
+	* target-mips/: cpu.h, op.c, op_helper.c, translate.c: Implementing
+	  dmfc/dmtc.
+
 2007-01-23 02:47  ths
 
 	* .cvsignore: Update .cvsignore.

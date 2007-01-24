@@ -1097,6 +1097,9 @@ extern QEMUMachine mips_machine;
 /* mips_malta.c */
 extern QEMUMachine mips_malta_machine;
 
+/* mips_int */
+extern void cpu_mips_irq_request(void *opaque, int irq, int level);
+
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);
 extern void cpu_mips_irqctrl_init (void);

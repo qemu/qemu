@@ -161,6 +161,13 @@ void pic_update_irq(PicState2 *s)
 #endif
         s->irq_request(s->irq_request_opaque, 1);
     }
+
+/* all targets should do this rather than acking the IRQ in the cpu */
+#if defined(TARGET_MIPS)
+    else {
+        s->irq_request(s->irq_request_opaque, 0);
+    }
+#endif
 }
 
 #ifdef DEBUG_IRQ_LATENCY
