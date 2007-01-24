@@ -159,7 +159,7 @@ Physical memory map
 #define AVALANCHE_EMIF_BASE             0x08610800
 #define AVALANCHE_GPIO_BASE             0x08610900
 #define AVALANCHE_CLOCK_BASE            0x08610a00      /* Clock Control */
-#define AVALANCHE_POWER_CTRL_PDCR     (KSEG1ADDR(0x08610A00))
+//~ #define AVALANCHE_POWER_CTRL_PDCR     (KSEG1ADDR(0x08610A00))
 #define AVALANCHE_WAKEUP_CTRL_WKCR    (KSEG1ADDR(0x08610A0C))
 #define AVALANCHE_WATCHDOG_BASE         0x08610b00      /* Watchdog */
 #define AVALANCHE_TIMER0_BASE           0x08610c00      /* Timer 1 */
@@ -468,7 +468,7 @@ static uint32_t clock_read(unsigned offset)
     unsigned index = offset / 4;
     if (index == 0x0c || index == 0x14 || index == 0x1c || index == 0x24) {
         /* Reset PLL status bit. */
-        if (val == 4) {
+        if ((val & ~1) == 4) {
             val &= ~1;
         } else {
             val |= 1;
@@ -2583,6 +2583,8 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
     if (addr & 3) {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
+    } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
+        value = clock_read(addr - AVALANCHE_CLOCK_BASE);
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else {
@@ -2861,7 +2863,7 @@ void ar7_init(CPUState * env)
     cpu_register_physical_memory(0x00001000, 0x0ffff000, io_memory);
     cpu_register_physical_memory(0x1e000000, 0x01c00000, io_memory);
     assert(bigendian == 0);
-    bigendian = env->bigendian;
+    //~ bigendian = env->bigendian;
     assert(bigendian == 0);
     //~ logout("setting endianness %d\n", bigendian);
     ar7_serial_init(env);
@@ -2912,11 +2914,11 @@ static void mips_ar7_common_init (int ram_size,
     unsigned long bios_offset;
     int ret;
     CPUState *env;
-    long kernel_size;
+    int kernel_size;
 
     env = cpu_init();
     /* Typical AR7 systems run in little endian mode. */
-    bigendian = env->bigendian = 0;
+    //~ bigendian = env->bigendian = 0;
     fprintf(stderr, "%s: setting endianness %d\n", __func__, 0);
 
     env->CP0_PRid = MIPS_R4KEc;
@@ -3028,7 +3030,10 @@ static void mips_ar7_common_init (int ram_size,
         } else {
             kernel_size = load_image(kernel_filename,
                                 phys_ram_base + 4 * KiB);
-            if (kernel_size < 0) {
+            if (kernel_size > 0 && kernel_size < ram_size) {
+                fprintf(stderr, "qemu: elf kernel '%s' with size 0x%08x\n",
+                            kernel_filename, kernel_size);
+            } else {
                 fprintf(stderr, "qemu: could not load kernel '%s'\n",
                         kernel_filename);
                 exit(1);
