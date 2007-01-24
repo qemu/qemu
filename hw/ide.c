@@ -2230,7 +2230,6 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
         return;
     bm->ide_if = s;
     bm->dma_cb = dma_cb;
-    bm->cur_addr = bm->addr;
     bm->cur_prd_last = 0;
     bm->cur_prd_addr = 0;
     bm->cur_prd_len = 0;
@@ -2363,6 +2362,7 @@ static void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val)
     printf("%s: 0x%08x\n", __func__, val);
 #endif
     bm->addr = val & ~3;
+    bm->cur_addr = bm->addr;
 }
 
 static void bmdma_map(PCIDevice *pci_dev, int region_num, 
