@@ -535,7 +535,6 @@ int cpu_exec(CPUState *env1)
                         env->exception_index = EXCP_EXT_INTERRUPT;
                         env->error_code = 0;
                         do_interrupt(env);
-                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else

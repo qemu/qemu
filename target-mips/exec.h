@@ -164,6 +164,7 @@ uint32_t cpu_mips_get_random (CPUState *env);
 uint32_t cpu_mips_get_count (CPUState *env);
 void cpu_mips_store_count (CPUState *env, uint32_t value);
 void cpu_mips_store_compare (CPUState *env, uint32_t value);
+void cpu_mips_update_irq(CPUState *env);
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
 

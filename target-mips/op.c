@@ -1357,7 +1357,7 @@ void op_mtc0_compare (void)
 
 void op_mtc0_status (void)
 {
-    uint32_t val, old, mask;
+    uint32_t val, old;
 
     val = (int32_t)T0 & 0xFA78FF01;
     old = env->CP0_Status;
@@ -1374,21 +1374,9 @@ void op_mtc0_status (void)
     else
         env->hflags &= ~MIPS_HFLAG_EXL;
     env->CP0_Status = val;
-    /* If we unmasked an asserted IRQ, raise it */
-    mask = 0x0000FF00;
     if (loglevel & CPU_LOG_TB_IN_ASM)
        CALL_FROM_TB2(do_mtc0_status_debug, old, val);
-    if ((val & (1 << CP0St_IE)) && !(old & (1 << CP0St_IE)) &&
-        !(env->hflags & MIPS_HFLAG_EXL) &&
-        !(env->hflags & MIPS_HFLAG_ERL) &&
-        !(env->hflags & MIPS_HFLAG_DM) &&
-        (env->CP0_Status & env->CP0_Cause & mask)) {
-        env->interrupt_request |= CPU_INTERRUPT_HARD;
-       if (logfile)
-           CALL_FROM_TB0(do_mtc0_status_irqraise_debug);
-    } else if (!(val & (1 << CP0St_IE)) && (old & (1 << CP0St_IE))) {
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-    }
+    CALL_FROM_TB1(cpu_mips_update_irq, env);
     RETURN();
 }
 
@@ -1415,22 +1403,13 @@ void op_mtc0_srsmap (void)
 
 void op_mtc0_cause (void)
 {
-    uint32_t val, old;
+    env->CP0_Cause = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x00C00300);
 
-    val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x00C00300);
-    old = env->CP0_Cause;
-    env->CP0_Cause = val;
-#if 0
-    {
-        int i, mask;
-       /* Check if we ever asserted a software IRQ */
-        for (i = 0; i < 2; i++) {
-            mask = 0x100 << i;
-            if ((val & mask) & !(old & mask))
-                CALL_FROM_TB1(mips_set_irq, i);
-        }
+    /* Handle the software interrupt as an hardware one, as they
+       are very similar */
+    if (T0 & CP0Ca_IP_mask) {
+        CALL_FROM_TB1(cpu_mips_update_irq, env);
     }
-#endif
     RETURN();
 }
 
@@ -2074,36 +2053,17 @@ void op_pmon (void)
 
 void op_di (void)
 {
-    uint32_t val;
-
     T0 = env->CP0_Status;
-    val = T0 & ~(1 << CP0St_IE);
-    if (val != T0) {
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-        env->CP0_Status = val;
-    }
+    env->CP0_Status = T0 & ~(1 << CP0St_IE);
+    CALL_FROM_TB1(cpu_mips_update_irq, env);
     RETURN();
 }
 
 void op_ei (void)
 {
-    uint32_t val;
-
     T0 = env->CP0_Status;
-    val = T0 | (1 << CP0St_IE);
-    if (val != T0) {
-       const uint32_t mask = 0x0000FF00;
-
-       env->CP0_Status = val;
-       if (!(env->hflags & MIPS_HFLAG_EXL) &&
-           !(env->hflags & MIPS_HFLAG_ERL) &&
-           !(env->hflags & MIPS_HFLAG_DM) &&
-           (env->CP0_Status & env->CP0_Cause & mask)) {
-               env->interrupt_request |= CPU_INTERRUPT_HARD;
-               if (logfile)
-                   CALL_FROM_TB0(do_mtc0_status_irqraise_debug);
-       }
-    }
+    env->CP0_Status = T0 | (1 << CP0St_IE);
+    CALL_FROM_TB1(cpu_mips_update_irq, env);
     RETURN();
 }
 

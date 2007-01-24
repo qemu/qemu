@@ -265,6 +265,11 @@ void cpu_mips_store_compare(CPUState *env, uint32_t value)
     cpu_abort(env, "mtc0 compare\n");
 }
 
+void cpu_mips_update_irq(CPUState *env)
+{
+    cpu_abort(env, "mtc0 status / mtc0 cause\n");
+}
+
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
 {
     cpu_abort(env, "mtc0 status debug\n");

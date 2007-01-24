@@ -1,7 +1,7 @@
 /*
  * QEMU GT64120 PCI host
  *
- * Copyright (c) 2006 Aurelien Jarno
+ * Copyright (c) 2006,2007 Aurelien Jarno
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -433,7 +433,8 @@ static uint32_t gt64120_readl (void *opaque,
         val = s->regs[saddr];
         break;
     case GT_PCI0_IACK:
- 	val = pic_intack_read(isa_pic);
+        /* Read the IRQ number */ 
+        val = pic_read_irq(isa_pic);
         break;
 
     /* SDRAM Parameters */

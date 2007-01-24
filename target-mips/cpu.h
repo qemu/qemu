@@ -158,6 +158,7 @@ struct CPUMIPSState {
 #define CP0Ca_IV   23
 #define CP0Ca_WP   22
 #define CP0Ca_IP    8
+#define CP0Ca_IP_mask 0x0000FF00
 #define CP0Ca_EC    2
     target_ulong CP0_EPC;
     int32_t CP0_PRid;

@@ -38,14 +38,7 @@ static PITState *pit; /* PIT i8254 */
 /*The PIC is attached to the MIPS CPU INT0 pin */
 static void pic_irq_request(void *opaque, int level)
 {
-    CPUState *env = first_cpu;
-    if (level) {
-        env->CP0_Cause |= 0x00000400;
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
-    } else {
-	env->CP0_Cause &= ~0x00000400;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
-    }
+    cpu_mips_irq_request(opaque, 2, level);
 }
 
 static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
