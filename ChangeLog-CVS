@@ -1,3 +1,29 @@
+2007-01-24 23:56  ths
+
+	* Makefile: Make the tarball's VERSION part overridable from make
+	  invocation.
+
+2007-01-24 23:00  ths
+
+	* hw/: mips_malta.c, mips_r4k.c: Fix malta emulation for 64bit
+	  qemu.
+
+2007-01-24 22:40  ths
+
+	* Makefile.target, sdl.c, vl.h, x_keymap.c: Split out SDL X keymap,
+	  by Bernhard Fischer.
+
+2007-01-24 22:35  ths
+
+	* hw/: ide.c, piix_pci.c: Add support for 82371FB (Step A1) and
+	  Improved support for 82371SB (Function 1), by Carlo Marcelo
+	  Arenas Belon.
+
+2007-01-24 22:05  ths
+
+	* block-vmdk.c: New multiple snapshot support for VMDK, by Igor
+	  Lvovsky.
+
 2007-01-24 19:01  ths
 
 	* target-mips/: cpu.h, op.c, translate.c: EBase is limited to

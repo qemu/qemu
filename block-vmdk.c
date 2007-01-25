@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "vl.h"
 #include "block_int.h"
 
@@ -59,7 +60,7 @@ typedef struct {
 #define L2_CACHE_SIZE 16
 
 typedef struct BDRVVmdkState {
-    int fd;
+    BlockDriverState *hd;
     int64_t l1_table_offset;
     int64_t l1_backup_table_offset;
     uint32_t *l1_table;
@@ -73,6 +74,7 @@ typedef struct BDRVVmdkState {
     uint32_t l2_cache_counts[L2_CACHE_SIZE];
 
     unsigned int cluster_sectors;
+    uint32_t parent_cid;
 } BDRVVmdkState;
 
 static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -89,27 +91,278 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
+#define CHECK_CID 1
+
+#define SECTOR_SIZE 512				
+#define DESC_SIZE 20*SECTOR_SIZE	// 20 sectors of 512 bytes each
+#define HEADER_SIZE 512   			// first sector of 512 bytes 
+
+static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
+{
+    BDRVVmdkState *s = bs->opaque;
+    char desc[DESC_SIZE];
+    uint32_t cid;
+    char *p_name, *cid_str; 
+    size_t cid_str_size;
+
+    /* the descriptor offset = 0x200 */
+    if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+        return 0;
+
+    if (parent) {
+        cid_str = "parentCID";
+        cid_str_size = sizeof("parentCID");
+    } else {
+        cid_str = "CID";
+        cid_str_size = sizeof("CID");
+    }
+
+    if ((p_name = strstr(desc,cid_str)) != 0) {
+        p_name += cid_str_size;
+        sscanf(p_name,"%x",&cid);
+    }
+
+    return cid;
+}
+
+static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
+{
+    BDRVVmdkState *s = bs->opaque;
+    char desc[DESC_SIZE], tmp_desc[DESC_SIZE];
+    char *p_name, *tmp_str;
+
+    /* the descriptor offset = 0x200 */
+    if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+        return -1;
+
+    tmp_str = strstr(desc,"parentCID");
+    strcpy(tmp_desc, tmp_str);
+    if ((p_name = strstr(desc,"CID")) != 0) {
+        p_name += sizeof("CID");
+        sprintf(p_name,"%x\n",cid);
+        strcat(desc,tmp_desc);
+    }
+
+    if (bdrv_pwrite(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+        return -1;
+    return 0;
+}
+
+static int vmdk_is_cid_valid(BlockDriverState *bs)
+{
+#ifdef CHECK_CID
+    BDRVVmdkState *s = bs->opaque;
+    BlockDriverState *p_bs = s->hd->backing_hd;
+    uint32_t cur_pcid;
+
+    if (p_bs) {
+        cur_pcid = vmdk_read_cid(p_bs,0);
+        if (s->parent_cid != cur_pcid)
+            // CID not valid
+            return 0;
+    }
+#endif
+    // CID valid
+    return 1;
+}
+
+static int vmdk_snapshot_create(const char *filename, const char *backing_file)
+{
+    int snp_fd, p_fd;
+    uint32_t p_cid;
+    char *p_name, *gd_buf, *rgd_buf; 
+    const char *real_filename, *temp_str;
+    VMDK4Header header;
+    uint32_t gde_entries, gd_size;
+    int64_t gd_offset, rgd_offset, capacity, gt_size;
+    char p_desc[DESC_SIZE], s_desc[DESC_SIZE], hdr[HEADER_SIZE];
+    char *desc_template =
+    "# Disk DescriptorFile\n"
+    "version=1\n"
+    "CID=%x\n"
+    "parentCID=%x\n"
+    "createType=\"monolithicSparse\"\n"
+    "parentFileNameHint=\"%s\"\n"
+    "\n"
+    "# Extent description\n"
+    "RW %lu SPARSE \"%s\"\n"
+    "\n"
+    "# The Disk Data Base \n"
+    "#DDB\n"
+    "\n";
+
+    snp_fd = open(filename, O_RDWR | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE, 0644);
+    if (snp_fd < 0)
+        return -1;
+    p_fd = open(backing_file, O_RDONLY | O_BINARY | O_LARGEFILE);
+    if (p_fd < 0) {
+        close(snp_fd);
+        return -1;
+    }
+
+    /* read the header */
+    if (lseek(p_fd, 0x0, SEEK_SET) == -1)
+        goto fail;
+    if (read(p_fd, hdr, HEADER_SIZE) != HEADER_SIZE)
+        goto fail;
+
+    /* write the header */
+    if (lseek(snp_fd, 0x0, SEEK_SET) == -1)
+        goto fail;
+    if (write(snp_fd, hdr, HEADER_SIZE) == -1)
+        goto fail;
+
+    memset(&header, 0, sizeof(header));
+    memcpy(&header,&hdr[4], sizeof(header)); // skip the VMDK4_MAGIC
+
+    ftruncate(snp_fd, header.grain_offset << 9);
+    /* the descriptor offset = 0x200 */
+    if (lseek(p_fd, 0x200, SEEK_SET) == -1)
+        goto fail;
+    if (read(p_fd, p_desc, DESC_SIZE) != DESC_SIZE)
+        goto fail;
+
+    if ((p_name = strstr(p_desc,"CID")) != 0) {
+        p_name += sizeof("CID");
+        sscanf(p_name,"%x",&p_cid);
+    }
+
+    real_filename = filename;
+    if ((temp_str = strrchr(real_filename, '\\')) != NULL)
+        real_filename = temp_str + 1;
+    if ((temp_str = strrchr(real_filename, '/')) != NULL)
+        real_filename = temp_str + 1;
+    if ((temp_str = strrchr(real_filename, ':')) != NULL)
+        real_filename = temp_str + 1;
+
+    sprintf(s_desc, desc_template, p_cid, p_cid, backing_file
+            , (uint32_t)header.capacity, real_filename);
+
+    /* write the descriptor */
+    if (lseek(snp_fd, 0x200, SEEK_SET) == -1)
+        goto fail;
+    if (write(snp_fd, s_desc, strlen(s_desc)) == -1)
+        goto fail;
+
+    gd_offset = header.gd_offset * SECTOR_SIZE;     // offset of GD table
+    rgd_offset = header.rgd_offset * SECTOR_SIZE;   // offset of RGD table
+    capacity = header.capacity * SECTOR_SIZE;       // Extent size
+    /*
+     * Each GDE span 32M disk, means:
+     * 512 GTE per GT, each GTE points to grain
+     */
+    gt_size = (int64_t)header.num_gtes_per_gte * header.granularity * SECTOR_SIZE;
+    if (!gt_size)
+        goto fail;
+    gde_entries = (uint32_t)(capacity / gt_size);  // number of gde/rgde 
+    gd_size = gde_entries * sizeof(uint32_t);
+
+    /* write RGD */
+    rgd_buf = qemu_malloc(gd_size);
+    if (!rgd_buf)
+        goto fail;
+    if (lseek(p_fd, rgd_offset, SEEK_SET) == -1)
+        goto fail_rgd;
+    if (read(p_fd, rgd_buf, gd_size) != gd_size)
+        goto fail_rgd;
+    if (lseek(snp_fd, rgd_offset, SEEK_SET) == -1)
+        goto fail_rgd;
+    if (write(snp_fd, rgd_buf, gd_size) == -1)
+        goto fail_rgd;
+    qemu_free(rgd_buf);
+
+    /* write GD */
+    gd_buf = qemu_malloc(gd_size);
+    if (!gd_buf)
+        goto fail_rgd;
+    if (lseek(p_fd, gd_offset, SEEK_SET) == -1)
+        goto fail_gd;
+    if (read(p_fd, gd_buf, gd_size) != gd_size)
+        goto fail_gd;
+    if (lseek(snp_fd, gd_offset, SEEK_SET) == -1)
+        goto fail_gd;
+    if (write(snp_fd, gd_buf, gd_size) == -1)
+        goto fail_gd;
+    qemu_free(gd_buf);
+
+    close(p_fd);
+    close(snp_fd);
+    return 0;
+
+    fail_gd:
+    qemu_free(gd_buf);
+    fail_rgd:   
+    qemu_free(rgd_buf);
+    fail:
+    close(p_fd);
+    close(snp_fd);
+    return -1;
+}
+
+static void vmdk_parent_close(BlockDriverState *bs)
+{
+    if (bs->backing_hd)
+        bdrv_close(bs->backing_hd);
+}
+
+
+static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
+{
+    BDRVVmdkState *s = bs->opaque;
+    char *p_name; 
+    char desc[DESC_SIZE];
+    char parent_img_name[1024];
+
+    /* the descriptor offset = 0x200 */
+    if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+        return -1;
+
+    if ((p_name = strstr(desc,"parentFileNameHint")) != 0) {
+        char *end_name;
+        struct stat file_buf;
+
+        p_name += sizeof("parentFileNameHint") + 1;
+        if ((end_name = strchr(p_name,'\"')) == 0)
+            return -1;
+                
+        strncpy(s->hd->backing_file, p_name, end_name - p_name);
+        if (stat(s->hd->backing_file, &file_buf) != 0) {
+            path_combine(parent_img_name, sizeof(parent_img_name),
+                         filename, s->hd->backing_file);
+        } else {
+            strcpy(parent_img_name, s->hd->backing_file);
+        }
+
+        s->hd->backing_hd = bdrv_new("");
+        if (!s->hd->backing_hd) {
+            failure:
+            bdrv_close(s->hd);
+            return -1;
+        }
+        if (bdrv_open(s->hd->backing_hd, parent_img_name, 0) < 0)
+            goto failure;
+    }
+
+    return 0;
+}
+
 static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVVmdkState *s = bs->opaque;
-    int fd, i;
     uint32_t magic;
-    int l1_size;
+    int l1_size, i, ret;
 
-    fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
-    if (fd < 0) {
-        fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
-        if (fd < 0)
-            return -1;
-        bs->read_only = 1;
-    }
-    if (read(fd, &magic, sizeof(magic)) != sizeof(magic))
+    ret = bdrv_file_open(&s->hd, filename, flags);
+    if (ret < 0)
+        return ret;
+    if (bdrv_pread(s->hd, 0, &magic, sizeof(magic)) != sizeof(magic))
         goto fail;
+
     magic = be32_to_cpu(magic);
     if (magic == VMDK3_MAGIC) {
         VMDK3Header header;
-        if (read(fd, &header, sizeof(header)) != 
-            sizeof(header))
+
+        if (bdrv_pread(s->hd, sizeof(magic), &header, sizeof(header)) != sizeof(header))
             goto fail;
         s->cluster_sectors = le32_to_cpu(header.granularity);
         s->l2_size = 1 << 9;
@@ -120,8 +373,8 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
         s->l1_entry_sectors = s->l2_size * s->cluster_sectors;
     } else if (magic == VMDK4_MAGIC) {
         VMDK4Header header;
-        
-        if (read(fd, &header, sizeof(header)) != sizeof(header))
+
+        if (bdrv_pread(s->hd, sizeof(magic), &header, sizeof(header)) != sizeof(header))
             goto fail;
         bs->total_sectors = le64_to_cpu(header.capacity);
         s->cluster_sectors = le64_to_cpu(header.granularity);
@@ -133,17 +386,22 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
             / s->l1_entry_sectors;
         s->l1_table_offset = le64_to_cpu(header.rgd_offset) << 9;
         s->l1_backup_table_offset = le64_to_cpu(header.gd_offset) << 9;
+
+        // try to open parent images, if exist
+        if (vmdk_parent_open(bs, filename) != 0)
+            goto fail;
+        // write the CID once after the image creation
+        s->parent_cid = vmdk_read_cid(bs,1);
     } else {
         goto fail;
     }
+
     /* read the L1 table */
     l1_size = s->l1_size * sizeof(uint32_t);
     s->l1_table = qemu_malloc(l1_size);
     if (!s->l1_table)
         goto fail;
-    if (lseek(fd, s->l1_table_offset, SEEK_SET) == -1)
-        goto fail;
-    if (read(fd, s->l1_table, l1_size) != l1_size)
+    if (bdrv_pread(s->hd, s->l1_table_offset, s->l1_table, l1_size) != l1_size)
         goto fail;
     for(i = 0; i < s->l1_size; i++) {
         le32_to_cpus(&s->l1_table[i]);
@@ -153,9 +411,7 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
         s->l1_backup_table = qemu_malloc(l1_size);
         if (!s->l1_backup_table)
             goto fail;
-        if (lseek(fd, s->l1_backup_table_offset, SEEK_SET) == -1)
-            goto fail;
-        if (read(fd, s->l1_backup_table, l1_size) != l1_size)
+        if (bdrv_pread(s->hd, s->l1_backup_table_offset, s->l1_backup_table, l1_size) != l1_size)
             goto fail;
         for(i = 0; i < s->l1_size; i++) {
             le32_to_cpus(&s->l1_backup_table[i]);
@@ -165,14 +421,41 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     s->l2_cache = qemu_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint32_t));
     if (!s->l2_cache)
         goto fail;
-    s->fd = fd;
     return 0;
  fail:
     qemu_free(s->l1_backup_table);
     qemu_free(s->l1_table);
     qemu_free(s->l2_cache);
-    close(fd);
+    bdrv_delete(s->hd);
     return -1;
+}
+
+static uint64_t get_cluster_offset(BlockDriverState *bs, uint64_t offset, int allocate);
+
+static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
+                             uint64_t offset, int allocate)
+{
+    uint64_t parent_cluster_offset;
+    BDRVVmdkState *s = bs->opaque;
+    uint8_t  whole_grain[s->cluster_sectors*512];        // 128 sectors * 512 bytes each = grain size 64KB
+
+    // we will be here if it's first write on non-exist grain(cluster).
+    // try to read from parent image, if exist
+    if (s->hd->backing_hd) {
+        BDRVVmdkState *ps = s->hd->backing_hd->opaque;
+
+        if (!vmdk_is_cid_valid(bs))
+            return -1;
+        parent_cluster_offset = get_cluster_offset(s->hd->backing_hd, offset, allocate);
+        if (bdrv_pread(ps->hd, parent_cluster_offset, whole_grain, ps->cluster_sectors*512) != 
+                                                                            ps->cluster_sectors*512)
+            return -1;
+
+        if (bdrv_pwrite(s->hd, cluster_offset << 9, whole_grain, sizeof(whole_grain)) != 
+                                                                            sizeof(whole_grain))
+            return -1;
+    }
+    return 0;
 }
 
 static uint64_t get_cluster_offset(BlockDriverState *bs,
@@ -212,34 +495,41 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         }
     }
     l2_table = s->l2_cache + (min_index * s->l2_size);
-    lseek(s->fd, (int64_t)l2_offset * 512, SEEK_SET);
-    if (read(s->fd, l2_table, s->l2_size * sizeof(uint32_t)) != 
-        s->l2_size * sizeof(uint32_t))
+    if (bdrv_pread(s->hd, (int64_t)l2_offset * 512, l2_table, s->l2_size * sizeof(uint32_t)) != 
+                                                                        s->l2_size * sizeof(uint32_t))
         return 0;
+
     s->l2_cache_offsets[min_index] = l2_offset;
     s->l2_cache_counts[min_index] = 1;
  found:
     l2_index = ((offset >> 9) / s->cluster_sectors) % s->l2_size;
     cluster_offset = le32_to_cpu(l2_table[l2_index]);
     if (!cluster_offset) {
+        struct stat file_buf;
+
         if (!allocate)
             return 0;
-        cluster_offset = lseek(s->fd, 0, SEEK_END);
-        ftruncate(s->fd, cluster_offset + (s->cluster_sectors << 9));
+        stat(s->hd->filename, &file_buf);
+        cluster_offset = file_buf.st_size;
+        bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
+
         cluster_offset >>= 9;
         /* update L2 table */
         tmp = cpu_to_le32(cluster_offset);
         l2_table[l2_index] = tmp;
-        lseek(s->fd, ((int64_t)l2_offset * 512) + (l2_index * sizeof(tmp)), SEEK_SET);
-        if (write(s->fd, &tmp, sizeof(tmp)) != sizeof(tmp))
+        if (bdrv_pwrite(s->hd, ((int64_t)l2_offset * 512) + (l2_index * sizeof(tmp)), 
+                        &tmp, sizeof(tmp)) != sizeof(tmp))
             return 0;
         /* update backup L2 table */
         if (s->l1_backup_table_offset != 0) {
             l2_offset = s->l1_backup_table[l1_index];
-            lseek(s->fd, ((int64_t)l2_offset * 512) + (l2_index * sizeof(tmp)), SEEK_SET);
-            if (write(s->fd, &tmp, sizeof(tmp)) != sizeof(tmp))
+            if (bdrv_pwrite(s->hd, ((int64_t)l2_offset * 512) + (l2_index * sizeof(tmp)), 
+                            &tmp, sizeof(tmp)) != sizeof(tmp))
                 return 0;
         }
+
+        if (get_whole_cluster(bs, cluster_offset, offset, allocate) == -1)
+            return 0;
     }
     cluster_offset <<= 9;
     return cluster_offset;
@@ -265,9 +555,9 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVVmdkState *s = bs->opaque;
-    int ret, index_in_cluster, n;
+    int index_in_cluster, n, ret;
     uint64_t cluster_offset;
-    
+
     while (nb_sectors > 0) {
         cluster_offset = get_cluster_offset(bs, sector_num << 9, 0);
         index_in_cluster = sector_num % s->cluster_sectors;
@@ -275,11 +565,18 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
         if (n > nb_sectors)
             n = nb_sectors;
         if (!cluster_offset) {
-            memset(buf, 0, 512 * n);
+            // try to read from parent image, if exist
+            if (s->hd->backing_hd) {
+                if (!vmdk_is_cid_valid(bs))
+                    return -1;
+                ret = bdrv_read(s->hd->backing_hd, sector_num, buf, n);
+                if (ret < 0)
+                    return -1;
+            } else {
+                memset(buf, 0, 512 * n);
+            }
         } else {
-            lseek(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
-            ret = read(s->fd, buf, n * 512);
-            if (ret != n * 512) 
+            if(bdrv_pread(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
                 return -1;
         }
         nb_sectors -= n;
@@ -293,8 +590,9 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
     BDRVVmdkState *s = bs->opaque;
-    int ret, index_in_cluster, n;
+    int index_in_cluster, n;
     uint64_t cluster_offset;
+    static int cid_update = 0;
 
     while (nb_sectors > 0) {
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
@@ -304,13 +602,17 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         cluster_offset = get_cluster_offset(bs, sector_num << 9, 1);
         if (!cluster_offset)
             return -1;
-        lseek(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
-        ret = write(s->fd, buf, n * 512);
-        if (ret != n * 512)
+        if (bdrv_pwrite(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
             return -1;
         nb_sectors -= n;
         sector_num += n;
         buf += n * 512;
+
+        // update CID on the first write every time the virtual disk is opened
+        if (!cid_update) {
+            vmdk_write_cid(bs, time(NULL));
+            cid_update++;
+        }
     }
     return 0;
 }
@@ -334,7 +636,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
         "# The Disk Data Base \n"
         "#DDB\n"
         "\n"
-        "ddb.virtualHWVersion = \"3\"\n"
+        "ddb.virtualHWVersion = \"4\"\n"
         "ddb.geometry.cylinders = \"%lu\"\n"
         "ddb.geometry.heads = \"16\"\n"
         "ddb.geometry.sectors = \"63\"\n"
@@ -343,6 +645,9 @@ static int vmdk_create(const char *filename, int64_t total_size,
     const char *real_filename, *temp_str;
 
     /* XXX: add support for backing file */
+    if (backing_file) {
+        return vmdk_snapshot_create(filename, backing_file);
+    }
 
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
               0644);
@@ -421,15 +726,18 @@ static int vmdk_create(const char *filename, int64_t total_size,
 static void vmdk_close(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
+
     qemu_free(s->l1_table);
     qemu_free(s->l2_cache);
-    close(s->fd);
+    bdrv_delete(s->hd);
+    // try to close parent image, if exist
+    vmdk_parent_close(s->hd);
 }
 
 static void vmdk_flush(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
-    fsync(s->fd);
+    bdrv_flush(s->hd);
 }
 
 BlockDriver bdrv_vmdk = {

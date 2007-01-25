@@ -2577,6 +2577,55 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
+static void piix3_reset(PCIIDEState *d)
+{
+    uint8_t *pci_conf = d->dev.config;
+
+    pci_conf[0x04] = 0x00;
+    pci_conf[0x05] = 0x00;
+    pci_conf[0x06] = 0x80; /* FBC */
+    pci_conf[0x07] = 0x02; // PCI_status_devsel_medium
+    pci_conf[0x20] = 0x01; /* BMIBA: 20-23h */
+}
+
+void pci_piix_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
+{
+    PCIIDEState *d;
+    uint8_t *pci_conf;
+    
+    /* register a function 1 of PIIX */
+    d = (PCIIDEState *)pci_register_device(bus, "PIIX IDE", 
+                                           sizeof(PCIIDEState),
+                                           devfn,
+                                           NULL, NULL);
+    d->type = IDE_TYPE_PIIX3;
+
+    pci_conf = d->dev.config;
+    pci_conf[0x00] = 0x86; // Intel
+    pci_conf[0x01] = 0x80;
+    pci_conf[0x02] = 0x30;
+    pci_conf[0x03] = 0x12;
+    pci_conf[0x08] = 0x02; // Step A1
+    pci_conf[0x09] = 0x80; // legacy ATA mode
+    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
+    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_conf[0x0e] = 0x00; // header_type
+
+    piix3_reset(d);
+
+    pci_register_io_region((PCIDevice *)d, 4, 0x10, 
+                           PCI_ADDRESS_SPACE_IO, bmdma_map);
+
+    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1],
+              pic_set_irq_new, isa_pic, 14);
+    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3],
+              pic_set_irq_new, isa_pic, 15);
+    ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
+    ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
+
+    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
+}
+
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
 void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
@@ -2600,6 +2649,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
     pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
+
+    piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10, 
                            PCI_ADDRESS_SPACE_IO, bmdma_map);

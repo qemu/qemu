@@ -915,6 +915,9 @@ void cocoa_display_init(DisplayState *ds, int full_screen);
 /* vnc.c */
 void vnc_display_init(DisplayState *ds, const char *display);
 
+/* x_keymap.c */
+extern uint8_t _translate_keycode(const int key);
+
 /* ide.c */
 #define MAX_DISKS 4
 

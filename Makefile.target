@@ -437,7 +437,7 @@ ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 
 endif
 ifdef CONFIG_SDL
-VL_OBJS+=sdl.o
+VL_OBJS+=sdl.o x_keymap.o
 endif
 VL_OBJS+=vnc.o
 ifdef CONFIG_COCOA

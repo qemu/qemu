@@ -16,7 +16,7 @@
 #else
 #define BIOS_FILENAME "mipsel_bios.bin"
 #endif
-//#define BIOS_FILENAME "system.bin"
+
 #ifdef MIPS_HAS_MIPS64
 #define INITRD_LOAD_ADDR (int64_t)(int32_t)0x80800000
 #else
@@ -119,8 +119,8 @@ void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
     }
 
-    *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-    *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+    *(int32_t *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+    *(int32_t *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -170,7 +170,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
-	cpu_register_physical_memory((uint32_t)(0x1fc00000),
+	cpu_register_physical_memory(0x1fc00000,
 				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
     } else {
         /* not fatal */

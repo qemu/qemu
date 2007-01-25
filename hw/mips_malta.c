@@ -25,16 +25,21 @@
 #include "vl.h"
 #include "pflash.h"
 
-#define BIOS_FILENAME           "mips_bios.bin"
-#ifdef MIPS_HAS_MIPS64
-#define INITRD_LOAD_ADDR 	(uint64_t)0x80800000
-#define ENVP_ADDR        	(uint64_t)0x80002000
+#ifdef TARGET_WORDS_BIGENDIAN
+#define BIOS_FILENAME "mips_bios.bin"
 #else
-#define INITRD_LOAD_ADDR 	(uint32_t)0x80800000
-#define ENVP_ADDR        	(uint32_t)0x80002000
+#define BIOS_FILENAME "mipsel_bios.bin"
 #endif
 
-#define VIRT_TO_PHYS_ADDEND 	(-((uint64_t)(uint32_t)0x80000000))
+#ifdef MIPS_HAS_MIPS64
+#define INITRD_LOAD_ADDR 	(int64_t)0x80800000
+#define ENVP_ADDR        	(int64_t)0x80002000
+#else
+#define INITRD_LOAD_ADDR 	(int32_t)0x80800000
+#define ENVP_ADDR        	(int32_t)0x80002000
+#endif
+
+#define VIRT_TO_PHYS_ADDEND 	(-((int64_t)(int32_t)0x80000000))
 
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
@@ -298,7 +303,8 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     default:
 #if 0
-        printf ("malta_fpga_read: Bad register offset 0x%x\n", (int)addr);
+        printf ("malta_fpga_read: Bad register offset 0x" TLSZ "\n",
+		addr);
 #endif
         break;
     }
@@ -385,7 +391,8 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     default:
 #if 0
-        printf ("malta_fpga_write: Bad register offset 0x%x\n", (int)addr);
+        printf ("malta_fpga_write: Bad register offset 0x" TLSZ "\n",
+		addr);
 #endif
         break;
     }
@@ -610,7 +617,7 @@ static int64_t load_kernel (CPUState *env)
     /* Store command line.  */
     prom_set(index++, env->kernel_filename);
     if (initrd_size > 0)
-        prom_set(index++, "rd_start=0x%08x rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
+        prom_set(index++, "rd_start=0x" TLSZ " rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
     else
         prom_set(index++, env->kernel_cmdline);
 
