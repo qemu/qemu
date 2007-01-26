@@ -45,9 +45,6 @@
 #define O_BINARY 0
 #endif
 
-#ifdef __sun__
-#define ENOMEDIUM 4097
-#endif
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENODEV
 #endif
