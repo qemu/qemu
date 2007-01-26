@@ -35,10 +35,6 @@
 #define SECTOR_BITS 9
 #define SECTOR_SIZE (1 << SECTOR_BITS)
 
-#ifndef ENOMEDIUM
-#define ENOMEDIUM ENODEV
-#endif
-
 typedef struct BlockDriverAIOCBSync {
     BlockDriverAIOCB common;
     QEMUBH *bh;

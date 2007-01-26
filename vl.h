@@ -48,6 +48,9 @@
 #ifdef __sun__
 #define ENOMEDIUM 4097
 #endif
+#ifndef ENOMEDIUM
+#define ENOMEDIUM ENODEV
+#endif
 
 #ifdef _WIN32
 #include <windows.h>
