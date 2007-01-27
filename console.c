@@ -132,10 +132,7 @@ struct TextConsole {
     int esc_params[MAX_ESC_PARAMS];
     int nb_esc_params;
 
-    /* kbd read handler */
-    IOCanRWHandler *fd_can_read; 
-    IOReadHandler *fd_read;
-    void *fd_opaque;
+    CharDriverState *chr;
     /* fifo for key pressed */
     QEMUFIFO out_fifo;
     uint8_t out_fifo_buf[16];
@@ -1021,16 +1018,6 @@ static int console_puts(CharDriverState *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static void console_chr_add_read_handler(CharDriverState *chr, 
-                                         IOCanRWHandler *fd_can_read, 
-                                         IOReadHandler *fd_read, void *opaque)
-{
-    TextConsole *s = chr->opaque;
-    s->fd_can_read = fd_can_read;
-    s->fd_read = fd_read;
-    s->fd_opaque = opaque;
-}
-
 static void console_send_event(CharDriverState *chr, int event)
 {
     TextConsole *s = chr->opaque;
@@ -1052,14 +1039,14 @@ static void kbd_send_chars(void *opaque)
     int len;
     uint8_t buf[16];
     
-    len = s->fd_can_read(s->fd_opaque);
+    len = qemu_chr_can_read(s->chr);
     if (len > s->out_fifo.count)
         len = s->out_fifo.count;
     if (len > 0) {
         if (len > sizeof(buf))
             len = sizeof(buf);
         qemu_fifo_read(&s->out_fifo, buf, len);
-        s->fd_read(s->fd_opaque, buf, len);
+        qemu_chr_read(s->chr, buf, len);
     }
     /* characters are pending: we send them a bit later (XXX:
        horrible, should change char device API) */
@@ -1110,7 +1097,7 @@ void kbd_put_keysym(int keysym)
         } else {
                 *q++ = keysym;
         }
-        if (s->fd_read) {
+        if (s->chr->chr_read) {
             qemu_fifo_write(&s->out_fifo, buf, q - buf);
             kbd_send_chars(s);
         }
@@ -1186,9 +1173,9 @@ CharDriverState *text_console_init(DisplayState *ds)
     }
     chr->opaque = s;
     chr->chr_write = console_puts;
-    chr->chr_add_read_handler = console_chr_add_read_handler;
     chr->chr_send_event = console_send_event;
 
+    s->chr = chr;
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
     s->kbd_timer = qemu_new_timer(rt_clock, kbd_send_chars, s);
