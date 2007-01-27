@@ -40,6 +40,13 @@ prepare_next_test() {
 fill_screen
 test_title "screen filled with x"
 
+prepare_next_test "cursor line 1"
+echo -ne "\e[1;${COLUMNS}H*"
+sleep 5
+prepare_next_test "cursor line $LINES"
+echo -ne "\e[${LINES};${COLUMNS}H*"
+sleep 5
+
 prepare_next_test "cursor position"
 echo -ne "\e[3;1Htext at row 3 column 1"
 echo -ne "\e[4;6Htext at row 4 column 6"
@@ -74,14 +81,14 @@ echo -ne "\e[47mwhite\e[m "
 
 prepare_next_test "erase line"
 echo -ne "\e[6;10Herase to end of line\e[0K"
-echo -ne "\e[7;10H\e[1Kerase from beginning of line"
+echo -ne "\e[7;10Herase from beginning of line\e[7;9H\e[1K"
 echo -ne "\e[8;10H\e[2Kerase entire line"
 
 prepare_next_test "erase screen"
 echo -ne "\e[6;10Herase to end of screen\e[0J"
 
 prepare_next_test "erase screen"
-echo -ne "\e[6;10H\e[1Jerase from beginning of screen"
+echo -ne "\e[6;10Herase from beginning of screen\e[6;9H\e[1J"
 
 prepare_next_test "erase screen"
 echo -ne "\e[6;10H\e[2Jerase entire screen"
