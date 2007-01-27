@@ -6634,6 +6634,9 @@ int main(int argc, char **argv)
             const QEMUOption *popt;
 
             optind++;
+            /* Treat --foo the same as -foo.  */
+            if (r[1] == '-')
+                r++;
             popt = qemu_options;
             for(;;) {
                 if (!popt->name) {
