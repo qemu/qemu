@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <assert.h>     /* assert */
 #include "vl.h"
 
 //#define DEBUG_CONSOLE
@@ -417,9 +416,6 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     console_print_text_attributes(t_attrib, ch);
 #endif
 
-    assert(x * FONT_WIDTH < ds->width);
-    assert(y * FONT_HEIGHT < ds->height);
-
     if (t_attrib->invers) {
         bgcol = color_table[t_attrib->bold][t_attrib->fgcol];
         fgcol = color_table[t_attrib->bold][t_attrib->bgcol];
@@ -540,21 +536,24 @@ static void console_show_cursor(TextConsole *s, int show)
     int y, y1;
 
     if (s == active_console) {
+        int x = s->x;
+        if (x >= s->width) {
+            x = s->width - 1;
+        }
         y1 = (s->y_base + s->y) % s->total_height;
         y = y1 - s->y_displayed;
         if (y < 0)
             y += s->total_height;
-        if (s->x < s->width && y < s->height) {
-            c = &s->cells[y1 * s->width + s->x];
+        if (y < s->height) {
+            c = &s->cells[y1 * s->width + x];
             if (show) {
                 TextAttributes t_attrib = s->t_attrib_default;
                 t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
-                vga_putcharxy(s->ds, s->x, y, c->ch, &t_attrib);
+                vga_putcharxy(s->ds, x, y, c->ch, &t_attrib);
             } else {
-                vga_putcharxy(s->ds, s->x, y, c->ch, 
-                              &(c->t_attrib));
+                vga_putcharxy(s->ds, x, y, c->ch, &(c->t_attrib));
             }
-            dpy_update(s->ds, s->x * FONT_WIDTH, y * FONT_HEIGHT, 
+            dpy_update(s->ds, x * FONT_WIDTH, y * FONT_HEIGHT, 
                        FONT_WIDTH, FONT_HEIGHT);
         }
     }
@@ -803,8 +802,10 @@ static void console_putchar(TextConsole *s, int ch)
             s->state = TTY_STATE_ESC;
             break;
         default:
-            if (s->x >= s->width - 1) {
-                break;
+            if (s->x >= s->width) {
+                /* line wrap */
+                s->x = 0;
+                console_put_lf(s);
             }
             y1 = (s->y_base + s->y) % s->total_height;
             c = &s->cells[y1 * s->width + s->x];
@@ -812,12 +813,6 @@ static void console_putchar(TextConsole *s, int ch)
             c->t_attrib = s->t_attrib;
             update_xy(s, s->x, s->y);
             s->x++;
-#if 0 /* line wrap disabled */
-            if (s->x >= s->width) {
-                s->x = 0;
-                console_put_lf(s);
-            }
-#endif
             break;
         }
         break;
