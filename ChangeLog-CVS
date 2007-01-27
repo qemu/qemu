@@ -1,3 +1,13 @@
+2007-01-26 18:18  ths
+
+	* vl.h: ENODEV works also for __sun__, the magic number 4097
+	  stemmed from the windows support.
+
+2007-01-26 16:37  ths
+
+	* block.c, vl.h: Define ENOMEDIUM to match ENODEV if it isn't
+	  available.
+
 2007-01-24 23:56  ths
 
 	* Makefile: Make the tarball's VERSION part overridable from make

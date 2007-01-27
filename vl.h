@@ -45,8 +45,8 @@
 #define O_BINARY 0
 #endif
 
-#ifdef __sun__
-#define ENOMEDIUM 4097
+#ifndef ENOMEDIUM
+#define ENOMEDIUM ENODEV
 #endif
 
 #ifdef _WIN32
