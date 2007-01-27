@@ -6240,6 +6240,7 @@ typedef struct QEMUOption {
 
 const QEMUOption qemu_options[] = {
     { "h", 0, QEMU_OPTION_h },
+    { "help", 0, QEMU_OPTION_h },
 
     { "M", HAS_ARG, QEMU_OPTION_M },
     { "fda", HAS_ARG, QEMU_OPTION_fda },
