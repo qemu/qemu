@@ -2497,6 +2497,12 @@ static void tcp_chr_telnet_init(int fd)
     send(fd, (char *)buf, 3, 0);
 }
 
+static void socket_set_nodelay(int fd)
+{
+    int val = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
+}
+
 static void tcp_chr_accept(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2530,6 +2536,8 @@ static void tcp_chr_accept(void *opaque)
         }
     }
     socket_set_nonblock(fd);
+    if (s->do_nodelay)
+        socket_set_nodelay(fd);
     s->fd = fd;
     qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
     tcp_chr_connect(chr);
@@ -2554,6 +2562,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     int fd = -1, ret, err, val;
     int is_listen = 0;
     int is_waitconnect = 1;
+    int do_nodelay = 0;
     const char *ptr;
     struct sockaddr_in saddr;
 #ifndef _WIN32
@@ -2584,6 +2593,8 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             is_listen = 1;
         } else if (!strncmp(ptr,"nowait",6)) {
             is_waitconnect = 0;
+        } else if (!strncmp(ptr,"nodelay",6)) {
+            do_nodelay = 1;
         } else {
             printf("Unknown option: %s\n", ptr);
             goto fail;
@@ -2616,6 +2627,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     s->fd = -1;
     s->listen_fd = -1;
     s->is_unix = is_unix;
+    s->do_nodelay = do_nodelay && !is_unix;
 
     chr->opaque = s;
     chr->chr_write = tcp_chr_write;
@@ -2665,6 +2677,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             }
         }
         s->fd = fd;
+        socket_set_nodelay(fd);
         if (s->connected)
             tcp_chr_connect(chr);
         else
