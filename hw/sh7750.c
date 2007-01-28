@@ -299,9 +299,8 @@ static void init_serial1(SH7750State * s, int serial_nb)
     }
 
     s->serial1 = chr;
-    qemu_chr_add_read_handler(chr, serial1_can_receive,
-			      serial1_receive, s);
-    qemu_chr_add_event_handler(chr, serial1_event);
+    qemu_chr_add_handlers(chr, serial1_can_receive,
+			  serial1_receive, serial1_event, s);
 }
 
 /**********************************************************************
@@ -415,9 +414,8 @@ static void init_serial2(SH7750State * s, int serial_nb)
     }
 
     s->serial2 = chr;
-    qemu_chr_add_read_handler(chr, serial2_can_receive,
-			      serial2_receive, s);
-    qemu_chr_add_event_handler(chr, serial2_event);
+    qemu_chr_add_handlers(chr, serial2_can_receive,
+			  serial2_receive, serial1_event, s);
 }
 
 static void init_serial_ports(SH7750State * s)

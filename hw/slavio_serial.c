@@ -565,8 +565,8 @@ SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDr
 	s->chn[i].chn = 1 - i;
 	s->chn[i].type = ser;
 	if (s->chn[i].chr) {
-	    qemu_chr_add_read_handler(s->chn[i].chr, serial_can_receive, serial_receive1, &s->chn[i]);
-	    qemu_chr_add_event_handler(s->chn[i].chr, serial_event);
+	    qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
+                                  serial_receive1, serial_event, &s->chn[i]);
 	}
     }
     s->chn[0].otherchn = &s->chn[1];

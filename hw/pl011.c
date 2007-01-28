@@ -243,8 +243,8 @@ void pl011_init(uint32_t base, void *pic, int irq,
     s->cr = 0x300;
     s->flags = 0x90;
     if (chr){ 
-        qemu_chr_add_read_handler(chr, pl011_can_recieve, pl011_recieve, s);
-        qemu_chr_add_event_handler(chr, pl011_event);
+        qemu_chr_add_handlers(chr, pl011_can_recieve, pl011_recieve,
+                              pl011_event, s);
     }
     /* ??? Save/restore.  */
 }

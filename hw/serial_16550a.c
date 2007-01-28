@@ -664,7 +664,7 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
     register_ioport_write(base, 8 << it_shift, 1, serial_ioport_write, s);
     register_ioport_read(base, 8 << it_shift, 1, serial_ioport_read, s);
     s->chr = chr;
-    qemu_chr_add_read_handler(chr, serial_can_receive1, serial_receive1, s);
-    qemu_chr_add_event_handler(chr, serial_event);
+    qemu_chr_add_handlers(chr, serial_can_receive1, serial_receive1,
+                          serial_event, s);
     return s;
 }

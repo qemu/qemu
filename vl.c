@@ -1120,11 +1120,17 @@ void quit_timers(void)
 /***********************************************************/
 /* character device */
 
+static void qemu_chr_event(CharDriverState *s, int event)
+{
+    if (!s->chr_event)
+        return;
+    s->chr_event(s->handler_opaque, event);
+}
+
 static void qemu_chr_reset_bh(void *opaque)
 {
     CharDriverState *s = opaque;
-    if (s->chr_event)
-	s->chr_event(s, CHR_EVENT_RESET);
+    qemu_chr_event(s, CHR_EVENT_RESET);
     qemu_bh_delete(s->bh);
     s->bh = NULL;
 }
@@ -1149,6 +1155,19 @@ int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg)
     return s->chr_ioctl(s, cmd, arg);
 }
 
+int qemu_chr_can_read(CharDriverState *s)
+{
+    if (!s->chr_can_read)
+        return 0;
+    return s->chr_can_read(s->handler_opaque);
+}
+
+void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len)
+{
+    s->chr_read(s->handler_opaque, buf, len);
+}
+
+
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
 {
     char buf[4096];
@@ -1165,27 +1184,23 @@ void qemu_chr_send_event(CharDriverState *s, int event)
         s->chr_send_event(s, event);
 }
 
-void qemu_chr_add_read_handler(CharDriverState *s, 
-                               IOCanRWHandler *fd_can_read, 
-                               IOReadHandler *fd_read, void *opaque)
+void qemu_chr_add_handlers(CharDriverState *s, 
+                           IOCanRWHandler *fd_can_read, 
+                           IOReadHandler *fd_read,
+                           IOEventHandler *fd_event,
+                           void *opaque)
 {
-    s->chr_add_read_handler(s, fd_can_read, fd_read, opaque);
+    s->chr_can_read = fd_can_read;
+    s->chr_read = fd_read;
+    s->chr_event = fd_event;
+    s->handler_opaque = opaque;
+    if (s->chr_update_read_handler)
+        s->chr_update_read_handler(s);
 }
              
-void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event)
-{
-    s->chr_event = chr_event;
-}
-
 static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     return len;
-}
-
-static void null_chr_add_read_handler(CharDriverState *chr, 
-                                    IOCanRWHandler *fd_can_read, 
-                                    IOReadHandler *fd_read, void *opaque)
-{
 }
 
 static CharDriverState *qemu_chr_open_null(void)
@@ -1196,7 +1211,6 @@ static CharDriverState *qemu_chr_open_null(void)
     if (!chr)
         return NULL;
     chr->chr_write = null_chr_write;
-    chr->chr_add_read_handler = null_chr_add_read_handler;
     return chr;
 }
 
@@ -1288,9 +1302,6 @@ void socket_set_nonblock(int fd)
 
 typedef struct {
     int fd_in, fd_out;
-    IOCanRWHandler *fd_can_read; 
-    IOReadHandler *fd_read;
-    void *fd_opaque;
     int max_size;
 } FDCharDriver;
 
@@ -1310,7 +1321,7 @@ static int fd_chr_read_poll(void *opaque)
     CharDriverState *chr = opaque;
     FDCharDriver *s = chr->opaque;
 
-    s->max_size = s->fd_can_read(s->fd_opaque);
+    s->max_size = qemu_chr_can_read(chr);
     return s->max_size;
 }
 
@@ -1333,20 +1344,15 @@ static void fd_chr_read(void *opaque)
         return;
     }
     if (size > 0) {
-        s->fd_read(s->fd_opaque, buf, size);
+        qemu_chr_read(chr, buf, size);
     }
 }
 
-static void fd_chr_add_read_handler(CharDriverState *chr, 
-                                    IOCanRWHandler *fd_can_read, 
-                                    IOReadHandler *fd_read, void *opaque)
+static void fd_chr_update_read_handler(CharDriverState *chr)
 {
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in >= 0) {
-        s->fd_can_read = fd_can_read;
-        s->fd_read = fd_read;
-        s->fd_opaque = opaque;
         if (nographic && s->fd_in == 0) {
         } else {
             qemu_set_fd_handler2(s->fd_in, fd_chr_read_poll, 
@@ -1373,7 +1379,7 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     s->fd_out = fd_out;
     chr->opaque = s;
     chr->chr_write = fd_chr_write;
-    chr->chr_add_read_handler = fd_chr_add_read_handler;
+    chr->chr_update_read_handler = fd_chr_update_read_handler;
 
     qemu_chr_reset(chr);
 
@@ -1466,7 +1472,7 @@ static void stdio_received_byte(int ch)
 
                 chr = stdio_clients[client_index];
                 s = chr->opaque;
-                chr->chr_event(s->fd_opaque, CHR_EVENT_BREAK);
+                qemu_chr_event(chr, CHR_EVENT_BREAK);
             }
             break;
         case 'c':
@@ -1493,13 +1499,11 @@ static void stdio_received_byte(int ch)
         if (client_index < stdio_nb_clients) {
             uint8_t buf[1];
             CharDriverState *chr;
-            FDCharDriver *s;
             
             chr = stdio_clients[client_index];
-            s = chr->opaque;
-            if (s->fd_can_read(s->fd_opaque) > 0) {
+            if (qemu_chr_can_read(chr) > 0) {
                 buf[0] = ch;
-                s->fd_read(s->fd_opaque, buf, 1);
+                qemu_chr_read(chr, buf, 1);
             } else if (term_fifo_size == 0) {
                 term_fifo[term_fifo_size++] = ch;
             }
@@ -1510,14 +1514,12 @@ static void stdio_received_byte(int ch)
 static int stdio_read_poll(void *opaque)
 {
     CharDriverState *chr;
-    FDCharDriver *s;
 
     if (client_index < stdio_nb_clients) {
         chr = stdio_clients[client_index];
-        s = chr->opaque;
         /* try to flush the queue if needed */
-        if (term_fifo_size != 0 && s->fd_can_read(s->fd_opaque) > 0) {
-            s->fd_read(s->fd_opaque, term_fifo, 1);
+        if (term_fifo_size != 0 && qemu_chr_can_read(chr) > 0) {
+            qemu_chr_read(chr, term_fifo, 1);
             term_fifo_size = 0;
         }
         /* see if we can absorb more chars */
@@ -1856,7 +1858,6 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
     }
     chr->opaque = (void *)fd;
     chr->chr_write = null_chr_write;
-    chr->chr_add_read_handler = null_chr_add_read_handler;
     chr->chr_ioctl = pp_ioctl;
 
     qemu_chr_reset(chr);
@@ -1875,9 +1876,6 @@ static CharDriverState *qemu_chr_open_pty(void)
 
 #ifdef _WIN32
 typedef struct {
-    IOCanRWHandler *fd_can_read; 
-    IOReadHandler *fd_read;
-    void *win_opaque;
     int max_size;
     HANDLE hcom, hrecv, hsend;
     OVERLAPPED orecv, osend;
@@ -2021,10 +2019,10 @@ static int win_chr_write(CharDriverState *chr, const uint8_t *buf, int len1)
 
 static int win_chr_read_poll(WinCharState *s)
 {
-    s->max_size = s->fd_can_read(s->win_opaque);
+    s->max_size = qemu_chr_can_read(s->chr);
     return s->max_size;
 }
-            
+
 static void win_chr_readfile(WinCharState *s)
 {
     int ret, err;
@@ -2042,7 +2040,7 @@ static void win_chr_readfile(WinCharState *s)
     }
 
     if (size > 0) {
-        s->fd_read(s->win_opaque, buf, size);
+        qemu_chr_read(s->chr, buf, size);
     }
 }
 
@@ -2072,17 +2070,6 @@ static int win_chr_poll(void *opaque)
     return 0;
 }
 
-static void win_chr_add_read_handler(CharDriverState *chr, 
-                                    IOCanRWHandler *fd_can_read, 
-                                    IOReadHandler *fd_read, void *opaque)
-{
-    WinCharState *s = chr->opaque;
-
-    s->fd_can_read = fd_can_read;
-    s->fd_read = fd_read;
-    s->win_opaque = opaque;
-}
-
 static CharDriverState *qemu_chr_open_win(const char *filename)
 {
     CharDriverState *chr;
@@ -2098,7 +2085,6 @@ static CharDriverState *qemu_chr_open_win(const char *filename)
     }
     chr->opaque = s;
     chr->chr_write = win_chr_write;
-    chr->chr_add_read_handler = win_chr_add_read_handler;
     chr->chr_close = win_chr_close;
 
     if (win_chr_init(s, filename) < 0) {
@@ -2202,7 +2188,6 @@ static CharDriverState *qemu_chr_open_win_pipe(const char *filename)
     }
     chr->opaque = s;
     chr->chr_write = win_chr_write;
-    chr->chr_add_read_handler = win_chr_add_read_handler;
     chr->chr_close = win_chr_close;
     
     if (win_chr_pipe_init(s, filename) < 0) {
@@ -2230,7 +2215,6 @@ static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     s->hcom = fd_out;
     chr->opaque = s;
     chr->chr_write = win_chr_write;
-    chr->chr_add_read_handler = win_chr_add_read_handler;
     qemu_chr_reset(chr);
     return chr;
 }
@@ -2252,9 +2236,6 @@ static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 /* UDP Net console */
 
 typedef struct {
-    IOCanRWHandler *fd_can_read;
-    IOReadHandler *fd_read;
-    void *fd_opaque;
     int fd;
     struct sockaddr_in daddr;
     char buf[1024];
@@ -2276,15 +2257,15 @@ static int udp_chr_read_poll(void *opaque)
     CharDriverState *chr = opaque;
     NetCharDriver *s = chr->opaque;
 
-    s->max_size = s->fd_can_read(s->fd_opaque);
+    s->max_size = qemu_chr_can_read(chr);
 
     /* If there were any stray characters in the queue process them
      * first
      */
     while (s->max_size > 0 && s->bufptr < s->bufcnt) {
-        s->fd_read(s->fd_opaque, &s->buf[s->bufptr], 1);
+        qemu_chr_read(chr, &s->buf[s->bufptr], 1);
         s->bufptr++;
-        s->max_size = s->fd_can_read(s->fd_opaque);
+        s->max_size = qemu_chr_can_read(chr);
     }
     return s->max_size;
 }
@@ -2303,22 +2284,17 @@ static void udp_chr_read(void *opaque)
 
     s->bufptr = 0;
     while (s->max_size > 0 && s->bufptr < s->bufcnt) {
-        s->fd_read(s->fd_opaque, &s->buf[s->bufptr], 1);
+        qemu_chr_read(chr, &s->buf[s->bufptr], 1);
         s->bufptr++;
-        s->max_size = s->fd_can_read(s->fd_opaque);
+        s->max_size = qemu_chr_can_read(chr);
     }
 }
 
-static void udp_chr_add_read_handler(CharDriverState *chr,
-                                    IOCanRWHandler *fd_can_read,
-                                    IOReadHandler *fd_read, void *opaque)
+static void udp_chr_update_read_handler(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
 
     if (s->fd >= 0) {
-        s->fd_can_read = fd_can_read;
-        s->fd_read = fd_read;
-        s->fd_opaque = opaque;
         qemu_set_fd_handler2(s->fd, udp_chr_read_poll,
                              udp_chr_read, NULL, chr);
     }
@@ -2368,7 +2344,7 @@ static CharDriverState *qemu_chr_open_udp(const char *def)
     s->bufptr = 0;
     chr->opaque = s;
     chr->chr_write = udp_chr_write;
-    chr->chr_add_read_handler = udp_chr_add_read_handler;
+    chr->chr_update_read_handler = udp_chr_update_read_handler;
     return chr;
 
 return_err:
@@ -2385,13 +2361,11 @@ return_err:
 /* TCP Net console */
 
 typedef struct {
-    IOCanRWHandler *fd_can_read;
-    IOReadHandler *fd_read;
-    void *fd_opaque;
     int fd, listen_fd;
     int connected;
     int max_size;
     int do_telnetopt;
+    int do_nodelay;
     int is_unix;
 } TCPCharDriver;
 
@@ -2414,9 +2388,7 @@ static int tcp_chr_read_poll(void *opaque)
     TCPCharDriver *s = chr->opaque;
     if (!s->connected)
         return 0;
-    if (!s->fd_can_read)
-	return 0;
-    s->max_size = s->fd_can_read(s->fd_opaque);
+    s->max_size = qemu_chr_can_read(chr);
     return s->max_size;
 }
 
@@ -2449,7 +2421,7 @@ static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
             } else {
                 if ((unsigned char)buf[i] == IAC_BREAK && s->do_telnetopt == 2) {
                     /* Handle IAC break commands by sending a serial break */
-                    chr->chr_event(s->fd_opaque, CHR_EVENT_BREAK);
+                    qemu_chr_event(chr, CHR_EVENT_BREAK);
                     s->do_telnetopt++;
                 }
                 s->do_telnetopt++;
@@ -2496,19 +2468,8 @@ static void tcp_chr_read(void *opaque)
         if (s->do_telnetopt)
             tcp_chr_process_IAC_bytes(chr, s, buf, &size);
         if (size > 0)
-            s->fd_read(s->fd_opaque, buf, size);
+            qemu_chr_read(chr, buf, size);
     }
-}
-
-static void tcp_chr_add_read_handler(CharDriverState *chr,
-                                     IOCanRWHandler *fd_can_read,
-                                    IOReadHandler *fd_read, void *opaque)
-{
-    TCPCharDriver *s = chr->opaque;
-
-    s->fd_can_read = fd_can_read;
-    s->fd_read = fd_read;
-    s->fd_opaque = opaque;
 }
 
 static void tcp_chr_connect(void *opaque)
@@ -2535,6 +2496,12 @@ static void tcp_chr_telnet_init(int fd)
     send(fd, (char *)buf, 3, 0);
     IACSET(buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
     send(fd, (char *)buf, 3, 0);
+}
+
+static void socket_set_nodelay(int fd)
+{
+    int val = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
 }
 
 static void tcp_chr_accept(void *opaque)
@@ -2570,6 +2537,8 @@ static void tcp_chr_accept(void *opaque)
         }
     }
     socket_set_nonblock(fd);
+    if (s->do_nodelay)
+        socket_set_nodelay(fd);
     s->fd = fd;
     qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
     tcp_chr_connect(chr);
@@ -2594,6 +2563,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     int fd = -1, ret, err, val;
     int is_listen = 0;
     int is_waitconnect = 1;
+    int do_nodelay = 0;
     const char *ptr;
     struct sockaddr_in saddr;
 #ifndef _WIN32
@@ -2624,6 +2594,8 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             is_listen = 1;
         } else if (!strncmp(ptr,"nowait",6)) {
             is_waitconnect = 0;
+        } else if (!strncmp(ptr,"nodelay",6)) {
+            do_nodelay = 1;
         } else {
             printf("Unknown option: %s\n", ptr);
             goto fail;
@@ -2656,10 +2628,10 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     s->fd = -1;
     s->listen_fd = -1;
     s->is_unix = is_unix;
+    s->do_nodelay = do_nodelay && !is_unix;
 
     chr->opaque = s;
     chr->chr_write = tcp_chr_write;
-    chr->chr_add_read_handler = tcp_chr_add_read_handler;
     chr->chr_close = tcp_chr_close;
 
     if (is_listen) {
@@ -2706,6 +2678,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             }
         }
         s->fd = fd;
+        socket_set_nodelay(fd);
         if (s->connected)
             tcp_chr_connect(chr);
         else
@@ -6243,6 +6216,7 @@ typedef struct QEMUOption {
 
 const QEMUOption qemu_options[] = {
     { "h", 0, QEMU_OPTION_h },
+    { "help", 0, QEMU_OPTION_h },
 
     { "M", HAS_ARG, QEMU_OPTION_M },
     { "fda", HAS_ARG, QEMU_OPTION_fda },
@@ -6557,7 +6531,8 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
 int main(int argc, char **argv)
 {
 #ifdef CONFIG_GDBSTUB
-    int use_gdbstub, gdbstub_port;
+    int use_gdbstub;
+    char gdbstub_port_name[128];
 #endif
     int i, cdrom_index;
     int snapshot, linux_boot;
@@ -6633,7 +6608,7 @@ int main(int argc, char **argv)
     flash_size = FLASH_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
-    gdbstub_port = DEFAULT_GDBSTUB_PORT;
+    sprintf(gdbstub_port_name, "%d", DEFAULT_GDBSTUB_PORT);
 #endif
     snapshot = 0;
     nographic = 0;
@@ -6676,6 +6651,9 @@ int main(int argc, char **argv)
             const QEMUOption *popt;
 
             optind++;
+            /* Treat --foo the same as -foo.  */
+            if (r[1] == '-')
+                r++;
             popt = qemu_options;
             for(;;) {
                 if (!popt->name) {
@@ -6874,7 +6852,7 @@ int main(int argc, char **argv)
                 use_gdbstub = 1;
                 break;
             case QEMU_OPTION_p:
-                gdbstub_port = atoi(optarg);
+                pstrcpy(gdbstub_port_name, sizeof(gdbstub_port_name), optarg);
                 break;
 #endif
             case QEMU_OPTION_L:
@@ -7287,13 +7265,19 @@ int main(int argc, char **argv)
 
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
-        if (gdbserver_start(gdbstub_port) < 0) {
-            fprintf(stderr, "Could not open gdbserver socket on port %d\n", 
-                    gdbstub_port);
+        CharDriverState *chr;
+        int port;
+
+        port = atoi(gdbstub_port_name);
+        if (port != 0)
+            sprintf(gdbstub_port_name, "tcp::%d,nowait,nodelay,server", port);
+        chr = qemu_chr_open(gdbstub_port_name);
+        if (!chr) {
+            fprintf(stderr, "qemu: could not open gdbstub device '%s'\n",
+                    gdbstub_port_name);
             exit(1);
-        } else {
-            printf("Waiting gdb connection on port %d\n", gdbstub_port);
         }
+        gdbserver_start(chr);
     } else 
 #endif
     if (loadvm)

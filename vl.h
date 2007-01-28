@@ -84,7 +84,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #include "audio/audio.h"
 #include "cpu.h"
-#include "gdbstub.h"
 
 #endif /* !defined(QEMU_TOOL) */
 
@@ -298,11 +297,12 @@ typedef void IOEventHandler(void *opaque, int event);
 
 typedef struct CharDriverState {
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
-    void (*chr_add_read_handler)(struct CharDriverState *s, 
-                                 IOCanRWHandler *fd_can_read, 
-                                 IOReadHandler *fd_read, void *opaque);
+    void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     IOEventHandler *chr_event;
+    IOCanRWHandler *chr_can_read;
+    IOReadHandler *chr_read;
+    void *handler_opaque;
     void (*chr_send_event)(struct CharDriverState *chr, int event);
     void (*chr_close)(struct CharDriverState *chr);
     void *opaque;
@@ -313,12 +313,15 @@ CharDriverState *qemu_chr_open(const char *filename);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
 void qemu_chr_send_event(CharDriverState *s, int event);
-void qemu_chr_add_read_handler(CharDriverState *s, 
-                               IOCanRWHandler *fd_can_read, 
-                               IOReadHandler *fd_read, void *opaque);
-void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event);
+void qemu_chr_add_handlers(CharDriverState *s, 
+                           IOCanRWHandler *fd_can_read, 
+                           IOReadHandler *fd_read,
+                           IOEventHandler *fd_event,
+                           void *opaque);
 int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
 void qemu_chr_reset(CharDriverState *s);
+int qemu_chr_can_read(CharDriverState *s);
+void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 
 /* consoles */
 
@@ -1380,6 +1383,8 @@ int sh7750_register_io_device(struct SH7750State *s,
 			      sh7750_io_device * device);
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
+
+#include "gdbstub.h"
 
 #endif /* defined(QEMU_TOOL) */
 

@@ -1,3 +1,31 @@
+2007-01-28 04:10  pbrook
+
+	* arm-semi.c, gdbstub.c, gdbstub.h: GDB hosted syscalls.
+
+2007-01-28 02:53  pbrook
+
+	* gdbstub.c, gdbstub.h, qemu-doc.texi, vl.c, vl.h: Use standard
+	  character device interface for gdbstub.
+
+2007-01-28 01:10  pbrook
+
+	* qemu-doc.texi, vl.c: Add nodelay option for TCP character
+	  devices.
+
+2007-01-28 00:46  pbrook
+
+	* console.c, monitor.c, vl.c, vl.h, hw/pl011.c, hw/serial.c,
+	  hw/sh7750.c, hw/slavio_serial.c: Rearrange char event handlers to
+	  fix CHR_EVENT_RESET.
+
+2007-01-27 18:19  pbrook
+
+	* vl.c: Accept --foo as an alias for -foo.
+
+2007-01-27 18:11  pbrook
+
+	* vl.c: Accept -help.
+
 2007-01-26 18:18  ths
 
 	* vl.h: ENODEV works also for __sun__, the magic number 4097

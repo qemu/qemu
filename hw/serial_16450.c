@@ -441,8 +441,8 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     }
 
     s->chr = chr;
-    qemu_chr_add_read_handler(chr, serial_can_receive1, serial_receive1, s);
-    qemu_chr_add_event_handler(chr, serial_event);
+    qemu_chr_add_handlers(chr, serial_can_receive1, serial_receive1,
+                          serial_event, s);
     qemu_register_reset(serial_reset, s);
 
     return s;

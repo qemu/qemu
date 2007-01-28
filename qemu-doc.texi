@@ -576,13 +576,14 @@ localhost 5555
 @end table
 
 
-@item tcp:[host]:port[,server][,nowait]
+@item tcp:[host]:port[,server][,nowait][,nodelay]
 The TCP Net Console has two modes of operation.  It can send the serial
 I/O to a location or wait for a connection from a location.  By default
 the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
 the @var{server} option QEMU will wait for a client socket application
 to connect to the port before continuing, unless the @code{nowait}
-option was specified. If @var{host} is omitted, 0.0.0.0 is assumed. Only
+option was specified.  The @code{nodelay} option disables the Nagle buffering
+algoritm.  If @var{host} is omitted, 0.0.0.0 is assumed. Only
 one TCP connection at a time is accepted. You can use @code{telnet} to
 connect to the corresponding character device.
 @table @code
@@ -594,7 +595,7 @@ connect to the corresponding character device.
 -serial tcp:192.168.0.100:4444,server,nowait
 @end table
 
-@item telnet:host:port[,server][,nowait]
+@item telnet:host:port[,server][,nowait][,nodelay]
 The telnet protocol is used instead of raw tcp sockets.  The options
 work the same as if you had specified @code{-serial tcp}.  The
 difference is that the port acts like a telnet server or client using
@@ -630,7 +631,8 @@ non graphical mode.
 @item -s
 Wait gdb connection to port 1234 (@pxref{gdb_usage}). 
 @item -p port
-Change gdb connection port.
+Change gdb connection port.  @var{port} can be either a decimal number
+to specify a TCP port, or a host device (same devices as the serial port).
 @item -S
 Do not start CPU at startup (you must type 'c' in the monitor).
 @item -d             

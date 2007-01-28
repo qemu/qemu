@@ -61,7 +61,30 @@
 #define O_BINARY 0
 #endif
 
-int open_modeflags[12] = {
+#define GDB_O_RDONLY  0x000
+#define GDB_O_WRONLY  0x001
+#define GDB_O_RDWR    0x002
+#define GDB_O_APPEND  0x008
+#define GDB_O_CREAT   0x200
+#define GDB_O_TRUNC   0x400
+#define GDB_O_BINARY  0
+
+static int gdb_open_modeflags[12] = {
+    GDB_O_RDONLY,
+    GDB_O_RDONLY | GDB_O_BINARY,
+    GDB_O_RDWR,
+    GDB_O_RDWR | GDB_O_BINARY,
+    GDB_O_WRONLY | GDB_O_CREAT | GDB_O_TRUNC,
+    GDB_O_WRONLY | GDB_O_CREAT | GDB_O_TRUNC | GDB_O_BINARY,
+    GDB_O_RDWR | GDB_O_CREAT | GDB_O_TRUNC,
+    GDB_O_RDWR | GDB_O_CREAT | GDB_O_TRUNC | GDB_O_BINARY,
+    GDB_O_WRONLY | GDB_O_CREAT | GDB_O_APPEND,
+    GDB_O_WRONLY | GDB_O_CREAT | GDB_O_APPEND | GDB_O_BINARY,
+    GDB_O_RDWR | GDB_O_CREAT | GDB_O_APPEND,
+    GDB_O_RDWR | GDB_O_CREAT | GDB_O_APPEND | GDB_O_BINARY
+};
+
+static int open_modeflags[12] = {
     O_RDONLY,
     O_RDONLY | O_BINARY,
     O_RDWR,
@@ -142,6 +165,35 @@ static void softmmu_unlock_user(CPUState *env, void *p, target_ulong addr,
 #define unlock_user(s, args, len) softmmu_unlock_user(env, s, args, len)
 #endif
 
+static target_ulong arm_semi_syscall_len;
+
+static void arm_semi_cb(CPUState *env, target_ulong ret, target_ulong err)
+{
+#ifdef CONFIG_USER_ONLY
+    TaskState *ts = env->opaque;
+#endif
+    if (ret == (target_ulong)-1) {
+#ifdef CONFIG_USER_ONLY
+        ts->swi_errno = err;
+#endif
+        env->regs[0] = ret;
+    } else {
+        /* Fixup syscalls that use nonstardard return conventions.  */
+        switch (env->regs[0]) {
+        case SYS_WRITE:
+        case SYS_READ:
+            env->regs[0] = arm_semi_syscall_len - ret;
+            break;
+        case SYS_SEEK:
+            env->regs[0] = 0;
+            break;
+        default:
+            env->regs[0] = ret;
+            break;
+        }
+    }
+}
+
 #define ARG(n) tget32(args + (n) * 4)
 #define SET_ARG(n, val) tput32(args + (n) * 4,val)
 uint32_t do_arm_semihosting(CPUState *env)
@@ -170,52 +222,99 @@ uint32_t do_arm_semihosting(CPUState *env)
             else
                 return STDOUT_FILENO;
         }
-        ret = set_swi_errno(ts, open(s, open_modeflags[ARG(1)], 0644));
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "open,%s,%x,1a4", ARG(0), (int)ARG(2),
+                           gdb_open_modeflags[ARG(1)]);
+            return env->regs[0];
+        } else {
+            ret = set_swi_errno(ts, open(s, open_modeflags[ARG(1)], 0644));
+        }
         unlock_user(s, ARG(0), 0);
         return ret;
     case SYS_CLOSE:
-        return set_swi_errno(ts, close(ARG(0)));
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "close,%x", ARG(0));
+            return env->regs[0];
+        } else {
+            return set_swi_errno(ts, close(ARG(0)));
+        }
     case SYS_WRITEC:
         {
           char c = tget8(args);
           /* Write to debug console.  stderr is near enough.  */
-          return write(STDERR_FILENO, &c, 1);
+          if (use_gdb_syscalls()) {
+                gdb_do_syscall(arm_semi_cb, "write,2,%x,1", args);
+                return env->regs[0];
+          } else {
+                return write(STDERR_FILENO, &c, 1);
+          }
         }
     case SYS_WRITE0:
         s = lock_user_string(args);
-        ret = write(STDERR_FILENO, s, strlen(s));
+        len = strlen(s);
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "write,2,%x,%x\n", args, len);
+            ret = env->regs[0];
+        } else {
+            ret = write(STDERR_FILENO, s, len);
+        }
         unlock_user(s, args, 0);
         return ret;
     case SYS_WRITE:
         len = ARG(2);
-        s = lock_user(ARG(1), len, 1);
-        ret = set_swi_errno(ts, write(ARG(0), s, len));
-        unlock_user(s, ARG(1), 0);
-        if (ret == (uint32_t)-1)
-            return -1;
-        return ARG(2) - ret;
+        if (use_gdb_syscalls()) {
+            arm_semi_syscall_len = len;
+            gdb_do_syscall(arm_semi_cb, "write,%x,%x,%x", ARG(0), ARG(1), len);
+            return env->regs[0];
+        } else {
+            s = lock_user(ARG(1), len, 1);
+            ret = set_swi_errno(ts, write(ARG(0), s, len));
+            unlock_user(s, ARG(1), 0);
+            if (ret == (uint32_t)-1)
+                return -1;
+            return len - ret;
+        }
     case SYS_READ:
         len = ARG(2);
-        s = lock_user(ARG(1), len, 0);
-	do
-	  ret = set_swi_errno(ts, read(ARG(0), s, len));
-	while (ret == -1 && errno == EINTR);
-        unlock_user(s, ARG(1), len);
-        if (ret == (uint32_t)-1)
-            return -1;
-        return ARG(2) - ret;
+        if (use_gdb_syscalls()) {
+            arm_semi_syscall_len = len;
+            gdb_do_syscall(arm_semi_cb, "read,%x,%x,%x", ARG(0), ARG(1), len);
+            return env->regs[0];
+        } else {
+            s = lock_user(ARG(1), len, 0);
+            do
+              ret = set_swi_errno(ts, read(ARG(0), s, len));
+            while (ret == -1 && errno == EINTR);
+            unlock_user(s, ARG(1), len);
+            if (ret == (uint32_t)-1)
+                return -1;
+            return len - ret;
+        }
     case SYS_READC:
        /* XXX: Read from debug cosole. Not implemented.  */
         return 0;
     case SYS_ISTTY:
-        return isatty(ARG(0));
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "isatty,%x", ARG(0));
+            return env->regs[0];
+        } else {
+            return isatty(ARG(0));
+        }
     case SYS_SEEK:
-        ret = set_swi_errno(ts, lseek(ARG(0), ARG(1), SEEK_SET));
-	if (ret == (uint32_t)-1)
-	  return -1;
-	return 0;
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "fseek,%x,%x,0", ARG(0), ARG(1));
+            return env->regs[0];
+        } else {
+            ret = set_swi_errno(ts, lseek(ARG(0), ARG(1), SEEK_SET));
+            if (ret == (uint32_t)-1)
+              return -1;
+            return 0;
+        }
     case SYS_FLEN:
-        {
+        if (use_gdb_syscalls()) {
+            /* TODO: Use stat syscall.  */
+            return -1;
+        } else {
             struct stat buf;
             ret = set_swi_errno(ts, fstat(ARG(0), &buf));
             if (ret == (uint32_t)-1)
@@ -226,12 +325,21 @@ uint32_t do_arm_semihosting(CPUState *env)
         /* XXX: Not implemented.  */
         return -1;
     case SYS_REMOVE:
-        s = lock_user_string(ARG(0));
-        ret =  set_swi_errno(ts, remove(s));
-        unlock_user(s, ARG(0), 0);
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "unlink,%s", ARG(0), (int)ARG(1));
+            ret = env->regs[0];
+        } else {
+            s = lock_user_string(ARG(0));
+            ret =  set_swi_errno(ts, remove(s));
+            unlock_user(s, ARG(0), 0);
+        }
         return ret;
     case SYS_RENAME:
-        {
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "rename,%s,%s",
+                           ARG(0), (int)ARG(1), ARG(2), (int)ARG(3));
+            return env->regs[0];
+        } else {
             char *s2;
             s = lock_user_string(ARG(0));
             s2 = lock_user_string(ARG(2));
@@ -245,9 +353,14 @@ uint32_t do_arm_semihosting(CPUState *env)
     case SYS_TIME:
         return set_swi_errno(ts, time(NULL));
     case SYS_SYSTEM:
-        s = lock_user_string(ARG(0));
-        ret = set_swi_errno(ts, system(s));
-        unlock_user(s, ARG(0), 0);
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(arm_semi_cb, "system,%s", ARG(0), (int)ARG(1));
+            return env->regs[0];
+        } else {
+            s = lock_user_string(ARG(0));
+            ret = set_swi_errno(ts, system(s));
+            unlock_user(s, ARG(0), 0);
+        }
     case SYS_ERRNO:
 #ifdef CONFIG_USER_ONLY
         return ts->swi_errno;
