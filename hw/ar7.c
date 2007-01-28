@@ -74,12 +74,44 @@ struct IoState {
 };
 #endif
 
-/* Set flags to >0 to enable debug output. */
 #if 0
+
+/* Set flags to >0 to enable debug output. */
+static struct {
+  int CLOCK:1;
+  int CPMAC:1;
+  int EMIF:1;
+  int GPIO:1;
+  int INTC:1;
+  int MDIO:1;
+  int RESET:1;
+  int UART:1;
+  int VLYNQ:1;
+  int WDOG:1;
+  int OTHER:1;
+  int RXTX:1;
+} traceflags;
+
+#define CLOCK   traceflags.CLOCK
+#define CPMAC   traceflags.CPMAC
+#define EMIF    traceflags.EMIF
+#define GPIO    traceflags.GPIO
+#define INTC    traceflags.INTC
+#define MDIO    traceflags.MDIO
+#define RESET   traceflags.RESET
+#define UART    traceflags.UART
+#define VLYNQ   traceflags.VLYNQ
+#define WDOG    traceflags.WDOG
+#define OTHER   traceflags.OTHER
+#define RXTX    traceflags.RXTX
+
+#else
+
+#if 1
 #define CLOCK   0
 #define CPMAC   0
 #define EMIF    0
-#define GPIO    0
+#define GPIO    1
 #define INTC    0
 #define MDIO    0               /* polled, so very noisy */
 #define RESET   0
@@ -103,6 +135,8 @@ struct IoState {
 #define RXTX    1
 #endif
 
+#endif
+
 #define DEBUG_AR7
 
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
@@ -116,6 +150,7 @@ struct IoState {
 
 #define MISSING() logout("%s:%u missing, %s!!!\n", __FILE__, __LINE__, backtrace())
 #define UNEXPECTED() logout("%s:%u unexpected, %s!!!\n", __FILE__, __LINE__, backtrace())
+#define backtrace() mips_backtrace()
 
 #define BIT(n) (1 << (n))
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
@@ -324,7 +359,7 @@ static avalanche_t av = {
 /* Global variable avalanche can be used in debugger. */
 avalanche_t *avalanche = &av;
 
-static const char *backtrace(void)
+const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
@@ -1280,6 +1315,7 @@ static uint32_t ar7_gpio_read(unsigned offset)
     uint32_t value = reg_read(av.gpio, offset);
     if (offset == GPIO_IN && value == 0x00000800) {
         /* Do not log polling of reset button. */
+        TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
     } else {
         TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
     }
@@ -1288,19 +1324,39 @@ static uint32_t ar7_gpio_read(unsigned offset)
 
 static void ar7_gpio_write(unsigned offset, uint32_t value)
 {
+    TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
     reg_write(av.gpio, offset, value);
     if (offset <= GPIO_DIR) {
         unsigned index;
         uint32_t in = reg_read(av.gpio, GPIO_IN);
         uint32_t out = reg_read(av.gpio, GPIO_OUT);
         uint32_t dir = reg_read(av.gpio, GPIO_DIR);
+        uint32_t enable = reg_read(av.gpio, GPIO_ENABLE);
         char text[32];
+        for (index = 0; index < 32; index++) {
+            text[index] = (in & BIT(index)) ? '*' : '.';
+        }
+        qemu_chr_printf(av.gpio_display,
+                        "\e[5;1H%32.32s (in  0x%08x)",
+                        text, in);
         for (index = 0; index < 32; index++) {
             text[index] = (out & BIT(index)) ? '*' : '.';
         }
         qemu_chr_printf(av.gpio_display,
-                        "%32.32s (in=0x%08x out=0x%08x dir=0x%08x)\r",
-                        text, in, out, dir);
+                        "\e[6;1H%32.32s (out 0x%08x)",
+                        text, out);
+        for (index = 0; index < 32; index++) {
+            text[index] = (dir & BIT(index)) ? '*' : '.';
+        }
+        qemu_chr_printf(av.gpio_display,
+                        "\e[7;1H%32.32s (dir 0x%08x)",
+                        text, dir);
+        for (index = 0; index < 32; index++) {
+            text[index] = (enable & BIT(index)) ? '*' : '.';
+        }
+        qemu_chr_printf(av.gpio_display,
+                        "\e[8;1H%32.32s (ena 0x%08x)",
+                        text, enable);
     }
 }
 
@@ -3076,19 +3132,15 @@ static void mips_ar7_common_init (int ram_size,
             env->gpr[5] = K1(INITRD_LOAD_ADDR + i);
             arg0 = argv;
             *argv = (uint8_t *)K1(INITRD_LOAD_ADDR);
-            printf("arg = %s\n", address);
             for (i = 0; i < size;) {
                 uint8_t c = address[i++];
                 if (c == '\0') {
                     *++argv = (uint8_t *)K1(INITRD_LOAD_ADDR + i);
-                    printf("arg = %s\n", address + i);
                     if (address[i] == '\0' && argc == 0) {
                       argc = argv - arg0;
                       *argv = (uint8_t *)0;
-                      printf("argc = %d\n", argc);
                       env->gpr[4] = argc;
                       env->gpr[6] = env->gpr[5] + 4 * (argc + 1);
-                      //~ break;
                     }
                 }
             }
@@ -3220,5 +3272,135 @@ AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USE
 
 sinus original:
 uart divider=34 speed=441176 parity=N data=8 stop=1
+
+AR7     io_writeb               ??? addr=0x08610a50, val=0x01
+AR7     io_writeb               ??? addr=0x08610a30, val=0x01
+AR7     io_writeb               ??? addr=0x08610a70, val=0x77
+Unassigned mem write 0x16000000 = 0xb6000000 [][]
+Unassigned mem read  0x16000000 [][]
+
+sinus - t-com
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+AR7     ar7_gpio_read           gpio[0x0c] = 00000000
+AR7     ar7_gpio_write          gpio[0x0c] = 00000000
+AR7     ar7_gpio_read           gpio[0x08] = 00000000
+AR7     ar7_gpio_write          gpio[0x08] = 00000b00
+AR7     ar7_gpio_read           gpio[0x08] = 00000b00
+AR7     ar7_gpio_write          gpio[0x08] = 00000b00
+AR7     ar7_gpio_read           gpio[0x04] = 00000000
+AR7     ar7_gpio_write          gpio[0x04] = 00020000
+AR7     ar7_gpio_read           gpio[0x04] = 00020000
+AR7     ar7_gpio_write          gpio[0x04] = 00060000
+AR7     ar7_gpio_read           gpio[0x04] = 00060000
+AR7     ar7_gpio_write          gpio[0x04] = 00062040
+AR7     ar7_gpio_read           gpio[0x0c] = 00000000
+AR7     ar7_gpio_write          gpio[0x0c] = 00063fc0
+AR7     ar7_gpio_read           gpio[0x00] = 00000800
+AR7     ar7_gpio_read           gpio[0x08] = 00000b00
+AR7     ar7_gpio_write          gpio[0x08] = 00000b00
+AR7     ar7_gpio_read           gpio[0x08] = 00000b00
+AR7     ar7_gpio_write          gpio[0x08] = 00000b00
+AR7     ar7_gpio_read           gpio[0x08] = 00000b00
+AR7     ar7_gpio_write          gpio[0x08] = 00000b00
+AR7     ar7_gpio_read           gpio[0x04] = 00062040
+AR7     ar7_gpio_write          gpio[0x04] = 00062040
+AR7     ar7_gpio_read           gpio[0x04] = 00062040
+AR7     ar7_gpio_write          gpio[0x04] = 00062040
+AR7     ar7_gpio_read           gpio[0x04] = 00062040
+AR7     ar7_gpio_write          gpio[0x04] = 0006a040
+AR7     ar7_gpio_read           gpio[0x0c] = 00063fc0
+AR7     ar7_gpio_write          gpio[0x0c] = 0006bfc0
+AR7     ar7_gpio_read           gpio[0x0c] = 0006bfc0
+AR7     ar7_gpio_write          gpio[0x0c] = 1006bfc0
+AR7     ar7_gpio_read           gpio[0x0c] = 1006bfc0
+AR7     ar7_gpio_write          gpio[0x0c] = 1004bfc0
+AR7     ar7_gpio_read           gpio[0x0c] = 1004bfc0
+AR7     ar7_gpio_write          gpio[0x0c] = 1004bfc0
+AR7     ar7_gpio_read           gpio[0x04] = 0006a040
+AR7     ar7_gpio_write          gpio[0x04] = 0006a040
+AR7     ar7_gpio_read           gpio[0x08] = 00000b00
+AR7     ar7_gpio_write          gpio[0x08] = 00000b00
+AR7     ar7_gpio_read           gpio[0x04] = 0006a040
+AR7     ar7_gpio_write          gpio[0x04] = 0002a040
+AR7     ar7_gpio_read           gpio[0x04] = 0002a040
+AR7     ar7_gpio_write          gpio[0x04] = 0006a040
+
+sinus - linux
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+uart divider=34 speed=117647 parity=E data=8 stop=2 ([][])
+uart divider=34 speed=117647 parity=N data=5 stop=1 ([][])
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+uart divider=151 speed=26490 parity=N data=8 stop=1 ([][])
+uart divider=407 speed=9828 parity=N data=8 stop=1 ([][])
+uart divider=290 speed=13793 parity=N data=8 stop=1 ([][])
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+
+fbox 38400:
+uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
+uart divider=102 speed=39215 parity=E data=8 stop=2 ([][])
+uart divider=102 speed=39215 parity=N data=5 stop=1 ([][])
+uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
+uart divider=151 speed=26490 parity=N data=8 stop=1 ([][])
+uart divider=407 speed=9828 parity=N data=8 stop=1 ([][])
+uart divider=358 speed=11173 parity=N data=8 stop=1 ([][])
+uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
+
+fbox 115200:
+uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+uart divider=34 speed=117647 parity=E data=8 stop=2 ([][])
+uart divider=34 speed=117647 parity=N data=5 stop=1 ([][])
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+uart divider=151 speed=26490 parity=N data=8 stop=1 ([][])
+uart divider=407 speed=9828 parity=N data=8 stop=1 ([][])
+uart divider=290 speed=13793 parity=N data=8 stop=1 ([][])
+uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
+
+fbox original
+AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
+AR7     ar7_gpio_read           gpio[0x08] = 00000000
+AR7     ar7_gpio_write          gpio[0x08] = 00000000
+AR7     ar7_gpio_read           gpio[0x04] = 00000000
+AR7     ar7_gpio_write          gpio[0x04] = 00000080
+AR7     ar7_gpio_read           gpio[0x04] = 00000080
+AR7     ar7_gpio_write          gpio[0x04] = 00000080
+AR7     ar7_gpio_read           gpio[0x04] = 00000080
+AR7     ar7_gpio_write          gpio[0x04] = 00003680
+AR7     ar7_gpio_write          gpio[0x0c] = f3fc3ff0
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x18] = 00000000
+AR7     ar7_gpio_read           gpio[0x1c] = 00000000
+AR7     ar7_gpio_read           gpio[0x0c] = f3fc3ff0
+AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x0c] = f00c3ff0
+AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
+AR7     ar7_gpio_read           gpio[0x0c] = f00c3ff0
+AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
+
+fbox neu
+AR7     ar7_gpio_read           gpio[0x08] = 00000000
+AR7     ar7_gpio_read           gpio[0x0c] = 00000000
+AR7     ar7_gpio_write          gpio[0x0c] = 00000000
+AR7     ar7_gpio_write          gpio[0x08] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x18] = 00000000
+AR7     ar7_gpio_read           gpio[0x1c] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
+AR7     ar7_gpio_read           gpio[0x0c] = 00000000
+AR7     ar7_gpio_write          gpio[0x0c] = 10000000
+AR7     ar7_gpio_read           gpio[0x08] = 00000000
+AR7     ar7_gpio_write          gpio[0x08] = 00000000
+AR7     ar7_gpio_read           gpio[0x04] = 00000000
+AR7     ar7_gpio_write          gpio[0x04] = 00000000
+AR7     ar7_gpio_read           gpio[0x04] = 00000000
+AR7     ar7_gpio_write          gpio[0x04] = 00000000
+AR7     ar7_gpio_read           gpio[0x14] = 00000000
 
 */

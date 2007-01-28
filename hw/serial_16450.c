@@ -174,15 +174,17 @@ static void serial_update_parameters(SerialState *s)
         return;
     speed = 115200 / s->divider;
     speed = 12500000 / s->divider;
-    speed = 15000000 / s->divider;
+    speed = 4000000 / s->divider;
+    speed = 38400 * 102 / s->divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 #if 1
-    printf("uart divider=%d speed=%d parity=%c data=%d stop=%d\n", 
-           s->divider, speed, parity, data_bits, stop_bits);
+    printf("uart divider=%d speed=%d parity=%c data=%d stop=%d (%s)\n", 
+           s->divider, speed, parity, data_bits, stop_bits,
+           mips_backtrace());
 #endif
 }
 
