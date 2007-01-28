@@ -631,7 +631,8 @@ non graphical mode.
 @item -s
 Wait gdb connection to port 1234 (@pxref{gdb_usage}). 
 @item -p port
-Change gdb connection port.
+Change gdb connection port.  @var{port} can be either a decimal number
+to specify a TCP port, or a host device (same devices as the serial port).
 @item -S
 Do not start CPU at startup (you must type 'c' in the monitor).
 @item -d             

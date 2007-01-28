@@ -84,7 +84,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #include "audio/audio.h"
 #include "cpu.h"
-#include "gdbstub.h"
 
 #endif /* !defined(QEMU_TOOL) */
 
@@ -1363,6 +1362,8 @@ pflash_t *pflash_register (target_ulong base, ram_addr_t off,
                            target_ulong sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1, 
                            uint16_t id2, uint16_t id3);
+
+#include "gdbstub.h"
 
 #endif /* defined(QEMU_TOOL) */
 

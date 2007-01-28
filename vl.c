@@ -6496,7 +6496,8 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 int main(int argc, char **argv)
 {
 #ifdef CONFIG_GDBSTUB
-    int use_gdbstub, gdbstub_port;
+    int use_gdbstub;
+    char gdbstub_port_name[128];
 #endif
     int i, cdrom_index;
     int snapshot, linux_boot;
@@ -6564,7 +6565,7 @@ int main(int argc, char **argv)
     bios_size = BIOS_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
-    gdbstub_port = DEFAULT_GDBSTUB_PORT;
+    sprintf(gdbstub_port_name, "%d", DEFAULT_GDBSTUB_PORT);
 #endif
     snapshot = 0;
     nographic = 0;
@@ -6808,7 +6809,7 @@ int main(int argc, char **argv)
                 use_gdbstub = 1;
                 break;
             case QEMU_OPTION_p:
-                gdbstub_port = atoi(optarg);
+                pstrcpy(gdbstub_port_name, sizeof(gdbstub_port_name), optarg);
                 break;
 #endif
             case QEMU_OPTION_L:
@@ -7216,13 +7217,19 @@ int main(int argc, char **argv)
 
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
-        if (gdbserver_start(gdbstub_port) < 0) {
-            fprintf(stderr, "Could not open gdbserver socket on port %d\n", 
-                    gdbstub_port);
+        CharDriverState *chr;
+        int port;
+
+        port = atoi(gdbstub_port_name);
+        if (port != 0)
+            sprintf(gdbstub_port_name, "tcp::%d,nowait,nodelay,server", port);
+        chr = qemu_chr_open(gdbstub_port_name);
+        if (!chr) {
+            fprintf(stderr, "qemu: could not open gdbstub device '%s'\n",
+                    gdbstub_port_name);
             exit(1);
-        } else {
-            printf("Waiting gdb connection on port %d\n", gdbstub_port);
         }
+        gdbserver_start(chr);
     } else 
 #endif
     if (loadvm)

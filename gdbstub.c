@@ -53,25 +53,28 @@ enum RSState {
     RS_CHKSUM1,
     RS_CHKSUM2,
 };
-/* XXX: This is not thread safe.  Do we care?  */
-static int gdbserver_fd = -1;
-
 typedef struct GDBState {
     CPUState *env; /* current CPU */
     enum RSState state; /* parsing state */
-    int fd;
     char line_buf[4096];
     int line_buf_index;
     int line_csum;
+    char last_packet[4100];
+    int last_packet_len;
 #ifdef CONFIG_USER_ONLY
+    int fd;
     int running_state;
+#else
+    CharDriverState *chr;
 #endif
 } GDBState;
 
 #ifdef CONFIG_USER_ONLY
+/* XXX: This is not thread safe.  Do we care?  */
+static int gdbserver_fd = -1;
+
 /* XXX: remove this hack.  */
 static GDBState gdbserver_state;
-#endif
 
 static int get_char(GDBState *s)
 {
@@ -91,9 +94,11 @@ static int get_char(GDBState *s)
     }
     return ch;
 }
+#endif
 
 static void put_buffer(GDBState *s, const uint8_t *buf, int len)
 {
+#ifdef CONFIG_USER_ONLY
     int ret;
 
     while (len > 0) {
@@ -106,6 +111,9 @@ static void put_buffer(GDBState *s, const uint8_t *buf, int len)
             len -= ret;
         }
     }
+#else
+    qemu_chr_write(s->chr, buf, len);
+#endif
 }
 
 static inline int fromhex(int v)
@@ -154,33 +162,39 @@ static void hextomem(uint8_t *mem, const char *buf, int len)
 /* return -1 if error, 0 if OK */
 static int put_packet(GDBState *s, char *buf)
 {
-    char buf1[3];
-    int len, csum, ch, i;
+    int len, csum, i;
+    char *p;
 
 #ifdef DEBUG_GDB
     printf("reply='%s'\n", buf);
 #endif
 
     for(;;) {
-        buf1[0] = '$';
-        put_buffer(s, buf1, 1);
+        p = s->last_packet;
+        *(p++) = '$';
         len = strlen(buf);
-        put_buffer(s, buf, len);
+        memcpy(p, buf, len);
+        p += len;
         csum = 0;
         for(i = 0; i < len; i++) {
             csum += buf[i];
         }
-        buf1[0] = '#';
-        buf1[1] = tohex((csum >> 4) & 0xf);
-        buf1[2] = tohex((csum) & 0xf);
+        *(p++) = '#';
+        *(p++) = tohex((csum >> 4) & 0xf);
+        *(p++) = tohex((csum) & 0xf);
 
-        put_buffer(s, buf1, 3);
+        s->last_packet_len = p - s->last_packet;
+        put_buffer(s, s->last_packet, s->last_packet_len);
 
-        ch = get_char(s);
-        if (ch < 0)
+#ifdef CONFIG_USER_ONLY
+        i = get_char(s);
+        if (i < 0)
             return -1;
-        if (ch == '+')
+        if (i == '+')
             break;
+#else
+        break;
+#endif
     }
     return 0;
 }
@@ -864,6 +878,26 @@ static void gdb_read_byte(GDBState *s, int ch)
     char reply[1];
 
 #ifndef CONFIG_USER_ONLY
+    if (s->last_packet_len) {
+        /* Waiting for a response to the last packet.  If we see the start
+           of a new command then abandon the previous response.  */
+        if (ch == '-') {
+#ifdef DEBUG_GDB
+            printf("Got NACK, retransmitting\n");
+#endif
+            put_buffer(s, s->last_packet, s->last_packet_len);
+        }
+#ifdef DEBUG_GDB
+        else if (ch == '+')
+            printf("Got ACK\n");
+        else
+            printf("Got '%c' when expecting ACK/NACK\n", ch);
+#endif
+        if (ch == '+' || ch == '$')
+            s->last_packet_len = 0;
+        if (ch != '$')
+            return;
+    }
     if (vm_running) {
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
@@ -972,30 +1006,6 @@ void gdb_exit(CPUState *env, int code)
   put_packet(s, buf);
 }
 
-#else
-static void gdb_read(void *opaque)
-{
-    GDBState *s = opaque;
-    int i, size;
-    uint8_t buf[4096];
-
-    size = recv(s->fd, buf, sizeof(buf), 0);
-    if (size < 0)
-        return;
-    if (size == 0) {
-        /* end of connection */
-        qemu_del_vm_stop_handler(gdb_vm_stopped, s);
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
-        qemu_free(s);
-        if (autostart)
-            vm_start();
-    } else {
-        for(i = 0; i < size; i++)
-            gdb_read_byte(s, buf[i]);
-    }
-}
-
-#endif
 
 static void gdb_accept(void *opaque)
 {
@@ -1019,32 +1029,12 @@ static void gdb_accept(void *opaque)
     val = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
     
-#ifdef CONFIG_USER_ONLY
     s = &gdbserver_state;
     memset (s, 0, sizeof (GDBState));
-#else
-    s = qemu_mallocz(sizeof(GDBState));
-    if (!s) {
-        close(fd);
-        return;
-    }
-#endif
     s->env = first_cpu; /* XXX: allow to change CPU */
     s->fd = fd;
 
-#ifdef CONFIG_USER_ONLY
     fcntl(fd, F_SETFL, O_NONBLOCK);
-#else
-    socket_set_nonblock(fd);
-
-    /* stop the VM */
-    vm_stop(EXCP_INTERRUPT);
-
-    /* start handling I/O */
-    qemu_set_fd_handler(s->fd, gdb_read, NULL, s);
-    /* when the VM is stopped, the following callback is called */
-    qemu_add_vm_stop_handler(gdb_vm_stopped, s);
-#endif
 }
 
 static int gdbserver_open(int port)
@@ -1075,9 +1065,6 @@ static int gdbserver_open(int port)
         perror("listen");
         return -1;
     }
-#ifndef CONFIG_USER_ONLY
-    socket_set_nonblock(fd);
-#endif
     return fd;
 }
 
@@ -1087,10 +1074,52 @@ int gdbserver_start(int port)
     if (gdbserver_fd < 0)
         return -1;
     /* accept connections */
-#ifdef CONFIG_USER_ONLY
     gdb_accept (NULL);
-#else
-    qemu_set_fd_handler(gdbserver_fd, gdb_accept, NULL, NULL);
-#endif
     return 0;
 }
+#else
+static int gdb_chr_can_recieve(void *opaque)
+{
+  return 1;
+}
+
+static void gdb_chr_recieve(void *opaque, const uint8_t *buf, int size)
+{
+    GDBState *s = opaque;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        gdb_read_byte(s, buf[i]);
+    }
+}
+
+static void gdb_chr_event(void *opaque, int event)
+{
+    switch (event) {
+    case CHR_EVENT_RESET:
+        vm_stop(EXCP_INTERRUPT);
+        break;
+    default:
+        break;
+    }
+}
+
+int gdbserver_start(CharDriverState *chr)
+{
+    GDBState *s;
+
+    if (!chr)
+        return -1;
+
+    s = qemu_mallocz(sizeof(GDBState));
+    if (!s) {
+        return -1;
+    }
+    s->env = first_cpu; /* XXX: allow to change CPU */
+    s->chr = chr;
+    qemu_chr_add_handlers(chr, gdb_chr_can_recieve, gdb_chr_recieve,
+                          gdb_chr_event, s);
+    qemu_add_vm_stop_handler(gdb_vm_stopped, s);
+    return 0;
+}
+#endif
