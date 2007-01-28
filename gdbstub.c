@@ -52,6 +52,7 @@ enum RSState {
     RS_GETLINE,
     RS_CHKSUM1,
     RS_CHKSUM2,
+    RS_SYSCALL,
 };
 typedef struct GDBState {
     CPUState *env; /* current CPU */
@@ -95,6 +96,27 @@ static int get_char(GDBState *s)
     return ch;
 }
 #endif
+
+/* GDB stub state for use by semihosting syscalls.  */
+static GDBState *gdb_syscall_state;
+static gdb_syscall_complete_cb gdb_current_syscall_cb;
+
+enum {
+    GDB_SYS_UNKNOWN,
+    GDB_SYS_ENABLED,
+    GDB_SYS_DISABLED,
+} gdb_syscall_mode;
+
+/* If gdb is connected when the first semihosting syscall occurs then use
+   remote gdb syscalls.  Otherwise use native file IO.  */
+int use_gdb_syscalls(void)
+{
+    if (gdb_syscall_mode == GDB_SYS_UNKNOWN) {
+        gdb_syscall_mode = (gdb_syscall_state ? GDB_SYS_ENABLED
+                                              : GDB_SYS_DISABLED);
+    }
+    return gdb_syscall_mode == GDB_SYS_ENABLED;
+}
 
 static void put_buffer(GDBState *s, const uint8_t *buf, int len)
 {
@@ -755,6 +777,34 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         vm_start();
 #endif
 	return RS_IDLE;
+    case 'F':
+        {
+            target_ulong ret;
+            target_ulong err;
+
+            ret = strtoull(p, (char **)&p, 16);
+            if (*p == ',') {
+                p++;
+                err = strtoull(p, (char **)&p, 16);
+            } else {
+                err = 0;
+            }
+            if (*p == ',')
+                p++;
+            type = *p;
+            if (gdb_current_syscall_cb)
+                gdb_current_syscall_cb(s->env, ret, err);
+            if (type == 'C') {
+                put_packet(s, "T02");
+            } else {
+#ifdef CONFIG_USER_ONLY
+                s->running_state = 1;
+#else
+                vm_start();
+#endif
+            }
+        }
+        break;
     case 'g':
         reg_size = cpu_gdb_read_registers(env, mem_buf);
         memtohex(buf, mem_buf, reg_size);
@@ -855,6 +905,9 @@ static void gdb_vm_stopped(void *opaque, int reason)
     char buf[256];
     int ret;
 
+    if (s->state == RS_SYSCALL)
+        return;
+
     /* disable single step if it was enable */
     cpu_single_step(s->env, 0);
 
@@ -870,6 +923,60 @@ static void gdb_vm_stopped(void *opaque, int reason)
     put_packet(s, buf);
 }
 #endif
+
+/* Send a gdb syscall request.
+   This accepts limited printf-style format specifiers, specifically:
+    %x - target_ulong argument printed in hex.
+    %s - string pointer (target_ulong) and length (int) pair.  */
+void gdb_do_syscall(gdb_syscall_complete_cb cb, char *fmt, ...)
+{
+    va_list va;
+    char buf[256];
+    char *p;
+    target_ulong addr;
+    GDBState *s;
+
+    s = gdb_syscall_state;
+    if (!s)
+        return;
+    gdb_current_syscall_cb = cb;
+    s->state = RS_SYSCALL;
+#ifndef CONFIG_USER_ONLY
+    vm_stop(EXCP_DEBUG);
+#endif
+    s->state = RS_IDLE;
+    va_start(va, fmt);
+    p = buf;
+    *(p++) = 'F';
+    while (*fmt) {
+        if (*fmt == '%') {
+            fmt++;
+            switch (*fmt++) {
+            case 'x':
+                addr = va_arg(va, target_ulong);
+                p += sprintf(p, TARGET_FMT_lx, addr);
+                break;
+            case 's':
+                addr = va_arg(va, target_ulong);
+                p += sprintf(p, TARGET_FMT_lx "/%x", addr, va_arg(va, int));
+                break;
+            default:
+                fprintf(stderr, "gdbstub: Bad syscall format string '%s'\n",
+                        fmt - 1);
+                break;
+            }
+        } else {
+            *(p++) = *(fmt++);
+        }
+    }
+    va_end(va);
+    put_packet(s, buf);
+#ifdef CONFIG_USER_ONLY
+    gdb_handlesig(s->env, 0);
+#else
+    cpu_interrupt(s->env, CPU_INTERRUPT_EXIT);
+#endif
+}
 
 static void gdb_read_byte(GDBState *s, int ch)
 {
@@ -942,6 +1049,8 @@ static void gdb_read_byte(GDBState *s, int ch)
                 s->state = gdb_handle_packet(s, env, s->line_buf);
             }
             break;
+        default:
+            abort();
         }
     }
 }
@@ -1034,6 +1143,8 @@ static void gdb_accept(void *opaque)
     s->env = first_cpu; /* XXX: allow to change CPU */
     s->fd = fd;
 
+    gdb_syscall_state = s;
+
     fcntl(fd, F_SETFL, O_NONBLOCK);
 }
 
@@ -1098,6 +1209,7 @@ static void gdb_chr_event(void *opaque, int event)
     switch (event) {
     case CHR_EVENT_RESET:
         vm_stop(EXCP_INTERRUPT);
+        gdb_syscall_state = opaque;
         break;
     default:
         break;
