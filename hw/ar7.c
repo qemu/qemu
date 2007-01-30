@@ -107,8 +107,9 @@ static struct {
 
 #else
 
-#if 1
+#if 0
 #define CLOCK   0
+#define CONFIG  1
 #define CPMAC   0
 #define EMIF    0
 #define GPIO    1
@@ -122,6 +123,7 @@ static struct {
 #define RXTX    0
 #else
 #define CLOCK   1
+#define CONFIG  1
 #define CPMAC   1
 #define EMIF    1
 #define GPIO    1
@@ -326,7 +328,7 @@ typedef struct {
     uint32_t reset_dummy[0x80 - 3];
     uint8_t vlynq0[0x100];      // 0x08611800
     // + 0xe0 interrupt enable bits
-    uint32_t device_config_latch[5];    // 0x08611a00
+    uint8_t dcl[20];            // 0x08611a00
     uint8_t vlynq1[0x100];      // 0x08611c00
     uint8_t mdio[0x90];         // 0x08611e00
     uint32_t wdt[8];            // 0x08611f00
@@ -350,9 +352,9 @@ static avalanche_t av = {
   //~ timer1:{0},
   uart0:{0, 0, 0, 0, 0, 0x20, 0},
     //~ reset_control: { 0x04720043 },
-    //~ device_config_latch: 0x025d4297
+    //~ dcl: 0x025d4297
     // 21-20 phy clk source
-  device_config_latch:{0x025d4291},
+  dcl:{0x91, 0x42, 0x5d, 0x02},
   //~ mdio:{0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
 };
 
@@ -527,6 +529,146 @@ static void clock_write(unsigned offset, uint32_t val)
     }
     reg_write(av.clock_control, offset, val);
 }
+
+/*****************************************************************************
+ *
+ * Configuration (device config latch) emulation.
+ *
+ ****************************************************************************/
+
+static const char *i2dcl[] = {
+    "config",
+    "test mux1",
+    "test mux2",
+    "test mux3",
+    "adsl pll select",
+    "speed control",
+    "speed control password",
+    "speed control capture",
+};
+
+typedef enum {
+    DCL_BOOT_CONFIG = 0x00,
+    DCL_BOOT_TEST_MUX1 = 0x04,
+    DCL_BOOT_TEST_MUX2 = 0x08,
+    DCL_BOOT_TEST_MUX3 = 0x0c,
+    DCL_BOOT_ADSL_PLL_SELECT = 0x10,
+    DCL_BOOT_SPEED_CONTROL = 0x14,
+    DCL_BOOT_SPEED_CONTROL_PW = 0x18,
+    DCL_BOOT_SPEED_CONTROL_CAPTURE = 0x1c,
+} dcl_register_t;
+
+typedef enum {
+    CONFIG_BOOTS = BITS(2, 0),          /* 001 */
+    CONFIG_WSDP = BIT(3),               /* 0 */
+    CONFIG_WDHE = BIT(4),               /* 0 */
+    CONFIG_PLL_BYP = BIT(5),            /* 0 */
+    CONFIG_ENDIAN = BIT(6),             /* 0 = little endian */
+    CONFIG_FLASHW = BITS(8, 7),         /* 01 = 16 bit flash */
+    CONFIG_EMIFRATE = BIT(9),           /* 1 */
+    CONFIG_EMIFTEST = BIT(10),          /* 0 */
+    CONFIG_BOOTS_INT = BITS(13, 11),    /* 000 */
+    CONFIG_SYS_PLL_SEL = BITS(15, 14),  /* 01 */
+    CONFIG_MIPS_PLL_SEL = BITS(17, 16), /* 01 */
+    CONFIG_USB_PLL_SEL = BITS(19, 18),  /* 11 */
+    CONFIG_EPHY_PLL_SEL = BITS(21, 20), /* 01 */
+    CONFIG_ADSL_PLLSEL = BITS(23, 22),  /* 01 */
+    CONFIG_ADSL_RST = BIT(24),          /* 0 */
+    CONFIG_MIPS_ASYNC = BIT(25),        /* 1 */
+    CONFIG_DEF = BIT(26),               /* 0 */
+    CONFIG_RESERVED = BITS(31, 27),     /* 0 */
+} dcl_config_bit_t;
+
+#if 0
+/* clock selection */
+        case 0: /*--- AFE_CLKl input (DSP, 35328000) ---*/
+        case 1: /*--- REFCLCKl input (LAN, 25000000) ---*/
+        case 2: /*--- XTAL3IN input ---*/
+        case 3: /*--- MIPS-Pll output ---*/
+#endif
+
+static uint32_t ar7_dcl_read(unsigned offset)
+{
+    uint32_t val = reg_read(av.dcl, offset);
+    const char *text = i2dcl[offset / 4];
+    int logflag = CONFIG;
+    if (0) {
+    } else if (offset == DCL_BOOT_CONFIG) {
+    } else {
+    }
+    TRACE(logflag, logout("dcl[%s] (0x%08x) = 0x%08x %s\n",
+                        text, (AVALANCHE_DCL_BASE + offset),
+                        val, backtrace()));
+    return val;
+}
+
+static uint32_t ar7_dcl_write(unsigned offset, uint32_t val)
+{
+    reg_write(av.dcl, offset, val);
+    const char *text = i2dcl[offset / 4];
+    int logflag = CONFIG;
+    if (0) {
+    } else if (offset == DCL_BOOT_CONFIG) {
+    } else {
+    }
+    TRACE(logflag, logout("dcl[%s] (0x%08x) = 0x%08x %s\n",
+                        text, (AVALANCHE_DCL_BASE + offset),
+                        val, backtrace()));
+    return val;
+}
+
+typedef enum {
+    TEST_MUX_MBSPL_SEL = BIT(0),
+    TEST_MUX_CODEC_CHAR_EN = BIT(1),
+} dcl_test_mux1_bit_t;
+
+#if 0
+    union _hw_boot_test_mux_2 {
+        struct __hw_boot_test_mux_2 {
+            unsigned int mii0_sel : 1;
+        } Bits;
+        volatile unsigned int Register;
+    } hw_boot_test_mux_2 ;
+
+    union _hw_boot_test_mux_3 {
+        struct __hw_boot_test_mux_3 {
+            unsigned int pll_pin_output_enable : 1;
+            unsigned int pll_pin_out_id : 2; /* 0: System, 1: MIPS, 2: USB, 3: adsl */
+            unsigned int pll_pin_out_div_enable : 1;
+        } Bits;
+        volatile unsigned int Register;
+    } hw_boot_test_mux_3 ;
+
+    union _hw_boot_adsl_pll_select {
+        struct __hw_boot_adsl_pll_select {
+            unsigned int pll_0_select : 1;
+        } Bits;
+        volatile unsigned int Register;
+    } hw_boot_adsl_pll_select ;
+
+    union _hw_boot_speed_control {
+        struct __hw_boot_speed_control {
+            unsigned int gated_ring_oscillator_enable : 1;
+            unsigned int input_counter_enable : 1;
+            unsigned int gated_oscillator_select : 3;
+        } Bits;
+        volatile unsigned int Register;
+    } hw_boot_speed_control ;
+
+    union _hw_boot_speed_control_password {
+        struct __hw_boot_speed_control_password {
+            unsigned int passwd_enable : 1;
+        } Bits;
+        volatile unsigned int Register;
+    } hw_boot_speed_control_password ;
+
+    union _hw_boot_speed_control_capture {
+        struct __hw_boot_speed_control_capture {
+            unsigned int out : 16;
+        } Bits;
+        volatile unsigned int Register;
+    } hw_boot_speed_control_capture ;
+#endif
 
 /*****************************************************************************
  *
@@ -1310,6 +1452,40 @@ typedef enum {
     GPIO_DIDR2 = 0x1c,
 } gpio_t;
 
+static void ar7_gpio_display(void)
+{
+    unsigned index;
+    uint32_t in = reg_read(av.gpio, GPIO_IN);
+    uint32_t out = reg_read(av.gpio, GPIO_OUT);
+    uint32_t dir = reg_read(av.gpio, GPIO_DIR);
+    uint32_t enable = reg_read(av.gpio, GPIO_ENABLE);
+    char text[32];
+    for (index = 0; index < 32; index++) {
+        text[index] = (in & BIT(index)) ? '*' : '.';
+    }
+    qemu_chr_printf(av.gpio_display,
+                    "\e[5;1H%32.32s (in  0x%08x)",
+                    text, in);
+    for (index = 0; index < 32; index++) {
+        text[index] = (out & BIT(index)) ? '*' : '.';
+    }
+    qemu_chr_printf(av.gpio_display,
+                    "\e[6;1H%32.32s (out 0x%08x)",
+                    text, out);
+    for (index = 0; index < 32; index++) {
+        text[index] = (dir & BIT(index)) ? '*' : '.';
+    }
+    qemu_chr_printf(av.gpio_display,
+                    "\e[7;1H%32.32s (dir 0x%08x)",
+                    text, dir);
+    for (index = 0; index < 32; index++) {
+        text[index] = (enable & BIT(index)) ? '*' : '.';
+    }
+    qemu_chr_printf(av.gpio_display,
+                    "\e[8;1H%32.32s (ena 0x%08x)",
+                    text, enable);
+}
+
 static uint32_t ar7_gpio_read(unsigned offset)
 {
     uint32_t value = reg_read(av.gpio, offset);
@@ -1327,36 +1503,7 @@ static void ar7_gpio_write(unsigned offset, uint32_t value)
     TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
     reg_write(av.gpio, offset, value);
     if (offset <= GPIO_DIR) {
-        unsigned index;
-        uint32_t in = reg_read(av.gpio, GPIO_IN);
-        uint32_t out = reg_read(av.gpio, GPIO_OUT);
-        uint32_t dir = reg_read(av.gpio, GPIO_DIR);
-        uint32_t enable = reg_read(av.gpio, GPIO_ENABLE);
-        char text[32];
-        for (index = 0; index < 32; index++) {
-            text[index] = (in & BIT(index)) ? '*' : '.';
-        }
-        qemu_chr_printf(av.gpio_display,
-                        "\e[5;1H%32.32s (in  0x%08x)",
-                        text, in);
-        for (index = 0; index < 32; index++) {
-            text[index] = (out & BIT(index)) ? '*' : '.';
-        }
-        qemu_chr_printf(av.gpio_display,
-                        "\e[6;1H%32.32s (out 0x%08x)",
-                        text, out);
-        for (index = 0; index < 32; index++) {
-            text[index] = (dir & BIT(index)) ? '*' : '.';
-        }
-        qemu_chr_printf(av.gpio_display,
-                        "\e[7;1H%32.32s (dir 0x%08x)",
-                        text, dir);
-        for (index = 0; index < 32; index++) {
-            text[index] = (enable & BIT(index)) ? '*' : '.';
-        }
-        qemu_chr_printf(av.gpio_display,
-                        "\e[8;1H%32.32s (ena 0x%08x)",
-                        text, enable);
+        ar7_gpio_display();
     }
 }
 
@@ -2464,9 +2611,10 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         name = "reset control";
         logflag = RESET;
         val = VALUE(AVALANCHE_RESET_BASE, av.reset_control);
-    } else if (INRANGE(AVALANCHE_DCL_BASE, av.device_config_latch)) {
-        name = "device config latch";
-        val = VALUE(AVALANCHE_DCL_BASE, av.device_config_latch);
+    } else if (INRANGE(AVALANCHE_DCL_BASE, av.dcl)) {
+        //~ name = "device config latch";
+        logflag = 0;
+        val = ar7_dcl_read(addr - AVALANCHE_DCL_BASE);
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
         //~ name = "vlynq0";
         logflag = 0;
@@ -2574,9 +2722,10 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = 0;
         VALUE(AVALANCHE_RESET_BASE, av.reset_control) = val;
         ar7_reset_write(addr - AVALANCHE_RESET_BASE, val);
-    } else if (INRANGE(AVALANCHE_DCL_BASE, av.device_config_latch)) {
-        name = "device config latch";
-        VALUE(AVALANCHE_DCL_BASE, av.device_config_latch) = val;
+    } else if (INRANGE(AVALANCHE_DCL_BASE, av.dcl)) {
+        //~ name = "device config latch";
+        logflag = 0;
+        ar7_dcl_write(addr - AVALANCHE_DCL_BASE, val);
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
         //~ name = "vlynq0";
         logflag = 0;
@@ -2870,14 +3019,44 @@ static void ar7_nic_init(void)
     }
 }
 
-static void gpio_display_init(CPUState *env, const char *devname)
+static int ar7_display_can_receive(void *opaque)
+{
+    //~ logout("%p\n", opaque);
+    return 1;
+}
+
+static void ar7_display_receive(void *opaque, const uint8_t *buf, int size)
+{
+    //~ logout("%p, %d bytes (0x%02x)\n", opaque, size, buf[0]);
+    if (buf[0] == 'r') {
+        uint32_t in = reg_read(av.gpio, GPIO_IN);
+        reg_write(av.gpio, GPIO_IN, in ^ 0x00000800);
+        ar7_gpio_display();
+    } else if (buf[0] == 'R') {
+        uint32_t in = reg_read(av.gpio, GPIO_IN);
+        reg_write(av.gpio, GPIO_IN, in & ~0x00000800);
+        ar7_gpio_display();
+    }
+}
+
+static void ar7_display_event(void *opaque, int event)
+{
+    logout("%p, %d\n", opaque, event);
+    //~ if (event == CHR_EVENT_BREAK)
+}
+
+static void ar7_display_init(CPUState *env, const char *devname)
 {
     av.gpio_display = qemu_chr_open(devname);
+    qemu_chr_add_handlers(av.gpio_display, ar7_display_can_receive,
+                          ar7_display_receive, ar7_display_event, 0);
     if (!strcmp(devname, "vc")) {
-        qemu_chr_printf(av.gpio_display, "GPIO Status\r\n");
-        qemu_chr_printf(av.gpio_display, "\r\n");
-        qemu_chr_printf(av.gpio_display, "0         1         2         3\r\n");
-        qemu_chr_printf(av.gpio_display, "01234567890123456789012345678901\r\n");
+        qemu_chr_printf(av.gpio_display,
+                        "\e[1;1HGPIO Status"
+                        "\e[2;1H0         1         2         3"
+                        "\e[3;1H01234567890123456789012345678901"
+                        "\e[10;1HPress 'r' to toggle the reset button");
+        ar7_gpio_display();
     }
 }
 
@@ -2923,7 +3102,7 @@ void ar7_init(CPUState * env)
     assert(bigendian == 0);
     //~ logout("setting endianness %d\n", bigendian);
     ar7_serial_init(env);
-    gpio_display_init(env, "vc");
+    ar7_display_init(env, "vc");
     ar7_nic_init();
     reg_write(av.gpio, GPIO_IN, 0x0800);
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
