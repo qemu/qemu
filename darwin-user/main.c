@@ -478,7 +478,7 @@ static void set_idt(int n, unsigned int dpl)
 }
 
 /* ABI convention: after a syscall if there was an error the CF flag is set */
-static inline set_error(CPUX86State *env, int ret)
+static inline void set_error(CPUX86State *env, int ret)
 {
     if(ret<0)
         env->eflags = env->eflags | 0x1;
