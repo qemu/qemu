@@ -3101,13 +3101,16 @@ void ar7_init(CPUState * env)
     //~ bigendian = env->bigendian;
     assert(bigendian == 0);
     //~ logout("setting endianness %d\n", bigendian);
-    ar7_serial_init(env);
-    ar7_display_init(env, "vc");
-    ar7_nic_init();
+
     reg_write(av.gpio, GPIO_IN, 0x0800);
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
     reg_write(av.mdio, MDIO_CONTROL, MDIO_CONTROL_IDLE | BIT(24) | BITS(7, 0));
     //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
+
+    ar7_serial_init(env);
+    ar7_display_init(env, "vc");
+    ar7_nic_init();
+
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
     //~ if (offset == 0xe00) continue;
     //~ if (offset == 0xf00) continue;
