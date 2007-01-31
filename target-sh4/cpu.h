@@ -121,9 +121,8 @@ typedef struct CPUSH4State {
 
 CPUSH4State *cpu_sh4_init(void);
 int cpu_sh4_exec(CPUSH4State * s);
-struct siginfo;
-int cpu_sh4_signal_handler(int hostsignum, struct siginfo *info,
-			   void *puc);
+int cpu_sh4_signal_handler(int host_signum, void *pinfo, 
+                           void *puc);
 
 #include "softfloat.h"
 

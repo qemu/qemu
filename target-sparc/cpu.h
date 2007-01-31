@@ -275,8 +275,7 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
     } while (0)
 #endif
 
-struct siginfo;
-int cpu_sparc_signal_handler(int hostsignum, struct siginfo *info, void *puc);
+int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #include "cpu-all.h"
 

@@ -628,8 +628,7 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-struct siginfo;
-int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_x86_signal_handler(int host_signum, void *pinfo, 
                            void *puc);
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 

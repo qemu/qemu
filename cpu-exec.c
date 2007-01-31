@@ -1280,9 +1280,10 @@ static void cpu_send_trap(unsigned long pc, int trap,
 }
 #endif
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
     int trapno;
@@ -1310,9 +1311,10 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__x86_64__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info,
+int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
 
@@ -1374,9 +1376,10 @@ typedef struct ucontext SIGCONTEXT;
 # define TRAP_sig(context)			EXCEPREG_sig(exception, context) /* number of powerpc exception taken */
 #endif /* __APPLE__ */
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
@@ -1397,9 +1400,10 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__alpha__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                            void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     uint32_t *pc = uc->uc_mcontext.sc_pc;
     uint32_t insn = *pc;
@@ -1426,9 +1430,10 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 }
 #elif defined(__sparc__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     uint32_t *regs = (uint32_t *)(info + 1);
     void *sigmask = (regs + 20);
     unsigned long pc;
@@ -1459,9 +1464,10 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__arm__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
@@ -1476,9 +1482,10 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__mc68000)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
@@ -1498,8 +1505,9 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 # define __ISR_VALID	1
 #endif
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, void *puc)
+int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long ip;
     int is_write = 0;
@@ -1526,9 +1534,10 @@ int cpu_signal_handler(int host_signum, struct siginfo *info, void *puc)
 
 #elif defined(__s390__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
