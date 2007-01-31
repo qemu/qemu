@@ -831,7 +831,7 @@ int apic_init(CPUState *env)
     }
     s->timer = qemu_new_timer(vm_clock, apic_timer, s);
 
-    register_savevm("apic", 0, 1, apic_save, apic_load, s);
+    register_savevm("apic", 0, 2, apic_save, apic_load, s);
     qemu_register_reset(apic_reset, s);
     
     local_apics[s->id] = s;
