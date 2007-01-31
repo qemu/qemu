@@ -97,8 +97,7 @@ void cpu_m68k_close(CPUM68KState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-struct siginfo;
-int cpu_m68k_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_m68k_signal_handler(int host_signum, void *pinfo, 
                            void *puc);
 void cpu_m68k_flush_flags(CPUM68KState *, int);
 

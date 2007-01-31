@@ -1,3 +1,43 @@
+2007-01-31 14:34  ths
+
+	* vl.h: Remove redundant ENOMEDIUM define.
+
+2007-01-31 13:24  ths
+
+	* Makefile.target: Save some vm space for the regular program
+	  loading zone, by Pierre d'Herbemont
+
+2007-01-31 13:22  ths
+
+	* hw/apic.c: Upgrade the apic version_id, by Don Laor.
+
+2007-01-31 13:16  ths
+
+	* cpu-exec.c, target-arm/cpu.h, target-i386/cpu.h,
+	  target-m68k/cpu.h, target-ppc/cpu.h, target-sh4/cpu.h,
+	  target-sparc/cpu.h: siginfo fix for Darwin/Mac OS X, by Pierre
+	  d'Herbemont.
+
+2007-01-31 13:10  ths
+
+	* configure: Use Cocoa and CoreAudio backend by default on Darwin
+	  systems, by Pierre d'Herbemont.
+
+2007-01-31 13:08  ths
+
+	* darwin-user/main.c: Fix set_error return value, by Pierre
+	  d'Herbemont.
+
+2007-01-31 13:02  ths
+
+	* hw/gt64xxx.c: Fix GT64120 mapping with REDBOOT, by Aurelien
+	  Jarno.
+
+2007-01-31 12:48  ths
+
+	* hw/mips_malta.c: Fix 64bit-induced MIPS Malta breakage, by
+	  Aurelien Jarno.
+
 2007-01-28 04:10  pbrook
 
 	* arm-semi.c, gdbstub.c, gdbstub.h: GDB hosted syscalls.

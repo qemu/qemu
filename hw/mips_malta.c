@@ -33,12 +33,11 @@
 
 #ifdef MIPS_HAS_MIPS64
 #define INITRD_LOAD_ADDR 	(int64_t)0x80800000
-#define ENVP_ADDR        	(int64_t)0x80002000
 #else
 #define INITRD_LOAD_ADDR 	(int32_t)0x80800000
-#define ENVP_ADDR        	(int32_t)0x80002000
 #endif
 
+#define ENVP_ADDR        	(int32_t)0x80002000
 #define VIRT_TO_PHYS_ADDEND 	(-((int64_t)(int32_t)0x80000000))
 
 #define ENVP_NB_ENTRIES	 	16
@@ -542,36 +541,36 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
 
     /* Small bootloader */
     p = (uint32_t *) (phys_ram_base + bios_offset);
-    stl_raw(p++, 0x0bf00010);                               /* j 0x1fc00040 */
-    stl_raw(p++, 0x00000000);                               /* nop */
+    stl_raw(p++, 0x0bf00010);                                      /* j 0x1fc00040 */
+    stl_raw(p++, 0x00000000);                                      /* nop */
 
     /* Second part of the bootloader */
     p = (uint32_t *) (phys_ram_base + bios_offset + 0x040);
-    stl_raw(p++, 0x3c040000); 				    /* lui a0, 0 */
-    stl_raw(p++, 0x34840002);                               /* ori a0, a0, 2 */
-    stl_raw(p++, 0x3c050000 | ((ENVP_ADDR) >> 16));         /* lui a1, high(ENVP_ADDR) */
-    stl_raw(p++, 0x34a50000 | ((ENVP_ADDR) & 0xffff));      /* ori a1, a0, low(ENVP_ADDR) */
-    stl_raw(p++, 0x3c060000 | ((ENVP_ADDR + 8) >> 16));     /* lui a2, high(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));  /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x3c070000 | ((env->ram_size) >> 16));     /* lui a3, high(env->ram_size) */
-    stl_raw(p++, 0x34e70000 | ((env->ram_size) & 0xffff));  /* ori a3, a3, low(env->ram_size) */
-    stl_raw(p++, 0x3c1f0000 | ((kernel_addr) >> 16));       /* lui ra, high(kernel_addr) */;
-    stl_raw(p++, 0x37ff0000 | ((kernel_addr) & 0xffff));    /* ori ra, ra, low(kernel_addr) */
-    stl_raw(p++, 0x03e00008);                               /* jr ra */
-    stl_raw(p++, 0x00000000);                               /* nop */
+    stl_raw(p++, 0x3c040000);                                      /* lui a0, 0 */
+    stl_raw(p++, 0x34840002);                                      /* ori a0, a0, 2 */
+    stl_raw(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
+    stl_raw(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a0, low(ENVP_ADDR) */
+    stl_raw(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
+    stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
+    stl_raw(p++, 0x3c070000 | (env->ram_size >> 16));              /* lui a3, high(env->ram_size) */
+    stl_raw(p++, 0x34e70000 | (env->ram_size & 0xffff));           /* ori a3, a3, low(env->ram_size) */
+    stl_raw(p++, 0x3c1f0000 | ((kernel_addr >> 16) & 0xffff));     /* lui ra, high(kernel_addr) */;
+    stl_raw(p++, 0x37ff0000 | (kernel_addr & 0xffff));             /* ori ra, ra, low(kernel_addr) */
+    stl_raw(p++, 0x03e00008);                                      /* jr ra */
+    stl_raw(p++, 0x00000000);                                      /* nop */
 }
 
 static void prom_set(int index, const char *string, ...)
 {
     va_list ap;
-    uint32_t *p;
-    uint32_t table_addr;
+    int32_t *p;
+    int32_t table_addr;
     char *s;
 
     if (index >= ENVP_NB_ENTRIES)
         return;
 
-    p = (uint32_t *) (phys_ram_base + ENVP_ADDR + VIRT_TO_PHYS_ADDEND);
+    p = (int32_t *) (phys_ram_base + ENVP_ADDR + VIRT_TO_PHYS_ADDEND);
     p += index;
 
     if (string == NULL) {
@@ -579,7 +578,7 @@ static void prom_set(int index, const char *string, ...)
         return;
     }
 
-    table_addr = ENVP_ADDR + sizeof(uint32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
+    table_addr = ENVP_ADDR + sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
     s = (char *) (phys_ram_base + VIRT_TO_PHYS_ADDEND + table_addr);
 
     stl_raw(p, table_addr);

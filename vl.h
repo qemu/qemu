@@ -54,7 +54,6 @@
 #define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
-#define ENOMEDIUM 4097
 extern int qemu_ftruncate64(int, int64_t);
 #define ftruncate qemu_ftruncate64
 

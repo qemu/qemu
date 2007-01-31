@@ -190,6 +190,11 @@ ifeq ($(CONFIG_DARWIN),yes)
 LIBS+=-lmx
 endif
 
+ifdef CONFIG_DARWIN_USER
+# Leave some space for the regular program loading zone
+BASE_LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
+endif
+
 OP_CFLAGS+=$(OS_CFLAGS)
 
 #########################################################

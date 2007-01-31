@@ -128,6 +128,8 @@ Darwin)
 bsd="yes"
 darwin="yes"
 darwin_user="yes"
+cocoa="yes"
+coreaudio="yes"
 OS_CFLAGS="-mdynamic-no-pic"
 ;;
 SunOS)
@@ -503,7 +505,9 @@ _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
 if test "$_sdlversion" -lt 121 ; then
 sdl_too_old=yes
 else
-sdl=yes
+ if test "$cocoa" = "no" ; then
+   sdl=yes
+ fi
 fi
 
 # static link with sdl ?
@@ -524,6 +528,13 @@ fi # static link
 fi # sdl compile test
 
 fi # cross compilation
+
+else
+ # Make sure to disable cocoa if sdl was set
+ if test "$sdl" = "yes" ; then
+   cocoa="no"
+   coreaudio="no"
+ fi
 fi # -z $sdl
 
 ##########################################
