@@ -172,10 +172,10 @@ static void serial_update_parameters(SerialState *s)
     data_bits = (s->lcr & 0x03) + 5;
     if (s->divider == 0)
         return;
-    speed = 115200 / s->divider;
-    speed = 12500000 / s->divider;
-    speed = 4000000 / s->divider;
+    //~ speed = 12500000 / s->divider;
+    //~ speed = 4000000 / s->divider;
     speed = 38400 * 102 / s->divider;
+    speed = 62500000 / 16 / s->divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
