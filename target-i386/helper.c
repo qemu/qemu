@@ -977,7 +977,7 @@ void helper_syscall(int next_eip_addend)
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
                            0, 0xffffffff, 
-                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_G_MASK | DESC_P_MASK |
                                DESC_S_MASK |
                                DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | DESC_L_MASK);
         cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 
@@ -1028,7 +1028,7 @@ void helper_sysret(int dflag)
         if (dflag == 2) {
             cpu_x86_load_seg_cache(env, R_CS, (selector + 16) | 3, 
                                    0, 0xffffffff, 
-                                   DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                                   DESC_G_MASK | DESC_P_MASK |
                                    DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                    DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | 
                                    DESC_L_MASK);
@@ -2422,12 +2422,14 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         if ((new_ss & 0xfffc) == 0) {
 #ifdef TARGET_X86_64
             /* NULL ss is allowed in long mode if cpl != 3*/
+            /* XXX: test CS64 ? */
             if ((env->hflags & HF_LMA_MASK) && rpl != 3) {
                 cpu_x86_load_seg_cache(env, R_SS, new_ss, 
                                        0, 0xffffffff,
                                        DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                        DESC_S_MASK | (rpl << DESC_DPL_SHIFT) |
                                        DESC_W_MASK | DESC_A_MASK);
+                ss_e2 = DESC_B_MASK; /* XXX: should not be needed ? */
             } else 
 #endif
             {
@@ -3716,14 +3718,14 @@ void helper_hlt(void)
 
 void helper_monitor(void)
 {
-    if (ECX != 0)
+    if ((uint32_t)ECX != 0)
         raise_exception(EXCP0D_GPF);
     /* XXX: store address ? */
 }
 
 void helper_mwait(void)
 {
-    if (ECX != 0)
+    if ((uint32_t)ECX != 0)
         raise_exception(EXCP0D_GPF);
     /* XXX: not complete but not completely erroneous */
     if (env->cpu_index != 0 || env->next_cpu != NULL) {
