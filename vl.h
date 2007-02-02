@@ -1048,10 +1048,16 @@ int pit_get_out(PITState *pit, int channel, int64_t current_time);
 void pcspk_init(PITState *);
 int pcspk_audio_init(AudioState *);
 
+#include "hw/smbus.h"
+
 /* acpi.c */
 extern int acpi_enabled;
 void piix4_pm_init(PCIBus *bus, int devfn);
+void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 void acpi_bios_init(void);
+
+/* smbus_eeprom.c */
+SMBusDevice *smbus_eeprom_device_init(uint8_t addr, uint8_t *buf);
 
 /* pc.c */
 extern QEMUMachine pc_machine;
