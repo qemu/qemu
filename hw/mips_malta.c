@@ -97,8 +97,8 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
-    qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+    qemu_chr_printf(s->display, "\e[3;2H\e[0;32m%-8.8s", leds_text);
+    qemu_chr_printf(s->display, "\e[8;2H\e[0;31m%-8.8s\r\n\n\e[0;37m", s->display_text);
 }
 
 /*
@@ -693,9 +693,9 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
                     buf);
             exit(1);
         }
-        //~ pflash_t *pf;
-        //~ pf = pflash_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
-                             //~ MANUFACTURER_INTEL, I28F160S5);
+        pflash_t *pf;
+        pf = pflash_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
+                             MANUFACTURER_INTEL, I28F160S5);
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)

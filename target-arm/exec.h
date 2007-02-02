@@ -19,10 +19,17 @@
  */
 #include "dyngen-exec.h"
 
+#if defined(__sparc__)
+struct CPUARMState *env;
+uint32_t T0;
+uint32_t T1;
+uint32_t T2;
+#else
 register struct CPUARMState *env asm(AREG0);
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
 register uint32_t T2 asm(AREG3);
+#endif
 
 /* TODO: Put these in FP regs on targets that have such things.  */
 /* It is ok for FT0s and FT0d to overlap.  Likewise FT1s and FT1d.  */

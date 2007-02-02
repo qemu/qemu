@@ -24,6 +24,7 @@
 #define PM_FREQ 3579545
 
 #define ACPI_DBG_IO_ADDR  0xb044
+#define SMB_IO_BASE       0xb100
 
 typedef struct PIIX4PMState {
     PCIDevice dev;
@@ -34,6 +35,15 @@ typedef struct PIIX4PMState {
     uint8_t apms;
     QEMUTimer *tmr_timer;
     int64_t tmr_overflow_time;
+    SMBusDevice *smb_dev[128];
+    uint8_t smb_stat;
+    uint8_t smb_ctl;
+    uint8_t smb_cmd;
+    uint8_t smb_addr;
+    uint8_t smb_data0;
+    uint8_t smb_data1;
+    uint8_t smb_data[32];
+    uint8_t smb_index;
 } PIIX4PMState;
 
 #define RTC_EN (1 << 10)
@@ -44,6 +54,17 @@ typedef struct PIIX4PMState {
 #define SCI_EN (1 << 0)
 
 #define SUS_EN (1 << 13)
+
+#define SMBHSTSTS 0x00
+#define SMBHSTCNT 0x02
+#define SMBHSTCMD 0x03
+#define SMBHSTADD 0x04
+#define SMBHSTDAT0 0x05
+#define SMBHSTDAT1 0x06
+#define SMBBLKDAT 0x07
+
+/* Note: only used for piix4_smbus_register_device */
+static PIIX4PMState *piix4_pm_state;
 
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
@@ -231,6 +252,156 @@ static void acpi_dbg_writel(void *opaque, uint32_t addr, uint32_t val)
 #endif
 }
 
+static void smb_transaction(PIIX4PMState *s)
+{
+    uint8_t prot = (s->smb_ctl >> 2) & 0x07;
+    uint8_t read = s->smb_addr & 0x01;
+    uint8_t cmd = s->smb_cmd;
+    uint8_t addr = s->smb_addr >> 1;
+    SMBusDevice *dev = s->smb_dev[addr];
+
+#ifdef DEBUG
+    printf("SMBus trans addr=0x%02x prot=0x%02x\n", addr, prot);
+#endif
+    if (!dev) goto error;
+
+    switch(prot) {
+    case 0x0:
+        if (!dev->quick_cmd) goto error;
+        (*dev->quick_cmd)(dev, read);
+        break;
+    case 0x1:
+        if (read) {
+            if (!dev->receive_byte) goto error;
+            s->smb_data0 = (*dev->receive_byte)(dev);
+        }
+        else {
+            if (!dev->send_byte) goto error;
+            (*dev->send_byte)(dev, cmd);
+        }
+        break;
+    case 0x2:
+        if (read) {
+            if (!dev->read_byte) goto error;
+            s->smb_data0 = (*dev->read_byte)(dev, cmd);
+        }
+        else {
+            if (!dev->write_byte) goto error;
+            (*dev->write_byte)(dev, cmd, s->smb_data0);
+        }
+        break;
+    case 0x3:
+        if (read) {
+            uint16_t val;
+            if (!dev->read_word) goto error;
+            val = (*dev->read_word)(dev, cmd);
+            s->smb_data0 = val;
+            s->smb_data1 = val >> 8;
+        }
+        else {
+            if (!dev->write_word) goto error;
+            (*dev->write_word)(dev, cmd, (s->smb_data1 << 8) | s->smb_data0);
+        }
+        break;
+    case 0x5:
+        if (read) {
+            if (!dev->read_block) goto error;
+            s->smb_data0 = (*dev->read_block)(dev, cmd, s->smb_data);
+        }
+        else {
+            if (!dev->write_block) goto error;
+            (*dev->write_block)(dev, cmd, s->smb_data0, s->smb_data);
+        }
+        break;
+    default:
+        goto error;
+    }
+    return;
+
+  error:
+    s->smb_stat |= 0x04;
+}
+
+static void smb_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+{
+    PIIX4PMState *s = opaque;
+    addr &= 0x3f;
+#ifdef DEBUG
+    printf("SMB writeb port=0x%04x val=0x%02x\n", addr, val);
+#endif
+    switch(addr) {
+    case SMBHSTSTS:
+        s->smb_stat = 0;
+        s->smb_index = 0;
+        break;
+    case SMBHSTCNT:
+        s->smb_ctl = val;
+        if (val & 0x40)
+            smb_transaction(s);
+        break;
+    case SMBHSTCMD:
+        s->smb_cmd = val;
+        break;
+    case SMBHSTADD:
+        s->smb_addr = val;
+        break;
+    case SMBHSTDAT0:
+        s->smb_data0 = val;
+        break;
+    case SMBHSTDAT1:
+        s->smb_data1 = val;
+        break;
+    case SMBBLKDAT:
+        s->smb_data[s->smb_index++] = val;
+        if (s->smb_index > 31)
+            s->smb_index = 0;
+        break;
+    default:
+        break;
+    }
+}
+
+static uint32_t smb_ioport_readb(void *opaque, uint32_t addr)
+{
+    PIIX4PMState *s = opaque;
+    uint32_t val;
+
+    addr &= 0x3f;
+    switch(addr) {
+    case SMBHSTSTS:
+        val = s->smb_stat;
+        break;
+    case SMBHSTCNT:
+        s->smb_index = 0;
+        val = s->smb_ctl & 0x1f;
+        break;
+    case SMBHSTCMD:
+        val = s->smb_cmd;
+        break;
+    case SMBHSTADD:
+        val = s->smb_addr;
+        break;
+    case SMBHSTDAT0:
+        val = s->smb_data0;
+        break;
+    case SMBHSTDAT1:
+        val = s->smb_data1;
+        break;
+    case SMBBLKDAT:
+        val = s->smb_data[s->smb_index++];
+        if (s->smb_index > 31)
+            s->smb_index = 0;
+        break;
+    default:
+        val = 0;
+        break;
+    }
+#ifdef DEBUG
+    printf("SMB readb port=0x%04x val=0x%02x\n", addr, val);
+#endif
+    return val;
+}
+
 static void pm_io_space_update(PIIX4PMState *s)
 {
     uint32_t pm_io_base;
@@ -302,6 +473,7 @@ void piix4_pm_init(PCIBus *bus, int devfn)
 {
     PIIX4PMState *s;
     uint8_t *pci_conf;
+    uint32_t pm_io_base, smb_io_base;
 
     s = (PIIX4PMState *)pci_register_device(bus,
                                          "PM", sizeof(PIIX4PMState),
@@ -332,7 +504,20 @@ void piix4_pm_init(PCIBus *bus, int devfn)
     pci_conf[0x67] = (serial_hds[0] != NULL ? 0x08 : 0) |
 	(serial_hds[1] != NULL ? 0x90 : 0);
 
+    smb_io_base = SMB_IO_BASE;
+    pci_conf[0x90] = smb_io_base | 1;
+    pci_conf[0x91] = smb_io_base >> 8;
+    pci_conf[0xd2] = 0x09;
+    register_ioport_write(smb_io_base, 64, 1, smb_ioport_writeb, s);
+    register_ioport_read(smb_io_base, 64, 1, smb_ioport_readb, s);
+
     s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
 
     register_savevm("piix4_pm", 0, 1, pm_save, pm_load, s);
+    piix4_pm_state = s;
+}
+
+void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr)
+{
+    piix4_pm_state->smb_dev[addr] = dev;
 }

@@ -1,3 +1,44 @@
+2007-02-02 04:57  ths
+
+	* cpu-exec.c: Use target_ulong type for emulator registers.
+
+2007-02-02 04:30  ths
+
+	* vl.c: Mingw build fix, by Johannes Schindelin.
+
+2007-02-02 04:13  ths
+
+	* Makefile.target, vl.h, hw/acpi.c, hw/pc.c, hw/smbus.h,
+	  hw/smbus_eeprom.c: PIIX4 SMBus host, EEPROM device emulation, by
+	  Ed Swierk.
+
+2007-02-02 03:56  ths
+
+	* target-mips/TODO: Update MIPS TODO.
+
+2007-02-02 02:03  ths
+
+	* target-arm/exec.h, target-mips/exec.h, target-sparc/exec.h: Sparc
+	  arm/mips/sparc register patch, by Martin Bochnig.
+
+2007-02-02 01:37  ths
+
+	* qemu-doc.texi, vl.c: script=no for the TUN/TAP net option, by
+	  Jean-Christian de Rivaz
+
+2007-02-01 23:12  bellard
+
+	* kqemu.c: 64 bit syscall fix
+
+2007-02-01 23:12  bellard
+
+	* target-i386/helper.c: 64 bit syscall fixes - more logical
+	  mwait/monitor ECX test
+
+2007-02-01 23:11  bellard
+
+	* target-i386/op.c: cwde and cdq fix in 64 bit mode
+
 2007-01-31 14:34  ths
 
 	* vl.h: Remove redundant ENOMEDIUM define.

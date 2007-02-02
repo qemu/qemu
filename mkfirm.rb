@@ -26,7 +26,7 @@ ADAM2 bootloader flash layout
 =============================
 
 flash: mtd[0] 0x900C0000 - 0x903C0000 (filesystem)
-flash: mtd[1] 0x90010000 - 0x900C0000 (kernel)
+flash: mtd[1] 0x90010000 - 0x900C0000 (kernel)          720896
 flash: mtd[2] 0x90000000 - 0x90010000 (urlader)
 flash: mtd[3] 0x903C0000 - 0x903E0000 (tffs)
 flash: mtd[4] 0x903E0000 - 0x90400000 (tffs)
@@ -40,7 +40,7 @@ Files:
 0xb0000000.bin	flash image
 0xb0020000.bin	configuration
 0xb0040000.bin	web
-0xb0110000.bin	code
+0xb0110000.bin	code            917504
 0xb01f0000.bin	params
 
 
