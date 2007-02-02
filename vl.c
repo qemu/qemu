@@ -1875,6 +1875,7 @@ static CharDriverState *qemu_chr_open_pty(void)
 
 #ifdef _WIN32
 typedef struct {
+    CharDriverState *chr;
     int max_size;
     HANDLE hcom, hrecv, hsend;
     OVERLAPPED orecv, osend;
@@ -1916,7 +1917,7 @@ static void win_chr_close(CharDriverState *chr)
     win_chr_close2(s);
 }
 
-static int win_chr_init(WinCharState *s, const char *filename)
+static int win_chr_init(WinCharState *s, CharDriverState *chr, const char *filename)
 {
     COMMCONFIG comcfg;
     COMMTIMEOUTS cto = { 0, 0, 0, 0, 0};
@@ -1974,6 +1975,7 @@ static int win_chr_init(WinCharState *s, const char *filename)
         fprintf(stderr, "Failed ClearCommError\n");
         goto fail;
     }
+    s->chr = chr;
     qemu_add_polling_cb(win_chr_poll, s);
     return 0;
 
@@ -2086,7 +2088,7 @@ static CharDriverState *qemu_chr_open_win(const char *filename)
     chr->chr_write = win_chr_write;
     chr->chr_close = win_chr_close;
 
-    if (win_chr_init(s, filename) < 0) {
+    if (win_chr_init(s, chr, filename) < 0) {
         free(s);
         free(chr);
         return NULL;
