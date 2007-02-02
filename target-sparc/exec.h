@@ -3,23 +3,41 @@
 #include "dyngen-exec.h"
 #include "config.h"
 
+#if defined(__sparc__)
+struct CPUSPARCState *env;
+#else
 register struct CPUSPARCState *env asm(AREG0);
+#endif
+
 #ifdef TARGET_SPARC64
 #define T0 (env->t0)
 #define T1 (env->t1)
 #define T2 (env->t2)
 #define REGWPTR env->regwptr
 #else
+#if defined(__sparc__)
+register uint32_t T0 asm(AREG3);
+register uint32_t T1 asm(AREG2);
+#else
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
+#endif
 
 #undef REG_REGWPTR // Broken
 #ifdef REG_REGWPTR
+#if defined(__sparc__)
+register uint32_t *REGWPTR asm(AREG4);
+#else
 register uint32_t *REGWPTR asm(AREG3);
+#endif
 #define reg_REGWPTR
 
 #ifdef AREG4
+#if defined(__sparc__)
+register uint32_t T2 asm(AREG0);
+#else
 register uint32_t T2 asm(AREG4);
+#endif
 #define reg_T2
 #else
 #define T2 (env->t2)
@@ -27,7 +45,11 @@ register uint32_t T2 asm(AREG4);
 
 #else
 #define REGWPTR env->regwptr
+#if defined(__sparc__)
+register uint32_t T2 asm(AREG0);
+#else
 register uint32_t T2 asm(AREG3);
+#endif
 #define reg_T2
 #endif
 #endif
