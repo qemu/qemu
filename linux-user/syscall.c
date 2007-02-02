@@ -1152,6 +1152,35 @@ static long do_ipc(long call, long first, long second, long third,
         gemu_log("Unsupported ipc call: %ld (version %d)\n", call, version);
         ret = -ENOSYS;
         break;
+
+	case IPCOP_msgget:
+		ret = get_errno(msgget(first, second));
+		break;
+
+	case IPCOP_msgsnd:
+		ret = get_errno(msgsnd(first, (struct msgbuf *) ptr, second, third));
+		break;
+
+	case IPCOP_msgctl:
+		ret = get_errno(msgctl(first, second, (struct msqid_ds *) ptr));
+		break;
+
+	case IPCOP_msgrcv:
+		{
+			struct ipc_kludge
+			{
+				void *__unbounded msgp;
+				long int msgtyp;
+			};
+
+			struct ipc_kludge *foo = (struct ipc_kludge *) ptr;
+			struct msgbuf *msgp = (struct msgbuf *) foo->msgp;
+
+			ret = get_errno(msgrcv(first, msgp, second, 0, third));
+
+		}
+		break;
+
     case IPCOP_shmat:
 	/* SHM_* flags are the same on all linux platforms */
 	ret = get_errno((long) shmat(first, (void *) ptr, second));
