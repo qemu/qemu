@@ -358,7 +358,8 @@ hostname reported by the builtin DHCP server.
 @item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
 Connect the host TAP network interface @var{name} to VLAN @var{n} and
 use the network script @var{file} to configure it. The default
-network script is @file{/etc/qemu-ifup}. If @var{name} is not
+network script is @file{/etc/qemu-ifup}. Use @option{script=no} to
+disable script execution. If @var{name} is not
 provided, the OS automatically provides one.  @option{fd=h} can be
 used to specify the handle of an already opened host TAP interface. Example:
 

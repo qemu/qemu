@@ -3289,7 +3289,7 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
     if (fd < 0)
         return -1;
 
-    if (!setup_script)
+    if (!setup_script || !strcmp(setup_script, "no"))
         setup_script = "";
     if (setup_script[0] != '\0') {
         /* try to launch network init script */
@@ -6066,6 +6066,7 @@ void help(void)
            "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file]\n"
            "                connect the host TAP network interface to VLAN 'n' and use\n"
            "                the network script 'file' (default=%s);\n"
+           "                use 'script=no' to disable script execution;\n"
            "                use 'fd=h' to connect to an already opened TAP interface\n"
 #endif
            "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
