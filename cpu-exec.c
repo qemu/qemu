@@ -226,9 +226,9 @@ static inline TranslationBlock *tb_find_fast(void)
 
 int cpu_exec(CPUState *env1)
 {
-    int saved_T0, saved_T1;
+    target_ulong saved_T0, saved_T1;
 #if defined(reg_T2)
-    int saved_T2;
+    target_ulong saved_T2;
 #endif
     CPUState *saved_env;
 #if defined(TARGET_I386)
@@ -262,7 +262,8 @@ int cpu_exec(CPUState *env1)
 #endif
 #endif
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
-    int saved_i7, tmp_T0;
+    int saved_i7;
+    target_ulong tmp_T0;
 #endif
     int ret, interrupt_request;
     void (*gen_func)(void);
