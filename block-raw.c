@@ -608,9 +608,9 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
         open_flags |= O_NONBLOCK;
-    } else if (strstart(filename, "/dev/hd", NULL)) {
-        printf("raw disk i/o %s, flags 0x%04x\n", filename, open_flags);
-        open_flags |= O_DIRECT;
+    //~ } else if (strstart(filename, "/dev/hd", NULL)) {
+        //~ printf("raw disk i/o %s, flags 0x%04x\n", filename, open_flags);
+        //~ open_flags |= O_DIRECT;
     }
 #endif
     fd = open(filename, open_flags, 0644);
