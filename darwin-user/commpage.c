@@ -114,10 +114,10 @@ static struct commpage_entry commpage_entries[] =
     COMMPAGE_ENTRY(spinlock_lock,         1, 0x260,  OSSpinLockLock,        CALL_DIRECT),
     COMMPAGE_ENTRY(spinlock_unlock,       1, 0x2a0,  OSSpinLockUnlock,      CALL_DIRECT),
     COMMPAGE_ENTRY(pthread_getspecific,   0, 0x2c0,  unimpl_commpage,       CALL_INDIRECT),
-    COMMPAGE_ENTRY(gettimeofday,          1, 0x2c0,  do_cgettimeofday,      CALL_INDIRECT),
-    COMMPAGE_ENTRY(sys_dcache_flush,      0, 0x2c0,  unimpl_commpage,       CALL_INDIRECT),
-    COMMPAGE_ENTRY(sys_icache_invalidate, 0, 0x2c0,  unimpl_commpage,       CALL_INDIRECT),
-    COMMPAGE_ENTRY(pthread_self,          0, 0x2c0,  unimpl_commpage,       CALL_INDIRECT),
+    COMMPAGE_ENTRY(gettimeofday,          1, 0x2e0,  do_cgettimeofday,      CALL_INDIRECT),
+    COMMPAGE_ENTRY(sys_dcache_flush,      0, 0x4e0,  unimpl_commpage,       CALL_INDIRECT),
+    COMMPAGE_ENTRY(sys_icache_invalidate, 0, 0x520,  unimpl_commpage,       CALL_INDIRECT),
+    COMMPAGE_ENTRY(pthread_self,          0, 0x580,  unimpl_commpage,       CALL_INDIRECT),
 
     COMMPAGE_ENTRY(relinquish,            0, 0x5c0,  unimpl_commpage,       CALL_INDIRECT),
 
@@ -305,7 +305,7 @@ void do_nanotime(void *cpu_env, int num)
 
 void unimpl_commpage(void *cpu_env, int num)
 {
-    gemu_log("qemu: commpage function 0x%x not implemented\n", num);
+    qerror("qemu: commpage function 0x%x not implemented\n", num);
 }
 
 /********************************************************************
