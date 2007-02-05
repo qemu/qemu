@@ -68,6 +68,11 @@ struct VncState
     int depth; /* internal VNC frame buffer byte per pixel */
     int has_resize;
     int has_hextile;
+    int has_pointer_type_change;
+    int absolute;
+    int last_x;
+    int last_y;
+
     Buffer output;
     Buffer input;
     kbd_layout_t *kbd_layout;
@@ -671,6 +676,19 @@ static void client_cut_text(VncState *vs, size_t len, char *text)
 {
 }
 
+static void check_pointer_type_change(VncState *vs, int absolute)
+{
+    if (vs->has_pointer_type_change && vs->absolute != absolute) {
+	vnc_write_u8(vs, 0);
+	vnc_write_u8(vs, 0);
+	vnc_write_u16(vs, 1);
+	vnc_framebuffer_update(vs, absolute, 0,
+			       vs->ds->width, vs->ds->height, -257);
+	vnc_flush(vs);
+    }
+    vs->absolute = absolute;
+}
+
 static void pointer_event(VncState *vs, int button_mask, int x, int y)
 {
     int buttons = 0;
@@ -686,21 +704,26 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
 	dz = -1;
     if (button_mask & 0x10)
 	dz = 1;
-	    
-    if (kbd_mouse_is_absolute()) {
+
+    if (vs->absolute) {
 	kbd_mouse_event(x * 0x7FFF / vs->ds->width,
 			y * 0x7FFF / vs->ds->height,
 			dz, buttons);
+    } else if (vs->has_pointer_type_change) {
+	x -= 0x7FFF;
+	y -= 0x7FFF;
+
+	kbd_mouse_event(x, y, dz, buttons);
     } else {
-	static int last_x = -1;
-	static int last_y = -1;
-
-	if (last_x != -1)
-	    kbd_mouse_event(x - last_x, y - last_y, dz, buttons);
-
-	last_x = x;
-	last_y = y;
+	if (vs->last_x != -1)
+	    kbd_mouse_event(x - vs->last_x,
+			    y - vs->last_y,
+			    dz, buttons);
+	vs->last_x = x;
+	vs->last_y = y;
     }
+
+    check_pointer_type_change(vs, kbd_mouse_is_absolute());
 }
 
 static void reset_keys(VncState *vs)
@@ -829,6 +852,8 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 
     vs->has_hextile = 0;
     vs->has_resize = 0;
+    vs->has_pointer_type_change = 0;
+    vs->absolute = -1;
     vs->ds->dpy_copy = NULL;
 
     for (i = n_encodings - 1; i >= 0; i--) {
@@ -845,10 +870,15 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 	case -223: /* DesktopResize */
 	    vs->has_resize = 1;
 	    break;
+	case -257:
+	    vs->has_pointer_type_change = 1;
+	    break;
 	default:
 	    break;
 	}
     }
+
+    check_pointer_type_change(vs, kbd_mouse_is_absolute());
 }
 
 static int compute_nbits(unsigned int val)
@@ -1124,6 +1154,8 @@ void vnc_display_init(DisplayState *ds, const char *arg)
     vs->lsock = -1;
     vs->csock = -1;
     vs->depth = 4;
+    vs->last_x = -1;
+    vs->last_y = -1;
 
     vs->ds = ds;
 
