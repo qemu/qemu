@@ -1865,39 +1865,15 @@ make install
 @end example
 to install QEMU in @file{/usr/local}.
 
-@subsection Tested tool versions
+@subsection GCC version
 
 In order to compile QEMU successfully, it is very important that you
-have the right tools. The most important one is gcc. I cannot guaranty
-that QEMU works if you do not use a tested gcc version. Look at
-'configure' and 'Makefile' if you want to make a different gcc
-version work.
-
-@example
-host      gcc      binutils      glibc    linux       distribution
-----------------------------------------------------------------------
-x86       3.2      2.13.2        2.1.3    2.4.18
-          2.96     2.11.93.0.2   2.2.5    2.4.18      Red Hat 7.3
-          3.2.2    2.13.90.0.18  2.3.2    2.4.20      Red Hat 9
-
-PowerPC   3.3 [4]  2.13.90.0.18  2.3.1    2.4.20briq
-          3.2
-
-Alpha     3.3 [1]  2.14.90.0.4   2.2.5    2.2.20 [2]  Debian 3.0
-
-Sparc32   2.95.4   2.12.90.0.1   2.2.5    2.4.18      Debian 3.0
-
-ARM       2.95.4   2.12.90.0.1   2.2.5    2.4.9 [3]   Debian 3.0
-
-[1] On Alpha, QEMU needs the gcc 'visibility' attribute only available
-    for gcc version >= 3.3.
-[2] Linux >= 2.4.20 is necessary for precise exception support
-    (untested).
-[3] 2.4.9-ac10-rmk2-np1-cerf2
-
-[4] gcc 2.95.x generates invalid code when using too many register
-variables. You must use gcc 3.x on PowerPC.
-@end example
+have the right tools. The most important one is gcc. On most hosts and
+in particular on x86 ones, @emph{gcc 4.x is not supported}. If your
+Linux distribution includes a gcc 4.x compiler, you can usually
+install an older version (it is invoked by @code{gcc32} or
+@code{gcc34}). The QEMU configure script automatically probes for
+these older versions so that usally you don't have to do anything.
 
 @node Windows
 @section Windows
