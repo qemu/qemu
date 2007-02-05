@@ -163,6 +163,9 @@ tarbin:
 	$(datadir)/video.x \
 	$(datadir)/openbios-sparc32 \
 	$(datadir)/linux_boot.bin \
+        $(datadir)/pxe-ne2k_pci.bin \
+	$(datadir)/pxe-rtl8139.bin \
+        $(datadir)/pxe-pcnet.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
 	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1 )
