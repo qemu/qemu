@@ -1,11 +1,14 @@
-The following points clarify the QEMU licenses:
+The following points clarify the QEMU license:
 
-1) The QEMU virtual CPU core library (libqemu.a) and the QEMU PC
-   system emulator are released under the GNU Lesser General Public
-   License.
+1) QEMU as a whole is released under the GNU General Public License
 
-2) The Linux user mode QEMU emulator is released under the GNU General
-   Public License.
+2) Parts of QEMU have specific licenses which are compatible with the
+GNU General Public License. Hence each source file contains its own
+licensing information.
+
+In particular, the QEMU virtual CPU core library (libqemu.a) is
+released under the GNU Lesser General Public License. Many hardware
+device emulation sources are released under the BSD license.
 
 3) QEMU is a trademark of Fabrice Bellard.
 
