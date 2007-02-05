@@ -73,6 +73,8 @@ struct VncState
     int last_x;
     int last_y;
 
+    const char *display;
+
     Buffer output;
     Buffer input;
     kbd_layout_t *kbd_layout;
@@ -89,6 +91,24 @@ struct VncState
     /* input */
     uint8_t modifiers_state[256];
 };
+
+static VncState *vnc_state; /* needed for info vnc */
+
+void do_info_vnc(void)
+{
+    if (vnc_state == NULL)
+	term_printf("VNC server disabled\n");
+    else {
+	term_printf("VNC server active on: ");
+	term_print_filename(vnc_state->display);
+	term_printf("\n");
+
+	if (vnc_state->csock == -1)
+	    term_printf("No client connected\n");
+	else
+	    term_printf("Client connected\n");
+    }
+}
 
 /* TODO
    1) Get the queue working for IO.
@@ -1150,6 +1170,8 @@ void vnc_display_init(DisplayState *ds, const char *arg)
 	exit(1);
 
     ds->opaque = vs;
+    vnc_state = vs;
+    vs->display = arg;
 
     vs->lsock = -1;
     vs->csock = -1;

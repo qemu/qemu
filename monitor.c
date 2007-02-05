@@ -1297,6 +1297,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the currently saved VM snapshots" },
     { "mice", "", do_info_mice,
       "", "show which guest mouse is receiving events" },
+    { "vnc", "", do_info_vnc,
+      "", "show the vnc server status"},
     { NULL, NULL, },
 };
 
