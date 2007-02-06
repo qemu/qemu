@@ -62,6 +62,9 @@ typedef signed long long int64_t;
 #endif
 #endif
 
+/* XXX: This may be wrong for 64-bit ILP32 hosts.  */
+typedef void * host_reg_t;
+
 #define INT8_MIN		(-128)
 #define INT16_MIN		(-32767-1)
 #define INT32_MIN		(-2147483647-1)

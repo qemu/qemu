@@ -42,6 +42,7 @@
 #include <sys/poll.h>
 #include <sys/times.h>
 #include <sys/shm.h>
+#include <sys/sem.h>
 #include <sys/statfs.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
@@ -1114,6 +1115,12 @@ static struct shm_region {
     uint32_t	size;
 } shm_regions[N_SHM_REGIONS];
 
+union semun {
+	int val;
+	struct senid_ds *buf;
+	unsigned short *array;
+};
+
 /* ??? This only works with linear mappings.  */
 static long do_ipc(long call, long first, long second, long third,
 		   long ptr, long fifth)
@@ -1128,6 +1135,52 @@ static long do_ipc(long call, long first, long second, long third,
     call &= 0xffff;
 
     switch (call) {
+    case IPCOP_semop:
+        ret = get_errno(semop(first,(struct sembuf *) ptr, second));
+        break;
+
+    case IPCOP_semget:
+        ret = get_errno(semget(first, second, third));
+        break;
+
+    case IPCOP_semctl:
+        ret = get_errno(semctl(first, second, third, ((union semun*)ptr)->val));
+
+        break;
+
+    case IPCOP_semtimedop:
+        gemu_log("Unsupported ipc call: %ld (version %d)\n", call, version);
+        ret = -ENOSYS;
+        break;
+
+	case IPCOP_msgget:
+		ret = get_errno(msgget(first, second));
+		break;
+
+	case IPCOP_msgsnd:
+		ret = get_errno(msgsnd(first, (struct msgbuf *) ptr, second, third));
+		break;
+
+	case IPCOP_msgctl:
+		ret = get_errno(msgctl(first, second, (struct msqid_ds *) ptr));
+		break;
+
+	case IPCOP_msgrcv:
+		{
+			struct ipc_kludge
+			{
+				void *__unbounded msgp;
+				long int msgtyp;
+			};
+
+			struct ipc_kludge *foo = (struct ipc_kludge *) ptr;
+			struct msgbuf *msgp = (struct msgbuf *) foo->msgp;
+
+			ret = get_errno(msgrcv(first, msgp, second, 0, third));
+
+		}
+		break;
+
     case IPCOP_shmat:
 	/* SHM_* flags are the same on all linux platforms */
 	ret = get_errno((long) shmat(first, (void *) ptr, second));

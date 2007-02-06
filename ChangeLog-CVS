@@ -1,3 +1,18 @@
+2007-02-04 14:37  pbrook
+
+	* cpu-exec.c, dyngen-exec.h, hostregs_helper.h: Fix 64-bit host
+	  register corruption.
+
+2007-02-02 23:05  ths
+
+	* linux-user/syscall.c: sem* and msg* for qemu, part2, by Kirill
+	  Shutemov.
+
+2007-02-02 23:05  ths
+
+	* linux-user/syscall.c: sem* and msg* for qemu, part1, by Kirill
+	  Shutemov.
+
 2007-02-02 04:57  ths
 
 	* cpu-exec.c: Use target_ulong type for emulator registers.

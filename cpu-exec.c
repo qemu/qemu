@@ -226,37 +226,9 @@ static inline TranslationBlock *tb_find_fast(void)
 
 int cpu_exec(CPUState *env1)
 {
-    target_ulong saved_T0, saved_T1;
-#if defined(reg_T2)
-    target_ulong saved_T2;
-#endif
-    CPUState *saved_env;
-#if defined(TARGET_I386)
-#ifdef reg_EAX
-    int saved_EAX;
-#endif
-#ifdef reg_ECX
-    int saved_ECX;
-#endif
-#ifdef reg_EDX
-    int saved_EDX;
-#endif
-#ifdef reg_EBX
-    int saved_EBX;
-#endif
-#ifdef reg_ESP
-    int saved_ESP;
-#endif
-#ifdef reg_EBP
-    int saved_EBP;
-#endif
-#ifdef reg_ESI
-    int saved_ESI;
-#endif
-#ifdef reg_EDI
-    int saved_EDI;
-#endif
-#elif defined(TARGET_SPARC)
+#define DECLARE_HOST_REGS 1
+#include "hostregs_helper.h"
+#if defined(TARGET_SPARC)
 #if defined(reg_REGWPTR)
     uint32_t *saved_regwptr;
 #endif
@@ -325,44 +297,15 @@ int cpu_exec(CPUState *env1)
     cpu_single_env = env1; 
 
     /* first we save global registers */
-    saved_env = env;
+#define SAVE_HOST_REGS 1
+#include "hostregs_helper.h"
     env = env1;
-    saved_T0 = T0;
-    saved_T1 = T1;
-#if defined(reg_T2)
-    saved_T2 = T2;
-#endif
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
     /* we also save i7 because longjmp may not restore it */
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
 #endif
 
 #if defined(TARGET_I386)
-#ifdef reg_EAX
-    saved_EAX = EAX;
-#endif
-#ifdef reg_ECX
-    saved_ECX = ECX;
-#endif
-#ifdef reg_EDX
-    saved_EDX = EDX;
-#endif
-#ifdef reg_EBX
-    saved_EBX = EBX;
-#endif
-#ifdef reg_ESP
-    saved_ESP = ESP;
-#endif
-#ifdef reg_EBP
-    saved_EBP = EBP;
-#endif
-#ifdef reg_ESI
-    saved_ESI = ESI;
-#endif
-#ifdef reg_EDI
-    saved_EDI = EDI;
-#endif
-
     env_to_regs();
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -827,32 +770,6 @@ int cpu_exec(CPUState *env1)
 #endif
     /* restore flags in standard format */
     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
-
-    /* restore global registers */
-#ifdef reg_EAX
-    EAX = saved_EAX;
-#endif
-#ifdef reg_ECX
-    ECX = saved_ECX;
-#endif
-#ifdef reg_EDX
-    EDX = saved_EDX;
-#endif
-#ifdef reg_EBX
-    EBX = saved_EBX;
-#endif
-#ifdef reg_ESP
-    ESP = saved_ESP;
-#endif
-#ifdef reg_EBP
-    EBP = saved_EBP;
-#endif
-#ifdef reg_ESI
-    ESI = saved_ESI;
-#endif
-#ifdef reg_EDI
-    EDI = saved_EDI;
-#endif
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
@@ -871,15 +788,13 @@ int cpu_exec(CPUState *env1)
 #else
 #error unsupported target CPU
 #endif
+
+    /* restore global registers */
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
     asm volatile ("mov %0, %%i7" : : "r" (saved_i7));
 #endif
-    T0 = saved_T0;
-    T1 = saved_T1;
-#if defined(reg_T2)
-    T2 = saved_T2;
-#endif
-    env = saved_env;
+#include "hostregs_helper.h"
+
     /* fail safe : never use cpu_single_env outside cpu_exec() */
     cpu_single_env = NULL; 
     return ret;
