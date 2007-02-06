@@ -1238,4 +1238,18 @@ int gdbserver_start(CharDriverState *chr)
     qemu_add_vm_stop_handler(gdb_vm_stopped, s);
     return 0;
 }
+
+int gdbserver_start_port(int port)
+{
+    CharDriverState *chr;
+    char gdbstub_port_name[128];
+
+    snprintf(gdbstub_port_name, sizeof(gdbstub_port_name),
+             "tcp::%d,nowait,nodelay,server", port);
+    chr = qemu_chr_open(gdbstub_port_name);
+    if (!chr) 
+        return -EIO;
+    return gdbserver_start(chr);
+}
+
 #endif

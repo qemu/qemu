@@ -1176,6 +1176,18 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
 #if defined(__i386__)
 
+#if defined(__APPLE__)
+# include <sys/ucontext.h>
+
+# define EIP_sig(context)  (*((unsigned long*)&(context)->uc_mcontext->ss.eip))
+# define TRAP_sig(context)    ((context)->uc_mcontext->es.trapno)
+# define ERROR_sig(context)   ((context)->uc_mcontext->es.err)
+#else
+# define EIP_sig(context)     ((context)->uc_mcontext.gregs[REG_EIP])
+# define TRAP_sig(context)    ((context)->uc_mcontext.gregs[REG_TRAPNO])
+# define ERROR_sig(context)   ((context)->uc_mcontext.gregs[REG_ERR])
+#endif
+
 #if defined(USE_CODE_COPY)
 static void cpu_send_trap(unsigned long pc, int trap, 
                           struct ucontext *uc)
@@ -1210,8 +1222,8 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #define REG_ERR    ERR
 #define REG_TRAPNO TRAPNO
 #endif
-    pc = uc->uc_mcontext.gregs[REG_EIP];
-    trapno = uc->uc_mcontext.gregs[REG_TRAPNO];
+    pc = EIP_sig(uc);
+    trapno = TRAP_sig(uc);
 #if defined(TARGET_I386) && defined(USE_CODE_COPY)
     if (trapno == 0x00 || trapno == 0x05) {
         /* send division by zero or bound exception */
@@ -1221,7 +1233,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #endif
         return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
                                  trapno == 0xe ? 
-                                 (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
+                                 (ERROR_sig(uc) >> 1) & 1 : 0,
                                  &uc->uc_sigmask, puc);
 }
 

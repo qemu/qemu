@@ -646,16 +646,17 @@ void usage(void)
            "Darwin CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
-           "-L path      set the elf interpreter prefix (default=%s)\n"
+           "-L path      set the %s library path (default='%s')\n"
            "-s size      set the stack size in bytes (default=%ld)\n"
            "\n"
            "debug options:\n"
 #ifdef USE_CODE_COPY
            "-no-code-copy   disable code copy acceleration\n"
 #endif
-           "-d options   activate log (logfile=%s)\n"
+           "-d options   activate log (logfile='%s')\n"
            "-g wait for gdb on port 1234\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
+           TARGET_ARCH,
            TARGET_ARCH,
            interp_prefix,
            stack_size,
@@ -752,11 +753,6 @@ int main(int argc, char **argv)
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
-
-#if 0
-    /* Scan interp_prefix dir for replacement files. */
-    init_paths(interp_prefix);
-#endif
 
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
@@ -888,7 +884,7 @@ int main(int argc, char **argv)
     set_idt(0x81, 3); /* Mach Syscalls */
     set_idt(0x82, 3); /* thread Syscalls */
 
-    set_idt(0x90, 3); /* Unix Syscall backdoor */
+    set_idt(0x90, 3); /* qemu-darwin-user's Unix syscalls backdoor */
 
 
     cpu_x86_load_seg(env, R_CS, __USER_CS);

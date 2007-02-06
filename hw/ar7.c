@@ -2568,7 +2568,12 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         name = "vlynq0 memory";
         logflag = VLYNQ;
         val = VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem);
-        if (addr == 0x04041000) {
+        if (0) {
+        } else if (addr == 0x040400f0) {
+            /* Mailbox (from ACX111)? */
+        } else if (addr == 0x04040108) {
+            /* Command (to ACX111)? */
+        } else if (addr == 0x04041000) {
             /* Write PCI device id for TI TNETW1130 (ACX111) */
             val = 0x9066104c;
         }

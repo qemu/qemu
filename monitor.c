@@ -423,7 +423,7 @@ static void do_gdbserver(int has_port, int port)
 {
     if (!has_port)
         port = DEFAULT_GDBSTUB_PORT;
-    if (gdbserver_start(port) < 0) {
+    if (gdbserver_start_port(port) < 0) {
         qemu_printf("Could not open gdbserver socket on port %d\n", port);
     } else {
         qemu_printf("Waiting gdb connection on port %d\n", port);
@@ -1299,6 +1299,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show the currently saved VM snapshots" },
     { "mice", "", do_info_mice,
       "", "show which guest mouse is receiving events" },
+    { "vnc", "", do_info_vnc,
+      "", "show the vnc server status"},
     { NULL, NULL, },
 };
 

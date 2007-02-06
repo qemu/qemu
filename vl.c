@@ -1,7 +1,7 @@
 /*
  * QEMU System Emulator
  * 
- * Copyright (c) 2003-2006 Fabrice Bellard
+ * Copyright (c) 2003-2007 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -6013,7 +6013,7 @@ int main_loop(void)
 
 void help(void)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2006 Fabrice Bellard\n"
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
@@ -6534,8 +6534,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
 int main(int argc, char **argv)
 {
 #ifdef CONFIG_GDBSTUB
-    int use_gdbstub;
-    char gdbstub_port_name[128];
+    int use_gdbstub, gdbstub_port;
 #endif
     int i, cdrom_index;
     int snapshot, linux_boot;
@@ -6611,7 +6610,7 @@ int main(int argc, char **argv)
     flash_size = FLASH_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
-    sprintf(gdbstub_port_name, "%d", DEFAULT_GDBSTUB_PORT);
+    gdbstub_port = DEFAULT_GDBSTUB_PORT;
 #endif
     snapshot = 0;
     nographic = 0;
@@ -6855,7 +6854,7 @@ int main(int argc, char **argv)
                 use_gdbstub = 1;
                 break;
             case QEMU_OPTION_p:
-                pstrcpy(gdbstub_port_name, sizeof(gdbstub_port_name), optarg);
+                gdbstub_port = atoi(optarg);
                 break;
 #endif
             case QEMU_OPTION_L:
@@ -7268,19 +7267,13 @@ int main(int argc, char **argv)
 
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
-        CharDriverState *chr;
-        int port;
-
-        port = atoi(gdbstub_port_name);
-        if (port != 0)
-            sprintf(gdbstub_port_name, "tcp::%d,nowait,nodelay,server", port);
-        chr = qemu_chr_open(gdbstub_port_name);
-        if (!chr) {
-            fprintf(stderr, "qemu: could not open gdbstub device '%s'\n",
-                    gdbstub_port_name);
+        /* XXX: use standard host:port notation and modify options
+           accordingly. */
+        if (gdbserver_start_port(gdbstub_port) < 0) {
+            fprintf(stderr, "qemu: could not open gdbstub device on port '%d'\n",
+                    gdbstub_port);
             exit(1);
         }
-        gdbserver_start(chr);
     } else 
 #endif
     if (loadvm)

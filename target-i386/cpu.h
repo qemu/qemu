@@ -46,7 +46,7 @@
 
 #include "softfloat.h"
 
-#if defined(__i386__) && !defined(CONFIG_SOFTMMU)
+#if defined(__i386__) && !defined(CONFIG_SOFTMMU) && !defined(__APPLE__)
 #define USE_CODE_COPY
 #endif
 

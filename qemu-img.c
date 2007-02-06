@@ -1,7 +1,7 @@
 /*
  * QEMU disk image utility
  * 
- * Copyright (c) 2003-2006 Fabrice Bellard
+ * Copyright (c) 2003-2007 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -93,7 +93,7 @@ static void format_print(void *opaque, const char *name)
 
 void help(void)
 {
-    printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2006 Fabrice Bellard\n"
+    printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2007 Fabrice Bellard\n"
            "usage: qemu-img command [command options]\n"
            "QEMU disk image utility\n"
            "\n"

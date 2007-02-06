@@ -2583,6 +2583,41 @@ void test_sse(void)
 
 #endif
 
+#define TEST_CONV_RAX(op)\
+{\
+    unsigned long a, r;\
+    a = i2l(0x8234a6f8);\
+    r = a;\
+    asm volatile(#op : "=a" (r) : "0" (r));\
+    printf("%-10s A=" FMTLX " R=" FMTLX "\n", #op, a, r);\
+}
+
+#define TEST_CONV_RAX_RDX(op)\
+{\
+    unsigned long a, d, r, rh;                   \
+    a = i2l(0x8234a6f8);\
+    d = i2l(0x8345a1f2);\
+    r = a;\
+    rh = d;\
+    asm volatile(#op : "=a" (r), "=d" (rh) : "0" (r), "1" (rh));   \
+    printf("%-10s A=" FMTLX " R=" FMTLX ":" FMTLX "\n", #op, a, r, rh);  \
+}
+
+void test_conv(void)
+{
+    TEST_CONV_RAX(cbw);
+    TEST_CONV_RAX(cwde);
+#if defined(__x86_64__)
+    TEST_CONV_RAX(cdqe);
+#endif
+
+    TEST_CONV_RAX_RDX(cwd);
+    TEST_CONV_RAX_RDX(cdq);
+#if defined(__x86_64__)
+    TEST_CONV_RAX_RDX(cqo);
+#endif
+}
+
 extern void *__start_initcall;
 extern void *__stop_initcall;
 
@@ -2621,6 +2656,7 @@ int main(int argc, char **argv)
     test_single_step();
 #endif
     test_enter();
+    test_conv();
 #ifdef TEST_SSE
     test_sse();
     test_fxsave();

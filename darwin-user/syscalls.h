@@ -3,7 +3,7 @@
  ENTRY("syscall",                  SYS_syscall,                        do_unix_syscall_indirect,          0, CALL_INDIRECT, VOID) /* 0  indirect syscall */
  ENTRY("exit",                     SYS_exit,                           do_exit,                           1, CALL_DIRECT, INT)   /* 1  */
  ENTRY("fork",                     SYS_fork,                           fork,                              0, CALL_NOERRNO, VOID)  /* 2  */
- ENTRY("read",                     SYS_read,                           read,                              3, CALL_DIRECT, INT, PTR, SIZE)   /* 3  */
+ ENTRY("read",                     SYS_read,                           do_read,                           3, CALL_DIRECT, INT, PTR, SIZE)   /* 3  */
  ENTRY("write",                    SYS_write,                          write,                             3, CALL_DIRECT, INT, PTR, SIZE)   /* 4  */
  ENTRY("open",                     SYS_open,                           do_open,                           3, CALL_DIRECT, PTR, INT, INT)   /* 5  */
  ENTRY("close",                    SYS_close,                          close,                             1, CALL_DIRECT, INT)   /* 6  */
@@ -92,7 +92,7 @@
  ENTRY("getdtablesize",            SYS_getdtablesize,                  getdtablesize,                     0, CALL_DIRECT, VOID)   /* 89  */
  ENTRY("dup2",                     SYS_dup2,                           dup2,                              2, CALL_DIRECT, INT, INT)   /* 90  */
  ENTRY("",                         91,                                 no_syscall,                        0, CALL_INDIRECT, VOID) /* 91  old getdopt */
- ENTRY("fcntl",                    SYS_fcntl,                          fcntl,                             3, CALL_DIRECT, INT, INT, INT)   /* 92  */
+ ENTRY("fcntl",                    SYS_fcntl,                          do_fcntl,                          3, CALL_DIRECT, INT, INT, INT)   /* 92  */
  ENTRY("select",                   SYS_select,                         select,                            5, CALL_DIRECT, INT, PTR, PTR, PTR, PTR)   /* 93  */
  ENTRY("",                         94,                                 no_syscall,                        0, CALL_INDIRECT, VOID) /* 94  old setdopt */
  ENTRY("fsync",                    SYS_fsync,                          fsync,                             1, CALL_DIRECT, INT)   /* 95  */

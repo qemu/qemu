@@ -14,6 +14,7 @@ void gdb_exit(CPUState *, int);
 int gdbserver_start(int);
 #else
 int gdbserver_start(CharDriverState *chr);
+int gdbserver_start_port(int port);
 #endif
 
 #endif

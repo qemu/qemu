@@ -23,9 +23,10 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <mach/message.h>
+#include <mach/host_info.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <mach/message.h>
 
 #include <pthread.h>
 #include <dirent.h>
@@ -208,15 +209,14 @@ static inline void print_mach_msg_return(mach_msg_return_t ret)
     else
     {
         for( i = 0; i < sizeof(msg_name)/sizeof(msg_name[0]); i++) {
-            if(msg_name[0].code & ret) {
-                DPRINTF("%s ", msg_name[0].name);
+            if(msg_name[i].code == ret) {
+                DPRINTF("%s\n", msg_name[i].name);
                 found = 1;
+                break;
             }
         }
         if(!found)
             qerror("unknow mach message ret code %d\n", ret);
-        else
-            DPRINTF("\n");
     }
 }
 
@@ -235,11 +235,10 @@ struct complex_msg {
             mach_msg_body_t body;
 };
 
-static inline void * swap_mach_msg_body(struct complex_msg *complex_msg, int bswap)
+static inline void swap_mach_msg_body(struct complex_msg *complex_msg, int bswap)
 {
     mach_msg_port_descriptor_t *descr = (mach_msg_port_descriptor_t *)(complex_msg+1);
     int i,j;
-    void *additional_data;
 
     if(bswap == bswap_in)
         tswap32s(&complex_msg->body.msgh_descriptor_count);
@@ -292,40 +291,40 @@ static inline void * swap_mach_msg_body(struct complex_msg *complex_msg, int bsw
     }
     if(bswap == bswap_out)
         tswap32s(&complex_msg->body.msgh_descriptor_count);
-    additional_data = descr;
-    return additional_data;
+}
+
+static inline void swap_mach_msg(mach_msg_header_t *hdr, int bswap)
+{
+    if (bswap == bswap_out && hdr->msgh_bits & MACH_MSGH_BITS_COMPLEX)
+        swap_mach_msg_body((struct complex_msg *)hdr, bswap);
+
+    swap_mach_msg_header(hdr);
+
+    if (bswap == bswap_in && hdr->msgh_bits & MACH_MSGH_BITS_COMPLEX)
+        swap_mach_msg_body((struct complex_msg *)hdr, bswap);
 }
 
 static inline uint32_t target_mach_msg_trap(
         mach_msg_header_t *hdr, uint32_t options, uint32_t send_size,
-        uint32_t rcv_size, uint32_t rcv_name, uint32_t time_out, uint32_t notify )
+        uint32_t rcv_size, uint32_t rcv_name, uint32_t time_out, uint32_t notify)
 {
-    extern int mach_msg_trap(mach_msg_header_t *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+    extern int mach_msg_trap(mach_msg_header_t *, mach_msg_option_t,
+          mach_msg_size_t, mach_msg_size_t, mach_port_t,
+          mach_msg_timeout_t, mach_port_t);
     mach_msg_audit_trailer_t *trailer;
     mach_msg_id_t msg_id;
     uint32_t ret = 0;
-    char *additional_data;
     int i;
 
-    swap_mach_msg_header(hdr);
-
-    print_description_msg_header(hdr);
+    swap_mach_msg(hdr, bswap_in);
 
     msg_id = hdr->msgh_id;
 
-    if (hdr->msgh_bits & MACH_MSGH_BITS_COMPLEX)
-        additional_data = swap_mach_msg_body((struct complex_msg *)hdr, bswap_in);
-    else
-        additional_data = (void*)(hdr+1);
+    print_description_msg_header(hdr);
 
     ret = mach_msg_trap(hdr, options, send_size, rcv_size, rcv_name, time_out, notify);
 
     print_mach_msg_return(ret);
-
-    if (hdr->msgh_bits & MACH_MSGH_BITS_COMPLEX)
-        additional_data = swap_mach_msg_body((struct complex_msg *)hdr, bswap_out);
-    else
-        additional_data = (void*)(hdr+1);
 
     if( (options & MACH_RCV_MSG) && (REQUESTED_TRAILER_SIZE(options) > 0) )
     {
@@ -368,33 +367,20 @@ static inline uint32_t target_mach_msg_trap(
         case 200: /* host_info */
         {
             mig_reply_error_t *err = (mig_reply_error_t *)hdr;
-            struct {
-                uint32_t unknow1;
-                uint32_t maxcpu;
-                uint32_t numcpu;
-                uint32_t memsize;
-                uint32_t cpu_type;
-                uint32_t cpu_subtype;
-            } *data = (void *)(err+1);
+            struct host_basic_info *data = (void *)(err+1);
 
-            DPRINTF("maxcpu = 0x%x\n",   data->maxcpu);
-            DPRINTF("numcpu = 0x%x\n",   data->maxcpu);
-            DPRINTF("memsize = 0x%x\n",  data->memsize);
+            DPRINTF("maxcpu = 0x%x\n",   data->max_cpus);
+            DPRINTF("numcpu = 0x%x\n",   data->avail_cpus);
+            DPRINTF("memsize = 0x%x\n",  data->memory_size);
 
 #if defined(TARGET_I386)
             data->cpu_type = CPU_TYPE_I386;
             DPRINTF("cpu_type changed to 0x%x(i386)\n", data->cpu_type);
-#elif defined(TARGET_PPC)
-            data->cpu_type = CPU_TYPE_POWERPC;
-            DPRINTF("cpu_type changed to 0x%x(ppc)\n", data->cpu_type);
-#else
-# error target not supported
-#endif
-
-#if defined(TARGET_I386)
             data->cpu_subtype = CPU_SUBTYPE_PENT;
             DPRINTF("cpu_subtype changed to 0x%x(i386_pent)\n", data->cpu_subtype);
 #elif defined(TARGET_PPC)
+            data->cpu_type = CPU_TYPE_POWERPC;
+            DPRINTF("cpu_type changed to 0x%x(ppc)\n", data->cpu_type);
             data->cpu_subtype = CPU_SUBTYPE_POWERPC_750;
             DPRINTF("cpu_subtype changed to 0x%x(ppc_all)\n", data->cpu_subtype);
 #else
@@ -413,7 +399,7 @@ static inline uint32_t target_mach_msg_trap(
         default: break;
     }
 
-    swap_mach_msg_header(hdr);
+    swap_mach_msg(hdr, bswap_out);
 
     return ret;
 }
@@ -827,19 +813,29 @@ long do_fstat(uint32_t arg1, struct stat * arg2);
 long do_lstat(char * arg1, struct stat * arg2);
 long do_getdirentries(uint32_t arg1, void* arg2, uint32_t arg3, void* arg4);
 long do_lseek(void *cpu_env, int num);
-long do___sysctl(void * arg1, uint32_t arg2, void * arg3, void * arg4, void * arg5, size_t arg6);
+long do___sysctl(int * name, uint32_t namelen, void * oldp, size_t * oldlenp, void * newp, size_t newlen  /* ignored */);
 long do_getattrlist(void * arg1, void * arg2, void * arg3, uint32_t arg4, uint32_t arg5);
 long do_getdirentriesattr(uint32_t arg1, void * arg2, void * arg3, size_t arg4, void * arg5, void * arg6, void* arg7, uint32_t arg8);
+long do_fcntl(int fd, int cmd, int arg);
 
 long no_syscall(void *cpu_env, int num);
 
 long do_pread(uint32_t arg1, void * arg2, size_t arg3, off_t arg4)
 {
-    //DPRINTF("0x%x, 0x%x, 0x%x, 0x%llx\n", arg1, arg2, arg3, arg4);
-    long ret = (pread(arg1, arg2, arg3, arg4));
-    DPRINTF("0x%x\n", *(int*)arg2);
+    DPRINTF("0x%x, %p, 0x%lx, 0x%llx\n", arg1, arg2, arg3, arg4);
+    long ret = pread(arg1, arg2, arg3, arg4);
     return ret;
 }
+
+long do_read(int d, void *buf, size_t nbytes)
+{
+    DPRINTF("0x%x, %p, 0x%lx\n", d, buf, nbytes);
+    long ret = get_errno(read(d, buf, nbytes));
+    if(!is_error(ret))
+        DPRINTF("%x\n", *(uint32_t*)buf);
+    return ret;
+}
+
 long unimpl_unix_syscall(void *cpu_env, int num);
 
 typedef long (*syscall_function_t)(void *cpu_env, int num);
@@ -1199,33 +1195,163 @@ long do_lseek(void *cpu_env, int num)
     return get_errno(ret);
 }
 
-long do___sysctl(void * arg1, uint32_t arg2, void * arg3, void * arg4, void * arg5, size_t arg6)
+void no_swap(void * oldp, int size)
+{
+}
+
+void sysctl_tswap32s(void * oldp, int size)
+{
+    tswap32s(oldp);
+}
+
+void bswap_oid(uint32_t * oldp, int size)
+{
+    int count = size / sizeof(int);
+    int i = 0;
+    do { tswap32s(oldp + i); } while (++i < count);
+}
+
+void sysctl_usrstack(uint32_t * oldp, int size)
+{
+    DPRINTF("sysctl_usrstack: 0x%x\n", *oldp);
+    tswap32s(oldp);
+}
+
+void sysctl_ncpu(uint32_t * ncpu, int size)
+{
+    *ncpu = 0x1;
+    DPRINTF("sysctl_ncpu: 0x%x\n", *ncpu);
+    tswap32s(ncpu);
+}
+
+void sysctl_exec(char * exec, int size)
+{
+    DPRINTF("sysctl_exec: %s\n", exec);
+}
+
+void sysctl_translate(char * exec, int size)
+{
+    DPRINTF("sysctl_translate: %s\n", exec);
+}
+
+struct sysctl_dir {
+    int num;
+    const char * name;
+    void (*swap_func)(void *, int);
+    struct sysctl_dir *childs;
+};
+
+#define ENTRYD(num, name, childs) { num, name, NULL, childs }
+#define ENTRYE(num, name, func)   { num, name, (void (*)(void *, int))func, NULL  }
+struct sysctl_dir sysctls_unspec[] = {
+    ENTRYE(3,  "oip", bswap_oid),
+    { 0, NULL, NULL, NULL }
+};
+
+struct sysctl_dir sysctls_kern[] = {
+    ENTRYE(KERN_TRANSLATE,          "translate",    sysctl_translate), /* 44 */
+    ENTRYE(KERN_EXEC,               "exec",         sysctl_exec), /* 45 */
+    ENTRYE(KERN_USRSTACK32,          "KERN_USRSTACK32", sysctl_usrstack), /* 35 */
+    ENTRYE(KERN_SHREG_PRIVATIZABLE,  "KERN_SHREG_PRIVATIZABLE", sysctl_tswap32s), /* 54 */
+    { 0, NULL, NULL, NULL }
+};
+
+struct sysctl_dir sysctls_hw[] = {
+    ENTRYE(HW_NCPU, "ncpud", sysctl_tswap32s),
+    ENTRYE(104, "104", no_swap),
+    ENTRYE(105, "105", no_swap),
+    { 0, NULL, NULL, NULL }
+};
+
+struct sysctl_dir sysctls[] = {
+    ENTRYD(CTL_UNSPEC, "unspec", sysctls_unspec),
+    ENTRYD(CTL_KERN, "kern", sysctls_kern),
+    ENTRYD(CTL_HW,   "hw",   sysctls_hw ),
+    { 0, NULL, NULL, NULL }
+};
+
+#undef ENTRYE
+#undef ENTRYD
+
+static inline struct sysctl_dir * get_sysctl_entry_for_mib(int mib, struct sysctl_dir * sysctl_elmt)
+{
+    if(!sysctl_elmt)
+        return NULL;
+    for(; sysctl_elmt->name != NULL ; sysctl_elmt++) {
+        if(sysctl_elmt->num == mib)
+            return sysctl_elmt;
+    }
+    return NULL;
+}
+
+static inline long bswap_syctl(int * mib, int count, void *buf, int size)
+{
+    int i;
+    struct sysctl_dir * sysctl = sysctls;
+    struct sysctl_dir * ret = NULL;
+
+    for(i = 0; i < count; i++) {
+
+        if(!(ret = sysctl = get_sysctl_entry_for_mib(mib[i], sysctl))) {
+            gemu_log("bswap_syctl: can't find mib %d\n", mib[i]);
+            return -ENOTDIR;
+        }
+        if(!(sysctl = sysctl->childs))
+            break;
+    }
+    
+    if(ret->childs)
+        qerror("we shouldn't have a directory element\n");
+
+    ret->swap_func(buf, size);
+    return 0;
+}
+
+static inline void print_syctl(int * mib, int count)
+{
+    int i;
+    struct sysctl_dir * sysctl = sysctls;
+    struct sysctl_dir * ret = NULL;
+
+    for(i = 0; i < count; i++) {
+        if(!(ret = sysctl = get_sysctl_entry_for_mib(mib[i], sysctl))){
+            gemu_log("print_syctl: can't find mib %d\n", mib[i]);
+            return;
+        }
+        DPRINTF("%s.", sysctl->name);
+        if(!(sysctl = sysctl->childs))
+            break;
+    }
+    DPRINTF("\n");
+}
+
+long do___sysctl(int * name, uint32_t namelen, void * oldp, size_t * oldlenp, void * newp, size_t newlen  /* ignored */)
 {
     long ret = 0;
     int i;
     DPRINTF("sysctl(%p, 0x%x, %p, %p, %p, 0x%lx)\n",
-            arg1, arg2, arg3, arg4, arg5, arg6);
-    if(arg1) {
+            name, namelen, oldp, oldlenp, newp, newlen);
+    if(name) {
         i = 0;
-        do { *((int *) arg1 + i) = tswap32(*((int *) arg1 + i)); } while (++i < arg2);
+        do { tswap32s( name + i); } while (++i < namelen);
+        print_syctl(name, namelen);
+        //bswap_syctl(name, namelen, newp, newlen);
+        tswap32s((uint32_t*)oldlenp);
     }
+        
+    if(name) /* Sometimes sysctl is called with no arg1, ignore */
+        ret = get_errno(sysctl(name, namelen, oldp, oldlenp, newp, newlen));
 
-    if(arg4)
-        *(int *) arg4 = tswap32(*(int *) arg4);
-    if(arg1)
-    ret = get_errno(sysctl((void *)arg1, arg2, (void *)arg3, (void *)arg4, (void *)arg5, arg6));
+    if (!is_error(ret) && bswap_syctl(name, namelen, oldp, *oldlenp) != 0) {
+        return -ENOTDIR;
+    }
+    if(name) {
+        //bswap_syctl(name, namelen, newp, newlen);
+        tswap32s((uint32_t*)oldlenp);
 
-    if ((ret == 0) && (arg2 == 2) && (*((int *) arg1) == 0) && (*((int *) arg1 + 1) == 3)) {
-        /* The output here is the new id - we need to swap it so it can be passed
-        back in (and then unswapped) */
-        int count = (*(int *) arg4) / sizeof(int);
         i = 0;
-        do {
-            *((int *) arg3 + i) = tswap32(*((int *) arg3 + i));
-        } while (++i < count);
+        do { tswap32s( name + i); } while (++i < namelen);
     }
-    *(int *) arg4 = tswap32(*(int *) arg4);
-
     return ret;
 }
 
@@ -1235,7 +1361,8 @@ long do_getattrlist(void * arg1, void * arg2, void * arg3, uint32_t arg4, uint32
     long ret;
 
 #if defined(TARGET_I386) ^ defined(__i386__) || defined(TARGET_PPC) ^ defined(__ppc__)
-    qerror("SYS_getdirentriesattr unimplemented\n");
+    gemu_log("SYS_getdirentriesattr unimplemented\n");
+    return -ENOTSUP;
 #endif
     /* XXX: don't let the %s stay in there */
     DPRINTF("getattrlist(%s, %p, %p, 0x%x, 0x%x)\n",
@@ -1268,6 +1395,91 @@ long do_getdirentriesattr(uint32_t arg1, void * arg2, void * arg3, size_t arg4, 
                                        (unsigned long *)arg7, arg8));
 }
 
+static inline void bswap_flock(struct flock *f)
+{
+    tswap64s(&f->l_start);
+    tswap64s(&f->l_len);
+    tswap32s(&f->l_pid);
+    tswap16s(&f->l_type);
+    tswap16s(&f->l_whence);
+}
+
+static inline void bswap_fstore(struct fstore *f)
+{
+    tswap32s(&f->fst_flags);
+    tswap32s(&f->fst_posmode);
+    tswap64s(&f->fst_offset);
+    tswap64s(&f->fst_length);
+    tswap64s(&f->fst_bytesalloc);
+}
+
+static inline void bswap_radvisory(struct radvisory *f)
+{
+    tswap64s(&f->ra_offset);
+    tswap32s(&f->ra_count);
+}
+
+static inline void bswap_fbootstraptransfer(struct fbootstraptransfer *f)
+{
+    tswap64s(&f->fbt_offset);
+    tswap32s((uint32_t*)&f->fbt_length);
+    tswap32s((uint32_t*)&f->fbt_buffer); /* XXX: this is a ptr */
+}
+
+static inline void bswap_log2phys(struct log2phys *f)
+{
+    tswap32s(&f->l2p_flags);
+    tswap64s(&f->l2p_contigbytes);
+    tswap64s(&f->l2p_devoffset);
+}
+
+static inline void bswap_fcntl_arg(int cmd, void * arg)
+{
+    switch(cmd)
+    {
+        case F_DUPFD:
+        case F_GETFD:
+        case F_SETFD:
+        case F_GETFL:
+        case F_SETFL:
+        case F_GETOWN:
+        case F_SETOWN:
+        case F_SETSIZE:
+        case F_RDAHEAD:
+        case F_FULLFSYNC:
+            break;
+        case F_GETLK:
+        case F_SETLK:
+        case F_SETLKW:
+            bswap_flock(arg);
+            break;
+        case F_PREALLOCATE:
+            bswap_fstore(arg);
+            break;
+        case F_RDADVISE:
+            bswap_radvisory(arg);
+            break;
+        case F_READBOOTSTRAP:
+        case F_WRITEBOOTSTRAP:
+            bswap_fbootstraptransfer(arg);
+            break;
+        case F_LOG2PHYS:
+            bswap_log2phys(arg);
+            break;
+        default:
+            gemu_log("unknow cmd in fcntl\n");
+    }
+}
+
+long do_fcntl(int fd, int cmd, int arg)
+{
+    long ret;
+    bswap_fcntl_arg(cmd, (void *)arg);
+    ret = get_errno(fcntl(fd, cmd, arg));
+    if(!is_error(ret))
+        bswap_fcntl_arg(cmd, (void *)arg);
+    return ret;
+}
 
 long no_syscall(void *cpu_env, int num)
 {
