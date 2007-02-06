@@ -505,11 +505,13 @@ static uint32_t clock_read(unsigned offset)
     unsigned index = offset / 4;
     if (index == 0x0c || index == 0x14 || index == 0x1c || index == 0x24) {
         /* Reset PLL status bit. */
-        if ((val & ~1) == 4) {
-            val &= ~1;
-        } else {
-            val |= 1;
-        }
+        val ^= 1;
+        reg_write(av.clock_control, offset, val);
+        //~ if ((val & ~1) == 4) {
+            //~ val &= ~1;
+        //~ } else {
+            //~ val |= 1;
+        //~ }
     }
     TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", index, val, backtrace()));
     return val;
@@ -1251,7 +1253,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
     } else if (offset == CPMAC_RXUNICASTSET) {
         val &= BITS(7, 0);
         val = (reg_read(cpmac, offset) | val);
-        assert(val < 2);
+        //~ assert(val < 2);
         reg_write(cpmac, offset, val);
     } else if (offset == CPMAC_RXUNICASTCLEAR) {
         val = (reg_read(cpmac, CPMAC_RXUNICASTSET) & ~val);
@@ -2356,6 +2358,8 @@ static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
         val = cpu_to_le32(0x00010206);
     } else if (offset == VLYNQ_INTSTATCLR) {
         reg_write(vlynq, offset, 0);
+    } else if (index == 0 && offset == VLYNQ_RCHIPVER) {
+        val = cpu_to_le32(0x00000009);
     } else {
     }
     return val;
