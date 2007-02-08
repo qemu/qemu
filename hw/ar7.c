@@ -189,8 +189,10 @@ Physical memory map
 #define AVALANCHE_BBIF_BASE             0x02000000      /* broadband interface */
 #define AVALANCHE_ATM_SAR_BASE          0x03000000      /* ATM SAR */
 #define AVALANCHE_USB_MEM_BASE          0x03400000      /* USB slave mem map */
-#define AVALANCHE_VLYNQ0_MEM_MAP_BASE   0x04000000      /* VLYNQ 0 memory mapped */
-#define AVALANCHE_VLYNQ1_MEM_MAP_BASE   0x0c000000      /* VLYNQ 1 memory mapped */
+#define AVALANCHE_VLYNQ0_MEM1_BASE      0x04000000      /* VLYNQ 0 memory mapped */
+#define AVALANCHE_VLYNQ0_MEM2_BASE      0x04022000      /* VLYNQ 0 memory mapped */
+#define AVALANCHE_VLYNQ1_MEM1_BASE      0x0c000000      /* VLYNQ 1 memory mapped */
+#define AVALANCHE_VLYNQ1_MEM2_BASE      0x0c022000      /* VLYNQ 1 memory mapped */
 #define AVALANCHE_DES_BASE              0x08600000      /* ??? */
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
@@ -307,8 +309,10 @@ typedef struct {
     uint32_t bbif[1];           // 0x02000000
     uint32_t atmsar[0x2400];    // 0x03000000
     uint32_t usbslave[0x800];   // 0x03400000
-    uint32_t vlynq0mem[0x10800];        // 0x04000000
-    uint32_t vlynq1mem[0x10800];        // 0x0c000000
+    uint32_t vlynq0mem1[8 * KiB / 4];        // 0x04000000
+    uint32_t vlynq0mem2[128 * KiB / 4];      // 0x04022000
+    uint32_t vlynq1mem1[8 * KiB / 4];        // 0x0c000000
+    uint32_t vlynq1mem2[128 * KiB / 4];      // 0x0c022000
 
     uint8_t cpmac0[0x800];      // 0x08610000
     uint8_t emif[0x100];        // 0x08610800
@@ -389,7 +393,7 @@ static const char *dump(const uint8_t * buf, unsigned size)
  *
  ****************************************************************************/
 
-static uint32_t reg_read(uint8_t * reg, uint32_t addr)
+static uint32_t reg_read(const uint8_t * reg, uint32_t addr)
 {
     if (addr & 3) {
         logout("0x%08x\n", addr);
@@ -2000,9 +2004,9 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
         for (i = 0; i < 32; i++) {
             if (changed & (1 << i)) {
                 TRACE(RESET,
-                      logout("reset %s %s\n",
-                             (enabled & (1 << i)) ? "enabled" : "disabled",
-                             resetdevice[i]));
+                      logout("reset %sabled %s (0x%08x)\n",
+                             (enabled & (1 << i)) ? "en" : "dis",
+                             resetdevice[i], val));
             }
         }
 #endif
@@ -2158,8 +2162,14 @@ static const char *const vlynq_names[] = {
     "Reserved",
     "Reserved",
     /* 0xe0 */
-    "Remote Interrupt Vector 3-0",
-    "Remote Interrupt Vector 7-4",
+    "Remote Interrupt Vector 03-00",
+    "Remote Interrupt Vector 07-04",
+    "Remote Interrupt Vector 11-08",
+    "Remote Interrupt Vector 15-12",
+    "Remote Interrupt Vector 19-16",
+    "Remote Interrupt Vector 23-20",
+    "Remote Interrupt Vector 27-24",
+    "Remote Interrupt Vector 31-28",
 };
 
 typedef enum {
@@ -2203,6 +2213,12 @@ typedef enum {
     VLYNQ_RNGOSTAT = 0xcc,
     VLYNQ_RINTVEC0 = 0xe0,
     VLYNQ_RINTVEC1 = 0xe4,
+    VLYNQ_RINTVEC2 = 0xe8,
+    VLYNQ_RINTVEC3 = 0xec,
+    VLYNQ_RINTVEC4 = 0xf0,
+    VLYNQ_RINTVEC5 = 0xf4,
+    VLYNQ_RINTVEC6 = 0xf8,
+    VLYNQ_RINTVEC7 = 0xfc,
 } vlynq_register_t;
 
 #if 0
@@ -2352,7 +2368,7 @@ static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
     uint32_t val = reg_read(vlynq, offset);
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
                         index, offset,
-                        (offset < 0xe8) ? vlynq_names[offset / 4] : "unknown",
+                        vlynq_names[offset / 4],
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
         val = cpu_to_le32(0x00010206);
@@ -2370,7 +2386,7 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
     uint8_t *vlynq = av.vlynq[index];
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
                         index, offset,
-                        (offset < 0xe8) ? vlynq_names[offset / 4] : "unknown",
+                        vlynq_names[offset / 4],
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
     } else if (offset == VLYNQ_CTRL) {
@@ -2386,6 +2402,76 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
     }
     reg_write(vlynq, offset, val);
 }
+
+/* ACX111 PCI control block */
+
+#define PCI_VENDOR_ID           0x00    /* 16 bits */   0x104c
+#define PCI_DEVICE_ID           0x02    /* 16 bits */   0x9066
+#define PCI_COMMAND             0x04    /* 16 bits */
+#define PCI_STATUS              0x06    /* 16 bits */   0x0210
+
+#define PCI_REVISION_ID         0x08    /* 8 bits  */   0x00
+#define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */    0x80
+#define PCI_CLASS_CODE          0x0b    /* 8 bits */    0x02
+#define PCI_HEADER_TYPE         0x0e    /* 8 bits */    0x00
+
+#define PCI_BASE_ADDRESS_0      0x10    /* 32 bits */
+#define PCI_BASE_ADDRESS_1      0x14    /* 32 bits */
+#define PCI_BASE_ADDRESS_2      0x18    /* 32 bits */
+#define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
+#define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
+#define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
+
+static const uint8_t acx111_pci_configuration[] = {
+  /* 0xA4041000 */
+  0x4C, 0x10, 0x66, 0x90, 0x00, 0x00, 0x10, 0x02,
+  0x00, 0x00, 0x80, 0x02, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041010 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041020 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x02, 0x1C, 0x00, 0x00, 0x4C, 0x10, 0x67, 0x90,
+  /* 0xA4041030 */
+  0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+  /* 0xA4041040 */
+  0x01, 0x00, 0x02, 0x7E, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041050 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041060 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041070 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041080 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA4041090 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA40410A0 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA40410B0 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA40410C0 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA40410D0 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA40410E0 */
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  /* 0xA40410F0 */
+  0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+};
 
 /*****************************************************************************
  *
@@ -2564,27 +2650,31 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
         name = "usb memory";
         val = VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave);
-    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem)) {
-        name = "vlynq0 memory";
+    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM1_BASE, av.vlynq0mem1)) {
+        name = "vlynq0 memory 1";
         logflag = VLYNQ;
-        val = VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem);
+        val = VALUE(AVALANCHE_VLYNQ0_MEM1_BASE, av.vlynq0mem1);
+    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM2_BASE, av.vlynq0mem2)) {
+        name = "vlynq0 memory 2";
+        logflag = VLYNQ;
+        val = VALUE(AVALANCHE_VLYNQ0_MEM2_BASE, av.vlynq0mem2);
         if (0) {
         } else if (addr == 0x040400f0) {
             /* Mailbox (from ACX111)? */
         } else if (addr == 0x04040108) {
             /* Command (to ACX111)? */
-        } else if (addr == 0x04041000) {
-            /* Write PCI device id for TI TNETW1130 (ACX111) */
-            val = 0x9066104c;
+        } else if (addr == 0x04041000 && addr < 0x04041100) {
+            /* PCI configuration space for TI TNETW1130 (ACX111) */
+            val = reg_read(acx111_pci_configuration, addr - 0x04041000);
         }
-    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem)) {
-        name = "vlynq1 memory";
+    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1)) {
+        name = "vlynq1 memory 1";
         logflag = VLYNQ;
-        val = VALUE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem);
-        if (addr == AVALANCHE_VLYNQ1_MEM_MAP_BASE + 0x00041000) {
-            /* Write PCI device id for TI TNETW1130 (ACX111) */
-            //~ val = 0x9066104c;
-        }
+        val = VALUE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1);
+    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2)) {
+        name = "vlynq1 memory 2";
+        logflag = VLYNQ;
+        val = VALUE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2);
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
@@ -2687,14 +2777,22 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "usb memory";
         //~ VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = val;
         VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = 0xffffffff;
-    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem)) {
-        name = "vlynq0 memory";
+    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM1_BASE, av.vlynq0mem1)) {
+        name = "vlynq0 memory 1";
         logflag = VLYNQ;
-        VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem) = val;
-    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem)) {
-        name = "vlynq1 memory";
+        VALUE(AVALANCHE_VLYNQ0_MEM1_BASE, av.vlynq0mem1) = val;
+    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM2_BASE, av.vlynq0mem2)) {
+        name = "vlynq0 memory 2";
         logflag = VLYNQ;
-        VALUE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem) = val;
+        VALUE(AVALANCHE_VLYNQ0_MEM2_BASE, av.vlynq0mem2) = val;
+    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1)) {
+        name = "vlynq1 memory 1";
+        logflag = VLYNQ;
+        VALUE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1) = val;
+    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2)) {
+        name = "vlynq1 memory 2";
+        logflag = VLYNQ;
+        VALUE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2) = val;
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
@@ -3593,5 +3691,12 @@ AR7     ar7_gpio_write          gpio[0x04] = 00000000
 AR7     ar7_gpio_read           gpio[0x04] = 00000000
 AR7     ar7_gpio_write          gpio[0x04] = 00000000
 AR7     ar7_gpio_read           gpio[0x14] = 00000000
+
+vlynq0(0x08) = 0x01000101
+vlynq0(0xc0) = 0x00000009
+vlynq0[0x88] = 0x01000103
+vlynq0[0x04] = 0x00018000
+
+0x040400f0 ??? status???
 
 */
