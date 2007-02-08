@@ -165,12 +165,11 @@ extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
 /* XXX: make it dynamic */
+#define MAX_BIOS_SIZE (4 * 1024 * 1024)
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
 #define BIOS_SIZE (4 * 1024 * 1024)
-#else
-#define BIOS_SIZE ((256 + 64) * 1024)
 #endif
 
 /* keyboard/mouse support */

@@ -451,8 +451,8 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     int ret, linux_boot, initrd_size, i;
-    unsigned long bios_offset, vga_bios_offset, option_rom_offset;
-    int bios_size, isa_bios_size;
+    ram_addr_t ram_addr, vga_ram_addr, bios_offset, vga_bios_offset;
+    int bios_size, isa_bios_size, vga_bios_size;
     PCIBus *pci_bus;
     int piix3_devfn = -1;
     CPUState *env;
@@ -477,23 +477,24 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, 0);
+    ram_addr = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(0, ram_size, ram_addr);
+
+    /* allocate VGA RAM */
+    vga_ram_addr = qemu_ram_alloc(vga_ram_size);
 
     /* BIOS load */
-    bios_offset = ram_size + vga_ram_size;
-    vga_bios_offset = bios_offset + 256 * 1024;
-
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     bios_size = get_image_size(buf);
     if (bios_size <= 0 || 
-        (bios_size % 65536) != 0 ||
-        bios_size > (256 * 1024)) {
+        (bios_size % 65536) != 0) {
         goto bios_error;
     }
+    bios_offset = qemu_ram_alloc(bios_size);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if (ret != bios_size) {
     bios_error:
-        fprintf(stderr, "qemu: could not load PC bios '%s'\n", buf);
+        fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", buf);
         exit(1);
     }
 
@@ -503,8 +504,18 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
     }
+    vga_bios_size = get_image_size(buf);
+    if (vga_bios_size <= 0 || vga_bios_size > 65536) 
+        goto vga_bios_error;
+    vga_bios_offset = qemu_ram_alloc(65536);
+
     ret = load_image(buf, phys_ram_base + vga_bios_offset);
-    
+    if (ret != vga_bios_size) {
+    vga_bios_error:
+        fprintf(stderr, "qemu: could not load VGA BIOS '%s'\n", buf);
+        exit(1);
+    }
+
     /* setup basic memory access */
     cpu_register_physical_memory(0xc0000, 0x10000, 
                                  vga_bios_offset | IO_MEM_ROM);
@@ -519,20 +530,32 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                                  isa_bios_size, 
                                  (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
 
-    option_rom_offset = 0;
-    for (i = 0; i < nb_option_roms; i++) {
-	int offset = bios_offset + bios_size + option_rom_offset;
-	int size;
+    {
+        ram_addr_t option_rom_offset;
+        int size, offset;
 
-	size = load_image(option_rom[i], phys_ram_base + offset);
-	if ((size + option_rom_offset) > 0x10000) {
-	    fprintf(stderr, "Too many option ROMS\n");
-	    exit(1);
-	}
-	cpu_register_physical_memory(0xd0000 + option_rom_offset,
-				     size, offset | IO_MEM_ROM);
-	option_rom_offset += size + 2047;
-	option_rom_offset -= (option_rom_offset % 2048);
+        offset = 0;
+        for (i = 0; i < nb_option_roms; i++) {
+            size = get_image_size(option_rom[i]);
+            if (size < 0) {
+                fprintf(stderr, "Could not load option rom '%s'\n", 
+                        option_rom[i]);
+                exit(1);
+            }
+            if (size > (0x10000 - offset))
+                goto option_rom_error;
+            option_rom_offset = qemu_ram_alloc(size);
+            ret = load_image(option_rom[i], phys_ram_base + option_rom_offset);
+            if (ret != size) {
+            option_rom_error:
+                fprintf(stderr, "Too many option ROMS\n");
+                exit(1);
+            }
+            size = (size + 4095) & ~4095;
+            cpu_register_physical_memory(0xd0000 + offset,
+                                         size, option_rom_offset | IO_MEM_ROM);
+            offset += size;
+        }
     }
 
     /* map all the bios at the top of memory */
@@ -612,19 +635,19 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     if (cirrus_vga_enabled) {
         if (pci_enabled) {
             pci_cirrus_vga_init(pci_bus, 
-                                ds, phys_ram_base + ram_size, ram_size, 
-                                vga_ram_size);
+                                ds, phys_ram_base + vga_ram_addr, 
+                                vga_ram_addr, vga_ram_size);
         } else {
-            isa_cirrus_vga_init(ds, phys_ram_base + ram_size, ram_size, 
-                                vga_ram_size);
+            isa_cirrus_vga_init(ds, phys_ram_base + vga_ram_addr, 
+                                vga_ram_addr, vga_ram_size);
         }
     } else {
         if (pci_enabled) {
-            pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
-                         vga_ram_size, 0, 0);
+            pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_addr, 
+                         vga_ram_addr, vga_ram_size, 0, 0);
         } else {
-            isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
-                         vga_ram_size);
+            isa_vga_init(ds, phys_ram_base + vga_ram_addr, 
+                         vga_ram_addr, vga_ram_size);
         }
     }
 
