@@ -1,3 +1,7 @@
+2007-02-08 23:17  bellard
+
+	* pc-bios/: bios.bin, bios.diff: reset rombios32 area
+
 2007-02-05 23:06  bellard
 
 	* target-i386/cpu.h: darwin fix
