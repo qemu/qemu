@@ -2405,6 +2405,7 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
 
 /* ACX111 PCI control block */
 
+#if 0
 #define PCI_VENDOR_ID           0x00    /* 16 bits */   0x104c
 #define PCI_DEVICE_ID           0x02    /* 16 bits */   0x9066
 #define PCI_COMMAND             0x04    /* 16 bits */
@@ -2421,6 +2422,7 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
 #define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
 #define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
 #define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
+#endif
 
 static const uint8_t acx111_pci_configuration[] = {
   /* 0xA4041000 */
@@ -3349,7 +3351,7 @@ static void mips_ar7_common_init (int ram_size,
     fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
         __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
-    if ((ret > 0) && (ret <= BIOS_SIZE)) {
+    if ((ret > 0) && (ret <= MAX_BIOS_SIZE)) {
         fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
     } else {
         /* Not fatal, write a jump to address 0xb0000000 into memory. */

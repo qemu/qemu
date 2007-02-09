@@ -1,3 +1,11 @@
+2007-02-09 00:09  bellard
+
+	* vl.c, vl.h, hw/pc.c: use ram allocation functions
+
+2007-02-09 00:08  bellard
+
+	* exec.c, cpu-all.h: ram allocation functions
+
 2007-02-08 23:17  bellard
 
 	* pc-bios/: bios.bin, bios.diff: reset rombios32 area

@@ -254,6 +254,8 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
+#if 0
+
 /* Status bits */
 
 #define FlashStatusReady        0x80
@@ -276,6 +278,8 @@ static void pflash_update(pflash_t *pfl, int offset,
 #define FlashCommandResume      0xD0    /* Erase Resume */
 #define FlashCommandWrite       0x10    /* Single Byte Program */
 #define FlashCommandWrite       0x40    /* Single Byte Program */
+
+#endif
 
 /* Scaleable Command Set */
 

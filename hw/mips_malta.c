@@ -25,6 +25,8 @@
 #include "vl.h"
 #include "pflash.h"
 
+#define BIOS_SIZE (16 * MiB)
+
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
 #else

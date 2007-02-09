@@ -169,9 +169,9 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
-    if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
+    if ((bios_size > 0) && (bios_size <= 4 * MiB)) {
 	cpu_register_physical_memory(0x1fc00000,
-				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
+				     bios_size, bios_offset | IO_MEM_ROM);
     } else {
         /* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",

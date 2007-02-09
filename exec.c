@@ -83,6 +83,7 @@ int phys_ram_size;
 int phys_ram_fd;
 uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
+static ram_addr_t phys_ram_alloc_offset = 0;
 
 CPUState *first_cpu;
 /* current CPU in the current thread. It is only valid inside
@@ -1839,6 +1840,24 @@ static const char *backtrace(char *buffer, size_t length)
 }
 #endif /* TARGET_MIPS */
 #endif /* DEBUG_UNASSIGNED */
+
+/* XXX: better than nothing */
+ram_addr_t qemu_ram_alloc(unsigned int size)
+{
+    ram_addr_t addr;
+    if ((phys_ram_alloc_offset + size) >= phys_ram_size) {
+        fprintf(stderr, "Not enough memory (requested_size = %u, max memory = %d)\n", 
+                size, phys_ram_size);
+        abort();
+    }
+    addr = phys_ram_alloc_offset;
+    phys_ram_alloc_offset = TARGET_PAGE_ALIGN(phys_ram_alloc_offset + size);
+    return addr;
+}
+
+void qemu_ram_free(ram_addr_t addr)
+{
+}
 
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {

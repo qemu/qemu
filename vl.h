@@ -165,17 +165,19 @@ extern int autostart;
 extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
+#define KiB     1024
+#define MiB     (KiB * KiB)
+
 /* XXX: make it dynamic */
+#define MAX_BIOS_SIZE (4 * 1024 * 1024)
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
-#define FLASH_SIZE (0 * 1024)
 #elif defined(TARGET_MIPS)
-//~ #define BIOS_SIZE (128 * 1024)
-#define BIOS_SIZE (256 * 1024)
-#define FLASH_SIZE (16 * 1024 * 1024)
-#else
-#define BIOS_SIZE ((256 + 64) * 1024)
-#define FLASH_SIZE (0 * 1024)
+#define MAX_FLASH_SIZE (16 * MiB)
+#endif
+
+#if !defined(MAX_FLASH_SIZE)
+# define MAX_FLASH_SIZE (0 * 1024)
 #endif
 
 /* keyboard/mouse support */
