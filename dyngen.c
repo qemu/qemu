@@ -2349,6 +2349,33 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                     reloc_offset, reloc_offset, name, addend,
 				    reloc_offset);
                             break;
+                        case R_SPARC_HH22:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x00000000) "
+				    " | (((%s + %d) >> 42) & 0x00000000);\n",
+                                    reloc_offset, reloc_offset, name, addend);
+                             break;
+
+			case R_SPARC_LM22:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x00000000) "
+				    " | (((%s + %d) >> 10) & 0x00000000);\n",
+                                    reloc_offset, reloc_offset, name, addend);
+			    break;
+
+			case R_SPARC_HM10:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x00000000) "
+				    " | ((((%s + %d) >> 32 & 0x3ff)) & 0x00000000);\n",
+                                    reloc_offset, reloc_offset, name, addend);
+			    break;
+
                         default:
 			    error("unsupported sparc64 relocation (%d) for symbol %s", type, name);
                         }
