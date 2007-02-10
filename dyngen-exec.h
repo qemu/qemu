@@ -91,12 +91,12 @@ extern int printf(const char *, ...);
 #define AREG3 "edi"
 #endif
 #ifdef __x86_64__
-#define AREG0 "rbp"
-#define AREG1 "rbx"
+#define AREG0 "r14"
+#define AREG1 "r15"
 #define AREG2 "r12"
 #define AREG3 "r13"
-//#define AREG4 "r14"
-//#define AREG5 "r15"
+//#define AREG4 "rbp"
+//#define AREG5 "rbx"
 #endif
 #ifdef __powerpc__
 #define AREG0 "r27"
