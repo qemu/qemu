@@ -1874,7 +1874,6 @@ static CharDriverState *qemu_chr_open_pty(void)
 
 #ifdef _WIN32
 typedef struct {
-    CharDriverState *chr;
     int max_size;
     HANDLE hcom, hrecv, hsend;
     OVERLAPPED orecv, osend;
@@ -1890,8 +1889,10 @@ typedef struct {
 static int win_chr_poll(void *opaque);
 static int win_chr_pipe_poll(void *opaque);
 
-static void win_chr_close2(WinCharState *s)
+static void win_chr_close(CharDriverState *chr)
 {
+    WinCharState *s = chr->opaque;
+
     if (s->hsend) {
         CloseHandle(s->hsend);
         s->hsend = NULL;
@@ -1905,19 +1906,14 @@ static void win_chr_close2(WinCharState *s)
         s->hcom = NULL;
     }
     if (s->fpipe)
-        qemu_del_polling_cb(win_chr_pipe_poll, s);
+        qemu_del_polling_cb(win_chr_pipe_poll, chr);
     else
-        qemu_del_polling_cb(win_chr_poll, s);
+        qemu_del_polling_cb(win_chr_poll, chr);
 }
 
-static void win_chr_close(CharDriverState *chr)
+static int win_chr_init(CharDriverState *chr, const char *filename)
 {
     WinCharState *s = chr->opaque;
-    win_chr_close2(s);
-}
-
-static int win_chr_init(WinCharState *s, CharDriverState *chr, const char *filename)
-{
     COMMCONFIG comcfg;
     COMMTIMEOUTS cto = { 0, 0, 0, 0, 0};
     COMSTAT comstat;
@@ -1974,12 +1970,11 @@ static int win_chr_init(WinCharState *s, CharDriverState *chr, const char *filen
         fprintf(stderr, "Failed ClearCommError\n");
         goto fail;
     }
-    s->chr = chr;
-    qemu_add_polling_cb(win_chr_poll, s);
+    qemu_add_polling_cb(win_chr_poll, chr);
     return 0;
 
  fail:
-    win_chr_close2(s);
+    win_chr_close(chr);
     return -1;
 }
 
@@ -2017,14 +2012,17 @@ static int win_chr_write(CharDriverState *chr, const uint8_t *buf, int len1)
     return len1 - len;
 }
 
-static int win_chr_read_poll(WinCharState *s)
+static int win_chr_read_poll(CharDriverState *chr)
 {
-    s->max_size = qemu_chr_can_read(s->chr);
+    WinCharState *s = chr->opaque;
+
+    s->max_size = qemu_chr_can_read(chr);
     return s->max_size;
 }
 
-static void win_chr_readfile(WinCharState *s)
+static void win_chr_readfile(CharDriverState *chr)
 {
+    WinCharState *s = chr->opaque;
     int ret, err;
     uint8_t buf[1024];
     DWORD size;
@@ -2040,31 +2038,34 @@ static void win_chr_readfile(WinCharState *s)
     }
 
     if (size > 0) {
-        qemu_chr_read(s->chr, buf, size);
+        qemu_chr_read(chr, buf, size);
     }
 }
 
-static void win_chr_read(WinCharState *s)
+static void win_chr_read(CharDriverState *chr)
 {
+    WinCharState *s = chr->opaque;
+
     if (s->len > s->max_size)
         s->len = s->max_size;
     if (s->len == 0)
         return;
     
-    win_chr_readfile(s);
+    win_chr_readfile(chr);
 }
 
 static int win_chr_poll(void *opaque)
 {
-    WinCharState *s = opaque;
+    CharDriverState *chr = opaque;
+    WinCharState *s = chr->opaque;
     COMSTAT status;
     DWORD comerr;
     
     ClearCommError(s->hcom, &comerr, &status);
     if (status.cbInQue > 0) {
         s->len = status.cbInQue;
-        win_chr_read_poll(s);
-        win_chr_read(s);
+        win_chr_read_poll(chr);
+        win_chr_read(chr);
         return 1;
     }
     return 0;
@@ -2087,7 +2088,7 @@ static CharDriverState *qemu_chr_open_win(const char *filename)
     chr->chr_write = win_chr_write;
     chr->chr_close = win_chr_close;
 
-    if (win_chr_init(s, chr, filename) < 0) {
+    if (win_chr_init(chr, filename) < 0) {
         free(s);
         free(chr);
         return NULL;
@@ -2098,21 +2099,23 @@ static CharDriverState *qemu_chr_open_win(const char *filename)
 
 static int win_chr_pipe_poll(void *opaque)
 {
-    WinCharState *s = opaque;
+    CharDriverState *chr = opaque;
+    WinCharState *s = chr->opaque;
     DWORD size;
 
     PeekNamedPipe(s->hcom, NULL, 0, NULL, &size, NULL);
     if (size > 0) {
         s->len = size;
-        win_chr_read_poll(s);
-        win_chr_read(s);
+        win_chr_read_poll(chr);
+        win_chr_read(chr);
         return 1;
     }
     return 0;
 }
 
-static int win_chr_pipe_init(WinCharState *s, const char *filename)
+static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
 {
+    WinCharState *s = chr->opaque;
     OVERLAPPED ov;
     int ret;
     DWORD size;
@@ -2164,11 +2167,11 @@ static int win_chr_pipe_init(WinCharState *s, const char *filename)
         CloseHandle(ov.hEvent);
         ov.hEvent = NULL;
     }
-    qemu_add_polling_cb(win_chr_pipe_poll, s);
+    qemu_add_polling_cb(win_chr_pipe_poll, chr);
     return 0;
 
  fail:
-    win_chr_close2(s);
+    win_chr_close(chr);
     return -1;
 }
 
@@ -2190,7 +2193,7 @@ static CharDriverState *qemu_chr_open_win_pipe(const char *filename)
     chr->chr_write = win_chr_write;
     chr->chr_close = win_chr_close;
     
-    if (win_chr_pipe_init(s, filename) < 0) {
+    if (win_chr_pipe_init(chr, filename) < 0) {
         free(s);
         free(chr);
         return NULL;
