@@ -164,7 +164,7 @@ struct USBPacket {
     USBCallback *complete_cb;
     void *complete_opaque;
     USBCallback *cancel_cb;
-    void * *cancel_opaque;
+    void *cancel_opaque;
 };
 
 /* Defer completion of a USB packet.  The hadle_packet routine should then
