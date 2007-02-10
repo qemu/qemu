@@ -177,6 +177,7 @@ ifdef CONFIG_DARWIN_USER
 BASE_LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 endif
 
+BASE_CFLAGS+=$(OS_CFLAGS)
 OP_CFLAGS+=$(OS_CFLAGS)
 
 #########################################################
