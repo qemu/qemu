@@ -133,8 +133,15 @@ coreaudio="yes"
 OS_CFLAGS="-mdynamic-no-pic"
 ;;
 SunOS)
-solaris="yes"
-;;
+    solaris="yes"
+    make="gmake"
+    install="ginstall"
+    solarisrev=`uname -r | cut -f2 -d.`
+    if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+        if test "$solarisrev" -ge 10 ; then
+            kqemu="yes"
+        fi
+    ;;
 *)
 oss="yes"
 linux="yes"
@@ -149,17 +156,6 @@ if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
     make="gmake"
   fi
-fi
-
-if [ "$solaris" = "yes" ] ; then
-    make="gmake"
-    install="ginstall"
-    solarisrev=`uname -r | cut -f2 -d.`
-    if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-        if test "$solarisrev" -gt 10 ; then
-            kqemu="yes"
-        fi
-    fi
 fi
 
 # find source path
