@@ -1472,23 +1472,23 @@ void OPPROTO op_fstod(void)
 /* Float to integer conversion.  */
 void OPPROTO op_fstoi(void)
 {
-    *((int32_t *)&FT0) = float32_to_int32(FT1, &env->fp_status);
+    *((int32_t *)&FT0) = float32_to_int32_round_to_zero(FT1, &env->fp_status);
 }
 
 void OPPROTO op_fdtoi(void)
 {
-    *((int32_t *)&FT0) = float64_to_int32(DT1, &env->fp_status);
+    *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
 void OPPROTO op_fstox(void)
 {
-    *((int64_t *)&DT0) = float32_to_int64(FT1, &env->fp_status);
+    *((int64_t *)&DT0) = float32_to_int64_round_to_zero(FT1, &env->fp_status);
 }
 
 void OPPROTO op_fdtox(void)
 {
-    *((int64_t *)&DT0) = float64_to_int64(DT1, &env->fp_status);
+    *((int64_t *)&DT0) = float64_to_int64_round_to_zero(DT1, &env->fp_status);
 }
 
 void OPPROTO op_fmovs_cc(void)
