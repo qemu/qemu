@@ -1,3 +1,8 @@
+2007-02-11 21:03  ths
+
+	* linux-user/syscall.c: Fix previous Linux userland emulation
+	  breakage.
+
 2007-02-11 20:01  bellard
 
 	* hw/usb-hid.c: increase USB table poll interval

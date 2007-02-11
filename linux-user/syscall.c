@@ -2952,7 +2952,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 
     case TARGET_NR_syslog:
-        ret = get_errno(sys_syslog((int)arg1, (char*)arg2, (int)arg3));
+        p = lock_user_string(arg2);
+        ret = get_errno(sys_syslog((int)arg1, p, (int)arg3));
+        unlock_user(p, arg2, 0);
         break;
 
     case TARGET_NR_setitimer:
@@ -3423,7 +3425,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_nfsservctl:
         goto unimplemented;
     case TARGET_NR_prctl:
-        ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));
+        switch (arg1)
+            {
+            case PR_GET_PDEATHSIG:
+                {
+                    int deathsig;
+                    ret = get_errno(prctl(arg1, &deathsig, arg3, arg4, arg5));
+                    if (!is_error(ret) && arg2)
+                        tput32(arg2, deathsig);
+                }
+                break;
+            default:
+                ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));
+                break;
+            }
         break;
 #ifdef TARGET_NR_pread
     case TARGET_NR_pread:
