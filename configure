@@ -133,7 +133,15 @@ coreaudio="yes"
 OS_CFLAGS="-mdynamic-no-pic"
 ;;
 SunOS)
-solaris="yes"
+    solaris="yes"
+    make="gmake"
+    install="ginstall"
+    solarisrev=`uname -r | cut -f2 -d.`
+    if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+        if test "$solarisrev" -ge 10 ; then
+            kqemu="yes"
+        fi
+    fi
 ;;
 *)
 oss="yes"
@@ -149,17 +157,6 @@ if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
     make="gmake"
   fi
-fi
-
-if [ "$solaris" = "yes" ] ; then
-    make="gmake"
-    install="ginstall"
-    solarisrev=`uname -r | cut -f2 -d.`
-    if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-        if test "$solarisrev" -gt 10 ; then
-            kqemu="yes"
-        fi
-    fi
 fi
 
 # find source path
@@ -316,7 +313,7 @@ cat > $TMPC <<EOF
 int main(void) {}
 EOF
 
-if $cc -c -o $TMPO $TMPC 2>/dev/null ; then
+if $cc -c -o $TMPO $TMPC 2> /dev/null ; then
   : C compiler works ok
 else
     echo "ERROR: \"$cc\" either does not exist or does not work"
@@ -341,11 +338,11 @@ if test "$check_gcc" = "yes" ; then
 int main(){return 0;}
 EOF
     check_cc() {
-	which "$1" >&/dev/null
+	which "$1" 2> /dev/null
 	return $?
     }
 
-    if "$cc" -o $TMPE $TMPC 2>/dev/null ; then
+    if "$cc" -o $TMPE $TMPC 2> /dev/null ; then
 	echo "WARNING: \"$cc\" looks like gcc 4.x"
 	found_compat_cc="no"
 	if test "$gcc3_search" = "yes" ; then
@@ -445,7 +442,7 @@ int main(int argc, char ** argv){
 }
 EOF
 
-if $cc -o $TMPE $TMPC 2>/dev/null ; then
+if $cc -o $TMPE $TMPC 2> /dev/null ; then
 $TMPE && bigendian="yes"
 else
 echo big/little test failed

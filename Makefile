@@ -26,9 +26,7 @@ endif
 
 ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
-ifndef CONFIG_SOLARIS
 LIBS+=-lrt
-endif
 endif
 endif
 

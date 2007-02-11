@@ -1755,7 +1755,8 @@ qemu-i386 -L / /bin/ls
 @code{-L /} tells that the x86 dynamic linker must be searched with a
 @file{/} prefix.
 
-@item Since QEMU is also a linux process, you can launch qemu with qemu (NOTE: you can only do that if you compiled QEMU from the sources):
+@item Since QEMU is also a linux process, you can launch qemu with
+qemu (NOTE: you can only do that if you compiled QEMU from the sources):
 
 @example 
 qemu-i386 -L / qemu-i386 -L / /bin/ls
@@ -1872,7 +1873,7 @@ target x86 on x86: Most apps (Cocoa and Carbon too) works. [1]
 @item
 target PowerPC on x86: Not working as the ppc commpage can't be mapped (yet!)
 @item
-target x86 on x86: Most apps (Cocoa and Carbon too) works. [1]
+target PowerPC on PowerPC: Most apps (Cocoa and Carbon too) works. [1]
 @item
 target x86 on PowerPC: most utilities work. Cocoa and Carbon apps are not yet supported.
 @end itemize
@@ -1893,20 +1894,20 @@ CD or compile them by hand.
 libraries:
 
 @example 
-qemu-darwin-i386 /bin/ls
+qemu-i386 /bin/ls
 @end example
 
 or to run the ppc version of the executable:
 
 @example 
-qemu-darwin-ppc /bin/ls
+qemu-ppc /bin/ls
 @end example
 
 @item On ppc, you'll have to tell qemu where your x86 libraries (and dynamic linker)
 are installed:
 
 @example 
-qemu-darwin-i386 -L /opt/x86_root/ /bin/ls
+qemu-i386 -L /opt/x86_root/ /bin/ls
 @end example
 
 @code{-L /opt/x86_root/} tells that the dynamic linker (dyld) path is in
@@ -1918,7 +1919,7 @@ qemu-darwin-i386 -L /opt/x86_root/ /bin/ls
 @subsection Command line options
 
 @example
-usage: qemu-darwin-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
+usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
 @end example
 
 @table @option

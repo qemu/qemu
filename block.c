@@ -322,8 +322,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
                BlockDriver *drv)
 {
     int ret, open_flags;
-    char tmp_filename[1024];
-    char backing_filename[1024];
+    char tmp_filename[PATH_MAX];
+    char backing_filename[PATH_MAX];
     
     bs->read_only = 0;
     bs->is_temporary = 0;

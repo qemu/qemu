@@ -1,3 +1,65 @@
+2007-02-11 16:06  ths
+
+	* block.c: Use PATH_MAX for name lengths, by Sergey Vlasov.
+
+2007-02-11 16:02  ths
+
+	* configure: Fix typo, and some reformatting.
+
+2007-02-11 01:31  ths
+
+	* configure: Fix syntax error.
+
+2007-02-11 00:21  ths
+
+	* configure: Improve configure for Solaris, by Ben Taylor.
+
+2007-02-11 00:00  ths
+
+	* Makefile: Fix linking for qemu-img on Solaris, by Ben Taylor.
+
+2007-02-10 23:59  ths
+
+	* qemu-img.c: qemu-img: fix incorrect error message, by Stuart
+	  Brady.
+
+2007-02-10 23:58  ths
+
+	* target-sparc/op.c: Fix floating point to integer conversion, by
+	  Aurelien Jarno.
+
+2007-02-10 23:37  ths
+
+	* console.c: Serial console improvements, by Stefan Weil.
+
+2007-02-10 23:14  ths
+
+	* qemu-doc.texi: Use the actual executable names in documentation,
+	  based on a patch by Pierre d'Herbemont.
+
+2007-02-10 22:52  ths
+
+	* Makefile.target: Build fix for mingw/Cygwin, by Kazu. It also
+	  looks like it does the right thing for Darwin.
+
+2007-02-10 22:50  ths
+
+	* vl.c: Clean up serial code for Win 32, by Kazu.
+
+2007-02-10 22:32  ths
+
+	* hw/usb.h: Fix typo, by Ed Swierk.
+
+2007-02-10 22:31  ths
+
+	* dyngen.c, elf.h: Support for more SPARC relocations, by Martin
+	  Bochnig.
+
+2007-02-10 19:21  ths
+
+	* dyngen-exec.h: Fix for solaris register allocation issue on
+	  amd64, by Martin Bochnig.
+
 2007-02-09 00:09  bellard
 
 	* vl.c, vl.h, hw/pc.c: use ram allocation functions

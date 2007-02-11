@@ -457,7 +457,7 @@ static int img_convert(int argc, char **argv)
 
     drv = bdrv_find_format(out_fmt);
     if (!drv)
-        error("Unknown file format '%s'", fmt);
+        error("Unknown file format '%s'", out_fmt);
     if (compress && drv != &bdrv_qcow && drv != &bdrv_qcow2)
         error("Compression not supported for this file format");
     if (encrypt && drv != &bdrv_qcow && drv != &bdrv_qcow2)

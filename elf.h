@@ -328,6 +328,9 @@ typedef struct {
 #define R_SPARC_11		31
 #define R_SPARC_64		32
 #define R_SPARC_OLO10           33
+#define R_SPARC_HH22            34
+#define R_SPARC_HM10            35
+#define R_SPARC_LM22            36
 #define R_SPARC_WDISP16		40
 #define R_SPARC_WDISP19		41
 #define R_SPARC_7		43
