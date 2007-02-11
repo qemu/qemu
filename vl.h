@@ -1003,6 +1003,10 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 void pcnet_h_reset(void *opaque);
 void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque);
 
+/* tnetw1130.c */
+
+void pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
+
 
 /* pckbd.c */
 

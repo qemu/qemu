@@ -74,7 +74,7 @@ BASE_LDFLAGS+=-static
 endif
 
 ifndef CONFIG_WIN32
-ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux),)
+ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux/ruby.h),)
 CONFIG_RUBY=yes
 CPPFLAGS += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
 ifeq ($(TARGET_ARCH), i386)
@@ -389,6 +389,7 @@ VL_OBJS+= ne2000.o rtl8139.o pcnet.o
 VL_OBJS += dp8381x.o
 VL_OBJS += eepro100.o
 VL_OBJS += eeprom93xx.o
+VL_OBJS += tnetw1130.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support

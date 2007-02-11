@@ -564,6 +564,8 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
         pci_rtl8139_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "pcnet") == 0) {
         pci_pcnet_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "tnetw1130") == 0) {
+        pci_tnetw1130_init(bus, nd, devfn);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
         exit (1);
