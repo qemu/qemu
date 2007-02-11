@@ -32,6 +32,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/swap.h>
@@ -3422,7 +3423,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_nfsservctl:
         goto unimplemented;
     case TARGET_NR_prctl:
-        goto unimplemented;
+        ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));
+        break;
 #ifdef TARGET_NR_pread
     case TARGET_NR_pread:
         page_unprotect_range(arg2, arg3);
