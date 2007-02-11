@@ -6523,7 +6523,7 @@ void Init_qemu(void)
   rb_define_method();
 #endif
 }
-#endif
+#endif /* CONFIG_RUBY */
 
 #if defined(CONFIG_DLL)
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
