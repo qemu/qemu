@@ -140,6 +140,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
+#define __NR_sys_syslog __NR_syslog
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -159,6 +160,7 @@ _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
+_syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
@@ -2947,9 +2949,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = do_setsockopt(arg1, arg2, arg3, arg4, (socklen_t) arg5);
         break;
 #endif
-        
+
     case TARGET_NR_syslog:
-        goto unimplemented;
+        ret = get_errno(sys_syslog((int)arg1, (char*)arg2, (int)arg3));
+        break;
+
     case TARGET_NR_setitimer:
         {
             struct itimerval value, ovalue, *pvalue;
