@@ -141,7 +141,8 @@ SunOS)
         if test "$solarisrev" -ge 10 ; then
             kqemu="yes"
         fi
-    ;;
+    fi
+;;
 *)
 oss="yes"
 linux="yes"
