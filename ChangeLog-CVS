@@ -1,3 +1,17 @@
+2007-02-11 20:01  bellard
+
+	* hw/usb-hid.c: increase USB table poll interval
+
+2007-02-11 19:36  ths
+
+	* linux-user/syscall.c: Linux userland emulation of prctl, from
+	  Debian patchset.
+
+2007-02-11 19:26  ths
+
+	* linux-user/syscall.c: Linux userland emulation of syslog, from
+	  Debian patchset.
+
 2007-02-11 16:06  ths
 
 	* block.c: Use PATH_MAX for name lengths, by Sergey Vlasov.
