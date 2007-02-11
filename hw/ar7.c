@@ -3258,10 +3258,11 @@ static void mips_ar7_common_init (int ram_size,
 {
     char buf[1024];
     int64_t entry = 0;
-    unsigned long bios_offset;
-    int ret;
     CPUState *env;
+    int flash_size;
     int kernel_size;
+    ram_addr_t flash_offset;
+    ram_addr_t ram_offset;
 
     env = cpu_init();
     /* Typical AR7 systems run in little endian mode. */
@@ -3315,44 +3316,43 @@ static void mips_ar7_common_init (int ram_size,
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
-    /* Allocate RAM. */
-
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
-    cpu_register_physical_memory(0, 4 * KiB, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(4 * KiB);
+    cpu_register_physical_memory(0, 4 * KiB, ram_offset | IO_MEM_RAM);
 
     /* 16 MiB external RAM at physical address KERNEL_LOAD_ADDR.
        More memory can be selected with command line option -m. */
     if (ram_size > 100 * MiB) {
             ram_size = 16 * MiB;
     }
-    cpu_register_physical_memory(KERNEL_LOAD_ADDR, ram_size, (4 * KiB) | IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(KERNEL_LOAD_ADDR, ram_size, ram_offset | IO_MEM_RAM);
+    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x\n",
+        __func__, phys_ram_base, ram_size);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
-    bios_offset = ram_size;
+    flash_offset = qemu_ram_alloc(0);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
-    if (ret > 0) {
+    flash_size = load_image(buf, phys_ram_base + flash_offset);
+    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
+    if (flash_size > 0) {
         const uint32_t address = 0x10000000;
         pflash_t *pf;
-        pf = pflash_register(address, bios_offset, 0, ret, 2,
+        flash_offset = qemu_ram_alloc(flash_size);
+        pf = pflash_register(address, flash_offset, 0, flash_size, 2,
                              flash_manufacturer, flash_type);
-        bios_offset += ret;
-    } else {
-        ret = 0;
     }
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
+    flash_offset = qemu_ram_alloc(4 * KiB);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "mips_bios.bin");
-    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
-        __func__, phys_ram_base, ram_size, bios_offset);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    if ((ret > 0) && (ret <= MAX_BIOS_SIZE)) {
-        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
+    flash_size = load_image(buf, phys_ram_base + flash_offset);
+    if ((flash_size > 0) && (flash_size <= 4 * KiB)) {
+        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
     } else {
         /* Not fatal, write a jump to address 0xb0000000 into memory. */
         static const uint8_t jump[] = {
@@ -3361,11 +3361,11 @@ static void mips_ar7_common_init (int ram_size,
         };
         fprintf(stderr, "QEMU: Warning, could not load MIPS bios '%s'.\n"
                 "QEMU added a jump instruction to flash start.\n", buf);
-        memcpy (phys_ram_base + bios_offset, jump, sizeof(jump));
-        ret = 4 * KiB;
+        memcpy (phys_ram_base + flash_offset, jump, sizeof(jump));
+        flash_size = 4 * KiB;
     }
     cpu_register_physical_memory((uint32_t)(0x1fc00000),
-                                 ret, bios_offset | IO_MEM_ROM);
+                                 flash_size, flash_offset | IO_MEM_ROM);
 
     kernel_size = 0;
     if (kernel_filename) {
@@ -3376,7 +3376,7 @@ static void mips_ar7_common_init (int ram_size,
             env->PC = entry;
         } else {
             kernel_size = load_image(kernel_filename,
-                                phys_ram_base + 4 * KiB);
+                                phys_ram_base + ram_offset);
             if (kernel_size > 0 && kernel_size < ram_size) {
                 fprintf(stderr, "qemu: elf kernel '%s' with size 0x%08x\n",
                             kernel_filename, kernel_size);
@@ -3394,11 +3394,11 @@ static void mips_ar7_common_init (int ram_size,
         env->gpr[6] = K1(INITRD_LOAD_ADDR);
 
         /* Set SP (needed for some kernels) - normally set by bootloader. */
-        env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+        env->gpr[29] = env->PC + ram_size - 0x1000;
 
         if (initrd_filename) {
             /* Load kernel parameters (argv, envp) from file. */
-            uint8_t *address = phys_ram_base + 4 * KiB + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
+            uint8_t *address = phys_ram_base + ram_offset + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
             int argc;
             uint8_t **argv;
             uint8_t **arg0;
