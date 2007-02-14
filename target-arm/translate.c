@@ -391,9 +391,9 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
     if (insn & (1 << 22)) {
         /* immediate */
         val = (insn & 0xf) | ((insn >> 4) & 0xf0);
-        val += extra;
         if (!(insn & (1 << 23)))
             val = -val;
+        val += extra;
         if (val != 0)
             gen_op_addl_T1_im(val);
     } else {
