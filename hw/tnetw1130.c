@@ -83,8 +83,8 @@
 # define TRACE(condition, command) ((void)0)
 #endif
 
-#define TNETW1130_MEM_SIZE      (4 * KiB)
-#define TNETW1130_IO_SIZE      (0 * KiB)
+//~ #define TNETW1130_MEM_SIZE      (4 * KiB)
+//~ #define TNETW1130_IO_SIZE      (0 * KiB)
 
 static int tnetw1130_instance = 0;
 static const int tnetw1130_version = 20070211;
@@ -303,10 +303,10 @@ static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
     tnetw1130_t *s = &d->tnetw1130;
 
     logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size);
-    assert(region_num == 1);
+    //~ assert(region_num == 1);
     s->region[region_num] = addr;
 
-    cpu_register_physical_memory(addr, TNETW1130_MEM_SIZE, s->io_memory);
+    cpu_register_physical_memory(addr, size, s->io_memory);
 }
 
 static CPUReadMemoryFunc *tnetw1130_mmio_read[] = {
@@ -380,11 +380,20 @@ static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
                                               -1, NULL, NULL);
     pci_conf = d->dev.config;
 
+//~ lspci -x: 00: 4c 10 66 90 07 01 10 02 00 00 80 02 04 40 00 00
+//~ lspci -x: 10: 00 c0 af fe 00 00 ac fe 00 00 00 00 00 00 00 00
+//~ lspci -x: 20: 00 00 00 00 00 00 00 00 02 1c 00 00 86 11 04 3b
+//~ lspci -x: 30: 00 00 00 00 40 00 00 00 00 00 00 00 0a 01 00 00
+
     /* TI TNETW1130 */
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
     PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
     /* ethernet network controller */
     PCI_CONFIG_32(PCI_REVISION_ID, 0x02800000);
+    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
+                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
+                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
     PCI_CONFIG_32(0x28, 0x00001c02);
     PCI_CONFIG_32(0x28, 0x9067104c);
     /* Address registers are set by pci_register_io_region. */
@@ -407,9 +416,9 @@ static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
 
     logout("io_memory = 0x%08x\n", s->io_memory);
 
-    pci_register_io_region(&d->dev, 0, TNETW1130_IO_SIZE,
-                           PCI_ADDRESS_SPACE_IO, tnetw1130_io_map);
-    pci_register_io_region(&d->dev, 1, TNETW1130_MEM_SIZE,
+    pci_register_io_region(&d->dev, 0, 8 * KiB,
+                           PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+    pci_register_io_region(&d->dev, 1, 128 * KiB,
                            PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
 
     s->pci_dev = &d->dev;
@@ -440,5 +449,55 @@ void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
     logout("\n");
     tnetw1130_init(bus, nd);
 }
+
+/*
+00:0a.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
+	Subsystem: Abocom Systems Inc: Unknown device ab90
+	Flags: bus master, medium devsel, latency 32, IRQ 10
+	Memory at dffdc000 (32-bit, non-prefetchable) [size=8K]
+	Memory at dffa0000 (32-bit, non-prefetchable) [size=128K]
+	Capabilities: [40] Power Management version 2
+
+04:08.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
+        Subsystem: Texas Instruments Unknown device 9067
+        Flags: medium devsel, IRQ 50
+        Memory at faafe000 (32-bit, non-prefetchable) [size=8K]
+        Memory at faac0000 (32-bit, non-prefetchable) [size=128K]
+        Capabilities: [40] Power Management version 2
+
+01:08.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
+        Subsystem: Netgear Unknown device 4c00
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 32, Cache Line Size: 32 bytes
+        Interrupt: pin A routed to IRQ 201
+        Region 0: Memory at eb020000 (32-bit, non-prefetchable) [size=8K]
+        Region 1: Memory at eb000000 (32-bit, non-prefetchable) [size=128K]
+        Capabilities: [40] Power Management version 2
+                Flags: PMEClk- DSI- D1+ D2+ AuxCurrent=0mA PME(D0+,D1+,D2+,D3hot+,D3cold-)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+
+00:09.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
+        Subsystem: D-Link System Inc: Unknown device 3b04
+        Flags: medium devsel, IRQ 11
+        Memory at de020000 (32-bit, non-prefetchable) [size=8K]
+        Memory at de000000 (32-bit, non-prefetchable) [size=128K]
+        Capabilities: [40] Power Management version 2
+
+0000:02:08.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
+        Subsystem: Abocom Systems Inc: Unknown device ab90
+        Flags: bus master, medium devsel, latency 32, IRQ 10
+        Memory at f8140000 (32-bit, non-prefetchable) [size=8K]
+        Memory at f8100000 (32-bit, non-prefetchable) [size=128K]
+        Capabilities: [40] Power Management version 2
+
+02:0d.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
+        Subsystem: D-Link System Inc Unknown device 3b04
+        Flags: bus master, medium devsel, latency 64, IRQ 10
+        Memory at feafc000 (32-bit, non-prefetchable) [size=8K]
+        Memory at feac0000 (32-bit, non-prefetchable) [size=128K]
+        Capabilities: [40] Power Management version 2 
+
+*/
 
 /* eof */
