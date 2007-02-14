@@ -2875,7 +2875,13 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 
 static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    if (addr & 3) {
+    if (0) {
+    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4)) {
+        uint32_t oldvalue = reg_read(av.vlynq[0], VLYNQ_CTRL);
+        oldvalue &= ~(0xff << 8 * (addr & 3));
+        value = oldvalue + ((value & 0xff) << 8 * (addr & 3));
+        ar7_vlynq_write(0, VLYNQ_CTRL, value);
+    } else if (addr & 3) {
         ar7_io_memwrite(opaque, addr & ~3, value);
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
@@ -2894,12 +2900,16 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t value = (ar7_io_memread(opaque, addr & ~3) & 0xff);
-    if (addr & 3) {
+    if (0) {
+    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
+      value >>= (addr & 3) * 8;
+    } else if (addr & 3) {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
-        value = clock_read(addr - AVALANCHE_CLOCK_BASE);
+        //~ value = clock_read(addr - AVALANCHE_CLOCK_BASE);
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
+    } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
