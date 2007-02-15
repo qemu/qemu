@@ -23,7 +23,7 @@ version 0.8.2:
   - switch to OpenBios for SPARC targets (Blue Swirl)
   - VNC server fixes
   - MIPS FPU support (Marius Groeger)
-  - Solaris/SPARC host support (Ben Taylor)
+  - Solaris/SPARC host support (Juergen Keil)
   - PPC breakpoints and single stepping (Jason Wessel)
   - USB updates (Paul Brook)
   - UDP/TCP/telnet character devices (Jason Wessel)
@@ -42,7 +42,7 @@ version 0.8.1:
   - PC speaker support (Joachim Henke)
   - IDE LBA48 support (Jens Axboe)
   - SSE3 support
-  - Solaris port (Ben Taylor)
+  - Solaris port (Juergen Keil)
   - Preliminary SH4 target (Samuel Tardieu)
   - VNC server (Anthony Liguori)
   - slirp fixes (Ed Swierk et al.)
