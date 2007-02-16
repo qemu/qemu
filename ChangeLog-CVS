@@ -1,3 +1,16 @@
+2007-02-15 23:58  bellard
+
+	* configure: fixed cross win32 build
+
+2007-02-15 23:49  bellard
+
+	* Changelog: update author
+
+2007-02-14 21:17  pbrook
+
+	* target-arm/translate.c: ARM doubleword post-modify fix (Daniel
+	  Jacobowitz).
+
 2007-02-11 21:03  ths
 
 	* linux-user/syscall.c: Fix previous Linux userland emulation

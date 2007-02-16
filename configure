@@ -221,7 +221,7 @@ for opt do
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
   ;;
-  --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-" ; user="no"
+  --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-" ; linux_user="no"
   ;;
   --disable-slirp) slirp="no"
   ;;
