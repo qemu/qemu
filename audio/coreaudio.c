@@ -294,7 +294,6 @@ static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
     UInt32 propertySize;
     int err;
-    int bits = 8;
     const char *typ = "playback";
     AudioValueRange frameRange;
 
@@ -303,10 +302,6 @@ static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
     if (err) {
         dolog("Could not create mutex\nReason: %s\n", strerror (err));
         return -1;
-    }
-
-    if (as->fmt == AUD_FMT_S16 || as->fmt == AUD_FMT_U16) {
-        bits = 16;
     }
 
     audio_pcm_init_info (&hw->info, as);

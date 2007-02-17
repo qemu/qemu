@@ -37,15 +37,15 @@ static void wav_destroy (void *opaque)
     if (wav->f) {
         le_store (rlen, rifflen, 4);
         le_store (dlen, datalen, 4);
-        
+
         qemu_fseek (wav->f, 4, SEEK_SET);
         qemu_put_buffer (wav->f, rlen, 4);
-        
+
         qemu_fseek (wav->f, 32, SEEK_CUR);
         qemu_put_buffer (wav->f, dlen, 4);
         qemu_fclose (wav->f);
     }
-    
+
     qemu_free (wav->path);
 }
 

@@ -37,8 +37,8 @@ typedef void (t_sample) (st_sample_t *dst, const void *src,
                          int samples, volume_t *vol);
 typedef void (f_sample) (void *dst, const st_sample_t *src, int samples);
 
-extern t_sample *mixeng_conv[2][2][2][2];
-extern f_sample *mixeng_clip[2][2][2][2];
+extern t_sample *mixeng_conv[2][2][2][3];
+extern f_sample *mixeng_clip[2][2][2][3];
 
 void *st_rate_start (int inrate, int outrate);
 void st_rate_flow (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,

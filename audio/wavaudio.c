@@ -41,7 +41,8 @@ static struct {
     {
         44100,
         2,
-        AUD_FMT_S16
+        AUD_FMT_S16,
+        AUDIO_HOST_ENDIANNESS
     },
     "qemu.wav"
 };
@@ -131,6 +132,11 @@ static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
     case AUD_FMT_U16:
         bits16 = 1;
         break;
+
+    case AUD_FMT_S32:
+    case AUD_FMT_U32:
+        dolog ("WAVE files can not handle 32bit formats\n");
+        return -1;
     }
 
     hdr[34] = bits16 ? 0x10 : 0x08;
