@@ -2163,8 +2163,18 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(getpid());
         break;
     case TARGET_NR_mount:
-        /* need to look at the data field */
-        goto unimplemented;
+		{
+			/* need to look at the data field */
+			void *p2, *p3;
+			p = lock_user_string(arg1);
+			p2 = lock_user_string(arg2);
+			p3 = lock_user_string(arg3);
+			ret = get_errno(mount(p, p2, p3, (unsigned long)arg4, (const void *)arg5));
+			unlock_user(p, arg1, 0);
+			unlock_user(p2, arg2, 0);
+			unlock_user(p3, arg3, 0);
+			break;
+		}
     case TARGET_NR_umount:
         p = lock_user_string(arg1);
         ret = get_errno(umount(p));
