@@ -55,6 +55,7 @@
 #include <malloc.h>
 #include <linux/rtc.h>
 #include <linux/ppdev.h>
+#include <linux/parport.h>
 #else
 #include <sys/stat.h>
 #include <sys/ethernet.h>
@@ -1813,9 +1814,26 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     return chr;
 }
 
+typedef struct {
+    int fd;
+    int mode;
+} ParallelCharDriver;
+
+static int pp_hw_mode(ParallelCharDriver *s, uint16_t mode)
+{
+    if (s->mode != mode) {
+	int m = mode;
+        if (ioctl(s->fd, PPSETMODE, &m) < 0)
+            return 0;
+	s->mode = mode;
+    }
+    return 1;
+}
+
 static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
 {
-    int fd = (int)chr->opaque;
+    ParallelCharDriver *drv = chr->opaque;
+    int fd = drv->fd;
     uint8_t b;
 
     switch(cmd) {
@@ -1832,7 +1850,10 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     case CHR_IOCTL_PP_READ_CONTROL:
         if (ioctl(fd, PPRCONTROL, &b) < 0)
             return -ENOTSUP;
-        *(uint8_t *)arg = b;
+	/* Linux gives only the lowest bits, and no way to know data
+	   direction! For better compatibility set the fixed upper
+	   bits. */
+        *(uint8_t *)arg = b | 0xc0;
         break;
     case CHR_IOCTL_PP_WRITE_CONTROL:
         b = *(uint8_t *)arg;
@@ -1844,15 +1865,63 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
             return -ENOTSUP;
         *(uint8_t *)arg = b;
         break;
+    case CHR_IOCTL_PP_EPP_READ_ADDR:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = read(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
+    case CHR_IOCTL_PP_EPP_READ:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = read(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
+    case CHR_IOCTL_PP_EPP_WRITE_ADDR:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = write(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
+    case CHR_IOCTL_PP_EPP_WRITE:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = write(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
     default:
         return -ENOTSUP;
     }
     return 0;
 }
 
+static void pp_close(CharDriverState *chr)
+{
+    ParallelCharDriver *drv = chr->opaque;
+    int fd = drv->fd;
+
+    pp_hw_mode(drv, IEEE1284_MODE_COMPAT);
+    ioctl(fd, PPRELEASE);
+    close(fd);
+    qemu_free(drv);
+}
+
 static CharDriverState *qemu_chr_open_pp(const char *filename)
 {
     CharDriverState *chr;
+    ParallelCharDriver *drv;
     int fd;
 
     fd = open(filename, O_RDWR);
@@ -1864,14 +1933,24 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
         return NULL;
     }
 
-    chr = qemu_mallocz(sizeof(CharDriverState));
-    if (!chr) {
+    drv = qemu_mallocz(sizeof(ParallelCharDriver));
+    if (!drv) {
         close(fd);
         return NULL;
     }
-    chr->opaque = (void *)fd;
+    drv->fd = fd;
+    drv->mode = IEEE1284_MODE_COMPAT;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr) {
+	qemu_free(drv);
+        close(fd);
+        return NULL;
+    }
     chr->chr_write = null_chr_write;
     chr->chr_ioctl = pp_ioctl;
+    chr->chr_close = pp_close;
+    chr->opaque = drv;
 
     qemu_chr_reset(chr);
 
