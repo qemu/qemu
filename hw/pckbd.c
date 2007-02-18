@@ -121,6 +121,9 @@ typedef struct KBDState {
     uint8_t pending;
     void *kbd;
     void *mouse;
+
+    int irq_kbd;
+    int irq_mouse;
 } KBDState;
 
 KBDState kbd_state;
@@ -130,10 +133,10 @@ KBDState kbd_state;
    incorrect, but it avoids having to simulate exact delays */
 static void kbd_update_irq(KBDState *s)
 {
-    int irq12_level, irq1_level;
+    int irq_kbd_level, irq_mouse_level;
 
-    irq1_level = 0;    
-    irq12_level = 0;    
+    irq_kbd_level = 0;
+    irq_mouse_level = 0;
     s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
     if (s->pending) {
         s->status |= KBD_STAT_OBF;
@@ -141,15 +144,15 @@ static void kbd_update_irq(KBDState *s)
         if (s->pending == KBD_PENDING_AUX) {
             s->status |= KBD_STAT_MOUSE_OBF;
             if (s->mode & KBD_MODE_MOUSE_INT)
-                irq12_level = 1;
+                irq_mouse_level = 1;
         } else {
             if ((s->mode & KBD_MODE_KBD_INT) && 
                 !(s->mode & KBD_MODE_DISABLE_KBD))
-                irq1_level = 1;
+                irq_kbd_level = 1;
         }
     }
-    pic_set_irq(1, irq1_level);
-    pic_set_irq(12, irq12_level);
+    pic_set_irq(s->irq_kbd, irq_kbd_level);
+    pic_set_irq(s->irq_mouse, irq_mouse_level);
 }
 
 static void kbd_update_kbd_irq(void *opaque, int level)
@@ -353,18 +356,26 @@ static int kbd_load(QEMUFile* f, void* opaque, int version_id)
     return 0;
 }
 
-void kbd_init(void)
+void i8042_init(int kbd_irq_lvl, int mouse_irq_lvl, uint32_t io_base)
 {
     KBDState *s = &kbd_state;
+
+    s->irq_kbd = kbd_irq_lvl;
+    s->irq_mouse = mouse_irq_lvl;
     
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
-    register_ioport_read(0x60, 1, 1, kbd_read_data, s);
-    register_ioport_write(0x60, 1, 1, kbd_write_data, s);
-    register_ioport_read(0x64, 1, 1, kbd_read_status, s);
-    register_ioport_write(0x64, 1, 1, kbd_write_command, s);
+    register_ioport_read(io_base, 1, 1, kbd_read_data, s);
+    register_ioport_write(io_base, 1, 1, kbd_write_data, s);
+    register_ioport_read(io_base + 4, 1, 1, kbd_read_status, s);
+    register_ioport_write(io_base + 4, 1, 1, kbd_write_command, s);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
     qemu_register_reset(kbd_reset, s);
+}
+
+void kbd_init(void)
+{
+    return i8042_init(1, 12, 0x60);
 }
