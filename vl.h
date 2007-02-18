@@ -911,7 +911,7 @@ void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
                          unsigned long vga_ram_offset, int vga_ram_size);
 
 /* sdl.c */
-void sdl_display_init(DisplayState *ds, int full_screen);
+void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
 
 /* cocoa.m */
 void cocoa_display_init(DisplayState *ds, int full_screen);

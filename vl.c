@@ -163,6 +163,7 @@ int graphic_height = 600;
 #endif
 int graphic_depth = 15;
 int full_screen = 0;
+int no_frame = 0;
 int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
@@ -6345,6 +6346,7 @@ void help(void)
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-snapshot       write to temporary files instead of disk image files\n"
 #ifdef CONFIG_SDL
+           "-no-frame       open SDL window without a frame and window decorations\n"
            "-no-quit        disable SDL window close capability\n"
 #endif
 #ifdef TARGET_I386
@@ -6514,6 +6516,7 @@ enum {
     QEMU_OPTION_parallel,
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
+    QEMU_OPTION_no_frame,
     QEMU_OPTION_no_quit,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
@@ -6597,6 +6600,7 @@ const QEMUOption qemu_options[] = {
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
 #ifdef CONFIG_SDL
+    { "no-frame", 0, QEMU_OPTION_no_frame },
     { "no-quit", 0, QEMU_OPTION_no_quit },
 #endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
@@ -7224,6 +7228,9 @@ int main(int argc, char **argv)
                 full_screen = 1;
                 break;
 #ifdef CONFIG_SDL
+            case QEMU_OPTION_no_frame:
+                no_frame = 1;
+                break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
                 break;
@@ -7478,7 +7485,7 @@ int main(int argc, char **argv)
 	vnc_display_init(ds, vnc_display);
     } else {
 #if defined(CONFIG_SDL)
-        sdl_display_init(ds, full_screen);
+        sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
         cocoa_display_init(ds, full_screen);
 #else
