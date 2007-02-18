@@ -22,6 +22,7 @@
 
 #include <assert.h>             /* assert */
 #include "vl.h"
+#include "tnetw1130.h"
 
 /*****************************************************************************
  *
@@ -53,6 +54,9 @@
 #define PCI_CONFIG_32(offset, value) \
     (*(uint32_t *)&pci_conf[offset] = cpu_to_le32(value))
 
+#define BIT(n) (1 << (n))
+#define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
+
 #define KiB 1024
 
 /*****************************************************************************
@@ -65,7 +69,7 @@
 #define DEBUG_TNETW1130
 
 #if defined(DEBUG_TNETW1130)
-# define logout(fmt, args...) fprintf(stderr, "TNETW1130 %-24s" fmt, __func__, ##args)
+# define logout(fmt, args...) fprintf(stderr, "ACX111\t%-24s" fmt, __func__, ##args)
 #else
 # define logout(fmt, args...) ((void)0)
 #endif
@@ -86,12 +90,15 @@
 # define TRACE(condition, command) ((void)0)
 #endif
 
+/* 2 PCI memory regions. */
 #define TNETW1130_MEM0_SIZE      (8 * KiB)
 #define TNETW1130_MEM1_SIZE      (128 * KiB)
 #define TNETW1130_FW_SIZE        (128 * KiB)
+
+/* No PCI I/O regions. */
 //~ #define TNETW1130_IO_SIZE      (0 * KiB)
 
-/* Number of memory and I/O regions. */
+/* Total number of PCI memory and I/O regions. */
 #define  TNETW1130_REGIONS      2
 
 static int tnetw1130_instance = 0;
@@ -109,6 +116,8 @@ typedef struct {
 
     VLANClientState *vc;
     //~ eeprom_t *eeprom;
+
+    uint16_t irq_status;
 
     uint8_t macaddr[6];
     uint8_t mem0[TNETW1130_MEM0_SIZE];
@@ -130,10 +139,93 @@ typedef enum {
     TNETW1130_SLV_MEM_DATA = 0x0018,
     TNETW1130_SLV_MEM_CTL = 0x001c,
     TNETW1130_SLV_END_CTL = 0x0020,
+    TNETW1130_FEMR = 0x0034,
+    TNETW1130_INT_TRIG = 0x00b4,
+    TNETW1130_IRQ_MASK = 0x00d4,
+    TNETW1130_IRQ_STATUS_CLEAR = 0x00e4,
+    TNETW1130_IRQ_ACK = 0x00e8,
+    TNETW1130_HINT_TRIG = 0x00ec,
+    TNETW1130_IRQ_STATUS_NON_DES = 0x00f0,
     TNETW1130_EE_START = 0x0100,
+    TNETW1130_SOR_CFG = 0x0104,
     TNETW1130_ECPU_CTRL = 0x0108,
+    TNETW1130_ENABLE = 0x01d0,
+    TNETW1130_EEPROM_CTL = 0x0338,
+    TNETW1130_EEPROM_ADDR = 0x033c,
+    TNETW1130_EEPROM_DATA = 0x0340,
+    TNETW1130_EEPROM_CFG = 0x0344,
+    TNETW1130_PHY_ADDR = 0x0350,
+    TNETW1130_PHY_DATA = 0x0354,
+    TNETW1130_PHY_CTL = 0x0358,
+    TNETW1130_GPIO_OE = 0x0374,
+    TNETW1130_GPIO_OUT = 0x037c,
+    TNETW1130_CMD_MAILBOX_OFFS = 0x0388,
+    TNETW1130_INFO_MAILBOX_OFFS = 0x038c,
     TNETW1130_EEPROM_INFORMATION = 0x390,
 } tnetw1130_reg_t;
+
+typedef enum {
+    CMD_MAILBOX = 0x0001e108,
+    INFO_MAILBOX = 0x0001e0f0,
+} tnetw1130_memory_offset_t;
+
+typedef enum {
+    ACX1xx_CMD_RESET = 0x00,
+    ACX1xx_CMD_INTERROGATE = 0x01,
+    ACX1xx_CMD_CONFIGURE = 0x02,
+#define ACX1xx_CMD_ENABLE_RX		0x03
+#define ACX1xx_CMD_ENABLE_TX		0x04
+#define ACX1xx_CMD_DISABLE_RX		0x05
+#define ACX1xx_CMD_DISABLE_TX		0x06
+#define ACX1xx_CMD_FLUSH_QUEUE		0x07
+#define ACX1xx_CMD_SCAN			0x08
+    ACX1xx_CMD_STOP_SCAN = 0x09,
+    ACX1xx_CMD_CONFIG_TIM = 0x0a,
+#define ACX1xx_CMD_JOIN			0x0b
+#define ACX1xx_CMD_WEP_MGMT		0x0c
+#ifdef OLD_FIRMWARE_VERSIONS
+#define ACX100_CMD_HALT			0x0e	/* mapped to unknownCMD in FW150 */
+#else
+#define ACX1xx_CMD_MEM_READ		0x0d
+#define ACX1xx_CMD_MEM_WRITE		0x0e
+#endif
+#define ACX1xx_CMD_SLEEP		0x0f
+#define ACX1xx_CMD_WAKE			0x10
+#define ACX1xx_CMD_UNKNOWN_11		0x11	/* mapped to unknownCMD in FW150 */
+#define ACX100_CMD_INIT_MEMORY		0x12
+#define ACX1FF_CMD_DISABLE_RADIO	0x12	/* new firmware? TNETW1450? */
+    ACX1xx_CMD_CONFIG_BEACON = 0x13,
+    ACX1xx_CMD_CONFIG_PROBE_RESPONSE = 0x14,
+    ACX1xx_CMD_CONFIG_NULL_DATA = 0x15,
+    ACX1xx_CMD_CONFIG_PROBE_REQUEST = 0x16,
+#define ACX1xx_CMD_FCC_TEST		0x17
+#define ACX1xx_CMD_RADIOINIT		0x18
+#define ACX111_CMD_RADIOCALIB		0x19
+#define ACX1FF_CMD_NOISE_HISTOGRAM	0x1c /* new firmware? TNETW1450? */
+#define ACX1FF_CMD_RX_RESET		0x1d /* new firmware? TNETW1450? */
+#define ACX1FF_CMD_LNA_CONTROL		0x20 /* new firmware? TNETW1450? */
+#define ACX1FF_CMD_CONTROL_DBG_TRACE	0x21 /* new firmware? TNETW1450? */
+} tnetw1130_command_t;
+
+/* IRQ Constants */
+typedef enum {
+    HOST_INT_RX_DATA = BIT(0),
+#define HOST_INT_TX_COMPLETE	0x0002
+#define HOST_INT_TX_XFER	0x0004
+#define HOST_INT_RX_COMPLETE	0x0008
+#define HOST_INT_DTIM		0x0010
+#define HOST_INT_BEACON		0x0020
+#define HOST_INT_TIMER		0x0040
+#define HOST_INT_KEY_NOT_FOUND	0x0080
+#define HOST_INT_IV_ICV_FAILURE	0x0100
+#define HOST_INT_CMD_COMPLETE	0x0200
+#define HOST_INT_INFO		0x0400
+#define HOST_INT_OVERFLOW	0x0800
+#define HOST_INT_PROCESS_ERROR	0x1000
+#define HOST_INT_SCAN_COMPLETE	0x2000
+#define HOST_INT_FCS_THRESHOLD	0x4000
+#define HOST_INT_UNKNOWN	0x8000
+} tnetw10030_irq_bit_t;
 
 /*****************************************************************************
  *
@@ -165,105 +257,127 @@ static void reg_write32(uint8_t * reg, uint32_t addr, uint32_t value)
     *(uint32_t *) (&reg[addr]) = cpu_to_le32(value);
 }
 
+typedef struct {
+    unsigned offset;
+    const char *name;
+} offset_name_t;
+
+static const char *offset2name(const offset_name_t *o2n, unsigned offset)
+{
+    static char buffer[32];
+    const char *name = buffer;
+    sprintf(buffer, "0x%08x", offset);
+    for (; o2n->name != 0; o2n++) {
+        if (offset == o2n->offset) {
+            name = o2n->name;
+            break;
+        }
+    }
+    return name;
+}
+
+#define ENTRY(entry) { TNETW1130_##entry, #entry }
+static const offset_name_t addr2reg[] = {
+    ENTRY(SOFT_RESET),
+    ENTRY(SLV_MEM_ADDR),
+    ENTRY(SLV_MEM_DATA),
+    ENTRY(SLV_MEM_CTL),
+    ENTRY(IRQ_MASK),
+    ENTRY(IRQ_STATUS_CLEAR),
+    ENTRY(IRQ_ACK),
+    ENTRY(HINT_TRIG),
+    ENTRY(IRQ_STATUS_NON_DES),
+    ENTRY(EE_START),
+    ENTRY(ECPU_CTRL),
+    ENTRY(ENABLE),
+    ENTRY(EEPROM_CTL),
+    ENTRY(EEPROM_ADDR),
+    ENTRY(EEPROM_DATA),
+    ENTRY(EEPROM_CFG),
+    ENTRY(PHY_ADDR),
+    ENTRY(PHY_DATA),
+    ENTRY(PHY_CTL),
+    ENTRY(GPIO_OE),
+    ENTRY(GPIO_OUT),
+    ENTRY(CMD_MAILBOX_OFFS),
+    ENTRY(INFO_MAILBOX_OFFS),
+    ENTRY(EEPROM_INFORMATION),
+    { 0 }
+};
+
 static const char *tnetw1130_regname(target_phys_addr_t addr)
+{
+    return offset2name(addr2reg, addr);
+}
+
+static const char *tnetw1130_regname1(target_phys_addr_t addr)
 {
     static char buffer[32];
     const char *name = buffer;
     sprintf(buffer, "0x%08x", addr);
     switch (addr) {
-        case TNETW1130_SOFT_RESET:
-            name = "SOFT_RESET";
+        case CMD_MAILBOX:
+            name = "CMD_MAILBOX";
             break;
-        case TNETW1130_SLV_MEM_ADDR:
-            name = "SLV_MEM_ADDR";
-            break;
-        case TNETW1130_SLV_MEM_DATA:
-            name = "SLV_MEM_DATA";
-            break;
-        case TNETW1130_SLV_MEM_CTL:
-            name = "SLV_MEM_CTL";
-            break;
-        case TNETW1130_SLV_END_CTL:
-            name = "SLV_END_CTL";
-            break;
-        case 0x0034:
-            name = "FEMR";
-            break;
-        case 0x00b4:
-            name = "INT_TRIG";
-            break;
-        case 0x00d4:
-            name = "IRQ_MASK";
-            break;
-        case 0x00e4:
-            name = "IRQ_STATUS_CLEAR";
-            break;
-        case 0x00e8:
-            name = "IRQ_ACK";
-            break;
-        case 0x00ec:
-            name = "HINT_TRIG";
-            break;
-        /* we do mean NON_DES (0xf0), not NON_DES_MASK which is at 0xe0: */
-        case 0x00f0:
-            name = "IRQ_STATUS_NON_DES";
-            break;
-        case TNETW1130_EE_START:
-            name = "EE_START";
-            break;
-        case 0x0104:
-            name = "SOR_CFG";
-            break;
-        case TNETW1130_ECPU_CTRL:
-            name = "ECPU_CTRL";
-            break;
-        case 0x01d0:
-            name = "ENABLE";
-            break;
-        case 0x0338:
-            name = "EEPROM_CTL";
-            break;
-        case 0x033c:
-            name = "EEPROM_ADDR";
-            break;
-        case 0x0340:
-            name = "EEPROM_DATA";
-            break;
-        case 0x0344:
-            name = "EEPROM_CFG";
-            break;
-        case 0x0350:
-            name = "PHY_ADDR";
-            break;
-        case 0x0354:
-            name = "PHY_DATA";
-            break;
-        case 0x0358:
-            name = "PHY_CTL";
-            break;
-        case 0x0374:
-            name = "GPIO_OE";
-            break;
-        case 0x037c:
-            name = "GPIO_OUT";
-            break;
-        case 0x0388:
-            name = "CMD_MAILBOX_OFFS";
-            break;
-        case 0x038c:
-            name = "INFO_MAILBOX_OFFS";
-            break;
-        case 0x0390:
-            name = "EEPROM_INFORMATION";
+        case INFO_MAILBOX:
+            name = "INFO_MAILBOX";
             break;
     }
-
     return name;
+}
+
+#undef ENTRY
+#define ENTRY(entry) { ACX1xx_CMD_##entry, #entry }
+static const offset_name_t cmd2name[] = {
+    ENTRY(RESET),
+    ENTRY(INTERROGATE),
+    ENTRY(CONFIGURE),
+    ENTRY(CONFIG_TIM),
+    ENTRY(CONFIG_BEACON),
+    ENTRY(CONFIG_PROBE_RESPONSE),
+    ENTRY(CONFIG_NULL_DATA),
+    ENTRY(CONFIG_PROBE_REQUEST),
+    { 0 }
+};
+
+static const char *tnetw1130_cmdname(uint16_t cmd)
+{
+    return offset2name(cmd2name, cmd);
+}
+
+static void tnetw1130_cmd_reset(tnetw1130_t *s)
+{
+}
+
+static void tnetw1130_cmd_interrogate(tnetw1130_t *s)
+{
+}
+
+static void tnetw1130_cmd(tnetw1130_t *s)
+{
+    uint16_t cmd = reg_read16(s->mem1, CMD_MAILBOX);
+    s->irq_status |= HOST_INT_CMD_COMPLETE;
+    reg_write16(s->mem1, CMD_MAILBOX + 2, 0x0001);
+    switch (cmd) {
+        case ACX1xx_CMD_RESET:                  /* 0x00 */
+            tnetw1130_cmd_reset(s);
+            break;
+        case ACX1xx_CMD_INTERROGATE:            /* 0x01 */
+            tnetw1130_cmd_interrogate(s);
+            break;
+        case ACX1xx_CMD_CONFIGURE:              /* 0x02 */
+        case ACX1xx_CMD_CONFIG_TIM:             /* 0x0a */
+        case ACX1xx_CMD_CONFIG_BEACON:          /* 0x13 */
+        case ACX1xx_CMD_CONFIG_PROBE_RESPONSE:  /* 0x14 */
+        case ACX1xx_CMD_CONFIG_NULL_DATA:       /* 0x15 */
+        case ACX1xx_CMD_CONFIG_PROBE_REQUEST:   /* 0x16 */
+            break;
+    }
 }
 
 static void tnetw1130_reset(tnetw1130_t * s)
 {
-  // !!! dummy
+    MISSING();
 }
 
 static uint8_t tnetw1130_read0b(pci_tnetw1130_t * d, target_phys_addr_t addr)
@@ -277,12 +391,14 @@ static uint8_t tnetw1130_read0b(pci_tnetw1130_t * d, target_phys_addr_t addr)
     return value;
 }
 
-/* Radio type names, found in Win98 driver's TIACXLN.INF */
-#define RADIO_MAXIM_0D		0x0d
-#define RADIO_RFMD_11		0x11
-#define RADIO_RALINK_15		0x15
-/* used in ACX111 cards (WG311v2, WL-121, ...): */
-#define RADIO_RADIA_16		0x16
+/* Radio type names. */
+typedef enum {
+    RADIO_MAXIM_0D = 0x0d,
+    RADIO_RFMD_11 = 0x11,
+    RADIO_RALINK_15 = 0x15,
+    /* used in ACX111 cards (WG311v2, WL-121, ...): */
+    RADIO_RADIA_16 = 0x16,
+} radio_t;
 
 static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
 {
@@ -290,10 +406,14 @@ static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
     uint16_t value = 0;
     assert(addr < TNETW1130_MEM0_SIZE);
     value = reg_read16(s->mem0, addr);
-    //~ } else if (addr -= 0x20000, addr == TNETW1130_SOFT_RESET) {
-    //~ } else if (addr == TNETW1130_EE_START) {
-    //~ } else if (addr == TNETW1130_ECPU_CTRL) {
-    if (addr == TNETW1130_EEPROM_INFORMATION) {
+    if (0) {
+    } else if (addr == TNETW1130_SOFT_RESET) {
+    } else if (addr == TNETW1130_IRQ_STATUS_NON_DES) {
+        /* !!! set after eCPU start */
+        value = s->irq_status;
+    } else if (addr == TNETW1130_EE_START) {
+    } else if (addr == TNETW1130_ECPU_CTRL) {
+    } else if (addr == TNETW1130_EEPROM_INFORMATION) {
         value = (RADIO_RADIA_16 << 8) + 0x01;
     }
     logout("addr %s = %04x\n", tnetw1130_regname(addr), value);
@@ -309,15 +429,22 @@ static uint32_t tnetw1130_read0l(pci_tnetw1130_t * d, target_phys_addr_t addr)
     if (0) {
     } else if (addr == TNETW1130_SLV_MEM_DATA) {
         value = reg_read32(s->fw, s->fw_addr);
+    } else if (addr == TNETW1130_CMD_MAILBOX_OFFS) {
+        value = CMD_MAILBOX;
+    } else if (addr == TNETW1130_INFO_MAILBOX_OFFS) {
+        value = INFO_MAILBOX;
     }
     logout("addr %s = %08x\n", tnetw1130_regname(addr), value);
     return value;
 }
 
 static void tnetw1130_write0b(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint8_t val)
+                           uint8_t value)
 {
-    //~ tnetw1130_t *s = &d->tnetw1130;
+    tnetw1130_t *s = &d->tnetw1130;
+    assert(addr < TNETW1130_MEM0_SIZE);
+    s->mem0[addr] = value;
+    logout("addr %s\n", tnetw1130_regname(addr));
 }
 
 static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
@@ -330,6 +457,17 @@ static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
         if (value & 1) {
             logout("soft reset\n");
         }
+    } else if (addr == TNETW1130_INT_TRIG) {
+        if (value == 1) {
+            uint16_t cmd = reg_read16(s->mem1, CMD_MAILBOX);
+            logout("trigger interrupt, status, cmd = %s\n", tnetw1130_cmdname(cmd));
+            tnetw1130_cmd(s);
+        } else {
+            UNEXPECTED();
+        }
+    } else if (addr == TNETW1130_IRQ_ACK) {
+        /* !!! must reset irq */
+        s->irq_status &= ~value;
     } else if (addr == TNETW1130_EE_START) {
         if (value & 1) {
             logout("start burst read from EEPROM\n");
@@ -338,6 +476,9 @@ static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
         if (value & 1) {
             logout("halt eCPU\n");
             //~ reg_write16(s->mem0, addr, value & ~1);
+        } else {
+            logout("start eCPU\n");
+            s->irq_status |= HOST_INT_FCS_THRESHOLD;
         }
     }
     logout("addr %s = %04x\n", tnetw1130_regname(addr), value);
@@ -351,7 +492,9 @@ static void tnetw1130_write0l(pci_tnetw1130_t * d, target_phys_addr_t addr,
     reg_write32(s->mem0, addr, value);
     if (addr == TNETW1130_SLV_MEM_ADDR) {
         s->fw_addr = value;
-        assert(value < TNETW1130_FW_SIZE);
+        if (value >= TNETW1130_FW_SIZE) {
+            UNEXPECTED();
+        }
     } else if (addr == TNETW1130_SLV_MEM_DATA) {
         reg_write32(s->fw, s->fw_addr, value);
     } else if (addr == TNETW1130_SLV_MEM_CTL) {
@@ -374,7 +517,7 @@ static uint8_t tnetw1130_read1b(pci_tnetw1130_t * d, target_phys_addr_t addr)
     uint8_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
     value = s->mem1[addr];
-    logout("addr %s = %02x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = %02x\n", tnetw1130_regname1(addr), value);
     return value;
 }
 
@@ -384,20 +527,26 @@ static uint16_t tnetw1130_read1w(pci_tnetw1130_t * d, target_phys_addr_t addr)
     uint16_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
     value = reg_read16(s->mem1, addr);
-    logout("addr %s = %04x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = %04x\n", tnetw1130_regname1(addr), value);
     return value;
 }
 
 static uint32_t tnetw1130_read1l(pci_tnetw1130_t * d, target_phys_addr_t addr)
 {
-    //~ tnetw1130_t *s = &d->tnetw1130;
-    return 0;
+    tnetw1130_t *s = &d->tnetw1130;
+    assert(addr < TNETW1130_MEM1_SIZE);
+    uint32_t value = reg_read32(s->mem1, addr);
+    logout("addr %s = %08x\n", tnetw1130_regname1(addr), value);
+    return value;
 }
 
 static void tnetw1130_write1b(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint8_t val)
+                           uint8_t value)
 {
-    //~ tnetw1130_t *s = &d->tnetw1130;
+    tnetw1130_t *s = &d->tnetw1130;
+    assert(addr < TNETW1130_MEM1_SIZE);
+    s->mem1[addr] = value;
+    logout("addr %s = %02x\n", tnetw1130_regname1(addr), value);
 }
 
 static void tnetw1130_write1w(pci_tnetw1130_t * d, target_phys_addr_t addr,
@@ -406,13 +555,16 @@ static void tnetw1130_write1w(pci_tnetw1130_t * d, target_phys_addr_t addr,
     tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     reg_write16(s->mem1, addr, value);
-    logout("addr %s = %04x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = %04x\n", tnetw1130_regname1(addr), value);
 }
 
 static void tnetw1130_write1l(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint32_t val)
+                           uint32_t value)
 {
-    //~ tnetw1130_t *s = &d->tnetw1130;
+    tnetw1130_t *s = &d->tnetw1130;
+    assert(addr < TNETW1130_MEM1_SIZE);
+    reg_write32(s->mem1, addr, value);
+    logout("addr %s = %08x\n", tnetw1130_regname1(addr), value);
 }
 
 /*****************************************************************************
@@ -533,7 +685,6 @@ static void tnetw1130_mem0_writeb(void *opaque, target_phys_addr_t addr,
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    logout("addr %s\n", tnetw1130_regname(addr));
     tnetw1130_write0b(d, addr, val);
 }
 
@@ -588,7 +739,6 @@ static uint32_t tnetw1130_mem1_readl(void *opaque, target_phys_addr_t addr)
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    logout("addr %s\n", tnetw1130_regname(addr));
     return tnetw1130_read1l(d, addr);
 }
 
@@ -598,7 +748,6 @@ static void tnetw1130_mem1_writeb(void *opaque, target_phys_addr_t addr,
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    logout("addr %s\n", tnetw1130_regname(addr));
     tnetw1130_write1b(d, addr, val);
 }
 
@@ -617,7 +766,6 @@ static void tnetw1130_mem1_writel(void *opaque, target_phys_addr_t addr,
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    logout("addr %s\n", tnetw1130_regname(addr));
     tnetw1130_write1l(d, addr, val);
 }
 
@@ -699,6 +847,60 @@ static void tnetw1130_save(QEMUFile * f, void *opaque)
 static void tnetw1130_receive(void *opaque, const uint8_t * buf, int size)
 {
 }
+
+#if 1
+static pci_tnetw1130_t vlynq[2];
+
+uint32_t acx111_read(unsigned index, unsigned region, target_phys_addr_t addr)
+{
+    uint32_t value = 0;
+    assert(index < 2);
+    assert(region < 2);
+    switch (region) {
+        case 0:
+            value = tnetw1130_read0l(vlynq + index, addr);
+            break;
+        case 1:
+            value = tnetw1130_read1l(vlynq + index, addr);
+            break;
+    }
+    return value;
+}
+
+void acx111_write(unsigned index, unsigned region, target_phys_addr_t addr, uint32_t value)
+{
+    assert(index < 2);
+    assert(region < 2);
+    switch (region) {
+        case 0:
+            tnetw1130_write0l(vlynq + index, addr, value);
+            break;
+        case 1:
+            tnetw1130_write1l(vlynq + index, addr, value);
+            break;
+    }
+}
+
+uint16_t acx111_read_mem0(unsigned index, target_phys_addr_t addr)
+{
+    return tnetw1130_read0w(vlynq + index, addr);
+}
+
+uint16_t acx111_read_mem1(unsigned index, target_phys_addr_t addr)
+{
+    return tnetw1130_read1w(vlynq + index, addr);
+}
+
+void acx111_write_mem0(unsigned index, target_phys_addr_t addr, uint16_t value)
+{
+    tnetw1130_write0w(vlynq + index, addr, value);
+}
+
+void acx111_write_mem1(unsigned index, target_phys_addr_t addr, uint16_t value)
+{
+    tnetw1130_write1w(vlynq + index, addr, value);
+}
+#endif
 
 static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
 {
@@ -784,12 +986,13 @@ void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
 }
 
 /*
+
 00:0a.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
-	Subsystem: Abocom Systems Inc: Unknown device ab90
-	Flags: bus master, medium devsel, latency 32, IRQ 10
-	Memory at dffdc000 (32-bit, non-prefetchable) [size=8K]
-	Memory at dffa0000 (32-bit, non-prefetchable) [size=128K]
-	Capabilities: [40] Power Management version 2
+        Subsystem: Abocom Systems Inc: Unknown device ab90
+        Flags: bus master, medium devsel, latency 32, IRQ 10
+        Memory at dffdc000 (32-bit, non-prefetchable) [size=8K]
+        Memory at dffa0000 (32-bit, non-prefetchable) [size=128K]
+        Capabilities: [40] Power Management version 2
 
 04:08.0 Network controller: Texas Instruments ACX 111 54Mbps Wireless Interface
         Subsystem: Texas Instruments Unknown device 9067
@@ -831,21 +1034,12 @@ void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
         Memory at feac0000 (32-bit, non-prefetchable) [size=128K]
         Capabilities: [40] Power Management version 2 
 
-TNETW1130 tnetw1130_mem_map       region 0, addr 0x12020000, size 0x00002000
-QEMU    cpu_register_physical_memory 0x12020000...0x12022000, size 0x00002000, phys_offset 0x000000b0
-TNETW1130 tnetw1130_mem_map       region 1, addr 0x12000000, size 0x00020000
-QEMU    cpu_register_physical_memory 0x12000000...0x12020000, size 0x00020000, phys_offset 0x000000b0
-
-TNETW1130 tnetw1130_mem0_readw    addr ECPU_CTRL
-TNETW1130 tnetw1130_mem0_writew   addr ECPU_CTRL
-TNETW1130 tnetw1130_mem0_readw    addr SOFT_RESET
-TNETW1130 tnetw1130_mem0_writew   addr SOFT_RESET
-TNETW1130 tnetw1130_mem0_readb    addr SOFT_RESET
-TNETW1130 tnetw1130_mem0_writew   addr SOFT_RESET
-TNETW1130 tnetw1130_mem0_readw    addr EE_START
-TNETW1130 tnetw1130_mem0_writew   addr EE_START
-TNETW1130 tnetw1130_mem0_readb    addr SOFT_RESET
-TNETW1130 tnetw1130_mem0_readw    addr ECPU_CTRL
+#define AVALANCHE_VLYNQ0_MEM1_BASE      0x04000000      VLYNQ 0 memory mapped
+#define AVALANCHE_VLYNQ0_MEM2_BASE      0x04022000      VLYNQ 0 memory mapped
+    uint32_t vlynq0mem1[8 * KiB / 4];        // 0x04000000
+    uint32_t vlynq0mem2[128 * KiB / 4];      // 0x04022000
+    vlynq0mem2 + 0x0001e0f0            Mailbox (from ACX111)?
+    vlynq0mem2 + 0x0001e108            Command (to ACX111)?
 
 */
 
