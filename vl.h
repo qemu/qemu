@@ -303,6 +303,7 @@ typedef struct CharDriverState {
     void (*chr_send_event)(struct CharDriverState *chr, int event);
     void (*chr_close)(struct CharDriverState *chr);
     void *opaque;
+    int focus;
     QEMUBH *bh;
 } CharDriverState;
 
