@@ -80,7 +80,8 @@ static struct {
         {
             44100,              /* freq */
             2,                  /* nchannels */
-            AUD_FMT_S16         /* fmt */
+            AUD_FMT_S16,        /* fmt */
+            AUDIO_HOST_ENDIANNESS
         }
     },
 
@@ -91,7 +92,8 @@ static struct {
         {
             44100,              /* freq */
             2,                  /* nchannels */
-            AUD_FMT_S16         /* fmt */
+            AUD_FMT_S16,        /* fmt */
+            AUDIO_HOST_ENDIANNESS
         }
     },
 
@@ -166,6 +168,25 @@ int audio_bug (const char *funcname, int cond)
 }
 #endif
 
+static inline int audio_bits_to_index (int bits)
+{
+    switch (bits) {
+    case 8:
+        return 0;
+
+    case 16:
+        return 1;
+
+    case 32:
+        return 2;
+
+    default:
+        audio_bug ("bits_to_index", 1);
+        AUD_log (NULL, "invalid bits %d\n", bits);
+        return 0;
+    }
+}
+
 void *audio_calloc (const char *funcname, int nmemb, size_t size)
 {
     int cond;
@@ -227,6 +248,12 @@ const char *audio_audfmt_to_string (audfmt_e fmt)
 
     case AUD_FMT_S16:
         return "S16";
+
+    case AUD_FMT_U32:
+        return "U32";
+
+    case AUD_FMT_S32:
+        return "S32";
     }
 
     dolog ("Bogus audfmt %d returning S16\n", fmt);
@@ -243,6 +270,10 @@ audfmt_e audio_string_to_audfmt (const char *s, audfmt_e defval, int *defaultp)
         *defaultp = 0;
         return AUD_FMT_U16;
     }
+    else if (!strcasecmp (s, "u32")) {
+        *defaultp = 0;
+        return AUD_FMT_U32;
+    }
     else if (!strcasecmp (s, "s8")) {
         *defaultp = 0;
         return AUD_FMT_S8;
@@ -250,6 +281,10 @@ audfmt_e audio_string_to_audfmt (const char *s, audfmt_e defval, int *defaultp)
     else if (!strcasecmp (s, "s16")) {
         *defaultp = 0;
         return AUD_FMT_S16;
+    }
+    else if (!strcasecmp (s, "s32")) {
+        *defaultp = 0;
+        return AUD_FMT_S32;
     }
     else {
         dolog ("Bogus audio format `%s' using %s\n",
@@ -538,6 +573,8 @@ static int audio_validate_settings (audsettings_t *as)
     case AUD_FMT_U8:
     case AUD_FMT_S16:
     case AUD_FMT_U16:
+    case AUD_FMT_S32:
+    case AUD_FMT_U32:
         break;
     default:
         invalid = 1;
@@ -563,6 +600,12 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
     case AUD_FMT_U16:
         bits = 16;
         break;
+
+    case AUD_FMT_S32:
+        sign = 1;
+    case AUD_FMT_U32:
+        bits = 32;
+        break;
     }
     return info->freq == as->freq
         && info->nchannels == as->nchannels
@@ -573,7 +616,7 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
 
 void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as)
 {
-    int bits = 8, sign = 0;
+    int bits = 8, sign = 0, shift = 0;
 
     switch (as->fmt) {
     case AUD_FMT_S8:
@@ -585,6 +628,14 @@ void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as)
         sign = 1;
     case AUD_FMT_U16:
         bits = 16;
+        shift = 1;
+        break;
+
+    case AUD_FMT_S32:
+        sign = 1;
+    case AUD_FMT_U32:
+        bits = 32;
+        shift = 2;
         break;
     }
 
@@ -592,7 +643,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as)
     info->bits = bits;
     info->sign = sign;
     info->nchannels = as->nchannels;
-    info->shift = (as->nchannels == 2) + (bits == 16);
+    info->shift = (as->nchannels == 2) + shift;
     info->align = (1 << info->shift) - 1;
     info->bytes_per_second = info->freq << info->shift;
     info->swap_endianness = (as->endianness != AUDIO_HOST_ENDIANNESS);
@@ -608,22 +659,49 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
         memset (buf, 0x00, len << info->shift);
     }
     else {
-        if (info->bits == 8) {
+        switch (info->bits) {
+        case 8:
             memset (buf, 0x80, len << info->shift);
-        }
-        else {
-            int i;
-            uint16_t *p = buf;
-            int shift = info->nchannels - 1;
-            short s = INT16_MAX;
+            break;
 
-            if (info->swap_endianness) {
-                s = bswap16 (s);
-            }
+        case 16:
+            {
+                int i;
+                uint16_t *p = buf;
+                int shift = info->nchannels - 1;
+                short s = INT16_MAX;
 
-            for (i = 0; i < len << shift; i++) {
-                p[i] = s;
+                if (info->swap_endianness) {
+                    s = bswap16 (s);
+                }
+
+                for (i = 0; i < len << shift; i++) {
+                    p[i] = s;
+                }
             }
+            break;
+
+        case 32:
+            {
+                int i;
+                uint32_t *p = buf;
+                int shift = info->nchannels - 1;
+                int32_t s = INT32_MAX;
+
+                if (info->swap_endianness) {
+                    s = bswap32 (s);
+                }
+
+                for (i = 0; i < len << shift; i++) {
+                    p[i] = s;
+                }
+            }
+            break;
+
+        default:
+            AUD_log (NULL, "audio_pcm_info_clear_buf: invalid bits %d\n",
+                     info->bits);
+            break;
         }
     }
 }
@@ -1811,7 +1889,7 @@ CaptureVoiceOut *AUD_add_capture (
             [hw->info.nchannels == 2]
             [hw->info.sign]
             [hw->info.swap_endianness]
-            [hw->info.bits == 16];
+            [audio_bits_to_index (hw->info.bits)];
 
         LIST_INSERT_HEAD (&s->cap_head, cap, entries);
         LIST_INSERT_HEAD (&cap->cb_head, cb, entries);

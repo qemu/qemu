@@ -33,7 +33,9 @@ typedef enum {
     AUD_FMT_U8,
     AUD_FMT_S8,
     AUD_FMT_U16,
-    AUD_FMT_S16
+    AUD_FMT_S16,
+    AUD_FMT_U32,
+    AUD_FMT_S32
 } audfmt_e;
 
 #ifdef WORDS_BIGENDIAN

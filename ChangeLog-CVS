@@ -1,3 +1,38 @@
+2007-02-18 01:19  ths
+
+	* target-mips/: helper.c, op.c, op_helper.c: Fix sign-extension of
+	  VPN field in TLB, by Herve Poussineau.
+
+2007-02-18 01:10  ths
+
+	* hw/: mips_malta.c, mips_r4k.c: Add PS/2 keyboard to MIPS R4K, by
+	  Herve Poussineau.
+
+2007-02-18 01:08  ths
+
+	* hw/pckbd.c: PS/2 interface - Allow custom IO ports + IRQ, by
+	  Herve Poussineau.
+
+2007-02-18 00:44  ths
+
+	* qemu-doc.texi, vl.c, vl.h, hw/parallel.c: Parport EPP support for
+	  Linux, by Marko Kohtala.
+
+2007-02-17 23:54  ths
+
+	* vl.c: Solaris tap device, by Sittichai Palingsong.
+
+2007-02-17 23:25  ths
+
+	* linux-user/syscall.c: Userland mount syscall emulation, by Kirill
+	  A. Shutemov.
+
+2007-02-17 23:19  ths
+
+	* audio/: alsaaudio.c, audio.c, audio.h, audio_template.h,
+	  coreaudio.c, mixeng.c, mixeng.h, wavaudio.c, wavcapture.c: Qemu
+	  support for S32 and U32 alsa output, by Vassili Karpov.
+
 2007-02-15 23:58  bellard
 
 	* configure: fixed cross win32 build

@@ -157,6 +157,12 @@ static int aud_to_alsafmt (audfmt_e fmt)
     case AUD_FMT_U16:
         return SND_PCM_FORMAT_U16_LE;
 
+    case AUD_FMT_S32:
+        return SND_PCM_FORMAT_S32_LE;
+
+    case AUD_FMT_U32:
+        return SND_PCM_FORMAT_U32_LE;
+
     default:
         dolog ("Internal logic error: Bad audio format %d\n", fmt);
 #ifdef DEBUG_AUDIO
@@ -197,6 +203,26 @@ static int alsa_to_audfmt (int alsafmt, audfmt_e *fmt, int *endianness)
     case SND_PCM_FORMAT_U16_BE:
         *endianness = 1;
         *fmt = AUD_FMT_U16;
+        break;
+
+    case SND_PCM_FORMAT_S32_LE:
+        *endianness = 0;
+        *fmt = AUD_FMT_S32;
+        break;
+
+    case SND_PCM_FORMAT_U32_LE:
+        *endianness = 0;
+        *fmt = AUD_FMT_U32;
+        break;
+
+    case SND_PCM_FORMAT_S32_BE:
+        *endianness = 1;
+        *fmt = AUD_FMT_S32;
+        break;
+
+    case SND_PCM_FORMAT_U32_BE:
+        *endianness = 1;
+        *fmt = AUD_FMT_U32;
         break;
 
     default:
