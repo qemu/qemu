@@ -541,7 +541,7 @@ void device
 parameters are set according to the emulated ones.
 @item /dev/parportN
 [Linux only, parallel port only] Use host parallel port
-@var{N}. Currently only SPP parallel port features can be used.
+@var{N}. Currently SPP and EPP parallel port features can be used.
 @item file:filename
 Write output to filename. No character can be read.
 @item stdio

@@ -223,6 +223,8 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < 2; i++)
         isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      bs_table[2 * i], bs_table[2 * i + 1]);
+
+    kbd_init();
 }
 
 static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,

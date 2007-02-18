@@ -293,6 +293,10 @@ typedef struct {
 #define CHR_IOCTL_PP_READ_CONTROL     5
 #define CHR_IOCTL_PP_WRITE_CONTROL    6
 #define CHR_IOCTL_PP_READ_STATUS      7
+#define CHR_IOCTL_PP_EPP_READ_ADDR    8
+#define CHR_IOCTL_PP_EPP_READ         9
+#define CHR_IOCTL_PP_EPP_WRITE_ADDR  10
+#define CHR_IOCTL_PP_EPP_WRITE       11
 
 typedef void IOEventHandler(void *opaque, int event);
 
@@ -356,6 +360,11 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 #define MAX_PARALLEL_PORTS 3
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
+
+struct ParallelIOArg {
+    void *buffer;
+    int count;
+};
 
 /* VLANs support */
 

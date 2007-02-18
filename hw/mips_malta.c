@@ -644,6 +644,7 @@ static void main_cpu_reset(void *opaque)
         load_kernel (env);
 }
 
+static
 void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
                       DisplayState *ds, const char **fd_filename, int snapshot,
                       const char *kernel_filename, const char *kernel_cmdline,

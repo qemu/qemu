@@ -55,6 +55,22 @@
 #include <malloc.h>
 #include <linux/rtc.h>
 #include <linux/ppdev.h>
+#include <linux/parport.h>
+#else
+#include <sys/stat.h>
+#include <sys/ethernet.h>
+#include <sys/sockio.h>
+#include <arpa/inet.h>
+#include <netinet/arp.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h> // must come after ip.h
+#include <netinet/udp.h>
+#include <netinet/tcp.h>
+#include <net/if.h>
+#include <syslog.h>
+#include <stropts.h>
 #endif
 #endif
 #endif
@@ -1798,9 +1814,26 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     return chr;
 }
 
+typedef struct {
+    int fd;
+    int mode;
+} ParallelCharDriver;
+
+static int pp_hw_mode(ParallelCharDriver *s, uint16_t mode)
+{
+    if (s->mode != mode) {
+	int m = mode;
+        if (ioctl(s->fd, PPSETMODE, &m) < 0)
+            return 0;
+	s->mode = mode;
+    }
+    return 1;
+}
+
 static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
 {
-    int fd = (int)chr->opaque;
+    ParallelCharDriver *drv = chr->opaque;
+    int fd = drv->fd;
     uint8_t b;
 
     switch(cmd) {
@@ -1817,7 +1850,10 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     case CHR_IOCTL_PP_READ_CONTROL:
         if (ioctl(fd, PPRCONTROL, &b) < 0)
             return -ENOTSUP;
-        *(uint8_t *)arg = b;
+	/* Linux gives only the lowest bits, and no way to know data
+	   direction! For better compatibility set the fixed upper
+	   bits. */
+        *(uint8_t *)arg = b | 0xc0;
         break;
     case CHR_IOCTL_PP_WRITE_CONTROL:
         b = *(uint8_t *)arg;
@@ -1829,15 +1865,63 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
             return -ENOTSUP;
         *(uint8_t *)arg = b;
         break;
+    case CHR_IOCTL_PP_EPP_READ_ADDR:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = read(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
+    case CHR_IOCTL_PP_EPP_READ:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = read(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
+    case CHR_IOCTL_PP_EPP_WRITE_ADDR:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = write(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
+    case CHR_IOCTL_PP_EPP_WRITE:
+	if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
+	    struct ParallelIOArg *parg = arg;
+	    int n = write(fd, parg->buffer, parg->count);
+	    if (n != parg->count) {
+		return -EIO;
+	    }
+	}
+        break;
     default:
         return -ENOTSUP;
     }
     return 0;
 }
 
+static void pp_close(CharDriverState *chr)
+{
+    ParallelCharDriver *drv = chr->opaque;
+    int fd = drv->fd;
+
+    pp_hw_mode(drv, IEEE1284_MODE_COMPAT);
+    ioctl(fd, PPRELEASE);
+    close(fd);
+    qemu_free(drv);
+}
+
 static CharDriverState *qemu_chr_open_pp(const char *filename)
 {
     CharDriverState *chr;
+    ParallelCharDriver *drv;
     int fd;
 
     fd = open(filename, O_RDWR);
@@ -1849,14 +1933,24 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
         return NULL;
     }
 
-    chr = qemu_mallocz(sizeof(CharDriverState));
-    if (!chr) {
+    drv = qemu_mallocz(sizeof(ParallelCharDriver));
+    if (!drv) {
         close(fd);
         return NULL;
     }
-    chr->opaque = (void *)fd;
+    drv->fd = fd;
+    drv->mode = IEEE1284_MODE_COMPAT;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr) {
+	qemu_free(drv);
+        close(fd);
+        return NULL;
+    }
     chr->chr_write = null_chr_write;
     chr->chr_ioctl = pp_ioctl;
+    chr->chr_close = pp_close;
+    chr->opaque = drv;
 
     qemu_chr_reset(chr);
 
@@ -3199,7 +3293,15 @@ static void tap_send(void *opaque)
     uint8_t buf[4096];
     int size;
 
+#ifdef __sun__
+    struct strbuf sbuf;
+    int f = 0;
+    sbuf.maxlen = sizeof(buf);
+    sbuf.buf = buf;
+    size = getmsg(s->fd, NULL, &sbuf, &f) >=0 ? sbuf.len : -1;
+#else
     size = read(s->fd, buf, sizeof(buf));
+#endif
     if (size > 0) {
         qemu_send_packet(s->vc, buf, size);
     }
@@ -3242,10 +3344,135 @@ static int tap_open(char *ifname, int ifname_size)
     return fd;
 }
 #elif defined(__sun__)
+#define TUNNEWPPA       (('T'<<16) | 0x0001)
+/* 
+ * Allocate TAP device, returns opened fd. 
+ * Stores dev name in the first arg(must be large enough).
+ */  
+int tap_alloc(char *dev)
+{
+    int tap_fd, if_fd, ppa = -1;
+    static int ip_fd = 0;
+    char *ptr;
+
+    static int arp_fd = 0;
+    int ip_muxid, arp_muxid;
+    struct strioctl  strioc_if, strioc_ppa;
+    int link_type = I_PLINK;;
+    struct lifreq ifr;
+    char actual_name[32] = "";
+
+    memset(&ifr, 0x0, sizeof(ifr));
+
+    if( *dev ){
+       ptr = dev;	
+       while( *ptr && !isdigit((int)*ptr) ) ptr++; 
+       ppa = atoi(ptr);
+    }
+
+    /* Check if IP device was opened */
+    if( ip_fd )
+       close(ip_fd);
+
+    if( (ip_fd = open("/dev/udp", O_RDWR, 0)) < 0){
+       syslog(LOG_ERR, "Can't open /dev/ip (actually /dev/udp)");
+       return -1;
+    }
+
+    if( (tap_fd = open("/dev/tap", O_RDWR, 0)) < 0){
+       syslog(LOG_ERR, "Can't open /dev/tap");
+       return -1;
+    }
+
+    /* Assign a new PPA and get its unit number. */
+    strioc_ppa.ic_cmd = TUNNEWPPA;
+    strioc_ppa.ic_timout = 0;
+    strioc_ppa.ic_len = sizeof(ppa);
+    strioc_ppa.ic_dp = (char *)&ppa;
+    if ((ppa = ioctl (tap_fd, I_STR, &strioc_ppa)) < 0)
+       syslog (LOG_ERR, "Can't assign new interface");
+
+    if( (if_fd = open("/dev/tap", O_RDWR, 0)) < 0){
+       syslog(LOG_ERR, "Can't open /dev/tap (2)");
+       return -1;
+    }
+    if(ioctl(if_fd, I_PUSH, "ip") < 0){
+       syslog(LOG_ERR, "Can't push IP module");
+       return -1;
+    }
+
+    if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) < 0)
+	syslog(LOG_ERR, "Can't get flags\n");
+
+    snprintf (actual_name, 32, "tap%d", ppa);
+    strncpy (ifr.lifr_name, actual_name, sizeof (ifr.lifr_name));
+
+    ifr.lifr_ppa = ppa;
+    /* Assign ppa according to the unit number returned by tun device */
+
+    if (ioctl (if_fd, SIOCSLIFNAME, &ifr) < 0)
+        syslog (LOG_ERR, "Can't set PPA %d", ppa);
+    if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) <0)
+        syslog (LOG_ERR, "Can't get flags\n");
+    /* Push arp module to if_fd */
+    if (ioctl (if_fd, I_PUSH, "arp") < 0)
+        syslog (LOG_ERR, "Can't push ARP module (2)");
+
+    /* Push arp module to ip_fd */
+    if (ioctl (ip_fd, I_POP, NULL) < 0)
+        syslog (LOG_ERR, "I_POP failed\n");
+    if (ioctl (ip_fd, I_PUSH, "arp") < 0)
+        syslog (LOG_ERR, "Can't push ARP module (3)\n");
+    /* Open arp_fd */
+    if ((arp_fd = open ("/dev/tap", O_RDWR, 0)) < 0)
+       syslog (LOG_ERR, "Can't open %s\n", "/dev/tap");
+
+    /* Set ifname to arp */
+    strioc_if.ic_cmd = SIOCSLIFNAME;
+    strioc_if.ic_timout = 0;
+    strioc_if.ic_len = sizeof(ifr);
+    strioc_if.ic_dp = (char *)&ifr;
+    if (ioctl(arp_fd, I_STR, &strioc_if) < 0){
+        syslog (LOG_ERR, "Can't set ifname to arp\n");
+    }
+
+    if((ip_muxid = ioctl(ip_fd, I_LINK, if_fd)) < 0){
+       syslog(LOG_ERR, "Can't link TAP device to IP");
+       return -1;
+    }
+
+    if ((arp_muxid = ioctl (ip_fd, link_type, arp_fd)) < 0)
+        syslog (LOG_ERR, "Can't link TAP device to ARP");
+
+    close (if_fd);
+
+    memset(&ifr, 0x0, sizeof(ifr));
+    strncpy (ifr.lifr_name, actual_name, sizeof (ifr.lifr_name));
+    ifr.lifr_ip_muxid  = ip_muxid;
+    ifr.lifr_arp_muxid = arp_muxid;
+
+    if (ioctl (ip_fd, SIOCSLIFMUXID, &ifr) < 0)
+    {
+      ioctl (ip_fd, I_PUNLINK , arp_muxid);
+      ioctl (ip_fd, I_PUNLINK, ip_muxid);
+      syslog (LOG_ERR, "Can't set multiplexor id");
+    }
+
+    sprintf(dev, "tap%d", ppa);
+    return tap_fd;
+}
+
 static int tap_open(char *ifname, int ifname_size)
 {
-    fprintf(stderr, "warning: tap_open not yet implemented\n");
-    return -1;
+    char  dev[10]="";
+    int fd;
+    if( (fd = tap_alloc(dev)) < 0 ){
+       fprintf(stderr, "Cannot allocate TAP device\n");
+       return -1;
+    }
+    pstrcpy(ifname, ifname_size, dev);
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    return fd;
 }
 #else
 static int tap_open(char *ifname, int ifname_size)
