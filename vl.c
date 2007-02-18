@@ -163,6 +163,7 @@ int graphic_height = 600;
 #endif
 int graphic_depth = 15;
 int full_screen = 0;
+int no_frame = 0;
 int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
@@ -1228,6 +1229,218 @@ static CharDriverState *qemu_chr_open_null(void)
     return chr;
 }
 
+/* MUX driver for serial I/O splitting */
+static int term_timestamps;
+static int64_t term_timestamps_start;
+#define MAX_MUX 2
+typedef struct {
+    IOCanRWHandler *chr_can_read[MAX_MUX];
+    IOReadHandler *chr_read[MAX_MUX];
+    IOEventHandler *chr_event[MAX_MUX];
+    void *ext_opaque[MAX_MUX];
+    CharDriverState *drv;
+    int mux_cnt;
+    int term_got_escape;
+    int max_size;
+} MuxDriver;
+
+
+static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    MuxDriver *d = chr->opaque;
+    int ret;
+    if (!term_timestamps) {
+        ret = d->drv->chr_write(d->drv, buf, len);
+    } else {
+        int i;
+
+        ret = 0;
+        for(i = 0; i < len; i++) {
+            ret += d->drv->chr_write(d->drv, buf+i, 1);
+            if (buf[i] == '\n') {
+                char buf1[64];
+                int64_t ti;
+                int secs;
+
+                ti = get_clock();
+                if (term_timestamps_start == -1)
+                    term_timestamps_start = ti;
+                ti -= term_timestamps_start;
+                secs = ti / 1000000000;
+                snprintf(buf1, sizeof(buf1),
+                         "[%02d:%02d:%02d.%03d] ",
+                         secs / 3600,
+                         (secs / 60) % 60,
+                         secs % 60,
+                         (int)((ti / 1000000) % 1000));
+                d->drv->chr_write(d->drv, buf1, strlen(buf1));
+            }
+        }
+    }
+    return ret;
+}
+
+static char *mux_help[] = {
+    "% h    print this help\n\r",
+    "% x    exit emulator\n\r",
+    "% s    save disk data back to file (if -snapshot)\n\r",
+    "% t    toggle console timestamps\n\r"
+    "% b    send break (magic sysrq)\n\r",
+    "% c    switch between console and monitor\n\r",
+    "% %  sends %\n\r",
+    NULL
+};
+
+static int term_escape_char = 0x01; /* ctrl-a is used for escape */
+static void mux_print_help(CharDriverState *chr)
+{
+    int i, j;
+    char ebuf[15] = "Escape-Char";
+    char cbuf[50] = "\n\r";
+
+    if (term_escape_char > 0 && term_escape_char < 26) {
+        sprintf(cbuf,"\n\r");
+        sprintf(ebuf,"C-%c", term_escape_char - 1 + 'a');
+    } else {
+        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r", term_escape_char);
+    }
+    chr->chr_write(chr, cbuf, strlen(cbuf));
+    for (i = 0; mux_help[i] != NULL; i++) {
+        for (j=0; mux_help[i][j] != '\0'; j++) {
+            if (mux_help[i][j] == '%')
+                chr->chr_write(chr, ebuf, strlen(ebuf));
+            else
+                chr->chr_write(chr, &mux_help[i][j], 1);
+        }
+    }
+}
+
+static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
+{
+    if (d->term_got_escape) {
+        d->term_got_escape = 0;
+        if (ch == term_escape_char)
+            goto send_char;
+        switch(ch) {
+        case '?':
+        case 'h':
+            mux_print_help(chr);
+            break;
+        case 'x':
+            {
+                 char *term =  "QEMU: Terminated\n\r";
+                 chr->chr_write(chr,term,strlen(term));
+                 exit(0);
+                 break;
+            }
+        case 's':
+            {
+                int i;
+                for (i = 0; i < MAX_DISKS; i++) {
+                    if (bs_table[i])
+                        bdrv_commit(bs_table[i]);
+                }
+            }
+            break;
+        case 'b':
+            if (chr->chr_event)
+                chr->chr_event(chr->opaque, CHR_EVENT_BREAK);
+            break;
+        case 'c':
+            /* Switch to the next registered device */
+            chr->focus++;
+            if (chr->focus >= d->mux_cnt)
+                chr->focus = 0;
+            break;
+       case 't':
+           term_timestamps = !term_timestamps;
+           term_timestamps_start = -1;
+           break;
+        }
+    } else if (ch == term_escape_char) {
+        d->term_got_escape = 1;
+    } else {
+    send_char:
+        return 1;
+    }
+    return 0;
+}
+
+static int mux_chr_can_read(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    MuxDriver *d = chr->opaque;
+    if (d->chr_can_read[chr->focus])
+       return d->chr_can_read[chr->focus](d->ext_opaque[chr->focus]);
+    return 0;
+}
+
+static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
+{
+    CharDriverState *chr = opaque;
+    MuxDriver *d = chr->opaque;
+    int i;
+    for(i = 0; i < size; i++)
+        if (mux_proc_byte(chr, d, buf[i]))
+            d->chr_read[chr->focus](d->ext_opaque[chr->focus], &buf[i], 1);
+}
+
+static void mux_chr_event(void *opaque, int event)
+{
+    CharDriverState *chr = opaque;
+    MuxDriver *d = chr->opaque;
+    int i;
+
+    /* Send the event to all registered listeners */
+    for (i = 0; i < d->mux_cnt; i++)
+        if (d->chr_event[i])
+            d->chr_event[i](d->ext_opaque[i], event);
+}
+
+static void mux_chr_update_read_handler(CharDriverState *chr)
+{
+    MuxDriver *d = chr->opaque;
+
+    if (d->mux_cnt >= MAX_MUX) {
+        fprintf(stderr, "Cannot add I/O handlers, MUX array is full\n");
+        return;
+    }
+    d->ext_opaque[d->mux_cnt] = chr->handler_opaque;
+    d->chr_can_read[d->mux_cnt] = chr->chr_can_read;
+    d->chr_read[d->mux_cnt] = chr->chr_read;
+    d->chr_event[d->mux_cnt] = chr->chr_event;
+    /* Fix up the real driver with mux routines */
+    if (d->mux_cnt == 0) {
+        qemu_chr_add_handlers(d->drv, mux_chr_can_read, mux_chr_read,
+                              mux_chr_event, chr);
+    }
+    chr->focus = d->mux_cnt;
+    d->mux_cnt++;
+}
+
+CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
+{
+    CharDriverState *chr;
+    MuxDriver *d;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    d = qemu_mallocz(sizeof(MuxDriver));
+    if (!d) {
+        free(chr);
+        return NULL;
+    }
+
+    chr->opaque = d;
+    d->drv = drv;
+    chr->focus = -1;
+    chr->chr_write = mux_chr_write;
+    chr->chr_update_read_handler = mux_chr_update_read_handler;
+    return chr;
+}
+
+
 #ifdef _WIN32
 
 static void socket_cleanup(void)
@@ -1319,10 +1532,8 @@ typedef struct {
     int max_size;
 } FDCharDriver;
 
-#define STDIO_MAX_CLIENTS 2
-
-static int stdio_nb_clients;
-static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
+#define STDIO_MAX_CLIENTS 1
+static int stdio_nb_clients = 0;
 
 static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
@@ -1435,162 +1646,45 @@ static CharDriverState *qemu_chr_open_pipe(const char *filename)
 /* for STDIO, we handle the case where several clients use it
    (nographic mode) */
 
-#define TERM_ESCAPE 0x01 /* ctrl-a is used for escape */
-
 #define TERM_FIFO_MAX_SIZE 1
 
-static int term_got_escape, client_index;
 static uint8_t term_fifo[TERM_FIFO_MAX_SIZE];
 static int term_fifo_size;
-static int term_timestamps;
-static int64_t term_timestamps_start;
-
-void term_print_help(void)
-{
-    printf("\n"
-           "C-a h    print this help\n"
-           "C-a x    exit emulator\n"
-           "C-a s    save disk data back to file (if -snapshot)\n"
-           "C-a b    send break (magic sysrq)\n"
-           "C-a t    toggle console timestamps\n"
-           "C-a c    switch between console and monitor\n"
-           "C-a C-a  send C-a\n"
-           );
-}
-
-/* called when a char is received */
-static void stdio_received_byte(int ch)
-{
-    if (term_got_escape) {
-        term_got_escape = 0;
-        switch(ch) {
-        case 'h':
-            term_print_help();
-            break;
-        case 'x':
-            exit(0);
-            break;
-        case 's': 
-            {
-                int i;
-                for (i = 0; i < MAX_DISKS; i++) {
-                    if (bs_table[i])
-                        bdrv_commit(bs_table[i]);
-                }
-            }
-            break;
-        case 'b':
-            if (client_index < stdio_nb_clients) {
-                CharDriverState *chr;
-                FDCharDriver *s;
-
-                chr = stdio_clients[client_index];
-                s = chr->opaque;
-                qemu_chr_event(chr, CHR_EVENT_BREAK);
-            }
-            break;
-        case 'c':
-            client_index++;
-            if (client_index >= stdio_nb_clients)
-                client_index = 0;
-            if (client_index == 0) {
-                /* send a new line in the monitor to get the prompt */
-                ch = '\r';
-                goto send_char;
-            }
-            break;
-        case 't':
-            term_timestamps = !term_timestamps;
-            term_timestamps_start = -1;
-            break;
-        case TERM_ESCAPE:
-            goto send_char;
-        }
-    } else if (ch == TERM_ESCAPE) {
-        term_got_escape = 1;
-    } else {
-    send_char:
-        if (client_index < stdio_nb_clients) {
-            uint8_t buf[1];
-            CharDriverState *chr;
-            
-            chr = stdio_clients[client_index];
-            if (qemu_chr_can_read(chr) > 0) {
-                buf[0] = ch;
-                qemu_chr_read(chr, buf, 1);
-            } else if (term_fifo_size == 0) {
-                term_fifo[term_fifo_size++] = ch;
-            }
-        }
-    }
-}
 
 static int stdio_read_poll(void *opaque)
 {
-    CharDriverState *chr;
+    CharDriverState *chr = opaque;
 
-    if (client_index < stdio_nb_clients) {
-        chr = stdio_clients[client_index];
-        /* try to flush the queue if needed */
-        if (term_fifo_size != 0 && qemu_chr_can_read(chr) > 0) {
-            qemu_chr_read(chr, term_fifo, 1);
-            term_fifo_size = 0;
-        }
-        /* see if we can absorb more chars */
-        if (term_fifo_size == 0)
-            return 1;
-        else
-            return 0;
-    } else {
-        return 1;
+    /* try to flush the queue if needed */
+    if (term_fifo_size != 0 && qemu_chr_can_read(chr) > 0) {
+        qemu_chr_read(chr, term_fifo, 1);
+        term_fifo_size = 0;
     }
+    /* see if we can absorb more chars */
+    if (term_fifo_size == 0)
+        return 1;
+    else
+        return 0;
 }
 
 static void stdio_read(void *opaque)
 {
     int size;
     uint8_t buf[1];
-    
+    CharDriverState *chr = opaque;
+
     size = read(0, buf, 1);
     if (size == 0) {
         /* stdin has been closed. Remove it from the active list.  */
         qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
         return;
     }
-    if (size > 0)
-        stdio_received_byte(buf[0]);
-}
-
-static int stdio_write(CharDriverState *chr, const uint8_t *buf, int len)
-{
-    FDCharDriver *s = chr->opaque;
-    if (!term_timestamps) {
-        return unix_write(s->fd_out, buf, len);
-    } else {
-        int i;
-        char buf1[64];
-
-        for(i = 0; i < len; i++) {
-            unix_write(s->fd_out, buf + i, 1);
-            if (buf[i] == '\n') {
-                int64_t ti;
-                int secs;
-
-                ti = get_clock();
-                if (term_timestamps_start == -1)
-                    term_timestamps_start = ti;
-                ti -= term_timestamps_start;
-                secs = ti / 1000000000;
-                snprintf(buf1, sizeof(buf1), 
-                         "[%02d:%02d:%02d.%03d] ",
-                         secs / 3600,
-                         (secs / 60) % 60,
-                         secs % 60,
-                         (int)((ti / 1000000) % 1000));
-                unix_write(s->fd_out, buf1, strlen(buf1));
-            }
+    if (size > 0) {
+        if (qemu_chr_can_read(chr) > 0) {
+            qemu_chr_read(chr, buf, 1);
+        } else if (term_fifo_size == 0) {
+            term_fifo[term_fifo_size++] = buf[0];
         }
-        return len;
     }
 }
 
@@ -1635,24 +1729,13 @@ static CharDriverState *qemu_chr_open_stdio(void)
 {
     CharDriverState *chr;
 
-    if (nographic) {
-        if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
-            return NULL;
-        chr = qemu_chr_open_fd(0, 1);
-        chr->chr_write = stdio_write;
-        if (stdio_nb_clients == 0)
-            qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, NULL);
-        client_index = stdio_nb_clients;
-    } else {
-        if (stdio_nb_clients != 0)
-            return NULL;
-        chr = qemu_chr_open_fd(0, 1);
-    }
-    stdio_clients[stdio_nb_clients++] = chr;
-    if (stdio_nb_clients == 1) {
-        /* set the terminal in raw mode */
-        term_init();
-    }
+    if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
+        return NULL;
+    chr = qemu_chr_open_fd(0, 1);
+    qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
+    stdio_nb_clients++;
+    term_init();
+
     return chr;
 }
 
@@ -2814,6 +2897,16 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else
     if (strstart(filename, "udp:", &p)) {
         return qemu_chr_open_udp(p);
+    } else
+    if (strstart(filename, "mon:", &p)) {
+        CharDriverState *drv = qemu_chr_open(p);
+        if (drv) {
+            drv = qemu_chr_open_mux(drv);
+            monitor_init(drv, !nographic);
+            return drv;
+        }
+        printf("Unable to open driver: %s\n", p);
+        return 0;
     } else
 #ifndef _WIN32
     if (strstart(filename, "unix:", &p)) {
@@ -6255,6 +6348,7 @@ void help(void)
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-snapshot       write to temporary files instead of disk image files\n"
 #ifdef CONFIG_SDL
+           "-no-frame       open SDL window without a frame and window decorations\n"
            "-no-quit        disable SDL window close capability\n"
 #endif
 #ifdef TARGET_I386
@@ -6418,11 +6512,13 @@ enum {
     QEMU_OPTION_cirrusvga,
     QEMU_OPTION_g,
     QEMU_OPTION_std_vga,
+    QEMU_OPTION_echr,
     QEMU_OPTION_monitor,
     QEMU_OPTION_serial,
     QEMU_OPTION_parallel,
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
+    QEMU_OPTION_no_frame,
     QEMU_OPTION_no_quit,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
@@ -6499,12 +6595,14 @@ const QEMUOption qemu_options[] = {
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
     { "std-vga", 0, QEMU_OPTION_std_vga },
+    { "echr", 1, QEMU_OPTION_echr },
     { "monitor", 1, QEMU_OPTION_monitor },
     { "serial", 1, QEMU_OPTION_serial },
     { "parallel", 1, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
 #ifdef CONFIG_SDL
+    { "no-frame", 0, QEMU_OPTION_no_frame },
     { "no-quit", 0, QEMU_OPTION_no_quit },
 #endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
@@ -6973,8 +7071,8 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_nographic:
-                pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "stdio");
+                pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 nographic = 1;
                 break;
             case QEMU_OPTION_kernel:
@@ -7135,6 +7233,14 @@ int main(int argc, char **argv)
                     graphic_depth = depth;
                 }
                 break;
+            case QEMU_OPTION_echr:
+                {
+                    char *r;
+                    term_escape_char = strtol(optarg, &r, 0);
+                    if (r == optarg)
+                        printf("Bad argument to echr\n");
+                    break;
+                }
             case QEMU_OPTION_monitor:
                 pstrcpy(monitor_device, sizeof(monitor_device), optarg);
                 break;
@@ -7163,6 +7269,9 @@ int main(int argc, char **argv)
                 full_screen = 1;
                 break;
 #ifdef CONFIG_SDL
+            case QEMU_OPTION_no_frame:
+                no_frame = 1;
+                break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
                 break;
@@ -7420,7 +7529,7 @@ int main(int argc, char **argv)
 	vnc_display_init(ds, vnc_display);
     } else {
 #if defined(CONFIG_SDL)
-        sdl_display_init(ds, full_screen);
+        sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
         cocoa_display_init(ds, full_screen);
 #else
@@ -7428,12 +7537,27 @@ int main(int argc, char **argv)
 #endif
     }
 
-    monitor_hd = qemu_chr_open(monitor_device);
-    if (!monitor_hd) {
-        fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
-        exit(1);
+    /* Maintain compatibility with multiple stdio monitors */
+    if (!strcmp(monitor_device,"stdio")) {
+        for (i = 0; i < MAX_SERIAL_PORTS; i++) {
+            if (!strcmp(serial_devices[i],"mon:stdio")) {
+                monitor_device[0] = '\0';
+                break;
+            } else if (!strcmp(serial_devices[i],"stdio")) {
+                monitor_device[0] = '\0';
+                pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "mon:stdio");
+                break;
+            }
+        }
     }
-    monitor_init(monitor_hd, !nographic);
+    if (monitor_device[0] != '\0') {
+        monitor_hd = qemu_chr_open(monitor_device);
+        if (!monitor_hd) {
+            fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
+            exit(1);
+        }
+        monitor_init(monitor_hd, !nographic);
+    }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];

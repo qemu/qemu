@@ -610,6 +610,18 @@ A unix domain socket is used instead of a tcp socket.  The option works the
 same as if you had specified @code{-serial tcp} except the unix domain socket
 @var{path} is used for connections.
 
+@item mon:dev_string
+This is a special option to allow the monitor to be multiplexed onto
+another serial port.  The monitor is accessed with key sequence of
+@key{Control-a} and then pressing @key{c}. See monitor access
+@ref{pcsys_keys} in the -nographic section for more keys.
+@var{dev_string} should be any one of the serial devices specified
+above.  An example to multiplex the monitor onto a telnet server
+listening on port 4444 would be:
+@table @code
+@item -serial mon:telnet::4444,server,nowait
+@end table
+
 @end table
 
 @item -parallel dev
@@ -628,6 +640,19 @@ Redirect the monitor to host device @var{dev} (same devices as the
 serial port).
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
+
+@item -echr numeric_ascii_value
+Change the escape character used for switching to the monitor when using
+monitor and serial sharing.  The default is @code{0x01} when using the
+@code{-nographic} option.  @code{0x01} is equal to pressing
+@code{Control-a}.  You can select a different character from the ascii
+control keys where 1 through 26 map to Control-a through Control-z.  For
+instance you could use the either of the following to change the escape
+character to Control-t.
+@table @code
+@item -echr 0x14
+@item -echr 20
+@end table
 
 @item -s
 Wait gdb connection to port 1234 (@pxref{gdb_usage}). 
@@ -711,6 +736,8 @@ Print this help
 Exit emulator
 @item Ctrl-a s    
 Save disk data back to file (if -snapshot)
+@item Ctrl-a t
+toggle console timestamps
 @item Ctrl-a b
 Send break (magic sysrq in Linux)
 @item Ctrl-a c

@@ -52,7 +52,8 @@ typedef struct term_cmd_t {
     const char *help;
 } term_cmd_t;
 
-static CharDriverState *monitor_hd;
+#define MAX_MON 4
+static CharDriverState *monitor_hd[MAX_MON];
 static int hide_banner;
 
 static term_cmd_t term_cmds[];
@@ -67,8 +68,11 @@ CPUState *mon_cpu = NULL;
 
 void term_flush(void)
 {
+    int i;
     if (term_outbuf_index > 0) {
-        qemu_chr_write(monitor_hd, term_outbuf, term_outbuf_index);
+        for (i = 0; i < MAX_MON; i++)
+            if (monitor_hd[i] && monitor_hd[i]->focus == 0)
+                qemu_chr_write(monitor_hd[i], term_outbuf, term_outbuf_index);
         term_outbuf_index = 0;
     }
 }
@@ -2454,9 +2458,25 @@ static void term_event(void *opaque, int event)
     monitor_start_input();
 }
 
+static int is_first_init = 1;
+
 void monitor_init(CharDriverState *hd, int show_banner)
 {
-    monitor_hd = hd;
+    int i;
+
+    if (is_first_init) {
+        for (i = 0; i < MAX_MON; i++) {
+            monitor_hd[i] = NULL;
+        }
+        is_first_init = 0;
+    }
+    for (i = 0; i < MAX_MON; i++) {
+        if (monitor_hd[i] == NULL) {
+            monitor_hd[i] = hd;
+            break;
+        }
+    }
+
     hide_banner = !show_banner;
 
     qemu_chr_add_handlers(hd, term_can_read, term_read, term_event, NULL);
@@ -2477,8 +2497,12 @@ static void monitor_readline_cb(void *opaque, const char *input)
 void monitor_readline(const char *prompt, int is_password,
                       char *buf, int buf_size)
 {
+    int i;
+
     if (is_password) {
-        qemu_chr_send_event(monitor_hd, CHR_EVENT_FOCUS);
+        for (i = 0; i < MAX_MON; i++)
+            if (monitor_hd[i] && monitor_hd[i]->focus == 0)
+                qemu_chr_send_event(monitor_hd[i], CHR_EVENT_FOCUS);
     }
     readline_start(prompt, is_password, monitor_readline_cb, NULL);
     monitor_readline_buf = buf;
