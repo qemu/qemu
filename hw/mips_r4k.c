@@ -126,6 +126,7 @@ static void main_cpu_reset(void *opaque)
                      env->kernel_cmdline, env->initrd_filename);
 }
 
+static
 void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
@@ -212,6 +213,8 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < 2; i++)
         isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      bs_table[2 * i], bs_table[2 * i + 1]);
+
+    kbd_init();
 }
 
 QEMUMachine mips_machine = {
