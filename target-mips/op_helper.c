@@ -395,7 +395,7 @@ static void fill_tlb (int idx)
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb[idx];
-    tlb->VPN = env->CP0_EntryHi & (int32_t)0xFFFFE000;
+    tlb->VPN = env->CP0_EntryHi & ~(target_ulong)0x1FFF;
     tlb->ASID = env->CP0_EntryHi & 0xFF;
     tlb->PageMask = env->CP0_PageMask;
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;

@@ -41,12 +41,12 @@ enum {
 static int map_address (CPUState *env, target_ulong *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
+    uint8_t ASID = env->CP0_EntryHi & 0xFF;
     int i;
 
     for (i = 0; i < env->tlb_in_use; i++) {
         tlb_t *tlb = &env->tlb[i];
         /* 1k pages are not supported. */
-        uint8_t ASID = env->CP0_EntryHi & 0xFF;
         target_ulong mask = tlb->PageMask | 0x1FFF;
         target_ulong tag = address & ~mask;
         int n;
