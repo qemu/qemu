@@ -794,7 +794,7 @@ static void ide_sector_write(IDEState *s)
     ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
     s->nsector -= n;
     if (s->nsector == 0) {
-        /* no more sector to write */
+        /* no more sectors to write */
         ide_transfer_stop(s);
     } else {
         n1 = s->nsector;
@@ -1631,12 +1631,12 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s);
             break;
         case WIN_SETMULT:
-            if (s->nsector > MAX_MULT_SECTORS || 
+            if ((s->nsector & 0xff) > MAX_MULT_SECTORS ||
                 s->nsector == 0 ||
                 (s->nsector & (s->nsector - 1)) != 0) {
                 ide_abort_command(s);
             } else {
-                s->mult_sectors = s->nsector;
+                s->mult_sectors = s->nsector & 0xff;
                 s->status = READY_STAT;
             }
             ide_set_irq(s);
