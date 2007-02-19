@@ -247,6 +247,12 @@ command line application. The emulated serial port is redirected on
 the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 
+@item -no-frame
+
+Do not use decorations for SDL windows and start them using the whole
+available screen space. This makes the using QEMU in a dedicated desktop
+workspace more convenient.
+
 @item -vnc display
 
 Normally, QEMU uses SDL to display the VGA output.  With this option,
