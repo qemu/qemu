@@ -7354,6 +7354,7 @@ int main(int argc, char **argv)
     linux_boot = (kernel_filename != NULL);
 
     if (!linux_boot &&
+        boot_device != 'n' &&
         hd_filename[0] == '\0' && 
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
