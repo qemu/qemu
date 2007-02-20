@@ -452,6 +452,16 @@ guest must be configured in binary mode (use the command @code{bin} of
 the Unix TFTP client). The host IP address on the guest is as usual
 10.0.2.2.
 
+@item -bootp file
+When using the user mode network stack, broadcast @var{file} as the BOOTP
+filename.  In conjunction with @option{-tftp}, this can be used to network boot
+a guest from a local directory.
+
+Example (using pxelinux):
+@example
+qemu -hda linux.img -boot n -tftp /path/to/tftp/files -bootp /pxelinux.0
+@end example
+
 @item -smb dir
 When using the user mode network stack, activate a built-in SMB
 server so that Windows OSes can access to the host files in @file{dir}
