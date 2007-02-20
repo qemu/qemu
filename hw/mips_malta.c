@@ -735,6 +735,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     kbd_init();
     rtc_state = rtc_init(0x70, 8);
     serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+    serial_init(&pic_set_irq_new, isa_pic, 0x2f8, 4, serial_hds[0]);
     parallel_init(0x378, 7, parallel_hds[0]);
     /* XXX: The floppy controller does not work correctly, something is
        probably wrong.

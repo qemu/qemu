@@ -1,3 +1,7 @@
+2007-02-20 14:39  ths
+
+	* hw/mips_malta.c: 2nd serial port for Malta, by Jason Wessel.
+
 2007-02-20 01:18  ths
 
 	* Changelog: Record important changes.
