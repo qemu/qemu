@@ -103,7 +103,7 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
     if (initrd_size > 0) {
         int ret;
         ret = sprintf(phys_ram_base + (16 << 20) - 256,
-                      "rd_start=0x" TLSZ " rd_size=%li ",
+                      "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
                       INITRD_LOAD_ADDR,
                       initrd_size);
         strcpy (phys_ram_base + (16 << 20) - 256 + ret, kernel_cmdline);

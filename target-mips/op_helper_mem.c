@@ -28,7 +28,7 @@ void glue(do_lwl, MEMSUFFIX) (uint32_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - %08x " TLSZ " => " TLSZ "\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - %08x " TARGET_FMT_lx " => " TARGET_FMT_lx "\n",
                 __func__, sav, tmp, T1, T0);
     }
 #endif
@@ -57,7 +57,7 @@ void glue(do_lwr, MEMSUFFIX) (uint32_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - %08x " TLSZ " => " TLSZ "\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - %08x " TARGET_FMT_lx " => " TARGET_FMT_lx "\n",
                 __func__, sav, tmp, T1, T0);
     }
 #endif
@@ -86,7 +86,7 @@ uint32_t glue(do_swl, MEMSUFFIX) (uint32_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - " TLSZ " " TLSZ " => %08x\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - " TARGET_FMT_lx " " TARGET_FMT_lx " => %08x\n",
                 __func__, T0, sav, T1, tmp);
     }
 #endif
@@ -116,7 +116,7 @@ uint32_t glue(do_swr, MEMSUFFIX) (uint32_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - " TLSZ " " TLSZ " => %08x\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - " TARGET_FMT_lx " " TARGET_FMT_lx " => %08x\n",
                 __func__, T0, sav, T1, tmp);
     }
 #endif
@@ -166,7 +166,7 @@ void glue(do_ldl, MEMSUFFIX) (uint64_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - " TLSZ " " TLSZ " => " TLSZ "\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - " TARGET_FMT_lx " " TARGET_FMT_lx " => " TARGET_FMT_lx "\n",
                 __func__, sav, tmp, T1, T0);
     }
 #endif
@@ -207,7 +207,7 @@ void glue(do_ldr, MEMSUFFIX) (uint64_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - " TLSZ " " TLSZ " => " TLSZ "\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - " TARGET_FMT_lx " " TARGET_FMT_lx " => " TARGET_FMT_lx "\n",
                 __func__, sav, tmp, T1, T0);
     }
 #endif
@@ -248,7 +248,7 @@ uint64_t glue(do_sdl, MEMSUFFIX) (uint64_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - " TLSZ " " TLSZ " => " TLSZ "\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - " TARGET_FMT_lx " " TARGET_FMT_lx " => " TARGET_FMT_lx "\n",
                 __func__, T0, sav, T1, tmp);
     }
 #endif
@@ -290,7 +290,7 @@ uint64_t glue(do_sdr, MEMSUFFIX) (uint64_t tmp)
     }
 #if defined (DEBUG_OP)
     if (logfile) {
-        fprintf(logfile, "%s: " TLSZ " - " TLSZ " " TLSZ " => " TLSZ "\n",
+        fprintf(logfile, "%s: " TARGET_FMT_lx " - " TARGET_FMT_lx " " TARGET_FMT_lx " => " TARGET_FMT_lx "\n",
                 __func__, T0, sav, T1, tmp);
     }
 #endif
