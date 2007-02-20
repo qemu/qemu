@@ -6402,7 +6402,7 @@ void help(void)
            "                is provided, the default is '-net nic -net user'\n"
            "\n"
 #ifdef CONFIG_SLIRP
-           "-tftp prefix    allow tftp access to files starting with prefix [-net user]\n"
+           "-tftp dir       allow tftp access to files in dir [-net user]\n"
            "-bootp file     advertise file in BOOTP replies\n"
 #ifndef _WIN32
            "-smb dir        allow SMB access to files in 'dir' [-net user]\n"

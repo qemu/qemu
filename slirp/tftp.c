@@ -102,8 +102,15 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
 {
   int fd;
   int bytes_read = 0;
+  char buffer[1024];
+  int n;
 
-  fd = open(spt->filename, O_RDONLY | O_BINARY);
+  n = snprintf(buffer, sizeof(buffer), "%s/%s",
+	       tftp_prefix, spt->filename);
+  if (n >= sizeof(buffer))
+    return -1;
+
+  fd = open(buffer, O_RDONLY | O_BINARY);
 
   if (fd < 0) {
     return -1;
@@ -325,8 +332,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 
   /* only allow exported prefixes */
 
-  if (!tftp_prefix
-      || (strncmp(spt->filename, tftp_prefix, strlen(tftp_prefix)) != 0)) {
+  if (!tftp_prefix) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
