@@ -9,6 +9,7 @@
 #define TFTP_DATA   3
 #define TFTP_ACK    4
 #define TFTP_ERROR  5
+#define TFTP_OACK   6
 
 #define TFTP_FILENAME_MAX 512
 

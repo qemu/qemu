@@ -38,6 +38,8 @@ typedef struct {
 
 BOOTPClient bootp_clients[NB_ADDR];
 
+const char *bootp_filename;
+
 static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 
 #ifdef DEBUG
@@ -168,6 +170,10 @@ static void bootp_reply(struct bootp_t *bp)
             goto new_addr;
         }
     }
+
+    if (bootp_filename)
+        snprintf(rbp->bp_file, sizeof(rbp->bp_file), "%s", bootp_filename);
+
     dprintf("offered addr=%08x\n", ntohl(daddr.sin_addr.s_addr));
 
     saddr.sin_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_ALIAS);

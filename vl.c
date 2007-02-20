@@ -6404,7 +6404,8 @@ void help(void)
            "                is provided, the default is '-net nic -net user'\n"
            "\n"
 #ifdef CONFIG_SLIRP
-           "-tftp prefix    allow tftp access to files starting with prefix [-net user]\n"
+           "-tftp dir       allow tftp access to files in dir [-net user]\n"
+           "-bootp file     advertise file in BOOTP replies\n"
 #ifndef _WIN32
            "-smb dir        allow SMB access to files in 'dir' [-net user]\n"
 #endif
@@ -6493,6 +6494,7 @@ enum {
 
     QEMU_OPTION_net,
     QEMU_OPTION_tftp,
+    QEMU_OPTION_bootp,
     QEMU_OPTION_smb,
     QEMU_OPTION_redir,
 
@@ -6569,6 +6571,7 @@ const QEMUOption qemu_options[] = {
     { "net", HAS_ARG, QEMU_OPTION_net},
 #ifdef CONFIG_SLIRP
     { "tftp", HAS_ARG, QEMU_OPTION_tftp },
+    { "bootp", HAS_ARG, QEMU_OPTION_bootp },
 #ifndef _WIN32
     { "smb", HAS_ARG, QEMU_OPTION_smb },
 #endif
@@ -7125,6 +7128,9 @@ int main(int argc, char **argv)
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
 		tftp_prefix = optarg;
+                break;
+            case QEMU_OPTION_bootp:
+                bootp_filename = optarg;
                 break;
 #ifndef _WIN32
             case QEMU_OPTION_smb:

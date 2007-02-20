@@ -444,13 +444,22 @@ Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which
 is activated if no @option{-net} options are provided.
 
-@item -tftp prefix
+@item -tftp dir
 When using the user mode network stack, activate a built-in TFTP
-server. All filenames beginning with @var{prefix} can be downloaded
-from the host to the guest using a TFTP client. The TFTP client on the
-guest must be configured in binary mode (use the command @code{bin} of
-the Unix TFTP client). The host IP address on the guest is as usual
-10.0.2.2.
+server. The files in @var{dir} will be exposed as the root of a TFTP server.
+The TFTP client on the guest must be configured in binary mode (use the command
+@code{bin} of the Unix TFTP client). The host IP address on the guest is as
+usual 10.0.2.2.
+
+@item -bootp file
+When using the user mode network stack, broadcast @var{file} as the BOOTP
+filename.  In conjunction with @option{-tftp}, this can be used to network boot
+a guest from a local directory.
+
+Example (using pxelinux):
+@example
+qemu -hda linux.img -boot n -tftp /path/to/tftp/files -bootp /pxelinux.0
+@end example
 
 @item -smb dir
 When using the user mode network stack, activate a built-in SMB

@@ -1,3 +1,22 @@
+2007-02-20 01:18  ths
+
+	* Changelog: Record important changes.
+
+2007-02-20 01:12  ths
+
+	* qemu-doc.texi, vl.c, slirp/tftp.c: Change -tftp option to take a
+	  root directory, by Anthony Liguori.
+
+2007-02-20 01:07  ths
+
+	* slirp/: tftp.c, tftp.h: Add OACK support to slirp TFTP server, by
+	  Anthony Liguori.
+
+2007-02-20 01:05  ths
+
+	* qemu-doc.texi, vl.c, vl.h, slirp/bootp.c: Add -bootp option for
+	  slirp, by Anthony Liguori.
+
 2007-02-19 02:23  ths
 
 	* qemu-doc.texi: Document -no-frame option.

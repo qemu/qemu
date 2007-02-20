@@ -102,8 +102,15 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
 {
   int fd;
   int bytes_read = 0;
+  char buffer[1024];
+  int n;
 
-  fd = open(spt->filename, O_RDONLY | O_BINARY);
+  n = snprintf(buffer, sizeof(buffer), "%s/%s",
+	       tftp_prefix, spt->filename);
+  if (n >= sizeof(buffer))
+    return -1;
+
+  fd = open(buffer, O_RDONLY | O_BINARY);
 
   if (fd < 0) {
     return -1;
@@ -119,6 +126,45 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
 
   return bytes_read;
 }
+
+static int tftp_send_oack(struct tftp_session *spt, 
+                          const char *key, uint32_t value,
+                          struct tftp_t *recv_tp)
+{
+    struct sockaddr_in saddr, daddr;
+    struct mbuf *m;
+    struct tftp_t *tp;
+    int n = 0;
+
+    m = m_get();
+
+    if (!m)
+	return -1;
+
+    memset(m->m_data, 0, m->m_size);
+
+    m->m_data += if_maxlinkhdr;
+    tp = (void *)m->m_data;
+    m->m_data += sizeof(struct udpiphdr);
+    
+    tp->tp_op = htons(TFTP_OACK);
+    n += sprintf(tp->x.tp_buf + n, "%s", key) + 1;
+    n += sprintf(tp->x.tp_buf + n, "%u", value) + 1;
+
+    saddr.sin_addr = recv_tp->ip.ip_dst;
+    saddr.sin_port = recv_tp->udp.uh_dport;
+    
+    daddr.sin_addr = spt->client_ip;
+    daddr.sin_port = spt->client_port;
+
+    m->m_len = sizeof(struct tftp_t) - 514 + n - 
+        sizeof(struct ip) - sizeof(struct udphdr);
+    udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
+
+    return 0;
+}
+
+
 
 static int tftp_send_error(struct tftp_session *spt, 
 			   u_int16_t errorcode, const char *msg,
@@ -273,6 +319,8 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
       return;
   }
 
+  k += 6; /* skipping octet */
+
   /* do sanity checks on the filename */
 
   if ((spt->filename[0] != '/')
@@ -284,8 +332,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 
   /* only allow exported prefixes */
 
-  if (!tftp_prefix
-      || (strncmp(spt->filename, tftp_prefix, strlen(tftp_prefix)) != 0)) {
+  if (!tftp_prefix) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
@@ -295,6 +342,48 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
       tftp_send_error(spt, 1, "File not found", tp);
       return;
+  }
+
+  if (src[n - 1] != 0) {
+      tftp_send_error(spt, 2, "Access violation", tp);
+      return;
+  }
+
+  while (k < n) {
+      const char *key, *value;
+
+      key = src + k;
+      k += strlen(key) + 1;
+
+      if (k >= n) {
+	  tftp_send_error(spt, 2, "Access violation", tp);
+	  return;
+      }
+
+      value = src + k;
+      k += strlen(value) + 1;
+
+      if (strcmp(key, "tsize") == 0) {
+	  int tsize = atoi(value);
+	  struct stat stat_p;
+
+	  if (tsize == 0 && tftp_prefix) {
+	      char buffer[1024];
+	      int len;
+
+	      len = snprintf(buffer, sizeof(buffer), "%s/%s",
+			     tftp_prefix, spt->filename);
+
+	      if (stat(buffer, &stat_p) == 0)
+		  tsize = stat_p.st_size;
+	      else {
+		  tftp_send_error(spt, 1, "File not found", tp);
+		  return;
+	      }
+	  }
+
+	  tftp_send_oack(spt, "tsize", tsize, tp);
+      }
   }
 
   tftp_send_data(spt, 1, tp);
