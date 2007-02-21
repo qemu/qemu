@@ -533,7 +533,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + bios_offset);
-        if (ret != BIOS_SIZE) {
+        if (ret < 0 || ret > BIOS_SIZE) {
             fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
                     buf);
             exit(1);
