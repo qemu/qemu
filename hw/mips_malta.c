@@ -304,7 +304,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     default:
 #if 0
-        printf ("malta_fpga_read: Bad register offset 0x" TLSZ "\n",
+        printf ("malta_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
 		addr);
 #endif
         break;
@@ -392,7 +392,7 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     default:
 #if 0
-        printf ("malta_fpga_write: Bad register offset 0x" TLSZ "\n",
+        printf ("malta_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
 		addr);
 #endif
         break;
@@ -618,7 +618,7 @@ static int64_t load_kernel (CPUState *env)
     /* Store command line.  */
     prom_set(index++, env->kernel_filename);
     if (initrd_size > 0)
-        prom_set(index++, "rd_start=0x" TLSZ " rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
+        prom_set(index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
     else
         prom_set(index++, env->kernel_cmdline);
 

@@ -504,7 +504,7 @@ enum {
 #define MIPS_DEBUG(fmt, args...)                                              \
 do {                                                                          \
     if (loglevel & CPU_LOG_TB_IN_ASM) {                                       \
-        fprintf(logfile, TLSZ ": %08x " fmt "\n",                             \
+        fprintf(logfile, TARGET_FMT_lx ": %08x " fmt "\n",                    \
                 ctx->pc, ctx->opcode , ##args);                               \
     }                                                                         \
 } while (0)
@@ -4125,21 +4125,21 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
     switch (op) {
     case OPC_BC1F:
         gen_op_bc1f();
-        MIPS_DEBUG("bc1f " TLSZ, btarget);
+        MIPS_DEBUG("bc1f " TARGET_FMT_lx, btarget);
         goto not_likely;
     case OPC_BC1FL:
         gen_op_bc1f();
-        MIPS_DEBUG("bc1fl " TLSZ, btarget);
+        MIPS_DEBUG("bc1fl " TARGET_FMT_lx, btarget);
         goto likely;
     case OPC_BC1T:
         gen_op_bc1t();
-        MIPS_DEBUG("bc1t " TLSZ, btarget);
+        MIPS_DEBUG("bc1t " TARGET_FMT_lx, btarget);
     not_likely:
         ctx->hflags |= MIPS_HFLAG_BC;
         break;
     case OPC_BC1TL:
         gen_op_bc1t();
-        MIPS_DEBUG("bc1tl " TLSZ, btarget);
+        MIPS_DEBUG("bc1tl " TARGET_FMT_lx, btarget);
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
         break;
@@ -4150,7 +4150,7 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
     }
     gen_op_set_bcond();
 
-    MIPS_DEBUG("enter ds: cond %02x target " TLSZ,
+    MIPS_DEBUG("enter ds: cond %02x target " TARGET_FMT_lx,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
 
@@ -4584,7 +4584,7 @@ static void decode_opc (DisasContext *ctx)
 
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
         /* Handle blikely not taken case */
-        MIPS_DEBUG("blikely condition (" TLSZ ")", ctx->pc + 4);
+        MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
         gen_blikely(ctx);
     }
     op = MASK_OP_MAJOR(ctx->opcode);
@@ -5192,7 +5192,7 @@ void fpu_dump_state(CPUState *env, FILE *f,
 void dump_fpu (CPUState *env)
 {
     if (loglevel) { 
-       fprintf(logfile, "pc=0x" TLSZ " HI=0x" TLSZ " LO=0x" TLSZ " ds %04x " TLSZ " %d\n",
+       fprintf(logfile, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
                env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
@@ -5213,23 +5213,23 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
     int i;
 
     if (!SIGN_EXT_P(env->PC))
-        cpu_fprintf(f, "BROKEN: pc=0x" TLSZ "\n", env->PC);
+        cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC);
     if (!SIGN_EXT_P(env->HI))
-        cpu_fprintf(f, "BROKEN: HI=0x" TLSZ "\n", env->HI);
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI);
     if (!SIGN_EXT_P(env->LO))
-        cpu_fprintf(f, "BROKEN: LO=0x" TLSZ "\n", env->LO);
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO);
     if (!SIGN_EXT_P(env->btarget))
-        cpu_fprintf(f, "BROKEN: btarget=0x" TLSZ "\n", env->btarget);
+        cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 
     for (i = 0; i < 32; i++) {
         if (!SIGN_EXT_P(env->gpr[i]))
-            cpu_fprintf(f, "BROKEN: %s=0x" TLSZ "\n", regnames[i], env->gpr[i]);
+            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[i]);
     }
 
     if (!SIGN_EXT_P(env->CP0_EPC))
-        cpu_fprintf(f, "BROKEN: EPC=0x" TLSZ "\n", env->CP0_EPC);
+        cpu_fprintf(f, "BROKEN: EPC=0x" TARGET_FMT_lx "\n", env->CP0_EPC);
     if (!SIGN_EXT_P(env->CP0_LLAddr))
-        cpu_fprintf(f, "BROKEN: LLAddr=0x" TLSZ "\n", env->CP0_LLAddr);
+        cpu_fprintf(f, "BROKEN: LLAddr=0x" TARGET_FMT_lx "\n", env->CP0_LLAddr);
 }
 #endif
 
@@ -5240,12 +5240,12 @@ void cpu_dump_state (CPUState *env, FILE *f,
     uint32_t c0_status;
     int i;
     
-    cpu_fprintf(f, "pc=0x" TLSZ " HI=0x" TLSZ " LO=0x" TLSZ " ds %04x " TLSZ " %d\n",
+    cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
                 env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %s " TLSZ, regnames[i], env->gpr[i]);
+        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[i]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
@@ -5258,9 +5258,9 @@ void cpu_dump_state (CPUState *env, FILE *f,
     if (env->hflags & MIPS_HFLAG_EXL)
         c0_status |= (1 << CP0St_EXL);
 
-    cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TLSZ "\n",
+    cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TARGET_FMT_lx "\n",
                 c0_status, env->CP0_Cause, env->CP0_EPC);
-    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TLSZ "\n",
+    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TARGET_FMT_lx "\n",
                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
 #ifdef MIPS_USES_FPU
     if (c0_status & (1 << CP0St_CU1))

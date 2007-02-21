@@ -17,13 +17,6 @@ typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 #endif
 
-/* target_ulong size spec */
-#ifdef MIPS_HAS_MIPS64
-#define TLSZ "%016llx"
-#else
-#define TLSZ "%08x"
-#endif
-
 typedef union fpr_t fpr_t;
 union fpr_t {
     float64  fd;   /* ieee double precision */

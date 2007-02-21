@@ -1232,7 +1232,7 @@ static CharDriverState *qemu_chr_open_null(void)
 /* MUX driver for serial I/O splitting */
 static int term_timestamps;
 static int64_t term_timestamps_start;
-#define MAX_MUX 2
+#define MAX_MUX 4
 typedef struct {
     IOCanRWHandler *chr_can_read[MAX_MUX];
     IOReadHandler *chr_read[MAX_MUX];

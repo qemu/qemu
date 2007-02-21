@@ -1,3 +1,14 @@
+2007-02-21 18:25  ths
+
+	* vl.c: Increase the number of multiplexed monitor devices.
+
+2007-02-21 00:37  ths
+
+	* hw/mips_malta.c, hw/mips_r4k.c, target-mips/cpu.h,
+	  target-mips/helper.c, target-mips/op_helper.c,
+	  target-mips/op_helper_mem.c, target-mips/translate.c: Replace
+	  TLSZ with TARGET_FMT_lx.
+
 2007-02-20 14:39  ths
 
 	* hw/mips_malta.c: 2nd serial port for Malta, by Jason Wessel.

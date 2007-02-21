@@ -141,8 +141,8 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     }
 #if 0
     if (logfile) {
-        fprintf(logfile, TLSZ " %d %d => " TLSZ " %d (%d)\n",
-                address, rw, access_type, *physical, *prot, ret);
+        fprintf(logfile, TARGET_FMT_lx " %d %d => " TARGET_FMT_lx " %d (%d)\n",
+		address, rw, access_type, *physical, *prot, ret);
     }
 #endif
 
@@ -183,7 +183,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if 0
         cpu_dump_state(env, logfile, fprintf, 0);
 #endif
-        fprintf(logfile, "%s pc " TLSZ " ad " TLSZ " rw %d is_user %d smmu %d\n",
+        fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d is_user %d smmu %d\n",
                 __func__, env->PC, address, rw, is_user, is_softmmu);
     }
 
@@ -201,7 +201,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
     if (logfile) {
-        fprintf(logfile, "%s address=" TLSZ " ret %d physical " TLSZ " prot %d\n",
+        fprintf(logfile, "%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_lx " prot %d\n",
                 __func__, address, ret, physical, prot);
     }
     if (ret == TLBRET_MATCH) {
@@ -267,7 +267,7 @@ void do_interrupt (CPUState *env)
     int cause = -1;
 
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s enter: PC " TLSZ " EPC " TLSZ " cause %d excp %d\n",
+        fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d excp %d\n",
                 __func__, env->PC, env->CP0_EPC, cause, env->exception_index);
     }
     if (env->exception_index == EXCP_EXT_INTERRUPT &&
@@ -419,8 +419,8 @@ void do_interrupt (CPUState *env)
         exit(1);
     }
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s: PC " TLSZ " EPC " TLSZ " cause %d excp %d\n"
-                "    S %08x C %08x A " TLSZ " D " TLSZ "\n",
+        fprintf(logfile, "%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d excp %d\n"
+                "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
                 __func__, env->PC, env->CP0_EPC, cause, env->exception_index,
                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
                 env->CP0_DEPC);

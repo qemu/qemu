@@ -516,13 +516,13 @@ void do_tlbr (void)
 void dump_ldst (const unsigned char *func)
 {
     if (loglevel)
-        fprintf(logfile, "%s => " TLSZ " " TLSZ "\n", __func__, T0, T1);
+        fprintf(logfile, "%s => " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__, T0, T1);
 }
 
 void dump_sc (void)
 {
     if (loglevel) {
-        fprintf(logfile, "%s " TLSZ " at " TLSZ " (" TLSZ ")\n", __func__,
+        fprintf(logfile, "%s " TARGET_FMT_lx " at " TARGET_FMT_lx " (" TARGET_FMT_lx ")\n", __func__,
                 T1, T0, env->CP0_LLAddr);
     }
 }
@@ -530,7 +530,7 @@ void dump_sc (void)
 void debug_eret (void)
 {
     if (loglevel) {
-        fprintf(logfile, "ERET: pc " TLSZ " EPC " TLSZ " ErrorEPC " TLSZ " (%d)\n",
+        fprintf(logfile, "ERET: pc " TARGET_FMT_lx " EPC " TARGET_FMT_lx " ErrorEPC " TARGET_FMT_lx " (%d)\n",
                 env->PC, env->CP0_EPC, env->CP0_ErrorEPC,
                 env->hflags & MIPS_HFLAG_ERL ? 1 : 0);
     }
