@@ -6831,15 +6831,21 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 #define MAX_NET_CLIENTS 32
 
 #if defined(CONFIG_RUBY)
+/* Ruby interface for QEMU. See README.EXT for programming example. */
 #warning mit ruby
 #include <ruby.h>
 
 static VALUE qemu_open(int argc, VALUE *argv, VALUE klass)
 {
+  int i;
+  for (i = 0; i < argc; i++) {
+    argv[i] = StringValue(argv[i]);
+    fprintf(stderr, "argv[%d] = %s\n", i, StringValuePtr(argv[i]));
+  }
     //~ if (rb_scan_args(argc, argv, "11", &file, &vmode) == 1) {
         //~ mode = 0666;            /* default value */
     //~ }
-  return argc;
+  return INT2FIX(argc);
 }
 
 void Init_qemu(void)
