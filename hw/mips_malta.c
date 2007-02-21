@@ -691,7 +691,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
         ret = load_image(buf, phys_ram_base + bios_offset);
         logout("BIOS 0x%08x...0x%08x (max 0x%08x)\n",
             0x1fc00000, 0x1fc00000 + ret, 0x1fc00000 + BIOS_SIZE);
-        if (ret <= 0 || ret > BIOS_SIZE) {
+        if (ret < 0 || ret > BIOS_SIZE) {
             fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
                     buf);
             exit(1);
@@ -735,7 +735,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     kbd_init();
     rtc_state = rtc_init(0x70, 8);
     serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
-    serial_init(&pic_set_irq_new, isa_pic, 0x2f8, 4, serial_hds[0]);
+    serial_init(&pic_set_irq_new, isa_pic, 0x2f8, 4, serial_hds[1]);
     parallel_init(0x378, 7, parallel_hds[0]);
     /* XXX: The floppy controller does not work correctly, something is
        probably wrong.
