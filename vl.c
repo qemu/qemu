@@ -6927,7 +6927,7 @@ int main(int argc, char **argv)
 
     register_machines();
     machine = 0;
-    optarg = strrchr(argv[0], '-');
+    optarg = strrchr(argv[0], '/');
     if (optarg != 0) {
         machine = find_machine(optarg + 1);
     }
