@@ -1,6 +1,11 @@
 # Makefile for QEMU.
 
--include config-host.mak
+ifneq ($(wildcard config-host.mak),)
+include config-host.mak
+else
+config-host.mak:
+	@echo "Please call configure before running make!"
+endif
 
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
 	speed test test2 html dvi info

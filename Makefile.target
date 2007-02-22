@@ -1,6 +1,4 @@
 include config.mak
--include *.d
--include */*.d
 
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
@@ -625,6 +623,9 @@ endif
 ifneq ($(wildcard .depend),)
 include .depend
 endif
+
+-include *.d
+-include */*.d
 
 ifeq (1, 0)
 audio.o sdlaudio.o dsoundaudio.o ossaudio.o wavaudio.o noaudio.o \
