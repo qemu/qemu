@@ -1,3 +1,13 @@
+2007-02-22 02:48  pbrook
+
+	* gdbstub.c, gdbstub.h, monitor.c, vl.c: Allow gdbstub to connect
+	  over any serial device.
+
+2007-02-21 23:43  ths
+
+	* hw/mips_malta.c: Fix initialisation of serial/parallel ports,
+	  spotted by Stefan Weil.
+
 2007-02-21 23:32  ths
 
 	* hw/mips_malta.c: Allow arbitrary MIPS BIOS sizes between 0 and 4

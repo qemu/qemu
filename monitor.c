@@ -423,14 +423,14 @@ static void do_cont(void)
 }
 
 #ifdef CONFIG_GDBSTUB
-static void do_gdbserver(int has_port, int port)
+static void do_gdbserver(const char *port)
 {
-    if (!has_port)
+    if (!port)
         port = DEFAULT_GDBSTUB_PORT;
-    if (gdbserver_start_port(port) < 0) {
-        qemu_printf("Could not open gdbserver socket on port %d\n", port);
+    if (gdbserver_start(port) < 0) {
+        qemu_printf("Could not open gdbserver socket on port '%s'\n", port);
     } else {
-        qemu_printf("Waiting gdb connection on port %d\n", port);
+        qemu_printf("Waiting gdb connection on port '%s'\n", port);
     }
 }
 #endif
@@ -1218,7 +1218,7 @@ static term_cmd_t term_cmds[] = {
     { "c|cont", "", do_cont, 
       "", "resume emulation", },
 #ifdef CONFIG_GDBSTUB
-    { "gdbserver", "i?", do_gdbserver, 
+    { "gdbserver", "s?", do_gdbserver, 
       "[port]", "start gdbserver session (default port=1234)", },
 #endif
     { "x", "/l", do_memory_dump, 

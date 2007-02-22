@@ -1,7 +1,7 @@
 #ifndef GDBSTUB_H
 #define GDBSTUB_H
 
-#define DEFAULT_GDBSTUB_PORT 1234
+#define DEFAULT_GDBSTUB_PORT "1234"
 
 typedef void (*gdb_syscall_complete_cb)(CPUState *env,
                                         target_ulong ret, target_ulong err);
@@ -13,8 +13,7 @@ int gdb_handlesig (CPUState *, int);
 void gdb_exit(CPUState *, int);
 int gdbserver_start(int);
 #else
-int gdbserver_start(CharDriverState *chr);
-int gdbserver_start_port(int port);
+int gdbserver_start(const char *port);
 #endif
 
 #endif
