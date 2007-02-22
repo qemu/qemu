@@ -367,7 +367,14 @@ static inline uint32_t target_mach_msg_trap(
         case 200: /* host_info */
         {
             mig_reply_error_t *err = (mig_reply_error_t *)hdr;
-            struct host_basic_info *data = (void *)(err+1);
+            struct {
+                uint32_t unknow1;
+                uint32_t max_cpus;
+                uint32_t avail_cpus;
+                uint32_t memory_size;
+                uint32_t cpu_type;
+                uint32_t cpu_subtype;
+            } *data = (void *)(err+1);
 
             DPRINTF("maxcpu = 0x%x\n",   data->max_cpus);
             DPRINTF("numcpu = 0x%x\n",   data->avail_cpus);
@@ -1342,9 +1349,12 @@ long do___sysctl(int * name, uint32_t namelen, void * oldp, size_t * oldlenp, vo
     if(name) /* Sometimes sysctl is called with no arg1, ignore */
         ret = get_errno(sysctl(name, namelen, oldp, oldlenp, newp, newlen));
 
+#if defined(TARGET_I386) ^ defined(__i386__) || defined(TARGET_PPC) ^ defined(__ppc__)
     if (!is_error(ret) && bswap_syctl(name, namelen, oldp, *oldlenp) != 0) {
         return -ENOTDIR;
     }
+#endif
+
     if(name) {
         //bswap_syctl(name, namelen, newp, newlen);
         tswap32s((uint32_t*)oldlenp);
