@@ -72,6 +72,7 @@ typedef struct {
 
 static PITState *pit;
 
+/* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
 static void pic_irq_request(void *opaque, int level)
 {
     CPUState *env = first_cpu;

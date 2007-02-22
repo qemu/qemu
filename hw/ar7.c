@@ -3226,7 +3226,8 @@ static void ar7_display_init(CPUState *env, const char *devname)
                         "\e[1;1HGPIO Status"
                         "\e[2;1H0         1         2         3"
                         "\e[3;1H01234567890123456789012345678901"
-                        "\e[10;1HPress 'r' to toggle the reset button");
+                        "\e[10;1H* lan * wlan * online * dsl * power"
+                        "\e[12;1HPress 'r' to toggle the reset button");
         ar7_gpio_display();
     }
 }
@@ -3612,9 +3613,6 @@ AR7     io_readw                addr=0x00007640, val=0xffff
 
 gpio_display_init farbig
 
-gpio bits:
-avm 2.6.13.1: reset=12, clock=13, store=10, data=9
-
 AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x00000000, reg = 0, phy = 0, data = 0x0000
 AR7     ar7_mdio_write          [cpphy_mdio_user_access][cpphy_mdio_usermdio[USERACCESS1] = 0x80200000
 AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
@@ -3768,5 +3766,16 @@ vlynq0[0x04] = 0x00018000
 
                         { .size = 0x22000, .offset = 0xf0000000 },
                         { .size = 0x40000, .offset = 0xc0000000 },
+
+
+sinus:
+GPIO Bit 06 = LED aus?
+GPIO Bit 13 = LED aus?
+GPIO Bit 18 = vlynq0 ein?
+GPIO Bit 19 = vlynq1 ein?
+0x2040
+
+gpio bits:
+avm 2.6.13.1: reset=12, clock=13, store=10, data=9
 
 */
