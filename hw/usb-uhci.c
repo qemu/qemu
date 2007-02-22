@@ -26,6 +26,8 @@
 //#define DEBUG
 //#define DEBUG_PACKET
 
+#define UHCI_CMD_FGR      (1 << 4)
+#define UHCI_CMD_EGSM     (1 << 3)
 #define UHCI_CMD_GRESET   (1 << 2)
 #define UHCI_CMD_HCRESET  (1 << 1)
 #define UHCI_CMD_RS       (1 << 0)
@@ -327,6 +329,21 @@ static uint32_t uhci_ioport_readl(void *opaque, uint32_t addr)
     return val;
 }
 
+/* signal resume if controller suspended */
+static void uhci_resume (void *opaque)
+{
+    UHCIState *s = (UHCIState *)opaque;
+
+    if (!s)
+        return;
+
+    if (s->cmd & UHCI_CMD_EGSM) {
+        s->cmd |= UHCI_CMD_FGR;
+        s->status |= UHCI_STS_RD;
+        uhci_update_irq(s);
+    }
+}
+
 static void uhci_attach(USBPort *port1, USBDevice *dev)
 {
     UHCIState *s = port1->opaque;
@@ -344,6 +361,9 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
             port->ctrl |= UHCI_PORT_LSDA;
         else
             port->ctrl &= ~UHCI_PORT_LSDA;
+
+        uhci_resume(s);
+
         port->port.dev = dev;
         /* send the attach message */
         usb_send_msg(dev, USB_MSG_ATTACH);
@@ -358,6 +378,9 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
             port->ctrl &= ~UHCI_PORT_EN;
             port->ctrl |= UHCI_PORT_ENC;
         }
+
+        uhci_resume(s);
+
         dev = port->port.dev;
         if (dev) {
             /* send the detach message */
