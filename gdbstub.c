@@ -1216,10 +1216,26 @@ static void gdb_chr_event(void *opaque, int event)
     }
 }
 
-int gdbserver_start(CharDriverState *chr)
+int gdbserver_start(const char *port)
 {
     GDBState *s;
+    char gdbstub_port_name[128];
+    int port_num;
+    char *p;
+    CharDriverState *chr;
 
+    if (!port || !*port)
+      return -1;
+
+    port_num = strtol(port, &p, 10);
+    if (*p == 0) {
+        /* A numeric value is interpreted as a port number.  */
+        snprintf(gdbstub_port_name, sizeof(gdbstub_port_name),
+                 "tcp::%d,nowait,nodelay,server", port_num);
+        port = gdbstub_port_name;
+    }
+
+    chr = qemu_chr_open(port);
     if (!chr)
         return -1;
 
@@ -1234,18 +1250,4 @@ int gdbserver_start(CharDriverState *chr)
     qemu_add_vm_stop_handler(gdb_vm_stopped, s);
     return 0;
 }
-
-int gdbserver_start_port(int port)
-{
-    CharDriverState *chr;
-    char gdbstub_port_name[128];
-
-    snprintf(gdbstub_port_name, sizeof(gdbstub_port_name),
-             "tcp::%d,nowait,nodelay,server", port);
-    chr = qemu_chr_open(gdbstub_port_name);
-    if (!chr) 
-        return -EIO;
-    return gdbserver_start(chr);
-}
-
 #endif

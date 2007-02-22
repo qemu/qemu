@@ -6422,8 +6422,8 @@ void help(void)
            "-parallel dev   redirect the parallel port to char device 'dev'\n"
            "-pidfile file   Write PID to 'file'\n"
            "-S              freeze CPU at startup (use 'c' to start execution)\n"
-           "-s              wait gdb connection to port %d\n"
-           "-p port         change gdb connection port\n"
+           "-s              wait gdb connection to port\n"
+           "-p port         set gdb connection port [default=%s]\n"
            "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
            "-hdachs c,h,s[,t]  force hard disk 0 physical geometry and the optional BIOS\n"
            "                translation (t=none or lba) (usually qemu can guess them)\n"
@@ -6829,7 +6829,8 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 int main(int argc, char **argv)
 {
 #ifdef CONFIG_GDBSTUB
-    int use_gdbstub, gdbstub_port;
+    int use_gdbstub;
+    const char *gdbstub_port;
 #endif
     int i, cdrom_index;
     int snapshot, linux_boot;
@@ -7143,7 +7144,7 @@ int main(int argc, char **argv)
                 use_gdbstub = 1;
                 break;
             case QEMU_OPTION_p:
-                gdbstub_port = atoi(optarg);
+                gdbstub_port = optarg;
                 break;
 #endif
             case QEMU_OPTION_L:
@@ -7571,8 +7572,8 @@ int main(int argc, char **argv)
     if (use_gdbstub) {
         /* XXX: use standard host:port notation and modify options
            accordingly. */
-        if (gdbserver_start_port(gdbstub_port) < 0) {
-            fprintf(stderr, "qemu: could not open gdbstub device on port '%d'\n",
+        if (gdbserver_start(gdbstub_port) < 0) {
+            fprintf(stderr, "qemu: could not open gdbstub device on port '%s'\n",
                     gdbstub_port);
             exit(1);
         }
