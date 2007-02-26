@@ -2036,6 +2036,7 @@ void op_pmon (void)
     RETURN();
 }
 
+/* MIPS32_R2 */
 void op_di (void)
 {
     T0 = env->CP0_Status;
@@ -2044,6 +2045,7 @@ void op_di (void)
     RETURN();
 }
 
+/* MIPS32_R2 */
 void op_ei (void)
 {
     T0 = env->CP0_Status;
