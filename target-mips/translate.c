@@ -4827,6 +4827,7 @@ static void decode_opc (DisasContext *ctx)
         case OPC_MFMC0:
             op2 = MASK_MFMC0(ctx->opcode);
             switch (op2) {
+#if defined(MIPS32_R2)
             case OPC_DI:
                 gen_op_di();
                 /* Stop translation as we may have switched the execution mode */
@@ -4837,6 +4838,7 @@ static void decode_opc (DisasContext *ctx)
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;
+#endif
             default:            /* Invalid */
                 MIPS_INVAL("MFMC0");
                 generate_exception(ctx, EXCP_RI);
