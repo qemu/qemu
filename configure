@@ -348,9 +348,9 @@ EOF
 	if test "$gcc3_search" = "yes" ; then
 	    echo "Looking for gcc 3.x"
 	    for compat_cc in $gcc3_list ; do
-		if check_cc "$compat_cc" ; then
+		if check_cc "$cross_prefix$compat_cc" ; then
 		    echo "Found \"$compat_cc\""
-		    cc="$compat_cc"
+		    cc="$cross_prefix$compat_cc"
 		    found_compat_cc="yes"
 		    break
 		fi
