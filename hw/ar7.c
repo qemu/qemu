@@ -113,19 +113,19 @@ static struct {
 
 #else
 
-#if 0
+#if 1
 #define CLOCK   0
 #define CONFIG  1
 #define CPMAC   0
-#define EMIF    0
-#define GPIO    1
+#define EMIF    1
+#define GPIO    0
 #define INTC    0
 #define MDIO    0               /* polled, so very noisy */
-#define RESET   0
+#define RESET   1
 #define UART    0
-#define VLYNQ   0
+#define VLYNQ   1
 #define WDOG    0
-#define OTHER   0
+#define OTHER   1
 #define RXTX    0
 #else
 #define CLOCK   1
@@ -136,7 +136,7 @@ static struct {
 #define INTC    1
 #define MDIO    1               /* polled, so very noisy */
 #define RESET   1
-#define UART    0
+#define UART    1
 #define VLYNQ   1
 #define WDOG    1
 #define OTHER   1
@@ -195,8 +195,8 @@ Physical memory map
 #define AVALANCHE_BBIF_BASE             0x02000000      /* broadband interface */
 #define AVALANCHE_ATM_SAR_BASE          0x03000000      /* ATM SAR */
 #define AVALANCHE_USB_MEM_BASE          0x03400000      /* USB slave mem map */
-#define AVALANCHE_VLYNQ0_REGION1_BASE   0x04000000      /* VLYNQ 0 memory mapped region 1 */
-#define AVALANCHE_VLYNQ0_REGION0_BASE   0x04022000      /* VLYNQ 0 memory mapped region 0 */
+#define AVALANCHE_VLYNQ0_REGION0_BASE   0x04000000      /* VLYNQ 0 memory mapped region 1 */
+#define AVALANCHE_VLYNQ0_REGION1_BASE   0x04022000      /* VLYNQ 0 memory mapped region 0 */
 #define AVALANCHE_VLYNQ1_MEM1_BASE      0x0c000000      /* VLYNQ 1 memory mapped */
 #define AVALANCHE_VLYNQ1_MEM2_BASE      0x0c022000      /* VLYNQ 1 memory mapped */
 #define AVALANCHE_DES_BASE              0x08600000      /* ??? */
@@ -365,6 +365,10 @@ static avalanche_t av = {
     //~ dcl: 0x025d4297
     // 21-20 phy clk source
   dcl:{0x91, 0x42, 0x5d, 0x02},
+  gpio: {
+    0x75, 0xa0, 0xbe, 0x0c, 0x00, 0x00, 0x00, 0x00,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  },
   //~ mdio:{0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
 };
 
@@ -1498,21 +1502,44 @@ static void ar7_gpio_display(void)
                     text, enable);
 }
 
+static const char *i2gpio(unsigned offset)
+{
+    static char buffer[10];
+    const char *text = buffer;
+    switch (offset) {
+        case GPIO_IN:
+            text = "in";
+            break;
+        case GPIO_OUT:
+            text = "out";
+            break;
+        case GPIO_DIR:
+            text = "dir";
+            break;
+        case GPIO_ENABLE:
+            text = "ena";
+            break;
+        default:
+            sprintf(buffer, "0x%02x", offset);
+    }
+    return text;
+}
+
 static uint32_t ar7_gpio_read(unsigned offset)
 {
     uint32_t value = reg_read(av.gpio, offset);
     if (offset == GPIO_IN && value == 0x00000800) {
         /* Do not log polling of reset button. */
-        TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
+        TRACE(GPIO, logout("gpio[%s] = %08x\n", i2gpio(offset), value));
     } else {
-        TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
+        TRACE(GPIO, logout("gpio[%s] = %08x\n", i2gpio(offset), value));
     }
     return value;
 }
 
 static void ar7_gpio_write(unsigned offset, uint32_t value)
 {
-    TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
+    TRACE(GPIO, logout("gpio[%s] = %08x\n", i2gpio(offset), value));
     reg_write(av.gpio, offset, value);
     if (offset <= GPIO_DIR) {
         ar7_gpio_display();
@@ -2661,7 +2688,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_VLYNQ0_REGION1_BASE, av.vlynq0region0)) {
 #if defined(CONFIG_ACX)
         logflag = 0;
-        val = acx111_read(0, 0, addr - AVALANCHE_VLYNQ0_REGION1_BASE);
+        val = acx111_read(0, 1, addr - AVALANCHE_VLYNQ0_REGION1_BASE);
 #else
         name = "vlynq0 region 1";
         logflag = VLYNQ;
@@ -2672,10 +2699,12 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         if (0) {
         } else if (addr == 0x04041000 && addr < 0x04041100) {
             /* PCI configuration space for TI TNETW1130 (ACX111) */
+            name = "vlynq0 region 0";
+            logflag = VLYNQ;
             val = reg_read(acx111_pci_configuration, addr - 0x04041000);
         } else {
             logflag = 0;
-            val = acx111_read(0, 1, addr - AVALANCHE_VLYNQ0_REGION0_BASE);
+            val = acx111_read(0, 0, addr - AVALANCHE_VLYNQ0_REGION0_BASE);
         }
 #else
         name = "vlynq0 region 0";
@@ -2908,11 +2937,13 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     if (0) {
-    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4)) {
-        uint32_t oldvalue = reg_read(av.vlynq[0], VLYNQ_CTRL);
+    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4) ||
+               INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
+        uint32_t oldvalue = ar7_io_memread(opaque, addr & ~3);
+        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
         oldvalue &= ~(0xff << 8 * (addr & 3));
         value = oldvalue + ((value & 0xff) << 8 * (addr & 3));
-        ar7_vlynq_write(0, VLYNQ_CTRL, value);
+        ar7_io_memwrite(0, addr & ~3, value);
     } else if (addr & 3) {
         ar7_io_memwrite(opaque, addr & ~3, value);
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
@@ -2933,8 +2964,10 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
-    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
+    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0) ||
+               INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
       value >>= (addr & 3) * 8;
+        logout("??? addr=0x%08x, val=0x%02x\n", addr, value & 0xff);
     } else if (addr & 3) {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
@@ -3274,7 +3307,7 @@ void ar7_init(CPUState * env)
     assert(bigendian == 0);
     //~ logout("setting endianness %d\n", bigendian);
 
-    reg_write(av.gpio, GPIO_IN, 0x0800);
+    reg_write(av.gpio, GPIO_IN, 0x0cbea875);
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
     reg_write(av.mdio, MDIO_CONTROL, MDIO_CONTROL_IDLE | BIT(24) | BITS(7, 0));
     //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
@@ -3332,7 +3365,9 @@ static void mips_ar7_common_init (int ram_size,
     //~ bigendian = env->bigendian = 0;
     fprintf(stderr, "%s: setting endianness %d\n", __func__, 0);
 
-    env->CP0_PRid = MIPS_R4KEc;
+#define MIPS_R4KEC   0x00018448   // 4KEc revision 2.2
+#define MIPS_R4KECR2 0x00019048   // 4KEc MIPS 32 Release 2 revision 2.2
+    env->CP0_PRid = MIPS_R4KEC;
 
     /* Have config1, is MIPS32R1, uses TLB, no virtual icache,
        uncached coherency */
@@ -3777,5 +3812,84 @@ GPIO Bit 19 = vlynq1 ein?
 
 gpio bits:
 avm 2.6.13.1: reset=12, clock=13, store=10, data=9
+
+
+===========================================================
+ Sinus 154 DSL Basic SE Loader 0.65 build Jun 11 2004 14:57:56
+                 Broad Net Technology, INC.
+===========================================================
+INTEL TE28F160C3-B bottom boot 16-bit mode found
+
+Copying boot params.....DONE
+
+RESET_BTN was pressed, wake up Tiny_ETCPIP_KERNEL
+
+Unzipping web  at 0x94f30000 ... done
+Unzipping code at 0x94000000 ... done
+Boot ETCPIP running ...
+
+In C_Entry() function ...
+install_exception
+sys_irq_init
+system startup...
+tcpip_startup...
+INTEL TE28F160C3-B bottom boot 16-bit mode found
+pBootParams=B01F0000
+Set flash memory layout to BPARAMS+RECOVER_KERNEL
+Bootcode version: 0.65
+Serial number: A429021579
+Hardware version: 01
+!!No configuration file present!!
+default route: 0.0.0.0
+BufferInit:
+BUF_HDR_SZ=16 BUF_ALIGN_SZ=0 BUFFER_OFFSET=80
+BUF_BUFSZ0=384 BUF_BUFSZ1=1632
+NUM_OF_B0=500 NUM_OF_B1=500
+BUF_POOL0_SZ=200000 BUF_POOL1_SZ=824000
+Buf0_Block b42aca70  Buf1_Block b41e37a0
+BUF0[0]=0xb42aca70 BUF1[0]=0xb41e37a0
+
+buffer0 pointer init OK!
+buffer1 pointer init OK!
+init_if() ; gConfig.Interface[0].Link_Type is [4]
+Interface 0 ip = 127.0.0.1
+
+init_if() ; gConfig.Interface[1].Link_Type is [1]
+MAC Address: 00:30:f1:df:5f:55
+MAC0 [RX=128 TX=1]: TI Internal PHY
+Interface 1 ip = 192.168.2.1
+
+init_if() ; gConfig.Interface[2].Link_Type is [0]
+RUNTASK id=1 if_task if0...
+RUNTASK id=2 if_task if1...
+RUNTASK id=3 timer_task...
+RUNTASK id=4 period_task...
+RUNTASK id=5 dhcp_daemon...
+RUNTASK httpd...
+RUNTASK id=8 dhcpd_mgmt_task...
+Starting Multitask...
+MTstart2() begin  ...
+period_task running!!!
+httpd: listen at 192.168.2.1:80
+dhcpd_mgmt_task started...
+
+Rest fehlt!!!
+setup MII management interface done
+100 mbps Full Duplex
+period_task running 60
+period_task running 120
+
+lan an, wlan blinkt, online blinkt, dsl aus, power an
+
+----------------------------------------------------------
+ Address   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+----------------------------------------------------------
+0xA8610900 75 A8 BE 0C 40 20 06 00 3F CB F9 FF F0 FF FF FF
+
+bit  6 = wlan:   0xa8610904 byteweise mit 0x40 beschreiben 0x0040
+bit 13 = online: 0xa8610904 byteweise mit 0x40 beschreiben 0x2000
+
+fehlt:
+[42949374.130000] [avm_power]Sangam 7300 or 7300A (> 2.3 but not 5.7 possible overclock) detected rev=2
 
 */
