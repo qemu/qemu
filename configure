@@ -706,8 +706,14 @@ echo "#define HOST_LONG_BITS $hostlongbits" >> $config_h
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=yes" >> $config_mak
   echo "#define CONFIG_WIN32 1" >> $config_h
-elif test -f "/usr/include/byteswap.h" ; then
-  echo "#define HAVE_BYTESWAP_H 1" >> $config_h
+else
+  cat > $TMPC << EOF
+#include <byteswap.h>
+int main(void) { return bswap_32(0); }
+EOF
+  if $cc -o $TMPE $TMPC 2> /dev/null ; then
+    echo "#define HAVE_BYTESWAP_H 1" >> $config_h
+  fi
 fi
 if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=yes" >> $config_mak
