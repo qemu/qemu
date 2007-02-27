@@ -4216,9 +4216,9 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
  * Status register equals zero, since the register numbers specify an
  * even-odd pair of adjacent coprocessor general registers. When the FR bit
  * in the Status register equals one, both even and odd register numbers
- * are valid.
+ * are valid. This limitation exists only for 64 bit wide (d,l) registers.
  * 
- * Multiple float registers can be checked by calling
+ * Multiple 64 bit wide registers can be checked by calling
  * CHECK_FR(ctx, freg1 | freg2 | ... | fregN);
  */
 #define CHECK_FR(ctx, freg) do { \
@@ -4324,42 +4324,42 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
     /* 10 - ceil.l  */
     /* 11 - floor.l */
     case FOP(12, 17):
-        CHECK_FR(ctx, fs | fd);
+        CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_roundw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "round.w.d";
         break;
     case FOP(13, 17):
-        CHECK_FR(ctx, fs | fd);
+        CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_truncw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "trunc.w.d";
         break;
     case FOP(14, 17):
-        CHECK_FR(ctx, fs | fd);
+        CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_ceilw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "ceil.w.d";
         break;
     case FOP(15, 17):
-        CHECK_FR(ctx, fs | fd);
+        CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_floorw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "floor.w.d";
         break;
-    case FOP(33, 16): /* cvt.d.s */
-        CHECK_FR(ctx, fs | fd);
+    case FOP(33, 16):
+        CHECK_FR(ctx, fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvtd_s();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "cvt.d.s";
         break;
-    case FOP(33, 20): /* cvt.d.w */
-        CHECK_FR(ctx, fs | fd);
+    case FOP(33, 20):
+        CHECK_FR(ctx, fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvtd_w();
         GEN_STORE_FTN_FREG(fd, DT2);
@@ -4388,7 +4388,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         opn = condnames[func-48];
         break;
     case FOP(0, 16):
-        CHECK_FR(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_op_float_add_s();
@@ -4397,7 +4396,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         binary = 1;
         break;
     case FOP(1, 16):
-        CHECK_FR(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_op_float_sub_s();
@@ -4406,7 +4404,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         binary = 1;
         break;
     case FOP(2, 16):
-        CHECK_FR(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_op_float_mul_s();
@@ -4415,7 +4412,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         binary = 1;
         break;
     case FOP(3, 16):
-        CHECK_FR(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_op_float_div_s();
@@ -4424,70 +4420,62 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         binary = 1;
         break;
     case FOP(4, 16):
-        CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_sqrt_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "sqrt.s";
         break;
     case FOP(5, 16):
-        CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_abs_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "abs.s";
         break;
     case FOP(6, 16):
-        CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_mov_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "mov.s";
         break;
     case FOP(7, 16):
-        CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_chs_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "neg.s";
         break;
     case FOP(12, 16):
-        CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_roundw_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "round.w.s";
         break;
     case FOP(13, 16):
-        CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_truncw_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "trunc.w.s";
         break;
-    case FOP(32, 17): /* cvt.s.d */
-        CHECK_FR(ctx, fs | fd);
+    case FOP(32, 17):
+        CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvts_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.d";
         break;
-    case FOP(32, 20): /* cvt.s.w */
-        CHECK_FR(ctx, fs | fd);
+    case FOP(32, 20):
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvts_w();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.w";
         break;
-    case FOP(36, 16): /* cvt.w.s */
-        CHECK_FR(ctx, fs | fd);
+    case FOP(36, 16):
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvtw_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.w.s";
         break;
-    case FOP(36, 17): /* cvt.w.d */
-        CHECK_FR(ctx, fs | fd);
+    case FOP(36, 17):
+        CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvtw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
@@ -4509,7 +4497,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
     case FOP(61, 16):
     case FOP(62, 16):
     case FOP(63, 16):
-        CHECK_FR(ctx, fs | ft);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_cmp_s(func-48);
