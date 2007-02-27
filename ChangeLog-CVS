@@ -1,3 +1,27 @@
+2007-02-27 02:03  pbrook
+
+	* configure: Honor $cross_prefix when searching for suitable gcc.
+
+2007-02-27 01:52  pbrook
+
+	* configure: Fix "make install prefix=/somewhere".
+
+2007-02-23 01:34  ths
+
+	* Changelog: Add Erwan Velu as contributor for the tftp boot
+	  patches.
+
+2007-02-22 21:43  ths
+
+	* darwin-user/syscall.c: Revert host_info changes, and don't fail
+	  if sysctl is unknown when we are on the same host/target, by
+	  Pierre d'Herbemont.
+
+2007-02-22 21:21  ths
+
+	* hw/usb-uhci.c: Basic USB device resume (root hub only), by Lonnie
+	  Mendez.
+
 2007-02-22 02:48  pbrook
 
 	* gdbstub.c, gdbstub.h, monitor.c, vl.c: Allow gdbstub to connect

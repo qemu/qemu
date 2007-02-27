@@ -1,4 +1,4 @@
-  - TFTP booting from host directory (Anthony Liguori)
+  - TFTP booting from host directory (Anthony Liguori, Erwan Velu)
   - Tap device emulation for Solaris (Sittichai Palanisong)
   - Monitor multiplexing to several I/O channels (Jason Wessel)
 
