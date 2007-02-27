@@ -1732,7 +1732,7 @@ void op_mtc1 (void)
 
 FLOAT_OP(cvtd, s)
 {
-    FDT2 = float32_to_float64(WT0, &env->fp_status);
+    FDT2 = float32_to_float64(FST0, &env->fp_status);
     DEBUG_FPU_STATE();
     RETURN();
 }

@@ -1,3 +1,17 @@
+2007-02-27 22:04  pbrook
+
+	* configure: Compiler check for byteswap.h instead of hardcoded
+	  path.
+
+2007-02-27 22:02  pbrook
+
+	* Makefile.target: Include LDFLAGS when linking system emulator.
+
+2007-02-27 20:27  ths
+
+	* target-mips/: op.c, translate.c: Fix mips FPU emulation, 32 bit
+	  data types are allowed to use odd registers.
+
 2007-02-27 02:03  pbrook
 
 	* configure: Honor $cross_prefix when searching for suitable gcc.

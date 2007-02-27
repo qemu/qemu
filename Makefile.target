@@ -498,7 +498,7 @@ SDL_LIBS := $(filter-out -mwindows, $(SDL_LIBS)) -mconsole
 endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
-	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
+	$(CC) $(VL_LDFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
 
 ifdef CONFIG_RUBY
 $(QEMU_RUBY): $(VL_OBJS) libqemu.a
