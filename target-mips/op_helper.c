@@ -331,7 +331,6 @@ void do_mtc0_status_irqraise_debug(void)
     fprintf(logfile, "Raise pending IRQs\n");
 }
 
-#ifdef MIPS_USES_FPU
 #include "softfloat.h"
 
 void fpu_handle_exception(void)
@@ -370,7 +369,6 @@ void fpu_handle_exception(void)
     SET_FP_CAUSE(env->fcr31, 0);
 #endif
 }
-#endif /* MIPS_USES_FPU */
 
 /* TLB management */
 #if defined(MIPS_USES_R4K_TLB)

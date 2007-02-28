@@ -63,7 +63,6 @@ struct CPUMIPSState {
 #endif
     target_ulong HI, LO;
     uint32_t DCR; /* ? */
-#if defined(MIPS_USES_FPU)
     /* Floating point registers */
     fpr_t fpr[16];
 #define FPR(cpu, n) ((fpr_t*)&(cpu)->fpr[(n) / 2])
@@ -97,8 +96,7 @@ struct CPUMIPSState {
 #define FP_DIV0           8
 #define FP_INVALID        16
 #define FP_UNIMPLEMENTED  32
-		
-#endif
+
 #if defined(MIPS_USES_R4K_TLB)
     tlb_t tlb[MIPS_TLB_MAX];
     uint32_t tlb_in_use;

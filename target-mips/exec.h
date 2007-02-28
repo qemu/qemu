@@ -115,12 +115,10 @@ void do_tlbwi (void);
 void do_tlbwr (void);
 void do_tlbp (void);
 void do_tlbr (void);
-#ifdef MIPS_USES_FPU
 void dump_fpu(CPUState *env);
 void fpu_dump_state(CPUState *env, FILE *f, 
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
-#endif
 void dump_sc (void);
 void do_lwl_raw (uint32_t);
 void do_lwr_raw (uint32_t);

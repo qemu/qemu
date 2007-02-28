@@ -45,19 +45,14 @@
    2-way Icache, 64 sets Dcache, 16 bytes Dcache line, 2-way Dcache,
    no coprocessor2 attached, no MDMX support attached,
    no performance counters, watch registers present,
-   no code compression, EJTAG present, FPU enable bit depending on
-   MIPS_USES_FPU */
-#define MIPS_CONFIG1_1                                            \
+   no code compression, EJTAG present, no FPU */
+#define MIPS_CONFIG1                                              \
 ((1 << CP0C1_M) | ((MIPS_TLB_NB - 1) << CP0C1_MMU) |              \
  (0x0 << CP0C1_IS) | (0x3 << CP0C1_IL) | (0x1 << CP0C1_IA) |      \
  (0x0 << CP0C1_DS) | (0x3 << CP0C1_DL) | (0x1 << CP0C1_DA) |      \
  (0 << CP0C1_C2) | (0 << CP0C1_MD) | (0 << CP0C1_PC) |            \
- (1 << CP0C1_WR) | (0 << CP0C1_CA) | (1 << CP0C1_EP))
-#ifdef MIPS_USES_FPU
-#define MIPS_CONFIG1  (MIPS_CONFIG1_1 | (1 << CP0C1_FP))
-#else
-#define MIPS_CONFIG1  (MIPS_CONFIG1_1 | (0 << CP0C1_FP))
-#endif
+ (1 << CP0C1_WR) | (0 << CP0C1_CA) | (1 << CP0C1_EP) |            \
+ (0 << CP0C1_FP))
 /* Have config3, no tertiary/secondary caches implemented */
 #define MIPS_CONFIG2                                              \
 ((1 << CP0C2_M))
