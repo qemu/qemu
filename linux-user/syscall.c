@@ -1720,8 +1720,7 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         ts->next = first_task_state;
         first_task_state = ts;
         /* we create a new CPU instance. */
-        new_env = cpu_init();
-        memcpy(new_env, env, sizeof(CPUState));
+        new_env = cpu_copy(env);
 #if defined(TARGET_I386)
         if (!newsp)
             newsp = env->regs[R_ESP];

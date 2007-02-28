@@ -1222,6 +1222,18 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     abort();
 }
 
+CPUState *cpu_copy(CPUState *env)
+{
+    CPUState *new_env = cpu_init();
+    /* preserve chaining and index */
+    CPUState *next_cpu = new_env->next_cpu;
+    int cpu_index = new_env->cpu_index;
+    memcpy(new_env, env, sizeof(CPUState));
+    new_env->next_cpu = next_cpu;
+    new_env->cpu_index = cpu_index;
+    return new_env;
+}
+
 #if !defined(CONFIG_USER_ONLY)
 
 /* NOTE: if flush_global is true, also flush global entries (not
