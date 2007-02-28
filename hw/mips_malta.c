@@ -49,6 +49,7 @@ typedef struct {
     uint32_t leds;
     uint32_t brk;
     uint32_t gpout;
+    uint32_t i2cin;
     uint32_t i2coe;
     uint32_t i2cout;
     uint32_t i2csel;
@@ -81,6 +82,124 @@ static void malta_fpga_update_display(void *opaque)
 
     qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
     qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+}
+
+/*
+ * EEPROM 24C01 / 24C02 emulation.
+ *
+ * Emulation for serial EEPROMs:
+ * 24C01 - 1024 bit (128 x 8)
+ * 24C02 - 2048 bit (256 x 8)
+ *
+ * Typical device names include Microchip 24C02SC or SGS Thomson ST24C02.
+ */
+
+//~ #define DEBUG
+
+#if defined(DEBUG)
+#  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
+#else
+#  define logout(fmt, args...) ((void)0)
+#endif
+
+struct _eeprom24c0x_t {
+  uint8_t tick;
+  uint8_t address;
+  uint8_t command;
+  uint8_t ack;
+  uint8_t scl;
+  uint8_t sda;
+  uint8_t data;
+  //~ uint16_t size;
+  uint8_t contents[256];
+};
+
+typedef struct _eeprom24c0x_t eeprom24c0x_t;
+
+static eeprom24c0x_t eeprom = {
+    contents: {
+        /* 00000000: */ 0x80,0x08,0x04,0x0D,0x0A,0x01,0x40,0x00,
+        /* 00000008: */ 0x01,0x75,0x54,0x00,0x82,0x08,0x00,0x01,
+        /* 00000010: */ 0x8F,0x04,0x02,0x01,0x01,0x00,0x0E,0x00,
+        /* 00000018: */ 0x00,0x00,0x00,0x14,0x0F,0x14,0x2D,0x40,
+        /* 00000020: */ 0x15,0x08,0x15,0x08,0x00,0x00,0x00,0x00,
+        /* 00000028: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000030: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000038: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x12,0xD0,
+        /* 00000040: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000048: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000050: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000058: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000060: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000068: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000070: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        /* 00000078: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x64,0xF4,
+    },
+};
+
+static uint8_t eeprom24c0x_read()
+{
+    logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
+        eeprom.tick, eeprom.scl, eeprom.sda, eeprom.data);
+    return eeprom.sda;
+}
+
+static void eeprom24c0x_write(int scl, int sda)
+{
+    if (eeprom.scl && scl && (eeprom.sda != sda)) {
+        logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda, sda ? "stop" : "start");
+        if (!sda) {
+            eeprom.tick = 1;
+            eeprom.command = 0;
+        }
+    } else if (eeprom.tick == 0 && !eeprom.ack) {
+        /* Waiting for start. */
+        logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+    } else if (!eeprom.scl && scl) {
+        logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+        if (eeprom.ack) {
+            logout("\ti2c ack bit = 0\n");
+            sda = 0;
+            eeprom.ack = 0;
+        } else if (eeprom.sda == sda) {
+            uint8_t bit = (sda != 0);
+            logout("\ti2c bit = %d\n", bit);
+            if (eeprom.tick < 9) {
+                eeprom.command <<= 1;
+                eeprom.command += bit;
+                eeprom.tick++;
+                if (eeprom.tick == 9) {
+                    logout("\tcommand 0x%04x, %s\n", eeprom.command, bit ? "read" : "write");
+                    eeprom.ack = 1;
+                }
+            } else if (eeprom.tick < 17) {
+                if (eeprom.command & 1) {
+                    sda = ((eeprom.data & 0x80) != 0);
+                }
+                eeprom.address <<= 1;
+                eeprom.address += bit;
+                eeprom.tick++;
+                eeprom.data <<= 1;
+                if (eeprom.tick == 17) {
+                    eeprom.data = eeprom.contents[eeprom.address];
+                    logout("\taddress 0x%04x, data 0x%02x\n", eeprom.address, eeprom.data);
+                    eeprom.ack = 1;
+                    eeprom.tick = 0;
+                }
+            } else if (eeprom.tick >= 17) {
+                sda = 0;
+            }
+        } else {
+            logout("\tsda changed with raising scl\n");
+        }
+    } else {
+        logout("%u: scl = %u->%u, sda = %u->%u\n", eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+    }
+    eeprom.scl = scl;
+    eeprom.sda = sda;
 }
 
 static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
@@ -140,7 +259,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* I2CINP Register */
     case 0x00b00:
-        val = 0x00000003;
+        val = ((s->i2cin & ~1) | eeprom24c0x_read());
         break;
 
     /* I2COE Register */
@@ -155,7 +274,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* I2CSEL Register */
     case 0x00b18:
-        val = s->i2cout;
+        val = s->i2csel;
         break;
 
     default:
@@ -234,12 +353,13 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     /* I2COUT Register */
     case 0x00b10:
-        s->i2cout = val & 0x03;
+        eeprom24c0x_write(val & 0x02, val & 0x01);
+        s->i2cout = val;
         break;
 
     /* I2CSEL Register */
     case 0x00b18:
-        s->i2cout = val & 0x01;
+        s->i2csel = val & 0x01;
         break;
 
     default:
@@ -270,6 +390,7 @@ void malta_fpga_reset(void *opaque)
     s->leds   = 0x00;
     s->brk    = 0x0a;
     s->gpout  = 0x00;
+    s->i2cin  = 0x3;
     s->i2coe  = 0x0;
     s->i2cout = 0x3;
     s->i2csel = 0x1;
