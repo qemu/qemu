@@ -79,6 +79,7 @@ For system emulation, the following hardware targets are supported:
 @item Malta board (32-bit MIPS processor)
 @item ARM Integrator/CP (ARM926E or 1026E processor)
 @item ARM Versatile baseboard (ARM926E)
+@item ARM RealView Emulation baseboard (ARM926EJ-S)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
@@ -1743,6 +1744,29 @@ mapped control registers.
 PCI OHCI USB controller.
 @item
 LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices.
+@end itemize
+
+The ARM RealView Emulation baseboard is emulated with the following devices:
+
+@itemize @minus
+@item
+ARM926E CPU
+@item
+ARM AMBA Generic/Distributed Interrupt Controller
+@item
+Four PL011 UARTs
+@item 
+SMC 91c111 Ethernet adapter
+@item
+PL110 LCD controller
+@item
+PL050 KMI with PS/2 keyboard and mouse
+@item
+PCI host bridge
+@item
+PCI OHCI USB controller
+@item
+LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More

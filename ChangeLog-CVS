@@ -1,3 +1,22 @@
+2007-02-28 22:36  ths
+
+	* Makefile.target, vl.h, hw/ds1225y.c, hw/mips_r4k.c: DS1225Y nvram
+	  device, by Herve Poussineau.
+
+2007-02-28 21:20  ths
+
+	* cpu-all.h, exec.c, linux-user/syscall.c: Fix CPU chaining in
+	  linux-user emulation, by Gwenole Beauchesne.
+
+2007-02-28 21:04  ths
+
+	* hw/mips_malta.c: 24C01 / 24C02 EEPROM emulation for Malta, by
+	  Stefan Weil.
+
+2007-02-28 17:25  pbrook
+
+	* qemu-doc.texi: iDocument ARM RealView board (Andrzej Zaborowski).
+
 2007-02-27 22:04  pbrook
 
 	* configure: Compiler check for byteswap.h instead of hardcoded

@@ -225,6 +225,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                      bs_table[2 * i], bs_table[2 * i + 1]);
 
     kbd_init();
+    ds1225y_init(0x9000, "nvram");
 }
 
 static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,

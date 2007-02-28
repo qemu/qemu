@@ -754,6 +754,8 @@ void page_unprotect_range(target_ulong data, target_ulong data_size);
 
 #endif /* SINGLE_CPU_DEFINES */
 
+CPUState *cpu_copy(CPUState *env);
+
 void cpu_dump_state(CPUState *env, FILE *f, 
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);

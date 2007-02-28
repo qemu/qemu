@@ -951,6 +951,10 @@ int pmac_ide_init (BlockDriverState **hd_table,
 int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track);
 int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num);
 
+/* ds1225y.c */
+typedef struct ds1225y_t ds1225y_t;
+ds1225y_t *ds1225y_init(target_ulong mem_base, const char *filename);
+
 /* es1370.c */
 int es1370_init (PCIBus *bus, AudioState *s);
 
