@@ -1,3 +1,20 @@
+2007-02-28 23:37  ths
+
+	* exec-all.h, gdbstub.c, linux-user/main.c, target-mips/cpu.h,
+	  target-mips/exec.h, target-mips/mips-defs.h, target-mips/op.c,
+	  target-mips/op_helper.c, target-mips/op_mem.c,
+	  target-mips/translate.c: MIPS FPU dynamic activation, part 1, by
+	  Herve Poussineau.
+
+2007-02-28 23:01  ths
+
+	* Changelog: Mention ds1225y support.
+
+2007-02-28 22:59  ths
+
+	* vl.c: Make removing IOHandlers safe from within an IOHandler, by
+	  Anthony Liguori.
+
 2007-02-28 22:36  ths
 
 	* Makefile.target, vl.h, hw/ds1225y.c, hw/mips_r4k.c: DS1225Y nvram

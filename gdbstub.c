@@ -568,19 +568,20 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     *(uint32_t *)ptr = tswapl(env->PC);
     ptr += 4;
 
-#ifdef MIPS_USES_FPU
-    for (i = 0; i < 32; i++)
+    if (env->CP0_Config1 & (1 << CP0C1_FP))
       {
-        *(uint32_t *)ptr = tswapl(FPR_W (env, i));
+        for (i = 0; i < 32; i++)
+          {
+            *(uint32_t *)ptr = tswapl(FPR_W (env, i));
+            ptr += 4;
+          }
+
+        *(uint32_t *)ptr = tswapl(env->fcr31);
+        ptr += 4;
+
+        *(uint32_t *)ptr = tswapl(env->fcr0);
         ptr += 4;
       }
-
-    *(uint32_t *)ptr = tswapl(env->fcr31);
-    ptr += 4;
-
-    *(uint32_t *)ptr = tswapl(env->fcr0);
-    ptr += 4;
-#endif
 
     /* 32 FP registers, fsr, fir, fp.  Not yet implemented.  */
     /* what's 'fp' mean here?  */
@@ -629,27 +630,28 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->PC = tswapl(*(uint32_t *)ptr);
     ptr += 4;
 
-#ifdef MIPS_USES_FPU
-    for (i = 0; i < 32; i++)
+    if (env->CP0_Config1 & (1 << CP0C1_FP))
       {
-	FPR_W (env, i) = tswapl(*(uint32_t *)ptr);
+        for (i = 0; i < 32; i++)
+          {
+            FPR_W (env, i) = tswapl(*(uint32_t *)ptr);
+            ptr += 4;
+          }
+
+        env->fcr31 = tswapl(*(uint32_t *)ptr) & 0x0183FFFF;
         ptr += 4;
-      }
 
-    env->fcr31 = tswapl(*(uint32_t *)ptr) & 0x0183FFFF;
-    ptr += 4;
+        env->fcr0 = tswapl(*(uint32_t *)ptr);
+        ptr += 4;
 
-    env->fcr0 = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
-
-    /* set rounding mode */
-    RESTORE_ROUNDING_MODE;
+        /* set rounding mode */
+        RESTORE_ROUNDING_MODE;
 
 #ifndef CONFIG_SOFTFLOAT
-    /* no floating point exception for native float */
-    SET_FP_ENABLE(env->fcr31, 0);
+        /* no floating point exception for native float */
+        SET_FP_ENABLE(env->fcr31, 0);
 #endif
-#endif
+      }
 }
 #elif defined (TARGET_SH4)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)

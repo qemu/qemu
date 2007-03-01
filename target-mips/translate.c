@@ -392,8 +392,6 @@ GEN32(gen_op_load_gpr_T2, gen_op_load_gpr_T2_gpr);
 GEN32(gen_op_store_T0_gpr, gen_op_store_T0_gpr_gpr);
 GEN32(gen_op_store_T1_gpr, gen_op_store_T1_gpr_gpr);
 
-#ifdef MIPS_USES_FPU
-
 static const char *fregnames[] =
     { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
       "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
@@ -476,8 +474,6 @@ static inline void gen_cmp_ ## fmt(int n)                               \
 
 FOP_CONDS(d)
 FOP_CONDS(s)
-
-#endif /* MIPS_USES_FPU */
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
@@ -641,12 +637,10 @@ OP_LD_TABLE(bu);
 OP_ST_TABLE(b);
 OP_LD_TABLE(l);
 OP_ST_TABLE(c);
-#ifdef MIPS_USES_FPU
 OP_LD_TABLE(wc1);
 OP_ST_TABLE(wc1);
 OP_LD_TABLE(dc1);
 OP_ST_TABLE(dc1);
-#endif
 
 /* Load and store */
 static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
@@ -795,8 +789,6 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
 }
 
-#ifdef MIPS_USES_FPU
-
 /* Load and store */
 static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
                       int base, int16_t offset)
@@ -843,8 +835,6 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     }
     MIPS_DEBUG("%s %s, %d(%s)", opn, fregnames[ft], offset, regnames[base]);
 }
-
-#endif /* MIPS_USES_FPU */
 
 /* Arithmetic with immediate operand */
 static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
@@ -4112,8 +4102,6 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
     MIPS_DEBUG("%s %s %d", opn, regnames[rt], rd);
 }
 
-#ifdef MIPS_USES_FPU
-
 /* CP1 Branches (before delay slot) */
 static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
                                  int32_t offset)
@@ -4532,8 +4520,6 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
        gen_op_movt(ccbit, rd, rs);
 }
 
-#endif /* MIPS_USES_FPU */
-
 /* ISA extensions (ASEs) */
 /* MIPS16 extension to MIPS32 */
 /* SmartMIPS extension to MIPS32 */
@@ -4556,7 +4542,7 @@ static void gen_blikely(DisasContext *ctx)
     gen_set_label(l1);
 }
 
-static void decode_opc (DisasContext *ctx)
+static void decode_opc (CPUState *env, DisasContext *ctx)
 {
     int32_t offset;
     int rs, rt, rd, sa;
@@ -4632,13 +4618,15 @@ static void decode_opc (DisasContext *ctx)
             /* Treat as a noop. */
             break;
 
-#ifdef MIPS_USES_FPU
         case OPC_MOVCI:
-            gen_op_cp1_enabled();
-            gen_movci(ctx, rd, rs, (ctx->opcode >> 18) & 0x7,
-                      (ctx->opcode >> 16) & 1);
+            if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+                gen_op_cp1_enabled();
+                gen_movci(ctx, rd, rs, (ctx->opcode >> 18) & 0x7,
+                          (ctx->opcode >> 16) & 1);
+            } else {
+                generate_exception(ctx, EXCP_RI);
+            }
             break;
-#endif
 
 #ifdef MIPS_HAS_MIPS64
        /* MIPS64 specific opcodes */
@@ -4871,47 +4859,47 @@ static void decode_opc (DisasContext *ctx)
     case OPC_LDC1:
     case OPC_SWC1:
     case OPC_SDC1:
-#if defined(MIPS_USES_FPU)
-        save_cpu_state(ctx, 1);
-        gen_op_cp1_enabled();
-        gen_flt_ldst(ctx, op, rt, rs, imm);
-#else
-        generate_exception_err(ctx, EXCP_CpU, 1);
-#endif
+        if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+            save_cpu_state(ctx, 1);
+            gen_op_cp1_enabled();
+            gen_flt_ldst(ctx, op, rt, rs, imm);
+        } else {
+            generate_exception_err(ctx, EXCP_CpU, 1);
+        }
         break;
 
     case OPC_CP1:
-#if defined(MIPS_USES_FPU)
-        save_cpu_state(ctx, 1);
-        gen_op_cp1_enabled();
-        op1 = MASK_CP1(ctx->opcode);
-        switch (op1) {
-        case OPC_MFC1:
-        case OPC_CFC1:
-        case OPC_MTC1:
-        case OPC_CTC1:
+        if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+            save_cpu_state(ctx, 1);
+            gen_op_cp1_enabled();
+            op1 = MASK_CP1(ctx->opcode);
+            switch (op1) {
+            case OPC_MFC1:
+            case OPC_CFC1:
+            case OPC_MTC1:
+            case OPC_CTC1:
 #ifdef MIPS_HAS_MIPS64
-        case OPC_DMFC1:
-        case OPC_DMTC1:
+            case OPC_DMFC1:
+            case OPC_DMTC1:
 #endif
-            gen_cp1(ctx, op1, rt, rd);
-            break;
-        case OPC_BC1:
-            gen_compute_branch1(ctx, MASK_CP1_BCOND(ctx->opcode), imm << 2);
-            return;
-        case OPC_S_FMT:
-        case OPC_D_FMT:
-        case OPC_W_FMT:
-        case OPC_L_FMT:
-            gen_farith(ctx, MASK_CP1_FUNC(ctx->opcode), rt, rd, sa);
-            break;
-        default:
-            generate_exception_err(ctx, EXCP_RI, 1);
-            break;
+                gen_cp1(ctx, op1, rt, rd);
+                break;
+            case OPC_BC1:
+                gen_compute_branch1(ctx, MASK_CP1_BCOND(ctx->opcode), imm << 2);
+                return;
+            case OPC_S_FMT:
+            case OPC_D_FMT:
+            case OPC_W_FMT:
+            case OPC_L_FMT:
+                gen_farith(ctx, MASK_CP1_FUNC(ctx->opcode), rt, rd, sa);
+                break;
+            default:
+                generate_exception_err(ctx, EXCP_RI, 1);
+                break;
+            }
+        } else {
+            generate_exception_err(ctx, EXCP_CpU, 1);
         }
-#else
-        generate_exception_err(ctx, EXCP_CpU, 1);
-#endif
         break;
 
     /* COP2.  */
@@ -4924,18 +4912,20 @@ static void decode_opc (DisasContext *ctx)
         generate_exception_err(ctx, EXCP_CpU, 2);
         break;
 
-#ifdef MIPS_USES_FPU
     case OPC_CP3:
-        gen_op_cp1_enabled();
-        op1 = MASK_CP3(ctx->opcode);
-        switch (op1) {
-        /* Not implemented */
-        default:
-            generate_exception_err(ctx, EXCP_RI, 1);
-            break;
+        if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+            gen_op_cp1_enabled();
+            op1 = MASK_CP3(ctx->opcode);
+            switch (op1) {
+            /* Not implemented */
+            default:
+                generate_exception_err(ctx, EXCP_RI, 1);
+                break;
+            }
+        } else {
+            generate_exception(ctx, EXCP_RI);
         }
         break;
-#endif
 
 #ifdef MIPS_HAS_MIPS64
     /* MIPS64 opcodes */
@@ -5082,7 +5072,7 @@ static int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             gen_opc_instr_start[lj] = 1;
         }
         ctx.opcode = ldl_code(ctx.pc);
-        decode_opc(&ctx);
+        decode_opc(env, &ctx);
         ctx.pc += 4;
 
         if (env->singlestep_enabled)
@@ -5151,8 +5141,6 @@ int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
-#ifdef MIPS_USES_FPU
-
 void fpu_dump_state(CPUState *env, FILE *f, 
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
@@ -5186,8 +5174,6 @@ void dump_fpu (CPUState *env)
        fpu_dump_state(env, logfile, fprintf, 0);
     }
 }
-
-#endif /* MIPS_USES_FPU */
 
 #if defined(MIPS_HAS_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
 /* Debug help: The architecture requires 32bit code to maintain proper
@@ -5251,10 +5237,8 @@ void cpu_dump_state (CPUState *env, FILE *f,
                 c0_status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TARGET_FMT_lx "\n",
                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
-#ifdef MIPS_USES_FPU
     if (c0_status & (1 << CP0St_CU1))
         fpu_dump_state(env, f, cpu_fprintf, flags);
-#endif
 #if defined(MIPS_HAS_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
     cpu_mips_check_sign_extensions(env, f, cpu_fprintf, flags);
 #endif
@@ -5299,6 +5283,10 @@ void cpu_reset (CPUMIPSState *env)
 #if defined(MIPS_CONFIG0)
     env->CP0_Config0 = MIPS_CONFIG0;
     env->CP0_Config1 = MIPS_CONFIG1;
+#ifdef MIPS_USES_FPU
+    /* basic FPU register support */
+    env->CP0_Config1 |= (1 << CP0C1_FP);
+#endif
     env->CP0_Config2 = MIPS_CONFIG2;
     env->CP0_Config3 = MIPS_CONFIG3;
 #endif
@@ -5316,9 +5304,7 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags |= MIPS_HFLAG_UM;
     env->user_mode_only = 1;
 #endif
-#ifdef MIPS_USES_FPU
     env->fcr0 = MIPS_FCR0;
-#endif
     /* XXX some guesswork here, values are CPU specific */
     env->SYNCI_Step = 16;
     env->CCRes = 2;

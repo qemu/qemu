@@ -192,7 +192,6 @@ void glue(op_scd, MEMSUFFIX) (void)
 }
 #endif /* MIPS_HAS_MIPS64 */
 
-#ifdef MIPS_USES_FPU
 void glue(op_lwc1, MEMSUFFIX) (void)
 {
     WT0 = glue(ldl, MEMSUFFIX)(T0);
@@ -213,4 +212,3 @@ void glue(op_sdc1, MEMSUFFIX) (void)
     glue(stq, MEMSUFFIX)(T0, DT0);
     RETURN();
 }
-#endif

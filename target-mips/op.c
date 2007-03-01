@@ -144,8 +144,6 @@ CALL_FROM_TB2(func, arg0, arg1);
 #include "op_template.c"
 #undef TN
 
-#ifdef MIPS_USES_FPU
-
 #define SFREG 0
 #define DFREG 0
 #include "fop_template.c"
@@ -278,8 +276,6 @@ CALL_FROM_TB2(func, arg0, arg1);
 #define FTN
 #include "fop_template.c"
 #undef FTN
-
-#endif
 
 void op_dup_T0 (void)
 {
@@ -924,7 +920,6 @@ void op_movz (void)
     RETURN();
 }
 
-#ifdef MIPS_USES_FPU
 void op_movf (void)
 {
     if (!(env->fcr31 & PARAM1))
@@ -938,7 +933,6 @@ void op_movt (void)
         env->gpr[PARAM2] = env->gpr[PARAM3];
     RETURN();
 }
-#endif
 
 /* Tests */
 #define OP_COND(name, cond) \
@@ -1645,8 +1639,6 @@ void op_dmtc0_errorepc (void)
     RETURN();
 }
 
-#ifdef MIPS_USES_FPU
-
 #if 0
 # define DEBUG_FPU_STATE() CALL_FROM_TB1(dump_fpu, env)
 #else
@@ -2001,7 +1993,6 @@ void op_bc1t (void)
     DEBUG_FPU_STATE();
     RETURN();
 }
-#endif /* MIPS_USES_FPU */
 
 #if defined(MIPS_USES_R4K_TLB)
 void op_tlbwi (void)
