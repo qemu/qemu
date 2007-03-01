@@ -72,16 +72,12 @@
 #define MIPS_USES_R4K_EXT
 /* Uses MIPS R4Km FPM MMU model */
 #define MIPS_USES_R4K_FPM
-
 #else
 #error "MIPS CPU not defined"
 /* Reminder for other flags */
 //#undef MIPS_HAS_MIPS64
 //#define MIPS_USES_FPU
 #endif
-
-/* No FPU register support */
-#undef MIPS_USES_FPU
 
 #ifdef MIPS_HAS_MIPS64
 #define TARGET_LONG_BITS 64

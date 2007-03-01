@@ -3340,6 +3340,10 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
+    /* AR7 is MIPS32 release 1. */
+    env->CP0_Config0 &= ~(7 << CP0C0_AR);
+    /* AR7 has no FPU. */
+    env->CP0_Config1 &= ~(1 << CP0C1_FP);
 
     if (env->kernel_filename) {
         mips_load_kernel (env, env->ram_size, env->kernel_filename,

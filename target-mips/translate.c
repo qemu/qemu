@@ -5280,8 +5280,10 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
-#if defined(MIPS_CONFIG0)
     env->CP0_Config0 = MIPS_CONFIG0;
+#ifdef MIPS32_R2
+    env->CP0_Config0 |= (1 << CP0C0_AR);
+#endif
     env->CP0_Config1 = MIPS_CONFIG1;
 #ifdef MIPS_USES_FPU
     /* basic FPU register support */
@@ -5289,7 +5291,6 @@ void cpu_reset (CPUMIPSState *env)
 #endif
     env->CP0_Config2 = MIPS_CONFIG2;
     env->CP0_Config3 = MIPS_CONFIG3;
-#endif
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     //~ env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
     //~ env->CP0_IntCtl = (7 << 29);
