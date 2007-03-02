@@ -285,4 +285,4 @@
 #define TARGET_NR_add_key			(TARGET_NR_Linux + 280)
 #define TARGET_NR_request_key		(TARGET_NR_Linux + 281)
 #define TARGET_NR_keyctl			(TARGET_NR_Linux + 282)
-
+#define TARGET_NR_set_thread_area	(TARGET_NR_Linux + 283)

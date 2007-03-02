@@ -4728,6 +4728,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
            case 3:
                gen_op_rdhwr_ccres();
                break;
+#if defined (CONFIG_USER_ONLY)
+           case 29:
+               gen_op_tls_value ();
+               GEN_STORE_TN_REG(rt, T0);
+               break;
+#endif
            default:            /* Invalid */
                MIPS_INVAL("rdhwr");
                generate_exception(ctx, EXCP_RI);

@@ -165,6 +165,9 @@ _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
+#if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
+_syscall1(int,set_tid_address,int *,tidptr)
+#endif
 
 extern int personality(int);
 extern int flock(int, int);
@@ -3968,6 +3971,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
+#ifdef TARGET_MIPS
+      ((CPUMIPSState *) cpu_env)->tls_value = arg1;
+      ret = 0;
+      break;
+#else
+      goto unimplemented_nowarn;
+#endif
+#endif
+#ifdef TARGET_NR_get_thread_area
     case TARGET_NR_get_thread_area:
         goto unimplemented_nowarn;
 #endif
@@ -3975,10 +3987,17 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getdomainname:
         goto unimplemented_nowarn;
 #endif
+
+#if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
+    case TARGET_NR_set_tid_address:
+      ret = get_errno(set_tid_address((int *) arg1));
+      break;
+#endif
+
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
-#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_set_thread_area) || defined(TARGET_NR_getdomainname)
+#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname)
     unimplemented_nowarn:
 #endif
         ret = -ENOSYS;
