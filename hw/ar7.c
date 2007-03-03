@@ -3395,9 +3395,6 @@ static void mips_ar7_common_init (int ram_size,
          (0x2 << CP0C1_DS) | (0x3 << CP0C1_DL) | (0x3 << CP0C1_DA) |
          (0 << CP0C1_C2) | (0 << CP0C1_MD) | (0 << CP0C1_PC) |
          (1 << CP0C1_WR) | (0 << CP0C1_CA) | (1 << CP0C1_EP));
-#ifdef MIPS_USES_FPU
-    env->CP0_Config1 |= (1 << CP0C1_FP);
-#endif
     /* Have config3, no tertiary/secondary caches implemented */
     env->CP0_Config2 = (1 << CP0C2_M);
     /* No config4, no DSP ASE, no large physaddr,
@@ -3408,7 +3405,8 @@ static void mips_ar7_common_init (int ram_size,
          (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |
          (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL));
 
-    if (env->CP0_Config0 != 0x80240083) printf("0x%08x\n", env->CP0_Config0);
+    if (env->CP0_Config0 != 0x80240083) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
+    if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
     //~ assert(env->CP0_Config0 == 0x80240083);
     assert(env->CP0_Config0 == 0x80240082);
     assert(env->CP0_Config1 == 0x9e9b4d8a);
@@ -3895,5 +3893,7 @@ bit 13 = online: 0xa8610904 byteweise mit 0x40 beschreiben 0x2000
 
 fehlt:
 [42949374.130000] [avm_power]Sangam 7300 or 7300A (> 2.3 but not 5.7 possible overclock) detected rev=2
+
+FBox blinken: 3640 / 00c0
 
 */
