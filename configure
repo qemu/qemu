@@ -643,7 +643,7 @@ echo "prefix=$prefix" >> $config_mak
 echo "bindir=\${prefix}$binsuffix" >> $config_mak
 echo "mandir=\${prefix}$mansuffix" >> $config_mak
 echo "datadir=\${prefix}$datasuffix" >> $config_mak
-echo "docdir=\${prefix}$docsuffic" >> $config_mak
+echo "docdir=\${prefix}$docsuffix" >> $config_mak
 echo "#define CONFIG_QEMU_SHAREDIR \"$prefix$datasuffix\"" >> $config_h
 echo "MAKE=$make" >> $config_mak
 echo "INSTALL=$install" >> $config_mak
