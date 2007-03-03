@@ -1,3 +1,15 @@
+2007-03-02 21:47  ths
+
+	* linux-user/main.c, linux-user/syscall.c,
+	  linux-user/mips/syscall_nr.h, target-mips/cpu.h,
+	  target-mips/op.c, target-mips/translate.c: MIPS Userland TLS
+	  register emulation, by Daniel Jacobowitz.
+
+2007-03-02 21:36  ths
+
+	* hw/mips_malta.c: Fix wrong interrupt number for the second serial
+	  interface.
+
 2007-02-28 23:37  ths
 
 	* exec-all.h, gdbstub.c, linux-user/main.c, target-mips/cpu.h,

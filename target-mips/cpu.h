@@ -274,6 +274,10 @@ struct CPUMIPSState {
     int SYNCI_Step; /* Address step size for SYNCI */
     int CCRes; /* Cycle count resolution/divisor */
 
+#if defined(CONFIG_USER_ONLY)
+    target_ulong tls_value;
+#endif
+
     CPU_COMMON
 
     int ram_size;

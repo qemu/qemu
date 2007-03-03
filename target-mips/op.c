@@ -2021,6 +2021,13 @@ void op_tlbr (void)
 #endif
 
 /* Specials */
+#if defined (CONFIG_USER_ONLY)
+void op_tls_value (void)
+{
+  T0 = env->tls_value;
+}
+#endif
+
 void op_pmon (void)
 {
     CALL_FROM_TB1(do_pmon, PARAM1);

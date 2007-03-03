@@ -1297,6 +1297,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_add_key	, 5)
 	MIPS_SYS(sys_request_key	, 4)
 	MIPS_SYS(sys_keyctl	, 5)
+	MIPS_SYS(sys_set_thread_area, 1)
 };
 
 #undef MIPS_SYS
