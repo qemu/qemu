@@ -25,12 +25,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ADAM2 bootloader flash layout
 =============================
 
+See http://wiki.ip-phone-forum.de/software:ds-mod:development:flash
+
+4 MiB
+
 flash: mtd[0] 0x900C0000 - 0x903C0000 (filesystem)
 flash: mtd[1] 0x90010000 - 0x900C0000 (kernel)          720896
 flash: mtd[2] 0x90000000 - 0x90010000 (urlader)
 flash: mtd[3] 0x903C0000 - 0x903E0000 (tffs)
 flash: mtd[4] 0x903E0000 - 0x90400000 (tffs)
 flash: mtd[5] 0x900a1b00 - 0x900c0000 (hidden filesystem)
+
+8 MiB
+
+mtd0    0x90000000,0x90000000
+mtd1    0x90010000,0x90780000
+mtd2    0x90000000,0x90010000
+mtd3    0x90780000,0x907C0000
+mtd4    0x907C0000,0x90800000
 
 These addresses are only examples. They differ for different flash sizes.
 
@@ -331,8 +343,10 @@ module Adam2
     MTD4start = 0x003e0000
     MTD0end = MTD3start
     MTD1end = MTD0start
+    MTD2end = MTD1start
     MTD0size = MTD0end - MTD0start
-    MTD1size = MTD0start - MTD1start
+    MTD1size = MTD1end - MTD1start
+    MTD2size = MTD2end - MTD2start
   elsif FLASHSIZE == 8 * MiB
     raise
     # 8 MiB flash
@@ -345,13 +359,23 @@ module Adam2
     raise
   end
 
-  def self.loadfilesystem(filename)
-    flashimage = Flashimage.new(FLASHIMAGE)
+  def self.loadadam2(filename, imagename)
+    imagename = FLASHIMAGE if imagename.nil?
+    flashimage = Flashimage.new(imagename)
+    flashimage.data[MTD2start ... MTD2end] = "\xff" * MTD2size
+    data = Flashimage.read(filename)
+    puts("Bootloader size: #{'0x%08x' % data.size} byte (max #{'0x%08x' % MTD2size}")
+    datasize = data.size - 8
+    raise if datasize > MTD2size
+    flashimage.data[MTD2start ... MTD2start + datasize] = data[0 ... datasize]
+    flashimage.write
+  end
+
+  def self.loadfilesystem(filename, imagename)
+    imagename = FLASHIMAGE if imagename.nil?
+    flashimage = Flashimage.new(imagename)
     flashimage.data[MTD0start ... MTD0end] = "\xff" * MTD0size
-    data = nil
-    File.open(filename, 'rb') { |f|
-      data = f.read
-    }
+    data = Flashimage.read(filename)
     puts("Filesystem size: #{'0x%08x' % data.size} byte (max #{'0x%08x' % MTD0size}")
     datasize = data.size - 8
     raise if datasize > MTD0size
@@ -359,20 +383,35 @@ module Adam2
     flashimage.write
   end
 
-  def self.loadkernel(filename)
-    flashimage = Flashimage.new(FLASHIMAGE)
+  def self.loadkernel(filename, imagename)
+    imagename = FLASHIMAGE if imagename.nil?
+    flashimage = Flashimage.new(imagename)
     flashimage.data[MTD1start ... MTD1end] = "\xff" * MTD1size
-    data = nil
-    File.open(filename, 'rb') { |f|
-      data = f.read
-    }
+    data = Flashimage.read(filename)
     puts("Kernel size: #{'0x%08x' % data.size} byte (max #{'0x%08x' % MTD1size}")
     datasize = data.size - 8
-    raise if datasize > MTD1size
+    #~ raise if datasize > MTD1size
     flashimage.data[MTD1start ... MTD1start + datasize] = data[0 ... datasize]
     flashimage.write
   end
 end # Adam2
+
+# Extract squashfs from binary file.
+def getsquashfs(filename, destination)
+    data = Flashimage.read(filename)
+    n = 0
+    offset = data.index('hsqs')
+    while offset
+        data = data[offset .. -1]
+        puts("SQUASH filesystem at offset #{offset}")
+        if destination
+          n += 1
+          Flashimage.write(data, "#{destination}#{n}.squashfs")
+        end
+        data = data[4 .. -1]
+        offset = data.index('hsqs')
+    end
+end
 
 def test
 	PARTITIONS.each { |label, partition|
@@ -403,12 +442,15 @@ elsif command == 'load-web'
 elsif command == 'load-code'
 	# Load code partition from file into flash.
 	loadpart('code', ARGV[1])
-elsif command == 'load-filesystem'
-	# Load filesystem from file into flash (AVM).
-	Adam2.loadfilesystem(ARGV[1])
+elsif command == 'load-bootloader'
+	# Load kernel from file into flash (AVM).
+	Adam2.loadadam2(ARGV[1], ARGV[2])
 elsif command == 'load-kernel'
 	# Load kernel from file into flash (AVM).
-	Adam2.loadkernel(ARGV[1])
+	Adam2.loadkernel(ARGV[1], ARGV[2])
+elsif command == 'load-filesystem'
+	# Load filesystem from file into flash (AVM).
+	Adam2.loadfilesystem(ARGV[1], ARGV[2])
 elsif command == 'configuration'
 	# Modify web partition.
 	changepartition(PARTITIONS['configuration'], ARGV[1])
@@ -418,12 +460,15 @@ elsif command == 'web'
 elsif command == 'code'
 	# Modify code partition.
 	changepartition(PARTITIONS['code'], ARGV[1])
+elsif command == 'getsquashfs'
+	# Extract squashfs from binary file.
+	getsquashfs(ARGV[1], ARGV[2])
 elsif command == 'test'
 	test
 else
 	puts("Unknown command #{command.inspect}.")
 	puts("Supported commands: create, split, merge, load-fw, load-web, load-code,")
-	puts("configuration, code, web, test.")
+	puts("configuration, code, web, getsquashfs, test.")
 end	
 
 # eof
