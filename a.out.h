@@ -25,9 +25,9 @@ extern "C" {
 struct external_filehdr {
   short f_magic;	/* magic number			*/
   short f_nscns;	/* number of sections		*/
-  unsigned long f_timdat;	/* time & date stamp		*/
-  unsigned long f_symptr;	/* file pointer to symtab	*/
-  unsigned long f_nsyms;	/* number of symtab entries	*/
+  host_ulong f_timdat;	/* time & date stamp		*/
+  host_ulong f_symptr;	/* file pointer to symtab	*/
+  host_ulong f_nsyms;	/* number of symtab entries	*/
   short f_opthdr;	/* sizeof(optional hdr)		*/
   short f_flags;	/* flags			*/
 };
@@ -72,12 +72,12 @@ typedef struct
 {
   unsigned short magic;		/* type of file				*/
   unsigned short vstamp;	/* version stamp			*/
-  unsigned long	tsize;		/* text size in bytes, padded to FW bdry*/
-  unsigned long	dsize;		/* initialized data "  "		*/
-  unsigned long	bsize;		/* uninitialized data "   "		*/
-  unsigned long	entry;		/* entry pt.				*/
-  unsigned long text_start;	/* base of text used for this file */
-  unsigned long data_start;	/* base of data used for this file=
+  host_ulong	tsize;		/* text size in bytes, padded to FW bdry*/
+  host_ulong	dsize;		/* initialized data "  "		*/
+  host_ulong	bsize;		/* uninitialized data "   "		*/
+  host_ulong	entry;		/* entry pt.				*/
+  host_ulong text_start;	/* base of text used for this file */
+  host_ulong data_start;	/* base of data used for this file=
  */
 }
 AOUTHDR;
@@ -103,16 +103,16 @@ AOUTHDR;
 
 struct external_scnhdr {
   char		s_name[8];	/* section name			*/
-  unsigned long	s_paddr;	/* physical address, offset
+  host_ulong	s_paddr;	/* physical address, offset
 				   of last addr in scn */
-  unsigned long	s_vaddr;	/* virtual address		*/
-  unsigned long	s_size;		/* section size			*/
-  unsigned long	s_scnptr;	/* file ptr to raw data for section */
-  unsigned long	s_relptr;	/* file ptr to relocation	*/
-  unsigned long	s_lnnoptr;	/* file ptr to line numbers	*/
+  host_ulong	s_vaddr;	/* virtual address		*/
+  host_ulong	s_size;		/* section size			*/
+  host_ulong	s_scnptr;	/* file ptr to raw data for section */
+  host_ulong	s_relptr;	/* file ptr to relocation	*/
+  host_ulong	s_lnnoptr;	/* file ptr to line numbers	*/
   unsigned short s_nreloc;	/* number of relocation entries	*/
   unsigned short s_nlnno;	/* number of line number entries*/
-  unsigned long	s_flags;	/* flags			*/
+  host_ulong	s_flags;	/* flags			*/
 };
 
 #define	SCNHDR	struct external_scnhdr
@@ -136,8 +136,8 @@ struct external_scnhdr {
  */
 struct external_lineno {
   union {
-    unsigned long l_symndx; /* function name symbol index, iff l_lnno 0 */
-    unsigned long l_paddr;	/* (physical) address of line number	*/
+    host_ulong l_symndx; /* function name symbol index, iff l_lnno 0 */
+    host_ulong l_paddr;	/* (physical) address of line number	*/
   } l_addr;
   unsigned short l_lnno;	/* line number		*/
 };
@@ -156,11 +156,11 @@ struct __attribute__((packed)) external_syment
   union {
     char e_name[E_SYMNMLEN];
     struct {
-      unsigned long e_zeroes;
-      unsigned long e_offset;
+      host_ulong e_zeroes;
+      host_ulong e_offset;
     } e;
   } e;
-  unsigned long e_value;
+  host_ulong e_value;
   unsigned short e_scnum;
   unsigned short e_type;
   char e_sclass[1];
@@ -174,18 +174,18 @@ struct __attribute__((packed)) external_syment
 
 union external_auxent {
   struct {
-    unsigned long x_tagndx;	/* str, un, or enum tag indx */
+    host_ulong x_tagndx;	/* str, un, or enum tag indx */
     union {
       struct {
 	unsigned short  x_lnno; /* declaration line number */
 	unsigned short  x_size; /* str/union/array size */
       } x_lnsz;
-      unsigned long x_fsize;	/* size of function */
+      host_ulong x_fsize;	/* size of function */
     } x_misc;
     union {
       struct {			/* if ISFCN, tag, or .bb */
-	unsigned long x_lnnoptr;/* ptr to fcn line # */
-	unsigned long x_endndx;	/* entry ndx past block end */
+	host_ulong x_lnnoptr;/* ptr to fcn line # */
+	host_ulong x_endndx;	/* entry ndx past block end */
       } x_fcn;
       struct {			/* if ISARY, up to 4 dimen. */
 	char x_dimen[E_DIMNUM][2];
@@ -197,22 +197,22 @@ union external_auxent {
   union {
     char x_fname[E_FILNMLEN];
     struct {
-      unsigned long x_zeroes;
-      unsigned long x_offset;
+      host_ulong x_zeroes;
+      host_ulong x_offset;
     } x_n;
   } x_file;
 
   struct {
-    unsigned long x_scnlen;	/* section length */
+    host_ulong x_scnlen;	/* section length */
     unsigned short x_nreloc;	/* # relocation entries */
     unsigned short x_nlinno;	/* # line numbers */
-    unsigned long x_checksum;	/* section COMDAT checksum */
+    host_ulong x_checksum;	/* section COMDAT checksum */
     unsigned short x_associated;/* COMDAT associated section index */
     char x_comdat[1];		/* COMDAT selection number */
   } x_scn;
 
   struct {
-    unsigned long x_tvfill;	/* tv fill value */
+    host_ulong x_tvfill;	/* tv fill value */
     unsigned short x_tvlen;	/* length of .tv */
     char x_tvran[2][2];		/* tv range */
   } x_tv;	/* info about .tv section (in auxent of symbol .tv)) */
@@ -344,7 +344,7 @@ struct external_PE_filehdr
   unsigned short e_oemid;	/* OEM identifier (for e_oeminfo), 0x0 */
   unsigned short e_oeminfo;	/* OEM information; e_oemid specific, 0x0 */
   char e_res2[10][2];		/* Reserved words, all 0x0 */
-  unsigned long e_lfanew;	/* File address of new exe header, 0x80 */
+  host_ulong e_lfanew;	/* File address of new exe header, 0x80 */
   char dos_message[16][4];	/* other stuff, always follow DOS header */
   unsigned int nt_signature;	/* required NT signature, 0x4550 */
 
@@ -352,9 +352,9 @@ struct external_PE_filehdr
 
   unsigned short f_magic;	/* magic number			*/
   unsigned short f_nscns;	/* number of sections		*/
-  unsigned long f_timdat;	/* time & date stamp		*/
-  unsigned long f_symptr;	/* file pointer to symtab	*/
-  unsigned long f_nsyms;	/* number of symtab entries	*/
+  host_ulong f_timdat;	/* time & date stamp		*/
+  host_ulong f_symptr;	/* file pointer to symtab	*/
+  host_ulong f_nsyms;	/* number of symtab entries	*/
   unsigned short f_opthdr;	/* sizeof(optional hdr)		*/
   unsigned short f_flags;	/* flags			*/
 };
@@ -370,17 +370,17 @@ typedef struct
 {
   unsigned short magic;		/* type of file				*/
   unsigned short vstamp;	/* version stamp			*/
-  unsigned long	tsize;		/* text size in bytes, padded to FW bdry*/
-  unsigned long	dsize;		/* initialized data "  "		*/
-  unsigned long	bsize;		/* uninitialized data "   "		*/
-  unsigned long	entry;		/* entry pt.				*/
-  unsigned long text_start;	/* base of text used for this file */
-  unsigned long data_start;	/* base of all data used for this file */
+  host_ulong	tsize;		/* text size in bytes, padded to FW bdry*/
+  host_ulong	dsize;		/* initialized data "  "		*/
+  host_ulong	bsize;		/* uninitialized data "   "		*/
+  host_ulong	entry;		/* entry pt.				*/
+  host_ulong text_start;	/* base of text used for this file */
+  host_ulong data_start;	/* base of all data used for this file */
 
   /* NT extra fields; see internal.h for descriptions */
-  unsigned long  ImageBase;
-  unsigned long  SectionAlignment;
-  unsigned long  FileAlignment;
+  host_ulong  ImageBase;
+  host_ulong  SectionAlignment;
+  host_ulong  FileAlignment;
   unsigned short  MajorOperatingSystemVersion;
   unsigned short  MinorOperatingSystemVersion;
   unsigned short  MajorImageVersion;
@@ -388,17 +388,17 @@ typedef struct
   unsigned short  MajorSubsystemVersion;
   unsigned short  MinorSubsystemVersion;
   char  Reserved1[4];
-  unsigned long  SizeOfImage;
-  unsigned long  SizeOfHeaders;
-  unsigned long  CheckSum;
+  host_ulong  SizeOfImage;
+  host_ulong  SizeOfHeaders;
+  host_ulong  CheckSum;
   unsigned short Subsystem;
   unsigned short DllCharacteristics;
-  unsigned long  SizeOfStackReserve;
-  unsigned long  SizeOfStackCommit;
-  unsigned long  SizeOfHeapReserve;
-  unsigned long  SizeOfHeapCommit;
-  unsigned long  LoaderFlags;
-  unsigned long  NumberOfRvaAndSizes;
+  host_ulong  SizeOfStackReserve;
+  host_ulong  SizeOfStackCommit;
+  host_ulong  SizeOfHeapReserve;
+  host_ulong  SizeOfHeapCommit;
+  host_ulong  LoaderFlags;
+  host_ulong  NumberOfRvaAndSizes;
   /* IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES]; */
   char  DataDirectory[16][2][4]; /* 16 entries, 2 elements/entry, 4 chars */
 

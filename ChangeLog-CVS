@@ -1,3 +1,11 @@
+2007-03-04 01:52  pbrook
+
+	* a.out.h, dyngen.c: 64bit->win32 cross build fix.
+
+2007-03-03 22:47  ths
+
+	* configure: Fix configure typo, by Juergen Lock.
+
 2007-03-02 21:47  ths
 
 	* linux-user/main.c, linux-user/syscall.c,
