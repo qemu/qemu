@@ -148,10 +148,10 @@ typedef uint64_t host_ulong;
 
 #ifdef CONFIG_FORMAT_COFF
 
-#include "a.out.h"
-
 typedef int32_t host_long;
 typedef uint32_t host_ulong;
+
+#include "a.out.h"
 
 #define FILENAMELEN 256
 
@@ -1740,7 +1740,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         {
             EXE_SYM *sym;
             const char *sym_name, *p;
-            unsigned long val;
+            host_ulong val;
             int n;
 
             for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
@@ -1772,7 +1772,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #ifdef CONFIG_FORMAT_MACH
                     offset -= section_hdr[sym->n_sect-1].addr;
 #endif
-                    val = *(unsigned long *)(ptr + offset);
+                    val = *(host_ulong *)(ptr + offset);
 #ifdef ELF_USES_RELOCA
                     {
                         int reloc_shndx, nb_relocs1, j;
