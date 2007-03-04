@@ -22,13 +22,7 @@
 
 #include "vl.h"
 
-uint32_t acx111_read(unsigned index, unsigned region, target_phys_addr_t addr);
-void acx111_write(unsigned index, unsigned region, target_phys_addr_t addr, uint32_t value);
-
-uint16_t acx111_read_mem0(unsigned index, target_phys_addr_t addr);
-uint16_t acx111_read_mem1(unsigned index, target_phys_addr_t addr);
-void acx111_write_mem0(unsigned index, target_phys_addr_t addr, uint16_t value);
-void acx111_write_mem1(unsigned index, target_phys_addr_t addr, uint16_t value);
+void vlynq_tnetw1130_init(void);
 
 void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn);
 

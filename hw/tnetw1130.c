@@ -848,60 +848,6 @@ static void tnetw1130_receive(void *opaque, const uint8_t * buf, int size)
 {
 }
 
-#if 1
-static pci_tnetw1130_t vlynq[2];
-
-uint32_t acx111_read(unsigned index, unsigned region, target_phys_addr_t addr)
-{
-    uint32_t value = 0;
-    assert(index < 2);
-    assert(region < 2);
-    switch (region) {
-        case 0:
-            value = tnetw1130_read0l(vlynq + index, addr);
-            break;
-        case 1:
-            value = tnetw1130_read1l(vlynq + index, addr);
-            break;
-    }
-    return value;
-}
-
-void acx111_write(unsigned index, unsigned region, target_phys_addr_t addr, uint32_t value)
-{
-    assert(index < 2);
-    assert(region < 2);
-    switch (region) {
-        case 0:
-            tnetw1130_write0l(vlynq + index, addr, value);
-            break;
-        case 1:
-            tnetw1130_write1l(vlynq + index, addr, value);
-            break;
-    }
-}
-
-uint16_t acx111_read_mem0(unsigned index, target_phys_addr_t addr)
-{
-    return tnetw1130_read0w(vlynq + index, addr);
-}
-
-uint16_t acx111_read_mem1(unsigned index, target_phys_addr_t addr)
-{
-    return tnetw1130_read1w(vlynq + index, addr);
-}
-
-void acx111_write_mem0(unsigned index, target_phys_addr_t addr, uint16_t value)
-{
-    tnetw1130_write0w(vlynq + index, addr, value);
-}
-
-void acx111_write_mem1(unsigned index, target_phys_addr_t addr, uint16_t value)
-{
-    tnetw1130_write1w(vlynq + index, addr, value);
-}
-#endif
-
 static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
 {
     pci_tnetw1130_t *d;
@@ -983,6 +929,56 @@ void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     logout("\n");
     tnetw1130_init(bus, nd);
+}
+
+static pci_tnetw1130_t vlynq;
+
+void vlynq_tnetw1130_init(void)
+{
+    pci_tnetw1130_t *d = &vlynq;
+    uint8_t *pci_conf = d->dev.config;
+    tnetw1130_t *s = &d->tnetw1130;
+    logout("\n");
+    /* TI TNETW1130 */
+    PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
+    PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
+    /* ethernet network controller */
+    PCI_CONFIG_32(PCI_REVISION_ID, 0x02800000);
+    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
+                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
+                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+    PCI_CONFIG_32(0x28, 0x00001c02);
+    PCI_CONFIG_32(0x28, 0x9067104c);
+    /* Address registers are set by pci_register_io_region. */
+    /* Capabilities Pointer, CLOFS */
+    PCI_CONFIG_32(0x34, 0x00000040);
+    /* 0x38 reserved, returns 0 */
+    /* MNGNT = 11, MXLAT = 52, IPIN = 0 */
+    PCI_CONFIG_32(0x3c, 0x00000100);
+    /* Power Management Capabilities */
+    PCI_CONFIG_32(0x40, 0x7e020001);
+    /* Power Management Control and Status */
+    //~ PCI_CONFIG_32(0x44, 0x00000000);
+    /* 0x48...0xff reserved, returns 0 */
+
+    /* Handler for memory-mapped I/O */
+    s->io_memory[0] =
+        cpu_register_io_memory(0, tnetw1130_region0_read, tnetw1130_region0_write, d);
+    s->io_memory[1] =
+        cpu_register_io_memory(0, tnetw1130_region1_read, tnetw1130_region1_write, d);
+
+    logout("io_memory = 0x%08x, 0x%08x\n", s->io_memory[0], s->io_memory[1]);
+
+    pci_register_io_region(&d->dev, 0, TNETW1130_MEM0_SIZE,
+                           PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+    pci_register_io_region(&d->dev, 1, TNETW1130_MEM1_SIZE,
+                           PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
+
+    memcpy(s->mem1 + 0x0001f000, pci_conf, 64);
+
+    tnetw1130_mem_map(&d->dev, 0, 0x04000000, TNETW1130_MEM0_SIZE, 0);
+    tnetw1130_mem_map(&d->dev, 1, 0x04022000, TNETW1130_MEM1_SIZE, 0);
 }
 
 /*

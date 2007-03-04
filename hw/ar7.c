@@ -195,10 +195,10 @@ Physical memory map
 #define AVALANCHE_BBIF_BASE             0x02000000      /* broadband interface */
 #define AVALANCHE_ATM_SAR_BASE          0x03000000      /* ATM SAR */
 #define AVALANCHE_USB_MEM_BASE          0x03400000      /* USB slave mem map */
-#define AVALANCHE_VLYNQ0_REGION0_BASE   0x04000000      /* VLYNQ 0 memory mapped region 1 */
-#define AVALANCHE_VLYNQ0_REGION1_BASE   0x04022000      /* VLYNQ 0 memory mapped region 0 */
-#define AVALANCHE_VLYNQ1_MEM1_BASE      0x0c000000      /* VLYNQ 1 memory mapped */
-#define AVALANCHE_VLYNQ1_MEM2_BASE      0x0c022000      /* VLYNQ 1 memory mapped */
+#define AVALANCHE_VLYNQ0_REGION0_BASE   0x04000000      /* VLYNQ 0 memory mapped region 0 */
+#define AVALANCHE_VLYNQ0_REGION1_BASE   0x04022000      /* VLYNQ 0 memory mapped region 1 */
+#define AVALANCHE_VLYNQ1_REGION0_BASE   0x0c000000      /* VLYNQ 1 memory mapped region 0 */
+#define AVALANCHE_VLYNQ1_REGION1_BASE   0x0c022000      /* VLYNQ 1 memory mapped region 1 */
 #define AVALANCHE_DES_BASE              0x08600000      /* ??? */
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
@@ -315,10 +315,10 @@ typedef struct {
     uint32_t bbif[1];           // 0x02000000
     uint32_t atmsar[0x2400];    // 0x03000000
     uint32_t usbslave[0x800];   // 0x03400000
-    uint32_t vlynq0region0[8 * KiB / 4];        // 0x04000000
-    uint32_t vlynq0region1[128 * KiB / 4];      // 0x04022000
-    uint32_t vlynq1mem1[128 * KiB / 4];        // 0x0c000000
-    uint32_t vlynq1mem2[128 * KiB / 4];      // 0x0c022000
+    //~ uint32_t vlynq0region0[8 * KiB / 4];        // 0x04000000
+    //~ uint32_t vlynq0region1[128 * KiB / 4];      // 0x04022000
+    uint32_t vlynq1region0[8 * KiB / 4];        // 0x0c000000
+    uint32_t vlynq1region1[128 * KiB / 4];      // 0x0c022000
 
     uint8_t cpmac0[0x800];      // 0x08610000
     uint8_t emif[0x100];        // 0x08610800
@@ -2685,49 +2685,14 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
         name = "usb memory";
         val = VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave);
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION1_BASE, av.vlynq0region0)) {
-#if defined(CONFIG_ACX)
-        logflag = 0;
-        val = acx111_read(0, 1, addr - AVALANCHE_VLYNQ0_REGION1_BASE);
-#else
-        name = "vlynq0 region 1";
-        logflag = VLYNQ;
-        val = VALUE(AVALANCHE_VLYNQ0_REGION1_BASE, av.vlynq0region0);
-#endif
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region1)) {
-#if defined(CONFIG_ACX)
-        if (0) {
-        } else if (addr == 0x04041000 && addr < 0x04041100) {
-            /* PCI configuration space for TI TNETW1130 (ACX111) */
-            name = "vlynq0 region 0";
-            logflag = VLYNQ;
-            val = reg_read(acx111_pci_configuration, addr - 0x04041000);
-        } else {
-            logflag = 0;
-            val = acx111_read(0, 0, addr - AVALANCHE_VLYNQ0_REGION0_BASE);
-        }
-#else
-        name = "vlynq0 region 0";
-        logflag = VLYNQ;
-        val = VALUE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region1);
-        if (0) {
-        } else if (addr == 0x040400f0) {
-            /* Mailbox (from ACX111)? */
-        } else if (addr == 0x04040108) {
-            /* Command (to ACX111)? */
-        } else if (addr == 0x04041000 && addr < 0x04041100) {
-            /* PCI configuration space for TI TNETW1130 (ACX111) */
-            val = reg_read(acx111_pci_configuration, addr - 0x04041000);
-        }
-#endif
-    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1)) {
-        name = "vlynq1 region 1";
-        logflag = VLYNQ;
-        val = VALUE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1);
-    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2)) {
+    } else if (INRANGE(AVALANCHE_VLYNQ1_REGION0_BASE, av.vlynq1region0)) {
         name = "vlynq1 region 0";
         logflag = VLYNQ;
-        val = VALUE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2);
+        val = VALUE(AVALANCHE_VLYNQ1_REGION0_BASE, av.vlynq1region0);
+    } else if (INRANGE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1)) {
+        name = "vlynq1 region 1";
+        logflag = VLYNQ;
+        val = VALUE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1);
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
@@ -2830,32 +2795,14 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "usb memory";
         //~ VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = val;
         VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = 0xffffffff;
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION1_BASE, av.vlynq0region0)) {
-#if defined(CONFIG_ACX)
-        logflag = 0;
-        acx111_write(0, 0, addr - AVALANCHE_VLYNQ0_REGION1_BASE, val);
-#else
-        name = "vlynq0 region 1";
-        logflag = VLYNQ;
-        VALUE(AVALANCHE_VLYNQ0_REGION1_BASE, av.vlynq0region0) = val;
-#endif
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region1)) {
-#if defined(CONFIG_ACX)
-        logflag = 0;
-        acx111_write(0, 1, addr - AVALANCHE_VLYNQ0_REGION0_BASE, val);
-#else
-        name = "vlynq0 region 0";
-        logflag = VLYNQ;
-        VALUE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region1) = val;
-#endif
-    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1)) {
-        name = "vlynq1 region 1";
-        logflag = VLYNQ;
-        VALUE(AVALANCHE_VLYNQ1_MEM1_BASE, av.vlynq1mem1) = val;
-    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2)) {
+    } else if (INRANGE(AVALANCHE_VLYNQ1_REGION0_BASE, av.vlynq1region0)) {
         name = "vlynq1 region 0";
         logflag = VLYNQ;
-        VALUE(AVALANCHE_VLYNQ1_MEM2_BASE, av.vlynq1mem2) = val;
+        VALUE(AVALANCHE_VLYNQ1_REGION0_BASE, av.vlynq1region0) = val;
+    } else if (INRANGE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1)) {
+        name = "vlynq1 region 1";
+        logflag = VLYNQ;
+        VALUE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1) = val;
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
@@ -2964,8 +2911,7 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
-    } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0) ||
-               INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
+    } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
       value >>= (addr & 3) * 8;
         logout("??? addr=0x%08x, val=0x%02x\n", addr, value & 0xff);
     } else if (addr & 3) {
@@ -2987,12 +2933,6 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     if (0) {
-#if defined(CONFIG_ACX)
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region0)) {
-        acx111_write_mem0(0, addr - AVALANCHE_VLYNQ0_REGION0_BASE, value);
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION1_BASE, av.vlynq0region1)) {
-        acx111_write_mem1(0, addr - AVALANCHE_VLYNQ0_REGION1_BASE, value);
-#endif
     } else {
         logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
         switch (addr & 3) {
@@ -3014,12 +2954,6 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t value = 0;
     if (0) {
-#if defined(CONFIG_ACX)
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region0)) {
-        value = acx111_read_mem0(0, addr - AVALANCHE_VLYNQ0_REGION0_BASE);
-    } else if (INRANGE(AVALANCHE_VLYNQ0_REGION0_BASE, av.vlynq0region1)) {
-        value = acx111_read_mem1(0, addr - AVALANCHE_VLYNQ0_REGION1_BASE);
-#endif
     } else {
       value = ar7_io_memread(opaque, addr & ~3);
       switch (addr & 3) {
@@ -3315,6 +3249,7 @@ void ar7_init(CPUState * env)
     ar7_serial_init(env);
     ar7_display_init(env, "vc");
     ar7_nic_init();
+    vlynq_tnetw1130_init();
 
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
     //~ if (offset == 0xe00) continue;
