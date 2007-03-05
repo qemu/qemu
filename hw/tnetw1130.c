@@ -413,6 +413,8 @@ static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
         value = s->irq_status;
     } else if (addr == TNETW1130_EE_START) {
     } else if (addr == TNETW1130_ECPU_CTRL) {
+    } else if (addr == TNETW1130_EEPROM_CTL) {
+        value = 0;
     } else if (addr == TNETW1130_EEPROM_INFORMATION) {
         value = (RADIO_RADIA_16 << 8) + 0x01;
     }
@@ -1037,6 +1039,14 @@ void vlynq_tnetw1130_init(void)
     vlynq0mem2 + 0x0001e0f0            Mailbox (from ACX111)?
     vlynq0mem2 + 0x0001e108            Command (to ACX111)?
 
+	write_reg32(adev, IO_ACX_EEPROM_CFG, 0);
+	write_reg32(adev, IO_ACX_EEPROM_ADDR, addr);
+	write_flush(adev);
+	write_reg32(adev, IO_ACX_EEPROM_CTL, 2);
+	while (read_reg16(adev, IO_ACX_EEPROM_CTL)) {
+	}
+
+	*charbuf = read_reg8(adev, IO_ACX_EEPROM_DATA);
 */
 
 /* eof */

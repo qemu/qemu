@@ -2422,14 +2422,16 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
                         vlynq_names[offset / 4],
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
-    } else if (offset == VLYNQ_CTRL) {
-        /* control */
+    } else if (offset == VLYNQ_CTRL && index == 0) {
+        /* Control and first vlynq emulates an established link. */
         if (!(val & BIT(0))) {
             /* Normal operation. Emulation sets link bit in status register. */
             reg_set(vlynq, VLYNQ_STAT, BIT(0));
+            reg_set(vlynq, VLYNQ_RSTAT, BIT(0));
         } else {
             /* Reset. */
             reg_clear(vlynq, VLYNQ_STAT, BIT(0));
+            reg_clear(vlynq, VLYNQ_RSTAT, BIT(0));
         }
     } else {
     }
@@ -3830,5 +3832,50 @@ fehlt:
 [42949374.130000] [avm_power]Sangam 7300 or 7300A (> 2.3 but not 5.7 possible overclock) detected rev=2
 
 FBox blinken: 3640 / 00c0
+
+AR7     ar7_reset_write         reset enabled vlynq0 (0x00100041)
+AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x80008000
+AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x80000000
+AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
+AR7     ar7_vlynq_read          vlynq0[0xc0 (Remote Chip Version)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0x1c (Tx Address Map)] = 0x04000000
+AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x02000000
+AR7     ar7_vlynq_write         vlynq0[0x24 (Rx Address Map Offset 1)] = 0x14000000
+AR7     ar7_vlynq_write         vlynq0[0x9c (Remote Tx Address Map)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00022000
+AR7     ar7_vlynq_write         vlynq0[0xa4 (Remote Rx Address Map Offset 1)] = 0xf0000000
+AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00040000
+AR7     ar7_vlynq_write         vlynq0[0xac (Remote Rx Address Map Offset 2)] = 0xc0000000
+AR7     ar7_vlynq_write         vlynq0[0xb0 (Remote Rx Address Map Size 3)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xb4 (Remote Rx Address Map Offset 3)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xb8 (Remote Rx Address Map Size 4)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xbc (Remote Rx Address Map Offset 4)] = 0x00000000
+
+AVM:
+
+AR7     ar7_reset_write         reset enabled vlynq0 (0x04720041)
+AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
+AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x00000000
+AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
+AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
+AR7     ar7_vlynq_write         vlynq0[0x1c (Tx Address Map)] = 0x04000000
+AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xa4 (Remote Rx Address Map Offset 1)] = 0xc0000000
+AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00040000
+AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xac (Remote Rx Address Map Offset 2)] = 0xf0000000
+AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00022000
+AR7     ar7_vlynq_write         vlynq0[0xb0 (Remote Rx Address Map Size 3)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0xb8 (Remote Rx Address Map Size 4)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0x9c (Remote Tx Address Map)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0x24 (Rx Address Map Offset 1)] = 0x14000000
+AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x02000000
+AR7     ar7_vlynq_write         vlynq0[0x28 (Rx Address Map Size 2)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0x30 (Rx Address Map Size 3)] = 0x00000000
+AR7     ar7_vlynq_write         vlynq0[0x38 (Rx Address Map Size 4)] = 0x00000000
+AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
+AR7     ar7_vlynq_read          vlynq0[0x88 (Remote Status)] = 0x00000001
+AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
 
 */
