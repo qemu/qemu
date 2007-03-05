@@ -703,7 +703,7 @@ typedef void QEMUMachineInitFunc(int ram_size, int vga_ram_size,
                                  int boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
              const char *kernel_filename, const char *kernel_cmdline,
-             const char *initrd_filename);
+             const char *initrd_filename, const char *cpu_model);
 
 typedef struct QEMUMachine {
     const char *name;
@@ -718,6 +718,10 @@ int qemu_register_machine(QEMUMachine *m);
 
 typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 typedef void IRQRequestFunc(void *opaque, int level);
+
+#if defined(TARGET_PPC)
+void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+#endif
 
 /* ISA bus */
 

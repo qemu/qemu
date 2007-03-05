@@ -6357,6 +6357,7 @@ void help(void)
            "\n"
            "Standard options:\n"
            "-M machine      select emulated machine (-M ? for list)\n"
+           "-cpu cpu        select CPU (-C ? for list)\n"
            "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n"
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
@@ -6489,6 +6490,7 @@ enum {
     QEMU_OPTION_h,
 
     QEMU_OPTION_M,
+    QEMU_OPTION_cpu,
     QEMU_OPTION_fda,
     QEMU_OPTION_fdb,
     QEMU_OPTION_hda,
@@ -6564,6 +6566,7 @@ const QEMUOption qemu_options[] = {
     { "help", 0, QEMU_OPTION_h },
 
     { "M", HAS_ARG, QEMU_OPTION_M },
+    { "cpu", HAS_ARG, QEMU_OPTION_cpu },
     { "fda", HAS_ARG, QEMU_OPTION_fda },
     { "fdb", HAS_ARG, QEMU_OPTION_fdb },
     { "hda", HAS_ARG, QEMU_OPTION_hda },
@@ -6907,6 +6910,7 @@ int main(int argc, char **argv)
     int parallel_device_index;
     const char *loadvm = NULL;
     QEMUMachine *machine;
+    const char *cpu_model;
     char usb_devices[MAX_USB_CMDLINE][128];
     int usb_devices_index;
     int fds[2];
@@ -6951,6 +6955,7 @@ int main(int argc, char **argv)
     if (!machine) {
         machine = first_machine;
     }
+    cpu_model = NULL;
     initrd_filename = NULL;
     for(i = 0; i < MAX_FD; i++)
         fd_filename[i] = NULL;
@@ -7040,6 +7045,17 @@ int main(int argc, char **argv)
                                m == first_machine ? " (default)" : "");
                     }
                     exit(1);
+                }
+                break;
+            case QEMU_OPTION_cpu:
+                /* hw initialization will check this */
+                if (optarg[0] == '?') {
+#if defined(TARGET_PPC)
+                    ppc_cpu_list(stdout, &fprintf);
+#endif
+                    exit(1);
+                } else {
+                    cpu_model = optarg;
                 }
                 break;
             case QEMU_OPTION_initrd:
@@ -7619,7 +7635,7 @@ int main(int argc, char **argv)
 
     machine->init(ram_size, vga_ram_size, boot_device,
                   ds, fd_filename, snapshot,
-                  kernel_filename, kernel_cmdline, initrd_filename);
+                  kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
     /* init USB devices */
     if (usb_enabled) {

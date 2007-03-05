@@ -758,7 +758,8 @@ static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,
                         int snapshot, 
                         const char *kernel_filename, 
                         const char *kernel_cmdline,
-                        const char *initrd_filename)
+                        const char *initrd_filename,
+                        const char *cpu_model)
 {
     pc_init1(ram_size, vga_ram_size, boot_device,
              ds, fd_filename, snapshot,
@@ -771,7 +772,8 @@ static void pc_init_isa(int ram_size, int vga_ram_size, int boot_device,
                         int snapshot, 
                         const char *kernel_filename, 
                         const char *kernel_cmdline,
-                        const char *initrd_filename)
+                        const char *initrd_filename,
+                        const char *cpu_model)
 {
     pc_init1(ram_size, vga_ram_size, boot_device,
              ds, fd_filename, snapshot,

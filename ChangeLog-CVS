@@ -1,3 +1,11 @@
+2007-03-05 20:44  j_mayer
+
+	* vl.c, vl.h, hw/integratorcp.c, hw/mips_malta.c, hw/mips_r4k.c,
+	  hw/pc.c, hw/ppc_chrp.c, hw/ppc_prep.c, hw/realview.c, hw/shix.c,
+	  hw/sun4m.c, hw/sun4u.c, hw/versatilepb.c: New -cpu options:
+	  choose CPU model for emulated target.   Only relevant on PowerPC
+	  targets, for now.
+
 2007-03-04 01:52  pbrook
 
 	* a.out.h, dyngen.c: 64bit->win32 cross build fix.
