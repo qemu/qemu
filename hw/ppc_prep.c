@@ -518,10 +518,12 @@ CPUReadMemoryFunc *PPC_prep_io_read[] = {
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
-                          DisplayState *ds, const char **fd_filename, int snapshot,
-                          const char *kernel_filename, const char *kernel_cmdline,
-                          const char *initrd_filename)
+static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
+                           DisplayState *ds, const char **fd_filename,
+                           int snapshot, const char *kernel_filename,
+                           const char *kernel_cmdline,
+                           const char *initrd_filename,
+                           const char *cpu_model)
 {
     CPUState *env;
     char buf[1024];
@@ -543,12 +545,11 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 
     env = cpu_init();
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-    
-    /* Register CPU as a 604 */
-    /* XXX: CPU model (or PVR) should be provided on command line */
-    //    ppc_find_by_name("604r", &def);
-    //    ppc_find_by_name("604e", &def);
-    ppc_find_by_name("604", &def);
+
+    /* Default CPU is a 604 */
+    if (cpu_model == NULL)
+        cpu_model = "604";
+    ppc_find_by_name(cpu_model, &def);
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }

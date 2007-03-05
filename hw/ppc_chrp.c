@@ -292,13 +292,14 @@ void pmac_format_nvram_partition(uint8_t *buf, int len)
 }    
 
 /* PowerPC CHRP hardware initialisation */
-static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
-                          DisplayState *ds, const char **fd_filename, 
-                          int snapshot,
-                          const char *kernel_filename, 
-                          const char *kernel_cmdline,
-                          const char *initrd_filename,
-                          int is_heathrow)
+static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
+                           DisplayState *ds, const char **fd_filename,
+                           int snapshot,
+                           const char *kernel_filename,
+                           const char *kernel_cmdline,
+                           const char *initrd_filename,
+                           const char *cpu_model,
+                           int is_heathrow)
 {
     CPUState *env;
     char buf[1024];
@@ -320,22 +321,16 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     env = cpu_init();
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
-    /* Register CPU as a 74x/75x */
+    /* Default CPU is a generic 74x/75x */
+    if (cpu_model == NULL)
+        cpu_model = "750";
     /* XXX: CPU model (or PVR) should be provided on command line */
     //    ppc_find_by_name("750gx", &def); // Linux boot OK
     //    ppc_find_by_name("750fx", &def); // Linux boot OK
     /* Linux does not boot on 750cxe (and probably other 750cx based)
      * because it assumes it has 8 IBAT & DBAT pairs as it only have 4.
      */
-    //    ppc_find_by_name("750cxe", &def);
-    //    ppc_find_by_name("750p", &def);
-    //    ppc_find_by_name("740p", &def);
-    ppc_find_by_name("750", &def);
-    //    ppc_find_by_name("740", &def);
-    //    ppc_find_by_name("G3", &def);
-    //    ppc_find_by_name("604r", &def);
-    //    ppc_find_by_name("604e", &def);
-    //    ppc_find_by_name("604", &def);
+    ppc_find_by_name(cpu_model, &def);
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }
@@ -525,30 +520,32 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
 
-static void ppc_core99_init(int ram_size, int vga_ram_size, int boot_device,
-                            DisplayState *ds, const char **fd_filename, 
-                            int snapshot,
-                            const char *kernel_filename, 
-                            const char *kernel_cmdline,
-                            const char *initrd_filename)
+static void ppc_core99_init (int ram_size, int vga_ram_size, int boot_device,
+                             DisplayState *ds, const char **fd_filename,
+                             int snapshot,
+                             const char *kernel_filename,
+                             const char *kernel_cmdline,
+                             const char *initrd_filename,
+                             const char *cpu_model)
 {
     ppc_chrp_init(ram_size, vga_ram_size, boot_device,
                   ds, fd_filename, snapshot,
                   kernel_filename, kernel_cmdline,
-                  initrd_filename, 0);
+                  initrd_filename, cpu_model, 0);
 }
     
-static void ppc_heathrow_init(int ram_size, int vga_ram_size, int boot_device,
-                              DisplayState *ds, const char **fd_filename, 
-                              int snapshot,
-                              const char *kernel_filename, 
-                              const char *kernel_cmdline,
-                              const char *initrd_filename)
+static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
+                               DisplayState *ds, const char **fd_filename,
+                               int snapshot,
+                               const char *kernel_filename,
+                               const char *kernel_cmdline,
+                               const char *initrd_filename,
+                               const char *cpu_model)
 {
     ppc_chrp_init(ram_size, vga_ram_size, boot_device,
                   ds, fd_filename, snapshot,
                   kernel_filename, kernel_cmdline,
-                  initrd_filename, 1);
+                  initrd_filename, cpu_model, 1);
 }
 
 QEMUMachine core99_machine = {

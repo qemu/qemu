@@ -615,7 +615,7 @@ static
 void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
                       DisplayState *ds, const char **fd_filename, int snapshot,
                       const char *kernel_filename, const char *kernel_cmdline,
-                      const char *initrd_filename)
+                      const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
     unsigned long bios_offset;
