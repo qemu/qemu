@@ -77,14 +77,6 @@ struct PCNetState_st {
     void *dma_opaque;
 };
 
-/* XXX: using bitfields for target memory structures is almost surely
-   not portable, so it should be suppressed ASAP */
-#ifdef __GNUC__
-#define PACKED_FIELD(A) A __attribute__ ((packed))
-#else
-#error FixMe
-#endif
-
 struct qemu_ether_header {
     uint8_t ether_dhost[6];
     uint8_t ether_shost[6];
@@ -183,223 +175,291 @@ struct pcnet_initblk32 {
 };
 
 struct pcnet_TMD {
-    struct {
-        unsigned tbadr:32;
-    } tmd0;
-    struct {
-        unsigned PACKED_FIELD(bcnt:12), PACKED_FIELD(ones:4), PACKED_FIELD(res:7), PACKED_FIELD(bpe:1);
-        unsigned PACKED_FIELD(enp:1), PACKED_FIELD(stp:1), PACKED_FIELD(def:1), PACKED_FIELD(one:1);
-        unsigned PACKED_FIELD(ltint:1), PACKED_FIELD(nofcs:1), PACKED_FIELD(err:1), PACKED_FIELD(own:1);
-    } tmd1;
-    struct {
-        unsigned PACKED_FIELD(trc:4), PACKED_FIELD(res:12);
-        unsigned PACKED_FIELD(tdr:10), PACKED_FIELD(rtry:1), PACKED_FIELD(lcar:1);
-        unsigned PACKED_FIELD(lcol:1), PACKED_FIELD(exdef:1), PACKED_FIELD(uflo:1), PACKED_FIELD(buff:1);
-    } tmd2;
-    struct {
-        unsigned res:32;
-    } tmd3;    
+    uint32_t tbadr;
+    int16_t length;
+    int16_t status;
+    uint32_t misc;
+    uint32_t res;
 };
+
+#define TMDL_BCNT_MASK  0x0fff
+#define TMDL_BCNT_SH    0
+#define TMDL_ONES_MASK  0xf000
+#define TMDL_ONES_SH    12
+
+#define TMDS_BPE_MASK   0x0080
+#define TMDS_BPE_SH     7
+#define TMDS_ENP_MASK   0x0100
+#define TMDS_ENP_SH     8
+#define TMDS_STP_MASK   0x0200
+#define TMDS_STP_SH     9
+#define TMDS_DEF_MASK   0x0400
+#define TMDS_DEF_SH     10
+#define TMDS_ONE_MASK   0x0800
+#define TMDS_ONE_SH     11
+#define TMDS_LTINT_MASK 0x1000
+#define TMDS_LTINT_SH   12
+#define TMDS_NOFCS_MASK 0x2000
+#define TMDS_NOFCS_SH   13
+#define TMDS_ERR_MASK   0x4000
+#define TMDS_ERR_SH     14
+#define TMDS_OWN_MASK   0x8000
+#define TMDS_OWN_SH     15
+
+#define TMDM_TRC_MASK   0x0000000f
+#define TMDM_TRC_SH     0
+#define TMDM_TDR_MASK   0x03ff0000
+#define TMDM_TDR_SH     16
+#define TMDM_RTRY_MASK  0x04000000
+#define TMDM_RTRY_SH    26
+#define TMDM_LCAR_MASK  0x08000000
+#define TMDM_LCAR_SH    27
+#define TMDM_LCOL_MASK  0x10000000
+#define TMDM_LCOL_SH    28
+#define TMDM_EXDEF_MASK 0x20000000
+#define TMDM_EXDEF_SH   29
+#define TMDM_UFLO_MASK  0x40000000
+#define TMDM_UFLO_SH    30
+#define TMDM_BUFF_MASK  0x80000000
+#define TMDM_BUFF_SH    31
 
 struct pcnet_RMD {
-    struct {
-        unsigned rbadr:32;
-    } rmd0;
-    struct {
-        unsigned PACKED_FIELD(bcnt:12), PACKED_FIELD(ones:4), PACKED_FIELD(res:4);
-        unsigned PACKED_FIELD(bam:1), PACKED_FIELD(lafm:1), PACKED_FIELD(pam:1), PACKED_FIELD(bpe:1);
-        unsigned PACKED_FIELD(enp:1), PACKED_FIELD(stp:1), PACKED_FIELD(buff:1), PACKED_FIELD(crc:1);
-        unsigned PACKED_FIELD(oflo:1), PACKED_FIELD(fram:1), PACKED_FIELD(err:1), PACKED_FIELD(own:1);
-    } rmd1;
-    struct {
-        unsigned PACKED_FIELD(mcnt:12), PACKED_FIELD(zeros:4);
-        unsigned PACKED_FIELD(rpc:8), PACKED_FIELD(rcc:8);
-    } rmd2;    
-    struct {
-        unsigned res:32;
-    } rmd3;    
+    uint32_t rbadr;
+    int16_t buf_length;
+    int16_t status;
+    uint32_t msg_length;
+    uint32_t res;
 };
 
+#define RMDL_BCNT_MASK  0x0fff
+#define RMDL_BCNT_SH    0
+#define RMDL_ONES_MASK  0xf000
+#define RMDL_ONES_SH    12
 
-#define PRINT_TMD(T) printf(    \
-        "TMD0 : TBADR=0x%08x\n" \
+#define RMDS_BAM_MASK   0x0010
+#define RMDS_BAM_SH     4
+#define RMDS_LFAM_MASK  0x0020
+#define RMDS_LFAM_SH    5
+#define RMDS_PAM_MASK   0x0040
+#define RMDS_PAM_SH     6
+#define RMDS_BPE_MASK   0x0080
+#define RMDS_BPE_SH     7
+#define RMDS_ENP_MASK   0x0100
+#define RMDS_ENP_SH     8
+#define RMDS_STP_MASK   0x0200
+#define RMDS_STP_SH     9
+#define RMDS_BUFF_MASK  0x0400
+#define RMDS_BUFF_SH    10
+#define RMDS_CRC_MASK   0x0800
+#define RMDS_CRC_SH     11
+#define RMDS_OFLO_MASK  0x1000
+#define RMDS_OFLO_SH    12
+#define RMDS_FRAM_MASK  0x2000
+#define RMDS_FRAM_SH    13
+#define RMDS_ERR_MASK   0x4000
+#define RMDS_ERR_SH     14
+#define RMDS_OWN_MASK   0x8000
+#define RMDS_OWN_SH     15
+
+#define RMDM_MCNT_MASK  0x00000fff
+#define RMDM_MCNT_SH    0
+#define RMDM_ZEROS_MASK 0x0000f000
+#define RMDM_ZEROS_SH   12
+#define RMDM_RPC_MASK   0x00ff0000
+#define RMDM_RPC_SH     16
+#define RMDM_RCC_MASK   0xff000000
+#define RMDM_RCC_SH     24
+
+#define SET_FIELD(regp, name, field, value)             \
+  (*(regp) = (*(regp) & ~(name ## _ ## field ## _MASK)) \
+             | ((value) << name ## _ ## field ## _SH))
+
+#define GET_FIELD(reg, name, field)                     \
+  (((reg) & name ## _ ## field ## _MASK) >> name ## _ ## field ## _SH)
+
+#define PRINT_TMD(T) printf(                            \
+        "TMD0 : TBADR=0x%08x\n"                         \
         "TMD1 : OWN=%d, ERR=%d, FCS=%d, LTI=%d, "       \
         "ONE=%d, DEF=%d, STP=%d, ENP=%d,\n"             \
         "       BPE=%d, BCNT=%d\n"                      \
         "TMD2 : BUF=%d, UFL=%d, EXD=%d, LCO=%d, "       \
         "LCA=%d, RTR=%d,\n"                             \
         "       TDR=%d, TRC=%d\n",                      \
-        (T)->tmd0.tbadr,                                \
-        (T)->tmd1.own, (T)->tmd1.err, (T)->tmd1.nofcs,  \
-        (T)->tmd1.ltint, (T)->tmd1.one, (T)->tmd1.def,  \
-        (T)->tmd1.stp, (T)->tmd1.enp, (T)->tmd1.bpe,    \
-        4096-(T)->tmd1.bcnt,                            \
-        (T)->tmd2.buff, (T)->tmd2.uflo, (T)->tmd2.exdef,\
-        (T)->tmd2.lcol, (T)->tmd2.lcar, (T)->tmd2.rtry, \
-        (T)->tmd2.tdr, (T)->tmd2.trc)
+        (T)->tbadr,                                     \
+        GET_FIELD((T)->status, TMDS, OWN),              \
+        GET_FIELD((T)->status, TMDS, ERR),              \
+        GET_FIELD((T)->status, TMDS, NOFCS),            \
+        GET_FIELD((T)->status, TMDS, LTINT),            \
+        GET_FIELD((T)->status, TMDS, ONE),              \
+        GET_FIELD((T)->status, TMDS, DEF),              \
+        GET_FIELD((T)->status, TMDS, STP),              \
+        GET_FIELD((T)->status, TMDS, ENP),              \
+        GET_FIELD((T)->status, TMDS, BPE),              \
+        4096-GET_FIELD((T)->length, TMDL, BCNT),        \
+        GET_FIELD((T)->misc, TMDM, BUFF),               \
+        GET_FIELD((T)->misc, TMDM, UFLO),               \
+        GET_FIELD((T)->misc, TMDM, EXDEF),              \
+        GET_FIELD((T)->misc, TMDM, LCOL),               \
+        GET_FIELD((T)->misc, TMDM, LCAR),               \
+        GET_FIELD((T)->misc, TMDM, RTRY),               \
+        GET_FIELD((T)->misc, TMDM, TDR),                \
+        GET_FIELD((T)->misc, TMDM, TRC))
 
-#define PRINT_RMD(R) printf(    \
-        "RMD0 : RBADR=0x%08x\n" \
+#define PRINT_RMD(R) printf(                            \
+        "RMD0 : RBADR=0x%08x\n"                         \
         "RMD1 : OWN=%d, ERR=%d, FRAM=%d, OFLO=%d, "     \
         "CRC=%d, BUFF=%d, STP=%d, ENP=%d,\n       "     \
-        "BPE=%d, PAM=%d, LAFM=%d, BAM=%d, ONES=%d, BCNT=%d\n"    \
+        "BPE=%d, PAM=%d, LAFM=%d, BAM=%d, ONES=%d, BCNT=%d\n" \
         "RMD2 : RCC=%d, RPC=%d, MCNT=%d, ZEROS=%d\n",   \
-        (R)->rmd0.rbadr,                                \
-        (R)->rmd1.own, (R)->rmd1.err, (R)->rmd1.fram,   \
-        (R)->rmd1.oflo, (R)->rmd1.crc, (R)->rmd1.buff,  \
-        (R)->rmd1.stp, (R)->rmd1.enp, (R)->rmd1.bpe,    \
-        (R)->rmd1.pam, (R)->rmd1.lafm, (R)->rmd1.bam,   \
-        (R)->rmd1.ones, 4096-(R)->rmd1.bcnt,            \
-        (R)->rmd2.rcc, (R)->rmd2.rpc, (R)->rmd2.mcnt,   \
-        (R)->rmd2.zeros)
+        (R)->rbadr,                                     \
+        GET_FIELD((R)->status, RMDS, OWN),              \
+        GET_FIELD((R)->status, RMDS, ERR),              \
+        GET_FIELD((R)->status, RMDS, FRAM),             \
+        GET_FIELD((R)->status, RMDS, OFLO),             \
+        GET_FIELD((R)->status, RMDS, CRC),              \
+        GET_FIELD((R)->status, RMDS, BUFF),             \
+        GET_FIELD((R)->status, RMDS, STP),              \
+        GET_FIELD((R)->status, RMDS, ENP),              \
+        GET_FIELD((R)->status, RMDS, BPE),              \
+        GET_FIELD((R)->status, RMDS, PAM),              \
+        GET_FIELD((R)->status, RMDS, LFAM),             \
+        GET_FIELD((R)->status, RMDS, BAM),              \
+        GET_FIELD((R)->buf_length, RMDL, ONES),         \
+        4096-GET_FIELD((R)->buf_length, RMDL, BCNT),    \
+        GET_FIELD((R)->msg_length, RMDM, RCC),          \
+        GET_FIELD((R)->msg_length, RMDM, RPC),          \
+        GET_FIELD((R)->msg_length, RMDM, MCNT),         \
+        GET_FIELD((R)->msg_length, RMDM, ZEROS))
 
-static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd1, 
+static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
                                   target_phys_addr_t addr)
 {
-    uint32_t *tmd = (uint32_t *)tmd1;
-
-    if (!BCR_SWSTYLE(s)) {
-        uint16_t xda[4];
-        s->phys_mem_read(s->dma_opaque, addr,
-                (void *)&xda[0], sizeof(xda), 0);
-        le16_to_cpus(&xda[0]);
-        le16_to_cpus(&xda[1]);
-        le16_to_cpus(&xda[2]);
-        le16_to_cpus(&xda[3]);
-        tmd[0] = (xda[0]&0xffff) |
-            ((xda[1]&0x00ff) << 16);
-        tmd[1] = (xda[2]&0xffff)|
-            ((xda[1] & 0xff00) << 16);
-        tmd[2] =
-            (xda[3] & 0xffff) << 16;
-        tmd[3] = 0;
+    if (!BCR_SSIZE32(s)) {
+        struct {
+            uint32_t tbadr;
+            int16_t length;
+            int16_t status;
+	} xda;
+        s->phys_mem_read(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        tmd->tbadr = le32_to_cpu(xda.tbadr) & 0xffffff;
+        tmd->length = le16_to_cpu(xda.length);
+        tmd->status = (le32_to_cpu(xda.tbadr) >> 16) & 0xff00;
+        tmd->misc = le16_to_cpu(xda.status) << 16;
+        tmd->res = 0;
     } else {
-        uint32_t xda[4];
-        s->phys_mem_read(s->dma_opaque, addr,
-                (void *)&xda[0], sizeof(xda), 0);
-        le32_to_cpus(&xda[0]);
-        le32_to_cpus(&xda[1]);
-        le32_to_cpus(&xda[2]);
-        le32_to_cpus(&xda[3]);
-        if (BCR_SWSTYLE(s) != 3) {
-            memcpy(tmd, xda, sizeof(xda));
-        } else {
-            tmd[0] = xda[2];
-            tmd[1] = xda[1];
-            tmd[2] = xda[0];
-            tmd[3] = xda[3];
+        s->phys_mem_read(s->dma_opaque, addr, (void *)tmd, sizeof(*tmd), 0);
+        le32_to_cpus(&tmd->tbadr);
+        le16_to_cpus(&tmd->length);
+        le16_to_cpus(&tmd->status);
+        le32_to_cpus(&tmd->misc);
+        le32_to_cpus(&tmd->res);
+        if (BCR_SWSTYLE(s) == 3) {
+            uint32_t tmp = tmd->tbadr;
+            tmd->tbadr = tmd->misc;
+            tmd->misc = tmp;
         }
     }
 }
 
-static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd1,
+static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
                                    target_phys_addr_t addr)
 {
-    const uint32_t *tmd = (const uint32_t *)tmd1;
-    if (!BCR_SWSTYLE(s)) {
-        uint16_t xda[4];
-        xda[0] = tmd[0] & 0xffff;
-        xda[1] = ((tmd[0]>>16)&0x00ff) |
-            ((tmd[1]>>16)&0xff00);
-        xda[2] = tmd[1] & 0xffff;
-        xda[3] = tmd[2] >> 16;
-        cpu_to_le16s(&xda[0]);
-        cpu_to_le16s(&xda[1]);
-        cpu_to_le16s(&xda[2]);
-        cpu_to_le16s(&xda[3]);
-        s->phys_mem_write(s->dma_opaque, addr,
-                (void *)&xda[0], sizeof(xda), 0);
+    if (!BCR_SSIZE32(s)) {
+        struct {
+            uint32_t tbadr;
+            int16_t length;
+            int16_t status;
+        } xda;
+        xda.tbadr = cpu_to_le32((tmd->tbadr & 0xffffff) |
+                                ((tmd->status & 0xff00) << 16));
+        xda.length = cpu_to_le16(tmd->length);
+        xda.status = cpu_to_le16(tmd->misc >> 16);
+        s->phys_mem_write(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
     } else {
-        uint32_t xda[4];
-        if (BCR_SWSTYLE(s) != 3) {
-            memcpy(xda, tmd, sizeof(xda));
-        } else {
-            xda[0] = tmd[2];
-            xda[1] = tmd[1];
-            xda[2] = tmd[0];
-            xda[3] = tmd[3];
+        struct {
+            uint32_t tbadr;
+            int16_t length;
+            int16_t status;
+            uint32_t misc;
+            uint32_t res;
+        } xda;
+        xda.tbadr = cpu_to_le32(tmd->tbadr);
+        xda.length = cpu_to_le16(tmd->length);
+        xda.status = cpu_to_le16(tmd->status);
+        xda.misc = cpu_to_le32(tmd->misc);
+        xda.res = cpu_to_le32(tmd->res);
+        if (BCR_SWSTYLE(s) == 3) {
+            uint32_t tmp = xda.tbadr;
+            xda.tbadr = xda.misc;
+            xda.misc = tmp;
         }
-        cpu_to_le32s(&xda[0]);
-        cpu_to_le32s(&xda[1]);
-        cpu_to_le32s(&xda[2]);
-        cpu_to_le32s(&xda[3]);
-        s->phys_mem_write(s->dma_opaque, addr,
-                          (void *)&xda[0], sizeof(xda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
     }
 }
 
-static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd1,
+static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
                                   target_phys_addr_t addr)
 {
-    uint32_t *rmd = (uint32_t *)rmd1;
-
-    if (!BCR_SWSTYLE(s)) {
-        uint16_t rda[4];
-        s->phys_mem_read(s->dma_opaque, addr, 
-                         (void *)&rda[0], sizeof(rda), 0);
-        le16_to_cpus(&rda[0]);
-        le16_to_cpus(&rda[1]);
-        le16_to_cpus(&rda[2]);
-        le16_to_cpus(&rda[3]);
-        rmd[0] = (rda[0]&0xffff)|
-            ((rda[1] & 0x00ff) << 16);
-        rmd[1] = (rda[2]&0xffff)|
-            ((rda[1] & 0xff00) << 16);
-        rmd[2] = rda[3] & 0xffff;
-        rmd[3] = 0;
+    if (!BCR_SSIZE32(s)) {
+        struct {
+            uint32_t rbadr;
+            int16_t buf_length;
+            int16_t msg_length;
+	} rda;
+        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        rmd->rbadr = le32_to_cpu(rda.rbadr) & 0xffffff;
+        rmd->buf_length = le16_to_cpu(rda.buf_length);
+        rmd->status = (le32_to_cpu(rda.rbadr) >> 16) & 0xff00;
+        rmd->msg_length = le16_to_cpu(rda.msg_length);
+        rmd->res = 0;
     } else {
-        uint32_t rda[4];
-        s->phys_mem_read(s->dma_opaque, addr, 
-                         (void *)&rda[0], sizeof(rda), 0);
-        le32_to_cpus(&rda[0]);
-        le32_to_cpus(&rda[1]);
-        le32_to_cpus(&rda[2]);
-        le32_to_cpus(&rda[3]);
-        if (BCR_SWSTYLE(s) != 3) {
-            memcpy(rmd, rda, sizeof(rda));
-        } else {
-            rmd[0] = rda[2];
-            rmd[1] = rda[1];
-            rmd[2] = rda[0];
-            rmd[3] = rda[3];
+        s->phys_mem_read(s->dma_opaque, addr, (void *)rmd, sizeof(*rmd), 0);
+        le32_to_cpus(&rmd->rbadr);
+        le16_to_cpus(&rmd->buf_length);
+        le16_to_cpus(&rmd->status);
+        le32_to_cpus(&rmd->msg_length);
+        le32_to_cpus(&rmd->res);
+        if (BCR_SWSTYLE(s) == 3) {
+            uint32_t tmp = rmd->rbadr;
+            rmd->rbadr = rmd->msg_length;
+            rmd->msg_length = tmp;
         }
     }
 }
 
-static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1, 
+static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
                                    target_phys_addr_t addr)
 {
-    const uint32_t *rmd = (const uint32_t *)rmd1;
-
-    if (!BCR_SWSTYLE(s)) {
-        uint16_t rda[4];
-        rda[0] = rmd[0] & 0xffff;
-        rda[1] = ((rmd[0]>>16)&0xff)|
-            ((rmd[1]>>16)&0xff00);
-        rda[2] = rmd[1] & 0xffff;
-        rda[3] = rmd[2] & 0xffff;
-        cpu_to_le16s(&rda[0]);
-        cpu_to_le16s(&rda[1]);
-        cpu_to_le16s(&rda[2]);
-        cpu_to_le16s(&rda[3]);
-        s->phys_mem_write(s->dma_opaque, addr,
-                (void *)&rda[0], sizeof(rda), 0);
+    if (!BCR_SSIZE32(s)) {
+        struct {
+            uint32_t rbadr;
+            int16_t buf_length;
+            int16_t msg_length;
+        } rda;
+        rda.rbadr = cpu_to_le32((rmd->rbadr & 0xffffff) |
+                                ((rmd->status & 0xff00) << 16));
+        rda.buf_length = cpu_to_le16(rmd->buf_length);
+        rda.msg_length = cpu_to_le16(rmd->msg_length);
+        s->phys_mem_write(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
     } else {
-        uint32_t rda[4];
-        if (BCR_SWSTYLE(s) != 3) {
-            memcpy(rda, rmd, sizeof(rda));
-        } else {
-            rda[0] = rmd[2];
-            rda[1] = rmd[1];
-            rda[2] = rmd[0];
-            rda[3] = rmd[3];
+        struct {
+            uint32_t rbadr;
+            int16_t buf_length;
+            int16_t status;
+            uint32_t msg_length;
+            uint32_t res;
+        } rda;
+        rda.rbadr = cpu_to_le32(rmd->rbadr);
+        rda.buf_length = cpu_to_le16(rmd->buf_length);
+        rda.status = cpu_to_le16(rmd->status);
+        rda.msg_length = cpu_to_le32(rmd->msg_length);
+        rda.res = cpu_to_le32(rmd->res);
+        if (BCR_SWSTYLE(s) == 3) {
+            uint32_t tmp = rda.rbadr;
+            rda.rbadr = rda.msg_length;
+            rda.msg_length = tmp;
         }
-        cpu_to_le32s(&rda[0]);
-        cpu_to_le32s(&rda[1]);
-        cpu_to_le32s(&rda[2]);
-        cpu_to_le32s(&rda[3]);
-        s->phys_mem_write(s->dma_opaque, addr,
-                          (void *)&rda[0], sizeof(rda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
     }
 }
 
@@ -417,14 +477,14 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
 #define CHECK_RMD(ADDR,RES) do {                \
     struct pcnet_RMD rmd;                       \
     RMDLOAD(&rmd,(ADDR));                       \
-    (RES) |= (rmd.rmd1.ones != 15)              \
-          || (rmd.rmd2.zeros != 0);             \
+    (RES) |= (GET_FIELD(rmd.buf_length, RMDL, ONES) != 15) \
+          || (GET_FIELD(rmd.msg_length, RMDM, ZEROS) != 0); \
 } while (0)
 
 #define CHECK_TMD(ADDR,RES) do {                \
     struct pcnet_TMD tmd;                       \
     TMDLOAD(&tmd,(ADDR));                       \
-    (RES) |= (tmd.tmd1.ones != 15);             \
+    (RES) |= (GET_FIELD(tmd.length, TMDL, ONES) != 15); \
 } while (0)
 
 #else
@@ -434,8 +494,8 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
     case 0x00:                                  \
         do {                                    \
             uint16_t rda[4];                    \
-            s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&rda[0], sizeof(rda), 0);  \
+            s->phys_mem_read(s->dma_opaque, (ADDR), \
+                (void *)&rda[0], sizeof(rda), 0); \
             (RES) |= (rda[2] & 0xf000)!=0xf000; \
             (RES) |= (rda[3] & 0xf000)!=0x0000; \
         } while (0);                            \
@@ -444,7 +504,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
     case 0x02:                                  \
         do {                                    \
             uint32_t rda[4];                    \
-            s->phys_mem_read(s->dma_opaque, (ADDR),    \
+            s->phys_mem_read(s->dma_opaque, (ADDR), \
                 (void *)&rda[0], sizeof(rda), 0); \
             (RES) |= (rda[1] & 0x0000f000L)!=0x0000f000L; \
             (RES) |= (rda[2] & 0x0000f000L)!=0x00000000L; \
@@ -453,7 +513,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
     case 0x03:                                  \
         do {                                    \
             uint32_t rda[4];                    \
-            s->phys_mem_read(s->dma_opaque, (ADDR),    \
+            s->phys_mem_read(s->dma_opaque, (ADDR), \
                 (void *)&rda[0], sizeof(rda), 0); \
             (RES) |= (rda[0] & 0x0000f000L)!=0x00000000L; \
             (RES) |= (rda[1] & 0x0000f000L)!=0x0000f000L; \
@@ -467,9 +527,9 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
     case 0x00:                                  \
         do {                                    \
             uint16_t xda[4];                    \
-            s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&xda[0], sizeof(xda), 0);  \
-            (RES) |= (xda[2] & 0xf000)!=0xf000;\
+            s->phys_mem_read(s->dma_opaque, (ADDR), \
+                (void *)&xda[0], sizeof(xda), 0); \
+            (RES) |= (xda[2] & 0xf000)!=0xf000; \
         } while (0);                            \
         break;                                  \
     case 0x01:                                  \
@@ -477,8 +537,8 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
     case 0x03:                                  \
         do {                                    \
             uint32_t xda[4];                    \
-            s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&xda[0], sizeof(xda), 0);  \
+            s->phys_mem_read(s->dma_opaque, (ADDR), \
+                (void *)&xda[0], sizeof(xda), 0); \
             (RES) |= (xda[1] & 0x0000f000L)!=0x0000f000L; \
         } while (0);                            \
         break;                                  \
@@ -488,15 +548,15 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
 #endif
 
 #define PRINT_PKTHDR(BUF) do {                  \
-    struct qemu_ether_header *hdr = (void *)(BUF);   \
-    printf("packet dhost=%02x:%02x:%02x:%02x:%02x:%02x, "       \
-           "shost=%02x:%02x:%02x:%02x:%02x:%02x, "              \
-           "type=0x%04x\n",                          \
+    struct qemu_ether_header *hdr = (void *)(BUF); \
+    printf("packet dhost=%02x:%02x:%02x:%02x:%02x:%02x, " \
+           "shost=%02x:%02x:%02x:%02x:%02x:%02x, " \
+           "type=0x%04x\n",                     \
            hdr->ether_dhost[0],hdr->ether_dhost[1],hdr->ether_dhost[2], \
            hdr->ether_dhost[3],hdr->ether_dhost[4],hdr->ether_dhost[5], \
            hdr->ether_shost[0],hdr->ether_shost[1],hdr->ether_shost[2], \
            hdr->ether_shost[3],hdr->ether_shost[4],hdr->ether_shost[5], \
-           be16_to_cpu(hdr->ether_type));                     \
+           be16_to_cpu(hdr->ether_type));       \
 } while (0)
 
 #define MULTICAST_FILTER_LEN 8
@@ -770,7 +830,7 @@ static void pcnet_update_irq(PCNetState *s)
 static void pcnet_init(PCNetState *s)
 {
     int rlen, tlen;
-    uint16_t *padr, *ladrf, mode;
+    uint16_t padr[3], ladrf[4], mode;
     uint32_t rdra, tdra;
 
 #ifdef PCNET_DEBUG
@@ -781,22 +841,30 @@ static void pcnet_init(PCNetState *s)
         struct pcnet_initblk32 initblk;
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s,CSR_IADR(s)),
                 (uint8_t *)&initblk, sizeof(initblk), 0);
-        mode = initblk.mode;
+        mode = le16_to_cpu(initblk.mode);
         rlen = initblk.rlen >> 4;
         tlen = initblk.tlen >> 4;
-        ladrf = initblk.ladrf;
-        padr = initblk.padr;
+	ladrf[0] = le16_to_cpu(initblk.ladrf[0]);
+	ladrf[1] = le16_to_cpu(initblk.ladrf[1]);
+	ladrf[2] = le16_to_cpu(initblk.ladrf[2]);
+	ladrf[3] = le16_to_cpu(initblk.ladrf[3]);
+	padr[0] = le16_to_cpu(initblk.padr[0]);
+	padr[1] = le16_to_cpu(initblk.padr[1]);
+	padr[2] = le16_to_cpu(initblk.padr[2]);
         rdra = le32_to_cpu(initblk.rdra);
         tdra = le32_to_cpu(initblk.tdra);
-        s->rdra = PHYSADDR(s,initblk.rdra);
-        s->tdra = PHYSADDR(s,initblk.tdra);
     } else {
         struct pcnet_initblk16 initblk;
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s,CSR_IADR(s)),
                 (uint8_t *)&initblk, sizeof(initblk), 0);
-        mode = initblk.mode;
-        ladrf = initblk.ladrf;
-        padr = initblk.padr;
+        mode = le16_to_cpu(initblk.mode);
+	ladrf[0] = le16_to_cpu(initblk.ladrf[0]);
+	ladrf[1] = le16_to_cpu(initblk.ladrf[1]);
+	ladrf[2] = le16_to_cpu(initblk.ladrf[2]);
+	ladrf[3] = le16_to_cpu(initblk.ladrf[3]);
+	padr[0] = le16_to_cpu(initblk.padr[0]);
+	padr[1] = le16_to_cpu(initblk.padr[1]);
+	padr[2] = le16_to_cpu(initblk.padr[2]);
         rdra = le32_to_cpu(initblk.rdra);
         tdra = le32_to_cpu(initblk.tdra);
         rlen = rdra >> 29;
@@ -804,22 +872,22 @@ static void pcnet_init(PCNetState *s)
         rdra &= 0x00ffffff;
         tdra &= 0x00ffffff;
     }
-    
+
 #if defined(PCNET_DEBUG)
-    printf("rlen=%d tlen=%d\n",
-           rlen, tlen);
+    printf("rlen=%d tlen=%d\n", rlen, tlen);
 #endif
+
     CSR_RCVRL(s) = (rlen < 9) ? (1 << rlen) : 512;
     CSR_XMTRL(s) = (tlen < 9) ? (1 << tlen) : 512;
     s->csr[ 6] = (tlen << 12) | (rlen << 8);
-    s->csr[15] = le16_to_cpu(mode);
-    s->csr[ 8] = le16_to_cpu(ladrf[0]);
-    s->csr[ 9] = le16_to_cpu(ladrf[1]);
-    s->csr[10] = le16_to_cpu(ladrf[2]);
-    s->csr[11] = le16_to_cpu(ladrf[3]);
-    s->csr[12] = le16_to_cpu(padr[0]);
-    s->csr[13] = le16_to_cpu(padr[1]);
-    s->csr[14] = le16_to_cpu(padr[2]);
+    s->csr[15] = mode;
+    s->csr[ 8] = ladrf[0];
+    s->csr[ 9] = ladrf[1];
+    s->csr[10] = ladrf[2];
+    s->csr[11] = ladrf[3];
+    s->csr[12] = padr[0];
+    s->csr[13] = padr[1];
+    s->csr[14] = padr[2];
     s->rdra = PHYSADDR(s, rdra);
     s->tdra = PHYSADDR(s, tdra);
 
@@ -914,12 +982,12 @@ static void pcnet_rdte_poll(PCNetState *s)
     if (CSR_CRDA(s)) {
         struct pcnet_RMD rmd;
         RMDLOAD(&rmd, PHYSADDR(s,CSR_CRDA(s)));
-        CSR_CRBC(s) = rmd.rmd1.bcnt;
-        CSR_CRST(s) = ((uint32_t *)&rmd)[1] >> 16;
+        CSR_CRBC(s) = GET_FIELD(rmd.buf_length, RMDL, BCNT);
+        CSR_CRST(s) = rmd.status;
 #ifdef PCNET_DEBUG_RMD_X
-        printf("CRDA=0x%08x CRST=0x%04x RCVRC=%d RMD1=0x%08x RMD2=0x%08x\n",
+        printf("CRDA=0x%08x CRST=0x%04x RCVRC=%d RMDL=0x%04x RMDS=0x%04x RMDM=0x%08x\n",
                 PHYSADDR(s,CSR_CRDA(s)), CSR_CRST(s), CSR_RCVRC(s),
-                ((uint32_t *)&rmd)[1], ((uint32_t *)&rmd)[2]);
+                rmd.buf_length, rmd.status, rmd.msg_length);
         PRINT_RMD(&rmd);
 #endif
     } else {
@@ -929,8 +997,8 @@ static void pcnet_rdte_poll(PCNetState *s)
     if (CSR_NRDA(s)) {
         struct pcnet_RMD rmd;
         RMDLOAD(&rmd, PHYSADDR(s,CSR_NRDA(s)));
-        CSR_NRBC(s) = rmd.rmd1.bcnt;
-        CSR_NRST(s) = ((uint32_t *)&rmd)[1] >> 16;
+        CSR_NRBC(s) = GET_FIELD(rmd.buf_length, RMDL, BCNT);
+        CSR_NRST(s) = rmd.status;
     } else {
         CSR_NRBC(s) = CSR_NRST(s) = 0;
     }
@@ -943,7 +1011,7 @@ static int pcnet_tdte_poll(PCNetState *s)
     if (s->tdra) {
         target_phys_addr_t cxda = s->tdra + 
             (CSR_XMTRL(s) - CSR_XMTRC(s)) *
-            (BCR_SWSTYLE(s) ? 16 : 8 );
+            (BCR_SWSTYLE(s) ? 16 : 8);
         int bad = 0;
         CHECK_TMD(PHYSADDR(s, cxda),bad);
         if (!bad) {
@@ -955,8 +1023,7 @@ static int pcnet_tdte_poll(PCNetState *s)
             }
             s->csr[34] = cxda & 0xffff;
             s->csr[35] = cxda >> 16;
-#ifdef PCNET_DEBUG
-        } else {
+#ifdef PCNET_DEBUG_X
             printf("pcnet: BAD TMD XDA=0x%08x\n", PHYSADDR(s,cxda));
 #endif
         }
@@ -967,8 +1034,8 @@ static int pcnet_tdte_poll(PCNetState *s)
 
         TMDLOAD(&tmd, PHYSADDR(s,CSR_CXDA(s)));                
 
-        CSR_CXBC(s) = tmd.tmd1.bcnt;
-        CSR_CXST(s) = ((uint32_t *)&tmd)[1] >> 16;
+        CSR_CXBC(s) = GET_FIELD(tmd.length, TMDL, BCNT);
+        CSR_CXST(s) = tmd.status;
     } else {
         CSR_CXBC(s) = CSR_CXST(s) = 0;
     }
@@ -1029,7 +1096,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
                     (CSR_RCVRL(s) - rcvrc) *
                     (BCR_SWSTYLE(s) ? 16 : 8 );
                 RMDLOAD(&rmd, PHYSADDR(s,nrda));                  
-                if (rmd.rmd1.own) {                
+                if (GET_FIELD(rmd.status, RMDS, OWN)) {
 #ifdef PCNET_DEBUG_RMD
                     printf("pcnet - scan buffer: RCVRC=%d PREV_RCVRC=%d\n", 
                                 rcvrc, CSR_RCVRC(s));
@@ -1086,14 +1153,15 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
 
             RMDLOAD(&rmd, PHYSADDR(s,crda));
             /*if (!CSR_LAPPEN(s))*/
-                rmd.rmd1.stp = 1;
+                SET_FIELD(&rmd.status, RMDS, STP, 1);
 
 #define PCNET_RECV_STORE() do {                                 \
-    int count = MIN(4096 - rmd.rmd1.bcnt,size);                 \
-    target_phys_addr_t rbadr = PHYSADDR(s, rmd.rmd0.rbadr);     \
-    s->phys_mem_write(s->dma_opaque, rbadr, src, count, CSR_BSWP(s));  \
+    int count = MIN(4096 - GET_FIELD(rmd.buf_length, RMDL, BCNT),size); \
+    target_phys_addr_t rbadr = PHYSADDR(s, rmd.rbadr);          \
+    s->phys_mem_write(s->dma_opaque, rbadr, src, count, CSR_BSWP(s)); \
     src += count; size -= count;                                \
-    rmd.rmd2.mcnt = count; rmd.rmd1.own = 0;                    \
+    SET_FIELD(&rmd.msg_length, RMDM, MCNT, count);              \
+    SET_FIELD(&rmd.status, RMDS, OWN, 0);                       \
     RMDSTORE(&rmd, PHYSADDR(s,crda));                           \
     pktcount++;                                                 \
 } while (0)
@@ -1102,12 +1170,12 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
             if ((size > 0) && CSR_NRDA(s)) {
                 target_phys_addr_t nrda = CSR_NRDA(s);
                 RMDLOAD(&rmd, PHYSADDR(s,nrda));
-                if (rmd.rmd1.own) {
+                if (GET_FIELD(rmd.status, RMDS, OWN)) {
                     crda = nrda;
                     PCNET_RECV_STORE();
                     if ((size > 0) && (nrda=CSR_NNRD(s))) {
                         RMDLOAD(&rmd, PHYSADDR(s,nrda));
-                        if (rmd.rmd1.own) {
+                        if (GET_FIELD(rmd.status, RMDS, OWN)) {
                             crda = nrda;
                             PCNET_RECV_STORE();
                         }
@@ -1119,14 +1187,14 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
 
             RMDLOAD(&rmd, PHYSADDR(s,crda));
             if (size == 0) {
-                rmd.rmd1.enp = 1;
-                rmd.rmd1.pam = !CSR_PROM(s) && is_padr;
-                rmd.rmd1.lafm = !CSR_PROM(s) && is_ladr;
-                rmd.rmd1.bam = !CSR_PROM(s) && is_bcast;
+                SET_FIELD(&rmd.status, RMDS, ENP, 1);
+                SET_FIELD(&rmd.status, RMDS, PAM, !CSR_PROM(s) && is_padr);
+                SET_FIELD(&rmd.status, RMDS, LFAM, !CSR_PROM(s) && is_ladr);
+                SET_FIELD(&rmd.status, RMDS, BAM, !CSR_PROM(s) && is_bcast);
             } else {
-                rmd.rmd1.oflo = 1;
-                rmd.rmd1.buff = 1;
-                rmd.rmd1.err = 1;
+                SET_FIELD(&rmd.status, RMDS, OFLO, 1);
+                SET_FIELD(&rmd.status, RMDS, BUFF, 1);
+                SET_FIELD(&rmd.status, RMDS, ERR, 1);
             }
             RMDSTORE(&rmd, PHYSADDR(s,crda));
             s->csr[0] |= 0x0400;
@@ -1172,30 +1240,30 @@ static void pcnet_transmit(PCNetState *s)
     if (pcnet_tdte_poll(s)) {
         struct pcnet_TMD tmd;
 
-        TMDLOAD(&tmd, PHYSADDR(s,CSR_CXDA(s)));                
+        TMDLOAD(&tmd, PHYSADDR(s,CSR_CXDA(s)));
 
 #ifdef PCNET_DEBUG_TMD
         printf("  TMDLOAD 0x%08x\n", PHYSADDR(s,CSR_CXDA(s)));
         PRINT_TMD(&tmd);
 #endif
-        if (tmd.tmd1.stp) {
-            s->xmit_pos = 0;                
-            if (!tmd.tmd1.enp) {
-                s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tmd0.tbadr),
-                                 s->buffer, 4096 - tmd.tmd1.bcnt, 
-                                 CSR_BSWP(s));
-                s->xmit_pos += 4096 - tmd.tmd1.bcnt;
-            } 
+        if (GET_FIELD(tmd.status, TMDS, STP)) {
+            s->xmit_pos = 0;
+            if (!GET_FIELD(tmd.status, TMDS, ENP)) {
+                int bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
+                s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
+                                 s->buffer, bcnt, CSR_BSWP(s));
+                s->xmit_pos += bcnt;
+            }
             xmit_cxda = PHYSADDR(s,CSR_CXDA(s));
         }
-        if (tmd.tmd1.enp && (s->xmit_pos >= 0)) {
-            s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tmd0.tbadr),
-                             s->buffer + s->xmit_pos, 4096 - tmd.tmd1.bcnt, 
-                             CSR_BSWP(s));
-            s->xmit_pos += 4096 - tmd.tmd1.bcnt;
+        if (GET_FIELD(tmd.status, TMDS, ENP) && (s->xmit_pos >= 0)) {
+            int bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
+            s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
+                             s->buffer + s->xmit_pos, bcnt, CSR_BSWP(s));
+            s->xmit_pos += bcnt;
 #ifdef PCNET_DEBUG
             printf("pcnet_transmit size=%d\n", s->xmit_pos);
-#endif            
+#endif
             if (CSR_LOOP(s))
                 pcnet_receive(s, s->buffer, s->xmit_pos);
             else
@@ -1206,9 +1274,9 @@ static void pcnet_transmit(PCNetState *s)
             s->xmit_pos = -1;
         }
 
-        tmd.tmd1.own = 0;
+        SET_FIELD(&tmd.status, TMDS, OWN, 0);
         TMDSTORE(&tmd, PHYSADDR(s,CSR_CXDA(s)));
-        if (!CSR_TOKINTD(s) || (CSR_LTINTEN(s) && tmd.tmd1.ltint))
+        if (!CSR_TOKINTD(s) || (CSR_LTINTEN(s) && GET_FIELD(tmd.status, TMDS, LTINT)))
             s->csr[0] |= 0x0200;    /* set TINT */
 
         if (CSR_XMTRC(s)<=1)
@@ -1221,9 +1289,11 @@ static void pcnet_transmit(PCNetState *s)
     } else 
     if (s->xmit_pos >= 0) {
         struct pcnet_TMD tmd;
-        TMDLOAD(&tmd, PHYSADDR(s,xmit_cxda));                
-        tmd.tmd2.buff = tmd.tmd2.uflo = tmd.tmd1.err = 1;
-        tmd.tmd1.own = 0;
+        TMDLOAD(&tmd, PHYSADDR(s,xmit_cxda));
+        SET_FIELD(&tmd.misc, TMDM, BUFF, 1);
+        SET_FIELD(&tmd.misc, TMDM, UFLO, 1);
+        SET_FIELD(&tmd.status, TMDS, ERR, 1);
+        SET_FIELD(&tmd.status, TMDS, OWN, 0);
         TMDSTORE(&tmd, PHYSADDR(s,xmit_cxda));
         s->csr[0] |= 0x0200;    /* set TINT */
         if (!CSR_DXSUFLO(s)) {
