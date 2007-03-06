@@ -1155,6 +1155,7 @@ int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr);
 int load_elf(const char *filename, int64_t virt_to_phys_addend, uint64_t *pentry);
 int load_aout(const char *filename, uint8_t *addr);
+int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
 void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu);
