@@ -601,7 +601,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
     s = (PCIBridge *)pci_register_device(bus, name, sizeof(PCIBridge), 
                                          devfn, NULL, pci_bridge_write_config);
     s->dev.config[0x00] = id >> 16;
-    s->dev.config[0x01] = id > 24;
+    s->dev.config[0x01] = id >> 24;
     s->dev.config[0x02] = id; // device_id
     s->dev.config[0x03] = id >> 8;
     s->dev.config[0x04] = 0x06; // command = bus master, pci mem

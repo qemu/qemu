@@ -229,18 +229,24 @@ typedef PCIHostState GT64120PCIState;
 typedef struct GT64120State {
     GT64120PCIState *pci;
     uint32_t regs[GT_REGS];
+    target_phys_addr_t PCI0IO_start;
+    target_phys_addr_t PCI0IO_length;
 } GT64120State;
 
 static void gt64120_pci_mapping(GT64120State *s)
 {
-    target_phys_addr_t start, length;		   
-
     /* Update IO mapping */
     if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD])
     {
-      start = s->regs[GT_PCI0IOLD] << 21;
-      length = ((s->regs[GT_PCI0IOHD] + 1) - (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
-      isa_mmio_init(start, length);
+      /* Unmap old IO address */	    
+      if (s->PCI0IO_length)
+      {
+        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);	     
+      }
+      /* Map new IO address */
+      s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
+      s->PCI0IO_length = ((s->regs[GT_PCI0IOHD] + 1) - (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
+      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length);
     }
 }
 
