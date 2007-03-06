@@ -197,8 +197,9 @@ def createflashimage
 end
 
 # Split flash image in partitions.
-def splitflashimage
-	flashdata = Flashimage.read
+def splitflashimage(filename)
+        filename = FLASHIMAGE if filename.nil?
+        flashdata = Flashimage.read(filename)
 	size = flashdata.size
 	puts("Flash image size: #{size / MiB} MiB = #{size} B.")
 	raise('Flash size is unexpected.') if (size != FLASHSIZE)
@@ -426,7 +427,7 @@ if command == 'create'
 	createflashimage
 elsif command == 'split'
 	# Split flash image in partitions.
-	splitflashimage
+	splitflashimage(ARGV[1])
 elsif command == 'merge'
 	# Make flash image from partitions.
 	mergepartitions
