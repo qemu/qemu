@@ -165,8 +165,8 @@ typedef enum {
 } tnetw1130_reg_t;
 
 typedef enum {
-    CMD_MAILBOX = 0x0001e108,
-    INFO_MAILBOX = 0x0001e0f0,
+    CMD_MAILBOX = 0x0001e108,   /* ECPU_CTRL? */
+    INFO_MAILBOX = 0x0001e0f0,  /* HINT_STS_ND? */
 } tnetw1130_memory_offset_t;
 
 typedef enum {
