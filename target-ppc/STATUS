@@ -1,0 +1,91 @@
+PowerPC emulation status.
+The goal of this file is to provide a reference status to avoid regressions.
+
+===============================================================================
+PowerPC core emulation status
+
+PowerPC CPU known to work (ie booting at least Linux 2.4):
+* main stream PowerPC cores
+- PowerPC 603 & derivatives
+- PowerPC 604 & derivatives
+- PowerPC 740 & derivatives
+- PowerPC 750 & derivatives
+
+PowerPC that should work but are not supported by standard Linux kernel
+(then remain mostly untested)
+- PowerPC 745
+- PowerPC 755
+
+Work in progress:
+* embedded PowerPC cores
+- PowerPC 405
+- BookE PowerPC
+- e500 core (Freescale PowerQUICC)
+* main stream PowerPC cores
+- PowerPC 601
+- PowerPC 602
+
+TODO:
+* embedded PowerPC cores
+- PowerPC 401
+- PowerPC 403
+- PowerPC 440
+- PowerPC 460
+* main stream PowerPC cores
+- PowerPC 7400 (aka G4)
+- PowerPC 7410
+- PowerPC 7450
+- PowerPC 7455
+- PowerPC 7457
+- PowerPC 7457A
+* original POWER
+- POWER
+- POWER2
+* 64 bits PowerPC cores
+- PowerPC 620
+- PowerPC 630 (aka POWER3)
+- PowerPC 631 (aka POWER3+)
+- POWER4
+- POWER4+
+- POWER5
+- POWER5+
+- PowerPC 970
+* RS64 series
+- RS64
+- RS64-II
+- RS64-III
+- RS64-IV
+
+===============================================================================
+PowerPC microcontrollers emulation status
+
+TODO:
+- PowerPC 40x microcontrollers emulation
+- PowerQUICC microcontrollers emulation
+
+===============================================================================
+PowerPC based platforms emulation status
+
+* PREP platform (RS/6000 7043...) - TO BE CHECKED (broken)
+- Gentoo Linux live CDROM 1.4
+- Debian Linux 3.0
+- Mandrake Linux 9
+
+* heathrow PowerMac platform (beige PowerMac) - TO BE CHECKED (broken)
+- Gentoo Linux live CDROM 1.4
+- Debian Linux 3.0
+- Mandrake Linux 9
+
+* mac99 platform (white and blue PowerMac, ...)
+- Gentoo Linux live CDROM 1.4 - boots, compiles linux kernel
+- Debian Linux woody - boots from CDROM and HDD
+- Mandrake Linux 9 - boots from CDROM, freezes during install
+
+TODO:
+- MCA based RS/6000 emulation
+- CHRP emulation (not PowerMac)
+- PPAR emulation
+- misc PowerPC reference boards emulation
+
+===============================================================================
+(to be completed)

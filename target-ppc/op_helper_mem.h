@@ -1,20 +1,78 @@
+/*
+ *  PowerPC emulation micro-operations helpers for qemu.
+ * 
+ *  Copyright (c) 2003-2007 Jocelyn Mayer
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+/* Multiple word / string load and store */
+static inline target_ulong glue(ld32r, MEMSUFFIX) (target_ulong EA)
+{
+    uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
+    return ((tmp & 0xFF000000UL) >> 24) | ((tmp & 0x00FF0000UL) >> 8) |
+        ((tmp & 0x0000FF00UL) << 8) | ((tmp & 0x000000FFUL) << 24);
+}
+
+static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, target_ulong data)
+{
+    uint32_t tmp =
+        ((data & 0xFF000000UL) >> 24) | ((data & 0x00FF0000UL) >> 8) |
+        ((data & 0x0000FF00UL) << 8) | ((data & 0x000000FFUL) << 24);
+    glue(stl, MEMSUFFIX)(EA, tmp);
+}
+
+void glue(do_lmw, MEMSUFFIX) (int dst)
+{
+    for (; dst < 32; dst++, T0 += 4) {
+        ugpr(dst) = glue(ldl, MEMSUFFIX)(T0);
+    }
+}
+
+void glue(do_stmw, MEMSUFFIX) (int src)
+{
+    for (; src < 32; src++, T0 += 4) {
+        glue(stl, MEMSUFFIX)(T0, ugpr(src));
+    }
+}
+
+void glue(do_lmw_le, MEMSUFFIX) (int dst)
+{
+    for (; dst < 32; dst++, T0 += 4) {
+        ugpr(dst) = glue(ld32r, MEMSUFFIX)(T0);
+    }
+}
+
+void glue(do_stmw_le, MEMSUFFIX) (int src)
+{
+    for (; src < 32; src++, T0 += 4) {
+        glue(st32r, MEMSUFFIX)(T0, ugpr(src));
+    }
+}
+
 void glue(do_lsw, MEMSUFFIX) (int dst)
 {
     uint32_t tmp;
     int sh;
 
-#if 0
-    if (loglevel > 0) {
-        fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
-                __func__, T0, T1, dst);
-    }
-#endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
         ugpr(dst++) = glue(ldl, MEMSUFFIX)(T0);
-        if (dst == 32)
+        if (unlikely(dst == 32))
             dst = 0;
     }
-    if (T1 > 0) {
+    if (unlikely(T1 != 0)) {
         tmp = 0;
         for (sh = 24; T1 > 0; T1--, T0++, sh -= 8) {
             tmp |= glue(ldub, MEMSUFFIX)(T0) << sh;
@@ -27,18 +85,12 @@ void glue(do_stsw, MEMSUFFIX) (int src)
 {
     int sh;
 
-#if 0
-    if (loglevel > 0) {
-        fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
-                __func__, T0, T1, src);
-    }
-#endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
         glue(stl, MEMSUFFIX)(T0, ugpr(src++));
-        if (src == 32)
+        if (unlikely(src == 32))
             src = 0;
     }
-    if (T1 > 0) {
+    if (unlikely(T1 != 0)) {
         for (sh = 24; T1 > 0; T1--, T0++, sh -= 8)
             glue(stb, MEMSUFFIX)(T0, (ugpr(src) >> sh) & 0xFF);
     }
@@ -49,20 +101,12 @@ void glue(do_lsw_le, MEMSUFFIX) (int dst)
     uint32_t tmp;
     int sh;
 
-#if 0
-    if (loglevel > 0) {
-        fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
-                __func__, T0, T1, dst);
-    }
-#endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
-        tmp = glue(ldl, MEMSUFFIX)(T0);
-        ugpr(dst++) = ((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
-            ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
-        if (dst == 32)
+        ugpr(dst++) = glue(ld32r, MEMSUFFIX)(T0);
+        if (unlikely(dst == 32))
             dst = 0;
     }
-    if (T1 > 0) {
+    if (unlikely(T1 != 0)) {
         tmp = 0;
         for (sh = 0; T1 > 0; T1--, T0++, sh += 8) {
             tmp |= glue(ldub, MEMSUFFIX)(T0) << sh;
@@ -73,28 +117,108 @@ void glue(do_lsw_le, MEMSUFFIX) (int dst)
 
 void glue(do_stsw_le, MEMSUFFIX) (int src)
 {
-    uint32_t tmp;
     int sh;
 
-#if 0
-    if (loglevel > 0) {
-        fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
-                __func__, T0, T1, src);
-    }
-#endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
-        tmp = ((ugpr(src++) & 0xFF000000) >> 24);
-        tmp |= ((ugpr(src++) & 0x00FF0000) >> 8);
-        tmp |= ((ugpr(src++) & 0x0000FF00) << 8);
-        tmp |= ((ugpr(src++) & 0x000000FF) << 24);
-        glue(stl, MEMSUFFIX)(T0, tmp);
-        if (src == 32)
+        glue(st32r, MEMSUFFIX)(T0, ugpr(src++));
+        if (unlikely(src == 32))
             src = 0;
     }
-    if (T1 > 0) {
+    if (unlikely(T1 != 0)) {
         for (sh = 0; T1 > 0; T1--, T0++, sh += 8)
             glue(stb, MEMSUFFIX)(T0, (ugpr(src) >> sh) & 0xFF);
     }
+}
+
+/* PPC 601 specific instructions (POWER bridge) */
+// XXX: to be tested
+void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb)
+{
+    int i, c, d, reg;
+
+    d = 24;
+    reg = dest;
+    for (i = 0; i < T1; i++) {
+        c = glue(ldub, MEMSUFFIX)(T0++);
+        /* ra (if not 0) and rb are never modified */
+        if (likely(reg != rb && (ra == 0 || reg != ra))) {
+            ugpr(reg) = (ugpr(reg) & ~(0xFF << d)) | (c << d);
+        }
+        if (unlikely(c == T2))
+            break;
+        if (likely(d != 0)) {
+            d -= 8;
+        } else {
+            d = 24;
+            reg++;
+            reg = reg & 0x1F;
+        }
+    }
+    T0 = i;
+}
+
+/* XXX: TAGs are not managed */
+void glue(do_POWER2_lfq, MEMSUFFIX) (void)
+{
+    FT0 = glue(ldfq, MEMSUFFIX)(T0);
+    FT1 = glue(ldfq, MEMSUFFIX)(T0 + 4);
+}
+
+static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
+{
+    union {
+        double d;
+        uint64_t u;
+    } u;
+
+    u.d = glue(ldfq, MEMSUFFIX)(EA);
+    u.u = ((u.u & 0xFF00000000000000ULL) >> 56) |
+        ((u.u & 0x00FF000000000000ULL) >> 40) |
+        ((u.u & 0x0000FF0000000000ULL) >> 24) |
+        ((u.u & 0x000000FF00000000ULL) >> 8) |
+        ((u.u & 0x00000000FF000000ULL) << 8) |
+        ((u.u & 0x0000000000FF0000ULL) << 24) |
+        ((u.u & 0x000000000000FF00ULL) << 40) |
+        ((u.u & 0x00000000000000FFULL) << 56);
+
+    return u.d;
+}
+
+void glue(do_POWER2_lfq_le, MEMSUFFIX) (void)
+{
+    FT0 = glue(ldfqr, MEMSUFFIX)(T0 + 4);
+    FT1 = glue(ldfqr, MEMSUFFIX)(T0);
+}
+
+void glue(do_POWER2_stfq, MEMSUFFIX) (void)
+{
+    glue(stfq, MEMSUFFIX)(T0, FT0);
+    glue(stfq, MEMSUFFIX)(T0 + 4, FT1);
+}
+
+static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
+{
+    union {
+        double d;
+        uint64_t u;
+    } u;
+
+    u.d = d;
+    u.u = ((u.u & 0xFF00000000000000ULL) >> 56) |
+        ((u.u & 0x00FF000000000000ULL) >> 40) |
+        ((u.u & 0x0000FF0000000000ULL) >> 24) |
+        ((u.u & 0x000000FF00000000ULL) >> 8) |
+        ((u.u & 0x00000000FF000000ULL) << 8) |
+        ((u.u & 0x0000000000FF0000ULL) << 24) |
+        ((u.u & 0x000000000000FF00ULL) << 40) |
+        ((u.u & 0x00000000000000FFULL) << 56);
+    glue(stfq, MEMSUFFIX)(EA, u.d);
+}
+
+void glue(do_POWER2_stfq_le, MEMSUFFIX) (void)
+{
+    glue(stfqr, MEMSUFFIX)(T0 + 4, FT0);
+    glue(stfqr, MEMSUFFIX)(T0, FT1);
 }
 
 #undef MEMSUFFIX
