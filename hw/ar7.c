@@ -364,7 +364,11 @@ static avalanche_t av = {
     //~ reset_control: { 0x04720043 },
     //~ dcl: 0x025d4297
     // 21-20 phy clk source
+#if defined(TARGET_WORDS_BIGENDIAN)
+  dcl:{0xd1, 0x42, 0x5d, 0x02},
+#else
   dcl:{0x91, 0x42, 0x5d, 0x02},
+#endif
   gpio: {
     0x75, 0xa0, 0xbe, 0x0c, 0x00, 0x00, 0x00, 0x00,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -3238,10 +3242,6 @@ void ar7_init(CPUState * env)
     //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
     cpu_register_physical_memory(0x00001000, 0x0ffff000, io_memory);
     cpu_register_physical_memory(0x1e000000, 0x01c00000, io_memory);
-    assert(bigendian == 0);
-    //~ bigendian = env->bigendian;
-    assert(bigendian == 0);
-    //~ logout("setting endianness %d\n", bigendian);
 
     reg_write(av.gpio, GPIO_IN, 0x0cbea875);
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
@@ -3302,9 +3302,16 @@ static void mips_ar7_common_init (int ram_size,
     ram_addr_t ram_offset;
 
     env = cpu_init();
-    /* Typical AR7 systems run in little endian mode. */
-    //~ bigendian = env->bigendian = 0;
-    fprintf(stderr, "%s: setting endianness %d\n", __func__, 0);
+
+    /* Typical AR7 systems run in little endian mode.
+       Zyxel uses big endian, so this mode must be supported, too. */
+#if defined(TARGET_WORDS_BIGENDIAN)
+    bigendian = 1;
+#else
+    bigendian = 0;
+#endif
+    //~ bigendian = env->bigendian;
+    fprintf(stderr, "%s: setting endianness %d\n", __func__, bigendian);
 
 #define MIPS_R4KEC   0x00018448   // 4KEc revision 2.2
 #define MIPS_R4KECR2 0x00019048   // 4KEc MIPS 32 Release 2 revision 2.2
@@ -3345,7 +3352,10 @@ static void mips_ar7_common_init (int ram_size,
     if (env->CP0_Config0 != 0x80240083) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
     if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
     //~ assert(env->CP0_Config0 == 0x80240083);
+#if defined(TARGET_WORDS_BIGENDIAN)
+#else
     assert(env->CP0_Config0 == 0x80240082);
+#endif
     assert(env->CP0_Config1 == 0x9e9b4d8a);
     assert(env->CP0_Config2 == 0x80000000);
     assert(env->CP0_Config3 == 0x00000000);
