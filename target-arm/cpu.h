@@ -209,7 +209,8 @@ static inline int arm_feature(CPUARMState *env, int feature)
     return (env->features & (1u << feature)) != 0;
 }
 
-void cpu_arm_set_model(CPUARMState *env, uint32_t id);
+void arm_cpu_list(void);
+void cpu_arm_set_model(CPUARMState *env, const char *name);
 
 #define ARM_CPUID_ARM1026 0x4106a262
 #define ARM_CPUID_ARM926  0x41069265

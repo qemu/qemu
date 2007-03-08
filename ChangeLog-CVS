@@ -1,3 +1,55 @@
+2007-03-08 04:15  pbrook
+
+	* vl.c, target-arm/cpu.h, target-arm/helper.c: Fix typo in help
+	  output.  List ARM cpus.
+
+2007-03-08 04:04  pbrook
+
+	* vl.c, vl.h, hw/integratorcp.c, hw/realview.c, hw/versatilepb.c,
+	  linux-user/main.c, target-arm/cpu.h, target-arm/helper.c:
+	  Implement --cpu for ARM.
+
+2007-03-07 09:32  j_mayer
+
+	* cpu-all.h, gdbstub.c, monitor.c, hw/ppc.c, linux-user/main.c,
+	  target-ppc/cpu.h, target-ppc/exec.h, target-ppc/helper.c,
+	  target-ppc/op.c, target-ppc/op_helper.c,
+	  target-ppc/op_helper_mem.h, target-ppc/op_mem.h,
+	  target-ppc/op_template.h, target-ppc/translate.c,
+	  target-ppc/translate_init.c, target-ppc/STATUS,
+	  target-ppc/mfrom_table.c, target-ppc/mfrom_table_gen.c,
+	  target-ppc/op_helper.h: Great PowerPC emulation code
+	  resynchronisation and improvments: - Add status file to make
+	  regression tracking easier - Move all micro-operations helpers
+	  definitions into a separate header:	should never be seen
+	  outside of op.c - Update copyrights - Add new / missing PowerPC
+	  CPU definitions - Add definitions for PowerPC BookE - Add support
+	  for PowerPC 6xx/7xx software driven TLBs   Allow use of PowerPC
+	  603 as an example - Add preliminary code for POWER, POWER2,
+	  PowerPC 403, 405, 440, 601, 602   and BookE support - Avoid
+	  compiling priviledged only resources support for user-mode
+	  emulation - Remove unused helpers / micro-ops / dead code - Add
+	  instructions usage statistics dump: useful to figure which
+	  instructions	 need strong optimizations.  - Micro-operation
+	  fixes:   * add missing RETURN in some micro-ops   * fix
+	  prototypes   * use softfloat routines for all floating-point
+	  operations   * fix tlbie instruction	 * move some huge
+	  micro-operations into helpers - emulation fixes:   * fix inverted
+	  opcodes for fcmpo / fcmpu   * condition register update is always
+	  to be done after the whole	 instruction has completed   * add
+	  missing NIP updates when calling helpers that may generate an
+	  exception - optimizations and improvments:   * optimize very
+	  often used instructions (li, mr, rlwixx...)	* remove specific
+	  micro-ops for rarely used instructions   * add routines for
+	  addresses computations to avoid bugs due to multiple
+	  different implementations   * fix TB linking: do not reset T0 at
+	  the end of every TB.
+
+2007-03-07 00:52  pbrook
+
+	* loader.c, uboot_image.h, vl.h, hw/arm_boot.c: Simple u-boot image
+	  loading support.
+
 2007-03-06 21:31  ths
 
 	* hw/gt64xxx.c: Fix GT-64xxx PCI mapping, by Aurelien Jarno.

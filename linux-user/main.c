@@ -670,18 +670,23 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
 {
     cpu_ppc_store_tb(env, ((uint64_t)cpu_ppc_load_tbl(env) << 32) | value);
 }
-  
-uint32_t cpu_ppc_load_decr (CPUState *env)
+
+void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
+__attribute__ (( alias ("cpu_ppc_store_tbu") ));
+
+uint32_t cpu_ppc601_load_rtcu (CPUState *env)
+__attribute__ (( alias ("cpu_ppc_load_tbu") ));
+
+void cpu_ppc601_store_rtcl (CPUState *env, uint32_t value)
 {
-    /* TO FIX */
-    return -1;
+    cpu_ppc_store_tbl(env, value & 0x3FFFFF80);
 }
- 
-void cpu_ppc_store_decr (CPUState *env, uint32_t value)
+
+uint32_t cpu_ppc601_load_rtcl (CPUState *env)
 {
-    /* TO FIX */
+    return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
 }
- 
+
 void cpu_loop(CPUPPCState *env)
 {
     target_siginfo_t info;
@@ -1751,7 +1756,7 @@ int main(int argc, char **argv)
 #elif defined(TARGET_ARM)
     {
         int i;
-        cpu_arm_set_model(env, ARM_CPUID_ARM1026);
+        cpu_arm_set_model(env, "arm926");
         cpsr_write(env, regs->uregs[16], 0xffffffff);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];

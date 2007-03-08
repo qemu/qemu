@@ -71,7 +71,9 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
     int kernel_size;
     int initrd_size;
     int n;
-    uint64_t entry;
+    int is_linux = 0;
+    uint64_t elf_entry;
+    target_ulong entry;
 
     /* Load the kernel.  */
     if (!kernel_filename) {
@@ -79,19 +81,27 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         exit(1);
     }
 
-    kernel_size = load_elf(kernel_filename, 0, &entry);
-    if (kernel_size >= 0) {
-        /* An ELF image.  Jump to the entry point.  */
+    /* Assume that raw images are linux kernels, and ELF images are not.  */
+    kernel_size = load_elf(kernel_filename, 0, &elf_entry);
+    entry = elf_entry;
+    if (kernel_size < 0) {
+        kernel_size = load_uboot(kernel_filename, &entry, &is_linux);
+    }
+    if (kernel_size < 0) {
+        kernel_size = load_image(kernel_filename,
+                                 phys_ram_base + KERNEL_LOAD_ADDR);
+        entry = KERNEL_LOAD_ADDR;
+        is_linux = 1;
+    }
+    if (kernel_size < 0) {
+        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+        exit(1);
+    }
+    if (!is_linux) {
+        /* Jump to the entry point.  */
         env->regs[15] = entry & 0xfffffffe;
         env->thumb = entry & 1;
     } else {
-        /* Raw binary image. Assume it is a Linux zImage.  */
-        kernel_size = load_image(kernel_filename,
-                                 phys_ram_base + KERNEL_LOAD_ADDR);
-        if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-            exit(1);
-        }
         if (initrd_filename) {
             initrd_size = load_image(initrd_filename,
                                      phys_ram_base + INITRD_LOAD_ADDR);
@@ -106,7 +116,7 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         bootloader[1] |= board_id & 0xff;
         bootloader[2] |= (board_id >> 8) & 0xff;
         bootloader[5] = KERNEL_ARGS_ADDR;
-        bootloader[6] = KERNEL_LOAD_ADDR;
+        bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++)
             stl_raw(phys_ram_base + (n * 4), bootloader[n]);
         set_kernel_args(ram_size, initrd_size, kernel_cmdline);

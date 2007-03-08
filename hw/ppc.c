@@ -1,7 +1,7 @@
 /*
  * QEMU generic PPC hardware System Emulator
  * 
- * Copyright (c) 2003-2004 Jocelyn Mayer
+ * Copyright (c) 2003-2007 Jocelyn Mayer
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ static inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env)
 {
     /* TB time in tb periods */
     return muldiv64(qemu_get_clock(vm_clock) + tb_env->tb_offset,
-		    tb_env->tb_freq, ticks_per_sec);
+                    tb_env->tb_freq, ticks_per_sec);
 }
 
 uint32_t cpu_ppc_load_tbl (CPUState *env)
@@ -52,14 +52,14 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
     tb = cpu_ppc_get_tb(tb_env);
 #ifdef DEBUG_TB
     {
-         static int last_time;
-	 int now;
-	 now = time(NULL);
-	 if (last_time != now) {
-	     last_time = now;
-	     printf("%s: tb=0x%016lx %d %08lx\n",
-                    __func__, tb, now, tb_env->tb_offset);
-	 }
+        static int last_time;
+        int now;
+        now = time(NULL);
+        if (last_time != now) {
+            last_time = now;
+            printf("%s: tb=0x%016lx %d %08lx\n",
+                   __func__, tb, now, tb_env->tb_offset);
+        }
     }
 #endif
 
@@ -75,6 +75,7 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
 #ifdef DEBUG_TB
     printf("%s: tb=0x%016lx\n", __func__, tb);
 #endif
+
     return tb >> 32;
 }
 
@@ -117,6 +118,7 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
 #if defined(DEBUG_TB)
     printf("%s: 0x%08x\n", __func__, decr);
 #endif
+
     return decr;
 }
 
@@ -146,7 +148,7 @@ static void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
     if (is_excp)
         next += tb_env->decr_next - now;
     if (next == now)
-	next++;
+        next++;
     tb_env->decr_next = next;
     /* Adjust timer */
     qemu_mod_timer(tb_env->decr_timer, next);
@@ -154,7 +156,7 @@ static void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
      * raise an exception.
      */
     if ((value & 0x80000000) && !(decr & 0x80000000))
-	cpu_ppc_decr_excp(env);
+        cpu_ppc_decr_excp(env);
 }
 
 void cpu_ppc_store_decr (CPUState *env, uint32_t value)
@@ -177,18 +179,62 @@ ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq)
         return NULL;
     env->tb_env = tb_env;
     if (tb_env->tb_freq == 0 || 1) {
-	tb_env->tb_freq = freq;
-	/* Create new timer */
-	tb_env->decr_timer =
+        tb_env->tb_freq = freq;
+        /* Create new timer */
+        tb_env->decr_timer =
             qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
-	/* There is a bug in  2.4 kernels:
-	 * if a decrementer exception is pending when it enables msr_ee,
-	 * it's not ready to handle it...
-	 */
-	_cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+        /* There is a bug in Linux 2.4 kernels:
+         * if a decrementer exception is pending when it enables msr_ee,
+         * it's not ready to handle it...
+         */
+        _cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
     }
 
     return tb_env;
+}
+
+/* Specific helpers for POWER & PowerPC 601 RTC */
+ppc_tb_t *cpu_ppc601_rtc_init (CPUState *env)
+{
+    return cpu_ppc_tb_init(env, 7812500);
+}
+
+void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
+__attribute__ (( alias ("cpu_ppc_store_tbu") ));
+
+uint32_t cpu_ppc601_load_rtcu (CPUState *env)
+__attribute__ (( alias ("cpu_ppc_load_tbu") ));
+
+void cpu_ppc601_store_rtcl (CPUState *env, uint32_t value)
+{
+    cpu_ppc_store_tbl(env, value & 0x3FFFFF80);
+}
+
+uint32_t cpu_ppc601_load_rtcl (CPUState *env)
+{
+    return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
+}
+
+/* Embedded PowerPC timers */
+target_ulong load_40x_pit (CPUState *env)
+{
+    /* XXX: TODO */
+    return 0;
+}
+
+void store_40x_pit (CPUState *env, target_ulong val)
+{
+    /* XXX: TODO */
+}
+
+void store_booke_tcr (CPUState *env, target_ulong val)
+{
+    /* XXX: TODO */
+}
+
+void store_booke_tsr (CPUState *env, target_ulong val)
+{
+    /* XXX: TODO */
 }
 
 #if 0
@@ -264,6 +310,7 @@ uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr)
     tmp |= m48t59_read(nvram, addr + 1) << 16;
     tmp |= m48t59_read(nvram, addr + 2) << 8;
     tmp |= m48t59_read(nvram, addr + 3);
+
     return tmp;
 }
 
@@ -316,10 +363,10 @@ uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
     odd = count & 1;
     count &= ~1;
     for (i = 0; i != count; i++) {
-	crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
+        crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
     }
     if (odd) {
-	crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
+        crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
     }
 
     return crc;

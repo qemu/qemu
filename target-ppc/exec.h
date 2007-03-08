@@ -1,7 +1,7 @@
 /*
  *  PowerPC emulation definitions for qemu.
  * 
- *  Copyright (c) 2003-2005 Jocelyn Mayer
+ *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,15 +24,34 @@
 
 #include "dyngen-exec.h"
 
-#define TARGET_LONG_BITS 32
+#include "cpu.h"
+#include "exec-all.h"
 
 register struct CPUPPCState *env asm(AREG0);
-register uint32_t T0 asm(AREG1);
-register uint32_t T1 asm(AREG2);
-register uint32_t T2 asm(AREG3);
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+/* no registers can be used */
+#define T0 (env->t0)
+#define T1 (env->t1)
+#define T2 (env->t2)
+#else
+/* This may be more efficient if HOST_LONG_BITS > TARGET_LONG_BITS
+ * To be set to one when we'll be sure it does not cause bugs....
+ */
+#if 0
+register unsigned long T0 asm(AREG1);
+register unsigned long T1 asm(AREG2);
+register unsigned long T2 asm(AREG3);
+#else
+register target_ulong T0 asm(AREG1);
+register target_ulong T1 asm(AREG2);
+register target_ulong T2 asm(AREG3);
+#endif
+#endif
 
+/* XXX: to clean: remove this mess */
 #define PARAM(n) ((uint32_t)PARAM##n)
 #define SPARAM(n) ((int32_t)PARAM##n)
+
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
 #define FT2 (env->ft2)
@@ -43,13 +62,27 @@ register uint32_t T2 asm(AREG3);
 # define RETURN() __asm__ __volatile__("" : : : "memory");
 #endif
 
-#include "cpu.h"
-#include "exec-all.h"
-
-static inline uint32_t rotl (uint32_t i, int n)
+static inline target_ulong rotl8 (target_ulong i, int n)
 {
-    return ((i << n) | (i >> (32 - n)));
+    return (((uint8_t)i << n) | ((uint8_t)i >> (8 - n)));
 }
+
+static inline target_ulong rotl16 (target_ulong i, int n)
+{
+    return (((uint16_t)i << n) | ((uint16_t)i >> (16 - n)));
+}
+
+static inline target_ulong rotl32 (target_ulong i, int n)
+{
+    return (((uint32_t)i << n) | ((uint32_t)i >> (32 - n)));
+}
+
+#if defined(TARGET_PPC64)
+static inline target_ulong rotl64 (target_ulong i, int n)
+{
+    return (((uint64_t)i << n) | ((uint64_t)i >> (64 - n)));
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
@@ -58,23 +91,14 @@ static inline uint32_t rotl (uint32_t i, int n)
 void do_raise_exception_err (uint32_t exception, int error_code);
 void do_raise_exception (uint32_t exception);
 
-void do_sraw(void);
+int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong vaddr,
+                          int rw, int access_type, int check_BATs);
 
-void do_fctiw (void);
-void do_fctiwz (void);
-void do_fnmadd (void);
-void do_fnmsub (void);
-void do_fsqrt (void);
-void do_fres (void);
-void do_frsqrte (void);
-void do_fsel (void);
-void do_fcmpu (void);
-void do_fcmpo (void);
-
-void do_check_reservation (void);
-void do_icbi (void);
-void do_tlbia (void);
-void do_tlbie (void);
+void ppc6xx_tlb_invalidate_all (CPUState *env);
+void ppc6xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
+                                 int is_code);
+void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
+                       target_ulong pte0, target_ulong pte1);
 
 static inline void env_to_regs(void)
 {
@@ -84,7 +108,7 @@ static inline void regs_to_env(void)
 {
 }
 
-int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
 #endif /* !defined (__PPC_H__) */

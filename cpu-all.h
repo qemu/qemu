@@ -759,6 +759,9 @@ CPUState *cpu_copy(CPUState *env);
 void cpu_dump_state(CPUState *env, FILE *f, 
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
+void cpu_dump_statistics (CPUState *env, FILE *f,
+                          int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                          int flags);
 
 void cpu_abort(CPUState *env, const char *fmt, ...);
 extern CPUState *first_cpu;

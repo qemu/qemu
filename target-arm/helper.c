@@ -36,8 +36,45 @@ static inline void set_feature(CPUARMState *env, int feature)
     env->features |= 1u << feature;
 }
 
-void cpu_arm_set_model(CPUARMState *env, uint32_t id)
+struct arm_cpu_t {
+    uint32_t id;
+    const char *name;
+};
+
+static const struct arm_cpu_t arm_cpu_names[] = {
+    { ARM_CPUID_ARM926, "arm926"},
+    { ARM_CPUID_ARM1026, "arm1026"},
+    { 0, NULL}
+};
+
+void arm_cpu_list(void)
 {
+    int i;
+
+    printf ("Available CPUs:\n");
+    for (i = 0; arm_cpu_names[i].name; i++) {
+        printf("  %s\n", arm_cpu_names[i].name);
+    }
+}
+
+void cpu_arm_set_model(CPUARMState *env, const char *name)
+{
+    int i;
+    uint32_t id;
+
+    id = 0;
+    i = 0;
+    for (i = 0; arm_cpu_names[i].name; i++) {
+        if (strcmp(name, arm_cpu_names[i].name) == 0) {
+            id = arm_cpu_names[i].id;
+            break;
+        }
+    }
+    if (!id) {
+        cpu_abort(env, "Unknown CPU '%s'", name);
+        return;
+    }
+
     env->cp15.c0_cpuid = id;
     switch (id) {
     case ARM_CPUID_ARM926:

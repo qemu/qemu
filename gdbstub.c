@@ -307,7 +307,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     registers[98] = tswapl(tmp);
     registers[99] = tswapl(env->lr);
     registers[100] = tswapl(env->ctr);
-    registers[101] = tswapl(do_load_xer(env));
+    registers[101] = tswapl(ppc_load_xer(env));
     registers[102] = 0;
 
     return 103 * 4;
@@ -335,7 +335,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
         env->crf[i] = (registers[98] >> (32 - ((i + 1) * 4))) & 0xF;
     env->lr = tswapl(registers[99]);
     env->ctr = tswapl(registers[100]);
-    do_store_xer(env, tswapl(registers[101]));
+    ppc_store_xer(env, tswapl(registers[101]));
 }
 #elif defined (TARGET_SPARC)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)

@@ -154,7 +154,8 @@ static vpb_sic_state *vpb_sic_init(uint32_t base, void *parent, int irq)
 static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, int board_id)
+                     const char *initrd_filename, const char *cpu_model,
+                     int board_id)
 {
     CPUState *env;
     void *pic;
@@ -166,7 +167,9 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
     int done_smc = 0;
 
     env = cpu_init();
-    cpu_arm_set_model(env, ARM_CPUID_ARM926);
+    if (!cpu_model)
+        cpu_model = "arm926";
+    cpu_arm_set_model(env, cpu_model);
     /* ??? RAM shoud repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
@@ -262,7 +265,7 @@ static void vpb_init(int ram_size, int vga_ram_size, int boot_device,
     versatile_init(ram_size, vga_ram_size, boot_device,
                    ds, fd_filename, snapshot,
                    kernel_filename, kernel_cmdline,
-                   initrd_filename, 0x183);
+                   initrd_filename, cpu_model, 0x183);
 }
 
 static void vab_init(int ram_size, int vga_ram_size, int boot_device,
@@ -273,7 +276,7 @@ static void vab_init(int ram_size, int vga_ram_size, int boot_device,
     versatile_init(ram_size, vga_ram_size, boot_device,
                    ds, fd_filename, snapshot,
                    kernel_filename, kernel_cmdline,
-                   initrd_filename, 0x25e);
+                   initrd_filename, cpu_model, 0x25e);
 }
 
 QEMUMachine versatilepb_machine = {

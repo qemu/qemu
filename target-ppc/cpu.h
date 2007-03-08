@@ -1,7 +1,7 @@
 /*
  *  PowerPC emulation cpu definitions for qemu.
  * 
- *  Copyright (c) 2003-2005 Jocelyn Mayer
+ *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,8 +21,22 @@
 #define __CPU_PPC_H__
 
 #include "config.h"
+#include <stdint.h>
 
+#if defined (TARGET_PPC64)
+typedef uint64_t ppc_gpr_t;
+#define TARGET_LONG_BITS 64
+#define REGX "%016" PRIx64
+#elif defined(TARGET_E500)
+/* GPR are 64 bits: used by vector extension */
+typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
+#define REGX "%08" PRIx32
+#else
+typedef uint32_t ppc_gpr_t;
+#define TARGET_LONG_BITS 32
+#define REGX "%08" PRIx32
+#endif
 
 #include "cpu-defs.h"
 
@@ -32,7 +46,11 @@
 
 #define TARGET_HAS_ICE 1
 
-#define ELF_MACHINE	EM_PPC
+#if defined (TARGET_PPC64)
+#define ELF_MACHINE     EM_PPC64
+#else
+#define ELF_MACHINE     EM_PPC
+#endif
 
 /* XXX: this should be tunable: PowerPC 601 & 64 bits PowerPC
  *                              have different cache line sizes
@@ -42,6 +60,7 @@
 
 /* XXX: put this in a common place */
 #define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
 
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC */
@@ -54,72 +73,155 @@ enum {
     CPU_PPC_401E2     = 0x00250000,
     CPU_PPC_401F2     = 0x00260000,
     CPU_PPC_401G2     = 0x00270000,
-    CPU_PPC_IOP480    = 0x40100000,
+#define CPU_PPC_401 CPU_PPC_401G2
+    CPU_PPC_IOP480    = 0x40100000, /* 401B2 ? */
+    CPU_PPC_COBRA     = 0x10100000, /* IBM Processor for Network Resources */
     /* PowerPC 403 cores */
-    CPU_PPC_403GA     = 0x00200000,
+    CPU_PPC_403GA     = 0x00200011,
     CPU_PPC_403GB     = 0x00200100,
     CPU_PPC_403GC     = 0x00200200,
     CPU_PPC_403GCX    = 0x00201400,
+#define CPU_PPC_403 CPU_PPC_403GCX
     /* PowerPC 405 cores */
-    CPU_PPC_405       = 0x40110000,
-    CPU_PPC_405EP     = 0x51210000,
-    CPU_PPC_405GPR    = 0x50910000,
+    CPU_PPC_405CR     = 0x40110145,
+#define CPU_PPC_405GP CPU_PPC_405CR
+    CPU_PPC_405EP     = 0x51210950,
+    CPU_PPC_405GPR    = 0x50910951,
     CPU_PPC_405D2     = 0x20010000,
     CPU_PPC_405D4     = 0x41810000,
-    CPU_PPC_NPE405H   = 0x41410000,
-    CPU_PPC_NPE405L   = 0x41610000,
+#define CPU_PPC_405 CPU_PPC_405D4
+    CPU_PPC_NPE405H   = 0x414100C0,
+    CPU_PPC_NPE405H2  = 0x41410140,
+    CPU_PPC_NPE405L   = 0x416100C0,
+    /* XXX: missing 405LP, LC77700 */
+    /* IBM STBxxx (PowerPC 401/403/405 core based microcontrollers) */
 #if 0
-    CPU_PPC_STB02     = xxx,
+    CPU_PPC_STB01000  = xxx,
+#endif
+#if 0
+    CPU_PPC_STB01010  = xxx,
+#endif
+#if 0
+    CPU_PPC_STB0210   = xxx,
 #endif
     CPU_PPC_STB03     = 0x40310000,
 #if 0
-    CPU_PPC_STB04     = xxx,
+    CPU_PPC_STB043    = xxx,
 #endif
-    CPU_PPC_STB25     = 0x51510000,
+#if 0
+    CPU_PPC_STB045    = xxx,
+#endif
+    CPU_PPC_STB25     = 0x51510950,
 #if 0
     CPU_PPC_STB130    = xxx,
 #endif
+    /* Xilinx cores */
+    CPU_PPC_X2VP4     = 0x20010820,
+#define CPU_PPC_X2VP7 CPU_PPC_X2VP4
+    CPU_PPC_X2VP20    = 0x20010860,
+#define CPU_PPC_X2VP50 CPU_PPC_X2VP20
     /* PowerPC 440 cores */
-    CPU_PPC_440EP     = 0x42220000,
-    CPU_PPC_440GP     = 0x40120400,
-    CPU_PPC_440GX     = 0x51B20000,
-    /* PowerPC MPC 8xx cores */
-    CPU_PPC_8540      = 0x80200000,
+    CPU_PPC_440EP     = 0x422218D3,
+#define CPU_PPC_440GR CPU_PPC_440EP
+    CPU_PPC_440GP     = 0x40120481,
+    CPU_PPC_440GX     = 0x51B21850,
+    CPU_PPC_440GXc    = 0x51B21892,
+    CPU_PPC_440GXf    = 0x51B21894,
+    CPU_PPC_440SP     = 0x53221850,
+    CPU_PPC_440SP2    = 0x53221891,
+    CPU_PPC_440SPE    = 0x53421890,
+    /* XXX: missing 440GRX */
+    /* PowerPC 460 cores - TODO */
+    /* PowerPC MPC 5xx cores */
+    CPU_PPC_5xx       = 0x00020020,
+    /* PowerPC MPC 8xx cores (aka PowerQUICC) */
     CPU_PPC_8xx       = 0x00500000,
-    CPU_PPC_8240      = 0x00810100,
-    CPU_PPC_8245      = 0x00811014,
+    /* PowerPC MPC 8xxx cores (aka PowerQUICC-II) */
+    CPU_PPC_82xx_HIP3 = 0x00810101,
+    CPU_PPC_82xx_HIP4 = 0x80811014,
+    CPU_PPC_827x      = 0x80822013,
+    /* eCores */
+    CPU_PPC_e200      = 0x81120000,
+    CPU_PPC_e500v110  = 0x80200010,
+    CPU_PPC_e500v120  = 0x80200020,
+    CPU_PPC_e500v210  = 0x80210010,
+    CPU_PPC_e500v220  = 0x80210020,
+#define CPU_PPC_e500 CPU_PPC_e500v220
+    CPU_PPC_e600      = 0x80040010,
     /* PowerPC 6xx cores */
-    CPU_PPC_601       = 0x00010000,
-    CPU_PPC_602       = 0x00050000,
-    CPU_PPC_603       = 0x00030000,
-    CPU_PPC_603E      = 0x00060000,
-    CPU_PPC_603EV     = 0x00070000,
-    CPU_PPC_603R      = 0x00071000,
-    CPU_PPC_G2        = 0x80810000,
-    CPU_PPC_G2LE      = 0x80820000,
+    CPU_PPC_601       = 0x00010001,
+    CPU_PPC_602       = 0x00050100,
+    CPU_PPC_603       = 0x00030100,
+    CPU_PPC_603E      = 0x00060101,
+    CPU_PPC_603P      = 0x00070000,
+    CPU_PPC_603E7v    = 0x00070100,
+    CPU_PPC_603E7v2   = 0x00070201,
+    CPU_PPC_603E7     = 0x00070200,
+    CPU_PPC_603R      = 0x00071201,
+    CPU_PPC_G2        = 0x00810011,
+    CPU_PPC_G2H4      = 0x80811010,
+    CPU_PPC_G2gp      = 0x80821010,
+    CPU_PPC_G2ls      = 0x90810010,
+    CPU_PPC_G2LE      = 0x80820010,
+    CPU_PPC_G2LEgp    = 0x80822010,
+    CPU_PPC_G2LEls    = 0xA0822010,
     CPU_PPC_604       = 0x00040000,
-    CPU_PPC_604E      = 0x00090000,
-    CPU_PPC_604R      = 0x000a0000,
+    CPU_PPC_604E      = 0x00090100, /* Also 2110 & 2120 */
+    CPU_PPC_604R      = 0x000a0101,
     /* PowerPC 74x/75x cores (aka G3) */
     CPU_PPC_74x       = 0x00080000,
-    CPU_PPC_755       = 0x00083000,
+    CPU_PPC_740E      = 0x00080100,
+    CPU_PPC_750E      = 0x00080200,
+    CPU_PPC_755_10    = 0x00083100,
+    CPU_PPC_755_11    = 0x00083101,
+    CPU_PPC_755_20    = 0x00083200,
+    CPU_PPC_755D      = 0x00083202,
+    CPU_PPC_755E      = 0x00083203,
+#define CPU_PPC_755 CPU_PPC_755E
     CPU_PPC_74xP      = 0x10080000,
-    CPU_PPC_750CXE22  = 0x00082202,
+    CPU_PPC_750CXE21  = 0x00082201,
+    CPU_PPC_750CXE22  = 0x00082212,
+    CPU_PPC_750CXE23  = 0x00082203,
     CPU_PPC_750CXE24  = 0x00082214,
     CPU_PPC_750CXE24b = 0x00083214,
     CPU_PPC_750CXE31  = 0x00083211,
     CPU_PPC_750CXE31b = 0x00083311,
 #define CPU_PPC_750CXE CPU_PPC_750CXE31b
-    CPU_PPC_750FX     = 0x70000000,
-    CPU_PPC_750GX     = 0x70020000,
+    CPU_PPC_750CXR    = 0x00083410,
+    CPU_PPC_750FX10   = 0x70000100,
+    CPU_PPC_750FX20   = 0x70000200,
+    CPU_PPC_750FX21   = 0x70000201,
+    CPU_PPC_750FX22   = 0x70000202,
+    CPU_PPC_750FX23   = 0x70000203,
+#define CPU_PPC_750FX CPU_PPC_750FX23
+    CPU_PPC_750FL     = 0x700A0203,
+    CPU_PPC_750GX10   = 0x70020100,
+    CPU_PPC_750GX11   = 0x70020101,
+    CPU_PPC_750GX12   = 0x70020102,
+#define CPU_PPC_750GX CPU_PPC_750GX12
+    CPU_PPC_750GL     = 0x70020102,
+    CPU_PPC_750L30    = 0x00088300,
+    CPU_PPC_750L32    = 0x00088302,
+    CPU_PPC_750CL     = 0x00087200,
     /* PowerPC 74xx cores (aka G4) */
-    CPU_PPC_7400      = 0x000C0000,
-    CPU_PPC_7410      = 0x800C0000,
-    CPU_PPC_7441      = 0x80000200,
-    CPU_PPC_7450      = 0x80000000,
+    CPU_PPC_7400      = 0x000C0100,
+    CPU_PPC_7410C     = 0x800C1102,
+    CPU_PPC_7410D     = 0x800C1103,
+    CPU_PPC_7410E     = 0x800C1104,
+    CPU_PPC_7441      = 0x80000210,
+    CPU_PPC_7445      = 0x80010100,
+    CPU_PPC_7447      = 0x80020100,
+    CPU_PPC_7447A     = 0x80030101,
+    CPU_PPC_7448      = 0x80040100,
+    CPU_PPC_7450      = 0x80000200,
+    CPU_PPC_7450b     = 0x80000201,
     CPU_PPC_7451      = 0x80000203,
-    CPU_PPC_7455      = 0x80010000,
-    CPU_PPC_7457      = 0x80020000,
+    CPU_PPC_7451G     = 0x80000210,
+    CPU_PPC_7455      = 0x80010201,
+    CPU_PPC_7455F     = 0x80010303,
+    CPU_PPC_7455G     = 0x80010304,
+    CPU_PPC_7457      = 0x80020101,
+    CPU_PPC_7457C     = 0x80020102,
     CPU_PPC_7457A     = 0x80030000,
     /* 64 bits PowerPC */
     CPU_PPC_620       = 0x00140000,
@@ -130,7 +232,21 @@ enum {
     CPU_PPC_POWER5    = 0x003A0000,
     CPU_PPC_POWER5P   = 0x003B0000,
     CPU_PPC_970       = 0x00390000,
-    CPU_PPC_970FX     = 0x003C0000,
+    CPU_PPC_970FX10   = 0x00391100,
+    CPU_PPC_970FX20   = 0x003C0200,
+    CPU_PPC_970FX21   = 0x003C0201,
+    CPU_PPC_970FX30   = 0x003C0300,
+    CPU_PPC_970FX31   = 0x003C0301,
+#define CPU_PPC_970FX CPU_PPC_970FX31
+    CPU_PPC_970MP10   = 0x00440100,
+    CPU_PPC_970MP11   = 0x00440101,
+#define CPU_PPC_970MP CPU_PPC_970MP11
+    CPU_PPC_CELL10    = 0x00700100,
+    CPU_PPC_CELL20    = 0x00700400,
+    CPU_PPC_CELL30    = 0x00700500,
+    CPU_PPC_CELL31    = 0x00700501,
+#define CPU_PPC_CELL32 CPU_PPC_CELL31
+#define CPU_PPC_CELL CPU_PPC_CELL32
     CPU_PPC_RS64      = 0x00330000,
     CPU_PPC_RS64II    = 0x00340000,
     CPU_PPC_RS64III   = 0x00360000,
@@ -147,12 +263,28 @@ enum {
 #endif
 };
 
-/* System version register (used on MPC 8xx) */
+/* System version register (used on MPC 8xxx) */
 enum {
     PPC_SVR_8540      = 0x80300000,
-    PPC_SVR_8541E     = 0x807A0000,
-    PPC_SVR_8555E     = 0x80790000,
-    PPC_SVR_8560      = 0x80700000,
+    PPC_SVR_8541E     = 0x807A0010,
+    PPC_SVR_8543v10   = 0x80320010,
+    PPC_SVR_8543v11   = 0x80320011,
+    PPC_SVR_8543v20   = 0x80320020,
+    PPC_SVR_8543Ev10  = 0x803A0010,
+    PPC_SVR_8543Ev11  = 0x803A0011,
+    PPC_SVR_8543Ev20  = 0x803A0020,
+    PPC_SVR_8545      = 0x80310220,
+    PPC_SVR_8545E     = 0x80390220,
+    PPC_SVR_8547E     = 0x80390120,
+    PPC_SCR_8548v10   = 0x80310010,
+    PPC_SCR_8548v11   = 0x80310011,
+    PPC_SCR_8548v20   = 0x80310020,
+    PPC_SVR_8548Ev10  = 0x80390010,
+    PPC_SVR_8548Ev11  = 0x80390011,
+    PPC_SVR_8548Ev20  = 0x80390020,
+    PPC_SVR_8555E     = 0x80790010,
+    PPC_SVR_8560v10   = 0x80700010,
+    PPC_SVR_8560v20   = 0x80700020,
 };
 
 /*****************************************************************************/
@@ -197,7 +329,7 @@ enum {
     /* Time base support                           */
     PPC_TB          = 0x00002000,
     /* Embedded PowerPC dedicated instructions     */
-    PPC_4xx_COMMON  = 0x00004000,
+    PPC_EMB_COMMON  = 0x00004000,
     /* PowerPC 40x exception model                 */
     PPC_40x_EXCP    = 0x00008000,
     /* PowerPC 40x specific instructions           */
@@ -225,12 +357,20 @@ enum {
     PPC_64H         = 0x02000000,
     /* 64 bits PowerPC "bridge" features           */
     PPC_64_BRIDGE   = 0x04000000,
+    /* BookE (embedded) PowerPC specification      */
+    PPC_BOOKE       = 0x08000000,
+    /* eieio */
+    PPC_MEM_EIEIO   = 0x10000000,
+    /* e500 vector instructions */
+    PPC_E500_VECTOR = 0x20000000,
+    /* PowerPC 4xx dedicated instructions     */
+    PPC_4xx_COMMON  = 0x40000000,
 };
 
 /* CPU run-time flags (MMU and exception model) */
 enum {
     /* MMU model */
-#define PPC_FLAGS_MMU_MASK (0x0000000F)
+    PPC_FLAGS_MMU_MASK     = 0x0000000F,
     /* Standard 32 bits PowerPC MMU */
     PPC_FLAGS_MMU_32B      = 0x00000000,
     /* Standard 64 bits PowerPC MMU */
@@ -243,8 +383,10 @@ enum {
     PPC_FLAGS_MMU_SOFT_4xx = 0x00000004,
     /* PowerPC 403 MMU */
     PPC_FLAGS_MMU_403      = 0x00000005,
+    /* Freescale e500 MMU model */
+    PPC_FLAGS_MMU_e500     = 0x00000006,
     /* Exception model */
-#define PPC_FLAGS_EXCP_MASK (0x000000F0)
+    PPC_FLAGS_EXCP_MASK    = 0x000000F0,
     /* Standard PowerPC exception model */
     PPC_FLAGS_EXCP_STD     = 0x00000000,
     /* PowerPC 40x exception model */
@@ -277,32 +419,42 @@ enum {
 #define PPC_FLAGS_TODO (0x00000000)
 
 /* PowerPC 40x instruction set */
-#define PPC_INSNS_4xx (PPC_INSNS_BASE | PPC_MEM_TLBSYNC | PPC_4xx_COMMON)
+#define PPC_INSNS_EMB (PPC_INSNS_BASE | PPC_MEM_TLBSYNC | PPC_EMB_COMMON)
 /* PowerPC 401 */
 #define PPC_INSNS_401 (PPC_INSNS_TODO)
 #define PPC_FLAGS_401 (PPC_FLAGS_TODO)
 /* PowerPC 403 */
-#define PPC_INSNS_403 (PPC_INSNS_4xx | PPC_MEM_SYNC | PPC_MEM_TLBIA |         \
-                       PPC_40x_EXCP | PPC_40x_SPEC)
+#define PPC_INSNS_403 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
+                       PPC_MEM_TLBIA | PPC_4xx_COMMON | PPC_40x_EXCP |        \
+                       PPC_40x_SPEC)
 #define PPC_FLAGS_403 (PPC_FLAGS_MMU_403 | PPC_FLAGS_EXCP_40x)
 /* PowerPC 405 */
-#define PPC_INSNS_405 (PPC_INSNS_4xx | PPC_MEM_SYNC | PPC_CACHE_OPT |         \
-                       PPC_MEM_TLBIA | PPC_TB | PPC_40x_SPEC | PPC_40x_EXCP | \
+#define PPC_INSNS_405 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
+                       PPC_CACHE_OPT | PPC_MEM_TLBIA | PPC_TB |               \
+                       PPC_4xx_COMMON | PPC_40x_SPEC |  PPC_40x_EXCP |        \
                        PPC_405_MAC)
 #define PPC_FLAGS_405 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x)
 /* PowerPC 440 */
-#define PPC_INSNS_440 (PPC_INSNS_4xx | PPC_CACHE_OPT | PPC_405_MAC |          \
-                       PPC_440_SPEC)
+#define PPC_INSNS_440 (PPC_INSNS_EMB | PPC_CACHE_OPT | PPC_BOOKE |            \
+                       PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
 #define PPC_FLAGS_440 (PPC_FLAGS_TODO)
+/* Generic BookE PowerPC */
+#define PPC_INSNS_BOOKE (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |          \
+                         PPC_FLOAT | PPC_FLOAT_OPT | PPC_CACHE_OPT)
+#define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x)
+/* e500 core */
+#define PPC_INSNS_E500 (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |           \
+                        PPC_CACHE_OPT | PPC_E500_VECTOR)
+#define PPC_FLAGS_E500 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x)
 /* Non-embedded PowerPC */
 #define PPC_INSNS_COMMON  (PPC_INSNS_BASE | PPC_FLOAT | PPC_MEM_SYNC |        \
-                           PPC_SEGMENT | PPC_MEM_TLBIE)
+                            PPC_MEM_EIEIO | PPC_SEGMENT | PPC_MEM_TLBIE)
 /* PowerPC 601 */
 #define PPC_INSNS_601 (PPC_INSNS_COMMON | PPC_EXTERN | PPC_POWER_BR)
 #define PPC_FLAGS_601 (PPC_FLAGS_MMU_601 | PPC_FLAGS_EXCP_601)
 /* PowerPC 602 */
 #define PPC_INSNS_602 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |       \
-                       PPC_MEM_TLBSYNC | PPC_TB)
+                       PPC_MEM_TLBSYNC | PPC_TB | PPC_602_SPEC)
 #define PPC_FLAGS_602 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_602)
 /* PowerPC 603 */
 #define PPC_INSNS_603 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |       \
@@ -348,13 +500,17 @@ typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
 typedef struct ppc_avr_t ppc_avr_t;
+typedef struct ppc_tlb_t ppc_tlb_t;
+
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {
     void (*uea_read)(void *opaque, int spr_num);
     void (*uea_write)(void *opaque, int spr_num);
+#if !defined(CONFIG_USER_ONLY)
     void (*oea_read)(void *opaque, int spr_num);
     void (*oea_write)(void *opaque, int spr_num);
+#endif
     const unsigned char *name;
 };
 
@@ -364,46 +520,42 @@ struct ppc_avr_t {
 };
 
 /* Software TLB cache */
-typedef struct ppc_tlb_t ppc_tlb_t;
 struct ppc_tlb_t {
-    /* Physical page number */
-    target_phys_addr_t RPN;
-    /* Virtual page number */
-    target_ulong VPN;
-    /* Page size */
-    target_ulong size;
-    /* Protection bits */
-    int prot;
-    int is_user;
-    uint32_t private;
-    uint32_t flags;
+    target_ulong pte0;
+    target_ulong pte1;
+    target_ulong EPN;
+    target_ulong PID;
+    int size;
 };
 
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
-#define MSR_SF   63 /* Sixty-four-bit mode                                   */
+#define MSR_SF   63 /* Sixty-four-bit mode                            hflags */
 #define MSR_ISF  61 /* Sixty-four-bit interrupt mode on 630                  */
-#define MSR_HV   60 /* hypervisor state                                      */
-#define MSR_VR   25 /* altivec available                                     */
-#define MSR_AP   23 /* Access privilege state on 602                         */
-#define MSR_SA   22 /* Supervisor access mode on 602                         */
+#define MSR_HV   60 /* hypervisor state                               hflags */
+#define MSR_UCLE 26 /* User-mode cache lock enable on e500                   */
+#define MSR_VR   25 /* altivec available                              hflags */
+#define MSR_SPE  25 /* SPE enable on e500                             hflags */
+#define MSR_AP   23 /* Access privilege state on 602                  hflags */
+#define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
 #define MSR_KEY  19 /* key bit on 603e                                       */
 #define MSR_POW  18 /* Power management                                      */
 #define MSR_WE   18 /* Wait state enable on embedded PowerPC                 */
 #define MSR_TGPR 17 /* TGPR usage on 602/603                                 */
-#define MSR_TLB  17 /* TLB on ?                                              */
+#define MSR_TLB  17 /* TLB update on ?                                       */
 #define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC         */
 #define MSR_ILE  16 /* Interrupt little-endian mode                          */
 #define MSR_EE   15 /* External interrupt enable                             */
-#define MSR_PR   14 /* Problem state                                         */
-#define MSR_FP   13 /* Floating point available                              */
+#define MSR_PR   14 /* Problem state                                  hflags */
+#define MSR_FP   13 /* Floating point available                       hflags */
 #define MSR_ME   12 /* Machine check interrupt enable                        */
-#define MSR_FE0  11 /* Floating point exception mode 0                       */
-#define MSR_SE   10 /* Single-step trace enable                              */
+#define MSR_FE0  11 /* Floating point exception mode 0                hflags */
+#define MSR_SE   10 /* Single-step trace enable                       hflags */
 #define MSR_DWE  10 /* Debug wait enable on 405                              */
-#define MSR_BE   9  /* Branch trace enable                                   */
+#define MSR_UBLE 10 /* User BTB lock enable on e500                          */
+#define MSR_BE   9  /* Branch trace enable                            hflags */
 #define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC           */
-#define MSR_FE1  8  /* Floating point exception mode 1                       */
+#define MSR_FE1  8  /* Floating point exception mode 1                hflags */
 #define MSR_AL   7  /* AL bit on POWER                                       */
 #define MSR_IP   6  /* Interrupt prefix                                      */
 #define MSR_IR   5  /* Instruction relocate                                  */
@@ -415,42 +567,45 @@ struct ppc_tlb_t {
 #define MSR_PX   2  /* Protection exclusive on 403                           */
 #define MSR_PMM  2  /* Performance monitor mark on POWER                     */
 #define MSR_RI   1  /* Recoverable interrupt                                 */
-#define MSR_LE   0  /* Little-endian mode                                    */
+#define MSR_LE   0  /* Little-endian mode                             hflags */
 #define msr_sf   env->msr[MSR_SF]
 #define msr_isf  env->msr[MSR_ISF]
 #define msr_hv   env->msr[MSR_HV]
+#define msr_ucle env->msr[MSR_UCLE]
 #define msr_vr   env->msr[MSR_VR]
+#define msr_spe  env->msr[MSR_SPE]
 #define msr_ap   env->msr[MSR_AP]
 #define msr_sa   env->msr[MSR_SA]
 #define msr_key  env->msr[MSR_KEY]
-#define msr_pow env->msr[MSR_POW]
+#define msr_pow  env->msr[MSR_POW]
 #define msr_we   env->msr[MSR_WE]
 #define msr_tgpr env->msr[MSR_TGPR]
 #define msr_tlb  env->msr[MSR_TLB]
 #define msr_ce   env->msr[MSR_CE]
-#define msr_ile env->msr[MSR_ILE]
-#define msr_ee  env->msr[MSR_EE]
-#define msr_pr  env->msr[MSR_PR]
-#define msr_fp  env->msr[MSR_FP]
-#define msr_me  env->msr[MSR_ME]
-#define msr_fe0 env->msr[MSR_FE0]
-#define msr_se  env->msr[MSR_SE]
+#define msr_ile  env->msr[MSR_ILE]
+#define msr_ee   env->msr[MSR_EE]
+#define msr_pr   env->msr[MSR_PR]
+#define msr_fp   env->msr[MSR_FP]
+#define msr_me   env->msr[MSR_ME]
+#define msr_fe0  env->msr[MSR_FE0]
+#define msr_se   env->msr[MSR_SE]
 #define msr_dwe  env->msr[MSR_DWE]
-#define msr_be  env->msr[MSR_BE]
+#define msr_uble env->msr[MSR_UBLE]
+#define msr_be   env->msr[MSR_BE]
 #define msr_de   env->msr[MSR_DE]
-#define msr_fe1 env->msr[MSR_FE1]
+#define msr_fe1  env->msr[MSR_FE1]
 #define msr_al   env->msr[MSR_AL]
-#define msr_ip  env->msr[MSR_IP]
-#define msr_ir  env->msr[MSR_IR]
+#define msr_ip   env->msr[MSR_IP]
+#define msr_ir   env->msr[MSR_IR]
 #define msr_is   env->msr[MSR_IS]
-#define msr_dr  env->msr[MSR_DR]
+#define msr_dr   env->msr[MSR_DR]
 #define msr_ds   env->msr[MSR_DS]
 #define msr_pe   env->msr[MSR_PE]
 #define msr_ep   env->msr[MSR_EP]
 #define msr_px   env->msr[MSR_PX]
 #define msr_pmm  env->msr[MSR_PMM]
-#define msr_ri  env->msr[MSR_RI]
-#define msr_le  env->msr[MSR_LE]
+#define msr_ri   env->msr[MSR_RI]
+#define msr_le   env->msr[MSR_LE]
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
@@ -465,7 +620,7 @@ struct CPUPPCState {
     target_ulong t0, t1, t2;
 #endif
     /* general purpose registers */
-    target_ulong gpr[32];
+    ppc_gpr_t gpr[32];
     /* LR */
     target_ulong lr;
     /* CTR */
@@ -482,10 +637,10 @@ struct CPUPPCState {
     /* machine state register */
     uint8_t msr[64];
     /* temporary general purpose registers */
-    target_ulong tgpr[4]; /* Used to speed-up TLB assist handlers */
+    ppc_gpr_t tgpr[4]; /* Used to speed-up TLB assist handlers */
 
     /* Floating point execution context */
-     /* temporary float registers */
+    /* temporary float registers */
     float64 ft0;
     float64 ft1;
     float64 ft2;
@@ -529,9 +684,12 @@ struct CPUPPCState {
     ppc_dcr_t *dcr_env;
 
     /* PowerPC TLB registers (for 4xx and 60x software driven TLBs) */
-    int nb_tlb;
-    int nb_ways, last_way;
-    ppc_tlb_t tlb[128];
+    int nb_tlb;      /* Total number of TLB                                  */
+    int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
+    int nb_ways;     /* Number of ways in the TLB set                        */
+    int last_way;    /* Last used way used to allocate TLB in a LRU way      */
+    int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
+    ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* Callbacks for specific checks on some implementations */
     int (*tlb_check_more)(CPUPPCState *env, struct ppc_tlb_t *tlb, int *prot,
                           target_ulong vaddr, int rw, int acc_type,
@@ -568,6 +726,16 @@ struct CPUPPCState {
     int (*osi_call)(struct CPUPPCState *env);
 };
 
+/* Context used internally during MMU translations */
+typedef struct mmu_ctx_t mmu_ctx_t;
+struct mmu_ctx_t {
+    target_phys_addr_t raddr;      /* Real address              */
+    int prot;                      /* Protection bits           */
+    target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
+    target_ulong ptem;             /* Virtual segment ID | API  */
+    int key;                       /* Access key                */
+};
+
 /*****************************************************************************/
 CPUPPCState *cpu_ppc_init(void);
 int cpu_ppc_exec(CPUPPCState *s);
@@ -583,6 +751,7 @@ void cpu_loop_exit(void);
 
 void dump_stack (CPUPPCState *env);
 
+#if !defined(CONFIG_USER_ONLY)
 target_ulong do_load_ibatu (CPUPPCState *env, int nr);
 target_ulong do_load_ibatl (CPUPPCState *env, int nr);
 void do_store_ibatu (CPUPPCState *env, int nr, target_ulong value);
@@ -591,23 +760,17 @@ target_ulong do_load_dbatu (CPUPPCState *env, int nr);
 target_ulong do_load_dbatl (CPUPPCState *env, int nr);
 void do_store_dbatu (CPUPPCState *env, int nr, target_ulong value);
 void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value);
-
-target_ulong do_load_nip (CPUPPCState *env);
-void do_store_nip (CPUPPCState *env, target_ulong value);
 target_ulong do_load_sdr1 (CPUPPCState *env);
 void do_store_sdr1 (CPUPPCState *env, target_ulong value);
 target_ulong do_load_asr (CPUPPCState *env);
 void do_store_asr (CPUPPCState *env, target_ulong value);
 target_ulong do_load_sr (CPUPPCState *env, int srnum);
 void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
-uint32_t do_load_cr (CPUPPCState *env);
-void do_store_cr (CPUPPCState *env, uint32_t value, uint32_t mask);
-uint32_t do_load_xer (CPUPPCState *env);
-void do_store_xer (CPUPPCState *env, uint32_t value);
+#endif
+uint32_t ppc_load_xer (CPUPPCState *env);
+void ppc_store_xer (CPUPPCState *env, uint32_t value);
 target_ulong do_load_msr (CPUPPCState *env);
 void do_store_msr (CPUPPCState *env, target_ulong value);
-float64 do_load_fpscr (CPUPPCState *env);
-void do_store_fpscr (CPUPPCState *env, float64 f, uint32_t mask);
 
 void do_compute_hflags (CPUPPCState *env);
 
@@ -645,261 +808,294 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 #define xer_bc env->xer[0]
 
 /* SPR definitions */
-#define SPR_MQ         (0x000)
-#define SPR_XER        (0x001)
-#define SPR_601_VRTCU  (0x004)
-#define SPR_601_VRTCL  (0x005)
-#define SPR_601_UDECR  (0x006)
-#define SPR_LR         (0x008)
-#define SPR_CTR        (0x009)
-#define SPR_DSISR      (0x012)
-#define SPR_DAR        (0x013)
-#define SPR_601_RTCU   (0x014)
-#define SPR_601_RTCL   (0x015)
-#define SPR_DECR       (0x016)
-#define SPR_SDR1       (0x019)
-#define SPR_SRR0       (0x01A)
-#define SPR_SRR1       (0x01B)
-#define SPR_440_PID    (0x030)
-#define SPR_440_DECAR  (0x036)
-#define SPR_CSRR0      (0x03A)
-#define SPR_CSRR1      (0x03B)
-#define SPR_440_DEAR   (0x03D)
-#define SPR_440_ESR    (0x03E)
-#define SPR_440_IVPR   (0x03F)
-#define SPR_8xx_EIE    (0x050)
-#define SPR_8xx_EID    (0x051)
-#define SPR_8xx_NRE    (0x052)
-#define SPR_58x_CMPA   (0x090)
-#define SPR_58x_CMPB   (0x091)
-#define SPR_58x_CMPC   (0x092)
-#define SPR_58x_CMPD   (0x093)
-#define SPR_58x_ICR    (0x094)
-#define SPR_58x_DER    (0x094)
-#define SPR_58x_COUNTA (0x096)
-#define SPR_58x_COUNTB (0x097)
-#define SPR_58x_CMPE   (0x098)
-#define SPR_58x_CMPF   (0x099)
-#define SPR_58x_CMPG   (0x09A)
-#define SPR_58x_CMPH   (0x09B)
-#define SPR_58x_LCTRL1 (0x09C)
-#define SPR_58x_LCTRL2 (0x09D)
-#define SPR_58x_ICTRL  (0x09E)
-#define SPR_58x_BAR    (0x09F)
-#define SPR_VRSAVE     (0x100)
-#define SPR_USPRG0     (0x100)
-#define SPR_USPRG4     (0x104)
-#define SPR_USPRG5     (0x105)
-#define SPR_USPRG6     (0x106)
-#define SPR_USPRG7     (0x107)
-#define SPR_VTBL       (0x10C)
-#define SPR_VTBU       (0x10D)
-#define SPR_SPRG0      (0x110)
-#define SPR_SPRG1      (0x111)
-#define SPR_SPRG2      (0x112)
-#define SPR_SPRG3      (0x113)
-#define SPR_SPRG4      (0x114)
-#define SPR_SCOMC      (0x114)
-#define SPR_SPRG5      (0x115)
-#define SPR_SCOMD      (0x115)
-#define SPR_SPRG6      (0x116)
-#define SPR_SPRG7      (0x117)
-#define SPR_ASR        (0x118)
-#define SPR_EAR        (0x11A)
-#define SPR_TBL        (0x11C)
-#define SPR_TBU        (0x11D)
-#define SPR_SVR        (0x11E)
-#define SPR_440_PIR    (0x11E)
-#define SPR_PVR        (0x11F)
-#define SPR_HSPRG0     (0x130)
-#define SPR_440_DBSR   (0x130)
-#define SPR_HSPRG1     (0x131)
-#define SPR_440_DBCR0  (0x134)
-#define SPR_IBCR       (0x135)
-#define SPR_440_DBCR1  (0x135)
-#define SPR_DBCR       (0x136)
-#define SPR_HDEC       (0x136)
-#define SPR_440_DBCR2  (0x136)
-#define SPR_HIOR       (0x137)
-#define SPR_MBAR       (0x137)
-#define SPR_RMOR       (0x138)
-#define SPR_440_IAC1   (0x138)
-#define SPR_HRMOR      (0x139)
-#define SPR_440_IAC2   (0x139)
-#define SPR_HSSR0      (0x13A)
-#define SPR_440_IAC3   (0x13A)
-#define SPR_HSSR1      (0x13B)
-#define SPR_440_IAC4   (0x13B)
-#define SPR_LPCR       (0x13C)
-#define SPR_440_DAC1   (0x13C)
-#define SPR_LPIDR      (0x13D)
-#define SPR_DABR2      (0x13D)
-#define SPR_440_DAC2   (0x13D)
-#define SPR_440_DVC1   (0x13E)
-#define SPR_440_DVC2   (0x13F)
-#define SPR_440_TSR    (0x150)
-#define SPR_440_TCR    (0x154)
-#define SPR_440_IVOR0  (0x190)
-#define SPR_440_IVOR1  (0x191)
-#define SPR_440_IVOR2  (0x192)
-#define SPR_440_IVOR3  (0x193)
-#define SPR_440_IVOR4  (0x194)
-#define SPR_440_IVOR5  (0x195)
-#define SPR_440_IVOR6  (0x196)
-#define SPR_440_IVOR7  (0x197)
-#define SPR_440_IVOR8  (0x198)
-#define SPR_440_IVOR9  (0x199)
-#define SPR_440_IVOR10 (0x19A)
-#define SPR_440_IVOR11 (0x19B)
-#define SPR_440_IVOR12 (0x19C)
-#define SPR_440_IVOR13 (0x19D)
-#define SPR_440_IVOR14 (0x19E)
-#define SPR_440_IVOR15 (0x19F)
-#define SPR_IBAT0U     (0x210)
-#define SPR_IBAT0L     (0x211)
-#define SPR_IBAT1U     (0x212)
-#define SPR_IBAT1L     (0x213)
-#define SPR_IBAT2U     (0x214)
-#define SPR_IBAT2L     (0x215)
-#define SPR_IBAT3U     (0x216)
-#define SPR_IBAT3L     (0x217)
-#define SPR_DBAT0U     (0x218)
-#define SPR_DBAT0L     (0x219)
-#define SPR_DBAT1U     (0x21A)
-#define SPR_DBAT1L     (0x21B)
-#define SPR_DBAT2U     (0x21C)
-#define SPR_DBAT2L     (0x21D)
-#define SPR_DBAT3U     (0x21E)
-#define SPR_DBAT3L     (0x21F)
-#define SPR_IBAT4U     (0x230)
-#define SPR_IBAT4L     (0x231)
-#define SPR_IBAT5U     (0x232)
-#define SPR_IBAT5L     (0x233)
-#define SPR_IBAT6U     (0x234)
-#define SPR_IBAT6L     (0x235)
-#define SPR_IBAT7U     (0x236)
-#define SPR_IBAT7L     (0x237)
-#define SPR_DBAT4U     (0x238)
-#define SPR_DBAT4L     (0x239)
-#define SPR_DBAT5U     (0x23A)
-#define SPR_DBAT5L     (0x23B)
-#define SPR_DBAT6U     (0x23C)
-#define SPR_DBAT6L     (0x23D)
-#define SPR_DBAT7U     (0x23E)
-#define SPR_DBAT7L     (0x23F)
-#define SPR_440_INV0   (0x370)
-#define SPR_440_INV1   (0x371)
-#define SPR_440_INV2   (0x372)
-#define SPR_440_INV3   (0x373)
-#define SPR_440_IVT0   (0x374)
-#define SPR_440_IVT1   (0x375)
-#define SPR_440_IVT2   (0x376)
-#define SPR_440_IVT3   (0x377)
-#define SPR_440_DNV0   (0x390)
-#define SPR_440_DNV1   (0x391)
-#define SPR_440_DNV2   (0x392)
-#define SPR_440_DNV3   (0x393)
-#define SPR_440_DVT0   (0x394)
-#define SPR_440_DVT1   (0x395)
-#define SPR_440_DVT2   (0x396)
-#define SPR_440_DVT3   (0x397)
-#define SPR_440_DVLIM  (0x398)
-#define SPR_440_IVLIM  (0x399)
-#define SPR_440_RSTCFG (0x39B)
-#define SPR_440_DCBTRL (0x39C)
-#define SPR_440_DCBTRH (0x39D)
-#define SPR_440_ICBTRL (0x39E)
-#define SPR_440_ICBTRH (0x39F)
-#define SPR_UMMCR0     (0x3A8)
-#define SPR_UPMC1      (0x3A9)
-#define SPR_UPMC2      (0x3AA)
-#define SPR_USIA       (0x3AB)
-#define SPR_UMMCR1     (0x3AC)
-#define SPR_UPMC3      (0x3AD)
-#define SPR_UPMC4      (0x3AE)
-#define SPR_USDA       (0x3AF)
-#define SPR_40x_ZPR    (0x3B0)
-#define SPR_40x_PID    (0x3B1)
-#define SPR_440_MMUCR  (0x3B2)
-#define SPR_4xx_CCR0   (0x3B3)
-#define SPR_405_IAC3   (0x3B4)
-#define SPR_405_IAC4   (0x3B5)
-#define SPR_405_DVC1   (0x3B6)
-#define SPR_405_DVC2   (0x3B7)
-#define SPR_MMCR0      (0x3B8)
-#define SPR_PMC1       (0x3B9)
-#define SPR_40x_SGR    (0x3B9)
-#define SPR_PMC2       (0x3BA)
-#define SPR_40x_DCWR   (0x3BA)
-#define SPR_SIA        (0x3BB)
-#define SPR_405_SLER   (0x3BB)
-#define SPR_MMCR1      (0x3BC)
-#define SPR_405_SU0R   (0x3BC)
-#define SPR_PMC3       (0x3BD)
-#define SPR_405_DBCR1  (0x3BD)
-#define SPR_PMC4       (0x3BE)
-#define SPR_SDA        (0x3BF)
-#define SPR_403_VTBL   (0x3CC)
-#define SPR_403_VTBU   (0x3CD)
-#define SPR_DMISS      (0x3D0)
-#define SPR_DCMP       (0x3D1)
-#define SPR_DHASH1     (0x3D2)
-#define SPR_DHASH2     (0x3D3)
-#define SPR_4xx_ICDBDR (0x3D3)
-#define SPR_IMISS      (0x3D4)
-#define SPR_40x_ESR    (0x3D4)
-#define SPR_ICMP       (0x3D5)
-#define SPR_40x_DEAR   (0x3D5)
-#define SPR_RPA        (0x3D6)
-#define SPR_40x_EVPR   (0x3D6)
-#define SPR_403_CDBCR  (0x3D7)
-#define SPR_TCR        (0x3D8)
-#define SPR_40x_TSR    (0x3D8)
-#define SPR_IBR        (0x3DA)
-#define SPR_40x_TCR    (0x3DA)
-#define SPR_ESASR      (0x3DB)
-#define SPR_40x_PIT    (0x3DB)
-#define SPR_403_TBL    (0x3DC)
-#define SPR_403_TBU    (0x3DD)
-#define SPR_SEBR       (0x3DE)
-#define SPR_40x_SRR2   (0x3DE)
-#define SPR_SER        (0x3DF)
-#define SPR_40x_SRR3   (0x3DF)
-#define SPR_HID0       (0x3F0)
-#define SPR_40x_DBSR   (0x3F0)
-#define SPR_HID1       (0x3F1)
-#define SPR_IABR       (0x3F2)
-#define SPR_40x_DBCR0  (0x3F2)
-#define SPR_601_HID2   (0x3F2)
-#define SPR_HID2       (0x3F3)
-#define SPR_440_DBDR   (0x3F3)
-#define SPR_40x_IAC1   (0x3F4)
-#define SPR_DABR       (0x3F5)
+#define SPR_MQ           (0x000)
+#define SPR_XER          (0x001)
+#define SPR_601_VRTCU    (0x004)
+#define SPR_601_VRTCL    (0x005)
+#define SPR_601_UDECR    (0x006)
+#define SPR_LR           (0x008)
+#define SPR_CTR          (0x009)
+#define SPR_DSISR        (0x012)
+#define SPR_DAR          (0x013)
+#define SPR_601_RTCU     (0x014)
+#define SPR_601_RTCL     (0x015)
+#define SPR_DECR         (0x016)
+#define SPR_SDR1         (0x019)
+#define SPR_SRR0         (0x01A)
+#define SPR_SRR1         (0x01B)
+#define SPR_BOOKE_PID    (0x030)
+#define SPR_BOOKE_DECAR  (0x036)
+#define SPR_CSRR0        (0x03A)
+#define SPR_CSRR1        (0x03B)
+#define SPR_BOOKE_DEAR   (0x03D)
+#define SPR_BOOKE_ESR    (0x03E)
+#define SPR_BOOKE_EVPR   (0x03F)
+#define SPR_8xx_EIE      (0x050)
+#define SPR_8xx_EID      (0x051)
+#define SPR_8xx_NRE      (0x052)
+#define SPR_58x_CMPA     (0x090)
+#define SPR_58x_CMPB     (0x091)
+#define SPR_58x_CMPC     (0x092)
+#define SPR_58x_CMPD     (0x093)
+#define SPR_58x_ICR      (0x094)
+#define SPR_58x_DER      (0x094)
+#define SPR_58x_COUNTA   (0x096)
+#define SPR_58x_COUNTB   (0x097)
+#define SPR_58x_CMPE     (0x098)
+#define SPR_58x_CMPF     (0x099)
+#define SPR_58x_CMPG     (0x09A)
+#define SPR_58x_CMPH     (0x09B)
+#define SPR_58x_LCTRL1   (0x09C)
+#define SPR_58x_LCTRL2   (0x09D)
+#define SPR_58x_ICTRL    (0x09E)
+#define SPR_58x_BAR      (0x09F)
+#define SPR_VRSAVE       (0x100)
+#define SPR_USPRG0       (0x100)
+#define SPR_USPRG4       (0x104)
+#define SPR_USPRG5       (0x105)
+#define SPR_USPRG6       (0x106)
+#define SPR_USPRG7       (0x107)
+#define SPR_VTBL         (0x10C)
+#define SPR_VTBU         (0x10D)
+#define SPR_SPRG0        (0x110)
+#define SPR_SPRG1        (0x111)
+#define SPR_SPRG2        (0x112)
+#define SPR_SPRG3        (0x113)
+#define SPR_SPRG4        (0x114)
+#define SPR_SCOMC        (0x114)
+#define SPR_SPRG5        (0x115)
+#define SPR_SCOMD        (0x115)
+#define SPR_SPRG6        (0x116)
+#define SPR_SPRG7        (0x117)
+#define SPR_ASR          (0x118)
+#define SPR_EAR          (0x11A)
+#define SPR_TBL          (0x11C)
+#define SPR_TBU          (0x11D)
+#define SPR_SVR          (0x11E)
+#define SPR_BOOKE_PIR    (0x11E)
+#define SPR_PVR          (0x11F)
+#define SPR_HSPRG0       (0x130)
+#define SPR_BOOKE_DBSR   (0x130)
+#define SPR_HSPRG1       (0x131)
+#define SPR_BOOKE_DBCR0  (0x134)
+#define SPR_IBCR         (0x135)
+#define SPR_BOOKE_DBCR1  (0x135)
+#define SPR_DBCR         (0x136)
+#define SPR_HDEC         (0x136)
+#define SPR_BOOKE_DBCR2  (0x136)
+#define SPR_HIOR         (0x137)
+#define SPR_MBAR         (0x137)
+#define SPR_RMOR         (0x138)
+#define SPR_BOOKE_IAC1   (0x138)
+#define SPR_HRMOR        (0x139)
+#define SPR_BOOKE_IAC2   (0x139)
+#define SPR_HSSR0        (0x13A)
+#define SPR_BOOKE_IAC3   (0x13A)
+#define SPR_HSSR1        (0x13B)
+#define SPR_BOOKE_IAC4   (0x13B)
+#define SPR_LPCR         (0x13C)
+#define SPR_BOOKE_DAC1   (0x13C)
+#define SPR_LPIDR        (0x13D)
+#define SPR_DABR2        (0x13D)
+#define SPR_BOOKE_DAC2   (0x13D)
+#define SPR_BOOKE_DVC1   (0x13E)
+#define SPR_BOOKE_DVC2   (0x13F)
+#define SPR_BOOKE_TSR    (0x150)
+#define SPR_BOOKE_TCR    (0x154)
+#define SPR_BOOKE_IVOR0  (0x190)
+#define SPR_BOOKE_IVOR1  (0x191)
+#define SPR_BOOKE_IVOR2  (0x192)
+#define SPR_BOOKE_IVOR3  (0x193)
+#define SPR_BOOKE_IVOR4  (0x194)
+#define SPR_BOOKE_IVOR5  (0x195)
+#define SPR_BOOKE_IVOR6  (0x196)
+#define SPR_BOOKE_IVOR7  (0x197)
+#define SPR_BOOKE_IVOR8  (0x198)
+#define SPR_BOOKE_IVOR9  (0x199)
+#define SPR_BOOKE_IVOR10 (0x19A)
+#define SPR_BOOKE_IVOR11 (0x19B)
+#define SPR_BOOKE_IVOR12 (0x19C)
+#define SPR_BOOKE_IVOR13 (0x19D)
+#define SPR_BOOKE_IVOR14 (0x19E)
+#define SPR_BOOKE_IVOR15 (0x19F)
+#define SPR_E500_SPEFSCR (0x200)
+#define SPR_E500_BBEAR   (0x201)
+#define SPR_E500_BBTAR   (0x202)
+#define SPR_BOOKE_ATBL   (0x20E)
+#define SPR_BOOKE_ATBU   (0x20F)
+#define SPR_IBAT0U       (0x210)
+#define SPR_E500_IVOR32  (0x210)
+#define SPR_IBAT0L       (0x211)
+#define SPR_E500_IVOR33  (0x211)
+#define SPR_IBAT1U       (0x212)
+#define SPR_E500_IVOR34  (0x212)
+#define SPR_IBAT1L       (0x213)
+#define SPR_E500_IVOR35  (0x213)
+#define SPR_IBAT2U       (0x214)
+#define SPR_IBAT2L       (0x215)
+#define SPR_E500_L1CFG0  (0x215)
+#define SPR_IBAT3U       (0x216)
+#define SPR_E500_L1CFG1  (0x216)
+#define SPR_IBAT3L       (0x217)
+#define SPR_DBAT0U       (0x218)
+#define SPR_DBAT0L       (0x219)
+#define SPR_DBAT1U       (0x21A)
+#define SPR_DBAT1L       (0x21B)
+#define SPR_DBAT2U       (0x21C)
+#define SPR_DBAT2L       (0x21D)
+#define SPR_DBAT3U       (0x21E)
+#define SPR_DBAT3L       (0x21F)
+#define SPR_IBAT4U       (0x230)
+#define SPR_IBAT4L       (0x231)
+#define SPR_IBAT5U       (0x232)
+#define SPR_IBAT5L       (0x233)
+#define SPR_IBAT6U       (0x234)
+#define SPR_IBAT6L       (0x235)
+#define SPR_IBAT7U       (0x236)
+#define SPR_IBAT7L       (0x237)
+#define SPR_DBAT4U       (0x238)
+#define SPR_DBAT4L       (0x239)
+#define SPR_DBAT5U       (0x23A)
+#define SPR_E500_MCSRR0  (0x23A)
+#define SPR_DBAT5L       (0x23B)
+#define SPR_E500_MCSRR1  (0x23B)
+#define SPR_DBAT6U       (0x23C)
+#define SPR_E500_MCSR    (0x23C)
+#define SPR_DBAT6L       (0x23D)
+#define SPR_E500_MCAR    (0x23D)
+#define SPR_DBAT7U       (0x23E)
+#define SPR_DBAT7L       (0x23F)
+#define SPR_E500_MAS0    (0x270)
+#define SPR_E500_MAS1    (0x271)
+#define SPR_E500_MAS2    (0x272)
+#define SPR_E500_MAS3    (0x273)
+#define SPR_E500_MAS4    (0x274)
+#define SPR_E500_MAS6    (0x276)
+#define SPR_E500_PID1    (0x279)
+#define SPR_E500_PID2    (0x27A)
+#define SPR_E500_TLB0CFG (0x2B0)
+#define SPR_E500_TLB1CFG (0x2B1)
+#define SPR_440_INV0     (0x370)
+#define SPR_440_INV1     (0x371)
+#define SPR_440_INV2     (0x372)
+#define SPR_440_INV3     (0x373)
+#define SPR_440_IVT0     (0x374)
+#define SPR_440_IVT1     (0x375)
+#define SPR_440_IVT2     (0x376)
+#define SPR_440_IVT3     (0x377)
+#define SPR_440_DNV0     (0x390)
+#define SPR_440_DNV1     (0x391)
+#define SPR_440_DNV2     (0x392)
+#define SPR_440_DNV3     (0x393)
+#define SPR_440_DVT0     (0x394)
+#define SPR_440_DVT1     (0x395)
+#define SPR_440_DVT2     (0x396)
+#define SPR_440_DVT3     (0x397)
+#define SPR_440_DVLIM    (0x398)
+#define SPR_440_IVLIM    (0x399)
+#define SPR_440_RSTCFG   (0x39B)
+#define SPR_440_DCBTRL   (0x39C)
+#define SPR_440_DCBTRH   (0x39D)
+#define SPR_440_ICBTRL   (0x39E)
+#define SPR_440_ICBTRH   (0x39F)
+#define SPR_UMMCR0       (0x3A8)
+#define SPR_UPMC1        (0x3A9)
+#define SPR_UPMC2        (0x3AA)
+#define SPR_USIA         (0x3AB)
+#define SPR_UMMCR1       (0x3AC)
+#define SPR_UPMC3        (0x3AD)
+#define SPR_UPMC4        (0x3AE)
+#define SPR_USDA         (0x3AF)
+#define SPR_40x_ZPR      (0x3B0)
+#define SPR_E500_MAS7    (0x3B0)
+#define SPR_40x_PID      (0x3B1)
+#define SPR_440_MMUCR    (0x3B2)
+#define SPR_4xx_CCR0     (0x3B3)
+#define SPR_405_IAC3     (0x3B4)
+#define SPR_405_IAC4     (0x3B5)
+#define SPR_405_DVC1     (0x3B6)
+#define SPR_405_DVC2     (0x3B7)
+#define SPR_MMCR0        (0x3B8)
+#define SPR_PMC1         (0x3B9)
+#define SPR_40x_SGR      (0x3B9)
+#define SPR_PMC2         (0x3BA)
+#define SPR_40x_DCWR     (0x3BA)
+#define SPR_SIA          (0x3BB)
+#define SPR_405_SLER     (0x3BB)
+#define SPR_MMCR1        (0x3BC)
+#define SPR_405_SU0R     (0x3BC)
+#define SPR_PMC3         (0x3BD)
+#define SPR_405_DBCR1    (0x3BD)
+#define SPR_PMC4         (0x3BE)
+#define SPR_SDA          (0x3BF)
+#define SPR_403_VTBL     (0x3CC)
+#define SPR_403_VTBU     (0x3CD)
+#define SPR_DMISS        (0x3D0)
+#define SPR_DCMP         (0x3D1)
+#define SPR_HASH1        (0x3D2)
+#define SPR_HASH2        (0x3D3)
+#define SPR_4xx_ICDBDR   (0x3D3)
+#define SPR_IMISS        (0x3D4)
+#define SPR_40x_ESR      (0x3D4)
+#define SPR_ICMP         (0x3D5)
+#define SPR_40x_DEAR     (0x3D5)
+#define SPR_RPA          (0x3D6)
+#define SPR_40x_EVPR     (0x3D6)
+#define SPR_403_CDBCR    (0x3D7)
+#define SPR_TCR          (0x3D8)
+#define SPR_40x_TSR      (0x3D8)
+#define SPR_IBR          (0x3DA)
+#define SPR_40x_TCR      (0x3DA)
+#define SPR_ESASR        (0x3DB)
+#define SPR_40x_PIT      (0x3DB)
+#define SPR_403_TBL      (0x3DC)
+#define SPR_403_TBU      (0x3DD)
+#define SPR_SEBR         (0x3DE)
+#define SPR_40x_SRR2     (0x3DE)
+#define SPR_SER          (0x3DF)
+#define SPR_40x_SRR3     (0x3DF)
+#define SPR_HID0         (0x3F0)
+#define SPR_40x_DBSR     (0x3F0)
+#define SPR_HID1         (0x3F1)
+#define SPR_IABR         (0x3F2)
+#define SPR_40x_DBCR0    (0x3F2)
+#define SPR_601_HID2     (0x3F2)
+#define SPR_E500_L1CSR0  (0x3F2)
+#define SPR_HID2         (0x3F3)
+#define SPR_E500_L1CSR1  (0x3F3)
+#define SPR_440_DBDR     (0x3F3)
+#define SPR_40x_IAC1     (0x3F4)
+#define SPR_E500_MMUCSR0 (0x3F4)
+#define SPR_DABR         (0x3F5)
 #define DABR_MASK (~(target_ulong)0x7)
-#define SPR_40x_IAC2   (0x3F5)
-#define SPR_601_HID5   (0x3F5)
-#define SPR_40x_DAC1   (0x3F6)
-#define SPR_40x_DAC2   (0x3F7)
-#define SPR_L2PM       (0x3F8)
-#define SPR_750_HID2   (0x3F8)
-#define SPR_L2CR       (0x3F9)
-#define SPR_IABR2      (0x3FA)
-#define SPR_40x_DCCR   (0x3FA)
-#define SPR_ICTC       (0x3FB)
-#define SPR_40x_ICCR   (0x3FB)
-#define SPR_THRM1      (0x3FC)
-#define SPR_403_PBL1   (0x3FC)
-#define SPR_SP         (0x3FD)
-#define SPR_THRM2      (0x3FD)
-#define SPR_403_PBU1   (0x3FD)
-#define SPR_LT         (0x3FE)
-#define SPR_THRM3      (0x3FE)
-#define SPR_FPECR      (0x3FE)
-#define SPR_403_PBL2   (0x3FE)
-#define SPR_PIR        (0x3FF)
-#define SPR_403_PBU2   (0x3FF)
-#define SPR_601_HID15  (0x3FF)
+#define SPR_E500_BUCSR   (0x3F5)
+#define SPR_40x_IAC2     (0x3F5)
+#define SPR_601_HID5     (0x3F5)
+#define SPR_40x_DAC1     (0x3F6)
+#define SPR_40x_DAC2     (0x3F7)
+#define SPR_E500_MMUCFG  (0x3F7)
+#define SPR_L2PM         (0x3F8)
+#define SPR_750_HID2     (0x3F8)
+#define SPR_L2CR         (0x3F9)
+#define SPR_IABR2        (0x3FA)
+#define SPR_40x_DCCR     (0x3FA)
+#define SPR_ICTC         (0x3FB)
+#define SPR_40x_ICCR     (0x3FB)
+#define SPR_THRM1        (0x3FC)
+#define SPR_403_PBL1     (0x3FC)
+#define SPR_SP           (0x3FD)
+#define SPR_THRM2        (0x3FD)
+#define SPR_403_PBU1     (0x3FD)
+#define SPR_LT           (0x3FE)
+#define SPR_THRM3        (0x3FE)
+#define SPR_FPECR        (0x3FE)
+#define SPR_403_PBL2     (0x3FE)
+#define SPR_PIR          (0x3FF)
+#define SPR_403_PBU2     (0x3FF)
+#define SPR_601_HID15    (0x3FF)
+#define SPR_E500_SVR     (0x3FF)
 
+/*****************************************************************************/
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.
  */
@@ -977,7 +1173,7 @@ enum {
 #define EXCP_PPC_MAX       0x4000
 /* Qemu exceptions: special cases we want to stop translation                */
 #define EXCP_MTMSR         0x11000 /* mtmsr instruction:                     */
-                                /* may change privilege level       */
+                                   /* may change privilege level             */
 #define EXCP_BRANCH        0x11001 /* branch instruction                     */
 #define EXCP_SYSCALL_USER  0x12000 /* System call in user mode only          */
 #define EXCP_INTERRUPT_CRITICAL 0x13000 /* critical IRQ                      */

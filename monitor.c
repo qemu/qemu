@@ -329,6 +329,17 @@ static void do_info_history (void)
     }
 }
 
+#if defined(TARGET_PPC)
+/* XXX: not implemented in other targets */
+static void do_info_cpu_stats (void)
+{
+    CPUState *env;
+
+    env = mon_get_cpu();
+    cpu_dump_statistics(env, NULL, &monitor_fprintf, 0);
+}
+#endif
+
 static void do_quit(void)
 {
     exit(0);
@@ -1305,6 +1316,10 @@ static const term_cmd_t info_cmds[] = {
       "", "show which guest mouse is receiving events" },
     { "vnc", "", do_info_vnc,
       "", "show the vnc server status"},
+#if defined(TARGET_PPC)
+    { "cpustats", "", do_info_cpu_stats,
+      "", "show CPU statistics", },
+#endif
     { NULL, NULL, },
 };
 
