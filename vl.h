@@ -1304,8 +1304,7 @@ void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *lsi_scsi_init(PCIBus *bus, int devfn);
 
 /* integratorcp.c */
-extern QEMUMachine integratorcp926_machine;
-extern QEMUMachine integratorcp1026_machine;
+extern QEMUMachine integratorcp_machine;
 
 /* versatilepb.c */
 extern QEMUMachine versatilepb_machine;

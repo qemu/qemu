@@ -26,8 +26,9 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
     int done_smc = 0;
 
     env = cpu_init();
-    cpu_arm_set_model(env, ARM_CPUID_ARM926);
-    //cpu_arm_set_model(env, ARM_CPUID_ARM11MPCORE);
+    if (!cpu_model)
+        cpu_model = "arm926";
+    cpu_arm_set_model(env, cpu_model);
     /* ??? RAM shoud repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);

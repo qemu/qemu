@@ -471,7 +471,7 @@ static void icp_control_init(uint32_t base)
 static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, uint32_t cpuid)
+                     const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
     uint32_t bios_offset;
@@ -479,7 +479,9 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     void *cpu_pic;
 
     env = cpu_init();
-    cpu_arm_set_model(env, cpuid);
+    if (!cpu_model)
+        cpu_model = "arm926";
+    cpu_arm_set_model(env, cpu_model);
     bios_offset = ram_size + vga_ram_size;
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM shoud repeat to fill physical memory space.  */
@@ -513,34 +515,8 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
                     initrd_filename, 0x113);
 }
 
-static void integratorcp926_init(int ram_size, int vga_ram_size,
-    int boot_device, DisplayState *ds, const char **fd_filename, int snapshot,
-    const char *kernel_filename, const char *kernel_cmdline,
-    const char *initrd_filename, const char *cpu_model)
-{
-    integratorcp_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
-                      snapshot, kernel_filename, kernel_cmdline,
-                      initrd_filename, ARM_CPUID_ARM926);
-}
-
-static void integratorcp1026_init(int ram_size, int vga_ram_size,
-    int boot_device, DisplayState *ds, const char **fd_filename, int snapshot,
-    const char *kernel_filename, const char *kernel_cmdline,
-    const char *initrd_filename, const char *cpu_model)
-{
-    integratorcp_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
-                      snapshot, kernel_filename, kernel_cmdline,
-                      initrd_filename, ARM_CPUID_ARM1026);
-}
-
-QEMUMachine integratorcp926_machine = {
-    "integratorcp926",
+QEMUMachine integratorcp_machine = {
+    "integratorcp",
     "ARM Integrator/CP (ARM926EJ-S)",
-    integratorcp926_init,
-};
-
-QEMUMachine integratorcp1026_machine = {
-    "integratorcp1026",
-    "ARM Integrator/CP (ARM1026EJ-S)",
-    integratorcp1026_init,
+    integratorcp_init,
 };
