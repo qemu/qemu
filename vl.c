@@ -6355,7 +6355,7 @@ void help(void)
            "\n"
            "Standard options:\n"
            "-M machine      select emulated machine (-M ? for list)\n"
-           "-cpu cpu        select CPU (-C ? for list)\n"
+           "-cpu cpu        select CPU (-cpu ? for list)\n"
            "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n"
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
@@ -7004,6 +7004,8 @@ int main(int argc, char **argv)
                 if (optarg[0] == '?') {
 #if defined(TARGET_PPC)
                     ppc_cpu_list(stdout, &fprintf);
+#elif defined(TARGET_ARM)
+                    arm_cpu_list();
 #endif
                     exit(1);
                 } else {

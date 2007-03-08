@@ -47,6 +47,16 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { 0, NULL}
 };
 
+void arm_cpu_list(void)
+{
+    int i;
+
+    printf ("Available CPUs:\n");
+    for (i = 0; arm_cpu_names[i].name; i++) {
+        printf("  %s\n", arm_cpu_names[i].name);
+    }
+}
+
 void cpu_arm_set_model(CPUARMState *env, const char *name)
 {
     int i;
