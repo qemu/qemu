@@ -5,8 +5,37 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+static inline void set_feature(CPUARMState *env, int feature)
+{
+    env->features |= 1u << feature;
+}
+
+static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
+{
+    env->cp15.c0_cpuid = id;
+    switch (id) {
+    case ARM_CPUID_ARM926:
+        set_feature(env, ARM_FEATURE_VFP);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
+        break;
+    case ARM_CPUID_ARM1026:
+        set_feature(env, ARM_FEATURE_VFP);
+        set_feature(env, ARM_FEATURE_AUXCR);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
+        break;
+    default:
+        cpu_abort(env, "Bad CPU ID: %x\n", id);
+        break;
+    }
+}
+
 void cpu_reset(CPUARMState *env)
 {
+    uint32_t id;
+    id = env->cp15.c0_cpuid;
+    memset(env, 0, offsetof(CPUARMState, breakpoints));
+    if (id)
+        cpu_reset_model_id(env, id);
 #if defined (CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
     env->vfp.xregs[ARM_VFP_FPEXC] = 1 << 30;
@@ -16,6 +45,7 @@ void cpu_reset(CPUARMState *env)
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
     env->regs[15] = 0;
+    tlb_flush(env, 1);
 }
 
 CPUARMState *cpu_arm_init(void)
@@ -27,13 +57,7 @@ CPUARMState *cpu_arm_init(void)
         return NULL;
     cpu_exec_init(env);
     cpu_reset(env);
-    tlb_flush(env, 1);
     return env;
-}
-
-static inline void set_feature(CPUARMState *env, int feature)
-{
-    env->features |= 1u << feature;
 }
 
 struct arm_cpu_t {
@@ -74,22 +98,7 @@ void cpu_arm_set_model(CPUARMState *env, const char *name)
         cpu_abort(env, "Unknown CPU '%s'", name);
         return;
     }
-
-    env->cp15.c0_cpuid = id;
-    switch (id) {
-    case ARM_CPUID_ARM926:
-        set_feature(env, ARM_FEATURE_VFP);
-        env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
-        break;
-    case ARM_CPUID_ARM1026:
-        set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_AUXCR);
-        env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
-        break;
-    default:
-        cpu_abort(env, "Bad CPU ID: %x\n", id);
-        break;
-    }
+    cpu_reset_model_id(env, id);
 }
 
 void cpu_arm_close(CPUARMState *env)

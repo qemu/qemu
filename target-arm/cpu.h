@@ -122,6 +122,12 @@ typedef struct CPUARMState {
 
     CPU_COMMON
 
+    /* These fields after the common ones so thes are preserved on reset.  */
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+    int board_id;
 } CPUARMState;
 
 CPUARMState *cpu_arm_init(void);

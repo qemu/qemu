@@ -24,6 +24,17 @@ static uint32_t bootloader[] = {
   0  /* Kernel entry point.  Set by integratorcp_init.  */
 };
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    if (env->kernel_filename)
+        arm_load_kernel(env, env->ram_size, env->kernel_filename, 
+                        env->kernel_cmdline, env->initrd_filename, 
+                        env->board_id);
+}
+
 static void set_kernel_args(uint32_t ram_size, int initrd_size,
                             const char *kernel_cmdline)
 {
@@ -81,6 +92,14 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         exit(1);
     }
 
+    if (!env->kernel_filename) {
+        env->ram_size = ram_size;
+        env->kernel_filename = kernel_filename;
+        env->kernel_cmdline = kernel_cmdline;
+        env->initrd_filename = initrd_filename;
+        env->board_id = board_id;
+        qemu_register_reset(main_cpu_reset, env);
+    }
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = load_elf(kernel_filename, 0, &elf_entry);
     entry = elf_entry;

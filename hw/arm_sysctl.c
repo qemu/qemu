@@ -149,7 +149,7 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
         if (s->lockval == LOCK_VALUE) {
             s->resetlevel = val;
             if (val & 0x100)
-                cpu_abort(cpu_single_env, "Board reset\n");
+                qemu_system_reset_request ();
         }
         break;
     case 0x44: /* PCICTL */
