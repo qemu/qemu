@@ -6300,13 +6300,16 @@ int main_loop(void)
 #ifdef CONFIG_PROFILER
                 qemu_time += profile_getclock() - ti;
 #endif
+                if (ret == EXCP_HLT) {
+                    /* Give the next CPU a chance to run.  */
+                    cur_cpu = env;
+                    continue;
+                }
                 if (ret != EXCP_HALTED)
                     break;
                 /* all CPUs are halted ? */
-                if (env == cur_cpu) {
-                    ret = EXCP_HLT;
+                if (env == cur_cpu)
                     break;
-                }
             }
             cur_cpu = env;
 
@@ -6327,9 +6330,9 @@ int main_loop(void)
             if (ret == EXCP_DEBUG) {
                 vm_stop(EXCP_DEBUG);
             }
-            /* if hlt instruction, we wait until the next IRQ */
+            /* If all cpus are halted then wait until the next IRQ */
             /* XXX: use timeout computed from timers */
-            if (ret == EXCP_HLT)
+            if (ret == EXCP_HALTED)
                 timeout = 10;
             else
                 timeout = 0;

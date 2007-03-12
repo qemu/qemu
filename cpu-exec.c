@@ -409,6 +409,11 @@ int cpu_exec(CPUState *env1)
 #endif	    
                 interrupt_request = env->interrupt_request;
                 if (__builtin_expect(interrupt_request, 0)) {
+                    if (interrupt_request & CPU_INTERRUPT_DEBUG) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
+                        env->exception_index = EXCP_DEBUG;
+                        cpu_loop_exit();
+                    }
 #if defined(TARGET_I386)
                     if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                         !(env->hflags & HF_SMM_MASK)) {

@@ -860,6 +860,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             if (cpu_breakpoint_insert(env, addr) < 0)
                 goto breakpoint_error;
             put_packet(s, "OK");
+#ifndef CONFIG_USER_ONLY
+        } else if (type == 2) {
+            if (cpu_watchpoint_insert(env, addr) < 0)
+                goto breakpoint_error;
+            put_packet(s, "OK");
+#endif
         } else {
         breakpoint_error:
             put_packet(s, "E22");
@@ -876,6 +882,11 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         if (type == 0 || type == 1) {
             cpu_breakpoint_remove(env, addr);
             put_packet(s, "OK");
+#ifndef CONFIG_USER_ONLY
+        } else if (type == 2) {
+            cpu_watchpoint_remove(env, addr);
+            put_packet(s, "OK");
+#endif
         } else {
             goto breakpoint_error;
         }
@@ -918,6 +929,13 @@ static void gdb_vm_stopped(void *opaque, int reason)
     cpu_single_step(s->env, 0);
 
     if (reason == EXCP_DEBUG) {
+        if (s->env->watchpoint_hit) {
+            snprintf(buf, sizeof(buf), "T%02xwatch:%x;", SIGTRAP,
+                     s->env->watchpoint[s->env->watchpoint_hit - 1].vaddr);
+            put_packet(s, buf);
+            s->env->watchpoint_hit = 0;
+            return;
+        }
 	tb_flush(s->env);
         ret = SIGTRAP;
     } else if (reason == EXCP_INTERRUPT) {

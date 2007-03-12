@@ -1,3 +1,18 @@
+2007-03-12 02:47  pbrook
+
+	* cpu-all.h, cpu-defs.h, cpu-exec.c, exec.c, gdbstub.c,
+	  target-arm/translate.c: Implement watchpoints.
+
+2007-03-11 19:54  pbrook
+
+	* vl.c: SMP half-idle fix.
+
+2007-03-11 14:03  pbrook
+
+	* hw/arm_boot.c, hw/arm_sysctl.c, target-arm/cpu.h,
+	  target-arm/helper.c: ARM reabbot support (orginal patch by
+	  Aurelien Jarno).
+
 2007-03-08 04:15  pbrook
 
 	* vl.c, target-arm/cpu.h, target-arm/helper.c: Fix typo in help

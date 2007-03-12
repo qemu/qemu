@@ -129,6 +129,9 @@ CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 static int io_mem_nb;
+#if defined(CONFIG_SOFTMMU)
+static int io_mem_watch;
+#endif
 
 /* log support */
 char *logfilename = "/tmp/qemu.log";
@@ -275,6 +278,7 @@ void cpu_exec_init(CPUState *env)
         cpu_index++;
     }
     env->cpu_index = cpu_index;
+    env->nb_watchpoints = 0;
     *penv = env;
 }
 
@@ -1030,6 +1034,44 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 }
 #endif
 
+/* Add a watchpoint.  */
+int  cpu_watchpoint_insert(CPUState *env, target_ulong addr)
+{
+    int i;
+
+    for (i = 0; i < env->nb_watchpoints; i++) {
+        if (addr == env->watchpoint[i].vaddr)
+            return 0;
+    }
+    if (env->nb_watchpoints >= MAX_WATCHPOINTS)
+        return -1;
+
+    i = env->nb_watchpoints++;
+    env->watchpoint[i].vaddr = addr;
+    tlb_flush_page(env, addr);
+    /* FIXME: This flush is needed because of the hack to make memory ops
+       terminate the TB.  It can be removed once the proper IO trap and
+       re-execute bits are in.  */
+    tb_flush(env);
+    return i;
+}
+
+/* Remove a watchpoint.  */
+int cpu_watchpoint_remove(CPUState *env, target_ulong addr)
+{
+    int i;
+
+    for (i = 0; i < env->nb_watchpoints; i++) {
+        if (addr == env->watchpoint[i].vaddr) {
+            env->nb_watchpoints--;
+            env->watchpoint[i] = env->watchpoint[env->nb_watchpoints];
+            tlb_flush_page(env, addr);
+            return 0;
+        }
+    }
+    return -1;
+}
+
 /* add a breakpoint. EXCP_DEBUG is returned by the CPU loop if a
    breakpoint is reached */
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
@@ -1485,6 +1527,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     target_phys_addr_t addend;
     int ret;
     CPUTLBEntry *te;
+    int i;
 
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
     if (!p) {
@@ -1510,6 +1553,22 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             /* standard memory */
             address = vaddr;
             addend = (unsigned long)phys_ram_base + (pd & TARGET_PAGE_MASK);
+        }
+
+        /* Make accesses to pages with watchpoints go via the
+           watchpoint trap routines.  */
+        for (i = 0; i < env->nb_watchpoints; i++) {
+            if (vaddr == (env->watchpoint[i].vaddr & TARGET_PAGE_MASK)) {
+                if (address & ~TARGET_PAGE_MASK) {
+                    env->watchpoint[i].is_ram = 0;
+                    address = vaddr | io_mem_watch;
+                } else {
+                    env->watchpoint[i].is_ram = 1;
+                    /* TODO: Figure out how to make read watchpoints coexist
+                       with code.  */
+                    pd = (pd & TARGET_PAGE_MASK) | io_mem_watch | IO_MEM_ROMD;
+                }
+            }
         }
         
         index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -1994,6 +2053,85 @@ static CPUWriteMemoryFunc * const notdirty_mem_write[3] = {
     notdirty_mem_writel,
 };
 
+#if defined(CONFIG_SOFTMMU)
+/* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
+   so these check for a hit then pass through to the normal out-of-line
+   phys routines.  */
+static uint32_t watch_mem_readb(void *opaque, target_phys_addr_t addr)
+{
+    return ldub_phys(addr);
+}
+
+static uint32_t watch_mem_readw(void *opaque, target_phys_addr_t addr)
+{
+    return lduw_phys(addr);
+}
+
+static uint32_t watch_mem_readl(void *opaque, target_phys_addr_t addr)
+{
+    return ldl_phys(addr);
+}
+
+/* Generate a debug exception if a watchpoint has been hit.
+   Returns the real physical address of the access.  addr will be a host
+   address in the is_ram case.  */
+static target_ulong check_watchpoint(target_phys_addr_t addr)
+{
+    CPUState *env = cpu_single_env;
+    target_ulong watch;
+    target_ulong retaddr;
+    int i;
+
+    retaddr = addr;
+    for (i = 0; i < env->nb_watchpoints; i++) {
+        watch = env->watchpoint[i].vaddr;
+        if (((env->mem_write_vaddr ^ watch) & TARGET_PAGE_MASK) == 0) {
+            if (env->watchpoint[i].is_ram)
+                retaddr = addr - (unsigned long)phys_ram_base;
+            if (((addr ^ watch) & ~TARGET_PAGE_MASK) == 0) {
+                cpu_single_env->watchpoint_hit = i + 1;
+                cpu_interrupt(cpu_single_env, CPU_INTERRUPT_DEBUG);
+                break;
+            }
+        }
+    }
+    return retaddr;
+}
+
+static void watch_mem_writeb(void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+    addr = check_watchpoint(addr);
+    stb_phys(addr, val);
+}
+
+static void watch_mem_writew(void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+    addr = check_watchpoint(addr);
+    stw_phys(addr, val);
+}
+
+static void watch_mem_writel(void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+    addr = check_watchpoint(addr);
+    stl_phys(addr, val);
+}
+
+static CPUReadMemoryFunc *watch_mem_read[3] = {
+    watch_mem_readb,
+    watch_mem_readw,
+    watch_mem_readl,
+};
+
+static CPUWriteMemoryFunc *watch_mem_write[3] = {
+    watch_mem_writeb,
+    watch_mem_writew,
+    watch_mem_writel,
+};
+#endif
+
 static void io_mem_init(void)
 {
     cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, error_mem_read, unassigned_mem_write, NULL);
@@ -2001,6 +2139,10 @@ static void io_mem_init(void)
     cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, error_mem_read, notdirty_mem_write, NULL);
     io_mem_nb = 5;
 
+#if defined(CONFIG_SOFTMMU)
+    io_mem_watch = cpu_register_io_memory(-1, watch_mem_read,
+                                          watch_mem_write, NULL);
+#endif
     /* alloc dirty bits array */
     phys_ram_dirty = qemu_vmalloc(phys_ram_size >> TARGET_PAGE_BITS);
     memset(phys_ram_dirty, 0xff, phys_ram_size >> TARGET_PAGE_BITS);
