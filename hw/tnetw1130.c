@@ -93,7 +93,6 @@
 /* 2 PCI memory regions. */
 #define TNETW1130_MEM0_SIZE      (8 * KiB)
 #define TNETW1130_MEM1_SIZE      (128 * KiB)
-#define TNETW1130_FW_SIZE        (128 * KiB)
 
 /* No PCI I/O regions. */
 //~ #define TNETW1130_IO_SIZE      (0 * KiB)
@@ -101,17 +100,18 @@
 /* Total number of PCI memory and I/O regions. */
 #define  TNETW1130_REGIONS      2
 
+#define TNETW1130_FW_SIZE        (128 * KiB)
+
 static int tnetw1130_instance = 0;
 static const int tnetw1130_version = 20070211;
 
 typedef struct {
     /* Variables for QEMU interface. */
 
-    /* handles for memory mapped I/O */
+    /* Handles for memory mapped I/O. */
     int io_memory[TNETW1130_REGIONS];
-    PCIDevice *pci_dev;
 
-    /* PCI region addresses */
+    /* PCI region addresses. */
     uint32_t region[TNETW1130_REGIONS];
 
     VLANClientState *vc;
@@ -257,6 +257,8 @@ static void reg_write32(uint8_t * reg, uint32_t addr, uint32_t value)
     *(uint32_t *) (&reg[addr]) = cpu_to_le32(value);
 }
 
+#if defined(DEBUG_TNETW1130)
+
 typedef struct {
     unsigned offset;
     const char *name;
@@ -344,6 +346,8 @@ static const char *tnetw1130_cmdname(uint16_t cmd)
 {
     return offset2name(cmd2name, cmd);
 }
+
+#endif /* DEBUG_TNETW1130 */
 
 static void tnetw1130_cmd_reset(tnetw1130_t *s)
 {
@@ -461,8 +465,8 @@ static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
         }
     } else if (addr == TNETW1130_INT_TRIG) {
         if (value == 1) {
-            uint16_t cmd = reg_read16(s->mem1, CMD_MAILBOX);
-            logout("trigger interrupt, status, cmd = %s\n", tnetw1130_cmdname(cmd));
+            logout("trigger interrupt, status, cmd = %s\n",
+                   tnetw1130_cmdname(reg_read16(s->mem1, CMD_MAILBOX)));
             tnetw1130_cmd(s);
         } else {
             UNEXPECTED();
@@ -568,88 +572,6 @@ static void tnetw1130_write1l(pci_tnetw1130_t * d, target_phys_addr_t addr,
     reg_write32(s->mem1, addr, value);
     logout("addr %s = %08x\n", tnetw1130_regname1(addr), value);
 }
-
-/*****************************************************************************
- *
- * Port mapped I/O.
- *
- ****************************************************************************/
-
-#if 0 // no port mapped i/o
-
-static uint32_t tnetw1130_ioport_readb(void *opaque, uint32_t addr)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    logout("addr=%s\n", tnetw1130_regname(addr));
-    return tnetw1130_readb(d, addr);
-}
-
-static uint32_t tnetw1130_ioport_readw(void *opaque, uint32_t addr)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    logout("addr=%s\n", tnetw1130_regname(addr));
-    return tnetw1130_readw(d, addr);
-}
-
-static uint32_t tnetw1130_ioport_readl(void *opaque, uint32_t addr)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    logout("addr=%s\n", tnetw1130_regname(addr));
-    return tnetw1130_readl(d, addr);
-}
-
-static void tnetw1130_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    logout("addr=%s val=0x%02x\n", tnetw1130_regname(addr), val);
-    tnetw1130_writeb(d, addr, val);
-}
-
-static void tnetw1130_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    logout("addr=%s val=0x%04x\n", tnetw1130_regname(addr), val);
-    tnetw1130_writew(d, addr, val);
-}
-
-static void tnetw1130_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    logout("addr=%s val=0x%08x\n", tnetw1130_regname(addr), val);
-    tnetw1130_writel(d, addr, val);
-}
-
-static void tnetw1130_io_map(PCIDevice * pci_dev, int region_num,
-                           uint32_t addr, uint32_t size, int type)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) pci_dev;
-    tnetw1130_t *s = &d->tnetw1130;
-
-    logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size);
-    assert(region_num == 0);
-    s->region[region_num] = addr;
-
-    register_ioport_read(addr, size, 1, tnetw1130_ioport_readb, d);
-    register_ioport_read(addr, size, 2, tnetw1130_ioport_readw, d);
-    register_ioport_read(addr, size, 4, tnetw1130_ioport_readl, d);
-    register_ioport_write(addr, size, 1, tnetw1130_ioport_writeb, d);
-    register_ioport_write(addr, size, 2, tnetw1130_ioport_writew, d);
-    register_ioport_write(addr, size, 4, tnetw1130_ioport_writel, d);
-}
-
-#endif
 
 /*****************************************************************************
  *
@@ -771,6 +693,18 @@ static void tnetw1130_mem1_writel(void *opaque, target_phys_addr_t addr,
     tnetw1130_write1l(d, addr, val);
 }
 
+static CPUReadMemoryFunc *tnetw1130_region1_read[] = {
+    tnetw1130_mem1_readb,
+    tnetw1130_mem1_readw,
+    tnetw1130_mem1_readl
+};
+
+static CPUWriteMemoryFunc *tnetw1130_region1_write[] = {
+    tnetw1130_mem1_writeb,
+    tnetw1130_mem1_writew,
+    tnetw1130_mem1_writel
+};
+
 static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
@@ -783,18 +717,6 @@ static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
 
     cpu_register_physical_memory(addr, size, s->io_memory[region_num]);
 }
-
-static CPUReadMemoryFunc *tnetw1130_region1_read[] = {
-    tnetw1130_mem1_readb,
-    tnetw1130_mem1_readw,
-    tnetw1130_mem1_readl
-};
-
-static CPUWriteMemoryFunc *tnetw1130_region1_write[] = {
-    tnetw1130_mem1_writeb,
-    tnetw1130_mem1_writew,
-    tnetw1130_mem1_writel
-};
 
 /*****************************************************************************
  *
@@ -820,18 +742,8 @@ static int tnetw1130_load(QEMUFile * f, void *opaque, int version_id)
 
 static void nic_reset(void *opaque)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-    logout("%p\n", d);
-}
-
-static int tnetw1130_can_receive(void *opaque)
-{
-    //~ tnetw1130_t *s = opaque;
-
-    logout("\n");
-
-    /* TODO: handle queued receive data. */
-    return 0;
+    //~ pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    logout("%p\n", opaque);
 }
 
 static void tnetw1130_save(QEMUFile * f, void *opaque)
@@ -846,25 +758,24 @@ static void tnetw1130_save(QEMUFile * f, void *opaque)
     qemu_put_buffer(f, (uint8_t *) d, sizeof(*d));
 }
 
+static int tnetw1130_can_receive(void *opaque)
+{
+    //~ tnetw1130_t *s = opaque;
+
+    logout("\n");
+
+    /* TODO: handle queued receive data. */
+    return 0;
+}
+
 static void tnetw1130_receive(void *opaque, const uint8_t * buf, int size)
 {
 }
 
-static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
+static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
 {
-    pci_tnetw1130_t *d;
-    tnetw1130_t *s;
-    uint8_t *pci_conf;
-
-    d = (pci_tnetw1130_t *) pci_register_device(bus, "TNETW1130",
-                                              sizeof(pci_tnetw1130_t),
-                                              -1, NULL, NULL);
-    pci_conf = d->dev.config;
-
-//~ lspci -x: 00: 4c 10 66 90 07 01 10 02 00 00 80 02 04 40 00 00
-//~ lspci -x: 10: 00 c0 af fe 00 00 ac fe 00 00 00 00 00 00 00 00
-//~ lspci -x: 20: 00 00 00 00 00 00 00 00 02 1c 00 00 86 11 04 3b
-//~ lspci -x: 30: 00 00 00 00 40 00 00 00 00 00 00 00 0a 01 00 00
+    uint8_t *pci_conf = d->dev.config;
+    tnetw1130_t *s = &d->tnetw1130;
 
     /* TI TNETW1130 */
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
@@ -889,8 +800,6 @@ static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
     //~ PCI_CONFIG_32(0x44, 0x00000000);
     /* 0x48...0xff reserved, returns 0 */
 
-    s = &d->tnetw1130;
-
     /* Handler for memory-mapped I/O */
     s->io_memory[0] =
         cpu_register_io_memory(0, tnetw1130_region0_read, tnetw1130_region0_write, d);
@@ -904,7 +813,6 @@ static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
     pci_register_io_region(&d->dev, 1, TNETW1130_MEM1_SIZE,
                            PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
 
-    s->pci_dev = &d->dev;
     static const char macaddr[6] = {
         0x00, 0x60, 0x65, 0x02, 0x4a, 0x8e
     };
@@ -929,8 +837,11 @@ static void tnetw1130_init(PCIBus * bus, NICInfo * nd)
 
 void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
+    pci_tnetw1130_t *d = (pci_tnetw1130_t *) pci_register_device(bus, "TNETW1130",
+                                              sizeof(pci_tnetw1130_t),
+                                              -1, NULL, NULL);
     logout("\n");
-    tnetw1130_init(bus, nd);
+    tnetw1130_init(d, nd);
 }
 
 static pci_tnetw1130_t vlynq;
@@ -951,7 +862,7 @@ void vlynq_tnetw1130_init(void)
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
                   //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
     PCI_CONFIG_32(0x28, 0x00001c02);
-    PCI_CONFIG_32(0x28, 0x9067104c);
+    PCI_CONFIG_32(0x2c, 0x9067104c);
     /* Address registers are set by pci_register_io_region. */
     /* Capabilities Pointer, CLOFS */
     PCI_CONFIG_32(0x34, 0x00000040);
@@ -1047,6 +958,53 @@ void vlynq_tnetw1130_init(void)
 	}
 
 	*charbuf = read_reg8(adev, IO_ACX_EEPROM_DATA);
+
+ACX111 PCI control block
+
+0xa4041000 / 0x00: 0x9066104c
+0xa4041004 / 0x04: 0x02100000
+0xa4041008 / 0x08: 0x02800000
+0xa404100c / 0x0c: 0x00000000
+0xa4041010 / 0x10: 0x00000000
+0xa4041014 / 0x14: 0x00000000
+0xa4041018 / 0x18: 0x00000000
+0xa404101c / 0x1c: 0x00000000
+0xa4041020 / 0x20: 0x00000000
+0xa4041024 / 0x24: 0x00000000
+0xa4041028 / 0x28: 0x00001c02
+0xa404102c / 0x2c: 0x9067104c
+0xa4041030 / 0x30: 0x00000000
+0xa4041034 / 0x34: 0x00000040
+0xa4041038 / 0x38: 0x00000000
+0xa404103c / 0x3c: 0x00000100
+0xa4041040 / 0x40: 0x7e020001 
+
+//~ lspci -x: 00: 4c 10 66 90 07 01 10 02 00 00 80 02 04 40 00 00
+//~ lspci -x: 10: 00 c0 af fe 00 00 ac fe 00 00 00 00 00 00 00 00
+//~ lspci -x: 20: 00 00 00 00 00 00 00 00 02 1c 00 00 86 11 04 3b
+//~ lspci -x: 30: 00 00 00 00 40 00 00 00 00 00 00 00 0a 01 00 00
+
+vlynq.c
+A1			{ .size = 0x22000, .offset = 0xf0000000 },
+			{ .size = 0x40000, .offset = 0xc0000000 },
+A2			{ .size = 0x40000, .offset = 0xc0000000 },
+			{ .size = 0x22000, .offset = 0xf0000000 },
+
+u32 vlynq_get_mapped(struct vlynq_device *dev, int res)
+B1                      vertauscht
+B2                      nicht vertauscht
+
+config_read
+C1                      vertauscht
+C2                      nicht vertauscht
+
+config_write
+D1                      vertauscht
+D2                      nicht vertauscht
+
+
+A1 B2 C2 D2:
+
 */
 
 /* eof */
