@@ -331,7 +331,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         s->cmd = val;
         if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
             s->isr &= ~ENISR_RESET;
-            /* test specific case: zero length transfert */
+            /* test specific case: zero length transfer */
             if ((val & (E8390_RREAD | E8390_RWRITE)) &&
                 s->rcnt == 0) {
                 s->isr |= ENISR_RDC;
@@ -346,7 +346,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 if (index + s->tcnt <= NE2000_PMEM_END) {
                     qemu_send_packet(s->vc, s->mem + index, s->tcnt);
                 }
-                /* signal end of transfert */
+                /* signal end of transfer */
                 s->tsr = ENTSR_PTX;
                 s->isr |= ENISR_TX;
                 s->cmd &= ~E8390_TRANS; 
@@ -556,7 +556,7 @@ static inline void ne2000_dma_update(NE2000State *s, int len)
 
     if (s->rcnt <= len) {
         s->rcnt = 0;
-        /* signal end of transfert */
+        /* signal end of transfer */
         s->isr |= ENISR_RDC;
         ne2000_update_irq(s);
     } else {
