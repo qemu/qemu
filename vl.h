@@ -1047,10 +1047,11 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
 SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque,
                                int base, int irq, CharDriverState *chr);
 SerialState *serial_16550_init(SetIRQFunc *set_irq, void *opaque,
-                               int base, int it_shift, int irq, CharDriverState *chr);
+                               int base, int irq, CharDriverState *chr);
 SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
                              target_ulong base, int it_shift,
                              int irq, CharDriverState *chr);
+void serial_frequency(SerialState *s, uint32_t frequency);
 void serial_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t serial_read(void *opaque, uint32_t addr);
 

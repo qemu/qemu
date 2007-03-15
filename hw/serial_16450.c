@@ -1,5 +1,5 @@
 /*
- * QEMU 16450 UART emulation
+ * QEMU 16450 / 16550 UART emulation
  * 
  * Copyright (c) 2003-2004 Fabrice Bellard
  * 
@@ -24,16 +24,22 @@
 #include <assert.h>     /* assert */
 #include "vl.h"
 
-#define logout(fmt, args...) fprintf(stderr, "SIO\t%-24s" fmt, __func__, ##args)
-
 #define SERIAL_VERSION 2
 
 #define CONFIG_16550A
 
-//#define DEBUG_SERIAL
+#define DEBUG_SERIAL
+
+#if defined(DEBUG_SERIAL)
+# define logout(fmt, args...) fprintf(stderr, "UART\t%-24s" fmt, __func__, ##args)
+#else
+# define logout(fmt, args...) ((void)0)
+#endif
 
 #define UART_LCR_DLAB	0x80	/* Divisor latch access bit */
 
+//~ #define UART_IER_BIT7	0x80	/* FIFOs enabled */
+//~ #define UART_IER_BIT6	0x40	/* FIFOs enabled */
 #define UART_IER_MSI	0x08	/* Enable Modem status interrupt */
 #define UART_IER_RLSI	0x04	/* Enable receiver line status interrupt */
 #define UART_IER_THRI	0x02	/* Enable Transmitter holding register int. */
@@ -107,6 +113,11 @@
 
 static int serial_instance;
 
+typedef enum {
+  uart16450,
+  uart16550,
+} emulation_t;
+
 struct SerialState {
     uint16_t divider;
     uint8_t rbr; /* receive register */
@@ -128,23 +139,29 @@ struct SerialState {
     int last_break_enable;
     target_ulong base;
     //~ int it_shift;
-    uint8_t fifo[UART_FIFO_LENGTH];
+    emulation_t emulation;
+    uint32_t frequency;
+    uint8_t  fifo[UART_FIFO_LENGTH];
 };
 
 static void serial_update_irq(SerialState *s)
 {
     if ((s->lsr & UART_LSR_DR) && (s->ier & UART_IER_RDI)) {
+        logout("rx interrupt\n");
         s->iir = UART_IIR_RDI;
     } else if (s->thr_ipending && (s->ier & UART_IER_THRI)) {
+        logout("tx interrupt\n");
         s->iir = UART_IIR_THRI;
     } else {
+        logout("no interrupt\n");
         s->iir = UART_IIR_NO_INT;
     }
     if (s->set_irq == 0) {
-	static uint8_t iir = 255;
-	if (iir != s->iir) {
-	  iir = s->iir;
-	}
+        assert(0);
+        //~ static uint8_t iir = 255;
+        //~ if (iir != s->iir) {
+          //~ iir = s->iir;
+        //~ }
     } else if (s->iir != UART_IIR_NO_INT) {
         s->set_irq(s->irq_opaque, s->irq, 1);
     } else {
@@ -172,10 +189,7 @@ static void serial_update_parameters(SerialState *s)
     data_bits = (s->lcr & 0x03) + 5;
     if (s->divider == 0)
         return;
-    //~ speed = 12500000 / s->divider;
-    //~ speed = 4000000 / s->divider;
-    speed = 38400 * 102 / s->divider;
-    speed = 62500000 / 16 / s->divider;
+    speed = s->frequency / s->divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
@@ -195,9 +209,7 @@ void serial_write(void *opaque, uint32_t addr, uint32_t val)
     
     addr -= s->base;
     assert(addr < 8);
-#ifdef DEBUG_SERIAL
-    printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
-#endif
+    logout("addr=0x%02x val=0x%02x\n", addr, val);
     switch(addr) {
     default:
     case 0:
@@ -230,13 +242,24 @@ void serial_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case 2:
         /* fifo control register */
-        if (!(s->fcr & 0x01) && (val & 0x01)) {
-            logout("enable fifo\n");
-        } else if ((s->fcr & 0x01) && !(val & 0x01)) {
-            logout("disable fifo\n");
-            memset(s->fifo, 0, sizeof(s->fifo));
+        if (s->emulation == uart16550) {
+            if (!(s->fcr & 0x01) && (val & 0x01)) {
+                logout("enable fifo\n");
+            } else if ((s->fcr & 0x01) && !(val & 0x01)) {
+                logout("disable fifo\n");
+                memset(s->fifo, 0, sizeof(s->fifo));
+            }
+            if (val & UART_FCR_FE) {
+                s->iir |= UART_IIR_FE;
+            } else {
+                s->iir &= ~UART_IIR_FE;
+            }
+            s->fcr = val;
+            s->thr_ipending = 1;
+            //~ s->lsr |= UART_LSR_THRE;
+            //~ s->lsr |= UART_LSR_TEMT;
+            serial_update_irq(s);
         }
-        s->fcr = val;
         break;
     case 3:
         {
@@ -320,9 +343,7 @@ uint32_t serial_read(void *opaque, uint32_t addr)
         ret = s->scr;
         break;
     }
-#ifdef DEBUG_SERIAL
-    printf("serial: read addr=0x%02x val=0x%02x\n", addr, ret);
-#endif
+    logout("addr=0x%02x val=0x%02x\n", addr, ret);
     return ret;
 }
 
@@ -414,6 +435,11 @@ static void serial_reset(void *opaque)
     s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
 }
 
+void serial_frequency(SerialState *s, uint32_t frequency)
+{
+    s->frequency = frequency;
+}
+
 /* If fd is zero, it means that the serial device uses the console */
 SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
                                int irq, CharDriverState *chr)
@@ -429,6 +455,8 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     s->irq_opaque = opaque;
     s->irq = irq;
     s->base = base;
+    s->emulation = uart16450;
+    s->frequency = 115200;
     serial_reset(s);
 
     register_savevm("serial", serial_instance, SERIAL_VERSION,
@@ -445,5 +473,14 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
                           serial_event, s);
     qemu_register_reset(serial_reset, s);
 
+    return s;
+}
+
+SerialState *serial_16550_init(SetIRQFunc *set_irq, void *opaque, int base,
+                               int irq, CharDriverState *chr)
+{
+    SerialState *s;
+    s = serial_16450_init(set_irq, opaque, base, irq, chr);
+    s->emulation = uart16550;
     return s;
 }
