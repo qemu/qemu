@@ -58,6 +58,8 @@
 # include "hw/tnetw1130.h"
 #endif
 
+#define MIPS_EXCEPTION_OFFSET   8
+
 static int bigendian;
 
 /* physical address of kernel */
@@ -70,6 +72,7 @@ static int bigendian;
 
 #define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
 
+#define GDBRAM (8 * KiB)
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -323,7 +326,7 @@ typedef struct {
     uint8_t cpmac0[0x800];      // 0x08610000
     uint8_t emif[0x100];        // 0x08610800
     uint8_t gpio[32];           // 0x08610900
-    uint8_t gpio_dummy[4 * 0x38];
+    //~ uint8_t gpio_dummy[4 * 0x38];
     uint8_t clock_control[0x100];       // 0x08610a00
     // 0x08610a80 struct _ohio_clock_pll
     //~ uint32_t clock_dummy[0x18];
@@ -352,32 +355,10 @@ typedef struct {
 
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
 
-static avalanche_t av = {
-  .cpmac = {av.cpmac0, av.cpmac1},
-  .vlynq = {av.vlynq0, av.vlynq1},
-  //~ .cpmac0 = {0},
-  //~ .emif = {0},
-  //~ .clock_control = {0},
-  //~ .timer0 = {0},
-  //~ .timer1 = {0},
-  .uart0 = {0, 0, 0, 0, 0, 0x20, 0},
-    //~ .reset_control = { 0x04720043 },
-    //~ .dcl = 0x025d4297
-    // 21-20 phy clk source
-#if defined(TARGET_WORDS_BIGENDIAN)
-  .dcl = {0x02, 0x5d, 0x42, 0xd1},
-#else
-  .dcl = {0x91, 0x42, 0x5d, 0x02},
-#endif
-  .gpio = {
-    0x75, 0xa0, 0xbe, 0x0c, 0x00, 0x00, 0x00, 0x00,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-  },
-  //~ .mdio = {0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
-};
+static avalanche_t av;
 
 /* Global variable avalanche can be used in debugger. */
-avalanche_t *avalanche = &av;
+//~ avalanche_t *avalanche = &av;
 
 const char *mips_backtrace(void)
 {
@@ -454,7 +435,7 @@ static void reg_set(uint8_t * reg, uint32_t addr, uint32_t value)
 static void ar7_irq(void *opaque, int irq_num, int level)
 {
     CPUState *cpu_env = first_cpu;
-    unsigned channel = irq_num - 8;
+    unsigned channel = irq_num - MIPS_EXCEPTION_OFFSET;
     assert(cpu_env == av.cpu_env);
 
     switch (channel) {
@@ -484,15 +465,18 @@ static void ar7_irq(void *opaque, int irq_num, int level)
       /* secondary interrupts 40 ... 71 */
     case 47:    /* emif ??? */
         if (level) {
-            if (channel < 32) {
-                if (av.intmask[0] & (1 << channel)) {
-                    //~ logout("(%p,%d,%d)\n", opaque, irq_num, level);
-                    av.intc[0x10] = (((irq_num - 8) << 16) | channel);
+            if (channel < 48) {
+                unsigned index = channel / 32;
+                unsigned offset = channel % 32;
+                if (av.intmask[index] & (1 << offset)) {
+                    logout("(%p,%d,%d)\n", opaque, irq_num, level);
+                    av.intc[0x00 + index] |= (1 << offset);
+                    av.intc[0x10 + index] = ((channel << 16) | channel);
                     /* use hardware interrupt 0 */
                     cpu_env->CP0_Cause |= 0x00000400;
                     cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
                 } else {
-                    //~ logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level);
+                    logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level);
                 }
             }
             // int line number
@@ -501,6 +485,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             // 2, 7, 15, 27, 80
             //~ av.intmask[0]
         } else {
+            logout("(%p,%d,%d)\n", opaque, irq_num, level);
             av.intc[0x10] = 0;
             cpu_env->CP0_Cause &= ~0x00000400;
             cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
@@ -519,21 +504,25 @@ static void ar7_irq(void *opaque, int irq_num, int level)
 
 static uint32_t clock_read(unsigned offset)
 {
+    static uint32_t last;
+    static unsigned count;
     uint32_t val = reg_read(av.clock_control, offset);
     unsigned index = offset / 4;
     if (index == 0x0c || index == 0x14 || index == 0x1c || index == 0x24) {
-        /* Reset PLL status bit. */
-        if (val == 4) {
-          val ^= 1;
+        /* Reset PLL status bit after a short delay. */
+        if (val == last) {
+          if (count > 0) {
+            count--;
+          } else {
+            val ^= 1;
+            reg_write(av.clock_control, offset, val);
+          }
         } else {
-          val &= ~BIT(0);
+          count = 2;
+          last = val;
+          val |= 1;
+          reg_write(av.clock_control, offset, val);
         }
-        reg_write(av.clock_control, offset, val);
-        //~ if ((val & ~1) == 4) {
-            //~ val &= ~1;
-        //~ } else {
-            //~ val |= 1;
-        //~ }
     }
     TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", index, val, backtrace()));
     return val;
@@ -549,6 +538,12 @@ static void clock_write(unsigned offset, uint32_t val)
         if (oldpowerstate != newpowerstate) {
             TRACE(CLOCK, logout("change power state from %u to %u\n",
                                 oldpowerstate, newpowerstate));
+        }
+    } else if (offset / 4 == 0x0c) {
+        uint32_t oldval = reg_read(av.clock_control, offset);
+    TRACE(CLOCK, logout("clock[0x%04x] was 0x%08x %s\n", offset / 4, oldval, backtrace()));
+        if ((oldval & ~1) == val) {
+            val = oldval;
         }
     }
     reg_write(av.clock_control, offset, val);
@@ -1528,7 +1523,7 @@ static const char *i2gpio(unsigned offset)
             text = "ena";
             break;
         default:
-            sprintf(buffer, "0x%02x", offset);
+            sprintf(buffer, "??? 0x%02x", offset);
     }
     return text;
 }
@@ -1560,6 +1555,7 @@ static void ar7_gpio_write(unsigned offset, uint32_t value)
  *
  ****************************************************************************/
 
+#if 0
 typedef struct {                /* Avalanche Interrupt control registers */
     uint32_t intsr1;            /* Interrupt Status/Set Register 1   0x00 */
     uint32_t intsr2;            /* Interrupt Status/Set Register 2   0x04 */
@@ -1608,6 +1604,7 @@ typedef struct {                /* Avalanche Interrupt control registers */
     /* Interrupt Channel Control */
     uint32_t cintnr[40];        /* Channel Interrupt Number Reg     0x200 */
 } ar7_intc_t;
+#endif
 
 static const char *const intc_names[] = {
     "Interrupt Status/Set 1",
@@ -1679,9 +1676,9 @@ static const char *i2intc(unsigned index)
     return text;
 }
 
-static uint32_t ar7_intc_read(uint32_t intc[], unsigned index)
+static uint32_t ar7_intc_read(unsigned index)
 {
-    uint32_t val = intc[index];
+    uint32_t val = av.intc[index];
     if (0) {
         //~ } else if (index == 16) {
     } else {
@@ -1690,13 +1687,18 @@ static uint32_t ar7_intc_read(uint32_t intc[], unsigned index)
     return val;
 }
 
-static void ar7_intc_write(uint32_t intc[], unsigned index, uint32_t val)
+static void ar7_intc_write(unsigned index, uint32_t val)
 {
     unsigned subindex = (index & 1);
-    intc[index] = val;
+    av.intc[index] = val;
     if (0) {
         //~ } else if (index == 4) {
+    } else if (index == 4 || index == 5) {
+        /* Interrupt clear. */
+        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
+        av.intc[0 + (index & 1)] &= ~val;
     } else if (index == 8 || index == 9) {
+        /* Interrupt enable. */
         av.intmask[subindex] |= val;
         TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
                            i2intc(index), val, av.intmask[subindex]));
@@ -2075,7 +2077,9 @@ static const char *const uart_read_names[] = {
     "MCR",
     "LSR",
     "MSR",
-    "SCR"
+    "SCR",
+    "DLL",
+    "DLM",
 };
 
 static const char *const uart_write_names[] = {
@@ -2086,10 +2090,23 @@ static const char *const uart_write_names[] = {
     "MCR",
     "LSR",
     "MSR",
-    "SCR"
+    "SCR",
+    "DLL",
+    "DLM",
 };
 
 static const int uart_interrupt[] = { 15, 16 };
+
+/* Status of DLAB bit. */
+static uint32_t dlab[2];
+
+static inline unsigned uart_name_index(unsigned index, unsigned reg)
+{
+    if (reg < 2 && dlab[index]) {
+        reg += 8;
+    }
+    return reg;
+}
 
 static uint32_t uart_read(unsigned index, uint32_t addr)
 {
@@ -2101,24 +2118,25 @@ static uint32_t uart_read(unsigned index, uint32_t addr)
     }
     assert(reg < 8);
     val = serial_read(av.serial[index], reg);
-    if (reg != 5) {
-        TRACE(UART, logout("uart%u[%s]=0x%08x\n", index, uart_read_names[reg], val));
-    }
+    //~ if (reg != 5) {
+        TRACE(UART, logout("uart%u[%s]=0x%08x\n",
+            index, uart_read_names[uart_name_index(index, reg)], val));
+    //~ }
     return val;
 }
 
 static void uart_write(unsigned index, uint32_t addr, uint32_t val)
 {
-    static uint32_t dlab[2];
     int port = UART_MEM_TO_IO(addr);
     unsigned reg = port;
     if (index == 1) {
         reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
     }
     assert(reg < 8);
-    if (reg != 0 || dlab[index]) {
-        TRACE(UART, logout("uart%u[%s]=0x%08x\n", index, uart_write_names[reg], val));
-    }
+    //~ if (reg != 0 || dlab[index]) {
+        TRACE(UART, logout("uart%u[%s]=0x%08x\n",
+            index, uart_write_names[uart_name_index(index, reg)], val));
+    //~ }
     if (reg == 3) {
         dlab[index] = (val & 0x80);
     }
@@ -2689,7 +2707,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         //~ name = "intc";
         logflag = 0;
         index = (addr - AVALANCHE_INTC_BASE) / 4;
-        val = ar7_intc_read(av.intc, index);
+        val = ar7_intc_read(index);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
@@ -2800,7 +2818,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         //~ name = "intc";
         logflag = 0;
         index = (addr - AVALANCHE_INTC_BASE) / 4;
-        ar7_intc_write(av.intc, index, val);
+        ar7_intc_write(index, val);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
@@ -2944,9 +2962,10 @@ static void ar7_serial_init(CPUState * env)
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     for (index = 0; index < 2; index++) {
-        av.serial[index] = serial_16450_init(ar7_irq, IRQ_OPAQUE,
+        av.serial[index] = serial_16550_init(ar7_irq, IRQ_OPAQUE,
                                              0, uart_interrupt[index],
                                              serial_hds[index]);
+        serial_frequency(av.serial[index], 62500000 / 16);
     }
     /* Select 1st serial console as default (because we don't have VGA). */
     console_select(1);
@@ -3172,13 +3191,36 @@ void ar7_init(CPUState * env)
     int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
     //~ cpu_register_physical_memory(0x08610000, 0x00002800, io_memory);
     //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
-    cpu_register_physical_memory(0x00001000, 0x0ffff000, io_memory);
+    cpu_register_physical_memory(0x00001000, 0x0ffff000 - GDBRAM, io_memory);
+    //~ cpu_register_physical_memory(0x00001000, 0x10000000, io_memory);
     cpu_register_physical_memory(0x1e000000, 0x01c00000, io_memory);
 
+    //~ reg_write(av.gpio, GPIO_IN, 0x0cbea075);
     reg_write(av.gpio, GPIO_IN, 0x0cbea875);
+    //~ reg_write(av.gpio, GPIO_OUT, 0x00000000);
+    reg_write(av.gpio, GPIO_DIR, 0xffffffff);
+    reg_write(av.gpio, GPIO_ENABLE, 0xffffffff);
+    //~ reg_write(av.gpio, GPIO_CVR, 0x00000000);
+
+  //~ .mdio = {0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
     reg_write(av.mdio, MDIO_CONTROL, MDIO_CONTROL_IDLE | BIT(24) | BITS(7, 0));
     //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
+
+    //~ .uart0 = {0, 0, 0, 0, 0, 0x20, 0},
+    reg_write(av.uart0, 5 * 4, 0x20);
+    //~ .reset_control = { 0x04720043 },
+
+    //~ .dcl = 0x025d4297
+    reg_write(av.dcl, DCL_BOOT_CONFIG, 0x025d4291);
+#if defined(TARGET_WORDS_BIGENDIAN)
+    reg_set(av.dcl, DCL_BOOT_CONFIG, CONFIG_ENDIAN);
+#endif
+
+    av.cpmac[0] = av.cpmac0;
+    av.cpmac[1] = av.cpmac1;
+    av.vlynq[0] = av.vlynq0;
+    av.vlynq[1] = av.vlynq1;
 
     ar7_serial_init(env);
     ar7_display_init(env, "vc");
@@ -3298,6 +3340,10 @@ static void mips_ar7_common_init (int ram_size,
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
     ram_offset = qemu_ram_alloc(4 * KiB);
     cpu_register_physical_memory(0, 4 * KiB, ram_offset | IO_MEM_RAM);
+
+    /* Allocate 0x1000 bytes before start of flash (needed for gdb). */
+    ram_offset = qemu_ram_alloc(GDBRAM);
+    cpu_register_physical_memory(0x10000000 - GDBRAM, GDBRAM, ram_offset | IO_MEM_RAM);
 
     /* 16 MiB external RAM at physical address KERNEL_LOAD_ADDR.
        More memory can be selected with command line option -m. */
@@ -3433,6 +3479,28 @@ static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
+static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_AMD, AM29LV160DB,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+#if defined(TARGET_WORDS_BIGENDIAN)
+
+static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
+{
+    mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+#else
+
 static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
@@ -3448,15 +3516,6 @@ static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV640BT,
-                          kernel_filename, kernel_cmdline, initrd_filename);
-}
-
-static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
-{
-    mips_ar7_common_init (ram_size, MANUFACTURER_AMD, AM29LV160DB,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
@@ -3478,12 +3537,26 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
+#endif
+
 static QEMUMachine mips_machines[] = {
   {
     "ar7",
     "MIPS 4KEc / AR7 platform",
     mips_ar7_init,
   },
+  {
+    "ar7-amd",
+    "MIPS AR7 with AMD flash",
+    ar7_amd_init,
+  },
+#if defined(TARGET_WORDS_BIGENDIAN)
+  {
+    "zyxel",
+    "Zyxel 2 MiB flash (AR7 platform)",
+    zyxel_init,
+  },
+#else
   {
     "fbox-4mb",
     "FBox 4 MiB flash (AR7 platform)",
@@ -3495,11 +3568,6 @@ static QEMUMachine mips_machines[] = {
     fbox8_init,
   },
   {
-    "ar7-amd",
-    "MIPS AR7 with AMD flash",
-    ar7_amd_init,
-  },
-  {
     "sinus-se",
     "Sinus DSL SE, Sinus DSL Basic SE (AR7 platform)",
     sinus_se_init,
@@ -3509,6 +3577,7 @@ static QEMUMachine mips_machines[] = {
     "Sinus DSL Basic 3 (AR7 platform)",
     sinus_3_init,
   },
+#endif
 };
 
 int qemu_register_ar7_machines(void)
@@ -3545,130 +3614,6 @@ AR7     io_writeb               ??? addr=0x08610a30, val=0x01
 AR7     io_writeb               ??? addr=0x08610a70, val=0x77
 Unassigned mem write 0x16000000 = 0xb6000000 [][]
 Unassigned mem read  0x16000000 [][]
-
-sinus - t-com
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-AR7     ar7_gpio_read           gpio[0x0c] = 00000000
-AR7     ar7_gpio_write          gpio[0x0c] = 00000000
-AR7     ar7_gpio_read           gpio[0x08] = 00000000
-AR7     ar7_gpio_write          gpio[0x08] = 00000b00
-AR7     ar7_gpio_read           gpio[0x08] = 00000b00
-AR7     ar7_gpio_write          gpio[0x08] = 00000b00
-AR7     ar7_gpio_read           gpio[0x04] = 00000000
-AR7     ar7_gpio_write          gpio[0x04] = 00020000
-AR7     ar7_gpio_read           gpio[0x04] = 00020000
-AR7     ar7_gpio_write          gpio[0x04] = 00060000
-AR7     ar7_gpio_read           gpio[0x04] = 00060000
-AR7     ar7_gpio_write          gpio[0x04] = 00062040
-AR7     ar7_gpio_read           gpio[0x0c] = 00000000
-AR7     ar7_gpio_write          gpio[0x0c] = 00063fc0
-AR7     ar7_gpio_read           gpio[0x00] = 00000800
-AR7     ar7_gpio_read           gpio[0x08] = 00000b00
-AR7     ar7_gpio_write          gpio[0x08] = 00000b00
-AR7     ar7_gpio_read           gpio[0x08] = 00000b00
-AR7     ar7_gpio_write          gpio[0x08] = 00000b00
-AR7     ar7_gpio_read           gpio[0x08] = 00000b00
-AR7     ar7_gpio_write          gpio[0x08] = 00000b00
-AR7     ar7_gpio_read           gpio[0x04] = 00062040
-AR7     ar7_gpio_write          gpio[0x04] = 00062040
-AR7     ar7_gpio_read           gpio[0x04] = 00062040
-AR7     ar7_gpio_write          gpio[0x04] = 00062040
-AR7     ar7_gpio_read           gpio[0x04] = 00062040
-AR7     ar7_gpio_write          gpio[0x04] = 0006a040
-AR7     ar7_gpio_read           gpio[0x0c] = 00063fc0
-AR7     ar7_gpio_write          gpio[0x0c] = 0006bfc0
-AR7     ar7_gpio_read           gpio[0x0c] = 0006bfc0
-AR7     ar7_gpio_write          gpio[0x0c] = 1006bfc0
-AR7     ar7_gpio_read           gpio[0x0c] = 1006bfc0
-AR7     ar7_gpio_write          gpio[0x0c] = 1004bfc0
-AR7     ar7_gpio_read           gpio[0x0c] = 1004bfc0
-AR7     ar7_gpio_write          gpio[0x0c] = 1004bfc0
-AR7     ar7_gpio_read           gpio[0x04] = 0006a040
-AR7     ar7_gpio_write          gpio[0x04] = 0006a040
-AR7     ar7_gpio_read           gpio[0x08] = 00000b00
-AR7     ar7_gpio_write          gpio[0x08] = 00000b00
-AR7     ar7_gpio_read           gpio[0x04] = 0006a040
-AR7     ar7_gpio_write          gpio[0x04] = 0002a040
-AR7     ar7_gpio_read           gpio[0x04] = 0002a040
-AR7     ar7_gpio_write          gpio[0x04] = 0006a040
-
-sinus - linux
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-uart divider=34 speed=117647 parity=E data=8 stop=2 ([][])
-uart divider=34 speed=117647 parity=N data=5 stop=1 ([][])
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-uart divider=151 speed=26490 parity=N data=8 stop=1 ([][])
-uart divider=407 speed=9828 parity=N data=8 stop=1 ([][])
-uart divider=290 speed=13793 parity=N data=8 stop=1 ([][])
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-
-fbox 38400:
-uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
-uart divider=102 speed=39215 parity=E data=8 stop=2 ([][])
-uart divider=102 speed=39215 parity=N data=5 stop=1 ([][])
-uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
-uart divider=151 speed=26490 parity=N data=8 stop=1 ([][])
-uart divider=407 speed=9828 parity=N data=8 stop=1 ([][])
-uart divider=358 speed=11173 parity=N data=8 stop=1 ([][])
-uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
-
-fbox 115200:
-uart divider=102 speed=39215 parity=N data=8 stop=1 ([][])
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-uart divider=34 speed=117647 parity=E data=8 stop=2 ([][])
-uart divider=34 speed=117647 parity=N data=5 stop=1 ([][])
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-uart divider=151 speed=26490 parity=N data=8 stop=1 ([][])
-uart divider=407 speed=9828 parity=N data=8 stop=1 ([][])
-uart divider=290 speed=13793 parity=N data=8 stop=1 ([][])
-uart divider=34 speed=117647 parity=N data=8 stop=1 ([][])
-
-fbox original
-AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
-AR7     ar7_gpio_read           gpio[0x08] = 00000000
-AR7     ar7_gpio_write          gpio[0x08] = 00000000
-AR7     ar7_gpio_read           gpio[0x04] = 00000000
-AR7     ar7_gpio_write          gpio[0x04] = 00000080
-AR7     ar7_gpio_read           gpio[0x04] = 00000080
-AR7     ar7_gpio_write          gpio[0x04] = 00000080
-AR7     ar7_gpio_read           gpio[0x04] = 00000080
-AR7     ar7_gpio_write          gpio[0x04] = 00003680
-AR7     ar7_gpio_write          gpio[0x0c] = f3fc3ff0
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x18] = 00000000
-AR7     ar7_gpio_read           gpio[0x1c] = 00000000
-AR7     ar7_gpio_read           gpio[0x0c] = f3fc3ff0
-AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x0c] = f00c3ff0
-AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
-AR7     ar7_gpio_read           gpio[0x0c] = f00c3ff0
-AR7     ar7_gpio_write          gpio[0x0c] = f00c3ff0
-
-fbox neu
-AR7     ar7_gpio_read           gpio[0x08] = 00000000
-AR7     ar7_gpio_read           gpio[0x0c] = 00000000
-AR7     ar7_gpio_write          gpio[0x0c] = 00000000
-AR7     ar7_gpio_write          gpio[0x08] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x18] = 00000000
-AR7     ar7_gpio_read           gpio[0x1c] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
-AR7     ar7_gpio_read           gpio[0x0c] = 00000000
-AR7     ar7_gpio_write          gpio[0x0c] = 10000000
-AR7     ar7_gpio_read           gpio[0x08] = 00000000
-AR7     ar7_gpio_write          gpio[0x08] = 00000000
-AR7     ar7_gpio_read           gpio[0x04] = 00000000
-AR7     ar7_gpio_write          gpio[0x04] = 00000000
-AR7     ar7_gpio_read           gpio[0x04] = 00000000
-AR7     ar7_gpio_write          gpio[0x04] = 00000000
-AR7     ar7_gpio_read           gpio[0x14] = 00000000
 
 vlynq0(0x08) = 0x01000101
 vlynq0(0xc0) = 0x00000009
@@ -3776,7 +3721,6 @@ fehlt:
 FBox blinken: 3640 / 00c0
 
 falsch:
-
 AR7     ar7_reset_write         reset enabled vlynq0 (0x00100041)
 AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x80008000
 AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x80000000
@@ -3796,7 +3740,6 @@ AR7     ar7_vlynq_write         vlynq0[0xb8 (Remote Rx Address Map Size 4)] = 0x
 AR7     ar7_vlynq_write         vlynq0[0xbc (Remote Rx Address Map Offset 4)] = 0x00000000
 
 AVM:
-
 AR7     ar7_reset_write         reset enabled vlynq0 (0x04720041)
 AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
 AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x00000000
@@ -3823,7 +3766,6 @@ AR7     ar7_vlynq_read          vlynq0[0x88 (Remote Status)] = 0x00000001
 AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
 
 T-COM:
-
 AR7     ar7_reset_write         reset disabled vlynq0 (0x04620141)
 AR7     ar7_reset_write         reset enabled vlynq0 (0x04720141)
 AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
@@ -3848,5 +3790,62 @@ AR7     ar7_vlynq_write         vlynq0[0x30 (Rx Address Map Size 3)] = 0x0000000
 AR7     ar7_vlynq_write         vlynq0[0x38 (Rx Address Map Size 4)] = 0x00000000
 AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
 AR7     ar7_vlynq_read          vlynq0[0x88 (Remote Status)] = 0x00000001
+
+Zyxel:
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0xd1425d02 [][]
+AR7     ar7_io_memread          addr 0x08611608 (reset control) = 0x00000000
+AR7     clock_write             clock[0x000c] = 0x00000004 [][]
+AR7     clock_read              clock[0x000c] = 0x00000005 [][]
+AR7     clock_write             clock[0x000c] = 0x000047fe [][]
+AR7     clock_read              clock[0x000c] = 0x000047fe [][]
+AR7     clock_write             clock[0x000c] = 0x000047fe [][]
+AR7     clock_read              clock[0x000c] = 0x000047fe [][]
+
+Sinus:
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
+AR7     clock_write             clock[0x000c] = 0x00000004 [][]
+AR7     clock_read              clock[0x000c] = 0x00000005 [][]
+AR7     clock_read              clock[0x000c] = 0x00000004 [][]
+AR7     clock_write             clock[0x000c] = 0x000037fe [][]
+AR7     clock_read              clock[0x000c] = 0x000037ff [][]
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
+AR7     clock_write             clock[0x0014] = 0x00000004 [][]
+AR7     clock_read              clock[0x0014] = 0x00000005 [][]
+AR7     clock_read              clock[0x0014] = 0x00000004 [][]
+AR7     clock_write             clock[0x0014] = 0x000037fe [][]
+AR7     clock_read              clock[0x0014] = 0x000037ff [][]
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
+AR7     clock_write             clock[0x0014] = 0x00000004 [][]
+AR7     clock_read              clock[0x0014] = 0x00000005 [][]
+AR7     clock_read              clock[0x0014] = 0x00000004 [][]
+AR7     clock_write             clock[0x0014] = 0x000037fe [][]
+AR7     clock_read              clock[0x0014] = 0x000037ff [][]
+AR7     ar7_emif_write          emif[0x80] = 00000000
+AR7     clock_write             clock[0x0000] = 0x00000000 [][]
+AR7     ar7_emif_read           emif[0x10] = 00000000
+AR7     ar7_emif_write          emif[0x10] = 05a62d34
+AR7     ar7_emif_write          emif[0x08] = 00002000
+AR7     ar7_emif_write          emif[0x08] = 00002000
+AR7     ar7_emif_write          emif[0x08] = 00002001
+AR7     ar7_emif_write          emif[0x08] = 00002002
+AR7     ar7_emif_write          emif[0x08] = 00002003
+AR7     ar7_emif_write          emif[0x08] = 00002008
+AR7     ar7_emif_write          emif[0x08] = 0000202b
+AR7     ar7_emif_write          emif[0x0c] = 0000009c
+AR7     ar7_emif_write          emif[0x14] = 05a62d36
+AR7     ar7_emif_write          emif[0x18] = 05a62d34
+AR7     ar7_emif_write          emif[0x1c] = 05a62d36
+AR7     clock_write             clock[0x0010] = 0x00000000 [][]
+AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
+
+GPIO 0x08610914 == 5 ??? chip version
+UART 0x08610e10 = 0xf (4 Ausgänge)!!!
+
+0x940008f0
+0x94001700
+??
+0x9400110c.
 
 */
