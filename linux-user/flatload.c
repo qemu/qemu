@@ -756,6 +756,13 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     p = copy_strings(p, bprm->argc, bprm->argv);
     /* Align stack.  */
     sp = p & ~(target_ulong)(sizeof(target_ulong) - 1);
+    /* Enforce final stack alignment of 16 bytes.  This is sufficient
+       for all current targets, and excess alignment is harmless.  */
+    stack_len = bprm->envc + bprm->argc + 2;
+    stack_len += 3;	/* argc, arvg, argp */
+    stack_len *= sizeof(target_ulong);
+    if ((sp + stack_len) & 15)
+        sp -= 16 - ((sp + stack_len) & 15);
     sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p, 1);
     
     /* Fake some return addresses to ensure the call chain will
