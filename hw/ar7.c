@@ -426,8 +426,43 @@ static void reg_set(uint8_t * reg, uint32_t addr, uint32_t value)
 /*****************************************************************************
  *
  * Interrupt emulation.
+ * Interrupt controller emulation.
  *
  ****************************************************************************/
+
+typedef enum {
+    INTC_SR1 = 0x00,
+    INTC_SR2 = 0x04,
+    INTC_CR1 = 0x10,
+    INTC_CR2 = 0x14,
+    INTC_ESR1 = 0x20,
+    INTC_ESR2 = 0x24,
+    INTC_ECR1 = 0x30,
+    INTC_ECR2 = 0x34,
+    INTC_PIIR = 0x40,
+    INTC_PIMR = 0x44,
+    INTC_IPMR1 = 0x50,
+    INTC_IPMR2 = 0x54,
+#if 0
+    uint32_t inttypr1;          /* Interrupt Type Mask Register 1    0x60 */
+    uint32_t inttypr2;          /* Interrupt Type Mask Register 2    0x64 */
+
+    /* Avalanche Exception control registers */
+    uint32_t exsr;              /* Exceptions Status/Set register    0x80 */
+    uint32_t reserved;          /*0x84 */
+    uint32_t excr;              /* Exceptions Clear Register         0x88 */
+    uint32_t reserved1;         /*0x8c */
+    uint32_t exiesr;            /* Exceptions Interrupt Enable (set) 0x90 */
+    uint32_t reserved2;         /*0x94 */
+    uint32_t exiecr;            /* Exceptions Interrupt Enable(clear)0x98 */
+    uint32_t dummy0x9c;
+
+    /* Interrupt Pacing */
+    uint32_t ipacep;            /* Interrupt pacing register         0xa0 */
+    uint32_t ipacemap;          /* Interrupt Pacing Map Register     0xa4 */
+    uint32_t ipacemax;          /* Interrupt Pacing Max Register     0xa8 */
+#endif
+} intc_register_t;
 
 /* ar7_irq does not use the opaque parameter, so we set it to 0. */
 #define IRQ_OPAQUE 0
@@ -470,8 +505,9 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                 unsigned offset = channel % 32;
                 if (av.intmask[index] & (1 << offset)) {
                     logout("(%p,%d,%d)\n", opaque, irq_num, level);
-                    av.intc[0x00 + index] |= (1 << offset);
-                    av.intc[0x10 + index] = ((channel << 16) | channel);
+                    av.intc[INTC_CR1 / 4 + index] |= (1 << offset);
+                    av.intc[INTC_SR1 / 4 + index] |= (1 << offset);
+                    av.intc[INTC_PIIR / 4] = ((channel << 16) | channel);
                     /* use hardware interrupt 0 */
                     cpu_env->CP0_Cause |= 0x00000400;
                     cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
@@ -486,13 +522,170 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             //~ av.intmask[0]
         } else {
             logout("(%p,%d,%d)\n", opaque, irq_num, level);
-            av.intc[0x10] = 0;
+            av.intc[INTC_PIIR / 4] = 0;
             cpu_env->CP0_Cause &= ~0x00000400;
             cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
         }
         break;
     default:
         logout("(%p,%d,%d)\n", opaque, irq_num, level);
+    }
+}
+
+#if 0
+typedef struct {                /* Avalanche Interrupt control registers */
+    uint32_t intsr1;            /* Interrupt Status/Set Register 1   0x00 */
+    uint32_t intsr2;            /* Interrupt Status/Set Register 2   0x04 */
+    uint32_t unused1;           /* 0x08 */
+    uint32_t unused2;           /* 0x0C */
+    uint32_t intcr1;            /* Interrupt Clear Register 1        0x10 */
+    uint32_t intcr2;            /* Interrupt Clear Register 2        0x14 */
+    uint32_t unused3;           /* 0x18 */
+    uint32_t unused4;           /* 0x1C */
+    uint32_t intesr1;           /* Interrupt Enable (Set) Register 1 0x20 */
+    uint32_t intesr2;           /* Interrupt Enable (Set) Register 2 0x24 */
+    uint32_t unused5;           /* 0x28 */
+    uint32_t unused6;           /* 0x2C */
+    uint32_t intecr1;           /* Interrupt Enable Clear Register 1 0x30 */
+    uint32_t intecr2;           /* Interrupt Enable Clear Register 2 0x34 */
+    uint32_t unused7;           /* 0x38 */
+    uint32_t unused8;           /* 0x3c */
+    uint32_t pintir;            /* Priority Interrupt Index Register 0x40 */
+    uint32_t intmsr;            /* Priority Interrupt Mask Index Reg 0x44 */
+    uint32_t unused9;           /* 0x48 */
+    uint32_t unused10;          /* 0x4C */
+    uint32_t intpolr1;          /* Interrupt Polarity Mask Reg 1     0x50 */
+    uint32_t intpolr2;          /* Interrupt Polarity Mask Reg 2     0x54 */
+    uint32_t unused11;          /* 0x58 */
+    uint32_t unused12;          /* 0x5C */
+    uint32_t inttypr1;          /* Interrupt Type Mask Register 1    0x60 */
+    uint32_t inttypr2;          /* Interrupt Type Mask Register 2    0x64 */
+
+    /* Avalanche Exception control registers */
+    uint32_t exsr;              /* Exceptions Status/Set register    0x80 */
+    uint32_t reserved;          /*0x84 */
+    uint32_t excr;              /* Exceptions Clear Register         0x88 */
+    uint32_t reserved1;         /*0x8c */
+    uint32_t exiesr;            /* Exceptions Interrupt Enable (set) 0x90 */
+    uint32_t reserved2;         /*0x94 */
+    uint32_t exiecr;            /* Exceptions Interrupt Enable(clear)0x98 */
+    uint32_t dummy0x9c;
+
+    /* Interrupt Pacing */
+    uint32_t ipacep;            /* Interrupt pacing register         0xa0 */
+    uint32_t ipacemap;          /* Interrupt Pacing Map Register     0xa4 */
+    uint32_t ipacemax;          /* Interrupt Pacing Max Register     0xa8 */
+    uint32_t dummy0xac[3 * 4];
+    uint32_t dummy0x100[64];
+
+    /* Interrupt Channel Control */
+    uint32_t cintnr[40];        /* Channel Interrupt Number Reg     0x200 */
+} ar7_intc_t;
+#endif
+
+static const char *const intc_names[] = {
+    "Interrupt Status/Set 1",
+    "Interrupt Status/Set 2",
+    "0x08",
+    "0x0c",
+    "Interrupt Clear 1",
+    "Interrupt Clear 2",
+    "0x18",
+    "0x1c",
+    "Interrupt Enable Set 1",
+    "Interrupt Enable Set 2",
+    "0x28",
+    "0x2c",
+    "Interrupt Enable Clear 1",
+    "Interrupt Enable Clear 2",
+    "0x38",
+    "0x3c",
+    "Priority Interrupt Index",
+    "Priority Interrupt Mask Index",
+    "0x48",
+    "0x4c",
+    "Interrupt Polarity Mask 1",
+    "Interrupt Polarity Mask 2",
+    "0x58",
+    "0x5c",
+    "Interrupt Type Mask 1",
+    "Interrupt Type Mask 2",
+    "0x68",
+    "0x6c",
+    "0x70",
+    "0x74",
+    "0x78",
+    "0x7c",
+    "Exceptions Status/Set",
+    "0x84",
+    "Exceptions Clear",
+    "0x8c",
+    "Exceptions Interrupt Enable (set)",
+    "0x94",
+    "Exceptions Interrupt Enable (clear)",
+    "0x9c",
+    "Interrupt Pacing",
+    "Interrupt Pacing Map",
+    "Interrupt Pacing Max",
+};
+
+static const char *i2intc(unsigned index)
+{
+    static char buffer[32];
+    const char *text = buffer;
+    if (index < sizeof(intc_names) / sizeof(*intc_names)) {
+        text = intc_names[index];
+    } else if (index >= 128 && index < 168) {
+        sprintf(buffer, "Channel Interrupt Number 0x%02x", index - 128);
+    } else {
+        sprintf(buffer, "0x%02x", index);
+    }
+    assert(strlen(buffer) < sizeof(buffer));
+    return text;
+}
+
+static uint32_t ar7_intc_read(unsigned offset)
+{
+    unsigned index = offset / 4;
+    uint32_t val = av.intc[index];
+    assert((offset & 3) == 0);
+    if (0) {
+        //~ } else if (index == 16) {
+    } else {
+        TRACE(INTC, logout("intc[%s] = %08x\n", i2intc(index), val));
+    }
+    return val;
+}
+
+static void ar7_intc_write(unsigned offset, uint32_t val)
+{
+    unsigned index = offset / 4;
+    unsigned subindex = (index & 1);
+    assert((offset & 3) == 0);
+    if (0) {
+        //~ } else if (index == 4) {
+    } else if (offset == INTC_SR1 || offset == INTC_SR2) {
+        /* Interrupt set. */
+        av.intc[index] |= val;
+    } else if (offset == INTC_CR1 || offset == INTC_CR2) {
+        /* Interrupt clear. */
+        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
+        av.intc[INTC_SR1 / 4 + subindex] &= ~val;
+        av.intc[index] &= ~val;
+    } else if (offset == INTC_ESR1 || offset == INTC_ESR2) {
+        /* Interrupt enable. */
+        av.intmask[subindex] |= val;
+        TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
+                           i2intc(index), val, av.intmask[subindex]));
+        av.intc[index] = val;
+    } else if (offset == INTC_ECR1 || offset == INTC_ECR2) {
+        av.intmask[subindex] &= ~val;
+        TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
+                           i2intc(index), val, av.intmask[subindex]));
+        av.intc[index] = val;
+    } else {
+        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
+        av.intc[index] = val;
     }
 }
 
@@ -1452,7 +1645,12 @@ static uint32_t ar7_emif_read(unsigned offset)
 static void ar7_emif_write(unsigned offset, uint32_t value)
 {
     TRACE(EMIF, logout("emif[0x%02x] = %08x\n", offset, value));
-    reg_write(av.emif, offset, value);
+    if (offset == EMIF_REV) {
+        /* Revision is readonly. */
+        UNEXPECTED();
+    } else {
+        reg_write(av.emif, offset, value);
+    }
 }
 
 /*****************************************************************************
@@ -1546,168 +1744,6 @@ static void ar7_gpio_write(unsigned offset, uint32_t value)
     reg_write(av.gpio, offset, value);
     if (offset <= GPIO_DIR) {
         ar7_gpio_display();
-    }
-}
-
-/*****************************************************************************
- *
- * Interrupt controller emulation.
- *
- ****************************************************************************/
-
-#if 0
-typedef struct {                /* Avalanche Interrupt control registers */
-    uint32_t intsr1;            /* Interrupt Status/Set Register 1   0x00 */
-    uint32_t intsr2;            /* Interrupt Status/Set Register 2   0x04 */
-    uint32_t unused1;           /* 0x08 */
-    uint32_t unused2;           /* 0x0C */
-    uint32_t intcr1;            /* Interrupt Clear Register 1        0x10 */
-    uint32_t intcr2;            /* Interrupt Clear Register 2        0x14 */
-    uint32_t unused3;           /* 0x18 */
-    uint32_t unused4;           /* 0x1C */
-    uint32_t intesr1;           /* Interrupt Enable (Set) Register 1 0x20 */
-    uint32_t intesr2;           /* Interrupt Enable (Set) Register 2 0x24 */
-    uint32_t unused5;           /* 0x28 */
-    uint32_t unused6;           /* 0x2C */
-    uint32_t intecr1;           /* Interrupt Enable Clear Register 1 0x30 */
-    uint32_t intecr2;           /* Interrupt Enable Clear Register 2 0x34 */
-    uint32_t unused7;           /* 0x38 */
-    uint32_t unused8;           /* 0x3c */
-    uint32_t pintir;            /* Priority Interrupt Index Register 0x40 */
-    uint32_t intmsr;            /* Priority Interrupt Mask Index Reg 0x44 */
-    uint32_t unused9;           /* 0x48 */
-    uint32_t unused10;          /* 0x4C */
-    uint32_t intpolr1;          /* Interrupt Polarity Mask Reg 1     0x50 */
-    uint32_t intpolr2;          /* Interrupt Polarity Mask Reg 2     0x54 */
-    uint32_t unused11;          /* 0x58 */
-    uint32_t unused12;          /* 0x5C */
-    uint32_t inttypr1;          /* Interrupt Type Mask Register 1    0x60 */
-    uint32_t inttypr2;          /* Interrupt Type Mask Register 2    0x64 */
-
-    /* Avalanche Exception control registers */
-    uint32_t exsr;              /* Exceptions Status/Set register    0x80 */
-    uint32_t reserved;          /*0x84 */
-    uint32_t excr;              /* Exceptions Clear Register         0x88 */
-    uint32_t reserved1;         /*0x8c */
-    uint32_t exiesr;            /* Exceptions Interrupt Enable (set) 0x90 */
-    uint32_t reserved2;         /*0x94 */
-    uint32_t exiecr;            /* Exceptions Interrupt Enable(clear)0x98 */
-    uint32_t dummy0x9c;
-
-    /* Interrupt Pacing */
-    uint32_t ipacep;            /* Interrupt pacing register         0xa0 */
-    uint32_t ipacemap;          /* Interrupt Pacing Map Register     0xa4 */
-    uint32_t ipacemax;          /* Interrupt Pacing Max Register     0xa8 */
-    uint32_t dummy0xac[3 * 4];
-    uint32_t dummy0x100[64];
-
-    /* Interrupt Channel Control */
-    uint32_t cintnr[40];        /* Channel Interrupt Number Reg     0x200 */
-} ar7_intc_t;
-#endif
-
-static const char *const intc_names[] = {
-    "Interrupt Status/Set 1",
-    "Interrupt Status/Set 2",
-    "0x08",
-    "0x0c",
-    "Interrupt Clear 1",
-    "Interrupt Clear 2",
-    "0x18",
-    "0x1c",
-    "Interrupt Enable Set 1",
-    "Interrupt Enable Set 2",
-    "0x28",
-    "0x2c",
-    "Interrupt Enable Clear 1",
-    "Interrupt Enable Clear 2",
-    "0x38",
-    "0x3c",
-    "Priority Interrupt Index",
-    "Priority Interrupt Mask Index",
-    "0x48",
-    "0x4c",
-    "Interrupt Polarity Mask 1",
-    "Interrupt Polarity Mask 2",
-    "0x58",
-    "0x5c",
-    "Interrupt Type Mask 1",
-    "Interrupt Type Mask 2",
-};
-
-static const char *i2intc(unsigned index)
-{
-    static char buffer[32];
-    const char *text = 0;
-    switch (index) {
-    case 0x20:
-        text = "Exceptions Status/Set";
-        break;
-    case 0x22:
-        text = "Exceptions Clear";
-        break;
-    case 0x24:
-        text = "Exceptions Interrupt Enable (set)";
-        break;
-    case 0x26:
-        text = "Exceptions Interrupt Enable (clear)";
-        break;
-    case 0x28:
-        text = "Interrupt Pacing";
-        break;
-    case 0x29:
-        text = "Interrupt Pacing Map";
-        break;
-    case 0x2a:
-        text = "Interrupt Pacing Max";
-        break;
-    }
-    if (text != 0) {
-    } else if (index < 0x1a) {
-        text = intc_names[index];
-    } else if (index >= 128 && index < 168) {
-        text = buffer;
-        sprintf(buffer, "Channel Interrupt Number 0x%02x", index - 128);
-    } else {
-        text = buffer;
-        sprintf(buffer, "0x%02x", index);
-    }
-    assert(strlen(buffer) < sizeof(buffer));
-    return text;
-}
-
-static uint32_t ar7_intc_read(unsigned index)
-{
-    uint32_t val = av.intc[index];
-    if (0) {
-        //~ } else if (index == 16) {
-    } else {
-        TRACE(INTC, logout("intc[%s] = %08x\n", i2intc(index), val));
-    }
-    return val;
-}
-
-static void ar7_intc_write(unsigned index, uint32_t val)
-{
-    unsigned subindex = (index & 1);
-    av.intc[index] = val;
-    if (0) {
-        //~ } else if (index == 4) {
-    } else if (index == 4 || index == 5) {
-        /* Interrupt clear. */
-        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
-        av.intc[0 + (index & 1)] &= ~val;
-    } else if (index == 8 || index == 9) {
-        /* Interrupt enable. */
-        av.intmask[subindex] |= val;
-        TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
-                           i2intc(index), val, av.intmask[subindex]));
-    } else if (index == 12 || index == 13) {
-        av.intmask[subindex] &= ~val;
-        TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
-                           i2intc(index), val, av.intmask[subindex]));
-    } else {
-        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
     }
 }
 
@@ -2706,8 +2742,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_INTC_BASE, av.intc)) {
         //~ name = "intc";
         logflag = 0;
-        index = (addr - AVALANCHE_INTC_BASE) / 4;
-        val = ar7_intc_read(index);
+        val = ar7_intc_read(addr - AVALANCHE_INTC_BASE);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
@@ -2729,7 +2764,6 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
 
 static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 {
-    unsigned index;
     const char *name = 0;
     int logflag = OTHER;
 
@@ -2817,8 +2851,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     } else if (INRANGE(AVALANCHE_INTC_BASE, av.intc)) {
         //~ name = "intc";
         logflag = 0;
-        index = (addr - AVALANCHE_INTC_BASE) / 4;
-        ar7_intc_write(index, val);
+        ar7_intc_write(addr - AVALANCHE_INTC_BASE, val);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
@@ -3495,7 +3528,7 @@ static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
+    mips_ar7_common_init (8 * MiB, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
