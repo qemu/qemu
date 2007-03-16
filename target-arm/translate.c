@@ -45,6 +45,7 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     int singlestep_enabled;
     int thumb;
+    int is_mem;
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
@@ -290,6 +291,7 @@ static inline void gen_bx(DisasContext *s)
 #define gen_ldst(name, s) gen_op_##name##_raw()
 #else
 #define gen_ldst(name, s) do { \
+    s->is_mem = 1; \
     if (IS_USER(s)) \
         gen_op_##name##_user(); \
     else \
@@ -1612,6 +1614,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_add_data_offset(s, insn);
             if (insn & (1 << 20)) {
                 /* load */
+                s->is_mem = 1;
 #if defined(CONFIG_USER_ONLY)
                 if (insn & (1 << 22))
                     gen_op_ldub_raw();
@@ -2409,6 +2412,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->condjmp = 0;
     dc->thumb = env->thumb;
+    dc->is_mem = 0;
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR;
 #endif
@@ -2447,6 +2451,12 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             gen_set_label(dc->condlabel);
             dc->condjmp = 0;
         }
+        /* Terminate the TB on memory ops if watchpoints are present.  */
+        /* FIXME: This should be replacd by the deterministic execution
+         * IRQ raising bits.  */
+        if (dc->is_mem && env->nb_watchpoints)
+            break;
+
         /* Translation stops when a conditional branch is enoutered.
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This

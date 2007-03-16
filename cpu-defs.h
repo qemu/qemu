@@ -76,6 +76,7 @@ typedef unsigned long ram_addr_t;
 #define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
 #define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
 #define MAX_BREAKPOINTS 32
+#define MAX_WATCHPOINTS 32
 
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
@@ -124,6 +125,13 @@ typedef struct CPUTLBEntry {
     target_ulong breakpoints[MAX_BREAKPOINTS];                          \
     int nb_breakpoints;                                                 \
     int singlestep_enabled;                                             \
+                                                                        \
+    struct {                                                            \
+        target_ulong vaddr;                                             \
+        int is_ram;                                                     \
+    } watchpoint[MAX_WATCHPOINTS];                                      \
+    int nb_watchpoints;                                                 \
+    int watchpoint_hit;                                                 \
                                                                         \
     void *next_cpu; /* next CPU sharing TB cache */                     \
     int cpu_index; /* CPU index (informative) */                        \
