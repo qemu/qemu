@@ -431,36 +431,35 @@ static void reg_set(uint8_t * reg, uint32_t addr, uint32_t value)
  ****************************************************************************/
 
 typedef enum {
-    INTC_SR1 = 0x00,
-    INTC_SR2 = 0x04,
-    INTC_CR1 = 0x10,
-    INTC_CR2 = 0x14,
-    INTC_ESR1 = 0x20,
-    INTC_ESR2 = 0x24,
-    INTC_ECR1 = 0x30,
-    INTC_ECR2 = 0x34,
-    INTC_PIIR = 0x40,
-    INTC_PIMR = 0x44,
-    INTC_IPMR1 = 0x50,
-    INTC_IPMR2 = 0x54,
-#if 0
-    uint32_t inttypr1;          /* Interrupt Type Mask Register 1    0x60 */
-    uint32_t inttypr2;          /* Interrupt Type Mask Register 2    0x64 */
-
+    INTC_SR1 = 0x00,    /* Interrupt Status/Set Register 1 */
+    INTC_SR2 = 0x04,    /* Interrupt Status/Set Register 2 */
+    INTC_CR1 = 0x10,    /* Interrupt Clear Register 1 */
+    INTC_CR2 = 0x14,    /* Interrupt Clear Register 2 */
+    INTC_ESR1 = 0x20,   /* Interrupt Enable (Set) Register 1 */
+    INTC_ESR2 = 0x24,   /* Interrupt Enable (Set) Register 2 */
+    INTC_ECR1 = 0x30,   /* Interrupt Enable Clear Register 1 */
+    INTC_ECR2 = 0x34,   /* Interrupt Enable Clear Register 2 */
+    INTC_PIIR = 0x40,   /* Priority Interrupt Index Register */
+    INTC_PIMR = 0x44,   /* Priority Interrupt Mask Index Reg */
+    INTC_IPMR1 = 0x50,  /* Interrupt Polarity Mask Reg 1 */
+    INTC_IPMR2 = 0x54,  /* Interrupt Polarity Mask Reg 2 */
+    INTC_TMR1 = 0x60,   /* Interrupt Type Mask Register 1 */
+    INTC_TMR2 = 0x64,   /* Interrupt Type Mask Register 2 */
     /* Avalanche Exception control registers */
-    uint32_t exsr;              /* Exceptions Status/Set register    0x80 */
-    uint32_t reserved;          /*0x84 */
+    INTC_EXSR = 0x80,   /* Exceptions Status/Set register */
+#if 0
+typedef struct {                /* Avalanche Interrupt control registers */
+    /* Avalanche Exception control registers */
     uint32_t excr;              /* Exceptions Clear Register         0x88 */
-    uint32_t reserved1;         /*0x8c */
     uint32_t exiesr;            /* Exceptions Interrupt Enable (set) 0x90 */
-    uint32_t reserved2;         /*0x94 */
     uint32_t exiecr;            /* Exceptions Interrupt Enable(clear)0x98 */
-    uint32_t dummy0x9c;
-
     /* Interrupt Pacing */
     uint32_t ipacep;            /* Interrupt pacing register         0xa0 */
     uint32_t ipacemap;          /* Interrupt Pacing Map Register     0xa4 */
     uint32_t ipacemax;          /* Interrupt Pacing Max Register     0xa8 */
+    /* Interrupt Channel Control */
+    uint32_t cintnr[40];        /* Channel Interrupt Number Reg     0x200 */
+} ar7_intc_t;
 #endif
 } intc_register_t;
 
@@ -531,57 +530,6 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         logout("(%p,%d,%d)\n", opaque, irq_num, level);
     }
 }
-
-#if 0
-typedef struct {                /* Avalanche Interrupt control registers */
-    uint32_t intsr1;            /* Interrupt Status/Set Register 1   0x00 */
-    uint32_t intsr2;            /* Interrupt Status/Set Register 2   0x04 */
-    uint32_t unused1;           /* 0x08 */
-    uint32_t unused2;           /* 0x0C */
-    uint32_t intcr1;            /* Interrupt Clear Register 1        0x10 */
-    uint32_t intcr2;            /* Interrupt Clear Register 2        0x14 */
-    uint32_t unused3;           /* 0x18 */
-    uint32_t unused4;           /* 0x1C */
-    uint32_t intesr1;           /* Interrupt Enable (Set) Register 1 0x20 */
-    uint32_t intesr2;           /* Interrupt Enable (Set) Register 2 0x24 */
-    uint32_t unused5;           /* 0x28 */
-    uint32_t unused6;           /* 0x2C */
-    uint32_t intecr1;           /* Interrupt Enable Clear Register 1 0x30 */
-    uint32_t intecr2;           /* Interrupt Enable Clear Register 2 0x34 */
-    uint32_t unused7;           /* 0x38 */
-    uint32_t unused8;           /* 0x3c */
-    uint32_t pintir;            /* Priority Interrupt Index Register 0x40 */
-    uint32_t intmsr;            /* Priority Interrupt Mask Index Reg 0x44 */
-    uint32_t unused9;           /* 0x48 */
-    uint32_t unused10;          /* 0x4C */
-    uint32_t intpolr1;          /* Interrupt Polarity Mask Reg 1     0x50 */
-    uint32_t intpolr2;          /* Interrupt Polarity Mask Reg 2     0x54 */
-    uint32_t unused11;          /* 0x58 */
-    uint32_t unused12;          /* 0x5C */
-    uint32_t inttypr1;          /* Interrupt Type Mask Register 1    0x60 */
-    uint32_t inttypr2;          /* Interrupt Type Mask Register 2    0x64 */
-
-    /* Avalanche Exception control registers */
-    uint32_t exsr;              /* Exceptions Status/Set register    0x80 */
-    uint32_t reserved;          /*0x84 */
-    uint32_t excr;              /* Exceptions Clear Register         0x88 */
-    uint32_t reserved1;         /*0x8c */
-    uint32_t exiesr;            /* Exceptions Interrupt Enable (set) 0x90 */
-    uint32_t reserved2;         /*0x94 */
-    uint32_t exiecr;            /* Exceptions Interrupt Enable(clear)0x98 */
-    uint32_t dummy0x9c;
-
-    /* Interrupt Pacing */
-    uint32_t ipacep;            /* Interrupt pacing register         0xa0 */
-    uint32_t ipacemap;          /* Interrupt Pacing Map Register     0xa4 */
-    uint32_t ipacemax;          /* Interrupt Pacing Max Register     0xa8 */
-    uint32_t dummy0xac[3 * 4];
-    uint32_t dummy0x100[64];
-
-    /* Interrupt Channel Control */
-    uint32_t cintnr[40];        /* Channel Interrupt Number Reg     0x200 */
-} ar7_intc_t;
-#endif
 
 static const char *const intc_names[] = {
     "Interrupt Status/Set 1",
@@ -1664,7 +1612,7 @@ typedef enum {
     GPIO_OUT = 0x04,
     GPIO_DIR = 0x08,
     GPIO_ENABLE = 0x0c,
-    GPIO_CVR = 0x14,
+    GPIO_CVR = 0x14,            /* chip version */
     GPIO_DIDR1 = 0x18,
     GPIO_DIDR2 = 0x1c,
 } gpio_t;
@@ -3233,7 +3181,9 @@ void ar7_init(CPUState * env)
     //~ reg_write(av.gpio, GPIO_OUT, 0x00000000);
     reg_write(av.gpio, GPIO_DIR, 0xffffffff);
     reg_write(av.gpio, GPIO_ENABLE, 0xffffffff);
-    //~ reg_write(av.gpio, GPIO_CVR, 0x00000000);
+    reg_write(av.gpio, GPIO_CVR, 0x00020005);
+    //~ reg_write(av.gpio, GPIO_DIDR1, 0x7106150d);
+    //~ reg_write(av.gpio, GPIO_DIDR2, 0xf52ccccf);
 
   //~ .mdio = {0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
@@ -3622,263 +3572,4 @@ int qemu_register_ar7_machines(void)
     return 0;
 }
 
-/*
-
-Offene Themen:
-
-Aufruf beim Reboot des Sinus 154 DSL Basic SE:
-AR7     io_readw                addr=0x00007640, val=0xffff
-
-gpio_display_init farbig
-
-AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x00000000, reg = 0, phy = 0, data = 0x0000
-AR7     ar7_mdio_write          [cpphy_mdio_user_access][cpphy_mdio_usermdio[USERACCESS1] = 0x80200000
-AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
-AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
-AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
-
-0xa8610f14  if (SIO0_LS&SIO_LS_RX)
-
-sinus original:
-uart divider=34 speed=441176 parity=N data=8 stop=1
-
-AR7     io_writeb               ??? addr=0x08610a50, val=0x01
-AR7     io_writeb               ??? addr=0x08610a30, val=0x01
-AR7     io_writeb               ??? addr=0x08610a70, val=0x77
-Unassigned mem write 0x16000000 = 0xb6000000 [][]
-Unassigned mem read  0x16000000 [][]
-
-vlynq0(0x08) = 0x01000101
-vlynq0(0xc0) = 0x00000009
-vlynq0[0x88] = 0x01000103
-vlynq0[0x04] = 0x00018000
-
-0x040400f0 ??? status???
-
-~/src/openwrt/build_mipsel/linux-2.6-ar7/linux-2.6.19.2
-./include/asm-mips/ar7/ar7.h:#define AR7_MEM_VLYNQ0 0x04000000
-
-                        { .size = 0x22000, .offset = 0xf0000000 },
-                        { .size = 0x40000, .offset = 0xc0000000 },
-
-
-sinus:
-GPIO Bit 06 = LED aus?
-GPIO Bit 13 = LED aus?
-GPIO Bit 18 = vlynq0 ein?
-GPIO Bit 19 = vlynq1 ein?
-0x2040
-
-gpio bits:
-avm 2.6.13.1: reset=12, clock=13, store=10, data=9
-
-
-===========================================================
- Sinus 154 DSL Basic SE Loader 0.65 build Jun 11 2004 14:57:56
-                 Broad Net Technology, INC.
-===========================================================
-INTEL TE28F160C3-B bottom boot 16-bit mode found
-
-Copying boot params.....DONE
-
-RESET_BTN was pressed, wake up Tiny_ETCPIP_KERNEL
-
-Unzipping web  at 0x94f30000 ... done
-Unzipping code at 0x94000000 ... done
-Boot ETCPIP running ...
-
-In C_Entry() function ...
-install_exception
-sys_irq_init
-system startup...
-tcpip_startup...
-INTEL TE28F160C3-B bottom boot 16-bit mode found
-pBootParams=B01F0000
-Set flash memory layout to BPARAMS+RECOVER_KERNEL
-Bootcode version: 0.65
-Serial number: A429021579
-Hardware version: 01
-!!No configuration file present!!
-default route: 0.0.0.0
-BufferInit:
-BUF_HDR_SZ=16 BUF_ALIGN_SZ=0 BUFFER_OFFSET=80
-BUF_BUFSZ0=384 BUF_BUFSZ1=1632
-NUM_OF_B0=500 NUM_OF_B1=500
-BUF_POOL0_SZ=200000 BUF_POOL1_SZ=824000
-Buf0_Block b42aca70  Buf1_Block b41e37a0
-BUF0[0]=0xb42aca70 BUF1[0]=0xb41e37a0
-
-buffer0 pointer init OK!
-buffer1 pointer init OK!
-init_if() ; gConfig.Interface[0].Link_Type is [4]
-Interface 0 ip = 127.0.0.1
-
-init_if() ; gConfig.Interface[1].Link_Type is [1]
-MAC Address: 00:30:f1:df:5f:55
-MAC0 [RX=128 TX=1]: TI Internal PHY
-Interface 1 ip = 192.168.2.1
-
-init_if() ; gConfig.Interface[2].Link_Type is [0]
-RUNTASK id=1 if_task if0...
-RUNTASK id=2 if_task if1...
-RUNTASK id=3 timer_task...
-RUNTASK id=4 period_task...
-RUNTASK id=5 dhcp_daemon...
-RUNTASK httpd...
-RUNTASK id=8 dhcpd_mgmt_task...
-Starting Multitask...
-MTstart2() begin  ...
-period_task running!!!
-httpd: listen at 192.168.2.1:80
-dhcpd_mgmt_task started...
-
-Rest fehlt!!!
-setup MII management interface done
-100 mbps Full Duplex
-period_task running 60
-period_task running 120
-
-lan an, wlan blinkt, online blinkt, dsl aus, power an
-
-----------------------------------------------------------
- Address   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
-----------------------------------------------------------
-0xA8610900 75 A8 BE 0C 40 20 06 00 3F CB F9 FF F0 FF FF FF
-
-bit  6 = wlan:   0xa8610904 byteweise mit 0x40 beschreiben 0x0040
-bit 13 = online: 0xa8610904 byteweise mit 0x40 beschreiben 0x2000
-
-fehlt:
-[42949374.130000] [avm_power]Sangam 7300 or 7300A (> 2.3 but not 5.7 possible overclock) detected rev=2
-
-FBox blinken: 3640 / 00c0
-
-falsch:
-AR7     ar7_reset_write         reset enabled vlynq0 (0x00100041)
-AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x80008000
-AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x80000000
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_read          vlynq0[0xc0 (Remote Chip Version)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x1c (Tx Address Map)] = 0x04000000
-AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x02000000
-AR7     ar7_vlynq_write         vlynq0[0x24 (Rx Address Map Offset 1)] = 0x14000000
-AR7     ar7_vlynq_write         vlynq0[0x9c (Remote Tx Address Map)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00022000
-AR7     ar7_vlynq_write         vlynq0[0xa4 (Remote Rx Address Map Offset 1)] = 0xf0000000
-AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00040000
-AR7     ar7_vlynq_write         vlynq0[0xac (Remote Rx Address Map Offset 2)] = 0xc0000000
-AR7     ar7_vlynq_write         vlynq0[0xb0 (Remote Rx Address Map Size 3)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xb4 (Remote Rx Address Map Offset 3)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xb8 (Remote Rx Address Map Size 4)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xbc (Remote Rx Address Map Offset 4)] = 0x00000000
-
-AVM:
-AR7     ar7_reset_write         reset enabled vlynq0 (0x04720041)
-AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
-AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x00000000
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_write         vlynq0[0x1c (Tx Address Map)] = 0x04000000
-AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xa4 (Remote Rx Address Map Offset 1)] = 0xc0000000
-AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00040000
-AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xac (Remote Rx Address Map Offset 2)] = 0xf0000000
-AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00022000
-AR7     ar7_vlynq_write         vlynq0[0xb0 (Remote Rx Address Map Size 3)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xb8 (Remote Rx Address Map Size 4)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x9c (Remote Tx Address Map)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x24 (Rx Address Map Offset 1)] = 0x14000000
-AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x02000000
-AR7     ar7_vlynq_write         vlynq0[0x28 (Rx Address Map Size 2)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x30 (Rx Address Map Size 3)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x38 (Rx Address Map Size 4)] = 0x00000000
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_read          vlynq0[0x88 (Remote Status)] = 0x00000001
-AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
-
-T-COM:
-AR7     ar7_reset_write         reset disabled vlynq0 (0x04620141)
-AR7     ar7_reset_write         reset enabled vlynq0 (0x04720141)
-AR7     ar7_vlynq_write         vlynq0[0x04 (Control)] = 0x00018000
-AR7     ar7_vlynq_write         vlynq0[0x84 (Remote Control)] = 0x00000000
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_write         vlynq0[0x1c (Tx Address Map)] = 0x04000000
-AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xa4 (Remote Rx Address Map Offset 1)] = 0xc0000000
-AR7     ar7_vlynq_write         vlynq0[0xa0 (Remote Rx Address Map Size 1)] = 0x00040000
-AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xac (Remote Rx Address Map Offset 2)] = 0xf0000000
-AR7     ar7_vlynq_write         vlynq0[0xa8 (Remote Rx Address Map Size 2)] = 0x00022000
-AR7     ar7_vlynq_write         vlynq0[0xb0 (Remote Rx Address Map Size 3)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0xb8 (Remote Rx Address Map Size 4)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x9c (Remote Tx Address Map)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x24 (Rx Address Map Offset 1)] = 0x14000000
-AR7     ar7_vlynq_write         vlynq0[0x20 (Rx Address Map Size 1)] = 0x02000000
-AR7     ar7_vlynq_write         vlynq0[0x28 (Rx Address Map Size 2)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x30 (Rx Address Map Size 3)] = 0x00000000
-AR7     ar7_vlynq_write         vlynq0[0x38 (Rx Address Map Size 4)] = 0x00000000
-AR7     ar7_vlynq_read          vlynq0[0x08 (Status)] = 0x00000001
-AR7     ar7_vlynq_read          vlynq0[0x88 (Remote Status)] = 0x00000001
-
-Zyxel:
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0xd1425d02 [][]
-AR7     ar7_io_memread          addr 0x08611608 (reset control) = 0x00000000
-AR7     clock_write             clock[0x000c] = 0x00000004 [][]
-AR7     clock_read              clock[0x000c] = 0x00000005 [][]
-AR7     clock_write             clock[0x000c] = 0x000047fe [][]
-AR7     clock_read              clock[0x000c] = 0x000047fe [][]
-AR7     clock_write             clock[0x000c] = 0x000047fe [][]
-AR7     clock_read              clock[0x000c] = 0x000047fe [][]
-
-Sinus:
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
-AR7     clock_write             clock[0x000c] = 0x00000004 [][]
-AR7     clock_read              clock[0x000c] = 0x00000005 [][]
-AR7     clock_read              clock[0x000c] = 0x00000004 [][]
-AR7     clock_write             clock[0x000c] = 0x000037fe [][]
-AR7     clock_read              clock[0x000c] = 0x000037ff [][]
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
-AR7     clock_write             clock[0x0014] = 0x00000004 [][]
-AR7     clock_read              clock[0x0014] = 0x00000005 [][]
-AR7     clock_read              clock[0x0014] = 0x00000004 [][]
-AR7     clock_write             clock[0x0014] = 0x000037fe [][]
-AR7     clock_read              clock[0x0014] = 0x000037ff [][]
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
-AR7     clock_write             clock[0x0014] = 0x00000004 [][]
-AR7     clock_read              clock[0x0014] = 0x00000005 [][]
-AR7     clock_read              clock[0x0014] = 0x00000004 [][]
-AR7     clock_write             clock[0x0014] = 0x000037fe [][]
-AR7     clock_read              clock[0x0014] = 0x000037ff [][]
-AR7     ar7_emif_write          emif[0x80] = 00000000
-AR7     clock_write             clock[0x0000] = 0x00000000 [][]
-AR7     ar7_emif_read           emif[0x10] = 00000000
-AR7     ar7_emif_write          emif[0x10] = 05a62d34
-AR7     ar7_emif_write          emif[0x08] = 00002000
-AR7     ar7_emif_write          emif[0x08] = 00002000
-AR7     ar7_emif_write          emif[0x08] = 00002001
-AR7     ar7_emif_write          emif[0x08] = 00002002
-AR7     ar7_emif_write          emif[0x08] = 00002003
-AR7     ar7_emif_write          emif[0x08] = 00002008
-AR7     ar7_emif_write          emif[0x08] = 0000202b
-AR7     ar7_emif_write          emif[0x0c] = 0000009c
-AR7     ar7_emif_write          emif[0x14] = 05a62d36
-AR7     ar7_emif_write          emif[0x18] = 05a62d34
-AR7     ar7_emif_write          emif[0x1c] = 05a62d36
-AR7     clock_write             clock[0x0010] = 0x00000000 [][]
-AR7     ar7_dcl_read            dcl[config] (0x08611a00) = 0x025d4291 [][]
-
-GPIO 0x08610914 == 5 ??? chip version
-UART 0x08610e10 = 0xf (4 Ausgänge)!!!
-
-0x940008f0
-0x94001700
-??
-0x9400110c.
-
-*/
+/* eof */
