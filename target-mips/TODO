@@ -8,6 +8,8 @@ General
   instructions are regarded as valid
 - pcnet32 does not work for little endian emulation on big endian host
   (probably not mips specific, but observable for mips-malta)
+- CP1 enable/disable is checked at translation time, not at execution
+  time, so it will have delayed effect.
 
 MIPS64
 ------
