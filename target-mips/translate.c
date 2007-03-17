@@ -33,7 +33,7 @@
 
 #define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
-#define MIPS_SINGLE_STEP
+//#define MIPS_SINGLE_STEP
 
 #ifdef USE_DIRECT_JUMP
 #define TBPARAM(x)
@@ -5090,6 +5090,7 @@ static int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #if defined (MIPS_SINGLE_STEP)
         break;
 #endif
+        if (getenv("MIPS_SINGLE_STEP")) break;
     }
     if (env->singlestep_enabled) {
         save_cpu_state(ctxp, ctx.bstate == BS_NONE);
