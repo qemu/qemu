@@ -83,11 +83,13 @@ struct IoState {
 };
 #endif
 
-#if 0
+#define DEBUG_AR7
 
+#if defined(DEBUG_AR7)
 /* Set flags to >0 to enable debug output. */
 static struct {
   int CLOCK:1;
+  int CONFIG:1;
   int CPMAC:1;
   int EMIF:1;
   int GPIO:1;
@@ -102,6 +104,7 @@ static struct {
 } traceflags;
 
 #define CLOCK   traceflags.CLOCK
+#define CONFIG  traceflags.CONFIG
 #define CPMAC   traceflags.CPMAC
 #define EMIF    traceflags.EMIF
 #define GPIO    traceflags.GPIO
@@ -114,50 +117,17 @@ static struct {
 #define OTHER   traceflags.OTHER
 #define RXTX    traceflags.RXTX
 
-#else
-
-#if 0 // !defined(TARGET_WORDS_BIGENDIAN)
-#define CLOCK   0
-#define CONFIG  1
-#define CPMAC   0
-#define EMIF    1
-#define GPIO    0
-#define INTC    0
-#define MDIO    0               /* polled, so very noisy */
-#define RESET   1
-#define UART    0
-#define VLYNQ   1
-#define WDOG    0
-#define OTHER   1
-#define RXTX    0
-#else
-#define CLOCK   1
-#define CONFIG  1
-#define CPMAC   1
-#define EMIF    1
-#define GPIO    1
-#define INTC    1
-#define MDIO    1               /* polled, so very noisy */
-#define RESET   1
-#define UART    1
-#define VLYNQ   1
-#define WDOG    1
-#define OTHER   1
-#define RXTX    1
-#endif
-
-#endif
-
-#define DEBUG_AR7
-
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
 
-#ifdef DEBUG_AR7
 #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s" fmt, __func__, ##args)
 //~ #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s%-40.40s " fmt, __func__, backtrace(), ##args)
-#else
+
+#else /* DEBUG_AR7 */
+
+#define TRACE(flag, command) ((void)0)
 #define logout(fmt, args...) ((void)0)
-#endif
+
+#endif /* DEBUG_AR7 */
 
 #define MISSING() logout("%s:%u missing, %s!!!\n", __FILE__, __LINE__, backtrace())
 #define UNEXPECTED() logout("%s:%u unexpected, %s!!!\n", __FILE__, __LINE__, backtrace())
@@ -503,7 +473,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                 unsigned index = channel / 32;
                 unsigned offset = channel % 32;
                 if (av.intmask[index] & (1 << offset)) {
-                    logout("(%p,%d,%d)\n", opaque, irq_num, level);
+                    TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
                     av.intc[INTC_CR1 / 4 + index] |= (1 << offset);
                     av.intc[INTC_SR1 / 4 + index] |= (1 << offset);
                     av.intc[INTC_PIIR / 4] = ((channel << 16) | channel);
@@ -511,7 +481,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                     cpu_env->CP0_Cause |= 0x00000400;
                     cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
                 } else {
-                    logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level);
+                    TRACE(INTC, logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
                 }
             }
             // int line number
@@ -520,7 +490,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             // 2, 7, 15, 27, 80
             //~ av.intmask[0]
         } else {
-            logout("(%p,%d,%d)\n", opaque, irq_num, level);
+            TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
             av.intc[INTC_PIIR / 4] = 0;
             cpu_env->CP0_Cause &= ~0x00000400;
             cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
@@ -584,11 +554,10 @@ static const char *i2intc(unsigned index)
     if (index < sizeof(intc_names) / sizeof(*intc_names)) {
         text = intc_names[index];
     } else if (index >= 128 && index < 168) {
-        sprintf(buffer, "Channel Interrupt Number 0x%02x", index - 128);
+        snprintf(buffer, sizeof(buffer), "Channel Interrupt Number 0x%02x", index - 128);
     } else {
-        sprintf(buffer, "0x%02x", index);
+        snprintf(buffer, sizeof(buffer), "0x%02x", index);
     }
-    assert(strlen(buffer) < sizeof(buffer));
     return text;
 }
 
@@ -1117,7 +1086,7 @@ static const char *i2cpmac(unsigned index)
     if (text != 0) {
     } else if (index >= 0x48 && index < 0x50) {
         text = buffer;
-        sprintf(buffer, "RX%uFLOWTHRESH", index & 7);
+        snprintf(buffer, sizeof(buffer), "RX%uFLOWTHRESH", index & 7);
     } else if (index >= 0x50 && index < 0x58) {
         text = buffer;
         sprintf(buffer, "RX%uFREEBUFFER", index & 7);
@@ -1182,7 +1151,7 @@ static void emac_update_interrupt(unsigned index)
     reg_write(cpmac, CPMAC_MACINVECTOR, macinvector);
     //~ reg_write(cpmac, CPMAC_MACINVECTOR, (macintstat << 16) + (rxintstat << 8) + txintstat);
     enabled = (txintstat || rxintstat || macintstat);
-    ar7_irq(0, cpmac_interrupt[index], enabled);
+    ar7_irq(IRQ_OPAQUE, cpmac_interrupt[index], enabled);
 }
 
 static void emac_reset(unsigned index)
@@ -2010,7 +1979,7 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
 static void ar7_reset_write(uint32_t offset, uint32_t val)
 {
     if (offset == 0) {
-#if RESET
+#if defined(DEBUG_AR7)
         static const char *resetdevice[] = {
             /* 00 */ "uart0", "uart1", "i2c", "timer0",
             /* 04 */ "timer1", "reserved05", "gpio", "adsl",
@@ -3451,6 +3420,14 @@ static void mips_ar7_common_init (int ram_size,
     //~ cpu_mips_irqctrl_init();
 
     ar7_init(env);
+
+#if defined(DEBUG_AR7)
+    if (getenv("DEBUG_AR7")) {
+        const char *env = getenv("DEBUG_AR7");
+        unsigned long ul = strtoul(env, 0, 0);
+        memcpy(&traceflags, &ul, sizeof(traceflags));
+    }
+#endif
 }
 
 static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
