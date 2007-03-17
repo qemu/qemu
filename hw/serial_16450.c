@@ -28,7 +28,7 @@
 
 #define CONFIG_16550A
 
-#define DEBUG_SERIAL
+//~ #define DEBUG_SERIAL
 
 #if defined(DEBUG_SERIAL)
 # define logout(fmt, args...) fprintf(stderr, "UART\t%-24s" fmt, __func__, ##args)
