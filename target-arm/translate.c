@@ -1537,6 +1537,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 }
             } else {
                 int address_offset;
+                int load;
                 /* Misc load/store */
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
@@ -1558,7 +1559,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_ldst(ldsw, s);
                         break;
                     }
-                    gen_movl_reg_T0(s, rd);
+                    load = 1;
                 } else if (sh & 2) {
                     /* doubleword */
                     if (sh & 1) {
@@ -1568,20 +1569,27 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_op_addl_T1_im(4);
                         gen_movl_T0_reg(s, rd + 1);
                         gen_ldst(stl, s);
+                        load = 0;
                     } else {
                         /* load */
                         gen_ldst(ldl, s);
                         gen_movl_reg_T0(s, rd);
                         gen_op_addl_T1_im(4);
                         gen_ldst(ldl, s);
-                        gen_movl_reg_T0(s, rd + 1);
+                        rd++;
+                        load = 1;
                     }
                     address_offset = -4;
                 } else {
                     /* store */
                     gen_movl_T0_reg(s, rd);
                     gen_ldst(stw, s);
+                    load = 0;
                 }
+                /* Perform base writeback before the loaded value to
+                   ensure correct behavior with overlapping index registers.
+                   ldrd with base writeback is is undefined if the
+                   destination and index registers overlap.  */
                 if (!(insn & (1 << 24))) {
                     gen_add_datah_offset(s, insn, address_offset);
                     gen_movl_reg_T1(s, rn);
@@ -1589,6 +1597,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     if (address_offset)
                         gen_op_addl_T1_im(address_offset);
                     gen_movl_reg_T1(s, rn);
+                }
+                if (load) {
+                    /* Complete the load.  */
+                    gen_movl_reg_T0(s, rd);
                 }
             }
             break;
@@ -1633,10 +1645,6 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_op_ldl_kernel();
                 }
 #endif
-                if (rd == 15)
-                    gen_bx(s);
-                else
-                    gen_movl_reg_T0(s, rd);
             } else {
                 /* store */
                 gen_movl_T0_reg(s, rd);
@@ -1664,6 +1672,13 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_movl_reg_T1(s, rn);
             } else if (insn & (1 << 21))
                 gen_movl_reg_T1(s, rn); {
+            }
+            if (insn & (1 << 20)) {
+                /* Complete the load.  */
+                if (rd == 15)
+                    gen_bx(s);
+                else
+                    gen_movl_reg_T0(s, rd);
             }
             break;
         case 0x08:
