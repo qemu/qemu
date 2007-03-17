@@ -2915,12 +2915,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_recv
     case TARGET_NR_recv:
-        ret = do_recvfrom(arg1, arg1, arg3, arg4, 0, 0);
+        ret = do_recvfrom(arg1, arg2, arg3, arg4, 0, 0);
         break;
 #endif
 #ifdef TARGET_NR_recvfrom
     case TARGET_NR_recvfrom:
-        ret = do_recvfrom(arg1, arg1, arg3, arg4, arg5, arg6);
+        ret = do_recvfrom(arg1, arg2, arg3, arg4, arg5, arg6);
         break;
 #endif
 #ifdef TARGET_NR_recvmsg
