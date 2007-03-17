@@ -24,11 +24,7 @@ else
 DOCS=
 endif
 
-ifndef CONFIG_DARWIN
-ifndef CONFIG_WIN32
-LIBS+=-lrt
-endif
-endif
+LIBS+=$(AIOLIBS)
 
 all: $(TOOLS) $(DOCS) recurse-all
 
