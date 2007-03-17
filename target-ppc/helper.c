@@ -37,12 +37,12 @@
 /*****************************************************************************/
 /* PowerPC MMU emulation */
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                               int is_user, int is_softmmu)
 {
     int exception, error_code;
-    
+
     if (rw == 2) {
         exception = EXCP_ISI;
         error_code = 0;
@@ -277,7 +277,7 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
     ppc_tlb_t *tlb;
     int nr, best, way;
     int ret;
-    
+
     best = -1;
     ret = -1; /* No TLB found */
     for (way = 0; way < env->nb_ways; way++) {
@@ -672,7 +672,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
     if (loglevel > 0) {
         fprintf(logfile, "%s\n", __func__);
     }
-#endif    
+#endif
     if ((access_type == ACCESS_CODE && msr_ir == 0) ||
         (access_type != ACCESS_CODE && msr_dr == 0)) {
         /* No address translation */
@@ -693,7 +693,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
                 __func__, eaddr, ctx->raddr);
     }
 #endif
-    
+
     return ret;
 }
 
@@ -715,7 +715,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     int exception = 0, error_code = 0;
     int access_type;
     int ret = 0;
-    
+
     if (rw == 2) {
         /* code access */
         rw = 0;
@@ -975,6 +975,21 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
 
 /*****************************************************************************/
 /* Special registers manipulation */
+#if defined(TARGET_PPC64)
+target_ulong ppc_load_asr (CPUPPCState *env)
+{
+    return env->asr;
+}
+
+void ppc_store_asr (CPUPPCState *env, target_ulong value)
+{
+    if (env->asr != value) {
+        env->asr = value;
+        tlb_flush(env, 1);
+    }
+}
+#endif
+
 target_ulong do_load_sdr1 (CPUPPCState *env)
 {
     return env->sdr1;
@@ -1039,7 +1054,7 @@ void ppc_store_xer (CPUPPCState *env, uint32_t value)
     xer_ov = (value >> XER_OV) & 0x01;
     xer_ca = (value >> XER_CA) & 0x01;
     xer_cmp = (value >> XER_CMP) & 0xFF;
-    xer_bc = (value >> XER_BC) & 0x3F;
+    xer_bc = (value >> XER_BC) & 0x7F;
 }
 
 /* Swap temporary saved registers with GPRs */
@@ -1066,34 +1081,34 @@ target_ulong do_load_msr (CPUPPCState *env)
 {
     return
 #if defined (TARGET_PPC64)
-        (msr_sf   << MSR_SF)   |
-        (msr_isf  << MSR_ISF)  |
-        (msr_hv   << MSR_HV)   |
+        ((target_ulong)msr_sf   << MSR_SF)   |
+        ((target_ulong)msr_isf  << MSR_ISF)  |
+        ((target_ulong)msr_hv   << MSR_HV)   |
 #endif
-        (msr_ucle << MSR_UCLE) |
-        (msr_vr   << MSR_VR)   | /* VR / SPE */
-        (msr_ap   << MSR_AP)   |
-        (msr_sa   << MSR_SA)   |
-        (msr_key  << MSR_KEY)  |
-        (msr_pow  << MSR_POW)  | /* POW / WE */
-        (msr_tlb  << MSR_TLB)  | /* TLB / TGPE / CE */
-        (msr_ile  << MSR_ILE)  |
-        (msr_ee   << MSR_EE)   |
-        (msr_pr   << MSR_PR)   |
-        (msr_fp   << MSR_FP)   |
-        (msr_me   << MSR_ME)   |
-        (msr_fe0  << MSR_FE0)  |
-        (msr_se   << MSR_SE)   | /* SE / DWE / UBLE */
-        (msr_be   << MSR_BE)   | /* BE / DE */
-        (msr_fe1  << MSR_FE1)  |
-        (msr_al   << MSR_AL)   |
-        (msr_ip   << MSR_IP)   |
-        (msr_ir   << MSR_IR)   | /* IR / IS */
-        (msr_dr   << MSR_DR)   | /* DR / DS */
-        (msr_pe   << MSR_PE)   | /* PE / EP */
-        (msr_px   << MSR_PX)   | /* PX / PMM */
-        (msr_ri   << MSR_RI)   |
-        (msr_le   << MSR_LE);
+        ((target_ulong)msr_ucle << MSR_UCLE) |
+        ((target_ulong)msr_vr   << MSR_VR)   | /* VR / SPE */
+        ((target_ulong)msr_ap   << MSR_AP)   |
+        ((target_ulong)msr_sa   << MSR_SA)   |
+        ((target_ulong)msr_key  << MSR_KEY)  |
+        ((target_ulong)msr_pow  << MSR_POW)  | /* POW / WE */
+        ((target_ulong)msr_tlb  << MSR_TLB)  | /* TLB / TGPE / CE */
+        ((target_ulong)msr_ile  << MSR_ILE)  |
+        ((target_ulong)msr_ee   << MSR_EE)   |
+        ((target_ulong)msr_pr   << MSR_PR)   |
+        ((target_ulong)msr_fp   << MSR_FP)   |
+        ((target_ulong)msr_me   << MSR_ME)   |
+        ((target_ulong)msr_fe0  << MSR_FE0)  |
+        ((target_ulong)msr_se   << MSR_SE)   | /* SE / DWE / UBLE */
+        ((target_ulong)msr_be   << MSR_BE)   | /* BE / DE */
+        ((target_ulong)msr_fe1  << MSR_FE1)  |
+        ((target_ulong)msr_al   << MSR_AL)   |
+        ((target_ulong)msr_ip   << MSR_IP)   |
+        ((target_ulong)msr_ir   << MSR_IR)   | /* IR / IS */
+        ((target_ulong)msr_dr   << MSR_DR)   | /* DR / DS */
+        ((target_ulong)msr_pe   << MSR_PE)   | /* PE / EP */
+        ((target_ulong)msr_px   << MSR_PX)   | /* PX / PMM */
+        ((target_ulong)msr_ri   << MSR_RI)   |
+        ((target_ulong)msr_le   << MSR_LE);
 }
 
 void do_store_msr (CPUPPCState *env, target_ulong value)
@@ -1156,6 +1171,17 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
 
     enter_pm = 0;
     switch (PPC_EXCP(env)) {
+    case PPC_FLAGS_EXCP_603:
+        /* Don't handle SLEEP mode: we should disable all clocks...
+         * No dynamic power-management.
+         */
+        if (msr_pow == 1 && (env->spr[SPR_HID0] & 0x00C00000) != 0)
+            enter_pm = 1;
+        break;
+    case PPC_FLAGS_EXCP_604:
+        if (msr_pow == 1)
+            enter_pm = 1;
+        break;
     case PPC_FLAGS_EXCP_7x0:
         if (msr_pow == 1 && (env->spr[SPR_HID0] & 0x00E00000) != 0)
             enter_pm = 1;
@@ -1171,15 +1197,22 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
     }
 }
 
+#if defined(TARGET_PPC64)
+void ppc_store_msr_32 (CPUPPCState *env, target_ulong value)
+{
+    do_store_msr(env, (uint32_t)value);
+}
+#endif
+
 void do_compute_hflags (CPUPPCState *env)
 {
     /* Compute current hflags */
     env->hflags = (msr_pr << MSR_PR) | (msr_le << MSR_LE) |
         (msr_fp << MSR_FP) | (msr_fe0 << MSR_FE0) | (msr_fe1 << MSR_FE1) |
-        (msr_vr << MSR_VR) | (msr_ap << MSR_AP) | (msr_sa << MSR_SA) | 
+        (msr_vr << MSR_VR) | (msr_ap << MSR_AP) | (msr_sa << MSR_SA) |
         (msr_se << MSR_SE) | (msr_be << MSR_BE);
 #if defined (TARGET_PPC64)
-    env->hflags |= (msr_sf << MSR_SF) | (msr_hv << MSR_HV);
+    env->hflags |= (msr_sf << (MSR_SF - 32)) | (msr_hv << (MSR_HV - 32));
 #endif
 }
 
@@ -1193,8 +1226,8 @@ void do_interrupt (CPUState *env)
 #else /* defined (CONFIG_USER_ONLY) */
 static void dump_syscall(CPUState *env)
 {
-    fprintf(logfile, "syscall r0=0x%08x r3=0x%08x r4=0x%08x "
-            "r5=0x%08x r6=0x%08x nip=0x%08x\n",
+    fprintf(logfile, "syscall r0=0x" REGX " r3=0x" REGX " r4=0x" REGX
+            " r5=0x" REGX " r6=0x" REGX " nip=0x" REGX "\n",
             env->gpr[0], env->gpr[3], env->gpr[4],
             env->gpr[5], env->gpr[6], env->nip);
 }

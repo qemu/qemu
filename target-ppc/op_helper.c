@@ -33,10 +33,6 @@
 //#define DEBUG_SOFTWARE_TLB
 //#define FLUSH_ALL_TLBS
 
-#define Ts0 (long)((target_long)T0)
-#define Ts1 (long)((target_long)T1)
-#define Ts2 (long)((target_long)T2)
-
 /*****************************************************************************/
 /* Exceptions processing helpers */
 void cpu_loop_exit (void)
@@ -106,7 +102,7 @@ void do_store_xer (void)
     xer_ov = (T0 >> XER_OV) & 0x01;
     xer_ca = (T0 >> XER_CA) & 0x01;
     xer_cmp = (T0 >> XER_CMP) & 0xFF;
-    xer_bc = (T0 >> XER_BC) & 0x3F;
+    xer_bc = (T0 >> XER_BC) & 0x7F;
 }
 
 void do_load_fpscr (void)
@@ -122,7 +118,7 @@ void do_load_fpscr (void)
     } u;
     int i;
 
-#ifdef WORDS_BIGENDIAN
+#if defined(WORDS_BIGENDIAN)
 #define WORD0 0
 #define WORD1 1
 #else
@@ -182,68 +178,110 @@ void do_store_fpscr (uint32_t mask)
 
 /*****************************************************************************/
 /* Fixed point operations helpers */
-void do_addo (void)
+#if defined(TARGET_PPC64)
+static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 {
-    T2 = T0;
-    T0 += T1;
-    if (likely(!((T2 ^ T1 ^ (-1)) & (T2 ^ T0) & (1 << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_so = 1;
-        xer_ov = 1;
+    *plow += a;
+    /* carry test */
+    if (*plow < a)
+        (*phigh)++;
+    *phigh += b;
+}
+
+static void neg128 (uint64_t *plow, uint64_t *phigh)
+{
+    *plow = ~ *plow;
+    *phigh = ~ *phigh;
+    add128(plow, phigh, 1, 0);
+}
+
+static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
+{
+    uint32_t a0, a1, b0, b1;
+    uint64_t v;
+
+    a0 = a;
+    a1 = a >> 32;
+
+    b0 = b;
+    b1 = b >> 32;
+    
+    v = (uint64_t)a0 * (uint64_t)b0;
+    *plow = v;
+    *phigh = 0;
+
+    v = (uint64_t)a0 * (uint64_t)b1;
+    add128(plow, phigh, v << 32, v >> 32);
+
+    v = (uint64_t)a1 * (uint64_t)b0;
+    add128(plow, phigh, v << 32, v >> 32);
+
+    v = (uint64_t)a1 * (uint64_t)b1;
+    *phigh += v;
+#if defined(DEBUG_MULDIV)
+    printf("mul: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
+           a, b, *phigh, *plow);
+#endif
+}
+
+void do_mul64 (uint64_t *plow, uint64_t *phigh)
+{
+    mul64(plow, phigh, T0, T1);
+}
+
+static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
+{
+    int sa, sb;
+    sa = (a < 0);
+    if (sa)
+        a = -a;
+    sb = (b < 0);
+    if (sb)
+        b = -b;
+    mul64(plow, phigh, a, b);
+    if (sa ^ sb) {
+        neg128(plow, phigh);
     }
 }
 
-void do_addco (void)
+void do_imul64 (uint64_t *plow, uint64_t *phigh)
 {
-    T2 = T0;
-    T0 += T1;
-    if (likely(T0 >= T2)) {
-        xer_ca = 0;
-    } else {
-        xer_ca = 1;
-    }
-    if (likely(!((T2 ^ T1 ^ (-1)) & (T2 ^ T0) & (1 << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_so = 1;
-        xer_ov = 1;
-    }
+    imul64(plow, phigh, T0, T1);
 }
+#endif
 
 void do_adde (void)
 {
     T2 = T0;
     T0 += T1 + xer_ca;
-    if (likely(!(T0 < T2 || (xer_ca == 1 && T0 == T2)))) {
+    if (likely(!((uint32_t)T0 < (uint32_t)T2 ||
+                 (xer_ca == 1 && (uint32_t)T0 == (uint32_t)T2)))) {
         xer_ca = 0;
     } else {
         xer_ca = 1;
     }
 }
 
-void do_addeo (void)
+#if defined(TARGET_PPC64)
+void do_adde_64 (void)
 {
     T2 = T0;
     T0 += T1 + xer_ca;
-    if (likely(!(T0 < T2 || (xer_ca == 1 && T0 == T2)))) {
+    if (likely(!((uint64_t)T0 < (uint64_t)T2 ||
+                 (xer_ca == 1 && (uint64_t)T0 == (uint64_t)T2)))) {
         xer_ca = 0;
     } else {
         xer_ca = 1;
     }
-    if (likely(!((T2 ^ T1 ^ (-1)) & (T2 ^ T0) & (1 << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_so = 1;
-        xer_ov = 1;
-    }
 }
+#endif
 
 void do_addmeo (void)
 {
     T1 = T0;
     T0 += xer_ca + (-1);
-    if (likely(!(T1 & (T1 ^ T0) & (1 << 31)))) {
+    if (likely(!((uint32_t)T1 &
+                 ((uint32_t)T1 ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
         xer_so = 1;
@@ -253,34 +291,50 @@ void do_addmeo (void)
         xer_ca = 1;
 }
 
-void do_addzeo (void)
+#if defined(TARGET_PPC64)
+void do_addmeo_64 (void)
 {
     T1 = T0;
-    T0 += xer_ca;
-    if (likely(!((T1 ^ (-1)) & (T1 ^ T0) & (1 << 31)))) {
+    T0 += xer_ca + (-1);
+    if (likely(!((uint64_t)T1 &
+                 ((uint64_t)T1 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
         xer_so = 1;
         xer_ov = 1;
     }
-    if (likely(T0 >= T1)) {
-        xer_ca = 0;
-    } else {
+    if (likely(T1 != 0))
         xer_ca = 1;
-    }
 }
+#endif
 
 void do_divwo (void)
 {
-    if (likely(!((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0))) {
+    if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) ||
+                 (int32_t)T1 == 0))) {
         xer_ov = 0;
-        T0 = (Ts0 / Ts1);
+        T0 = (int32_t)T0 / (int32_t)T1;
     } else {
         xer_so = 1;
         xer_ov = 1;
         T0 = (-1) * ((uint32_t)T0 >> 31);
     }
 }
+
+#if defined(TARGET_PPC64)
+void do_divdo (void)
+{
+    if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == -1ULL) ||
+                 (int64_t)T1 == 0))) {
+        xer_ov = 0;
+        T0 = (int64_t)T0 / (int64_t)T1;
+    } else {
+        xer_so = 1;
+        xer_ov = 1;
+        T0 = (-1ULL) * ((uint64_t)T0 >> 63);
+    }
+}
+#endif
 
 void do_divwuo (void)
 {
@@ -294,9 +348,23 @@ void do_divwuo (void)
     }
 }
 
+#if defined(TARGET_PPC64)
+void do_divduo (void)
+{
+    if (likely((uint64_t)T1 != 0)) {
+        xer_ov = 0;
+        T0 = (uint64_t)T0 / (uint64_t)T1;
+    } else {
+        xer_so = 1;
+        xer_ov = 1;
+        T0 = 0;
+    }
+}
+#endif
+
 void do_mullwo (void)
 {
-    int64_t res = (int64_t)Ts0 * (int64_t)Ts1;
+    int64_t res = (int64_t)T0 * (int64_t)T1;
 
     if (likely((int32_t)res == res)) {
         xer_ov = 0;
@@ -307,104 +375,140 @@ void do_mullwo (void)
     T0 = (int32_t)res;
 }
 
+#if defined(TARGET_PPC64)
+void do_mulldo (void)
+{
+    int64_t th;
+    uint64_t tl;
+
+    do_imul64(&tl, &th);
+    if (likely(th == 0)) {
+        xer_ov = 0;
+    } else {
+        xer_ov = 1;
+        xer_so = 1;
+    }
+    T0 = (int64_t)tl;
+}
+#endif
+
 void do_nego (void)
 {
-    if (likely(T0 != INT32_MIN)) {
+    if (likely((int32_t)T0 != INT32_MIN)) {
         xer_ov = 0;
-        T0 = -Ts0;
+        T0 = -(int32_t)T0;
     } else {
         xer_ov = 1;
         xer_so = 1;
     }
 }
 
-void do_subfo (void)
+#if defined(TARGET_PPC64)
+void do_nego_64 (void)
 {
-    T2 = T0;
-    T0 = T1 - T0;
-    if (likely(!(((~T2) ^ T1 ^ (-1)) & ((~T2) ^ T0) & (1 << 31)))) {
+    if (likely((int64_t)T0 != INT64_MIN)) {
         xer_ov = 0;
+        T0 = -(int64_t)T0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
-    }
-    RETURN();
-}
-
-void do_subfco (void)
-{
-    T2 = T0;
-    T0 = T1 - T0;
-    if (likely(T0 > T1)) {
-        xer_ca = 0;
-    } else {
-        xer_ca = 1;
-    }
-    if (likely(!(((~T2) ^ T1 ^ (-1)) & ((~T2) ^ T0) & (1 << 31)))) {
-        xer_ov = 0;
-    } else {
         xer_so = 1;
-        xer_ov = 1;
     }
 }
+#endif
 
 void do_subfe (void)
 {
     T0 = T1 + ~T0 + xer_ca;
-    if (likely(T0 >= T1 && (xer_ca == 0 || T0 != T1))) {
+    if (likely((uint32_t)T0 >= (uint32_t)T1 &&
+               (xer_ca == 0 || (uint32_t)T0 != (uint32_t)T1))) {
         xer_ca = 0;
     } else {
         xer_ca = 1;
     }
 }
 
-void do_subfeo (void)
+#if defined(TARGET_PPC64)
+void do_subfe_64 (void)
 {
-    T2 = T0;
     T0 = T1 + ~T0 + xer_ca;
-    if (likely(!((~T2 ^ T1 ^ (-1)) & (~T2 ^ T0) & (1 << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_so = 1;
-        xer_ov = 1;
-    }
-    if (likely(T0 >= T1 && (xer_ca == 0 || T0 != T1))) {
+    if (likely((uint64_t)T0 >= (uint64_t)T1 &&
+               (xer_ca == 0 || (uint64_t)T0 != (uint64_t)T1))) {
         xer_ca = 0;
     } else {
         xer_ca = 1;
     }
 }
+#endif
 
 void do_subfmeo (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    if (likely(!(~T1 & (~T1 ^ T0) & (1 << 31)))) {
+    if (likely(!((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0) &
+                 (1UL << 31)))) {
         xer_ov = 0;
     } else {
         xer_so = 1;
         xer_ov = 1;
     }
-    if (likely(T1 != -1))
+    if (likely((uint32_t)T1 != UINT32_MAX))
         xer_ca = 1;
 }
+
+#if defined(TARGET_PPC64)
+void do_subfmeo_64 (void)
+{
+    T1 = T0;
+    T0 = ~T0 + xer_ca - 1;
+    if (likely(!((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0) &
+                 (1ULL << 63)))) {
+        xer_ov = 0;
+    } else {
+        xer_so = 1;
+        xer_ov = 1;
+    }
+    if (likely((uint64_t)T1 != UINT64_MAX))
+        xer_ca = 1;
+}
+#endif
 
 void do_subfzeo (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    if (likely(!((~T1 ^ (-1)) & ((~T1) ^ T0) & (1 << 31)))) {
+    if (likely(!(((uint32_t)~T1 ^ UINT32_MAX) &
+                 ((uint32_t)(~T1) ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
         xer_ov = 1;
         xer_so = 1;
     }
-    if (likely(T0 >= ~T1)) {
+    if (likely((uint32_t)T0 >= (uint32_t)~T1)) {
         xer_ca = 0;
     } else {
         xer_ca = 1;
     }
 }
+
+#if defined(TARGET_PPC64)
+void do_subfzeo_64 (void)
+{
+    T1 = T0;
+    T0 = ~T0 + xer_ca;
+    if (likely(!(((uint64_t)~T1 ^ UINT64_MAX) &
+                 ((uint64_t)(~T1) ^ (uint64_t)T0) & (1ULL << 63)))) {
+        xer_ov = 0;
+    } else {
+        xer_ov = 1;
+        xer_so = 1;
+    }
+    if (likely((uint64_t)T0 >= (uint64_t)~T1)) {
+        xer_ca = 0;
+    } else {
+        xer_ca = 1;
+    }
+}
+#endif
 
 /* shift right arithmetic helper */
 void do_sraw (void)
@@ -412,7 +516,7 @@ void do_sraw (void)
     int32_t ret;
 
     if (likely(!(T1 & 0x20UL))) {
-        if (likely(T1 != 0)) {
+        if (likely((uint32_t)T1 != 0)) {
             ret = (int32_t)T0 >> (T1 & 0x1fUL);
             if (likely(ret >= 0 || ((int32_t)T0 & ((1 << T1) - 1)) == 0)) {
                 xer_ca = 0;
@@ -433,6 +537,69 @@ void do_sraw (void)
     }
     T0 = ret;
 }
+
+#if defined(TARGET_PPC64)
+void do_srad (void)
+{
+    int64_t ret;
+
+    if (likely(!(T1 & 0x40UL))) {
+        if (likely((uint64_t)T1 != 0)) {
+            ret = (int64_t)T0 >> (T1 & 0x3FUL);
+            if (likely(ret >= 0 || ((int64_t)T0 & ((1 << T1) - 1)) == 0)) {
+                xer_ca = 0;
+            } else {
+                xer_ca = 1;
+            }
+        } else {
+            ret = T0;
+            xer_ca = 0;
+        }
+    } else {
+        ret = (-1) * ((uint64_t)T0 >> 63);
+        if (likely(ret >= 0 || ((uint64_t)T0 & ~0x8000000000000000ULL) == 0)) {
+            xer_ca = 0;
+        } else {
+            xer_ca = 1;
+        }
+    }
+    T0 = ret;
+}
+#endif
+
+static inline int popcnt (uint32_t val)
+{
+    int i;
+
+    for (i = 0; val != 0;)
+        val = val ^ (val - 1);
+
+    return i;
+}
+
+void do_popcntb (void)
+{
+    uint32_t ret;
+    int i;
+
+    ret = 0;
+    for (i = 0; i < 32; i += 8)
+        ret |= popcnt((T0 >> i) & 0xFF) << i;
+    T0 = ret;
+}
+
+#if defined(TARGET_PPC64)
+void do_popcntb_64 (void)
+{
+    uint64_t ret;
+    int i;
+
+    ret = 0;
+    for (i = 0; i < 64; i += 8)
+        ret |= popcnt((T0 >> i) & 0xFF) << i;
+    T0 = ret;
+}
+#endif
 
 /*****************************************************************************/
 /* Floating point operations helpers */
@@ -459,7 +626,7 @@ void do_fctiwz (void)
     } p;
 
     /* XXX: higher bits are not supposed to be significant.
-     *      to make tests easier, return the same as a real PowerPC 750 (aka G3)
+     *     to make tests easier, return the same as a real PowerPC 750 (aka G3)
      */
     p.i = float64_to_int32_round_to_zero(FT0, &env->fp_status);
     p.i |= 0xFFF80000ULL << 32;
@@ -596,8 +763,20 @@ void do_fcmpo (void)
 #if !defined (CONFIG_USER_ONLY)
 void do_rfi (void)
 {
-    env->nip = env->spr[SPR_SRR0] & ~0x00000003;
-    T0 = env->spr[SPR_SRR1] & ~0xFFFF0000UL;
+    env->nip = (target_ulong)(env->spr[SPR_SRR0] & ~0x00000003);
+    T0 = (target_ulong)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
+    do_store_msr(env, T0);
+#if defined (DEBUG_OP)
+    dump_rfi();
+#endif
+    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+}
+
+#if defined(TARGET_PPC64)
+void do_rfi_32 (void)
+{
+    env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
+    T0 = (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
     do_store_msr(env, T0);
 #if defined (DEBUG_OP)
     dump_rfi();
@@ -605,16 +784,29 @@ void do_rfi (void)
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 #endif
+#endif
 
 void do_tw (int flags)
 {
-    if (!likely(!((Ts0 < Ts1 && (flags & 0x10)) ||
-                  (Ts0 > Ts1 && (flags & 0x08)) ||
-                  (Ts0 == Ts1 && (flags & 0x04)) ||
-                  (T0 < T1 && (flags & 0x02)) ||
-                  (T0 > T1 && (flags & 0x01)))))
+    if (!likely(!(((int32_t)T0 < (int32_t)T1 && (flags & 0x10)) ||
+                  ((int32_t)T0 > (int32_t)T1 && (flags & 0x08)) ||
+                  ((int32_t)T0 == (int32_t)T1 && (flags & 0x04)) ||
+                  ((uint32_t)T0 < (uint32_t)T1 && (flags & 0x02)) ||
+                  ((uint32_t)T0 > (uint32_t)T1 && (flags & 0x01)))))
         do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
 }
+
+#if defined(TARGET_PPC64)
+void do_td (int flags)
+{
+    if (!likely(!(((int64_t)T0 < (int64_t)T1 && (flags & 0x10)) ||
+                  ((int64_t)T0 > (int64_t)T1 && (flags & 0x08)) ||
+                  ((int64_t)T0 == (int64_t)T1 && (flags & 0x04)) ||
+                  ((uint64_t)T0 < (uint64_t)T1 && (flags & 0x02)) ||
+                  ((uint64_t)T0 > (uint64_t)T1 && (flags & 0x01)))))
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+}
+#endif
 
 /* Instruction cache invalidation helper */
 void do_icbi (void)
@@ -625,20 +817,31 @@ void do_icbi (void)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-#if defined(TARGET_PPC64)
-    if (!msr_sf)
-        T0 &= 0xFFFFFFFFULL;
-#endif
-    tmp = ldl_kernel(T0);
+    tmp = ldl_kernel((uint32_t)T0);
     T0 &= ~(ICACHE_LINE_SIZE - 1);
-    tb_invalidate_page_range(T0, T0 + ICACHE_LINE_SIZE);
+    tb_invalidate_page_range((uint32_t)T0, (uint32_t)(T0 + ICACHE_LINE_SIZE));
 }
+
+#if defined(TARGET_PPC64)
+void do_icbi_64 (void)
+{
+    uint64_t tmp;
+    /* Invalidate one cache line :
+     * PowerPC specification says this is to be treated like a load
+     * (not a fetch) by the MMU. To be sure it will be so,
+     * do the load "by hand".
+     */
+    tmp = ldq_kernel((uint64_t)T0);
+    T0 &= ~(ICACHE_LINE_SIZE - 1);
+    tb_invalidate_page_range((uint64_t)T0, (uint64_t)(T0 + ICACHE_LINE_SIZE));
+}
+#endif
 
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
 void do_POWER_abso (void)
 {
-    if (T0 == INT32_MIN) {
+    if ((uint32_t)T0 == INT32_MIN) {
         T0 = INT32_MAX;
         xer_ov = 1;
         xer_so = 1;
@@ -679,13 +882,13 @@ void do_POWER_div (void)
 {
     uint64_t tmp;
 
-    if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
         T0 = (long)((-1) * (T0 >> 31));
         env->spr[SPR_MQ] = 0;
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
         env->spr[SPR_MQ] = tmp % T1;
-        T0 = tmp / Ts1;
+        T0 = tmp / (int32_t)T1;
     }
 }
 
@@ -693,7 +896,7 @@ void do_POWER_divo (void)
 {
     int64_t tmp;
 
-    if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
         T0 = (long)((-1) * (T0 >> 31));
         env->spr[SPR_MQ] = 0;
         xer_ov = 1;
@@ -701,7 +904,7 @@ void do_POWER_divo (void)
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
         env->spr[SPR_MQ] = tmp % T1;
-        tmp /= Ts1;
+        tmp /= (int32_t)T1;
         if (tmp > (int64_t)INT32_MAX || tmp < (int64_t)INT32_MIN) {
             xer_ov = 1;
             xer_so = 1;
@@ -714,35 +917,36 @@ void do_POWER_divo (void)
 
 void do_POWER_divs (void)
 {
-    if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
         T0 = (long)((-1) * (T0 >> 31));
         env->spr[SPR_MQ] = 0;
     } else {
         env->spr[SPR_MQ] = T0 % T1;
-        T0 = Ts0 / Ts1;
+        T0 = (int32_t)T0 / (int32_t)T1;
     }
 }
 
 void do_POWER_divso (void)
 {
-    if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
         T0 = (long)((-1) * (T0 >> 31));
         env->spr[SPR_MQ] = 0;
         xer_ov = 1;
         xer_so = 1;
     } else {
-        T0 = Ts0 / Ts1;
-        env->spr[SPR_MQ] = Ts0 % Ts1;
+        T0 = (int32_t)T0 / (int32_t)T1;
+        env->spr[SPR_MQ] = (int32_t)T0 % (int32_t)T1;
         xer_ov = 0;
     }
 }
 
 void do_POWER_dozo (void)
 {
-    if (Ts1 > Ts0) {
+    if ((int32_t)T1 > (int32_t)T0) {
         T2 = T0;
         T0 = T1 - T0;
-        if (((~T2) ^ T1 ^ (-1)) & ((~T2) ^ T0) & (1 << 31)) {
+        if (((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
+            ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)) {
             xer_so = 1;
             xer_ov = 1;
         } else {
@@ -758,12 +962,12 @@ void do_POWER_maskg (void)
 {
     uint32_t ret;
 
-    if (T0 == T1 + 1) {
+    if ((uint32_t)T0 == (uint32_t)(T1 + 1)) {
         ret = -1;
     } else {
-        ret = (((uint32_t)(-1)) >> (T0)) ^
-            (((uint32_t)(-1) >> (T1)) >> 1);
-        if (T0 > T1)
+        ret = (((uint32_t)(-1)) >> ((uint32_t)T0)) ^
+            (((uint32_t)(-1) >> ((uint32_t)T1)) >> 1);
+        if ((uint32_t)T0 > (uint32_t)T1)
             ret = ~ret;
     }
     T0 = ret;
@@ -812,7 +1016,7 @@ void do_POWER_rfsvc (void)
 /* PowerPC 601 BAT management helper */
 void do_store_601_batu (int nr)
 {
-    do_store_ibatu(env, nr, T0);
+    do_store_ibatu(env, nr, (uint32_t)T0);
     env->DBAT[0][nr] = env->IBAT[0][nr];
     env->DBAT[1][nr] = env->IBAT[1][nr];
 }
@@ -826,7 +1030,7 @@ void do_store_601_batu (int nr)
 void do_op_602_mfrom (void)
 {
     if (likely(T0 < 602)) {
-#ifdef USE_MFROM_ROM_TABLE
+#if defined(USE_MFROM_ROM_TABLE)
 #include "mfrom_table.c"
         T0 = mfrom_ROM_table[T0];
 #else
@@ -854,7 +1058,8 @@ void do_op_602_mfrom (void)
 /* Embedded PowerPC specific helpers */
 void do_405_check_ov (void)
 {
-    if (likely(((T1 ^ T2) >> 31) || !((T0 ^ T2) >> 31))) {
+    if (likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||
+               !(((uint32_t)T0 ^ (uint32_t)T2) >> 31))) {
         xer_ov = 0;
     } else {
         xer_ov = 1;
@@ -864,7 +1069,8 @@ void do_405_check_ov (void)
 
 void do_405_check_sat (void)
 {
-    if (!likely(((T1 ^ T2) >> 31) || !((T0 ^ T2) >> 31))) {
+    if (!likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||
+                !(((uint32_t)T0 ^ (uint32_t)T2) >> 31))) {
         /* Saturate result */
         if (T2 >> 31) {
             T0 = INT32_MIN;
@@ -1010,6 +1216,7 @@ void do_tlbia (void)
 
 void do_tlbie (void)
 {
+    T0 = (uint32_t)T0;
 #if !defined(FLUSH_ALL_TLBS)
     if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
         ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 0);
@@ -1050,13 +1257,78 @@ void do_tlbie (void)
 #endif
 }
 
+#if defined(TARGET_PPC64)
+void do_tlbie_64 (void)
+{
+    T0 = (uint64_t)T0;
+#if !defined(FLUSH_ALL_TLBS)
+    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+        ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 0);
+        if (env->id_tlbs == 1)
+            ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 1);
+    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
+        /* XXX: TODO */
+#if 0
+        ppcbooke_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK,
+                                     env->spr[SPR_BOOKE_PID]);
+#endif
+    } else {
+        /* tlbie invalidate TLBs for all segments
+         * As we have 2^36 segments, invalidate all qemu TLBs
+         */
+#if 0
+        T0 &= TARGET_PAGE_MASK;
+        T0 &= ~((target_ulong)-1 << 28);
+        /* XXX: this case should be optimized,
+         * giving a mask to tlb_flush_page
+         */
+        tlb_flush_page(env, T0 | (0x0 << 28));
+        tlb_flush_page(env, T0 | (0x1 << 28));
+        tlb_flush_page(env, T0 | (0x2 << 28));
+        tlb_flush_page(env, T0 | (0x3 << 28));
+        tlb_flush_page(env, T0 | (0x4 << 28));
+        tlb_flush_page(env, T0 | (0x5 << 28));
+        tlb_flush_page(env, T0 | (0x6 << 28));
+        tlb_flush_page(env, T0 | (0x7 << 28));
+        tlb_flush_page(env, T0 | (0x8 << 28));
+        tlb_flush_page(env, T0 | (0x9 << 28));
+        tlb_flush_page(env, T0 | (0xA << 28));
+        tlb_flush_page(env, T0 | (0xB << 28));
+        tlb_flush_page(env, T0 | (0xC << 28));
+        tlb_flush_page(env, T0 | (0xD << 28));
+        tlb_flush_page(env, T0 | (0xE << 28));
+        tlb_flush_page(env, T0 | (0xF << 28));
+#else
+        tlb_flush(env, 1);
+#endif
+    }
+#else
+    do_tlbia();
+#endif
+}
+#endif
+
+#if defined(TARGET_PPC64)
+void do_slbia (void)
+{
+    /* XXX: TODO */
+    tlb_flush(env, 1);
+}
+
+void do_slbie (void)
+{
+    /* XXX: TODO */
+    tlb_flush(env, 1);
+}
+#endif
+
 /* Software driven TLBs management */
 /* PowerPC 602/603 software TLB load instructions helpers */
 void do_load_6xx_tlb (int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
-    
+
     RPN = env->spr[SPR_RPA];
     if (is_code) {
         CMP = env->spr[SPR_ICMP];
@@ -1074,7 +1346,8 @@ void do_load_6xx_tlb (int is_code)
     }
 #endif
     /* Store this TLB */
-    ppc6xx_tlb_store(env, T0 & TARGET_PAGE_MASK, way, is_code, CMP, RPN);
+    ppc6xx_tlb_store(env, (uint32_t)(T0 & TARGET_PAGE_MASK),
+                     way, is_code, CMP, RPN);
 }
 
 /* Helpers for 4xx TLB management */

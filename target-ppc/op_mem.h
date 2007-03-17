@@ -37,6 +37,33 @@ static inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
         ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
 }
 
+#if defined(TARGET_PPC64)
+static inline int64_t glue(ldsl, MEMSUFFIX) (target_ulong EA)
+{
+    return (int32_t)glue(ldl, MEMSUFFIX)(EA);
+}
+
+static inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
+{
+    uint64_t tmp = glue(ldq, MEMSUFFIX)(EA);
+    return ((tmp & 0xFF00000000000000ULL) >> 56) |
+        ((tmp & 0x00FF000000000000ULL) >> 40) |
+        ((tmp & 0x0000FF0000000000ULL) >> 24) |
+        ((tmp & 0x000000FF00000000ULL) >> 8) |
+        ((tmp & 0x00000000FF000000ULL) << 8) |
+        ((tmp & 0x0000000000FF0000ULL) << 24) |
+        ((tmp & 0x000000000000FF00ULL) << 40) |
+        ((tmp & 0x00000000000000FFULL) << 54);
+}
+
+static inline int64_t glue(ld32rs, MEMSUFFIX) (target_ulong EA)
+{
+    uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
+    return (int32_t)((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
+        ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
+}
+#endif
+
 static inline void glue(st16r, MEMSUFFIX) (target_ulong EA, uint16_t data)
 {
     uint16_t tmp = ((data & 0xFF00) >> 8) | ((data & 0x00FF) << 8);
@@ -50,140 +77,328 @@ static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, uint32_t data)
     glue(stl, MEMSUFFIX)(EA, tmp);
 }
 
+#if defined(TARGET_PPC64)
+static inline void glue(st64r, MEMSUFFIX) (target_ulong EA, uint64_t data)
+{
+    uint64_t tmp = ((data & 0xFF00000000000000ULL) >> 56) |
+        ((data & 0x00FF000000000000ULL) >> 40) |
+        ((data & 0x0000FF0000000000ULL) >> 24) |
+        ((data & 0x000000FF00000000ULL) >> 8) |
+        ((data & 0x00000000FF000000ULL) << 8) |
+        ((data & 0x0000000000FF0000ULL) << 24) |
+        ((data & 0x000000000000FF00ULL) << 40) |
+        ((data & 0x00000000000000FFULL) << 56);
+    glue(stq, MEMSUFFIX)(EA, tmp);
+}
+#endif
+
 /***                             Integer load                              ***/
 #define PPC_LD_OP(name, op)                                                   \
-PPC_OP(glue(glue(l, name), MEMSUFFIX))                                        \
+void OPPROTO glue(glue(op_l, name), MEMSUFFIX) (void)                         \
 {                                                                             \
-    T1 = glue(op, MEMSUFFIX)(T0);                                             \
+    T1 = glue(op, MEMSUFFIX)((uint32_t)T0);                                   \
     RETURN();                                                                 \
 }
 
-#define PPC_ST_OP(name, op)                                                   \
-PPC_OP(glue(glue(st, name), MEMSUFFIX))                                       \
+#if defined(TARGET_PPC64)
+#define PPC_LD_OP_64(name, op)                                                \
+void OPPROTO glue(glue(glue(op_l, name), _64), MEMSUFFIX) (void)              \
 {                                                                             \
-    glue(op, MEMSUFFIX)(T0, T1);                                              \
+    T1 = glue(op, MEMSUFFIX)((uint64_t)T0);                                   \
     RETURN();                                                                 \
 }
+#endif
+
+#define PPC_ST_OP(name, op)                                                   \
+void OPPROTO glue(glue(op_st, name), MEMSUFFIX) (void)                        \
+{                                                                             \
+    glue(op, MEMSUFFIX)((uint32_t)T0, T1);                                    \
+    RETURN();                                                                 \
+}
+
+#if defined(TARGET_PPC64)
+#define PPC_ST_OP_64(name, op)                                                \
+void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
+{                                                                             \
+    glue(op, MEMSUFFIX)((uint64_t)T0, T1);                                    \
+    RETURN();                                                                 \
+}
+#endif
 
 PPC_LD_OP(bz, ldub);
 PPC_LD_OP(ha, ldsw);
 PPC_LD_OP(hz, lduw);
 PPC_LD_OP(wz, ldl);
+#if defined(TARGET_PPC64)
+PPC_LD_OP(d, ldq);
+PPC_LD_OP(wa, ldsl);
+PPC_LD_OP_64(d, ldq);
+PPC_LD_OP_64(wa, ldsl);
+PPC_LD_OP_64(bz, ldub);
+PPC_LD_OP_64(ha, ldsw);
+PPC_LD_OP_64(hz, lduw);
+PPC_LD_OP_64(wz, ldl);
+#endif
 
 PPC_LD_OP(ha_le, ld16rs);
 PPC_LD_OP(hz_le, ld16r);
 PPC_LD_OP(wz_le, ld32r);
+#if defined(TARGET_PPC64)
+PPC_LD_OP(d_le, ld64r);
+PPC_LD_OP(wa_le, ld32rs);
+PPC_LD_OP_64(d_le, ld64r);
+PPC_LD_OP_64(wa_le, ld32rs);
+PPC_LD_OP_64(ha_le, ld16rs);
+PPC_LD_OP_64(hz_le, ld16r);
+PPC_LD_OP_64(wz_le, ld32r);
+#endif
 
 /***                              Integer store                            ***/
 PPC_ST_OP(b, stb);
 PPC_ST_OP(h, stw);
 PPC_ST_OP(w, stl);
+#if defined(TARGET_PPC64)
+PPC_ST_OP(d, stq);
+PPC_ST_OP_64(d, stq);
+PPC_ST_OP_64(b, stb);
+PPC_ST_OP_64(h, stw);
+PPC_ST_OP_64(w, stl);
+#endif
 
 PPC_ST_OP(h_le, st16r);
 PPC_ST_OP(w_le, st32r);
+#if defined(TARGET_PPC64)
+PPC_ST_OP(d_le, st64r);
+PPC_ST_OP_64(d_le, st64r);
+PPC_ST_OP_64(h_le, st16r);
+PPC_ST_OP_64(w_le, st32r);
+#endif
 
 /***                Integer load and store with byte reverse               ***/
 PPC_LD_OP(hbr, ld16r);
 PPC_LD_OP(wbr, ld32r);
 PPC_ST_OP(hbr, st16r);
 PPC_ST_OP(wbr, st32r);
+#if defined(TARGET_PPC64)
+PPC_LD_OP_64(hbr, ld16r);
+PPC_LD_OP_64(wbr, ld32r);
+PPC_ST_OP_64(hbr, st16r);
+PPC_ST_OP_64(wbr, st32r);
+#endif
 
 PPC_LD_OP(hbr_le, lduw);
 PPC_LD_OP(wbr_le, ldl);
 PPC_ST_OP(hbr_le, stw);
 PPC_ST_OP(wbr_le, stl);
+#if defined(TARGET_PPC64)
+PPC_LD_OP_64(hbr_le, lduw);
+PPC_LD_OP_64(wbr_le, ldl);
+PPC_ST_OP_64(hbr_le, stw);
+PPC_ST_OP_64(wbr_le, stl);
+#endif
 
 /***                    Integer load and store multiple                    ***/
-PPC_OP(glue(lmw, MEMSUFFIX))
+void OPPROTO glue(op_lmw, MEMSUFFIX) (void)
 {
     glue(do_lmw, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 
-PPC_OP(glue(lmw_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lmw_64, MEMSUFFIX) (void)
+{
+    glue(do_lmw_64, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_lmw_le, MEMSUFFIX) (void)
 {
     glue(do_lmw_le, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 
-PPC_OP(glue(stmw, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lmw_le_64, MEMSUFFIX) (void)
+{
+    glue(do_lmw_le_64, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_stmw, MEMSUFFIX) (void)
 {
     glue(do_stmw, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 
-PPC_OP(glue(stmw_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_stmw_64, MEMSUFFIX) (void)
+{
+    glue(do_stmw_64, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_stmw_le, MEMSUFFIX) (void)
 {
     glue(do_stmw_le, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 
-/***                    Integer load and store strings                     ***/
-PPC_OP(glue(lswi, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_stmw_le_64, MEMSUFFIX) (void)
 {
-    glue(do_lsw, MEMSUFFIX)(PARAM(1));
+    glue(do_stmw_le_64, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+#endif
+
+/***                    Integer load and store strings                     ***/
+void OPPROTO glue(op_lswi, MEMSUFFIX) (void)
+{
+    glue(do_lsw, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 
-PPC_OP(glue(lswi_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lswi_64, MEMSUFFIX) (void)
 {
-    glue(do_lsw_le, MEMSUFFIX)(PARAM(1));
+    glue(do_lsw_64, MEMSUFFIX)(PARAM1);
     RETURN();
 }
+#endif
+
+void OPPROTO glue(op_lswi_le, MEMSUFFIX) (void)
+{
+    glue(do_lsw_le, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lswi_le_64, MEMSUFFIX) (void)
+{
+    glue(do_lsw_le_64, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+#endif
 
 /* PPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
  * In an other hand, IBM says this is valid, but rA won't be loaded.
  * For now, I'll follow the spec...
  */
-PPC_OP(glue(lswx, MEMSUFFIX))
+void OPPROTO glue(op_lswx, MEMSUFFIX) (void)
 {
-    if (unlikely(T1 > 0)) {
+    /* Note: T1 comes from xer_bc then no cast is needed */
+    if (likely(T1 != 0)) {
         if (unlikely((PARAM1 < PARAM2 && (PARAM1 + T1) > PARAM2) ||
                      (PARAM1 < PARAM3 && (PARAM1 + T1) > PARAM3))) {
             do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
         } else {
-            glue(do_lsw, MEMSUFFIX)(PARAM(1));
+            glue(do_lsw, MEMSUFFIX)(PARAM1);
         }
     }
     RETURN();
 }
 
-PPC_OP(glue(lswx_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lswx_64, MEMSUFFIX) (void)
 {
-    if (unlikely(T1 > 0)) {
+    /* Note: T1 comes from xer_bc then no cast is needed */
+    if (likely(T1 != 0)) {
         if (unlikely((PARAM1 < PARAM2 && (PARAM1 + T1) > PARAM2) ||
                      (PARAM1 < PARAM3 && (PARAM1 + T1) > PARAM3))) {
             do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
         } else {
-            glue(do_lsw_le, MEMSUFFIX)(PARAM(1));
+            glue(do_lsw_64, MEMSUFFIX)(PARAM1);
+        }
+    }
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_lswx_le, MEMSUFFIX) (void)
+{
+    /* Note: T1 comes from xer_bc then no cast is needed */
+    if (likely(T1 != 0)) {
+        if (unlikely((PARAM1 < PARAM2 && (PARAM1 + T1) > PARAM2) ||
+                     (PARAM1 < PARAM3 && (PARAM1 + T1) > PARAM3))) {
+            do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
+        } else {
+            glue(do_lsw_le, MEMSUFFIX)(PARAM1);
         }
     }
     RETURN();
 }
 
-PPC_OP(glue(stsw, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lswx_le_64, MEMSUFFIX) (void)
 {
-    glue(do_stsw, MEMSUFFIX)(PARAM(1));
+    /* Note: T1 comes from xer_bc then no cast is needed */
+    if (likely(T1 != 0)) {
+        if (unlikely((PARAM1 < PARAM2 && (PARAM1 + T1) > PARAM2) ||
+                     (PARAM1 < PARAM3 && (PARAM1 + T1) > PARAM3))) {
+            do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
+        } else {
+            glue(do_lsw_le_64, MEMSUFFIX)(PARAM1);
+        }
+    }
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_stsw, MEMSUFFIX) (void)
+{
+    glue(do_stsw, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 
-PPC_OP(glue(stsw_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_stsw_64, MEMSUFFIX) (void)
 {
-    glue(do_stsw_le, MEMSUFFIX)(PARAM(1));
+    glue(do_stsw_64, MEMSUFFIX)(PARAM1);
     RETURN();
 }
+#endif
+
+void OPPROTO glue(op_stsw_le, MEMSUFFIX) (void)
+{
+    glue(do_stsw_le, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_stsw_le_64, MEMSUFFIX) (void)
+{
+    glue(do_stsw_le_64, MEMSUFFIX)(PARAM1);
+    RETURN();
+}
+#endif
 
 /***                         Floating-point store                          ***/
 #define PPC_STF_OP(name, op)                                                  \
-PPC_OP(glue(glue(st, name), MEMSUFFIX))                                       \
+void OPPROTO glue(glue(op_st, name), MEMSUFFIX) (void)                        \
 {                                                                             \
-    glue(op, MEMSUFFIX)(T0, FT0);                                             \
+    glue(op, MEMSUFFIX)((uint32_t)T0, FT0);                                   \
     RETURN();                                                                 \
 }
 
+#if defined(TARGET_PPC64)
+#define PPC_STF_OP_64(name, op)                                               \
+void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
+{                                                                             \
+    glue(op, MEMSUFFIX)((uint64_t)T0, FT0);                                   \
+    RETURN();                                                                 \
+}
+#endif
+
 PPC_STF_OP(fd, stfq);
 PPC_STF_OP(fs, stfl);
+#if defined(TARGET_PPC64)
+PPC_STF_OP_64(fd, stfq);
+PPC_STF_OP_64(fs, stfl);
+#endif
 
 static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
 {
@@ -221,17 +436,34 @@ static inline void glue(stflr, MEMSUFFIX) (target_ulong EA, float f)
 
 PPC_STF_OP(fd_le, stfqr);
 PPC_STF_OP(fs_le, stflr);
+#if defined(TARGET_PPC64)
+PPC_STF_OP_64(fd_le, stfqr);
+PPC_STF_OP_64(fs_le, stflr);
+#endif
 
 /***                         Floating-point load                           ***/
 #define PPC_LDF_OP(name, op)                                                  \
-PPC_OP(glue(glue(l, name), MEMSUFFIX))                                        \
+void OPPROTO glue(glue(op_l, name), MEMSUFFIX) (void)                         \
 {                                                                             \
-    FT0 = glue(op, MEMSUFFIX)(T0);                                            \
+    FT0 = glue(op, MEMSUFFIX)((uint32_t)T0);                                  \
     RETURN();                                                                 \
 }
 
+#if defined(TARGET_PPC64)
+#define PPC_LDF_OP_64(name, op)                                               \
+void OPPROTO glue(glue(glue(op_l, name), _64), MEMSUFFIX) (void)              \
+{                                                                             \
+    FT0 = glue(op, MEMSUFFIX)((uint64_t)T0);                                  \
+    RETURN();                                                                 \
+}
+#endif
+
 PPC_LDF_OP(fd, ldfq);
 PPC_LDF_OP(fs, ldfl);
+#if defined(TARGET_PPC64)
+PPC_LDF_OP_64(fd, ldfq);
+PPC_LDF_OP_64(fs, ldfl);
+#endif
 
 static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
 {
@@ -271,40 +503,92 @@ static inline float glue(ldflr, MEMSUFFIX) (target_ulong EA)
 
 PPC_LDF_OP(fd_le, ldfqr);
 PPC_LDF_OP(fs_le, ldflr);
+#if defined(TARGET_PPC64)
+PPC_LDF_OP_64(fd_le, ldfqr);
+PPC_LDF_OP_64(fs_le, ldflr);
+#endif
 
 /* Load and set reservation */
-PPC_OP(glue(lwarx, MEMSUFFIX))
+void OPPROTO glue(op_lwarx, MEMSUFFIX) (void)
 {
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        T1 = glue(ldl, MEMSUFFIX)(T0);
-        regs->reserve = T0;
+        T1 = glue(ldl, MEMSUFFIX)((uint32_t)T0);
+        regs->reserve = (uint32_t)T0;
     }
     RETURN();
 }
 
-PPC_OP(glue(lwarx_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lwarx_64, MEMSUFFIX) (void)
 {
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        T1 = glue(ld32r, MEMSUFFIX)(T0);
-        regs->reserve = T0;
+        T1 = glue(ldl, MEMSUFFIX)((uint64_t)T0);
+        regs->reserve = (uint64_t)T0;
     }
     RETURN();
 }
+
+void OPPROTO glue(op_ldarx_64, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        T1 = glue(ldq, MEMSUFFIX)((uint64_t)T0);
+        regs->reserve = (uint64_t)T0;
+    }
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_lwarx_le, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        T1 = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
+        regs->reserve = (uint32_t)T0;
+    }
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_lwarx_le_64, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        T1 = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
+        regs->reserve = (uint64_t)T0;
+    }
+    RETURN();
+}
+
+void OPPROTO glue(op_ldarx_le_64, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        T1 = glue(ld64r, MEMSUFFIX)((uint64_t)T0);
+        regs->reserve = (uint64_t)T0;
+    }
+    RETURN();
+}
+#endif
 
 /* Store with reservation */
-PPC_OP(glue(stwcx, MEMSUFFIX))
+void OPPROTO glue(op_stwcx, MEMSUFFIX) (void)
 {
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != T0)) {
+        if (unlikely(regs->reserve != (uint32_t)T0)) {
             env->crf[0] = xer_ov;
         } else {
-            glue(stl, MEMSUFFIX)(T0, T1);
+            glue(stl, MEMSUFFIX)((uint32_t)T0, T1);
             env->crf[0] = xer_ov | 0x02;
         }
     }
@@ -312,15 +596,16 @@ PPC_OP(glue(stwcx, MEMSUFFIX))
     RETURN();
 }
 
-PPC_OP(glue(stwcx_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_stwcx_64, MEMSUFFIX) (void)
 {
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != T0)) {
+        if (unlikely(regs->reserve != (uint64_t)T0)) {
             env->crf[0] = xer_ov;
         } else {
-            glue(st32r, MEMSUFFIX)(T0, T1);
+            glue(stl, MEMSUFFIX)((uint64_t)T0, T1);
             env->crf[0] = xer_ov | 0x02;
         }
     }
@@ -328,61 +613,186 @@ PPC_OP(glue(stwcx_le, MEMSUFFIX))
     RETURN();
 }
 
-PPC_OP(glue(dcbz, MEMSUFFIX))
+void OPPROTO glue(op_stdcx_64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)(T0 + 0x00, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x04, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x08, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x0C, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x10, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x14, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x18, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x1C, 0);
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        if (unlikely(regs->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_ov;
+        } else {
+            glue(stq, MEMSUFFIX)((uint64_t)T0, T1);
+            env->crf[0] = xer_ov | 0x02;
+        }
+    }
+    regs->reserve = -1;
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_stwcx_le, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        if (unlikely(regs->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_ov;
+        } else {
+            glue(st32r, MEMSUFFIX)((uint32_t)T0, T1);
+            env->crf[0] = xer_ov | 0x02;
+        }
+    }
+    regs->reserve = -1;
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_stwcx_le_64, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        if (unlikely(regs->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_ov;
+        } else {
+            glue(st32r, MEMSUFFIX)((uint64_t)T0, T1);
+            env->crf[0] = xer_ov | 0x02;
+        }
+    }
+    regs->reserve = -1;
+    RETURN();
+}
+
+void OPPROTO glue(op_stdcx_le_64, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        if (unlikely(regs->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_ov;
+        } else {
+            glue(st64r, MEMSUFFIX)((uint64_t)T0, T1);
+            env->crf[0] = xer_ov | 0x02;
+        }
+    }
+    regs->reserve = -1;
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_dcbz, MEMSUFFIX) (void)
+{
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
 #if DCACHE_LINE_SIZE == 64
     /* XXX: cache line size should be 64 for POWER & PowerPC 601 */
-    glue(stl, MEMSUFFIX)(T0 + 0x20UL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x24UL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x28UL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x2CUL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x30UL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x34UL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x38UL, 0);
-    glue(stl, MEMSUFFIX)(T0 + 0x3CUL, 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x20UL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x24UL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x28UL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x2CUL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x30UL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x34UL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x38UL), 0);
+    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x3CUL), 0);
 #endif
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_dcbz_64, MEMSUFFIX) (void)
+{
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
+#if DCACHE_LINE_SIZE == 64
+    /* XXX: cache line size should be 64 for POWER & PowerPC 601 */
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x20UL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x24UL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x28UL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x2CUL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x30UL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x34UL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x38UL), 0);
+    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x3CUL), 0);
+#endif
+    RETURN();
+}
+#endif
+
 /* External access */
-PPC_OP(glue(eciwx, MEMSUFFIX))
+void OPPROTO glue(op_eciwx, MEMSUFFIX) (void)
 {
-    T1 = glue(ldl, MEMSUFFIX)(T0);
+    T1 = glue(ldl, MEMSUFFIX)((uint32_t)T0);
     RETURN();
 }
 
-PPC_OP(glue(ecowx, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_eciwx_64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)(T0, T1);
+    T1 = glue(ldl, MEMSUFFIX)((uint64_t)T0);
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_ecowx, MEMSUFFIX) (void)
+{
+    glue(stl, MEMSUFFIX)((uint32_t)T0, T1);
     RETURN();
 }
 
-PPC_OP(glue(eciwx_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_ecowx_64, MEMSUFFIX) (void)
 {
-    T1 = glue(ld32r, MEMSUFFIX)(T0);
+    glue(stl, MEMSUFFIX)((uint64_t)T0, T1);
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_eciwx_le, MEMSUFFIX) (void)
+{
+    T1 = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
     RETURN();
 }
 
-PPC_OP(glue(ecowx_le, MEMSUFFIX))
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_eciwx_le_64, MEMSUFFIX) (void)
 {
-    glue(st32r, MEMSUFFIX)(T0, T1);
+    T1 = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
     RETURN();
 }
+#endif
+
+void OPPROTO glue(op_ecowx_le, MEMSUFFIX) (void)
+{
+    glue(st32r, MEMSUFFIX)((uint32_t)T0, T1);
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO glue(op_ecowx_le_64, MEMSUFFIX) (void)
+{
+    glue(st32r, MEMSUFFIX)((uint64_t)T0, T1);
+    RETURN();
+}
+#endif
 
 /* XXX: those micro-ops need tests ! */
 /* PowerPC 601 specific instructions (POWER bridge) */
 void OPPROTO glue(op_POWER_lscbx, MEMSUFFIX) (void)
 {
     /* When byte count is 0, do nothing */
-    if (likely(T1 > 0)) {
+    if (likely(T1 != 0)) {
         glue(do_POWER_lscbx, MEMSUFFIX)(PARAM1, PARAM2, PARAM3);
     }
     RETURN();

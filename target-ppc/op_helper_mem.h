@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation micro-operations helpers for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -37,30 +37,66 @@ static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, target_ulong data)
 void glue(do_lmw, MEMSUFFIX) (int dst)
 {
     for (; dst < 32; dst++, T0 += 4) {
-        ugpr(dst) = glue(ldl, MEMSUFFIX)(T0);
+        ugpr(dst) = glue(ldl, MEMSUFFIX)((uint32_t)T0);
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_lmw_64, MEMSUFFIX) (int dst)
+{
+    for (; dst < 32; dst++, T0 += 4) {
+        ugpr(dst) = glue(ldl, MEMSUFFIX)((uint64_t)T0);
+    }
+}
+#endif
 
 void glue(do_stmw, MEMSUFFIX) (int src)
 {
     for (; src < 32; src++, T0 += 4) {
-        glue(stl, MEMSUFFIX)(T0, ugpr(src));
+        glue(stl, MEMSUFFIX)((uint32_t)T0, ugpr(src));
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_stmw_64, MEMSUFFIX) (int src)
+{
+    for (; src < 32; src++, T0 += 4) {
+        glue(stl, MEMSUFFIX)((uint64_t)T0, ugpr(src));
+    }
+}
+#endif
 
 void glue(do_lmw_le, MEMSUFFIX) (int dst)
 {
     for (; dst < 32; dst++, T0 += 4) {
-        ugpr(dst) = glue(ld32r, MEMSUFFIX)(T0);
+        ugpr(dst) = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_lmw_le_64, MEMSUFFIX) (int dst)
+{
+    for (; dst < 32; dst++, T0 += 4) {
+        ugpr(dst) = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
+    }
+}
+#endif
 
 void glue(do_stmw_le, MEMSUFFIX) (int src)
 {
     for (; src < 32; src++, T0 += 4) {
-        glue(st32r, MEMSUFFIX)(T0, ugpr(src));
+        glue(st32r, MEMSUFFIX)((uint32_t)T0, ugpr(src));
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_stmw_le_64, MEMSUFFIX) (int src)
+{
+    for (; src < 32; src++, T0 += 4) {
+        glue(st32r, MEMSUFFIX)((uint64_t)T0, ugpr(src));
+    }
+}
+#endif
 
 void glue(do_lsw, MEMSUFFIX) (int dst)
 {
@@ -68,33 +104,71 @@ void glue(do_lsw, MEMSUFFIX) (int dst)
     int sh;
 
     for (; T1 > 3; T1 -= 4, T0 += 4) {
-        ugpr(dst++) = glue(ldl, MEMSUFFIX)(T0);
+        ugpr(dst++) = glue(ldl, MEMSUFFIX)((uint32_t)T0);
         if (unlikely(dst == 32))
             dst = 0;
     }
     if (unlikely(T1 != 0)) {
         tmp = 0;
         for (sh = 24; T1 > 0; T1--, T0++, sh -= 8) {
-            tmp |= glue(ldub, MEMSUFFIX)(T0) << sh;
+            tmp |= glue(ldub, MEMSUFFIX)((uint32_t)T0) << sh;
         }
         ugpr(dst) = tmp;
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_lsw_64, MEMSUFFIX) (int dst)
+{
+    uint32_t tmp;
+    int sh;
+
+    for (; T1 > 3; T1 -= 4, T0 += 4) {
+        ugpr(dst++) = glue(ldl, MEMSUFFIX)((uint64_t)T0);
+        if (unlikely(dst == 32))
+            dst = 0;
+    }
+    if (unlikely(T1 != 0)) {
+        tmp = 0;
+        for (sh = 24; T1 > 0; T1--, T0++, sh -= 8) {
+            tmp |= glue(ldub, MEMSUFFIX)((uint64_t)T0) << sh;
+        }
+        ugpr(dst) = tmp;
+    }
+}
+#endif
 
 void glue(do_stsw, MEMSUFFIX) (int src)
 {
     int sh;
 
     for (; T1 > 3; T1 -= 4, T0 += 4) {
-        glue(stl, MEMSUFFIX)(T0, ugpr(src++));
+        glue(stl, MEMSUFFIX)((uint32_t)T0, ugpr(src++));
         if (unlikely(src == 32))
             src = 0;
     }
     if (unlikely(T1 != 0)) {
         for (sh = 24; T1 > 0; T1--, T0++, sh -= 8)
-            glue(stb, MEMSUFFIX)(T0, (ugpr(src) >> sh) & 0xFF);
+            glue(stb, MEMSUFFIX)((uint32_t)T0, (ugpr(src) >> sh) & 0xFF);
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_stsw_64, MEMSUFFIX) (int src)
+{
+    int sh;
+
+    for (; T1 > 3; T1 -= 4, T0 += 4) {
+        glue(stl, MEMSUFFIX)((uint64_t)T0, ugpr(src++));
+        if (unlikely(src == 32))
+            src = 0;
+    }
+    if (unlikely(T1 != 0)) {
+        for (sh = 24; T1 > 0; T1--, T0++, sh -= 8)
+            glue(stb, MEMSUFFIX)((uint64_t)T0, (ugpr(src) >> sh) & 0xFF);
+    }
+}
+#endif
 
 void glue(do_lsw_le, MEMSUFFIX) (int dst)
 {
@@ -102,33 +176,71 @@ void glue(do_lsw_le, MEMSUFFIX) (int dst)
     int sh;
 
     for (; T1 > 3; T1 -= 4, T0 += 4) {
-        ugpr(dst++) = glue(ld32r, MEMSUFFIX)(T0);
+        ugpr(dst++) = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
         if (unlikely(dst == 32))
             dst = 0;
     }
     if (unlikely(T1 != 0)) {
         tmp = 0;
         for (sh = 0; T1 > 0; T1--, T0++, sh += 8) {
-            tmp |= glue(ldub, MEMSUFFIX)(T0) << sh;
+            tmp |= glue(ldub, MEMSUFFIX)((uint32_t)T0) << sh;
         }
         ugpr(dst) = tmp;
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_lsw_le_64, MEMSUFFIX) (int dst)
+{
+    uint32_t tmp;
+    int sh;
+
+    for (; T1 > 3; T1 -= 4, T0 += 4) {
+        ugpr(dst++) = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
+        if (unlikely(dst == 32))
+            dst = 0;
+    }
+    if (unlikely(T1 != 0)) {
+        tmp = 0;
+        for (sh = 0; T1 > 0; T1--, T0++, sh += 8) {
+            tmp |= glue(ldub, MEMSUFFIX)((uint64_t)T0) << sh;
+        }
+        ugpr(dst) = tmp;
+    }
+}
+#endif
 
 void glue(do_stsw_le, MEMSUFFIX) (int src)
 {
     int sh;
 
     for (; T1 > 3; T1 -= 4, T0 += 4) {
-        glue(st32r, MEMSUFFIX)(T0, ugpr(src++));
+        glue(st32r, MEMSUFFIX)((uint32_t)T0, ugpr(src++));
         if (unlikely(src == 32))
             src = 0;
     }
     if (unlikely(T1 != 0)) {
         for (sh = 0; T1 > 0; T1--, T0++, sh += 8)
-            glue(stb, MEMSUFFIX)(T0, (ugpr(src) >> sh) & 0xFF);
+            glue(stb, MEMSUFFIX)((uint32_t)T0, (ugpr(src) >> sh) & 0xFF);
     }
 }
+
+#if defined(TARGET_PPC64)
+void glue(do_stsw_le_64, MEMSUFFIX) (int src)
+{
+    int sh;
+
+    for (; T1 > 3; T1 -= 4, T0 += 4) {
+        glue(st32r, MEMSUFFIX)((uint64_t)T0, ugpr(src++));
+        if (unlikely(src == 32))
+            src = 0;
+    }
+    if (unlikely(T1 != 0)) {
+        for (sh = 0; T1 > 0; T1--, T0++, sh += 8)
+            glue(stb, MEMSUFFIX)((uint64_t)T0, (ugpr(src) >> sh) & 0xFF);
+    }
+}
+#endif
 
 /* PPC 601 specific instructions (POWER bridge) */
 // XXX: to be tested
@@ -139,7 +251,7 @@ void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb)
     d = 24;
     reg = dest;
     for (i = 0; i < T1; i++) {
-        c = glue(ldub, MEMSUFFIX)(T0++);
+        c = glue(ldub, MEMSUFFIX)((uint32_t)T0++);
         /* ra (if not 0) and rb are never modified */
         if (likely(reg != rb && (ra == 0 || reg != ra))) {
             ugpr(reg) = (ugpr(reg) & ~(0xFF << d)) | (c << d);
@@ -160,8 +272,8 @@ void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb)
 /* XXX: TAGs are not managed */
 void glue(do_POWER2_lfq, MEMSUFFIX) (void)
 {
-    FT0 = glue(ldfq, MEMSUFFIX)(T0);
-    FT1 = glue(ldfq, MEMSUFFIX)(T0 + 4);
+    FT0 = glue(ldfq, MEMSUFFIX)((uint32_t)T0);
+    FT1 = glue(ldfq, MEMSUFFIX)((uint32_t)(T0 + 4));
 }
 
 static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
@@ -186,14 +298,14 @@ static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
 
 void glue(do_POWER2_lfq_le, MEMSUFFIX) (void)
 {
-    FT0 = glue(ldfqr, MEMSUFFIX)(T0 + 4);
-    FT1 = glue(ldfqr, MEMSUFFIX)(T0);
+    FT0 = glue(ldfqr, MEMSUFFIX)((uint32_t)(T0 + 4));
+    FT1 = glue(ldfqr, MEMSUFFIX)((uint32_t)T0);
 }
 
 void glue(do_POWER2_stfq, MEMSUFFIX) (void)
 {
-    glue(stfq, MEMSUFFIX)(T0, FT0);
-    glue(stfq, MEMSUFFIX)(T0 + 4, FT1);
+    glue(stfq, MEMSUFFIX)((uint32_t)T0, FT0);
+    glue(stfq, MEMSUFFIX)((uint32_t)(T0 + 4), FT1);
 }
 
 static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
@@ -217,8 +329,8 @@ static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
 
 void glue(do_POWER2_stfq_le, MEMSUFFIX) (void)
 {
-    glue(stfqr, MEMSUFFIX)(T0 + 4, FT0);
-    glue(stfqr, MEMSUFFIX)(T0, FT1);
+    glue(stfqr, MEMSUFFIX)((uint32_t)(T0 + 4), FT0);
+    glue(stfqr, MEMSUFFIX)((uint32_t)T0, FT1);
 }
 
 #undef MEMSUFFIX
