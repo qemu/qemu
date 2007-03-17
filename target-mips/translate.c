@@ -5089,8 +5089,9 @@ static int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 
 #if defined (MIPS_SINGLE_STEP)
         break;
-#endif
+#else
         if (getenv("MIPS_SINGLE_STEP")) break;
+#endif
     }
     if (env->singlestep_enabled) {
         save_cpu_state(ctxp, ctx.bstate == BS_NONE);
