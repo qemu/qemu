@@ -34,19 +34,25 @@ register struct CPUPPCState *env asm(AREG0);
 #define T1 (env->t1)
 #define T2 (env->t2)
 #else
-/* This may be more efficient if HOST_LONG_BITS > TARGET_LONG_BITS
- * To be set to one when we'll be sure it does not cause bugs....
- */
-#if 0
 register unsigned long T0 asm(AREG1);
 register unsigned long T1 asm(AREG2);
 register unsigned long T2 asm(AREG3);
+#endif
+/* We may, sometime, need 64 bits registers on 32 bits target */
+#if defined(TARGET_PPC64) || (HOST_LONG_BITS == 64)
+#define T0_64 T0
+#define T1_64 T0
+#define T2_64 T0
 #else
-register target_ulong T0 asm(AREG1);
-register target_ulong T1 asm(AREG2);
-register target_ulong T2 asm(AREG3);
+/* no registers can be used */
+#define T0_64 (env->t0)
+#define T1_64 (env->t1)
+#define T2_64 (env->t2)
 #endif
-#endif
+/* Provision for Altivec */
+#define T0_avr (env->t0_avr)
+#define T1_avr (env->t1_avr)
+#define T2_avr (env->t2_avr)
 
 /* XXX: to clean: remove this mess */
 #define PARAM(n) ((uint32_t)PARAM##n)

@@ -26,9 +26,6 @@
 
 /* XXX: this is to be suppressed */
 #define regs (env)
-#define Ts0 (int32_t)T0
-#define Ts1 (int32_t)T1
-#define Ts2 (int32_t)T2
 
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
@@ -157,15 +154,31 @@ void OPPROTO op_reset_T0 (void)
 
 PPC_OP(set_T0)
 {
-    T0 = PARAM(1);
+    T0 = (uint32_t)PARAM1;
     RETURN();
 }
 
-PPC_OP(set_T1)
+#if defined(TARGET_PPC64)
+void OPPROTO op_set_T0_64 (void)
 {
-    T1 = PARAM(1);
+    T0 = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
     RETURN();
 }
+#endif
+
+PPC_OP(set_T1)
+{
+    T1 = (uint32_t)PARAM1;
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_set_T1_64 (void)
+{
+    T1 = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
+    RETURN();
+}
+#endif
 
 #if 0 // unused
 PPC_OP(set_T2)
@@ -181,6 +194,12 @@ void OPPROTO op_move_T1_T0 (void)
     RETURN();
 }
 
+void OPPROTO op_move_T2_T0 (void)
+{
+    T2 = T0;
+    RETURN();
+}
+
 /* Generate exceptions */
 PPC_OP(raise_exception_err)
 {
@@ -189,15 +208,22 @@ PPC_OP(raise_exception_err)
 
 PPC_OP(update_nip)
 {
-    env->nip = PARAM(1);
+    env->nip = (uint32_t)PARAM1;
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_update_nip_64 (void)
+{
+    env->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
+    RETURN();
+}
+#endif
 
 PPC_OP(debug)
 {
     do_raise_exception(EXCP_DEBUG);
 }
-
 
 PPC_OP(exit_tb)
 {
@@ -293,6 +319,20 @@ PPC_OP(store_sdr1)
     RETURN();
 }
 
+#if defined (TARGET_PPC64)
+void OPPROTO op_load_asr (void)
+{
+    T0 = env->asr;
+    RETURN();
+}
+
+void OPPROTO op_store_asr (void)
+{
+    ppc_store_asr(env, T0);
+    RETURN();
+}
+#endif
+
 PPC_OP(load_msr)
 {
     T0 = do_load_msr(env);
@@ -304,6 +344,14 @@ PPC_OP(store_msr)
     do_store_msr(env, T0);
     RETURN();
 }
+
+#if defined (TARGET_PPC64)
+void OPPROTO op_store_msr_32 (void)
+{
+    ppc_store_msr_32(env, T0);
+    RETURN();
+}
+#endif
 #endif
 
 /* SPR */
@@ -459,7 +507,7 @@ PPC_OP(getbit_T1)
 
 PPC_OP(setcrfbit)
 {
-    T1 = (T1 & PARAM(1)) | (T0 << PARAM(2)); 
+    T1 = (T1 & PARAM(1)) | (T0 << PARAM(2));
     RETURN();
 }
 
@@ -468,9 +516,17 @@ PPC_OP(setcrfbit)
 
 PPC_OP(setlr)
 {
-    regs->lr = PARAM1;
+    regs->lr = (uint32_t)PARAM1;
     RETURN();
 }
+
+#if defined (TARGET_PPC64)
+void OPPROTO op_setlr_64 (void)
+{
+    regs->lr = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
+    RETURN();
+}
+#endif
 
 PPC_OP(goto_tb0)
 {
@@ -482,11 +538,19 @@ PPC_OP(goto_tb1)
     GOTO_TB(op_goto_tb1, PARAM1, 1);
 }
 
-PPC_OP(b_T1)
+void OPPROTO op_b_T1 (void)
 {
-    regs->nip = T1 & ~3;
+    regs->nip = (uint32_t)(T1 & ~3);
     RETURN();
 }
+
+#if defined (TARGET_PPC64)
+void OPPROTO op_b_T1_64 (void)
+{
+    regs->nip = (uint64_t)(T1 & ~3);
+    RETURN();
+}
+#endif
 
 PPC_OP(jz_T0)
 {
@@ -495,15 +559,27 @@ PPC_OP(jz_T0)
     RETURN();
 }
 
-PPC_OP(btest_T1) 
+void OPPROTO op_btest_T1 (void)
 {
     if (T0) {
-        regs->nip = T1 & ~3;
+        regs->nip = (uint32_t)(T1 & ~3);
     } else {
-        regs->nip = PARAM1;
+        regs->nip = (uint32_t)PARAM1;
     }
     RETURN();
 }
+
+#if defined (TARGET_PPC64)
+void OPPROTO op_btest_T1_64 (void)
+{
+    if (T0) {
+        regs->nip = (uint64_t)(T1 & ~3);
+    } else {
+        regs->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
+    }
+    RETURN();
+}
+#endif
 
 PPC_OP(movl_T1_ctr)
 {
@@ -518,42 +594,89 @@ PPC_OP(movl_T1_lr)
 }
 
 /* tests with result in T0 */
-
-PPC_OP(test_ctr)
+void OPPROTO op_test_ctr (void)
 {
-    T0 = regs->ctr;
+    T0 = (uint32_t)regs->ctr;
     RETURN();
 }
 
-PPC_OP(test_ctr_true)
+#if defined(TARGET_PPC64)
+void OPPROTO op_test_ctr_64 (void)
 {
-    T0 = (regs->ctr != 0 && (T0 & PARAM(1)) != 0);
+    T0 = (uint64_t)regs->ctr;
+    RETURN();
+}
+#endif
+
+void OPPROTO op_test_ctr_true (void)
+{
+    T0 = ((uint32_t)regs->ctr != 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
 
-PPC_OP(test_ctr_false)
+#if defined(TARGET_PPC64)
+void OPPROTO op_test_ctr_true_64 (void)
 {
-    T0 = (regs->ctr != 0 && (T0 & PARAM(1)) == 0);
+    T0 = ((uint64_t)regs->ctr != 0 && (T0 & PARAM1) != 0);
+    RETURN();
+}
+#endif
+
+void OPPROTO op_test_ctr_false (void)
+{
+    T0 = ((uint32_t)regs->ctr != 0 && (T0 & PARAM1) == 0);
     RETURN();
 }
 
-PPC_OP(test_ctrz)
+#if defined(TARGET_PPC64)
+void OPPROTO op_test_ctr_false_64 (void)
 {
-    T0 = (regs->ctr == 0);
+    T0 = ((uint64_t)regs->ctr != 0 && (T0 & PARAM1) == 0);
+    RETURN();
+}
+#endif
+
+void OPPROTO op_test_ctrz (void)
+{
+    T0 = ((uint32_t)regs->ctr == 0);
     RETURN();
 }
 
-PPC_OP(test_ctrz_true)
+#if defined(TARGET_PPC64)
+void OPPROTO op_test_ctrz_64 (void)
 {
-    T0 = (regs->ctr == 0 && (T0 & PARAM(1)) != 0);
+    T0 = ((uint64_t)regs->ctr == 0);
+    RETURN();
+}
+#endif
+
+void OPPROTO op_test_ctrz_true (void)
+{
+    T0 = ((uint32_t)regs->ctr == 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
 
-PPC_OP(test_ctrz_false)
+#if defined(TARGET_PPC64)
+void OPPROTO op_test_ctrz_true_64 (void)
 {
-    T0 = (regs->ctr == 0 && (T0 & PARAM(1)) == 0);
+    T0 = ((uint64_t)regs->ctr == 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
+#endif
+
+void OPPROTO op_test_ctrz_false (void)
+{
+    T0 = ((uint32_t)regs->ctr == 0 && (T0 & PARAM1) == 0);
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_test_ctrz_false_64 (void)
+{
+    T0 = ((uint64_t)regs->ctr == 0 && (T0 & PARAM1) == 0);
+    RETURN();
+}
+#endif
 
 PPC_OP(test_true)
 {
@@ -582,30 +705,52 @@ PPC_OP(add)
     RETURN();
 }
 
-void OPPROTO op_addo (void)
+void OPPROTO op_check_addo (void)
 {
-    do_addo();
-    RETURN();
+    if (likely(!(((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
+                 ((uint32_t)T2 ^ (uint32_t)T0) & (1UL << 31)))) {
+        xer_ov = 0;
+    } else {
+        xer_so = 1;
+        xer_ov = 1;
+    }
 }
 
-/* add carrying */
-PPC_OP(addc)
+#if defined(TARGET_PPC64)
+void OPPROTO op_check_addo_64 (void)
 {
-    T2 = T0;
-    T0 += T1;
-    if (T0 < T2) {
-        xer_ca = 1;
+    if (likely(!(((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
+                 ((uint64_t)T2 ^ (uint64_t)T0) & (1UL << 63)))) {
+        xer_ov = 0;
     } else {
+        xer_so = 1;
+        xer_ov = 1;
+    }
+}
+#endif
+
+/* add carrying */
+void OPPROTO op_check_addc (void)
+{
+    if (likely((uint32_t)T0 >= (uint32_t)T2)) {
         xer_ca = 0;
+    } else {
+        xer_ca = 1;
     }
     RETURN();
 }
 
-void OPPROTO op_addco (void)
+#if defined(TARGET_PPC64)
+void OPPROTO op_check_addc_64 (void)
 {
-    do_addco();
+    if (likely((uint64_t)T0 >= (uint64_t)T2)) {
+        xer_ca = 0;
+    } else {
+        xer_ca = 1;
+    }
     RETURN();
 }
+#endif
 
 /* add extended */
 void OPPROTO op_adde (void)
@@ -614,11 +759,13 @@ void OPPROTO op_adde (void)
     RETURN();
 }
 
-PPC_OP(addeo)
+#if defined(TARGET_PPC64)
+void OPPROTO op_adde_64 (void)
 {
-    do_addeo();
+    do_adde_64();
     RETURN();
 }
+#endif
 
 /* add immediate */
 PPC_OP(addi)
@@ -627,28 +774,24 @@ PPC_OP(addi)
     RETURN();
 }
 
-/* add immediate carrying */
-PPC_OP(addic)
+/* add to minus one extended */
+void OPPROTO op_add_me (void)
 {
-    T1 = T0;
-    T0 += PARAM(1);
-    if (T0 < T1) {
+    T0 += xer_ca + (-1);
+    if (likely((uint32_t)T1 != 0))
         xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
     RETURN();
 }
 
-/* add to minus one extended */
-PPC_OP(addme)
+#if defined(TARGET_PPC64)
+void OPPROTO op_add_me_64 (void)
 {
-    T1 = T0;
     T0 += xer_ca + (-1);
-    if (T1 != 0)
+    if (likely((uint64_t)T1 != 0))
         xer_ca = 1;
     RETURN();
 }
+#endif
 
 void OPPROTO op_addmeo (void)
 {
@@ -656,35 +799,43 @@ void OPPROTO op_addmeo (void)
     RETURN();
 }
 
-/* add to zero extended */
-PPC_OP(addze)
+void OPPROTO op_addmeo_64 (void)
 {
-    T1 = T0;
-    T0 += xer_ca;
-    if (T0 < T1) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
+    do_addmeo();
     RETURN();
 }
 
-void OPPROTO op_addzeo (void)
+/* add to zero extended */
+void OPPROTO op_add_ze (void)
 {
-    do_addzeo();
+    T0 += xer_ca;
     RETURN();
 }
 
 /* divide word */
-PPC_OP(divw)
+void OPPROTO op_divw (void)
 {
-    if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
-        T0 = (int32_t)((-1) * (T0 >> 31));
+    if (unlikely(((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) ||
+                 (int32_t)T1 == 0)) {
+        T0 = (int32_t)((-1) * ((uint32_t)T0 >> 31));
     } else {
-        T0 = (Ts0 / Ts1);
+        T0 = (int32_t)T0 / (int32_t)T1;
     }
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_divd (void)
+{
+    if (unlikely(((int64_t)T0 == INT64_MIN && (int64_t)T1 == -1) ||
+                 (int64_t)T1 == 0)) {
+        T0 = (int64_t)((-1ULL) * ((uint64_t)T0 >> 63));
+    } else {
+        T0 = (int64_t)T0 / (int64_t)T1;
+    }
+    RETURN();
+}
+#endif
 
 void OPPROTO op_divwo (void)
 {
@@ -692,16 +843,36 @@ void OPPROTO op_divwo (void)
     RETURN();
 }
 
-/* divide word unsigned */
-PPC_OP(divwu)
+#if defined(TARGET_PPC64)
+void OPPROTO op_divdo (void)
 {
-    if (T1 == 0) {
+    do_divdo();
+    RETURN();
+}
+#endif
+
+/* divide word unsigned */
+void OPPROTO op_divwu (void)
+{
+    if (unlikely(T1 == 0)) {
+        T0 = 0;
+    } else {
+        T0 = (uint32_t)T0 / (uint32_t)T1;
+    }
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_divdu (void)
+{
+    if (unlikely(T1 == 0)) {
         T0 = 0;
     } else {
         T0 /= T1;
     }
     RETURN();
 }
+#endif
 
 void OPPROTO op_divwuo (void)
 {
@@ -709,33 +880,71 @@ void OPPROTO op_divwuo (void)
     RETURN();
 }
 
-/* multiply high word */
-PPC_OP(mulhw)
+#if defined(TARGET_PPC64)
+void OPPROTO op_divduo (void)
 {
-    T0 = ((int64_t)Ts0 * (int64_t)Ts1) >> 32;
+    do_divduo();
+    RETURN();
+}
+#endif
+
+/* multiply high word */
+void OPPROTO op_mulhw (void)
+{
+    T0 = ((int64_t)((int32_t)T0) * (int64_t)((int32_t)T1)) >> 32;
     RETURN();
 }
 
-/* multiply high word unsigned */
-PPC_OP(mulhwu)
+#if defined(TARGET_PPC64)
+void OPPROTO op_mulhd (void)
 {
-    T0 = ((uint64_t)T0 * (uint64_t)T1) >> 32;
+    uint64_t tl, th;
+
+    do_imul64(&tl, &th);
+    T0 = th;
     RETURN();
 }
+#endif
+
+/* multiply high word unsigned */
+void OPPROTO op_mulhwu (void)
+{
+    T0 = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1) >> 32;
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_mulhdu (void)
+{
+    uint64_t tl, th;
+
+    do_mul64(&tl, &th);
+    T0 = th;
+    RETURN();
+}
+#endif
 
 /* multiply low immediate */
 PPC_OP(mulli)
 {
-    T0 = (Ts0 * SPARAM(1));
+    T0 = ((int32_t)T0 * (int32_t)PARAM1);
     RETURN();
 }
 
 /* multiply low word */
 PPC_OP(mullw)
 {
+    T0 = (int32_t)(T0 * T1);
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_mulld (void)
+{
     T0 *= T1;
     RETURN();
 }
+#endif
 
 void OPPROTO op_mullwo (void)
 {
@@ -743,20 +952,46 @@ void OPPROTO op_mullwo (void)
     RETURN();
 }
 
-/* negate */
-PPC_OP(neg)
+#if defined(TARGET_PPC64)
+void OPPROTO op_mulldo (void)
 {
-    if (T0 != 0x80000000) {
-        T0 = -Ts0;
+    do_mulldo();
+    RETURN();
+}
+#endif
+
+/* negate */
+void OPPROTO op_neg (void)
+{
+    if (likely(T0 != INT32_MIN)) {
+        T0 = -(int32_t)T0;
     }
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_neg_64 (void)
+{
+    if (likely(T0 != INT64_MIN)) {
+        T0 = -(int64_t)T0;
+    }
+    RETURN();
+}
+#endif
 
 void OPPROTO op_nego (void)
 {
     do_nego();
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_nego_64 (void)
+{
+    do_nego_64();
+    RETURN();
+}
+#endif
 
 /* substract from */
 PPC_OP(subf)
@@ -765,29 +1000,54 @@ PPC_OP(subf)
     RETURN();
 }
 
-void OPPROTO op_subfo (void)
+void OPPROTO op_check_subfo (void)
 {
-    do_subfo();
-    RETURN();
-}
-
-/* substract from carrying */
-PPC_OP(subfc)
-{
-    T0 = T1 - T0;
-    if (T0 <= T1) {
-        xer_ca = 1;
+    if (likely(!(((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
+                 ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)))) {
+        xer_ov = 0;
     } else {
-        xer_ca = 0;
+        xer_so = 1;
+        xer_ov = 1;
     }
     RETURN();
 }
 
-void OPPROTO op_subfco (void)
+#if defined(TARGET_PPC64)
+void OPPROTO op_check_subfo_64 (void)
 {
-    do_subfco();
+    if (likely(!(((uint64_t)(~T2) ^ (uint64_t)T1 ^ UINT64_MAX) &
+                 ((uint64_t)(~T2) ^ (uint64_t)T0) & (1ULL << 63)))) {
+        xer_ov = 0;
+    } else {
+        xer_so = 1;
+        xer_ov = 1;
+    }
     RETURN();
 }
+#endif
+
+/* substract from carrying */
+void OPPROTO op_check_subfc (void)
+{
+    if (likely((uint32_t)T0 > (uint32_t)T1)) {
+        xer_ca = 0;
+    } else {
+        xer_ca = 1;
+    }
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_check_subfc_64 (void)
+{
+    if (likely((uint64_t)T0 > (uint64_t)T1)) {
+        xer_ca = 0;
+    } else {
+        xer_ca = 1;
+    }
+    RETURN();
+}
+#endif
 
 /* substract from extended */
 void OPPROTO op_subfe (void)
@@ -796,17 +1056,19 @@ void OPPROTO op_subfe (void)
     RETURN();
 }
 
-PPC_OP(subfeo)
+#if defined(TARGET_PPC64)
+void OPPROTO op_subfe_64 (void)
 {
-    do_subfeo();
+    do_subfe_64();
     RETURN();
 }
+#endif
 
 /* substract from immediate carrying */
-PPC_OP(subfic)
+void OPPROTO op_subfic (void)
 {
-    T0 = PARAM(1) + ~T0 + 1;
-    if (T0 <= PARAM(1)) {
+    T0 = PARAM1 + ~T0 + 1;
+    if ((uint32_t)T0 <= (uint32_t)PARAM1) {
         xer_ca = 1;
     } else {
         xer_ca = 0;
@@ -814,15 +1076,37 @@ PPC_OP(subfic)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_subfic_64 (void)
+{
+    T0 = PARAM1 + ~T0 + 1;
+    if ((uint64_t)T0 <= (uint64_t)PARAM1) {
+        xer_ca = 1;
+    } else {
+        xer_ca = 0;
+    }
+    RETURN();
+}
+#endif
+
 /* substract from minus one extended */
-PPC_OP(subfme)
+void OPPROTO op_subfme (void)
 {
     T0 = ~T0 + xer_ca - 1;
-
-    if (T0 != -1)
+    if (likely((uint32_t)T0 != (uint32_t)-1))
         xer_ca = 1;
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_subfme_64 (void)
+{
+    T0 = ~T0 + xer_ca - 1;
+    if (likely((uint64_t)T0 != (uint64_t)-1))
+        xer_ca = 1;
+    RETURN();
+}
+#endif
 
 void OPPROTO op_subfmeo (void)
 {
@@ -830,12 +1114,20 @@ void OPPROTO op_subfmeo (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_subfmeo_64 (void)
+{
+    do_subfmeo_64();
+    RETURN();
+}
+#endif
+
 /* substract from zero extended */
-PPC_OP(subfze)
+void OPPROTO op_subfze (void)
 {
     T1 = ~T0;
     T0 = T1 + xer_ca;
-    if (T0 < T1) {
+    if ((uint32_t)T0 < (uint32_t)T1) {
         xer_ca = 1;
     } else {
         xer_ca = 0;
@@ -843,45 +1135,95 @@ PPC_OP(subfze)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_subfze_64 (void)
+{
+    T1 = ~T0;
+    T0 = T1 + xer_ca;
+    if ((uint64_t)T0 < (uint64_t)T1) {
+        xer_ca = 1;
+    } else {
+        xer_ca = 0;
+    }
+    RETURN();
+}
+#endif
+
 void OPPROTO op_subfzeo (void)
 {
     do_subfzeo();
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_subfzeo_64 (void)
+{
+    do_subfzeo_64();
+    RETURN();
+}
+#endif
+
 /***                           Integer comparison                          ***/
 /* compare */
-PPC_OP(cmp)
+void OPPROTO op_cmp (void)
 {
-    if (Ts0 < Ts1) {
+    if ((int32_t)T0 < (int32_t)T1) {
         T0 = 0x08;
-    } else if (Ts0 > Ts1) {
+    } else if ((int32_t)T0 > (int32_t)T1) {
         T0 = 0x04;
     } else {
         T0 = 0x02;
     }
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_cmp_64 (void)
+{
+    if ((int64_t)T0 < (int64_t)T1) {
+        T0 = 0x08;
+    } else if ((int64_t)T0 > (int64_t)T1) {
+        T0 = 0x04;
+    } else {
+        T0 = 0x02;
+    }
+    RETURN();
+}
+#endif
 
 /* compare immediate */
-PPC_OP(cmpi)
+void OPPROTO op_cmpi (void)
 {
-    if (Ts0 < SPARAM(1)) {
+    if ((int32_t)T0 < (int32_t)PARAM1) {
         T0 = 0x08;
-    } else if (Ts0 > SPARAM(1)) {
+    } else if ((int32_t)T0 > (int32_t)PARAM1) {
         T0 = 0x04;
     } else {
         T0 = 0x02;
     }
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_cmpi_64 (void)
+{
+    if ((int64_t)T0 < (int64_t)((int32_t)PARAM1)) {
+        T0 = 0x08;
+    } else if ((int64_t)T0 > (int64_t)((int32_t)PARAM1)) {
+        T0 = 0x04;
+    } else {
+        T0 = 0x02;
+    }
+    RETURN();
+}
+#endif
 
 /* compare logical */
-PPC_OP(cmpl)
+void OPPROTO op_cmpl (void)
 {
-    if (T0 < T1) {
+    if ((uint32_t)T0 < (uint32_t)T1) {
         T0 = 0x08;
-    } else if (T0 > T1) {
+    } else if ((uint32_t)T0 > (uint32_t)T1) {
         T0 = 0x04;
     } else {
         T0 = 0x02;
@@ -889,18 +1231,69 @@ PPC_OP(cmpl)
     RETURN();
 }
 
-/* compare logical immediate */
-PPC_OP(cmpli)
+#if defined(TARGET_PPC64)
+void OPPROTO op_cmpl_64 (void)
 {
-    if (T0 < PARAM(1)) {
+    if ((uint64_t)T0 < (uint64_t)T1) {
         T0 = 0x08;
-    } else if (T0 > PARAM(1)) {
+    } else if ((uint64_t)T0 > (uint64_t)T1) {
         T0 = 0x04;
     } else {
         T0 = 0x02;
     }
     RETURN();
 }
+#endif
+
+/* compare logical immediate */
+void OPPROTO op_cmpli (void)
+{
+    if ((uint32_t)T0 < (uint32_t)PARAM1) {
+        T0 = 0x08;
+    } else if ((uint32_t)T0 > (uint32_t)PARAM1) {
+        T0 = 0x04;
+    } else {
+        T0 = 0x02;
+    }
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_cmpli_64 (void)
+{
+    if ((uint64_t)T0 < (uint64_t)PARAM1) {
+        T0 = 0x08;
+    } else if ((uint64_t)T0 > (uint64_t)PARAM1) {
+        T0 = 0x04;
+    } else {
+        T0 = 0x02;
+    }
+    RETURN();
+}
+#endif
+
+void OPPROTO op_isel (void)
+{
+    if (T0)
+        T0 = T1;
+    else
+        T0 = T2;
+    RETURN();
+}
+
+void OPPROTO op_popcntb (void)
+{
+    do_popcntb();
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_popcntb_64 (void)
+{
+    do_popcntb_64();
+    RETURN();
+}
+#endif
 
 /***                            Integer logical                            ***/
 /* and */
@@ -963,6 +1356,80 @@ void OPPROTO op_cntlzw (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_cntlzd (void)
+{
+#if HOST_LONG_BITS == 64
+    int cnt;
+
+    cnt = 0;
+    if (!(T0 & 0xFFFFFFFF00000000ULL)) {
+        cnt += 32;
+        T0 <<= 32;
+    }
+    if (!(T0 & 0xFFFF000000000000ULL)) {
+        cnt += 16;
+        T0 <<= 16;
+    }
+    if (!(T0 & 0xFF00000000000000ULL)) {
+        cnt += 8;
+        T0 <<= 8;
+    }
+    if (!(T0 & 0xF000000000000000ULL)) {
+        cnt += 4;
+        T0 <<= 4;
+    }
+    if (!(T0 & 0xC000000000000000ULL)) {
+        cnt += 2;
+        T0 <<= 2;
+    }
+    if (!(T0 & 0x8000000000000000ULL)) {
+        cnt++;
+        T0 <<= 1;
+    }
+    if (!(T0 & 0x8000000000000000ULL)) {
+        cnt++;
+    }
+    T0 = cnt;
+#else
+    uint32_t tmp;
+
+    /* Make it easier on 32 bits host machines */
+    if (!(T0 >> 32)) {
+        tmp = T0;
+        T0 = 32;
+    } else {
+        tmp = T0 >> 32;
+        T0 = 0;
+    }
+    if (!(tmp & 0xFFFF0000UL)) {
+        T0 += 16;
+        tmp <<= 16;
+    }
+    if (!(tmp & 0xFF000000UL)) {
+        T0 += 8;
+        tmp <<= 8;
+    }
+    if (!(tmp & 0xF0000000UL)) {
+        T0 += 4;
+        tmp <<= 4;
+    }
+    if (!(tmp & 0xC0000000UL)) {
+        T0 += 2;
+        tmp <<= 2;
+    }
+    if (!(tmp & 0x80000000UL)) {
+        T0++;
+        tmp <<= 1;
+    }
+    if (!(tmp & 0x80000000UL)) {
+        T0++;
+    }
+#endif
+    RETURN();
+}
+#endif
+
 /* eqv */
 PPC_OP(eqv)
 {
@@ -971,18 +1438,34 @@ PPC_OP(eqv)
 }
 
 /* extend sign byte */
-PPC_OP(extsb)
+void OPPROTO op_extsb (void)
 {
-    T0 = (int32_t)((int8_t)(Ts0));
+#if defined (TARGET_PPC64)
+    T0 = (int64_t)((int8_t)T0);
+#else
+    T0 = (int32_t)((int8_t)T0);
+#endif
     RETURN();
 }
 
 /* extend sign half word */
-PPC_OP(extsh)
+void OPPROTO op_extsh (void)
 {
-    T0 = (int32_t)((int16_t)(Ts0));
+#if defined (TARGET_PPC64)
+    T0 = (int64_t)((int16_t)T0);
+#else
+    T0 = (int32_t)((int16_t)T0);
+#endif
     RETURN();
 }
+
+#if defined (TARGET_PPC64)
+void OPPROTO op_extsw (void)
+{
+    T0 = (int64_t)((int32_t)T0);
+    RETURN();
+}
+#endif
 
 /* nand */
 PPC_OP(nand)
@@ -1048,15 +1531,27 @@ void OPPROTO op_rotli32_T0 (void)
 
 /***                             Integer shift                             ***/
 /* shift left word */
-PPC_OP(slw)
+void OPPROTO op_slw (void)
 {
     if (T1 & 0x20) {
+        T0 = 0;
+    } else {
+        T0 = (uint32_t)(T0 << T1);
+    }
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_sld (void)
+{
+    if (T1 & 0x40) {
         T0 = 0;
     } else {
         T0 = T0 << T1;
     }
     RETURN();
 }
+#endif
 
 /* shift right algebraic word */
 void OPPROTO op_sraw (void)
@@ -1065,12 +1560,21 @@ void OPPROTO op_sraw (void)
     RETURN();
 }
 
-/* shift right algebraic word immediate */
-PPC_OP(srawi)
+#if defined(TARGET_PPC64)
+void OPPROTO op_srad (void)
 {
-    T1 = T0;
-    T0 = (Ts0 >> PARAM(1));
-    if (Ts1 < 0 && (Ts1 & PARAM(2)) != 0) {
+    do_srad();
+    RETURN();
+}
+#endif
+
+/* shift right algebraic word immediate */
+void OPPROTO op_srawi (void)
+{
+    uint32_t mask = (uint32_t)PARAM2;
+
+    T0 = (int32_t)T0 >> PARAM1;
+    if ((int32_t)T1 < 0 && (T1 & mask) != 0) {
         xer_ca = 1;
     } else {
         xer_ca = 0;
@@ -1078,16 +1582,43 @@ PPC_OP(srawi)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_sradi (void)
+{
+    uint64_t mask = ((uint64_t)PARAM2 << 32) | (uint64_t)PARAM3;
+
+    T0 = (int64_t)T0 >> PARAM1;
+    if ((int64_t)T1 < 0 && ((uint64_t)T1 & mask) != 0) {
+        xer_ca = 1;
+    } else {
+        xer_ca = 0;
+    }
+    RETURN();
+}
+#endif
+
 /* shift right word */
-PPC_OP(srw)
+void OPPROTO op_srw (void)
 {
     if (T1 & 0x20) {
         T0 = 0;
     } else {
-        T0 = T0 >> T1;
+        T0 = (uint32_t)T0 >> T1;
     }
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_srd (void)
+{
+    if (T1 & 0x40) {
+        T0 = 0;
+    } else {
+        T0 = (uint64_t)T0 >> T1;
+    }
+    RETURN();
+}
+#endif
 
 void OPPROTO op_sl_T0_T1 (void)
 {
@@ -1103,21 +1634,45 @@ void OPPROTO op_sli_T0 (void)
 
 void OPPROTO op_srl_T0_T1 (void)
 {
-    T0 = T0 >> T1;
+    T0 = (uint32_t)T0 >> T1;
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_srl_T0_T1_64 (void)
+{
+    T0 = (uint32_t)T0 >> T1;
+    RETURN();
+}
+#endif
 
 void OPPROTO op_srli_T0 (void)
 {
-    T0 = T0 >> PARAM1;
+    T0 = (uint32_t)T0 >> PARAM1;
     RETURN();
 }
 
-void OPPROTO op_srli_T1 (void)
+#if defined(TARGET_PPC64)
+void OPPROTO op_srli_T0_64 (void)
 {
-    T1 = T1 >> PARAM1;
+    T0 = (uint64_t)T0 >> PARAM1;
     RETURN();
 }
+#endif
+
+void OPPROTO op_srli_T1 (void)
+{
+    T1 = (uint32_t)T1 >> PARAM1;
+    RETURN();
+}
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_srli_T1_64 (void)
+{
+    T1 = (uint64_t)T1 >> PARAM1;
+    RETURN();
+}
+#endif
 
 /***                       Floating-Point arithmetic                       ***/
 /* fadd - fadd. */
@@ -1281,12 +1836,21 @@ PPC_OP(fneg)
 #endif
 
 /* Special op to check and maybe clear reservation */
-PPC_OP(check_reservation)
+void OPPROTO op_check_reservation (void)
 {
     if ((uint32_t)env->reserve == (uint32_t)(T0 & ~0x00000003))
         env->reserve = -1;
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_check_reservation_64 (void)
+{
+    if ((uint64_t)env->reserve == (uint64_t)(T0 & ~0x00000003))
+        env->reserve = -1;
+    RETURN();
+}
+#endif
 
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
@@ -1295,6 +1859,14 @@ void OPPROTO op_rfi (void)
     do_rfi();
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_rfi_32 (void)
+{
+    do_rfi_32();
+    RETURN();
+}
+#endif
 #endif
 
 /* Trap word */
@@ -1304,12 +1876,28 @@ void OPPROTO op_tw (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_td (void)
+{
+    do_td(PARAM1);
+    RETURN();
+}
+#endif
+
 /* Instruction cache block invalidate */
-PPC_OP(icbi)
+void OPPROTO op_icbi (void)
 {
     do_icbi();
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_icbi_64 (void)
+{
+    do_icbi_64();
+    RETURN();
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 /* tlbia */
@@ -1320,11 +1908,33 @@ PPC_OP(tlbia)
 }
 
 /* tlbie */
-PPC_OP(tlbie)
+void OPPROTO op_tlbie (void)
 {
     do_tlbie();
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_tlbie_64 (void)
+{
+    do_tlbie_64();
+    RETURN();
+}
+#endif
+
+#if defined(TARGET_PPC64)
+void OPPROTO op_slbia (void)
+{
+    do_slbia();
+    RETURN();
+}
+
+void OPPROTO op_slbie (void)
+{
+    do_slbie();
+    RETURN();
+}
+#endif
 #endif
 
 /* PowerPC 602/603/755 software TLB load instructions */
@@ -1343,14 +1953,12 @@ void OPPROTO op_6xx_tlbli (void)
 #endif
 
 /* 601 specific */
-uint32_t cpu_ppc601_load_rtcl (CPUState *env);
 void OPPROTO op_load_601_rtcl (void)
 {
     T0 = cpu_ppc601_load_rtcl(env);
     RETURN();
 }
 
-uint32_t cpu_ppc601_load_rtcu (CPUState *env);
 void OPPROTO op_load_601_rtcu (void)
 {
     T0 = cpu_ppc601_load_rtcu(env);
@@ -1358,14 +1966,12 @@ void OPPROTO op_load_601_rtcu (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_ppc601_store_rtcl (CPUState *env, uint32_t value);
 void OPPROTO op_store_601_rtcl (void)
 {
     cpu_ppc601_store_rtcl(env, T0);
     RETURN();
 }
 
-void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value);
 void OPPROTO op_store_601_rtcu (void)
 {
     cpu_ppc601_store_rtcu(env, T0);
@@ -1449,7 +2055,7 @@ void OPPROTO op_POWER_divso (void)
 
 void OPPROTO op_POWER_doz (void)
 {
-    if (Ts1 > Ts0)
+    if ((int32_t)T1 > (int32_t)T0)
         T0 = T1 - T0;
     else
         T0 = 0;
@@ -1580,7 +2186,7 @@ void OPPROTO op_POWER_sraq (void)
     if (T1 & 0x20UL)
         T0 = -1L;
     else
-        T0 = Ts0 >> T1;
+        T0 = (int32_t)T0 >> T1;
     RETURN();
 }
 
@@ -1588,7 +2194,7 @@ void OPPROTO op_POWER_sre (void)
 {
     T1 &= 0x1FUL;
     env->spr[SPR_MQ] = rotl32(T0, 32 - T1);
-    T0 = Ts0 >> T1;
+    T0 = (int32_t)T0 >> T1;
     RETURN();
 }
 
@@ -1596,7 +2202,7 @@ void OPPROTO op_POWER_srea (void)
 {
     T1 &= 0x1FUL;
     env->spr[SPR_MQ] = T0 >> T1;
-    T0 = Ts0 >> T1;
+    T0 = (int32_t)T0 >> T1;
     RETURN();
 }
 
@@ -1848,28 +2454,24 @@ void OPPROTO op_store_403_pb (void)
     RETURN();
 }
 
-target_ulong load_40x_pit (CPUState *env);
 void OPPROTO op_load_40x_pit (void)
 {
     T0 = load_40x_pit(env);
     RETURN();
 }
 
-void store_40x_pit (CPUState *env, target_ulong val);
 void OPPROTO op_store_40x_pit (void)
 {
     store_40x_pit(env, T0);
     RETURN();
 }
 
-void store_booke_tcr (CPUState *env, target_ulong val);
 void OPPROTO op_store_booke_tcr (void)
 {
     store_booke_tcr(env, T0);
     RETURN();
 }
 
-void store_booke_tsr (CPUState *env, target_ulong val);
 void OPPROTO op_store_booke_tsr (void)
 {
     store_booke_tsr(env, T0);

@@ -142,7 +142,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     unsigned long bios_offset;
     int bios_size;
     CPUState *env;
-    static RTCState *rtc_state;
+    RTCState *rtc_state;
     int i;
 
     env = cpu_init();

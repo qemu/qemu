@@ -1631,9 +1631,9 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s);
             break;
         case WIN_SETMULT:
-            if ((s->nsector & 0xff) > MAX_MULT_SECTORS ||
-                s->nsector == 0 ||
-                (s->nsector & (s->nsector - 1)) != 0) {
+            if ((s->nsector & 0xff) != 0 &&
+                ((s->nsector & 0xff) > MAX_MULT_SECTORS ||
+                 (s->nsector & (s->nsector - 1)) != 0)) {
                 ide_abort_command(s);
             } else {
                 s->mult_sectors = s->nsector & 0xff;
@@ -1729,6 +1729,8 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 goto abort_cmd;
             /* XXX: valid for CDROM ? */
             switch(s->feature) {
+            case 0xcc: /* reverting to power-on defaults enable */
+            case 0x66: /* reverting to power-on defaults disable */
             case 0x02: /* write cache enable */
             case 0x82: /* write cache disable */
             case 0xaa: /* read look-ahead enable */

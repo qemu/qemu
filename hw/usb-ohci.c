@@ -2,6 +2,7 @@
  * QEMU USB OHCI Emulation
  * Copyright (c) 2004 Gianni Tedesco
  * Copyright (c) 2006 CodeSourcery
+ * Copyright (c) 2006 Openedhand Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -52,11 +53,19 @@ typedef struct OHCIPort {
     uint32_t ctrl;
 } OHCIPort;
 
+enum ohci_type {
+    OHCI_TYPE_PCI,
+    OHCI_TYPE_PXA
+};
+
 typedef struct {
-    struct PCIDevice pci_dev;
+    void *pic;
+    int irq;
+    enum ohci_type type;
     target_phys_addr_t mem_base;
     int mem;
     int num_ports;
+    const char *name;
 
     QEMUTimer *eof_timer;
     int64_t sof_time;
@@ -89,6 +98,12 @@ typedef struct {
     uint32_t rhdesc_a, rhdesc_b;
     uint32_t rhstatus;
     OHCIPort rhport[OHCI_MAX_PORTS];
+
+    /* PXA27x Non-OHCI events */
+    uint32_t hstatus;
+    uint32_t hmask;
+    uint32_t hreset;
+    uint32_t htest;
 
     /* Active packets.  */
     uint32_t old_ctl;
@@ -256,6 +271,8 @@ struct ohci_td {
 #define OHCI_CC_BUFFEROVERRUN       0xc
 #define OHCI_CC_BUFFERUNDERRUN      0xd
 
+#define OHCI_HRESET_FSBIR       (1 << 0)
+
 /* Update IRQ levels */
 static inline void ohci_intr_update(OHCIState *ohci)
 {
@@ -265,7 +282,10 @@ static inline void ohci_intr_update(OHCIState *ohci)
         (ohci->intr_status & ohci->intr))
         level = 1;
 
-    pci_set_irq(&ohci->pci_dev, 0, level);
+    if (ohci->type == OHCI_TYPE_PCI)
+      pci_set_irq((PCIDevice *)ohci->pic, ohci->irq, level);
+    else
+      pic_set_irq_new(ohci->pic, ohci->irq, level);
 }
 
 /* Set an interrupt */
@@ -295,6 +315,11 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
         else
             port->ctrl &= ~OHCI_PORT_LSDA;
         port->port.dev = dev;
+
+        /* notify of remote-wakeup */
+        if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND)
+            ohci_set_interrupt(s, OHCI_INTR_RD);
+
         /* send the attach message */
         usb_send_msg(dev, USB_MSG_ATTACH);
         dprintf("usb-ohci: Attached port %d\n", port1->index);
@@ -367,7 +392,7 @@ static void ohci_reset(OHCIState *ohci)
         usb_cancel_packet(&ohci->usb_packet);
         ohci->async_td = 0;
     }
-    dprintf("usb-ohci: Reset %s\n", ohci->pci_dev.name);
+    dprintf("usb-ohci: Reset %s\n", ohci->name);
 }
 
 /* Get an array of dwords from main memory */
@@ -795,13 +820,12 @@ static int ohci_bus_start(OHCIState *ohci)
                     ohci);
 
     if (ohci->eof_timer == NULL) {
-        fprintf(stderr, "usb-ohci: %s: qemu_new_timer failed\n",
-            ohci->pci_dev.name);
+        fprintf(stderr, "usb-ohci: %s: qemu_new_timer failed\n", ohci->name);
         /* TODO: Signal unrecoverable error */
         return 0;
     }
 
-    dprintf("usb-ohci: %s: USB Operational\n", ohci->pci_dev.name);
+    dprintf("usb-ohci: %s: USB Operational\n", ohci->name);
 
     ohci_sof(ohci);
 
@@ -854,7 +878,7 @@ static void ohci_set_frame_interval(OHCIState *ohci, uint16_t val)
 
     if (val != ohci->fi) {
         dprintf("usb-ohci: %s: FrameInterval = 0x%x (%u)\n",
-            ohci->pci_dev.name, ohci->fi, ohci->fi);
+            ohci->name, ohci->fi, ohci->fi);
     }
 
     ohci->fi = val;
@@ -892,13 +916,13 @@ static void ohci_set_ctl(OHCIState *ohci, uint32_t val)
         break;
     case OHCI_USB_SUSPEND:
         ohci_bus_stop(ohci);
-        dprintf("usb-ohci: %s: USB Suspended\n", ohci->pci_dev.name);
+        dprintf("usb-ohci: %s: USB Suspended\n", ohci->name);
         break;
     case OHCI_USB_RESUME:
-        dprintf("usb-ohci: %s: USB Resume\n", ohci->pci_dev.name);
+        dprintf("usb-ohci: %s: USB Resume\n", ohci->name);
         break;
     case OHCI_USB_RESET:
-        dprintf("usb-ohci: %s: USB Reset\n", ohci->pci_dev.name);
+        dprintf("usb-ohci: %s: USB Reset\n", ohci->name);
         break;
     }
 }
@@ -1086,6 +1110,19 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
     case 20: /* HcRhStatus */
         return ohci->rhstatus;
 
+    /* PXA27x specific registers */
+    case 24: /* HcStatus */
+        return ohci->hstatus & ohci->hmask;
+
+    case 25: /* HcHReset */
+        return ohci->hreset;
+
+    case 26: /* HcHInterruptEnable */
+        return ohci->hmask;
+
+    case 27: /* HcHInterruptTest */
+        return ohci->htest;
+
     default:
         fprintf(stderr, "ohci_read: Bad offset %x\n", (int)addr);
         return 0xffffffff;
@@ -1187,6 +1224,24 @@ static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
         ohci_set_hub_status(ohci, val);
         break;
 
+    /* PXA27x specific registers */
+    case 24: /* HcStatus */
+        ohci->hstatus &= ~(val & ohci->hmask);
+
+    case 25: /* HcHReset */
+        ohci->hreset = val & ~OHCI_HRESET_FSBIR;
+        if (val & OHCI_HRESET_FSBIR)
+            ohci_reset(ohci);
+        break;
+
+    case 26: /* HcHInterruptEnable */
+        ohci->hmask = val;
+        break;
+
+    case 27: /* HcHInterruptTest */
+        ohci->htest = val;
+        break;
+
     default:
         fprintf(stderr, "ohci_write: Bad offset %x\n", (int)addr);
         break;
@@ -1207,21 +1262,10 @@ static CPUWriteMemoryFunc *ohci_writefn[3]={
     ohci_mem_write
 };
 
-static void ohci_mapfunc(PCIDevice *pci_dev, int i,
-            uint32_t addr, uint32_t size, int type)
+static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
+            void *pic, int irq, enum ohci_type type, const char *name)
 {
-    OHCIState *ohci = (OHCIState *)pci_dev;
-    ohci->mem_base = addr;
-    cpu_register_physical_memory(addr, size, ohci->mem);
-}
-
-void usb_ohci_init(struct PCIBus *bus, int num_ports, int devfn)
-{
-    OHCIState *ohci;
-    int vid = 0x106b;
-    int did = 0x003f;
     int i;
-
 
     if (usb_frame_time == 0) {
 #if OHCI_TIME_WARP
@@ -1239,8 +1283,43 @@ void usb_ohci_init(struct PCIBus *bus, int num_ports, int devfn)
                 usb_frame_time, usb_bit_time);
     }
 
-    ohci = (OHCIState *)pci_register_device(bus, "OHCI USB", sizeof(*ohci),
-                                            devfn, NULL, NULL);
+    ohci->mem = cpu_register_io_memory(0, ohci_readfn, ohci_writefn, ohci);
+    ohci->name = name;
+
+    ohci->pic = pic;
+    ohci->irq = irq;
+    ohci->type = type;
+
+    ohci->num_ports = num_ports;
+    for (i = 0; i < num_ports; i++) {
+        qemu_register_usb_port(&ohci->rhport[i].port, ohci, i, ohci_attach);
+    }
+
+    ohci->async_td = 0;
+    ohci_reset(ohci);
+}
+
+typedef struct {
+    PCIDevice pci_dev;
+    OHCIState state;
+} OHCIPCIState;
+
+static void ohci_mapfunc(PCIDevice *pci_dev, int i,
+            uint32_t addr, uint32_t size, int type)
+{
+    OHCIPCIState *ohci = (OHCIPCIState *)pci_dev;
+    ohci->state.mem_base = addr;
+    cpu_register_physical_memory(addr, size, ohci->state.mem);
+}
+
+void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
+{
+    OHCIPCIState *ohci;
+    int vid = 0x106b;
+    int did = 0x003f;
+
+    ohci = (OHCIPCIState *)pci_register_device(bus, "OHCI USB", sizeof(*ohci),
+                                               devfn, NULL, NULL);
     if (ohci == NULL) {
         fprintf(stderr, "usb-ohci: Failed to register PCI device\n");
         return;
@@ -1255,16 +1334,21 @@ void usb_ohci_init(struct PCIBus *bus, int num_ports, int devfn)
     ohci->pci_dev.config[0x0b] = 0xc;
     ohci->pci_dev.config[0x3d] = 0x01; /* interrupt pin 1 */
 
-    ohci->mem = cpu_register_io_memory(0, ohci_readfn, ohci_writefn, ohci);
+    usb_ohci_init(&ohci->state, num_ports, devfn, &ohci->pci_dev,
+                  0, OHCI_TYPE_PCI, ohci->pci_dev.name);
 
     pci_register_io_region((struct PCIDevice *)ohci, 0, 256,
                            PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
+}
 
-    ohci->num_ports = num_ports;
-    for (i = 0; i < num_ports; i++) {
-        qemu_register_usb_port(&ohci->rhport[i].port, ohci, i, ohci_attach);
-    }
+void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
+            void *pic, int irq)
+{
+    OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
 
-    ohci->async_td = 0;
-    ohci_reset(ohci);
+    usb_ohci_init(ohci, num_ports, devfn, pic, irq,
+                  OHCI_TYPE_PXA, "OHCI USB");
+    ohci->mem_base = base;
+
+    cpu_register_physical_memory(ohci->mem_base, 0xfff, ohci->mem);
 }

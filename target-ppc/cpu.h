@@ -365,6 +365,8 @@ enum {
     PPC_E500_VECTOR = 0x20000000,
     /* PowerPC 4xx dedicated instructions     */
     PPC_4xx_COMMON  = 0x40000000,
+    /* PowerPC 2.03 specification extensions */
+    PPC_203         = 0x80000000,
 };
 
 /* CPU run-time flags (MMU and exception model) */
@@ -385,6 +387,8 @@ enum {
     PPC_FLAGS_MMU_403      = 0x00000005,
     /* Freescale e500 MMU model */
     PPC_FLAGS_MMU_e500     = 0x00000006,
+    /* BookE MMU model */
+    PPC_FLAGS_MMU_BOOKE    = 0x00000007,
     /* Exception model */
     PPC_FLAGS_EXCP_MASK    = 0x000000F0,
     /* Standard PowerPC exception model */
@@ -407,6 +411,8 @@ enum {
     PPC_FLAGS_EXCP_74xx    = 0x00000080,
     /* PowerPC 970 exception model */
     PPC_FLAGS_EXCP_970     = 0x00000090,
+    /* BookE exception model */
+    PPC_FLAGS_EXCP_BOOKE   = 0x000000A0,
 };
 
 #define PPC_MMU(env) (env->flags & PPC_FLAGS_MMU_MASK)
@@ -437,11 +443,11 @@ enum {
 /* PowerPC 440 */
 #define PPC_INSNS_440 (PPC_INSNS_EMB | PPC_CACHE_OPT | PPC_BOOKE |            \
                        PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
-#define PPC_FLAGS_440 (PPC_FLAGS_TODO)
+#define PPC_FLAGS_440 (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE)
 /* Generic BookE PowerPC */
 #define PPC_INSNS_BOOKE (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |          \
                          PPC_FLOAT | PPC_FLOAT_OPT | PPC_CACHE_OPT)
-#define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x)
+#define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE)
 /* e500 core */
 #define PPC_INSNS_E500 (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |           \
                         PPC_CACHE_OPT | PPC_E500_VECTOR)
@@ -501,7 +507,6 @@ typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
 typedef struct ppc_avr_t ppc_avr_t;
 typedef struct ppc_tlb_t ppc_tlb_t;
-
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {
@@ -619,6 +624,8 @@ struct CPUPPCState {
      */
     target_ulong t0, t1, t2;
 #endif
+    ppc_avr_t t0_avr, t1_avr, t2_avr;
+
     /* general purpose registers */
     ppc_gpr_t gpr[32];
     /* LR */
@@ -674,6 +681,9 @@ struct CPUPPCState {
     /* Altivec registers */
     ppc_avr_t avr[32];
     uint32_t vscr;
+    /* SPE registers */
+    ppc_gpr_t spe_acc;
+    uint32_t spe_fscr;
 
     /* Internal devices resources */
     /* Time base and decrementer */
@@ -762,8 +772,10 @@ void do_store_dbatu (CPUPPCState *env, int nr, target_ulong value);
 void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value);
 target_ulong do_load_sdr1 (CPUPPCState *env);
 void do_store_sdr1 (CPUPPCState *env, target_ulong value);
-target_ulong do_load_asr (CPUPPCState *env);
-void do_store_asr (CPUPPCState *env, target_ulong value);
+#if defined(TARGET_PPC64)
+target_ulong ppc_load_asr (CPUPPCState *env);
+void ppc_store_asr (CPUPPCState *env, target_ulong value);
+#endif
 target_ulong do_load_sr (CPUPPCState *env, int srnum);
 void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif
@@ -771,6 +783,7 @@ uint32_t ppc_load_xer (CPUPPCState *env);
 void ppc_store_xer (CPUPPCState *env, uint32_t value);
 target_ulong do_load_msr (CPUPPCState *env);
 void do_store_msr (CPUPPCState *env, target_ulong value);
+void ppc_store_msr32 (CPUPPCState *env, uint32_t value);
 
 void do_compute_hflags (CPUPPCState *env);
 
@@ -787,6 +800,16 @@ void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
+uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
+uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
+#if !defined(CONFIG_USER_ONLY)
+void cpu_ppc601_store_rtcl (CPUPPCState *env, uint32_t value);
+void cpu_ppc601_store_rtcu (CPUPPCState *env, uint32_t value);
+target_ulong load_40x_pit (CPUPPCState *env);
+void store_40x_pit (CPUPPCState *env, target_ulong val);
+void store_booke_tcr (CPUPPCState *env, target_ulong val);
+void store_booke_tsr (CPUPPCState *env, target_ulong val);
+#endif
 #endif
 
 #define TARGET_PAGE_BITS 12

@@ -1,3 +1,56 @@
+2007-03-17 17:59  pbrook
+
+	* hw/: ppc_chrp.c, ppc_prep.c, realview.c, usb-ohci.c, usb.h,
+	  versatilepb.c: OHCI USB PXA support (Andrzej Zaborowski).
+
+2007-03-17 16:39  ths
+
+	* target-mips/TODO: Note FPU enable/disable issue.
+
+2007-03-17 16:21  ths
+
+	* hw/mips_r4k.c: Remove useless static specifier.
+
+2007-03-17 16:17  ths
+
+	* exec.c, vl.c: Better ioport debugging output.
+
+2007-03-17 16:00  ths
+
+	* Makefile, Makefile.target, configure: Better way to select -lrt,
+	  by Andrzei Zaborowski.
+
+2007-03-17 15:55  ths
+
+	* hw/ide.c: Don't fail for "revert to poweron defaults" IDE
+	  command, by Carlo Marcelo Arenas Belon.
+
+2007-03-17 15:54  ths
+
+	* hw/ide.c: Allow disabling IDE block mode, by Carlo Marcelo Arenas
+	  Belon.
+
+2007-03-17 15:04  j_mayer
+
+	* configure: Add PowerPC 64 target for tests.  As no PowerPC 64 CPU
+	  is implemented, this target can just be used to check that there
+	  is no difference between PowerPC 32 & PowerPC 64 used in 32 bits
+	  mode.
+
+2007-03-17 15:02  j_mayer
+
+	* target-ppc/: cpu.h, exec.h, helper.c, op.c, op_helper.c,
+	  op_helper.h, op_helper_mem.h, op_mem.h, translate.c: Make it safe
+	  to use 64 bits GPR and/or 64 bits host registers.  For "symetry",
+	  add 64 bits versions of all modified functions.  As a side
+	  effect, add a lot of code provision for PowerPC 64 support.  Move
+	  overflow and carry checks in common routines for simple cases.
+	  Add isel and popcntb instructions from PowerPC 2.03
+	  specification.  Remove remaining micro-operations helpers
+	  prototypes from op.c.  Fix XER_BC field to be 7 bits long.  Add
+	  power management support for PowerPC 603 & 604.  Fix compilation
+	  warnings.
+
 2007-03-17 02:43  pbrook
 
 	* target-arm/translate.c: ARM register index+writeback fix (Lauro

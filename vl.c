@@ -111,7 +111,7 @@
 #define SMBD_COMMAND "/usr/sbin/smbd"
 #endif
 
-//#define DEBUG_UNUSED_IOPORT
+#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
@@ -199,7 +199,7 @@ PicState2 *isa_pic;
 uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "inb: port=0x%04x\n", address);
+    fprintf(stderr, "unused inb: port=0x%04x\n", address);
 #endif
     return 0xff;
 }
@@ -207,7 +207,7 @@ uint32_t default_ioport_readb(void *opaque, uint32_t address)
 void default_ioport_writeb(void *opaque, uint32_t address, uint32_t data)
 {
 #ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "outb: port=0x%04x data=0x%02x\n", address, data);
+    fprintf(stderr, "unused outb: port=0x%04x data=0x%02x\n", address, data);
 #endif
 }
 
@@ -231,7 +231,7 @@ void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
 uint32_t default_ioport_readl(void *opaque, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "inl: port=0x%04x\n", address);
+    fprintf(stderr, "unused inl: port=0x%04x\n", address);
 #endif
     return 0xffffffff;
 }
@@ -239,7 +239,7 @@ uint32_t default_ioport_readl(void *opaque, uint32_t address)
 void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
 {
 #ifdef DEBUG_UNUSED_IOPORT
-    fprintf(stderr, "outl: port=0x%04x data=0x%02x\n", address, data);
+    fprintf(stderr, "unused outl: port=0x%04x data=0x%02x\n", address, data);
 #endif
 }
 

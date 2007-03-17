@@ -159,6 +159,12 @@ if [ "$bsd" = "yes" ] ; then
   fi
 fi
 
+if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
+    AIOLIBS=
+else
+    AIOLIBS="-lrt"
+fi
+
 # find source path
 source_path=`dirname "$0"`
 if [ -z "$source_path" ]; then
@@ -412,7 +418,7 @@ fi
 if test -z "$target_list" ; then
 # these targets are portable
     if [ "$softmmu" = "yes" ] ; then
-        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu arm-softmmu"
+        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu arm-softmmu ppc64-softmmu"
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
@@ -658,6 +664,7 @@ echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
+echo "AIOLIBS=$AIOLIBS" >> $config_mak
 if test "$cpu" = "i386" ; then
   echo "ARCH=i386" >> $config_mak
   echo "#define HOST_I386 1" >> $config_h

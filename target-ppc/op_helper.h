@@ -35,6 +35,17 @@ void glue(do_POWER2_lfq_le, MEMSUFFIX) (void);
 void glue(do_POWER2_stfq, MEMSUFFIX) (void);
 void glue(do_POWER2_stfq_le, MEMSUFFIX) (void);
 
+#if defined(TARGET_PPC64)
+void glue(do_lsw_64, MEMSUFFIX) (int dst);
+void glue(do_lsw_le_64, MEMSUFFIX) (int dst);
+void glue(do_stsw_64, MEMSUFFIX) (int src);
+void glue(do_stsw_le_64, MEMSUFFIX) (int src);
+void glue(do_lmw_64, MEMSUFFIX) (int dst);
+void glue(do_lmw_le_64, MEMSUFFIX) (int dst);
+void glue(do_stmw_64, MEMSUFFIX) (int src);
+void glue(do_stmw_le_64, MEMSUFFIX) (int src);
+#endif
+
 #else
 
 /* Registers load and stores */
@@ -46,23 +57,34 @@ void do_load_fpscr (void);
 void do_store_fpscr (uint32_t mask);
 
 /* Integer arithmetic helpers */
-void do_addo (void);
-void do_addco (void);
 void do_adde (void);
-void do_addeo (void);
 void do_addmeo (void);
-void do_addzeo (void);
 void do_divwo (void);
 void do_divwuo (void);
 void do_mullwo (void);
 void do_nego (void);
-void do_subfo (void);
-void do_subfco (void);
 void do_subfe (void);
-void do_subfeo (void);
 void do_subfmeo (void);
 void do_subfzeo (void);
-void do_sraw(void);
+void do_sraw (void);
+#if defined(TARGET_PPC64)
+void do_adde_64 (void);
+void do_addmeo_64 (void);
+void do_imul64 (uint64_t *tl, uint64_t *th);
+void do_mul64 (uint64_t *tl, uint64_t *th);
+void do_divdo (void);
+void do_divduo (void);
+void do_mulldo (void);
+void do_nego_64 (void);
+void do_subfe_64 (void);
+void do_subfmeo_64 (void);
+void do_subfzeo_64 (void);
+void do_srad (void);
+#endif
+void do_popcntb (void);
+#if defined(TARGET_PPC64)
+void do_popcntb_64 (void);
+#endif
 
 /* Floating-point arithmetic helpers */
 void do_fsqrt (void);
@@ -77,13 +99,29 @@ void do_fcmpu (void);
 void do_fcmpo (void);
 
 void do_tw (int flags);
+#if defined(TARGET_PPC64)
+void do_td (int flags);
+#endif
 void do_icbi (void);
+#if defined(TARGET_PPC64)
+void do_icbi_64 (void);
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 void do_rfi (void);
+#if defined(TARGET_PPC64)
+void do_rfi_32 (void);
+#endif
 void do_tlbia (void);
 void do_tlbie (void);
+#if defined(TARGET_PPC64)
+void do_tlbie_64 (void);
+#endif
 void do_load_6xx_tlb (int is_code);
+#if defined(TARGET_PPC64)
+void do_slbia (void);
+void do_slbie (void);
+#endif
 #endif
 
 /* POWER / PowerPC 601 specific helpers */

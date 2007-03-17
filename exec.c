@@ -48,6 +48,8 @@
 //#define DEBUG_TB_CHECK 
 //#define DEBUG_TLB_CHECK 
 
+//#define DEBUG_IOPORT
+
 #if !defined(CONFIG_USER_ONLY)
 /* TB consistency checks only implemented for usermode emulation.  */
 #undef DEBUG_TB_CHECK
