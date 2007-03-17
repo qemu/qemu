@@ -666,7 +666,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
 #endif
 
     if (usb_enabled) {
-        usb_ohci_init(pci_bus, 3, -1);
+        usb_ohci_init_pci(pci_bus, 3, -1);
     }
 
     nvram = m48t59_init(8, 0, 0x0074, NVRAM_SIZE, 59);

@@ -206,7 +206,9 @@ USBDevice *usb_hub_init(int nb_ports);
 void usb_uhci_init(PCIBus *bus, int devfn);
 
 /* usb-ohci.c */
-void usb_ohci_init(struct PCIBus *bus, int num_ports, int devfn);
+void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn);
+void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
+                       void *pic, int irq);
 
 /* usb-linux.c */
 USBDevice *usb_host_device_open(const char *devname);
