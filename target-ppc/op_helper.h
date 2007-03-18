@@ -29,6 +29,7 @@ void glue(do_lmw, MEMSUFFIX) (int dst);
 void glue(do_lmw_le, MEMSUFFIX) (int dst);
 void glue(do_stmw, MEMSUFFIX) (int src);
 void glue(do_stmw_le, MEMSUFFIX) (int src);
+void glue(do_icbi, MEMSUFFIX) (void);
 void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb);
 void glue(do_POWER2_lfq, MEMSUFFIX) (void);
 void glue(do_POWER2_lfq_le, MEMSUFFIX) (void);
@@ -44,6 +45,7 @@ void glue(do_lmw_64, MEMSUFFIX) (int dst);
 void glue(do_lmw_le_64, MEMSUFFIX) (int dst);
 void glue(do_stmw_64, MEMSUFFIX) (int src);
 void glue(do_stmw_le_64, MEMSUFFIX) (int src);
+void glue(do_icbi_64, MEMSUFFIX) (void);
 #endif
 
 #else
@@ -102,11 +104,6 @@ void do_tw (int flags);
 #if defined(TARGET_PPC64)
 void do_td (int flags);
 #endif
-void do_icbi (void);
-#if defined(TARGET_PPC64)
-void do_icbi_64 (void);
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 void do_rfi (void);
 #if defined(TARGET_PPC64)

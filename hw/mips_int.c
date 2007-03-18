@@ -20,20 +20,15 @@ void cpu_mips_update_irq(CPUState *env)
 
 void cpu_mips_irq_request(void *opaque, int irq, int level)
 {
-    CPUState *env = first_cpu;
-   
-    uint32_t mask;
+    CPUState *env = (CPUState *)opaque;
 
-    if (irq >= 16)
+    if (irq < 0 || irq > 7)
         return;
 
-    mask = 1 << (irq + CP0Ca_IP);
-
     if (level) {
-        env->CP0_Cause |= mask;
+        env->CP0_Cause |= 1 << (irq + CP0Ca_IP);
     } else {
-        env->CP0_Cause &= ~mask;
+        env->CP0_Cause &= ~(1 << (irq +CP0Ca_IP));
     }
     cpu_mips_update_irq(env);
 }
-

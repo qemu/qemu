@@ -144,12 +144,25 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     CPUState *env;
     RTCState *rtc_state;
     int i;
+    mips_def_t *def;
 
+    /* init CPUs */
+    if (cpu_model == NULL) {
+#ifdef MIPS_HAS_MIPS64
+        cpu_model = "R4000";
+#else
+        cpu_model = "4KEc";
+#endif
+    }
+    if (mips_find_by_name(cpu_model, &def) != 0)
+        def = NULL;
     env = cpu_init();
+
     env->bigendian = bigendian;
     fprintf(stderr, "%s: setting %s endian mode\n",
             __func__, bigendian ? "big" : "little");
 
+    cpu_mips_register(env, def);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
@@ -158,7 +171,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     if (!mips_qemu_iomemtype) {
         mips_qemu_iomemtype = cpu_register_io_memory(0, mips_qemu_read,
-						     mips_qemu_write, NULL);
+                                                     mips_qemu_write, NULL);
     }
     cpu_register_physical_memory(0x1fbf0000, 0x10000, mips_qemu_iomemtype);
 

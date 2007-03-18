@@ -3069,17 +3069,48 @@ GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE)
 }
 
 /* icbi */
+#define op_icbi() (*gen_op_icbi[ctx->mem_idx])()
+#if defined(TARGET_PPC64)
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_raw,
+    &gen_op_icbi_raw,
+    &gen_op_icbi_64_raw,
+    &gen_op_icbi_64_raw,
+};
+#else
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_user,
+    &gen_op_icbi_user,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_64_user,
+    &gen_op_icbi_64_user,
+    &gen_op_icbi_64_kernel,
+    &gen_op_icbi_64_kernel,
+};
+#endif
+#else
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_raw,
+    &gen_op_icbi_raw,
+};
+#else
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_user,
+    &gen_op_icbi_user,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_kernel,
+};
+#endif
+#endif
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
-        gen_op_icbi_64();
-    else
-#endif
-        gen_op_icbi();
+    op_icbi();
     RET_STOP(ctx);
 }
 

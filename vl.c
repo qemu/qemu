@@ -7056,6 +7056,8 @@ int main(int argc, char **argv)
                     ppc_cpu_list(stdout, &fprintf);
 #elif defined(TARGET_ARM)
                     arm_cpu_list();
+#elif defined(TARGET_MIPS)
+                    mips_cpu_list(stdout, &fprintf);
 #endif
                     exit(1);
                 } else {

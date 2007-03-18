@@ -1,3 +1,23 @@
+2007-03-18 13:43  ths
+
+	* hw/mips_int.c, hw/mips_timer.c, target-mips/helper.c,
+	  target-mips/op.c: Fix BD flag handling, cause register contents,
+	  implement some more bits for R2 interrupt handling.
+
+2007-03-18 09:47  j_mayer
+
+	* target-ppc/: op.c, op_helper.c, op_helper.h, op_helper_mem.h,
+	  op_mem.h, translate.c: As icbi is not a priviledge instruction
+	  and is treated as a load by the MMU it needs to be implemented
+	  for every MMU translation mode.
+
+2007-03-18 01:30  ths
+
+	* Changelog, Makefile.target, vl.c, vl.h, hw/mips_malta.c,
+	  hw/mips_r4k.c, target-mips/cpu.h, target-mips/mips-defs.h,
+	  target-mips/translate.c, target-mips/translate_init.c: MIPS -cpu
+	  selection support, by Herve Poussineau.
+
 2007-03-17 17:59  pbrook
 
 	* hw/: ppc_chrp.c, ppc_prep.c, realview.c, usb-ohci.c, usb.h,
