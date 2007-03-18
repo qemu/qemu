@@ -295,9 +295,12 @@ void do_interrupt (CPUState *env)
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
             env->CP0_DEPC = env->PC - 4;
+            if (!(env->hflags & MIPS_HFLAG_EXL))
+                env->CP0_Cause |= (1 << CP0Ca_BD);
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_DEPC = env->PC;
+            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         }
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM;
@@ -318,9 +321,12 @@ void do_interrupt (CPUState *env)
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
             env->CP0_ErrorEPC = env->PC - 4;
+            if (!(env->hflags & MIPS_HFLAG_EXL))
+                env->CP0_Cause |= (1 << CP0Ca_BD);
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_ErrorEPC = env->PC;
+            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         }
         env->hflags |= MIPS_HFLAG_ERL;
 	env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
@@ -364,7 +370,8 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_CpU:
         cause = 11;
-        env->CP0_Cause = (env->CP0_Cause & ~0x03000000) | (env->error_code << 28);
+        env->CP0_Cause = (env->CP0_Cause & ~(0x3 << CP0Ca_CE)) |
+                         (env->error_code << CP0Ca_CE);
         goto set_EPC;
     case EXCP_OVERFLOW:
         cause = 12;
@@ -385,11 +392,12 @@ void do_interrupt (CPUState *env)
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
             env->CP0_EPC = env->PC - 4;
-            env->CP0_Cause |= 0x80000000;
+            if (!(env->hflags & MIPS_HFLAG_EXL))
+                env->CP0_Cause |= (1 << CP0Ca_BD);
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_EPC = env->PC;
-            env->CP0_Cause &= ~0x80000000;
+            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         }
         if (env->CP0_Status & (1 << CP0St_BEV)) {
             env->PC = (int32_t)0xBFC00200;

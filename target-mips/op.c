@@ -1397,7 +1397,12 @@ void op_mtc0_srsmap (void)
 
 void op_mtc0_cause (void)
 {
-    env->CP0_Cause = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x00C00300);
+    uint32_t mask = 0x00C00300;
+
+    if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
+        mask |= 1 << CP0Ca_DC;
+
+    env->CP0_Cause = (env->CP0_Cause & 0xFCC0FF7C) | (T0 & mask);
 
     /* Handle the software interrupt as an hardware one, as they
        are very similar */

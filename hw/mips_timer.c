@@ -28,6 +28,9 @@ static void cpu_mips_update_count (CPUState *env, uint32_t count,
     uint64_t now, next;
     uint32_t tmp;
 
+    if (env->CP0_Cause & (1 << CP0Ca_DC))
+        return;
+
     tmp = count;
     if (count == compare)
         tmp++;
@@ -57,6 +60,8 @@ void cpu_mips_store_count (CPUState *env, uint32_t value)
 void cpu_mips_store_compare (CPUState *env, uint32_t value)
 {
     cpu_mips_update_count(env, cpu_mips_get_count(env), value);
+    if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
+        env->CP0_Cause &= ~(1 << CP0Ca_TI);
     cpu_mips_irq_request(env, 7, 0);
 }
 
@@ -71,6 +76,8 @@ static void mips_timer_cb (void *opaque)
     }
 #endif
     cpu_mips_update_count(env, cpu_mips_get_count(env), env->CP0_Compare);
+    if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
+        env->CP0_Cause |= 1 << CP0Ca_TI;
     cpu_mips_irq_request(env, 7, 1);
 }
 
