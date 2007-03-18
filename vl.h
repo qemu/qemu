@@ -713,6 +713,10 @@ typedef void IRQRequestFunc(void *opaque, int level);
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 #endif
 
+#if defined(TARGET_MIPS)
+void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+#endif
+
 /* ISA bus */
 
 extern target_phys_addr_t isa_mem_base;

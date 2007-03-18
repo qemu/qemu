@@ -626,8 +626,20 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     /* fdctrl_t *floppy_controller; */
     MaltaFPGAState *malta_fpga;
     int ret;
+    mips_def_t *def;
 
+    /* init CPUs */
+    if (cpu_model == NULL) {
+#ifdef MIPS_HAS_MIPS64
+        cpu_model = "R4000";
+#else
+        cpu_model = "4KEc";
+#endif
+    }
+    if (mips_find_by_name(cpu_model, &def) != 0)
+        def = NULL;
     env = cpu_init();
+    cpu_mips_register(env, def);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 

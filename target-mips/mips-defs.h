@@ -6,26 +6,15 @@
 /* If we want to use host float regs... */
 //#define USE_HOST_FLOAT_REGS
 
-#define MIPS_R4Kc 0x00018000
-#define MIPS_R4Kp 0x00018300
-
-/* Emulate MIPS R4Kc for now */
-#define MIPS_CPU MIPS_R4Kc
-
-#if (MIPS_CPU == MIPS_R4Kc)
 /* 32 bits target */
 #undef MIPS_HAS_MIPS64
 //#define MIPS_HAS_MIPS64 1
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
-/* Uses MIPS R4Kx enhancements to MIPS32 architecture */
-#define MIPS_USES_R4K_EXT
 /* Uses MIPS R4Kc TLB model */
 #define MIPS_USES_R4K_TLB
 #define MIPS_TLB_NB 16
 #define MIPS_TLB_MAX 128
-/* basic FPU register support */
-#define MIPS_USES_FPU 1
 /* Define a implementation number of 1.
  * Define a major version 1, minor version 0.
  */
@@ -63,21 +52,6 @@
 ((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |          \
  (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |        \
  (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL))
-#elif (MIPS_CPU == MIPS_R4Kp)
-/* 32 bits target */
-#undef MIPS_HAS_MIPS64
-/* real pages are variable size... */
-#define TARGET_PAGE_BITS 12
-/* Uses MIPS R4Kx enhancements to MIPS32 architecture */
-#define MIPS_USES_R4K_EXT
-/* Uses MIPS R4Km FPM MMU model */
-#define MIPS_USES_R4K_FPM
-#else
-#error "MIPS CPU not defined"
-/* Reminder for other flags */
-//#undef MIPS_HAS_MIPS64
-//#define MIPS_USES_FPU
-#endif
 
 #ifdef MIPS_HAS_MIPS64
 #define TARGET_LONG_BITS 64

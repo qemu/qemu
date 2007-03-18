@@ -551,6 +551,7 @@ endif
 ifeq ($(TARGET_ARCH), mips)
 op.o: op.c op_template.c fop_template.c op_mem.c
 op_helper.o: op_helper_mem.c
+translate.o: translate.c translate_init.c
 endif
 
 loader.o: loader.c elf_ops.h

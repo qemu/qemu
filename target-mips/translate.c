@@ -5283,12 +5283,6 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
-    env->CP0_Config0 = MIPS_CONFIG0;
-    env->CP0_Config1 = MIPS_CONFIG1;
-#ifdef MIPS_USES_FPU
-    /* basic FPU register support */
-    env->CP0_Config1 |= (1 << CP0C1_FP);
-#endif
     env->CP0_Config2 = MIPS_CONFIG2;
     env->CP0_Config3 = MIPS_CONFIG3;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
@@ -5296,7 +5290,6 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags = MIPS_HFLAG_ERL;
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
-    env->CP0_PRid = MIPS_CPU;
 #endif
     env->exception_index = EXCP_NONE;
 #if defined(CONFIG_USER_ONLY)
@@ -5308,3 +5301,5 @@ void cpu_reset (CPUMIPSState *env)
     env->SYNCI_Step = 16;
     env->CCRes = 2;
 }
+
+#include "translate_init.c"

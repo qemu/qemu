@@ -282,6 +282,11 @@ struct CPUMIPSState {
     struct QEMUTimer *timer; /* Internal timer */
 };
 
+typedef struct mips_def_t mips_def_t;
+int mips_find_by_name (const unsigned char *name, mips_def_t **def);
+void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
+
 #include "cpu-all.h"
 
 /* Memory access type :
