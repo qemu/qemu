@@ -2906,7 +2906,6 @@ static void ar7_serial_init(CPUState * env)
      * we need it for full hardware emulation.
      */
     unsigned index;
-    av.cpu_env = env;
     if (serial_hds[1] == 0) {
         serial_hds[1] = qemu_chr_open("vc");
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
@@ -3173,6 +3172,7 @@ void ar7_init(CPUState * env)
     av.cpmac[1] = av.cpmac1;
     av.vlynq[0] = av.vlynq0;
     av.vlynq[1] = av.vlynq1;
+    av.cpu_env = env;
 
     ar7_serial_init(env);
     ar7_display_init(env, "vc");
@@ -3217,17 +3217,16 @@ static void main_cpu_reset(void *opaque)
 static void mips_ar7_common_init (int ram_size,
                     uint16_t flash_manufacturer, uint16_t flash_type,
                     const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename)
+                    const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
     int64_t entry = 0;
     CPUState *env;
+    mips_def_t *def;
     int flash_size;
     int kernel_size;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
-
-    env = cpu_init();
 
     /* Typical AR7 systems run in little endian mode.
        Zyxel uses big endian, so this mode must be supported, too. */
@@ -3239,9 +3238,19 @@ static void mips_ar7_common_init (int ram_size,
     //~ bigendian = env->bigendian;
     fprintf(stderr, "%s: setting endianness %d\n", __func__, bigendian);
 
-#define MIPS_R4KEC   0x00018448   // 4KEc revision 2.2
-#define MIPS_R4KECR2 0x00019048   // 4KEc MIPS 32 Release 2 revision 2.2
-    env->CP0_PRid = MIPS_R4KEC;
+    /* Initialize CPU. */
+    if (cpu_model == NULL) {
+#ifdef MIPS_HAS_MIPS64
+# error AR7 has a 32 bit CPU
+#endif
+        cpu_model = "4KEcR1";
+    }
+    if (mips_find_by_name(cpu_model, &def) != 0) {
+        def = NULL;
+    }
+    env = cpu_init();
+    cpu_mips_register(env, def);
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     /* Have config1, is MIPS32R1, uses TLB, no virtual icache,
        uncached coherency */
@@ -3277,7 +3286,6 @@ static void mips_ar7_common_init (int ram_size,
 
     if (env->CP0_Config0 != 0x80240083) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
     if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
-    //~ assert(env->CP0_Config0 == 0x80240083);
 #if defined(TARGET_WORDS_BIGENDIAN)
 #else
     assert(env->CP0_Config0 == 0x80240082);
@@ -3436,7 +3444,8 @@ static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3445,7 +3454,8 @@ static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (ram_size, MANUFACTURER_AMD, AM29LV160DB,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3456,7 +3466,8 @@ static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (8 * MiB, MANUFACTURER_INTEL, I28F160C3B,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 #else
@@ -3467,7 +3478,8 @@ static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV320CT,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3476,7 +3488,8 @@ static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV640BT,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3485,7 +3498,8 @@ static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3494,7 +3508,8 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename, const char *cpu_model)
 {
     mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
-                          kernel_filename, kernel_cmdline, initrd_filename);
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
 }
 
 #endif
