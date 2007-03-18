@@ -1884,21 +1884,6 @@ void OPPROTO op_td (void)
 }
 #endif
 
-/* Instruction cache block invalidate */
-void OPPROTO op_icbi (void)
-{
-    do_icbi();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_icbi_64 (void)
-{
-    do_icbi_64();
-    RETURN();
-}
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 /* tlbia */
 PPC_OP(tlbia)

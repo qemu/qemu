@@ -242,6 +242,35 @@ void glue(do_stsw_le_64, MEMSUFFIX) (int src)
 }
 #endif
 
+/* Instruction cache invalidation helper */
+void glue(do_icbi, MEMSUFFIX) (void)
+{
+    uint32_t tmp;
+    /* Invalidate one cache line :
+     * PowerPC specification says this is to be treated like a load
+     * (not a fetch) by the MMU. To be sure it will be so,
+     * do the load "by hand".
+     */
+    tmp = glue(ldl, MEMSUFFIX)((uint32_t)T0);
+    T0 &= ~(ICACHE_LINE_SIZE - 1);
+    tb_invalidate_page_range((uint32_t)T0, (uint32_t)(T0 + ICACHE_LINE_SIZE));
+}
+
+#if defined(TARGET_PPC64)
+void glue(do_icbi_64, MEMSUFFIX) (void)
+{
+    uint64_t tmp;
+    /* Invalidate one cache line :
+     * PowerPC specification says this is to be treated like a load
+     * (not a fetch) by the MMU. To be sure it will be so,
+     * do the load "by hand".
+     */
+    tmp = glue(ldq, MEMSUFFIX)((uint64_t)T0);
+    T0 &= ~(ICACHE_LINE_SIZE - 1);
+    tb_invalidate_page_range((uint64_t)T0, (uint64_t)(T0 + ICACHE_LINE_SIZE));
+}
+#endif
+
 /* PPC 601 specific instructions (POWER bridge) */
 // XXX: to be tested
 void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb)

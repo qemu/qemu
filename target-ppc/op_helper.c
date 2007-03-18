@@ -808,35 +808,6 @@ void do_td (int flags)
 }
 #endif
 
-/* Instruction cache invalidation helper */
-void do_icbi (void)
-{
-    uint32_t tmp;
-    /* Invalidate one cache line :
-     * PowerPC specification says this is to be treated like a load
-     * (not a fetch) by the MMU. To be sure it will be so,
-     * do the load "by hand".
-     */
-    tmp = ldl_kernel((uint32_t)T0);
-    T0 &= ~(ICACHE_LINE_SIZE - 1);
-    tb_invalidate_page_range((uint32_t)T0, (uint32_t)(T0 + ICACHE_LINE_SIZE));
-}
-
-#if defined(TARGET_PPC64)
-void do_icbi_64 (void)
-{
-    uint64_t tmp;
-    /* Invalidate one cache line :
-     * PowerPC specification says this is to be treated like a load
-     * (not a fetch) by the MMU. To be sure it will be so,
-     * do the load "by hand".
-     */
-    tmp = ldq_kernel((uint64_t)T0);
-    T0 &= ~(ICACHE_LINE_SIZE - 1);
-    tb_invalidate_page_range((uint64_t)T0, (uint64_t)(T0 + ICACHE_LINE_SIZE));
-}
-#endif
-
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
 void do_POWER_abso (void)
