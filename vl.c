@@ -4387,44 +4387,24 @@ void usb_info(void)
     }
 }
 
-/***********************************************************/
-/* pid file */
-
-static char *pid_filename;
-
-/* Remove PID file. Called on normal exit */
-
-static void remove_pidfile(void) 
+static int create_pidfile(const char *filename)
 {
-    unlink (pid_filename);
-}
+    int fd;
+    char buffer[128];
+    int len;
 
-static void create_pidfile(const char *filename)
-{
-    struct stat pidstat;
-    FILE *f;
+    fd = open(filename, O_RDWR | O_CREAT, 0600);
+    if (fd == -1)
+        return -1;
 
-    /* Try to write our PID to the named file */
-    if (stat(filename, &pidstat) < 0) {
-        if (errno == ENOENT) {
-            if ((f = fopen (filename, "w")) == NULL) {
-                perror("Opening pidfile");
-                exit(1);
-            }
-            fprintf(f, "%d\n", getpid());
-            fclose(f);
-            pid_filename = qemu_strdup(filename);
-            if (!pid_filename) {
-                fprintf(stderr, "Could not save PID filename");
-                exit(1);
-            }
-            atexit(remove_pidfile);
-        }
-    } else {
-        fprintf(stderr, "%s already exists. Remove it and try again.\n", 
-                filename);
-        exit(1);
-    }
+    if (lockf(fd, F_TLOCK, 0) == -1)
+        return -1;
+
+    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    if (write(fd, buffer, len) != len)
+        return -1;
+
+    return 0;
 }
 
 /***********************************************************/
@@ -6880,6 +6860,7 @@ int main(int argc, char **argv)
     char usb_devices[MAX_USB_CMDLINE][128];
     int usb_devices_index;
     int fds[2];
+    const char *pid_file = NULL;
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -7285,7 +7266,7 @@ int main(int argc, char **argv)
                 break;
 #endif
             case QEMU_OPTION_pidfile:
-                create_pidfile(optarg);
+                pid_file = optarg;
                 break;
 #ifdef TARGET_I386
             case QEMU_OPTION_win2k_hack:
@@ -7371,16 +7352,19 @@ int main(int argc, char **argv)
 	    close(fds[1]);
 
 	again:
-	    len = read(fds[0], &status, 1);
-	    if (len == -1 && (errno == EINTR))
-		goto again;
-	    
-	    if (len != 1 || status != 0)
-		exit(1);
-	    else
-		exit(0);
+            len = read(fds[0], &status, 1);
+            if (len == -1 && (errno == EINTR))
+                goto again;
+
+            if (len != 1)
+                exit(1);
+            else if (status == 1) {
+                fprintf(stderr, "Could not acquire pidfile\n");
+                exit(1);
+            } else
+                exit(0);
 	} else if (pid < 0)
-	    exit(1);
+            exit(1);
 
 	setsid();
 
@@ -7398,6 +7382,15 @@ int main(int argc, char **argv)
         signal(SIGTTIN, SIG_IGN);
     }
 #endif
+
+    if (pid_file && create_pidfile(pid_file) != 0) {
+        if (daemonize) {
+            uint8_t status = 1;
+            write(fds[1], &status, 1);
+        } else
+            fprintf(stderr, "Could not acquire pid file\n");
+        exit(1);
+    }
 
 #ifdef USE_KQEMU
     if (smp_cpus > 1)
