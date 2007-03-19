@@ -114,6 +114,7 @@ void hw_error(const char *fmt, ...);
 extern const char *bios_dir;
 
 extern int vm_running;
+extern const char *qemu_name;
 
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running);

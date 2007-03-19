@@ -189,6 +189,7 @@ const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
 int autostart = 1;
+const char *qemu_name;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -6395,6 +6396,7 @@ void help(void)
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
            "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n"
 #endif
+           "-name string    set the name of the guest\n"
            "\n"
            "Network options:\n"
            "-net nic[,vlan=n][,macaddr=addr][,model=type]\n"
@@ -6553,7 +6555,8 @@ enum {
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
-    QEMU_OPTION_semihosting
+    QEMU_OPTION_semihosting,
+    QEMU_OPTION_name,
 };
 
 typedef struct QEMUOption {
@@ -6644,6 +6647,7 @@ const QEMUOption qemu_options[] = {
 #if defined(TARGET_ARM)
     { "semihosting", 0, QEMU_OPTION_semihosting },
 #endif
+    { "name", HAS_ARG, QEMU_OPTION_name },
     { NULL },
 };
 
@@ -7339,6 +7343,9 @@ int main(int argc, char **argv)
 		break;
             case QEMU_OPTION_semihosting:
                 semihosting_enabled = 1;
+                break;
+            case QEMU_OPTION_name:
+                qemu_name = optarg;
                 break;
             }
         }
