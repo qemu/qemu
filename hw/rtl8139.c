@@ -1192,7 +1192,10 @@ static void rtl8139_reset(RTL8139State *s)
     s->eeprom.contents[1] = 0x10ec;
     s->eeprom.contents[2] = 0x8139;
 #endif
-    memcpy(&s->eeprom.contents[7], s->macaddr, 6);
+
+    s->eeprom.contents[7] = s->macaddr[0] | s->macaddr[1] << 8;
+    s->eeprom.contents[8] = s->macaddr[2] | s->macaddr[3] << 8;
+    s->eeprom.contents[9] = s->macaddr[4] | s->macaddr[5] << 8;
 
     /* mark all status registers as owned by host */
     for (i = 0; i < 4; ++i)
@@ -2455,12 +2458,12 @@ static void rtl8139_TxAddr_write(RTL8139State *s, uint32_t txAddrOffset, uint32_
 {
     DEBUG_PRINT(("RTL8139: TxAddr write offset=0x%x val=0x%08x\n", txAddrOffset, val));
 
-    s->TxAddr[txAddrOffset/4] = le32_to_cpu(val);
+    s->TxAddr[txAddrOffset/4] = val;
 }
 
 static uint32_t rtl8139_TxAddr_read(RTL8139State *s, uint32_t txAddrOffset)
 {
-    uint32_t ret = cpu_to_le32(s->TxAddr[txAddrOffset/4]);
+    uint32_t ret = s->TxAddr[txAddrOffset/4];
 
     DEBUG_PRINT(("RTL8139: TxAddr read offset=0x%x val=0x%08x\n", txAddrOffset, ret));
 
