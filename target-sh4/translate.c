@@ -1087,8 +1087,9 @@ void decode_opc(DisasContext * ctx)
     ctx->flags |= BRANCH_EXCEPTION;
 }
 
-int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
-				   int search_pc)
+static inline int
+gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
+                               int search_pc)
 {
     DisasContext ctx;
     target_ulong pc_start;
