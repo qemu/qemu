@@ -4604,8 +4604,9 @@ void cpu_dump_statistics (CPUState *env, FILE*f,
 }
 
 /*****************************************************************************/
-int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
-                                    int search_pc)
+static inline int
+gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
+                                int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;

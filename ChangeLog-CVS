@@ -1,3 +1,13 @@
+2007-03-19 22:46  ths
+
+	* target-m68k/translate.c, target-mips/translate.c,
+	  target-ppc/translate.c, target-sh4/translate.c: Define
+	  gen_intermediate_code_internal as "static inline".
+
+2007-03-19 21:39  ths
+
+	* cpu-exec.c: Fix call to generated code on SPARC, by Juergen Keil.
+
 2007-03-19 20:16  ths
 
 	* target-sparc/op.c: Fix qemu crash due to sparc division-by-zero,

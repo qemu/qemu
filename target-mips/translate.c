@@ -5011,8 +5011,9 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     }
 }
 
-static int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
-					    int search_pc)
+static inline int
+gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
+                                int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
