@@ -1644,7 +1644,7 @@ int main(int argc, char **argv)
 #elif defined(TARGET_MIPS)
                 mips_cpu_list(stdout, &fprintf);
 #endif
-                exit(1);
+                _exit(1);
             }
         } else 
 #ifdef USE_CODE_COPY
@@ -1849,9 +1849,17 @@ int main(int argc, char **argv)
     }
 #elif defined(TARGET_MIPS)
     {
+        mips_def_t *def;
         int i;
 
-        /* XXX: set CPU model */
+        /* Choose and initialise CPU */
+        if (cpu_model == NULL)
+            cpu_model = "24Kf";
+        mips_find_by_name(cpu_model, &def);
+        if (def == NULL)
+            cpu_abort(env, "Unable to find MIPS CPU definition\n");
+        cpu_mips_register(env, def);
+
         for(i = 0; i < 32; i++) {
             env->gpr[i] = regs->regs[i];
         }
