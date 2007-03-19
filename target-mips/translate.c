@@ -1372,6 +1372,15 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     target_ulong btarget;
     int blink, bcond;
 
+    if (ctx->hflags & MIPS_HFLAG_BMASK) {
+        fprintf(stderr,
+                "undefined branch in delay slot at pc 0x%08x\n", ctx->pc);
+        if (loglevel & CPU_LOG_TB_IN_ASM) {
+            fprintf(logfile,
+                    "undefined branch in delay slot at pc 0x%08x\n", ctx->pc);
+        }
+    }
+
     btarget = -1;
     blink = 0;
     bcond = 0;
@@ -1481,7 +1490,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("jal %08x", btarget);
             break;
         case OPC_JR:
-            ctx->hflags |= MIPS_HFLAG_BR;
+            ctx->hflags = ((ctx->hflags & ~MIPS_HFLAG_BMASK) | MIPS_HFLAG_BR);
             MIPS_DEBUG("jr %s", regnames[rs]);
             break;
         case OPC_JALR:
