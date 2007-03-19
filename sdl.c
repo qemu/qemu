@@ -216,13 +216,18 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
 static void sdl_update_caption(void)
 {
     char buf[1024];
-    strcpy(buf, "QEMU");
-    if (!vm_running) {
-        strcat(buf, " [Stopped]");
-    }
-    if (gui_grab) {
-        strcat(buf, " - Press Ctrl-Alt to exit grab");
-    }
+    const char *status = "";
+
+    if (!vm_running)
+        status = " [Stopped]";
+    else if (gui_grab)
+        status = " - Press Ctrl-Alt to exit grab";
+
+    if (qemu_name)
+        snprintf(buf, sizeof(buf), "QEMU (%s)%s", qemu_name, status);
+    else
+        snprintf(buf, sizeof(buf), "QEMU%s", status);
+
     SDL_WM_SetCaption(buf, "QEMU");
 }
 

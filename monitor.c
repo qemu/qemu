@@ -233,6 +233,12 @@ static void do_info_version(void)
   term_printf("%s\n", QEMU_VERSION);
 }
 
+static void do_info_name(void)
+{
+    if (qemu_name)
+        term_printf("%s\n", qemu_name);
+}
+
 static void do_info_block(void)
 {
     bdrv_info();
@@ -1316,6 +1322,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show which guest mouse is receiving events" },
     { "vnc", "", do_info_vnc,
       "", "show the vnc server status"},
+    { "name", "", do_info_name,
+      "", "show the current VM name" },
 #if defined(TARGET_PPC)
     { "cpustats", "", do_info_cpu_stats,
       "", "show CPU statistics", },

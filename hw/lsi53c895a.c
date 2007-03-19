@@ -251,7 +251,7 @@ typedef struct {
     uint32_t ia;
     uint32_t sbc;
     uint32_t csbc;
-    uint32_t scratch[13]; /* SCRATCHA-SCRATCHR */
+    uint32_t scratch[18]; /* SCRATCHA-SCRATCHR */
 
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
@@ -1038,7 +1038,7 @@ again:
                 op0 |= op1;
                 break;
             case 3: /* XOR */
-                op0 |= op1;
+                op0 ^= op1;
                 break;
             case 4: /* AND */
                 op0 &= op1;
@@ -1765,7 +1765,7 @@ static void lsi_io_writel(void *opaque, uint32_t addr, uint32_t val)
     lsi_reg_writeb(s, addr, val & 0xff);
     lsi_reg_writeb(s, addr + 1, (val >> 8) & 0xff);
     lsi_reg_writeb(s, addr + 2, (val >> 16) & 0xff);
-    lsi_reg_writeb(s, addr + 2, (val >> 24) & 0xff);
+    lsi_reg_writeb(s, addr + 3, (val >> 24) & 0xff);
 }
 
 static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num, 

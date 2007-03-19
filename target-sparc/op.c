@@ -671,6 +671,11 @@ void OPPROTO op_udiv_T1_T0(void)
 
     x0 = T0 | ((uint64_t) (env->y) << 32);
     x1 = T1;
+
+    if (x1 == 0) {
+        raise_exception(TT_DIV_ZERO);
+    }
+
     x0 = x0 / x1;
     if (x0 > 0xffffffff) {
 	T0 = 0xffffffff;
@@ -689,6 +694,11 @@ void OPPROTO op_sdiv_T1_T0(void)
 
     x0 = T0 | ((int64_t) (env->y) << 32);
     x1 = T1;
+
+    if (x1 == 0) {
+        raise_exception(TT_DIV_ZERO);
+    }
+
     x0 = x0 / x1;
     if ((int32_t) x0 != x0) {
 	T0 = x0 < 0? 0x80000000: 0x7fffffff;

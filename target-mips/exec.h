@@ -7,11 +7,7 @@
 #include "mips-defs.h"
 #include "dyngen-exec.h"
 
-#if defined(__sparc__)
-struct CPUMIPSState *env;
-#else
 register struct CPUMIPSState *env asm(AREG0);
-#endif
 
 #if defined (USE_64BITS_REGS)
 typedef int64_t host_int_t;
@@ -21,11 +17,6 @@ typedef int32_t host_int_t;
 typedef uint32_t host_uint_t;
 #endif
 
-#if defined(__sparc__)
-host_uint_t T0;
-host_uint_t T1;
-host_uint_t T2;
-#else
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 #define T0 (env->t0)
 #define T1 (env->t1)
@@ -34,7 +25,6 @@ host_uint_t T2;
 register host_uint_t T0 asm(AREG1);
 register host_uint_t T1 asm(AREG2);
 register host_uint_t T2 asm(AREG3);
-#endif
 #endif
 
 #if defined (USE_HOST_FLOAT_REGS)

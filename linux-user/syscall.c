@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -864,7 +865,7 @@ static long do_getpeername(int fd, target_ulong target_addr,
                            target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(target_addrlen);
+    void *addr = alloca(addrlen);
     long ret;
 
     ret = get_errno(getpeername(fd, addr, &addrlen));
@@ -879,7 +880,7 @@ static long do_getsockname(int fd, target_ulong target_addr,
                            target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(target_addrlen);
+    void *addr = alloca(addrlen);
     long ret;
 
     ret = get_errno(getsockname(fd, addr, &addrlen));
@@ -3987,6 +3988,29 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_getdomainname
     case TARGET_NR_getdomainname:
         goto unimplemented_nowarn;
+#endif
+
+#ifdef TARGET_NR_clock_gettime
+    case TARGET_NR_clock_gettime:
+    {
+        struct timespec ts;
+        ret = get_errno(clock_gettime(arg1, &ts));
+        if (!is_error(ret)) {
+            host_to_target_timespec(arg2, &ts);
+        }
+        break;
+    }
+#endif
+#ifdef TARGET_NR_clock_getres
+    case TARGET_NR_clock_getres:
+    {
+        struct timespec ts;
+        ret = get_errno(clock_getres(arg1, &ts));
+        if (!is_error(ret)) {
+            host_to_target_timespec(arg2, &ts);
+        }
+        break;
+    }
 #endif
 
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)

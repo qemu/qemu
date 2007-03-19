@@ -159,7 +159,7 @@ if [ "$bsd" = "yes" ] ; then
   fi
 fi
 
-if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
+if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
     AIOLIBS=
 else
     AIOLIBS="-lrt"
@@ -475,11 +475,6 @@ int main(void) {
 }
 EOF
 
-have_gcc3_options="no"
-if $cc -fno-reorder-blocks -fno-optimize-sibling-calls -o $TMPO $TMPC 2> /dev/null ; then
-   have_gcc3_options="yes"
-fi
-
 ##########################################
 # SDL probe
 
@@ -654,9 +649,6 @@ echo "#define CONFIG_QEMU_SHAREDIR \"$prefix$datasuffix\"" >> $config_h
 echo "MAKE=$make" >> $config_mak
 echo "INSTALL=$install" >> $config_mak
 echo "CC=$cc" >> $config_mak
-if test "$have_gcc3_options" = "yes" ; then
-  echo "HAVE_GCC3_OPTIONS=yes" >> $config_mak
-fi
 echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
 echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak

@@ -1537,13 +1537,14 @@ void cpu_loop(CPUM68KState *env)
 void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [-h] [-g] [-d opts] [-L path] [-s size] program [arguments...]\n"
+           "usage: qemu-" TARGET_ARCH " [-h] [-g] [-d opts] [-L path] [-s size] [-cpu model] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
            "-g port      wait gdb connection to port\n"
            "-L path      set the elf interpreter prefix (default=%s)\n"
            "-s size      set the stack size in bytes (default=%ld)\n"
+           "-cpu model   select CPU (-cpu ? for list)\n"
            "\n"
            "debug options:\n"
 #ifdef USE_CODE_COPY
@@ -1567,6 +1568,7 @@ TaskState *first_task_state;
 int main(int argc, char **argv)
 {
     const char *filename;
+    const char *cpu_model;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
@@ -1581,6 +1583,7 @@ int main(int argc, char **argv)
     /* init debug */
     cpu_set_log_filename(DEBUG_LOGFILE);
 
+    cpu_model = NULL;
     optind = 1;
     for(;;) {
         if (optind >= argc)
@@ -1631,6 +1634,18 @@ int main(int argc, char **argv)
             gdbstub_port = atoi(argv[optind++]);
 	} else if (!strcmp(r, "r")) {
 	    qemu_uname_release = argv[optind++];
+        } else if (!strcmp(r, "cpu")) {
+            cpu_model = argv[optind++];
+            if (strcmp(cpu_model, "?") == 0) {
+#if defined(TARGET_PPC)
+                ppc_cpu_list(stdout, &fprintf);
+#elif defined(TARGET_ARM)
+                arm_cpu_list();
+#elif defined(TARGET_MIPS)
+                mips_cpu_list(stdout, &fprintf);
+#endif
+                _exit(1);
+            }
         } else 
 #ifdef USE_CODE_COPY
         if (!strcmp(r, "no-code-copy")) {
@@ -1756,7 +1771,9 @@ int main(int argc, char **argv)
 #elif defined(TARGET_ARM)
     {
         int i;
-        cpu_arm_set_model(env, "arm926");
+        if (cpu_model == NULL)
+            cpu_model = "arm926";
+        cpu_arm_set_model(env, cpu_model);
         cpsr_write(env, regs->uregs[16], 0xffffffff);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
@@ -1783,15 +1800,9 @@ int main(int argc, char **argv)
         int i;
 
         /* Choose and initialise CPU */
-        /* XXX: CPU model (or PVR) should be provided on command line */
-        //        ppc_find_by_name("750gx", &def);
-        //        ppc_find_by_name("750fx", &def);
-        //        ppc_find_by_name("750p", &def);
-        ppc_find_by_name("750", &def);
-        //        ppc_find_by_name("G3", &def);
-        //        ppc_find_by_name("604r", &def);
-        //        ppc_find_by_name("604e", &def);
-        //        ppc_find_by_name("604", &def);
+        if (cpu_model == NULL)
+            cpu_model = "750";
+        ppc_find_by_name(cpu_model, &def);
         if (def == NULL) {
             cpu_abort(env,
                       "Unable to find PowerPC CPU definition\n");
@@ -1838,7 +1849,16 @@ int main(int argc, char **argv)
     }
 #elif defined(TARGET_MIPS)
     {
+        mips_def_t *def;
         int i;
+
+        /* Choose and initialise CPU */
+        if (cpu_model == NULL)
+            cpu_model = "24Kf";
+        mips_find_by_name(cpu_model, &def);
+        if (def == NULL)
+            cpu_abort(env, "Unable to find MIPS CPU definition\n");
+        cpu_mips_register(env, def);
 
         for(i = 0; i < 32; i++) {
             env->gpr[i] = regs->regs[i];

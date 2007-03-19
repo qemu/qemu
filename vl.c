@@ -189,6 +189,7 @@ const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
 int autostart = 1;
+const char *qemu_name;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -3620,6 +3621,14 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
         pid = fork();
         if (pid >= 0) {
             if (pid == 0) {
+                int open_max = sysconf (_SC_OPEN_MAX), i;
+                for (i = 0; i < open_max; i++)
+                    if (i != STDIN_FILENO &&
+                        i != STDOUT_FILENO &&
+                        i != STDERR_FILENO &&
+                        i != fd)
+                        close(i);
+
                 parg = args;
                 *parg++ = (char *)setup_script;
                 *parg++ = ifname;
@@ -4386,44 +4395,24 @@ void usb_info(void)
     }
 }
 
-/***********************************************************/
-/* pid file */
-
-static char *pid_filename;
-
-/* Remove PID file. Called on normal exit */
-
-static void remove_pidfile(void) 
+static int create_pidfile(const char *filename)
 {
-    unlink (pid_filename);
-}
+    int fd;
+    char buffer[128];
+    int len;
 
-static void create_pidfile(const char *filename)
-{
-    struct stat pidstat;
-    FILE *f;
+    fd = open(filename, O_RDWR | O_CREAT, 0600);
+    if (fd == -1)
+        return -1;
 
-    /* Try to write our PID to the named file */
-    if (stat(filename, &pidstat) < 0) {
-        if (errno == ENOENT) {
-            if ((f = fopen (filename, "w")) == NULL) {
-                perror("Opening pidfile");
-                exit(1);
-            }
-            fprintf(f, "%d\n", getpid());
-            fclose(f);
-            pid_filename = qemu_strdup(filename);
-            if (!pid_filename) {
-                fprintf(stderr, "Could not save PID filename");
-                exit(1);
-            }
-            atexit(remove_pidfile);
-        }
-    } else {
-        fprintf(stderr, "%s already exists. Remove it and try again.\n", 
-                filename);
-        exit(1);
-    }
+    if (lockf(fd, F_TLOCK, 0) == -1)
+        return -1;
+
+    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    if (write(fd, buffer, len) != len)
+        return -1;
+
+    return 0;
 }
 
 /***********************************************************/
@@ -6397,6 +6386,7 @@ void help(void)
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
            "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n"
 #endif
+           "-name string    set the name of the guest\n"
            "\n"
            "Network options:\n"
            "-net nic[,vlan=n][,macaddr=addr][,model=type]\n"
@@ -6555,7 +6545,8 @@ enum {
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
-    QEMU_OPTION_semihosting
+    QEMU_OPTION_semihosting,
+    QEMU_OPTION_name,
 };
 
 typedef struct QEMUOption {
@@ -6646,6 +6637,7 @@ const QEMUOption qemu_options[] = {
 #if defined(TARGET_ARM)
     { "semihosting", 0, QEMU_OPTION_semihosting },
 #endif
+    { "name", HAS_ARG, QEMU_OPTION_name },
     { NULL },
 };
 
@@ -6916,6 +6908,7 @@ int main(int argc, char **argv)
     char usb_devices[MAX_USB_CMDLINE][128];
     int usb_devices_index;
     int fds[2];
+    const char *pid_file = NULL;
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -7328,7 +7321,7 @@ int main(int argc, char **argv)
                 break;
 #endif
             case QEMU_OPTION_pidfile:
-                create_pidfile(optarg);
+                pid_file = optarg;
                 break;
 #ifdef TARGET_I386
             case QEMU_OPTION_win2k_hack:
@@ -7387,6 +7380,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_semihosting:
                 semihosting_enabled = 1;
                 break;
+            case QEMU_OPTION_name:
+                qemu_name = optarg;
+                break;
             }
         }
     }
@@ -7411,16 +7407,19 @@ int main(int argc, char **argv)
 	    close(fds[1]);
 
 	again:
-	    len = read(fds[0], &status, 1);
-	    if (len == -1 && (errno == EINTR))
-		goto again;
-	    
-	    if (len != 1 || status != 0)
-		exit(1);
-	    else
-		exit(0);
+            len = read(fds[0], &status, 1);
+            if (len == -1 && (errno == EINTR))
+                goto again;
+
+            if (len != 1)
+                exit(1);
+            else if (status == 1) {
+                fprintf(stderr, "Could not acquire pidfile\n");
+                exit(1);
+            } else
+                exit(0);
 	} else if (pid < 0)
-	    exit(1);
+            exit(1);
 
 	setsid();
 
@@ -7438,6 +7437,15 @@ int main(int argc, char **argv)
         signal(SIGTTIN, SIG_IGN);
     }
 #endif
+
+    if (pid_file && create_pidfile(pid_file) != 0) {
+        if (daemonize) {
+            uint8_t status = 1;
+            write(fds[1], &status, 1);
+        } else
+            fprintf(stderr, "Could not acquire pid file\n");
+        exit(1);
+    }
 
 #ifdef USE_KQEMU
     if (smp_cpus > 1)

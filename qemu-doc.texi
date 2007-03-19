@@ -331,6 +331,10 @@ slows down the IDE transfers).
 Load the contents of file as an option ROM.  This option is useful to load
 things like EtherBoot.
 
+@item -name string
+Sets the name of the guest.  This name will be display in the SDL window
+caption.  The name will also be used for the VNC server.
+
 @end table
 
 USB options:

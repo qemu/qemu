@@ -88,16 +88,26 @@ endif # !CONFIG_WIN32
 endif # !CONFIG_LINUX_USER
 
 # We require -O2 to avoid the stack setup prologue in EXIT_TB
-OP_CFLAGS = -Wall -O2 -g -fno-strict-aliasing
+OP_CFLAGS := -Wall -O2 -g -fno-strict-aliasing
+
+# cc-option
+# Usage: OP_CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
+
+cc-option = $(shell if $(CC) $(OP_CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
+              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
+
+OP_CFLAGS+=$(call cc-option, -fno-reorder-blocks, "")
+OP_CFLAGS+=$(call cc-option, -fno-gcse, "")
+OP_CFLAGS+=$(call cc-option, -fno-tree-ch, "")
+OP_CFLAGS+=$(call cc-option, -fno-optimize-sibling-calls, "")
+OP_CFLAGS+=$(call cc-option, -fno-crossjumping, "")
+OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
+OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
+OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
-ifeq ($(HAVE_GCC3_OPTIONS),yes)
-OP_CFLAGS+= -falign-functions=0 -fno-gcse
-else
-OP_CFLAGS+= -malign-functions=0
-endif
 ifdef TARGET_GPROF
 USE_I386_LD=y
 endif
@@ -181,11 +191,6 @@ ifeq ($(ARCH),mips)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
-ifeq ($(HAVE_GCC3_OPTIONS),yes)
-# very important to generate a return at the end of every operation
-OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
-endif
-
 ifeq ($(CONFIG_DARWIN),yes)
 LIBS+=-lmx
 endif
@@ -221,6 +226,7 @@ endif
 ifdef CONFIG_LINUX_USER
 OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
       elfload.o linuxload.o
+LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
 OBJS+= flatload.o
 endif

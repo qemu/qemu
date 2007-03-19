@@ -1,3 +1,83 @@
+2007-03-19 20:16  ths
+
+	* target-sparc/op.c: Fix qemu crash due to sparc division-by-zero,
+	  by Aurelien Jarno.
+
+2007-03-19 19:20  ths
+
+	* hw/rtl8139.c: Fix big endian host operation, by Ben Taylor and
+	  Igor Kovalenko.
+
+2007-03-19 17:46  ths
+
+	* fpu/softfloat-native.c: trunc() for Solaris 9 / SPARC, by Juergen
+	  Keil.
+
+2007-03-19 17:36  ths
+
+	* vl.c: Close file descriptors when execing network tap setup
+	  script, by Daniel P. Berrange.
+
+2007-03-19 16:58  ths
+
+	* vl.c: Improve -pidfile option, by Anthony Liguori.
+
+2007-03-19 16:17  ths
+
+	* monitor.c, qemu-doc.texi, sdl.c, vl.c, vl.h, vnc.c: Add -name
+	  option, by Anthony Liguori.
+
+2007-03-19 15:49  ths
+
+	* hw/lsi53c895a.c: SCSI fixes, by Wang Cheng Yeh.
+
+2007-03-19 15:47  ths
+
+	* target-arm/exec.h, target-mips/exec.h, target-sparc/exec.h: SPARC
+	  host fixes, by Ben Taylor.
+
+2007-03-19 14:43  ths
+
+	* darwin-user/: syscall.c, syscalls.h: Handling more darwin-user
+	  syscalls, by Ilya Shar.
+
+2007-03-19 14:32  ths
+
+	* Makefile.target, linux-user/syscall.c: Linux usermode
+	  clock_gettime/clock_getres emulation, by Kirill A. Shutemov.
+
+2007-03-19 14:09  ths
+
+	* linux-user/syscall.c: Add missing header includes.
+
+2007-03-19 14:05  ths
+
+	* linux-user/syscall.c: Fix allocation sizes in
+	  getpeername/getsockname, spotted by Kirill A. Shutemov.
+
+2007-03-19 13:22  ths
+
+	* configure: Solaris needs -lrt, spotted by Ben Taylor.
+
+2007-03-19 13:16  ths
+
+	* linux-user/main.c: Support -cpu selection for mips usermode
+	  emulation. Fix segfault when dispaying the -cpu list help.
+
+2007-03-19 09:08  j_mayer
+
+	* linux-user/main.c: Add -cpu option for linux user emulation.
+	  Only usable for PowerPC and ARM for now.
+
+2007-03-19 00:23  ths
+
+	* Makefile.target, configure: Disable compiler options dangerous
+	  for op compilation.
+
+2007-03-18 23:18  ths
+
+	* hw/: gt64xxx.c, mips_malta.c: A VGA card for the Malta board.
+
 2007-03-18 13:43  ths
 
 	* hw/mips_int.c, hw/mips_timer.c, target-mips/helper.c,

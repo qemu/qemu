@@ -760,7 +760,11 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     network_init(pci_bus);
 
     /* Select 1st serial console as default (because we don't have VGA). */
-    console_select(2);
+    //~ console_select(2);
+
+    /* Optional PCI video card */
+    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size,
+                        ram_size, vga_ram_size);
 }
 
 QEMUMachine mips_malta_machine = {

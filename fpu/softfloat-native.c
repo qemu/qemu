@@ -221,6 +221,12 @@ float128 float64_to_float128( float64 a STATUS_PARAM)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
+#if ( defined(__sun__) && ( HOST_SOLARIS < 10 ))
+static inline float64 trunc(float64 x)
+{
+    return x < 0 ? -floor(-x) : floor(x);
+}
+#endif
 float64 float64_trunc_to_int( float64 a STATUS_PARAM )
 {
     return trunc(a);
