@@ -45,8 +45,9 @@
 
 #define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
+static int traceflag;
 #define DPRINTF(fmt, args...)                      \
-    fprintf(stderr, "PFLASH\t%-24s" fmt, __func__, ##args)
+    (traceflag ? fprintf(stderr, "PFLASH\t%-24s" fmt, __func__, ##args) : (void)0)
 #else
 #define DPRINTF(fmt, args...) ((void)0)
 #endif
@@ -541,6 +542,13 @@ pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
 {
     pflash_t *pfl;
     target_long total_len;
+
+#ifdef PFLASH_DEBUG
+    if (getenv("DEBUG_FLASH")) {
+        traceflag = strtoul(getenv("DEBUG_FLASH"), 0, 0);
+    }
+    DPRINTF("Logging enabled for FLASH\n");
+#endif
 
     /* Currently, only one flash chip is supported. */
     assert(id0 == MANUFACTURER_INTEL);
