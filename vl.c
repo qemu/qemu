@@ -3621,6 +3621,14 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
         pid = fork();
         if (pid >= 0) {
             if (pid == 0) {
+                int open_max = sysconf (_SC_OPEN_MAX), i;
+                for (i = 0; i < open_max; i++)
+                    if (i != STDIN_FILENO &&
+                        i != STDOUT_FILENO &&
+                        i != STDERR_FILENO &&
+                        i != fd)
+                        close(i);
+
                 parg = args;
                 *parg++ = (char *)setup_script;
                 *parg++ = ifname;
