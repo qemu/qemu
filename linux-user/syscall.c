@@ -863,7 +863,7 @@ static long do_getpeername(int fd, target_ulong target_addr,
                            target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(target_addrlen);
+    void *addr = alloca(addrlen);
     long ret;
 
     ret = get_errno(getpeername(fd, addr, &addrlen));
@@ -878,7 +878,7 @@ static long do_getsockname(int fd, target_ulong target_addr,
                            target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(target_addrlen);
+    void *addr = alloca(addrlen);
     long ret;
 
     ret = get_errno(getsockname(fd, addr, &addrlen));
