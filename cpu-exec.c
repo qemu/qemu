@@ -648,6 +648,7 @@ int cpu_exec(CPUState *env1)
                                      : /* no outputs */
                                      : "r" (gen_func) 
                                      : "i0", "i1", "i2", "i3", "i4", "i5",
+                                       "o0", "o1", "o2", "o3", "o4", "o5",
                                        "l0", "l1", "l2", "l3", "l4", "l5",
                                        "l6", "l7");
 #elif defined(__arm__)
