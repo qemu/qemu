@@ -159,7 +159,7 @@ if [ "$bsd" = "yes" ] ; then
   fi
 fi
 
-if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
+if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
     AIOLIBS=
 else
     AIOLIBS="-lrt"
