@@ -42,7 +42,7 @@
  ENTRY("getppid",                  SYS_getppid,                        getppid,                           0, CALL_DIRECT, VOID)   /* 39  */
  ENTRY("",                         40,                                 no_syscall,                        0, CALL_INDIRECT, VOID) /* 40  old lstat */
  ENTRY("dup",                      SYS_dup,                            dup,                               1, CALL_DIRECT, INT)   /* 41  */
- ENTRY("pipe",                     SYS_pipe,                           unimpl_unix_syscall,               0, CALL_INDIRECT, PTR)   /* 42  */
+ ENTRY("pipe",                     SYS_pipe,                           pipe,               0, CALL_INDIRECT, PTR)   /* 42  */
  ENTRY("getegid",                  SYS_getegid,                        getegid,                           0, CALL_NOERRNO, VOID)  /* 43  */
  ENTRY("profil",                   SYS_profil,                         profil,                            4, CALL_DIRECT, PTR, SIZE, INT, INT)   /* 44  */
  ENTRY("ktrace",                   SYS_ktrace,                         no_syscall,                        4, CALL_INDIRECT, VOID) /* 45  */
@@ -247,7 +247,7 @@
  ENTRY("fsetxattr",                SYS_fsetxattr,                      no_syscall,                        6, CALL_INDIRECT, VOID)   /* 237  */
  ENTRY("removexattr",              SYS_removexattr,                    no_syscall,                        3, CALL_INDIRECT, VOID)   /* 238  */
  ENTRY("fremovexattr",             SYS_fremovexattr,                   no_syscall,                        3, CALL_INDIRECT, VOID)   /* 239  */
- ENTRY("listxattr",                SYS_listxattr,                      no_syscall,                        4, CALL_INDIRECT, VOID)   /* 240  */
+ ENTRY("listxattr",                SYS_listxattr,                      listxattr,                         4, CALL_INDIRECT, VOID)   /* 240  */
  ENTRY("flistxattr",               SYS_flistxattr,                     no_syscall,                        4, CALL_INDIRECT, VOID)   /* 241  */
  ENTRY("fsctl",                    SYS_fsctl,                          fsctl,                             4, CALL_DIRECT, PTR, UINT, PTR, UINT)   /* 242  */
  ENTRY("initgroups",               SYS_initgroups,                     unimpl_unix_syscall,               3, CALL_INDIRECT, UINT, PTR, INT)   /* 243  */
