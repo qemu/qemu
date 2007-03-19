@@ -1752,12 +1752,7 @@ typedef struct {
 static uint32_t phy_read(unsigned index)
 {
     uint32_t val = reg_read(av.mdio, (index == 0) ? MDIO_USERACCESS0 : MDIO_USERACCESS1);
-    unsigned regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
-    unsigned phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
-    TRACE(MDIO,
-          logout
-          ("mdio[USERACCESS%u] = 0x%08x, reg = %u, phy = %u\n",
-           index, val, regaddr, phyaddr));
+    TRACE(MDIO, logout("mdio[USERACCESS%u] = 0x%08x\n", index, val));
     return val;
 }
 
@@ -1798,6 +1793,8 @@ static void phy_write(unsigned index, uint32_t val)
                     av.phy[1] = 0x782d;
                     av.phy[5] = av.phy[4] | PHY_ISOLATE | PHY_RESET;
                     reg_write(av.mdio, MDIO_LINK, 0x80000000);
+                } else if (regaddr == PHY_STATUS_REG) {
+                    val |= PHY_LINKED | NWAY_CAPABLE | NWAY_COMPLETE;
                 }
             }
         }
@@ -3435,6 +3432,19 @@ static void mips_ar7_common_init (int ram_size,
         unsigned long ul = strtoul(env, 0, 0);
         memcpy(&traceflags, &ul, sizeof(traceflags));
     }
+  TRACE(CLOCK, logout("Logging enabled for CLOCK\n"));
+  TRACE(CONFIG, logout("Logging enabled for CONFIG\n"));
+  TRACE(CPMAC, logout("Logging enabled for CPMAC\n"));
+  TRACE(EMIF, logout("Logging enabled for EMIF\n"));
+  TRACE(GPIO, logout("Logging enabled for GPIO\n"));
+  TRACE(INTC, logout("Logging enabled for INTC\n"));
+  TRACE(MDIO, logout("Logging enabled for MDIO\n"));
+  TRACE(RESET, logout("Logging enabled for RESET\n"));
+  TRACE(UART, logout("Logging enabled for UART\n"));
+  TRACE(VLYNQ, logout("Logging enabled for VLYNQ\n"));
+  TRACE(WDOG, logout("Logging enabled for WDOG\n"));
+  TRACE(OTHER, logout("Logging enabled for OTHER\n"));
+  TRACE(RXTX, logout("Logging enabled for RXTX\n"));
 #endif
 }
 
@@ -3565,3 +3575,18 @@ int qemu_register_ar7_machines(void)
 }
 
 /* eof */
+
+/*
+AR7     phy_read                mdio[USERACCESS0] = 0x000001e1, reg = 0, phy = 0
+AR7     phy_write               mdio[USERACCESS0] = 0x803f0000, write = 0, reg = 1, phy = 31
+AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
+AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
+AR7     phy_write               mdio[USERACCESS0] = 0x803f0000, write = 0, reg = 1, phy = 31
+AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
+AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
+AR7     phy_write               mdio[USERACCESS0] = 0x80bf0000, write = 0, reg = 5, phy = 31
+AR7     phy_read                mdio[USERACCESS0] = 0x00000001, reg = 0, phy = 0
+AR7     phy_read                mdio[USERACCESS0] = 0x00000001, reg = 0, phy = 0
+AR7     phy_write               mdio[USERACCESS0] = 0x809f0000, write = 0, reg = 4, phy = 31
+AR7     phy_read                mdio[USERACCESS0] = 0x000001e1, reg = 0, phy = 0
+*/
