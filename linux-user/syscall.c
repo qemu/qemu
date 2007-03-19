@@ -28,6 +28,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/stat.h>
