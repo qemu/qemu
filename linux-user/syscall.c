@@ -3872,15 +3872,27 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #if TARGET_LONG_BITS == 32
     case TARGET_NR_fcntl64:
     {
+	int cmd;
 	struct flock64 fl;
 	struct target_flock64 *target_fl;
 #ifdef TARGET_ARM
 	struct target_eabi_flock64 *target_efl;
 #endif
 
+        switch(arg2){
+        case TARGET_F_GETLK64:
+            cmd = F_GETLK64;
+        case TARGET_F_SETLK64:
+            cmd = F_SETLK64;
+        case TARGET_F_SETLKW64:
+            cmd = F_SETLK64;
+        default:
+            cmd = arg2;
+        }
+
         switch(arg2) {
-        case F_GETLK64:
-            ret = get_errno(fcntl(arg1, arg2, &fl));
+        case TARGET_F_GETLK64:
+            ret = get_errno(fcntl(arg1, cmd, &fl));
 	    if (ret == 0) {
 #ifdef TARGET_ARM
                 if (((CPUARMState *)cpu_env)->eabi) {
@@ -3905,8 +3917,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	    }
 	    break;
 
-        case F_SETLK64:
-        case F_SETLKW64:
+        case TARGET_F_SETLK64:
+        case TARGET_F_SETLKW64:
 #ifdef TARGET_ARM
             if (((CPUARMState *)cpu_env)->eabi) {
                 lock_user_struct(target_efl, arg3, 1);
@@ -3927,10 +3939,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 fl.l_pid = tswapl(target_fl->l_pid);
                 unlock_user_struct(target_fl, arg3, 0);
             }
-            ret = get_errno(fcntl(arg1, arg2, &fl));
+            ret = get_errno(fcntl(arg1, cmd, &fl));
 	    break;
         default:
-            ret = get_errno(do_fcntl(arg1, arg2, arg3));
+            ret = get_errno(do_fcntl(arg1, cmd, arg3));
             break;
         }
 	break;
