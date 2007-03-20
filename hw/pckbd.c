@@ -372,6 +372,9 @@ void i8042_init(int kbd_irq_lvl, int mouse_irq_lvl, uint32_t io_base)
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
+#ifdef TARGET_I386
+    vmmouse_init(s->mouse);
+#endif
     qemu_register_reset(kbd_reset, s);
 }
 
