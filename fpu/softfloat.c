@@ -1164,7 +1164,7 @@ float32 int64_to_float32( int64 a STATUS_PARAM )
 
 }
 
-float64 uint64_to_float32( uint64 a STATUS_PARAM )
+float32 uint64_to_float32( uint64 a STATUS_PARAM )
 {
     int8 shiftCount;
 
