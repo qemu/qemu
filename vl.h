@@ -1031,6 +1031,8 @@ void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque);
 
 void pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
 
+/* vmmouse.c */
+void *vmmouse_init(void *m);
 
 /* pckbd.c */
 
@@ -1364,6 +1366,7 @@ void ps2_write_keyboard(void *, int val);
 uint32_t ps2_read_data(void *);
 void ps2_queue(void *, int b);
 void ps2_keyboard_set_translation(void *opaque, int mode);
+void ps2_mouse_fake_event(void *opaque);
 
 /* smc91c111.c */
 void smc91c111_init(NICInfo *, uint32_t, void *, int);

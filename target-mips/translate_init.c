@@ -50,12 +50,6 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1,
     },
     {
-        .name = "4KEcR2",
-        .CP0_PRid = 0x00019048,
-        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
-        .CP0_Config1 = MIPS_CONFIG1,
-    },
-    {
         .name = "24Kf",
         .CP0_PRid = 0x00019300,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),

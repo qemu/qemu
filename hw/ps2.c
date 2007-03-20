@@ -330,6 +330,11 @@ static void ps2_mouse_event(void *opaque,
     }
 }
 
+void ps2_mouse_fake_event(void *opaque)
+{
+    ps2_mouse_event(opaque, 1, 0, 0, 0);
+}
+
 void ps2_write_mouse(void *opaque, int val)
 {
     PS2MouseState *s = (PS2MouseState *)opaque;

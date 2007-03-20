@@ -1,3 +1,22 @@
+2007-03-20 17:54  ths
+
+	* hw/slavio_timer.c: SlavIO Counter-Timers fix, by Aurelien Jarno.
+
+2007-03-20 17:52  ths
+
+	* hw/slavio_intctl.c: SlavIO interrupt controller fix, by Aurelien
+	  Jarno.
+
+2007-03-20 17:45  ths
+
+	* Makefile.target, vl.h, hw/pckbd.c, hw/ps2.c, hw/vmmouse.c:
+	  VMMouse Emulation, by Anthony Liguori.
+
+2007-03-19 23:15  ths
+
+	* target-mips/translate.c: Barf on branches/jumps in branch delay
+	  slots. Spotted by Stefan Weil.
+
 2007-03-19 22:46  ths
 
 	* target-m68k/translate.c, target-mips/translate.c,

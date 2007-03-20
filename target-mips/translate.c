@@ -1369,21 +1369,20 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                                 int rs, int rt, int32_t offset)
 {
-    target_ulong btarget;
-    int blink, bcond;
+    target_ulong btarget = -1;
+    int blink = 0;
+    int bcond = 0;
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
-        fprintf(stderr,
-                "undefined branch in delay slot at pc 0x%08x\n", ctx->pc);
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile,
                     "undefined branch in delay slot at pc 0x%08x\n", ctx->pc);
         }
+        //~ MIPS_INVAL("branch/jump in bdelay slot");
+        //~ generate_exception(ctx, EXCP_RI);
+        return;
     }
 
-    btarget = -1;
-    blink = 0;
-    bcond = 0;
     /* Load needed operands */
     switch (opc) {
     case OPC_BEQ:
