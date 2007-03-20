@@ -734,10 +734,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     pit = pit_init(0x40, 0);
     DMA_init(0);
 
-    pci_cirrus_vga_init(pci_bus, 
-                        ds, phys_ram_base + ram_size, ram_size, 
-                        vga_ram_size);
-
     /* Super I/O */
     kbd_init();
     rtc_state = rtc_init(0x70, 8);
