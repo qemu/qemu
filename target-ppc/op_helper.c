@@ -19,12 +19,17 @@
  */
 #include "exec.h"
 
+#include "op_helper.h"
+
 #define MEMSUFFIX _raw
+#include "op_helper.h"
 #include "op_helper_mem.h"
 #if !defined(CONFIG_USER_ONLY)
 #define MEMSUFFIX _user
+#include "op_helper.h"
 #include "op_helper_mem.h"
 #define MEMSUFFIX _kernel
+#include "op_helper.h"
 #include "op_helper_mem.h"
 #endif
 
@@ -229,7 +234,7 @@ void do_mul64 (uint64_t *plow, uint64_t *phigh)
     mul64(plow, phigh, T0, T1);
 }
 
-static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
+static void imul64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
 {
     int sa, sb;
     sa = (a < 0);
@@ -1118,6 +1123,868 @@ void do_440_dlmzb (void)
  done:
     T0 = i;
 }
+
+#if defined(TARGET_PPCSPE)
+/* SPE extension helpers */
+/* Use a table to make this quicker */
+static uint8_t hbrev[16] = {
+    0x0, 0x8, 0x4, 0xC, 0x2, 0xA, 0x6, 0xE,
+    0x1, 0x9, 0x5, 0xD, 0x3, 0xB, 0x7, 0xF,
+};
+
+static inline uint8_t byte_reverse (uint8_t val)
+{
+    return hbrev[val >> 4] | (hbrev[val & 0xF] << 4);
+}
+
+static inline uint32_t word_reverse (uint32_t val)
+{
+    return byte_reverse(val >> 24) | (byte_reverse(val >> 16) << 8) |
+        (byte_reverse(val >> 8) << 16) | (byte_reverse(val) << 24);
+}
+
+#define MASKBITS 16 // Random value - to be fixed
+void do_brinc (void)
+{
+    uint32_t a, b, d, mask;
+
+    mask = (uint32_t)(-1UL) >> MASKBITS;
+    b = T1_64 & mask;
+    a = T0_64 & mask;
+    d = word_reverse(1 + word_reverse(a | ~mask));
+    T0_64 = (T0_64 & ~mask) | (d & mask);
+}
+
+#define DO_SPE_OP2(name)                                                      \
+void do_ev##name (void)                                                       \
+{                                                                             \
+    T0_64 = ((uint64_t)_do_e##name(T0_64 >> 32, T1_64 >> 32) << 32) |         \
+        (uint64_t)_do_e##name(T0_64, T1_64);                                  \
+}
+
+#define DO_SPE_OP1(name)                                                      \
+void do_ev##name (void)                                                       \
+{                                                                             \
+    T0_64 = ((uint64_t)_do_e##name(T0_64 >> 32) << 32) |                      \
+        (uint64_t)_do_e##name(T0_64);                                         \
+}
+
+/* Fixed-point vector arithmetic */
+static inline uint32_t _do_eabs (uint32_t val)
+{
+    if (val != 0x80000000)
+        val &= ~0x80000000;
+
+    return val;
+}
+
+static inline uint32_t _do_eaddw (uint32_t op1, uint32_t op2)
+{
+    return op1 + op2;
+}
+
+static inline int _do_ecntlsw (uint32_t val)
+{
+    if (val & 0x80000000)
+        return _do_cntlzw(~val);
+    else
+        return _do_cntlzw(val);
+}
+
+static inline int _do_ecntlzw (uint32_t val)
+{
+    return _do_cntlzw(val);
+}
+
+static inline uint32_t _do_eneg (uint32_t val)
+{
+    if (val != 0x80000000)
+        val ^= 0x80000000;
+
+    return val;
+}
+
+static inline uint32_t _do_erlw (uint32_t op1, uint32_t op2)
+{
+    return rotl32(op1, op2);
+}
+
+static inline uint32_t _do_erndw (uint32_t val)
+{
+    return (val + 0x000080000000) & 0xFFFF0000;
+}
+
+static inline uint32_t _do_eslw (uint32_t op1, uint32_t op2)
+{
+    /* No error here: 6 bits are used */
+    return op1 << (op2 & 0x3F);
+}
+
+static inline int32_t _do_esrws (int32_t op1, uint32_t op2)
+{
+    /* No error here: 6 bits are used */
+    return op1 >> (op2 & 0x3F);
+}
+
+static inline uint32_t _do_esrwu (uint32_t op1, uint32_t op2)
+{
+    /* No error here: 6 bits are used */
+    return op1 >> (op2 & 0x3F);
+}
+
+static inline uint32_t _do_esubfw (uint32_t op1, uint32_t op2)
+{
+    return op2 - op1;
+}
+
+/* evabs */
+DO_SPE_OP1(abs);
+/* evaddw */
+DO_SPE_OP2(addw);
+/* evcntlsw */
+DO_SPE_OP1(cntlsw);
+/* evcntlzw */
+DO_SPE_OP1(cntlzw);
+/* evneg */
+DO_SPE_OP1(neg);
+/* evrlw */
+DO_SPE_OP2(rlw);
+/* evrnd */
+DO_SPE_OP1(rndw);
+/* evslw */
+DO_SPE_OP2(slw);
+/* evsrws */
+DO_SPE_OP2(srws);
+/* evsrwu */
+DO_SPE_OP2(srwu);
+/* evsubfw */
+DO_SPE_OP2(subfw);
+
+/* evsel is a little bit more complicated... */
+static inline uint32_t _do_esel (uint32_t op1, uint32_t op2, int n)
+{
+    if (n)
+        return op1;
+    else
+        return op2;
+}
+
+void do_evsel (void)
+{
+    T0_64 = ((uint64_t)_do_esel(T0_64 >> 32, T1_64 >> 32, T0 >> 3) << 32) |
+        (uint64_t)_do_esel(T0_64, T1_64, (T0 >> 2) & 1);
+}
+
+/* Fixed-point vector comparisons */
+#define DO_SPE_CMP(name)                                                      \
+void do_ev##name (void)                                                       \
+{                                                                             \
+    T0 = _do_evcmp_merge((uint64_t)_do_e##name(T0_64 >> 32,                   \
+                                               T1_64 >> 32) << 32,            \
+                         _do_e##name(T0_64, T1_64));                          \
+}
+
+static inline uint32_t _do_evcmp_merge (int t0, int t1)
+{
+    return (t0 << 3) | (t1 << 2) | ((t0 | t1) << 1) | (t0 & t1);
+}
+static inline int _do_ecmpeq (uint32_t op1, uint32_t op2)
+{
+    return op1 == op2 ? 1 : 0;
+}
+
+static inline int _do_ecmpgts (int32_t op1, int32_t op2)
+{
+    return op1 > op2 ? 1 : 0;
+}
+
+static inline int _do_ecmpgtu (uint32_t op1, uint32_t op2)
+{
+    return op1 > op2 ? 1 : 0;
+}
+
+static inline int _do_ecmplts (int32_t op1, int32_t op2)
+{
+    return op1 < op2 ? 1 : 0;
+}
+
+static inline int _do_ecmpltu (uint32_t op1, uint32_t op2)
+{
+    return op1 < op2 ? 1 : 0;
+}
+
+/* evcmpeq */
+DO_SPE_CMP(cmpeq);
+/* evcmpgts */
+DO_SPE_CMP(cmpgts);
+/* evcmpgtu */
+DO_SPE_CMP(cmpgtu);
+/* evcmplts */
+DO_SPE_CMP(cmplts);
+/* evcmpltu */
+DO_SPE_CMP(cmpltu);
+
+/* Single precision floating-point conversions from/to integer */
+static inline uint32_t _do_efscfsi (int32_t val)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u;
+
+    u.f = int32_to_float32(val, &env->spe_status);
+
+    return u.u;
+}
+
+static inline uint32_t _do_efscfui (uint32_t val)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u;
+
+    u.f = uint32_to_float32(val, &env->spe_status);
+
+    return u.u;
+}
+
+static inline int32_t _do_efsctsi (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float32_to_int32(u.f, &env->spe_status);
+}
+
+static inline uint32_t _do_efsctui (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float32_to_uint32(u.f, &env->spe_status);
+}
+
+static inline int32_t _do_efsctsiz (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float32_to_int32_round_to_zero(u.f, &env->spe_status);
+}
+
+static inline uint32_t _do_efsctuiz (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float32_to_uint32_round_to_zero(u.f, &env->spe_status);
+}
+
+void do_efscfsi (void)
+{
+    T0_64 = _do_efscfsi(T0_64);
+}
+
+void do_efscfui (void)
+{
+    T0_64 = _do_efscfui(T0_64);
+}
+
+void do_efsctsi (void)
+{
+    T0_64 = _do_efsctsi(T0_64);
+}
+
+void do_efsctui (void)
+{
+    T0_64 = _do_efsctui(T0_64);
+}
+
+void do_efsctsiz (void)
+{
+    T0_64 = _do_efsctsiz(T0_64);
+}
+
+void do_efsctuiz (void)
+{
+    T0_64 = _do_efsctuiz(T0_64);
+}
+
+/* Single precision floating-point conversion to/from fractional */
+static inline uint32_t _do_efscfsf (uint32_t val)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u;
+    float32 tmp;
+
+    u.f = int32_to_float32(val, &env->spe_status);
+    tmp = int64_to_float32(1ULL << 32, &env->spe_status);
+    u.f = float32_div(u.f, tmp, &env->spe_status);
+
+    return u.u;
+}
+
+static inline uint32_t _do_efscfuf (uint32_t val)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u;
+    float32 tmp;
+
+    u.f = uint32_to_float32(val, &env->spe_status);
+    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
+    u.f = float32_div(u.f, tmp, &env->spe_status);
+
+    return u.u;
+}
+
+static inline int32_t _do_efsctsf (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+    float32 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
+    u.f = float32_mul(u.f, tmp, &env->spe_status);
+
+    return float32_to_int32(u.f, &env->spe_status);
+}
+
+static inline uint32_t _do_efsctuf (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+    float32 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
+    u.f = float32_mul(u.f, tmp, &env->spe_status);
+
+    return float32_to_uint32(u.f, &env->spe_status);
+}
+
+static inline int32_t _do_efsctsfz (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+    float32 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
+    u.f = float32_mul(u.f, tmp, &env->spe_status);
+
+    return float32_to_int32_round_to_zero(u.f, &env->spe_status);
+}
+
+static inline uint32_t _do_efsctufz (uint32_t val)
+{
+    union {
+        int32_t u;
+        float32 f;
+    } u;
+    float32 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
+    u.f = float32_mul(u.f, tmp, &env->spe_status);
+
+    return float32_to_uint32_round_to_zero(u.f, &env->spe_status);
+}
+
+void do_efscfsf (void)
+{
+    T0_64 = _do_efscfsf(T0_64);
+}
+
+void do_efscfuf (void)
+{
+    T0_64 = _do_efscfuf(T0_64);
+}
+
+void do_efsctsf (void)
+{
+    T0_64 = _do_efsctsf(T0_64);
+}
+
+void do_efsctuf (void)
+{
+    T0_64 = _do_efsctuf(T0_64);
+}
+
+void do_efsctsfz (void)
+{
+    T0_64 = _do_efsctsfz(T0_64);
+}
+
+void do_efsctufz (void)
+{
+    T0_64 = _do_efsctufz(T0_64);
+}
+
+/* Double precision floating point helpers */
+static inline int _do_efdcmplt (uint64_t op1, uint64_t op2)
+{
+    /* XXX: TODO: test special values (NaN, infinites, ...) */
+    return _do_efdtstlt(op1, op2);
+}
+
+static inline int _do_efdcmpgt (uint64_t op1, uint64_t op2)
+{
+    /* XXX: TODO: test special values (NaN, infinites, ...) */
+    return _do_efdtstgt(op1, op2);
+}
+
+static inline int _do_efdcmpeq (uint64_t op1, uint64_t op2)
+{
+    /* XXX: TODO: test special values (NaN, infinites, ...) */
+    return _do_efdtsteq(op1, op2);
+}
+
+void do_efdcmplt (void)
+{
+    T0 = _do_efdcmplt(T0_64, T1_64);
+}
+
+void do_efdcmpgt (void)
+{
+    T0 = _do_efdcmpgt(T0_64, T1_64);
+}
+
+void do_efdcmpeq (void)
+{
+    T0 = _do_efdcmpeq(T0_64, T1_64);
+}
+
+/* Double precision floating-point conversion to/from integer */
+static inline uint64_t _do_efdcfsi (int64_t val)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u;
+
+    u.f = int64_to_float64(val, &env->spe_status);
+
+    return u.u;
+}
+
+static inline uint64_t _do_efdcfui (uint64_t val)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u;
+
+    u.f = uint64_to_float64(val, &env->spe_status);
+
+    return u.u;
+}
+
+static inline int64_t _do_efdctsi (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float64_to_int64(u.f, &env->spe_status);
+}
+
+static inline uint64_t _do_efdctui (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float64_to_uint64(u.f, &env->spe_status);
+}
+
+static inline int64_t _do_efdctsiz (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float64_to_int64_round_to_zero(u.f, &env->spe_status);
+}
+
+static inline uint64_t _do_efdctuiz (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+
+    return float64_to_uint64_round_to_zero(u.f, &env->spe_status);
+}
+
+void do_efdcfsi (void)
+{
+    T0_64 = _do_efdcfsi(T0_64);
+}
+
+void do_efdcfui (void)
+{
+    T0_64 = _do_efdcfui(T0_64);
+}
+
+void do_efdctsi (void)
+{
+    T0_64 = _do_efdctsi(T0_64);
+}
+
+void do_efdctui (void)
+{
+    T0_64 = _do_efdctui(T0_64);
+}
+
+void do_efdctsiz (void)
+{
+    T0_64 = _do_efdctsiz(T0_64);
+}
+
+void do_efdctuiz (void)
+{
+    T0_64 = _do_efdctuiz(T0_64);
+}
+
+/* Double precision floating-point conversion to/from fractional */
+static inline uint64_t _do_efdcfsf (int64_t val)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u;
+    float64 tmp;
+
+    u.f = int32_to_float64(val, &env->spe_status);
+    tmp = int64_to_float64(1ULL << 32, &env->spe_status);
+    u.f = float64_div(u.f, tmp, &env->spe_status);
+
+    return u.u;
+}
+
+static inline uint64_t _do_efdcfuf (uint64_t val)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u;
+    float64 tmp;
+
+    u.f = uint32_to_float64(val, &env->spe_status);
+    tmp = int64_to_float64(1ULL << 32, &env->spe_status);
+    u.f = float64_div(u.f, tmp, &env->spe_status);
+
+    return u.u;
+}
+
+static inline int64_t _do_efdctsf (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+    float64 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
+    u.f = float64_mul(u.f, tmp, &env->spe_status);
+
+    return float64_to_int32(u.f, &env->spe_status);
+}
+
+static inline uint64_t _do_efdctuf (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+    float64 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
+    u.f = float64_mul(u.f, tmp, &env->spe_status);
+
+    return float64_to_uint32(u.f, &env->spe_status);
+}
+
+static inline int64_t _do_efdctsfz (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+    float64 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
+    u.f = float64_mul(u.f, tmp, &env->spe_status);
+
+    return float64_to_int32_round_to_zero(u.f, &env->spe_status);
+}
+
+static inline uint64_t _do_efdctufz (uint64_t val)
+{
+    union {
+        int64_t u;
+        float64 f;
+    } u;
+    float64 tmp;
+
+    u.u = val;
+    /* NaN are not treated the same way IEEE 754 does */
+    if (unlikely(isnan(u.f)))
+        return 0;
+    tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
+    u.f = float64_mul(u.f, tmp, &env->spe_status);
+
+    return float64_to_uint32_round_to_zero(u.f, &env->spe_status);
+}
+
+void do_efdcfsf (void)
+{
+    T0_64 = _do_efdcfsf(T0_64);
+}
+
+void do_efdcfuf (void)
+{
+    T0_64 = _do_efdcfuf(T0_64);
+}
+
+void do_efdctsf (void)
+{
+    T0_64 = _do_efdctsf(T0_64);
+}
+
+void do_efdctuf (void)
+{
+    T0_64 = _do_efdctuf(T0_64);
+}
+
+void do_efdctsfz (void)
+{
+    T0_64 = _do_efdctsfz(T0_64);
+}
+
+void do_efdctufz (void)
+{
+    T0_64 = _do_efdctufz(T0_64);
+}
+
+/* Floating point conversion between single and double precision */
+static inline uint32_t _do_efscfd (uint64_t val)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1;
+    union {
+        uint32_t u;
+        float32 f;
+    } u2;
+
+    u1.u = val;
+    u2.f = float64_to_float32(u1.f, &env->spe_status);
+
+    return u2.u;
+}
+
+static inline uint64_t _do_efdcfs (uint32_t val)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u2;
+    union {
+        uint32_t u;
+        float32 f;
+    } u1;
+
+    u1.u = val;
+    u2.f = float32_to_float64(u1.f, &env->spe_status);
+
+    return u2.u;
+}
+
+void do_efscfd (void)
+{
+    T0_64 = _do_efscfd(T0_64);
+}
+
+void do_efdcfs (void)
+{
+    T0_64 = _do_efdcfs(T0_64);
+}
+
+/* Single precision fixed-point vector arithmetic */
+/* evfsabs */
+DO_SPE_OP1(fsabs);
+/* evfsnabs */
+DO_SPE_OP1(fsnabs);
+/* evfsneg */
+DO_SPE_OP1(fsneg);
+/* evfsadd */
+DO_SPE_OP2(fsadd);
+/* evfssub */
+DO_SPE_OP2(fssub);
+/* evfsmul */
+DO_SPE_OP2(fsmul);
+/* evfsdiv */
+DO_SPE_OP2(fsdiv);
+
+/* Single-precision floating-point comparisons */
+static inline int _do_efscmplt (uint32_t op1, uint32_t op2)
+{
+    /* XXX: TODO: test special values (NaN, infinites, ...) */
+    return _do_efststlt(op1, op2);
+}
+
+static inline int _do_efscmpgt (uint32_t op1, uint32_t op2)
+{
+    /* XXX: TODO: test special values (NaN, infinites, ...) */
+    return _do_efststgt(op1, op2);
+}
+
+static inline int _do_efscmpeq (uint32_t op1, uint32_t op2)
+{
+    /* XXX: TODO: test special values (NaN, infinites, ...) */
+    return _do_efststeq(op1, op2);
+}
+
+void do_efscmplt (void)
+{
+    T0 = _do_efscmplt(T0_64, T1_64);
+}
+
+void do_efscmpgt (void)
+{
+    T0 = _do_efscmpgt(T0_64, T1_64);
+}
+
+void do_efscmpeq (void)
+{
+    T0 = _do_efscmpeq(T0_64, T1_64);
+}
+
+/* Single-precision floating-point vector comparisons */
+/* evfscmplt */
+DO_SPE_CMP(fscmplt);
+/* evfscmpgt */
+DO_SPE_CMP(fscmpgt);
+/* evfscmpeq */
+DO_SPE_CMP(fscmpeq);
+/* evfststlt */
+DO_SPE_CMP(fststlt);
+/* evfststgt */
+DO_SPE_CMP(fststgt);
+/* evfststeq */
+DO_SPE_CMP(fststeq);
+
+/* Single-precision floating-point vector conversions */
+/* evfscfsi */
+DO_SPE_OP1(fscfsi);
+/* evfscfui */
+DO_SPE_OP1(fscfui);
+/* evfscfuf */
+DO_SPE_OP1(fscfuf);
+/* evfscfsf */
+DO_SPE_OP1(fscfsf);
+/* evfsctsi */
+DO_SPE_OP1(fsctsi);
+/* evfsctui */
+DO_SPE_OP1(fsctui);
+/* evfsctsiz */
+DO_SPE_OP1(fsctsiz);
+/* evfsctuiz */
+DO_SPE_OP1(fsctuiz);
+/* evfsctsf */
+DO_SPE_OP1(fsctsf);
+/* evfsctuf */
+DO_SPE_OP1(fsctuf);
+#endif /* defined(TARGET_PPCSPE) */
 
 /*****************************************************************************/
 /* Softmmu support */

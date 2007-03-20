@@ -39,10 +39,10 @@ register unsigned long T1 asm(AREG2);
 register unsigned long T2 asm(AREG3);
 #endif
 /* We may, sometime, need 64 bits registers on 32 bits target */
-#if defined(TARGET_PPC64) || (HOST_LONG_BITS == 64)
+#if defined(TARGET_PPC64) || defined(TARGET_PPCSPE) || (HOST_LONG_BITS == 64)
 #define T0_64 T0
-#define T1_64 T0
-#define T2_64 T0
+#define T1_64 T1
+#define T2_64 T2
 #else
 /* no registers can be used */
 #define T0_64 (env->t0)

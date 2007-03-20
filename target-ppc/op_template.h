@@ -57,6 +57,48 @@ void OPPROTO glue(op_store_T2_gpr_gpr, REG) (void)
 }
 #endif
 
+#if defined(TARGET_PPCSPE)
+void OPPROTO glue(op_load_gpr64_T0_gpr, REG) (void)
+{
+    T0_64 = regs->gpr[REG];
+    RETURN();
+}
+
+void OPPROTO glue(op_load_gpr64_T1_gpr, REG) (void)
+{
+    T1_64 = regs->gpr[REG];
+    RETURN();
+}
+
+#if 0 // unused
+void OPPROTO glue(op_load_gpr64_T2_gpr, REG) (void)
+{
+    T2_64 = regs->gpr[REG];
+    RETURN();
+}
+#endif
+
+void OPPROTO glue(op_store_T0_gpr64_gpr, REG) (void)
+{
+    regs->gpr[REG] = T0_64;
+    RETURN();
+}
+
+void OPPROTO glue(op_store_T1_gpr64_gpr, REG) (void)
+{
+    regs->gpr[REG] = T1_64;
+    RETURN();
+}
+
+#if 0 // unused
+void OPPROTO glue(op_store_T2_gpr64_gpr, REG) (void)
+{
+    regs->gpr[REG] = T2_64;
+    RETURN();
+}
+#endif
+#endif /* defined(TARGET_PPCSPE) */
+
 #if REG <= 7
 /* Condition register moves */
 void OPPROTO glue(op_load_crf_T0_crf, REG) (void)

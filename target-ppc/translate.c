@@ -160,6 +160,9 @@ typedef struct DisasContext {
     int sf_mode;
 #endif
     int fpu_enabled;
+#if defined(TARGET_PPCSPE)
+    int spe_enabled;
+#endif
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
 } DisasContext;
@@ -168,7 +171,7 @@ struct opc_handler_t {
     /* invalid bits */
     uint32_t inval;
     /* instruction type */
-    uint32_t type;
+    uint64_t type;
     /* handler */
     void (*handler)(DisasContext *ctx);
 #if defined(DO_PPC_STATISTICS)
@@ -4468,6 +4471,814 @@ GEN_HANDLER(icbt_440, 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
      */
 }
 
+#if defined(TARGET_PPCSPE)
+/***                           SPE extension                               ***/
+
+/* Register moves */
+GEN32(gen_op_load_gpr64_T0, gen_op_load_gpr64_T0_gpr);
+GEN32(gen_op_load_gpr64_T1, gen_op_load_gpr64_T1_gpr);
+#if 0 // unused
+GEN32(gen_op_load_gpr64_T2, gen_op_load_gpr64_T2_gpr);
+#endif
+
+GEN32(gen_op_store_T0_gpr64, gen_op_store_T0_gpr64_gpr);
+GEN32(gen_op_store_T1_gpr64, gen_op_store_T1_gpr64_gpr);
+#if 0 // unused
+GEN32(gen_op_store_T2_gpr64, gen_op_store_T2_gpr64_gpr);
+#endif
+
+#define GEN_SPE(name0, name1, opc2, opc3, inval, type)                        \
+GEN_HANDLER(name0##_##name1, 0x04, opc2, opc3, inval, type)                   \
+{                                                                             \
+    if (Rc(ctx->opcode))                                                      \
+        gen_##name1(ctx);                                                     \
+    else                                                                      \
+        gen_##name0(ctx);                                                     \
+}
+
+/* Handler for undefined SPE opcodes */
+static inline void gen_speundef (DisasContext *ctx)
+{
+    RET_INVAL(ctx);
+}
+
+/* SPE load and stores */
+static inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
+{
+    target_long simm = rB(ctx->opcode);
+
+    if (rA(ctx->opcode) == 0) {
+        gen_set_T0(simm << sh);
+    } else {
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        if (likely(simm != 0))
+            gen_op_addi(simm << sh);
+    }
+}
+
+#define op_spe_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64)
+#define OP_SPE_LD_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_l##name[] = {                                    \
+    &gen_op_spe_l##name##_raw,                                                \
+    &gen_op_spe_l##name##_le_raw,                                             \
+    &gen_op_spe_l##name##_64_raw,                                             \
+    &gen_op_spe_l##name##_le_64_raw,                                          \
+};
+#define OP_SPE_ST_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_st##name[] = {                                   \
+    &gen_op_spe_st##name##_raw,                                               \
+    &gen_op_spe_st##name##_le_raw,                                            \
+    &gen_op_spe_st##name##_64_raw,                                            \
+    &gen_op_spe_st##name##_le_64_raw,                                         \
+};
+#else /* defined(TARGET_PPC64) */
+#define OP_SPE_LD_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_l##name[] = {                                    \
+    &gen_op_spe_l##name##_raw,                                                \
+    &gen_op_spe_l##name##_le_raw,                                             \
+};
+#define OP_SPE_ST_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_st##name[] = {                                   \
+    &gen_op_spe_st##name##_raw,                                               \
+    &gen_op_spe_st##name##_le_raw,                                            \
+};
+#endif /* defined(TARGET_PPC64) */
+#else /* defined(CONFIG_USER_ONLY) */
+#if defined(TARGET_PPC64)
+#define OP_SPE_LD_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_l##name[] = {                                    \
+    &gen_op_spe_l##name##_user,                                               \
+    &gen_op_spe_l##name##_le_user,                                            \
+    &gen_op_spe_l##name##_kernel,                                             \
+    &gen_op_spe_l##name##_le_kernel,                                          \
+    &gen_op_spe_l##name##_64_user,                                            \
+    &gen_op_spe_l##name##_le_64_user,                                         \
+    &gen_op_spe_l##name##_64_kernel,                                          \
+    &gen_op_spe_l##name##_le_64_kernel,                                       \
+};
+#define OP_SPE_ST_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_st##name[] = {                                   \
+    &gen_op_spe_st##name##_user,                                              \
+    &gen_op_spe_st##name##_le_user,                                           \
+    &gen_op_spe_st##name##_kernel,                                            \
+    &gen_op_spe_st##name##_le_kernel,                                         \
+    &gen_op_spe_st##name##_64_user,                                           \
+    &gen_op_spe_st##name##_le_64_user,                                        \
+    &gen_op_spe_st##name##_64_kernel,                                         \
+    &gen_op_spe_st##name##_le_64_kernel,                                      \
+};
+#else /* defined(TARGET_PPC64) */
+#define OP_SPE_LD_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_l##name[] = {                                    \
+    &gen_op_spe_l##name##_user,                                               \
+    &gen_op_spe_l##name##_le_user,                                            \
+    &gen_op_spe_l##name##_kernel,                                             \
+    &gen_op_spe_l##name##_le_kernel,                                          \
+};
+#define OP_SPE_ST_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_st##name[] = {                                   \
+    &gen_op_spe_st##name##_user,                                              \
+    &gen_op_spe_st##name##_le_user,                                           \
+    &gen_op_spe_st##name##_kernel,                                            \
+    &gen_op_spe_st##name##_le_kernel,                                         \
+};
+#endif /* defined(TARGET_PPC64) */
+#endif /* defined(CONFIG_USER_ONLY) */
+
+#define GEN_SPE_LD(name, sh)                                                  \
+static inline void gen_evl##name (DisasContext *ctx)                          \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_spe_imm_index(ctx, sh);                                          \
+    op_spe_ldst(spe_l##name);                                                 \
+    gen_op_store_T1_gpr64(rD(ctx->opcode));                                   \
+}
+
+#define GEN_SPE_LDX(name)                                                     \
+static inline void gen_evl##name##x (DisasContext *ctx)                       \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_reg_index(ctx);                                                  \
+    op_spe_ldst(spe_l##name);                                                 \
+    gen_op_store_T1_gpr64(rD(ctx->opcode));                                   \
+}
+
+#define GEN_SPEOP_LD(name, sh)                                                \
+OP_SPE_LD_TABLE(name);                                                        \
+GEN_SPE_LD(name, sh);                                                         \
+GEN_SPE_LDX(name)
+
+#define GEN_SPE_ST(name, sh)                                                  \
+static inline void gen_evst##name (DisasContext *ctx)                         \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_spe_imm_index(ctx, sh);                                          \
+    gen_op_load_gpr64_T1(rS(ctx->opcode));                                    \
+    op_spe_ldst(spe_st##name);                                                \
+}
+
+#define GEN_SPE_STX(name)                                                     \
+static inline void gen_evst##name##x (DisasContext *ctx)                      \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_reg_index(ctx);                                                  \
+    gen_op_load_gpr64_T1(rS(ctx->opcode));                                    \
+    op_spe_ldst(spe_st##name);                                                \
+}
+
+#define GEN_SPEOP_ST(name, sh)                                                \
+OP_SPE_ST_TABLE(name);                                                        \
+GEN_SPE_ST(name, sh);                                                         \
+GEN_SPE_STX(name)
+
+#define GEN_SPEOP_LDST(name, sh)                                              \
+GEN_SPEOP_LD(name, sh);                                                       \
+GEN_SPEOP_ST(name, sh)
+
+/* SPE arithmetic and logic */
+#define GEN_SPEOP_ARITH2(name)                                                \
+static inline void gen_##name (DisasContext *ctx)                             \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_op_load_gpr64_T0(rA(ctx->opcode));                                    \
+    gen_op_load_gpr64_T1(rB(ctx->opcode));                                    \
+    gen_op_##name();                                                          \
+    gen_op_store_T0_gpr64(rD(ctx->opcode));                                   \
+}
+
+#define GEN_SPEOP_ARITH1(name)                                                \
+static inline void gen_##name (DisasContext *ctx)                             \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_op_load_gpr64_T0(rA(ctx->opcode));                                    \
+    gen_op_##name();                                                          \
+    gen_op_store_T0_gpr64(rD(ctx->opcode));                                   \
+}
+
+#define GEN_SPEOP_COMP(name)                                                  \
+static inline void gen_##name (DisasContext *ctx)                             \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_op_load_gpr64_T0(rA(ctx->opcode));                                    \
+    gen_op_load_gpr64_T1(rB(ctx->opcode));                                    \
+    gen_op_##name();                                                          \
+    gen_op_store_T0_crf(crfD(ctx->opcode));                                   \
+}
+
+/* Logical */
+GEN_SPEOP_ARITH2(evand);
+GEN_SPEOP_ARITH2(evandc);
+GEN_SPEOP_ARITH2(evxor);
+GEN_SPEOP_ARITH2(evor);
+GEN_SPEOP_ARITH2(evnor);
+GEN_SPEOP_ARITH2(eveqv);
+GEN_SPEOP_ARITH2(evorc);
+GEN_SPEOP_ARITH2(evnand);
+GEN_SPEOP_ARITH2(evsrwu);
+GEN_SPEOP_ARITH2(evsrws);
+GEN_SPEOP_ARITH2(evslw);
+GEN_SPEOP_ARITH2(evrlw);
+GEN_SPEOP_ARITH2(evmergehi);
+GEN_SPEOP_ARITH2(evmergelo);
+GEN_SPEOP_ARITH2(evmergehilo);
+GEN_SPEOP_ARITH2(evmergelohi);
+
+/* Arithmetic */
+GEN_SPEOP_ARITH2(evaddw);
+GEN_SPEOP_ARITH2(evsubfw);
+GEN_SPEOP_ARITH1(evabs);
+GEN_SPEOP_ARITH1(evneg);
+GEN_SPEOP_ARITH1(evextsb);
+GEN_SPEOP_ARITH1(evextsh);
+GEN_SPEOP_ARITH1(evrndw);
+GEN_SPEOP_ARITH1(evcntlzw);
+GEN_SPEOP_ARITH1(evcntlsw);
+static inline void gen_brinc (DisasContext *ctx)
+{
+    /* Note: brinc is usable even if SPE is disabled */
+    gen_op_load_gpr64_T0(rA(ctx->opcode));
+    gen_op_load_gpr64_T1(rB(ctx->opcode));
+    gen_op_brinc();
+    gen_op_store_T0_gpr64(rD(ctx->opcode));
+}
+
+#define GEN_SPEOP_ARITH_IMM2(name)                                            \
+static inline void gen_##name##i (DisasContext *ctx)                          \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_op_load_gpr64_T0(rB(ctx->opcode));                                    \
+    gen_op_splatwi_T1_64(rA(ctx->opcode));                                    \
+    gen_op_##name();                                                          \
+    gen_op_store_T0_gpr64(rD(ctx->opcode));                                   \
+}
+
+#define GEN_SPEOP_LOGIC_IMM2(name)                                            \
+static inline void gen_##name##i (DisasContext *ctx)                          \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);                                        \
+        return;                                                               \
+    }                                                                         \
+    gen_op_load_gpr64_T0(rA(ctx->opcode));                                    \
+    gen_op_splatwi_T1_64(rB(ctx->opcode));                                    \
+    gen_op_##name();                                                          \
+    gen_op_store_T0_gpr64(rD(ctx->opcode));                                   \
+}
+
+GEN_SPEOP_ARITH_IMM2(evaddw);
+#define gen_evaddiw gen_evaddwi
+GEN_SPEOP_ARITH_IMM2(evsubfw);
+#define gen_evsubifw gen_evsubfwi
+GEN_SPEOP_LOGIC_IMM2(evslw);
+GEN_SPEOP_LOGIC_IMM2(evsrwu);
+#define gen_evsrwis gen_evsrwsi
+GEN_SPEOP_LOGIC_IMM2(evsrws);
+#define gen_evsrwiu gen_evsrwui
+GEN_SPEOP_LOGIC_IMM2(evrlw);
+
+static inline void gen_evsplati (DisasContext *ctx)
+{
+    int32_t imm = (int32_t)(rA(ctx->opcode) << 27) >> 27;
+
+    gen_op_splatwi_T0_64(imm);
+    gen_op_store_T0_gpr64(rD(ctx->opcode));
+}
+
+static inline void gen_evsplatfi (DisasContext *ctx)
+{
+    uint32_t imm = rA(ctx->opcode) << 27;
+
+    gen_op_splatwi_T0_64(imm);
+    gen_op_store_T0_gpr64(rD(ctx->opcode));
+}
+
+/* Comparison */
+GEN_SPEOP_COMP(evcmpgtu);
+GEN_SPEOP_COMP(evcmpgts);
+GEN_SPEOP_COMP(evcmpltu);
+GEN_SPEOP_COMP(evcmplts);
+GEN_SPEOP_COMP(evcmpeq);
+
+GEN_SPE(evaddw,         speundef,      0x00, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evaddiw,        speundef,      0x01, 0x08, 0x00000000, PPC_SPE);
+GEN_SPE(evsubfw,        speundef,      0x02, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evsubifw,       speundef,      0x03, 0x08, 0x00000000, PPC_SPE);
+GEN_SPE(evabs,          evneg,         0x04, 0x08, 0x0000F800, PPC_SPE); ////
+GEN_SPE(evextsb,        evextsh,       0x05, 0x08, 0x0000F800, PPC_SPE); ////
+GEN_SPE(evrndw,         evcntlzw,      0x06, 0x08, 0x0000F800, PPC_SPE); ////
+GEN_SPE(evcntlsw,       brinc,         0x07, 0x08, 0x00000000, PPC_SPE); //
+GEN_SPE(speundef,       evand,         0x08, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evandc,         speundef,      0x09, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evxor,          evor,          0x0B, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evnor,          eveqv,         0x0C, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(speundef,       evorc,         0x0D, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evnand,         speundef,      0x0F, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evsrwu,         evsrws,        0x10, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evsrwiu,        evsrwis,       0x11, 0x08, 0x00000000, PPC_SPE);
+GEN_SPE(evslw,          speundef,      0x12, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evslwi,         speundef,      0x13, 0x08, 0x00000000, PPC_SPE);
+GEN_SPE(evrlw,          evsplati,      0x14, 0x08, 0x00000000, PPC_SPE); //
+GEN_SPE(evrlwi,         evsplatfi,     0x15, 0x08, 0x00000000, PPC_SPE);
+GEN_SPE(evmergehi,      evmergelo,     0x16, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evmergehilo,    evmergelohi,   0x17, 0x08, 0x00000000, PPC_SPE); ////
+GEN_SPE(evcmpgtu,       evcmpgts,      0x18, 0x08, 0x00600000, PPC_SPE); ////
+GEN_SPE(evcmpltu,       evcmplts,      0x19, 0x08, 0x00600000, PPC_SPE); ////
+GEN_SPE(evcmpeq,        speundef,      0x1A, 0x08, 0x00600000, PPC_SPE); ////
+
+static inline void gen_evsel (DisasContext *ctx)
+{
+    if (unlikely(!ctx->spe_enabled)) {
+        RET_EXCP(ctx, EXCP_NO_SPE, 0);
+        return;
+    }
+    gen_op_load_crf_T0(ctx->opcode & 0x7);
+    gen_op_load_gpr64_T0(rA(ctx->opcode));
+    gen_op_load_gpr64_T1(rB(ctx->opcode));
+    gen_op_evsel();
+    gen_op_store_T0_gpr64(rD(ctx->opcode));
+}
+
+GEN_HANDLER(evsel0, 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE)
+{
+    gen_evsel(ctx);
+}
+GEN_HANDLER(evsel1, 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE)
+{
+    gen_evsel(ctx);
+}
+GEN_HANDLER(evsel2, 0x04, 0x1e, 0x09, 0x00000000, PPC_SPE)
+{
+    gen_evsel(ctx);
+}
+GEN_HANDLER(evsel3, 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE)
+{
+    gen_evsel(ctx);
+}
+
+/* Load and stores */
+#if defined(TARGET_PPC64)
+/* In that case, we already have 64 bits load & stores
+ * so, spe_ldd is equivalent to ld and spe_std is equivalent to std
+ */
+#if defined(CONFIG_USER_ONLY)
+#define gen_op_spe_ldd_raw gen_op_ld_raw
+#define gen_op_spe_ldd_64_raw gen_op_ld_64_raw
+#define gen_op_spe_ldd_le_raw gen_op_ld_le_raw
+#define gen_op_spe_ldd_le_64_raw gen_op_ld_le_64_raw
+#define gen_op_spe_stdd_raw gen_op_ld_raw
+#define gen_op_spe_stdd_64_raw gen_op_std_64_raw
+#define gen_op_spe_stdd_le_raw gen_op_std_le_raw
+#define gen_op_spe_stdd_le_64_raw gen_op_std_le_64_raw
+#else /* defined(CONFIG_USER_ONLY) */
+#define gen_op_spe_ldd_kernel gen_op_ld_kernel
+#define gen_op_spe_ldd_64_kernel gen_op_ld_64_kernel
+#define gen_op_spe_ldd_le_kernel gen_op_ld_kernel
+#define gen_op_spe_ldd_le_64_kernel gen_op_ld_64_kernel
+#define gen_op_spe_ldd_user gen_op_ld_user
+#define gen_op_spe_ldd_64_user gen_op_ld_64_user
+#define gen_op_spe_ldd_le_user gen_op_ld_le_user
+#define gen_op_spe_ldd_le_64_user gen_op_ld_le_64_user
+#define gen_op_spe_stdd_kernel gen_op_std_kernel
+#define gen_op_spe_stdd_64_kernel gen_op_std_64_kernel
+#define gen_op_spe_stdd_le_kernel gen_op_std_kernel
+#define gen_op_spe_stdd_le_64_kernel gen_op_std_64_kernel
+#define gen_op_spe_stdd_user gen_op_std_user
+#define gen_op_spe_stdd_64_user gen_op_std_64_user
+#define gen_op_spe_stdd_le_user gen_op_std_le_user
+#define gen_op_spe_stdd_le_64_user gen_op_std_le_64_user
+#endif /* defined(CONFIG_USER_ONLY) */
+#endif /* defined(TARGET_PPC64) */
+GEN_SPEOP_LDST(dd, 3);
+GEN_SPEOP_LDST(dw, 3);
+GEN_SPEOP_LDST(dh, 3);
+GEN_SPEOP_LDST(whe, 2);
+GEN_SPEOP_LD(whou, 2);
+GEN_SPEOP_LD(whos, 2);
+GEN_SPEOP_ST(who, 2);
+
+#if defined(TARGET_PPC64)
+/* In that case, spe_stwwo is equivalent to stw */
+#if defined(CONFIG_USER_ONLY)
+#define gen_op_spe_stwwo_raw gen_op_stw_raw
+#define gen_op_spe_stwwo_le_raw gen_op_stw_le_raw
+#define gen_op_spe_stwwo_64_raw gen_op_stw_64_raw
+#define gen_op_spe_stwwo_le_64_raw gen_op_stw_le_64_raw
+#else
+#define gen_op_spe_stwwo_user gen_op_stw_user
+#define gen_op_spe_stwwo_le_user gen_op_stw_le_user
+#define gen_op_spe_stwwo_64_user gen_op_stw_64_user
+#define gen_op_spe_stwwo_le_64_user gen_op_stw_le_64_user
+#define gen_op_spe_stwwo_kernel gen_op_stw_kernel
+#define gen_op_spe_stwwo_le_kernel gen_op_stw_le_kernel
+#define gen_op_spe_stwwo_64_kernel gen_op_stw_64_kernel
+#define gen_op_spe_stwwo_le_64_kernel gen_op_stw_le_64_kernel
+#endif
+#endif
+#define _GEN_OP_SPE_STWWE(suffix)                                             \
+static inline void gen_op_spe_stwwe_##suffix (void)                           \
+{                                                                             \
+    gen_op_srli32_T1_64();                                                    \
+    gen_op_spe_stwwo_##suffix();                                              \
+}
+#define _GEN_OP_SPE_STWWE_LE(suffix)                                          \
+static inline void gen_op_spe_stwwe_le_##suffix (void)                        \
+{                                                                             \
+    gen_op_srli32_T1_64();                                                    \
+    gen_op_spe_stwwo_le_##suffix();                                           \
+}
+#if defined(TARGET_PPC64)
+#define GEN_OP_SPE_STWWE(suffix)                                              \
+_GEN_OP_SPE_STWWE(suffix);                                                    \
+_GEN_OP_SPE_STWWE_LE(suffix);                                                 \
+static inline void gen_op_spe_stwwe_64_##suffix (void)                        \
+{                                                                             \
+    gen_op_srli32_T1_64();                                                    \
+    gen_op_spe_stwwo_64_##suffix();                                           \
+}                                                                             \
+static inline void gen_op_spe_stwwe_le_64_##suffix (void)                     \
+{                                                                             \
+    gen_op_srli32_T1_64();                                                    \
+    gen_op_spe_stwwo_le_64_##suffix();                                        \
+}
+#else
+#define GEN_OP_SPE_STWWE(suffix)                                              \
+_GEN_OP_SPE_STWWE(suffix);                                                    \
+_GEN_OP_SPE_STWWE_LE(suffix)
+#endif
+#if defined(CONFIG_USER_ONLY)
+GEN_OP_SPE_STWWE(raw);
+#else /* defined(CONFIG_USER_ONLY) */
+GEN_OP_SPE_STWWE(kernel);
+GEN_OP_SPE_STWWE(user);
+#endif /* defined(CONFIG_USER_ONLY) */
+GEN_SPEOP_ST(wwe, 2);
+GEN_SPEOP_ST(wwo, 2);
+
+#define GEN_SPE_LDSPLAT(name, op, suffix)                                     \
+static inline void gen_op_spe_l##name##_##suffix (void)                       \
+{                                                                             \
+    gen_op_##op##_##suffix();                                                 \
+    gen_op_splatw_T1_64();                                                    \
+}
+
+#define GEN_OP_SPE_LHE(suffix)                                                \
+static inline void gen_op_spe_lhe_##suffix (void)                             \
+{                                                                             \
+    gen_op_spe_lh_##suffix();                                                 \
+    gen_op_sli16_T1_64();                                                     \
+}
+
+#define GEN_OP_SPE_LHX(suffix)                                                \
+static inline void gen_op_spe_lhx_##suffix (void)                             \
+{                                                                             \
+    gen_op_spe_lh_##suffix();                                                 \
+    gen_op_extsh_T1_64();                                                     \
+}
+
+#if defined(CONFIG_USER_ONLY)
+GEN_OP_SPE_LHE(raw);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, raw);
+GEN_OP_SPE_LHE(le_raw);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_raw);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, raw);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_raw);
+GEN_OP_SPE_LHX(raw);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, raw);
+GEN_OP_SPE_LHX(le_raw);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_raw);
+#if defined(TARGET_PPC64)
+GEN_OP_SPE_LHE(64_raw);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, 64_raw);
+GEN_OP_SPE_LHE(le_64_raw);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_64_raw);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, 64_raw);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_64_raw);
+GEN_OP_SPE_LHX(64_raw);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, 64_raw);
+GEN_OP_SPE_LHX(le_64_raw);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_raw);
+#endif
+#else
+GEN_OP_SPE_LHE(kernel);
+GEN_OP_SPE_LHE(user);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, kernel);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, user);
+GEN_OP_SPE_LHE(le_kernel);
+GEN_OP_SPE_LHE(le_user);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_kernel);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_user);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, kernel);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, user);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_kernel);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_user);
+GEN_OP_SPE_LHX(kernel);
+GEN_OP_SPE_LHX(user);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, kernel);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, user);
+GEN_OP_SPE_LHX(le_kernel);
+GEN_OP_SPE_LHX(le_user);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_kernel);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_user);
+#if defined(TARGET_PPC64)
+GEN_OP_SPE_LHE(64_kernel);
+GEN_OP_SPE_LHE(64_user);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, 64_kernel);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, 64_user);
+GEN_OP_SPE_LHE(le_64_kernel);
+GEN_OP_SPE_LHE(le_64_user);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_64_kernel);
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_64_user);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, 64_kernel);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, 64_user);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_64_kernel);
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_64_user);
+GEN_OP_SPE_LHX(64_kernel);
+GEN_OP_SPE_LHX(64_user);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, 64_kernel);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, 64_user);
+GEN_OP_SPE_LHX(le_64_kernel);
+GEN_OP_SPE_LHX(le_64_user);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_kernel);
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_user);
+#endif
+#endif
+GEN_SPEOP_LD(hhesplat, 1);
+GEN_SPEOP_LD(hhousplat, 1);
+GEN_SPEOP_LD(hhossplat, 1);
+GEN_SPEOP_LD(wwsplat, 2);
+GEN_SPEOP_LD(whsplat, 2);
+
+GEN_SPE(evlddx,         evldd,         0x00, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evldwx,         evldw,         0x01, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evldhx,         evldh,         0x02, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlhhesplatx,   evlhhesplat,   0x04, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlhhousplatx,  evlhhousplat,  0x06, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlhhossplatx,  evlhhossplat,  0x07, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlwhex,        evlwhe,        0x08, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlwhoux,       evlwhou,       0x0A, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlwhosx,       evlwhos,       0x0B, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlwwsplatx,    evlwwsplat,    0x0C, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evlwhsplatx,    evlwhsplat,    0x0E, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstddx,        evstdd,        0x10, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstdwx,        evstdw,        0x11, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstdhx,        evstdh,        0x12, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstwhex,       evstwhe,       0x18, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstwhox,       evstwho,       0x1A, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstwwex,       evstwwe,       0x1C, 0x0C, 0x00000000, PPC_SPE); //
+GEN_SPE(evstwwox,       evstwwo,       0x1E, 0x0C, 0x00000000, PPC_SPE); //
+
+/* Multiply and add - TODO */
+#if 0
+GEN_SPE(speundef,       evmhessf,      0x01, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhossf,      0x03, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(evmheumi,       evmhesmi,      0x04, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhesmf,      0x05, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(evmhoumi,       evmhosmi,      0x06, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhosmf,      0x07, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhessfa,     0x11, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhossfa,     0x13, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(evmheumia,      evmhesmia,     0x14, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhesmfa,     0x15, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(evmhoumia,      evmhosmia,     0x16, 0x10, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhosmfa,     0x17, 0x10, 0x00000000, PPC_SPE);
+
+GEN_SPE(speundef,       evmwhssf,      0x03, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(evmwlumi,       speundef,      0x04, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(evmwhumi,       evmwhsmi,      0x06, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwhsmf,      0x07, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwssf,       0x09, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(evmwumi,        evmwsmi,       0x0C, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwsmf,       0x0D, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwhssfa,     0x13, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(evmwlumia,      speundef,      0x14, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(evmwhumia,      evmwhsmia,     0x16, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwhsmfa,     0x17, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwssfa,      0x19, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(evmwumia,       evmwsmia,      0x1C, 0x11, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwsmfa,      0x1D, 0x11, 0x00000000, PPC_SPE);
+
+GEN_SPE(evadduiaaw,     evaddsiaaw,    0x00, 0x13, 0x0000F800, PPC_SPE);
+GEN_SPE(evsubfusiaaw,   evsubfssiaaw,  0x01, 0x13, 0x0000F800, PPC_SPE);
+GEN_SPE(evaddumiaaw,    evaddsmiaaw,   0x04, 0x13, 0x0000F800, PPC_SPE);
+GEN_SPE(evsubfumiaaw,   evsubfsmiaaw,  0x05, 0x13, 0x0000F800, PPC_SPE);
+GEN_SPE(evdivws,        evdivwu,       0x06, 0x13, 0x00000000, PPC_SPE);
+GEN_SPE(evmra,          speundef,      0x07, 0x13, 0x0000F800, PPC_SPE);
+
+GEN_SPE(evmheusiaaw,    evmhessiaaw,   0x00, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhessfaaw,   0x01, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(evmhousiaaw,    evmhossiaaw,   0x02, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhossfaaw,   0x03, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(evmheumiaaw,    evmhesmiaaw,   0x04, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhesmfaaw,   0x05, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(evmhoumiaaw,    evmhosmiaaw,   0x06, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhosmfaaw,   0x07, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(evmhegumiaa,    evmhegsmiaa,   0x14, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhegsmfaa,   0x15, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(evmhogumiaa,    evmhogsmiaa,   0x16, 0x14, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhogsmfaa,   0x17, 0x14, 0x00000000, PPC_SPE);
+
+GEN_SPE(evmwlusiaaw,    evmwlssiaaw,   0x00, 0x15, 0x00000000, PPC_SPE);
+GEN_SPE(evmwlumiaaw,    evmwlsmiaaw,   0x04, 0x15, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwssfaa,     0x09, 0x15, 0x00000000, PPC_SPE);
+GEN_SPE(evmwumiaa,      evmwsmiaa,     0x0C, 0x15, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwsmfaa,     0x0D, 0x15, 0x00000000, PPC_SPE);
+
+GEN_SPE(evmheusianw,    evmhessianw,   0x00, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhessfanw,   0x01, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(evmhousianw,    evmhossianw,   0x02, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhossfanw,   0x03, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(evmheumianw,    evmhesmianw,   0x04, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhesmfanw,   0x05, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(evmhoumianw,    evmhosmianw,   0x06, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhosmfanw,   0x07, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(evmhegumian,    evmhegsmian,   0x14, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhegsmfan,   0x15, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(evmhigumian,    evmhigsmian,   0x16, 0x16, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmhogsmfan,   0x17, 0x16, 0x00000000, PPC_SPE);
+
+GEN_SPE(evmwlusianw,    evmwlssianw,   0x00, 0x17, 0x00000000, PPC_SPE);
+GEN_SPE(evmwlumianw,    evmwlsmianw,   0x04, 0x17, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwssfan,     0x09, 0x17, 0x00000000, PPC_SPE);
+GEN_SPE(evmwumian,      evmwsmian,     0x0C, 0x17, 0x00000000, PPC_SPE);
+GEN_SPE(speundef,       evmwsmfan,     0x0D, 0x17, 0x00000000, PPC_SPE);
+#endif
+
+/***                      SPE floating-point extension                     ***/
+#define GEN_SPEFPUOP_CONV(name)                                               \
+static inline void gen_##name (DisasContext *ctx)                             \
+{                                                                             \
+    gen_op_load_gpr64_T0(rB(ctx->opcode));                                    \
+    gen_op_##name();                                                          \
+    gen_op_store_T0_gpr64(rD(ctx->opcode));                                   \
+}
+
+/* Single precision floating-point vectors operations */
+/* Arithmetic */
+GEN_SPEOP_ARITH2(evfsadd);
+GEN_SPEOP_ARITH2(evfssub);
+GEN_SPEOP_ARITH2(evfsmul);
+GEN_SPEOP_ARITH2(evfsdiv);
+GEN_SPEOP_ARITH1(evfsabs);
+GEN_SPEOP_ARITH1(evfsnabs);
+GEN_SPEOP_ARITH1(evfsneg);
+/* Conversion */
+GEN_SPEFPUOP_CONV(evfscfui);
+GEN_SPEFPUOP_CONV(evfscfsi);
+GEN_SPEFPUOP_CONV(evfscfuf);
+GEN_SPEFPUOP_CONV(evfscfsf);
+GEN_SPEFPUOP_CONV(evfsctui);
+GEN_SPEFPUOP_CONV(evfsctsi);
+GEN_SPEFPUOP_CONV(evfsctuf);
+GEN_SPEFPUOP_CONV(evfsctsf);
+GEN_SPEFPUOP_CONV(evfsctuiz);
+GEN_SPEFPUOP_CONV(evfsctsiz);
+/* Comparison */
+GEN_SPEOP_COMP(evfscmpgt);
+GEN_SPEOP_COMP(evfscmplt);
+GEN_SPEOP_COMP(evfscmpeq);
+GEN_SPEOP_COMP(evfststgt);
+GEN_SPEOP_COMP(evfststlt);
+GEN_SPEOP_COMP(evfststeq);
+
+/* Opcodes definitions */
+GEN_SPE(evfsadd,        evfssub,       0x00, 0x0A, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(evfsabs,        evfsnabs,      0x02, 0x0A, 0x0000F800, PPC_SPEFPU); //
+GEN_SPE(evfsneg,        speundef,      0x03, 0x0A, 0x0000F800, PPC_SPEFPU); //
+GEN_SPE(evfsmul,        evfsdiv,       0x04, 0x0A, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(evfscmpgt,      evfscmplt,     0x06, 0x0A, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(evfscmpeq,      speundef,      0x07, 0x0A, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(evfscfui,       evfscfsi,      0x08, 0x0A, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(evfscfuf,       evfscfsf,      0x09, 0x0A, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(evfsctui,       evfsctsi,      0x0A, 0x0A, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(evfsctuf,       evfsctsf,      0x0B, 0x0A, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(evfsctuiz,      speundef,      0x0C, 0x0A, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(evfsctsiz,      speundef,      0x0D, 0x0A, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(evfststgt,      evfststlt,     0x0E, 0x0A, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(evfststeq,      speundef,      0x0F, 0x0A, 0x00600000, PPC_SPEFPU); //
+
+/* Single precision floating-point operations */
+/* Arithmetic */
+GEN_SPEOP_ARITH2(efsadd);
+GEN_SPEOP_ARITH2(efssub);
+GEN_SPEOP_ARITH2(efsmul);
+GEN_SPEOP_ARITH2(efsdiv);
+GEN_SPEOP_ARITH1(efsabs);
+GEN_SPEOP_ARITH1(efsnabs);
+GEN_SPEOP_ARITH1(efsneg);
+/* Conversion */
+GEN_SPEFPUOP_CONV(efscfui);
+GEN_SPEFPUOP_CONV(efscfsi);
+GEN_SPEFPUOP_CONV(efscfuf);
+GEN_SPEFPUOP_CONV(efscfsf);
+GEN_SPEFPUOP_CONV(efsctui);
+GEN_SPEFPUOP_CONV(efsctsi);
+GEN_SPEFPUOP_CONV(efsctuf);
+GEN_SPEFPUOP_CONV(efsctsf);
+GEN_SPEFPUOP_CONV(efsctuiz);
+GEN_SPEFPUOP_CONV(efsctsiz);
+GEN_SPEFPUOP_CONV(efscfd);
+/* Comparison */
+GEN_SPEOP_COMP(efscmpgt);
+GEN_SPEOP_COMP(efscmplt);
+GEN_SPEOP_COMP(efscmpeq);
+GEN_SPEOP_COMP(efststgt);
+GEN_SPEOP_COMP(efststlt);
+GEN_SPEOP_COMP(efststeq);
+
+/* Opcodes definitions */
+GEN_SPE(efsadd,         efssub,        0x00, 0x0A, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(efsabs,         efsnabs,       0x02, 0x0B, 0x0000F800, PPC_SPEFPU); //
+GEN_SPE(efsneg,         speundef,      0x03, 0x0B, 0x0000F800, PPC_SPEFPU); //
+GEN_SPE(efsmul,         efsdiv,        0x04, 0x0B, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(efscmpgt,       efscmplt,      0x06, 0x0B, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(efscmpeq,       efscfd,        0x07, 0x0B, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(efscfui,        efscfsi,       0x08, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efscfuf,        efscfsf,       0x09, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efsctui,        efsctsi,       0x0A, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efsctuf,        efsctsf,       0x0B, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efsctuiz,       efsctsiz,      0x0C, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efststgt,       efststlt,      0x0E, 0x0B, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(efststeq,       speundef,      0x0F, 0x0B, 0x00600000, PPC_SPEFPU); //
+
+/* Double precision floating-point operations */
+/* Arithmetic */
+GEN_SPEOP_ARITH2(efdadd);
+GEN_SPEOP_ARITH2(efdsub);
+GEN_SPEOP_ARITH2(efdmul);
+GEN_SPEOP_ARITH2(efddiv);
+GEN_SPEOP_ARITH1(efdabs);
+GEN_SPEOP_ARITH1(efdnabs);
+GEN_SPEOP_ARITH1(efdneg);
+/* Conversion */
+
+GEN_SPEFPUOP_CONV(efdcfui);
+GEN_SPEFPUOP_CONV(efdcfsi);
+GEN_SPEFPUOP_CONV(efdcfuf);
+GEN_SPEFPUOP_CONV(efdcfsf);
+GEN_SPEFPUOP_CONV(efdctui);
+GEN_SPEFPUOP_CONV(efdctsi);
+GEN_SPEFPUOP_CONV(efdctuf);
+GEN_SPEFPUOP_CONV(efdctsf);
+GEN_SPEFPUOP_CONV(efdctuiz);
+GEN_SPEFPUOP_CONV(efdctsiz);
+GEN_SPEFPUOP_CONV(efdcfs);
+GEN_SPEFPUOP_CONV(efdcfuid);
+GEN_SPEFPUOP_CONV(efdcfsid);
+GEN_SPEFPUOP_CONV(efdctuidz);
+GEN_SPEFPUOP_CONV(efdctsidz);
+/* Comparison */
+GEN_SPEOP_COMP(efdcmpgt);
+GEN_SPEOP_COMP(efdcmplt);
+GEN_SPEOP_COMP(efdcmpeq);
+GEN_SPEOP_COMP(efdtstgt);
+GEN_SPEOP_COMP(efdtstlt);
+GEN_SPEOP_COMP(efdtsteq);
+
+/* Opcodes definitions */
+GEN_SPE(efdadd,         efdsub,        0x10, 0x0B, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(efdcfuid,       efdcfsid,      0x11, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdabs,         efdnabs,       0x12, 0x0B, 0x0000F800, PPC_SPEFPU); //
+GEN_SPE(efdneg,         speundef,      0x13, 0x0B, 0x0000F800, PPC_SPEFPU); //
+GEN_SPE(efdmul,         efddiv,        0x14, 0x0B, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(efdctuidz,      efdctsidz,     0x15, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdcmpgt,       efdcmplt,      0x16, 0x0B, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(efdcmpeq,       efdcfs,        0x17, 0x0B, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(efdcfui,        efdcfsi,       0x18, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdcfuf,        efdcfsf,       0x19, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdctui,        efdctsi,       0x1A, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdctuf,        efdctsf,       0x1B, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdctuiz,       speundef,      0x1C, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdctsiz,       speundef,      0x1D, 0x0B, 0x00180000, PPC_SPEFPU); //
+GEN_SPE(efdtstgt,       efdtstlt,      0x1E, 0x0B, 0x00600000, PPC_SPEFPU); //
+GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPEFPU); //
+#endif
+
 /* End opcode list */
 GEN_OPCODE_MARK(end);
 
@@ -4604,9 +5415,9 @@ void cpu_dump_statistics (CPUState *env, FILE*f,
 }
 
 /*****************************************************************************/
-static inline int
-gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
-                                int search_pc)
+static inline int gen_intermediate_code_internal (CPUState *env,
+                                                  TranslationBlock *tb,
+                                                  int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
@@ -4639,6 +5450,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.sf_mode = msr_sf;
 #endif
     ctx.fpu_enabled = msr_fp;
+#if defined(TARGET_PPCSPE)
+    ctx.spe_enabled = msr_spe;
+#endif
     ctx.singlestep_enabled = env->singlestep_enabled;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
