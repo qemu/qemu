@@ -131,7 +131,6 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
 	if (s->mode != 1) {
 	    // clear irq
 	    pic_set_irq_cpu(s->irq, 0, s->cpu);
-	    s->count_load_time = qemu_get_clock(vm_clock);
 	    s->reached = 0;
 	    return s->limit;
 	}
