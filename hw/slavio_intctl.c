@@ -293,6 +293,7 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
 	    if (level) {
 		s->intregm_pending |= mask;
 		s->intreg_pending[s->target_cpu] |= 1 << pil;
+		slavio_check_interrupts(s);
 	    }
 	    else {
 		s->intregm_pending &= ~mask;
@@ -300,7 +301,6 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
 	    }
 	}
     }
-    slavio_check_interrupts(s);
 }
 
 void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
