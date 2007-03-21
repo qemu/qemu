@@ -720,7 +720,7 @@ void OPPROTO op_check_addo (void)
 void OPPROTO op_check_addo_64 (void)
 {
     if (likely(!(((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
-                 ((uint64_t)T2 ^ (uint64_t)T0) & (1UL << 63)))) {
+                 ((uint64_t)T2 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
         xer_so = 1;
@@ -1326,106 +1326,14 @@ void OPPROTO op_andi_T1 (void)
 /* count leading zero */
 void OPPROTO op_cntlzw (void)
 {
-    int cnt;
-
-    cnt = 0;
-    if (!(T0 & 0xFFFF0000UL)) {
-        cnt += 16;
-        T0 <<= 16;
-    }
-    if (!(T0 & 0xFF000000UL)) {
-        cnt += 8;
-        T0 <<= 8;
-    }
-    if (!(T0 & 0xF0000000UL)) {
-        cnt += 4;
-        T0 <<= 4;
-    }
-    if (!(T0 & 0xC0000000UL)) {
-        cnt += 2;
-        T0 <<= 2;
-    }
-    if (!(T0 & 0x80000000UL)) {
-        cnt++;
-        T0 <<= 1;
-    }
-    if (!(T0 & 0x80000000UL)) {
-        cnt++;
-    }
-    T0 = cnt;
+    T0 = _do_cntlzw(T0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_cntlzd (void)
 {
-#if HOST_LONG_BITS == 64
-    int cnt;
-
-    cnt = 0;
-    if (!(T0 & 0xFFFFFFFF00000000ULL)) {
-        cnt += 32;
-        T0 <<= 32;
-    }
-    if (!(T0 & 0xFFFF000000000000ULL)) {
-        cnt += 16;
-        T0 <<= 16;
-    }
-    if (!(T0 & 0xFF00000000000000ULL)) {
-        cnt += 8;
-        T0 <<= 8;
-    }
-    if (!(T0 & 0xF000000000000000ULL)) {
-        cnt += 4;
-        T0 <<= 4;
-    }
-    if (!(T0 & 0xC000000000000000ULL)) {
-        cnt += 2;
-        T0 <<= 2;
-    }
-    if (!(T0 & 0x8000000000000000ULL)) {
-        cnt++;
-        T0 <<= 1;
-    }
-    if (!(T0 & 0x8000000000000000ULL)) {
-        cnt++;
-    }
-    T0 = cnt;
-#else
-    uint32_t tmp;
-
-    /* Make it easier on 32 bits host machines */
-    if (!(T0 >> 32)) {
-        tmp = T0;
-        T0 = 32;
-    } else {
-        tmp = T0 >> 32;
-        T0 = 0;
-    }
-    if (!(tmp & 0xFFFF0000UL)) {
-        T0 += 16;
-        tmp <<= 16;
-    }
-    if (!(tmp & 0xFF000000UL)) {
-        T0 += 8;
-        tmp <<= 8;
-    }
-    if (!(tmp & 0xF0000000UL)) {
-        T0 += 4;
-        tmp <<= 4;
-    }
-    if (!(tmp & 0xC0000000UL)) {
-        T0 += 2;
-        tmp <<= 2;
-    }
-    if (!(tmp & 0x80000000UL)) {
-        T0++;
-        tmp <<= 1;
-    }
-    if (!(tmp & 0x80000000UL)) {
-        T0++;
-    }
-#endif
+    T0 = _do_cntlzd(T0);
     RETURN();
 }
 #endif
@@ -2462,4 +2370,723 @@ void OPPROTO op_store_booke_tsr (void)
     store_booke_tsr(env, T0);
     RETURN();
 }
+
 #endif /* !defined(CONFIG_USER_ONLY) */
+
+#if defined(TARGET_PPCSPE)
+/* SPE extension */
+void OPPROTO op_splatw_T1_64 (void)
+{
+    T1_64 = (T1_64 << 32) | (T1_64 & 0x00000000FFFFFFFFULL);
+}
+
+void OPPROTO op_splatwi_T0_64 (void)
+{
+    uint64_t tmp = PARAM1;
+
+    T0_64 = (tmp << 32) | tmp;
+}
+
+void OPPROTO op_splatwi_T1_64 (void)
+{
+    uint64_t tmp = PARAM1;
+
+    T1_64 = (tmp << 32) | tmp;
+}
+
+void OPPROTO op_extsh_T1_64 (void)
+{
+    T1_64 = (int32_t)((int16_t)T1_64);
+    RETURN();
+}
+
+void OPPROTO op_sli16_T1_64 (void)
+{
+    T1_64 = T1_64 << 16;
+    RETURN();
+}
+
+void OPPROTO op_sli32_T1_64 (void)
+{
+    T1_64 = T1_64 << 32;
+    RETURN();
+}
+
+void OPPROTO op_srli32_T1_64 (void)
+{
+    T1_64 = T1_64 >> 32;
+    RETURN();
+}
+
+void OPPROTO op_evsel (void)
+{
+    do_evsel();
+    RETURN();
+}
+
+void OPPROTO op_evaddw (void)
+{
+    do_evaddw();
+    RETURN();
+}
+
+void OPPROTO op_evsubfw (void)
+{
+    do_evsubfw();
+    RETURN();
+}
+
+void OPPROTO op_evneg (void)
+{
+    do_evneg();
+    RETURN();
+}
+
+void OPPROTO op_evabs (void)
+{
+    do_evabs();
+    RETURN();
+}
+
+void OPPROTO op_evextsh (void)
+{
+    T0_64 = ((uint64_t)((int32_t)(int16_t)(T0_64 >> 32)) << 32) |
+        (uint64_t)((int32_t)(int16_t)T0_64);
+    RETURN();
+}
+
+void OPPROTO op_evextsb (void)
+{
+    T0_64 = ((uint64_t)((int32_t)(int8_t)(T0_64 >> 32)) << 32) |
+        (uint64_t)((int32_t)(int8_t)T0_64);
+    RETURN();
+}
+
+void OPPROTO op_evcntlzw (void)
+{
+    do_evcntlzw();
+    RETURN();
+}
+
+void OPPROTO op_evrndw (void)
+{
+    do_evrndw();
+    RETURN();
+}
+
+void OPPROTO op_brinc (void)
+{
+    do_brinc();
+    RETURN();
+}
+
+void OPPROTO op_evcntlsw (void)
+{
+    do_evcntlsw();
+    RETURN();
+}
+
+void OPPROTO op_evand (void)
+{
+    T0_64 &= T1_64;
+    RETURN();
+}
+
+void OPPROTO op_evandc (void)
+{
+    T0_64 &= ~T1_64;
+    RETURN();
+}
+
+void OPPROTO op_evor (void)
+{
+    T0_64 |= T1_64;
+    RETURN();
+}
+
+void OPPROTO op_evxor (void)
+{
+    T0_64 ^= T1_64;
+    RETURN();
+}
+
+void OPPROTO op_eveqv (void)
+{
+    T0_64 = ~(T0_64 ^ T1_64);
+    RETURN();
+}
+
+void OPPROTO op_evnor (void)
+{
+    T0_64 = ~(T0_64 | T1_64);
+    RETURN();
+}
+
+void OPPROTO op_evorc (void)
+{
+    T0_64 |= ~T1_64;
+    RETURN();
+}
+
+void OPPROTO op_evnand (void)
+{
+    T0_64 = ~(T0_64 & T1_64);
+    RETURN();
+}
+
+void OPPROTO op_evsrws (void)
+{
+    do_evsrws();
+    RETURN();
+}
+
+void OPPROTO op_evsrwu (void)
+{
+    do_evsrwu();
+    RETURN();
+}
+
+void OPPROTO op_evslw (void)
+{
+    do_evslw();
+    RETURN();
+}
+
+void OPPROTO op_evrlw (void)
+{
+    do_evrlw();
+    RETURN();
+}
+
+void OPPROTO op_evmergelo (void)
+{
+    T0_64 = (T0_64 << 32) | (T1_64 & 0x00000000FFFFFFFFULL);
+    RETURN();
+}
+
+void OPPROTO op_evmergehi (void)
+{
+    T0_64 = (T0_64 & 0xFFFFFFFF00000000ULL) | (T1_64 >> 32);
+    RETURN();
+}
+
+void OPPROTO op_evmergelohi (void)
+{
+    T0_64 = (T0_64 << 32) | (T1_64 >> 32);
+    RETURN();
+}
+
+void OPPROTO op_evmergehilo (void)
+{
+    T0_64 = (T0_64 & 0xFFFFFFFF00000000ULL) | (T1_64 & 0x00000000FFFFFFFFULL);
+    RETURN();
+}
+
+void OPPROTO op_evcmpgts (void)
+{
+    do_evcmpgts();
+    RETURN();
+}
+
+void OPPROTO op_evcmpgtu (void)
+{
+    do_evcmpgtu();
+    RETURN();
+}
+
+void OPPROTO op_evcmplts (void)
+{
+    do_evcmplts();
+    RETURN();
+}
+
+void OPPROTO op_evcmpltu (void)
+{
+    do_evcmpltu();
+    RETURN();
+}
+
+void OPPROTO op_evcmpeq (void)
+{
+    do_evcmpeq();
+    RETURN();
+}
+
+void OPPROTO op_evfssub (void)
+{
+    do_evfssub();
+    RETURN();
+}
+
+void OPPROTO op_evfsadd (void)
+{
+    do_evfsadd();
+    RETURN();
+}
+
+void OPPROTO op_evfsnabs (void)
+{
+    do_evfsnabs();
+    RETURN();
+}
+
+void OPPROTO op_evfsabs (void)
+{
+    do_evfsabs();
+    RETURN();
+}
+
+void OPPROTO op_evfsneg (void)
+{
+    do_evfsneg();
+    RETURN();
+}
+
+void OPPROTO op_evfsdiv (void)
+{
+    do_evfsdiv();
+    RETURN();
+}
+
+void OPPROTO op_evfsmul (void)
+{
+    do_evfsmul();
+    RETURN();
+}
+
+void OPPROTO op_evfscmplt (void)
+{
+    do_evfscmplt();
+    RETURN();
+}
+
+void OPPROTO op_evfscmpgt (void)
+{
+    do_evfscmpgt();
+    RETURN();
+}
+
+void OPPROTO op_evfscmpeq (void)
+{
+    do_evfscmpeq();
+    RETURN();
+}
+
+void OPPROTO op_evfscfsi (void)
+{
+    do_evfscfsi();
+    RETURN();
+}
+
+void OPPROTO op_evfscfui (void)
+{
+    do_evfscfui();
+    RETURN();
+}
+
+void OPPROTO op_evfscfsf (void)
+{
+    do_evfscfsf();
+    RETURN();
+}
+
+void OPPROTO op_evfscfuf (void)
+{
+    do_evfscfuf();
+    RETURN();
+}
+
+void OPPROTO op_evfsctsi (void)
+{
+    do_evfsctsi();
+    RETURN();
+}
+
+void OPPROTO op_evfsctui (void)
+{
+    do_evfsctui();
+    RETURN();
+}
+
+void OPPROTO op_evfsctsf (void)
+{
+    do_evfsctsf();
+    RETURN();
+}
+
+void OPPROTO op_evfsctuf (void)
+{
+    do_evfsctuf();
+    RETURN();
+}
+
+void OPPROTO op_evfsctuiz (void)
+{
+    do_evfsctuiz();
+    RETURN();
+}
+
+void OPPROTO op_evfsctsiz (void)
+{
+    do_evfsctsiz();
+    RETURN();
+}
+
+void OPPROTO op_evfststlt (void)
+{
+    do_evfststlt();
+    RETURN();
+}
+
+void OPPROTO op_evfststgt (void)
+{
+    do_evfststgt();
+    RETURN();
+}
+
+void OPPROTO op_evfststeq (void)
+{
+    do_evfststeq();
+    RETURN();
+}
+
+void OPPROTO op_efssub (void)
+{
+    T0_64 = _do_efssub(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efsadd (void)
+{
+    T0_64 = _do_efsadd(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efsnabs (void)
+{
+    T0_64 = _do_efsnabs(T0_64);
+    RETURN();
+}
+
+void OPPROTO op_efsabs (void)
+{
+    T0_64 = _do_efsabs(T0_64);
+    RETURN();
+}
+
+void OPPROTO op_efsneg (void)
+{
+    T0_64 = _do_efsneg(T0_64);
+    RETURN();
+}
+
+void OPPROTO op_efsdiv (void)
+{
+    T0_64 = _do_efsdiv(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efsmul (void)
+{
+    T0_64 = _do_efsmul(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efscmplt (void)
+{
+    do_efscmplt();
+    RETURN();
+}
+
+void OPPROTO op_efscmpgt (void)
+{
+    do_efscmpgt();
+    RETURN();
+}
+
+void OPPROTO op_efscfd (void)
+{
+    do_efscfd();
+    RETURN();
+}
+
+void OPPROTO op_efscmpeq (void)
+{
+    do_efscmpeq();
+    RETURN();
+}
+
+void OPPROTO op_efscfsi (void)
+{
+    do_efscfsi();
+    RETURN();
+}
+
+void OPPROTO op_efscfui (void)
+{
+    do_efscfui();
+    RETURN();
+}
+
+void OPPROTO op_efscfsf (void)
+{
+    do_efscfsf();
+    RETURN();
+}
+
+void OPPROTO op_efscfuf (void)
+{
+    do_efscfuf();
+    RETURN();
+}
+
+void OPPROTO op_efsctsi (void)
+{
+    do_efsctsi();
+    RETURN();
+}
+
+void OPPROTO op_efsctui (void)
+{
+    do_efsctui();
+    RETURN();
+}
+
+void OPPROTO op_efsctsf (void)
+{
+    do_efsctsf();
+    RETURN();
+}
+
+void OPPROTO op_efsctuf (void)
+{
+    do_efsctuf();
+    RETURN();
+}
+
+void OPPROTO op_efsctsiz (void)
+{
+    do_efsctsiz();
+    RETURN();
+}
+
+void OPPROTO op_efsctuiz (void)
+{
+    do_efsctuiz();
+    RETURN();
+}
+
+void OPPROTO op_efststlt (void)
+{
+    T0 = _do_efststlt(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efststgt (void)
+{
+    T0 = _do_efststgt(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efststeq (void)
+{
+    T0 = _do_efststeq(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efdsub (void)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = T0_64;
+    u2.u = T1_64;
+    u1.f = float64_sub(u1.f, u2.f, &env->spe_status);
+    T0_64 = u1.u;
+    RETURN();
+}
+
+void OPPROTO op_efdadd (void)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = T0_64;
+    u2.u = T1_64;
+    u1.f = float64_add(u1.f, u2.f, &env->spe_status);
+    T0_64 = u1.u;
+    RETURN();
+}
+
+void OPPROTO op_efdcfsid (void)
+{
+    do_efdcfsi();
+    RETURN();
+}
+
+void OPPROTO op_efdcfuid (void)
+{
+    do_efdcfui();
+    RETURN();
+}
+
+void OPPROTO op_efdnabs (void)
+{
+    T0_64 |= 0x8000000000000000ULL;
+    RETURN();
+}
+
+void OPPROTO op_efdabs (void)
+{
+    T0_64 &= ~0x8000000000000000ULL;
+    RETURN();
+}
+
+void OPPROTO op_efdneg (void)
+{
+    T0_64 ^= 0x8000000000000000ULL;
+    RETURN();
+}
+
+void OPPROTO op_efddiv (void)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = T0_64;
+    u2.u = T1_64;
+    u1.f = float64_div(u1.f, u2.f, &env->spe_status);
+    T0_64 = u1.u;
+    RETURN();
+}
+
+void OPPROTO op_efdmul (void)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = T0_64;
+    u2.u = T1_64;
+    u1.f = float64_mul(u1.f, u2.f, &env->spe_status);
+    T0_64 = u1.u;
+    RETURN();
+}
+
+void OPPROTO op_efdctsidz (void)
+{
+    do_efdctsiz();
+    RETURN();
+}
+
+void OPPROTO op_efdctuidz (void)
+{
+    do_efdctuiz();
+    RETURN();
+}
+
+void OPPROTO op_efdcmplt (void)
+{
+    do_efdcmplt();
+    RETURN();
+}
+
+void OPPROTO op_efdcmpgt (void)
+{
+    do_efdcmpgt();
+    RETURN();
+}
+
+void OPPROTO op_efdcfs (void)
+{
+    do_efdcfs();
+    RETURN();
+}
+
+void OPPROTO op_efdcmpeq (void)
+{
+    do_efdcmpeq();
+    RETURN();
+}
+
+void OPPROTO op_efdcfsi (void)
+{
+    do_efdcfsi();
+    RETURN();
+}
+
+void OPPROTO op_efdcfui (void)
+{
+    do_efdcfui();
+    RETURN();
+}
+
+void OPPROTO op_efdcfsf (void)
+{
+    do_efdcfsf();
+    RETURN();
+}
+
+void OPPROTO op_efdcfuf (void)
+{
+    do_efdcfuf();
+    RETURN();
+}
+
+void OPPROTO op_efdctsi (void)
+{
+    do_efdctsi();
+    RETURN();
+}
+
+void OPPROTO op_efdctui (void)
+{
+    do_efdctui();
+    RETURN();
+}
+
+void OPPROTO op_efdctsf (void)
+{
+    do_efdctsf();
+    RETURN();
+}
+
+void OPPROTO op_efdctuf (void)
+{
+    do_efdctuf();
+    RETURN();
+}
+
+void OPPROTO op_efdctuiz (void)
+{
+    do_efdctuiz();
+    RETURN();
+}
+
+void OPPROTO op_efdctsiz (void)
+{
+    do_efdctsiz();
+    RETURN();
+}
+
+void OPPROTO op_efdtstlt (void)
+{
+    T0 = _do_efdtstlt(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efdtstgt (void)
+{
+    T0 = _do_efdtstgt(T0_64, T1_64);
+    RETURN();
+}
+
+void OPPROTO op_efdtsteq (void)
+{
+    T0 = _do_efdtsteq(T0_64, T1_64);
+    RETURN();
+}
+#endif /* defined(TARGET_PPCSPE) */

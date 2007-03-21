@@ -30,7 +30,7 @@ struct ppc_def_t {
     const unsigned char *name;
     uint32_t pvr;
     uint32_t pvr_mask;
-    uint32_t insns_flags;
+    uint64_t insns_flags;
     uint32_t flags;
     uint64_t msr_mask;
 };
@@ -2424,7 +2424,8 @@ static int create_ppc_opcodes (CPUPPCState *env, ppc_def_t *def)
 
     fill_new_table(env->opcodes, 0x40);
 #if defined(PPC_DUMP_CPU)
-    printf("* PowerPC instructions for PVR %08x: %s flags %08x %08x\n",
+    printf("* PowerPC instructions for PVR %08x: %s flags %016 " PRIx64
+           " %08x\n",
            def->pvr, def->name, def->insns_flags, def->flags);
 #endif
     if (&opc_start < &opc_end) {

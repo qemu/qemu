@@ -26,15 +26,20 @@
 #if defined (TARGET_PPC64)
 typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 64
+#define TARGET_GPR_BITS  64
 #define REGX "%016" PRIx64
-#elif defined(TARGET_E500)
+/* We can safely use PowerPC SPE extension when compiling PowerPC 64 */
+#define TARGET_PPCSPE
+#elif defined(TARGET_PPCSPE)
 /* GPR are 64 bits: used by vector extension */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
+#define TARGET_GPR_BITS  64
 #define REGX "%08" PRIx32
 #else
 typedef uint32_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
+#define TARGET_GPR_BITS  32
 #define REGX "%08" PRIx32
 #endif
 
@@ -297,7 +302,7 @@ enum {
     /* ld/st with reservation instructions         */
     /* cache control instructions                  */
     /* spr/msr access instructions                 */
-    PPC_INSNS_BASE  = 0x00000001,
+    PPC_INSNS_BASE  = 0x0000000000000001ULL,
 #define PPC_INTEGER PPC_INSNS_BASE
 #define PPC_FLOW    PPC_INSNS_BASE
 #define PPC_MEM     PPC_INSNS_BASE
@@ -305,68 +310,72 @@ enum {
 #define PPC_CACHE   PPC_INSNS_BASE
 #define PPC_MISC    PPC_INSNS_BASE
     /* floating point operations instructions      */
-    PPC_FLOAT       = 0x00000002,
+    PPC_FLOAT       = 0x0000000000000002ULL,
     /* more floating point operations instructions */
-    PPC_FLOAT_EXT   = 0x00000004,
+    PPC_FLOAT_EXT   = 0x0000000000000004ULL,
     /* external control instructions               */
-    PPC_EXTERN      = 0x00000008,
+    PPC_EXTERN      = 0x0000000000000008ULL,
     /* segment register access instructions        */
-    PPC_SEGMENT     = 0x00000010,
+    PPC_SEGMENT     = 0x0000000000000010ULL,
     /* Optional cache control instructions         */
-    PPC_CACHE_OPT   = 0x00000020,
+    PPC_CACHE_OPT   = 0x0000000000000020ULL,
     /* Optional floating point op instructions     */
-    PPC_FLOAT_OPT   = 0x00000040,
+    PPC_FLOAT_OPT   = 0x0000000000000040ULL,
     /* Optional memory control instructions        */
-    PPC_MEM_TLBIA   = 0x00000080,
-    PPC_MEM_TLBIE   = 0x00000100,
-    PPC_MEM_TLBSYNC = 0x00000200,
+    PPC_MEM_TLBIA   = 0x0000000000000080ULL,
+    PPC_MEM_TLBIE   = 0x0000000000000100ULL,
+    PPC_MEM_TLBSYNC = 0x0000000000000200ULL,
     /* eieio & sync                                */
-    PPC_MEM_SYNC    = 0x00000400,
+    PPC_MEM_SYNC    = 0x0000000000000400ULL,
     /* PowerPC 6xx TLB management instructions     */
-    PPC_6xx_TLB     = 0x00000800,
+    PPC_6xx_TLB     = 0x0000000000000800ULL,
     /* Altivec support                             */
-    PPC_ALTIVEC     = 0x00001000,
+    PPC_ALTIVEC     = 0x0000000000001000ULL,
     /* Time base support                           */
-    PPC_TB          = 0x00002000,
+    PPC_TB          = 0x0000000000002000ULL,
     /* Embedded PowerPC dedicated instructions     */
-    PPC_EMB_COMMON  = 0x00004000,
+    PPC_EMB_COMMON  = 0x0000000000004000ULL,
     /* PowerPC 40x exception model                 */
-    PPC_40x_EXCP    = 0x00008000,
+    PPC_40x_EXCP    = 0x0000000000008000ULL,
     /* PowerPC 40x specific instructions           */
-    PPC_40x_SPEC    = 0x00010000,
+    PPC_40x_SPEC    = 0x0000000000010000ULL,
     /* PowerPC 405 Mac instructions                */
-    PPC_405_MAC     = 0x00020000,
+    PPC_405_MAC     = 0x0000000000020000ULL,
     /* PowerPC 440 specific instructions           */
-    PPC_440_SPEC    = 0x00040000,
+    PPC_440_SPEC    = 0x0000000000040000ULL,
     /* Specific extensions */
     /* Power-to-PowerPC bridge (601)               */
-    PPC_POWER_BR    = 0x00080000,
+    PPC_POWER_BR    = 0x0000000000080000ULL,
     /* PowerPC 602 specific */
-    PPC_602_SPEC    = 0x00100000,
+    PPC_602_SPEC    = 0x0000000000100000ULL,
     /* Deprecated instructions                     */
     /* Original POWER instruction set              */
-    PPC_POWER       = 0x00200000,
+    PPC_POWER       = 0x0000000000200000ULL,
     /* POWER2 instruction set extension            */
-    PPC_POWER2      = 0x00400000,
+    PPC_POWER2      = 0x0000000000400000ULL,
     /* Power RTC support */
-    PPC_POWER_RTC   = 0x00800000,
+    PPC_POWER_RTC   = 0x0000000000800000ULL,
     /* 64 bits PowerPC instructions                */
     /* 64 bits PowerPC instruction set             */
-    PPC_64B         = 0x01000000,
+    PPC_64B         = 0x0000000001000000ULL,
     /* 64 bits hypervisor extensions               */
-    PPC_64H         = 0x02000000,
+    PPC_64H         = 0x0000000002000000ULL,
     /* 64 bits PowerPC "bridge" features           */
-    PPC_64_BRIDGE   = 0x04000000,
+    PPC_64_BRIDGE   = 0x0000000004000000ULL,
     /* BookE (embedded) PowerPC specification      */
-    PPC_BOOKE       = 0x08000000,
+    PPC_BOOKE       = 0x0000000008000000ULL,
     /* eieio */
-    PPC_MEM_EIEIO   = 0x10000000,
+    PPC_MEM_EIEIO   = 0x0000000010000000ULL,
     /* e500 vector instructions */
-    PPC_E500_VECTOR = 0x20000000,
+    PPC_E500_VECTOR = 0x0000000020000000ULL,
     /* PowerPC 4xx dedicated instructions     */
-    PPC_4xx_COMMON  = 0x40000000,
+    PPC_4xx_COMMON  = 0x0000000040000000ULL,
     /* PowerPC 2.03 specification extensions */
-    PPC_203         = 0x80000000,
+    PPC_203         = 0x0000000080000000ULL,
+    /* PowerPC 2.03 SPE extension */
+    PPC_SPE         = 0x0000000100000000ULL,
+    /* PowerPC 2.03 SPE floating-point extension */
+    PPC_SPEFPU      = 0x0000000200000000ULL,
 };
 
 /* CPU run-time flags (MMU and exception model) */
@@ -618,10 +627,10 @@ struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
      */
-#if TARGET_LONG_BITS > HOST_LONG_BITS
+#if TARGET_GPR_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
-     */
+     */ 
     target_ulong t0, t1, t2;
 #endif
     ppc_avr_t t0_avr, t1_avr, t2_avr;
@@ -683,6 +692,7 @@ struct CPUPPCState {
     uint32_t vscr;
     /* SPE registers */
     ppc_gpr_t spe_acc;
+    float_status spe_status;
     uint32_t spe_fscr;
 
     /* Internal devices resources */
@@ -1192,6 +1202,8 @@ enum {
 #define EXCP_970_MAINT     0x1600 /* Maintenance exception                   */
 #define EXCP_970_THRM      0x1800 /* Thermal exception                       */
 #define EXCP_970_VPUA      0x1700 /* VPU assist exception                    */
+/* SPE related exceptions                                                    */
+#define EXCP_NO_SPE        0x0F20 /* SPE unavailable exception               */
 /* End of exception vectors area                                             */
 #define EXCP_PPC_MAX       0x4000
 /* Qemu exceptions: special cases we want to stop translation                */

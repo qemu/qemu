@@ -5297,8 +5297,6 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
-    env->CP0_Config2 = MIPS_CONFIG2;
-    env->CP0_Config3 = MIPS_CONFIG3;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     //~ env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
     //~ env->CP0_IntCtl = (7 << 29);
@@ -5312,7 +5310,6 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags |= MIPS_HFLAG_UM;
     env->user_mode_only = 1;
 #endif
-    env->fcr0 = MIPS_FCR0;
     /* XXX some guesswork here, values are CPU specific */
     env->SYNCI_Step = 16;
     env->CCRes = 2;

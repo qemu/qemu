@@ -59,7 +59,17 @@ float32 int32_to_float32(int v STATUS_PARAM)
     return (float32)v;
 }
 
+float32 uint32_to_float32(unsigned int v STATUS_PARAM)
+{
+    return (float32)v;
+}
+
 float64 int32_to_float64(int v STATUS_PARAM)
+{
+    return (float64)v;
+}
+
+float64 uint32_to_float64(unsigned int v STATUS_PARAM)
 {
     return (float64)v;
 }
@@ -74,7 +84,15 @@ float32 int64_to_float32( int64_t v STATUS_PARAM)
 {
     return (float32)v;
 }
+float32 uint64_to_float32( uint64_t v STATUS_PARAM)
+{
+    return (float32)v;
+}
 float64 int64_to_float64( int64_t v STATUS_PARAM)
+{
+    return (float64)v;
+}
+float64 uint64_to_float64( uint64_t v STATUS_PARAM)
 {
     return (float64)v;
 }
@@ -131,6 +149,37 @@ floatx80 float32_to_floatx80( float32 a STATUS_PARAM)
     return a;
 }
 #endif
+
+unsigned int float32_to_uint32( float32 a STATUS_PARAM)
+{
+    int64_t v;
+    unsigned int res;
+
+    v = llrintf(a);
+    if (v < 0) {
+        res = 0;
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+    } else {
+        res = v;
+    }
+    return res;
+}
+unsigned int float32_to_uint32_round_to_zero( float32 a STATUS_PARAM)
+{
+    int64_t v;
+    unsigned int res;
+
+    v = (int64_t)a;
+    if (v < 0) {
+        res = 0;
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+    } else {
+        res = v;
+    }
+    return res;
+}
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision operations.
@@ -217,6 +266,53 @@ float128 float64_to_float128( float64 a STATUS_PARAM)
     return a;
 }
 #endif
+
+unsigned int float64_to_uint32( float64 a STATUS_PARAM)
+{
+    int64_t v;
+    unsigned int res;
+
+    v = llrint(a);
+    if (v < 0) {
+        res = 0;
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+    } else {
+        res = v;
+    }
+    return res;
+}
+unsigned int float64_to_uint32_round_to_zero( float64 a STATUS_PARAM)
+{
+    int64_t v;
+    unsigned int res;
+
+    v = (int64_t)a;
+    if (v < 0) {
+        res = 0;
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+    } else {
+        res = v;
+    }
+    return res;
+}
+uint64_t float64_to_uint64 (float64 a STATUS_PARAM)
+{
+    int64_t v;
+
+    v = llrint(a + (float64)INT64_MIN);
+
+    return v - INT64_MIN;
+}
+uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
+{
+    int64_t v;
+
+    v = (int64_t)(a + (float64)INT64_MIN);
+
+    return v - INT64_MIN;
+}
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision operations.

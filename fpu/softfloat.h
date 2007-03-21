@@ -193,7 +193,9 @@ floatx80 int32_to_floatx80( int STATUS_PARAM );
 float128 int32_to_float128( int STATUS_PARAM );
 #endif
 float32 int64_to_float32( int64_t STATUS_PARAM );
+float32 uint64_to_float32( uint64_t STATUS_PARAM );
 float64 int64_to_float64( int64_t STATUS_PARAM );
+float64 uint64_to_float64( uint64_t STATUS_PARAM );
 #ifdef FLOATX80
 floatx80 int64_to_floatx80( int64_t STATUS_PARAM );
 #endif
@@ -258,6 +260,8 @@ unsigned int float64_to_uint32( float64 STATUS_PARAM );
 unsigned int float64_to_uint32_round_to_zero( float64 STATUS_PARAM );
 int64_t float64_to_int64( float64 STATUS_PARAM );
 int64_t float64_to_int64_round_to_zero( float64 STATUS_PARAM );
+uint64_t float64_to_uint64 (float64 a STATUS_PARAM);
+uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM);
 float32 float64_to_float32( float64 STATUS_PARAM );
 #ifdef FLOATX80
 floatx80 float64_to_floatx80( float64 STATUS_PARAM );

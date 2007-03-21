@@ -1,3 +1,32 @@
+2007-03-21 12:04  ths
+
+	* target-mips/: mips-defs.h, translate.c, translate_init.c: Move
+	  mips CPU specific initialization to translate_init.c.
+
+2007-03-21 09:21  j_mayer
+
+	* target-ppc/: op.c, op_helper.h: Fix compilation on 32 bits hosts
+	  (pb reported by Thiemo Seufer)
+
+2007-03-20 23:25  j_mayer
+
+	* fpu/softfloat.c: Ooops... Typo.
+
+2007-03-20 23:11  j_mayer
+
+	* target-ppc/: cpu.h, exec.h, op.c, op_helper.c, op_helper.h,
+	  op_mem.h, op_template.h, translate.c, translate_init.c: PowerPC
+	  2.03 SPE extension - first pass.
+
+2007-03-20 23:10  j_mayer
+
+	* fpu/: softfloat-native.c, softfloat-native.h, softfloat.c,
+	  softfloat.h: Add missing softfloat helpers.
+
+2007-03-20 22:50  ths
+
+	* linux-user/syscall.c: fcntl64 fix, by Kirill A. Shutemov.
+
 2007-03-20 17:54  ths
 
 	* hw/slavio_timer.c: SlavIO Counter-Timers fix, by Aurelien Jarno.

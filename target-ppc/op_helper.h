@@ -100,6 +100,7 @@ void do_fctiwz (void);
 void do_fcmpu (void);
 void do_fcmpo (void);
 
+/* Misc */
 void do_tw (int flags);
 #if defined(TARGET_PPC64)
 void do_td (int flags);
@@ -157,11 +158,290 @@ void do_4xx_tlbwe_lo (void);
 void do_4xx_tlbwe_hi (void);
 #endif
 
+/* PowerPC 440 specific helpers */
 void do_440_dlmzb (void);
 
+/* PowerPC 403 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_load_403_pb (int num);
 void do_store_403_pb (int num);
 #endif
 
+#if defined(TARGET_PPCSPE)
+/* SPE extension helpers */
+void do_brinc (void);
+/* Fixed-point vector helpers */
+void do_evabs (void);
+void do_evaddw (void);
+void do_evcntlsw (void);
+void do_evcntlzw (void);
+void do_evneg (void);
+void do_evrlw (void);
+void do_evsel (void);
+void do_evrndw (void);
+void do_evslw (void);
+void do_evsrws (void);
+void do_evsrwu (void);
+void do_evsubfw (void);
+void do_evcmpeq (void);
+void do_evcmpgts (void);
+void do_evcmpgtu (void);
+void do_evcmplts (void);
+void do_evcmpltu (void);
+
+/* Single precision floating-point helpers */
+void do_efscmplt (void);
+void do_efscmpgt (void);
+void do_efscmpeq (void);
+void do_efscfsf (void);
+void do_efscfuf (void);
+void do_efsctsf (void);
+void do_efsctuf (void);
+
+void do_efscfsi (void);
+void do_efscfui (void);
+void do_efsctsi (void);
+void do_efsctui (void);
+void do_efsctsiz (void);
+void do_efsctuiz (void);
+
+/* Double precision floating-point helpers */
+void do_efdcmplt (void);
+void do_efdcmpgt (void);
+void do_efdcmpeq (void);
+void do_efdcfsf (void);
+void do_efdcfuf (void);
+void do_efdctsf (void);
+void do_efdctuf (void);
+
+void do_efdcfsi (void);
+void do_efdcfui (void);
+void do_efdctsi (void);
+void do_efdctui (void);
+void do_efdctsiz (void);
+void do_efdctuiz (void);
+
+void do_efdcfs (void);
+void do_efscfd (void);
+
+/* Floating-point vector helpers */
+void do_evfsabs (void);
+void do_evfsnabs (void);
+void do_evfsneg (void);
+void do_evfsadd (void);
+void do_evfssub (void);
+void do_evfsmul (void);
+void do_evfsdiv (void);
+void do_evfscmplt (void);
+void do_evfscmpgt (void);
+void do_evfscmpeq (void);
+void do_evfststlt (void);
+void do_evfststgt (void);
+void do_evfststeq (void);
+void do_evfscfsi (void);
+void do_evfscfui (void);
+void do_evfscfsf (void);
+void do_evfscfuf (void);
+void do_evfsctsf (void);
+void do_evfsctuf (void);
+void do_evfsctsi (void);
+void do_evfsctui (void);
+void do_evfsctsiz (void);
+void do_evfsctuiz (void);
+#endif /* defined(TARGET_PPCSPE) */
+
+/* Inlined helpers: used in micro-operation as well as helpers */
+/* Generic fixed-point helpers */
+static inline int _do_cntlzw (uint32_t val)
+{
+    int cnt = 0;
+    if (!(val & 0xFFFF0000UL)) {
+        cnt += 16;
+        val <<= 16;
+    }
+    if (!(val & 0xFF000000UL)) {
+        cnt += 8;
+        val <<= 8;
+    }
+    if (!(val & 0xF0000000UL)) {
+        cnt += 4;
+        val <<= 4;
+    }
+    if (!(val & 0xC0000000UL)) {
+        cnt += 2;
+        val <<= 2;
+    }
+    if (!(val & 0x80000000UL)) {
+        cnt++;
+        val <<= 1;
+    }
+    if (!(val & 0x80000000UL)) {
+        cnt++;
+    }
+    return cnt;
+}
+
+static inline int _do_cntlzd (uint64_t val)
+{
+    int cnt = 0;
+#if HOST_LONG_BITS == 64
+    if (!(val & 0xFFFFFFFF00000000ULL)) {
+        cnt += 32;
+        val <<= 32;
+    }
+    if (!(val & 0xFFFF000000000000ULL)) {
+        cnt += 16;
+        val <<= 16;
+    }
+    if (!(val & 0xFF00000000000000ULL)) {
+        cnt += 8;
+        val <<= 8;
+    }
+    if (!(val & 0xF000000000000000ULL)) {
+        cnt += 4;
+        val <<= 4;
+    }
+    if (!(val & 0xC000000000000000ULL)) {
+        cnt += 2;
+        val <<= 2;
+    }
+    if (!(val & 0x8000000000000000ULL)) {
+        cnt++;
+        val <<= 1;
+    }
+    if (!(val & 0x8000000000000000ULL)) {
+        cnt++;
+    }
+#else
+    /* Make it easier on 32 bits host machines */
+    if (!(val >> 32))
+        cnt = _do_cntlzw(val) + 32;
+    else
+        cnt = _do_cntlzw(val >> 32);
+#endif
+    return cnt;
+}
+
+#if defined(TARGET_PPCSPE)
+/* SPE extension */
+/* Single precision floating-point helpers */
+static inline uint32_t _do_efsabs (uint32_t val)
+{
+    return val & ~0x80000000;
+}
+static inline uint32_t _do_efsnabs (uint32_t val)
+{
+    return val | 0x80000000;
+}
+static inline uint32_t _do_efsneg (uint32_t val)
+{
+    return val ^ 0x80000000;
+}
+static inline uint32_t _do_efsadd (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    u1.f = float32_add(u1.f, u2.f, &env->spe_status);
+    return u1.u;
+}
+static inline uint32_t _do_efssub (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    u1.f = float32_sub(u1.f, u2.f, &env->spe_status);
+    return u1.u;
+}
+static inline uint32_t _do_efsmul (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    u1.f = float32_mul(u1.f, u2.f, &env->spe_status);
+    return u1.u;
+}
+static inline uint32_t _do_efsdiv (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    u1.f = float32_div(u1.f, u2.f, &env->spe_status);
+    return u1.u;
+}
+
+static inline int _do_efststlt (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    return float32_lt(u1.f, u2.f, &env->spe_status) ? 1 : 0;
+}
+static inline int _do_efststgt (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    return float32_le(u1.f, u2.f, &env->spe_status) ? 0 : 1;
+}
+static inline int _do_efststeq (uint32_t op1, uint32_t op2)
+{
+    union {
+        uint32_t u;
+        float32 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    return float32_eq(u1.f, u2.f, &env->spe_status) ? 1 : 0;
+}
+/* Double precision floating-point helpers */
+static inline int _do_efdtstlt (uint64_t op1, uint64_t op2)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    return float64_lt(u1.f, u2.f, &env->spe_status) ? 1 : 0;
+}
+static inline int _do_efdtstgt (uint64_t op1, uint64_t op2)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    return float64_le(u1.f, u2.f, &env->spe_status) ? 0 : 1;
+}
+static inline int _do_efdtsteq (uint64_t op1, uint64_t op2)
+{
+    union {
+        uint64_t u;
+        float64 f;
+    } u1, u2;
+    u1.u = op1;
+    u2.u = op2;
+    return float64_eq(u1.f, u2.f, &env->spe_status) ? 1 : 0;
+}
+#endif /* defined(TARGET_PPCSPE) */
 #endif
