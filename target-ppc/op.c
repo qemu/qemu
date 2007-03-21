@@ -720,7 +720,7 @@ void OPPROTO op_check_addo (void)
 void OPPROTO op_check_addo_64 (void)
 {
     if (likely(!(((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
-                 ((uint64_t)T2 ^ (uint64_t)T0) & (1UL << 63)))) {
+                 ((uint64_t)T2 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
         xer_so = 1;

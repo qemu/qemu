@@ -313,12 +313,11 @@ static inline int _do_cntlzd (uint64_t val)
         cnt++;
     }
 #else
-    uint32_t tmp;
     /* Make it easier on 32 bits host machines */
     if (!(val >> 32))
-        cnt = cntlzw(val) + 32;
+        cnt = _do_cntlzw(val) + 32;
     else
-        cnt = cntlzw(val >> 32);
+        cnt = _do_cntlzw(val >> 32);
 #endif
     return cnt;
 }
