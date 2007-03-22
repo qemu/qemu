@@ -58,6 +58,8 @@
 # include "hw/tnetw1130.h"
 #endif
 
+//~ #include "target-mips/exec.h"   /* do_int */
+
 #define MIPS_EXCEPTION_OFFSET   8
 
 static int bigendian;
@@ -96,6 +98,7 @@ static struct {
   int INTC:1;
   int MDIO:1;
   int RESET:1;
+  int TIMER:1;
   int UART:1;
   int VLYNQ:1;
   int WDOG:1;
@@ -111,6 +114,7 @@ static struct {
 #define INTC    traceflags.INTC
 #define MDIO    traceflags.MDIO
 #define RESET   traceflags.RESET
+#define TIMER   traceflags.TIMER
 #define UART    traceflags.UART
 #define VLYNQ   traceflags.VLYNQ
 #define WDOG    traceflags.WDOG
@@ -275,13 +279,20 @@ typedef struct {
 } NICState;
 
 typedef struct {
+    uint8_t *base;
+    QEMUTimer *qemu_timer;
+} ar7_timer_t;
+
+typedef struct {
     CPUState *cpu_env;
+    QEMUTimer *wd_timer;
     NICState nic[2];
     uint16_t phy[32];
     CharDriverState *gpio_display;
     SerialState *serial[2];
     uint32_t intmask[2];
     uint8_t *cpmac[2];
+    ar7_timer_t timer[2];
     uint8_t *vlynq[2];
 
     uint32_t adsl[0x8000];      // 0x01000000
@@ -301,8 +312,8 @@ typedef struct {
     // 0x08610a80 struct _ohio_clock_pll
     //~ uint32_t clock_dummy[0x18];
     uint32_t watchdog[0x20];    // 0x08610b00 struct _ohio_clock_pll
-    uint32_t timer0[2];         // 0x08610c00
-    uint32_t timer1[2];         // 0x08610d00
+    uint8_t timer0[8];          // 0x08610c00
+    uint8_t timer1[8];          // 0x08610d00
     uint32_t uart0[8];          // 0x08610e00
     uint32_t uart1[8];          // 0x08610f00
     uint32_t usb[20];           // 0x08611200
@@ -642,10 +653,34 @@ static void clock_write(unsigned offset, uint32_t val)
 {
     TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", offset / 4, val, backtrace()));
     if (offset == 0) {
-        uint32_t oldpowerstate =
-            reg_read(av.clock_control, 0) >> 30;
+        uint32_t oldpowerstate = reg_read(av.clock_control, 0);
         uint32_t newpowerstate = val;
         if (oldpowerstate != newpowerstate) {
+#if defined(DEBUG_AR7)
+            static const char *powerbits[] = {
+                /* 00 */ "usb", "wdt", "uart0", "uart1",
+                /* 04 */ "iic", "vdma", "gpio", "vlynq1",
+                /* 08 */ "sar", "adsl", "emif", "reserved11",
+                /* 12 */ "adsp", "ram", "rom", "dma",
+                /* 16 */ "bist", "reserved17", "timer0", "timer1",
+                /* 20 */ "emac0", "reserved21", "emac1", "reserved23",
+                /* 24 */ "ephy", "reserved25", "reserved26", "vlynq0",
+                /* 28 */ "reserved28", "reserved29", "reserved30", "reserved31" // 30?, 31?
+            };
+            // bit coded device(s). 0 = disabled (reset), 1 = enabled.
+            uint32_t changed = (oldpowerstate ^ newpowerstate);
+            uint32_t enabled = (changed & newpowerstate);
+            unsigned i;
+            for (i = 0; i < 32; i++) {
+                if (changed & (1 << i)) {
+                    TRACE(CLOCK,
+                          logout("power %sabled %s (0x%08x)\n",
+                                 (enabled & (1 << i)) ? "en" : "dis",
+                                 powerbits[i], val));
+                }
+            }
+#endif
+            oldpowerstate >>= 30;
             TRACE(CLOCK, logout("change power state from %u to %u\n",
                                 oldpowerstate, newpowerstate));
         }
@@ -2015,6 +2050,53 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
 
 /*****************************************************************************
  *
+ * Timer emulation.
+ *
+ ****************************************************************************/
+
+// CTL0             /* control register */
+// PRD0             /* period register */
+// CNT0             /* counter register */
+
+static void timer_cb(void *opaque)
+{
+    ar7_timer_t *timer = (ar7_timer_t *)opaque;
+
+    TRACE(TIMER, logout("timer expired\n"));
+    ar7_irq(IRQ_OPAQUE, 14, 1);
+#if defined(TARGET_WORDS_BIGENDIAN)
+    // special test code for zyxel, fix!!!
+    const uint32_t frequency = 62500000;
+    uint32_t duration = reg_read(timer->base, 4);
+    int64_t t = qemu_get_clock(vm_clock);
+    qemu_mod_timer(timer->qemu_timer, t + duration * (ticks_per_sec / frequency));
+#endif
+}
+
+static uint32_t ar7_timer_read(unsigned index, uint32_t addr)
+{
+    ar7_timer_t *timer = &av.timer[index];
+    uint32_t val;
+    val = reg_read(timer->base, addr);
+    TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", index, addr, val));
+    return val;
+}
+
+static void ar7_timer_write(unsigned index, uint32_t addr, uint32_t val)
+{
+    ar7_timer_t *timer = &av.timer[index];
+    TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", index, addr, val));
+    reg_write(timer->base, addr, val);
+    if (addr == 0 && (val & 1)) {
+        const uint32_t frequency = 62500000;
+        uint32_t duration = reg_read(timer->base, 4);
+        int64_t t = qemu_get_clock(vm_clock);
+        qemu_mod_timer(timer->qemu_timer, t + duration * (ticks_per_sec / frequency));
+    }
+}
+
+/*****************************************************************************
+ *
  * UART emulation.
  *
  ****************************************************************************/
@@ -2457,7 +2539,24 @@ typedef struct {
     uint32_t prescale;          /* 0x1c */
 } wdtimer_t;
 
-static uint16_t wd_val(uint16_t val, uint16_t bits)
+void watchdog_trigger(void)
+{
+    wdtimer_t *wdt = (wdtimer_t *) & av.watchdog;
+    if (wdt->disable == 0) {
+        TRACE(WDOG, logout("disabled watchdog\n"));
+        qemu_del_timer(av.wd_timer);
+    } else {
+        const uint32_t frequency = 62500000;
+        int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) * (ticks_per_sec / frequency);
+        //~ logout("change   = 0x%x\n", wdt->change);
+        //~ logout("prescale = 0x%x\n", wdt->prescale);
+        TRACE(WDOG, logout("trigger value = %u ms\n", (unsigned)(t * 1000 / ticks_per_sec)));
+        //~ logout("trigger value = %u\n", (unsigned)(ticks_per_sec / 1000000));
+        qemu_mod_timer(av.wd_timer, qemu_get_clock(vm_clock) + t);
+    }
+}
+
+static inline uint16_t wd_val(uint16_t val, uint16_t bits)
 {
     return ((val & ~0x3) | bits);
 }
@@ -2483,8 +2582,10 @@ static void ar7_wdt_write(unsigned offset, uint32_t val)
             UNEXPECTED();
         } else if (val == KICK_VALUE) {
             TRACE(WDOG, logout("kick (restart) watchdog\n"));
+            watchdog_trigger();
+        } else {
+            UNEXPECTED();
         }
-        MISSING();
     } else if (offset == offsetof(wdtimer_t, change_lock)) {
         if (val == CHANGE_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("change lock 1st stage\n"));
@@ -2502,9 +2603,9 @@ static void ar7_wdt_write(unsigned offset, uint32_t val)
             TRACE(WDOG, logout("change still locked!\n"));
             UNEXPECTED();
         } else {
-            TRACE(WDOG, logout("change watchdog, val=0x%08x\n", val));  // val = 0xdf5c
+            TRACE(WDOG, logout("change watchdog, val=0x%08x\n", val));
+            wdt->change = val;
         }
-        MISSING();
     } else if (offset == offsetof(wdtimer_t, disable_lock)) {
         if (val == DISABLE_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("disable lock 1st stage\n"));
@@ -2525,9 +2626,11 @@ static void ar7_wdt_write(unsigned offset, uint32_t val)
             TRACE(WDOG, logout("disable still locked, val=0x%08x!\n", val));
             UNEXPECTED();
         } else {
-            TRACE(WDOG, logout("disable watchdog, val=0x%08x\n", val)); // val = 0
+            TRACE(WDOG,
+                  logout("%sable watchdog, val=0x%08x\n", val ? "en" : "dis", val));
+            wdt->disable = val;
+            watchdog_trigger();
         }
-        MISSING();
     } else if (offset == offsetof(wdtimer_t, prescale_lock)) {
         if (val == PRESCALE_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("prescale lock 1st stage\n"));
@@ -2546,13 +2649,23 @@ static void ar7_wdt_write(unsigned offset, uint32_t val)
             UNEXPECTED();
         } else {
             TRACE(WDOG, logout("set watchdog prescale, val=0x%08x\n", val));    // val = 0xffff
+            wdt->prescale = val;
         }
-        MISSING();
     } else {
         TRACE(WDOG,
               logout("??? offset 0x%02x = 0x%08x, %s\n", offset, val,
                      backtrace()));
     }
+}
+
+static void watchdog_cb(void *opaque)
+{
+    CPUState *env = opaque;
+
+    logout("watchdog expired\n");
+    env->exception_index = EXCP_NMI;
+    env->error_code = 0;
+    do_interrupt(env);
 }
 
 /*****************************************************************************
@@ -2600,15 +2713,12 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = VLYNQ;
         val = VALUE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1);
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
-        //~ name = "cpmac0";
         logflag = 0;
         val = ar7_cpmac_read(0, addr - AVALANCHE_CPMAC0_BASE);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
-        //~ name = "emif";
         logflag = 0;
         val = ar7_emif_read(addr - AVALANCHE_EMIF_BASE);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
-        //~ name = "gpio";
         logflag = 0;
         val = ar7_gpio_read(addr - AVALANCHE_GPIO_BASE);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
@@ -2619,8 +2729,11 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = WDOG;
         val = VALUE(AVALANCHE_WATCHDOG_BASE, av.watchdog);
     } else if (INRANGE(AVALANCHE_TIMER0_BASE, av.timer0)) {
-        name = "timer0";
-        val = VALUE(AVALANCHE_TIMER0_BASE, av.timer0);
+        logflag = 0;
+        val = ar7_timer_read(0, addr - AVALANCHE_TIMER0_BASE);
+    } else if (INRANGE(AVALANCHE_TIMER1_BASE, av.timer1)) {
+        logflag = 0;
+        val = ar7_timer_read(1, addr - AVALANCHE_TIMER1_BASE);
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
         logflag = 0;
         val = uart_read(0, addr);
@@ -2635,30 +2748,24 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = RESET;
         val = VALUE(AVALANCHE_RESET_BASE, av.reset_control);
     } else if (INRANGE(AVALANCHE_DCL_BASE, av.dcl)) {
-        //~ name = "device config latch";
         logflag = 0;
         val = ar7_dcl_read(addr - AVALANCHE_DCL_BASE);
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
-        //~ name = "vlynq0";
         logflag = 0;
         val = ar7_vlynq_read(0, addr - AVALANCHE_VLYNQ0_BASE);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
-        //~ name = "vlynq1";
         logflag = 0;
         val = ar7_vlynq_read(1, addr - AVALANCHE_VLYNQ1_BASE);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
-        //~ name = "mdio";
         logflag = 0;
         val = ar7_mdio_read(av.mdio, addr - AVALANCHE_MDIO_BASE);
     } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
         name = "ohio wdt";
         val = VALUE(OHIO_WDT_BASE, av.wdt);
     } else if (INRANGE(AVALANCHE_INTC_BASE, av.intc)) {
-        //~ name = "intc";
         logflag = 0;
         val = ar7_intc_read(addr - AVALANCHE_INTC_BASE);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
-        //~ name = "cpmac1";
         logflag = 0;
         val = ar7_cpmac_read(1, addr - AVALANCHE_CPMAC1_BASE);
     } else {
@@ -2708,27 +2815,26 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = VLYNQ;
         VALUE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1) = val;
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
-        //~ name = "cpmac0";
         logflag = 0;
         ar7_cpmac_write(0, addr - AVALANCHE_CPMAC0_BASE, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
-        //~ name = "emif";
         logflag = 0;
         ar7_emif_write(addr - AVALANCHE_EMIF_BASE, val);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
-        //~ name = "gpio";
         logflag = 0;
         ar7_gpio_write(addr - AVALANCHE_GPIO_BASE, val);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         logflag = 0;
         clock_write(addr - AVALANCHE_CLOCK_BASE, val);
     } else if (INRANGE(AVALANCHE_WATCHDOG_BASE, av.watchdog)) {
-        //~ name = "watchdog";
         logflag = 0;
         ar7_wdt_write(addr - AVALANCHE_WATCHDOG_BASE, val);
     } else if (INRANGE(AVALANCHE_TIMER0_BASE, av.timer0)) {
-        name = "timer0";
-        VALUE(AVALANCHE_TIMER0_BASE, av.timer0) = val;
+        logflag = 0;
+        ar7_timer_write(0, addr - AVALANCHE_TIMER0_BASE, val);
+    } else if (INRANGE(AVALANCHE_TIMER1_BASE, av.timer1)) {
+        logflag = 0;
+        ar7_timer_write(1, addr - AVALANCHE_TIMER1_BASE, val);
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
         logflag = 0;
         uart_write(0, addr, val);
@@ -2739,35 +2845,28 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "usb slave";
         VALUE(AVALANCHE_USB_SLAVE_BASE, av.usb) = val;
     } else if (INRANGE(AVALANCHE_RESET_BASE, av.reset_control)) {
-        //~ name = "reset control";
         logflag = 0;
         VALUE(AVALANCHE_RESET_BASE, av.reset_control) = val;
         ar7_reset_write(addr - AVALANCHE_RESET_BASE, val);
     } else if (INRANGE(AVALANCHE_DCL_BASE, av.dcl)) {
-        //~ name = "device config latch";
         logflag = 0;
         ar7_dcl_write(addr - AVALANCHE_DCL_BASE, val);
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
-        //~ name = "vlynq0";
         logflag = 0;
         ar7_vlynq_write(0, addr - AVALANCHE_VLYNQ0_BASE, val);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
-        //~ name = "vlynq1";
         logflag = 0;
         ar7_vlynq_write(1, addr - AVALANCHE_VLYNQ1_BASE, val);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
-        //~ name = "mdio";
         logflag = 0;
         ar7_mdio_write(av.mdio, addr - AVALANCHE_MDIO_BASE, val);
     } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
         name = "ohio wdt";
         VALUE(OHIO_WDT_BASE, av.wdt) = val;
     } else if (INRANGE(AVALANCHE_INTC_BASE, av.intc)) {
-        //~ name = "intc";
         logflag = 0;
         ar7_intc_write(addr - AVALANCHE_INTC_BASE, val);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
-        //~ name = "cpmac1";
         logflag = 0;
         ar7_cpmac_write(1, addr - AVALANCHE_CPMAC1_BASE, val);
     } else {
@@ -3169,6 +3268,8 @@ void ar7_init(CPUState * env)
     av.cpmac[1] = av.cpmac1;
     av.vlynq[0] = av.vlynq0;
     av.vlynq[1] = av.vlynq1;
+    av.timer[0].base = av.timer0;
+    av.timer[1].base = av.timer1;
     av.cpu_env = env;
 
     ar7_serial_init(env);
@@ -3281,8 +3382,9 @@ static void mips_ar7_common_init (int ram_size,
          (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |
          (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL));
 
-    if (env->CP0_Config0 != 0x80240083) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
+    if (env->CP0_Config0 != 0x80240082) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
     if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
+    if (env->CP0_Config2 != 0x80000000) printf("CP0_Config2 = 0x%08x\n", env->CP0_Config2);
 #if defined(TARGET_WORDS_BIGENDIAN)
 #else
     assert(env->CP0_Config0 == 0x80240082);
@@ -3424,6 +3526,10 @@ static void mips_ar7_common_init (int ram_size,
     cpu_mips_clock_init(env);
     //~ cpu_mips_irqctrl_init();
 
+    av.wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, env);
+    av.timer[0].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &av.timer[0]);
+    av.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &av.timer[1]);
+
     ar7_init(env);
 
 #if defined(DEBUG_AR7)
@@ -3440,6 +3546,7 @@ static void mips_ar7_common_init (int ram_size,
   TRACE(INTC, logout("Logging enabled for INTC\n"));
   TRACE(MDIO, logout("Logging enabled for MDIO\n"));
   TRACE(RESET, logout("Logging enabled for RESET\n"));
+  TRACE(TIMER, logout("Logging enabled for TIMER\n"));
   TRACE(UART, logout("Logging enabled for UART\n"));
   TRACE(VLYNQ, logout("Logging enabled for VLYNQ\n"));
   TRACE(WDOG, logout("Logging enabled for WDOG\n"));
