@@ -615,11 +615,13 @@ void do_fctiw (void)
         uint64_t i;
     } p;
 
+    p.i = float64_to_int32(FT0, &env->fp_status);
+#if USE_PRECISE_EMULATION
     /* XXX: higher bits are not supposed to be significant.
      *     to make tests easier, return the same as a real PowerPC 750 (aka G3)
      */
-    p.i = float64_to_int32(FT0, &env->fp_status);
     p.i |= 0xFFF80000ULL << 32;
+#endif
     FT0 = p.d;
 }
 
@@ -630,26 +632,96 @@ void do_fctiwz (void)
         uint64_t i;
     } p;
 
+    p.i = float64_to_int32_round_to_zero(FT0, &env->fp_status);
+#if USE_PRECISE_EMULATION
     /* XXX: higher bits are not supposed to be significant.
      *     to make tests easier, return the same as a real PowerPC 750 (aka G3)
      */
-    p.i = float64_to_int32_round_to_zero(FT0, &env->fp_status);
     p.i |= 0xFFF80000ULL << 32;
+#endif
     FT0 = p.d;
 }
 
+#if USE_PRECISE_EMULATION
+void do_fmadd (void)
+{
+#ifdef FLOAT128
+    float128 ft0_128, ft1_128;
+
+    ft0_128 = float64_to_float128(FT0, &env->fp_status);
+    ft1_128 = float64_to_float128(FT1, &env->fp_status);
+    ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
+    ft1_128 = float64_to_float128(FT2, &env->fp_status);
+    ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
+    FT0 = float128_to_float64(ft0_128, &env->fp_status);
+#else
+    /* This is OK on x86 hosts */
+    FT0 = (FT0 * FT1) + FT2;
+#endif
+}
+
+void do_fmsub (void)
+{
+#ifdef FLOAT128
+    float128 ft0_128, ft1_128;
+
+    ft0_128 = float64_to_float128(FT0, &env->fp_status);
+    ft1_128 = float64_to_float128(FT1, &env->fp_status);
+    ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
+    ft1_128 = float64_to_float128(FT2, &env->fp_status);
+    ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
+    FT0 = float128_to_float64(ft0_128, &env->fp_status);
+#else
+    /* This is OK on x86 hosts */
+    FT0 = (FT0 * FT1) - FT2;
+#endif
+}
+#endif /* USE_PRECISE_EMULATION */
+
 void do_fnmadd (void)
 {
+#if USE_PRECISE_EMULATION
+#ifdef FLOAT128
+    float128 ft0_128, ft1_128;
+
+    ft0_128 = float64_to_float128(FT0, &env->fp_status);
+    ft1_128 = float64_to_float128(FT1, &env->fp_status);
+    ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
+    ft1_128 = float64_to_float128(FT2, &env->fp_status);
+    ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
+    FT0 = float128_to_float64(ft0_128, &env->fp_status);
+#else
+    /* This is OK on x86 hosts */
+    FT0 = (FT0 * FT1) + FT2;
+#endif
+#else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
     FT0 = float64_add(FT0, FT2, &env->fp_status);
+#endif
     if (likely(!isnan(FT0)))
         FT0 = float64_chs(FT0);
 }
 
 void do_fnmsub (void)
 {
+#if USE_PRECISE_EMULATION
+#ifdef FLOAT128
+    float128 ft0_128, ft1_128;
+
+    ft0_128 = float64_to_float128(FT0, &env->fp_status);
+    ft1_128 = float64_to_float128(FT1, &env->fp_status);
+    ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
+    ft1_128 = float64_to_float128(FT2, &env->fp_status);
+    ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
+    FT0 = float128_to_float64(ft0_128, &env->fp_status);
+#else
+    /* This is OK on x86 hosts */
+    FT0 = (FT0 * FT1) - FT2;
+#endif
+#else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
     FT0 = float64_sub(FT0, FT2, &env->fp_status);
+#endif
     if (likely(!isnan(FT0)))
         FT0 = float64_chs(FT0);
 }
@@ -667,7 +739,12 @@ void do_fres (void)
     } p;
 
     if (likely(isnormal(FT0))) {
+#if USE_PRECISE_EMULATION
+        FT0 = float64_div(1.0, FT0, &env->fp_status);
+        FT0 = float64_to_float32(FT0, &env->fp_status);
+#else
         FT0 = float32_div(1.0, FT0, &env->fp_status);
+#endif
     } else {
         p.d = FT0;
         if (p.i == 0x8000000000000000ULL) {

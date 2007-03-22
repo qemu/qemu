@@ -781,6 +781,8 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
         else
 #endif
             gen_op_check_addc();
+    } else {
+        gen_op_clear_xer_ca();
     }
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
@@ -2804,7 +2806,8 @@ GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC)
 {
     gen_op_load_xer_cr();
     gen_op_store_T0_crf(crfD(ctx->opcode));
-    gen_op_clear_xer_cr();
+    gen_op_clear_xer_ov();
+    gen_op_clear_xer_ca();
 }
 
 /* mfcr */

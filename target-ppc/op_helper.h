@@ -93,6 +93,10 @@ void do_fsqrt (void);
 void do_fres (void);
 void do_frsqrte (void);
 void do_fsel (void);
+#if USE_PRECISE_EMULATION
+void do_fmadd (void);
+void do_fmsub (void);
+#endif
 void do_fnmadd (void);
 void do_fnmsub (void);
 void do_fctiw (void);
