@@ -1,3 +1,18 @@
+2007-03-22 16:08  ths
+
+	* linux-user/syscall.c: Fix fcntl64 logic bug, by Kirill A.
+	  Shutemov.
+
+2007-03-22 13:36  ths
+
+	* vl.c: Win32 build fix. FIXME: This disables locking of the
+	  pidfile, a Win32 replacement of lockf should be used here.
+
+2007-03-21 20:45  blueswir1
+
+	* target-sparc/translate.c: Fix Sparc branches, original patch by
+	  Aurelien Jarno
+
 2007-03-21 12:04  ths
 
 	* target-mips/: mips-defs.h, translate.c, translate_init.c: Move

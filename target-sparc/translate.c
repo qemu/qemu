@@ -682,7 +682,7 @@ static inline void gen_mov_pc_npc(DisasContext * dc)
 
 static GenOpFunc * const gen_cond[2][16] = {
     {
-	gen_op_eval_ba,
+	gen_op_eval_bn,
 	gen_op_eval_be,
 	gen_op_eval_ble,
 	gen_op_eval_bl,
@@ -690,7 +690,7 @@ static GenOpFunc * const gen_cond[2][16] = {
 	gen_op_eval_bcs,
 	gen_op_eval_bneg,
 	gen_op_eval_bvs,
-	gen_op_eval_bn,
+	gen_op_eval_ba,
 	gen_op_eval_bne,
 	gen_op_eval_bg,
 	gen_op_eval_bge,
@@ -701,7 +701,7 @@ static GenOpFunc * const gen_cond[2][16] = {
     },
     {
 #ifdef TARGET_SPARC64
-	gen_op_eval_ba,
+	gen_op_eval_bn,
 	gen_op_eval_xbe,
 	gen_op_eval_xble,
 	gen_op_eval_xbl,
@@ -709,7 +709,7 @@ static GenOpFunc * const gen_cond[2][16] = {
 	gen_op_eval_xbcs,
 	gen_op_eval_xbneg,
 	gen_op_eval_xbvs,
-	gen_op_eval_bn,
+	gen_op_eval_ba,
 	gen_op_eval_xbne,
 	gen_op_eval_xbg,
 	gen_op_eval_xbge,
@@ -723,7 +723,7 @@ static GenOpFunc * const gen_cond[2][16] = {
 
 static GenOpFunc * const gen_fcond[4][16] = {
     {
-	gen_op_eval_ba,
+	gen_op_eval_bn,
 	gen_op_eval_fbne,
 	gen_op_eval_fblg,
 	gen_op_eval_fbul,
@@ -731,7 +731,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
 	gen_op_eval_fbug,
 	gen_op_eval_fbg,
 	gen_op_eval_fbu,
-	gen_op_eval_bn,
+	gen_op_eval_ba,
 	gen_op_eval_fbe,
 	gen_op_eval_fbue,
 	gen_op_eval_fbge,
@@ -742,7 +742,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
     },
 #ifdef TARGET_SPARC64
     {
-	gen_op_eval_ba,
+	gen_op_eval_bn,
 	gen_op_eval_fbne_fcc1,
 	gen_op_eval_fblg_fcc1,
 	gen_op_eval_fbul_fcc1,
@@ -750,7 +750,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
 	gen_op_eval_fbug_fcc1,
 	gen_op_eval_fbg_fcc1,
 	gen_op_eval_fbu_fcc1,
-	gen_op_eval_bn,
+	gen_op_eval_ba,
 	gen_op_eval_fbe_fcc1,
 	gen_op_eval_fbue_fcc1,
 	gen_op_eval_fbge_fcc1,
@@ -760,7 +760,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
 	gen_op_eval_fbo_fcc1,
     },
     {
-	gen_op_eval_ba,
+	gen_op_eval_bn,
 	gen_op_eval_fbne_fcc2,
 	gen_op_eval_fblg_fcc2,
 	gen_op_eval_fbul_fcc2,
@@ -768,7 +768,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
 	gen_op_eval_fbug_fcc2,
 	gen_op_eval_fbg_fcc2,
 	gen_op_eval_fbu_fcc2,
-	gen_op_eval_bn,
+	gen_op_eval_ba,
 	gen_op_eval_fbe_fcc2,
 	gen_op_eval_fbue_fcc2,
 	gen_op_eval_fbge_fcc2,
@@ -778,7 +778,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
 	gen_op_eval_fbo_fcc2,
     },
     {
-	gen_op_eval_ba,
+	gen_op_eval_bn,
 	gen_op_eval_fbne_fcc3,
 	gen_op_eval_fblg_fcc3,
 	gen_op_eval_fbul_fcc3,
@@ -786,7 +786,7 @@ static GenOpFunc * const gen_fcond[4][16] = {
 	gen_op_eval_fbug_fcc3,
 	gen_op_eval_fbg_fcc3,
 	gen_op_eval_fbu_fcc3,
-	gen_op_eval_bn,
+	gen_op_eval_ba,
 	gen_op_eval_fbe_fcc3,
 	gen_op_eval_fbue_fcc3,
 	gen_op_eval_fbge_fcc3,

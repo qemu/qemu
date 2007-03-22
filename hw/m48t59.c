@@ -155,7 +155,6 @@ static void set_alarm (m48t59_t *NVRAM, struct tm *tm)
     NVRAM->alarm = mktime(tm);
     if (NVRAM->alrm_timer != NULL) {
         qemu_del_timer(NVRAM->alrm_timer);
-	NVRAM->alrm_timer = NULL;
     }
     if (NVRAM->alarm - time(NULL) > 0)
 	qemu_mod_timer(NVRAM->alrm_timer, NVRAM->alarm * 1000);
@@ -184,7 +183,6 @@ static void set_up_watchdog (m48t59_t *NVRAM, uint8_t value)
 
     if (NVRAM->wd_timer != NULL) {
         qemu_del_timer(NVRAM->wd_timer);
-	NVRAM->wd_timer = NULL;
     }
     NVRAM->buffer[0x1FF0] &= ~0x80;
     if (value != 0) {

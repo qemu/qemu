@@ -3882,12 +3882,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         switch(arg2){
         case TARGET_F_GETLK64:
             cmd = F_GETLK64;
+            break;
         case TARGET_F_SETLK64:
             cmd = F_SETLK64;
+            break;
         case TARGET_F_SETLKW64:
             cmd = F_SETLK64;
+            break;
         default:
             cmd = arg2;
+            break;
         }
 
         switch(arg2) {

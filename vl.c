@@ -4405,8 +4405,11 @@ static int create_pidfile(const char *filename)
     if (fd == -1)
         return -1;
 
+    /* XXX: No locking for Win32 implemented */
+#ifndef _WIN32
     if (lockf(fd, F_TLOCK, 0) == -1)
         return -1;
+#endif
 
     len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
     if (write(fd, buffer, len) != len)
