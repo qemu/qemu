@@ -23,13 +23,18 @@
 #include "config.h"
 #include <stdint.h>
 
+#if defined(TARGET_PPC64) || (HOST_LONG_BITS >= 64)
+/* When using 64 bits temporary registers,
+ * we can use 64 bits GPR with no extra cost
+ */
+#define TARGET_PPCSPE
+#endif
+
 #if defined (TARGET_PPC64)
 typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 64
 #define TARGET_GPR_BITS  64
 #define REGX "%016" PRIx64
-/* We can safely use PowerPC SPE extension when compiling PowerPC 64 */
-#define TARGET_PPCSPE
 #elif defined(TARGET_PPCSPE)
 /* GPR are 64 bits: used by vector extension */
 typedef uint64_t ppc_gpr_t;

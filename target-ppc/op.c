@@ -1444,6 +1444,20 @@ void OPPROTO op_rotli32_T0 (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_rotl64_T0_T1 (void)
+{
+    T0 = rotl64(T0, T1 & 0x3F);
+    RETURN();
+}
+
+void OPPROTO op_rotli64_T0 (void)
+{
+    T0 = rotl64(T0, PARAM1);
+    RETURN();
+}
+#endif
+
 /***                             Integer shift                             ***/
 /* shift left word */
 void OPPROTO op_slw (void)
