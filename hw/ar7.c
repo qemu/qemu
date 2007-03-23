@@ -40,8 +40,6 @@
  *
  */
 
-#define CONFIG_ACX              /* use ACX emulation from tnetw1130.c */
-
 #include <assert.h>
 #include <stddef.h>             /* offsetof */
 
@@ -54,9 +52,7 @@
 
 #include "hw/ar7.h"             /* ar7_init */
 #include "hw/pflash.h"          /* pflash_amd_register, ... */
-#if defined(CONFIG_ACX)
-# include "hw/tnetw1130.h"
-#endif
+#include "hw/tnetw1130.h"       /* vlynq_tnetw1130_init */
 
 //~ #include "target-mips/exec.h"   /* do_int */
 
@@ -387,6 +383,15 @@ static void set_traceflags(void)
         if (strstr(env, "CPMAC")) CPMAC = 1;
         if (strstr(env, "EMIF")) EMIF = 1;
         if (strstr(env, "GPIO")) GPIO = 1;
+        if (strstr(env, "INTC")) INTC = 1;
+        if (strstr(env, "MDIO")) MDIO = 1;
+        if (strstr(env, "RESET")) RESET = 1;
+        if (strstr(env, "TIMER")) TIMER = 1;
+        if (strstr(env, "UART")) UART = 1;
+        if (strstr(env, "VLYNQ")) VLYNQ = 1;
+        if (strstr(env, "WDOG")) WDOG = 1;
+        if (strstr(env, "OTHER")) OTHER = 1;
+        if (strstr(env, "RXTX")) RXTX = 1;
     }
     TRACE(CLOCK, logout("Logging enabled for CLOCK\n"));
     TRACE(CONFIG, logout("Logging enabled for CONFIG\n"));
@@ -616,7 +621,7 @@ static uint32_t ar7_intc_read(unsigned offset)
     if (0) {
         //~ } else if (index == 16) {
     } else {
-        TRACE(INTC, logout("intc[%s] = %08x\n", i2intc(index), val));
+        TRACE(INTC, logout("intc[%s] = 0x%08x\n", i2intc(index), val));
     }
     return val;
 }
@@ -1626,13 +1631,13 @@ typedef enum {
 static uint32_t ar7_emif_read(unsigned offset)
 {
     uint32_t value = reg_read(av.emif, offset);
-    TRACE(EMIF, logout("emif[0x%02x] = %08x\n", offset, value));
+    TRACE(EMIF, logout("emif[0x%02x] = 0x%08x\n", offset, value));
     return value;
 }
 
 static void ar7_emif_write(unsigned offset, uint32_t value)
 {
-    TRACE(EMIF, logout("emif[0x%02x] = %08x\n", offset, value));
+    TRACE(EMIF, logout("emif[0x%02x] = 0x%08x\n", offset, value));
     if (offset == EMIF_REV) {
         /* Revision is readonly. */
         UNEXPECTED();
@@ -1719,16 +1724,16 @@ static uint32_t ar7_gpio_read(unsigned offset)
     uint32_t value = reg_read(av.gpio, offset);
     if (offset == GPIO_IN && value == 0x00000800) {
         /* Do not log polling of reset button. */
-        TRACE(GPIO, logout("gpio[%s] = %08x\n", i2gpio(offset), value));
+        TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", i2gpio(offset), value));
     } else {
-        TRACE(GPIO, logout("gpio[%s] = %08x\n", i2gpio(offset), value));
+        TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", i2gpio(offset), value));
     }
     return value;
 }
 
 static void ar7_gpio_write(unsigned offset, uint32_t value)
 {
-    TRACE(GPIO, logout("gpio[%s] = %08x\n", i2gpio(offset), value));
+    TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", i2gpio(offset), value));
     reg_write(av.gpio, offset, value);
     if (offset <= GPIO_DIR) {
         ar7_gpio_display();
