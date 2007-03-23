@@ -279,7 +279,11 @@ typedef struct {
 } NICState;
 
 typedef struct {
-    uint8_t *base;
+    uint8_t *base;              /* base address */
+    int interrupt;              /* interrupt number */
+    int cyclic;                 /* 1 = cyclic timer */
+    int64_t time;               /* preload value */
+    uint16_t prescale;          /* prescale divisor */
     QEMUTimer *qemu_timer;
 } ar7_timer_t;
 
@@ -312,8 +316,8 @@ typedef struct {
     // 0x08610a80 struct _ohio_clock_pll
     //~ uint32_t clock_dummy[0x18];
     uint32_t watchdog[0x20];    // 0x08610b00 struct _ohio_clock_pll
-    uint8_t timer0[8];          // 0x08610c00
-    uint8_t timer1[8];          // 0x08610d00
+    uint8_t timer0[16];         // 0x08610c00
+    uint8_t timer1[16];         // 0x08610d00
     uint32_t uart0[8];          // 0x08610e00
     uint32_t uart1[8];          // 0x08610f00
     uint32_t usb[20];           // 0x08611200
@@ -337,6 +341,8 @@ typedef struct {
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
 
 static avalanche_t av;
+
+static const unsigned io_frequency = 62500000;
 
 /* Global variable avalanche can be used in debugger. */
 //~ avalanche_t *avalanche = &av;
@@ -368,6 +374,36 @@ static const char *dump(const uint8_t * buf, unsigned size)
  * Helper functions.
  *
  ****************************************************************************/
+
+#if defined(DEBUG_AR7)
+static void set_traceflags(void)
+{
+    const char *env = getenv("DEBUG_AR7");
+    if (env != 0) {
+        unsigned long ul = strtoul(env, 0, 0);
+        memcpy(&traceflags, &ul, sizeof(traceflags));
+        if (strstr(env, "CLOCK")) CLOCK = 1;
+        if (strstr(env, "CONFIG")) CONFIG = 1;
+        if (strstr(env, "CPMAC")) CPMAC = 1;
+        if (strstr(env, "EMIF")) EMIF = 1;
+        if (strstr(env, "GPIO")) GPIO = 1;
+    }
+    TRACE(CLOCK, logout("Logging enabled for CLOCK\n"));
+    TRACE(CONFIG, logout("Logging enabled for CONFIG\n"));
+    TRACE(CPMAC, logout("Logging enabled for CPMAC\n"));
+    TRACE(EMIF, logout("Logging enabled for EMIF\n"));
+    TRACE(GPIO, logout("Logging enabled for GPIO\n"));
+    TRACE(INTC, logout("Logging enabled for INTC\n"));
+    TRACE(MDIO, logout("Logging enabled for MDIO\n"));
+    TRACE(RESET, logout("Logging enabled for RESET\n"));
+    TRACE(TIMER, logout("Logging enabled for TIMER\n"));
+    TRACE(UART, logout("Logging enabled for UART\n"));
+    TRACE(VLYNQ, logout("Logging enabled for VLYNQ\n"));
+    TRACE(WDOG, logout("Logging enabled for WDOG\n"));
+    TRACE(OTHER, logout("Logging enabled for OTHER\n"));
+    TRACE(RXTX, logout("Logging enabled for RXTX\n"));
+}
+#endif /* DEBUG_AR7 */
 
 static uint32_t reg_read(const uint8_t * reg, uint32_t addr)
 {
@@ -1585,7 +1621,7 @@ typedef enum {
     EMIF_ASYNC_CS3 = 0x14,
     EMIF_ASYNC_CS4 = 0x18,
     EMIF_ASYNC_CS5 = 0x1c,
-} emif_t;
+} emif_register_t;
 
 static uint32_t ar7_emif_read(unsigned offset)
 {
@@ -2058,19 +2094,30 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
 // PRD0             /* period register */
 // CNT0             /* counter register */
 
+typedef enum {
+    TIMER_CONTROL = 0,
+    TIMER_LOAD = 4,
+    TIMER_VALUE = 8,
+    TIMER_INTERRUPT = 12,
+} timer_register_t;
+
+typedef enum {
+    TIMER_CONTROL_GO = BIT(0),
+    TIMER_CONTROL_MODE = BIT(1),
+    TIMER_CONTROL_PRESCALE = BITS(5, 2),
+    TIMER_CONTROL_PRESCALE_ENABLE = BIT(15),
+} timer_control_bit_t;
+
 static void timer_cb(void *opaque)
 {
     ar7_timer_t *timer = (ar7_timer_t *)opaque;
 
     TRACE(TIMER, logout("timer expired\n"));
-    ar7_irq(IRQ_OPAQUE, 14, 1);
-#if defined(TARGET_WORDS_BIGENDIAN)
-    // special test code for zyxel, fix!!!
-    const uint32_t frequency = 62500000;
-    uint32_t duration = reg_read(timer->base, 4);
-    int64_t t = qemu_get_clock(vm_clock);
-    qemu_mod_timer(timer->qemu_timer, t + duration * (ticks_per_sec / frequency));
-#endif
+    ar7_irq(IRQ_OPAQUE, timer->interrupt, 1);
+    if (timer->cyclic) {
+        int64_t t = qemu_get_clock(vm_clock);
+        qemu_mod_timer(timer->qemu_timer, t + timer->prescale * timer->time);
+    }
 }
 
 static uint32_t ar7_timer_read(unsigned index, uint32_t addr)
@@ -2087,11 +2134,22 @@ static void ar7_timer_write(unsigned index, uint32_t addr, uint32_t val)
     ar7_timer_t *timer = &av.timer[index];
     TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", index, addr, val));
     reg_write(timer->base, addr, val);
-    if (addr == 0 && (val & 1)) {
-        const uint32_t frequency = 62500000;
-        uint32_t duration = reg_read(timer->base, 4);
-        int64_t t = qemu_get_clock(vm_clock);
-        qemu_mod_timer(timer->qemu_timer, t + duration * (ticks_per_sec / frequency));
+    if (addr == TIMER_CONTROL) {
+        timer->cyclic = ((val & TIMER_CONTROL_MODE) != 0);
+        if (val & TIMER_CONTROL_PRESCALE_ENABLE) {
+            timer->prescale = ((val & TIMER_CONTROL_PRESCALE) >> 2);
+            logout("prescale %u\n", timer->prescale);
+        } else {
+            timer->prescale = 1;
+        }
+        if (val & TIMER_CONTROL_GO) {
+            int64_t t = qemu_get_clock(vm_clock);
+            qemu_mod_timer(timer->qemu_timer, t + timer->prescale * timer->time);
+        } else {
+            qemu_del_timer(timer->qemu_timer);
+        }
+    } else if (addr == TIMER_LOAD) {
+        timer->time = val * (ticks_per_sec / io_frequency);
     }
 }
 
@@ -2546,8 +2604,7 @@ void watchdog_trigger(void)
         TRACE(WDOG, logout("disabled watchdog\n"));
         qemu_del_timer(av.wd_timer);
     } else {
-        const uint32_t frequency = 62500000;
-        int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) * (ticks_per_sec / frequency);
+        int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) * (ticks_per_sec / io_frequency);
         //~ logout("change   = 0x%x\n", wdt->change);
         //~ logout("prescale = 0x%x\n", wdt->prescale);
         TRACE(WDOG, logout("trigger value = %u ms\n", (unsigned)(t * 1000 / ticks_per_sec)));
@@ -3010,7 +3067,7 @@ static void ar7_serial_init(CPUState * env)
         av.serial[index] = serial_16550_init(ar7_irq, IRQ_OPAQUE,
                                              0, uart_interrupt[index],
                                              serial_hds[index]);
-        serial_frequency(av.serial[index], 62500000 / 16);
+        serial_frequency(av.serial[index], io_frequency / 16);
     }
     /* Select 1st serial console as default (because we don't have VGA). */
     console_select(1);
@@ -3268,8 +3325,6 @@ void ar7_init(CPUState * env)
     av.cpmac[1] = av.cpmac1;
     av.vlynq[0] = av.vlynq0;
     av.vlynq[1] = av.vlynq1;
-    av.timer[0].base = av.timer0;
-    av.timer[1].base = av.timer1;
     av.cpu_env = env;
 
     ar7_serial_init(env);
@@ -3528,30 +3583,16 @@ static void mips_ar7_common_init (int ram_size,
 
     av.wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, env);
     av.timer[0].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &av.timer[0]);
+    av.timer[0].base = av.timer0;
+    av.timer[0].interrupt = 13;
     av.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &av.timer[1]);
+    av.timer[1].base = av.timer1;
+    av.timer[1].interrupt = 14;
 
     ar7_init(env);
 
 #if defined(DEBUG_AR7)
-    if (getenv("DEBUG_AR7")) {
-        const char *env = getenv("DEBUG_AR7");
-        unsigned long ul = strtoul(env, 0, 0);
-        memcpy(&traceflags, &ul, sizeof(traceflags));
-    }
-  TRACE(CLOCK, logout("Logging enabled for CLOCK\n"));
-  TRACE(CONFIG, logout("Logging enabled for CONFIG\n"));
-  TRACE(CPMAC, logout("Logging enabled for CPMAC\n"));
-  TRACE(EMIF, logout("Logging enabled for EMIF\n"));
-  TRACE(GPIO, logout("Logging enabled for GPIO\n"));
-  TRACE(INTC, logout("Logging enabled for INTC\n"));
-  TRACE(MDIO, logout("Logging enabled for MDIO\n"));
-  TRACE(RESET, logout("Logging enabled for RESET\n"));
-  TRACE(TIMER, logout("Logging enabled for TIMER\n"));
-  TRACE(UART, logout("Logging enabled for UART\n"));
-  TRACE(VLYNQ, logout("Logging enabled for VLYNQ\n"));
-  TRACE(WDOG, logout("Logging enabled for WDOG\n"));
-  TRACE(OTHER, logout("Logging enabled for OTHER\n"));
-  TRACE(RXTX, logout("Logging enabled for RXTX\n"));
+    set_traceflags();
 #endif
 }
 
