@@ -31,7 +31,7 @@
 #include "exec-all.h"
 #include "disas.h"
 
-#define MIPS_DEBUG_DISAS
+//#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
 //#define MIPS_SINGLE_STEP
 
@@ -5118,8 +5118,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 
 #if defined (MIPS_SINGLE_STEP)
         break;
-#else
-        if (getenv("MIPS_SINGLE_STEP")) break;
 #endif
     }
     if (env->singlestep_enabled) {
