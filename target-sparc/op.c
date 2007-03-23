@@ -472,6 +472,96 @@ void OPPROTO op_addx_T1_T0_cc(void)
     FORCE_RET();
 }
 
+void OPPROTO op_tadd_T1_T0_cc(void)
+{
+    target_ulong src1;
+
+    src1 = T0;
+    T0 += T1;
+    env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+	env->psr |= PSR_OVF;
+    if ((src1 & 0x03) || (T1 & 0x03))
+	env->psr |= PSR_OVF;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (T0 < src1)
+	env->xcc |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1ULL << 63))
+	env->xcc |= PSR_OVF;
+#else
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (T0 < src1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    if ((src1 & 0x03) || (T1 & 0x03))
+	env->psr |= PSR_OVF;
+#endif
+    FORCE_RET();
+}
+
+void OPPROTO op_tadd_T1_T0_ccTV(void)
+{
+    target_ulong src1;
+
+    if ((T0 & 0x03) || (T1 & 0x03))
+        raise_exception(TT_TOVF);
+
+    src1 = T0;
+    T0 += T1;
+
+#ifdef TARGET_SPARC64
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        raise_exception(TT_TOVF);
+#else
+    if ((src1 & 0x03) || (T1 & 0x03))
+        raise_exception(TT_TOVF);
+#endif
+
+    env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (T0 < src1)
+	env->xcc |= PSR_CARRY;
+#else
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (T0 < src1)
+	env->psr |= PSR_CARRY;
+#endif
+    FORCE_RET();
+}
+
 void OPPROTO op_sub_T1_T0(void)
 {
     T0 -= T1;
@@ -578,6 +668,96 @@ void OPPROTO op_subx_T1_T0_cc(void)
 	env->psr |= PSR_NEG;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
+#endif
+    FORCE_RET();
+}
+
+void OPPROTO op_tsub_T1_T0_cc(void)
+{
+    target_ulong src1;
+
+    src1 = T0;
+    T0 -= T1;
+    env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+	env->psr |= PSR_OVF;
+    if ((src1 & 0x03) || (T1 & 0x03))
+	env->psr |= PSR_OVF;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (src1 < T1)
+	env->xcc |= PSR_CARRY;
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
+	env->xcc |= PSR_OVF;
+#else
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (src1 < T1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    if ((src1 & 0x03) || (T1 & 0x03))
+	env->psr |= PSR_OVF;
+#endif
+    FORCE_RET();
+}
+
+void OPPROTO op_tsub_T1_T0_ccTV(void)
+{
+    target_ulong src1;
+
+    if ((T0 & 0x03) || (T1 & 0x03))
+        raise_exception(TT_TOVF);
+
+    src1 = T0;
+    T0 -= T1;
+
+#ifdef TARGET_SPARC64
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        raise_exception(TT_TOVF);
+#else
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
+        raise_exception(TT_TOVF);
+#endif
+
+    env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (src1 < T1)
+	env->xcc |= PSR_CARRY;
+#else
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (src1 < T1)
+	env->psr |= PSR_CARRY;
 #endif
     FORCE_RET();
 }
