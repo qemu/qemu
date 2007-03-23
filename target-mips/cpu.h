@@ -203,6 +203,8 @@ struct CPUMIPSState {
 #define CP0C3_MT   2
 #define CP0C3_SM   1
 #define CP0C3_TL   0
+    int32_t CP0_Config6;
+    int32_t CP0_Config7;
     target_ulong CP0_LLAddr;
     target_ulong CP0_WatchLo;
     int32_t CP0_WatchHi;
