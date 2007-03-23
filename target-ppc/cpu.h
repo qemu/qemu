@@ -35,17 +35,20 @@ typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 64
 #define TARGET_GPR_BITS  64
 #define REGX "%016" PRIx64
+#define ADDRX "%016" PRIx64
 #elif defined(TARGET_PPCSPE)
 /* GPR are 64 bits: used by vector extension */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  64
-#define REGX "%08" PRIx32
+#define REGX "%016" PRIx64
+#define ADDRX "%08" PRIx32
 #else
 typedef uint32_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  32
 #define REGX "%08" PRIx32
+#define ADDRX "%08" PRIx32
 #endif
 
 #include "cpu-defs.h"

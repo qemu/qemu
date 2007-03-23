@@ -5374,7 +5374,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 
     int i;
 
-    cpu_fprintf(f, "NIP " REGX " LR " REGX " CTR " REGX "\n",
+    cpu_fprintf(f, "NIP " ADDRX " LR " ADDRX " CTR " ADDRX "\n",
                 env->nip, env->lr, env->ctr);
     cpu_fprintf(f, "MSR " REGX FILL " XER %08x      "
 #if !defined(NO_TIMER_DUMP)
@@ -5545,7 +5545,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
 #if defined PPC_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "----------------\n");
-            fprintf(logfile, "nip=%08x super=%d ir=%d\n",
+            fprintf(logfile, "nip=" ADDRX " super=%d ir=%d\n",
                     ctx.nip, 1 - msr_pr, msr_ir);
         }
 #endif
@@ -5578,12 +5578,12 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         if (unlikely(handler->handler == &gen_invalid)) {
             if (loglevel > 0) {
                 fprintf(logfile, "invalid/unsupported opcode: "
-                        "%02x - %02x - %02x (%08x) 0x" REGX " %d\n",
+                        "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                         opc1(ctx.opcode), opc2(ctx.opcode),
                         opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
             } else {
                 printf("invalid/unsupported opcode: "
-                       "%02x - %02x - %02x (%08x) 0x" REGX " %d\n",
+                       "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                        opc1(ctx.opcode), opc2(ctx.opcode),
                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
             }
@@ -5591,13 +5591,13 @@ static inline int gen_intermediate_code_internal (CPUState *env,
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
                 if (loglevel > 0) {
                     fprintf(logfile, "invalid bits: %08x for opcode: "
-                            "%02x -%02x - %02x (%08x) " REGX "\n",
+                            "%02x -%02x - %02x (%08x) 0x" ADDRX "\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),
                             opc2(ctx.opcode), opc3(ctx.opcode),
                             ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
-                           "%02x -%02x - %02x (%08x) " REGX "\n",
+                           "%02x -%02x - %02x (%08x) 0x" ADDRX "\n",
                            ctx.opcode & handler->inval, opc1(ctx.opcode),
                            opc2(ctx.opcode), opc3(ctx.opcode),
                            ctx.opcode, ctx.nip - 4);

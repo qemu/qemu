@@ -378,7 +378,7 @@ static inline void spr_register (CPUPPCState *env, int num,
         exit(1);
     }
 #if defined(PPC_DEBUG_SPR)
-    printf("*** register spr %d (%03x) %s val " REGX "\n", num, num, name,
+    printf("*** register spr %d (%03x) %s val " ADDRX "\n", num, num, name,
            initial_value);
 #endif
     spr->name = name;
@@ -2424,7 +2424,7 @@ static int create_ppc_opcodes (CPUPPCState *env, ppc_def_t *def)
 
     fill_new_table(env->opcodes, 0x40);
 #if defined(PPC_DUMP_CPU)
-    printf("* PowerPC instructions for PVR %08x: %s flags %016 " PRIx64
+    printf("* PowerPC instructions for PVR %08x: %s flags %016" PRIx64
            " %08x\n",
            def->pvr, def->name, def->insns_flags, def->flags);
 #endif
