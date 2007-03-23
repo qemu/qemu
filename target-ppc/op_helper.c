@@ -642,6 +642,42 @@ void do_fctiwz (void)
     FT0 = p.d;
 }
 
+#if defined(TARGET_PPC64)
+void do_fcfid (void)
+{
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    p.d = FT0;
+    FT0 = int64_to_float64(p.i, &env->fp_status);
+}
+
+void do_fctid (void)
+{
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    p.i = float64_to_int64(FT0, &env->fp_status);
+    FT0 = p.d;
+}
+
+void do_fctidz (void)
+{
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    p.i = float64_to_int64_round_to_zero(FT0, &env->fp_status);
+    FT0 = p.d;
+}
+
+#endif
+
 #if USE_PRECISE_EMULATION
 void do_fmadd (void)
 {
@@ -846,8 +882,12 @@ void do_fcmpo (void)
 void do_rfi (void)
 {
     env->nip = (target_ulong)(env->spr[SPR_SRR0] & ~0x00000003);
-    T0 = (target_ulong)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
+    T0 = (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
+#if defined(TARGET_PPC64)
+    ppc_store_msr_32(env, T0);
+#else
     do_store_msr(env, T0);
+#endif
 #if defined (DEBUG_OP)
     dump_rfi();
 #endif
@@ -859,6 +899,28 @@ void do_rfi_32 (void)
 {
     env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
     T0 = (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
+    ppc_store_msr_32(env, T0);
+#if defined (DEBUG_OP)
+    dump_rfi();
+#endif
+    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+}
+
+void do_rfid (void)
+{
+    env->nip = (target_ulong)(env->spr[SPR_SRR0] & ~0x00000003);
+    T0 = (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
+    do_store_msr(env, T0);
+#if defined (DEBUG_OP)
+    dump_rfi();
+#endif
+    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+}
+
+void do_rfid_32 (void)
+{
+    env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
+    T0 = (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
     do_store_msr(env, T0);
 #if defined (DEBUG_OP)
     dump_rfi();

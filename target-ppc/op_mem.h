@@ -534,6 +534,17 @@ void OPPROTO glue(op_lwarx_64, MEMSUFFIX) (void)
     RETURN();
 }
 
+void OPPROTO glue(op_ldarx, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        T1 = glue(ldq, MEMSUFFIX)((uint32_t)T0);
+        regs->reserve = (uint32_t)T0;
+    }
+    RETURN();
+}
+
 void OPPROTO glue(op_ldarx_64, MEMSUFFIX) (void)
 {
     if (unlikely(T0 & 0x03)) {
@@ -565,6 +576,17 @@ void OPPROTO glue(op_lwarx_le_64, MEMSUFFIX) (void)
     } else {
         T1 = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
         regs->reserve = (uint64_t)T0;
+    }
+    RETURN();
+}
+
+void OPPROTO glue(op_ldarx_le, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        T1 = glue(ld64r, MEMSUFFIX)((uint32_t)T0);
+        regs->reserve = (uint32_t)T0;
     }
     RETURN();
 }
@@ -615,6 +637,22 @@ void OPPROTO glue(op_stwcx_64, MEMSUFFIX) (void)
     RETURN();
 }
 
+void OPPROTO glue(op_stdcx, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        if (unlikely(regs->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_ov;
+        } else {
+            glue(stq, MEMSUFFIX)((uint32_t)T0, T1);
+            env->crf[0] = xer_ov | 0x02;
+        }
+    }
+    regs->reserve = -1;
+    RETURN();
+}
+
 void OPPROTO glue(op_stdcx_64, MEMSUFFIX) (void)
 {
     if (unlikely(T0 & 0x03)) {
@@ -658,6 +696,22 @@ void OPPROTO glue(op_stwcx_le_64, MEMSUFFIX) (void)
             env->crf[0] = xer_ov;
         } else {
             glue(st32r, MEMSUFFIX)((uint64_t)T0, T1);
+            env->crf[0] = xer_ov | 0x02;
+        }
+    }
+    regs->reserve = -1;
+    RETURN();
+}
+
+void OPPROTO glue(op_stdcx_le, MEMSUFFIX) (void)
+{
+    if (unlikely(T0 & 0x03)) {
+        do_raise_exception(EXCP_ALIGN);
+    } else {
+        if (unlikely(regs->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_ov;
+        } else {
+            glue(st64r, MEMSUFFIX)((uint32_t)T0, T1);
             env->crf[0] = xer_ov | 0x02;
         }
     }

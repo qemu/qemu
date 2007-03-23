@@ -1721,6 +1721,29 @@ PPC_OP(fctiwz)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+/* fcfid - fcfid. */
+PPC_OP(fcfid)
+{
+    do_fcfid();
+    RETURN();
+}
+
+/* fctid - fctid. */
+PPC_OP(fctid)
+{
+    do_fctid();
+    RETURN();
+}
+
+/* fctidz - fctidz. */
+PPC_OP(fctidz)
+{
+    do_fctidz();
+    RETURN();
+}
+#endif
+
 /***                         Floating-Point compare                        ***/
 /* fcmpu */
 PPC_OP(fcmpu)
@@ -1801,6 +1824,18 @@ void OPPROTO op_rfi (void)
 void OPPROTO op_rfi_32 (void)
 {
     do_rfi_32();
+    RETURN();
+}
+
+void OPPROTO op_rfid (void)
+{
+    do_rfid();
+    RETURN();
+}
+
+void OPPROTO op_rfid_32 (void)
+{
+    do_rfid_32();
     RETURN();
 }
 #endif

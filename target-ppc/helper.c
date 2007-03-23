@@ -1203,9 +1203,10 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
 }
 
 #if defined(TARGET_PPC64)
-void ppc_store_msr_32 (CPUPPCState *env, target_ulong value)
+void ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
 {
-    do_store_msr(env, (uint32_t)value);
+    do_store_msr(env,
+                 (do_load_msr(env) & ~0xFFFFFFFFULL) | (value & 0xFFFFFFFF));
 }
 #endif
 
