@@ -209,9 +209,6 @@ Current QEMU limitations:
 
 @itemize 
 
-@item Tagged add/subtract instructions are not supported, but they are
-probably not used.
-
 @item IPC syscalls are missing.
 
 @item 128-bit floating point operations are not supported, though none of the

@@ -27,7 +27,6 @@
    Optimize synthetic instructions
    Optional alignment check
    128-bit float
-   Tagged add/sub
 */
 
 #include <stdarg.h>
@@ -1834,10 +1833,21 @@ static void disas_sparc_insn(DisasContext * dc)
                 } else {
                     switch (xop) {
 		    case 0x20: /* taddcc */
+			gen_op_tadd_T1_T0_cc();
+		        gen_movl_T0_reg(rd);
+			break;
 		    case 0x21: /* tsubcc */
+			gen_op_tsub_T1_T0_cc();
+		        gen_movl_T0_reg(rd);
+			break;
 		    case 0x22: /* taddcctv */
+			gen_op_tadd_T1_T0_ccTV();
+		        gen_movl_T0_reg(rd);
+			break;
 		    case 0x23: /* tsubcctv */
-			goto illegal_insn;
+			gen_op_tsub_T1_T0_ccTV();
+		        gen_movl_T0_reg(rd);
+			break;
                     case 0x24: /* mulscc */
                         gen_op_mulscc_T1_T0();
                         gen_movl_T0_reg(rd);
