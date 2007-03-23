@@ -93,10 +93,19 @@ void do_fsqrt (void);
 void do_fres (void);
 void do_frsqrte (void);
 void do_fsel (void);
+#if USE_PRECISE_EMULATION
+void do_fmadd (void);
+void do_fmsub (void);
+#endif
 void do_fnmadd (void);
 void do_fnmsub (void);
 void do_fctiw (void);
 void do_fctiwz (void);
+#if defined(TARGET_PPC64)
+void do_fcfid (void);
+void do_fctid (void);
+void do_fctidz (void);
+#endif
 void do_fcmpu (void);
 void do_fcmpo (void);
 
@@ -109,6 +118,8 @@ void do_td (int flags);
 void do_rfi (void);
 #if defined(TARGET_PPC64)
 void do_rfi_32 (void);
+void do_rfid (void);
+void do_rfid_32 (void);
 #endif
 void do_tlbia (void);
 void do_tlbie (void);

@@ -781,6 +781,8 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
         else
 #endif
             gen_op_check_addc();
+    } else {
+        gen_op_clear_xer_ca();
     }
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
@@ -1107,12 +1109,10 @@ GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     target_ulong mask;
     uint32_t mb, me, sh;
-    int n;
 
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
     sh = SH(ctx->opcode);
-    n = me + 1 - mb;
     if (likely(sh == 0)) {
         if (likely(mb == 0 && me == 31)) {
             gen_op_load_gpr_T0(rS(ctx->opcode));
@@ -1229,68 +1229,130 @@ GEN_HANDLER(name##3, opc1, opc2 | 0x11, 0xFF, 0x00000000, PPC_64B)            \
 {                                                                             \
     gen_##name(ctx, 1, 1);                                                    \
 }
+
+static inline void gen_rldinm (DisasContext *ctx, uint32_t mb, uint32_t me,
+                               uint32_t sh)
+{
+    gen_op_load_gpr_T0(rS(ctx->opcode));
+    if (likely(sh == 0)) {
+        goto do_mask;
+    }
+    if (likely(mb == 0)) {
+        if (likely(me == 63)) {
+            gen_op_rotli32_T0(sh);
+            goto do_store;
+        } else if (likely(me == (63 - sh))) {
+            gen_op_sli_T0(sh);
+            goto do_store;
+        }
+    } else if (likely(me == 63)) {
+        if (likely(sh == (64 - mb))) {
+            gen_op_srli_T0(mb);
+            goto do_store;
+        }
+    }
+    gen_op_rotli64_T0(sh);
+ do_mask:
+    gen_op_andi_T0(MASK(mb, me));
+ do_store:
+    gen_op_store_T0_gpr(rA(ctx->opcode));
+    if (unlikely(Rc(ctx->opcode) != 0))
+        gen_set_Rc0(ctx);
+}
 /* rldicl - rldicl. */
 static inline void gen_rldicl (DisasContext *ctx, int mbn, int shn)
 {
-    int sh, mb;
+    uint32_t sh, mb;
 
     sh = SH(ctx->opcode) | (1 << shn);
     mb = (MB(ctx->opcode) << 1) | mbn;
-    /* XXX: TODO */
-    RET_INVAL(ctx);
+    gen_rldinm(ctx, mb, 63, sh);
 }
-GEN_PPC64_R4(rldicl, 0x1E, 0x00)
+GEN_PPC64_R4(rldicl, 0x1E, 0x00);
 /* rldicr - rldicr. */
 static inline void gen_rldicr (DisasContext *ctx, int men, int shn)
 {
-    int sh, me;
+    uint32_t sh, me;
 
     sh = SH(ctx->opcode) | (1 << shn);
     me = (MB(ctx->opcode) << 1) | men;
-    /* XXX: TODO */
-    RET_INVAL(ctx);
+    gen_rldinm(ctx, 0, me, sh);
 }
-GEN_PPC64_R4(rldicr, 0x1E, 0x02)
+GEN_PPC64_R4(rldicr, 0x1E, 0x02);
 /* rldic - rldic. */
 static inline void gen_rldic (DisasContext *ctx, int mbn, int shn)
 {
-    int sh, mb;
+    uint32_t sh, mb;
 
     sh = SH(ctx->opcode) | (1 << shn);
     mb = (MB(ctx->opcode) << 1) | mbn;
-    /* XXX: TODO */
-    RET_INVAL(ctx);
+    gen_rldinm(ctx, mb, 63 - sh, sh);
 }
-GEN_PPC64_R4(rldic, 0x1E, 0x04)
+GEN_PPC64_R4(rldic, 0x1E, 0x04);
+
+static inline void gen_rldnm (DisasContext *ctx, uint32_t mb, uint32_t me)
+{
+    gen_op_load_gpr_T0(rS(ctx->opcode));
+    gen_op_load_gpr_T1(rB(ctx->opcode));
+    gen_op_rotl64_T0_T1();
+    if (unlikely(mb != 0 || me != 63)) {
+        gen_op_andi_T0(MASK(mb, me));
+    }
+    gen_op_store_T0_gpr(rA(ctx->opcode));
+    if (unlikely(Rc(ctx->opcode) != 0))
+        gen_set_Rc0(ctx);
+}
+
 /* rldcl - rldcl. */
 static inline void gen_rldcl (DisasContext *ctx, int mbn)
 {
-    int mb;
+    uint32_t mb;
 
     mb = (MB(ctx->opcode) << 1) | mbn;
-    /* XXX: TODO */
-    RET_INVAL(ctx);
+    gen_rldnm(ctx, mb, 63);
 }
 GEN_PPC64_R2(rldcl, 0x1E, 0x08)
 /* rldcr - rldcr. */
 static inline void gen_rldcr (DisasContext *ctx, int men)
 {
-    int me;
+    uint32_t me;
 
     me = (MB(ctx->opcode) << 1) | men;
-    /* XXX: TODO */
-    RET_INVAL(ctx);
+    gen_rldnm(ctx, 0, me);
 }
 GEN_PPC64_R2(rldcr, 0x1E, 0x09)
 /* rldimi - rldimi. */
 static inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
 {
-    int sh, mb;
+    uint64_t mask;
+    uint32_t sh, mb;
 
     sh = SH(ctx->opcode) | (1 << shn);
     mb = (MB(ctx->opcode) << 1) | mbn;
-    /* XXX: TODO */
-    RET_INVAL(ctx);
+    if (likely(sh == 0)) {
+        if (likely(mb == 0)) {
+            gen_op_load_gpr_T0(rS(ctx->opcode));
+            goto do_store;
+        } else if (likely(mb == 63)) {
+            gen_op_load_gpr_T0(rA(ctx->opcode));
+            goto do_store;
+        }
+        gen_op_load_gpr_T0(rS(ctx->opcode));
+        gen_op_load_gpr_T1(rA(ctx->opcode));
+        goto do_mask;
+    }
+    gen_op_load_gpr_T0(rS(ctx->opcode));
+    gen_op_load_gpr_T1(rA(ctx->opcode));
+    gen_op_rotli64_T0(SH(ctx->opcode));
+ do_mask:
+    mask = MASK(mb, 63 - sh);
+    gen_op_andi_T0(mask);
+    gen_op_andi_T1(~mask);
+    gen_op_or();
+ do_store:
+    gen_op_store_T0_gpr(rA(ctx->opcode));
+    if (unlikely(Rc(ctx->opcode) != 0))
+        gen_set_Rc0(ctx);
 }
 GEN_PPC64_R4(rldimi, 0x1E, 0x06)
 #endif
@@ -1522,6 +1584,14 @@ GEN_FLOAT_B(ctiw, 0x0E, 0x00);
 GEN_FLOAT_B(ctiwz, 0x0F, 0x00);
 /* frsp */
 GEN_FLOAT_B(rsp, 0x0C, 0x00);
+#if defined(TARGET_PPC64)
+/* fcfid */
+GEN_FLOAT_B(cfid, 0x0E, 0x1A);
+/* fctid */
+GEN_FLOAT_B(ctid, 0x0E, 0x19);
+/* fctidz */
+GEN_FLOAT_B(ctidz, 0x0F, 0x19);
+#endif
 
 /***                         Floating-Point compare                        ***/
 /* fcmpo */
@@ -1934,8 +2004,8 @@ GEN_STS(h, 0x0C, PPC_INTEGER);
 GEN_STS(w, 0x04, PPC_INTEGER);
 #if defined(TARGET_PPC64)
 OP_ST_TABLE(d);
-GEN_STUX(d, 0x15, 0x01, PPC_64B);
-GEN_STX(d, 0x15, 0x00, PPC_64B);
+GEN_STUX(d, 0x15, 0x05, PPC_64B);
+GEN_STX(d, 0x15, 0x04, PPC_64B);
 GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000002, PPC_64B)
 {
     if (Rc(ctx->opcode)) {
@@ -2295,6 +2365,62 @@ GEN_HANDLER(stwcx_, 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
     gen_op_load_gpr_T1(rS(ctx->opcode));
     op_stwcx();
 }
+
+#if defined(TARGET_PPC64)
+#define op_ldarx() (*gen_op_ldarx[ctx->mem_idx])()
+#define op_stdcx() (*gen_op_stdcx[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc *gen_op_ldarx[] = {
+    &gen_op_ldarx_raw,
+    &gen_op_ldarx_le_raw,
+    &gen_op_ldarx_64_raw,
+    &gen_op_ldarx_le_64_raw,
+};
+static GenOpFunc *gen_op_stdcx[] = {
+    &gen_op_stdcx_raw,
+    &gen_op_stdcx_le_raw,
+    &gen_op_stdcx_64_raw,
+    &gen_op_stdcx_le_64_raw,
+};
+#else
+static GenOpFunc *gen_op_ldarx[] = {
+    &gen_op_ldarx_user,
+    &gen_op_ldarx_le_user,
+    &gen_op_ldarx_kernel,
+    &gen_op_ldarx_le_kernel,
+    &gen_op_ldarx_64_user,
+    &gen_op_ldarx_le_64_user,
+    &gen_op_ldarx_64_kernel,
+    &gen_op_ldarx_le_64_kernel,
+};
+static GenOpFunc *gen_op_stdcx[] = {
+    &gen_op_stdcx_user,
+    &gen_op_stdcx_le_user,
+    &gen_op_stdcx_kernel,
+    &gen_op_stdcx_le_kernel,
+    &gen_op_stdcx_64_user,
+    &gen_op_stdcx_le_64_user,
+    &gen_op_stdcx_64_kernel,
+    &gen_op_stdcx_le_64_kernel,
+};
+#endif
+
+/* ldarx */
+GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_RES)
+{
+    gen_addr_reg_index(ctx);
+    op_ldarx();
+    gen_op_store_T1_gpr(rD(ctx->opcode));
+}
+
+/* stdcx. */
+GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_RES)
+{
+    gen_addr_reg_index(ctx);
+    gen_op_load_gpr_T1(rS(ctx->opcode));
+    op_stdcx();
+}
+#endif /* defined(TARGET_PPC64) */
 
 /* sync */
 GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03FF0801, PPC_MEM_SYNC)
@@ -2745,6 +2871,26 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW)
 #endif
 }
 
+#if defined(TARGET_PPC64)
+GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_FLOW)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    /* Restore CPU state */
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    if (!ctx->sf_mode)
+        gen_op_rfid_32();
+    else
+        gen_op_rfid();
+    RET_CHG_FLOW(ctx);
+#endif
+}
+#endif
+
 /* sc */
 GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFFFFD, PPC_FLOW)
 {
@@ -2804,7 +2950,8 @@ GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC)
 {
     gen_op_load_xer_cr();
     gen_op_store_T0_crf(crfD(ctx->opcode));
-    gen_op_clear_xer_cr();
+    gen_op_clear_xer_ov();
+    gen_op_clear_xer_ca();
 }
 
 /* mfcr */
@@ -2915,6 +3062,25 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 }
 
 /* mtmsr */
+#if defined(TARGET_PPC64)
+GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_MISC)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVREG(ctx);
+        return;
+    }
+    gen_update_nip(ctx, ctx->nip);
+    gen_op_load_gpr_T0(rS(ctx->opcode));
+    gen_op_store_msr();
+    /* Must stop the translation as machine state (may have) changed */
+    RET_CHG_FLOW(ctx);
+#endif
+}
+#endif
+
 GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -3249,6 +3415,41 @@ GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC)
     RET_STOP(ctx);
 #endif
 }
+
+#if defined(TARGET_PPC64)
+/* slbia */
+GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        if (loglevel)
+            fprintf(logfile, "%s: ! supervisor\n", __func__);
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_slbia();
+    RET_STOP(ctx);
+#endif
+}
+
+/* slbie */
+GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rB(ctx->opcode));
+    gen_op_slbie();
+    RET_STOP(ctx);
+#endif
+}
+#endif
 
 /***                              External control                         ***/
 /* Optional: */
@@ -5311,7 +5512,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 
     int i;
 
-    cpu_fprintf(f, "NIP " REGX " LR " REGX " CTR " REGX "\n",
+    cpu_fprintf(f, "NIP " ADDRX " LR " ADDRX " CTR " ADDRX "\n",
                 env->nip, env->lr, env->ctr);
     cpu_fprintf(f, "MSR " REGX FILL " XER %08x      "
 #if !defined(NO_TIMER_DUMP)
@@ -5482,7 +5683,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
 #if defined PPC_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "----------------\n");
-            fprintf(logfile, "nip=%08x super=%d ir=%d\n",
+            fprintf(logfile, "nip=" ADDRX " super=%d ir=%d\n",
                     ctx.nip, 1 - msr_pr, msr_ir);
         }
 #endif
@@ -5515,12 +5716,12 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         if (unlikely(handler->handler == &gen_invalid)) {
             if (loglevel > 0) {
                 fprintf(logfile, "invalid/unsupported opcode: "
-                        "%02x - %02x - %02x (%08x) 0x" REGX " %d\n",
+                        "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                         opc1(ctx.opcode), opc2(ctx.opcode),
                         opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
             } else {
                 printf("invalid/unsupported opcode: "
-                       "%02x - %02x - %02x (%08x) 0x" REGX " %d\n",
+                       "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                        opc1(ctx.opcode), opc2(ctx.opcode),
                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
             }
@@ -5528,13 +5729,13 @@ static inline int gen_intermediate_code_internal (CPUState *env,
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
                 if (loglevel > 0) {
                     fprintf(logfile, "invalid bits: %08x for opcode: "
-                            "%02x -%02x - %02x (%08x) " REGX "\n",
+                            "%02x -%02x - %02x (%08x) 0x" ADDRX "\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),
                             opc2(ctx.opcode), opc3(ctx.opcode),
                             ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
-                           "%02x -%02x - %02x (%08x) " REGX "\n",
+                           "%02x -%02x - %02x (%08x) 0x" ADDRX "\n",
                            ctx.opcode & handler->inval, opc1(ctx.opcode),
                            opc2(ctx.opcode), opc3(ctx.opcode),
                            ctx.opcode, ctx.nip - 4);

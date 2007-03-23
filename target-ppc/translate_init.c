@@ -378,7 +378,7 @@ static inline void spr_register (CPUPPCState *env, int num,
         exit(1);
     }
 #if defined(PPC_DEBUG_SPR)
-    printf("*** register spr %d (%03x) %s val " REGX "\n", num, num, name,
+    printf("*** register spr %d (%03x) %s val " ADDRX "\n", num, num, name,
            initial_value);
 #endif
     spr->name = name;
@@ -1716,7 +1716,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     printf("%s: PVR %08x mask %08x => %08x\n", __func__,
            def->pvr, def->pvr_mask, def->pvr & def->pvr_mask);
     switch (def->pvr & def->pvr_mask) {
-        /* Embedded PowerPC from IBM                           */
+    /* Embedded PowerPC from IBM                           */
     case CPU_PPC_401A1:   /* 401 A1 family                 */
     case CPU_PPC_401B2:   /* 401 B2 family                 */
     case CPU_PPC_401C2:   /* 401 C2 family                 */
@@ -1833,7 +1833,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->id_tlbs = 0;
         break;
 
-        /* Embedded PowerPC from Freescale                     */
+    /* Embedded PowerPC from Freescale                     */
 #if defined (TODO)
     case CPU_PPC_5xx:
         break;
@@ -1852,7 +1852,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         break;
 #endif
 
-        /* XXX: Use MPC8540 PVR to implement a test PowerPC BookE target */
+    /* XXX: Use MPC8540 PVR to implement a test PowerPC BookE target */
     case CPU_PPC_e500v110:
     case CPU_PPC_e500v120:
     case CPU_PPC_e500v210:
@@ -1872,7 +1872,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         break;
 #endif
 
-        /* 32 bits PowerPC                                     */
+    /* 32 bits PowerPC                                     */
     case CPU_PPC_601:     /* PowerPC 601                   */
         gen_spr_generic(env);
         gen_spr_ne_601(env);
@@ -2131,7 +2131,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         break;
 
 #if defined (TODO)
-        /* G4 family */
+    /* G4 family */
     case CPU_PPC_7400:    /* PowerPC 7400                  */
     case CPU_PPC_7410C:   /* PowerPC 7410                  */
     case CPU_PPC_7410D:
@@ -2154,8 +2154,9 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         break;
 #endif
 
+    /* 64 bits PowerPC                                     */
+#if defined (TARGET_PPC64)
 #if defined (TODO)
-        /* 64 bits PowerPC                                     */
     case CPU_PPC_620:     /* PowerPC 620                   */
     case CPU_PPC_630:     /* PowerPC 630 (Power 3)         */
     case CPU_PPC_631:     /* PowerPC 631 (Power 3+)        */
@@ -2163,6 +2164,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     case CPU_PPC_POWER4P: /* Power 4+                      */
     case CPU_PPC_POWER5:  /* Power 5                       */
     case CPU_PPC_POWER5P: /* Power 5+                      */
+#endif
     case CPU_PPC_970:     /* PowerPC 970                   */
     case CPU_PPC_970FX10: /* PowerPC 970 FX                */
     case CPU_PPC_970FX20:
@@ -2171,16 +2173,20 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     case CPU_PPC_970FX31:
     case CPU_PPC_970MP10: /* PowerPC 970 MP                */
     case CPU_PPC_970MP11:
+#if defined (TODO)
     case CPU_PPC_CELL10:  /* Cell family                   */
     case CPU_PPC_CELL20:
     case CPU_PPC_CELL30:
     case CPU_PPC_CELL31:
+#endif
+#if defined (TODO)
     case CPU_PPC_RS64:    /* Apache (RS64/A35)             */
     case CPU_PPC_RS64II:  /* NorthStar (RS64-II/A50)       */
     case CPU_PPC_RS64III: /* Pulsar (RS64-III)             */
     case CPU_PPC_RS64IV:  /* IceStar/IStar/SStar (RS64-IV) */
-        break;
 #endif
+        break;
+#endif /* defined (TARGET_PPC64) */
 
 #if defined (TODO)
         /* POWER                                               */
@@ -2424,7 +2430,7 @@ static int create_ppc_opcodes (CPUPPCState *env, ppc_def_t *def)
 
     fill_new_table(env->opcodes, 0x40);
 #if defined(PPC_DUMP_CPU)
-    printf("* PowerPC instructions for PVR %08x: %s flags %016 " PRIx64
+    printf("* PowerPC instructions for PVR %08x: %s flags %016" PRIx64
            " %08x\n",
            def->pvr, def->name, def->insns_flags, def->flags);
 #endif
@@ -3412,6 +3418,7 @@ static ppc_def_t ppc_defs[] =
         },
 #endif
         /* 64 bits PowerPC */
+#if defined (TARGET_PPC64)
 #if defined (TODO)
         /* PowerPC 620 */
         {
@@ -3650,6 +3657,7 @@ static ppc_def_t ppc_defs[] =
             .msr_mask    = xxx,
         },
 #endif
+#endif /* defined (TARGET_PPC64) */
 #if defined (TODO)
         /* POWER2 */
         {

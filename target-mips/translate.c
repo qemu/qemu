@@ -830,7 +830,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         break;
     default:
         MIPS_INVAL("float load/store");
-        generate_exception_err(ctx, EXCP_CpU, 1);
+        generate_exception(ctx, EXCP_RI);
         return;
     }
     MIPS_DEBUG("%s %s, %d(%s)", opn, fregnames[ft], offset, regnames[base]);
@@ -1933,22 +1933,31 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-           gen_op_mfc0_config0();
+            gen_op_mfc0_config0();
             rn = "Config";
             break;
         case 1:
-           gen_op_mfc0_config1();
+            gen_op_mfc0_config1();
             rn = "Config1";
             break;
         case 2:
-           gen_op_mfc0_config2();
+            gen_op_mfc0_config2();
             rn = "Config2";
             break;
         case 3:
-           gen_op_mfc0_config3();
+            gen_op_mfc0_config3();
             rn = "Config3";
             break;
-       /* 6,7 are implementation dependent */
+        /* 4,5 are reserved */
+        /* 6,7 are implementation dependent */
+        case 6:
+            gen_op_mfc0_config6();
+            rn = "Config6";
+            break;
+        case 7:
+            gen_op_mfc0_config7();
+            rn = "Config7";
+            break;
         default:
             goto die;
         }
@@ -2517,28 +2526,37 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-           gen_op_mtc0_config0();
+            gen_op_mtc0_config0();
             rn = "Config";
             break;
         case 1:
-           /* ignored */
+            /* ignored, read only */
             rn = "Config1";
             break;
         case 2:
-           gen_op_mtc0_config2();
+            gen_op_mtc0_config2();
             rn = "Config2";
             break;
         case 3:
-           /* ignored */
+            /* ignored, read only */
             rn = "Config3";
             break;
-       /* 6,7 are implementation dependent */
+        /* 4,5 are reserved */
+        /* 6,7 are implementation dependent */
+        case 6:
+            /* ignored */
+            rn = "Config6";
+            break;
+        case 7:
+            /* ignored */
+            rn = "Config7";
+            break;
         default:
             rn = "Invalid config selector";
             goto die;
         }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 17:
         switch (sel) {
@@ -4141,7 +4159,7 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
         break;
     default:    
         MIPS_INVAL("cp1 branch/jump");
-        generate_exception_err (ctx, EXCP_RI, 1);
+        generate_exception (ctx, EXCP_RI);
         return;
     }
     gen_op_set_bcond();
@@ -4174,7 +4192,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
     case OPC_CFC1:
         if (fs != 0 && fs != 31) {
             MIPS_INVAL("cfc1 freg");
-            generate_exception_err (ctx, EXCP_RI, 1);
+            generate_exception (ctx, EXCP_RI);
             return;
         }
         GEN_LOAD_IMM_TN(T1, fs);
@@ -4185,7 +4203,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
     case OPC_CTC1:
          if (fs != 0 && fs != 31) {
             MIPS_INVAL("ctc1 freg");
-            generate_exception_err (ctx, EXCP_RI, 1);
+            generate_exception (ctx, EXCP_RI);
             return;
         }
         GEN_LOAD_IMM_TN(T1, fs);
@@ -4202,7 +4220,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
                     ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
                     ((ctx->opcode >> 16) & 0x1F));
         }
-        generate_exception_err (ctx, EXCP_RI, 1);
+        generate_exception (ctx, EXCP_RI);
         return;
     }
     MIPS_DEBUG("%s %s %s", opn, regnames[rt], fregnames[fs]);
@@ -4220,7 +4238,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
  */
 #define CHECK_FR(ctx, freg) do { \
         if (!((ctx)->CP0_Status & (1<<CP0St_FR)) && ((freg) & 1)) { \
-            generate_exception_err (ctx, EXCP_RI, 1); \
+            generate_exception (ctx, EXCP_RI); \
             return; \
         } \
     } while(0)
@@ -4505,7 +4523,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
                     ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
                     ((ctx->opcode >> 16) & 0x1F));
         }
-        generate_exception_err (ctx, EXCP_RI, 1);
+        generate_exception (ctx, EXCP_RI);
         return;
     }
     if (binary)
@@ -4628,11 +4646,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
         case OPC_MOVCI:
             if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+                save_cpu_state(ctx, 1);
                 gen_op_cp1_enabled();
                 gen_movci(ctx, rd, rs, (ctx->opcode >> 18) & 0x7,
                           (ctx->opcode >> 16) & 1);
             } else {
-                generate_exception(ctx, EXCP_RI);
+                generate_exception_err(ctx, EXCP_CpU, 1);
             }
             break;
 
@@ -4908,7 +4927,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_farith(ctx, MASK_CP1_FUNC(ctx->opcode), rt, rd, sa);
                 break;
             default:
-                generate_exception_err(ctx, EXCP_RI, 1);
+                generate_exception (ctx, EXCP_RI);
                 break;
             }
         } else {
@@ -4928,16 +4947,17 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
     case OPC_CP3:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+            save_cpu_state(ctx, 1);
             gen_op_cp1_enabled();
             op1 = MASK_CP3(ctx->opcode);
             switch (op1) {
             /* Not implemented */
             default:
-                generate_exception_err(ctx, EXCP_RI, 1);
+                generate_exception (ctx, EXCP_RI);
                 break;
             }
         } else {
-            generate_exception(ctx, EXCP_RI);
+            generate_exception_err(ctx, EXCP_CpU, 1);
         }
         break;
 

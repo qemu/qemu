@@ -56,10 +56,15 @@ void do_restore_state (void *pc_ptr)
   cpu_restore_state (tb, env, pc, NULL);
 }
 
-void do_raise_exception_direct (uint32_t exception)
+void do_raise_exception_direct_err (uint32_t exception, int error_code)
 {
     do_restore_state (GETPC ());
-    do_raise_exception_err (exception, 0);
+    do_raise_exception_err (exception, error_code);
+}
+
+void do_raise_exception_direct (uint32_t exception)
+{
+    do_raise_exception_direct_err (exception, 0);
 }
 
 #define MEMSUFFIX _raw

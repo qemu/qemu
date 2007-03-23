@@ -261,10 +261,15 @@ PPC_OP(load_xer_cr)
     RETURN();
 }
 
-PPC_OP(clear_xer_cr)
+PPC_OP(clear_xer_ov)
 {
     xer_so = 0;
     xer_ov = 0;
+    RETURN();
+}
+
+PPC_OP(clear_xer_ca)
+{
     xer_ca = 0;
     RETURN();
 }
@@ -714,6 +719,7 @@ void OPPROTO op_check_addo (void)
         xer_so = 1;
         xer_ov = 1;
     }
+    RETURN();
 }
 
 #if defined(TARGET_PPC64)
@@ -726,6 +732,7 @@ void OPPROTO op_check_addo_64 (void)
         xer_so = 1;
         xer_ov = 1;
     }
+    RETURN();
 }
 #endif
 
@@ -1437,6 +1444,20 @@ void OPPROTO op_rotli32_T0 (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_rotl64_T0_T1 (void)
+{
+    T0 = rotl64(T0, T1 & 0x3F);
+    RETURN();
+}
+
+void OPPROTO op_rotli64_T0 (void)
+{
+    T0 = rotl64(T0, PARAM1);
+    RETURN();
+}
+#endif
+
 /***                             Integer shift                             ***/
 /* shift left word */
 void OPPROTO op_slw (void)
@@ -1643,16 +1664,24 @@ PPC_OP(fsel)
 /* fmadd - fmadd. */
 PPC_OP(fmadd)
 {
+#if USE_PRECISE_EMULATION
+    do_fmadd();
+#else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
     FT0 = float64_add(FT0, FT2, &env->fp_status);
+#endif
     RETURN();
 }
 
 /* fmsub - fmsub. */
 PPC_OP(fmsub)
 {
+#if USE_PRECISE_EMULATION
+    do_fmsub();
+#else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
     FT0 = float64_sub(FT0, FT2, &env->fp_status);
+#endif
     RETURN();
 }
 
@@ -1691,6 +1720,29 @@ PPC_OP(fctiwz)
     do_fctiwz();
     RETURN();
 }
+
+#if defined(TARGET_PPC64)
+/* fcfid - fcfid. */
+PPC_OP(fcfid)
+{
+    do_fcfid();
+    RETURN();
+}
+
+/* fctid - fctid. */
+PPC_OP(fctid)
+{
+    do_fctid();
+    RETURN();
+}
+
+/* fctidz - fctidz. */
+PPC_OP(fctidz)
+{
+    do_fctidz();
+    RETURN();
+}
+#endif
 
 /***                         Floating-Point compare                        ***/
 /* fcmpu */
@@ -1772,6 +1824,18 @@ void OPPROTO op_rfi (void)
 void OPPROTO op_rfi_32 (void)
 {
     do_rfi_32();
+    RETURN();
+}
+
+void OPPROTO op_rfid (void)
+{
+    do_rfid();
+    RETURN();
+}
+
+void OPPROTO op_rfid_32 (void)
+{
+    do_rfid_32();
     RETURN();
 }
 #endif
@@ -2378,6 +2442,7 @@ void OPPROTO op_store_booke_tsr (void)
 void OPPROTO op_splatw_T1_64 (void)
 {
     T1_64 = (T1_64 << 32) | (T1_64 & 0x00000000FFFFFFFFULL);
+    RETURN();
 }
 
 void OPPROTO op_splatwi_T0_64 (void)
@@ -2385,6 +2450,7 @@ void OPPROTO op_splatwi_T0_64 (void)
     uint64_t tmp = PARAM1;
 
     T0_64 = (tmp << 32) | tmp;
+    RETURN();
 }
 
 void OPPROTO op_splatwi_T1_64 (void)
@@ -2392,6 +2458,7 @@ void OPPROTO op_splatwi_T1_64 (void)
     uint64_t tmp = PARAM1;
 
     T1_64 = (tmp << 32) | tmp;
+    RETURN();
 }
 
 void OPPROTO op_extsh_T1_64 (void)

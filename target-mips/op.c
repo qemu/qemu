@@ -1180,6 +1180,18 @@ void op_mfc0_config3 (void)
     RETURN();
 }
 
+void op_mfc0_config6 (void)
+{
+    T0 = env->CP0_Config6;
+    RETURN();
+}
+
+void op_mfc0_config7 (void)
+{
+    T0 = env->CP0_Config7;
+    RETURN();
+}
+
 void op_mfc0_lladdr (void)
 {
     T0 = (int32_t)env->CP0_LLAddr >> 4;
@@ -1653,7 +1665,7 @@ void op_dmtc0_errorepc (void)
 void op_cp1_enabled(void)
 {
     if (!(env->CP0_Status & (1 << CP0St_CU1))) {
-        CALL_FROM_TB2(do_raise_exception_err, EXCP_CpU, 1);
+        CALL_FROM_TB2(do_raise_exception_direct_err, EXCP_CpU, 1);
     }
     RETURN();
 }

@@ -23,24 +23,32 @@
 #include "config.h"
 #include <stdint.h>
 
+#if defined(TARGET_PPC64) || (HOST_LONG_BITS >= 64)
+/* When using 64 bits temporary registers,
+ * we can use 64 bits GPR with no extra cost
+ */
+#define TARGET_PPCSPE
+#endif
+
 #if defined (TARGET_PPC64)
 typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 64
 #define TARGET_GPR_BITS  64
 #define REGX "%016" PRIx64
-/* We can safely use PowerPC SPE extension when compiling PowerPC 64 */
-#define TARGET_PPCSPE
+#define ADDRX "%016" PRIx64
 #elif defined(TARGET_PPCSPE)
 /* GPR are 64 bits: used by vector extension */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  64
-#define REGX "%08" PRIx32
+#define REGX "%016" PRIx64
+#define ADDRX "%08" PRIx32
 #else
 typedef uint32_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  32
 #define REGX "%08" PRIx32
+#define ADDRX "%08" PRIx32
 #endif
 
 #include "cpu-defs.h"
@@ -376,6 +384,8 @@ enum {
     PPC_SPE         = 0x0000000100000000ULL,
     /* PowerPC 2.03 SPE floating-point extension */
     PPC_SPEFPU      = 0x0000000200000000ULL,
+    /* SLB management */
+    PPC_SLBI        = 0x0000000400000000ULL,
 };
 
 /* CPU run-time flags (MMU and exception model) */
@@ -495,11 +505,16 @@ enum {
 #define PPC_INSNS_74xx (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_ALTIVEC |      \
                         PPC_MEM_TLBSYNC | PPC_TB)
 #define PPC_FLAGS_74xx (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_74xx)
+/* PowerPC 970 (aka G5) */
+#define PPC_INSNS_970  (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_FLOAT_OPT |    \
+                        PPC_ALTIVEC | PPC_MEM_TLBSYNC | PPC_TB |              \
+                        PPC_64B | PPC_64_BRIDGE | PPC_SLBI)
+#define PPC_FLAGS_970  (PPC_FLAGS_MMU_64B | PPC_FLAGS_EXCP_970)
 
 /* Default PowerPC will be 604/970 */
 #define PPC_INSNS_PPC32 PPC_INSNS_604
 #define PPC_FLAGS_PPC32 PPC_FLAGS_604
-#if 0
+#if 1
 #define PPC_INSNS_PPC64 PPC_INSNS_970
 #define PPC_FLAGS_PPC64 PPC_FLAGS_970
 #endif
@@ -793,7 +808,7 @@ uint32_t ppc_load_xer (CPUPPCState *env);
 void ppc_store_xer (CPUPPCState *env, uint32_t value);
 target_ulong do_load_msr (CPUPPCState *env);
 void do_store_msr (CPUPPCState *env, target_ulong value);
-void ppc_store_msr32 (CPUPPCState *env, uint32_t value);
+void ppc_store_msr_32 (CPUPPCState *env, uint32_t value);
 
 void do_compute_hflags (CPUPPCState *env);
 

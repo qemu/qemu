@@ -1,3 +1,37 @@
+2007-03-23 10:45  j_mayer
+
+	* target-ppc/: cpu.h, helper.c, op.c, op_helper.c, op_helper.h,
+	  op_mem.h, translate.c, translate_init.c: Add missing PowerPC 64
+	  instructions PowerPC 64 fixes.
+
+2007-03-23 10:40  j_mayer
+
+	* target-ppc/: cpu.h, helper.c, translate.c, translate_init.c: Fix
+	  debug printf: we need different macros for target_ulong prints
+			 and GPR ones, as the lengths can be different.
+
+2007-03-23 01:43  ths
+
+	* target-mips/: cpu.h, exec.h, op.c, op_helper.c, translate.c: Fix
+	  enough FPU/R2 support to get 24Kf going.
+
+2007-03-22 23:41  j_mayer
+
+	* target-ppc/: cpu.h, op.c, translate.c: PowerPC improvments: - add
+	  missing 64 bits rotate instructions - safely define TARGET_PPCSPE
+	  when 64 bits registers are used   a separate target will be
+	  needed to use it in 32 bits mode on 32 bits hosts.
+
+2007-03-22 23:17  j_mayer
+
+	* target-ppc/: exec.h, op.c, op_helper.c, op_helper.h, translate.c:
+	  PowerPC bugfixes: - must clear carry bit when doing addic with a
+	  zero immediate value - fix missing RETURN in micro-operation that
+	  would lead to random failures   and crashes - add
+	  USE_PRECISE_EMULATION compilation-time option to choose between
+	  getting exact floating point results and fast but less accurate
+	  computation.
+
 2007-03-22 16:08  ths
 
 	* linux-user/syscall.c: Fix fcntl64 logic bug, by Kirill A.

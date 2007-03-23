@@ -225,7 +225,7 @@ static inline void __ppc6xx_tlb_invalidate_virt (CPUState *env,
         if (pte_is_valid(tlb->pte0) && (match_epn == 0 || eaddr == tlb->EPN)) {
 #if defined (DEBUG_SOFTWARE_TLB)
             if (loglevel != 0) {
-                fprintf(logfile, "TLB invalidate %d/%d %08x\n",
+                fprintf(logfile, "TLB invalidate %d/%d " ADDRX "\n",
                         nr, env->nb_tlb, eaddr);
             }
 #endif
@@ -255,9 +255,8 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
     tlb = &env->tlb[nr];
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "Set TLB %d/%d EPN %08lx PTE0 %08lx PTE1 %08lx\n",
-                nr, env->nb_tlb, (unsigned long)EPN,
-                (unsigned long)pte0, (unsigned long)pte1);
+        fprintf(logfile, "Set TLB %d/%d EPN " ADDRX " PTE0 " ADDRX 
+                " PTE1 " ADDRX "\n", nr, env->nb_tlb, EPN, pte0, pte1);
     }
 #endif
     /* Invalidate any pending reference in Qemu for this virtual address */
@@ -288,7 +287,8 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
         if ((eaddr & TARGET_PAGE_MASK) != tlb->EPN) {
 #if defined (DEBUG_SOFTWARE_TLB)
             if (loglevel != 0) {
-                fprintf(logfile, "TLB %d/%d %s [%08x %08x] <> %08x\n",
+                fprintf(logfile, "TLB %d/%d %s [" ADDRX " " ADDRX
+                        "] <> " ADDRX "\n",
                         nr, env->nb_tlb,
                         pte_is_valid(tlb->pte0) ? "valid" : "inval",
                         tlb->EPN, tlb->EPN + TARGET_PAGE_SIZE, eaddr);
@@ -298,7 +298,8 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
         }
 #if defined (DEBUG_SOFTWARE_TLB)
         if (loglevel != 0) {
-            fprintf(logfile, "TLB %d/%d %s %08x <> %08x %08x %c %c\n",
+            fprintf(logfile, "TLB %d/%d %s " ADDRX " <> " ADDRX " " ADDRX
+                    " %c %c\n",
                     nr, env->nb_tlb,
                     pte_is_valid(tlb->pte0) ? "valid" : "inval",
                     tlb->EPN, eaddr, tlb->pte1,
@@ -355,7 +356,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
 
 #if defined (DEBUG_BATS)
     if (loglevel > 0) {
-        fprintf(logfile, "%s: %cBAT v 0x%08x\n", __func__,
+        fprintf(logfile, "%s: %cBAT v 0x" ADDRX "\n", __func__,
                 type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
 #endif
@@ -371,7 +372,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
     }
 #if defined (DEBUG_BATS)
     if (loglevel > 0) {
-        fprintf(logfile, "%s...: %cBAT v 0x%08x\n", __func__,
+        fprintf(logfile, "%s...: %cBAT v 0x" ADDRX "\n", __func__,
                 type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
 #endif
@@ -384,7 +385,8 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
         bl = (*BATu & 0x00001FFC) << 15;
 #if defined (DEBUG_BATS)
         if (loglevel > 0) {
-            fprintf(logfile, "%s: %cBAT%d v 0x%08x BATu 0x%08x BATl 0x%08x\n",
+            fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX 
+                    " BATl 0x" ADDRX "\n",
                     __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
                     *BATu, *BATl);
         }
@@ -404,7 +406,8 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
                     ctx->prot = PAGE_WRITE | PAGE_READ;
 #if defined (DEBUG_BATS)
                 if (loglevel > 0) {
-                    fprintf(logfile, "BAT %d match: r 0x%08x prot=%c%c\n",
+                    fprintf(logfile, "BAT %d match: r 0x" ADDRX
+                            " prot=%c%c\n",
                             i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
                             ctx->prot & PAGE_WRITE ? 'W' : '-');
                 }
@@ -416,15 +419,16 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
     }
     if (ret < 0) {
 #if defined (DEBUG_BATS)
-        printf("no BAT match for 0x%08x:\n", virtual);
+        printf("no BAT match for 0x" ADDRX ":\n", virtual);
         for (i = 0; i < 4; i++) {
             BATu = &BATut[i];
             BATl = &BATlt[i];
             BEPIu = *BATu & 0xF0000000;
             BEPIl = *BATu & 0x0FFE0000;
             bl = (*BATu & 0x00001FFC) << 15;
-            printf("%s: %cBAT%d v 0x%08x BATu 0x%08x BATl 0x%08x \n\t"
-                   "0x%08x 0x%08x 0x%08x\n",
+            printf("%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX
+                   " BATl 0x" ADDRX " \n\t"
+                   "0x" ADDRX " 0x" ADDRX " 0x" ADDRX "\n",
                    __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
                    *BATu, *BATl, BEPIu, BEPIl, bl);
         }
@@ -448,8 +452,9 @@ static int find_pte (mmu_ctx_t *ctx, int h, int rw)
         pte1 =  ldl_phys(base + (i * 8) + 4);
 #if defined (DEBUG_MMU)
         if (loglevel > 0) {
-            fprintf(logfile, "Load pte from 0x%08x => 0x%08x 0x%08x "
-                    "%d %d %d 0x%08x\n", base + (i * 8), pte0, pte1,
+            fprintf(logfile, "Load pte from 0x" ADDRX " => 0x" ADDRX 
+                    " 0x" ADDRX " %d %d %d 0x" ADDRX "\n",
+                    base + (i * 8), pte0, pte1,
                     pte0 >> 31, h, (pte0 >> 6) & 1, ctx->ptem);
         }
 #endif
@@ -481,7 +486,8 @@ static int find_pte (mmu_ctx_t *ctx, int h, int rw)
     done:
 #if defined (DEBUG_MMU)
         if (loglevel > 0) {
-            fprintf(logfile, "found PTE at addr 0x%08x prot=0x%01x ret=%d\n",
+            fprintf(logfile, "found PTE at addr 0x" ADDRX " prot=0x%01x "
+                    "ret=%d\n",
                     ctx->raddr, ctx->prot, ret);
         }
 #endif
@@ -512,8 +518,8 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
     sr = env->sr[eaddr >> 28];
 #if defined (DEBUG_MMU)
     if (loglevel > 0) {
-        fprintf(logfile, "Check segment v=0x%08x %d 0x%08x nip=0x%08x "
-                "lr=0x%08x ir=%d dr=%d pr=%d %d t=%d\n",
+        fprintf(logfile, "Check segment v=0x" ADDRX " %d 0x" ADDRX " nip=0x"
+                ADDRX " lr=0x" ADDRX " ir=%d dr=%d pr=%d %d t=%d\n",
                 eaddr, eaddr >> 28, sr, env->nip,
                 env->lr, msr_ir, msr_dr, msr_pr, rw, type);
     }
@@ -523,7 +529,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
     if ((sr & 0x80000000) == 0) {
 #if defined (DEBUG_MMU)
         if (loglevel > 0) 
-            fprintf(logfile, "pte segment: key=%d n=0x%08x\n",
+            fprintf(logfile, "pte segment: key=%d n=0x" ADDRX "\n",
                     ctx->key, sr & 0x10000000);
 #endif
         /* Check if instruction fetch is allowed, if needed */
@@ -550,9 +556,9 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
             } else {
 #if defined (DEBUG_MMU)
                 if (loglevel > 0) {
-                    fprintf(logfile, "0 sdr1=0x%08x vsid=0x%06x api=0x%04x "
-                            "hash=0x%07x pg_addr=0x%08x\n", sdr, vsid, pgidx,
-                            hash, ctx->pg_addr[0]);
+                    fprintf(logfile, "0 sdr1=0x" ADDRX " vsid=0x%06x "
+                            "api=0x%04x hash=0x%07x pg_addr=0x" ADDRX "\n",
+                            sdr, vsid, pgidx, hash, ctx->pg_addr[0]);
                 }
 #endif
                 /* Primary table lookup */
@@ -562,9 +568,9 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
 #if defined (DEBUG_MMU)
                     if (eaddr != 0xEFFFFFFF && loglevel > 0) {
                         fprintf(logfile,
-                                "1 sdr1=0x%08x vsid=0x%06x api=0x%04x "
-                                "hash=0x%05x pg_addr=0x%08x\n", sdr, vsid,
-                                pgidx, hash, ctx->pg_addr[1]);
+                                "1 sdr1=0x" ADDRX " vsid=0x%06x api=0x%04x "
+                                "hash=0x%05x pg_addr=0x" ADDRX "\n",
+                                sdr, vsid, pgidx, hash, ctx->pg_addr[1]);
                     }
 #endif
                     ret2 = find_pte(ctx, 1, rw);
@@ -689,7 +695,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
     }
 #if 0
     if (loglevel > 0) {
-        fprintf(logfile, "%s address %08x => %08lx\n",
+        fprintf(logfile, "%s address " ADDRX " => " ADDRX "\n",
                 __func__, eaddr, ctx->raddr);
     }
 #endif
@@ -864,7 +870,7 @@ static inline void do_invalidate_BAT (CPUPPCState *env,
     end = base + mask + 0x00020000;
 #if defined (DEBUG_BATS)
     if (loglevel != 0) {
-        fprintf(logfile, "Flush BAT from %08x to %08x (%08x)\n",
+        fprintf(logfile, "Flush BAT from " ADDRX " to " ADDRX " (" ADDRX ")\n",
                 base, end, mask);
     }
 #endif
@@ -882,9 +888,8 @@ static inline void dump_store_bat (CPUPPCState *env, char ID, int ul, int nr,
 {
 #if defined (DEBUG_BATS)
     if (loglevel != 0) {
-        fprintf(logfile, "Set %cBAT%d%c to 0x%08lx (0x%08lx)\n",
-                ID, nr, ul == 0 ? 'u' : 'l', (unsigned long)value,
-                (unsigned long)env->nip);
+        fprintf(logfile, "Set %cBAT%d%c to 0x" ADDRX " (0x" ADDRX ")\n",
+                ID, nr, ul == 0 ? 'u' : 'l', value, env->nip);
     }
 #endif
 }
@@ -999,7 +1004,7 @@ void do_store_sdr1 (CPUPPCState *env, target_ulong value)
 {
 #if defined (DEBUG_MMU)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: 0x%08lx\n", __func__, (unsigned long)value);
+        fprintf(logfile, "%s: 0x" ADDRX "\n", __func__, value);
     }
 #endif
     if (env->sdr1 != value) {
@@ -1017,8 +1022,8 @@ void do_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 {
 #if defined (DEBUG_MMU)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: reg=%d 0x%08lx %08lx\n",
-                __func__, srnum, (unsigned long)value, env->sr[srnum]);
+        fprintf(logfile, "%s: reg=%d 0x" ADDRX " " ADDRX "\n",
+                __func__, srnum, value, env->sr[srnum]);
     }
 #endif
     if (env->sr[srnum] != value) {
@@ -1198,9 +1203,10 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
 }
 
 #if defined(TARGET_PPC64)
-void ppc_store_msr_32 (CPUPPCState *env, target_ulong value)
+void ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
 {
-    do_store_msr(env, (uint32_t)value);
+    do_store_msr(env,
+                 (do_load_msr(env) & ~0xFFFFFFFFULL) | (value & 0xFFFFFFFF));
 }
 #endif
 
@@ -1227,7 +1233,7 @@ void do_interrupt (CPUState *env)
 static void dump_syscall(CPUState *env)
 {
     fprintf(logfile, "syscall r0=0x" REGX " r3=0x" REGX " r4=0x" REGX
-            " r5=0x" REGX " r6=0x" REGX " nip=0x" REGX "\n",
+            " r5=0x" REGX " r6=0x" REGX " nip=0x" ADDRX "\n",
             env->gpr[0], env->gpr[3], env->gpr[4],
             env->gpr[5], env->gpr[6], env->nip);
 }
@@ -1245,15 +1251,16 @@ void do_interrupt (CPUState *env)
 #if defined (DEBUG_EXCEPTIONS)
     if ((excp == EXCP_PROGRAM || excp == EXCP_DSI) && msr_pr == 1) {
         if (loglevel != 0) {
-            fprintf(logfile, "Raise exception at 0x%08lx => 0x%08x (%02x)\n",
-                    (unsigned long)env->nip, excp, env->error_code);
+            fprintf(logfile,
+                    "Raise exception at 0x" ADDRX " => 0x%08x (%02x)\n",
+                    env->nip, excp, env->error_code);
             cpu_dump_state(env, logfile, fprintf, 0);
         }
     }
 #endif
     if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "Raise exception at 0x%08lx => 0x%08x (%02x)\n",
-                (unsigned long)env->nip, excp, env->error_code);
+        fprintf(logfile, "Raise exception at 0x" ADDRX " => 0x%08x (%02x)\n",
+                env->nip, excp, env->error_code);
     }
     msr_pow = 0;
     /* Generate informations in save/restore registers */
@@ -1287,10 +1294,10 @@ void do_interrupt (CPUState *env)
         msr &= ~0xFFFF0000;
 #if defined (DEBUG_EXCEPTIONS)
         if (loglevel) {
-            fprintf(logfile, "DSI exception: DSISR=0x%08x, DAR=0x%08x\n",
-                    env->spr[SPR_DSISR], env->spr[SPR_DAR]);
+            fprintf(logfile, "DSI exception: DSISR=0x" ADDRX" DAR=0x" ADDRX
+                    "\n", env->spr[SPR_DSISR], env->spr[SPR_DAR]);
         } else {
-            printf("DSI exception: DSISR=0x%08x, DAR=0x%08x\n",
+            printf("DSI exception: DSISR=0x" ADDRX" DAR=0x" ADDRX "\n",
                    env->spr[SPR_DSISR], env->spr[SPR_DAR]);
         }
 #endif
@@ -1301,8 +1308,8 @@ void do_interrupt (CPUState *env)
         msr |= env->error_code;
 #if defined (DEBUG_EXCEPTIONS)
         if (loglevel != 0) {
-            fprintf(logfile, "ISI exception: msr=0x%08x, nip=0x%08x\n",
-                    msr, env->nip);
+            fprintf(logfile, "ISI exception: msr=0x" ADDRX ", nip=0x" ADDRX
+                    "\n", msr, env->nip);
         }
 #endif
         goto store_next;
@@ -1353,7 +1360,7 @@ void do_interrupt (CPUState *env)
                 env->fpscr[7] |= 0x4;
             break;
         case EXCP_INVAL:
-            //      printf("Invalid instruction at 0x%08x\n", env->nip);
+            //      printf("Invalid instruction at 0x" ADDRX "\n", env->nip);
             msr |= 0x00080000;
             break;
         case EXCP_PRIV:
@@ -1556,8 +1563,9 @@ void do_interrupt (CPUState *env)
                     miss = &env->spr[SPR_DMISS];
                     cmp = &env->spr[SPR_DCMP];
                 }
-                fprintf(logfile, "6xx %sTLB miss: %cM %08x %cC %08x "
-                        "H1 %08x H2 %08x %08x\n", es, en, *miss, en, *cmp,
+                fprintf(logfile, "6xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
+                        " H1 " ADDRX " H2 " ADDRX " " ADDRX "\n",
+                        es, en, *miss, en, *cmp,
                         env->spr[SPR_HASH1], env->spr[SPR_HASH2],
                         env->error_code);
             }
