@@ -307,12 +307,12 @@ static const offset_name_t addr2reg[] = {
     { 0 }
 };
 
-static const char *tnetw1130_regname(target_phys_addr_t addr)
+static const char *tnetw1130_regname(unsigned addr)
 {
     return offset2name(addr2reg, addr);
 }
 
-static const char *tnetw1130_regname1(target_phys_addr_t addr)
+static const char *tnetw1130_regname1(unsigned addr)
 {
     static char buffer[32];
     const char *name = buffer;
@@ -391,7 +391,7 @@ static uint8_t tnetw1130_read0b(pci_tnetw1130_t * d, target_phys_addr_t addr)
     assert(addr < TNETW1130_MEM0_SIZE);
     value = s->mem0[addr];
     //~ } else if (addr -= 0x20000, addr == TNETW1130_SOFT_RESET) {
-    logout("addr %s = %02x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = 0x%02x\n", tnetw1130_regname(addr), value);
     return value;
 }
 
@@ -422,7 +422,7 @@ static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
     } else if (addr == TNETW1130_EEPROM_INFORMATION) {
         value = (RADIO_RADIA_16 << 8) + 0x01;
     }
-    logout("addr %s = %04x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = 0x%04x\n", tnetw1130_regname(addr), value);
     return value;
 }
 
@@ -440,7 +440,7 @@ static uint32_t tnetw1130_read0l(pci_tnetw1130_t * d, target_phys_addr_t addr)
     } else if (addr == TNETW1130_INFO_MAILBOX_OFFS) {
         value = INFO_MAILBOX;
     }
-    logout("addr %s = %08x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = 0x%08x\n", tnetw1130_regname(addr), value);
     return value;
 }
 
@@ -450,7 +450,7 @@ static void tnetw1130_write0b(pci_tnetw1130_t * d, target_phys_addr_t addr,
     tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM0_SIZE);
     s->mem0[addr] = value;
-    logout("addr %s\n", tnetw1130_regname(addr));
+    logout("addr %s = 0x%02x\n", tnetw1130_regname(addr), value);
 }
 
 static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
@@ -487,7 +487,7 @@ static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
             s->irq_status |= HOST_INT_FCS_THRESHOLD;
         }
     }
-    logout("addr %s = %04x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = 0x%04x\n", tnetw1130_regname(addr), value);
 }
 
 static void tnetw1130_write0l(pci_tnetw1130_t * d, target_phys_addr_t addr,
@@ -514,7 +514,7 @@ static void tnetw1130_write0l(pci_tnetw1130_t * d, target_phys_addr_t addr,
         }
     } else if (addr == TNETW1130_SLV_END_CTL) {
     }
-    logout("addr %s = %08x\n", tnetw1130_regname(addr), value);
+    logout("addr %s = 0x%08x\n", tnetw1130_regname(addr), value);
 }
 
 static uint8_t tnetw1130_read1b(pci_tnetw1130_t * d, target_phys_addr_t addr)
@@ -523,7 +523,7 @@ static uint8_t tnetw1130_read1b(pci_tnetw1130_t * d, target_phys_addr_t addr)
     uint8_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
     value = s->mem1[addr];
-    logout("addr %s = %02x\n", tnetw1130_regname1(addr), value);
+    logout("addr %s = 0x%02x\n", tnetw1130_regname1(addr), value);
     return value;
 }
 
@@ -533,7 +533,7 @@ static uint16_t tnetw1130_read1w(pci_tnetw1130_t * d, target_phys_addr_t addr)
     uint16_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
     value = reg_read16(s->mem1, addr);
-    logout("addr %s = %04x\n", tnetw1130_regname1(addr), value);
+    logout("addr %s = 0x%04x\n", tnetw1130_regname1(addr), value);
     return value;
 }
 
@@ -542,7 +542,7 @@ static uint32_t tnetw1130_read1l(pci_tnetw1130_t * d, target_phys_addr_t addr)
     tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     uint32_t value = reg_read32(s->mem1, addr);
-    logout("addr %s = %08x\n", tnetw1130_regname1(addr), value);
+    logout("addr %s = 0x%08x\n", tnetw1130_regname1(addr), value);
     return value;
 }
 
@@ -552,7 +552,7 @@ static void tnetw1130_write1b(pci_tnetw1130_t * d, target_phys_addr_t addr,
     tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     s->mem1[addr] = value;
-    logout("addr %s = %02x\n", tnetw1130_regname1(addr), value);
+    logout("addr %s = 0x%02x\n", tnetw1130_regname1(addr), value);
 }
 
 static void tnetw1130_write1w(pci_tnetw1130_t * d, target_phys_addr_t addr,
@@ -561,7 +561,7 @@ static void tnetw1130_write1w(pci_tnetw1130_t * d, target_phys_addr_t addr,
     tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     reg_write16(s->mem1, addr, value);
-    logout("addr %s = %04x\n", tnetw1130_regname1(addr), value);
+    logout("addr %s = 0x%04x\n", tnetw1130_regname1(addr), value);
 }
 
 static void tnetw1130_write1l(pci_tnetw1130_t * d, target_phys_addr_t addr,
@@ -570,7 +570,7 @@ static void tnetw1130_write1l(pci_tnetw1130_t * d, target_phys_addr_t addr,
     tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     reg_write32(s->mem1, addr, value);
-    logout("addr %s = %08x\n", tnetw1130_regname1(addr), value);
+    logout("addr %s = 0x%08x\n", tnetw1130_regname1(addr), value);
 }
 
 /*****************************************************************************
