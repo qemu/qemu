@@ -463,8 +463,11 @@ static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
                            uint16_t value)
 {
     tnetw1130_t *s = &d->tnetw1130;
-    assert(addr < TNETW1130_MEM0_SIZE);
-    reg_write16(s->mem0, addr, value);
+    if (addr < TNETW1130_MEM0_SIZE) {
+        reg_write16(s->mem0, addr, value);
+    } else {
+        UNEXPECTED();
+    }
     if (addr == TNETW1130_SOFT_RESET) {
         if (value & 1) {
             logout("soft reset\n");
@@ -896,8 +899,10 @@ void vlynq_tnetw1130_init(void)
 
     memcpy(s->mem1 + 0x0001f000, pci_conf, 64);
 
-    tnetw1130_mem_map(&d->dev, 0, 0x04000000, 0x22000, 0);
-    tnetw1130_mem_map(&d->dev, 1, 0x04022000, 0x40000, 0);
+    //~ tnetw1130_mem_map(&d->dev, 0, 0x04000000, 0x22000, 0);  /* 0xf0000000 */
+    //~ tnetw1130_mem_map(&d->dev, 1, 0x04022000, 0x40000, 0);  /* 0xc0000000 */
+    tnetw1130_mem_map(&d->dev, 1, 0x04000000, 0x40000, 0);
+    tnetw1130_mem_map(&d->dev, 0, 0x04040000, 0x22000, 0);
 }
 
 /*
