@@ -2754,6 +2754,7 @@ void cpu_reset(CPUSPARCState *env)
     env->version = GET_VER(env);
     env->pc = 0x1fff0000000ULL;
 #else
+    env->fsr = 4 << 17; /* FPU version 4 (Meiko) */
     env->mmuregs[0] = (0x04 << 24); /* Impl 0, ver 4, MMU disabled */
     env->pc = 0xffd00000;
 #endif

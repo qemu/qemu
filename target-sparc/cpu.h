@@ -238,8 +238,8 @@ typedef struct CPUSPARCState {
 		      (0 << 24) | (MAXTL << 8) | (NWINDOWS - 1))
 #else
 #define GET_FSR32(env) (env->fsr)
-#define PUT_FSR32(env, val) do { uint32_t _tmp = val;	\
-	env->fsr = _tmp & 0xcfc1ffff;			\
+#define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
+        env->fsr = (_tmp & 0xcfc1ffff) | (env->fsr & 0x000e0000);       \
     } while (0)
 #endif
 
