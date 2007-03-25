@@ -196,8 +196,9 @@ static void serial_update_parameters(SerialState *s)
     ssp.stop_bits = stop_bits;
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 #if 1
-    printf("uart divider=%d speed=%d parity=%c data=%d stop=%d (%s)\n", 
-           s->divider, speed, parity, data_bits, stop_bits,
+    fprintf(stderr,
+           "uart irq=%d divider=%d speed=%d parity=%c data=%d stop=%d (%s)\n", 
+           s->irq, s->divider, speed, parity, data_bits, stop_bits,
            mips_backtrace());
 #endif
 }
