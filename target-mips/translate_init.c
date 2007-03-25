@@ -65,6 +65,8 @@ struct mips_def_t {
     int32_t CP0_Config1;
     int32_t CP0_Config2;
     int32_t CP0_Config3;
+    int32_t CP0_Config6;
+    int32_t CP0_Config7;
     int32_t CP1_fcr0;
 };
 
@@ -83,8 +85,17 @@ static mips_def_t mips_defs[] =
         .CP1_fcr0 = MIPS_FCR0,
     },
     {
-        .name = "4KEc",
+        .name = "4KEcR1",
         .CP0_PRid = 0x00018400,
+        .CP0_Config0 = MIPS_CONFIG0,
+        .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .CP1_fcr0 = MIPS_FCR0,
+    },
+    {
+        .name = "4KEc",
+        .CP0_PRid = 0x00019000,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
         .CP0_Config1 = MIPS_CONFIG1,
         .CP0_Config2 = MIPS_CONFIG2,
@@ -92,10 +103,13 @@ static mips_def_t mips_defs[] =
         .CP1_fcr0 = MIPS_FCR0,
     },
     {
-        .name = "4KEcR1",
-        .CP0_PRid = 0x00018448,
-        .CP0_Config0 = MIPS_CONFIG0,
+        .name = "24Kc",
+        .CP0_PRid = 0x00019300,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
         .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .CP1_fcr0 = MIPS_FCR0,
     },
     {
         .name = "24Kf",
@@ -159,6 +173,8 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CP0_Config1 = def->CP0_Config1;
     env->CP0_Config2 = def->CP0_Config2;
     env->CP0_Config3 = def->CP0_Config3;
+    env->CP0_Config6 = def->CP0_Config6;
+    env->CP0_Config7 = def->CP0_Config7;
     env->fcr0 = def->CP1_fcr0;
     return 0;
 }

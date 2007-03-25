@@ -152,6 +152,8 @@
 /* 2 <= NWINDOWS <= 32. In QEMU it must also be a power of two. */
 #define NWINDOWS  8
 
+typedef struct sparc_def_t sparc_def_t;
+
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
@@ -170,6 +172,7 @@ typedef struct CPUSPARCState {
     int      psret;    /* enable traps */
     uint32_t psrpil;   /* interrupt level */
     int      psref;    /* enable fpu */
+    target_ulong version;
     jmp_buf  jmp_env;
     int user_mode_only;
     int exception_index;
@@ -215,7 +218,6 @@ typedef struct CPUSPARCState {
     uint64_t bgregs[8]; /* backup for normal global registers */
     uint64_t igregs[8]; /* interrupt general registers */
     uint64_t mgregs[8]; /* mmu general registers */
-    uint64_t version;
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
     uint64_t gsr;
@@ -233,22 +235,22 @@ typedef struct CPUSPARCState {
 #define PUT_FSR64(env, val) do { uint64_t _tmp = val;	\
 	env->fsr = _tmp & 0x3fcfc1c3ffULL;		\
     } while (0)
-// Manuf 0x17, version 0x11, mask 0 (UltraSparc-II)
-#define GET_VER(env) ((0x17ULL << 48) | (0x11ULL << 32) |		\
-		      (0 << 24) | (MAXTL << 8) | (NWINDOWS - 1))
 #else
 #define GET_FSR32(env) (env->fsr)
-#define PUT_FSR32(env, val) do { uint32_t _tmp = val;	\
-	env->fsr = _tmp & 0xcfc1ffff;			\
+#define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
+        env->fsr = (_tmp & 0xcfc1ffff) | (env->fsr & 0x000e0000);       \
     } while (0)
 #endif
 
 CPUSPARCState *cpu_sparc_init(void);
 int cpu_sparc_exec(CPUSPARCState *s);
 int cpu_sparc_close(CPUSPARCState *s);
+int sparc_find_by_name (const unsigned char *name, const sparc_def_t **def);
+void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
+                                                 ...));
+int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def);
 
-/* Fake impl 0, version 4 */
-#define GET_PSR(env) ((0 << 28) | (4 << 24) | (env->psr & PSR_ICC) |	\
+#define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
 		      (env->psref? PSR_EF : 0) |			\
 		      (env->psrpil << 8) |				\
 		      (env->psrs? PSR_S : 0) |				\

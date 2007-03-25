@@ -1,3 +1,19 @@
+2007-03-25 09:55  blueswir1
+
+	* vl.c, hw/sun4m.c, hw/sun4u.c, target-sparc/cpu.h,
+	  target-sparc/translate.c: Sparc32/64 CPU selection
+
+2007-03-25 00:36  ths
+
+	* target-mips/translate_init.c: One more bit of mips CPU
+	  configuration, and support for early 4KEc which implemented only
+	  MIPS32R1. Thanks to Stefan Weil to insist he's right on that. :-)
+
+2007-03-24 14:24  blueswir1
+
+	* target-sparc/: cpu.h, translate.c: Upgrade Sparc FPU version
+	  (based on patch by Aurelien Jarno)
+
 2007-03-23 21:01  blueswir1
 
 	* qemu-tech.texi, target-sparc/cpu.h, target-sparc/op.c,

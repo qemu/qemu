@@ -56,6 +56,13 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
 } DisasContext;
 
+struct sparc_def_t {
+    const unsigned char *name;
+    target_ulong iu_version;
+    uint32_t fpu_version;
+    uint32_t mmu_version;
+};
+
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
 extern FILE *logfile;
@@ -2752,10 +2759,8 @@ void cpu_reset(CPUSPARCState *env)
     env->gregs[1] = ram_size;
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
-    env->version = GET_VER(env);
     env->pc = 0x1fff0000000ULL;
 #else
-    env->mmuregs[0] = (0x04 << 24); /* Impl 0, ver 4, MMU disabled */
     env->pc = 0xffd00000;
 #endif
     env->npc = env->pc + 4;
@@ -2772,6 +2777,66 @@ CPUSPARCState *cpu_sparc_init(void)
     cpu_exec_init(env);
     cpu_reset(env);
     return (env);
+}
+
+static const sparc_def_t sparc_defs[] = {
+#ifdef TARGET_SPARC64
+    {
+        .name = "TI UltraSparc II",
+        .iu_version = ((0x17ULL << 48) | (0x11ULL << 32) | (0 << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+#else
+    {
+        .name = "Fujitsu MB86904",
+        .iu_version = 0x04 << 24, /* Impl 0, ver 4 */
+        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
+    },
+#endif
+};
+
+int sparc_find_by_name(const unsigned char *name, const sparc_def_t **def)
+{
+    int ret;
+    unsigned int i;
+
+    ret = -1;
+    *def = NULL;
+    for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
+        if (strcasecmp(name, sparc_defs[i].name) == 0) {
+            *def = &sparc_defs[i];
+            ret = 0;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+{
+    unsigned int i;
+
+    for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
+        (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx " FPU %08x MMU %08x\n",
+                       sparc_defs[i].name,
+                       sparc_defs[i].iu_version,
+                       sparc_defs[i].fpu_version,
+                       sparc_defs[i].mmu_version);
+    }
+}
+
+int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def)
+{
+    env->version = def->iu_version;
+    env->fsr = def->fpu_version;
+#if !defined(TARGET_SPARC64)
+    env->mmuregs[0] = def->mmu_version;
+#endif
+    return 0;
 }
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')

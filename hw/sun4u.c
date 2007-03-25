@@ -266,10 +266,20 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     unsigned int i;
     long prom_offset, initrd_size, kernel_size;
     PCIBus *pci_bus;
+    const sparc_def_t *def;
 
     linux_boot = (kernel_filename != NULL);
 
+    /* init CPUs */
+    if (cpu_model == NULL)
+        cpu_model = "TI UltraSparc II";
+    sparc_find_by_name(cpu_model, &def);
+    if (def == NULL) {
+        fprintf(stderr, "Unable to find Sparc CPU definition\n");
+        exit(1);
+    }
     env = cpu_init();
+    cpu_sparc_register(env, def);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
