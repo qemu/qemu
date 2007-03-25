@@ -159,12 +159,6 @@ if [ "$bsd" = "yes" ] ; then
   fi
 fi
 
-if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
-    AIOLIBS=
-else
-    AIOLIBS="-lrt"
-fi
-
 # find source path
 source_path=`dirname "$0"`
 if [ -z "$source_path" ]; then
@@ -259,6 +253,12 @@ for opt do
   ;;
   esac
 done
+
+if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
+    AIOLIBS=
+else
+    AIOLIBS="-lrt"
+fi
 
 # default flags for all hosts
 CFLAGS="$CFLAGS -Wall -O2 -g -fno-strict-aliasing"
