@@ -1,3 +1,7 @@
+2007-03-25 22:27  ths
+
+	* vl.c: Fix segfault with -nographic, by Enache Adrian.
+
 2007-03-25 18:15  ths
 
 	* configure: Typo in configure, by Nicholas Sauzede.

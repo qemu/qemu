@@ -7126,6 +7126,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_nographic:
                 pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "stdio");
+                pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "null");
                 pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 nographic = 1;
                 break;
