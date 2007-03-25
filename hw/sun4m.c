@@ -219,12 +219,21 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     unsigned int i;
     long vram_size = 0x100000, prom_offset, initrd_size, kernel_size;
     void *iommu, *dma, *main_esp, *main_lance = NULL;
+    const sparc_def_t *def;
 
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
+    if (cpu_model == NULL)
+        cpu_model = "Fujitsu MB86904";
+    sparc_find_by_name(cpu_model, &def);
+    if (def == NULL) {
+        fprintf(stderr, "Unable to find Sparc CPU definition\n");
+        exit(1);
+    }
     for(i = 0; i < smp_cpus; i++) {
         env = cpu_init();
+        cpu_sparc_register(env, def);
         envs[i] = env;
         if (i != 0)
             env->halted = 1;
