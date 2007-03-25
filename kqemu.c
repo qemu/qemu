@@ -177,7 +177,8 @@ int kqemu_init(CPUState *env)
     kqemu_fd = open(KQEMU_DEVICE, O_RDWR);
 #endif
     if (kqemu_fd == KQEMU_INVALID_FD) {
-        fprintf(stderr, "Could not open '%s' - QEMU acceleration layer not activated\n", KQEMU_DEVICE);
+        fprintf(stderr, "Could not open '%s' - QEMU acceleration layer not activated: %s\n",
+                KQEMU_DEVICE, strerror(errno));
         return -1;
     }
     version = 0;

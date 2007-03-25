@@ -2850,6 +2850,10 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
                 if (err == EINTR || err == EWOULDBLOCK) {
                 } else if (err == EINPROGRESS) {
                     break;
+#ifdef _WIN32
+                } else if (err == WSAEALREADY) {
+                    break;
+#endif
                 } else {
                     goto fail;
                 }
@@ -4017,6 +4021,10 @@ static int net_socket_connect_init(VLANState *vlan, const char *host_str)
             if (err == EINTR || err == EWOULDBLOCK) {
             } else if (err == EINPROGRESS) {
                 break;
+#ifdef _WIN32
+            } else if (err == WSAEALREADY) {
+                break;
+#endif
             } else {
                 perror("connect");
                 closesocket(fd);

@@ -1,3 +1,16 @@
+2007-03-25 18:15  ths
+
+	* configure: Typo in configure, by Nicholas Sauzede.
+
+2007-03-25 18:14  ths
+
+	* kqemu.c: Improved kqemu error message, by Robert Millan.
+
+2007-03-25 17:58  ths
+
+	* vl.c: Windows sockets like to be different. Inspired by a patch
+	  from Alex Consul.
+
 2007-03-25 09:55  blueswir1
 
 	* vl.c, hw/sun4m.c, hw/sun4u.c, target-sparc/cpu.h,
