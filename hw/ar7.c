@@ -87,8 +87,8 @@ struct IoState {
 /* Set flags to >0 to enable debug output. */
 static struct {
   int CLOCK:1;
-  int CONFIG:1;
   int CPMAC:1;
+  int DCL:1;
   int EMIF:1;
   int GPIO:1;
   int INTC:1;
@@ -103,7 +103,7 @@ static struct {
 } traceflags;
 
 #define CLOCK   traceflags.CLOCK
-#define CONFIG  traceflags.CONFIG
+#define DCL     traceflags.DCL
 #define CPMAC   traceflags.CPMAC
 #define EMIF    traceflags.EMIF
 #define GPIO    traceflags.GPIO
@@ -338,7 +338,14 @@ typedef struct {
 
 static avalanche_t av;
 
-static const unsigned io_frequency = 62500000;
+int ar7_afe_clock = 35328000;
+int ar7_ref_clock = 25000000;
+int ar7_xtal_clock = 24000000;
+
+static const unsigned ar7_cpu_clock = 150000000;
+static const unsigned ar7_bus_clock = 125000000;
+static const unsigned ar7_dsp_clock = 0;
+static const unsigned io_frequency = 125000000 / 2;
 
 /* Global variable avalanche can be used in debugger. */
 //~ avalanche_t *avalanche = &av;
@@ -371,42 +378,59 @@ static const char *dump(const uint8_t * buf, unsigned size)
  *
  ****************************************************************************/
 
+typedef struct {
+    unsigned offset;
+    const char *name;
+} offset_name_t;
+
+static const char *offset2name(const offset_name_t *o2n, unsigned offset)
+{
+    static char buffer[12];
+    const char *name = buffer;
+    snprintf(buffer, sizeof(buffer), "0x%08x", offset);
+    for (; o2n->name != 0; o2n++) {
+        if (offset == o2n->offset) {
+            name = o2n->name;
+            break;
+        }
+    }
+    return name;
+}
+
 #if defined(DEBUG_AR7)
+//~ static 
+
+#define SET_TRACEFLAG(name) \
+    do { \
+        char *substring = strstr(env, #name); \
+        if (substring) { \
+            name = ((substring > env && substring[-1] == '-') ? 0 : 1); \
+        } \
+        TRACE(name, logout("Logging enabled for " #name "\n")); \
+    } while(0)
+
 static void set_traceflags(void)
 {
     const char *env = getenv("DEBUG_AR7");
     if (env != 0) {
         unsigned long ul = strtoul(env, 0, 0);
+        if ((ul == 0) && strstr(env, "ALL")) ul = 0xffffffff;
         memcpy(&traceflags, &ul, sizeof(traceflags));
-        if (strstr(env, "CLOCK")) CLOCK = 1;
-        if (strstr(env, "CONFIG")) CONFIG = 1;
-        if (strstr(env, "CPMAC")) CPMAC = 1;
-        if (strstr(env, "EMIF")) EMIF = 1;
-        if (strstr(env, "GPIO")) GPIO = 1;
-        if (strstr(env, "INTC")) INTC = 1;
-        if (strstr(env, "MDIO")) MDIO = 1;
-        if (strstr(env, "RESET")) RESET = 1;
-        if (strstr(env, "TIMER")) TIMER = 1;
-        if (strstr(env, "UART")) UART = 1;
-        if (strstr(env, "VLYNQ")) VLYNQ = 1;
-        if (strstr(env, "WDOG")) WDOG = 1;
-        if (strstr(env, "OTHER")) OTHER = 1;
-        if (strstr(env, "RXTX")) RXTX = 1;
+        SET_TRACEFLAG(CLOCK);
+        SET_TRACEFLAG(CPMAC);
+        SET_TRACEFLAG(DCL);
+        SET_TRACEFLAG(EMIF);
+        SET_TRACEFLAG(GPIO);
+        SET_TRACEFLAG(INTC);
+        SET_TRACEFLAG(MDIO);
+        SET_TRACEFLAG(RESET);
+        SET_TRACEFLAG(TIMER);
+        SET_TRACEFLAG(UART);
+        SET_TRACEFLAG(VLYNQ);
+        SET_TRACEFLAG(WDOG);
+        SET_TRACEFLAG(OTHER);
+        SET_TRACEFLAG(RXTX);
     }
-    TRACE(CLOCK, logout("Logging enabled for CLOCK\n"));
-    TRACE(CONFIG, logout("Logging enabled for CONFIG\n"));
-    TRACE(CPMAC, logout("Logging enabled for CPMAC\n"));
-    TRACE(EMIF, logout("Logging enabled for EMIF\n"));
-    TRACE(GPIO, logout("Logging enabled for GPIO\n"));
-    TRACE(INTC, logout("Logging enabled for INTC\n"));
-    TRACE(MDIO, logout("Logging enabled for MDIO\n"));
-    TRACE(RESET, logout("Logging enabled for RESET\n"));
-    TRACE(TIMER, logout("Logging enabled for TIMER\n"));
-    TRACE(UART, logout("Logging enabled for UART\n"));
-    TRACE(VLYNQ, logout("Logging enabled for VLYNQ\n"));
-    TRACE(WDOG, logout("Logging enabled for WDOG\n"));
-    TRACE(OTHER, logout("Logging enabled for OTHER\n"));
-    TRACE(RXTX, logout("Logging enabled for RXTX\n"));
 }
 #endif /* DEBUG_AR7 */
 
@@ -660,9 +684,130 @@ static void ar7_intc_write(unsigned offset, uint32_t val)
 
 /*****************************************************************************
  *
- * Clock emulation.
+ * Clock / power controller emulation.
  *
  ****************************************************************************/
+
+#if 0
+/* Power Control  */
+#define TNETD73XX_POWER_CTRL_PDCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x0)
+#define TNETD73XX_POWER_CTRL_PCLKCR         (TNETD73XX_CLOCK_CTRL_BASE + 0x4)
+#define TNETD73XX_POWER_CTRL_PDUCR          (TNETD73XX_CLOCK_CTRL_BASE + 0x8)
+#define TNETD73XX_POWER_CTRL_WKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0xC)
+
+/* Clock Control */
+#define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
+#define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
+
+#define CLKC_CLKCR(x)          (TNETD73XX_CLOCK_CTRL_BASE + 0x20 + (0x20 * (x)))
+#define CLKC_CLKPLLCR(x)       (TNETD73XX_CLOCK_CTRL_BASE + 0x30 + (0x20 * (x)))
+
+static void ar7_machine_power_off(void)
+{
+    volatile uint32_t *power_reg = (void *)(KSEG1ADDR(0x08610A00));
+    uint32_t power_state = *power_reg;
+
+    power_state &= ~(3 << 30);
+    power_state |= (3 << 30);   /* power down */
+    *power_reg = power_state;
+
+    printk("after power down?\n");
+}
+#endif
+
+typedef enum {
+    CLOCK_PDC = 0x00,
+    CLOCK_BUS_CTL = 0x20,
+    CLOCK_BUS_PLL = 0x30,
+    CLOCK_CPU_CTL = 0x40,
+    CLOCK_CPU_PLL = 0x50,
+    CLOCK_USB_CTL = 0x60,
+    CLOCK_USB_PLL = 0x70,
+    CLOCK_DSP_CTL = 0x80,
+    CLOCK_DSP_PLL = 0x90,
+    //~ CLOCK_DSP1_CTL = 0xa0,
+    //~ CLOCK_DSP1_PLL = 0xb0,
+} clock_register_t;
+
+#undef ENTRY
+#define ENTRY(entry) { CLOCK_##entry, #entry }
+static const offset_name_t clock_addr2reg[] = {
+    ENTRY(PDC),
+    ENTRY(BUS_CTL),
+    ENTRY(BUS_PLL),
+    ENTRY(CPU_CTL),
+    ENTRY(CPU_PLL),
+    ENTRY(USB_CTL),
+    ENTRY(USB_PLL),
+    ENTRY(DSP_CTL),
+    ENTRY(DSP_PLL),
+    { 0 }
+};
+
+static const char *clock_regname(unsigned offset)
+{
+    return offset2name(clock_addr2reg, offset);
+}
+
+#if 0
+struct tnetd7300_clock {
+	u32 ctrl;
+#define PREDIV_MASK 0x001f0000
+#define PREDIV_SHIFT 16
+#define POSTDIV_MASK 0x0000001f
+	u32 unused1[3];
+	u32 pll;
+#define MUL_MASK 0x0000f000
+#define MUL_SHIFT 12
+#define PLL_MODE_MASK 0x00000001
+#define PLL_NDIV 0x00000800
+#define PLL_DIV 0x00000002
+#define PLL_STATUS 0x00000001
+	u32 unused2[3];
+} __attribute__ ((packed));
+
+struct tnetd7300_clocks {
+	struct tnetd7300_clock bus;
+	struct tnetd7300_clock cpu;
+	struct tnetd7300_clock usb;
+	struct tnetd7300_clock dsp;
+} __attribute__ ((packed));
+#endif
+
+static void power_write(uint32_t val)
+{
+    uint32_t oldpowerstate = reg_read(av.clock_control, 0);
+    uint32_t newpowerstate = val;
+    if (oldpowerstate != newpowerstate) {
+#if defined(DEBUG_AR7)
+        static const char *powerbits[] = {
+            /* 00 */ "usb", "wdt", "uart0", "uart1",
+            /* 04 */ "iic", "vdma", "gpio", "vlynq1",
+            /* 08 */ "sar", "adsl", "emif", "reserved11",
+            /* 12 */ "adsp", "ram", "rom", "dma",
+            /* 16 */ "bist", "reserved17", "timer0", "timer1",
+            /* 20 */ "emac0", "reserved21", "emac1", "reserved23",
+            /* 24 */ "ephy", "reserved25", "reserved26", "vlynq0",
+            /* 28 */ "reserved28", "reserved29", "reserved30", "reserved31" // 30?, 31?
+        };
+        // bit coded device(s). 0 = disabled (reset), 1 = enabled.
+        uint32_t changed = (oldpowerstate ^ newpowerstate);
+        uint32_t enabled = (changed & newpowerstate);
+        unsigned i;
+        for (i = 0; i < 32; i++) {
+            if (changed & (1 << i)) {
+                TRACE(CLOCK,
+                      logout("power %sabled %s (0x%08x)\n",
+                             (enabled & (1 << i)) ? "en" : "dis",
+                             powerbits[i], val));
+            }
+        }
+#endif
+        oldpowerstate >>= 30;
+        TRACE(CLOCK, logout("change power state from %u to %u\n",
+                            oldpowerstate, newpowerstate));
+    }
+}
 
 static uint32_t clock_read(unsigned offset)
 {
@@ -686,48 +831,18 @@ static uint32_t clock_read(unsigned offset)
           reg_write(av.clock_control, offset, val);
         }
     }
-    TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", index, val, backtrace()));
+    TRACE(CLOCK, logout("clock[%s] = 0x%08x %s\n", clock_regname(offset), val, backtrace()));
     return val;
 }
 
 static void clock_write(unsigned offset, uint32_t val)
 {
-    TRACE(CLOCK, logout("clock[0x%04x] = 0x%08x %s\n", offset / 4, val, backtrace()));
-    if (offset == 0) {
-        uint32_t oldpowerstate = reg_read(av.clock_control, 0);
-        uint32_t newpowerstate = val;
-        if (oldpowerstate != newpowerstate) {
-#if defined(DEBUG_AR7)
-            static const char *powerbits[] = {
-                /* 00 */ "usb", "wdt", "uart0", "uart1",
-                /* 04 */ "iic", "vdma", "gpio", "vlynq1",
-                /* 08 */ "sar", "adsl", "emif", "reserved11",
-                /* 12 */ "adsp", "ram", "rom", "dma",
-                /* 16 */ "bist", "reserved17", "timer0", "timer1",
-                /* 20 */ "emac0", "reserved21", "emac1", "reserved23",
-                /* 24 */ "ephy", "reserved25", "reserved26", "vlynq0",
-                /* 28 */ "reserved28", "reserved29", "reserved30", "reserved31" // 30?, 31?
-            };
-            // bit coded device(s). 0 = disabled (reset), 1 = enabled.
-            uint32_t changed = (oldpowerstate ^ newpowerstate);
-            uint32_t enabled = (changed & newpowerstate);
-            unsigned i;
-            for (i = 0; i < 32; i++) {
-                if (changed & (1 << i)) {
-                    TRACE(CLOCK,
-                          logout("power %sabled %s (0x%08x)\n",
-                                 (enabled & (1 << i)) ? "en" : "dis",
-                                 powerbits[i], val));
-                }
-            }
-#endif
-            oldpowerstate >>= 30;
-            TRACE(CLOCK, logout("change power state from %u to %u\n",
-                                oldpowerstate, newpowerstate));
-        }
+    TRACE(CLOCK, logout("clock[%s] = 0x%08x %s\n", clock_regname(offset), val, backtrace()));
+    if (offset == CLOCK_PDC) {
+        power_write(val);
     } else if (offset / 4 == 0x0c) {
         uint32_t oldval = reg_read(av.clock_control, offset);
-    TRACE(CLOCK, logout("clock[0x%04x] was 0x%08x %s\n", offset / 4, oldval, backtrace()));
+        TRACE(CLOCK, logout("clock[%s] was 0x%08x %s\n", clock_regname(offset), oldval, backtrace()));
         if ((oldval & ~1) == val) {
             val = oldval;
         }
@@ -773,11 +888,11 @@ typedef enum {
     CONFIG_EMIFRATE = BIT(9),           /* 1 */
     CONFIG_EMIFTEST = BIT(10),          /* 0 */
     CONFIG_BOOTS_INT = BITS(13, 11),    /* 000 */
-    CONFIG_SYS_PLL_SEL = BITS(15, 14),  /* 01 */
-    CONFIG_MIPS_PLL_SEL = BITS(17, 16), /* 01 */
+    CONFIG_SYS_PLL_SEL = BITS(15, 14),  /* 01, BUS */
+    CONFIG_CPU_PLL_SEL = BITS(17, 16),  /* 01 */
     CONFIG_USB_PLL_SEL = BITS(19, 18),  /* 11 */
     CONFIG_EPHY_PLL_SEL = BITS(21, 20), /* 01 */
-    CONFIG_ADSL_PLLSEL = BITS(23, 22),  /* 01 */
+    CONFIG_DSP_PLL_SEL = BITS(23, 22),  /* 01, ADSL */
     CONFIG_ADSL_RST = BIT(24),          /* 0 */
     CONFIG_MIPS_ASYNC = BIT(25),        /* 1 */
     CONFIG_DEF = BIT(26),               /* 0 */
@@ -796,7 +911,7 @@ static uint32_t ar7_dcl_read(unsigned offset)
 {
     uint32_t val = reg_read(av.dcl, offset);
     const char *text = i2dcl[offset / 4];
-    int logflag = CONFIG;
+    int logflag = DCL;
     if (0) {
     } else if (offset == DCL_BOOT_CONFIG) {
     } else {
@@ -811,9 +926,10 @@ static uint32_t ar7_dcl_write(unsigned offset, uint32_t val)
 {
     reg_write(av.dcl, offset, val);
     const char *text = i2dcl[offset / 4];
-    int logflag = CONFIG;
+    int logflag = DCL;
     if (0) {
     } else if (offset == DCL_BOOT_CONFIG) {
+      assert(0);
     } else {
     }
     TRACE(logflag, logout("dcl[%s] (0x%08x) = 0x%08x %s\n",
@@ -1547,72 +1663,6 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
 
 /*****************************************************************************
  *
- * Clock / power controller emulation.
- *
- ****************************************************************************/
-
-/* Power Control  */
-#define TNETD73XX_POWER_CTRL_PDCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x0)
-#define TNETD73XX_POWER_CTRL_PCLKCR         (TNETD73XX_CLOCK_CTRL_BASE + 0x4)
-#define TNETD73XX_POWER_CTRL_PDUCR          (TNETD73XX_CLOCK_CTRL_BASE + 0x8)
-#define TNETD73XX_POWER_CTRL_WKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0xC)
-
-/* Clock Control */
-#define TNETD73XX_CLK_CTRL_SCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x20)
-#define TNETD73XX_CLK_CTRL_SCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x30)
-#define TNETD73XX_CLK_CTRL_MCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x40)
-#define TNETD73XX_CLK_CTRL_MCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x50)
-#define TNETD73XX_CLK_CTRL_UCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x60)
-#define TNETD73XX_CLK_CTRL_UCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x70)
-#define TNETD73XX_CLK_CTRL_ACLKCR0          (TNETD73XX_CLOCK_CTRL_BASE + 0x80)
-#define TNETD73XX_CLK_CTRL_ACLKPLLCR0       (TNETD73XX_CLOCK_CTRL_BASE + 0x90)
-#define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
-#define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
-
-#if 0
-#define CLKC_CLKCR(x)          (TNETD73XX_CLOCK_CTRL_BASE + 0x20 + (0x20 * (x)))
-#define CLKC_CLKPLLCR(x)       (TNETD73XX_CLOCK_CTRL_BASE + 0x30 + (0x20 * (x)))
-
-static void ar7_machine_power_off(void)
-{
-    volatile uint32_t *power_reg = (void *)(KSEG1ADDR(0x08610A00));
-    uint32_t power_state = *power_reg;
-
-    /* add something to turn LEDs off? */
-
-    power_state &= ~(3 << 30);
-    power_state |= (3 << 30);   /* power down */
-    *power_reg = power_state;
-
-    printk("after power down?\n");
-}
-#endif
-
-#define AVALANCHE_POWER_MODULE_USBSP               0
-#define AVALANCHE_POWER_MODULE_WDTP                1
-#define AVALANCHE_POWER_MODULE_UT0P                2
-#define AVALANCHE_POWER_MODULE_UT1P                3
-#define AVALANCHE_POWER_MODULE_IICP                4
-#define AVALANCHE_POWER_MODULE_VDMAP               5
-#define AVALANCHE_POWER_MODULE_GPIOP               6
-#define AVALANCHE_POWER_MODULE_VLYNQ1P             7
-#define AVALANCHE_POWER_MODULE_SARP                8
-#define AVALANCHE_POWER_MODULE_ADSLP               9
-#define AVALANCHE_POWER_MODULE_EMIFP              10
-#define AVALANCHE_POWER_MODULE_ADSPP              12
-#define AVALANCHE_POWER_MODULE_RAMP               13
-#define AVALANCHE_POWER_MODULE_ROMP               14
-#define AVALANCHE_POWER_MODULE_DMAP               15
-#define AVALANCHE_POWER_MODULE_BISTP              16
-#define AVALANCHE_POWER_MODULE_TIMER0P            18
-#define AVALANCHE_POWER_MODULE_TIMER1P            19
-#define AVALANCHE_POWER_MODULE_EMAC0P             20
-#define AVALANCHE_POWER_MODULE_EMAC1P             22
-#define AVALANCHE_POWER_MODULE_EPHYP              24
-#define AVALANCHE_POWER_MODULE_VLYNQ0P            27
-
-/*****************************************************************************
- *
  * EMIF emulation.
  *
  ****************************************************************************/
@@ -1696,30 +1746,22 @@ static void ar7_gpio_display(void)
                     text, enable);
 }
 
-static const char *i2gpio(unsigned offset)
+#undef ENTRY
+#define ENTRY(entry) { GPIO_##entry, #entry }
+static const offset_name_t gpio_addr2reg[] = {
+    ENTRY(IN),
+    ENTRY(OUT),
+    ENTRY(DIR),
+    ENTRY(ENABLE),
+    ENTRY(CVR),
+    ENTRY(DIDR1),
+    ENTRY(DIDR2),
+    { 0 }
+};
+
+static const char *gpio_regname(unsigned offset)
 {
-    static char buffer[10];
-    const char *text = buffer;
-    switch (offset) {
-        case GPIO_IN:
-            text = "in";
-            break;
-        case GPIO_OUT:
-            text = "out";
-            break;
-        case GPIO_DIR:
-            text = "dir";
-            break;
-        case GPIO_ENABLE:
-            text = "ena";
-            break;
-        case GPIO_CVR:
-            text = "cvr";
-            break;
-        default:
-            sprintf(buffer, "??? 0x%02x", offset);
-    }
-    return text;
+    return offset2name(gpio_addr2reg, offset);
 }
 
 static uint32_t ar7_gpio_read(unsigned offset)
@@ -1727,16 +1769,16 @@ static uint32_t ar7_gpio_read(unsigned offset)
     uint32_t value = reg_read(av.gpio, offset);
     if (offset == GPIO_IN && value == 0x00000800) {
         /* Do not log polling of reset button. */
-        TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", i2gpio(offset), value));
+        TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", gpio_regname(offset), value));
     } else {
-        TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", i2gpio(offset), value));
+        TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", gpio_regname(offset), value));
     }
     return value;
 }
 
 static void ar7_gpio_write(unsigned offset, uint32_t value)
 {
-    TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", i2gpio(offset), value));
+    TRACE(GPIO, logout("gpio[%s] = 0x%08x\n", gpio_regname(offset), value));
     reg_write(av.gpio, offset, value);
     if (offset <= GPIO_DIR) {
         ar7_gpio_display();
@@ -3316,8 +3358,8 @@ void ar7_init(CPUState * env)
     reg_write(av.gpio, GPIO_DIR, 0xffffffff);
     reg_write(av.gpio, GPIO_ENABLE, 0xffffffff);
     reg_write(av.gpio, GPIO_CVR, 0x00020005);
-    //~ reg_write(av.gpio, GPIO_DIDR1, 0x7106150d);
-    //~ reg_write(av.gpio, GPIO_DIDR2, 0xf52ccccf);
+    reg_write(av.gpio, GPIO_DIDR1, 0x7106150d);
+    reg_write(av.gpio, GPIO_DIDR2, 0xf52ccccf);
 
   //~ .mdio = {0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
