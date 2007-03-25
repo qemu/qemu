@@ -296,7 +296,7 @@ typedef struct {
     uint8_t *vlynq[2];
 
     uint32_t adsl[0x8000];      // 0x01000000
-    uint32_t bbif[1];           // 0x02000000
+    uint32_t bbif[3];           // 0x02000000
     uint32_t atmsar[0x2400];    // 0x03000000
     uint32_t usbslave[0x800];   // 0x03400000
     //~ uint32_t vlynq0region0[8 * KiB / 4];        // 0x04000000
@@ -1713,6 +1713,9 @@ static const char *i2gpio(unsigned offset)
         case GPIO_ENABLE:
             text = "ena";
             break;
+        case GPIO_CVR:
+            text = "cvr";
+            break;
         default:
             sprintf(buffer, "??? 0x%02x", offset);
     }
@@ -2975,9 +2978,14 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
+    } else if (INRANGE(AVALANCHE_BBIF_BASE, av.bbif)) {
+        value >>= (addr & 3) * 8;
+        value &= 0xff;
+        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
-      value >>= (addr & 3) * 8;
-        logout("??? addr=0x%08x, val=0x%02x\n", addr, value & 0xff);
+        value >>= (addr & 3) * 8;
+        value &= 0xff;
+        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
     } else if (addr & 3) {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
@@ -3030,7 +3038,7 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
       default:
           assert(0);
       }
-      logout("addr=0x%08x, val=0x%04x\n", addr, value);
+      TRACE(OTHER, logout("addr=0x%08x, val=0x%04x\n", addr, value));
     }
     return value;
 }
@@ -3463,6 +3471,10 @@ static void mips_ar7_common_init (int ram_size,
     /* Allocate 0x1000 bytes before start of flash (needed for gdb). */
     ram_offset = qemu_ram_alloc(GDBRAM);
     cpu_register_physical_memory(0x10000000 - GDBRAM, GDBRAM, ram_offset | IO_MEM_RAM);
+
+    /* Allocate 0x1000 bytes before start of ram (needed for gdb). */
+    ram_offset = qemu_ram_alloc(GDBRAM);
+    cpu_register_physical_memory(KERNEL_LOAD_ADDR - GDBRAM, GDBRAM, ram_offset | IO_MEM_RAM);
 
     /* 16 MiB external RAM at physical address KERNEL_LOAD_ADDR.
        More memory can be selected with command line option -m. */
