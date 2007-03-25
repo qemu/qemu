@@ -3418,6 +3418,9 @@ static void mips_ar7_common_init (int ram_size,
     cpu_mips_register(env, def);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
+    /* CPU revision 2.2. */
+    env->CP0_PRid |= 0x48;
+
     /* Have config1, is MIPS32R1, uses TLB, no virtual icache,
        uncached coherency */
     env->CP0_Config0 =
@@ -3450,6 +3453,7 @@ static void mips_ar7_common_init (int ram_size,
          (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |
          (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL));
 
+    if (env->CP0_PRid != 0x00018448)    printf("CP0_PRid    = 0x%08x\n", env->CP0_PRid);
     if (env->CP0_Config0 != 0x80240082) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
     if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
     if (env->CP0_Config2 != 0x80000000) printf("CP0_Config2 = 0x%08x\n", env->CP0_Config2);
