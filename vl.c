@@ -4403,29 +4403,6 @@ void usb_info(void)
     }
 }
 
-static int create_pidfile(const char *filename)
-{
-    int fd;
-    char buffer[128];
-    int len;
-
-    fd = open(filename, O_RDWR | O_CREAT, 0600);
-    if (fd == -1)
-        return -1;
-
-    /* XXX: No locking for Win32 implemented */
-#ifndef _WIN32
-    if (lockf(fd, F_TLOCK, 0) == -1)
-        return -1;
-#endif
-
-    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
-    if (write(fd, buffer, len) != len)
-        return -1;
-
-    return 0;
-}
-
 /***********************************************************/
 /* dumb display */
 
@@ -7405,7 +7382,7 @@ int main(int argc, char **argv)
     }
 #endif
 
-    if (pid_file && create_pidfile(pid_file) != 0) {
+    if (pid_file && qemu_create_pidfile(pid_file) != 0) {
         if (daemonize) {
             uint8_t status = 1;
             write(fds[1], &status, 1);

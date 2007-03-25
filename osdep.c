@@ -27,6 +27,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #ifdef HOST_SOLARIS
 #include <sys/types.h>
 #include <sys/statvfs.h>
@@ -215,4 +216,51 @@ char *qemu_strdup(const char *str)
         return NULL;
     strcpy(ptr, str);
     return ptr;
+}
+
+int qemu_create_pidfile(const char *filename)
+{
+    char buffer[128];
+    int len;
+#ifndef _WIN32
+    int fd;
+
+    fd = open(filename, O_RDWR | O_CREAT, 0600);
+    if (fd == -1)
+        return -1;
+
+    if (lockf(fd, F_TLOCK, 0) == -1)
+        return -1;
+
+    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    if (write(fd, buffer, len) != len)
+        return -1;
+#else
+    HANDLE file;
+    DWORD flags;
+    OVERLAPPED overlap;
+    BOOL ret;
+
+    /* Open for writing with no sharing. */
+    file = CreateFile(filename, GENERIC_WRITE, 0, NULL, 
+		      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (file == INVALID_HANDLE_VALUE)
+      return -1;
+
+    flags = LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY;
+    overlap.hEvent = 0;
+    /* Lock 1 byte. */
+    ret = LockFileEx(file, flags, 0, 0, 1, &overlap);
+    if (ret == 0)
+      return -1;
+
+    /* Write PID to file. */
+    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len, 
+		      &overlap, NULL);
+    if (ret == 0)
+      return -1;
+#endif
+    return 0;
 }
