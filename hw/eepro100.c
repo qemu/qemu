@@ -1,7 +1,7 @@
 /*
  * QEMU i8255x (PRO100) emulation
  *
- * Copyright (c) 2006 Stefan Weil
+ * Copyright (c) 2006-2007 Stefan Weil
  *
  * Portions of the code are copies from grub / etherboot eepro100.c
  * and linux e100.c.
@@ -24,13 +24,19 @@
  *      PXE boot (i386) no valid link
  *      Linux networking (i386) ok
  *
+ * Untested:
+ *      non-i386 platforms
+ *      Windows networking
+ *
  * References:
  *
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
  */
 
-#warning "PXE boot still not working!"
+#if defined(TARGET_I386)
+# warning "PXE boot still not working!"
+#endif
 
 #include <assert.h>
 #include <stddef.h>             /* offsetof */
@@ -66,7 +72,7 @@
 #define KiB 1024
 
 /* debug EEPRO100 card */
-#define DEBUG_EEPRO100
+//~ #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
@@ -195,48 +201,6 @@ typedef enum {
 #else
 #define X(a,b)	a,b
 #endif
-
-typedef uint8_t u8;
-
-typedef struct {
-/*0*/ u8 X(byte_count:6, pad0:2);
-/*1*/ u8 X(X(rx_fifo_limit:4, tx_fifo_limit:3), pad1:1);
-/*2*/ u8 adaptive_ifs;
-/*3*/ u8 X(X(X(X(mwi_enable:1, type_enable:1), read_align_enable:1),
-             term_write_cache_line:1), pad3:4);
-/*4*/ u8 X(rx_dma_max_count:7, pad4:1);
-/*5*/ u8 X(tx_dma_max_count:7, dma_max_count_enable:1);
-/*6*/ u8 X(X(X(X(X(X(X(late_scb_update:1, direct_rx_dma:1),
-                     tno_intr:1), cna_intr:1), standard_tcb:1),
-               standard_stat_counter:1), rx_discard_overruns:1),
-           rx_save_bad_frames:1);
-/*7*/ u8 X(X(X(X(X(rx_discard_short_frames:1, tx_underrun_retry:2),
-                 pad7:2), rx_extended_rfd:1), tx_two_frames_in_fifo:1),
-           tx_dynamic_tbd:1);
-/*8*/ u8 X(X(mii_mode:1, pad8:6), csma_disabled:1);
-/*9*/ u8 X(X(X(X(X(rx_tcpudp_checksum:1, pad9:3), vlan_arp_tco:1),
-               link_status_wake:1), arp_wake:1), mcmatch_wake:1);
-/*10*/ u8 X(X(X(pad10:3, no_source_addr_insertion:1), preamble_length:2),
-            loopback:2);
-/*11*/ u8 X(linear_priority:3, pad11:5);
-/*12*/ u8 X(X(linear_priority_mode:1, pad12:3), ifs:4);
-/*13*/ u8 ip_addr_lo;
-/*14*/ u8 ip_addr_hi;
-/*15*/ u8 X(X(X(X(X(X(X(promiscuous_mode:1, broadcast_disabled:1),
-                      wait_after_win:1), pad15_1:1), ignore_ul_bit:1),
-                crc_16_bit:1), pad15_2:1), crs_or_cdt:1);
-/*16*/ u8 fc_delay_lo;
-/*17*/ u8 fc_delay_hi;
-/*18*/ u8 X(X(X(X(X(rx_stripping:1, tx_padding:1), rx_crc_transfer:1),
-                rx_long_ok:1), fc_priority_threshold:3), pad18:1);
-/*19*/ u8 X(X(X(X(X(X(X(addr_wake:1, magic_packet_disable:1),
-                      fc_disable:1), fc_restop:1), fc_restart:1), fc_reject:1),
-              full_duplex_force:1), full_duplex_pin:1);
-/*20*/ u8 X(X(X(pad20_1:5, fc_priority_location:1), multi_ia:1), pad20_2:1);
-/*21*/ u8 X(X(pad21_1:3, multicast_all:1), pad21_2:4);
-/*22*/ u8 X(X(rx_d102_mode:1, rx_vlan_drop:1), pad22:6);
-    u8 pad_d102[9];
-} configuration_t;
 
 typedef struct {
 #if 1
@@ -476,7 +440,8 @@ static void pci_reset(EEPRO100State * s)
     /* PCI Header Type */
     /* BIST (built-in self test) */
 #if defined(TARGET_I386)
-#define PCI_ADDRESS_SPACE_MEM_PREFETCH 0        // !!! workaround for buggy bios
+// !!! workaround for buggy bios
+//~ #define PCI_ADDRESS_SPACE_MEM_PREFETCH 0
 #endif
 #if 0
     /* PCI Base Address Registers */
@@ -705,11 +670,6 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         }
         set_cu_state(s, cu_active);
         s->cu_offset = s->pointer;
-//~ (gdb) p/x tx
-//~ $5 = {status = 0x0, command = 0x1, link = 0x208e0, tx_desc_addr = 0x12005452, count = 0x5634, tx_buf_addr0 = 0x0, tx_buf_size0 = 0x0,
-        //~ tx_buf_addr1 = 0x0, tx_buf_size1 = 0x0}
-//~ $12 = {status = 0x0, command = 0x400c, link = 0x2d200, tx_desc_addr = 0x2d210, count = 0x2208000, tx_buf_addr0 = 0x65d40,
-        //~ tx_buf_size0 = 0xe, tx_buf_addr1 = 0x65d94, tx_buf_size1 = 0x1c}
       next_command:
         cb_address = s->cu_base + s->cu_offset;
         cpu_physical_memory_read(cb_address, (uint8_t *) & tx, sizeof(tx));
@@ -764,7 +724,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             while (size < tcb_bytes) {
                 uint32_t tx_buffer_address = ldl_phys(tbd_address);
                 uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
-                uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+                //~ uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
                 tbd_address += 8;
                 logout
                     ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
@@ -1011,11 +971,13 @@ static uint32_t eepro100_read_mdi(EEPRO100State * s)
     uint32_t val;
     memcpy(&val, &s->mem[0x10], sizeof(val));
 
+#ifdef DEBUG_EEPRO100
     uint8_t raiseint = (val & BIT(29)) >> 29;
     uint8_t opcode = (val & BITS(27, 26)) >> 26;
     uint8_t phy = (val & BITS(25, 21)) >> 21;
     uint8_t reg = (val & BITS(20, 16)) >> 16;
     uint16_t data = (val & BITS(15, 0));
+#endif
     /* Emulation takes no time to finish MDI transaction. */
     val |= BIT(28);
     TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
@@ -1131,7 +1093,7 @@ static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
 typedef struct {
     uint32_t st_sign;           /* Self Test Signature */
     uint32_t st_result;         /* Self Test Results */
-} eepro100_selftest_t __attribute__ ((__packed__));
+} eepro100_selftest_t;
 
 static uint32_t eepro100_read_port(EEPRO100State * s)
 {
@@ -1731,19 +1693,6 @@ static void nic_init(PCIBus * bus, NICInfo * nd,
 
     /* XXX: instance number ? */
     register_savevm(name, 0, 3, nic_save, nic_load, s);
-}
-
-void pci_eepro100_init(PCIBus * bus, NICInfo * nd, int devfn)
-{
-    /* PCIEEPRO100State *d = */
-    nic_init(bus, nd, "eepro100", i82559ER);
-#if defined(LOCAL_INIT)
-    static bool done;
-    if (!done) {
-        LOCAL_INIT(bus);
-        done = 1;
-    }
-#endif
 }
 
 void pci_i82551_init(PCIBus * bus, NICInfo * nd, int devfn)
