@@ -15,4 +15,6 @@ void qemu_vfree(void *ptr);
 
 void *get_mmap_addr(unsigned long size);
 
+int qemu_create_pidfile(const char *filename);
+
 #endif

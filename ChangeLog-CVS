@@ -1,3 +1,13 @@
+2007-03-25 23:33  ths
+
+	* osdep.c, osdep.h, vl.c: qemu_create_pidfile implementation for
+	  Win32, based on a patch by Carlos O'Donell.
+
+2007-03-25 22:55  ths
+
+	* configure: Move determination of AIOLIBS until after all
+	  configure options have been handled. By Carlos O'Donell.
+
 2007-03-25 22:27  ths
 
 	* vl.c: Fix segfault with -nographic, by Enache Adrian.
