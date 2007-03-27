@@ -1712,6 +1712,12 @@ typedef enum {
     GPIO_DIDR2 = 0x1c,
 } gpio_t;
 
+static void ar7_led_display(unsigned index, int on)
+{
+  static const uint8_t x[] = { 1, 7, 14, 23, 29 };
+  qemu_chr_printf(av.gpio_display, "\e[10;%uH\e[%dm \e[m", x[index], (on) ? 42 : 40);
+}
+
 static void ar7_gpio_display(void)
 {
     unsigned index;
@@ -1744,6 +1750,24 @@ static void ar7_gpio_display(void)
     qemu_chr_printf(av.gpio_display,
                     "\e[8;1H%32.32s (ena 0x%08x)",
                     text, enable);
+
+    /* LAN LED. */
+    ar7_led_display(0, 1);
+
+    /* WLAN LED. */
+    ar7_led_display(1, !(out & BIT(6)));
+
+    /* ONLINE LED. */
+    ar7_led_display(2, !(out & BIT(13)));
+
+    /* DSL LED. */
+    ar7_led_display(3, 0);
+
+    /* POWER LED. */
+    ar7_led_display(4, 1);
+
+    /* Hide cursor. */
+    qemu_chr_printf(av.gpio_display, "\e[20;1H");
 }
 
 #undef ENTRY
