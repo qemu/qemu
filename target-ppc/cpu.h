@@ -21,7 +21,7 @@
 #define __CPU_PPC_H__
 
 #include "config.h"
-#include <stdint.h>
+#include <inttypes.h>
 
 #if defined(TARGET_PPC64) || (HOST_LONG_BITS >= 64)
 /* When using 64 bits temporary registers,
