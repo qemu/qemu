@@ -331,7 +331,11 @@ typedef struct {
     CPUState *cpu_env;
     QEMUTimer *wd_timer;
     NICState nic[2];
+    /* Hardware registers for physical layer emulation. */
     uint16_t phy[32];
+    /* Address of phy device (0...31). Only one phy device is supported.
+       The internal phy has address 31. */
+    unsigned phyaddr;
     CharDriverState *gpio_display;
     SerialState *serial[2];
     uint32_t intmask[2];
@@ -553,10 +557,10 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             if (channel < 48) {
                 unsigned index = channel / 32;
                 unsigned offset = channel % 32;
-                if (ar7.intmask[index] & (1 << offset)) {
+                if (ar7.intmask[index] & BIT(offset)) {
                     TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
-                    reg_set(av.intc, INTC_CR1 + 4 * index, 1 << offset);
-                    reg_set(av.intc, INTC_SR1 + 4 * index, 1 << offset);
+                    reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
+                    reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
                     reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
                     /* use hardware interrupt 0 */
                     cpu_env->CP0_Cause |= 0x00000400;
@@ -798,10 +802,10 @@ static void power_write(uint32_t val)
         uint32_t enabled = (changed & newpowerstate);
         unsigned i;
         for (i = 0; i < 32; i++) {
-            if (changed & (1 << i)) {
+            if (changed & BIT(i)) {
                 TRACE(CLOCK,
                       logout("power %sabled %s (0x%08x)\n",
-                             (enabled & (1 << i)) ? "en" : "dis",
+                             (enabled & BIT(i)) ? "en" : "dis",
                              powerbits[i], val));
             }
         }
@@ -1532,7 +1536,7 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
         statusreg_inc(index, CPMAC_TXGOODFRAMES);
         reg_write(cpmac, offset, next);
         reg_write(cpmac, CPMAC_TX0CP + 4 * channel, address);
-        reg_set(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
+        reg_set(cpmac, CPMAC_TXINTSTATRAW, BIT(channel));
 #if defined(CONFIG_AR7_EMAC)
         reg_set(cpmac, CPMAC_MACINVECTOR, channel);
 #endif
@@ -1573,7 +1577,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         }
         reg_write(cpmac, CPMAC_TX0HDP + 4 * channel, 0);
         reg_write(cpmac, CPMAC_TX0CP + 4 * channel, 0xfffffffc);
-        reg_set(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
+        reg_set(cpmac, CPMAC_TXINTSTATRAW, BIT(channel));
         emac_update_interrupt(index);
     } else if (offset == CPMAC_RXTEARDOWN) {
         uint32_t channel = val;
@@ -1587,7 +1591,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         }
         reg_write(cpmac, CPMAC_RX0HDP + 4 * channel, 0);
         reg_write(cpmac, CPMAC_RX0CP + 4 * channel, 0xfffffffc);
-        reg_set(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
+        reg_set(cpmac, CPMAC_RXINTSTATRAW, BIT(channel));
         emac_update_interrupt(index);
     } else if (offset == CPMAC_RXMBPENABLE) {
         /* 13 ... 8 = 0x20 enable broadcast */
@@ -1668,14 +1672,14 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         uint8_t channel = (offset - CPMAC_TX0CP) / 4;
         uint32_t oldval = reg_read(cpmac, offset);
         if (oldval == val) {
-            reg_clear(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
+            reg_clear(cpmac, CPMAC_TXINTSTATRAW, BIT(channel));
             emac_update_interrupt(index);
         }
     } else if (offset >= CPMAC_RX0CP && offset <= CPMAC_RX7CP) {
         uint8_t channel = (offset - CPMAC_RX0CP) / 4;
         uint32_t oldval = reg_read(cpmac, offset);
         if (oldval == val) {
-            reg_clear(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
+            reg_clear(cpmac, CPMAC_RXINTSTATRAW, BIT(channel));
             emac_update_interrupt(index);
         }
     } else {
@@ -1917,54 +1921,85 @@ typedef struct {
 #define NWAY_AUTO           BIT(0)
 } mdio_user_t;
 
-static uint32_t phy_read(unsigned index)
+static void phy_enable(void)
+{
+    ar7.phy[0] = AUTO_NEGOTIATE_EN;
+    ar7.phy[1] = 0x7801 + NWAY_CAPABLE;     // + NWAY_COMPLETE + PHY_LINKED,
+    ar7.phy[2] = 0x00000000;
+    ar7.phy[3] = 0x00000000;
+    ar7.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
+    ar7.phy[5] = NWAY_AUTO;
+}
+
+static uint16_t phy_read(unsigned addr)
+{
+    uint16_t val = ar7.phy[addr];
+    if (addr == PHY_CONTROL_REG) {
+        if (val & PHY_RESET) {
+            ar7.phy[addr] =
+                ((val & ~PHY_RESET) | AUTO_NEGOTIATE_EN);
+        } else if (val & RENEGOTIATE) {
+            val &= ~RENEGOTIATE;
+            ar7.phy[addr] = val;
+            //~ 0x0000782d 0x00007809
+            ar7.phy[1] = 0x782d;
+            ar7.phy[5] = ar7.phy[4] | PHY_ISOLATE | PHY_RESET;
+            reg_write(av.mdio, MDIO_LINK, 0x80000000);
+        }
+    } else if (addr == PHY_STATUS_REG) {
+        val |= PHY_LINKED | NWAY_CAPABLE | NWAY_COMPLETE;
+    }
+    return val;
+}
+
+static void phy_write(unsigned addr, uint16_t val)
+{
+    //~ if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
+    //~ 1000 7809 0000 0000 01e1 0001
+    //~ mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
+    //~ mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
+    //~ mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
+    /* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
+    //~ mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
+    //~ }
+    ar7.phy[addr] = val;
+}
+
+static uint32_t mdio_phy_read(unsigned index)
 {
     uint32_t val = reg_read(av.mdio, (index == 0) ? MDIO_USERACCESS0 : MDIO_USERACCESS1);
     TRACE(MDIO, logout("mdio[USERACCESS%u] = 0x%08x\n", index, val));
     return val;
 }
 
-static void phy_write(unsigned index, uint32_t val)
+static void mdio_phy_write(unsigned index, uint32_t val)
 {
     unsigned write = (val & MDIO_USERACCESS_WRITE) >> 30;
     unsigned regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
     unsigned phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
+    uint32_t mdio_control = reg_read(av.mdio, MDIO_CONTROL);
     assert(regaddr < 32);
+    assert(phyaddr < 32);
     TRACE(MDIO,
           logout
           ("mdio[USERACCESS%u] = 0x%08x, write = %u, reg = %u, phy = %u\n",
            index, val, write, regaddr, phyaddr));
     if (val & MDIO_USERACCESS_GO) {
-        val &= MDIO_USERACCESS_DATA;
-        if (((index == 0 && phyaddr == 31) || (index == 1 && phyaddr == 0)) && regaddr < 32) {
-            phyaddr = 0;
+        val &= (MDIO_USERACCESS_WRITE | MDIO_USERACCESS_REGADR |
+                MDIO_USERACCESS_PHYADR | MDIO_USERACCESS_DATA);
+        if (!(mdio_control & MDIO_CONTROL_ENABLE)) {
+            /* MDIO state machine is not enabled. */
+        }
+        if (phyaddr == ar7.phyaddr) {
             if (write) {
-                //~ if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
-                //~ 1000 7809 0000 0000 01e1 0001
-                //~ mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
-                //~ mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
-                //~ mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
-                /* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
-                //~ mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
-                //~ }
-                ar7.phy[regaddr] = val;
+                phy_write(regaddr, val & MDIO_USERACCESS_DATA);
             } else {
-                val = ar7.phy[regaddr];
-                if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
-                    ar7.phy[regaddr] =
-                        ((val & ~PHY_RESET) | AUTO_NEGOTIATE_EN);
-                } else if ((regaddr == PHY_CONTROL_REG)
-                           && (val & RENEGOTIATE)) {
-                    val &= ~RENEGOTIATE;
-                    ar7.phy[regaddr] = val;
-                    //~ 0x0000782d 0x00007809
-                    ar7.phy[1] = 0x782d;
-                    ar7.phy[5] = ar7.phy[4] | PHY_ISOLATE | PHY_RESET;
-                    reg_write(av.mdio, MDIO_LINK, 0x80000000);
-                } else if (regaddr == PHY_STATUS_REG) {
-                    val |= PHY_LINKED | NWAY_CAPABLE | NWAY_COMPLETE;
-                }
+                val = phy_read(regaddr);
+                val |= MDIO_USERACCESS_ACK;
             }
+            reg_set(av.mdio, MDIO_ALIVE, BIT(phyaddr));
+        } else {
+            reg_clear(av.mdio, MDIO_ALIVE, BIT(phyaddr));
         }
     }
 
@@ -1973,6 +2008,7 @@ static void phy_write(unsigned index, uint32_t val)
               val);
 
 #if 0
+    /* phy code from eepro100 */
     uint8_t raiseint = (val & 0x20000000) >> 29;
     uint8_t opcode = (val & 0x0c000000) >> 26;
     uint8_t phy = (val & 0x03e00000) >> 21;
@@ -2063,17 +2099,6 @@ static void phy_write(unsigned index, uint32_t val)
 #endif
 }
 
-static void phy_enable(void)
-{
-    ar7.phy[0] = AUTO_NEGOTIATE_EN;
-    ar7.phy[1] = 0x7801 + NWAY_CAPABLE;     // + NWAY_COMPLETE + PHY_LINKED,
-    ar7.phy[2] = 0x00000000;
-    ar7.phy[3] = 0x00000000;
-    ar7.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
-    ar7.phy[5] = NWAY_AUTO;
-    reg_write(av.mdio, MDIO_ALIVE, BIT(31));
-}
-
 static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
 {
     const char *text = 0;
@@ -2088,13 +2113,13 @@ static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
         text = "ALIVE";
     } else if (offset == MDIO_LINK) {
         /* Suppress noise logging output from polling of link. */
-        if (val != 0x80000000) {
+        //~ if (val != 0x80000000) {
             text = "LINK";
-        }
+        //~ }
     } else if (offset == MDIO_USERACCESS0) {
-        val = phy_read(0);
+        val = mdio_phy_read(0);
     } else if (offset == MDIO_USERACCESS1) {
-        val = phy_read(1);
+        val = mdio_phy_read(1);
     } else {
         TRACE(MDIO, logout("mdio[0x%02x] = 0x%08x\n", offset, val));
     }
@@ -2117,15 +2142,16 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
             if (val & MDIO_CONTROL_ENABLE) {
               TRACE(MDIO, logout("enable MDIO state machine\n"));
               phy_enable();
+              reg_write(av.mdio, MDIO_ALIVE, BIT(ar7.phyaddr));
             } else {
               TRACE(MDIO, logout("disable MDIO state machine\n"));
             }
         }
         reg_write(mdio, offset, val);
     } else if (offset == MDIO_USERACCESS0) {
-        phy_write(0, val);
+        mdio_phy_write(0, val);
     } else if (offset == MDIO_USERACCESS1) {
-        phy_write(1, val);
+        mdio_phy_write(1, val);
     } else {
         TRACE(MDIO, logout("mdio[0x%02x] = 0x%08x\n", offset, val));
         reg_write(mdio, offset, val);
@@ -2163,10 +2189,10 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
         unsigned i;
         oldval = val;
         for (i = 0; i < 32; i++) {
-            if (changed & (1 << i)) {
+            if (changed & BIT(i)) {
                 TRACE(RESET,
                       logout("reset %sabled %s (0x%08x)\n",
-                             (enabled & (1 << i)) ? "en" : "dis",
+                             (enabled & BIT(i)) ? "en" : "dis",
                              resetdevice[i], val));
             }
         }
@@ -3294,7 +3320,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
             cpu_physical_memory_write(dp, (uint8_t *) & rcb, sizeof(rcb));
             reg_write(cpmac, CPMAC_RX0HDP + 4 * channel, rcb.next);
             reg_write(cpmac, CPMAC_RX0CP + 4 * channel, dp);
-            reg_set(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
+            reg_set(cpmac, CPMAC_RXINTSTATRAW, BIT(channel));
 #if defined(CONFIG_AR7_EMAC)
             reg_set(cpmac, CPMAC_MACINVECTOR, channel << 8);
 #endif
@@ -3422,9 +3448,12 @@ void ar7_init(CPUState * env)
     reg_write(av.gpio, GPIO_DIDR2, 0xf52ccccf);
 
   //~ .mdio = {0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
+#if defined(CONFIG_AR7_EMAC)
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
+#else
+    reg_write(av.mdio, MDIO_VERSION, 0x00070103);
+#endif
     reg_write(av.mdio, MDIO_CONTROL, MDIO_CONTROL_IDLE | BIT(24) | BITS(7, 0));
-    //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
 
     //~ .reset_control = { 0x04720043 },
 
@@ -3709,6 +3738,8 @@ static void mips_ar7_common_init (int ram_size,
     ar7.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[1]);
     ar7.timer[1].base = av.timer1;
     ar7.timer[1].interrupt = 14;
+    /* Address 31 is the AR7 internal phy. */
+    ar7.phyaddr = 31;
 
     ar7_init(env);
 
@@ -3771,7 +3802,7 @@ static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
+static void sinus_basic_3_init(int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3779,6 +3810,18 @@ static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
     mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
+}
+
+static void sinus_basic_se_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
+{
+    mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
+    /* Emulate external phy 0. */
+    ar7.phyaddr = 0;
 }
 
 static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3822,14 +3865,19 @@ static QEMUMachine mips_machines[] = {
     fbox8_init,
   },
   {
+    "sinus-basic-se",
+    "Sinus DSL Basic SE (AR7 platform)",
+    sinus_basic_se_init,
+  },
+  {
     "sinus-se",
-    "Sinus DSL SE, Sinus DSL Basic SE (AR7 platform)",
+    "Sinus DSL SE (AR7 platform)",
     sinus_se_init,
   },
   {
-    "sinus-3",
+    "sinus-basic-3",
     "Sinus DSL Basic 3 (AR7 platform)",
-    sinus_3_init,
+    sinus_basic_3_init,
   },
 #endif
 };
