@@ -1,3 +1,7 @@
+2007-03-28 22:43  j_mayer
+
+	* target-ppc/cpu.h: Solaris host compilation fix by Shaddy Baddah.
+
 2007-03-25 23:33  ths
 
 	* osdep.c, osdep.h, vl.c: qemu_create_pidfile implementation for
