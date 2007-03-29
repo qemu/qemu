@@ -283,18 +283,9 @@ typedef struct {
     QEMUTimer *qemu_timer;
 } ar7_timer_t;
 
+/* Hardware registers of the AR7. Some data is not kept here,
+   but in other devices (for example both serial devices). */
 typedef struct {
-    CPUState *cpu_env;
-    QEMUTimer *wd_timer;
-    NICState nic[2];
-    uint16_t phy[32];
-    CharDriverState *gpio_display;
-    SerialState *serial[2];
-    uint32_t intmask[2];
-    uint8_t *cpmac[2];
-    ar7_timer_t timer[2];
-    uint8_t *vlynq[2];
-
     uint32_t adsl[0x8000];      // 0x01000000
     uint32_t bbif[3];           // 0x02000000
     uint32_t atmsar[0x2400];    // 0x03000000
@@ -333,9 +324,24 @@ typedef struct {
     //~ uint32_t channel_control[40];   //   +0x200
     uint8_t cpmac1[0x800];      // 0x08612800
     //~ uint32_t unknown[0x40]              // 0x08613000
-} avalanche_t;
+} ar7_register_t;
 
-static avalanche_t av;
+/* Emulation registers of the AR7. */
+typedef struct {
+    CPUState *cpu_env;
+    QEMUTimer *wd_timer;
+    NICState nic[2];
+    uint16_t phy[32];
+    CharDriverState *gpio_display;
+    SerialState *serial[2];
+    uint32_t intmask[2];
+    uint8_t *cpmac[2];
+    ar7_timer_t timer[2];
+    uint8_t *vlynq[2];
+} ar7_status_t;
+
+static ar7_register_t av;
+static ar7_status_t ar7;
 
 int ar7_afe_clock = 35328000;
 int ar7_ref_clock = 25000000;
@@ -347,14 +353,14 @@ static const unsigned ar7_dsp_clock = 0;
 static const unsigned io_frequency = 125000000 / 2;
 
 /* Global variable avalanche can be used in debugger. */
-//~ avalanche_t *avalanche = &av;
+//~ ar7_register_t *avalanche = &av;
 
 const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
-    p += sprintf(p, "[%s]", lookup_symbol(av.cpu_env->PC));
-    p += sprintf(p, "[%s]", lookup_symbol(av.cpu_env->gpr[31]));
+    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->PC));
+    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->gpr[31]));
     assert((p - buffer) < sizeof(buffer));
     return buffer;
 }
@@ -515,7 +521,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
 {
     CPUState *cpu_env = first_cpu;
     unsigned channel = irq_num - MIPS_EXCEPTION_OFFSET;
-    assert(cpu_env == av.cpu_env);
+    assert(cpu_env == ar7.cpu_env);
 
     switch (channel) {
       /* primary interrupts 1 ... 39 */
@@ -547,7 +553,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             if (channel < 48) {
                 unsigned index = channel / 32;
                 unsigned offset = channel % 32;
-                if (av.intmask[index] & (1 << offset)) {
+                if (ar7.intmask[index] & (1 << offset)) {
                     TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
                     reg_set(av.intc, INTC_CR1 + 4 * index, 1 << offset);
                     reg_set(av.intc, INTC_SR1 + 4 * index, 1 << offset);
@@ -563,7 +569,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             //~ reg_set(av.intc, 0x40, 4 << 16);
             // int channel number
             // 2, 7, 15, 27, 80
-            //~ av.intmask[0]
+            //~ ar7.intmask[0]
         } else {
             TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
             reg_write(av.intc, INTC_PIIR, 0);
@@ -664,14 +670,14 @@ static void ar7_intc_write(unsigned offset, uint32_t val)
         reg_clear(av.intc, offset, val);
     } else if (offset == INTC_ESR1 || offset == INTC_ESR2) {
         /* Interrupt enable. */
-        av.intmask[subindex] |= val;
+        ar7.intmask[subindex] |= val;
         TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
-                           i2intc(index), val, av.intmask[subindex]));
+                           i2intc(index), val, ar7.intmask[subindex]));
         reg_write(av.intc, offset, val);
     } else if (offset == INTC_ECR1 || offset == INTC_ECR2) {
-        av.intmask[subindex] &= ~val;
+        ar7.intmask[subindex] &= ~val;
         TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
-                           i2intc(index), val, av.intmask[subindex]));
+                           i2intc(index), val, ar7.intmask[subindex]));
         reg_write(av.intc, offset, val);
     } else {
         TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
@@ -1318,7 +1324,7 @@ static const int cpmac_interrupt[] = { 27, 41 };
 
 static void emac_update_interrupt(unsigned index)
 {
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     uint32_t txintmask = reg_read(cpmac, CPMAC_TXINTMASKSET);
     uint32_t txintstat = (reg_read(cpmac, CPMAC_TXINTSTATRAW) & txintmask);
     uint32_t rxintmask = reg_read(cpmac, CPMAC_RXINTMASKSET);
@@ -1362,7 +1368,7 @@ static void emac_update_interrupt(unsigned index)
 
 static void emac_reset(unsigned index)
 {
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     memset(cpmac, 0, sizeof(av.cpmac0));
     reg_write(cpmac, CPMAC_TXIDVER, 0x000c0a07);
     reg_write(cpmac, CPMAC_RXIDVER, 0x000c0a07);
@@ -1376,7 +1382,7 @@ static void emac_reset(unsigned index)
 
 static uint32_t ar7_cpmac_read(unsigned index, unsigned offset)
 {
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     uint32_t val = reg_read(cpmac, offset);
     const char *text = i2cpmac(offset / 4);
     int logflag = CPMAC;
@@ -1448,7 +1454,7 @@ uint32_t fcs(const uint8_t * buf, int len)
 
 static void statusreg_inc(unsigned index, unsigned offset)
 {
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     uint32_t value = reg_read(cpmac, offset);
     value++;
     reg_write(cpmac, offset, value);
@@ -1461,7 +1467,7 @@ static void statusreg_inc(unsigned index, unsigned offset)
 
 static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
 {
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     uint8_t channel = (offset - CPMAC_TX0HDP) / 4;
     reg_write(cpmac, offset, address);
     if (address == 0) {
@@ -1508,7 +1514,7 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
         flags |= TCB_EOQ;
         stl_phys(address + offsetof(cpphy_tcb_t, mode), flags | packetlength);
 
-        if (av.nic[index].vc != 0) {
+        if (ar7.nic[index].vc != 0) {
 #if 0
             uint32_t crc = fcs(buffer, length);
             TRACE(CPMAC,
@@ -1521,7 +1527,7 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
             TRACE(RXTX,
                   logout("cpmac%u sent %u byte: %s\n", index, length,
                          dump(buffer, length)));
-            qemu_send_packet(av.nic[index].vc, buffer, length);
+            qemu_send_packet(ar7.nic[index].vc, buffer, length);
         }
         statusreg_inc(index, CPMAC_TXGOODFRAMES);
         reg_write(cpmac, offset, next);
@@ -1546,7 +1552,7 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
 static void ar7_cpmac_write(unsigned index, unsigned offset,
                             uint32_t val)
 {
-    uint8_t * cpmac = av.cpmac[index];
+    uint8_t * cpmac = ar7.cpmac[index];
     assert((offset & 3) == 0);
     TRACE(CPMAC, logout("cpmac%u[%s] (0x%08x) = 0x%08lx\n",
                         index, i2cpmac(offset / 4),
@@ -1627,7 +1633,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         emac_update_interrupt(index);
     } else if (offset == CPMAC_MACADDRHI) {
         /* set MAC address (4 high bytes) */
-        uint8_t *phys = av.nic[index].phys;
+        uint8_t *phys = ar7.nic[index].phys;
         reg_write(cpmac, offset, val);
         phys[5] = cpmac[CPMAC_MACADDRLO_0];
         phys[4] = cpmac[CPMAC_MACADDRMID];
@@ -1732,7 +1738,7 @@ typedef enum {
 static void ar7_led_display(unsigned index, int on)
 {
   static const uint8_t x[] = { 1, 7, 14, 23, 29 };
-  qemu_chr_printf(av.gpio_display, "\e[10;%uH\e[%dm \e[m", x[index], (on) ? 42 : 40);
+  qemu_chr_printf(ar7.gpio_display, "\e[10;%uH\e[%dm \e[m", x[index], (on) ? 42 : 40);
 }
 
 static void ar7_gpio_display(void)
@@ -1746,25 +1752,25 @@ static void ar7_gpio_display(void)
     for (index = 0; index < 32; index++) {
         text[index] = (in & BIT(index)) ? '*' : '.';
     }
-    qemu_chr_printf(av.gpio_display,
+    qemu_chr_printf(ar7.gpio_display,
                     "\e[5;1H%32.32s (in  0x%08x)",
                     text, in);
     for (index = 0; index < 32; index++) {
         text[index] = (out & BIT(index)) ? '*' : '.';
     }
-    qemu_chr_printf(av.gpio_display,
+    qemu_chr_printf(ar7.gpio_display,
                     "\e[6;1H%32.32s (out 0x%08x)",
                     text, out);
     for (index = 0; index < 32; index++) {
         text[index] = (dir & BIT(index)) ? '*' : '.';
     }
-    qemu_chr_printf(av.gpio_display,
+    qemu_chr_printf(ar7.gpio_display,
                     "\e[7;1H%32.32s (dir 0x%08x)",
                     text, dir);
     for (index = 0; index < 32; index++) {
         text[index] = (enable & BIT(index)) ? '*' : '.';
     }
-    qemu_chr_printf(av.gpio_display,
+    qemu_chr_printf(ar7.gpio_display,
                     "\e[8;1H%32.32s (ena 0x%08x)",
                     text, enable);
 
@@ -1784,7 +1790,7 @@ static void ar7_gpio_display(void)
     ar7_led_display(4, 1);
 
     /* Hide cursor. */
-    qemu_chr_printf(av.gpio_display, "\e[20;1H");
+    qemu_chr_printf(ar7.gpio_display, "\e[20;1H");
 }
 
 #undef ENTRY
@@ -1941,19 +1947,19 @@ static void phy_write(unsigned index, uint32_t val)
                 /* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
                 //~ mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
                 //~ }
-                av.phy[regaddr] = val;
+                ar7.phy[regaddr] = val;
             } else {
-                val = av.phy[regaddr];
+                val = ar7.phy[regaddr];
                 if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
-                    av.phy[regaddr] =
+                    ar7.phy[regaddr] =
                         ((val & ~PHY_RESET) | AUTO_NEGOTIATE_EN);
                 } else if ((regaddr == PHY_CONTROL_REG)
                            && (val & RENEGOTIATE)) {
                     val &= ~RENEGOTIATE;
-                    av.phy[regaddr] = val;
+                    ar7.phy[regaddr] = val;
                     //~ 0x0000782d 0x00007809
-                    av.phy[1] = 0x782d;
-                    av.phy[5] = av.phy[4] | PHY_ISOLATE | PHY_RESET;
+                    ar7.phy[1] = 0x782d;
+                    ar7.phy[5] = ar7.phy[4] | PHY_ISOLATE | PHY_RESET;
                     reg_write(av.mdio, MDIO_LINK, 0x80000000);
                 } else if (regaddr == PHY_STATUS_REG) {
                     val |= PHY_LINKED | NWAY_CAPABLE | NWAY_COMPLETE;
@@ -2059,12 +2065,12 @@ static void phy_write(unsigned index, uint32_t val)
 
 static void phy_enable(void)
 {
-    av.phy[0] = AUTO_NEGOTIATE_EN;
-    av.phy[1] = 0x7801 + NWAY_CAPABLE;     // + NWAY_COMPLETE + PHY_LINKED,
-    av.phy[2] = 0x00000000;
-    av.phy[3] = 0x00000000;
-    av.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
-    av.phy[5] = NWAY_AUTO;
+    ar7.phy[0] = AUTO_NEGOTIATE_EN;
+    ar7.phy[1] = 0x7801 + NWAY_CAPABLE;     // + NWAY_COMPLETE + PHY_LINKED,
+    ar7.phy[2] = 0x00000000;
+    ar7.phy[3] = 0x00000000;
+    ar7.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
+    ar7.phy[5] = NWAY_AUTO;
     reg_write(av.mdio, MDIO_ALIVE, BIT(31));
 }
 
@@ -2213,7 +2219,7 @@ static void timer_cb(void *opaque)
 
 static uint32_t ar7_timer_read(unsigned index, uint32_t addr)
 {
-    ar7_timer_t *timer = &av.timer[index];
+    ar7_timer_t *timer = &ar7.timer[index];
     uint32_t val;
     val = reg_read(timer->base, addr);
     TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", index, addr, val));
@@ -2222,7 +2228,7 @@ static uint32_t ar7_timer_read(unsigned index, uint32_t addr)
 
 static void ar7_timer_write(unsigned index, uint32_t addr, uint32_t val)
 {
-    ar7_timer_t *timer = &av.timer[index];
+    ar7_timer_t *timer = &ar7.timer[index];
     TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", index, addr, val));
     reg_write(timer->base, addr, val);
     if (addr == TIMER_CONTROL) {
@@ -2300,7 +2306,7 @@ static uint32_t uart_read(unsigned index, uint32_t addr)
         reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
     }
     assert(reg < 8);
-    val = serial_read(av.serial[index], reg);
+    val = serial_read(ar7.serial[index], reg);
     //~ if (reg != 5) {
         TRACE(UART, logout("uart%u[%s]=0x%08x\n",
             index, uart_read_names[uart_name_index(index, reg)], val));
@@ -2323,7 +2329,7 @@ static void uart_write(unsigned index, uint32_t addr, uint32_t val)
     if (reg == 3) {
         dlab[index] = (val & 0x80);
     }
-    serial_write(av.serial[index], reg, val);
+    serial_write(ar7.serial[index], reg, val);
 }
 
 /*****************************************************************************
@@ -2606,7 +2612,7 @@ struct _vlynq_registers_half {
 
 static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
 {
-    uint8_t *vlynq = av.vlynq[index];
+    uint8_t *vlynq = ar7.vlynq[index];
     uint32_t val = reg_read(vlynq, offset);
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
                         index, offset,
@@ -2625,7 +2631,7 @@ static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
 
 static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
 {
-    uint8_t *vlynq = av.vlynq[index];
+    uint8_t *vlynq = ar7.vlynq[index];
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
                         index, offset,
                         vlynq_names[offset / 4],
@@ -2695,14 +2701,14 @@ void watchdog_trigger(void)
     wdtimer_t *wdt = (wdtimer_t *) & av.watchdog;
     if (wdt->disable == 0) {
         TRACE(WDOG, logout("disabled watchdog\n"));
-        qemu_del_timer(av.wd_timer);
+        qemu_del_timer(ar7.wd_timer);
     } else {
         int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) * (ticks_per_sec / io_frequency);
         //~ logout("change   = 0x%x\n", wdt->change);
         //~ logout("prescale = 0x%x\n", wdt->prescale);
         TRACE(WDOG, logout("trigger value = %u ms\n", (unsigned)(t * 1000 / ticks_per_sec)));
         //~ logout("trigger value = %u\n", (unsigned)(ticks_per_sec / 1000000));
-        qemu_mod_timer(av.wd_timer, qemu_get_clock(vm_clock) + t);
+        qemu_mod_timer(ar7.wd_timer, qemu_get_clock(vm_clock) + t);
     }
 }
 
@@ -3162,14 +3168,14 @@ static void ar7_serial_init(CPUState * env)
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     for (index = 0; index < 2; index++) {
-        av.serial[index] = serial_16550_init(ar7_irq, IRQ_OPAQUE,
+        ar7.serial[index] = serial_16550_init(ar7_irq, IRQ_OPAQUE,
                                              0, uart_interrupt[index],
                                              serial_hds[index]);
-        serial_frequency(av.serial[index], io_frequency / 16);
+        serial_frequency(ar7.serial[index], io_frequency / 16);
     }
 
     /* Set special init values. */
-    serial_write(av.serial[0], 5, 0x20);
+    serial_write(ar7.serial[0], 5, 0x20);
 
     /* Select 1st serial console as default (because we don't have VGA). */
     console_select(1);
@@ -3178,7 +3184,7 @@ static void ar7_serial_init(CPUState * env)
 static int ar7_nic_can_receive(void *opaque)
 {
     unsigned index = (unsigned)opaque;
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     int enabled = (reg_read(cpmac, CPMAC_RXCONTROL) & RXCONTROL_RXEN) != 0;
 
     TRACE(CPMAC, logout("cpmac%u, enabled %d\n", index, enabled));
@@ -3189,7 +3195,7 @@ static int ar7_nic_can_receive(void *opaque)
 static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
 {
     unsigned index = (unsigned)opaque;
-    uint8_t *cpmac = av.cpmac[index];
+    uint8_t *cpmac = ar7.cpmac[index];
     uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
     uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);
     unsigned channel = 0xff;
@@ -3229,7 +3235,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
         channel = ((rxmbpenable & RXMBPENABLE_RXMULTCH) >> 0);
         statusreg_inc(index, CPMAC_RXMULTICASTFRAMES);
         TRACE(CPMAC, logout("multicast to channel %d\n", channel));
-    } else if (!memcmp(buf, av.nic[index].phys, 6)) {
+    } else if (!memcmp(buf, ar7.nic[index].phys, 6)) {
         channel = 0;
         TRACE(CPMAC, logout("my address to channel %d\n", channel));
     } else if (rxmbpenable & RXMBPENABLE_RXCAFEN) {
@@ -3309,7 +3315,7 @@ static void ar7_nic_init(void)
         if (nd->vlan) {
             if (n < 2 && (nd->model == NULL || strcmp(nd->model, "ar7") == 0)) {
                 TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
-                av.nic[n].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
+                ar7.nic[n].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                                       ar7_nic_can_receive,
                                                       (void *)n);
                 n++;
@@ -3353,11 +3359,11 @@ static void ar7_display_event(void *opaque, int event)
 
 static void ar7_display_init(CPUState *env, const char *devname)
 {
-    av.gpio_display = qemu_chr_open(devname);
-    qemu_chr_add_handlers(av.gpio_display, ar7_display_can_receive,
+    ar7.gpio_display = qemu_chr_open(devname);
+    qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
                           ar7_display_receive, ar7_display_event, 0);
     if (!strcmp(devname, "vc")) {
-        qemu_chr_printf(av.gpio_display,
+        qemu_chr_printf(ar7.gpio_display,
                         "\e[1;1HGPIO Status"
                         "\e[2;1H0         1         2         3"
                         "\e[3;1H01234567890123456789012345678901"
@@ -3428,11 +3434,11 @@ void ar7_init(CPUState * env)
     reg_set(av.dcl, DCL_BOOT_CONFIG, CONFIG_ENDIAN);
 #endif
 
-    av.cpmac[0] = av.cpmac0;
-    av.cpmac[1] = av.cpmac1;
-    av.vlynq[0] = av.vlynq0;
-    av.vlynq[1] = av.vlynq1;
-    av.cpu_env = env;
+    ar7.cpmac[0] = av.cpmac0;
+    ar7.cpmac[1] = av.cpmac1;
+    ar7.vlynq[0] = av.vlynq0;
+    ar7.vlynq[1] = av.vlynq1;
+    ar7.cpu_env = env;
 
     ar7_serial_init(env);
     ar7_display_init(env, "vc");
@@ -3696,13 +3702,13 @@ static void mips_ar7_common_init (int ram_size,
     cpu_mips_clock_init(env);
     //~ cpu_mips_irqctrl_init();
 
-    av.wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, env);
-    av.timer[0].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &av.timer[0]);
-    av.timer[0].base = av.timer0;
-    av.timer[0].interrupt = 13;
-    av.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &av.timer[1]);
-    av.timer[1].base = av.timer1;
-    av.timer[1].interrupt = 14;
+    ar7.wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, env);
+    ar7.timer[0].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[0]);
+    ar7.timer[0].base = av.timer0;
+    ar7.timer[0].interrupt = 13;
+    ar7.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[1]);
+    ar7.timer[1].base = av.timer1;
+    ar7.timer[1].interrupt = 14;
 
     ar7_init(env);
 
