@@ -1821,21 +1821,9 @@ void OPPROTO op_rfi (void)
 }
 
 #if defined(TARGET_PPC64)
-void OPPROTO op_rfi_32 (void)
-{
-    do_rfi_32();
-    RETURN();
-}
-
 void OPPROTO op_rfid (void)
 {
     do_rfid();
-    RETURN();
-}
-
-void OPPROTO op_rfid_32 (void)
-{
-    do_rfid_32();
     RETURN();
 }
 #endif
@@ -2309,28 +2297,46 @@ void OPPROTO op_405_check_satu (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_4xx_load_dcr (void)
+void OPPROTO op_load_dcr (void)
 {
-    do_4xx_load_dcr(PARAM1);
+    do_load_dcr();
     RETURN();
 }
 
-void OPPROTO op_4xx_store_dcr (void)
+void OPPROTO op_store_dcr (void)
 {
-    do_4xx_store_dcr(PARAM1);
+    do_store_dcr();
     RETURN();
 }
 
 /* Return from critical interrupt :
  * same as rfi, except nip & MSR are loaded from SRR2/3 instead of SRR0/1
  */
-void OPPROTO op_4xx_rfci (void)
+void OPPROTO op_40x_rfci (void)
 {
-    do_4xx_rfci();
+    do_40x_rfci();
     RETURN();
 }
 
-void OPPROTO op_4xx_wrte (void)
+void OPPROTO op_rfci (void)
+{
+    do_rfci();
+    RETURN();
+}
+
+void OPPROTO op_rfdi (void)
+{
+    do_rfdi();
+    RETURN();
+}
+
+void OPPROTO op_rfmci (void)
+{
+    do_rfmci();
+    RETURN();
+}
+
+void OPPROTO op_wrte (void)
 {
     msr_ee = T0 >> 16;
     RETURN();

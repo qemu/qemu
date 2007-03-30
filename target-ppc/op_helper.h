@@ -117,9 +117,7 @@ void do_td (int flags);
 #if !defined(CONFIG_USER_ONLY)
 void do_rfi (void);
 #if defined(TARGET_PPC64)
-void do_rfi_32 (void);
 void do_rfid (void);
-void do_rfid_32 (void);
 #endif
 void do_tlbia (void);
 void do_tlbie (void);
@@ -158,9 +156,12 @@ void do_op_602_mfrom (void);
 void do_405_check_ov (void);
 void do_405_check_sat (void);
 #if !defined(CONFIG_USER_ONLY)
-void do_4xx_load_dcr (int dcrn);
-void do_4xx_store_dcr (int dcrn);
-void do_4xx_rfci (void);
+void do_load_dcr (void);
+void do_store_dcr (void);
+void do_40x_rfci (void);
+void do_rfci (void);
+void do_rfdi (void);
+void do_rfmci (void);
 void do_4xx_tlbre_lo (void);
 void do_4xx_tlbre_hi (void);
 void do_4xx_tlbsx (void);

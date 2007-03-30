@@ -881,12 +881,17 @@ void do_fcmpo (void)
 #if !defined (CONFIG_USER_ONLY)
 void do_rfi (void)
 {
-    env->nip = (target_ulong)(env->spr[SPR_SRR0] & ~0x00000003);
-    T0 = (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
 #if defined(TARGET_PPC64)
-    ppc_store_msr_32(env, T0);
+    if (env->spr[SPR_SRR1] & (1ULL << MSR_SF)) {
+        env->nip = (uint64_t)(env->spr[SPR_SRR0] & ~0x00000003);
+        do_store_msr(env, (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+    } else {
+        env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
+        ppc_store_msr_32(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+    }
 #else
-    do_store_msr(env, T0);
+    env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
+    do_store_msr(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
 #endif
 #if defined (DEBUG_OP)
     dump_rfi();
@@ -895,33 +900,15 @@ void do_rfi (void)
 }
 
 #if defined(TARGET_PPC64)
-void do_rfi_32 (void)
-{
-    env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
-    T0 = (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
-    ppc_store_msr_32(env, T0);
-#if defined (DEBUG_OP)
-    dump_rfi();
-#endif
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-}
-
 void do_rfid (void)
 {
-    env->nip = (target_ulong)(env->spr[SPR_SRR0] & ~0x00000003);
-    T0 = (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
-    do_store_msr(env, T0);
-#if defined (DEBUG_OP)
-    dump_rfi();
-#endif
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-}
-
-void do_rfid_32 (void)
-{
-    env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
-    T0 = (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL);
-    do_store_msr(env, T0);
+    if (env->spr[SPR_SRR1] & (1ULL << MSR_SF)) {
+        env->nip = (uint64_t)(env->spr[SPR_SRR0] & ~0x00000003);
+        do_store_msr(env, (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+    } else {
+        env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
+        do_store_msr(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+    }
 #if defined (DEBUG_OP)
     dump_rfi();
 #endif
@@ -936,8 +923,9 @@ void do_tw (int flags)
                   ((int32_t)T0 > (int32_t)T1 && (flags & 0x08)) ||
                   ((int32_t)T0 == (int32_t)T1 && (flags & 0x04)) ||
                   ((uint32_t)T0 < (uint32_t)T1 && (flags & 0x02)) ||
-                  ((uint32_t)T0 > (uint32_t)T1 && (flags & 0x01)))))
+                  ((uint32_t)T0 > (uint32_t)T1 && (flags & 0x01))))) {
         do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+    }
 }
 
 #if defined(TARGET_PPC64)
@@ -1196,34 +1184,84 @@ void do_405_check_sat (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void do_4xx_rfci (void)
+void do_40x_rfci (void)
 {
     env->nip = env->spr[SPR_40x_SRR2];
-    T0 = env->spr[SPR_40x_SRR3] & ~0xFFFF0000;
-    do_store_msr(env, T0);
+    do_store_msr(env, env->spr[SPR_40x_SRR3] & ~0xFFFF0000);
 #if defined (DEBUG_OP)
     dump_rfi();
 #endif
     env->interrupt_request = CPU_INTERRUPT_EXITTB;
 }
 
-void do_4xx_load_dcr (int dcrn)
+void do_rfci (void)
+{
+#if defined(TARGET_PPC64)
+    if (env->spr[SPR_BOOKE_CSRR1] & (1 << MSR_CM)) {
+        env->nip = (uint64_t)env->spr[SPR_BOOKE_CSRR0];
+    } else
+#endif
+    {
+        env->nip = (uint32_t)env->spr[SPR_BOOKE_CSRR0];
+    }
+    do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_CSRR1] & ~0x3FFF0000);
+#if defined (DEBUG_OP)
+    dump_rfi();
+#endif
+    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+}
+
+void do_rfdi (void)
+{
+#if defined(TARGET_PPC64)
+    if (env->spr[SPR_BOOKE_DSRR1] & (1 << MSR_CM)) {
+        env->nip = (uint64_t)env->spr[SPR_BOOKE_DSRR0];
+    } else
+#endif
+    {
+        env->nip = (uint32_t)env->spr[SPR_BOOKE_DSRR0];
+    }
+    do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_DSRR1] & ~0x3FFF0000);
+#if defined (DEBUG_OP)
+    dump_rfi();
+#endif
+    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+}
+
+void do_rfmci (void)
+{
+#if defined(TARGET_PPC64)
+    if (env->spr[SPR_BOOKE_MCSRR1] & (1 << MSR_CM)) {
+        env->nip = (uint64_t)env->spr[SPR_BOOKE_MCSRR0];
+    } else
+#endif
+    {
+        env->nip = (uint32_t)env->spr[SPR_BOOKE_MCSRR0];
+    }
+    do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_MCSRR1] & ~0x3FFF0000);
+#if defined (DEBUG_OP)
+    dump_rfi();
+#endif
+    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+}
+
+void do_load_dcr (void)
 {
     target_ulong val;
     
     if (unlikely(env->dcr_read == NULL))
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
-    else if (unlikely((*env->dcr_read)(env->dcr_env, dcrn, &val) != 0))
+    else if (unlikely((*env->dcr_read)(env->dcr_env, T0, &val) != 0))
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
     else
         T0 = val;
 }
 
-void do_4xx_store_dcr (int dcrn)
+void do_store_dcr (void)
 {
     if (unlikely(env->dcr_write == NULL))
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
-    else if (unlikely((*env->dcr_write)(env->dcr_env, dcrn, T0) != 0))
+    else if (unlikely((*env->dcr_write)(env->dcr_env, T0, T1) != 0))
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
 }
 
