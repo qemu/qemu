@@ -290,6 +290,7 @@ typedef struct {
     uint32_t bbif[3];           // 0x02000000
     uint32_t atmsar[0x2400];    // 0x03000000
     uint32_t usbslave[0x800];   // 0x03400000
+    /* VLYNQ0 memory regions are emulated in tnetw1130.c. */
     //~ uint32_t vlynq0region0[8 * KiB / 4];        // 0x04000000
     //~ uint32_t vlynq0region1[128 * KiB / 4];      // 0x04022000
     uint32_t vlynq1region0[8 * KiB / 4];        // 0x0c000000
@@ -305,7 +306,7 @@ typedef struct {
     uint32_t watchdog[0x20];    // 0x08610b00 struct _ohio_clock_pll
     uint8_t timer0[16];         // 0x08610c00
     uint8_t timer1[16];         // 0x08610d00
-    /* TODO: uart0, uart1 could be removed. */
+    /* TODO: UART0, UART1 memory is emulated in serial_16450.c, remove here. */
     uint32_t uart0[8];          // 0x08610e00
     uint32_t uart1[8];          // 0x08610f00
     uint32_t usb[20];           // 0x08611200
@@ -336,6 +337,8 @@ typedef struct {
     /* Address of phy device (0...31). Only one phy device is supported.
        The internal phy has address 31. */
     unsigned phyaddr;
+    /* VLYNQ index for TNETW1130. Set to >1 to disable WLAN. */
+    unsigned vlynq_tnetw1130;
     CharDriverState *gpio_display;
     SerialState *serial[2];
     uint32_t intmask[2];
@@ -1908,7 +1911,9 @@ typedef struct {
 #define NWAY_CAPABLE        BIT(3)
 #define PHY_LINKED          BIT(2)
     uint32_t dummy2;
+#define PHY_Identifier_1                 2
     uint32_t dummy3;
+#define PHY_Identifier_2                 3
     uint32_t nway_advertize;
     uint32_t nway_remadvertize;
 #define NWAY_ADVERTIZE_REG    4
@@ -1919,21 +1924,71 @@ typedef struct {
 #define NWAY_HD10           BIT(5)
 #define NWAY_SEL            BIT(0)
 #define NWAY_AUTO           BIT(0)
+#define PHY_AUTO_NEG_EXPANSION           6
+#define PHY_GENERIC_CONFIG_REG           0x10
+  #define PHY_IFSEL                      (3<<14)
+  #define PHY_LBKMD                      (3<<12)
+  /*--- #define PHY_                     (3<<10) ---*/
+  #define PHY_FLTLED                     (1<<9)
+  #define PHY_CONV                       (1<<8)
+  /*--- #define PHY_                     (1<<5) ---*/
+  #define PHY_XOVEN                     (1<<4)
+  /*--- #define PHY_                     (3<<2) ---*/
+  #define PHY_ENREG8                     (1<<1)
+  #define PHY_DISPMG                     (1<<0)
+#define PHY_GENERIC_STATUS_REG           0x16
+  #define PHY_STATUS_MD                  (1<<10)
+#define PHY_SPECIFIC_STATUS_REG          0x17
+  #define PHY_STATUS_LINK                (1<<4)
+#define PHY_INTERRUPT_STATUS             0x19
+  #define PHY_INT_XOVCHG                 (1<<9)
+  #define PHY_INT_SPDCHG                 (1<<8)
+  #define PHY_INT_DUPCHG                 (1<<7)
+  #define PHY_INT_PGRCHG                 (1<<6)
+  #define PHY_INT_LNKCHG                 (1<<5)
+  #define PHY_INT_SYMERR                 (1<<4)
+  #define PHY_INT_FCAR                   (1<<3)
+  #define PHY_INT_TJABINT                (1<<2)
+  #define PHY_INT_RJABINT                (1<<1)
+  #define PHY_INT_ESDERR                 (1<<0)
+#define PHY_RXERR_COUNT                  0x1D
 } mdio_user_t;
 
 static void phy_enable(void)
 {
+    //~ phy register 1:
+    //~ 0xA8611E80 09 78 3F 20
+    //~ 0xA8611E80 2D 78 3F 20
+
+    //~ phy register 5:
+    //~ 0xA8611E80 01 00 BF 20
+    //~ 0xA8611E80 E1 85 BF 20
+    const int linked = 1;
     ar7.phy[0] = AUTO_NEGOTIATE_EN;
-    ar7.phy[1] = 0x7801 + NWAY_CAPABLE;     // + NWAY_COMPLETE + PHY_LINKED,
-    ar7.phy[2] = 0x00000000;
-    ar7.phy[3] = 0x00000000;
+    if (linked) {
+      ar7.phy[1] = 0x7801 + NWAY_CAPABLE + NWAY_COMPLETE + PHY_LINKED;
+    } else {
+      ar7.phy[1] = 0x7809;
+    }
+    ar7.phy[2] = 0x0000;        /* PHY_Identifier_1 */
+    ar7.phy[3] = 0x0000;        /* PHY_Identifier_2 */
     ar7.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
-    ar7.phy[5] = NWAY_AUTO;
+    if (linked) {
+      ar7.phy[5] = 0x8400 + ar7.phy[4];
+    } else {
+      ar7.phy[5] = NWAY_AUTO;
+    }
+}
+
+static void phy_disable(void)
+{
+    memset(&ar7.phy[0], 0, sizeof(ar7.phy));
 }
 
 static uint16_t phy_read(unsigned addr)
 {
     uint16_t val = ar7.phy[addr];
+#if 0
     if (addr == PHY_CONTROL_REG) {
         if (val & PHY_RESET) {
             ar7.phy[addr] =
@@ -1949,12 +2004,22 @@ static uint16_t phy_read(unsigned addr)
     } else if (addr == PHY_STATUS_REG) {
         val |= PHY_LINKED | NWAY_CAPABLE | NWAY_COMPLETE;
     }
+#endif
     return val;
 }
 
 static void phy_write(unsigned addr, uint16_t val)
 {
-    //~ if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
+    if (addr == PHY_CONTROL_REG) {
+      if (val & PHY_RESET) {
+        val &= ~PHY_RESET;
+        phy_enable();
+      }
+      if (val & RENEGOTIATE) {
+        val &= ~RENEGOTIATE;
+        phy_enable();
+      }
+    }
     //~ 1000 7809 0000 0000 01e1 0001
     //~ mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
     //~ mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
@@ -1989,16 +2054,19 @@ static void mdio_phy_write(unsigned index, uint32_t val)
                 MDIO_USERACCESS_PHYADR | MDIO_USERACCESS_DATA);
         if (!(mdio_control & MDIO_CONTROL_ENABLE)) {
             /* MDIO state machine is not enabled. */
-        }
-        if (phyaddr == ar7.phyaddr) {
+            val = 0;
+        } else if (phyaddr == ar7.phyaddr) {
             if (write) {
                 phy_write(regaddr, val & MDIO_USERACCESS_DATA);
             } else {
                 val = phy_read(regaddr);
                 val |= MDIO_USERACCESS_ACK;
+                val |= (regaddr << 21);
+                val |= (phyaddr << 16);
             }
             reg_set(av.mdio, MDIO_ALIVE, BIT(phyaddr));
         } else {
+            val = 0;
             reg_clear(av.mdio, MDIO_ALIVE, BIT(phyaddr));
         }
     }
@@ -2145,6 +2213,7 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
               reg_write(av.mdio, MDIO_ALIVE, BIT(ar7.phyaddr));
             } else {
               TRACE(MDIO, logout("disable MDIO state machine\n"));
+              phy_disable();
             }
         }
         reg_write(mdio, offset, val);
@@ -2648,7 +2717,7 @@ static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
         val = cpu_to_le32(0x00010206);
     } else if (offset == VLYNQ_INTSTATCLR) {
         reg_write(vlynq, offset, 0);
-    } else if (index == 0 && offset == VLYNQ_RCHIPVER) {
+    } else if (offset == VLYNQ_RCHIPVER && index == ar7.vlynq_tnetw1130) {
         val = cpu_to_le32(0x00000009);
     } else {
     }
@@ -2663,7 +2732,7 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
                         vlynq_names[offset / 4],
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
-    } else if (offset == VLYNQ_CTRL && index == 0) {
+    } else if (offset == VLYNQ_CTRL && index == ar7.vlynq_tnetw1130) {
         /* Control and first vlynq emulates an established link. */
         if (!(val & BIT(0))) {
             /* Normal operation. Emulation sets link bit in status register. */
@@ -3523,6 +3592,10 @@ static void mips_ar7_common_init (int ram_size,
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
 
+#if defined(DEBUG_AR7)
+    set_traceflags();
+#endif
+
     /* Typical AR7 systems run in little endian mode.
        Zyxel uses big endian, so this mode must be supported, too. */
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3738,14 +3811,15 @@ static void mips_ar7_common_init (int ram_size,
     ar7.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[1]);
     ar7.timer[1].base = av.timer1;
     ar7.timer[1].interrupt = 14;
+
     /* Address 31 is the AR7 internal phy. */
     ar7.phyaddr = 31;
 
-    ar7_init(env);
+    /* TNETW1130 is connected to VLYNQ0. */
+    ar7.vlynq_tnetw1130 = 0;
+    //~ ar7.vlynq_tnetw1130 = 99;
 
-#if defined(DEBUG_AR7)
-    set_traceflags();
-#endif
+    ar7_init(env);
 }
 
 static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3820,8 +3894,6 @@ static void sinus_basic_se_init(int ram_size, int vga_ram_size, int boot_device,
     mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
-    /* Emulate external phy 0. */
-    ar7.phyaddr = 0;
 }
 
 static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3832,6 +3904,8 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
     mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
+    /* Emulate external phy 0. */
+    ar7.phyaddr = 0;
 }
 
 #endif
@@ -3892,18 +3966,3 @@ int qemu_register_ar7_machines(void)
 }
 
 /* eof */
-
-/*
-AR7     phy_read                mdio[USERACCESS0] = 0x000001e1, reg = 0, phy = 0
-AR7     phy_write               mdio[USERACCESS0] = 0x803f0000, write = 0, reg = 1, phy = 31
-AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
-AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
-AR7     phy_write               mdio[USERACCESS0] = 0x803f0000, write = 0, reg = 1, phy = 31
-AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
-AR7     phy_read                mdio[USERACCESS0] = 0x00007809, reg = 0, phy = 0
-AR7     phy_write               mdio[USERACCESS0] = 0x80bf0000, write = 0, reg = 5, phy = 31
-AR7     phy_read                mdio[USERACCESS0] = 0x00000001, reg = 0, phy = 0
-AR7     phy_read                mdio[USERACCESS0] = 0x00000001, reg = 0, phy = 0
-AR7     phy_write               mdio[USERACCESS0] = 0x809f0000, write = 0, reg = 4, phy = 31
-AR7     phy_read                mdio[USERACCESS0] = 0x000001e1, reg = 0, phy = 0
-*/
