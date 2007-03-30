@@ -789,7 +789,7 @@ emulator. You can use it to:
 @itemize @minus
 
 @item
-Remove or insert removable medias images
+Remove or insert removable media images
 (such as CD-ROM or floppies)
 
 @item 
@@ -842,10 +842,10 @@ show which guest mouse is receiving events
 Quit the emulator.
 
 @item eject [-f] device
-Eject a removable media (use -f to force it).
+Eject a removable medium (use -f to force it).
 
 @item change device filename
-Change a removable media.
+Change a removable medium.
 
 @item screendump filename
 Save screen into PPM image @var{filename}.
@@ -1140,7 +1140,7 @@ The prefered syntax is the drive letter (e.g. @file{d:}). The
 alternate syntax @file{\\.\d:} is supported. @file{/dev/cdrom} is
 supported as an alias to the first CDROM drive.
 
-Currently there is no specific code to handle removable medias, so it
+Currently there is no specific code to handle removable media, so it
 is better to use the @code{change} or @code{eject} monitor commands to
 change or eject media.
 @item Hard disks
@@ -1158,7 +1158,7 @@ modifications are written in a temporary file).
 
 @file{/dev/cdrom} is an alias to the first CDROM. 
 
-Currently there is no specific code to handle removable medias, so it
+Currently there is no specific code to handle removable media, so it
 is better to use the @code{change} or @code{eject} monitor commands to
 change or eject media.
 
