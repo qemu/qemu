@@ -740,6 +740,7 @@ struct CPUPPCState {
     int exception_index;
     int error_code;
     int interrupt_request;
+    uint32_t pending_interrupts;
 
     /* Those resources are used only during code translation */
     /* Next instruction pointer */
@@ -1265,6 +1266,21 @@ enum {
     EXCP_PRIV_REG      = 0x02,
     /* Trap */
     EXCP_TRAP          = 0x40,
+};
+
+/* Hardware interruption sources:
+ * all those exception can be raised simulteaneously
+ */
+enum {
+    PPC_INTERRUPT_RESET  = 0, /* Reset / critical input               */
+    PPC_INTERRUPT_MCK    = 1, /* Machine check exception              */
+    PPC_INTERRUPT_EXT    = 2, /* External interrupt                   */
+    PPC_INTERRUPT_DECR   = 3, /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR  = 4, /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT    = 5, /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT    = 6, /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT    = 7, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_DEBUG  = 8, /* External debug exception             */
 };
 
 /*****************************************************************************/

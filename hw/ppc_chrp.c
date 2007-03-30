@@ -1,7 +1,7 @@
 /*
  * QEMU PPC CHRP/PMAC hardware System Emulator
  * 
- * Copyright (c) 2004 Fabrice Bellard
+ * Copyright (c) 2004-2007 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -449,21 +449,21 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
         }
 
         macio_init(pci_bus, 0x0017);
-        
+
         nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
-        
+
         arch_name = "HEATHROW";
     } else {
         isa_mem_base = 0x80000000;
-        
+
         /* Register 8 MB of ISA IO space */
         isa_mmio_init(0xf2000000, 0x00800000);
-        
+
         /* UniN init */
         unin_memory = cpu_register_io_memory(0, unin_read, unin_write, NULL);
         cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
-        pic = openpic_init(NULL, &openpic_mem_index, 1, &env);
+        pic = openpic_init(NULL, &ppc_openpic_irq, &openpic_mem_index, 1, &env);
         set_irq = openpic_set_irq;
         pci_bus = pci_pmac_init(pic);
         /* init basic PC hardware */

@@ -24,6 +24,57 @@
 #include "vl.h"
 #include "m48t59.h"
 
+extern FILE *logfile;
+extern int loglevel;
+
+/*****************************************************************************/
+/* PowerPC internal fake IRQ controller
+ * used to manage multiple sources hardware events
+ */
+/* XXX: should be protected */
+void ppc_set_irq (void *opaque, int n_IRQ, int level)
+{
+    CPUState *env;
+
+    env = opaque;
+    if (level) {
+        env->pending_interrupts |= 1 << n_IRQ;
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    } else {
+        env->pending_interrupts &= ~(1 << n_IRQ);
+        if (env->pending_interrupts == 0)
+            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    }
+#if 0
+    printf("%s: %p n_IRQ %d level %d => pending %08x req %08x\n", __func__,
+           env, n_IRQ, level, env->pending_interrupts, env->interrupt_request);
+#endif
+}
+
+/* External IRQ callback from OpenPIC IRQ controller */
+void ppc_openpic_irq (void *opaque, int n_IRQ, int level)
+{
+    switch (n_IRQ) {
+    case OPENPIC_EVT_INT:
+        n_IRQ = PPC_INTERRUPT_EXT;
+        break;
+    case OPENPIC_EVT_CINT:
+        /* On PowerPC BookE, critical input use vector 0 */
+        n_IRQ = PPC_INTERRUPT_RESET;
+        break;
+    case OPENPIC_EVT_MCK:
+        n_IRQ = PPC_INTERRUPT_MCK;
+        break;
+    case OPENPIC_EVT_DEBUG:
+        n_IRQ = PPC_INTERRUPT_DEBUG;
+        break;
+    case OPENPIC_EVT_RESET:
+        qemu_system_reset_request();
+        return;
+    }
+    ppc_set_irq(opaque, n_IRQ, level);
+}
+
 /*****************************************************************************/
 /* PPC time base and decrementer emulation */
 //#define DEBUG_TB
@@ -35,6 +86,7 @@ struct ppc_tb_t {
     /* Decrementer management */
     uint64_t decr_next;    /* Tick for next decr interrupt  */
     struct QEMUTimer *decr_timer;
+    void *opaque;
 };
 
 static inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env)
@@ -131,7 +183,7 @@ static inline void cpu_ppc_decr_excp (CPUState *env)
 #ifdef DEBUG_TB
     printf("raise decrementer exception\n");
 #endif
-    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    ppc_set_irq(env, PPC_INTERRUPT_DECR, 1);
 }
 
 static void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
