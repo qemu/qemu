@@ -862,9 +862,18 @@ int piix4_init(PCIBus *bus, int devfn);
 
 /* openpic.c */
 typedef struct openpic_t openpic_t;
+enum {
+    OPENPIC_EVT_INT = 0, /* IRQ                       */
+    OPENPIC_EVT_CINT,    /* critical IRQ              */
+    OPENPIC_EVT_MCK,     /* Machine check event       */
+    OPENPIC_EVT_DEBUG,   /* Inconditional debug event */
+    OPENPIC_EVT_RESET,   /* Core reset event          */
+};
+struct CPUPPCState;
 void openpic_set_irq(void *opaque, int n_IRQ, int level);
-openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
-                         CPUState **envp);
+openpic_t *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
+                         int *pmem_index, int nb_cpus,
+                         struct CPUPPCState **envp);
 
 /* heathrow_pic.c */
 typedef struct HeathrowPICS HeathrowPICS;
@@ -1153,6 +1162,10 @@ extern void cpu_mips_irqctrl_init (void);
 extern QEMUMachine shix_machine;
 
 #ifdef TARGET_PPC
+/* PowerPC hardware exceptions management helpers */
+void ppc_set_irq (void *opaque, int n_IRQ, int level);
+void ppc_openpic_irq (void *opaque, int n_IRQ, int level);
+int ppc_hw_interrupt (CPUState *env);
 ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);
 #endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);

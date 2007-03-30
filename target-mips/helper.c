@@ -90,7 +90,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     if (user_mode && address > 0x7FFFFFFFUL)
         return TLBRET_BADADDR;
     if (address < (int32_t)0x80000000UL) {
-        if (!(env->hflags & MIPS_HFLAG_ERL)) {
+        if (!(env->CP0_Status & (1 << CP0St_ERL))) {
 #ifdef MIPS_USES_R4K_TLB
             ret = map_address(env, physical, prot, address, rw, access_type);
 #else
@@ -298,21 +298,18 @@ void do_interrupt (CPUState *env)
         goto set_DEPC;
     case EXCP_DDBL:
         env->CP0_Debug |= 1 << CP0DB_DDBL;
-        goto set_DEPC;
     set_DEPC:
         if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
             env->CP0_DEPC = env->PC - 4;
-            if (!(env->hflags & MIPS_HFLAG_EXL))
-                env->CP0_Cause |= (1 << CP0Ca_BD);
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_DEPC = env->PC;
-            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         }
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM;
+        env->hflags &= ~MIPS_HFLAG_UM;
         /* EJTAG probe trap enable is not implemented... */
         env->PC = (int32_t)0xBFC00480;
         break;
@@ -320,25 +317,22 @@ void do_interrupt (CPUState *env)
         cpu_reset(env);
         break;
     case EXCP_SRESET:
-        env->CP0_Status = (1 << CP0St_SR);
+        env->CP0_Status |= (1 << CP0St_SR);
         env->CP0_WatchLo = 0;
         goto set_error_EPC;
     case EXCP_NMI:
-        env->CP0_Status = (1 << CP0St_NMI);
+        env->CP0_Status |= (1 << CP0St_NMI);
     set_error_EPC:
         if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
             env->CP0_ErrorEPC = env->PC - 4;
-            if (!(env->hflags & MIPS_HFLAG_EXL))
-                env->CP0_Cause |= (1 << CP0Ca_BD);
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_ErrorEPC = env->PC;
-            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         }
-        env->hflags |= MIPS_HFLAG_ERL;
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
+        env->hflags &= ~MIPS_HFLAG_UM;
         env->PC = (int32_t)0xBFC00000;
         break;
     case EXCP_MCHECK:
@@ -359,7 +353,7 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBL:
         cause = 2;
-        if (env->error_code == 1 && !(env->hflags & MIPS_HFLAG_EXL))
+        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL)))
             offset = 0x000;
         goto set_EPC;
     case EXCP_IBE:
@@ -393,28 +387,28 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBS:
         cause = 3;
-        if (env->error_code == 1 && !(env->hflags & MIPS_HFLAG_EXL))
+        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL)))
             offset = 0x000;
-        goto set_EPC;
     set_EPC:
-        if (env->hflags & MIPS_HFLAG_BMASK) {
-            /* If the exception was raised from a delay slot,
-               come back to the jump.  */
-            env->CP0_EPC = env->PC - 4;
-            if (!(env->hflags & MIPS_HFLAG_EXL))
+        if (!(env->CP0_Status & (1 << CP0St_EXL))) {
+            if (env->hflags & MIPS_HFLAG_BMASK) {
+                /* If the exception was raised from a delay slot,
+                   come back to the jump.  */
+                env->CP0_EPC = env->PC - 4;
                 env->CP0_Cause |= (1 << CP0Ca_BD);
-            env->hflags &= ~MIPS_HFLAG_BMASK;
-        } else {
-            env->CP0_EPC = env->PC;
-            env->CP0_Cause &= ~(1 << CP0Ca_BD);
+                env->hflags &= ~MIPS_HFLAG_BMASK;
+            } else {
+                env->CP0_EPC = env->PC;
+                env->CP0_Cause &= ~(1 << CP0Ca_BD);
+            }
+            env->CP0_Status |= (1 << CP0St_EXL);
+            env->hflags &= ~MIPS_HFLAG_UM;
         }
         if (env->CP0_Status & (1 << CP0St_BEV)) {
             env->PC = (int32_t)0xBFC00200;
         } else {
             env->PC = (int32_t)0x80000000;
         }
-        env->hflags |= MIPS_HFLAG_EXL;
-        env->CP0_Status |= (1 << CP0St_EXL);
         env->PC += offset;
         env->CP0_Cause = (env->CP0_Cause & ~0x7C) | (cause << 2);
         break;

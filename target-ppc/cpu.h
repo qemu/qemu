@@ -514,10 +514,8 @@ enum {
 /* Default PowerPC will be 604/970 */
 #define PPC_INSNS_PPC32 PPC_INSNS_604
 #define PPC_FLAGS_PPC32 PPC_FLAGS_604
-#if 1
 #define PPC_INSNS_PPC64 PPC_INSNS_970
 #define PPC_FLAGS_PPC64 PPC_FLAGS_970
-#endif
 #define PPC_INSNS_DEFAULT PPC_INSNS_604
 #define PPC_FLAGS_DEFAULT PPC_FLAGS_604
 typedef struct ppc_def_t ppc_def_t;
@@ -562,9 +560,11 @@ struct ppc_tlb_t {
 #define MSR_SF   63 /* Sixty-four-bit mode                            hflags */
 #define MSR_ISF  61 /* Sixty-four-bit interrupt mode on 630                  */
 #define MSR_HV   60 /* hypervisor state                               hflags */
-#define MSR_UCLE 26 /* User-mode cache lock enable on e500                   */
+#define MSR_CM   31 /* Computation mode for BookE                     hflags */
+#define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
+#define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
 #define MSR_VR   25 /* altivec available                              hflags */
-#define MSR_SPE  25 /* SPE enable on e500                             hflags */
+#define MSR_SPE  25 /* SPE enable for BookE                           hflags */
 #define MSR_AP   23 /* Access privilege state on 602                  hflags */
 #define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
 #define MSR_KEY  19 /* key bit on 603e                                       */
@@ -600,6 +600,8 @@ struct ppc_tlb_t {
 #define msr_sf   env->msr[MSR_SF]
 #define msr_isf  env->msr[MSR_ISF]
 #define msr_hv   env->msr[MSR_HV]
+#define msr_cm   env->msr[MSR_CM]
+#define msr_icm  env->msr[MSR_ICM]
 #define msr_ucle env->msr[MSR_UCLE]
 #define msr_vr   env->msr[MSR_VR]
 #define msr_spe  env->msr[MSR_SPE]
@@ -724,6 +726,7 @@ struct CPUPPCState {
     int nb_ways;     /* Number of ways in the TLB set                        */
     int last_way;    /* Last used way used to allocate TLB in a LRU way      */
     int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
+    int nb_pids;     /* Number of available PID registers                    */
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* Callbacks for specific checks on some implementations */
     int (*tlb_check_more)(CPUPPCState *env, struct ppc_tlb_t *tlb, int *prot,
@@ -740,6 +743,7 @@ struct CPUPPCState {
     int exception_index;
     int error_code;
     int interrupt_request;
+    uint32_t pending_interrupts;
 
     /* Those resources are used only during code translation */
     /* Next instruction pointer */
@@ -873,11 +877,11 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_SRR1         (0x01B)
 #define SPR_BOOKE_PID    (0x030)
 #define SPR_BOOKE_DECAR  (0x036)
-#define SPR_CSRR0        (0x03A)
-#define SPR_CSRR1        (0x03B)
+#define SPR_BOOKE_CSRR0  (0x03A)
+#define SPR_BOOKE_CSRR1  (0x03B)
 #define SPR_BOOKE_DEAR   (0x03D)
 #define SPR_BOOKE_ESR    (0x03E)
-#define SPR_BOOKE_EVPR   (0x03F)
+#define SPR_BOOKE_IVPR   (0x03F)
 #define SPR_8xx_EIE      (0x050)
 #define SPR_8xx_EID      (0x051)
 #define SPR_8xx_NRE      (0x052)
@@ -899,6 +903,9 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_58x_BAR      (0x09F)
 #define SPR_VRSAVE       (0x100)
 #define SPR_USPRG0       (0x100)
+#define SPR_USPRG1       (0x101)
+#define SPR_USPRG2       (0x102)
+#define SPR_USPRG3       (0x103)
 #define SPR_USPRG4       (0x104)
 #define SPR_USPRG5       (0x105)
 #define SPR_USPRG6       (0x106)
@@ -972,16 +979,18 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_BOOKE_ATBL   (0x20E)
 #define SPR_BOOKE_ATBU   (0x20F)
 #define SPR_IBAT0U       (0x210)
-#define SPR_E500_IVOR32  (0x210)
+#define SPR_BOOKE_IVOR32 (0x210)
 #define SPR_IBAT0L       (0x211)
-#define SPR_E500_IVOR33  (0x211)
+#define SPR_BOOKE_IVOR33 (0x211)
 #define SPR_IBAT1U       (0x212)
-#define SPR_E500_IVOR34  (0x212)
+#define SPR_BOOKE_IVOR34 (0x212)
 #define SPR_IBAT1L       (0x213)
-#define SPR_E500_IVOR35  (0x213)
+#define SPR_BOOKE_IVOR35 (0x213)
 #define SPR_IBAT2U       (0x214)
+#define SPR_BOOKE_IVOR36 (0x214)
 #define SPR_IBAT2L       (0x215)
 #define SPR_E500_L1CFG0  (0x215)
+#define SPR_BOOKE_IVOR37 (0x215)
 #define SPR_IBAT3U       (0x216)
 #define SPR_E500_L1CFG1  (0x216)
 #define SPR_IBAT3L       (0x217)
@@ -1004,25 +1013,32 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_DBAT4U       (0x238)
 #define SPR_DBAT4L       (0x239)
 #define SPR_DBAT5U       (0x23A)
-#define SPR_E500_MCSRR0  (0x23A)
+#define SPR_BOOKE_MCSRR0 (0x23A)
 #define SPR_DBAT5L       (0x23B)
-#define SPR_E500_MCSRR1  (0x23B)
+#define SPR_BOOKE_MCSRR1 (0x23B)
 #define SPR_DBAT6U       (0x23C)
-#define SPR_E500_MCSR    (0x23C)
+#define SPR_BOOKE_MCSR   (0x23C)
 #define SPR_DBAT6L       (0x23D)
 #define SPR_E500_MCAR    (0x23D)
 #define SPR_DBAT7U       (0x23E)
+#define SPR_BOOKE_DSRR0  (0x23E)
 #define SPR_DBAT7L       (0x23F)
-#define SPR_E500_MAS0    (0x270)
-#define SPR_E500_MAS1    (0x271)
-#define SPR_E500_MAS2    (0x272)
-#define SPR_E500_MAS3    (0x273)
-#define SPR_E500_MAS4    (0x274)
-#define SPR_E500_MAS6    (0x276)
-#define SPR_E500_PID1    (0x279)
-#define SPR_E500_PID2    (0x27A)
-#define SPR_E500_TLB0CFG (0x2B0)
-#define SPR_E500_TLB1CFG (0x2B1)
+#define SPR_BOOKE_DSRR1  (0x23F)
+#define SPR_BOOKE_SPRG8  (0x25C)
+#define SPR_BOOKE_SPRG9  (0x25D)
+#define SPR_BOOKE_MAS0   (0x270)
+#define SPR_BOOKE_MAS1   (0x271)
+#define SPR_BOOKE_MAS2   (0x272)
+#define SPR_BOOKE_MAS3   (0x273)
+#define SPR_BOOKE_MAS4   (0x274)
+#define SPR_BOOKE_MAS6   (0x276)
+#define SPR_BOOKE_PID1   (0x279)
+#define SPR_BOOKE_PID2   (0x27A)
+#define SPR_BOOKE_TLB0CFG (0x2B0)
+#define SPR_BOOKE_TLB1CFG (0x2B1)
+#define SPR_BOOKE_TLB2CFG (0x2B2)
+#define SPR_BOOKE_TLB3CFG (0x2B3)
+#define SPR_BOOKE_EPR    (0x2BE)
 #define SPR_440_INV0     (0x370)
 #define SPR_440_INV1     (0x371)
 #define SPR_440_INV2     (0x372)
@@ -1042,10 +1058,10 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_440_DVLIM    (0x398)
 #define SPR_440_IVLIM    (0x399)
 #define SPR_440_RSTCFG   (0x39B)
-#define SPR_440_DCBTRL   (0x39C)
-#define SPR_440_DCBTRH   (0x39D)
-#define SPR_440_ICBTRL   (0x39E)
-#define SPR_440_ICBTRH   (0x39F)
+#define SPR_BOOKE_DCBTRL (0x39C)
+#define SPR_BOOKE_DCBTRH (0x39D)
+#define SPR_BOOKE_ICBTRL (0x39E)
+#define SPR_BOOKE_ICBTRH (0x39F)
 #define SPR_UMMCR0       (0x3A8)
 #define SPR_UPMC1        (0x3A9)
 #define SPR_UPMC2        (0x3AA)
@@ -1055,11 +1071,13 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_UPMC4        (0x3AE)
 #define SPR_USDA         (0x3AF)
 #define SPR_40x_ZPR      (0x3B0)
-#define SPR_E500_MAS7    (0x3B0)
+#define SPR_BOOKE_MAS7   (0x3B0)
 #define SPR_40x_PID      (0x3B1)
 #define SPR_440_MMUCR    (0x3B2)
 #define SPR_4xx_CCR0     (0x3B3)
+#define SPR_BOOKE_EPLC   (0x3B3)
 #define SPR_405_IAC3     (0x3B4)
+#define SPR_BOOKE_EPSC   (0x3B4)
 #define SPR_405_IAC4     (0x3B5)
 #define SPR_405_DVC1     (0x3B6)
 #define SPR_405_DVC2     (0x3B7)
@@ -1082,7 +1100,7 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_DCMP         (0x3D1)
 #define SPR_HASH1        (0x3D2)
 #define SPR_HASH2        (0x3D3)
-#define SPR_4xx_ICDBDR   (0x3D3)
+#define SPR_BOOKE_ICBDR  (0x3D3)
 #define SPR_IMISS        (0x3D4)
 #define SPR_40x_ESR      (0x3D4)
 #define SPR_ICMP         (0x3D5)
@@ -1113,7 +1131,7 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_E500_L1CSR1  (0x3F3)
 #define SPR_440_DBDR     (0x3F3)
 #define SPR_40x_IAC1     (0x3F4)
-#define SPR_E500_MMUCSR0 (0x3F4)
+#define SPR_BOOKE_MMUCSR0 (0x3F4)
 #define SPR_DABR         (0x3F5)
 #define DABR_MASK (~(target_ulong)0x7)
 #define SPR_E500_BUCSR   (0x3F5)
@@ -1121,7 +1139,7 @@ void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #define SPR_601_HID5     (0x3F5)
 #define SPR_40x_DAC1     (0x3F6)
 #define SPR_40x_DAC2     (0x3F7)
-#define SPR_E500_MMUCFG  (0x3F7)
+#define SPR_BOOKE_MMUCFG (0x3F7)
 #define SPR_L2PM         (0x3F8)
 #define SPR_750_HID2     (0x3F8)
 #define SPR_L2CR         (0x3F9)
@@ -1265,6 +1283,21 @@ enum {
     EXCP_PRIV_REG      = 0x02,
     /* Trap */
     EXCP_TRAP          = 0x40,
+};
+
+/* Hardware interruption sources:
+ * all those exception can be raised simulteaneously
+ */
+enum {
+    PPC_INTERRUPT_RESET  = 0, /* Reset / critical input               */
+    PPC_INTERRUPT_MCK    = 1, /* Machine check exception              */
+    PPC_INTERRUPT_EXT    = 2, /* External interrupt                   */
+    PPC_INTERRUPT_DECR   = 3, /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR  = 4, /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT    = 5, /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT    = 6, /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT    = 7, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_DEBUG  = 8, /* External debug exception             */
 };
 
 /*****************************************************************************/

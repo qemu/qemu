@@ -256,8 +256,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_PPC)
     if (env1->halted) {
         if (env1->msr[MSR_EE] && 
-            (env1->interrupt_request & 
-             (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER))) {
+            (env1->interrupt_request & CPU_INTERRUPT_HARD)) {
             env1->halted = 0;
         } else {
             return EXCP_HALTED;
@@ -448,24 +447,11 @@ int cpu_exec(CPUState *env1)
                         cpu_ppc_reset(env);
                     }
 #endif
-                    if (msr_ee != 0) {
-                        if ((interrupt_request & CPU_INTERRUPT_HARD)) {
-			    /* Raise it */
-			    env->exception_index = EXCP_EXTERNAL;
-			    env->error_code = 0;
-                            do_interrupt(env);
-                            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                            tmp_T0 = 0;
-#else
-                            T0 = 0;
-#endif
-                        } else if ((interrupt_request & CPU_INTERRUPT_TIMER)) {
-                            /* Raise it */
-                            env->exception_index = EXCP_DECR;
-                            env->error_code = 0;
-                            do_interrupt(env);
-                            env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                        if (ppc_hw_interrupt(env) == 1) {
+                            /* Some exception was raised */
+                            if (env->pending_interrupts == 0)
+                                env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
@@ -475,10 +461,10 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask) &&
                         (env->CP0_Status & (1 << CP0St_IE)) &&
-                        (env->CP0_Status & env->CP0_Cause & 0x0000FF00) &&
-                        !(env->hflags & MIPS_HFLAG_EXL) &&
-                        !(env->hflags & MIPS_HFLAG_ERL) &&
+                        !(env->CP0_Status & (1 << CP0St_EXL)) &&
+                        !(env->CP0_Status & (1 << CP0St_ERL)) &&
                         !(env->hflags & MIPS_HFLAG_DM)) {
                         /* Raise it */
                         env->exception_index = EXCP_EXT_INTERRUPT;

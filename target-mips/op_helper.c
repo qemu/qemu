@@ -533,9 +533,11 @@ void dump_sc (void)
 void debug_eret (void)
 {
     if (loglevel) {
-        fprintf(logfile, "ERET: pc " TARGET_FMT_lx " EPC " TARGET_FMT_lx " ErrorEPC " TARGET_FMT_lx " (%d)\n",
-                env->PC, env->CP0_EPC, env->CP0_ErrorEPC,
-                env->hflags & MIPS_HFLAG_ERL ? 1 : 0);
+        fprintf(logfile, "ERET: pc " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
+                env->PC, env->CP0_EPC);
+        if (env->CP0_Status & (1 << CP0St_ERL))
+            fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
+        fputs("\n", logfile);
     }
 }
 

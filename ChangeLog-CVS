@@ -1,3 +1,59 @@
+2007-03-30 21:20  ths
+
+	* kqemu.c: Switch include for Solaris to avoid namespace issues. By
+	  Juergen Keil.
+
+2007-03-30 20:58  ths
+
+	* monitor.c, qemu-doc.texi: Spelling fixes, by Stefan Weil.
+
+2007-03-30 20:56  ths
+
+	* target-mips/TODO: Update mips TODO.
+
+2007-03-30 20:42  ths
+
+	* target-mips/cpu.h: Fix typo, suggested by Ben Taylor.
+
+2007-03-30 19:48  ths
+
+	* target-mips/helper.c: Squash logic bugs while they are fresh...
+
+2007-03-30 18:44  ths
+
+	* cpu-exec.c, dyngen-exec.h, hw/mips_int.c, target-mips/cpu.h,
+	  target-mips/helper.c, target-mips/op.c, target-mips/op_helper.c,
+	  target-mips/translate.c: Sanitize mips exception handling.
+
+2007-03-30 18:41  ths
+
+	* vl.h: Fix build failure.
+
+2007-03-30 12:22  j_mayer
+
+	* target-ppc/: op.c, op_helper.c, op_helper.h, translate.c: Fix rfi
+	  instruction: do not depend on current execution mode	but on the
+	  execution mode that will be effective after the return.  Add
+	  rfci, rfdi and rfmci for BookE PowerPC.  Extend mfdcr / mtdcr and
+	  implement mfdrcx / mtdcrx.
+
+2007-03-30 12:07  j_mayer
+
+	* target-ppc/: cpu.h, translate_init.c: Fix / update PowerPC BookE
+	  definitions.
+
+2007-03-30 11:38  j_mayer
+
+	* cpu-exec.c, vl.h, hw/openpic.c, hw/ppc.c, hw/ppc_chrp.c,
+	  hw/ppc_prep.c, target-ppc/cpu.h, target-ppc/helper.c: New model
+	  for PowerPC CPU hardware interrupt events: move all PowerPC
+	  specific code into target-ppc/helper.c to avoid polluting the
+	  common code in cpu-exec.c. This makes implementation of new
+	  features (ie embedded PowerPC timers, critical interrupts, ...)
+	  easier.  This also avoid hardcoding the IRQ callback in the
+	  OpenPIC controller, making it more easily reusable and allowing
+	  cascading.
+
 2007-03-28 22:43  j_mayer
 
 	* target-ppc/cpu.h: Solaris host compilation fix by Shaddy Baddah.

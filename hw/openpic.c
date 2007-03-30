@@ -164,6 +164,7 @@ typedef struct IRQ_dst_t {
 
 struct openpic_t {
     PCIDevice pci_dev;
+    SetIRQFunc *set_irq;
     int mem_index;
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
@@ -264,8 +265,8 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
     IRQ_setbit(&dst->raised, n_IRQ);
     if (priority > dst->raised.priority) {
         IRQ_get_next(opp, &dst->raised);
-        DPRINTF("Raise CPU IRQ\n");
-        cpu_interrupt(dst->env, CPU_INTERRUPT_HARD);
+        DPRINTF("Raise CPU IRQ fn %p env %p\n", opp->set_irq, dst->env);
+        opp->set_irq(dst->env, OPENPIC_EVT_INT, 1);
     }
 }
 
@@ -532,7 +533,7 @@ static void openpic_gbl_write (void *opaque, uint32_t addr, uint32_t val)
         /* XXX: Should be able to reset any CPU */
         if (val & 1) {
             DPRINTF("Reset CPU IRQ\n");
-            //            cpu_interrupt(first_cpu, CPU_INTERRUPT_RESET);
+            //                opp->set_irq(dst->env, OPENPIC_EVT_RESET, 1);
         }
 	break;
 #if MAX_IPI > 0
@@ -781,7 +782,7 @@ static void openpic_cpu_write (void *opaque, uint32_t addr, uint32_t val)
 	    src = &opp->src[n_IRQ];
 	    if (IPVP_PRIORITY(src->ipvp) > dst->servicing.priority) {
                 DPRINTF("Raise CPU IRQ\n");
-                cpu_interrupt(dst->env, CPU_INTERRUPT_HARD);
+                opp->set_irq(dst->env, OPENPIC_EVT_INT, 1);
             }
 	}
 	break;
@@ -963,8 +964,8 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 #endif
 }
 
-openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
-                         CPUPPCState **envp)
+openpic_t *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
+                         int *pmem_index, int nb_cpus, CPUPPCState **envp)
 {
     openpic_t *opp;
     uint8_t *pci_conf;
@@ -994,7 +995,7 @@ openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     } else {
         opp = qemu_mallocz(sizeof(openpic_t));
     }
-
+    opp->set_irq = set_irq;
     opp->mem_index = cpu_register_io_memory(0, openpic_read,
                                             openpic_write, opp);
     

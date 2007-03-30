@@ -12,7 +12,7 @@
 
 // uint_fast8_t and uint_fast16_t not in <sys/int_types.h>
 // XXX: move that elsewhere
-#if defined(HOST_SOLARIS) && SOLARISREV < 10
+#if defined(HOST_SOLARIS) && HOST_SOLARIS < 10
 typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 #endif
@@ -253,8 +253,6 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_TMASK  0x007F
 #define MIPS_HFLAG_MODE   0x001F /* execution modes                    */
 #define MIPS_HFLAG_UM     0x0001 /* user mode                          */
-#define MIPS_HFLAG_ERL    0x0002 /* Error mode                         */
-#define MIPS_HFLAG_EXL    0x0004 /* Exception mode                     */
 #define MIPS_HFLAG_DM     0x0008 /* Debug mode                         */
 #define MIPS_HFLAG_SM     0x0010 /* Supervisor mode                    */
 #define MIPS_HFLAG_RE     0x0040 /* Reversed endianness                */

@@ -183,7 +183,7 @@ PCIBus *pci_pmac_init(void *pic)
     d->config[0x0E] = 0x00; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
 
-#if 0 // XXX: not activated as PPC BIOS doesn't handle multiple busses properly
+#if 0 // XXX: not activated as PPC BIOS doesn't handle multiple buses properly
     /* pci-to-pci bridge */
     d = pci_register_device("Uni-north bridge", sizeof(PCIDevice), 0, 13 << 3,
                             NULL, NULL);

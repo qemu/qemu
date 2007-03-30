@@ -2861,12 +2861,7 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW)
         RET_PRIVOPC(ctx);
         return;
     }
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        gen_op_rfi_32();
-    else
-#endif
-        gen_op_rfi();
+    gen_op_rfi();
     RET_CHG_FLOW(ctx);
 #endif
 }
@@ -2882,10 +2877,7 @@ GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_FLOW)
         RET_PRIVOPC(ctx);
         return;
     }
-    if (!ctx->sf_mode)
-        gen_op_rfid_32();
-    else
-        gen_op_rfid();
+    gen_op_rfid();
     RET_CHG_FLOW(ctx);
 #endif
 }
@@ -4423,7 +4415,8 @@ GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_EMB_COMMON)
         RET_PRIVREG(ctx);
         return;
     }
-    gen_op_4xx_load_dcr(dcrn);
+    gen_op_set_T0(dcrn);
+    gen_op_load_dcr();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
@@ -4440,8 +4433,41 @@ GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_EMB_COMMON)
         RET_PRIVREG(ctx);
         return;
     }
-    gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_4xx_store_dcr(dcrn);
+    gen_op_set_T0(dcrn);
+    gen_op_load_gpr_T1(rS(ctx->opcode));
+    gen_op_store_dcr();
+#endif
+}
+
+/* mfdcrx */
+GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVREG(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rA(ctx->opcode));
+    gen_op_load_dcr();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
+#endif
+}
+
+/* mtdcrx */
+GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVREG(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rA(ctx->opcode));
+    gen_op_load_gpr_T1(rS(ctx->opcode));
+    gen_op_store_dcr();
 #endif
 }
 
@@ -4513,7 +4539,7 @@ GEN_HANDLER(icread, 0x1F, 0x06, 0x1F, 0x03E00001, PPC_4xx_COMMON)
 }
 
 /* rfci (supervisor only) */
-GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_EMB_COMMON)
+GEN_HANDLER(rfci_40x, 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4523,14 +4549,59 @@ GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_EMB_COMMON)
         return;
     }
     /* Restore CPU state */
-    gen_op_4xx_rfci();
+    gen_op_40x_rfci();
     RET_CHG_FLOW(ctx);
 #endif
 }
 
+GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    /* Restore CPU state */
+    gen_op_rfci();
+    RET_CHG_FLOW(ctx);
+#endif
+}
+
+/* BookE specific */
+GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    /* Restore CPU state */
+    gen_op_rfdi();
+    RET_CHG_FLOW(ctx);
+#endif
+}
+
+GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    /* Restore CPU state */
+    gen_op_rfmci();
+    RET_CHG_FLOW(ctx);
+#endif
+}
 /* TLB management - PowerPC 405 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_EMB_COMMON)
+GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4558,7 +4629,7 @@ GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_EMB_COMMON)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx, 0x1F, 0x12, 0x1C, 0x00000000, PPC_EMB_COMMON)
+GEN_HANDLER(tlbsx, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4615,7 +4686,7 @@ GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_EMB_COMMON)
         return;
     }
     gen_op_load_gpr_T0(rD(ctx->opcode));
-    gen_op_4xx_wrte();
+    gen_op_wrte();
     RET_EXCP(ctx, EXCP_MTMSR, 0);
 #endif
 }
@@ -4631,7 +4702,7 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_EMB_COMMON)
         return;
     }
     gen_op_set_T0(ctx->opcode & 0x00010000);
-    gen_op_4xx_wrte();
+    gen_op_wrte();
     RET_EXCP(ctx, EXCP_MTMSR, 0);
 #endif
 }

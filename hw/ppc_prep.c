@@ -1,7 +1,7 @@
 /*
  * QEMU PPC PREP hardware System Emulator
  * 
- * Copyright (c) 2003-2004 Jocelyn Mayer
+ * Copyright (c) 2003-2007 Jocelyn Mayer
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -84,29 +84,27 @@ static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
 }
 
-static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
+static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
 {
 #if 0
     int out;
     out = pit_get_out(pit, 2, qemu_get_clock(vm_clock));
     dummy_refresh_clock ^= 1;
     return (speaker_data_on << 1) | pit_get_gate(pit, 2) | (out << 5) |
-      (dummy_refresh_clock << 4);
+        (dummy_refresh_clock << 4);
 #endif
     return 0;
 }
 
-static void pic_irq_request(void *opaque, int level)
+static void pic_irq_request (void *opaque, int level)
 {
-    if (level)
-        cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
-    else
-        cpu_reset_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+    ppc_set_irq(opaque, PPC_INTERRUPT_EXT, level);
 }
 
 /* PCI intack register */
 /* Read-only register (?) */
-static void _PPC_intack_write (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void _PPC_intack_write (void *opaque,
+                               target_phys_addr_t addr, uint32_t value)
 {
     //    printf("%s: 0x%08x => 0x%08x\n", __func__, addr, value);
 }
@@ -294,7 +292,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         /* Special port 92 */
         /* Check soft reset asked */
         if (val & 0x01) {
-            //            cpu_interrupt(first_cpu, CPU_INTERRUPT_RESET);
+            //            cpu_interrupt(first_cpu, PPC_INTERRUPT_RESET);
         }
         /* Check LE mode */
         if (val & 0x02) {

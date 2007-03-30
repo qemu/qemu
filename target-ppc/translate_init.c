@@ -893,11 +893,11 @@ static void gen_spr_G2 (CPUPPCState *env)
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* Exception processing */
-    spr_register(env, SPR_CSRR0, "CSRR0",
+    spr_register(env, SPR_BOOKE_CSRR0, "CSRR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    spr_register(env, SPR_CSRR1, "CSRR1",
+    spr_register(env, SPR_BOOKE_CSRR1, "CSRR1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1060,11 +1060,27 @@ static void gen_spr_BookE (CPUPPCState *env)
                  &spr_read_generic, &spr_write_pir,
                  0x00000000);
     /* Interrupt processing */
-    spr_register(env, SPR_CSRR0, "CSRR0",
+    spr_register(env, SPR_BOOKE_CSRR0, "CSRR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    spr_register(env, SPR_CSRR1, "CSRR1",
+    spr_register(env, SPR_BOOKE_CSRR1, "CSRR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_DSRR0, "DSRR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_DSRR1, "DSRR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MCSRR0, "MCSRR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MCSRR1, "MCSRR1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1137,7 +1153,12 @@ static void gen_spr_BookE (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    spr_register(env, SPR_BOOKE_EVPR, "EVPR",
+    spr_register(env, SPR_BOOKE_IVPR, "IVPR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* Exception vectors */
+    spr_register(env, SPR_BOOKE_IVPR, "IVPR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1205,6 +1226,30 @@ static void gen_spr_BookE (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    spr_register(env, SPR_BOOKE_IVOR32, "IVOR32",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_IVOR33, "IVOR33",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_IVOR34, "IVOR34",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_IVOR35, "IVOR35",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_IVOR36, "IVOR36",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_IVOR37, "IVOR37",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
     spr_register(env, SPR_BOOKE_PID, "PID",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -1263,6 +1308,89 @@ static void gen_spr_BookE (CPUPPCState *env)
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
                  0x00000000);
+}
+
+/* FSL storage control registers */
+static void gen_spr_BookE_FSL (CPUPPCState *env)
+{
+    /* TLB assist registers */
+    spr_register(env, SPR_BOOKE_MAS0, "MAS0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MAS1, "MAS2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MAS2, "MAS3",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MAS3, "MAS4",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MAS4, "MAS5",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MAS6, "MAS6",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MAS7, "MAS7",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    if (env->nb_pids > 1) {
+        spr_register(env, SPR_BOOKE_PID1, "PID1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     0x00000000);
+    }
+    if (env->nb_pids > 2) {
+        spr_register(env, SPR_BOOKE_PID2, "PID2",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     0x00000000);
+    }
+    spr_register(env, SPR_BOOKE_MMUCFG, "MMUCFG",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000); /* TOFIX */
+    spr_register(env, SPR_BOOKE_MMUCSR0, "MMUCSR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000); /* TOFIX */
+    switch (env->nb_ways) {
+    case 4:
+        spr_register(env, SPR_BOOKE_TLB3CFG, "TLB3CFG",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, SPR_NOACCESS,
+                     0x00000000); /* TOFIX */
+        /* Fallthru */
+    case 3:
+        spr_register(env, SPR_BOOKE_TLB2CFG, "TLB2CFG",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, SPR_NOACCESS,
+                     0x00000000); /* TOFIX */
+        /* Fallthru */
+    case 2:
+        spr_register(env, SPR_BOOKE_TLB1CFG, "TLB1CFG",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, SPR_NOACCESS,
+                     0x00000000); /* TOFIX */
+        /* Fallthru */
+    case 1:
+        spr_register(env, SPR_BOOKE_TLB0CFG, "TLB0CFG",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, SPR_NOACCESS,
+                     0x00000000); /* TOFIX */
+        /* Fallthru */
+    case 0:
+    default:
+        break;
+    }
 }
 
 /* SPR specific to PowerPC 440 implementation */
@@ -1361,27 +1489,27 @@ static void gen_spr_440 (CPUPPCState *env)
                  0x00000000);
     /* Cache debug */
     /* XXX : not implemented */
-    spr_register(env, SPR_440_DCBTRH, "DCBTRH",
+    spr_register(env, SPR_BOOKE_DCBTRH, "DCBTRH",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_DCBTRL, "DCBTRL",
+    spr_register(env, SPR_BOOKE_DCBTRL, "DCBTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_4xx_ICDBDR, "ICDBDR",
+    spr_register(env, SPR_BOOKE_ICBDR, "ICBDR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_ICBTRH, "ICBTRH",
+    spr_register(env, SPR_BOOKE_ICBTRH, "ICBTRH",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_ICBTRL, "ICBTRL",
+    spr_register(env, SPR_BOOKE_ICBTRL, "ICBTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
@@ -1426,7 +1554,7 @@ static void gen_spr_40x (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_4xx_ICDBDR, "ICDBDR",
+    spr_register(env, SPR_BOOKE_ICBDR, "ICBDR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
@@ -1861,6 +1989,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         /* Time base */
         gen_tbl(env);
         gen_spr_BookE(env);
+        gen_spr_BookE_FSL(env);
         env->nb_BATs = 0;
         env->nb_tlb = 64;
         env->nb_ways = 1;
