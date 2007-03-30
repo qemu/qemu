@@ -461,10 +461,10 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask) &&
                         (env->CP0_Status & (1 << CP0St_IE)) &&
-                        (env->CP0_Status & env->CP0_Cause & 0x0000FF00) &&
-                        !(env->hflags & MIPS_HFLAG_EXL) &&
-                        !(env->hflags & MIPS_HFLAG_ERL) &&
+                        !(env->CP0_Status & (1 << CP0St_EXL)) &&
+                        !(env->CP0_Status & (1 << CP0St_ERL)) &&
                         !(env->hflags & MIPS_HFLAG_DM)) {
                         /* Raise it */
                         env->exception_index = EXCP_EXT_INTERRUPT;

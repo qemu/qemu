@@ -1105,12 +1105,6 @@ void op_mfc0_compare (void)
 void op_mfc0_status (void)
 {
     T0 = env->CP0_Status;
-    if (env->hflags & MIPS_HFLAG_UM)
-        T0 |= (1 << CP0St_UM);
-    if (env->hflags & MIPS_HFLAG_ERL)
-        T0 |= (1 << CP0St_ERL);
-    if (env->hflags & MIPS_HFLAG_EXL)
-        T0 |= (1 << CP0St_EXL);
     RETURN();
 }
 
@@ -1365,20 +1359,10 @@ void op_mtc0_status (void)
 {
     uint32_t val, old;
 
-    val = (int32_t)T0 & 0xFA78FF01;
+    /* No 64bit FPU, no reverse endianness, no MDMX/DSP, no 64bit ops,
+       no 64bit addressing implemented. */
+    val = (int32_t)T0 & 0xF878FF17;
     old = env->CP0_Status;
-    if (T0 & (1 << CP0St_UM))
-        env->hflags |= MIPS_HFLAG_UM;
-    else
-        env->hflags &= ~MIPS_HFLAG_UM;
-    if (T0 & (1 << CP0St_ERL))
-        env->hflags |= MIPS_HFLAG_ERL;
-    else
-        env->hflags &= ~MIPS_HFLAG_ERL;
-    if (T0 & (1 << CP0St_EXL))
-        env->hflags |= MIPS_HFLAG_EXL;
-    else
-        env->hflags &= ~MIPS_HFLAG_EXL;
     env->CP0_Status = val;
     if (loglevel & CPU_LOG_TB_IN_ASM)
        CALL_FROM_TB2(do_mtc0_status_debug, old, val);
@@ -1661,6 +1645,15 @@ void op_dmtc0_errorepc (void)
 #else
 # define DEBUG_FPU_STATE() do { } while(0)
 #endif
+
+void op_cp0_enabled(void)
+{
+    if (!(env->CP0_Status & (1 << CP0St_CU0)) &&
+	(env->hflags & MIPS_HFLAG_UM)) {
+        CALL_FROM_TB2(do_raise_exception_direct_err, EXCP_CpU, 0);
+    }
+    RETURN();
+}
 
 void op_cp1_enabled(void)
 {
@@ -2091,15 +2084,18 @@ void debug_eret (void);
 void op_eret (void)
 {
     CALL_FROM_TB0(debug_eret);
-    if (env->hflags & MIPS_HFLAG_ERL) {
+    if (env->CP0_Status & (1 << CP0St_ERL)) {
         env->PC = env->CP0_ErrorEPC;
-        env->hflags &= ~MIPS_HFLAG_ERL;
-	env->CP0_Status &= ~(1 << CP0St_ERL);
+        env->CP0_Status &= ~(1 << CP0St_ERL);
     } else {
         env->PC = env->CP0_EPC;
-        env->hflags &= ~MIPS_HFLAG_EXL;
-	env->CP0_Status &= ~(1 << CP0St_EXL);
+        env->CP0_Status &= ~(1 << CP0St_EXL);
     }
+    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & (1 << CP0St_UM)))
+        env->hflags |= MIPS_HFLAG_UM;
     env->CP0_LLAddr = 1;
     RETURN();
 }
@@ -2108,6 +2104,13 @@ void op_deret (void)
 {
     CALL_FROM_TB0(debug_eret);
     env->PC = env->CP0_DEPC;
+    env->hflags |= MIPS_HFLAG_DM;
+    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & (1 << CP0St_UM)))
+        env->hflags |= MIPS_HFLAG_UM;
+    env->CP0_LLAddr = 1;
     RETURN();
 }
 

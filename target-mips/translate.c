@@ -4022,17 +4022,6 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
     const char *opn = "unk";
 
-    if ((!ctx->CP0_Status & (1 << CP0St_CU0) &&
-          (ctx->hflags & MIPS_HFLAG_UM)) &&
-        !(ctx->hflags & MIPS_HFLAG_ERL) &&
-        !(ctx->hflags & MIPS_HFLAG_EXL)) {
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "CP0 is not usable\n");
-        }
-        generate_exception (ctx, EXCP_CpU);
-        return;
-    }
-
     switch (opc) {
     case OPC_MFC0:
         if (rt == 0) {
@@ -4809,7 +4798,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_trap(ctx, op1, rs, -1, imm);
             break;
         case OPC_SYNCI:
-           /* treat as noop */
+            /* treat as noop */
             break;
         default:            /* Invalid */
             MIPS_INVAL("REGIMM");
@@ -4818,6 +4807,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_CP0:
+        gen_op_cp0_enabled();
         op1 = MASK_CP0(ctx->opcode);
         switch (op1) {
         case OPC_MFC0:
@@ -5258,12 +5248,6 @@ void cpu_dump_state (CPUState *env, FILE *f,
     }
 
     c0_status = env->CP0_Status;
-    if (env->hflags & MIPS_HFLAG_UM)
-        c0_status |= (1 << CP0St_UM);
-    if (env->hflags & MIPS_HFLAG_ERL)
-        c0_status |= (1 << CP0St_ERL);
-    if (env->hflags & MIPS_HFLAG_EXL)
-        c0_status |= (1 << CP0St_EXL);
 
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TARGET_FMT_lx "\n",
                 c0_status, env->CP0_Cause, env->CP0_EPC);
@@ -5304,6 +5288,7 @@ void cpu_reset (CPUMIPSState *env)
     } else {
         env->CP0_ErrorEPC = env->PC;
     }
+    env->hflags = 0;
     env->PC = (int32_t)0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
     env->CP0_Random = MIPS_TLB_NB - 1;
@@ -5314,7 +5299,6 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_EBase = 0x80000000;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     env->CP0_WatchLo = 0;
-    env->hflags = MIPS_HFLAG_ERL;
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
 #endif

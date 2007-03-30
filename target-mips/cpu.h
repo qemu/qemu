@@ -248,8 +248,6 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_TMASK  0x007F
 #define MIPS_HFLAG_MODE   0x001F /* execution modes                    */
 #define MIPS_HFLAG_UM     0x0001 /* user mode                          */
-#define MIPS_HFLAG_ERL    0x0002 /* Error mode                         */
-#define MIPS_HFLAG_EXL    0x0004 /* Exception mode                     */
 #define MIPS_HFLAG_DM     0x0008 /* Debug mode                         */
 #define MIPS_HFLAG_SM     0x0010 /* Supervisor mode                    */
 #define MIPS_HFLAG_RE     0x0040 /* Reversed endianness                */
