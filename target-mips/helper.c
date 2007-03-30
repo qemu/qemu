@@ -392,7 +392,6 @@ void do_interrupt (CPUState *env)
                 env->CP0_EPC = env->PC;
                 env->CP0_Cause &= ~(1 << CP0Ca_BD);
             }
-        } else {
             env->CP0_Status |= (1 << CP0St_EXL);
             env->hflags &= ~MIPS_HFLAG_UM;
         }
