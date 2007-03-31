@@ -1,14 +1,25 @@
 #!/bin/sh
-# enable automatic i386/ARM/SPARC/PPC program execution by the kernel
+# enable automatic i386/ARM/M68K/MIPS/SPARC/PPC program execution by the kernel
 
 # load the binfmt_misc module
-/sbin/modprobe binfmt_misc
+if [ ! -d /proc/sys/fs/binfmt_misc ]; then
+  /sbin/modprobe binfmt_misc
+fi
+if [ ! -f /proc/sys/fs/binfmt_misc/register ]; then
+  mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+fi
 
 # probe cpu type
 cpu=`uname -m`
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
+  ;;
+  m68k)
+    cpu="m68k"
+  ;;
+  mips*)
+    cpu="mips"
   ;;
   "Power Macintosh"|ppc|ppc64)
     cpu="ppc"
@@ -33,7 +44,12 @@ fi
 if [ $cpu != "ppc" ] ; then
     echo   ':ppc:M::\x7fELF\x01\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x14:\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-ppc:' > /proc/sys/fs/binfmt_misc/register
 fi
+if [ $cpu != "m68k" ] ; then
+    echo   'Please check cpu value and header information for m68k!'
+    echo   ':m68k:M::\x7fELF\x01\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x08:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-m68k:' > /proc/sys/fs/binfmt_misc/register
+fi
 if [ $cpu != "mips" ] ; then
+    # FIXME: We could use the other endianness on a MIPS host.
     echo   ':mips:M::\x7fELF\x01\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x08:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-mips:' > /proc/sys/fs/binfmt_misc/register
     echo   ':mipsel:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x08\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/local/bin/qemu-mipsel:' > /proc/sys/fs/binfmt_misc/register
 fi
