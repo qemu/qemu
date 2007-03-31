@@ -27,7 +27,7 @@ void cpu_mips_irq_request(void *opaque, int irq, int level)
     if (level) {
         env->CP0_Cause |= 1 << (irq + CP0Ca_IP);
     } else {
-        env->CP0_Cause &= ~(1 << (irq +CP0Ca_IP));
+        env->CP0_Cause &= ~(1 << (irq + CP0Ca_IP));
     }
     cpu_mips_update_irq(env);
 }

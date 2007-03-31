@@ -1793,6 +1793,13 @@ static long do_fcntl(int fd, int cmd, target_ulong arg)
 
     switch(cmd) {
     case TARGET_F_GETLK:
+        lock_user_struct(target_fl, arg, 1);
+        fl.l_type = tswap16(target_fl->l_type);
+        fl.l_whence = tswap16(target_fl->l_whence);
+        fl.l_start = tswapl(target_fl->l_start);
+        fl.l_len = tswapl(target_fl->l_len);
+        fl.l_pid = tswapl(target_fl->l_pid);
+        unlock_user_struct(target_fl, arg, 0);
         ret = fcntl(fd, cmd, &fl);
         if (ret == 0) {
             lock_user_struct(target_fl, arg, 0);
@@ -1818,6 +1825,13 @@ static long do_fcntl(int fd, int cmd, target_ulong arg)
         break;
         
     case TARGET_F_GETLK64:
+        lock_user_struct(target_fl64, arg, 1);
+        fl64.l_type = tswap16(target_fl64->l_type) >> 1;
+        fl64.l_whence = tswap16(target_fl64->l_whence);
+        fl64.l_start = tswapl(target_fl64->l_start);
+        fl64.l_len = tswapl(target_fl64->l_len);
+        fl64.l_pid = tswap16(target_fl64->l_pid);
+        unlock_user_struct(target_fl64, arg, 0);
         ret = fcntl(fd, cmd >> 1, &fl64);
         if (ret == 0) {
             lock_user_struct(target_fl64, arg, 0);
@@ -3896,6 +3910,26 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 
         switch(arg2) {
         case TARGET_F_GETLK64:
+#ifdef TARGET_ARM
+            if (((CPUARMState *)cpu_env)->eabi) {
+                lock_user_struct(target_efl, arg3, 1);
+                fl.l_type = tswap16(target_efl->l_type);
+                fl.l_whence = tswap16(target_efl->l_whence);
+                fl.l_start = tswap64(target_efl->l_start);
+                fl.l_len = tswap64(target_efl->l_len);
+                fl.l_pid = tswapl(target_efl->l_pid);
+                unlock_user_struct(target_efl, arg3, 0);
+            } else
+#endif
+            {
+                lock_user_struct(target_fl, arg3, 1);
+                fl.l_type = tswap16(target_fl->l_type);
+                fl.l_whence = tswap16(target_fl->l_whence);
+                fl.l_start = tswap64(target_fl->l_start);
+                fl.l_len = tswap64(target_fl->l_len);
+                fl.l_pid = tswapl(target_fl->l_pid);
+                unlock_user_struct(target_fl, arg3, 0);
+            }
             ret = get_errno(fcntl(arg1, cmd, &fl));
 	    if (ret == 0) {
 #ifdef TARGET_ARM

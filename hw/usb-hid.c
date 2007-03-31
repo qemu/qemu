@@ -46,7 +46,7 @@ typedef struct USBMouseState {
 static const uint8_t qemu_mouse_dev_descriptor[] = {
 	0x12,       /*  u8 bLength; */
 	0x01,       /*  u8 bDescriptorType; Device */
-	0x10, 0x00, /*  u16 bcdUSB; v1.0 */
+	0x00, 0x01, /*  u16 bcdUSB; v1.0 */
 
 	0x00,	    /*  u8  bDeviceClass; */
 	0x00,	    /*  u8  bDeviceSubClass; */

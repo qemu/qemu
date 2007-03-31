@@ -68,6 +68,7 @@ typedef struct {
     uint32_t i2csel;
     CharDriverState *display;
     char display_text[9];
+    SerialState *uart;
 } MaltaFPGAState;
 
 static PITState *pit;
@@ -261,6 +262,18 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
         val = s->brk;
         break;
 
+    /* UART Registers */
+    case 0x00900:
+    case 0x00904:
+    case 0x00908:
+    case 0x0090c:
+    case 0x00910:
+    case 0x00914:
+    case 0x00918:
+    case 0x0091c:
+        val = serial_mm_readl(s->uart, addr);
+        break;
+
     /* GPOUT Register */
     case 0x00a00:
         val = s->gpout;
@@ -363,6 +376,18 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
         s->brk = val & 0xff;
         break;
 
+    /* UART Registers */
+    case 0x00900:
+    case 0x00904:
+    case 0x00908:
+    case 0x0090c:
+    case 0x00910:
+    case 0x00914:
+    case 0x00918:
+    case 0x0091c:
+        serial_mm_writel(s->uart, addr, val);
+        break;
+
     /* GPOUT Register */
     case 0x00a00:
         s->gpout = val & 0xff;
@@ -428,15 +453,17 @@ void malta_fpga_reset(void *opaque)
     malta_fpga_update_display(s);
 }
 
-MaltaFPGAState *malta_fpga_init(target_phys_addr_t base)
+MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
 {
     MaltaFPGAState *s;
+    CharDriverState *uart_chr;
     int malta;
 
     s = (MaltaFPGAState *)qemu_mallocz(sizeof(MaltaFPGAState));
 
     malta = cpu_register_io_memory(0, malta_fpga_read,
                                    malta_fpga_write, s);
+
     cpu_register_physical_memory(base, 0x100000, malta);
 
     s->display = qemu_chr_open("vc");
@@ -449,6 +476,11 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base)
     qemu_chr_printf(s->display, "+--------+\r\n");
     qemu_chr_printf(s->display, "+        +\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
+
+    uart_chr = qemu_chr_open("vc");
+    qemu_chr_printf(uart_chr, "CBUS UART\r\n");
+    s->uart = serial_mm_init(&cpu_mips_irq_request, env, base, 3, 2,
+                             uart_chr, 0);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
@@ -718,7 +750,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_irqctrl_init();
 
     /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL);
+    malta_fpga = malta_fpga_init(0x1f000000LL, env);
 
     /* Interrupt controller */
     isa_pic = pic_init(pic_irq_request, env);

@@ -32,9 +32,11 @@
 #define LINUX_BOOT_FILENAME "linux_boot.bin"
 
 #define KERNEL_LOAD_ADDR     0x00100000
-#define INITRD_LOAD_ADDR     0x00600000
+#define MAX_INITRD_LOAD_ADDR 0x38000000
 #define KERNEL_PARAMS_ADDR   0x00090000
 #define KERNEL_CMDLINE_ADDR  0x00099000
+/* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
+#define ACPI_DATA_SIZE       0x10000
 
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
@@ -452,6 +454,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     char buf[1024];
     int ret, linux_boot, initrd_size, i;
     ram_addr_t ram_addr, vga_ram_addr, bios_offset, vga_bios_offset;
+    ram_addr_t initrd_offset;
     int bios_size, isa_bios_size, vga_bios_size;
     PCIBus *pci_bus;
     int piix3_devfn = -1;
@@ -599,8 +602,28 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         
         /* load initrd */
         initrd_size = 0;
+        initrd_offset = 0;
         if (initrd_filename) {
-            initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
+            initrd_size = get_image_size (initrd_filename);
+            if (initrd_size > 0) {
+                initrd_offset = (ram_size - initrd_size) & TARGET_PAGE_MASK;
+                /* Leave space for BIOS ACPI tables.  */
+                initrd_offset -= ACPI_DATA_SIZE;
+                /* Avoid the last 64k to avoid 2.2.x kernel bugs.  */
+                initrd_offset -= 0x10000;
+                if (initrd_offset > MAX_INITRD_LOAD_ADDR)
+                    initrd_offset = MAX_INITRD_LOAD_ADDR;
+
+                if (initrd_size > ram_size
+                    || initrd_offset < KERNEL_LOAD_ADDR + ret) {
+                    fprintf(stderr,
+                            "qemu: memory too small for initial ram disk '%s'\n",
+                            initrd_filename);
+                    exit(1);
+                }
+                initrd_size = load_image(initrd_filename,
+                                         phys_ram_base + initrd_offset);
+            }
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
                         initrd_filename);
@@ -608,7 +631,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
             }
         }
         if (initrd_size > 0) {
-            stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x218, INITRD_LOAD_ADDR);
+            stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x218, initrd_offset);
             stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x21c, initrd_size);
         }
         pstrcpy(phys_ram_base + KERNEL_CMDLINE_ADDR, 4096,

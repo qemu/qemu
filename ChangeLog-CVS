@@ -1,3 +1,43 @@
+2007-03-31 22:28  ths
+
+	* cpu-exec.c, target-i386/cpu.h, target-i386/helper.c: Generate
+	  double and triple faults, by Bernhard Kauer.
+
+2007-03-31 21:41  pbrook
+
+	* hw/pc.c: Large kernel initrd fix (initial patch by Daniel
+	  Jacobowitz).
+
+2007-03-31 21:29  ths
+
+	* linux-user/signal.c: Don't let sigaction handle SIGKILL/SIGSTOP,
+	  by Stuart Anderson.
+
+2007-03-31 21:10  ths
+
+	* qemu-binfmt-conf.sh: Update for binfmt_misc handler, by Stefan
+	  Weil.
+
+2007-03-31 20:59  ths
+
+	* linux-user/syscall.c: fcntl() remaining fix, by Stuart Anderson.
+
+2007-03-31 20:23  ths
+
+	* hw/: usb-hid.c, usb-msd.c: Fix usb hid and mass-storage protocol
+	  revision, by Juergen Keil.
+
+2007-03-31 18:54  ths
+
+	* vl.h, hw/mips_int.c, hw/mips_malta.c, hw/serial.c,
+	  target-mips/exec.h: Malta CBUS UART support.
+
+2007-03-31 14:57  j_mayer
+
+	* target-ppc/helper.c: Support for PowerPC BookE exception model.
+	  No need to requeue timer exceptions.	Fix nip saving for 64 bits
+	  PowerPC.
+
 2007-03-31 13:38  j_mayer
 
 	* hw/ppc.c: Embedded PowerPC timers support.

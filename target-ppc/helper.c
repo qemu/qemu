@@ -1340,11 +1340,12 @@ void ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
 void do_compute_hflags (CPUPPCState *env)
 {
     /* Compute current hflags */
-    env->hflags = (msr_pr << MSR_PR) | (msr_le << MSR_LE) |
-        (msr_fp << MSR_FP) | (msr_fe0 << MSR_FE0) | (msr_fe1 << MSR_FE1) |
-        (msr_vr << MSR_VR) | (msr_ap << MSR_AP) | (msr_sa << MSR_SA) |
-        (msr_se << MSR_SE) | (msr_be << MSR_BE);
+    env->hflags = (msr_cm << MSR_CM) | (msr_vr << MSR_VR) |
+        (msr_ap << MSR_AP) | (msr_sa << MSR_SA) | (msr_pr << MSR_PR) |
+        (msr_fp << MSR_FP) | (msr_fe0 << MSR_FE0) | (msr_se << MSR_SE) |
+        (msr_be << MSR_BE) | (msr_fe1 << MSR_FE1) | (msr_le << MSR_LE);
 #if defined (TARGET_PPC64)
+    /* No care here: PowerPC 64 MSR_SF means the same as MSR_CM for BookE */
     env->hflags |= (msr_sf << (MSR_SF - 32)) | (msr_hv << (MSR_HV - 32));
 #endif
 }
@@ -1374,14 +1375,16 @@ static void dump_syscall(CPUState *env)
 
 void do_interrupt (CPUState *env)
 {
-    target_ulong msr, *srr_0, *srr_1;
-    int excp;
+    target_ulong msr, *srr_0, *srr_1, *asrr_0, *asrr_1;
+    int excp, idx;
 
     excp = env->exception_index;
     msr = do_load_msr(env);
     /* The default is to use SRR0 & SRR1 to save the exception context */
     srr_0 = &env->spr[SPR_SRR0];
     srr_1 = &env->spr[SPR_SRR1];
+    asrr_0 = NULL;
+    asrr_1 = NULL;
 #if defined (DEBUG_EXCEPTIONS)
     if ((excp == EXCP_PROGRAM || excp == EXCP_DSI) && msr_pr == 1) {
         if (loglevel != 0) {
@@ -1397,26 +1400,44 @@ void do_interrupt (CPUState *env)
                 env->nip, excp, env->error_code);
     }
     msr_pow = 0;
+    idx = -1;
     /* Generate informations in save/restore registers */
     switch (excp) {
     /* Generic PowerPC exceptions */
     case EXCP_RESET: /* 0x0100 */
-        if (PPC_EXCP(env) != PPC_FLAGS_EXCP_40x) {
+        switch (PPC_EXCP(env)) {
+        case PPC_FLAGS_EXCP_40x:
+            srr_0 = &env->spr[SPR_40x_SRR2];
+            srr_1 = &env->spr[SPR_40x_SRR3];
+            break;
+        case PPC_FLAGS_EXCP_BOOKE:
+            idx = 0;
+            srr_0 = &env->spr[SPR_BOOKE_CSRR0];
+            srr_1 = &env->spr[SPR_BOOKE_CSRR1];
+            break;
+        default:
             if (msr_ip)
                 excp += 0xFFC00;
             excp |= 0xFFC00000;
-        } else {
-            srr_0 = &env->spr[SPR_40x_SRR2];
-            srr_1 = &env->spr[SPR_40x_SRR3];
+            break;
         }
         goto store_next;
     case EXCP_MACHINE_CHECK: /* 0x0200 */
-        if (msr_me == 0) {
-            cpu_abort(env, "Machine check exception while not allowed\n");
-        }
-        if (unlikely(PPC_EXCP(env) == PPC_FLAGS_EXCP_40x)) {
+        switch (PPC_EXCP(env)) {
+        case PPC_FLAGS_EXCP_40x:
             srr_0 = &env->spr[SPR_40x_SRR2];
             srr_1 = &env->spr[SPR_40x_SRR3];
+            break;
+        case PPC_FLAGS_EXCP_BOOKE:
+            idx = 1;
+            srr_0 = &env->spr[SPR_BOOKE_MCSRR0];
+            srr_1 = &env->spr[SPR_BOOKE_MCSRR1];
+            asrr_0 = &env->spr[SPR_BOOKE_CSRR0];
+            asrr_1 = &env->spr[SPR_BOOKE_CSRR1];
+            msr_ce = 0;
+            break;
+        default:
+            break;
         }
         msr_me = 0;
         break;
@@ -1425,6 +1446,7 @@ void do_interrupt (CPUState *env)
         /* data location address has been stored
          * when the fault has been detected
          */
+        idx = 2;
         msr &= ~0xFFFF0000;
 #if defined (DEBUG_EXCEPTIONS)
         if (loglevel) {
@@ -1438,6 +1460,7 @@ void do_interrupt (CPUState *env)
         goto store_next;
     case EXCP_ISI: /* 0x0400 */
         /* Store exception cause */
+        idx = 3;
         msr &= ~0xFFFF0000;
         msr |= env->error_code;
 #if defined (DEBUG_EXCEPTIONS)
@@ -1448,20 +1471,12 @@ void do_interrupt (CPUState *env)
 #endif
         goto store_next;
     case EXCP_EXTERNAL: /* 0x0500 */
-        if (msr_ee == 0) {
-#if defined (DEBUG_EXCEPTIONS)
-            if (loglevel > 0) {
-                fprintf(logfile, "Skipping hardware interrupt\n");
-            }
-#endif
-            /* Requeue it */
-            env->interrupt_request |= CPU_INTERRUPT_HARD;
-            return;
-        }
+        idx = 4;
         goto store_next;
     case EXCP_ALIGN: /* 0x0600 */
         if (likely(PPC_EXCP(env) != PPC_FLAGS_EXCP_601)) {
             /* Store exception cause */
+            idx = 5;
             /* Get rS/rD and rA from faulting opcode */
             env->spr[SPR_DSISR] |=
                 (ldl_code((env->nip - 4)) & 0x03FF0000) >> 16;
@@ -1476,6 +1491,7 @@ void do_interrupt (CPUState *env)
         }
         goto store_current;
     case EXCP_PROGRAM: /* 0x0700 */
+        idx = 6;
         msr &= ~0xFFFF0000;
         switch (env->error_code & ~0xF) {
         case EXCP_FP:
@@ -1501,6 +1517,7 @@ void do_interrupt (CPUState *env)
             msr |= 0x00040000;
             break;
         case EXCP_TRAP:
+            idx = 15;
             msr |= 0x00020000;
             break;
         default:
@@ -1510,18 +1527,13 @@ void do_interrupt (CPUState *env)
         msr |= 0x00010000;
         goto store_current;
     case EXCP_NO_FP: /* 0x0800 */
+        idx = 7;
         msr &= ~0xFFFF0000;
         goto store_current;
     case EXCP_DECR:
-        if (msr_ee == 0) {
-#if 1
-            /* Requeue it */
-            env->interrupt_request |= CPU_INTERRUPT_TIMER;
-#endif
-            return;
-        }
         goto store_next;
     case EXCP_SYSCALL: /* 0x0C00 */
+        idx = 8;
         /* NOTE: this is a temporary hack to support graphics OSI
            calls from the MOL driver */
         if (env->gpr[3] == 0x113724fa && env->gpr[4] == 0x77810f9b &&
@@ -1557,13 +1569,6 @@ void do_interrupt (CPUState *env)
                   "Instruction segment exception is not implemented yet !\n");
         goto store_next;
     case EXCP_HDECR: /* 0x0980 */
-        if (msr_ee == 0) {
-#if 1
-            /* Requeue it */
-            env->interrupt_request |= CPU_INTERRUPT_TIMER;
-#endif
-            return;
-        }
         /* XXX: TODO */
         cpu_abort(env, "Hypervisor decrementer exception is not implemented "
                   "yet !\n");
@@ -1581,6 +1586,7 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x0F20:
+        idx = 9;
         switch (PPC_EXCP(env)) {
         case PPC_FLAGS_EXCP_40x:
             /* APU unavailable on 405 */
@@ -1600,11 +1606,13 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1000:
+        idx = 10;
         switch (PPC_EXCP(env)) {
         case PPC_FLAGS_EXCP_40x:
             /* PIT on 4xx */
-            /* XXX: TODO */
-            cpu_abort(env, "40x PIT exception is not implemented yet !\n");
+            msr &= ~0xFFFF0000;
+            if (loglevel != 0)
+                fprintf(logfile, "PIT exception\n");
             goto store_next;
         case PPC_FLAGS_EXCP_602:
         case PPC_FLAGS_EXCP_603:
@@ -1619,11 +1627,13 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1010:
+        idx = 11;
         switch (PPC_EXCP(env)) {
         case PPC_FLAGS_EXCP_40x:
             /* FIT on 4xx */
-            /* XXX: TODO */
-            cpu_abort(env, "40x FIT exception is not implemented yet !\n");
+            msr &= ~0xFFFF0000;
+            if (loglevel != 0)
+                fprintf(logfile, "FIT exception\n");
             goto store_next;
         default:
             cpu_abort(env, "Invalid exception 0x1010 !\n");
@@ -1631,19 +1641,25 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1020:
+        idx = 12;
         switch (PPC_EXCP(env)) {
         case PPC_FLAGS_EXCP_40x:
             /* Watchdog on 4xx */
-            /* XXX: TODO */
-            cpu_abort(env,
-                      "40x watchdog exception is not implemented yet !\n");
+            msr &= ~0xFFFF0000;
+            if (loglevel != 0)
+                fprintf(logfile, "WDT exception\n");
             goto store_next;
+        case PPC_FLAGS_EXCP_BOOKE:
+            srr_0 = &env->spr[SPR_BOOKE_CSRR0];
+            srr_1 = &env->spr[SPR_BOOKE_CSRR1];
+            break;
         default:
             cpu_abort(env, "Invalid exception 0x1020 !\n");
             break;
         }
         return;
     case 0x1100:
+        idx = 13;
         switch (PPC_EXCP(env)) {
         case PPC_FLAGS_EXCP_40x:
             /* DTLBMISS on 4xx */
@@ -1662,6 +1678,7 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1200:
+        idx = 14;
         switch (PPC_EXCP(env)) {
         case PPC_FLAGS_EXCP_40x:
             /* ITLBMISS on 4xx */
@@ -1838,6 +1855,10 @@ void do_interrupt (CPUState *env)
             cpu_abort(env,
                       "601 run mode exception is not implemented yet !\n");
             goto store_next;
+        case PPC_FLAGS_EXCP_BOOKE:
+            srr_0 = &env->spr[SPR_BOOKE_CSRR0];
+            srr_1 = &env->spr[SPR_BOOKE_CSRR1];
+            break;
         default:
             cpu_abort(env, "Invalid exception 0x1800 !\n");
             break;
@@ -1852,15 +1873,19 @@ void do_interrupt (CPUState *env)
         return;
     store_current:
         /* save current instruction location */
-        *srr_0 = (env->nip - 4) & 0xFFFFFFFFULL;
+        *srr_0 = env->nip - 4;
         break;
     store_next:
         /* save next instruction location */
-        *srr_0 = env->nip & 0xFFFFFFFFULL;
+        *srr_0 = env->nip;
         break;
     }
     /* Save msr */
     *srr_1 = msr;
+    if (asrr_0 != NULL)
+        *asrr_0 = *srr_0;
+    if (asrr_1 != NULL)
+        *asrr_1 = *srr_1;
     /* If we disactivated any translation, flush TLBs */
     if (msr_ir || msr_dr) {
         tlb_flush(env, 1);
@@ -1877,10 +1902,28 @@ void do_interrupt (CPUState *env)
     msr_dr = 0;
     msr_ri = 0;
     msr_le = msr_ile;
-    msr_sf = msr_isf;
+    if (PPC_EXCP(env) == PPC_FLAGS_EXCP_BOOKE) {
+        msr_cm = msr_icm;
+        if (idx == -1 || (idx >= 16 && idx < 32)) {
+            cpu_abort(env, "Invalid exception index for excp %d %08x idx %d\n",
+                      excp, excp, idx);
+        }
+#if defined(TARGET_PPC64)
+        if (msr_cm)
+            env->nip = (uint64_t)env->spr[SPR_BOOKE_IVPR];
+        else
+#endif
+            env->nip = (uint32_t)env->spr[SPR_BOOKE_IVPR];
+        if (idx < 16)
+            env->nip |= env->spr[SPR_BOOKE_IVOR0 + idx];
+        else if (idx < 38)
+            env->nip |= env->spr[SPR_BOOKE_IVOR32 + idx - 32];
+    } else {
+        msr_sf = msr_isf;
+        env->nip = excp;
+    }
     do_compute_hflags(env);
     /* Jump to handler */
-    env->nip = excp;
     env->exception_index = EXCP_NONE;
 }
 

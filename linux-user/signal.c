@@ -423,7 +423,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     struct sigaction act1;
     int host_sig;
 
-    if (sig < 1 || sig > TARGET_NSIG)
+    if (sig < 1 || sig > TARGET_NSIG || sig == SIGKILL || sig == SIGSTOP)
         return -EINVAL;
     k = &sigact_table[sig - 1];
 #if defined(DEBUG_SIGNAL)
