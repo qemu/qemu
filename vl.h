@@ -859,11 +859,10 @@ enum {
     OPENPIC_EVT_DEBUG,   /* Inconditional debug event */
     OPENPIC_EVT_RESET,   /* Core reset event          */
 };
-struct CPUPPCState;
 void openpic_set_irq(void *opaque, int n_IRQ, int level);
 openpic_t *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
                          int *pmem_index, int nb_cpus,
-                         struct CPUPPCState **envp);
+                         struct CPUState **envp);
 
 /* heathrow_pic.c */
 typedef struct HeathrowPICS HeathrowPICS;
