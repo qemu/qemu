@@ -1193,6 +1193,40 @@ void do_interrupt(int intno, int is_int, int error_code,
 }
 
 /*
+ * Check nested exceptions and change to double or triple fault if
+ * needed. It should only be called, if this is not an interrupt.
+ * Returns the new exception number.
+ */
+int check_exception(int intno, int *error_code)
+{
+    char first_contributory = env->old_exception == 0 ||
+                              (env->old_exception >= 10 &&
+                               env->old_exception <= 13);
+    char second_contributory = intno == 0 ||
+                               (intno >= 10 && intno <= 13);
+
+    if (loglevel & CPU_LOG_INT)
+        fprintf(logfile, "check_exception old: %x new %x\n",
+                env->old_exception, intno);
+
+    if (env->old_exception == EXCP08_DBLE)
+        cpu_abort(env, "triple fault");
+
+    if ((first_contributory && second_contributory)
+        || (env->old_exception == EXCP0E_PAGE &&
+            (second_contributory || (intno == EXCP0E_PAGE)))) {
+        intno = EXCP08_DBLE;
+        *error_code = 0;
+    }
+
+    if (second_contributory || (intno == EXCP0E_PAGE) ||
+        (intno == EXCP08_DBLE))
+        env->old_exception = intno;
+
+    return intno;
+}
+
+/*
  * Signal an interruption. It is executed in the main CPU loop.
  * is_int is TRUE if coming from the int instruction. next_eip is the
  * EIP value AFTER the interrupt instruction. It is only relevant if
@@ -1201,6 +1235,9 @@ void do_interrupt(int intno, int is_int, int error_code,
 void raise_interrupt(int intno, int is_int, int error_code, 
                      int next_eip_addend)
 {
+    if (!is_int)
+        intno = check_exception(intno, &error_code);
+
     env->exception_index = intno;
     env->error_code = error_code;
     env->exception_is_int = is_int;
@@ -1211,6 +1248,8 @@ void raise_interrupt(int intno, int is_int, int error_code,
 /* same as raise_exception_err, but do not restore global registers */
 static void raise_exception_err_norestore(int exception_index, int error_code)
 {
+    exception_index = check_exception(exception_index, &error_code);
+
     env->exception_index = exception_index;
     env->error_code = error_code;
     env->exception_is_int = 0;

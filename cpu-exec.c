@@ -360,6 +360,8 @@ int cpu_exec(CPUState *env1)
                                  env->exception_is_int, 
                                  env->error_code, 
                                  env->exception_next_eip, 0);
+                    /* successfully delivered */
+                    env->old_exception = -1;
 #elif defined(TARGET_PPC)
                     do_interrupt(env);
 #elif defined(TARGET_MIPS)

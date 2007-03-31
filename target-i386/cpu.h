@@ -515,6 +515,7 @@ typedef struct CPUX86State {
     uint32_t smbase;
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
+    int old_exception;  /* exception in flight */
 
     CPU_COMMON
 
