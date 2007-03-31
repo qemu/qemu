@@ -2365,65 +2365,139 @@ void do_load_6xx_tlb (int is_code)
                      way, is_code, CMP, RPN);
 }
 
+static target_ulong booke_tlb_to_page_size (int size)
+{
+    return 1024 << (2 * size);
+}
+
+static int booke_page_size_to_tlb (target_ulong page_size)
+{
+    int size;
+
+    switch (page_size) {
+    case 0x00000400UL:
+        size = 0x0;
+        break;
+    case 0x00001000UL:
+        size = 0x1;
+        break;
+    case 0x00004000UL:
+        size = 0x2;
+        break;
+    case 0x00010000UL:
+        size = 0x3;
+        break;
+    case 0x00040000UL:
+        size = 0x4;
+        break;
+    case 0x00100000UL:
+        size = 0x5;
+        break;
+    case 0x00400000UL:
+        size = 0x6;
+        break;
+    case 0x01000000UL:
+        size = 0x7;
+        break;
+    case 0x04000000UL:
+        size = 0x8;
+        break;
+    case 0x10000000UL:
+        size = 0x9;
+        break;
+    case 0x40000000UL:
+        size = 0xA;
+        break;
+#if defined (TARGET_PPC64)
+    case 0x000100000000ULL:
+        size = 0xB;
+        break;
+    case 0x000400000000ULL:
+        size = 0xC;
+        break;
+    case 0x001000000000ULL:
+        size = 0xD;
+        break;
+    case 0x004000000000ULL:
+        size = 0xE;
+        break;
+    case 0x010000000000ULL:
+        size = 0xF;
+        break;
+#endif
+    default:
+        size = -1;
+        break;
+    }
+
+    return size;
+}
+
 /* Helpers for 4xx TLB management */
 void do_4xx_tlbia (void)
 {
-#if 0
-    ppc_tlb_t *tlb;
-    target_ulong page, end;
+    ppcemb_tlb_t *tlb;
     int i;
 
     for (i = 0; i < 64; i++) {
-        tlb = &env->tlb[i];
+        tlb = &env->tlb[i].tlbe;
         if (tlb->prot & PAGE_VALID) {
+#if 0
             end = tlb->EPN + tlb->size;
             for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
                 tlb_flush_page(env, page);
+#endif
             tlb->prot &= ~PAGE_VALID;
         }
     }
-#endif
+    tlb_flush(env, 1);
 }
 
 void do_4xx_tlbre_lo (void)
 {
-#if 0
-    ppc_tlb_t *tlb;
+    ppcemb_tlb_t *tlb;
+    int size;
 
     T0 &= 0x3F;
-    tlb = &env->tlb[T0];
-    T0 = tlb->stor[0];
-    env->spr[SPR_40x_PID] = tlb->pid;
-#endif
+    tlb = &env->tlb[T0].tlbe;
+    T0 = tlb->EPN;
+    if (tlb->prot & PAGE_VALID)
+        T0 |= 0x400;
+    size = booke_page_size_to_tlb(tlb->size);
+    if (size < 0 || size > 0x7)
+        size = 1;
+    T0 |= size << 7;
+    env->spr[SPR_40x_PID] = tlb->PID;
 }
 
 void do_4xx_tlbre_hi (void)
 {
-#if 0
-    ppc_tlb_t *tlb;
+    ppcemb_tlb_t *tlb;
 
     T0 &= 0x3F;
-    tlb = &env->tlb[T0];
-    T0 = tlb->stor[1];
-#endif
+    tlb = &env->tlb[T0].tlbe;
+    T0 = tlb->RPN;
+    if (tlb->prot & PAGE_EXEC)
+        T0 |= 0x200;
+    if (tlb->prot & PAGE_WRITE)
+        T0 |= 0x100;
 }
 
 static int tlb_4xx_search (target_ulong virtual)
 {
-#if 0
-    ppc_tlb_t *tlb;
+    ppcemb_tlb_t *tlb;
     target_ulong base, mask;
     int i, ret;
 
     /* Default return value is no match */
     ret = -1;
     for (i = 0; i < 64; i++) {
-        tlb = &env->tlb[i];
+        tlb = &env->tlb[i].tlbe;
         /* Check TLB validity */
         if (!(tlb->prot & PAGE_VALID))
             continue;
         /* Check TLB PID vs current PID */
-        if (tlb->pid != 0 && tlb->pid != env->spr[SPR_40x_PID])
+        if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
             continue;
         /* Check TLB address vs virtual address */
         base = tlb->EPN;
@@ -2435,9 +2509,6 @@ static int tlb_4xx_search (target_ulong virtual)
     }
 
     return ret;
-#else
-    return -1;
-#endif
 }
 
 void do_4xx_tlbsx (void)
@@ -2457,47 +2528,44 @@ void do_4xx_tlbsx_ (void)
 
 void do_4xx_tlbwe_lo (void)
 {
-#if 0
-    ppc_tlb_t *tlb;
+    ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
     T0 &= 0x3F;
-    tlb = &env->tlb[T0];
+    tlb = &env->tlb[T0].tlbe;
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
-    tlb->size = 1024 << (2 * ((T1 >> 7) & 0x7));
+    tlb->size = booke_tlb_to_page_size((T1 >> 7) & 0x7);
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
     if (T1 & 0x400)
         tlb->prot |= PAGE_VALID;
     else
         tlb->prot &= ~PAGE_VALID;
-    tlb->pid = env->spr[SPR_BOOKE_PID]; /* PID */
+    tlb->PID = env->spr[SPR_BOOKE_PID]; /* PID */
+    tlb->attr = T1 & 0xFF;
     /* Invalidate new TLB (if valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
-#endif
 }
 
 void do_4xx_tlbwe_hi (void)
 {
-#if 0
-    ppc_tlb_t *tlb;
+    ppcemb_tlb_t *tlb;
 
     T0 &= 0x3F;
-    tlb = &env->tlb[T0];
+    tlb = &env->tlb[T0].tlbe;
     tlb->RPN = T1 & 0xFFFFFC00;
     tlb->prot = PAGE_READ;
     if (T1 & 0x200)
         tlb->prot |= PAGE_EXEC;
     if (T1 & 0x100)
         tlb->prot |= PAGE_WRITE;
-#endif
 }
 #endif /* !CONFIG_USER_ONLY */
