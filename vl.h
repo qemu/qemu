@@ -1035,7 +1035,14 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
                          int base, int irq, CharDriverState *chr);
 SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
                              target_ulong base, int it_shift,
-                             int irq, CharDriverState *chr);
+                             int irq, CharDriverState *chr,
+                             int ioregister);
+uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr);
+void serial_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value);
+uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr);
+void serial_mm_writew (void *opaque, target_phys_addr_t addr, uint32_t value);
+uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr);
+void serial_mm_writel (void *opaque, target_phys_addr_t addr, uint32_t value);
 
 /* parallel.c */
 
