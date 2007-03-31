@@ -267,26 +267,224 @@ uint32_t cpu_ppc601_load_rtcl (CPUState *env)
     return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
 }
 
+/*****************************************************************************/
 /* Embedded PowerPC timers */
-target_ulong load_40x_pit (CPUState *env)
+
+/* PIT, FIT & WDT */
+typedef struct ppcemb_timer_t ppcemb_timer_t;
+struct ppcemb_timer_t {
+    uint64_t pit_reload;  /* PIT auto-reload value        */
+    uint64_t fit_next;    /* Tick for next FIT interrupt  */
+    struct QEMUTimer *fit_timer;
+    uint64_t wdt_next;    /* Tick for next WDT interrupt  */
+    struct QEMUTimer *wdt_timer;
+};
+   
+/* Fixed interval timer */
+static void cpu_4xx_fit_cb (void *opaque)
 {
-    /* XXX: TODO */
-    return 0;
+    CPUState *env;
+    ppc_tb_t *tb_env;
+    ppcemb_timer_t *ppcemb_timer;
+    uint64_t now, next;
+
+    env = opaque;
+    tb_env = env->tb_env;
+    ppcemb_timer = tb_env->opaque;
+    now = qemu_get_clock(vm_clock);
+    switch ((env->spr[SPR_40x_TCR] >> 24) & 0x3) {
+    case 0:
+        next = 1 << 9;
+        break;
+    case 1:
+        next = 1 << 13;
+        break;
+    case 2:
+        next = 1 << 17;
+        break;
+    case 3:
+        next = 1 << 21;
+        break;
+    default:
+        /* Cannot occur, but makes gcc happy */
+        return;
+    }
+    next = now + muldiv64(next, ticks_per_sec, tb_env->tb_freq);
+    if (next == now)
+        next++;
+    qemu_mod_timer(ppcemb_timer->fit_timer, next);
+    tb_env->decr_next = next;
+    env->spr[SPR_40x_TSR] |= 1 << 26;
+    if ((env->spr[SPR_40x_TCR] >> 23) & 0x1)
+        ppc_set_irq(env, PPC_INTERRUPT_FIT, 1);
+    if (loglevel) {
+        fprintf(logfile, "%s: ir %d TCR %08x TSR %08x\n", __func__,
+                (env->spr[SPR_40x_TCR] >> 23) & 0x1,
+                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
+    }
+}
+
+/* Programmable interval timer */
+static void cpu_4xx_pit_cb (void *opaque)
+{
+    CPUState *env;
+    ppc_tb_t *tb_env;
+    ppcemb_timer_t *ppcemb_timer;
+    uint64_t now, next;
+
+    env = opaque;
+    tb_env = env->tb_env;
+    ppcemb_timer = tb_env->opaque;
+    now = qemu_get_clock(vm_clock);
+    if ((env->spr[SPR_40x_TCR] >> 22) & 0x1) {
+        /* Auto reload */
+        next = now + muldiv64(ppcemb_timer->pit_reload,
+                              ticks_per_sec, tb_env->tb_freq);
+        if (next == now)
+            next++;
+        qemu_mod_timer(tb_env->decr_timer, next);
+        tb_env->decr_next = next;
+    }
+    env->spr[SPR_40x_TSR] |= 1 << 27;
+    if ((env->spr[SPR_40x_TCR] >> 26) & 0x1)
+        ppc_set_irq(env, PPC_INTERRUPT_PIT, 1);
+    if (loglevel) {
+        fprintf(logfile, "%s: ar %d ir %d TCR %08x TSR %08x %08lx\n", __func__,
+                (env->spr[SPR_40x_TCR] >> 22) & 0x1,
+                (env->spr[SPR_40x_TCR] >> 26) & 0x1,
+                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
+                ppcemb_timer->pit_reload);
+    }
+}
+
+/* Watchdog timer */
+static void cpu_4xx_wdt_cb (void *opaque)
+{
+    CPUState *env;
+    ppc_tb_t *tb_env;
+    ppcemb_timer_t *ppcemb_timer;
+    uint64_t now, next;
+
+    env = opaque;
+    tb_env = env->tb_env;
+    ppcemb_timer = tb_env->opaque;
+    now = qemu_get_clock(vm_clock);
+    switch ((env->spr[SPR_40x_TCR] >> 30) & 0x3) {
+    case 0:
+        next = 1 << 17;
+        break;
+    case 1:
+        next = 1 << 21;
+        break;
+    case 2:
+        next = 1 << 25;
+        break;
+    case 3:
+        next = 1 << 29;
+        break;
+    default:
+        /* Cannot occur, but makes gcc happy */
+        return;
+    }
+    next = now + muldiv64(next, ticks_per_sec, tb_env->tb_freq);
+    if (next == now)
+        next++;
+    if (loglevel) {
+        fprintf(logfile, "%s: TCR %08x TSR %08x\n", __func__,
+                env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
+    }
+    switch ((env->spr[SPR_40x_TSR] >> 30) & 0x3) {
+    case 0x0:
+    case 0x1:
+        qemu_mod_timer(ppcemb_timer->wdt_timer, next);
+        ppcemb_timer->wdt_next = next;
+        env->spr[SPR_40x_TSR] |= 1 << 31;
+        break;
+    case 0x2:
+        qemu_mod_timer(ppcemb_timer->wdt_timer, next);
+        ppcemb_timer->wdt_next = next;
+        env->spr[SPR_40x_TSR] |= 1 << 30;
+        if ((env->spr[SPR_40x_TCR] >> 27) & 0x1)
+            ppc_set_irq(env, PPC_INTERRUPT_WDT, 1);
+        break;
+    case 0x3:
+        env->spr[SPR_40x_TSR] &= ~0x30000000;
+        env->spr[SPR_40x_TSR] |= env->spr[SPR_40x_TCR] & 0x30000000;
+        switch ((env->spr[SPR_40x_TCR] >> 28) & 0x3) {
+        case 0x0:
+            /* No reset */
+            break;
+        case 0x1: /* Core reset */
+        case 0x2: /* Chip reset */
+        case 0x3: /* System reset */
+            qemu_system_reset_request();
+            return;
+        }
+    }
 }
 
 void store_40x_pit (CPUState *env, target_ulong val)
 {
-    /* XXX: TODO */
+    ppc_tb_t *tb_env;
+    ppcemb_timer_t *ppcemb_timer;
+    uint64_t now, next;
+
+    tb_env = env->tb_env;
+    ppcemb_timer = tb_env->opaque;
+    if (loglevel)
+        fprintf(logfile, "%s %p %p\n", __func__, tb_env, ppcemb_timer);
+    ppcemb_timer->pit_reload = val;
+    if (val == 0) {
+        /* Stop PIT */
+        if (loglevel)
+            fprintf(logfile, "%s: stop PIT\n", __func__);
+        qemu_del_timer(tb_env->decr_timer);
+    } else {
+        if (loglevel)
+            fprintf(logfile, "%s: start PIT 0x%08x\n", __func__, val);
+        now = qemu_get_clock(vm_clock);
+        next = now + muldiv64(val, ticks_per_sec, tb_env->tb_freq);
+         if (next == now)
+            next++;
+        qemu_mod_timer(tb_env->decr_timer, next);
+        tb_env->decr_next = next;
+    }
 }
 
-void store_booke_tcr (CPUState *env, target_ulong val)
+target_ulong load_40x_pit (CPUState *env)
 {
-    /* XXX: TODO */
+    return cpu_ppc_load_decr(env);
 }
 
 void store_booke_tsr (CPUState *env, target_ulong val)
 {
-    /* XXX: TODO */
+    env->spr[SPR_40x_TSR] = val & 0xFC000000;
+}
+
+void store_booke_tcr (CPUState *env, target_ulong val)
+{
+    /* We don't update timers now. Maybe we should... */
+    env->spr[SPR_40x_TCR] = val & 0xFF800000;
+}
+
+void ppc_emb_timers_init (CPUState *env)
+{
+    ppc_tb_t *tb_env;
+    ppcemb_timer_t *ppcemb_timer;
+
+    tb_env = env->tb_env;
+    ppcemb_timer = qemu_mallocz(sizeof(ppcemb_timer_t));
+    tb_env->opaque = ppcemb_timer;
+    if (loglevel)
+        fprintf(logfile, "%s %p %p\n", __func__, tb_env, ppcemb_timer);
+    if (ppcemb_timer != NULL) {
+        /* We use decr timer for PIT */
+        tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_4xx_pit_cb, env);
+        ppcemb_timer->fit_timer =
+            qemu_new_timer(vm_clock, &cpu_4xx_fit_cb, env);
+        ppcemb_timer->wdt_timer =
+            qemu_new_timer(vm_clock, &cpu_4xx_wdt_cb, env);
+    }
 }
 
 #if 0

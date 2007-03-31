@@ -1,3 +1,22 @@
+2007-03-31 13:38  j_mayer
+
+	* hw/ppc.c: Embedded PowerPC timers support.
+
+2007-03-31 13:33  j_mayer
+
+	* target-ppc/: helper.c, op_helper.c: Merge PowerPC 405 MMU model.
+
+2007-03-31 13:10  j_mayer
+
+	* target-ppc/: cpu.h, helper.c: As embedded PowerPC TLB model is
+	  very different from PowerPC 6xx ones, define ppc_tlb_t as an
+	  union of the two.
+
+2007-03-31 11:59  j_mayer
+
+	* vl.h, hw/openpic.c: Better fix for OpenPIC: should not depend on
+	  PowerPC.
+
 2007-03-30 21:20  ths
 
 	* kqemu.c: Switch include for Solaris to avoid namespace issues. By

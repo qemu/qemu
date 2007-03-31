@@ -965,7 +965,7 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 }
 
 openpic_t *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
-                         int *pmem_index, int nb_cpus, CPUPPCState **envp)
+                         int *pmem_index, int nb_cpus, CPUState **envp)
 {
     openpic_t *opp;
     uint8_t *pci_conf;

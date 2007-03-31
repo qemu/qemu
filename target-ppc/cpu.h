@@ -528,7 +528,7 @@ typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
 typedef struct ppc_avr_t ppc_avr_t;
-typedef struct ppc_tlb_t ppc_tlb_t;
+typedef union ppc_tlb_t ppc_tlb_t;
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {
@@ -547,12 +547,26 @@ struct ppc_avr_t {
 };
 
 /* Software TLB cache */
-struct ppc_tlb_t {
+typedef struct ppc6xx_tlb_t ppc6xx_tlb_t;
+struct ppc6xx_tlb_t {
     target_ulong pte0;
     target_ulong pte1;
     target_ulong EPN;
+};
+
+typedef struct ppcemb_tlb_t ppcemb_tlb_t;
+struct ppcemb_tlb_t {
+    target_ulong RPN;
+    target_ulong EPN;
     target_ulong PID;
     int size;
+    int prot;
+    int attr; /* Storage attributes */
+};
+
+union ppc_tlb_t {
+    ppc6xx_tlb_t tlb6;
+    ppcemb_tlb_t tlbe;
 };
 
 /*****************************************************************************/
@@ -729,7 +743,7 @@ struct CPUPPCState {
     int nb_pids;     /* Number of available PID registers                    */
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* Callbacks for specific checks on some implementations */
-    int (*tlb_check_more)(CPUPPCState *env, struct ppc_tlb_t *tlb, int *prot,
+    int (*tlb_check_more)(CPUPPCState *env, ppc_tlb_t *tlb, int *prot,
                           target_ulong vaddr, int rw, int acc_type,
                           int is_user);
     /* 403 dedicated access protection registers */
