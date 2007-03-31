@@ -186,7 +186,7 @@ static int ppc6xx_tlb_getnum (CPUState *env, target_ulong eaddr,
 
 void ppc6xx_tlb_invalidate_all (CPUState *env)
 {
-    ppc_tlb_t *tlb;
+    ppc6xx_tlb_t *tlb;
     int nr, max;
 
 #if defined (DEBUG_SOFTWARE_TLB) && 0
@@ -199,7 +199,7 @@ void ppc6xx_tlb_invalidate_all (CPUState *env)
     if (env->id_tlbs == 1)
         max *= 2;
     for (nr = 0; nr < max; nr++) {
-        tlb = &env->tlb[nr];
+        tlb = &env->tlb[nr].tlb6;
 #if !defined(FLUSH_ALL_TLBS)
         tlb_flush_page(env, tlb->EPN);
 #endif
@@ -214,14 +214,14 @@ static inline void __ppc6xx_tlb_invalidate_virt (CPUState *env,
                                                  target_ulong eaddr,
                                                  int is_code, int match_epn)
 {
-    ppc_tlb_t *tlb;
+    ppc6xx_tlb_t *tlb;
     int way, nr;
 
 #if !defined(FLUSH_ALL_TLBS)
     /* Invalidate ITLB + DTLB, all ways */
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way, is_code);
-        tlb = &env->tlb[nr];
+        tlb = &env->tlb[nr].tlb6;
         if (pte_is_valid(tlb->pte0) && (match_epn == 0 || eaddr == tlb->EPN)) {
 #if defined (DEBUG_SOFTWARE_TLB)
             if (loglevel != 0) {
@@ -248,11 +248,11 @@ void ppc6xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
 void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
                        target_ulong pte0, target_ulong pte1)
 {
-    ppc_tlb_t *tlb;
+    ppc6xx_tlb_t *tlb;
     int nr;
 
     nr = ppc6xx_tlb_getnum(env, EPN, way, is_code);
-    tlb = &env->tlb[nr];
+    tlb = &env->tlb[nr].tlb6;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
         fprintf(logfile, "Set TLB %d/%d EPN " ADDRX " PTE0 " ADDRX 
@@ -264,8 +264,6 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
     tlb->pte0 = pte0;
     tlb->pte1 = pte1;
     tlb->EPN = EPN;
-    tlb->PID = 0;
-    tlb->size = 1;
     /* Store last way for LRU mechanism */
     env->last_way = way;
 }
@@ -273,7 +271,7 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
 static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
                              target_ulong eaddr, int rw, int access_type)
 {
-    ppc_tlb_t *tlb;
+    ppc6xx_tlb_t *tlb;
     int nr, best, way;
     int ret;
 
@@ -282,7 +280,7 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way,
                                access_type == ACCESS_CODE ? 1 : 0);
-        tlb = &env->tlb[nr];
+        tlb = &env->tlb[nr].tlb6;
         /* This test "emulates" the PTE index match for hardware TLBs */
         if ((eaddr & TARGET_PAGE_MASK) != tlb->EPN) {
 #if defined (DEBUG_SOFTWARE_TLB)
@@ -339,7 +337,7 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
         }
 #endif
         /* Update page flags */
-        pte_update_flags(ctx, &env->tlb[best].pte1, ret, rw);
+        pte_update_flags(ctx, &env->tlb[best].tlb6.pte1, ret, rw);
     }
 
     return ret;
