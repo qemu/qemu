@@ -1,3 +1,17 @@
+2007-04-01 14:36  ths
+
+	* hw/mips_malta.c, hw/mips_r4k.c, target-mips/exec.h,
+	  target-mips/mips-defs.h, target-mips/op.c,
+	  target-mips/op_helper.c, target-mips/op_helper_mem.c,
+	  target-mips/op_mem.c, target-mips/translate.c,
+	  target-mips/translate_init.c: Actually enable 64bit
+	  configuration.
+
+2007-04-01 13:16  ths
+
+	* .cvsignore, Makefile, Makefile.target, configure,
+	  target-mips/op_helper.c: MIPS64 configurations.
+
 2007-03-31 22:28  ths
 
 	* cpu-exec.c, target-i386/cpu.h, target-i386/helper.c: Generate

@@ -79,7 +79,7 @@ void do_raise_exception_direct (uint32_t exception)
 #undef MEMSUFFIX
 #endif
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */
 void do_dsll (void)
@@ -161,7 +161,7 @@ void do_drotrv (void)
        T0 = T1;
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-#endif /* MIPS_HAS_MIPS64 */
+#endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -219,7 +219,7 @@ void do_msubu (void)
 }
 #endif
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void do_dmult (void)
 {
     /* XXX */
@@ -359,8 +359,6 @@ void do_mtc0_status_irqraise_debug(void)
 {
     fprintf(logfile, "Raise pending IRQs\n");
 }
-
-#include "softfloat.h"
 
 void fpu_handle_exception(void)
 {

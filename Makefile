@@ -146,6 +146,8 @@ tarbin:
 	$(bindir)/qemu-system-x86_64 \
 	$(bindir)/qemu-system-mips \
 	$(bindir)/qemu-system-mipsel \
+	$(bindir)/qemu-system-mips64 \
+	$(bindir)/qemu-system-mips64el \
 	$(bindir)/qemu-system-arm \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
