@@ -2057,6 +2057,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fork:
         ret = get_errno(do_fork(cpu_env, SIGCHLD, 0));
         break;
+#ifdef TARGET_NR_waitpid
     case TARGET_NR_waitpid:
         {
             int status;
@@ -2065,6 +2066,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 tput32(arg2, status);
         }
         break;
+#endif
     case TARGET_NR_creat:
         p = lock_user_string(arg1);
         ret = get_errno(creat(p, arg2));
@@ -2193,11 +2195,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 			unlock_user(p3, arg3, 0);
 			break;
 		}
+#ifdef TARGET_NR_umount
     case TARGET_NR_umount:
         p = lock_user_string(arg1);
         ret = get_errno(umount(p));
         unlock_user(p, arg1, 0);
         break;
+#endif
     case TARGET_NR_stime:
         {
             time_t host_time;
@@ -2217,6 +2221,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_pause:
         ret = get_errno(pause());
         break;
+#ifdef TARGET_NR_utime
     case TARGET_NR_utime:
         {
             struct utimbuf tbuf, *host_tbuf;
@@ -2235,6 +2240,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#endif
     case TARGET_NR_utimes:
         {
             struct timeval *tvp, tv[2];
@@ -2331,9 +2337,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_prof:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_signal
     case TARGET_NR_signal:
         goto unimplemented;
-
+#endif
     case TARGET_NR_acct:
         p = lock_user_string(arg1);
         ret = get_errno(acct(path(p)));
@@ -2391,6 +2398,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_setsid:
         ret = get_errno(setsid());
         break;
+#ifdef TARGET_NR_sigaction
     case TARGET_NR_sigaction:
         {
 	#if !defined(TARGET_MIPS)
@@ -2445,6 +2453,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	#endif
         }
         break;
+#endif
     case TARGET_NR_rt_sigaction:
         {
             struct target_sigaction *act;
@@ -2486,6 +2495,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = target_set;
         }
         break;
+#ifdef TARGET_NR_sigprocmask
     case TARGET_NR_sigprocmask:
         {
             int how = arg1;
@@ -2522,6 +2532,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif
     case TARGET_NR_rt_sigprocmask:
         {
             int how = arg1;
@@ -2558,6 +2569,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#ifdef TARGET_NR_sigpending
     case TARGET_NR_sigpending:
         {
             sigset_t set;
@@ -2569,6 +2581,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif
     case TARGET_NR_rt_sigpending:
         {
             sigset_t set;
@@ -2580,6 +2593,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#ifdef TARGET_NR_sigsuspend
     case TARGET_NR_sigsuspend:
         {
             sigset_t set;
@@ -2589,6 +2603,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(sigsuspend(&set));
         }
         break;
+#endif
     case TARGET_NR_rt_sigsuspend:
         {
             sigset_t set;
@@ -2630,10 +2645,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
         }
         break;
+#ifdef TARGET_NR_sigreturn
     case TARGET_NR_sigreturn:
         /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_sigreturn(cpu_env);
         break;
+#endif
     case TARGET_NR_rt_sigreturn:
         /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_rt_sigreturn(cpu_env);
@@ -2739,17 +2756,24 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#ifdef TARGET_NR_uselib
     case TARGET_NR_uselib:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_swapon
     case TARGET_NR_swapon:
         p = lock_user_string(arg1);
         ret = get_errno(swapon(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#endif
     case TARGET_NR_reboot:
         goto unimplemented;
+#ifdef TARGET_NR_readdir
     case TARGET_NR_readdir:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_mmap
     case TARGET_NR_mmap:
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_M68K)
         {
@@ -2774,6 +2798,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                                     arg6));
 #endif
         break;
+#endif
 #ifdef TARGET_NR_mmap2
     case TARGET_NR_mmap2:
 #if defined(TARGET_SPARC) || defined(TARGET_MIPS)
@@ -2793,25 +2818,37 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_mprotect:
         ret = get_errno(target_mprotect(arg1, arg2, arg3));
         break;
+#ifdef TARGET_NR_mremap
     case TARGET_NR_mremap:
         ret = get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
         break;
+#endif
         /* ??? msync/mlock/munlock are broken for softmmu.  */
+#ifdef TARGET_NR_msync
     case TARGET_NR_msync:
         ret = get_errno(msync(g2h(arg1), arg2, arg3));
         break;
+#endif
+#ifdef TARGET_NR_mlock
     case TARGET_NR_mlock:
         ret = get_errno(mlock(g2h(arg1), arg2));
         break;
+#endif
+#ifdef TARGET_NR_munlock
     case TARGET_NR_munlock:
         ret = get_errno(munlock(g2h(arg1), arg2));
         break;
+#endif
+#ifdef TARGET_NR_mlockall
     case TARGET_NR_mlockall:
         ret = get_errno(mlockall(arg1));
         break;
+#endif
+#ifdef TARGET_NR_munlockall
     case TARGET_NR_munlockall:
         ret = get_errno(munlockall());
         break;
+#endif
     case TARGET_NR_truncate:
         p = lock_user_string(arg1);
         ret = get_errno(truncate(p, arg2));
@@ -2889,10 +2926,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_ioperm:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_socketcall
     case TARGET_NR_socketcall:
         ret = do_socketcall(arg1, arg2);
         break;
-
+#endif
 #ifdef TARGET_NR_accept
     case TARGET_NR_accept:
         ret = do_accept(arg1, arg2, arg3);
@@ -3101,11 +3139,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#ifdef TARGET_NR_swapoff
     case TARGET_NR_swapoff:
         p = lock_user_string(arg1);
         ret = get_errno(swapoff(p));
         unlock_user(p, arg1, 0);
         break;
+#endif
     case TARGET_NR_sysinfo:
         {
             struct target_sysinfo *target_value;
@@ -3133,9 +3173,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#ifdef TARGET_NR_ipc
     case TARGET_NR_ipc:
 	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
 	break;
+#endif
     case TARGET_NR_fsync:
         ret = get_errno(fsync(arg1));
         break;
@@ -3184,10 +3226,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
     case TARGET_NR_adjtimex:
         goto unimplemented;
+#ifdef TARGET_NR_create_module
     case TARGET_NR_create_module:
+#endif
     case TARGET_NR_init_module:
     case TARGET_NR_delete_module:
+#ifdef TARGET_NR_get_kernel_syms
     case TARGET_NR_get_kernel_syms:
+#endif
         goto unimplemented;
     case TARGET_NR_quotactl:
         goto unimplemented;
@@ -3199,13 +3245,17 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_bdflush:
         goto unimplemented;
+#ifdef TARGET_NR_sysfs
     case TARGET_NR_sysfs:
         goto unimplemented;
+#endif
     case TARGET_NR_personality:
         ret = get_errno(personality(arg1));
         break;
+#ifdef TARGET_NR_afs_syscall
     case TARGET_NR_afs_syscall:
         goto unimplemented;
+#endif
     case TARGET_NR__llseek:
         {
 #if defined (__x86_64__)
@@ -3319,9 +3369,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
 #endif /* TARGET_NR_getdents64 */
+#ifdef TARGET_NR__newselect
     case TARGET_NR__newselect:
         ret = do_select(arg1, arg2, arg3, arg4, arg5);
         break;
+#endif
+#ifdef TARGET_NR_poll
     case TARGET_NR_poll:
         {
             struct target_pollfd *target_pfd;
@@ -3347,6 +3400,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(target_pfd, arg1, ret);
         }
         break;
+#endif
     case TARGET_NR_flock:
         /* NOTE: the flock constant seems to be the same for every
            Linux platform */
@@ -3448,10 +3502,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#ifdef TARGET_NR_query_module
     case TARGET_NR_query_module:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_nfsservctl
     case TARGET_NR_nfsservctl:
         goto unimplemented;
+#endif
     case TARGET_NR_prctl:
         switch (arg1)
             {
@@ -4004,8 +4062,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_gettid:
         ret = get_errno(gettid());
         break;
+#ifdef TARGET_NR_readahead
     case TARGET_NR_readahead:
         goto unimplemented;
+#endif
 #ifdef TARGET_NR_setxattr
     case TARGET_NR_setxattr:
     case TARGET_NR_lsetxattr:
