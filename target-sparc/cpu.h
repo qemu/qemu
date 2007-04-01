@@ -40,6 +40,7 @@
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
 #define TT_DIV_ZERO 0x2a
+#define TT_NCP_INSN 0x24
 #define TT_TRAP     0x80
 #else
 #define TT_TFAULT   0x08

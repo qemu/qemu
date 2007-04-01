@@ -1746,7 +1746,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_sra();
 		gen_movl_T0_reg(rd);
 #endif
-	    } else if (xop < 0x38) {
+            } else if (xop < 0x36) {
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
 		if (IS_IMM) {	/* immediate */
@@ -2162,6 +2162,14 @@ static void disas_sparc_insn(DisasContext * dc)
 			goto illegal_insn;
 		    }
 		}
+            } else if (xop == 0x36 || xop == 0x37) { /* CPop1 & CPop2,
+                                                        V9 impdep1 &
+                                                        impdep2 */
+#ifdef TARGET_SPARC64
+	        goto illegal_insn;
+#else
+	        goto ncp_insn;
+#endif
 #ifdef TARGET_SPARC64
 	    } else if (xop == 0x39) { /* V9 return */
                 rs1 = GET_FIELD(insn, 13, 17);
@@ -2410,6 +2418,15 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 
 #ifndef TARGET_SPARC64
+		case 0x30: /* ldc */
+		case 0x31: /* ldcsr */
+		case 0x33: /* lddc */
+		case 0x34: /* stc */
+		case 0x35: /* stcsr */
+		case 0x36: /* stdcq */
+		case 0x37: /* stdc */
+		    goto ncp_insn;
+		    break;
                     /* avoid warnings */
                     (void) &gen_op_stfa;
                     (void) &gen_op_stdfa;
@@ -2618,6 +2635,14 @@ static void disas_sparc_insn(DisasContext * dc)
     save_state(dc);
     gen_op_fpexception_im(FSR_FTT_UNIMPFPOP);
     dc->is_br = 1;
+    return;
+#ifndef TARGET_SPARC64
+ ncp_insn:
+    save_state(dc);
+    gen_op_exception(TT_NCP_INSN);
+    dc->is_br = 1;
+    return;
+#endif
 }
 
 static inline int gen_intermediate_code_internal(TranslationBlock * tb,
