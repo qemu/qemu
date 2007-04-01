@@ -2874,6 +2874,13 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
     },
+    {
+        /* XXX: Replace with real values */
+        .name = "TI SuperSparc II",
+        .iu_version = 0x40000000,
+        .fpu_version = 0x00000000,
+        .mmu_version = 0x00000000,
+    },
 #endif
 };
 

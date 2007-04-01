@@ -6691,6 +6691,7 @@ void register_machines(void)
     qemu_register_machine(&sun4u_machine);
 #else
     qemu_register_machine(&ss5_machine);
+    qemu_register_machine(&ss10_machine);
 #endif
 #elif defined(TARGET_ARM)
     qemu_register_machine(&integratorcp_machine);
