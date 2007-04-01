@@ -615,6 +615,9 @@ void helper_rett()
 {
     unsigned int cwp;
 
+    if (env->psret == 1)
+        raise_exception(TT_ILL_INSN);
+
     env->psret = 1;
     cwp = (env->cwp + 1) & (NWINDOWS - 1); 
     if (env->wim & (1 << cwp)) {
@@ -655,7 +658,10 @@ void helper_debug()
 #ifndef TARGET_SPARC64
 void do_wrpsr()
 {
-    PUT_PSR(env, T0);
+    if ((T0 & PSR_CWP) >= NWINDOWS)
+        raise_exception(TT_ILL_INSN);
+    else
+        PUT_PSR(env, T0);
 }
 
 void do_rdpsr()

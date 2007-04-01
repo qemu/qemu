@@ -2341,6 +2341,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_ldst(lduh);
 		    break;
 		case 0x3:	/* load double word */
+		    if (rd & 1)
+                        goto illegal_insn;
 		    gen_op_ldst(ldd);
 		    gen_movl_T0_reg(rd + 1);
 		    break;
@@ -2360,6 +2362,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		case 0x10:	/* load word alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2367,6 +2371,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x11:	/* load unsigned byte alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2374,6 +2380,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x12:	/* load unsigned halfword alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2381,14 +2389,20 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x13:	/* load double word alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
+		    if (rd & 1)
+                        goto illegal_insn;
 		    gen_op_ldda(insn, 1, 8, 0);
 		    gen_movl_T0_reg(rd + 1);
 		    break;
 		case 0x19:	/* load signed byte alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2396,6 +2410,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x1a:	/* load signed halfword alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2403,6 +2419,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x1d:	/* ldstuba -- XXX: should be atomically */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2410,6 +2428,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x1f:	/* swap reg with alt. memory. Also atomically */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2508,6 +2528,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_ldst(sth);
 		    break;
 		case 0x7:
+		    if (rd & 1)
+                        goto illegal_insn;
                     flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_ldst(std);
@@ -2515,6 +2537,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		case 0x14:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2522,6 +2546,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 		case 0x15:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2529,6 +2555,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 		case 0x16:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2536,9 +2564,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 		case 0x17:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
+		    if (rd & 1)
+                        goto illegal_insn;
                     flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_stda(insn, 0, 8, 0);
