@@ -965,38 +965,43 @@ void OPPROTO op_logic_T0_cc(void)
 
 void OPPROTO op_sll(void)
 {
-    T0 <<= T1;
+    T0 <<= (T1 & 0x1f);
 }
 
 #ifdef TARGET_SPARC64
+void OPPROTO op_sllx(void)
+{
+    T0 <<= (T1 & 0x3f);
+}
+
 void OPPROTO op_srl(void)
 {
-    T0 = (T0 & 0xffffffff) >> T1;
+    T0 = (T0 & 0xffffffff) >> (T1 & 0x1f);
 }
 
 void OPPROTO op_srlx(void)
 {
-    T0 >>= T1;
+    T0 >>= (T1 & 0x3f);
 }
 
 void OPPROTO op_sra(void)
 {
-    T0 = ((int32_t) (T0 & 0xffffffff)) >> T1;
+    T0 = ((int32_t) (T0 & 0xffffffff)) >> (T1 & 0x1f);
 }
 
 void OPPROTO op_srax(void)
 {
-    T0 = ((int64_t) T0) >> T1;
+    T0 = ((int64_t) T0) >> (T1 & 0x3f);
 }
 #else
 void OPPROTO op_srl(void)
 {
-    T0 >>= T1;
+    T0 >>= (T1 & 0x1f);
 }
 
 void OPPROTO op_sra(void)
 {
-    T0 = ((int32_t) T0) >> T1;
+    T0 = ((int32_t) T0) >> (T1 & 0x1f);
 }
 #endif
 

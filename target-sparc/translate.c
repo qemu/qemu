@@ -1703,7 +1703,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 #endif
 #ifdef TARGET_SPARC64
-	    } else if (xop == 0x25) { /* sll, V9 sllx ( == sll) */
+	    } else if (xop == 0x25) { /* sll, V9 sllx */
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
 		if (IS_IMM) {	/* immediate */
@@ -1713,7 +1713,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     rs2 = GET_FIELD(insn, 27, 31);
                     gen_movl_reg_T1(rs2);
                 }
-		gen_op_sll();
+		if (insn & (1 << 12))
+		    gen_op_sllx();
+		else
+		    gen_op_sll();
 		gen_movl_T0_reg(rd);
 	    } else if (xop == 0x26) { /* srl, V9 srlx */
                 rs1 = GET_FIELD(insn, 13, 17);
