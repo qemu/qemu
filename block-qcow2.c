@@ -1933,6 +1933,7 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     qemu_free(s->refcount_table);
     s->refcount_table = new_table;
     s->refcount_table_size = new_table_size;
+    s->refcount_table_offset = table_offset;
 
     update_refcount(bs, table_offset, new_table_size2, 1);
     return 0;
