@@ -68,16 +68,7 @@
 
 #define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
 
-#define GDBRAM (8 * KiB)
-
 #define MAX_ETH_FRAME_SIZE 1514
-
-#if 0
-struct IoState {
-    target_ulong base;
-    int it_shift;
-};
-#endif
 
 #define DEBUG_AR7
 
@@ -557,7 +548,8 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                 unsigned index = channel / 32;
                 unsigned offset = channel % 32;
                 if (ar7.intmask[index] & BIT(offset)) {
-                    TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
+                    TRACE(INTC && (irq_num != 15 || UART),
+                          logout("(%p,%d,%d)\n", opaque, irq_num, level));
                     reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
                     reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
                     reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
@@ -565,7 +557,11 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                     cpu_env->CP0_Cause |= 0x00000400;
                     cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
                 } else {
-                    TRACE(INTC, logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
+                    TRACE(INTC && (irq_num != 15 || UART),
+                          logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
+                    //~ reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
+                    //~ reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
+                    //~ reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
                 }
             }
             // int line number
@@ -574,7 +570,8 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             // 2, 7, 15, 27, 80
             //~ ar7.intmask[0]
         } else {
-            TRACE(INTC, logout("(%p,%d,%d)\n", opaque, irq_num, level));
+            TRACE(INTC && (irq_num != 15 || UART),
+                  logout("(%p,%d,%d)\n", opaque, irq_num, level));
             reg_write(av.intc, INTC_PIIR, 0);
             cpu_env->CP0_Cause &= ~0x00000400;
             cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
@@ -3274,7 +3271,7 @@ static void ar7_init(CPUState * env)
     int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
     //~ cpu_register_physical_memory(0x08610000, 0x00002800, io_memory);
     //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
-    cpu_register_physical_memory(0x00001000, 0x0ffff000 - GDBRAM, io_memory);
+    cpu_register_physical_memory(0x00001000, 0x0ffff000, io_memory);
     //~ cpu_register_physical_memory(0x00001000, 0x10000000, io_memory);
     cpu_register_physical_memory(0x1e000000, 0x01c00000, io_memory);
 
@@ -3334,6 +3331,81 @@ static void ar7_init(CPUState * env)
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
+/* Kernel */
+static int64_t load_kernel (CPUState *env)
+{
+    uint64_t kernel_addr = 0;
+    ram_addr_t ram_offset = 0;
+    int kernel_size;
+    kernel_size = load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr);
+    if (kernel_size < 0) {
+        kernel_size = load_image(env->kernel_filename, phys_ram_base + ram_offset);
+        kernel_addr = K1(KERNEL_LOAD_ADDR);
+    }
+    if (kernel_size > 0 && kernel_size < env->ram_size) {
+        fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx"
+                " and size %d bytes\n",
+                env->kernel_filename, (unsigned long)kernel_addr, kernel_size);
+        env->PC = kernel_addr;
+    } else {
+        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                env->kernel_filename);
+        exit(1);
+    }
+
+    /* a0 = argc, a1 = argv, a2 = envp */
+    env->gpr[4] = 0;
+    env->gpr[5] = K1(INITRD_LOAD_ADDR);
+    env->gpr[6] = K1(INITRD_LOAD_ADDR);
+
+    /* Set SP (needed for some kernels) - normally set by bootloader. */
+    env->gpr[29] = env->PC + env->ram_size - 0x1000;
+
+    /* TODO: use code from Malta for command line setup. */
+    if (env->kernel_cmdline) {
+        /* Load kernel parameters (argv, envp) from file. */
+        uint8_t *address = phys_ram_base + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
+        int argc;
+        uint8_t **argv;
+        uint8_t **arg0;
+        target_ulong size = load_image(env->kernel_cmdline, address);
+        target_ulong i;
+        if (size == (target_ulong) -1) {
+            fprintf(stderr, "qemu: could not load kernel parameters '%s'\n",
+                    env->kernel_cmdline);
+            exit(1);
+        }
+        /* Replace all linefeeds by null bytes. */
+        for (i = 0; i < size; i++) {
+            uint8_t c = address[i];
+            if (c == '\n') {
+                address[i] = '\0';
+            }
+        }
+        /* Build argv and envp vectors (behind data). */
+        argc = 0;
+        i = ((i + 3) & ~3);
+        argv = (uint8_t **)(address + i);
+        env->gpr[5] = K1(INITRD_LOAD_ADDR + i);
+        arg0 = argv;
+        *argv = (uint8_t *)K1(INITRD_LOAD_ADDR);
+        for (i = 0; i < size;) {
+            uint8_t c = address[i++];
+            if (c == '\0') {
+                *++argv = (uint8_t *)K1(INITRD_LOAD_ADDR + i);
+                if (address[i] == '\0' && argc == 0) {
+                  argc = argv - arg0;
+                  *argv = (uint8_t *)0;
+                  env->gpr[4] = argc;
+                  env->gpr[6] = env->gpr[5] + 4 * (argc + 1);
+                }
+            }
+        }
+    }
+
+    return kernel_addr;
+}
+
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -3344,8 +3416,7 @@ static void main_cpu_reset(void *opaque)
     env->CP0_Config1 &= ~(1 << CP0C1_FP);
 
     if (env->kernel_filename) {
-        mips_load_kernel (env, env->ram_size, env->kernel_filename,
-                          env->kernel_cmdline, env->initrd_filename);
+        load_kernel(env);
     }
 }
 
@@ -3355,11 +3426,9 @@ static void mips_ar7_common_init (int ram_size,
                     const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
-    int64_t entry = 0;
     CPUState *env;
     mips_def_t *def;
     int flash_size;
-    int kernel_size;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
 
@@ -3380,6 +3449,11 @@ static void mips_ar7_common_init (int ram_size,
     env = cpu_init();
     cpu_mips_register(env, def);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+
+    env->ram_size = ram_size;
+    env->kernel_filename = kernel_filename;
+    env->kernel_cmdline = kernel_cmdline;
+    env->initrd_filename = initrd_filename;
 
     /* CPU revision is 2.2. */
     env->CP0_PRid |= 0x48;
@@ -3413,27 +3487,26 @@ static void mips_ar7_common_init (int ram_size,
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
-    /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
-    ram_offset = qemu_ram_alloc(4 * KiB);
-    cpu_register_physical_memory(0, 4 * KiB, ram_offset | IO_MEM_RAM);
-
-    /* Allocate 0x1000 bytes before start of flash (needed for gdb). */
-    ram_offset = qemu_ram_alloc(GDBRAM);
-    cpu_register_physical_memory(0x10000000 - GDBRAM, GDBRAM, ram_offset | IO_MEM_RAM);
-
-    /* Allocate 0x1000 bytes before start of ram (needed for gdb). */
-    ram_offset = qemu_ram_alloc(GDBRAM);
-    cpu_register_physical_memory(KERNEL_LOAD_ADDR - GDBRAM, GDBRAM, ram_offset | IO_MEM_RAM);
-
-    /* 16 MiB external RAM at physical address KERNEL_LOAD_ADDR.
-       More memory can be selected with command line option -m. */
-    if (ram_size > 100 * MiB) {
-            ram_size = 16 * MiB;
+    /* Change the default RAM size from 128 MiB to 16 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 16 * MiB;
     }
+    if (ram_size > 192 * MiB) {
+        /* The external RAM start at 0x14000000 and ends before 0x20000000. */
+        ram_size = 192 * MiB;
+    }
+
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(KERNEL_LOAD_ADDR, ram_size, ram_offset | IO_MEM_RAM);
     fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x\n",
         __func__, phys_ram_base, ram_size);
+
+    /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
+    ram_offset = qemu_ram_alloc(4 * KiB);
+    printf("ram_offset (internal RAM) = %x\n", (unsigned)ram_offset);
+    cpu_register_physical_memory(0, 4 * KiB, ram_offset | IO_MEM_RAM);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
@@ -3472,75 +3545,9 @@ static void mips_ar7_common_init (int ram_size,
     cpu_register_physical_memory((uint32_t)(0x1fc00000),
                                  flash_size, flash_offset | IO_MEM_ROM);
 
-    kernel_size = 0;
     if (kernel_filename) {
-        kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-        if (kernel_size >= 0) {
-            fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
-                        kernel_filename, (unsigned long)entry);
-            env->PC = entry;
-        } else {
-            kernel_size = load_image(kernel_filename,
-                                phys_ram_base + ram_offset);
-            if (kernel_size > 0 && kernel_size < ram_size) {
-                fprintf(stderr, "qemu: elf kernel '%s' with size 0x%08x\n",
-                            kernel_filename, kernel_size);
-            } else {
-                fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                        kernel_filename);
-                exit(1);
-            }
-            env->PC = K1(KERNEL_LOAD_ADDR);
-        }
-
-        /* a0 = argc, a1 = argv, a2 = envp */
-        env->gpr[4] = 0;
-        env->gpr[5] = K1(INITRD_LOAD_ADDR);
-        env->gpr[6] = K1(INITRD_LOAD_ADDR);
-
-        /* Set SP (needed for some kernels) - normally set by bootloader. */
-        env->gpr[29] = env->PC + ram_size - 0x1000;
-
-        if (initrd_filename) {
-            /* Load kernel parameters (argv, envp) from file. */
-            uint8_t *address = phys_ram_base + ram_offset + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
-            int argc;
-            uint8_t **argv;
-            uint8_t **arg0;
-            target_ulong size = load_image(initrd_filename, address);
-            target_ulong i;
-            if (size == (target_ulong) -1) {
-                fprintf(stderr, "qemu: could not load kernel parameters '%s'\n",
-                        initrd_filename);
-                exit(1);
-            }
-            /* Replace all linefeeds by null bytes. */
-            for (i = 0; i < size; i++) {
-                uint8_t c = address[i];
-                if (c == '\n') {
-                    address[i] = '\0';
-                }
-            }
-            /* Build argv and envp vectors (behind data). */
-            argc = 0;
-            i = ((i + 3) & ~3);
-            argv = (uint8_t **)(address + i);
-            env->gpr[5] = K1(INITRD_LOAD_ADDR + i);
-            arg0 = argv;
-            *argv = (uint8_t *)K1(INITRD_LOAD_ADDR);
-            for (i = 0; i < size;) {
-                uint8_t c = address[i++];
-                if (c == '\0') {
-                    *++argv = (uint8_t *)K1(INITRD_LOAD_ADDR + i);
-                    if (address[i] == '\0' && argc == 0) {
-                      argc = argv - arg0;
-                      *argv = (uint8_t *)0;
-                      env->gpr[4] = argc;
-                      env->gpr[6] = env->gpr[5] + 4 * (argc + 1);
-                    }
-                }
-            }
-        }
+        printf("ram_offset = %x\n", ram_offset);
+        load_kernel(env);
     }
 
     /* Init internal devices */
