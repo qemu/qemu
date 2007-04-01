@@ -139,7 +139,11 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
     if ((pc & TARGET_PAGE_MASK) != virt_page2) {
+      if (tb->size == 0) {
+        printf("Bad code in QEMU %s:%u\n", __FILE__, __LINE__);
+      } else {
         phys_page2 = get_phys_addr_code(env, virt_page2);
+      }
     }
     tb_link_phys(tb, phys_pc, phys_page2);
     
