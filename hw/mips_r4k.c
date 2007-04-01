@@ -15,7 +15,7 @@
 #define BIOS_FILENAME "mipsel_bios.bin"
 #endif
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 #define INITRD_LOAD_ADDR (int64_t)(int32_t)0x80800000
 #else
 #define INITRD_LOAD_ADDR (int32_t)0x80800000
@@ -142,7 +142,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* init CPUs */
     if (cpu_model == NULL) {
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
         cpu_model = "R4000";
 #else
         cpu_model = "4KEc";

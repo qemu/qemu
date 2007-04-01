@@ -386,7 +386,7 @@ void op_divu (void)
     RETURN();
 }
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 /* Arithmetic */
 void op_dadd (void)
 {
@@ -464,7 +464,7 @@ void op_ddivu (void)
     RETURN();
 }
 #endif
-#endif /* MIPS_HAS_MIPS64 */
+#endif /* TARGET_MIPS64 */
 
 /* Logical */
 void op_and (void)
@@ -586,7 +586,7 @@ void op_clz (void)
     RETURN();
 }
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */
@@ -891,7 +891,7 @@ void op_msubu (void)
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void op_dmult (void)
 {
     CALL_FROM_TB0(do_dmult);
@@ -2213,7 +2213,7 @@ void op_wsbh(void)
     RETURN();
 }
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void op_dext(void)
 {
     unsigned int pos = PARAM1;

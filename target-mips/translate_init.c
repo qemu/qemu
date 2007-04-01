@@ -74,7 +74,7 @@ struct mips_def_t {
 /* MIPS CPU definitions */
 static mips_def_t mips_defs[] =
 {
-#ifndef MIPS_HAS_MIPS64
+#ifndef TARGET_MIPS64
     {
         .name = "4Kc",
         .CP0_PRid = 0x00018000,

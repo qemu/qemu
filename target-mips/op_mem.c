@@ -126,7 +126,7 @@ void glue(op_sc, MEMSUFFIX) (void)
     RETURN();
 }
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void glue(op_ld, MEMSUFFIX) (void)
 {
     T0 = glue(ldq, MEMSUFFIX)(T0);
@@ -190,7 +190,7 @@ void glue(op_scd, MEMSUFFIX) (void)
     }
     RETURN();
 }
-#endif /* MIPS_HAS_MIPS64 */
+#endif /* TARGET_MIPS64 */
 
 void glue(op_lwc1, MEMSUFFIX) (void)
 {

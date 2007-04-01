@@ -65,7 +65,7 @@ static inline void regs_to_env(void)
 {
 }
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_dsll (void);
 void do_dsll32 (void);
@@ -92,7 +92,7 @@ void do_msubu (void);
 void do_ddiv (void);
 void do_ddivu (void);
 #endif
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void do_dmult (void);
 void do_dmultu (void);
 #endif
@@ -114,7 +114,7 @@ void do_lwl_raw (uint32_t);
 void do_lwr_raw (uint32_t);
 uint32_t do_swl_raw (uint32_t);
 uint32_t do_swr_raw (uint32_t);
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void do_ldl_raw (uint64_t);
 void do_ldr_raw (uint64_t);
 uint64_t do_sdl_raw (uint64_t);
@@ -129,7 +129,7 @@ uint32_t do_swl_user (uint32_t);
 uint32_t do_swl_kernel (uint32_t);
 uint32_t do_swr_user (uint32_t);
 uint32_t do_swr_kernel (uint32_t);
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 void do_ldl_user (uint64_t);
 void do_ldl_kernel (uint64_t);
 void do_ldr_user (uint64_t);

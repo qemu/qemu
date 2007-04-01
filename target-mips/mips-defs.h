@@ -6,9 +6,6 @@
 /* If we want to use host float regs... */
 //#define USE_HOST_FLOAT_REGS
 
-/* 32 bits target */
-#undef MIPS_HAS_MIPS64
-//#define MIPS_HAS_MIPS64 1
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
 /* Uses MIPS R4Kc TLB model */
@@ -16,7 +13,7 @@
 #define MIPS_TLB_NB 16
 #define MIPS_TLB_MAX 128
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 #define TARGET_LONG_BITS 64
 #else
 #define TARGET_LONG_BITS 32

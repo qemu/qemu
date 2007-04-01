@@ -611,7 +611,7 @@ static GenOpFunc *gen_op_s##width[] = {                                       \
 }
 #endif
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 OP_LD_TABLE(d);
 OP_LD_TABLE(dl);
 OP_LD_TABLE(dr);
@@ -660,7 +660,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
      * memory access
      */
     switch (opc) {
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_LD:
         op_ldst(ld);
         GEN_STORE_TN_REG(rt, T0);
@@ -872,7 +872,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         gen_op_add();
         opn = "addiu";
         break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_DADDI:
         save_cpu_state(ctx, 1);
         gen_op_daddo();
@@ -923,7 +923,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
             opn = "srl";
        }
         break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_DSLL:
         gen_op_dsll();
         opn = "dsll";
@@ -1003,7 +1003,7 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
         gen_op_sub();
         opn = "subu";
         break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_DADD:
         save_cpu_state(ctx, 1);
         gen_op_daddo();
@@ -1076,7 +1076,7 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
             opn = "srlv";
        }
         break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_DSLLV:
         gen_op_dsllv();
         opn = "dsllv";
@@ -1168,7 +1168,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         gen_op_multu();
         opn = "multu";
         break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_DDIV:
         gen_op_ddiv();
         opn = "ddiv";
@@ -1229,7 +1229,7 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
         gen_op_clz();
         opn = "clz";
         break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     case OPC_DCLO:
         gen_op_dclo();
         opn = "dclo";
@@ -4538,7 +4538,7 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 /* MIPS16 extension to MIPS32 */
 /* SmartMIPS extension to MIPS32 */
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
 /* Coprocessor 3 (FPU) */
 
 /* MDMX extension to MIPS64 */
@@ -4643,7 +4643,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             }
             break;
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
        /* MIPS64 specific opcodes */
         case OPC_DSLL:
         case OPC_DSRL ... OPC_DSRA:
@@ -4690,7 +4690,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             }
             /* Treat as a noop */
             break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
         case OPC_DCLZ ... OPC_DCLO:
             gen_cl(ctx, op1, rd, rs);
             break;
@@ -4757,7 +4757,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
            }
            GEN_STORE_TN_REG(rt, T0);
            break;
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
        case OPC_DEXTM ... OPC_DEXT:
        case OPC_DINSM ... OPC_DINS:
            gen_bitops(ctx, op1, rt, rs, sa, rd);
@@ -4812,7 +4812,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_MFC0:
         case OPC_MTC0:
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
         case OPC_DMFC0:
         case OPC_DMTC0:
 #endif
@@ -4898,7 +4898,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             case OPC_CFC1:
             case OPC_MTC1:
             case OPC_CTC1:
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
             case OPC_DMFC1:
             case OPC_DMTC1:
 #endif
@@ -4948,7 +4948,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
 
-#ifdef MIPS_HAS_MIPS64
+#ifdef TARGET_MIPS64
     /* MIPS64 opcodes */
     case OPC_LWU:
     case OPC_LDL ... OPC_LDR:
@@ -5197,7 +5197,7 @@ void dump_fpu (CPUState *env)
     }
 }
 
-#if defined(MIPS_HAS_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
+#if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
 /* Debug help: The architecture requires 32bit code to maintain proper
    sign-extened values on 64bit machines.  */
 
@@ -5255,7 +5255,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
     if (c0_status & (1 << CP0St_CU1))
         fpu_dump_state(env, f, cpu_fprintf, flags);
-#if defined(MIPS_HAS_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
+#if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
     cpu_mips_check_sign_extensions(env, f, cpu_fprintf, flags);
 #endif
 }
