@@ -1,3 +1,27 @@
+2007-04-01 21:01  ths
+
+	* block-qcow2.c: Qcow2 corruption fix, by Juergen Keil.
+
+2007-04-01 20:54  ths
+
+	* Makefile.target, configure, fpu/softfloat-native.c,
+	  fpu/softfloat.h: Solaris 9/x86 support, by Ben Taylor.
+
+2007-04-01 20:31  ths
+
+	* linux-user/syscall.c: Conditionalize more syscall
+	  implementations, by Mike Frysinger.
+
+2007-04-01 20:26  ths
+
+	* hw/i8259.c: Single mode for PIC i8259, by Bernhard Kauer.
+
+2007-04-01 19:56  ths
+
+	* elf_ops.h, loader.c, vl.h, hw/arm_boot.c, hw/mips_malta.c,
+	  hw/mips_r4k.c, hw/sun4m.c, hw/sun4u.c: Improved initrd support
+	  for mips.
+
 2007-04-01 18:23  blueswir1
 
 	* target-sparc/translate.c: Fix off-by-one error

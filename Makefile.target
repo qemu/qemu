@@ -237,6 +237,12 @@ LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 ifdef CONFIG_SOLARIS
 LIBS+=-lsocket -lnsl -lresolv
+ifdef NEEDS_LIBSUNMATH
+LIBS+=-lsunmath
+LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
+OP_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
+BASE_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
+endif
 endif
 
 # profiling code

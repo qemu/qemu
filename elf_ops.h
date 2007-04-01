@@ -139,11 +139,13 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
 }
 
 int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
-                       int must_swab, uint64_t *pentry)
+                       int must_swab, uint64_t *pentry,
+                       uint64_t *lowaddr, uint64_t *highaddr)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
     int size, i, total_size;
+    elf_word low = 0, high = 0;
     elf_word mem_size, addr;
     uint8_t *data = NULL;
 
@@ -193,12 +195,20 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
             cpu_physical_memory_write_rom(addr, data, mem_size);
 
             total_size += mem_size;
+            if (!low || addr < low)
+                low = addr;
+            if (!high || (addr + mem_size) > high)
+                high = addr + mem_size;
 
             qemu_free(data);
             data = NULL;
         }
     }
     qemu_free(phdr);
+    if (lowaddr)
+        *lowaddr = (uint64_t)low;
+    if (highaddr)
+        *highaddr = (uint64_t)high;
     return total_size;
  fail:
     qemu_free(data);

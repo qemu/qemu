@@ -1220,7 +1220,8 @@ void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
 /* loader.c */
 int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr);
-int load_elf(const char *filename, int64_t virt_to_phys_addend, uint64_t *pentry);
+int load_elf(const char *filename, int64_t virt_to_phys_addend,
+             uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr);
 int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 

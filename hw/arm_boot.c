@@ -101,7 +101,7 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         qemu_register_reset(main_cpu_reset, env);
     }
     /* Assume that raw images are linux kernels, and ELF images are not.  */
-    kernel_size = load_elf(kernel_filename, 0, &elf_entry);
+    kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uboot(kernel_filename, &entry, &is_linux);

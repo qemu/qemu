@@ -34,13 +34,13 @@
 #endif
 
 #ifdef TARGET_MIPS64
-#define INITRD_LOAD_ADDR 	(int64_t)0x80800000
+#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)
 #else
-#define INITRD_LOAD_ADDR 	(int32_t)0x80800000
+#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffU)
 #endif
 
-#define ENVP_ADDR        	(int32_t)0x80002000
-#define VIRT_TO_PHYS_ADDEND 	(-((int64_t)(int32_t)0x80000000))
+#define ENVP_ADDR (int32_t)0x80002000
+#define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
@@ -564,7 +564,7 @@ static void network_init (PCIBus *pci_bus)
      a3 - RAM size in bytes
 */
 
-static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t kernel_addr)
+static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t kernel_entry)
 {
     uint32_t *p;
 
@@ -583,8 +583,8 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
     stl_raw(p++, 0x3c070000 | (env->ram_size >> 16));              /* lui a3, high(env->ram_size) */
     stl_raw(p++, 0x34e70000 | (env->ram_size & 0xffff));           /* ori a3, a3, low(env->ram_size) */
-    stl_raw(p++, 0x3c1f0000 | ((kernel_addr >> 16) & 0xffff));     /* lui ra, high(kernel_addr) */;
-    stl_raw(p++, 0x37ff0000 | (kernel_addr & 0xffff));             /* ori ra, ra, low(kernel_addr) */
+    stl_raw(p++, 0x3c1f0000 | ((kernel_entry >> 16) & 0xffff));    /* lui ra, high(kernel_entry) */
+    stl_raw(p++, 0x37ff0000 | (kernel_entry & 0xffff));            /* ori ra, ra, low(kernel_entry) */
     stl_raw(p++, 0x03e00008);                                      /* jr ra */
     stl_raw(p++, 0x00000000);                                      /* nop */
 }
@@ -620,11 +620,13 @@ static void prom_set(int index, const char *string, ...)
 /* Kernel */
 static int64_t load_kernel (CPUState *env)
 {
-    int64_t kernel_addr = 0;
+    int64_t kernel_entry, kernel_low, kernel_high;
     int index = 0;
     long initrd_size;
+    ram_addr_t initrd_offset;
 
-    if (load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr) < 0) {
+    if (load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND,
+                 &kernel_entry, &kernel_low, &kernel_high) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 env->kernel_filename);
       exit(1);
@@ -632,9 +634,20 @@ static int64_t load_kernel (CPUState *env)
 
     /* load initrd */
     initrd_size = 0;
+    initrd_offset = 0;
     if (env->initrd_filename) {
-        initrd_size = load_image(env->initrd_filename,
-                                 phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+        initrd_size = get_image_size (env->initrd_filename);
+        if (initrd_size > 0) {
+            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            if (initrd_offset + initrd_size > env->ram_size) {
+                fprintf(stderr,
+                        "qemu: memory too small for initial ram disk '%s'\n",
+                        env->initrd_filename);
+                exit(1);
+            }
+            initrd_size = load_image(env->initrd_filename,
+                                     phys_ram_base + initrd_offset);
+        }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                     env->initrd_filename);
@@ -645,7 +658,9 @@ static int64_t load_kernel (CPUState *env)
     /* Store command line.  */
     prom_set(index++, env->kernel_filename);
     if (initrd_size > 0)
-        prom_set(index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s", INITRD_LOAD_ADDR, initrd_size, env->kernel_cmdline);
+        prom_set(index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
+                 PHYS_TO_VIRT(initrd_offset), initrd_size,
+                 env->kernel_cmdline);
     else
         prom_set(index++, env->kernel_cmdline);
 
@@ -656,7 +671,7 @@ static int64_t load_kernel (CPUState *env)
     prom_set(index++, "38400n8r");
     prom_set(index++, NULL);
 
-    return kernel_addr;
+    return kernel_entry;
 }
 
 static void main_cpu_reset(void *opaque)
@@ -679,7 +694,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     unsigned long bios_offset;
-    int64_t kernel_addr;
+    int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
     RTCState *rtc_state;
@@ -723,8 +738,8 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
         env->kernel_filename = kernel_filename;
         env->kernel_cmdline = kernel_cmdline;
         env->initrd_filename = initrd_filename;
-        kernel_addr = load_kernel(env);
-        write_bootloader(env, bios_offset, kernel_addr);
+        kernel_entry = load_kernel(env);
+        write_bootloader(env, bios_offset, kernel_entry);
     } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + bios_offset);

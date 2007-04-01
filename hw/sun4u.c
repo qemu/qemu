@@ -292,7 +292,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
                                  prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
-    ret = load_elf(buf, 0, NULL);
+    ret = load_elf(buf, 0, NULL, NULL, NULL);
     if (ret < 0) {
 	fprintf(stderr, "qemu: could not load prom '%s'\n", 
 		buf);
@@ -303,7 +303,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     initrd_size = 0;
     if (linux_boot) {
         /* XXX: put correct offset */
-        kernel_size = load_elf(kernel_filename, 0, NULL);
+        kernel_size = load_elf(kernel_filename, 0, NULL, NULL, NULL);
         if (kernel_size < 0)
 	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
 	if (kernel_size < 0)

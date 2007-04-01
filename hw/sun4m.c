@@ -295,7 +295,7 @@ static void sun4m_load_kernel(long vram_size, int ram_size, int boot_device,
                                  prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
-    ret = load_elf(buf, 0, NULL);
+    ret = load_elf(buf, 0, NULL, NULL, NULL);
     if (ret < 0) {
 	fprintf(stderr, "qemu: could not load prom '%s'\n", 
 		buf);
@@ -304,7 +304,7 @@ static void sun4m_load_kernel(long vram_size, int ram_size, int boot_device,
 
     kernel_size = 0;
     if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, -0xf0000000, NULL);
+        kernel_size = load_elf(kernel_filename, -0xf0000000, NULL, NULL, NULL);
         if (kernel_size < 0)
 	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
 	if (kernel_size < 0)
