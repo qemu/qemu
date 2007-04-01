@@ -336,8 +336,6 @@ void do_mtc0_status_irqraise_debug(void)
     fprintf(logfile, "Raise pending IRQs\n");
 }
 
-#include "softfloat.h"
-
 void fpu_handle_exception(void)
 {
 #ifdef CONFIG_SOFTFLOAT

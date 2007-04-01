@@ -4,6 +4,9 @@ TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
 endif
+ifeq ($(TARGET_ARCH), mips64)
+TARGET_BASE_ARCH:=mips
+endif
 ifeq ($(TARGET_ARCH), ppc64)
 TARGET_BASE_ARCH:=ppc
 endif
@@ -42,6 +45,11 @@ endif
 ifeq ($(TARGET_ARCH),mips)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mipsel
+  endif
+endif
+ifeq ($(TARGET_ARCH),mips64)
+  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
+    TARGET_ARCH2=mips64el
   endif
 endif
 QEMU_USER=qemu-$(TARGET_ARCH2)
@@ -170,7 +178,19 @@ BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
+ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
+endif
+endif
+
+ifeq ($(ARCH),mips64)
+ifeq ($(WORDS_BIGENDIAN),yes)
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
+endif
 endif
 
 ifeq ($(CONFIG_DARWIN),yes)
@@ -258,7 +278,7 @@ ifeq ($(TARGET_BASE_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
 endif
 
-ifeq ($(TARGET_ARCH), mips)
+ifeq ($(TARGET_BASE_ARCH), mips)
 LIBOBJS+= op_helper.o helper.o
 endif
 
@@ -295,7 +315,7 @@ endif
 ifeq ($(findstring ppc, $(TARGET_BASE_ARCH) $(ARCH)),ppc)
 LIBOBJS+=ppc-dis.o
 endif
-ifeq ($(findstring mips, $(TARGET_ARCH) $(ARCH)),mips)
+ifeq ($(findstring mips, $(TARGET_BASE_ARCH) $(ARCH)),mips)
 LIBOBJS+=mips-dis.o
 endif
 ifeq ($(findstring sparc, $(TARGET_BASE_ARCH) $(ARCH)),sparc)
@@ -387,7 +407,7 @@ VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
 VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
 CPPFLAGS += -DHAS_AUDIO
 endif
-ifeq ($(TARGET_ARCH), mips)
+ifeq ($(TARGET_BASE_ARCH), mips)
 VL_OBJS+= mips_r4k.o mips_malta.o mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o
 VL_OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 VL_OBJS+= piix_pci.o parallel.o mixeng.o cirrus_vga.o $(SOUND_HW) $(AUDIODRV)
@@ -554,10 +574,11 @@ op_helper.o: op_helper_mem.h
 translate.o: translate.c translate_init.c
 endif
 
-ifeq ($(TARGET_ARCH), mips)
-op.o: op.c op_template.c fop_template.c op_mem.c
-op_helper.o: op_helper_mem.c
-translate.o: translate.c translate_init.c
+ifeq ($(TARGET_BASE_ARCH), mips)
+helper.o: cpu.h exec-all.h
+op.o: op_template.c fop_template.c op_mem.c exec.h
+op_helper.o: op_helper_mem.c exec.h softmmu_template.h
+translate.o: translate_init.c exec-all.h disas.h
 endif
 
 loader.o: loader.c elf_ops.h
