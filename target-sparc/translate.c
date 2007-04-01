@@ -1131,11 +1131,19 @@ static void disas_sparc_insn(DisasContext * dc)
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch(rs1) {
                 case 0: /* rdy */
-		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, y));
+#ifndef TARGET_SPARC64
+                case 0x01 ... 0x0e: /* undefined in the SPARCv8
+                                       manual, rdy on the microSPARC
+                                       II */
+                case 0x0f:          /* stbar in the SPARCv8 manual,
+                                       rdy on the microSPARC II */
+                case 0x10 ... 0x1f: /* implementation-dependent in the
+                                       SPARCv8 manual, rdy on the
+                                       microSPARC II */
+#endif
+                    gen_op_movtl_T0_env(offsetof(CPUSPARCState, y));
                     gen_movl_T0_reg(rd);
                     break;
-                case 15: /* stbar / V9 membar */
-		    break; /* no effect? */
 #ifdef TARGET_SPARC64
 		case 0x2: /* V9 rdccr */
                     gen_op_rdccr();
@@ -1161,6 +1169,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_movl_T0_env(offsetof(CPUSPARCState, fprs));
                     gen_movl_T0_reg(rd);
                     break;
+                case 0xf: /* V9 membar */
+                    break; /* no effect */
 		case 0x13: /* Graphics Status */
                     if (gen_trap_ifnofpu(dc))
                         goto jmp_insn;
@@ -1694,7 +1704,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 #endif
 #ifdef TARGET_SPARC64
-	    } else if (xop == 0x25) { /* sll, V9 sllx ( == sll) */
+	    } else if (xop == 0x25) { /* sll, V9 sllx */
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
 		if (IS_IMM) {	/* immediate */
@@ -1704,7 +1714,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     rs2 = GET_FIELD(insn, 27, 31);
                     gen_movl_reg_T1(rs2);
                 }
-		gen_op_sll();
+		if (insn & (1 << 12))
+		    gen_op_sllx();
+		else
+		    gen_op_sll();
 		gen_movl_T0_reg(rd);
 	    } else if (xop == 0x26) { /* srl, V9 srlx */
                 rs1 = GET_FIELD(insn, 13, 17);
@@ -1737,7 +1750,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_sra();
 		gen_movl_T0_reg(rd);
 #endif
-	    } else if (xop < 0x38) {
+            } else if (xop < 0x36) {
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
 		if (IS_IMM) {	/* immediate */
@@ -1880,7 +1893,17 @@ static void disas_sparc_insn(DisasContext * dc)
 				gen_op_xor_T1_T0();
 				gen_op_movtl_env_T0(offsetof(CPUSPARCState, y));
                                 break;
-#ifdef TARGET_SPARC64
+#ifndef TARGET_SPARC64
+                            case 0x01 ... 0x0f: /* undefined in the
+                                                   SPARCv8 manual, nop
+                                                   on the microSPARC
+                                                   II */
+                            case 0x10 ... 0x1f: /* implementation-dependent
+                                                   in the SPARCv8
+                                                   manual, nop on the
+                                                   microSPARC II */
+                                break;
+#else
 			    case 0x2: /* V9 wrccr */
                                 gen_op_wrccr();
 				break;
@@ -2143,6 +2166,14 @@ static void disas_sparc_insn(DisasContext * dc)
 			goto illegal_insn;
 		    }
 		}
+            } else if (xop == 0x36 || xop == 0x37) { /* CPop1 & CPop2,
+                                                        V9 impdep1 &
+                                                        impdep2 */
+#ifdef TARGET_SPARC64
+	        goto illegal_insn;
+#else
+	        goto ncp_insn;
+#endif
 #ifdef TARGET_SPARC64
 	    } else if (xop == 0x39) { /* V9 return */
                 rs1 = GET_FIELD(insn, 13, 17);
@@ -2301,8 +2332,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 	    }
 	    if (xop < 4 || (xop > 7 && xop < 0x14 && xop != 0x0e) || \
-		    (xop > 0x17 && xop < 0x1d ) || \
-		    (xop > 0x2c && xop < 0x33) || xop == 0x1f) {
+		    (xop > 0x17 && xop <= 0x1d ) || \
+		    (xop > 0x2c && xop <= 0x33) || xop == 0x1f) {
 		switch (xop) {
 		case 0x0:	/* load word */
 		    gen_op_ldst(ld);
@@ -2314,6 +2345,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_ldst(lduh);
 		    break;
 		case 0x3:	/* load double word */
+		    if (rd & 1)
+                        goto illegal_insn;
 		    gen_op_ldst(ldd);
 		    gen_movl_T0_reg(rd + 1);
 		    break;
@@ -2333,6 +2366,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		case 0x10:	/* load word alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2340,6 +2375,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x11:	/* load unsigned byte alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2347,6 +2384,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x12:	/* load unsigned halfword alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2354,14 +2393,20 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x13:	/* load double word alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
+		    if (rd & 1)
+                        goto illegal_insn;
 		    gen_op_ldda(insn, 1, 8, 0);
 		    gen_movl_T0_reg(rd + 1);
 		    break;
 		case 0x19:	/* load signed byte alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2369,6 +2414,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x1a:	/* load signed halfword alternate */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2376,6 +2423,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x1d:	/* ldstuba -- XXX: should be atomically */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2383,6 +2432,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x1f:	/* swap reg with alt. memory. Also atomically */
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2391,6 +2442,15 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 
 #ifndef TARGET_SPARC64
+		case 0x30: /* ldc */
+		case 0x31: /* ldcsr */
+		case 0x33: /* lddc */
+		case 0x34: /* stc */
+		case 0x35: /* stcsr */
+		case 0x36: /* stdcq */
+		case 0x37: /* stdc */
+		    goto ncp_insn;
+		    break;
                     /* avoid warnings */
                     (void) &gen_op_stfa;
                     (void) &gen_op_stdfa;
@@ -2472,6 +2532,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_ldst(sth);
 		    break;
 		case 0x7:
+		    if (rd & 1)
+                        goto illegal_insn;
                     flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_ldst(std);
@@ -2479,6 +2541,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		case 0x14:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2486,6 +2550,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 		case 0x15:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2493,6 +2559,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 		case 0x16:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
@@ -2500,9 +2568,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 		case 0x17:
 #ifndef TARGET_SPARC64
+		    if (IS_IMM)
+			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
 #endif
+		    if (rd & 1)
+                        goto illegal_insn;
                     flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_stda(insn, 0, 8, 0);
@@ -2599,6 +2671,14 @@ static void disas_sparc_insn(DisasContext * dc)
     save_state(dc);
     gen_op_fpexception_im(FSR_FTT_UNIMPFPOP);
     dc->is_br = 1;
+    return;
+#ifndef TARGET_SPARC64
+ ncp_insn:
+    save_state(dc);
+    gen_op_exception(TT_NCP_INSN);
+    dc->is_br = 1;
+    return;
+#endif
 }
 
 static inline int gen_intermediate_code_internal(TranslationBlock * tb,
@@ -2794,6 +2874,13 @@ static const sparc_def_t sparc_defs[] = {
         .iu_version = 0x04 << 24, /* Impl 0, ver 4 */
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
+    },
+    {
+        /* XXX: Replace with real values */
+        .name = "TI SuperSparc II",
+        .iu_version = 0x40000000,
+        .fpu_version = 0x00000000,
+        .mmu_version = 0x00000000,
     },
 #endif
 };

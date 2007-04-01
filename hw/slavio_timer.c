@@ -28,6 +28,9 @@
 #ifdef DEBUG_TIMER
 #define DPRINTF(fmt, args...) \
 do { printf("TIMER: " fmt , ##args); } while (0)
+#define pic_set_irq_new(intctl, irq, level)                             \
+    do { printf("TIMER: set_irq(%d): %d\n", (irq), (level));            \
+        pic_set_irq_new((intctl), (irq),(level));} while (0)
 #else
 #define DPRINTF(fmt, args...)
 #endif
@@ -57,6 +60,7 @@ typedef struct SLAVIO_TIMERState {
     int reached, stopped;
     int mode; // 0 = processor, 1 = user, 2 = system
     unsigned int cpu;
+    void *intctl;
 } SLAVIO_TIMERState;
 
 #define TIMER_MAXADDR 0x1f
@@ -103,7 +107,7 @@ static void slavio_timer_get_out(SLAVIO_TIMERState *s)
     DPRINTF("irq %d limit %d reached %d d %" PRId64 " count %d s->c %x diff %" PRId64 " stopped %d mode %d\n", s->irq, limit, s->reached?1:0, (ticks-s->count_load_time), count, s->count, s->expire_time - ticks, s->stopped, s->mode);
 
     if (s->mode != 1)
-	pic_set_irq_cpu(s->irq, out, s->cpu);
+	pic_set_irq_cpu(s->intctl, s->irq, out, s->cpu);
 }
 
 // timer callback
@@ -130,7 +134,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
 	// part of counter (user mode)
 	if (s->mode != 1) {
 	    // clear irq
-	    pic_set_irq_cpu(s->irq, 0, s->cpu);
+	    pic_set_irq_cpu(s->intctl, s->irq, 0, s->cpu);
 	    s->reached = 0;
 	    return s->limit;
 	}
@@ -265,7 +269,8 @@ static void slavio_timer_reset(void *opaque)
     slavio_timer_get_out(s);
 }
 
-void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu)
+void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu,
+                       void *intctl)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;
@@ -277,6 +282,7 @@ void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu)
     s->mode = mode;
     s->cpu = cpu;
     s->irq_timer = qemu_new_timer(vm_clock, slavio_timer_irq, s);
+    s->intctl = intctl;
 
     slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
 						    slavio_timer_mem_write, s);

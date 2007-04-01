@@ -54,6 +54,7 @@ typedef struct SLAVIO_INTCTLState {
     uint64_t irq_count[32];
 #endif
     CPUState *cpu_envs[MAX_CPUS];
+    const uint32_t *intbit_to_level;
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf
@@ -208,11 +209,6 @@ void slavio_irq_info(void *opaque)
 #endif
 }
 
-static const uint32_t intbit_to_level[32] = {
-    2, 3, 5, 7, 9, 11, 0, 14,	3, 5, 7, 9, 11, 13, 12, 12,
-    6, 0, 4, 10, 8, 0, 11, 0,	0, 0, 0, 0, 15, 0, 15, 0,
-};
-
 static void slavio_check_interrupts(void *opaque)
 {
     CPUState *env;
@@ -225,8 +221,8 @@ static void slavio_check_interrupts(void *opaque)
     if (pending && !(s->intregm_disabled & 0x80000000)) {
 	for (i = 0; i < 32; i++) {
 	    if (pending & (1 << i)) {
-		if (max < intbit_to_level[i])
-		    max = intbit_to_level[i];
+		if (max < s->intbit_to_level[i])
+		    max = s->intbit_to_level[i];
 	    }
 	}
         env = s->cpu_envs[s->target_cpu];
@@ -281,14 +277,14 @@ static void slavio_check_interrupts(void *opaque)
  * "irq" here is the bit number in the system interrupt register to
  * separate serial and keyboard interrupts sharing a level.
  */
-void slavio_pic_set_irq(void *opaque, int irq, int level)
+void pic_set_irq_new(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
     DPRINTF("Set cpu %d irq %d level %d\n", s->target_cpu, irq, level);
     if (irq < 32) {
 	uint32_t mask = 1 << irq;
-	uint32_t pil = intbit_to_level[irq];
+	uint32_t pil = s->intbit_to_level[irq];
 	if (pil > 0) {
 	    if (level) {
 		s->intregm_pending |= mask;
@@ -303,17 +299,17 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
     }
 }
 
-void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
+void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
 {
     SLAVIO_INTCTLState *s = opaque;
 
     DPRINTF("Set cpu %d local irq %d level %d\n", cpu, irq, level);
     if (cpu == (unsigned int)-1) {
-        slavio_pic_set_irq(opaque, irq, level);
+        pic_set_irq_new(opaque, irq, level);
         return;
     }
     if (irq < 32) {
-	uint32_t pil = intbit_to_level[irq];
+	uint32_t pil = s->intbit_to_level[irq];
     	if (pil > 0) {
 	    if (level) {
 		s->intreg_pending[cpu] |= 1 << pil;
@@ -375,7 +371,8 @@ void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env)
     s->cpu_envs[cpu] = env;
 }
 
-void *slavio_intctl_init(uint32_t addr, uint32_t addrg)
+void *slavio_intctl_init(uint32_t addr, uint32_t addrg,
+                         const uint32_t *intbit_to_level)
 {
     int slavio_intctl_io_memory, slavio_intctlm_io_memory, i;
     SLAVIO_INTCTLState *s;
@@ -384,6 +381,7 @@ void *slavio_intctl_init(uint32_t addr, uint32_t addrg)
     if (!s)
         return NULL;
 
+    s->intbit_to_level = intbit_to_level;
     for (i = 0; i < MAX_CPUS; i++) {
 	slavio_intctl_io_memory = cpu_register_io_memory(0, slavio_intctl_mem_read, slavio_intctl_mem_write, s);
 	cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_MAXADDR, slavio_intctl_io_memory);

@@ -52,8 +52,9 @@
 #ifdef DEBUG_SERIAL
 #define SER_DPRINTF(fmt, args...) \
 do { printf("SER: " fmt , ##args); } while (0)
-#define pic_set_irq(irq, level) \
-do { printf("SER: set_irq(%d): %d\n", (irq), (level)); pic_set_irq((irq),(level));} while (0)
+#define pic_set_irq_new(intctl, irq, level)                             \
+    do { printf("SER: set_irq(%d): %d\n", (irq), (level));              \
+        pic_set_irq_new((intctl), (irq),(level));} while (0)
 #else
 #define SER_DPRINTF(fmt, args...)
 #endif
@@ -97,6 +98,7 @@ typedef struct ChannelState {
     uint8_t rx, tx, wregs[16], rregs[16];
     SERIOQueue queue;
     CharDriverState *chr;
+    void *intctl;
 } ChannelState;
 
 struct SerialState {
@@ -164,7 +166,7 @@ static void slavio_serial_update_irq(ChannelState *s)
     irq = slavio_serial_update_irq_chn(s);
     irq |= slavio_serial_update_irq_chn(s->otherchn);
 
-    pic_set_irq(s->irq, irq);
+    pic_set_irq_new(s->intctl, s->irq, irq);
 }
 
 static void slavio_serial_reset_chn(ChannelState *s)
@@ -545,7 +547,8 @@ static int slavio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
 }
 
-SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDriverState *chr2)
+SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1,
+                                CharDriverState *chr2, void *intctl)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;
@@ -564,6 +567,7 @@ SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDr
 	s->chn[i].irq = irq;
 	s->chn[i].chn = 1 - i;
 	s->chn[i].type = ser;
+        s->chn[i].intctl = intctl;
 	if (s->chn[i].chr) {
 	    qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
                                   serial_receive1, serial_event, &s->chn[i]);
@@ -661,7 +665,7 @@ static void sunmouse_event(void *opaque,
     put_queue(s, 0);
 }
 
-void slavio_serial_ms_kbd_init(int base, int irq)
+void slavio_serial_ms_kbd_init(int base, int irq, void *intctl)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;
@@ -673,6 +677,7 @@ void slavio_serial_ms_kbd_init(int base, int irq)
 	s->chn[i].irq = irq;
 	s->chn[i].chn = 1 - i;
 	s->chn[i].chr = NULL;
+        s->chn[i].intctl = intctl;
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];

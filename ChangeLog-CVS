@@ -1,3 +1,43 @@
+2007-04-01 18:23  blueswir1
+
+	* target-sparc/translate.c: Fix off-by-one error
+
+2007-04-01 18:05  blueswir1
+
+	* vl.h, hw/slavio_intctl.c, hw/slavio_misc.c, hw/slavio_serial.c,
+	  hw/slavio_timer.c, hw/sun4m.c: Change Sparc uses of pic_set_irq
+	  to pic_set_irq_new
+
+2007-04-01 17:55  blueswir1
+
+	* vl.c, vl.h, hw/slavio_intctl.c, hw/sun4m.c,
+	  target-sparc/translate.c: Add SparcStation-10 machine
+
+2007-04-01 17:44  blueswir1
+
+	* vl.c, vl.h, hw/sun4m.c: Reorganise Sun4m to allow other machine
+	  types
+
+2007-04-01 17:38  blueswir1
+
+	* target-sparc/: op.c, translate.c: Fix Sparc shift ops (Aurelien
+	  Jarno)
+
+2007-04-01 17:15  blueswir1
+
+	* target-sparc/: cpu.h, op_helper.c, translate.c: Fix Sparc
+	  lda/ldda/sta/stda asi handling, fault on misaligned register
+	  ldd/std and illegal cwp on wrpsr (Aurelien Jarno)
+
+2007-04-01 17:08  blueswir1
+
+	* target-sparc/: cpu.h, translate.c: Fix Sparc co-processor ops
+	  (Aurelien Jarno)
+
+2007-04-01 17:05  blueswir1
+
+	* target-sparc/translate.c: Fix Sparc ASR handling (Aurelien Jarno)
+
 2007-04-01 14:36  ths
 
 	* hw/mips_malta.c, hw/mips_r4k.c, target-mips/exec.h,

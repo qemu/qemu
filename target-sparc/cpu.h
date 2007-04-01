@@ -40,6 +40,7 @@
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
 #define TT_DIV_ZERO 0x2a
+#define TT_NCP_INSN 0x24
 #define TT_TRAP     0x80
 #else
 #define TT_TFAULT   0x08
@@ -268,7 +269,7 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 	env->psrs = (_tmp & PSR_S)? 1 : 0;				\
 	env->psrps = (_tmp & PSR_PS)? 1 : 0;				\
 	env->psret = (_tmp & PSR_ET)? 1 : 0;				\
-	cpu_set_cwp(env, _tmp & PSR_CWP & (NWINDOWS - 1));		\
+        cpu_set_cwp(env, _tmp & PSR_CWP);                               \
     } while (0)
 
 #ifdef TARGET_SPARC64
