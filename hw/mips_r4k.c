@@ -16,9 +16,9 @@
 #endif
 
 #ifdef TARGET_MIPS64
-#define INITRD_LOAD_ADDR (int64_t)(int32_t)0x80800000
+#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)
 #else
-#define INITRD_LOAD_ADDR (int32_t)0x80800000
+#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffU)
 #endif
 
 #define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
@@ -73,10 +73,12 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
 		  const char *kernel_cmdline,
 		  const char *initrd_filename)
 {
-    int64_t entry = 0;
+    int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
+    ram_addr_t initrd_offset;
 
-    kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+    kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND,
+                           &entry, &kernel_low, &kernel_high);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
@@ -89,9 +91,20 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
 
     /* load initrd */
     initrd_size = 0;
+    initrd_offset = 0;
     if (initrd_filename) {
-        initrd_size = load_image(initrd_filename,
-                                 phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+        initrd_size = get_image_size (initrd_filename);
+        if (initrd_size > 0) {
+            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            if (initrd_offset + initrd_size > ram_size) {
+                fprintf(stderr,
+                        "qemu: memory too small for initial ram disk '%s'\n",
+                        initrd_filename);
+                exit(1);
+            }
+            initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + initrd_offset);
+        }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                     initrd_filename);
@@ -104,7 +117,7 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
         int ret;
         ret = sprintf(phys_ram_base + (16 << 20) - 256,
                       "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
-                      INITRD_LOAD_ADDR,
+                      PHYS_TO_VIRT((uint32_t)initrd_offset),
                       initrd_size);
         strcpy (phys_ram_base + (16 << 20) - 256 + ret, kernel_cmdline);
     }
