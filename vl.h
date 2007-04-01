@@ -1143,7 +1143,7 @@ extern CPUReadMemoryFunc *PPC_io_read[];
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 /* sun4m.c */
-extern QEMUMachine sun4m_machine;
+extern QEMUMachine ss5_machine;
 void pic_set_irq_cpu(int irq, int level, unsigned int cpu);
 
 /* iommu.c */
@@ -1169,7 +1169,7 @@ void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
 	       unsigned long vram_offset, int vram_size, int width, int height);
 
 /* slavio_intctl.c */
-void *slavio_intctl_init();
+void *slavio_intctl_init(uint32_t addr, uint32_t addrg);
 void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env);
 void slavio_pic_info(void *opaque);
 void slavio_irq_info(void *opaque);
