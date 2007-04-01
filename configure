@@ -139,9 +139,21 @@ SunOS)
     solaris="yes"
     make="gmake"
     install="ginstall"
+    needs_libsunmath="no"
     solarisrev=`uname -r | cut -f2 -d.`
     if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
-        if test "$solarisrev" -ge 10 ; then
+        if test "$solarisrev" -le 9 ; then
+            if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
+                needs_libsunmath="yes"
+            else
+                echo "QEMU will not link correctly on Solaris 8/X86 or 9/x86 without"
+                echo "libsunmath from the Sun Studio compilers tools, due to a lack of"
+                echo "C99 math features in libm.so in Solaris 8/x86 and Solaris 9/x86"
+                echo "Studio 11 can be downloaded from www.sun.com."
+                exit 1
+            fi
+        fi
+        if test "$solarisrev" -ge 9 ; then
             kqemu="yes"
         fi
     fi
@@ -727,6 +739,10 @@ fi
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=yes" >> $config_mak
   echo "#define HOST_SOLARIS $solarisrev" >> $config_h
+  if test "$needs_libsunmath" = "yes" ; then
+    echo "NEEDS_LIBSUNMATH=yes" >> $config_mak
+    echo "#define NEEDS_LIBSUNMATH 1" >> $config_h
+  fi
 fi
 if test "$gdbstub" = "yes" ; then
   echo "CONFIG_GDBSTUB=yes" >> $config_mak

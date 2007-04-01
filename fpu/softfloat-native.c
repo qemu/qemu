@@ -30,6 +30,25 @@ void set_floatx80_rounding_precision(int val STATUS_PARAM)
 #define sqrtf(f)		((float)sqrt(f))
 #define remainderf(fa, fb)	((float)remainder(fa, fb))
 #define rintf(f)		((float)rint(f))
+#if !defined(__sparc__) && HOST_SOLARIS < 10
+extern long double rintl(long double);
+extern long double scalbnl(long double, int);
+
+long long
+llrintl(long double x) {
+	return ((long long) rintl(x));
+}
+
+long
+lrintl(long double x) {
+	return ((long) rintl(x));
+}
+
+long double
+ldexpl(long double x, int n) {
+	return (scalbnl(x, n));
+}
+#endif
 #endif
 
 #if defined(__powerpc__)
