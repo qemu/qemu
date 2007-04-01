@@ -184,17 +184,7 @@ void irq_info()
 
 void pic_set_irq(int irq, int level)
 {
-    slavio_pic_set_irq(slavio_intctl, irq, level);
-}
-
-void pic_set_irq_new(void *opaque, int irq, int level)
-{
-    pic_set_irq(irq, level);
-}
-
-void pic_set_irq_cpu(int irq, int level, unsigned int cpu)
-{
-    slavio_pic_set_irq_cpu(slavio_intctl, irq, level, cpu);
+    pic_set_irq_new(slavio_intctl, irq, level);
 }
 
 static void *slavio_misc;
@@ -261,15 +251,16 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     nvram = m48t59_init(0, hwdef->nvram_base, 0, hwdef->nvram_size, 8);
     for (i = 0; i < MAX_CPUS; i++) {
         slavio_timer_init(hwdef->counter_base + i * TARGET_PAGE_SIZE,
-                          hwdef->clock_irq, 0, i);
+                          hwdef->clock_irq, 0, i, slavio_intctl);
     }
     slavio_timer_init(hwdef->counter_base + 0x10000, hwdef->clock1_irq, 2,
-                      (unsigned int)-1);
-    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, hwdef->ms_kb_irq);
+                      (unsigned int)-1, slavio_intctl);
+    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, hwdef->ms_kb_irq,
+                              slavio_intctl);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
     slavio_serial_init(hwdef->serial_base, hwdef->ser_irq,
-                       serial_hds[1], serial_hds[0]);
+                       serial_hds[1], serial_hds[0], slavio_intctl);
     fdctrl_init(hwdef->fd_irq, 0, 1, hwdef->fd_base, fd_table);
     main_esp = esp_init(bs_table, hwdef->esp_base, dma);
 
@@ -279,7 +270,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         }
     }
 
-    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->me_irq);
+    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->me_irq,
+                                   slavio_intctl);
     cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
     sparc32_dma_set_reset_data(dma, main_esp, main_lance);
 }

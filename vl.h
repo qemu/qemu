@@ -1144,7 +1144,6 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 /* sun4m.c */
 extern QEMUMachine ss5_machine, ss10_machine;
-void pic_set_irq_cpu(int irq, int level, unsigned int cpu);
 
 /* iommu.c */
 void *iommu_init(uint32_t addr);
@@ -1169,6 +1168,7 @@ void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
 	       unsigned long vram_offset, int vram_size, int width, int height);
 
 /* slavio_intctl.c */
+void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
 void *slavio_intctl_init(uint32_t addr, uint32_t addrg,
                          const uint32_t *intbit_to_level);
 void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env);
@@ -1185,14 +1185,16 @@ int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
-void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu);
+void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu,
+                       void *intctl);
 
 /* slavio_serial.c */
-SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDriverState *chr2);
-void slavio_serial_ms_kbd_init(int base, int irq);
+SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1,
+                                CharDriverState *chr2, void *intctl);
+void slavio_serial_ms_kbd_init(int base, int irq, void *intctl);
 
 /* slavio_misc.c */
-void *slavio_misc_init(uint32_t base, int irq);
+void *slavio_misc_init(uint32_t base, int irq, void *intctl);
 void slavio_set_power_fail(void *opaque, int power_failing);
 
 /* esp.c */

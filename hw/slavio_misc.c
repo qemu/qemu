@@ -36,6 +36,9 @@
 #ifdef DEBUG_MISC
 #define MISC_DPRINTF(fmt, args...) \
 do { printf("MISC: " fmt , ##args); } while (0)
+#define pic_set_irq_new(intctl, irq, level)                             \
+    do { printf("MISC: set_irq(%d): %d\n", (irq), (level));             \
+        pic_set_irq_new((intctl), (irq),(level));} while (0)
 #else
 #define MISC_DPRINTF(fmt, args...)
 #endif
@@ -45,6 +48,7 @@ typedef struct MiscState {
     uint8_t config;
     uint8_t aux1, aux2;
     uint8_t diag, mctrl, sysctrl;
+    void *intctl;
 } MiscState;
 
 #define MISC_MAXADDR 1
@@ -54,9 +58,9 @@ static void slavio_misc_update_irq(void *opaque)
     MiscState *s = opaque;
 
     if ((s->aux2 & 0x4) && (s->config & 0x8)) {
-        pic_set_irq(s->irq, 1);
+        pic_set_irq_new(s->intctl, s->irq, 1);
     } else {
-        pic_set_irq(s->irq, 0);
+        pic_set_irq_new(s->intctl, s->irq, 0);
     }
 }
 
@@ -207,7 +211,7 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *slavio_misc_init(uint32_t base, int irq)
+void *slavio_misc_init(uint32_t base, int irq, void *intctl)
 {
     int slavio_misc_io_memory;
     MiscState *s;
@@ -233,6 +237,7 @@ void *slavio_misc_init(uint32_t base, int irq)
     cpu_register_physical_memory(base + 0xa000000, MISC_MAXADDR, slavio_misc_io_memory);
 
     s->irq = irq;
+    s->intctl = intctl;
 
     register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load, s);
     qemu_register_reset(slavio_misc_reset, s);

@@ -277,7 +277,7 @@ static void slavio_check_interrupts(void *opaque)
  * "irq" here is the bit number in the system interrupt register to
  * separate serial and keyboard interrupts sharing a level.
  */
-void slavio_pic_set_irq(void *opaque, int irq, int level)
+void pic_set_irq_new(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
@@ -299,13 +299,13 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
     }
 }
 
-void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
+void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
 {
     SLAVIO_INTCTLState *s = opaque;
 
     DPRINTF("Set cpu %d local irq %d level %d\n", cpu, irq, level);
     if (cpu == (unsigned int)-1) {
-        slavio_pic_set_irq(opaque, irq, level);
+        pic_set_irq_new(opaque, irq, level);
         return;
     }
     if (irq < 32) {
