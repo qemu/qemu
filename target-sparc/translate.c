@@ -1130,11 +1130,19 @@ static void disas_sparc_insn(DisasContext * dc)
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch(rs1) {
                 case 0: /* rdy */
-		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, y));
+#ifndef TARGET_SPARC64
+                case 0x01 ... 0x0e: /* undefined in the SPARCv8
+                                       manual, rdy on the microSPARC
+                                       II */
+                case 0x0f:          /* stbar in the SPARCv8 manual,
+                                       rdy on the microSPARC II */
+                case 0x10 ... 0x1f: /* implementation-dependent in the
+                                       SPARCv8 manual, rdy on the
+                                       microSPARC II */
+#endif
+                    gen_op_movtl_T0_env(offsetof(CPUSPARCState, y));
                     gen_movl_T0_reg(rd);
                     break;
-                case 15: /* stbar / V9 membar */
-		    break; /* no effect? */
 #ifdef TARGET_SPARC64
 		case 0x2: /* V9 rdccr */
                     gen_op_rdccr();
@@ -1160,6 +1168,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_movl_T0_env(offsetof(CPUSPARCState, fprs));
                     gen_movl_T0_reg(rd);
                     break;
+                case 0xf: /* V9 membar */
+                    break; /* no effect */
 		case 0x13: /* Graphics Status */
                     if (gen_trap_ifnofpu(dc))
                         goto jmp_insn;
@@ -1879,7 +1889,17 @@ static void disas_sparc_insn(DisasContext * dc)
 				gen_op_xor_T1_T0();
 				gen_op_movtl_env_T0(offsetof(CPUSPARCState, y));
                                 break;
-#ifdef TARGET_SPARC64
+#ifndef TARGET_SPARC64
+                            case 0x01 ... 0x0f: /* undefined in the
+                                                   SPARCv8 manual, nop
+                                                   on the microSPARC
+                                                   II */
+                            case 0x10 ... 0x1f: /* implementation-dependent
+                                                   in the SPARCv8
+                                                   manual, nop on the
+                                                   microSPARC II */
+                                break;
+#else
 			    case 0x2: /* V9 wrccr */
                                 gen_op_wrccr();
 				break;
