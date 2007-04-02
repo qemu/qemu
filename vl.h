@@ -1009,6 +1009,12 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
                        BlockDriverState **fds);
 int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
+/* eepro100.c */
+
+void pci_i82551_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_i82557b_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_i82559er_init(PCIBus *bus, NICInfo *nd, int devfn);
+
 /* ne2000.c */
 
 void isa_ne2000_init(int base, int irq, NICInfo *nd);

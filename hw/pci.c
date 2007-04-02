@@ -548,6 +548,12 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     if (strcmp(nd->model, "ne2k_pci") == 0) {
         pci_ne2000_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "i82551") == 0) {
+        pci_i82551_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "i82557b") == 0) {
+        pci_i82557b_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "i82559er") == 0) {
+        pci_i82559er_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
         pci_rtl8139_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "pcnet") == 0) {
