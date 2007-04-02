@@ -154,6 +154,7 @@ QEMUTimer *gui_timer;
 int vm_running;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 1;
+int vmsvga_enabled = 0;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -542,6 +543,10 @@ int kbd_mouse_is_absolute(void)
 
     return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
 }
+
+void (*kbd_mouse_set)(int x, int y, int on) = NULL;
+void (*kbd_cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
+                          uint8_t *image, uint8_t *mask) = NULL;
 
 void do_info_mice(void)
 {
@@ -6509,6 +6514,7 @@ enum {
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
+    QEMU_OPTION_vmsvga,
     QEMU_OPTION_g,
     QEMU_OPTION_std_vga,
     QEMU_OPTION_echr,
@@ -6616,6 +6622,7 @@ const QEMUOption qemu_options[] = {
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
+    { "vmwarevga", 0, QEMU_OPTION_vmsvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "daemonize", 0, QEMU_OPTION_daemonize },
@@ -7184,9 +7191,15 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_cirrusvga:
                 cirrus_vga_enabled = 1;
+                vmsvga_enabled = 0;
+                break;
+            case QEMU_OPTION_vmsvga:
+                cirrus_vga_enabled = 0;
+                vmsvga_enabled = 1;
                 break;
             case QEMU_OPTION_std_vga:
                 cirrus_vga_enabled = 0;
+                vmsvga_enabled = 0;
                 break;
             case QEMU_OPTION_g:
                 {

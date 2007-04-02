@@ -134,6 +134,9 @@
     uint32_t cursor_offset;                                             \
     unsigned int (*rgb_to_pixel)(unsigned int r,                        \
                                  unsigned int g, unsigned b);           \
+    vga_hw_update_ptr update;                                           \
+    vga_hw_invalidate_ptr invalidate;                                   \
+    vga_hw_screen_dump_ptr screen_dump;                                 \
     /* hardware mouse cursor support */                                 \
     uint32_t invalidated_y_table[VGA_MAX_HEIGHT / 32];                  \
     void (*cursor_invalidate)(struct VGAState *s);                      \
@@ -157,6 +160,7 @@ static inline int c6_to_8(int v)
 
 void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base, 
                      unsigned long vga_ram_offset, int vga_ram_size);
+void vga_init(VGAState *s);
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGAState *s, int y1, int y2);

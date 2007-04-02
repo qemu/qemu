@@ -44,6 +44,9 @@ static int width, height;
 static SDL_Cursor *sdl_cursor_normal;
 static SDL_Cursor *sdl_cursor_hidden;
 static int absolute_enabled = 0;
+static int guest_cursor = 0;
+static int guest_x, guest_y;
+static SDL_Cursor *guest_sprite = 0;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -245,13 +248,21 @@ static void sdl_show_cursor(void)
 {
     if (!kbd_mouse_is_absolute()) {
         SDL_ShowCursor(1);
-        SDL_SetCursor(sdl_cursor_normal);
+        if (guest_cursor &&
+                (gui_grab || kbd_mouse_is_absolute() || absolute_enabled))
+            SDL_SetCursor(guest_sprite);
+        else
+            SDL_SetCursor(sdl_cursor_normal);
     }
 }
 
 static void sdl_grab_start(void)
 {
-    sdl_hide_cursor();
+    if (guest_cursor) {
+        SDL_SetCursor(guest_sprite);
+        SDL_WarpMouse(guest_x, guest_y);
+    } else
+        sdl_hide_cursor();
     SDL_WM_GrabInput(SDL_GRAB_ON);
     /* dummy read to avoid moving the mouse */
     SDL_GetRelativeMouseState(NULL, NULL);
@@ -262,8 +273,8 @@ static void sdl_grab_start(void)
 static void sdl_grab_end(void)
 {
     SDL_WM_GrabInput(SDL_GRAB_OFF);
-    sdl_show_cursor();
     gui_grab = 0;
+    sdl_show_cursor();
     sdl_update_caption();
 }
 
@@ -294,6 +305,12 @@ static void sdl_send_mouse_event(int dz)
     } else if (absolute_enabled) {
 	sdl_show_cursor();
 	absolute_enabled = 0;
+    } else if (guest_cursor) {
+        SDL_GetMouseState(&dx, &dy);
+        dx -= guest_x;
+        dy -= guest_y;
+        guest_x += dx;
+        guest_y += dy;
     }
 
     kbd_mouse_event(dx, dy, dz, buttons);
@@ -472,8 +489,77 @@ static void sdl_refresh(DisplayState *ds)
     }
 }
 
+static void sdl_fill(DisplayState *ds, int x, int y, int w, int h, uint32_t c)
+{
+    SDL_Rect dst = { x, y, w, h };
+    SDL_FillRect(screen, &dst, c);
+}
+
+static void sdl_mouse_warp(int x, int y, int on)
+{
+    if (on) {
+        if (!guest_cursor)
+            sdl_show_cursor();
+        if (gui_grab || kbd_mouse_is_absolute() || absolute_enabled) {
+            SDL_SetCursor(guest_sprite);
+            SDL_WarpMouse(x, y);
+        }
+    } else if (gui_grab)
+        sdl_hide_cursor();
+    guest_cursor = on;
+    guest_x = x, guest_y = y;
+}
+
+static void sdl_mouse_define(int width, int height, int bpp,
+                             int hot_x, int hot_y,
+                             uint8_t *image, uint8_t *mask)
+{
+    uint8_t sprite[256], *line;
+    int x, y, dst, bypl, src = 0;
+    if (guest_sprite)
+        SDL_FreeCursor(guest_sprite);
+
+    memset(sprite, 0, 256);
+    bypl = ((width * bpp + 31) >> 5) << 2;
+    for (y = 0, dst = 0; y < height; y ++, image += bypl) {
+        line = image;
+        for (x = 0; x < width; x ++, dst ++) {
+            switch (bpp) {
+            case 24:
+                src = *(line ++); src |= *(line ++); src |= *(line ++);
+                break;
+            case 16:
+            case 15:
+                src = *(line ++); src |= *(line ++);
+                break;
+            case 8:
+                src = *(line ++);
+                break;
+            case 4:
+                src = 0xf & (line[x >> 1] >> ((x & 1)) << 2);
+                break;
+            case 2:
+                src = 3 & (line[x >> 2] >> ((x & 3)) << 1);
+                break;
+            case 1:
+                src = 1 & (line[x >> 3] >> (x & 7));
+                break;
+            }
+            if (!src)
+                sprite[dst >> 3] |= (1 << (~dst & 7)) & mask[dst >> 3];
+        }
+    }
+    guest_sprite = SDL_CreateCursor(sprite, mask, width, height, hot_x, hot_y);
+
+    if (guest_cursor &&
+            (gui_grab || kbd_mouse_is_absolute() || absolute_enabled))
+        SDL_SetCursor(guest_sprite);
+}
+
 static void sdl_cleanup(void) 
 {
+    if (guest_sprite)
+        SDL_FreeCursor(guest_sprite);
     SDL_Quit();
 }
 
@@ -510,6 +596,9 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     ds->dpy_update = sdl_update;
     ds->dpy_resize = sdl_resize;
     ds->dpy_refresh = sdl_refresh;
+    ds->dpy_fill = sdl_fill;
+    ds->mouse_set = sdl_mouse_warp;
+    ds->cursor_define = sdl_mouse_define;
 
     sdl_resize(ds, 640, 400);
     sdl_update_caption();

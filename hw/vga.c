@@ -1788,12 +1788,13 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
     s->get_resolution = vga_get_resolution;
-    graphic_console_init(s->ds, vga_update_display, vga_invalidate_display,
-                         vga_screen_dump, s);
+    s->update = vga_update_display;
+    s->invalidate = vga_invalidate_display;
+    s->screen_dump = vga_screen_dump;
 }
 
 /* used by both ISA and PCI */
-static void vga_init(VGAState *s)
+void vga_init(VGAState *s)
 {
     int vga_io_memory;
 
@@ -1856,6 +1857,8 @@ int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
 
+    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump, s);
+
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
@@ -1881,6 +1884,9 @@ int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
+
+    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump, s);
+
     s->pci_dev = &d->dev;
     
     pci_conf = d->dev.config;
