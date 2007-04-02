@@ -2583,8 +2583,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
             cpu_fprintf(f, " ");
     }
     psr = cpsr_read(env);
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%d %x\n", 
-                psr, 
+    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%d\n",
+                psr,
                 psr & (1 << 31) ? 'N' : '-',
                 psr & (1 << 30) ? 'Z' : '-',
                 psr & (1 << 29) ? 'C' : '-',
