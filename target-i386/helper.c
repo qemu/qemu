@@ -1864,8 +1864,11 @@ void helper_ltr_T0(void)
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            uint32_t e3;
+            uint32_t e3, e4;
             e3 = ldl_kernel(ptr + 8);
+            e4 = ldl_kernel(ptr + 12);
+            if ((e4 >> DESC_TYPE_SHIFT) & 0xf)
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
             load_seg_cache_raw_dt(&env->tr, e1, e2);
             env->tr.base |= (target_ulong)e3 << 32;
         } else 
