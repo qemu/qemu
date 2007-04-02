@@ -206,7 +206,7 @@ static int ne2000_buffer_full(NE2000State *s)
 
     index = s->curpag << 8;
     boundary = s->boundary << 8;
-    if (index <= boundary)
+    if (index < boundary)
         avail = boundary - index;
     else
         avail = (s->stop - s->start) - (index - boundary);
