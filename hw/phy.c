@@ -20,6 +20,8 @@
 
 /* This code emulates a National Semiconductor DP83840A PHY. */
 
+#define DEBUG_PHY
+
 typedef enum {
     PHY_BMCR = 0x00,    /* Basic Mode Control Register */
     PHY_BMSR = 0x01,    /* Basic Mode Status */
@@ -117,6 +119,41 @@ typedef struct {
 
 static phy_t phy;
 
+#if defined(DEBUG_PHY)
+
+static int trace_phy;
+
+#define PHY   trace_phy
+
+#undef SET_TRACEFLAG
+#define SET_TRACEFLAG(name) \
+    do { \
+        char *substring = strstr(env, #name); \
+        if (substring) { \
+            name = ((substring > env && substring[-1] == '-') ? 0 : 1); \
+        } \
+        TRACE_PHY(logout("Logging enabled for " #name "\n")); \
+    } while(0)
+
+#define TRACE_PHY(statement)    ((PHY) ? (statement) : (void)0)
+
+static void set_phy_traceflags(const char *envname)
+{
+    const char *env = getenv(envname);
+    if (env != 0) {
+        unsigned long ul = strtoul(env, 0, 0);
+        if ((ul == 0) && strstr(env, "ALL")) ul = 0xffffffff;
+        PHY = ul;
+        SET_TRACEFLAG(PHY);
+    }
+}
+
+#else
+
+#define TRACE_PHY(statement)    ((void)0)
+
+#endif /* DEBUG_PHY */
+
 static void phy_reset(void)
 {
     //~ phy register 1:
@@ -127,7 +164,7 @@ static void phy_reset(void)
     //~ 0xA8611E80 01 00 BF 20
     //~ 0xA8611E80 E1 85 BF 20
     const int linked = 1;
-    logout("\n");
+    TRACE_PHY(logout("\n"));
     phy.reg[PHY_BMCR] = PHY_100 | AUTO_NEGOTIATE_EN | PHY_FD;
     //~ phy.reg[PHY_BMCR] |= PHY_ISOLATE;
     phy.reg[PHY_BMSR] = PHY_100BASE_TX_FD | PHY_100BASE_TX_HD;
@@ -152,7 +189,7 @@ static void phy_reset(void)
 
 static void phy_autoneg(void)
 {
-    logout("\n");
+    TRACE_PHY(logout("\n"));
     phy_reset();
     phy.reg[PHY_BMSR] |= NWAY_COMPLETE + PHY_LINKED;
 }
@@ -160,7 +197,7 @@ static void phy_autoneg(void)
 static void phy_enable(void)
 {
     static int first = 1;
-    logout("\n");
+    TRACE_PHY(logout("\n"));
     if (first) {
         phy_reset();
         first = 0;
@@ -170,14 +207,14 @@ static void phy_enable(void)
 
 static void phy_disable(void)
 {
-    logout("\n");
+    TRACE_PHY(logout("\n"));
     phy.enabled = 0;
 }
 
 static uint16_t phy_read(unsigned addr)
 {
     uint16_t val = phy.reg[addr];
-    logout("\n");
+    TRACE_PHY(logout("\n"));
     if (!phy.enabled) return 0;
 #if 0
     if (addr == PHY_BMCR) {
@@ -201,7 +238,7 @@ static uint16_t phy_read(unsigned addr)
 
 static void phy_write(unsigned addr, uint16_t val)
 {
-    logout("\n");
+    TRACE_PHY(logout("\n"));
     if (!phy.enabled) return;
 
     if (addr == PHY_BMCR) {
@@ -240,7 +277,10 @@ static void phy_write(unsigned addr, uint16_t val)
 
 void phy_init(void)
 {
-    logout("\n");
+#if defined(DEBUG_PHY)
+    set_phy_traceflags("DEBUG_AR7");
+#endif
+    TRACE_PHY(logout("\n"));
 }
 
 #if 0
