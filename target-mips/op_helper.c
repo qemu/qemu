@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <stdlib.h>
 #include "exec.h"
 
 #define MIPS_DEBUG_DISAS
@@ -222,29 +223,34 @@ void do_msubu (void)
 #ifdef TARGET_MIPS64
 void do_dmult (void)
 {
+    env->LO = (int64_t)T0 * (int64_t)T1;
     /* XXX */
-    set_HILO((int64_t)T0 * (int64_t)T1);
+    env->HI = (env->LO | (1ULL << 63)) ? ~0ULL : 0ULL;
 }
 
 void do_dmultu (void)
 {
+    env->LO = T0 * T1;
     /* XXX */
-    set_HILO((uint64_t)T0 * (uint64_t)T1);
+    env->HI = 0;
 }
 
 void do_ddiv (void)
 {
     if (T1 != 0) {
-        env->LO = (int64_t)T0 / (int64_t)T1;
-        env->HI = (int64_t)T0 % (int64_t)T1;
+        lldiv_t res = lldiv((int64_t)T0, (int64_t)T1);
+        env->LO = res.quot;
+        env->HI = res.rem;
     }
 }
 
 void do_ddivu (void)
 {
     if (T1 != 0) {
-        env->LO = T0 / T1;
-        env->HI = T0 % T1;
+        /* XXX: lldivu? */
+        lldiv_t res = lldiv(T0, T1);
+        env->LO = (uint64_t)res.quot;
+        env->HI = (uint64_t)res.rem;
     }
 }
 #endif
