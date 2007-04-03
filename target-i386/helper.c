@@ -1653,7 +1653,7 @@ void helper_cpuid(void)
         break;
     case 1:
         EAX = env->cpuid_version;
-        EBX = 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
+        EBX = (env->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         ECX = env->cpuid_ext_features;
         EDX = env->cpuid_features;
         break;
