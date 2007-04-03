@@ -530,6 +530,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_xlevel;
     uint32_t cpuid_model[12];
     uint32_t cpuid_ext2_features;
+    uint32_t cpuid_apic_id;
     
 #ifdef USE_KQEMU
     int kqemu_enabled;

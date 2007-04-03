@@ -257,14 +257,14 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* UART Registers */
     case 0x00900:
-    case 0x00904:
     case 0x00908:
-    case 0x0090c:
     case 0x00910:
-    case 0x00914:
     case 0x00918:
-    case 0x0091c:
-        val = serial_mm_readl(s->uart, addr);
+    case 0x00920:
+    case 0x00928:
+    case 0x00930:
+    case 0x00938:
+        val = serial_mm_readb(s->uart, addr);
         break;
 
     /* GPOUT Register */
@@ -371,14 +371,14 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     /* UART Registers */
     case 0x00900:
-    case 0x00904:
     case 0x00908:
-    case 0x0090c:
     case 0x00910:
-    case 0x00914:
     case 0x00918:
-    case 0x0091c:
-        serial_mm_writel(s->uart, addr, val);
+    case 0x00920:
+    case 0x00928:
+    case 0x00930:
+    case 0x00938:
+        serial_mm_writeb(s->uart, addr, val);
         break;
 
     /* GPOUT Register */

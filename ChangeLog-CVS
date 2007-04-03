@@ -1,3 +1,12 @@
+2007-04-03 18:38  ths
+
+	* hw/apic.c, target-i386/cpu.h, target-i386/helper.c: i386 return
+	  APIC ID with cpuid, by Bernhard Kauer.
+
+2007-04-03 16:05  ths
+
+	* hw/mips_malta.c: Fix Malta tty2 UART registers.
+
 2007-04-02 19:28  ths
 
 	* target-mips/translate.c: MIPS32R2 needs RDPGPR/WRPGPR
