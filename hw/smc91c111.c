@@ -446,7 +446,9 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
         case 7:
             /* Not implemented.  */
             return 0;
-        case 8: /* Free memory available.  */
+        case 8: /* Memory size.  */
+            return NUM_PACKETS;
+        case 9: /* Free memory available.  */
             {
                 int i;
                 int n;
@@ -457,8 +459,6 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
                 }
                 return n;
             }
-        case 9: /* Memory size.  */
-            return NUM_PACKETS;
         case 10: case 11: /* RPCR */
             /* Not implemented.  */
             return 0;

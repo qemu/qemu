@@ -1376,7 +1376,8 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile,
-                    "undefined branch in delay slot at pc 0x%08x\n", ctx->pc);
+                    "undefined branch in delay slot at PC " TARGET_FMT_lx "\n",
+                    ctx->pc);
         }
         //~ MIPS_INVAL("branch/jump in bdelay slot");
         //~ generate_exception(ctx, EXCP_RI);
@@ -4844,9 +4845,15 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             }
             GEN_STORE_TN_REG(rt, T0);
             break;
-        /* Shadow registers (not implemented). */
         case OPC_RDPGPR:
         case OPC_WRPGPR:
+            if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR)) {
+                /* Shadow registers not implemented. */
+                GEN_LOAD_REG_TN(T0, rt);
+                GEN_STORE_TN_REG(rd, T0);
+            } else
+                generate_exception(ctx, EXCP_RI);
+            break;
         default:
             generate_exception(ctx, EXCP_RI);
             break;

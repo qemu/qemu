@@ -21,10 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#ifdef __OpenBSD__
+#include <soundcard.h>
+#else
 #include <sys/soundcard.h>
+#endif
 #include "vl.h"
 
 #define AUDIO_CAP "oss"

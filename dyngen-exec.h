@@ -78,7 +78,11 @@ typedef void * host_reg_t;
 #define UINT32_MAX		(4294967295U)
 #define UINT64_MAX		((uint64_t)(18446744073709551615))
 
+#ifdef _BSD
+typedef struct __sFILE FILE;
+#else
 typedef struct FILE FILE;
+#endif
 extern int fprintf(FILE *, const char *, ...);
 extern int fputs(const char *, FILE *);
 extern int printf(const char *, ...);

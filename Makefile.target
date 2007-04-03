@@ -418,11 +418,15 @@ VL_OBJS+= scsi-disk.o cdrom.o lsi53c895a.o
 # USB layer
 VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o usb-msd.o
 
+# EEPROM emulation
+VL_OBJS += eeprom93xx.o
+
 # PCI network cards
-VL_OBJS+= ne2000.o rtl8139.o pcnet.o
 VL_OBJS += dp8381x.o
 VL_OBJS += eepro100.o
-VL_OBJS += eeprom93xx.o
+VL_OBJS += ne2000.o
+VL_OBJS += pcnet.o
+VL_OBJS += rtl8139.o
 VL_OBJS += tnetw1130.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
@@ -430,7 +434,7 @@ ifeq ($(TARGET_BASE_ARCH), i386)
 VL_OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o acpi.o piix_pci.o
-VL_OBJS+= usb-uhci.o smbus_eeprom.o vmmouse.o
+VL_OBJS+= usb-uhci.o smbus_eeprom.o vmmouse.o vmware_vga.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)

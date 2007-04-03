@@ -1046,6 +1046,7 @@ again:
             case 5: /* SHR */
                 op1 = op0 & 1;
                 op0 = (op0 >> 1) | (s->carry << 7);
+                s->carry = op1;
                 break;
             case 6: /* ADD */
                 op0 += op1;

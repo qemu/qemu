@@ -1864,8 +1864,11 @@ void helper_ltr_T0(void)
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            uint32_t e3;
+            uint32_t e3, e4;
             e3 = ldl_kernel(ptr + 8);
+            e4 = ldl_kernel(ptr + 12);
+            if ((e4 >> DESC_TYPE_SHIFT) & 0xf)
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
             load_seg_cache_raw_dt(&env->tr, e1, e2);
             env->tr.base |= (target_ulong)e3 << 32;
         } else 
@@ -3136,30 +3139,51 @@ void helper_fprem1(void)
     CPU86_LDouble dblq, fpsrcop, fptemp;
     CPU86_LDoubleU fpsrcop1, fptemp1;
     int expdif;
-    int q;
+    signed long long int q;
+
+    if (isinf(ST0) || isnan(ST0) || isnan(ST1) || (ST1 == 0.0)) {
+        ST0 = 0.0 / 0.0; /* NaN */
+        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+        return;
+    }
 
     fpsrcop = ST0;
     fptemp = ST1;
     fpsrcop1.d = fpsrcop;
     fptemp1.d = fptemp;
     expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
+
+    if (expdif < 0) {
+        /* optimisation? taken from the AMD docs */
+        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+        /* ST0 is unchanged */
+        return;
+    }
+
     if (expdif < 53) {
         dblq = fpsrcop / fptemp;
-        dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
-        ST0 = fpsrcop - fptemp*dblq;
-        q = (int)dblq; /* cutting off top bits is assumed here */
+        /* round dblq towards nearest integer */
+        dblq = rint(dblq);
+        ST0 = fpsrcop - fptemp * dblq;
+
+        /* convert dblq to q by truncating towards zero */
+        if (dblq < 0.0)
+           q = (signed long long int)(-dblq);
+        else
+           q = (signed long long int)dblq;
+
         env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
-				/* (C0,C1,C3) <-- (q2,q1,q0) */
-        env->fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
-        env->fpus |= (q&0x2) << 8; /* (C1) <-- q1 */
-        env->fpus |= (q&0x1) << 14; /* (C3) <-- q0 */
+                                /* (C0,C3,C1) <-- (q2,q1,q0) */
+        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
+        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
+        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
     } else {
         env->fpus |= 0x400;  /* C2 <-- 1 */
-        fptemp = pow(2.0, expdif-50);
+        fptemp = pow(2.0, expdif - 50);
         fpsrcop = (ST0 / ST1) / fptemp;
-        /* fpsrcop = integer obtained by rounding to the nearest */
-        fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
-            floor(fpsrcop): ceil(fpsrcop);
+        /* fpsrcop = integer obtained by chopping */
+        fpsrcop = (fpsrcop < 0.0) ?
+                  -(floor(fabs(fpsrcop))) : floor(fpsrcop);
         ST0 -= (ST1 * fpsrcop * fptemp);
     }
 }
@@ -3169,30 +3193,52 @@ void helper_fprem(void)
     CPU86_LDouble dblq, fpsrcop, fptemp;
     CPU86_LDoubleU fpsrcop1, fptemp1;
     int expdif;
-    int q;
-    
-    fpsrcop = ST0;
-    fptemp = ST1;
+    signed long long int q;
+
+    if (isinf(ST0) || isnan(ST0) || isnan(ST1) || (ST1 == 0.0)) {
+       ST0 = 0.0 / 0.0; /* NaN */
+       env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+       return;
+    }
+
+    fpsrcop = (CPU86_LDouble)ST0;
+    fptemp = (CPU86_LDouble)ST1;
     fpsrcop1.d = fpsrcop;
     fptemp1.d = fptemp;
     expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
-    if ( expdif < 53 ) {
-        dblq = fpsrcop / fptemp;
-        dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
-        ST0 = fpsrcop - fptemp*dblq;
-        q = (int)dblq; /* cutting off top bits is assumed here */
+
+    if (expdif < 0) {
+        /* optimisation? taken from the AMD docs */
         env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
-				/* (C0,C1,C3) <-- (q2,q1,q0) */
-        env->fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
-        env->fpus |= (q&0x2) << 8; /* (C1) <-- q1 */
-        env->fpus |= (q&0x1) << 14; /* (C3) <-- q0 */
+        /* ST0 is unchanged */
+        return;
+    }
+
+    if ( expdif < 53 ) {
+        dblq = fpsrcop/*ST0*/ / fptemp/*ST1*/;
+        /* round dblq towards zero */
+        dblq = (dblq < 0.0) ? ceil(dblq) : floor(dblq);
+        ST0 = fpsrcop/*ST0*/ - fptemp * dblq;
+
+        /* convert dblq to q by truncating towards zero */
+        if (dblq < 0.0)
+           q = (signed long long int)(-dblq);
+        else
+           q = (signed long long int)dblq;
+
+        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+                                /* (C0,C3,C1) <-- (q2,q1,q0) */
+        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
+        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
+        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
     } else {
+        int N = 32 + (expdif % 32); /* as per AMD docs */
         env->fpus |= 0x400;  /* C2 <-- 1 */
-        fptemp = pow(2.0, expdif-50);
+        fptemp = pow(2.0, (double)(expdif - N));
         fpsrcop = (ST0 / ST1) / fptemp;
         /* fpsrcop = integer obtained by chopping */
-        fpsrcop = (fpsrcop < 0.0)?
-            -(floor(fabs(fpsrcop))): floor(fpsrcop);
+        fpsrcop = (fpsrcop < 0.0) ?
+                  -(floor(fabs(fpsrcop))) : floor(fpsrcop);
         ST0 -= (ST1 * fpsrcop * fptemp);
     }
 }

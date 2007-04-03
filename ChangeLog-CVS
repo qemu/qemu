@@ -1,3 +1,56 @@
+2007-04-02 19:28  ths
+
+	* target-mips/translate.c: MIPS32R2 needs RDPGPR/WRPGPR
+	  instructions even when no shadow registers are implemented.
+
+2007-04-02 18:33  ths
+
+	* target-i386/helper.c: Fix guest x86/amd64
+	  helper_fprem/helper_fprem1, by Julian Seward.
+
+2007-04-02 17:54  ths
+
+	* target-mips/op_helper.c: Build fix for 64bit machines. (This is
+	  still not correct mul/div handling.)
+
+2007-04-02 14:48  ths
+
+	* block-qcow2.c: Qcow2: Release refcount table clusters after
+	  growing the refcount table, by Juergen Keil.
+
+2007-04-02 14:39  ths
+
+	* dyngen-exec.h: Use __sFILE to typedef for _BSD.
+
+2007-04-02 14:35  ths
+
+	* Makefile.target, vl.h, hw/eepro100.c, hw/eeprom93xx.c,
+	  hw/eeprom93xx.h, hw/pci.c: Eepro100 emulation, by Stefan Weil.
+
+2007-04-02 12:07  ths
+
+	* audio/ossaudio.c: audio/ossaudio.c for OpenBSD, by Todd T. Fries.
+
+2007-04-02 10:56  ths
+
+	* target-i386/helper.c: ltr for x86_64 should check the upper
+	  descriptor type, by Bernhard Kauer.
+
+2007-04-02 10:19  ths
+
+	* hw/ne2000.c: ne2k buffer full bug fix, by Marcel Block.
+
+2007-04-02 10:18  ths
+
+	* hw/lsi53c895a.c, hw/smc91c111.c, target-arm/translate.c: Random
+	  bug fixes from code inspection, by Wang Cheng Yeh.
+
+2007-04-02 03:10  ths
+
+	* Makefile.target, sdl.c, vl.c, vl.h, hw/cirrus_vga.c, hw/pc.c,
+	  hw/vga.c, hw/vga_int.h, hw/vmware_vga.c: VMware SVGA II
+	  emulation, by Andrzej Zaborowski.
+
 2007-04-01 21:01  ths
 
 	* block-qcow2.c: Qcow2 corruption fix, by Juergen Keil.

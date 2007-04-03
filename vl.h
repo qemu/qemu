@@ -150,6 +150,7 @@ extern int bios_size;
 extern int flash_size;
 extern int rtc_utc;
 extern int cirrus_vga_enabled;
+extern int vmsvga_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
@@ -913,7 +914,13 @@ struct DisplayState {
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
     void (*dpy_refresh)(struct DisplayState *s);
-    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y, int dst_x, int dst_y, int w, int h);
+    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y,
+                     int dst_x, int dst_y, int w, int h);
+    void (*dpy_fill)(struct DisplayState *s, int x, int y,
+                     int w, int h, uint32_t c);
+    void (*mouse_set)(int x, int y, int on);
+    void (*cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
+                          uint8_t *image, uint8_t *mask);
 };
 
 static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
@@ -937,6 +944,10 @@ void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
                          unsigned long vga_ram_offset, int vga_ram_size);
 void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
                          unsigned long vga_ram_offset, int vga_ram_size);
+
+/* vmware_vga.c */
+void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
+                     unsigned long vga_ram_offset, int vga_ram_size);
 
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
