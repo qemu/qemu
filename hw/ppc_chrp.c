@@ -473,14 +473,14 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
         /* XXX: suppress that */
         isa_pic = pic_init(pic_irq_request, NULL);
-        
+
         /* XXX: use Mac Serial port */
         serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
-        
         for(i = 0; i < nb_nics; i++) {
-            pci_ne2000_init(pci_bus, &nd_table[i], -1);
+            if (!nd_table[i].model)
+                nd_table[i].model = "ne2k_pci";
+            pci_nic_init(pci_bus, &nd_table[i], -1);
         }
-        
 #if 1
         ide0_mem_index = pmac_ide_init(&bs_table[0], set_irq, pic, 0x13);
         ide1_mem_index = pmac_ide_init(&bs_table[2], set_irq, pic, 0x14);
