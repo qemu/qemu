@@ -338,7 +338,7 @@ void tb_flush(CPUState *env1)
 
 #ifdef DEBUG_TB_CHECK
 
-static void tb_invalidate_check(unsigned long address)
+static void tb_invalidate_check(target_ulong address)
 {
     TranslationBlock *tb;
     int i;
@@ -2430,6 +2430,36 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
         ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
             (addr & ~TARGET_PAGE_MASK);
         stl_p(ptr, val);
+    }
+}
+
+void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
+{
+    int io_index;
+    uint8_t *ptr;
+    unsigned long pd;
+    PhysPageDesc *p;
+
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p) {
+        pd = IO_MEM_UNASSIGNED;
+    } else {
+        pd = p->phys_offset;
+    }
+        
+    if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
+        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+#ifdef TARGET_WORDS_BIGENDIAN
+        io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val >> 32);
+        io_mem_write[io_index][2](io_mem_opaque[io_index], addr + 4, val);
+#else
+        io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
+        io_mem_write[io_index][2](io_mem_opaque[io_index], addr + 4, val >> 32);
+#endif
+    } else {
+        ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
+            (addr & ~TARGET_PAGE_MASK);
+        stq_p(ptr, val);
     }
 }
 
