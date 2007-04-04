@@ -475,38 +475,63 @@ static void reg_set(uint8_t * reg, uint32_t addr, uint32_t value)
  ****************************************************************************/
 
 typedef enum {
-    INTC_SR1 = 0x00,    /* Interrupt Status/Set Register 1 */
-    INTC_SR2 = 0x04,    /* Interrupt Status/Set Register 2 */
-    INTC_CR1 = 0x10,    /* Interrupt Clear Register 1 */
-    INTC_CR2 = 0x14,    /* Interrupt Clear Register 2 */
-    INTC_ESR1 = 0x20,   /* Interrupt Enable (Set) Register 1 */
-    INTC_ESR2 = 0x24,   /* Interrupt Enable (Set) Register 2 */
-    INTC_ECR1 = 0x30,   /* Interrupt Enable Clear Register 1 */
-    INTC_ECR2 = 0x34,   /* Interrupt Enable Clear Register 2 */
-    INTC_PIIR = 0x40,   /* Priority Interrupt Index Register */
-    INTC_PIMR = 0x44,   /* Priority Interrupt Mask Index Reg */
-    INTC_IPMR1 = 0x50,  /* Interrupt Polarity Mask Reg 1 */
-    INTC_IPMR2 = 0x54,  /* Interrupt Polarity Mask Reg 2 */
-    INTC_TMR1 = 0x60,   /* Interrupt Type Mask Register 1 */
-    INTC_TMR2 = 0x64,   /* Interrupt Type Mask Register 2 */
+    /* primary interrupts 8 ... 47 */
+    INTERRUPT_EXT0 =  9,        /* ext0 ??? */
+    INTERRUPT_EXT1 = 10,        /* ext1 ??? */
+    INTERRUPT_TIMER0 = 13,      /* timer0 ??? */
+    INTERRUPT_TIMER1 = 14,      /* timer1 ??? */
+    INTERRUPT_SERIAL0 = 15,
+    INTERRUPT_SERIAL1 = 16,
+    INTERRUPT_DMA0 = 17,        /* ??? */
+    INTERRUPT_DMA1 = 18,        /* ??? */
+    INTERRUPT_ATMSAR = 23,      /* ??? */
+    INTERRUPT_CPMAC0 = 27,
+    INTERRUPT_VLYNQ0 = 29,      /* ??? */
+    INTERRUPT_CODEC = 30,       /* ??? */
+    INTERRUPT_USBSLAVE = 32,    /* ??? */
+    INTERRUPT_VLYNQ1 = 33,      /* ??? */
+    INTERRUPT_PHY = 36,         /* ??? */
+    INTERRUPT_I2C = 37,         /* ??? */
+    INTERRUPT_DMA2 = 38,        /* ??? */
+    INTERRUPT_DMA3 = 39,        /* ??? */
+    INTERRUPT_CPMAC1 = 41,
+    INTERRUPT_VDMA_RX = 45,     /* ??? */
+    INTERRUPT_VDMA_TX = 46,     /* ??? */
+    INTERRUPT_ADSLSS = 47,      /* ??? */
+      /* secondary interrupts 40 ... 71 */
+    INTERRUPT_EMIF = 55,        /* emif ??? */
+} ar7_interrupt;
+
+typedef enum {
+    INTC_SR1 = 0x00,    /* Interrupt Status/Set 1 */
+    INTC_SR2 = 0x04,    /* Interrupt Status/Set 2 */
+    INTC_CR1 = 0x10,    /* Interrupt Clear 1 */
+    INTC_CR2 = 0x14,    /* Interrupt Clear 2 */
+    INTC_ESR1 = 0x20,   /* Interrupt Enable (Set) 1 */
+    INTC_ESR2 = 0x24,   /* Interrupt Enable (Set) 2 */
+    INTC_ECR1 = 0x30,   /* Interrupt Enable Clear 1 */
+    INTC_ECR2 = 0x34,   /* Interrupt Enable Clear 2 */
+    INTC_PIIR = 0x40,   /* Priority Interrupt Index */
+    INTC_PIMR = 0x44,   /* Priority Interrupt Mask Index */
+    INTC_IPMR1 = 0x50,  /* Interrupt Polarity Mask 1 */
+    INTC_IPMR2 = 0x54,  /* Interrupt Polarity Mask 2 */
+    INTC_TMR1 = 0x60,   /* Interrupt Type Mask 1 */
+    INTC_TMR2 = 0x64,   /* Interrupt Type Mask 2 */
     /* Avalanche Exception control registers */
     INTC_EXSR = 0x80,   /* Exceptions Status/Set */
     INTC_EXCR = 0x88,   /* Exceptions Clear */
     INTC_EXIESR = 0x90, /* Exceptions Interrupt Enable Status/Set */
     INTC_EXIECR = 0x98, /* Exceptions Interrupt Enable Clear */
     /* Interrupt Pacing */
+    INTC_IPACEP = 0xa0, /* Interrupt pacing */
+    INTC_IPACEMAP = 0xa4,
+                        /* Interrupt Pacing Map */
+    INTC_IPACEMAX = 0xa8,
+                        /* Interrupt Pacing Max Register */
     /* Interrupt Channel Control */
+    INTC_CINTNR = 0x200, /* 40 entries */
+                        /* Channel Interrupt Number Reg */
 } intc_register_t;
-#if 0
-typedef struct {                /* Avalanche Interrupt control registers */
-    /* Interrupt Pacing */
-    uint32_t ipacep;            /* Interrupt pacing register         0xa0 */
-    uint32_t ipacemap;          /* Interrupt Pacing Map Register     0xa4 */
-    uint32_t ipacemax;          /* Interrupt Pacing Max Register     0xa8 */
-    /* Interrupt Channel Control */
-    uint32_t cintnr[40];        /* Channel Interrupt Number Reg     0x200 */
-} ar7_intc_t;
-#endif
 
 /* ar7_irq does not use the opaque parameter, so we set it to 0. */
 #define IRQ_OPAQUE 0
@@ -525,8 +550,8 @@ static void ar7_update_interrupt(void)
     if (masked_int1 || masked_int2) {
         if (!intset) {
             intset = 1;
-            reg_set(av.intc, INTC_EXSR, BIT(2));
-            reg_set(av.intc, INTC_EXCR, BIT(2));
+            //~ reg_set(av.intc, INTC_EXSR, BIT(2));
+            //~ reg_set(av.intc, INTC_EXCR, BIT(2));
             cpu_mips_irq_request(cpu_env, 2, 1);
             //~ /* use hardware interrupt 0 */
             //~ cpu_env->CP0_Cause |= 0x00000400;
@@ -548,7 +573,7 @@ static void ar7_update_interrupt(void)
 static void ar7_irq(void *opaque, int irq_num, int level)
 {
     assert(irq_num >= 0);
-    TRACE(INTC && (irq_num != 15 || UART),
+    TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
           logout("(%p,%d,%d)\n", opaque, irq_num, level));
     if (irq_num < MIPS_EXCEPTION_OFFSET) {
         /* MIPS interrupt. */
@@ -561,8 +586,23 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         if (level) {
             reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
             reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
+            /* TODO: write correct value to INTC_PIIR? */
             reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
         } else {
+            /* TODO: write correct value to INTC_PIIR? */
+            for (channel = 0; channel < 40; channel++) {
+                uint32_t cr;
+                index = channel / 32;
+                offset = channel % 32;
+                cr = reg_read(av.intc, INTC_CR1 + 4 * index);
+                if (cr & BIT(offset)) {
+                    reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
+                    break;
+                }
+            }
+            if (channel >= 40) {
+                reg_write(av.intc, INTC_PIIR, 0);
+            }
         }
     } else if (irq_num < MIPS_EXCEPTION_OFFSET + 40 + 32) {
         /* AR7 secondary interrupt. */
@@ -573,6 +613,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
     } else {
         UNEXPECTED();
     }
+    ar7_update_interrupt();
 #if 0
     unsigned channel = irq_num - MIPS_EXCEPTION_OFFSET;
 
@@ -582,38 +623,13 @@ static void ar7_irq(void *opaque, int irq_num, int level)
        48...87 = ar7 secondary,
        88...?? = virtual interrupt */
     switch (channel) {
-      /* primary interrupts 1 ... 39 */
-    case  1:    /* ext0 ??? */
-    case  2:    /* ext1 ??? */
-    case  5:    /* timer0 ??? */
-    case  6:    /* timer1 ??? */
-    case  7:    /* serial0 */
-    case  8:    /* serial1 */
-    case  9:    /* dma0 ??? */
-    case 10:    /* dma1 ??? */
-    case 15:    /* atmsar ??? */
-    case 19:    /* cpmac0 */
-    case 21:    /* vlynq0 ??? */
-    case 22:    /* codec ??? */
-    case 24:    /* usbslave ??? */
-    case 25:    /* vlynq1 ??? */
-    case 28:    /* phy ??? */
-    case 29:    /* i2c ??? */
-    case 30:    /* dma2 ??? */
-    case 31:    /* dma3 ??? */
-    case 33:    /* cpmac1 */
-    case 37:    /* vdma rx ??? */
-    case 38:    /* vdma tx ??? */
-    case 39:    /* adslss ??? */
-      /* secondary interrupts 40 ... 71 */
-    case 47:    /* emif ??? */
         if (level) {
             unsigned index = channel / 32;
             unsigned offset = channel % 32;
             uint32_t intmask = reg_read(av.intc, INTC_ESR1 + 4 * index);
             if (intmask & BIT(offset)) {
                 /* Interrupt is enabled. */
-                TRACE(INTC && (irq_num != 15 || UART),
+                TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
                       logout("(%p,%d,%d)\n", opaque, irq_num, level));
                 reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
                 reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
@@ -621,7 +637,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                 ar7_update_interrupt();
             } else {
                 /* Interrupt is disabled. */
-                TRACE(INTC && (irq_num != 15 || UART),
+                TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
                       logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
                 reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
                 reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
@@ -630,10 +646,10 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             // int line number
             //~ reg_set(av.intc, 0x40, 4 << 16);
             // int channel number
-            // 2, 7, 15, 27, 80
+            // 2, 7, INTERRUPT_SERIAL0, INTERRUPT_CPMAC0, 80
             //~ ar7.intmask[0]
         } else {
-            TRACE(INTC && (irq_num != 15 || UART),
+            TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
                   logout("(%p,%d,%d)\n", opaque, irq_num, level));
             reg_write(av.intc, INTC_PIIR, 0);
             ar7_update_interrupt();
@@ -726,14 +742,18 @@ static void ar7_intc_write(unsigned offset, uint32_t val)
         //~ } else if (index == 4) {
     } else if (offset == INTC_SR1 || offset == INTC_SR2) {
         /* Interrupt set. */
+        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
         reg_set(av.intc, offset, val);
-        logout("??? raise interrupt\a\n");
+        MISSING();
         ar7_update_interrupt();
     } else if (offset == INTC_CR1 || offset == INTC_CR2) {
         /* Interrupt clear. */
         TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
-        reg_clear(av.intc, INTC_SR1 + offset - INTC_CR1, val);
-        reg_clear(av.intc, offset, val);
+        offset -= INTC_CR1;
+        reg_clear(av.intc, INTC_SR1 + offset, val);
+        reg_clear(av.intc, INTC_CR1 + offset, val);
+        /* TODO: check old value? */
+        reg_write(av.intc, INTC_PIIR, 0);
         //~ logout("??? clear interrupt\a\n");
         ar7_update_interrupt();
     } else if (offset == INTC_ESR1 || offset == INTC_ESR2) {
@@ -1127,6 +1147,22 @@ typedef enum {
     CPMAC_RXMAXLEN = 0x010c,
     CPMAC_RXBUFFEROFFSET = 0x0110,
     CPMAC_RXFILTERLOWTHRESH = 0x0114,
+    CPMAC_RX0FLOWTHRESH = 0x0120,
+    CPMAC_RX1FLOWTHRESH = 0x0124,
+    CPMAC_RX2FLOWTHRESH = 0x0128,
+    CPMAC_RX3FLOWTHRESH = 0x012c,
+    CPMAC_RX4FLOWTHRESH = 0x0130,
+    CPMAC_RX5FLOWTHRESH = 0x0134,
+    CPMAC_RX6FLOWTHRESH = 0x0138,
+    CPMAC_RX7FLOWTHRESH = 0x013c,
+    CPMAC_RX0FREEBUFFER = 0x0140,
+    CPMAC_RX1FREEBUFFER = 0x0144,
+    CPMAC_RX2FREEBUFFER = 0x0148,
+    CPMAC_RX3FREEBUFFER = 0x014c,
+    CPMAC_RX4FREEBUFFER = 0x0150,
+    CPMAC_RX5FREEBUFFER = 0x0154,
+    CPMAC_RX6FREEBUFFER = 0x0158,
+    CPMAC_RX7FREEBUFFER = 0x015c,
     CPMAC_MACCONTROL = 0x0160,
     CPMAC_MACSTATUS = 0x0164,
     CPMAC_EMCONTROL = 0x0168,
@@ -1159,13 +1195,39 @@ typedef enum {
     CPMAC_RXGOODFRAMES = 0x0200,
     CPMAC_RXBROADCASTFRAMES = 0x0204,
     CPMAC_RXMULTICASTFRAMES = 0x0208,
-    CPMAC_RXDMAOVERRUNS = 0x028c,
+    //~ "RXPAUSEFRAMES",
+    //~ "RXCRCERRORS",
+    //~ "RXALIGNCODEERRORS",
     CPMAC_RXOVERSIZEDFRAMES = 0x0218,
     CPMAC_RXJABBERFRAMES = 0x021c,
     CPMAC_RXUNDERSIZEDFRAMES = 0x0220,
+    //~ "RXFRAGMENTS",
+    //~ "RXFILTEREDFRAMES",
+    //~ "RXQOSFILTEREDFRAMES",
+    //~ "RXOCTETS",
     CPMAC_TXGOODFRAMES = 0x234,
     CPMAC_TXBROADCASTFRAMES = 0x238,
     CPMAC_TXMULTICASTFRAMES = 0x23c,
+    //~ "TXPAUSEFRAMES",
+    //~ "TXDEFERREDFRAMES",
+    //~ "TXCOLLISIONFRAMES",
+    //~ "TXSINGLECOLLFRAMES",
+    //~ "TXMULTCOLLFRAMES",
+    //~ "TXEXCESSIVECOLLISIONS",
+    //~ "TXLATECOLLISIONS",
+    //~ "TXUNDERRUN",
+    //~ "TXCARRIERSENSEERRORS",
+    //~ "TXOCTETS",
+    //~ "64OCTETFRAMES",
+    //~ "65T127OCTETFRAMES",
+    //~ "128T255OCTETFRAMES",
+    //~ "256T511OCTETFRAMES",
+    //~ "512T1023OCTETFRAMES",
+    //~ "1024TUPOCTETFRAMES",
+    //~ "NETOCTETS",
+    //~ "RXSOFOVERRUNS",
+    //~ "RXMOFOVERRUNS",
+    CPMAC_RXDMAOVERRUNS = 0x028c,
     CPMAC_TX0HDP = 0x0600,
     CPMAC_TX1HDP = 0x0604,
     CPMAC_TX2HDP = 0x0608,
@@ -1255,6 +1317,7 @@ typedef enum {
 } maccontrol_bit_t;
 
 /* STATISTICS */
+/* !!! integrieren !!! */
 static const char *const cpmac_statistics[] = {
     "RXGOODFRAMES",
     "RXBROADCASTFRAMES",
@@ -1294,124 +1357,101 @@ static const char *const cpmac_statistics[] = {
     "RXDMAOVERRUNS"
 };
 
-static const char *i2cpmac(unsigned index)
+#undef ENTRY
+#define ENTRY(entry) { CPMAC_##entry, #entry }
+static const offset_name_t cpmac_addr2reg[] = {
+    ENTRY(TXIDVER),
+    ENTRY(TXCONTROL),
+    ENTRY(TXTEARDOWN),
+    ENTRY(RXIDVER),
+    ENTRY(RXCONTROL),
+    ENTRY(RXTEARDOWN),
+    ENTRY(RXMBPENABLE),
+    ENTRY(RXUNICASTSET),
+    ENTRY(RXUNICASTCLEAR),
+    ENTRY(RXMAXLEN),
+    ENTRY(RXBUFFEROFFSET),
+    ENTRY(RXFILTERLOWTHRESH),
+    ENTRY(MACCONTROL),
+    ENTRY(MACSTATUS),
+    ENTRY(EMCONTROL),
+    ENTRY(TXINTSTATRAW),
+    ENTRY(TXINTSTATMASKED),
+    ENTRY(TXINTMASKSET),
+    ENTRY(TXINTMASKCLEAR),
+    ENTRY(MACINVECTOR),
+    ENTRY(MACEOIVECTOR),
+    ENTRY(RXINTSTATRAW),
+    ENTRY(RXINTSTATMASKED),
+    ENTRY(RXINTMASKSET),
+    ENTRY(RXINTMASKCLEAR),
+    ENTRY(MACINTSTATRAW),
+    ENTRY(MACINTSTATMASKED),
+    ENTRY(MACINTMASKSET),
+    ENTRY(MACINTMASKCLEAR),
+    ENTRY(MACADDRLO_0),
+    ENTRY(MACADDRLO_1),
+    ENTRY(MACADDRLO_2),
+    ENTRY(MACADDRLO_3),
+    ENTRY(MACADDRLO_4),
+    ENTRY(MACADDRLO_5),
+    ENTRY(MACADDRLO_6),
+    ENTRY(MACADDRLO_7),
+    ENTRY(MACADDRMID),
+    ENTRY(MACADDRHI),
+    ENTRY(MACHASH1),
+    ENTRY(MACHASH2),
+    ENTRY(RXGOODFRAMES),
+    ENTRY(RXBROADCASTFRAMES),
+    ENTRY(RXMULTICASTFRAMES),
+    ENTRY(RXDMAOVERRUNS),
+    ENTRY(RXOVERSIZEDFRAMES),
+    ENTRY(RXJABBERFRAMES),
+    ENTRY(RXUNDERSIZEDFRAMES),
+    ENTRY(TXGOODFRAMES),
+    ENTRY(TXBROADCASTFRAMES),
+    ENTRY(TXMULTICASTFRAMES),
+    ENTRY(TX0HDP),
+    ENTRY(TX1HDP),
+    ENTRY(TX2HDP),
+    ENTRY(TX3HDP),
+    ENTRY(TX4HDP),
+    ENTRY(TX5HDP),
+    ENTRY(TX6HDP),
+    ENTRY(TX7HDP),
+    ENTRY(RX0HDP),
+    ENTRY(RX1HDP),
+    ENTRY(RX2HDP),
+    ENTRY(RX3HDP),
+    ENTRY(RX4HDP),
+    ENTRY(RX5HDP),
+    ENTRY(RX6HDP),
+    ENTRY(RX7HDP),
+    ENTRY(TX0CP),
+    ENTRY(TX1CP),
+    ENTRY(TX2CP),
+    ENTRY(TX3CP),
+    ENTRY(TX4CP),
+    ENTRY(TX5CP),
+    ENTRY(TX6CP),
+    ENTRY(TX7CP),
+    ENTRY(RX0CP),
+    ENTRY(RX1CP),
+    ENTRY(RX2CP),
+    ENTRY(RX3CP),
+    ENTRY(RX4CP),
+    ENTRY(RX5CP),
+    ENTRY(RX6CP),
+    ENTRY(RX7CP),
+    { 0 }
+};
+
+static const char *cpmac_regname(unsigned offset)
 {
-    static char buffer[32];
-    const char *text = 0;
-    switch (index) {
-    case 0x00:
-        text = "TXIDVER";
-        break;
-    case 0x01:
-        text = "TXCONTROL";
-        break;
-    case 0x02:
-        text = "TXTEARDOWN";
-        break;
-    case 0x04:
-        text = "RXIDVER";
-        break;
-    case 0x05:
-        text = "RXCONTROL";
-        break;
-    case 0x06:
-        text = "RXTEARDOWN";
-        break;
-    case 0x40:
-        text = "RXMBPENABLE";
-        break;
-    case 0x41:
-        text = "RXUNICASTSET";
-        break;
-    case 0x42:
-        text = "RXUNICASTCLEAR";
-        break;
-    case 0x43:
-        text = "RXMAXLEN";
-        break;
-    case 0x44:
-        text = "RXBUFFEROFFSET";
-        break;
-    case 0x45:
-        text = "RXFILTERLOWTHRESH";
-        break;
-    case 0x58:
-        text = "MACCONTROL";
-        break;
-    case 0x5c:
-        text = "TXINTSTATRAW";
-        break;
-    case 0x5d:
-        text = "TXINTSTATMASKED";
-        break;
-    case 0x5e:
-        text = "TXINTMASKSET";
-        break;
-    case 0x5f:
-        text = "TXINTMASKCLEAR";
-        break;
-    case 0x60:
-        text = "MACINVECTOR";
-        break;
-    case 0x61:
-        text = "MACEOIVECTOR";
-        break;
-    case 0x66:
-        text = "RXINTMASKSET";
-        break;
-    case 0x67:
-        text = "RXINTMASKCLEAR";
-        break;
-    case 0x6a:
-        text = "MACINTMASKSET";
-        break;
-    case 0x74:
-        text = "MACADDRMID";
-        break;
-    case 0x75:
-        text = "MACADDRHI";
-        break;
-    case 0x76:
-        text = "MACHASH1";
-        break;
-    case 0x77:
-        text = "MACHASH2";
-        break;
-    }
-    if (text != 0) {
-    } else if (index >= 0x48 && index < 0x50) {
-        text = buffer;
-        snprintf(buffer, sizeof(buffer), "RX%uFLOWTHRESH", index & 7);
-    } else if (index >= 0x50 && index < 0x58) {
-        text = buffer;
-        sprintf(buffer, "RX%uFREEBUFFER", index & 7);
-    } else if (index >= 0x6c && index < 0x74) {
-        text = buffer;
-        sprintf(buffer, "MACADDRLO_%u", (unsigned)(index - 0x6c));
-    } else if (index >= 0x80 && index < 0xa4) {
-        text = buffer;
-        sprintf(buffer, "STAT %s", cpmac_statistics[index - 0x80]);
-    } else if (index >= 0x180 && index < 0x188) {
-        text = buffer;
-        sprintf(buffer, "TX%uHDP", index & 7);
-    } else if (index >= 0x188 && index < 0x190) {
-        text = buffer;
-        sprintf(buffer, "RX%uHDP", index & 7);
-    } else if (index >= 0x190 && index < 0x198) {
-        text = buffer;
-        sprintf(buffer, "TX%uCP", index & 7);
-    } else if (index >= 0x198 && index < 0x1a0) {
-        text = buffer;
-        sprintf(buffer, "RX%uCP", index & 7);
-    } else {
-        text = buffer;
-        sprintf(buffer, "0x%x", index);
-    }
-    assert(strlen(buffer) < sizeof(buffer));
-    return text;
+    return offset2name(cpmac_addr2reg, offset);
 }
 
-static const int cpmac_interrupt[] = { 27, 41 };
+static const int cpmac_interrupt[] = { INTERRUPT_CPMAC0, INTERRUPT_CPMAC1 };
 
 static void emac_update_interrupt(unsigned index)
 {
@@ -1475,7 +1515,7 @@ static uint32_t ar7_cpmac_read(unsigned index, unsigned offset)
 {
     uint8_t *cpmac = ar7.cpmac[index];
     uint32_t val = reg_read(cpmac, offset);
-    const char *text = i2cpmac(offset / 4);
+    const char *text = cpmac_regname(offset);
     int logflag = CPMAC;
     //~ do_raise_exception(EXCP_DEBUG)
     if (0) {
@@ -1646,7 +1686,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
     uint8_t * cpmac = ar7.cpmac[index];
     assert((offset & 3) == 0);
     TRACE(CPMAC, logout("cpmac%u[%s] (0x%08x) = 0x%08lx\n",
-                        index, i2cpmac(offset / 4),
+                        index, cpmac_regname(offset),
                         (AVALANCHE_CPMAC0_BASE +
                                         (AVALANCHE_CPMAC1_BASE -
                                          AVALANCHE_CPMAC0_BASE) * index +
@@ -2238,7 +2278,7 @@ static const char *const uart_write_names[] = {
 
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
 
-static const int uart_interrupt[] = { 15, 16 };
+static const int uart_interrupt[] = { INTERRUPT_SERIAL0, INTERRUPT_SERIAL1 };
 
 /* Status of DLAB bit. */
 static uint32_t dlab[2];
