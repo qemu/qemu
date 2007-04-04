@@ -644,12 +644,14 @@ static inline void stfq_be_p(void *ptr, float64 v)
 #define lduw_code(p) lduw_raw(p)
 #define ldsw_code(p) ldsw_raw(p)
 #define ldl_code(p) ldl_raw(p)
+#define ldq_code(p) ldq_raw(p)
 
 #define ldub_kernel(p) ldub_raw(p)
 #define ldsb_kernel(p) ldsb_raw(p)
 #define lduw_kernel(p) lduw_raw(p)
 #define ldsw_kernel(p) ldsw_raw(p)
 #define ldl_kernel(p) ldl_raw(p)
+#define ldq_kernel(p) ldq_raw(p)
 #define ldfl_kernel(p) ldfl_raw(p)
 #define ldfq_kernel(p) ldfq_raw(p)
 #define stb_kernel(p, v) stb_raw(p, v)
@@ -882,6 +884,7 @@ uint32_t lduw_phys(target_phys_addr_t addr);
 uint32_t ldl_phys(target_phys_addr_t addr);
 uint64_t ldq_phys(target_phys_addr_t addr);
 void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val);
+void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val);
 void stb_phys(target_phys_addr_t addr, uint32_t val);
 void stw_phys(target_phys_addr_t addr, uint32_t val);
 void stl_phys(target_phys_addr_t addr, uint32_t val);

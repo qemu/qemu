@@ -1,3 +1,21 @@
+2007-04-04 23:07  ths
+
+	* target-mips/translate.c: Fix code formatting.
+
+2007-04-04 10:00  j_mayer
+
+	* hw/ppc_chrp.c: Change NIC registration to be consistent with
+	  other machines definitions.
+
+2007-04-04 09:58  j_mayer
+
+	* cpu-defs.h: TARGET_FMT_ld may also be useful for debugging
+	  purposes.
+
+2007-04-04 09:55  j_mayer
+
+	* cpu-all.h, exec.c: Add missing 64 bits memory accessors.
+
 2007-04-03 18:38  ths
 
 	* hw/apic.c, target-i386/cpu.h, target-i386/helper.c: i386 return

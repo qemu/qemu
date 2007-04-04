@@ -2354,7 +2354,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 4:
         switch (sel) {
@@ -2368,7 +2368,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 5:
         switch (sel) {
@@ -2382,7 +2382,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 6:
         switch (sel) {
@@ -2412,7 +2412,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 7:
         switch (sel) {
@@ -2422,7 +2422,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 8:
         /* ignored */
@@ -2434,12 +2434,12 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            gen_op_mtc0_count();
            rn = "Count";
            break;
-       /* 6,7 are implementation dependent */
+        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 10:
         switch (sel) {
@@ -2449,7 +2449,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 11:
         switch (sel) {
@@ -2460,9 +2460,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 12:
         switch (sel) {
@@ -2484,9 +2484,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 13:
         switch (sel) {
@@ -2496,9 +2496,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 14:
         switch (sel) {
@@ -2508,7 +2508,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 15:
         switch (sel) {
@@ -2970,7 +2970,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 5:
         switch (sel) {
@@ -2984,7 +2984,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 6:
         switch (sel) {
@@ -3014,7 +3014,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 7:
         switch (sel) {
@@ -3024,7 +3024,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 8:
         switch (sel) {
@@ -3034,7 +3034,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 9:
         switch (sel) {
@@ -3045,7 +3045,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
+        }
         break;
     case 10:
         switch (sel) {
@@ -3055,7 +3055,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 11:
         switch (sel) {
@@ -3063,10 +3063,10 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            gen_op_mfc0_compare();
            rn = "Compare";
            break;
-       /* 6,7 are implementation dependent */
+        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
+        }
         break;
     case 12:
         switch (sel) {
@@ -3088,7 +3088,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 13:
         switch (sel) {
@@ -3098,7 +3098,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 14:
         switch (sel) {
@@ -3108,7 +3108,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 15:
         switch (sel) {
@@ -3122,7 +3122,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 16:
         switch (sel) {
@@ -3407,7 +3407,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
         }
         break;
     default:
-       goto die;
+        goto die;
     }
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
@@ -3538,7 +3538,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 4:
         switch (sel) {
@@ -3552,7 +3552,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 5:
         switch (sel) {
@@ -3566,7 +3566,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 6:
         switch (sel) {
@@ -3596,7 +3596,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 7:
         switch (sel) {
@@ -3606,7 +3606,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 8:
         /* ignored */
@@ -3618,12 +3618,12 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            gen_op_mtc0_count();
            rn = "Count";
            break;
-       /* 6,7 are implementation dependent */
+        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 10:
         switch (sel) {
@@ -3633,7 +3633,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 11:
         switch (sel) {
@@ -3641,12 +3641,12 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            gen_op_mtc0_compare();
            rn = "Compare";
            break;
-       /* 6,7 are implementation dependent */
+        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 12:
         switch (sel) {
@@ -3666,11 +3666,11 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
          gen_op_mtc0_srsmap(); /* shadow registers */
            rn = "SRSMap";
          break;
-        default:
+         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 13:
         switch (sel) {
@@ -3680,9 +3680,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 14:
         switch (sel) {
@@ -3692,7 +3692,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 15:
         switch (sel) {
@@ -3706,7 +3706,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 16:
         switch (sel) {
@@ -3845,7 +3845,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 22:
         /* ignored */
         rn = "Diagnostic"; /* implementation dependent */
-       break;
+        break;
     case 23:
         switch (sel) {
         case 0:
@@ -3921,11 +3921,11 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         default:
             goto die;
         }
-       break;
+        break;
     case 26:
-       /* ignored */
+        /* ignored */
         rn = "ECC";
-       break;
+        break;
     case 27:
         switch (sel) {
         case 0 ... 3:
@@ -3935,7 +3935,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         default:
             goto die;
         }
-       break;
+        break;
     case 28:
         switch (sel) {
         case 0:
@@ -3976,7 +3976,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
             rn = "invalid sel";
             goto die;
         }
-       break;
+        break;
     case 30:
         switch (sel) {
         case 0:
@@ -3996,11 +3996,11 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         default:
             goto die;
         }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     default:
-       goto die;
+        goto die;
     }
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
