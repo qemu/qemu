@@ -169,11 +169,11 @@ FPU and MMU.
 
 @itemize
 
-@item Somewhat complete SPARC V8 emulation, including privileged
+@item Full SPARC V8 emulation, including privileged
 instructions, FPU and MMU. SPARC V9 emulation includes most privileged
-instructions, FPU and I/D MMU, but misses VIS instructions.
+instructions, FPU and I/D MMU, but misses most VIS instructions.
 
-@item Can run some 32-bit SPARC Linux binaries.
+@item Can run most 32-bit SPARC Linux binaries and some handcrafted 64-bit SPARC Linux binaries.
 
 @end itemize
 

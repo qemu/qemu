@@ -3,6 +3,7 @@
   - Monitor multiplexing to several I/O channels (Jason Wessel)
   - ds1225y nvram support (Herve Poussineau)
   - CPU model selection support (J. Mayer, Paul Brook, Herve Poussineau)
+  - Several Sparc fixes (Aurelien Jarno, Blue Swirl)
 
 version 0.9.0:
 
