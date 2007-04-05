@@ -181,6 +181,7 @@ enum bfd_architecture
 #define bfd_mach_sh4al_dsp  0x4d
 #define bfd_mach_sh5        0x50
   bfd_arch_alpha,      /* Dec Alpha */
+#define bfd_mach_alpha 1
   bfd_arch_arm,        /* Advanced Risc Machines ARM */
 #define bfd_mach_arm_2         1
 #define bfd_mach_arm_2a                2
@@ -377,6 +378,7 @@ extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ppc		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_alpha             PARAMS ((bfd_vma, disassemble_info*));
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */

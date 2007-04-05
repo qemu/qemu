@@ -108,6 +108,15 @@ typedef struct CPUTLBEntry {
     target_phys_addr_t addend; 
 } CPUTLBEntry;
 
+/* Alpha has 4 different running levels */
+#if defined(TARGET_ALPHA)
+#define NB_MMU_MODES 4
+#elif defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+#define NB_MMU_MODES 3
+#else
+#define NB_MMU_MODES 2
+#endif
+
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
     /* soft mmu support */                                              \
@@ -119,7 +128,7 @@ typedef struct CPUTLBEntry {
     target_ulong mem_write_vaddr; /* target virtual addr at which the   \
                                      memory was written */              \
     /* 0 = kernel, 1 = user */                                          \
-    CPUTLBEntry tlb_table[2][CPU_TLB_SIZE];                             \
+    CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
                                                                         \
     /* from this point: preserved by CPU reset */                       \

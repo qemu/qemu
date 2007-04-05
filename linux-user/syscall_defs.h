@@ -49,7 +49,7 @@
 #define TARGET_IOC_TYPEBITS	8
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
-    || defined(TARGET_M68K)
+    || defined(TARGET_M68K) || defined(TARGET_ALPHA)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -294,7 +294,7 @@ struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined (TARGET_SH4) || defined(TARGET_M68K)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined (TARGET_SH4) || defined(TARGET_M68K) || defined(TARGET_ALPHA)
 
 #if defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP    8u
@@ -1203,6 +1203,50 @@ struct target_stat64 {
 
 	int64_t  	st_blocks;
 };
+
+#elif defined(TARGET_ALPHA)
+
+struct target_stat {
+       unsigned int    st_dev;
+       unsigned int    st_ino;
+       unsigned int    st_mode;
+       unsigned int    st_nlink;
+       unsigned int    st_uid;
+       unsigned int    st_gid;
+       unsigned int    st_rdev;
+       target_long     st_size;
+       target_ulong    target_st_atime;
+       target_ulong    target_st_mtime;
+       target_ulong    target_st_ctime;
+       unsigned int    st_blksize;
+       unsigned int    st_blocks;
+       unsigned int    st_flags;
+       unsigned int    st_gen;
+};
+
+struct target_stat64 {
+       target_ulong    st_dev;
+       target_ulong    st_ino;
+       target_ulong    st_rdev;
+       target_long     st_size;
+       target_ulong    st_blocks;
+
+       unsigned int    st_mode;
+       unsigned int    st_uid;
+       unsigned int    st_gid;
+       unsigned int    st_blksize;
+       unsigned int    st_nlink;
+       unsigned int    __pad0;
+
+       target_ulong    target_st_atime;
+       target_ulong    target_st_atime_nsec; 
+       target_ulong    target_st_mtime;
+       target_ulong    target_st_mtime_nsec;
+       target_ulong    target_st_ctime;
+       target_ulong    target_st_ctime_nsec;
+       target_long     __unused[3];
+};
+
 #else
 #error unsupported CPU
 #endif

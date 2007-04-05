@@ -272,7 +272,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
 
     slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->me_irq,
                                    slavio_intctl);
-    cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
+    if (hwdef->cs_base != (target_ulong)-1)
+        cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
     sparc32_dma_set_reset_data(dma, main_esp, main_lance);
 }
 
@@ -375,21 +376,20 @@ static const struct hwdef hwdefs[] = {
         },
     },
     /* SS-10 */
-    /* XXX: Replace with real values */
     {
-        .iommu_base   = 0x10000000,
-        .tcx_base     = 0x50000000,
-        .cs_base      = 0x6c000000,
-        .slavio_base  = 0x71000000,
-        .ms_kb_base   = 0x71000000,
-        .serial_base  = 0x71100000,
-        .nvram_base   = 0x71200000,
-        .fd_base      = 0x71400000,
-        .counter_base = 0x71d00000,
-        .intctl_base  = 0x71e00000,
-        .dma_base     = 0x78400000,
-        .esp_base     = 0x78800000,
-        .le_base      = 0x78c00000,
+        .iommu_base   = 0xe0000000, // XXX Actually at 0xfe0000000ULL (36 bits)
+        .tcx_base     = 0x21000000, // 0xe21000000ULL,
+        .cs_base      = -1,
+        .slavio_base  = 0xf1000000, // 0xff1000000ULL,
+        .ms_kb_base   = 0xf1000000, // 0xff1000000ULL,
+        .serial_base  = 0xf1100000, // 0xff1100000ULL,
+        .nvram_base   = 0xf1200000, // 0xff1200000ULL,
+        .fd_base      = 0xf1700000, // 0xff1700000ULL,
+        .counter_base = 0xf1300000, // 0xff1300000ULL,
+        .intctl_base  = 0xf1400000, // 0xff1400000ULL,
+        .dma_base     = 0xf0400000, // 0xef0400000ULL,
+        .esp_base     = 0xf0800000, // 0xef0800000ULL,
+        .le_base      = 0xf0c00000, // 0xef0c00000ULL,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -400,8 +400,8 @@ static const struct hwdef hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = 5,
-        .machine_id = 0x73,
+        .cs_irq = -1,
+        .machine_id = 0x72,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,	3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,	0, 0, 0, 0, 15, 0, 15, 0,

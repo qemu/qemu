@@ -1,3 +1,28 @@
+2007-04-05 19:00  blueswir1
+
+	* hw/sun4m.c: Fill in real SparcStation 10 values
+
+2007-04-05 09:22  j_mayer
+
+	* cpu-all.h, cpu-exec.c, dis-asm.h, disas.c, exec-all.h,
+	  softmmu_header.h, translate-all.c, vl.c: Integrate Alpha target
+	  in Qemu core.
+
+2007-04-05 09:13  j_mayer
+
+	* linux-user/: elfload.c, main.c, syscall.c, syscall_defs.h:
+	  Preliminary patch for Alpha Linux user mode emulation support.
+
+2007-04-05 09:04  j_mayer
+
+	* hw/alpha_palcode.c: Alpha CPU palcode emulation. Only usable in
+	  user mode for now with code provision for full emulation support.
+
+2007-04-05 08:43  j_mayer
+
+	* cpu-defs.h, exec.c: Infrastructure to support more than 2 MMU
+	  modes.  Add example for Alpha and PowerPC hypervisor mode.
+
 2007-04-04 23:07  ths
 
 	* target-mips/translate.c: Fix code formatting.

@@ -40,7 +40,8 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
-#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_M68K)
+#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_M68K) || \
+    defined(TARGET_ALPHA)
 /* XXX: unify with i386 target */
 void cpu_loop_exit(void)
 {
@@ -206,6 +207,10 @@ static inline TranslationBlock *tb_find_fast(void)
     flags = env->sr & (SR_MD | SR_RB);
     cs_base = 0;         /* XXXXX */
     pc = env->pc;
+#elif defined(TARGET_ALPHA)
+    flags = env->ps;
+    cs_base = 0;
+    pc = env->pc;
 #else
 #error unsupported CPU
 #endif
@@ -295,6 +300,14 @@ int cpu_exec(CPUState *env1)
             return EXCP_HALTED;
         }
     }
+#elif defined(TARGET_ALPHA)
+    if (env1->halted) {
+        if (env1->interrupt_request & CPU_INTERRUPT_HARD) {
+            env1->halted = 0;
+        } else {
+            return EXCP_HALTED;
+        }
+    }
 #endif
 
     cpu_single_env = env1; 
@@ -328,6 +341,8 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
     /* XXXXX */
+#elif defined(TARGET_ALPHA)
+    env_to_regs();
 #else
 #error unsupported target CPU
 #endif
@@ -376,6 +391,8 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env);
 #elif defined(TARGET_SH4)
 		    do_interrupt(env);
+#elif defined(TARGET_ALPHA)
+                    do_interrupt(env);
 #endif
                 }
                 env->exception_index = -1;
@@ -522,6 +539,10 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_SH4)
 		    /* XXXXX */
+#elif defined(TARGET_ALPHA)
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                        do_interrupt(env);
+                    }
 #endif
                    /* Don't use the cached interupt_request value,
                       do_interrupt may have updated the EXITTB flag. */
@@ -590,6 +611,8 @@ int cpu_exec(CPUState *env1)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_SH4)
 		    cpu_dump_state(env, logfile, fprintf, 0);
+#elif defined(TARGET_ALPHA)
+                    cpu_dump_state(env, logfile, fprintf, 0);
 #else
 #error unsupported target CPU 
 #endif
@@ -782,6 +805,7 @@ int cpu_exec(CPUState *env1)
               | env->cc_dest | (env->cc_x << 4);
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
+#elif defined(TARGET_ALPHA)
     /* XXXXX */
 #else
 #error unsupported target CPU
@@ -1145,6 +1169,51 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
     /* see if it is an MMU fault */
     ret = cpu_sh4_handle_mmu_fault(env, address, is_write, 1, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+#if 0
+        printf("PF exception: NIP=0x%08x error=0x%x %p\n", 
+               env->nip, env->error_code, tb);
+#endif
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
+    /* never comes here */
+    return 1;
+}
+
+#elif defined (TARGET_ALPHA)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
+{
+    TranslationBlock *tb;
+    int ret;
+    
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
+        return 1;
+    }
+
+    /* see if it is an MMU fault */
+    ret = cpu_alpha_handle_mmu_fault(env, address, is_write, 1, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
