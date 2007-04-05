@@ -387,7 +387,6 @@ void do_interrupt (CPUState *env)
                    come back to the jump.  */
                 env->CP0_EPC = env->PC - 4;
                 env->CP0_Cause |= (1 << CP0Ca_BD);
-                env->hflags &= ~MIPS_HFLAG_BMASK;
             } else {
                 env->CP0_EPC = env->PC;
                 env->CP0_Cause &= ~(1 << CP0Ca_BD);
@@ -395,6 +394,7 @@ void do_interrupt (CPUState *env)
             env->CP0_Status |= (1 << CP0St_EXL);
             env->hflags &= ~MIPS_HFLAG_UM;
         }
+        env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {
             env->PC = (int32_t)0xBFC00200;
         } else {

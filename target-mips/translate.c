@@ -1640,6 +1640,10 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         likely:
             ctx->hflags |= MIPS_HFLAG_BL;
             break;
+        default:
+            MIPS_INVAL("conditional branch/jump");
+            generate_exception(ctx, EXCP_RI);
+            return;
         }
         gen_op_set_bcond();
     }
@@ -1650,7 +1654,6 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         gen_op_set_T0(ctx->pc + 8);
         gen_op_store_T0_gpr(blink);
     }
-    return;
 }
 
 /* special3 bitfield operations */
@@ -5053,7 +5056,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         break;
     }
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
-        int hflags = ctx->hflags;
+        int hflags = ctx->hflags & MIPS_HFLAG_BMASK;
         /* Branches completion */
         ctx->hflags &= ~MIPS_HFLAG_BMASK;
         ctx->bstate = BS_BRANCH;
