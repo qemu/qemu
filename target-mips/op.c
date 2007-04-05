@@ -493,19 +493,19 @@ void op_xor (void)
 
 void op_sll (void)
 {
-    T0 = (int32_t)((uint32_t)T0 << (uint32_t)T1);
+    T0 = (int32_t)((uint32_t)T0 << T1);
     RETURN();
 }
 
 void op_sra (void)
 {
-    T0 = (int32_t)((int32_t)T0 >> (uint32_t)T1);
+    T0 = (int32_t)((int32_t)T0 >> T1);
     RETURN();
 }
 
 void op_srl (void)
 {
-    T0 = (int32_t)((uint32_t)T0 >> (uint32_t)T1);
+    T0 = (int32_t)((uint32_t)T0 >> T1);
     RETURN();
 }
 
@@ -514,10 +514,9 @@ void op_rotr (void)
     target_ulong tmp;
 
     if (T1) {
-       tmp = (int32_t)((uint32_t)T0 << (0x20 - (uint32_t)T1));
-       T0 = (int32_t)((uint32_t)T0 >> (uint32_t)T1) | tmp;
-    } else
-       T0 = T1;
+       tmp = (int32_t)((uint32_t)T0 << (0x20 - T1));
+       T0 = (int32_t)((uint32_t)T0 >> T1) | tmp;
+    }
     RETURN();
 }
 
@@ -707,8 +706,7 @@ void op_drotr (void)
     if (T1) {
        tmp = T0 << (0x40 - T1);
        T0 = (T0 >> T1) | tmp;
-    } else
-       T0 = T1;
+    }
     RETURN();
 }
 
@@ -719,8 +717,7 @@ void op_drotr32 (void)
     if (T1) {
        tmp = T0 << (0x40 - (32 + T1));
        T0 = (T0 >> (32 + T1)) | tmp;
-    } else
-       T0 = T1;
+    }
     RETURN();
 }
 
