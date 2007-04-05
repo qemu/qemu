@@ -398,7 +398,7 @@ void do_interrupt (CPUState *env)
         if (env->CP0_Status & (1 << CP0St_BEV)) {
             env->PC = (int32_t)0xBFC00200;
         } else {
-            env->PC = (int32_t)0x80000000;
+            env->PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }
         env->PC += offset;
         env->CP0_Cause = (env->CP0_Cause & ~0x7C) | (cause << 2);
