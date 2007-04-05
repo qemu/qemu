@@ -2602,8 +2602,14 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_stfsr();
 		    gen_op_ldst(stf);
 		    break;
+#if !defined(CONFIG_USER_ONLY)
 		case 0x26: /* stdfq */
-		    goto nfpu_insn;
+		    if (!supervisor(dc))
+			goto priv_insn;
+		    if (gen_trap_ifnofpu(dc))
+			goto jmp_insn;
+		    goto nfq_insn;
+#endif
 		case 0x27:
                     gen_op_load_fpr_DT0(DFPREG(rd));
 		    gen_op_ldst(stdf);
@@ -2675,6 +2681,13 @@ static void disas_sparc_insn(DisasContext * dc)
     gen_op_fpexception_im(FSR_FTT_UNIMPFPOP);
     dc->is_br = 1;
     return;
+#if !defined(CONFIG_USER_ONLY)
+ nfq_insn:
+    save_state(dc);
+    gen_op_fpexception_im(FSR_FTT_SEQ_ERROR);
+    dc->is_br = 1;
+    return;
+#endif
 #ifndef TARGET_SPARC64
  ncp_insn:
     save_state(dc);
