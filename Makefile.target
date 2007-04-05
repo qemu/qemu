@@ -304,6 +304,10 @@ ifeq ($(TARGET_BASE_ARCH), m68k)
 LIBOBJS+= helper.o
 endif
 
+ifeq ($(TARGET_BASE_ARCH), alpha)
+LIBOBJS+= op_helper.o helper.o alpha_palcode.o
+endif
+
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o 
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
@@ -603,6 +607,11 @@ sh7750.o: sh7750.c sh7750_regs.h sh7750_regnames.h cpu.h
 shix.o: shix.c sh7750_regs.h sh7750_regnames.h
 sh7750_regnames.o: sh7750_regnames.c sh7750_regnames.h sh7750_regs.h
 tc58128.o: tc58128.c
+endif
+
+ifeq ($(TARGET_BASE_ARCH), alpha)
+op.o: op.c op_template.h op_mem.h
+op_helper.o: op_helper_mem.h
 endif
 
 $(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h

@@ -437,7 +437,7 @@ if test -z "$target_list" ; then
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
-        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user $target_list"
+        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user $target_list"
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
@@ -943,6 +943,10 @@ elif test "$target_cpu" = "m68k" ; then
   echo "#define TARGET_ARCH \"m68k\"" >> $config_h
   echo "#define TARGET_M68K 1" >> $config_h
   bflt="yes"
+elif test "$target_cpu" = "alpha" ; then
+  echo "TARGET_ARCH=alpha" >> $config_mak
+  echo "#define TARGET_ARCH \"alpha\"" >> $config_h
+  echo "#define TARGET_ALPHA 1" >> $config_h
 else
   echo "Unsupported target CPU"
   exit 1

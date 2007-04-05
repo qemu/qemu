@@ -151,6 +151,7 @@ tarbin:
         $(bindir)/qemu-ppc \
         $(bindir)/qemu-mips \
         $(bindir)/qemu-mipsel \
+        $(bindir)/qemu-alpha \
         $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
