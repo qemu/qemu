@@ -1012,6 +1012,11 @@ static void disas_sparc_insn(DisasContext * dc)
 		    do_fbranch(dc, target, insn, cc);
 		    goto jmp_insn;
 		}
+#else
+	    case 0x7:		/* CBN+x */
+		{
+		    goto ncp_insn;
+		}
 #endif
 	    case 0x2:		/* BN+x */
 		{
@@ -2444,12 +2449,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		case 0x30: /* ldc */
 		case 0x31: /* ldcsr */
 		case 0x33: /* lddc */
-		case 0x34: /* stc */
-		case 0x35: /* stcsr */
-		case 0x36: /* stdcq */
-		case 0x37: /* stdc */
 		    goto ncp_insn;
-		    break;
                     /* avoid warnings */
                     (void) &gen_op_stfa;
                     (void) &gen_op_stdfa;
@@ -2612,8 +2612,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    goto illegal_insn;
 		}
 	    } else if (xop > 0x33 && xop < 0x3f) {
-#ifdef TARGET_SPARC64
 		switch (xop) {
+#ifdef TARGET_SPARC64
 		case 0x34: /* V9 stfa */
 		    gen_op_stfa(insn, 0, 0, 0); // XXX
 		    break;
@@ -2628,12 +2628,16 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x36: /* V9 stqfa */
 		    goto nfpu_insn;
+#else
+		case 0x34: /* stc */
+		case 0x35: /* stcsr */
+		case 0x36: /* stdcq */
+		case 0x37: /* stdc */
+		    goto ncp_insn;
+#endif
 		default:
 		    goto illegal_insn;
 		}
-#else
-		goto illegal_insn;
-#endif
             }
 	    else
 		goto illegal_insn;
