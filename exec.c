@@ -64,6 +64,9 @@
 
 #if defined(TARGET_SPARC64)
 #define TARGET_PHYS_ADDR_SPACE_BITS 41
+#elif defined(TARGET_ALPHA)
+#define TARGET_PHYS_ADDR_SPACE_BITS 42
+#define TARGET_VIRT_ADDR_SPACE_BITS 42
 #elif defined(TARGET_PPC64)
 #define TARGET_PHYS_ADDR_SPACE_BITS 42
 #else
@@ -109,7 +112,15 @@ typedef struct PhysPageDesc {
 } PhysPageDesc;
 
 #define L2_BITS 10
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_VIRT_ADDR_SPACE_BITS)
+/* XXX: this is a temporary hack for alpha target.
+ *      In the future, this is to be replaced by a multi-level table
+ *      to actually be able to handle the complete 64 bits address space.
+ */
+#define L1_BITS (TARGET_VIRT_ADDR_SPACE_BITS - L2_BITS - TARGET_PAGE_BITS)
+#else
 #define L1_BITS (32 - L2_BITS - TARGET_PAGE_BITS)
+#endif
 
 #define L1_SIZE (1 << L1_BITS)
 #define L2_SIZE (1 << L2_BITS)
