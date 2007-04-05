@@ -1,0 +1,82 @@
+/*
+ *  Alpha emulation cpu run-time definitions for qemu.
+ * 
+ *  Copyright (c) 2007 Jocelyn Mayer
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#if !defined (__ALPHA_EXEC_H__)
+#define __ALPHA_EXEC_H__
+
+#include "config.h"
+
+#include "dyngen-exec.h"
+
+#define TARGET_LONG_BITS 64
+
+register struct CPUAlphaState *env asm(AREG0);
+
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+
+/* no registers can be used */
+#define T0 (env->t0)
+#define T1 (env->t1)
+#define T2 (env->t2)
+
+#else
+
+register uint64_t T0 asm(AREG1);
+register uint64_t T1 asm(AREG2);
+register uint64_t T2 asm(AREG3);
+
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+#define PARAM(n) ((uint64_t)PARAM##n)
+#define SPARAM(n) ((int32_t)PARAM##n)
+#define FT0 (env->ft0)
+#define FT1 (env->ft1)
+#define FT2 (env->ft2)
+#define FP_STATUS (env->fp_status)
+
+#if defined (DEBUG_OP)
+#define RETURN() __asm__ __volatile__("nop" : : : "memory");
+#else
+#define RETURN() __asm__ __volatile__("" : : : "memory");
+#endif
+
+#include "cpu.h"
+#include "exec-all.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
+
+static inline void env_to_regs(void)
+{
+}
+
+static inline void regs_to_env(void)
+{
+}
+
+int cpu_alpha_handle_mmu_fault (CPUState *env, uint64_t address, int rw,
+                                int is_user, int is_softmmu);
+int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
+int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
+
+void do_interrupt (CPUState *env);
+
+#endif /* !defined (__ALPHA_EXEC_H__) */
