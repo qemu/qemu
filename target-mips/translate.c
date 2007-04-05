@@ -1762,7 +1762,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 4:
         switch (sel) {
@@ -1776,7 +1776,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 5:
         switch (sel) {
@@ -1790,7 +1790,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 6:
         switch (sel) {
@@ -1820,7 +1820,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 7:
         switch (sel) {
@@ -1830,7 +1830,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 8:
         switch (sel) {
@@ -1861,7 +1861,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 11:
         switch (sel) {
@@ -1914,7 +1914,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 15:
         switch (sel) {
@@ -2521,7 +2521,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 16:
         switch (sel) {
@@ -2955,7 +2955,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 4:
         switch (sel) {
@@ -4703,83 +4703,92 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
-        op1 = MASK_SPECIAL3(ctx->opcode);
-        switch (op1) {
-        case OPC_EXT:
-        case OPC_INS:
-            gen_bitops(ctx, op1, rt, rs, sa, rd);
-            break;
-        case OPC_BSHFL:
-            op2 = MASK_BSHFL(ctx->opcode);
-            switch (op2) {
-            case OPC_WSBH:
-                GEN_LOAD_REG_TN(T1, rt);
-                gen_op_wsbh();
-                break;
-            case OPC_SEB:
-                GEN_LOAD_REG_TN(T1, rt);
-                gen_op_seb();
-                break;
-            case OPC_SEH:
-                GEN_LOAD_REG_TN(T1, rt);
-                gen_op_seh();
-                break;
+         op1 = MASK_SPECIAL3(ctx->opcode);
+         switch (op1) {
+         case OPC_EXT:
+         case OPC_INS:
+             gen_bitops(ctx, op1, rt, rs, sa, rd);
+             break;
+         case OPC_BSHFL:
+             op2 = MASK_BSHFL(ctx->opcode);
+             switch (op2) {
+             case OPC_WSBH:
+                 GEN_LOAD_REG_TN(T1, rt);
+                 gen_op_wsbh();
+                 break;
+             case OPC_SEB:
+                 GEN_LOAD_REG_TN(T1, rt);
+                 gen_op_seb();
+                 break;
+             case OPC_SEH:
+                 GEN_LOAD_REG_TN(T1, rt);
+                 gen_op_seh();
+                 break;
              default:            /* Invalid */
-                MIPS_INVAL("bshfl");
+                 MIPS_INVAL("bshfl");
+                 generate_exception(ctx, EXCP_RI);
+                 break;
+            }
+            GEN_STORE_TN_REG(rd, T0);
+            break;
+        case OPC_RDHWR:
+            switch (rd) {
+            case 0:
+                gen_op_rdhwr_cpunum();
+                break;
+            case 1:
+                gen_op_rdhwr_synci_step();
+                break;
+            case 2:
+                gen_op_rdhwr_cc();
+                break;
+            case 3:
+                gen_op_rdhwr_ccres();
+                break;
+            case 29:
+#if defined (CONFIG_USER_ONLY)
+                gen_op_tls_value ();
+#else
+                generate_exception(ctx, EXCP_RI);
+#endif
+                break;
+            case 30:
+                /* Implementation dependent */;
+                gen_op_rdhwr_unimpl30();
+                break;
+            case 31:
+                /* Implementation dependent */;
+                gen_op_rdhwr_unimpl31();
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("rdhwr");
                 generate_exception(ctx, EXCP_RI);
                 break;
-           }
-           GEN_STORE_TN_REG(rd, T0);
-           break;
-       case OPC_RDHWR:
-           switch (rd) {
-           case 0:
-               gen_op_rdhwr_cpunum();
-               break;
-           case 1:
-               gen_op_rdhwr_synci_step();
-               break;
-           case 2:
-               gen_op_rdhwr_cc();
-               break;
-           case 3:
-               gen_op_rdhwr_ccres();
-               break;
-#if defined (CONFIG_USER_ONLY)
-           case 29:
-               gen_op_tls_value ();
-               GEN_STORE_TN_REG(rt, T0);
-               break;
-#endif
-           default:            /* Invalid */
-               MIPS_INVAL("rdhwr");
-               generate_exception(ctx, EXCP_RI);
-               break;
-           }
-           GEN_STORE_TN_REG(rt, T0);
-           break;
-#ifdef TARGET_MIPS64
-       case OPC_DEXTM ... OPC_DEXT:
-       case OPC_DINSM ... OPC_DINS:
-           gen_bitops(ctx, op1, rt, rs, sa, rd);
+            }
+            GEN_STORE_TN_REG(rt, T0);
             break;
-       case OPC_DBSHFL:
-           op2 = MASK_DBSHFL(ctx->opcode);
-           switch (op2) {
-           case OPC_DSBH:
-               GEN_LOAD_REG_TN(T1, rt);
-               gen_op_dsbh();
-               break;
-           case OPC_DSHD:
-               GEN_LOAD_REG_TN(T1, rt);
-               gen_op_dshd();
-               break;
+#ifdef TARGET_MIPS64
+        case OPC_DEXTM ... OPC_DEXT:
+        case OPC_DINSM ... OPC_DINS:
+            gen_bitops(ctx, op1, rt, rs, sa, rd);
+            break;
+        case OPC_DBSHFL:
+            op2 = MASK_DBSHFL(ctx->opcode);
+            switch (op2) {
+            case OPC_DSBH:
+                GEN_LOAD_REG_TN(T1, rt);
+                gen_op_dsbh();
+                break;
+            case OPC_DSHD:
+                GEN_LOAD_REG_TN(T1, rt);
+                gen_op_dshd();
+                break;
             default:            /* Invalid */
                 MIPS_INVAL("dbshfl");
                 generate_exception(ctx, EXCP_RI);
                 break;
-           }
-           GEN_STORE_TN_REG(rd, T0);
+            }
+            GEN_STORE_TN_REG(rd, T0);
 #endif
         default:            /* Invalid */
             MIPS_INVAL("special3");
