@@ -62,9 +62,8 @@ struct CPUMIPSState {
     target_ulong t2;
 #endif
     target_ulong HI, LO;
-    uint32_t DCR; /* ? */
     /* Floating point registers */
-    fpr_t fpr[16];
+    fpr_t fpr[32];
 #define FPR(cpu, n) ((fpr_t*)&(cpu)->fpr[(n) / 2])
 #define FPR_FD(cpu, n) (FPR(cpu, n)->fd)
 #define FPR_FS(cpu, n) (FPR(cpu, n)->fs[((n) & 1) ^ FP_ENDIAN_IDX])
