@@ -308,6 +308,8 @@ int cpu_restore_state(TranslationBlock *tb,
     env->PC = gen_opc_pc[j];
     env->hflags &= ~MIPS_HFLAG_BMASK;
     env->hflags |= gen_opc_hflags[j];
+#elif defined(TARGET_ALPHA)
+    env->pc = gen_opc_pc[j];
 #endif
     return 0;
 }
