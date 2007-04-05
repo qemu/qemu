@@ -313,6 +313,31 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif
 
+#ifdef TARGET_ALPHA
+
+#define ELF_START_MMAP (0x30000000000ULL)
+
+#define elf_check_arch(x) ( (x) == ELF_ARCH )
+
+#define ELF_CLASS      ELFCLASS64
+#define ELF_DATA       ELFDATA2MSB
+#define ELF_ARCH       EM_ALPHA
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->pc = infop->entry;
+    regs->ps = 8;
+    regs->usp = infop->start_stack;
+    regs->unique = infop->start_data; /* ? */
+    printf("Set unique value to " TARGET_FMT_lx " (" TARGET_FMT_lx ")\n",
+           regs->unique, infop->start_data);
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE        8192
+
+#endif /* TARGET_ALPHA */
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif
@@ -431,11 +456,11 @@ static void bswap_shdr(struct elf_shdr *shdr)
     bswaptls(&shdr->sh_entsize);
 }
 
-static void bswap_sym(Elf32_Sym *sym)
+static void bswap_sym(struct elf_sym *sym)
 {
     bswap32s(&sym->st_name);
-    bswap32s(&sym->st_value);
-    bswap32s(&sym->st_size);
+    bswaptls(&sym->st_value);
+    bswaptls(&sym->st_size);
     bswap16s(&sym->st_shndx);
 }
 #endif

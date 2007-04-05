@@ -1765,6 +1765,16 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
 	  newsp = env->gregs[15];
 	new_env->gregs[15] = newsp;
 	/* XXXXX */
+#elif defined(TARGET_ALPHA)
+       if (!newsp)
+         newsp = env->ir[30];
+       new_env->ir[30] = newsp;
+        /* ? */
+        {
+            int i;
+            for (i = 7; i < 30; i++)
+                new_env->ir[i] = 0;
+        }
 #else
 #error unsupported target CPU
 #endif
@@ -2067,11 +2077,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
 #endif
+#ifdef TARGET_NR_creat /* not on alpha */
     case TARGET_NR_creat:
         p = lock_user_string(arg1);
         ret = get_errno(creat(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#endif
     case TARGET_NR_link:
         {
             void * p2;
@@ -2179,7 +2191,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_lseek:
         ret = get_errno(lseek(arg1, arg2, arg3));
         break;
+#ifdef TARGET_NR_getxpid
+    case TARGET_NR_getxpid:
+#else
     case TARGET_NR_getpid:
+#endif
         ret = get_errno(getpid());
         break;
     case TARGET_NR_mount:
@@ -2202,6 +2218,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         unlock_user(p, arg1, 0);
         break;
 #endif
+#ifdef TARGET_NR_stime /* not on alpha */
     case TARGET_NR_stime:
         {
             time_t host_time;
@@ -2209,18 +2226,23 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(stime(&host_time));
         }
         break;
+#endif
     case TARGET_NR_ptrace:
         goto unimplemented;
+#ifdef TARGET_NR_alarm /* not on alpha */
     case TARGET_NR_alarm:
         ret = alarm(arg1);
         break;
+#endif
 #ifdef TARGET_NR_oldfstat
     case TARGET_NR_oldfstat:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_pause /* not on alpha */
     case TARGET_NR_pause:
         ret = get_errno(pause());
         break;
+#endif
 #ifdef TARGET_NR_utime
     case TARGET_NR_utime:
         {
@@ -2270,9 +2292,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(access(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#ifdef TARGET_NR_nice /* not on alpha */
     case TARGET_NR_nice:
         ret = get_errno(nice(arg1));
         break;
+#endif
 #ifdef TARGET_NR_ftime
     case TARGET_NR_ftime:
         goto unimplemented;
@@ -2346,11 +2370,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(acct(path(p)));
         unlock_user(p, arg1, 0);
         break;
+#ifdef TARGET_NR_umount2 /* not on alpha */
     case TARGET_NR_umount2:
         p = lock_user_string(arg1);
         ret = get_errno(umount2(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#endif
 #ifdef TARGET_NR_lock
     case TARGET_NR_lock:
         goto unimplemented;
@@ -2389,9 +2415,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_dup2:
         ret = get_errno(dup2(arg1, arg2));
         break;
+#ifdef TARGET_NR_getppid /* not on alpha */
     case TARGET_NR_getppid:
         ret = get_errno(getppid());
         break;
+#endif
     case TARGET_NR_getpgrp:
         ret = get_errno(getpgrp());
         break;
@@ -2474,6 +2502,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 unlock_user_struct(oact, arg3, 1);
         }
         break;
+#ifdef TARGET_NR_sgetmask /* not on alpha */
     case TARGET_NR_sgetmask:
         {
             sigset_t cur_set;
@@ -2483,6 +2512,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = target_set;
         }
         break;
+#endif
+#ifdef TARGET_NR_ssetmask /* not on alpha */
     case TARGET_NR_ssetmask:
         {
             sigset_t set, oset, cur_set;
@@ -2495,6 +2526,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = target_set;
         }
         break;
+#endif
 #ifdef TARGET_NR_sigprocmask
     case TARGET_NR_sigprocmask:
         {
@@ -3256,6 +3288,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_afs_syscall:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR__llseek /* Not on alpha */
     case TARGET_NR__llseek:
         {
 #if defined (__x86_64__)
@@ -3268,6 +3301,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
         }
         break;
+#endif
     case TARGET_NR_getdents:
 #if TARGET_LONG_SIZE != 4
         goto unimplemented;
@@ -3431,9 +3465,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getsid:
         ret = get_errno(getsid(arg1));
         break;
+#if defined(TARGET_NR_fdatasync) /* Not on alpha (osf_datasync ?) */
     case TARGET_NR_fdatasync:
         ret = get_errno(fdatasync(arg1));
         break;
+#endif
     case TARGET_NR__sysctl:
         /* We don't implement this, but ENODIR is always a safe
            return value. */
