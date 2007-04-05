@@ -1300,6 +1300,16 @@ void tlb_flush(CPUState *env, int flush_global)
         env->tlb_table[1][i].addr_read = -1;
         env->tlb_table[1][i].addr_write = -1;
         env->tlb_table[1][i].addr_code = -1;
+#if (NB_MMU_MODES >= 3)
+        env->tlb_table[2][i].addr_read = -1;
+        env->tlb_table[2][i].addr_write = -1;
+        env->tlb_table[2][i].addr_code = -1;
+#if (NB_MMU_MODES == 4)
+        env->tlb_table[3][i].addr_read = -1;
+        env->tlb_table[3][i].addr_write = -1;
+        env->tlb_table[3][i].addr_code = -1;
+#endif
+#endif
     }
 
     memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
@@ -1345,6 +1355,12 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     tlb_flush_entry(&env->tlb_table[0][i], addr);
     tlb_flush_entry(&env->tlb_table[1][i], addr);
+#if (NB_MMU_MODES >= 3)
+    tlb_flush_entry(&env->tlb_table[2][i], addr);
+#if (NB_MMU_MODES == 4)
+    tlb_flush_entry(&env->tlb_table[3][i], addr);
+#endif
+#endif
 
     /* Discard jump cache entries for any tb which might potentially
        overlap the flushed page.  */
@@ -1434,6 +1450,14 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
             tlb_reset_dirty_range(&env->tlb_table[0][i], start1, length);
         for(i = 0; i < CPU_TLB_SIZE; i++)
             tlb_reset_dirty_range(&env->tlb_table[1][i], start1, length);
+#if (NB_MMU_MODES >= 3)
+        for(i = 0; i < CPU_TLB_SIZE; i++)
+            tlb_reset_dirty_range(&env->tlb_table[2][i], start1, length);
+#if (NB_MMU_MODES == 4)
+        for(i = 0; i < CPU_TLB_SIZE; i++)
+            tlb_reset_dirty_range(&env->tlb_table[3][i], start1, length);
+#endif
+#endif
     }
 
 #if !defined(CONFIG_SOFTMMU)
@@ -1486,6 +1510,14 @@ void cpu_tlb_update_dirty(CPUState *env)
         tlb_update_dirty(&env->tlb_table[0][i]);
     for(i = 0; i < CPU_TLB_SIZE; i++)
         tlb_update_dirty(&env->tlb_table[1][i]);
+#if (NB_MMU_MODES >= 3)
+    for(i = 0; i < CPU_TLB_SIZE; i++)
+        tlb_update_dirty(&env->tlb_table[2][i]);
+#if (NB_MMU_MODES == 4)
+    for(i = 0; i < CPU_TLB_SIZE; i++)
+        tlb_update_dirty(&env->tlb_table[3][i]);
+#endif
+#endif
 }
 
 static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, 
@@ -1511,6 +1543,12 @@ static inline void tlb_set_dirty(CPUState *env,
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     tlb_set_dirty1(&env->tlb_table[0][i], addr);
     tlb_set_dirty1(&env->tlb_table[1][i], addr);
+#if (NB_MMU_MODES >= 3)
+    tlb_set_dirty1(&env->tlb_table[2][i], addr);
+#if (NB_MMU_MODES == 4)
+    tlb_set_dirty1(&env->tlb_table[3][i], addr);
+#endif
+#endif
 }
 
 /* add a new TLB entry. At most one entry for a given virtual address
