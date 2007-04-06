@@ -4880,6 +4880,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_CP0:
+        save_cpu_state(ctx, 1);
         gen_op_cp0_enabled();
         op1 = MASK_CP0(ctx->opcode);
         switch (op1) {

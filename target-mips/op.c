@@ -1360,9 +1360,14 @@ void op_mtc0_status (void)
        no 64bit addressing implemented. */
     val = (int32_t)T0 & 0xF878FF17;
     old = env->CP0_Status;
+    if (!(val & (1 << CP0St_EXL)) &&
+        !(val & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (val & (1 << CP0St_UM)))
+        env->hflags |= MIPS_HFLAG_UM;
     env->CP0_Status = val;
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-       CALL_FROM_TB2(do_mtc0_status_debug, old, val);
+    if (loglevel & CPU_LOG_EXEC)
+        CALL_FROM_TB2(do_mtc0_status_debug, old, val);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
     RETURN();
 }
@@ -2077,10 +2082,12 @@ void op_set_lladdr (void)
     RETURN();
 }
 
-void debug_eret (void);
+void debug_pre_eret (void);
+void debug_post_eret (void);
 void op_eret (void)
 {
-    CALL_FROM_TB0(debug_eret);
+    if (loglevel & CPU_LOG_EXEC)
+        CALL_FROM_TB0(debug_pre_eret);
     if (env->CP0_Status & (1 << CP0St_ERL)) {
         env->PC = env->CP0_ErrorEPC;
         env->CP0_Status &= ~(1 << CP0St_ERL);
@@ -2093,13 +2100,16 @@ void op_eret (void)
         !(env->hflags & MIPS_HFLAG_DM) &&
         (env->CP0_Status & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
+    if (loglevel & CPU_LOG_EXEC)
+        CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
     RETURN();
 }
 
 void op_deret (void)
 {
-    CALL_FROM_TB0(debug_eret);
+    if (loglevel & CPU_LOG_EXEC)
+        CALL_FROM_TB0(debug_pre_eret);
     env->PC = env->CP0_DEPC;
     env->hflags |= MIPS_HFLAG_DM;
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
@@ -2107,6 +2117,8 @@ void op_deret (void)
         !(env->hflags & MIPS_HFLAG_DM) &&
         (env->CP0_Status & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
+    if (loglevel & CPU_LOG_EXEC)
+        CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
     RETURN();
 }
