@@ -6694,7 +6694,9 @@ void register_machines(void)
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
 #elif defined(TARGET_MIPS)
+#if !defined(TARGET_MIPS64)
     qemu_register_ar7_machines();
+#endif
     qemu_register_mips_machines();
     qemu_register_machine(&mips_malta_machine);
 #elif defined(TARGET_SPARC)
