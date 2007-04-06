@@ -1,7 +1,7 @@
 /* 
  * ARM Integrator CP System emulation.
  *
- * Copyright (c) 2005-2006 CodeSourcery.
+ * Copyright (c) 2005-2007 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GPL
@@ -500,6 +500,7 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     icp_control_init(0xcb000000);
     pl050_init(0x18000000, pic, 3, 0);
     pl050_init(0x19000000, pic, 4, 1);
+    pl181_init(0x1c000000, sd_bdrv, pic, 23, 24);
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "smc91c111") == 0) {

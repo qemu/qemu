@@ -1721,6 +1721,8 @@ SMC 91c111 Ethernet adapter
 PL110 LCD controller
 @item
 PL050 KMI with PS/2 keyboard and mouse.
+@item
+PL181 MultiMedia Card Interface with SD card.
 @end itemize
 
 The ARM Versatile baseboard is emulated with the following devices:
@@ -1748,6 +1750,8 @@ mapped control registers.
 PCI OHCI USB controller.
 @item
 LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices.
+@item
+PL181 MultiMedia Card Interface with SD card.
 @end itemize
 
 The ARM RealView Emulation baseboard is emulated with the following devices:
@@ -1771,6 +1775,8 @@ PCI host bridge
 PCI OHCI USB controller
 @item
 LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices
+@item
+PL181 MultiMedia Card Interface with SD card.
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More

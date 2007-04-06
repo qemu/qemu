@@ -966,6 +966,7 @@ extern uint8_t _translate_keycode(const int key);
 #define MAX_DISKS 4
 
 extern BlockDriverState *bs_table[MAX_DISKS + 1];
+extern BlockDriverState *sd_bdrv;
 
 void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
@@ -1418,6 +1419,10 @@ void pl050_init(uint32_t base, void *pic, int irq, int is_mouse);
 
 /* pl080.c */
 void *pl080_init(uint32_t base, void *pic, int irq, int nchannels);
+
+/* pl181.c */
+void pl181_init(uint32_t base, BlockDriverState *bd,
+                void *pic, int irq0, int irq1);
 
 /* pl190.c */
 void *pl190_init(uint32_t base, void *parent, int irq, int fiq);

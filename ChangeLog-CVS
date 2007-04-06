@@ -1,3 +1,13 @@
+2007-04-06 18:54  pbrook
+
+	* hw/pl181.c: Use correct type for card field.
+
+2007-04-06 18:49  pbrook
+
+	* Makefile.target, qemu-doc.texi, vl.c, vl.h, hw/integratorcp.c,
+	  hw/pl181.c, hw/realview.c, hw/sd.c, hw/sd.h, hw/versatilepb.c: SD
+	  card emulation (initial implementation by Andrzei Zaborowski).
+
 2007-04-06 10:56  j_mayer
 
 	* linux-user/: elfload.c, main.c, qemu.h, signal.c, syscall.c: Code

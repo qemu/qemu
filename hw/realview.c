@@ -1,7 +1,7 @@
 /* 
  * ARM RealView Baseboard System emulation.
  *
- * Copyright (c) 2006 CodeSourcery.
+ * Copyright (c) 2006-2007 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GPL.
@@ -54,6 +54,8 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
     sp804_init(0x10012000, pic, 5);
 
     pl110_init(ds, 0x10020000, pic, 23, 1);
+
+    pl181_init(0x10005000, sd_bdrv, pic, 17, 18);
 
     pci_bus = pci_vpb_init(pic, 48, 1);
     if (usb_enabled) {

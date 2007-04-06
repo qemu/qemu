@@ -1,7 +1,7 @@
 /* 
  * ARM Versatile Platform/Application Baseboard System emulation.
  *
- * Copyright (c) 2005-2006 CodeSourcery.
+ * Copyright (c) 2005-2007 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GPL.
@@ -217,19 +217,25 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
        that includes hardware cursor support from the PL111.  */
     pl110_init(ds, 0x10120000, pic, 16, 1);
 
+    pl181_init(0x10005000, sd_bdrv, sic, 22, 1);
+#if 0
+    /* Disabled because there's no way of specifying a block device.  */
+    pl181_init(0x1000b000, NULL, sic, 23, 2);
+#endif
+
     /* Memory map for Versatile/PB:  */
     /* 0x10000000 System registers.  */
     /* 0x10001000 PCI controller config registers.  */
     /* 0x10002000 Serial bus interface.  */
     /*  0x10003000 Secondary interrupt controller.  */
     /* 0x10004000 AACI (audio).  */
-    /* 0x10005000 MMCI0.  */
+    /*  0x10005000 MMCI0.  */
     /*  0x10006000 KMI0 (keyboard).  */
     /*  0x10007000 KMI1 (mouse).  */
     /* 0x10008000 Character LCD Interface.  */
     /*  0x10009000 UART3.  */
     /* 0x1000a000 Smart card 1.  */
-    /* 0x1000b000 MMCI1.  */
+    /*  0x1000b000 MMCI1.  */
     /*  0x10010000 Ethernet.  */
     /* 0x10020000 USB.  */
     /* 0x10100000 SSMC.  */
