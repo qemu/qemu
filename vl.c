@@ -138,6 +138,7 @@ IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 /* Note: bs_table[MAX_DISKS] is a dummy block driver if none available
    to store the VM snapshots */
 BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
+BlockDriverState *sd_bdrv;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
@@ -6345,6 +6346,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
+           "-sd file        use 'file' as SecureDigital card image\n"
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-snapshot       write to temporary files instead of disk image files\n"
 #ifdef CONFIG_SDL
@@ -6482,6 +6484,7 @@ enum {
     QEMU_OPTION_hdc,
     QEMU_OPTION_hdd,
     QEMU_OPTION_cdrom,
+    QEMU_OPTION_sd,
     QEMU_OPTION_boot,
     QEMU_OPTION_snapshot,
 #ifdef TARGET_I386
@@ -6560,6 +6563,7 @@ const QEMUOption qemu_options[] = {
     { "hdc", HAS_ARG, QEMU_OPTION_hdc },
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
+    { "sd", HAS_ARG, QEMU_OPTION_sd },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
     { "snapshot", 0, QEMU_OPTION_snapshot },
 #ifdef TARGET_I386
@@ -6847,6 +6851,7 @@ int main(int argc, char **argv)
     int snapshot, linux_boot;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
+    const char *sd_filename;
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
@@ -6907,6 +6912,7 @@ int main(int argc, char **argv)
         fd_filename[i] = NULL;
     for(i = 0; i < MAX_DISKS; i++)
         hd_filename[i] = NULL;
+    sd_filename = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
@@ -7024,6 +7030,9 @@ int main(int argc, char **argv)
                     if (hd_index == cdrom_index)
                         cdrom_index = -1;
                 }
+                break;
+            case QEMU_OPTION_sd:
+                sd_filename = optarg;
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -7523,7 +7532,7 @@ int main(int argc, char **argv)
                 fd_table[i] = bdrv_new(buf);
                 bdrv_set_type_hint(fd_table[i], BDRV_TYPE_FLOPPY);
             }
-            if (fd_filename[i] != '\0') {
+            if (fd_filename[i][0] != '\0') {
                 if (bdrv_open(fd_table[i], fd_filename[i],
                               snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
                     fprintf(stderr, "qemu: could not open floppy disk image '%s'\n",
@@ -7531,6 +7540,18 @@ int main(int argc, char **argv)
                     exit(1);
                 }
             }
+        }
+    }
+
+    sd_bdrv = bdrv_new ("sd");
+    /* FIXME: This isn't really a floppy, but it's a reasonable
+       approximation.  */
+    bdrv_set_type_hint(sd_bdrv, BDRV_TYPE_FLOPPY);
+    if (sd_filename) {
+        if (bdrv_open(sd_bdrv, sd_filename,
+                      snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
+            fprintf(stderr, "qemu: could not open SD card image %s\n",
+                    sd_filename);
         }
     }
 
