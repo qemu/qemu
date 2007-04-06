@@ -11,6 +11,7 @@ ppc-softmmu
 ppc64-softmmu
 ppc-darwin-user
 ppc-linux-user
+ppc64-linux-user
 qemu-doc.html
 qemu-tech.html
 qemu-doc.info
@@ -23,6 +24,7 @@ sparc-linux-user
 qemu-img
 sparc-softmmu
 x86_64-softmmu
+x86_64-linux-user
 sparc64-linux-user
 sparc64-softmmu
 mips-softmmu
@@ -37,6 +39,8 @@ m68k-linux-user
 .gdbinit
 sh4-linux-user
 sh4-softmmu
+alpha-linux-user
+alpha-softmmu
 *.aux
 *.cp
 *.dvi
