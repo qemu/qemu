@@ -1264,8 +1264,8 @@ static inline void gen_rldicl (DisasContext *ctx, int mbn, int shn)
 {
     uint32_t sh, mb;
 
-    sh = SH(ctx->opcode) | (1 << shn);
-    mb = (MB(ctx->opcode) << 1) | mbn;
+    sh = SH(ctx->opcode) | (shn << 5);
+    mb = MB(ctx->opcode) | (mbn << 5);
     gen_rldinm(ctx, mb, 63, sh);
 }
 GEN_PPC64_R4(rldicl, 0x1E, 0x00);
@@ -1274,8 +1274,8 @@ static inline void gen_rldicr (DisasContext *ctx, int men, int shn)
 {
     uint32_t sh, me;
 
-    sh = SH(ctx->opcode) | (1 << shn);
-    me = (MB(ctx->opcode) << 1) | men;
+    sh = SH(ctx->opcode) | (shn << 5);
+    me = MB(ctx->opcode) | (men << 5);
     gen_rldinm(ctx, 0, me, sh);
 }
 GEN_PPC64_R4(rldicr, 0x1E, 0x02);
@@ -1284,8 +1284,8 @@ static inline void gen_rldic (DisasContext *ctx, int mbn, int shn)
 {
     uint32_t sh, mb;
 
-    sh = SH(ctx->opcode) | (1 << shn);
-    mb = (MB(ctx->opcode) << 1) | mbn;
+    sh = SH(ctx->opcode) | (shn << 5);
+    mb = MB(ctx->opcode) | (mbn << 5);
     gen_rldinm(ctx, mb, 63 - sh, sh);
 }
 GEN_PPC64_R4(rldic, 0x1E, 0x04);
@@ -1308,7 +1308,7 @@ static inline void gen_rldcl (DisasContext *ctx, int mbn)
 {
     uint32_t mb;
 
-    mb = (MB(ctx->opcode) << 1) | mbn;
+    mb = MB(ctx->opcode) | (mbn << 5);
     gen_rldnm(ctx, mb, 63);
 }
 GEN_PPC64_R2(rldcl, 0x1E, 0x08)
@@ -1317,7 +1317,7 @@ static inline void gen_rldcr (DisasContext *ctx, int men)
 {
     uint32_t me;
 
-    me = (MB(ctx->opcode) << 1) | men;
+    me = MB(ctx->opcode) | (men << 5);
     gen_rldnm(ctx, 0, me);
 }
 GEN_PPC64_R2(rldcr, 0x1E, 0x09)
@@ -1327,8 +1327,8 @@ static inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
     uint64_t mask;
     uint32_t sh, mb;
 
-    sh = SH(ctx->opcode) | (1 << shn);
-    mb = (MB(ctx->opcode) << 1) | mbn;
+    sh = SH(ctx->opcode) | (shn << 5);
+    mb = MB(ctx->opcode) | (mbn << 5);
     if (likely(sh == 0)) {
         if (likely(mb == 0)) {
             gen_op_load_gpr_T0(rS(ctx->opcode));
@@ -1732,10 +1732,12 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 
 /***                           Addressing modes                            ***/
 /* Register indirect with immediate index : EA = (rA|0) + SIMM */
-static inline void gen_addr_imm_index (DisasContext *ctx)
+static inline void gen_addr_imm_index (DisasContext *ctx, int maskl)
 {
     target_long simm = SIMM(ctx->opcode);
 
+    if (maskl)
+        simm &= ~0x03;
     if (rA(ctx->opcode) == 0) {
         gen_set_T0(simm);
     } else {
@@ -1856,7 +1858,7 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 #define GEN_LD(width, opc, type)                                              \
 GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, type)                      \
 {                                                                             \
-    gen_addr_imm_index(ctx);                                                  \
+    gen_addr_imm_index(ctx, 0);                                               \
     op_ldst(l##width);                                                        \
     gen_op_store_T1_gpr(rD(ctx->opcode));                                     \
 }
@@ -1869,7 +1871,10 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
         RET_INVAL(ctx);                                                       \
         return;                                                               \
     }                                                                         \
-    gen_addr_imm_index(ctx);                                                  \
+    if (type == PPC_64B)                                                      \
+        gen_addr_imm_index(ctx, 1);                                           \
+    else                                                                      \
+        gen_addr_imm_index(ctx, 0);                                           \
     op_ldst(l##width);                                                        \
     gen_op_store_T1_gpr(rD(ctx->opcode));                                     \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
@@ -1932,7 +1937,7 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
             return;
         }
     }
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 1);
     if (ctx->opcode & 0x02) {
         /* lwa (lwau is undefined) */
         op_ldst(lwa);
@@ -1950,7 +1955,7 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
 #define GEN_ST(width, opc, type)                                              \
 GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, type)                     \
 {                                                                             \
-    gen_addr_imm_index(ctx);                                                  \
+    gen_addr_imm_index(ctx, 0);                                               \
     gen_op_load_gpr_T1(rS(ctx->opcode));                                      \
     op_ldst(st##width);                                                       \
 }
@@ -1962,7 +1967,10 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
         RET_INVAL(ctx);                                                       \
         return;                                                               \
     }                                                                         \
-    gen_addr_imm_index(ctx);                                                  \
+    if (type == PPC_64B)                                                      \
+        gen_addr_imm_index(ctx, 1);                                           \
+    else                                                                      \
+        gen_addr_imm_index(ctx, 0);                                           \
     gen_op_load_gpr_T1(rS(ctx->opcode));                                      \
     op_ldst(st##width);                                                       \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
@@ -2014,7 +2022,7 @@ GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000002, PPC_64B)
             return;
         }
     }
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 1);
     gen_op_load_gpr_T1(rS(ctx->opcode));
     op_ldst(std);
     if (Rc(ctx->opcode))
@@ -2102,7 +2110,7 @@ GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 0);
     op_ldstm(lmw, rD(ctx->opcode));
 }
 
@@ -2111,7 +2119,7 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 0);
     op_ldstm(stmw, rS(ctx->opcode));
 }
 
@@ -2435,7 +2443,7 @@ GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                 \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
         return;                                                               \
     }                                                                         \
-    gen_addr_imm_index(ctx);                                                  \
+    gen_addr_imm_index(ctx, 0);                                               \
     op_ldst(l##width);                                                        \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
 }
@@ -2451,7 +2459,7 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)              \
         RET_INVAL(ctx);                                                       \
         return;                                                               \
     }                                                                         \
-    gen_addr_imm_index(ctx);                                                  \
+    gen_addr_imm_index(ctx, 0);                                               \
     op_ldst(l##width);                                                        \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
@@ -2506,7 +2514,7 @@ GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
         return;                                                               \
     }                                                                         \
-    gen_addr_imm_index(ctx);                                                  \
+    gen_addr_imm_index(ctx, 0);                                               \
     gen_op_load_fpr_FT0(rS(ctx->opcode));                                     \
     op_ldst(st##width);                                                       \
 }
@@ -2522,7 +2530,7 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
         RET_INVAL(ctx);                                                       \
         return;                                                               \
     }                                                                         \
-    gen_addr_imm_index(ctx);                                                  \
+    gen_addr_imm_index(ctx, 0);                                               \
     gen_op_load_fpr_FT0(rS(ctx->opcode));                                     \
     op_ldst(st##width);                                                       \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
@@ -4102,7 +4110,7 @@ GEN_HANDLER(lfq, 0x38, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 0);
     op_POWER2_lfq();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
     gen_op_store_FT1_fpr(rD(ctx->opcode) + 1);
@@ -4115,7 +4123,7 @@ GEN_HANDLER(lfqu, 0x39, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 0);
     op_POWER2_lfq();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
     gen_op_store_FT1_fpr(rD(ctx->opcode) + 1);
@@ -4154,7 +4162,7 @@ GEN_HANDLER(stfq, 0x3C, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 0);
     gen_op_load_fpr_FT0(rS(ctx->opcode));
     gen_op_load_fpr_FT1(rS(ctx->opcode) + 1);
     op_POWER2_stfq();
@@ -4167,7 +4175,7 @@ GEN_HANDLER(stfqu, 0x3D, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(ctx);
+    gen_addr_imm_index(ctx, 0);
     gen_op_load_fpr_FT0(rS(ctx->opcode));
     gen_op_load_fpr_FT1(rS(ctx->opcode) + 1);
     op_POWER2_stfq();
