@@ -339,8 +339,10 @@ void do_interrupt (CPUState *env)
         /* XXX: TODO: manage defered watch exceptions */
         goto set_EPC;
     case EXCP_AdEL:
-    case EXCP_AdES:
         cause = 4;
+        goto set_EPC;
+    case EXCP_AdES:
+        cause = 5;
         goto set_EPC;
     case EXCP_TLBL:
         cause = 2;
