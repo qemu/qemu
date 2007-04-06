@@ -68,7 +68,7 @@ typedef struct TaskState {
     uint32_t heap_limit;
     int swi_errno;
 #endif
-#ifdef TARGET_I386
+#if defined(TARGET_I386) && !defined(TARGET_X86_64)
     target_ulong target_v86;
     struct vm86_saved_state vm86_saved_regs;
     struct target_vm86plus_struct vm86plus;

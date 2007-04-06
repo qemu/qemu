@@ -194,9 +194,12 @@ void cpu_loop(CPUX86State *env)
             queue_signal(info.si_signo, &info);
             break;
         case EXCP0D_GPF:
+#ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_fault(env);
-            } else {
+            } else
+#endif
+            {
                 info.si_signo = SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SI_KERNEL;
@@ -215,9 +218,12 @@ void cpu_loop(CPUX86State *env)
             queue_signal(info.si_signo, &info);
             break;
         case EXCP00_DIVZ:
+#ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_trap(env, trapnr);
-            } else {
+            } else
+#endif
+            {
                 /* division by zero */
                 info.si_signo = SIGFPE;
                 info.si_errno = 0;
@@ -228,9 +234,12 @@ void cpu_loop(CPUX86State *env)
             break;
         case EXCP01_SSTP:
         case EXCP03_INT3:
+#ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_trap(env, trapnr);
-            } else {
+            } else
+#endif
+            {
                 info.si_signo = SIGTRAP;
                 info.si_errno = 0;
                 if (trapnr == EXCP01_SSTP) {
@@ -245,9 +254,12 @@ void cpu_loop(CPUX86State *env)
             break;
         case EXCP04_INTO:
         case EXCP05_BOUND:
+#ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_trap(env, trapnr);
-            } else {
+            } else
+#endif
+            {
                 info.si_signo = SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SI_KERNEL;
@@ -1807,6 +1819,17 @@ int main(int argc, char **argv)
     env->eflags |= IF_MASK;
     
     /* linux register setup */
+#if defined(TARGET_X86_64)
+    env->regs[R_EAX] = regs->rax;
+    env->regs[R_EBX] = regs->rbx;
+    env->regs[R_ECX] = regs->rcx;
+    env->regs[R_EDX] = regs->rdx;
+    env->regs[R_ESI] = regs->rsi;
+    env->regs[R_EDI] = regs->rdi;
+    env->regs[R_EBP] = regs->rbp;
+    env->regs[R_ESP] = regs->rsp;
+    env->eip = regs->rip;
+#else
     env->regs[R_EAX] = regs->eax;
     env->regs[R_EBX] = regs->ebx;
     env->regs[R_ECX] = regs->ecx;
@@ -1816,6 +1839,7 @@ int main(int argc, char **argv)
     env->regs[R_EBP] = regs->ebp;
     env->regs[R_ESP] = regs->esp;
     env->eip = regs->eip;
+#endif
 
     /* linux interrupt setup */
     env->idt.base = h2g(idt_table);
@@ -1903,6 +1927,9 @@ int main(int argc, char **argv)
             if (i != 12 && i != 6 && i != 13)
                 env->msr[i] = (regs->msr >> i) & 1;
         }
+#if defined(TARGET_PPC64)
+        msr_sf = 1;
+#endif
         env->nip = regs->nip;
         for(i = 0; i < 32; i++) {
             env->gpr[i] = regs->gpr[i];
