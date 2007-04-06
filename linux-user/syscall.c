@@ -3250,11 +3250,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_modify_ldt:
         ret = get_errno(do_modify_ldt(cpu_env, arg1, arg2, arg3));
         break;
+#if !defined(TARGET_X86_64)
     case TARGET_NR_vm86old:
         goto unimplemented;
     case TARGET_NR_vm86:
         ret = do_vm86(cpu_env, arg1, arg2);
         break;
+#endif
 #endif
     case TARGET_NR_adjtimex:
         goto unimplemented;
@@ -3275,8 +3277,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fchdir:
         ret = get_errno(fchdir(arg1));
         break;
+#ifdef TARGET_NR_bdflush /* not on x86_64 */
     case TARGET_NR_bdflush:
         goto unimplemented;
+#endif
 #ifdef TARGET_NR_sysfs
     case TARGET_NR_sysfs:
         goto unimplemented;

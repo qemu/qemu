@@ -127,6 +127,7 @@
 #define FSR_FTT_MASK (FSR_FTT2 | FSR_FTT1 | FSR_FTT0)
 #define FSR_FTT_IEEE_EXCP (1 << 14)
 #define FSR_FTT_UNIMPFPOP (3 << 14)
+#define FSR_FTT_SEQ_ERROR (4 << 14)
 #define FSR_FTT_INVAL_FPR (6 << 14)
 
 #define FSR_FCC1  (1<<11)
@@ -239,7 +240,7 @@ typedef struct CPUSPARCState {
 #else
 #define GET_FSR32(env) (env->fsr)
 #define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
-        env->fsr = (_tmp & 0xcfc1ffff) | (env->fsr & 0x000e0000);       \
+        env->fsr = (_tmp & 0xcfc1dfff) | (env->fsr & 0x000e0000);       \
     } while (0)
 #endif
 

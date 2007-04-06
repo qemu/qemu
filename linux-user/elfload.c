@@ -44,6 +44,23 @@ static uint32_t get_elf_hwcap(void)
   return global_env->cpuid_features;
 }
 
+#ifdef TARGET_X86_64
+#define ELF_START_MMAP 0x2aaaaab000ULL
+#define elf_check_arch(x) ( ((x) == ELF_ARCH) )
+
+#define ELF_CLASS      ELFCLASS64
+#define ELF_DATA       ELFDATA2LSB
+#define ELF_ARCH       EM_X86_64
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->rax = 0;
+    regs->rsp = infop->start_stack;
+    regs->rip = infop->entry;
+}
+
+#else
+
 #define ELF_START_MMAP 0x80000000
 
 /*
@@ -72,6 +89,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
        A value of 0 tells we have no such handler.  */
     regs->edx = 0;
 }
+#endif
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
@@ -177,9 +195,20 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_START_MMAP 0x80000000
 
+#ifdef TARGET_PPC64
+
+#define elf_check_arch(x) ( (x) == EM_PPC64 )
+
+#define ELF_CLASS	ELFCLASS64
+
+#else
+
 #define elf_check_arch(x) ( (x) == EM_PPC )
 
 #define ELF_CLASS	ELFCLASS32
+
+#endif
+
 #ifdef TARGET_WORDS_BIGENDIAN
 #define ELF_DATA	ELFDATA2MSB
 #else
@@ -222,9 +251,18 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 {
     target_ulong pos = infop->start_stack;
     target_ulong tmp;
+#ifdef TARGET_PPC64
+    target_ulong entry, toc;
+#endif
 
     _regs->msr = 1 << MSR_PR; /* Set user mode */
     _regs->gpr[1] = infop->start_stack;
+#ifdef TARGET_PPC64
+    entry = ldq_raw(infop->entry) + infop->load_addr;
+    toc = ldq_raw(infop->entry + 8) + infop->load_addr;
+    _regs->gpr[2] = toc;
+    infop->entry = entry;
+#endif
     _regs->nip = infop->entry;
     /* Note that isn't exactly what regular kernel does
      * but this is what the ABI wants and is needed to allow
@@ -917,6 +955,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     unsigned long elf_entry, interp_load_addr = 0;
     int status;
     unsigned long start_code, end_code, end_data;
+    unsigned long reloc_func_desc = 0;
     unsigned long elf_stack;
     char passed_fileno[6];
 
@@ -1181,6 +1220,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                 load_bias += error -
                     TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr);
                 load_addr += load_bias;
+                reloc_func_desc = load_bias;
             }
         }
         k = elf_ppnt->p_vaddr;
@@ -1213,6 +1253,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 	    elf_entry = load_elf_interp(&interp_elf_ex, interpreter_fd,
 					    &interp_load_addr);
 	}
+        reloc_func_desc = interp_load_addr;
 
 	close(interpreter_fd);
 	free(elf_interpreter);

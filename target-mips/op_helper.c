@@ -120,8 +120,7 @@ void do_drotr (void)
     if (T1) {
        tmp = T0 << (0x40 - T1);
        T0 = (T0 >> T1) | tmp;
-    } else
-       T0 = T1;
+    }
 }
 
 void do_drotr32 (void)
@@ -131,8 +130,7 @@ void do_drotr32 (void)
     if (T1) {
        tmp = T0 << (0x40 - (32 + T1));
        T0 = (T0 >> (32 + T1)) | tmp;
-    } else
-       T0 = T1;
+    }
 }
 
 void do_dsllv (void)

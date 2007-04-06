@@ -675,8 +675,10 @@ static void main_cpu_reset(void *opaque)
     /* The bootload does not need to be rewritten as it is located in a
        read only location. The kernel location and the arguments table
        location does not change. */
-    if (env->kernel_filename)
+    if (env->kernel_filename) {
+        env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         load_kernel (env);
+    }
 }
 
 static
@@ -732,6 +734,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
         env->kernel_cmdline = kernel_cmdline;
         env->initrd_filename = initrd_filename;
         kernel_entry = load_kernel(env);
+        env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         write_bootloader(env, bios_offset, kernel_entry);
     } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);

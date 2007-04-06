@@ -1,3 +1,83 @@
+2007-04-06 10:56  j_mayer
+
+	* linux-user/: elfload.c, main.c, qemu.h, signal.c, syscall.c: Code
+	  provision for x86_64 and PowerPC 64 linux user mode support.
+
+2007-04-06 10:07  j_mayer
+
+	* .cvsignore: Add alpha targets.  Code provision for x86_64 and
+	  PowerPC 64 linux user targets.
+
+2007-04-06 09:59  j_mayer
+
+	* target-ppc/translate.c: Fix for PowerPC 64 rotates.  Fix for
+	  PowerPC 64 load & store with immediate index.
+
+2007-04-06 08:40  j_mayer
+
+	* linux-user/: ppc64/syscall.h, ppc64/syscall_nr.h,
+	  ppc64/termbits.h, x86_64/syscall.h, x86_64/syscall_nr.h,
+	  x86_64/termbits.h: Code provision for 64 bits linux user-mode
+	  targets support.
+
+2007-04-06 01:21  ths
+
+	* target-mips/: helper.c, translate.c: fix branch delay slot
+	  cornercases.
+
+2007-04-06 01:20  ths
+
+	* target-mips/: op.c, op_helper.c, translate.c: Fix rotr immediate
+	  ops, mask shift/rotate arguments to their allowed size.
+
+2007-04-06 01:18  ths
+
+	* target-mips/helper.c: Handle EBase properly.
+
+2007-04-06 01:17  ths
+
+	* hw/mips_timer.c: Fix disabling of the Cause register for R2.
+
+2007-04-06 01:16  ths
+
+	* target-mips/: op.c, translate.c: Fix RDHWR handling. Code
+	  formatting. Don't use *_direct versions to raise exceptions.
+
+2007-04-06 01:14  ths
+
+	* target-mips/cpu.h: 64bit MIPS FPUs have 32 registers.
+
+2007-04-06 01:12  ths
+
+	* hw/mips_malta.c: Clear BEV and ERL for the fake bootloader.
+
+2007-04-05 23:12  j_mayer
+
+	* target-alpha/cpu.h: Fix alpha target compilation on 32 bits
+	  hosts.
+
+2007-04-05 22:46  j_mayer
+
+	* Makefile, Makefile.target, configure: Rules needed to compile
+	  linux user-mode alpha target.
+
+2007-04-05 22:08  j_mayer
+
+	* exec.c: Temporary hack for alpha user-mode emulation.
+
+2007-04-05 20:40  blueswir1
+
+	* Changelog, qemu-tech.texi: Documentation update
+
+2007-04-05 20:12  blueswir1
+
+	* target-sparc/: cpu.h, translate.c: Fix stdfq op (Aurelien Jarno)
+
+2007-04-05 20:09  blueswir1
+
+	* target-sparc/translate.c: Fix co-processor branch and store ops
+	  (Aurelien Jarno)
+
 2007-04-05 19:00  blueswir1
 
 	* hw/sun4m.c: Fill in real SparcStation 10 values
@@ -13,10 +93,21 @@
 	* linux-user/: elfload.c, main.c, syscall.c, syscall_defs.h:
 	  Preliminary patch for Alpha Linux user mode emulation support.
 
+2007-04-05 09:06  j_mayer
+
+	* linux-user/alpha/: syscall.h, syscall_nr.h, termbits.h:
+	  Definitions needed for Alpha linux user-mode emulation.
+
 2007-04-05 09:04  j_mayer
 
 	* hw/alpha_palcode.c: Alpha CPU palcode emulation. Only usable in
 	  user mode for now with code provision for full emulation support.
+
+2007-04-05 08:58  j_mayer
+
+	* target-alpha/: cpu.h, exec.h, helper.c, op.c, op_helper.c,
+	  op_helper.h, op_helper_mem.h, op_mem.h, op_template.h,
+	  translate.c: Alpha architecture emulation core.
 
 2007-04-05 08:43  j_mayer
 

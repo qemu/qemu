@@ -850,18 +850,43 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         MIPS_DEBUG("NOP");
         return;
     }
-    if (opc == OPC_ADDI || opc == OPC_ADDIU ||
-        opc == OPC_DADDI || opc == OPC_DADDIU ||
-        opc == OPC_SLTI || opc == OPC_SLTIU)
+    uimm = (uint16_t)imm;
+    switch (opc) {
+    case OPC_ADDI:
+    case OPC_ADDIU:
+#ifdef TARGET_MIPS64
+    case OPC_DADDI:
+    case OPC_DADDIU:
+#endif
+    case OPC_SLTI:
+    case OPC_SLTIU:
         uimm = (int32_t)imm; /* Sign extend to 32 bits */
-    else
-        uimm = (uint16_t)imm;
-    if (opc != OPC_LUI) {
+        /* Fall through. */
+    case OPC_ANDI:
+    case OPC_ORI:
+    case OPC_XORI:
         GEN_LOAD_REG_TN(T0, rs);
         GEN_LOAD_IMM_TN(T1, uimm);
-    } else {
-        uimm = uimm << 16;
+        break;
+    case OPC_LUI:
+        uimm <<= 16;
         GEN_LOAD_IMM_TN(T0, uimm);
+        break;
+    case OPC_SLL:
+    case OPC_SRA:
+    case OPC_SRL:
+#ifdef TARGET_MIPS64
+    case OPC_DSLL:
+    case OPC_DSRA:
+    case OPC_DSRL:
+    case OPC_DSLL32:
+    case OPC_DSRA32:
+    case OPC_DSRL32:
+#endif
+        uimm &= 0x1f;
+        GEN_LOAD_REG_TN(T0, rs);
+        GEN_LOAD_IMM_TN(T1, uimm);
+        break;
     }
     switch (opc) {
     case OPC_ADDI:
@@ -916,13 +941,20 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         opn = "sra";
         break;
     case OPC_SRL:
-       if ((ctx->opcode >> 21) & 1) {
-            gen_op_rotr();
-            opn = "rotr";
-       } else {
+        switch ((ctx->opcode >> 21) & 0x1f) {
+        case 0:
             gen_op_srl();
             opn = "srl";
-       }
+            break;
+        case 1:
+            gen_op_rotr();
+            opn = "rotr";
+            break;
+        default:
+            MIPS_INVAL("invalid srl flag");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
         break;
 #ifdef TARGET_MIPS64
     case OPC_DSLL:
@@ -934,13 +966,20 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         opn = "dsra";
         break;
     case OPC_DSRL:
-       if ((ctx->opcode >> 21) & 1) {
-            gen_op_drotr();
-            opn = "drotr";
-       } else {
+        switch ((ctx->opcode >> 21) & 0x1f) {
+        case 0:
             gen_op_dsrl();
             opn = "dsrl";
-       }
+            break;
+        case 1:
+            gen_op_drotr();
+            opn = "drotr";
+            break;
+        default:
+            MIPS_INVAL("invalid dsrl flag");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
         break;
     case OPC_DSLL32:
         gen_op_dsll32();
@@ -951,13 +990,20 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         opn = "dsra32";
         break;
     case OPC_DSRL32:
-       if ((ctx->opcode >> 21) & 1) {
-            gen_op_drotr32();
-            opn = "drotr32";
-       } else {
+        switch ((ctx->opcode >> 21) & 0x1f) {
+        case 0:
             gen_op_dsrl32();
             opn = "dsrl32";
-       }
+            break;
+        case 1:
+            gen_op_drotr32();
+            opn = "drotr32";
+            break;
+        default:
+            MIPS_INVAL("invalid dsrl32 flag");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
         break;
 #endif
     default:
@@ -1069,13 +1115,20 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
         opn = "srav";
         break;
     case OPC_SRLV:
-       if ((ctx->opcode >> 6) & 1) {
-            gen_op_rotrv();
-            opn = "rotrv";
-       } else {
+        switch ((ctx->opcode >> 6) & 0x1f) {
+        case 0:
             gen_op_srlv();
             opn = "srlv";
-       }
+            break;
+        case 1:
+            gen_op_rotrv();
+            opn = "rotrv";
+            break;
+        default:
+            MIPS_INVAL("invalid srlv flag");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
         break;
 #ifdef TARGET_MIPS64
     case OPC_DSLLV:
@@ -1087,13 +1140,20 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
         opn = "dsrav";
         break;
     case OPC_DSRLV:
-       if ((ctx->opcode >> 6) & 1) {
-            gen_op_drotrv();
-            opn = "drotrv";
-       } else {
+        switch ((ctx->opcode >> 6) & 0x1f) {
+        case 0:
             gen_op_dsrlv();
             opn = "dsrlv";
-       }
+            break;
+        case 1:
+            gen_op_drotrv();
+            opn = "drotrv";
+            break;
+        default:
+            MIPS_INVAL("invalid dsrlv flag");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
         break;
 #endif
     default:
@@ -1581,6 +1641,10 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         likely:
             ctx->hflags |= MIPS_HFLAG_BL;
             break;
+        default:
+            MIPS_INVAL("conditional branch/jump");
+            generate_exception(ctx, EXCP_RI);
+            return;
         }
         gen_op_set_bcond();
     }
@@ -1591,7 +1655,6 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         gen_op_set_T0(ctx->pc + 8);
         gen_op_store_T0_gpr(blink);
     }
-    return;
 }
 
 /* special3 bitfield operations */
@@ -1763,7 +1826,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 4:
         switch (sel) {
@@ -1777,7 +1840,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 5:
         switch (sel) {
@@ -1791,7 +1854,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 6:
         switch (sel) {
@@ -1821,7 +1884,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
 //         break;
         default:
             goto die;
-       }
+        }
         break;
     case 7:
         switch (sel) {
@@ -1831,7 +1894,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 8:
         switch (sel) {
@@ -1862,7 +1925,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 11:
         switch (sel) {
@@ -1915,7 +1978,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 15:
         switch (sel) {
@@ -2522,7 +2585,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 16:
         switch (sel) {
@@ -2956,7 +3019,7 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
            break;
         default:
             goto die;
-       }
+        }
         break;
     case 4:
         switch (sel) {
@@ -4704,83 +4767,92 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
-        op1 = MASK_SPECIAL3(ctx->opcode);
-        switch (op1) {
-        case OPC_EXT:
-        case OPC_INS:
-            gen_bitops(ctx, op1, rt, rs, sa, rd);
-            break;
-        case OPC_BSHFL:
-            op2 = MASK_BSHFL(ctx->opcode);
-            switch (op2) {
-            case OPC_WSBH:
-                GEN_LOAD_REG_TN(T1, rt);
-                gen_op_wsbh();
-                break;
-            case OPC_SEB:
-                GEN_LOAD_REG_TN(T1, rt);
-                gen_op_seb();
-                break;
-            case OPC_SEH:
-                GEN_LOAD_REG_TN(T1, rt);
-                gen_op_seh();
-                break;
+         op1 = MASK_SPECIAL3(ctx->opcode);
+         switch (op1) {
+         case OPC_EXT:
+         case OPC_INS:
+             gen_bitops(ctx, op1, rt, rs, sa, rd);
+             break;
+         case OPC_BSHFL:
+             op2 = MASK_BSHFL(ctx->opcode);
+             switch (op2) {
+             case OPC_WSBH:
+                 GEN_LOAD_REG_TN(T1, rt);
+                 gen_op_wsbh();
+                 break;
+             case OPC_SEB:
+                 GEN_LOAD_REG_TN(T1, rt);
+                 gen_op_seb();
+                 break;
+             case OPC_SEH:
+                 GEN_LOAD_REG_TN(T1, rt);
+                 gen_op_seh();
+                 break;
              default:            /* Invalid */
-                MIPS_INVAL("bshfl");
+                 MIPS_INVAL("bshfl");
+                 generate_exception(ctx, EXCP_RI);
+                 break;
+            }
+            GEN_STORE_TN_REG(rd, T0);
+            break;
+        case OPC_RDHWR:
+            switch (rd) {
+            case 0:
+                gen_op_rdhwr_cpunum();
+                break;
+            case 1:
+                gen_op_rdhwr_synci_step();
+                break;
+            case 2:
+                gen_op_rdhwr_cc();
+                break;
+            case 3:
+                gen_op_rdhwr_ccres();
+                break;
+            case 29:
+#if defined (CONFIG_USER_ONLY)
+                gen_op_tls_value ();
+#else
+                generate_exception(ctx, EXCP_RI);
+#endif
+                break;
+            case 30:
+                /* Implementation dependent */;
+                gen_op_rdhwr_unimpl30();
+                break;
+            case 31:
+                /* Implementation dependent */;
+                gen_op_rdhwr_unimpl31();
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("rdhwr");
                 generate_exception(ctx, EXCP_RI);
                 break;
-           }
-           GEN_STORE_TN_REG(rd, T0);
-           break;
-       case OPC_RDHWR:
-           switch (rd) {
-           case 0:
-               gen_op_rdhwr_cpunum();
-               break;
-           case 1:
-               gen_op_rdhwr_synci_step();
-               break;
-           case 2:
-               gen_op_rdhwr_cc();
-               break;
-           case 3:
-               gen_op_rdhwr_ccres();
-               break;
-#if defined (CONFIG_USER_ONLY)
-           case 29:
-               gen_op_tls_value ();
-               GEN_STORE_TN_REG(rt, T0);
-               break;
-#endif
-           default:            /* Invalid */
-               MIPS_INVAL("rdhwr");
-               generate_exception(ctx, EXCP_RI);
-               break;
-           }
-           GEN_STORE_TN_REG(rt, T0);
-           break;
-#ifdef TARGET_MIPS64
-       case OPC_DEXTM ... OPC_DEXT:
-       case OPC_DINSM ... OPC_DINS:
-           gen_bitops(ctx, op1, rt, rs, sa, rd);
+            }
+            GEN_STORE_TN_REG(rt, T0);
             break;
-       case OPC_DBSHFL:
-           op2 = MASK_DBSHFL(ctx->opcode);
-           switch (op2) {
-           case OPC_DSBH:
-               GEN_LOAD_REG_TN(T1, rt);
-               gen_op_dsbh();
-               break;
-           case OPC_DSHD:
-               GEN_LOAD_REG_TN(T1, rt);
-               gen_op_dshd();
-               break;
+#ifdef TARGET_MIPS64
+        case OPC_DEXTM ... OPC_DEXT:
+        case OPC_DINSM ... OPC_DINS:
+            gen_bitops(ctx, op1, rt, rs, sa, rd);
+            break;
+        case OPC_DBSHFL:
+            op2 = MASK_DBSHFL(ctx->opcode);
+            switch (op2) {
+            case OPC_DSBH:
+                GEN_LOAD_REG_TN(T1, rt);
+                gen_op_dsbh();
+                break;
+            case OPC_DSHD:
+                GEN_LOAD_REG_TN(T1, rt);
+                gen_op_dshd();
+                break;
             default:            /* Invalid */
                 MIPS_INVAL("dbshfl");
                 generate_exception(ctx, EXCP_RI);
                 break;
-           }
-           GEN_STORE_TN_REG(rd, T0);
+            }
+            GEN_STORE_TN_REG(rd, T0);
 #endif
         default:            /* Invalid */
             MIPS_INVAL("special3");
@@ -4987,7 +5059,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         break;
     }
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
-        int hflags = ctx->hflags;
+        int hflags = ctx->hflags & MIPS_HFLAG_BMASK;
         /* Branches completion */
         ctx->hflags &= ~MIPS_HFLAG_BMASK;
         ctx->bstate = BS_BRANCH;

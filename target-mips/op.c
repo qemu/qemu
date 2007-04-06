@@ -336,7 +336,7 @@ void op_addo (void)
     T0 = (int32_t)T0 + (int32_t)T1;
     if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 31) {
         /* operands of same sign, result different sign */
-        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
+        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
     T0 = (int32_t)T0;
     RETURN();
@@ -356,7 +356,7 @@ void op_subo (void)
     T0 = (int32_t)T0 - (int32_t)T1;
     if (((tmp ^ T1) & (tmp ^ T0)) >> 31) {
         /* operands of different sign, first operand and result different sign */
-        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
+        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
     T0 = (int32_t)T0;
     RETURN();
@@ -402,7 +402,7 @@ void op_daddo (void)
     T0 += T1;
     if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 63) {
         /* operands of same sign, result different sign */
-        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
+        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
     RETURN();
 }
@@ -421,7 +421,7 @@ void op_dsubo (void)
     T0 = (int64_t)T0 - (int64_t)T1;
     if (((tmp ^ T1) & (tmp ^ T0)) >> 63) {
         /* operands of different sign, first operand and result different sign */
-        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
+        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
     RETURN();
 }
@@ -493,19 +493,19 @@ void op_xor (void)
 
 void op_sll (void)
 {
-    T0 = (int32_t)((uint32_t)T0 << (uint32_t)T1);
+    T0 = (int32_t)((uint32_t)T0 << T1);
     RETURN();
 }
 
 void op_sra (void)
 {
-    T0 = (int32_t)((int32_t)T0 >> (uint32_t)T1);
+    T0 = (int32_t)((int32_t)T0 >> T1);
     RETURN();
 }
 
 void op_srl (void)
 {
-    T0 = (int32_t)((uint32_t)T0 >> (uint32_t)T1);
+    T0 = (int32_t)((uint32_t)T0 >> T1);
     RETURN();
 }
 
@@ -514,10 +514,9 @@ void op_rotr (void)
     target_ulong tmp;
 
     if (T1) {
-       tmp = (int32_t)((uint32_t)T0 << (0x20 - (uint32_t)T1));
-       T0 = (int32_t)((uint32_t)T0 >> (uint32_t)T1) | tmp;
-    } else
-       T0 = T1;
+       tmp = (int32_t)((uint32_t)T0 << (0x20 - T1));
+       T0 = (int32_t)((uint32_t)T0 >> T1) | tmp;
+    }
     RETURN();
 }
 
@@ -707,8 +706,7 @@ void op_drotr (void)
     if (T1) {
        tmp = T0 << (0x40 - T1);
        T0 = (T0 >> T1) | tmp;
-    } else
-       T0 = T1;
+    }
     RETURN();
 }
 
@@ -719,8 +717,7 @@ void op_drotr32 (void)
     if (T1) {
        tmp = T0 << (0x40 - (32 + T1));
        T0 = (T0 >> (32 + T1)) | tmp;
-    } else
-       T0 = T1;
+    }
     RETURN();
 }
 
@@ -1650,7 +1647,7 @@ void op_cp0_enabled(void)
 {
     if (!(env->CP0_Status & (1 << CP0St_CU0)) &&
 	(env->hflags & MIPS_HFLAG_UM)) {
-        CALL_FROM_TB2(do_raise_exception_direct_err, EXCP_CpU, 0);
+        CALL_FROM_TB2(do_raise_exception_err, EXCP_CpU, 0);
     }
     RETURN();
 }
@@ -1658,7 +1655,7 @@ void op_cp0_enabled(void)
 void op_cp1_enabled(void)
 {
     if (!(env->CP0_Status & (1 << CP0St_CU1))) {
-        CALL_FROM_TB2(do_raise_exception_direct_err, EXCP_CpU, 1);
+        CALL_FROM_TB2(do_raise_exception_err, EXCP_CpU, 1);
     }
     RETURN();
 }
@@ -2065,7 +2062,7 @@ void op_ei (void)
 void op_trap (void)
 {
     if (T0) {
-        CALL_FROM_TB1(do_raise_exception_direct, EXCP_TRAP);
+        CALL_FROM_TB1(do_raise_exception, EXCP_TRAP);
     }
     RETURN();
 }
@@ -2118,37 +2115,67 @@ void op_deret (void)
 
 void op_rdhwr_cpunum(void)
 {
-    if (env->CP0_HWREna & (1 << 0))
-       T0 = env->CP0_EBase & 0x2ff;
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+	(env->CP0_HWREna & (1 << 0)) ||
+        (env->CP0_Status & (1 << CP0St_CU0)))
+        T0 = env->CP0_EBase & 0x3ff;
     else
-       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
     RETURN();
 }
 
 void op_rdhwr_synci_step(void)
 {
-    if (env->CP0_HWREna & (1 << 1))
-       T0 = env->SYNCI_Step;
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+	(env->CP0_HWREna & (1 << 1)) ||
+        (env->CP0_Status & (1 << CP0St_CU0)))
+        T0 = env->SYNCI_Step;
     else
-       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
     RETURN();
 }
 
 void op_rdhwr_cc(void)
 {
-    if (env->CP0_HWREna & (1 << 2))
-       T0 = env->CP0_Count;
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+	(env->CP0_HWREna & (1 << 2)) ||
+        (env->CP0_Status & (1 << CP0St_CU0)))
+        T0 = env->CP0_Count;
     else
-       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
     RETURN();
 }
 
 void op_rdhwr_ccres(void)
 {
-    if (env->CP0_HWREna & (1 << 3))
-       T0 = env->CCRes;
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+	(env->CP0_HWREna & (1 << 3)) ||
+        (env->CP0_Status & (1 << CP0St_CU0)))
+        T0 = env->CCRes;
     else
-       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
+    RETURN();
+}
+
+void op_rdhwr_unimpl30(void)
+{
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+	(env->CP0_HWREna & (1 << 30)) ||
+        (env->CP0_Status & (1 << CP0St_CU0)))
+        T0 = 0;
+    else
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
+    RETURN();
+}
+
+void op_rdhwr_unimpl31(void)
+{
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+	(env->CP0_HWREna & (1 << 31)) ||
+        (env->CP0_Status & (1 << CP0St_CU0)))
+        T0 = 0;
+    else
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
     RETURN();
 }
 

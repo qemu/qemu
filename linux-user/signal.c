@@ -687,7 +687,11 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		err |= __put_user(frame->retcode, &frame->pretcode);
 		/* This is popl %eax ; movl $,%eax ; int $0x80 */
 		err |= __put_user(0xb858, (short *)(frame->retcode+0));
+#if defined(TARGET_X86_64)
+#warning "Fix this !"
+#else
 		err |= __put_user(TARGET_NR_sigreturn, (int *)(frame->retcode+2));
+#endif
 		err |= __put_user(0x80cd, (short *)(frame->retcode+6));
 	}
 
@@ -2045,7 +2049,7 @@ void process_pending_signals(void *cpu_env)
         host_to_target_sigset_internal(&target_old_set, &old_set);
 
         /* if the CPU is in VM86 mode, we restore the 32 bit values */
-#ifdef TARGET_I386
+#if defined(TARGET_I386) && !defined(TARGET_X86_64)
         {
             CPUX86State *env = cpu_env;
             if (env->eflags & VM_MASK)
