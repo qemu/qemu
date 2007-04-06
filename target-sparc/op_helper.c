@@ -9,10 +9,43 @@ void raise_exception(int tt)
     cpu_loop_exit();
 }   
 
+void check_ieee_exceptions()
+{
+     T0 = get_float_exception_flags(&env->fp_status);
+     if (T0)
+     {
+	/* Copy IEEE 754 flags into FSR */
+	if (T0 & float_flag_invalid)
+	    env->fsr |= FSR_NVC;
+	if (T0 & float_flag_overflow)
+	    env->fsr |= FSR_OFC;
+	if (T0 & float_flag_underflow)
+	    env->fsr |= FSR_UFC;
+	if (T0 & float_flag_divbyzero)
+	    env->fsr |= FSR_DZC;
+	if (T0 & float_flag_inexact)
+	    env->fsr |= FSR_NXC;
+
+	if ((env->fsr & FSR_CEXC_MASK) & ((env->fsr & FSR_TEM_MASK) >> 23))
+	{
+	    /* Unmasked exception, generate a trap */
+	    env->fsr |= FSR_FTT_IEEE_EXCP;
+	    raise_exception(TT_FP_EXCP);
+	}
+	else
+	{
+	    /* Accumulate exceptions */
+	    env->fsr |= (env->fsr & FSR_CEXC_MASK) << 5;
+	}
+     }
+}
+
 #ifdef USE_INT_TO_FLOAT_HELPERS
 void do_fitos(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
+    check_ieee_exceptions();
 }
 
 void do_fitod(void)
@@ -35,23 +68,29 @@ void do_fabsd(void)
 
 void do_fsqrts(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FT0 = float32_sqrt(FT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 void do_fsqrtd(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     DT0 = float64_sqrt(DT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
-#define GEN_FCMP(name, size, reg1, reg2, FS)                            \
+#define GEN_FCMP(name, size, reg1, reg2, FS, TRAP)                      \
     void glue(do_, name) (void)                                         \
     {                                                                   \
         env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                     \
         switch (glue(size, _compare) (reg1, reg2, &env->fp_status)) {   \
         case float_relation_unordered:                                  \
             T0 = (FSR_FCC1 | FSR_FCC0) << FS;                           \
-            if (env->fsr & FSR_NVM) {                                   \
+            if ((env->fsr & FSR_NVM) || TRAP) {                         \
                 env->fsr |= T0;                                         \
+                env->fsr |= FSR_NVC;                                    \
+                env->fsr |= FSR_FTT_IEEE_EXCP;                          \
                 raise_exception(TT_FP_EXCP);                            \
             } else {                                                    \
                 env->fsr |= FSR_NVA;                                    \
@@ -70,18 +109,30 @@ void do_fsqrtd(void)
         env->fsr |= T0;                                                 \
     }
 
-GEN_FCMP(fcmps, float32, FT0, FT1, 0);
-GEN_FCMP(fcmpd, float64, DT0, DT1, 0);
+GEN_FCMP(fcmps, float32, FT0, FT1, 0, 0);
+GEN_FCMP(fcmpd, float64, DT0, DT1, 0, 0);
+
+GEN_FCMP(fcmpes, float32, FT0, FT1, 0, 1);
+GEN_FCMP(fcmped, float64, DT0, DT1, 0, 1);
 
 #ifdef TARGET_SPARC64
-GEN_FCMP(fcmps_fcc1, float32, FT0, FT1, 22);
-GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22);
+GEN_FCMP(fcmps_fcc1, float32, FT0, FT1, 22, 0);
+GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22, 0);
 
-GEN_FCMP(fcmps_fcc2, float32, FT0, FT1, 24);
-GEN_FCMP(fcmpd_fcc2, float64, DT0, DT1, 24);
+GEN_FCMP(fcmps_fcc2, float32, FT0, FT1, 24, 0);
+GEN_FCMP(fcmpd_fcc2, float64, DT0, DT1, 24, 0);
 
-GEN_FCMP(fcmps_fcc3, float32, FT0, FT1, 26);
-GEN_FCMP(fcmpd_fcc3, float64, DT0, DT1, 26);
+GEN_FCMP(fcmps_fcc3, float32, FT0, FT1, 26, 0);
+GEN_FCMP(fcmpd_fcc3, float64, DT0, DT1, 26, 0);
+
+GEN_FCMP(fcmpes_fcc1, float32, FT0, FT1, 22, 1);
+GEN_FCMP(fcmped_fcc1, float64, DT0, DT1, 22, 1);
+
+GEN_FCMP(fcmpes_fcc2, float32, FT0, FT1, 24, 1);
+GEN_FCMP(fcmped_fcc2, float64, DT0, DT1, 24, 1);
+
+GEN_FCMP(fcmpes_fcc3, float32, FT0, FT1, 26, 1);
+GEN_FCMP(fcmped_fcc3, float64, DT0, DT1, 26, 1);
 #endif
 
 #if defined(CONFIG_USER_ONLY) 

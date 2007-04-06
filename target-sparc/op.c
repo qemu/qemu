@@ -1534,16 +1534,25 @@ void OPPROTO op_flush_T0(void)
     helper_flush(T0);
 }
 
+void OPPROTO op_clear_ieee_excp_and_FTT(void)
+{
+    env->fsr &= ~(FSR_FTT_MASK | FSR_CEXC_MASK);;
+}
+
 #define F_OP(name, p) void OPPROTO op_f##name##p(void)
 
 #define F_BINOP(name)                                           \
     F_OP(name, s)                                               \
     {                                                           \
+	set_float_exception_flags(0, &env->fp_status);		\
         FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
+	check_ieee_exceptions();				\
     }                                                           \
     F_OP(name, d)                                               \
     {                                                           \
+	set_float_exception_flags(0, &env->fp_status);		\
         DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
+	check_ieee_exceptions();				\
     }
 
 F_BINOP(add);
@@ -1554,9 +1563,11 @@ F_BINOP(div);
 
 void OPPROTO op_fsmuld(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     DT0 = float64_mul(float32_to_float64(FT0, &env->fp_status),
                       float32_to_float64(FT1, &env->fp_status),
                       &env->fp_status);
+    check_ieee_exceptions();
 }
 
 #define F_HELPER(name)    \
@@ -1582,6 +1593,7 @@ F_OP(abs, s)
 }
 
 F_HELPER(cmp);
+F_HELPER(cmpe);
 
 #ifdef TARGET_SPARC64
 F_OP(neg, d)
@@ -1623,6 +1635,37 @@ void OPPROTO op_fcmpd_fcc3(void)
 {
     do_fcmpd_fcc3();
 }
+
+void OPPROTO op_fcmpes_fcc1(void)
+{
+    do_fcmpes_fcc1();
+}
+
+void OPPROTO op_fcmped_fcc1(void)
+{
+    do_fcmped_fcc1();
+}
+
+void OPPROTO op_fcmpes_fcc2(void)
+{
+    do_fcmpes_fcc2();
+}
+
+void OPPROTO op_fcmped_fcc2(void)
+{
+    do_fcmped_fcc2();
+}
+
+void OPPROTO op_fcmpes_fcc3(void)
+{
+    do_fcmpes_fcc3();
+}
+
+void OPPROTO op_fcmped_fcc3(void)
+{
+    do_fcmped_fcc3();
+}
+
 #endif
 
 /* Integer to float conversion.  */
@@ -1631,23 +1674,31 @@ F_HELPER(ito);
 #else
 F_OP(ito, s)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
+    check_ieee_exceptions();
 }
 
 F_OP(ito, d)
 {
+    set_float_exception_flags(0, &env->fp_status);
     DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
+    check_ieee_exceptions();
 }
 
 #ifdef TARGET_SPARC64
 F_OP(xto, s)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
+    check_ieee_exceptions();
 }
 
 F_OP(xto, d)
 {
+    set_float_exception_flags(0, &env->fp_status);
     DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
+    check_ieee_exceptions();
 }
 #endif
 #endif
@@ -1656,34 +1707,46 @@ F_OP(xto, d)
 /* floating point conversion */
 void OPPROTO op_fdtos(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FT0 = float64_to_float32(DT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 void OPPROTO op_fstod(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     DT0 = float32_to_float64(FT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 /* Float to integer conversion.  */
 void OPPROTO op_fstoi(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     *((int32_t *)&FT0) = float32_to_int32_round_to_zero(FT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 void OPPROTO op_fdtoi(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 #ifdef TARGET_SPARC64
 void OPPROTO op_fstox(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     *((int64_t *)&DT0) = float32_to_int64_round_to_zero(FT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 void OPPROTO op_fdtox(void)
 {
+    set_float_exception_flags(0, &env->fp_status);
     *((int64_t *)&DT0) = float64_to_int64_round_to_zero(DT1, &env->fp_status);
+    check_ieee_exceptions();
 }
 
 void OPPROTO op_fmovs_cc(void)
