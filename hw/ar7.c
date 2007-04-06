@@ -558,6 +558,8 @@ static void ar7_update_interrupt(void)
             //~ cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
             TRACE(INTC, logout("raise hardware interrupt, mask 0x%08x%08x\n",
                 masked_int2, masked_int1));
+        } else {
+            TRACE(INTC, logout("interrupt still set\n"));
         }
     } else {
         if (intset) {
@@ -566,6 +568,8 @@ static void ar7_update_interrupt(void)
             //~ cpu_env->CP0_Cause &= ~0x00000400;
             //~ cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
             TRACE(INTC, logout("clear hardware interrupt\n"));
+        } else {
+            TRACE(INTC, logout("interrupt still cleared\n"));
         }
     }
 }
@@ -584,12 +588,27 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         unsigned index = channel / 32;
         unsigned offset = channel % 32;
         if (level) {
+            CPUState *cpu_env = first_cpu;
+            assert(cpu_env == ar7.cpu_env);
+            uint32_t intmask = reg_read(av.intc, INTC_ESR1 + 4 * index);
+            if (intmask & BIT(offset)) {
+                TRACE(INTC && (irq_num != 15 || UART),
+                      logout("(%p,%d,%d)\n", opaque, irq_num, level));
+                reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
+                /* use hardware interrupt 0 */
+                cpu_env->CP0_Cause |= 0x00000400;
+                cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+            } else {
+                TRACE(INTC && (irq_num != 15 || UART),
+                      logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
+            }
             reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
             reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
             /* TODO: write correct value to INTC_PIIR? */
-            reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
+            //~ reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
         } else {
             /* TODO: write correct value to INTC_PIIR? */
+            reg_clear(av.intc, INTC_SR1 + 4 * index, BIT(offset));
             for (channel = 0; channel < 40; channel++) {
                 uint32_t cr;
                 index = channel / 32;
@@ -600,7 +619,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                     break;
                 }
             }
-            if (channel >= 40) {
+            if (channel == 40) {
                 reg_write(av.intc, INTC_PIIR, 0);
             }
         }
@@ -614,52 +633,6 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         UNEXPECTED();
     }
     ar7_update_interrupt();
-#if 0
-    unsigned channel = irq_num - MIPS_EXCEPTION_OFFSET;
-
-    /* irq_num
-        0... 7 = mips exception,
-        8...47 = ar7 primary,
-       48...87 = ar7 secondary,
-       88...?? = virtual interrupt */
-    switch (channel) {
-        if (level) {
-            unsigned index = channel / 32;
-            unsigned offset = channel % 32;
-            uint32_t intmask = reg_read(av.intc, INTC_ESR1 + 4 * index);
-            if (intmask & BIT(offset)) {
-                /* Interrupt is enabled. */
-                TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
-                      logout("(%p,%d,%d)\n", opaque, irq_num, level));
-                reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
-                reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
-                reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
-                ar7_update_interrupt();
-            } else {
-                /* Interrupt is disabled. */
-                TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
-                      logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
-                reg_set(av.intc, INTC_CR1 + 4 * index, BIT(offset));
-                reg_set(av.intc, INTC_SR1 + 4 * index, BIT(offset));
-                //~ reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
-            }
-            // int line number
-            //~ reg_set(av.intc, 0x40, 4 << 16);
-            // int channel number
-            // 2, 7, INTERRUPT_SERIAL0, INTERRUPT_CPMAC0, 80
-            //~ ar7.intmask[0]
-        } else {
-            TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
-                  logout("(%p,%d,%d)\n", opaque, irq_num, level));
-            reg_write(av.intc, INTC_PIIR, 0);
-            ar7_update_interrupt();
-        }
-        break;
-    default:
-        logout("??? (%p,%d,%d)\n", opaque, irq_num, level);
-        MISSING();
-    }
-#endif
 }
 
 static const char *const intc_names[] = {
@@ -728,6 +701,7 @@ static uint32_t ar7_intc_read(unsigned offset)
     uint32_t val = reg_read(av.intc, offset);
     if (0) {
     } else if (offset == INTC_ECR1 || offset == INTC_ECR2) {
+        TRACE(INTC, logout("intc[%s] = 0x%08x\n", i2intc(index), val));
         MISSING();
     } else {
         TRACE(INTC, logout("intc[%s] = 0x%08x\n", i2intc(index), val));
@@ -753,7 +727,7 @@ static void ar7_intc_write(unsigned offset, uint32_t val)
         reg_clear(av.intc, INTC_SR1 + offset, val);
         reg_clear(av.intc, INTC_CR1 + offset, val);
         /* TODO: check old value? */
-        reg_write(av.intc, INTC_PIIR, 0);
+        //~ reg_write(av.intc, INTC_PIIR, 0);
         //~ logout("??? clear interrupt\a\n");
         ar7_update_interrupt();
     } else if (offset == INTC_ESR1 || offset == INTC_ESR2) {
