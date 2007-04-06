@@ -90,7 +90,7 @@ enum {
 #ifdef TARGET_SPARC64
 #define DFPREG(r) (((r & 1) << 6) | (r & 0x1e))
 #else
-#define DFPREG(r) (r)
+#define DFPREG(r) (r & 0x1e)
 #endif
 
 #ifdef USE_DIRECT_JUMP
