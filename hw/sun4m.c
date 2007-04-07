@@ -376,7 +376,7 @@ static const struct hwdef hwdefs[] = {
     /* SS-10 */
     {
         .iommu_base   = 0xe0000000, // XXX Actually at 0xfe0000000ULL (36 bits)
-        .tcx_base     = 0x21000000, // 0xe21000000ULL,
+        .tcx_base     = 0x20000000, // 0xe20000000ULL,
         .cs_base      = -1,
         .slavio_base  = 0xf1000000, // 0xff1000000ULL,
         .ms_kb_base   = 0xf1000000, // 0xff1000000ULL,
