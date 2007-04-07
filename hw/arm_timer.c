@@ -233,7 +233,7 @@ static void *arm_timer_init(uint32_t freq, void *pic, int irq)
 
 /* ARM PrimeCell SP804 dual timer module.
    Docs for this device don't seem to be publicly available.  This
-   implementation is based on gueswork, the linux kernel sources and the
+   implementation is based on guesswork, the linux kernel sources and the
    Integrator/CP timer modules.  */
 
 typedef struct {

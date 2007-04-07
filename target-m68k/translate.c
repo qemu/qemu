@@ -2738,7 +2738,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 }
 
 /* ??? */
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }

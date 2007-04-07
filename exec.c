@@ -1031,7 +1031,8 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
 #if defined(TARGET_HAS_ICE)
 static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 {
-    target_ulong addr, pd;
+    target_phys_addr_t addr;
+    target_ulong pd;
     ram_addr_t ram_addr;
     PhysPageDesc *p;
 
@@ -2612,7 +2613,8 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write)
 {
     int l;
-    target_ulong page, phys_addr;
+    target_phys_addr_t phys_addr;
+    target_ulong page;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;

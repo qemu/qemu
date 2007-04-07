@@ -60,7 +60,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     return 1;
 }
 
-target_ulong cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return addr;
 }
@@ -821,7 +821,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
     return ret;
 }
 
-target_ulong cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     mmu_ctx_t ctx;
 

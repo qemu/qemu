@@ -353,10 +353,12 @@ void do_mfc0_count (void)
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
 {
-    const uint32_t mask = 0x0000FF00;
-    fprintf(logfile, "Status %08x => %08x Cause %08x (%08x %08x %08x)\n",
-            old, val, env->CP0_Cause, old & mask, val & mask,
-            env->CP0_Cause & mask);
+    fprintf(logfile, "Status %08x (%08x) => %08x (%08x) Cause %08x",
+            old, old & env->CP0_Cause & CP0Ca_IP_mask,
+            val, val & env->CP0_Cause & CP0Ca_IP_mask,
+            env->CP0_Cause);
+    (env->hflags & MIPS_HFLAG_UM) ? fputs(", UM\n", logfile)
+                                  : fputs("\n", logfile);
 }
 
 void do_mtc0_status_irqraise_debug(void)
@@ -532,15 +534,29 @@ void dump_sc (void)
     }
 }
 
-void debug_eret (void)
+void debug_pre_eret (void)
 {
-    if (loglevel) {
-        fprintf(logfile, "ERET: pc " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
-                env->PC, env->CP0_EPC);
-        if (env->CP0_Status & (1 << CP0St_ERL))
-            fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
+    fprintf(logfile, "ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
+            env->PC, env->CP0_EPC);
+    if (env->CP0_Status & (1 << CP0St_ERL))
+        fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
+    if (env->hflags & MIPS_HFLAG_DM)
+        fprintf(logfile, " DEPC " TARGET_FMT_lx, env->CP0_DEPC);
+    fputs("\n", logfile);
+}
+
+void debug_post_eret (void)
+{
+    fprintf(logfile, "  =>   PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
+            env->PC, env->CP0_EPC);
+    if (env->CP0_Status & (1 << CP0St_ERL))
+        fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
+    if (env->hflags & MIPS_HFLAG_DM)
+        fprintf(logfile, " DEPC " TARGET_FMT_lx, env->CP0_DEPC);
+    if (env->hflags & MIPS_HFLAG_UM)
+        fputs(", UM\n", logfile);
+    else
         fputs("\n", logfile);
-    }
 }
 
 void do_pmon (int function)

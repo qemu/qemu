@@ -91,7 +91,7 @@ enum {
 #ifdef TARGET_SPARC64
 #define DFPREG(r) (((r & 1) << 6) | (r & 0x1e))
 #else
-#define DFPREG(r) (r)
+#define DFPREG(r) (r & 0x1e)
 #endif
 
 #ifdef USE_DIRECT_JUMP
@@ -944,6 +944,21 @@ static GenOpFunc * const gen_fcmpd[4] = {
     gen_op_fcmpd_fcc2,
     gen_op_fcmpd_fcc3,
 };
+
+static GenOpFunc * const gen_fcmpes[4] = {
+    gen_op_fcmpes,
+    gen_op_fcmpes_fcc1,
+    gen_op_fcmpes_fcc2,
+    gen_op_fcmpes_fcc3,
+};
+
+static GenOpFunc * const gen_fcmped[4] = {
+    gen_op_fcmped,
+    gen_op_fcmped_fcc1,
+    gen_op_fcmped_fcc2,
+    gen_op_fcmped_fcc3,
+};
+
 #endif
 
 static int gen_trap_ifnofpu(DisasContext * dc)
@@ -1290,6 +1305,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	    } else if (xop == 0x34) {	/* FPU Operations */
                 if (gen_trap_ifnofpu(dc))
                     goto jmp_insn;
+		gen_op_clear_ieee_excp_and_FTT();
                 rs1 = GET_FIELD(insn, 13, 17);
 	        rs2 = GET_FIELD(insn, 27, 31);
 	        xop = GET_FIELD(insn, 18, 26);
@@ -1477,6 +1493,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                 if (gen_trap_ifnofpu(dc))
                     goto jmp_insn;
+		gen_op_clear_ieee_excp_and_FTT();
                 rs1 = GET_FIELD(insn, 13, 17);
 	        rs2 = GET_FIELD(insn, 27, 31);
 	        xop = GET_FIELD(insn, 18, 26);
@@ -1654,18 +1671,18 @@ static void disas_sparc_insn(DisasContext * dc)
                 	gen_op_load_fpr_FT0(rs1);
                 	gen_op_load_fpr_FT1(rs2);
 #ifdef TARGET_SPARC64
-			gen_fcmps[rd & 3]();
+			gen_fcmpes[rd & 3]();
 #else
-			gen_op_fcmps(); /* XXX should trap if qNaN or sNaN  */
+			gen_op_fcmpes();
 #endif
 			break;
 		    case 0x56: /* fcmped, V9 %fcc */
                 	gen_op_load_fpr_DT0(DFPREG(rs1));
                 	gen_op_load_fpr_DT1(DFPREG(rs2));
 #ifdef TARGET_SPARC64
-			gen_fcmpd[rd & 3]();
+			gen_fcmped[rd & 3]();
 #else
-			gen_op_fcmpd(); /* XXX should trap if qNaN or sNaN  */
+			gen_op_fcmped();
 #endif
 			break;
 		    case 0x57: /* fcmpeq */
@@ -2996,7 +3013,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 }
 
 #if defined(CONFIG_USER_ONLY)
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
@@ -3006,7 +3023,7 @@ extern int get_physical_address (CPUState *env, target_phys_addr_t *physical, in
                                  int *access_index, target_ulong address, int rw,
                                  int is_user);
 
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_phys_addr_t phys_addr;
     int prot, access_index;

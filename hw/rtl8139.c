@@ -461,7 +461,6 @@ typedef struct RTL8139State {
     uint16_t CpCmd;
     uint8_t  TxThresh;
 
-    int irq;
     PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
@@ -685,16 +684,10 @@ static void rtl8139_update_irq(RTL8139State *s)
     int isr;
     isr = (s->IntrStatus & s->IntrMask) & 0xffff;
 
-    DEBUG_PRINT(("RTL8139: Set IRQ line %d to %d (%04x %04x)\n",
-       s->irq, isr ? 1 : 0, s->IntrStatus, s->IntrMask));
+    DEBUG_PRINT(("RTL8139: Set IRQ to %d (%04x %04x)\n",
+       isr ? 1 : 0, s->IntrStatus, s->IntrMask));
 
-    if (s->irq == 16) {
-        /* PCI irq */
-        pci_set_irq(s->pci_dev, 0, (isr != 0));
-    } else {
-        /* ISA irq */
-        pic_set_irq(s->irq, (isr != 0));
-    }
+    pci_set_irq(s->pci_dev, 0, (isr != 0));
 }
 
 #define POLYNOMIAL 0x04c11db6
@@ -3173,7 +3166,8 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
     qemu_put_be16s(f, &s->CpCmd);
     qemu_put_8s(f, &s->TxThresh);
 
-    qemu_put_be32s(f, &s->irq);
+    i = 0;
+    qemu_put_be32s(f, &i); /* unused.  */
     qemu_put_buffer(f, s->macaddr, 6);
     qemu_put_be32s(f, &s->rtl8139_mmio_io_addr);
 
@@ -3267,7 +3261,7 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
     qemu_get_be16s(f, &s->CpCmd);
     qemu_get_8s(f, &s->TxThresh);
 
-    qemu_get_be32s(f, &s->irq);
+    qemu_get_be32s(f, &i); /* unused.  */
     qemu_get_buffer(f, s->macaddr, 6);
     qemu_get_be32s(f, &s->rtl8139_mmio_io_addr);
 
@@ -3447,7 +3441,6 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_register_io_region(&d->dev, 1, 0x100, 
                            PCI_ADDRESS_SPACE_MEM, rtl8139_mmio_map);
 
-    s->irq = 16; /* PCI interrupt */
     s->pci_dev = (PCIDevice *)d;
     memcpy(s->macaddr, nd->macaddr, 6);
     rtl8139_reset(s);

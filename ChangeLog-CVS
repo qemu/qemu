@@ -1,3 +1,64 @@
+2007-04-07 13:48  j_mayer
+
+	* target-ppc/op.c: PowerPC 64 fixes
+
+2007-04-07 13:21  j_mayer
+
+	* cpu-all.h, exec.c, target-alpha/helper.c, target-arm/helper.c,
+	  target-i386/helper2.c, target-m68k/translate.c,
+	  target-mips/helper.c, target-ppc/helper.c, target-sh4/helper.c,
+	  target-sparc/translate.c: cpu_get_phys_page_debug should return
+	  target_phys_addr_t  instead of target_ulong to be consistent.
+
+2007-04-07 03:41  pbrook
+
+	* hw/rtl8139.c: Remove dead code.
+
+2007-04-07 03:24  pbrook
+
+	* hw/ide.c: Remove dead code.
+
+2007-04-07 03:11  ths
+
+	* target-mips/translate.c: Implement prefx.
+
+2007-04-07 03:11  ths
+
+	* target-mips/translate.c: Set proper BadVAddress value for
+	  unaligned instruction fetch.
+
+2007-04-07 03:10  ths
+
+	* target-mips/translate.c: Actually skip over delay slot for a
+	  non-taken branch likely.
+
+2007-04-07 03:09  ths
+
+	* target-mips/op.c: Fix ins/ext cornercase.
+
+2007-04-06 22:58  pbrook
+
+	* hw/arm_timer.c: Comment spelling fix.
+
+2007-04-06 22:03  blueswir1
+
+	* target-sparc/: exec.h, op.c, op_helper.c, translate.c: Full
+	  implementation of IEEE exceptions (Aurelien Jarno)
+
+2007-04-06 22:02  blueswir1
+
+	* target-sparc/translate.c: Enforce even float register pair for
+	  double register ops (Aurelien Jarno)
+
+2007-04-06 21:31  ths
+
+	* target-mips/helper.c: Fix handling of ADES exceptions.
+
+2007-04-06 20:46  ths
+
+	* target-mips/: op.c, op_helper.c, translate.c: Save state for all
+	  CP0 instructions, they may throw a CPU exception.
+
 2007-04-06 18:54  pbrook
 
 	* hw/pl181.c: Use correct type for card field.

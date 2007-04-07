@@ -150,12 +150,12 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 }
 
 #if defined(CONFIG_USER_ONLY) 
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
 #else
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_ulong phys_addr;
     int prot;
@@ -348,8 +348,10 @@ void do_interrupt (CPUState *env)
         /* XXX: TODO: manage defered watch exceptions */
         goto set_EPC;
     case EXCP_AdEL:
-    case EXCP_AdES:
         cause = 4;
+        goto set_EPC;
+    case EXCP_AdES:
+        cause = 5;
         goto set_EPC;
     case EXCP_TLBL:
         cause = 2;

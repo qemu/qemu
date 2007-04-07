@@ -777,7 +777,7 @@ void OPPROTO op_adde_64 (void)
 /* add immediate */
 PPC_OP(addi)
 {
-    T0 += PARAM(1);
+    T0 += (int32_t)PARAM(1);
     RETURN();
 }
 
@@ -1074,7 +1074,7 @@ void OPPROTO op_subfe_64 (void)
 /* substract from immediate carrying */
 void OPPROTO op_subfic (void)
 {
-    T0 = PARAM1 + ~T0 + 1;
+    T0 = (int32_t)PARAM1 + ~T0 + 1;
     if ((uint32_t)T0 <= (uint32_t)PARAM1) {
         xer_ca = 1;
     } else {
