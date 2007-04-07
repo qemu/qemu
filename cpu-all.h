@@ -799,7 +799,7 @@ void cpu_reset(CPUState *s);
 /* Return the physical page corresponding to a virtual one. Use it
    only for debugging because no protection checks are done. Return -1
    if no page found. */
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0) 
 #define CPU_LOG_TB_IN_ASM  (1 << 1)

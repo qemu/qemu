@@ -39,7 +39,7 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 
-target_ulong cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return addr;
 }
@@ -51,7 +51,7 @@ void do_interrupt (CPUState *env)
 
 #else
 
-target_ulong cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return -1;
 }

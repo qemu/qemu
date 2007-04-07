@@ -141,12 +141,12 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 }
 
 #if defined(CONFIG_USER_ONLY) 
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
 #else
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_ulong phys_addr;
     int prot;
