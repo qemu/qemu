@@ -1530,14 +1530,14 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         case OPC_BLTZALL: /* 0 < 0 likely */
             gen_op_set_T0(ctx->pc + 8);
             gen_op_store_T0_gpr(31);
-            gen_goto_tb(ctx, 0, ctx->pc + 4);
+            gen_goto_tb(ctx, 0, ctx->pc + 8);
             return;
         case OPC_BNEL:    /* rx != rx likely */
         case OPC_BGTZL:   /* 0 > 0 likely */
         case OPC_BLTZL:   /* 0 < 0 likely */
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever and skip");
-            gen_goto_tb(ctx, 0, ctx->pc + 4);
+            gen_goto_tb(ctx, 0, ctx->pc + 8);
             return;
         case OPC_J:
             ctx->hflags |= MIPS_HFLAG_B;
