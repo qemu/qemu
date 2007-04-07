@@ -84,12 +84,12 @@ static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
     return irq_num;
 }
 
-static void pci_vpb_set_irq(void *pic, int irq_num, int level)
+static void pci_vpb_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    pic_set_irq_new(pic, pci_vpb_irq + irq_num, level);
+    qemu_set_irq(pic[pci_vpb_irq + irq_num], level);
 }
 
-PCIBus *pci_vpb_init(void *pic, int irq, int realview)
+PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview)
 {
     PCIBus *s;
     PCIDevice *d;

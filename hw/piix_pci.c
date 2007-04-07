@@ -40,7 +40,7 @@ static uint32_t i440fx_addr_readl(void* opaque, uint32_t addr)
     return s->config_reg;
 }
 
-static void piix3_set_irq(void *pic, int irq_num, int level);
+static void piix3_set_irq(qemu_irq *pic, int irq_num, int level);
 
 /* return the global irq number corresponding to a given device irq
    pin. We could also use the bus number to have a more precise
@@ -155,14 +155,14 @@ static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-PCIBus *i440fx_init(PCIDevice **pi440fx_state)
+PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
 {
     PCIBus *b;
     PCIDevice *d;
     I440FXState *s;
 
     s = qemu_mallocz(sizeof(I440FXState));
-    b = pci_register_bus(piix3_set_irq, pci_slot_get_pirq, NULL, 0, 4);
+    b = pci_register_bus(piix3_set_irq, pci_slot_get_pirq, pic, 0, 4);
     s->bus = b;
 
     register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);
@@ -204,7 +204,7 @@ PCIDevice *piix4_dev;
 
 static int pci_irq_levels[4];
 
-static void piix3_set_irq(void *pic, int irq_num, int level)
+static void piix3_set_irq(qemu_irq *pic, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
 
@@ -221,7 +221,7 @@ static void piix3_set_irq(void *pic, int irq_num, int level)
             if (pic_irq == piix3_dev->config[0x60 + i])
                 pic_level |= pci_irq_levels[i];
         }
-        pic_set_irq(pic_irq, pic_level);
+        qemu_set_irq(pic[pic_irq], pic_level);
     }
 }
 

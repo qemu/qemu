@@ -300,9 +300,7 @@ typedef struct IDEState {
     int mult_sectors;
     int identify_set;
     uint16_t identify_data[256];
-    SetIRQFunc *set_irq;
-    void *irq_opaque;
-    int irq;
+    qemu_irq irq;
     PCIDevice *pci_dev;
     struct BMDMAState *bmdma;
     int drive_serial;
@@ -575,7 +573,7 @@ static inline void ide_set_irq(IDEState *s)
         if (bm) {
             bm->status |= BM_STATUS_INT;
         }
-        s->set_irq(s->irq_opaque, s->irq, 1);
+        qemu_irq_raise(s->irq);
     }
 }
 
@@ -1889,7 +1887,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
             ret = 0;
         else
             ret = s->status;
-        s->set_irq(s->irq_opaque, s->irq, 0);
+        qemu_irq_lower(s->irq);
         break;
     }
 #ifdef DEBUG_IDE
@@ -2084,7 +2082,7 @@ static int guess_disk_lchs(IDEState *s,
 
 static void ide_init2(IDEState *ide_state,
                       BlockDriverState *hd0, BlockDriverState *hd1,
-                      SetIRQFunc *set_irq, void *irq_opaque, int irq)
+                      qemu_irq irq)
 {
     IDEState *s;
     static int drive_serial = 1;
@@ -2155,8 +2153,6 @@ static void ide_init2(IDEState *ide_state,
             }
         }
         s->drive_serial = drive_serial++;
-        s->set_irq = set_irq;
-        s->irq_opaque = irq_opaque;
         s->irq = irq;
         s->sector_write_timer = qemu_new_timer(vm_clock, 
                                                ide_sector_write_timer_cb, s);
@@ -2183,7 +2179,7 @@ static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
 /***********************************************************/
 /* ISA IDE definitions */
 
-void isa_ide_init(int iobase, int iobase2, int irq,
+void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
                   BlockDriverState *hd0, BlockDriverState *hd1)
 {
     IDEState *ide_state;
@@ -2192,7 +2188,7 @@ void isa_ide_init(int iobase, int iobase2, int irq,
     if (!ide_state)
         return;
     
-    ide_init2(ide_state, hd0, hd1, pic_set_irq_new, isa_pic, irq);
+    ide_init2(ide_state, hd0, hd1, irq);
     ide_init_ioport(ide_state, iobase, iobase2);
 }
 
@@ -2399,7 +2395,7 @@ static void cmd646_update_irq(PCIIDEState *d)
                  !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH0)) ||
         ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH1) &&
          !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH1));
-    pci_set_irq((PCIDevice *)d, 0, pci_level);
+    qemu_set_irq(d->dev.irq[0], pci_level);
 }
 
 /* the PCI irq level is the logical OR of the two channels */
@@ -2423,6 +2419,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     PCIIDEState *d;
     uint8_t *pci_conf;
     int i;
+    qemu_irq *irq;
 
     d = (PCIIDEState *)pci_register_device(bus, "CMD646 IDE", 
                                            sizeof(PCIIDEState),
@@ -2462,10 +2459,10 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     
     for(i = 0; i < 4; i++)
         d->ide_if[i].pci_dev = (PCIDevice *)d;
-    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1],
-              cmd646_set_irq, d, 0);
-    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3],
-              cmd646_set_irq, d, 1);
+
+    irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
+    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
+    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
 }
 
 static void pci_ide_save(QEMUFile* f, void *opaque)
@@ -2592,7 +2589,8 @@ static void piix3_reset(PCIIDEState *d)
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
+void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
+                        qemu_irq *pic)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
@@ -2619,10 +2617,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
     pci_register_io_region((PCIDevice *)d, 4, 0x10, 
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
-    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1],
-              pic_set_irq_new, isa_pic, 14);
-    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3],
-              pic_set_irq_new, isa_pic, 15);
+    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], pic[14]);
+    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], pic[15]);
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
 
@@ -2741,15 +2737,13 @@ static CPUReadMemoryFunc *pmac_ide_read[] = {
 /* hd_table must contain 4 block drivers */
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
-int pmac_ide_init (BlockDriverState **hd_table,
-                   SetIRQFunc *set_irq, void *irq_opaque, int irq)
+int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
 {
     IDEState *ide_if;
     int pmac_ide_memory;
 
     ide_if = qemu_mallocz(sizeof(IDEState) * 2);
-    ide_init2(&ide_if[0], hd_table[0], hd_table[1],
-              set_irq, irq_opaque, irq);
+    ide_init2(&ide_if[0], hd_table[0], hd_table[1], irq);
     
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);

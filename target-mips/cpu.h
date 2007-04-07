@@ -269,6 +269,8 @@ struct CPUMIPSState {
 
 #if defined(CONFIG_USER_ONLY)
     target_ulong tls_value;
+#else
+    void *irq[8];
 #endif
 
     CPU_COMMON

@@ -277,7 +277,7 @@ static void slavio_check_interrupts(void *opaque)
  * "irq" here is the bit number in the system interrupt register to
  * separate serial and keyboard interrupts sharing a level.
  */
-void pic_set_irq_new(void *opaque, int irq, int level)
+void slavio_set_irq(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
@@ -305,7 +305,7 @@ void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
 
     DPRINTF("Set cpu %d local irq %d level %d\n", cpu, irq, level);
     if (cpu == (unsigned int)-1) {
-        pic_set_irq_new(opaque, irq, level);
+        slavio_set_irq(opaque, irq, level);
         return;
     }
     if (irq < 32) {
@@ -372,7 +372,8 @@ void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env)
 }
 
 void *slavio_intctl_init(uint32_t addr, uint32_t addrg,
-                         const uint32_t *intbit_to_level)
+                         const uint32_t *intbit_to_level,
+                         qemu_irq **irq)
 {
     int slavio_intctl_io_memory, slavio_intctlm_io_memory, i;
     SLAVIO_INTCTLState *s;
@@ -392,6 +393,7 @@ void *slavio_intctl_init(uint32_t addr, uint32_t addrg,
 
     register_savevm("slavio_intctl", addr, 1, slavio_intctl_save, slavio_intctl_load, s);
     qemu_register_reset(slavio_intctl_reset, s);
+    *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
     slavio_intctl_reset(s);
     return s;
 }

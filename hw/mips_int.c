@@ -17,7 +17,7 @@ void cpu_mips_update_irq(CPUState *env)
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-void cpu_mips_irq_request(void *opaque, int irq, int level)
+static void cpu_mips_irq_request(void *opaque, int irq, int level)
 {
     CPUState *env = (CPUState *)opaque;
 
@@ -30,4 +30,15 @@ void cpu_mips_irq_request(void *opaque, int irq, int level)
         env->CP0_Cause &= ~(1 << (irq + CP0Ca_IP));
     }
     cpu_mips_update_irq(env);
+}
+
+void cpu_mips_irq_init_cpu(CPUState *env)
+{
+    qemu_irq *qi;
+    int i;
+
+    qi = qemu_allocate_irqs(cpu_mips_irq_request, env, 8);
+    for (i = 0; i < 8; i++) {
+        env->irq[i] = qi[i];
+    }
 }

@@ -47,9 +47,6 @@ typedef struct CSState {
 #ifdef DEBUG_CS
 #define DPRINTF(fmt, args...)                           \
     do { printf("CS: " fmt , ##args); } while (0)
-#define pic_set_irq_new(intctl, irq, level)                             \
-    do { printf("CS: set_irq(%d): %d\n", (irq), (level));               \
-        pic_set_irq_new((intctl), (irq),(level));} while (0)
 #else
 #define DPRINTF(fmt, args...)
 #endif

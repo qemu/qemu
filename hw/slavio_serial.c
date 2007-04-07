@@ -52,9 +52,6 @@
 #ifdef DEBUG_SERIAL
 #define SER_DPRINTF(fmt, args...) \
 do { printf("SER: " fmt , ##args); } while (0)
-#define pic_set_irq_new(intctl, irq, level)                             \
-    do { printf("SER: set_irq(%d): %d\n", (irq), (level));              \
-        pic_set_irq_new((intctl), (irq),(level));} while (0)
 #else
 #define SER_DPRINTF(fmt, args...)
 #endif
@@ -89,7 +86,7 @@ typedef struct {
 } SERIOQueue;
 
 typedef struct ChannelState {
-    int irq;
+    qemu_irq irq;
     int reg;
     int rxint, txint, rxint_under_svc, txint_under_svc;
     chn_id_t chn; // this channel, A (base+4) or B (base+0)
@@ -98,7 +95,6 @@ typedef struct ChannelState {
     uint8_t rx, tx, wregs[16], rregs[16];
     SERIOQueue queue;
     CharDriverState *chr;
-    void *intctl;
 } ChannelState;
 
 struct SerialState {
@@ -166,7 +162,8 @@ static void slavio_serial_update_irq(ChannelState *s)
     irq = slavio_serial_update_irq_chn(s);
     irq |= slavio_serial_update_irq_chn(s->otherchn);
 
-    pic_set_irq_new(s->intctl, s->irq, irq);
+    SER_DPRINTF("IRQ = %d\n", irq);
+    qemu_set_irq(s->irq, irq);
 }
 
 static void slavio_serial_reset_chn(ChannelState *s)
@@ -494,7 +491,9 @@ static CPUWriteMemoryFunc *slavio_serial_mem_write[3] = {
 
 static void slavio_serial_save_chn(QEMUFile *f, ChannelState *s)
 {
-    qemu_put_be32s(f, &s->irq);
+    int tmp;
+    tmp = 0;
+    qemu_put_be32s(f, &tmp); /* unused, was IRQ.  */
     qemu_put_be32s(f, &s->reg);
     qemu_put_be32s(f, &s->rxint);
     qemu_put_be32s(f, &s->txint);
@@ -516,10 +515,12 @@ static void slavio_serial_save(QEMUFile *f, void *opaque)
 
 static int slavio_serial_load_chn(QEMUFile *f, ChannelState *s, int version_id)
 {
+    int tmp;
+
     if (version_id > 2)
         return -EINVAL;
 
-    qemu_get_be32s(f, &s->irq);
+    qemu_get_be32s(f, &tmp); /* unused */
     qemu_get_be32s(f, &s->reg);
     qemu_get_be32s(f, &s->rxint);
     qemu_get_be32s(f, &s->txint);
@@ -547,8 +548,8 @@ static int slavio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
 }
 
-SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1,
-                                CharDriverState *chr2, void *intctl)
+SerialState *slavio_serial_init(int base, qemu_irq irq, CharDriverState *chr1,
+                                CharDriverState *chr2)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;
@@ -567,7 +568,6 @@ SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1,
 	s->chn[i].irq = irq;
 	s->chn[i].chn = 1 - i;
 	s->chn[i].type = ser;
-        s->chn[i].intctl = intctl;
 	if (s->chn[i].chr) {
 	    qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
                                   serial_receive1, serial_event, &s->chn[i]);
@@ -665,7 +665,7 @@ static void sunmouse_event(void *opaque,
     put_queue(s, 0);
 }
 
-void slavio_serial_ms_kbd_init(int base, int irq, void *intctl)
+void slavio_serial_ms_kbd_init(int base, qemu_irq irq)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;
@@ -677,7 +677,6 @@ void slavio_serial_ms_kbd_init(int base, int irq, void *intctl)
 	s->chn[i].irq = irq;
 	s->chn[i].chn = 1 - i;
 	s->chn[i].chr = NULL;
-        s->chn[i].intctl = intctl;
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];

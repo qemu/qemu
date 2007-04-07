@@ -54,7 +54,7 @@ struct PicState2 {
     /* 0 is master pic, 1 is slave pic */
     /* XXX: better separation between the two pics */
     PicState pics[2];
-    IRQRequestFunc *irq_request;
+    qemu_irq parent_irq;
     void *irq_request_opaque;
     /* IOAPIC callback support */
     SetIRQFunc *alt_irq_func;
@@ -160,13 +160,13 @@ void pic_update_irq(PicState2 *s)
         }
         printf("pic: cpu_interrupt\n");
 #endif
-        s->irq_request(s->irq_request_opaque, 1);
+        qemu_irq_raise(s->parent_irq);
     }
 
 /* all targets should do this rather than acking the IRQ in the cpu */
 #if defined(TARGET_MIPS)
     else {
-        s->irq_request(s->irq_request_opaque, 0);
+        qemu_irq_lower(s->parent_irq);
     }
 #endif
 }
@@ -175,14 +175,14 @@ void pic_update_irq(PicState2 *s)
 int64_t irq_time[16];
 #endif
 
-void pic_set_irq_new(void *opaque, int irq, int level)
+void i8259_set_irq(void *opaque, int irq, int level)
 {
     PicState2 *s = opaque;
 
 #if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
     if (level != irq_level[irq]) {
 #if defined(DEBUG_PIC)
-        printf("pic_set_irq: irq=%d level=%d\n", irq, level);
+        printf("i8259_set_irq: irq=%d level=%d\n", irq, level);
 #endif
         irq_level[irq] = level;
 #ifdef DEBUG_IRQ_COUNT
@@ -201,12 +201,6 @@ void pic_set_irq_new(void *opaque, int irq, int level)
     if (s->alt_irq_func)
         s->alt_irq_func(s->alt_irq_opaque, irq, level);
     pic_update_irq(s);
-}
-
-/* obsolete function */
-void pic_set_irq(int irq, int level)
-{
-    pic_set_irq_new(isa_pic, irq, level);
 }
 
 /* acknowledge interrupt 'irq' */
@@ -297,7 +291,7 @@ static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             /* init */
             pic_reset(s);
             /* deassert a pending interrupt */
-            s->pics_state->irq_request(s->pics_state->irq_request_opaque, 0);
+            qemu_irq_lower(s->pics_state->parent_irq);
             s->init_state = 1;
             s->init4 = val & 1;
             s->single_mode = val & 2;
@@ -546,9 +540,10 @@ void irq_info(void)
 #endif
 }
 
-PicState2 *pic_init(IRQRequestFunc *irq_request, void *irq_request_opaque)
+qemu_irq *i8259_init(qemu_irq parent_irq)
 {
     PicState2 *s;
+
     s = qemu_mallocz(sizeof(PicState2));
     if (!s)
         return NULL;
@@ -556,11 +551,11 @@ PicState2 *pic_init(IRQRequestFunc *irq_request, void *irq_request_opaque)
     pic_init1(0xa0, 0x4d1, &s->pics[1]);
     s->pics[0].elcr_mask = 0xf8;
     s->pics[1].elcr_mask = 0xde;
-    s->irq_request = irq_request;
-    s->irq_request_opaque = irq_request_opaque;
+    s->parent_irq = parent_irq;
     s->pics[0].pics_state = s;
     s->pics[1].pics_state = s;
-    return s;
+    isa_pic = s;
+    return qemu_allocate_irqs(i8259_set_irq, s, 16);
 }
 
 void pic_set_alt_irq_func(PicState2 *s, SetIRQFunc *alt_irq_func,

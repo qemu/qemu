@@ -42,11 +42,6 @@ void irq_info(void)
     /* XXXXX */
 }
 
-void pic_set_irq(int irq, int level)
-{
-    /* XXXXX */
-}
-
 void pic_info()
 {
     /* XXXXX */

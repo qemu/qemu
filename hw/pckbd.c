@@ -122,8 +122,8 @@ typedef struct KBDState {
     void *kbd;
     void *mouse;
 
-    int irq_kbd;
-    int irq_mouse;
+    qemu_irq irq_kbd;
+    qemu_irq irq_mouse;
 } KBDState;
 
 KBDState kbd_state;
@@ -151,8 +151,8 @@ static void kbd_update_irq(KBDState *s)
                 irq_kbd_level = 1;
         }
     }
-    pic_set_irq(s->irq_kbd, irq_kbd_level);
-    pic_set_irq(s->irq_mouse, irq_mouse_level);
+    qemu_set_irq(s->irq_kbd, irq_kbd_level);
+    qemu_set_irq(s->irq_mouse, irq_mouse_level);
 }
 
 static void kbd_update_kbd_irq(void *opaque, int level)
@@ -356,12 +356,12 @@ static int kbd_load(QEMUFile* f, void* opaque, int version_id)
     return 0;
 }
 
-void i8042_init(int kbd_irq_lvl, int mouse_irq_lvl, uint32_t io_base)
+void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base)
 {
     KBDState *s = &kbd_state;
 
-    s->irq_kbd = kbd_irq_lvl;
-    s->irq_mouse = mouse_irq_lvl;
+    s->irq_kbd = kbd_irq;
+    s->irq_mouse = mouse_irq;
     
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
@@ -376,9 +376,4 @@ void i8042_init(int kbd_irq_lvl, int mouse_irq_lvl, uint32_t io_base)
     vmmouse_init(s->mouse);
 #endif
     qemu_register_reset(kbd_reset, s);
-}
-
-void kbd_init(void)
-{
-    return i8042_init(1, 12, 0x60);
 }

@@ -267,7 +267,7 @@ static void Adlib_fini (AdlibState *s)
     AUD_remove_card (&s->card);
 }
 
-int Adlib_init (AudioState *audio)
+int Adlib_init (AudioState *audio, qemu_irq *pic)
 {
     AdlibState *s = &glob_adlib;
     audsettings_t as;

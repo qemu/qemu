@@ -63,7 +63,7 @@ void cpu_mips_store_compare (CPUState *env, uint32_t value)
     cpu_mips_update_count(env, cpu_mips_get_count(env));
     if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
         env->CP0_Cause &= ~(1 << CP0Ca_TI);
-    cpu_mips_irq_request(env, 7, 0);
+    qemu_irq_lower(env->irq[7]);
 }
 
 static void mips_timer_cb (void *opaque)
@@ -79,7 +79,7 @@ static void mips_timer_cb (void *opaque)
     cpu_mips_update_count(env, cpu_mips_get_count(env));
     if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
         env->CP0_Cause |= 1 << CP0Ca_TI;
-    cpu_mips_irq_request(env, 7, 1);
+    qemu_irq_raise(env->irq[7]);
 }
 
 void cpu_mips_clock_init (CPUState *env)

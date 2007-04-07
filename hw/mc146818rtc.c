@@ -54,7 +54,7 @@ struct RTCState {
     uint8_t cmos_data[128];
     uint8_t cmos_index;
     struct tm current_tm;
-    int irq;
+    qemu_irq irq;
     /* periodic timer */
     QEMUTimer *periodic_timer;
     int64_t next_periodic_time;
@@ -95,7 +95,7 @@ static void rtc_periodic_timer(void *opaque)
 
     rtc_timer_update(s, s->next_periodic_time);
     s->cmos_data[RTC_REG_C] |= 0xc0;
-    pic_set_irq(s->irq, 1);
+    qemu_irq_raise(s->irq);
 }
 
 static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
@@ -314,14 +314,14 @@ static void rtc_update_second2(void *opaque)
              s->cmos_data[RTC_HOURS_ALARM] == s->current_tm.tm_hour)) {
 
             s->cmos_data[RTC_REG_C] |= 0xa0; 
-            pic_set_irq(s->irq, 1);
+            qemu_irq_raise(s->irq);
         }
     }
 
     /* update ended interrupt */
     if (s->cmos_data[RTC_REG_B] & REG_B_UIE) {
         s->cmos_data[RTC_REG_C] |= 0x90; 
-        pic_set_irq(s->irq, 1);
+        qemu_irq_raise(s->irq);
     }
 
     /* clear update in progress bit */
@@ -353,7 +353,7 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
             break;
         case RTC_REG_C:
             ret = s->cmos_data[s->cmos_index];
-            pic_set_irq(s->irq, 0);
+            qemu_irq_lower(s->irq);
             s->cmos_data[RTC_REG_C] = 0x00; 
             break;
         default:
@@ -453,7 +453,7 @@ static int rtc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-RTCState *rtc_init(int base, int irq)
+RTCState *rtc_init(int base, qemu_irq irq)
 {
     RTCState *s;
 

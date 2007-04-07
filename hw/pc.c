@@ -49,15 +49,16 @@ static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 }
 
 /* MSDOS compatibility mode FPU exception support */
+static qemu_irq ferr_irq;
 /* XXX: add IGNNE support */
 void cpu_set_ferr(CPUX86State *s)
 {
-    pic_set_irq(13, 1);
+    qemu_irq_raise(ferr_irq);
 }
 
 static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
 {
-    pic_set_irq(13, 0);
+    qemu_irq_lower(ferr_irq);
 }
 
 /* TSC handling */
@@ -101,7 +102,7 @@ int cpu_get_pic_interrupt(CPUState *env)
     return intno;
 }
 
-static void pic_irq_request(void *opaque, int level)
+static void pic_irq_request(void *opaque, int irq, int level)
 {
     CPUState *env = opaque;
     if (level)
@@ -403,7 +404,7 @@ static int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
 #ifdef HAS_AUDIO
-static void audio_init (PCIBus *pci_bus)
+static void audio_init (PCIBus *pci_bus, qemu_irq *pic)
 {
     struct soundhw *c;
     int audio_enabled = 0;
@@ -420,7 +421,7 @@ static void audio_init (PCIBus *pci_bus)
             for (c = soundhw; c->name; ++c) {
                 if (c->enabled) {
                     if (c->isa) {
-                        c->init.init_isa (s);
+                        c->init.init_isa (s, pic);
                     }
                     else {
                         if (pci_bus) {
@@ -434,13 +435,13 @@ static void audio_init (PCIBus *pci_bus)
 }
 #endif
 
-static void pc_init_ne2k_isa(NICInfo *nd)
+static void pc_init_ne2k_isa(NICInfo *nd, qemu_irq *pic)
 {
     static int nb_ne2k = 0;
 
     if (nb_ne2k == NE2000_NB_MAX)
         return;
-    isa_ne2000_init(ne2000_io[nb_ne2k], ne2000_irq[nb_ne2k], nd);
+    isa_ne2000_init(ne2000_io[nb_ne2k], pic[ne2000_irq[nb_ne2k]], nd);
     nb_ne2k++;
 }
 
@@ -460,6 +461,8 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     int piix3_devfn = -1;
     CPUState *env;
     NICInfo *nd;
+    qemu_irq *cpu_irq;
+    qemu_irq *i8259;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -643,8 +646,12 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x210, 0x01);
     }
 
+    cpu_irq = qemu_allocate_irqs(pic_irq_request, first_cpu, 1);
+    i8259 = i8259_init(cpu_irq[0]);
+    ferr_irq = i8259[13];
+
     if (pci_enabled) {
-        pci_bus = i440fx_init(&i440fx_state);
+        pci_bus = i440fx_init(&i440fx_state, i8259);
         piix3_devfn = piix3_init(pci_bus, -1);
     } else {
         pci_bus = NULL;
@@ -680,7 +687,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         }
     }
 
-    rtc_state = rtc_init(0x70, 8);
+    rtc_state = rtc_init(0x70, i8259[8]);
 
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
@@ -688,8 +695,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     if (pci_enabled) {
         ioapic = ioapic_init();
     }
-    isa_pic = pic_init(pic_irq_request, first_cpu);
-    pit = pit_init(0x40, 0);
+    pit = pit_init(0x40, i8259[0]);
     pcspk_init(pit);
     if (pci_enabled) {
         pic_set_alt_irq_func(isa_pic, ioapic_set_irq, ioapic);
@@ -697,14 +703,14 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(&pic_set_irq_new, isa_pic,
-                        serial_io[i], serial_irq[i], serial_hds[i]);
+            serial_init(serial_io[i], i8259[serial_irq[i]], serial_hds[i]);
         }
     }
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(parallel_io[i], parallel_irq[i], parallel_hds[i]);
+            parallel_init(parallel_io[i], i8259[parallel_irq[i]],
+                          parallel_hds[i]);
         }
     }
 
@@ -718,7 +724,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
             }
         }
         if (strcmp(nd->model, "ne2k_isa") == 0) {
-            pc_init_ne2k_isa(nd);
+            pc_init_ne2k_isa(nd, i8259);
         } else if (pci_enabled) {
             pci_nic_init(pci_bus, nd, -1);
         } else {
@@ -728,21 +734,21 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 
     if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, bs_table, piix3_devfn + 1);
+        pci_piix3_ide_init(pci_bus, bs_table, piix3_devfn + 1, i8259);
     } else {
         for(i = 0; i < 2; i++) {
-            isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+            isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
                          bs_table[2 * i], bs_table[2 * i + 1]);
         }
     }
 
-    kbd_init();
+    i8042_init(i8259[1], i8259[12], 0x60);
     DMA_init(0);
 #ifdef HAS_AUDIO
-    audio_init(pci_enabled ? pci_bus : NULL);
+    audio_init(pci_enabled ? pci_bus : NULL, i8259);
 #endif
 
-    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
+    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
 
     cmos_init(ram_size, boot_device, bs_table);
 

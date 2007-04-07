@@ -17,7 +17,6 @@
 #define PL190_NUM_PRIO 17
 
 typedef struct {
-    arm_pic_handler handler;
     uint32_t base;
     DisplayState *ds;
     uint32_t level;
@@ -33,9 +32,8 @@ typedef struct {
     /* Current priority level.  */
     int priority;
     int prev_prio[PL190_NUM_PRIO];
-    void *parent;
-    int irq;
-    int fiq;
+    qemu_irq irq;
+    qemu_irq fiq;
 } pl190_state;
 
 static const unsigned char pl190_id[] =
@@ -53,9 +51,9 @@ static void pl190_update(pl190_state *s)
     int set;
 
     set = (level & s->prio_mask[s->priority]) != 0;
-    pic_set_irq_new(s->parent, s->irq, set);
+    qemu_set_irq(s->irq, set);
     set = ((s->level | s->soft_level) & s->fiq_select) != 0;
-    pic_set_irq_new(s->parent, s->fiq, set);
+    qemu_set_irq(s->fiq, set);
 }
 
 static void pl190_set_irq(void *opaque, int irq, int level)
@@ -232,21 +230,21 @@ void pl190_reset(pl190_state *s)
   pl190_update_vectors(s);
 }
 
-void *pl190_init(uint32_t base, void *parent, int irq, int fiq)
+qemu_irq *pl190_init(uint32_t base, qemu_irq irq, qemu_irq fiq)
 {
     pl190_state *s;
+    qemu_irq *qi;
     int iomemtype;
 
     s = (pl190_state *)qemu_mallocz(sizeof(pl190_state));
     iomemtype = cpu_register_io_memory(0, pl190_readfn,
                                        pl190_writefn, s);
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
-    s->handler = pl190_set_irq;
+    qi = qemu_allocate_irqs(pl190_set_irq, s, 16);
     s->base = base;
-    s->parent = parent;
     s->irq = irq;
     s->fiq = fiq;
     pl190_reset(s);
     /* ??? Save/restore.  */
-    return s;
+    return qi;
 }

@@ -374,7 +374,7 @@ static void lsi_update_irq(LSIState *s)
                 level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
-    pci_set_irq(&s->pci_dev, 0, level);
+    qemu_set_irq(s->pci_dev.irq[0], level);
 }
 
 /* Stop SCRIPTS execution and raise a SCSI interrupt.  */

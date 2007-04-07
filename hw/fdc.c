@@ -368,7 +368,7 @@ struct fdctrl_t {
     /* Controller's identification */
     uint8_t version;
     /* HW */
-    int irq_lvl;
+    qemu_irq irq;
     int dma_chann;
     uint32_t io_base;
     /* Controller state */
@@ -485,7 +485,7 @@ static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
     fdctrl_write_mem,
 };
 
-fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, 
+fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped, 
                        uint32_t io_base,
                        BlockDriverState **fds)
 {
@@ -501,7 +501,7 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
                                           fdctrl_result_timer, fdctrl);
 
     fdctrl->version = 0x90; /* Intel 82078 controller */
-    fdctrl->irq_lvl = irq_lvl;
+    fdctrl->irq = irq;
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
     fdctrl->config = 0x60; /* Implicit seek, polling & FIFO enabled */
@@ -542,7 +542,7 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num)
 static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 {
     FLOPPY_DPRINTF("Reset interrupt\n");
-    pic_set_irq(fdctrl->irq_lvl, 0);
+    qemu_set_irq(fdctrl->irq, 0);
     fdctrl->state &= ~FD_CTRL_INTR;
 }
 
@@ -557,7 +557,7 @@ static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
     }
 #endif
     if (~(fdctrl->state & FD_CTRL_INTR)) {
-        pic_set_irq(fdctrl->irq_lvl, 1);
+        qemu_set_irq(fdctrl->irq, 1);
         fdctrl->state |= FD_CTRL_INTR;
     }
     FLOPPY_DPRINTF("Set interrupt status to 0x%02x\n", status);

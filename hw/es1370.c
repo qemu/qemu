@@ -324,7 +324,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
     else {
         s->status = new_status & ~STAT_INTR;
     }
-    pci_set_irq (s->pci_dev, 0, !!level);
+    qemu_set_irq(s->pci_dev->irq[0], !!level);
 }
 
 static void es1370_reset (ES1370State *s)
@@ -350,7 +350,7 @@ static void es1370_reset (ES1370State *s)
             s->dac_voice[i] = NULL;
         }
     }
-    pci_set_irq (s->pci_dev, 0, 0);
+    qemu_irq_lower(s->pci_dev->irq[0]);
 }
 
 static void es1370_maybe_lower_irq (ES1370State *s, uint32_t sctl)

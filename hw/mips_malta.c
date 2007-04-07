@@ -60,12 +60,6 @@ typedef struct {
 
 static PITState *pit;
 
-/* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
-static void pic_irq_request(void *opaque, int level)
-{
-    cpu_mips_irq_request(opaque, 2, level);
-}
-
 /* Malta FPGA */
 static void malta_fpga_update_display(void *opaque)
 {
@@ -451,8 +445,7 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
 
     uart_chr = qemu_chr_open("vc");
     qemu_chr_printf(uart_chr, "CBUS UART\r\n");
-    s->uart = serial_mm_init(&cpu_mips_irq_request, env, base, 3, 2,
-                             uart_chr, 0);
+    s->uart = serial_mm_init(base, 3, env->irq[2], uart_chr, 0);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
@@ -676,6 +669,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     MaltaFPGAState *malta_fpga;
     int ret;
     mips_def_t *def;
+    qemu_irq *i8259;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -729,6 +723,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     stl_raw(phys_ram_base + bios_offset + 0x10, 0x00000420);
 
     /* Init internal devices */
+    cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
 
@@ -736,31 +731,32 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     malta_fpga = malta_fpga_init(0x1f000000LL, env);
 
     /* Interrupt controller */
-    isa_pic = pic_init(pic_irq_request, env);
+    /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
+    i8259 = i8259_init(env->irq[2]);
 
     /* Northbridge */
-    pci_bus = pci_gt64120_init(isa_pic);
+    pci_bus = pci_gt64120_init(i8259);
 
     /* Southbridge */
     piix4_init(pci_bus, 80);
-    pci_piix3_ide_init(pci_bus, bs_table, 81);
+    pci_piix3_ide_init(pci_bus, bs_table, 81, i8259);
     usb_uhci_init(pci_bus, 82);
     piix4_pm_init(pci_bus, 83);
-    pit = pit_init(0x40, 0);
+    pit = pit_init(0x40, i8259[0]);
     DMA_init(0);
 
     /* Super I/O */
-    kbd_init();
-    rtc_state = rtc_init(0x70, 8);
+    i8042_init(i8259[1], i8259[12], 0x60);
+    rtc_state = rtc_init(0x70, i8259[8]);
     if (serial_hds[0])
-        serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+        serial_init(0x3f8, i8259[4], serial_hds[0]);
     if (serial_hds[1])
-        serial_init(&pic_set_irq_new, isa_pic, 0x2f8, 3, serial_hds[1]);
+        serial_init(0x2f8, i8259[3], serial_hds[1]);
     if (parallel_hds[0])
-        parallel_init(0x378, 7, parallel_hds[0]);
+        parallel_init(0x378, i8259[7], parallel_hds[0]);
     /* XXX: The floppy controller does not work correctly, something is
        probably wrong.
-    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table); */
+    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table); */
 
     /* Sound card */
 #ifdef HAS_AUDIO

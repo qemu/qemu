@@ -520,7 +520,7 @@ static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
 extern PCIDevice *piix4_dev;
 static int pci_irq_levels[4];
 
-static void pci_gt64120_set_irq(void *pic, int irq_num, int level)
+static void pci_gt64120_set_irq(qemu_irq *pic, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
 
@@ -537,7 +537,7 @@ static void pci_gt64120_set_irq(void *pic, int irq_num, int level)
             if (pic_irq == piix4_dev->config[0x60 + i])
                 pic_level |= pci_irq_levels[i];
         }
-        pic_set_irq(pic_irq, pic_level);
+        qemu_set_irq(pic[pic_irq], pic_level);
     }
 }
 
@@ -608,7 +608,7 @@ void gt64120_reset(void *opaque)
     gt64120_pci_mapping(s);
 }
 
-PCIBus *pci_gt64120_init(void *pic)
+PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
     PCIDevice *d;

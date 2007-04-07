@@ -162,7 +162,7 @@ typedef struct IRQ_dst_t {
     CPUState *env;
 } IRQ_dst_t;
 
-struct openpic_t {
+typedef struct openpic_t {
     PCIDevice pci_dev;
     SetIRQFunc *set_irq;
     int mem_index;
@@ -196,7 +196,7 @@ struct openpic_t {
 	uint32_t mbr;    /* Mailbox register */
     } mailboxes[MAX_MAILBOXES];
 #endif
-};
+} openpic_t;
 
 static inline void IRQ_setbit (IRQ_queue_t *q, int n_IRQ)
 {
@@ -321,7 +321,7 @@ static void openpic_update_irq(openpic_t *opp, int n_IRQ)
     }
 }
 
-void openpic_set_irq(void *opaque, int n_IRQ, int level)
+static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 {
     openpic_t *opp = opaque;
     IRQ_src_t *src;
@@ -964,7 +964,7 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 #endif
 }
 
-openpic_t *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
+qemu_irq *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
                          int *pmem_index, int nb_cpus, CPUState **envp)
 {
     openpic_t *opp;
@@ -1024,5 +1024,5 @@ openpic_t *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
     openpic_reset(opp);
     if (pmem_index)
         *pmem_index = opp->mem_index;
-    return opp;
+    return qemu_allocate_irqs(openpic_set_irq, opp, MAX_IRQ);
 }

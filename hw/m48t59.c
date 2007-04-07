@@ -41,7 +41,7 @@ struct m48t59_t {
     /* Model parameters */
     int type; // 8 = m48t08, 59 = m48t59
     /* Hardware parameters */
-    int      IRQ;
+    qemu_irq IRQ;
     int mem_index;
     uint32_t mem_base;
     uint32_t io_base;
@@ -100,7 +100,7 @@ static void alarm_cb (void *opaque)
     uint64_t next_time;
     m48t59_t *NVRAM = opaque;
 
-    pic_set_irq(NVRAM->IRQ, 1);
+    qemu_set_irq(NVRAM->IRQ, 1);
     if ((NVRAM->buffer[0x1FF5] & 0x80) == 0 && 
 	(NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
 	(NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
@@ -137,7 +137,7 @@ static void alarm_cb (void *opaque)
 	next_time = 1 + mktime(&tm_now);
     }
     qemu_mod_timer(NVRAM->alrm_timer, next_time * 1000);
-    pic_set_irq(NVRAM->IRQ, 0);
+    qemu_set_irq(NVRAM->IRQ, 0);
 }
 
 
@@ -173,8 +173,8 @@ static void watchdog_cb (void *opaque)
         /* May it be a hw CPU Reset instead ? */
         qemu_system_reset_request();
     } else {
-	pic_set_irq(NVRAM->IRQ, 1);
-	pic_set_irq(NVRAM->IRQ, 0);
+	qemu_set_irq(NVRAM->IRQ, 1);
+	qemu_set_irq(NVRAM->IRQ, 0);
     }
 }
 
@@ -576,7 +576,7 @@ static CPUReadMemoryFunc *nvram_read[] = {
 };
 
 /* Initialisation routine */
-m48t59_t *m48t59_init (int IRQ, target_ulong mem_base,
+m48t59_t *m48t59_init (qemu_irq IRQ, target_ulong mem_base,
                        uint32_t io_base, uint16_t size,
                        int type)
 {

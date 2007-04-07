@@ -37,9 +37,6 @@
 #ifdef DEBUG_DMA
 #define DPRINTF(fmt, args...) \
 do { printf("DMA: " fmt , ##args); } while (0)
-#define pic_set_irq_new(ctl, irq, level)                                \
-    do { printf("DMA: set_irq(%d): %d\n", (irq), (level));              \
-        pic_set_irq_new((ctl), (irq),(level));} while (0)
 #else
 #define DPRINTF(fmt, args...)
 #endif
@@ -58,16 +55,10 @@ typedef struct DMAState DMAState;
 
 struct DMAState {
     uint32_t dmaregs[DMA_REGS];
-    int espirq, leirq;
-    void *iommu, *esp_opaque, *lance_opaque, *intctl;
+    qemu_irq espirq, leirq;
+    void *iommu, *esp_opaque, *lance_opaque;
+    qemu_irq *pic;
 };
-
-void ledma_set_irq(void *opaque, int isr)
-{
-    DMAState *s = opaque;
-
-    pic_set_irq_new(s->intctl, s->leirq, isr);
-}
 
 /* Note: on sparc, the lance 16 bit bus is swapped */
 void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
@@ -125,8 +116,9 @@ void espdma_raise_irq(void *opaque)
 {
     DMAState *s = opaque;
 
+    DPRINTF("Raise ESP IRQ\n");
     s->dmaregs[0] |= DMA_INTR;
-    pic_set_irq_new(s->intctl, s->espirq, 1);
+    qemu_irq_raise(s->espirq);
 }
 
 void espdma_clear_irq(void *opaque)
@@ -134,7 +126,8 @@ void espdma_clear_irq(void *opaque)
     DMAState *s = opaque;
 
     s->dmaregs[0] &= ~DMA_INTR;
-    pic_set_irq_new(s->intctl, s->espirq, 0);
+    DPRINTF("Lower ESP IRQ\n");
+    qemu_irq_lower(s->espirq);
 }
 
 void espdma_memory_read(void *opaque, uint8_t *buf, int len)
@@ -179,8 +172,10 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     DPRINTF("write dmareg[%d]: 0x%8.8x -> 0x%8.8x\n", saddr, s->dmaregs[saddr], val);
     switch (saddr) {
     case 0:
-        if (!(val & DMA_INTREN))
-            pic_set_irq_new(s->intctl, s->espirq, 0);
+        if (!(val & DMA_INTREN)) {
+            DPRINTF("Lower ESP IRQ\n");
+            qemu_irq_lower(s->espirq);
+        }
         if (val & DMA_RESET) {
             esp_reset(s->esp_opaque);
         } else if (val & 0x40) {
@@ -194,8 +189,12 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->dmaregs[0] |= DMA_LOADED;
         break;
     case 4:
-        if (!(val & DMA_INTREN))
-            pic_set_irq_new(s->intctl, s->leirq, 0);
+        /* ??? Should this mask out the lance IRQ?  The NIC may re-assert
+           this IRQ unexpectedly.  */
+        if (!(val & DMA_INTREN)) {
+            DPRINTF("Lower Lance IRQ\n");
+            qemu_irq_lower(s->leirq);
+        }
         if (val & DMA_RESET)
             pcnet_h_reset(s->lance_opaque);
         val &= 0x0fffffff;
@@ -250,7 +249,8 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *sparc32_dma_init(uint32_t daddr, int espirq, int leirq, void *iommu, void *intctl)
+void *sparc32_dma_init(uint32_t daddr, qemu_irq espirq, qemu_irq leirq,
+                       void *iommu)
 {
     DMAState *s;
     int dma_io_memory;
@@ -262,7 +262,6 @@ void *sparc32_dma_init(uint32_t daddr, int espirq, int leirq, void *iommu, void 
     s->espirq = espirq;
     s->leirq = leirq;
     s->iommu = iommu;
-    s->intctl = intctl;
 
     dma_io_memory = cpu_register_io_memory(0, dma_mem_read, dma_mem_write, s);
     cpu_register_physical_memory(daddr, 16 * 2, dma_io_memory);

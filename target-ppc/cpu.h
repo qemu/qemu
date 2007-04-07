@@ -758,6 +758,7 @@ struct CPUPPCState {
     int error_code;
     int interrupt_request;
     uint32_t pending_interrupts;
+    void *irq[32];
 
     /* Those resources are used only during code translation */
     /* Next instruction pointer */

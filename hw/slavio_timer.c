@@ -28,9 +28,6 @@
 #ifdef DEBUG_TIMER
 #define DPRINTF(fmt, args...) \
 do { printf("TIMER: " fmt , ##args); } while (0)
-#define pic_set_irq_new(intctl, irq, level)                             \
-    do { printf("TIMER: set_irq(%d): %d\n", (irq), (level));            \
-        pic_set_irq_new((intctl), (irq),(level));} while (0)
 #else
 #define DPRINTF(fmt, args...)
 #endif
