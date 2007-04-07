@@ -358,7 +358,44 @@ enum {
 #define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & 0x3F)
 
 #define MASK_CP2(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
-#define MASK_CP3(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
+
+enum {
+    OPC_MFC2    = (0x00 << 21) | OPC_CP2,
+    OPC_DMFC2   = (0x01 << 21) | OPC_CP2,
+    OPC_CFC2    = (0x02 << 21) | OPC_CP2,
+    OPC_MFHC2   = (0x03 << 21) | OPC_CP2,
+    OPC_MTC2    = (0x04 << 21) | OPC_CP2,
+    OPC_DMTC2   = (0x05 << 21) | OPC_CP2,
+    OPC_CTC2    = (0x06 << 21) | OPC_CP2,
+    OPC_MTHC2   = (0x07 << 21) | OPC_CP2,
+    OPC_BC2     = (0x08 << 21) | OPC_CP2,
+};
+
+#define MASK_CP3(op)       MASK_OP_MAJOR(op) | (op & 0x3F)
+
+enum {
+    OPC_LWXC1   = 0x00 | OPC_CP3,
+    OPC_LDXC1   = 0x01 | OPC_CP3,
+    OPC_LUXC1   = 0x05 | OPC_CP3,
+    OPC_SWXC1   = 0x08 | OPC_CP3,
+    OPC_SDXC1   = 0x09 | OPC_CP3,
+    OPC_SUXC1   = 0x0D | OPC_CP3,
+    OPC_PREFX   = 0x0F | OPC_CP3,
+    OPC_ALNV_PS = 0x1E | OPC_CP3,
+    OPC_MADD_S  = 0x20 | OPC_CP3,
+    OPC_MADD_D  = 0x21 | OPC_CP3,
+    OPC_MADD_PS = 0x26 | OPC_CP3,
+    OPC_MSUB_S  = 0x28 | OPC_CP3,
+    OPC_MSUB_D  = 0x29 | OPC_CP3,
+    OPC_MSUB_PS = 0x2E | OPC_CP3,
+    OPC_NMADD_S = 0x30 | OPC_CP3,
+    OPC_NMADD_D = 0x32 | OPC_CP3,
+    OPC_NMADD_PS= 0x36 | OPC_CP3,
+    OPC_NMSUB_S = 0x38 | OPC_CP3,
+    OPC_NMSUB_D = 0x39 | OPC_CP3,
+    OPC_NMSUB_PS= 0x3E | OPC_CP3,
+};
+
 
 const unsigned char *regnames[] =
     { "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
@@ -5019,6 +5056,9 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_op_cp1_enabled();
             op1 = MASK_CP3(ctx->opcode);
             switch (op1) {
+            case OPC_PREFX:
+                /* treat as noop */
+                break;
             /* Not implemented */
             default:
                 generate_exception (ctx, EXCP_RI);
