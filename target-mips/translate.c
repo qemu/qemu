@@ -1486,7 +1486,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         /* Jump to register */
         if (offset != 0 && offset != 16) {
             /* Hint = 0 is JR/JALR, hint 16 is JR.HB/JALR.HB, the
-              others are reserved. */
+               others are reserved. */
             generate_exception(ctx, EXCP_RI);
             return;
         }
@@ -4629,6 +4629,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
     /* make sure instructions are on a word boundary */
     if (ctx->pc & 0x3) {
+        env->CP0_BadVAddr = ctx->pc;
         generate_exception(ctx, EXCP_AdEL);
         return;
     }
