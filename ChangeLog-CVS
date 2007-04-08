@@ -1,3 +1,7 @@
+2007-04-08 08:29  blueswir1
+
+	* linux-user/main.c: Sparc32/64 CPU selection for user emulator
+
 2007-04-07 21:33  blueswir1
 
 	* hw/sun4m.c: Fix TCX base on SS10
