@@ -258,6 +258,9 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_alpha;
 #elif defined(__sparc__)
     print_insn = print_insn_sparc;
+#if defined(__sparc_v8plus__) || defined(__sparc_v8plusa__) || defined(__sparc_v9__)
+    disasm_info.mach = bfd_mach_sparc_v9b;
+#endif
 #elif defined(__arm__) 
     print_insn = print_insn_arm;
 #elif defined(__MIPSEB__)
