@@ -132,9 +132,7 @@ struct SerialState {
     /* NOTE: this hidden state is necessary for tx irq generation as
        it can be reset while reading iir */
     int thr_ipending;
-    SetIRQFunc *set_irq;
-    void *irq_opaque;
-    int irq;
+    qemu_irq irq;
     CharDriverState *chr;
     int last_break_enable;
     target_ulong base;
@@ -149,23 +147,15 @@ static void serial_update_irq(SerialState *s)
     if ((s->lsr & UART_LSR_DR) && (s->ier & UART_IER_RDI)) {
         logout("rx interrupt\n");
         s->iir = UART_IIR_RDI;
+        qemu_irq_raise(s->irq);
     } else if (s->thr_ipending && (s->ier & UART_IER_THRI)) {
         logout("tx interrupt\n");
         s->iir = UART_IIR_THRI;
+        qemu_irq_raise(s->irq);
     } else {
         logout("no interrupt\n");
         s->iir = UART_IIR_NO_INT;
-    }
-    if (s->set_irq == 0) {
-        assert(0);
-        //~ static uint8_t iir = 255;
-        //~ if (iir != s->iir) {
-          //~ iir = s->iir;
-        //~ }
-    } else if (s->iir != UART_IIR_NO_INT) {
-        s->set_irq(s->irq_opaque, s->irq, 1);
-    } else {
-        s->set_irq(s->irq_opaque, s->irq, 0);
+        qemu_irq_lower(s->irq);
     }
 }
 
@@ -197,7 +187,7 @@ static void serial_update_parameters(SerialState *s)
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 #if 1
     fprintf(stderr,
-           "uart irq=%d divider=%d speed=%d parity=%c data=%d stop=%d (%s)\n", 
+           "uart irq=%p divider=%d speed=%d parity=%c data=%d stop=%d (%s)\n", 
            s->irq, s->divider, speed, parity, data_bits, stop_bits,
            mips_backtrace());
 #endif
@@ -442,8 +432,7 @@ void serial_frequency(SerialState *s, uint32_t frequency)
 }
 
 /* If fd is zero, it means that the serial device uses the console */
-SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
-                               int irq, CharDriverState *chr)
+SerialState *serial_16450_init(int base, qemu_irq irq, CharDriverState *chr)
 {
     SerialState *s;
 
@@ -452,8 +441,6 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
         return NULL;
-    s->set_irq = set_irq;
-    s->irq_opaque = opaque;
     s->irq = irq;
     s->base = base;
     s->emulation = uart16450;
@@ -477,11 +464,10 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     return s;
 }
 
-SerialState *serial_16550_init(SetIRQFunc *set_irq, void *opaque, int base,
-                               int irq, CharDriverState *chr)
+SerialState *serial_16550_init(int base, qemu_irq irq, CharDriverState *chr)
 {
     SerialState *s;
-    s = serial_16450_init(set_irq, opaque, base, irq, chr);
+    s = serial_16450_init(base, irq, chr);
     s->emulation = uart16550;
     return s;
 }
