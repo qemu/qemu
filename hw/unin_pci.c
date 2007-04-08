@@ -146,12 +146,12 @@ static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + (pci_dev->devfn >> 3)) & 3;
 }
 
-static void pci_unin_set_irq(void *pic, int irq_num, int level)
+static void pci_unin_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    openpic_set_irq(pic, irq_num + 8, level);
+    qemu_set_irq(pic[irq_num + 8], level);
 }
 
-PCIBus *pci_pmac_init(void *pic)
+PCIBus *pci_pmac_init(qemu_irq *pic)
 {
     UNINState *s;
     PCIDevice *d;

@@ -47,7 +47,7 @@ typedef struct PITChannelState {
     /* irq handling */
     int64_t next_transition_time;
     QEMUTimer *irq_timer;
-    int irq;
+    qemu_irq irq;
 } PITChannelState;
 
 struct PITState {
@@ -366,7 +366,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
         return;
     expire_time = pit_get_next_transition_time(s, current_time);
     irq_level = pit_get_out1(s, current_time);
-    pic_set_irq(s->irq, irq_level);
+    qemu_set_irq(s->irq, irq_level);
 #ifdef DEBUG_PIT
     printf("irq_level=%d next_delay=%f\n",
            irq_level, 
@@ -460,7 +460,7 @@ static void pit_reset(void *opaque)
     }
 }
 
-PITState *pit_init(int base, int irq)
+PITState *pit_init(int base, qemu_irq irq)
 {
     PITState *pit = &pit_state;
     PITChannelState *s;

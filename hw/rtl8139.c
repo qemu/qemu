@@ -687,7 +687,7 @@ static void rtl8139_update_irq(RTL8139State *s)
     DEBUG_PRINT(("RTL8139: Set IRQ to %d (%04x %04x)\n",
        isr ? 1 : 0, s->IntrStatus, s->IntrMask));
 
-    pci_set_irq(s->pci_dev, 0, (isr != 0));
+    qemu_set_irq(s->pci_dev->irq[0], (isr != 0));
 }
 
 #define POLYNOMIAL 0x04c11db6

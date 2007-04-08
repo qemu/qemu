@@ -33,7 +33,7 @@ struct PCIBus {
     uint32_t config_reg; /* XXX: suppress */
     /* low level pic */
     SetIRQFunc *low_set_irq;
-    void *irq_opaque;
+    qemu_irq *irq_opaque;
     PCIDevice *devices[256];
     PCIDevice *parent_dev;
     PCIBus *next;
@@ -43,13 +43,14 @@ struct PCIBus {
 };
 
 static void pci_update_mappings(PCIDevice *d);
+static void pci_set_irq(void *opaque, int irq_num, int level);
 
 target_phys_addr_t pci_mem_base;
 static int pci_irq_index;
 static PCIBus *first_bus;
 
 PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         void *pic, int devfn_min, int nirq)
+                         qemu_irq *pic, int devfn_min, int nirq)
 {
     PCIBus *bus;
     bus = qemu_mallocz(sizeof(PCIBus) + (nirq * sizeof(int)));
@@ -131,6 +132,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     pci_dev->config_write = config_write;
     pci_dev->irq_index = pci_irq_index++;
     bus->devices[devfn] = pci_dev;
+    pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, 4);
     return pci_dev;
 }
 
@@ -435,8 +437,9 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
 /* generic PCI irq support */
 
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
-void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
+static void pci_set_irq(void *opaque, int irq_num, int level)
 {
+    PCIDevice *pci_dev = (PCIDevice *)opaque;
     PCIBus *bus;
     int change;
     

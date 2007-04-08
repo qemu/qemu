@@ -264,11 +264,6 @@ static int vga_osi_call(CPUState *env)
     return 1; /* osi_call handled */
 }
 
-/* XXX: suppress that */
-static void pic_irq_request(void *opaque, int level)
-{
-}
-
 static uint8_t nvram_chksum(const uint8_t *buf, int n)
 {
     int sum, i;
@@ -303,8 +298,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 {
     CPUState *env;
     char buf[1024];
-    SetIRQFunc *set_irq;
-    void *pic;
+    qemu_irq *pic;
     m48t59_t *nvram;
     int unin_memory;
     int linux_boot, i;
@@ -314,6 +308,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
     PCIBus *pci_bus;
     const char *arch_name;
     int vga_bios_size, bios_size;
+    qemu_irq *dummy_irq;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -335,6 +330,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }
     cpu_ppc_register(env, def);
+    cpu_ppc_irq_init_cpu(env);
 
     /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
@@ -416,17 +412,16 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
         /* init basic PC hardware */
         pic = heathrow_pic_init(&heathrow_pic_mem_index);
-        set_irq = heathrow_pic_set_irq;
         pci_bus = pci_grackle_init(0xfec00000, pic);
         pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, 
                      ram_size, vga_ram_size,
                      vga_bios_offset, vga_bios_size);
 
         /* XXX: suppress that */
-        isa_pic = pic_init(pic_irq_request, NULL);
+        dummy_irq = i8259_init(NULL);
         
         /* XXX: use Mac Serial port */
-        serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+        serial_init(0x3f8, dummy_irq[4], serial_hds[0]);
         
         for(i = 0; i < nb_nics; i++) {
             if (!nd_table[i].model)
@@ -437,7 +432,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
         pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
 
         /* cuda also initialize ADB */
-        cuda_mem_index = cuda_init(set_irq, pic, 0x12);
+        cuda_mem_index = cuda_init(pic[0x12]);
         
         adb_kbd_init(&adb_bus);
         adb_mouse_init(&adb_bus);
@@ -450,7 +445,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
         macio_init(pci_bus, 0x0017);
 
-        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
+        nvram = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
 
         arch_name = "HEATHROW";
     } else {
@@ -464,7 +459,6 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
         cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
         pic = openpic_init(NULL, &ppc_openpic_irq, &openpic_mem_index, 1, &env);
-        set_irq = openpic_set_irq;
         pci_bus = pci_pmac_init(pic);
         /* init basic PC hardware */
         pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
@@ -472,30 +466,30 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                      vga_bios_offset, vga_bios_size);
 
         /* XXX: suppress that */
-        isa_pic = pic_init(pic_irq_request, NULL);
+        dummy_irq = i8259_init(NULL);
 
         /* XXX: use Mac Serial port */
-        serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+        serial_init(0x3f8, dummy_irq[4], serial_hds[0]);
         for(i = 0; i < nb_nics; i++) {
             if (!nd_table[i].model)
                 nd_table[i].model = "ne2k_pci";
             pci_nic_init(pci_bus, &nd_table[i], -1);
         }
 #if 1
-        ide0_mem_index = pmac_ide_init(&bs_table[0], set_irq, pic, 0x13);
-        ide1_mem_index = pmac_ide_init(&bs_table[2], set_irq, pic, 0x14);
+        ide0_mem_index = pmac_ide_init(&bs_table[0], pic[0x13]);
+        ide1_mem_index = pmac_ide_init(&bs_table[2], pic[0x14]);
 #else
         pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
 #endif
         /* cuda also initialize ADB */
-        cuda_mem_index = cuda_init(set_irq, pic, 0x19);
+        cuda_mem_index = cuda_init(pic[0x19]);
         
         adb_kbd_init(&adb_bus);
         adb_mouse_init(&adb_bus);
         
         macio_init(pci_bus, 0x0022);
         
-        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
+        nvram = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
         
         arch_name = "MAC99";
     }

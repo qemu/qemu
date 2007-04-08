@@ -54,6 +54,7 @@ static struct {
 
 typedef struct SB16State {
     QEMUSoundCard card;
+    qemu_irq *pic;
     int irq;
     int dma;
     int hdma;
@@ -187,7 +188,7 @@ static void aux_timer (void *opaque)
 {
     SB16State *s = opaque;
     s->can_write = 1;
-    pic_set_irq (s->irq, 1);
+    qemu_irq_raise (s->pic[s->irq]);
 }
 
 #define DMA8_AUTO 1
@@ -595,7 +596,7 @@ static void command (SB16State *s, uint8_t cmd)
         case 0xf3:
             dsp_out_data (s, 0xaa);
             s->mixer_regs[0x82] |= (cmd == 0xf2) ? 1 : 2;
-            pic_set_irq (s->irq, 1);
+            qemu_irq_raise (s->pic[s->irq]);
             break;
 
         case 0xf9:
@@ -763,7 +764,7 @@ static void complete (SB16State *s)
                 bytes = samples << s->fmt_stereo << (s->fmt_bits == 16);
                 ticks = (bytes * ticks_per_sec) / freq;
                 if (ticks < ticks_per_sec / 1024) {
-                    pic_set_irq (s->irq, 1);
+                    qemu_irq_raise (s->pic[s->irq]);
                 }
                 else {
                     if (s->aux_ts) {
@@ -855,10 +856,10 @@ static void legacy_reset (SB16State *s)
 
 static void reset (SB16State *s)
 {
-    pic_set_irq (s->irq, 0);
+    qemu_irq_lower (s->pic[s->irq]);
     if (s->dma_auto) {
-        pic_set_irq (s->irq, 1);
-        pic_set_irq (s->irq, 0);
+        qemu_irq_raise (s->pic[s->irq]);
+        qemu_irq_lower (s->pic[s->irq]);
     }
 
     s->mixer_regs[0x82] = 0;
@@ -894,7 +895,7 @@ static IO_WRITE_PROTO (dsp_write)
             if (s->v2x6 == 1) {
                 if (0 && s->highspeed) {
                     s->highspeed = 0;
-                    pic_set_irq (s->irq, 0);
+                    qemu_irq_lower (s->pic[s->irq]);
                     control (s, 0);
                 }
                 else {
@@ -1005,7 +1006,7 @@ static IO_READ_PROTO (dsp_read)
         if (s->mixer_regs[0x82] & 1) {
             ack = 1;
             s->mixer_regs[0x82] &= 1;
-            pic_set_irq (s->irq, 0);
+            qemu_irq_lower (s->pic[s->irq]);
         }
         break;
 
@@ -1014,7 +1015,7 @@ static IO_READ_PROTO (dsp_read)
         if (s->mixer_regs[0x82] & 2) {
             ack = 1;
             s->mixer_regs[0x82] &= 2;
-            pic_set_irq (s->irq, 0);
+            qemu_irq_lower (s->pic[s->irq]);
         }
         break;
 
@@ -1222,7 +1223,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 
     if (s->left_till_irq <= 0) {
         s->mixer_regs[0x82] |= (nchan & 4) ? 2 : 1;
-        pic_set_irq (s->irq, 1);
+        qemu_irq_raise (s->pic[s->irq]);
         if (0 == s->dma_auto) {
             control (s, 0);
             speaker (s, 0);
@@ -1389,7 +1390,7 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-int SB16_init (AudioState *audio)
+int SB16_init (AudioState *audio, qemu_irq *pic)
 {
     SB16State *s;
     int i;
@@ -1409,6 +1410,7 @@ int SB16_init (AudioState *audio)
     }
 
     s->cmd = -1;
+    s->pic = pic;
     s->irq = conf.irq;
     s->dma = conf.dma;
     s->hdma = conf.hdma;

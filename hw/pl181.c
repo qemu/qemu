@@ -40,8 +40,7 @@ typedef struct {
     int fifo_pos;
     int fifo_len;
     uint32_t fifo[PL181_FIFO_LEN];
-    void *pic;
-    int irq[2];
+    qemu_irq irq[2];
 } pl181_state;
 
 #define PL181_CMD_INDEX     0x3f
@@ -96,7 +95,7 @@ static void pl181_update(pl181_state *s)
 {
     int i;
     for (i = 0; i < 2; i++) {
-        pic_set_irq_new(s->pic, s->irq[i], (s->status & s->mask[i]) != 0);
+        qemu_set_irq(s->irq[i], (s->status & s->mask[i]) != 0);
     }
 }
 
@@ -425,7 +424,7 @@ static void pl181_reset(void *opaque)
 }
 
 void pl181_init(uint32_t base, BlockDriverState *bd,
-                void *pic, int irq0, int irq1)
+                qemu_irq irq0, qemu_irq irq1)
 {
     int iomemtype;
     pl181_state *s;
@@ -436,7 +435,6 @@ void pl181_init(uint32_t base, BlockDriverState *bd,
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
     s->base = base;
     s->card = sd_init(bd);
-    s->pic = pic;
     s->irq[0] = irq0;
     s->irq[1] = irq1;
     qemu_register_reset(pl181_reset, s);

@@ -18,7 +18,7 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    void *pic;
+    qemu_irq *pic;
     void *scsi_hba;
     PCIBus *pci_bus;
     NICInfo *nd;
@@ -38,24 +38,24 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
     /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
        is nIRQ (there are inconsistencies).  However Linux 2.6.17 expects
        GIC1 to be nIRQ and ignores all the others, so do that for now.  */
-    pic = arm_gic_init(0x10040000, pic, ARM_PIC_CPU_IRQ);
-    pl050_init(0x10006000, pic, 20, 0);
-    pl050_init(0x10007000, pic, 21, 1);
+    pic = arm_gic_init(0x10040000, pic[ARM_PIC_CPU_IRQ]);
+    pl050_init(0x10006000, pic[20], 0);
+    pl050_init(0x10007000, pic[21], 1);
 
-    pl011_init(0x10009000, pic, 12, serial_hds[0]);
-    pl011_init(0x1000a000, pic, 13, serial_hds[1]);
-    pl011_init(0x1000b000, pic, 14, serial_hds[2]);
-    pl011_init(0x1000c000, pic, 15, serial_hds[3]);
+    pl011_init(0x10009000, pic[12], serial_hds[0]);
+    pl011_init(0x1000a000, pic[13], serial_hds[1]);
+    pl011_init(0x1000b000, pic[14], serial_hds[2]);
+    pl011_init(0x1000c000, pic[15], serial_hds[3]);
 
     /* DMA controller is optional, apparently.  */
-    pl080_init(0x10030000, pic, 24, 2);
+    pl080_init(0x10030000, pic[24], 2);
 
-    sp804_init(0x10011000, pic, 4);
-    sp804_init(0x10012000, pic, 5);
+    sp804_init(0x10011000, pic[4]);
+    sp804_init(0x10012000, pic[5]);
 
-    pl110_init(ds, 0x10020000, pic, 23, 1);
+    pl110_init(ds, 0x10020000, pic[23], 1);
 
-    pl181_init(0x10005000, sd_bdrv, pic, 17, 18);
+    pl181_init(0x10005000, sd_bdrv, pic[17], pic[18]);
 
     pci_bus = pci_vpb_init(pic, 48, 1);
     if (usb_enabled) {
@@ -72,7 +72,7 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
         if (!nd->model)
             nd->model = done_smc ? "rtl8139" : "smc91c111";
         if (strcmp(nd->model, "smc91c111") == 0) {
-            smc91c111_init(nd, 0x4e000000, pic, 28);
+            smc91c111_init(nd, 0x4e000000, pic[28]);
         } else {
             pci_nic_init(pci_bus, nd, -1);
         }

@@ -124,9 +124,7 @@ typedef struct CUDAState {
     int data_in_index;
     int data_out_index;
 
-    SetIRQFunc *set_irq;
-    int irq;
-    void *irq_opaque;
+    qemu_irq irq;
     uint8_t autopoll;
     uint8_t data_in[128];
     uint8_t data_out[16];
@@ -145,9 +143,9 @@ static void cuda_timer_update(CUDAState *s, CUDATimer *ti,
 static void cuda_update_irq(CUDAState *s)
 {
     if (s->ifr & s->ier & (SR_INT | T1_INT)) {
-        s->set_irq(s->irq_opaque, s->irq, 1);
+        qemu_irq_raise(s->irq);
     } else {
-        s->set_irq(s->irq_opaque, s->irq, 0);
+        qemu_irq_lower(s->irq);
     }
 }
 
@@ -630,13 +628,11 @@ static CPUReadMemoryFunc *cuda_read[] = {
     &cuda_readl,
 };
 
-int cuda_init(SetIRQFunc *set_irq, void *irq_opaque, int irq)
+int cuda_init(qemu_irq irq)
 {
     CUDAState *s = &cuda_state;
     int cuda_mem_index;
 
-    s->set_irq = set_irq;
-    s->irq_opaque = irq_opaque;
     s->irq = irq;
 
     s->timers[0].index = 0;

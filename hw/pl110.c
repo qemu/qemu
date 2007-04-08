@@ -29,7 +29,6 @@ typedef struct {
     DisplayState *ds;
     /* The Versatile/PB uses a slightly modified PL110 controller.  */
     int versatile;
-    void *pic;
     uint32_t timing[4];
     uint32_t cr;
     uint32_t upbase;
@@ -42,7 +41,7 @@ typedef struct {
     int invalidate;
     uint32_t pallette[256];
     uint32_t raw_pallette[128];
-    int irq;
+    qemu_irq irq;
 } pl110_state;
 
 static const unsigned char pl110_id[] =
@@ -399,7 +398,7 @@ static CPUWriteMemoryFunc *pl110_writefn[] = {
    pl110_write
 };
 
-void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq,
+void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq,
                  int versatile)
 {
     pl110_state *s;
@@ -412,7 +411,6 @@ void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq,
     s->base = base;
     s->ds = ds;
     s->versatile = versatile;
-    s->pic = pic;
     s->irq = irq;
     graphic_console_init(ds, pl110_update_display, pl110_invalidate_display,
                          NULL, s);

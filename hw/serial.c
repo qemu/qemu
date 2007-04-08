@@ -83,9 +83,7 @@ struct SerialState {
     /* NOTE: this hidden state is necessary for tx irq generation as
        it can be reset while reading iir */
     int thr_ipending;
-    SetIRQFunc *set_irq;
-    void *irq_opaque;
-    int irq;
+    qemu_irq irq;
     CharDriverState *chr;
     int last_break_enable;
     target_ulong base;
@@ -102,9 +100,9 @@ static void serial_update_irq(SerialState *s)
         s->iir = UART_IIR_NO_INT;
     }
     if (s->iir != UART_IIR_NO_INT) {
-        s->set_irq(s->irq_opaque, s->irq, 1);
+        qemu_irq_raise(s->irq);
     } else {
-        s->set_irq(s->irq_opaque, s->irq, 0);
+        qemu_irq_lower(s->irq);
     }
 }
 
@@ -347,8 +345,7 @@ static int serial_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /* If fd is zero, it means that the serial device uses the console */
-SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
-                         int base, int irq, CharDriverState *chr)
+SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
 {
     SerialState *s;
 
@@ -357,8 +354,6 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
         return NULL;
-    s->set_irq = set_irq;
-    s->irq_opaque = opaque;
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
@@ -432,9 +427,8 @@ static CPUWriteMemoryFunc *serial_mm_write[] = {
     &serial_mm_writel,
 };
 
-SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
-                             target_ulong base, int it_shift,
-                             int irq, CharDriverState *chr,
+SerialState *serial_mm_init (target_ulong base, int it_shift,
+                             qemu_irq irq, CharDriverState *chr,
                              int ioregister)
 {
     SerialState *s;
@@ -443,8 +437,6 @@ SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
         return NULL;
-    s->set_irq = set_irq;
-    s->irq_opaque = opaque;
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;

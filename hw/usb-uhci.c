@@ -119,7 +119,7 @@ static void uhci_update_irq(UHCIState *s)
     } else {
         level = 0;
     }
-    pci_set_irq(&s->dev, 3, level);
+    qemu_set_irq(s->dev.irq[3], level);
 }
 
 static void uhci_reset(UHCIState *s)

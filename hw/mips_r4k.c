@@ -39,11 +39,6 @@ static PITState *pit; /* PIT i8254 */
 static int bigendian;
 
 /*i8254 PIT is attached to the IRQ0 at PIC i8259 */
-/*The PIC is attached to the MIPS CPU INT0 pin */
-static void pic_irq_request(void *opaque, int level)
-{
-    cpu_mips_irq_request(opaque, 2, level);
-}
 
 static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
 			      uint32_t val)
@@ -158,6 +153,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     RTCState *rtc_state;
     int i;
     mips_def_t *def;
+    qemu_irq *i8259;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -214,22 +210,24 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* Init CPU internal devices */
+    cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
 
-    rtc_state = rtc_init(0x70, 8);
+    /* The PIC is attached to the MIPS CPU INT0 pin */
+    i8259 = i8259_init(env->irq[2]);
+
+    rtc_state = rtc_init(0x70, i8259[8]);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
     isa_mmio_init(0x14000000, 0x00010000);
     isa_mem_base = 0x10000000;
 
-    isa_pic = pic_init(pic_irq_request, env);
-    pit = pit_init(0x40, 0);
+    pit = pit_init(0x40, i8259[0]);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(&pic_set_irq_new, isa_pic,
-                        serial_io[i], serial_irq[i], serial_hds[i]);
+            serial_init(serial_io[i], i8259[serial_irq[i]], serial_hds[i]);
         }
     }
 
@@ -239,7 +237,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
-            isa_ne2000_init(0x300, 9, &nd_table[0]);
+            isa_ne2000_init(0x300, i8259[9], &nd_table[0]);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
@@ -247,10 +245,10 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     for(i = 0; i < 2; i++)
-        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+        isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
                      bs_table[2 * i], bs_table[2 * i + 1]);
 
-    kbd_init();
+    i8042_init(i8259[1], i8259[12], 0x60);
     ds1225y_init(0x9000, "nvram");
 }
 

@@ -15,9 +15,8 @@ typedef struct {
     uint32_t cr;
     uint32_t clk;
     uint32_t last;
-    void *pic;
     int pending;
-    int irq;
+    qemu_irq irq;
     int is_mouse;
 } pl050_state;
 
@@ -32,7 +31,7 @@ static void pl050_update(void *opaque, int level)
     s->pending = level;
     raise = (s->pending && (s->cr & 0x10) != 0)
             || (s->cr & 0x08) != 0;
-    pic_set_irq_new(s->pic, s->irq, raise);
+    qemu_set_irq(s->irq, raise);
 }
 
 static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
@@ -105,7 +104,7 @@ static CPUWriteMemoryFunc *pl050_writefn[] = {
    pl050_write
 };
 
-void pl050_init(uint32_t base, void *pic, int irq, int is_mouse)
+void pl050_init(uint32_t base, qemu_irq irq, int is_mouse)
 {
     int iomemtype;
     pl050_state *s;
@@ -115,7 +114,6 @@ void pl050_init(uint32_t base, void *pic, int irq, int is_mouse)
                                        pl050_writefn, s);
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
     s->base = base;
-    s->pic = pic;
     s->irq = irq;
     s->is_mouse = is_mouse;
     if (is_mouse)

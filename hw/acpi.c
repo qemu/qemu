@@ -92,7 +92,7 @@ static void pm_update_sci(PIIX4PMState *s)
     pmsts = get_pmsts(s);
     sci_level = (((pmsts & s->pmen) & 
                   (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
-    pci_set_irq(&s->dev, 0, sci_level);
+    qemu_set_irq(s->dev.irq[0], sci_level);
     /* schedule a timer interruption if needed */
     if ((s->pmen & TMROF_EN) && !(pmsts & TMROF_EN)) {
         expire_time = muldiv64(s->tmr_overflow_time, ticks_per_sec, PM_FREQ);

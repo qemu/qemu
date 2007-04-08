@@ -31,8 +31,7 @@ extern int loglevel;
 /* PowerPC internal fake IRQ controller
  * used to manage multiple sources hardware events
  */
-/* XXX: should be protected */
-void ppc_set_irq (void *opaque, int n_IRQ, int level)
+static void ppc_set_irq (void *opaque, int n_IRQ, int level)
 {
     CPUState *env;
 
@@ -49,6 +48,17 @@ void ppc_set_irq (void *opaque, int n_IRQ, int level)
     printf("%s: %p n_IRQ %d level %d => pending %08x req %08x\n", __func__,
            env, n_IRQ, level, env->pending_interrupts, env->interrupt_request);
 #endif
+}
+
+void cpu_ppc_irq_init_cpu(CPUState *env)
+{
+    qemu_irq *qi;
+    int i;
+
+    qi = qemu_allocate_irqs(ppc_set_irq, env, 32);
+    for (i = 0; i < 32; i++) {
+        env->irq[i] = qi[i];
+    }
 }
 
 /* External IRQ callback from OpenPIC IRQ controller */

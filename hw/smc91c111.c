@@ -24,8 +24,7 @@ typedef struct {
     uint16_t gpr;
     uint16_t ptr;
     uint16_t ercv;
-    void *pic;
-    int irq;
+    qemu_irq irq;
     int bank;
     int packet_num;
     int tx_alloc;
@@ -86,7 +85,7 @@ static void smc91c111_update(smc91c111_state *s)
     if (s->tx_fifo_done_len != 0)
         s->int_level |= INT_TX;
     level = (s->int_level & s->int_mask) != 0;
-    pic_set_irq_new(s->pic, s->irq, level);
+    qemu_set_irq(s->irq, level);
 }
 
 /* Try to allocate a packet.  Returns 0x80 on failure.  */
@@ -693,7 +692,7 @@ static CPUWriteMemoryFunc *smc91c111_writefn[] = {
     smc91c111_writel
 };
 
-void smc91c111_init(NICInfo *nd, uint32_t base, void *pic, int irq)
+void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
 {
     smc91c111_state *s;
     int iomemtype;
@@ -703,7 +702,6 @@ void smc91c111_init(NICInfo *nd, uint32_t base, void *pic, int irq)
                                        smc91c111_writefn, s);
     cpu_register_physical_memory(base, 16, iomemtype);
     s->base = base;
-    s->pic = pic;
     s->irq = irq;
     memcpy(s->macaddr, nd->macaddr, 6);
 

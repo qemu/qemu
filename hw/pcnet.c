@@ -76,7 +76,7 @@ struct PCNetState_st {
     int xmit_pos, recv_pos;
     uint8_t buffer[4096];
     int tx_busy;
-    void (*set_irq_cb)(void *s, int isr);
+    qemu_irq irq;
     void (*phys_mem_read)(void *dma_opaque, target_phys_addr_t addr,
                          uint8_t *buf, int len, int do_bswap);
     void (*phys_mem_write)(void *dma_opaque, target_phys_addr_t addr,
@@ -830,7 +830,7 @@ static void pcnet_update_irq(PCNetState *s)
         printf("pcnet: INTA=%d\n", isr);
 #endif
     }
-    s->set_irq_cb(s, isr);
+    qemu_set_irq(s->irq, isr);
     s->isr = isr;
 }
 
@@ -1947,13 +1947,6 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->mmio_index);
 }
 
-static void pcnet_pci_set_irq_cb(void *opaque, int isr)
-{
-    PCNetState *s = opaque;
-
-    pci_set_irq(&s->dev, 0, isr);
-}
-
 static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
@@ -2008,7 +2001,7 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_register_io_region((PCIDevice *)d, 1, PCNET_PNPMMIO_SIZE, 
                            PCI_ADDRESS_SPACE_MEM, pcnet_mmio_map);
                            
-    d->set_irq_cb = pcnet_pci_set_irq_cb;
+    d->irq = d->dev.irq[0];
     d->phys_mem_read = pci_physical_memory_read;
     d->phys_mem_write = pci_physical_memory_write;
     d->pci_dev = &d->dev;
@@ -2032,14 +2025,7 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
     (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
 };
 
-static void pcnet_sparc_set_irq_cb(void *opaque, int isr)
-{
-    PCNetState *s = opaque;
-
-    ledma_set_irq(s->dma_opaque, isr);
-}
-
-void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque)
+void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque, qemu_irq irq)
 {
     PCNetState *d;
     int lance_io_memory;
@@ -2054,7 +2040,7 @@ void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque)
     d->dma_opaque = dma_opaque;
     cpu_register_physical_memory(leaddr, 4, lance_io_memory);
 
-    d->set_irq_cb = pcnet_sparc_set_irq_cb;
+    d->irq = irq;
     d->phys_mem_read = ledma_memory_read;
     d->phys_mem_write = ledma_memory_write;
 

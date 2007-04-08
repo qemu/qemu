@@ -32,8 +32,7 @@ typedef struct {
     int raw_freq;
     int freq;
     int int_level;
-    void *pic;
-    int irq;
+    qemu_irq irq;
 } arm_timer_state;
 
 /* Calculate the new expiry time of the given timer.  */
@@ -85,9 +84,9 @@ static void arm_timer_update(arm_timer_state *s, int64_t now)
     }
     /* Update interrupts.  */
     if (s->int_level && (s->control & TIMER_CTRL_IE)) {
-        pic_set_irq_new(s->pic, s->irq, 1);
+        qemu_irq_raise(s->irq);
     } else {
-        pic_set_irq_new(s->pic, s->irq, 0);
+        qemu_irq_lower(s->irq);
     }
 
     next = now;
@@ -215,12 +214,11 @@ static void arm_timer_tick(void *opaque)
     arm_timer_update((arm_timer_state *)opaque, now);
 }
 
-static void *arm_timer_init(uint32_t freq, void *pic, int irq)
+static void *arm_timer_init(uint32_t freq, qemu_irq irq)
 {
     arm_timer_state *s;
 
     s = (arm_timer_state *)qemu_mallocz(sizeof(arm_timer_state));
-    s->pic = pic;
     s->irq = irq;
     s->raw_freq = s->freq = 1000000;
     s->control = TIMER_CTRL_IE;
@@ -237,22 +235,19 @@ static void *arm_timer_init(uint32_t freq, void *pic, int irq)
    Integrator/CP timer modules.  */
 
 typedef struct {
-    /* Include a pseudo-PIC device to merge the two interrupt sources.  */
-    arm_pic_handler handler;
     void *timer[2];
     int level[2];
     uint32_t base;
-    /* The output PIC device.  */
-    void *pic;
-    int irq;
+    qemu_irq irq;
 } sp804_state;
 
+/* Merge the IRQs from the two component devices.  */
 static void sp804_set_irq(void *opaque, int irq, int level)
 {
     sp804_state *s = (sp804_state *)opaque;
 
     s->level[irq] = level;
-    pic_set_irq_new(s->pic, s->irq, s->level[0] || s->level[1]);
+    qemu_set_irq(s->irq, s->level[0] || s->level[1]);
 }
 
 static uint32_t sp804_read(void *opaque, target_phys_addr_t offset)
@@ -293,20 +288,20 @@ static CPUWriteMemoryFunc *sp804_writefn[] = {
    sp804_write
 };
 
-void sp804_init(uint32_t base, void *pic, int irq)
+void sp804_init(uint32_t base, qemu_irq irq)
 {
     int iomemtype;
     sp804_state *s;
+    qemu_irq *qi;
 
     s = (sp804_state *)qemu_mallocz(sizeof(sp804_state));
-    s->handler = sp804_set_irq;
+    qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
     s->base = base;
-    s->pic = pic;
     s->irq = irq;
     /* ??? The timers are actually configurable between 32kHz and 1MHz, but
        we don't implement that.  */
-    s->timer[0] = arm_timer_init(1000000, s, 0);
-    s->timer[1] = arm_timer_init(1000000, s, 1);
+    s->timer[0] = arm_timer_init(1000000, qi[0]);
+    s->timer[1] = arm_timer_init(1000000, qi[1]);
     iomemtype = cpu_register_io_memory(0, sp804_readfn,
                                        sp804_writefn, s);
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
@@ -362,7 +357,7 @@ static CPUWriteMemoryFunc *icp_pit_writefn[] = {
    icp_pit_write
 };
 
-void icp_pit_init(uint32_t base, void *pic, int irq)
+void icp_pit_init(uint32_t base, qemu_irq *pic, int irq)
 {
     int iomemtype;
     icp_pit_state *s;
@@ -370,10 +365,10 @@ void icp_pit_init(uint32_t base, void *pic, int irq)
     s = (icp_pit_state *)qemu_mallocz(sizeof(icp_pit_state));
     s->base = base;
     /* Timer 0 runs at the system clock speed (40MHz).  */
-    s->timer[0] = arm_timer_init(40000000, pic, irq);
+    s->timer[0] = arm_timer_init(40000000, pic[irq]);
     /* The other two timers run at 1MHz.  */
-    s->timer[1] = arm_timer_init(1000000, pic, irq + 1);
-    s->timer[2] = arm_timer_init(1000000, pic, irq + 2);
+    s->timer[1] = arm_timer_init(1000000, pic[irq + 1]);
+    s->timer[2] = arm_timer_init(1000000, pic[irq + 2]);
 
     iomemtype = cpu_register_io_memory(0, icp_pit_readfn,
                                        icp_pit_writefn, s);

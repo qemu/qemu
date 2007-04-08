@@ -136,7 +136,7 @@ typedef struct NE2000State {
     uint8_t phys[6]; /* mac address */
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
-    int irq;
+    qemu_irq irq;
     PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
@@ -164,16 +164,10 @@ static void ne2000_update_irq(NE2000State *s)
     int isr;
     isr = (s->isr & s->imr) & 0x7f;
 #if defined(DEBUG_NE2000)
-    printf("NE2000: Set IRQ line %d to %d (%02x %02x)\n",
-	   s->irq, isr ? 1 : 0, s->isr, s->imr);
+    printf("NE2000: Set IRQ to %d (%02x %02x)\n",
+	   isr ? 1 : 0, s->isr, s->imr);
 #endif
-    if (s->irq == 16) {
-        /* PCI irq */
-        pci_set_irq(s->pci_dev, 0, (isr != 0));
-    } else {
-        /* ISA irq */
-        pic_set_irq(s->irq, (isr != 0));
-    }
+    qemu_set_irq(s->irq, (isr != 0));
 }
 
 #define POLYNOMIAL 0x04c11db6
@@ -647,6 +641,7 @@ static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
 static void ne2000_save(QEMUFile* f,void* opaque)
 {
 	NE2000State* s=(NE2000State*)opaque;
+        int tmp;
 
         if (s->pci_dev)
             pci_device_save(s->pci_dev, f);
@@ -669,7 +664,8 @@ static void ne2000_save(QEMUFile* f,void* opaque)
 	qemu_put_buffer(f, s->phys, 6);
 	qemu_put_8s(f, &s->curpag);
 	qemu_put_buffer(f, s->mult, 8);
-	qemu_put_be32s(f, &s->irq);
+        tmp = 0;
+	qemu_put_be32s(f, &tmp); /* ignored, was irq */
 	qemu_put_buffer(f, s->mem, NE2000_MEM_SIZE);
 }
 
@@ -677,6 +673,7 @@ static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 {
 	NE2000State* s=(NE2000State*)opaque;
         int ret;
+        int tmp;
 
         if (version_id > 3)
             return -EINVAL;
@@ -709,13 +706,13 @@ static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 	qemu_get_buffer(f, s->phys, 6);
 	qemu_get_8s(f, &s->curpag);
 	qemu_get_buffer(f, s->mult, 8);
-	qemu_get_be32s(f, &s->irq);
+	qemu_get_be32s(f, &tmp); /* ignored */
 	qemu_get_buffer(f, s->mem, NE2000_MEM_SIZE);
 
 	return 0;
 }
 
-void isa_ne2000_init(int base, int irq, NICInfo *nd)
+void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 {
     NE2000State *s;
     
@@ -807,7 +804,7 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_register_io_region(&d->dev, 0, 0x100, 
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
-    s->irq = 16; // PCI interrupt
+    s->irq = d->dev.irq[0];
     s->pci_dev = (PCIDevice *)d;
     memcpy(s->macaddr, nd->macaddr, 6);
     ne2000_reset(s);

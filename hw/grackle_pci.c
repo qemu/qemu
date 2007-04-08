@@ -80,12 +80,12 @@ static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + (pci_dev->devfn >> 3)) & 3;
 }
 
-static void pci_grackle_set_irq(void *pic, int irq_num, int level)
+static void pci_grackle_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    heathrow_pic_set_irq(pic, irq_num + 8, level);
+    qemu_set_irq(pic[irq_num + 8], level);
 }
 
-PCIBus *pci_grackle_init(uint32_t base, void *pic)
+PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
 {
     GrackleState *s;
     PCIDevice *d;

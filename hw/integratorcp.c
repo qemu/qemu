@@ -267,28 +267,22 @@ static void integratorcm_init(int memsz, uint32_t flash_offset)
 
 typedef struct icp_pic_state
 {
-  arm_pic_handler handler;
   uint32_t base;
   uint32_t level;
   uint32_t irq_enabled;
   uint32_t fiq_enabled;
-  void *parent;
-  int parent_irq;
-  int parent_fiq;
+  qemu_irq parent_irq;
+  qemu_irq parent_fiq;
 } icp_pic_state;
 
 static void icp_pic_update(icp_pic_state *s)
 {
     uint32_t flags;
 
-    if (s->parent_irq != -1) {
-        flags = (s->level & s->irq_enabled);
-        pic_set_irq_new(s->parent, s->parent_irq, flags != 0);
-    }
-    if (s->parent_fiq != -1) {
-        flags = (s->level & s->fiq_enabled);
-        pic_set_irq_new(s->parent, s->parent_fiq, flags != 0);
-    }
+    flags = (s->level & s->irq_enabled);
+    qemu_set_irq(s->parent_irq, flags != 0);
+    flags = (s->level & s->fiq_enabled);
+    qemu_set_irq(s->parent_fiq, flags != 0);
 }
 
 static void icp_pic_set_irq(void *opaque, int irq, int level)
@@ -345,11 +339,11 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
         break;
     case 4: /* INT_SOFTSET */
         if (value & 1)
-            pic_set_irq_new(s, 0, 1);
+            icp_pic_set_irq(s, 0, 1);
         break;
     case 5: /* INT_SOFTCLR */
         if (value & 1)
-            pic_set_irq_new(s, 0, 0);
+            icp_pic_set_irq(s, 0, 0);
         break;
     case 10: /* FRQ_ENABLESET */
         s->fiq_enabled |= value;
@@ -380,25 +374,25 @@ static CPUWriteMemoryFunc *icp_pic_writefn[] = {
    icp_pic_write
 };
 
-static icp_pic_state *icp_pic_init(uint32_t base, void *parent,
-                                   int parent_irq, int parent_fiq)
+static qemu_irq *icp_pic_init(uint32_t base,
+                              qemu_irq parent_irq, qemu_irq parent_fiq)
 {
     icp_pic_state *s;
     int iomemtype;
+    qemu_irq *qi;
 
     s = (icp_pic_state *)qemu_mallocz(sizeof(icp_pic_state));
     if (!s)
         return NULL;
-    s->handler = icp_pic_set_irq;
+    qi = qemu_allocate_irqs(icp_pic_set_irq, s, 32);
     s->base = base;
-    s->parent = parent;
     s->parent_irq = parent_irq;
     s->parent_fiq = parent_fiq;
     iomemtype = cpu_register_io_memory(0, icp_pic_readfn,
                                        icp_pic_writefn, s);
     cpu_register_physical_memory(base, 0x007fffff, iomemtype);
     /* ??? Save/restore.  */
-    return s;
+    return qi;
 }
 
 /* CP control registers.  */
@@ -475,8 +469,8 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
 {
     CPUState *env;
     uint32_t bios_offset;
-    icp_pic_state *pic;
-    void *cpu_pic;
+    qemu_irq *pic;
+    qemu_irq *cpu_pic;
 
     env = cpu_init();
     if (!cpu_model)
@@ -492,25 +486,26 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
 
     integratorcm_init(ram_size >> 20, bios_offset);
     cpu_pic = arm_pic_init_cpu(env);
-    pic = icp_pic_init(0x14000000, cpu_pic, ARM_PIC_CPU_IRQ, ARM_PIC_CPU_FIQ);
-    icp_pic_init(0xca000000, pic, 26, -1);
+    pic = icp_pic_init(0x14000000, cpu_pic[ARM_PIC_CPU_IRQ],
+                       cpu_pic[ARM_PIC_CPU_FIQ]);
+    icp_pic_init(0xca000000, pic[26], NULL);
     icp_pit_init(0x13000000, pic, 5);
-    pl011_init(0x16000000, pic, 1, serial_hds[0]);
-    pl011_init(0x17000000, pic, 2, serial_hds[1]);
+    pl011_init(0x16000000, pic[1], serial_hds[0]);
+    pl011_init(0x17000000, pic[2], serial_hds[1]);
     icp_control_init(0xcb000000);
-    pl050_init(0x18000000, pic, 3, 0);
-    pl050_init(0x19000000, pic, 4, 1);
-    pl181_init(0x1c000000, sd_bdrv, pic, 23, 24);
+    pl050_init(0x18000000, pic[3], 0);
+    pl050_init(0x19000000, pic[4], 1);
+    pl181_init(0x1c000000, sd_bdrv, pic[23], pic[24]);
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "smc91c111") == 0) {
-            smc91c111_init(&nd_table[0], 0xc8000000, pic, 27);
+            smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
         }
     }
-    pl110_init(ds, 0xc0000000, pic, 22, 0);
+    pl110_init(ds, 0xc0000000, pic[22], 0);
 
     arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
                     initrd_filename, 0x113);

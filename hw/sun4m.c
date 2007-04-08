@@ -182,11 +182,6 @@ void irq_info()
     slavio_irq_info(slavio_intctl);
 }
 
-void pic_set_irq(int irq, int level)
-{
-    pic_set_irq_new(slavio_intctl, irq, level);
-}
-
 static void *slavio_misc;
 
 void qemu_system_powerdown(void)
@@ -208,6 +203,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     unsigned int i;
     void *iommu, *dma, *main_esp, *main_lance = NULL;
     const sparc_def_t *def;
+    qemu_irq *slavio_irq;
 
     /* init CPUs */
     sparc_find_by_name(cpu_model, &def);
@@ -230,38 +226,40 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     iommu = iommu_init(hwdef->iommu_base);
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000,
-                                       &hwdef->intbit_to_level[0]);
+                                       &hwdef->intbit_to_level[0],
+                                       &slavio_irq);
     for(i = 0; i < smp_cpus; i++) {
         slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
     }
-    dma = sparc32_dma_init(hwdef->dma_base, hwdef->esp_irq,
-                           hwdef->le_irq, iommu, slavio_intctl);
+    dma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
+                           slavio_irq[hwdef->le_irq], iommu);
 
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + ram_size, ram_size,
              hwdef->vram_size, graphic_width, graphic_height);
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "lance") == 0) {
-            main_lance = lance_init(&nd_table[0], hwdef->le_base, dma);
+            main_lance = lance_init(&nd_table[0], hwdef->le_base, dma,
+                                    slavio_irq[hwdef->le_irq]);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
         }
     }
-    nvram = m48t59_init(0, hwdef->nvram_base, 0, hwdef->nvram_size, 8);
+    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
+                        hwdef->nvram_size, 8);
     for (i = 0; i < MAX_CPUS; i++) {
         slavio_timer_init(hwdef->counter_base + i * TARGET_PAGE_SIZE,
                           hwdef->clock_irq, 0, i, slavio_intctl);
     }
     slavio_timer_init(hwdef->counter_base + 0x10000, hwdef->clock1_irq, 2,
                       (unsigned int)-1, slavio_intctl);
-    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, hwdef->ms_kb_irq,
-                              slavio_intctl);
+    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq]);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    slavio_serial_init(hwdef->serial_base, hwdef->ser_irq,
-                       serial_hds[1], serial_hds[0], slavio_intctl);
-    fdctrl_init(hwdef->fd_irq, 0, 1, hwdef->fd_base, fd_table);
+    slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
+                       serial_hds[1], serial_hds[0]);
+    fdctrl_init(slavio_irq[hwdef->fd_irq], 0, 1, hwdef->fd_base, fd_table);
     main_esp = esp_init(bs_table, hwdef->esp_base, dma);
 
     for (i = 0; i < MAX_DISKS; i++) {
@@ -270,8 +268,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         }
     }
 
-    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->me_irq,
-                                   slavio_intctl);
+    slavio_misc = slavio_misc_init(hwdef->slavio_base, 
+                                   slavio_irq[hwdef->me_irq]);
     if (hwdef->cs_base != (target_ulong)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
     sparc32_dma_set_reset_data(dma, main_esp, main_lance);
@@ -378,7 +376,7 @@ static const struct hwdef hwdefs[] = {
     /* SS-10 */
     {
         .iommu_base   = 0xe0000000, // XXX Actually at 0xfe0000000ULL (36 bits)
-        .tcx_base     = 0x21000000, // 0xe21000000ULL,
+        .tcx_base     = 0x20000000, // 0xe20000000ULL,
         .cs_base      = -1,
         .slavio_base  = 0xf1000000, // 0xff1000000ULL,
         .ms_kb_base   = 0xf1000000, // 0xff1000000ULL,

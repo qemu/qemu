@@ -96,11 +96,6 @@ static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
     return 0;
 }
 
-static void pic_irq_request (void *opaque, int level)
-{
-    ppc_set_irq(opaque, PPC_INTERRUPT_EXT, level);
-}
-
 /* PCI intack register */
 /* Read-only register (?) */
 static void _PPC_intack_write (void *opaque,
@@ -532,6 +527,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     ppc_def_t *def;
     PCIBus *pci_bus;
+    qemu_irq *i8259;
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
     if (sysctrl == NULL)
@@ -552,6 +548,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }
     cpu_ppc_register(env, def);
+    cpu_ppc_irq_init_cpu(env);
     /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
 
@@ -602,7 +599,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     isa_mem_base = 0xc0000000;
-    pci_bus = pci_prep_init();
+    i8259 = i8259_init(first_cpu->irq[PPC_INTERRUPT_EXT]);
+    pci_bus = pci_prep_init(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
     PPC_io_memory = cpu_register_io_memory(0, PPC_prep_io_read,
@@ -612,19 +610,18 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     /* init basic PC hardware */
     pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
                  vga_ram_size, 0, 0);
-    rtc_init(0x70, 8);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-    isa_pic = pic_init(pic_irq_request, first_cpu);
-    //    pit = pit_init(0x40, 0);
+    //    pit = pit_init(0x40, i8259[0]);
+    rtc_init(0x70, i8259[8]);
 
-    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+    serial_init(0x3f8, i8259[4], serial_hds[0]);
     nb_nics1 = nb_nics;
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;
     for(i = 0; i < nb_nics1; i++) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
-            isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+            isa_ne2000_init(ne2000_io[i], i8259[ne2000_irq[i]], &nd_table[i]);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
@@ -632,15 +629,15 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     for(i = 0; i < 2; i++) {
-        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+        isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
                      bs_table[2 * i], bs_table[2 * i + 1]);
     }
-    kbd_init();
+    i8042_init(i8259[1], i8259[12], 0x60);
     DMA_init(1);
     //    AUD_init();
     //    SB16_init();
 
-    fdctrl_init(6, 2, 0, 0x3f0, fd_table);
+    fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
 
     /* Register speaker port */
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
@@ -667,7 +664,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
 
-    nvram = m48t59_init(8, 0, 0x0074, NVRAM_SIZE, 59);
+    nvram = m48t59_init(i8259[8], 0, 0x0074, NVRAM_SIZE, 59);
     if (nvram == NULL)
         return;
     sysctrl->nvram = nvram;

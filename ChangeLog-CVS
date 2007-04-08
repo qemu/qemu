@@ -1,3 +1,27 @@
+2007-04-07 21:33  blueswir1
+
+	* hw/sun4m.c: Fix TCX base on SS10
+
+2007-04-07 20:14  pbrook
+
+	* Makefile.target, vl.h, hw/acpi.c, hw/adlib.c, hw/apb_pci.c,
+	  hw/arm_gic.c, hw/arm_pic.c, hw/arm_pic.h, hw/arm_timer.c,
+	  hw/cs4231.c, hw/cuda.c, hw/eepro100.c, hw/es1370.c, hw/fdc.c,
+	  hw/grackle_pci.c, hw/gt64xxx.c, hw/heathrow_pic.c, hw/i8254.c,
+	  hw/i8259.c, hw/ide.c, hw/integratorcp.c, hw/irq.c, hw/irq.h,
+	  hw/lsi53c895a.c, hw/m48t59.c, hw/m48t59.h, hw/mc146818rtc.c,
+	  hw/mips_int.c, hw/mips_malta.c, hw/mips_r4k.c, hw/mips_timer.c,
+	  hw/ne2000.c, hw/openpic.c, hw/parallel.c, hw/pc.c, hw/pci.c,
+	  hw/pckbd.c, hw/pcnet.c, hw/pcspk.c, hw/piix_pci.c, hw/pl011.c,
+	  hw/pl050.c, hw/pl080.c, hw/pl110.c, hw/pl181.c, hw/pl190.c,
+	  hw/ppc.c, hw/ppc_chrp.c, hw/ppc_prep.c, hw/prep_pci.c,
+	  hw/realview.c, hw/rtl8139.c, hw/sb16.c, hw/serial.c, hw/shix.c,
+	  hw/slavio_intctl.c, hw/slavio_misc.c, hw/slavio_serial.c,
+	  hw/slavio_timer.c, hw/smc91c111.c, hw/sparc32_dma.c, hw/sun4m.c,
+	  hw/sun4u.c, hw/unin_pci.c, hw/usb-ohci.c, hw/usb-uhci.c,
+	  hw/usb.h, hw/versatile_pci.c, hw/versatilepb.c,
+	  target-mips/cpu.h, target-ppc/cpu.h: Unify IRQ handling.
+
 2007-04-07 13:48  j_mayer
 
 	* target-ppc/op.c: PowerPC 64 fixes

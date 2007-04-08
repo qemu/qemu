@@ -223,14 +223,6 @@ void irq_info()
 {
 }
 
-void pic_set_irq(int irq, int level)
-{
-}
-
-void pic_set_irq_new(void *opaque, int irq, int level)
-{
-}
-
 void qemu_system_powerdown(void)
 {
 }
@@ -340,14 +332,13 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(&pic_set_irq_new, NULL,
-                        serial_io[i], serial_irq[i], serial_hds[i]);
+            serial_init(serial_io[i], NULL/*serial_irq[i]*/, serial_hds[i]);
         }
     }
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(parallel_io[i], parallel_irq[i], parallel_hds[i]);
+            parallel_init(parallel_io[i], NULL/*parallel_irq[i]*/, parallel_hds[i]);
         }
     }
 
@@ -358,9 +349,10 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     pci_cmd646_ide_init(pci_bus, bs_table, 1);
-    kbd_init();
-    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
-    nvram = m48t59_init(8, 0, 0x0074, NVRAM_SIZE, 59);
+    /* FIXME: wire up interrupts.  */
+    i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
+    floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd_table);
+    nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
     sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", ram_size, boot_device,
                          KERNEL_LOAD_ADDR, kernel_size,
                          kernel_cmdline,

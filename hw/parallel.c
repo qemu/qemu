@@ -65,7 +65,7 @@ struct ParallelState {
     uint8_t datar;
     uint8_t status;
     uint8_t control;
-    int irq;
+    qemu_irq irq;
     int irq_pending;
     CharDriverState *chr;
     int hw_driver;
@@ -76,9 +76,9 @@ struct ParallelState {
 static void parallel_update_irq(ParallelState *s)
 {
     if (s->irq_pending)
-        pic_set_irq(s->irq, 1);
+        qemu_irq_raise(s->irq);
     else
-        pic_set_irq(s->irq, 0);
+        qemu_irq_lower(s->irq);
 }
 
 static void
@@ -401,7 +401,7 @@ static uint32_t parallel_ioport_ecp_read(void *opaque, uint32_t addr)
 }
 
 /* If fd is zero, it means that the parallel device uses the console */
-ParallelState *parallel_init(int base, int irq, CharDriverState *chr)
+ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
 {
     ParallelState *s;
     uint8_t dummy;

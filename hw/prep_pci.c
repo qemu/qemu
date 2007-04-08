@@ -123,19 +123,19 @@ static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + (pci_dev->devfn >> 3)) & 1;
 }
 
-static void prep_set_irq(void *pic, int irq_num, int level)
+static void prep_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    pic_set_irq(irq_num ? 11 : 9, level);
+    qemu_set_irq(pic[irq_num ? 11 : 9], level);
 }
 
-PCIBus *pci_prep_init(void)
+PCIBus *pci_prep_init(qemu_irq *pic)
 {
     PREPPCIState *s;
     PCIDevice *d;
     int PPC_io_memory;
 
     s = qemu_mallocz(sizeof(PREPPCIState));
-    s->bus = pci_register_bus(prep_set_irq, prep_map_irq, NULL, 0, 2);
+    s->bus = pci_register_bus(prep_set_irq, prep_map_irq, pic, 0, 2);
 
     register_ioport_write(0xcf8, 4, 4, pci_prep_addr_writel, s);
     register_ioport_read(0xcf8, 4, 4, pci_prep_addr_readl, s);

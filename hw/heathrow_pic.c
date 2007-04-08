@@ -32,9 +32,9 @@ typedef struct HeathrowPIC {
     uint32_t level_triggered;
 } HeathrowPIC;
 
-struct HeathrowPICS {
+typedef struct HeathrowPICS {
     HeathrowPIC pics[2];
-};
+} HeathrowPICS;
 
 static inline int check_irq(HeathrowPIC *pic)
 {
@@ -130,7 +130,7 @@ static CPUReadMemoryFunc *pic_read[] = {
 };
 
 
-void heathrow_pic_set_irq(void *opaque, int num, int level)
+static void heathrow_pic_set_irq(void *opaque, int num, int level)
 {
     HeathrowPICS *s = opaque;
     HeathrowPIC *pic;
@@ -156,7 +156,7 @@ void heathrow_pic_set_irq(void *opaque, int num, int level)
     heathrow_pic_update(s);
 }
 
-HeathrowPICS *heathrow_pic_init(int *pmem_index)
+qemu_irq *heathrow_pic_init(int *pmem_index)
 {
     HeathrowPICS *s;
     
@@ -164,5 +164,5 @@ HeathrowPICS *heathrow_pic_init(int *pmem_index)
     s->pics[0].level_triggered = 0;
     s->pics[1].level_triggered = 0x1ff00000;
     *pmem_index = cpu_register_io_memory(0, pic_read, pic_write, s);
-    return s;
+    return qemu_allocate_irqs(heathrow_pic_set_irq, s, 64);
 }
