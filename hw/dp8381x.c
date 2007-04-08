@@ -422,7 +422,7 @@ static void dp8381x_interrupt(dp8381x_t * s, uint32_t bits)
         isr |= bits;
     }
     op_reg_write(s, DP8381X_ISR, isr);
-    pci_set_irq(s->pci_dev, 0, (ier && (isr & imr)));
+    qemu_set_irq(s->pci_dev->irq[0], (ier && (isr & imr)));
 }
 
 #define POLYNOMIAL 0x04c11db6
