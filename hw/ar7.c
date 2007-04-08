@@ -57,6 +57,10 @@
 //~ #include "target-mips/exec.h"   /* do_int */
 
 #define MIPS_EXCEPTION_OFFSET   8
+#define NUM_PRIMARY_IRQS        40
+#define NUM_SECONDARY_IRQS      32
+
+#define AR7_PRIMARY_IRQ(num)    ar7.primary_irq[(num) - MIPS_EXCEPTION_OFFSET]
 
 /* physical address of kernel */
 #define KERNEL_LOAD_ADDR 0x14000000
@@ -265,7 +269,7 @@ typedef struct {
 
 typedef struct {
     uint8_t *base;              /* base address */
-    int interrupt;              /* interrupt number */
+    qemu_irq interrupt;         /* interrupt number */
     int cyclic;                 /* 1 = cyclic timer */
     int64_t time;               /* preload value */
     uint16_t prescale;          /* prescale divisor */
@@ -320,6 +324,8 @@ typedef struct {
 typedef struct {
     CPUState *cpu_env;
     QEMUTimer *wd_timer;
+    qemu_irq *primary_irq;
+    qemu_irq *secondary_irq;
     NICState nic[2];
     /* Address of phy device (0...31). Only one phy device is supported.
        The internal phy has address 31. */
@@ -540,8 +546,8 @@ static void ar7_update_interrupt(void)
 {
     static int intset;
 
-    CPUState *cpu_env = first_cpu;
-    assert(cpu_env == ar7.cpu_env);
+    CPUState *env = first_cpu;
+    assert(env == ar7.cpu_env);
     uint32_t masked_int1;
     uint32_t masked_int2;
 
@@ -552,7 +558,7 @@ static void ar7_update_interrupt(void)
             intset = 1;
             //~ reg_set(av.intc, INTC_EXSR, BIT(2));
             //~ reg_set(av.intc, INTC_EXCR, BIT(2));
-            cpu_mips_irq_request(cpu_env, 2, 1);
+            qemu_irq_raise(env->irq[2]);
             //~ /* use hardware interrupt 0 */
             //~ cpu_env->CP0_Cause |= 0x00000400;
             //~ cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
@@ -564,7 +570,7 @@ static void ar7_update_interrupt(void)
     } else {
         if (intset) {
             intset = 0;
-            cpu_mips_irq_request(cpu_env, 2, 0);
+            qemu_irq_lower(env->irq[2]);
             //~ cpu_env->CP0_Cause &= ~0x00000400;
             //~ cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
             TRACE(INTC, logout("clear hardware interrupt\n"));
@@ -588,16 +594,17 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         unsigned index = channel / 32;
         unsigned offset = channel % 32;
         if (level) {
-            CPUState *cpu_env = first_cpu;
-            assert(cpu_env == ar7.cpu_env);
+            CPUState *env = first_cpu;
+            assert(env == ar7.cpu_env);
             uint32_t intmask = reg_read(av.intc, INTC_ESR1 + 4 * index);
             if (intmask & BIT(offset)) {
                 TRACE(INTC && (irq_num != 15 || UART),
                       logout("(%p,%d,%d)\n", opaque, irq_num, level));
                 reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
                 /* use hardware interrupt 0 */
-                cpu_env->CP0_Cause |= 0x00000400;
-                cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+                qemu_irq_raise(env->irq[2]);
+                //~ cpu_env->CP0_Cause |= 0x00000400;
+                //~ cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
             } else {
                 TRACE(INTC && (irq_num != 15 || UART),
                       logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
@@ -633,6 +640,16 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         UNEXPECTED();
     }
     ar7_update_interrupt();
+}
+
+static void ar7_primary_irq(void *opaque, int irq_num, int level)
+{
+    ar7_irq(opaque, irq_num + MIPS_EXCEPTION_OFFSET, level);
+}
+
+static void ar7_secondary_irq(void *opaque, int irq_num, int level)
+{
+    ar7_irq(opaque, irq_num + MIPS_EXCEPTION_OFFSET + NUM_PRIMARY_IRQS, level);
 }
 
 static const char *const intc_names[] = {
@@ -1454,7 +1471,7 @@ static void emac_update_interrupt(unsigned index)
     }
     reg_write(cpmac, CPMAC_MACINVECTOR, macintvector);
     enabled = (txintstat || rxintstat || macintstat);
-    ar7_irq(IRQ_OPAQUE, cpmac_interrupt[index], enabled);
+    qemu_set_irq(AR7_PRIMARY_IRQ(cpmac_interrupt[index]), enabled);
 }
 
 static void emac_reset(unsigned index)
@@ -2164,7 +2181,7 @@ static void timer_cb(void *opaque)
     ar7_timer_t *timer = (ar7_timer_t *)opaque;
 
     TRACE(TIMER, logout("timer%d expired\n", timer == &ar7.timer[1]));
-    ar7_irq(IRQ_OPAQUE, timer->interrupt, 1);
+    qemu_irq_raise(timer->interrupt);
     if (timer->cyclic) {
         int64_t t = qemu_get_clock(vm_clock);
         qemu_mod_timer(timer->qemu_timer, t + timer->prescale * timer->time);
@@ -3122,8 +3139,7 @@ static void ar7_serial_init(CPUState * env)
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     for (index = 0; index < 2; index++) {
-        ar7.serial[index] = serial_16550_init(ar7_irq, env,
-                                             0, uart_interrupt[index],
+        ar7.serial[index] = serial_16550_init(0, AR7_PRIMARY_IRQ(uart_interrupt[index]),
                                              serial_hds[index]);
         serial_frequency(ar7.serial[index], io_frequency / 16);
     }
@@ -3646,16 +3662,20 @@ static void mips_ar7_common_init (int ram_size,
     }
 
     /* Init internal devices */
+    cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
     //~ cpu_mips_irqctrl_init();
+
+    ar7.primary_irq = qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
+    ar7.secondary_irq = qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
 
     ar7.wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, env);
     ar7.timer[0].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[0]);
     ar7.timer[0].base = av.timer0;
-    ar7.timer[0].interrupt = INTERRUPT_TIMER0;
+    ar7.timer[0].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER0);
     ar7.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[1]);
     ar7.timer[1].base = av.timer1;
-    ar7.timer[1].interrupt = INTERRUPT_TIMER1;
+    ar7.timer[1].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER1);
 
     /* Address 31 is the AR7 internal phy. */
     ar7.phyaddr = 31;
