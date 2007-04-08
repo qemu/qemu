@@ -1745,6 +1745,8 @@ int main(int argc, char **argv)
                 arm_cpu_list();
 #elif defined(TARGET_MIPS)
                 mips_cpu_list(stdout, &fprintf);
+#elif defined(TARGET_SPARC)
+                sparc_cpu_list(stdout, &fprintf);
 #endif
                 _exit(1);
             }
@@ -1900,6 +1902,20 @@ int main(int argc, char **argv)
 #elif defined(TARGET_SPARC)
     {
         int i;
+        const sparc_def_t *def;
+#ifdef TARGET_SPARC64
+        if (cpu_model == NULL)
+            cpu_model = "TI UltraSparc II";
+#else
+        if (cpu_model == NULL)
+            cpu_model = "Fujitsu MB86904";
+#endif
+        sparc_find_by_name(cpu_model, &def);
+        if (def == NULL) {
+            fprintf(stderr, "Unable to find Sparc CPU definition\n");
+            exit(1);
+        }
+        cpu_sparc_register(env, def);
 	env->pc = regs->pc;
 	env->npc = regs->npc;
         env->y = regs->y;
