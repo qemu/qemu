@@ -4825,32 +4825,26 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_RDHWR:
             switch (rd) {
             case 0:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_cpunum();
                 break;
             case 1:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_synci_step();
                 break;
             case 2:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_cc();
                 break;
             case 3:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_ccres();
                 break;
             case 29:
 #if defined (CONFIG_USER_ONLY)
                 gen_op_tls_value ();
-#else
-                generate_exception(ctx, EXCP_RI);
+                break;
 #endif
-                break;
-            case 30:
-                /* Implementation dependent */;
-                gen_op_rdhwr_unimpl30();
-                break;
-            case 31:
-                /* Implementation dependent */;
-                gen_op_rdhwr_unimpl31();
-                break;
             default:            /* Invalid */
                 MIPS_INVAL("rdhwr");
                 generate_exception(ctx, EXCP_RI);

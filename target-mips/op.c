@@ -2126,7 +2126,7 @@ void op_deret (void)
 void op_rdhwr_cpunum(void)
 {
     if (!(env->hflags & MIPS_HFLAG_UM) ||
-	(env->CP0_HWREna & (1 << 0)) ||
+        (env->CP0_HWREna & (1 << 0)) ||
         (env->CP0_Status & (1 << CP0St_CU0)))
         T0 = env->CP0_EBase & 0x3ff;
     else
@@ -2137,7 +2137,7 @@ void op_rdhwr_cpunum(void)
 void op_rdhwr_synci_step(void)
 {
     if (!(env->hflags & MIPS_HFLAG_UM) ||
-	(env->CP0_HWREna & (1 << 1)) ||
+        (env->CP0_HWREna & (1 << 1)) ||
         (env->CP0_Status & (1 << CP0St_CU0)))
         T0 = env->SYNCI_Step;
     else
@@ -2148,7 +2148,7 @@ void op_rdhwr_synci_step(void)
 void op_rdhwr_cc(void)
 {
     if (!(env->hflags & MIPS_HFLAG_UM) ||
-	(env->CP0_HWREna & (1 << 2)) ||
+        (env->CP0_HWREna & (1 << 2)) ||
         (env->CP0_Status & (1 << CP0St_CU0)))
         T0 = env->CP0_Count;
     else
@@ -2159,31 +2159,9 @@ void op_rdhwr_cc(void)
 void op_rdhwr_ccres(void)
 {
     if (!(env->hflags & MIPS_HFLAG_UM) ||
-	(env->CP0_HWREna & (1 << 3)) ||
+        (env->CP0_HWREna & (1 << 3)) ||
         (env->CP0_Status & (1 << CP0St_CU0)))
         T0 = env->CCRes;
-    else
-        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    RETURN();
-}
-
-void op_rdhwr_unimpl30(void)
-{
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
-	(env->CP0_HWREna & (1 << 30)) ||
-        (env->CP0_Status & (1 << CP0St_CU0)))
-        T0 = 0;
-    else
-        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    RETURN();
-}
-
-void op_rdhwr_unimpl31(void)
-{
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
-	(env->CP0_HWREna & (1 << 31)) ||
-        (env->CP0_Status & (1 << CP0St_CU0)))
-        T0 = 0;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
     RETURN();
