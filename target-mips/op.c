@@ -1293,7 +1293,7 @@ void op_mtc0_entrylo1 (void)
 
 void op_mtc0_context (void)
 {
-    env->CP0_Context = (env->CP0_Context & ~0x007FFFFF) | (T0 & 0x007FFFF0);
+    env->CP0_Context = (env->CP0_Context & ~0x007FFFFF) | (T0 & ~0x007FFFFF);
     RETURN();
 }
 
