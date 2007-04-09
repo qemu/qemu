@@ -1444,13 +1444,16 @@ void op_mtc0_config2 (void)
 
 void op_mtc0_watchlo0 (void)
 {
-    env->CP0_WatchLo = (int32_t)T0;
+    /* Watch exceptions for instructions, data loads, data stores
+       not implemented. */
+    env->CP0_WatchLo = (int32_t)(T0 & ~0x7);
     RETURN();
 }
 
 void op_mtc0_watchhi0 (void)
 {
-    env->CP0_WatchHi = T0 & 0x40FF0FF8;
+    env->CP0_WatchHi = (T0 & 0x40FF0FF8);
+    env->CP0_WatchHi &= ~(env->CP0_WatchHi & T0 & 0x7);
     RETURN();
 }
 
@@ -1620,7 +1623,9 @@ void op_dmtc0_epc (void)
 
 void op_dmtc0_watchlo0 (void)
 {
-    env->CP0_WatchLo = T0;
+    /* Watch exceptions for instructions, data loads, data stores
+       not implemented. */
+    env->CP0_WatchLo = T0 & ~0x7;
     RETURN();
 }
 

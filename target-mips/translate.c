@@ -5406,6 +5406,7 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_EBase = 0x80000000;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     env->CP0_WatchLo = 0;
+    env->CP0_WatchHi = 0;
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
 #endif
