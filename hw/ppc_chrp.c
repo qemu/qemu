@@ -23,6 +23,9 @@
  */
 #include "vl.h"
 
+/* SMP is not enabled, for now */
+#define MAX_CPUS 1
+
 #define BIOS_FILENAME "ppc_rom.bin"
 #define VGABIOS_FILENAME "video.x"
 #define NVRAM_SIZE        0x2000
@@ -296,9 +299,9 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                            const char *cpu_model,
                            int is_heathrow)
 {
-    CPUState *env;
+    CPUState *env, *envs[MAX_CPUS];
     char buf[1024];
-    qemu_irq *pic;
+    qemu_irq *pic, **openpic_irqs;
     m48t59_t *nvram;
     int unin_memory;
     int linux_boot, i;
@@ -329,13 +332,13 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }
-    cpu_ppc_register(env, def);
-    cpu_ppc_irq_init_cpu(env);
-
-    /* Set time-base frequency to 100 Mhz */
-    cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
-    
-    env->osi_call = vga_osi_call;
+    for (i = 0; i < smp_cpus; i++) {
+        cpu_ppc_register(env, def);
+        /* Set time-base frequency to 100 Mhz */
+        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        env->osi_call = vga_osi_call;
+        envs[i] = env;
+    }
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
@@ -458,7 +461,26 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
         unin_memory = cpu_register_io_memory(0, unin_read, unin_write, NULL);
         cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
-        pic = openpic_init(NULL, &ppc_openpic_irq, &openpic_mem_index, 1, &env);
+        openpic_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
+        openpic_irqs[0] =
+            qemu_mallocz(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+        for (i = 0; i < smp_cpus; i++) {
+            /* Mac99 IRQ connection between OpenPIC outputs pins
+             * and PowerPC input pins
+             */
+            openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
+            openpic_irqs[i][OPENPIC_OUTPUT_INT] =
+                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_INT];
+            openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
+                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_INT];
+            openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
+                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_MCP];
+            openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL; /* Not connected ? */
+            openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
+                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_HRESET]; /* Check this */
+        }
+        pic = openpic_init(NULL, &openpic_mem_index, smp_cpus,
+                           openpic_irqs, NULL);
         pci_bus = pci_pmac_init(pic);
         /* init basic PC hardware */
         pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,

@@ -467,16 +467,14 @@ int cpu_exec(CPUState *env1)
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        if (ppc_hw_interrupt(env) == 1) {
-                            /* Some exception was raised */
-                            if (env->pending_interrupts == 0)
-                                env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                        ppc_hw_interrupt(env);
+                        if (env->pending_interrupts == 0)
+                            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
-                            tmp_T0 = 0;
+                        tmp_T0 = 0;
 #else
-                            T0 = 0;
+                        T0 = 0;
 #endif
-                        }
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&

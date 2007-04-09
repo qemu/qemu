@@ -1,5 +1,5 @@
 /*
- * QEMU generic PPC hardware System Emulator
+ * QEMU generic PowerPC hardware System Emulator
  * 
  * Copyright (c) 2003-2007 Jocelyn Mayer
  * 
@@ -24,18 +24,13 @@
 #include "vl.h"
 #include "m48t59.h"
 
+//#define PPC_DEBUG_IRQ
+
 extern FILE *logfile;
 extern int loglevel;
 
-/*****************************************************************************/
-/* PowerPC internal fake IRQ controller
- * used to manage multiple sources hardware events
- */
-static void ppc_set_irq (void *opaque, int n_IRQ, int level)
+void ppc_set_irq (CPUState *env, int n_IRQ, int level)
 {
-    CPUState *env;
-
-    env = opaque;
     if (level) {
         env->pending_interrupts |= 1 << n_IRQ;
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
@@ -44,49 +39,104 @@ static void ppc_set_irq (void *opaque, int n_IRQ, int level)
         if (env->pending_interrupts == 0)
             cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
-#if 0
+#if defined(PPC_DEBUG_IRQ)
     printf("%s: %p n_IRQ %d level %d => pending %08x req %08x\n", __func__,
            env, n_IRQ, level, env->pending_interrupts, env->interrupt_request);
 #endif
 }
 
-void cpu_ppc_irq_init_cpu(CPUState *env)
+/* PowerPC 6xx / 7xx internal IRQ controller */
+static void ppc6xx_set_irq (void *opaque, int pin, int level)
 {
-    qemu_irq *qi;
-    int i;
+    CPUState *env = opaque;
+    int cur_level;
 
-    qi = qemu_allocate_irqs(ppc_set_irq, env, 32);
-    for (i = 0; i < 32; i++) {
-        env->irq[i] = qi[i];
+#if defined(PPC_DEBUG_IRQ)
+    printf("%s: env %p pin %d level %d\n", __func__, env, pin, level);
+#endif
+    cur_level = (env->irq_input_state >> pin) & 1;
+    /* Don't generate spurious events */
+    if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0) || 0) {
+        switch (pin) {
+        case PPC_INPUT_INT:
+            /* Level sensitive - asserted high */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: set the external IRQ state to %d\n", __func__, level);
+#endif
+            ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+            break;
+        case PPC_INPUT_SMI:
+            /* Level sensitive - active high */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: set the SMI IRQ state to %d\n", __func__, level);
+#endif
+            ppc_set_irq(env, PPC_INTERRUPT_SMI, level);
+            break;
+        case PPC_INPUT_MCP:
+            /* Negative edge sensitive */
+            /* XXX: TODO: actual reaction may depends on HID0 status
+             *            603/604/740/750: check HID0[EMCP]
+             */
+            if (cur_level == 1 && level == 0) {
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: raise machine check state\n", __func__);
+#endif
+                ppc_set_irq(env, PPC_INTERRUPT_MCK, 1);
+            }
+            break;
+        case PPC_INPUT_CKSTP_IN:
+            /* Level sensitive - active low */
+            /* XXX: TODO: relay the signal to CKSTP_OUT pin */
+            if (level) {
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: stop the CPU\n", __func__);
+#endif
+                env->halted = 1;
+            } else {
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: restart the CPU\n", __func__);
+#endif
+                env->halted = 0;
+            }
+            break;
+        case PPC_INPUT_HRESET:
+            /* Level sensitive - active low */
+            if (level) {
+#if 0 // XXX: TOFIX
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: reset the CPU\n", __func__);
+#endif
+                cpu_reset(env);
+#endif
+            }
+            break;
+        case PPC_INPUT_SRESET:
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: set the RESET IRQ state to %d\n", __func__, level);
+#endif
+            ppc_set_irq(env, PPC_INTERRUPT_RESET, level);
+            break;
+        default:
+            /* Unknown pin - do nothing */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: unknown IRQ pin %d\n", __func__, pin);
+#endif
+            return;
+        }
+        if (level)
+            env->irq_input_state |= 1 << pin;
+        else
+            env->irq_input_state &= ~(1 << pin);
     }
 }
 
-/* External IRQ callback from OpenPIC IRQ controller */
-void ppc_openpic_irq (void *opaque, int n_IRQ, int level)
+void ppc6xx_irq_init (CPUState *env)
 {
-    switch (n_IRQ) {
-    case OPENPIC_EVT_INT:
-        n_IRQ = PPC_INTERRUPT_EXT;
-        break;
-    case OPENPIC_EVT_CINT:
-        /* On PowerPC BookE, critical input use vector 0 */
-        n_IRQ = PPC_INTERRUPT_RESET;
-        break;
-    case OPENPIC_EVT_MCK:
-        n_IRQ = PPC_INTERRUPT_MCK;
-        break;
-    case OPENPIC_EVT_DEBUG:
-        n_IRQ = PPC_INTERRUPT_DEBUG;
-        break;
-    case OPENPIC_EVT_RESET:
-        qemu_system_reset_request();
-        return;
-    }
-    ppc_set_irq(opaque, n_IRQ, level);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env, 6);
 }
 
 /*****************************************************************************/
-/* PPC time base and decrementer emulation */
+/* PowerPC time base and decrementer emulation */
 //#define DEBUG_TB
 
 struct ppc_tb_t {
