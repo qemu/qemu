@@ -117,6 +117,10 @@ void glue(op_ll, MEMSUFFIX) (void)
 void glue(op_sc, MEMSUFFIX) (void)
 {
     CALL_FROM_TB0(dump_sc);
+    if (T0 & 0x3) {
+        env->CP0_BadVAddr = T0;
+        CALL_FROM_TB1(do_raise_exception, EXCP_AdES);
+    }
     if (T0 == env->CP0_LLAddr) {
         glue(stl, MEMSUFFIX)(T0, T1);
         T0 = 1;
@@ -182,6 +186,10 @@ void glue(op_lld, MEMSUFFIX) (void)
 void glue(op_scd, MEMSUFFIX) (void)
 {
     CALL_FROM_TB0(dump_sc);
+    if (T0 & 0x7) {
+        env->CP0_BadVAddr = T0;
+        CALL_FROM_TB1(do_raise_exception, EXCP_AdES);
+    }
     if (T0 == env->CP0_LLAddr) {
         glue(stq, MEMSUFFIX)(T0, T1);
         T0 = 1;
