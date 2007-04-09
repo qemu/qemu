@@ -4134,11 +4134,6 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         opn = "mfc0";
         break;
     case OPC_MTC0:
-        /* If we get an exception, we want to restart at next instruction */
-        /* XXX: breaks for mtc in delay slot */
-        ctx->pc += 4;
-        save_cpu_state(ctx, 1);
-        ctx->pc -= 4;
         GEN_LOAD_REG_TN(T0, rt);
         gen_mtc0(ctx, rd, ctx->opcode & 0x7);
         opn = "mtc0";
@@ -4153,11 +4148,6 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         opn = "dmfc0";
         break;
     case OPC_DMTC0:
-        /* If we get an exception, we want to restart at next instruction */
-        /* XXX: breaks for dmtc in delay slot */
-        ctx->pc += 4;
-        save_cpu_state(ctx, 1);
-        ctx->pc -= 4;
         GEN_LOAD_REG_TN(T0, rt);
         gen_dmtc0(ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
