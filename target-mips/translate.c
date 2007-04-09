@@ -5405,6 +5405,9 @@ void cpu_reset (CPUMIPSState *env)
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
+    /* vectored interrupts not implemented, timer on int 7,
+       no performance counters. */
+    env->CP0_IntCtl = 0xe0000000;
     env->CP0_WatchLo = 0;
     env->CP0_WatchHi = 0;
     /* Count register increments in debug mode, EJTAG version 1 */

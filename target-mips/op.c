@@ -1374,8 +1374,9 @@ void op_mtc0_status (void)
 
 void op_mtc0_intctl (void)
 {
-    /* vectored interrupts not implemented */
-    env->CP0_IntCtl = 0;
+    /* vectored interrupts not implemented, timer on int 7,
+       no performance counters. */
+    env->CP0_IntCtl |= T0 & 0x000002e0;
     RETURN();
 }
 
