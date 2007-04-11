@@ -5435,9 +5435,6 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags |= MIPS_HFLAG_UM;
     env->user_mode_only = 1;
 #endif
-    /* XXX some guesswork here, values are CPU specific */
-    env->SYNCI_Step = 16;
-    env->CCRes = 2;
 }
 
 #include "translate_init.c"

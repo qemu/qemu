@@ -67,6 +67,8 @@ struct mips_def_t {
     int32_t CP0_Config3;
     int32_t CP0_Config6;
     int32_t CP0_Config7;
+    int32_t SYNCI_Step;
+    int32_t CCRes;
     int32_t CP1_fcr0;
 };
 
@@ -82,6 +84,8 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1,
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
         .CP1_fcr0 = MIPS_FCR0,
     },
     {
@@ -91,6 +95,8 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1,
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
         .CP1_fcr0 = MIPS_FCR0,
     },
     {
@@ -100,6 +106,8 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1,
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
         .CP1_fcr0 = MIPS_FCR0,
     },
     {
@@ -109,6 +117,8 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1,
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
         .CP1_fcr0 = MIPS_FCR0,
     },
     {
@@ -118,6 +128,8 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
         .CP1_fcr0 = MIPS_FCR0,
     },
 #else
@@ -128,6 +140,8 @@ static mips_def_t mips_defs[] =
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 16,
+        .CCRes = 2,
         .CP1_fcr0 = MIPS_FCR0,
     },
 #endif
@@ -175,6 +189,8 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CP0_Config3 = def->CP0_Config3;
     env->CP0_Config6 = def->CP0_Config6;
     env->CP0_Config7 = def->CP0_Config7;
+    env->SYNCI_Step = def->SYNCI_Step;
+    env->CCRes = def->CCRes;
     env->fcr0 = def->CP1_fcr0;
     return 0;
 }
