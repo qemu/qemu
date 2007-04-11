@@ -1293,7 +1293,7 @@ void op_mtc0_entrylo1 (void)
 
 void op_mtc0_context (void)
 {
-    env->CP0_Context = (env->CP0_Context & ~0x007FFFFF) | (T0 & ~0x007FFFFF);
+    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (T0 & ~0x007FFFFF);
     RETURN();
 }
 
@@ -1458,12 +1458,6 @@ void op_mtc0_watchhi0 (void)
     RETURN();
 }
 
-void op_mtc0_xcontext (void)
-{
-    env->CP0_XContext = (int32_t)T0; /* XXX */
-    RETURN();
-}
-
 void op_mtc0_framemask (void)
 {
     env->CP0_Framemask = T0; /* XXX */
@@ -1528,6 +1522,7 @@ void op_mtc0_desave (void)
     RETURN();
 }
 
+#ifdef TARGET_MIPS64
 void op_dmfc0_entrylo0 (void)
 {
     T0 = env->CP0_EntryLo0;
@@ -1612,7 +1607,7 @@ void op_dmtc0_entrylo1 (void)
 
 void op_dmtc0_context (void)
 {
-    env->CP0_Context = (env->CP0_Context & ~0x007FFFFF) | (T0 & 0x007FFFF0);
+    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (T0 & ~0x007FFFFF);
     RETURN();
 }
 
@@ -1632,7 +1627,7 @@ void op_dmtc0_watchlo0 (void)
 
 void op_dmtc0_xcontext (void)
 {
-    env->CP0_XContext = T0; /* XXX */
+    env->CP0_XContext = (env->CP0_XContext & 0xffffffff) | (T0 & ~0xffffffff);
     RETURN();
 }
 
@@ -1647,6 +1642,7 @@ void op_dmtc0_errorepc (void)
     env->CP0_ErrorEPC = T0;
     RETURN();
 }
+#endif /* TARGET_MIPS64 */
 
 #if 0
 # define DEBUG_FPU_STATE() CALL_FROM_TB1(dump_fpu, env)

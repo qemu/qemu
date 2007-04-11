@@ -2750,7 +2750,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
            /* 64 bit MMU only */
-           gen_op_mtc0_xcontext();
+           /* Nothing writable in lower 32 bits */
            rn = "XContext";
            break;
         default:
@@ -2946,6 +2946,7 @@ die:
     generate_exception(ctx, EXCP_RI);
 }
 
+#ifdef TARGET_MIPS64
 static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
@@ -4120,6 +4121,7 @@ die:
 #endif
     generate_exception(ctx, EXCP_RI);
 }
+#endif /* TARGET_MIPS64 */
 
 static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
@@ -4140,6 +4142,7 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         gen_mtc0(ctx, rd, ctx->opcode & 0x7);
         opn = "mtc0";
         break;
+#ifdef TARGET_MIPS64
     case OPC_DMFC0:
         if (rt == 0) {
             /* Treat as NOP */
@@ -4154,6 +4157,7 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         gen_dmtc0(ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
         break;
+#endif
 #if defined(MIPS_USES_R4K_TLB)
     case OPC_TLBWI:
         gen_op_tlbwi();
