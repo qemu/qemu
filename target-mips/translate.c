@@ -305,7 +305,7 @@ enum {
 };
 
 /* MFMC0 opcodes */
-#define MASK_MFMC0(op)     MASK_CP0(op) | (op & ((0x0C << 11) | (1 << 5)))
+#define MASK_MFMC0(op)     MASK_CP0(op) | (op & 0xFFFF)
 
 enum {
     OPC_DI       = (0 << 5) | (0x0C << 11) | OPC_MFMC0,
@@ -4715,8 +4715,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MTLO:          /* Move to HI/LO */
             gen_HILO(ctx, op1, rs);
             break;
-        case OPC_PMON:          /* Pmon entry point */
+        case OPC_PMON:          /* Pmon entry point, also R4010 selsl */
+#ifdef MIPS_STRICT_STANDARD
+            MIPS_INVAL("PMON / selsl");
+            generate_exception(ctx, EXCP_RI);
+#else
             gen_op_pmon(sa);
+#endif
             break;
         case OPC_SYSCALL:
             generate_exception(ctx, EXCP_SYSCALL);
@@ -4724,10 +4729,15 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_BREAK:
             generate_exception(ctx, EXCP_BREAK);
             break;
-        case OPC_SPIM:        /* SPIM ? */
+        case OPC_SPIM:
+#ifdef MIPS_STRICT_STANDARD
+            MIPS_INVAL("SPIM");
+            generate_exception(ctx, EXCP_RI);
+#else
            /* Implemented as RI exception for now. */
             MIPS_INVAL("spim (unofficial)");
             generate_exception(ctx, EXCP_RI);
+#endif
             break;
         case OPC_SYNC:
             /* Treat as a noop. */
