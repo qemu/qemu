@@ -1147,6 +1147,13 @@ extern QEMUMachine shix_machine;
 #ifdef TARGET_PPC
 /* PowerPC hardware exceptions management helpers */
 ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);
+/* Embedded PowerPC DCR management */
+typedef target_ulong (*dcr_read_cb)(void *opaque, int dcrn);
+typedef void (*dcr_write_cb)(void *opaque, int dcrn, target_ulong val);
+int ppc_dcr_init (CPUState *env, int (*dcr_read_error)(int dcrn),
+                  int (*dcr_write_error)(int dcrn));
+int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
+                      dcr_read_cb drc_read, dcr_write_cb dcr_write);
 #endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 

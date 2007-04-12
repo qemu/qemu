@@ -730,8 +730,6 @@ struct CPUPPCState {
     /* Time base and decrementer */
     ppc_tb_t *tb_env;
     /* Device control registers */
-    int (*dcr_read)(ppc_dcr_t *dcr_env, int dcr_num, target_ulong *val);
-    int (*dcr_write)(ppc_dcr_t *dcr_env, int dcr_num, target_ulong val);
     ppc_dcr_t *dcr_env;
 
     /* PowerPC TLB registers (for 4xx and 60x software driven TLBs) */
@@ -862,6 +860,10 @@ void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 #endif
 #endif
+
+/* Device control registers */
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"

@@ -547,6 +547,101 @@ void ppc_emb_timers_init (CPUState *env)
     }
 }
 
+/*****************************************************************************/
+/* Embedded PowerPC Device Control Registers */
+typedef struct ppc_dcrn_t ppc_dcrn_t;
+struct ppc_dcrn_t {
+    dcr_read_cb dcr_read;
+    dcr_write_cb dcr_write;
+    void *opaque;
+};
+
+#define DCRN_NB 1024
+struct ppc_dcr_t {
+    ppc_dcrn_t dcrn[DCRN_NB];
+    int (*read_error)(int dcrn);
+    int (*write_error)(int dcrn);
+};
+
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
+{
+    ppc_dcrn_t *dcr;
+
+    if (dcrn < 0 || dcrn >= DCRN_NB)
+        goto error;
+    dcr = &dcr_env->dcrn[dcrn];
+    if (dcr->dcr_read == NULL)
+        goto error;
+    *valp = (*dcr->dcr_read)(dcr->opaque, dcrn);
+
+    return 0;
+
+ error:
+    if (dcr_env->read_error != NULL)
+        return (*dcr_env->read_error)(dcrn);
+
+    return -1;
+}
+
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val)
+{
+    ppc_dcrn_t *dcr;
+
+    if (dcrn < 0 || dcrn >= DCRN_NB)
+        goto error;
+    dcr = &dcr_env->dcrn[dcrn];
+    if (dcr->dcr_write == NULL)
+        goto error;
+    (*dcr->dcr_write)(dcr->opaque, dcrn, val);
+
+    return 0;
+
+ error:
+    if (dcr_env->write_error != NULL)
+        return (*dcr_env->write_error)(dcrn);
+
+    return -1;
+}
+
+int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
+                      dcr_read_cb dcr_read, dcr_write_cb dcr_write)
+{
+    ppc_dcr_t *dcr_env;
+    ppc_dcrn_t *dcr;
+
+    dcr_env = env->dcr_env;
+    if (dcr_env == NULL)
+        return -1;
+    if (dcrn < 0 || dcrn >= DCRN_NB)
+        return -1;
+    dcr = &dcr_env->dcrn[dcrn];
+    if (dcr->opaque != NULL ||
+        dcr->dcr_read != NULL ||
+        dcr->dcr_write != NULL)
+        return -1;
+    dcr->opaque = opaque;
+    dcr->dcr_read = dcr_read;
+    dcr->dcr_write = dcr_write;
+
+    return 0;
+}
+
+int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
+                  int (*write_error)(int dcrn))
+{
+    ppc_dcr_t *dcr_env;
+
+    dcr_env = qemu_mallocz(sizeof(ppc_dcr_t));
+    if (dcr_env == NULL)
+        return -1;
+    dcr_env->read_error = read_error;
+    dcr_env->write_error = write_error;
+    env->dcr_env = dcr_env;
+
+    return 0;
+}
+
+
 #if 0
 /*****************************************************************************/
 /* Handle system reset (for now, just stop emulation) */
