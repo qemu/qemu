@@ -56,23 +56,23 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
 #endif
     cur_level = (env->irq_input_state >> pin) & 1;
     /* Don't generate spurious events */
-    if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0) || 0) {
+    if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
         switch (pin) {
-        case PPC_INPUT_INT:
-            /* Level sensitive - asserted high */
+        case PPC6xx_INPUT_INT:
+            /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
             printf("%s: set the external IRQ state to %d\n", __func__, level);
 #endif
             ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
             break;
-        case PPC_INPUT_SMI:
+        case PPC6xx_INPUT_SMI:
             /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
             printf("%s: set the SMI IRQ state to %d\n", __func__, level);
 #endif
             ppc_set_irq(env, PPC_INTERRUPT_SMI, level);
             break;
-        case PPC_INPUT_MCP:
+        case PPC6xx_INPUT_MCP:
             /* Negative edge sensitive */
             /* XXX: TODO: actual reaction may depends on HID0 status
              *            603/604/740/750: check HID0[EMCP]
@@ -84,7 +84,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
                 ppc_set_irq(env, PPC_INTERRUPT_MCK, 1);
             }
             break;
-        case PPC_INPUT_CKSTP_IN:
+        case PPC6xx_INPUT_CKSTP_IN:
             /* Level sensitive - active low */
             /* XXX: TODO: relay the signal to CKSTP_OUT pin */
             if (level) {
@@ -99,7 +99,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
                 env->halted = 0;
             }
             break;
-        case PPC_INPUT_HRESET:
+        case PPC6xx_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
 #if 0 // XXX: TOFIX
@@ -110,7 +110,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
 #endif
             }
             break;
-        case PPC_INPUT_SRESET:
+        case PPC6xx_INPUT_SRESET:
 #if defined(PPC_DEBUG_IRQ)
             printf("%s: set the RESET IRQ state to %d\n", __func__, level);
 #endif
@@ -133,6 +133,92 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
 void ppc6xx_irq_init (CPUState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env, 6);
+}
+
+/* PowerPC 405 internal IRQ controller */
+static void ppc405_set_irq (void *opaque, int pin, int level)
+{
+    CPUState *env = opaque;
+    int cur_level;
+
+#if defined(PPC_DEBUG_IRQ)
+    printf("%s: env %p pin %d level %d\n", __func__, env, pin, level);
+#endif
+    cur_level = (env->irq_input_state >> pin) & 1;
+    /* Don't generate spurious events */
+    if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
+        switch (pin) {
+        case PPC405_INPUT_RESET_SYS:
+            /* XXX: TODO: reset all peripherals */
+            /* No break here */
+        case PPC405_INPUT_RESET_CHIP:
+            /* XXX: TODO: reset on-chip peripherals */
+            /* No break here */
+        case PPC405_INPUT_RESET_CORE:
+            /* XXX: TODO: update DBSR[MRR] */
+            if (level) {
+#if 0 // XXX: TOFIX
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: reset the CPU\n", __func__);
+#endif
+                cpu_reset(env);
+#endif
+            }
+            break;
+        case PPC405_INPUT_CINT:
+            /* Level sensitive - active high */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: set the critical IRQ state to %d\n", __func__, level);
+#endif
+            /* XXX: TOFIX */
+            ppc_set_irq(env, PPC_INTERRUPT_RESET, level);
+            break;
+        case PPC405_INPUT_INT:
+            /* Level sensitive - active high */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: set the external IRQ state to %d\n", __func__, level);
+#endif
+            ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+            break;
+        case PPC405_INPUT_HALT:
+            /* Level sensitive - active low */
+            if (level) {
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: stop the CPU\n", __func__);
+#endif
+                env->halted = 1;
+            } else {
+#if defined(PPC_DEBUG_IRQ)
+                printf("%s: restart the CPU\n", __func__);
+#endif
+                env->halted = 0;
+            }
+            break;
+        case PPC405_INPUT_DEBUG:
+            /* Level sensitive - active high */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: set the external IRQ state to %d\n", __func__, level);
+#endif
+            ppc_set_irq(env, EXCP_40x_DEBUG, level);
+            break;
+        default:
+            /* Unknown pin - do nothing */
+#if defined(PPC_DEBUG_IRQ)
+            printf("%s: unknown IRQ pin %d\n", __func__, pin);
+#endif
+            return;
+        }
+        if (level)
+            env->irq_input_state |= 1 << pin;
+        else
+            env->irq_input_state &= ~(1 << pin);
+    }
+}
+
+void ppc405_irq_init (CPUState *env)
+{
+    printf("%s\n", __func__);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc405_set_irq, env, 7);
 }
 
 /*****************************************************************************/

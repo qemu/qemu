@@ -1315,15 +1315,34 @@ enum {
 /* Input pins definitions */
 enum {
     /* 6xx bus input pins */
-    PPC_INPUT_HRESET     = 0,
-    PPC_INPUT_SRESET     = 1,
-    PPC_INPUT_CKSTP_IN   = 2,
-    PPC_INPUT_MCP        = 3,
-    PPC_INPUT_SMI        = 4,
-    PPC_INPUT_INT        = 5,
+    PPC6xx_INPUT_HRESET     = 0,
+    PPC6xx_INPUT_SRESET     = 1,
+    PPC6xx_INPUT_CKSTP_IN   = 2,
+    PPC6xx_INPUT_MCP        = 3,
+    PPC6xx_INPUT_SMI        = 4,
+    PPC6xx_INPUT_INT        = 5,
+};
+
+enum {
     /* Embedded PowerPC input pins */
-    PPC_INPUT_CINT       = 6,
-    PPC_INPUT_NB,
+    PPCBookE_INPUT_HRESET     = 0,
+    PPCBookE_INPUT_SRESET     = 1,
+    PPCBookE_INPUT_CKSTP_IN   = 2,
+    PPCBookE_INPUT_MCP        = 3,
+    PPCBookE_INPUT_SMI        = 4,
+    PPCBookE_INPUT_INT        = 5,
+    PPCBookE_INPUT_CINT       = 6,
+};
+
+enum {
+    /* PowerPC 405 input pins */
+    PPC405_INPUT_RESET_CORE = 0,
+    PPC405_INPUT_RESET_CHIP = 1,
+    PPC405_INPUT_RESET_SYS  = 2,
+    PPC405_INPUT_CINT       = 3,
+    PPC405_INPUT_INT        = 4,
+    PPC405_INPUT_HALT       = 5,
+    PPC405_INPUT_DEBUG      = 6,
 };
 
 /* Hardware exceptions definitions */

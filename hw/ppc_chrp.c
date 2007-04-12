@@ -470,14 +470,14 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
              */
             openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
             openpic_irqs[i][OPENPIC_OUTPUT_INT] =
-                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_INT];
+                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
             openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
-                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_INT];
+                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
             openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
-                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_MCP];
+                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_MCP];
             openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL; /* Not connected ? */
             openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
-                ((qemu_irq *)env->irq_inputs)[PPC_INPUT_HRESET]; /* Check this */
+                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_HRESET]; /* Check this */
         }
         pic = openpic_init(NULL, &openpic_mem_index, smp_cpus,
                            openpic_irqs, NULL);
