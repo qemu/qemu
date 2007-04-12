@@ -1358,11 +1358,9 @@ void do_interrupt (CPUState *env)
     env->exception_index = -1;
 }
 
-int ppc_hw_interrupt (CPUState *env)
+void ppc_hw_interrupt (CPUState *env)
 {
     env->exception_index = -1;
-
-    return 0;
 }
 #else /* defined (CONFIG_USER_ONLY) */
 static void dump_syscall(CPUState *env)
@@ -1927,7 +1925,7 @@ void do_interrupt (CPUState *env)
     env->exception_index = EXCP_NONE;
 }
 
-int ppc_hw_interrupt (CPUState *env)
+void ppc_hw_interrupt (CPUPPCState *env)
 {
     int raised = 0;
 
@@ -1940,6 +1938,9 @@ int ppc_hw_interrupt (CPUState *env)
     /* Raise it */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_RESET)) {
         /* External reset / critical input */
+        /* XXX: critical input should be handled another way.
+         *      This code is not correct !
+         */
         env->exception_index = EXCP_RESET;
         env->pending_interrupts &= ~(1 << PPC_INTERRUPT_RESET);
         raised = 1;
@@ -1984,7 +1985,12 @@ int ppc_hw_interrupt (CPUState *env)
         /* External interrupt */
         } else if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
             env->exception_index = EXCP_EXTERNAL;
+            /* Taking an external interrupt does not clear the external
+             * interrupt status
+             */
+#if 0
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EXT);
+#endif
             raised = 1;
         }
 #if 0 // TODO
@@ -1999,7 +2005,5 @@ int ppc_hw_interrupt (CPUState *env)
         env->error_code = 0;
         do_interrupt(env);
     }
-    
-    return raised;
 }
 #endif /* !CONFIG_USER_ONLY */

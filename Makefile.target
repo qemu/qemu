@@ -462,7 +462,7 @@ VL_OBJS += pflash_amd.o
 VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
 #~ VL_OBJS += serial_16550a.o
-DEFINES += -DHAS_AUDIO
+CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

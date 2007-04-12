@@ -548,7 +548,6 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }
     cpu_ppc_register(env, def);
-    cpu_ppc_irq_init_cpu(env);
     /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
 
@@ -599,7 +598,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     isa_mem_base = 0xc0000000;
-    i8259 = i8259_init(first_cpu->irq[PPC_INTERRUPT_EXT]);
+    i8259 = i8259_init(first_cpu->irq_inputs[PPC_INPUT_INT]);
     pci_bus = pci_prep_init(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */

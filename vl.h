@@ -864,16 +864,17 @@ void i440fx_init_memory_mappings(PCIDevice *d);
 int piix4_init(PCIBus *bus, int devfn);
 
 /* openpic.c */
+/* OpenPIC have 5 outputs per CPU connected and one IRQ out single output */
 enum {
-    OPENPIC_EVT_INT = 0, /* IRQ                       */
-    OPENPIC_EVT_CINT,    /* critical IRQ              */
-    OPENPIC_EVT_MCK,     /* Machine check event       */
-    OPENPIC_EVT_DEBUG,   /* Inconditional debug event */
-    OPENPIC_EVT_RESET,   /* Core reset event          */
+    OPENPIC_OUTPUT_INT = 0, /* IRQ                       */
+    OPENPIC_OUTPUT_CINT,    /* critical IRQ              */
+    OPENPIC_OUTPUT_MCK,     /* Machine check event       */
+    OPENPIC_OUTPUT_DEBUG,   /* Inconditional debug event */
+    OPENPIC_OUTPUT_RESET,   /* Core reset event          */
+    OPENPIC_OUTPUT_NB,
 };
-qemu_irq *openpic_init (PCIBus *bus, SetIRQFunc *set_irq,
-                        int *pmem_index, int nb_cpus,
-                        struct CPUState **envp);
+qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
+                        qemu_irq **irqs, qemu_irq irq_out);
 
 /* heathrow_pic.c */
 qemu_irq *heathrow_pic_init(int *pmem_index);
@@ -1177,9 +1178,6 @@ extern QEMUMachine shix_machine;
 
 #ifdef TARGET_PPC
 /* PowerPC hardware exceptions management helpers */
-void cpu_ppc_irq_init_cpu(CPUState *env);
-void ppc_openpic_irq (void *opaque, int n_IRQ, int level);
-int ppc_hw_interrupt (CPUState *env);
 ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);
 #endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);

@@ -35,6 +35,18 @@ struct ppc_def_t {
     uint64_t msr_mask;
 };
 
+/* For user-mode emulation, we don't emulate any IRQ controller */
+#if defined(CONFIG_USER_ONLY)
+#define PPC_IRQ_INIT_FN(name)                                         \
+static inline void glue(glue(ppc, name),_irq_init) (CPUPPCState *env) \
+{                                                                     \
+}
+#else
+#define PPC_IRQ_INIT_FN(name)                                         \
+void glue(glue(ppc, name),_irq_init) (CPUPPCState *env);
+#endif
+PPC_IRQ_INIT_FN(6xx);
+
 /* Generic callbacks:
  * do nothing but store/retrieve spr value
  */
@@ -1865,6 +1877,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
     case CPU_PPC_403GA:   /* 403 GA family                 */
@@ -1879,6 +1892,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
     case CPU_PPC_405CR:   /* 405 GP/CR family              */
@@ -1895,6 +1909,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
     case CPU_PPC_NPE405H: /* NPe405 H family               */
@@ -1909,6 +1924,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
 #if defined (TODO)
@@ -1940,6 +1956,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
     case CPU_PPC_440EP:   /* 440 EP family                 */
@@ -1959,6 +1976,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
     /* Embedded PowerPC from Freescale                     */
@@ -1994,6 +2012,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
 #if defined (TODO)
@@ -2038,6 +2057,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_ways = 2;
         env->id_tlbs = 0;
         env->id_tlbs = 0;
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
 
     case CPU_PPC_602:     /* PowerPC 602                   */
@@ -2060,6 +2080,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
 
     case CPU_PPC_603:     /* PowerPC 603                   */
@@ -2087,6 +2109,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
         
     case CPU_PPC_G2:      /* PowerPC G2 family             */
@@ -2123,6 +2147,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
 
     case CPU_PPC_604:     /* PowerPC 604                   */
@@ -2146,6 +2172,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
 
     case CPU_PPC_74x:     /* PowerPC 740 / 750             */
@@ -2178,6 +2206,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
 
     case CPU_PPC_750FX10: /* IBM PowerPC 750 FX            */
@@ -2213,6 +2243,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
 
     case CPU_PPC_755_10:  /* PowerPC 755                   */
@@ -2257,6 +2289,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc6xx_irq_init(env);
         break;
 
 #if defined (TODO)
@@ -2326,6 +2360,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
 
     default:
         gen_spr_generic(env);
+        /* XXX: TODO: allocate internal IRQ controller */
         break;
     }
     if (env->nb_BATs == -1)

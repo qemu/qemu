@@ -1,3 +1,80 @@
+2007-04-12 00:46  ths
+
+	* Makefile.target: Fix bad variable name.
+
+2007-04-11 22:34  ths
+
+	* target-mips/: translate.c, translate_init.c: Make SYNCI_Step and
+	  CCRes CPU-specific.
+
+2007-04-11 04:24  ths
+
+	* target-mips/: mips-defs.h, translate.c: Throw RI for invalid
+	  MFMC0-class instructions. Introduce optional MIPS_STRICT_STANDARD
+	  define to adhere more to the spec than it makes sense in normal
+	  operation.
+
+2007-04-11 04:15  ths
+
+	* target-mips/translate.c: Code formatting fix.
+
+2007-04-11 04:13  ths
+
+	* target-mips/: op.c, translate.c: More Context/Xcontext fixes.
+	  Ifdef some 64bit-only ops, they may end up empty for 32bit mips,
+	  which dyngen trips over.
+
+2007-04-10 00:45  j_mayer
+
+	* cpu-exec.c, vl.h, hw/openpic.c, hw/ppc.c, hw/ppc_chrp.c,
+	  hw/ppc_prep.c, target-ppc/cpu.h, target-ppc/helper.c,
+	  target-ppc/translate_init.c: Implement embedded IRQ controller
+	  for PowerPC 6xx/740 & 750.  Fix PowerPC external interrupt input
+	  handling and lowering.  Fix OpenPIC output pins management.  Fix
+	  multiples bugs in OpenPIC IRQ management.  Fix OpenPIC CPU(s)
+	  reset function.  Fix Mac99 machine to properly route OpenPIC
+	  outputs to the PowerPC input pins.  Fix PREP machine to properly
+	  route i8259 output to the PowerPC external   interrupt pin.
+
+2007-04-09 17:14  blueswir1
+
+	* disas.c: Fix monitor disasm output for Sparc64 target
+
+2007-04-09 16:17  ths
+
+	* target-mips/: op.c, translate.c: Fix CP0_IntCtl handling.
+
+2007-04-09 16:16  ths
+
+	* target-mips/op.c: Proper handling of reserved bits in the context
+	  register.
+
+2007-04-09 16:15  ths
+
+	* target-mips/: op.c, translate.c: Mark watchpoint features as
+	  unimplemented.
+
+2007-04-09 16:14  ths
+
+	* target-mips/: op_mem.c, translate.c: Catch unaligned sc/scd.
+
+2007-04-09 16:13  ths
+
+	* target-mips/: op.c, translate.c: Fix exception handling
+	  cornercase for rdhwr.
+
+2007-04-09 14:31  ths
+
+	* target-mips/translate.c: Remove bogus mtc0 handling.
+
+2007-04-09 04:01  pbrook
+
+	* hw/pl190.c: ARM IRQ fix.
+
+2007-04-08 13:22  blueswir1
+
+	* disas.c: Fix generated code disasm output on Sparc64 host
+
 2007-04-08 08:29  blueswir1
 
 	* linux-user/main.c: Sparc32/64 CPU selection for user emulator

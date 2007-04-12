@@ -758,7 +758,13 @@ struct CPUPPCState {
     int error_code;
     int interrupt_request;
     uint32_t pending_interrupts;
-    void *irq[32];
+#if !defined(CONFIG_USER_ONLY)
+    /* This is the IRQ controller, which is implementation dependant
+     * and only relevant when emulating a complete machine.
+     */
+    uint32_t irq_input_state;
+    void **irq_inputs;
+#endif
 
     /* Those resources are used only during code translation */
     /* Next instruction pointer */
@@ -801,6 +807,7 @@ int cpu_ppc_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 void do_interrupt (CPUPPCState *env);
+void ppc_hw_interrupt (CPUPPCState *env);
 void cpu_loop_exit(void);
 
 void dump_stack (CPUPPCState *env);
@@ -1303,16 +1310,35 @@ enum {
 /* Hardware interruption sources:
  * all those exception can be raised simulteaneously
  */
+/* Input pins definitions */
 enum {
-    PPC_INTERRUPT_RESET  = 0, /* Reset / critical input               */
-    PPC_INTERRUPT_MCK    = 1, /* Machine check exception              */
-    PPC_INTERRUPT_EXT    = 2, /* External interrupt                   */
-    PPC_INTERRUPT_DECR   = 3, /* Decrementer exception                */
-    PPC_INTERRUPT_HDECR  = 4, /* Hypervisor decrementer exception     */
-    PPC_INTERRUPT_PIT    = 5, /* Programmable inteval timer interrupt */
-    PPC_INTERRUPT_FIT    = 6, /* Fixed interval timer interrupt       */
-    PPC_INTERRUPT_WDT    = 7, /* Watchdog timer interrupt             */
-    PPC_INTERRUPT_DEBUG  = 8, /* External debug exception             */
+    /* 6xx bus input pins */
+    PPC_INPUT_HRESET     = 0,
+    PPC_INPUT_SRESET     = 1,
+    PPC_INPUT_CKSTP_IN   = 2,
+    PPC_INPUT_MCP        = 3,
+    PPC_INPUT_SMI        = 4,
+    PPC_INPUT_INT        = 5,
+    /* Embedded PowerPC input pins */
+    PPC_INPUT_CINT       = 6,
+    PPC_INPUT_NB,
+};
+
+/* Hardware exceptions definitions */
+enum {
+    /* External hardware exception sources */
+    PPC_INTERRUPT_RESET  = 0,  /* Reset exception                      */
+    PPC_INTERRUPT_MCK    = 1,  /* Machine check exception              */
+    PPC_INTERRUPT_EXT    = 2,  /* External interrupt                   */
+    PPC_INTERRUPT_SMI    = 3,  /* System management interrupt          */
+    PPC_INTERRUPT_CEXT   = 4,  /* Critical external interrupt          */
+    PPC_INTERRUPT_DEBUG  = 5,  /* External debug exception             */
+    /* Internal hardware exception sources */
+    PPC_INTERRUPT_DECR   = 6,  /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR  = 7,  /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT    = 8,  /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT    = 9,  /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT    = 10, /* Watchdog timer interrupt             */
 };
 
 /*****************************************************************************/

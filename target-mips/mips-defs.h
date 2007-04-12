@@ -19,4 +19,9 @@
 #define TARGET_LONG_BITS 32
 #endif
 
+/* Strictly follow the architecture standard: Disallow "special"
+   instruction handling for PMON/SPIM, force cycle-dependent
+   Count/Compare maintenance. */
+//#define MIPS_STRICT_STANDARD 1
+
 #endif /* !defined (__QEMU_MIPS_DEFS_H__) */

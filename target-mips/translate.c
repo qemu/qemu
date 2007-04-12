@@ -306,7 +306,7 @@ enum {
 };
 
 /* MFMC0 opcodes */
-#define MASK_MFMC0(op)     MASK_CP0(op) | (op & ((0x0C << 11) | (1 << 5)))
+#define MASK_MFMC0(op)     MASK_CP0(op) | (op & 0xFFFF)
 
 enum {
     OPC_DI       = (0 << 5) | (0x0C << 11) | OPC_MFMC0,
@@ -715,6 +715,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         opn = "sd";
         break;
     case OPC_SCD:
+        save_cpu_state(ctx, 1);
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(scd);
         opn = "scd";
@@ -813,6 +814,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         opn = "ll";
         break;
     case OPC_SC:
+        save_cpu_state(ctx, 1);
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(sc);
         GEN_STORE_TN_REG(rt, T0);
@@ -1760,21 +1762,21 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-           gen_op_mfc0_index();
+            gen_op_mfc0_index();
             rn = "Index";
             break;
         case 1:
-//         gen_op_mfc0_mvpcontrol(); /* MT ASE */
+//            gen_op_mfc0_mvpcontrol(); /* MT ASE */
             rn = "MVPControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_mfc0_mvpconf0(); /* MT ASE */
+//            gen_op_mfc0_mvpconf0(); /* MT ASE */
             rn = "MVPConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_mfc0_mvpconf1(); /* MT ASE */
+//            gen_op_mfc0_mvpconf1(); /* MT ASE */
             rn = "MVPConf1";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -1784,35 +1786,35 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
         case 0:
             gen_op_mfc0_random();
             rn = "Random";
-           break;
+            break;
         case 1:
-//         gen_op_mfc0_vpecontrol(); /* MT ASE */
+//            gen_op_mfc0_vpecontrol(); /* MT ASE */
             rn = "VPEControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_mfc0_vpeconf0(); /* MT ASE */
+//            gen_op_mfc0_vpeconf0(); /* MT ASE */
             rn = "VPEConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_mfc0_vpeconf1(); /* MT ASE */
+//            gen_op_mfc0_vpeconf1(); /* MT ASE */
             rn = "VPEConf1";
-//         break;
+//            break;
         case 4:
-//         gen_op_mfc0_YQMask(); /* MT ASE */
+//            gen_op_mfc0_YQMask(); /* MT ASE */
             rn = "YQMask";
-//         break;
+//            break;
         case 5:
-//         gen_op_mfc0_vpeschedule(); /* MT ASE */
+//            gen_op_mfc0_vpeschedule(); /* MT ASE */
             rn = "VPESchedule";
-//         break;
+//            break;
         case 6:
-//         gen_op_mfc0_vpeschefback(); /* MT ASE */
+//            gen_op_mfc0_vpeschefback(); /* MT ASE */
             rn = "VPEScheFBack";
-//         break;
+//            break;
         case 7:
-//         gen_op_mfc0_vpeopt(); /* MT ASE */
+//            gen_op_mfc0_vpeopt(); /* MT ASE */
             rn = "VPEOpt";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -1820,37 +1822,37 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-           gen_op_mfc0_entrylo0();
-           rn = "EntryLo0";
-           break;
+            gen_op_mfc0_entrylo0();
+            rn = "EntryLo0";
+            break;
         case 1:
-//         gen_op_mfc0_tcstatus(); /* MT ASE */
-           rn = "TCStatus";
-//         break;
+//            gen_op_mfc0_tcstatus(); /* MT ASE */
+            rn = "TCStatus";
+//            break;
         case 2:
-//         gen_op_mfc0_tcbind(); /* MT ASE */
-           rn = "TCBind";
-//         break;
+//            gen_op_mfc0_tcbind(); /* MT ASE */
+            rn = "TCBind";
+//            break;
         case 3:
-//         gen_op_mfc0_tcrestart(); /* MT ASE */
-           rn = "TCRestart";
-//         break;
+//            gen_op_mfc0_tcrestart(); /* MT ASE */
+            rn = "TCRestart";
+//            break;
         case 4:
-//         gen_op_mfc0_tchalt(); /* MT ASE */
-           rn = "TCHalt";
-//         break;
+//            gen_op_mfc0_tchalt(); /* MT ASE */
+            rn = "TCHalt";
+//            break;
         case 5:
-//         gen_op_mfc0_tccontext(); /* MT ASE */
-           rn = "TCContext";
-//         break;
+//            gen_op_mfc0_tccontext(); /* MT ASE */
+            rn = "TCContext";
+//            break;
         case 6:
-//         gen_op_mfc0_tcschedule(); /* MT ASE */
-           rn = "TCSchedule";
-//         break;
+//            gen_op_mfc0_tcschedule(); /* MT ASE */
+            rn = "TCSchedule";
+//            break;
         case 7:
-//         gen_op_mfc0_tcschefback(); /* MT ASE */
-           rn = "TCScheFBack";
-//         break;
+//            gen_op_mfc0_tcschefback(); /* MT ASE */
+            rn = "TCScheFBack";
+//            break;
         default:
             goto die;
         }
@@ -1858,9 +1860,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-           gen_op_mfc0_entrylo1();
-           rn = "EntryLo1";
-           break;
+            gen_op_mfc0_entrylo1();
+            rn = "EntryLo1";
+            break;
         default:
             goto die;
         }
@@ -1868,13 +1870,13 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 4:
         switch (sel) {
         case 0:
-           gen_op_mfc0_context();
-           rn = "Context";
-           break;
+            gen_op_mfc0_context();
+            rn = "Context";
+            break;
         case 1:
-//         gen_op_mfc0_contextconfig(); /* SmartMIPS ASE */
-           rn = "ContextConfig";
-//         break;
+//            gen_op_mfc0_contextconfig(); /* SmartMIPS ASE */
+            rn = "ContextConfig";
+//            break;
         default:
             goto die;
         }
@@ -1882,13 +1884,13 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-           gen_op_mfc0_pagemask();
-           rn = "PageMask";
-           break;
+            gen_op_mfc0_pagemask();
+            rn = "PageMask";
+            break;
         case 1:
-           gen_op_mfc0_pagegrain();
-           rn = "PageGrain";
-           break;
+            gen_op_mfc0_pagegrain();
+            rn = "PageGrain";
+            break;
         default:
             goto die;
         }
@@ -1896,29 +1898,29 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-           gen_op_mfc0_wired();
-           rn = "Wired";
-           break;
+            gen_op_mfc0_wired();
+            rn = "Wired";
+            break;
         case 1:
-//         gen_op_mfc0_srsconf0(); /* shadow registers */
-           rn = "SRSConf0";
-//         break;
+//            gen_op_mfc0_srsconf0(); /* shadow registers */
+            rn = "SRSConf0";
+//            break;
         case 2:
-//         gen_op_mfc0_srsconf1(); /* shadow registers */
-           rn = "SRSConf1";
-//         break;
+//            gen_op_mfc0_srsconf1(); /* shadow registers */
+            rn = "SRSConf1";
+//            break;
         case 3:
-//         gen_op_mfc0_srsconf2(); /* shadow registers */
-           rn = "SRSConf2";
-//         break;
+//            gen_op_mfc0_srsconf2(); /* shadow registers */
+            rn = "SRSConf2";
+//            break;
         case 4:
-//         gen_op_mfc0_srsconf3(); /* shadow registers */
-           rn = "SRSConf3";
-//         break;
+//            gen_op_mfc0_srsconf3(); /* shadow registers */
+            rn = "SRSConf3";
+//            break;
         case 5:
-//         gen_op_mfc0_srsconf4(); /* shadow registers */
-           rn = "SRSConf4";
-//         break;
+//            gen_op_mfc0_srsconf4(); /* shadow registers */
+            rn = "SRSConf4";
+//            break;
         default:
             goto die;
         }
@@ -1926,9 +1928,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-           gen_op_mfc0_hwrena();
-           rn = "HWREna";
-           break;
+            gen_op_mfc0_hwrena();
+            rn = "HWREna";
+            break;
         default:
             goto die;
         }
@@ -1936,9 +1938,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 8:
         switch (sel) {
         case 0:
-           gen_op_mfc0_badvaddr();
-           rn = "BadVaddr";
-           break;
+            gen_op_mfc0_badvaddr();
+            rn = "BadVaddr";
+            break;
         default:
             goto die;
        }
@@ -1946,20 +1948,20 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-           gen_op_mfc0_count();
-           rn = "Count";
-           break;
-       /* 6,7 are implementation dependent */
+            gen_op_mfc0_count();
+            rn = "Count";
+            break;
+        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
+        }
         break;
     case 10:
         switch (sel) {
         case 0:
-           gen_op_mfc0_entryhi();
-           rn = "EntryHi";
-           break;
+            gen_op_mfc0_entryhi();
+            rn = "EntryHi";
+            break;
         default:
             goto die;
         }
@@ -1967,32 +1969,32 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-           gen_op_mfc0_compare();
-           rn = "Compare";
-           break;
-       /* 6,7 are implementation dependent */
+            gen_op_mfc0_compare();
+            rn = "Compare";
+            break;
+        /* 6,7 are implementation dependent */
         default:
             goto die;
-       }
+        }
         break;
     case 12:
         switch (sel) {
         case 0:
-           gen_op_mfc0_status();
-           rn = "Status";
-           break;
+            gen_op_mfc0_status();
+            rn = "Status";
+            break;
         case 1:
-           gen_op_mfc0_intctl();
-           rn = "IntCtl";
-           break;
+            gen_op_mfc0_intctl();
+            rn = "IntCtl";
+            break;
         case 2:
-           gen_op_mfc0_srsctl();
-           rn = "SRSCtl";
-           break;
+            gen_op_mfc0_srsctl();
+            rn = "SRSCtl";
+            break;
         case 3:
-//         gen_op_mfc0_srsmap(); /* shadow registers */
-           rn = "SRSMap";
-//         break;
+//            gen_op_mfc0_srsmap(); /* shadow registers */
+            rn = "SRSMap";
+//            break;
         default:
             goto die;
        }
@@ -2000,9 +2002,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-           gen_op_mfc0_cause();
-           rn = "Cause";
-           break;
+            gen_op_mfc0_cause();
+            rn = "Cause";
+            break;
         default:
             goto die;
        }
@@ -2010,9 +2012,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 14:
         switch (sel) {
         case 0:
-           gen_op_mfc0_epc();
-           rn = "EPC";
-           break;
+            gen_op_mfc0_epc();
+            rn = "EPC";
+            break;
         default:
             goto die;
         }
@@ -2020,13 +2022,13 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 15:
         switch (sel) {
         case 0:
-           gen_op_mfc0_prid();
-           rn = "PRid";
-           break;
+            gen_op_mfc0_prid();
+            rn = "PRid";
+            break;
         case 1:
-           gen_op_mfc0_ebase();
-           rn = "EBase";
-           break;
+            gen_op_mfc0_ebase();
+            rn = "EBase";
+            break;
         default:
             goto die;
        }
@@ -2066,9 +2068,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 17:
         switch (sel) {
         case 0:
-           gen_op_mfc0_lladdr();
-           rn = "LLAddr";
-           break;
+            gen_op_mfc0_lladdr();
+            rn = "LLAddr";
+            break;
         default:
             goto die;
         }
@@ -2076,37 +2078,37 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0:
-           gen_op_mfc0_watchlo0();
-           rn = "WatchLo";
-           break;
+            gen_op_mfc0_watchlo0();
+            rn = "WatchLo";
+            break;
         case 1:
-//         gen_op_mfc0_watchlo1();
-           rn = "WatchLo1";
-//         break;
+//            gen_op_mfc0_watchlo1();
+            rn = "WatchLo1";
+//            break;
         case 2:
-//         gen_op_mfc0_watchlo2();
-           rn = "WatchLo2";
-//         break;
+//            gen_op_mfc0_watchlo2();
+            rn = "WatchLo2";
+//            break;
         case 3:
-//         gen_op_mfc0_watchlo3();
-           rn = "WatchLo3";
-//         break;
+//            gen_op_mfc0_watchlo3();
+            rn = "WatchLo3";
+//            break;
         case 4:
-//         gen_op_mfc0_watchlo4();
-           rn = "WatchLo4";
-//         break;
+//            gen_op_mfc0_watchlo4();
+            rn = "WatchLo4";
+//            break;
         case 5:
-//         gen_op_mfc0_watchlo5();
-           rn = "WatchLo5";
-//         break;
+//            gen_op_mfc0_watchlo5();
+            rn = "WatchLo5";
+//            break;
         case 6:
-//         gen_op_mfc0_watchlo6();
-           rn = "WatchLo6";
-//         break;
+//            gen_op_mfc0_watchlo6();
+            rn = "WatchLo6";
+//            break;
         case 7:
-//         gen_op_mfc0_watchlo7();
-           rn = "WatchLo7";
-//         break;
+//            gen_op_mfc0_watchlo7();
+            rn = "WatchLo7";
+//            break;
         default:
             goto die;
         }
@@ -2114,37 +2116,37 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0:
-           gen_op_mfc0_watchhi0();
-           rn = "WatchHi";
-           break;
+            gen_op_mfc0_watchhi0();
+            rn = "WatchHi";
+            break;
         case 1:
-//         gen_op_mfc0_watchhi1();
-           rn = "WatchHi1";
-//         break;
+//            gen_op_mfc0_watchhi1();
+            rn = "WatchHi1";
+//            break;
         case 2:
-//         gen_op_mfc0_watchhi2();
-           rn = "WatchHi2";
-//         break;
+//            gen_op_mfc0_watchhi2();
+            rn = "WatchHi2";
+//            break;
         case 3:
-//         gen_op_mfc0_watchhi3();
-           rn = "WatchHi3";
-//         break;
+//            gen_op_mfc0_watchhi3();
+            rn = "WatchHi3";
+//            break;
         case 4:
-//         gen_op_mfc0_watchhi4();
-           rn = "WatchHi4";
-//         break;
+//            gen_op_mfc0_watchhi4();
+            rn = "WatchHi4";
+//            break;
         case 5:
-//         gen_op_mfc0_watchhi5();
-           rn = "WatchHi5";
-//         break;
+//            gen_op_mfc0_watchhi5();
+            rn = "WatchHi5";
+//            break;
         case 6:
-//         gen_op_mfc0_watchhi6();
-           rn = "WatchHi6";
-//         break;
+//            gen_op_mfc0_watchhi6();
+            rn = "WatchHi6";
+//            break;
         case 7:
-//         gen_op_mfc0_watchhi7();
-           rn = "WatchHi7";
-//         break;
+//            gen_op_mfc0_watchhi7();
+            rn = "WatchHi7";
+//            break;
         default:
             goto die;
         }
@@ -2152,10 +2154,10 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-           /* 64 bit MMU only */
-           gen_op_mfc0_xcontext();
-           rn = "XContext";
-           break;
+            /* 64 bit MMU only */
+            gen_op_mfc0_xcontext();
+            rn = "XContext";
+            break;
         default:
             goto die;
         }
@@ -2164,39 +2166,39 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-           gen_op_mfc0_framemask();
-           rn = "Framemask";
-           break;
+            gen_op_mfc0_framemask();
+            rn = "Framemask";
+            break;
         default:
             goto die;
         }
         break;
     case 22:
-       /* ignored */
-       rn = "'Diagnostic"; /* implementation dependent */
-       break;
+        /* ignored */
+        rn = "'Diagnostic"; /* implementation dependent */
+        break;
     case 23:
         switch (sel) {
         case 0:
-           gen_op_mfc0_debug(); /* EJTAG support */
-           rn = "Debug";
-           break;
+            gen_op_mfc0_debug(); /* EJTAG support */
+            rn = "Debug";
+            break;
         case 1:
-//         gen_op_mfc0_tracecontrol(); /* PDtrace support */
-           rn = "TraceControl";
-//         break;
+//            gen_op_mfc0_tracecontrol(); /* PDtrace support */
+            rn = "TraceControl";
+//            break;
         case 2:
-//         gen_op_mfc0_tracecontrol2(); /* PDtrace support */
-           rn = "TraceControl2";
-//         break;
+//            gen_op_mfc0_tracecontrol2(); /* PDtrace support */
+            rn = "TraceControl2";
+//            break;
         case 3:
-//         gen_op_mfc0_usertracedata(); /* PDtrace support */
-           rn = "UserTraceData";
-//         break;
+//            gen_op_mfc0_usertracedata(); /* PDtrace support */
+            rn = "UserTraceData";
+//            break;
         case 4:
-//         gen_op_mfc0_debug(); /* PDtrace support */
-           rn = "TraceBPC";
-//         break;
+//            gen_op_mfc0_debug(); /* PDtrace support */
+            rn = "TraceBPC";
+//            break;
         default:
             goto die;
         }
@@ -2204,9 +2206,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 24:
         switch (sel) {
         case 0:
-           gen_op_mfc0_depc(); /* EJTAG support */
-           rn = "DEPC";
-           break;
+            gen_op_mfc0_depc(); /* EJTAG support */
+            rn = "DEPC";
+            break;
         default:
             goto die;
         }
@@ -2214,37 +2216,37 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-           gen_op_mfc0_performance0();
-           rn = "Performance0";
+            gen_op_mfc0_performance0();
+            rn = "Performance0";
             break;
         case 1:
-//         gen_op_mfc0_performance1();
-           rn = "Performance1";
-//         break;
+//            gen_op_mfc0_performance1();
+            rn = "Performance1";
+//            break;
         case 2:
-//         gen_op_mfc0_performance2();
-           rn = "Performance2";
-//         break;
+//            gen_op_mfc0_performance2();
+            rn = "Performance2";
+//            break;
         case 3:
-//         gen_op_mfc0_performance3();
-           rn = "Performance3";
-//         break;
+//            gen_op_mfc0_performance3();
+            rn = "Performance3";
+//            break;
         case 4:
-//         gen_op_mfc0_performance4();
-           rn = "Performance4";
-//         break;
+//            gen_op_mfc0_performance4();
+            rn = "Performance4";
+//            break;
         case 5:
-//         gen_op_mfc0_performance5();
-           rn = "Performance5";
-//         break;
+//            gen_op_mfc0_performance5();
+            rn = "Performance5";
+//            break;
         case 6:
-//         gen_op_mfc0_performance6();
-           rn = "Performance6";
-//         break;
+//            gen_op_mfc0_performance6();
+            rn = "Performance6";
+//            break;
         case 7:
-//         gen_op_mfc0_performance7();
-           rn = "Performance7";
-//         break;
+//            gen_op_mfc0_performance7();
+            rn = "Performance7";
+//            break;
         default:
             goto die;
         }
@@ -2256,8 +2258,8 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         /* ignored */
         case 0 ... 3:
-           rn = "CacheErr";
-           break;
+            rn = "CacheErr";
+            break;
         default:
             goto die;
         }
@@ -2305,9 +2307,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 30:
         switch (sel) {
         case 0:
-           gen_op_mfc0_errorepc();
-           rn = "ErrorEPC";
-           break;
+            gen_op_mfc0_errorepc();
+            rn = "ErrorEPC";
+            break;
         default:
             goto die;
         }
@@ -2315,9 +2317,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 31:
         switch (sel) {
         case 0:
-           gen_op_mfc0_desave(); /* EJTAG support */
-           rn = "DESAVE";
-           break;
+            gen_op_mfc0_desave(); /* EJTAG support */
+            rn = "DESAVE";
+            break;
         default:
             goto die;
         }
@@ -2355,17 +2357,17 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-//         gen_op_mtc0_mvpcontrol(); /* MT ASE */
+//            gen_op_mtc0_mvpcontrol(); /* MT ASE */
             rn = "MVPControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_mtc0_mvpconf0(); /* MT ASE */
+//            gen_op_mtc0_mvpconf0(); /* MT ASE */
             rn = "MVPConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_mtc0_mvpconf1(); /* MT ASE */
+//            gen_op_mtc0_mvpconf1(); /* MT ASE */
             rn = "MVPConf1";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -2373,37 +2375,37 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 1:
         switch (sel) {
         case 0:
-           /* ignored */
+            /* ignored */
             rn = "Random";
-           break;
+            break;
         case 1:
-//         gen_op_mtc0_vpecontrol(); /* MT ASE */
+//            gen_op_mtc0_vpecontrol(); /* MT ASE */
             rn = "VPEControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_mtc0_vpeconf0(); /* MT ASE */
+//            gen_op_mtc0_vpeconf0(); /* MT ASE */
             rn = "VPEConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_mtc0_vpeconf1(); /* MT ASE */
+//            gen_op_mtc0_vpeconf1(); /* MT ASE */
             rn = "VPEConf1";
-//         break;
+//            break;
         case 4:
-//         gen_op_mtc0_YQMask(); /* MT ASE */
+//            gen_op_mtc0_YQMask(); /* MT ASE */
             rn = "YQMask";
-//         break;
+//            break;
         case 5:
-//         gen_op_mtc0_vpeschedule(); /* MT ASE */
+//            gen_op_mtc0_vpeschedule(); /* MT ASE */
             rn = "VPESchedule";
-//         break;
+//            break;
         case 6:
-//         gen_op_mtc0_vpeschefback(); /* MT ASE */
+//            gen_op_mtc0_vpeschefback(); /* MT ASE */
             rn = "VPEScheFBack";
-//         break;
+//            break;
         case 7:
-//         gen_op_mtc0_vpeopt(); /* MT ASE */
+//            gen_op_mtc0_vpeopt(); /* MT ASE */
             rn = "VPEOpt";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -2411,37 +2413,37 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-           gen_op_mtc0_entrylo0();
-           rn = "EntryLo0";
-           break;
+            gen_op_mtc0_entrylo0();
+            rn = "EntryLo0";
+            break;
         case 1:
-//         gen_op_mtc0_tcstatus(); /* MT ASE */
-           rn = "TCStatus";
-//         break;
+//            gen_op_mtc0_tcstatus(); /* MT ASE */
+            rn = "TCStatus";
+//            break;
         case 2:
-//         gen_op_mtc0_tcbind(); /* MT ASE */
-           rn = "TCBind";
-//         break;
+//            gen_op_mtc0_tcbind(); /* MT ASE */
+            rn = "TCBind";
+//            break;
         case 3:
-//         gen_op_mtc0_tcrestart(); /* MT ASE */
-           rn = "TCRestart";
-//         break;
+//            gen_op_mtc0_tcrestart(); /* MT ASE */
+            rn = "TCRestart";
+//            break;
         case 4:
-//         gen_op_mtc0_tchalt(); /* MT ASE */
-           rn = "TCHalt";
-//         break;
+//            gen_op_mtc0_tchalt(); /* MT ASE */
+            rn = "TCHalt";
+//            break;
         case 5:
-//         gen_op_mtc0_tccontext(); /* MT ASE */
-           rn = "TCContext";
-//         break;
+//            gen_op_mtc0_tccontext(); /* MT ASE */
+            rn = "TCContext";
+//            break;
         case 6:
-//         gen_op_mtc0_tcschedule(); /* MT ASE */
-           rn = "TCSchedule";
-//         break;
+//            gen_op_mtc0_tcschedule(); /* MT ASE */
+            rn = "TCSchedule";
+//            break;
         case 7:
-//         gen_op_mtc0_tcschefback(); /* MT ASE */
-           rn = "TCScheFBack";
-//         break;
+//            gen_op_mtc0_tcschefback(); /* MT ASE */
+            rn = "TCScheFBack";
+//            break;
         default:
             goto die;
         }
@@ -2449,9 +2451,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-           gen_op_mtc0_entrylo1();
-           rn = "EntryLo1";
-           break;
+            gen_op_mtc0_entrylo1();
+            rn = "EntryLo1";
+            break;
         default:
             goto die;
         }
@@ -2459,13 +2461,13 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 4:
         switch (sel) {
         case 0:
-           gen_op_mtc0_context();
-           rn = "Context";
-           break;
+            gen_op_mtc0_context();
+            rn = "Context";
+            break;
         case 1:
-//         gen_op_mtc0_contextconfig(); /* SmartMIPS ASE */
-           rn = "ContextConfig";
-//         break;
+//            gen_op_mtc0_contextconfig(); /* SmartMIPS ASE */
+            rn = "ContextConfig";
+//            break;
         default:
             goto die;
         }
@@ -2473,13 +2475,13 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-           gen_op_mtc0_pagemask();
-           rn = "PageMask";
-           break;
+            gen_op_mtc0_pagemask();
+            rn = "PageMask";
+            break;
         case 1:
-           gen_op_mtc0_pagegrain();
-           rn = "PageGrain";
-           break;
+            gen_op_mtc0_pagegrain();
+            rn = "PageGrain";
+            break;
         default:
             goto die;
         }
@@ -2487,29 +2489,29 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-           gen_op_mtc0_wired();
-           rn = "Wired";
-           break;
+            gen_op_mtc0_wired();
+            rn = "Wired";
+            break;
         case 1:
-//         gen_op_mtc0_srsconf0(); /* shadow registers */
-           rn = "SRSConf0";
-//         break;
+//            gen_op_mtc0_srsconf0(); /* shadow registers */
+            rn = "SRSConf0";
+//            break;
         case 2:
-//         gen_op_mtc0_srsconf1(); /* shadow registers */
-           rn = "SRSConf1";
-//         break;
+//            gen_op_mtc0_srsconf1(); /* shadow registers */
+            rn = "SRSConf1";
+//            break;
         case 3:
-//         gen_op_mtc0_srsconf2(); /* shadow registers */
-           rn = "SRSConf2";
-//         break;
+//            gen_op_mtc0_srsconf2(); /* shadow registers */
+            rn = "SRSConf2";
+//            break;
         case 4:
-//         gen_op_mtc0_srsconf3(); /* shadow registers */
-           rn = "SRSConf3";
-//         break;
+//            gen_op_mtc0_srsconf3(); /* shadow registers */
+            rn = "SRSConf3";
+//            break;
         case 5:
-//         gen_op_mtc0_srsconf4(); /* shadow registers */
-           rn = "SRSConf4";
-//         break;
+//            gen_op_mtc0_srsconf4(); /* shadow registers */
+            rn = "SRSConf4";
+//            break;
         default:
             goto die;
         }
@@ -2517,9 +2519,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-           gen_op_mtc0_hwrena();
-           rn = "HWREna";
-           break;
+            gen_op_mtc0_hwrena();
+            rn = "HWREna";
+            break;
         default:
             goto die;
         }
@@ -2531,9 +2533,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-           gen_op_mtc0_count();
-           rn = "Count";
-           break;
+            gen_op_mtc0_count();
+            rn = "Count";
+            break;
         /* 6,7 are implementation dependent */
         default:
             goto die;
@@ -2544,9 +2546,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 10:
         switch (sel) {
         case 0:
-           gen_op_mtc0_entryhi();
-           rn = "EntryHi";
-           break;
+            gen_op_mtc0_entryhi();
+            rn = "EntryHi";
+            break;
         default:
             goto die;
         }
@@ -2554,10 +2556,10 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-           gen_op_mtc0_compare();
-           rn = "Compare";
-           break;
-       /* 6,7 are implementation dependent */
+            gen_op_mtc0_compare();
+            rn = "Compare";
+            break;
+        /* 6,7 are implementation dependent */
         default:
             goto die;
         }
@@ -2567,21 +2569,21 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-           gen_op_mtc0_status();
-           rn = "Status";
-           break;
+            gen_op_mtc0_status();
+            rn = "Status";
+            break;
         case 1:
-           gen_op_mtc0_intctl();
-           rn = "IntCtl";
-           break;
+            gen_op_mtc0_intctl();
+            rn = "IntCtl";
+            break;
         case 2:
-           gen_op_mtc0_srsctl();
-           rn = "SRSCtl";
-           break;
+            gen_op_mtc0_srsctl();
+            rn = "SRSCtl";
+            break;
         case 3:
-//         gen_op_mtc0_srsmap(); /* shadow registers */
-           rn = "SRSMap";
-//         break;
+//            gen_op_mtc0_srsmap(); /* shadow registers */
+            rn = "SRSMap";
+//            break;
         default:
             goto die;
         }
@@ -2591,9 +2593,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-           gen_op_mtc0_cause();
-           rn = "Cause";
-           break;
+            gen_op_mtc0_cause();
+            rn = "Cause";
+            break;
         default:
             goto die;
         }
@@ -2603,9 +2605,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 14:
         switch (sel) {
         case 0:
-           gen_op_mtc0_epc();
-           rn = "EPC";
-           break;
+            gen_op_mtc0_epc();
+            rn = "EPC";
+            break;
         default:
             goto die;
         }
@@ -2613,13 +2615,13 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 15:
         switch (sel) {
         case 0:
-           /* ignored */
-           rn = "PRid";
-           break;
+            /* ignored */
+            rn = "PRid";
+            break;
         case 1:
-           gen_op_mtc0_ebase();
-           rn = "EBase";
-           break;
+            gen_op_mtc0_ebase();
+            rn = "EBase";
+            break;
         default:
             goto die;
         }
@@ -2629,6 +2631,8 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         case 0:
             gen_op_mtc0_config0();
             rn = "Config";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             break;
         case 1:
             /* ignored, read only */
@@ -2637,6 +2641,8 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         case 2:
             gen_op_mtc0_config2();
             rn = "Config2";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             break;
         case 3:
             /* ignored, read only */
@@ -2656,15 +2662,13 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
             rn = "Invalid config selector";
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 17:
         switch (sel) {
         case 0:
-           /* ignored */
-           rn = "LLAddr";
-           break;
+            /* ignored */
+            rn = "LLAddr";
+            break;
         default:
             goto die;
         }
@@ -2672,37 +2676,37 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0:
-           gen_op_mtc0_watchlo0();
-           rn = "WatchLo";
-           break;
+            gen_op_mtc0_watchlo0();
+            rn = "WatchLo";
+            break;
         case 1:
-//         gen_op_mtc0_watchlo1();
-           rn = "WatchLo1";
-//         break;
+//            gen_op_mtc0_watchlo1();
+            rn = "WatchLo1";
+//            break;
         case 2:
-//         gen_op_mtc0_watchlo2();
-           rn = "WatchLo2";
-//         break;
+//            gen_op_mtc0_watchlo2();
+            rn = "WatchLo2";
+//            break;
         case 3:
-//         gen_op_mtc0_watchlo3();
-           rn = "WatchLo3";
-//         break;
+//            gen_op_mtc0_watchlo3();
+            rn = "WatchLo3";
+//            break;
         case 4:
-//         gen_op_mtc0_watchlo4();
-           rn = "WatchLo4";
-//         break;
+//            gen_op_mtc0_watchlo4();
+            rn = "WatchLo4";
+//            break;
         case 5:
-//         gen_op_mtc0_watchlo5();
-           rn = "WatchLo5";
-//         break;
+//            gen_op_mtc0_watchlo5();
+            rn = "WatchLo5";
+//            break;
         case 6:
-//         gen_op_mtc0_watchlo6();
-           rn = "WatchLo6";
-//         break;
+//            gen_op_mtc0_watchlo6();
+            rn = "WatchLo6";
+//            break;
         case 7:
-//         gen_op_mtc0_watchlo7();
-           rn = "WatchLo7";
-//         break;
+//            gen_op_mtc0_watchlo7();
+            rn = "WatchLo7";
+//            break;
         default:
             goto die;
         }
@@ -2710,37 +2714,37 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0:
-           gen_op_mtc0_watchhi0();
-           rn = "WatchHi";
-           break;
+            gen_op_mtc0_watchhi0();
+            rn = "WatchHi";
+            break;
         case 1:
-//         gen_op_mtc0_watchhi1();
-           rn = "WatchHi1";
-//         break;
+//            gen_op_mtc0_watchhi1();
+            rn = "WatchHi1";
+//            break;
         case 2:
-//         gen_op_mtc0_watchhi2();
-           rn = "WatchHi2";
-//         break;
+//            gen_op_mtc0_watchhi2();
+            rn = "WatchHi2";
+//            break;
         case 3:
-//         gen_op_mtc0_watchhi3();
-           rn = "WatchHi3";
-//         break;
+//            gen_op_mtc0_watchhi3();
+            rn = "WatchHi3";
+//            break;
         case 4:
-//         gen_op_mtc0_watchhi4();
-           rn = "WatchHi4";
-//         break;
+//            gen_op_mtc0_watchhi4();
+            rn = "WatchHi4";
+//            break;
         case 5:
-//         gen_op_mtc0_watchhi5();
-           rn = "WatchHi5";
-//         break;
+//            gen_op_mtc0_watchhi5();
+            rn = "WatchHi5";
+//            break;
         case 6:
-//         gen_op_mtc0_watchhi6();
-           rn = "WatchHi6";
-//         break;
+//            gen_op_mtc0_watchhi6();
+            rn = "WatchHi6";
+//            break;
         case 7:
-//         gen_op_mtc0_watchhi7();
-           rn = "WatchHi7";
-//         break;
+//            gen_op_mtc0_watchhi7();
+            rn = "WatchHi7";
+//            break;
         default:
             goto die;
         }
@@ -2748,10 +2752,10 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-           /* 64 bit MMU only */
-           gen_op_mtc0_xcontext();
-           rn = "XContext";
-           break;
+            /* 64 bit MMU only */
+            /* Nothing writable in lower 32 bits */
+            rn = "XContext";
+            break;
         default:
             goto die;
         }
@@ -2760,9 +2764,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-           gen_op_mtc0_framemask();
-           rn = "Framemask";
-           break;
+            gen_op_mtc0_framemask();
+            rn = "Framemask";
+            break;
         default:
             goto die;
         }
@@ -2770,41 +2774,41 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 22:
         /* ignored */
         rn = "Diagnostic"; /* implementation dependent */
-       break;
+        break;
     case 23:
         switch (sel) {
         case 0:
-           gen_op_mtc0_debug(); /* EJTAG support */
-           rn = "Debug";
-           break;
+            gen_op_mtc0_debug(); /* EJTAG support */
+            rn = "Debug";
+            break;
         case 1:
-//         gen_op_mtc0_tracecontrol(); /* PDtrace support */
-           rn = "TraceControl";
-//         break;
+//            gen_op_mtc0_tracecontrol(); /* PDtrace support */
+            rn = "TraceControl";
+//            break;
         case 2:
-//         gen_op_mtc0_tracecontrol2(); /* PDtrace support */
-           rn = "TraceControl2";
-//         break;
+//            gen_op_mtc0_tracecontrol2(); /* PDtrace support */
+            rn = "TraceControl2";
+//            break;
         case 3:
-//         gen_op_mtc0_usertracedata(); /* PDtrace support */
-           rn = "UserTraceData";
-//         break;
+//            gen_op_mtc0_usertracedata(); /* PDtrace support */
+            rn = "UserTraceData";
+//            break;
         case 4:
-//         gen_op_mtc0_debug(); /* PDtrace support */
-           rn = "TraceBPC";
-//         break;
+//            gen_op_mtc0_debug(); /* PDtrace support */
+            rn = "TraceBPC";
+//            break;
         default:
             goto die;
         }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 24:
         switch (sel) {
         case 0:
-           gen_op_mtc0_depc(); /* EJTAG support */
-           rn = "DEPC";
-           break;
+            gen_op_mtc0_depc(); /* EJTAG support */
+            rn = "DEPC";
+            break;
         default:
             goto die;
         }
@@ -2812,51 +2816,51 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-           gen_op_mtc0_performance0();
-           rn = "Performance0";
-           break;
+            gen_op_mtc0_performance0();
+            rn = "Performance0";
+            break;
         case 1:
-//         gen_op_mtc0_performance1();
-           rn = "Performance1";
-//         break;
+//            gen_op_mtc0_performance1();
+            rn = "Performance1";
+//            break;
         case 2:
-//         gen_op_mtc0_performance2();
-           rn = "Performance2";
-//         break;
+//            gen_op_mtc0_performance2();
+            rn = "Performance2";
+//            break;
         case 3:
-//         gen_op_mtc0_performance3();
-           rn = "Performance3";
-//         break;
+//            gen_op_mtc0_performance3();
+            rn = "Performance3";
+//            break;
         case 4:
-//         gen_op_mtc0_performance4();
-           rn = "Performance4";
-//         break;
+//            gen_op_mtc0_performance4();
+            rn = "Performance4";
+//            break;
         case 5:
-//         gen_op_mtc0_performance5();
-           rn = "Performance5";
-//         break;
+//            gen_op_mtc0_performance5();
+            rn = "Performance5";
+//            break;
         case 6:
-//         gen_op_mtc0_performance6();
-           rn = "Performance6";
-//         break;
+//            gen_op_mtc0_performance6();
+            rn = "Performance6";
+//            break;
         case 7:
-//         gen_op_mtc0_performance7();
-           rn = "Performance7";
-//         break;
+//            gen_op_mtc0_performance7();
+            rn = "Performance7";
+//            break;
         default:
             goto die;
         }
        break;
     case 26:
-       /* ignored */
+        /* ignored */
         rn = "ECC";
-       break;
+        break;
     case 27:
         switch (sel) {
         case 0 ... 3:
-           /* ignored */
-           rn = "CacheErr";
-           break;
+            /* ignored */
+            rn = "CacheErr";
+            break;
         default:
             goto die;
         }
@@ -2874,7 +2878,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         case 3:
         case 5:
         case 7:
-           gen_op_mtc0_datalo();
+            gen_op_mtc0_datalo();
             rn = "DataLo";
             break;
         default:
@@ -2894,7 +2898,7 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         case 3:
         case 5:
         case 7:
-           gen_op_mtc0_datahi();
+            gen_op_mtc0_datahi();
             rn = "DataHi";
             break;
         default:
@@ -2905,9 +2909,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 30:
         switch (sel) {
         case 0:
-           gen_op_mtc0_errorepc();
-           rn = "ErrorEPC";
-           break;
+            gen_op_mtc0_errorepc();
+            rn = "ErrorEPC";
+            break;
         default:
             goto die;
         }
@@ -2915,14 +2919,14 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 31:
         switch (sel) {
         case 0:
-           gen_op_mtc0_desave(); /* EJTAG support */
-           rn = "DESAVE";
-           break;
+            gen_op_mtc0_desave(); /* EJTAG support */
+            rn = "DESAVE";
+            break;
         default:
             goto die;
         }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     default:
        goto die;
@@ -2945,6 +2949,7 @@ die:
     generate_exception(ctx, EXCP_RI);
 }
 
+#ifdef TARGET_MIPS64
 static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
@@ -2953,21 +2958,21 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-           gen_op_mfc0_index();
+            gen_op_mfc0_index();
             rn = "Index";
             break;
         case 1:
-//         gen_op_dmfc0_mvpcontrol(); /* MT ASE */
+//            gen_op_dmfc0_mvpcontrol(); /* MT ASE */
             rn = "MVPControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_dmfc0_mvpconf0(); /* MT ASE */
+//            gen_op_dmfc0_mvpconf0(); /* MT ASE */
             rn = "MVPConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_dmfc0_mvpconf1(); /* MT ASE */
+//            gen_op_dmfc0_mvpconf1(); /* MT ASE */
             rn = "MVPConf1";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -2977,35 +2982,35 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
         case 0:
             gen_op_mfc0_random();
             rn = "Random";
-           break;
+            break;
         case 1:
-//         gen_op_dmfc0_vpecontrol(); /* MT ASE */
+//            gen_op_dmfc0_vpecontrol(); /* MT ASE */
             rn = "VPEControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_dmfc0_vpeconf0(); /* MT ASE */
+//            gen_op_dmfc0_vpeconf0(); /* MT ASE */
             rn = "VPEConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_dmfc0_vpeconf1(); /* MT ASE */
+//            gen_op_dmfc0_vpeconf1(); /* MT ASE */
             rn = "VPEConf1";
-//         break;
+//            break;
         case 4:
-//         gen_op_dmfc0_YQMask(); /* MT ASE */
+//            gen_op_dmfc0_YQMask(); /* MT ASE */
             rn = "YQMask";
-//         break;
+//            break;
         case 5:
-//         gen_op_dmfc0_vpeschedule(); /* MT ASE */
+//            gen_op_dmfc0_vpeschedule(); /* MT ASE */
             rn = "VPESchedule";
-//         break;
+//            break;
         case 6:
-//         gen_op_dmfc0_vpeschefback(); /* MT ASE */
+//            gen_op_dmfc0_vpeschefback(); /* MT ASE */
             rn = "VPEScheFBack";
-//         break;
+//            break;
         case 7:
-//         gen_op_dmfc0_vpeopt(); /* MT ASE */
+//            gen_op_dmfc0_vpeopt(); /* MT ASE */
             rn = "VPEOpt";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -3013,37 +3018,37 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_entrylo0();
-           rn = "EntryLo0";
-           break;
+            gen_op_dmfc0_entrylo0();
+            rn = "EntryLo0";
+            break;
         case 1:
-//         gen_op_dmfc0_tcstatus(); /* MT ASE */
-           rn = "TCStatus";
-//         break;
+//            gen_op_dmfc0_tcstatus(); /* MT ASE */
+            rn = "TCStatus";
+//            break;
         case 2:
-//         gen_op_dmfc0_tcbind(); /* MT ASE */
-           rn = "TCBind";
-//         break;
+//            gen_op_dmfc0_tcbind(); /* MT ASE */
+            rn = "TCBind";
+//            break;
         case 3:
-//         gen_op_dmfc0_tcrestart(); /* MT ASE */
-           rn = "TCRestart";
-//         break;
+//            gen_op_dmfc0_tcrestart(); /* MT ASE */
+            rn = "TCRestart";
+//            break;
         case 4:
-//         gen_op_dmfc0_tchalt(); /* MT ASE */
-           rn = "TCHalt";
-//         break;
+//            gen_op_dmfc0_tchalt(); /* MT ASE */
+            rn = "TCHalt";
+//            break;
         case 5:
-//         gen_op_dmfc0_tccontext(); /* MT ASE */
-           rn = "TCContext";
-//         break;
+//            gen_op_dmfc0_tccontext(); /* MT ASE */
+            rn = "TCContext";
+//            break;
         case 6:
-//         gen_op_dmfc0_tcschedule(); /* MT ASE */
-           rn = "TCSchedule";
-//         break;
+//            gen_op_dmfc0_tcschedule(); /* MT ASE */
+            rn = "TCSchedule";
+//            break;
         case 7:
-//         gen_op_dmfc0_tcschefback(); /* MT ASE */
-           rn = "TCScheFBack";
-//         break;
+//            gen_op_dmfc0_tcschefback(); /* MT ASE */
+            rn = "TCScheFBack";
+//            break;
         default:
             goto die;
         }
@@ -3051,9 +3056,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_entrylo1();
-           rn = "EntryLo1";
-           break;
+            gen_op_dmfc0_entrylo1();
+            rn = "EntryLo1";
+            break;
         default:
             goto die;
         }
@@ -3061,13 +3066,13 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 4:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_context();
-           rn = "Context";
-           break;
+            gen_op_dmfc0_context();
+            rn = "Context";
+            break;
         case 1:
-//         gen_op_dmfc0_contextconfig(); /* SmartMIPS ASE */
-           rn = "ContextConfig";
-//         break;
+//            gen_op_dmfc0_contextconfig(); /* SmartMIPS ASE */
+            rn = "ContextConfig";
+//            break;
         default:
             goto die;
         }
@@ -3075,13 +3080,13 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-           gen_op_mfc0_pagemask();
-           rn = "PageMask";
-           break;
+            gen_op_mfc0_pagemask();
+            rn = "PageMask";
+            break;
         case 1:
-           gen_op_mfc0_pagegrain();
-           rn = "PageGrain";
-           break;
+            gen_op_mfc0_pagegrain();
+            rn = "PageGrain";
+            break;
         default:
             goto die;
         }
@@ -3089,29 +3094,29 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-           gen_op_mfc0_wired();
-           rn = "Wired";
-           break;
+            gen_op_mfc0_wired();
+            rn = "Wired";
+            break;
         case 1:
-//         gen_op_dmfc0_srsconf0(); /* shadow registers */
-           rn = "SRSConf0";
-//         break;
+//            gen_op_dmfc0_srsconf0(); /* shadow registers */
+            rn = "SRSConf0";
+//            break;
         case 2:
-//         gen_op_dmfc0_srsconf1(); /* shadow registers */
-           rn = "SRSConf1";
-//         break;
+//            gen_op_dmfc0_srsconf1(); /* shadow registers */
+            rn = "SRSConf1";
+//            break;
         case 3:
-//         gen_op_dmfc0_srsconf2(); /* shadow registers */
-           rn = "SRSConf2";
-//         break;
+//            gen_op_dmfc0_srsconf2(); /* shadow registers */
+            rn = "SRSConf2";
+//            break;
         case 4:
-//         gen_op_dmfc0_srsconf3(); /* shadow registers */
-           rn = "SRSConf3";
-//         break;
+//            gen_op_dmfc0_srsconf3(); /* shadow registers */
+            rn = "SRSConf3";
+//            break;
         case 5:
-//         gen_op_dmfc0_srsconf4(); /* shadow registers */
-           rn = "SRSConf4";
-//         break;
+//            gen_op_dmfc0_srsconf4(); /* shadow registers */
+            rn = "SRSConf4";
+//            break;
         default:
             goto die;
         }
@@ -3119,9 +3124,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-           gen_op_mfc0_hwrena();
-           rn = "HWREna";
-           break;
+            gen_op_mfc0_hwrena();
+            rn = "HWREna";
+            break;
         default:
             goto die;
         }
@@ -3129,9 +3134,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 8:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_badvaddr();
-           rn = "BadVaddr";
-           break;
+            gen_op_dmfc0_badvaddr();
+            rn = "BadVaddr";
+            break;
         default:
             goto die;
         }
@@ -3139,10 +3144,10 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-           gen_op_mfc0_count();
-           rn = "Count";
-           break;
-       /* 6,7 are implementation dependent */
+            gen_op_mfc0_count();
+            rn = "Count";
+            break;
+        /* 6,7 are implementation dependent */
         default:
             goto die;
         }
@@ -3150,9 +3155,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 10:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_entryhi();
-           rn = "EntryHi";
-           break;
+            gen_op_dmfc0_entryhi();
+            rn = "EntryHi";
+            break;
         default:
             goto die;
         }
@@ -3160,9 +3165,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-           gen_op_mfc0_compare();
-           rn = "Compare";
-           break;
+            gen_op_mfc0_compare();
+            rn = "Compare";
+            break;
         /* 6,7 are implementation dependent */
         default:
             goto die;
@@ -3171,21 +3176,21 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-           gen_op_mfc0_status();
-           rn = "Status";
-           break;
+            gen_op_mfc0_status();
+            rn = "Status";
+            break;
         case 1:
-           gen_op_mfc0_intctl();
-           rn = "IntCtl";
-           break;
+            gen_op_mfc0_intctl();
+            rn = "IntCtl";
+            break;
         case 2:
-           gen_op_mfc0_srsctl();
-           rn = "SRSCtl";
-           break;
+            gen_op_mfc0_srsctl();
+            rn = "SRSCtl";
+            break;
         case 3:
-           gen_op_mfc0_srsmap(); /* shadow registers */
-           rn = "SRSMap";
-           break;
+            gen_op_mfc0_srsmap(); /* shadow registers */
+            rn = "SRSMap";
+            break;
         default:
             goto die;
         }
@@ -3193,9 +3198,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-           gen_op_mfc0_cause();
-           rn = "Cause";
-           break;
+            gen_op_mfc0_cause();
+            rn = "Cause";
+            break;
         default:
             goto die;
         }
@@ -3203,9 +3208,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 14:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_epc();
-           rn = "EPC";
-           break;
+            gen_op_dmfc0_epc();
+            rn = "EPC";
+            break;
         default:
             goto die;
         }
@@ -3213,13 +3218,13 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 15:
         switch (sel) {
         case 0:
-           gen_op_mfc0_prid();
-           rn = "PRid";
-           break;
+            gen_op_mfc0_prid();
+            rn = "PRid";
+            break;
         case 1:
-           gen_op_mfc0_ebase();
-           rn = "EBase";
-           break;
+            gen_op_mfc0_ebase();
+            rn = "EBase";
+            break;
         default:
             goto die;
         }
@@ -3227,19 +3232,19 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-           gen_op_mfc0_config0();
+            gen_op_mfc0_config0();
             rn = "Config";
             break;
         case 1:
-           gen_op_mfc0_config1();
+            gen_op_mfc0_config1();
             rn = "Config1";
             break;
         case 2:
-           gen_op_mfc0_config2();
+            gen_op_mfc0_config2();
             rn = "Config2";
             break;
         case 3:
-           gen_op_mfc0_config3();
+            gen_op_mfc0_config3();
             rn = "Config3";
             break;
        /* 6,7 are implementation dependent */
@@ -3250,9 +3255,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 17:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_lladdr();
-           rn = "LLAddr";
-           break;
+            gen_op_dmfc0_lladdr();
+            rn = "LLAddr";
+            break;
         default:
             goto die;
         }
@@ -3260,37 +3265,37 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_watchlo0();
-           rn = "WatchLo";
-           break;
+            gen_op_dmfc0_watchlo0();
+            rn = "WatchLo";
+            break;
         case 1:
-//         gen_op_dmfc0_watchlo1();
-           rn = "WatchLo1";
-//         break;
+//            gen_op_dmfc0_watchlo1();
+            rn = "WatchLo1";
+//            break;
         case 2:
-//         gen_op_dmfc0_watchlo2();
-           rn = "WatchLo2";
-//         break;
+//            gen_op_dmfc0_watchlo2();
+            rn = "WatchLo2";
+//            break;
         case 3:
-//         gen_op_dmfc0_watchlo3();
-           rn = "WatchLo3";
-//         break;
+//            gen_op_dmfc0_watchlo3();
+            rn = "WatchLo3";
+//            break;
         case 4:
-//         gen_op_dmfc0_watchlo4();
-           rn = "WatchLo4";
-//         break;
+//            gen_op_dmfc0_watchlo4();
+            rn = "WatchLo4";
+//            break;
         case 5:
-//         gen_op_dmfc0_watchlo5();
-           rn = "WatchLo5";
-//         break;
+//            gen_op_dmfc0_watchlo5();
+            rn = "WatchLo5";
+//            break;
         case 6:
-//         gen_op_dmfc0_watchlo6();
-           rn = "WatchLo6";
-//         break;
+//            gen_op_dmfc0_watchlo6();
+            rn = "WatchLo6";
+//            break;
         case 7:
-//         gen_op_dmfc0_watchlo7();
-           rn = "WatchLo7";
-//         break;
+//            gen_op_dmfc0_watchlo7();
+            rn = "WatchLo7";
+//            break;
         default:
             goto die;
         }
@@ -3298,37 +3303,37 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0:
-           gen_op_mfc0_watchhi0();
-           rn = "WatchHi";
-           break;
+            gen_op_mfc0_watchhi0();
+            rn = "WatchHi";
+            break;
         case 1:
-//         gen_op_mfc0_watchhi1();
-           rn = "WatchHi1";
-//         break;
+//            gen_op_mfc0_watchhi1();
+            rn = "WatchHi1";
+//            break;
         case 2:
-//         gen_op_mfc0_watchhi2();
-           rn = "WatchHi2";
-//         break;
+//            gen_op_mfc0_watchhi2();
+            rn = "WatchHi2";
+//            break;
         case 3:
-//         gen_op_mfc0_watchhi3();
-           rn = "WatchHi3";
-//         break;
+//            gen_op_mfc0_watchhi3();
+            rn = "WatchHi3";
+//            break;
         case 4:
-//         gen_op_mfc0_watchhi4();
-           rn = "WatchHi4";
-//         break;
+//            gen_op_mfc0_watchhi4();
+            rn = "WatchHi4";
+//            break;
         case 5:
-//         gen_op_mfc0_watchhi5();
-           rn = "WatchHi5";
-//         break;
+//            gen_op_mfc0_watchhi5();
+            rn = "WatchHi5";
+//            break;
         case 6:
-//         gen_op_mfc0_watchhi6();
-           rn = "WatchHi6";
-//         break;
+//            gen_op_mfc0_watchhi6();
+            rn = "WatchHi6";
+//            break;
         case 7:
-//         gen_op_mfc0_watchhi7();
-           rn = "WatchHi7";
-//         break;
+//            gen_op_mfc0_watchhi7();
+            rn = "WatchHi7";
+//            break;
         default:
             goto die;
         }
@@ -3336,10 +3341,10 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-           /* 64 bit MMU only */
-           gen_op_dmfc0_xcontext();
-           rn = "XContext";
-           break;
+            /* 64 bit MMU only */
+            gen_op_dmfc0_xcontext();
+            rn = "XContext";
+            break;
         default:
             goto die;
         }
@@ -3348,39 +3353,39 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-           gen_op_mfc0_framemask();
-           rn = "Framemask";
-           break;
+            gen_op_mfc0_framemask();
+            rn = "Framemask";
+            break;
         default:
             goto die;
         }
         break;
     case 22:
-       /* ignored */
-       rn = "'Diagnostic"; /* implementation dependent */
-       break;
+        /* ignored */
+        rn = "'Diagnostic"; /* implementation dependent */
+        break;
     case 23:
         switch (sel) {
         case 0:
-           gen_op_mfc0_debug(); /* EJTAG support */
-           rn = "Debug";
-           break;
+            gen_op_mfc0_debug(); /* EJTAG support */
+            rn = "Debug";
+            break;
         case 1:
-//         gen_op_dmfc0_tracecontrol(); /* PDtrace support */
-           rn = "TraceControl";
-//         break;
+//            gen_op_dmfc0_tracecontrol(); /* PDtrace support */
+            rn = "TraceControl";
+//            break;
         case 2:
-//         gen_op_dmfc0_tracecontrol2(); /* PDtrace support */
-           rn = "TraceControl2";
-//         break;
+//            gen_op_dmfc0_tracecontrol2(); /* PDtrace support */
+            rn = "TraceControl2";
+//            break;
         case 3:
-//         gen_op_dmfc0_usertracedata(); /* PDtrace support */
-           rn = "UserTraceData";
-//         break;
+//            gen_op_dmfc0_usertracedata(); /* PDtrace support */
+            rn = "UserTraceData";
+//            break;
         case 4:
-//         gen_op_dmfc0_debug(); /* PDtrace support */
-           rn = "TraceBPC";
-//         break;
+//            gen_op_dmfc0_debug(); /* PDtrace support */
+            rn = "TraceBPC";
+//            break;
         default:
             goto die;
         }
@@ -3388,9 +3393,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 24:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_depc(); /* EJTAG support */
-           rn = "DEPC";
-           break;
+            gen_op_dmfc0_depc(); /* EJTAG support */
+            rn = "DEPC";
+            break;
         default:
             goto die;
         }
@@ -3398,37 +3403,37 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-           gen_op_mfc0_performance0();
-           rn = "Performance0";
+            gen_op_mfc0_performance0();
+            rn = "Performance0";
             break;
         case 1:
-//         gen_op_dmfc0_performance1();
-           rn = "Performance1";
-//         break;
+//            gen_op_dmfc0_performance1();
+            rn = "Performance1";
+//            break;
         case 2:
-//         gen_op_dmfc0_performance2();
-           rn = "Performance2";
-//         break;
+//            gen_op_dmfc0_performance2();
+            rn = "Performance2";
+//            break;
         case 3:
-//         gen_op_dmfc0_performance3();
-           rn = "Performance3";
-//         break;
+//            gen_op_dmfc0_performance3();
+            rn = "Performance3";
+//            break;
         case 4:
-//         gen_op_dmfc0_performance4();
-           rn = "Performance4";
-//         break;
+//            gen_op_dmfc0_performance4();
+            rn = "Performance4";
+//            break;
         case 5:
-//         gen_op_dmfc0_performance5();
-           rn = "Performance5";
-//         break;
+//            gen_op_dmfc0_performance5();
+            rn = "Performance5";
+//            break;
         case 6:
-//         gen_op_dmfc0_performance6();
-           rn = "Performance6";
-//         break;
+//            gen_op_dmfc0_performance6();
+            rn = "Performance6";
+//            break;
         case 7:
-//         gen_op_dmfc0_performance7();
-           rn = "Performance7";
-//         break;
+//            gen_op_dmfc0_performance7();
+            rn = "Performance7";
+//            break;
         default:
             goto die;
         }
@@ -3440,8 +3445,8 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         /* ignored */
         case 0 ... 3:
-           rn = "CacheErr";
-           break;
+            rn = "CacheErr";
+            break;
         default:
             goto die;
         }
@@ -3489,9 +3494,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 30:
         switch (sel) {
         case 0:
-           gen_op_dmfc0_errorepc();
-           rn = "ErrorEPC";
-           break;
+            gen_op_dmfc0_errorepc();
+            rn = "ErrorEPC";
+            break;
         default:
             goto die;
         }
@@ -3499,9 +3504,9 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 31:
         switch (sel) {
         case 0:
-           gen_op_mfc0_desave(); /* EJTAG support */
-           rn = "DESAVE";
-           break;
+            gen_op_mfc0_desave(); /* EJTAG support */
+            rn = "DESAVE";
+            break;
         default:
             goto die;
         }
@@ -3539,17 +3544,17 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-//         gen_op_dmtc0_mvpcontrol(); /* MT ASE */
+//            gen_op_dmtc0_mvpcontrol(); /* MT ASE */
             rn = "MVPControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_dmtc0_mvpconf0(); /* MT ASE */
+//            gen_op_dmtc0_mvpconf0(); /* MT ASE */
             rn = "MVPConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_dmtc0_mvpconf1(); /* MT ASE */
+//            gen_op_dmtc0_mvpconf1(); /* MT ASE */
             rn = "MVPConf1";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -3557,37 +3562,37 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 1:
         switch (sel) {
         case 0:
-           /* ignored */
+            /* ignored */
             rn = "Random";
-           break;
+            break;
         case 1:
-//         gen_op_dmtc0_vpecontrol(); /* MT ASE */
+//            gen_op_dmtc0_vpecontrol(); /* MT ASE */
             rn = "VPEControl";
-//         break;
+//            break;
         case 2:
-//         gen_op_dmtc0_vpeconf0(); /* MT ASE */
+//            gen_op_dmtc0_vpeconf0(); /* MT ASE */
             rn = "VPEConf0";
-//         break;
+//            break;
         case 3:
-//         gen_op_dmtc0_vpeconf1(); /* MT ASE */
+//            gen_op_dmtc0_vpeconf1(); /* MT ASE */
             rn = "VPEConf1";
-//         break;
+//            break;
         case 4:
-//         gen_op_dmtc0_YQMask(); /* MT ASE */
+//            gen_op_dmtc0_YQMask(); /* MT ASE */
             rn = "YQMask";
-//         break;
+//            break;
         case 5:
-//         gen_op_dmtc0_vpeschedule(); /* MT ASE */
+//            gen_op_dmtc0_vpeschedule(); /* MT ASE */
             rn = "VPESchedule";
-//         break;
+//            break;
         case 6:
-//         gen_op_dmtc0_vpeschefback(); /* MT ASE */
+//            gen_op_dmtc0_vpeschefback(); /* MT ASE */
             rn = "VPEScheFBack";
-//         break;
+//            break;
         case 7:
-//         gen_op_dmtc0_vpeopt(); /* MT ASE */
+//            gen_op_dmtc0_vpeopt(); /* MT ASE */
             rn = "VPEOpt";
-//         break;
+//            break;
         default:
             goto die;
         }
@@ -3595,37 +3600,37 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_entrylo0();
-           rn = "EntryLo0";
-           break;
+            gen_op_dmtc0_entrylo0();
+            rn = "EntryLo0";
+            break;
         case 1:
-//         gen_op_dmtc0_tcstatus(); /* MT ASE */
-           rn = "TCStatus";
-//         break;
+//            gen_op_dmtc0_tcstatus(); /* MT ASE */
+            rn = "TCStatus";
+//            break;
         case 2:
-//         gen_op_dmtc0_tcbind(); /* MT ASE */
-           rn = "TCBind";
-//         break;
+//            gen_op_dmtc0_tcbind(); /* MT ASE */
+            rn = "TCBind";
+//            break;
         case 3:
-//         gen_op_dmtc0_tcrestart(); /* MT ASE */
-           rn = "TCRestart";
-//         break;
+//            gen_op_dmtc0_tcrestart(); /* MT ASE */
+            rn = "TCRestart";
+//            break;
         case 4:
-//         gen_op_dmtc0_tchalt(); /* MT ASE */
-           rn = "TCHalt";
-//         break;
+//            gen_op_dmtc0_tchalt(); /* MT ASE */
+            rn = "TCHalt";
+//            break;
         case 5:
-//         gen_op_dmtc0_tccontext(); /* MT ASE */
-           rn = "TCContext";
-//         break;
+//            gen_op_dmtc0_tccontext(); /* MT ASE */
+            rn = "TCContext";
+//            break;
         case 6:
-//         gen_op_dmtc0_tcschedule(); /* MT ASE */
-           rn = "TCSchedule";
-//         break;
+//            gen_op_dmtc0_tcschedule(); /* MT ASE */
+            rn = "TCSchedule";
+//            break;
         case 7:
-//         gen_op_dmtc0_tcschefback(); /* MT ASE */
-           rn = "TCScheFBack";
-//         break;
+//            gen_op_dmtc0_tcschefback(); /* MT ASE */
+            rn = "TCScheFBack";
+//            break;
         default:
             goto die;
         }
@@ -3633,9 +3638,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_entrylo1();
-           rn = "EntryLo1";
-           break;
+            gen_op_dmtc0_entrylo1();
+            rn = "EntryLo1";
+            break;
         default:
             goto die;
         }
@@ -3643,13 +3648,13 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 4:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_context();
-           rn = "Context";
-           break;
+            gen_op_dmtc0_context();
+            rn = "Context";
+            break;
         case 1:
-//         gen_op_dmtc0_contextconfig(); /* SmartMIPS ASE */
-           rn = "ContextConfig";
-//         break;
+//           gen_op_dmtc0_contextconfig(); /* SmartMIPS ASE */
+            rn = "ContextConfig";
+//           break;
         default:
             goto die;
         }
@@ -3657,13 +3662,13 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-           gen_op_mtc0_pagemask();
-           rn = "PageMask";
-           break;
+            gen_op_mtc0_pagemask();
+            rn = "PageMask";
+            break;
         case 1:
-           gen_op_mtc0_pagegrain();
-           rn = "PageGrain";
-           break;
+            gen_op_mtc0_pagegrain();
+            rn = "PageGrain";
+            break;
         default:
             goto die;
         }
@@ -3671,29 +3676,29 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-           gen_op_mtc0_wired();
-           rn = "Wired";
-           break;
+            gen_op_mtc0_wired();
+            rn = "Wired";
+            break;
         case 1:
-//         gen_op_dmtc0_srsconf0(); /* shadow registers */
-           rn = "SRSConf0";
-//         break;
+//            gen_op_dmtc0_srsconf0(); /* shadow registers */
+            rn = "SRSConf0";
+//            break;
         case 2:
-//         gen_op_dmtc0_srsconf1(); /* shadow registers */
-           rn = "SRSConf1";
-//         break;
+//            gen_op_dmtc0_srsconf1(); /* shadow registers */
+            rn = "SRSConf1";
+//            break;
         case 3:
-//         gen_op_dmtc0_srsconf2(); /* shadow registers */
-           rn = "SRSConf2";
-//         break;
+//            gen_op_dmtc0_srsconf2(); /* shadow registers */
+            rn = "SRSConf2";
+//            break;
         case 4:
-//         gen_op_dmtc0_srsconf3(); /* shadow registers */
-           rn = "SRSConf3";
-//         break;
+//            gen_op_dmtc0_srsconf3(); /* shadow registers */
+            rn = "SRSConf3";
+//            break;
         case 5:
-//         gen_op_dmtc0_srsconf4(); /* shadow registers */
-           rn = "SRSConf4";
-//         break;
+//            gen_op_dmtc0_srsconf4(); /* shadow registers */
+            rn = "SRSConf4";
+//            break;
         default:
             goto die;
         }
@@ -3701,9 +3706,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-           gen_op_mtc0_hwrena();
-           rn = "HWREna";
-           break;
+            gen_op_mtc0_hwrena();
+            rn = "HWREna";
+            break;
         default:
             goto die;
         }
@@ -3715,9 +3720,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-           gen_op_mtc0_count();
-           rn = "Count";
-           break;
+            gen_op_mtc0_count();
+            rn = "Count";
+            break;
         /* 6,7 are implementation dependent */
         default:
             goto die;
@@ -3728,9 +3733,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 10:
         switch (sel) {
         case 0:
-           gen_op_mtc0_entryhi();
-           rn = "EntryHi";
-           break;
+            gen_op_mtc0_entryhi();
+            rn = "EntryHi";
+            break;
         default:
             goto die;
         }
@@ -3738,9 +3743,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-           gen_op_mtc0_compare();
-           rn = "Compare";
-           break;
+            gen_op_mtc0_compare();
+            rn = "Compare";
+            break;
         /* 6,7 are implementation dependent */
         default:
             goto die;
@@ -3751,22 +3756,22 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-           gen_op_mtc0_status();
-           rn = "Status";
-           break;
+            gen_op_mtc0_status();
+            rn = "Status";
+            break;
         case 1:
-           gen_op_mtc0_intctl();
-           rn = "IntCtl";
-           break;
+            gen_op_mtc0_intctl();
+            rn = "IntCtl";
+            break;
         case 2:
-           gen_op_mtc0_srsctl();
-           rn = "SRSCtl";
-           break;
+            gen_op_mtc0_srsctl();
+            rn = "SRSCtl";
+            break;
         case 3:
-         gen_op_mtc0_srsmap(); /* shadow registers */
-           rn = "SRSMap";
-         break;
-         default:
+            gen_op_mtc0_srsmap(); /* shadow registers */
+            rn = "SRSMap";
+            break;
+        default:
             goto die;
         }
         /* Stop translation as we may have switched the execution mode */
@@ -3775,9 +3780,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-           gen_op_mtc0_cause();
-           rn = "Cause";
-           break;
+            gen_op_mtc0_cause();
+            rn = "Cause";
+            break;
         default:
             goto die;
         }
@@ -3787,9 +3792,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 14:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_epc();
-           rn = "EPC";
-           break;
+            gen_op_dmtc0_epc();
+            rn = "EPC";
+            break;
         default:
             goto die;
         }
@@ -3797,13 +3802,13 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 15:
         switch (sel) {
         case 0:
-           /* ignored */
-           rn = "PRid";
-           break;
+            /* ignored */
+            rn = "PRid";
+            break;
         case 1:
-           gen_op_mtc0_ebase();
-           rn = "EBase";
-           break;
+            gen_op_mtc0_ebase();
+            rn = "EBase";
+            break;
         default:
             goto die;
         }
@@ -3813,17 +3818,21 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         case 0:
             gen_op_mtc0_config0();
             rn = "Config";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             break;
         case 1:
-           /* ignored */
+            /* ignored */
             rn = "Config1";
             break;
         case 2:
             gen_op_mtc0_config2();
             rn = "Config2";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             break;
         case 3:
-           /* ignored */
+            /* ignored */
             rn = "Config3";
             break;
         /* 6,7 are implementation dependent */
@@ -3831,15 +3840,13 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
             rn = "Invalid config selector";
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 17:
         switch (sel) {
         case 0:
-           /* ignored */
-           rn = "LLAddr";
-           break;
+            /* ignored */
+            rn = "LLAddr";
+            break;
         default:
             goto die;
         }
@@ -3847,37 +3854,37 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_watchlo0();
-           rn = "WatchLo";
-           break;
+            gen_op_dmtc0_watchlo0();
+            rn = "WatchLo";
+            break;
         case 1:
-//         gen_op_dmtc0_watchlo1();
-           rn = "WatchLo1";
-//         break;
+//            gen_op_dmtc0_watchlo1();
+            rn = "WatchLo1";
+//            break;
         case 2:
-//         gen_op_dmtc0_watchlo2();
-           rn = "WatchLo2";
-//         break;
+//            gen_op_dmtc0_watchlo2();
+            rn = "WatchLo2";
+//            break;
         case 3:
-//         gen_op_dmtc0_watchlo3();
-           rn = "WatchLo3";
-//         break;
+//            gen_op_dmtc0_watchlo3();
+            rn = "WatchLo3";
+//            break;
         case 4:
-//         gen_op_dmtc0_watchlo4();
-           rn = "WatchLo4";
-//         break;
+//            gen_op_dmtc0_watchlo4();
+            rn = "WatchLo4";
+//            break;
         case 5:
-//         gen_op_dmtc0_watchlo5();
-           rn = "WatchLo5";
-//         break;
+//            gen_op_dmtc0_watchlo5();
+            rn = "WatchLo5";
+//            break;
         case 6:
-//         gen_op_dmtc0_watchlo6();
-           rn = "WatchLo6";
-//         break;
+//            gen_op_dmtc0_watchlo6();
+            rn = "WatchLo6";
+//            break;
         case 7:
-//         gen_op_dmtc0_watchlo7();
-           rn = "WatchLo7";
-//         break;
+//            gen_op_dmtc0_watchlo7();
+            rn = "WatchLo7";
+//            break;
         default:
             goto die;
         }
@@ -3885,37 +3892,37 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0:
-           gen_op_mtc0_watchhi0();
-           rn = "WatchHi";
-           break;
+            gen_op_mtc0_watchhi0();
+            rn = "WatchHi";
+            break;
         case 1:
-//         gen_op_dmtc0_watchhi1();
-           rn = "WatchHi1";
-//         break;
+//            gen_op_dmtc0_watchhi1();
+            rn = "WatchHi1";
+//            break;
         case 2:
-//         gen_op_dmtc0_watchhi2();
-           rn = "WatchHi2";
-//         break;
+//            gen_op_dmtc0_watchhi2();
+            rn = "WatchHi2";
+//            break;
         case 3:
-//         gen_op_dmtc0_watchhi3();
-           rn = "WatchHi3";
-//         break;
+//            gen_op_dmtc0_watchhi3();
+            rn = "WatchHi3";
+//            break;
         case 4:
-//         gen_op_dmtc0_watchhi4();
-           rn = "WatchHi4";
-//         break;
+//            gen_op_dmtc0_watchhi4();
+            rn = "WatchHi4";
+//            break;
         case 5:
-//         gen_op_dmtc0_watchhi5();
-           rn = "WatchHi5";
-//         break;
+//            gen_op_dmtc0_watchhi5();
+            rn = "WatchHi5";
+//            break;
         case 6:
-//         gen_op_dmtc0_watchhi6();
-           rn = "WatchHi6";
-//         break;
+//            gen_op_dmtc0_watchhi6();
+            rn = "WatchHi6";
+//            break;
         case 7:
-//         gen_op_dmtc0_watchhi7();
-           rn = "WatchHi7";
-//         break;
+//            gen_op_dmtc0_watchhi7();
+            rn = "WatchHi7";
+//            break;
         default:
             goto die;
         }
@@ -3923,10 +3930,10 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-           /* 64 bit MMU only */
-           gen_op_dmtc0_xcontext();
-           rn = "XContext";
-           break;
+            /* 64 bit MMU only */
+            gen_op_dmtc0_xcontext();
+            rn = "XContext";
+            break;
         default:
             goto die;
         }
@@ -3935,9 +3942,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-           gen_op_mtc0_framemask();
-           rn = "Framemask";
-           break;
+            gen_op_mtc0_framemask();
+            rn = "Framemask";
+            break;
         default:
             goto die;
         }
@@ -3949,37 +3956,37 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 23:
         switch (sel) {
         case 0:
-           gen_op_mtc0_debug(); /* EJTAG support */
-           rn = "Debug";
-           break;
+            gen_op_mtc0_debug(); /* EJTAG support */
+            rn = "Debug";
+            break;
         case 1:
-//         gen_op_dmtc0_tracecontrol(); /* PDtrace support */
-           rn = "TraceControl";
-//         break;
+//            gen_op_dmtc0_tracecontrol(); /* PDtrace support */
+            rn = "TraceControl";
+//            break;
         case 2:
-//         gen_op_dmtc0_tracecontrol2(); /* PDtrace support */
-           rn = "TraceControl2";
-//         break;
+//            gen_op_dmtc0_tracecontrol2(); /* PDtrace support */
+            rn = "TraceControl2";
+//            break;
         case 3:
-//         gen_op_dmtc0_usertracedata(); /* PDtrace support */
-           rn = "UserTraceData";
-//         break;
+//            gen_op_dmtc0_usertracedata(); /* PDtrace support */
+            rn = "UserTraceData";
+//            break;
         case 4:
-//         gen_op_dmtc0_debug(); /* PDtrace support */
-           rn = "TraceBPC";
-//         break;
+//            gen_op_dmtc0_debug(); /* PDtrace support */
+            rn = "TraceBPC";
+//            break;
         default:
             goto die;
         }
-       /* Stop translation as we may have switched the execution mode */
-       ctx->bstate = BS_STOP;
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 24:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_depc(); /* EJTAG support */
-           rn = "DEPC";
-           break;
+            gen_op_dmtc0_depc(); /* EJTAG support */
+            rn = "DEPC";
+            break;
         default:
             goto die;
         }
@@ -3987,37 +3994,37 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-           gen_op_mtc0_performance0();
-           rn = "Performance0";
-           break;
+            gen_op_mtc0_performance0();
+            rn = "Performance0";
+            break;
         case 1:
-//         gen_op_dmtc0_performance1();
-           rn = "Performance1";
-//         break;
+//            gen_op_dmtc0_performance1();
+            rn = "Performance1";
+//            break;
         case 2:
-//         gen_op_dmtc0_performance2();
-           rn = "Performance2";
-//         break;
+//            gen_op_dmtc0_performance2();
+            rn = "Performance2";
+//            break;
         case 3:
-//         gen_op_dmtc0_performance3();
-           rn = "Performance3";
-//         break;
+//            gen_op_dmtc0_performance3();
+            rn = "Performance3";
+//            break;
         case 4:
-//         gen_op_dmtc0_performance4();
-           rn = "Performance4";
-//         break;
+//            gen_op_dmtc0_performance4();
+            rn = "Performance4";
+//            break;
         case 5:
-//         gen_op_dmtc0_performance5();
-           rn = "Performance5";
-//         break;
+//            gen_op_dmtc0_performance5();
+            rn = "Performance5";
+//            break;
         case 6:
-//         gen_op_dmtc0_performance6();
-           rn = "Performance6";
-//         break;
+//            gen_op_dmtc0_performance6();
+            rn = "Performance6";
+//            break;
         case 7:
-//         gen_op_dmtc0_performance7();
-           rn = "Performance7";
-//         break;
+//            gen_op_dmtc0_performance7();
+            rn = "Performance7";
+//            break;
         default:
             goto die;
         }
@@ -4029,9 +4036,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 27:
         switch (sel) {
         case 0 ... 3:
-           /* ignored */
-           rn = "CacheErr";
-           break;
+            /* ignored */
+            rn = "CacheErr";
+            break;
         default:
             goto die;
         }
@@ -4049,7 +4056,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         case 3:
         case 5:
         case 7:
-           gen_op_mtc0_datalo();
+            gen_op_mtc0_datalo();
             rn = "DataLo";
             break;
         default:
@@ -4069,7 +4076,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         case 3:
         case 5:
         case 7:
-           gen_op_mtc0_datahi();
+            gen_op_mtc0_datahi();
             rn = "DataHi";
             break;
         default:
@@ -4080,9 +4087,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 30:
         switch (sel) {
         case 0:
-           gen_op_dmtc0_errorepc();
-           rn = "ErrorEPC";
-           break;
+            gen_op_dmtc0_errorepc();
+            rn = "ErrorEPC";
+            break;
         default:
             goto die;
         }
@@ -4090,9 +4097,9 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 31:
         switch (sel) {
         case 0:
-           gen_op_mtc0_desave(); /* EJTAG support */
-           rn = "DESAVE";
-           break;
+            gen_op_mtc0_desave(); /* EJTAG support */
+            rn = "DESAVE";
+            break;
         default:
             goto die;
         }
@@ -4119,6 +4126,7 @@ die:
 #endif
     generate_exception(ctx, EXCP_RI);
 }
+#endif /* TARGET_MIPS64 */
 
 static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
@@ -4135,15 +4143,11 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         opn = "mfc0";
         break;
     case OPC_MTC0:
-        /* If we get an exception, we want to restart at next instruction */
-        /* XXX: breaks for mtc in delay slot */
-        ctx->pc += 4;
-        save_cpu_state(ctx, 1);
-        ctx->pc -= 4;
         GEN_LOAD_REG_TN(T0, rt);
         gen_mtc0(ctx, rd, ctx->opcode & 0x7);
         opn = "mtc0";
         break;
+#ifdef TARGET_MIPS64
     case OPC_DMFC0:
         if (rt == 0) {
             /* Treat as NOP */
@@ -4154,15 +4158,11 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         opn = "dmfc0";
         break;
     case OPC_DMTC0:
-        /* If we get an exception, we want to restart at next instruction */
-        /* XXX: breaks for dmtc in delay slot */
-        ctx->pc += 4;
-        save_cpu_state(ctx, 1);
-        ctx->pc -= 4;
         GEN_LOAD_REG_TN(T0, rt);
         gen_dmtc0(ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
         break;
+#endif
 #if defined(MIPS_USES_R4K_TLB)
     case OPC_TLBWI:
         gen_op_tlbwi();
@@ -4716,20 +4716,29 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MTLO:          /* Move to HI/LO */
             gen_HILO(ctx, op1, rs);
             break;
-        case OPC_PMON:          /* Pmon entry point */
+        case OPC_PMON:          /* Pmon entry point, also R4010 selsl */
+#ifdef MIPS_STRICT_STANDARD
+            MIPS_INVAL("PMON / selsl");
+            generate_exception(ctx, EXCP_RI);
+#else
             gen_op_pmon(sa);
+#endif
             break;
         case OPC_SYSCALL:
             generate_exception(ctx, EXCP_SYSCALL);
-            ctx->bstate = BS_EXCP;
             break;
         case OPC_BREAK:
             generate_exception(ctx, EXCP_BREAK);
             break;
-        case OPC_SPIM:        /* SPIM ? */
+        case OPC_SPIM:
+#ifdef MIPS_STRICT_STANDARD
+            MIPS_INVAL("SPIM");
+            generate_exception(ctx, EXCP_RI);
+#else
            /* Implemented as RI exception for now. */
             MIPS_INVAL("spim (unofficial)");
             generate_exception(ctx, EXCP_RI);
+#endif
             break;
         case OPC_SYNC:
             /* Treat as a noop. */
@@ -4836,32 +4845,26 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_RDHWR:
             switch (rd) {
             case 0:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_cpunum();
                 break;
             case 1:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_synci_step();
                 break;
             case 2:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_cc();
                 break;
             case 3:
+                save_cpu_state(ctx, 1);
                 gen_op_rdhwr_ccres();
                 break;
             case 29:
 #if defined (CONFIG_USER_ONLY)
                 gen_op_tls_value ();
-#else
-                generate_exception(ctx, EXCP_RI);
+                break;
 #endif
-                break;
-            case 30:
-                /* Implementation dependent */;
-                gen_op_rdhwr_unimpl30();
-                break;
-            case 31:
-                /* Implementation dependent */;
-                gen_op_rdhwr_unimpl31();
-                break;
             default:            /* Invalid */
                 MIPS_INVAL("rdhwr");
                 generate_exception(ctx, EXCP_RI);
@@ -5422,9 +5425,16 @@ void cpu_reset (CPUMIPSState *env)
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
+<<<<<<< translate.c
     //~ env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
     //~ env->CP0_IntCtl = (7 << 29);
+=======
+    /* vectored interrupts not implemented, timer on int 7,
+       no performance counters. */
+    env->CP0_IntCtl = 0xe0000000;
+>>>>>>> 1.61
     env->CP0_WatchLo = 0;
+    env->CP0_WatchHi = 0;
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
 #endif
@@ -5433,9 +5443,6 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags |= MIPS_HFLAG_UM;
     env->user_mode_only = 1;
 #endif
-    /* XXX some guesswork here, values are CPU specific */
-    env->SYNCI_Step = 16;
-    env->CCRes = 2;
 }
 
 #include "translate_init.c"

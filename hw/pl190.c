@@ -240,7 +240,7 @@ qemu_irq *pl190_init(uint32_t base, qemu_irq irq, qemu_irq fiq)
     iomemtype = cpu_register_io_memory(0, pl190_readfn,
                                        pl190_writefn, s);
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
-    qi = qemu_allocate_irqs(pl190_set_irq, s, 16);
+    qi = qemu_allocate_irqs(pl190_set_irq, s, 32);
     s->base = base;
     s->irq = irq;
     s->fiq = fiq;
