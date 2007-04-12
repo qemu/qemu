@@ -77,7 +77,7 @@
  ****************************************************************************/
 
 /* Debug DP8381x card. */
-#define DEBUG_DP8381X
+//~ #define DEBUG_DP8381X
 
 #if defined(DEBUG_DP8381X)
 # define logout(fmt, args...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##args)
@@ -622,6 +622,7 @@ typedef struct {
     dp8381x_t dp8381x;
 } pci_dp8381x_t;
 
+#if defined(DEBUG_DP8381X)
 static const char *regnames[] = {
     /* MAC/BIU Registers */
     "CR",                       /* 0x00 */
@@ -705,6 +706,7 @@ static const char *dp8381x_regname(unsigned addr)
     }
     return p;
 }
+#endif /* DEBUG_DP8381X */
 
 static uint16_t anar_read(dp8381x_t * s)
 {
