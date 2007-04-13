@@ -1864,4 +1864,24 @@ void OPPROTO op_faligndata()
     tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
     (*((uint64_t *)&DT0)) = tmp;
 }
+
+void OPPROTO op_movl_FT0_0(void)
+{
+    (*((uint32_t *)&FT0)) = 0;
+}
+
+void OPPROTO op_movl_DT0_0(void)
+{
+    (*((uint64_t *)&DT0)) = 0;
+}
+
+void OPPROTO op_movl_FT0_1(void)
+{
+    (*((uint32_t *)&FT0)) = 0xffffffff;
+}
+
+void OPPROTO op_movl_DT0_1(void)
+{
+    (*((uint64_t *)&DT0)) = 0xffffffffffffffffULL;
+}
 #endif
