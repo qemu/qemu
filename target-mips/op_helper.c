@@ -523,7 +523,7 @@ void debug_pre_eret (void)
 
 void debug_post_eret (void)
 {
-    fprintf(logfile, "  =>   PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
+    fprintf(logfile, "  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
             env->PC, env->CP0_EPC);
     if (env->CP0_Status & (1 << CP0St_ERL))
         fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
