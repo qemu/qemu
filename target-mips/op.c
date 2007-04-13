@@ -1401,7 +1401,7 @@ void op_mtc0_cause (void)
     if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
         mask |= 1 << CP0Ca_DC;
 
-    env->CP0_Cause = (env->CP0_Cause & 0xFCC0FF7C) | (T0 & mask);
+    env->CP0_Cause = (env->CP0_Cause & ~mask) | (T0 & mask);
 
     /* Handle the software interrupt as an hardware one, as they
        are very similar */
