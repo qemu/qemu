@@ -243,6 +243,8 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->dac_index);
     qemu_get_8s(f, &s->dac_state);
     update_palette_entries(s, 0, 256);
+    tcx_invalidate_display(s);
+
     return 0;
 }
 
