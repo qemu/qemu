@@ -25,7 +25,6 @@
    Rest of V9 instructions, VIS instructions
    NPC/PC static optimisations (use JUMP_TB when possible)
    Optimize synthetic instructions
-   Optional alignment check
    128-bit float
 */
 

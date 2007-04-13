@@ -923,7 +923,11 @@ void do_interrupt(int intno)
 
 #if !defined(CONFIG_USER_ONLY) 
 
+static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
+                                void *retaddr);
+
 #define MMUSUFFIX _mmu
+#define ALIGNED_ONLY
 #define GETPC() (__builtin_return_address(0))
 
 #define SHIFT 0
@@ -938,6 +942,14 @@ void do_interrupt(int intno)
 #define SHIFT 3
 #include "softmmu_template.h"
 
+static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
+                                void *retaddr)
+{
+    /* Uncomment the following line to enable mem_address_not_aligned traps */
+    /* Not enabled yet because of bugs in OpenBIOS */
+    //raise_exception(TT_UNALIGNED);
+    //printf("Unaligned access to 0x%x from 0x%x\n", addr, env->pc);
+}
 
 /* try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not

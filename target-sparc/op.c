@@ -1486,7 +1486,10 @@ void OPPROTO op_movl_npc_im(void)
 
 void OPPROTO op_movl_npc_T0(void)
 {
-    env->npc = T0;
+    if (T0 & 0x3)
+	raise_exception(TT_UNALIGNED);
+    else
+	env->npc = T0;
 }
 
 void OPPROTO op_mov_pc_npc(void)
