@@ -412,7 +412,7 @@ void do_interrupt (CPUState *env)
             env->PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }
         env->PC += offset;
-        env->CP0_Cause = (env->CP0_Cause & ~0x7C) | (cause << 2);
+        env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:
         if (logfile) {

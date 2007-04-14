@@ -598,7 +598,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     isa_mem_base = 0xc0000000;
-    i8259 = i8259_init(first_cpu->irq_inputs[PPC_INPUT_INT]);
+    i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
     pci_bus = pci_prep_init(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */

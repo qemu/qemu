@@ -25,7 +25,6 @@
    Rest of V9 instructions, VIS instructions
    NPC/PC static optimisations (use JUMP_TB when possible)
    Optimize synthetic instructions
-   Optional alignment check
    128-bit float
 */
 
@@ -1933,7 +1932,13 @@ static void disas_sparc_insn(DisasContext * dc)
 				gen_op_movl_env_T0(offsetof(CPUSPARCState, asi));
 				break;
 			    case 0x6: /* V9 wrfprs */
+				gen_op_xor_T1_T0();
 				gen_op_movl_env_T0(offsetof(CPUSPARCState, fprs));
+                                save_state(dc);
+                                gen_op_next_insn();
+                                gen_op_movl_T0_0();
+                                gen_op_exit_tb();
+                                dc->is_br = 1;
 				break;
 			    case 0xf: /* V9 sir, nop if user */
 #if !defined(CONFIG_USER_ONLY)
@@ -2150,47 +2155,94 @@ static void disas_sparc_insn(DisasContext * dc)
 			    gen_movl_T0_reg(rd);
 			    break;
 			}
-		    case 0x36: /* UltraSparc shutdown, VIS */
-			{
-			    int opf = GET_FIELD_SP(insn, 5, 13);
-                            rs1 = GET_FIELD(insn, 13, 17);
-                            rs2 = GET_FIELD(insn, 27, 31);
-
-                            switch (opf) {
-                            case 0x018: /* VIS I alignaddr */
-                                if (gen_trap_ifnofpu(dc))
-                                    goto jmp_insn;
-                                gen_movl_reg_T0(rs1);
-                                gen_movl_reg_T1(rs2);
-                                gen_op_alignaddr();
-                                gen_movl_T0_reg(rd);
-                                break;
-                            case 0x01a: /* VIS I alignaddrl */
-                                if (gen_trap_ifnofpu(dc))
-                                    goto jmp_insn;
-                                // XXX
-                                break;
-                            case 0x048: /* VIS I faligndata */
-                                if (gen_trap_ifnofpu(dc))
-                                    goto jmp_insn;
-                                gen_op_load_fpr_DT0(rs1);
-                                gen_op_load_fpr_DT1(rs2);
-                                gen_op_faligndata();
-                                gen_op_store_DT0_fpr(rd);
-                                break;
-                            default:
-                                goto illegal_insn;
-                            }
-                            break;
-			}
 #endif
 		    default:
 			goto illegal_insn;
 		    }
 		}
-            } else if (xop == 0x36 || xop == 0x37) { /* CPop1 & CPop2,
-                                                        V9 impdep1 &
-                                                        impdep2 */
+            } else if (xop == 0x36) { /* UltraSparc shutdown, VIS, V8 CPop1 */
+#ifdef TARGET_SPARC64
+                int opf = GET_FIELD_SP(insn, 5, 13);
+                rs1 = GET_FIELD(insn, 13, 17);
+                rs2 = GET_FIELD(insn, 27, 31);
+
+                switch (opf) {
+                case 0x018: /* VIS I alignaddr */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_movl_reg_T0(rs1);
+                    gen_movl_reg_T1(rs2);
+                    gen_op_alignaddr();
+                    gen_movl_T0_reg(rd);
+                    break;
+                case 0x01a: /* VIS I alignaddrl */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    // XXX
+                    break;
+                case 0x048: /* VIS I faligndata */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_faligndata();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x060: /* VIS I fzero */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_movl_DT0_0();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x061: /* VIS I fzeros */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_movl_FT0_0();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x074: /* VIS I fsrc1 */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x075: /* VIS I fsrc1s */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x078: /* VIS I fsrc2 */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_load_fpr_DT0(rs2);
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x079: /* VIS I fsrc2s */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_load_fpr_FT0(rs2);
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x07e: /* VIS I fone */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_movl_DT0_1();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x07f: /* VIS I fones */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+                    gen_op_movl_FT0_1();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                default:
+                    goto illegal_insn;
+                }
+#else
+	        goto ncp_insn;
+#endif
+            } else if (xop == 0x37) { /* V8 CPop2, V9 impdep2 */
 #ifdef TARGET_SPARC64
 	        goto illegal_insn;
 #else
@@ -2997,8 +3049,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
             cpu_fprintf(f, "\n");
     }
 #ifdef TARGET_SPARC64
-    cpu_fprintf(f, "pstate: 0x%08x ccr: 0x%02x asi: 0x%02x tl: %d\n",
-		env->pstate, GET_CCR(env), env->asi, env->tl);
+    cpu_fprintf(f, "pstate: 0x%08x ccr: 0x%02x asi: 0x%02x tl: %d fprs: %d\n",
+		env->pstate, GET_CCR(env), env->asi, env->tl, env->fprs);
     cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate %d cleanwin %d cwp %d\n",
 		env->cansave, env->canrestore, env->otherwin, env->wstate,
 		env->cleanwin, NWINDOWS - 1 - env->cwp);

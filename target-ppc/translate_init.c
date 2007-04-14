@@ -45,6 +45,7 @@ static inline void glue(glue(ppc, name),_irq_init) (CPUPPCState *env) \
 #define PPC_IRQ_INIT_FN(name)                                         \
 void glue(glue(ppc, name),_irq_init) (CPUPPCState *env);
 #endif
+PPC_IRQ_INIT_FN(405);
 PPC_IRQ_INIT_FN(6xx);
 
 /* Generic callbacks:
@@ -1909,7 +1910,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
-        /* XXX: TODO: allocate internal IRQ controller */
+        /* Allocate hardware IRQ controller */
+        ppc405_irq_init(env);
         break;
 
     case CPU_PPC_NPE405H: /* NPe405 H family               */
@@ -1924,7 +1926,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
-        /* XXX: TODO: allocate internal IRQ controller */
+        /* Allocate hardware IRQ controller */
+        ppc405_irq_init(env);
         break;
 
 #if defined (TODO)
@@ -1956,7 +1959,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         env->nb_tlb = 64;
         env->nb_ways = 1;
         env->id_tlbs = 0;
-        /* XXX: TODO: allocate internal IRQ controller */
+        /* Allocate hardware IRQ controller */
+        ppc405_irq_init(env);
         break;
 
     case CPU_PPC_440EP:   /* 440 EP family                 */

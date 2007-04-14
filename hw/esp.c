@@ -507,15 +507,21 @@ static void esp_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &s->ti_rptr);
     qemu_put_be32s(f, &s->ti_wptr);
     qemu_put_buffer(f, s->ti_buf, TI_BUFSZ);
+    qemu_put_be32s(f, &s->sense);
     qemu_put_be32s(f, &s->dma);
+    qemu_put_buffer(f, s->cmdbuf, TI_BUFSZ);
+    qemu_put_be32s(f, &s->cmdlen);
+    qemu_put_be32s(f, &s->do_cmd);
+    qemu_put_be32s(f, &s->dma_left);
+    // There should be no transfers in progress, so dma_counter is not saved
 }
 
 static int esp_load(QEMUFile *f, void *opaque, int version_id)
 {
     ESPState *s = opaque;
     
-    if (version_id != 2)
-        return -EINVAL; // Cannot emulate 1
+    if (version_id != 3)
+        return -EINVAL; // Cannot emulate 2
 
     qemu_get_buffer(f, s->rregs, ESP_MAXREG);
     qemu_get_buffer(f, s->wregs, ESP_MAXREG);
@@ -523,7 +529,12 @@ static int esp_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->ti_rptr);
     qemu_get_be32s(f, &s->ti_wptr);
     qemu_get_buffer(f, s->ti_buf, TI_BUFSZ);
+    qemu_get_be32s(f, &s->sense);
     qemu_get_be32s(f, &s->dma);
+    qemu_get_buffer(f, s->cmdbuf, TI_BUFSZ);
+    qemu_get_be32s(f, &s->cmdlen);
+    qemu_get_be32s(f, &s->do_cmd);
+    qemu_get_be32s(f, &s->dma_left);
 
     return 0;
 }
@@ -568,7 +579,7 @@ void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque)
 
     esp_reset(s);
 
-    register_savevm("esp", espaddr, 2, esp_save, esp_load, s);
+    register_savevm("esp", espaddr, 3, esp_save, esp_load, s);
     qemu_register_reset(esp_reset, s);
 
     return s;

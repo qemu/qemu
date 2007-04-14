@@ -35,6 +35,7 @@
 #define TT_NFPU_INSN 0x04
 #define TT_WIN_OVF  0x05
 #define TT_WIN_UNF  0x06 
+#define TT_UNALIGNED 0x07
 #define TT_FP_EXCP  0x08
 #define TT_DFAULT   0x09
 #define TT_TOVF     0x0a
@@ -55,6 +56,7 @@
 #define TT_DFAULT   0x30
 #define TT_DMISS    0x31
 #define TT_DPROT    0x32
+#define TT_UNALIGNED 0x34
 #define TT_PRIV_ACT 0x37
 #define TT_EXTINT   0x40
 #define TT_SPILL    0x80

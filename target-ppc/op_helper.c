@@ -1249,20 +1249,26 @@ void do_load_dcr (void)
 {
     target_ulong val;
     
-    if (unlikely(env->dcr_read == NULL))
+    if (unlikely(env->dcr_env == NULL)) {
+        printf("No DCR environment\n");
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
-    else if (unlikely((*env->dcr_read)(env->dcr_env, T0, &val) != 0))
+    } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
+        printf("DCR read error\n");
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
-    else
+    } else {
         T0 = val;
+    }
 }
 
 void do_store_dcr (void)
 {
-    if (unlikely(env->dcr_write == NULL))
+    if (unlikely(env->dcr_env == NULL)) {
+        printf("No DCR environment\n");
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
-    else if (unlikely((*env->dcr_write)(env->dcr_env, T0, T1) != 0))
+    } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
+        printf("DCR write error\n");
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
+    }
 }
 
 void do_load_403_pb (int num)
