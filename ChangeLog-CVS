@@ -1,3 +1,7 @@
+2007-04-14 00:30  ths
+
+	* target-mips/op_helper.c: Nicer Log formatting.
+
 2007-04-13 22:17  ths
 
 	* target-mips/: helper.c, op.c: Another fix for CP0 Cause register
