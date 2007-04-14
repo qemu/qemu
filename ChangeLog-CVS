@@ -1,3 +1,34 @@
+2007-04-13 22:17  ths
+
+	* target-mips/: helper.c, op.c: Another fix for CP0 Cause register
+	  handling.
+
+2007-04-13 21:24  blueswir1
+
+	* hw/: esp.c, slavio_serial.c, tcx.c: Fix Sparc32 device save
+	  methods
+
+2007-04-13 17:49  blueswir1
+
+	* target-sparc/: op.c, translate.c: Fix Sparc64 wrfprs, move VIS
+	  ops where they belong, more VIS ops
+
+2007-04-13 17:46  blueswir1
+
+	* target-sparc/: cpu.h, op.c, op_helper.c, translate.c: Alignment
+	  check mechanism (not fully enabled yet) (Aurelien Jarno)
+
+2007-04-12 23:24  j_mayer
+
+	* hw/ppc.c, hw/ppc_chrp.c, hw/ppc_prep.c, target-ppc/cpu.h,
+	  target-ppc/translate_init.c: Add PowerPC 405 input pins (IRQ,
+	  resets, ...) model.
+
+2007-04-12 23:11  j_mayer
+
+	* vl.h, hw/ppc.c, target-ppc/cpu.h, target-ppc/op_helper.c:
+	  Embedded PowerPC Device Control Registers infrastructure.
+
 2007-04-12 00:46  ths
 
 	* Makefile.target: Fix bad variable name.
