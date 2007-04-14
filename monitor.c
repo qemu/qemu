@@ -2116,9 +2116,9 @@ static void monitor_handle_command(const char *cmdline)
                 }
                 if (nb_args + 3 > MAX_ARGS)
                     goto error_args;
-                args[nb_args++] = (void*)count;
-                args[nb_args++] = (void*)format;
-                args[nb_args++] = (void*)size;
+                args[nb_args++] = (void*)(long)count;
+                args[nb_args++] = (void*)(long)format;
+                args[nb_args++] = (void*)(long)size;
             }
             break;
         case 'i':
@@ -2146,7 +2146,7 @@ static void monitor_handle_command(const char *cmdline)
                     typestr++;
                     if (nb_args >= MAX_ARGS)
                         goto error_args;
-                    args[nb_args++] = (void *)has_arg;
+                    args[nb_args++] = (void *)(long)has_arg;
                     if (!has_arg) {
                         if (nb_args >= MAX_ARGS)
                             goto error_args;
@@ -2160,16 +2160,16 @@ static void monitor_handle_command(const char *cmdline)
                 if (c == 'i') {
                     if (nb_args >= MAX_ARGS)
                         goto error_args;
-                    args[nb_args++] = (void *)(int)val;
+                    args[nb_args++] = (void *)(long)val;
                 } else {
                     if ((nb_args + 1) >= MAX_ARGS)
                         goto error_args;
 #if TARGET_LONG_BITS == 64
-                    args[nb_args++] = (void *)(int)((val >> 32) & 0xffffffff);
+                    args[nb_args++] = (void *)(long)((val >> 32) & 0xffffffff);
 #else
                     args[nb_args++] = (void *)0;
 #endif
-                    args[nb_args++] = (void *)(int)(val & 0xffffffff);
+                    args[nb_args++] = (void *)(long)(val & 0xffffffff);
                 }
             }
             break;
@@ -2196,7 +2196,7 @@ static void monitor_handle_command(const char *cmdline)
                 }
                 if (nb_args >= MAX_ARGS)
                     goto error_args;
-                args[nb_args++] = (void *)has_option;
+                args[nb_args++] = (void *)(long)has_option;
             }
             break;
         default:
