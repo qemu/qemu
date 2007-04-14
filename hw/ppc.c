@@ -464,8 +464,8 @@ static void cpu_4xx_fit_cb (void *opaque)
     if ((env->spr[SPR_40x_TCR] >> 23) & 0x1)
         ppc_set_irq(env, PPC_INTERRUPT_FIT, 1);
     if (loglevel) {
-        fprintf(logfile, "%s: ir %d TCR %08x TSR %08x\n", __func__,
-                (env->spr[SPR_40x_TCR] >> 23) & 0x1,
+        fprintf(logfile, "%s: ir %d TCR " ADDRX " TSR " ADDRX "\n", __func__,
+                (int)((env->spr[SPR_40x_TCR] >> 23) & 0x1),
                 env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
     }
 }
@@ -495,9 +495,10 @@ static void cpu_4xx_pit_cb (void *opaque)
     if ((env->spr[SPR_40x_TCR] >> 26) & 0x1)
         ppc_set_irq(env, PPC_INTERRUPT_PIT, 1);
     if (loglevel) {
-        fprintf(logfile, "%s: ar %d ir %d TCR %08x TSR %08x %08lx\n", __func__,
-                (env->spr[SPR_40x_TCR] >> 22) & 0x1,
-                (env->spr[SPR_40x_TCR] >> 26) & 0x1,
+        fprintf(logfile, "%s: ar %d ir %d TCR " ADDRX " TSR " ADDRX " "
+                "%016" PRIx64 "\n", __func__,
+                (int)((env->spr[SPR_40x_TCR] >> 22) & 0x1),
+                (int)((env->spr[SPR_40x_TCR] >> 26) & 0x1),
                 env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
                 ppcemb_timer->pit_reload);
     }
@@ -536,7 +537,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
     if (next == now)
         next++;
     if (loglevel) {
-        fprintf(logfile, "%s: TCR %08x TSR %08x\n", __func__,
+        fprintf(logfile, "%s: TCR " ADDRX " TSR " ADDRX "\n", __func__,
                 env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
     }
     switch ((env->spr[SPR_40x_TSR] >> 30) & 0x3) {
@@ -587,7 +588,7 @@ void store_40x_pit (CPUState *env, target_ulong val)
         qemu_del_timer(tb_env->decr_timer);
     } else {
         if (loglevel)
-            fprintf(logfile, "%s: start PIT 0x%08x\n", __func__, val);
+            fprintf(logfile, "%s: start PIT 0x" ADDRX "\n", __func__, val);
         now = qemu_get_clock(vm_clock);
         next = now + muldiv64(val, ticks_per_sec, tb_env->tb_freq);
          if (next == now)

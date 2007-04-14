@@ -755,10 +755,10 @@ void cpu_loop(CPUPPCState *env)
             info._sifields._sigfault._addr = env->nip - 4;
             queue_signal(info.si_signo, &info);
         case EXCP_DSI:
-            fprintf(stderr, "Invalid data memory access: 0x%08x\n",
+            fprintf(stderr, "Invalid data memory access: 0x" ADDRX "\n",
                     env->spr[SPR_DAR]);
             if (loglevel) {
-                fprintf(logfile, "Invalid data memory access: 0x%08x\n",
+                fprintf(logfile, "Invalid data memory access: 0x" ADDRX "\n",
                         env->spr[SPR_DAR]);
             }
             switch (env->error_code & 0xFF000000) {
@@ -1549,7 +1549,7 @@ void cpu_loop(CPUM68KState *env)
 #ifdef TARGET_ALPHA
 void cpu_loop (CPUState *env)
 {
-    int trapnr, ret;
+    int trapnr;
     target_siginfo_t info;
     
     while (1) {

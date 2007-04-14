@@ -38,7 +38,7 @@
 /* PowerPC MMU emulation */
 
 #if defined(CONFIG_USER_ONLY)
-int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
     int exception, error_code;
@@ -631,7 +631,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
 }
 
 int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
-                                 uint32_t address, int rw, int access_type)
+                                 target_ulong address, int rw, int access_type)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
@@ -649,8 +649,8 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         }
         mask = ~(tlb->size - 1);
         if (loglevel) {
-            fprintf(logfile, "%s: TLB %d address %08x PID %04x <=> "
-                    "%08x %08x %04x\n",
+            fprintf(logfile, "%s: TLB %d address " ADDRX " PID " ADDRX " <=> "
+                    ADDRX " " ADDRX " " ADDRX "\n",
                     __func__, i, address, env->spr[SPR_40x_PID],
                     tlb->EPN, mask, tlb->PID);
         }
@@ -832,7 +832,7 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 }
 
 /* Perform address translation */
-int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
     mmu_ctx_t ctx;

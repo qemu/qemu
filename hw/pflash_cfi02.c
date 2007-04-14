@@ -91,7 +91,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     uint32_t ret;
     uint8_t *p;
 
-    DPRINTF("%s: offset %08x\n", __func__, offset);
+    DPRINTF("%s: offset " TARGET_FMT_lx "\n", __func__, offset);
     ret = -1;
     offset -= pfl->base;
     boff = offset & 0xFF;
@@ -161,7 +161,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
         default:
             goto flash_read;
         }
-        DPRINTF("%s: ID %d %x\n", __func__, boff, ret);
+        DPRINTF("%s: ID " TARGET_FMT_ld " %x\n", __func__, boff, ret);
         break;
     case 0xA0:
     case 0x10:
@@ -214,7 +214,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         offset -= pfl->base;
         
     cmd = value;
-    DPRINTF("%s: offset %08x %08x %d\n", __func__, offset, value, width);
+    DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d\n", __func__,
+            offset, value, width);
     if (pfl->cmd != 0xA0 && cmd == 0xF0) {
         DPRINTF("%s: flash reset asked (%02x %02x)\n",
                 __func__, pfl->cmd, cmd);
@@ -239,7 +240,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             return;
         }
         if (boff != 0x555 || cmd != 0xAA) {
-            DPRINTF("%s: unlock0 failed %04x %02x %04x\n",
+            DPRINTF("%s: unlock0 failed " TARGET_FMT_lx " %02x %04x\n",
                     __func__, boff, cmd, 0x555);
             goto reset_flash;
         }
@@ -249,7 +250,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         /* We started an unlock sequence */
     check_unlock1:
         if (boff != 0x2AA || cmd != 0x55) {
-            DPRINTF("%s: unlock1 failed %04x %02x\n", __func__, boff, cmd);
+            DPRINTF("%s: unlock1 failed " TARGET_FMT_lx " %02x\n", __func__,
+                    boff, cmd);
             goto reset_flash;
         }
         DPRINTF("%s: unlock sequence done\n", __func__);
@@ -257,7 +259,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     case 2:
         /* We finished an unlock sequence */
         if (!pfl->bypass && boff != 0x555) {
-            DPRINTF("%s: command failed %04x %02x\n", __func__, boff, cmd);
+            DPRINTF("%s: command failed " TARGET_FMT_lx " %02x\n", __func__,
+                    boff, cmd);
             goto reset_flash;
         }
         switch (cmd) {
@@ -281,7 +284,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             /* We need another unlock sequence */
             goto check_unlock0;
         case 0xA0:
-            DPRINTF("%s: write data offset %08x %08x %d\n",
+            DPRINTF("%s: write data offset " TARGET_FMT_lx " %08x %d\n",
                     __func__, offset, value, width);
             p = pfl->storage;
             switch (width) {
@@ -352,7 +355,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         switch (cmd) {
         case 0x10:
             if (boff != 0x555) {
-                DPRINTF("%s: chip erase: invalid address %04x\n",
+                DPRINTF("%s: chip erase: invalid address " TARGET_FMT_lx "\n",
                         __func__, offset);
                 goto reset_flash;
             }
@@ -369,7 +372,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             /* Sector erase */
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
-            DPRINTF("%s: start sector erase at %08x\n", __func__, offset);
+            DPRINTF("%s: start sector erase at " TARGET_FMT_lx "\n", __func__,
+                    offset);
             memset(p + offset, 0xFF, pfl->sector_len);
             pflash_update(pfl, offset, pfl->sector_len);
             pfl->status = 0x00;
