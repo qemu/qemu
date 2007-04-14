@@ -62,8 +62,10 @@ typedef uint64_t target_ulong;
 
 #if TARGET_PHYS_ADDR_BITS == 32
 typedef uint32_t target_phys_addr_t;
+#define TARGET_FMT_plx "%08x"
 #elif TARGET_PHYS_ADDR_BITS == 64
 typedef uint64_t target_phys_addr_t;
+#define TARGET_FMT_plx "%016" PRIx64
 #else
 #error TARGET_PHYS_ADDR_BITS undefined
 #endif
