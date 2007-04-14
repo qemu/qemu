@@ -1,7 +1,7 @@
 /*
  * QEMU Floppy disk emulator (Intel 82078)
  * 
- * Copyright (c) 2003 Jocelyn Mayer
+ * Copyright (c) 2003, 2007 Jocelyn Mayer
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -485,6 +485,99 @@ static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
     fdctrl_write_mem,
 };
 
+static void fd_save (QEMUFile *f, fdrive_t *fd)
+{
+    uint8_t tmp;
+
+    tmp = fd->drflags;
+    qemu_put_8s(f, &tmp);
+    qemu_put_8s(f, &fd->head);
+    qemu_put_8s(f, &fd->track);
+    qemu_put_8s(f, &fd->sect);
+    qemu_put_8s(f, &fd->dir);
+    qemu_put_8s(f, &fd->rw);
+}
+
+static void fdc_save (QEMUFile *f, void *opaque)
+{
+    fdctrl_t *s = opaque;
+
+    qemu_put_8s(f, &s->state);
+    qemu_put_8s(f, &s->dma_en);
+    qemu_put_8s(f, &s->cur_drv);
+    qemu_put_8s(f, &s->bootsel);
+    qemu_put_buffer(f, s->fifo, FD_SECTOR_LEN);
+    qemu_put_be32s(f, &s->data_pos);
+    qemu_put_be32s(f, &s->data_len);
+    qemu_put_8s(f, &s->data_state);
+    qemu_put_8s(f, &s->data_dir);
+    qemu_put_8s(f, &s->int_status);
+    qemu_put_8s(f, &s->eot);
+    qemu_put_8s(f, &s->timer0);
+    qemu_put_8s(f, &s->timer1);
+    qemu_put_8s(f, &s->precomp_trk);
+    qemu_put_8s(f, &s->config);
+    qemu_put_8s(f, &s->lock);
+    qemu_put_8s(f, &s->pwrd);
+    fd_save(f, &s->drives[0]);
+    fd_save(f, &s->drives[1]);
+}
+
+static int fd_load (QEMUFile *f, fdrive_t *fd)
+{
+    uint8_t tmp;
+
+    qemu_get_8s(f, &tmp);
+    fd->drflags = tmp;
+    qemu_get_8s(f, &fd->head);
+    qemu_get_8s(f, &fd->track);
+    qemu_get_8s(f, &fd->sect);
+    qemu_get_8s(f, &fd->dir);
+    qemu_get_8s(f, &fd->rw);
+
+    return 0;
+}
+
+static int fdc_load (QEMUFile *f, void *opaque, int version_id)
+{
+    fdctrl_t *s = opaque;
+    int ret;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_8s(f, &s->state);
+    qemu_get_8s(f, &s->dma_en);
+    qemu_get_8s(f, &s->cur_drv);
+    qemu_get_8s(f, &s->bootsel);
+    qemu_get_buffer(f, s->fifo, FD_SECTOR_LEN);
+    qemu_get_be32s(f, &s->data_pos);
+    qemu_get_be32s(f, &s->data_len);
+    qemu_get_8s(f, &s->data_state);
+    qemu_get_8s(f, &s->data_dir);
+    qemu_get_8s(f, &s->int_status);
+    qemu_get_8s(f, &s->eot);
+    qemu_get_8s(f, &s->timer0);
+    qemu_get_8s(f, &s->timer1);
+    qemu_get_8s(f, &s->precomp_trk);
+    qemu_get_8s(f, &s->config);
+    qemu_get_8s(f, &s->lock);
+    qemu_get_8s(f, &s->pwrd);
+
+    ret = fd_load(f, &s->drives[0]);
+    if (ret == 0)
+        ret = fd_load(f, &s->drives[1]);
+
+    return ret;
+}
+
+static void fdctrl_external_reset(void *opaque)
+{
+    fdctrl_t *s = opaque;
+
+    fdctrl_reset(s, 0);
+}
+
 fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped, 
                        uint32_t io_base,
                        BlockDriverState **fds)
@@ -525,6 +618,8 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
         register_ioport_write(io_base + 0x01, 5, 1, &fdctrl_write, fdctrl);
         register_ioport_write(io_base + 0x07, 1, 1, &fdctrl_write, fdctrl);
     }
+    register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
+    qemu_register_reset(fdctrl_external_reset, fdctrl);
     for (i = 0; i < 2; i++) {
         fd_revalidate(&fdctrl->drives[i]);
     }

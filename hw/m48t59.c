@@ -1,7 +1,7 @@
 /*
  * QEMU M48T59 and M48T08 NVRAM emulation for PPC PREP and Sparc platforms
  * 
- * Copyright (c) 2003-2005 Jocelyn Mayer
+ * Copyright (c) 2003-2005, 2007 Jocelyn Mayer
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -575,12 +575,47 @@ static CPUReadMemoryFunc *nvram_read[] = {
     &nvram_readl,
 };
 
+static void m48t59_save(QEMUFile *f, void *opaque)
+{
+    m48t59_t *s = opaque;
+
+    qemu_put_8s(f, &s->lock);
+    qemu_put_be16s(f, &s->addr);
+    qemu_put_buffer(f, s->buffer, s->size);
+}
+
+static int m48t59_load(QEMUFile *f, void *opaque, int version_id)
+{
+    m48t59_t *s = opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_8s(f, &s->lock);
+    qemu_get_be16s(f, &s->addr);
+    qemu_get_buffer(f, s->buffer, s->size);
+
+    return 0;
+}
+
+static void m48t59_reset(void *opaque)
+{
+    m48t59_t *NVRAM = opaque;
+
+    if (NVRAM->alrm_timer != NULL)
+        qemu_del_timer(NVRAM->alrm_timer);
+
+    if (NVRAM->wd_timer != NULL)
+        qemu_del_timer(NVRAM->wd_timer);
+}
+
 /* Initialisation routine */
 m48t59_t *m48t59_init (qemu_irq IRQ, target_ulong mem_base,
                        uint32_t io_base, uint16_t size,
                        int type)
 {
     m48t59_t *s;
+    target_ulong save_base;
 
     s = qemu_mallocz(sizeof(m48t59_t));
     if (!s)
@@ -609,6 +644,10 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_ulong mem_base,
         s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
     }
     s->lock = 0;
+
+    qemu_register_reset(m48t59_reset, s);
+    save_base = mem_base ? mem_base : io_base;
+    register_savevm("m48t59", save_base, 1, m48t59_save, m48t59_load, s);
 
     return s;
 }
