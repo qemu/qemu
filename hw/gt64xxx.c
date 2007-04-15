@@ -550,7 +550,7 @@ void gt64120_reset(void *opaque)
 #ifdef TARGET_WORDS_BIGENDIAN
     s->regs[GT_CPU]           = 0x00000000;
 #else
-    s->regs[GT_CPU]           = 0x00000800;
+    s->regs[GT_CPU]           = 0x00001000;
 #endif
     s->regs[GT_MULTI]         = 0x00000000;
 
@@ -608,6 +608,24 @@ void gt64120_reset(void *opaque)
     gt64120_pci_mapping(s);
 }
 
+static uint32_t gt64120_read_config(PCIDevice *d, uint32_t address, int len)
+{
+    uint32_t val = pci_default_read_config(d, address, len);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
+}
+
+static void gt64120_write_config(PCIDevice *d, uint32_t address, uint32_t val,
+                                 int len)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    pci_default_write_config(d, address, val, len);
+}
+
 PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
@@ -626,12 +644,12 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
     cpu_register_physical_memory(0x1be00000LL, 0x1000, gt64120);
 
     d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice),
-                            0, NULL, NULL);
+                            0, gt64120_read_config, gt64120_write_config);
 
     d->config[0x00] = 0xab; // vendor_id
     d->config[0x01] = 0x11;
-    d->config[0x02] = 0x46; // device_id
-    d->config[0x03] = 0x20;
+    d->config[0x02] = 0x20; // device_id
+    d->config[0x03] = 0x46;
     d->config[0x04] = 0x06;
     d->config[0x05] = 0x00;
     d->config[0x06] = 0x80;
