@@ -82,6 +82,9 @@ void do_drotrv (void);
 #endif
 #endif
 
+#if HOST_LONG_BITS < 64
+void do_div (void);
+#endif
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_mult (void);
 void do_multu (void);
@@ -89,10 +92,12 @@ void do_madd (void);
 void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
-void do_ddiv (void);
-void do_ddivu (void);
 #endif
 #ifdef TARGET_MIPS64
+void do_ddiv (void);
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+void do_ddivu (void);
+#endif
 void do_dmult (void);
 void do_dmultu (void);
 #endif
