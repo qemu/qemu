@@ -48,15 +48,20 @@
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
-//~ #define DEBUG
+#define DEBUG
 
 #if defined(DEBUG)
+#  define TRACE(flag, command) ((flag) ? (command) : (void)0)
 #  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
 #else
+#  define TRACE(flag, command) ((void)0)
 #  define logout(fmt, args...) ((void)0)
 #endif
 
-extern FILE *logfile;
+#define EEPROM  1
+#define FPGA    0
+
+//~ extern FILE *logfile;
 
 typedef struct {
     uint32_t leds;
@@ -102,14 +107,6 @@ static void malta_fpga_update_display(void *opaque)
  * Typical device names include Microchip 24C02SC or SGS Thomson ST24C02.
  */
 
-#define DEBUG
-
-#if defined(DEBUG)
-#  define logout(fmt, args...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ##args)
-#else
-#  define logout(fmt, args...) ((void)0)
-#endif
-
 struct _eeprom24c0x_t {
   uint8_t tick;
   uint8_t address;
@@ -147,40 +144,42 @@ static eeprom24c0x_t eeprom = {
 
 static uint8_t eeprom24c0x_read()
 {
-    logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
-        eeprom.tick, eeprom.scl, eeprom.sda, eeprom.data);
+    TRACE(EEPROM, logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
+          eeprom.tick, eeprom.scl, eeprom.sda, eeprom.data));
     return eeprom.sda;
 }
 
 static void eeprom24c0x_write(int scl, int sda)
 {
     if (eeprom.scl && scl && (eeprom.sda != sda)) {
-        logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
-                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda, sda ? "stop" : "start");
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda,
+                sda ? "stop" : "start"));
         if (!sda) {
             eeprom.tick = 1;
             eeprom.command = 0;
         }
     } else if (eeprom.tick == 0 && !eeprom.ack) {
         /* Waiting for start. */
-        logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
-                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda));
     } else if (!eeprom.scl && scl) {
-        logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
-                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
+                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda));
         if (eeprom.ack) {
-            logout("\ti2c ack bit = 0\n");
+            TRACE(EEPROM, logout("\ti2c ack bit = 0\n"));
             sda = 0;
             eeprom.ack = 0;
         } else if (eeprom.sda == sda) {
             uint8_t bit = (sda != 0);
-            logout("\ti2c bit = %d\n", bit);
+            TRACE(EEPROM, logout("\ti2c bit = %d\n", bit));
             if (eeprom.tick < 9) {
                 eeprom.command <<= 1;
                 eeprom.command += bit;
                 eeprom.tick++;
                 if (eeprom.tick == 9) {
-                    logout("\tcommand 0x%04x, %s\n", eeprom.command, bit ? "read" : "write");
+                    TRACE(EEPROM, logout("\tcommand 0x%04x, %s\n",
+                          eeprom.command, bit ? "read" : "write"));
                     eeprom.ack = 1;
                 }
             } else if (eeprom.tick < 17) {
@@ -193,7 +192,8 @@ static void eeprom24c0x_write(int scl, int sda)
                 eeprom.data <<= 1;
                 if (eeprom.tick == 17) {
                     eeprom.data = eeprom.contents[eeprom.address];
-                    logout("\taddress 0x%04x, data 0x%02x\n", eeprom.address, eeprom.data);
+                    TRACE(EEPROM, logout("\taddress 0x%04x, data 0x%02x\n",
+                          eeprom.address, eeprom.data));
                     eeprom.ack = 1;
                     eeprom.tick = 0;
                 }
@@ -201,10 +201,11 @@ static void eeprom24c0x_write(int scl, int sda)
                 sda = 0;
             }
         } else {
-            logout("\tsda changed with raising scl\n");
+            TRACE(EEPROM, logout("\tsda changed with raising scl\n"));
         }
     } else {
-        logout("%u: scl = %u->%u, sda = %u->%u\n", eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u\n",
+              eeprom.tick, eeprom.scl, scl, eeprom.sda, sda));
     }
     eeprom.scl = scl;
     eeprom.sda = sda;
@@ -298,13 +299,13 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
         break;
 
     default:
-#if 0
-        printf ("malta_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
-		addr);
+#if 1
+        fprintf (stderr, "%s: Bad register offset 0x" TARGET_FMT_lx "\n",
+                __func__, addr);
 #endif
         break;
     }
-    logout("0x%08x = 0x%08x\n", saddr, val);
+    TRACE(FPGA, logout("0x%08x = 0x%08x\n", saddr, val));
     return val;
 }
 
@@ -398,16 +399,16 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-#if 0
-        printf ("malta_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
-		addr);
+#if 1
+        fprintf(stderr, "%s: Bad register offset 0x" TARGET_FMT_lx "\n",
+                __func__, addr);
 #endif
         break;
     }
 
     if (logging) {
-        logout("0x%08x = 0x%08x (oe = 0x%08x, out = 0x%08x, sel = 0x%08x)\n",
-                saddr, val, s->i2coe, s->i2cout, s->i2csel);
+        TRACE(FPGA, logout("0x%08x = 0x%08x (oe = 0x%08x, out = 0x%08x, sel = 0x%08x)\n",
+                saddr, val, s->i2coe, s->i2cout, s->i2csel));
     }
 }
 
