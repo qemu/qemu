@@ -382,6 +382,13 @@ enum {
     IR_ZERO = 31,
 };
 
+CPUAlphaState * cpu_alpha_init (void);
+int cpu_alpha_exec(CPUAlphaState *s);
+/* you can call this signal handler from your SIGBUS and SIGSEGV
+   signal handlers to inform the virtual CPU of exceptions. non zero
+   is returned if the signal was handled by the virtual CPU.  */
+int cpu_alpha_signal_handler(int host_signum, void *pinfo, 
+                             void *puc);
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 void cpu_loop_exit (void);

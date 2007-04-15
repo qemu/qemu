@@ -1365,7 +1365,7 @@ void op_mtc0_status (void)
         !(env->hflags & MIPS_HFLAG_DM) &&
         (val & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
-    env->CP0_Status = val;
+    env->CP0_Status = (env->CP0_Status & ~0xF878FF17) | val;
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB2(do_mtc0_status_debug, old, val);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
@@ -2180,6 +2180,19 @@ void op_save_state (void)
 void op_save_pc (void)
 {
     env->PC = PARAM1;
+    RETURN();
+}
+
+void op_interrupt_restart (void)
+{
+    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & (1 << CP0St_IE)) &&
+        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask)) {
+        env->CP0_Cause &= ~(0x1f << CP0Ca_EC);
+        CALL_FROM_TB1(do_raise_exception, EXCP_EXT_INTERRUPT);
+    }
     RETURN();
 }
 

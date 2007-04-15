@@ -1,3 +1,63 @@
+2007-04-15 21:52  ths
+
+	* target-mips/translate.c: Small code generation optimization.
+
+2007-04-15 19:27  ths
+
+	* target-mips/op_helper.c: Delete unused define.
+
+2007-04-15 17:15  ths
+
+	* hw/gt64xxx.c: Gallileo fixes, by Stefan Weil.
+
+2007-04-15 16:13  pbrook
+
+	* linux-user/flatload.c: bFLT loader alignment fix.
+
+2007-04-15 08:38  blueswir1
+
+	* pc-bios/: README, openbios-sparc32, openbios-sparc64: Update
+	  OpenBIOS for Sparc32 and add a Sparc64 image
+
+2007-04-15 00:35  pbrook
+
+	* gdbstub.c: Fix format specified for watchpoint address.
+
+2007-04-14 18:15  blueswir1
+
+	* gdbstub.c: Fix Sparc64 double float gdb protocol (initial version
+	  by Paul Brook)
+
+2007-04-14 15:01  blueswir1
+
+	* hw/: fdc.c, m48t59.c: Add device save and reset methods to FDC
+	  and M48T59
+
+2007-04-14 14:56  ths
+
+	* target-mips/: op.c, translate.c: Restart interrupts after an
+	  exception.
+
+2007-04-14 14:24  ths
+
+	* hw/pci.c: Know about more PCI device classes.
+
+2007-04-14 14:17  j_mayer
+
+	* monitor.c, linux-user/syscall.c: Fix incorrect pointers casts.
+
+2007-04-14 14:17  j_mayer
+
+	* hw/pflash_cfi02.c, hw/ppc.c, hw/ppc_chrp.c, linux-user/main.c,
+	  target-alpha/cpu.h, target-alpha/translate.c, target-ppc/cpu.h,
+	  target-ppc/helper.c: Fix miscellaneous display warnings for
+	  PowerPC & alpha targets and parallel CFI flash driver.
+
+2007-04-14 14:15  j_mayer
+
+	* cpu-defs.h: Add TARGET_FMT_plx to properly display
+	  target_phys_addr_t variables.
+
 2007-04-14 00:30  ths
 
 	* target-mips/op_helper.c: Nicer Log formatting.

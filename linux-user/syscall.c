@@ -3345,7 +3345,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 		    strncpy(tde->d_name, de->d_name, tnamelen);
                     de = (struct dirent *)((char *)de + reclen);
                     len -= reclen;
-                    tde = (struct dirent *)((char *)tde + treclen);
+                    tde = (struct target_dirent *)((char *)tde + treclen);
 		    count1 += treclen;
                 }
 		ret = count1;

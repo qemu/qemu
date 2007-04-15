@@ -377,9 +377,9 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     for (i = 0; i < 64; i += 2) {
 	uint64_t tmp;
 
-        tmp = (uint64_t)tswap32(*((uint32_t *)&env->fpr[i])) << 32;
-        tmp |= tswap32(*((uint32_t *)&env->fpr[i + 1]));
-        registers[i/2 + 32] = tmp;
+        tmp = ((uint64_t)*(uint32_t *)&env->fpr[i]) << 32;
+        tmp |= *(uint32_t *)&env->fpr[i + 1];
+        registers[i / 2 + 32] = tswap64(tmp);
     }
     registers[64] = tswapl(env->pc);
     registers[65] = tswapl(env->npc);
@@ -419,8 +419,11 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->fsr = tswapl(registers[70]);
 #else
     for (i = 0; i < 64; i += 2) {
-	*((uint32_t *)&env->fpr[i]) = tswap32(registers[i/2 + 32] >> 32);
-	*((uint32_t *)&env->fpr[i + 1]) = tswap32(registers[i/2 + 32] & 0xffffffff);
+        uint64_t tmp;
+
+        tmp = tswap64(registers[i / 2 + 32]);
+	*((uint32_t *)&env->fpr[i]) = tmp >> 32;
+	*((uint32_t *)&env->fpr[i + 1]) = tmp & 0xffffffff;
     }
     env->pc = tswapl(registers[64]);
     env->npc = tswapl(registers[65]);
@@ -930,7 +933,8 @@ static void gdb_vm_stopped(void *opaque, int reason)
 
     if (reason == EXCP_DEBUG) {
         if (s->env->watchpoint_hit) {
-            snprintf(buf, sizeof(buf), "T%02xwatch:%x;", SIGTRAP,
+            snprintf(buf, sizeof(buf), "T%02xwatch:" TARGET_FMT_lx ";",
+                     SIGTRAP,
                      s->env->watchpoint[s->env->watchpoint_hit - 1].vaddr);
             put_packet(s, buf);
             s->env->watchpoint_hit = 0;

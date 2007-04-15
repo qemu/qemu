@@ -2004,7 +2004,8 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #if defined ALPHA_DEBUG_DISAS
         insn_count++;
         if (logfile != NULL) {
-            fprintf(logfile, "pc %016lx mem_idx\n", ctx.pc, ctx.mem_idx);
+            fprintf(logfile, "pc " TARGET_FMT_lx " mem_idx %d\n",
+                    ctx.pc, ctx.mem_idx);
         }
 #endif
         insn = ldl_code(ctx.pc);

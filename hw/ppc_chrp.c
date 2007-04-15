@@ -48,7 +48,7 @@ static int macio_nvram_mem_index = -1;
 
 static void dbdma_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    printf("%s: 0x%08x <= 0x%08x\n", __func__, addr, value);
+    printf("%s: 0x" PADDRX " <= 0x%08x\n", __func__, addr, value);
 }
 
 static void dbdma_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
@@ -61,7 +61,7 @@ static void dbdma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
 static uint32_t dbdma_readb (void *opaque, target_phys_addr_t addr)
 {
-    printf("%s: 0x%08x => 0x00000000\n", __func__, addr);
+    printf("%s: 0x" PADDRX " => 0x00000000\n", __func__, addr);
     return 0;
 }
 
@@ -261,7 +261,7 @@ static int vga_osi_call(CPUState *env)
         /* R6 = x, R7 = y, R8 = visible, R9 = data */
         break;
     default:
-        fprintf(stderr, "unsupported OSI call R5=%08x\n", env->gpr[5]);
+        fprintf(stderr, "unsupported OSI call R5=" REGX "\n", env->gpr[5]);
         break;
     }
     return 1; /* osi_call handled */

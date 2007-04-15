@@ -5239,15 +5239,29 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     if (env->singlestep_enabled) {
         save_cpu_state(ctxp, ctx.bstate == BS_NONE);
         gen_op_debug();
-        goto done_generating;
+    } else {
+	switch (ctx.bstate) {
+        case BS_EXCP:
+            gen_op_interrupt_restart();
+            gen_op_reset_T0();
+            /* Generate the return instruction. */
+            gen_op_exit_tb();
+            break;
+        case BS_STOP:
+            gen_op_interrupt_restart();
+            /* Fall through. */
+        case BS_NONE:
+            save_cpu_state(ctxp, 0);
+            gen_goto_tb(&ctx, 0, ctx.pc);
+            break;
+        case BS_BRANCH:
+        default:
+            gen_op_reset_T0();
+            /* Generate the return instruction. */
+            gen_op_exit_tb();
+            break;
+	}
     }
-    else if (ctx.bstate != BS_BRANCH && ctx.bstate != BS_EXCP) {
-        save_cpu_state(ctxp, 0);
-        gen_goto_tb(&ctx, 0, ctx.pc);
-    }
-    gen_op_reset_T0();
-    /* Generate the return instruction */
-    gen_op_exit_tb();
 done_generating:
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
