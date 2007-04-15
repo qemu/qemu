@@ -1722,25 +1722,25 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_INS:
         if (lsb > msb)
             goto fail;
-        GEN_LOAD_REG_TN(T2, rt);
+        GEN_LOAD_REG_TN(T0, rt);
         gen_op_ins(lsb, msb - lsb + 1);
         break;
     case OPC_DINSM:
         if (lsb > msb)
             goto fail;
-        GEN_LOAD_REG_TN(T2, rt);
+        GEN_LOAD_REG_TN(T0, rt);
         gen_op_ins(lsb, msb - lsb + 1 + 32);
         break;
     case OPC_DINSU:
         if (lsb > msb)
             goto fail;
-        GEN_LOAD_REG_TN(T2, rt);
+        GEN_LOAD_REG_TN(T0, rt);
         gen_op_ins(lsb + 32, msb - lsb + 1);
         break;
     case OPC_DINS:
         if (lsb > msb)
             goto fail;
-        GEN_LOAD_REG_TN(T2, rt);
+        GEN_LOAD_REG_TN(T0, rt);
         gen_op_ins(lsb, msb - lsb + 1);
         break;
     default:

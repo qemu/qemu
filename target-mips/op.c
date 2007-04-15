@@ -2234,7 +2234,7 @@ void op_ins(void)
     unsigned int size = PARAM2;
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
-    T0 = (T2 & ~mask) | (((uint32_t)T1 << pos) & mask);
+    T0 = (T0 & ~mask) | (((uint32_t)T1 << pos) & mask);
     RETURN();
 }
 
@@ -2260,7 +2260,7 @@ void op_dins(void)
     unsigned int size = PARAM2;
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
-    T0 = (T2 & ~mask) | ((T1 << pos) & mask);
+    T0 = (T0 & ~mask) | ((T1 << pos) & mask);
     RETURN();
 }
 
