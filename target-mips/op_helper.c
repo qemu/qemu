@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include "exec.h"
 
-#define MIPS_DEBUG_DISAS
-
 #define GETPC() (__builtin_return_address(0))
 
 /*****************************************************************************/
