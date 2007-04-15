@@ -72,7 +72,7 @@
 #define KiB 1024
 
 /* debug EEPRO100 card */
-//~ #define DEBUG_EEPRO100
+#define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
@@ -81,7 +81,7 @@
 #endif
 
 /* Set flags to 0 to disable debug output. */
-#define MDI     0
+#define MDI     1
 
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
 
@@ -451,7 +451,7 @@ static void pci_reset(EEPRO100State * s)
     //~ PCI_CONFIG_8(0x0c, 0x00);
     /* PCI Latency Timer */
     PCI_CONFIG_8(0x0d, 0x20);   // latency timer = 32 clocks
-    /* PCI Header Type */
+    PCI_CONFIG_8(PCI_HEADER_TYPE, 0x00);
     /* BIST (built-in self test) */
 #if defined(TARGET_I386)
 // !!! workaround for buggy bios
@@ -773,8 +773,8 @@ static void action_command(EEPRO100State *s)
         bool bit_s = ((s->tx.command & COMMAND_S) != 0);
         s->cu_offset = s->tx.link;
         logout
-            ("val=0x%02x (cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
-             val, s->tx.status, s->tx.command, s->cu_offset);
+            ("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
+             s->tx.status, s->tx.command, s->cu_offset);
         switch (s->tx.command & COMMAND_CMD) {
         case CmdNOp:
             /* Do nothing. */
@@ -973,7 +973,7 @@ static void eepro100_write_eeprom(eeprom_t * eeprom, uint8_t val)
 
 static void eepro100_write_pointer(EEPRO100State * s, uint32_t val)
 {
-    s->pointer = le32_to_cpu(val);
+    s->pointer = val;
     logout("val=0x%08x\n", val);
 }
 
@@ -1000,6 +1000,19 @@ static const char *mdi_reg_name[] = {
     "Auto-Negotiation Link Partner Ability",
     "Auto-Negotiation Expansion"
 };
+
+static const char *reg2name(uint8_t reg)
+{
+    static char buffer[10];
+    const char *p = buffer;
+    if (reg < sizeof(mdi_reg_name) / sizeof(*mdi_reg_name)) {
+        p = mdi_reg_name[reg];
+    } else {
+        sprintf(buffer, "reg=0x%02x", reg);
+    }
+    return p;
+}
+
 #endif                          /* DEBUG_EEPRO100 */
 
 static uint32_t eepro100_read_mdi(EEPRO100State * s)
@@ -1019,8 +1032,8 @@ static uint32_t eepro100_read_mdi(EEPRO100State * s)
     val |= BIT(28);
     TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
                       val, raiseint, mdi_op_name[opcode], phy,
-                      mdi_reg_name[reg], data));
-    return cpu_to_le32(val);
+                      reg2name(reg), data));
+    return val;
 }
 
 //~ #define BITS(val, upper, lower) (val & ???)
@@ -1046,7 +1059,7 @@ static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
     } else {
         TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
                           val, raiseint, mdi_op_name[opcode], phy,
-                          mdi_reg_name[reg], data));
+                          reg2name(reg), data));
         if (opcode == 1) {
             /* MDI write */
             switch (reg) {
@@ -1112,6 +1125,7 @@ static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
         }
     }
     val = (val & 0xffff0000) + data;
+    val = cpu_to_le32(val);
     memcpy(&s->mem[0x10], &val, sizeof(val));
 }
 
@@ -1139,7 +1153,6 @@ static uint32_t eepro100_read_port(EEPRO100State * s)
 
 static void eepro100_write_port(EEPRO100State * s, uint32_t val)
 {
-    val = le32_to_cpu(val);
     uint32_t address = (val & ~PORT_SELECTION_MASK);
     uint8_t selection = (val & PORT_SELECTION_MASK);
     switch (selection) {
@@ -1221,6 +1234,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
+    val = le16_to_cpu(val);
 
     logout("addr=%s val=0x%04x\n", regname(addr), val);
 
@@ -1235,16 +1249,20 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
         logout("addr=%s val=0x%04x\n", regname(addr), val);
         missing("unknown word read");
     }
+    val = cpu_to_le16(val);
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap16(val);
+#endif
     return val;
 }
 
 static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 {
-    uint32_t val;
+    uint32_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
-
+    val = le32_to_cpu(val);
     switch (addr) {
     case SCBStatus:
         //~ val = eepro100_read_status(s);
@@ -1265,6 +1283,10 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
         logout("addr=%s val=0x%08x\n", regname(addr), val);
         missing("unknown longword read");
     }
+    val = cpu_to_le32(val);
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap32(val);
+#endif
     return val;
 }
 
@@ -1306,9 +1328,14 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 
 static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 {
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap16(val);
+#endif
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
+
+    val = le16_to_cpu(val);
 
     logout("addr=%s val=0x%04x\n", regname(addr), val);
 
@@ -1332,9 +1359,14 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 
 static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 {
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap32(val);
+#endif
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
+
+    val = le32_to_cpu(val);
 
     switch (addr) {
     case SCBPointer:
