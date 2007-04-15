@@ -5238,6 +5238,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 	switch (ctx.bstate) {
         case BS_EXCP:
             gen_op_interrupt_restart();
+            gen_op_reset_T0();
+            /* Generate the return instruction. */
+            gen_op_exit_tb();
             break;
         case BS_STOP:
             gen_op_interrupt_restart();
@@ -5248,11 +5251,11 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             break;
         case BS_BRANCH:
         default:
+            gen_op_reset_T0();
+            /* Generate the return instruction. */
+            gen_op_exit_tb();
             break;
 	}
-        gen_op_reset_T0();
-        /* Generate the return instruction. */
-        gen_op_exit_tb();
     }
 done_generating:
     *gen_opc_ptr = INDEX_op_end;
