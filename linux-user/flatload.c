@@ -393,6 +393,7 @@ static int load_flat_file(struct linux_binprm * bprm,
     int i, rev, relocs = 0;
     target_ulong fpos;
     target_ulong start_code, end_code;
+    target_ulong indx_len;
 
     hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
 
@@ -443,6 +444,11 @@ static int load_flat_file(struct linux_binprm * bprm,
     if (extra < bss_len + stack_len)
         extra = bss_len + stack_len;
 
+    /* Add space for library base pointers.  Make sure this does not
+       misalign the  doesn't misalign the data segment.  */
+    indx_len = MAX_SHARED_LIBS * sizeof(target_ulong);
+    indx_len = (indx_len + 15) & ~(target_ulong)15;
+
     /*
      * there are a couple of cases here,  the separate code/data
      * case,  and then the fully copied to RAM case which lumps
@@ -462,8 +468,7 @@ static int load_flat_file(struct linux_binprm * bprm,
             return -1;
         }
 
-        realdatastart = target_mmap(0, data_len + extra +
-                                    MAX_SHARED_LIBS * sizeof(target_ulong),
+        realdatastart = target_mmap(0, data_len + extra + indx_len,
                                     PROT_READ|PROT_WRITE|PROT_EXEC,
                                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -471,7 +476,7 @@ static int load_flat_file(struct linux_binprm * bprm,
             fprintf(stderr, "Unable to allocate RAM for process data\n");
             return realdatastart;
         }
-        datapos = realdatastart + MAX_SHARED_LIBS * sizeof(target_ulong);
+        datapos = realdatastart + indx_len;
 
         DBG_FLT("BINFMT_FLAT: Allocated data+bss+stack (%d bytes): %x\n",
                         (int)(data_len + bss_len + stack_len), (int)datapos);
@@ -498,8 +503,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 
     } else {
 
-        textpos = target_mmap(0, text_len + data_len + extra +
-                              MAX_SHARED_LIBS * sizeof(target_ulong),
+        textpos = target_mmap(0, text_len + data_len + extra + indx_len,
                               PROT_READ | PROT_EXEC | PROT_WRITE,
                               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (textpos == -1 ) {
@@ -508,9 +512,8 @@ static int load_flat_file(struct linux_binprm * bprm,
         }
 
         realdatastart = textpos + ntohl(hdr->data_start);
-        datapos = realdatastart + MAX_SHARED_LIBS * sizeof(target_ulong);
-        reloc = (textpos + ntohl(hdr->reloc_start) +
-                 MAX_SHARED_LIBS * sizeof(target_ulong));
+        datapos = realdatastart + indx_len;
+        reloc = (textpos + ntohl(hdr->reloc_start) + indx_len);
         memp = textpos;
 
 #ifdef CONFIG_BINFMT_ZFLAT
