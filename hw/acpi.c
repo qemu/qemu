@@ -473,7 +473,7 @@ void piix4_pm_init(PCIBus *bus, int devfn)
 {
     PIIX4PMState *s;
     uint8_t *pci_conf;
-    uint32_t pm_io_base, smb_io_base;
+    uint32_t smb_io_base;
 
     s = (PIIX4PMState *)pci_register_device(bus,
                                          "PM", sizeof(PIIX4PMState),
