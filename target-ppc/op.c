@@ -130,6 +130,13 @@
 #define REG 31
 #include "op_template.h"
 
+
+void OPPROTO op_print_mem_EA (void)
+{
+    do_print_mem_EA(T0);
+    RETURN();
+}
+
 /* PowerPC state maintenance operations */
 /* set_Rc0 */
 PPC_OP(set_Rc0)
@@ -360,15 +367,33 @@ void OPPROTO op_store_msr_32 (void)
 #endif
 
 /* SPR */
-PPC_OP(load_spr)
+void OPPROTO op_load_spr (void)
 {
-    T0 = regs->spr[PARAM(1)];
+    T0 = env->spr[PARAM1];
     RETURN();
 }
 
-PPC_OP(store_spr)
+void OPPROTO op_store_spr (void)
 {
-    regs->spr[PARAM(1)] = T0;
+    env->spr[PARAM1] = T0;
+    RETURN();
+}
+
+void OPPROTO op_load_dump_spr (void)
+{
+    T0 = ppc_load_dump_spr(PARAM1);
+    RETURN();
+}
+
+void OPPROTO op_store_dump_spr (void)
+{
+    ppc_store_dump_spr(PARAM1, T0);
+    RETURN();
+}
+
+void OPPROTO op_mask_spr (void)
+{
+    env->spr[PARAM1] &= ~T0;
     RETURN();
 }
 

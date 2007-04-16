@@ -50,6 +50,8 @@ void glue(do_icbi_64, MEMSUFFIX) (void);
 
 #else
 
+void do_print_mem_EA (target_ulong EA);
+
 /* Registers load and stores */
 void do_load_cr (void);
 void do_store_cr (uint32_t mask);
@@ -57,6 +59,8 @@ void do_load_xer (void);
 void do_store_xer (void);
 void do_load_fpscr (void);
 void do_store_fpscr (uint32_t mask);
+target_ulong ppc_load_dump_spr (int sprn);
+void ppc_store_dump_spr (int sprn, target_ulong val);
 
 /* Integer arithmetic helpers */
 void do_adde (void);

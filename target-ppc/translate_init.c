@@ -25,6 +25,7 @@
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
+//#define PPC_DEBUG_IRQ
 
 struct ppc_def_t {
     const unsigned char *name;
@@ -60,6 +61,23 @@ static void spr_write_generic (void *opaque, int sprn)
 {
     gen_op_store_spr(sprn);
 }
+
+static void spr_read_dump (void *opaque, int sprn)
+{
+    gen_op_load_dump_spr(sprn);
+}
+
+static void spr_write_dump (void *opaque, int sprn)
+{
+    gen_op_store_dump_spr(sprn);
+}
+
+#if !defined(CONFIG_USER_ONLY)
+static void spr_write_clear (void *opaque, int sprn)
+{
+    gen_op_mask_spr(sprn);
+}
+#endif
 
 /* SPR common to all PowerPC */
 /* XER */

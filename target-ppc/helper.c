@@ -649,10 +649,10 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         }
         mask = ~(tlb->size - 1);
         if (loglevel) {
-            fprintf(logfile, "%s: TLB %d address " ADDRX " PID " ADDRX " <=> "
-                    ADDRX " " ADDRX " " ADDRX "\n",
-                    __func__, i, address, env->spr[SPR_40x_PID],
-                    tlb->EPN, mask, tlb->PID);
+            fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
+                    ADDRX " " ADDRX " %d\n",
+                    __func__, i, address, (int)env->spr[SPR_40x_PID],
+                    tlb->EPN, mask, (int)tlb->PID);
         }
         /* Check PID */
         if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
@@ -1450,9 +1450,6 @@ void do_interrupt (CPUState *env)
         if (loglevel) {
             fprintf(logfile, "DSI exception: DSISR=0x" ADDRX" DAR=0x" ADDRX
                     "\n", env->spr[SPR_DSISR], env->spr[SPR_DAR]);
-        } else {
-            printf("DSI exception: DSISR=0x" ADDRX" DAR=0x" ADDRX "\n",
-                   env->spr[SPR_DSISR], env->spr[SPR_DAR]);
         }
 #endif
         goto store_next;
@@ -1495,7 +1492,9 @@ void do_interrupt (CPUState *env)
         case EXCP_FP:
             if (msr_fe0 == 0 && msr_fe1 == 0) {
 #if defined (DEBUG_EXCEPTIONS)
-                printf("Ignore floating point exception\n");
+                if (loglevel) {
+                    fprintf(logfile, "Ignore floating point exception\n");
+                }
 #endif
                 return;
             }
@@ -1508,7 +1507,12 @@ void do_interrupt (CPUState *env)
                 env->fpscr[7] |= 0x4;
             break;
         case EXCP_INVAL:
-            //      printf("Invalid instruction at 0x" ADDRX "\n", env->nip);
+#if defined (DEBUG_EXCEPTIONS)
+            if (loglevel) {
+                fprintf(logfile, "Invalid instruction at 0x" ADDRX "\n",
+                        env->nip);
+            }
+#endif
             msr |= 0x00080000;
             break;
         case EXCP_PRIV:
@@ -1609,8 +1613,10 @@ void do_interrupt (CPUState *env)
         case PPC_FLAGS_EXCP_40x:
             /* PIT on 4xx */
             msr &= ~0xFFFF0000;
+#if defined (DEBUG_EXCEPTIONS)
             if (loglevel != 0)
                 fprintf(logfile, "PIT exception\n");
+#endif
             goto store_next;
         case PPC_FLAGS_EXCP_602:
         case PPC_FLAGS_EXCP_603:
@@ -1630,8 +1636,10 @@ void do_interrupt (CPUState *env)
         case PPC_FLAGS_EXCP_40x:
             /* FIT on 4xx */
             msr &= ~0xFFFF0000;
+#if defined (DEBUG_EXCEPTIONS)
             if (loglevel != 0)
                 fprintf(logfile, "FIT exception\n");
+#endif
             goto store_next;
         default:
             cpu_abort(env, "Invalid exception 0x1010 !\n");
@@ -1644,8 +1652,10 @@ void do_interrupt (CPUState *env)
         case PPC_FLAGS_EXCP_40x:
             /* Watchdog on 4xx */
             msr &= ~0xFFFF0000;
+#if defined (DEBUG_EXCEPTIONS)
             if (loglevel != 0)
                 fprintf(logfile, "WDT exception\n");
+#endif
             goto store_next;
         case PPC_FLAGS_EXCP_BOOKE:
             srr_0 = &env->spr[SPR_BOOKE_CSRR0];
@@ -1929,11 +1939,12 @@ void ppc_hw_interrupt (CPUPPCState *env)
 {
     int raised = 0;
 
-#if 0
-    printf("%s: %p pending %08x req %08x %08x me %d ee %d\n",
-           __func__, env, env->pending_interrupts,
-           env->interrupt_request, interrupt_request,
-           msr_me, msr_ee);
+#if 1
+    if (loglevel & CPU_LOG_INT) {
+        fprintf(logfile, "%s: %p pending %08x req %08x me %d ee %d\n",
+                __func__, env, env->pending_interrupts,
+                env->interrupt_request, msr_me, msr_ee);
+    }
 #endif
     /* Raise it */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_RESET)) {
@@ -2007,3 +2018,17 @@ void ppc_hw_interrupt (CPUPPCState *env)
     }
 }
 #endif /* !CONFIG_USER_ONLY */
+
+void cpu_dump_EA (target_ulong EA)
+{
+    FILE *f;
+
+    if (logfile) {
+        f = logfile;
+    } else {
+        f = stdout;
+        return;
+    }
+    fprintf(f, "Memory access at address " TARGET_FMT_lx "\n", EA);
+}
+

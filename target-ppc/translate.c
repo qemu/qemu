@@ -29,6 +29,7 @@
 
 //#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
+//#define DEBUG_MEMORY_ACCESSES
 //#define DO_PPC_STATISTICS
 
 #if defined(USE_DIRECT_JUMP)
@@ -1745,6 +1746,9 @@ static inline void gen_addr_imm_index (DisasContext *ctx, int maskl)
         if (likely(simm != 0))
             gen_op_addi(simm);
     }
+#ifdef DEBUG_MEMORY_ACCESSES
+    gen_op_print_mem_EA();
+#endif
 }
 
 static inline void gen_addr_reg_index (DisasContext *ctx)
@@ -1756,6 +1760,9 @@ static inline void gen_addr_reg_index (DisasContext *ctx)
         gen_op_load_gpr_T1(rB(ctx->opcode));
         gen_op_add();
     }
+#ifdef DEBUG_MEMORY_ACCESSES
+    gen_op_print_mem_EA();
+#endif
 }
 
 static inline void gen_addr_register (DisasContext *ctx)
@@ -1765,6 +1772,9 @@ static inline void gen_addr_register (DisasContext *ctx)
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
     }
+#ifdef DEBUG_MEMORY_ACCESSES
+    gen_op_print_mem_EA();
+#endif
 }
 
 /***                             Integer load                              ***/
