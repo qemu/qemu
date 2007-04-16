@@ -286,6 +286,36 @@ static const uint16_t eepro100_mdi_mask[] = {
     0xffff, 0xffff, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
+/* XXX: optimize */
+uint32_t lduw_le_phys(target_phys_addr_t addr)
+{
+    uint16_t val;
+    cpu_physical_memory_read(addr, (uint8_t *)&val, sizeof(val));
+    return le16_to_cpu(val);
+}
+
+/* XXX: optimize */
+uint32_t ldl_le_phys(target_phys_addr_t addr)
+{
+    uint32_t val;
+    cpu_physical_memory_read(addr, (uint8_t *)&val, sizeof(val));
+    return le32_to_cpu(val);
+}
+
+/* XXX: optimize */
+void stw_le_phys(target_phys_addr_t addr, uint16_t val)
+{
+    val = cpu_to_le16(val);
+    cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
+}
+
+/* XXX: optimize */
+void stl_le_phys(target_phys_addr_t addr, uint32_t val)
+{
+    val = cpu_to_le32(val);
+    cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
+}
+
 #define POLYNOMIAL 0x04c11db6
 
 /* From FreeBSD */
@@ -655,12 +685,12 @@ static void dump_statistics(EEPRO100State * s)
      * Number of data should check configuration!!!
      */
     cpu_physical_memory_write(s->statsaddr, (uint8_t *) & s->statistics, 64);
-    stl_phys(s->statsaddr + 0, s->statistics.tx_good_frames);
-    stl_phys(s->statsaddr + 36, s->statistics.rx_good_frames);
-    stl_phys(s->statsaddr + 48, s->statistics.rx_resource_errors);
-    stl_phys(s->statsaddr + 60, s->statistics.rx_short_frame_errors);
-    //~ stw_phys(s->statsaddr + 76, s->statistics.xmt_tco_frames);
-    //~ stw_phys(s->statsaddr + 78, s->statistics.rcv_tco_frames);
+    stl_le_phys(s->statsaddr + 0, s->statistics.tx_good_frames);
+    stl_le_phys(s->statsaddr + 36, s->statistics.rx_good_frames);
+    stl_le_phys(s->statsaddr + 48, s->statistics.rx_resource_errors);
+    stl_le_phys(s->statsaddr + 60, s->statistics.rx_short_frame_errors);
+    //~ stw_le_phys(s->statsaddr + 76, s->statistics.xmt_tco_frames);
+    //~ stw_le_phys(s->statsaddr + 78, s->statistics.rcv_tco_frames);
     //~ missing("CU dump statistical counters");
 }
 
@@ -691,9 +721,9 @@ static void tx_command(EEPRO100State *s)
             ("illegal values of TBD array address and TCB byte count!\n");
     }
     for (size = 0; size < tcb_bytes; ) {
-        uint32_t tx_buffer_address = ldl_phys(tbd_address);
-        uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
-        //~ uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+        uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
+        uint16_t tx_buffer_size = lduw_le_phys(tbd_address + 4);
+        //~ uint16_t tx_buffer_el = lduw_le_phys(tbd_address + 6);
         tbd_address += 8;
         logout
             ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
@@ -715,9 +745,9 @@ static void tx_command(EEPRO100State *s)
             /* Extended TCB. */
             assert(tcb_bytes == 0);
             for (; tbd_count < 2; tbd_count++) {
-                uint32_t tx_buffer_address = ldl_phys(tbd_address);
-                uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
-                uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+                uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
+                uint16_t tx_buffer_size = lduw_le_phys(tbd_address + 4);
+                uint16_t tx_buffer_el = lduw_le_phys(tbd_address + 6);
                 tbd_address += 8;
                 logout
                     ("TBD (extended mode): buffer address 0x%08x, size 0x%04x\n",
@@ -736,9 +766,9 @@ static void tx_command(EEPRO100State *s)
         }
         tbd_address = tbd_array;
         for (; tbd_count < s->tx.tbd_count; tbd_count++) {
-            uint32_t tx_buffer_address = ldl_phys(tbd_address);
-            uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
-            uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+            uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
+            uint16_t tx_buffer_size = lduw_le_phys(tbd_address + 4);
+            uint16_t tx_buffer_el = lduw_le_phys(tbd_address + 6);
             tbd_address += 8;
             logout
                 ("TBD (flexible mode): buffer address 0x%08x, size 0x%04x\n",
@@ -803,7 +833,7 @@ static void action_command(EEPRO100State *s)
             missing("undefined command");
         }
         /* Write new status (success). */
-        stw_phys(s->cb_address, s->tx.status | STATUS_C | STATUS_OK);
+        stw_le_phys(s->cb_address, s->tx.status | STATUS_C | STATUS_OK);
         if (s->tx.command & COMMAND_I) {
             /* CU completed action. */
             eepro100_cx_interrupt(s);
@@ -1162,7 +1192,7 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
     case PORT_SELFTEST:
         logout("selftest address=0x%08x\n", address);
         eepro100_selftest_t data;
-        cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
+        //~ cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
         data.st_sign = 0xffffffff;
         data.st_result = 0;
         cpu_physical_memory_write(address, (uint8_t *) & data, sizeof(data));
@@ -1617,6 +1647,7 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     eepro100_rx_t rx;
     cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *) & rx,
                              offsetof(eepro100_rx_t, packet));
+    // !!!
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
     assert(size <= rfd_size);
@@ -1625,9 +1656,9 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     }
     logout("command 0x%04x, link 0x%08x, addr 0x%08x, size %u\n", rfd_command,
            rx.link, rx.rx_buf_addr, rfd_size);
-    stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, status),
-             rfd_status);
-    stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, count), size);
+    stw_le_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, status),
+                rfd_status);
+    stw_le_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, count), size);
     /* Early receive interrupt not supported. */
     //~ eepro100_er_interrupt(s);
     /* Receive CRC Transfer not supported. */
