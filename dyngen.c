@@ -1640,7 +1640,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         p = (void *)(p_end - 4);
         if (p == p_start)
             error("empty code for %s", name);
-        if (get32((uint32_t *)p) != 0x03e00008)
+        if (get32((uint32_t *)(p - 4)) != 0x03e00008)
             error("jr ra expected at the end of %s", name);
         copy_size = p - p_start;
     }
@@ -1907,7 +1907,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
-                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    sym_name = get_rel_sym_name(rel);
                     get_reloc_expr(name, sizeof(name), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
@@ -1941,7 +1941,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
-                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                        sym_name = get_rel_sym_name(rel);
                         reloc_offset = rel->r_offset - start_offset;
                         if (strstart(sym_name, "__op_jmp", &p)) {
                             int n;
@@ -2084,7 +2084,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
-                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                        sym_name = get_rel_sym_name(rel);
                         get_reloc_expr(name, sizeof(name), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
@@ -2442,7 +2442,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
-                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    sym_name = get_rel_sym_name(rel);
                     /* the compiler leave some unnecessary references to the code */
                     if (sym_name[0] == '\0')
                         continue;
@@ -2475,11 +2475,19 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 int reloc_offset;
+                if (nb_relocs != 0) {
+                    printf("%d relocations\n", nb_relocs);
+                }
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
-			rel->r_offset < start_offset + copy_size) {
-                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                        rel->r_offset < start_offset + copy_size) {
+                        sym_name = get_rel_sym_name(rel);
+                        //~ if (!sym_name)
+                            //~ continue;
                         reloc_offset = rel->r_offset - start_offset;
+                        addend = get32((uint32_t *)(text + rel->r_offset));
+                        type = ELF32_R_TYPE(rel->r_info);
+                        printf("%d %s, type %d\n", i, sym_name, type);
                     }
                 }
 #else
@@ -2497,7 +2505,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
 		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
-                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    sym_name = get_rel_sym_name(rel);
                     get_reloc_expr(name, sizeof(name), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset)) + rel->r_addend;
