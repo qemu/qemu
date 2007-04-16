@@ -344,6 +344,15 @@ static void spr_write_40x_pit (void *opaque, int sprn)
     gen_op_store_40x_pit();
 }
 
+static void spr_write_40x_dbcr0 (void *opaque, int sprn)
+{
+    DisasContext *ctx = opaque;
+
+    gen_op_store_40x_dbcr0();
+    /* We must stop translation as we may have rebooted */
+    RET_STOP(ctx);
+}
+
 static void spr_write_booke_tcr (void *opaque, int sprn)
 {
     gen_op_store_booke_tcr();
@@ -1175,7 +1184,7 @@ static void gen_spr_BookE (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_DBSR, "DBSR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_clear,
                  0x00000000);
     spr_register(env, SPR_BOOKE_DEAR, "DEAR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -1651,13 +1660,13 @@ static void gen_spr_40x (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_40x_DBCR0, "DBCR0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_40x_dbcr0,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_40x_DBSR, "DBSR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 /* Last reset was system reset (system boot */
+                 &spr_read_generic, &spr_write_clear,
+                 /* Last reset was system reset */
                  0x00000300);
     /* XXX : not implemented */
     spr_register(env, SPR_40x_IAC1, "IAC1",
@@ -1750,17 +1759,6 @@ static void gen_spr_405 (CPUPPCState *env)
     spr_register(env, SPR_USPRG7, "USPRG7",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, SPR_NOACCESS,
-                 0x00000000);
-    /* Debug */
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DAC2, "DAC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_IAC2, "IAC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
 }
 
