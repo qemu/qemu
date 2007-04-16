@@ -1519,11 +1519,7 @@ static void pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
                            PCI_ADDRESS_SPACE_MEM, dp8381x_mem_map);
 
     s->pci_dev = &d->dev;
-    static const char macaddr[6] = {
-        0x00, 0x60, 0x65, 0x02, 0x4a, 0x8e
-    };
-    memcpy(s->macaddr, macaddr, 6);
-    //~ memcpy(s->macaddr, nd->macaddr, 6);
+    memcpy(s->macaddr, nd->macaddr, 6);
     dp8381x_reset(s);
 
 #if defined(CONFIG_EEPROM)
