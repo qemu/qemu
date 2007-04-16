@@ -1218,8 +1218,10 @@ static term_cmd_t term_cmds[] = {
       "[-f] device", "eject a removable medium (use -f to force it)" },
     { "change", "BF", do_change,
       "device filename", "change a removable medium" },
+#if defined(CONFIG_SDL)
     { "screendump", "F", do_screen_dump, 
       "filename", "save screen into PPM image 'filename'" },
+#endif
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
     { "savevm", "s?", do_savevm,
