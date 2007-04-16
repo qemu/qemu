@@ -210,17 +210,23 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
+    cmd = value;
+    if (pfl->cmd != 0xA0 && cmd == 0xF0) {
+#if 0
+        DPRINTF("%s: flash reset asked (%02x %02x)\n",
+                __func__, pfl->cmd, cmd);
+#endif
+        goto reset_flash;
+    }
+    DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d %d\n", __func__,
+            offset, value, width, pfl->wcycle);
     if (pfl->wcycle == 0)
         offset -= (target_ulong)(long)pfl->storage;
     else
         offset -= pfl->base;
         
-    cmd = value;
-    DPRINTF("offset " TARGET_FMT_lx " %08x %d\n", offset, value, width);
-    if (pfl->cmd != 0xA0 && cmd == 0xF0) {
-        DPRINTF("flash reset asked (%02x %02x)\n", pfl->cmd, cmd);
-        goto reset_flash;
-    }
+    DPRINTF("offset " TARGET_FMT_lx " %08x %d\n",
+            offset, value, width);
     /* Set the device in I/O access mode */
     cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
     boff = offset & (pfl->sector_len - 1);
@@ -409,10 +415,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
     /* Reset flash */
  reset_flash:
-    if (pfl->wcycle != 0) {
-        cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                     pfl->off | IO_MEM_ROMD | pfl->fl_mem);
-    }
+    cpu_register_physical_memory(pfl->base, pfl->total_len,
+                                 pfl->off | IO_MEM_ROMD | pfl->fl_mem);
     pfl->bypass = 0;
     pfl->wcycle = 0;
     pfl->cmd = 0;
@@ -523,15 +527,18 @@ pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
 
     total_len = sector_len * nb_blocs;
     /* XXX: to be fixed */
+#if 0
     if (total_len != (2 * 1024 * 1024) && total_len != (4 * 1024 * 1024) &&
-	total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
+        total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
         total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
         return NULL;
+#endif
     pfl = qemu_mallocz(sizeof(pflash_t));
     if (pfl == NULL)
         return NULL;
     pfl->storage = phys_ram_base + off;
-    pfl->fl_mem = cpu_register_io_memory(0, pflash_read_ops, pflash_write_ops, pfl);
+    pfl->fl_mem = cpu_register_io_memory(0, pflash_read_ops, pflash_write_ops,
+                                         pfl);
     pfl->off = off;
     cpu_register_physical_memory(base, total_len,
                                  off | pfl->fl_mem | IO_MEM_ROMD);
@@ -607,7 +614,9 @@ pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
     /* Max number of bytes in multi-bytes write */
-    pfl->cfi_table[0x2A] = 0x05;
+    /* XXX: disable buffered write as it's not supported */
+    //    pfl->cfi_table[0x2A] = 0x05;
+    pfl->cfi_table[0x2A] = 0x00;
     pfl->cfi_table[0x2B] = 0x00;
     /* Number of erase block regions (uniform) */
     pfl->cfi_table[0x2C] = 0x01;

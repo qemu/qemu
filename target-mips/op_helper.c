@@ -216,6 +216,17 @@ void do_msubu (void)
 }
 #endif
 
+#if HOST_LONG_BITS < 64
+void do_div (void)
+{
+    /* 64bit datatypes because we may see overflow/underflow. */
+    if (T1 != 0) {
+        env->LO = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
+        env->HI = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
+    }
+}
+#endif
+
 #ifdef TARGET_MIPS64
 void do_dmult (void)
 {

@@ -29,6 +29,7 @@
 
 //#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
+//#define DEBUG_MEMORY_ACCESSES
 //#define DO_PPC_STATISTICS
 
 #if defined(USE_DIRECT_JUMP)
@@ -1745,6 +1746,9 @@ static inline void gen_addr_imm_index (DisasContext *ctx, int maskl)
         if (likely(simm != 0))
             gen_op_addi(simm);
     }
+#ifdef DEBUG_MEMORY_ACCESSES
+    gen_op_print_mem_EA();
+#endif
 }
 
 static inline void gen_addr_reg_index (DisasContext *ctx)
@@ -1756,6 +1760,9 @@ static inline void gen_addr_reg_index (DisasContext *ctx)
         gen_op_load_gpr_T1(rB(ctx->opcode));
         gen_op_add();
     }
+#ifdef DEBUG_MEMORY_ACCESSES
+    gen_op_print_mem_EA();
+#endif
 }
 
 static inline void gen_addr_register (DisasContext *ctx)
@@ -1765,6 +1772,9 @@ static inline void gen_addr_register (DisasContext *ctx)
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
     }
+#ifdef DEBUG_MEMORY_ACCESSES
+    gen_op_print_mem_EA();
+#endif
 }
 
 /***                             Integer load                              ***/
@@ -2796,11 +2806,11 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 #endif
             gen_op_btest_T1(ctx->nip);
         gen_op_reset_T0();
-    }
  no_test:
-    if (ctx->singlestep_enabled)
-        gen_op_debug();
-    gen_op_exit_tb();
+        if (ctx->singlestep_enabled)
+            gen_op_debug();
+        gen_op_exit_tb();
+    }
     ctx->exception = EXCP_BRANCH;
 }
 
@@ -4715,7 +4725,7 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_EMB_COMMON)
 #endif
 }
 
-/* PPC 440 specific instructions */
+/* PowerPC 440 specific instructions */
 /* dlmzb */
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC)
 {
@@ -5828,6 +5838,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         handler->count++;
 #endif
         /* Check trace mode exceptions */
+#if 0 // XXX: buggy on embedded PowerPC
         if (unlikely((msr_be && ctx.exception == EXCP_BRANCH) ||
                      /* Check in single step trace mode
                       * we need to stop except if:
@@ -5842,6 +5853,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
                       ctx.exception != EXCP_TRAP))) {
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
+#endif
         /* if we reach a page boundary or are single stepping, stop
          * generation
          */

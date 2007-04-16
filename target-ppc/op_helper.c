@@ -68,6 +68,12 @@ void do_raise_exception (uint32_t exception)
     do_raise_exception_err(exception, 0);
 }
 
+void cpu_dump_EA (target_ulong EA);
+void do_print_mem_EA (target_ulong EA)
+{
+    cpu_dump_EA(EA);
+}
+
 /*****************************************************************************/
 /* Registers load and stores */
 void do_load_cr (void)
@@ -179,6 +185,25 @@ void do_store_fpscr (uint32_t mask)
         break;
     }
     set_float_rounding_mode(rnd_type, &env->fp_status);
+}
+
+target_ulong ppc_load_dump_spr (int sprn)
+{
+    if (loglevel) {
+        fprintf(logfile, "Read SPR %d %03x => " ADDRX "\n",
+                sprn, sprn, env->spr[sprn]);
+    }
+
+    return env->spr[sprn];
+}
+
+void ppc_store_dump_spr (int sprn, target_ulong val)
+{
+    if (loglevel) {
+        fprintf(logfile, "Write SPR %d %03x => " ADDRX " <= " ADDRX "\n",
+                sprn, sprn, env->spr[sprn], val);
+    }
+    env->spr[sprn] = val;
 }
 
 /*****************************************************************************/
@@ -1250,10 +1275,14 @@ void do_load_dcr (void)
     target_ulong val;
     
     if (unlikely(env->dcr_env == NULL)) {
-        printf("No DCR environment\n");
+        if (loglevel) {
+            fprintf(logfile, "No DCR environment\n");
+        }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
-        printf("DCR read error\n");
+        if (loglevel) {
+            fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
+        }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
     } else {
         T0 = val;
@@ -1263,10 +1292,14 @@ void do_load_dcr (void)
 void do_store_dcr (void)
 {
     if (unlikely(env->dcr_env == NULL)) {
-        printf("No DCR environment\n");
+        if (loglevel) {
+            fprintf(logfile, "No DCR environment\n");
+        }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
-        printf("DCR write error\n");
+        if (loglevel) {
+            fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
+        }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
     }
 }
@@ -2223,16 +2256,7 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
 /* TLB invalidation helpers */
 void do_tlbia (void)
 {
-    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
-        ppc6xx_tlb_invalidate_all(env);
-    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
-        /* XXX: TODO */
-#if 0
-        ppcbooke_tlb_invalidate_all(env);
-#endif
-    } else {
-        tlb_flush(env, 1);
-    }
+    ppc_tlb_invalidate_all(env);
 }
 
 void do_tlbie (void)
@@ -2440,25 +2464,6 @@ static int booke_page_size_to_tlb (target_ulong page_size)
 }
 
 /* Helpers for 4xx TLB management */
-void do_4xx_tlbia (void)
-{
-    ppcemb_tlb_t *tlb;
-    int i;
-
-    for (i = 0; i < 64; i++) {
-        tlb = &env->tlb[i].tlbe;
-        if (tlb->prot & PAGE_VALID) {
-#if 0
-            end = tlb->EPN + tlb->size;
-            for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
-                tlb_flush_page(env, page);
-#endif
-            tlb->prot &= ~PAGE_VALID;
-        }
-    }
-    tlb_flush(env, 1);
-}
-
 void do_4xx_tlbre_lo (void)
 {
     ppcemb_tlb_t *tlb;
@@ -2532,39 +2537,72 @@ void do_4xx_tlbsx_ (void)
     env->crf[0] = tmp;
 }
 
-void do_4xx_tlbwe_lo (void)
+void do_4xx_tlbwe_hi (void)
 {
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+    }
+#endif
     T0 &= 0x3F;
     tlb = &env->tlb[T0].tlbe;
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
+#if defined (DEBUG_SOFTWARE_TLB)
+        if (loglevel) {
+            fprintf(logfile, "%s: invalidate old TLB %d start " ADDRX
+                    " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
+        }
+#endif
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
     tlb->size = booke_tlb_to_page_size((T1 >> 7) & 0x7);
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
-    if (T1 & 0x400)
+    if (T1 & 0x40)
         tlb->prot |= PAGE_VALID;
     else
         tlb->prot &= ~PAGE_VALID;
-    tlb->PID = env->spr[SPR_BOOKE_PID]; /* PID */
+    tlb->PID = env->spr[SPR_40x_PID]; /* PID */
     tlb->attr = T1 & 0xFF;
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+                " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                tlb->prot & PAGE_READ ? 'r' : '-',
+                tlb->prot & PAGE_WRITE ? 'w' : '-',
+                tlb->prot & PAGE_EXEC ? 'x' : '-',
+                tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    }
+#endif
     /* Invalidate new TLB (if valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
+#if defined (DEBUG_SOFTWARE_TLB)
+        if (loglevel) {
+            fprintf(logfile, "%s: invalidate TLB %d start " ADDRX
+                    " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
+        }
+#endif
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
 }
 
-void do_4xx_tlbwe_hi (void)
+void do_4xx_tlbwe_lo (void)
 {
     ppcemb_tlb_t *tlb;
 
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+    }
+#endif
     T0 &= 0x3F;
     tlb = &env->tlb[T0].tlbe;
     tlb->RPN = T1 & 0xFFFFFC00;
@@ -2573,5 +2611,16 @@ void do_4xx_tlbwe_hi (void)
         tlb->prot |= PAGE_EXEC;
     if (T1 & 0x100)
         tlb->prot |= PAGE_WRITE;
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+                " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                tlb->prot & PAGE_READ ? 'r' : '-',
+                tlb->prot & PAGE_WRITE ? 'w' : '-',
+                tlb->prot & PAGE_EXEC ? 'x' : '-',
+                tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    }
+#endif
 }
 #endif /* !CONFIG_USER_ONLY */

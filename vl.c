@@ -6703,6 +6703,7 @@ void register_machines(void)
 #endif
     qemu_register_mips_machines();
     qemu_register_machine(&mips_malta_machine);
+    qemu_register_machine(&mips_pica61_machine);
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
     qemu_register_machine(&sun4u_machine);

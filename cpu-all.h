@@ -1000,7 +1000,7 @@ static inline int64_t cpu_get_real_ticks(void)
     return val;
 }
 
-#elif defined(__sparc_v9__)
+#elif defined(__sparc_v8plus__) || defined(__sparc_v8plusa__) || defined(__sparc_v9__)
 
 static inline int64_t cpu_get_real_ticks (void)
 {

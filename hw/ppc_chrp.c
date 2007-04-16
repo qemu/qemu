@@ -317,6 +317,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* init CPUs */
     env = cpu_init();
+    qemu_register_reset(&cpu_ppc_reset, env);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     /* Default CPU is a generic 74x/75x */
@@ -409,14 +410,18 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
     if (is_heathrow) {
         isa_mem_base = 0x80000000;
-        
+
         /* Register 2 MB of ISA IO space */
         isa_mmio_init(0xfe000000, 0x00200000);
 
         /* init basic PC hardware */
+        if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
+            cpu_abort(env, "Only 6xx bus is supported on heathrow machine\n");
+            exit(1);
+        }
         pic = heathrow_pic_init(&heathrow_pic_mem_index);
         pci_bus = pci_grackle_init(0xfec00000, pic);
-        pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, 
+        pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
                      ram_size, vga_ram_size,
                      vga_bios_offset, vga_bios_size);
 
@@ -468,16 +473,40 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
             /* Mac99 IRQ connection between OpenPIC outputs pins
              * and PowerPC input pins
              */
-            openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
-            openpic_irqs[i][OPENPIC_OUTPUT_INT] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
-            openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
-            openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_MCP];
-            openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL; /* Not connected ? */
-            openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_HRESET]; /* Check this */
+            switch (PPC_INPUT(env)) {
+            case PPC_FLAGS_INPUT_6xx:
+                openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
+                openpic_irqs[i][OPENPIC_OUTPUT_INT] =
+                    ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
+                openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
+                    ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
+                openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
+                    ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_MCP];
+                /* Not connected ? */
+                openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL;
+                /* Check this */
+                openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
+                    ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_HRESET];
+                break;
+            case PPC_FLAGS_INPUT_970:
+                openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
+                openpic_irqs[i][OPENPIC_OUTPUT_INT] =
+                    ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_INT];
+                openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
+                    ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_INT];
+                openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
+                    ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_MCP];
+                /* Not connected ? */
+                openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL;
+                /* Check this */
+                openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
+                    ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_HRESET];
+                break;
+            default:
+                cpu_abort(env,
+                          "Only bus model not supported on mac99 machine\n");
+                exit(1);
+            }
         }
         pic = openpic_init(NULL, &openpic_mem_index, smp_cpus,
                            openpic_irqs, NULL);

@@ -393,51 +393,60 @@ enum {
 /* CPU run-time flags (MMU and exception model) */
 enum {
     /* MMU model */
-    PPC_FLAGS_MMU_MASK     = 0x0000000F,
+    PPC_FLAGS_MMU_MASK       = 0x000000FF,
     /* Standard 32 bits PowerPC MMU */
-    PPC_FLAGS_MMU_32B      = 0x00000000,
+    PPC_FLAGS_MMU_32B        = 0x00000000,
     /* Standard 64 bits PowerPC MMU */
-    PPC_FLAGS_MMU_64B      = 0x00000001,
+    PPC_FLAGS_MMU_64B        = 0x00000001,
     /* PowerPC 601 MMU */
-    PPC_FLAGS_MMU_601      = 0x00000002,
+    PPC_FLAGS_MMU_601        = 0x00000002,
     /* PowerPC 6xx MMU with software TLB */
-    PPC_FLAGS_MMU_SOFT_6xx = 0x00000003,
+    PPC_FLAGS_MMU_SOFT_6xx   = 0x00000003,
     /* PowerPC 4xx MMU with software TLB */
-    PPC_FLAGS_MMU_SOFT_4xx = 0x00000004,
+    PPC_FLAGS_MMU_SOFT_4xx   = 0x00000004,
     /* PowerPC 403 MMU */
-    PPC_FLAGS_MMU_403      = 0x00000005,
-    /* Freescale e500 MMU model */
-    PPC_FLAGS_MMU_e500     = 0x00000006,
+    PPC_FLAGS_MMU_403        = 0x00000005,
+    /* BookE FSL MMU model */
+    PPC_FLAGS_MMU_BOOKE_FSL  = 0x00000006,
     /* BookE MMU model */
-    PPC_FLAGS_MMU_BOOKE    = 0x00000007,
+    PPC_FLAGS_MMU_BOOKE      = 0x00000007,
+    /* 64 bits "bridge" PowerPC MMU */
+    PPC_FLAGS_MMU_64BRIDGE   = 0x00000008,
     /* Exception model */
-    PPC_FLAGS_EXCP_MASK    = 0x000000F0,
+    PPC_FLAGS_EXCP_MASK      = 0x0000FF00,
     /* Standard PowerPC exception model */
-    PPC_FLAGS_EXCP_STD     = 0x00000000,
+    PPC_FLAGS_EXCP_STD       = 0x00000000,
     /* PowerPC 40x exception model */
-    PPC_FLAGS_EXCP_40x     = 0x00000010,
+    PPC_FLAGS_EXCP_40x       = 0x00000100,
     /* PowerPC 601 exception model */
-    PPC_FLAGS_EXCP_601     = 0x00000020,
+    PPC_FLAGS_EXCP_601       = 0x00000200,
     /* PowerPC 602 exception model */
-    PPC_FLAGS_EXCP_602     = 0x00000030,
+    PPC_FLAGS_EXCP_602       = 0x00000300,
     /* PowerPC 603 exception model */
-    PPC_FLAGS_EXCP_603     = 0x00000040,
+    PPC_FLAGS_EXCP_603       = 0x00000400,
     /* PowerPC 604 exception model */
-    PPC_FLAGS_EXCP_604     = 0x00000050,
+    PPC_FLAGS_EXCP_604       = 0x00000500,
     /* PowerPC 7x0 exception model */
-    PPC_FLAGS_EXCP_7x0     = 0x00000060,
+    PPC_FLAGS_EXCP_7x0       = 0x00000600,
     /* PowerPC 7x5 exception model */
-    PPC_FLAGS_EXCP_7x5     = 0x00000070,
+    PPC_FLAGS_EXCP_7x5       = 0x00000700,
     /* PowerPC 74xx exception model */
-    PPC_FLAGS_EXCP_74xx    = 0x00000080,
+    PPC_FLAGS_EXCP_74xx      = 0x00000800,
     /* PowerPC 970 exception model */
-    PPC_FLAGS_EXCP_970     = 0x00000090,
+    PPC_FLAGS_EXCP_970       = 0x00000900,
     /* BookE exception model */
-    PPC_FLAGS_EXCP_BOOKE   = 0x000000A0,
+    PPC_FLAGS_EXCP_BOOKE     = 0x00000A00,
+    /* Input pins model */
+    PPC_FLAGS_INPUT_MASK     = 0x000F0000,
+    PPC_FLAGS_INPUT_6xx      = 0x00000000,
+    PPC_FLAGS_INPUT_BookE    = 0x00010000,
+    PPC_FLAGS_INPUT_40x      = 0x00020000,
+    PPC_FLAGS_INPUT_970      = 0x00030000,
 };
 
 #define PPC_MMU(env) (env->flags & PPC_FLAGS_MMU_MASK)
 #define PPC_EXCP(env) (env->flags & PPC_FLAGS_EXCP_MASK)
+#define PPC_INPUT(env) (env->flags & PPC_FLAGS_INPUT_MASK)
 
 /*****************************************************************************/
 /* Supported instruction set definitions */
@@ -454,64 +463,78 @@ enum {
 #define PPC_INSNS_403 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
                        PPC_MEM_TLBIA | PPC_4xx_COMMON | PPC_40x_EXCP |        \
                        PPC_40x_SPEC)
-#define PPC_FLAGS_403 (PPC_FLAGS_MMU_403 | PPC_FLAGS_EXCP_40x)
+#define PPC_FLAGS_403 (PPC_FLAGS_MMU_403 | PPC_FLAGS_EXCP_40x |               \
+                       PPC_FLAGS_INPUT_40x)
 /* PowerPC 405 */
 #define PPC_INSNS_405 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
                        PPC_CACHE_OPT | PPC_MEM_TLBIA | PPC_TB |               \
                        PPC_4xx_COMMON | PPC_40x_SPEC |  PPC_40x_EXCP |        \
                        PPC_405_MAC)
-#define PPC_FLAGS_405 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x)
+#define PPC_FLAGS_405 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x |          \
+                       PPC_FLAGS_INPUT_40x)
 /* PowerPC 440 */
 #define PPC_INSNS_440 (PPC_INSNS_EMB | PPC_CACHE_OPT | PPC_BOOKE |            \
                        PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
-#define PPC_FLAGS_440 (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE)
+#define PPC_FLAGS_440 (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE |           \
+                       PPC_FLAGS_INPUT_BookE)
 /* Generic BookE PowerPC */
 #define PPC_INSNS_BOOKE (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |          \
                          PPC_FLOAT | PPC_FLOAT_OPT | PPC_CACHE_OPT)
-#define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE)
+#define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE |         \
+                         PPC_FLAGS_INPUT_BookE)
 /* e500 core */
 #define PPC_INSNS_E500 (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |           \
                         PPC_CACHE_OPT | PPC_E500_VECTOR)
-#define PPC_FLAGS_E500 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x)
+#define PPC_FLAGS_E500 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x |         \
+                        PPC_FLAGS_INPUT_BookE)
 /* Non-embedded PowerPC */
 #define PPC_INSNS_COMMON  (PPC_INSNS_BASE | PPC_FLOAT | PPC_MEM_SYNC |        \
-                            PPC_MEM_EIEIO | PPC_SEGMENT | PPC_MEM_TLBIE)
+                           PPC_MEM_EIEIO | PPC_SEGMENT | PPC_MEM_TLBIE)
 /* PowerPC 601 */
 #define PPC_INSNS_601 (PPC_INSNS_COMMON | PPC_EXTERN | PPC_POWER_BR)
-#define PPC_FLAGS_601 (PPC_FLAGS_MMU_601 | PPC_FLAGS_EXCP_601)
+#define PPC_FLAGS_601 (PPC_FLAGS_MMU_601 | PPC_FLAGS_EXCP_601 |               \
+                       PPC_FLAGS_INPUT_6xx)
 /* PowerPC 602 */
 #define PPC_INSNS_602 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |       \
                        PPC_MEM_TLBSYNC | PPC_TB | PPC_602_SPEC)
-#define PPC_FLAGS_602 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_602)
+#define PPC_FLAGS_602 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_602 |          \
+                       PPC_FLAGS_INPUT_6xx)
 /* PowerPC 603 */
 #define PPC_INSNS_603 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |       \
                        PPC_MEM_TLBSYNC | PPC_EXTERN | PPC_TB)
-#define PPC_FLAGS_603 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_603)
+#define PPC_FLAGS_603 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_603 |          \
+                       PPC_FLAGS_INPUT_6xx)
 /* PowerPC G2 */
 #define PPC_INSNS_G2 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |        \
                       PPC_MEM_TLBSYNC | PPC_EXTERN | PPC_TB)
-#define PPC_FLAGS_G2 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_603)
+#define PPC_FLAGS_G2 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_603 |           \
+                      PPC_FLAGS_INPUT_6xx)
 /* PowerPC 604 */
 #define PPC_INSNS_604 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_EXTERN |        \
                        PPC_MEM_TLBSYNC | PPC_TB)
-#define PPC_FLAGS_604 (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_604)
+#define PPC_FLAGS_604 (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_604 |               \
+                       PPC_FLAGS_INPUT_6xx)
 /* PowerPC 740/750 (aka G3) */
 #define PPC_INSNS_7x0 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_EXTERN |        \
                        PPC_MEM_TLBSYNC | PPC_TB)
-#define PPC_FLAGS_7x0 (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_7x0)
+#define PPC_FLAGS_7x0 (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_7x0 |               \
+                       PPC_FLAGS_INPUT_6xx)
 /* PowerPC 745/755 */
 #define PPC_INSNS_7x5 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_EXTERN |        \
                        PPC_MEM_TLBSYNC | PPC_TB | PPC_6xx_TLB)
-#define PPC_FLAGS_7x5 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_7x5)
+#define PPC_FLAGS_7x5 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_7x5 |          \
+                       PPC_FLAGS_INPUT_6xx)
 /* PowerPC 74xx (aka G4) */
 #define PPC_INSNS_74xx (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_ALTIVEC |      \
                         PPC_MEM_TLBSYNC | PPC_TB)
-#define PPC_FLAGS_74xx (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_74xx)
+#define PPC_FLAGS_74xx (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_74xx |             \
+                        PPC_FLAGS_INPUT_6xx)
 /* PowerPC 970 (aka G5) */
 #define PPC_INSNS_970  (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_FLOAT_OPT |    \
                         PPC_ALTIVEC | PPC_MEM_TLBSYNC | PPC_TB |              \
                         PPC_64B | PPC_64_BRIDGE | PPC_SLBI)
-#define PPC_FLAGS_970  (PPC_FLAGS_MMU_64B | PPC_FLAGS_EXCP_970)
+#define PPC_FLAGS_970  (PPC_FLAGS_MMU_64BRIDGE | PPC_FLAGS_EXCP_970 |         \
+                        PPC_FLAGS_INPUT_970)
 
 /* Default PowerPC will be 604/970 */
 #define PPC_INSNS_PPC32 PPC_INSNS_604
@@ -558,12 +581,12 @@ struct ppc6xx_tlb_t {
 
 typedef struct ppcemb_tlb_t ppcemb_tlb_t;
 struct ppcemb_tlb_t {
-    target_ulong RPN;
+    target_phys_addr_t RPN;
     target_ulong EPN;
     target_ulong PID;
-    int size;
-    int prot;
-    int attr; /* Storage attributes */
+    target_ulong size;
+    uint32_t prot;
+    uint32_t attr; /* Storage attributes */
 };
 
 union ppc_tlb_t {
@@ -742,10 +765,6 @@ struct CPUPPCState {
     int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
     int nb_pids;     /* Number of available PID registers                    */
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
-    /* Callbacks for specific checks on some implementations */
-    int (*tlb_check_more)(CPUPPCState *env, ppc_tlb_t *tlb, int *prot,
-                          target_ulong vaddr, int rw, int acc_type,
-                          int is_user);
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
 
@@ -837,6 +856,9 @@ void do_store_msr (CPUPPCState *env, target_ulong value);
 void ppc_store_msr_32 (CPUPPCState *env, uint32_t value);
 
 void do_compute_hflags (CPUPPCState *env);
+void cpu_ppc_reset (void *opaque);
+CPUPPCState *cpu_ppc_init (void);
+void cpu_ppc_close(CPUPPCState *env);
 
 int ppc_find_by_name (const unsigned char *name, ppc_def_t **def);
 int ppc_find_by_pvr (uint32_t apvr, ppc_def_t **def);
@@ -860,6 +882,7 @@ target_ulong load_40x_pit (CPUPPCState *env);
 void store_40x_pit (CPUPPCState *env, target_ulong val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
+void ppc_tlb_invalidate_all (CPUPPCState *env);
 #endif
 #endif
 
@@ -1347,6 +1370,17 @@ enum {
     PPC405_INPUT_DEBUG      = 6,
 };
 
+enum {
+    /* PowerPC 970 input pins */
+    PPC970_INPUT_HRESET     = 0,
+    PPC970_INPUT_SRESET     = 1,
+    PPC970_INPUT_CKSTP      = 2,
+    PPC970_INPUT_TBEN       = 3,
+    PPC970_INPUT_MCP        = 4,
+    PPC970_INPUT_INT        = 5,
+    PPC970_INPUT_THINT      = 6,
+};
+
 /* Hardware exceptions definitions */
 enum {
     /* External hardware exception sources */
@@ -1356,12 +1390,13 @@ enum {
     PPC_INTERRUPT_SMI    = 3,  /* System management interrupt          */
     PPC_INTERRUPT_CEXT   = 4,  /* Critical external interrupt          */
     PPC_INTERRUPT_DEBUG  = 5,  /* External debug exception             */
+    PPC_INTERRUPT_THERM  = 6,  /* Thermal exception                    */
     /* Internal hardware exception sources */
-    PPC_INTERRUPT_DECR   = 6,  /* Decrementer exception                */
-    PPC_INTERRUPT_HDECR  = 7,  /* Hypervisor decrementer exception     */
-    PPC_INTERRUPT_PIT    = 8,  /* Programmable inteval timer interrupt */
-    PPC_INTERRUPT_FIT    = 9,  /* Fixed interval timer interrupt       */
-    PPC_INTERRUPT_WDT    = 10, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_DECR   = 7,  /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR  = 8,  /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT    = 9,  /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT    = 10, /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT    = 11, /* Watchdog timer interrupt             */
 };
 
 /*****************************************************************************/

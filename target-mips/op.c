@@ -368,14 +368,22 @@ void op_mul (void)
     RETURN();
 }
 
+#if HOST_LONG_BITS < 64
+void op_div (void)
+{
+    CALL_FROM_TB0(do_div);
+    RETURN();
+}
+#else
 void op_div (void)
 {
     if (T1 != 0) {
-        env->LO = (int32_t)((int32_t)T0 / (int32_t)T1);
-        env->HI = (int32_t)((int32_t)T0 % (int32_t)T1);
+        env->LO = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
+        env->HI = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
     }
     RETURN();
 }
+#endif
 
 void op_divu (void)
 {
@@ -432,7 +440,6 @@ void op_dmul (void)
     RETURN();
 }
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */
 void op_ddiv (void)
 {
@@ -440,21 +447,13 @@ void op_ddiv (void)
     RETURN();
 }
 
+#if TARGET_LONG_BITS > HOST_LONG_BITS
 void op_ddivu (void)
 {
     do_ddivu();
     RETURN();
 }
 #else
-void op_ddiv (void)
-{
-    if (T1 != 0) {
-        env->LO = (int64_t)T0 / (int64_t)T1;
-        env->HI = (int64_t)T0 % (int64_t)T1;
-    }
-    RETURN();
-}
-
 void op_ddivu (void)
 {
     if (T1 != 0) {
@@ -2237,7 +2236,7 @@ void op_ins(void)
     unsigned int size = PARAM2;
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
-    T0 = (T2 & ~mask) | (((uint32_t)T1 << pos) & mask);
+    T0 = (T0 & ~mask) | (((uint32_t)T1 << pos) & mask);
     RETURN();
 }
 
@@ -2263,7 +2262,7 @@ void op_dins(void)
     unsigned int size = PARAM2;
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
-    T0 = (T2 & ~mask) | ((T1 << pos) & mask);
+    T0 = (T0 & ~mask) | ((T1 << pos) & mask);
     RETURN();
 }
 

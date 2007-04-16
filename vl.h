@@ -1055,13 +1055,15 @@ void *vmmouse_init(void *m);
 
 /* pckbd.c */
 
-void i8042_init(qemu_irq kdb_irq, qemu_irq mouse_irq, uint32_t io_base);
+void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
+void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq, target_ulong base, int it_shift);
 
 /* mc146818rtc.c */
 
 typedef struct RTCState RTCState;
 
 RTCState *rtc_init(int base, qemu_irq irq);
+RTCState *rtc_mm_init(target_phys_addr_t base, qemu_irq irq);
 void rtc_set_memory(RTCState *s, int addr, int val);
 void rtc_set_date(RTCState *s, const struct tm *tm);
 
@@ -1166,8 +1168,11 @@ extern QEMUMachine mips_machine;
 /* mips_malta.c */
 extern QEMUMachine mips_malta_machine;
 
-/* mips_int */
+/* mips_int.c */
 extern void cpu_mips_irq_init_cpu(CPUState *env);
+
+/* mips_pica61.c */
+extern QEMUMachine mips_pica61_machine;
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);

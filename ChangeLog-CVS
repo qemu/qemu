@@ -1,3 +1,100 @@
+2007-04-16 20:27  blueswir1
+
+	* Makefile, Makefile.target, configure, cpu-all.h: Sparc host
+	  update (Ben Taylor, Martin Bochnig)
+
+2007-04-16 19:41  blueswir1
+
+	* pc-bios/: README, openbios-sparc32, openbios-sparc64: Update
+	  OpenBIOS Sparc images to SVN 125
+
+2007-04-16 19:23  ths
+
+	* Makefile.target, vl.c, vl.h, hw/mips_pica61.c: Acer Pica 61
+	  machine, by Herve Poussineau.
+
+2007-04-16 19:21  ths
+
+	* vl.h, hw/mc146818rtc.c: Memory-mapped interface for RTC, by Herve
+	  Poussineau.
+
+2007-04-16 19:20  ths
+
+	* vl.h, hw/pckbd.c: Memory-mapped interface for PS/2 controller, by
+	  Herve Poussineau.
+
+2007-04-16 11:31  j_mayer
+
+	* target-ppc/translate_init.c: Cleanup and add more PowerPC core
+	  definitions.
+
+2007-04-16 11:21  j_mayer
+
+	* target-ppc/: cpu.h, helper.c, op_helper.c: PowerPC 4xx software
+	  driven TLB fixes + debug traces.  Add code provision for more MMU
+	  models support.
+
+2007-04-16 10:56  j_mayer
+
+	* hw/ppc_chrp.c, hw/ppc_prep.c, target-ppc/cpu.h,
+	  target-ppc/helper.c, target-ppc/op_helper.c,
+	  target-ppc/translate_init.c: Add reset callbacks for PowerPC CPU.
+	  Move cpu_ppc_init, cpu_ppc_close, cpu_ppc_reset and
+	  ppc_tlb_invalidate into helper.c as they are to be called from
+	  outside of the translated code.
+
+2007-04-16 09:41  j_mayer
+
+	* hw/: ppc_chrp.c, ppc_prep.c: PREP and heathrow machines only
+	  support PowerPC CPU with a 6xx bus.  Mac99 machine may also
+	  support PowerPC 970 CPU.
+
+2007-04-16 09:34  j_mayer
+
+	* hw/ppc.c, target-ppc/cpu.h, target-ppc/helper.c,
+	  target-ppc/translate_init.c: Add bus model (or input pins) into
+	  PowerPC CPU flags.  Add PowerPC 970 bus and exceptions model.
+	  Add code provision for PowerPC 970 instanciation.
+
+2007-04-16 09:18  j_mayer
+
+	* target-ppc/translate.c: PowerPC emulation bugfixes: - don't
+	  generate multiple exit_tb at the end of conditional branches -
+	  disable TRACE exception as it is not correct for embedded
+	  PowerPC.
+
+2007-04-16 09:14  j_mayer
+
+	* hw/pflash_cfi02.c: Parallel flash bugfixes: - always need to
+	  register flash area back to IO_MEM_ROMD at reset time - disabled
+	  buffered write as it's not actually supported - don't check flash
+	  time at registration time
+
+2007-04-16 09:10  j_mayer
+
+	* hw/ppc.c, target-ppc/helper.c, target-ppc/op.c,
+	  target-ppc/op_helper.c, target-ppc/op_helper.h,
+	  target-ppc/translate.c, target-ppc/translate_init.c: Fix a lot of
+	  debug traces for PowerPC emulation: use logfile instead of stdout
+
+2007-04-16 03:35  ths
+
+	* target-mips/translate.c: Simplify branch likely handling.
+
+2007-04-16 01:54  pbrook
+
+	* hw/acpi.c: Remove unused variable.
+
+2007-04-15 23:26  ths
+
+	* target-mips/: op.c, translate.c: Don't use T2 for INS, it
+	  conflicts with branch delay slot handling.
+
+2007-04-15 23:21  ths
+
+	* target-mips/: exec.h, op.c, op_helper.c: Fix qemu SIGFPE caused
+	  by division-by-zero due to underflow.
+
 2007-04-15 21:52  ths
 
 	* target-mips/translate.c: Small code generation optimization.

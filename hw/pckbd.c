@@ -124,6 +124,7 @@ typedef struct KBDState {
 
     qemu_irq irq_kbd;
     qemu_irq irq_mouse;
+    target_phys_addr_t base;
 } KBDState;
 
 KBDState kbd_state;
@@ -140,7 +141,7 @@ static void kbd_update_irq(KBDState *s)
     s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
     if (s->pending) {
         s->status |= KBD_STAT_OBF;
-        /* kdb data takes priority over aux data.  */
+        /* kbd data takes priority over aux data.  */
         if (s->pending == KBD_PENDING_AUX) {
             s->status |= KBD_STAT_MOUSE_OBF;
             if (s->mode & KBD_MODE_MOUSE_INT)
@@ -362,13 +363,69 @@ void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base)
 
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
-    
+
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
     register_ioport_read(io_base, 1, 1, kbd_read_data, s);
     register_ioport_write(io_base, 1, 1, kbd_write_data, s);
     register_ioport_read(io_base + 4, 1, 1, kbd_read_status, s);
     register_ioport_write(io_base + 4, 1, 1, kbd_write_command, s);
+
+    s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
+    s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
+#ifdef TARGET_I386
+    vmmouse_init(s->mouse);
+#endif
+    qemu_register_reset(kbd_reset, s);
+}
+
+/* Memory mapped interface */
+uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
+{
+    KBDState *s = opaque;
+
+    if (addr == s->base)
+        return kbd_read_data(s, 0);
+    else
+        return kbd_read_status(s, 0);
+}
+
+void kbd_mm_writeb (void *opaque,
+                       target_phys_addr_t addr, uint32_t value)
+{
+    KBDState *s = opaque;
+
+    if (addr == s->base)
+        kbd_write_data(s, 0, value);
+    else
+        kbd_write_command(s, 0, value);
+}
+
+static CPUReadMemoryFunc *kbd_mm_read[] = {
+    &kbd_mm_readb,
+    &kbd_mm_readb,
+    &kbd_mm_readb,
+};
+
+static CPUWriteMemoryFunc *kbd_mm_write[] = {
+    &kbd_mm_writeb,
+    &kbd_mm_writeb,
+    &kbd_mm_writeb,
+};
+
+void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq, target_ulong base, int it_shift)
+{
+    KBDState *s = &kbd_state;
+    int s_io_memory;
+
+    s->irq_kbd = kbd_irq;
+    s->irq_mouse = mouse_irq;
+    s->base = base;
+
+    kbd_reset(s);
+    register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
+    s_io_memory = cpu_register_io_memory(0, kbd_mm_read, kbd_mm_write, s);
+    cpu_register_physical_memory(base & ~(TARGET_PAGE_SIZE - 1), TARGET_PAGE_SIZE, s_io_memory);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
