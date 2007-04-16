@@ -1136,8 +1136,11 @@ extern QEMUMachine mips_machine;
 /* mips_malta.c */
 extern QEMUMachine mips_malta_machine;
 
-/* mips_int */
+/* mips_int.c */
 extern void cpu_mips_irq_init_cpu(CPUState *env);
+
+/* mips_pica61.c */
+extern QEMUMachine mips_pica61_machine;
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);
