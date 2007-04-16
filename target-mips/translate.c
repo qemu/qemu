@@ -1455,12 +1455,11 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
             gen_op_goto_tb1(TBPARAM(tb));
         gen_op_save_pc(dest);
         gen_op_set_T0((long)tb + n);
-        gen_op_exit_tb();
     } else {
         gen_op_save_pc(dest);
-        gen_op_set_T0(0);
-        gen_op_exit_tb();
+        gen_op_reset_T0();
     }
+    gen_op_exit_tb();
 }
 
 /* Branches (before delay slot) */
@@ -1565,18 +1564,21 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         case OPC_BLTZAL:  /* 0 < 0           */
             gen_op_set_T0(ctx->pc + 8);
             gen_op_store_T0_gpr(31);
+            MIPS_DEBUG("bnever and link");
             return;
         case OPC_BLTZALL: /* 0 < 0 likely */
             gen_op_set_T0(ctx->pc + 8);
             gen_op_store_T0_gpr(31);
-            gen_goto_tb(ctx, 0, ctx->pc + 8);
+            /* Skip the instruction in the delay slot */
+            MIPS_DEBUG("bnever, link and skip");
+            ctx->pc += 4;
             return;
         case OPC_BNEL:    /* rx != rx likely */
         case OPC_BGTZL:   /* 0 > 0 likely */
         case OPC_BLTZL:   /* 0 < 0 likely */
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever and skip");
-            gen_goto_tb(ctx, 0, ctx->pc + 8);
+            ctx->pc += 4;
             return;
         case OPC_J:
             ctx->hflags |= MIPS_HFLAG_B;
@@ -5275,7 +5277,7 @@ done_generating:
 #endif
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-    target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
+        target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
         fprintf(logfile, "\n");
     }
     if (loglevel & CPU_LOG_TB_OP) {
