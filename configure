@@ -56,7 +56,7 @@ case "$cpu" in
   s390)
     cpu="s390"
   ;;
-  sparc|sun4[muv])
+  sparc|sun4[cdmuv])
     cpu="sparc"
   ;;
   sparc64)
@@ -266,6 +266,18 @@ for opt do
   ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
+  --sparc_cpu=*)
+      sparc_cpu="$optarg"
+      case $sparc_cpu in
+        v7|v8) SP_CFLAGS="-m32 -mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m32"
+                 target_cpu="sparc"; cpu="sparc" ;;
+        v8plus|v8plusa) SP_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m32"
+                 target_cpu="sparc"; cpu="sparc" ;;
+        v9)    SP_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_${sparc_cpu}__"; SP_LDFLAGS="-m64"
+                 target_cpu="sparc64"; cpu="sparc64" ;;
+        *)     echo "undefined SPARC architecture. Exiting";exit 1;;
+      esac
+  ;;
   esac
 done
 
@@ -278,6 +290,29 @@ fi
 # default flags for all hosts
 CFLAGS="$CFLAGS -Wall -O2 -g -fno-strict-aliasing"
 LDFLAGS="$LDFLAGS -g"
+
+#
+# If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
+# ARCH_CFLAGS/ARCH_LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
+#
+case $cpu in
+    sparc) if test -z "$sparc_cpu" ; then
+               ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_v8plus__"
+               ARCH_LDFLAGS="-m32"
+           else
+               ARCH_CFLAGS="${SP_CFLAGS}"
+               ARCH_LDFLAGS="${SP_LDFLAGS}"
+           fi
+           ;;
+    sparc64) if test -z "$sparc_cpu" ; then
+               ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__"
+               ARCH_LDFLAGS="-m64"
+           else
+               ARCH_CFLAGS="${SP_CFLAGS}"
+               ARCH_LDFLAGS="${SP_LDFLAGS}"
+           fi
+           ;;
+esac
 
 if test x"$show_help" = x"yes" ; then
 cat << EOF
@@ -320,6 +355,7 @@ echo "  --disable-darwin-user    disable all darwin usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
+echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -635,6 +671,9 @@ else
     fmod_support=""
 fi
 echo "FMOD support      $fmod $fmod_support"
+if test -n "$sparc_cpu"; then
+    echo "Target Sparc Arch $sparc_cpu"
+fi
 echo "kqemu support     $kqemu"
 echo "Documentation     $build_docs"
 [ ! -z "$uname_release" ] && \
@@ -668,6 +707,9 @@ echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
 echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak
 echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
+echo "OS_LDFLAGS=$OS_LDFLAGS" >> $config_mak
+echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
+echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
@@ -712,7 +754,7 @@ elif test "$cpu" = "m68k" ; then
   echo "ARCH=m68k" >> $config_mak
   echo "#define HOST_M68K 1" >> $config_h
 else
-  echo "Unsupported CPU"
+  echo "Unsupported CPU = $cpu"
   exit 1
 fi
 if test "$bigendian" = "yes" ; then
@@ -743,6 +785,10 @@ if test "$solaris" = "yes" ; then
     echo "NEEDS_LIBSUNMATH=yes" >> $config_mak
     echo "#define NEEDS_LIBSUNMATH 1" >> $config_h
   fi
+fi
+if test -n "$sparc_cpu"; then
+  echo "CONFIG__sparc_${sparc_cpu}__=yes" >> $config_mak
+  echo "#define __sparc_${sparc_cpu}__ 1" >> $config_h
 fi
 if test "$gdbstub" = "yes" ; then
   echo "CONFIG_GDBSTUB=yes" >> $config_mak
