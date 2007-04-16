@@ -2256,16 +2256,7 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
 /* TLB invalidation helpers */
 void do_tlbia (void)
 {
-    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
-        ppc6xx_tlb_invalidate_all(env);
-    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
-        /* XXX: TODO */
-#if 0
-        ppcbooke_tlb_invalidate_all(env);
-#endif
-    } else {
-        tlb_flush(env, 1);
-    }
+    ppc_tlb_invalidate_all(env);
 }
 
 void do_tlbie (void)
@@ -2473,25 +2464,6 @@ static int booke_page_size_to_tlb (target_ulong page_size)
 }
 
 /* Helpers for 4xx TLB management */
-void do_4xx_tlbia (void)
-{
-    ppcemb_tlb_t *tlb;
-    int i;
-
-    for (i = 0; i < 64; i++) {
-        tlb = &env->tlb[i].tlbe;
-        if (tlb->prot & PAGE_VALID) {
-#if 0
-            end = tlb->EPN + tlb->size;
-            for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
-                tlb_flush_page(env, page);
-#endif
-            tlb->prot &= ~PAGE_VALID;
-        }
-    }
-    tlb_flush(env, 1);
-}
-
 void do_4xx_tlbre_lo (void)
 {
     ppcemb_tlb_t *tlb;

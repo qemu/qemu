@@ -860,6 +860,9 @@ void do_store_msr (CPUPPCState *env, target_ulong value);
 void ppc_store_msr_32 (CPUPPCState *env, uint32_t value);
 
 void do_compute_hflags (CPUPPCState *env);
+void cpu_ppc_reset (void *opaque);
+CPUPPCState *cpu_ppc_init (void);
+void cpu_ppc_close(CPUPPCState *env);
 
 int ppc_find_by_name (const unsigned char *name, ppc_def_t **def);
 int ppc_find_by_pvr (uint32_t apvr, ppc_def_t **def);
@@ -883,6 +886,7 @@ target_ulong load_40x_pit (CPUPPCState *env);
 void store_40x_pit (CPUPPCState *env, target_ulong val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
+void ppc_tlb_invalidate_all (CPUPPCState *env);
 #endif
 #endif
 

@@ -317,6 +317,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* init CPUs */
     env = cpu_init();
+    qemu_register_reset(&cpu_ppc_reset, env);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     /* Default CPU is a generic 74x/75x */

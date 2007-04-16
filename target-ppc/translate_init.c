@@ -2713,39 +2713,6 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
     return 0;
 }
 
-void do_compute_hflags (CPUPPCState *env);
-CPUPPCState *cpu_ppc_init (void)
-{
-    CPUPPCState *env;
-
-    env = qemu_mallocz(sizeof(CPUPPCState));
-    if (!env)
-        return NULL;
-    cpu_exec_init(env);
-    tlb_flush(env, 1);
-#if defined (DO_SINGLE_STEP) && 0
-    /* Single step trace mode */
-    msr_se = 1;
-    msr_be = 1;
-#endif
-    msr_fp = 1; /* Allow floating point exceptions */
-    msr_me = 1; /* Allow machine check exceptions  */
-#if defined(CONFIG_USER_ONLY)
-    msr_pr = 1;
-#else
-    env->nip = 0xFFFFFFFC;
-#endif
-    do_compute_hflags(env);
-    env->reserve = -1;
-    return env;
-}
-
-void cpu_ppc_close(CPUPPCState *env)
-{
-    /* Should also remove all opcode tables... */
-    free(env);
-}
-
 /*****************************************************************************/
 /* PowerPC CPU definitions */
 static ppc_def_t ppc_defs[] =

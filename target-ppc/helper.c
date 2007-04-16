@@ -630,6 +630,25 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
+void ppc4xx_tlb_invalidate_all (CPUState *env)
+{
+    ppcemb_tlb_t *tlb;
+    int i;
+
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb[i].tlbe;
+        if (tlb->prot & PAGE_VALID) {
+#if 0 // XXX: TLB have variable sizes then we flush all Qemu TLB.
+            end = tlb->EPN + tlb->size;
+            for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
+                tlb_flush_page(env, page);
+#endif
+            tlb->prot &= ~PAGE_VALID;
+        }
+    }
+    tlb_flush(env, 1);
+}
+
 int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                                  target_ulong address, int rw, int access_type)
 {
@@ -1103,6 +1122,20 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
 {
     dump_store_bat(env, 'D', 1, nr, value);
     env->DBAT[1][nr] = value;
+}
+
+
+/*****************************************************************************/
+/* TLB management */
+void ppc_tlb_invalidate_all (CPUPPCState *env)
+{
+    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+        ppc6xx_tlb_invalidate_all(env);
+    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
+        ppc4xx_tlb_invalidate_all(env);
+    } else {
+        tlb_flush(env, 1);
+    }
 }
 
 /*****************************************************************************/
@@ -2039,3 +2072,48 @@ void cpu_dump_EA (target_ulong EA)
     fprintf(f, "Memory access at address " TARGET_FMT_lx "\n", EA);
 }
 
+void cpu_ppc_reset (void *opaque)
+{
+    CPUPPCState *env;
+
+    env = opaque;
+#if defined (DO_SINGLE_STEP) && 0
+    /* Single step trace mode */
+    msr_se = 1;
+    msr_be = 1;
+#endif
+    msr_fp = 1; /* Allow floating point exceptions */
+    msr_me = 1; /* Allow machine check exceptions  */
+#if defined(TARGET_PPC64)
+    msr_sf = 0; /* Boot in 32 bits mode */
+    msr_cm = 0;
+#endif
+#if defined(CONFIG_USER_ONLY)
+    msr_pr = 1;
+    tlb_flush(env, 1);
+#else
+    env->nip = 0xFFFFFFFC;
+    ppc_tlb_invalidate_all(env);
+#endif
+    do_compute_hflags(env);
+    env->reserve = -1;
+}
+
+CPUPPCState *cpu_ppc_init (void)
+{
+    CPUPPCState *env;
+
+    env = qemu_mallocz(sizeof(CPUPPCState));
+    if (!env)
+        return NULL;
+    cpu_exec_init(env);
+    cpu_ppc_reset(env);
+
+    return env;
+}
+
+void cpu_ppc_close (CPUPPCState *env)
+{
+    /* Should also remove all opcode tables... */
+    free(env);
+}
