@@ -3530,6 +3530,11 @@ static void mips_ar7_common_init (int ram_size,
     set_traceflags();
 #endif
 
+    if (ram_size > 192 * MiB) {
+        /* The external RAM start at 0x14000000 and ends before 0x20000000. */
+        ram_size = 192 * MiB;
+    }
+
     /* Initialize CPU. */
     if (cpu_model == NULL) {
 #ifdef MIPS_HAS_MIPS64
@@ -3580,17 +3585,6 @@ static void mips_ar7_common_init (int ram_size,
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
-
-    /* Change the default RAM size from 128 MiB to 16 MiB.
-       This is the external RAM at physical address KERNEL_LOAD_ADDR.
-       Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 16 * MiB;
-    }
-    if (ram_size > 192 * MiB) {
-        /* The external RAM start at 0x14000000 and ends before 0x20000000. */
-        ram_size = 192 * MiB;
-    }
 
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(KERNEL_LOAD_ADDR, ram_size, ram_offset | IO_MEM_RAM);
@@ -3699,7 +3693,13 @@ static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (8 * MiB, MANUFACTURER_INTEL, I28F160C3B,
+    /* Change the default RAM size from 128 MiB to 8 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 8 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
@@ -3711,7 +3711,13 @@ static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV320CT,
+    /* Change the default RAM size from 128 MiB to 32 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 32 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
@@ -3721,7 +3727,13 @@ static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV640BT,
+    /* Change the default RAM size from 128 MiB to 32 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 32 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
@@ -3731,7 +3743,13 @@ static void sinus_basic_3_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
+    /* Change the default RAM size from 128 MiB to 16 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 16 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_004A, ES29LV160DB,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
@@ -3741,7 +3759,13 @@ static void sinus_basic_se_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
+    /* Change the default RAM size from 128 MiB to 16 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 16 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
@@ -3751,7 +3775,13 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
+    /* Change the default RAM size from 128 MiB to 16 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 16 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
     /* Emulate external phy 0. */
