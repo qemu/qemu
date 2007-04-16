@@ -26,6 +26,9 @@
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
+#define BIT(n) (1 << (n))
+#define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
+
 #define GT_REGS			(0x1000 >> 2)
 
 /* CPU Configuration */
@@ -483,11 +486,11 @@ static uint32_t gt64120_readl (void *opaque,
     }
 
     logout("addr = 0x%08x, val = 0x%08x\n", saddr, val);
+
 #ifdef TARGET_WORDS_BIGENDIAN
-    return bswap32(val);
-#else
-    return val;
+    val = bswap32(val);
 #endif
+    return val;
 }
 
 static CPUWriteMemoryFunc *gt64120_write[] = {
@@ -560,7 +563,7 @@ void gt64120_reset(void *opaque)
 #ifdef TARGET_WORDS_BIGENDIAN
     s->regs[GT_CPU]           = 0x00000000;
 #else
-    s->regs[GT_CPU]           = 0x00000800;
+    s->regs[GT_CPU]           = 0x00001000;
 #endif
     s->regs[GT_MULTI]         = 0x00000000;
 
@@ -618,6 +621,24 @@ void gt64120_reset(void *opaque)
     gt64120_pci_mapping(s);
 }
 
+static uint32_t gt64120_read_config(PCIDevice *d, uint32_t address, int len)
+{
+    uint32_t val = pci_default_read_config(d, address, len);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
+}
+
+static void gt64120_write_config(PCIDevice *d, uint32_t address, uint32_t val,
+                                 int len)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    pci_default_write_config(d, address, val, len);
+}
+
 PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
@@ -636,28 +657,54 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
     cpu_register_physical_memory(0x1be00000LL, 0x1000, gt64120);
 
     d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice),
-                            0, NULL, NULL);
+                            0, gt64120_read_config, gt64120_write_config);
 
     d->config[0x00] = 0xab; // vendor_id
     d->config[0x01] = 0x11;
-    d->config[0x02] = 0x46; // device_id
-    d->config[0x03] = 0x20;
+    d->config[0x02] = 0x20; // device_id
+    d->config[0x03] = 0x46;
+#if 1
     d->config[0x04] = 0x06;
     d->config[0x05] = 0x00;
     d->config[0x06] = 0x80;
     d->config[0x07] = 0xa2;
+#else
+    d->config[0x04] = 0x00;
+    d->config[0x05] = 0x00;
+    d->config[0x06] = 0x00;
+    d->config[0x07] = 0x28;
+#endif
     d->config[0x08] = 0x10;
     d->config[0x09] = 0x00;
     d->config[0x0A] = 0x80;
     d->config[0x0B] = 0x05;
+#if 1
     d->config[0x0C] = 0x08;
     d->config[0x0D] = 0x40;
     d->config[0x0E] = 0x00;
     d->config[0x0F] = 0x00;
+#else
+    d->config[0x0C] = 0x00;
+    d->config[0x0D] = 0x00;
+    d->config[0x0E] = 0x00;
+    d->config[0x0F] = 0x00;
+    d->config[0x10] = 0x04;
+    d->config[0x11] = 0x00;
+    d->config[0x12] = 0x00;
+    d->config[0x13] = 0x00;
+#endif
+#if 1
     d->config[0x17] = 0x08;
+#else
+    d->config[0x14] = 0x04;
+    d->config[0x15] = 0x00;
+    d->config[0x16] = 0x00;
+    d->config[0x17] = 0x01;
+#endif
     d->config[0x1B] = 0x1c;
     d->config[0x1F] = 0x1f;
     d->config[0x23] = 0x14;
+    d->config[0x24] = 0x01;
     d->config[0x27] = 0x14;
     d->config[0x3D] = 0x01;
 
