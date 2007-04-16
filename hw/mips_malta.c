@@ -737,6 +737,11 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     mips_def_t *def;
     qemu_irq *i8259;
 
+    if (ram_size > 256 * MiB) {
+        /* Larger RAM is not supported (collision with GT64120 memory). */
+        ram_size = 256 * MiB;
+    }
+
     logout("RAM size = %d MiB\n", ram_size / MiB);
 
     /* init CPUs */
