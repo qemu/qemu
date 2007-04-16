@@ -110,6 +110,13 @@
 #define elf_check_arch(x) ((x) == EM_ARM)
 #define ELF_USES_RELOC
 
+#elif defined(HOST_MIPS)
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_MIPS
+#define elf_check_arch(x) ((x) == EM_MIPS)
+#define ELF_USES_RELOCA
+
 #elif defined(HOST_M68K)
 
 #define ELF_CLASS	ELFCLASS32
@@ -1627,6 +1634,16 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         copy_size = arm_emit_ldr_info(name, start_offset, NULL, p_start, p_end, 
                                       relocs, nb_relocs);
     }
+#elif defined(HOST_MIPS)
+    {
+        uint8_t *p;
+        p = (void *)(p_end - 4);
+        if (p == p_start)
+            error("empty code for %s", name);
+        if (get32((uint32_t *)p) != 0x03e00008)
+            error("jr ra expected at the end of %s", name);
+        copy_size = p - p_start;
+    }
 #elif defined(HOST_M68K)
     {
         uint8_t *p;
@@ -2449,6 +2466,25 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     }
                 }
                 }
+            }
+#elif defined(HOST_MIPS)
+            {
+#ifdef CONFIG_FORMAT_ELF
+#warning "relocation code for mips still missing"
+                char name[256];
+                int type;
+                int addend;
+                int reloc_offset;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= start_offset &&
+			rel->r_offset < start_offset + copy_size) {
+                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                        reloc_offset = rel->r_offset - start_offset;
+                    }
+                }
+#else
+#error unsupport object format
+#endif
             }
 #elif defined(HOST_M68K)
             {
