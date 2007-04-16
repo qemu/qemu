@@ -55,6 +55,7 @@ struct RTCState {
     uint8_t cmos_index;
     struct tm current_tm;
     qemu_irq irq;
+    target_phys_addr_t base;
     /* periodic timer */
     QEMUTimer *periodic_timer;
     int64_t next_periodic_time;
@@ -486,3 +487,95 @@ RTCState *rtc_init(int base, qemu_irq irq)
     return s;
 }
 
+/* Memory mapped interface */
+uint32_t cmos_mm_readb (void *opaque, target_phys_addr_t addr)
+{
+    RTCState *s = opaque;
+
+    return cmos_ioport_read(s, addr - s->base) & 0xFF;
+}
+
+void cmos_mm_writeb (void *opaque,
+                     target_phys_addr_t addr, uint32_t value)
+{
+    RTCState *s = opaque;
+
+    cmos_ioport_write(s, addr - s->base, value & 0xFF);
+}
+
+uint32_t cmos_mm_readw (void *opaque, target_phys_addr_t addr)
+{
+    RTCState *s = opaque;
+
+    return cmos_ioport_read(s, addr - s->base) & 0xFFFF;
+}
+
+void cmos_mm_writew (void *opaque,
+                     target_phys_addr_t addr, uint32_t value)
+{
+    RTCState *s = opaque;
+
+    cmos_ioport_write(s, addr - s->base, value & 0xFFFF);
+}
+
+uint32_t cmos_mm_readl (void *opaque, target_phys_addr_t addr)
+{
+    RTCState *s = opaque;
+
+    return cmos_ioport_read(s, addr - s->base);
+}
+
+void cmos_mm_writel (void *opaque,
+                     target_phys_addr_t addr, uint32_t value)
+{
+    RTCState *s = opaque;
+
+    cmos_ioport_write(s, addr - s->base, value);
+}
+
+static CPUReadMemoryFunc *rtc_mm_read[] = {
+    &cmos_mm_readb,
+    &cmos_mm_readw,
+    &cmos_mm_readl,
+};
+
+static CPUWriteMemoryFunc *rtc_mm_write[] = {
+    &cmos_mm_writeb,
+    &cmos_mm_writew,
+    &cmos_mm_writel,
+};
+
+RTCState *rtc_mm_init(target_phys_addr_t base, qemu_irq irq)
+{
+    RTCState *s;
+    int io_memory;
+
+    s = qemu_mallocz(sizeof(RTCState));
+    if (!s)
+        return NULL;
+
+    s->irq = irq;
+    s->cmos_data[RTC_REG_A] = 0x26;
+    s->cmos_data[RTC_REG_B] = 0x02;
+    s->cmos_data[RTC_REG_C] = 0x00;
+    s->cmos_data[RTC_REG_D] = 0x80;
+    s->base = base;
+
+    rtc_set_date_from_host(s);
+
+    s->periodic_timer = qemu_new_timer(vm_clock,
+                                       rtc_periodic_timer, s);
+    s->second_timer = qemu_new_timer(vm_clock,
+                                     rtc_update_second, s);
+    s->second_timer2 = qemu_new_timer(vm_clock,
+                                      rtc_update_second2, s);
+
+    s->next_second_time = qemu_get_clock(vm_clock) + (ticks_per_sec * 99) / 100;
+    qemu_mod_timer(s->second_timer2, s->next_second_time);
+
+    io_memory = cpu_register_io_memory(0, rtc_mm_read, rtc_mm_write, s);
+    cpu_register_physical_memory(base, 2, io_memory);
+
+    register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);
+    return s;
+}
