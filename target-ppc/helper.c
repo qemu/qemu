@@ -2003,6 +2003,13 @@ void ppc_hw_interrupt (CPUPPCState *env)
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EXT);
 #endif
             raised = 1;
+#if 0 // TODO
+        /* Thermal interrupt */
+        } else if (env->pending_interrupts & (1 << PPC_INTERRUPT_THERM)) {
+            env->exception_index = EXCP_970_THRM;
+            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_THERM);
+            raised = 1;
+#endif
         }
 #if 0 // TODO
     /* External debug exception */

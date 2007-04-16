@@ -48,6 +48,7 @@ void glue(glue(ppc, name),_irq_init) (CPUPPCState *env);
 #endif
 PPC_IRQ_INIT_FN(405);
 PPC_IRQ_INIT_FN(6xx);
+PPC_IRQ_INIT_FN(970);
 
 /* Generic callbacks:
  * do nothing but store/retrieve spr value
@@ -2350,6 +2351,8 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     case CPU_PPC_POWER5:  /* Power 5                       */
     case CPU_PPC_POWER5P: /* Power 5+                      */
 #endif
+        break;
+
     case CPU_PPC_970:     /* PowerPC 970                   */
     case CPU_PPC_970FX10: /* PowerPC 970 FX                */
     case CPU_PPC_970FX20:
@@ -2358,12 +2361,41 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     case CPU_PPC_970FX31:
     case CPU_PPC_970MP10: /* PowerPC 970 MP                */
     case CPU_PPC_970MP11:
+        gen_spr_generic(env);
+        gen_spr_ne_601(env);
+        /* XXX: not correct */
+        gen_low_BATs(env);
+        /* Time base */
+        gen_tbl(env);
+        gen_spr_7xx(env);
+        /* Hardware implementation registers */
+        /* XXX : not implemented */
+        spr_register(env, SPR_HID0, "HID0",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     0x00000000);
+        /* XXX : not implemented */
+        spr_register(env, SPR_HID1, "HID1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     0x00000000);
+        /* XXX : not implemented */
+        spr_register(env, SPR_750_HID2, "HID2",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     0x00000000);
+        /* Allocate hardware IRQ controller */
+        ppc970_irq_init(env);
+        break;
+
 #if defined (TODO)
     case CPU_PPC_CELL10:  /* Cell family                   */
     case CPU_PPC_CELL20:
     case CPU_PPC_CELL30:
     case CPU_PPC_CELL31:
 #endif
+        break;
+
 #if defined (TODO)
     case CPU_PPC_RS64:    /* Apache (RS64/A35)             */
     case CPU_PPC_RS64II:  /* NorthStar (RS64-II/A50)       */
