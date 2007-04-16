@@ -142,7 +142,10 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     SerialState *s = opaque;
     unsigned char ch;
-    
+
+    addr -= s->base;
+    //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
+
     addr &= 7;
 #ifdef DEBUG_SERIAL
     printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
@@ -210,6 +213,9 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
     SerialState *s = opaque;
     uint32_t ret;
 
+    addr -= s->base;
+    //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
+
     addr &= 7;
     switch(addr) {
     default:
@@ -268,13 +274,13 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
 
 static int serial_can_receive(SerialState *s)
 {
-    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
+    //~ fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
     return !(s->lsr & UART_LSR_DR);
 }
 
 static void serial_receive_byte(SerialState *s, int ch)
 {
-    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
+    //~ fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
     s->rbr = ch;
     s->lsr |= UART_LSR_DR;
     serial_update_irq(s);
@@ -349,11 +355,13 @@ SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
 {
     SerialState *s;
 
-    fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
+    //~ fprintf(stderr, "%s()\n", __func__);
+    //~ fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
 
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
         return NULL;
+    s->base = base;
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
@@ -374,6 +382,7 @@ uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
 
+    //~ fprintf(stderr, "%s(%p,0x%02x)\n", __func__, opaque, (addr - s->base) >> s->it_shift);
     return serial_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFF;
 }
 
@@ -382,6 +391,7 @@ void serial_mm_writeb (void *opaque,
 {
     SerialState *s = opaque;
 
+    //~ fprintf(stderr, "%s(%p,0x%02x)\n", __func__, opaque, (addr - s->base) >> s->it_shift);
     serial_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFF);
 }
 
@@ -433,6 +443,8 @@ SerialState *serial_mm_init (target_ulong base, int it_shift,
 {
     SerialState *s;
     int s_io_memory;
+
+    //~ fprintf(stderr, "%s()\n", __func__);
 
     s = qemu_mallocz(sizeof(SerialState));
     if (!s)
