@@ -1035,7 +1035,8 @@ void *vmmouse_init(void *m);
 
 /* pckbd.c */
 
-void i8042_init(qemu_irq kdb_irq, qemu_irq mouse_irq, uint32_t io_base);
+void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
+void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq, target_ulong base, int it_shift);
 
 /* mc146818rtc.c */
 
