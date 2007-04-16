@@ -1,3 +1,14 @@
+2007-04-16 22:09  j_mayer
+
+	* Makefile.target, vl.h, hw/ppc.c, hw/ppc405_uc.c,
+	  target-ppc/cpu.h, target-ppc/exec.h, target-ppc/op.c,
+	  target-ppc/translate_init.c: Add callbacks to allow dynamic
+	  change of PowerPC clocks (to be improved) Fix embedded PowerPC
+	  watchdog and timers Fix PowerPC 405 SPR Add generic PowerPC 405
+	  core instanciation code + resets support.  Implement simple
+	  peripherals shared by most PowerPC 405 implementations PowerPC
+	  405 EC & EP microcontrollers preliminary support
+
 2007-04-16 20:27  blueswir1
 
 	* Makefile, Makefile.target, configure, cpu-all.h: Sparc host

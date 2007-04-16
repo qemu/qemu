@@ -290,33 +290,55 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
     int cur_level;
 
 #if defined(PPC_DEBUG_IRQ)
-    printf("%s: env %p pin %d level %d\n", __func__, env, pin, level);
+    if (loglevel & CPU_LOG_INT) {
+        fprintf(logfile, "%s: env %p pin %d level %d\n", __func__,
+                env, pin, level);
+    }
 #endif
     cur_level = (env->irq_input_state >> pin) & 1;
     /* Don't generate spurious events */
     if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
         switch (pin) {
         case PPC405_INPUT_RESET_SYS:
-            /* XXX: TODO: reset all peripherals */
-            /* No break here */
+            if (level) {
+#if defined(PPC_DEBUG_IRQ)
+                if (loglevel & CPU_LOG_INT) {
+                    fprintf(logfile, "%s: reset the PowerPC system\n",
+                            __func__);
+                }
+#endif
+                ppc40x_system_reset(env);
+            }
+            break;
         case PPC405_INPUT_RESET_CHIP:
-            /* XXX: TODO: reset on-chip peripherals */
+            if (level) {
+#if defined(PPC_DEBUG_IRQ)
+                if (loglevel & CPU_LOG_INT) {
+                    fprintf(logfile, "%s: reset the PowerPC chip\n", __func__);
+                }
+#endif
+                ppc40x_chip_reset(env);
+            }
+            break;
             /* No break here */
         case PPC405_INPUT_RESET_CORE:
             /* XXX: TODO: update DBSR[MRR] */
             if (level) {
-#if 0 // XXX: TOFIX
 #if defined(PPC_DEBUG_IRQ)
-                printf("%s: reset the CPU\n", __func__);
+                if (loglevel & CPU_LOG_INT) {
+                    fprintf(logfile, "%s: reset the PowerPC core\n", __func__);
+                }
 #endif
-                cpu_reset(env);
-#endif
+                ppc40x_core_reset(env);
             }
             break;
         case PPC405_INPUT_CINT:
             /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
-            printf("%s: set the critical IRQ state to %d\n", __func__, level);
+            if (loglevel & CPU_LOG_INT) {
+                fprintf(logfile, "%s: set the critical IRQ state to %d\n",
+                        __func__, level);
+            }
 #endif
             /* XXX: TOFIX */
             ppc_set_irq(env, PPC_INTERRUPT_RESET, level);
@@ -538,8 +560,21 @@ static void cpu_ppc_decr_cb (void *opaque)
     _cpu_ppc_store_decr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
+static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
+{
+    CPUState *env = opaque;
+    ppc_tb_t *tb_env = env->tb_env;
+
+    tb_env->tb_freq = freq;
+    /* There is a bug in Linux 2.4 kernels:
+     * if a decrementer exception is pending when it enables msr_ee at startup,
+     * it's not ready to handle it...
+     */
+    _cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+}
+
 /* Set up (once) timebase frequency (in Hz) */
-ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq)
+clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
 {
     ppc_tb_t *tb_env;
 
@@ -547,23 +582,15 @@ ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq)
     if (tb_env == NULL)
         return NULL;
     env->tb_env = tb_env;
-    if (tb_env->tb_freq == 0 || 1) {
-        tb_env->tb_freq = freq;
-        /* Create new timer */
-        tb_env->decr_timer =
-            qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
-        /* There is a bug in Linux 2.4 kernels:
-         * if a decrementer exception is pending when it enables msr_ee,
-         * it's not ready to handle it...
-         */
-        _cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
-    }
+    /* Create new timer */
+    tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
+    cpu_ppc_set_tb_clk(env, freq);
 
-    return tb_env;
+    return &cpu_ppc_set_tb_clk;
 }
 
 /* Specific helpers for POWER & PowerPC 601 RTC */
-ppc_tb_t *cpu_ppc601_rtc_init (CPUState *env)
+clk_setup_cb cpu_ppc601_rtc_init (CPUState *env)
 {
     return cpu_ppc_tb_init(env, 7812500);
 }
@@ -733,10 +760,14 @@ static void cpu_4xx_wdt_cb (void *opaque)
             /* No reset */
             break;
         case 0x1: /* Core reset */
+            ppc40x_core_reset(env);
+            break;
         case 0x2: /* Chip reset */
+            ppc40x_chip_reset(env);
+            break;
         case 0x3: /* System reset */
-            qemu_system_reset_request();
-            return;
+            ppc40x_system_reset(env);
+            break;
         }
     }
 }
@@ -784,20 +815,25 @@ void store_booke_tsr (CPUState *env, target_ulong val)
 
 void store_booke_tcr (CPUState *env, target_ulong val)
 {
-    /* We don't update timers now. Maybe we should... */
     env->spr[SPR_40x_TCR] = val & 0xFF800000;
+    cpu_4xx_wdt_cb(env);
 }
 
-void ppc_emb_timers_init (CPUState *env)
+clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
 {
     ppc_tb_t *tb_env;
     ppcemb_timer_t *ppcemb_timer;
 
-    tb_env = env->tb_env;
+    tb_env = qemu_mallocz(sizeof(ppc_tb_t));
+    if (tb_env == NULL)
+        return NULL;
+    env->tb_env = tb_env;
     ppcemb_timer = qemu_mallocz(sizeof(ppcemb_timer_t));
+    tb_env->tb_freq = freq;
     tb_env->opaque = ppcemb_timer;
-    if (loglevel)
+    if (loglevel) {
         fprintf(logfile, "%s %p %p\n", __func__, tb_env, ppcemb_timer);
+    }
     if (ppcemb_timer != NULL) {
         /* We use decr timer for PIT */
         tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_4xx_pit_cb, env);
@@ -806,6 +842,9 @@ void ppc_emb_timers_init (CPUState *env)
         ppcemb_timer->wdt_timer =
             qemu_new_timer(vm_clock, &cpu_4xx_wdt_cb, env);
     }
+
+    /* XXX: TODO: add callback for clock frequency change */
+    return NULL;
 }
 
 /*****************************************************************************/

@@ -109,6 +109,7 @@ void ppc6xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
                                  int is_code);
 void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
                        target_ulong pte0, target_ulong pte1);
+void ppc4xx_tlb_invalidate_all (CPUState *env);
 
 static inline void env_to_regs(void)
 {

@@ -1183,7 +1183,19 @@ extern QEMUMachine shix_machine;
 
 #ifdef TARGET_PPC
 /* PowerPC hardware exceptions management helpers */
-ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);
+typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
+typedef struct clk_setup_t clk_setup_t;
+struct clk_setup_t {
+    clk_setup_cb cb;
+    void *opaque;
+};
+static inline void clk_setup (clk_setup_t *clk, uint32_t freq)
+{
+    if (clk->cb != NULL)
+        (*clk->cb)(clk->opaque, freq);
+}
+
+clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq);
 /* Embedded PowerPC DCR management */
 typedef target_ulong (*dcr_read_cb)(void *opaque, int dcrn);
 typedef void (*dcr_write_cb)(void *opaque, int dcrn, target_ulong val);
@@ -1191,6 +1203,59 @@ int ppc_dcr_init (CPUState *env, int (*dcr_read_error)(int dcrn),
                   int (*dcr_write_error)(int dcrn));
 int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
                       dcr_read_cb drc_read, dcr_write_cb dcr_write);
+clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq);
+/* PowerPC 405 core */
+CPUPPCState *ppc405_init (const unsigned char *cpu_model,
+                          clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
+                          uint32_t sysclk);
+void ppc40x_core_reset (CPUState *env);
+void ppc40x_chip_reset (CPUState *env);
+void ppc40x_system_reset (CPUState *env);
+/* */
+typedef struct ppc4xx_mmio_t ppc4xx_mmio_t;
+int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
+                          uint32_t offset, uint32_t len,
+                          CPUReadMemoryFunc **mem_read,
+                          CPUWriteMemoryFunc **mem_write, void *opaque);
+ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, uint32_t base);
+/* PowerPC 4xx peripheral local bus arbitrer */
+void ppc4xx_plb_init (CPUState *env);
+/* PLB to OPB bridge */
+void ppc4xx_pob_init (CPUState *env);
+/* OPB arbitrer */
+void ppc4xx_opba_init (CPUState *env, ppc4xx_mmio_t *mmio, uint32_t offset);
+/* PowerPC 4xx universal interrupt controller */
+enum {
+    PPCUIC_OUTPUT_INT = 0,
+    PPCUIC_OUTPUT_CINT = 1,
+    PPCUIC_OUTPUT_NB,
+};
+qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
+                       uint32_t dcr_base, int has_ssr, int has_vr);
+/* SDRAM controller */
+void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+                        target_ulong *ram_bases, target_ulong *ram_sizes);
+/* Peripheral controller */
+void ppc405_ebc_init (CPUState *env);
+/* DMA controller */
+void ppc405_dma_init (CPUState *env, qemu_irq irqs[4]);
+/* GPIO */
+void ppc405_gpio_init (CPUState *env, ppc4xx_mmio_t *mmio, uint32_t offset);
+/* Serial ports */
+void ppc405_serial_init (CPUState *env, ppc4xx_mmio_t *mmio,
+                         uint32_t offset, qemu_irq irq,
+                         CharDriverState *chr);
+/* On Chip Memory */
+void ppc405_ocm_init (CPUState *env, unsigned long offset);
+/* I2C controller */
+void ppc405_i2c_init (CPUState *env, ppc4xx_mmio_t *mmio, uint32_t offset);
+/* PowerPC 405 microcontrollers */
+CPUState *ppc405cr_init (target_ulong ram_bases[4], target_ulong ram_sizes[4],
+                         uint32_t sysclk, qemu_irq **picp,
+                         ram_addr_t *offsetp);
+CPUState *ppc405ep_init (target_ulong ram_bases[2], target_ulong ram_sizes[2],
+                         uint32_t sysclk, qemu_irq **picp,
+                         ram_addr_t *offsetp);
 #endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 

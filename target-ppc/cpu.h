@@ -880,6 +880,7 @@ void cpu_ppc601_store_rtcl (CPUPPCState *env, uint32_t value);
 void cpu_ppc601_store_rtcu (CPUPPCState *env, uint32_t value);
 target_ulong load_40x_pit (CPUPPCState *env);
 void store_40x_pit (CPUPPCState *env, target_ulong val);
+void store_40x_dbcr0 (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);

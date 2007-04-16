@@ -2454,6 +2454,11 @@ void OPPROTO op_store_40x_pit (void)
     RETURN();
 }
 
+void OPPROTO op_store_40x_dbcr0 (void)
+{
+    store_40x_dbcr0(env, T0);
+}
+
 void OPPROTO op_store_booke_tcr (void)
 {
     store_booke_tcr(env, T0);
