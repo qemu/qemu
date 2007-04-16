@@ -2806,11 +2806,11 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 #endif
             gen_op_btest_T1(ctx->nip);
         gen_op_reset_T0();
-    }
  no_test:
-    if (ctx->singlestep_enabled)
-        gen_op_debug();
-    gen_op_exit_tb();
+        if (ctx->singlestep_enabled)
+            gen_op_debug();
+        gen_op_exit_tb();
+    }
     ctx->exception = EXCP_BRANCH;
 }
 
@@ -4725,7 +4725,7 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_EMB_COMMON)
 #endif
 }
 
-/* PPC 440 specific instructions */
+/* PowerPC 440 specific instructions */
 /* dlmzb */
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC)
 {
@@ -5838,6 +5838,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         handler->count++;
 #endif
         /* Check trace mode exceptions */
+#if 0 // XXX: buggy on embedded PowerPC
         if (unlikely((msr_be && ctx.exception == EXCP_BRANCH) ||
                      /* Check in single step trace mode
                       * we need to stop except if:
@@ -5852,6 +5853,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
                       ctx.exception != EXCP_TRAP))) {
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
+#endif
         /* if we reach a page boundary or are single stepping, stop
          * generation
          */
