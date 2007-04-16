@@ -598,6 +598,10 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     isa_mem_base = 0xc0000000;
+    if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
+        cpu_abort(env, "Only 6xx bus is supported on PREP machine\n");
+        exit(1);
+    }
     i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
     pci_bus = pci_prep_init(i8259);
     //    pci_bus = i440fx_init();
