@@ -2537,39 +2537,72 @@ void do_4xx_tlbsx_ (void)
     env->crf[0] = tmp;
 }
 
-void do_4xx_tlbwe_lo (void)
+void do_4xx_tlbwe_hi (void)
 {
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+    }
+#endif
     T0 &= 0x3F;
     tlb = &env->tlb[T0].tlbe;
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
+#if defined (DEBUG_SOFTWARE_TLB)
+        if (loglevel) {
+            fprintf(logfile, "%s: invalidate old TLB %d start " ADDRX
+                    " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
+        }
+#endif
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
     tlb->size = booke_tlb_to_page_size((T1 >> 7) & 0x7);
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
-    if (T1 & 0x400)
+    if (T1 & 0x40)
         tlb->prot |= PAGE_VALID;
     else
         tlb->prot &= ~PAGE_VALID;
-    tlb->PID = env->spr[SPR_BOOKE_PID]; /* PID */
+    tlb->PID = env->spr[SPR_40x_PID]; /* PID */
     tlb->attr = T1 & 0xFF;
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+                " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                tlb->prot & PAGE_READ ? 'r' : '-',
+                tlb->prot & PAGE_WRITE ? 'w' : '-',
+                tlb->prot & PAGE_EXEC ? 'x' : '-',
+                tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    }
+#endif
     /* Invalidate new TLB (if valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
+#if defined (DEBUG_SOFTWARE_TLB)
+        if (loglevel) {
+            fprintf(logfile, "%s: invalidate TLB %d start " ADDRX
+                    " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
+        }
+#endif
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
 }
 
-void do_4xx_tlbwe_hi (void)
+void do_4xx_tlbwe_lo (void)
 {
     ppcemb_tlb_t *tlb;
 
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+    }
+#endif
     T0 &= 0x3F;
     tlb = &env->tlb[T0].tlbe;
     tlb->RPN = T1 & 0xFFFFFC00;
@@ -2578,5 +2611,16 @@ void do_4xx_tlbwe_hi (void)
         tlb->prot |= PAGE_EXEC;
     if (T1 & 0x100)
         tlb->prot |= PAGE_WRITE;
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel) {
+        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+                " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                tlb->prot & PAGE_READ ? 'r' : '-',
+                tlb->prot & PAGE_WRITE ? 'w' : '-',
+                tlb->prot & PAGE_EXEC ? 'x' : '-',
+                tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    }
+#endif
 }
 #endif /* !CONFIG_USER_ONLY */

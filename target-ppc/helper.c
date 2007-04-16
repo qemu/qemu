@@ -657,7 +657,8 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     target_ulong mask;
     int i, ret, zsel, zpr;
             
-    ret = -6;
+    ret = -1;
+    raddr = -1;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
         /* Check valid flag */
@@ -691,8 +692,8 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             switch (zpr) {
             case 0x0:
                 if (msr_pr) {
-                    ret = -3;
                     ctx->prot = 0;
+                    ret = -3;
                     break;
                 }
                 /* No break here */
@@ -702,25 +703,26 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 if (!(tlb->prot & PAGE_EXEC)) {
                     ret = -3;
                 } else {
-                    if (tlb->prot & PAGE_WRITE)
+                    if (tlb->prot & PAGE_WRITE) {
                         ctx->prot = PAGE_READ | PAGE_WRITE;
-                    else
+                    } else {
                         ctx->prot = PAGE_READ;
+                    }
                     ret = 0;
                 }
                 break;
             case 0x3:
                 /* All accesses granted */
-                ret = 0;
                 ctx->prot = PAGE_READ | PAGE_WRITE;
+                ret = 0;
                 break;
             }
         } else {
             switch (zpr) {
             case 0x0:
                 if (msr_pr) {
-                    ret = -2;
                     ctx->prot = 0;
+                    ret = -2;
                     break;
                 }
                 /* No break here */
@@ -728,20 +730,21 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             case 0x2:
                 /* Check from TLB entry */
                 /* Check write protection bit */
-                if (rw && !(tlb->prot & PAGE_WRITE)) {
-                    ret = -2;
+                if (tlb->prot & PAGE_WRITE) {
+                    ctx->prot = PAGE_READ | PAGE_WRITE;
+                    ret = 0;
                 } else {
-                    ret = 2;
-                    if (tlb->prot & PAGE_WRITE)
-                        ctx->prot = PAGE_READ | PAGE_WRITE;
+                    ctx->prot = PAGE_READ;
+                    if (rw)
+                        ret = -2;
                     else
-                        ctx->prot = PAGE_READ;
+                        ret = 0;
                 }
                 break;
             case 0x3:
                 /* All accesses granted */
-                ret = 2;
                 ctx->prot = PAGE_READ | PAGE_WRITE;
+                ret = 0;
                 break;
             }
         }
@@ -749,10 +752,16 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             ctx->raddr = raddr;
             if (loglevel) {
                 fprintf(logfile, "%s: access granted " ADDRX " => " REGX
-                        " %d\n", __func__, address, ctx->raddr, ctx->prot);
+                        " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
+                        ret);
             }
-            return i;
+            return 0;
         }
+    }
+    if (loglevel) {
+        fprintf(logfile, "%s: access refused " ADDRX " => " REGX
+                " %d %d\n", __func__, address, raddr, ctx->prot,
+                ret);
     }
     
     return ret;
@@ -808,32 +817,49 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         /* No address translation */
         ret = check_physical(env, ctx, eaddr, rw);
     } else {
+        ret = -1;
         switch (PPC_MMU(env)) {
         case PPC_FLAGS_MMU_32B:
         case PPC_FLAGS_MMU_SOFT_6xx:
             /* Try to find a BAT */
-            ret = -1;
             if (check_BATs)
                 ret = get_bat(env, ctx, eaddr, rw, access_type);
+            /* No break here */
+#if defined(TARGET_PPC64)
+        case PPC_FLAGS_MMU_64B:
+        case PPC_FLAGS_MMU_64BRIDGE:
+#endif
             if (ret < 0) {
-                /* We didn't match any BAT entry */
+                /* We didn't match any BAT entry or don't have BATs */
                 ret = get_segment(env, ctx, eaddr, rw, access_type);
             }
             break;
         case PPC_FLAGS_MMU_SOFT_4xx:
+        case PPC_FLAGS_MMU_403:
             ret = mmu4xx_get_physical_address(env, ctx, eaddr,
                                               rw, access_type);
             break;
-        default:
+        case PPC_FLAGS_MMU_601:
             /* XXX: TODO */
-            cpu_abort(env, "MMU model not implemented\n");
+            cpu_abort(env, "601 MMU model not implemented\n");
+            return -1;
+        case PPC_FLAGS_MMU_BOOKE:
+            /* XXX: TODO */
+            cpu_abort(env, "BookeE MMU model not implemented\n");
+            return -1;
+        case PPC_FLAGS_MMU_BOOKE_FSL:
+            /* XXX: TODO */
+            cpu_abort(env, "BookE FSL MMU model not implemented\n");
+            return -1;
+        default:
+            cpu_abort(env, "Unknown or invalid MMU model\n");
             return -1;
         }
     }
 #if 0
     if (loglevel > 0) {
-        fprintf(logfile, "%s address " ADDRX " => " ADDRX "\n",
-                __func__, eaddr, ctx->raddr);
+        fprintf(logfile, "%s address " ADDRX " => %d " ADDRX "\n",
+                __func__, eaddr, ret, ctx->raddr);
     }
 #endif
 
@@ -885,19 +911,48 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
-                if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+                switch (PPC_MMU(env)) {
+                case PPC_FLAGS_MMU_SOFT_6xx:
                     exception = EXCP_I_TLBMISS;
                     env->spr[SPR_IMISS] = address;
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
                     error_code = 1 << 18;
                     goto tlb_miss;
-                } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
+                case PPC_FLAGS_MMU_SOFT_4xx:
+                case PPC_FLAGS_MMU_403:
                     exception = EXCP_40x_ITLBMISS;
                     error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     env->spr[SPR_40x_ESR] = 0x00000000;
-                } else {
+                    break;
+                case PPC_FLAGS_MMU_32B:
                     error_code = 0x40000000;
+                    break;
+#if defined(TARGET_PPC64)
+                case PPC_FLAGS_MMU_64B:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_64BRIDGE:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+#endif
+                case PPC_FLAGS_MMU_601:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_BOOKE:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_BOOKE_FSL:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                default:
+                    cpu_abort(env, "Unknown or invalid MMU model\n");
+                    return -1;
                 }
                 break;
             case -2:
@@ -924,7 +979,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
-                if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+                switch (PPC_MMU(env)) {
+                case PPC_FLAGS_MMU_SOFT_6xx:
                     if (rw == 1) {
                         exception = EXCP_DS_TLBMISS;
                         error_code = 1 << 16;
@@ -940,7 +996,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->spr[SPR_HASH2] = ctx.pg_addr[1];
                     /* Do not alter DAR nor DSISR */
                     goto out;
-                } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
+                case PPC_FLAGS_MMU_SOFT_4xx:
+                case PPC_FLAGS_MMU_403:
                     exception = EXCP_40x_DTLBMISS;
                     error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
@@ -948,8 +1005,35 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                         env->spr[SPR_40x_ESR] = 0x00800000;
                     else
                         env->spr[SPR_40x_ESR] = 0x00000000;
-                } else {
+                    break;
+                case PPC_FLAGS_MMU_32B:
                     error_code = 0x40000000;
+                    break;
+#if defined(TARGET_PPC64)
+                case PPC_FLAGS_MMU_64B:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_64BRIDGE:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+#endif
+                case PPC_FLAGS_MMU_601:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_BOOKE:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_BOOKE_FSL:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                default:
+                    cpu_abort(env, "Unknown or invalid MMU model\n");
+                    return -1;
                 }
                 break;
             case -2:

@@ -581,12 +581,12 @@ struct ppc6xx_tlb_t {
 
 typedef struct ppcemb_tlb_t ppcemb_tlb_t;
 struct ppcemb_tlb_t {
-    target_ulong RPN;
+    target_phys_addr_t RPN;
     target_ulong EPN;
     target_ulong PID;
-    int size;
-    int prot;
-    int attr; /* Storage attributes */
+    target_ulong size;
+    uint32_t prot;
+    uint32_t attr; /* Storage attributes */
 };
 
 union ppc_tlb_t {
@@ -765,10 +765,6 @@ struct CPUPPCState {
     int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
     int nb_pids;     /* Number of available PID registers                    */
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
-    /* Callbacks for specific checks on some implementations */
-    int (*tlb_check_more)(CPUPPCState *env, ppc_tlb_t *tlb, int *prot,
-                          target_ulong vaddr, int rw, int acc_type,
-                          int is_user);
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
 
