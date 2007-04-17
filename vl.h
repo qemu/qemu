@@ -1043,7 +1043,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq, target_ulong base, int 
 typedef struct RTCState RTCState;
 
 RTCState *rtc_init(int base, qemu_irq irq);
-RTCState *rtc_mm_init(target_phys_addr_t base, qemu_irq irq);
+RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq);
 void rtc_set_memory(RTCState *s, int addr, int val);
 void rtc_set_date(RTCState *s, const struct tm *tm);
 

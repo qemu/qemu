@@ -56,6 +56,7 @@ struct RTCState {
     struct tm current_tm;
     qemu_irq irq;
     target_phys_addr_t base;
+    int it_shift;
     /* periodic timer */
     QEMUTimer *periodic_timer;
     int64_t next_periodic_time;
@@ -492,7 +493,7 @@ uint32_t cmos_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     RTCState *s = opaque;
 
-    return cmos_ioport_read(s, addr - s->base) & 0xFF;
+    return cmos_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFF;
 }
 
 void cmos_mm_writeb (void *opaque,
@@ -500,37 +501,51 @@ void cmos_mm_writeb (void *opaque,
 {
     RTCState *s = opaque;
 
-    cmos_ioport_write(s, addr - s->base, value & 0xFF);
+    cmos_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFF);
 }
 
 uint32_t cmos_mm_readw (void *opaque, target_phys_addr_t addr)
 {
     RTCState *s = opaque;
+    uint32_t val;
 
-    return cmos_ioport_read(s, addr - s->base) & 0xFFFF;
+    val = cmos_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFFFF;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    return val;
 }
 
 void cmos_mm_writew (void *opaque,
                      target_phys_addr_t addr, uint32_t value)
 {
     RTCState *s = opaque;
-
-    cmos_ioport_write(s, addr - s->base, value & 0xFFFF);
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap16(value);
+#endif
+    cmos_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFFFF);
 }
 
 uint32_t cmos_mm_readl (void *opaque, target_phys_addr_t addr)
 {
     RTCState *s = opaque;
+    uint32_t val;
 
-    return cmos_ioport_read(s, addr - s->base);
+    val = cmos_ioport_read(s, (addr - s->base) >> s->it_shift);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
 }
 
 void cmos_mm_writel (void *opaque,
                      target_phys_addr_t addr, uint32_t value)
 {
     RTCState *s = opaque;
-
-    cmos_ioport_write(s, addr - s->base, value);
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap32(value);
+#endif
+    cmos_ioport_write(s, (addr - s->base) >> s->it_shift, value);
 }
 
 static CPUReadMemoryFunc *rtc_mm_read[] = {
@@ -545,7 +560,7 @@ static CPUWriteMemoryFunc *rtc_mm_write[] = {
     &cmos_mm_writel,
 };
 
-RTCState *rtc_mm_init(target_phys_addr_t base, qemu_irq irq)
+RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq)
 {
     RTCState *s;
     int io_memory;
@@ -574,7 +589,7 @@ RTCState *rtc_mm_init(target_phys_addr_t base, qemu_irq irq)
     qemu_mod_timer(s->second_timer2, s->next_second_time);
 
     io_memory = cpu_register_io_memory(0, rtc_mm_read, rtc_mm_write, s);
-    cpu_register_physical_memory(base, 2, io_memory);
+    cpu_register_physical_memory(base, 2 << it_shift, io_memory);
 
     register_savevm("mc146818rtc", base, 1, rtc_save, rtc_load, s);
     return s;
