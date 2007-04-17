@@ -296,6 +296,7 @@ static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 	case 2:
 	    s->b[s->dac_index] = val >> 24;
             update_palette_entries(s, s->dac_index, s->dac_index + 1);
+            s->dac_index = (s->dac_index + 1) & 255; // Index autoincrement
 	default:
 	    s->dac_state = 0;
 	    break;
