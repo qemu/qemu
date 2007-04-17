@@ -99,6 +99,7 @@ struct CPUMIPSState {
 #if defined(MIPS_USES_R4K_TLB)
     tlb_t tlb[MIPS_TLB_MAX];
     uint32_t tlb_in_use;
+    uint32_t nb_tlb;
 #endif
     int32_t CP0_Index;
     int32_t CP0_Random;

@@ -394,7 +394,7 @@ void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 {
     /* Flush qemu's TLB and discard all shadowed entries.  */
     tlb_flush (env, flush_global);
-    env->tlb_in_use = MIPS_TLB_NB;
+    env->tlb_in_use = env->nb_tlb;
 }
 
 static void mips_tlb_flush_extra (CPUState *env, int first)
@@ -430,12 +430,10 @@ void do_tlbwi (void)
     /* Discard cached TLB entries.  We could avoid doing this if the
        tlbwi is just upgrading access permissions on the current entry;
        that might be a further win.  */
-    mips_tlb_flush_extra (env, MIPS_TLB_NB);
+    mips_tlb_flush_extra (env, env->nb_tlb);
 
-    /* Wildly undefined effects for CP0_Index containing a too high value and
-       MIPS_TLB_NB not being a power of two.  But so does real silicon.  */
-    invalidate_tlb(env, env->CP0_Index & (MIPS_TLB_NB - 1), 0);
-    fill_tlb(env->CP0_Index & (MIPS_TLB_NB - 1));
+    invalidate_tlb(env, env->CP0_Index % env->nb_tlb, 0);
+    fill_tlb(env->CP0_Index % env->nb_tlb);
 }
 
 void do_tlbwr (void)
@@ -455,7 +453,7 @@ void do_tlbp (void)
 
     tag = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     ASID = env->CP0_EntryHi & 0xFF;
-    for (i = 0; i < MIPS_TLB_NB; i++) {
+    for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
@@ -464,9 +462,9 @@ void do_tlbp (void)
             break;
         }
     }
-    if (i == MIPS_TLB_NB) {
+    if (i == env->nb_tlb) {
         /* No match.  Discard any shadow entries, if any of them match.  */
-        for (i = MIPS_TLB_NB; i < env->tlb_in_use; i++) {
+        for (i = env->nb_tlb; i < env->tlb_in_use; i++) {
 	    tlb = &env->tlb[i];
 
 	    /* Check ASID, virtual page number & size */
@@ -486,13 +484,13 @@ void do_tlbr (void)
     uint8_t ASID;
 
     ASID = env->CP0_EntryHi & 0xFF;
-    tlb = &env->tlb[env->CP0_Index & (MIPS_TLB_NB - 1)];
+    tlb = &env->tlb[env->CP0_Index % env->nb_tlb];
 
     /* If this will change the current ASID, flush qemu's TLB.  */
     if (ASID != tlb->ASID)
         cpu_mips_tlb_flush (env, 1);
 
-    mips_tlb_flush_extra(env, MIPS_TLB_NB);
+    mips_tlb_flush_extra(env, env->nb_tlb);
 
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     env->CP0_PageMask = tlb->PageMask;

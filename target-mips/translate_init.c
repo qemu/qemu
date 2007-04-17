@@ -28,13 +28,13 @@
    (0x0 << CP0C0_AT) | (0x0 << CP0C0_AR) | (0x1 << CP0C0_MT) |    \
    (0x2 << CP0C0_K0))
 
-/* Have config2, 16 TLB entries, 64 sets Icache, 16 bytes Icache line,
+/* Have config2, 64 sets Icache, 16 bytes Icache line,
    2-way Icache, 64 sets Dcache, 16 bytes Dcache line, 2-way Dcache,
    no coprocessor2 attached, no MDMX support attached,
    no performance counters, watch registers present,
    no code compression, EJTAG present, no FPU */
 #define MIPS_CONFIG1                                              \
-((1 << CP0C1_M) | ((MIPS_TLB_NB - 1) << CP0C1_MMU) |              \
+((1 << CP0C1_M) |                                                 \
  (0x0 << CP0C1_IS) | (0x3 << CP0C1_IL) | (0x1 << CP0C1_IA) |      \
  (0x0 << CP0C1_DS) | (0x3 << CP0C1_DL) | (0x1 << CP0C1_DA) |      \
  (0 << CP0C1_C2) | (0 << CP0C1_MD) | (0 << CP0C1_PC) |            \
@@ -81,7 +81,7 @@ static mips_def_t mips_defs[] =
         .name = "4Kc",
         .CP0_PRid = 0x00018000,
         .CP0_Config0 = MIPS_CONFIG0,
-        .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -92,7 +92,7 @@ static mips_def_t mips_defs[] =
         .name = "4KEcR1",
         .CP0_PRid = 0x00018400,
         .CP0_Config0 = MIPS_CONFIG0,
-        .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -103,7 +103,7 @@ static mips_def_t mips_defs[] =
         .name = "4KEc",
         .CP0_PRid = 0x00019000,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
-        .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -114,7 +114,7 @@ static mips_def_t mips_defs[] =
         .name = "24Kc",
         .CP0_PRid = 0x00019300,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
-        .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -125,7 +125,7 @@ static mips_def_t mips_defs[] =
         .name = "24Kf",
         .CP0_PRid = 0x00019300,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
-        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP),
+        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (15 << CP0C1_MMU),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -137,7 +137,7 @@ static mips_def_t mips_defs[] =
         .name = "R4000",
         .CP0_PRid = 0x00000400,
         .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT),
-        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP),
+        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (47 << CP0C1_MMU),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 16,
@@ -192,5 +192,10 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->SYNCI_Step = def->SYNCI_Step;
     env->CCRes = def->CCRes;
     env->fcr0 = def->CP1_fcr0;
+#if defined (MIPS_USES_R4K_TLB)
+    env->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
+    env->CP0_Random = env->nb_tlb - 1;
+    env->tlb_in_use = env->nb_tlb;
+#endif
     return 0;
 }
