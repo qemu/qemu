@@ -89,21 +89,19 @@ extern int printf(const char *, ...);
 #undef NULL
 #define NULL 0
 
-#ifdef __i386__
+#if defined(__i386__)
 #define AREG0 "ebp"
 #define AREG1 "ebx"
 #define AREG2 "esi"
 #define AREG3 "edi"
-#endif
-#ifdef __x86_64__
+#elif defined(__x86_64__)
 #define AREG0 "r14"
 #define AREG1 "r15"
 #define AREG2 "r12"
 #define AREG3 "r13"
 //#define AREG4 "rbp"
 //#define AREG5 "rbx"
-#endif
-#ifdef __powerpc__
+#elif defined(__powerpc__)
 #define AREG0 "r27"
 #define AREG1 "r24"
 #define AREG2 "r25"
@@ -121,20 +119,17 @@ extern int printf(const char *, ...);
 #endif
 #define USE_INT_TO_FLOAT_HELPERS
 #define BUGGY_GCC_DIV64
-#endif
-#ifdef __arm__
+#elif defined(__arm__)
 #define AREG0 "r7"
 #define AREG1 "r4"
 #define AREG2 "r5"
 #define AREG3 "r6"
-#endif
-#ifdef __mips__
+#elif defined(__mips__)
 #define AREG0 "s3"
 #define AREG1 "s0"
 #define AREG2 "s1"
 #define AREG3 "s2"
-#endif
-#ifdef __sparc__
+#elif defined(__sparc__)
 #ifdef HOST_SOLARIS
 #define AREG0 "g2"
 #define AREG1 "g3"
@@ -163,14 +158,12 @@ extern int printf(const char *, ...);
 #endif
 #endif
 #define USE_FP_CONVERT
-#endif
-#ifdef __s390__
+#elif defined(__s390__)
 #define AREG0 "r10"
 #define AREG1 "r7"
 #define AREG2 "r8"
 #define AREG3 "r9"
-#endif
-#ifdef __alpha__
+#elif defined(__alpha__)
 /* Note $15 is the frame pointer, so anything in op-i386.c that would
    require a frame pointer, like alloca, would probably loose.  */
 #define AREG0 "$15"
@@ -180,19 +173,19 @@ extern int printf(const char *, ...);
 #define AREG4 "$12"
 #define AREG5 "$13"
 #define AREG6 "$14"
-#endif
-#ifdef __mc68000
+#elif defined(__mc68000)
 #define AREG0 "%a5"
 #define AREG1 "%a4"
 #define AREG2 "%d7"
 #define AREG3 "%d6"
 #define AREG4 "%d5"
-#endif
-#ifdef __ia64__
+#elif defined(__ia64__)
 #define AREG0 "r7"
 #define AREG1 "r4"
 #define AREG2 "r5"
 #define AREG3 "r6"
+#else
+#error unsupported CPU
 #endif
 
 /* force GCC to generate only one epilog at the end of the function */
@@ -245,40 +238,37 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #define ASM_NAME(x) #x
 #endif
 
-#ifdef __i386__
+#if defined(__i386__)
 #define EXIT_TB() asm volatile ("ret")
 #define GOTO_LABEL_PARAM(n) asm volatile ("jmp " ASM_NAME(__op_gen_label) #n)
-#endif
-#ifdef __x86_64__
+#elif defined(__x86_64__)
 #define EXIT_TB() asm volatile ("ret")
 #define GOTO_LABEL_PARAM(n) asm volatile ("jmp " ASM_NAME(__op_gen_label) #n)
-#endif
-#ifdef __powerpc__
+#elif defined(__powerpc__)
 #define EXIT_TB() asm volatile ("blr")
 #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
-#endif
-#ifdef __s390__
+#elif defined(__s390__)
 #define EXIT_TB() asm volatile ("br %r14")
 #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
-#endif
-#ifdef __alpha__
+#elif defined(__alpha__)
 #define EXIT_TB() asm volatile ("ret")
-#endif
-#ifdef __ia64__
+#elif defined(__ia64__)
 #define EXIT_TB() asm volatile ("br.ret.sptk.many b0;;")
 #define GOTO_LABEL_PARAM(n) asm volatile ("br.sptk.many " \
 					  ASM_NAME(__op_gen_label) #n)
-#endif
-#ifdef __sparc__
+#elif defined(__sparc__)
 #define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0; nop")
 #define GOTO_LABEL_PARAM(n) asm volatile ("ba " ASM_NAME(__op_gen_label) #n ";nop")
-#endif
-#ifdef __arm__
+#elif defined(__arm__)
 #define EXIT_TB() asm volatile ("b exec_loop")
 #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
-#endif
-#ifdef __mc68000
+#elif defined(__mc68000)
 #define EXIT_TB() asm volatile ("rts")
+#elif defined(HOST_MIPS)
+#define EXIT_TB() asm volatile ("jr $31; nop")
+#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
+#else
+#error unsupported CPU
 #endif
 
 #endif /* !defined(__DYNGEN_EXEC_H__) */

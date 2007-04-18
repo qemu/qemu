@@ -115,7 +115,7 @@
 #define ELF_CLASS	ELFCLASS32
 #define ELF_ARCH	EM_MIPS
 #define elf_check_arch(x) ((x) == EM_MIPS)
-#define ELF_USES_RELOCA
+#define ELF_USES_RELOC
 
 #elif defined(HOST_M68K)
 
@@ -531,6 +531,7 @@ int load_object(const char *filename)
         sec = &shdr[i];
         if (sec->sh_type == SHT_RELOC) {
             nb_relocs = sec->sh_size / sec->sh_entsize;
+            //~ printf("nb_relocs = %d\n", nb_relocs);
             if (do_swap) {
                 for(j = 0, rel = (ELF_RELOC *)sdata[i]; j < nb_relocs; j++, rel++)
                     elf_swap_rel(rel);
@@ -1642,6 +1643,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             error("empty code for %s", name);
         if (get32((uint32_t *)(p - 4)) != 0x03e00008)
             error("jr ra expected at the end of %s", name);
+        /* Replace "jr ra" by code from delayed branch slot. */
+        *(uint32_t *)(p - 4) = *(uint32_t *)p;
         copy_size = p - p_start;
     }
 #elif defined(HOST_M68K)
@@ -1666,6 +1669,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     for(i = 0;i < MAX_ARGS; i++)
         args_present[i] = 0;
 
+    //~ printf("relocations for %s\n", name);
     for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
         host_ulong offset = get_rel_offset(rel);
         if (offset >= start_offset &&
@@ -1678,7 +1682,10 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
                     error("too many arguments in %s", name);
+                //~ printf("sym_name = %s\n", sym_name);
                 args_present[n - 1] = 1;
+            } else {
+                //~ printf("???_name = %s\n", sym_name);
             }
         }
     }
@@ -1818,7 +1825,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
         }
 
-        /* load parameres in variables */
+        /* load parameters in variables */
         for(i = 0; i < nb_args; i++) {
             fprintf(outfile, "    param%d = *opparam_ptr++;\n", i + 1);
         }
@@ -2476,15 +2483,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int addend;
                 int reloc_offset;
                 if (nb_relocs != 0) {
-                    printf("%d relocations\n", nb_relocs);
+                    //~ printf("%d relocations\n", nb_relocs);
                 }
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
                         rel->r_offset < start_offset + copy_size) {
                         sym_name = get_rel_sym_name(rel);
-                        //~ if (!sym_name)
-                            //~ continue;
                         reloc_offset = rel->r_offset - start_offset;
+                        get_reloc_expr(name, sizeof(name), sym_name);
                         addend = get32((uint32_t *)(text + rel->r_offset));
                         type = ELF32_R_TYPE(rel->r_info);
                         printf("%d %s, type %d\n", i, sym_name, type);
