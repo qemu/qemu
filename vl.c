@@ -6143,7 +6143,10 @@ void main_loop_wait(int timeout)
 {
     IOHandlerRecord *ioh;
     fd_set rfds, wfds, xfds;
-    int ret, ret2, nfds, i;
+    int ret, nfds;
+#ifdef _WIN32
+    int ret2, i;
+#endif
     struct timeval tv;
     PollingEntry *pe;
 
