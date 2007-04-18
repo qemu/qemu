@@ -108,6 +108,13 @@ static int serial_can_receive(void *opaque);
 static void serial_receive_byte(ChannelState *s, int ch);
 static inline void set_txint(ChannelState *s);
 
+static void clear_queue(void *opaque)
+{
+    ChannelState *s = opaque;
+    SERIOQueue *q = &s->queue;
+    q->rptr = q->wptr = q->count = 0;
+}
+
 static void put_queue(void *opaque, int b)
 {
     ChannelState *s = opaque;
@@ -137,7 +144,7 @@ static uint32_t get_queue(void *opaque)
             q->rptr = 0;
         q->count--;
     }
-    KBD_DPRINTF("channel %c get 0x%02x\n", CHN_C(s), val);
+    SER_DPRINTF("channel %c get 0x%02x\n", CHN_C(s), val);
     if (q->count > 0)
 	serial_receive_byte(s, 0);
     return val;
@@ -186,6 +193,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
     s->rxint_under_svc = s->txint_under_svc = 0;
+    clear_queue(s);
 }
 
 static void slavio_serial_reset(void *opaque)
@@ -199,10 +207,19 @@ static inline void clr_rxint(ChannelState *s)
 {
     s->rxint = 0;
     s->rxint_under_svc = 0;
-    if (s->chn == chn_a)
+    if (s->chn == chn_a) {
+        if (s->wregs[9] & 0x10)
+            s->otherchn->rregs[2] = 0x60;
+        else
+            s->otherchn->rregs[2] = 0x06;
         s->rregs[3] &= ~0x20;
-    else
+    } else {
+        if (s->wregs[9] & 0x10)
+            s->rregs[2] = 0x60;
+        else
+            s->rregs[2] = 0x06;
         s->otherchn->rregs[3] &= ~4;
+    }
     if (s->txint)
         set_txint(s);
     else
@@ -215,11 +232,19 @@ static inline void set_rxint(ChannelState *s)
     s->rxint = 1;
     if (!s->txint_under_svc) {
         s->rxint_under_svc = 1;
-        if (s->chn == chn_a)
+        if (s->chn == chn_a) {
+            if (s->wregs[9] & 0x10)
+                s->otherchn->rregs[2] = 0x30;
+            else
+                s->otherchn->rregs[2] = 0x0c;
             s->rregs[3] |= 0x20;
-        else
+        } else {
+            if (s->wregs[9] & 0x10)
+                s->rregs[2] = 0x20;
+            else
+                s->rregs[2] = 0x04;
             s->otherchn->rregs[3] |= 4;
-        s->rregs[2] = 4;
+        }
         slavio_serial_update_irq(s);
     }
 }
@@ -607,12 +632,15 @@ static void handle_kbd_command(ChannelState *s, int val)
     KBD_DPRINTF("Command %d\n", val);
     switch (val) {
     case 1: // Reset, return type code
+        clear_queue(s);
 	put_queue(s, 0xff);
-	put_queue(s, 5); // Type 5
+	put_queue(s, 4); // Type 4
 	break;
     case 7: // Query layout
+    case 0xf:
+        clear_queue(s);
 	put_queue(s, 0xfe);
-	put_queue(s, 0x20); // XXX, layout?
+	put_queue(s, 19); // XXX, layout?
 	break;
     default:
 	break;
@@ -625,9 +653,6 @@ static void sunmouse_event(void *opaque,
     ChannelState *s = opaque;
     int ch;
 
-    /* XXX: SDL sometimes generates nul events: we delete them */
-    if (dx == 0 && dy == 0 && dz == 0 && buttons_state == 0)
-        return;
     MS_DPRINTF("dx=%d dy=%d buttons=%01x\n", dx, dy, buttons_state);
 
     ch = 0x80 | 0x7; /* protocol start byte, no buttons pressed */
