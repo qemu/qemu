@@ -21,11 +21,6 @@
 
 //#define DEBUG_PCALL
 
-#if defined(__sparc__) && (HOST_SOLARIS < 10)
-#include <ieeefp.h>
-#define isinf(x) (fpclass(x) == FP_NINF || fpclass(x) == FP_PINF)
-#endif 
-
 #if 0
 #define raise_exception_err(a, b)\
 do {\
