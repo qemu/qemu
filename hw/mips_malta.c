@@ -548,6 +548,50 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
     stl_raw(p++, 0x3c070000 | (env->ram_size >> 16));              /* lui a3, high(env->ram_size) */
     stl_raw(p++, 0x34e70000 | (env->ram_size & 0xffff));           /* ori a3, a3, low(env->ram_size) */
+
+    /* Load BAR registers as done by YAMON */
+    stl_raw(p++, 0x3c09bbe0);                                      /* lui t1, 0xbbe0 */
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    stl_raw(p++, 0x3c08c000);                                      /* lui t0, 0xc000 */
+#else
+    stl_raw(p++, 0x340800c0);                                      /* ori t0, r0, 0x00c0 */
+#endif
+    stl_raw(p++, 0xad280048);                                      /* sw t0, 0x0048(t1) */
+#ifdef TARGET_WORDS_BIGENDIAN
+    stl_raw(p++, 0x3c084000);                                      /* lui t0, 0x4000 */
+#else
+    stl_raw(p++, 0x34080040);                                      /* ori t0, r0, 0x0040 */
+#endif
+    stl_raw(p++, 0xad280050);                                      /* sw t0, 0x0050(t1) */
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    stl_raw(p++, 0x3c088000);                                      /* lui t0, 0x8000 */
+#else
+    stl_raw(p++, 0x34080080);                                      /* ori t0, r0, 0x0080 */
+#endif
+    stl_raw(p++, 0xad280058);                                      /* sw t0, 0x0058(t1) */
+#ifdef TARGET_WORDS_BIGENDIAN
+    stl_raw(p++, 0x3c083f00);                                      /* lui t0, 0x3f00 */
+#else
+    stl_raw(p++, 0x3408003f);                                      /* ori t0, r0, 0x003f */
+#endif
+    stl_raw(p++, 0xad280060);                                      /* sw t0, 0x0060(t1) */
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    stl_raw(p++, 0x3c08c100);                                      /* lui t0, 0xc100 */
+#else
+    stl_raw(p++, 0x340800c1);                                      /* ori t0, r0, 0x00c1 */
+#endif
+    stl_raw(p++, 0xad280080);                                      /* sw t0, 0x0080(t1) */
+#ifdef TARGET_WORDS_BIGENDIAN
+    stl_raw(p++, 0x3c085e00);                                      /* lui t0, 0x5e00 */
+#else
+    stl_raw(p++, 0x3408005e);                                      /* ori t0, r0, 0x005e */
+#endif
+    stl_raw(p++, 0xad280088);                                      /* sw t0, 0x0088(t1) */
+
+    /* Jump to kernel code */
     stl_raw(p++, 0x3c1f0000 | ((kernel_entry >> 16) & 0xffff));    /* lui ra, high(kernel_entry) */
     stl_raw(p++, 0x37ff0000 | (kernel_entry & 0xffff));            /* ori ra, ra, low(kernel_entry) */
     stl_raw(p++, 0x03e00008);                                      /* jr ra */
