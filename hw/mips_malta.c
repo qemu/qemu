@@ -572,7 +572,7 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x34e70000 | (env->ram_size & 0xffff));           /* ori a3, a3, low(env->ram_size) */
 
     /* Load BAR registers as done by YAMON */
-    stl_raw(p++, 0x3c09bbe0);                                      /* lui t1, 0x1be0 */
+    stl_raw(p++, 0x3c09bbe0);                                      /* lui t1, 0xbbe0 */
 
 #ifdef TARGET_WORDS_BIGENDIAN
     stl_raw(p++, 0x3c08c000);                                      /* lui t0, 0xc000 */
