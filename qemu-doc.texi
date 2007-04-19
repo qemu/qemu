@@ -356,10 +356,12 @@ Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
 = 0 is the default). The NIC is currently an NE2000 on the PC
 target. Optionally, the MAC address can be changed. If no
 @option{-net} option is specified, a single NIC is created.
-Qemu can emulate several different models of network card.  Valid values for
-@var{type} are @code{ne2k_pci}, @code{ne2k_isa}, @code{rtl8139},
-@code{smc91c111} and @code{lance}.  Not all devices are supported on all
-targets.
+Qemu can emulate several different models of network card.
+Valid values for @var{type} are
+@code{i82551}, @code{i82557b}, @code{i82559},
+@code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
+@code{smc91c111} and @code{lance}.
+Not all devices are supported on all targets.
 
 @item -net user[,vlan=n][,hostname=name]
 Use the user mode network stack which requires no administrator
