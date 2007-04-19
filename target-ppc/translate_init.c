@@ -1201,10 +1201,6 @@ static void gen_spr_BookE (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Exception vectors */
-    spr_register(env, SPR_BOOKE_IVPR, "IVPR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     spr_register(env, SPR_BOOKE_IVOR0, "IVOR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
