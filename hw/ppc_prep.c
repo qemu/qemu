@@ -560,11 +560,11 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        fprintf(stderr, "qemu: could not load PPC PREP bios '%s'\n", buf);
+        cpu_abort(env, "qemu: could not load PPC PREP bios '%s'\n", buf);
         exit(1);
     }
     bios_size = (bios_size + 0xfff) & ~0xfff;
-    cpu_register_physical_memory((uint32_t)(-bios_size), 
+    cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
 
     if (linux_boot) {
@@ -572,8 +572,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         /* now we can load the kernel */
         kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
-                    kernel_filename);
+            cpu_abort(env, "qemu: could not load kernel '%s'\n",
+                      kernel_filename);
             exit(1);
         }
         /* load initrd */
@@ -582,8 +582,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_size = load_image(initrd_filename,
                                      phys_ram_base + initrd_base);
             if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
-                        initrd_filename);
+                cpu_abort(env, "qemu: could not load initial ram disk '%s'\n",
+                          initrd_filename);
                 exit(1);
             }
         } else {
@@ -627,7 +627,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
             || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
             isa_ne2000_init(ne2000_io[i], i8259[ne2000_irq[i]], &nd_table[i]);
         } else {
-            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            /* Why ? */
+            cpu_abort(env, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
         }
     }

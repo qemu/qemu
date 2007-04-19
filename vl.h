@@ -1172,6 +1172,10 @@ int ppc_dcr_init (CPUState *env, int (*dcr_read_error)(int dcrn),
 int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
                       dcr_read_cb drc_read, dcr_write_cb dcr_write);
 clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq);
+/* Embedded PowerPC reset */
+void ppc40x_core_reset (CPUState *env);
+void ppc40x_chip_reset (CPUState *env);
+void ppc40x_system_reset (CPUState *env);
 #endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 

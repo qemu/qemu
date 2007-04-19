@@ -59,9 +59,6 @@ CPUState *ppc405_init (const unsigned char *cpu_model,
                        uint32_t sysclk);
 ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd);
 
-void ppc40x_core_reset (CPUState *env);
-void ppc40x_chip_reset (CPUState *env);
-void ppc40x_system_reset (CPUState *env);
 /* */
 typedef struct ppc4xx_mmio_t ppc4xx_mmio_t;
 int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
