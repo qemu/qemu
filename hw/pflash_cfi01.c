@@ -116,7 +116,7 @@ static uint32_t pflash_read_data(const void *addr, target_ulong offset, int widt
         value = p[offset];
         value |= p[offset + 1] << 8;
 #endif
-        //~ DPRINTF("data offset %08x %04x\n", offset, value);
+        //~ DPRINTF("data offset " TARGET_FMT_lx " %04x\n", offset, value);
         break;
     case 4:
         assert((offset & 3) == 0);
@@ -132,7 +132,7 @@ static uint32_t pflash_read_data(const void *addr, target_ulong offset, int widt
         value |= p[offset + 2] << 16;
         value |= p[offset + 3] << 24;
 #endif
-        //~ DPRINTF("data offset %08x %08x\n", offset, value);
+        //~ DPRINTF("data offset " TARGET_FMT_lx " %08x\n", offset, value);
         break;
     }
     return value;
@@ -203,11 +203,11 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
                     ret = pfl->ident[boff];
                     break;
                 default:
-                    DPRINTF("??? offset %08x %08x %d\n", offset, ret, width);
+                    DPRINTF("??? offset " TARGET_FMT_lx " %08x %d\n", offset, ret, width);
                     assert(0);
                     goto flash_read;
             }
-            DPRINTF("ID %u 0x%04x\n", offset, ret);
+            DPRINTF("ID " TARGET_FMT_ld " 0x%04x\n", offset, ret);
             break;
         case 0x10:
         case 0x30:
@@ -224,7 +224,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
             /* CFI query mode */
             if (boff < sizeof(pfl->cfi_table)) {
                 ret = pfl->cfi_table[boff];
-                DPRINTF("CFI 0x%02x 0x%02x\n", boff, ret);
+                DPRINTF("CFI 0x%02x 0x%02x\n", (unsigned)boff, ret);
             } else {
                 ret = 0;
             }
@@ -236,7 +236,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
             goto flash_read;
     }
 
-    DPRINTF("offset %08x %08x %d\n", offset, ret, width);
+    DPRINTF("offset " TARGET_FMT_lx " %08x %d\n", offset, ret, width);
     return ret;
 }
 
@@ -317,10 +317,10 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         offset -= pfl->base;
     }
 
-    DPRINTF("offset %08x %08x %d\n", offset, value, width);
+    DPRINTF("offset " TARGET_FMT_lx " %08x %d\n", offset, value, width);
 
     if (pfl->cmd == 0x40) {
-        DPRINTF("Single Byte Program offset %08x data %08x %d\n",
+        DPRINTF("Single Byte Program offset " TARGET_FMT_lx " data %08x %d\n",
                 offset, value, width);
         pflash_write_data(pfl->storage, offset, value, width);
         pflash_update(pfl, offset, width);
@@ -334,10 +334,10 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         goto reset_flash;
     } else if (cmd == 0x10 || cmd == 0x40) {
         pfl->cmd = 0x40;
-        DPRINTF("Single Byte Program (%04x %02x)\n", offset, cmd);
+        DPRINTF("Single Byte Program (%04x %02x)\n", (unsigned)offset, cmd);
         pflash_io_mode(pfl);
     } else if (cmd == 0x50) {
-        DPRINTF("Clear Status Register (%04x %02x)\n", offset, cmd);
+        DPRINTF("Clear Status Register (%04x %02x)\n", (unsigned)offset, cmd);
         pfl->status = 0x00;
         pflash_rom_mode(pfl);
     } else if (pfl->mode == rom_mode) {
@@ -347,7 +347,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         switch (cmd) {
             case 0x20:
             case 0x28:
-                DPRINTF("Block Erase started (%04x %02x)\n", boff, cmd);
+                DPRINTF("Block Erase started (%04x %02x)\n", (unsigned)boff, cmd);
                 pfl->cmd = 0x28;
                 //~ pfl->status |= 0x80;
                 break;
@@ -360,7 +360,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
                 pfl->cmd = cmd;
                 break;
             case 0x90:          /* Read JEDEC ID. */
-                DPRINTF("Read JEDEC ID (%04x %02x)\n", boff, cmd);
+                DPRINTF("Read JEDEC ID (%04x %02x)\n", (unsigned)boff, cmd);
                 pfl->cmd = cmd;
                 break;
             case 0x98:          /* Enter CFI query mode */
@@ -369,10 +369,11 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
                 break;
             case 0xb0:
                 DPRINTF("unimplemented Erase / Program Suspend / Resume (%04x %02x)\n",
-                        boff, cmd);
+                        (unsigned)boff, cmd);
                 return;
             case 0xe8:
-                DPRINTF("unimplemented Write to Buffer (%04x %02x)\n", boff, cmd);
+                DPRINTF("unimplemented Write to Buffer (%04x %02x)\n",
+                        (unsigned)boff, cmd);
                 return;
             default:
                 return;
@@ -380,7 +381,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         pflash_io_mode(pfl);
         return;
     } else if (pfl->cmd == 0x28 && cmd == 0xd0) {
-        DPRINTF("Block Erase confirmed (%08x %02x)\n", offset, cmd);
+        DPRINTF("Block Erase confirmed (" TARGET_FMT_lx " %02x)\n", offset, cmd);
         offset &= ~(sector_len - 1);
         memset(pfl->storage + offset, 0xFF, sector_len);
         pflash_update(pfl, offset, sector_len);
@@ -401,7 +402,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             pfl->cmd = cmd;
             pfl->status |= 0x80;
         } else {
-            DPRINTF("block lock bit failed %04x %02x\n", offset, cmd);
+            DPRINTF("block lock bit failed %04x %02x\n", (unsigned)offset, cmd);
             goto reset_flash;
         }
         pfl->cmd = cmd;
@@ -556,7 +557,8 @@ pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
     total_len = sector_len * nb_blocs;
 
     DPRINTF("flash size %u MiB (%u x %u bytes)\n",
-            total_len / MiB, total_len / width, width);
+            (unsigned)(total_len / MiB),
+            (unsigned)(total_len / width), width);
 
     /* XXX: to be fixed */
     if (total_len != (2 * MiB) && total_len != (4 * MiB) &&
