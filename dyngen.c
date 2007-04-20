@@ -1737,9 +1737,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				sym_name+1, sym_name);
 			continue;
 		    }
-#endif
-#if defined(__APPLE__)
-/* set __attribute((unused)) on darwin because we wan't to avoid warning when we don't use the symbol */
+#elif defined(__APPLE__)
+/* set __attribute((unused)) on darwin because we want to avoid warning when we don't use the symbol */
                     fprintf(outfile, "extern char %s __attribute__((unused));\n", sym_name);
 #elif defined(HOST_IA64)
 			if (ELF64_R_TYPE(rel->r_info) != R_IA64_PCREL21B)
@@ -2477,7 +2476,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #elif defined(HOST_MIPS)
             {
 #ifdef CONFIG_FORMAT_ELF
-#warning "relocation code for mips still missing"
+#warning "relocation code for mips still untested"
                 char name[256];
                 int type;
                 int addend;
@@ -2491,9 +2490,20 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         sym_name = get_rel_sym_name(rel);
                         reloc_offset = rel->r_offset - start_offset;
                         get_reloc_expr(name, sizeof(name), sym_name);
-                        addend = get32((uint32_t *)(text + rel->r_offset));
+                        //~ addend = get32((uint32_t *)(text + rel->r_offset));
+                        addend = rel->r_offset;
                         type = ELF32_R_TYPE(rel->r_info);
-                        printf("%d %s, type %d\n", i, sym_name, type);
+                        switch(type) {
+                        case R_MIPS_HI16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d) >> 16;\n", 
+                                    reloc_offset, name, addend);
+                        case R_MIPS_LO16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d);\n", 
+                                    reloc_offset, name, addend);
+                            break;
+                        default:
+                            printf("%d %s, type %d not relocated\n", i, sym_name, type);
+                        }
                     }
                 }
 #else

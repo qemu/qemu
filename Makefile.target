@@ -198,7 +198,7 @@ BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-OP_CFLAGS += -mno-abicalls -fno-pic -mabi=eabi
+#OP_CFLAGS += -mno-abicalls -fno-pic -mabi=eabi
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else

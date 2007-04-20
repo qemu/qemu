@@ -19,7 +19,7 @@
  */
 
 int __op_param1, __op_param2, __op_param3;
-#if defined(__sparc__) || defined(__arm__)
+#if defined(__sparc__) || defined(__arm__) || defined(HOST_MIPS)
   void __op_gen_label1(){}
   void __op_gen_label2(){}
   void __op_gen_label3(){}
@@ -28,25 +28,26 @@ int __op_param1, __op_param2, __op_param3;
 #endif
 int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
-#ifdef __i386__
+#if defined(__i386__)
+
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
 }
-#endif
 
-#ifdef __x86_64__
+#elif defined(__x86_64__)
+
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
 }
-#endif
 
-#ifdef __s390__
+#elif defined(__s390__)
+
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
 }
-#endif
 
-#ifdef __ia64__
+#elif defined(__ia64__)
+
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
     while (start < stop) {
@@ -55,9 +56,8 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
     }
     asm volatile (";;sync.i;;srlz.i;;");
 }
-#endif
 
-#ifdef __powerpc__
+#elif defined(__powerpc__)
 
 #define MIN_CACHE_LINE_SIZE 8 /* conservative value */
 
@@ -78,16 +78,15 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
 }
-#endif
 
-#ifdef __alpha__
+#elif defined(__alpha__)
+
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
     asm ("imb");
 }
-#endif
 
-#ifdef __sparc__
+#elif defined(__sparc__)
 
 static void inline flush_icache_range(unsigned long start, unsigned long stop)
 {
@@ -100,9 +99,8 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
 		__asm__ __volatile__("flush\t%0" : : "r" (p));
 }
 
-#endif
+#elif defined(__arm__)
 
-#ifdef __arm__
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
     register unsigned long _beg __asm ("a1") = start;
@@ -110,17 +108,16 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
     register unsigned long _flg __asm ("a3") = 0;
     __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 }
-#endif
 
-#ifdef __mc68000
+#elif defined(__mc68000)
+
 #include <asm/cachectl.h>
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
     cacheflush(start,FLUSH_SCOPE_LINE,FLUSH_CACHE_BOTH,stop-start+16);
 }
-#endif
 
-#ifdef __alpha__
+#elif defined(__alpha__)
 
 register int gp asm("$29");
 
@@ -141,9 +138,7 @@ void fix_bsr(void *p, int offset) {
     *dest |= (offset >> 2) & ((1 << 21) - 1);
 }
 
-#endif /* __alpha__ */
-
-#ifdef __arm__
+#elif defined(__arm__)
 
 #define ARM_LDR_TABLE_SIZE 1024
 
@@ -244,10 +239,7 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
     return gen_code_ptr;
 }
 
-#endif /* __arm__ */
-
-#ifdef __ia64
-
+#elif defined(__ia64)
 
 /* Patch instruction with "val" where "mask" has 1 bits. */
 static inline void ia64_patch (uint64_t insn_addr, uint64_t mask, uint64_t val)
@@ -461,5 +453,15 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 	gen_code_ptr += 8;
     *gen_code_pp = gen_code_ptr;
 }
+
+#elif defined(HOST_MIPS)
+
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+
+#else
+
+#error unsupported CPU
 
 #endif

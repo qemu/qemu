@@ -266,7 +266,7 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #define EXIT_TB() asm volatile ("rts")
 #elif defined(HOST_MIPS)
 #define EXIT_TB() asm volatile ("jr $31; nop")
-#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
+#define GOTO_LABEL_PARAM(n) asm volatile ("jal " ASM_NAME(__op_gen_label) #n)
 #else
 #error unsupported CPU
 #endif

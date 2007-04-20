@@ -353,7 +353,7 @@ extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
-#ifdef __powerpc__
+#if defined(__powerpc__)
 static inline int testandset (int *p)
 {
     int ret;
@@ -369,9 +369,7 @@ static inline int testandset (int *p)
                           : "cr0", "memory");
     return ret;
 }
-#endif
-
-#ifdef __i386__
+#elif defined(__i386__)
 static inline int testandset (int *p)
 {
     long int readval = 0;
@@ -382,9 +380,7 @@ static inline int testandset (int *p)
                           : "cc");
     return readval;
 }
-#endif
-
-#ifdef __x86_64__
+#elif defined(__x86_64__)
 static inline int testandset (int *p)
 {
     long int readval = 0;
@@ -395,9 +391,7 @@ static inline int testandset (int *p)
                           : "cc");
     return readval;
 }
-#endif
-
-#ifdef __s390__
+#elif defined(__s390__)
 static inline int testandset (int *p)
 {
     int ret;
@@ -409,9 +403,7 @@ static inline int testandset (int *p)
 			  : "cc", "memory" );
     return ret;
 }
-#endif
-
-#ifdef __alpha__
+#elif defined(__alpha__)
 static inline int testandset (int *p)
 {
     int ret;
@@ -428,9 +420,7 @@ static inline int testandset (int *p)
 			  : "m" (*p));
     return ret;
 }
-#endif
-
-#ifdef __sparc__
+#elif defined(__sparc__)
 static inline int testandset (int *p)
 {
 	int ret;
@@ -442,9 +432,7 @@ static inline int testandset (int *p)
 
 	return (ret ? 1 : 0);
 }
-#endif
-
-#ifdef __arm__
+#elif defined(__arm__)
 static inline int testandset (int *spinlock)
 {
     register unsigned int ret;
@@ -454,9 +442,7 @@ static inline int testandset (int *spinlock)
     
     return ret;
 }
-#endif
-
-#ifdef __mc68000
+#elif defined(__mc68000)
 static inline int testandset (int *p)
 {
     char ret;
@@ -466,15 +452,23 @@ static inline int testandset (int *p)
                          : "cc","memory");
     return ret;
 }
-#endif
-
-#ifdef __ia64
+#elif defined(__ia64)
 #include <ia64intrin.h>
 
 static inline int testandset (int *p)
 {
     return __sync_lock_test_and_set (p, 1);
 }
+#elif defined(HOST_MIPS)
+#warning testandset not atomic
+static inline int testandset (int *p)
+{
+    int oldval = *p;
+    *p = 1;
+    return oldval;
+}
+#else
+#error unimplemented CPU
 #endif
 
 typedef int spinlock_t;
