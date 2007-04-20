@@ -6146,6 +6146,9 @@ void main_loop_wait(int timeout)
     IOHandlerRecord *ioh;
     fd_set rfds, wfds, xfds;
     int ret, nfds;
+#ifdef _WIN32
+    int ret2, i;
+#endif
     struct timeval tv;
     PollingEntry *pe;
 
@@ -6156,7 +6159,7 @@ void main_loop_wait(int timeout)
         ret |= pe->func(pe->opaque);
     }
 #ifdef _WIN32
-    if (ret == 0 && timeout > 0) {
+    if (ret == 0) {
         int err;
         WaitObjects *w = &wait_objects;
         
@@ -6164,10 +6167,25 @@ void main_loop_wait(int timeout)
         if (WAIT_OBJECT_0 + 0 <= ret && ret <= WAIT_OBJECT_0 + w->num - 1) {
             if (w->func[ret - WAIT_OBJECT_0])
                 w->func[ret - WAIT_OBJECT_0](w->opaque[ret - WAIT_OBJECT_0]);
+                
+            /* Check for additional signaled events */ 
+            for(i = (ret - WAIT_OBJECT_0 + 1); i < w->num; i++) {
+                                
+                /* Check if event is signaled */
+                ret2 = WaitForSingleObject(w->events[i], 0);
+                if(ret2 == WAIT_OBJECT_0) {
+                    if (w->func[i])
+                        w->func[i](w->opaque[i]);
+                } else if (ret2 == WAIT_TIMEOUT) {
+                } else {
+                    err = GetLastError();
+                    fprintf(stderr, "WaitForSingleObject error %d %d\n", i, err);
+                }                
+            }                 
         } else if (ret == WAIT_TIMEOUT) {
         } else {
             err = GetLastError();
-            fprintf(stderr, "Wait error %d %d\n", ret, err);
+            fprintf(stderr, "WaitForMultipleObjects error %d %d\n", ret, err);
         }
     }
 #endif

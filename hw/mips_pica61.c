@@ -127,7 +127,7 @@ void mips_pica61_init (int ram_size, int vga_ram_size, int boot_device,
     /* PC style IRQ (i8259/i8254) and DMA (i8257) */
     /* The PIC is attached to the MIPS CPU INT0 pin */
     i8259 = i8259_init(env->irq[2]);
-    rtc_mm_init(0x80004070, i8259[14]);
+    rtc_mm_init(0x80004070, 1, i8259[14]);
     pit_init(0x40, 0);
 
     /* Keyboard (i8042) */

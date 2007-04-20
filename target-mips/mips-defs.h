@@ -10,7 +10,6 @@
 #define TARGET_PAGE_BITS 12
 /* Uses MIPS R4Kc TLB model */
 #define MIPS_USES_R4K_TLB
-#define MIPS_TLB_NB 16
 #define MIPS_TLB_MAX 128
 
 #ifdef TARGET_MIPS64
@@ -19,9 +18,9 @@
 #define TARGET_LONG_BITS 32
 #endif
 
-/* Strictly follow the architecture standard: Disallow "special"
-   instruction handling for PMON/SPIM, force cycle-dependent
-   Count/Compare maintenance. */
+/* Strictly follow the architecture standard:
+   - Disallow "special" instruction handling for PMON/SPIM.
+   Note that we still maintain Count/Compare to match the host clock. */
 //#define MIPS_STRICT_STANDARD 1
 
 #endif /* !defined (__QEMU_MIPS_DEFS_H__) */

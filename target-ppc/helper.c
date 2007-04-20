@@ -124,14 +124,14 @@ static int pte_check (mmu_ctx_t *ctx,
                 (rw == 1 && (access & PAGE_WRITE))) {
                 /* Access granted */
 #if defined (DEBUG_MMU)
-                if (loglevel > 0)
+                if (loglevel != 0)
                     fprintf(logfile, "PTE access granted !\n");
 #endif
                 ret = 0;
             } else {
                 /* Access right violation */
 #if defined (DEBUG_MMU)
-                if (loglevel > 0)
+                if (loglevel != 0)
                     fprintf(logfile, "PTE access rejected\n");
 #endif
                 ret = -2;
@@ -214,10 +214,10 @@ static inline void __ppc6xx_tlb_invalidate_virt (CPUState *env,
                                                  target_ulong eaddr,
                                                  int is_code, int match_epn)
 {
+#if !defined(FLUSH_ALL_TLBS)
     ppc6xx_tlb_t *tlb;
     int way, nr;
 
-#if !defined(FLUSH_ALL_TLBS)
     /* Invalidate ITLB + DTLB, all ways */
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way, is_code);
@@ -331,7 +331,7 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
     if (best != -1) {
     done:
 #if defined (DEBUG_SOFTWARE_TLB)
-        if (loglevel > 0) {
+        if (loglevel != 0) {
             fprintf(logfile, "found TLB at addr 0x%08lx prot=0x%01x ret=%d\n",
                     ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
         }
@@ -353,7 +353,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
     int ret = -1;
 
 #if defined (DEBUG_BATS)
-    if (loglevel > 0) {
+    if (loglevel != 0) {
         fprintf(logfile, "%s: %cBAT v 0x" ADDRX "\n", __func__,
                 type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
@@ -369,7 +369,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
         break;
     }
 #if defined (DEBUG_BATS)
-    if (loglevel > 0) {
+    if (loglevel != 0) {
         fprintf(logfile, "%s...: %cBAT v 0x" ADDRX "\n", __func__,
                 type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
@@ -382,7 +382,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
         BEPIl = *BATu & 0x0FFE0000;
         bl = (*BATu & 0x00001FFC) << 15;
 #if defined (DEBUG_BATS)
-        if (loglevel > 0) {
+        if (loglevel != 0) {
             fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX 
                     " BATl 0x" ADDRX "\n",
                     __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
@@ -403,8 +403,8 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
                 if (*BATl & 0x00000002)
                     ctx->prot = PAGE_WRITE | PAGE_READ;
 #if defined (DEBUG_BATS)
-                if (loglevel > 0) {
-                    fprintf(logfile, "BAT %d match: r 0x" ADDRX
+                if (loglevel != 0) {
+                    fprintf(logfile, "BAT %d match: r 0x" PADDRX
                             " prot=%c%c\n",
                             i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
                             ctx->prot & PAGE_WRITE ? 'W' : '-');
@@ -417,18 +417,20 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
     }
     if (ret < 0) {
 #if defined (DEBUG_BATS)
-        printf("no BAT match for 0x" ADDRX ":\n", virtual);
-        for (i = 0; i < 4; i++) {
-            BATu = &BATut[i];
-            BATl = &BATlt[i];
-            BEPIu = *BATu & 0xF0000000;
-            BEPIl = *BATu & 0x0FFE0000;
-            bl = (*BATu & 0x00001FFC) << 15;
-            printf("%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX
-                   " BATl 0x" ADDRX " \n\t"
-                   "0x" ADDRX " 0x" ADDRX " 0x" ADDRX "\n",
-                   __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
-                   *BATu, *BATl, BEPIu, BEPIl, bl);
+        if (loglevel != 0) {
+            fprintf(logfile, "no BAT match for 0x" ADDRX ":\n", virtual);
+            for (i = 0; i < 4; i++) {
+                BATu = &BATut[i];
+                BATl = &BATlt[i];
+                BEPIu = *BATu & 0xF0000000;
+                BEPIl = *BATu & 0x0FFE0000;
+                bl = (*BATu & 0x00001FFC) << 15;
+                fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX
+                        " BATl 0x" ADDRX " \n\t"
+                        "0x" ADDRX " 0x" ADDRX " 0x" ADDRX "\n",
+                        __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
+                        *BATu, *BATl, BEPIu, BEPIl, bl);
+            }
         }
 #endif
     }
@@ -483,8 +485,8 @@ static int find_pte (mmu_ctx_t *ctx, int h, int rw)
     if (good != -1) {
     done:
 #if defined (DEBUG_MMU)
-        if (loglevel > 0) {
-            fprintf(logfile, "found PTE at addr 0x" ADDRX " prot=0x%01x "
+        if (loglevel != 0) {
+            fprintf(logfile, "found PTE at addr 0x" PADDRX " prot=0x%01x "
                     "ret=%d\n",
                     ctx->raddr, ctx->prot, ret);
         }
@@ -551,10 +553,11 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
             } else {
 #if defined (DEBUG_MMU)
-                if (loglevel > 0) {
-                    fprintf(logfile, "0 sdr1=0x" ADDRX " vsid=0x%06x "
-                            "api=0x%04x hash=0x%07x pg_addr=0x" ADDRX "\n",
-                            sdr, vsid, pgidx, hash, ctx->pg_addr[0]);
+                if (loglevel != 0) {
+                    fprintf(logfile, "0 sdr1=0x" PADDRX " vsid=0x%06x "
+                            "api=0x%04x hash=0x%07x pg_addr=0x" PADDRX "\n",
+                            sdr, (uint32_t)vsid, (uint32_t)pgidx,
+                            (uint32_t)hash, ctx->pg_addr[0]);
                 }
 #endif
                 /* Primary table lookup */
@@ -562,11 +565,12 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 if (ret < 0) {
                     /* Secondary table lookup */
 #if defined (DEBUG_MMU)
-                    if (eaddr != 0xEFFFFFFF && loglevel > 0) {
+                    if (eaddr != 0xEFFFFFFF && loglevel != 0) {
                         fprintf(logfile,
-                                "1 sdr1=0x" ADDRX " vsid=0x%06x api=0x%04x "
-                                "hash=0x%05x pg_addr=0x" ADDRX "\n",
-                                sdr, vsid, pgidx, hash, ctx->pg_addr[1]);
+                                "1 sdr1=0x" PADDRX " vsid=0x%06x api=0x%04x "
+                                "hash=0x%05x pg_addr=0x" PADDRX "\n",
+                                sdr, (uint32_t)vsid, (uint32_t)pgidx,
+                                (uint32_t)hash, ctx->pg_addr[1]);
                     }
 #endif
                     ret2 = find_pte(ctx, 1, rw);
@@ -576,14 +580,14 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
             }
         } else {
 #if defined (DEBUG_MMU)
-            if (loglevel > 0)
+            if (loglevel != 0)
                 fprintf(logfile, "No access allowed\n");
 #endif
             ret = -3;
         }
     } else {
 #if defined (DEBUG_MMU)
-        if (loglevel > 0)
+        if (loglevel != 0)
             fprintf(logfile, "direct store...\n");
 #endif
         /* Direct-store segment : absolutely *BUGGY* for now */
@@ -615,8 +619,6 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 fprintf(logfile, "ERROR: instruction should not need "
                         "address translation\n");
             }
-            printf("ERROR: instruction should not need "
-                   "address translation\n");
             return -4;
         }
         if ((rw == 1 || ctx->key != 1) && (rw == 0 || ctx->key != 0)) {
@@ -663,12 +665,12 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         tlb = &env->tlb[i].tlbe;
         /* Check valid flag */
         if (!(tlb->prot & PAGE_VALID)) {
-            if (loglevel)
+            if (loglevel != 0)
                 fprintf(logfile, "%s: TLB %d not valid\n", __func__, i);
             continue;
         }
         mask = ~(tlb->size - 1);
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
                     ADDRX " " ADDRX " %d\n",
                     __func__, i, address, (int)env->spr[SPR_40x_PID],
@@ -683,7 +685,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         raddr = (tlb->RPN & mask) | (address & ~mask);
         zsel = (tlb->attr >> 4) & 0xF;
         zpr = (env->spr[SPR_40x_ZPR] >> (28 - (2 * zsel))) & 0x3;
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "%s: TLB %d zsel %d zpr %d rw %d attr %08x\n",
                     __func__, i, zsel, zpr, rw, tlb->attr);
         }
@@ -750,7 +752,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         }
         if (ret >= 0) {
             ctx->raddr = raddr;
-            if (loglevel) {
+            if (loglevel != 0) {
                 fprintf(logfile, "%s: access granted " ADDRX " => " REGX
                         " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
                         ret);
@@ -758,7 +760,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             return 0;
         }
     }
-    if (loglevel) {
+    if (loglevel != 0) {
         fprintf(logfile, "%s: access refused " ADDRX " => " REGX
                 " %d %d\n", __func__, address, raddr, ctx->prot,
                 ret);
@@ -808,7 +810,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
 {
     int ret;
 #if 0
-    if (loglevel > 0) {
+    if (loglevel != 0) {
         fprintf(logfile, "%s\n", __func__);
     }
 #endif
@@ -857,8 +859,8 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         }
     }
 #if 0
-    if (loglevel > 0) {
-        fprintf(logfile, "%s address " ADDRX " => %d " ADDRX "\n",
+    if (loglevel != 0) {
+        fprintf(logfile, "%s address " ADDRX " => %d " PADDRX "\n",
                 __func__, eaddr, ret, ctx->raddr);
     }
 #endif
@@ -903,7 +905,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                            is_user, is_softmmu);
     } else if (ret < 0) {
 #if defined (DEBUG_MMU)
-        if (loglevel > 0)
+        if (loglevel != 0)
             cpu_dump_state(env, logfile, fprintf, 0);
 #endif
         if (access_type == ACCESS_CODE) {
@@ -1564,7 +1566,7 @@ void do_interrupt (CPUState *env)
         idx = 2;
         msr &= ~0xFFFF0000;
 #if defined (DEBUG_EXCEPTIONS)
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "DSI exception: DSISR=0x" ADDRX" DAR=0x" ADDRX
                     "\n", env->spr[SPR_DSISR], env->spr[SPR_DAR]);
         }
@@ -1609,7 +1611,7 @@ void do_interrupt (CPUState *env)
         case EXCP_FP:
             if (msr_fe0 == 0 && msr_fe1 == 0) {
 #if defined (DEBUG_EXCEPTIONS)
-                if (loglevel) {
+                if (loglevel != 0) {
                     fprintf(logfile, "Ignore floating point exception\n");
                 }
 #endif
@@ -1625,7 +1627,7 @@ void do_interrupt (CPUState *env)
             break;
         case EXCP_INVAL:
 #if defined (DEBUG_EXCEPTIONS)
-            if (loglevel) {
+            if (loglevel != 0) {
                 fprintf(logfile, "Invalid instruction at 0x" ADDRX "\n",
                         env->nip);
             }
@@ -1836,7 +1838,7 @@ void do_interrupt (CPUState *env)
                     cmp = &env->spr[SPR_DCMP];
                 }
                 fprintf(logfile, "6xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
-                        " H1 " ADDRX " H2 " ADDRX " " ADDRX "\n",
+                        " H1 " ADDRX " H2 " ADDRX " %08x\n",
                         es, en, *miss, en, *cmp,
                         env->spr[SPR_HASH1], env->spr[SPR_HASH2],
                         env->error_code);
@@ -2153,7 +2155,21 @@ void cpu_dump_EA (target_ulong EA)
         f = stdout;
         return;
     }
-    fprintf(f, "Memory access at address " TARGET_FMT_lx "\n", EA);
+    fprintf(f, "Memory access at address " ADDRX "\n", EA);
+}
+
+void cpu_dump_rfi (target_ulong RA, target_ulong msr)
+{
+    FILE *f;
+
+    if (logfile) {
+        f = logfile;
+    } else {
+        f = stdout;
+        return;
+    }
+    fprintf(f, "Return from exception at " ADDRX " with flags " ADDRX "\n",
+            RA, msr);
 }
 
 void cpu_ppc_reset (void *opaque)

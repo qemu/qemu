@@ -671,7 +671,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 #endif
         {
             /* XXX: load them when cr3 is loaded ? */
-            pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 30) << 3)) & 
+            pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) & 
                 env->a20_mask;
             pdpe = ldq_phys(pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
@@ -766,7 +766,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         uint32_t pde;
 
         /* page directory entry */
-        pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & 
+        pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) & 
             env->a20_mask;
         pde = ldl_phys(pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
@@ -911,7 +911,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
         } else 
 #endif
         {
-            pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 30) << 3)) & 
+            pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) & 
                 env->a20_mask;
             pdpe = ldl_phys(pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
@@ -941,7 +941,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
             page_size = 4096;
         } else {
             /* page directory entry */
-            pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & env->a20_mask;
+            pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) & env->a20_mask;
             pde = ldl_phys(pde_addr);
             if (!(pde & PG_PRESENT_MASK)) 
                 return -1;

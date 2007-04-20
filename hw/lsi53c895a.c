@@ -1434,10 +1434,13 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         if (val & LSI_ISTAT0_SRST) {
             lsi_soft_reset(s);
         }
+        break;
     case 0x16: /* MBOX0 */
         s->mbox0 = val;
+        break;
     case 0x17: /* MBOX1 */
         s->mbox1 = val;
+        break;
     case 0x1b: /* CTEST3 */
         s->ctest3 = val & 0x0f;
         break;

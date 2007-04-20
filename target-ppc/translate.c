@@ -3025,7 +3025,7 @@ static inline void gen_op_mfspr (DisasContext *ctx)
             gen_op_store_T0_gpr(rD(ctx->opcode));
         } else {
             /* Privilege exception */
-            if (loglevel) {
+            if (loglevel != 0) {
                 fprintf(logfile, "Trying to read priviledged spr %d %03x\n",
                         sprn, sprn);
             }
@@ -3034,7 +3034,7 @@ static inline void gen_op_mfspr (DisasContext *ctx)
         }
     } else {
         /* Not defined */
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "Trying to read invalid spr %d %03x\n",
                     sprn, sprn);
         }
@@ -3131,7 +3131,7 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
             (*write_cb)(ctx, sprn);
         } else {
             /* Privilege exception */
-            if (loglevel) {
+            if (loglevel != 0) {
                 fprintf(logfile, "Trying to write priviledged spr %d %03x\n",
                         sprn, sprn);
             }
@@ -3140,7 +3140,7 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         }
     } else {
         /* Not defined */
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "Trying to write invalid spr %d %03x\n",
                     sprn, sprn);
         }
@@ -3378,7 +3378,7 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA)
     RET_PRIVOPC(ctx);
 #else
     if (unlikely(!ctx->supervisor)) {
-        if (loglevel)
+        if (loglevel != 0)
             fprintf(logfile, "%s: ! supervisor\n", __func__);
         RET_PRIVOPC(ctx);
         return;
@@ -3434,7 +3434,7 @@ GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI)
     RET_PRIVOPC(ctx);
 #else
     if (unlikely(!ctx->supervisor)) {
-        if (loglevel)
+        if (loglevel != 0)
             fprintf(logfile, "%s: ! supervisor\n", __func__);
         RET_PRIVOPC(ctx);
         return;
@@ -5803,7 +5803,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         }
         /* Is opcode *REALLY* valid ? */
         if (unlikely(handler->handler == &gen_invalid)) {
-            if (loglevel > 0) {
+            if (loglevel != 0) {
                 fprintf(logfile, "invalid/unsupported opcode: "
                         "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                         opc1(ctx.opcode), opc2(ctx.opcode),
@@ -5816,7 +5816,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
             }
         } else {
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
-                if (loglevel > 0) {
+                if (loglevel != 0) {
                     fprintf(logfile, "invalid bits: %08x for opcode: "
                             "%02x -%02x - %02x (%08x) 0x" ADDRX "\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),

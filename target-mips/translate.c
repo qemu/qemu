@@ -5435,10 +5435,6 @@ void cpu_reset (CPUMIPSState *env)
     }
     env->hflags = 0;
     env->PC = (int32_t)0xBFC00000;
-#if defined (MIPS_USES_R4K_TLB)
-    env->CP0_Random = MIPS_TLB_NB - 1;
-    env->tlb_in_use = MIPS_TLB_NB;
-#endif
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;

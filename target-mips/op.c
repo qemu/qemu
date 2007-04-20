@@ -1270,7 +1270,7 @@ void op_mfc0_desave (void)
 
 void op_mtc0_index (void)
 {
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (MIPS_TLB_NB - 1));
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 % env->nb_tlb);
     RETURN();
 }
 
@@ -1314,7 +1314,7 @@ void op_mtc0_pagegrain (void)
 
 void op_mtc0_wired (void)
 {
-    env->CP0_Wired = T0 & (MIPS_TLB_NB - 1);
+    env->CP0_Wired = T0 % env->nb_tlb;
     RETURN();
 }
 

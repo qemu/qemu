@@ -1,3 +1,101 @@
+2007-04-20 21:35  blueswir1
+
+	* hw/slavio_serial.c: Fix keyboard serial and mouse bugs
+
+2007-04-19 18:35  ths
+
+	* target-mips/mips-defs.h: Update comment. We can't easily adhere
+	  to the architecture spec because it would involve counting the
+	  actually executed instructions.
+
+2007-04-19 17:38  ths
+
+	* hw/mips_malta.c: More Gallileo register initialization, by
+	  Aurelien Jarno and Stefan Weil.
+
+2007-04-19 10:42  j_mayer
+
+	* vl.h, hw/ppc405.h, hw/ppc_chrp.c, hw/ppc_prep.c,
+	  target-ppc/helper.c, target-ppc/translate.c: No functional
+	  changes: - compilation warning fixes - make loglevel tests
+	  consistent - use cpu_abort instead of printf(...); exit
+
+2007-04-19 09:17  j_mayer
+
+	* linux-user/: ppc/termbits.h, ppc64/termbits.h: termios structure
+	  definition fix by Stuart Anderson.
+
+2007-04-19 09:16  j_mayer
+
+	* target-ppc/translate_init.c: Duplicated SPR fix for BookE PowerPC
+	  by Guglielmo Morandin
+
+2007-04-18 21:21  blueswir1
+
+	* hw/slavio_serial.c: Fix keyboard detection bugs
+
+2007-04-18 20:11  ths
+
+	* vl.c: Fix compiler warning.
+
+2007-04-18 19:56  ths
+
+	* vl.c: Win32 Tap inferface PPC Guest issue, by Ely Soto.
+
+2007-04-18 13:15  ths
+
+	* target-i386/helper.c: Revert, this is already fixed in a better
+	  way.
+
+2007-04-18 01:53  ths
+
+	* hw/lsi53c895a.c: Another lsi53c895a patch, by Wang Cheng Yeh.
+
+2007-04-18 01:25  ths
+
+	* target-i386/helper.c: Fix helper.c with isinf on Solaris 9/Sparc,
+	  by Ben Taylor.
+
+2007-04-18 01:08  ths
+
+	* target-i386/helper2.c: Ptable calculation broken for 32bit code
+	  under x86_64, by Bernhard Kauer.
+
+2007-04-17 23:57  ths
+
+	* fpu/softfloat-native.h: Updated Solaris isinf  support, by
+	  Juergen Keil and Ben Taylor.
+
+2007-04-17 21:42  blueswir1
+
+	* hw/tcx.c: TCX palette bug fix
+
+2007-04-17 18:28  ths
+
+	* vl.h, hw/mc146818rtc.c, hw/mips_pica61.c: Fix mmapped register
+	  alignment and endianness handling.
+
+2007-04-17 17:26  ths
+
+	* hw/mips_timer.c, target-mips/cpu.h, target-mips/mips-defs.h,
+	  target-mips/op.c, target-mips/op_helper.c,
+	  target-mips/translate.c, target-mips/translate_init.c: Choose
+	  number of TLBs at runtime, by Herve Poussineau.
+
+2007-04-17 04:50  j_mayer
+
+	* vl.h, hw/ppc405.h, hw/ppc405_uc.c, target-ppc/translate_init.c:
+	  Move PowerPC 405 specific definitions into a separate file
+	  Preliminary code for -kernel option support for PowerPC 405
+	  boards Fix DBSR in case of PowerPC 405 chip reset Add enums for
+	  PowerPC 405 clocks.  Fix IRQ numbers (IBM reversed bits
+	  numbering...) Fix SPRG4-7 read access right Fix MSR mask in CPU
+	  definitions
+
+2007-04-17 00:47  ths
+
+	* hw/pckbd.c: Support it_shift for mmapped pckbd.
+
 2007-04-16 22:09  j_mayer
 
 	* Makefile.target, vl.h, hw/ppc.c, hw/ppc405_uc.c,

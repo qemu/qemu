@@ -7,8 +7,8 @@ struct target_termios {
     unsigned int c_oflag;               /* output mode flags */
     unsigned int c_cflag;               /* control mode flags */
     unsigned int c_lflag;               /* local mode flags */
-    unsigned char c_line;                    /* line discipline */
     unsigned char c_cc[TARGET_NCCS];                /* control characters */
+    unsigned char c_line;                    /* line discipline */
     unsigned int c_ispeed;		/* input speed */
     unsigned int c_ospeed;		/* output speed */
 };

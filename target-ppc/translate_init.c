@@ -53,6 +53,17 @@ PPC_IRQ_INIT_FN(970);
 /* Generic callbacks:
  * do nothing but store/retrieve spr value
  */
+#ifdef PPC_DUMP_SPR_ACCESSES
+static void spr_read_generic (void *opaque, int sprn)
+{
+    gen_op_load_dump_spr(sprn);
+}
+
+static void spr_write_generic (void *opaque, int sprn)
+{
+    gen_op_store_dump_spr(sprn);
+}
+#else
 static void spr_read_generic (void *opaque, int sprn)
 {
     gen_op_load_spr(sprn);
@@ -62,16 +73,7 @@ static void spr_write_generic (void *opaque, int sprn)
 {
     gen_op_store_spr(sprn);
 }
-
-static void spr_read_dump (void *opaque, int sprn)
-{
-    gen_op_load_dump_spr(sprn);
-}
-
-static void spr_write_dump (void *opaque, int sprn)
-{
-    gen_op_store_dump_spr(sprn);
-}
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 static void spr_write_clear (void *opaque, int sprn)
@@ -1199,10 +1201,6 @@ static void gen_spr_BookE (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Exception vectors */
-    spr_register(env, SPR_BOOKE_IVPR, "IVPR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     spr_register(env, SPR_BOOKE_IVOR0, "IVOR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -1730,7 +1728,7 @@ static void gen_spr_405 (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_SPRG4, "SPRG4",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_USPRG4, "USPRG4",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -1738,7 +1736,7 @@ static void gen_spr_405 (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_SPRG5, "SPRG5",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
+                 spr_read_generic, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_USPRG5, "USPRG5",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -1746,7 +1744,7 @@ static void gen_spr_405 (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_SPRG6, "SPRG6",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
+                 spr_read_generic, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_USPRG6, "USPRG6",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -1754,7 +1752,7 @@ static void gen_spr_405 (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_SPRG7, "SPRG7",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
+                 spr_read_generic, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_USPRG7, "USPRG7",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -2756,7 +2754,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFF00,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
-        .msr_mask    = 0x000000000007D23D,
+        .msr_mask    = 0x000000000007D23DULL,
     },
 #endif
 #if defined (TODO)
@@ -2767,7 +2765,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFF00,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
-        .msr_mask    = 0x000000000007D23D,
+        .msr_mask    = 0x000000000007D23DULL,
     },
 #endif
 #if defined (TODO)
@@ -2778,7 +2776,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFF00,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
-        .msr_mask    = 0x000000000007D23D,
+        .msr_mask    = 0x000000000007D23DULL,
     },
 #endif
 #if defined (TODO)
@@ -2789,7 +2787,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFF00,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
-        .msr_mask    = 0x000000000007D23D,
+        .msr_mask    = 0x000000000007D23DULL,
     },
 #endif
 #if defined (TODO)
@@ -2800,7 +2798,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFF00,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
-        .msr_mask    = 0x000000000007D23D,
+        .msr_mask    = 0x000000000007D23DULL,
     },
 #endif
     /* Generic PowerPC 405 */
@@ -2810,7 +2808,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
     /* PowerPC 405 CR */
     {
@@ -2819,7 +2817,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #if defined (TODO)
     /* PowerPC 405 GP */
@@ -2829,7 +2827,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
     /* PowerPC 405 EP */
@@ -2839,7 +2837,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #if defined (TODO)
     /* PowerPC 405 EZ */
@@ -2849,7 +2847,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2860,10 +2858,9 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-#if defined (TODO)
     /* PowerPC 405 D2 */
     {
         .name        = "405d2",
@@ -2871,10 +2868,8 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 405 D4 */
     {
         .name        = "405d4",
@@ -2882,9 +2877,8 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
-#endif
 #if defined (TODO)
     /* Npe405 H */
     {
@@ -2893,7 +2887,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
             .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2904,7 +2898,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2915,7 +2909,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2926,7 +2920,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2937,10 +2931,10 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-#if defined (TODO) || 1
+#if defined (TODO)
     /* STB03xx */
     {
         .name        = "STB03",
@@ -2948,7 +2942,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2959,7 +2953,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2970,10 +2964,10 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-#if defined (TODO) || 1
+#if defined (TODO)
     /* STB25xx */
     {
         .name        = "STB25",
@@ -2981,7 +2975,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -2992,7 +2986,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
         /* Xilinx PowerPC 405 cores */
@@ -3003,7 +2997,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
     {
         .name        = "x2vp7",
@@ -3011,7 +3005,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
     {
         .name        = "x2vp20",
@@ -3019,7 +3013,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
     {
         .name        = "x2vp50",
@@ -3027,7 +3021,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30,
+        .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
 #if defined (TODO)
@@ -3038,7 +3032,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3049,7 +3043,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3060,7 +3054,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFF00,
         .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3071,7 +3065,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3082,7 +3076,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3093,7 +3087,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3104,7 +3098,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3115,7 +3109,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
 #if defined (TODO)
@@ -3126,7 +3120,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_440,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
     /* Fake generic BookE PowerPC */
@@ -3136,7 +3130,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_BOOKE,
         .flags       = PPC_FLAGS_BOOKE,
-        .msr_mask    = 0x000000000006D630,
+        .msr_mask    = 0x000000000006D630ULL,
     },
     /* PowerPC 460 cores - TODO */
     /* PowerPC MPC 5xx cores - TODO */
@@ -3155,7 +3149,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_601,
         .flags       = PPC_FLAGS_601,
-        .msr_mask    = 0x000000000000FD70,
+        .msr_mask    = 0x000000000000FD70ULL,
     },
 #endif
 #if defined (TODO)
@@ -3166,7 +3160,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_602,
         .flags       = PPC_FLAGS_602,
-        .msr_mask    = 0x0000000000C7FF73,
+        .msr_mask    = 0x0000000000C7FF73ULL,
     },
 #endif
     /* PowerPC 603 */
@@ -3176,7 +3170,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     /* PowerPC 603e */
     {
@@ -3185,7 +3179,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     {
         .name        = "Stretch",
@@ -3193,7 +3187,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     /* PowerPC 603p */
     {
@@ -3202,7 +3196,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     /* PowerPC 603e7 */
     {
@@ -3211,7 +3205,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     /* PowerPC 603e7v */
     {
@@ -3220,7 +3214,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     /* PowerPC 603e7v2 */
     {
@@ -3229,7 +3223,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     /* PowerPC 603r */
     {
@@ -3238,7 +3232,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
     {
         .name        = "Goldeneye",
@@ -3246,7 +3240,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_603,
         .flags       = PPC_FLAGS_603,
-        .msr_mask    = 0x000000000007FF73,
+        .msr_mask    = 0x000000000007FF73ULL,
     },
 #if defined (TODO)
     /* XXX: TODO: according to Motorola UM, this is a derivative to 603e */
@@ -3256,7 +3250,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000006FFF2,
+        .msr_mask    = 0x000000000006FFF2ULL,
     },
     {
         .name        = "G2h4",
@@ -3264,7 +3258,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000006FFF2,
+        .msr_mask    = 0x000000000006FFF2ULL,
     },
     {
         .name        = "G2gp",
@@ -3272,7 +3266,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000006FFF2,
+        .msr_mask    = 0x000000000006FFF2ULL,
     },
     {
         .name        = "G2ls",
@@ -3280,7 +3274,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000006FFF2,
+        .msr_mask    = 0x000000000006FFF2ULL,
     },
     { /* Same as G2, with LE mode support */
         .name        = "G2le",
@@ -3288,7 +3282,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000007FFF3,
+        .msr_mask    = 0x000000000007FFF3ULL,
     },
     {
         .name        = "G2legp",
@@ -3296,7 +3290,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000007FFF3,
+        .msr_mask    = 0x000000000007FFF3ULL,
     },
     {
         .name        = "G2lels",
@@ -3304,7 +3298,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
-        .msr_mask    = 0x000000000007FFF3,
+        .msr_mask    = 0x000000000007FFF3ULL,
     },
 #endif
     /* PowerPC 604 */
@@ -3314,7 +3308,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_604,
         .flags       = PPC_FLAGS_604,
-        .msr_mask    = 0x000000000005FF77,
+        .msr_mask    = 0x000000000005FF77ULL,
     },
     /* PowerPC 604e */
     {
@@ -3323,7 +3317,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_604,
         .flags       = PPC_FLAGS_604,
-        .msr_mask    = 0x000000000005FF77,
+        .msr_mask    = 0x000000000005FF77ULL,
     },
     /* PowerPC 604r */
     {
@@ -3332,7 +3326,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_604,
         .flags       = PPC_FLAGS_604,
-        .msr_mask    = 0x000000000005FF77,
+        .msr_mask    = 0x000000000005FF77ULL,
     },
     /* generic G3 */
     {
@@ -3341,7 +3335,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
     /* MPC740 (G3) */
     {
@@ -3350,7 +3344,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
     {
         .name        = "Arthur",
@@ -3358,7 +3352,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #if defined (TODO)
     /* MPC745 (G3) */
@@ -3368,7 +3362,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFF000,
         .insns_flags = PPC_INSNS_7x5,
         .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
     {
         .name        = "Goldfinger",
@@ -3376,7 +3370,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFF000,
         .insns_flags = PPC_INSNS_7x5,
         .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #endif
     /* MPC750 (G3) */
@@ -3386,7 +3380,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #if defined (TODO)
     /* MPC755 (G3) */
@@ -3396,7 +3390,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFF000,
         .insns_flags = PPC_INSNS_7x5,
         .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #endif
     /* MPC740P (G3) */
@@ -3406,7 +3400,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
     {
         .name        = "Conan/Doyle",
@@ -3414,7 +3408,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #if defined (TODO)
     /* MPC745P (G3) */
@@ -3424,7 +3418,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFF000,
         .insns_flags = PPC_INSNS_7x5,
         .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #endif
     /* MPC750P (G3) */
@@ -3434,7 +3428,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #if defined (TODO)
     /* MPC755P (G3) */
@@ -3444,7 +3438,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFF000,
         .insns_flags = PPC_INSNS_7x5,
         .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #endif
     /* IBM 750CXe (G3 embedded) */
@@ -3454,7 +3448,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
     /* IBM 750FX (G3 embedded) */
     {
@@ -3463,7 +3457,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
     /* IBM 750GX (G3 embedded) */
     {
@@ -3472,7 +3466,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
-        .msr_mask    = 0x000000000007FF77,
+        .msr_mask    = 0x000000000007FF77ULL,
     },
 #if defined (TODO)
     /* generic G4 */
@@ -3482,7 +3476,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
 #if defined (TODO)
@@ -3493,7 +3487,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
     {
         .name        = "Max",
@@ -3501,7 +3495,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
 #if defined (TODO)
@@ -3512,7 +3506,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
     {
         .name        = "Nitro",
@@ -3520,7 +3514,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
     /* XXX: 7441 */
@@ -3535,7 +3529,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
     {
         .name        = "Vger",
@@ -3543,7 +3537,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
     /* XXX: 7451 */
@@ -3555,7 +3549,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
     {
         .name        = "Apollo 6",
@@ -3563,7 +3557,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
 #if defined (TODO)
@@ -3574,7 +3568,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
     {
         .name        = "Apollo 7",
@@ -3582,7 +3576,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
 #if defined (TODO)
@@ -3593,7 +3587,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
     {
         .name        = "Apollo 7 PM",
@@ -3601,7 +3595,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
-        .msr_mask    = 0x000000000205FF77,
+        .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
     /* 64 bits PowerPC */
@@ -3614,7 +3608,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_620,
         .flags       = PPC_FLAGS_620,
-        .msr_mask    = 0x800000000005FF73,
+        .msr_mask    = 0x800000000005FF73ULL,
     },
 #endif
 #if defined (TODO)
@@ -3699,7 +3693,7 @@ static ppc_def_t ppc_defs[] = {
         .msr_mask    = xxx,
     },
 #endif
-#if defined (TODO) || 1
+#if defined (TODO)
     /* PowerPC 970 */
     {
         .name        = "970",
@@ -3707,7 +3701,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_970,
         .flags       = PPC_FLAGS_970,
-        .msr_mask    = 0x900000000204FF36,
+        .msr_mask    = 0x900000000204FF36ULL,
     },
 #endif
 #if defined (TODO)
@@ -3718,7 +3712,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_970FX,
         .flags       = PPC_FLAGS_970FX,
-        .msr_mask    = 0x800000000204FF36,
+        .msr_mask    = 0x800000000204FF36ULL,
     },
 #endif
 #if defined (TODO)
@@ -3857,14 +3851,14 @@ static ppc_def_t ppc_defs[] = {
     },
 #endif
     /* Generic PowerPCs */
-#if defined (TODO) || 1
+#if defined (TODO)
     {
         .name        = "ppc64",
         .pvr         = CPU_PPC_970,
         .pvr_mask    = 0xFFFF0000,
         .insns_flags = PPC_INSNS_PPC64,
         .flags       = PPC_FLAGS_PPC64,
-        .msr_mask    = 0xA00000000204FF36,
+        .msr_mask    = 0xA00000000204FF36ULL,
     },
 #endif
     {
@@ -3873,7 +3867,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_PPC32,
         .flags       = PPC_FLAGS_PPC32,
-        .msr_mask    = 0x000000000005FF77,
+        .msr_mask    = 0x000000000005FF77ULL,
     },
     /* Fallback */
     {
@@ -3882,7 +3876,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_PPC32,
         .flags       = PPC_FLAGS_PPC32,
-        .msr_mask    = 0x000000000005FF77,
+        .msr_mask    = 0x000000000005FF77ULL,
     },
 };
 
