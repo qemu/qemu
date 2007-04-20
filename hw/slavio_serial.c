@@ -222,8 +222,6 @@ static inline void clr_rxint(ChannelState *s)
     }
     if (s->txint)
         set_txint(s);
-    else
-        s->rregs[2] = 6;
     slavio_serial_update_irq(s);
 }
 
@@ -237,30 +235,39 @@ static inline void set_rxint(ChannelState *s)
                 s->otherchn->rregs[2] = 0x30;
             else
                 s->otherchn->rregs[2] = 0x0c;
-            s->rregs[3] |= 0x20;
         } else {
             if (s->wregs[9] & 0x10)
                 s->rregs[2] = 0x20;
             else
                 s->rregs[2] = 0x04;
-            s->otherchn->rregs[3] |= 4;
         }
-        slavio_serial_update_irq(s);
     }
+    if (s->chn == chn_a)
+        s->rregs[3] |= 0x20;
+    else
+        s->otherchn->rregs[3] |= 4;
+    slavio_serial_update_irq(s);
 }
 
 static inline void clr_txint(ChannelState *s)
 {
     s->txint = 0;
     s->txint_under_svc = 0;
-    if (s->chn == chn_a)
+    if (s->chn == chn_a) {
+        if (s->wregs[9] & 0x10)
+            s->otherchn->rregs[2] = 0x60;
+        else
+            s->otherchn->rregs[2] = 0x06;
         s->rregs[3] &= ~0x10;
-    else
+    } else {
+        if (s->wregs[9] & 0x10)
+            s->rregs[2] = 0x60;
+        else
+            s->rregs[2] = 0x06;
         s->otherchn->rregs[3] &= ~2;
+    }
     if (s->rxint)
         set_rxint(s);
-    else
-        s->rregs[2] = 6;
     slavio_serial_update_irq(s);
 }
 
@@ -269,13 +276,20 @@ static inline void set_txint(ChannelState *s)
     s->txint = 1;
     if (!s->rxint_under_svc) {
         s->txint_under_svc = 1;
-        if (s->chn == chn_a)
-            s->rregs[3] |= 0x10;
-        else
-            s->otherchn->rregs[3] |= 2;
-        s->rregs[2] = 0;
-        slavio_serial_update_irq(s);
+        if (s->chn == chn_a) {
+            if (s->wregs[9] & 0x10)
+                s->otherchn->rregs[2] = 0x10;
+            else
+                s->otherchn->rregs[2] = 0x08;
+        } else {
+            s->rregs[2] = 0;
+        }
     }
+    if (s->chn == chn_a)
+        s->rregs[3] |= 0x10;
+    else
+        s->otherchn->rregs[3] |= 2;
+    slavio_serial_update_irq(s);
 }
 
 static void slavio_serial_update_parameters(ChannelState *s)
