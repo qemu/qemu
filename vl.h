@@ -889,7 +889,11 @@ extern struct soundhw soundhw[];
 
 /* vga.c */
 
+#ifndef TARGET_SPARC
 #define VGA_RAM_SIZE (8192 * 1024)
+#else
+#define VGA_RAM_SIZE (9 * 1024 * 1024)
+#endif
 
 struct DisplayState {
     uint8_t *data;
@@ -1206,7 +1210,8 @@ static inline void sparc_iommu_memory_write(void *opaque,
 
 /* tcx.c */
 void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
-	       unsigned long vram_offset, int vram_size, int width, int height);
+	      unsigned long vram_offset, int vram_size, int width, int height,
+              int depth);
 
 /* slavio_intctl.c */
 void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
