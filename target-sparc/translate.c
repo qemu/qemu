@@ -108,7 +108,7 @@ static int sign_extend(int x, int len)
 
 static void disas_sparc_insn(DisasContext * dc);
 
-static GenOpFunc *gen_op_movl_TN_reg[2][32] = {
+static GenOpFunc * const gen_op_movl_TN_reg[2][32] = {
     {
      gen_op_movl_g0_T0,
      gen_op_movl_g1_T0,
@@ -179,7 +179,7 @@ static GenOpFunc *gen_op_movl_TN_reg[2][32] = {
      }
 };
 
-static GenOpFunc *gen_op_movl_reg_TN[3][32] = {
+static GenOpFunc * const gen_op_movl_reg_TN[3][32] = {
     {
      gen_op_movl_T0_g0,
      gen_op_movl_T0_g1,
@@ -284,7 +284,7 @@ static GenOpFunc *gen_op_movl_reg_TN[3][32] = {
      }
 };
 
-static GenOpFunc1 *gen_op_movl_TN_im[3] = {
+static GenOpFunc1 * const gen_op_movl_TN_im[3] = {
     gen_op_movl_T0_im,
     gen_op_movl_T1_im,
     gen_op_movl_T2_im
@@ -299,7 +299,7 @@ static GenOpFunc1 * const gen_op_movl_TN_sim[3] = {
 
 #ifdef TARGET_SPARC64
 #define GEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [64] = {                                     \
+static GenOpFunc * const NAME ## _table [64] = {                              \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
 NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
 NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
@@ -319,7 +319,7 @@ static inline void func(int n)                                                \
 }
 #else
 #define GEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [32] = {                                     \
+static GenOpFunc *const NAME ## _table [32] = {                               \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
 NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
 NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
@@ -380,7 +380,7 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 #else
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
 #define OP_LD_TABLE(width)						\
-    static GenOpFunc *gen_op_##width[] = {				\
+    static GenOpFunc * const gen_op_##width[] = {                       \
 	&gen_op_##width##_user,						\
 	&gen_op_##width##_kernel,					\
     };									\
@@ -414,7 +414,7 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 #else
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
 #define OP_LD_TABLE(width)						      \
-static GenOpFunc *gen_op_##width[] = {                                        \
+static GenOpFunc * const gen_op_##width[] = {                                 \
     &gen_op_##width##_user,                                                   \
     &gen_op_##width##_kernel,                                                 \
 };                                                                            \
