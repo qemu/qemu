@@ -225,6 +225,9 @@ typedef struct CPUSPARCState {
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
     uint64_t gsr;
+    uint32_t gl; // UA2005
+    /* UA 2005 hyperprivileged registers */
+    uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
 #endif
 #if !defined(TARGET_SPARC64) && !defined(reg_T2)
     target_ulong t2;

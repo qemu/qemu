@@ -1095,7 +1095,7 @@ void OPPROTO op_rdtick(void)
 
 void OPPROTO op_wrtick(void)
 {
-    // XXX write cycle counter and bit 31
+    T0 = 0; // XXX write cycle counter and bit 31
 }
 
 void OPPROTO op_rdtpc(void)
@@ -1818,8 +1818,7 @@ void OPPROTO op_retry(void)
 
 void OPPROTO op_sir(void)
 {
-    // XXX
-
+    T0 = 0;  // XXX
 }
 
 void OPPROTO op_ld_asi_reg()
@@ -1846,6 +1845,44 @@ void OPPROTO op_st_asi()
 }
 
 #ifdef TARGET_SPARC64
+// This function uses non-native bit order
+#define GET_FIELD(X, FROM, TO)                                  \
+    ((X) >> (63 - (TO)) & ((1ULL << ((TO) - (FROM) + 1)) - 1))
+
+// This function uses the order in the manuals, i.e. bit 0 is 2^0
+#define GET_FIELD_SP(X, FROM, TO)               \
+    GET_FIELD(X, 63 - (TO), 63 - (FROM))
+
+void OPPROTO op_array8()
+{
+    T0 = (GET_FIELD_SP(T0, 60, 63) << (17 + 2 * T1)) |
+        (GET_FIELD_SP(T0, 39, 39 + T1 - 1) << (17 + T1)) |
+        (GET_FIELD_SP(T0, 17 + T1 - 1, 17) << 17) |
+        (GET_FIELD_SP(T0, 56, 59) << 13) | (GET_FIELD_SP(T0, 35, 38) << 9) |
+        (GET_FIELD_SP(T0, 13, 16) << 5) | (((T0 >> 55) & 1) << 4) |
+        (GET_FIELD_SP(T0, 33, 34) << 2) | GET_FIELD_SP(T0, 11, 12);
+}
+
+void OPPROTO op_array16()
+{
+    T0 = ((GET_FIELD_SP(T0, 60, 63) << (17 + 2 * T1)) |
+          (GET_FIELD_SP(T0, 39, 39 + T1 - 1) << (17 + T1)) |
+          (GET_FIELD_SP(T0, 17 + T1 - 1, 17) << 17) |
+          (GET_FIELD_SP(T0, 56, 59) << 13) | (GET_FIELD_SP(T0, 35, 38) << 9) |
+          (GET_FIELD_SP(T0, 13, 16) << 5) | (((T0 >> 55) & 1) << 4) |
+          (GET_FIELD_SP(T0, 33, 34) << 2) | GET_FIELD_SP(T0, 11, 12)) << 1;
+}
+
+void OPPROTO op_array32()
+{
+    T0 = ((GET_FIELD_SP(T0, 60, 63) << (17 + 2 * T1)) |
+          (GET_FIELD_SP(T0, 39, 39 + T1 - 1) << (17 + T1)) |
+          (GET_FIELD_SP(T0, 17 + T1 - 1, 17) << 17) |
+          (GET_FIELD_SP(T0, 56, 59) << 13) | (GET_FIELD_SP(T0, 35, 38) << 9) |
+          (GET_FIELD_SP(T0, 13, 16) << 5) | (((T0 >> 55) & 1) << 4) |
+          (GET_FIELD_SP(T0, 33, 34) << 2) | GET_FIELD_SP(T0, 11, 12)) << 2;
+}
+
 void OPPROTO op_alignaddr()
 {
     uint64_t tmp;
@@ -1862,26 +1899,440 @@ void OPPROTO op_faligndata()
 
     tmp = (*((uint64_t *)&DT0)) << ((env->gsr & 7) * 8);
     tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
-    (*((uint64_t *)&DT0)) = tmp;
+    *((uint64_t *)&DT0) = tmp;
 }
 
 void OPPROTO op_movl_FT0_0(void)
 {
-    (*((uint32_t *)&FT0)) = 0;
+    *((uint32_t *)&FT0) = 0;
 }
 
 void OPPROTO op_movl_DT0_0(void)
 {
-    (*((uint64_t *)&DT0)) = 0;
+    *((uint64_t *)&DT0) = 0;
 }
 
 void OPPROTO op_movl_FT0_1(void)
 {
-    (*((uint32_t *)&FT0)) = 0xffffffff;
+    *((uint32_t *)&FT0) = 0xffffffff;
 }
 
 void OPPROTO op_movl_DT0_1(void)
 {
-    (*((uint64_t *)&DT0)) = 0xffffffffffffffffULL;
+    *((uint64_t *)&DT0) = 0xffffffffffffffffULL;
 }
+
+void OPPROTO op_fnot(void)
+{
+    *(uint64_t *)&DT0 = ~*(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fnots(void)
+{
+    *(uint32_t *)&FT0 = ~*(uint32_t *)&FT1;
+}
+
+void OPPROTO op_fnor(void)
+{
+    *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 | *(uint64_t *)&DT1);
+}
+
+void OPPROTO op_fnors(void)
+{
+    *(uint32_t *)&FT0 = ~(*(uint32_t *)&FT0 | *(uint32_t *)&FT1);
+}
+
+void OPPROTO op_for(void)
+{
+    *(uint64_t *)&DT0 |= *(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fors(void)
+{
+    *(uint32_t *)&FT0 |= *(uint32_t *)&FT1;
+}
+
+void OPPROTO op_fxor(void)
+{
+    *(uint64_t *)&DT0 ^= *(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fxors(void)
+{
+    *(uint32_t *)&FT0 ^= *(uint32_t *)&FT1;
+}
+
+void OPPROTO op_fand(void)
+{
+    *(uint64_t *)&DT0 &= *(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fands(void)
+{
+    *(uint32_t *)&FT0 &= *(uint32_t *)&FT1;
+}
+
+void OPPROTO op_fornot(void)
+{
+    *(uint64_t *)&DT0 = *(uint64_t *)&DT0 | ~*(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fornots(void)
+{
+    *(uint32_t *)&FT0 = *(uint32_t *)&FT0 | ~*(uint32_t *)&FT1;
+}
+
+void OPPROTO op_fandnot(void)
+{
+    *(uint64_t *)&DT0 = *(uint64_t *)&DT0 & ~*(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fandnots(void)
+{
+    *(uint32_t *)&FT0 = *(uint32_t *)&FT0 & ~*(uint32_t *)&FT1;
+}
+
+void OPPROTO op_fnand(void)
+{
+    *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 & *(uint64_t *)&DT1);
+}
+
+void OPPROTO op_fnands(void)
+{
+    *(uint32_t *)&FT0 = ~(*(uint32_t *)&FT0 & *(uint32_t *)&FT1);
+}
+
+void OPPROTO op_fxnor(void)
+{
+    *(uint64_t *)&DT0 ^= ~*(uint64_t *)&DT1;
+}
+
+void OPPROTO op_fxnors(void)
+{
+    *(uint32_t *)&FT0 ^= ~*(uint32_t *)&FT1;
+}
+
+#ifdef WORDS_BIGENDIAN
+#define VIS_B64(n) b[7 - (n)]
+#define VIS_W64(n) w[3 - (n)]
+#define VIS_SW64(n) sw[3 - (n)]
+#define VIS_L64(n) l[1 - (n)]
+#define VIS_B32(n) b[3 - (n)]
+#define VIS_W32(n) w[1 - (n)]
+#else
+#define VIS_B64(n) b[n]
+#define VIS_W64(n) w[n]
+#define VIS_SW64(n) sw[n]
+#define VIS_L64(n) l[n]
+#define VIS_B32(n) b[n]
+#define VIS_W32(n) w[n]
+#endif
+
+typedef union {
+    uint8_t b[8];
+    uint16_t w[4];
+    int16_t sw[4];
+    uint32_t l[2];
+    float64 d;
+} vis64;
+
+typedef union {
+    uint8_t b[4];
+    uint16_t w[2];
+    uint32_t l;
+    float32 f;
+} vis32;
+
+void OPPROTO op_fpmerge(void)
+{
+    vis64 s, d;
+
+    s.d = DT0;
+    d.d = DT1;
+
+    // Reverse calculation order to handle overlap
+    d.VIS_B64(7) = s.VIS_B64(3);
+    d.VIS_B64(6) = d.VIS_B64(3);
+    d.VIS_B64(5) = s.VIS_B64(2);
+    d.VIS_B64(4) = d.VIS_B64(2);
+    d.VIS_B64(3) = s.VIS_B64(1);
+    d.VIS_B64(2) = d.VIS_B64(1);
+    d.VIS_B64(1) = s.VIS_B64(0);
+    //d.VIS_B64(0) = d.VIS_B64(0);
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmul8x16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                 \
+    tmp = (int32_t)d.VIS_SW64(r) * (int32_t)s.VIS_B64(r);       \
+    if ((tmp & 0xff) > 0x7f)                                    \
+        tmp += 0x100;                                           \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmul8x16al(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                 \
+    tmp = (int32_t)d.VIS_SW64(1) * (int32_t)s.VIS_B64(r);       \
+    if ((tmp & 0xff) > 0x7f)                                    \
+        tmp += 0x100;                                           \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmul8x16au(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                 \
+    tmp = (int32_t)d.VIS_SW64(0) * (int32_t)s.VIS_B64(r);       \
+    if ((tmp & 0xff) > 0x7f)                                    \
+        tmp += 0x100;                                           \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmul8sux16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmul8ulx16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmuld8sux16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_L64(r) = tmp;
+
+    // Reverse calculation order to handle overlap
+    PMUL(1);
+    PMUL(0);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fmuld8ulx16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_L64(r) = tmp;
+
+    // Reverse calculation order to handle overlap
+    PMUL(1);
+    PMUL(0);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void OPPROTO op_fexpand(void)
+{
+    vis32 s;
+    vis64 d;
+
+    s.l = (uint32_t)(*(uint64_t *)&DT0 & 0xffffffff);
+    d.d = DT1;
+    d.VIS_L64(0) = s.VIS_W32(0) << 4;
+    d.VIS_L64(1) = s.VIS_W32(1) << 4;
+    d.VIS_L64(2) = s.VIS_W32(2) << 4;
+    d.VIS_L64(3) = s.VIS_W32(3) << 4;
+
+    DT0 = d.d;
+}
+
+#define VIS_OP(name, F)                                 \
+    void OPPROTO name##16(void)                         \
+    {                                                   \
+        vis64 s, d;                                     \
+                                                        \
+        s.d = DT0;                                      \
+        d.d = DT1;                                      \
+                                                        \
+        d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0));   \
+        d.VIS_W64(1) = F(d.VIS_W64(1), s.VIS_W64(1));   \
+        d.VIS_W64(2) = F(d.VIS_W64(2), s.VIS_W64(2));   \
+        d.VIS_W64(3) = F(d.VIS_W64(3), s.VIS_W64(3));   \
+                                                        \
+        DT0 = d.d;                                      \
+    }                                                   \
+                                                        \
+    void OPPROTO name##16s(void)                        \
+    {                                                   \
+        vis32 s, d;                                     \
+                                                        \
+        s.f = FT0;                                      \
+        d.f = FT1;                                      \
+                                                        \
+        d.VIS_W32(0) = F(d.VIS_W32(0), s.VIS_W32(0));   \
+        d.VIS_W32(1) = F(d.VIS_W32(1), s.VIS_W32(1));   \
+                                                        \
+        FT0 = d.f;                                      \
+    }                                                   \
+                                                        \
+    void OPPROTO name##32(void)                         \
+    {                                                   \
+        vis64 s, d;                                     \
+                                                        \
+        s.d = DT0;                                      \
+        d.d = DT1;                                      \
+                                                        \
+        d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0));   \
+        d.VIS_L64(1) = F(d.VIS_L64(1), s.VIS_L64(1));   \
+                                                        \
+        DT0 = d.d;                                      \
+    }                                                   \
+                                                        \
+    void OPPROTO name##32s(void)                        \
+    {                                                   \
+        vis32 s, d;                                     \
+                                                        \
+        s.f = FT0;                                      \
+        d.f = FT1;                                      \
+                                                        \
+        d.l = F(d.l, s.l);                              \
+                                                        \
+        FT0 = d.f;                                      \
+    }
+
+#define FADD(a, b) ((a) + (b))
+#define FSUB(a, b) ((a) - (b))
+VIS_OP(op_fpadd, FADD)
+VIS_OP(op_fpsub, FSUB)
+
+#define VIS_CMPOP(name, F)                                        \
+    void OPPROTO name##16(void)                                   \
+    {                                                             \
+        vis64 s, d;                                               \
+                                                                  \
+        s.d = DT0;                                                \
+        d.d = DT1;                                                \
+                                                                  \
+        d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0))? 1: 0;       \
+        d.VIS_W64(0) |= F(d.VIS_W64(1), s.VIS_W64(1))? 2: 0;      \
+        d.VIS_W64(0) |= F(d.VIS_W64(2), s.VIS_W64(2))? 4: 0;      \
+        d.VIS_W64(0) |= F(d.VIS_W64(3), s.VIS_W64(3))? 8: 0;      \
+                                                                  \
+        DT0 = d.d;                                                \
+    }                                                             \
+                                                                  \
+    void OPPROTO name##32(void)                                   \
+    {                                                             \
+        vis64 s, d;                                               \
+                                                                  \
+        s.d = DT0;                                                \
+        d.d = DT1;                                                \
+                                                                  \
+        d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0))? 1: 0;       \
+        d.VIS_L64(0) |= F(d.VIS_L64(1), s.VIS_L64(1))? 2: 0;      \
+                                                                  \
+        DT0 = d.d;                                                \
+    }
+
+#define FCMPGT(a, b) ((a) > (b))
+#define FCMPEQ(a, b) ((a) == (b))
+#define FCMPLE(a, b) ((a) <= (b))
+#define FCMPNE(a, b) ((a) != (b))
+
+VIS_CMPOP(op_fcmpgt, FCMPGT)
+VIS_CMPOP(op_fcmpeq, FCMPEQ)
+VIS_CMPOP(op_fcmple, FCMPLE)
+VIS_CMPOP(op_fcmpne, FCMPNE)
+
 #endif
