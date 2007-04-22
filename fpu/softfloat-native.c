@@ -30,7 +30,7 @@ void set_floatx80_rounding_precision(int val STATUS_PARAM)
 #define sqrtf(f)		((float)sqrt(f))
 #define remainderf(fa, fb)	((float)remainder(fa, fb))
 #define rintf(f)		((float)rint(f))
-#if !defined(__sparc__) && HOST_SOLARIS < 10
+#if !defined(__sparc__) && defined(HOST_SOLARIS) && HOST_SOLARIS < 10
 extern long double rintl(long double);
 extern long double scalbnl(long double, int);
 
@@ -336,7 +336,7 @@ uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
-#if ( defined(__sun__) && ( HOST_SOLARIS < 10 ))
+#if defined(__sun__) && defined(HOST_SOLARIS) && HOST_SOLARIS < 10
 static inline float64 trunc(float64 x)
 {
     return x < 0 ? -floor(-x) : floor(x);

@@ -15,7 +15,7 @@
  *   Solaris 10 with GCC4 does not need these macros as they
  *   are defined in <iso/math_c99.h> with a compiler directive
  */
-#if defined(HOST_SOLARIS) && (( HOST_SOLARIS <= 9 ) || ( ( HOST_SOLARIS >= 10 ) && ( __GNUC__ <= 4) ))
+#if defined(HOST_SOLARIS) && (( HOST_SOLARIS <= 9 ) || ((HOST_SOLARIS >= 10) && (__GNUC__ <= 4)))
 /*
  * C99 7.12.3 classification macros
  * and
