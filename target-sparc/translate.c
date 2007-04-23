@@ -109,7 +109,7 @@ static int sign_extend(int x, int len)
 
 static void disas_sparc_insn(DisasContext * dc);
 
-static GenOpFunc *gen_op_movl_TN_reg[2][32] = {
+static GenOpFunc * const gen_op_movl_TN_reg[2][32] = {
     {
      gen_op_movl_g0_T0,
      gen_op_movl_g1_T0,
@@ -180,7 +180,7 @@ static GenOpFunc *gen_op_movl_TN_reg[2][32] = {
      }
 };
 
-static GenOpFunc *gen_op_movl_reg_TN[3][32] = {
+static GenOpFunc * const gen_op_movl_reg_TN[3][32] = {
     {
      gen_op_movl_T0_g0,
      gen_op_movl_T0_g1,
@@ -285,7 +285,7 @@ static GenOpFunc *gen_op_movl_reg_TN[3][32] = {
      }
 };
 
-static GenOpFunc1 *gen_op_movl_TN_im[3] = {
+static GenOpFunc1 * const gen_op_movl_TN_im[3] = {
     gen_op_movl_T0_im,
     gen_op_movl_T1_im,
     gen_op_movl_T2_im
@@ -300,7 +300,7 @@ static GenOpFunc1 * const gen_op_movl_TN_sim[3] = {
 
 #ifdef TARGET_SPARC64
 #define GEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [64] = {                                     \
+static GenOpFunc * const NAME ## _table [64] = {                              \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
 NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
 NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
@@ -320,7 +320,7 @@ static inline void func(int n)                                                \
 }
 #else
 #define GEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [32] = {                                     \
+static GenOpFunc *const NAME ## _table [32] = {                               \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
 NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
 NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
@@ -351,6 +351,7 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 // 'a' versions allowed to user depending on asi
 #if defined(CONFIG_USER_ONLY)
 #define supervisor(dc) 0
+#define hypervisor(dc) 0
 #define gen_op_ldst(name)        gen_op_##name##_raw()
 #define OP_LD_TABLE(width)						\
     static void gen_op_##width##a(int insn, int is_ld, int size, int sign) \
@@ -381,7 +382,7 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 #else
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
 #define OP_LD_TABLE(width)						\
-    static GenOpFunc *gen_op_##width[] = {				\
+    static GenOpFunc * const gen_op_##width[] = {                       \
 	&gen_op_##width##_user,						\
 	&gen_op_##width##_kernel,					\
     };									\
@@ -406,6 +407,7 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
     }
 
 #define supervisor(dc) (dc->mem_idx == 1)
+#define hypervisor(dc) (dc->mem_idx == 2)
 #endif
 #else
 #if defined(CONFIG_USER_ONLY)
@@ -415,7 +417,7 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 #else
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
 #define OP_LD_TABLE(width)						      \
-static GenOpFunc *gen_op_##width[] = {                                        \
+static GenOpFunc * const gen_op_##width[] = {                                 \
     &gen_op_##width##_user,                                                   \
     &gen_op_##width##_kernel,                                                 \
 };                                                                            \
@@ -1219,14 +1221,40 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto illegal_insn;
                 }
 #if !defined(CONFIG_USER_ONLY)
+            } else if (xop == 0x29) { /* rdpsr / UA2005 rdhpr */
 #ifndef TARGET_SPARC64
-            } else if (xop == 0x29) { /* rdpsr / V9 unimp */
 		if (!supervisor(dc))
 		    goto priv_insn;
                 gen_op_rdpsr();
+#else
+                if (!hypervisor(dc))
+                    goto priv_insn;
+                rs1 = GET_FIELD(insn, 13, 17);
+                switch (rs1) {
+                case 0: // hpstate
+                    // gen_op_rdhpstate();
+                    break;
+                case 1: // htstate
+                    // gen_op_rdhtstate();
+                    break;
+                case 3: // hintp
+                    gen_op_movl_T0_env(offsetof(CPUSPARCState, hintp));
+                    break;
+                case 5: // htba
+                    gen_op_movl_T0_env(offsetof(CPUSPARCState, htba));
+                    break;
+                case 6: // hver
+                    gen_op_movl_T0_env(offsetof(CPUSPARCState, hver));
+                    break;
+                case 31: // hstick_cmpr
+                    gen_op_movl_env_T0(offsetof(CPUSPARCState, hstick_cmpr));
+                    break;
+                default:
+                    goto illegal_insn;
+                }
+#endif
                 gen_movl_T0_reg(rd);
                 break;
-#endif
             } else if (xop == 0x2a) { /* rdwim / V9 rdpr */
 		if (!supervisor(dc))
 		    goto priv_insn;
@@ -1278,6 +1306,14 @@ static void disas_sparc_insn(DisasContext * dc)
 		case 14: // wstate
 		    gen_op_movl_T0_env(offsetof(CPUSPARCState, wstate));
 		    break;
+                case 16: // UA2005 gl
+                    gen_op_movl_T0_env(offsetof(CPUSPARCState, gl));
+                    break;
+                case 26: // UA2005 strand status
+                    if (!hypervisor(dc))
+                        goto priv_insn;
+                    gen_op_movl_T0_env(offsetof(CPUSPARCState, ssr));
+                    break;
 		case 31: // ver
 		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, version));
 		    break;
@@ -1998,6 +2034,11 @@ static void disas_sparc_insn(DisasContext * dc)
 			    case 1:
 				gen_op_restored();
 				break;
+                            case 2: /* UA2005 allclean */
+                            case 3: /* UA2005 otherw */
+                            case 4: /* UA2005 normalw */
+                            case 5: /* UA2005 invalw */
+                                // XXX
 			    default:
                                 goto illegal_insn;
                             }
@@ -2069,6 +2110,14 @@ static void disas_sparc_insn(DisasContext * dc)
 			    case 14: // wstate
 				gen_op_movl_env_T0(offsetof(CPUSPARCState, wstate));
 				break;
+                            case 16: // UA2005 gl
+                                gen_op_movl_env_T0(offsetof(CPUSPARCState, gl));
+                                break;
+                            case 26: // UA2005 strand status
+                                if (!hypervisor(dc))
+                                    goto priv_insn;
+                                gen_op_movl_env_T0(offsetof(CPUSPARCState, ssr));
+                                break;
 			    default:
 				goto illegal_insn;
 			    }
@@ -2077,16 +2126,45 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                         }
                         break;
-#ifndef TARGET_SPARC64
-                    case 0x33: /* wrtbr, V9 unimp */
+                    case 0x33: /* wrtbr, UA2005 wrhpr */
                         {
+#ifndef TARGET_SPARC64
 			    if (!supervisor(dc))
 				goto priv_insn;
                             gen_op_xor_T1_T0();
-			    gen_op_movtl_env_T0(offsetof(CPUSPARCState, tbr));
+                            gen_op_movtl_env_T0(offsetof(CPUSPARCState, tbr));
+#else
+                            if (!hypervisor(dc))
+                                goto priv_insn;
+                            gen_op_xor_T1_T0();
+                            switch (rd) {
+                            case 0: // hpstate
+                                // XXX gen_op_wrhpstate();
+                                save_state(dc);
+                                gen_op_next_insn();
+                                gen_op_movl_T0_0();
+                                gen_op_exit_tb();
+                                dc->is_br = 1;
+                                break;
+                            case 1: // htstate
+                                // XXX gen_op_wrhtstate();
+                                break;
+                            case 3: // hintp
+                                gen_op_movl_env_T0(offsetof(CPUSPARCState, hintp));
+                                break;
+                            case 5: // htba
+                                gen_op_movl_env_T0(offsetof(CPUSPARCState, htba));
+                                break;
+                            case 31: // hstick_cmpr
+                                gen_op_movl_env_T0(offsetof(CPUSPARCState, hstick_cmpr));
+                                break;
+                            case 6: // hver readonly
+                            default:
+                                goto illegal_insn;
+                            }
+#endif
                         }
                         break;
-#endif
 #endif
 #ifdef TARGET_SPARC64
 		    case 0x2c: /* V9 movcc */
@@ -2165,77 +2243,393 @@ static void disas_sparc_insn(DisasContext * dc)
                 int opf = GET_FIELD_SP(insn, 5, 13);
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
+                if (gen_trap_ifnofpu(dc))
+                    goto jmp_insn;
 
                 switch (opf) {
+                case 0x000: /* VIS I edge8cc */
+                case 0x001: /* VIS II edge8n */
+                case 0x002: /* VIS I edge8lcc */
+                case 0x003: /* VIS II edge8ln */
+                case 0x004: /* VIS I edge16cc */
+                case 0x005: /* VIS II edge16n */
+                case 0x006: /* VIS I edge16lcc */
+                case 0x007: /* VIS II edge16ln */
+                case 0x008: /* VIS I edge32cc */
+                case 0x009: /* VIS II edge32n */
+                case 0x00a: /* VIS I edge32lcc */
+                case 0x00b: /* VIS II edge32ln */
+                    // XXX
+                    goto illegal_insn;
+                case 0x010: /* VIS I array8 */
+                    gen_movl_reg_T0(rs1);
+                    gen_movl_reg_T1(rs2);
+                    gen_op_array8();
+                    gen_movl_T0_reg(rd);
+                    break;
+                case 0x012: /* VIS I array16 */
+                    gen_movl_reg_T0(rs1);
+                    gen_movl_reg_T1(rs2);
+                    gen_op_array16();
+                    gen_movl_T0_reg(rd);
+                    break;
+                case 0x014: /* VIS I array32 */
+                    gen_movl_reg_T0(rs1);
+                    gen_movl_reg_T1(rs2);
+                    gen_op_array32();
+                    gen_movl_T0_reg(rd);
+                    break;
                 case 0x018: /* VIS I alignaddr */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_movl_reg_T0(rs1);
                     gen_movl_reg_T1(rs2);
                     gen_op_alignaddr();
                     gen_movl_T0_reg(rd);
                     break;
+                case 0x019: /* VIS II bmask */
                 case 0x01a: /* VIS I alignaddrl */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     // XXX
+                    goto illegal_insn;
+                case 0x020: /* VIS I fcmple16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmple16();
+                    gen_op_store_DT0_fpr(rd);
                     break;
+                case 0x022: /* VIS I fcmpne16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmpne16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x024: /* VIS I fcmple32 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmple32();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x026: /* VIS I fcmpne32 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmpne32();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x028: /* VIS I fcmpgt16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmpgt16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x02a: /* VIS I fcmpeq16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmpeq16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x02c: /* VIS I fcmpgt32 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmpgt32();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x02e: /* VIS I fcmpeq32 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fcmpeq32();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x031: /* VIS I fmul8x16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmul8x16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x033: /* VIS I fmul8x16au */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmul8x16au();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x035: /* VIS I fmul8x16al */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmul8x16al();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x036: /* VIS I fmul8sux16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmul8sux16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x037: /* VIS I fmul8ulx16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmul8ulx16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x038: /* VIS I fmuld8sux16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmuld8sux16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x039: /* VIS I fmuld8ulx16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fmuld8ulx16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x03a: /* VIS I fpack32 */
+                case 0x03b: /* VIS I fpack16 */
+                case 0x03d: /* VIS I fpackfix */
+                case 0x03e: /* VIS I pdist */
+                    // XXX
+                    goto illegal_insn;
                 case 0x048: /* VIS I faligndata */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_load_fpr_DT0(rs1);
                     gen_op_load_fpr_DT1(rs2);
                     gen_op_faligndata();
                     gen_op_store_DT0_fpr(rd);
                     break;
+                case 0x04b: /* VIS I fpmerge */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fpmerge();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x04c: /* VIS II bshuffle */
+                    // XXX
+                    goto illegal_insn;
+                case 0x04d: /* VIS I fexpand */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fexpand();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x050: /* VIS I fpadd16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fpadd16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x051: /* VIS I fpadd16s */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fpadd16s();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x052: /* VIS I fpadd32 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fpadd32();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x053: /* VIS I fpadd32s */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fpadd32s();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x054: /* VIS I fpsub16 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fpsub16();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x055: /* VIS I fpsub16s */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fpsub16s();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x056: /* VIS I fpsub32 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fpadd32();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x057: /* VIS I fpsub32s */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fpsub32s();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
                 case 0x060: /* VIS I fzero */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_movl_DT0_0();
                     gen_op_store_DT0_fpr(rd);
                     break;
                 case 0x061: /* VIS I fzeros */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_movl_FT0_0();
                     gen_op_store_FT0_fpr(rd);
                     break;
+                case 0x062: /* VIS I fnor */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fnor();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x063: /* VIS I fnors */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fnors();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x064: /* VIS I fandnot2 */
+                    gen_op_load_fpr_DT1(rs1);
+                    gen_op_load_fpr_DT0(rs2);
+                    gen_op_fandnot();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x065: /* VIS I fandnot2s */
+                    gen_op_load_fpr_FT1(rs1);
+                    gen_op_load_fpr_FT0(rs2);
+                    gen_op_fandnots();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x066: /* VIS I fnot2 */
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fnot();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x067: /* VIS I fnot2s */
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fnot();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x068: /* VIS I fandnot1 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fandnot();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x069: /* VIS I fandnot1s */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fandnots();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x06a: /* VIS I fnot1 */
+                    gen_op_load_fpr_DT1(rs1);
+                    gen_op_fnot();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x06b: /* VIS I fnot1s */
+                    gen_op_load_fpr_FT1(rs1);
+                    gen_op_fnot();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x06c: /* VIS I fxor */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fxor();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x06d: /* VIS I fxors */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fxors();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x06e: /* VIS I fnand */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fnand();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x06f: /* VIS I fnands */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fnands();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x070: /* VIS I fand */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fand();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x071: /* VIS I fands */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fands();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x072: /* VIS I fxnor */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fxnor();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x073: /* VIS I fxnors */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fxnors();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
                 case 0x074: /* VIS I fsrc1 */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_load_fpr_DT0(rs1);
                     gen_op_store_DT0_fpr(rd);
                     break;
                 case 0x075: /* VIS I fsrc1s */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_load_fpr_FT0(rs1);
                     gen_op_store_FT0_fpr(rd);
                     break;
+                case 0x076: /* VIS I fornot2 */
+                    gen_op_load_fpr_DT1(rs1);
+                    gen_op_load_fpr_DT0(rs2);
+                    gen_op_fornot();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x077: /* VIS I fornot2s */
+                    gen_op_load_fpr_FT1(rs1);
+                    gen_op_load_fpr_FT0(rs2);
+                    gen_op_fornots();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
                 case 0x078: /* VIS I fsrc2 */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_load_fpr_DT0(rs2);
                     gen_op_store_DT0_fpr(rd);
                     break;
                 case 0x079: /* VIS I fsrc2s */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_load_fpr_FT0(rs2);
                     gen_op_store_FT0_fpr(rd);
                     break;
+                case 0x07a: /* VIS I fornot1 */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_fornot();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x07b: /* VIS I fornot1s */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fornots();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
+                case 0x07c: /* VIS I for */
+                    gen_op_load_fpr_DT0(rs1);
+                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_for();
+                    gen_op_store_DT0_fpr(rd);
+                    break;
+                case 0x07d: /* VIS I fors */
+                    gen_op_load_fpr_FT0(rs1);
+                    gen_op_load_fpr_FT1(rs2);
+                    gen_op_fors();
+                    gen_op_store_FT0_fpr(rd);
+                    break;
                 case 0x07e: /* VIS I fone */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_movl_DT0_1();
                     gen_op_store_DT0_fpr(rd);
                     break;
                 case 0x07f: /* VIS I fones */
-                    if (gen_trap_ifnofpu(dc))
-                        goto jmp_insn;
                     gen_op_movl_FT0_1();
                     gen_op_store_FT0_fpr(rd);
                     break;
+                case 0x080: /* VIS I shutdown */
+                case 0x081: /* VIS II siam */
+                    // XXX
+                    goto illegal_insn;
                 default:
                     goto illegal_insn;
                 }

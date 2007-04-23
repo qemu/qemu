@@ -159,11 +159,12 @@ int vmsvga_enabled = 0;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
+int graphic_depth = 8;
 #else
 int graphic_width = 800;
 int graphic_height = 600;
-#endif
 int graphic_depth = 15;
+#endif
 int full_screen = 0;
 int no_frame = 0;
 int no_quit = 0;

@@ -1389,7 +1389,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x02: /* SCNTL2 */
         val &= ~(LSI_SCNTL2_WSR | LSI_SCNTL2_WSS);
-        s->scntl3 = val;
+        s->scntl2 = val;
         break;
     case 0x03: /* SCNTL3 */
         s->scntl3 = val;
@@ -1457,19 +1457,19 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         }
         s->ctest5 = val;
         break;
-    case 0x2c: /* DSPS[0:7] */
+    case 0x2c: /* DSP[0:7] */
         s->dsp &= 0xffffff00;
         s->dsp |= val;
         break;
-    case 0x2d: /* DSPS[8:15] */
+    case 0x2d: /* DSP[8:15] */
         s->dsp &= 0xffff00ff;
         s->dsp |= val << 8;
         break;
-    case 0x2e: /* DSPS[16:23] */
+    case 0x2e: /* DSP[16:23] */
         s->dsp &= 0xff00ffff;
         s->dsp |= val << 16;
         break;
-    case 0x2f: /* DSPS[14:31] */
+    case 0x2f: /* DSP[24:31] */
         s->dsp &= 0x00ffffff;
         s->dsp |= val << 24;
         if ((s->dmode & LSI_DMODE_MAN) == 0

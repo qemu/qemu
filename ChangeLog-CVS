@@ -1,3 +1,26 @@
+2007-04-22 21:14  blueswir1
+
+	* target-sparc/: cpu.h, op.c, translate.c: Sparc64 update: more VIS
+	  ops
+
+2007-04-22 19:18  ths
+
+	* hw/lsi53c895a.c: Typo fix, by Wang Cheng Yeh.
+
+2007-04-22 19:16  ths
+
+	* fpu/: softfloat-native.c, softfloat-native.h: Check that
+	  HOST_SOLARIS is defined before relying on its value.	Spotted by
+	  Joachim Henke.
+
+2007-04-22 14:45  blueswir1
+
+	* target-sparc/translate.c: Constification
+
+2007-04-21 21:45  blueswir1
+
+	* vl.c, vl.h, hw/sun4m.c, hw/tcx.c: TCX 24 bit model support
+
 2007-04-20 21:35  blueswir1
 
 	* hw/slavio_serial.c: Fix keyboard serial and mouse bugs

@@ -234,8 +234,12 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     dma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
                            slavio_irq[hwdef->le_irq], iommu);
 
+    if (graphic_depth != 8 && graphic_depth != 24) {
+        fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
+        exit (1);
+    }
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + ram_size, ram_size,
-             hwdef->vram_size, graphic_width, graphic_height);
+             hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "lance") == 0) {
