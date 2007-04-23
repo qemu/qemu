@@ -562,7 +562,20 @@ static void ar7_update_interrupt(void)
             TRACE(INTC, logout("raise hardware interrupt, mask 0x%08x%08x\n",
                 masked_int2, masked_int1));
         } else {
+            int channel;
             TRACE(INTC, logout("interrupt still set\n"));
+            for (channel = 0; channel < 40; channel++) {
+                unsigned index = channel / 32;
+                unsigned offset = channel % 32;
+                uint32_t cr = reg_read(av.intc, INTC_CR1 + 4 * index);
+                if (cr & BIT(offset)) {
+                    reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
+                    break;
+                }
+            }
+            if (channel == 40) {
+                reg_write(av.intc, INTC_PIIR, 0);
+            }
         }
     } else {
         if (intset) {
@@ -609,19 +622,6 @@ static void ar7_primary_irq(void *opaque, int channel, int level)
     } else {
         /* TODO: write correct value to INTC_PIIR? */
         reg_clear(av.intc, INTC_SR1 + 4 * index, BIT(offset));
-        for (channel = 0; channel < 40; channel++) {
-            uint32_t cr;
-            index = channel / 32;
-            offset = channel % 32;
-            cr = reg_read(av.intc, INTC_CR1 + 4 * index);
-            if (cr & BIT(offset)) {
-                reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
-                break;
-            }
-        }
-        if (channel == 40) {
-            reg_write(av.intc, INTC_PIIR, 0);
-        }
     }
     ar7_update_interrupt();
 }
@@ -3235,6 +3235,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
         if (mode & RCB_OWNER) {
             assert(length >= size);
             mode &= ~(RCB_OWNER);
+            mode &= ~(BITS(15, 0));
             mode |= (size & BITS(15, 0));
             mode |= RCB_SOP | RCB_EOP;
             if (rcb.next == 0) {
