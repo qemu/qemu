@@ -535,13 +535,14 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
 
     /* Small bootloader */
     p = (uint32_t *) (phys_ram_base + bios_offset);
-    stl_raw(p++, 0x0bf00010);                                      /* j 0x1fc00040 */
+    stl_raw(p++, 0x0bf00006);                                      /* j 0x1fc00018 */
     stl_raw(p++, 0x00000000);                                      /* nop */
 
     /* Second part of the bootloader */
-    p = (uint32_t *) (phys_ram_base + bios_offset + 0x040);
-    stl_raw(p++, 0x3c040000);                                      /* lui a0, 0 */
-    stl_raw(p++, 0x34840002);                                      /* ori a0, a0, 2 */
+    p = (uint32_t *) (phys_ram_base + bios_offset + 0x018);
+    stl_raw(p++, 0x24040002);                                      /* addiu a0, zero, 2 */
+    stl_raw(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff)); /* lui sp, high(ENVP_ADDR) */
+    stl_raw(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));        /* ori sp, a0, low(ENVP_ADDR) */
     stl_raw(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
     stl_raw(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a0, low(ENVP_ADDR) */
     stl_raw(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
