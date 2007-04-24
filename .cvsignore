@@ -9,9 +9,11 @@ i386-darwin-user
 i386-linux-user
 ppc-softmmu
 ppc64-softmmu
+ppcemb-softmmu
 ppc-darwin-user
 ppc-linux-user
 ppc64-linux-user
+ppcemb-linux-user
 qemu-doc.html
 qemu-tech.html
 qemu-doc.info
