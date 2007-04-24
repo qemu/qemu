@@ -1340,7 +1340,7 @@ void do_440_dlmzb (void)
     T0 = i;
 }
 
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
 /* SPE extension helpers */
 /* Use a table to make this quicker */
 static uint8_t hbrev[16] = {
@@ -2200,7 +2200,7 @@ DO_SPE_OP1(fsctuiz);
 DO_SPE_OP1(fsctsf);
 /* evfsctuf */
 DO_SPE_OP1(fsctuf);
-#endif /* defined(TARGET_PPCSPE) */
+#endif /* defined(TARGET_PPCEMB) */
 
 /*****************************************************************************/
 /* Softmmu support */

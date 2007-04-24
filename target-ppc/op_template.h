@@ -57,7 +57,7 @@ void OPPROTO glue(op_store_T2_gpr_gpr, REG) (void)
 }
 #endif
 
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
 void OPPROTO glue(op_load_gpr64_T0_gpr, REG) (void)
 {
     T0_64 = regs->gpr[REG];
@@ -97,7 +97,7 @@ void OPPROTO glue(op_store_T2_gpr64_gpr, REG) (void)
     RETURN();
 }
 #endif
-#endif /* defined(TARGET_PPCSPE) */
+#endif /* defined(TARGET_PPCEMB) */
 
 #if REG <= 7
 /* Condition register moves */

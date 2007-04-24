@@ -37,7 +37,7 @@ static inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
         ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
 }
 
-#if defined(TARGET_PPC64) || defined(TARGET_PPCSPE)
+#if defined(TARGET_PPC64) || defined(TARGET_PPCEMB)
 static inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t tmp = glue(ldq, MEMSUFFIX)(EA);
@@ -79,7 +79,7 @@ static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, uint32_t data)
     glue(stl, MEMSUFFIX)(EA, tmp);
 }
 
-#if defined(TARGET_PPC64) || defined(TARGET_PPCSPE)
+#if defined(TARGET_PPC64) || defined(TARGET_PPCEMB)
 static inline void glue(st64r, MEMSUFFIX) (target_ulong EA, uint64_t data)
 {
     uint64_t tmp = ((data & 0xFF00000000000000ULL) >> 56) |
@@ -895,7 +895,7 @@ void OPPROTO glue(op_POWER2_stfq_le, MEMSUFFIX) (void)
     RETURN();
 }
 
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
 /* SPE extension */
 #define _PPC_SPE_LD_OP(name, op)                                              \
 void OPPROTO glue(glue(op_spe_l, name), MEMSUFFIX) (void)                     \
@@ -1151,6 +1151,6 @@ static inline uint64_t glue(spe_lwhsplat_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whsplat_le, spe_lwhsplat_le);
-#endif /* defined(TARGET_PPCSPE) */
+#endif /* defined(TARGET_PPCEMB) */
 
 #undef MEMSUFFIX

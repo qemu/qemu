@@ -161,7 +161,7 @@ typedef struct DisasContext {
     int sf_mode;
 #endif
     int fpu_enabled;
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
     int spe_enabled;
 #endif
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
@@ -4761,7 +4761,7 @@ GEN_HANDLER(icbt_440, 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
      */
 }
 
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
 /***                           SPE extension                               ***/
 
 /* Register moves */
@@ -5740,7 +5740,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.sf_mode = msr_sf;
 #endif
     ctx.fpu_enabled = msr_fp;
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
     ctx.spe_enabled = msr_spe;
 #endif
     ctx.singlestep_enabled = env->singlestep_enabled;
