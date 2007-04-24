@@ -1133,6 +1133,8 @@ int ioport_get_a20(void);
 extern QEMUMachine prep_machine;
 extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
+extern QEMUMachine ref405ep_machine;
+extern QEMUMachine taihu_machine;
 
 /* mips_r4k.c */
 extern QEMUMachine mips_machine;

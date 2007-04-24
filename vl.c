@@ -6717,6 +6717,8 @@ void register_machines(void)
     qemu_register_machine(&heathrow_machine);
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
+    qemu_register_machine(&ref405ep_machine);
+    qemu_register_machine(&taihu_machine);
 #elif defined(TARGET_MIPS)
     qemu_register_machine(&mips_machine);
     qemu_register_machine(&mips_malta_machine);
