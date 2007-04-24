@@ -2494,44 +2494,16 @@ void do_4xx_tlbre_hi (void)
         T0 |= 0x100;
 }
 
-static int tlb_4xx_search (target_ulong virtual)
-{
-    ppcemb_tlb_t *tlb;
-    target_ulong base, mask;
-    int i, ret;
-
-    /* Default return value is no match */
-    ret = -1;
-    for (i = 0; i < 64; i++) {
-        tlb = &env->tlb[i].tlbe;
-        /* Check TLB validity */
-        if (!(tlb->prot & PAGE_VALID))
-            continue;
-        /* Check TLB PID vs current PID */
-        if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
-            continue;
-        /* Check TLB address vs virtual address */
-        base = tlb->EPN;
-        mask = ~(tlb->size - 1);
-        if ((base & mask) != (virtual & mask))
-            continue;
-        ret = i;
-        break;
-    }
-
-    return ret;
-}
-
 void do_4xx_tlbsx (void)
 {
-    T0 = tlb_4xx_search(T0);
+    T0 = ppcemb_tlb_search(env, T0);
 }
 
 void do_4xx_tlbsx_ (void)
 {
     int tmp = xer_ov;
 
-    T0 = tlb_4xx_search(T0);
+    T0 = ppcemb_tlb_search(env, T0);
     if (T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;
@@ -2562,16 +2534,28 @@ void do_4xx_tlbwe_hi (void)
             tlb_flush_page(env, page);
     }
     tlb->size = booke_tlb_to_page_size((T1 >> 7) & 0x7);
+    /* We cannot handle TLB size < TARGET_PAGE_SIZE.
+     * If this ever occurs, one should use the ppcemb target instead
+     * of the ppc or ppc64 one
+     */
+    if ((T1 & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
+        cpu_abort(env, "TLB size %u < %u are not supported (%d)\n",
+                  tlb->size, TARGET_PAGE_SIZE, (int)((T1 >> 7) & 0x7));
+    }
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
     if (T1 & 0x40)
         tlb->prot |= PAGE_VALID;
     else
         tlb->prot &= ~PAGE_VALID;
+    if (T1 & 0x20) {
+        /* XXX: TO BE FIXED */
+        cpu_abort(env, "Little-endian TLB entries are not supported by now\n");
+    }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
     tlb->attr = T1 & 0xFF;
 #if defined (DEBUG_SOFTWARE_TLB)
-    if (loglevel) {
-        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
                 (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
                 tlb->prot & PAGE_READ ? 'r' : '-',

@@ -355,6 +355,17 @@ static void spr_write_40x_dbcr0 (void *opaque, int sprn)
     RET_STOP(ctx);
 }
 
+static void spr_write_40x_sler (void *opaque, int sprn)
+{
+    DisasContext *ctx = opaque;
+
+    gen_op_store_40x_sler();
+    /* We must stop the translation as we may have changed
+     * some regions endianness
+     */
+    RET_STOP(ctx);
+}
+
 static void spr_write_booke_tcr (void *opaque, int sprn)
 {
     gen_op_store_booke_tcr();
@@ -1711,10 +1722,9 @@ static void gen_spr_405 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Storage control */
-    /* XXX : not implemented */
     spr_register(env, SPR_405_SLER, "SLER",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_40x_sler,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_405_SU0R, "SU0R",
@@ -2837,7 +2847,7 @@ static ppc_def_t ppc_defs[] = {
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30ULL,
+        .msr_mask    = 0x00000000000ED630ULL,
     },
 #if defined (TODO)
     /* PowerPC 405 EZ */
