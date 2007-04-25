@@ -907,7 +907,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         GEN_LOAD_IMM_TN(T1, uimm);
         break;
     case OPC_LUI:
-        uimm <<= 16;
+        uimm =  (int32_t)(imm << 16);
         GEN_LOAD_IMM_TN(T0, uimm);
         break;
     case OPC_SLL:
