@@ -7632,7 +7632,7 @@ int main(int argc, char **argv)
         }
     }
 
-    /* Open the virtual parallel flash bloc devices */
+    /* Open the virtual parallel flash block devices */
     for(i = 0; i < MAX_PFLASH; i++) {
         if (pflash_filename[i]) {
             if (!pflash_table[i]) {
