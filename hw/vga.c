@@ -24,11 +24,13 @@
 #include "vl.h"
 #include "vga_int.h"
 
-//#define DEBUG_VGA
-//#define DEBUG_VGA_MEM
-//#define DEBUG_VGA_REG
+#define DEBUG_VGA
+#define DEBUG_VGA_MEM
+#define DEBUG_VGA_REG
 
-//#define DEBUG_BOCHS_VBE
+#define DEBUG_BOCHS_VBE
+
+#define printf(fmt, args...) fprintf(stderr, fmt, ##args)
 
 /* force some bits to zero */
 const uint8_t sr_mask[8] = {
