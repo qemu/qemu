@@ -10,6 +10,7 @@ PowerPC CPU known to work (ie booting at least Linux 2.4):
 - PowerPC 604 & derivatives
 - PowerPC 740 & derivatives
 - PowerPC 750 & derivatives
+- PowerPC 405
 
 PowerPC that should work but are not supported by standard Linux kernel
 (then remain mostly untested)
@@ -18,7 +19,6 @@ PowerPC that should work but are not supported by standard Linux kernel
 
 Work in progress:
 * embedded PowerPC cores
-- PowerPC 405
 - BookE PowerPC
 - e500 core (Freescale PowerQUICC)
 * main stream PowerPC cores
@@ -59,8 +59,12 @@ TODO:
 ===============================================================================
 PowerPC microcontrollers emulation status
 
+Implemementation should be sufficient to boot Linux:
+- PowerPC 405CR
+- PowerPC 405EP
+
 TODO:
-- PowerPC 40x microcontrollers emulation
+- More PowerPC 40x microcontrollers emulation
 - PowerQUICC microcontrollers emulation
 
 ===============================================================================
@@ -80,11 +84,21 @@ PowerPC based platforms emulation status
 - Gentoo Linux live CDROM 1.4 - boots, compiles linux kernel
 - Debian Linux woody - boots from CDROM and HDD
 - Mandrake Linux 9 - boots from CDROM, freezes during install
+- Knoppix 2003-07-13_4 boots from CDROM, pb with X configuration
+  distribution bug: X runs with a properly hand-coded configuration.
+- rock Linux 2.0 runs from CDROM
+
+* Linux 2.6 support seems deadly broken (used to boot...).
+
+* PowerPC 405EP reference boards:
+- can boot Linux 2.4 & 2.6.
+  Need to provide a flash image ready to boot for reproductible tests.
 
 TODO:
 - MCA based RS/6000 emulation
 - CHRP emulation (not PowerMac)
 - PPAR emulation
+- ePPAR emulation
 - misc PowerPC reference boards emulation
 
 ===============================================================================

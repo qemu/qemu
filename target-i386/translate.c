@@ -3798,6 +3798,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         mod = (modrm >> 6) & 3;
         if (mod == 3)
             goto illegal_op;
+        gen_jmp_im(pc_start - s->cs_base);
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);

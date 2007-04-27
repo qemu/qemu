@@ -737,7 +737,7 @@ void OPPROTO op_dec4_rN(void)
 
 void OPPROTO op_dec8_rN(void)
 {
-    env->gregs[PARAM1] -= 4;
+    env->gregs[PARAM1] -= 8;
     RETURN();
 }
 
@@ -761,7 +761,7 @@ void OPPROTO op_inc4_rN(void)
 
 void OPPROTO op_inc8_rN(void)
 {
-    env->gregs[PARAM1] += 4;
+    env->gregs[PARAM1] += 8;
     RETURN();
 }
 

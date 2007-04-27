@@ -141,6 +141,8 @@ tarbin:
 	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
 	$(bindir)/qemu \
 	$(bindir)/qemu-system-ppc \
+	$(bindir)/qemu-system-ppc64 \
+	$(bindir)/qemu-system-ppcemb \
 	$(bindir)/qemu-system-sparc \
 	$(bindir)/qemu-system-x86_64 \
 	$(bindir)/qemu-system-mips \
@@ -153,6 +155,7 @@ tarbin:
         $(bindir)/qemu-armeb \
         $(bindir)/qemu-sparc \
         $(bindir)/qemu-ppc \
+        $(bindir)/qemu-ppc64 \
         $(bindir)/qemu-mips \
         $(bindir)/qemu-mipsel \
         $(bindir)/qemu-alpha \

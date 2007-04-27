@@ -189,7 +189,7 @@ void do_store_fpscr (uint32_t mask)
 
 target_ulong ppc_load_dump_spr (int sprn)
 {
-    if (loglevel) {
+    if (loglevel != 0) {
         fprintf(logfile, "Read SPR %d %03x => " ADDRX "\n",
                 sprn, sprn, env->spr[sprn]);
     }
@@ -199,7 +199,7 @@ target_ulong ppc_load_dump_spr (int sprn)
 
 void ppc_store_dump_spr (int sprn, target_ulong val)
 {
-    if (loglevel) {
+    if (loglevel != 0) {
         fprintf(logfile, "Write SPR %d %03x => " ADDRX " <= " ADDRX "\n",
                 sprn, sprn, env->spr[sprn], val);
     }
@@ -904,6 +904,7 @@ void do_fcmpo (void)
 }
 
 #if !defined (CONFIG_USER_ONLY)
+void cpu_dump_rfi (target_ulong RA, target_ulong msr);
 void do_rfi (void)
 {
 #if defined(TARGET_PPC64)
@@ -919,7 +920,7 @@ void do_rfi (void)
     do_store_msr(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
 #endif
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
@@ -935,7 +936,7 @@ void do_rfid (void)
         do_store_msr(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
     }
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
@@ -1136,7 +1137,7 @@ void do_POWER_rfsvc (void)
     T0 = env->ctr & 0x0000FFFFUL;
     do_store_msr(env, T0);
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
@@ -1214,7 +1215,7 @@ void do_40x_rfci (void)
     env->nip = env->spr[SPR_40x_SRR2];
     do_store_msr(env, env->spr[SPR_40x_SRR3] & ~0xFFFF0000);
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request = CPU_INTERRUPT_EXITTB;
 }
@@ -1231,7 +1232,7 @@ void do_rfci (void)
     }
     do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_CSRR1] & ~0x3FFF0000);
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request = CPU_INTERRUPT_EXITTB;
 }
@@ -1248,7 +1249,7 @@ void do_rfdi (void)
     }
     do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_DSRR1] & ~0x3FFF0000);
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request = CPU_INTERRUPT_EXITTB;
 }
@@ -1265,7 +1266,7 @@ void do_rfmci (void)
     }
     do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_MCSRR1] & ~0x3FFF0000);
 #if defined (DEBUG_OP)
-    dump_rfi();
+    cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request = CPU_INTERRUPT_EXITTB;
 }
@@ -1275,12 +1276,12 @@ void do_load_dcr (void)
     target_ulong val;
     
     if (unlikely(env->dcr_env == NULL)) {
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
         }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
         }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
@@ -1292,12 +1293,12 @@ void do_load_dcr (void)
 void do_store_dcr (void)
 {
     if (unlikely(env->dcr_env == NULL)) {
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
         }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
         }
         do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
@@ -1340,7 +1341,7 @@ void do_440_dlmzb (void)
     T0 = i;
 }
 
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
 /* SPE extension helpers */
 /* Use a table to make this quicker */
 static uint8_t hbrev[16] = {
@@ -2200,7 +2201,7 @@ DO_SPE_OP1(fsctuiz);
 DO_SPE_OP1(fsctsf);
 /* evfsctuf */
 DO_SPE_OP1(fsctuf);
-#endif /* defined(TARGET_PPCSPE) */
+#endif /* defined(TARGET_PPCEMB) */
 
 /*****************************************************************************/
 /* Softmmu support */
@@ -2494,44 +2495,16 @@ void do_4xx_tlbre_hi (void)
         T0 |= 0x100;
 }
 
-static int tlb_4xx_search (target_ulong virtual)
-{
-    ppcemb_tlb_t *tlb;
-    target_ulong base, mask;
-    int i, ret;
-
-    /* Default return value is no match */
-    ret = -1;
-    for (i = 0; i < 64; i++) {
-        tlb = &env->tlb[i].tlbe;
-        /* Check TLB validity */
-        if (!(tlb->prot & PAGE_VALID))
-            continue;
-        /* Check TLB PID vs current PID */
-        if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
-            continue;
-        /* Check TLB address vs virtual address */
-        base = tlb->EPN;
-        mask = ~(tlb->size - 1);
-        if ((base & mask) != (virtual & mask))
-            continue;
-        ret = i;
-        break;
-    }
-
-    return ret;
-}
-
 void do_4xx_tlbsx (void)
 {
-    T0 = tlb_4xx_search(T0);
+    T0 = ppcemb_tlb_search(env, T0);
 }
 
 void do_4xx_tlbsx_ (void)
 {
     int tmp = xer_ov;
 
-    T0 = tlb_4xx_search(T0);
+    T0 = ppcemb_tlb_search(env, T0);
     if (T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;
@@ -2543,7 +2516,7 @@ void do_4xx_tlbwe_hi (void)
     target_ulong page, end;
 
 #if defined (DEBUG_SOFTWARE_TLB)
-    if (loglevel) {
+    if (loglevel != 0) {
         fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
     }
 #endif
@@ -2553,7 +2526,7 @@ void do_4xx_tlbwe_hi (void)
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
 #if defined (DEBUG_SOFTWARE_TLB)
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "%s: invalidate old TLB %d start " ADDRX
                     " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
         }
@@ -2562,16 +2535,28 @@ void do_4xx_tlbwe_hi (void)
             tlb_flush_page(env, page);
     }
     tlb->size = booke_tlb_to_page_size((T1 >> 7) & 0x7);
+    /* We cannot handle TLB size < TARGET_PAGE_SIZE.
+     * If this ever occurs, one should use the ppcemb target instead
+     * of the ppc or ppc64 one
+     */
+    if ((T1 & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
+        cpu_abort(env, "TLB size %u < %u are not supported (%d)\n",
+                  tlb->size, TARGET_PAGE_SIZE, (int)((T1 >> 7) & 0x7));
+    }
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
     if (T1 & 0x40)
         tlb->prot |= PAGE_VALID;
     else
         tlb->prot &= ~PAGE_VALID;
+    if (T1 & 0x20) {
+        /* XXX: TO BE FIXED */
+        cpu_abort(env, "Little-endian TLB entries are not supported by now\n");
+    }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
     tlb->attr = T1 & 0xFF;
 #if defined (DEBUG_SOFTWARE_TLB)
-    if (loglevel) {
-        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
                 (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
                 tlb->prot & PAGE_READ ? 'r' : '-',
@@ -2584,7 +2569,7 @@ void do_4xx_tlbwe_hi (void)
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
 #if defined (DEBUG_SOFTWARE_TLB)
-        if (loglevel) {
+        if (loglevel != 0) {
             fprintf(logfile, "%s: invalidate TLB %d start " ADDRX
                     " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
         }
@@ -2599,7 +2584,7 @@ void do_4xx_tlbwe_lo (void)
     ppcemb_tlb_t *tlb;
 
 #if defined (DEBUG_SOFTWARE_TLB)
-    if (loglevel) {
+    if (loglevel != 0) {
         fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
     }
 #endif
@@ -2612,8 +2597,8 @@ void do_4xx_tlbwe_lo (void)
     if (T1 & 0x100)
         tlb->prot |= PAGE_WRITE;
 #if defined (DEBUG_SOFTWARE_TLB)
-    if (loglevel) {
-        fprintf(logfile, "%s: set up TLB %d RPN " ADDRX " EPN " ADDRX
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
                 (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
                 tlb->prot & PAGE_READ ? 'r' : '-',

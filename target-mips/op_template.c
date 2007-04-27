@@ -54,7 +54,7 @@ void glue(op_load_gpr_T2_gpr, REG) (void)
 #define SET_RESET(treg, tregname)        \
     void glue(op_set, tregname)(void)    \
     {                                    \
-        treg = PARAM1;                   \
+        treg = (int32_t)PARAM1;          \
         RETURN();                        \
     }                                    \
     void glue(op_reset, tregname)(void)  \

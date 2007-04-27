@@ -2459,6 +2459,12 @@ void OPPROTO op_store_40x_dbcr0 (void)
     store_40x_dbcr0(env, T0);
 }
 
+void OPPROTO op_store_40x_sler (void)
+{
+    store_40x_sler(env, T0);
+    RETURN();
+}
+
 void OPPROTO op_store_booke_tcr (void)
 {
     store_booke_tcr(env, T0);
@@ -2473,7 +2479,7 @@ void OPPROTO op_store_booke_tsr (void)
 
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#if defined(TARGET_PPCSPE)
+#if defined(TARGET_PPCEMB)
 /* SPE extension */
 void OPPROTO op_splatw_T1_64 (void)
 {
@@ -3192,4 +3198,4 @@ void OPPROTO op_efdtsteq (void)
     T0 = _do_efdtsteq(T0_64, T1_64);
     RETURN();
 }
-#endif /* defined(TARGET_PPCSPE) */
+#endif /* defined(TARGET_PPCEMB) */

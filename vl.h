@@ -1161,6 +1161,8 @@ int ioport_get_a20(void);
 extern QEMUMachine prep_machine;
 extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
+extern QEMUMachine ref405ep_machine;
+extern QEMUMachine taihu_machine;
 
 /* mips_r4k.c */
 void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
@@ -1489,6 +1491,17 @@ int sh7750_register_io_device(struct SH7750State *s,
 			      sh7750_io_device * device);
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
+
+/* NOR flash devices */
+#define MAX_PFLASH 4
+extern BlockDriverState *pflash_table[MAX_PFLASH];
+typedef struct pflash_t pflash_t;
+
+pflash_t *pflash_register (target_ulong base, ram_addr_t off,
+                           BlockDriverState *bs,
+                           target_ulong sector_len, int nb_blocs, int width,
+                           uint16_t id0, uint16_t id1, 
+                           uint16_t id2, uint16_t id3);
 
 #include "gdbstub.h"
 

@@ -1,3 +1,93 @@
+2007-04-27 02:01  ths
+
+	* target-i386/translate.c: Workaround qemu guest SIGSEGVs with
+	  cmpxchg8b insn, by Juergen Keil.
+
+2007-04-27 01:50  ths
+
+	* target-sh4/op.c: Fix inc8 and dec8 operations, by Magnus Damm.
+
+2007-04-27 01:49  ths
+
+	* linux-user/syscall.c: Use 16-bit uid wrappers, by Magnus Damm.
+
+2007-04-27 01:48  ths
+
+	* target-sh4/translate.c: Fix opcode for sts.l fpul/cpscr, by
+	  Magnus Damm.
+
+2007-04-26 20:32  blueswir1
+
+	* pc-bios/: README, openbios-sparc32: Update Sparc32 rom to support
+	  *BSD boot and 24 bit TCX
+
+2007-04-25 18:41  ths
+
+	* target-mips/: op_template.c, translate.c: Next attempt to get the
+	  lui sign extension right.
+
+2007-04-25 15:58  ths
+
+	* target-mips/translate.c: Fix lui sign extension.
+
+2007-04-25 00:57  ths
+
+	* hw/mips_malta.c: Improved mini-bootloader, based on a patch by
+	  Alec Voropay.
+
+2007-04-24 09:51  j_mayer
+
+	* target-ppc/STATUS: Update PowerPC target status.
+
+2007-04-24 09:43  j_mayer
+
+	* .cvsignore: Update .cvsignore for new PowerPC embedded target.
+
+2007-04-24 09:40  j_mayer
+
+	* Makefile.target, vl.c, vl.h, hw/ppc405_boards.c: Evaluation
+	  boards for PowerPC 405EP.
+
+2007-04-24 09:36  j_mayer
+
+	* target-ppc/op_helper.c: Debug traces fixes.
+
+2007-04-24 09:34  j_mayer
+
+	* Makefile, Makefile.target, configure: New target for embedded
+	  PowerPC emulation (only system emulation, for now).
+
+2007-04-24 08:52  j_mayer
+
+	* vl.c, vl.h: Add -pflash option to register parallel flash bloc
+	  devices.
+
+2007-04-24 08:50  j_mayer
+
+	* target-ppc/: cpu.h, exec.h, op.c, op_helper.c, op_helper.h,
+	  op_mem.h, op_template.h, translate.c: Code provision for new
+	  PowerPC embedded target support with: - 1 kB page size - 64 bits
+	  GPR - 64 bits physical address space - SPE extension support.
+	  Change TARGET_PPCSPE into TARGET_PPCEMB
+
+2007-04-24 08:44  j_mayer
+
+	* target-ppc/: cpu.h, helper.c, op.c, op_helper.c,
+	  translate_init.c: Improve PowerPC 405 MMU model / share more code
+	  for other embedded targets support.  Fix PowerPC 405 MSR mask.
+
+2007-04-24 08:37  j_mayer
+
+	* hw/: ppc405.h, ppc405_uc.c: PowerPC 405 microcontrollers fixes
+	  and improvments: - use target_phys_addr_t for physical addresses
+	  / offsets - implement fake general purpose timers and memory
+	  access layer	 for PowerPC 405EP - more assigned internal IRQs.
+
+2007-04-24 08:32  j_mayer
+
+	* hw/ppc.c: PowerPC embedded timers fixes.  Improve PowerPC timers
+	  debug.
+
 2007-04-22 21:14  blueswir1
 
 	* target-sparc/: cpu.h, op.c, translate.c: Sparc64 update: more VIS

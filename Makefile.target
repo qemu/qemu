@@ -10,6 +10,9 @@ endif
 ifeq ($(TARGET_ARCH), ppc64)
 TARGET_BASE_ARCH:=ppc
 endif
+ifeq ($(TARGET_ARCH), ppcemb)
+TARGET_BASE_ARCH:=ppc
+endif
 ifeq ($(TARGET_ARCH), sparc64)
 TARGET_BASE_ARCH:=sparc
 endif
@@ -452,7 +455,7 @@ ifeq ($(TARGET_BASE_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o pflash_cfi02.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
-VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o ppc405_uc.o
+VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o ppc405_uc.o ppc405_boards.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)

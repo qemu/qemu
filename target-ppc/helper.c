@@ -632,6 +632,58 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
+/* Generic TLB check function for embedded PowerPC implementations */
+static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
+                             target_phys_addr_t *raddrp,
+                             target_ulong address, int i)
+{
+    target_ulong mask;
+
+    /* Check valid flag */
+    if (!(tlb->prot & PAGE_VALID)) {
+        if (loglevel != 0)
+            fprintf(logfile, "%s: TLB %d not valid\n", __func__, i);
+        return -1;
+    }
+    mask = ~(tlb->size - 1);
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
+                ADDRX " " ADDRX " %d\n",
+                __func__, i, address, (int)env->spr[SPR_40x_PID],
+                tlb->EPN, mask, (int)tlb->PID);
+    }
+    /* Check PID */
+    if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
+        return -1;
+    /* Check effective address */
+    if ((address & mask) != tlb->EPN)
+        return -1;
+    *raddrp = (tlb->RPN & mask) | (address & ~mask);
+
+    return 0;
+}
+
+/* Generic TLB search function for PowerPC embedded implementations */
+int ppcemb_tlb_search (CPUState *env, target_ulong address)
+{
+    ppcemb_tlb_t *tlb;
+    target_phys_addr_t raddr;
+    int i, ret;
+
+    /* Default return value is no match */
+    ret = -1;
+    for (i = 0; i < 64; i++) {
+        tlb = &env->tlb[i].tlbe;
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, i) == 0) {
+            ret = i;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+/* Helpers specific to PowerPC 40x implementations */
 void ppc4xx_tlb_invalidate_all (CPUState *env)
 {
     ppcemb_tlb_t *tlb;
@@ -656,33 +708,14 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
-    target_ulong mask;
     int i, ret, zsel, zpr;
             
     ret = -1;
     raddr = -1;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
-        /* Check valid flag */
-        if (!(tlb->prot & PAGE_VALID)) {
-            if (loglevel != 0)
-                fprintf(logfile, "%s: TLB %d not valid\n", __func__, i);
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, i) < 0)
             continue;
-        }
-        mask = ~(tlb->size - 1);
-        if (loglevel != 0) {
-            fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
-                    ADDRX " " ADDRX " %d\n",
-                    __func__, i, address, (int)env->spr[SPR_40x_PID],
-                    tlb->EPN, mask, (int)tlb->PID);
-        }
-        /* Check PID */
-        if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
-            continue;
-        /* Check effective address */
-        if ((address & mask) != tlb->EPN)
-            continue;
-        raddr = (tlb->RPN & mask) | (address & ~mask);
         zsel = (tlb->attr >> 4) & 0xF;
         zpr = (env->spr[SPR_40x_ZPR] >> (28 - (2 * zsel))) & 0x3;
         if (loglevel != 0) {
@@ -692,6 +725,10 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         if (access_type == ACCESS_CODE) {
             /* Check execute enable bit */
             switch (zpr) {
+            case 0x2:
+                if (msr_pr)
+                    goto check_exec_perm;
+                goto exec_granted;
             case 0x0:
                 if (msr_pr) {
                     ctx->prot = 0;
@@ -700,7 +737,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 }
                 /* No break here */
             case 0x1:
-            case 0x2:
+            check_exec_perm:
                 /* Check from TLB entry */
                 if (!(tlb->prot & PAGE_EXEC)) {
                     ret = -3;
@@ -714,6 +751,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 }
                 break;
             case 0x3:
+            exec_granted:
                 /* All accesses granted */
                 ctx->prot = PAGE_READ | PAGE_WRITE;
                 ret = 0;
@@ -721,6 +759,10 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             }
         } else {
             switch (zpr) {
+            case 0x2:
+                if (msr_pr)
+                    goto check_rw_perm;
+                goto rw_granted;
             case 0x0:
                 if (msr_pr) {
                     ctx->prot = 0;
@@ -729,7 +771,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 }
                 /* No break here */
             case 0x1:
-            case 0x2:
+            check_rw_perm:
                 /* Check from TLB entry */
                 /* Check write protection bit */
                 if (tlb->prot & PAGE_WRITE) {
@@ -744,6 +786,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 }
                 break;
             case 0x3:
+            rw_granted:
                 /* All accesses granted */
                 ctx->prot = PAGE_READ | PAGE_WRITE;
                 ret = 0;
@@ -767,6 +810,15 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     }
     
     return ret;
+}
+
+void store_40x_sler (CPUPPCState *env, uint32_t val)
+{
+    /* XXX: TO BE FIXED */
+    if (val != 0x00000000) {
+        cpu_abort(env, "Little-endian regions are not supported by now\n");
+    }
+    env->spr[SPR_405_SLER] = val;
 }
 
 static int check_physical (CPUState *env, mmu_ctx_t *ctx,

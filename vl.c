@@ -138,6 +138,7 @@ IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 /* Note: bs_table[MAX_DISKS] is a dummy block driver if none available
    to store the VM snapshots */
 BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
+BlockDriverState *pflash_table[MAX_PFLASH];
 BlockDriverState *sd_bdrv;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
@@ -6368,6 +6369,7 @@ void help(void)
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
            "-sd file        use 'file' as SecureDigital card image\n"
+           "-pflash file    use 'file' as a parallel flash image\n"
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-snapshot       write to temporary files instead of disk image files\n"
 #ifdef CONFIG_SDL
@@ -6506,6 +6508,7 @@ enum {
     QEMU_OPTION_hdd,
     QEMU_OPTION_cdrom,
     QEMU_OPTION_sd,
+    QEMU_OPTION_pflash,
     QEMU_OPTION_boot,
     QEMU_OPTION_snapshot,
 #ifdef TARGET_I386
@@ -6585,6 +6588,7 @@ const QEMUOption qemu_options[] = {
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
     { "sd", HAS_ARG, QEMU_OPTION_sd },
+    { "pflash", HAS_ARG, QEMU_OPTION_pflash },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
     { "snapshot", 0, QEMU_OPTION_snapshot },
 #ifdef TARGET_I386
@@ -6716,6 +6720,8 @@ void register_machines(void)
     qemu_register_machine(&heathrow_machine);
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
+    qemu_register_machine(&ref405ep_machine);
+    qemu_register_machine(&taihu_machine);
 #elif defined(TARGET_MIPS)
 #if !defined(TARGET_MIPS64)
     qemu_register_ar7_machines();
@@ -6909,10 +6915,11 @@ int main(int argc, char **argv)
     int use_gdbstub;
     const char *gdbstub_port;
 #endif
-    int i, cdrom_index;
+    int i, cdrom_index, pflash_index;
     int snapshot, linux_boot;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
+    const char *pflash_filename[MAX_PFLASH];
     const char *sd_filename;
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
@@ -6981,6 +6988,9 @@ int main(int argc, char **argv)
         fd_filename[i] = NULL;
     for(i = 0; i < MAX_DISKS; i++)
         hd_filename[i] = NULL;
+    for(i = 0; i < MAX_PFLASH; i++)
+        pflash_filename[i] = NULL;
+    pflash_index = 0;
     sd_filename = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
@@ -7102,6 +7112,13 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_sd:
                 sd_filename = optarg;
+                break;
+            case QEMU_OPTION_pflash:
+                if (pflash_index >= MAX_PFLASH) {
+                    fprintf(stderr, "qemu: too many parallel flash images\n");
+                    exit(1);
+                }
+                pflash_filename[pflash_index++] = optarg;
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -7611,6 +7628,23 @@ int main(int argc, char **argv)
                             fd_filename[i]);
                     exit(1);
                 }
+            }
+        }
+    }
+
+    /* Open the virtual parallel flash bloc devices */
+    for(i = 0; i < MAX_PFLASH; i++) {
+        if (pflash_filename[i]) {
+            if (!pflash_table[i]) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "fl%c", i + 'a');
+                pflash_table[i] = bdrv_new(buf);
+            }
+            if (bdrv_open(pflash_table[i], pflash_filename[i],
+                          snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
+                fprintf(stderr, "qemu: could not open flash image '%s'\n",
+                        pflash_filename[i]);
+                exit(1);
             }
         }
     }

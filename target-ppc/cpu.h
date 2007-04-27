@@ -23,11 +23,13 @@
 #include "config.h"
 #include <inttypes.h>
 
+#if !defined(TARGET_PPCEMB)
 #if defined(TARGET_PPC64) || (HOST_LONG_BITS >= 64)
 /* When using 64 bits temporary registers,
  * we can use 64 bits GPR with no extra cost
  */
-#define TARGET_PPCSPE
+#define TARGET_PPCEMB
+#endif
 #endif
 
 #if defined (TARGET_PPC64)
@@ -35,7 +37,8 @@ typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 64
 #define TARGET_GPR_BITS  64
 #define REGX "%016" PRIx64
-#elif defined(TARGET_PPCSPE)
+#define TARGET_PAGE_BITS 12
+#elif defined(TARGET_PPCEMB)
 /* e500v2 have 36 bits physical address space */
 #define TARGET_PHYS_ADDR_BITS 64
 /* GPR are 64 bits: used by vector extension */
@@ -43,11 +46,14 @@ typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  64
 #define REGX "%016" PRIx64
+/* Pages can be 1 kB small */
+#define TARGET_PAGE_BITS 10
 #else
 typedef uint32_t ppc_gpr_t;
 #define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  32
 #define REGX "%08" PRIx32
+#define TARGET_PAGE_BITS 12
 #endif
 
 #include "cpu-defs.h"
@@ -881,9 +887,11 @@ void cpu_ppc601_store_rtcu (CPUPPCState *env, uint32_t value);
 target_ulong load_40x_pit (CPUPPCState *env);
 void store_40x_pit (CPUPPCState *env, target_ulong val);
 void store_40x_dbcr0 (CPUPPCState *env, uint32_t val);
+void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
+int ppcemb_tlb_search (CPUPPCState *env, target_ulong address);
 #endif
 #endif
 
@@ -891,7 +899,6 @@ void ppc_tlb_invalidate_all (CPUPPCState *env);
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
-#define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
 
 /*****************************************************************************/
