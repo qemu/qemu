@@ -99,6 +99,7 @@ endif # !CONFIG_LINUX_USER
 
 # We require -O2 to avoid the stack setup prologue in EXIT_TB
 OP_CFLAGS := -Wall -O2 -g -fno-strict-aliasing
+OP_CFLAGS += -MMD
 
 # cc-option
 # Usage: OP_CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
@@ -199,6 +200,8 @@ endif
 
 ifeq ($(ARCH),mips)
 #OP_CFLAGS += -mno-abicalls -fno-pic -mabi=eabi
+#OP_CFLAGS += -mxgot
+OP_CFLAGS += -fno-delayed-branch
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
