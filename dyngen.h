@@ -19,7 +19,7 @@
  */
 
 int __op_param1, __op_param2, __op_param3;
-#if defined(__sparc__) || defined(__arm__) || defined(HOST_MIPS)
+#if defined(__sparc__) || defined(__arm__) || defined(__mips__)
   void __op_gen_label1(){}
   void __op_gen_label2(){}
   void __op_gen_label3(){}

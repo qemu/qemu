@@ -459,13 +459,19 @@ static inline int testandset (int *p)
 {
     return __sync_lock_test_and_set (p, 1);
 }
-#elif defined(HOST_MIPS)
-#warning testandset not atomic
+#elif defined(__mips__)
 static inline int testandset (int *p)
 {
-    int oldval = *p;
-    *p = 1;
-    return oldval;
+    int ret;
+    __asm__ __volatile__(
+        ".set mips2\n"
+        "ll %0,%1\n"
+        "li %0,0\n"
+        "li %0,1\n"
+        "sc %0,%1\n"
+        : "=r" (ret), "=m" (*p)
+    );
+    return ret;
 }
 #else
 #error unimplemented CPU
