@@ -102,7 +102,6 @@ endif # !CONFIG_LINUX_USER
 
 # We require -O2 to avoid the stack setup prologue in EXIT_TB
 OP_CFLAGS := -Wall -O2 -g -fno-strict-aliasing
-OP_CFLAGS += -MMD
 
 # cc-option
 # Usage: OP_CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
@@ -118,6 +117,8 @@ OP_CFLAGS+=$(call cc-option, -fno-crossjumping, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
+
+OP_CFLAGS += -MMD
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
