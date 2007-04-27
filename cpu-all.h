@@ -20,7 +20,7 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
-#if defined(__arm__) || defined(__sparc__)
+#if defined(__arm__) || defined(__sparc__) || defined(__mips__)
 #define WORDS_ALIGNED
 #endif
 
