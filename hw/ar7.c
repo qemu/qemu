@@ -3613,7 +3613,7 @@ static void mips_ar7_common_init (int ram_size,
         const uint32_t address = 0x10000000;
         pflash_t *pf;
         flash_offset = qemu_ram_alloc(flash_size);
-        pf = pflash_register(address, flash_offset, 0, flash_size, 2,
+        pf = pflash_device_register(address, flash_offset, 0, flash_size, 2,
                              flash_manufacturer, flash_type);
     }
 

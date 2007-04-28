@@ -215,7 +215,7 @@ typedef enum {
 #include "vl.h"         /* BlockDriverState, target_ulong */
 
 /* NOR flash devices */
-typedef struct pflash_t pflash_t;
+//~ typedef struct pflash_t pflash_t;
 
 /* Special interfaces used by pflash_register. */
 
@@ -239,7 +239,7 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
 
 /* User interface. */
 
-pflash_t *pflash_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_device_register (target_ulong base, ram_addr_t off,
                            BlockDriverState *bs, uint32_t size, int width,
                            uint16_t flash_manufacturer, uint16_t flash_type);
 

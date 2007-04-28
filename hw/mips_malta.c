@@ -792,7 +792,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
             exit(1);
         }
         pflash_t *pf;
-        pf = pflash_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
+        pf = pflash_device_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
                              MANUFACTURER_INTEL, I28F160S5);
     }
 

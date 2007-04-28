@@ -1497,7 +1497,7 @@ int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
 extern BlockDriverState *pflash_table[MAX_PFLASH];
 typedef struct pflash_t pflash_t;
 
-pflash_t *pflash_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
                            BlockDriverState *bs,
                            target_ulong sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1, 
