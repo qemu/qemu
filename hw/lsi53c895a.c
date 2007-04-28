@@ -855,6 +855,7 @@ again:
             offset = sxt24(addr);
             cpu_physical_memory_read(s->dsa + offset, (uint8_t *)buf, 8);
             s->dbc = cpu_to_le32(buf[0]);
+            s->rbc = s->dbc;
             addr = cpu_to_le32(buf[1]);
         }
         if ((s->sstat1 & PHASE_MASK) != ((insn >> 24) & 7)) {
@@ -864,6 +865,8 @@ again:
             break;
         }
         s->dnad = addr;
+        /* ??? Set ESA.  */
+        s->ia = s->dsp - 8;
         switch (s->sstat1 & 0x7) {
         case PHASE_DO:
             s->waiting = 2;
@@ -898,8 +901,6 @@ again:
         s->sbc = s->dbc;
         s->rbc -= s->dbc;
         s->ua = addr + s->dbc;
-        /* ??? Set ESA.  */
-        s->ia = s->dsp - 8;
         break;
 
     case 1: /* IO or Read/Write instruction.  */
