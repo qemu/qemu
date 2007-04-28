@@ -73,7 +73,8 @@ void mips_pica61_init (int ram_size, int vga_ram_size, int boot_device,
 #ifdef TARGET_MIPS64
         cpu_model = "R4000";
 #else
-        cpu_model = "4KEc";
+        /* FIXME: All wrong, this maybe should be R3000 for the older PICAs. */
+        cpu_model = "24Kf";
 #endif
     }
     if (mips_find_by_name(cpu_model, &def) != 0)
