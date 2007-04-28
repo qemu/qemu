@@ -64,6 +64,8 @@ SECTIONS
     CONSTRUCTORS
   }
   .data1   : { *(.data1) }
+  .tdata    : { *(.tdata) }
+  .tbss    : { *(.tbss) }
   .ctors         :
   {
     *(.ctors)
@@ -125,4 +127,5 @@ SECTIONS
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
   /* These must appear regardless of  .  */
+  /DISCARD/ : { *(.note.GNU-stack) *(.note.ABI-tag) }
 }
