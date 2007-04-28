@@ -6,6 +6,11 @@ General
 - [ls][dw][lr] report broken (aligned) BadVAddr
 - Missing per-CPU instruction decoding, currently all implemented
   instructions are regarded as valid
+- Applications running on top of a emulated Linux segfault sometimes
+  when the Qemu FPU emulation is disabled. This is apparently a qemu
+  bug triggered by the Linux in-kernel FPU emulator.
+- The Timesys Linux installer shell hangs for e.g. "read foo". Likewise,
+  telnet'ting in the installer fails and hangs the telnetd.
 
 MIPS64
 ------
@@ -16,6 +21,10 @@ MIPS64
 "Generic" 4Kc system emulation
 ------------------------------
 - Doesn't correspond to any real hardware.
+
+PICA 61 system emulation
+------------------------
+- No framebuffer support yet.
 
 MALTA system emulation
 ----------------------
