@@ -3607,6 +3607,39 @@ static void mips_ar7_common_init (int ram_size,
     flash_offset = qemu_ram_alloc(0);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
+#if 0
+    BlockDriverState *pflash_table[MAX_PFLASH];
+    /* Open the virtual parallel flash block devices */
+    for(i = 0; i < MAX_PFLASH; i++) {
+        if (pflash_filename[i]) {
+            if (!pflash_table[i]) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "fl%c", i + 'a');
+                pflash_table[i] = bdrv_new(buf);
+            }
+            if (bdrv_open(pflash_table[i], pflash_filename[i],
+                          snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
+                fprintf(stderr, "qemu: could not open flash image '%s'\n",
+                        pflash_filename[i]);
+                exit(1);
+            }
+        }
+    }
+    if (pflash_table[fl_idx] != NULL) {
+        bios_size = bdrv_getlength(pflash_table[fl_idx]);
+        fl_sectors = (bios_size + 65535) >> 16;
+#ifdef DEBUG_BOARD_INIT
+        printf("Register parallel flash %d size " ADDRX " at offset %08lx "
+               " addr " ADDRX " '%s' %d\n",
+               fl_idx, bios_size, bios_offset, -bios_size,
+               bdrv_get_device_name(pflash_table[fl_idx]), fl_sectors);
+#endif
+        pflash_cfi02_register(-(bios_size), bios_offset, pflash_table[fl_idx],
+                        65536, fl_sectors, 2,
+                        0x0001, 0x22DA, 0x0000, 0x0000);
+        fl_idx++;
+    }
+#endif
     flash_size = load_image(buf, phys_ram_base + flash_offset);
     fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
     if (flash_size > 0) {
