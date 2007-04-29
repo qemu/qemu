@@ -1847,6 +1847,81 @@ void vga_init(VGAState *s)
                                  vga_io_memory);
 }
 
+/* Memory mapped interface */
+static uint32_t vga_mm_readb (void *opaque, target_phys_addr_t addr)
+{
+    VGAState *s = opaque;
+
+    return vga_ioport_read(s, (addr - s->base_ctrl) >> s->it_shift) & 0xff;
+}
+
+static void vga_mm_writeb (void *opaque,
+                           target_phys_addr_t addr, uint32_t value)
+{
+    VGAState *s = opaque;
+
+    vga_ioport_write(s, (addr - s->base_ctrl) >> s->it_shift, value & 0xff);
+}
+
+static uint32_t vga_mm_readw (void *opaque, target_phys_addr_t addr)
+{
+    VGAState *s = opaque;
+
+    return vga_ioport_read(s, (addr - s->base_ctrl) >> s->it_shift) & 0xffff;
+}
+
+static void vga_mm_writew (void *opaque,
+                           target_phys_addr_t addr, uint32_t value)
+{
+    VGAState *s = opaque;
+
+    vga_ioport_write(s, (addr - s->base_ctrl) >> s->it_shift, value & 0xffff);
+}
+
+static uint32_t vga_mm_readl (void *opaque, target_phys_addr_t addr)
+{
+    VGAState *s = opaque;
+
+    return vga_ioport_read(s, (addr - s->base_ctrl) >> s->it_shift);
+}
+
+static void vga_mm_writel (void *opaque,
+                           target_phys_addr_t addr, uint32_t value)
+{
+    VGAState *s = opaque;
+
+    vga_ioport_write(s, (addr - s->base_ctrl) >> s->it_shift, value);
+}
+
+static CPUReadMemoryFunc *vga_mm_read_ctrl[] = {
+    &vga_mm_readb,
+    &vga_mm_readw,
+    &vga_mm_readl,
+};
+
+static CPUWriteMemoryFunc *vga_mm_write_ctrl[] = {
+    &vga_mm_writeb,
+    &vga_mm_writew,
+    &vga_mm_writel,
+};
+
+static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
+                        target_phys_addr_t ctrl_base, int it_shift)
+{
+    int s_ioport_ctrl, vga_io_memory;
+
+    s->base_ctrl = ctrl_base;
+    s->it_shift = it_shift;
+    s_ioport_ctrl = cpu_register_io_memory(0, vga_mm_read_ctrl, vga_mm_write_ctrl, s);
+    vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);
+
+    register_savevm("vga", 0, 2, vga_save, vga_load, s);
+
+    cpu_register_physical_memory(ctrl_base, 0x100000, s_ioport_ctrl);
+    s->bank_offset = 0;
+    cpu_register_physical_memory(vram_base + 0x000a0000, 0x20000, vga_io_memory);
+}
+
 int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
                  unsigned long vga_ram_offset, int vga_ram_size)
 {
@@ -1864,6 +1939,30 @@ int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
+                                 vga_ram_size, vga_ram_offset);
+#endif
+    return 0;
+}
+
+int isa_vga_mm_init(DisplayState *ds, uint8_t *vga_ram_base,
+                    unsigned long vga_ram_offset, int vga_ram_size,
+                    target_phys_addr_t vram_base, target_phys_addr_t ctrl_base,
+                    int it_shift)
+{
+    VGAState *s;
+
+    s = qemu_mallocz(sizeof(VGAState));
+    if (!s)
+        return -1;
+
+    vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_mm_init(s, vram_base, ctrl_base, it_shift);
+
+    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump, s);
+
+#ifdef CONFIG_BOCHS_VBE
+    /* XXX: use optimized standard vga accesses */
+    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                  vga_ram_size, vga_ram_offset);
 #endif
     return 0;

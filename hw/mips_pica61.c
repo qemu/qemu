@@ -75,7 +75,8 @@ void mips_pica61_init (int ram_size, int vga_ram_size, int boot_device,
 #ifdef TARGET_MIPS64
         cpu_model = "R4000";
 #else
-        cpu_model = "4KEc";
+        /* FIXME: All wrong, this maybe should be R3000 for the older PICAs. */
+        cpu_model = "24Kf";
 #endif
     }
     if (mips_find_by_name(cpu_model, &def) != 0)
@@ -167,7 +168,10 @@ void mips_pica61_init (int ram_size, int vga_ram_size, int boot_device,
     ds1225y_init(0x80009000, "nvram");
 
     /* Video card */
-    //isa_vga_init(ds, phys_ram_base + ram_size, ram_size, vga_ram_size);
+    /* FIXME: This card is not the real one which was in the original PICA,
+     * but let's do with what Qemu currenly emulates... */
+    isa_vga_mm_init(ds, phys_ram_base + ram_size, ram_size, vga_ram_size,
+                    0x40000000, 0x60000000, 0);
 }
 
 QEMUMachine mips_pica61_machine = {

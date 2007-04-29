@@ -85,6 +85,8 @@
     unsigned int vram_size;                                             \
     unsigned long bios_offset;                                          \
     unsigned int bios_size;                                             \
+    target_phys_addr_t base_ctrl;                                       \
+    int it_shift;                                                       \
     PCIDevice *pci_dev;                                                 \
     uint32_t latch;                                                     \
     uint8_t sr_index;                                                   \

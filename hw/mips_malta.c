@@ -750,7 +750,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
 #ifdef TARGET_MIPS64
         cpu_model = "R4000";
 #else
-        cpu_model = "4KEc";
+        cpu_model = "24Kf";
 #endif
     }
     if (mips_find_by_name(cpu_model, &def) != 0)

@@ -852,6 +852,15 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 				       int x_position, int y_position,
 				       int w, int h)
 {
+    if (x_position > vs->ds->width)
+        x_position = vs->ds->width;
+    if (y_position > vs->ds->height)
+        y_position = vs->ds->height;
+    if (x_position + w >= vs->ds->width)
+        w = vs->ds->width  - x_position;
+    if (y_position + h >= vs->ds->height)
+        h = vs->ds->height - y_position;
+
     int i;
     vs->need_update = 1;
     if (!incremental) {

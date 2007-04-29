@@ -1,3 +1,45 @@
+2007-04-29 03:53  ths
+
+	* vnc.c: Crop VNC update requests to avoid segfaults, by Thomas
+	  Tuttle.
+
+2007-04-29 03:47  ths
+
+	* vl.h, hw/mips_pica61.c, hw/vga.c, hw/vga_int.h: Memory-mapped
+	  interface for VGA, by Herve Poussineau.
+
+2007-04-28 23:44  ths
+
+	* target-mips/TODO: Update TODO.
+
+2007-04-28 23:07  ths
+
+	* hw/: mips_malta.c, mips_pica61.c, mips_r4k.c: Switch default CPU
+	  to 24Kf for now, as the Linux FPU emulation in the current qemu
+	  mips emulation fails in some cases. (The Linux FPU emulation
+	  works on real FPU-less hardware.)
+
+2007-04-28 22:49  ths
+
+	* vl.c: Fix typo, by Linus Nordberg.
+
+2007-04-28 22:47  ths
+
+	* hw/scsi-disk.c: Buffer length fixes, by Wang Cheng Yeh.
+
+2007-04-28 22:45  ths
+
+	* hw/lsi53c895a.c: Fix length mismatch condition, by Wang Cheng
+	  Yeh.
+
+2007-04-28 21:00  ths
+
+	* ppc.ld: Update ppc.ld to work with newer binutils.
+
+2007-04-28 17:18  blueswir1
+
+	* sparc.ld: Fix Sparc32 ldscript
+
 2007-04-27 02:01  ths
 
 	* target-i386/translate.c: Workaround qemu guest SIGSEGVs with

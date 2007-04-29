@@ -345,7 +345,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         DPRINTF("Request Sense (len %d)\n", len);
         if (len < 4)
             goto fail;
-        memset(buf, 0, 4);
+        memset(outbuf, 0, 4);
         outbuf[0] = 0xf0;
         outbuf[1] = 0;
         outbuf[2] = s->sense;
@@ -371,7 +371,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
            Some later commands are also implemented. */
 	outbuf[2] = 3;
 	outbuf[3] = 2; /* Format 2 */
-	outbuf[4] = 32;
+	outbuf[4] = 31;
         /* Sync data transfer and TCQ.  */
         outbuf[7] = 0x10 | (s->tcq ? 0x02 : 0);
 	r->buf_len = 36;
@@ -404,10 +404,11 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
             p += 4;
             if ((page == 8 || page == 0x3f)) {
                 /* Caching page.  */
+                memset(p,0,20);
                 p[0] = 8;
                 p[1] = 0x12;
                 p[2] = 4; /* WCE */
-                p += 19;
+                p += 20;
             }
             if ((page == 0x3f || page == 0x2a)
                     && (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM)) {
@@ -437,7 +438,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
                 p[19] = (16 * 176) & 0xff;
                 p[20] = (16 * 176) >> 8; // 16x write speed current
                 p[21] = (16 * 176) & 0xff;
-                p += 21;
+                p += 22;
             }
             r->buf_len = p - outbuf;
             outbuf[0] = r->buf_len - 4;
