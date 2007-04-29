@@ -1021,10 +1021,21 @@ static inline int64_t cpu_get_real_ticks (void)
         return rval.i64;
 #endif
 }
+#elif defined(__mips__) && 0
+int64_t qemu_real_ticks;
+uint32_t qemu_real_last;
+static inline int64_t cpu_get_real_ticks(void)
+{
+    register uint32_t count = clock();
+    qemu_real_ticks += (count - qemu_real_last);
+    qemu_real_last = count;
+    return qemu_real_ticks;
+}
 #else
 /* The host CPU doesn't have an easily accessible cycle counter.
-   Just return a monotonically increasing vlue.  This will be totally wrong,
+   Just return a monotonically increasing value.  This will be totally wrong,
    but hopefully better than nothing.  */
+#warning host without cycle counter
 static inline int64_t cpu_get_real_ticks (void)
 {
     static int64_t ticks = 0;
