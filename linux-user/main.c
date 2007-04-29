@@ -1747,6 +1747,8 @@ int main(int argc, char **argv)
                 mips_cpu_list(stdout, &fprintf);
 #elif defined(TARGET_SPARC)
                 sparc_cpu_list(stdout, &fprintf);
+#else
+                printf("Target ignores cpu selection\n");
 #endif
                 _exit(1);
             }
