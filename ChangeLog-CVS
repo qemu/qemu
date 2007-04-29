@@ -1,3 +1,30 @@
+2007-04-29 23:26  ths
+
+	* target-mips/: exec.h, mips-defs.h: Kill broken host register
+	  definitions, thanks to Paul Brook and Herve Poussineau for
+	  debugging this.
+
+2007-04-29 23:19  ths
+
+	* target-mips/op_template.c: Revert last checkin.
+
+2007-04-29 22:13  ths
+
+	* target-mips/op_template.c: Hopefully the final fix for LUI sign
+	  extensions.
+
+2007-04-29 21:54  blueswir1
+
+	* target-sparc/translate.c: More Sparc32 CPUs
+
+2007-04-29 21:49  blueswir1
+
+	* target-sparc/translate.c: Fix CPU type zapped by system_reset
+
+2007-04-29 21:06  pbrook
+
+	* target-arm/helper.c: Fix ARM fine pagetables.
+
 2007-04-29 03:53  ths
 
 	* vnc.c: Crop VNC update requests to avoid segfaults, by Thomas

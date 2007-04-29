@@ -3302,7 +3302,6 @@ extern int ram_size;
 
 void cpu_reset(CPUSPARCState *env)
 {
-    memset(env, 0, sizeof(*env));
     tlb_flush(env, 1);
     env->cwp = 0;
     env->wim = 1;
@@ -3314,14 +3313,15 @@ void cpu_reset(CPUSPARCState *env)
     env->cansave = NWINDOWS - 1;
 #endif
 #else
+    env->psret = 0;
     env->psrs = 1;
     env->psrps = 1;
-    env->gregs[1] = ram_size;
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
     env->pc = 0x1fff0000000ULL;
 #else
     env->pc = 0xffd00000;
+    env->mmuregs[0] &= ~(MMU_E | MMU_NF);
 #endif
     env->npc = env->pc + 4;
 #endif
@@ -3356,11 +3356,28 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
     },
     {
-        /* XXX: Replace with real values */
+        .name = "Fujitsu MB86907",
+        .iu_version = 0x05 << 24, /* Impl 0, ver 5 */
+        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .mmu_version = 0x05 << 24, /* Impl 0, ver 5 */
+    },
+    {
+        .name = "TI MicroSparc I",
+        .iu_version = 0x41000000,
+        .fpu_version = 4 << 17,
+        .mmu_version = 0x41000000,
+    },
+    {
         .name = "TI SuperSparc II",
         .iu_version = 0x40000000,
-        .fpu_version = 0x00000000,
-        .mmu_version = 0x00000000,
+        .fpu_version = 0 << 17,
+        .mmu_version = 0x04000000,
+    },
+    {
+        .name = "Ross RT620",
+        .iu_version = 0x1e000000,
+        .fpu_version = 1 << 17,
+        .mmu_version = 0x17000000,
     },
 #endif
 };

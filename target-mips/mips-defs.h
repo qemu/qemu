@@ -1,8 +1,6 @@
 #if !defined (__QEMU_MIPS_DEFS_H__)
 #define __QEMU_MIPS_DEFS_H__
 
-/* If we want to use 64 bits host regs... */
-//#define USE_64BITS_REGS
 /* If we want to use host float regs... */
 //#define USE_HOST_FLOAT_REGS
 

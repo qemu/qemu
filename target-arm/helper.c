@@ -373,7 +373,13 @@ static int get_phys_addr(CPUState *env, uint32_t address, int access_type,
             code = 13;
         } else {
             /* Lookup l2 entry.  */
-            table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
+            if (type == 1) {
+                /* Coarse pagetable.  */
+                table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
+            } else {
+                /* Fine pagetable.  */
+                table = (desc & 0xfffff000) | ((address >> 8) & 0xffc);
+            }
             desc = ldl_phys(table);
             switch (desc & 3) {
             case 0: /* Page translation fault.  */

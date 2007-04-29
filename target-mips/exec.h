@@ -6,25 +6,18 @@
 #include "config.h"
 #include "mips-defs.h"
 #include "dyngen-exec.h"
+#include "cpu-defs.h"
 
 register struct CPUMIPSState *env asm(AREG0);
-
-#if defined (USE_64BITS_REGS)
-typedef int64_t host_int_t;
-typedef uint64_t host_uint_t;
-#else
-typedef int32_t host_int_t;
-typedef uint32_t host_uint_t;
-#endif
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 #define T0 (env->t0)
 #define T1 (env->t1)
 #define T2 (env->t2)
 #else
-register host_uint_t T0 asm(AREG1);
-register host_uint_t T1 asm(AREG2);
-register host_uint_t T2 asm(AREG3);
+register target_ulong T0 asm(AREG1);
+register target_ulong T1 asm(AREG2);
+register target_ulong T2 asm(AREG3);
 #endif
 
 #if defined (USE_HOST_FLOAT_REGS)
