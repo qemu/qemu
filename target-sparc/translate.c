@@ -3355,11 +3355,28 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
     },
     {
-        /* XXX: Replace with real values */
+        .name = "Fujitsu MB86907",
+        .iu_version = 0x05 << 24, /* Impl 0, ver 5 */
+        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .mmu_version = 0x05 << 24, /* Impl 0, ver 5 */
+    },
+    {
+        .name = "TI MicroSparc I",
+        .iu_version = 0x41000000,
+        .fpu_version = 4 << 17,
+        .mmu_version = 0x41000000,
+    },
+    {
         .name = "TI SuperSparc II",
         .iu_version = 0x40000000,
-        .fpu_version = 0x00000000,
-        .mmu_version = 0x00000000,
+        .fpu_version = 0 << 17,
+        .mmu_version = 0x04000000,
+    },
+    {
+        .name = "Ross RT620",
+        .iu_version = 0x1e000000,
+        .fpu_version = 1 << 17,
+        .mmu_version = 0x17000000,
     },
 #endif
 };
