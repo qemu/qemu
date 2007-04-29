@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
 #include "config.h"
 #include "exec.h"
 #include "disas.h"
@@ -1536,6 +1537,26 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     int is_write;
     
     pc = uc->uc_mcontext.psw.addr;
+    /* XXX: compute is_write */
+    is_write = 0;
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write,
+                             &uc->uc_sigmask, puc);
+}
+
+#elif defined(__mips__)
+
+int cpu_signal_handler(int host_signum, void *pinfo, 
+                       void *puc)
+{
+    siginfo_t *info = (siginfo_t *)pinfo;
+    ucontext_t *uc = (ucontext_t *)puc;
+    unsigned long pc;
+    int is_write;
+
+    printf("%s(%d,%p,%p)\n", __func__, host_signum, pinfo, puc);
+
+    pc = uc->uc_mcontext.pc;
     /* XXX: compute is_write */
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
