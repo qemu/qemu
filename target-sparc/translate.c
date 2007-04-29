@@ -3301,7 +3301,6 @@ extern int ram_size;
 
 void cpu_reset(CPUSPARCState *env)
 {
-    memset(env, 0, sizeof(*env));
     tlb_flush(env, 1);
     env->cwp = 0;
     env->wim = 1;
@@ -3313,14 +3312,15 @@ void cpu_reset(CPUSPARCState *env)
     env->cansave = NWINDOWS - 1;
 #endif
 #else
+    env->psret = 0;
     env->psrs = 1;
     env->psrps = 1;
-    env->gregs[1] = ram_size;
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
     env->pc = 0x1fff0000000ULL;
 #else
     env->pc = 0xffd00000;
+    env->mmuregs[0] &= ~(MMU_E | MMU_NF);
 #endif
     env->npc = env->pc + 4;
 #endif
