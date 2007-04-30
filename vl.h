@@ -1500,6 +1500,12 @@ uint8_t nand_getio(struct nand_flash_s *s);
 
 #include "ecc.h"
 
+/* ads7846.c */
+struct ads7846_state_s;
+uint32_t ads7846_read(void *opaque);
+void ads7846_write(void *opaque, uint32_t value);
+struct ads7846_state_s *ads7846_init(qemu_irq penirq);
+
 /* PCMCIA/Cardbus */
 
 struct pcmcia_socket_s {
