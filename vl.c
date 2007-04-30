@@ -140,6 +140,7 @@ IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
 BlockDriverState *pflash_table[MAX_PFLASH];
 BlockDriverState *sd_bdrv;
+BlockDriverState *mtd_bdrv;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
@@ -6419,6 +6420,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
+           "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"
            "-pflash file    use 'file' as a parallel flash image\n"
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
@@ -6559,6 +6561,7 @@ enum {
     QEMU_OPTION_hdc,
     QEMU_OPTION_hdd,
     QEMU_OPTION_cdrom,
+    QEMU_OPTION_mtdblock,
     QEMU_OPTION_sd,
     QEMU_OPTION_pflash,
     QEMU_OPTION_boot,
@@ -6640,6 +6643,7 @@ const QEMUOption qemu_options[] = {
     { "hdc", HAS_ARG, QEMU_OPTION_hdc },
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
+    { "mtdblock", HAS_ARG, QEMU_OPTION_mtdblock },
     { "sd", HAS_ARG, QEMU_OPTION_sd },
     { "pflash", HAS_ARG, QEMU_OPTION_pflash },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
@@ -6944,6 +6948,7 @@ int main(int argc, char **argv)
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *pflash_filename[MAX_PFLASH];
     const char *sd_filename;
+    const char *mtd_filename;
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
@@ -7008,6 +7013,7 @@ int main(int argc, char **argv)
         pflash_filename[i] = NULL;
     pflash_index = 0;
     sd_filename = NULL;
+    mtd_filename = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
@@ -7125,6 +7131,9 @@ int main(int argc, char **argv)
                     if (hd_index == cdrom_index)
                         cdrom_index = -1;
                 }
+                break;
+            case QEMU_OPTION_mtdblock:
+                mtd_filename = optarg;
                 break;
             case QEMU_OPTION_sd:
                 sd_filename = optarg;
@@ -7676,6 +7685,18 @@ int main(int argc, char **argv)
                     sd_filename);
         } else
             qemu_key_check(sd_bdrv, sd_filename);
+    }
+
+    if (mtd_filename) {
+        mtd_bdrv = bdrv_new ("mtd");
+        if (bdrv_open(mtd_bdrv, mtd_filename,
+                      snapshot ? BDRV_O_SNAPSHOT : 0) < 0 ||
+            qemu_key_check(mtd_bdrv, mtd_filename)) {
+            fprintf(stderr, "qemu: could not open Flash image %s\n",
+                    mtd_filename);
+            bdrv_delete(mtd_bdrv);
+            mtd_bdrv = 0;
+        }
     }
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);

@@ -967,6 +967,7 @@ extern uint8_t _translate_keycode(const int key);
 
 extern BlockDriverState *bs_table[MAX_DISKS + 1];
 extern BlockDriverState *sd_bdrv;
+extern BlockDriverState *mtd_bdrv;
 
 void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
@@ -1477,6 +1478,27 @@ pflash_t *pflash_register (target_ulong base, ram_addr_t off,
                            target_ulong sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1, 
                            uint16_t id2, uint16_t id3);
+
+/* nand.c */
+struct nand_flash_s;
+struct nand_flash_s *nand_init(int manf_id, int chip_id);
+void nand_done(struct nand_flash_s *s);
+void nand_setpins(struct nand_flash_s *s, 
+                int cle, int ale, int ce, int wp, int gnd);
+void nand_getpins(struct nand_flash_s *s, int *rb);
+void nand_setio(struct nand_flash_s *s, uint8_t value);
+uint8_t nand_getio(struct nand_flash_s *s);
+
+#define NAND_MFR_TOSHIBA	0x98
+#define NAND_MFR_SAMSUNG	0xec
+#define NAND_MFR_FUJITSU	0x04
+#define NAND_MFR_NATIONAL	0x8f
+#define NAND_MFR_RENESAS	0x07
+#define NAND_MFR_STMICRO	0x20
+#define NAND_MFR_HYNIX		0xad
+#define NAND_MFR_MICRON		0x2c
+
+#include "ecc.h"
 
 /* PCMCIA/Cardbus */
 
