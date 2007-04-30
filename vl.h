@@ -1506,6 +1506,9 @@ uint8_t nand_getio(struct nand_flash_s *s);
 
 #include "ecc.h"
 
+/* GPIO */
+typedef void (*gpio_handler_t)(int line, int level, void *opaque);
+
 /* ads7846.c */
 struct ads7846_state_s;
 uint32_t ads7846_read(void *opaque);
