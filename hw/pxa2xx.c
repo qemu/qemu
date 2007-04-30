@@ -1531,7 +1531,12 @@ struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
 
     s->dma = pxa27x_dma_init(0x40000000, s->pic[PXA2XX_PIC_DMA]);
 
+    pxa27x_timer_init(0x40a00000, &s->pic[PXA2XX_PIC_OST_0],
+                    s->pic[PXA27X_PIC_OST_4_11], s->env);
+
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
+
+    s->mmc = pxa2xx_mmci_init(0x41100000, s->pic[PXA2XX_PIC_MMC], s->dma);
 
     for (i = 0; pxa270_serial[i].io_base; i ++)
         if (serial_hds[i])
@@ -1542,6 +1547,9 @@ struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000, s->pic[PXA2XX_PIC_ICP],
                         s->dma, serial_hds[i]);
+
+    if (ds)
+        s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD], ds);
 
     s->cm_base = 0x41300000;
     s->cm_regs[CCCR >> 4] = 0x02000210;	/* 416.0 MHz */
@@ -1574,6 +1582,13 @@ struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
                         pxa2xx_ssp_writefn, &ssp[i]);
         cpu_register_physical_memory(ssp[i].base, 0xfff, iomemtype);
     }
+
+    if (usb_enabled) {
+        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1]);
+    }
+
+    s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
+    s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
 
     s->rtc_base = 0x40900000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_rtc_readfn,
@@ -1609,7 +1624,11 @@ struct pxa2xx_state_s *pxa255_init(DisplayState *ds)
 
     s->dma = pxa255_dma_init(0x40000000, s->pic[PXA2XX_PIC_DMA]);
 
+    pxa25x_timer_init(0x40a00000, &s->pic[PXA2XX_PIC_OST_0], s->env);
+
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
+
+    s->mmc = pxa2xx_mmci_init(0x41100000, s->pic[PXA2XX_PIC_MMC], s->dma);
 
     for (i = 0; pxa255_serial[i].io_base; i ++)
         if (serial_hds[i])
@@ -1620,6 +1639,9 @@ struct pxa2xx_state_s *pxa255_init(DisplayState *ds)
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000, s->pic[PXA2XX_PIC_ICP],
                         s->dma, serial_hds[i]);
+
+    if (ds)
+        s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD], ds);
 
     s->cm_base = 0x41300000;
     s->cm_regs[CCCR >> 4] = 0x02000210;	/* 416.0 MHz */
@@ -1652,6 +1674,13 @@ struct pxa2xx_state_s *pxa255_init(DisplayState *ds)
                         pxa2xx_ssp_writefn, &ssp[i]);
         cpu_register_physical_memory(ssp[i].base, 0xfff, iomemtype);
     }
+
+    if (usb_enabled) {
+        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1]);
+    }
+
+    s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
+    s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
 
     s->rtc_base = 0x40900000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_rtc_readfn,

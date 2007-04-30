@@ -63,6 +63,12 @@
 struct pxa2xx_pic_state_s;
 qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
 
+/* pxa2xx_timer.c */
+void pxa25x_timer_init(target_phys_addr_t base,
+                qemu_irq *irqs, CPUState *cpustate);
+void pxa27x_timer_init(target_phys_addr_t base,
+                qemu_irq *irqs, qemu_irq irq4, CPUState *cpustate);
+
 /* pxa2xx_gpio.c */
 struct pxa2xx_gpio_info_s;
 struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
@@ -81,6 +87,29 @@ struct pxa2xx_dma_state_s *pxa27x_dma_init(target_phys_addr_t base,
                 qemu_irq irq);
 void pxa2xx_dma_request(struct pxa2xx_dma_state_s *s, int req_num, int on);
 
+/* pxa2xx_lcd.c */
+struct pxa2xx_lcdc_s;
+struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base,
+                qemu_irq irq, DisplayState *ds);
+void pxa2xx_lcd_vsync_cb(struct pxa2xx_lcdc_s *s,
+                void (*cb)(void *opaque), void *opaque);
+void pxa2xx_lcdc_oritentation(void *opaque, int angle);
+
+/* pxa2xx_mmci.c */
+struct pxa2xx_mmci_s;
+struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
+                qemu_irq irq, void *dma);
+void pxa2xx_mmci_handlers(struct pxa2xx_mmci_s *s, void *opaque,
+                void (*readonly_cb)(void *, int),
+                void (*coverswitch_cb)(void *, int));
+
+/* pxa2xx_pcmcia.c */
+struct pxa2xx_pcmcia_s;
+struct pxa2xx_pcmcia_s *pxa2xx_pcmcia_init(target_phys_addr_t base);
+int pxa2xx_pcmcia_attach(void *opaque, struct pcmcia_card_s *card);
+int pxa2xx_pcmcia_dettach(void *opaque);
+void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
+
 /* pxa2xx.c */
 struct pxa2xx_ssp_s;
 void pxa2xx_ssp_attach(struct pxa2xx_ssp_s *port,
@@ -95,7 +124,10 @@ struct pxa2xx_state_s {
     qemu_irq *pic;
     struct pxa2xx_dma_state_s *dma;
     struct pxa2xx_gpio_info_s *gpio;
+    struct pxa2xx_lcdc_s *lcd;
     struct pxa2xx_ssp_s **ssp;
+    struct pxa2xx_mmci_s *mmc;
+    struct pxa2xx_pcmcia_s *pcmcia[2];
     struct pxa2xx_i2s_s *i2s;
     struct pxa2xx_fir_s *fir;
 

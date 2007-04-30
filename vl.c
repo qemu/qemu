@@ -188,6 +188,7 @@ const char *vnc_display;
 int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
+int graphic_rotate = 0;
 int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
@@ -524,6 +525,7 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
 {
     QEMUPutMouseEvent *mouse_event;
     void *mouse_event_opaque;
+    int width;
 
     if (!qemu_put_mouse_event_current) {
         return;
@@ -535,7 +537,16 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
         qemu_put_mouse_event_current->qemu_put_mouse_event_opaque;
 
     if (mouse_event) {
-        mouse_event(mouse_event_opaque, dx, dy, dz, buttons_state);
+        if (graphic_rotate) {
+            if (qemu_put_mouse_event_current->qemu_put_mouse_event_absolute)
+                width = 0x7fff;
+            else
+                width = graphic_width;
+            mouse_event(mouse_event_opaque,
+                                 width - dy, dx, dz, buttons_state);
+        } else
+            mouse_event(mouse_event_opaque,
+                                 dx, dy, dz, buttons_state);
     }
 }
 
@@ -6422,6 +6433,7 @@ void help(void)
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-smp n          set the number of CPUs to 'n' [default=1]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
+           "-portrait       rotate graphical output 90 deg left (only PXA LCD)\n"
 #ifndef _WIN32
            "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
@@ -6556,6 +6568,7 @@ enum {
 #endif
     QEMU_OPTION_m,
     QEMU_OPTION_nographic,
+    QEMU_OPTION_portrait,
 #ifdef HAS_AUDIO
     QEMU_OPTION_audio_help,
     QEMU_OPTION_soundhw,
@@ -6636,6 +6649,7 @@ const QEMUOption qemu_options[] = {
 #endif
     { "m", HAS_ARG, QEMU_OPTION_m },
     { "nographic", 0, QEMU_OPTION_nographic },
+    { "portrait", 0, QEMU_OPTION_portrait },
     { "k", HAS_ARG, QEMU_OPTION_k },
 #ifdef HAS_AUDIO
     { "audio-help", 0, QEMU_OPTION_audio_help },
@@ -7167,6 +7181,9 @@ int main(int argc, char **argv)
                 pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 nographic = 1;
                 break;
+            case QEMU_OPTION_portrait:
+                graphic_rotate = 1;
+                break;
             case QEMU_OPTION_kernel:
                 kernel_filename = optarg;
                 break;
@@ -7658,7 +7675,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "qemu: could not open SD card image %s\n",
                     sd_filename);
         } else
-            qemu_key_check(bs, sd_filename);
+            qemu_key_check(sd_bdrv, sd_filename);
     }
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
