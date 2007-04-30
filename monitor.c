@@ -386,8 +386,6 @@ static void do_eject(int force, const char *filename)
 static void do_change(const char *device, const char *filename)
 {
     BlockDriverState *bs;
-    int i;
-    char password[256];
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -397,15 +395,7 @@ static void do_change(const char *device, const char *filename)
     if (eject_device(bs, 0) < 0)
         return;
     bdrv_open(bs, filename, 0);
-    if (bdrv_is_encrypted(bs)) {
-        term_printf("%s is encrypted.\n", device);
-        for(i = 0; i < 3; i++) {
-            monitor_readline("Password: ", 1, password, sizeof(password));
-            if (bdrv_set_key(bs, password) == 0)
-                break;
-            term_printf("invalid password\n");
-        }
-    }
+    qemu_key_check(bs, filename);
 }
 
 static void do_screen_dump(const char *filename)

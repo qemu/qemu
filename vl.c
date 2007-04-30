@@ -6714,6 +6714,24 @@ static uint8_t *signal_stack;
 
 /* password input */
 
+int qemu_key_check(BlockDriverState *bs, const char *name)
+{
+    char password[256];
+    int i;
+
+    if (!bdrv_is_encrypted(bs))
+        return 0;
+
+    term_printf("%s is encrypted.\n", name);
+    for(i = 0; i < 3; i++) {
+        monitor_readline("Password: ", 1, password, sizeof(password));
+        if (bdrv_set_key(bs, password) == 0)
+            return 0;
+        term_printf("invalid password\n");
+    }
+    return -EPERM;
+}
+
 static BlockDriverState *get_bdrv(int index)
 {
     BlockDriverState *bs;
@@ -6731,21 +6749,12 @@ static BlockDriverState *get_bdrv(int index)
 static void read_passwords(void)
 {
     BlockDriverState *bs;
-    int i, j;
-    char password[256];
+    int i;
 
     for(i = 0; i < 6; i++) {
         bs = get_bdrv(i);
-        if (bs && bdrv_is_encrypted(bs)) {
-            term_printf("%s is encrypted.\n", bdrv_get_device_name(bs));
-            for(j = 0; j < 3; j++) {
-                monitor_readline("Password: ", 
-                                 1, password, sizeof(password));
-                if (bdrv_set_key(bs, password) == 0)
-                    break;
-                term_printf("invalid password\n");
-            }
-        }
+        if (bs)
+            qemu_key_check(bs, bdrv_get_device_name(bs));
     }
 }
 
@@ -7622,7 +7631,7 @@ int main(int argc, char **argv)
         }
     }
 
-    /* Open the virtual parallel flash bloc devices */
+    /* Open the virtual parallel flash block devices */
     for(i = 0; i < MAX_PFLASH; i++) {
         if (pflash_filename[i]) {
             if (!pflash_table[i]) {
@@ -7648,7 +7657,8 @@ int main(int argc, char **argv)
                       snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
             fprintf(stderr, "qemu: could not open SD card image %s\n",
                     sd_filename);
-        }
+        } else
+            qemu_key_check(bs, sd_filename);
     }
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);

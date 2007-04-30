@@ -632,6 +632,8 @@ void qemu_aio_wait_start(void);
 void qemu_aio_wait(void);
 void qemu_aio_wait_end(void);
 
+int qemu_key_check(BlockDriverState *bs, const char *name);
+
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
 
