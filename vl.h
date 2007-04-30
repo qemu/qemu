@@ -1506,6 +1506,14 @@ uint32_t ads7846_read(void *opaque);
 void ads7846_write(void *opaque, uint32_t value);
 struct ads7846_state_s *ads7846_init(qemu_irq penirq);
 
+/* max111x.c */
+struct max111x_s;
+uint32_t max111x_read(void *opaque);
+void max111x_write(void *opaque, uint32_t value);
+struct max111x_s *max1110_init(qemu_irq cb);
+struct max111x_s *max1111_init(qemu_irq cb);
+void max111x_set_input(struct max111x_s *s, int line, uint8_t value);
+
 /* PCMCIA/Cardbus */
 
 struct pcmcia_socket_s {
