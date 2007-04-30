@@ -492,6 +492,34 @@ static inline void gen_mov_vreg_F0(int dp, int reg)
         gen_op_vfp_setreg_F0s(vfp_reg_offset(dp, reg));
 }
 
+/* Disassemble system coprocessor instruction.  Return nonzero if
+   instruction is not defined.  */
+static int disas_cp_insn(CPUState *env, DisasContext *s, uint32_t insn)
+{
+    uint32_t rd = (insn >> 12) & 0xf;
+    uint32_t cp = (insn >> 8) & 0xf;
+    if (IS_USER(s)) {
+        return 1;
+    }
+
+    if (insn & (1 << 20)) {
+        if (!env->cp[cp].cp_read)
+            return 1;
+        gen_op_movl_T0_im((uint32_t) s->pc);
+        gen_op_movl_reg_TN[0][15]();
+        gen_op_movl_T0_cp(insn);
+        gen_movl_reg_T0(s, rd);
+    } else {
+        if (!env->cp[cp].cp_write)
+            return 1;
+        gen_op_movl_T0_im((uint32_t) s->pc);
+        gen_op_movl_reg_TN[0][15]();
+        gen_movl_T0_reg(s, rd);
+        gen_op_movl_cp_T0(insn);
+    }
+    return 0;
+}
+
 /* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
    instruction is not defined.  */
 static int disas_cp15_insn(DisasContext *s, uint32_t insn)
@@ -1812,7 +1840,16 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0xe:
             /* Coprocessor.  */
             op1 = (insn >> 8) & 0xf;
+            if (arm_feature(env, ARM_FEATURE_XSCALE) &&
+                    ((env->cp15.c15_cpar ^ 0x3fff) & (1 << op1)))
+                goto illegal_op;
             switch (op1) {
+            case 0 ... 1:
+            case 2 ... 9:
+            case 12 ... 14:
+                if (disas_cp_insn (env, s, insn))
+                    goto illegal_op;
+                break;
             case 10:
             case 11:
                 if (disas_vfp_insn (env, s, insn))

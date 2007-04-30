@@ -38,6 +38,11 @@
 #define EXCP_FIQ             6
 #define EXCP_BKPT            7
 
+typedef void ARMWriteCPFunc(void *opaque, int cp_info,
+                            int srcreg, int operand, uint32_t value);
+typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
+                               int dstreg, int operand);
+
 /* We currently assume float and double are IEEE single and double
    precision respectively.
    Doing runtime conversions is tricky because VFP registers may contain
@@ -75,6 +80,7 @@ typedef struct CPUARMState {
     /* System control coprocessor (cp15) */
     struct {
         uint32_t c0_cpuid;
+        uint32_t c0_cachetype;
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c2; /* MMU translation table base.  */
@@ -87,7 +93,15 @@ typedef struct CPUARMState {
         uint32_t c9_data;
         uint32_t c13_fcse; /* FCSE PID.  */
         uint32_t c13_context; /* Context ID.  */
+        uint32_t c15_cpar; /* XScale Coprocessor Access Register */
     } cp15;
+
+    /* Coprocessor IO used by peripherals */
+    struct {
+        ARMReadCPFunc *cp_read;
+        ARMWriteCPFunc *cp_write;
+        void *opaque;
+    } cp[15];
 
     /* Internal CPU feature flags.  */
     uint32_t features;
@@ -204,10 +218,10 @@ enum arm_cpu_mode {
 #define ARM_VFP_FPINST  9
 #define ARM_VFP_FPINST2 10
 
-
 enum arm_features {
     ARM_FEATURE_VFP,
-    ARM_FEATURE_AUXCR /* ARM1026 Auxiliary control register.  */
+    ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
+    ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -218,8 +232,24 @@ static inline int arm_feature(CPUARMState *env, int feature)
 void arm_cpu_list(void);
 void cpu_arm_set_model(CPUARMState *env, const char *name);
 
-#define ARM_CPUID_ARM1026 0x4106a262
-#define ARM_CPUID_ARM926  0x41069265
+void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
+                       ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,
+                       void *opaque);
+
+#define ARM_CPUID_ARM1026   0x4106a262
+#define ARM_CPUID_ARM926    0x41069265
+#define ARM_CPUID_PXA250    0x69052100
+#define ARM_CPUID_PXA255    0x69052d00
+#define ARM_CPUID_PXA260    0x69052903
+#define ARM_CPUID_PXA261    0x69052d05
+#define ARM_CPUID_PXA262    0x69052d06
+#define ARM_CPUID_PXA270    0x69054110
+#define ARM_CPUID_PXA270_A0 0x69054110
+#define ARM_CPUID_PXA270_A1 0x69054111
+#define ARM_CPUID_PXA270_B0 0x69054112
+#define ARM_CPUID_PXA270_B1 0x69054113
+#define ARM_CPUID_PXA270_C0 0x69054114
+#define ARM_CPUID_PXA270_C5 0x69054117
 
 #if defined(CONFIG_USER_ONLY)
 #define TARGET_PAGE_BITS 12

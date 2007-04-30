@@ -54,6 +54,8 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 void cpu_lock(void);
 void cpu_unlock(void);
+void helper_set_cp(CPUState *, uint32_t, uint32_t);
+uint32_t helper_get_cp(CPUState *, uint32_t);
 void helper_set_cp15(CPUState *, uint32_t, uint32_t);
 uint32_t helper_get_cp15(CPUState *, uint32_t);
 
