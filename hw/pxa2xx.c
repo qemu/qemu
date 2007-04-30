@@ -1518,14 +1518,13 @@ struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
 {
     struct pxa2xx_state_s *s;
     struct pxa2xx_ssp_s *ssp;
-    char *cpu_model;
+    char cpu_model[16];
     int iomemtype, i;
     s = (struct pxa2xx_state_s *) qemu_mallocz(sizeof(struct pxa2xx_state_s));
 
     s->env = cpu_init();
-    asprintf(&cpu_model, "pxa270-%s", revision);
+    snprintf(cpu_model, sizeof(cpu_model), "pxa270-%s", revision);
     cpu_arm_set_model(s->env, cpu_model);
-    free(cpu_model);
 
     s->pic = pxa2xx_pic_init(0x40d00000, s->env);
 
