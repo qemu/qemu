@@ -1316,6 +1316,8 @@ static term_cmd_t info_cmds[] = {
       "", "show capture information" },
     { "snapshots", "", do_info_snapshots,
       "", "show the currently saved VM snapshots" },
+    { "pcmcia", "", pcmcia_info,
+      "", "show guest PCMCIA status" },
     { "mice", "", do_info_mice,
       "", "show which guest mouse is receiving events" },
     { "vnc", "", do_info_vnc,

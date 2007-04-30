@@ -4412,6 +4412,48 @@ void usb_info(void)
 }
 
 /***********************************************************/
+/* PCMCIA/Cardbus */
+
+static struct pcmcia_socket_entry_s {
+    struct pcmcia_socket_s *socket;
+    struct pcmcia_socket_entry_s *next;
+} *pcmcia_sockets = 0;
+
+void pcmcia_socket_register(struct pcmcia_socket_s *socket)
+{
+    struct pcmcia_socket_entry_s *entry;
+
+    entry = qemu_malloc(sizeof(struct pcmcia_socket_entry_s));
+    entry->socket = socket;
+    entry->next = pcmcia_sockets;
+    pcmcia_sockets = entry;
+}
+
+void pcmcia_socket_unregister(struct pcmcia_socket_s *socket)
+{
+    struct pcmcia_socket_entry_s *entry, **ptr;
+
+    ptr = &pcmcia_sockets;
+    for (entry = *ptr; entry; ptr = &entry->next, entry = *ptr)
+        if (entry->socket == socket) {
+            *ptr = entry->next;
+            qemu_free(entry);
+        }
+}
+
+void pcmcia_info(void)
+{
+    struct pcmcia_socket_entry_s *iter;
+    if (!pcmcia_sockets)
+        term_printf("No PCMCIA sockets\n");
+
+    for (iter = pcmcia_sockets; iter; iter = iter->next)
+        term_printf("%s: %s\n", iter->socket->slot_string,
+                    iter->socket->attached ? iter->socket->card_string :
+                    "Empty");
+}
+
+/***********************************************************/
 /* dumb display */
 
 static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
