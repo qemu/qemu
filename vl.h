@@ -1398,6 +1398,12 @@ extern QEMUMachine versatileab_machine;
 /* realview.c */
 extern QEMUMachine realview_machine;
 
+/* spitz.c */
+extern QEMUMachine akitapda_machine;
+extern QEMUMachine spitzpda_machine;
+extern QEMUMachine borzoipda_machine;
+extern QEMUMachine terrierpda_machine;
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);

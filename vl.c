@@ -6804,6 +6804,10 @@ void register_machines(void)
     qemu_register_machine(&versatilepb_machine);
     qemu_register_machine(&versatileab_machine);
     qemu_register_machine(&realview_machine);
+    qemu_register_machine(&akitapda_machine);
+    qemu_register_machine(&spitzpda_machine);
+    qemu_register_machine(&borzoipda_machine);
+    qemu_register_machine(&terrierpda_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
 #elif defined(TARGET_ALPHA)
@@ -6815,6 +6819,7 @@ void register_machines(void)
 
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
+#ifdef HAS_AUDIO_CHOICE
 #ifdef TARGET_I386
     {
         "pcspk",
@@ -6863,6 +6868,7 @@ struct soundhw soundhw[] = {
         0,
         { .init_pci = es1370_init }
     },
+#endif
 
     { NULL, NULL, 0, 0, { NULL } }
 };
