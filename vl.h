@@ -1450,7 +1450,7 @@ qemu_irq *arm_gic_init(uint32_t base, qemu_irq parent_irq);
 
 void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      const char *kernel_cmdline, const char *initrd_filename,
-                     int board_id);
+                     int board_id, target_phys_addr_t loader_start);
 
 /* sh7750.c */
 struct SH7750State;

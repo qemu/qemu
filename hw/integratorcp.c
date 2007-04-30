@@ -508,7 +508,7 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     pl110_init(ds, 0xc0000000, pic[22], 0);
 
     arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
-                    initrd_filename, 0x113);
+                    initrd_filename, 0x113, 0x0);
 }
 
 QEMUMachine integratorcp_machine = {

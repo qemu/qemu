@@ -1035,7 +1035,7 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
     cpu->env->regs[15] = PXA2XX_RAM_BASE;
 
     arm_load_kernel(cpu->env, ram_size, kernel_filename, kernel_cmdline,
-                    initrd_filename, arm_id);
+                    initrd_filename, arm_id, PXA2XX_RAM_BASE);
     sl_bootparam_write(SL_PXA_PARAM_BASE - PXA2XX_RAM_BASE);
 }
 
