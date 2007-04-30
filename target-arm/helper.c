@@ -42,6 +42,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA270_C5:
         set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
+        set_feature(env, ARM_FEATURE_IWMMXT);
+        env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
         env->cp15.c0_cachetype = 0xd172172;
         break;
     default:

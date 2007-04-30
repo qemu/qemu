@@ -1213,3 +1213,6 @@ void OPPROTO op_movl_T0_T2(void)
 {
     T0 = T2;
 }
+
+/* iwMMXt support */
+#include "op_iwmmxt.c"

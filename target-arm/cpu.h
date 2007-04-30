@@ -129,6 +129,14 @@ typedef struct CPUARMState {
         float_status fp_status;
     } vfp;
 
+    /* iwMMXt coprocessor state.  */
+    struct {
+        uint64_t regs[16];
+        uint64_t val;
+
+        uint32_t cregs[16];
+    } iwmmxt;
+
 #if defined(CONFIG_USER_ONLY)
     /* For usermode syscall translation.  */
     int eabi;
@@ -218,10 +226,21 @@ enum arm_cpu_mode {
 #define ARM_VFP_FPINST  9
 #define ARM_VFP_FPINST2 10
 
+/* iwMMXt coprocessor control registers.  */
+#define ARM_IWMMXT_wCID		0
+#define ARM_IWMMXT_wCon		1
+#define ARM_IWMMXT_wCSSF	2
+#define ARM_IWMMXT_wCASF	3
+#define ARM_IWMMXT_wCGR0	8
+#define ARM_IWMMXT_wCGR1	9
+#define ARM_IWMMXT_wCGR2	10
+#define ARM_IWMMXT_wCGR3	11
+
 enum arm_features {
     ARM_FEATURE_VFP,
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
+    ARM_FEATURE_IWMMXT  /* Intel iwMMXt extension.  */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

@@ -32,6 +32,8 @@ register uint32_t T2 asm(AREG3);
 #define FT0d env->vfp.tmp0d
 #define FT1d env->vfp.tmp1d
 
+#define M0   env->iwmmxt.val
+
 #include "cpu.h"
 #include "exec-all.h"
 
