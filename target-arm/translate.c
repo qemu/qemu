@@ -1584,7 +1584,7 @@ static int disas_cp_insn(CPUState *env, DisasContext *s, uint32_t insn)
 
 /* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
    instruction is not defined.  */
-static int disas_cp15_insn(DisasContext *s, uint32_t insn)
+static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd;
 
@@ -1610,8 +1610,13 @@ static int disas_cp15_insn(DisasContext *s, uint32_t insn)
     } else {
         gen_movl_T0_reg(s, rd);
         gen_op_movl_cp15_T0(insn);
+        /* Normally we would always end the TB here, but Linux
+         * arch/arm/mach-pxa/sleep.S expects two instructions following
+         * an MMU enable to execute from cache.  Imitate this behaviour.  */
+        if (!arm_feature(env, ARM_FEATURE_XSCALE) ||
+                (insn & 0x0fff0fff) != 0x0e010f10)
+            gen_lookup_tb(s);
     }
-    gen_lookup_tb(s);
     return 0;
 }
 
@@ -2927,7 +2932,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     goto illegal_op;
                 break;
             case 15:
-                if (disas_cp15_insn (s, insn))
+                if (disas_cp15_insn (env, s, insn))
                     goto illegal_op;
                 break;
             default:

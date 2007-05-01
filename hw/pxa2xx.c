@@ -247,7 +247,8 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
             goto message;
 
         case 3:
-            cpu_reset(s->env);
+            s->env->uncached_cpsr =
+                    ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
             s->env->cp15.c1_sys = 0;
             s->env->cp15.c1_coproc = 0;
             s->env->cp15.c2 = 0;
