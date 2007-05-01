@@ -80,6 +80,7 @@ For system emulation, the following hardware targets are supported:
 @item ARM Integrator/CP (ARM926E or 1026E processor)
 @item ARM Versatile baseboard (ARM926E)
 @item ARM RealView Emulation baseboard (ARM926EJ-S)
+@item Spitz, Akita, Borzoi and Terrier PDAs (PXA270 processor)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
@@ -1779,6 +1780,36 @@ PCI OHCI USB controller
 LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices
 @item
 PL181 MultiMedia Card Interface with SD card.
+@end itemize
+
+The XScale-based clamshell PDA models ("Spitz", "Akita", "Borzoi"
+and "Terrier") emulation includes the following peripherals:
+
+@itemize @minus
+@item
+Intel PXA270 System-on-chip (ARM V5TE core)
+@item
+NAND Flash memory
+@item
+IBM/Hitachi DSCM microdrive in a PXA PCMCIA slot - not in "Akita"
+@item
+On-chip OHCI USB controller
+@item
+On-chip LCD controller
+@item
+On-chip Real Time Clock
+@item
+TI ADS7846 touchscreen controller on SSP bus
+@item
+Maxim MAX1111 analog-digital converter on I@math{^2}C bus
+@item
+GPIO-connected keyboard controller and LEDs
+@item
+Secure Digital card conntected to PXA MMC/SD host
+@item
+Three on-chip UARTs
+@item
+WM8750 audio CODEC on I@math{^2}C and I@math{^2}S busses
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More

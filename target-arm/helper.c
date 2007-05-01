@@ -18,11 +18,34 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM926:
         set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
+        env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_ARM1026:
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
+        env->cp15.c0_cachetype = 0x1dd20d2;
+        break;
+    case ARM_CPUID_PXA250:
+    case ARM_CPUID_PXA255:
+    case ARM_CPUID_PXA260:
+    case ARM_CPUID_PXA261:
+    case ARM_CPUID_PXA262:
+        set_feature(env, ARM_FEATURE_XSCALE);
+        /* JTAG_ID is ((id << 28) | 0x09265013) */
+        env->cp15.c0_cachetype = 0xd172172;
+        break;
+    case ARM_CPUID_PXA270_A0:
+    case ARM_CPUID_PXA270_A1:
+    case ARM_CPUID_PXA270_B0:
+    case ARM_CPUID_PXA270_B1:
+    case ARM_CPUID_PXA270_C0:
+    case ARM_CPUID_PXA270_C5:
+        set_feature(env, ARM_FEATURE_XSCALE);
+        /* JTAG_ID is ((id << 28) | 0x09265013) */
+        set_feature(env, ARM_FEATURE_IWMMXT);
+        env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
+        env->cp15.c0_cachetype = 0xd172172;
         break;
     default:
         cpu_abort(env, "Bad CPU ID: %x\n", id);
@@ -69,6 +92,18 @@ struct arm_cpu_t {
 static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_ARM926, "arm926"},
     { ARM_CPUID_ARM1026, "arm1026"},
+    { ARM_CPUID_PXA250, "pxa250" },
+    { ARM_CPUID_PXA255, "pxa255" },
+    { ARM_CPUID_PXA260, "pxa260" },
+    { ARM_CPUID_PXA261, "pxa261" },
+    { ARM_CPUID_PXA262, "pxa262" },
+    { ARM_CPUID_PXA270, "pxa270" },
+    { ARM_CPUID_PXA270_A0, "pxa270-a0" },
+    { ARM_CPUID_PXA270_A1, "pxa270-a1" },
+    { ARM_CPUID_PXA270_B0, "pxa270-b0" },
+    { ARM_CPUID_PXA270_B1, "pxa270-b1" },
+    { ARM_CPUID_PXA270_C0, "pxa270-c0" },
+    { ARM_CPUID_PXA270_C5, "pxa270-c5" },
     { 0, NULL}
 };
 
@@ -133,6 +168,20 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 
 /* These should probably raise undefined insn exceptions.  */
+void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
+{
+    int op1 = (insn >> 8) & 0xf;
+    cpu_abort(env, "cp%i insn %08x\n", op1, insn);
+    return;
+}
+
+uint32_t helper_get_cp(CPUState *env, uint32_t insn)
+{
+    int op1 = (insn >> 8) & 0xf;
+    cpu_abort(env, "cp%i insn %08x\n", op1, insn);
+    return 0;
+}
+
 void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
@@ -394,12 +443,16 @@ static int get_phys_addr(CPUState *env, uint32_t address, int access_type,
                 ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
                 break;
             case 3: /* 1k page.  */
-                if (type == 1) {
-                    /* Page translation fault.  */
-                    code = 7;
-                    goto do_fault;
+                if (arm_feature(env, ARM_FEATURE_XSCALE))
+                    phys_addr = (desc & 0xfffff000) | (address & 0xfff);
+                else {
+                    if (type == 1) {
+                        /* Page translation fault.  */
+                        code = 7;
+                        goto do_fault;
+                    }
+                    phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
                 }
-                phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
                 ap = (desc >> 4) & 3;
                 break;
             default:
@@ -462,6 +515,31 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return phys_addr;
 }
 
+void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
+{
+    int cp_num = (insn >> 8) & 0xf;
+    int cp_info = (insn >> 5) & 7;
+    int src = (insn >> 16) & 0xf;
+    int operand = insn & 0xf;
+
+    if (env->cp[cp_num].cp_write)
+        env->cp[cp_num].cp_write(env->cp[cp_num].opaque,
+                                 cp_info, src, operand, val);
+}
+
+uint32_t helper_get_cp(CPUState *env, uint32_t insn)
+{
+    int cp_num = (insn >> 8) & 0xf;
+    int cp_info = (insn >> 5) & 7;
+    int dest = (insn >> 16) & 0xf;
+    int operand = insn & 0xf;
+
+    if (env->cp[cp_num].cp_read)
+        return env->cp[cp_num].cp_read(env->cp[cp_num].opaque,
+                                       cp_info, dest, operand);
+    return 0;
+}
+
 void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
 {
     uint32_t op2;
@@ -473,15 +551,23 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 1: /* System configuration.  */
         switch (op2) {
         case 0:
-            env->cp15.c1_sys = val;
+            if (!arm_feature(env, ARM_FEATURE_XSCALE) || (insn & 0xf) == 0)
+                env->cp15.c1_sys = val;
             /* ??? Lots of these bits are not implemented.  */
             /* This may enable/disable the MMU, so do a TLB flush.  */
             tlb_flush(env, 1);
             break;
+        case 1:
+            /* XScale doesn't implement AUX CR (P-Bit) but allows
+             * writing with zero and reading.  */
+            if (arm_feature(env, ARM_FEATURE_XSCALE))
+                break;
+            goto bad_reg;
         case 2:
             env->cp15.c1_coproc = val;
             /* ??? Is this safe when called from within a TB?  */
             tb_flush(env);
+            break;
         default:
             goto bad_reg;
         }
@@ -585,13 +671,21 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 14: /* Reserved.  */
         goto bad_reg;
     case 15: /* Implementation specific.  */
-        /* ??? Internal registers not implemented.  */
+        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+            if (op2 == 0 && (insn & 0xf) == 1) {
+                /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
+                tb_flush(env);
+                env->cp15.c15_cpar = (val & 0x3fff) | 2;
+                break;
+            }
+            goto bad_reg;
+        }
         break;
     }
     return;
 bad_reg:
     /* ??? For debugging only.  Should raise illegal instruction exception.  */
-    cpu_abort(env, "Unimplemented cp15 register read\n");
+    cpu_abort(env, "Unimplemented cp15 register write\n");
 }
 
 uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
@@ -605,7 +699,7 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         default: /* Device ID.  */
             return env->cp15.c0_cpuid;
         case 1: /* Cache Type.  */
-            return 0x1dd20d2;
+            return env->cp15.c0_cachetype;
         case 2: /* TCM status.  */
             return 0;
         }
@@ -616,6 +710,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         case 1: /* Auxiliary control register.  */
             if (arm_feature(env, ARM_FEATURE_AUXCR))
                 return 1;
+            if (arm_feature(env, ARM_FEATURE_XSCALE))
+                return 0;
             goto bad_reg;
         case 2: /* Coprocessor access register.  */
             return env->cp15.c1_coproc;
@@ -650,7 +746,7 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         }
     case 7: /* Cache control.  */
         /* ??? This is for test, clean and invaidate operations that set the
-           Z flag.  We can't represent N = Z = 1, so it also clears clears
+           Z flag.  We can't represent N = Z = 1, so it also clears
            the N flag.  Oh well.  */
         env->NZF = 0;
         return 0;
@@ -683,13 +779,32 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
     case 14: /* Reserved.  */
         goto bad_reg;
     case 15: /* Implementation specific.  */
-        /* ??? Internal registers not implemented.  */
+        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+            if (op2 == 0 && (insn & 0xf) == 1)
+                return env->cp15.c15_cpar;
+
+            goto bad_reg;
+        }
         return 0;
     }
 bad_reg:
     /* ??? For debugging only.  Should raise illegal instruction exception.  */
     cpu_abort(env, "Unimplemented cp15 register read\n");
     return 0;
+}
+
+void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
+                ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,
+                void *opaque)
+{
+    if (cpnum < 0 || cpnum > 14) {
+        cpu_abort(env, "Bad coprocessor number: %i\n", cpnum);
+        return;
+    }
+
+    env->cp[cpnum].cp_read = cp_read;
+    env->cp[cpnum].cp_write = cp_write;
+    env->cp[cpnum].opaque = opaque;
 }
 
 #endif

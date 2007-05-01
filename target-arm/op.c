@@ -1142,10 +1142,22 @@ void OPPROTO op_vfp_mdrr(void)
     FT0d = u.d;
 }
 
-/* Copy the most significant bit to T0 to all bits of T1.  */
+/* Copy the most significant bit of T0 to all bits of T1.  */
 void OPPROTO op_signbit_T1_T0(void)
 {
     T1 = (int32_t)T0 >> 31;
+}
+
+void OPPROTO op_movl_cp_T0(void)
+{
+    helper_set_cp(env, PARAM1, T0);
+    FORCE_RET();
+}
+
+void OPPROTO op_movl_T0_cp(void)
+{
+    T0 = helper_get_cp(env, PARAM1);
+    FORCE_RET();
 }
 
 void OPPROTO op_movl_cp15_T0(void)
@@ -1201,3 +1213,6 @@ void OPPROTO op_movl_T0_T2(void)
 {
     T0 = T2;
 }
+
+/* iwMMXt support */
+#include "op_iwmmxt.c"

@@ -384,8 +384,6 @@ static void do_eject(int force, const char *filename)
 static void do_change(const char *device, const char *filename)
 {
     BlockDriverState *bs;
-    int i;
-    char password[256];
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -395,15 +393,7 @@ static void do_change(const char *device, const char *filename)
     if (eject_device(bs, 0) < 0)
         return;
     bdrv_open(bs, filename, 0);
-    if (bdrv_is_encrypted(bs)) {
-        term_printf("%s is encrypted.\n", device);
-        for(i = 0; i < 3; i++) {
-            monitor_readline("Password: ", 1, password, sizeof(password));
-            if (bdrv_set_key(bs, password) == 0)
-                break;
-            term_printf("invalid password\n");
-        }
-    }
+    qemu_key_check(bs, filename);
 }
 
 #if defined(CONFIG_SDL)
@@ -1318,6 +1308,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show capture information" },
     { "snapshots", "", do_info_snapshots,
       "", "show the currently saved VM snapshots" },
+    { "pcmcia", "", pcmcia_info,
+      "", "show guest PCMCIA status" },
     { "mice", "", do_info_mice,
       "", "show which guest mouse is receiving events" },
     { "vnc", "", do_info_vnc,

@@ -260,7 +260,7 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
     /* 0x101f4000 SSPI.  */
 
     arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
-                    initrd_filename, board_id);
+                    initrd_filename, board_id, 0x0);
 }
 
 static void vpb_init(int ram_size, int vga_ram_size, int boot_device,

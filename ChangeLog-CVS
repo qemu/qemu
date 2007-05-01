@@ -1,3 +1,87 @@
+2007-05-01 03:34  balrog
+
+	* sdl.c, vl.c, vl.h: -show-cursor switch to inhibit SDL hiding
+	  cursor.
+
+2007-05-01 03:28  balrog
+
+	* cpu-all.h, cpu-exec.c, hw/pxa2xx.c, target-arm/translate.c:
+	  Implement power state changes (IDLE and SLEEP) for PXA.
+
+2007-05-01 03:03  balrog
+
+	* hw/: pxa2xx.c, spitz.c: Honour limited subset of --cpu values
+	  instead of ignoring.
+
+2007-04-30 20:43  balrog
+
+	* hw/pxa2xx.c: Remove the use of Linux / BSD specific asprintf
+	  call.
+
+2007-04-30 04:39  pbrook
+
+	* hw/pl050.c: PL050 status register fixes.
+
+2007-04-30 04:33  balrog
+
+	* vl.h: Add missing gpio_handler_t definition.
+
+2007-04-30 04:24  balrog
+
+	* vl.h, hw/arm_boot.c, hw/integratorcp.c, hw/realview.c,
+	  hw/spitz.c, hw/versatilepb.c, target-arm/cpu.h: Account for
+	  machine with RAM which is not mapped at 0x0 in arm_boot.c.
+
+2007-04-30 04:22  balrog
+
+	* Makefile.target, qemu-doc.texi, vl.c, vl.h, hw/spitz.c: Spitz
+	  PDA, example PXA270 machine (four similar models).
+
+2007-04-30 04:14  balrog
+
+	* vl.h, hw/max111x.c: Maxim MAX1110/1111 ADC chip.
+
+2007-04-30 04:12  balrog
+
+	* vl.h, hw/ads7846.c: Texas Instruments ADS7846 ADC chip.
+
+2007-04-30 04:09  balrog
+
+	* ecc.h, vl.c, vl.h, hw/nand.c: NAND Flash memory emulation and ECC
+	  calculation helpers for use by NAND controllers.
+
+2007-04-30 04:02  balrog
+
+	* target-arm/cpu.h, target-arm/exec.h, target-arm/helper.c,
+	  target-arm/op.c, target-arm/op_iwmmxt.c, target-arm/op_mem.h,
+	  target-arm/translate.c, tests/Makefile, tests/test-arm-iwmmxt.s:
+	  Implement iwMMXt instruction set for the PXA270 cpu.
+
+2007-04-30 03:48  balrog
+
+	* vl.c, vl.h, hw/pxa.h, hw/pxa2xx.c, hw/pxa2xx_lcd.c,
+	  hw/pxa2xx_mmci.c, hw/pxa2xx_pcmcia.c, hw/pxa2xx_template.h,
+	  hw/pxa2xx_timer.c: Add remaining PXA2xx on-chip peripherals
+	  except I2C master.
+
+2007-04-30 03:34  balrog
+
+	* monitor.c, vl.c, vl.h, hw/usb-msd.c: Remove repeated code and
+	  enable encrypted SD cards and USB sticks images.
+
+2007-04-30 03:26  balrog
+
+	* vl.h, hw/pxa.h, hw/pxa2xx.c, hw/pxa2xx_dma.c, hw/pxa2xx_gpio.c,
+	  hw/pxa2xx_pic.c, target-arm/cpu.h, target-arm/exec.h,
+	  target-arm/helper.c, target-arm/op.c, target-arm/translate.c:
+	  Core features of ARM XScale processors. Main PXA270 and PXA255
+	  peripherals.
+
+2007-04-30 02:51  balrog
+
+	* monitor.c, vl.c, vl.h, hw/ide.c: PCMCIA bus support. Parts of
+	  CF-ATA command set. Hitachi DSCM microdrive emulation.
+
 2007-04-29 23:26  ths
 
 	* target-mips/: exec.h, mips-defs.h: Kill broken host register

@@ -1,7 +1,7 @@
 /* 
  * Arm PrimeCell PL050 Keyboard / Mouse Interface
  *
- * Copyright (c) 2006 CodeSourcery.
+ * Copyright (c) 2006-2007 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GPL.
@@ -19,6 +19,14 @@ typedef struct {
     qemu_irq irq;
     int is_mouse;
 } pl050_state;
+
+#define PL050_TXEMPTY         (1 << 6)
+#define PL050_TXBUSY          (1 << 5)
+#define PL050_RXFULL          (1 << 4)
+#define PL050_RXBUSY          (1 << 3)
+#define PL050_RXPARITY        (1 << 2)
+#define PL050_KMIC            (1 << 1)
+#define PL050_KMID            (1 << 0)
 
 static const unsigned char pl050_id[] =
 { 0x50, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
@@ -45,11 +53,22 @@ static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
     case 0: /* KMICR */
         return s->cr;
     case 1: /* KMISTAT */
-        /* KMIC and KMID bits not implemented.  */
-        if (s->pending) {
-            return 0x10;
-        } else {
-            return 0;
+        {
+            uint8_t val;
+            uint32_t stat;
+
+            val = s->last;
+            val = val ^ (val >> 4);
+            val = val ^ (val >> 2);
+            val = (val ^ (val >> 1)) & 1;
+
+            stat = PL050_TXEMPTY;
+            if (val)
+                stat |= PL050_RXPARITY;
+            if (s->pending)
+                stat |= PL050_RXFULL;
+
+            return stat;
         }
     case 2: /* KMIDATA */
         if (s->pending)

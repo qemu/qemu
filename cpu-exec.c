@@ -284,9 +284,10 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
     if (env1->halted) {
         /* An interrupt wakes the CPU even if the I and F CPSR bits are
-           set.  */
-        if (env1->interrupt_request
-            & (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD)) {
+           set.  We use EXITTB to silently wake CPU without causing an
+           actual interrupt.  */
+        if (env1->interrupt_request &
+            (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB)) {
             env1->halted = 0;
         } else {
             return EXCP_HALTED;
@@ -437,6 +438,15 @@ int cpu_exec(CPUState *env1)
                         env->exception_index = EXCP_DEBUG;
                         cpu_loop_exit();
                     }
+#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
+    defined(TARGET_PPC) || defined(TARGET_ALPHA)
+                    if (interrupt_request & CPU_INTERRUPT_HALT) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_HALT;
+                        env->halted = 1;
+                        env->exception_index = EXCP_HLT;
+                        cpu_loop_exit();
+                    }
+#endif
 #if defined(TARGET_I386)
                     if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                         !(env->hflags & HF_SMM_MASK)) {
@@ -519,12 +529,7 @@ int cpu_exec(CPUState *env1)
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
 			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-		    } else if (interrupt_request & CPU_INTERRUPT_HALT) {
-			env->interrupt_request &= ~CPU_INTERRUPT_HALT;
-			env->halted = 1;
-			env->exception_index = EXCP_HLT;
-			cpu_loop_exit();
-                    }
+		    }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ
                         && !(env->uncached_cpsr & CPSR_F)) {

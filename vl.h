@@ -159,6 +159,8 @@ extern int kqemu_allowed;
 extern int win2k_install_hack;
 extern int usb_enabled;
 extern int smp_cpus;
+extern int cursor_hide;
+extern int graphic_rotate;
 extern int no_quit;
 extern int semihosting_enabled;
 extern int autostart;
@@ -640,6 +642,8 @@ void qemu_aio_wait_start(void);
 void qemu_aio_wait(void);
 void qemu_aio_wait_end(void);
 
+int qemu_key_check(BlockDriverState *bs, const char *name);
+
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
 
@@ -974,6 +978,7 @@ extern uint8_t _translate_keycode(const int key);
 
 extern BlockDriverState *bs_table[MAX_DISKS + 1];
 extern BlockDriverState *sd_bdrv;
+extern BlockDriverState *mtd_bdrv;
 
 void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
@@ -1426,6 +1431,12 @@ extern QEMUMachine versatileab_machine;
 /* realview.c */
 extern QEMUMachine realview_machine;
 
+/* spitz.c */
+extern QEMUMachine akitapda_machine;
+extern QEMUMachine spitzpda_machine;
+extern QEMUMachine borzoipda_machine;
+extern QEMUMachine terrierpda_machine;
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
@@ -1472,7 +1483,7 @@ qemu_irq *arm_gic_init(uint32_t base, qemu_irq parent_irq);
 
 void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      const char *kernel_cmdline, const char *initrd_filename,
-                     int board_id);
+                     int board_id, target_phys_addr_t loader_start);
 
 /* sh7750.c */
 struct SH7750State;
@@ -1506,6 +1517,96 @@ pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
                            target_ulong sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1, 
                            uint16_t id2, uint16_t id3);
+
+/* nand.c */
+struct nand_flash_s;
+struct nand_flash_s *nand_init(int manf_id, int chip_id);
+void nand_done(struct nand_flash_s *s);
+void nand_setpins(struct nand_flash_s *s, 
+                int cle, int ale, int ce, int wp, int gnd);
+void nand_getpins(struct nand_flash_s *s, int *rb);
+void nand_setio(struct nand_flash_s *s, uint8_t value);
+uint8_t nand_getio(struct nand_flash_s *s);
+
+#define NAND_MFR_TOSHIBA	0x98
+#define NAND_MFR_SAMSUNG	0xec
+#define NAND_MFR_FUJITSU	0x04
+#define NAND_MFR_NATIONAL	0x8f
+#define NAND_MFR_RENESAS	0x07
+#define NAND_MFR_STMICRO	0x20
+#define NAND_MFR_HYNIX		0xad
+#define NAND_MFR_MICRON		0x2c
+
+#include "ecc.h"
+
+/* GPIO */
+typedef void (*gpio_handler_t)(int line, int level, void *opaque);
+
+/* ads7846.c */
+struct ads7846_state_s;
+uint32_t ads7846_read(void *opaque);
+void ads7846_write(void *opaque, uint32_t value);
+struct ads7846_state_s *ads7846_init(qemu_irq penirq);
+
+/* max111x.c */
+struct max111x_s;
+uint32_t max111x_read(void *opaque);
+void max111x_write(void *opaque, uint32_t value);
+struct max111x_s *max1110_init(qemu_irq cb);
+struct max111x_s *max1111_init(qemu_irq cb);
+void max111x_set_input(struct max111x_s *s, int line, uint8_t value);
+
+/* PCMCIA/Cardbus */
+
+struct pcmcia_socket_s {
+    qemu_irq irq;
+    int attached;
+    const char *slot_string;
+    const char *card_string;
+};
+
+void pcmcia_socket_register(struct pcmcia_socket_s *socket);
+void pcmcia_socket_unregister(struct pcmcia_socket_s *socket);
+void pcmcia_info(void);
+
+struct pcmcia_card_s {
+    void *state;
+    struct pcmcia_socket_s *slot;
+    int (*attach)(void *state);
+    int (*detach)(void *state);
+    const uint8_t *cis;
+    int cis_len;
+
+    /* Only valid if attached */
+    uint8_t (*attr_read)(void *state, uint16_t address);
+    void (*attr_write)(void *state, uint16_t address, uint8_t value);
+    uint16_t (*common_read)(void *state, uint16_t address);
+    void (*common_write)(void *state, uint16_t address, uint16_t value);
+    uint16_t (*io_read)(void *state, uint16_t address);
+    void (*io_write)(void *state, uint16_t address, uint16_t value);
+};
+
+#define CISTPL_DEVICE		0x01	/* 5V Device Information Tuple */
+#define CISTPL_NO_LINK		0x14	/* No Link Tuple */
+#define CISTPL_VERS_1		0x15	/* Level 1 Version Tuple */
+#define CISTPL_JEDEC_C		0x18	/* JEDEC ID Tuple */
+#define CISTPL_JEDEC_A		0x19	/* JEDEC ID Tuple */
+#define CISTPL_CONFIG		0x1a	/* Configuration Tuple */
+#define CISTPL_CFTABLE_ENTRY	0x1b	/* 16-bit PCCard Configuration */
+#define CISTPL_DEVICE_OC	0x1c	/* Additional Device Information */
+#define CISTPL_DEVICE_OA	0x1d	/* Additional Device Information */
+#define CISTPL_DEVICE_GEO	0x1e	/* Additional Device Information */
+#define CISTPL_DEVICE_GEO_A	0x1f	/* Additional Device Information */
+#define CISTPL_MANFID		0x20	/* Manufacture ID Tuple */
+#define CISTPL_FUNCID		0x21	/* Function ID Tuple */
+#define CISTPL_FUNCE		0x22	/* Function Extension Tuple */
+#define CISTPL_END		0xff	/* Tuple End */
+#define CISTPL_ENDMARK		0xff
+
+/* dscm1xxxx.c */
+struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv);
+
+#include "hw/pxa.h"
 
 #include "gdbstub.h"
 

@@ -2,6 +2,7 @@
  * QEMU IDE disk and CD-ROM Emulator
  * 
  * Copyright (c) 2003 Fabrice Bellard
+ * Copyright (c) 2006 Openedhand Ltd.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -131,6 +132,7 @@
 #define WIN_SPECIFY			0x91 /* set drive geometry translation */
 #define WIN_DOWNLOAD_MICROCODE		0x92
 #define WIN_STANDBYNOW2			0x94
+#define CFA_IDLEIMMEDIATE		0x95 /* force drive to become "ready" */
 #define WIN_STANDBY2			0x96
 #define WIN_SETIDLE2			0x97
 #define WIN_CHECKPOWERMODE2		0x98
@@ -142,7 +144,8 @@
 #define WIN_PIDENTIFY			0xA1 /* identify ATAPI device	*/
 #define WIN_QUEUED_SERVICE		0xA2
 #define WIN_SMART			0xB0 /* self-monitoring and reporting */
-#define CFA_ERASE_SECTORS       	0xC0
+#define CFA_ACCESS_METADATA_STORAGE	0xB8
+#define CFA_ERASE_SECTORS       	0xC0 /* microdrives implement as NOP */
 #define WIN_MULTREAD			0xC4 /* read sectors using multiple mode*/
 #define WIN_MULTWRITE			0xC5 /* write sectors using multiple mode */
 #define WIN_SETMULT			0xC6 /* enable/disable multiple mode */
@@ -176,11 +179,13 @@
 #define WIN_IDENTIFY_DMA		0xEE /* same as WIN_IDENTIFY, but DMA */
 #define WIN_SETFEATURES			0xEF /* set special drive features */
 #define EXABYTE_ENABLE_NEST		0xF0
+#define IBM_SENSE_CONDITION		0xF0 /* measure disk temperature */
 #define WIN_SECURITY_SET_PASS		0xF1
 #define WIN_SECURITY_UNLOCK		0xF2
 #define WIN_SECURITY_ERASE_PREPARE	0xF3
 #define WIN_SECURITY_ERASE_UNIT		0xF4
 #define WIN_SECURITY_FREEZE_LOCK	0xF5
+#define CFA_WEAR_LEVEL			0xF5 /* microdrives implement as NOP */
 #define WIN_SECURITY_DISABLE		0xF6
 #define WIN_READ_NATIVE_MAX		0xF8 /* return the native maximum address */
 #define WIN_SET_MAX			0xF9
@@ -282,6 +287,12 @@
 #define ASC_MEDIUM_NOT_PRESENT               0x3a
 #define ASC_SAVING_PARAMETERS_NOT_SUPPORTED  0x39
 
+#define CFA_NO_ERROR            0x00
+#define CFA_MISC_ERROR          0x09
+#define CFA_INVALID_COMMAND     0x20
+#define CFA_INVALID_ADDRESS     0x21
+#define CFA_ADDRESS_OVERFLOW    0x2f
+
 #define SENSE_NONE            0
 #define SENSE_NOT_READY       2
 #define SENSE_ILLEGAL_REQUEST 5
@@ -295,6 +306,7 @@ typedef void EndTransferFunc(struct IDEState *);
 typedef struct IDEState {
     /* ide config */
     int is_cdrom;
+    int is_cf;
     int cylinders, heads, sectors;
     int64_t nb_sectors;
     int mult_sectors;
@@ -347,6 +359,12 @@ typedef struct IDEState {
     uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
     QEMUTimer *sector_write_timer; /* only used for win2k instal hack */
     uint32_t irq_count; /* counts IRQs when using win2k install hack */
+    /* CF-ATA extended error */
+    uint8_t ext_error;
+    /* CF-ATA metadata storage */
+    uint32_t mdata_size;
+    uint8_t *mdata_storage;
+    int media_changed;
 } IDEState;
 
 #define BM_STATUS_DMAING 0x01
@@ -540,6 +558,74 @@ static void ide_atapi_identify(IDEState *s)
 #endif
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
+}
+
+static void ide_cfata_identify(IDEState *s)
+{
+    uint16_t *p;
+    uint32_t cur_sec;
+    char buf[20];
+
+    p = (uint16_t *) s->identify_data;
+    if (s->identify_set)
+        goto fill_buffer;
+
+    memset(p, 0, sizeof(s->identify_data));
+
+    cur_sec = s->cylinders * s->heads * s->sectors;
+
+    put_le16(p + 0, 0x848a);			/* CF Storage Card signature */
+    put_le16(p + 1, s->cylinders);		/* Default cylinders */
+    put_le16(p + 3, s->heads);			/* Default heads */
+    put_le16(p + 6, s->sectors);		/* Default sectors per track */
+    put_le16(p + 7, s->nb_sectors >> 16);	/* Sectors per card */
+    put_le16(p + 8, s->nb_sectors);		/* Sectors per card */
+    snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
+    padstr((uint8_t *)(p + 10), buf, 20);	/* Serial number in ASCII */
+    put_le16(p + 22, 0x0004);			/* ECC bytes */
+    padstr((uint8_t *) (p + 23), QEMU_VERSION, 8);	/* Firmware Revision */
+    padstr((uint8_t *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
+#if MAX_MULT_SECTORS > 1
+    put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
+#else
+    put_le16(p + 47, 0x0000);
+#endif
+    put_le16(p + 49, 0x0f00);			/* Capabilities */
+    put_le16(p + 51, 0x0002);			/* PIO cycle timing mode */
+    put_le16(p + 52, 0x0001);			/* DMA cycle timing mode */
+    put_le16(p + 53, 0x0003);			/* Translation params valid */
+    put_le16(p + 54, s->cylinders);		/* Current cylinders */
+    put_le16(p + 55, s->heads);			/* Current heads */
+    put_le16(p + 56, s->sectors);		/* Current sectors */
+    put_le16(p + 57, cur_sec);			/* Current capacity */
+    put_le16(p + 58, cur_sec >> 16);		/* Current capacity */
+    if (s->mult_sectors)			/* Multiple sector setting */
+        put_le16(p + 59, 0x100 | s->mult_sectors);
+    put_le16(p + 60, s->nb_sectors);		/* Total LBA sectors */
+    put_le16(p + 61, s->nb_sectors >> 16);	/* Total LBA sectors */
+    put_le16(p + 63, 0x0203);			/* Multiword DMA capability */
+    put_le16(p + 64, 0x0001);			/* Flow Control PIO support */
+    put_le16(p + 65, 0x0096);			/* Min. Multiword DMA cycle */
+    put_le16(p + 66, 0x0096);			/* Rec. Multiword DMA cycle */
+    put_le16(p + 68, 0x00b4);			/* Min. PIO cycle time */
+    put_le16(p + 82, 0x400c);			/* Command Set supported */
+    put_le16(p + 83, 0x7068);			/* Command Set supported */
+    put_le16(p + 84, 0x4000);			/* Features supported */
+    put_le16(p + 85, 0x000c);			/* Command Set enabled */
+    put_le16(p + 86, 0x7044);			/* Command Set enabled */
+    put_le16(p + 87, 0x4000);			/* Features enabled */
+    put_le16(p + 91, 0x4060);			/* Current APM level */
+    put_le16(p + 129, 0x0002);			/* Current features option */
+    put_le16(p + 130, 0x0005);			/* Reassigned sectors */
+    put_le16(p + 131, 0x0001);			/* Initial power mode */
+    put_le16(p + 132, 0x0000);			/* User signature */
+    put_le16(p + 160, 0x8100);			/* Power requirement */
+    put_le16(p + 161, 0x8001);			/* CF command set */
+
+    s->identify_set = 1;
+
+fill_buffer:
+    memcpy(s->io_buffer, p, sizeof(s->identify_data));
 }
 
 static void ide_set_signature(IDEState *s)
@@ -1496,6 +1582,59 @@ static void ide_atapi_cmd(IDEState *s)
     }
 }
 
+static void ide_cfata_metadata_inquiry(IDEState *s)
+{
+    uint16_t *p;
+    uint32_t spd;
+
+    p = (uint16_t *) s->io_buffer;
+    memset(p, 0, 0x200);
+    spd = ((s->mdata_size - 1) >> 9) + 1;
+
+    put_le16(p + 0, 0x0001);			/* Data format revision */
+    put_le16(p + 1, 0x0000);			/* Media property: silicon */
+    put_le16(p + 2, s->media_changed);		/* Media status */
+    put_le16(p + 3, s->mdata_size & 0xffff);	/* Capacity in bytes (low) */
+    put_le16(p + 4, s->mdata_size >> 16);	/* Capacity in bytes (high) */
+    put_le16(p + 5, spd & 0xffff);		/* Sectors per device (low) */
+    put_le16(p + 6, spd >> 16);			/* Sectors per device (high) */
+}
+
+static void ide_cfata_metadata_read(IDEState *s)
+{
+    uint16_t *p;
+
+    if (((s->hcyl << 16) | s->lcyl) << 9 > s->mdata_size + 2) {
+        s->status = ERR_STAT;
+        s->error = ABRT_ERR;
+        return;
+    }
+
+    p = (uint16_t *) s->io_buffer;
+    memset(p, 0, 0x200);
+
+    put_le16(p + 0, s->media_changed);		/* Media status */
+    memcpy(p + 1, s->mdata_storage + (((s->hcyl << 16) | s->lcyl) << 9),
+                    MIN(MIN(s->mdata_size - (((s->hcyl << 16) | s->lcyl) << 9),
+                                    s->nsector << 9), 0x200 - 2));
+}
+
+static void ide_cfata_metadata_write(IDEState *s)
+{
+    if (((s->hcyl << 16) | s->lcyl) << 9 > s->mdata_size + 2) {
+        s->status = ERR_STAT;
+        s->error = ABRT_ERR;
+        return;
+    }
+
+    s->media_changed = 0;
+
+    memcpy(s->mdata_storage + (((s->hcyl << 16) | s->lcyl) << 9),
+                    s->io_buffer + 2,
+                    MIN(MIN(s->mdata_size - (((s->hcyl << 16) | s->lcyl) << 9),
+                                    s->nsector << 9), 0x200 - 2));
+}
+
 /* called when the inserted state of the media has changed */
 static void cdrom_change_cb(void *opaque)
 {
@@ -1611,7 +1750,10 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         switch(val) {
         case WIN_IDENTIFY:
             if (s->bs && !s->is_cdrom) {
-                ide_identify(s);
+                if (!s->is_cf)
+                    ide_identify(s);
+                else
+                    ide_cfata_identify(s);
                 s->status = READY_STAT | SEEK_STAT;
                 ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
             } else {
@@ -1629,7 +1771,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s);
             break;
         case WIN_SETMULT:
-            if ((s->nsector & 0xff) != 0 &&
+            if (s->is_cf && s->nsector == 0) {
+                /* Disable Read and Write Multiple */
+                s->mult_sectors = 0;
+                s->status = READY_STAT;
+            } else if ((s->nsector & 0xff) != 0 &&
                 ((s->nsector & 0xff) > MAX_MULT_SECTORS ||
                  (s->nsector & (s->nsector - 1)) != 0)) {
                 ide_abort_command(s);
@@ -1662,11 +1808,14 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	    lba48 = 1;
         case WIN_WRITE:
         case WIN_WRITE_ONCE:
+        case CFA_WRITE_SECT_WO_ERASE:
+        case WIN_WRITE_VERIFY:
 	    ide_cmd_lba48_transform(s, lba48);
             s->error = 0;
             s->status = SEEK_STAT | READY_STAT;
             s->req_nb_sectors = 1;
             ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
+            s->media_changed = 1;
             break;
 	case WIN_MULTREAD_EXT:
 	    lba48 = 1;
@@ -1680,6 +1829,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_MULTWRITE_EXT:
 	    lba48 = 1;
         case WIN_MULTWRITE:
+        case CFA_WRITE_MULTI_WO_ERASE:
             if (!s->mult_sectors)
                 goto abort_cmd;
 	    ide_cmd_lba48_transform(s, lba48);
@@ -1690,6 +1840,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             if (n > s->req_nb_sectors)
                 n = s->req_nb_sectors;
             ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
+            s->media_changed = 1;
             break;
 	case WIN_READDMA_EXT:
 	    lba48 = 1;
@@ -1708,6 +1859,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 goto abort_cmd;
 	    ide_cmd_lba48_transform(s, lba48);
             ide_sector_write_dma(s);
+            s->media_changed = 1;
             break;
         case WIN_READ_NATIVE_MAX_EXT:
 	    lba48 = 1;
@@ -1718,6 +1870,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s);
             break;
         case WIN_CHECKPOWERMODE1:
+        case WIN_CHECKPOWERMODE2:
             s->nsector = 0xff; /* device active or idle */
             s->status = READY_STAT;
             ide_set_irq(s);
@@ -1733,6 +1886,12 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             case 0x82: /* write cache disable */
             case 0xaa: /* read look-ahead enable */
             case 0x55: /* read look-ahead disable */
+            case 0x05: /* set advanced power management mode */
+            case 0x85: /* disable advanced power management mode */
+            case 0x69: /* NOP */
+            case 0x67: /* NOP */
+            case 0x96: /* NOP */
+            case 0x9a: /* NOP */
                 s->status = READY_STAT | SEEK_STAT;
                 ide_set_irq(s);
                 break;
@@ -1772,7 +1931,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s);
             break;
 	case WIN_STANDBYNOW1:
+        case WIN_STANDBYNOW2:
         case WIN_IDLEIMMEDIATE:
+        case CFA_IDLEIMMEDIATE:
+        case WIN_SETIDLE1:
+        case WIN_SETIDLE2:
 	    s->status = READY_STAT;
             ide_set_irq(s);
             break;
@@ -1809,6 +1972,79 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->nsector = 1;
             ide_transfer_start(s, s->io_buffer, ATAPI_PACKET_SIZE, 
                                ide_atapi_cmd);
+            break;
+        /* CF-ATA commands */
+        case CFA_REQ_EXT_ERROR_CODE:
+            if (!s->is_cf)
+                goto abort_cmd;
+            s->error = 0x09;    /* miscellaneous error */
+            s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
+        case CFA_ERASE_SECTORS:
+        case CFA_WEAR_LEVEL:
+            if (!s->is_cf)
+                goto abort_cmd;
+            if (val == CFA_WEAR_LEVEL)
+                s->nsector = 0;
+            if (val == CFA_ERASE_SECTORS)
+                s->media_changed = 1;
+            s->error = 0x00;
+            s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
+        case CFA_TRANSLATE_SECTOR:
+            if (!s->is_cf)
+                goto abort_cmd;
+            s->error = 0x00;
+            s->status = READY_STAT;
+            memset(s->io_buffer, 0, 0x200);
+            s->io_buffer[0x00] = s->hcyl;			/* Cyl MSB */
+            s->io_buffer[0x01] = s->lcyl;			/* Cyl LSB */
+            s->io_buffer[0x02] = s->select;			/* Head */
+            s->io_buffer[0x03] = s->sector;			/* Sector */
+            s->io_buffer[0x04] = ide_get_sector(s) >> 16;	/* LBA MSB */
+            s->io_buffer[0x05] = ide_get_sector(s) >> 8;	/* LBA */
+            s->io_buffer[0x06] = ide_get_sector(s) >> 0;	/* LBA LSB */
+            s->io_buffer[0x13] = 0x00;				/* Erase flag */
+            s->io_buffer[0x18] = 0x00;				/* Hot count */
+            s->io_buffer[0x19] = 0x00;				/* Hot count */
+            s->io_buffer[0x1a] = 0x01;				/* Hot count */
+            ide_transfer_start(s, s->io_buffer, 0x200, ide_transfer_stop);
+            ide_set_irq(s);
+            break;
+        case CFA_ACCESS_METADATA_STORAGE:
+            if (!s->is_cf)
+                goto abort_cmd;
+            switch (s->feature) {
+            case 0x02:	/* Inquiry Metadata Storage */
+                ide_cfata_metadata_inquiry(s);
+                break;
+            case 0x03:	/* Read Metadata Storage */
+                ide_cfata_metadata_read(s);
+                break;
+            case 0x04:	/* Write Metadata Storage */
+                ide_cfata_metadata_write(s);
+                break;
+            default:
+                goto abort_cmd;
+            }
+            ide_transfer_start(s, s->io_buffer, 0x200, ide_transfer_stop);
+            s->status = 0x00; /* NOTE: READY is _not_ set */
+            ide_set_irq(s);
+            break;
+        case IBM_SENSE_CONDITION:
+            if (!s->is_cf)
+                goto abort_cmd;
+            switch (s->feature) {
+            case 0x01:  /* sense temperature in device */
+                s->nsector = 0x50;      /* +20 C */
+                break;
+            default:
+                goto abort_cmd;
+            }
+            s->status = READY_STAT;
+            ide_set_irq(s);
             break;
         default:
         abort_cmd:
@@ -2015,7 +2251,10 @@ static void ide_dummy_transfer_stop(IDEState *s)
 
 static void ide_reset(IDEState *s)
 {
-    s->mult_sectors = MAX_MULT_SECTORS;
+    if (s->is_cf)
+        s->mult_sectors = 0;
+    else
+        s->mult_sectors = MAX_MULT_SECTORS;
     s->cur_drive = s;
     s->select = 0xa0;
     s->status = READY_STAT;
@@ -2024,6 +2263,7 @@ static void ide_reset(IDEState *s)
        accesses */
     s->end_transfer_func = ide_dummy_transfer_stop;
     ide_dummy_transfer_stop(s);
+    s->media_changed = 0;
 }
 
 struct partition {
@@ -2748,4 +2988,497 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);
     return pmac_ide_memory;
+}
+
+/***********************************************************/
+/* CF-ATA Microdrive */
+
+#define METADATA_SIZE	0x20
+
+/* DSCM-1XXXX Microdrive hard disk with CF+ II / PCMCIA interface.  */
+struct md_s {
+    IDEState ide[2];
+    struct pcmcia_card_s card;
+    uint32_t attr_base;
+    uint32_t io_base;
+
+    /* Card state */
+    uint8_t opt;
+    uint8_t stat;
+    uint8_t pins;
+
+    uint8_t ctrl;
+    uint16_t io;
+    int cycle;
+};
+
+/* Register bitfields */
+enum md_opt {
+    OPT_MODE_MMAP	= 0,
+    OPT_MODE_IOMAP16	= 1,
+    OPT_MODE_IOMAP1	= 2,
+    OPT_MODE_IOMAP2	= 3,
+    OPT_MODE		= 0x3f,
+    OPT_LEVIREQ		= 0x40,
+    OPT_SRESET		= 0x80,
+};
+enum md_cstat {
+    STAT_INT		= 0x02,
+    STAT_PWRDWN		= 0x04,
+    STAT_XE		= 0x10,
+    STAT_IOIS8		= 0x20,
+    STAT_SIGCHG		= 0x40,
+    STAT_CHANGED	= 0x80,
+};
+enum md_pins {
+    PINS_MRDY		= 0x02,
+    PINS_CRDY		= 0x20,
+};
+enum md_ctrl {
+    CTRL_IEN		= 0x02,
+    CTRL_SRST		= 0x04,
+};
+
+static inline void md_interrupt_update(struct md_s *s)
+{
+    if (!s->card.slot)
+        return;
+
+    qemu_set_irq(s->card.slot->irq,
+                    !(s->stat & STAT_INT) &&	/* Inverted */
+                    !(s->ctrl & (CTRL_IEN | CTRL_SRST)) &&
+                    !(s->opt & OPT_SRESET));
+}
+
+static void md_set_irq(void *opaque, int irq, int level)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    if (level)
+        s->stat |= STAT_INT;
+    else
+        s->stat &= ~STAT_INT;
+
+    md_interrupt_update(s);
+}
+
+static void md_reset(struct md_s *s)
+{
+    s->opt = OPT_MODE_MMAP;
+    s->stat = 0;
+    s->pins = 0;
+    s->cycle = 0;
+    s->ctrl = 0;
+    ide_reset(s->ide);
+}
+
+static uint8_t md_attr_read(void *opaque, uint16_t at)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    if (at < s->attr_base) {
+        if (at < s->card.cis_len)
+            return s->card.cis[at];
+        else
+            return 0x00;
+    }
+
+    at -= s->attr_base;
+
+    switch (at) {
+    case 0x00:	/* Configuration Option Register */
+        return s->opt;
+    case 0x02:	/* Card Configuration Status Register */
+        if (s->ctrl & CTRL_IEN)
+            return s->stat & ~STAT_INT;
+        else
+            return s->stat;
+    case 0x04:	/* Pin Replacement Register */
+        return (s->pins & PINS_CRDY) | 0x0c;
+    case 0x06:	/* Socket and Copy Register */
+        return 0x00;
+#ifdef VERBOSE
+    default:
+        printf("%s: Bad attribute space register %02x\n", __FUNCTION__, at);
+#endif
+    }
+
+    return 0;
+}
+
+static void md_attr_write(void *opaque, uint16_t at, uint8_t value)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    at -= s->attr_base;
+
+    switch (at) {
+    case 0x00:	/* Configuration Option Register */
+        s->opt = value & 0xcf;
+        if (value & OPT_SRESET)
+            md_reset(s);
+        md_interrupt_update(s);
+        break;
+    case 0x02:	/* Card Configuration Status Register */
+        if ((s->stat ^ value) & STAT_PWRDWN)
+            s->pins |= PINS_CRDY;
+        s->stat &= 0x82;
+        s->stat |= value & 0x74;
+        md_interrupt_update(s);
+        /* Word 170 in Identify Device must be equal to STAT_XE */
+        break;
+    case 0x04:	/* Pin Replacement Register */
+        s->pins &= PINS_CRDY;
+        s->pins |= value & PINS_MRDY;
+        break;
+    case 0x06:	/* Socket and Copy Register */
+        break;
+    default:
+        printf("%s: Bad attribute space register %02x\n", __FUNCTION__, at);
+    }
+}
+
+static uint16_t md_common_read(void *opaque, uint16_t at)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    uint16_t ret;
+    at -= s->io_base;
+
+    switch (s->opt & OPT_MODE) {
+    case OPT_MODE_MMAP:
+        if ((at & ~0x3ff) == 0x400)
+            at = 0;
+        break;
+    case OPT_MODE_IOMAP16:
+        at &= 0xf;
+        break;
+    case OPT_MODE_IOMAP1:
+        if ((at & ~0xf) == 0x3f0)
+            at -= 0x3e8;
+        else if ((at & ~0xf) == 0x1f0)
+            at -= 0x1f0;
+        break;
+    case OPT_MODE_IOMAP2:
+        if ((at & ~0xf) == 0x370)
+            at -= 0x368;
+        else if ((at & ~0xf) == 0x170)
+            at -= 0x170;
+    }
+
+    switch (at) {
+    case 0x0:	/* Even RD Data */
+    case 0x8:
+        return ide_data_readw(s->ide, 0);
+
+        /* TODO: 8-bit accesses */
+        if (s->cycle)
+            ret = s->io >> 8;
+        else {
+            s->io = ide_data_readw(s->ide, 0);
+            ret = s->io & 0xff;
+        }
+        s->cycle = !s->cycle;
+        return ret;
+    case 0x9:	/* Odd RD Data */
+        return s->io >> 8;
+    case 0xd:	/* Error */
+        return ide_ioport_read(s->ide, 0x1);
+    case 0xe:	/* Alternate Status */
+        if (s->ide->cur_drive->bs)
+            return s->ide->cur_drive->status;
+        else
+            return 0;
+    case 0xf:	/* Device Address */
+        return 0xc2 | ((~s->ide->select << 2) & 0x3c);
+    default:
+        return ide_ioport_read(s->ide, at);
+    }
+
+    return 0;
+}
+
+static void md_common_write(void *opaque, uint16_t at, uint16_t value)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    at -= s->io_base;
+
+    switch (s->opt & OPT_MODE) {
+    case OPT_MODE_MMAP:
+        if ((at & ~0x3ff) == 0x400)
+            at = 0;
+        break;
+    case OPT_MODE_IOMAP16:
+        at &= 0xf;
+        break;
+    case OPT_MODE_IOMAP1:
+        if ((at & ~0xf) == 0x3f0)
+            at -= 0x3e8;
+        else if ((at & ~0xf) == 0x1f0)
+            at -= 0x1f0;
+        break;
+    case OPT_MODE_IOMAP2:
+        if ((at & ~0xf) == 0x370)
+            at -= 0x368;
+        else if ((at & ~0xf) == 0x170)
+            at -= 0x170;
+    }
+
+    switch (at) {
+    case 0x0:	/* Even WR Data */
+    case 0x8:
+        ide_data_writew(s->ide, 0, value);
+        break;
+
+        /* TODO: 8-bit accesses */
+        if (s->cycle)
+            ide_data_writew(s->ide, 0, s->io | (value << 8));
+        else
+            s->io = value & 0xff;
+        s->cycle = !s->cycle;
+        break;
+    case 0x9:
+        s->io = value & 0xff;
+        s->cycle = !s->cycle;
+        break;
+    case 0xd:	/* Features */
+        ide_ioport_write(s->ide, 0x1, value);
+        break;
+    case 0xe:	/* Device Control */
+        s->ctrl = value;
+        if (value & CTRL_SRST)
+            md_reset(s);
+        md_interrupt_update(s);
+        break;
+    default:
+        if (s->stat & STAT_PWRDWN) {
+            s->pins |= PINS_CRDY;
+            s->stat &= ~STAT_PWRDWN;
+        }
+        ide_ioport_write(s->ide, at, value);
+    }
+}
+
+static const uint8_t dscm1xxxx_cis[0x14a] = {
+    [0x000] = CISTPL_DEVICE,	/* 5V Device Information */
+    [0x002] = 0x03,		/* Tuple length = 4 bytes */
+    [0x004] = 0xdb,		/* ID: DTYPE_FUNCSPEC, non WP, DSPEED_150NS */
+    [0x006] = 0x01,		/* Size = 2K bytes */
+    [0x008] = CISTPL_ENDMARK,
+
+    [0x00a] = CISTPL_DEVICE_OC,	/* Additional Device Information */
+    [0x00c] = 0x04,		/* Tuple length = 4 byest */
+    [0x00e] = 0x03,		/* Conditions: Ext = 0, Vcc 3.3V, MWAIT = 1 */
+    [0x010] = 0xdb,		/* ID: DTYPE_FUNCSPEC, non WP, DSPEED_150NS */
+    [0x012] = 0x01,		/* Size = 2K bytes */
+    [0x014] = CISTPL_ENDMARK,
+
+    [0x016] = CISTPL_JEDEC_C,	/* JEDEC ID */
+    [0x018] = 0x02,		/* Tuple length = 2 bytes */
+    [0x01a] = 0xdf,		/* PC Card ATA with no Vpp required */
+    [0x01c] = 0x01,
+
+    [0x01e] = CISTPL_MANFID,	/* Manufacture ID */
+    [0x020] = 0x04,		/* Tuple length = 4 bytes */
+    [0x022] = 0xa4,		/* TPLMID_MANF = 00a4 (IBM) */
+    [0x024] = 0x00,
+    [0x026] = 0x00,		/* PLMID_CARD = 0000 */
+    [0x028] = 0x00,
+
+    [0x02a] = CISTPL_VERS_1,	/* Level 1 Version */
+    [0x02c] = 0x12,		/* Tuple length = 23 bytes */
+    [0x02e] = 0x04,		/* Major Version = JEIDA 4.2 / PCMCIA 2.1 */
+    [0x030] = 0x01,		/* Minor Version = 1 */
+    [0x032] = 'I',
+    [0x034] = 'B',
+    [0x036] = 'M',
+    [0x038] = 0x00,
+    [0x03a] = 'm',
+    [0x03c] = 'i',
+    [0x03e] = 'c',
+    [0x040] = 'r',
+    [0x042] = 'o',
+    [0x044] = 'd',
+    [0x046] = 'r',
+    [0x048] = 'i',
+    [0x04a] = 'v',
+    [0x04c] = 'e',
+    [0x04e] = 0x00,
+    [0x050] = CISTPL_ENDMARK,
+
+    [0x052] = CISTPL_FUNCID,	/* Function ID */
+    [0x054] = 0x02,		/* Tuple length = 2 bytes */
+    [0x056] = 0x04,		/* TPLFID_FUNCTION = Fixed Disk */
+    [0x058] = 0x01,		/* TPLFID_SYSINIT: POST = 1, ROM = 0 */
+
+    [0x05a] = CISTPL_FUNCE,	/* Function Extension */
+    [0x05c] = 0x02,		/* Tuple length = 2 bytes */
+    [0x05e] = 0x01,		/* TPLFE_TYPE = Disk Device Interface */
+    [0x060] = 0x01,		/* TPLFE_DATA = PC Card ATA Interface */
+
+    [0x062] = CISTPL_FUNCE,	/* Function Extension */
+    [0x064] = 0x03,		/* Tuple length = 3 bytes */
+    [0x066] = 0x02,		/* TPLFE_TYPE = Basic PC Card ATA Interface */
+    [0x068] = 0x08,		/* TPLFE_DATA: Rotating, Unique, Single */
+    [0x06a] = 0x0f,		/* TPLFE_DATA: Sleep, Standby, Idle, Auto */
+
+    [0x06c] = CISTPL_CONFIG,	/* Configuration */
+    [0x06e] = 0x05,		/* Tuple length = 5 bytes */
+    [0x070] = 0x01,		/* TPCC_RASZ = 2 bytes, TPCC_RMSZ = 1 byte */
+    [0x072] = 0x07,		/* TPCC_LAST = 7 */
+    [0x074] = 0x00,		/* TPCC_RADR = 0200 */
+    [0x076] = 0x02,
+    [0x078] = 0x0f,		/* TPCC_RMSK = 200, 202, 204, 206 */
+
+    [0x07a] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x07c] = 0x0b,		/* Tuple length = 11 bytes */
+    [0x07e] = 0xc0,		/* TPCE_INDX = Memory Mode, Default, Iface */
+    [0x080] = 0xc0,		/* TPCE_IF = Memory, no BVDs, no WP, READY */
+    [0x082] = 0xa1,		/* TPCE_FS = Vcc only, no I/O, Memory, Misc */
+    [0x084] = 0x27,		/* NomV = 1, MinV = 1, MaxV = 1, Peakl = 1 */
+    [0x086] = 0x55,		/* NomV: 5.0 V */
+    [0x088] = 0x4d,		/* MinV: 4.5 V */
+    [0x08a] = 0x5d,		/* MaxV: 5.5 V */
+    [0x08c] = 0x4e,		/* Peakl: 450 mA */
+    [0x08e] = 0x08,		/* TPCE_MS = 1 window, 1 byte, Host address */
+    [0x090] = 0x00,		/* Window descriptor: Window length = 0 */
+    [0x092] = 0x20,		/* TPCE_MI: support power down mode, RW */
+
+    [0x094] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x096] = 0x06,		/* Tuple length = 6 bytes */
+    [0x098] = 0x00,		/* TPCE_INDX = Memory Mode, no Default */
+    [0x09a] = 0x01,		/* TPCE_FS = Vcc only, no I/O, no Memory */
+    [0x09c] = 0x21,		/* NomV = 1, MinV = 0, MaxV = 0, Peakl = 1 */
+    [0x09e] = 0xb5,		/* NomV: 3.3 V */
+    [0x0a0] = 0x1e,
+    [0x0a2] = 0x3e,		/* Peakl: 350 mA */
+
+    [0x0a4] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x0a6] = 0x0d,		/* Tuple length = 13 bytes */
+    [0x0a8] = 0xc1,		/* TPCE_INDX = I/O and Memory Mode, Default */
+    [0x0aa] = 0x41,		/* TPCE_IF = I/O and Memory, no BVD, no WP */
+    [0x0ac] = 0x99,		/* TPCE_FS = Vcc only, I/O, Interrupt, Misc */
+    [0x0ae] = 0x27,		/* NomV = 1, MinV = 1, MaxV = 1, Peakl = 1 */
+    [0x0b0] = 0x55,		/* NomV: 5.0 V */
+    [0x0b2] = 0x4d,		/* MinV: 4.5 V */
+    [0x0b4] = 0x5d,		/* MaxV: 5.5 V */
+    [0x0b6] = 0x4e,		/* Peakl: 450 mA */
+    [0x0b8] = 0x64,		/* TPCE_IO = 16-byte boundary, 16/8 accesses */
+    [0x0ba] = 0xf0,		/* TPCE_IR =  MASK, Level, Pulse, Share */
+    [0x0bc] = 0xff,		/* IRQ0..IRQ7 supported */
+    [0x0be] = 0xff,		/* IRQ8..IRQ15 supported */
+    [0x0c0] = 0x20,		/* TPCE_MI = support power down mode */
+
+    [0x0c2] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x0c4] = 0x06,		/* Tuple length = 6 bytes */
+    [0x0c6] = 0x01,		/* TPCE_INDX = I/O and Memory Mode */
+    [0x0c8] = 0x01,		/* TPCE_FS = Vcc only, no I/O, no Memory */
+    [0x0ca] = 0x21,		/* NomV = 1, MinV = 0, MaxV = 0, Peakl = 1 */
+    [0x0cc] = 0xb5,		/* NomV: 3.3 V */
+    [0x0ce] = 0x1e,
+    [0x0d0] = 0x3e,		/* Peakl: 350 mA */
+
+    [0x0d2] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x0d4] = 0x12,		/* Tuple length = 18 bytes */
+    [0x0d6] = 0xc2,		/* TPCE_INDX = I/O Primary Mode */
+    [0x0d8] = 0x41,		/* TPCE_IF = I/O and Memory, no BVD, no WP */
+    [0x0da] = 0x99,		/* TPCE_FS = Vcc only, I/O, Interrupt, Misc */
+    [0x0dc] = 0x27,		/* NomV = 1, MinV = 1, MaxV = 1, Peakl = 1 */
+    [0x0de] = 0x55,		/* NomV: 5.0 V */
+    [0x0e0] = 0x4d,		/* MinV: 4.5 V */
+    [0x0e2] = 0x5d,		/* MaxV: 5.5 V */
+    [0x0e4] = 0x4e,		/* Peakl: 450 mA */
+    [0x0e6] = 0xea,		/* TPCE_IO = 1K boundary, 16/8 access, Range */
+    [0x0e8] = 0x61,		/* Range: 2 fields, 2 bytes addr, 1 byte len */
+    [0x0ea] = 0xf0,		/* Field 1 address = 0x01f0 */
+    [0x0ec] = 0x01,
+    [0x0ee] = 0x07,		/* Address block length = 8 */
+    [0x0f0] = 0xf6,		/* Field 2 address = 0x03f6 */
+    [0x0f2] = 0x03,
+    [0x0f4] = 0x01,		/* Address block length = 2 */
+    [0x0f6] = 0xee,		/* TPCE_IR = IRQ E, Level, Pulse, Share */
+    [0x0f8] = 0x20,		/* TPCE_MI = support power down mode */
+
+    [0x0fa] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x0fc] = 0x06,		/* Tuple length = 6 bytes */
+    [0x0fe] = 0x02,		/* TPCE_INDX = I/O Primary Mode, no Default */
+    [0x100] = 0x01,		/* TPCE_FS = Vcc only, no I/O, no Memory */
+    [0x102] = 0x21,		/* NomV = 1, MinV = 0, MaxV = 0, Peakl = 1 */
+    [0x104] = 0xb5,		/* NomV: 3.3 V */
+    [0x106] = 0x1e,
+    [0x108] = 0x3e,		/* Peakl: 350 mA */
+
+    [0x10a] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x10c] = 0x12,		/* Tuple length = 18 bytes */
+    [0x10e] = 0xc3,		/* TPCE_INDX = I/O Secondary Mode, Default */
+    [0x110] = 0x41,		/* TPCE_IF = I/O and Memory, no BVD, no WP */
+    [0x112] = 0x99,		/* TPCE_FS = Vcc only, I/O, Interrupt, Misc */
+    [0x114] = 0x27,		/* NomV = 1, MinV = 1, MaxV = 1, Peakl = 1 */
+    [0x116] = 0x55,		/* NomV: 5.0 V */
+    [0x118] = 0x4d,		/* MinV: 4.5 V */
+    [0x11a] = 0x5d,		/* MaxV: 5.5 V */
+    [0x11c] = 0x4e,		/* Peakl: 450 mA */
+    [0x11e] = 0xea,		/* TPCE_IO = 1K boundary, 16/8 access, Range */
+    [0x120] = 0x61,		/* Range: 2 fields, 2 byte addr, 1 byte len */
+    [0x122] = 0x70,		/* Field 1 address = 0x0170 */
+    [0x124] = 0x01,
+    [0x126] = 0x07,		/* Address block length = 8 */
+    [0x128] = 0x76,		/* Field 2 address = 0x0376 */
+    [0x12a] = 0x03,
+    [0x12c] = 0x01,		/* Address block length = 2 */
+    [0x12e] = 0xee,		/* TPCE_IR = IRQ E, Level, Pulse, Share */
+    [0x130] = 0x20,		/* TPCE_MI = support power down mode */
+
+    [0x132] = CISTPL_CFTABLE_ENTRY,	/* 16-bit PC Card Configuration */
+    [0x134] = 0x06,		/* Tuple length = 6 bytes */
+    [0x136] = 0x03,		/* TPCE_INDX = I/O Secondary Mode */
+    [0x138] = 0x01,		/* TPCE_FS = Vcc only, no I/O, no Memory */
+    [0x13a] = 0x21,		/* NomV = 1, MinV = 0, MaxV = 0, Peakl = 1 */
+    [0x13c] = 0xb5,		/* NomV: 3.3 V */
+    [0x13e] = 0x1e,
+    [0x140] = 0x3e,		/* Peakl: 350 mA */
+
+    [0x142] = CISTPL_NO_LINK,	/* No Link */
+    [0x144] = 0x00,		/* Tuple length = 0 bytes */
+
+    [0x146] = CISTPL_END,	/* Tuple End */
+};
+
+static int dscm1xxxx_attach(void *opaque)
+{
+    struct md_s *md = (struct md_s *) opaque;
+    md->card.attr_read = md_attr_read;
+    md->card.attr_write = md_attr_write;
+    md->card.common_read = md_common_read;
+    md->card.common_write = md_common_write;
+    md->card.io_read = md_common_read;
+    md->card.io_write = md_common_write;
+
+    md->attr_base = md->card.cis[0x74] | (md->card.cis[0x76] << 8);
+    md->io_base = 0x0;
+
+    md_reset(md);
+    md_interrupt_update(md);
+
+    md->card.slot->card_string = "DSCM-1xxxx Hitachi Microdrive";
+    return 0;
+}
+
+static int dscm1xxxx_detach(void *opaque)
+{
+    struct md_s *md = (struct md_s *) opaque;
+    md_reset(md);
+    return 0;
+}
+
+struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv)
+{
+    struct md_s *md = (struct md_s *) qemu_mallocz(sizeof(struct md_s));
+    md->card.state = md;
+    md->card.attach = dscm1xxxx_attach;
+    md->card.detach = dscm1xxxx_detach;
+    md->card.cis = dscm1xxxx_cis;
+    md->card.cis_len = sizeof(dscm1xxxx_cis);
+
+    ide_init2(md->ide, bdrv, 0, qemu_allocate_irqs(md_set_irq, md, 1)[0]);
+    md->ide->is_cf = 1;
+    md->ide->mdata_size = METADATA_SIZE;
+    md->ide->mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
+    return &md->card;
 }

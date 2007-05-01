@@ -3,6 +3,7 @@
  * 
  *  Copyright (c) 2003 Fabrice Bellard
  *  Copyright (c) 2005 CodeSourcery, LLC
+ *  Copyright (c) 2007 OpenedHand, Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -493,9 +494,1098 @@ static inline void gen_mov_vreg_F0(int dp, int reg)
         gen_op_vfp_setreg_F0s(vfp_reg_offset(dp, reg));
 }
 
+#define ARM_CP_RW_BIT	(1 << 20)
+
+static inline int gen_iwmmxt_address(DisasContext *s, uint32_t insn)
+{
+    int rd;
+    uint32_t offset;
+
+    rd = (insn >> 16) & 0xf;
+    gen_movl_T1_reg(s, rd);
+
+    offset = (insn & 0xff) << ((insn >> 7) & 2);
+    if (insn & (1 << 24)) {
+        /* Pre indexed */
+        if (insn & (1 << 23))
+            gen_op_addl_T1_im(offset);
+        else
+            gen_op_addl_T1_im(-offset);
+
+        if (insn & (1 << 21))
+            gen_movl_reg_T1(s, rd);
+    } else if (insn & (1 << 21)) {
+        /* Post indexed */
+        if (insn & (1 << 23))
+            gen_op_movl_T0_im(offset);
+        else
+            gen_op_movl_T0_im(- offset);
+        gen_op_addl_T0_T1();
+        gen_movl_reg_T0(s, rd);
+    } else if (!(insn & (1 << 23)))
+        return 1;
+    return 0;
+}
+
+static inline int gen_iwmmxt_shift(uint32_t insn, uint32_t mask)
+{
+    int rd = (insn >> 0) & 0xf;
+
+    if (insn & (1 << 8))
+        if (rd < ARM_IWMMXT_wCGR0 || rd > ARM_IWMMXT_wCGR3)
+            return 1;
+        else
+            gen_op_iwmmxt_movl_T0_wCx(rd);
+    else
+        gen_op_iwmmxt_movl_T0_T1_wRn(rd);
+
+    gen_op_movl_T1_im(mask);
+    gen_op_andl_T0_T1();
+    return 0;
+}
+
+/* Disassemble an iwMMXt instruction.  Returns nonzero if an error occured
+   (ie. an undefined instruction).  */
+static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
+{
+    int rd, wrd;
+    int rdhi, rdlo, rd0, rd1, i;
+
+    if ((insn & 0x0e000e00) == 0x0c000000) {
+        if ((insn & 0x0fe00ff0) == 0x0c400000) {
+            wrd = insn & 0xf;
+            rdlo = (insn >> 12) & 0xf;
+            rdhi = (insn >> 16) & 0xf;
+            if (insn & ARM_CP_RW_BIT) {			/* TMRRC */
+                gen_op_iwmmxt_movl_T0_T1_wRn(wrd);
+                gen_movl_reg_T0(s, rdlo);
+                gen_movl_reg_T1(s, rdhi);
+            } else {					/* TMCRR */
+                gen_movl_T0_reg(s, rdlo);
+                gen_movl_T1_reg(s, rdhi);
+                gen_op_iwmmxt_movl_wRn_T0_T1(wrd);
+                gen_op_iwmmxt_set_mup();
+            }
+            return 0;
+        }
+
+        wrd = (insn >> 12) & 0xf;
+        if (gen_iwmmxt_address(s, insn))
+            return 1;
+        if (insn & ARM_CP_RW_BIT) {
+            if ((insn >> 28) == 0xf) {			/* WLDRW wCx */
+                gen_ldst(ldl, s);
+                gen_op_iwmmxt_movl_wCx_T0(wrd);
+            } else {
+                if (insn & (1 << 8))
+                    if (insn & (1 << 22))		/* WLDRD */
+                        gen_ldst(iwmmxt_ldq, s);
+                    else				/* WLDRW wRd */
+                        gen_ldst(iwmmxt_ldl, s);
+                else
+                    if (insn & (1 << 22))		/* WLDRH */
+                        gen_ldst(iwmmxt_ldw, s);
+                    else				/* WLDRB */
+                        gen_ldst(iwmmxt_ldb, s);
+                gen_op_iwmmxt_movq_wRn_M0(wrd);
+            }
+        } else {
+            if ((insn >> 28) == 0xf) {			/* WSTRW wCx */
+                gen_op_iwmmxt_movl_T0_wCx(wrd);
+                gen_ldst(stl, s);
+            } else {
+                gen_op_iwmmxt_movq_M0_wRn(wrd);
+                if (insn & (1 << 8))
+                    if (insn & (1 << 22))		/* WSTRD */
+                        gen_ldst(iwmmxt_stq, s);
+                    else				/* WSTRW wRd */
+                        gen_ldst(iwmmxt_stl, s);
+                else
+                    if (insn & (1 << 22))		/* WSTRH */
+                        gen_ldst(iwmmxt_ldw, s);
+                    else				/* WSTRB */
+                        gen_ldst(iwmmxt_stb, s);
+            }
+        }
+        return 0;
+    }
+
+    if ((insn & 0x0f000000) != 0x0e000000)
+        return 1;
+
+    switch (((insn >> 12) & 0xf00) | ((insn >> 4) & 0xff)) {
+    case 0x000:						/* WOR */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 0) & 0xf;
+        rd1 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_iwmmxt_orq_M0_wRn(rd1);
+        gen_op_iwmmxt_setpsr_nz();
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x011:						/* TMCR */
+        if (insn & 0xf)
+            return 1;
+        rd = (insn >> 12) & 0xf;
+        wrd = (insn >> 16) & 0xf;
+        switch (wrd) {
+        case ARM_IWMMXT_wCID:
+        case ARM_IWMMXT_wCASF:
+            break;
+        case ARM_IWMMXT_wCon:
+            gen_op_iwmmxt_set_cup();
+            /* Fall through.  */
+        case ARM_IWMMXT_wCSSF:
+            gen_op_iwmmxt_movl_T0_wCx(wrd);
+            gen_movl_T1_reg(s, rd);
+            gen_op_bicl_T0_T1();
+            gen_op_iwmmxt_movl_wCx_T0(wrd);
+            break;
+        case ARM_IWMMXT_wCGR0:
+        case ARM_IWMMXT_wCGR1:
+        case ARM_IWMMXT_wCGR2:
+        case ARM_IWMMXT_wCGR3:
+            gen_op_iwmmxt_set_cup();
+            gen_movl_reg_T0(s, rd);
+            gen_op_iwmmxt_movl_wCx_T0(wrd);
+            break;
+        default:
+            return 1;
+        }
+        break;
+    case 0x100:						/* WXOR */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 0) & 0xf;
+        rd1 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_iwmmxt_xorq_M0_wRn(rd1);
+        gen_op_iwmmxt_setpsr_nz();
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x111:						/* TMRC */
+        if (insn & 0xf)
+            return 1;
+        rd = (insn >> 12) & 0xf;
+        wrd = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movl_T0_wCx(wrd);
+        gen_movl_reg_T0(s, rd);
+        break;
+    case 0x300:						/* WANDN */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 0) & 0xf;
+        rd1 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_iwmmxt_negq_M0();
+        gen_op_iwmmxt_andq_M0_wRn(rd1);
+        gen_op_iwmmxt_setpsr_nz();
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x200:						/* WAND */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 0) & 0xf;
+        rd1 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_iwmmxt_andq_M0_wRn(rd1);
+        gen_op_iwmmxt_setpsr_nz();
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x810: case 0xa10:				/* WMADD */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 0) & 0xf;
+        rd1 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (insn & (1 << 21))
+            gen_op_iwmmxt_maddsq_M0_wRn(rd1);
+        else
+            gen_op_iwmmxt_madduq_M0_wRn(rd1);
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x10e: case 0x50e: case 0x90e: case 0xd0e:	/* WUNPCKIL */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            gen_op_iwmmxt_unpacklb_M0_wRn(rd1);
+            break;
+        case 1:
+            gen_op_iwmmxt_unpacklw_M0_wRn(rd1);
+            break;
+        case 2:
+            gen_op_iwmmxt_unpackll_M0_wRn(rd1);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x10c: case 0x50c: case 0x90c: case 0xd0c:	/* WUNPCKIH */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            gen_op_iwmmxt_unpackhb_M0_wRn(rd1);
+            break;
+        case 1:
+            gen_op_iwmmxt_unpackhw_M0_wRn(rd1);
+            break;
+        case 2:
+            gen_op_iwmmxt_unpackhl_M0_wRn(rd1);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x012: case 0x112: case 0x412: case 0x512:	/* WSAD */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (insn & (1 << 22))
+            gen_op_iwmmxt_sadw_M0_wRn(rd1);
+        else
+            gen_op_iwmmxt_sadb_M0_wRn(rd1);
+        if (!(insn & (1 << 20)))
+            gen_op_iwmmxt_addl_M0_wRn(wrd);
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x010: case 0x110: case 0x210: case 0x310:	/* WMUL */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (insn & (1 << 21))
+            gen_op_iwmmxt_mulsw_M0_wRn(rd1, (insn & (1 << 20)) ? 16 : 0);
+        else
+            gen_op_iwmmxt_muluw_M0_wRn(rd1, (insn & (1 << 20)) ? 16 : 0);
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x410: case 0x510: case 0x610: case 0x710:	/* WMAC */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (insn & (1 << 21))
+            gen_op_iwmmxt_macsw_M0_wRn(rd1);
+        else
+            gen_op_iwmmxt_macuw_M0_wRn(rd1);
+        if (!(insn & (1 << 20))) {
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_addsq_M0_wRn(wrd);
+            else
+                gen_op_iwmmxt_adduq_M0_wRn(wrd);
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x006: case 0x406: case 0x806: case 0xc06:	/* WCMPEQ */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            gen_op_iwmmxt_cmpeqb_M0_wRn(rd1);
+            break;
+        case 1:
+            gen_op_iwmmxt_cmpeqw_M0_wRn(rd1);
+            break;
+        case 2:
+            gen_op_iwmmxt_cmpeql_M0_wRn(rd1);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x800: case 0x900: case 0xc00: case 0xd00:	/* WAVG2 */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (insn & (1 << 22))
+            gen_op_iwmmxt_avgw_M0_wRn(rd1, (insn >> 20) & 1);
+        else
+            gen_op_iwmmxt_avgb_M0_wRn(rd1, (insn >> 20) & 1);
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x802: case 0x902: case 0xa02: case 0xb02:	/* WALIGNR */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_iwmmxt_movl_T0_wCx(ARM_IWMMXT_wCGR0 + ((insn >> 20) & 3));
+        gen_op_movl_T1_im(7);
+        gen_op_andl_T0_T1();
+        gen_op_iwmmxt_align_M0_T0_wRn(rd1);
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x601: case 0x605: case 0x609: case 0x60d:	/* TINSR */
+        rd = (insn >> 12) & 0xf;
+        wrd = (insn >> 16) & 0xf;
+        gen_movl_T0_reg(s, rd);
+        gen_op_iwmmxt_movq_M0_wRn(wrd);
+        switch ((insn >> 6) & 3) {
+        case 0:
+            gen_op_movl_T1_im(0xff);
+            gen_op_iwmmxt_insr_M0_T0_T1((insn & 7) << 3);
+            break;
+        case 1:
+            gen_op_movl_T1_im(0xffff);
+            gen_op_iwmmxt_insr_M0_T0_T1((insn & 3) << 4);
+            break;
+        case 2:
+            gen_op_movl_T1_im(0xffffffff);
+            gen_op_iwmmxt_insr_M0_T0_T1((insn & 1) << 5);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x107: case 0x507: case 0x907: case 0xd07:	/* TEXTRM */
+        rd = (insn >> 12) & 0xf;
+        wrd = (insn >> 16) & 0xf;
+        if (rd == 15)
+            return 1;
+        gen_op_iwmmxt_movq_M0_wRn(wrd);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            if (insn & 8)
+                gen_op_iwmmxt_extrsb_T0_M0((insn & 7) << 3);
+            else {
+                gen_op_movl_T1_im(0xff);
+                gen_op_iwmmxt_extru_T0_M0_T1((insn & 7) << 3);
+            }
+            break;
+        case 1:
+            if (insn & 8)
+                gen_op_iwmmxt_extrsw_T0_M0((insn & 3) << 4);
+            else {
+                gen_op_movl_T1_im(0xffff);
+                gen_op_iwmmxt_extru_T0_M0_T1((insn & 3) << 4);
+            }
+            break;
+        case 2:
+            gen_op_movl_T1_im(0xffffffff);
+            gen_op_iwmmxt_extru_T0_M0_T1((insn & 1) << 5);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_movl_reg_TN[0][rd]();
+        break;
+    case 0x117: case 0x517: case 0x917: case 0xd17:	/* TEXTRC */
+        if ((insn & 0x000ff008) != 0x0003f000)
+            return 1;
+        gen_op_iwmmxt_movl_T1_wCx(ARM_IWMMXT_wCASF);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            gen_op_shrl_T1_im(((insn & 7) << 2) + 0);
+            break;
+        case 1:
+            gen_op_shrl_T1_im(((insn & 3) << 3) + 4);
+            break;
+        case 2:
+            gen_op_shrl_T1_im(((insn & 1) << 4) + 12);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_shll_T1_im(28);
+        gen_op_movl_T0_T1();
+        gen_op_movl_cpsr_T0(0xf0000000);
+        break;
+    case 0x401: case 0x405: case 0x409: case 0x40d:	/* TBCST */
+        rd = (insn >> 12) & 0xf;
+        wrd = (insn >> 16) & 0xf;
+        gen_movl_T0_reg(s, rd);
+        switch ((insn >> 6) & 3) {
+        case 0:
+            gen_op_iwmmxt_bcstb_M0_T0();
+            break;
+        case 1:
+            gen_op_iwmmxt_bcstw_M0_T0();
+            break;
+        case 2:
+            gen_op_iwmmxt_bcstl_M0_T0();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x113: case 0x513: case 0x913: case 0xd13:	/* TANDC */
+        if ((insn & 0x000ff00f) != 0x0003f000)
+            return 1;
+        gen_op_iwmmxt_movl_T1_wCx(ARM_IWMMXT_wCASF);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            for (i = 0; i < 7; i ++) {
+                gen_op_shll_T1_im(4);
+                gen_op_andl_T0_T1();
+            }
+            break;
+        case 1:
+            for (i = 0; i < 3; i ++) {
+                gen_op_shll_T1_im(8);
+                gen_op_andl_T0_T1();
+            }
+            break;
+        case 2:
+            gen_op_shll_T1_im(16);
+            gen_op_andl_T0_T1();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_movl_cpsr_T0(0xf0000000);
+        break;
+    case 0x01c: case 0x41c: case 0x81c: case 0xc1c:	/* WACC */
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            gen_op_iwmmxt_addcb_M0();
+            break;
+        case 1:
+            gen_op_iwmmxt_addcw_M0();
+            break;
+        case 2:
+            gen_op_iwmmxt_addcl_M0();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x115: case 0x515: case 0x915: case 0xd15:	/* TORC */
+        if ((insn & 0x000ff00f) != 0x0003f000)
+            return 1;
+        gen_op_iwmmxt_movl_T1_wCx(ARM_IWMMXT_wCASF);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            for (i = 0; i < 7; i ++) {
+                gen_op_shll_T1_im(4);
+                gen_op_orl_T0_T1();
+            }
+            break;
+        case 1:
+            for (i = 0; i < 3; i ++) {
+                gen_op_shll_T1_im(8);
+                gen_op_orl_T0_T1();
+            }
+            break;
+        case 2:
+            gen_op_shll_T1_im(16);
+            gen_op_orl_T0_T1();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_movl_T1_im(0xf0000000);
+        gen_op_andl_T0_T1();
+        gen_op_movl_cpsr_T0(0xf0000000);
+        break;
+    case 0x103: case 0x503: case 0x903: case 0xd03:	/* TMOVMSK */
+        rd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        if ((insn & 0xf) != 0)
+            return 1;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            gen_op_iwmmxt_msbb_T0_M0();
+            break;
+        case 1:
+            gen_op_iwmmxt_msbw_T0_M0();
+            break;
+        case 2:
+            gen_op_iwmmxt_msbl_T0_M0();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_movl_reg_T0(s, rd);
+        break;
+    case 0x106: case 0x306: case 0x506: case 0x706:	/* WCMPGT */
+    case 0x906: case 0xb06: case 0xd06: case 0xf06:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_cmpgtsb_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_cmpgtub_M0_wRn(rd1);
+            break;
+        case 1:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_cmpgtsw_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_cmpgtuw_M0_wRn(rd1);
+            break;
+        case 2:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_cmpgtsl_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_cmpgtul_M0_wRn(rd1);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x00e: case 0x20e: case 0x40e: case 0x60e:	/* WUNPCKEL */
+    case 0x80e: case 0xa0e: case 0xc0e: case 0xe0e:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_unpacklsb_M0();
+            else
+                gen_op_iwmmxt_unpacklub_M0();
+            break;
+        case 1:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_unpacklsw_M0();
+            else
+                gen_op_iwmmxt_unpackluw_M0();
+            break;
+        case 2:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_unpacklsl_M0();
+            else
+                gen_op_iwmmxt_unpacklul_M0();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x00c: case 0x20c: case 0x40c: case 0x60c:	/* WUNPCKEH */
+    case 0x80c: case 0xa0c: case 0xc0c: case 0xe0c:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_unpackhsb_M0();
+            else
+                gen_op_iwmmxt_unpackhub_M0();
+            break;
+        case 1:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_unpackhsw_M0();
+            else
+                gen_op_iwmmxt_unpackhuw_M0();
+            break;
+        case 2:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_unpackhsl_M0();
+            else
+                gen_op_iwmmxt_unpackhul_M0();
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x204: case 0x604: case 0xa04: case 0xe04:	/* WSRL */
+    case 0x214: case 0x614: case 0xa14: case 0xe14:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (gen_iwmmxt_shift(insn, 0xff))
+            return 1;
+        switch ((insn >> 22) & 3) {
+        case 0:
+            return 1;
+        case 1:
+            gen_op_iwmmxt_srlw_M0_T0();
+            break;
+        case 2:
+            gen_op_iwmmxt_srll_M0_T0();
+            break;
+        case 3:
+            gen_op_iwmmxt_srlq_M0_T0();
+            break;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x004: case 0x404: case 0x804: case 0xc04:	/* WSRA */
+    case 0x014: case 0x414: case 0x814: case 0xc14:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (gen_iwmmxt_shift(insn, 0xff))
+            return 1;
+        switch ((insn >> 22) & 3) {
+        case 0:
+            return 1;
+        case 1:
+            gen_op_iwmmxt_sraw_M0_T0();
+            break;
+        case 2:
+            gen_op_iwmmxt_sral_M0_T0();
+            break;
+        case 3:
+            gen_op_iwmmxt_sraq_M0_T0();
+            break;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x104: case 0x504: case 0x904: case 0xd04:	/* WSLL */
+    case 0x114: case 0x514: case 0x914: case 0xd14:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (gen_iwmmxt_shift(insn, 0xff))
+            return 1;
+        switch ((insn >> 22) & 3) {
+        case 0:
+            return 1;
+        case 1:
+            gen_op_iwmmxt_sllw_M0_T0();
+            break;
+        case 2:
+            gen_op_iwmmxt_slll_M0_T0();
+            break;
+        case 3:
+            gen_op_iwmmxt_sllq_M0_T0();
+            break;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x304: case 0x704: case 0xb04: case 0xf04:	/* WROR */
+    case 0x314: case 0x714: case 0xb14: case 0xf14:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            return 1;
+        case 1:
+            if (gen_iwmmxt_shift(insn, 0xf))
+                return 1;
+            gen_op_iwmmxt_rorw_M0_T0();
+            break;
+        case 2:
+            if (gen_iwmmxt_shift(insn, 0x1f))
+                return 1;
+            gen_op_iwmmxt_rorl_M0_T0();
+            break;
+        case 3:
+            if (gen_iwmmxt_shift(insn, 0x3f))
+                return 1;
+            gen_op_iwmmxt_rorq_M0_T0();
+            break;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x116: case 0x316: case 0x516: case 0x716:	/* WMIN */
+    case 0x916: case 0xb16: case 0xd16: case 0xf16:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_minsb_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_minub_M0_wRn(rd1);
+            break;
+        case 1:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_minsw_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_minuw_M0_wRn(rd1);
+            break;
+        case 2:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_minsl_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_minul_M0_wRn(rd1);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x016: case 0x216: case 0x416: case 0x616:	/* WMAX */
+    case 0x816: case 0xa16: case 0xc16: case 0xe16:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 22) & 3) {
+        case 0:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_maxsb_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_maxub_M0_wRn(rd1);
+            break;
+        case 1:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_maxsw_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_maxuw_M0_wRn(rd1);
+            break;
+        case 2:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_maxsl_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_maxul_M0_wRn(rd1);
+            break;
+        case 3:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x002: case 0x102: case 0x202: case 0x302:	/* WALIGNI */
+    case 0x402: case 0x502: case 0x602: case 0x702:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_movl_T0_im((insn >> 20) & 3);
+        gen_op_iwmmxt_align_M0_T0_wRn(rd1);
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    case 0x01a: case 0x11a: case 0x21a: case 0x31a:	/* WSUB */
+    case 0x41a: case 0x51a: case 0x61a: case 0x71a:
+    case 0x81a: case 0x91a: case 0xa1a: case 0xb1a:
+    case 0xc1a: case 0xd1a: case 0xe1a: case 0xf1a:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 20) & 0xf) {
+        case 0x0:
+            gen_op_iwmmxt_subnb_M0_wRn(rd1);
+            break;
+        case 0x1:
+            gen_op_iwmmxt_subub_M0_wRn(rd1);
+            break;
+        case 0x3:
+            gen_op_iwmmxt_subsb_M0_wRn(rd1);
+            break;
+        case 0x4:
+            gen_op_iwmmxt_subnw_M0_wRn(rd1);
+            break;
+        case 0x5:
+            gen_op_iwmmxt_subuw_M0_wRn(rd1);
+            break;
+        case 0x7:
+            gen_op_iwmmxt_subsw_M0_wRn(rd1);
+            break;
+        case 0x8:
+            gen_op_iwmmxt_subnl_M0_wRn(rd1);
+            break;
+        case 0x9:
+            gen_op_iwmmxt_subul_M0_wRn(rd1);
+            break;
+        case 0xb:
+            gen_op_iwmmxt_subsl_M0_wRn(rd1);
+            break;
+        default:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x01e: case 0x11e: case 0x21e: case 0x31e:	/* WSHUFH */
+    case 0x41e: case 0x51e: case 0x61e: case 0x71e:
+    case 0x81e: case 0x91e: case 0xa1e: case 0xb1e:
+    case 0xc1e: case 0xd1e: case 0xe1e: case 0xf1e:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        gen_op_movl_T0_im(((insn >> 16) & 0xf0) | (insn & 0x0f));
+        gen_op_iwmmxt_shufh_M0_T0();
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x018: case 0x118: case 0x218: case 0x318:	/* WADD */
+    case 0x418: case 0x518: case 0x618: case 0x718:
+    case 0x818: case 0x918: case 0xa18: case 0xb18:
+    case 0xc18: case 0xd18: case 0xe18: case 0xf18:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        switch ((insn >> 20) & 0xf) {
+        case 0x0:
+            gen_op_iwmmxt_addnb_M0_wRn(rd1);
+            break;
+        case 0x1:
+            gen_op_iwmmxt_addub_M0_wRn(rd1);
+            break;
+        case 0x3:
+            gen_op_iwmmxt_addsb_M0_wRn(rd1);
+            break;
+        case 0x4:
+            gen_op_iwmmxt_addnw_M0_wRn(rd1);
+            break;
+        case 0x5:
+            gen_op_iwmmxt_adduw_M0_wRn(rd1);
+            break;
+        case 0x7:
+            gen_op_iwmmxt_addsw_M0_wRn(rd1);
+            break;
+        case 0x8:
+            gen_op_iwmmxt_addnl_M0_wRn(rd1);
+            break;
+        case 0x9:
+            gen_op_iwmmxt_addul_M0_wRn(rd1);
+            break;
+        case 0xb:
+            gen_op_iwmmxt_addsl_M0_wRn(rd1);
+            break;
+        default:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x008: case 0x108: case 0x208: case 0x308:	/* WPACK */
+    case 0x408: case 0x508: case 0x608: case 0x708:
+    case 0x808: case 0x908: case 0xa08: case 0xb08:
+    case 0xc08: case 0xd08: case 0xe08: case 0xf08:
+        wrd = (insn >> 12) & 0xf;
+        rd0 = (insn >> 16) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        gen_op_iwmmxt_movq_M0_wRn(rd0);
+        if (!(insn & (1 << 20)))
+            return 1;
+        switch ((insn >> 22) & 3) {
+        case 0:
+            return 1;
+        case 1:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_packsw_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_packuw_M0_wRn(rd1);
+            break;
+        case 2:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_packsl_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_packul_M0_wRn(rd1);
+            break;
+        case 3:
+            if (insn & (1 << 21))
+                gen_op_iwmmxt_packsq_M0_wRn(rd1);
+            else
+                gen_op_iwmmxt_packuq_M0_wRn(rd1);
+            break;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        gen_op_iwmmxt_set_cup();
+        break;
+    case 0x201: case 0x203: case 0x205: case 0x207:
+    case 0x209: case 0x20b: case 0x20d: case 0x20f:
+    case 0x211: case 0x213: case 0x215: case 0x217:
+    case 0x219: case 0x21b: case 0x21d: case 0x21f:
+        wrd = (insn >> 5) & 0xf;
+        rd0 = (insn >> 12) & 0xf;
+        rd1 = (insn >> 0) & 0xf;
+        if (rd0 == 0xf || rd1 == 0xf)
+            return 1;
+        gen_op_iwmmxt_movq_M0_wRn(wrd);
+        switch ((insn >> 16) & 0xf) {
+        case 0x0:					/* TMIA */
+            gen_op_movl_TN_reg[0][rd0]();
+            gen_op_movl_TN_reg[1][rd1]();
+            gen_op_iwmmxt_muladdsl_M0_T0_T1();
+            break;
+        case 0x8:					/* TMIAPH */
+            gen_op_movl_TN_reg[0][rd0]();
+            gen_op_movl_TN_reg[1][rd1]();
+            gen_op_iwmmxt_muladdsw_M0_T0_T1();
+            break;
+        case 0xc: case 0xd: case 0xe: case 0xf:		/* TMIAxy */
+            gen_op_movl_TN_reg[1][rd0]();
+            if (insn & (1 << 16))
+                gen_op_shrl_T1_im(16);
+            gen_op_movl_T0_T1();
+            gen_op_movl_TN_reg[1][rd1]();
+            if (insn & (1 << 17))
+                gen_op_shrl_T1_im(16);
+            gen_op_iwmmxt_muladdswl_M0_T0_T1();
+            break;
+        default:
+            return 1;
+        }
+        gen_op_iwmmxt_movq_wRn_M0(wrd);
+        gen_op_iwmmxt_set_mup();
+        break;
+    default:
+        return 1;
+    }
+
+    return 0;
+}
+
+/* Disassemble an XScale DSP instruction.  Returns nonzero if an error occured
+   (ie. an undefined instruction).  */
+static int disas_dsp_insn(CPUState *env, DisasContext *s, uint32_t insn)
+{
+    int acc, rd0, rd1, rdhi, rdlo;
+
+    if ((insn & 0x0ff00f10) == 0x0e200010) {
+        /* Multiply with Internal Accumulate Format */
+        rd0 = (insn >> 12) & 0xf;
+        rd1 = insn & 0xf;
+        acc = (insn >> 5) & 7;
+
+        if (acc != 0)
+            return 1;
+
+        switch ((insn >> 16) & 0xf) {
+        case 0x0:					/* MIA */
+            gen_op_movl_TN_reg[0][rd0]();
+            gen_op_movl_TN_reg[1][rd1]();
+            gen_op_iwmmxt_muladdsl_M0_T0_T1();
+            break;
+        case 0x8:					/* MIAPH */
+            gen_op_movl_TN_reg[0][rd0]();
+            gen_op_movl_TN_reg[1][rd1]();
+            gen_op_iwmmxt_muladdsw_M0_T0_T1();
+            break;
+        case 0xc:					/* MIABB */
+        case 0xd:					/* MIABT */
+        case 0xe:					/* MIATB */
+        case 0xf:					/* MIATT */
+            gen_op_movl_TN_reg[1][rd0]();
+            if (insn & (1 << 16))
+                gen_op_shrl_T1_im(16);
+            gen_op_movl_T0_T1();
+            gen_op_movl_TN_reg[1][rd1]();
+            if (insn & (1 << 17))
+                gen_op_shrl_T1_im(16);
+            gen_op_iwmmxt_muladdswl_M0_T0_T1();
+            break;
+        default:
+            return 1;
+        }
+
+        gen_op_iwmmxt_movq_wRn_M0(acc);
+        return 0;
+    }
+
+    if ((insn & 0x0fe00ff8) == 0x0c400000) {
+        /* Internal Accumulator Access Format */
+        rdhi = (insn >> 16) & 0xf;
+        rdlo = (insn >> 12) & 0xf;
+        acc = insn & 7;
+
+        if (acc != 0)
+            return 1;
+
+        if (insn & ARM_CP_RW_BIT) {			/* MRA */
+            gen_op_iwmmxt_movl_T0_T1_wRn(acc);
+            gen_op_movl_reg_TN[0][rdlo]();
+            gen_op_movl_T0_im((1 << (40 - 32)) - 1);
+            gen_op_andl_T0_T1();
+            gen_op_movl_reg_TN[0][rdhi]();
+        } else {					/* MAR */
+            gen_op_movl_TN_reg[0][rdlo]();
+            gen_op_movl_TN_reg[1][rdhi]();
+            gen_op_iwmmxt_movl_wRn_T0_T1(acc);
+        }
+        return 0;
+    }
+
+    return 1;
+}
+
+/* Disassemble system coprocessor instruction.  Return nonzero if
+   instruction is not defined.  */
+static int disas_cp_insn(CPUState *env, DisasContext *s, uint32_t insn)
+{
+    uint32_t rd = (insn >> 12) & 0xf;
+    uint32_t cp = (insn >> 8) & 0xf;
+    if (IS_USER(s)) {
+        return 1;
+    }
+
+    if (insn & ARM_CP_RW_BIT) {
+        if (!env->cp[cp].cp_read)
+            return 1;
+        gen_op_movl_T0_im((uint32_t) s->pc);
+        gen_op_movl_reg_TN[0][15]();
+        gen_op_movl_T0_cp(insn);
+        gen_movl_reg_T0(s, rd);
+    } else {
+        if (!env->cp[cp].cp_write)
+            return 1;
+        gen_op_movl_T0_im((uint32_t) s->pc);
+        gen_op_movl_reg_TN[0][15]();
+        gen_movl_T0_reg(s, rd);
+        gen_op_movl_cp_T0(insn);
+    }
+    return 0;
+}
+
 /* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
    instruction is not defined.  */
-static int disas_cp15_insn(DisasContext *s, uint32_t insn)
+static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd;
 
@@ -513,7 +1603,7 @@ static int disas_cp15_insn(DisasContext *s, uint32_t insn)
         return 0;
     }
     rd = (insn >> 12) & 0xf;
-    if (insn & (1 << 20)) {
+    if (insn & ARM_CP_RW_BIT) {
         gen_op_movl_T0_cp15(insn);
         /* If the destination register is r15 then sets condition codes.  */
         if (rd != 15)
@@ -521,8 +1611,13 @@ static int disas_cp15_insn(DisasContext *s, uint32_t insn)
     } else {
         gen_movl_T0_reg(s, rd);
         gen_op_movl_cp15_T0(insn);
+        /* Normally we would always end the TB here, but Linux
+         * arch/arm/mach-pxa/sleep.S expects two instructions following
+         * an MMU enable to execute from cache.  Imitate this behaviour.  */
+        if (!arm_feature(env, ARM_FEATURE_XSCALE) ||
+                (insn & 0x0fff0fff) != 0x0e010f10)
+            gen_lookup_tb(s);
     }
-    gen_lookup_tb(s);
     return 0;
 }
 
@@ -560,7 +1655,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                    we only set half the register.  */
                 gen_mov_F0_vreg(1, rn);
                 gen_op_vfp_mrrd();
-                if (insn & (1 << 20)) {
+                if (insn & ARM_CP_RW_BIT) {
                     /* vfp->arm */
                     if (insn & (1 << 21))
                         gen_movl_reg_T1(s, rd);
@@ -577,7 +1672,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
             } else {
                 rn = ((insn >> 15) & 0x1e) | ((insn >> 7) & 1);
-                if (insn & (1 << 20)) {
+                if (insn & ARM_CP_RW_BIT) {
                     /* vfp->arm */
                     if (insn & (1 << 21)) {
                         /* system register */
@@ -911,7 +2006,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
             } else
                 rm = ((insn << 1) & 0x1e) | ((insn >> 5) & 1);
 
-            if (insn & (1 << 20)) {
+            if (insn & ARM_CP_RW_BIT) {
                 /* vfp->arm */
                 if (dp) {
                     gen_mov_F0_vreg(1, rm);
@@ -978,7 +2073,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 else
                     offset = 4;
                 for (i = 0; i < n; i++) {
-                    if (insn & (1 << 20)) {
+                    if (insn & ARM_CP_RW_BIT) {
                         /* load */
                         gen_vfp_ld(s, dp);
                         gen_mov_vreg_F0(dp, rd + i);
@@ -1813,14 +2908,32 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0xe:
             /* Coprocessor.  */
             op1 = (insn >> 8) & 0xf;
+            if (arm_feature(env, ARM_FEATURE_XSCALE) &&
+                    ((env->cp15.c15_cpar ^ 0x3fff) & (1 << op1)))
+                goto illegal_op;
             switch (op1) {
+            case 0 ... 1:
+                if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+                    if (disas_iwmmxt_insn(env, s, insn))
+                        goto illegal_op;
+                } else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+                    if (disas_dsp_insn(env, s, insn))
+                        goto illegal_op;
+                } else
+                    goto illegal_op;
+                break;
+            case 2 ... 9:
+            case 12 ... 14:
+                if (disas_cp_insn (env, s, insn))
+                    goto illegal_op;
+                break;
             case 10:
             case 11:
                 if (disas_vfp_insn (env, s, insn))
                     goto illegal_op;
                 break;
             case 15:
-                if (disas_cp15_insn (s, insn))
+                if (disas_cp15_insn (env, s, insn))
                     goto illegal_op;
                 break;
             default:

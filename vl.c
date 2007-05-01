@@ -140,6 +140,7 @@ IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
 BlockDriverState *pflash_table[MAX_PFLASH];
 BlockDriverState *sd_bdrv;
+BlockDriverState *mtd_bdrv;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
@@ -188,6 +189,8 @@ const char *vnc_display;
 int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
+int cursor_hide = 1;
+int graphic_rotate = 0;
 int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
@@ -524,6 +527,7 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
 {
     QEMUPutMouseEvent *mouse_event;
     void *mouse_event_opaque;
+    int width;
 
     if (!qemu_put_mouse_event_current) {
         return;
@@ -535,7 +539,16 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
         qemu_put_mouse_event_current->qemu_put_mouse_event_opaque;
 
     if (mouse_event) {
-        mouse_event(mouse_event_opaque, dx, dy, dz, buttons_state);
+        if (graphic_rotate) {
+            if (qemu_put_mouse_event_current->qemu_put_mouse_event_absolute)
+                width = 0x7fff;
+            else
+                width = graphic_width;
+            mouse_event(mouse_event_opaque,
+                                 width - dy, dx, dz, buttons_state);
+        } else
+            mouse_event(mouse_event_opaque,
+                                 dx, dy, dz, buttons_state);
     }
 }
 
@@ -4412,6 +4425,48 @@ void usb_info(void)
 }
 
 /***********************************************************/
+/* PCMCIA/Cardbus */
+
+static struct pcmcia_socket_entry_s {
+    struct pcmcia_socket_s *socket;
+    struct pcmcia_socket_entry_s *next;
+} *pcmcia_sockets = 0;
+
+void pcmcia_socket_register(struct pcmcia_socket_s *socket)
+{
+    struct pcmcia_socket_entry_s *entry;
+
+    entry = qemu_malloc(sizeof(struct pcmcia_socket_entry_s));
+    entry->socket = socket;
+    entry->next = pcmcia_sockets;
+    pcmcia_sockets = entry;
+}
+
+void pcmcia_socket_unregister(struct pcmcia_socket_s *socket)
+{
+    struct pcmcia_socket_entry_s *entry, **ptr;
+
+    ptr = &pcmcia_sockets;
+    for (entry = *ptr; entry; ptr = &entry->next, entry = *ptr)
+        if (entry->socket == socket) {
+            *ptr = entry->next;
+            qemu_free(entry);
+        }
+}
+
+void pcmcia_info(void)
+{
+    struct pcmcia_socket_entry_s *iter;
+    if (!pcmcia_sockets)
+        term_printf("No PCMCIA sockets\n");
+
+    for (iter = pcmcia_sockets; iter; iter = iter->next)
+        term_printf("%s: %s\n", iter->socket->slot_string,
+                    iter->socket->attached ? iter->socket->card_string :
+                    "Empty");
+}
+
+/***********************************************************/
 /* dumb display */
 
 static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
@@ -6368,6 +6423,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
+           "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"
            "-pflash file    use 'file' as a parallel flash image\n"
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
@@ -6382,6 +6438,7 @@ void help(void)
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-smp n          set the number of CPUs to 'n' [default=1]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
+           "-portrait       rotate graphical output 90 deg left (only PXA LCD)\n"
 #ifndef _WIN32
            "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
@@ -6507,6 +6564,7 @@ enum {
     QEMU_OPTION_hdc,
     QEMU_OPTION_hdd,
     QEMU_OPTION_cdrom,
+    QEMU_OPTION_mtdblock,
     QEMU_OPTION_sd,
     QEMU_OPTION_pflash,
     QEMU_OPTION_boot,
@@ -6516,6 +6574,7 @@ enum {
 #endif
     QEMU_OPTION_m,
     QEMU_OPTION_nographic,
+    QEMU_OPTION_portrait,
 #ifdef HAS_AUDIO
     QEMU_OPTION_audio_help,
     QEMU_OPTION_soundhw,
@@ -6562,6 +6621,7 @@ enum {
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_no_reboot,
+    QEMU_OPTION_show_cursor,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
     QEMU_OPTION_semihosting,
@@ -6587,6 +6647,7 @@ const QEMUOption qemu_options[] = {
     { "hdc", HAS_ARG, QEMU_OPTION_hdc },
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
+    { "mtdblock", HAS_ARG, QEMU_OPTION_mtdblock },
     { "sd", HAS_ARG, QEMU_OPTION_sd },
     { "pflash", HAS_ARG, QEMU_OPTION_pflash },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
@@ -6596,6 +6657,7 @@ const QEMUOption qemu_options[] = {
 #endif
     { "m", HAS_ARG, QEMU_OPTION_m },
     { "nographic", 0, QEMU_OPTION_nographic },
+    { "portrait", 0, QEMU_OPTION_portrait },
     { "k", HAS_ARG, QEMU_OPTION_k },
 #ifdef HAS_AUDIO
     { "audio-help", 0, QEMU_OPTION_audio_help },
@@ -6654,6 +6716,7 @@ const QEMUOption qemu_options[] = {
     { "vmwarevga", 0, QEMU_OPTION_vmsvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
+    { "show-cursor", 0, QEMU_OPTION_show_cursor },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
 #if defined(TARGET_ARM)
@@ -6674,6 +6737,24 @@ static uint8_t *signal_stack;
 
 /* password input */
 
+int qemu_key_check(BlockDriverState *bs, const char *name)
+{
+    char password[256];
+    int i;
+
+    if (!bdrv_is_encrypted(bs))
+        return 0;
+
+    term_printf("%s is encrypted.\n", name);
+    for(i = 0; i < 3; i++) {
+        monitor_readline("Password: ", 1, password, sizeof(password));
+        if (bdrv_set_key(bs, password) == 0)
+            return 0;
+        term_printf("invalid password\n");
+    }
+    return -EPERM;
+}
+
 static BlockDriverState *get_bdrv(int index)
 {
     BlockDriverState *bs;
@@ -6691,21 +6772,12 @@ static BlockDriverState *get_bdrv(int index)
 static void read_passwords(void)
 {
     BlockDriverState *bs;
-    int i, j;
-    char password[256];
+    int i;
 
     for(i = 0; i < 6; i++) {
         bs = get_bdrv(i);
-        if (bs && bdrv_is_encrypted(bs)) {
-            term_printf("%s is encrypted.\n", bdrv_get_device_name(bs));
-            for(j = 0; j < 3; j++) {
-                monitor_readline("Password: ", 
-                                 1, password, sizeof(password));
-                if (bdrv_set_key(bs, password) == 0)
-                    break;
-                term_printf("invalid password\n");
-            }
-        }
+        if (bs)
+            qemu_key_check(bs, bdrv_get_device_name(bs));
     }
 }
 
@@ -6741,6 +6813,10 @@ void register_machines(void)
     qemu_register_machine(&versatilepb_machine);
     qemu_register_machine(&versatileab_machine);
     qemu_register_machine(&realview_machine);
+    qemu_register_machine(&akitapda_machine);
+    qemu_register_machine(&spitzpda_machine);
+    qemu_register_machine(&borzoipda_machine);
+    qemu_register_machine(&terrierpda_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
 #elif defined(TARGET_ALPHA)
@@ -6752,6 +6828,7 @@ void register_machines(void)
 
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
+#ifdef HAS_AUDIO_CHOICE
 #ifdef TARGET_I386
     {
         "pcspk",
@@ -6800,6 +6877,7 @@ struct soundhw soundhw[] = {
         0,
         { .init_pci = es1370_init }
     },
+#endif
 
     { NULL, NULL, 0, 0, { NULL } }
 };
@@ -6921,6 +6999,7 @@ int main(int argc, char **argv)
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *pflash_filename[MAX_PFLASH];
     const char *sd_filename;
+    const char *mtd_filename;
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
@@ -6992,6 +7071,7 @@ int main(int argc, char **argv)
         pflash_filename[i] = NULL;
     pflash_index = 0;
     sd_filename = NULL;
+    mtd_filename = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
@@ -7112,6 +7192,9 @@ int main(int argc, char **argv)
                         cdrom_index = -1;
                 }
                 break;
+            case QEMU_OPTION_mtdblock:
+                mtd_filename = optarg;
+                break;
             case QEMU_OPTION_sd:
                 sd_filename = optarg;
                 break;
@@ -7166,6 +7249,9 @@ int main(int argc, char **argv)
                 pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "null");
                 pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 nographic = 1;
+                break;
+            case QEMU_OPTION_portrait:
+                graphic_rotate = 1;
                 break;
             case QEMU_OPTION_kernel:
                 kernel_filename = optarg;
@@ -7423,6 +7509,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
                 break;
+            case QEMU_OPTION_show_cursor:
+                cursor_hide = 0;
+                break;
 	    case QEMU_OPTION_daemonize:
 		daemonize = 1;
 		break;
@@ -7660,6 +7749,19 @@ int main(int argc, char **argv)
                       snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
             fprintf(stderr, "qemu: could not open SD card image %s\n",
                     sd_filename);
+        } else
+            qemu_key_check(sd_bdrv, sd_filename);
+    }
+
+    if (mtd_filename) {
+        mtd_bdrv = bdrv_new ("mtd");
+        if (bdrv_open(mtd_bdrv, mtd_filename,
+                      snapshot ? BDRV_O_SNAPSHOT : 0) < 0 ||
+            qemu_key_check(mtd_bdrv, mtd_filename)) {
+            fprintf(stderr, "qemu: could not open Flash image %s\n",
+                    mtd_filename);
+            bdrv_delete(mtd_bdrv);
+            mtd_bdrv = 0;
         }
     }
 

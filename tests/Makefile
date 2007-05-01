@@ -82,6 +82,9 @@ hello-arm: hello-arm.o
 hello-arm.o: hello-arm.c
 	arm-linux-gcc -Wall -g -O2 -c -o $@ $<
 
+test-arm-iwmmxt: test-arm-iwmmxt.s
+	cpp < $< | arm-linux-gnu-gcc -Wall -static -march=iwmmxt -mabi=aapcs -x assembler - -o $@
+
 # MIPS test
 hello-mips: hello-mips.c
 	mips-linux-gnu-gcc -nostdlib -static -mno-abicalls -fno-PIC -mabi=32 -Wall -Wextra -g -O2 -o $@ $<

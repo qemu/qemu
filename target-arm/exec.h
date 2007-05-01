@@ -32,6 +32,8 @@ register uint32_t T2 asm(AREG3);
 #define FT0d env->vfp.tmp0d
 #define FT1d env->vfp.tmp1d
 
+#define M0   env->iwmmxt.val
+
 #include "cpu.h"
 #include "exec-all.h"
 
@@ -54,6 +56,8 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 void cpu_lock(void);
 void cpu_unlock(void);
+void helper_set_cp(CPUState *, uint32_t, uint32_t);
+uint32_t helper_get_cp(CPUState *, uint32_t);
 void helper_set_cp15(CPUState *, uint32_t, uint32_t);
 uint32_t helper_get_cp15(CPUState *, uint32_t);
 

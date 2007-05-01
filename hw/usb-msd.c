@@ -522,6 +522,8 @@ USBDevice *usb_msd_init(const char *filename)
     bdrv = bdrv_new("usb");
     if (bdrv_open(bdrv, filename, 0) < 0)
         goto fail;
+    if (qemu_key_check(bdrv, filename))
+        goto fail;
     s->bs = bdrv;
 
     s->dev.speed = USB_SPEED_FULL;
