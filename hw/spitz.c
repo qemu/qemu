@@ -992,14 +992,16 @@ enum spitz_model_e { spitz, akita, borzoi, terrier };
 static void spitz_common_init(int ram_size, int vga_ram_size,
                 DisplayState *ds, const char *kernel_filename,
                 const char *kernel_cmdline, const char *initrd_filename,
-                enum spitz_model_e model, int arm_id)
+                const char *cpu_model, enum spitz_model_e model, int arm_id)
 {
     uint32_t spitz_ram = 0x04000000;
     uint32_t spitz_rom = 0x00800000;
     struct pxa2xx_state_s *cpu;
     struct scoop_info_s *scp;
 
-    cpu = pxa270_init(ds, (model == terrier) ? "c5" : "c0");
+    if (!cpu_model)
+        cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
+    cpu = pxa270_init(ds, cpu_model);
 
     /* Setup memory */
     if (ram_size < spitz_ram + spitz_rom) {
@@ -1045,7 +1047,7 @@ static void spitz_init(int ram_size, int vga_ram_size, int boot_device,
                 const char *initrd_filename, const char *cpu_model)
 {
     spitz_common_init(ram_size, vga_ram_size, ds, kernel_filename,
-                kernel_cmdline, initrd_filename, spitz, 0x2c9);
+                kernel_cmdline, initrd_filename, cpu_model, spitz, 0x2c9);
 }
 
 static void borzoi_init(int ram_size, int vga_ram_size, int boot_device,
@@ -1054,7 +1056,7 @@ static void borzoi_init(int ram_size, int vga_ram_size, int boot_device,
                 const char *initrd_filename, const char *cpu_model)
 {
     spitz_common_init(ram_size, vga_ram_size, ds, kernel_filename,
-                kernel_cmdline, initrd_filename, borzoi, 0x33f);
+                kernel_cmdline, initrd_filename, cpu_model, borzoi, 0x33f);
 }
 
 static void akita_init(int ram_size, int vga_ram_size, int boot_device,
@@ -1063,7 +1065,7 @@ static void akita_init(int ram_size, int vga_ram_size, int boot_device,
                 const char *initrd_filename, const char *cpu_model)
 {
     spitz_common_init(ram_size, vga_ram_size, ds, kernel_filename,
-                kernel_cmdline, initrd_filename, akita, 0x2e8);
+                kernel_cmdline, initrd_filename, cpu_model, akita, 0x2e8);
 }
 
 static void terrier_init(int ram_size, int vga_ram_size, int boot_device,
@@ -1072,7 +1074,7 @@ static void terrier_init(int ram_size, int vga_ram_size, int boot_device,
                 const char *initrd_filename, const char *cpu_model)
 {
     spitz_common_init(ram_size, vga_ram_size, ds, kernel_filename,
-                kernel_cmdline, initrd_filename, terrier, 0x33f);
+                kernel_cmdline, initrd_filename, cpu_model, terrier, 0x33f);
 }
 
 QEMUMachine akitapda_machine = {
