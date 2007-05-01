@@ -189,6 +189,7 @@ const char *vnc_display;
 int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
+int cursor_hide = 1;
 int graphic_rotate = 0;
 int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
@@ -6618,6 +6619,7 @@ enum {
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_no_reboot,
+    QEMU_OPTION_show_cursor,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
     QEMU_OPTION_semihosting,
@@ -6712,6 +6714,7 @@ const QEMUOption qemu_options[] = {
     { "vmwarevga", 0, QEMU_OPTION_vmsvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
+    { "show-cursor", 0, QEMU_OPTION_show_cursor },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
 #if defined(TARGET_ARM)
@@ -7454,6 +7457,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
+                break;
+            case QEMU_OPTION_show_cursor:
+                cursor_hide = 0;
                 break;
 	    case QEMU_OPTION_daemonize:
 		daemonize = 1;
