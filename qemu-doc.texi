@@ -359,7 +359,7 @@ target. Optionally, the MAC address can be changed. If no
 @option{-net} option is specified, a single NIC is created.
 Qemu can emulate several different models of network card.
 Valid values for @var{type} are
-@code{i82551}, @code{i82557b}, @code{i82559},
+@code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
 @code{smc91c111} and @code{lance}.
 Not all devices are supported on all targets.
@@ -1664,6 +1664,15 @@ The following options are specific to the Sparc emulation:
 @item -g WxH
 
 Set the initial TCX graphic mode. The default is 1024x768.
+
+@item -prom-env string
+
+Set OpenBIOS variables in NVRAM, for example:
+
+@example
+qemu-system-sparc -prom-env 'auto-boot?=false' \
+ -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
+@end example
 
 @end table
 

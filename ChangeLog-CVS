@@ -1,3 +1,13 @@
+2007-05-01 19:53  balrog
+
+	* qemu-doc.texi: Correct a docs typo and list of available NIC
+	  names (by Stefan Weil).
+
+2007-05-01 16:16  blueswir1
+
+	* qemu-doc.texi, vl.c, vl.h, hw/sun4m.c, hw/sun4u.c: Set OpenBIOS
+	  variables in NVRAM
+
 2007-05-01 03:34  balrog
 
 	* sdl.c, vl.c, vl.h: -show-cursor switch to inhibit SDL hiding

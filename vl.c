@@ -197,6 +197,10 @@ int nb_option_roms;
 int semihosting_enabled = 0;
 int autostart = 1;
 const char *qemu_name;
+#ifdef TARGET_SPARC
+unsigned int nb_prom_envs = 0;
+const char *prom_envs[MAX_PROM_ENVS];
+#endif
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -6532,6 +6536,9 @@ void help(void)
 	   "-daemonize      daemonize QEMU after initializing\n"
 #endif
 	   "-option-rom rom load a file, rom, into the option ROM space\n"
+#ifdef TARGET_SPARC
+           "-prom-env variable=value  set OpenBIOS nvram variables\n"
+#endif
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -6626,6 +6633,7 @@ enum {
     QEMU_OPTION_option_rom,
     QEMU_OPTION_semihosting,
     QEMU_OPTION_name,
+    QEMU_OPTION_prom_env,
 };
 
 typedef struct QEMUOption {
@@ -6723,6 +6731,9 @@ const QEMUOption qemu_options[] = {
     { "semihosting", 0, QEMU_OPTION_semihosting },
 #endif
     { "name", HAS_ARG, QEMU_OPTION_name },
+#if defined(TARGET_SPARC)
+    { "prom-env", HAS_ARG, QEMU_OPTION_prom_env },
+#endif
     { NULL },
 };
 
@@ -7529,6 +7540,16 @@ int main(int argc, char **argv)
             case QEMU_OPTION_name:
                 qemu_name = optarg;
                 break;
+#ifdef TARGET_SPARC
+            case QEMU_OPTION_prom_env:
+                if (nb_prom_envs >= MAX_PROM_ENVS) {
+                    fprintf(stderr, "Too many prom variables\n");
+                    exit(1);
+                }
+                prom_envs[nb_prom_envs] = optarg;
+                nb_prom_envs++;
+                break;
+#endif
             }
         }
     }
