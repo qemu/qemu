@@ -1805,7 +1805,7 @@ Maxim MAX1111 analog-digital converter on I@math{^2}C bus
 @item
 GPIO-connected keyboard controller and LEDs
 @item
-Secure Digital card conntected to PXA MMC/SD host
+Secure Digital card connected to PXA MMC/SD host
 @item
 Three on-chip UARTs
 @item
