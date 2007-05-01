@@ -117,6 +117,34 @@ static void nvram_set_string (m48t59_t *nvram, uint32_t addr,
     m48t59_write(nvram, addr + max - 1, '\0');
 }
 
+static uint32_t nvram_set_var (m48t59_t *nvram, uint32_t addr,
+                                const unsigned char *str)
+{
+    uint32_t len;
+
+    len = strlen(str) + 1;
+    nvram_set_string(nvram, addr, str, len);
+
+    return addr + len;
+}
+
+static void nvram_finish_partition (m48t59_t *nvram, uint32_t start,
+                                    uint32_t end)
+{
+    unsigned int i, sum;
+
+    // Length divided by 16
+    m48t59_write(nvram, start + 2, ((end - start) >> 12) & 0xff);
+    m48t59_write(nvram, start + 3, ((end - start) >> 4) & 0xff);
+    // Checksum
+    sum = m48t59_read(nvram, start);
+    for (i = 0; i < 14; i++) {
+        sum += m48t59_read(nvram, start + 2 + i);
+        sum = (sum + ((sum & 0xff00) >> 8)) & 0xff;
+    }
+    m48t59_write(nvram, start + 1, sum & 0xff);
+}
+
 static m48t59_t *nvram;
 
 extern int nographic;
@@ -128,7 +156,8 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
                        int machine_id)
 {
     unsigned char tmp = 0;
-    int i, j;
+    unsigned int i, j;
+    uint32_t start, end;
 
     // Try to match PPC NVRAM
     nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
@@ -151,8 +180,30 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
     nvram_set_word(nvram,   0x56, height);
     nvram_set_word(nvram,   0x58, depth);
 
+    // OpenBIOS nvram variables
+    // Variable partition
+    start = 252;
+    m48t59_write(nvram, start, 0x70);
+    nvram_set_string(nvram, start + 4, "system", 12);
+
+    end = start + 16;
+    for (i = 0; i < nb_prom_envs; i++)
+        end = nvram_set_var(nvram, end, prom_envs[i]);
+
+    m48t59_write(nvram, end++ , 0);
+    end = start + ((end - start + 15) & ~15);
+    nvram_finish_partition(nvram, start, end);
+
+    // free partition
+    start = end;
+    m48t59_write(nvram, start, 0x7f);
+    nvram_set_string(nvram, start + 4, "free", 12);
+
+    end = 0x1fd0;
+    nvram_finish_partition(nvram, start, end);
+
     // Sun4m specific use
-    i = 0x1fd8;
+    start = i = 0x1fd8;
     m48t59_write(nvram, i++, 0x01);
     m48t59_write(nvram, i++, machine_id);
     j = 0;
@@ -164,10 +215,10 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
     m48t59_write(nvram, i, macaddr[j]);
 
     /* Calculate checksum */
-    for (i = 0x1fd8; i < 0x1fe7; i++) {
-	tmp ^= m48t59_read(nvram, i);
+    for (i = start; i < start + 15; i++) {
+        tmp ^= m48t59_read(nvram, i);
     }
-    m48t59_write(nvram, 0x1fe7, tmp);
+    m48t59_write(nvram, start + 15, tmp);
 }
 
 static void *slavio_intctl;

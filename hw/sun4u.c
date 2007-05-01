@@ -170,6 +170,34 @@ uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
     return crc;
 }
 
+static uint32_t nvram_set_var (m48t59_t *nvram, uint32_t addr,
+                                const unsigned char *str)
+{
+    uint32_t len;
+
+    len = strlen(str) + 1;
+    NVRAM_set_string(nvram, addr, str, len);
+
+    return addr + len;
+}
+
+static void nvram_finish_partition (m48t59_t *nvram, uint32_t start,
+                                    uint32_t end)
+{
+    unsigned int i, sum;
+
+    // Length divided by 16
+    m48t59_write(nvram, start + 2, ((end - start) >> 12) & 0xff);
+    m48t59_write(nvram, start + 3, ((end - start) >> 4) & 0xff);
+    // Checksum
+    sum = m48t59_read(nvram, start);
+    for (i = 0; i < 14; i++) {
+        sum += m48t59_read(nvram, start + 2 + i);
+        sum = (sum + ((sum & 0xff00) >> 8)) & 0xff;
+    }
+    m48t59_write(nvram, start + 1, sum & 0xff);
+}
+
 extern int nographic;
 
 int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
@@ -182,6 +210,8 @@ int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                           int width, int height, int depth)
 {
     uint16_t crc;
+    unsigned int i;
+    uint32_t start, end;
 
     /* Set parameters for Open Hack'Ware BIOS */
     NVRAM_set_string(nvram, 0x00, "QEMU_BIOS", 16);
@@ -211,6 +241,28 @@ int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_word(nvram,   0x58, depth);
     crc = NVRAM_compute_crc(nvram, 0x00, 0xF8);
     NVRAM_set_word(nvram,  0xFC, crc);
+
+    // OpenBIOS nvram variables
+    // Variable partition
+    start = 252;
+    m48t59_write(nvram, start, 0x70);
+    NVRAM_set_string(nvram, start + 4, "system", 12);
+
+    end = start + 16;
+    for (i = 0; i < nb_prom_envs; i++)
+        end = nvram_set_var(nvram, end, prom_envs[i]);
+
+    m48t59_write(nvram, end++ , 0);
+    end = start + ((end - start + 15) & ~15);
+    nvram_finish_partition(nvram, start, end);
+
+    // free partition
+    start = end;
+    m48t59_write(nvram, start, 0x7f);
+    NVRAM_set_string(nvram, start + 4, "free", 12);
+
+    end = 0x1fd0;
+    nvram_finish_partition(nvram, start, end);
 
     return 0;
 }

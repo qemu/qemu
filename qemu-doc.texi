@@ -1661,6 +1661,15 @@ The following options are specific to the Sparc emulation:
 
 Set the initial TCX graphic mode. The default is 1024x768.
 
+@item -prom-env string
+
+Set OpenBIOS variables in NVRAM, for example:
+
+@example
+qemu-system-sparc -prom-env 'auto-boot?=false' \
+ -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
+@end example
+
 @end table
 
 @c man end 

@@ -169,6 +169,12 @@ extern const char *bootp_filename;
 extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
+#ifdef TARGET_SPARC
+#define MAX_PROM_ENVS 128
+extern const char *prom_envs[MAX_PROM_ENVS];
+extern unsigned int nb_prom_envs;
+#endif
+
 /* XXX: make it dynamic */
 #define MAX_BIOS_SIZE (4 * 1024 * 1024)
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
