@@ -614,6 +614,19 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 
 static inline void generate_exception_err (DisasContext *ctx, int excp, int err)
 {
+#if 0
+    if (excp == EXCP_CpU) {
+        static unsigned count;
+        count++;
+        fprintf(stderr, "%s: %4u, raise exception %d, pc %#x, opcode %#x\n",
+                __func__, count, excp, ctx->pc, ctx->opcode);
+        //~ if (ctx->opcode == 0x4443f800) {
+        if (count == 5900) {
+          fprintf(stderr, "logging enabled\n");
+          cpu_set_log(-1);
+        }
+    }
+#endif
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM)
             fprintf(logfile, "%s: raise exception %d\n", __func__, excp);
