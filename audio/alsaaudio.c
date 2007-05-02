@@ -57,6 +57,8 @@ static struct {
     int period_size_out_overriden;
     int verbose;
 } conf = {
+#define DEFAULT_BUFFER_SIZE 1024
+#define DEFAULT_PERIOD_SIZE 256
 #ifdef HIGH_LATENCY
     .size_in_usec_in = 1,
     .size_in_usec_out = 1,
@@ -69,8 +71,6 @@ static struct {
     .buffer_size_out = 400000,
     .period_size_out = 400000 / 4,
 #else
-#define DEFAULT_BUFFER_SIZE 1024
-#define DEFAULT_PERIOD_SIZE 256
     .buffer_size_in = DEFAULT_BUFFER_SIZE * 4,
     .period_size_in = DEFAULT_PERIOD_SIZE * 4,
     .buffer_size_out = DEFAULT_BUFFER_SIZE,
