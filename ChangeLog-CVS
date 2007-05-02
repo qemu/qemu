@@ -1,3 +1,13 @@
+2007-05-02 18:37  blueswir1
+
+	* target-sparc/op.c: Handle division by zero case in Sparc64 udivx
+	  and sdivx ops
+
+2007-05-02 04:11  balrog
+
+	* Makefile.target, audio/alsaaudio.c: Don't define HIGH_LATENCY for
+	  ARM, this was a workaround for an ALSA problem.
+
 2007-05-01 19:53  balrog
 
 	* qemu-doc.texi: Correct a docs typo and list of available NIC
