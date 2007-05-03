@@ -349,6 +349,7 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_AdEL:
         cause = 4;
+        tb_flush(env);
         goto set_EPC;
     case EXCP_AdES:
         cause = 5;
