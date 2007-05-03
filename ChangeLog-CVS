@@ -1,3 +1,13 @@
+2007-05-03 12:13  balrog
+
+	* vl.c: Remove obsolete variables that came with VMware svga by
+	  mistake.
+
+2007-05-03 12:09  balrog
+
+	* hw/vmware_vga.c: Change the PCI IO region start to that hardcoded
+	  in VBE bios (reported by Jeremy Katz)
+
 2007-05-02 18:37  blueswir1
 
 	* target-sparc/op.c: Handle division by zero case in Sparc64 udivx

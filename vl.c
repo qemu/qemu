@@ -564,10 +564,6 @@ int kbd_mouse_is_absolute(void)
     return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
 }
 
-void (*kbd_mouse_set)(int x, int y, int on) = NULL;
-void (*kbd_cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
-                          uint8_t *image, uint8_t *mask) = NULL;
-
 void do_info_mice(void)
 {
     QEMUPutMouseEntry *cursor;
