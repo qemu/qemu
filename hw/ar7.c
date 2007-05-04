@@ -1599,7 +1599,11 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
         /* Next assertions normally raise host interrupt. */
         assert(flags & TCB_SOP);
         assert(flags & TCB_EOP);
-        assert(flags & TCB_OWNER);
+        //~ assert(flags & TCB_OWNER); // !!!
+        if (!(flags & TCB_OWNER)) {
+            logout("%s: OWNER flag is not set\n", __func__);
+            UNEXPECTED();
+        }
         assert(!(flags & TCB_PASSCRC));
         assert(bufferoffset == 0);
         /* Real hardware sets flag when finished, we set it here. */
@@ -3501,10 +3505,44 @@ static int64_t load_kernel (CPUState *env)
     return kernel_addr;
 }
 
+static void ar7_mips_init(CPUState *env)
+{
+    /* CPU revision is 2.2. */
+    env->CP0_PRid |= 0x48;
+
+    /* Special configuration bits set by external hw inputs. */
+    env->CP0_Config0 |= (0x2 << CP0C0_MM);
+    env->CP0_Config0 |= (1 << CP0C0_SB);
+    /* 256 instruction cache sets. */
+    env->CP0_Config1 |= (0x2 << CP0C1_IS);
+    /* 4-way instruction cache associativity. */
+    env->CP0_Config1 |= (0x3 << CP0C1_IA);
+    /* 256 data cache sets. */
+    env->CP0_Config1 |= (0x2 << CP0C1_DS);
+    /* 4-way data cache associativity. */
+    env->CP0_Config1 |= (0x3 << CP0C1_DA);
+
+    /* Compare selected emulation values to original hardware registers. */
+    if (env->CP0_PRid != 0x00018448)    printf("CP0_PRid    = 0x%08x\n", env->CP0_PRid);
+    if (env->CP0_Config0 != 0x80240082) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
+    if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
+    if (env->CP0_Config2 != 0x80000000) printf("CP0_Config2 = 0x%08x\n", env->CP0_Config2);
+#if defined(TARGET_WORDS_BIGENDIAN)
+    assert(env->CP0_Config0 == 0x80240082 + (1 << CP0C0_BE));
+#else
+    assert(env->CP0_Config0 == 0x80240082);
+#endif
+    assert(env->CP0_Config1 == 0x9e9b4d8a);
+    assert(env->CP0_Config2 == 0x80000000);
+    assert(env->CP0_Config3 == 0x00000000);
+}
+
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
+    cpu_mips_register(env, env->mips_def);
+    ar7_mips_init(env);
     /* AR7 is MIPS32 release 1. */
     env->CP0_Config0 &= ~(7 << CP0C0_AR);
     /* AR7 has no FPU. */
@@ -3547,42 +3585,16 @@ static void mips_ar7_common_init (int ram_size,
         def = NULL;
     }
     env = cpu_init();
+    env->mips_def = def;
     cpu_mips_register(env, def);
+    ar7_mips_init(env);
+
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     env->ram_size = ram_size;
     env->kernel_filename = kernel_filename;
     env->kernel_cmdline = kernel_cmdline;
     env->initrd_filename = initrd_filename;
-
-    /* CPU revision is 2.2. */
-    env->CP0_PRid |= 0x48;
-
-    /* Special configuration bits set by external hw inputs. */
-    env->CP0_Config0 |= (0x2 << CP0C0_MM);
-    env->CP0_Config0 |= (1 << CP0C0_SB);
-    /* 256 instruction cache sets. */
-    env->CP0_Config1 |= (0x2 << CP0C1_IS);
-    /* 4-way instruction cache associativity. */
-    env->CP0_Config1 |= (0x3 << CP0C1_IA);
-    /* 256 data cache sets. */
-    env->CP0_Config1 |= (0x2 << CP0C1_DS);
-    /* 4-way data cache associativity. */
-    env->CP0_Config1 |= (0x3 << CP0C1_DA);
-
-    /* Compare selected emulation values to original hardware registers. */
-    if (env->CP0_PRid != 0x00018448)    printf("CP0_PRid    = 0x%08x\n", env->CP0_PRid);
-    if (env->CP0_Config0 != 0x80240082) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
-    if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
-    if (env->CP0_Config2 != 0x80000000) printf("CP0_Config2 = 0x%08x\n", env->CP0_Config2);
-#if defined(TARGET_WORDS_BIGENDIAN)
-    assert(env->CP0_Config0 == 0x80240082 + (1 << CP0C0_BE));
-#else
-    assert(env->CP0_Config0 == 0x80240082);
-#endif
-    assert(env->CP0_Config1 == 0x9e9b4d8a);
-    assert(env->CP0_Config2 == 0x80000000);
-    assert(env->CP0_Config3 == 0x00000000);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
