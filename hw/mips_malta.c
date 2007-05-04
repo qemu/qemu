@@ -557,11 +557,27 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
 
     /* Small bootloader */
     p = (uint32_t *) (phys_ram_base + bios_offset);
-    stl_raw(p++, 0x0bf00006);                                      /* j 0x1fc00018 */
+    stl_raw(p++, 0x0bf00160);                                      /* j 0x1fc00580 */
     stl_raw(p++, 0x00000000);                                      /* nop */
 
+    /* YAMON service vector */
+    stl_raw(phys_ram_base + bios_offset + 0x500, 0xbfc00580);      /* start: */					
+    stl_raw(phys_ram_base + bios_offset + 0x504, 0xbfc0083c);      /* print_count: */
+    stl_raw(phys_ram_base + bios_offset + 0x520, 0xbfc00580);      /* start: */					
+    stl_raw(phys_ram_base + bios_offset + 0x52c, 0xbfc00800);      /* flush_cache: */
+    stl_raw(phys_ram_base + bios_offset + 0x534, 0xbfc00808);      /* print: */
+    stl_raw(phys_ram_base + bios_offset + 0x538, 0xbfc00800);      /* reg_cpu_isr: */
+    stl_raw(phys_ram_base + bios_offset + 0x53c, 0xbfc00800);      /* unred_cpu_isr: */
+    stl_raw(phys_ram_base + bios_offset + 0x540, 0xbfc00800);      /* reg_ic_isr: */
+    stl_raw(phys_ram_base + bios_offset + 0x544, 0xbfc00800);      /* unred_ic_isr: */
+    stl_raw(phys_ram_base + bios_offset + 0x548, 0xbfc00800);      /* reg_esr: */
+    stl_raw(phys_ram_base + bios_offset + 0x54c, 0xbfc00800);      /* unreg_esr: */
+    stl_raw(phys_ram_base + bios_offset + 0x550, 0xbfc00800);      /* getchar: */
+    stl_raw(phys_ram_base + bios_offset + 0x554, 0xbfc00800);      /* syscon_read: */
+
+
     /* Second part of the bootloader */
-    p = (uint32_t *) (phys_ram_base + bios_offset + 0x018);
+    p = (uint32_t *) (phys_ram_base + bios_offset + 0x580);
     stl_raw(p++, 0x24040002);                                      /* addiu a0, zero, 2 */
     stl_raw(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff)); /* lui sp, high(ENVP_ADDR) */
     stl_raw(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));        /* ori sp, a0, low(ENVP_ADDR) */
@@ -619,6 +635,50 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x37ff0000 | (kernel_entry & 0xffff));            /* ori ra, ra, low(kernel_entry) */
     stl_raw(p++, 0x03e00008);                                      /* jr ra */
     stl_raw(p++, 0x00000000);                                      /* nop */
+
+    /* YAMON subroutines */
+    p = (uint32_t *) (phys_ram_base + bios_offset + 0x800);
+    stl_raw(p++, 0x03e00008);                                     /* jr ra */
+    stl_raw(p++, 0x24020000);                                     /* li v0,0 */
+   /* 808 YAMON print */
+    stl_raw(p++, 0x03e06821);                                     /* move t5,ra */
+    stl_raw(p++, 0x00805821);                                     /* move t3,a0 */
+    stl_raw(p++, 0x00a05021);                                     /* move t2,a1 */
+    stl_raw(p++, 0x91440000);                                     /* lbu a0,0(t2) */
+    stl_raw(p++, 0x254a0001);                                     /* addiu t2,t2,1 */
+    stl_raw(p++, 0x10800005);                                     /* beqz a0,834 */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x0ff0021c);                                     /* jal 870 */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x08000205);                                     /* j 814 */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x01a00008);                                     /* jr t5 */
+    stl_raw(p++, 0x01602021);                                     /* move a0,t3 */
+    /* 0x83c YAMON print_count */
+    stl_raw(p++, 0x03e06821);                                     /* move t5,ra */
+    stl_raw(p++, 0x00805821);                                     /* move t3,a0 */
+    stl_raw(p++, 0x00a05021);                                     /* move t2,a1 */
+    stl_raw(p++, 0x00c06021);                                     /* move t4,a2 */
+    stl_raw(p++, 0x91440000);                                     /* lbu a0,0(t2) */
+    stl_raw(p++, 0x0ff0021c);                                     /* jal 870 */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x254a0001);                                     /* addiu t2,t2,1 */
+    stl_raw(p++, 0x258cffff);                                     /* addiu t4,t4,-1 */
+    stl_raw(p++, 0x1580fffa);                                     /* bnez t4,84c */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x01a00008);                                     /* jr t5 */
+    stl_raw(p++, 0x01602021);                                     /* move a0,t3 */
+    /* 0x870 */
+    stl_raw(p++, 0x3c08b800);                                     /* lui t0,0xb400 */
+    stl_raw(p++, 0x350803f8);                                     /* ori t0,t0,0x3f8 */
+    stl_raw(p++, 0x91090005);                                     /* lbu t1,5(t0) */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x31290040);                                     /* andi t1,t1,0x40 */
+    stl_raw(p++, 0x1120fffc);                                     /* beqz t1,878 <outch+0x8> */
+    stl_raw(p++, 0x00000000);                                     /* nop */
+    stl_raw(p++, 0x03e00008);                                     /* jr ra */
+    stl_raw(p++, 0xa1040000);                                     /* sb a0,0(t0) */
+
 }
 
 static void prom_set(int index, const char *string, ...)

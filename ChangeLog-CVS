@@ -1,3 +1,8 @@
+2007-05-04 16:34  ths
+
+	* hw/mips_malta.c: Support for simple YAMON output, by Alec
+	  Voropay.
+
 2007-05-03 12:13  balrog
 
 	* vl.c: Remove obsolete variables that came with VMware svga by
