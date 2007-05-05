@@ -181,6 +181,7 @@ BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
+OP_CFLAGS+=-G 0 -fomit-frame-pointer -fno-delayed-branch
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
@@ -189,6 +190,7 @@ endif
 endif
 
 ifeq ($(ARCH),mips64)
+OP_CFLAGS+=-G 0 -fomit-frame-pointer -fno-delayed-branch
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else

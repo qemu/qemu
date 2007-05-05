@@ -129,10 +129,15 @@ extern int printf(const char *, ...);
 #define AREG3 "r6"
 #endif
 #ifdef __mips__
-#define AREG0 "s3"
+#define AREG0 "fp"
 #define AREG1 "s0"
 #define AREG2 "s1"
 #define AREG3 "s2"
+#define AREG4 "s3"
+#define AREG5 "s4"
+#define AREG6 "s5"
+#define AREG7 "s6"
+#define AREG8 "s7"
 #endif
 #ifdef __sparc__
 #ifdef HOST_SOLARIS
@@ -279,6 +284,10 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #endif
 #ifdef __mc68000
 #define EXIT_TB() asm volatile ("rts")
+#endif
+#ifdef __mips__
+#define EXIT_TB() asm volatile ("jr $ra")
+#define GOTO_LABEL_PARAM(n) asm volatile (".set noat; la $1, " ASM_NAME(__op_gen_label) #n "; jr $1; .set at")
 #endif
 
 #endif /* !defined(__DYNGEN_EXEC_H__) */

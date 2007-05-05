@@ -20,7 +20,7 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
-#if defined(__arm__) || defined(__sparc__)
+#if defined(__arm__) || defined(__sparc__) || defined(__mips__)
 #define WORDS_ALIGNED
 #endif
 
@@ -1022,6 +1022,27 @@ static inline int64_t cpu_get_real_ticks (void)
         return rval.i64;
 #endif
 }
+
+#elif defined(__mips__)
+
+static inline int64_t cpu_get_real_ticks(void)
+{
+#if __mips_isa_rev >= 2
+    uint32_t count;
+    static uint32_t cyc_per_count = 0;
+
+    if (!cyc_per_count)
+        __asm__ __volatile__("rdhwr %0, $3" : "=r" (cyc_per_count));
+
+    __asm__ __volatile__("rdhwr %1, $2" : "=r" (count));
+    return (int64_t)(count * cyc_per_count);
+#else
+    /* FIXME */
+    static int64_t ticks = 0;
+    return ticks++;
+#endif
+}
+
 #else
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing vlue.  This will be totally wrong,

@@ -463,3 +463,11 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 }
 
 #endif
+
+#ifdef __mips__
+#include <sys/cachectl.h>
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+    _flush_cache ((void *)start, stop - start, BCACHE);
+}
+#endif

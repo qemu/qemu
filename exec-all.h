@@ -481,6 +481,28 @@ static inline int testandset (int *p)
 }
 #endif
 
+#ifdef __mips__
+static inline int testandset (int *p)
+{
+    int ret;
+
+    __asm__ __volatile__ (
+	"	.set push		\n"
+	"	.set noat		\n"
+	"	.set mips2		\n"
+	"1:	li	$1, 1		\n"
+	"	ll	%0, %1		\n"
+	"	sc	$1, %1		\n"
+	"	bnez	$1, 1b		\n"
+	"	.set pop		"
+	: "=r" (ret), "+R" (*p)
+	:
+	: "memory");
+
+    return ret;
+}
+#endif
+
 typedef int spinlock_t;
 
 #define SPIN_LOCK_UNLOCKED 0
