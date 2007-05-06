@@ -1545,28 +1545,22 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     /* XXX: compute is_write */
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             is_write,
-                             &uc->uc_sigmask, puc);
+                             is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__mips__)
 
-int cpu_signal_handler(int host_signum, void *pinfo, 
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
                        void *puc)
 {
-    siginfo_t *info = (siginfo_t *)pinfo;
-    ucontext_t *uc = (ucontext_t *)puc;
-    unsigned long pc;
+    struct ucontext *uc = puc;
+    greg_t pc = uc->uc_mcontext.pc;
     int is_write;
-
-    printf("%s(%d,%p,%p)\n", __func__, host_signum, pinfo, puc);
-
-    pc = uc->uc_mcontext.pc;
+    
     /* XXX: compute is_write */
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             is_write,
-                             &uc->uc_sigmask, puc);
+                             is_write, &uc->uc_sigmask, puc);
 }
 
 #else

@@ -125,10 +125,16 @@ extern int printf(const char *, ...);
 #define AREG2 "r5"
 #define AREG3 "r6"
 #elif defined(__mips__)
-#define AREG0 "s3"
+//~ #define AREG0 "s3"
+#define AREG0 "fp"
 #define AREG1 "s0"
 #define AREG2 "s1"
 #define AREG3 "s2"
+#define AREG4 "s3"
+#define AREG5 "s4"
+#define AREG6 "s5"
+#define AREG7 "s6"
+#define AREG8 "s7"
 #elif defined(__sparc__)
 #ifdef HOST_SOLARIS
 #define AREG0 "g2"
@@ -275,15 +281,17 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #elif defined(__mc68000)
 #define EXIT_TB() asm volatile ("rts")
 #elif defined(HOST_MIPS)
+#if 1
 #define EXIT_TB() asm volatile ("jr $31; nop")
 #define GOTO_LABEL_PARAM(n) asm volatile (\
     "lui $2,%hi(" ASM_NAME(__op_gen_label) #n ")\n\t" \
     "ori $2,$2,%lo(" ASM_NAME(__op_gen_label)#n ")\n\t" \
     "jr $2\n\t" \
     "nop")
-//~ #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n "\n\tnop")
-//~ #define GOTO_LABEL_PARAM(n) asm volatile (".cprestore 16\n\tjal " ASM_NAME(__op_gen_label) #n "\n\tnop")
-//~ #define GOTO_LABEL_PARAM(n) asm volatile ("b\t" ASM_NAME(__op_gen_label) #n "\n\tnop")
+#else
+#define EXIT_TB() asm volatile ("jr $ra")
+#define GOTO_LABEL_PARAM(n) asm volatile (".set noat; la $1, " ASM_NAME(__op_gen_label) #n "; jr $1; .set at")
+#endif
 #else
 #error unsupported CPU
 #endif

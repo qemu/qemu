@@ -126,10 +126,10 @@ uint32_t glue(do_swr, MEMSUFFIX) (uint32_t tmp)
 
 #ifdef TARGET_MIPS64
 
-# ifdef TARGET_WORDS_BIGENDIAN
-#define GET_LMASK64(v) ((v) & 4)
+#ifdef TARGET_WORDS_BIGENDIAN
+#define GET_LMASK64(v) ((v) & 7)
 #else
-#define GET_LMASK64(v) (((v) & 4) ^ 4)
+#define GET_LMASK64(v) (((v) & 7) ^ 7)
 #endif
 
 void glue(do_ldl, MEMSUFFIX) (uint64_t tmp)
