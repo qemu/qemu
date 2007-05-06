@@ -40,6 +40,7 @@
 #define TT_DFAULT   0x09
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
+#define TT_DATA_ACCESS 0x29
 #define TT_DIV_ZERO 0x2a
 #define TT_NCP_INSN 0x24
 #define TT_TRAP     0x80
@@ -55,7 +56,8 @@
 #define TT_DIV_ZERO 0x28
 #define TT_DFAULT   0x30
 #define TT_DMISS    0x31
-#define TT_DPROT    0x32
+#define TT_DATA_ACCESS 0x32
+#define TT_DPROT    0x33
 #define TT_UNALIGNED 0x34
 #define TT_PRIV_ACT 0x37
 #define TT_EXTINT   0x40
@@ -287,6 +289,7 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 #endif
 
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
+void raise_exception(int tt);
 
 #include "cpu-all.h"
 
