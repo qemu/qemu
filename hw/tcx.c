@@ -26,6 +26,9 @@
 #define MAXX 1024
 #define MAXY 768
 #define TCX_DAC_NREGS 16
+#define TCX_THC_NREGS_8  0x081c
+#define TCX_THC_NREGS_24 0x1000
+#define TCX_TEC_NREGS    0x1000
 
 typedef struct TCXState {
     uint32_t addr;
@@ -467,12 +470,34 @@ static CPUWriteMemoryFunc *tcx_dac_write[3] = {
     tcx_dac_writel,
 };
 
+static uint32_t tcx_dummy_readl(void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static void tcx_dummy_writel(void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+}
+
+static CPUReadMemoryFunc *tcx_dummy_read[3] = {
+    tcx_dummy_readl,
+    tcx_dummy_readl,
+    tcx_dummy_readl,
+};
+
+static CPUWriteMemoryFunc *tcx_dummy_write[3] = {
+    tcx_dummy_writel,
+    tcx_dummy_writel,
+    tcx_dummy_writel,
+};
+
 void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
               unsigned long vram_offset, int vram_size, int width, int height,
               int depth)
 {
     TCXState *s;
-    int io_memory;
+    int io_memory, dummy_memory;
     int size;
 
     s = qemu_mallocz(sizeof(TCXState));
@@ -495,6 +520,10 @@ void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
     io_memory = cpu_register_io_memory(0, tcx_dac_read, tcx_dac_write, s);
     cpu_register_physical_memory(addr + 0x00200000, TCX_DAC_NREGS, io_memory);
 
+    dummy_memory = cpu_register_io_memory(0, tcx_dummy_read, tcx_dummy_write,
+                                          s);
+    cpu_register_physical_memory(addr + 0x00700000, TCX_TEC_NREGS,
+                                 dummy_memory);
     if (depth == 24) {
         // 24-bit plane
         size = vram_size * 4;
@@ -509,9 +538,13 @@ void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
         s->cplane = (uint32_t *)vram_base;
         s->cplane_offset = vram_offset;
         cpu_register_physical_memory(addr + 0x0a000000, size, vram_offset);
-        graphic_console_init(s->ds, tcx24_update_display, tcx24_invalidate_display,
-                             tcx24_screen_dump, s);
+        cpu_register_physical_memory(addr + 0x00301000, TCX_THC_NREGS_24,
+                                     dummy_memory);
+        graphic_console_init(s->ds, tcx24_update_display,
+                             tcx24_invalidate_display, tcx24_screen_dump, s);
     } else {
+        cpu_register_physical_memory(addr + 0x00300000, TCX_THC_NREGS_8,
+                                     dummy_memory);
         graphic_console_init(s->ds, tcx_update_display, tcx_invalidate_display,
                              tcx_screen_dump, s);
     }
