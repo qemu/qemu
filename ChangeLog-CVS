@@ -1,3 +1,20 @@
+2007-05-07 20:05  blueswir1
+
+	* target-sparc/op_helper.c: Enable unaligned access faults
+
+2007-05-07 19:59  blueswir1
+
+	* pc-bios/: README, openbios-sparc32: Update OpenBIOS/Sparc32 to
+	  SVN 144. Changes:  - Fix power-management location  - Fix out of
+	  bounds accesses  - Increase virtual memory supply to meet NetBSD
+	  and OpenBSD demand  - More obviously alarming return values for
+	  find_pte  - Fix unaligned memory access  - Fix memory corruption
+	  problems reported by glibc  - Fix boot-device use  - Use nvram
+	  boot-args and boot-device variables  - Set variable defaults
+	  before nvram_init  - Improve escape sequence handling  - Fix
+	  nvram parameter area	- More Sparc32 CPUs  - Clear preloaded
+	  kernel parameters to avoid crash at reset
+
 2007-05-07 19:01  blueswir1
 
 	* target-sparc/translate.c: Fix pc/npc for unaligned load/stores,

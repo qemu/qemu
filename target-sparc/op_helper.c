@@ -2,6 +2,7 @@
 
 //#define DEBUG_PCALL
 //#define DEBUG_MMU
+//#define DEBUG_UNALIGNED
 
 void raise_exception(int tt)
 {
@@ -945,10 +946,10 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
                                 void *retaddr)
 {
-    /* Uncomment the following line to enable mem_address_not_aligned traps */
-    /* Not enabled yet because of bugs in OpenBIOS */
-    //raise_exception(TT_UNALIGNED);
-    //printf("Unaligned access to 0x%x from 0x%x\n", addr, env->pc);
+#ifdef DEBUG_UNALIGNED
+    printf("Unaligned access to 0x%x from 0x%x\n", addr, env->pc);
+#endif
+    raise_exception(TT_UNALIGNED);
 }
 
 /* try to fill the TLB and return an exception if error. If retaddr is
