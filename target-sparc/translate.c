@@ -2776,6 +2776,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	{
 	    unsigned int xop = GET_FIELD(insn, 7, 12);
 	    rs1 = GET_FIELD(insn, 13, 17);
+            save_state(dc);
 	    gen_movl_reg_T0(rs1);
 	    if (IS_IMM) {	/* immediate */
 		rs2 = GET_FIELDs(insn, 19, 31);
