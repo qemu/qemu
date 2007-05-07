@@ -379,6 +379,9 @@ void do_interrupt (CPUState *env)
     case EXCP_TRAP:
         cause = 13;
         goto set_EPC;
+    case EXCP_FPE:
+        cause = 15;
+        goto set_EPC;
     case EXCP_LTLBL:
         cause = 1;
         goto set_EPC;

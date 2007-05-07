@@ -23,27 +23,27 @@
 #include "exec.h"
 
 #ifndef CALL_FROM_TB0
-#define CALL_FROM_TB0(func) func();
+#define CALL_FROM_TB0(func) func()
 #endif
 #ifndef CALL_FROM_TB1
-#define CALL_FROM_TB1(func, arg0) func(arg0);
+#define CALL_FROM_TB1(func, arg0) func(arg0)
 #endif
 #ifndef CALL_FROM_TB1_CONST16
-#define CALL_FROM_TB1_CONST16(func, arg0) CALL_FROM_TB1(func, arg0);
+#define CALL_FROM_TB1_CONST16(func, arg0) CALL_FROM_TB1(func, arg0)
 #endif
 #ifndef CALL_FROM_TB2
-#define CALL_FROM_TB2(func, arg0, arg1) func(arg0, arg1);
+#define CALL_FROM_TB2(func, arg0, arg1) func(arg0, arg1)
 #endif
 #ifndef CALL_FROM_TB2_CONST16
 #define CALL_FROM_TB2_CONST16(func, arg0, arg1)     \
-CALL_FROM_TB2(func, arg0, arg1);
+        CALL_FROM_TB2(func, arg0, arg1)
 #endif
 #ifndef CALL_FROM_TB3
-#define CALL_FROM_TB3(func, arg0, arg1, arg2) func(arg0, arg1, arg2);
+#define CALL_FROM_TB3(func, arg0, arg1, arg2) func(arg0, arg1, arg2)
 #endif
 #ifndef CALL_FROM_TB4
 #define CALL_FROM_TB4(func, arg0, arg1, arg2, arg3) \
-        func(arg0, arg1, arg2, arg3);
+        func(arg0, arg1, arg2, arg3)
 #endif
 
 #define REG 1
@@ -144,134 +144,102 @@ CALL_FROM_TB2(func, arg0, arg1);
 #include "op_template.c"
 #undef TN
 
-#define SFREG 0
-#define DFREG 0
+#define FREG 0
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 1
+#undef FREG
+#define FREG 1
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 2
-#define DFREG 2
+#undef FREG
+#define FREG 2
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 3
+#undef FREG
+#define FREG 3
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 4
-#define DFREG 4
+#undef FREG
+#define FREG 4
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 5
+#undef FREG
+#define FREG 5
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 6
-#define DFREG 6
+#undef FREG
+#define FREG 6
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 7
+#undef FREG
+#define FREG 7
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 8
-#define DFREG 8
+#undef FREG
+#define FREG 8
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 9
+#undef FREG
+#define FREG 9
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 10
-#define DFREG 10
+#undef FREG
+#define FREG 10
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 11
+#undef FREG
+#define FREG 11
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 12
-#define DFREG 12
+#undef FREG
+#define FREG 12
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 13
+#undef FREG
+#define FREG 13
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 14
-#define DFREG 14
+#undef FREG
+#define FREG 14
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 15
+#undef FREG
+#define FREG 15
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 16
-#define DFREG 16
+#undef FREG
+#define FREG 16
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 17
+#undef FREG
+#define FREG 17
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 18
-#define DFREG 18
+#undef FREG
+#define FREG 18
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 19
+#undef FREG
+#define FREG 19
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 20
-#define DFREG 20
+#undef FREG
+#define FREG 20
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 21
+#undef FREG
+#define FREG 21
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 22
-#define DFREG 22
+#undef FREG
+#define FREG 22
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 23
+#undef FREG
+#define FREG 23
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 24
-#define DFREG 24
+#undef FREG
+#define FREG 24
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 25
+#undef FREG
+#define FREG 25
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 26
-#define DFREG 26
+#undef FREG
+#define FREG 26
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 27
+#undef FREG
+#define FREG 27
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 28
-#define DFREG 28
+#undef FREG
+#define FREG 28
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 29
+#undef FREG
+#define FREG 29
 #include "fop_template.c"
-#undef SFREG
-#define SFREG 30
-#define DFREG 30
+#undef FREG
+#define FREG 30
 #include "fop_template.c"
-#undef SFREG
-#undef DFREG
-#define SFREG 31
+#undef FREG
+#define FREG 31
 #include "fop_template.c"
-#undef SFREG
+#undef FREG
 
 #define FTN
 #include "fop_template.c"
@@ -919,14 +887,14 @@ void op_movz (void)
 void op_movf (void)
 {
     if (!(env->fcr31 & PARAM1))
-        env->gpr[PARAM2] = env->gpr[PARAM3];
+        T0 = T1;
     RETURN();
 }
 
 void op_movt (void)
 {
     if (env->fcr31 & PARAM1)
-        env->gpr[PARAM2] = env->gpr[PARAM3];
+        T0 = T1;
     RETURN();
 }
 
@@ -1354,17 +1322,18 @@ void op_mtc0_compare (void)
 void op_mtc0_status (void)
 {
     uint32_t val, old;
+    uint32_t mask = env->Status_rw_bitmask;
 
-    /* No 64bit FPU, no reverse endianness, no MDMX/DSP, no 64bit ops,
+    /* No reverse endianness, no MDMX/DSP, no 64bit ops,
        no 64bit addressing implemented. */
-    val = (int32_t)T0 & 0xF878FF17;
+    val = (int32_t)T0 & mask;
     old = env->CP0_Status;
     if (!(val & (1 << CP0St_EXL)) &&
         !(val & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM) &&
         (val & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
-    env->CP0_Status = (env->CP0_Status & ~0xF878FF17) | val;
+    env->CP0_Status = (env->CP0_Status & ~mask) | val;
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB2(do_mtc0_status_debug, old, val);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
@@ -1643,6 +1612,7 @@ void op_dmtc0_errorepc (void)
 }
 #endif /* TARGET_MIPS64 */
 
+/* CP1 functions */
 #if 0
 # define DEBUG_FPU_STATE() CALL_FROM_TB1(dump_fpu, env)
 #else
@@ -1666,20 +1636,6 @@ void op_cp1_enabled(void)
     RETURN();
 }
 
-/* CP1 functions */
-void op_cfc1 (void)
-{
-    if (T1 == 0) {
-        T0 = env->fcr0;
-    }
-    else {
-        /* fetch fcr31, masking unused bits */
-        T0 = env->fcr31 & 0x0183FFFF;
-    }
-    DEBUG_FPU_STATE();
-    RETURN();
-}
-
 /* convert MIPS rounding mode in FCR31 to IEEE library */
 unsigned int ieee_rm[] = { 
     float_round_nearest_even,
@@ -1691,26 +1647,93 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->fcr31 & 3], &env->fp_status)
 
+inline char ieee_ex_to_mips(char ieee)
+{
+    return (ieee & float_flag_inexact) >> 5 |
+           (ieee & float_flag_underflow) >> 3 |
+           (ieee & float_flag_overflow) >> 1 |
+           (ieee & float_flag_divbyzero) << 1 |
+           (ieee & float_flag_invalid) << 4;
+}
+
+inline char mips_ex_to_ieee(char mips)
+{
+    return (mips & FP_INEXACT) << 5 |
+           (mips & FP_UNDERFLOW) << 3 |
+           (mips & FP_OVERFLOW) << 1 |
+           (mips & FP_DIV0) >> 1 |
+           (mips & FP_INVALID) >> 4;
+}
+
+inline void update_fcr31(void)
+{
+    int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->fp_status));
+
+    SET_FP_CAUSE(env->fcr31, tmp);
+    if (GET_FP_ENABLE(env->fcr31) & tmp)
+        CALL_FROM_TB1(do_raise_exception, EXCP_FPE);
+    else
+        UPDATE_FP_FLAGS(env->fcr31, tmp);
+}
+
+
+void op_cfc1 (void)
+{
+    switch (T1) {
+    case 0:
+        T0 = (int32_t)env->fcr0;
+        break;
+    case 25:
+        T0 = ((env->fcr31 >> 24) & 0xfe) | ((env->fcr31 >> 23) & 0x1);
+        break;
+    case 26:
+        T0 = env->fcr31 & 0x0003f07c;
+        break;
+    case 28:
+        T0 = (env->fcr31 & 0x00000f83) | ((env->fcr31 >> 22) & 0x4);
+        break;
+    default:
+        T0 = (int32_t)env->fcr31;
+        break;
+    }
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
 void op_ctc1 (void)
 {
-    if (T1 == 0) {
-        /* XXX should this throw an exception?
-         * don't write to FCR0.
-         * env->fcr0 = T0; 
-         */
+    switch(T1) {
+    case 25:
+        if (T0 & 0xffffff00)
+            goto leave;
+        env->fcr31 = (env->fcr31 & 0x017fffff) | ((T0 & 0xfe) << 24) |
+                     ((T0 & 0x1) << 23);
+        break;
+    case 26:
+        if (T0 & 0x007c0000)
+            goto leave;
+        env->fcr31 = (env->fcr31 & 0xfffc0f83) | (T0 & 0x0003f07c);
+        break;
+    case 28:
+        if (T0 & 0x007c0000)
+            goto leave;
+        env->fcr31 = (env->fcr31 & 0xfefff07c) | (T0 & 0x00000f83) |
+                     ((T0 & 0x4) << 22);
+        break;
+    case 31:
+        if (T0 & 0x007c0000)
+            goto leave;
+        env->fcr31 = T0;
+        break;
+    default:
+        goto leave;
     }
-    else {
-        /* store new fcr31, masking unused bits */  
-        env->fcr31 = T0 & 0x0183FFFF;
-
-        /* set rounding mode */
-        RESTORE_ROUNDING_MODE;
-
-#ifndef CONFIG_SOFTFLOAT
-        /* no floating point exception for native float */
-        SET_FP_ENABLE(env->fcr31, 0);
-#endif
-    }
+    /* set rounding mode */
+    RESTORE_ROUNDING_MODE;
+    set_float_exception_flags(0, &env->fp_status);
+    if ((GET_FP_ENABLE(env->fcr31) | 0x20) & GET_FP_CAUSE(env->fcr31))
+        CALL_FROM_TB1(do_raise_exception, EXCP_FPE);
+ leave:
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1729,55 +1752,219 @@ void op_mtc1 (void)
     RETURN();
 }
 
+void op_dmfc1 (void)
+{
+    T0 = DT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
+void op_dmtc1 (void)
+{
+    DT0 = T0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
+void op_mfhc1 (void)
+{
+    T0 = WTH0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
+void op_mthc1 (void)
+{
+    WTH0 = T0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
 /* Float support.
    Single precition routines have a "s" suffix, double precision a
-   "d" suffix.  */
+   "d" suffix, 32bit integer "w", 64bit integer "l", paired singe "ps",
+   paired single lowwer "pl", paired single upper "pu".  */
 
 #define FLOAT_OP(name, p) void OPPROTO op_float_##name##_##p(void)
 
 FLOAT_OP(cvtd, s)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FDT2 = float32_to_float64(FST0, &env->fp_status);
+    update_fcr31();
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(cvtd, w)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FDT2 = int32_to_float64(WT0, &env->fp_status);
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvtd, l)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = int64_to_float64(DT0, &env->fp_status);
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvtl, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    DT2 = float64_to_int64(FDT0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvtl, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    DT2 = float32_to_int64(FST0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvtps, s)
+{
+    WT2 = WT0;
+    WTH2 = WT1;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvtps, pw)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = int32_to_float32(WT0, &env->fp_status);
+    FSTH2 = int32_to_float32(WTH0, &env->fp_status);
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvtpw, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    WT2 = float32_to_int32(FST0, &env->fp_status);
+    WTH2 = float32_to_int32(FSTH0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(cvts, d)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FST2 = float64_to_float32(FDT0, &env->fp_status);
+    update_fcr31();
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(cvts, w)
 {
+    set_float_exception_flags(0, &env->fp_status);
     FST2 = int32_to_float32(WT0, &env->fp_status);
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvts, l)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = int64_to_float32(DT0, &env->fp_status);
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvts, pl)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    WT2 = WT0;
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvts, pu)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    WT2 = WTH0;
+    update_fcr31();
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(cvtw, s)
 {
+    set_float_exception_flags(0, &env->fp_status);
     WT2 = float32_to_int32(FST0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(cvtw, d)
 {
+    set_float_exception_flags(0, &env->fp_status);
     WT2 = float64_to_int32(FDT0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
 
+FLOAT_OP(pll, ps)
+{
+    DT2 = ((uint64_t)WT0 << 32) | WT1;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(plu, ps)
+{
+    DT2 = ((uint64_t)WT0 << 32) | WTH1;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(pul, ps)
+{
+    DT2 = ((uint64_t)WTH0 << 32) | WT1;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(puu, ps)
+{
+    DT2 = ((uint64_t)WTH0 << 32) | WTH1;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
+FLOAT_OP(roundl, d)
+{
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    DT2 = float64_round_to_int(FDT0, &env->fp_status);
+    RESTORE_ROUNDING_MODE;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(roundl, s)
+{
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    DT2 = float32_round_to_int(FST0, &env->fp_status);
+    RESTORE_ROUNDING_MODE;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 FLOAT_OP(roundw, d)
 {
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     WT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
-
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1790,6 +1977,18 @@ FLOAT_OP(roundw, s)
     RETURN();
 }
 
+FLOAT_OP(truncl, d)
+{
+    DT2 = float64_to_int64_round_to_zero(FDT0, &env->fp_status);
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(truncl, s)
+{
+    DT2 = float32_to_int64_round_to_zero(FST0, &env->fp_status);
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 FLOAT_OP(truncw, d)
 {
     WT2 = float64_to_int32_round_to_zero(FDT0, &env->fp_status);
@@ -1803,12 +2002,27 @@ FLOAT_OP(truncw, s)
     RETURN();
 }
 
+FLOAT_OP(ceill, d)
+{
+    set_float_rounding_mode(float_round_up, &env->fp_status);
+    DT2 = float64_round_to_int(FDT0, &env->fp_status);
+    RESTORE_ROUNDING_MODE;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(ceill, s)
+{
+    set_float_rounding_mode(float_round_up, &env->fp_status);
+    DT2 = float32_round_to_int(FST0, &env->fp_status);
+    RESTORE_ROUNDING_MODE;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 FLOAT_OP(ceilw, d)
 {
     set_float_rounding_mode(float_round_up, &env->fp_status);
     WT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
-
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1821,12 +2035,27 @@ FLOAT_OP(ceilw, s)
     RETURN();
 }
 
+FLOAT_OP(floorl, d)
+{
+    set_float_rounding_mode(float_round_down, &env->fp_status);
+    DT2 = float64_round_to_int(FDT0, &env->fp_status);
+    RESTORE_ROUNDING_MODE;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(floorl, s)
+{
+    set_float_rounding_mode(float_round_down, &env->fp_status);
+    DT2 = float32_round_to_int(FST0, &env->fp_status);
+    RESTORE_ROUNDING_MODE;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 FLOAT_OP(floorw, d)
 {
     set_float_rounding_mode(float_round_down, &env->fp_status);
     WT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
-
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1839,16 +2068,121 @@ FLOAT_OP(floorw, s)
     RETURN();
 }
 
+FLOAT_OP(movf, d)
+{
+    if (!(env->fcr31 & PARAM1))
+        DT2 = DT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movf, s)
+{
+    if (!(env->fcr31 & PARAM1))
+        WT2 = WT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movf, ps)
+{
+    if (!(env->fcr31 & PARAM1)) {
+        WT2 = WT0;
+        WTH2 = WTH0;
+    }
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movt, d)
+{
+    if (env->fcr31 & PARAM1)
+        DT2 = DT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movt, s)
+{
+    if (env->fcr31 & PARAM1)
+        WT2 = WT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movt, ps)
+{
+    if (env->fcr31 & PARAM1) {
+        WT2 = WT0;
+        WTH2 = WTH0;
+    }
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movz, d)
+{
+    if (!T0)
+        DT2 = DT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movz, s)
+{
+    if (!T0)
+        WT2 = WT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movz, ps)
+{
+    if (!T0) {
+        WT2 = WT0;
+        WTH2 = WTH0;
+    }
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movn, d)
+{
+    if (T0)
+        DT2 = DT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movn, s)
+{
+    if (T0)
+        WT2 = WT0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(movn, ps)
+{
+    if (T0) {
+        WT2 = WT0;
+        WTH2 = WTH0;
+    }
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+
 /* binary operations */
 #define FLOAT_BINOP(name) \
 FLOAT_OP(name, d)         \
 {                         \
+    set_float_exception_flags(0, &env->fp_status);            \
     FDT2 = float64_ ## name (FDT0, FDT1, &env->fp_status);    \
+    update_fcr31();       \
     DEBUG_FPU_STATE();    \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
+    set_float_exception_flags(0, &env->fp_status);            \
     FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
+    update_fcr31();       \
+    DEBUG_FPU_STATE();    \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+    FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
+    FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fp_status); \
+    update_fcr31();       \
     DEBUG_FPU_STATE();    \
 }
 FLOAT_BINOP(add)
@@ -1856,6 +2190,32 @@ FLOAT_BINOP(sub)
 FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
+
+/* ternary operations */
+#define FLOAT_TERNOP(name1, name2) \
+FLOAT_OP(name1 ## name2, d)        \
+{                                  \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fp_status);    \
+    DEBUG_FPU_STATE();             \
+}                                  \
+FLOAT_OP(name1 ## name2, s)        \
+{                                  \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
+    DEBUG_FPU_STATE();             \
+}                                  \
+FLOAT_OP(name1 ## name2, ps)       \
+{                                  \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fp_status); \
+    DEBUG_FPU_STATE();             \
+}
+FLOAT_TERNOP(mul, add)
+FLOAT_TERNOP(mul, sub)
+#undef FLOAT_TERNOP
 
 /* unary operations, modifying fp status  */
 #define FLOAT_UNOP(name)  \
@@ -1867,6 +2227,12 @@ FLOAT_OP(name, d)         \
 FLOAT_OP(name, s)         \
 {                         \
     FST2 = float32_ ## name(FST0, &env->fp_status);   \
+    DEBUG_FPU_STATE();    \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    FST2 = float32_ ## name(FST0, &env->fp_status);   \
+    FSTH2 = float32_ ## name(FSTH0, &env->fp_status); \
     DEBUG_FPU_STATE();    \
 }
 FLOAT_UNOP(sqrt)
@@ -1882,6 +2248,12 @@ FLOAT_OP(name, d)         \
 FLOAT_OP(name, s)         \
 {                         \
     FST2 = float32_ ## name(FST0);   \
+    DEBUG_FPU_STATE();    \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    FST2 = float32_ ## name(FST0);   \
+    FSTH2 = float32_ ## name(FSTH0); \
     DEBUG_FPU_STATE();    \
 }
 FLOAT_UNOP(abs)
@@ -1900,6 +2272,35 @@ FLOAT_OP(mov, s)
     DEBUG_FPU_STATE();
     RETURN();
 }
+FLOAT_OP(mov, ps)
+{
+    FST2 = FST0;
+    FSTH2 = FSTH0;
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(alnv, ps)
+{
+    switch (T0 & 0x7) {
+    case 0:
+        FST2 = FST0;
+        FSTH2 = FSTH0;
+        break;
+    case 4:
+#ifdef TARGET_WORDS_BIGENDIAN
+        FSTH2 = FST0;
+        FST2 = FSTH1;
+#else
+        FSTH2 = FST1;
+        FST2 = FSTH0;
+#endif
+        break;
+    default: /* unpredictable */
+        break;
+    }
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 
 #ifdef CONFIG_SOFTFLOAT
 #define clear_invalid() do {                                \
@@ -1913,96 +2314,200 @@ FLOAT_OP(mov, s)
 
 extern void dump_fpu_s(CPUState *env);
 
-#define FOP_COND(fmt, op, sig, cond)           \
-void op_cmp_ ## fmt ## _ ## op (void)          \
+#define FOP_COND_D(op, cond)                   \
+void op_cmp_d_ ## op (void)                    \
 {                                              \
-    if (cond)                                  \
-        SET_FP_COND(env->fcr31);               \
+    int c = cond;                              \
+    update_fcr31();                            \
+    if (c)                                     \
+        SET_FP_COND(PARAM1, env);              \
     else                                       \
-        CLEAR_FP_COND(env->fcr31);             \
-    if (!sig)                                  \
-        clear_invalid();                       \
-    /*CALL_FROM_TB1(dump_fpu_s, env);*/ \
+        CLEAR_FP_COND(PARAM1, env);            \
     DEBUG_FPU_STATE();                         \
     RETURN();                                  \
 }
 
-int float64_is_unordered(float64 a, float64 b STATUS_PARAM)
+int float64_is_unordered(int sig, float64 a, float64 b STATUS_PARAM)
 {
-    if (float64_is_nan(a) || float64_is_nan(b)) {
+    if (float64_is_signaling_nan(a) ||
+        float64_is_signaling_nan(b) ||
+        (sig && (float64_is_nan(a) || float64_is_nan(b)))) {
         float_raise(float_flag_invalid, status);
         return 1;
-    }
-    else {
-        return 0;
-    }
-}
-
-FOP_COND(d, f,   0,                                                      0) 
-FOP_COND(d, un,  0, float64_is_unordered(FDT1, FDT0, &env->fp_status))
-FOP_COND(d, eq,  0,                                                      float64_eq(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, ueq, 0, float64_is_unordered(FDT1, FDT0, &env->fp_status) || float64_eq(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, olt, 0,                                                      float64_lt(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, ult, 0, float64_is_unordered(FDT1, FDT0, &env->fp_status) || float64_lt(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, ole, 0,                                                      float64_le(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, ule, 0, float64_is_unordered(FDT1, FDT0, &env->fp_status) || float64_le(FDT0, FDT1, &env->fp_status))
-/* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called
- */
-FOP_COND(d, sf,  1,                                                      (float64_is_unordered(FDT0, FDT1, &env->fp_status), 0))
-FOP_COND(d, ngle,1, float64_is_unordered(FDT1, FDT0, &env->fp_status))
-FOP_COND(d, seq, 1,                                                      float64_eq(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, ngl, 1, float64_is_unordered(FDT1, FDT0, &env->fp_status) || float64_eq(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, lt,  1,                                                      float64_lt(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, nge, 1, float64_is_unordered(FDT1, FDT0, &env->fp_status) || float64_lt(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, le,  1,                                                      float64_le(FDT0, FDT1, &env->fp_status))
-FOP_COND(d, ngt, 1, float64_is_unordered(FDT1, FDT0, &env->fp_status) || float64_le(FDT0, FDT1, &env->fp_status))
-
-flag float32_is_unordered(float32 a, float32 b STATUS_PARAM)
-{
-    extern flag float32_is_nan( float32 a );
-    if (float32_is_nan(a) || float32_is_nan(b)) {
-        float_raise(float_flag_invalid, status);
+    } else if (float64_is_nan(a) || float64_is_nan(b)) {
         return 1;
-    }
-    else {
+    } else {
         return 0;
     }
 }
 
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called
- */
-FOP_COND(s, f,   0,                                                      0) 
-FOP_COND(s, un,  0, float32_is_unordered(FST1, FST0, &env->fp_status))
-FOP_COND(s, eq,  0,                                                      float32_eq(FST0, FST1, &env->fp_status))
-FOP_COND(s, ueq, 0, float32_is_unordered(FST1, FST0, &env->fp_status) || float32_eq(FST0, FST1, &env->fp_status))
-FOP_COND(s, olt, 0,                                                      float32_lt(FST0, FST1, &env->fp_status))
-FOP_COND(s, ult, 0, float32_is_unordered(FST1, FST0, &env->fp_status) || float32_lt(FST0, FST1, &env->fp_status))
-FOP_COND(s, ole, 0,                                                      float32_le(FST0, FST1, &env->fp_status))
-FOP_COND(s, ule, 0, float32_is_unordered(FST1, FST0, &env->fp_status) || float32_le(FST0, FST1, &env->fp_status))
+ * but float*_is_unordered() is still called. */
+FOP_COND_D(f,   (float64_is_unordered(0, FDT1, FDT0, &env->fp_status), 0))
+FOP_COND_D(un,  float64_is_unordered(0, FDT1, FDT0, &env->fp_status))
+FOP_COND_D(eq,  !float64_is_unordered(0, FDT1, FDT0, &env->fp_status) && float64_eq(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(ueq, float64_is_unordered(0, FDT1, FDT0, &env->fp_status)  || float64_eq(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(olt, !float64_is_unordered(0, FDT1, FDT0, &env->fp_status) && float64_lt(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(ult, float64_is_unordered(0, FDT1, FDT0, &env->fp_status)  || float64_lt(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(ole, !float64_is_unordered(0, FDT1, FDT0, &env->fp_status) && float64_le(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(ule, float64_is_unordered(0, FDT1, FDT0, &env->fp_status)  || float64_le(FDT0, FDT1, &env->fp_status))
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called
- */
-FOP_COND(s, sf,  1,                                                      (float32_is_unordered(FST0, FST1, &env->fp_status), 0))
-FOP_COND(s, ngle,1, float32_is_unordered(FST1, FST0, &env->fp_status))
-FOP_COND(s, seq, 1,                                                      float32_eq(FST0, FST1, &env->fp_status))
-FOP_COND(s, ngl, 1, float32_is_unordered(FST1, FST0, &env->fp_status) || float32_eq(FST0, FST1, &env->fp_status))
-FOP_COND(s, lt,  1,                                                      float32_lt(FST0, FST1, &env->fp_status))
-FOP_COND(s, nge, 1, float32_is_unordered(FST1, FST0, &env->fp_status) || float32_lt(FST0, FST1, &env->fp_status))
-FOP_COND(s, le,  1,                                                      float32_le(FST0, FST1, &env->fp_status))
-FOP_COND(s, ngt, 1, float32_is_unordered(FST1, FST0, &env->fp_status) || float32_le(FST0, FST1, &env->fp_status))
+ * but float*_is_unordered() is still called. */
+FOP_COND_D(sf,  (float64_is_unordered(1, FDT1, FDT0, &env->fp_status), 0))
+FOP_COND_D(ngle,float64_is_unordered(1, FDT1, FDT0, &env->fp_status))
+FOP_COND_D(seq, !float64_is_unordered(1, FDT1, FDT0, &env->fp_status) && float64_eq(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(ngl, float64_is_unordered(1, FDT1, FDT0, &env->fp_status)  || float64_eq(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(lt,  !float64_is_unordered(1, FDT1, FDT0, &env->fp_status) && float64_lt(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(nge, float64_is_unordered(1, FDT1, FDT0, &env->fp_status)  || float64_lt(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(le,  !float64_is_unordered(1, FDT1, FDT0, &env->fp_status) && float64_le(FDT0, FDT1, &env->fp_status))
+FOP_COND_D(ngt, float64_is_unordered(1, FDT1, FDT0, &env->fp_status)  || float64_le(FDT0, FDT1, &env->fp_status))
+
+#define FOP_COND_S(op, cond)                   \
+void op_cmp_s_ ## op (void)                    \
+{                                              \
+    int c = cond;                              \
+    update_fcr31();                            \
+    if (c)                                     \
+        SET_FP_COND(PARAM1, env);              \
+    else                                       \
+        CLEAR_FP_COND(PARAM1, env);            \
+    DEBUG_FPU_STATE();                         \
+    RETURN();                                  \
+}
+
+flag float32_is_unordered(int sig, float32 a, float32 b STATUS_PARAM)
+{
+    extern flag float32_is_nan(float32 a);
+    if (float32_is_signaling_nan(a) ||
+        float32_is_signaling_nan(b) ||
+        (sig && (float32_is_nan(a) || float32_is_nan(b)))) {
+        float_raise(float_flag_invalid, status);
+        return 1;
+    } else if (float32_is_nan(a) || float32_is_nan(b)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float*_is_unordered() is still called. */
+FOP_COND_S(f,   (float32_is_unordered(0, FST1, FST0, &env->fp_status), 0))
+FOP_COND_S(un,  float32_is_unordered(0, FST1, FST0, &env->fp_status))
+FOP_COND_S(eq,  !float32_is_unordered(0, FST1, FST0, &env->fp_status) && float32_eq(FST0, FST1, &env->fp_status))
+FOP_COND_S(ueq, float32_is_unordered(0, FST1, FST0, &env->fp_status)  || float32_eq(FST0, FST1, &env->fp_status))
+FOP_COND_S(olt, !float32_is_unordered(0, FST1, FST0, &env->fp_status) && float32_lt(FST0, FST1, &env->fp_status))
+FOP_COND_S(ult, float32_is_unordered(0, FST1, FST0, &env->fp_status)  || float32_lt(FST0, FST1, &env->fp_status))
+FOP_COND_S(ole, !float32_is_unordered(0, FST1, FST0, &env->fp_status) && float32_le(FST0, FST1, &env->fp_status))
+FOP_COND_S(ule, float32_is_unordered(0, FST1, FST0, &env->fp_status)  || float32_le(FST0, FST1, &env->fp_status))
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float*_is_unordered() is still called. */
+FOP_COND_S(sf,  (float32_is_unordered(1, FST1, FST0, &env->fp_status), 0))
+FOP_COND_S(ngle,float32_is_unordered(1, FST1, FST0, &env->fp_status))
+FOP_COND_S(seq, !float32_is_unordered(1, FST1, FST0, &env->fp_status) && float32_eq(FST0, FST1, &env->fp_status))
+FOP_COND_S(ngl, float32_is_unordered(1, FST1, FST0, &env->fp_status)  || float32_eq(FST0, FST1, &env->fp_status))
+FOP_COND_S(lt,  !float32_is_unordered(1, FST1, FST0, &env->fp_status) && float32_lt(FST0, FST1, &env->fp_status))
+FOP_COND_S(nge, float32_is_unordered(1, FST1, FST0, &env->fp_status)  || float32_lt(FST0, FST1, &env->fp_status))
+FOP_COND_S(le,  !float32_is_unordered(1, FST1, FST0, &env->fp_status) && float32_le(FST0, FST1, &env->fp_status))
+FOP_COND_S(ngt, float32_is_unordered(1, FST1, FST0, &env->fp_status)  || float32_le(FST0, FST1, &env->fp_status))
+
+#define FOP_COND_PS(op, condl, condh)          \
+void op_cmp_ps_ ## op (void)                   \
+{                                              \
+    int cl = condl;                            \
+    int ch = condh;                            \
+    update_fcr31();                            \
+    if (cl)                                    \
+        SET_FP_COND(PARAM1, env);              \
+    else                                       \
+        CLEAR_FP_COND(PARAM1, env);            \
+    if (ch)                                    \
+        SET_FP_COND(PARAM1 + 1, env);          \
+    else                                       \
+        CLEAR_FP_COND(PARAM1 + 1, env);        \
+    DEBUG_FPU_STATE();                         \
+    RETURN();                                  \
+}
+
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float*_is_unordered() is still called. */
+FOP_COND_PS(f,   (float32_is_unordered(0, FST1, FST0, &env->fp_status), 0),
+                 (float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status), 0))
+FOP_COND_PS(un,  float32_is_unordered(0, FST1, FST0, &env->fp_status),
+                 float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status))
+FOP_COND_PS(eq,  !float32_is_unordered(0, FST1, FST0, &env->fp_status)   && float32_eq(FST0, FST1, &env->fp_status),
+                 !float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status) && float32_eq(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(ueq, float32_is_unordered(0, FST1, FST0, &env->fp_status)    || float32_eq(FST0, FST1, &env->fp_status),
+                 float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status)  || float32_eq(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(olt, !float32_is_unordered(0, FST1, FST0, &env->fp_status)   && float32_lt(FST0, FST1, &env->fp_status),
+                 !float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status) && float32_lt(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(ult, float32_is_unordered(0, FST1, FST0, &env->fp_status)    || float32_lt(FST0, FST1, &env->fp_status),
+                 float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status)  || float32_lt(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(ole, !float32_is_unordered(0, FST1, FST0, &env->fp_status)   && float32_le(FST0, FST1, &env->fp_status),
+                 !float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status) && float32_le(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(ule, float32_is_unordered(0, FST1, FST0, &env->fp_status)    || float32_le(FST0, FST1, &env->fp_status),
+                 float32_is_unordered(0, FSTH1, FSTH0, &env->fp_status)  || float32_le(FSTH0, FSTH1, &env->fp_status))
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float*_is_unordered() is still called. */
+FOP_COND_PS(sf,  (float32_is_unordered(1, FST1, FST0, &env->fp_status), 0),
+                 (float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status), 0))
+FOP_COND_PS(ngle,float32_is_unordered(1, FST1, FST0, &env->fp_status),
+                 float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status))
+FOP_COND_PS(seq, !float32_is_unordered(1, FST1, FST0, &env->fp_status)   && float32_eq(FST0, FST1, &env->fp_status),
+                 !float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status) && float32_eq(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(ngl, float32_is_unordered(1, FST1, FST0, &env->fp_status)    || float32_eq(FST0, FST1, &env->fp_status),
+                 float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status)  || float32_eq(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(lt,  !float32_is_unordered(1, FST1, FST0, &env->fp_status)   && float32_lt(FST0, FST1, &env->fp_status),
+                 !float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status) && float32_lt(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(nge, float32_is_unordered(1, FST1, FST0, &env->fp_status)    || float32_lt(FST0, FST1, &env->fp_status),
+                 float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status)  || float32_lt(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(le,  !float32_is_unordered(1, FST1, FST0, &env->fp_status)   && float32_le(FST0, FST1, &env->fp_status),
+                 !float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status) && float32_le(FSTH0, FSTH1, &env->fp_status))
+FOP_COND_PS(ngt, float32_is_unordered(1, FST1, FST0, &env->fp_status)    || float32_le(FST0, FST1, &env->fp_status),
+                 float32_is_unordered(1, FSTH1, FSTH0, &env->fp_status)  || float32_le(FSTH0, FSTH1, &env->fp_status))
 
 void op_bc1f (void)
 {
-    T0 = ! IS_FP_COND_SET(env->fcr31);
+    T0 = !IS_FP_COND_SET(PARAM1, env);
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+void op_bc1fany2 (void)
+{
+    T0 = (!IS_FP_COND_SET(PARAM1, env) ||
+          !IS_FP_COND_SET(PARAM1 + 1, env));
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+void op_bc1fany4 (void)
+{
+    T0 = (!IS_FP_COND_SET(PARAM1, env) ||
+          !IS_FP_COND_SET(PARAM1 + 1, env) ||
+          !IS_FP_COND_SET(PARAM1 + 2, env) ||
+          !IS_FP_COND_SET(PARAM1 + 3, env));
     DEBUG_FPU_STATE();
     RETURN();
 }
 
 void op_bc1t (void)
 {
-    T0 = IS_FP_COND_SET(env->fcr31);
+    T0 = IS_FP_COND_SET(PARAM1, env);
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+void op_bc1tany2 (void)
+{
+    T0 = (IS_FP_COND_SET(PARAM1, env) ||
+          IS_FP_COND_SET(PARAM1 + 1, env));
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+void op_bc1tany4 (void)
+{
+    T0 = (IS_FP_COND_SET(PARAM1, env) ||
+          IS_FP_COND_SET(PARAM1 + 1, env) ||
+          IS_FP_COND_SET(PARAM1 + 2, env) ||
+          IS_FP_COND_SET(PARAM1 + 3, env));
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2037,7 +2542,7 @@ void op_tlbr (void)
 #if defined (CONFIG_USER_ONLY)
 void op_tls_value (void)
 {
-  T0 = env->tls_value;
+    T0 = env->tls_value;
 }
 #endif
 
@@ -2177,6 +2682,17 @@ void op_save_state (void)
 void op_save_pc (void)
 {
     env->PC = PARAM1;
+    RETURN();
+}
+
+void op_save_fp_status (void)
+{
+    union fps {
+        uint32_t i;
+        float_status f;
+    } fps;
+    fps.i = PARAM1;
+    env->fp_status = fps.f;
     RETURN();
 }
 

@@ -55,7 +55,7 @@
 
 /* Define a implementation number of 1.
    Define a major version 1, minor version 0. */
-#define MIPS_FCR0 ((0 << 16) | (1 << 8) | (1 << 4) | 0)
+#define MIPS_FCR0 ((0 << FCR0_S) | (0x1 << FCR0_PRID) | (0x10 << FCR0_REV))
 
 
 struct mips_def_t {
@@ -69,6 +69,7 @@ struct mips_def_t {
     int32_t CP0_Config7;
     int32_t SYNCI_Step;
     int32_t CCRes;
+    int32_t Status_rw_bitmask;
     int32_t CP1_fcr0;
 };
 
@@ -86,7 +87,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .CP1_fcr0 = MIPS_FCR0,
+        .Status_rw_bitmask = 0x3278FF17,
     },
     {
         .name = "4KEcR1",
@@ -97,7 +98,6 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .CP1_fcr0 = MIPS_FCR0,
     },
     {
         .name = "4KEc",
@@ -108,7 +108,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .CP1_fcr0 = MIPS_FCR0,
+        .Status_rw_bitmask = 0x3278FF17,
     },
     {
         .name = "24Kc",
@@ -119,7 +119,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .CP1_fcr0 = MIPS_FCR0,
+        .Status_rw_bitmask = 0x3278FF17,
     },
     {
         .name = "24Kf",
@@ -130,7 +130,9 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .CP1_fcr0 = MIPS_FCR0,
+        .Status_rw_bitmask = 0x3678FF17,
+        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
+                    (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
     },
 #else
     {
@@ -142,7 +144,10 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 16,
         .CCRes = 2,
-        .CP1_fcr0 = MIPS_FCR0,
+        .Status_rw_bitmask = 0x3678FFFF,
+        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
+                    (1 << FCR0_D) | (1 << FCR0_S) |
+                    (0x4 << FCR0_PRID) | (0x0 << FCR0_REV),
     },
 #endif
 };
@@ -191,6 +196,7 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CP0_Config7 = def->CP0_Config7;
     env->SYNCI_Step = def->SYNCI_Step;
     env->CCRes = def->CCRes;
+    env->Status_rw_bitmask = def->Status_rw_bitmask;
     env->fcr0 = def->CP1_fcr0;
 #if defined (MIPS_USES_R4K_TLB)
     env->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
