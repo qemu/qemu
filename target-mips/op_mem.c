@@ -220,3 +220,35 @@ void glue(op_sdc1, MEMSUFFIX) (void)
     glue(stq, MEMSUFFIX)(T0, DT0);
     RETURN();
 }
+void glue(op_lwxc1, MEMSUFFIX) (void)
+{
+    WT0 = glue(ldl, MEMSUFFIX)(T0 + T1);
+    RETURN();
+}
+void glue(op_swxc1, MEMSUFFIX) (void)
+{
+    glue(stl, MEMSUFFIX)(T0 + T1, WT0);
+    RETURN();
+}
+void glue(op_ldxc1, MEMSUFFIX) (void)
+{
+    DT0 = glue(ldq, MEMSUFFIX)(T0 + T1);
+    RETURN();
+}
+void glue(op_sdxc1, MEMSUFFIX) (void)
+{
+    glue(stq, MEMSUFFIX)(T0 + T1, DT0);
+    RETURN();
+}
+void glue(op_luxc1, MEMSUFFIX) (void)
+{
+    /* XXX: is defined as unaligned */
+    DT0 = glue(ldq, MEMSUFFIX)(T0 + T1);
+    RETURN();
+}
+void glue(op_suxc1, MEMSUFFIX) (void)
+{
+    /* XXX: is defined as unaligned */
+    glue(stq, MEMSUFFIX)(T0 + T1, DT0);
+    RETURN();
+}

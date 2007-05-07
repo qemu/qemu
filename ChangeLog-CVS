@@ -1,3 +1,26 @@
+2007-05-07 19:01  blueswir1
+
+	* target-sparc/translate.c: Fix pc/npc for unaligned load/stores,
+	  maybe other exceptions
+
+2007-05-07 15:55  ths
+
+	* Changelog, gdbstub.c, target-mips/TODO, target-mips/cpu.h,
+	  target-mips/exec.h, target-mips/fop_template.c,
+	  target-mips/helper.c, target-mips/op.c, target-mips/op_mem.c,
+	  target-mips/translate.c, target-mips/translate_init.c: MIPS
+	  64-bit FPU support, plus some collateral bugfixes in the
+	  conditional branch handling.
+
+2007-05-07 14:52  ths
+
+	* target-mips/TODO: Update TODO.
+
+2007-05-07 14:46  ths
+
+	* target-mips/helper.c: Clear BD slot on next exception if
+	  appropriate.
+
 2007-05-06 19:59  blueswir1
 
 	* exec.c, target-sparc/cpu.h: Report unassigned memory access to

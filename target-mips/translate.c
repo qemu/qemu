@@ -334,19 +334,25 @@ enum {
     OPC_MFC1     = (0x00 << 21) | OPC_CP1,
     OPC_DMFC1    = (0x01 << 21) | OPC_CP1,
     OPC_CFC1     = (0x02 << 21) | OPC_CP1,
-    OPC_MFHCI    = (0x03 << 21) | OPC_CP1,
+    OPC_MFHC1    = (0x03 << 21) | OPC_CP1,
     OPC_MTC1     = (0x04 << 21) | OPC_CP1,
     OPC_DMTC1    = (0x05 << 21) | OPC_CP1,
     OPC_CTC1     = (0x06 << 21) | OPC_CP1,
-    OPC_MTHCI    = (0x07 << 21) | OPC_CP1,
+    OPC_MTHC1    = (0x07 << 21) | OPC_CP1,
     OPC_BC1      = (0x08 << 21) | OPC_CP1, /* bc */
+    OPC_BC1ANY2  = (0x09 << 21) | OPC_CP1,
+    OPC_BC1ANY4  = (0x0A << 21) | OPC_CP1,
     OPC_S_FMT    = (0x10 << 21) | OPC_CP1, /* 16: fmt=single fp */
     OPC_D_FMT    = (0x11 << 21) | OPC_CP1, /* 17: fmt=double fp */
     OPC_E_FMT    = (0x12 << 21) | OPC_CP1, /* 18: fmt=extended fp */
     OPC_Q_FMT    = (0x13 << 21) | OPC_CP1, /* 19: fmt=quad fp */
     OPC_W_FMT    = (0x14 << 21) | OPC_CP1, /* 20: fmt=32bit fixed */
     OPC_L_FMT    = (0x15 << 21) | OPC_CP1, /* 21: fmt=64bit fixed */
+    OPC_PS_FMT   = (0x16 << 21) | OPC_CP1, /* 22: fmt=paired single fp */
 };
+
+#define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & 0x3F)
+#define MASK_BC1(op)            MASK_CP1(op) | (op & (0x3 << 16))
 
 enum {
     OPC_BC1F     = (0x00 << 16) | OPC_BC1,
@@ -355,8 +361,15 @@ enum {
     OPC_BC1TL    = (0x03 << 16) | OPC_BC1,
 };
 
-#define MASK_CP1_BCOND(op)      MASK_CP1(op) | (op & (0x3 << 16))
-#define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & 0x3F)
+enum {
+    OPC_BC1FANY2     = (0x00 << 16) | OPC_BC1ANY2,
+    OPC_BC1TANY2     = (0x01 << 16) | OPC_BC1ANY2,
+};
+
+enum {
+    OPC_BC1FANY4     = (0x00 << 16) | OPC_BC1ANY4,
+    OPC_BC1TANY4     = (0x01 << 16) | OPC_BC1ANY4,
+};
 
 #define MASK_CP2(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
 
@@ -405,20 +418,20 @@ const unsigned char *regnames[] =
       "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra", };
 
 /* Warning: no function for r0 register (hard wired to zero) */
-#define GEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [32] = {                                     \
-NULL,       NAME ## 1, NAME ## 2, NAME ## 3,                                  \
-NAME ## 4,  NAME ## 5, NAME ## 6, NAME ## 7,                                  \
-NAME ## 8,  NAME ## 9, NAME ## 10, NAME ## 11,                                \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
-};                                                                            \
-static inline void func(int n)                                                \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
+#define GEN32(func, NAME)                        \
+static GenOpFunc *NAME ## _table [32] = {        \
+NULL,       NAME ## 1, NAME ## 2, NAME ## 3,     \
+NAME ## 4,  NAME ## 5, NAME ## 6, NAME ## 7,     \
+NAME ## 8,  NAME ## 9, NAME ## 10, NAME ## 11,   \
+NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,  \
+NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,  \
+NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,  \
+NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,  \
+NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,  \
+};                                               \
+static inline void func(int n)                   \
+{                                                \
+    NAME ## _table[n]();                         \
 }
 
 /* General purpose registers moves */
@@ -435,58 +448,51 @@ static const char *fregnames[] =
       "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
       "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", };
 
-# define SFGEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [32] = {                                     \
-NAME ## 0,  NAME ## 1,  NAME ## 2,  NAME ## 3,                                \
-NAME ## 4,  NAME ## 5,  NAME ## 6,  NAME ## 7,                                \
-NAME ## 8,  NAME ## 9,  NAME ## 10, NAME ## 11,                               \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
-};                                                                            \
-static inline void func(int n)                                                \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
+#define FGEN32(func, NAME)                       \
+static GenOpFunc *NAME ## _table [32] = {        \
+NAME ## 0,  NAME ## 1,  NAME ## 2,  NAME ## 3,   \
+NAME ## 4,  NAME ## 5,  NAME ## 6,  NAME ## 7,   \
+NAME ## 8,  NAME ## 9,  NAME ## 10, NAME ## 11,  \
+NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,  \
+NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,  \
+NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,  \
+NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,  \
+NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,  \
+};                                               \
+static inline void func(int n)                   \
+{                                                \
+    NAME ## _table[n]();                         \
 }
 
-# define DFGEN32(func, NAME) \
-static GenOpFunc *NAME ## _table [32] = {                                     \
-NAME ## 0,  0, NAME ## 2,  0,                                                 \
-NAME ## 4,  0, NAME ## 6,  0,                                                 \
-NAME ## 8,  0, NAME ## 10, 0,                                                 \
-NAME ## 12, 0, NAME ## 14, 0,                                                 \
-NAME ## 16, 0, NAME ## 18, 0,                                                 \
-NAME ## 20, 0, NAME ## 22, 0,                                                 \
-NAME ## 24, 0, NAME ## 26, 0,                                                 \
-NAME ## 28, 0, NAME ## 30, 0,                                                 \
-};                                                                            \
-static inline void func(int n)                                                \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
-}
+FGEN32(gen_op_load_fpr_WT0,  gen_op_load_fpr_WT0_fpr);
+FGEN32(gen_op_store_fpr_WT0, gen_op_store_fpr_WT0_fpr);
 
-SFGEN32(gen_op_load_fpr_WT0,  gen_op_load_fpr_WT0_fpr);
-SFGEN32(gen_op_store_fpr_WT0, gen_op_store_fpr_WT0_fpr);
+FGEN32(gen_op_load_fpr_WT1,  gen_op_load_fpr_WT1_fpr);
+FGEN32(gen_op_store_fpr_WT1, gen_op_store_fpr_WT1_fpr);
 
-SFGEN32(gen_op_load_fpr_WT1,  gen_op_load_fpr_WT1_fpr);
-SFGEN32(gen_op_store_fpr_WT1, gen_op_store_fpr_WT1_fpr);
+FGEN32(gen_op_load_fpr_WT2,  gen_op_load_fpr_WT2_fpr);
+FGEN32(gen_op_store_fpr_WT2, gen_op_store_fpr_WT2_fpr);
 
-SFGEN32(gen_op_load_fpr_WT2,  gen_op_load_fpr_WT2_fpr);
-SFGEN32(gen_op_store_fpr_WT2, gen_op_store_fpr_WT2_fpr);
+FGEN32(gen_op_load_fpr_DT0,  gen_op_load_fpr_DT0_fpr);
+FGEN32(gen_op_store_fpr_DT0, gen_op_store_fpr_DT0_fpr);
 
-DFGEN32(gen_op_load_fpr_DT0,  gen_op_load_fpr_DT0_fpr);
-DFGEN32(gen_op_store_fpr_DT0, gen_op_store_fpr_DT0_fpr);
+FGEN32(gen_op_load_fpr_DT1,  gen_op_load_fpr_DT1_fpr);
+FGEN32(gen_op_store_fpr_DT1, gen_op_store_fpr_DT1_fpr);
 
-DFGEN32(gen_op_load_fpr_DT1,  gen_op_load_fpr_DT1_fpr);
-DFGEN32(gen_op_store_fpr_DT1, gen_op_store_fpr_DT1_fpr);
+FGEN32(gen_op_load_fpr_DT2,  gen_op_load_fpr_DT2_fpr);
+FGEN32(gen_op_store_fpr_DT2, gen_op_store_fpr_DT2_fpr);
 
-DFGEN32(gen_op_load_fpr_DT2,  gen_op_load_fpr_DT2_fpr);
-DFGEN32(gen_op_store_fpr_DT2, gen_op_store_fpr_DT2_fpr);
+FGEN32(gen_op_load_fpr_WTH0,  gen_op_load_fpr_WTH0_fpr);
+FGEN32(gen_op_store_fpr_WTH0, gen_op_store_fpr_WTH0_fpr);
+
+FGEN32(gen_op_load_fpr_WTH1,  gen_op_load_fpr_WTH1_fpr);
+FGEN32(gen_op_store_fpr_WTH1, gen_op_store_fpr_WTH1_fpr);
+
+FGEN32(gen_op_load_fpr_WTH2,  gen_op_load_fpr_WTH2_fpr);
+FGEN32(gen_op_store_fpr_WTH2, gen_op_store_fpr_WTH2_fpr);
 
 #define FOP_CONDS(fmt) \
-static GenOpFunc * cond_ ## fmt ## _table[16] = {                       \
+static GenOpFunc1 * cond_ ## fmt ## _table[16] = {                      \
     gen_op_cmp_ ## fmt ## _f,                                           \
     gen_op_cmp_ ## fmt ## _un,                                          \
     gen_op_cmp_ ## fmt ## _eq,                                          \
@@ -504,18 +510,20 @@ static GenOpFunc * cond_ ## fmt ## _table[16] = {                       \
     gen_op_cmp_ ## fmt ## _le,                                          \
     gen_op_cmp_ ## fmt ## _ngt,                                         \
 };                                                                      \
-static inline void gen_cmp_ ## fmt(int n)                               \
+static inline void gen_cmp_ ## fmt(int n, long cc)                      \
 {                                                                       \
-    cond_ ## fmt ## _table[n]();                                        \
+    cond_ ## fmt ## _table[n](cc);                                      \
 }
 
 FOP_CONDS(d)
 FOP_CONDS(s)
+FOP_CONDS(ps)
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong pc, saved_pc;
     uint32_t opcode;
+    uint32_t fp_status, saved_fp_status;
     /* Routine used to access memory */
     int mem_idx;
     uint32_t hflags, saved_hflags;
@@ -601,14 +609,28 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
     if (ctx->hflags != ctx->saved_hflags) {
         gen_op_save_state(ctx->hflags);
         ctx->saved_hflags = ctx->hflags;
-        if (ctx->hflags & MIPS_HFLAG_BR) {
+        switch (ctx->hflags & MIPS_HFLAG_BMASK) {
+        case MIPS_HFLAG_BR:
             gen_op_save_breg_target();
-        } else if (ctx->hflags & MIPS_HFLAG_B) {
-            gen_op_save_btarget(ctx->btarget);
-        } else if (ctx->hflags & MIPS_HFLAG_BMASK) {
+            break;
+        case MIPS_HFLAG_BC:
             gen_op_save_bcond();
+            /* fall through */
+        case MIPS_HFLAG_BL:
+            /* bcond was already saved by the BL insn */
+            /* fall through */
+        case MIPS_HFLAG_B:
             gen_op_save_btarget(ctx->btarget);
+            break;
         }
+    }
+}
+
+static inline void save_fpu_state (DisasContext *ctx)
+{
+    if (ctx->fp_status != ctx->saved_fp_status) {
+        gen_op_save_fp_status(ctx->fp_status);
+        ctx->saved_fp_status = ctx->fp_status;
     }
 }
 
@@ -691,6 +713,12 @@ OP_LD_TABLE(wc1);
 OP_ST_TABLE(wc1);
 OP_LD_TABLE(dc1);
 OP_ST_TABLE(dc1);
+OP_LD_TABLE(wxc1);
+OP_ST_TABLE(wxc1);
+OP_LD_TABLE(dxc1);
+OP_ST_TABLE(dxc1);
+OP_LD_TABLE(uxc1);
+OP_ST_TABLE(uxc1);
 
 /* Load and store */
 static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
@@ -1486,7 +1514,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile,
-                    "undefined branch in delay slot at PC " TARGET_FMT_lx "\n",
+                    "Branch in delay slot at PC 0x" TARGET_FMT_lx "\n",
                     ctx->pc);
         }
         //~ MIPS_INVAL("branch/jump in bdelay slot");
@@ -1686,6 +1714,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("bltzal %s, %08x", regnames[rs], btarget);
         not_likely:
             ctx->hflags |= MIPS_HFLAG_BC;
+            gen_op_set_bcond();
             break;
         case OPC_BLTZALL:
             gen_op_ltz();
@@ -1693,13 +1722,14 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("bltzall %s, %08x", regnames[rs], btarget);
         likely:
             ctx->hflags |= MIPS_HFLAG_BL;
+            gen_op_set_bcond();
+            gen_op_save_bcond();
             break;
         default:
             MIPS_INVAL("conditional branch/jump");
             generate_exception(ctx, EXCP_RI);
             return;
         }
-        gen_op_set_bcond();
     }
     MIPS_DEBUG("enter ds: link %d cond %02x target %08x",
                blink, ctx->hflags, btarget);
@@ -4234,7 +4264,7 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 
 /* CP1 Branches (before delay slot) */
 static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
-                                 int32_t offset)
+                                 int32_t cc, int32_t offset)
 {
     target_ulong btarget;
 
@@ -4242,31 +4272,49 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
 
     switch (op) {
     case OPC_BC1F:
-        gen_op_bc1f();
+        gen_op_bc1f(cc);
         MIPS_DEBUG("bc1f " TARGET_FMT_lx, btarget);
         goto not_likely;
     case OPC_BC1FL:
-        gen_op_bc1f();
+        gen_op_bc1f(cc);
         MIPS_DEBUG("bc1fl " TARGET_FMT_lx, btarget);
         goto likely;
     case OPC_BC1T:
-        gen_op_bc1t();
+        gen_op_bc1t(cc);
         MIPS_DEBUG("bc1t " TARGET_FMT_lx, btarget);
-    not_likely:
-        ctx->hflags |= MIPS_HFLAG_BC;
-        break;
+        goto not_likely;
     case OPC_BC1TL:
-        gen_op_bc1t();
+        gen_op_bc1t(cc);
         MIPS_DEBUG("bc1tl " TARGET_FMT_lx, btarget);
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
+        gen_op_set_bcond();
+        gen_op_save_bcond();
         break;
-    default:    
-        MIPS_INVAL("cp1 branch/jump");
+    case OPC_BC1FANY2:
+        gen_op_bc1fany2(cc);
+        MIPS_DEBUG("bc1fany2 " TARGET_FMT_lx, btarget);
+        goto not_likely;
+    case OPC_BC1TANY2:
+        gen_op_bc1tany2(cc);
+        MIPS_DEBUG("bc1tany2 " TARGET_FMT_lx, btarget);
+        goto not_likely;
+    case OPC_BC1FANY4:
+        gen_op_bc1fany4(cc);
+        MIPS_DEBUG("bc1fany4 " TARGET_FMT_lx, btarget);
+        goto not_likely;
+    case OPC_BC1TANY4:
+        gen_op_bc1tany4(cc);
+        MIPS_DEBUG("bc1tany4 " TARGET_FMT_lx, btarget);
+    not_likely:
+        ctx->hflags |= MIPS_HFLAG_BC;
+        gen_op_set_bcond();
+        break;
+    default:
+        MIPS_INVAL("cp1 branch");
         generate_exception (ctx, EXCP_RI);
         return;
     }
-    gen_op_set_bcond();
 
     MIPS_DEBUG("enter ds: cond %02x target " TARGET_FMT_lx,
                ctx->hflags, btarget);
@@ -4276,6 +4324,29 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
 }
 
 /* Coprocessor 1 (FPU) */
+
+/* verify if floating point register is valid; an operation is not defined
+ * if bit 0 of any register specification is set and the FR bit in the
+ * Status register equals zero, since the register numbers specify an
+ * even-odd pair of adjacent coprocessor general registers. When the FR bit
+ * in the Status register equals one, both even and odd register numbers
+ * are valid. This limitation exists only for 64 bit wide (d,l,ps) registers.
+ * 
+ * Multiple 64 bit wide registers can be checked by calling
+ * CHECK_FR(ctx, freg1 | freg2 | ... | fregN);
+ * 
+ * FIXME: This is broken for R2, it needs to be checked at runtime, not
+ * at translation time.
+ */
+#define CHECK_FR(ctx, freg) do { \
+        if (!((ctx)->CP0_Status & (1 << CP0St_FR)) && ((freg) & 1)) { \
+            generate_exception (ctx, EXCP_RI); \
+            return; \
+        } \
+    } while(0)
+
+#define FOP(func, fmt) (((fmt) << 21) | (func))
+
 static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 {
     const char *opn = "unk";
@@ -4294,30 +4365,43 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         opn = "mtc1";
         break;
     case OPC_CFC1:
-        if (fs != 0 && fs != 31) {
-            MIPS_INVAL("cfc1 freg");
-            generate_exception (ctx, EXCP_RI);
-            return;
-        }
         GEN_LOAD_IMM_TN(T1, fs);
         gen_op_cfc1();
         GEN_STORE_TN_REG(rt, T0);
         opn = "cfc1";
         break;
     case OPC_CTC1:
-         if (fs != 0 && fs != 31) {
-            MIPS_INVAL("ctc1 freg");
-            generate_exception (ctx, EXCP_RI);
-            return;
-        }
         GEN_LOAD_IMM_TN(T1, fs);
         GEN_LOAD_REG_TN(T0, rt);
         gen_op_ctc1();
         opn = "ctc1";
         break;
     case OPC_DMFC1:
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_dmfc1();
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "dmfc1";
+        break;
     case OPC_DMTC1:
-        /* Not implemented, fallthrough. */
+        GEN_LOAD_REG_TN(T0, rt);
+        gen_op_dmtc1();
+        GEN_STORE_FTN_FREG(fs, DT0);
+        opn = "dmtc1";
+        break;
+    case OPC_MFHC1:
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_mfhc1();
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "mfhc1";
+        break;
+    case OPC_MTHC1:
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_REG_TN(T0, rt);
+        gen_op_mthc1();
+        GEN_STORE_FTN_FREG(fs, WTH0);
+        opn = "mthc1";
+        break;
     default:
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "Invalid CP1 opcode: %08x %03x %03x %03x\n",
@@ -4330,26 +4414,44 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
     MIPS_DEBUG("%s %s %s", opn, regnames[rt], fregnames[fs]);
 }
 
-/* verify if floating point register is valid; an operation is not defined
- * if bit 0 of any register specification is set and the FR bit in the
- * Status register equals zero, since the register numbers specify an
- * even-odd pair of adjacent coprocessor general registers. When the FR bit
- * in the Status register equals one, both even and odd register numbers
- * are valid. This limitation exists only for 64 bit wide (d,l) registers.
- * 
- * Multiple 64 bit wide registers can be checked by calling
- * CHECK_FR(ctx, freg1 | freg2 | ... | fregN);
- */
-#define CHECK_FR(ctx, freg) do { \
-        if (!((ctx)->CP0_Status & (1<<CP0St_FR)) && ((freg) & 1)) { \
-            generate_exception (ctx, EXCP_RI); \
-            return; \
-        } \
-    } while(0)
+static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
+{
+    uint32_t ccbit;
 
-#define FOP(func, fmt) (((fmt) << 21) | (func))
+    GEN_LOAD_REG_TN(T0, rd);
+    GEN_LOAD_REG_TN(T1, rs);
+    if (cc)
+        ccbit = 1 << (24 + cc);
+    else
+        ccbit = 1 << 23;
+    if (!tf)
+        gen_op_movf(ccbit);
+    else
+        gen_op_movt(ccbit);
+    GEN_STORE_TN_REG(rd, T0);
+}
 
-static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
+#define GEN_MOVCF(fmt)                                                \
+static void glue(gen_movcf_, fmt) (DisasContext *ctx, int cc, int tf) \
+{                                                                     \
+    uint32_t ccbit;                                                   \
+                                                                      \
+    if (cc)                                                           \
+        ccbit = 1 << (24 + cc);                                       \
+    else                                                              \
+        ccbit = 1 << 23;                                              \
+    if (!tf)                                                          \
+        glue(gen_op_float_movf_, fmt)(ccbit);                         \
+    else                                                              \
+        glue(gen_op_float_movt_, fmt)(ccbit);                         \
+}
+GEN_MOVCF(d);
+GEN_MOVCF(s);
+GEN_MOVCF(ps);
+#undef GEN_MOVCF
+
+static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
+                        int fs, int fd, int cc)
 {
     const char *opn = "unk";
     const char *condnames[] = {
@@ -4374,6 +4476,187 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
     uint32_t func = ctx->opcode & 0x3f;
 
     switch (ctx->opcode & FOP(0x3f, 0x1f)) {
+    case FOP(0, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_add_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "add.s";
+        binary = 1;
+        break;
+    case FOP(1, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_sub_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "sub.s";
+        binary = 1;
+        break;
+    case FOP(2, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_mul_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "mul.s";
+        binary = 1;
+        break;
+    case FOP(3, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_div_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "div.s";
+        binary = 1;
+        break;
+    case FOP(4, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_sqrt_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "sqrt.s";
+        break;
+    case FOP(5, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_abs_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "abs.s";
+        break;
+    case FOP(6, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_mov_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "mov.s";
+        break;
+    case FOP(7, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_chs_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "neg.s";
+        break;
+    case FOP(8, 16):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_roundl_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "round.l.s";
+        break;
+    case FOP(9, 16):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_truncl_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "trunc.l.s";
+        break;
+    case FOP(10, 16):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_ceill_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "ceil.l.s";
+        break;
+    case FOP(11, 16):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_floorl_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "floor.l.s";
+        break;
+    case FOP(12, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_roundw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "round.w.s";
+        break;
+    case FOP(13, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_truncw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "trunc.w.s";
+        break;
+    case FOP(14, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_ceilw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "ceil.w.s";
+        break;
+    case FOP(15, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_floorw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "floor.w.s";
+        break;
+    case FOP(17, 16):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT2, fd);
+        gen_movcf_s(ctx, (ft >> 2) & 0x7, ft & 0x1);
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "movcf.s";
+        break;
+    case FOP(18, 16):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT2, fd);
+        gen_op_float_movz_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "movz.s";
+        break;
+    case FOP(19, 16):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT2, fd);
+        gen_op_float_movn_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "movn.s";
+        break;
+    case FOP(33, 16):
+        CHECK_FR(ctx, fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtd_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.d.s";
+        break;
+    case FOP(36, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.w.s";
+        break;
+    case FOP(37, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtl_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.l.s";
+        break;
+    case FOP(38, 16):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT1, fs);
+        GEN_LOAD_FREG_FTN(WT0, ft);
+        gen_op_float_cvtps_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.ps.s";
+        break;
+    case FOP(48, 16):
+    case FOP(49, 16):
+    case FOP(50, 16):
+    case FOP(51, 16):
+    case FOP(52, 16):
+    case FOP(53, 16):
+    case FOP(54, 16):
+    case FOP(55, 16):
+    case FOP(56, 16):
+    case FOP(57, 16):
+    case FOP(58, 16):
+    case FOP(59, 16):
+    case FOP(60, 16):
+    case FOP(61, 16):
+    case FOP(62, 16):
+    case FOP(63, 16):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_cmp_s(func-48, cc);
+        opn = condnames[func-48];
+        break;
     case FOP(0, 17):
         CHECK_FR(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
@@ -4438,10 +4721,34 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "neg.d";
         break;
-    /*  8 - round.l */
-    /*  9 - trunc.l */
-    /* 10 - ceil.l  */
-    /* 11 - floor.l */
+    case FOP(8, 17):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_roundl_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "round.l.d";
+        break;
+    case FOP(9, 17):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_truncl_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "trunc.l.d";
+        break;
+    case FOP(10, 17):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_ceill_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "ceil.l.d";
+        break;
+    case FOP(11, 17):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_floorl_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "floor.l.d";
+        break;
     case FOP(12, 17):
         CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
@@ -4470,19 +4777,29 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "floor.w.d";
         break;
-    case FOP(33, 16):
-        CHECK_FR(ctx, fd);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtd_s();
+    case FOP(17, 17):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT2, fd);
+        gen_movcf_d(ctx, (ft >> 2) & 0x7, ft & 0x1);
         GEN_STORE_FTN_FREG(fd, DT2);
-        opn = "cvt.d.s";
+        opn = "movcf.d";
         break;
-    case FOP(33, 20):
-        CHECK_FR(ctx, fd);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtd_w();
+    case FOP(18, 17):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT2, fd);
+        gen_op_float_movz_d();
         GEN_STORE_FTN_FREG(fd, DT2);
-        opn = "cvt.d.w";
+        opn = "movz.d";
+        break;
+    case FOP(19, 17):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT2, fd);
+        gen_op_float_movn_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "movn.d";
         break;
     case FOP(48, 17):
     case FOP(49, 17):
@@ -4503,76 +4820,8 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         CHECK_FR(ctx, fs | ft);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_cmp_d(func-48);
+        gen_cmp_d(func-48, cc);
         opn = condnames[func-48];
-        break;
-    case FOP(0, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_add_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "add.s";
-        binary = 1;
-        break;
-    case FOP(1, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_sub_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "sub.s";
-        binary = 1;
-        break;
-    case FOP(2, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_mul_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "mul.s";
-        binary = 1;
-        break;
-    case FOP(3, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_div_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "div.s";
-        binary = 1;
-        break;
-    case FOP(4, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_sqrt_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "sqrt.s";
-        break;
-    case FOP(5, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_abs_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "abs.s";
-        break;
-    case FOP(6, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_mov_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "mov.s";
-        break;
-    case FOP(7, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_chs_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "neg.s";
-        break;
-    case FOP(12, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_roundw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "round.w.s";
-        break;
-    case FOP(13, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_truncw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "trunc.w.s";
         break;
     case FOP(32, 17):
         CHECK_FR(ctx, fs);
@@ -4581,18 +4830,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.d";
         break;
-    case FOP(32, 20):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvts_w();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "cvt.s.w";
-        break;
-    case FOP(36, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        opn = "cvt.w.s";
-        break;
     case FOP(36, 17):
         CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
@@ -4600,28 +4837,223 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.w.d";
         break;
-    case FOP(48, 16):
-    case FOP(49, 16):
-    case FOP(50, 16):
-    case FOP(51, 16):
-    case FOP(52, 16):
-    case FOP(53, 16):
-    case FOP(54, 16):
-    case FOP(55, 16):
-    case FOP(56, 16):
-    case FOP(57, 16):
-    case FOP(58, 16):
-    case FOP(59, 16):
-    case FOP(60, 16):
-    case FOP(61, 16):
-    case FOP(62, 16):
-    case FOP(63, 16):
+    case FOP(37, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_cvtl_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.l.d";
+        break;
+    case FOP(32, 20):
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvts_w();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.s.w";
+        break;
+    case FOP(33, 20):
+        CHECK_FR(ctx, fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtd_w();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.d.w";
+        break;
+    case FOP(32, 21):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_cvts_l();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.s.l";
+        break;
+    case FOP(33, 21):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_cvtd_l();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.d.l";
+        break;
+    case FOP(38, 20):
+    case FOP(38, 21):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_float_cvtps_pw();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "cvt.ps.pw";
+        break;
+    case FOP(0, 22):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_add_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "add.ps";
+        break;
+    case FOP(1, 22):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_sub_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "sub.ps";
+        break;
+    case FOP(2, 22):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_mul_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "mul.ps";
+        break;
+    case FOP(5, 22):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_float_abs_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "abs.ps";
+        break;
+    case FOP(6, 22):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_float_mov_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "mov.ps";
+        break;
+    case FOP(7, 22):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_float_chs_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "neg.ps";
+        break;
+    case FOP(17, 22):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT2, fd);
+        GEN_LOAD_FREG_FTN(WTH2, fd);
+        gen_movcf_ps(ctx, (ft >> 2) & 0x7, ft & 0x1);
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "movcf.ps";
+        break;
+    case FOP(18, 22):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT2, fd);
+        GEN_LOAD_FREG_FTN(WTH2, fd);
+        gen_op_float_movz_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "movz.ps";
+        break;
+    case FOP(19, 22):
+        GEN_LOAD_REG_TN(T0, ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT2, fd);
+        GEN_LOAD_FREG_FTN(WTH2, fd);
+        gen_op_float_movn_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "movn.ps";
+        break;
+    case FOP(32, 22):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_float_cvts_pu();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.s.pu";
+        break;
+    case FOP(36, 22):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        gen_op_float_cvtpw_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "cvt.pw.ps";
+        break;
+    case FOP(40, 22):
+        CHECK_FR(ctx, fs);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvts_pl();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.s.pl";
+        break;
+    case FOP(44, 22):
+        CHECK_FR(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_cmp_s(func-48);
+        gen_op_float_pll_ps();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "pll.ps";
+        break;
+    case FOP(45, 22):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_plu_ps();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "plu.ps";
+        break;
+    case FOP(46, 22):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_pul_ps();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "pul.ps";
+        break;
+    case FOP(47, 22):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_puu_ps();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "puu.ps";
+        break;
+    case FOP(48, 22):
+    case FOP(49, 22):
+    case FOP(50, 22):
+    case FOP(51, 22):
+    case FOP(52, 22):
+    case FOP(53, 22):
+    case FOP(54, 22):
+    case FOP(55, 22):
+    case FOP(56, 22):
+    case FOP(57, 22):
+    case FOP(58, 22):
+    case FOP(59, 22):
+    case FOP(60, 22):
+    case FOP(61, 22):
+    case FOP(62, 22):
+    case FOP(63, 22):
+        CHECK_FR(ctx, fs | ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_cmp_ps(func-48, cc);
         opn = condnames[func-48];
         break;
-    default:    
+    default:
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "Invalid FP arith function: %08x %03x %03x %03x\n",
                     ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
@@ -4636,18 +5068,134 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft, int fs, int fd)
         MIPS_DEBUG("%s %s,%s", opn, fregnames[fd], fregnames[fs]);
 }
 
-static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
+/* Coprocessor 3 (FPU) */
+static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc, int fd,
+                           int base, int index)
 {
-    uint32_t ccbit;
+    const char *opn = "unk";
 
-    if (cc)
-        ccbit = 1 << (24 + cc);
-    else
-        ccbit = 1 << 23;
-    if (!tf)
-        gen_op_movf(ccbit, rd, rs);
-    else
-       gen_op_movt(ccbit, rd, rs);
+    GEN_LOAD_REG_TN(T0, base);
+    GEN_LOAD_REG_TN(T1, index);
+    /* Don't do NOP if destination is zero: we must perform the actual
+     * memory access
+     */
+    switch (opc) {
+    case OPC_LWXC1:
+        op_ldst(lwxc1);
+        GEN_STORE_FTN_FREG(fd, WT0);
+        opn = "lwxc1";
+        break;
+    case OPC_LDXC1:
+        op_ldst(ldxc1);
+        GEN_STORE_FTN_FREG(fd, DT0);
+        opn = "ldxc1";
+        break;
+    case OPC_LUXC1:
+        op_ldst(luxc1);
+        GEN_STORE_FTN_FREG(fd, DT0);
+        opn = "luxc1";
+        break;
+    case OPC_SWXC1:
+        GEN_LOAD_FREG_FTN(WT0, fd);
+        op_ldst(swxc1);
+        opn = "swxc1";
+        break;
+    case OPC_SDXC1:
+        GEN_LOAD_FREG_FTN(DT0, fd);
+        op_ldst(sdxc1);
+        opn = "sdxc1";
+        break;
+    case OPC_SUXC1:
+        GEN_LOAD_FREG_FTN(DT0, fd);
+        op_ldst(suxc1);
+        opn = "suxc1";
+        break;
+    default:
+        MIPS_INVAL("extended float load/store");
+        generate_exception(ctx, EXCP_RI);
+        return;
+    }
+    MIPS_DEBUG("%s %s, %s(%s)", opn, fregnames[fd],regnames[index], regnames[base]);
+}
+
+static void gen_flt3_arith (DisasContext *ctx, uint32_t opc, int fd,
+                            int fr, int fs, int ft)
+{
+    const char *opn = "unk";
+
+    /* All of those work only on 64bit FPUs. */
+    CHECK_FR(ctx, fd | fr | fs | ft);
+    switch (opc) {
+    case OPC_ALNV_PS:
+        GEN_LOAD_REG_TN(T0, fr);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_op_float_alnv_ps();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "alnv.ps";
+        break;
+    case OPC_MADD_S:
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_muladd_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "madd.s";
+        break;
+    case OPC_MADD_D:
+        generate_exception (ctx, EXCP_RI);
+        opn = "madd.d";
+        break;
+    case OPC_MADD_PS:
+        generate_exception (ctx, EXCP_RI);
+        opn = "madd.ps";
+        break;
+    case OPC_MSUB_S:
+        generate_exception (ctx, EXCP_RI);
+        opn = "msub.s";
+        break;
+    case OPC_MSUB_D:
+        generate_exception (ctx, EXCP_RI);
+        opn = "msub.d";
+        break;
+    case OPC_MSUB_PS:
+        generate_exception (ctx, EXCP_RI);
+        opn = "msub.ps";
+        break;
+    case OPC_NMADD_S:
+        generate_exception (ctx, EXCP_RI);
+        opn = "nmadd.s";
+        break;
+    case OPC_NMADD_D:
+        generate_exception (ctx, EXCP_RI);
+        opn = "nmadd.d";
+        break;
+    case OPC_NMADD_PS:
+        generate_exception (ctx, EXCP_RI);
+        opn = "nmadd.ps";
+        break;
+    case OPC_NMSUB_S:
+        generate_exception (ctx, EXCP_RI);
+        opn = "nmsub.s";
+        break;
+    case OPC_NMSUB_D:
+        generate_exception (ctx, EXCP_RI);
+        opn = "nmsub.d";
+        break;
+    case OPC_NMSUB_PS:
+        generate_exception (ctx, EXCP_RI);
+        opn = "nmsub.ps";
+        break;
+    default:    
+        if (loglevel & CPU_LOG_TB_IN_ASM) {
+            fprintf(logfile, "Invalid extended FP arith function: %08x %03x %03x\n",
+                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F);
+        }
+        generate_exception (ctx, EXCP_RI);
+        return;
+    }
+    MIPS_DEBUG("%s %s, %s, %s, %s", opn, fregnames[fd], fregnames[fr],
+               fregnames[fs], fregnames[ft]);
 }
 
 /* ISA extensions (ASEs) */
@@ -4655,22 +5203,11 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 /* SmartMIPS extension to MIPS32 */
 
 #ifdef TARGET_MIPS64
-/* Coprocessor 3 (FPU) */
 
 /* MDMX extension to MIPS64 */
 /* MIPS-3D extension to MIPS64 */
 
 #endif
-
-static void gen_blikely(DisasContext *ctx)
-{
-    int l1;
-    l1 = gen_new_label();
-    gen_op_jnz_T2(l1);
-    gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
-    gen_goto_tb(ctx, 1, ctx->pc + 4);
-    gen_set_label(l1);
-}
 
 static void decode_opc (CPUState *env, DisasContext *ctx)
 {
@@ -4687,9 +5224,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     }
 
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
+        int l1;
         /* Handle blikely not taken case */
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
-        gen_blikely(ctx);
+        l1 = gen_new_label();
+        gen_op_jnz_T2(l1);
+        gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
+        gen_goto_tb(ctx, 1, ctx->pc + 4);
+        gen_set_label(l1);
     }
     op = MASK_OP_MAJOR(ctx->opcode);
     rs = (ctx->opcode >> 21) & 0x1f;
@@ -5042,16 +5584,21 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             case OPC_DMFC1:
             case OPC_DMTC1:
 #endif
+            case OPC_MFHC1:
+            case OPC_MTHC1:
                 gen_cp1(ctx, op1, rt, rd);
                 break;
             case OPC_BC1:
-                gen_compute_branch1(ctx, MASK_CP1_BCOND(ctx->opcode), imm << 2);
+                gen_compute_branch1(ctx, MASK_BC1(ctx->opcode),
+                                    (rt >> 2) & 0x7, imm << 2);
                 return;
             case OPC_S_FMT:
             case OPC_D_FMT:
             case OPC_W_FMT:
             case OPC_L_FMT:
-                gen_farith(ctx, MASK_CP1_FUNC(ctx->opcode), rt, rd, sa);
+            case OPC_PS_FMT:
+                gen_farith(ctx, MASK_CP1_FUNC(ctx->opcode), rt, rd, sa,
+                           (imm >> 8) & 0x7);
                 break;
             default:
                 generate_exception (ctx, EXCP_RI);
@@ -5078,10 +5625,32 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_op_cp1_enabled();
             op1 = MASK_CP3(ctx->opcode);
             switch (op1) {
+            case OPC_LWXC1:
+            case OPC_LDXC1:
+            case OPC_LUXC1:
+            case OPC_SWXC1:
+            case OPC_SDXC1:
+            case OPC_SUXC1:
+                gen_flt3_ldst(ctx, op1, sa, rs, rt);
+                break;
             case OPC_PREFX:
                 /* treat as noop */
                 break;
-            /* Not implemented */
+            case OPC_ALNV_PS:
+            case OPC_MADD_S:
+            case OPC_MADD_D:
+            case OPC_MADD_PS:
+            case OPC_MSUB_S:
+            case OPC_MSUB_D:
+            case OPC_MSUB_PS:
+            case OPC_NMADD_S:
+            case OPC_NMADD_D:
+            case OPC_NMADD_PS:
+            case OPC_NMSUB_S:
+            case OPC_NMSUB_D:
+            case OPC_NMSUB_PS:
+                gen_flt3_arith(ctx, op1, sa, rs, rd, rt);
+                break;
             default:
                 generate_exception (ctx, EXCP_RI);
                 break;
@@ -5125,7 +5694,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         ctx->hflags &= ~MIPS_HFLAG_BMASK;
         ctx->bstate = BS_BRANCH;
         save_cpu_state(ctx, 0);
-        switch (hflags & MIPS_HFLAG_BMASK) {
+        switch (hflags) {
         case MIPS_HFLAG_B:
             /* unconditional branch */
             MIPS_DEBUG("unconditional branch");
@@ -5152,6 +5721,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
             gen_op_breg();
+            gen_op_reset_T0();
+            gen_op_exit_tb();
             break;
         default:
             MIPS_DEBUG("unknown branch");
@@ -5184,16 +5755,18 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = tb->flags;
     ctx.saved_hflags = ctx.hflags;
-    if (ctx.hflags & MIPS_HFLAG_BR) {
+    switch (ctx.hflags & MIPS_HFLAG_BMASK) {
+    case MIPS_HFLAG_BR:
         gen_op_restore_breg_target();
-    } else if (ctx.hflags & MIPS_HFLAG_B) {
+        break;
+    case MIPS_HFLAG_B:
         ctx.btarget = env->btarget;
-    } else if (ctx.hflags & MIPS_HFLAG_BMASK) {
-        /* If we are in the delay slot of a conditional branch,
-         * restore the branch condition from env->bcond to T2
-         */
+        break;
+    case MIPS_HFLAG_BC:
+    case MIPS_HFLAG_BL:
         ctx.btarget = env->btarget;
         gen_op_restore_bcond();
+        break;
     }
 #if defined(CONFIG_USER_ONLY)
     ctx.mem_idx = 0;
@@ -5255,12 +5828,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         gen_op_debug();
     } else {
 	switch (ctx.bstate) {
-        case BS_EXCP:
-            gen_op_interrupt_restart();
-            gen_op_reset_T0();
-            /* Generate the return instruction. */
-            gen_op_exit_tb();
-            break;
         case BS_STOP:
             gen_op_interrupt_restart();
             /* Fall through. */
@@ -5268,11 +5835,13 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             save_cpu_state(ctxp, 0);
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
+        case BS_EXCP:
+            gen_op_interrupt_restart();
+            gen_op_reset_T0();
+            gen_op_exit_tb();
+            break;
         case BS_BRANCH:
         default:
-            gen_op_reset_T0();
-            /* Generate the return instruction. */
-            gen_op_exit_tb();
             break;
 	}
     }
@@ -5325,21 +5894,33 @@ void fpu_dump_state(CPUState *env, FILE *f,
                     int flags)
 {
     int i;
+    int is_fpu64 = !!(env->CP0_Status & (1 << CP0St_FR));
 
-#   define printfpr(fp) do { \
-        fpu_fprintf(f, "w:%08x d:%08lx%08lx fd:%g fs:%g\n", \
-                (fp)->w[FP_ENDIAN_IDX], (fp)->w[0], (fp)->w[1], (fp)->fd, (fp)->fs[FP_ENDIAN_IDX]); \
+#define printfpr(fp)                                                        \
+    do {                                                                    \
+        if (is_fpu64)                                                       \
+            fpu_fprintf(f, "w:%08x d:%016lx fd:%13g fs:%13g psu: %13g\n",   \
+                        (fp)->w[FP_ENDIAN_IDX], (fp)->d, (fp)->fd,          \
+                        (fp)->fs[FP_ENDIAN_IDX], (fp)->fs[!FP_ENDIAN_IDX]); \
+        else {                                                              \
+            fpr_t tmp;                                                      \
+            tmp.w[FP_ENDIAN_IDX] = (fp)->w[FP_ENDIAN_IDX];                  \
+            tmp.w[!FP_ENDIAN_IDX] = ((fp) + 1)->w[FP_ENDIAN_IDX];           \
+            fpu_fprintf(f, "w:%08x d:%016lx fd:%13g fs:%13g psu:%13g\n",    \
+                        tmp.w[FP_ENDIAN_IDX], tmp.d, tmp.fd,                \
+                        tmp.fs[FP_ENDIAN_IDX], tmp.fs[!FP_ENDIAN_IDX]);     \
+        }                                                                   \
     } while(0)
 
-    fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d\n",
-                env->fcr0, env->fcr31,
-                (env->CP0_Status & (1 << CP0St_FR)) != 0);
+
+    fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
+                env->fcr0, env->fcr31, is_fpu64, env->fp_status, get_float_exception_flags(&env->fp_status));
     fpu_fprintf(f, "FT0: "); printfpr(&env->ft0);
     fpu_fprintf(f, "FT1: "); printfpr(&env->ft1);
     fpu_fprintf(f, "FT2: "); printfpr(&env->ft2);
-    for(i = 0; i < 32; i += 2) {
-        fpu_fprintf(f, "%s: ", fregnames[i]);
-        printfpr(FPR(env, i));
+    for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
+        fpu_fprintf(f, "%3s: ", fregnames[i]);
+        printfpr(&env->fpr[i]);
     }
 
 #undef printfpr

@@ -575,7 +575,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
       {
         for (i = 0; i < 32; i++)
           {
-            *(uint32_t *)ptr = tswapl(FPR_W (env, i));
+            *(uint32_t *)ptr = tswapl(env->fpr[i].fs[FP_ENDIAN_IDX]);
             ptr += 4;
           }
 
@@ -637,7 +637,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
       {
         for (i = 0; i < 32; i++)
           {
-            FPR_W (env, i) = tswapl(*(uint32_t *)ptr);
+            env->fpr[i].fs[FP_ENDIAN_IDX] = tswapl(*(uint32_t *)ptr);
             ptr += 4;
           }
 

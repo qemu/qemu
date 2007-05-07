@@ -21,7 +21,7 @@ typedef union fpr_t fpr_t;
 union fpr_t {
     float64  fd;   /* ieee double precision */
     float32  fs[2];/* ieee single precision */
-    uint64_t d;    /* binary single fixed-point */
+    uint64_t d;    /* binary double fixed-point */
     uint32_t w[2]; /* binary single fixed-point */
 };
 /* define FP_ENDIAN_IDX to access the same location
@@ -66,31 +66,35 @@ struct CPUMIPSState {
     target_ulong HI, LO;
     /* Floating point registers */
     fpr_t fpr[32];
-#define FPR(cpu, n) ((fpr_t*)&(cpu)->fpr[(n) / 2])
-#define FPR_FD(cpu, n) (FPR(cpu, n)->fd)
-#define FPR_FS(cpu, n) (FPR(cpu, n)->fs[((n) & 1) ^ FP_ENDIAN_IDX])
-#define FPR_D(cpu, n)  (FPR(cpu, n)->d)
-#define FPR_W(cpu, n)  (FPR(cpu, n)->w[((n) & 1) ^ FP_ENDIAN_IDX])
-
 #ifndef USE_HOST_FLOAT_REGS
     fpr_t ft0;
     fpr_t ft1;
     fpr_t ft2;
 #endif
     float_status fp_status;
-    /* fpu implementation/revision register */
+    /* fpu implementation/revision register (fir) */
     uint32_t fcr0;
+#define FCR0_F64 22
+#define FCR0_L 21
+#define FCR0_W 20
+#define FCR0_3D 19
+#define FCR0_PS 18
+#define FCR0_D 17
+#define FCR0_S 16
+#define FCR0_PRID 8
+#define FCR0_REV 0
     /* fcsr */
     uint32_t fcr31;
-#define SET_FP_COND(reg)     do { (reg) |= (1<<23); } while(0)
-#define CLEAR_FP_COND(reg)   do { (reg) &= ~(1<<23); } while(0)
-#define IS_FP_COND_SET(reg)  (((reg) & (1<<23)) != 0)
-#define GET_FP_CAUSE(reg)    (((reg) >> 12) & 0x3f)
-#define GET_FP_ENABLE(reg)   (((reg) >>  7) & 0x1f)
-#define GET_FP_FLAGS(reg)    (((reg) >>  2) & 0x1f)
-#define SET_FP_CAUSE(reg,v)  do { (reg) = ((reg) & ~(0x3f << 12)) | ((v) << 12); } while(0)
-#define SET_FP_ENABLE(reg,v) do { (reg) = ((reg) & ~(0x1f <<  7)) | ((v) << 7); } while(0)
-#define SET_FP_FLAGS(reg,v)  do { (reg) = ((reg) & ~(0x1f <<  2)) | ((v) << 2); } while(0)
+#define SET_FP_COND(num,env)     do { (env->fcr31) |= ((num) ? (1 << ((num) + 24)) : (1 << ((num) + 23))); } while(0)
+#define CLEAR_FP_COND(num,env)   do { (env->fcr31) &= ~((num) ? (1 << ((num) + 24)) : (1 << ((num) + 23))); } while(0)
+#define IS_FP_COND_SET(num,env)  (((env->fcr31) & ((num) ? (1 << ((num) + 24)) : (1 << ((num) + 23)))) != 0)
+#define GET_FP_CAUSE(reg)        (((reg) >> 12) & 0x3f)
+#define GET_FP_ENABLE(reg)       (((reg) >>  7) & 0x1f)
+#define GET_FP_FLAGS(reg)        (((reg) >>  2) & 0x1f)
+#define SET_FP_CAUSE(reg,v)      do { (reg) = ((reg) & ~(0x3f << 12)) | ((v & 0x3f) << 12); } while(0)
+#define SET_FP_ENABLE(reg,v)     do { (reg) = ((reg) & ~(0x1f <<  7)) | ((v & 0x1f) << 7); } while(0)
+#define SET_FP_FLAGS(reg,v)      do { (reg) = ((reg) & ~(0x1f <<  2)) | ((v & 0x1f) << 2); } while(0)
+#define UPDATE_FP_FLAGS(reg,v)   do { (reg) |= ((v & 0x1f) << 2); } while(0)
 #define FP_INEXACT        1
 #define FP_UNDERFLOW      2
 #define FP_OVERFLOW       4
@@ -276,6 +280,7 @@ struct CPUMIPSState {
 
     int SYNCI_Step; /* Address step size for SYNCI */
     int CCRes; /* Cycle count resolution/divisor */
+    int Status_rw_bitmask; /* Read/write bits in CP0_Status */
 
     CPU_COMMON
 
@@ -339,10 +344,11 @@ enum {
     EXCP_RI,
     EXCP_OVERFLOW,
     EXCP_TRAP,
+    EXCP_FPE,
     EXCP_DDBS,
     EXCP_DWATCH,
-    EXCP_LAE,
-    EXCP_SAE, /* 24 */
+    EXCP_LAE, /* 24 */
+    EXCP_SAE,
     EXCP_LTLBL,
     EXCP_TLBL,
     EXCP_TLBS,
