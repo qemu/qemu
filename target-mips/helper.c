@@ -302,6 +302,8 @@ void do_interrupt (CPUState *env)
         env->hflags |= MIPS_HFLAG_DM;
         env->hflags &= ~MIPS_HFLAG_UM;
         /* EJTAG probe trap enable is not implemented... */
+        if (!(env->CP0_Status & (1 << CP0St_EXL)))
+            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->PC = (int32_t)0xBFC00480;
         break;
     case EXCP_RESET:
@@ -324,6 +326,8 @@ void do_interrupt (CPUState *env)
         }
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
         env->hflags &= ~MIPS_HFLAG_UM;
+        if (!(env->CP0_Status & (1 << CP0St_EXL)))
+            env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->PC = (int32_t)0xBFC00000;
         break;
     case EXCP_MCHECK:
