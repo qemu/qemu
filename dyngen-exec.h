@@ -125,7 +125,6 @@ extern int printf(const char *, ...);
 #define AREG2 "r5"
 #define AREG3 "r6"
 #elif defined(__mips__)
-//~ #define AREG0 "s3"
 #define AREG0 "fp"
 #define AREG1 "s0"
 #define AREG2 "s1"

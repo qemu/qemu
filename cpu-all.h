@@ -1039,7 +1039,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
     __asm__ __volatile__("rdhwr %1, $2" : "=r" (count));
     return (int64_t)(count * cyc_per_count);
-#elsif 1
+#elif 1
     register uint32_t count = clock();
     qemu_real_ticks += (count - qemu_real_last);
     qemu_real_last = count;
