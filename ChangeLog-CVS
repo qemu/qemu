@@ -1,3 +1,16 @@
+2007-05-06 19:59  blueswir1
+
+	* exec.c, target-sparc/cpu.h: Report unassigned memory access to
+	  CPU (not enabled yet)
+
+2007-05-06 19:39  blueswir1
+
+	* hw/tcx.c: Add dummy THC and TEC registers to TCX
+
+2007-05-06 19:33  blueswir1
+
+	* hw/sun4m.c: Fix slavio_misc base
+
 2007-05-05 22:13  ths
 
 	* target-mips/op_helper_mem.c: Fix a really stupid bug in the

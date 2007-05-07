@@ -1995,6 +1995,10 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
     //~ vm_stop(0);
 #endif /* TARGET_MIPS */
 #endif
+#ifdef TARGET_SPARC
+    // Not enabled yet because of bugs in gdbstub etc.
+    //raise_exception(TT_DATA_ACCESS);
+#endif
     return 0;
 }
 
@@ -2004,6 +2008,10 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
     char buffer[256];
     fprintf(stderr, "Unassigned mem write 0x%08x = 0x%x %s\n", (int)addr, val, backtrace(buffer, sizeof(buffer)));
     //~ vm_stop(0);
+#endif
+#ifdef TARGET_SPARC
+    // Not enabled yet because of bugs in gdbstub etc.
+    //raise_exception(TT_DATA_ACCESS);
 #endif
 }
 
