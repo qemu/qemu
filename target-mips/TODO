@@ -7,10 +7,9 @@ General
 - Missing per-CPU instruction decoding, currently all implemented
   instructions are regarded as valid
 - Applications running on top of a emulated Linux segfault sometimes
-  when the Qemu FPU emulation is disabled. This is apparently a qemu
-  bug triggered by the Linux in-kernel FPU emulator.
-- The Timesys Linux installer shell hangs for e.g. "read foo". Likewise,
-  telnet'ting in the installer fails and hangs the telnetd.
+  when the Qemu FPU emulation is disabled. Also gdb inside the emulated
+  system does not work. Both problems are caused by insufficient
+  handling of self-modifying code.
 
 MIPS64
 ------
