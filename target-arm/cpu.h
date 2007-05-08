@@ -83,10 +83,14 @@ typedef struct CPUARMState {
         uint32_t c0_cachetype;
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
-        uint32_t c2; /* MMU translation table base.  */
-        uint32_t c3; /* MMU domain access control register.  */
+        uint32_t c2_base; /* MMU translation table base.  */
+        uint32_t c2_data; /* MPU data cachable bits.  */
+        uint32_t c2_insn; /* MPU instruction cachable bits.  */
+        uint32_t c3; /* MMU domain access control register
+                        MPU write buffer control.  */
         uint32_t c5_insn; /* Fault status registers.  */
         uint32_t c5_data;
+        uint32_t c6_region[8]; /* MPU base/size registers.  */
         uint32_t c6_insn; /* Fault address registers.  */
         uint32_t c6_data;
         uint32_t c9_insn; /* Cache lockdown registers.  */
@@ -241,7 +245,8 @@ enum arm_features {
     ARM_FEATURE_VFP,
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
-    ARM_FEATURE_IWMMXT  /* Intel iwMMXt extension.  */
+    ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
+    ARM_FEATURE_MPU     /* Only has Memory Protection Unit, not full MMU.  */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -258,6 +263,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 
 #define ARM_CPUID_ARM1026   0x4106a262
 #define ARM_CPUID_ARM926    0x41069265
+#define ARM_CPUID_ARM946    0x41059461
 #define ARM_CPUID_PXA250    0x69052100
 #define ARM_CPUID_PXA255    0x69052d00
 #define ARM_CPUID_PXA260    0x69052903

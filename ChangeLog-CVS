@@ -1,3 +1,8 @@
+2007-05-08 04:30  pbrook
+
+	* qemu-doc.texi, hw/pxa2xx.c, target-arm/cpu.h,
+	  target-arm/helper.c: ARM946 CPU support.
+
 2007-05-07 20:05  blueswir1
 
 	* target-sparc/op_helper.c: Enable unaligned access faults
