@@ -1647,22 +1647,22 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->fcr31 & 3], &env->fp_status)
 
-inline char ieee_ex_to_mips(char ieee)
+inline char ieee_ex_to_mips(char xcpt)
 {
-    return (ieee & float_flag_inexact) >> 5 |
-           (ieee & float_flag_underflow) >> 3 |
-           (ieee & float_flag_overflow) >> 1 |
-           (ieee & float_flag_divbyzero) << 1 |
-           (ieee & float_flag_invalid) << 4;
+    return (xcpt & float_flag_inexact) >> 5 |
+           (xcpt & float_flag_underflow) >> 3 |
+           (xcpt & float_flag_overflow) >> 1 |
+           (xcpt & float_flag_divbyzero) << 1 |
+           (xcpt & float_flag_invalid) << 4;
 }
 
-inline char mips_ex_to_ieee(char mips)
+inline char mips_ex_to_ieee(char xcpt)
 {
-    return (mips & FP_INEXACT) << 5 |
-           (mips & FP_UNDERFLOW) << 3 |
-           (mips & FP_OVERFLOW) << 1 |
-           (mips & FP_DIV0) >> 1 |
-           (mips & FP_INVALID) >> 4;
+    return (xcpt & FP_INEXACT) << 5 |
+           (xcpt & FP_UNDERFLOW) << 3 |
+           (xcpt & FP_OVERFLOW) << 1 |
+           (xcpt & FP_DIV0) >> 1 |
+           (xcpt & FP_INVALID) >> 4;
 }
 
 inline void update_fcr31(void)
