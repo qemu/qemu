@@ -77,7 +77,7 @@ For system emulation, the following hardware targets are supported:
 @item Sun4m (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
 @item Malta board (32-bit MIPS processor)
-@item ARM Integrator/CP (ARM926E or 1026E processor)
+@item ARM Integrator/CP (ARM926E, 1026E or 946E processor)
 @item ARM Versatile baseboard (ARM926E)
 @item ARM RealView Emulation baseboard (ARM926EJ-S)
 @item Spitz, Akita, Borzoi and Terrier PDAs (PXA270 processor)
@@ -1722,7 +1722,7 @@ devices:
 
 @itemize @minus
 @item
-ARM926E or ARM1026E CPU
+ARM926E, ARM1026E or ARM946E CPU
 @item
 Two PL011 UARTs
 @item 
