@@ -1645,7 +1645,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
 
     pxa25x_timer_init(0x40a00000, &s->pic[PXA2XX_PIC_OST_0], s->env);
 
-    s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
+    s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 85);
 
     s->mmc = pxa2xx_mmci_init(0x41100000, s->pic[PXA2XX_PIC_MMC], s->dma);
 
