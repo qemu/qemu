@@ -1750,8 +1750,9 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 		    }
 #endif
 #if defined(__APPLE__)
-/* set __attribute((unused)) on darwin because we wan't to avoid warning when we don't use the symbol */
-                    fprintf(outfile, "extern char %s __attribute__((unused));\n", sym_name);
+                    /* Set __attribute((unused)) on darwin because we
+                       want to avoid warning when we don't use the symbol.  */
+                    fprintf(outfile, "    extern char %s __attribute__((unused));\n", sym_name);
 #elif defined(HOST_IA64)
 			if (ELF64_R_TYPE(rel->r_info) != R_IA64_PCREL21B)
 				/*
@@ -1836,7 +1837,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
         }
 
-        /* load parameres in variables */
+        /* load parameters in variables */
         for(i = 0; i < nb_args; i++) {
             fprintf(outfile, "    param%d = *opparam_ptr++;\n", i + 1);
         }
