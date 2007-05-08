@@ -168,8 +168,10 @@ static void pxa2xx_cm_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case OSCC:
-        s->cm_regs[addr >> 2] &= ~0x6e;
+        s->cm_regs[addr >> 2] &= ~0x6c;
         s->cm_regs[addr >> 2] |= value & 0x6e;
+        if ((value >> 1) & 1)			/* OON */
+            s->cm_regs[addr >> 2] |= 1 << 0;	/* Oscillator is now stable */
         break;
 
     default:
@@ -1515,7 +1517,8 @@ void pxa2xx_reset(int line, int level, void *opaque)
 }
 
 /* Initialise a PXA270 integrated chip (ARM based core).  */
-struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
+struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
+                DisplayState *ds, const char *revision)
 {
     struct pxa2xx_state_s *s;
     struct pxa2xx_ssp_s *ssp;
@@ -1529,6 +1532,12 @@ struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
 
     s->env = cpu_init();
     cpu_arm_set_model(s->env, revision ?: "pxa270");
+
+    /* SDRAM & Internal Memory Storage */
+    cpu_register_physical_memory(PXA2XX_SDRAM_BASE,
+                    sdram_size, qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
+    cpu_register_physical_memory(PXA2XX_INTERNAL_BASE,
+                    0x40000, qemu_ram_alloc(0x40000) | IO_MEM_RAM);
 
     s->pic = pxa2xx_pic_init(0x40d00000, s->env);
 
@@ -1613,7 +1622,8 @@ struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision)
 }
 
 /* Initialise a PXA255 integrated chip (ARM based core).  */
-struct pxa2xx_state_s *pxa255_init(DisplayState *ds)
+struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
+                DisplayState *ds)
 {
     struct pxa2xx_state_s *s;
     struct pxa2xx_ssp_s *ssp;
@@ -1622,6 +1632,12 @@ struct pxa2xx_state_s *pxa255_init(DisplayState *ds)
 
     s->env = cpu_init();
     cpu_arm_set_model(s->env, "pxa255");
+
+    /* SDRAM & Internal Memory Storage */
+    cpu_register_physical_memory(PXA2XX_SDRAM_BASE,
+                    sdram_size, qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
+    cpu_register_physical_memory(PXA2XX_INTERNAL_BASE,
+                    0x40000, qemu_ram_alloc(0x40000) | IO_MEM_RAM);
 
     s->pic = pxa2xx_pic_init(0x40d00000, s->env);
 

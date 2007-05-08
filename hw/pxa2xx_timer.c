@@ -364,7 +364,7 @@ static void pxa2xx_timer_tick4(void *opaque)
     struct pxa2xx_timer4_s *t = (struct pxa2xx_timer4_s *) opaque;
     pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->info;
 
-    pxa2xx_timer_tick4(opaque);
+    pxa2xx_timer_tick(opaque);
     if (t->control & (1 << 3))
         t->clock = 0;
     if (t->control & (1 << 6))

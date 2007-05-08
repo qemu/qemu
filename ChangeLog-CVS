@@ -1,3 +1,16 @@
+2007-05-08 21:20  balrog
+
+	* hw/: pxa2xx.c, pxa2xx_timer.c: Set OOK when OON is set in OSCC
+	  register (thanks to BobOfDoom).  Correct a fatal typo in timer
+	  code.
+
+2007-05-08 21:03  balrog
+
+	* hw/: pxa.h, pxa2xx.c, pxa2xx_lcd.c, spitz.c: Switch to
+	  qemu_ram_alloc() for memory allocation in PXA255/270.  Pass
+	  correct RAM size to arm_load_kernel (currently unused) - thanks
+	  to BobOfDoom.  Register the Xscale Internal Memory Storage.
+
 2007-05-08 04:30  pbrook
 
 	* qemu-doc.texi, hw/pxa2xx.c, target-arm/cpu.h,
