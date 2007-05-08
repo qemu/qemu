@@ -1001,19 +1001,19 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
 
     if (!cpu_model)
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
-    cpu = pxa270_init(ds, cpu_model);
 
-    /* Setup memory */
+    /* Setup CPU & memory */
     if (ram_size < spitz_ram + spitz_rom) {
         fprintf(stderr, "This platform requires %i bytes of memory\n",
                         spitz_ram + spitz_rom);
         exit(1);
     }
-    cpu_register_physical_memory(PXA2XX_RAM_BASE, spitz_ram, IO_MEM_RAM);
+    cpu = pxa270_init(spitz_ram, ds, cpu_model);
 
     sl_flash_register(cpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
-    cpu_register_physical_memory(0, spitz_rom, spitz_ram | IO_MEM_ROM);
+    cpu_register_physical_memory(0, spitz_rom,
+                    qemu_ram_alloc(spitz_rom) | IO_MEM_ROM);
 
     /* Setup peripherals */
     spitz_keyboard_register(cpu);
@@ -1034,11 +1034,11 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
         spitz_microdrive_attach(cpu);
 
     /* Setup initial (reset) machine state */
-    cpu->env->regs[15] = PXA2XX_RAM_BASE;
+    cpu->env->regs[15] = PXA2XX_SDRAM_BASE;
 
-    arm_load_kernel(cpu->env, ram_size, kernel_filename, kernel_cmdline,
-                    initrd_filename, arm_id, PXA2XX_RAM_BASE);
-    sl_bootparam_write(SL_PXA_PARAM_BASE - PXA2XX_RAM_BASE);
+    arm_load_kernel(cpu->env, spitz_ram, kernel_filename, kernel_cmdline,
+                    initrd_filename, arm_id, PXA2XX_SDRAM_BASE);
+    sl_bootparam_write(SL_PXA_PARAM_BASE - PXA2XX_SDRAM_BASE);
 }
 
 static void spitz_init(int ram_size, int vga_ram_size, int boot_device,

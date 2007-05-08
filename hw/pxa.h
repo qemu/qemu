@@ -57,7 +57,8 @@
 # define PXA2XX_RX_RQ_SSP3	66
 # define PXA2XX_TX_RQ_SSP3	67
 
-# define PXA2XX_RAM_BASE	0xa0000000
+# define PXA2XX_SDRAM_BASE	0xa0000000
+# define PXA2XX_INTERNAL_BASE	0x5c000000
 
 /* pxa2xx_pic.c */
 struct pxa2xx_pic_state_s;
@@ -200,8 +201,9 @@ struct pxa2xx_i2s_s {
 # define PA_FMT			"0x%08lx"
 # define REG_FMT		"0x%lx"
 
-struct pxa2xx_state_s *pxa270_init(DisplayState *ds, const char *revision);
-struct pxa2xx_state_s *pxa255_init(DisplayState *ds);
+struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, DisplayState *ds,
+                const char *revision);
+struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size, DisplayState *ds);
 
 void pxa2xx_reset(int line, int level, void *opaque);
 

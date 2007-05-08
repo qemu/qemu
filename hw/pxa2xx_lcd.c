@@ -300,11 +300,11 @@ static void pxa2xx_descriptor_load(struct pxa2xx_lcdc_s *s)
         } else
             descptr = s->dma_ch[i].descriptor;
 
-        if (!(descptr >= PXA2XX_RAM_BASE && descptr +
-                    sizeof(*desc[i]) <= PXA2XX_RAM_BASE + phys_ram_size))
+        if (!(descptr >= PXA2XX_SDRAM_BASE && descptr +
+                    sizeof(*desc[i]) <= PXA2XX_SDRAM_BASE + phys_ram_size))
             continue;
 
-        descptr -= PXA2XX_RAM_BASE;
+        descptr -= PXA2XX_SDRAM_BASE;
         desc[i] = (struct pxa_frame_descriptor_s *) (phys_ram_base + descptr);
         s->dma_ch[i].descriptor = desc[i]->fdaddr;
         s->dma_ch[i].source = desc[i]->fsaddr;
@@ -855,12 +855,12 @@ static void pxa2xx_update_display(void *opaque)
                 continue;
             }
             fbptr = s->dma_ch[ch].source;
-            if (!(fbptr >= PXA2XX_RAM_BASE &&
-                    fbptr <= PXA2XX_RAM_BASE + phys_ram_size)) {
+            if (!(fbptr >= PXA2XX_SDRAM_BASE &&
+                    fbptr <= PXA2XX_SDRAM_BASE + phys_ram_size)) {
                 pxa2xx_dma_ber_set(s, ch);
                 continue;
             }
-            fbptr -= PXA2XX_RAM_BASE;
+            fbptr -= PXA2XX_SDRAM_BASE;
             fb = phys_ram_base + fbptr;
 
             if (s->dma_ch[ch].command & LDCMD_PAL) {
