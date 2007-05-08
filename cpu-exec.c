@@ -1545,9 +1545,10 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #elif defined(__mips__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, void *pinfo, 
                        void *puc)
 {
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     greg_t pc = uc->uc_mcontext.pc;
     int is_write;
