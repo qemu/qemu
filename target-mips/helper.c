@@ -374,6 +374,7 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_BREAK:
         cause = 9;
+        tlb_flush_page(env, env->PC);
         goto set_EPC;
     case EXCP_RI:
         cause = 10;
