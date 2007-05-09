@@ -77,8 +77,13 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
                                 int *prot, target_ulong address,
                                 int rw, int access_type)
 {
-    /* User mode can only access useg */
+    /* User mode can only access useg/xuseg */
     int user_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM;
+#ifdef TARGET_MIPS64
+    int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
+    int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
+    int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
+#endif
     int ret = TLBRET_MATCH;
 
 #if 0
@@ -87,10 +92,18 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
                 user_mode, env->hflags);
     }
 #endif
+
+#ifdef TARGET_MIPS64
+    if (user_mode && address > 0x3FFFFFFFFFFFFFFFULL)
+        return TLBRET_BADADDR;
+#else
     if (user_mode && address > 0x7FFFFFFFUL)
         return TLBRET_BADADDR;
-    if (address < (int32_t)0x80000000UL) {
-        if (!(env->CP0_Status & (1 << CP0St_ERL))) {
+#endif
+
+    if (address <= (int32_t)0x7FFFFFFFUL) {
+        /* useg */
+        if (!(env->CP0_Status & (1 << CP0St_ERL) && user_mode)) {
 #ifdef MIPS_USES_R4K_TLB
             ret = map_address(env, physical, prot, address, rw, access_type);
 #else
@@ -101,6 +114,45 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             *physical = address;
             *prot = PAGE_READ | PAGE_WRITE;
         }
+#ifdef TARGET_MIPS64
+/*
+   XXX: Assuming :
+   - PABITS = 36 (correct for MIPS64R1)
+   - SEGBITS = 40
+*/
+    } else if (address < 0x3FFFFFFFFFFFFFFFULL) {
+        /* xuseg */
+	if (UX && address < 0x000000FFFFFFFFFFULL) {
+            ret = map_address(env, physical, prot, address, rw, access_type);
+	} else {
+	    ret = TLBRET_BADADDR;
+        }
+    } else if (address < 0x7FFFFFFFFFFFFFFFULL) {
+        /* xsseg */
+	if (SX && address < 0x400000FFFFFFFFFFULL) {
+            ret = map_address(env, physical, prot, address, rw, access_type);
+	} else {
+	    ret = TLBRET_BADADDR;
+        }
+    } else if (address < 0xBFFFFFFFFFFFFFFFULL) {
+        /* xkphys */
+        /* XXX: check supervisor mode */
+        if (KX && (address & 0x03FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL)
+	{
+            *physical = address & 0X000000FFFFFFFFFFULL;
+            *prot = PAGE_READ | PAGE_WRITE;
+	} else {
+	    ret = TLBRET_BADADDR;
+	}
+    } else if (address < 0xFFFFFFFF7FFFFFFFULL) {
+        /* xkseg */
+        /* XXX: check supervisor mode */
+	if (KX && address < 0xC00000FF7FFFFFFFULL) {
+            ret = map_address(env, physical, prot, address, rw, access_type);
+	} else {
+	    ret = TLBRET_BADADDR;
+	}
+#endif
     } else if (address < (int32_t)0xA0000000UL) {
         /* kseg0 */
         /* XXX: check supervisor mode */
@@ -116,7 +168,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #ifdef MIPS_USES_R4K_TLB
         ret = map_address(env, physical, prot, address, rw, access_type);
 #else
-        *physical = address;
+        *physical = address & 0xFFFFFFFF;
         *prot = PAGE_READ | PAGE_WRITE;
 #endif
     } else {
@@ -126,7 +178,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #ifdef MIPS_USES_R4K_TLB
         ret = map_address(env, physical, prot, address, rw, access_type);
 #else
-        *physical = address;
+        *physical = address & 0xFFFFFFFF;
         *prot = PAGE_READ | PAGE_WRITE;
 #endif
     }
