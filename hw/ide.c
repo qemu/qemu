@@ -3071,7 +3071,7 @@ static void md_reset(struct md_s *s)
     ide_reset(s->ide);
 }
 
-static uint8_t md_attr_read(void *opaque, uint16_t at)
+static uint8_t md_attr_read(void *opaque, uint32_t at)
 {
     struct md_s *s = (struct md_s *) opaque;
     if (at < s->attr_base) {
@@ -3104,7 +3104,7 @@ static uint8_t md_attr_read(void *opaque, uint16_t at)
     return 0;
 }
 
-static void md_attr_write(void *opaque, uint16_t at, uint8_t value)
+static void md_attr_write(void *opaque, uint32_t at, uint8_t value)
 {
     struct md_s *s = (struct md_s *) opaque;
     at -= s->attr_base;
@@ -3135,7 +3135,7 @@ static void md_attr_write(void *opaque, uint16_t at, uint8_t value)
     }
 }
 
-static uint16_t md_common_read(void *opaque, uint16_t at)
+static uint16_t md_common_read(void *opaque, uint32_t at)
 {
     struct md_s *s = (struct md_s *) opaque;
     uint16_t ret;
@@ -3194,7 +3194,7 @@ static uint16_t md_common_read(void *opaque, uint16_t at)
     return 0;
 }
 
-static void md_common_write(void *opaque, uint16_t at, uint16_t value)
+static void md_common_write(void *opaque, uint32_t at, uint16_t value)
 {
     struct md_s *s = (struct md_s *) opaque;
     at -= s->io_base;
