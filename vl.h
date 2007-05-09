@@ -1584,12 +1584,12 @@ struct pcmcia_card_s {
     int cis_len;
 
     /* Only valid if attached */
-    uint8_t (*attr_read)(void *state, uint16_t address);
-    void (*attr_write)(void *state, uint16_t address, uint8_t value);
-    uint16_t (*common_read)(void *state, uint16_t address);
-    void (*common_write)(void *state, uint16_t address, uint16_t value);
-    uint16_t (*io_read)(void *state, uint16_t address);
-    void (*io_write)(void *state, uint16_t address, uint16_t value);
+    uint8_t (*attr_read)(void *state, uint32_t address);
+    void (*attr_write)(void *state, uint32_t address, uint8_t value);
+    uint16_t (*common_read)(void *state, uint32_t address);
+    void (*common_write)(void *state, uint32_t address, uint16_t value);
+    uint16_t (*io_read)(void *state, uint32_t address);
+    void (*io_write)(void *state, uint32_t address, uint16_t value);
 };
 
 #define CISTPL_DEVICE		0x01	/* 5V Device Information Tuple */

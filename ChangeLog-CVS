@@ -1,3 +1,8 @@
+2007-05-09 22:25  balrog
+
+	* vl.h, hw/ide.c: PCMCIA addresses are 26-bit, widen the address
+	  type from 16 to 32 bits.
+
 2007-05-09 16:06  ths
 
 	* configure: Avoid use of which to detect gcc, as it is broken on
