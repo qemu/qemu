@@ -719,7 +719,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     } else {
         gen_op_load_gpr_T0(base);
         gen_op_set_T1(offset);
-        gen_op_add();
+        gen_op_addr_add();
     }
     /* Don't do NOP if destination is zero: we must perform the actual
      * memory access
@@ -868,7 +868,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     } else {
         gen_op_load_gpr_T0(base);
         gen_op_set_T1(offset);
-        gen_op_add();
+        gen_op_addr_add();
     }
     /* Don't do NOP if destination is zero: we must perform the actual
      * memory access

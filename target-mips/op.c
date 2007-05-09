@@ -289,6 +289,22 @@ void op_store_LO (void)
 #undef MEMSUFFIX
 #endif
 
+/* Addresses computation */
+void op_addr_add (void)
+{
+/* For compatibility with 32-bit code, data reference in user mode
+   with Status_UX = 0 should be casted to 32-bit and sign extended.
+   See the MIPS64 PRA manual, section 4.10. */
+#ifdef TARGET_MIPS64
+    if ((env->CP0_Status & (1 << CP0St_UM)) &&
+        !(env->CP0_Status & (1 << CP0St_UX)))
+        T0 = (int64_t)(int32_t)(T0 + T1);
+    else
+#endif
+        T0 += T1;
+    RETURN();
+}
+
 /* Arithmetic */
 void op_add (void)
 {
