@@ -394,18 +394,13 @@ if test "$check_gcc" = "yes" ; then
 #endif
 int main(){return 0;}
 EOF
-    check_cc() {
-	which "$1" 2> /dev/null
-	return $?
-    }
-
     if "$cc" -o $TMPE $TMPC 2> /dev/null ; then
 	echo "WARNING: \"$cc\" looks like gcc 4.x"
 	found_compat_cc="no"
 	if test "$gcc3_search" = "yes" ; then
 	    echo "Looking for gcc 3.x"
 	    for compat_cc in $gcc3_list ; do
-		if check_cc "$cross_prefix$compat_cc" ; then
+		if "$cross_prefix$compat_cc" --version > /dev/null 2>&1 ; then
 		    echo "Found \"$compat_cc\""
 		    cc="$cross_prefix$compat_cc"
 		    found_compat_cc="yes"
