@@ -136,7 +136,7 @@ ifdef CONFIG_LINUX_USER
 # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
 # that the kernel ELF loader considers as an executable. I think this
 # is the simplest way to make it self virtualizable!
-BASE_LDFLAGS+=-Wl,-shared
+BASE_LDFLAGS += -shared
 endif
 endif
 endif
@@ -562,7 +562,7 @@ $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
 
 ifdef CONFIG_RUBY
 $(QEMU_RUBY): $(VL_OBJS) libqemu.a
-	$(CC) -Wl,-shared $(VL_LDFLAGS) -o $(QEMU_RUBY) $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
+	$(CC) -shared $(VL_LDFLAGS) -o $(QEMU_RUBY) $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
 endif
 
 cocoa.o: cocoa.m
