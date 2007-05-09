@@ -66,12 +66,7 @@ struct pxa2xx_timer0_s {
 };
 
 struct pxa2xx_timer4_s {
-    uint32_t value;
-    int level;
-    qemu_irq irq;
-    QEMUTimer *qtimer;
-    int num;
-    void *info;
+    struct pxa2xx_timer0_s tm;
     int32_t oldclock;
     int32_t clock;
     uint64_t lastload;
@@ -134,7 +129,7 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
                     s->tm4[counter].lastload,
                     s->tm4[counter].freq, ticks_per_sec);
 
-    new_qemu = now_qemu + muldiv64((uint32_t) (s->tm4[n].value - now_vm),
+    new_qemu = now_qemu + muldiv64((uint32_t) (s->tm4[n].tm.value - now_vm),
                     ticks_per_sec, s->tm4[counter].freq);
     qemu_mod_timer(s->timer[n].qtimer, new_qemu);
 }
@@ -162,7 +157,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
     case OSMR4:
         if (!s->tm4)
             goto badreg;
-        return s->tm4[tm].value;
+        return s->tm4[tm].tm.value;
     case OSCR:
         return s->clock + muldiv64(qemu_get_clock(vm_clock) -
                         s->lastload, s->freq, ticks_per_sec);
@@ -245,7 +240,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
     case OSMR4:
         if (!s->tm4)
             goto badreg;
-        s->tm4[tm].value = value;
+        s->tm4[tm].tm.value = value;
         pxa2xx_timer_update4(s, qemu_get_clock(vm_clock), tm);
         break;
     case OSCR:
@@ -282,10 +277,10 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
         }
         if (s->tm4) {
             for (i = 0; i < 8; i ++, value >>= 1)
-                if (s->tm4[i].level && (value & 1))
-                    s->tm4[i].level = 0;
+                if (s->tm4[i].tm.level && (value & 1))
+                    s->tm4[i].tm.level = 0;
             if (!(s->events & 0xff0))
-                qemu_irq_lower(s->tm4->irq);
+                qemu_irq_lower(s->tm4->tm.irq);
         }
         break;
     case OWER:	/* XXX: Reset on OSMR3 match? */
@@ -362,13 +357,13 @@ static void pxa2xx_timer_tick(void *opaque)
 static void pxa2xx_timer_tick4(void *opaque)
 {
     struct pxa2xx_timer4_s *t = (struct pxa2xx_timer4_s *) opaque;
-    pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->info;
+    pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->tm.info;
 
-    pxa2xx_timer_tick(opaque);
+    pxa2xx_timer_tick(&t->tm);
     if (t->control & (1 << 3))
         t->clock = 0;
     if (t->control & (1 << 6))
-        pxa2xx_timer_update4(i, qemu_get_clock(vm_clock), t->num - 4);
+        pxa2xx_timer_update4(i, qemu_get_clock(vm_clock), t->tm.num - 4);
 }
 
 static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
@@ -420,14 +415,14 @@ void pxa27x_timer_init(target_phys_addr_t base,
     s->tm4 = (struct pxa2xx_timer4_s *) qemu_mallocz(8 *
                     sizeof(struct pxa2xx_timer4_s));
     for (i = 0; i < 8; i ++) {
-        s->tm4[i].value = 0;
-        s->tm4[i].irq = irq4;
-        s->tm4[i].info = s;
-        s->tm4[i].num = i + 4;
-        s->tm4[i].level = 0;
+        s->tm4[i].tm.value = 0;
+        s->tm4[i].tm.irq = irq4;
+        s->tm4[i].tm.info = s;
+        s->tm4[i].tm.num = i + 4;
+        s->tm4[i].tm.level = 0;
         s->tm4[i].freq = 0;
         s->tm4[i].control = 0x0;
-        s->tm4[i].qtimer = qemu_new_timer(vm_clock,
+        s->tm4[i].tm.qtimer = qemu_new_timer(vm_clock,
                         pxa2xx_timer_tick4, &s->tm4[i]);
     }
 }

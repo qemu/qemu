@@ -279,7 +279,7 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
 #elif defined(__mc68000)
 #define EXIT_TB() asm volatile ("rts")
-#elif defined(HOST_MIPS)
+#elif defined(__mips__)
 #if 1
 #define EXIT_TB() asm volatile ("jr $31; nop")
 #define GOTO_LABEL_PARAM(n) asm volatile (\

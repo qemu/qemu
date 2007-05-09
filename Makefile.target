@@ -203,7 +203,7 @@ BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-OP_CFLAGS+=-G 0 -fomit-frame-pointer -fno-delayed-branch
+OP_CFLAGS+=-mabi=32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
@@ -212,7 +212,7 @@ endif
 endif
 
 ifeq ($(ARCH),mips64)
-OP_CFLAGS+=-G 0 -fomit-frame-pointer -fno-delayed-branch
+OP_CFLAGS+=-mabi=n32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else

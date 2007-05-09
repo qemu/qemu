@@ -124,6 +124,14 @@
 #define elf_check_arch(x) ((x) == EM_MIPS)
 #define ELF_USES_RELOC
 
+#elif defined(HOST_MIPS64)
+
+/* Assume n32 ABI here, which is ELF32. */
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_MIPS
+#define elf_check_arch(x) ((x) == EM_MIPS)
+#define ELF_USES_RELOCA
+
 #else
 #error unsupported CPU - please update the code
 #endif
@@ -1649,7 +1657,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             error("rts expected at the end of %s", name);
         copy_size = p - p_start;
     }
-#elif defined(HOST_MIPS)
+#elif defined(HOST_MIPS) || defined(HOST_MIPS64)
     {
         uint8_t *p;
         p = (void *)(p_end - 8);
@@ -1765,9 +1773,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				sym_name+1, sym_name);
 			continue;
 		    }
-#elif defined(__APPLE__)
-/* set __attribute((unused)) on darwin because we want to avoid warning when we don't use the symbol */
-                    fprintf(outfile, "extern char %s __attribute__((unused));\n", sym_name);
+#endif
+#if defined(__APPLE__)
+                    /* Set __attribute((unused)) on darwin because we
+                       want to avoid warning when we don't use the symbol.  */
+                    fprintf(outfile, "    extern char %s __attribute__((unused));\n", sym_name);
 #elif defined(HOST_IA64)
 			if (ELF64_R_TYPE(rel->r_info) != R_IA64_PCREL21B)
 				/*
@@ -2538,7 +2548,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 }
                 }
             }
-#elif defined(HOST_MIPS)
+#elif defined(HOST_MIPS) || defined(HOST_MIPS64)
             {
 #ifdef CONFIG_FORMAT_ELF
 #warning "relocation code for mips still untested"
@@ -2624,6 +2634,16 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         addend = get32((uint32_t *)(text + rel->r_offset));
                         reloc_offset = rel->r_offset - start_offset;
 			switch (type) {
+			case R_MIPS_26:
+                            fprintf(outfile, "    /* R_MIPS_26 RELOC, offset 0x%x, name %s */\n",
+				    rel->r_offset, sym_name);
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
+				    "(0x%x & ~0x3fffff) "
+				    "| ((0x%x + ((%s - (*(uint32_t *)(gen_code_ptr + 0x%x))) >> 2)) "
+				    "   & 0x3fffff);\n",
+                                    reloc_offset, addend, addend, name, reloc_offset);
+			    break;
 			case R_MIPS_HI16:
                             fprintf(outfile, "    /* R_MIPS_HI16 RELOC, offset 0x%x, name %s */\n",
 				    rel->r_offset, sym_name);

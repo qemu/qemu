@@ -453,6 +453,7 @@ static inline int testandset (int *p)
     return ret;
 }
 #elif defined(__ia64)
+
 #include <ia64intrin.h>
 
 static inline int testandset (int *p)
@@ -477,7 +478,7 @@ static inline int testandset (int *p)
     return ret;
 }
 #else
-#error unimplemented CPU
+#error unimplemented CPU support
 #endif
 
 typedef int spinlock_t;

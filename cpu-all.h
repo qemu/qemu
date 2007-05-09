@@ -1053,9 +1053,8 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #else
 /* The host CPU doesn't have an easily accessible cycle counter.
-   Just return a monotonically increasing value.  This will be totally wrong,
-   but hopefully better than nothing.  */
-#warning host without cycle counter
+   Just return a monotonically increasing value.  This will be
+   totally wrong, but hopefully better than nothing.  */
 static inline int64_t cpu_get_real_ticks (void)
 {
     static int64_t ticks = 0;

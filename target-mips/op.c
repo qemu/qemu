@@ -289,6 +289,22 @@ void op_store_LO (void)
 #undef MEMSUFFIX
 #endif
 
+/* Addresses computation */
+void op_addr_add (void)
+{
+/* For compatibility with 32-bit code, data reference in user mode
+   with Status_UX = 0 should be casted to 32-bit and sign extended.
+   See the MIPS64 PRA manual, section 4.10. */
+#ifdef TARGET_MIPS64
+    if ((env->CP0_Status & (1 << CP0St_UM)) &&
+        !(env->CP0_Status & (1 << CP0St_UX)))
+        T0 = (int64_t)(int32_t)(T0 + T1);
+    else
+#endif
+        T0 += T1;
+    RETURN();
+}
+
 /* Arithmetic */
 void op_add (void)
 {
@@ -1647,22 +1663,22 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->fcr31 & 3], &env->fp_status)
 
-inline char ieee_ex_to_mips(char ieee)
+inline char ieee_ex_to_mips(char xcpt)
 {
-    return (ieee & float_flag_inexact) >> 5 |
-           (ieee & float_flag_underflow) >> 3 |
-           (ieee & float_flag_overflow) >> 1 |
-           (ieee & float_flag_divbyzero) << 1 |
-           (ieee & float_flag_invalid) << 4;
+    return (xcpt & float_flag_inexact) >> 5 |
+           (xcpt & float_flag_underflow) >> 3 |
+           (xcpt & float_flag_overflow) >> 1 |
+           (xcpt & float_flag_divbyzero) << 1 |
+           (xcpt & float_flag_invalid) << 4;
 }
 
-inline char mips_ex_to_ieee(char mips)
+inline char mips_ex_to_ieee(char xcpt)
 {
-    return (mips & FP_INEXACT) << 5 |
-           (mips & FP_UNDERFLOW) << 3 |
-           (mips & FP_OVERFLOW) << 1 |
-           (mips & FP_DIV0) >> 1 |
-           (mips & FP_INVALID) >> 4;
+    return (xcpt & FP_INEXACT) << 5 |
+           (xcpt & FP_UNDERFLOW) << 3 |
+           (xcpt & FP_OVERFLOW) << 1 |
+           (xcpt & FP_DIV0) >> 1 |
+           (xcpt & FP_INVALID) >> 4;
 }
 
 inline void update_fcr31(void)

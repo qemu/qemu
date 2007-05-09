@@ -1,3 +1,54 @@
+2007-05-09 16:06  ths
+
+	* configure: Avoid use of which to detect gcc, as it is broken on
+	  darwin. Patch by Joachim Henke.
+
+2007-05-09 15:55  ths
+
+	* configure: Suppress warning messages from "which".
+
+2007-05-09 11:34  ths
+
+	* target-mips/helper.c: Preliminary MIPS 64-bit MMU implementation,
+	  by Aurelien Jarno.
+
+2007-05-09 11:33  ths
+
+	* target-mips/: op.c, translate.c: Fix MIPS64 address computation
+	  specialcase, by Aurelien Jarno.
+
+2007-05-09 01:40  ths
+
+	* exec-all.h: Another #elif'ication.
+
+2007-05-09 01:30  ths
+
+	* dyngen-exec.h, dyngen.h: Make detection of unsupported hosts
+	  easier, inspired by a patch from Stefan Weil.
+
+2007-05-09 00:51  ths
+
+	* cpu-all.h, dyngen.c: Spelling fixes, by Stefan Weil.
+
+2007-05-09 00:51  balrog
+
+	* hw/: pxa2xx.c, pxa2xx_timer.c: Correct the number of PXA255 GPIO
+	  lines.  Reuse the PXA timers struct for PXA27x additional timers.
+
+2007-05-08 23:05  ths
+
+	* Makefile.target, cpu-exec.c, dyngen.c: Another bunch of mips host
+	  support.
+
+2007-05-08 22:57  ths
+
+	* configure: Silence sdl-config stderr output, by Jeff Chua.
+
+2007-05-08 22:51  ths
+
+	* target-mips/op.c: Work around gcc's mips define, spotted by
+	  Stefan Weil.
+
 2007-05-08 21:20  balrog
 
 	* hw/: pxa2xx.c, pxa2xx_timer.c: Set OOK when OON is set in OSCC

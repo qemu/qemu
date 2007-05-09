@@ -394,18 +394,13 @@ if test "$check_gcc" = "yes" ; then
 #endif
 int main(){return 0;}
 EOF
-    check_cc() {
-	which "$1" 2> /dev/null
-	return $?
-    }
-
     if "$cc" -o $TMPE $TMPC 2> /dev/null ; then
 	echo "WARNING: \"$cc\" looks like gcc 4.x"
 	found_compat_cc="no"
 	if test "$gcc3_search" = "yes" ; then
 	    echo "Looking for gcc 3.x"
 	    for compat_cc in $gcc3_list ; do
-		if check_cc "$cross_prefix$compat_cc" ; then
+		if "$cross_prefix$compat_cc" --version > /dev/null 2>&1 ; then
 		    echo "Found \"$compat_cc\""
 		    cc="$cross_prefix$compat_cc"
 		    found_compat_cc="yes"
@@ -562,8 +557,8 @@ fi
 # static link with sdl ?
 if test "$sdl" = "yes" ; then
 aa="no"
-`$sdl_config --static-libs | grep \\\-laa > /dev/null` && aa="yes"
-sdl_static_libs=`$sdl_config --static-libs`
+`$sdl_config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
+sdl_static_libs=`$sdl_config --static-libs 2>/dev/null`
 if [ "$aa" = "yes" ] ; then
   sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
 fi
@@ -606,7 +601,8 @@ EOF
 fi
 
 # Check if tools are available to build documentation.
-if [ -x "`which texi2html`" ] && [ -x "`which pod2man`" ]; then
+if [ -x "`which texi2html 2>/dev/null`" ] && \
+   [ -x "`which pod2man 2>/dev/null`" ]; then
   build_docs="yes"
 fi
 
