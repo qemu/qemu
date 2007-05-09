@@ -606,7 +606,8 @@ EOF
 fi
 
 # Check if tools are available to build documentation.
-if [ -x "`which texi2html`" ] && [ -x "`which pod2man`" ]; then
+if [ -x "`which texi2html 2>/dev/null`" ] && \
+   [ -x "`which pod2man 2>/dev/null`" ]; then
   build_docs="yes"
 fi
 
