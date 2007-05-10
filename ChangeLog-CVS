@@ -1,3 +1,12 @@
+2007-05-10 02:51  ths
+
+	* target-mips/translate.c: Fix for the scd instruction, by Aurelien
+	  Jarno.
+
+2007-05-10 02:33  ths
+
+	* exec-all.h: Fix wrong branch condition in MIPS testandset.
+
 2007-05-09 22:25  balrog
 
 	* vl.h, hw/ide.c: PCMCIA addresses are 26-bit, widen the address

@@ -759,6 +759,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         save_cpu_state(ctx, 1);
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(scd);
+        GEN_STORE_TN_REG(rt, T0);
         opn = "scd";
         break;
     case OPC_LDL:
