@@ -98,6 +98,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
+        .Status_rw_bitmask = 0x3278FF17,
     },
     {
         .name = "4KEc",
