@@ -476,7 +476,7 @@ static inline int testandset (int *p)
 	"1:	li	$1, 1		\n"
 	"	ll	%0, %1		\n"
 	"	sc	$1, %1		\n"
-	"	bnez	$1, 1b		\n"
+	"	beqz	$1, 1b		\n"
 	"	.set pop		"
 	: "=r" (ret), "+R" (*p)
 	:
