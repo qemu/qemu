@@ -1965,6 +1965,9 @@ FLOAT_OP(roundl, d)
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     DT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1973,6 +1976,9 @@ FLOAT_OP(roundl, s)
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     DT2 = float32_round_to_int(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1981,6 +1987,9 @@ FLOAT_OP(roundw, d)
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     WT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1989,6 +1998,9 @@ FLOAT_OP(roundw, s)
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     WT2 = float32_round_to_int(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1996,24 +2008,36 @@ FLOAT_OP(roundw, s)
 FLOAT_OP(truncl, d)
 {
     DT2 = float64_to_int64_round_to_zero(FDT0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(truncl, s)
 {
     DT2 = float32_to_int64_round_to_zero(FST0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(truncw, d)
 {
     WT2 = float64_to_int32_round_to_zero(FDT0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(truncw, s)
 {
     WT2 = float32_to_int32_round_to_zero(FST0, &env->fp_status);
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2023,6 +2047,9 @@ FLOAT_OP(ceill, d)
     set_float_rounding_mode(float_round_up, &env->fp_status);
     DT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2031,6 +2058,9 @@ FLOAT_OP(ceill, s)
     set_float_rounding_mode(float_round_up, &env->fp_status);
     DT2 = float32_round_to_int(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2039,6 +2069,9 @@ FLOAT_OP(ceilw, d)
     set_float_rounding_mode(float_round_up, &env->fp_status);
     WT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2047,6 +2080,9 @@ FLOAT_OP(ceilw, s)
     set_float_rounding_mode(float_round_up, &env->fp_status);
     WT2 = float32_round_to_int(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2056,6 +2092,9 @@ FLOAT_OP(floorl, d)
     set_float_rounding_mode(float_round_down, &env->fp_status);
     DT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2064,6 +2103,9 @@ FLOAT_OP(floorl, s)
     set_float_rounding_mode(float_round_down, &env->fp_status);
     DT2 = float32_round_to_int(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        DT2 = 0x7fffffffffffffffULL;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2072,6 +2114,9 @@ FLOAT_OP(floorw, d)
     set_float_rounding_mode(float_round_down, &env->fp_status);
     WT2 = float64_round_to_int(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2080,6 +2125,9 @@ FLOAT_OP(floorw, s)
     set_float_rounding_mode(float_round_down, &env->fp_status);
     WT2 = float32_round_to_int(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
+    update_fcr31();
+    if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
+        WT2 = 0x7fffffff;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2396,6 +2444,20 @@ void op_cmp_d_ ## op (void)                    \
         CLEAR_FP_COND(PARAM1, env);            \
     DEBUG_FPU_STATE();                         \
     RETURN();                                  \
+}                                              \
+void op_cmpabs_d_ ## op (void)                 \
+{                                              \
+    int c;                                     \
+    FDT0 &= ~(1ULL << 63);                     \
+    FDT1 &= ~(1ULL << 63);                     \
+    c = cond;                                  \
+    update_fcr31();                            \
+    if (c)                                     \
+        SET_FP_COND(PARAM1, env);              \
+    else                                       \
+        CLEAR_FP_COND(PARAM1, env);            \
+    DEBUG_FPU_STATE();                         \
+    RETURN();                                  \
 }
 
 int float64_is_unordered(int sig, float64 a, float64 b STATUS_PARAM)
@@ -2437,6 +2499,20 @@ FOP_COND_D(ngt, float64_is_unordered(1, FDT1, FDT0, &env->fp_status)  || float64
 void op_cmp_s_ ## op (void)                    \
 {                                              \
     int c = cond;                              \
+    update_fcr31();                            \
+    if (c)                                     \
+        SET_FP_COND(PARAM1, env);              \
+    else                                       \
+        CLEAR_FP_COND(PARAM1, env);            \
+    DEBUG_FPU_STATE();                         \
+    RETURN();                                  \
+}                                              \
+void op_cmpabs_s_ ## op (void)                 \
+{                                              \
+    int c;                                     \
+    FST0 &= ~(1 << 31);                        \
+    FST1 &= ~(1 << 31);                        \
+    c = cond;                                  \
     update_fcr31();                            \
     if (c)                                     \
         SET_FP_COND(PARAM1, env);              \
@@ -2487,6 +2563,27 @@ void op_cmp_ps_ ## op (void)                   \
 {                                              \
     int cl = condl;                            \
     int ch = condh;                            \
+    update_fcr31();                            \
+    if (cl)                                    \
+        SET_FP_COND(PARAM1, env);              \
+    else                                       \
+        CLEAR_FP_COND(PARAM1, env);            \
+    if (ch)                                    \
+        SET_FP_COND(PARAM1 + 1, env);          \
+    else                                       \
+        CLEAR_FP_COND(PARAM1 + 1, env);        \
+    DEBUG_FPU_STATE();                         \
+    RETURN();                                  \
+}                                              \
+void op_cmpabs_ps_ ## op (void)                \
+{                                              \
+    int cl, ch;                                \
+    FST0 &= ~(1 << 31);                        \
+    FSTH0 &= ~(1 << 31);                       \
+    FST1 &= ~(1 << 31);                        \
+    FSTH1 &= ~(1 << 31);                       \
+    cl = condl;                                \
+    ch = condh;                                \
     update_fcr31();                            \
     if (cl)                                    \
         SET_FP_COND(PARAM1, env);              \

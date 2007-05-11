@@ -491,33 +491,36 @@ FGEN32(gen_op_store_fpr_WTH1, gen_op_store_fpr_WTH1_fpr);
 FGEN32(gen_op_load_fpr_WTH2,  gen_op_load_fpr_WTH2_fpr);
 FGEN32(gen_op_store_fpr_WTH2, gen_op_store_fpr_WTH2_fpr);
 
-#define FOP_CONDS(fmt) \
-static GenOpFunc1 * cond_ ## fmt ## _table[16] = {                      \
-    gen_op_cmp_ ## fmt ## _f,                                           \
-    gen_op_cmp_ ## fmt ## _un,                                          \
-    gen_op_cmp_ ## fmt ## _eq,                                          \
-    gen_op_cmp_ ## fmt ## _ueq,                                         \
-    gen_op_cmp_ ## fmt ## _olt,                                         \
-    gen_op_cmp_ ## fmt ## _ult,                                         \
-    gen_op_cmp_ ## fmt ## _ole,                                         \
-    gen_op_cmp_ ## fmt ## _ule,                                         \
-    gen_op_cmp_ ## fmt ## _sf,                                          \
-    gen_op_cmp_ ## fmt ## _ngle,                                        \
-    gen_op_cmp_ ## fmt ## _seq,                                         \
-    gen_op_cmp_ ## fmt ## _ngl,                                         \
-    gen_op_cmp_ ## fmt ## _lt,                                          \
-    gen_op_cmp_ ## fmt ## _nge,                                         \
-    gen_op_cmp_ ## fmt ## _le,                                          \
-    gen_op_cmp_ ## fmt ## _ngt,                                         \
+#define FOP_CONDS(type, fmt)                                            \
+static GenOpFunc1 * cond ## type ## _ ## fmt ## _table[16] = {          \
+    gen_op_cmp ## type ## _ ## fmt ## _f,                               \
+    gen_op_cmp ## type ## _ ## fmt ## _un,                              \
+    gen_op_cmp ## type ## _ ## fmt ## _eq,                              \
+    gen_op_cmp ## type ## _ ## fmt ## _ueq,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _olt,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _ult,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _ole,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _ule,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _sf,                              \
+    gen_op_cmp ## type ## _ ## fmt ## _ngle,                            \
+    gen_op_cmp ## type ## _ ## fmt ## _seq,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _ngl,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _lt,                              \
+    gen_op_cmp ## type ## _ ## fmt ## _nge,                             \
+    gen_op_cmp ## type ## _ ## fmt ## _le,                              \
+    gen_op_cmp ## type ## _ ## fmt ## _ngt,                             \
 };                                                                      \
-static inline void gen_cmp_ ## fmt(int n, long cc)                      \
+static inline void gen_cmp ## type ## _ ## fmt(int n, long cc)          \
 {                                                                       \
-    cond_ ## fmt ## _table[n](cc);                                      \
+    cond ## type ## _ ## fmt ## _table[n](cc);                          \
 }
 
-FOP_CONDS(d)
-FOP_CONDS(s)
-FOP_CONDS(ps)
+FOP_CONDS(, d)
+FOP_CONDS(abs, d)
+FOP_CONDS(, s)
+FOP_CONDS(abs, s)
+FOP_CONDS(, ps)
+FOP_CONDS(abs, ps)
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
@@ -4467,7 +4470,25 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
             "c.le",
             "c.ngt",
     };
-    int binary = 0;
+    const char *condnames_abs[] = {
+            "cabs.f",
+            "cabs.un",
+            "cabs.eq",
+            "cabs.ueq",
+            "cabs.olt",
+            "cabs.ult",
+            "cabs.ole",
+            "cabs.ule",
+            "cabs.sf",
+            "cabs.ngle",
+            "cabs.seq",
+            "cabs.ngl",
+            "cabs.lt",
+            "cabs.nge",
+            "cabs.le",
+            "cabs.ngt",
+    };
+    enum { BINOP, CMPOP, OTHEROP } optype = OTHEROP;
     uint32_t func = ctx->opcode & 0x3f;
 
     switch (ctx->opcode & FOP(0x3f, 0x1f)) {
@@ -4477,7 +4498,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_add_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "add.s";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(1, 16):
         GEN_LOAD_FREG_FTN(WT0, fs);
@@ -4485,7 +4506,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_sub_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "sub.s";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(2, 16):
         GEN_LOAD_FREG_FTN(WT0, fs);
@@ -4493,7 +4514,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_mul_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "mul.s";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(3, 16):
         GEN_LOAD_FREG_FTN(WT0, fs);
@@ -4501,7 +4522,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_div_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "div.s";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(4, 16):
         GEN_LOAD_FREG_FTN(WT0, fs);
@@ -4649,8 +4670,13 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
     case FOP(63, 16):
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_cmp_s(func-48, cc);
-        opn = condnames[func-48];
+        if (ctx->opcode & (1 << 6)) {
+            gen_cmpabs_s(func-48, cc);
+            opn = condnames_abs[func-48];
+        } else {
+            gen_cmp_s(func-48, cc);
+            opn = condnames[func-48];
+        }
         break;
     case FOP(0, 17):
         CHECK_FR(ctx, fs | ft | fd);
@@ -4659,7 +4685,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_add_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "add.d";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(1, 17):
         CHECK_FR(ctx, fs | ft | fd);
@@ -4668,7 +4694,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_sub_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "sub.d";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(2, 17):
         CHECK_FR(ctx, fs | ft | fd);
@@ -4677,7 +4703,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_mul_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "mul.d";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(3, 17):
         CHECK_FR(ctx, fs | ft | fd);
@@ -4686,7 +4712,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         gen_op_float_div_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "div.d";
-        binary = 1;
+        optype = BINOP;
         break;
     case FOP(4, 17):
         CHECK_FR(ctx, fs | fd);
@@ -4815,8 +4841,13 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         CHECK_FR(ctx, fs | ft);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_cmp_d(func-48, cc);
-        opn = condnames[func-48];
+        if (ctx->opcode & (1 << 6)) {
+            gen_cmpabs_d(func-48, cc);
+            opn = condnames_abs[func-48];
+        } else {
+            gen_cmp_d(func-48, cc);
+            opn = condnames[func-48];
+        }
         break;
     case FOP(32, 17):
         CHECK_FR(ctx, fs);
@@ -5056,18 +5087,30 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         GEN_LOAD_FREG_FTN(WTH1, ft);
-        gen_cmp_ps(func-48, cc);
-        opn = condnames[func-48];
+        if (ctx->opcode & (1 << 6)) {
+            gen_cmpabs_ps(func-48, cc);
+            opn = condnames_abs[func-48];
+        } else {
+            gen_cmp_ps(func-48, cc);
+            opn = condnames[func-48];
+        }
         break;
     default:
         MIPS_INVAL(opn);
         generate_exception (ctx, EXCP_RI);
         return;
     }
-    if (binary)
+    switch (optype) {
+    case BINOP:
         MIPS_DEBUG("%s %s, %s, %s", opn, fregnames[fd], fregnames[fs], fregnames[ft]);
-    else
+        break;
+    case CMPOP:
+        MIPS_DEBUG("%s %s,%s", opn, fregnames[fs], fregnames[ft]);
+        break;
+    default:
         MIPS_DEBUG("%s %s,%s", opn, fregnames[fd], fregnames[fs]);
+        break;
+    }
 }
 
 /* Coprocessor 3 (FPU) */

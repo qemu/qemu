@@ -1,3 +1,13 @@
+2007-05-11 19:10  ths
+
+	* fpu/softfloat-specialize.h: Fix softfloat NaN handling.
+
+2007-05-11 19:08  ths
+
+	* target-mips/: op.c, translate.c: Implemented cabs FP
+	  instructions, and improve exception handling for
+	  trunc/floor/ceil/round.
+
 2007-05-11 12:43  ths
 
 	* target-mips/translate.c: Another bit of nicer debug output.
