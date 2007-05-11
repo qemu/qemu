@@ -4163,7 +4163,7 @@ die:
 
 static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
-    const char *opn = "unk";
+    const char *opn = "ldst";
 
     switch (opc) {
     case OPC_MFC0:
