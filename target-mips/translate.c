@@ -1523,7 +1523,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                     ctx->pc);
 	}
 #endif
-        generate_exception(ctx, EXCP_RI);
+        //~ generate_exception(ctx, EXCP_RI);
         return;
     }
 
