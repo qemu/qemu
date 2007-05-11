@@ -403,7 +403,7 @@ enum {
     OPC_MSUB_D  = 0x29 | OPC_CP3,
     OPC_MSUB_PS = 0x2E | OPC_CP3,
     OPC_NMADD_S = 0x30 | OPC_CP3,
-    OPC_NMADD_D = 0x32 | OPC_CP3,
+    OPC_NMADD_D = 0x31 | OPC_CP3,
     OPC_NMADD_PS= 0x36 | OPC_CP3,
     OPC_NMSUB_S = 0x38 | OPC_CP3,
     OPC_NMSUB_D = 0x39 | OPC_CP3,
@@ -541,7 +541,7 @@ enum {
     BS_EXCP     = 3, /* We reached an exception condition */
 };
 
-#if defined MIPS_DEBUG_DISAS
+#ifdef MIPS_DEBUG_DISAS
 #define MIPS_DEBUG(fmt, args...)                                              \
 do {                                                                          \
     if (loglevel & CPU_LOG_TB_IN_ASM) {                                       \
@@ -724,7 +724,7 @@ OP_ST_TABLE(uxc1);
 static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
                       int base, int16_t offset)
 {
-    const char *opn = "unk";
+    const char *opn = "ldst";
 
     if (base == 0) {
         GEN_LOAD_IMM_TN(T0, offset);
@@ -863,7 +863,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         opn = "sc";
         break;
     default:
-        MIPS_INVAL("load/store");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -874,7 +874,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
 static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
                       int base, int16_t offset)
 {
-    const char *opn = "unk";
+    const char *opn = "flt_ldst";
 
     if (base == 0) {
         GEN_LOAD_IMM_TN(T0, offset);
@@ -910,7 +910,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         opn = "sdc1";
         break;
     default:
-        MIPS_INVAL("float load/store");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -922,7 +922,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
                            int rs, int16_t imm)
 {
     uint32_t uimm;
-    const char *opn = "unk";
+    const char *opn = "imm arith";
 
     if (rt == 0 && opc != OPC_ADDI && opc != OPC_DADDI) {
         /* if no destination, treat it as a NOP 
@@ -1087,7 +1087,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         break;
 #endif
     default:
-        MIPS_INVAL("imm arith");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -1099,7 +1099,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
 static void gen_arith (DisasContext *ctx, uint32_t opc,
                        int rd, int rs, int rt)
 {
-    const char *opn = "unk";
+    const char *opn = "arith";
 
     if (rd == 0 && opc != OPC_ADD && opc != OPC_SUB
        && opc != OPC_DADD && opc != OPC_DSUB) {
@@ -1237,7 +1237,7 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
         break;
 #endif
     default:
-        MIPS_INVAL("arith");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -1249,7 +1249,7 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
 /* Arithmetic on HI/LO registers */
 static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
 {
-    const char *opn = "unk";
+    const char *opn = "hilo";
 
     if (reg == 0 && (opc == OPC_MFHI || opc == OPC_MFLO)) {
         /* Treat as a NOP */
@@ -1278,7 +1278,7 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
         opn = "mtlo";
         break;
     default:
-        MIPS_INVAL("HILO");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -1288,7 +1288,7 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
 static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                         int rs, int rt)
 {
-    const char *opn = "unk";
+    const char *opn = "mul/div";
 
     GEN_LOAD_REG_TN(T0, rs);
     GEN_LOAD_REG_TN(T1, rt);
@@ -1344,7 +1344,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         opn = "msubu";
         break;
     default:
-        MIPS_INVAL("mul/div");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -1354,7 +1354,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
 static void gen_cl (DisasContext *ctx, uint32_t opc,
                     int rd, int rs)
 {
-    const char *opn = "unk";
+    const char *opn = "CLx";
     if (rd == 0) {
         /* Treat as a NOP */
         MIPS_DEBUG("NOP");
@@ -1381,7 +1381,7 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
         break;
 #endif
     default:
-        MIPS_INVAL("CLx");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -1445,7 +1445,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
             /* Never trap: treat as NOP */
             return;
         default:
-            MIPS_INVAL("TRAP");
+            MIPS_INVAL("trap");
             generate_exception(ctx, EXCP_RI);
             return;
         }
@@ -1476,7 +1476,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
             gen_op_ne();
             break;
         default:
-            MIPS_INVAL("TRAP");
+            MIPS_INVAL("trap");
             generate_exception(ctx, EXCP_RI);
             return;
         }
@@ -1513,13 +1513,14 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     int bcond = 0;
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
+#ifdef MIPS_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile,
                     "Branch in delay slot at PC 0x" TARGET_FMT_lx "\n",
                     ctx->pc);
-        }
-        //~ MIPS_INVAL("branch/jump in bdelay slot");
-        //~ generate_exception(ctx, EXCP_RI);
+	}
+#endif
+        generate_exception(ctx, EXCP_RI);
         return;
     }
 
@@ -1567,6 +1568,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         if (offset != 0 && offset != 16) {
             /* Hint = 0 is JR/JALR, hint 16 is JR.HB/JALR.HB, the
                others are reserved. */
+            MIPS_INVAL("jump hint");
             generate_exception(ctx, EXCP_RI);
             return;
         }
@@ -1624,12 +1626,12 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             return;
         case OPC_J:
             ctx->hflags |= MIPS_HFLAG_B;
-            MIPS_DEBUG("j %08x", btarget);
+            MIPS_DEBUG("j " TARGET_FMT_lx, btarget);
             break;
         case OPC_JAL:
             blink = 31;
             ctx->hflags |= MIPS_HFLAG_B;
-            MIPS_DEBUG("jal %08x", btarget);
+            MIPS_DEBUG("jal " TARGET_FMT_lx, btarget);
             break;
         case OPC_JR:
             ctx->hflags = ((ctx->hflags & ~MIPS_HFLAG_BMASK) | MIPS_HFLAG_BR);
@@ -1649,70 +1651,70 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         switch (opc) {
         case OPC_BEQ:
             gen_op_eq();
-            MIPS_DEBUG("beq %s, %s, %08x",
+            MIPS_DEBUG("beq %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btarget);
             goto not_likely;
         case OPC_BEQL:
             gen_op_eq();
-            MIPS_DEBUG("beql %s, %s, %08x",
+            MIPS_DEBUG("beql %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btarget);
             goto likely;
         case OPC_BNE:
             gen_op_ne();
-            MIPS_DEBUG("bne %s, %s, %08x",
+            MIPS_DEBUG("bne %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btarget);
             goto not_likely;
         case OPC_BNEL:
             gen_op_ne();
-            MIPS_DEBUG("bnel %s, %s, %08x",
+            MIPS_DEBUG("bnel %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btarget);
             goto likely;
         case OPC_BGEZ:
             gen_op_gez();
-            MIPS_DEBUG("bgez %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bgez %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto not_likely;
         case OPC_BGEZL:
             gen_op_gez();
-            MIPS_DEBUG("bgezl %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bgezl %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto likely;
         case OPC_BGEZAL:
             gen_op_gez();
-            MIPS_DEBUG("bgezal %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bgezal %s, " TARGET_FMT_lx, regnames[rs], btarget);
             blink = 31;
             goto not_likely;
         case OPC_BGEZALL:
             gen_op_gez();
             blink = 31;
-            MIPS_DEBUG("bgezall %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bgezall %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto likely;
         case OPC_BGTZ:
             gen_op_gtz();
-            MIPS_DEBUG("bgtz %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bgtz %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto not_likely;
         case OPC_BGTZL:
             gen_op_gtz();
-            MIPS_DEBUG("bgtzl %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bgtzl %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto likely;
         case OPC_BLEZ:
             gen_op_lez();
-            MIPS_DEBUG("blez %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("blez %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto not_likely;
         case OPC_BLEZL:
             gen_op_lez();
-            MIPS_DEBUG("blezl %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("blezl %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto likely;
         case OPC_BLTZ:
             gen_op_ltz();
-            MIPS_DEBUG("bltz %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bltz %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto not_likely;
         case OPC_BLTZL:
             gen_op_ltz();
-            MIPS_DEBUG("bltzl %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bltzl %s, " TARGET_FMT_lx, regnames[rs], btarget);
             goto likely;
         case OPC_BLTZAL:
             gen_op_ltz();
             blink = 31;
-            MIPS_DEBUG("bltzal %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bltzal %s, " TARGET_FMT_lx, regnames[rs], btarget);
         not_likely:
             ctx->hflags |= MIPS_HFLAG_BC;
             gen_op_set_bcond();
@@ -1720,7 +1722,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         case OPC_BLTZALL:
             gen_op_ltz();
             blink = 31;
-            MIPS_DEBUG("bltzall %s, %08x", regnames[rs], btarget);
+            MIPS_DEBUG("bltzall %s, " TARGET_FMT_lx, regnames[rs], btarget);
         likely:
             ctx->hflags |= MIPS_HFLAG_BL;
             gen_op_set_bcond();
@@ -1732,7 +1734,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             return;
         }
     }
-    MIPS_DEBUG("enter ds: link %d cond %02x target %08x",
+    MIPS_DEBUG("enter ds: link %d cond %02x target " TARGET_FMT_lx,
                blink, ctx->hflags, btarget);
     ctx->btarget = btarget;
     if (blink > 0) {
@@ -4175,7 +4177,7 @@ die:
 
 static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
-    const char *opn = "unk";
+    const char *opn = "ldst";
 
     switch (opc) {
     case OPC_MFC0:
@@ -4235,6 +4237,7 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
     case OPC_DERET:
         opn = "deret";
         if (!(ctx->hflags & MIPS_HFLAG_DM)) {
+            MIPS_INVAL(opn);
             generate_exception(ctx, EXCP_RI);
         } else {
             save_cpu_state(ctx, 0);
@@ -4252,11 +4255,7 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         ctx->bstate = BS_EXCP;
         break;
     default:
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "Invalid CP0 opcode: %08x %03x %03x %03x\n",
-                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
-                    ((ctx->opcode >> 16) & 0x1F));
-        }
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -4268,25 +4267,26 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
                                  int32_t cc, int32_t offset)
 {
     target_ulong btarget;
+    const char *opn = "cp1 cond branch";
 
     btarget = ctx->pc + 4 + offset;
 
     switch (op) {
     case OPC_BC1F:
         gen_op_bc1f(cc);
-        MIPS_DEBUG("bc1f " TARGET_FMT_lx, btarget);
+        opn = "bc1f";
         goto not_likely;
     case OPC_BC1FL:
         gen_op_bc1f(cc);
-        MIPS_DEBUG("bc1fl " TARGET_FMT_lx, btarget);
+        opn = "bc1fl";
         goto likely;
     case OPC_BC1T:
         gen_op_bc1t(cc);
-        MIPS_DEBUG("bc1t " TARGET_FMT_lx, btarget);
+        opn = "bc1t";
         goto not_likely;
     case OPC_BC1TL:
         gen_op_bc1t(cc);
-        MIPS_DEBUG("bc1tl " TARGET_FMT_lx, btarget);
+        opn = "bc1tl";
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
         gen_op_set_bcond();
@@ -4294,34 +4294,31 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
         break;
     case OPC_BC1FANY2:
         gen_op_bc1fany2(cc);
-        MIPS_DEBUG("bc1fany2 " TARGET_FMT_lx, btarget);
+        opn = "bc1fany2";
         goto not_likely;
     case OPC_BC1TANY2:
         gen_op_bc1tany2(cc);
-        MIPS_DEBUG("bc1tany2 " TARGET_FMT_lx, btarget);
+        opn = "bc1tany2";
         goto not_likely;
     case OPC_BC1FANY4:
         gen_op_bc1fany4(cc);
-        MIPS_DEBUG("bc1fany4 " TARGET_FMT_lx, btarget);
+        opn = "bc1fany4";
         goto not_likely;
     case OPC_BC1TANY4:
         gen_op_bc1tany4(cc);
-        MIPS_DEBUG("bc1tany4 " TARGET_FMT_lx, btarget);
+        opn = "bc1tany4";
     not_likely:
         ctx->hflags |= MIPS_HFLAG_BC;
         gen_op_set_bcond();
         break;
     default:
-        MIPS_INVAL("cp1 branch");
+        MIPS_INVAL(opn);
         generate_exception (ctx, EXCP_RI);
         return;
     }
-
-    MIPS_DEBUG("enter ds: cond %02x target " TARGET_FMT_lx,
+    MIPS_DEBUG("%s: cond %02x target " TARGET_FMT_lx, opn,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
-
-    return;
 }
 
 /* Coprocessor 1 (FPU) */
@@ -4339,18 +4336,19 @@ static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
  * FIXME: This is broken for R2, it needs to be checked at runtime, not
  * at translation time.
  */
-#define CHECK_FR(ctx, freg) do { \
+#define CHECK_FR(ctx, freg) do {                                      \
         if (!((ctx)->CP0_Status & (1 << CP0St_FR)) && ((freg) & 1)) { \
-            generate_exception (ctx, EXCP_RI); \
-            return; \
-        } \
+            MIPS_INVAL("FPU mode");                                   \
+            generate_exception (ctx, EXCP_RI);                        \
+            return;                                                   \
+        }                                                             \
     } while(0)
 
 #define FOP(func, fmt) (((fmt) << 21) | (func))
 
 static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 {
-    const char *opn = "unk";
+    const char *opn = "cp1 move";
 
     switch (opc) {
     case OPC_MFC1:
@@ -4404,11 +4402,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         opn = "mthc1";
         break;
     default:
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "Invalid CP1 opcode: %08x %03x %03x %03x\n",
-                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
-                    ((ctx->opcode >> 16) & 0x1F));
-        }
+        MIPS_INVAL(opn);
         generate_exception (ctx, EXCP_RI);
         return;
     }
@@ -4454,7 +4448,7 @@ GEN_MOVCF(ps);
 static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
                         int fs, int fd, int cc)
 {
-    const char *opn = "unk";
+    const char *opn = "farith";
     const char *condnames[] = {
             "c.f",
             "c.un",
@@ -4975,6 +4969,17 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "movn.ps";
         break;
+    case FOP(24, 22):
+        CHECK_FR(ctx, fs | fd | ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_addr_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "addr.ps";
+        break;
     case FOP(32, 22):
         CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
@@ -5055,11 +5060,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = condnames[func-48];
         break;
     default:
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "Invalid FP arith function: %08x %03x %03x %03x\n",
-                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
-                    ((ctx->opcode >> 16) & 0x1F));
-        }
+        MIPS_INVAL(opn);
         generate_exception (ctx, EXCP_RI);
         return;
     }
@@ -5073,7 +5074,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
 static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc, int fd,
                            int base, int index)
 {
-    const char *opn = "unk";
+    const char *opn = "extended float load/store";
 
     GEN_LOAD_REG_TN(T0, base);
     GEN_LOAD_REG_TN(T1, index);
@@ -5112,7 +5113,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc, int fd,
         opn = "suxc1";
         break;
     default:
-        MIPS_INVAL("extended float load/store");
+        MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
     }
@@ -5122,7 +5123,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc, int fd,
 static void gen_flt3_arith (DisasContext *ctx, uint32_t opc, int fd,
                             int fr, int fs, int ft)
 {
-    const char *opn = "unk";
+    const char *opn = "flt3_arith";
 
     /* All of those work only on 64bit FPUs. */
     CHECK_FR(ctx, fd | fr | fs | ft);
@@ -5144,54 +5145,111 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc, int fd,
         opn = "madd.s";
         break;
     case OPC_MADD_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_muladd_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "madd.d";
         break;
     case OPC_MADD_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_muladd_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "madd.ps";
         break;
     case OPC_MSUB_S:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_mulsub_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
         opn = "msub.s";
         break;
     case OPC_MSUB_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_mulsub_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "msub.d";
         break;
     case OPC_MSUB_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_mulsub_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "msub.ps";
         break;
     case OPC_NMADD_S:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_nmuladd_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
         opn = "nmadd.s";
         break;
     case OPC_NMADD_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_nmuladd_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "nmadd.d";
         break;
     case OPC_NMADD_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_nmuladd_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "nmadd.ps";
         break;
     case OPC_NMSUB_S:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_nmulsub_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
         opn = "nmsub.s";
         break;
     case OPC_NMSUB_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_nmulsub_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "nmsub.d";
         break;
     case OPC_NMSUB_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_nmulsub_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "nmsub.ps";
         break;
-    default:    
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "Invalid extended FP arith function: %08x %03x %03x\n",
-                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F);
-        }
+    default:
+        MIPS_INVAL(opn);
         generate_exception (ctx, EXCP_RI);
         return;
     }
@@ -5473,7 +5531,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* treat as noop */
             break;
         default:            /* Invalid */
-            MIPS_INVAL("REGIMM");
+            MIPS_INVAL("regimm");
             generate_exception(ctx, EXCP_RI);
             break;
         }
@@ -5512,7 +5570,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 ctx->bstate = BS_STOP;
                 break;
             default:            /* Invalid */
-                MIPS_INVAL("MFMC0");
+                MIPS_INVAL("mfmc0");
                 generate_exception(ctx, EXCP_RI);
                 break;
             }
@@ -5524,10 +5582,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 /* Shadow registers not implemented. */
                 GEN_LOAD_REG_TN(T0, rt);
                 GEN_STORE_TN_REG(rd, T0);
-            } else
+            } else {
+                MIPS_INVAL("shadow register move");
                 generate_exception(ctx, EXCP_RI);
+            }
             break;
         default:
+            MIPS_INVAL("cp0");
             generate_exception(ctx, EXCP_RI);
             break;
         }
@@ -5557,7 +5618,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         /* Treat as a noop */
         break;
 
-    /* Floating point.  */
+    /* Floating point (COP1). */
     case OPC_LWC1:
     case OPC_LDC1:
     case OPC_SWC1:
@@ -5590,6 +5651,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_cp1(ctx, op1, rt, rd);
                 break;
             case OPC_BC1:
+            case OPC_BC1ANY2:
+            case OPC_BC1ANY4:
                 gen_compute_branch1(ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
                 return;
@@ -5602,6 +5665,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                            (imm >> 8) & 0x7);
                 break;
             default:
+                MIPS_INVAL("cp1");
                 generate_exception (ctx, EXCP_RI);
                 break;
             }
@@ -5653,6 +5717,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_flt3_arith(ctx, op1, sa, rs, rd, rt);
                 break;
             default:
+                MIPS_INVAL("cp3");
                 generate_exception (ctx, EXCP_RI);
                 break;
             }
@@ -5685,7 +5750,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         /* MDMX: Not implemented. */
 #endif
     default:            /* Invalid */
-        MIPS_INVAL("");
+        MIPS_INVAL("major opcode");
         generate_exception(ctx, EXCP_RI);
         break;
     }
@@ -5782,7 +5847,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         cpu_dump_state(env, logfile, fprintf, 0);
     }
 #endif
-#if defined MIPS_DEBUG_DISAS
+#ifdef MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile, "\ntb %p super %d cond %04x\n",
                 tb, ctx.mem_idx, ctx.hflags);

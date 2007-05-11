@@ -1,3 +1,22 @@
+2007-05-11 12:43  ths
+
+	* target-mips/translate.c: Another bit of nicer debug output.
+
+2007-05-11 11:59  ths
+
+	* target-mips/: op.c, translate.c: Implement FP madd/msub, wire up
+	  bc1any[24][ft].
+
+2007-05-11 02:16  ths
+
+	* target-mips/translate.c: Improved debug output for the MIPS
+	  opcode decoder.
+
+2007-05-11 02:02  ths
+
+	* target-mips/translate_init.c: Fix missing status ro mask
+	  initialization, thanks Stefan Weil.
+
 2007-05-10 02:51  ths
 
 	* target-mips/translate.c: Fix for the scd instruction, by Aurelien
