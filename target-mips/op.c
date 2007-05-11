@@ -2185,6 +2185,7 @@ FLOAT_OP(name, d)         \
     FDT2 = float64_ ## name (FDT0, FDT1, &env->fp_status);    \
     update_fcr31();       \
     DEBUG_FPU_STATE();    \
+    RETURN();             \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
@@ -2192,6 +2193,7 @@ FLOAT_OP(name, s)         \
     FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
     update_fcr31();       \
     DEBUG_FPU_STATE();    \
+    RETURN();             \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
@@ -2200,12 +2202,23 @@ FLOAT_OP(name, ps)        \
     FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fp_status); \
     update_fcr31();       \
     DEBUG_FPU_STATE();    \
+    RETURN();             \
 }
 FLOAT_BINOP(add)
 FLOAT_BINOP(sub)
 FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
+
+FLOAT_OP(addr, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_add (FST0, FSTH0, &env->fp_status);
+    FSTH2 = float32_add (FST1, FSTH1, &env->fp_status);
+    update_fcr31();
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 
 /* ternary operations */
 #define FLOAT_TERNOP(name1, name2) \
@@ -2214,12 +2227,14 @@ FLOAT_OP(name1 ## name2, d)        \
     FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fp_status);    \
     FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fp_status);    \
     DEBUG_FPU_STATE();             \
+    RETURN();                      \
 }                                  \
 FLOAT_OP(name1 ## name2, s)        \
 {                                  \
     FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
     DEBUG_FPU_STATE();             \
+    RETURN();                      \
 }                                  \
 FLOAT_OP(name1 ## name2, ps)       \
 {                                  \
@@ -2228,10 +2243,44 @@ FLOAT_OP(name1 ## name2, ps)       \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
     FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fp_status); \
     DEBUG_FPU_STATE();             \
+    RETURN();                      \
 }
 FLOAT_TERNOP(mul, add)
 FLOAT_TERNOP(mul, sub)
 #undef FLOAT_TERNOP
+
+/* negated ternary operations */
+#define FLOAT_NTERNOP(name1, name2) \
+FLOAT_OP(n ## name1 ## name2, d)    \
+{                                   \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fp_status);    \
+    FDT2 ^= 1ULL << 63;             \
+    DEBUG_FPU_STATE();              \
+    RETURN();                       \
+}                                   \
+FLOAT_OP(n ## name1 ## name2, s)    \
+{                                   \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
+    FST2 ^= 1 << 31;                \
+    DEBUG_FPU_STATE();              \
+    RETURN();                       \
+}                                   \
+FLOAT_OP(n ## name1 ## name2, ps)   \
+{                                   \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fp_status); \
+    FST2 ^= 1 << 31;                \
+    FSTH2 ^= 1 << 31;               \
+    DEBUG_FPU_STATE();              \
+    RETURN();                       \
+}
+FLOAT_NTERNOP(mul, add)
+FLOAT_NTERNOP(mul, sub)
+#undef FLOAT_NTERNOP
 
 /* unary operations, modifying fp status  */
 #define FLOAT_UNOP(name)  \
@@ -2239,17 +2288,20 @@ FLOAT_OP(name, d)         \
 {                         \
     FDT2 = float64_ ## name(FDT0, &env->fp_status);   \
     DEBUG_FPU_STATE();    \
+    RETURN();                      \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     FST2 = float32_ ## name(FST0, &env->fp_status);   \
     DEBUG_FPU_STATE();    \
+    RETURN();                      \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
     FST2 = float32_ ## name(FST0, &env->fp_status);   \
     FSTH2 = float32_ ## name(FSTH0, &env->fp_status); \
     DEBUG_FPU_STATE();    \
+    RETURN();                      \
 }
 FLOAT_UNOP(sqrt)
 #undef FLOAT_UNOP
@@ -2260,17 +2312,20 @@ FLOAT_OP(name, d)         \
 {                         \
     FDT2 = float64_ ## name(FDT0);   \
     DEBUG_FPU_STATE();    \
+    RETURN();             \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     FST2 = float32_ ## name(FST0);   \
     DEBUG_FPU_STATE();    \
+    RETURN();             \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
     FST2 = float32_ ## name(FST0);   \
     FSTH2 = float32_ ## name(FSTH0); \
     DEBUG_FPU_STATE();    \
+    RETURN();             \
 }
 FLOAT_UNOP(abs)
 FLOAT_UNOP(chs)

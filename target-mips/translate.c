@@ -402,7 +402,7 @@ enum {
     OPC_MSUB_D  = 0x29 | OPC_CP3,
     OPC_MSUB_PS = 0x2E | OPC_CP3,
     OPC_NMADD_S = 0x30 | OPC_CP3,
-    OPC_NMADD_D = 0x32 | OPC_CP3,
+    OPC_NMADD_D = 0x31 | OPC_CP3,
     OPC_NMADD_PS= 0x36 | OPC_CP3,
     OPC_NMSUB_S = 0x38 | OPC_CP3,
     OPC_NMSUB_D = 0x39 | OPC_CP3,
@@ -4955,6 +4955,17 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "movn.ps";
         break;
+    case FOP(24, 22):
+        CHECK_FR(ctx, fs | fd | ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_op_float_addr_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
+        opn = "addr.ps";
+        break;
     case FOP(32, 22):
         CHECK_FR(ctx, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
@@ -5120,47 +5131,107 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc, int fd,
         opn = "madd.s";
         break;
     case OPC_MADD_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_muladd_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "madd.d";
         break;
     case OPC_MADD_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_muladd_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "madd.ps";
         break;
     case OPC_MSUB_S:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_mulsub_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
         opn = "msub.s";
         break;
     case OPC_MSUB_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_mulsub_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "msub.d";
         break;
     case OPC_MSUB_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_mulsub_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "msub.ps";
         break;
     case OPC_NMADD_S:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_nmuladd_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
         opn = "nmadd.s";
         break;
     case OPC_NMADD_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_nmuladd_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "nmadd.d";
         break;
     case OPC_NMADD_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_nmuladd_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "nmadd.ps";
         break;
     case OPC_NMSUB_S:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        gen_op_float_nmulsub_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
         opn = "nmsub.s";
         break;
     case OPC_NMSUB_D:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        GEN_LOAD_FREG_FTN(DT2, fr);
+        gen_op_float_nmulsub_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
         opn = "nmsub.d";
         break;
     case OPC_NMSUB_PS:
-        generate_exception (ctx, EXCP_RI);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WTH0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT2, fr);
+        GEN_LOAD_FREG_FTN(WTH2, fr);
+        gen_op_float_nmulsub_ps();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "nmsub.ps";
         break;
     default:
@@ -5562,6 +5633,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_cp1(ctx, op1, rt, rd);
                 break;
             case OPC_BC1:
+            case OPC_BC1ANY2:
+            case OPC_BC1ANY4:
                 gen_compute_branch1(ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
                 return;
