@@ -61,7 +61,11 @@ typedef struct {
 /*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#define float32_default_nan 0xFF800000
+#else
 #define float32_default_nan 0xFFC00000
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is a NaN;
@@ -70,9 +74,11 @@ typedef struct {
 
 int float32_is_nan( float32 a )
 {
-
-    return ( 0xFF000000 < (bits32) ( a<<1 ) );
-
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+    return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
+#else
+    return ( 0xFF800000 <= (bits32) ( a<<1 ) );
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -82,9 +88,11 @@ int float32_is_nan( float32 a )
 
 int float32_is_signaling_nan( float32 a )
 {
-
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+    return ( 0xFF800000 <= (bits32) ( a<<1 ) );
+#else
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -131,8 +139,13 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     aIsSignalingNaN = float32_is_signaling_nan( a );
     bIsNaN = float32_is_nan( b );
     bIsSignalingNaN = float32_is_signaling_nan( b );
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+    a &= ~0x00400000;
+    b &= ~0x00400000;
+#else
     a |= 0x00400000;
     b |= 0x00400000;
+#endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
     if ( aIsSignalingNaN ) {
         if ( bIsSignalingNaN ) goto returnLargerSignificand;
@@ -154,7 +167,11 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated double-precision NaN.
 *----------------------------------------------------------------------------*/
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#define float64_default_nan LIT64( 0xFFF0000000000000 )
+#else
 #define float64_default_nan LIT64( 0xFFF8000000000000 )
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is a NaN;
@@ -163,9 +180,13 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 
 int float64_is_nan( float64 a )
 {
-
-    return ( LIT64( 0xFFE0000000000000 ) < (bits64) ( a<<1 ) );
-
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+    return
+           ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
+        && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
+#else
+    return ( LIT64( 0xFFF0000000000000 ) <= (bits64) ( a<<1 ) );
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -175,11 +196,13 @@ int float64_is_nan( float64 a )
 
 int float64_is_signaling_nan( float64 a )
 {
-
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+    return ( LIT64( 0xFFF0000000000000 ) <= (bits64) ( a<<1 ) );
+#else
     return
            ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
         && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -229,8 +252,13 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     aIsSignalingNaN = float64_is_signaling_nan( a );
     bIsNaN = float64_is_nan( b );
     bIsSignalingNaN = float64_is_signaling_nan( b );
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+    a &= ~LIT64( 0x0008000000000000 );
+    b &= ~LIT64( 0x0008000000000000 );
+#else
     a |= LIT64( 0x0008000000000000 );
     b |= LIT64( 0x0008000000000000 );
+#endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
     if ( aIsSignalingNaN ) {
         if ( bIsSignalingNaN ) goto returnLargerSignificand;
