@@ -1132,8 +1132,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
     if (ret == 1) {
 #if 0
-        printf("PF exception: NIP=0x%08x error=0x%x %p\n", 
-               env->nip, env->error_code, tb);
+        printf("PF exception: PC=0x" TARGET_FMT_lx " error=0x%x %p\n", 
+               env->PC, env->error_code, tb);
 #endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
