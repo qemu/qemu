@@ -76,6 +76,9 @@ int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
         target_ulong mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
         target_ulong tag = address & ~mask;
         target_ulong VPN = tlb->VPN & ~mask;
+#ifdef TARGET_MIPS64
+        tag &= 0xC00000FFFFFFFFFFULL;
+#endif
 
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
@@ -295,10 +298,16 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         }
         /* Raise exception */
         env->CP0_BadVAddr = address;
-        env->CP0_Context = (env->CP0_Context & 0xff800000) |
+        env->CP0_Context = (env->CP0_Context & ~0x007fffff) |
 	                   ((address >> 9) &   0x007ffff0);
         env->CP0_EntryHi =
             (env->CP0_EntryHi & 0xFF) | (address & (TARGET_PAGE_MASK << 1));
+#ifdef TARGET_MIPS64
+        env->CP0_EntryHi &= 0xc00000ffffffffffULL;
+        env->CP0_XContext = (env->CP0_XContext & 0xfffffffe00000000ULL) |
+                            ((address >> 31) & 0x0000000180000000ULL) |
+                            ((address >> 9) & 0x000000007ffffff0ULL);
+#endif
         env->exception_index = exception;
         env->error_code = error_code;
         ret = 1;
@@ -411,8 +420,19 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBL:
         cause = 2;
-        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL)))
-            offset = 0x000;
+        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
+#ifdef TARGET_MIPS64
+            int R = env->CP0_BadVAddr >> 62;
+            int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
+            int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
+            int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
+
+            if ((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX))
+                offset = 0x080;
+            else
+#endif
+                offset = 0x000;
+        }
         goto set_EPC;
     case EXCP_IBE:
         cause = 6;
@@ -448,8 +468,19 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBS:
         cause = 3;
-        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL)))
-            offset = 0x000;
+        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
+#ifdef TARGET_MIPS64
+            int R = env->CP0_BadVAddr >> 62;
+            int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
+            int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
+            int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
+
+            if ((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX))
+                offset = 0x080;
+            else
+#endif
+                offset = 0x000;
+        }
     set_EPC:
         if (!(env->CP0_Status & (1 << CP0St_EXL))) {
             if (env->hflags & MIPS_HFLAG_BMASK) {
@@ -520,6 +551,11 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
     if (tlb->V0) {
         addr = tlb->VPN & ~mask;
+#ifdef TARGET_MIPS64
+        if (addr >= 0xC00000FF80000000ULL) {
+            addr |= 0x3FFFFF0000000000ULL;
+        }
+#endif
         end = addr | (mask >> 1);
         while (addr < end) {
             tlb_flush_page (env, addr);
@@ -528,6 +564,11 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     }
     if (tlb->V1) {
         addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
+#ifdef TARGET_MIPS64
+        if (addr >= 0xC00000FF80000000ULL) {
+            addr |= 0x3FFFFF0000000000ULL;
+        }
+#endif
         end = addr | mask;
         while (addr < end) {
             tlb_flush_page (env, addr);

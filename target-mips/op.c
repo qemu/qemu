@@ -1317,8 +1317,10 @@ void op_mtc0_entryhi (void)
     target_ulong old, val;
 
     /* 1k pages not implemented */
-    /* Ignore MIPS64 TLB for now */
-    val = (target_ulong)(int32_t)T0 & ~(target_ulong)0x1F00;
+    val = T0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
+#ifdef TARGET_MIPS64
+    val = T0 & 0xC00000FFFFFFFFFFULL;
+#endif
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
     /* If the ASID changes, flush qemu's TLB.  */
