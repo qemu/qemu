@@ -561,14 +561,14 @@ void OPPROTO op_shal_Rn(void)
 void OPPROTO op_shar_Rn(void)
 {
     cond_t(env->gregs[PARAM1] & 1);
-    *(int32_t *) & env->gregs[PARAM1] >>= 1;
+    env->gregs[PARAM1] >>= 1;
     RETURN();
 }
 
 void OPPROTO op_shlr_Rn(void)
 {
     cond_t(env->gregs[PARAM1] & 1);
-    *(uint32_t *) & env->gregs[PARAM1] >>= 1;
+    env->gregs[PARAM1] >>= 1;
     RETURN();
 }
 
@@ -592,19 +592,19 @@ void OPPROTO op_shll16_Rn(void)
 
 void OPPROTO op_shlr2_Rn(void)
 {
-    *(uint32_t *) & env->gregs[PARAM1] >>= 2;
+    env->gregs[PARAM1] >>= 2;
     RETURN();
 }
 
 void OPPROTO op_shlr8_Rn(void)
 {
-    *(uint32_t *) & env->gregs[PARAM1] >>= 8;
+    env->gregs[PARAM1] >>= 8;
     RETURN();
 }
 
 void OPPROTO op_shlr16_Rn(void)
 {
-    *(uint32_t *) & env->gregs[PARAM1] >>= 16;
+    env->gregs[PARAM1] >>= 16;
     RETURN();
 }
 
