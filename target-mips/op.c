@@ -938,8 +938,6 @@ OP_COND(lez, (int32_t)T0 <= 0);
 OP_COND(ltz, (int32_t)T0 < 0);
 
 /* Branches */
-//#undef USE_DIRECT_JUMP
-
 void OPPROTO op_goto_tb0(void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
