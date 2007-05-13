@@ -433,17 +433,17 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     if (oact) {
         oact->_sa_handler = tswapl(k->sa._sa_handler);
         oact->sa_flags = tswapl(k->sa.sa_flags);
-	#if !defined(TARGET_MIPS)
-        	oact->sa_restorer = tswapl(k->sa.sa_restorer);
-	#endif
+#if !defined(TARGET_MIPS)
+        oact->sa_restorer = tswapl(k->sa.sa_restorer);
+#endif
         oact->sa_mask = k->sa.sa_mask;
     }
     if (act) {
         k->sa._sa_handler = tswapl(act->_sa_handler);
         k->sa.sa_flags = tswapl(act->sa_flags);
-	#if !defined(TARGET_MIPS)
-        	k->sa.sa_restorer = tswapl(act->sa_restorer);
-	#endif
+#if !defined(TARGET_MIPS)
+        k->sa.sa_restorer = tswapl(act->sa_restorer);
+#endif
         k->sa.sa_mask = act->sa_mask;
 
         /* we update the host linux signal state */
@@ -1681,8 +1681,8 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 
     err |= __put_user(regs->PC, &sc->sc_pc);
 
-    #define save_gp_reg(i) do {   					\
-        err |= __put_user(regs->gpr[i], &sc->sc_regs[i]);		\
+#define save_gp_reg(i) do {   					\
+        err |= __put_user(regs->gpr[i], &sc->sc_regs[i]);	\
     } while(0)
     __put_user(0, &sc->sc_regs[0]); save_gp_reg(1); save_gp_reg(2);
     save_gp_reg(3); save_gp_reg(4); save_gp_reg(5); save_gp_reg(6);
@@ -1693,7 +1693,7 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
     save_gp_reg(23); save_gp_reg(24); save_gp_reg(25); save_gp_reg(26);
     save_gp_reg(27); save_gp_reg(28); save_gp_reg(29); save_gp_reg(30);
     save_gp_reg(31);
-    #undef save_gp_reg
+#undef save_gp_reg
 
     err |= __put_user(regs->HI, &sc->sc_mdhi);
     err |= __put_user(regs->LO, &sc->sc_mdlo);
@@ -1710,7 +1710,7 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 	err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
     }
     /* same with 64 bit */
-    #ifdef CONFIG_64BIT
+#ifdef CONFIG_64BIT
     err |= __put_user(regs->hi, &sc->sc_hi[0]);
     err |= __put_user(regs->lo, &sc->sc_lo[0]);
     if (cpu_has_dsp) {
@@ -1722,13 +1722,10 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 	err |= __put_user(mflo3(), &sc->sc_lo[3]);
 	err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
     }
-    #endif
+#endif
+#endif
 
-
-    #endif
-
-
-    #if 0
+#if 0
     err |= __put_user(!!used_math(), &sc->sc_used_math);
 
     if (!used_math())
@@ -1762,7 +1759,7 @@ restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
     err |= __get_user(regs->HI, &sc->sc_mdhi);
     err |= __get_user(regs->LO, &sc->sc_mdlo);
 
-    #define restore_gp_reg(i) do {   					\
+#define restore_gp_reg(i) do {   					\
         err |= __get_user(regs->gpr[i], &sc->sc_regs[i]);		\
     } while(0)
     restore_gp_reg( 1); restore_gp_reg( 2); restore_gp_reg( 3);
@@ -1776,7 +1773,7 @@ restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
     restore_gp_reg(25); restore_gp_reg(26); restore_gp_reg(27);
     restore_gp_reg(28); restore_gp_reg(29); restore_gp_reg(30);
     restore_gp_reg(31);
-    #undef restore_gp_reg
+#undef restore_gp_reg
 
 #if 0
     if (cpu_has_dsp) {
@@ -1788,7 +1785,7 @@ restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 	err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
 	err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
     }
-    #ifdef CONFIG_64BIT
+#ifdef CONFIG_64BIT
     err |= __get_user(regs->hi, &sc->sc_hi[0]);
     err |= __get_user(regs->lo, &sc->sc_lo[0]);
     if (cpu_has_dsp) {
@@ -1800,7 +1797,7 @@ restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 	err |= __get_user(treg, &sc->sc_lo[3]); mthi3(treg);
 	err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
     }
-    #endif
+#endif
 
     err |= __get_user(used_math, &sc->sc_used_math);
     conditional_used_math(used_math);
@@ -1895,51 +1892,50 @@ give_sigsegv:
 
 long do_sigreturn(CPUState *regs)
 {
-   struct sigframe *frame;
-   sigset_t blocked;
-   target_sigset_t target_set;
-   int i;
+    struct sigframe *frame;
+    sigset_t blocked;
+    target_sigset_t target_set;
+    int i;
 
 #if defined(DEBUG_SIGNAL)
-   fprintf(stderr, "do_sigreturn\n");
+    fprintf(stderr, "do_sigreturn\n");
 #endif
-   frame = (struct sigframe *) regs->gpr[29];
-   if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+    frame = (struct sigframe *) regs->gpr[29];
+    if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
    	goto badframe;
 
-   for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+    for(i = 0; i < TARGET_NSIG_WORDS; i++) {
    	if(__get_user(target_set.sig[i], &frame->sf_mask.sig[i]))
 	    goto badframe;
-   }		
+    }
 
-   target_to_host_sigset_internal(&blocked, &target_set);
-   sigprocmask(SIG_SETMASK, &blocked, NULL);
+    target_to_host_sigset_internal(&blocked, &target_set);
+    sigprocmask(SIG_SETMASK, &blocked, NULL);
 
-   if (restore_sigcontext(regs, &frame->sf_sc))
+    if (restore_sigcontext(regs, &frame->sf_sc))
    	goto badframe;
 
 #if 0
-   /*
-    * Don't let your children do this ...
-    */
-   __asm__ __volatile__(
+    /*
+     * Don't let your children do this ...
+     */
+    __asm__ __volatile__(
    	"move\t$29, %0\n\t"
    	"j\tsyscall_exit"
    	:/* no outputs */
    	:"r" (&regs));
-   /* Unreached */
+    /* Unreached */
 #endif
     
     regs->PC = regs->CP0_EPC;
-   /* I am not sure this is right, but it seems to work
+    /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     regs->CP0_EPC = 0;
     return 0;
 
 badframe:
-   force_sig(TARGET_SIGSEGV/*, current*/);
-   return 0;	
-
+    force_sig(TARGET_SIGSEGV/*, current*/);
+    return 0;
 }
 
 static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
@@ -2067,5 +2063,3 @@ void process_pending_signals(void *cpu_env)
     if (q != &k->info)
         free_sigqueue(q);
 }
-
-

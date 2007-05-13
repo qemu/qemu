@@ -547,7 +547,7 @@ static void glue(nand_blk_erase_, PAGE_SIZE)(struct nand_flash_s *s)
         page = i >> 9;
         if (bdrv_read(s->bdrv, page, iobuf, 1) == -1)
             printf("%s: read error in sector %i\n", __FUNCTION__, page);
-        memset(iobuf, 0xff, addr & 0x1ff);
+        memset(iobuf, 0xff, ((addr - 1) & 0x1ff) + 1);
         if (bdrv_write(s->bdrv, page, iobuf, 1) == -1)
             printf("%s: write error in sector %i\n", __FUNCTION__, page);
     }

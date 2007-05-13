@@ -298,26 +298,6 @@ void do_mtc0_status_irqraise_debug (void)
     cpu_abort(env, "mtc0 status irqraise debug\n");
 }
 
-void do_tlbwi (void)
-{
-    cpu_abort(env, "tlbwi\n");
-}
-
-void do_tlbwr (void)
-{
-    cpu_abort(env, "tlbwr\n");
-}
-
-void do_tlbp (void)
-{
-    cpu_abort(env, "tlbp\n");
-}
-
-void do_tlbr (void)
-{
-    cpu_abort(env, "tlbr\n");
-}
-
 void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 {
     cpu_abort(env, "mips_tlb_flush\n");
@@ -413,7 +393,6 @@ void fpu_handle_exception(void)
 }
 
 /* TLB management */
-#if defined(MIPS_USES_R4K_TLB)
 void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 {
     /* Flush qemu's TLB and discard all shadowed entries.  */
@@ -421,21 +400,24 @@ void cpu_mips_tlb_flush (CPUState *env, int flush_global)
     env->tlb_in_use = env->nb_tlb;
 }
 
-static void mips_tlb_flush_extra (CPUState *env, int first)
+static void r4k_mips_tlb_flush_extra (CPUState *env, int first)
 {
     /* Discard entries from env->tlb[first] onwards.  */
     while (env->tlb_in_use > first) {
-        invalidate_tlb(env, --env->tlb_in_use, 0);
+        r4k_invalidate_tlb(env, --env->tlb_in_use, 0);
     }
 }
 
-static void fill_tlb (int idx)
+static void r4k_fill_tlb (int idx)
 {
-    tlb_t *tlb;
+    r4k_tlb_t *tlb;
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
-    tlb = &env->tlb[idx];
-    tlb->VPN = env->CP0_EntryHi & ~(target_ulong)0x1FFF;
+    tlb = &env->mmu.r4k.tlb[idx];
+    tlb->VPN = env->CP0_EntryHi & (TARGET_PAGE_MASK << 1);
+#ifdef TARGET_MIPS64
+    tlb->VPN &= 0xC00000FFFFFFFFFFULL;
+#endif
     tlb->ASID = env->CP0_EntryHi & 0xFF;
     tlb->PageMask = env->CP0_PageMask;
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
@@ -449,38 +431,43 @@ static void fill_tlb (int idx)
     tlb->PFN[1] = (env->CP0_EntryLo1 >> 6) << 12;
 }
 
-void do_tlbwi (void)
+void r4k_do_tlbwi (void)
 {
     /* Discard cached TLB entries.  We could avoid doing this if the
        tlbwi is just upgrading access permissions on the current entry;
        that might be a further win.  */
-    mips_tlb_flush_extra (env, env->nb_tlb);
+    r4k_mips_tlb_flush_extra (env, env->nb_tlb);
 
-    invalidate_tlb(env, env->CP0_Index % env->nb_tlb, 0);
-    fill_tlb(env->CP0_Index % env->nb_tlb);
+    r4k_invalidate_tlb(env, env->CP0_Index % env->nb_tlb, 0);
+    r4k_fill_tlb(env->CP0_Index % env->nb_tlb);
 }
 
-void do_tlbwr (void)
+void r4k_do_tlbwr (void)
 {
     int r = cpu_mips_get_random(env);
 
-    invalidate_tlb(env, r, 1);
-    fill_tlb(r);
+    r4k_invalidate_tlb(env, r, 1);
+    r4k_fill_tlb(r);
 }
 
-void do_tlbp (void)
+void r4k_do_tlbp (void)
 {
-    tlb_t *tlb;
+    r4k_tlb_t *tlb;
+    target_ulong mask;
     target_ulong tag;
+    target_ulong VPN;
     uint8_t ASID;
     int i;
 
-    tag = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     ASID = env->CP0_EntryHi & 0xFF;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i];
+        tlb = &env->mmu.r4k.tlb[i];
+        /* 1k pages are not supported. */
+        mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
+        tag = env->CP0_EntryHi & ~mask;
+        VPN = tlb->VPN & ~mask;
         /* Check ASID, virtual page number & size */
-        if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
+        if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
             /* TLB match */
             env->CP0_Index = i;
             break;
@@ -489,11 +476,14 @@ void do_tlbp (void)
     if (i == env->nb_tlb) {
         /* No match.  Discard any shadow entries, if any of them match.  */
         for (i = env->nb_tlb; i < env->tlb_in_use; i++) {
-	    tlb = &env->tlb[i];
-
+	    tlb = &env->mmu.r4k.tlb[i];
+	    /* 1k pages are not supported. */
+	    mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
+	    tag = env->CP0_EntryHi & ~mask;
+	    VPN = tlb->VPN & ~mask;
 	    /* Check ASID, virtual page number & size */
-	    if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
-                mips_tlb_flush_extra (env, i);
+	    if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
+                r4k_mips_tlb_flush_extra (env, i);
 	        break;
 	    }
 	}
@@ -502,19 +492,19 @@ void do_tlbp (void)
     }
 }
 
-void do_tlbr (void)
+void r4k_do_tlbr (void)
 {
-    tlb_t *tlb;
+    r4k_tlb_t *tlb;
     uint8_t ASID;
 
     ASID = env->CP0_EntryHi & 0xFF;
-    tlb = &env->tlb[env->CP0_Index % env->nb_tlb];
+    tlb = &env->mmu.r4k.tlb[env->CP0_Index % env->nb_tlb];
 
     /* If this will change the current ASID, flush qemu's TLB.  */
     if (ASID != tlb->ASID)
         cpu_mips_tlb_flush (env, 1);
 
-    mips_tlb_flush_extra(env, env->nb_tlb);
+    r4k_mips_tlb_flush_extra(env, env->nb_tlb);
 
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     env->CP0_PageMask = tlb->PageMask;
@@ -523,7 +513,6 @@ void do_tlbr (void)
     env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
                         (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
 }
-#endif
 
 #endif /* !CONFIG_USER_ONLY */
 

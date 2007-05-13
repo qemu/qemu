@@ -2041,8 +2041,8 @@ static void vga_save_dpy_refresh(DisplayState *s)
 {
 }
 
-static int ppm_save(const char *filename, uint8_t *data, 
-                    int w, int h, int linesize)
+int ppm_save(const char *filename, uint8_t *data, 
+             int w, int h, int linesize)
 {
     FILE *f;
     uint8_t *d, *d1;

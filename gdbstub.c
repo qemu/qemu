@@ -657,6 +657,9 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
       }
 }
 #elif defined (TARGET_SH4)
+
+/* Hint: Use "set architecture sh4" in GDB to see fpu registers */
+
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
   uint32_t *ptr = (uint32_t *)mem_buf;
@@ -676,12 +679,14 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
   SAVE (env->mach);
   SAVE (env->macl);
   SAVE (env->sr);
-  SAVE (0); /* TICKS */
-  SAVE (0); /* STALLS */
-  SAVE (0); /* CYCLES */
-  SAVE (0); /* INSTS */
-  SAVE (0); /* PLR */
-
+  SAVE (env->fpul);
+  SAVE (env->fpscr);
+  for (i = 0; i < 16; i++)
+      SAVE(env->fregs[i + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
+  SAVE (env->ssr);
+  SAVE (env->spc);
+  for (i = 0; i < 8; i++) SAVE(env->gregs[i]);
+  for (i = 0; i < 8; i++) SAVE(env->gregs[i + 16]);
   return ((uint8_t *)ptr - mem_buf);
 }
 
@@ -704,6 +709,14 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
   LOAD (env->mach);
   LOAD (env->macl);
   LOAD (env->sr);
+  LOAD (env->fpul);
+  LOAD (env->fpscr);
+  for (i = 0; i < 16; i++)
+      LOAD(env->fregs[i + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
+  LOAD (env->ssr);
+  LOAD (env->spc);
+  for (i = 0; i < 8; i++) LOAD(env->gregs[i]);
+  for (i = 0; i < 8; i++) LOAD(env->gregs[i + 16]);
 }
 #else
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)

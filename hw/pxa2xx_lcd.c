@@ -737,8 +737,7 @@ static void pxa2xx_lcdc_dma0_redraw_horiz(struct pxa2xx_lcdc_s *s,
                             dest, src, s->xres, s->dest_width);
             if (addr < start)
                 start = addr;
-            if (new_addr > end)
-                end = new_addr;
+            end = new_addr;
             if (y < *miny)
                 *miny = y;
             if (y >= *maxy)

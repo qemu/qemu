@@ -226,18 +226,19 @@ enum {
 #ifdef VERBOSE
 # define GUEST_OS_BASE		0x5001
 static const char *vmsvga_guest_id[] = {
-    [0x0] = "Dos",
-    [0x1] = "Windows 3.1",
-    [0x2] = "Windows 95",
-    [0x3] = "Windows 98",
-    [0x4] = "Windows ME",
-    [0x5] = "Windows NT",
-    [0x6] = "Windows 2000",
-    [0x7] = "Linux",
-    [0x8] = "OS/2",
-    [0x9] = "Unknown",
-    [0xa] = "BSD",
-    [0xb] = "Whistler",
+    [0x00 ... 0x15] = "an unknown OS",
+    [0x00] = "Dos",
+    [0x01] = "Windows 3.1",
+    [0x02] = "Windows 95",
+    [0x03] = "Windows 98",
+    [0x04] = "Windows ME",
+    [0x05] = "Windows NT",
+    [0x06] = "Windows 2000",
+    [0x07] = "Linux",
+    [0x08] = "OS/2",
+    [0x0a] = "BSD",
+    [0x0b] = "Whistler",
+    [0x15] = "Windows 2003",
 };
 #endif
 
@@ -459,7 +460,7 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
 static inline int vmsvga_fifo_empty(struct vmsvga_state_s *s)
 {
     if (!s->config || !s->enable)
-        return 0;
+        return 1;
     return (s->cmd->next_cmd == s->cmd->stop);
 }
 
@@ -619,7 +620,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return SVGA_MAX_WIDTH;
 
     case SVGA_REG_MAX_HEIGHT:
-        return SVGA_MAX_WIDTH;
+        return SVGA_MAX_HEIGHT;
 
     case SVGA_REG_DEPTH:
         return s->depth;
@@ -727,7 +728,8 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         break;
 
     case SVGA_REG_ENABLE:
-        s->enable = s->config = value & s->config;
+        s->enable = value;
+        s->config &= !!value;
         s->width = -1;
         s->height = -1;
         s->invalidated = 1;
@@ -770,7 +772,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
             if (s->cmd->max < s->cmd->min + 10 * 1024)
                 break;
         }
-        s->config = value;
+        s->config = !!value;
         break;
 
     case SVGA_REG_SYNC:
@@ -902,14 +904,14 @@ static void vmsvga_reset(struct vmsvga_state_s *s)
         s->wblue  = 0x0000f800;
         break;
     case 24:
-        s->wred   = 0x000000ff;
+        s->wred   = 0x00ff0000;
         s->wgreen = 0x0000ff00;
-        s->wblue  = 0x00ff0000;
+        s->wblue  = 0x000000ff;
         break;
     case 32:
-        s->wred   = 0x000000ff;
+        s->wred   = 0x00ff0000;
         s->wgreen = 0x0000ff00;
-        s->wblue  = 0x00ff0000;
+        s->wblue  = 0x000000ff;
         break;
     }
     s->syncing = 0;
@@ -928,6 +930,8 @@ static void vmsvga_invalidate_display(void *opaque)
     s->invalidated = 1;
 }
 
+/* save the vga display in a PPM image even if no display is
+   available */
 static void vmsvga_screen_dump(void *opaque, const char *filename)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
@@ -938,7 +942,9 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
         return;
     }
 
-    /* TODO */
+    if (s->depth == 32) {
+        ppm_save(filename, s->vram, s->width, s->height, s->ds->linesize);
+    }
 }
 
 #ifdef DIRECT_VRAM

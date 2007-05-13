@@ -59,9 +59,9 @@
 
 # define PXA2XX_SDRAM_BASE	0xa0000000
 # define PXA2XX_INTERNAL_BASE	0x5c000000
+# define PXA2XX_INTERNAL_SIZE	0x40000
 
 /* pxa2xx_pic.c */
-struct pxa2xx_pic_state_s;
 qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
 
 /* pxa2xx_timer.c */

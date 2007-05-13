@@ -236,7 +236,7 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
 		? (x) + 16 : (x))
 
 #define FREG(x) (ctx->fpscr & FPSCR_FR ? (x) ^ 0x10 : (x))
-#define XHACK(x) (((x) & 1 ) << 4 | ((x) & 0xe ) << 1)
+#define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
 #define XREG(x) (ctx->fpscr & FPSCR_FR ? XHACK(x) ^ 0x10 : XHACK(x))
 
 #define CHECK_NOT_DELAY_SLOT \
@@ -685,7 +685,7 @@ void decode_opc(DisasContext * ctx)
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfl_T0_FT0(ctx);
-	    gen_op_fmov_FT0_frN(XREG(B11_8));
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
     case 0xf009:		/* fmov @Rm+,{F,D,X}Rn */
@@ -704,7 +704,7 @@ void decode_opc(DisasContext * ctx)
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfl_T0_FT0(ctx);
-	    gen_op_fmov_FT0_frN(XREG(B11_8));
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	    gen_op_inc4_rN(REG(B7_4));
 	}
 	return;
@@ -745,7 +745,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
 	    gen_op_ldfl_T0_FT0(ctx);
-	    gen_op_fmov_FT0_frN(XREG(B11_8));
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
     case 0xf007:		/* fmov {F,D,X}Rn,@(R0,Rn) */

@@ -148,7 +148,7 @@ static mips_def_t mips_defs[] =
         .Status_rw_bitmask = 0x3678FFFF,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) |
-                    (0x4 << FCR0_PRID) | (0x0 << FCR0_REV),
+                    (0x5 << FCR0_PRID) | (0x0 << FCR0_REV),
     },
 #endif
 };
@@ -180,6 +180,30 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+static void no_mmu_init (CPUMIPSState *env, mips_def_t *def)
+{
+    env->nb_tlb = 1;
+    env->map_address = &no_mmu_map_address;
+}
+
+static void fixed_mmu_init (CPUMIPSState *env, mips_def_t *def)
+{
+    env->nb_tlb = 1;
+    env->map_address = &fixed_mmu_map_address;
+}
+
+static void r4k_mmu_init (CPUMIPSState *env, mips_def_t *def)
+{
+    env->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
+    env->map_address = &r4k_map_address;
+    env->do_tlbwi = r4k_do_tlbwi;
+    env->do_tlbwr = r4k_do_tlbwr;
+    env->do_tlbp = r4k_do_tlbp;
+    env->do_tlbr = r4k_do_tlbr;
+}
+#endif /* CONFIG_USER_ONLY */
+
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
 {
     if (!def)
@@ -199,10 +223,23 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CCRes = def->CCRes;
     env->Status_rw_bitmask = def->Status_rw_bitmask;
     env->fcr0 = def->CP1_fcr0;
-#if defined (MIPS_USES_R4K_TLB)
-    env->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
+#ifndef CONFIG_USER_ONLY
+    switch ((env->CP0_Config0 >> CP0C0_MT) & 3) {
+        case 0:
+            no_mmu_init(env, def);
+            break;
+        case 1:
+            r4k_mmu_init(env, def);
+            break;
+        case 3:
+            fixed_mmu_init(env, def);
+            break;
+        default:
+            /* Older CPUs like the R3000 may need nonstandard handling here. */
+            cpu_abort(env, "MMU type not supported\n");
+    }
     env->CP0_Random = env->nb_tlb - 1;
     env->tlb_in_use = env->nb_tlb;
-#endif
+#endif /* CONFIG_USER_ONLY */
     return 0;
 }

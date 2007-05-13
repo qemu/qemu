@@ -1634,10 +1634,10 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     cpu_arm_set_model(s->env, "pxa255");
 
     /* SDRAM & Internal Memory Storage */
-    cpu_register_physical_memory(PXA2XX_SDRAM_BASE,
-                    sdram_size, qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
-    cpu_register_physical_memory(PXA2XX_INTERNAL_BASE,
-                    0x40000, qemu_ram_alloc(0x40000) | IO_MEM_RAM);
+    cpu_register_physical_memory(PXA2XX_SDRAM_BASE, sdram_size,
+                    qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
+    cpu_register_physical_memory(PXA2XX_INTERNAL_BASE, PXA2XX_INTERNAL_SIZE,
+                    qemu_ram_alloc(PXA2XX_INTERNAL_SIZE) | IO_MEM_RAM);
 
     s->pic = pxa2xx_pic_init(0x40d00000, s->env);
 

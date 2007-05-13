@@ -33,9 +33,8 @@ union fpr_t {
 #  define FP_ENDIAN_IDX 0
 #endif
 
-#if defined(MIPS_USES_R4K_TLB)
-typedef struct tlb_t tlb_t;
-struct tlb_t {
+typedef struct r4k_tlb_t r4k_tlb_t;
+struct r4k_tlb_t {
     target_ulong VPN;
     uint32_t PageMask;
     uint_fast8_t ASID;
@@ -48,7 +47,6 @@ struct tlb_t {
     uint_fast16_t D1:1;
     target_ulong PFN[2];
 };
-#endif
 
 typedef struct mips_def_t mips_def_t;
 
@@ -102,11 +100,19 @@ struct CPUMIPSState {
 #define FP_INVALID        16
 #define FP_UNIMPLEMENTED  32
 
-#if defined(MIPS_USES_R4K_TLB)
-    tlb_t tlb[MIPS_TLB_MAX];
-    uint32_t tlb_in_use;
     uint32_t nb_tlb;
-#endif
+    uint32_t tlb_in_use;
+    int (*map_address) (CPUMIPSState *env, target_ulong *physical, int *prot, target_ulong address, int rw, int access_type);
+    void (*do_tlbwi) (void);
+    void (*do_tlbwr) (void);
+    void (*do_tlbp) (void);
+    void (*do_tlbr) (void);
+    union {
+        struct {
+            r4k_tlb_t tlb[MIPS_TLB_MAX];
+        } r4k;
+    } mmu;
+
     int32_t CP0_Index;
     int32_t CP0_Random;
     target_ulong CP0_EntryLo0;
@@ -299,6 +305,16 @@ struct CPUMIPSState {
     struct QEMUTimer *timer; /* Internal timer */
 };
 
+int no_mmu_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
+                        target_ulong address, int rw, int access_type);
+int fixed_mmu_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
+                           target_ulong address, int rw, int access_type);
+int r4k_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
+                     target_ulong address, int rw, int access_type);
+void r4k_do_tlbwi (void);
+void r4k_do_tlbwr (void);
+void r4k_do_tlbp (void);
+void r4k_do_tlbr (void);
 int mips_find_by_name (const unsigned char *name, mips_def_t **def);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
@@ -365,5 +381,6 @@ enum {
 int cpu_mips_exec(CPUMIPSState *s);
 CPUMIPSState *cpu_mips_init(void);
 uint32_t cpu_mips_get_clock (void);
+int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #endif /* !defined (__MIPS_CPU_H__) */

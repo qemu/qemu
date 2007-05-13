@@ -2420,7 +2420,12 @@ static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     qemu_chr_reset(chr);
     return chr;
 }
-    
+
+static CharDriverState *qemu_chr_open_win_con(const char *filename)
+{
+    return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE));
+}
+
 static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 {
     HANDLE fd_out;
@@ -2961,6 +2966,9 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else
     if (strstart(filename, "pipe:", &p)) {
         return qemu_chr_open_win_pipe(p);
+    } else
+    if (strstart(filename, "con:", NULL)) {
+        return qemu_chr_open_win_con(filename);
     } else
     if (strstart(filename, "file:", &p)) {
         return qemu_chr_open_win_file_out(p);

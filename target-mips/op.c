@@ -938,8 +938,6 @@ OP_COND(lez, (int32_t)T0 <= 0);
 OP_COND(ltz, (int32_t)T0 < 0);
 
 /* Branches */
-//#undef USE_DIRECT_JUMP
-
 void OPPROTO op_goto_tb0(void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
@@ -1262,7 +1260,7 @@ void op_mtc0_entrylo0 (void)
 {
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo0 = (int32_t)T0 & 0x3FFFFFFF;
+    env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
     RETURN();
 }
 
@@ -1270,7 +1268,7 @@ void op_mtc0_entrylo1 (void)
 {
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo1 = (int32_t)T0 & 0x3FFFFFFF;
+    env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
     RETURN();
 }
 
@@ -1283,7 +1281,7 @@ void op_mtc0_context (void)
 void op_mtc0_pagemask (void)
 {
     /* 1k pages not implemented */
-    env->CP0_PageMask = T0 & 0x1FFFE000;
+    env->CP0_PageMask = T0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
     RETURN();
 }
 
@@ -1319,8 +1317,10 @@ void op_mtc0_entryhi (void)
     target_ulong old, val;
 
     /* 1k pages not implemented */
-    /* Ignore MIPS64 TLB for now */
-    val = (target_ulong)(int32_t)T0 & ~(target_ulong)0x1F00;
+    val = T0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
+#ifdef TARGET_MIPS64
+    val = T0 & 0xC00000FFFFFFFFFFULL;
+#endif
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
     /* If the ASID changes, flush qemu's TLB.  */
@@ -1340,9 +1340,9 @@ void op_mtc0_status (void)
     uint32_t val, old;
     uint32_t mask = env->Status_rw_bitmask;
 
-    /* No reverse endianness, no MDMX/DSP, no 64bit ops,
-       no 64bit addressing implemented. */
-    val = (int32_t)T0 & mask;
+    /* No reverse endianness, no MDMX/DSP, no 64bit ops
+       implemented. */
+    val = T0 & mask;
     old = env->CP0_Status;
     if (!(val & (1 << CP0St_EXL)) &&
         !(val & (1 << CP0St_ERL)) &&
@@ -1397,7 +1397,7 @@ void op_mtc0_cause (void)
 
 void op_mtc0_epc (void)
 {
-    env->CP0_EPC = (int32_t)T0;
+    env->CP0_EPC = T0;
     RETURN();
 }
 
@@ -1411,12 +1411,7 @@ void op_mtc0_ebase (void)
 
 void op_mtc0_config0 (void)
 {
-#if defined(MIPS_USES_R4K_TLB)
-     /* Fixed mapping MMU not implemented */
-    env->CP0_Config0 = (env->CP0_Config0 & 0x8017FF88) | (T0 & 0x00000001);
-#else
-    env->CP0_Config0 = (env->CP0_Config0 & 0xFE17FF88) | (T0 & 0x00000001);
-#endif
+    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000001);
     RETURN();
 }
 
@@ -1431,7 +1426,7 @@ void op_mtc0_watchlo0 (void)
 {
     /* Watch exceptions for instructions, data loads, data stores
        not implemented. */
-    env->CP0_WatchLo = (int32_t)(T0 & ~0x7);
+    env->CP0_WatchLo = (T0 & ~0x7);
     RETURN();
 }
 
@@ -1460,7 +1455,7 @@ void op_mtc0_debug (void)
 
 void op_mtc0_depc (void)
 {
-    env->CP0_DEPC = (int32_t)T0;
+    env->CP0_DEPC = T0;
     RETURN();
 }
 
@@ -1496,7 +1491,7 @@ void op_mtc0_datahi (void)
 
 void op_mtc0_errorepc (void)
 {
-    env->CP0_ErrorEPC = (int32_t)T0;
+    env->CP0_ErrorEPC = T0;
     RETURN();
 }
 
@@ -1507,6 +1502,12 @@ void op_mtc0_desave (void)
 }
 
 #ifdef TARGET_MIPS64
+void op_mtc0_xcontext (void)
+{
+    env->CP0_XContext = (env->CP0_XContext & 0x1ffffffffULL) | (T0 & ~0x1ffffffffULL);
+    RETURN();
+}
+
 void op_dmfc0_entrylo0 (void)
 {
     T0 = env->CP0_EntryLo0;
@@ -1570,60 +1571,6 @@ void op_dmfc0_depc (void)
 void op_dmfc0_errorepc (void)
 {
     T0 = env->CP0_ErrorEPC;
-    RETURN();
-}
-
-void op_dmtc0_entrylo0 (void)
-{
-    /* Large physaddr not implemented */
-    /* 1k pages not implemented */
-    env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
-    RETURN();
-}
-
-void op_dmtc0_entrylo1 (void)
-{
-    /* Large physaddr not implemented */
-    /* 1k pages not implemented */
-    env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
-    RETURN();
-}
-
-void op_dmtc0_context (void)
-{
-    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (T0 & ~0x007FFFFF);
-    RETURN();
-}
-
-void op_dmtc0_epc (void)
-{
-    env->CP0_EPC = T0;
-    RETURN();
-}
-
-void op_dmtc0_watchlo0 (void)
-{
-    /* Watch exceptions for instructions, data loads, data stores
-       not implemented. */
-    env->CP0_WatchLo = T0 & ~0x7;
-    RETURN();
-}
-
-void op_dmtc0_xcontext (void)
-{
-    env->CP0_XContext = (env->CP0_XContext & 0xffffffff) | (T0 & ~0xffffffff);
-    RETURN();
-}
-
-void op_dmtc0_depc (void)
-{
-    env->CP0_DEPC = T0;
-    RETURN();
-}
-
-void op_dmtc0_errorepc (void)
-{
-    env->CP0_ErrorEPC = T0;
     RETURN();
 }
 #endif /* TARGET_MIPS64 */
@@ -2680,31 +2627,29 @@ void op_bc1tany4 (void)
     RETURN();
 }
 
-#if defined(MIPS_USES_R4K_TLB)
 void op_tlbwi (void)
 {
-    CALL_FROM_TB0(do_tlbwi);
+    CALL_FROM_TB0(env->do_tlbwi);
     RETURN();
 }
 
 void op_tlbwr (void)
 {
-    CALL_FROM_TB0(do_tlbwr);
+    CALL_FROM_TB0(env->do_tlbwr);
     RETURN();
 }
 
 void op_tlbp (void)
 {
-    CALL_FROM_TB0(do_tlbp);
+    CALL_FROM_TB0(env->do_tlbp);
     RETURN();
 }
 
 void op_tlbr (void)
 {
-    CALL_FROM_TB0(do_tlbr);
+    CALL_FROM_TB0(env->do_tlbr);
     RETURN();
 }
-#endif
 
 /* Specials */
 #if defined (CONFIG_USER_ONLY)
