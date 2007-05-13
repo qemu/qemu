@@ -73,19 +73,18 @@ int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
     for (i = 0; i < env->tlb_in_use; i++) {
         r4k_tlb_t *tlb = &env->mmu.r4k.tlb[i];
         /* 1k pages are not supported. */
-        target_ulong mask = tlb->PageMask | 0x1FFF;
+        target_ulong mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
         target_ulong tag = address & ~mask;
-        int n;
+        target_ulong VPN = tlb->VPN & ~mask;
 
         /* Check ASID, virtual page number & size */
-        if ((tlb->G == 1 || tlb->ASID == ASID) &&
-            tlb->VPN == tag) {
+        if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
             /* TLB match */
-            n = !!(address & mask & ~(mask >> 1));
+            int n = !!(address & mask & ~(mask >> 1));
             /* Check access rights */
-           if (!(n ? tlb->V1 : tlb->V0))
+            if (!(n ? tlb->V1 : tlb->V0))
                 return TLBRET_INVALID;
-           if (rw == 0 || (n ? tlb->D1 : tlb->D0)) {
+            if (rw == 0 || (n ? tlb->D1 : tlb->D0)) {
                 *physical = tlb->PFN[n] | (address & (mask >> 1));
                 *prot = PAGE_READ;
                 if (n ? tlb->D1 : tlb->D0)
@@ -502,7 +501,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     target_ulong mask;
 
     tlb = &env->mmu.r4k.tlb[idx];
-    /* The qemu TLB is flushed then the ASID changes, so no need to
+    /* The qemu TLB is flushed when the ASID changes, so no need to
        flush these entries again.  */
     if (tlb->G == 0 && tlb->ASID != ASID) {
         return;
@@ -518,9 +517,9 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     }
 
     /* 1k pages are not supported. */
-    mask = tlb->PageMask | 0x1FFF;
+    mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
     if (tlb->V0) {
-        addr = tlb->VPN;
+        addr = tlb->VPN & ~mask;
         end = addr | (mask >> 1);
         while (addr < end) {
             tlb_flush_page (env, addr);
@@ -528,8 +527,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
         }
     }
     if (tlb->V1) {
-        addr = tlb->VPN | ((mask >> 1) + 1);
-        addr = tlb->VPN + TARGET_PAGE_SIZE;
+        addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
         end = addr | mask;
         while (addr < end) {
             tlb_flush_page (env, addr);

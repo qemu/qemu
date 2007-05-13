@@ -390,7 +390,7 @@ static void r4k_fill_tlb (int idx)
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->mmu.r4k.tlb[idx];
-    tlb->VPN = env->CP0_EntryHi & ~(target_ulong)0x1FFF;
+    tlb->VPN = env->CP0_EntryHi & (TARGET_PAGE_MASK << 1);
     tlb->ASID = env->CP0_EntryHi & 0xFF;
     tlb->PageMask = env->CP0_PageMask;
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
@@ -426,16 +426,21 @@ void r4k_do_tlbwr (void)
 void r4k_do_tlbp (void)
 {
     r4k_tlb_t *tlb;
+    target_ulong mask;
     target_ulong tag;
+    target_ulong VPN;
     uint8_t ASID;
     int i;
 
-    tag = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     ASID = env->CP0_EntryHi & 0xFF;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->mmu.r4k.tlb[i];
+        /* 1k pages are not supported. */
+        mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
+        tag = env->CP0_EntryHi & ~mask;
+        VPN = tlb->VPN & ~mask;
         /* Check ASID, virtual page number & size */
-        if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
+        if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
             /* TLB match */
             env->CP0_Index = i;
             break;
@@ -445,9 +450,12 @@ void r4k_do_tlbp (void)
         /* No match.  Discard any shadow entries, if any of them match.  */
         for (i = env->nb_tlb; i < env->tlb_in_use; i++) {
 	    tlb = &env->mmu.r4k.tlb[i];
-
+	    /* 1k pages are not supported. */
+	    mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
+	    tag = env->CP0_EntryHi & ~mask;
+	    VPN = tlb->VPN & ~mask;
 	    /* Check ASID, virtual page number & size */
-	    if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
+	    if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
                 r4k_mips_tlb_flush_extra (env, i);
 	        break;
 	    }

@@ -1283,7 +1283,7 @@ void op_mtc0_context (void)
 void op_mtc0_pagemask (void)
 {
     /* 1k pages not implemented */
-    env->CP0_PageMask = T0 & 0x1FFFE000;
+    env->CP0_PageMask = T0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
     RETURN();
 }
 
