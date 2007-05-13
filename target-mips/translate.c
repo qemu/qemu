@@ -2190,10 +2190,11 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-            /* 64 bit MMU only */
+#ifdef TARGET_MIPS64
             gen_op_mfc0_xcontext();
             rn = "XContext";
             break;
+#endif
         default:
             goto die;
         }
@@ -2788,10 +2789,11 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-            /* 64 bit MMU only */
+#ifdef TARGET_MIPS64
             /* Nothing writable in lower 32 bits */
             rn = "XContext";
             break;
+#endif
         default:
             goto die;
         }
@@ -3377,10 +3379,11 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-            /* 64 bit MMU only */
+#ifdef TARGET_MIPS64
             gen_op_dmfc0_xcontext();
             rn = "XContext";
             break;
+#endif
         default:
             goto die;
         }
@@ -3966,10 +3969,11 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-            /* 64 bit MMU only */
+#ifdef TARGET_MIPS64
             gen_op_dmtc0_xcontext();
             rn = "XContext";
             break;
+#endif
         default:
             goto die;
         }
