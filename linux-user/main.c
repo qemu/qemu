@@ -1312,9 +1312,41 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_waitid	, 4)
 	MIPS_SYS(sys_ni_syscall	, 0)	/* available, was setaltroot */
 	MIPS_SYS(sys_add_key	, 5)
-	MIPS_SYS(sys_request_key	, 4)
+	MIPS_SYS(sys_request_key, 4)
 	MIPS_SYS(sys_keyctl	, 5)
 	MIPS_SYS(sys_set_thread_area, 1)
+	MIPS_SYS(sys_inotify_init, 0)
+	MIPS_SYS(sys_inotify_add_watch, 3) /* 4285 */
+	MIPS_SYS(sys_inotify_rm_watch, 2)
+	MIPS_SYS(sys_migrate_pages, 4)
+	MIPS_SYS(sys_openat, 4)
+	MIPS_SYS(sys_mkdirat, 3)
+	MIPS_SYS(sys_mknodat, 4)	/* 4290 */
+	MIPS_SYS(sys_fchownat, 5)
+	MIPS_SYS(sys_futimesat, 3)
+	MIPS_SYS(sys_fstatat64, 4)
+	MIPS_SYS(sys_unlinkat, 3)
+	MIPS_SYS(sys_renameat, 4)	/* 4295 */
+	MIPS_SYS(sys_linkat, 5)
+	MIPS_SYS(sys_symlinkat, 3)
+	MIPS_SYS(sys_readlinkat, 4)
+	MIPS_SYS(sys_fchmodat, 3)
+	MIPS_SYS(sys_faccessat, 3)	/* 4300 */
+	MIPS_SYS(sys_pselect6, 6)
+	MIPS_SYS(sys_ppoll, 5)
+	MIPS_SYS(sys_unshare, 1)
+	MIPS_SYS(sys_splice, 4)
+	MIPS_SYS(sys_sync_file_range, 7) /* 4305 */
+	MIPS_SYS(sys_tee, 4)
+	MIPS_SYS(sys_vmsplice, 4)
+	MIPS_SYS(sys_move_pages, 6)
+	MIPS_SYS(sys_set_robust_list, 2)
+	MIPS_SYS(sys_get_robust_list, 3) /* 4310 */
+	MIPS_SYS(sys_kexec_load, 4)
+	MIPS_SYS(sys_getcpu, 3)
+	MIPS_SYS(sys_epoll_pwait, 6)
+	MIPS_SYS(sys_ioprio_set, 3)
+	MIPS_SYS(sys_ioprio_get, 2)
 };
 
 #undef MIPS_SYS
@@ -1322,53 +1354,45 @@ static const uint8_t mips_syscall_args[] = {
 void cpu_loop(CPUMIPSState *env)
 {
     target_siginfo_t info;
-    int trapnr, ret, nb_args;
+    int trapnr, ret;
     unsigned int syscall_num;
-    target_ulong arg5, arg6, sp_reg;
 
     for(;;) {
         trapnr = cpu_mips_exec(env);
         switch(trapnr) {
         case EXCP_SYSCALL:
-            {
-                syscall_num = env->gpr[2] - 4000;
-                env->PC += 4;
-                if (syscall_num >= sizeof(mips_syscall_args)) {
-                    ret = -ENOSYS;
-                } else {
-                    nb_args = mips_syscall_args[syscall_num];
-                    if (nb_args >= 5) {
-                        sp_reg = env->gpr[29];
-                        /* these arguments are taken from the stack */
-                        arg5 = tgetl(sp_reg + 16);
-                        if (nb_args >= 6) {
-                            arg6 = tgetl(sp_reg + 20);
-                        } else {
-                            arg6 = 0;
-                        }
-                    } else {
-                        arg5 = 0;
-                        arg6 = 0;
-                    }
-                    ret = do_syscall(env, 
-                                     env->gpr[2], 
-                                     env->gpr[4],
-                                     env->gpr[5],
-                                     env->gpr[6],
-                                     env->gpr[7],
-                                     arg5, 
-                                     arg6);
+            syscall_num = env->gpr[2] - 4000;
+            env->PC += 4;
+            if (syscall_num >= sizeof(mips_syscall_args)) {
+                ret = -ENOSYS;
+            } else {
+                int nb_args;
+                target_ulong sp_reg;
+                target_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
+
+                nb_args = mips_syscall_args[syscall_num];
+                sp_reg = env->gpr[29];
+                switch (nb_args) {
+                /* these arguments are taken from the stack */
+                case 8: arg8 = tgetl(sp_reg + 28);
+                case 7: arg7 = tgetl(sp_reg + 24);
+                case 6: arg6 = tgetl(sp_reg + 20);
+                case 5: arg5 = tgetl(sp_reg + 16);
+                default:
+                    break;
                 }
-                if ((unsigned int)ret >= (unsigned int)(-1133)) {
-                    env->gpr[7] = 1; /* error flag */
-                    ret = -ret;
-                    env->gpr[0] = ret;
-                    env->gpr[2] = ret;
-                } else {
-                    env->gpr[7] = 0; /* error flag */
-                    env->gpr[2] = ret;
-                }
+                ret = do_syscall(env, env->gpr[2],
+                                 env->gpr[4], env->gpr[5],
+                                 env->gpr[6], env->gpr[7],
+                                 arg5, arg6/*, arg7, arg8*/);
             }
+            if ((unsigned int)ret >= (unsigned int)(-1133)) {
+                env->gpr[7] = 1; /* error flag */
+                ret = -ret;
+            } else {
+                env->gpr[7] = 0; /* error flag */
+            }
+            env->gpr[2] = ret;
             break;
         case EXCP_TLBL:
         case EXCP_TLBS:

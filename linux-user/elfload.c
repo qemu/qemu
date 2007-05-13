@@ -287,7 +287,11 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 
 #define elf_check_arch(x) ( (x) == EM_MIPS )
 
+#ifdef TARGET_MIPS64
+#define ELF_CLASS   ELFCLASS64
+#else
 #define ELF_CLASS   ELFCLASS32
+#endif
 #ifdef TARGET_WORDS_BIGENDIAN
 #define ELF_DATA	ELFDATA2MSB
 #else
@@ -301,6 +305,9 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->cp0_epc = infop->entry;
     regs->regs[29] = infop->start_stack;
 }
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_MIPS */
 

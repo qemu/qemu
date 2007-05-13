@@ -1750,7 +1750,9 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         new_env->dregs[0] = 0;
         /* ??? is this sufficient?  */
 #elif defined(TARGET_MIPS)
-        printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
+        if (!newsp)
+            newsp = env->gpr[29];
+        new_env->gpr[29] = newsp;
 #elif defined(TARGET_PPC)
         if (!newsp)
             newsp = env->gpr[1];
@@ -2429,7 +2431,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_sigaction
     case TARGET_NR_sigaction:
         {
-	#if !defined(TARGET_MIPS)
+#if !defined(TARGET_MIPS)
             struct target_old_sigaction *old_act;
             struct target_sigaction act, oact, *pact;
             if (arg2) {
@@ -2452,7 +2454,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 old_act->sa_restorer = oact.sa_restorer;
                 unlock_user_struct(old_act, arg3, 1);
             }
-	#else
+#else
 	    struct target_sigaction act, oact, *pact, *old_act;
 
 	    if (arg2) {
@@ -2478,7 +2480,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 		old_act->sa_mask.sig[3] = 0;
 		unlock_user_struct(old_act, arg3, 1);
 	    }
-	#endif
+#endif
         }
         break;
 #endif
