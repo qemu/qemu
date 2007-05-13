@@ -6,8 +6,6 @@
 
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
-/* Uses MIPS R4Kc TLB model */
-#define MIPS_USES_R4K_TLB
 #define MIPS_TLB_MAX 128
 
 #ifdef TARGET_MIPS64

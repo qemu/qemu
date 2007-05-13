@@ -4164,7 +4164,7 @@ die:
 }
 #endif /* TARGET_MIPS64 */
 
-static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
+static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
     const char *opn = "ldst";
 
@@ -4199,24 +4199,30 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         opn = "dmtc0";
         break;
 #endif
-#if defined(MIPS_USES_R4K_TLB)
     case OPC_TLBWI:
-        gen_op_tlbwi();
         opn = "tlbwi";
+        if (!env->do_tlbwi)
+            goto die;
+        gen_op_tlbwi();
         break;
     case OPC_TLBWR:
-        gen_op_tlbwr();
         opn = "tlbwr";
+        if (!env->do_tlbwr)
+            goto die;
+        gen_op_tlbwr();
         break;
     case OPC_TLBP:
-        gen_op_tlbp();
         opn = "tlbp";
+        if (!env->do_tlbp)
+            goto die;
+        gen_op_tlbp();
         break;
     case OPC_TLBR:
-        gen_op_tlbr();
         opn = "tlbr";
+        if (!env->do_tlbr)
+            goto die;
+        gen_op_tlbr();
         break;
-#endif
     case OPC_ERET:
         opn = "eret";
         save_cpu_state(ctx, 0);
@@ -4244,6 +4250,7 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
         ctx->bstate = BS_EXCP;
         break;
     default:
+ die:
         MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
         return;
@@ -5576,10 +5583,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_DMFC0:
         case OPC_DMTC0:
 #endif
-            gen_cp0(ctx, op1, rt, rd);
+            gen_cp0(env, ctx, op1, rt, rd);
             break;
         case OPC_C0_FIRST ... OPC_C0_LAST:
-            gen_cp0(ctx, MASK_C0(ctx->opcode), rt, rd);
+            gen_cp0(env, ctx, MASK_C0(ctx->opcode), rt, rd);
             break;
         case OPC_MFMC0:
             op2 = MASK_MFMC0(ctx->opcode);

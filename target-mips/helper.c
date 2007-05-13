@@ -36,16 +36,42 @@ enum {
     TLBRET_MATCH = 0
 };
 
-/* MIPS32 4K MMU emulation */
-#ifdef MIPS_USES_R4K_TLB
-static int map_address (CPUState *env, target_ulong *physical, int *prot,
+/* no MMU emulation */
+int no_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
                         target_ulong address, int rw, int access_type)
+{
+    *physical = address;
+    *prot = PAGE_READ | PAGE_WRITE;
+    return TLBRET_MATCH;
+}
+
+/* fixed mapping MMU emulation */
+int fixed_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
+                           target_ulong address, int rw, int access_type)
+{
+    if (address <= (int32_t)0x7FFFFFFFUL) {
+        if (!(env->CP0_Status & (1 << CP0St_ERL)))
+            *physical = address + 0x40000000UL;
+        else
+            *physical = address;
+    } else if (address <= (int32_t)0xBFFFFFFFUL)
+        *physical = address & 0x1FFFFFFF;
+    else
+        *physical = address;
+
+    *prot = PAGE_READ | PAGE_WRITE;
+    return TLBRET_MATCH;
+}
+
+/* MIPS32/MIPS64 R4000-style MMU emulation */
+int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
+                     target_ulong address, int rw, int access_type)
 {
     uint8_t ASID = env->CP0_EntryHi & 0xFF;
     int i;
 
     for (i = 0; i < env->tlb_in_use; i++) {
-        tlb_t *tlb = &env->tlb[i];
+        r4k_tlb_t *tlb = &env->mmu.r4k.tlb[i];
         /* 1k pages are not supported. */
         target_ulong mask = tlb->PageMask | 0x1FFF;
         target_ulong tag = address & ~mask;
@@ -71,7 +97,6 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
     }
     return TLBRET_NOMATCH;
 }
-#endif
 
 static int get_physical_address (CPUState *env, target_ulong *physical,
                                 int *prot, target_ulong address,
@@ -104,14 +129,9 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     if (address <= (int32_t)0x7FFFFFFFUL) {
         /* useg */
         if (!(env->CP0_Status & (1 << CP0St_ERL) && user_mode)) {
-#ifdef MIPS_USES_R4K_TLB
-            ret = map_address(env, physical, prot, address, rw, access_type);
-#else
-            *physical = address + 0x40000000UL;
-            *prot = PAGE_READ | PAGE_WRITE;
-#endif
+            ret = env->map_address(env, physical, prot, address, rw, access_type);
         } else {
-            *physical = address;
+            *physical = address & 0xFFFFFFFF;
             *prot = PAGE_READ | PAGE_WRITE;
         }
 #ifdef TARGET_MIPS64
@@ -123,14 +143,14 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     } else if (address < 0x3FFFFFFFFFFFFFFFULL) {
         /* xuseg */
 	if (UX && address < 0x000000FFFFFFFFFFULL) {
-            ret = map_address(env, physical, prot, address, rw, access_type);
+            ret = env->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
         }
     } else if (address < 0x7FFFFFFFFFFFFFFFULL) {
         /* xsseg */
 	if (SX && address < 0x400000FFFFFFFFFFULL) {
-            ret = map_address(env, physical, prot, address, rw, access_type);
+            ret = env->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
         }
@@ -148,7 +168,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         /* xkseg */
         /* XXX: check supervisor mode */
 	if (KX && address < 0xC00000FF7FFFFFFFULL) {
-            ret = map_address(env, physical, prot, address, rw, access_type);
+            ret = env->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
 	}
@@ -165,22 +185,12 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         *prot = PAGE_READ | PAGE_WRITE;
     } else if (address < (int32_t)0xE0000000UL) {
         /* kseg2 */
-#ifdef MIPS_USES_R4K_TLB
-        ret = map_address(env, physical, prot, address, rw, access_type);
-#else
-        *physical = address & 0xFFFFFFFF;
-        *prot = PAGE_READ | PAGE_WRITE;
-#endif
+        ret = env->map_address(env, physical, prot, address, rw, access_type);
     } else {
         /* kseg3 */
         /* XXX: check supervisor mode */
         /* XXX: debug segment is not emulated */
-#ifdef MIPS_USES_R4K_TLB
-        ret = map_address(env, physical, prot, address, rw, access_type);
-#else
-        *physical = address & 0xFFFFFFFF;
-        *prot = PAGE_READ | PAGE_WRITE;
-#endif
+        ret = env->map_address(env, physical, prot, address, rw, access_type);
     }
 #if 0
     if (logfile) {
@@ -483,15 +493,15 @@ void do_interrupt (CPUState *env)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-void invalidate_tlb (CPUState *env, int idx, int use_extra)
+void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 {
-    tlb_t *tlb;
+    r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
     uint8_t ASID = env->CP0_EntryHi & 0xFF;
     target_ulong mask;
 
-    tlb = &env->tlb[idx];
+    tlb = &env->mmu.r4k.tlb[idx];
     /* The qemu TLB is flushed then the ASID changes, so no need to
        flush these entries again.  */
     if (tlb->G == 0 && tlb->ASID != ASID) {
@@ -502,7 +512,7 @@ void invalidate_tlb (CPUState *env, int idx, int use_extra)
         /* For tlbwr, we can shadow the discarded entry into
 	   a new (fake) TLB entry, as long as the guest can not
 	   tell that it's there.  */
-        env->tlb[env->tlb_in_use] = *tlb;
+        env->mmu.r4k.tlb[env->tlb_in_use] = *tlb;
         env->tlb_in_use++;
         return;
     }

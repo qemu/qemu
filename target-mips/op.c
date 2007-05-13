@@ -1411,12 +1411,7 @@ void op_mtc0_ebase (void)
 
 void op_mtc0_config0 (void)
 {
-#if defined(MIPS_USES_R4K_TLB)
-     /* Fixed mapping MMU not implemented */
-    env->CP0_Config0 = (env->CP0_Config0 & 0x8017FF88) | (T0 & 0x00000001);
-#else
-    env->CP0_Config0 = (env->CP0_Config0 & 0xFE17FF88) | (T0 & 0x00000001);
-#endif
+    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000001);
     RETURN();
 }
 
@@ -2680,31 +2675,29 @@ void op_bc1tany4 (void)
     RETURN();
 }
 
-#if defined(MIPS_USES_R4K_TLB)
 void op_tlbwi (void)
 {
-    CALL_FROM_TB0(do_tlbwi);
+    CALL_FROM_TB0(env->do_tlbwi);
     RETURN();
 }
 
 void op_tlbwr (void)
 {
-    CALL_FROM_TB0(do_tlbwr);
+    CALL_FROM_TB0(env->do_tlbwr);
     RETURN();
 }
 
 void op_tlbp (void)
 {
-    CALL_FROM_TB0(do_tlbp);
+    CALL_FROM_TB0(env->do_tlbp);
     RETURN();
 }
 
 void op_tlbr (void)
 {
-    CALL_FROM_TB0(do_tlbr);
+    CALL_FROM_TB0(env->do_tlbr);
     RETURN();
 }
-#endif
 
 /* Specials */
 #if defined (CONFIG_USER_ONLY)
