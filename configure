@@ -157,6 +157,9 @@ SunOS)
             kqemu="yes"
         fi
     fi
+    if test -f /usr/include/sys/soundcard.h ; then
+        oss=yes
+    fi
 ;;
 *)
 oss="yes"
@@ -667,6 +670,7 @@ else
     fmod_support=""
 fi
 echo "FMOD support      $fmod $fmod_support"
+echo "OSS support       $oss"
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
