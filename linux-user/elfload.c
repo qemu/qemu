@@ -799,7 +799,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 #endif
 
         if (interp_elf_ex->e_type == ET_DYN) {
-            /* in order to avoid harcoding the interpreter load
+            /* in order to avoid hardcoding the interpreter load
                address in qemu, we allocate a big enough memory zone */
             error = target_mmap(0, INTERP_MAP_SIZE,
                                 PROT_NONE, MAP_PRIVATE | MAP_ANON, 
@@ -1191,7 +1191,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                base, as well as whatever program they might try to exec.  This
                is because the brk will follow the loader, and is not movable.  */
             /* NOTE: for qemu, we do a big mmap to get enough space
-               without harcoding any address */
+               without hardcoding any address */
             error = target_mmap(0, ET_DYN_MAP_SIZE,
                                 PROT_NONE, MAP_PRIVATE | MAP_ANON, 
                                 -1, 0);
