@@ -243,7 +243,17 @@ void qemu_system_powerdown(void)
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
+
     cpu_reset(env);
+    env->halted = 0;
+}
+
+static void secondary_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    env->halted = 1;
 }
 
 static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
@@ -266,10 +276,13 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         env = cpu_init();
         cpu_sparc_register(env, def);
         envs[i] = env;
-        if (i != 0)
+        if (i == 0) {
+            qemu_register_reset(main_cpu_reset, env);
+        } else {
+            qemu_register_reset(secondary_cpu_reset, env);
             env->halted = 1;
+        }
         register_savevm("cpu", i, 3, cpu_save, cpu_load, env);
-        qemu_register_reset(main_cpu_reset, env);
     }
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);

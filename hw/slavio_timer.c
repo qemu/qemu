@@ -263,7 +263,7 @@ static void slavio_timer_reset(void *opaque)
     s->reached = 0;
     s->mode &= 2;
     s->stopped = 1;
-    slavio_timer_get_out(s);
+    slavio_timer_irq(s);
 }
 
 void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu,
