@@ -1692,7 +1692,9 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 0:
         break;
     case 1:
+#if !defined(TARGET_MIPS)
 	ide_clear_hob(ide_if);
+#endif
         /* NOTE: data is written to the two drives */
 	ide_if[0].hob_feature = ide_if[0].feature;
 	ide_if[1].hob_feature = ide_if[1].feature;
