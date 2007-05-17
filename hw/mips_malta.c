@@ -48,7 +48,7 @@
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
-#define DEBUG
+//~ #define DEBUG
 
 #if defined(DEBUG)
 #  define TRACE(flag, command) ((flag) ? (command) : (void)0)
@@ -555,6 +555,10 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
 {
     uint32_t *p;
 
+    if (PHYS_TO_VIRT(kernel_entry) == PHYS_TO_VIRT(0x1fc00000LL)) {
+        return;
+    }
+
     /* Small bootloader */
     p = (uint32_t *) (phys_ram_base + bios_offset);
     stl_raw(p++, 0x0bf00160);                                      /* j 0x1fc00580 */
@@ -792,7 +796,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     PCIBus *pci_bus;
     CPUState *env;
     RTCState *rtc_state;
-    /* fdctrl_t *floppy_controller; */
+    fdctrl_t *floppy_controller;
     MaltaFPGAState *malta_fpga;
     int ret;
     mips_def_t *def;
@@ -885,8 +889,13 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     DMA_init(0);
 
     /* Super I/O */
+    //~ super_io_init();
     i8042_init(i8259[1], i8259[12], 0x60);
     rtc_state = rtc_init(0x70, i8259[8]);
+    if (serial_hds[1] == 0) {
+        serial_hds[1] = qemu_chr_open("vc");
+        qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
+    }
     if (serial_hds[0])
         serial_init(0x3f8, i8259[4], serial_hds[0]);
     if (serial_hds[1])
@@ -894,8 +903,8 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
     /* XXX: The floppy controller does not work correctly, something is
-       probably wrong.
-    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table); */
+       probably wrong. */
+    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
 
     /* Sound card */
 #ifdef HAS_AUDIO
