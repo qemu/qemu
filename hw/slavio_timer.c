@@ -80,13 +80,11 @@ static void slavio_timer_get_out(SLAVIO_TIMERState *s)
     out = (ticks > s->expire_time);
     if (out)
 	s->reached = 0x80000000;
-    if (!s->limit)
-	limit = 0x7fffffff;
-    else
-	limit = s->limit;
-
     // Convert register units to counter ticks
-    limit = limit >> 9;
+    limit = s->limit >> 9;
+
+    if (!limit)
+	limit = 0x7fffffff >> 9;
 
     // Convert cpu ticks to counter ticks
     diff = muldiv64(ticks - s->count_load_time, CNT_FREQ, ticks_per_sec);
@@ -263,7 +261,7 @@ static void slavio_timer_reset(void *opaque)
     s->reached = 0;
     s->mode &= 2;
     s->stopped = 1;
-    slavio_timer_get_out(s);
+    slavio_timer_irq(s);
 }
 
 void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu,

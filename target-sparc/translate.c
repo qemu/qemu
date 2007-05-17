@@ -3495,6 +3495,8 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2, 0) != 0)
         if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 0, 0) != 0)
             return -1;
+    if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
+        return -1;
     return phys_addr;
 }
 #endif

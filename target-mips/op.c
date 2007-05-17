@@ -874,13 +874,13 @@ void op_msubu (void)
 #ifdef TARGET_MIPS64
 void op_dmult (void)
 {
-    CALL_FROM_TB0(do_dmult);
+    CALL_FROM_TB4(muls64, &(env->HI), &(env->LO), T0, T1);
     RETURN();
 }
 
 void op_dmultu (void)
 {
-    CALL_FROM_TB0(do_dmultu);
+    CALL_FROM_TB4(mulu64, &(env->HI), &(env->LO), T0, T1);
     RETURN();
 }
 #endif

@@ -1,3 +1,33 @@
+2007-05-17 21:34  blueswir1
+
+	* hw/tcx.c: Make TCX registers match what NetBSD expects
+
+2007-05-17 21:32  blueswir1
+
+	* hw/slavio_timer.c: Fix Qemu division by zero triggered by NetBSD
+
+2007-05-17 21:30  blueswir1
+
+	* exec-all.h, exec.c, target-sparc/cpu.h, target-sparc/op_helper.c,
+	  target-sparc/translate.c: Enable faults for unassigned memory
+	  accesses and unimplemented ASIs
+
+2007-05-17 21:25  blueswir1
+
+	* hw/sun4m.c: Set limits for memory size to avoid overlap with
+	  devices
+
+2007-05-17 21:21  blueswir1
+
+	* hw/: slavio_timer.c, sun4m.c: Force the primary CPU to run and
+	  other CPUs to halt, recalculate timers after system_reset.
+
+2007-05-16 13:59  ths
+
+	* Makefile.target, exec-all.h, host-utils.c, target-i386/helper.c,
+	  target-mips/exec.h, target-mips/op.c, target-mips/op_helper.c:
+	  More generic 64 bit multiplication support, by Aurelien Jarno.
+
 2007-05-13 21:22  ths
 
 	* target-mips/: helper.c, op.c, op_helper.c: Full MIPS64 MMU

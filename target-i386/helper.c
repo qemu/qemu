@@ -3620,50 +3620,6 @@ static void neg128(uint64_t *plow, uint64_t *phigh)
     add128(plow, phigh, 1, 0);
 }
 
-static void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
-{
-    uint32_t a0, a1, b0, b1;
-    uint64_t v;
-
-    a0 = a;
-    a1 = a >> 32;
-
-    b0 = b;
-    b1 = b >> 32;
-    
-    v = (uint64_t)a0 * (uint64_t)b0;
-    *plow = v;
-    *phigh = 0;
-
-    v = (uint64_t)a0 * (uint64_t)b1;
-    add128(plow, phigh, v << 32, v >> 32);
-    
-    v = (uint64_t)a1 * (uint64_t)b0;
-    add128(plow, phigh, v << 32, v >> 32);
-    
-    v = (uint64_t)a1 * (uint64_t)b1;
-    *phigh += v;
-#ifdef DEBUG_MULDIV
-    printf("mul: 0x%016" PRIx64 " * 0x%016" PRIx64 " = 0x%016" PRIx64 "%016" PRIx64 "\n",
-           a, b, *phigh, *plow);
-#endif
-}
-
-static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
-{
-    int sa, sb;
-    sa = (a < 0);
-    if (sa)
-        a = -a;
-    sb = (b < 0);
-    if (sb)
-        b = -b;
-    mul64(plow, phigh, a, b);
-    if (sa ^ sb) {
-        neg128(plow, phigh);
-    }
-}
-
 /* return TRUE if overflow */
 static int div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
 {
@@ -3731,7 +3687,7 @@ void helper_mulq_EAX_T0(void)
 {
     uint64_t r0, r1;
 
-    mul64(&r0, &r1, EAX, T0);
+    mulu64(&r1, &r0, EAX, T0);
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
@@ -3742,7 +3698,7 @@ void helper_imulq_EAX_T0(void)
 {
     uint64_t r0, r1;
 
-    imul64(&r0, &r1, EAX, T0);
+    muls64(&r1, &r0, EAX, T0);
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
@@ -3753,7 +3709,7 @@ void helper_imulq_T0_T1(void)
 {
     uint64_t r0, r1;
 
-    imul64(&r0, &r1, T0, T1);
+    muls64(&r1, &r0, T0, T1);
     T0 = r0;
     CC_DST = r0;
     CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));

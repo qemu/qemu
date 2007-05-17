@@ -228,20 +228,6 @@ void do_div (void)
 #endif
 
 #ifdef TARGET_MIPS64
-void do_dmult (void)
-{
-    env->LO = (int64_t)T0 * (int64_t)T1;
-    /* XXX */
-    env->HI = (env->LO | (1ULL << 63)) ? ~0ULL : 0ULL;
-}
-
-void do_dmultu (void)
-{
-    env->LO = T0 * T1;
-    /* XXX */
-    env->HI = 0;
-}
-
 void do_ddiv (void)
 {
     if (T1 != 0) {

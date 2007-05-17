@@ -290,6 +290,8 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 void raise_exception(int tt);
+void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
+                          int is_asi);
 
 #include "cpu-all.h"
 

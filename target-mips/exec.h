@@ -97,8 +97,6 @@ void do_ddiv (void);
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_ddivu (void);
 #endif
-void do_dmult (void);
-void do_dmultu (void);
 #endif
 void do_mfc0_random(void);
 void do_mfc0_count(void);
