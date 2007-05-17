@@ -1957,11 +1957,10 @@ void qemu_ram_free(ram_addr_t addr)
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
 #ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem read  0x%08x\n", (int)addr);
+    printf("Unassigned mem read " TARGET_FMT_lx "\n", addr);
 #endif
 #ifdef TARGET_SPARC
-    // Not enabled yet because of bugs in gdbstub etc.
-    //raise_exception(TT_DATA_ACCESS);
+    do_unassigned_access(addr, 0, 0, 0);
 #endif
     return 0;
 }
@@ -1969,11 +1968,10 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 #ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write 0x%08x = 0x%x\n", (int)addr, val);
+    printf("Unassigned mem write " TARGET_FMT_lx " = 0x%x\n", addr, val);
 #endif
 #ifdef TARGET_SPARC
-    // Not enabled yet because of bugs in gdbstub etc.
-    //raise_exception(TT_DATA_ACCESS);
+    do_unassigned_access(addr, 1, 0, 0);
 #endif
 }
 
