@@ -478,8 +478,13 @@ static const struct hwdef hwdefs[] = {
 static void sun4m_common_init(int ram_size, int boot_device, DisplayState *ds,
                               const char *kernel_filename, const char *kernel_cmdline,
                               const char *initrd_filename, const char *cpu_model,
-                              unsigned int machine)
+                              unsigned int machine, int max_ram)
 {
+    if (ram_size > max_ram) {
+        fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
+                ram_size / (1024 * 1024), max_ram / (1024 * 1024));
+        exit(1);
+    }
     sun4m_hw_init(&hwdefs[machine], ram_size, ds, cpu_model);
 
     sun4m_load_kernel(hwdefs[machine].vram_size, ram_size, boot_device,
@@ -497,7 +502,7 @@ static void ss5_init(int ram_size, int vga_ram_size, int boot_device,
         cpu_model = "Fujitsu MB86904";
     sun4m_common_init(ram_size, boot_device, ds, kernel_filename,
                       kernel_cmdline, initrd_filename, cpu_model,
-                      0);
+                      0, 0x10000000);
 }
 
 /* SPARCstation 10 hardware initialisation */
@@ -510,7 +515,7 @@ static void ss10_init(int ram_size, int vga_ram_size, int boot_device,
         cpu_model = "TI SuperSparc II";
     sun4m_common_init(ram_size, boot_device, ds, kernel_filename,
                       kernel_cmdline, initrd_filename, cpu_model,
-                      1);
+                      1, 0x20000000); // XXX tcx overlap, actually first 4GB ok
 }
 
 QEMUMachine ss5_machine = {
