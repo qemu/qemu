@@ -1365,8 +1365,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
             }
             break;
         case 'b':
-            if (chr->chr_event)
-                chr->chr_event(chr->opaque, CHR_EVENT_BREAK);
+            qemu_chr_event(chr, CHR_EVENT_BREAK);
             break;
         case 'c':
             /* Switch to the next registered device */
