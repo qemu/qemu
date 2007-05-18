@@ -1001,6 +1001,16 @@ void op_jnz_T2 (void)
     RETURN();
 }
 
+void op_flush_icache_range(void) {
+    CALL_FROM_TB2(tlb_flush_page, env, T0 + T1);
+    RETURN();
+}
+
+void op_flush_icache_all(void) {
+    CALL_FROM_TB1(tb_flush, env);
+    RETURN();
+}
+
 /* CP0 functions */
 void op_mfc0_index (void)
 {
