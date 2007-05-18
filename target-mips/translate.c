@@ -5666,8 +5666,26 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
          gen_ldst(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
-         /* Treat as a noop */
-         break;
+        /* FIXME: This works around self-modifying code, but only
+           if the guest OS handles it properly, and if there's no
+           such code executed in uncached space. */
+        if (!(rt & 0x3))
+            switch ((rt >> 2) & 0x7) {
+            case 4:
+                GEN_LOAD_REG_TN(T0, rs);
+                GEN_LOAD_IMM_TN(T1, imm);
+                gen_op_flush_icache_range();
+                break;
+            case 2:
+            case 1:
+            case 0:
+                /* Can be very inefficient. */
+                gen_op_flush_icache_all();
+                break;
+            default:
+                break;
+            }
+        break;
     case OPC_PREF:
         /* Treat as a noop */
         break;

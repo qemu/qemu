@@ -1,3 +1,8 @@
+2007-05-18 03:13  ths
+
+	* target-mips/: op.c, translate.c: Work around the lack of proper
+	  handling for self-modifying code.
+
 2007-05-17 21:34  blueswir1
 
 	* hw/tcx.c: Make TCX registers match what NetBSD expects
