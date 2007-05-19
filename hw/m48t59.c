@@ -43,7 +43,7 @@ struct m48t59_t {
     /* Hardware parameters */
     qemu_irq IRQ;
     int mem_index;
-    uint32_t mem_base;
+    target_phys_addr_t mem_base;
     uint32_t io_base;
     uint16_t size;
     /* RTC management */
@@ -610,12 +610,12 @@ static void m48t59_reset(void *opaque)
 }
 
 /* Initialisation routine */
-m48t59_t *m48t59_init (qemu_irq IRQ, target_ulong mem_base,
+m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
                        uint32_t io_base, uint16_t size,
                        int type)
 {
     m48t59_t *s;
-    target_ulong save_base;
+    target_phys_addr_t save_base;
 
     s = qemu_mallocz(sizeof(m48t59_t));
     if (!s)

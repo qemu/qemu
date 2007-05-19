@@ -31,7 +31,7 @@
 #define TCX_TEC_NREGS    0x1000
 
 typedef struct TCXState {
-    uint32_t addr;
+    target_phys_addr_t addr;
     DisplayState *ds;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
@@ -359,7 +359,6 @@ static void tcx_save(QEMUFile *f, void *opaque)
 {
     TCXState *s = opaque;
     
-    qemu_put_be32s(f, (uint32_t *)&s->addr);
     qemu_put_be32s(f, (uint32_t *)&s->vram);
     qemu_put_be32s(f, (uint32_t *)&s->vram24);
     qemu_put_be32s(f, (uint32_t *)&s->cplane);
@@ -377,10 +376,9 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
 {
     TCXState *s = opaque;
     
-    if (version_id != 2)
+    if (version_id != 3)
         return -EINVAL;
 
-    qemu_get_be32s(f, (uint32_t *)&s->addr);
     qemu_get_be32s(f, (uint32_t *)&s->vram);
     qemu_get_be32s(f, (uint32_t *)&s->vram24);
     qemu_get_be32s(f, (uint32_t *)&s->cplane);
@@ -492,7 +490,7 @@ static CPUWriteMemoryFunc *tcx_dummy_write[3] = {
     tcx_dummy_writel,
 };
 
-void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
+void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
               unsigned long vram_offset, int vram_size, int width, int height,
               int depth)
 {
@@ -513,23 +511,23 @@ void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
     // 8-bit plane
     s->vram = vram_base;
     size = vram_size;
-    cpu_register_physical_memory(addr + 0x00800000, size, vram_offset);
+    cpu_register_physical_memory(addr + 0x00800000ULL, size, vram_offset);
     vram_offset += size;
     vram_base += size;
 
     io_memory = cpu_register_io_memory(0, tcx_dac_read, tcx_dac_write, s);
-    cpu_register_physical_memory(addr + 0x00200000, TCX_DAC_NREGS, io_memory);
+    cpu_register_physical_memory(addr + 0x00200000ULL, TCX_DAC_NREGS, io_memory);
 
     dummy_memory = cpu_register_io_memory(0, tcx_dummy_read, tcx_dummy_write,
                                           s);
-    cpu_register_physical_memory(addr + 0x00700000, TCX_TEC_NREGS,
+    cpu_register_physical_memory(addr + 0x00700000ULL, TCX_TEC_NREGS,
                                  dummy_memory);
     if (depth == 24) {
         // 24-bit plane
         size = vram_size * 4;
         s->vram24 = (uint32_t *)vram_base;
         s->vram24_offset = vram_offset;
-        cpu_register_physical_memory(addr + 0x02000000, size, vram_offset);
+        cpu_register_physical_memory(addr + 0x02000000ULL, size, vram_offset);
         vram_offset += size;
         vram_base += size;
 
@@ -537,20 +535,20 @@ void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
         size = vram_size * 4;
         s->cplane = (uint32_t *)vram_base;
         s->cplane_offset = vram_offset;
-        cpu_register_physical_memory(addr + 0x0a000000, size, vram_offset);
+        cpu_register_physical_memory(addr + 0x0a000000ULL, size, vram_offset);
         graphic_console_init(s->ds, tcx24_update_display,
                              tcx24_invalidate_display, tcx24_screen_dump, s);
     } else {
-        cpu_register_physical_memory(addr + 0x00300000, TCX_THC_NREGS_8,
+        cpu_register_physical_memory(addr + 0x00300000ULL, TCX_THC_NREGS_8,
                                      dummy_memory);
         graphic_console_init(s->ds, tcx_update_display, tcx_invalidate_display,
                              tcx_screen_dump, s);
     }
     // NetBSD writes here even with 8-bit display
-    cpu_register_physical_memory(addr + 0x00301000, TCX_THC_NREGS_24,
+    cpu_register_physical_memory(addr + 0x00301000ULL, TCX_THC_NREGS_24,
                                  dummy_memory);
 
-    register_savevm("tcx", addr, 1, tcx_save, tcx_load, s);
+    register_savevm("tcx", addr, 3, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
     dpy_resize(s->ds, width, height);

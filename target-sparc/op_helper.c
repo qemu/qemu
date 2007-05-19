@@ -223,7 +223,31 @@ void helper_ld_asi(int asi, int size, int sign)
 	    break;
         }
 	break;
-    case 0x21 ... 0x2f: /* MMU passthrough, unassigned */
+    case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
+    case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
+        switch(size) {
+        case 1:
+            ret = ldub_phys((target_phys_addr_t)T0
+                            | ((target_phys_addr_t)(asi & 0xf) << 32));
+            break;
+        case 2:
+            ret = lduw_phys((target_phys_addr_t)(T0 & ~1)
+                            | ((target_phys_addr_t)(asi & 0xf) << 32));
+            break;
+        default:
+        case 4:
+            ret = ldl_phys((target_phys_addr_t)(T0 & ~3)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32));
+            break;
+        case 8:
+            ret = ldl_phys((target_phys_addr_t)(T0 & ~3)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32));
+            T0 = ldl_phys((target_phys_addr_t)((T0 + 4) & ~3)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32));
+	    break;
+        }
+	break;
+    case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 0, 0, 1);
 	ret = 0;
@@ -360,12 +384,38 @@ void helper_st_asi(int asi, int size, int sign)
             }
 	}
 	return;
+    case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
+    case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
+	{
+            switch(size) {
+            case 1:
+                stb_phys((target_phys_addr_t)T0
+                         | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
+                break;
+            case 2:
+                stw_phys((target_phys_addr_t)(T0 & ~1)
+                            | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
+                break;
+            case 4:
+            default:
+                stl_phys((target_phys_addr_t)(T0 & ~3)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
+                break;
+            case 8:
+                stl_phys((target_phys_addr_t)(T0 & ~3)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
+                stl_phys((target_phys_addr_t)((T0 + 4) & ~3)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
+                break;
+            }
+	}
+	return;
     case 0x31: /* Ross RT620 I-cache flush */
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
         break;
     case 9: /* Supervisor code access, XXX */
-    case 0x21 ... 0x2f: /* MMU passthrough, unassigned */
+    case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 1, 0, 1);
 	return;
@@ -1035,7 +1085,7 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
 #endif
 
 #ifndef TARGET_SPARC64
-void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi)
 {
     CPUState *saved_env;
@@ -1058,7 +1108,7 @@ void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
     env->mmuregs[4] = addr; /* Fault address register */
     if ((env->mmuregs[0] & MMU_E) && !(env->mmuregs[0] & MMU_NF)) {
 #ifdef DEBUG_UNASSIGNED
-        printf("Unassigned mem access to " TARGET_FMT_lx " from " TARGET_FMT_lx
+        printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
                "\n", addr, env->pc);
 #endif
         raise_exception(TT_DATA_ACCESS);
@@ -1066,7 +1116,7 @@ void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
     env = saved_env;
 }
 #else
-void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi)
 {
 #ifdef DEBUG_UNASSIGNED
@@ -1076,7 +1126,7 @@ void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    printf("Unassigned mem access to " TARGET_FMT_lx " from " TARGET_FMT_lx "\n",
+    printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx "\n",
            addr, env->pc);
     env = saved_env;
 #endif

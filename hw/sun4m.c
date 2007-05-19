@@ -48,11 +48,11 @@
 #define MAX_CPUS 16
 
 struct hwdef {
-    target_ulong iommu_base, slavio_base;
-    target_ulong intctl_base, counter_base, nvram_base, ms_kb_base, serial_base;
-    target_ulong fd_base;
-    target_ulong dma_base, esp_base, le_base;
-    target_ulong tcx_base, cs_base;
+    target_phys_addr_t iommu_base, slavio_base;
+    target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
+    target_phys_addr_t serial_base, fd_base;
+    target_phys_addr_t dma_base, esp_base, le_base;
+    target_phys_addr_t tcx_base, cs_base, power_base;
     long vram_size, nvram_size;
     // IRQ numbers are not PIL ones, but master interrupt controller register
     // bit numbers
@@ -289,7 +289,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
 
     iommu = iommu_init(hwdef->iommu_base);
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
-                                       hwdef->intctl_base + 0x10000,
+                                       hwdef->intctl_base + 0x10000ULL,
                                        &hwdef->intbit_to_level[0],
                                        &slavio_irq);
     for(i = 0; i < smp_cpus; i++) {
@@ -317,10 +317,11 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
     for (i = 0; i < MAX_CPUS; i++) {
-        slavio_timer_init(hwdef->counter_base + i * TARGET_PAGE_SIZE,
+        slavio_timer_init(hwdef->counter_base +
+                          (target_phys_addr_t)(i * TARGET_PAGE_SIZE),
                           hwdef->clock_irq, 0, i, slavio_intctl);
     }
-    slavio_timer_init(hwdef->counter_base + 0x10000, hwdef->clock1_irq, 2,
+    slavio_timer_init(hwdef->counter_base + 0x10000ULL, hwdef->clock1_irq, 2,
                       (unsigned int)-1, slavio_intctl);
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq]);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
@@ -336,9 +337,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         }
     }
 
-    slavio_misc = slavio_misc_init(hwdef->slavio_base, 
+    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->power_base,
                                    slavio_irq[hwdef->me_irq]);
-    if (hwdef->cs_base != (target_ulong)-1)
+    if (hwdef->cs_base != (target_phys_addr_t)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
     sparc32_dma_set_reset_data(dma, main_esp, main_lance);
 }
@@ -424,6 +425,7 @@ static const struct hwdef hwdefs[] = {
         .dma_base     = 0x78400000,
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
+        .power_base   = 0x7a000000,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -443,19 +445,20 @@ static const struct hwdef hwdefs[] = {
     },
     /* SS-10 */
     {
-        .iommu_base   = 0xe0000000, // XXX Actually at 0xfe0000000ULL (36 bits)
-        .tcx_base     = 0x20000000, // 0xe20000000ULL,
+        .iommu_base   = 0xfe0000000ULL,
+        .tcx_base     = 0xe20000000ULL,
         .cs_base      = -1,
-        .slavio_base  = 0xf0000000, // 0xff0000000ULL,
-        .ms_kb_base   = 0xf1000000, // 0xff1000000ULL,
-        .serial_base  = 0xf1100000, // 0xff1100000ULL,
-        .nvram_base   = 0xf1200000, // 0xff1200000ULL,
-        .fd_base      = 0xf1700000, // 0xff1700000ULL,
-        .counter_base = 0xf1300000, // 0xff1300000ULL,
-        .intctl_base  = 0xf1400000, // 0xff1400000ULL,
-        .dma_base     = 0xf0400000, // 0xef0400000ULL,
-        .esp_base     = 0xf0800000, // 0xef0800000ULL,
-        .le_base      = 0xf0c00000, // 0xef0c00000ULL,
+        .slavio_base  = 0xff0000000ULL,
+        .ms_kb_base   = 0xff1000000ULL,
+        .serial_base  = 0xff1100000ULL,
+        .nvram_base   = 0xff1200000ULL,
+        .fd_base      = 0xff1700000ULL,
+        .counter_base = 0xff1300000ULL,
+        .intctl_base  = 0xff1400000ULL,
+        .dma_base     = 0xef0400000ULL,
+        .esp_base     = 0xef0800000ULL,
+        .le_base      = 0xef0c00000ULL,
+        .power_base   = 0xefa000000ULL,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -480,9 +483,10 @@ static void sun4m_common_init(int ram_size, int boot_device, DisplayState *ds,
                               const char *initrd_filename, const char *cpu_model,
                               unsigned int machine, int max_ram)
 {
-    if (ram_size > max_ram) {
+    if ((unsigned int)ram_size > (unsigned int)max_ram) {
         fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
-                ram_size / (1024 * 1024), max_ram / (1024 * 1024));
+                (unsigned int)ram_size / (1024 * 1024),
+                (unsigned int)max_ram / (1024 * 1024));
         exit(1);
     }
     sun4m_hw_init(&hwdefs[machine], ram_size, ds, cpu_model);
@@ -515,7 +519,7 @@ static void ss10_init(int ram_size, int vga_ram_size, int boot_device,
         cpu_model = "TI SuperSparc II";
     sun4m_common_init(ram_size, boot_device, ds, kernel_filename,
                       kernel_cmdline, initrd_filename, cpu_model,
-                      1, 0x20000000); // XXX tcx overlap, actually first 4GB ok
+                      1, PROM_ADDR); // XXX prom overlap, actually first 4GB ok
 }
 
 QEMUMachine ss5_machine = {

@@ -117,7 +117,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     }
 
     *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
-    *physical = 0xfffff000;
+    *physical = 0xffffffffffff0000ULL;
 
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
@@ -203,7 +203,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 
     /* Even if large ptes, we map only one 4KB page in the cache to
        avoid filling it too fast */
-    *physical = ((pde & PTE_ADDR_MASK) << 4) + page_offset;
+    *physical = ((target_phys_addr_t)(pde & PTE_ADDR_MASK) << 4) + page_offset;
     return error_code;
 }
 
@@ -212,7 +212,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
     target_phys_addr_t paddr;
-    unsigned long vaddr;
+    target_ulong vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
     error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
@@ -220,7 +220,8 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	vaddr = address & TARGET_PAGE_MASK;
 	paddr &= TARGET_PAGE_MASK;
 #ifdef DEBUG_MMU
-	printf("Translate at 0x%lx -> 0x%lx, vaddr 0x%lx\n", (long)address, (long)paddr, (long)vaddr);
+	printf("Translate at " TARGET_FMT_lx " -> " TARGET_FMT_plx ", vaddr "
+               TARGET_FMT_lx "\n", address, paddr, vaddr);
 #endif
 	ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
@@ -255,7 +256,8 @@ target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
     uint32_t pde;
 
     /* Context base + context number */
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
+    pde_ptr = (target_phys_addr_t)(env->mmuregs[1] << 4) +
+        (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
 
     switch (pde & PTE_ENTRYTYPE_MASK) {
@@ -314,30 +316,35 @@ target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
 #ifdef DEBUG_MMU
 void dump_mmu(CPUState *env)
 {
-     target_ulong va, va1, va2;
-     unsigned int n, m, o;
-     target_phys_addr_t pde_ptr, pa;
+    target_ulong va, va1, va2;
+    unsigned int n, m, o;
+    target_phys_addr_t pde_ptr, pa;
     uint32_t pde;
 
     printf("MMU dump:\n");
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
-    printf("Root ptr: " TARGET_FMT_lx ", ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
+    printf("Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
+           (target_phys_addr_t)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
-	pde_ptr = mmu_probe(env, va, 2);
-	if (pde_ptr) {
+	pde = mmu_probe(env, va, 2);
+	if (pde) {
 	    pa = cpu_get_phys_page_debug(env, va);
- 	    printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va, pa, pde_ptr);
+ 	    printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
+                   " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
 	    for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
-		pde_ptr = mmu_probe(env, va1, 1);
-		if (pde_ptr) {
+		pde = mmu_probe(env, va1, 1);
+		if (pde) {
 		    pa = cpu_get_phys_page_debug(env, va1);
- 		    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va1, pa, pde_ptr);
+ 		    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
+                           " PDE: " TARGET_FMT_lx "\n", va1, pa, pde);
 		    for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
-			pde_ptr = mmu_probe(env, va2, 0);
-			if (pde_ptr) {
+			pde = mmu_probe(env, va2, 0);
+			if (pde) {
 			    pa = cpu_get_phys_page_debug(env, va2);
- 			    printf("  VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PTE: " TARGET_FMT_lx "\n", va2, pa, pde_ptr);
+ 			    printf("  VA: " TARGET_FMT_lx ", PA: "
+                                   TARGET_FMT_plx " PTE: " TARGET_FMT_lx "\n",
+                                   va2, pa, pde);
 			}
 		    }
 		}

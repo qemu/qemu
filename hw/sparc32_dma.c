@@ -249,8 +249,8 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *sparc32_dma_init(uint32_t daddr, qemu_irq espirq, qemu_irq leirq,
-                       void *iommu)
+void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq espirq,
+                       qemu_irq leirq, void *iommu)
 {
     DMAState *s;
     int dma_io_memory;

@@ -2018,7 +2018,8 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
     (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
 };
 
-void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque, qemu_irq irq)
+void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
+                 qemu_irq irq)
 {
     PCNetState *d;
     int lance_io_memory;

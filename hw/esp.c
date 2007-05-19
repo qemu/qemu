@@ -562,7 +562,8 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
     s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
 }
 
-void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque)
+void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
+               void *dma_opaque)
 {
     ESPState *s;
     int esp_io_memory;

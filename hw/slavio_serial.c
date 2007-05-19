@@ -587,8 +587,8 @@ static int slavio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
 }
 
-SerialState *slavio_serial_init(int base, qemu_irq irq, CharDriverState *chr1,
-                                CharDriverState *chr2)
+SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
+                                CharDriverState *chr1, CharDriverState *chr2)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;
@@ -704,7 +704,7 @@ static void sunmouse_event(void *opaque,
     put_queue(s, 0);
 }
 
-void slavio_serial_ms_kbd_init(int base, qemu_irq irq)
+void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;

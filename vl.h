@@ -1024,7 +1024,7 @@ extern BlockDriverState *fd_table[MAX_FD];
 typedef struct fdctrl_t fdctrl_t;
 
 fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped, 
-                       uint32_t io_base,
+                       target_phys_addr_t io_base,
                        BlockDriverState **fds);
 int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
@@ -1047,7 +1047,8 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 void pcnet_h_reset(void *opaque);
-void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque, qemu_irq irq);
+void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
+                 qemu_irq irq);
 
 /* vmmouse.c */
 void *vmmouse_init(void *m);
@@ -1208,7 +1209,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 extern QEMUMachine ss5_machine, ss10_machine;
 
 /* iommu.c */
-void *iommu_init(uint32_t addr);
+void *iommu_init(target_phys_addr_t addr);
 void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                                  uint8_t *buf, int len, int is_write);
 static inline void sparc_iommu_memory_read(void *opaque,
@@ -1226,13 +1227,13 @@ static inline void sparc_iommu_memory_write(void *opaque,
 }
 
 /* tcx.c */
-void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
-	      unsigned long vram_offset, int vram_size, int width, int height,
+void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
+              unsigned long vram_offset, int vram_size, int width, int height,
               int depth);
 
 /* slavio_intctl.c */
 void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
-void *slavio_intctl_init(uint32_t addr, uint32_t addrg,
+void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          const uint32_t *intbit_to_level,
                          qemu_irq **irq);
 void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env);
@@ -1248,26 +1249,28 @@ int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
-void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu,
-                       void *intctl);
+void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
+                       unsigned int cpu, void *intctl);
 
 /* slavio_serial.c */
-SerialState *slavio_serial_init(int base, qemu_irq irq, CharDriverState *chr1,
-                                CharDriverState *chr2);
-void slavio_serial_ms_kbd_init(int base, qemu_irq);
+SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
+                                CharDriverState *chr1, CharDriverState *chr2);
+void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq);
 
 /* slavio_misc.c */
-void *slavio_misc_init(uint32_t base, qemu_irq irq);
+void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
+                       qemu_irq irq);
 void slavio_set_power_fail(void *opaque, int power_failing);
 
 /* esp.c */
 void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
-void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque);
+void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
+               void *dma_opaque);
 void esp_reset(void *opaque);
 
 /* sparc32_dma.c */
-void *sparc32_dma_init(uint32_t daddr, qemu_irq espirq, qemu_irq leirq,
-                       void *iommu);
+void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq espirq,
+                       qemu_irq leirq, void *iommu);
 void ledma_set_irq(void *opaque, int isr);
 void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
                        uint8_t *buf, int len, int do_bswap);
