@@ -1609,6 +1609,14 @@ void op_cp1_enabled(void)
     RETURN();
 }
 
+void op_cp1_64bitmode(void)
+{
+    if (!(env->CP0_Status & (1 << CP0St_FR))) {
+        CALL_FROM_TB1(do_raise_exception, EXCP_RI);
+    }
+    RETURN();
+}
+
 /*
  * Verify if floating point register is valid; an operation is not defined
  * if bit 0 of any register specification is set and the FR bit in the
@@ -1946,8 +1954,8 @@ FLOAT_OP(movn, ps)
     RETURN();
 }
 
-/* binary operations */
-#define FLOAT_BINOP(name) \
+/* operations calling helpers, for s, d and ps */
+#define FLOAT_HOP(name) \
 FLOAT_OP(name, d)         \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _d);  \
@@ -1966,18 +1974,45 @@ FLOAT_OP(name, ps)        \
     DEBUG_FPU_STATE();    \
     RETURN();             \
 }
-FLOAT_BINOP(add)
-FLOAT_BINOP(sub)
-FLOAT_BINOP(mul)
-FLOAT_BINOP(div)
-#undef FLOAT_BINOP
+FLOAT_HOP(add)
+FLOAT_HOP(sub)
+FLOAT_HOP(mul)
+FLOAT_HOP(div)
+FLOAT_HOP(recip2)
+FLOAT_HOP(rsqrt2)
+FLOAT_HOP(rsqrt1)
+FLOAT_HOP(recip1)
+#undef FLOAT_HOP
 
-FLOAT_OP(addr, ps)
-{
-    CALL_FROM_TB0(do_float_addr_ps);
-    DEBUG_FPU_STATE();
-    RETURN();
+/* operations calling helpers, for s and d */
+#define FLOAT_HOP(name)   \
+FLOAT_OP(name, d)         \
+{                         \
+    CALL_FROM_TB0(do_float_ ## name ## _d);  \
+    DEBUG_FPU_STATE();    \
+    RETURN();             \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    CALL_FROM_TB0(do_float_ ## name ## _s);  \
+    DEBUG_FPU_STATE();    \
+    RETURN();             \
 }
+FLOAT_HOP(rsqrt)
+FLOAT_HOP(recip)
+#undef FLOAT_HOP
+
+/* operations calling helpers, for ps */
+#define FLOAT_HOP(name)   \
+FLOAT_OP(name, ps)        \
+{                         \
+    CALL_FROM_TB0(do_float_ ## name ## _ps); \
+    DEBUG_FPU_STATE();    \
+    RETURN();             \
+}
+FLOAT_HOP(addr)
+FLOAT_HOP(mulr)
+#undef FLOAT_HOP
 
 /* ternary operations */
 #define FLOAT_TERNOP(name1, name2) \
@@ -2053,14 +2088,7 @@ FLOAT_OP(name, s)         \
 {                         \
     FST2 = float32_ ## name(FST0, &env->fp_status);   \
     DEBUG_FPU_STATE();    \
-    RETURN();                      \
-}                         \
-FLOAT_OP(name, ps)        \
-{                         \
-    FST2 = float32_ ## name(FST0, &env->fp_status);   \
-    FSTH2 = float32_ ## name(FSTH0, &env->fp_status); \
-    DEBUG_FPU_STATE();    \
-    RETURN();                      \
+    RETURN();             \
 }
 FLOAT_UNOP(sqrt)
 #undef FLOAT_UNOP

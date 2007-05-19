@@ -166,6 +166,36 @@ void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
 
 void do_ctc1 (void);
+
+#define FOP_PROTO(op)              \
+void do_float_ ## op ## _s(void);  \
+void do_float_ ## op ## _d(void);
+FOP_PROTO(roundl)
+FOP_PROTO(roundw)
+FOP_PROTO(truncl)
+FOP_PROTO(truncw)
+FOP_PROTO(ceill)
+FOP_PROTO(ceilw)
+FOP_PROTO(floorl)
+FOP_PROTO(floorw)
+FOP_PROTO(rsqrt)
+FOP_PROTO(recip)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)              \
+void do_float_ ## op ## _s(void);  \
+void do_float_ ## op ## _d(void);  \
+void do_float_ ## op ## _ps(void);
+FOP_PROTO(add)
+FOP_PROTO(sub)
+FOP_PROTO(mul)
+FOP_PROTO(div)
+FOP_PROTO(recip1)
+FOP_PROTO(recip2)
+FOP_PROTO(rsqrt1)
+FOP_PROTO(rsqrt2)
+#undef FOP_PROTO
+
 void do_float_cvtd_s(void);
 void do_float_cvtd_w(void);
 void do_float_cvtd_l(void);
@@ -180,37 +210,11 @@ void do_float_cvts_pl(void);
 void do_float_cvts_pu(void);
 void do_float_cvtw_s(void);
 void do_float_cvtw_d(void);
-void do_float_roundl_d(void);
-void do_float_roundl_s(void);
-void do_float_roundw_d(void);
-void do_float_roundw_s(void);
-void do_float_truncl_d(void);
-void do_float_truncl_s(void);
-void do_float_truncw_d(void);
-void do_float_truncw_s(void);
-void do_float_ceill_d(void);
-void do_float_ceill_s(void);
-void do_float_ceilw_d(void);
-void do_float_ceilw_s(void);
-void do_float_floorl_d(void);
-void do_float_floorl_s(void);
-void do_float_floorw_d(void);
-void do_float_floorw_s(void);
-void do_float_add_d(void);
-void do_float_add_s(void);
-void do_float_add_ps(void);
-void do_float_sub_d(void);
-void do_float_sub_s(void);
-void do_float_sub_ps(void);
-void do_float_mul_d(void);
-void do_float_mul_s(void);
-void do_float_mul_ps(void);
-void do_float_div_d(void);
-void do_float_div_s(void);
-void do_float_div_ps(void);
-void do_float_addr_ps(void);
 
-#define CMP_OPS(op)                        \
+void do_float_addr_ps(void);
+void do_float_mulr_ps(void);
+
+#define FOP_PROTO(op)                      \
 void do_cmp_d_ ## op(long cc);             \
 void do_cmpabs_d_ ## op(long cc);          \
 void do_cmp_s_ ## op(long cc);             \
@@ -218,22 +222,22 @@ void do_cmpabs_s_ ## op(long cc);          \
 void do_cmp_ps_ ## op(long cc);            \
 void do_cmpabs_ps_ ## op(long cc);
 
-CMP_OPS(f)
-CMP_OPS(un)
-CMP_OPS(eq)
-CMP_OPS(ueq)
-CMP_OPS(olt)
-CMP_OPS(ult)
-CMP_OPS(ole)
-CMP_OPS(ule)
-CMP_OPS(sf)
-CMP_OPS(ngle)
-CMP_OPS(seq)
-CMP_OPS(ngl)
-CMP_OPS(lt)
-CMP_OPS(nge)
-CMP_OPS(le)
-CMP_OPS(ngt)
-#undef CMP_OPS
+FOP_PROTO(f)
+FOP_PROTO(un)
+FOP_PROTO(eq)
+FOP_PROTO(ueq)
+FOP_PROTO(olt)
+FOP_PROTO(ult)
+FOP_PROTO(ole)
+FOP_PROTO(ule)
+FOP_PROTO(sf)
+FOP_PROTO(ngle)
+FOP_PROTO(seq)
+FOP_PROTO(ngl)
+FOP_PROTO(lt)
+FOP_PROTO(nge)
+FOP_PROTO(le)
+FOP_PROTO(ngt)
+#undef FOP_PROTO
 
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */
