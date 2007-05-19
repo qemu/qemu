@@ -928,14 +928,14 @@ void glue(op_, name) (void) \
 
 OP_COND(eq, T0 == T1);
 OP_COND(ne, T0 != T1);
-OP_COND(ge, (int32_t)T0 >= (int32_t)T1);
+OP_COND(ge, (target_long)T0 >= (target_long)T1);
 OP_COND(geu, T0 >= T1);
-OP_COND(lt, (int32_t)T0 < (int32_t)T1);
+OP_COND(lt, (target_long)T0 < (target_long)T1);
 OP_COND(ltu, T0 < T1);
-OP_COND(gez, (int32_t)T0 >= 0);
-OP_COND(gtz, (int32_t)T0 > 0);
-OP_COND(lez, (int32_t)T0 <= 0);
-OP_COND(ltz, (int32_t)T0 < 0);
+OP_COND(gez, (target_long)T0 >= 0);
+OP_COND(gtz, (target_long)T0 > 0);
+OP_COND(lez, (target_long)T0 <= 0);
+OP_COND(ltz, (target_long)T0 < 0);
 
 /* Branches */
 void OPPROTO op_goto_tb0(void)

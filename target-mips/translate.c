@@ -921,7 +921,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
 static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
                            int rs, int16_t imm)
 {
-    uint32_t uimm;
+    target_ulong uimm;
     const char *opn = "imm arith";
 
     if (rt == 0 && opc != OPC_ADDI && opc != OPC_DADDI) {
@@ -941,7 +941,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
 #endif
     case OPC_SLTI:
     case OPC_SLTIU:
-        uimm = (int32_t)imm; /* Sign extend to 32 bits */
+        uimm = (target_long)imm; /* Sign extend to 32/64 bits */
         /* Fall through. */
     case OPC_ANDI:
     case OPC_ORI:
