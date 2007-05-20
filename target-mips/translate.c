@@ -5074,10 +5074,10 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         break;
     case FOP(24, 22):
         gen_op_cp1_64bitmode();
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT0, ft);
+        GEN_LOAD_FREG_FTN(WTH0, ft);
+        GEN_LOAD_FREG_FTN(WT1, fs);
+        GEN_LOAD_FREG_FTN(WTH1, fs);
         gen_op_float_addr_ps();
         GEN_STORE_FTN_FREG(fd, WT2);
         GEN_STORE_FTN_FREG(fd, WTH2);
@@ -5085,10 +5085,10 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         break;
     case FOP(26, 22):
         gen_op_cp1_64bitmode();
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
+        GEN_LOAD_FREG_FTN(WT0, ft);
+        GEN_LOAD_FREG_FTN(WTH0, ft);
+        GEN_LOAD_FREG_FTN(WT1, fs);
+        GEN_LOAD_FREG_FTN(WTH1, fs);
         gen_op_float_mulr_ps();
         GEN_STORE_FTN_FREG(fd, WT2);
         GEN_STORE_FTN_FREG(fd, WTH2);

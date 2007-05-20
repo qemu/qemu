@@ -975,13 +975,25 @@ FLOAT_OP(name, d)         \
 {                         \
     set_float_exception_flags(0, &env->fp_status);            \
     FDT2 = float64_ ## name (FDT0, FDT1, &env->fp_status);    \
-    update_fcr31();       \
+    update_fcr31();                                           \
+    if (GET_FP_CAUSE(env->fcr31) & FP_INVALID)                \
+        FDT2 = 0x7ff7ffffffffffffULL;                         \
+    else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {       \
+        if ((env->fcr31 & 0x3) == 0)                          \
+            FDT2 &= 0x8000000000000000ULL;                    \
+    }                     \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     set_float_exception_flags(0, &env->fp_status);            \
     FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
-    update_fcr31();       \
+    update_fcr31();                                           \
+    if (GET_FP_CAUSE(env->fcr31) & FP_INVALID)                \
+        FST2 = 0x7fbfffff;                                    \
+    else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {       \
+        if ((env->fcr31 & 0x3) == 0)                          \
+            FST2 &= 0x80000000ULL;                            \
+    }                     \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
@@ -989,6 +1001,15 @@ FLOAT_OP(name, ps)        \
     FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
     FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fp_status); \
     update_fcr31();       \
+    if (GET_FP_CAUSE(env->fcr31) & FP_INVALID) {              \
+        FST2 = 0x7fbfffff;                                    \
+        FSTH2 = 0x7fbfffff;                                   \
+    } else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {     \
+        if ((env->fcr31 & 0x3) == 0) {                        \
+            FST2 &= 0x80000000ULL;                            \
+            FSTH2 &= 0x80000000ULL;                           \
+        }                 \
+    }                     \
 }
 FLOAT_BINOP(add)
 FLOAT_BINOP(sub)
