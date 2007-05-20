@@ -87,15 +87,15 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define PAGE_MASK	(PAGE_SIZE - 1)
 
 typedef struct IOMMUState {
-    uint32_t addr;
+    target_phys_addr_t addr;
     uint32_t regs[IOMMU_NREGS];
-    uint32_t iostart;
+    target_phys_addr_t iostart;
 } IOMMUState;
 
 static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     IOMMUState *s = opaque;
-    uint32_t saddr;
+    target_phys_addr_t saddr;
 
     saddr = (addr - s->addr) >> 2;
     switch (saddr) {
@@ -110,7 +110,7 @@ static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
 static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     IOMMUState *s = opaque;
-    uint32_t saddr;
+    target_phys_addr_t saddr;
 
     saddr = (addr - s->addr) >> 2;
     DPRINTF("write reg[%d] = %x\n", saddr, val);
@@ -118,32 +118,32 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
     case IOMMU_CTRL:
 	switch (val & IOMMU_CTRL_RNGE) {
 	case IOMMU_RNGE_16MB:
-	    s->iostart = 0xff000000;
+	    s->iostart = 0xffffffffff000000ULL;
 	    break;
 	case IOMMU_RNGE_32MB:
-	    s->iostart = 0xfe000000;
+	    s->iostart = 0xfffffffffe000000ULL;
 	    break;
 	case IOMMU_RNGE_64MB:
-	    s->iostart = 0xfc000000;
+	    s->iostart = 0xfffffffffc000000ULL;
 	    break;
 	case IOMMU_RNGE_128MB:
-	    s->iostart = 0xf8000000;
+	    s->iostart = 0xfffffffff8000000ULL;
 	    break;
 	case IOMMU_RNGE_256MB:
-	    s->iostart = 0xf0000000;
+	    s->iostart = 0xfffffffff0000000ULL;
 	    break;
 	case IOMMU_RNGE_512MB:
-	    s->iostart = 0xe0000000;
+	    s->iostart = 0xffffffffe0000000ULL;
 	    break;
 	case IOMMU_RNGE_1GB:
-	    s->iostart = 0xc0000000;
+	    s->iostart = 0xffffffffc0000000ULL;
 	    break;
 	default:
 	case IOMMU_RNGE_2GB:
-	    s->iostart = 0x80000000;
+	    s->iostart = 0xffffffff80000000ULL;
 	    break;
 	}
-	DPRINTF("iostart = %x\n", s->iostart);
+	DPRINTF("iostart = %llx\n", s->iostart);
 	s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | IOMMU_VERSION);
 	break;
     case IOMMU_BASE:
@@ -186,7 +186,7 @@ static CPUWriteMemoryFunc *iommu_mem_write[3] = {
     iommu_mem_writew,
 };
 
-static uint32_t iommu_page_get_flags(IOMMUState *s, uint32_t addr)
+static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
 {
     uint32_t iopte;
 
@@ -196,21 +196,27 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, uint32_t addr)
     return ldl_phys(iopte);
 }
 
-static uint32_t iommu_translate_pa(IOMMUState *s, uint32_t addr, uint32_t pa)
+static target_phys_addr_t iommu_translate_pa(IOMMUState *s,
+                                             target_phys_addr_t addr,
+                                             uint32_t pte)
 {
     uint32_t tmppte;
+    target_phys_addr_t pa;
 
-    tmppte = pa;
-    pa = ((pa & IOPTE_PAGE) << 4) + (addr & PAGE_MASK);
-    DPRINTF("xlate dva %x => pa %x (iopte = %x)\n", addr, pa, tmppte);
+    tmppte = pte;
+    pa = ((pte & IOPTE_PAGE) << 4) + (addr & PAGE_MASK);
+    DPRINTF("xlate dva " TARGET_FMT_plx " => pa " TARGET_FMT_plx
+            " (iopte = %x)\n", addr, pa, tmppte);
+
     return pa;
 }
 
 void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                            uint8_t *buf, int len, int is_write)
 {
-    int l, flags;
-    target_ulong page, phys_addr;
+    int l;
+    uint32_t flags;
+    target_phys_addr_t page, phys_addr;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -239,10 +245,9 @@ static void iommu_save(QEMUFile *f, void *opaque)
     IOMMUState *s = opaque;
     int i;
     
-    qemu_put_be32s(f, &s->addr);
     for (i = 0; i < IOMMU_NREGS; i++)
 	qemu_put_be32s(f, &s->regs[i]);
-    qemu_put_be32s(f, &s->iostart);
+    qemu_put_be64s(f, &s->iostart);
 }
 
 static int iommu_load(QEMUFile *f, void *opaque, int version_id)
@@ -250,13 +255,12 @@ static int iommu_load(QEMUFile *f, void *opaque, int version_id)
     IOMMUState *s = opaque;
     int i;
     
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
 
-    qemu_get_be32s(f, &s->addr);
     for (i = 0; i < IOMMU_NREGS; i++)
 	qemu_put_be32s(f, &s->regs[i]);
-    qemu_get_be32s(f, &s->iostart);
+    qemu_get_be64s(f, &s->iostart);
 
     return 0;
 }
@@ -270,7 +274,7 @@ static void iommu_reset(void *opaque)
     s->regs[0] = IOMMU_VERSION;
 }
 
-void *iommu_init(uint32_t addr)
+void *iommu_init(target_phys_addr_t addr)
 {
     IOMMUState *s;
     int iommu_io_memory;
@@ -284,7 +288,7 @@ void *iommu_init(uint32_t addr)
     iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read, iommu_mem_write, s);
     cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
     
-    register_savevm("iommu", addr, 1, iommu_save, iommu_load, s);
+    register_savevm("iommu", addr, 2, iommu_save, iommu_load, s);
     qemu_register_reset(iommu_reset, s);
     return s;
 }

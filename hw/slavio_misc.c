@@ -212,7 +212,8 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *slavio_misc_init(uint32_t base, qemu_irq irq)
+void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
+                       qemu_irq irq)
 {
     int slavio_misc_io_memory;
     MiscState *s;
@@ -235,7 +236,7 @@ void *slavio_misc_init(uint32_t base, qemu_irq irq)
     // System control
     cpu_register_physical_memory(base + 0x1f00000, MISC_MAXADDR, slavio_misc_io_memory);
     // Power management
-    cpu_register_physical_memory(base + 0xa000000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(power_base, MISC_MAXADDR, slavio_misc_io_memory);
 
     s->irq = irq;
 

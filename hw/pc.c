@@ -29,12 +29,7 @@
 #define BIOS_FILENAME "bios.bin"
 #define VGABIOS_FILENAME "vgabios.bin"
 #define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
-#define LINUX_BOOT_FILENAME "linux_boot.bin"
 
-#define KERNEL_LOAD_ADDR     0x00100000
-#define MAX_INITRD_LOAD_ADDR 0x38000000
-#define KERNEL_PARAMS_ADDR   0x00090000
-#define KERNEL_CMDLINE_ADDR  0x00099000
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
 #define ACPI_DATA_SIZE       0x10000
 
@@ -350,6 +345,61 @@ void bochs_bios_init(void)
     register_ioport_write(0x503, 1, 1, bochs_bios_write, NULL);
 }
 
+/* Generate an initial boot sector which sets state and jump to
+   a specified vector */
+static int generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
+{
+    uint8_t bootsect[512], *p;
+    int i;
+
+    if (bs_table[0] == NULL) {
+	fprintf(stderr, "A disk image must be given for 'hda' when booting "
+		"a Linux kernel\n");
+	exit(1);
+    }
+
+    memset(bootsect, 0, sizeof(bootsect));
+
+    /* Copy the MSDOS partition table if possible */
+    bdrv_read(bs_table[0], 0, bootsect, 1);
+
+    /* Make sure we have a partition signature */
+    bootsect[510] = 0x55;
+    bootsect[511] = 0xaa;
+
+    /* Actual code */
+    p = bootsect;
+    *p++ = 0xfa;		/* CLI */
+    *p++ = 0xfc;		/* CLD */
+
+    for (i = 0; i < 6; i++) {
+	if (i == 1)		/* Skip CS */
+	    continue;
+
+	*p++ = 0xb8;		/* MOV AX,imm16 */
+	*p++ = segs[i];
+	*p++ = segs[i] >> 8;
+	*p++ = 0x8e;		/* MOV <seg>,AX */
+	*p++ = 0xc0 + (i << 3);
+    }
+
+    for (i = 0; i < 8; i++) {
+	*p++ = 0x66;		/* 32-bit operand size */
+	*p++ = 0xb8 + i;	/* MOV <reg>,imm32 */
+	*p++ = gpr[i];
+	*p++ = gpr[i] >> 8;
+	*p++ = gpr[i] >> 16;
+	*p++ = gpr[i] >> 24;
+    }
+
+    *p++ = 0xea;		/* JMP FAR */
+    *p++ = ip;			/* IP */
+    *p++ = ip >> 8;
+    *p++ = segs[1];		/* CS */
+    *p++ = segs[1] >> 8;
+
+    bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
+}
 
 int load_kernel(const char *filename, uint8_t *addr, 
                 uint8_t *real_addr)
@@ -370,7 +420,7 @@ int load_kernel(const char *filename, uint8_t *addr,
     if (read(fd, real_addr + 512, setup_sects * 512) != 
         setup_sects * 512)
         goto fail;
-    
+
     /* load 32 bit code */
     size = read(fd, addr, 16 * 1024 * 1024);
     if (size < 0)
@@ -380,6 +430,169 @@ int load_kernel(const char *filename, uint8_t *addr,
  fail:
     close(fd);
     return -1;
+}
+
+static long get_file_size(FILE *f)
+{
+    long where, size;
+
+    /* XXX: on Unix systems, using fstat() probably makes more sense */
+
+    where = ftell(f);
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fseek(f, where, SEEK_SET);
+
+    return size;
+}
+
+static void load_linux(const char *kernel_filename,
+		       const char *initrd_filename,
+		       const char *kernel_cmdline)
+{
+    uint16_t protocol;
+    uint32_t gpr[8];
+    uint16_t seg[6];
+    uint16_t real_seg;
+    int setup_size, kernel_size, initrd_size, cmdline_size;
+    uint32_t initrd_max;
+    uint8_t header[1024];
+    uint8_t *real_addr, *prot_addr, *cmdline_addr, *initrd_addr;
+    FILE *f, *fi;
+
+    /* Align to 16 bytes as a paranoia measure */
+    cmdline_size = (strlen(kernel_cmdline)+16) & ~15;
+
+    /* load the kernel header */
+    f = fopen(kernel_filename, "rb");
+    if (!f || !(kernel_size = get_file_size(f)) ||
+	fread(header, 1, 1024, f) != 1024) {
+	fprintf(stderr, "qemu: could not load kernel '%s'\n",
+		kernel_filename);
+	exit(1);
+    }
+
+    /* kernel protocol version */
+    fprintf(stderr, "header magic: %#x\n", ldl_p(header+0x202));
+    if (ldl_p(header+0x202) == 0x53726448)
+	protocol = lduw_p(header+0x206);
+    else
+	protocol = 0;
+
+    if (protocol < 0x200 || !(header[0x211] & 0x01)) {
+	/* Low kernel */
+	real_addr    = phys_ram_base + 0x90000;
+	cmdline_addr = phys_ram_base + 0x9a000 - cmdline_size;
+	prot_addr    = phys_ram_base + 0x10000;
+    } else if (protocol < 0x202) {
+	/* High but ancient kernel */
+	real_addr    = phys_ram_base + 0x90000;
+	cmdline_addr = phys_ram_base + 0x9a000 - cmdline_size;
+	prot_addr    = phys_ram_base + 0x100000;
+    } else {
+	/* High and recent kernel */
+	real_addr    = phys_ram_base + 0x10000;
+	cmdline_addr = phys_ram_base + 0x20000;
+	prot_addr    = phys_ram_base + 0x100000;
+    }
+
+    fprintf(stderr,
+	    "qemu: real_addr     = %#zx\n"
+	    "qemu: cmdline_addr  = %#zx\n"
+	    "qemu: prot_addr     = %#zx\n",
+	    real_addr-phys_ram_base,
+	    cmdline_addr-phys_ram_base,
+	    prot_addr-phys_ram_base);
+
+    /* highest address for loading the initrd */
+    if (protocol >= 0x203)
+	initrd_max = ldl_p(header+0x22c);
+    else
+	initrd_max = 0x37ffffff;
+
+    if (initrd_max >= ram_size-ACPI_DATA_SIZE)
+	initrd_max = ram_size-ACPI_DATA_SIZE-1;
+
+    /* kernel command line */
+    pstrcpy(cmdline_addr, 4096, kernel_cmdline);
+
+    if (protocol >= 0x202) {
+	stl_p(header+0x228, cmdline_addr-phys_ram_base);
+    } else {
+	stw_p(header+0x20, 0xA33F);
+	stw_p(header+0x22, cmdline_addr-real_addr);
+    }
+
+    /* loader type */
+    /* High nybble = B reserved for Qemu; low nybble is revision number.
+       If this code is substantially changed, you may want to consider
+       incrementing the revision. */
+    if (protocol >= 0x200)
+	header[0x210] = 0xB0;
+
+    /* heap */
+    if (protocol >= 0x201) {
+	header[0x211] |= 0x80;	/* CAN_USE_HEAP */
+	stw_p(header+0x224, cmdline_addr-real_addr-0x200);
+    }
+
+    /* load initrd */
+    if (initrd_filename) {
+	if (protocol < 0x200) {
+	    fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
+	    exit(1);
+	}
+
+	fi = fopen(initrd_filename, "rb");
+	if (!fi) {
+	    fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+		    initrd_filename);
+	    exit(1);
+	}
+
+	initrd_size = get_file_size(fi);
+	initrd_addr = phys_ram_base + ((initrd_max-initrd_size) & ~4095);
+
+	fprintf(stderr, "qemu: loading initrd (%#x bytes) at %#zx\n",
+		initrd_size, initrd_addr-phys_ram_base);
+
+	if (fread(initrd_addr, 1, initrd_size, fi) != initrd_size) {
+	    fprintf(stderr, "qemu: read error on initial ram disk '%s'\n",
+		    initrd_filename);
+	    exit(1);
+	}
+	fclose(fi);
+
+	stl_p(header+0x218, initrd_addr-phys_ram_base);
+	stl_p(header+0x21c, initrd_size);
+    }
+
+    /* store the finalized header and load the rest of the kernel */
+    memcpy(real_addr, header, 1024);
+
+    setup_size = header[0x1f1];
+    if (setup_size == 0)
+	setup_size = 4;
+
+    setup_size = (setup_size+1)*512;
+    kernel_size -= setup_size;	/* Size of protected-mode code */
+
+    if (fread(real_addr+1024, 1, setup_size-1024, f) != setup_size-1024 ||
+	fread(prot_addr, 1, kernel_size, f) != kernel_size) {
+	fprintf(stderr, "qemu: read error on kernel '%s'\n",
+		kernel_filename);
+	exit(1);
+    }
+    fclose(f);
+
+    /* generate bootsector to set up the initial register state */
+    real_seg = (real_addr-phys_ram_base) >> 4;
+    seg[0] = seg[2] = seg[3] = seg[4] = seg[4] = real_seg;
+    seg[1] = real_seg+0x20;	/* CS */
+    memset(gpr, 0, sizeof gpr);
+    gpr[4] = cmdline_addr-real_addr-16;	/* SP (-16 is paranoia) */
+
+    generate_bootsect(gpr, seg, 0);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -453,9 +666,8 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                      int pci_enabled)
 {
     char buf[1024];
-    int ret, linux_boot, initrd_size, i;
+    int ret, linux_boot, i;
     ram_addr_t ram_addr, vga_ram_addr, bios_offset, vga_bios_offset;
-    ram_addr_t initrd_offset;
     int bios_size, isa_bios_size, vga_bios_size;
     PCIBus *pci_bus;
     int piix3_devfn = -1;
@@ -570,81 +782,8 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     
     bochs_bios_init();
 
-    if (linux_boot) {
-        uint8_t bootsect[512];
-        uint8_t old_bootsect[512];
-
-        if (bs_table[0] == NULL) {
-            fprintf(stderr, "A disk image must be given for 'hda' when booting a Linux kernel\n");
-            exit(1);
-        }
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, LINUX_BOOT_FILENAME);
-        ret = load_image(buf, bootsect);
-        if (ret != sizeof(bootsect)) {
-            fprintf(stderr, "qemu: could not load linux boot sector '%s'\n",
-                    buf);
-            exit(1);
-        }
-
-        if (bdrv_read(bs_table[0], 0, old_bootsect, 1) >= 0) {
-            /* copy the MSDOS partition table */
-            memcpy(bootsect + 0x1be, old_bootsect + 0x1be, 0x40);
-        }
-
-        bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
-
-        /* now we can load the kernel */
-        ret = load_kernel(kernel_filename, 
-                          phys_ram_base + KERNEL_LOAD_ADDR,
-                          phys_ram_base + KERNEL_PARAMS_ADDR);
-        if (ret < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
-                    kernel_filename);
-            exit(1);
-        }
-        
-        /* load initrd */
-        initrd_size = 0;
-        initrd_offset = 0;
-        if (initrd_filename) {
-            initrd_size = get_image_size (initrd_filename);
-            if (initrd_size > 0) {
-                initrd_offset = (ram_size - initrd_size) & TARGET_PAGE_MASK;
-                /* Leave space for BIOS ACPI tables.  */
-                initrd_offset -= ACPI_DATA_SIZE;
-                /* Avoid the last 64k to avoid 2.2.x kernel bugs.  */
-                initrd_offset -= 0x10000;
-                if (initrd_offset > MAX_INITRD_LOAD_ADDR)
-                    initrd_offset = MAX_INITRD_LOAD_ADDR;
-
-                if (initrd_size > ram_size
-                    || initrd_offset < KERNEL_LOAD_ADDR + ret) {
-                    fprintf(stderr,
-                            "qemu: memory too small for initial ram disk '%s'\n",
-                            initrd_filename);
-                    exit(1);
-                }
-                initrd_size = load_image(initrd_filename,
-                                         phys_ram_base + initrd_offset);
-            }
-            if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
-                        initrd_filename);
-                exit(1);
-            }
-        }
-        if (initrd_size > 0) {
-            stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x218, initrd_offset);
-            stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x21c, initrd_size);
-        }
-        pstrcpy(phys_ram_base + KERNEL_CMDLINE_ADDR, 4096,
-                kernel_cmdline);
-        stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x20, 0xA33F);
-        stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x22,
-                KERNEL_CMDLINE_ADDR - KERNEL_PARAMS_ADDR);
-        /* loader type */
-        stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x210, 0x01);
-    }
+    if (linux_boot)
+	load_linux(kernel_filename, initrd_filename, kernel_cmdline);
 
     cpu_irq = qemu_allocate_irqs(pic_irq_request, first_cpu, 1);
     i8259 = i8259_init(cpu_irq[0]);

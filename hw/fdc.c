@@ -370,7 +370,7 @@ struct fdctrl_t {
     /* HW */
     qemu_irq irq;
     int dma_chann;
-    uint32_t io_base;
+    target_phys_addr_t io_base;
     /* Controller state */
     QEMUTimer *result_timer;
     uint8_t state;
@@ -464,13 +464,13 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 
 static uint32_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg)
 {
-    return fdctrl_read(opaque, reg);
+    return fdctrl_read(opaque, (uint32_t)reg);
 }
 
 static void fdctrl_write_mem (void *opaque, 
                               target_phys_addr_t reg, uint32_t value)
 {
-    fdctrl_write(opaque, reg, value);
+    fdctrl_write(opaque, (uint32_t)reg, value);
 }
 
 static CPUReadMemoryFunc *fdctrl_mem_read[3] = {
@@ -579,7 +579,7 @@ static void fdctrl_external_reset(void *opaque)
 }
 
 fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped, 
-                       uint32_t io_base,
+                       target_phys_addr_t io_base,
                        BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
@@ -613,10 +613,14 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
         io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write, fdctrl);
         cpu_register_physical_memory(io_base, 0x08, io_mem);
     } else {
-        register_ioport_read(io_base + 0x01, 5, 1, &fdctrl_read, fdctrl);
-        register_ioport_read(io_base + 0x07, 1, 1, &fdctrl_read, fdctrl);
-        register_ioport_write(io_base + 0x01, 5, 1, &fdctrl_write, fdctrl);
-        register_ioport_write(io_base + 0x07, 1, 1, &fdctrl_write, fdctrl);
+        register_ioport_read((uint32_t)io_base + 0x01, 5, 1, &fdctrl_read,
+                             fdctrl);
+        register_ioport_read((uint32_t)io_base + 0x07, 1, 1, &fdctrl_read,
+                             fdctrl);
+        register_ioport_write((uint32_t)io_base + 0x01, 5, 1, &fdctrl_write,
+                              fdctrl);
+        register_ioport_write((uint32_t)io_base + 0x07, 1, 1, &fdctrl_write,
+                              fdctrl);
     }
     register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);

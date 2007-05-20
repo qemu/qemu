@@ -1,3 +1,77 @@
+2007-05-20 15:27  ths
+
+	* target-mips/: op_helper.c, translate.c: Catch more MIPS FPU
+	  cornercases, fix addr.ps and mulr.ps instructions.
+
+2007-05-20 12:59  ths
+
+	* hw/pc.c: Delete now unused define.
+
+2007-05-20 12:54  ths
+
+	* Makefile: Delete linux_boot.bin from the install target.
+
+2007-05-20 12:53  ths
+
+	* pc-bios/linux_boot.bin: Delete one more leftover file.
+
+2007-05-20 03:36  ths
+
+	* target-mips/: op.c, op_mem.c, translate.c: Fix indexed FP
+	  load/store instructions.
+
+2007-05-20 03:34  ths
+
+	* pc-bios/linux_boot.S: Remove leftover file, should have happened
+	  in the Linux loader rewrite commit.
+
+2007-05-19 23:04  ths
+
+	* hw/pc.c, pc-bios/Makefile: Linux loader rewrite, by H. Peter
+	  Anvin.
+
+2007-05-19 22:29  ths
+
+	* target-mips/: exec.h, op.c, op_helper.c, translate.c: More MIPS
+	  64-bit FPU support.
+
+2007-05-19 19:45  ths
+
+	* target-mips/: op.c, translate.c: Fix slti/sltiu for MIPS64, by
+	  Aurelien Jarno.
+
+2007-05-19 19:44  ths
+
+	* target-mips/translate.c: Fix ldl/ldr implementation, by Aurelien
+	  Jarno.
+
+2007-05-19 15:12  blueswir1
+
+	* pc-bios/: README, openbios-sparc32: Update Sparc32 OpenBIOS image
+	  to SVN revision 149. Changes: r145: Fix power-management location
+	  for SS-10 r146: Fix overallocation r147: NetBSD and OpenBSD
+	  fixes:  - Correct timer and interrupt controller mappings  - Add
+	  ESP clock frequency to avoid division by zero  - CS4231 exists
+	  only in SS5  - Disable BPP for now, it's not emulated by Qemu
+	  anyway With these fixes, one NetBSD kernel even got to root
+	  device prompt on SS5.  r148: Update vsprintf.c from Linux to get
+	  64-bit output r149: Use full 36-bit physical address space on
+	  SS10
+
+2007-05-19 14:58  blueswir1
+
+	* exec.c, vl.h, hw/esp.c, hw/fdc.c, hw/iommu.c, hw/m48t59.c,
+	  hw/m48t59.h, hw/pcnet.c, hw/slavio_intctl.c, hw/slavio_misc.c,
+	  hw/slavio_serial.c, hw/slavio_timer.c, hw/sparc32_dma.c,
+	  hw/sun4m.c, hw/tcx.c, target-sparc/cpu.h, target-sparc/helper.c,
+	  target-sparc/op_helper.c: Use full 36-bit physical address space
+	  on SS10
+
+2007-05-18 19:46  balrog
+
+	* vl.c: Fix sysrq support from the monitor mux (originally by Jason
+	  Wessel).
+
 2007-05-18 13:55  ths
 
 	* target-mips/: cpu.h, exec.h, op.c, op_helper.c, translate.c: -

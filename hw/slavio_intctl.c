@@ -371,7 +371,7 @@ void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env)
     s->cpu_envs[cpu] = env;
 }
 
-void *slavio_intctl_init(uint32_t addr, uint32_t addrg,
+void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          const uint32_t *intbit_to_level,
                          qemu_irq **irq)
 {

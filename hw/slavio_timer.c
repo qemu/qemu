@@ -264,8 +264,8 @@ static void slavio_timer_reset(void *opaque)
     slavio_timer_irq(s);
 }
 
-void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu,
-                       void *intctl)
+void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
+                       unsigned int cpu, void *intctl)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;

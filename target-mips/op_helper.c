@@ -940,19 +940,84 @@ FLOAT_OP(floorw, s)
         WT2 = 0x7fffffff;
 }
 
+/* unary operations, MIPS specific, s and d */
+#define FLOAT_UNOP(name)  \
+FLOAT_OP(name, d)         \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FDT2 = float64_ ## name (FDT0, &env->fp_status);*/          \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FST2 = float32_ ## name (FST0, &env->fp_status);*/          \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}
+FLOAT_UNOP(rsqrt)
+FLOAT_UNOP(recip)
+#undef FLOAT_UNOP
+
+/* unary operations, MIPS specific, s, d and ps */
+#define FLOAT_UNOP(name)  \
+FLOAT_OP(name, d)         \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FDT2 = float64_ ## name (FDT0, &env->fp_status);*/          \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FST2 = float32_ ## name (FST0, &env->fp_status);*/          \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FST2 = float32_ ## name (FST0, &env->fp_status);*/          \
+/*    FSTH2 = float32_ ## name (FSTH0, &env->fp_status);*/        \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}
+FLOAT_UNOP(rsqrt1)
+FLOAT_UNOP(recip1)
+#undef FLOAT_UNOP
+
 /* binary operations */
 #define FLOAT_BINOP(name) \
 FLOAT_OP(name, d)         \
 {                         \
     set_float_exception_flags(0, &env->fp_status);            \
     FDT2 = float64_ ## name (FDT0, FDT1, &env->fp_status);    \
-    update_fcr31();       \
+    update_fcr31();                                           \
+    if (GET_FP_CAUSE(env->fcr31) & FP_INVALID)                \
+        FDT2 = 0x7ff7ffffffffffffULL;                         \
+    else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {       \
+        if ((env->fcr31 & 0x3) == 0)                          \
+            FDT2 &= 0x8000000000000000ULL;                    \
+    }                     \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     set_float_exception_flags(0, &env->fp_status);            \
     FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
-    update_fcr31();       \
+    update_fcr31();                                           \
+    if (GET_FP_CAUSE(env->fcr31) & FP_INVALID)                \
+        FST2 = 0x7fbfffff;                                    \
+    else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {       \
+        if ((env->fcr31 & 0x3) == 0)                          \
+            FST2 &= 0x80000000ULL;                            \
+    }                     \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
@@ -960,6 +1025,15 @@ FLOAT_OP(name, ps)        \
     FST2 = float32_ ## name (FST0, FST1, &env->fp_status);    \
     FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fp_status); \
     update_fcr31();       \
+    if (GET_FP_CAUSE(env->fcr31) & FP_INVALID) {              \
+        FST2 = 0x7fbfffff;                                    \
+        FSTH2 = 0x7fbfffff;                                   \
+    } else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {     \
+        if ((env->fcr31 & 0x3) == 0) {                        \
+            FST2 &= 0x80000000ULL;                            \
+            FSTH2 &= 0x80000000ULL;                           \
+        }                 \
+    }                     \
 }
 FLOAT_BINOP(add)
 FLOAT_BINOP(sub)
@@ -967,11 +1041,50 @@ FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
 
+/* binary operations, MIPS specific */
+#define FLOAT_BINOP(name) \
+FLOAT_OP(name, d)         \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FDT2 = float64_ ## name (FDT0, FDT1, &env->fp_status);*/    \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FST2 = float32_ ## name (FST0, FST1, &env->fp_status);*/    \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    set_float_exception_flags(0, &env->fp_status);            \
+/* XXX: not implemented */ \
+/*    FST2 = float32_ ## name (FST0, FST1, &env->fp_status);*/    \
+/*    FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fp_status);*/ \
+do_raise_exception(EXCP_RI); \
+    update_fcr31();       \
+}
+FLOAT_BINOP(rsqrt2)
+FLOAT_BINOP(recip2)
+#undef FLOAT_BINOP
+
 FLOAT_OP(addr, ps)
 {
     set_float_exception_flags(0, &env->fp_status);
     FST2 = float32_add (FST0, FSTH0, &env->fp_status);
     FSTH2 = float32_add (FST1, FSTH1, &env->fp_status);
+    update_fcr31();
+}
+
+FLOAT_OP(mulr, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_mul (FST0, FSTH0, &env->fp_status);
+    FSTH2 = float32_mul (FST1, FSTH1, &env->fp_status);
     update_fcr31();
 }
 
