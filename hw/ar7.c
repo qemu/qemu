@@ -3461,7 +3461,7 @@ static int64_t load_kernel (CPUState *env)
     env->gpr[29] = env->PC + env->ram_size - 0x1000;
 
     /* TODO: use code from Malta for command line setup. */
-    if (env->kernel_cmdline) {
+    if (env->kernel_cmdline && *env->kernel_cmdline) {
         /* Load kernel parameters (argv, envp) from file. */
         uint8_t *address = phys_ram_base + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
         int argc;

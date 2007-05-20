@@ -321,7 +321,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
         env->gpr[4] = initrd_base;
         env->gpr[5] = initrd_size;
         boot_device = 'm';
-        if (kernel_cmdline != NULL) {
+        if (kernel_cmdline && *kernel_cmdline) {
             len = strlen(kernel_cmdline);
             bdloc -= ((len + 255) & ~255);
             memcpy(phys_ram_base + bdloc, kernel_cmdline, len + 1);
