@@ -667,7 +667,7 @@ void OPPROTO op_sarl_T1_T0_cc(void)
     if (shift >= 32) {
         env->CF = (T1 >> 31) & 1;
         T1 = (int32_t)T1 >> 31;
-    } else {
+    } else if (shift != 0) {
         env->CF = (T1 >> (shift - 1)) & 1;
         T1 = (int32_t)T1 >> shift;
     }
