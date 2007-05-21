@@ -58,7 +58,8 @@ typedef struct SLAVIO_INTCTLState {
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf
-#define INTCTLM_MAXADDR 0xf
+#define INTCTLM_MAXADDR 0x13
+#define INTCTLM_MASK 0x1f
 static void slavio_check_interrupts(void *opaque);
 
 // per-cpu interrupt controller
@@ -143,7 +144,7 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & INTCTLM_MAXADDR) >> 2;
+    saddr = (addr & INTCTLM_MASK) >> 2;
     switch (saddr) {
     case 2: // clear (enable)
 	// Force clear unused bits
