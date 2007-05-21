@@ -21,7 +21,14 @@
 /* This code emulates specific parts of Texas Instruments AR7 SoC family.
  * AR7 contains a MIPS 4KEc core and on-chip peripherals (avalanche).
  *
+ * These members of the AR7 family are partially supported:
+ * - TNETD7100 (not supported)
+ * - TNETD7200 (just started, very incomplete)
+ * - TNETD7300 (best emulation)
+ *
  * TODO:
+ * - TNETD7100 emulation is missing
+ * - TNETD7200 emulation is very incomplete
  * - reboot loops endless reading device config latch (AVALANCHE_DCL_BASE)
  * - uart0, uart1 wrong type (is 16450, should be 16550)
  * - vlynq emulation only very rudimentary
@@ -3378,6 +3385,9 @@ static void ar7_init(CPUState * env)
     //~ reg_write(av.gpio, GPIO_OUT, 0x00000000);
     reg_write(av.gpio, GPIO_DIR, 0xffffffff);
     reg_write(av.gpio, GPIO_ENABLE, 0xffffffff);
+#define AR7_CHIP_7100 0x18
+#define AR7_CHIP_7200 0x2b
+#define AR7_CHIP_7300 0x05
     reg_write(av.gpio, GPIO_CVR, 0x00020005);
     reg_write(av.gpio, GPIO_DIDR1, 0x7106150d);
     reg_write(av.gpio, GPIO_DIDR2, 0xf52ccccf);
@@ -3704,6 +3714,27 @@ static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
+static void mips_tnetd7200_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
+    reg_write(av.gpio, GPIO_CVR, 0x0002002b);
+}
+
+static void mips_tnetd7300_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
+}
+
 #if defined(TARGET_WORDS_BIGENDIAN)
 
 static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
@@ -3806,6 +3837,23 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
     ar7.phyaddr = 0;
 }
 
+static void speedport_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
+{
+    /* Change the default RAM size from 128 MiB to 32 MiB.
+       This is the external RAM at physical address KERNEL_LOAD_ADDR.
+       Any other size can be selected with command line option -m. */
+    if (ram_size == 128 * MiB) {
+        ram_size = 32 * MiB;
+    }
+    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
+                          kernel_filename, kernel_cmdline, initrd_filename,
+                          cpu_model);
+    reg_write(av.gpio, GPIO_CVR, 0x0002002b);
+}
+
 #endif
 
 static QEMUMachine mips_machines[] = {
@@ -3818,6 +3866,16 @@ static QEMUMachine mips_machines[] = {
     "ar7-amd",
     "MIPS AR7 with AMD flash",
     ar7_amd_init,
+  },
+  {
+    "tnetd7200",
+    "MIPS 4KEc / TNETD7200 platform",
+    mips_tnetd7200_init,
+  },
+  {
+    "tnetd7300",
+    "MIPS 4KEc / TNETD7300 platform",
+    mips_tnetd7300_init,
   },
 #if defined(TARGET_WORDS_BIGENDIAN)
   {
@@ -3850,6 +3908,11 @@ static QEMUMachine mips_machines[] = {
     "sinus-basic-3",
     "Sinus DSL Basic 3 (AR7 platform)",
     sinus_basic_3_init,
+  },
+  {
+    "speedport",
+    "Speedport (AR7 platform)",
+    speedport_init,
   },
 #endif
 };
