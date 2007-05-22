@@ -694,6 +694,7 @@ void ppc4xx_tlb_invalidate_all (CPUState *env)
         if (tlb->prot & PAGE_VALID) {
 #if 0 // XXX: TLB have variable sizes then we flush all Qemu TLB.
             end = tlb->EPN + tlb->size;
+            // optimize memset in tlb_flush_page!!!
             for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
                 tlb_flush_page(env, page);
 #endif

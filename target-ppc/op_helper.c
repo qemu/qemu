@@ -2531,6 +2531,7 @@ void do_4xx_tlbwe_hi (void)
                     " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
         }
 #endif
+        // optimize memset in tlb_flush_page!!!
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
@@ -2574,6 +2575,7 @@ void do_4xx_tlbwe_hi (void)
                     " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
         }
 #endif
+        // optimize memset in tlb_flush_page!!!
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }

@@ -455,7 +455,6 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_BREAK:
         cause = 9;
-        tlb_flush_page(env, env->PC);
         goto set_EPC;
     case EXCP_RI:
         cause = 10;
@@ -569,6 +568,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 #endif
         end = addr | (mask >> 1);
         while (addr < end) {
+            // optimize memset in tlb_flush_page!!!
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;
         }
@@ -582,6 +582,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 #endif
         end = addr | mask;
         while (addr < end) {
+            // optimize memset in tlb_flush_page!!!
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;
         }
