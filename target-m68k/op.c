@@ -167,7 +167,7 @@ OP(btest)
     FORCE_RET();
 }
 
-OP(addx_cc)
+OP(subx_cc)
 {
     uint32_t op1 = get_op(PARAM1);
     uint32_t op2 = get_op(PARAM2);
@@ -185,7 +185,7 @@ OP(addx_cc)
     FORCE_RET();
 }
 
-OP(subx_cc)
+OP(addx_cc)
 {
     uint32_t op1 = get_op(PARAM1);
     uint32_t op2 = get_op(PARAM2);

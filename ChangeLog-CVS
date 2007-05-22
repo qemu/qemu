@@ -1,3 +1,16 @@
+2007-05-21 20:08  blueswir1
+
+	* hw/slavio_intctl.c: Fix interrupt controller address masking
+
+2007-05-21 19:48  balrog
+
+	* target-arm/op.c: Don't touch carry flag in ASR <reg> with zero
+	  <reg>, submitted by Aurelien Jarno.
+
+2007-05-21 00:20  pbrook
+
+	* target-m68k/op.c: M68k addx/subx fix.
+
 2007-05-20 15:27  ths
 
 	* target-mips/: op_helper.c, translate.c: Catch more MIPS FPU
