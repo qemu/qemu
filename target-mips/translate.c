@@ -4236,7 +4236,6 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
     case OPC_ERET:
         opn = "eret";
-        save_cpu_state(ctx, 0);
         gen_op_eret();
         ctx->bstate = BS_EXCP;
         break;
@@ -4246,7 +4245,6 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             MIPS_INVAL(opn);
             generate_exception(ctx, EXCP_RI);
         } else {
-            save_cpu_state(ctx, 0);
             gen_op_deret();
             ctx->bstate = BS_EXCP;
         }
@@ -5526,6 +5524,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             generate_exception(ctx, EXCP_SYSCALL);
             break;
         case OPC_BREAK:
+            /* XXX: Hack to work around wrong handling of self-modifying code. */
+            ctx->pc += 4;
+            save_cpu_state(ctx, 1);
+            ctx->pc -= 4;
             generate_exception(ctx, EXCP_BREAK);
             break;
         case OPC_SPIM:
@@ -5791,25 +5793,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
          gen_ldst(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
-        /* FIXME: This works around self-modifying code, but only
-           if the guest OS handles it properly, and if there's no
-           such code executed in uncached space. */
-        if (!(rt & 0x3))
-            switch ((rt >> 2) & 0x7) {
-            case 4:
-                GEN_LOAD_REG_TN(T0, rs);
-                GEN_LOAD_IMM_TN(T1, imm);
-                gen_op_flush_icache_range();
-                break;
-            case 2:
-            case 1:
-            case 0:
-                /* Can be very inefficient. */
-                gen_op_flush_icache_all();
-                break;
-            default:
-                break;
-            }
+        /* Treat as a noop */
         break;
     case OPC_PREF:
         /* Treat as a noop */
@@ -6079,7 +6063,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 	switch (ctx.bstate) {
         case BS_STOP:
             gen_op_interrupt_restart();
-            /* Fall through. */
+            gen_goto_tb(&ctx, 0, ctx.pc);
+            break;
         case BS_NONE:
             save_cpu_state(ctxp, 0);
             gen_goto_tb(&ctx, 0, ctx.pc);
