@@ -381,7 +381,7 @@ void do_interrupt (CPUState *env)
         break;
     case EXCP_SRESET:
         env->CP0_Status |= (1 << CP0St_SR);
-        env->CP0_WatchLo = 0;
+        memset(env->CP0_WatchLo, 0, sizeof(*env->CP0_WatchLo));
         goto set_error_EPC;
     case EXCP_NMI:
         env->CP0_Status |= (1 << CP0St_NMI);

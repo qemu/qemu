@@ -216,8 +216,8 @@ struct CPUMIPSState {
     int32_t CP0_Config6;
     int32_t CP0_Config7;
     target_ulong CP0_LLAddr;
-    target_ulong CP0_WatchLo;
-    int32_t CP0_WatchHi;
+    target_ulong CP0_WatchLo[8];
+    int32_t CP0_WatchHi[8];
     target_ulong CP0_XContext;
     int32_t CP0_Framemask;
     int32_t CP0_Debug;

@@ -2035,9 +2035,9 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
             rn = "SRSCtl";
             break;
         case 3:
-//            gen_op_mfc0_srsmap(); /* shadow registers */
+            gen_op_mfc0_srsmap();
             rn = "SRSMap";
-//            break;
+            break;
         default:
             goto die;
        }
@@ -2120,76 +2120,20 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
         break;
     case 18:
         switch (sel) {
-        case 0:
-            gen_op_mfc0_watchlo0();
+        case 0 ... 7:
+            gen_op_mfc0_watchlo(sel);
             rn = "WatchLo";
             break;
-        case 1:
-//            gen_op_mfc0_watchlo1();
-            rn = "WatchLo1";
-//            break;
-        case 2:
-//            gen_op_mfc0_watchlo2();
-            rn = "WatchLo2";
-//            break;
-        case 3:
-//            gen_op_mfc0_watchlo3();
-            rn = "WatchLo3";
-//            break;
-        case 4:
-//            gen_op_mfc0_watchlo4();
-            rn = "WatchLo4";
-//            break;
-        case 5:
-//            gen_op_mfc0_watchlo5();
-            rn = "WatchLo5";
-//            break;
-        case 6:
-//            gen_op_mfc0_watchlo6();
-            rn = "WatchLo6";
-//            break;
-        case 7:
-//            gen_op_mfc0_watchlo7();
-            rn = "WatchLo7";
-//            break;
         default:
             goto die;
         }
         break;
     case 19:
         switch (sel) {
-        case 0:
-            gen_op_mfc0_watchhi0();
+        case 0 ...7:
+            gen_op_mfc0_watchhi(sel);
             rn = "WatchHi";
             break;
-        case 1:
-//            gen_op_mfc0_watchhi1();
-            rn = "WatchHi1";
-//            break;
-        case 2:
-//            gen_op_mfc0_watchhi2();
-            rn = "WatchHi2";
-//            break;
-        case 3:
-//            gen_op_mfc0_watchhi3();
-            rn = "WatchHi3";
-//            break;
-        case 4:
-//            gen_op_mfc0_watchhi4();
-            rn = "WatchHi4";
-//            break;
-        case 5:
-//            gen_op_mfc0_watchhi5();
-            rn = "WatchHi5";
-//            break;
-        case 6:
-//            gen_op_mfc0_watchhi6();
-            rn = "WatchHi6";
-//            break;
-        case 7:
-//            gen_op_mfc0_watchhi7();
-            rn = "WatchHi7";
-//            break;
         default:
             goto die;
         }
@@ -2625,9 +2569,9 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
             rn = "SRSCtl";
             break;
         case 3:
-//            gen_op_mtc0_srsmap(); /* shadow registers */
+            gen_op_mtc0_srsmap();
             rn = "SRSMap";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -2719,76 +2663,20 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         break;
     case 18:
         switch (sel) {
-        case 0:
-            gen_op_mtc0_watchlo0();
+        case 0 ... 7:
+            gen_op_mtc0_watchlo(sel);
             rn = "WatchLo";
             break;
-        case 1:
-//            gen_op_mtc0_watchlo1();
-            rn = "WatchLo1";
-//            break;
-        case 2:
-//            gen_op_mtc0_watchlo2();
-            rn = "WatchLo2";
-//            break;
-        case 3:
-//            gen_op_mtc0_watchlo3();
-            rn = "WatchLo3";
-//            break;
-        case 4:
-//            gen_op_mtc0_watchlo4();
-            rn = "WatchLo4";
-//            break;
-        case 5:
-//            gen_op_mtc0_watchlo5();
-            rn = "WatchLo5";
-//            break;
-        case 6:
-//            gen_op_mtc0_watchlo6();
-            rn = "WatchLo6";
-//            break;
-        case 7:
-//            gen_op_mtc0_watchlo7();
-            rn = "WatchLo7";
-//            break;
         default:
             goto die;
         }
         break;
     case 19:
         switch (sel) {
-        case 0:
-            gen_op_mtc0_watchhi0();
+        case 0 ... 7:
+            gen_op_mtc0_watchhi(sel);
             rn = "WatchHi";
             break;
-        case 1:
-//            gen_op_mtc0_watchhi1();
-            rn = "WatchHi1";
-//            break;
-        case 2:
-//            gen_op_mtc0_watchhi2();
-            rn = "WatchHi2";
-//            break;
-        case 3:
-//            gen_op_mtc0_watchhi3();
-            rn = "WatchHi3";
-//            break;
-        case 4:
-//            gen_op_mtc0_watchhi4();
-            rn = "WatchHi4";
-//            break;
-        case 5:
-//            gen_op_mtc0_watchhi5();
-            rn = "WatchHi5";
-//            break;
-        case 6:
-//            gen_op_mtc0_watchhi6();
-            rn = "WatchHi6";
-//            break;
-        case 7:
-//            gen_op_mtc0_watchhi7();
-            rn = "WatchHi7";
-//            break;
         default:
             goto die;
         }
@@ -3309,76 +3197,20 @@ static void gen_dmfc0 (DisasContext *ctx, int reg, int sel)
         break;
     case 18:
         switch (sel) {
-        case 0:
-            gen_op_dmfc0_watchlo0();
+        case 0 ... 7:
+            gen_op_dmfc0_watchlo(sel);
             rn = "WatchLo";
             break;
-        case 1:
-//            gen_op_dmfc0_watchlo1();
-            rn = "WatchLo1";
-//            break;
-        case 2:
-//            gen_op_dmfc0_watchlo2();
-            rn = "WatchLo2";
-//            break;
-        case 3:
-//            gen_op_dmfc0_watchlo3();
-            rn = "WatchLo3";
-//            break;
-        case 4:
-//            gen_op_dmfc0_watchlo4();
-            rn = "WatchLo4";
-//            break;
-        case 5:
-//            gen_op_dmfc0_watchlo5();
-            rn = "WatchLo5";
-//            break;
-        case 6:
-//            gen_op_dmfc0_watchlo6();
-            rn = "WatchLo6";
-//            break;
-        case 7:
-//            gen_op_dmfc0_watchlo7();
-            rn = "WatchLo7";
-//            break;
         default:
             goto die;
         }
         break;
     case 19:
         switch (sel) {
-        case 0:
-            gen_op_mfc0_watchhi0();
+        case 0 ... 7:
+            gen_op_mfc0_watchhi(sel);
             rn = "WatchHi";
             break;
-        case 1:
-//            gen_op_mfc0_watchhi1();
-            rn = "WatchHi1";
-//            break;
-        case 2:
-//            gen_op_mfc0_watchhi2();
-            rn = "WatchHi2";
-//            break;
-        case 3:
-//            gen_op_mfc0_watchhi3();
-            rn = "WatchHi3";
-//            break;
-        case 4:
-//            gen_op_mfc0_watchhi4();
-            rn = "WatchHi4";
-//            break;
-        case 5:
-//            gen_op_mfc0_watchhi5();
-            rn = "WatchHi5";
-//            break;
-        case 6:
-//            gen_op_mfc0_watchhi6();
-            rn = "WatchHi6";
-//            break;
-        case 7:
-//            gen_op_mfc0_watchhi7();
-            rn = "WatchHi7";
-//            break;
         default:
             goto die;
         }
@@ -3814,7 +3646,7 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
             rn = "SRSCtl";
             break;
         case 3:
-            gen_op_mtc0_srsmap(); /* shadow registers */
+            gen_op_mtc0_srsmap();
             rn = "SRSMap";
             break;
         default:
@@ -3899,76 +3731,20 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         break;
     case 18:
         switch (sel) {
-        case 0:
-            gen_op_mtc0_watchlo0();
+        case 0 ... 7:
+            gen_op_mtc0_watchlo(sel);
             rn = "WatchLo";
             break;
-        case 1:
-//            gen_op_mtc0_watchlo1();
-            rn = "WatchLo1";
-//            break;
-        case 2:
-//            gen_op_mtc0_watchlo2();
-            rn = "WatchLo2";
-//            break;
-        case 3:
-//            gen_op_mtc0_watchlo3();
-            rn = "WatchLo3";
-//            break;
-        case 4:
-//            gen_op_mtc0_watchlo4();
-            rn = "WatchLo4";
-//            break;
-        case 5:
-//            gen_op_mtc0_watchlo5();
-            rn = "WatchLo5";
-//            break;
-        case 6:
-//            gen_op_mtc0_watchlo6();
-            rn = "WatchLo6";
-//            break;
-        case 7:
-//            gen_op_mtc0_watchlo7();
-            rn = "WatchLo7";
-//            break;
         default:
             goto die;
         }
         break;
     case 19:
         switch (sel) {
-        case 0:
-            gen_op_mtc0_watchhi0();
+        case 0 ... 7:
+            gen_op_mtc0_watchhi(sel);
             rn = "WatchHi";
             break;
-        case 1:
-//            gen_op_mtc0_watchhi1();
-            rn = "WatchHi1";
-//            break;
-        case 2:
-//            gen_op_mtc0_watchhi2();
-            rn = "WatchHi2";
-//            break;
-        case 3:
-//            gen_op_mtc0_watchhi3();
-            rn = "WatchHi3";
-//            break;
-        case 4:
-//            gen_op_mtc0_watchhi4();
-            rn = "WatchHi4";
-//            break;
-        case 5:
-//            gen_op_mtc0_watchhi5();
-            rn = "WatchHi5";
-//            break;
-        case 6:
-//            gen_op_mtc0_watchhi6();
-            rn = "WatchHi6";
-//            break;
-        case 7:
-//            gen_op_mtc0_watchhi7();
-            rn = "WatchHi7";
-//            break;
         default:
             goto die;
         }
@@ -6269,8 +6045,16 @@ void cpu_reset (CPUMIPSState *env)
     /* vectored interrupts not implemented, timer on int 7,
        no performance counters. */
     env->CP0_IntCtl = 0xe0000000;
-    env->CP0_WatchLo = 0;
-    env->CP0_WatchHi = 0;
+    {
+        int i;
+
+        for (i = 0; i < 7; i++) {
+            env->CP0_WatchLo[i] = 0;
+            env->CP0_WatchHi[i] = 0x80000000;
+        }
+        env->CP0_WatchLo[7] = 0;
+        env->CP0_WatchHi[7] = 0;
+    }
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
 #endif
