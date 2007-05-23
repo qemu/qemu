@@ -801,6 +801,57 @@ static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
     }
 }
 
+/* Wm8750 and Max7310 on I2C */
+
+#define AKITA_MAX_ADDR	0x18
+#define SPITZ_WM_ADDRL	0x1a
+#define SPITZ_WM_ADDRH	0x1b
+
+#define SPITZ_GPIO_WM	5
+
+#ifdef HAS_AUDIO
+static void spitz_wm8750_addr(int line, int level, void *opaque)
+{
+    i2c_slave *wm = (i2c_slave *) opaque;
+    if (level)
+        i2c_set_slave_address(wm, SPITZ_WM_ADDRH);
+    else
+        i2c_set_slave_address(wm, SPITZ_WM_ADDRL);
+}
+#endif
+
+static void spitz_i2c_setup(struct pxa2xx_state_s *cpu)
+{
+    /* Attach the CPU on one end of our I2C bus.  */
+    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+
+#ifdef HAS_AUDIO
+    AudioState *audio;
+    i2c_slave *wm;
+
+    audio = AUD_init();
+    if (!audio)
+        return;
+    /* Attach a WM8750 to the bus */
+    wm = wm8750_init(bus, audio);
+
+    spitz_wm8750_addr(0, 0, wm);
+    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_WM, spitz_wm8750_addr, wm);
+    /* .. and to the sound interface.  */
+    cpu->i2s->opaque = wm;
+    cpu->i2s->codec_out = wm8750_dac_dat;
+    cpu->i2s->codec_in = wm8750_adc_dat;
+    wm8750_data_req_set(wm, cpu->i2s->data_req, cpu->i2s);
+#endif
+}
+
+static void spitz_akita_i2c_setup(struct pxa2xx_state_s *cpu)
+{
+    /* Attach a Max7310 to Akita I2C bus.  */
+    i2c_set_slave_address(max7310_init(pxa2xx_i2c_bus(cpu->i2c[0])),
+                    AKITA_MAX_ADDR);
+}
+
 /* Other peripherals */
 
 static void spitz_charge_switch(int line, int level, void *opaque)
@@ -1025,6 +1076,11 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
     spitz_scoop_gpio_setup(cpu, scp, (model == akita) ? 1 : 2);
 
     spitz_gpio_setup(cpu, (model == akita) ? 1 : 2);
+
+    spitz_i2c_setup(cpu);
+
+    if (model == akita)
+        spitz_akita_i2c_setup(cpu);
 
     if (model == terrier)
         /* A 6.0 GB microdrive is permanently sitting in CF slot 0.  */
