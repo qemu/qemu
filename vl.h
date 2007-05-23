@@ -1153,16 +1153,15 @@ int pit_get_out(PITState *pit, int channel, int64_t current_time);
 void pcspk_init(PITState *);
 int pcspk_audio_init(AudioState *, qemu_irq *pic);
 
+#include "hw/i2c.h"
+
 #include "hw/smbus.h"
 
 /* acpi.c */
 extern int acpi_enabled;
-void piix4_pm_init(PCIBus *bus, int devfn);
+i2c_bus *piix4_pm_init(PCIBus *bus, int devfn);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 void acpi_bios_init(void);
-
-/* smbus_eeprom.c */
-SMBusDevice *smbus_eeprom_device_init(uint8_t addr, uint8_t *buf);
 
 /* pc.c */
 extern QEMUMachine pc_machine;
@@ -1615,7 +1614,26 @@ struct pcmcia_card_s {
 /* dscm1xxxx.c */
 struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv);
 
+/* ptimer.c */
+typedef struct ptimer_state ptimer_state;
+typedef void (*ptimer_cb)(void *opaque);
+
+ptimer_state *ptimer_init(QEMUBH *bh);
+void ptimer_set_period(ptimer_state *s, int64_t period);
+void ptimer_set_freq(ptimer_state *s, uint32_t freq);
+void ptimer_set_limit(ptimer_state *s, uint32_t limit, int reload);
+uint32_t ptimer_get_count(ptimer_state *s);
+void ptimer_set_count(ptimer_state *s, uint32_t count);
+void ptimer_run(ptimer_state *s, int oneshot);
+void ptimer_stop(ptimer_state *s);
+
 #include "hw/pxa.h"
+
+/* mcf5206.c */
+qemu_irq *mcf5206_init(uint32_t base, CPUState *env);
+
+/* an5206.c */
+extern QEMUMachine an5206_machine;
 
 #include "gdbstub.h"
 

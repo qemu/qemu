@@ -333,7 +333,7 @@ LIBOBJS+= op_helper.o helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), m68k)
-LIBOBJS+= helper.o
+LIBOBJS+= op_helper.o helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), alpha)
@@ -427,6 +427,8 @@ SOUND_HW += fmopl.o adlib.o
 endif
 AUDIODRV+= wavcapture.o
 
+VL_OBJS += i2c.o smbus.o
+
 # SCSI layer
 VL_OBJS+= scsi-disk.o cdrom.o lsi53c895a.o
 
@@ -489,7 +491,7 @@ endif
 ifeq ($(TARGET_BASE_ARCH), arm)
 VL_OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
 VL_OBJS+= arm_boot.o pl011.o pl050.o pl080.o pl110.o pl181.o pl190.o
-VL_OBJS+= versatile_pci.o sd.o
+VL_OBJS+= versatile_pci.o sd.o ptimer.o
 VL_OBJS+= arm_gic.o realview.o arm_sysctl.o
 VL_OBJS+= arm-semi.o
 VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
@@ -499,6 +501,9 @@ CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
 VL_OBJS+= shix.o sh7750.o sh7750_regnames.o tc58128.o
+endif
+ifeq ($(TARGET_BASE_ARCH), m68k)
+VL_OBJS+= an5206.o mcf5206.o ptimer.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 
@@ -652,8 +657,8 @@ endif
 
 ifeq ($(TARGET_BASE_ARCH), mips)
 helper.o: cpu.h exec-all.h
-op.o: op_template.c fop_template.c op_mem.c exec.h
-op_helper.o: op_helper_mem.c exec.h softmmu_template.h
+op.o: op_template.c fop_template.c op_mem.c exec.h cpu.h
+op_helper.o: op_helper_mem.c exec.h softmmu_template.h cpu.h
 translate.o: translate_init.c exec-all.h disas.h
 endif
 

@@ -1,7 +1,7 @@
 /*
  * m68k virtual CPU header
  * 
- *  Copyright (c) 2005-2006 CodeSourcery
+ *  Copyright (c) 2005-2007 CodeSourcery
  *  Written by Paul Brook
  *
  * This library is free software; you can redistribute it and/or
@@ -50,6 +50,8 @@
 #define EXCP_UNSUPPORTED    61
 #define EXCP_ICE            13
 
+#define EXCP_RTE            0x100
+
 typedef struct CPUM68KState {
     uint32_t dregs[8];
     uint32_t aregs[8];
@@ -76,6 +78,12 @@ typedef struct CPUM68KState {
     struct {
         uint32_t ar;
     } mmu;
+
+    /* Control registers.  */
+    uint32_t vbr;
+    uint32_t mbar;
+    uint32_t rambar0;
+
     /* ??? remove this.  */
     uint32_t t1;
 
@@ -84,7 +92,10 @@ typedef struct CPUM68KState {
     int exception_index;
     int interrupt_request;
     int user_mode_only;
-    uint32_t address;
+    int halted;
+
+    int pending_vector;
+    int pending_level;
 
     uint32_t qregs[MAX_QREGS];
 
@@ -94,6 +105,7 @@ typedef struct CPUM68KState {
 CPUM68KState *cpu_m68k_init(void);
 int cpu_m68k_exec(CPUM68KState *s);
 void cpu_m68k_close(CPUM68KState *s);
+void do_interrupt(int is_hw);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -120,12 +132,19 @@ enum {
 #define CCF_V 0x02
 #define CCF_Z 0x04
 #define CCF_N 0x08
-#define CCF_X 0x01
+#define CCF_X 0x10
+
+#define SR_I_SHIFT 8
+#define SR_I  0x0700
+#define SR_M  0x1000
+#define SR_S  0x2000
+#define SR_T  0x8000
 
 typedef struct m68k_def_t m68k_def_t;
 
-m68k_def_t *m68k_find_by_name(const char *);
-void cpu_m68k_register(CPUM68KState *, m68k_def_t *);
+int cpu_m68k_set_model(CPUM68KState *env, const char * name);
+
+void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector);
 
 #define M68K_FPCR_PREC (1 << 6)
 

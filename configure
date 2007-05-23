@@ -467,7 +467,7 @@ fi
 if test -z "$target_list" ; then
 # these targets are portable
     if [ "$softmmu" = "yes" ] ; then
-        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc64-softmmu ppcemb-softmmu "
+        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc64-softmmu ppcemb-softmmu m68k-softmmu"
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then

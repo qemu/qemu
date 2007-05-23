@@ -40,8 +40,12 @@ static inline void regs_to_env(void)
 int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op);
 float64 helper_sub_cmpf64(CPUM68KState *env, float64 src0, float64 src1);
+void helper_movec(CPUM68KState *env, int reg, uint32_t val);
 
 void cpu_loop_exit(void);

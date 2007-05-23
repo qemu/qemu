@@ -1,3 +1,47 @@
+2007-05-23 22:16  pbrook
+
+	* qemu-doc.texi: Document ColdFire system emulation.
+
+2007-05-23 21:58  pbrook
+
+	* Makefile.target, configure, cpu-exec.c, exec-all.h,
+	  softmmu_header.h, vl.c, vl.h, hw/an5206.c, hw/mcf5206.c,
+	  linux-user/main.c, target-m68k/cpu.h, target-m68k/exec.h,
+	  target-m68k/helper.c, target-m68k/op-hacks.h, target-m68k/op.c,
+	  target-m68k/op_helper.c, target-m68k/op_mem.h,
+	  target-m68k/qregs.def, target-m68k/translate.c: m68k/ColdFire
+	  system emulation.
+
+2007-05-23 10:35  ths
+
+	* Makefile.target: Add more cpu.h dependencies.
+
+2007-05-23 10:24  ths
+
+	* target-mips/: cpu.h, helper.c, op.c, translate.c: The 24k wants
+	  more watch and srsmap registers.
+
+2007-05-23 10:18  ths
+
+	* target-mips/: op.c, translate.c: The previous patch to make
+	  breakpoints work was a performance disaster, use a similiar hack
+	  as ARM does instead.
+
+2007-05-23 03:13  pbrook
+
+	* Makefile.target, vl.h: Add ptimer.c function declarations and
+	  makefile rule.
+
+2007-05-23 02:06  pbrook
+
+	* vl.c, hw/arm_timer.c, hw/ptimer.c: Add periodic timer
+	  implementation.
+
+2007-05-23 02:03  pbrook
+
+	* Makefile.target, vl.h, hw/acpi.c, hw/i2c.c, hw/i2c.h, hw/pc.c,
+	  hw/smbus.c, hw/smbus.h, hw/smbus_eeprom.c: I2C/SMBus framework.
+
 2007-05-21 20:08  blueswir1
 
 	* hw/slavio_intctl.c: Fix interrupt controller address masking

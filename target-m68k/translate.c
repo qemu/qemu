@@ -1,7 +1,7 @@
 /*
  *  m68k translation
  * 
- *  Copyright (c) 2005-2006 CodeSourcery
+ *  Copyright (c) 2005-2007 CodeSourcery
  *  Written by Paul Brook
  *
  * This library is free software; you can redistribute it and/or
@@ -30,6 +30,8 @@
 #include "disas.h"
 #include "m68k-qreg.h"
 
+//#define DEBUG_DISPATCH 1
+
 static inline void qemu_assert(int cond, const char *msg)
 {
     if (!cond) {
@@ -43,12 +45,19 @@ typedef struct DisasContext {
     target_ulong pc;
     int is_jmp;
     int cc_op;
+    int user;
     uint32_t fpcr;
     struct TranslationBlock *tb;
     int singlestep_enabled;
 } DisasContext;
 
 #define DISAS_JUMP_NEXT 4
+
+#if defined(CONFIG_USER_ONLY)
+#define IS_USER(s) 1
+#else
+#define IS_USER(s) s->user
+#endif
 
 /* XXX: move that elsewhere */
 /* ??? Fix exceptions.  */
@@ -68,6 +77,25 @@ enum {
 };
 
 #include "gen-op.h"
+
+#if defined(CONFIG_USER_ONLY)
+#define gen_st(s, name, addr, val) gen_op_st##name##_raw(addr, val)
+#define gen_ld(s, name, val, addr) gen_op_ld##name##_raw(val, addr)
+#else
+#define gen_st(s, name, addr, val) do { \
+    if (IS_USER(s)) \
+        gen_op_st##name##_user(addr, val); \
+    else \
+        gen_op_st##name##_kernel(addr, val); \
+    } while (0)
+#define gen_ld(s, name, val, addr) do { \
+    if (IS_USER(s)) \
+        gen_op_ld##name##_user(val, addr); \
+    else \
+        gen_op_ld##name##_kernel(val, addr); \
+    } while (0)
+#endif
+
 #include "op-hacks.h"
 
 #define OS_BYTE 0
@@ -101,40 +129,49 @@ static m68k_def_t m68k_cpu_defs[] = {
 
 typedef void (*disas_proc)(DisasContext *, uint16_t);
 
+#ifdef DEBUG_DISPATCH
+#define DISAS_INSN(name) \
+  static void real_disas_##name (DisasContext *s, uint16_t insn); \
+  static void disas_##name (DisasContext *s, uint16_t insn) { \
+    if (logfile) fprintf(logfile, "Dispatch " #name "\n"); \
+    real_disas_##name(s, insn); } \
+  static void real_disas_##name (DisasContext *s, uint16_t insn)
+#else
 #define DISAS_INSN(name) \
   static void disas_##name (DisasContext *s, uint16_t insn)
+#endif
 
 /* Generate a load from the specified address.  Narrow values are
    sign extended to full register width.  */
-static inline int gen_load(int opsize, int addr, int sign)
+static inline int gen_load(DisasContext * s, int opsize, int addr, int sign)
 {
     int tmp;
     switch(opsize) {
     case OS_BYTE:
         tmp = gen_new_qreg(QMODE_I32);
         if (sign)
-            gen_op_ld8s32(tmp, addr);
+            gen_ld(s, 8s32, tmp, addr);
         else
-            gen_op_ld8u32(tmp, addr);
+            gen_ld(s, 8u32, tmp, addr);
         break;
     case OS_WORD:
         tmp = gen_new_qreg(QMODE_I32);
         if (sign)
-            gen_op_ld16s32(tmp, addr);
+            gen_ld(s, 16s32, tmp, addr);
         else
-            gen_op_ld16u32(tmp, addr);
+            gen_ld(s, 16u32, tmp, addr);
         break;
     case OS_LONG:
         tmp = gen_new_qreg(QMODE_I32);
-        gen_op_ld32(tmp, addr);
+        gen_ld(s, 32, tmp, addr);
         break;
     case OS_SINGLE:
         tmp = gen_new_qreg(QMODE_F32);
-        gen_op_ldf32(tmp, addr);
+        gen_ld(s, f32, tmp, addr);
         break;
     case OS_DOUBLE:
         tmp  = gen_new_qreg(QMODE_F64);
-        gen_op_ldf64(tmp, addr);
+        gen_ld(s, f64, tmp, addr);
         break;
     default:
         qemu_assert(0, "bad load size");
@@ -144,23 +181,23 @@ static inline int gen_load(int opsize, int addr, int sign)
 }
 
 /* Generate a store.  */
-static inline void gen_store(int opsize, int addr, int val)
+static inline void gen_store(DisasContext *s, int opsize, int addr, int val)
 {
     switch(opsize) {
     case OS_BYTE:
-        gen_op_st8(addr, val);
+        gen_st(s, 8, addr, val);
         break;
     case OS_WORD:
-        gen_op_st16(addr, val);
+        gen_st(s, 16, addr, val);
         break;
     case OS_LONG:
-        gen_op_st32(addr, val);
+        gen_st(s, 32, addr, val);
         break;
     case OS_SINGLE:
-        gen_op_stf32(addr, val);
+        gen_st(s, f32, addr, val);
         break;
     case OS_DOUBLE:
-        gen_op_stf64(addr, val);
+        gen_st(s, f64, addr, val);
         break;
     default:
         qemu_assert(0, "bad store size");
@@ -170,13 +207,13 @@ static inline void gen_store(int opsize, int addr, int val)
 
 /* Generate an unsigned load if VAL is 0 a signed load if val is -1,
    otherwise generate a store.  */
-static int gen_ldst(int opsize, int addr, int val)
+static int gen_ldst(DisasContext *s, int opsize, int addr, int val)
 {
     if (val > 0) {
-        gen_store(opsize, addr, val);
+        gen_store(s, opsize, addr, val);
         return 0;
     } else {
-        return gen_load(opsize, addr, val != 0);
+        return gen_load(s, opsize, addr, val != 0);
     }
 }
 
@@ -191,7 +228,7 @@ static int gen_lea_indexed(DisasContext *s, int opsize, int base)
     int tmp;
 
     offset = s->pc;
-    ext = lduw(s->pc);
+    ext = lduw_code(s->pc);
     s->pc += 2;
     tmp = ((ext >> 12) & 7) + ((ext & 0x8000) ? QREG_A0 : QREG_D0);
     /* ??? Check W/L bit.  */
@@ -216,9 +253,9 @@ static int gen_lea_indexed(DisasContext *s, int opsize, int base)
 static inline uint32_t read_im32(DisasContext *s)
 {
     uint32_t im;
-    im = ((uint32_t)lduw(s->pc)) << 16;
+    im = ((uint32_t)lduw_code(s->pc)) << 16;
     s->pc += 2;
-    im |= lduw(s->pc);
+    im |= lduw_code(s->pc);
     s->pc += 2;
     return im;
 }
@@ -343,7 +380,7 @@ static int gen_lea(DisasContext *s, uint16_t insn, int opsize)
     case 5: /* Indirect displacement.  */
         reg += QREG_A0;
         tmp = gen_new_qreg(QMODE_I32);
-        ext = lduw(s->pc);
+        ext = lduw_code(s->pc);
         s->pc += 2;
         gen_op_add32(tmp, reg, gen_im32((int16_t)ext));
         return tmp;
@@ -353,7 +390,7 @@ static int gen_lea(DisasContext *s, uint16_t insn, int opsize)
     case 7: /* Other */
         switch (reg) {
         case 0: /* Absolute short.  */
-            offset = ldsw(s->pc);
+            offset = ldsw_code(s->pc);
             s->pc += 2;
             return gen_im32(offset);
         case 1: /* Absolute long.  */
@@ -362,7 +399,7 @@ static int gen_lea(DisasContext *s, uint16_t insn, int opsize)
         case 2: /* pc displacement  */
             tmp = gen_new_qreg(QMODE_I32);
             offset = s->pc;
-            offset += ldsw(s->pc);
+            offset += ldsw_code(s->pc);
             s->pc += 2;
             return gen_im32(offset);
         case 3: /* pc index+displacement.  */
@@ -391,7 +428,7 @@ static inline int gen_ea_once(DisasContext *s, uint16_t insn, int opsize,
         if (addrp)
             *addrp = tmp;
     }
-    return gen_ldst(opsize, tmp, val);
+    return gen_ldst(s, opsize, tmp, val);
 }
 
 /* Generate code to load/store a value ito/from an EA.  If VAL > 0 this is
@@ -424,10 +461,10 @@ static int gen_ea(DisasContext *s, uint16_t insn, int opsize, int val,
         }
     case 2: /* Indirect register */
         reg += QREG_A0;
-        return gen_ldst(opsize, reg, val);
+        return gen_ldst(s, opsize, reg, val);
     case 3: /* Indirect postincrement.  */
         reg += QREG_A0;
-        result = gen_ldst(opsize, reg, val);
+        result = gen_ldst(s, opsize, reg, val);
         /* ??? This is not exception safe.  The instruction may still
            fault after this point.  */
         if (val > 0 || !addrp)
@@ -443,7 +480,7 @@ static int gen_ea(DisasContext *s, uint16_t insn, int opsize, int val,
                 if (addrp)
                     *addrp = tmp;
             }
-            result = gen_ldst(opsize, tmp, val);
+            result = gen_ldst(s, opsize, tmp, val);
             /* ??? This is not exception safe.  The instruction may still
                fault after this point.  */
             if (val > 0 || !addrp) {
@@ -467,16 +504,16 @@ static int gen_ea(DisasContext *s, uint16_t insn, int opsize, int val,
             switch (opsize) {
             case OS_BYTE:
                 if (val)
-                    offset = ldsb(s->pc + 1);
+                    offset = ldsb_code(s->pc + 1);
                 else
-                    offset = ldub(s->pc + 1);
+                    offset = ldub_code(s->pc + 1);
                 s->pc += 2;
                 break;
             case OS_WORD:
                 if (val)
-                    offset = ldsw(s->pc);
+                    offset = ldsw_code(s->pc);
                 else
-                    offset = lduw(s->pc);
+                    offset = lduw_code(s->pc);
                 s->pc += 2;
                 break;
             case OS_LONG:
@@ -622,6 +659,14 @@ DISAS_INSN(scc)
     gen_set_label(l1);
 }
 
+/* Force a TB lookup after an instruction that changes the CPU state.  */
+static void gen_lookup_tb(DisasContext *s)
+{
+    gen_flush_cc_op(s);
+    gen_op_mov32(QREG_PC, gen_im32(s->pc));
+    s->is_jmp = DISAS_UPDATE;
+}
+
 /* Generate a jump to to the address in qreg DEST.  */
 static void gen_jmp(DisasContext *s, int dest)
 {
@@ -735,7 +780,7 @@ DISAS_INSN(divl)
     int reg;
     uint16_t ext;
 
-    ext = lduw(s->pc);
+    ext = lduw_code(s->pc);
     s->pc += 2;
     if (ext & 0x87f8) {
         gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
@@ -903,13 +948,13 @@ DISAS_INSN(sats)
     gen_logic_cc(s, tmp);
 }
 
-static void gen_push(int val)
+static void gen_push(DisasContext *s, int val)
 {
     int tmp;
 
     tmp = gen_new_qreg(QMODE_I32);
     gen_op_sub32(tmp, QREG_SP, gen_im32(4));
-    gen_store(OS_LONG, tmp, val);
+    gen_store(s, OS_LONG, tmp, val);
     gen_op_mov32(QREG_SP, tmp);
 }
 
@@ -922,7 +967,7 @@ DISAS_INSN(movem)
     int tmp;
     int is_load;
 
-    mask = lduw(s->pc);
+    mask = lduw_code(s->pc);
     s->pc += 2;
     tmp = gen_lea(s, insn, OS_LONG);
     addr = gen_new_qreg(QMODE_I32);
@@ -935,10 +980,10 @@ DISAS_INSN(movem)
             else
                 reg = AREG(i, 0);
             if (is_load) {
-                tmp = gen_load(OS_LONG, addr, 0);
+                tmp = gen_load(s, OS_LONG, addr, 0);
                 gen_op_mov32(reg, tmp);
             } else {
-                gen_store(OS_LONG, addr, reg);
+                gen_store(s, OS_LONG, addr, reg);
             }
             if (mask != 1)
                 gen_op_add32(addr, addr, gen_im32(4));
@@ -963,7 +1008,7 @@ DISAS_INSN(bitop_im)
         opsize = OS_LONG;
     op = (insn >> 6) & 3;
 
-    bitnum = lduw(s->pc);
+    bitnum = lduw_code(s->pc);
     s->pc += 2;
     if (bitnum & 0xff00) {
         disas_undef(s, insn);
@@ -1155,9 +1200,8 @@ DISAS_INSN(clr)
     gen_logic_cc(s, gen_im32(0));
 }
 
-DISAS_INSN(move_from_ccr)
+static int gen_get_ccr(DisasContext *s)
 {
-    int reg;
     int dest;
 
     gen_flush_flags(s);
@@ -1165,8 +1209,17 @@ DISAS_INSN(move_from_ccr)
     gen_op_get_xflag(dest);
     gen_op_shl32(dest, dest, gen_im32(4));
     gen_op_or32(dest, dest, QREG_CC_DEST);
+    return dest;
+}
+
+DISAS_INSN(move_from_ccr)
+{
+    int reg;
+    int ccr;
+
+    ccr = gen_get_ccr(s);
     reg = DREG(insn, 0);
-    gen_partset_reg(OS_WORD, reg, dest);
+    gen_partset_reg(OS_WORD, reg, ccr);
 }
 
 DISAS_INSN(neg)
@@ -1184,7 +1237,16 @@ DISAS_INSN(neg)
     s->cc_op = CC_OP_SUB;
 }
 
-DISAS_INSN(move_to_ccr)
+static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
+{
+    gen_op_logic_cc(gen_im32(val & 0xf));
+    gen_op_update_xflag_tst(gen_im32((val & 0x10) >> 4));
+    if (!ccr_only) {
+        gen_op_mov32(QREG_SR, gen_im32(val & 0xff00));
+    }
+}
+
+static void gen_set_sr(DisasContext *s, uint16_t insn, int ccr_only)
 {
     int src1;
     int reg;
@@ -1199,17 +1261,24 @@ DISAS_INSN(move_to_ccr)
         gen_op_shr32(src1, reg, gen_im32(4));
         gen_op_and32(src1, src1, gen_im32(1));
         gen_op_update_xflag_tst(src1);
+        if (!ccr_only) {
+            gen_op_and32(QREG_SR, reg, gen_im32(0xff00));
+        }
       }
-    else if ((insn & 0x3f) != 0x3c)
+    else if ((insn & 0x3f) == 0x3c)
       {
-        uint8_t val;
-        val = ldsb(s->pc);
+        uint16_t val;
+        val = lduw_code(s->pc);
         s->pc += 2;
-        gen_op_logic_cc(gen_im32(val & 0xf));
-        gen_op_update_xflag_tst(gen_im32((val & 0x10) >> 4));
+        gen_set_sr_im(s, val, ccr_only);
       }
     else
         disas_undef(s, insn);
+}
+
+DISAS_INSN(move_to_ccr)
+{
+    gen_set_sr(s, insn, 1);
 }
 
 DISAS_INSN(not)
@@ -1244,7 +1313,7 @@ DISAS_INSN(pea)
     int tmp;
 
     tmp = gen_lea(s, insn, OS_LONG);
-    gen_push(tmp);
+    gen_push(s, tmp);
 }
 
 DISAS_INSN(ext)
@@ -1322,7 +1391,7 @@ DISAS_INSN(mull)
 
     /* The upper 32 bits of the product are discarded, so
        muls.l and mulu.l are functionally equivalent.  */
-    ext = lduw(s->pc);
+    ext = lduw_code(s->pc);
     s->pc += 2;
     if (ext & 0x87ff) {
         gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
@@ -1343,12 +1412,12 @@ DISAS_INSN(link)
     int reg;
     int tmp;
 
-    offset = ldsw(s->pc);
+    offset = ldsw_code(s->pc);
     s->pc += 2;
     reg = AREG(insn, 0);
     tmp = gen_new_qreg(QMODE_I32);
     gen_op_sub32(tmp, QREG_SP, gen_im32(4));
-    gen_store(OS_LONG, tmp, reg);
+    gen_store(s, OS_LONG, tmp, reg);
     if (reg != QREG_SP)
         gen_op_mov32(reg, tmp);
     gen_op_add32(QREG_SP, tmp, gen_im32(offset));
@@ -1363,7 +1432,7 @@ DISAS_INSN(unlk)
     src = gen_new_qreg(QMODE_I32);
     reg = AREG(insn, 0);
     gen_op_mov32(src, reg);
-    tmp = gen_load(OS_LONG, src, 0);
+    tmp = gen_load(s, OS_LONG, src, 0);
     gen_op_mov32(reg, tmp);
     gen_op_add32(QREG_SP, src, gen_im32(4));
 }
@@ -1376,7 +1445,7 @@ DISAS_INSN(rts)
 {
     int tmp;
 
-    tmp = gen_load(OS_LONG, QREG_SP, 0);
+    tmp = gen_load(s, OS_LONG, QREG_SP, 0);
     gen_op_add32(QREG_SP, QREG_SP, gen_im32(4));
     gen_jmp(s, tmp);
 }
@@ -1390,7 +1459,7 @@ DISAS_INSN(jump)
     tmp = gen_lea(s, insn, OS_LONG);
     if ((insn & 0x40) == 0) {
         /* jsr */
-        gen_push(gen_im32(s->pc));
+        gen_push(s, gen_im32(s->pc));
     }
     gen_jmp(s, tmp);
 }
@@ -1460,14 +1529,14 @@ DISAS_INSN(branch)
     op = (insn >> 8) & 0xf;
     offset = (int8_t)insn;
     if (offset == 0) {
-        offset = ldsw(s->pc);
+        offset = ldsw_code(s->pc);
         s->pc += 2;
     } else if (offset == -1) {
         offset = read_im32(s);
     }
     if (op == 1) {
         /* bsr */
-        gen_push(gen_im32(s->pc));
+        gen_push(s, gen_im32(s->pc));
     }
     gen_flush_cc_op(s);
     if (op > 1) {
@@ -1752,68 +1821,154 @@ DISAS_INSN(ff1)
     cpu_abort(NULL, "Unimplemented insn: ff1");
 }
 
+static int gen_get_sr(DisasContext *s)
+{
+    int ccr;
+    int sr;
+
+    ccr = gen_get_ccr(s);
+    sr = gen_new_qreg(QMODE_I32);
+    gen_op_and32(sr, QREG_SR, gen_im32(0xffe0));
+    gen_op_or32(sr, sr, ccr);
+    return sr;
+}
+
 DISAS_INSN(strldsr)
 {
     uint16_t ext;
     uint32_t addr;
 
     addr = s->pc - 2;
-    ext = lduw(s->pc);
+    ext = lduw_code(s->pc);
     s->pc += 2;
-    if (ext != 0x46FC)
+    if (ext != 0x46FC) {
         gen_exception(s, addr, EXCP_UNSUPPORTED);
-    else
+        return;
+    }
+    ext = lduw_code(s->pc);
+    s->pc += 2;
+    if (IS_USER(s) || (ext & SR_S) == 0) {
         gen_exception(s, addr, EXCP_PRIVILEGE);
+        return;
+    }
+    gen_push(s, gen_get_sr(s));
+    gen_set_sr_im(s, ext, 0);
 }
 
 DISAS_INSN(move_from_sr)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    int reg;
+    int sr;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    sr = gen_get_sr(s);
+    reg = DREG(insn, 0);
+    gen_partset_reg(OS_WORD, reg, sr);
 }
 
 DISAS_INSN(move_to_sr)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    gen_set_sr(s, insn, 0);
+    gen_lookup_tb(s);
 }
 
 DISAS_INSN(move_from_usp)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    /* TODO: Implement USP.  */
+    gen_exception(s, s->pc - 2, EXCP_ILLEGAL);
 }
 
 DISAS_INSN(move_to_usp)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    /* TODO: Implement USP.  */
+    gen_exception(s, s->pc - 2, EXCP_ILLEGAL);
 }
 
 DISAS_INSN(halt)
 {
-    gen_exception(s, s->pc, EXCP_HLT);
+    gen_flush_cc_op(s);
+    gen_jmp(s, gen_im32(s->pc));
+    gen_op_halt();
 }
 
 DISAS_INSN(stop)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    uint16_t ext;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+
+    ext = lduw_code(s->pc);
+    s->pc += 2;
+
+    gen_set_sr_im(s, ext, 0);
+    disas_halt(s, insn);
 }
 
 DISAS_INSN(rte)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    gen_exception(s, s->pc - 2, EXCP_RTE);
 }
 
 DISAS_INSN(movec)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    uint16_t ext;
+    int reg;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+
+    ext = lduw_code(s->pc);
+    s->pc += 2;
+
+    if (ext & 0x8000) {
+        reg = AREG(ext, 12);
+    } else {
+        reg = DREG(ext, 12);
+    }
+    gen_op_movec(gen_im32(ext & 0xfff), reg);
+    gen_lookup_tb(s);
 }
 
 DISAS_INSN(intouch)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    /* ICache fetch.  Implement as no-op.  */
 }
 
 DISAS_INSN(cpushl)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    /* Cache push/invalidate.  Implement as no-op.  */
 }
 
 DISAS_INSN(wddata)
@@ -1823,7 +1978,12 @@ DISAS_INSN(wddata)
 
 DISAS_INSN(wdebug)
 {
-    gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+    if (IS_USER(s)) {
+        gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
+        return;
+    }
+    /* TODO: Implement wdebug.  */
+    qemu_assert(0, "WDEBUG not implemented");
 }
 
 DISAS_INSN(trap)
@@ -1843,7 +2003,7 @@ DISAS_INSN(fpu)
     int round;
     int opsize;
 
-    ext = lduw(s->pc);
+    ext = lduw_code(s->pc);
     s->pc += 2;
     opmode = ext & 0x7f;
     switch ((ext >> 13) & 7) {
@@ -1928,10 +2088,10 @@ DISAS_INSN(fpu)
             if (ext & mask) {
                 if (ext & (1 << 13)) {
                     /* store */
-                    gen_op_stf64(addr, dest);
+                    gen_st(s, f64, addr, dest);
                 } else {
                     /* load */
-                    gen_op_ldf64(dest, addr);
+                    gen_ld(s, f64, dest, addr);
                 }
                 if (ext & (mask - 1))
                     gen_op_add32(addr, addr, gen_im32(8));
@@ -2060,10 +2220,10 @@ DISAS_INSN(fbcc)
     int l1;
 
     addr = s->pc;
-    offset = ldsw(s->pc);
+    offset = ldsw_code(s->pc);
     s->pc += 2;
     if (insn & (1 << 6)) {
-        offset = (offset << 16) | lduw(s->pc);
+        offset = (offset << 16) | lduw_code(s->pc);
         s->pc += 2;
     }
 
@@ -2143,6 +2303,18 @@ DISAS_INSN(fbcc)
     gen_jmp_tb(s, 1, addr + offset);
 }
 
+DISAS_INSN(frestore)
+{
+    /* TODO: Implement frestore.  */
+    qemu_assert(0, "FRESTORE not implemented");
+}
+
+DISAS_INSN(fsave)
+{
+    /* TODO: Implement fsave.  */
+    qemu_assert(0, "FSAVE not implemented");
+}
+
 static disas_proc opcode_table[65536];
 
 static void
@@ -2168,11 +2340,10 @@ register_opcode (disas_proc proc, uint16_t opcode, uint16_t mask)
       i <<= 1;
   from = opcode & ~(i - 1);
   to = from + i;
-  for (i = from; i < to; i++)
-    {
+  for (i = from; i < to; i++) {
       if ((i & mask) == opcode)
           opcode_table[i] = proc;
-    }
+  }
 }
 
 /* Register m68k opcode handlers.  Order is important.
@@ -2274,6 +2445,8 @@ register_m68k_insns (m68k_def_t *def)
     INSN(undef_fpu, f000, f000, CF_A);
     INSN(fpu,       f200, ffc0, CF_FPU);
     INSN(fbcc,      f280, ffc0, CF_FPU);
+    INSN(frestore,  f340, ffc0, CF_FPU);
+    INSN(fsave,     f340, ffc0, CF_FPU);
     INSN(intouch,   f340, ffc0, CF_A);
     INSN(cpushl,    f428, ff38, CF_A);
     INSN(wddata,    fb00, ff00, CF_A);
@@ -2287,7 +2460,7 @@ static void disas_m68k_insn(CPUState * env, DisasContext *s)
 {
     uint16_t insn;
 
-    insn = lduw(s->pc);
+    insn = lduw_code(s->pc);
     s->pc += 2;
 
     opcode_table[insn](s, insn);
@@ -2576,6 +2749,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->cc_op = CC_OP_DYNAMIC;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->fpcr = env->fpcr;
+    dc->user = (env->sr & SR_S) == 0;
     nb_gen_labels = 0;
     lj = -1;
     do {
@@ -2675,6 +2849,19 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
+void cpu_reset(CPUM68KState *env)
+{
+    memset(env, 0, offsetof(CPUM68KState, breakpoints));
+#if !defined (CONFIG_USER_ONLY)
+    env->sr = 0x2700;
+#endif
+    /* ??? FP regs should be initialized to NaN.  */
+    env->cc_op = CC_OP_FLAGS;
+    /* TODO: We should set PC from the interrupt vector.  */
+    env->pc = 0;
+    tlb_flush(env, 1);
+}
+
 CPUM68KState *cpu_m68k_init(void)
 {
     CPUM68KState *env;
@@ -2684,10 +2871,7 @@ CPUM68KState *cpu_m68k_init(void)
         return NULL;
     cpu_exec_init(env);
 
-    memset(env, 0, sizeof(CPUM68KState));
-    /* ??? FP regs should be initialized to NaN.  */
-    cpu_single_env = env;
-    env->cc_op = CC_OP_FLAGS;
+    cpu_reset(env);
     return env;
 }
 
@@ -2696,23 +2880,20 @@ void cpu_m68k_close(CPUM68KState *env)
     free(env);
 }
 
-m68k_def_t *m68k_find_by_name(const char *name)
+int cpu_m68k_set_model(CPUM68KState *env, const char * name)
 {
     m68k_def_t *def;
 
-    def = m68k_cpu_defs;
-    while (def->name)
-      {
+    for (def = m68k_cpu_defs; def->name; def++) {
         if (strcmp(def->name, name) == 0)
-            return def;
-        def++;
-      }
-    return NULL;
-}
+            break;
+    }
+    if (!def->name)
+        return 1;
 
-void cpu_m68k_register(CPUM68KState *env, m68k_def_t *def)
-{
     register_m68k_insns(def);
+
+    return 0;
 }
 
 void cpu_dump_state(CPUState *env, FILE *f, 
@@ -2737,24 +2918,3 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf (f, "FPRESULT = %12g\n", env->fp_result);
 }
 
-/* ??? */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
-#if defined(CONFIG_USER_ONLY) 
-
-int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
-{
-    env->exception_index = EXCP_ACCESS;
-    env->mmu.ar = address;
-    return 1;
-}
-
-#else
-
-#error not implemented
-
-#endif

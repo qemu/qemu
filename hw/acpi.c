@@ -35,7 +35,7 @@ typedef struct PIIX4PMState {
     uint8_t apms;
     QEMUTimer *tmr_timer;
     int64_t tmr_overflow_time;
-    SMBusDevice *smb_dev[128];
+    i2c_bus *smbus;
     uint8_t smb_stat;
     uint8_t smb_ctl;
     uint8_t smb_cmd;
@@ -62,9 +62,6 @@ typedef struct PIIX4PMState {
 #define SMBHSTDAT0 0x05
 #define SMBHSTDAT1 0x06
 #define SMBBLKDAT 0x07
-
-/* Note: only used for piix4_smbus_register_device */
-static PIIX4PMState *piix4_pm_state;
 
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
@@ -258,59 +255,44 @@ static void smb_transaction(PIIX4PMState *s)
     uint8_t read = s->smb_addr & 0x01;
     uint8_t cmd = s->smb_cmd;
     uint8_t addr = s->smb_addr >> 1;
-    SMBusDevice *dev = s->smb_dev[addr];
+    i2c_bus *bus = s->smbus;
 
 #ifdef DEBUG
     printf("SMBus trans addr=0x%02x prot=0x%02x\n", addr, prot);
 #endif
-    if (!dev) goto error;
-
     switch(prot) {
     case 0x0:
-        if (!dev->quick_cmd) goto error;
-        (*dev->quick_cmd)(dev, read);
+        smbus_quick_command(bus, addr, read);
         break;
     case 0x1:
         if (read) {
-            if (!dev->receive_byte) goto error;
-            s->smb_data0 = (*dev->receive_byte)(dev);
-        }
-        else {
-            if (!dev->send_byte) goto error;
-            (*dev->send_byte)(dev, cmd);
+            s->smb_data0 = smbus_receive_byte(bus, addr);
+        } else {
+            smbus_send_byte(bus, addr, cmd);
         }
         break;
     case 0x2:
         if (read) {
-            if (!dev->read_byte) goto error;
-            s->smb_data0 = (*dev->read_byte)(dev, cmd);
-        }
-        else {
-            if (!dev->write_byte) goto error;
-            (*dev->write_byte)(dev, cmd, s->smb_data0);
+            s->smb_data0 = smbus_read_byte(bus, addr, cmd);
+        } else {
+            smbus_write_byte(bus, addr, cmd, s->smb_data0);
         }
         break;
     case 0x3:
         if (read) {
             uint16_t val;
-            if (!dev->read_word) goto error;
-            val = (*dev->read_word)(dev, cmd);
+            val = smbus_read_word(bus, addr, cmd);
             s->smb_data0 = val;
             s->smb_data1 = val >> 8;
-        }
-        else {
-            if (!dev->write_word) goto error;
-            (*dev->write_word)(dev, cmd, (s->smb_data1 << 8) | s->smb_data0);
+        } else {
+            smbus_write_word(bus, addr, cmd, (s->smb_data1 << 8) | s->smb_data0);
         }
         break;
     case 0x5:
         if (read) {
-            if (!dev->read_block) goto error;
-            s->smb_data0 = (*dev->read_block)(dev, cmd, s->smb_data);
-        }
-        else {
-            if (!dev->write_block) goto error;
-            (*dev->write_block)(dev, cmd, s->smb_data0, s->smb_data);
+            s->smb_data0 = smbus_read_block(bus, addr, cmd, s->smb_data);
+        } else {
+            smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0);
         }
         break;
     default:
@@ -469,7 +451,7 @@ static int pm_load(QEMUFile* f,void* opaque,int version_id)
     return 0;
 }
 
-void piix4_pm_init(PCIBus *bus, int devfn)
+i2c_bus *piix4_pm_init(PCIBus *bus, int devfn)
 {
     PIIX4PMState *s;
     uint8_t *pci_conf;
@@ -514,10 +496,7 @@ void piix4_pm_init(PCIBus *bus, int devfn)
     s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
 
     register_savevm("piix4_pm", 0, 1, pm_save, pm_load, s);
-    piix4_pm_state = s;
-}
 
-void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr)
-{
-    piix4_pm_state->smb_dev[addr] = dev;
+    s->smbus = i2c_init_bus();
+    return s->smbus;
 }

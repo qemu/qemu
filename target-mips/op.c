@@ -1002,16 +1002,6 @@ void op_jnz_T2 (void)
     RETURN();
 }
 
-void op_flush_icache_range(void) {
-    CALL_FROM_TB2(tlb_flush_page, env, T0 + T1);
-    RETURN();
-}
-
-void op_flush_icache_all(void) {
-    CALL_FROM_TB1(tb_flush, env);
-    RETURN();
-}
-
 /* CP0 functions */
 void op_mfc0_index (void)
 {
@@ -1181,15 +1171,15 @@ void op_mfc0_lladdr (void)
     RETURN();
 }
 
-void op_mfc0_watchlo0 (void)
+void op_mfc0_watchlo (void)
 {
-    T0 = (int32_t)env->CP0_WatchLo;
+    T0 = (int32_t)env->CP0_WatchLo[PARAM1];
     RETURN();
 }
 
-void op_mfc0_watchhi0 (void)
+void op_mfc0_watchhi (void)
 {
-    T0 = env->CP0_WatchHi;
+    T0 = env->CP0_WatchHi[PARAM1];
     RETURN();
 }
 
@@ -1433,18 +1423,18 @@ void op_mtc0_config2 (void)
     RETURN();
 }
 
-void op_mtc0_watchlo0 (void)
+void op_mtc0_watchlo (void)
 {
     /* Watch exceptions for instructions, data loads, data stores
        not implemented. */
-    env->CP0_WatchLo = (T0 & ~0x7);
+    env->CP0_WatchLo[PARAM1] = (T0 & ~0x7);
     RETURN();
 }
 
-void op_mtc0_watchhi0 (void)
+void op_mtc0_watchhi (void)
 {
-    env->CP0_WatchHi = (T0 & 0x40FF0FF8);
-    env->CP0_WatchHi &= ~(env->CP0_WatchHi & T0 & 0x7);
+    env->CP0_WatchHi[PARAM1] = (T0 & 0x40FF0FF8);
+    env->CP0_WatchHi[PARAM1] &= ~(env->CP0_WatchHi[PARAM1] & T0 & 0x7);
     RETURN();
 }
 
@@ -1561,9 +1551,9 @@ void op_dmfc0_lladdr (void)
     RETURN();
 }
 
-void op_dmfc0_watchlo0 (void)
+void op_dmfc0_watchlo (void)
 {
-    T0 = env->CP0_WatchLo;
+    T0 = env->CP0_WatchLo[PARAM1];
     RETURN();
 }
 

@@ -27,15 +27,37 @@ static inline int gen_im32(uint32_t i)
     return qreg;
 }
 
-static inline void gen_op_ldf32(int dest, int addr)
+static inline void gen_op_ldf32_raw(int dest, int addr)
 {
-    gen_op_ld32(dest, addr);
+    gen_op_ld32_raw(dest, addr);
 }
 
-static inline void gen_op_stf32(int addr, int dest)
+static inline void gen_op_stf32_raw(int addr, int dest)
 {
-    gen_op_st32(addr, dest);
+    gen_op_st32_raw(addr, dest);
 }
+
+#if !defined(CONFIG_USER_ONLY)
+static inline void gen_op_ldf32_user(int dest, int addr)
+{
+    gen_op_ld32_user(dest, addr);
+}
+
+static inline void gen_op_stf32_user(int addr, int dest)
+{
+    gen_op_st32_user(addr, dest);
+}
+
+static inline void gen_op_ldf32_kernel(int dest, int addr)
+{
+    gen_op_ld32_kernel(dest, addr);
+}
+
+static inline void gen_op_stf32_kernel(int addr, int dest)
+{
+    gen_op_st32_kernel(addr, dest);
+}
+#endif
 
 static inline void gen_op_pack_32_f32(int dest, int src)
 {

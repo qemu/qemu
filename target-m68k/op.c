@@ -1,7 +1,7 @@
 /*
  *  m68k micro operations
  * 
- *  Copyright (c) 2006 CodeSourcery
+ *  Copyright (c) 2006-2007 CodeSourcery
  *  Written by Paul Brook
  *
  * This library is free software; you can redistribute it and/or
@@ -83,7 +83,7 @@ void set_opf64(int qreg, float64 val)
     }
 }
 
-#define OP(name) void OPPROTO op_##name (void)
+#define OP(name) void OPPROTO glue(op_,name) (void)
 
 OP(mov32)
 {
@@ -313,77 +313,6 @@ OP(ext16s32)
     FORCE_RET();
 }
 
-/* Load/store ops.  */
-OP(ld8u32)
-{
-    uint32_t addr = get_op(PARAM2);
-    set_op(PARAM1, ldub(addr));
-    FORCE_RET();
-}
-
-OP(ld8s32)
-{
-    uint32_t addr = get_op(PARAM2);
-    set_op(PARAM1, ldsb(addr));
-    FORCE_RET();
-}
-
-OP(ld16u32)
-{
-    uint32_t addr = get_op(PARAM2);
-    set_op(PARAM1, lduw(addr));
-    FORCE_RET();
-}
-
-OP(ld16s32)
-{
-    uint32_t addr = get_op(PARAM2);
-    set_op(PARAM1, ldsw(addr));
-    FORCE_RET();
-}
-
-OP(ld32)
-{
-    uint32_t addr = get_op(PARAM2);
-    set_op(PARAM1, ldl(addr));
-    FORCE_RET();
-}
-
-OP(st8)
-{
-    uint32_t addr = get_op(PARAM1);
-    stb(addr, get_op(PARAM2));
-    FORCE_RET();
-}
-
-OP(st16)
-{
-    uint32_t addr = get_op(PARAM1);
-    stw(addr, get_op(PARAM2));
-    FORCE_RET();
-}
-
-OP(st32)
-{
-    uint32_t addr = get_op(PARAM1);
-    stl(addr, get_op(PARAM2));
-    FORCE_RET();
-}
-
-OP(ldf64)
-{
-    uint32_t addr = get_op(PARAM2);
-    set_opf64(PARAM1, ldfq(addr));
-    FORCE_RET();
-}
-
-OP(stf64)
-{
-    uint32_t addr = get_op(PARAM1);
-    stfq(addr, get_opf64(PARAM2));
-    FORCE_RET();
-}
-
 OP(flush_flags)
 {
     int cc_op  = PARAM1;
@@ -448,6 +377,13 @@ OP(divs)
     env->div1 = quot;
     env->div2 = rem;
     env->cc_dest = flags;
+    FORCE_RET();
+}
+
+OP(halt)
+{
+    env->halted = 1;
+    RAISE_EXCEPTION(EXCP_HLT);
     FORCE_RET();
 }
 
@@ -676,3 +612,22 @@ OP(compare_quietf64)
     set_op(PARAM1, float64_compare_quiet(op0, op1, &CPU_FP_STATUS));
     FORCE_RET();
 }
+
+OP(movec)
+{
+    int op1 = get_op(PARAM1);
+    uint32_t op2 = get_op(PARAM2);
+    helper_movec(env, op1, op2);
+}
+
+/* Memory access.  */
+
+#define MEMSUFFIX _raw
+#include "op_mem.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#define MEMSUFFIX _user
+#include "op_mem.h"
+#define MEMSUFFIX _kernel
+#include "op_mem.h"
+#endif

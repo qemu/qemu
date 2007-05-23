@@ -68,6 +68,8 @@
 #define CPU_MEM_INDEX ((env->sr & SR_MD) == 0)
 #elif defined (TARGET_ALPHA)
 #define CPU_MEM_INDEX ((env->ps >> 3) & 3)
+#elif defined (TARGET_M68K)
+#define CPU_MEM_INDEX ((env->sr & SR_S) == 0)
 #else
 #error unsupported CPU
 #endif
@@ -89,6 +91,8 @@
 #define CPU_MEM_INDEX ((env->sr & SR_MD) == 0)
 #elif defined (TARGET_ALPHA)
 #define CPU_MEM_INDEX ((env->ps >> 3) & 3)
+#elif defined (TARGET_M68K)
+#define CPU_MEM_INDEX ((env->sr & SR_S) == 0)
 #else
 #error unsupported CPU
 #endif
