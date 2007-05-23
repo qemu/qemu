@@ -610,8 +610,8 @@ endif
 
 ifeq ($(TARGET_BASE_ARCH), mips)
 helper.o: cpu.h exec-all.h
-op.o: op_template.c fop_template.c op_mem.c exec.h
-op_helper.o: op_helper_mem.c exec.h softmmu_template.h
+op.o: op_template.c fop_template.c op_mem.c exec.h cpu.h
+op_helper.o: op_helper_mem.c exec.h softmmu_template.h cpu.h
 translate.o: translate_init.c exec-all.h disas.h
 endif
 
