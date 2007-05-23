@@ -171,6 +171,7 @@ struct pxa2xx_pcmcia_s *pxa2xx_pcmcia_init(target_phys_addr_t base)
         s->slot.slot_string = "PXA PC Card Socket 0";
     s->slot.irq = qemu_allocate_irqs(pxa2xx_pcmcia_set_irq, s, 1)[0];
     pcmcia_socket_register(&s->slot);
+
     return s;
 }
 

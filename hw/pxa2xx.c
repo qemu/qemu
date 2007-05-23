@@ -69,9 +69,16 @@ static struct {
 #define PCMD0	0x80	/* Power Manager I2C Command register File 0 */
 #define PCMD31	0xfc	/* Power Manager I2C Command register File 31 */
 
+static uint32_t pxa2xx_i2c_read(void *, target_phys_addr_t);
+static void pxa2xx_i2c_write(void *, target_phys_addr_t, uint32_t);
+
 static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    if (addr > s->pm_base + PCMD31) {
+        /* Special case: PWRI2C registers appear in the same range.  */
+        return pxa2xx_i2c_read(s->i2c[1], addr);
+    }
     addr -= s->pm_base;
 
     switch (addr) {
@@ -92,6 +99,11 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+    if (addr > s->pm_base + PCMD31) {
+        /* Special case: PWRI2C registers appear in the same range.  */
+        pxa2xx_i2c_write(s->i2c[1], addr, value);
+        return;
+    }
     addr -= s->pm_base;
 
     switch (addr) {
@@ -1086,6 +1098,225 @@ static CPUWriteMemoryFunc *pxa2xx_rtc_writefn[] = {
     pxa2xx_rtc_write,
 };
 
+/* I2C Interface */
+struct pxa2xx_i2c_s {
+    i2c_slave slave;
+    i2c_bus *bus;
+    target_phys_addr_t base;
+    qemu_irq irq;
+
+    uint16_t control;
+    uint16_t status;
+    uint8_t ibmr;
+    uint8_t data;
+};
+
+#define IBMR	0x80	/* I2C Bus Monitor register */
+#define IDBR	0x88	/* I2C Data Buffer register */
+#define ICR	0x90	/* I2C Control register */
+#define ISR	0x98	/* I2C Status register */
+#define ISAR	0xa0	/* I2C Slave Address register */
+
+static void pxa2xx_i2c_update(struct pxa2xx_i2c_s *s)
+{
+    uint16_t level = 0;
+    level |= s->status & s->control & (1 << 10);		/* BED */
+    level |= (s->status & (1 << 7)) && (s->control & (1 << 9));	/* IRF */
+    level |= (s->status & (1 << 6)) && (s->control & (1 << 8));	/* ITE */
+    level |= s->status & (1 << 9);				/* SAD */
+    qemu_set_irq(s->irq, !!level);
+}
+
+/* These are only stubs now.  */
+static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
+{
+    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) i2c;
+
+    switch (event) {
+    case I2C_START_SEND:
+        s->status |= (1 << 9);				/* set SAD */
+        s->status &= ~(1 << 0);				/* clear RWM */
+        break;
+    case I2C_START_RECV:
+        s->status |= (1 << 9);				/* set SAD */
+        s->status |= 1 << 0;				/* set RWM */
+        break;
+    case I2C_FINISH:
+        s->status |= (1 << 4);				/* set SSD */
+        break;
+    case I2C_NACK:
+        s->status |= 1 << 1;				/* set ACKNAK */
+        break;
+    }
+    pxa2xx_i2c_update(s);
+}
+
+static int pxa2xx_i2c_rx(i2c_slave *i2c)
+{
+    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) i2c;
+    if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
+        return 0;
+
+    if (s->status & (1 << 0)) {			/* RWM */
+        s->status |= 1 << 6;			/* set ITE */
+    }
+    pxa2xx_i2c_update(s);
+
+    return s->data;
+}
+
+static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
+{
+    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) i2c;
+    if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
+        return 1;
+
+    if (!(s->status & (1 << 0))) {		/* RWM */
+        s->status |= 1 << 7;			/* set IRF */
+        s->data = data;
+    }
+    pxa2xx_i2c_update(s);
+
+    return 1;
+}
+
+static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
+{
+    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
+    addr -= s->base;
+
+    switch (addr) {
+    case ICR:
+        return s->control;
+    case ISR:
+        return s->status | (i2c_bus_busy(s->bus) << 2);
+    case ISAR:
+        return s->slave.address;
+    case IDBR:
+        return s->data;
+    case IBMR:
+        if (s->status & (1 << 2))
+            s->ibmr ^= 3;	/* Fake SCL and SDA pin changes */
+        else
+            s->ibmr = 0;
+        return s->ibmr;
+    default:
+        printf("%s: Bad register " REG_FMT "\n", __FUNCTION__, addr);
+        break;
+    }
+    return 0;
+}
+
+static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
+    int ack;
+    addr -= s->base;
+
+    switch (addr) {
+    case ICR:
+        s->control = value & 0xfff7;
+        if ((value & (1 << 3)) && (value & (1 << 6))) {	/* TB and IUE */
+            /* TODO: slave mode */
+            if (value & (1 << 0)) {			/* START condition */
+                if (s->data & 1)
+                    s->status |= 1 << 0;		/* set RWM */
+                else
+                    s->status &= ~(1 << 0);		/* clear RWM */
+                ack = !i2c_start_transfer(s->bus, s->data >> 1, s->data & 1);
+            } else {
+                if (s->status & (1 << 0)) {		/* RWM */
+                    s->data = i2c_recv(s->bus);
+                    if (value & (1 << 2))		/* ACKNAK */
+                        i2c_nack(s->bus);
+                    ack = 1;
+                } else
+                    ack = !i2c_send(s->bus, s->data);
+            }
+
+            if (value & (1 << 1))			/* STOP condition */
+                i2c_end_transfer(s->bus);
+
+            if (ack) {
+                if (value & (1 << 0))			/* START condition */
+                    s->status |= 1 << 6;		/* set ITE */
+                else
+                    if (s->status & (1 << 0))		/* RWM */
+                        s->status |= 1 << 7;		/* set IRF */
+                    else
+                        s->status |= 1 << 6;		/* set ITE */
+                s->status &= ~(1 << 1);			/* clear ACKNAK */
+            } else {
+                s->status |= 1 << 6;			/* set ITE */
+                s->status |= 1 << 10;			/* set BED */
+                s->status |= 1 << 1;			/* set ACKNAK */
+            }
+        }
+        if (!(value & (1 << 3)) && (value & (1 << 6)))	/* !TB and IUE */
+            if (value & (1 << 4))			/* MA */
+                i2c_end_transfer(s->bus);
+        pxa2xx_i2c_update(s);
+        break;
+
+    case ISR:
+        s->status &= ~(value & 0x07f0);
+        pxa2xx_i2c_update(s);
+        break;
+
+    case ISAR:
+        i2c_set_slave_address(&s->slave, value & 0x7f);
+        break;
+
+    case IDBR:
+        s->data = value & 0xff;
+        break;
+
+    default:
+        printf("%s: Bad register " REG_FMT "\n", __FUNCTION__, addr);
+    }
+}
+
+static CPUReadMemoryFunc *pxa2xx_i2c_readfn[] = {
+    pxa2xx_i2c_read,
+    pxa2xx_i2c_read,
+    pxa2xx_i2c_read,
+};
+
+static CPUWriteMemoryFunc *pxa2xx_i2c_writefn[] = {
+    pxa2xx_i2c_write,
+    pxa2xx_i2c_write,
+    pxa2xx_i2c_write,
+};
+
+struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
+                qemu_irq irq, int ioregister)
+{
+    int iomemtype;
+    struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *)
+            qemu_mallocz(sizeof(struct pxa2xx_i2c_s));
+
+    s->base = base;
+    s->irq = irq;
+    s->slave.event = pxa2xx_i2c_event;
+    s->slave.recv = pxa2xx_i2c_rx;
+    s->slave.send = pxa2xx_i2c_tx;
+    s->bus = i2c_init_bus();
+
+    if (ioregister) {
+        iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
+                        pxa2xx_i2c_writefn, s);
+        cpu_register_physical_memory(s->base & 0xfffff000, 0xfff, iomemtype);
+    }
+
+    return s;
+}
+
+i2c_bus *pxa2xx_i2c_bus(struct pxa2xx_i2c_s *s)
+{
+    return s->bus;
+}
+
 /* PXA Inter-IC Sound Controller */
 static void pxa2xx_i2s_reset(struct pxa2xx_i2s_s *i2s)
 {
@@ -1544,7 +1775,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     s->dma = pxa27x_dma_init(0x40000000, s->pic[PXA2XX_PIC_DMA]);
 
     pxa27x_timer_init(0x40a00000, &s->pic[PXA2XX_PIC_OST_0],
-                    s->pic[PXA27X_PIC_OST_4_11], s->env);
+                    s->pic[PXA27X_PIC_OST_4_11]);
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
 
@@ -1608,6 +1839,12 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     cpu_register_physical_memory(s->rtc_base, 0xfff, iomemtype);
     pxa2xx_rtc_reset(s);
 
+    /* Note that PM registers are in the same page with PWRI2C registers.
+     * As a workaround we don't map PWRI2C into memory and we expect
+     * PM handlers to call PWRI2C handlers when appropriate.  */
+    s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 1);
+    s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0);
+
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s);
@@ -1643,7 +1880,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
 
     s->dma = pxa255_dma_init(0x40000000, s->pic[PXA2XX_PIC_DMA]);
 
-    pxa25x_timer_init(0x40a00000, &s->pic[PXA2XX_PIC_OST_0], s->env);
+    pxa25x_timer_init(0x40a00000, &s->pic[PXA2XX_PIC_OST_0]);
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 85);
 
@@ -1706,6 +1943,12 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
                     pxa2xx_rtc_writefn, s);
     cpu_register_physical_memory(s->rtc_base, 0xfff, iomemtype);
     pxa2xx_rtc_reset(s);
+
+    /* Note that PM registers are in the same page with PWRI2C registers.
+     * As a workaround we don't map PWRI2C into memory and we expect
+     * PM handlers to call PWRI2C handlers when appropriate.  */
+    s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 1);
+    s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,

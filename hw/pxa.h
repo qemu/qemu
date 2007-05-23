@@ -65,10 +65,8 @@
 qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
 
 /* pxa2xx_timer.c */
-void pxa25x_timer_init(target_phys_addr_t base,
-                qemu_irq *irqs, CPUState *cpustate);
-void pxa27x_timer_init(target_phys_addr_t base,
-                qemu_irq *irqs, qemu_irq irq4, CPUState *cpustate);
+void pxa25x_timer_init(target_phys_addr_t base, qemu_irq *irqs);
+void pxa27x_timer_init(target_phys_addr_t base, qemu_irq *irqs, qemu_irq irq4);
 
 /* pxa2xx_gpio.c */
 struct pxa2xx_gpio_info_s;
@@ -117,6 +115,11 @@ void pxa2xx_ssp_attach(struct pxa2xx_ssp_s *port,
                 uint32_t (*readfn)(void *opaque),
                 void (*writefn)(void *opaque, uint32_t value), void *opaque);
 
+struct pxa2xx_i2c_s;
+struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
+                qemu_irq irq, int ioregister);
+i2c_bus *pxa2xx_i2c_bus(struct pxa2xx_i2c_s *s);
+
 struct pxa2xx_i2s_s;
 struct pxa2xx_fir_s;
 
@@ -127,6 +130,7 @@ struct pxa2xx_state_s {
     struct pxa2xx_gpio_info_s *gpio;
     struct pxa2xx_lcdc_s *lcd;
     struct pxa2xx_ssp_s **ssp;
+    struct pxa2xx_i2c_s *i2c[2];
     struct pxa2xx_mmci_s *mmc;
     struct pxa2xx_pcmcia_s *pcmcia[2];
     struct pxa2xx_i2s_s *i2s;
