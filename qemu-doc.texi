@@ -81,6 +81,7 @@ For system emulation, the following hardware targets are supported:
 @item ARM Versatile baseboard (ARM926E)
 @item ARM RealView Emulation baseboard (ARM926EJ-S)
 @item Spitz, Akita, Borzoi and Terrier PDAs (PXA270 processor)
+@item Arnewsh MCF5206 evaluation board (ColdFire V2).
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
@@ -1549,6 +1550,7 @@ differences are mentionned in the following sections.
 * Sparc64 System emulator invocation::
 * MIPS System emulator invocation::
 * ARM System emulator invocation::
+* ColdFire System emulator invocation::
 @end menu
 
 @node QEMU PowerPC System emulator
@@ -1821,6 +1823,20 @@ WM8750 audio CODEC on I@math{^2}C and I@math{^2}S busses
 
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
+
+@node ColdFire System emulator invocation
+@section ColdFire System emulator invocation
+
+Use the executable @file{qemu-system-m68k} to simulate a ColdFire machine.
+The emulator is able to boot a uClinux kernel.
+The following devices are emulated:
+
+@itemize @minus
+@item 
+MCF5206 ColdFire V2 Microprocessor.
+@item
+Two on-chip UARTs.
+@end itemize
 
 @node QEMU User space emulator 
 @chapter QEMU User space emulator 
