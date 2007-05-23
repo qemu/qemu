@@ -1,7 +1,7 @@
 /*
  *  m68k op helpers
  * 
- *  Copyright (c) 2006 CodeSourcery
+ *  Copyright (c) 2006-2007 CodeSourcery
  *  Written by Paul Brook
  *
  * This library is free software; you can redistribute it and/or
@@ -147,3 +147,65 @@ float64 helper_sub_cmpf64(CPUM68KState *env, float64 src0, float64 src1)
     }
     return res;
 }
+
+void helper_movec(CPUM68KState *env, int reg, uint32_t val)
+{
+    switch (reg) {
+    case 0x02: /* CACR */
+        /* Ignored.  */
+        break;
+    case 0x801: /* VBR */
+        env->vbr = val;
+        break;
+    /* TODO: Implement control registers.  */
+    default:
+        cpu_abort(env, "Unimplemented control register write 0x%x = 0x%x\n",
+                  reg, val);
+    }
+}
+
+/* MMU */
+
+/* TODO: This will need fixing once the MMU is implemented.  */
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
+
+#if defined(CONFIG_USER_ONLY) 
+
+int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                               int is_user, int is_softmmu)
+{
+    env->exception_index = EXCP_ACCESS;
+    env->mmu.ar = address;
+    return 1;
+}
+
+#else
+
+int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                               int is_user, int is_softmmu)
+{
+    int prot;
+
+    address &= TARGET_PAGE_MASK;
+    prot = PAGE_READ | PAGE_WRITE;
+    return tlb_set_page(env, address, address, prot, is_user, is_softmmu);
+}
+
+/* Notify CPU of a pending interrupt.  Prioritization and vectoring should
+   be handled by the interrupt controller.  Real hardware only requests
+   the vector when the interrupt is acknowledged by the CPU.  For
+   simplicitly we calculate it when the interrupt is signalled.  */
+void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector)
+{
+    env->pending_level = level;
+    env->pending_vector = vector;
+    if (level)
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    else
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+}
+
+#endif

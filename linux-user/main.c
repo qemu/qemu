@@ -1977,13 +1977,12 @@ int main(int argc, char **argv)
     }
 #elif defined(TARGET_M68K)
     {
-        m68k_def_t *def;
-        def = m68k_find_by_name("cfv4e");
-        if (def == NULL) {
+        if (cpu_model == NULL)
+            cpu_model = "cfv4e";
+        if (cpu_m68k_set_model(env, cpu_model)) {
             cpu_abort(cpu_single_env,
                       "Unable to find m68k CPU definition\n");
         }
-        cpu_m68k_register(cpu_single_env, def);
         env->pc = regs->pc;
         env->dregs[0] = regs->d0;
         env->dregs[1] = regs->d1;

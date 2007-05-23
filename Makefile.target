@@ -308,7 +308,7 @@ LIBOBJS+= op_helper.o helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), m68k)
-LIBOBJS+= helper.o
+LIBOBJS+= op_helper.o helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), alpha)
@@ -465,6 +465,9 @@ CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
 VL_OBJS+= shix.o sh7750.o sh7750_regnames.o tc58128.o
+endif
+ifeq ($(TARGET_BASE_ARCH), m68k)
+VL_OBJS+= an5206.o mcf5206.o ptimer.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 

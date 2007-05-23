@@ -196,7 +196,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->PC;
 #elif defined(TARGET_M68K)
-    flags = env->fpcr & M68K_FPCR_PREC;
+    flags = (env->fpcr & M68K_FPCR_PREC) | (env->sr & SR_S);
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_SH4)
@@ -297,7 +297,7 @@ int cpu_exec(CPUState *env1)
             return EXCP_HALTED;
         }
     }
-#elif defined(TARGET_ALPHA)
+#elif defined(TARGET_ALPHA) || defined(TARGET_M68K)
     if (env1->halted) {
         if (env1->interrupt_request & CPU_INTERRUPT_HARD) {
             env1->halted = 0;
@@ -390,6 +390,8 @@ int cpu_exec(CPUState *env1)
 		    do_interrupt(env);
 #elif defined(TARGET_ALPHA)
                     do_interrupt(env);
+#elif defined(TARGET_M68K)
+                    do_interrupt(0);
 #endif
                 }
                 env->exception_index = -1;
@@ -541,6 +543,18 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ALPHA)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
+                    }
+#elif defined(TARGET_M68K)
+                    if (interrupt_request & CPU_INTERRUPT_HARD
+                        && ((env->sr & SR_I) >> SR_I_SHIFT)
+                            < env->pending_level) {
+                        /* Real hardware gets the interrupt vector via an
+                           IACK cycle at this point.  Current emulated
+                           hardware doesn't rely on this, so we
+                           provide/save the vector when the interrupt is
+                           first signalled.  */
+                        env->exception_index = env->pending_vector;
+                        do_interrupt(1);
                     }
 #endif
                    /* Don't use the cached interupt_request value,

@@ -1597,6 +1597,12 @@ void ptimer_stop(ptimer_state *s);
 
 #include "hw/pxa.h"
 
+/* mcf5206.c */
+qemu_irq *mcf5206_init(uint32_t base, CPUState *env);
+
+/* an5206.c */
+extern QEMUMachine an5206_machine;
+
 #include "gdbstub.h"
 
 #endif /* defined(QEMU_TOOL) */
