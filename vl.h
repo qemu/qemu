@@ -1582,6 +1582,19 @@ struct pcmcia_card_s {
 /* dscm1xxxx.c */
 struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv);
 
+/* ptimer.c */
+typedef struct ptimer_state ptimer_state;
+typedef void (*ptimer_cb)(void *opaque);
+
+ptimer_state *ptimer_init(QEMUBH *bh);
+void ptimer_set_period(ptimer_state *s, int64_t period);
+void ptimer_set_freq(ptimer_state *s, uint32_t freq);
+void ptimer_set_limit(ptimer_state *s, uint32_t limit, int reload);
+uint32_t ptimer_get_count(ptimer_state *s);
+void ptimer_set_count(ptimer_state *s, uint32_t count);
+void ptimer_run(ptimer_state *s, int oneshot);
+void ptimer_stop(ptimer_state *s);
+
 #include "hw/pxa.h"
 
 #include "gdbstub.h"
