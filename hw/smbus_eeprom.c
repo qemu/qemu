@@ -58,37 +58,51 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
     return val;
 }
 
-static void eeprom_write_byte(SMBusDevice *dev, uint8_t cmd, uint8_t val)
+static void eeprom_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
+    int n;
 #ifdef DEBUG
     printf("eeprom_write_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n", dev->addr,
-           cmd, val);
+           cmd, buf[0]);
 #endif
-    eeprom->data[cmd] = val;
+    /* An page write operation is not a valid SMBus command.
+       It is a block write without a length byte.  Fortunately we
+       get the full block anyway.  */
+    /* TODO: Should this set the current location?  */
+    if (cmd + len > 256)
+        n = 256 - cmd;
+    else
+        n = len;
+    memcpy(eeprom->data + cmd, buf, n);
+    len -= n;
+    if (len)
+        memcpy(eeprom->data, buf + n, len);
 }
 
-static uint8_t eeprom_read_byte(SMBusDevice *dev, uint8_t cmd)
+static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-    uint8_t val = eeprom->data[cmd];
-#ifdef DEBUG
-    printf("eeprom_read_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n", dev->addr,
-           cmd, val);
-#endif
-    return val;
+    /* If this is the first byte then set the current position.  */
+    if (n == 0)
+        eeprom->offset = cmd;
+    /* As with writes, we implement block reads without the
+       SMBus length byte.  */
+    return eeprom_receive_byte(dev);
 }
 
-SMBusDevice *smbus_eeprom_device_init(uint8_t addr, uint8_t *buf)
+void smbus_eeprom_device_init(i2c_bus *bus, uint8_t addr, uint8_t *buf)
 {
-    SMBusEEPROMDevice *eeprom = qemu_mallocz(sizeof(SMBusEEPROMDevice));
-    eeprom->dev.addr = addr;
+    SMBusEEPROMDevice *eeprom;
+    
+    eeprom = (SMBusEEPROMDevice *)smbus_device_init(bus, addr,
+        sizeof(SMBusEEPROMDevice));
+
     eeprom->dev.quick_cmd = eeprom_quick_cmd;
     eeprom->dev.send_byte = eeprom_send_byte;
     eeprom->dev.receive_byte = eeprom_receive_byte;
-    eeprom->dev.write_byte = eeprom_write_byte;
-    eeprom->dev.read_byte = eeprom_read_byte;
+    eeprom->dev.write_data = eeprom_write_data;
+    eeprom->dev.read_data = eeprom_read_data;
     eeprom->data = buf;
     eeprom->offset = 0;
-    return (SMBusDevice *) eeprom;
 }

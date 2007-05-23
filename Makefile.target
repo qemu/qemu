@@ -402,6 +402,8 @@ SOUND_HW += fmopl.o adlib.o
 endif
 AUDIODRV+= wavcapture.o
 
+VL_OBJS += i2c.o smbus.o
+
 # SCSI layer
 VL_OBJS+= scsi-disk.o cdrom.o lsi53c895a.o
 

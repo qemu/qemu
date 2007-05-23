@@ -897,11 +897,12 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     if (pci_enabled && acpi_enabled) {
         uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-        piix4_pm_init(pci_bus, piix3_devfn + 3);
+        i2c_bus *smbus;
+
+        /* TODO: Populate SPD eeprom data.  */
+        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3);
         for (i = 0; i < 8; i++) {
-            SMBusDevice *eeprom = smbus_eeprom_device_init(0x50 + i,
-                eeprom_buf + (i * 256));
-            piix4_smbus_register_device(eeprom, 0x50 + i);
+            smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
         }
     }
     
