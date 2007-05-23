@@ -6322,7 +6322,6 @@ void main_loop_wait(int timeout)
     }
 #endif
     qemu_aio_poll();
-    qemu_bh_poll();
 
     if (vm_running) {
         qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
@@ -6330,10 +6329,15 @@ void main_loop_wait(int timeout)
         /* run dma transfers, if any */
         DMA_run();
     }
-    
+
     /* real time timers */
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME], 
                     qemu_get_clock(rt_clock));
+
+    /* Check bottom-halves last in case any of the earlier events triggered
+       them.  */
+    qemu_bh_poll();
+    
 }
 
 static CPUState *cur_cpu;

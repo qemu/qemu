@@ -22,114 +22,24 @@
 #define TIMER_CTRL_ENABLE       (1 << 7)
 
 typedef struct {
-    int64_t next_time;
-    int64_t expires;
-    int64_t loaded;
-    QEMUTimer *timer;
+    ptimer_state *timer;
     uint32_t control;
-    uint32_t count;
     uint32_t limit;
-    int raw_freq;
     int freq;
     int int_level;
     qemu_irq irq;
 } arm_timer_state;
 
-/* Calculate the new expiry time of the given timer.  */
-
-static void arm_timer_reload(arm_timer_state *s)
-{
-    int64_t delay;
-
-    s->loaded = s->expires;
-    delay = muldiv64(s->count, ticks_per_sec, s->freq);
-    if (delay == 0)
-        delay = 1;
-    s->expires += delay;
-}
-
 /* Check all active timers, and schedule the next timer interrupt.  */
 
-static void arm_timer_update(arm_timer_state *s, int64_t now)
+static void arm_timer_update(arm_timer_state *s)
 {
-    int64_t next;
-
-    /* Ignore disabled timers.  */
-    if ((s->control & TIMER_CTRL_ENABLE) == 0)
-        return;
-    /* Ignore expired one-shot timers.  */
-    if (s->count == 0 && (s->control & TIMER_CTRL_ONESHOT))
-        return;
-    if (s->expires - now <= 0) {
-        /* Timer has expired.  */
-        s->int_level = 1;
-        if (s->control & TIMER_CTRL_ONESHOT) {
-            /* One-shot.  */
-            s->count = 0;
-        } else {
-            if ((s->control & TIMER_CTRL_PERIODIC) == 0) {
-                /* Free running.  */
-                if (s->control & TIMER_CTRL_32BIT)
-                    s->count = 0xffffffff;
-                else
-                    s->count = 0xffff;
-            } else {
-                  /* Periodic.  */
-                  s->count = s->limit;
-            }
-        }
-    }
-    while (s->expires - now <= 0) {
-        arm_timer_reload(s);
-    }
     /* Update interrupts.  */
     if (s->int_level && (s->control & TIMER_CTRL_IE)) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
     }
-
-    next = now;
-    if (next - s->expires < 0)
-        next = s->expires;
-
-    /* Schedule the next timer interrupt.  */
-    if (next == now) {
-        qemu_del_timer(s->timer);
-        s->next_time = 0;
-    } else if (next != s->next_time) {
-        qemu_mod_timer(s->timer, next);
-        s->next_time = next;
-    }
-}
-
-/* Return the current value of the timer.  */
-static uint32_t arm_timer_getcount(arm_timer_state *s, int64_t now)
-{
-    int64_t left;
-    int64_t period;
-
-    if (s->count == 0)
-        return 0;
-    if ((s->control & TIMER_CTRL_ENABLE) == 0)
-        return s->count;
-    left = s->expires - now;
-    period = s->expires - s->loaded;
-    /* If the timer should have expired then return 0.  This can happen
-       when the host timer signal doesnt occur immediately.  It's better to
-       have a timer appear to sit at zero for a while than have it wrap
-       around before the guest interrupt is raised.  */
-    /* ??? Could we trigger the interrupt here?  */
-    if (left < 0)
-        return 0;
-    /* We need to calculate count * elapsed / period without overfowing.
-       Scale both elapsed and period so they fit in a 32-bit int.  */
-    while (period != (int32_t)period) {
-        period >>= 1;
-        left >>= 1;
-    }
-    return ((uint64_t)s->count * (uint64_t)(int32_t)left)
-            / (int32_t)period;
 }
 
 uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
@@ -141,7 +51,7 @@ uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
     case 6: /* TimerBGLoad */
         return s->limit;
     case 1: /* TimerValue */
-        return arm_timer_getcount(s, qemu_get_clock(vm_clock));
+        return ptimer_get_count(s->timer);
     case 2: /* TimerControl */
         return s->control;
     case 4: /* TimerRIS */
@@ -151,24 +61,40 @@ uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
             return 0;
         return s->int_level;
     default:
-        cpu_abort (cpu_single_env, "arm_timer_read: Bad offset %x\n", offset);
+        cpu_abort (cpu_single_env, "arm_timer_read: Bad offset %x\n",
+                   (int)offset);
         return 0;
     }
+}
+
+/* Reset the timer limit after settings have changed.  */
+static void arm_timer_recalibrate(arm_timer_state *s, int reload)
+{
+    uint32_t limit;
+
+    if ((s->control & TIMER_CTRL_PERIODIC) == 0) {
+        /* Free running.  */
+        if (s->control & TIMER_CTRL_32BIT)
+            limit = 0xffffffff;
+        else
+            limit = 0xffff;
+    } else {
+          /* Periodic.  */
+          limit = s->limit;
+    }
+    ptimer_set_limit(s->timer, limit, reload);
 }
 
 static void arm_timer_write(void *opaque, target_phys_addr_t offset,
                             uint32_t value)
 {
     arm_timer_state *s = (arm_timer_state *)opaque;
-    int64_t now;
+    int freq;
 
-    now = qemu_get_clock(vm_clock);
     switch (offset >> 2) {
     case 0: /* TimerLoad */
         s->limit = value;
-        s->count = value;
-        s->expires = now;
-        arm_timer_reload(s);
+        arm_timer_recalibrate(s, 1);
         break;
     case 1: /* TimerValue */
         /* ??? Linux seems to want to write to this readonly register.
@@ -179,19 +105,20 @@ static void arm_timer_write(void *opaque, target_phys_addr_t offset,
             /* Pause the timer if it is running.  This may cause some
                inaccuracy dure to rounding, but avoids a whole lot of other
                messyness.  */
-            s->count = arm_timer_getcount(s, now);
+            ptimer_stop(s->timer);
         }
         s->control = value;
-        s->freq = s->raw_freq;
+        freq = s->freq;
         /* ??? Need to recalculate expiry time after changing divisor.  */
         switch ((value >> 2) & 3) {
-        case 1: s->freq >>= 4; break;
-        case 2: s->freq >>= 8; break;
+        case 1: freq >>= 4; break;
+        case 2: freq >>= 8; break;
         }
+        arm_timer_recalibrate(s, 0);
+        ptimer_set_freq(s->timer, freq);
         if (s->control & TIMER_CTRL_ENABLE) {
             /* Restart the timer if still enabled.  */
-            s->expires = now;
-            arm_timer_reload(s);
+            ptimer_run(s->timer, (s->control & TIMER_CTRL_ONESHOT) != 0);
         }
         break;
     case 3: /* TimerIntClr */
@@ -199,32 +126,34 @@ static void arm_timer_write(void *opaque, target_phys_addr_t offset,
         break;
     case 6: /* TimerBGLoad */
         s->limit = value;
+        arm_timer_recalibrate(s, 0);
         break;
     default:
-        cpu_abort (cpu_single_env, "arm_timer_write: Bad offset %x\n", offset);
+        cpu_abort (cpu_single_env, "arm_timer_write: Bad offset %x\n",
+                   (int)offset);
     }
-    arm_timer_update(s, now);
+    arm_timer_update(s);
 }
 
 static void arm_timer_tick(void *opaque)
 {
-    int64_t now;
-
-    now = qemu_get_clock(vm_clock);
-    arm_timer_update((arm_timer_state *)opaque, now);
+    arm_timer_state *s = (arm_timer_state *)opaque;
+    s->int_level = 1;
+    arm_timer_update(s);
 }
 
 static void *arm_timer_init(uint32_t freq, qemu_irq irq)
 {
     arm_timer_state *s;
+    QEMUBH *bh;
 
     s = (arm_timer_state *)qemu_mallocz(sizeof(arm_timer_state));
     s->irq = irq;
-    s->raw_freq = s->freq = 1000000;
+    s->freq = freq;
     s->control = TIMER_CTRL_IE;
-    s->count = 0xffffffff;
 
-    s->timer = qemu_new_timer(vm_clock, arm_timer_tick, s);
+    bh = qemu_bh_new(arm_timer_tick, s);
+    s->timer = ptimer_init(bh);
     /* ??? Save/restore.  */
     return s;
 }
