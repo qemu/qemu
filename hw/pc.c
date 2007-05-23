@@ -347,7 +347,7 @@ void bochs_bios_init(void)
 
 /* Generate an initial boot sector which sets state and jump to
    a specified vector */
-static int generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
+static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
 {
     uint8_t bootsect[512], *p;
     int i;

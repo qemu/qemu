@@ -1294,7 +1294,7 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
 {
     int iomemtype;
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *)
-            qemu_mallocz(sizeof(struct pxa2xx_i2c_s));
+            i2c_slave_init(i2c_init_bus(), 0, sizeof(struct pxa2xx_i2c_s));
 
     s->base = base;
     s->irq = irq;
