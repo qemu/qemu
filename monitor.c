@@ -202,7 +202,7 @@ static void do_help(const char *name)
 static void do_commit(const char *device)
 {
     int i, all_devices;
-    
+
     all_devices = !strcmp(device, "all");
     for (i = 0; i < MAX_DISKS; i++) {
         if (bs_table[i]) {
@@ -211,6 +211,9 @@ static void do_commit(const char *device)
                 bdrv_commit(bs_table[i]);
         }
     }
+    if (mtd_bdrv)
+        if (all_devices || !strcmp(bdrv_get_device_name(mtd_bdrv), device))
+            bdrv_commit(mtd_bdrv);
 }
 
 static void do_info(const char *item)

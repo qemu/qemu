@@ -1362,6 +1362,8 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
                     if (bs_table[i])
                         bdrv_commit(bs_table[i]);
                 }
+                if (mtd_bdrv)
+                    bdrv_commit(mtd_bdrv);
             }
             break;
         case 'b':
