@@ -245,6 +245,41 @@ static CPUWriteMemoryFunc *pxa2xx_pic_writefn[] = {
     pxa2xx_pic_mem_write,
 };
 
+static void pxa2xx_pic_save(QEMUFile *f, void *opaque)
+{
+    struct pxa2xx_pic_state_s *s = (struct pxa2xx_pic_state_s *) opaque;
+    int i;
+
+    for (i = 0; i < 2; i ++)
+        qemu_put_be32s(f, &s->int_enabled[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_put_be32s(f, &s->int_pending[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_put_be32s(f, &s->is_fiq[i]);
+    qemu_put_be32s(f, &s->int_idle);
+    for (i = 0; i < PXA2XX_PIC_SRCS; i ++)
+        qemu_put_be32s(f, &s->priority[i]);
+}
+
+static int pxa2xx_pic_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct pxa2xx_pic_state_s *s = (struct pxa2xx_pic_state_s *) opaque;
+    int i;
+
+    for (i = 0; i < 2; i ++)
+        qemu_get_be32s(f, &s->int_enabled[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_get_be32s(f, &s->int_pending[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_get_be32s(f, &s->is_fiq[i]);
+    qemu_get_be32s(f, &s->int_idle);
+    for (i = 0; i < PXA2XX_PIC_SRCS; i ++)
+        qemu_get_be32s(f, &s->priority[i]);
+
+    pxa2xx_pic_update(opaque);
+    return 0;
+}
+
 qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
 {
     struct pxa2xx_pic_state_s *s;
@@ -275,6 +310,8 @@ qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
 
     /* Enable IC coprocessor access.  */
     cpu_arm_set_cp_io(env, 6, pxa2xx_pic_cp_read, pxa2xx_pic_cp_write, s);
+
+    register_savevm("pxa2xx_pic", 0, 0, pxa2xx_pic_save, pxa2xx_pic_load, s);
 
     return qi;
 }

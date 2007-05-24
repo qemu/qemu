@@ -89,6 +89,39 @@ void max111x_write(void *opaque, uint32_t value)
         qemu_irq_raise(s->interrupt);
 }
 
+static void max111x_save(QEMUFile *f, void *opaque)
+{
+    struct max111x_s *s = (struct max111x_s *) opaque;
+    int i;
+
+    qemu_put_8s(f, &s->tb1);
+    qemu_put_8s(f, &s->rb2);
+    qemu_put_8s(f, &s->rb3);
+    qemu_put_be32(f, s->inputs);
+    qemu_put_be32(f, s->com);
+    for (i = 0; i < s->inputs; i ++)
+        qemu_put_byte(f, s->input[i]);
+}
+
+static int max111x_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct max111x_s *s = (struct max111x_s *) opaque;
+    int i;
+
+    qemu_get_8s(f, &s->tb1);
+    qemu_get_8s(f, &s->rb2);
+    qemu_get_8s(f, &s->rb3);
+    if (s->inputs != qemu_get_be32(f))
+        return -EINVAL;
+    s->com = qemu_get_be32(f);
+    for (i = 0; i < s->inputs; i ++)
+        s->input[i] = qemu_get_byte(f);
+
+    return 0;
+}
+
+static int max111x_iid = 0;
+
 static struct max111x_s *max111x_init(qemu_irq cb)
 {
     struct max111x_s *s;
@@ -108,6 +141,10 @@ static struct max111x_s *max111x_init(qemu_irq cb)
     s->input[6] = 0x90;
     s->input[7] = 0x80;
     s->com = 0;
+
+    register_savevm("max111x", max111x_iid ++, 0,
+                    max111x_save, max111x_load, s);
+
     return s;
 }
 

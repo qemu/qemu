@@ -485,7 +485,7 @@ VL_OBJS+= cirrus_vga.o parallel.o
 else
 VL_OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
 VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o sparc32_dma.o
-VL_OBJS+= cs4231.o
+VL_OBJS+= cs4231.o ptimer.o
 endif
 endif
 ifeq ($(TARGET_BASE_ARCH), arm)
@@ -495,8 +495,8 @@ VL_OBJS+= versatile_pci.o sd.o ptimer.o
 VL_OBJS+= arm_gic.o realview.o arm_sysctl.o
 VL_OBJS+= arm-semi.o
 VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
-VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o max111x.o
-VL_OBJS+= spitz.o ads7846.o ide.o serial.o nand.o $(AUDIODRV)
+VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o max111x.o max7310.o
+VL_OBJS+= spitz.o ads7846.o ide.o serial.o nand.o $(AUDIODRV) wm8750.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)

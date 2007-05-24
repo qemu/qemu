@@ -37,7 +37,7 @@ struct SMBusDevice {
        (if present).  The device is responsible figuring out what type of
        command  this is.  */
     void (*write_data)(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len);
-    /* Likewise we can't distinguish between defferent reads, or even know
+    /* Likewise we can't distinguish between different reads, or even know
        the length of the read until the read is complete, so read data a
        byte at a time.  The device is responsible for adding the length
        byte on block reads.  */

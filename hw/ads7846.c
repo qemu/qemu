@@ -104,9 +104,40 @@ static void ads7846_ts_event(void *opaque,
     if (s->pressure == !buttons_state) {
         s->pressure = !!buttons_state;
 
-         ads7846_int_update(s);
+        ads7846_int_update(s);
     }
 }
+
+static void ads7846_save(QEMUFile *f, void *opaque)
+{
+    struct ads7846_state_s *s = (struct ads7846_state_s *) opaque;
+    int i;
+
+    for (i = 0; i < 8; i ++)
+        qemu_put_be32(f, s->input[i]);
+    qemu_put_be32(f, s->noise);
+    qemu_put_be32(f, s->cycle);
+    qemu_put_be32(f, s->output);
+}
+
+static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct ads7846_state_s *s = (struct ads7846_state_s *) opaque;
+    int i;
+
+    for (i = 0; i < 8; i ++)
+        s->input[i] = qemu_get_be32(f);
+    s->noise = qemu_get_be32(f);
+    s->cycle = qemu_get_be32(f);
+    s->output = qemu_get_be32(f);
+
+    s->pressure = 0;
+    ads7846_int_update(s);
+
+    return 0;
+}
+
+static int ads7846_iid = 0;
 
 struct ads7846_state_s *ads7846_init(qemu_irq penirq)
 {
@@ -127,5 +158,9 @@ struct ads7846_state_s *ads7846_init(qemu_irq penirq)
                     "QEMU ADS7846-driven Touchscreen");
 
     ads7846_int_update(s);
+
+    register_savevm("ads7846", ads7846_iid ++, 0,
+                    ads7846_save, ads7846_load, s);
+
     return s;
 }

@@ -430,6 +430,61 @@ static CPUWriteMemoryFunc *pxa2xx_dma_writefn[] = {
     pxa2xx_dma_write
 };
 
+static void pxa2xx_dma_save(QEMUFile *f, void *opaque)
+{
+    struct pxa2xx_dma_state_s *s = (struct pxa2xx_dma_state_s *) opaque;
+    int i;
+
+    qemu_put_be32(f, s->channels);
+
+    qemu_put_be32s(f, &s->stopintr);
+    qemu_put_be32s(f, &s->eorintr);
+    qemu_put_be32s(f, &s->rasintr);
+    qemu_put_be32s(f, &s->startintr);
+    qemu_put_be32s(f, &s->endintr);
+    qemu_put_be32s(f, &s->align);
+    qemu_put_be32s(f, &s->pio);
+
+    qemu_put_buffer(f, s->req, PXA2XX_DMA_NUM_REQUESTS);
+    for (i = 0; i < s->channels; i ++) {
+        qemu_put_betl(f, s->chan[i].descr);
+        qemu_put_betl(f, s->chan[i].src);
+        qemu_put_betl(f, s->chan[i].dest);
+        qemu_put_be32s(f, &s->chan[i].cmd);
+        qemu_put_be32s(f, &s->chan[i].state);
+        qemu_put_be32(f, s->chan[i].request);
+    };
+}
+
+static int pxa2xx_dma_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct pxa2xx_dma_state_s *s = (struct pxa2xx_dma_state_s *) opaque;
+    int i;
+
+    if (qemu_get_be32(f) != s->channels)
+        return -EINVAL;
+
+    qemu_get_be32s(f, &s->stopintr);
+    qemu_get_be32s(f, &s->eorintr);
+    qemu_get_be32s(f, &s->rasintr);
+    qemu_get_be32s(f, &s->startintr);
+    qemu_get_be32s(f, &s->endintr);
+    qemu_get_be32s(f, &s->align);
+    qemu_get_be32s(f, &s->pio);
+
+    qemu_get_buffer(f, s->req, PXA2XX_DMA_NUM_REQUESTS);
+    for (i = 0; i < s->channels; i ++) {
+        s->chan[i].descr = qemu_get_betl(f);
+        s->chan[i].src = qemu_get_betl(f);
+        s->chan[i].dest = qemu_get_betl(f);
+        qemu_get_be32s(f, &s->chan[i].cmd);
+        qemu_get_be32s(f, &s->chan[i].state);
+        s->chan[i].request = qemu_get_be32(f);
+    };
+
+    return 0;
+}
+
 static struct pxa2xx_dma_state_s *pxa2xx_dma_init(target_phys_addr_t base,
                 qemu_irq irq, int channels)
 {
@@ -443,17 +498,19 @@ static struct pxa2xx_dma_state_s *pxa2xx_dma_init(target_phys_addr_t base,
     s->base = base;
     s->irq = irq;
     s->handler = (pxa2xx_dma_handler_t) pxa2xx_dma_request;
-    s->req = qemu_mallocz(sizeof(int) * PXA2XX_DMA_NUM_REQUESTS);
+    s->req = qemu_mallocz(sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
 
     memset(s->chan, 0, sizeof(struct pxa2xx_dma_channel_s) * s->channels);
     for (i = 0; i < s->channels; i ++)
         s->chan[i].state = DCSR_STOPINTR;
 
-    memset(s->req, 0, sizeof(int) * PXA2XX_DMA_NUM_REQUESTS);
+    memset(s->req, 0, sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_dma_readfn,
-                   pxa2xx_dma_writefn, s);
+                    pxa2xx_dma_writefn, s);
     cpu_register_physical_memory(base, 0x0000ffff, iomemtype);
+
+    register_savevm("pxa2xx_dma", 0, 0, pxa2xx_dma_save, pxa2xx_dma_load, s);
 
     return s;
 }

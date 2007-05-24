@@ -75,3 +75,20 @@ static inline void ecc_reset(struct ecc_state_s *s)
     s->cp = 0x00;
     s->count = 0;
 }
+
+/* Save/restore */
+static inline void ecc_put(QEMUFile *f, struct ecc_state_s *s)
+{
+    qemu_put_8s(f, &s->cp);
+    qemu_put_be16s(f, &s->lp[0]);
+    qemu_put_be16s(f, &s->lp[1]);
+    qemu_put_be16s(f, &s->count);
+}
+
+static inline void ecc_get(QEMUFile *f, struct ecc_state_s *s)
+{
+    qemu_get_8s(f, &s->cp);
+    qemu_get_be16s(f, &s->lp[0]);
+    qemu_get_be16s(f, &s->lp[1]);
+    qemu_get_be16s(f, &s->count);
+}

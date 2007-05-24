@@ -1,3 +1,47 @@
+2007-05-24 21:48  blueswir1
+
+	* Makefile.target, vl.h, hw/ptimer.c, hw/slavio_timer.c: Change
+	  ptimer API to use 64-bit values, add save and load methods Use
+	  ptimers for Sparc32 Slavio
+
+2007-05-24 20:53  balrog
+
+	* monitor.c, vl.c: Commit NAND image changes on "commit all" or
+	  "commit mtd".
+
+2007-05-24 20:50  balrog
+
+	* ecc.h, vl.c, hw/ads7846.c, hw/i2c.c, hw/i2c.h, hw/ide.c,
+	  hw/max111x.c, hw/max7310.c, hw/nand.c, hw/pxa2xx.c,
+	  hw/pxa2xx_dma.c, hw/pxa2xx_gpio.c, hw/pxa2xx_lcd.c,
+	  hw/pxa2xx_mmci.c, hw/pxa2xx_pic.c, hw/pxa2xx_timer.c, hw/spitz.c,
+	  hw/wm8750.c: Savevm/loadvm bits for ARM core, the PXA2xx
+	  peripherals and Spitz hardware.
+
+2007-05-24 00:21  balrog
+
+	* hw/: pc.c, pxa2xx.c: Use i2c_slave_init() to allocate the PXA
+	  (dummy) I2C slave.  Hush the warning: hw/pc.c:402: warning:
+	  control reaches end of non-void function
+
+2007-05-24 00:07  pbrook
+
+	* target-m68k/op.c: Speed up m68k by 20%.
+
+2007-05-24 00:04  balrog
+
+	* Makefile.target, hw/i2c.h, hw/max7310.c, hw/spitz.c, hw/wm8750.c:
+	  Add WM8750 and MAX7310 chips (I2C slaves).  Wolfson Microsystems
+	  WM8750 audio chip and Maxim MAX7310 gpio expander chip are used
+	  in the Spitz.
+
+2007-05-23 23:47  balrog
+
+	* hw/: pxa.h, pxa2xx.c, pxa2xx_dma.c, pxa2xx_lcd.c,
+	  pxa2xx_pcmcia.c, pxa2xx_timer.c, smbus.c, smbus.h: Implement the
+	  PXA2xx I2C master controller.  Fix PXA270-specific timers and
+	  make minor changes in other PXA parts.
+
 2007-05-23 22:16  pbrook
 
 	* qemu-doc.texi: Document ColdFire system emulation.

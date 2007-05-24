@@ -45,23 +45,23 @@ static long qreg_offsets[] = {
 uint32_t
 get_op(int qreg)
 {
-    if (qreg == QREG_T0) {
-        return T0;
-    } else if (qreg < TARGET_NUM_QREGS) {
-        return *(uint32_t *)(((long)env) + qreg_offsets[qreg]);
-    } else {
+    if (qreg >= TARGET_NUM_QREGS) {
         return env->qregs[qreg - TARGET_NUM_QREGS];
+    } else if (qreg == QREG_T0) {
+        return T0;
+    } else {
+        return *(uint32_t *)(((long)env) + qreg_offsets[qreg]);
     }
 }
 
 void set_op(int qreg, uint32_t val)
 {
-    if (qreg == QREG_T0) {
-        T0 = val;
-    } else if (qreg < TARGET_NUM_QREGS) {
-        *(uint32_t *)(((long)env) + qreg_offsets[qreg]) = val;
-    } else {
+    if (qreg >= TARGET_NUM_QREGS) {
         env->qregs[qreg - TARGET_NUM_QREGS] = val;
+    } else if (qreg == QREG_T0) {
+        T0 = val;
+    } else {
+        *(uint32_t *)(((long)env) + qreg_offsets[qreg]) = val;
     }
 }
 

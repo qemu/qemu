@@ -273,6 +273,50 @@ static void nand_command(struct nand_flash_s *s)
     }
 }
 
+static void nand_save(QEMUFile *f, void *opaque)
+{
+    struct nand_flash_s *s = (struct nand_flash_s *) opaque;
+    qemu_put_byte(f, s->cle);
+    qemu_put_byte(f, s->ale);
+    qemu_put_byte(f, s->ce);
+    qemu_put_byte(f, s->wp);
+    qemu_put_byte(f, s->gnd);
+    qemu_put_buffer(f, s->io, sizeof(s->io));
+    qemu_put_be32(f, s->ioaddr - s->io);
+    qemu_put_be32(f, s->iolen);
+
+    qemu_put_be32s(f, &s->cmd);
+    qemu_put_be32s(f, &s->addr);
+    qemu_put_be32(f, s->addrlen);
+    qemu_put_be32(f, s->status);
+    qemu_put_be32(f, s->offset);
+    /* XXX: do we want to save s->storage too? */
+}
+
+static int nand_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct nand_flash_s *s = (struct nand_flash_s *) opaque;
+    s->cle = qemu_get_byte(f);
+    s->ale = qemu_get_byte(f);
+    s->ce = qemu_get_byte(f);
+    s->wp = qemu_get_byte(f);
+    s->gnd = qemu_get_byte(f);
+    qemu_get_buffer(f, s->io, sizeof(s->io));
+    s->ioaddr = s->io + qemu_get_be32(f);
+    s->iolen = qemu_get_be32(f);
+    if (s->ioaddr >= s->io + sizeof(s->io) || s->ioaddr < s->io)
+        return -EINVAL;
+
+    qemu_get_be32s(f, &s->cmd);
+    qemu_get_be32s(f, &s->addr);
+    s->addrlen = qemu_get_be32(f);
+    s->status = qemu_get_be32(f);
+    s->offset = qemu_get_be32(f);
+    return 0;
+}
+
+static int nand_iid = 0;
+
 /*
  * Chip inputs are CLE, ALE, CE, WP, GND and eight I/O pins.  Chip
  * outputs are R/B and eight I/O pins.
@@ -443,6 +487,9 @@ struct nand_flash_s *nand_init(int manf_id, int chip_id)
     if (pagesize)
         s->storage = (uint8_t *) memset(qemu_malloc(s->pages * pagesize),
                         0xff, s->pages * pagesize);
+
+    register_savevm("nand", nand_iid ++, 0, nand_save, nand_load, s);
+
     return s;
 }
 

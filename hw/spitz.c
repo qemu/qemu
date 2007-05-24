@@ -109,6 +109,24 @@ static void sl_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
+static void sl_save(QEMUFile *f, void *opaque)
+{
+    struct sl_nand_s *s = (struct sl_nand_s *) opaque;
+
+    qemu_put_8s(f, &s->ctl);
+    ecc_put(f, &s->ecc);
+}
+
+static int sl_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct sl_nand_s *s = (struct sl_nand_s *) opaque;
+
+    qemu_get_8s(f, &s->ctl);
+    ecc_get(f, &s->ecc);
+
+    return 0;
+}
+
 enum {
     FLASH_128M,
     FLASH_1024M,
@@ -140,6 +158,8 @@ static void sl_flash_register(struct pxa2xx_state_s *cpu, int size)
     iomemtype = cpu_register_io_memory(0, sl_readfn,
                     sl_writefn, s);
     cpu_register_physical_memory(s->target_base, 0x40, iomemtype);
+
+    register_savevm("sl_flash", 0, 0, sl_save, sl_load, s);
 }
 
 /* Spitz Keyboard */
@@ -406,6 +426,38 @@ static void spitz_keyboard_pre_map(struct spitz_keyboard_s *s)
 #undef CTRL
 #undef FN
 
+static void spitz_keyboard_save(QEMUFile *f, void *opaque)
+{
+    struct spitz_keyboard_s *s = (struct spitz_keyboard_s *) opaque;
+    int i;
+
+    qemu_put_be16s(f, &s->sense_state);
+    qemu_put_be16s(f, &s->strobe_state);
+    for (i = 0; i < 5; i ++)
+        qemu_put_byte(f, spitz_gpio_invert[i]);
+}
+
+static int spitz_keyboard_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct spitz_keyboard_s *s = (struct spitz_keyboard_s *) opaque;
+    int i;
+
+    qemu_get_be16s(f, &s->sense_state);
+    qemu_get_be16s(f, &s->strobe_state);
+    for (i = 0; i < 5; i ++)
+        spitz_gpio_invert[i] = qemu_get_byte(f);
+
+    /* Release all pressed keys */
+    memset(s->keyrow, 0, sizeof(s->keyrow));
+    spitz_keyboard_sense_update(s);
+    s->modifiers = 0;
+    s->imodifiers = 0;
+    s->fifopos = 0;
+    s->fifolen = 0;
+
+    return 0;
+}
+
 static void spitz_keyboard_register(struct pxa2xx_state_s *cpu)
 {
     int i, j;
@@ -429,6 +481,9 @@ static void spitz_keyboard_register(struct pxa2xx_state_s *cpu)
 
     spitz_keyboard_pre_map(s);
     qemu_add_kbd_event_handler((QEMUPutKBDEvent *) spitz_keyboard_handler, s);
+
+    register_savevm("spitz_keyboard", 0, 0,
+                    spitz_keyboard_save, spitz_keyboard_load, s);
 }
 
 /* SCOOP devices */
@@ -597,6 +652,42 @@ static inline void scoop_gpio_handler_set(struct scoop_info_s *s, int line,
     s->handler[line].opaque = opaque;
 }
 
+static void scoop_save(QEMUFile *f, void *opaque)
+{
+    struct scoop_info_s *s = (struct scoop_info_s *) opaque;
+    qemu_put_be16s(f, &s->status);
+    qemu_put_be16s(f, &s->power);
+    qemu_put_be32s(f, &s->gpio_level);
+    qemu_put_be32s(f, &s->gpio_dir);
+    qemu_put_be32s(f, &s->prev_level);
+    qemu_put_be16s(f, &s->mcr);
+    qemu_put_be16s(f, &s->cdr);
+    qemu_put_be16s(f, &s->ccr);
+    qemu_put_be16s(f, &s->irr);
+    qemu_put_be16s(f, &s->imr);
+    qemu_put_be16s(f, &s->isr);
+    qemu_put_be16s(f, &s->gprr);
+}
+
+static int scoop_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct scoop_info_s *s = (struct scoop_info_s *) opaque;
+    qemu_get_be16s(f, &s->status);
+    qemu_get_be16s(f, &s->power);
+    qemu_get_be32s(f, &s->gpio_level);
+    qemu_get_be32s(f, &s->gpio_dir);
+    qemu_get_be32s(f, &s->prev_level);
+    qemu_get_be16s(f, &s->mcr);
+    qemu_get_be16s(f, &s->cdr);
+    qemu_get_be16s(f, &s->ccr);
+    qemu_get_be16s(f, &s->irr);
+    qemu_get_be16s(f, &s->imr);
+    qemu_get_be16s(f, &s->isr);
+    qemu_get_be16s(f, &s->gprr);
+
+    return 0;
+}
+
 static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
                 int count) {
     int iomemtype;
@@ -615,6 +706,7 @@ static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, &s[0]);
     cpu_register_physical_memory(s[0].target_base, 0xfff, iomemtype);
+    register_savevm("scoop", 0, 0, scoop_save, scoop_load, &s[0]);
 
     if (count < 2)
         return s;
@@ -622,6 +714,7 @@ static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, &s[1]);
     cpu_register_physical_memory(s[1].target_base, 0xfff, iomemtype);
+    register_savevm("scoop", 1, 0, scoop_save, scoop_load, &s[1]);
 
     return s;
 }
@@ -763,6 +856,26 @@ static void spitz_pendown_set(void *opaque, int line, int level)
     pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_TP_INT, level);
 }
 
+static void spitz_ssp_save(QEMUFile *f, void *opaque)
+{
+    qemu_put_be32(f, lcd_en);
+    qemu_put_be32(f, ads_en);
+    qemu_put_be32(f, max_en);
+    qemu_put_be32(f, bl_intensity);
+    qemu_put_be32(f, bl_power);
+}
+
+static int spitz_ssp_load(QEMUFile *f, void *opaque, int version_id)
+{
+    lcd_en = qemu_get_be32(f);
+    ads_en = qemu_get_be32(f);
+    max_en = qemu_get_be32(f);
+    bl_intensity = qemu_get_be32(f);
+    bl_power = qemu_get_be32(f);
+
+    return 0;
+}
+
 static void spitz_ssp_attach(struct pxa2xx_state_s *cpu)
 {
     lcd_en = ads_en = max_en = 0;
@@ -786,6 +899,8 @@ static void spitz_ssp_attach(struct pxa2xx_state_s *cpu)
 
     bl_intensity = 0x20;
     bl_power = 0;
+
+    register_savevm("spitz_ssp", 0, 0, spitz_ssp_save, spitz_ssp_load, cpu);
 }
 
 /* CF Microdrive */
@@ -799,6 +914,57 @@ static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
         md = dscm1xxxx_init(bs);
         pxa2xx_pcmcia_attach(cpu->pcmcia[0], md);
     }
+}
+
+/* Wm8750 and Max7310 on I2C */
+
+#define AKITA_MAX_ADDR	0x18
+#define SPITZ_WM_ADDRL	0x1a
+#define SPITZ_WM_ADDRH	0x1b
+
+#define SPITZ_GPIO_WM	5
+
+#ifdef HAS_AUDIO
+static void spitz_wm8750_addr(int line, int level, void *opaque)
+{
+    i2c_slave *wm = (i2c_slave *) opaque;
+    if (level)
+        i2c_set_slave_address(wm, SPITZ_WM_ADDRH);
+    else
+        i2c_set_slave_address(wm, SPITZ_WM_ADDRL);
+}
+#endif
+
+static void spitz_i2c_setup(struct pxa2xx_state_s *cpu)
+{
+    /* Attach the CPU on one end of our I2C bus.  */
+    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+
+#ifdef HAS_AUDIO
+    AudioState *audio;
+    i2c_slave *wm;
+
+    audio = AUD_init();
+    if (!audio)
+        return;
+    /* Attach a WM8750 to the bus */
+    wm = wm8750_init(bus, audio);
+
+    spitz_wm8750_addr(0, 0, wm);
+    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_WM, spitz_wm8750_addr, wm);
+    /* .. and to the sound interface.  */
+    cpu->i2s->opaque = wm;
+    cpu->i2s->codec_out = wm8750_dac_dat;
+    cpu->i2s->codec_in = wm8750_adc_dat;
+    wm8750_data_req_set(wm, cpu->i2s->data_req, cpu->i2s);
+#endif
+}
+
+static void spitz_akita_i2c_setup(struct pxa2xx_state_s *cpu)
+{
+    /* Attach a Max7310 to Akita I2C bus.  */
+    i2c_set_slave_address(max7310_init(pxa2xx_i2c_bus(cpu->i2c[0])),
+                    AKITA_MAX_ADDR);
 }
 
 /* Other peripherals */
@@ -1025,6 +1191,11 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
     spitz_scoop_gpio_setup(cpu, scp, (model == akita) ? 1 : 2);
 
     spitz_gpio_setup(cpu, (model == akita) ? 1 : 2);
+
+    spitz_i2c_setup(cpu);
+
+    if (model == akita)
+        spitz_akita_i2c_setup(cpu);
 
     if (model == terrier)
         /* A 6.0 GB microdrive is permanently sitting in CF slot 0.  */
