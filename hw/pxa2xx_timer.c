@@ -364,6 +364,73 @@ static void pxa2xx_timer_tick4(void *opaque)
         pxa2xx_timer_update4(i, qemu_get_clock(vm_clock), t->tm.num - 4);
 }
 
+static void pxa2xx_timer_save(QEMUFile *f, void *opaque)
+{
+    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    int i;
+
+    qemu_put_be32s(f, &s->clock);
+    qemu_put_be32s(f, &s->oldclock);
+    qemu_put_be64s(f, &s->lastload);
+
+    for (i = 0; i < 4; i ++) {
+        qemu_put_be32s(f, &s->timer[i].value);
+        qemu_put_be32(f, s->timer[i].level);
+    }
+    if (s->tm4)
+        for (i = 0; i < 8; i ++) {
+            qemu_put_be32s(f, &s->tm4[i].tm.value);
+            qemu_put_be32(f, s->tm4[i].tm.level);
+            qemu_put_be32s(f, &s->tm4[i].oldclock);
+            qemu_put_be32s(f, &s->tm4[i].clock);
+            qemu_put_be64s(f, &s->tm4[i].lastload);
+            qemu_put_be32s(f, &s->tm4[i].freq);
+            qemu_put_be32s(f, &s->tm4[i].control);
+        }
+
+    qemu_put_be32s(f, &s->events);
+    qemu_put_be32s(f, &s->irq_enabled);
+    qemu_put_be32s(f, &s->reset3);
+    qemu_put_be32s(f, &s->snapshot);
+}
+
+static int pxa2xx_timer_load(QEMUFile *f, void *opaque, int version_id)
+{
+    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    int64_t now;
+    int i;
+
+    qemu_get_be32s(f, &s->clock);
+    qemu_get_be32s(f, &s->oldclock);
+    qemu_get_be64s(f, &s->lastload);
+
+    now = qemu_get_clock(vm_clock);
+    for (i = 0; i < 4; i ++) {
+        qemu_get_be32s(f, &s->timer[i].value);
+        s->timer[i].level = qemu_get_be32(f);
+    }
+    pxa2xx_timer_update(s, now);
+
+    if (s->tm4)
+        for (i = 0; i < 8; i ++) {
+            qemu_get_be32s(f, &s->tm4[i].tm.value);
+            s->tm4[i].tm.level = qemu_get_be32(f);
+            qemu_get_be32s(f, &s->tm4[i].oldclock);
+            qemu_get_be32s(f, &s->tm4[i].clock);
+            qemu_get_be64s(f, &s->tm4[i].lastload);
+            qemu_get_be32s(f, &s->tm4[i].freq);
+            qemu_get_be32s(f, &s->tm4[i].control);
+            pxa2xx_timer_update4(s, now, i);
+        }
+
+    qemu_get_be32s(f, &s->events);
+    qemu_get_be32s(f, &s->irq_enabled);
+    qemu_get_be32s(f, &s->reset3);
+    qemu_get_be32s(f, &s->snapshot);
+
+    return 0;
+}
+
 static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
                 qemu_irq *irqs)
 {
@@ -392,6 +459,10 @@ static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
     iomemtype = cpu_register_io_memory(0, pxa2xx_timer_readfn,
                     pxa2xx_timer_writefn, s);
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+
+    register_savevm("pxa2xx_timer", 0, 0,
+                    pxa2xx_timer_save, pxa2xx_timer_load, s);
+
     return s;
 }
 

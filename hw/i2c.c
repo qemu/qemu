@@ -115,3 +115,34 @@ void i2c_nack(i2c_bus *bus)
     dev->event(dev, I2C_NACK);
 }
 
+void i2c_bus_save(QEMUFile *f, i2c_bus *bus)
+{
+    qemu_put_byte(f, bus->current_dev ? bus->current_dev->address : 0x00);
+}
+
+void i2c_bus_load(QEMUFile *f, i2c_bus *bus)
+{
+    i2c_slave *dev;
+    uint8_t address = qemu_get_byte(f);
+
+    if (address) {
+        for (dev = bus->dev; dev; dev = dev->next)
+            if (dev->address == address) {
+                bus->current_dev = dev;
+                return;
+            }
+
+        fprintf(stderr, "%s: I2C slave with address %02x disappeared\n",
+                __FUNCTION__, address);
+    }
+}
+
+void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
+{
+    qemu_put_byte(f, dev->address);
+}
+
+void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
+{
+    dev->address = qemu_get_byte(f);
+}

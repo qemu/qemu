@@ -491,6 +491,93 @@ static int wm8750_rx(i2c_slave *i2c)
     return 0x00;
 }
 
+static void wm8750_save(QEMUFile *f, void *opaque)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+    int i;
+    qemu_put_8s(f, &s->i2c_data[0]);
+    qemu_put_8s(f, &s->i2c_data[1]);
+    qemu_put_be32(f, s->i2c_len);
+    qemu_put_be32(f, s->enable);
+    qemu_put_be32(f, s->idx_in);
+    qemu_put_be32(f, s->req_in);
+    qemu_put_be32(f, s->idx_out);
+    qemu_put_be32(f, s->req_out);
+
+    for (i = 0; i < 7; i ++)
+        qemu_put_8s(f, &s->outvol[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_put_8s(f, &s->outmute[i]);
+    for (i = 0; i < 4; i ++)
+        qemu_put_8s(f, &s->invol[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_put_8s(f, &s->inmute[i]);
+
+    for (i = 0; i < 2; i ++)
+        qemu_put_8s(f, &s->diff[i]);
+    qemu_put_8s(f, &s->pol);
+    qemu_put_8s(f, &s->ds);
+    for (i = 0; i < 2; i ++)
+        qemu_put_8s(f, &s->monomix[i]);
+    qemu_put_8s(f, &s->alc);
+    qemu_put_8s(f, &s->mute);
+    for (i = 0; i < 4; i ++)
+        qemu_put_8s(f, &s->path[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_put_8s(f, &s->mpath[i]);
+    qemu_put_8s(f, &s->format);
+    qemu_put_8s(f, &s->power);
+    qemu_put_be32s(f, &s->inmask);
+    qemu_put_be32s(f, &s->outmask);
+    qemu_put_byte(f, (s->rate - wm_rate_table) / sizeof(*s->rate));
+    i2c_slave_save(f, &s->i2c);
+}
+
+static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+    int i;
+    qemu_get_8s(f, &s->i2c_data[0]);
+    qemu_get_8s(f, &s->i2c_data[1]);
+    s->i2c_len = qemu_get_be32(f);
+    s->enable = qemu_get_be32(f);
+    s->idx_in = qemu_get_be32(f);
+    s->req_in = qemu_get_be32(f);
+    s->idx_out = qemu_get_be32(f);
+    s->req_out = qemu_get_be32(f);
+
+    for (i = 0; i < 7; i ++)
+        qemu_get_8s(f, &s->outvol[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_get_8s(f, &s->outmute[i]);
+    for (i = 0; i < 4; i ++)
+        qemu_get_8s(f, &s->invol[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_get_8s(f, &s->inmute[i]);
+
+    for (i = 0; i < 2; i ++)
+        qemu_get_8s(f, &s->diff[i]);
+    qemu_get_8s(f, &s->pol);
+    qemu_get_8s(f, &s->ds);
+    for (i = 0; i < 2; i ++)
+        qemu_get_8s(f, &s->monomix[i]);
+    qemu_get_8s(f, &s->alc);
+    qemu_get_8s(f, &s->mute);
+    for (i = 0; i < 4; i ++)
+        qemu_get_8s(f, &s->path[i]);
+    for (i = 0; i < 2; i ++)
+        qemu_get_8s(f, &s->mpath[i]);
+    qemu_get_8s(f, &s->format);
+    qemu_get_8s(f, &s->power);
+    qemu_get_be32s(f, &s->inmask);
+    qemu_get_be32s(f, &s->outmask);
+    s->rate = &wm_rate_table[(uint8_t) qemu_get_byte(f) & 0x1f];
+    i2c_slave_load(f, &s->i2c);
+    return 0;
+}
+
+static int wm8750_iid = 0;
+
 i2c_slave *wm8750_init(i2c_bus *bus, AudioState *audio)
 {
     struct wm8750_s *s = (struct wm8750_s *)
@@ -501,6 +588,8 @@ i2c_slave *wm8750_init(i2c_bus *bus, AudioState *audio)
 
     AUD_register_card(audio, CODEC, &s->card);
     wm8750_reset(&s->i2c);
+
+    register_savevm(CODEC, wm8750_iid ++, 0, wm8750_save, wm8750_load, s);
 
     return &s->i2c;
 }

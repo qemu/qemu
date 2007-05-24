@@ -45,6 +45,10 @@ void i2c_end_transfer(i2c_bus *bus);
 void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
+void i2c_bus_save(QEMUFile *f, i2c_bus *bus);
+void i2c_bus_load(QEMUFile *f, i2c_bus *bus);
+void i2c_slave_save(QEMUFile *f, i2c_slave *dev);
+void i2c_slave_load(QEMUFile *f, i2c_slave *dev);
 
 /* max7310.c */
 i2c_slave *max7310_init(i2c_bus *bus);

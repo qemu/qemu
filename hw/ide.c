@@ -2416,6 +2416,62 @@ static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
     register_ioport_read(iobase, 4, 4, ide_data_readl, ide_state);
 }
 
+/* save per IDE drive data */
+static void ide_save(QEMUFile* f, IDEState *s)
+{
+    qemu_put_be32s(f, &s->mult_sectors);
+    qemu_put_be32s(f, &s->identify_set);
+    if (s->identify_set) {
+        qemu_put_buffer(f, (const uint8_t *)s->identify_data, 512);
+    }
+    qemu_put_8s(f, &s->feature);
+    qemu_put_8s(f, &s->error);
+    qemu_put_be32s(f, &s->nsector);
+    qemu_put_8s(f, &s->sector);
+    qemu_put_8s(f, &s->lcyl);
+    qemu_put_8s(f, &s->hcyl);
+    qemu_put_8s(f, &s->hob_feature);
+    qemu_put_8s(f, &s->hob_nsector);
+    qemu_put_8s(f, &s->hob_sector);
+    qemu_put_8s(f, &s->hob_lcyl);
+    qemu_put_8s(f, &s->hob_hcyl);
+    qemu_put_8s(f, &s->select);
+    qemu_put_8s(f, &s->status);
+    qemu_put_8s(f, &s->lba48);
+
+    qemu_put_8s(f, &s->sense_key);
+    qemu_put_8s(f, &s->asc);
+    /* XXX: if a transfer is pending, we do not save it yet */
+}
+
+/* load per IDE drive data */
+static void ide_load(QEMUFile* f, IDEState *s)
+{
+    qemu_get_be32s(f, &s->mult_sectors);
+    qemu_get_be32s(f, &s->identify_set);
+    if (s->identify_set) {
+        qemu_get_buffer(f, (uint8_t *)s->identify_data, 512);
+    }
+    qemu_get_8s(f, &s->feature);
+    qemu_get_8s(f, &s->error);
+    qemu_get_be32s(f, &s->nsector);
+    qemu_get_8s(f, &s->sector);
+    qemu_get_8s(f, &s->lcyl);
+    qemu_get_8s(f, &s->hcyl);
+    qemu_get_8s(f, &s->hob_feature);
+    qemu_get_8s(f, &s->hob_nsector);
+    qemu_get_8s(f, &s->hob_sector);
+    qemu_get_8s(f, &s->hob_lcyl);
+    qemu_get_8s(f, &s->hob_hcyl);
+    qemu_get_8s(f, &s->select);
+    qemu_get_8s(f, &s->status);
+    qemu_get_8s(f, &s->lba48);
+
+    qemu_get_8s(f, &s->sense_key);
+    qemu_get_8s(f, &s->asc);
+    /* XXX: if a transfer is pending, we do not save it yet */
+}
+
 /***********************************************************/
 /* ISA IDE definitions */
 
@@ -2731,30 +2787,7 @@ static void pci_ide_save(QEMUFile* f, void *opaque)
 
     /* per IDE drive data */
     for(i = 0; i < 4; i++) {
-        IDEState *s = &d->ide_if[i];
-        qemu_put_be32s(f, &s->mult_sectors);
-        qemu_put_be32s(f, &s->identify_set);
-        if (s->identify_set) {
-            qemu_put_buffer(f, (const uint8_t *)s->identify_data, 512);
-        }
-        qemu_put_8s(f, &s->feature);
-        qemu_put_8s(f, &s->error);
-        qemu_put_be32s(f, &s->nsector);
-        qemu_put_8s(f, &s->sector);
-        qemu_put_8s(f, &s->lcyl);
-        qemu_put_8s(f, &s->hcyl);
-        qemu_put_8s(f, &s->hob_feature);
-        qemu_put_8s(f, &s->hob_nsector);
-        qemu_put_8s(f, &s->hob_sector);
-        qemu_put_8s(f, &s->hob_lcyl);
-        qemu_put_8s(f, &s->hob_hcyl);
-        qemu_put_8s(f, &s->select);
-        qemu_put_8s(f, &s->status);
-        qemu_put_8s(f, &s->lba48);
-
-        qemu_put_8s(f, &s->sense_key);
-        qemu_put_8s(f, &s->asc);
-        /* XXX: if a transfer is pending, we do not save it yet */
+        ide_save(f, &d->ide_if[i]);
     }
 }
 
@@ -2788,30 +2821,7 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
 
     /* per IDE drive data */
     for(i = 0; i < 4; i++) {
-        IDEState *s = &d->ide_if[i];
-        qemu_get_be32s(f, &s->mult_sectors);
-        qemu_get_be32s(f, &s->identify_set);
-        if (s->identify_set) {
-            qemu_get_buffer(f, (uint8_t *)s->identify_data, 512);
-        }
-        qemu_get_8s(f, &s->feature);
-        qemu_get_8s(f, &s->error);
-        qemu_get_be32s(f, &s->nsector);
-        qemu_get_8s(f, &s->sector);
-        qemu_get_8s(f, &s->lcyl);
-        qemu_get_8s(f, &s->hcyl);
-        qemu_get_8s(f, &s->hob_feature);
-        qemu_get_8s(f, &s->hob_nsector);
-        qemu_get_8s(f, &s->hob_sector);
-        qemu_get_8s(f, &s->hob_lcyl);
-        qemu_get_8s(f, &s->hob_hcyl);
-        qemu_get_8s(f, &s->select);
-        qemu_get_8s(f, &s->status);
-        qemu_get_8s(f, &s->lba48);
-
-        qemu_get_8s(f, &s->sense_key);
-        qemu_get_8s(f, &s->asc);
-        /* XXX: if a transfer is pending, we do not save it yet */
+        ide_load(f, &d->ide_if[i]);
     }
     return 0;
 }
@@ -3255,6 +3265,54 @@ static void md_common_write(void *opaque, uint32_t at, uint16_t value)
     }
 }
 
+static void md_save(QEMUFile *f, void *opaque)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    int i;
+    uint8_t drive1_selected;
+
+    qemu_put_8s(f, &s->opt);
+    qemu_put_8s(f, &s->stat);
+    qemu_put_8s(f, &s->pins);
+
+    qemu_put_8s(f, &s->ctrl);
+    qemu_put_be16s(f, &s->io);
+    qemu_put_byte(f, s->cycle);
+
+    drive1_selected = (s->ide->cur_drive != s->ide);
+    qemu_put_8s(f, &s->ide->cmd);
+    qemu_put_8s(f, &drive1_selected);
+
+    for (i = 0; i < 2; i ++)
+        ide_save(f, &s->ide[i]);
+}
+
+static int md_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct md_s *s = (struct md_s *) opaque;
+    int i;
+    uint8_t drive1_selected;
+
+    qemu_get_8s(f, &s->opt);
+    qemu_get_8s(f, &s->stat);
+    qemu_get_8s(f, &s->pins);
+
+    qemu_get_8s(f, &s->ctrl);
+    qemu_get_be16s(f, &s->io);
+    s->cycle = qemu_get_byte(f);
+
+    qemu_get_8s(f, &s->ide->cmd);
+    qemu_get_8s(f, &drive1_selected);
+    s->ide->cur_drive = &s->ide[(drive1_selected != 0)];
+
+    for (i = 0; i < 2; i ++)
+        ide_load(f, &s->ide[i]);
+
+    return 0;
+}
+
+static int md_iid = 0;
+
 static const uint8_t dscm1xxxx_cis[0x14a] = {
     [0x000] = CISTPL_DEVICE,	/* 5V Device Information */
     [0x002] = 0x03,		/* Tuple length = 4 bytes */
@@ -3480,5 +3538,8 @@ struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv)
     md->ide->is_cf = 1;
     md->ide->mdata_size = METADATA_SIZE;
     md->ide->mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
+
+    register_savevm("microdrive", md_iid ++, 0, md_save, md_load, md);
+
     return &md->card;
 }

@@ -443,6 +443,84 @@ static CPUWriteMemoryFunc *pxa2xx_mmci_writefn[] = {
     pxa2xx_mmci_writew
 };
 
+static void pxa2xx_mmci_save(QEMUFile *f, void *opaque)
+{
+    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    int i;
+
+    qemu_put_be32s(f, &s->status);
+    qemu_put_be32s(f, &s->clkrt);
+    qemu_put_be32s(f, &s->spi);
+    qemu_put_be32s(f, &s->cmdat);
+    qemu_put_be32s(f, &s->resp_tout);
+    qemu_put_be32s(f, &s->read_tout);
+    qemu_put_be32(f, s->blklen);
+    qemu_put_be32(f, s->numblk);
+    qemu_put_be32s(f, &s->intmask);
+    qemu_put_be32s(f, &s->intreq);
+    qemu_put_be32(f, s->cmd);
+    qemu_put_be32s(f, &s->arg);
+    qemu_put_be32(f, s->cmdreq);
+    qemu_put_be32(f, s->active);
+    qemu_put_be32(f, s->bytesleft);
+
+    qemu_put_byte(f, s->tx_len);
+    for (i = 0; i < s->tx_len; i ++)
+        qemu_put_byte(f, s->tx_fifo[(s->tx_start + i) & 63]);
+
+    qemu_put_byte(f, s->rx_len);
+    for (i = 0; i < s->rx_len; i ++)
+        qemu_put_byte(f, s->rx_fifo[(s->rx_start + i) & 31]);
+
+    qemu_put_byte(f, s->resp_len);
+    for (i = s->resp_len; i < 9; i ++)
+        qemu_put_be16s(f, &s->resp_fifo[i]);
+}
+
+static int pxa2xx_mmci_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
+    int i;
+
+    qemu_get_be32s(f, &s->status);
+    qemu_get_be32s(f, &s->clkrt);
+    qemu_get_be32s(f, &s->spi);
+    qemu_get_be32s(f, &s->cmdat);
+    qemu_get_be32s(f, &s->resp_tout);
+    qemu_get_be32s(f, &s->read_tout);
+    s->blklen = qemu_get_be32(f);
+    s->numblk = qemu_get_be32(f);
+    qemu_get_be32s(f, &s->intmask);
+    qemu_get_be32s(f, &s->intreq);
+    s->cmd = qemu_get_be32(f);
+    qemu_get_be32s(f, &s->arg);
+    s->cmdreq = qemu_get_be32(f);
+    s->active = qemu_get_be32(f);
+    s->bytesleft = qemu_get_be32(f);
+
+    s->tx_len = qemu_get_byte(f);
+    s->tx_start = 0;
+    if (s->tx_len >= sizeof(s->tx_fifo) || s->tx_len < 0)
+        return -EINVAL;
+    for (i = 0; i < s->tx_len; i ++)
+        s->tx_fifo[i] = qemu_get_byte(f);
+
+    s->rx_len = qemu_get_byte(f);
+    s->rx_start = 0;
+    if (s->rx_len >= sizeof(s->rx_fifo) || s->rx_len < 0)
+        return -EINVAL;
+    for (i = 0; i < s->rx_len; i ++)
+        s->rx_fifo[i] = qemu_get_byte(f);
+
+    s->resp_len = qemu_get_byte(f);
+    if (s->resp_len > 9 || s->resp_len < 0)
+        return -EINVAL;
+    for (i = s->resp_len; i < 9; i ++)
+         qemu_get_be16s(f, &s->resp_fifo[i]);
+
+    return 0;
+}
+
 struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
                 qemu_irq irq, void *dma)
 {
@@ -460,6 +538,9 @@ struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
 
     /* Instantiate the actual storage */
     s->card = sd_init(sd_bdrv);
+
+    register_savevm("pxa2xx_mmci", 0, 0,
+                    pxa2xx_mmci_save, pxa2xx_mmci_load, s);
 
     return s;
 }

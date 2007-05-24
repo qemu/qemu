@@ -247,6 +247,51 @@ static CPUWriteMemoryFunc *pxa2xx_gpio_writefn[] = {
     pxa2xx_gpio_write
 };
 
+static void pxa2xx_gpio_save(QEMUFile *f, void *opaque)
+{
+    struct pxa2xx_gpio_info_s *s = (struct pxa2xx_gpio_info_s *) opaque;
+    int i;
+
+    qemu_put_be32(f, s->lines);
+
+    for (i = 0; i < PXA2XX_GPIO_BANKS; i ++) {
+        qemu_put_be32s(f, &s->ilevel[i]);
+        qemu_put_be32s(f, &s->olevel[i]);
+        qemu_put_be32s(f, &s->dir[i]);
+        qemu_put_be32s(f, &s->rising[i]);
+        qemu_put_be32s(f, &s->falling[i]);
+        qemu_put_be32s(f, &s->status[i]);
+        qemu_put_be32s(f, &s->gafr[i * 2 + 0]);
+        qemu_put_be32s(f, &s->gafr[i * 2 + 1]);
+
+        qemu_put_be32s(f, &s->prev_level[i]);
+    }
+}
+
+static int pxa2xx_gpio_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct pxa2xx_gpio_info_s *s = (struct pxa2xx_gpio_info_s *) opaque;
+    int i;
+
+    if (qemu_get_be32(f) != s->lines)
+        return -EINVAL;
+
+    for (i = 0; i < PXA2XX_GPIO_BANKS; i ++) {
+        qemu_get_be32s(f, &s->ilevel[i]);
+        qemu_get_be32s(f, &s->olevel[i]);
+        qemu_get_be32s(f, &s->dir[i]);
+        qemu_get_be32s(f, &s->rising[i]);
+        qemu_get_be32s(f, &s->falling[i]);
+        qemu_get_be32s(f, &s->status[i]);
+        qemu_get_be32s(f, &s->gafr[i * 2 + 0]);
+        qemu_get_be32s(f, &s->gafr[i * 2 + 1]);
+
+        qemu_get_be32s(f, &s->prev_level[i]);
+    }
+
+    return 0;
+}
+
 struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
                 CPUState *env, qemu_irq *pic, int lines)
 {
@@ -264,6 +309,9 @@ struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
     iomemtype = cpu_register_io_memory(0, pxa2xx_gpio_readfn,
                     pxa2xx_gpio_writefn, s);
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+
+    register_savevm("pxa2xx_gpio", 0, 0,
+                    pxa2xx_gpio_save, pxa2xx_gpio_load, s);
 
     return s;
 }
