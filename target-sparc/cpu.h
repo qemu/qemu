@@ -226,10 +226,12 @@ typedef struct CPUSPARCState {
     uint64_t mgregs[8]; /* mmu general registers */
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
+    void *tick, *stick;
     uint64_t gsr;
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
+    void *hstick; // UA 2005
 #endif
 #if !defined(TARGET_SPARC64) && !defined(reg_T2)
     target_ulong t2;
@@ -292,6 +294,9 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 void raise_exception(int tt);
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi);
+void do_tick_set_count(void *opaque, uint64_t count);
+uint64_t do_tick_get_count(void *opaque);
+void do_tick_set_limit(void *opaque, uint64_t limit);
 
 #include "cpu-all.h"
 
