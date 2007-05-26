@@ -1974,7 +1974,7 @@ int main(int argc, char **argv)
 #elif defined(TARGET_M68K)
     {
         if (cpu_model == NULL)
-            cpu_model = "cfv4e";
+            cpu_model = "any";
         if (cpu_m68k_set_model(env, cpu_model)) {
             cpu_abort(cpu_single_env,
                       "Unable to find m68k CPU definition\n");
