@@ -42,6 +42,7 @@ static inline void qemu_assert(int cond, const char *msg)
 
 /* internal defines */
 typedef struct DisasContext {
+    CPUM68KState *env;
     target_ulong pc;
     int is_jmp;
     int cc_op;
@@ -198,38 +199,6 @@ static int gen_ldst(DisasContext *s, int opsize, int addr, int val)
     }
 }
 
-/* Handle a base + index + displacement effective addresss.  A base of
-   -1 means pc-relative.  */
-static int gen_lea_indexed(DisasContext *s, int opsize, int base)
-{
-    int scale;
-    uint32_t offset;
-    uint16_t ext;
-    int add;
-    int tmp;
-
-    offset = s->pc;
-    ext = lduw_code(s->pc);
-    s->pc += 2;
-    tmp = ((ext >> 12) & 7) + ((ext & 0x8000) ? QREG_A0 : QREG_D0);
-    /* ??? Check W/L bit.  */
-    scale = (ext >> 9) & 3;
-    if (scale == 0) {
-        add = tmp;
-    } else {
-        add = gen_new_qreg(QMODE_I32);
-        gen_op_shl32(add, tmp, gen_im32(scale));
-    }
-    tmp = gen_new_qreg(QMODE_I32);
-    if (base != -1) {
-        gen_op_add32(tmp, base, gen_im32((int8_t)ext));
-        gen_op_add32(tmp, tmp, add);
-    } else {
-        gen_op_add32(tmp, add, gen_im32(offset + (int8_t)ext));
-    }
-    return tmp;
-}
-
 /* Read a 32-bit immediate constant.  */
 static inline uint32_t read_im32(DisasContext *s)
 {
@@ -241,6 +210,127 @@ static inline uint32_t read_im32(DisasContext *s)
     return im;
 }
 
+/* Calculate and address index.  */
+static int gen_addr_index(uint16_t ext, int tmp)
+{
+    int add;
+    int scale;
+
+    add = (ext & 0x8000) ? AREG(ext, 12) : DREG(ext, 12);
+    if ((ext & 0x800) == 0) {
+        gen_op_ext16s32(tmp, add);
+        add = tmp;
+    }
+    scale = (ext >> 9) & 3;
+    if (scale != 0) {
+        gen_op_shl32(tmp, add, gen_im32(scale));
+        add = tmp;
+    }
+    return add;
+}
+
+/* Handle a base + index + displacement effective addresss.  A base of
+   -1 means pc-relative.  */
+static int gen_lea_indexed(DisasContext *s, int opsize, int base)
+{
+    uint32_t offset;
+    uint16_t ext;
+    int add;
+    int tmp;
+    uint32_t bd, od;
+
+    offset = s->pc;
+    ext = lduw_code(s->pc);
+    s->pc += 2;
+
+    if ((ext & 0x800) == 0 && !m68k_feature(s->env, M68K_FEATURE_WORD_INDEX))
+        return -1;
+
+    if (ext & 0x100) {
+        /* full extension word format */
+        if (!m68k_feature(s->env, M68K_FEATURE_EXT_FULL))
+            return -1;
+
+        if ((ext & 0x30) > 0x10) {
+            /* base displacement */
+            if ((ext & 0x30) == 0x20) {
+                bd = (int16_t)lduw_code(s->pc);
+                s->pc += 2;
+            } else {
+                bd = read_im32(s);
+            }
+        } else {
+            bd = 0;
+        }
+        tmp = gen_new_qreg(QMODE_I32);
+        if ((ext & 0x44) == 0) {
+            /* pre-index */
+            add = gen_addr_index(ext, tmp);
+        } else {
+            add = QREG_NULL;
+        }
+        if ((ext & 0x80) == 0) {
+            /* base not suppressed */
+            if (base == -1) {
+                base = gen_im32(offset + bd);
+                bd = 0;
+            }
+            if (add) {
+                gen_op_add32(tmp, add, base);
+                add = tmp;
+            } else {
+                add = base;
+            }
+        }
+        if (add) {
+            if (bd != 0) {
+                gen_op_add32(tmp, add, gen_im32(bd));
+                add = tmp;
+            }
+        } else {
+            add = gen_im32(bd);
+        }
+        if ((ext & 3) != 0) {
+            /* memory indirect */
+            base = gen_load(s, OS_LONG, add, 0);
+            if ((ext & 0x44) == 4) {
+                add = gen_addr_index(ext, tmp);
+                gen_op_add32(tmp, add, base);
+                add = tmp;
+            } else {
+                add = base;
+            }
+            if ((ext & 3) > 1) {
+                /* outer displacement */
+                if ((ext & 3) == 2) {
+                    od = (int16_t)lduw_code(s->pc);
+                    s->pc += 2;
+                } else {
+                    od = read_im32(s);
+                }
+            } else {
+                od = 0;
+            }
+            if (od != 0) {
+                gen_op_add32(add, tmp, gen_im32(od));
+                add = tmp;
+            }
+        }
+    } else {
+        /* brief extension word format */
+        tmp = gen_new_qreg(QMODE_I32);
+        add = gen_addr_index(ext, tmp);
+        if (base != -1) {
+            gen_op_add32(tmp, add, base);
+            if ((int8_t)ext)
+                gen_op_add32(tmp, tmp, gen_im32((int8_t)ext));
+        } else {
+            gen_op_add32(tmp, add, gen_im32(offset + (int8_t)ext));
+        }
+        add = tmp;
+    }
+    return add;
+}
 
 /* Update the CPU env CC_OP state.  */
 static inline void gen_flush_cc_op(DisasContext *s)
@@ -2721,6 +2811,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
 
+    dc->env = env;
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
     dc->cc_op = CC_OP_DYNAMIC;

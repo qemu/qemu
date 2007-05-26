@@ -160,7 +160,8 @@ enum m68k_features {
     M68K_FEATURE_CF_FPU,
     M68K_FEATURE_CF_MAC,
     M68K_FEATURE_CF_EMAC,
-    M68K_FEATURE_EXT_FULL /* 68020+ full extension word.  */
+    M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
+    M68K_FEATURE_WORD_INDEX /* word sized address index registers.  */
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)
