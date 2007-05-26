@@ -874,23 +874,26 @@ target_bigendian="no"
 [ "$target_cpu" = "sh4eb" ] && target_bigendian=yes
 [ "$target_cpu" = "m68k" ] && target_bigendian=yes
 target_softmmu="no"
-if expr $target : '.*-softmmu' > /dev/null ; then
-  target_softmmu="yes"
-fi
 target_user_only="no"
-if expr $target : '.*-user' > /dev/null ; then
-  target_user_only="yes"
-fi
-
 target_linux_user="no"
-if expr $target : '.*-linux-user' > /dev/null ; then
-  target_linux_user="yes"
-fi
-
 target_darwin_user="no"
-if expr $target : '.*-darwin-user' > /dev/null ; then
-  target_darwin_user="yes"
-fi
+case "$target" in
+  ${target_cpu}-softmmu)
+    target_softmmu="yes"
+    ;;
+  ${target_cpu}-linux-user)
+    target_user_only="yes"
+    target_linux_user="yes"
+    ;;
+  ${target_cpu}-darwin-user)
+    target_user_only="yes"
+    target_darwin_user="yes"
+    ;;
+  *)
+    echo "ERROR: Target '$target' not recognised"
+    exit 1
+    ;;
+esac
 
 if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
         -a "$sdl" = "no" -a "$cocoa" = "no" ; then
