@@ -38,6 +38,7 @@ mips64el-softmmu
 mips64-linux-user
 mips64el-linux-user
 m68k-linux-user
+m68k-softmmu
 .gdbinit
 sh4-linux-user
 sh4-softmmu
