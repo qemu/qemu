@@ -58,7 +58,9 @@ typedef struct SLAVIO_INTCTLState {
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf
+#define INTCTL_SIZE (INTCTL_MAXADDR + 1)
 #define INTCTLM_MAXADDR 0x13
+#define INTCTLM_SIZE (INTCTLM_MAXADDR + 1)
 #define INTCTLM_MASK 0x1f
 static void slavio_check_interrupts(void *opaque);
 
@@ -386,11 +388,12 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     s->intbit_to_level = intbit_to_level;
     for (i = 0; i < MAX_CPUS; i++) {
 	slavio_intctl_io_memory = cpu_register_io_memory(0, slavio_intctl_mem_read, slavio_intctl_mem_write, s);
-	cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_MAXADDR, slavio_intctl_io_memory);
+	cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_SIZE,
+                                     slavio_intctl_io_memory);
     }
 
     slavio_intctlm_io_memory = cpu_register_io_memory(0, slavio_intctlm_mem_read, slavio_intctlm_mem_write, s);
-    cpu_register_physical_memory(addrg, INTCTLM_MAXADDR, slavio_intctlm_io_memory);
+    cpu_register_physical_memory(addrg, INTCTLM_SIZE, slavio_intctlm_io_memory);
 
     register_savevm("slavio_intctl", addr, 1, slavio_intctl_save, slavio_intctl_load, s);
     qemu_register_reset(slavio_intctl_reset, s);

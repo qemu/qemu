@@ -1046,7 +1046,6 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 /* pcnet.c */
 
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pcnet_h_reset(void *opaque);
 void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
                  qemu_irq irq);
 
@@ -1265,11 +1264,9 @@ void slavio_set_power_fail(void *opaque, int power_failing);
 void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
                void *dma_opaque);
-void esp_reset(void *opaque);
 
 /* sparc32_dma.c */
-void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq espirq,
-                       qemu_irq leirq, void *iommu);
+void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq irq, void *iommu);
 void ledma_set_irq(void *opaque, int isr);
 void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
                        uint8_t *buf, int len, int do_bswap);
@@ -1279,8 +1276,8 @@ void espdma_raise_irq(void *opaque);
 void espdma_clear_irq(void *opaque);
 void espdma_memory_read(void *opaque, uint8_t *buf, int len);
 void espdma_memory_write(void *opaque, uint8_t *buf, int len);
-void sparc32_dma_set_reset_data(void *opaque, void *esp_opaque,
-                                void *lance_opaque);
+void sparc32_dma_set_reset_data(void *opaque, void (*dev_reset)(void *opaque),
+                                void *dev_opaque);
 
 /* cs4231.c */
 void cs_init(target_phys_addr_t base, int irq, void *intctl);

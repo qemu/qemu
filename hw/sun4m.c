@@ -262,7 +262,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
 {
     CPUState *env, *envs[MAX_CPUS];
     unsigned int i;
-    void *iommu, *dma, *main_esp, *main_lance = NULL;
+    void *iommu, *espdma, *ledma, *main_esp, *main_lance = NULL;
     const sparc_def_t *def;
     qemu_irq *slavio_irq;
 
@@ -295,8 +295,10 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     for(i = 0; i < smp_cpus; i++) {
         slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
     }
-    dma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
-                           slavio_irq[hwdef->le_irq], iommu);
+    espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
+                              iommu);
+    ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
+                             slavio_irq[hwdef->le_irq], iommu);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
@@ -307,7 +309,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "lance") == 0) {
-            main_lance = lance_init(&nd_table[0], hwdef->le_base, dma,
+            main_lance = lance_init(&nd_table[0], hwdef->le_base, ledma,
                                     slavio_irq[hwdef->le_irq]);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
@@ -329,7 +331,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
     fdctrl_init(slavio_irq[hwdef->fd_irq], 0, 1, hwdef->fd_base, fd_table);
-    main_esp = esp_init(bs_table, hwdef->esp_base, dma);
+    main_esp = esp_init(bs_table, hwdef->esp_base, espdma);
 
     for (i = 0; i < MAX_DISKS; i++) {
         if (bs_table[i]) {
@@ -341,7 +343,6 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
                                    slavio_irq[hwdef->me_irq]);
     if (hwdef->cs_base != (target_phys_addr_t)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
-    sparc32_dma_set_reset_data(dma, main_esp, main_lance);
 }
 
 static void sun4m_load_kernel(long vram_size, int ram_size, int boot_device,

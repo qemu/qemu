@@ -47,7 +47,7 @@ typedef struct MiscState {
     uint8_t diag, mctrl, sysctrl;
 } MiscState;
 
-#define MISC_MAXADDR 1
+#define MISC_SIZE 1
 
 static void slavio_misc_update_irq(void *opaque)
 {
@@ -224,19 +224,25 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
 
     slavio_misc_io_memory = cpu_register_io_memory(0, slavio_misc_mem_read, slavio_misc_mem_write, s);
     // Slavio control
-    cpu_register_physical_memory(base + 0x1800000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(base + 0x1800000, MISC_SIZE,
+                                 slavio_misc_io_memory);
     // AUX 1
-    cpu_register_physical_memory(base + 0x1900000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(base + 0x1900000, MISC_SIZE,
+                                 slavio_misc_io_memory);
     // AUX 2
-    cpu_register_physical_memory(base + 0x1910000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(base + 0x1910000, MISC_SIZE,
+                                 slavio_misc_io_memory);
     // Diagnostics
-    cpu_register_physical_memory(base + 0x1a00000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(base + 0x1a00000, MISC_SIZE,
+                                 slavio_misc_io_memory);
     // Modem control
-    cpu_register_physical_memory(base + 0x1b00000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(base + 0x1b00000, MISC_SIZE,
+                                 slavio_misc_io_memory);
     // System control
-    cpu_register_physical_memory(base + 0x1f00000, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(base + 0x1f00000, MISC_SIZE,
+                                 slavio_misc_io_memory);
     // Power management
-    cpu_register_physical_memory(power_base, MISC_MAXADDR, slavio_misc_io_memory);
+    cpu_register_physical_memory(power_base, MISC_SIZE, slavio_misc_io_memory);
 
     s->irq = irq;
 

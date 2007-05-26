@@ -59,6 +59,7 @@ typedef struct SLAVIO_TIMERState {
 } SLAVIO_TIMERState;
 
 #define TIMER_MAXADDR 0x1f
+#define TIMER_SIZE (TIMER_MAXADDR + 1)
 
 // Update count, set irq, update expire_time
 // Convert from ptimer countdown units
@@ -260,7 +261,7 @@ void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
 
     slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
 						    slavio_timer_mem_write, s);
-    cpu_register_physical_memory(addr, TIMER_MAXADDR, slavio_timer_io_memory);
+    cpu_register_physical_memory(addr, TIMER_SIZE, slavio_timer_io_memory);
     register_savevm("slavio_timer", addr, 2, slavio_timer_save, slavio_timer_load, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);

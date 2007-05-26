@@ -41,7 +41,9 @@ do { printf("ESP: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...)
 #endif
 
-#define ESP_MAXREG 0x3f
+#define ESP_MASK 0x3f
+#define ESP_REGS 16
+#define ESP_SIZE (ESP_REGS * 4)
 #define TI_BUFSZ 32
 /* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
 #define ESP_MAX_DEVS      7
@@ -50,8 +52,8 @@ typedef struct ESPState ESPState;
 
 struct ESPState {
     BlockDriverState **bd;
-    uint8_t rregs[ESP_MAXREG];
-    uint8_t wregs[ESP_MAXREG];
+    uint8_t rregs[ESP_REGS];
+    uint8_t wregs[ESP_REGS];
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint8_t ti_buf[TI_BUFSZ];
@@ -327,12 +329,12 @@ static void handle_ti(ESPState *s)
     }
 }
 
-void esp_reset(void *opaque)
+static void esp_reset(void *opaque)
 {
     ESPState *s = opaque;
 
-    memset(s->rregs, 0, ESP_MAXREG);
-    memset(s->wregs, 0, ESP_MAXREG);
+    memset(s->rregs, 0, ESP_REGS);
+    memset(s->wregs, 0, ESP_REGS);
     s->rregs[0x0e] = 0x4; // Indicate fas100a
     s->ti_size = 0;
     s->ti_rptr = 0;
@@ -346,7 +348,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & ESP_MAXREG) >> 2;
+    saddr = (addr & ESP_MASK) >> 2;
     DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
     switch (saddr) {
     case 2:
@@ -384,7 +386,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & ESP_MAXREG) >> 2;
+    saddr = (addr & ESP_MASK) >> 2;
     DPRINTF("write reg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->wregs[saddr], val);
     switch (saddr) {
     case 0:
@@ -501,8 +503,8 @@ static void esp_save(QEMUFile *f, void *opaque)
 {
     ESPState *s = opaque;
 
-    qemu_put_buffer(f, s->rregs, ESP_MAXREG);
-    qemu_put_buffer(f, s->wregs, ESP_MAXREG);
+    qemu_put_buffer(f, s->rregs, ESP_REGS);
+    qemu_put_buffer(f, s->wregs, ESP_REGS);
     qemu_put_be32s(f, &s->ti_size);
     qemu_put_be32s(f, &s->ti_rptr);
     qemu_put_be32s(f, &s->ti_wptr);
@@ -523,8 +525,8 @@ static int esp_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id != 3)
         return -EINVAL; // Cannot emulate 2
 
-    qemu_get_buffer(f, s->rregs, ESP_MAXREG);
-    qemu_get_buffer(f, s->wregs, ESP_MAXREG);
+    qemu_get_buffer(f, s->rregs, ESP_REGS);
+    qemu_get_buffer(f, s->wregs, ESP_REGS);
     qemu_get_be32s(f, &s->ti_size);
     qemu_get_be32s(f, &s->ti_rptr);
     qemu_get_be32s(f, &s->ti_wptr);
@@ -574,9 +576,10 @@ void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
 
     s->bd = bd;
     s->dma_opaque = dma_opaque;
+    sparc32_dma_set_reset_data(dma_opaque, esp_reset, s);
 
     esp_io_memory = cpu_register_io_memory(0, esp_mem_read, esp_mem_write, s);
-    cpu_register_physical_memory(espaddr, ESP_MAXREG*4, esp_io_memory);
+    cpu_register_physical_memory(espaddr, ESP_SIZE, esp_io_memory);
 
     esp_reset(s);
 

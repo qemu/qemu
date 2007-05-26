@@ -1554,7 +1554,7 @@ static uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap)
     return val;
 }
 
-void pcnet_h_reset(void *opaque)
+static void pcnet_h_reset(void *opaque)
 {
     PCNetState *s = opaque;
     int i;
@@ -2032,6 +2032,8 @@ void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
         cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);
 
     d->dma_opaque = dma_opaque;
+    sparc32_dma_set_reset_data(dma_opaque, pcnet_h_reset, d);
+
     cpu_register_physical_memory(leaddr, 4, lance_io_memory);
 
     d->irq = irq;
