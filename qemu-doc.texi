@@ -715,7 +715,11 @@ Exit instead of rebooting.
 Start right away with a saved state (@code{loadvm} in monitor)
 
 @item -semihosting
-Enable "Angel" semihosting interface (ARM target machines only).
+Enable semihosting syscall emulation (ARM and M68K target machines only).
+
+On ARM this implements the "Angel" interface.
+On M68K this implements the "ColdFire GDB" interface used by libgloss.
+
 Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
 @end table

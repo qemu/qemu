@@ -1901,7 +1901,6 @@ DISAS_INSN(move_to_usp)
 
 DISAS_INSN(halt)
 {
-    gen_flush_cc_op(s);
     gen_jmp(s, gen_im32(s->pc));
     gen_op_halt();
 }
@@ -1919,7 +1918,8 @@ DISAS_INSN(stop)
     s->pc += 2;
 
     gen_set_sr_im(s, ext, 0);
-    disas_halt(s, insn);
+    gen_jmp(s, gen_im32(s->pc));
+    gen_op_stop();
 }
 
 DISAS_INSN(rte)

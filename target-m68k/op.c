@@ -383,7 +383,14 @@ OP(divs)
     FORCE_RET();
 }
 
+/* Halt is special because it may be a semihosting call.  */
 OP(halt)
+{
+    RAISE_EXCEPTION(EXCP_HALT_INSN);
+    FORCE_RET();
+}
+
+OP(stop)
 {
     env->halted = 1;
     RAISE_EXCEPTION(EXCP_HLT);

@@ -1502,9 +1502,9 @@ void cpu_loop(CPUM68KState *env)
                 }
             }
             break;
-        case EXCP_HALTED:
+        case EXCP_HALT_INSN:
             /* Semihosing syscall.  */
-            env->pc += 2;
+            env->pc += 4;
             do_m68k_semihosting(env, env->dregs[0]);
             break;
         case EXCP_LINEA:
@@ -1918,10 +1918,6 @@ int main(int argc, char **argv)
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
         }
-        ts->stack_base = info->start_stack;
-        ts->heap_base = info->brk;
-        /* This will be filled in on the first SYS_HEAPINFO call.  */
-        ts->heap_limit = 0;
     }
 #elif defined(TARGET_SPARC)
     {
@@ -2047,6 +2043,13 @@ int main(int argc, char **argv)
     }
 #else
 #error unsupported target CPU
+#endif
+
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
+    ts->stack_base = info->start_stack;
+    ts->heap_base = info->brk;
+    /* This will be filled in on the first SYS_HEAPINFO call.  */
+    ts->heap_limit = 0;
 #endif
 
     if (gdbstub_port) {

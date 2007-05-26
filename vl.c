@@ -6865,7 +6865,7 @@ const QEMUOption qemu_options[] = {
     { "show-cursor", 0, QEMU_OPTION_show_cursor },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
-#if defined(TARGET_ARM)
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
     { "semihosting", 0, QEMU_OPTION_semihosting },
 #endif
     { "name", HAS_ARG, QEMU_OPTION_name },

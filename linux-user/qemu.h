@@ -62,10 +62,6 @@ typedef struct TaskState {
 #ifdef TARGET_ARM
     /* FPA state */
     FPA11 fpa;
-    /* Extra fields for semihosted binaries.  */
-    uint32_t stack_base;
-    uint32_t heap_base;
-    uint32_t heap_limit;
     int swi_errno;
 #endif
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
@@ -77,6 +73,12 @@ typedef struct TaskState {
 #endif
 #ifdef TARGET_M68K
     int sim_syscalls;
+#endif
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
+    /* Extra fields for semihosted binaries.  */
+    uint32_t stack_base;
+    uint32_t heap_base;
+    uint32_t heap_limit;
 #endif
     int used; /* non zero if used */
     struct image_info *info;

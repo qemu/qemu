@@ -963,14 +963,16 @@ static void gdb_vm_stopped(void *opaque, int reason)
 
 /* Send a gdb syscall request.
    This accepts limited printf-style format specifiers, specifically:
-    %x - target_ulong argument printed in hex.
-    %s - string pointer (target_ulong) and length (int) pair.  */
+    %x  - target_ulong argument printed in hex.
+    %lx - 64-bit argument printed in hex.
+    %s  - string pointer (target_ulong) and length (int) pair.  */
 void gdb_do_syscall(gdb_syscall_complete_cb cb, char *fmt, ...)
 {
     va_list va;
     char buf[256];
     char *p;
     target_ulong addr;
+    uint64_t i64;
     GDBState *s;
 
     s = gdb_syscall_state;
@@ -993,11 +995,18 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, char *fmt, ...)
                 addr = va_arg(va, target_ulong);
                 p += sprintf(p, TARGET_FMT_lx, addr);
                 break;
+            case 'l':
+                if (*(fmt++) != 'x')
+                    goto bad_format;
+                i64 = va_arg(va, uint64_t);
+                p += sprintf(p, "%" PRIx64, i64);
+                break;
             case 's':
                 addr = va_arg(va, target_ulong);
                 p += sprintf(p, TARGET_FMT_lx "/%x", addr, va_arg(va, int));
                 break;
             default:
+            bad_format:
                 fprintf(stderr, "gdbstub: Bad syscall format string '%s'\n",
                         fmt - 1);
                 break;

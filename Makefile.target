@@ -468,6 +468,7 @@ VL_OBJS+= shix.o sh7750.o sh7750_regnames.o tc58128.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 VL_OBJS+= an5206.o mcf5206.o ptimer.o
+VL_OBJS+= m68k-semi.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 
