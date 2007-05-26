@@ -313,7 +313,7 @@ static int gen_lea_indexed(DisasContext *s, int opsize, int base)
                 od = 0;
             }
             if (od != 0) {
-                gen_op_add32(add, tmp, gen_im32(od));
+                gen_op_add32(tmp, add, gen_im32(od));
                 add = tmp;
             }
         }
