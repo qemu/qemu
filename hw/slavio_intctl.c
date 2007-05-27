@@ -44,6 +44,7 @@ do { printf("IRQ: " fmt , ##args); } while (0)
  */
 
 #define MAX_CPUS 16
+#define MAX_PILS 16
 
 typedef struct SLAVIO_INTCTLState {
     uint32_t intreg_pending[MAX_CPUS];
@@ -53,9 +54,10 @@ typedef struct SLAVIO_INTCTLState {
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count[32];
 #endif
-    CPUState *cpu_envs[MAX_CPUS];
+    qemu_irq *cpu_irqs[MAX_CPUS];
     const uint32_t *intbit_to_level;
     uint32_t cputimer_bit;
+    uint32_t pil_out[MAX_CPUS];
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf
@@ -213,67 +215,53 @@ void slavio_irq_info(void *opaque)
 #endif
 }
 
+static void raise_pil(SLAVIO_INTCTLState *s, unsigned int pil,
+                      unsigned int cpu)
+{
+    qemu_irq irq;
+    unsigned int oldmax;
+
+    irq = s->cpu_irqs[cpu][pil];
+
+#ifdef DEBUG_IRQ_COUNT
+    s->irq_count[pil]++;
+#endif
+    oldmax = s->pil_out[cpu];
+    if (oldmax > 0 && oldmax != pil)
+        qemu_irq_lower(s->cpu_irqs[cpu][oldmax]);
+    s->pil_out[cpu] = pil;
+    if (pil > 0)
+        qemu_irq_raise(irq);
+    DPRINTF("cpu %d pil %d\n", cpu, pil);
+}
+
 static void slavio_check_interrupts(void *opaque)
 {
-    CPUState *env;
     SLAVIO_INTCTLState *s = opaque;
     uint32_t pending = s->intregm_pending;
     unsigned int i, j, max = 0;
 
     pending &= ~s->intregm_disabled;
 
-    if (pending && !(s->intregm_disabled & 0x80000000)) {
-	for (i = 0; i < 32; i++) {
-	    if (pending & (1 << i)) {
-		if (max < s->intbit_to_level[i])
-		    max = s->intbit_to_level[i];
-	    }
-	}
-        env = s->cpu_envs[s->target_cpu];
-        if (!env) {
-	    DPRINTF("No CPU %d, not triggered (pending %x)\n", s->target_cpu, pending);
-        }
-	else {
-            if (env->halted)
-                env->halted = 0;
-            if (env->interrupt_index == 0) {
-                DPRINTF("Triggered CPU %d pil %d\n", s->target_cpu, max);
-#ifdef DEBUG_IRQ_COUNT
-                s->irq_count[max]++;
-#endif
-                env->interrupt_index = TT_EXTINT | max;
-                cpu_interrupt(env, CPU_INTERRUPT_HARD);
-            }
-            else
-                DPRINTF("Not triggered (pending %x), pending exception %x\n", pending, env->interrupt_index);
-	}
-    }
-    else
-	DPRINTF("Not triggered (pending %x), disabled %x\n", pending, s->intregm_disabled);
-    
+    DPRINTF("pending %x disabled %x\n", pending, s->intregm_disabled);
     for (i = 0; i < MAX_CPUS; i++) {
         max = 0;
-        env = s->cpu_envs[i];
-        if (!env)
-            continue;
+        if (pending && !(s->intregm_disabled & 0x80000000) &&
+            (i == s->target_cpu)) {
+            for (j = 0; j < 32; j++) {
+                if (pending & (1 << j)) {
+                    if (max < s->intbit_to_level[j])
+                        max = s->intbit_to_level[j];
+                }
+            }
+        }
         for (j = 17; j < 32; j++) {
             if (s->intreg_pending[i] & (1 << j)) {
                 if (max < j - 16)
                     max = j - 16;
             }
         }
-	if (max > 0) {
-            if (env->halted)
-                env->halted = 0;
-            if (env->interrupt_index == 0) {
-                DPRINTF("Triggered softint %d for cpu %d (pending %x)\n", max, i, pending);
-#ifdef DEBUG_IRQ_COUNT
-                s->irq_count[max]++;
-#endif
-                env->interrupt_index = TT_EXTINT | max;
-                cpu_interrupt(env, CPU_INTERRUPT_HARD);
-            }
-        }
+        raise_pil(s, max, i);
     }
 }
 
@@ -284,22 +272,20 @@ static void slavio_check_interrupts(void *opaque)
 static void slavio_set_irq(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
+    uint32_t mask = 1 << irq;
+    uint32_t pil = s->intbit_to_level[irq];
 
-    DPRINTF("Set cpu %d irq %d level %d\n", s->target_cpu, irq, level);
-    if (irq < 32) {
-	uint32_t mask = 1 << irq;
-	uint32_t pil = s->intbit_to_level[irq];
-	if (pil > 0) {
-	    if (level) {
-		s->intregm_pending |= mask;
-		s->intreg_pending[s->target_cpu] |= 1 << pil;
-		slavio_check_interrupts(s);
-	    }
-	    else {
-		s->intregm_pending &= ~mask;
-		s->intreg_pending[s->target_cpu] &= ~(1 << pil);
-	    }
-	}
+    DPRINTF("Set cpu %d irq %d -> pil %d level %d\n", s->target_cpu, irq, pil,
+            level);
+    if (pil > 0) {
+        if (level) {
+            s->intregm_pending |= mask;
+            s->intreg_pending[s->target_cpu] |= 1 << pil;
+        } else {
+            s->intregm_pending &= ~mask;
+            s->intreg_pending[s->target_cpu] &= ~(1 << pil);
+        }
+        slavio_check_interrupts(s);
     }
 }
 
@@ -307,15 +293,12 @@ static void slavio_set_timer_irq_cpu(void *opaque, int cpu, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
-    DPRINTF("Set cpu %d local level %d\n", cpu, level);
-    if (!s->cpu_envs[cpu])
-        return;
+    DPRINTF("Set cpu %d local timer level %d\n", cpu, level);
 
-    if (level) {
+    if (level)
         s->intreg_pending[cpu] |= s->cputimer_bit;
-    } else {
+    else
         s->intreg_pending[cpu] &= ~s->cputimer_bit;
-    }
 
     slavio_check_interrupts(s);
 }
@@ -363,18 +346,10 @@ static void slavio_intctl_reset(void *opaque)
     s->target_cpu = 0;
 }
 
-void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env)
-{
-    SLAVIO_INTCTLState *s = opaque;
-
-    s->cpu_envs[cpu] = env;
-}
-
 void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          const uint32_t *intbit_to_level,
                          qemu_irq **irq, qemu_irq **cpu_irq,
-                         unsigned int cputimer)
-
+                         qemu_irq **parent_irq, unsigned int cputimer)
 {
     int slavio_intctl_io_memory, slavio_intctlm_io_memory, i;
     SLAVIO_INTCTLState *s;
@@ -388,6 +363,7 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
 	slavio_intctl_io_memory = cpu_register_io_memory(0, slavio_intctl_mem_read, slavio_intctl_mem_write, s);
 	cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_SIZE,
                                      slavio_intctl_io_memory);
+        s->cpu_irqs[i] = parent_irq[i];
     }
 
     slavio_intctlm_io_memory = cpu_register_io_memory(0, slavio_intctlm_mem_read, slavio_intctlm_mem_write, s);

@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+//#define DEBUG_IRQ
 
 /*
  * Sun4m architecture was used in the following machines:
@@ -38,6 +39,13 @@
  * See for example: http://www.sunhelp.org/faq/sunref1.html
  */
 
+#ifdef DEBUG_IRQ
+#define DPRINTF(fmt, args...)                           \
+    do { printf("CPUIRQ: " fmt , ##args); } while (0)
+#else
+#define DPRINTF(fmt, args...)
+#endif
+
 #define KERNEL_LOAD_ADDR     0x00004000
 #define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
@@ -46,6 +54,7 @@
 #define PROM_FILENAME	     "openbios-sparc32"
 
 #define MAX_CPUS 16
+#define MAX_PILS 16
 
 struct hwdef {
     target_phys_addr_t iommu_base, slavio_base;
@@ -233,6 +242,33 @@ void irq_info()
     slavio_irq_info(slavio_intctl);
 }
 
+static void cpu_set_irq(void *opaque, int irq, int level)
+{
+    CPUState *env = opaque;
+
+    if (level) {
+        DPRINTF("Raise CPU IRQ %d\n", irq);
+
+        env->halted = 0;
+
+        if (env->interrupt_index == 0 ||
+            ((env->interrupt_index & ~15) == TT_EXTINT &&
+             (env->interrupt_index & 15) < irq)) {
+            env->interrupt_index = TT_EXTINT | irq;
+            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        } else {
+            DPRINTF("Not triggered, pending exception %d\n",
+                    env->interrupt_index);
+        }
+    } else {
+        DPRINTF("Lower CPU IRQ %d\n", irq);
+    }
+}
+
+static void dummy_cpu_set_irq(void *opaque, int irq, int level)
+{
+}
+
 static void *slavio_misc;
 
 void qemu_system_powerdown(void)
@@ -264,7 +300,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     unsigned int i;
     void *iommu, *espdma, *ledma, *main_esp;
     const sparc_def_t *def;
-    qemu_irq *slavio_irq, *slavio_cpu_irq,
+    qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
         *espdma_irq, *ledma_irq;
 
     /* init CPUs */
@@ -273,6 +309,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
         exit(1);
     }
+
     for(i = 0; i < smp_cpus; i++) {
         env = cpu_init();
         cpu_sparc_register(env, def);
@@ -284,7 +321,12 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
             env->halted = 1;
         }
         register_savevm("cpu", i, 3, cpu_save, cpu_load, env);
+        cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
     }
+
+    for (i = smp_cpus; i < MAX_CPUS; i++)
+        cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
+
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
 
@@ -293,10 +335,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
                                        hwdef->intctl_base + 0x10000ULL,
                                        &hwdef->intbit_to_level[0],
                                        &slavio_irq, &slavio_cpu_irq,
+                                       cpu_irqs,
                                        hwdef->clock_irq);
-    for(i = 0; i < smp_cpus; i++) {
-        slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
-    }
+
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
                               iommu, &espdma_irq);
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
