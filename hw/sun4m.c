@@ -349,15 +349,15 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     }
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + ram_size, ram_size,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
-    if (nd_table[0].vlan) {
-        if (nd_table[0].model == NULL
-            || strcmp(nd_table[0].model, "lance") == 0) {
-            lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq);
-        } else {
-            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
-            exit (1);
-        }
+
+    if (nd_table[0].model == NULL
+        || strcmp(nd_table[0].model, "lance") == 0) {
+        lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq);
+    } else {
+        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+        exit (1);
     }
+
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
     for (i = 0; i < MAX_CPUS; i++) {

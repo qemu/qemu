@@ -1267,7 +1267,8 @@ static void pcnet_transmit(PCNetState *s)
             if (CSR_LOOP(s))
                 pcnet_receive(s, s->buffer, s->xmit_pos);
             else
-                qemu_send_packet(s->vc, s->buffer, s->xmit_pos);
+                if (s->vc)
+                    qemu_send_packet(s->vc, s->buffer, s->xmit_pos);
 
             s->csr[0] &= ~0x0008;   /* clear TDMD */
             s->csr[4] |= 0x0004;    /* set TXSTRT */
@@ -1562,7 +1563,8 @@ static void pcnet_h_reset(void *opaque)
 
     /* Initialize the PROM */
 
-    memcpy(s->prom, s->nd->macaddr, 6);
+    if (s->nd)
+        memcpy(s->prom, s->nd->macaddr, 6);
     s->prom[12] = s->prom[13] = 0x00;
     s->prom[14] = s->prom[15] = 0x57;
 
@@ -1898,18 +1900,21 @@ static void pcnet_common_init(PCNetState *d, NICInfo *nd, const char *info_str)
 
     d->nd = nd;
 
-    d->vc = qemu_new_vlan_client(nd->vlan, pcnet_receive, 
-                                 pcnet_can_receive, d);
-    
-    snprintf(d->vc->info_str, sizeof(d->vc->info_str),
-             "pcnet macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             d->nd->macaddr[0],
-             d->nd->macaddr[1],
-             d->nd->macaddr[2],
-             d->nd->macaddr[3],
-             d->nd->macaddr[4],
-             d->nd->macaddr[5]);
+    if (nd && nd->vlan) {
+        d->vc = qemu_new_vlan_client(nd->vlan, pcnet_receive,
+                                     pcnet_can_receive, d);
 
+        snprintf(d->vc->info_str, sizeof(d->vc->info_str),
+                 "pcnet macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+                 d->nd->macaddr[0],
+                 d->nd->macaddr[1],
+                 d->nd->macaddr[2],
+                 d->nd->macaddr[3],
+                 d->nd->macaddr[4],
+                 d->nd->macaddr[5]);
+    } else {
+        d->vc = NULL;
+    }
     pcnet_h_reset(d);
     register_savevm("pcnet", 0, 2, pcnet_save, pcnet_load, d);
 }
