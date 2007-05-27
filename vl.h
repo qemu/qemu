@@ -389,6 +389,7 @@ typedef struct VLANState {
     int id;
     VLANClientState *first_client;
     struct VLANState *next;
+    unsigned int nb_guest_devs, nb_host_devs;
 } VLANState;
 
 VLANState *qemu_find_vlan(int id);
