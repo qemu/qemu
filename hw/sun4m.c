@@ -262,9 +262,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
 {
     CPUState *env, *envs[MAX_CPUS];
     unsigned int i;
-    void *iommu, *espdma, *ledma, *main_esp, *main_lance = NULL;
+    void *iommu, *espdma, *ledma, *main_esp;
     const sparc_def_t *def;
-    qemu_irq *slavio_irq;
+    qemu_irq *slavio_irq, *espdma_irq, *ledma_irq;
 
     /* init CPUs */
     sparc_find_by_name(cpu_model, &def);
@@ -296,9 +296,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
     }
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
-                              iommu);
+                              iommu, &espdma_irq);
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
-                             slavio_irq[hwdef->le_irq], iommu);
+                             slavio_irq[hwdef->le_irq], iommu, &ledma_irq);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
@@ -309,8 +309,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "lance") == 0) {
-            main_lance = lance_init(&nd_table[0], hwdef->le_base, ledma,
-                                    slavio_irq[hwdef->le_irq]);
+            lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
@@ -331,7 +330,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
     fdctrl_init(slavio_irq[hwdef->fd_irq], 0, 1, hwdef->fd_base, fd_table);
-    main_esp = esp_init(bs_table, hwdef->esp_base, espdma);
+    main_esp = esp_init(bs_table, hwdef->esp_base, espdma, *espdma_irq);
 
     for (i = 0; i < MAX_DISKS; i++) {
         if (bs_table[i]) {

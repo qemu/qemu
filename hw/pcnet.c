@@ -2018,7 +2018,7 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
     (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
 };
 
-void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
+void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
                  qemu_irq irq)
 {
     PCNetState *d;
@@ -2026,7 +2026,7 @@ void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
 
     d = qemu_mallocz(sizeof(PCNetState));
     if (!d)
-        return NULL;
+        return;
 
     lance_io_memory =
         cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);
@@ -2041,7 +2041,5 @@ void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
     d->phys_mem_write = ledma_memory_write;
 
     pcnet_common_init(d, nd, "lance");
-
-    return d;
 }
 #endif /* TARGET_SPARC */

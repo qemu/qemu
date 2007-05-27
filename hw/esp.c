@@ -51,6 +51,7 @@ do { printf("ESP: " fmt , ##args); } while (0)
 typedef struct ESPState ESPState;
 
 struct ESPState {
+    qemu_irq irq;
     BlockDriverState **bd;
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
@@ -126,7 +127,7 @@ static int get_cmd(ESPState *s, uint8_t *buf)
 	s->rregs[4] = STAT_IN;
 	s->rregs[5] = INTR_DC;
 	s->rregs[6] = SEQ_0;
-	espdma_raise_irq(s->dma_opaque);
+	qemu_irq_raise(s->irq);
 	return 0;
     }
     s->current_dev = s->scsi_dev[target];
@@ -156,7 +157,7 @@ static void do_cmd(ESPState *s, uint8_t *buf)
     }
     s->rregs[5] = INTR_BS | INTR_FC;
     s->rregs[6] = SEQ_CD;
-    espdma_raise_irq(s->dma_opaque);
+    qemu_irq_raise(s->irq);
 }
 
 static void handle_satn(ESPState *s)
@@ -178,7 +179,7 @@ static void handle_satn_stop(ESPState *s)
         s->rregs[4] = STAT_IN | STAT_TC | STAT_CD;
         s->rregs[5] = INTR_BS | INTR_FC;
         s->rregs[6] = SEQ_CD;
-        espdma_raise_irq(s->dma_opaque);
+        qemu_irq_raise(s->irq);
     }
 }
 
@@ -198,7 +199,7 @@ static void write_response(ESPState *s)
 	s->ti_wptr = 0;
 	s->rregs[7] = 2;
     }
-    espdma_raise_irq(s->dma_opaque);
+    qemu_irq_raise(s->irq);
 }
 
 static void esp_dma_done(ESPState *s)
@@ -209,7 +210,7 @@ static void esp_dma_done(ESPState *s)
     s->rregs[7] = 0;
     s->rregs[0] = 0;
     s->rregs[1] = 0;
-    espdma_raise_irq(s->dma_opaque);
+    qemu_irq_raise(s->irq);
 }
 
 static void esp_do_dma(ESPState *s)
@@ -362,7 +363,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
             } else {
                 s->rregs[2] = s->ti_buf[s->ti_rptr++];
             }
-            espdma_raise_irq(s->dma_opaque);
+            qemu_irq_raise(s->irq);
 	}
 	if (s->ti_size == 0) {
             s->ti_rptr = 0;
@@ -373,7 +374,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
         // interrupt
         // Clear interrupt/error status bits
         s->rregs[4] &= ~(STAT_IN | STAT_GE | STAT_PE);
-	espdma_clear_irq(s->dma_opaque);
+	qemu_irq_lower(s->irq);
         break;
     default:
 	break;
@@ -436,7 +437,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    DPRINTF("Bus reset (%2.2x)\n", val);
 	    s->rregs[5] = INTR_RST;
             if (!(s->wregs[8] & 0x40)) {
-                espdma_raise_irq(s->dma_opaque);
+                qemu_irq_raise(s->irq);
             }
 	    break;
 	case 0x10:
@@ -565,7 +566,7 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
 }
 
 void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
-               void *dma_opaque)
+               void *dma_opaque, qemu_irq irq)
 {
     ESPState *s;
     int esp_io_memory;
@@ -575,6 +576,7 @@ void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
         return NULL;
 
     s->bd = bd;
+    s->irq = irq;
     s->dma_opaque = dma_opaque;
     sparc32_dma_set_reset_data(dma_opaque, esp_reset, s);
 

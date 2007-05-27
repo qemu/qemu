@@ -115,22 +115,18 @@ void ledma_memory_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-void espdma_raise_irq(void *opaque)
+static void dma_set_irq(void *opaque, int irq, int level)
 {
     DMAState *s = opaque;
-
-    DPRINTF("Raise ESP IRQ\n");
-    s->dmaregs[0] |= DMA_INTR;
-    qemu_irq_raise(s->irq);
-}
-
-void espdma_clear_irq(void *opaque)
-{
-    DMAState *s = opaque;
-
-    s->dmaregs[0] &= ~DMA_INTR;
-    DPRINTF("Lower ESP IRQ\n");
-    qemu_irq_lower(s->irq);
+    if (level) {
+        DPRINTF("Raise ESP IRQ\n");
+        s->dmaregs[0] |= DMA_INTR;
+        qemu_irq_raise(s->irq);
+    } else {
+        s->dmaregs[0] &= ~DMA_INTR;
+        DPRINTF("Lower ESP IRQ\n");
+        qemu_irq_lower(s->irq);
+    }
 }
 
 void espdma_memory_read(void *opaque, uint8_t *buf, int len)
@@ -241,7 +237,8 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq irq, void *iommu)
+void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
+                       void *iommu, qemu_irq **dev_irq)
 {
     DMAState *s;
     int dma_io_memory;
@@ -250,7 +247,7 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq irq, void *iommu)
     if (!s)
         return NULL;
 
-    s->irq = irq;
+    s->irq = parent_irq;
     s->iommu = iommu;
 
     dma_io_memory = cpu_register_io_memory(0, dma_mem_read, dma_mem_write, s);
@@ -258,6 +255,7 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq irq, void *iommu)
 
     register_savevm("sparc32_dma", daddr, 2, dma_save, dma_load, s);
     qemu_register_reset(dma_reset, s);
+    *dev_irq = qemu_allocate_irqs(dma_set_irq, s, 1);
 
     return s;
 }
