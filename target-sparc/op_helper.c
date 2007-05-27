@@ -1111,7 +1111,10 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
         printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
                "\n", addr, env->pc);
 #endif
-        raise_exception(TT_DATA_ACCESS);
+        if (is_exec)
+            raise_exception(TT_CODE_ACCESS);
+        else
+            raise_exception(TT_DATA_ACCESS);
     }
     env = saved_env;
 }
@@ -1130,7 +1133,10 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
            addr, env->pc);
     env = saved_env;
 #endif
-    raise_exception(TT_DATA_ACCESS);
+    if (is_exec)
+        raise_exception(TT_CODE_ACCESS);
+    else
+        raise_exception(TT_DATA_ACCESS);
 }
 #endif
 

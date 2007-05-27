@@ -40,6 +40,7 @@
 #define TT_DFAULT   0x09
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
+#define TT_CODE_ACCESS 0x21
 #define TT_DATA_ACCESS 0x29
 #define TT_DIV_ZERO 0x2a
 #define TT_NCP_INSN 0x24
@@ -47,6 +48,7 @@
 #else
 #define TT_TFAULT   0x08
 #define TT_TMISS    0x09
+#define TT_CODE_ACCESS 0x0a
 #define TT_ILL_INSN 0x10
 #define TT_PRIV_INSN 0x11
 #define TT_NFPU_INSN 0x20
