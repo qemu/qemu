@@ -71,18 +71,22 @@ static void slavio_check_interrupts(void *opaque);
 static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     SLAVIO_INTCTLState *s = opaque;
-    uint32_t saddr;
+    uint32_t saddr, ret;
     int cpu;
 
     cpu = (addr & (MAX_CPUS - 1) * TARGET_PAGE_SIZE) >> 12;
     saddr = (addr & INTCTL_MAXADDR) >> 2;
     switch (saddr) {
     case 0:
-	return s->intreg_pending[cpu];
+        ret = s->intreg_pending[cpu];
+        break;
     default:
-	break;
+        ret = 0;
+        break;
     }
-    return 0;
+    DPRINTF("read cpu %d reg 0x%x = %x\n", addr, ret);
+
+    return ret;
 }
 
 static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -93,6 +97,7 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
 
     cpu = (addr & (MAX_CPUS - 1) * TARGET_PAGE_SIZE) >> 12;
     saddr = (addr & INTCTL_MAXADDR) >> 2;
+    DPRINTF("write cpu %d reg 0x%x = %x\n", cpu, addr, val);
     switch (saddr) {
     case 1: // clear pending softints
 	if (val & 0x4000)
@@ -128,20 +133,26 @@ static CPUWriteMemoryFunc *slavio_intctl_mem_write[3] = {
 static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     SLAVIO_INTCTLState *s = opaque;
-    uint32_t saddr;
+    uint32_t saddr, ret;
 
     saddr = (addr & INTCTLM_MAXADDR) >> 2;
     switch (saddr) {
     case 0:
-	return s->intregm_pending & 0x7fffffff;
+        ret = s->intregm_pending & 0x7fffffff;
+        break;
     case 1:
-	return s->intregm_disabled;
+        ret = s->intregm_disabled;
+        break;
     case 4:
-	return s->target_cpu;
+        ret = s->target_cpu;
+        break;
     default:
-	break;
+        ret = 0;
+        break;
     }
-    return 0;
+    DPRINTF("read system reg 0x%x = %x\n", addr, ret);
+
+    return ret;
 }
 
 static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -150,6 +161,7 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     uint32_t saddr;
 
     saddr = (addr & INTCTLM_MASK) >> 2;
+    DPRINTF("write system reg 0x%x = %x\n", addr, val);
     switch (saddr) {
     case 2: // clear (enable)
 	// Force clear unused bits
