@@ -626,6 +626,9 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
             isa_ne2000_init(ne2000_io[i], i8259[ne2000_irq[i]], &nd_table[i]);
+        } else if (strcmp(nd_table[0].model, "?") == 0) {
+            fprintf(stderr, "qemu: Supported NICs: ne2k_isa\n");
+            exit (1);
         } else {
             /* Why ? */
             cpu_abort(env, "qemu: Unsupported NIC: %s\n", nd_table[0].model);

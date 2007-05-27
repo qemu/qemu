@@ -353,6 +353,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     if (nd_table[0].model == NULL
         || strcmp(nd_table[0].model, "lance") == 0) {
         lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq);
+    } else if (strcmp(nd_table[0].model, "?") == 0) {
+        fprintf(stderr, "qemu: Supported NICs: lance\n");
+        exit (1);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
         exit (1);

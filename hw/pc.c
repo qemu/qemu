@@ -865,7 +865,12 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         if (strcmp(nd->model, "ne2k_isa") == 0) {
             pc_init_ne2k_isa(nd, i8259);
         } else if (pci_enabled) {
+            if (strcmp(nd->model, "?") == 0)
+                fprintf(stderr, "qemu: Supported ISA NICs: ne2k_isa\n");
             pci_nic_init(pci_bus, nd, -1);
+        } else if (strcmp(nd->model, "?") == 0) {
+            fprintf(stderr, "qemu: Supported ISA NICs: ne2k_isa\n");
+            exit(1);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
             exit(1);

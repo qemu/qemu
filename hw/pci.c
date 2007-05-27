@@ -588,6 +588,10 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
         pci_rtl8139_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "pcnet") == 0) {
         pci_pcnet_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "?") == 0) {
+        fprintf(stderr, "qemu: Supported PCI NICs: i82551 i82557b i82559er"
+                        " ne2k_pci pcnet rtl8139\n");
+        exit (1);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
         exit (1);
