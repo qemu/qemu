@@ -687,7 +687,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     if (!(e2 & DESC_P_MASK))
         raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
     if (!(e2 & DESC_C_MASK) && dpl < cpl) {
-        /* to inner priviledge */
+        /* to inner privilege */
         get_ss_esp_from_tss(&ss, &esp, dpl);
         if ((ss & 0xfffc) == 0)
             raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
@@ -708,7 +708,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         sp_mask = get_sp_mask(ss_e2);
         ssp = get_seg_base(ss_e1, ss_e2);
     } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
-        /* to same priviledge */
+        /* to same privilege */
         if (env->eflags & VM_MASK)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0;
@@ -901,7 +901,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
     if (!(e2 & DESC_L_MASK) || (e2 & DESC_B_MASK))
         raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
     if ((!(e2 & DESC_C_MASK) && dpl < cpl) || ist != 0) {
-        /* to inner priviledge */
+        /* to inner privilege */
         if (ist != 0)
             esp = get_rsp_from_tss(ist + 3);
         else
@@ -910,7 +910,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
         ss = 0;
         new_stack = 1;
     } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
-        /* to same priviledge */
+        /* to same privilege */
         if (env->eflags & VM_MASK)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0;
@@ -2208,7 +2208,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
 
         if (!(e2 & DESC_C_MASK) && dpl < cpl) {
-            /* to inner priviledge */
+            /* to inner privilege */
             get_ss_esp_from_tss(&ss, &sp, dpl);
 #ifdef DEBUG_PCALL
             if (loglevel & CPU_LOG_PCALL)
@@ -2255,7 +2255,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
             }
             new_stack = 1;
         } else {
-            /* to same priviledge */
+            /* to same privilege */
             sp = ESP;
             sp_mask = get_sp_mask(env->segs[R_SS].flags);
             ssp = env->segs[R_SS].base;
@@ -2437,7 +2437,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
                        get_seg_limit(e1, e2),
                        e2);
     } else {
-        /* return to different priviledge level */
+        /* return to different privilege level */
 #ifdef TARGET_X86_64
         if (shift == 2) {
             POPQ(sp, new_esp);

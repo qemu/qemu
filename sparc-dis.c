@@ -276,7 +276,7 @@ const struct sparc_opcode_arch sparc_opcode_archs[] = {
   { "v8", MASK_V6 | MASK_V7 | MASK_V8 },
   { "sparclet", MASK_V6 | MASK_V7 | MASK_V8 | MASK_SPARCLET },
   { "sparclite", MASK_V6 | MASK_V7 | MASK_V8 | MASK_SPARCLITE },
-  /* ??? Don't some v8 priviledged insns conflict with v9?  */
+  /* ??? Don't some v8 privileged insns conflict with v9?  */
   { "v9", MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 },
   /* v9 with ultrasparc additions */
   { "v9a", MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 | MASK_V9A },

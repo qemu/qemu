@@ -2245,7 +2245,7 @@ static void gen_exception(DisasContext *s, int trapno, target_ulong cur_eip)
 }
 
 /* an interrupt is different from an exception because of the
-   priviledge checks */
+   privilege checks */
 static void gen_interrupt(DisasContext *s, int intno, 
                           target_ulong cur_eip, target_ulong next_eip)
 {

@@ -3026,10 +3026,10 @@ static inline void gen_op_mfspr (DisasContext *ctx)
         } else {
             /* Privilege exception */
             if (loglevel != 0) {
-                fprintf(logfile, "Trying to read priviledged spr %d %03x\n",
+                fprintf(logfile, "Trying to read privileged spr %d %03x\n",
                         sprn, sprn);
             }
-            printf("Trying to read priviledged spr %d %03x\n", sprn, sprn);
+            printf("Trying to read privileged spr %d %03x\n", sprn, sprn);
             RET_PRIVREG(ctx);
         }
     } else {
@@ -3132,10 +3132,10 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         } else {
             /* Privilege exception */
             if (loglevel != 0) {
-                fprintf(logfile, "Trying to write priviledged spr %d %03x\n",
+                fprintf(logfile, "Trying to write privileged spr %d %03x\n",
                         sprn, sprn);
             }
-            printf("Trying to write priviledged spr %d %03x\n", sprn, sprn);
+            printf("Trying to write privileged spr %d %03x\n", sprn, sprn);
             RET_PRIVREG(ctx);
         }
     } else {
@@ -4019,7 +4019,7 @@ GEN_HANDLER(clf, 0x1F, 0x16, 0x03, 0x03E00000, PPC_POWER)
 /* cli */
 GEN_HANDLER(cli, 0x1F, 0x16, 0x0F, 0x03E00000, PPC_POWER)
 {
-    /* Cache line invalidate: priviledged and treated as no-op */
+    /* Cache line invalidate: privileged and treated as no-op */
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
 #else

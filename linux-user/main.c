@@ -1633,7 +1633,7 @@ void cpu_loop (CPUState *env)
             call_pal(env, (trapnr >> 6) | 0x80);
             break;
         case EXCP_CALL_PALP ... (EXCP_CALL_PALE - 1):
-            fprintf(stderr, "Priviledged call to PALcode\n");
+            fprintf(stderr, "Privileged call to PALcode\n");
             exit(1);
             break;
         case EXCP_DEBUG:
