@@ -55,6 +55,7 @@ typedef struct SLAVIO_INTCTLState {
 #endif
     CPUState *cpu_envs[MAX_CPUS];
     const uint32_t *intbit_to_level;
+    uint32_t cputimer_bit;
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf
@@ -280,7 +281,7 @@ static void slavio_check_interrupts(void *opaque)
  * "irq" here is the bit number in the system interrupt register to
  * separate serial and keyboard interrupts sharing a level.
  */
-void slavio_set_irq(void *opaque, int irq, int level)
+static void slavio_set_irq(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
@@ -302,26 +303,20 @@ void slavio_set_irq(void *opaque, int irq, int level)
     }
 }
 
-void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
+static void slavio_set_timer_irq_cpu(void *opaque, int cpu, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
-    DPRINTF("Set cpu %d local irq %d level %d\n", cpu, irq, level);
-    if (cpu == (unsigned int)-1) {
-        slavio_set_irq(opaque, irq, level);
+    DPRINTF("Set cpu %d local level %d\n", cpu, level);
+    if (!s->cpu_envs[cpu])
         return;
+
+    if (level) {
+        s->intreg_pending[cpu] |= s->cputimer_bit;
+    } else {
+        s->intreg_pending[cpu] &= ~s->cputimer_bit;
     }
-    if (irq < 32) {
-	uint32_t pil = s->intbit_to_level[irq];
-    	if (pil > 0) {
-	    if (level) {
-		s->intreg_pending[cpu] |= 1 << pil;
-	    }
-	    else {
-		s->intreg_pending[cpu] &= ~(1 << pil);
-	    }
-	}
-    }
+
     slavio_check_interrupts(s);
 }
 
@@ -371,12 +366,15 @@ static void slavio_intctl_reset(void *opaque)
 void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env)
 {
     SLAVIO_INTCTLState *s = opaque;
+
     s->cpu_envs[cpu] = env;
 }
 
 void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          const uint32_t *intbit_to_level,
-                         qemu_irq **irq)
+                         qemu_irq **irq, qemu_irq **cpu_irq,
+                         unsigned int cputimer)
+
 {
     int slavio_intctl_io_memory, slavio_intctlm_io_memory, i;
     SLAVIO_INTCTLState *s;
@@ -398,6 +396,9 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     register_savevm("slavio_intctl", addr, 1, slavio_intctl_save, slavio_intctl_load, s);
     qemu_register_reset(slavio_intctl_reset, s);
     *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
+
+    *cpu_irq = qemu_allocate_irqs(slavio_set_timer_irq_cpu, s, MAX_CPUS);
+    s->cputimer_bit = 1 << s->intbit_to_level[cputimer];
     slavio_intctl_reset(s);
     return s;
 }

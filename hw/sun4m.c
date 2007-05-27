@@ -56,7 +56,7 @@ struct hwdef {
     long vram_size, nvram_size;
     // IRQ numbers are not PIL ones, but master interrupt controller register
     // bit numbers
-    int intctl_g_intr, esp_irq, le_irq, cpu_irq, clock_irq, clock1_irq;
+    int intctl_g_intr, esp_irq, le_irq, clock_irq, clock1_irq;
     int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq;
     int machine_id; // For NVRAM
     uint32_t intbit_to_level[32];
@@ -264,7 +264,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     unsigned int i;
     void *iommu, *espdma, *ledma, *main_esp;
     const sparc_def_t *def;
-    qemu_irq *slavio_irq, *espdma_irq, *ledma_irq;
+    qemu_irq *slavio_irq, *slavio_cpu_irq,
+        *espdma_irq, *ledma_irq;
 
     /* init CPUs */
     sparc_find_by_name(cpu_model, &def);
@@ -291,7 +292,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000ULL,
                                        &hwdef->intbit_to_level[0],
-                                       &slavio_irq);
+                                       &slavio_irq, &slavio_cpu_irq,
+                                       hwdef->clock_irq);
     for(i = 0; i < smp_cpus; i++) {
         slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
     }
@@ -320,10 +322,10 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
     for (i = 0; i < MAX_CPUS; i++) {
         slavio_timer_init(hwdef->counter_base +
                           (target_phys_addr_t)(i * TARGET_PAGE_SIZE),
-                          hwdef->clock_irq, 0, i, slavio_intctl);
+                           slavio_cpu_irq[i], 0);
     }
-    slavio_timer_init(hwdef->counter_base + 0x10000ULL, hwdef->clock1_irq, 2,
-                      (unsigned int)-1, slavio_intctl);
+    slavio_timer_init(hwdef->counter_base + 0x10000ULL,
+                      slavio_irq[hwdef->clock1_irq], 2);
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq]);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device

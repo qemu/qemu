@@ -1230,10 +1230,10 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
               int depth);
 
 /* slavio_intctl.c */
-void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
 void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          const uint32_t *intbit_to_level,
-                         qemu_irq **irq);
+                         qemu_irq **irq, qemu_irq **cpu_irq,
+                         unsigned int cputimer);
 void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env);
 void slavio_pic_info(void *opaque);
 void slavio_irq_info(void *opaque);
@@ -1247,8 +1247,7 @@ int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
-void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
-                       unsigned int cpu, void *intctl);
+void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode);
 
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
