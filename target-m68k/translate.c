@@ -1929,7 +1929,10 @@ DISAS_INSN(shift_reg)
 
 DISAS_INSN(ff1)
 {
-    cpu_abort(NULL, "Unimplemented insn: ff1");
+    int reg;
+    reg = DREG(insn, 0);
+    gen_logic_cc(s, reg);
+    gen_op_ff1(reg, reg);
 }
 
 static int gen_get_sr(DisasContext *s)
