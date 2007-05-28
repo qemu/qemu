@@ -775,6 +775,10 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     int ret;
     mips_def_t *def;
     qemu_irq *i8259;
+    int piix4_devfn;
+    uint8_t *eeprom_buf;
+    i2c_bus *smbus;
+    int i;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -843,10 +847,15 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     pci_bus = pci_gt64120_init(i8259);
 
     /* Southbridge */
-    piix4_init(pci_bus, 80);
-    pci_piix3_ide_init(pci_bus, bs_table, 81, i8259);
-    usb_uhci_init(pci_bus, 82);
-    piix4_pm_init(pci_bus, 83);
+    piix4_devfn = piix4_init(pci_bus, 80);
+    pci_piix3_ide_init(pci_bus, bs_table, piix4_devfn + 1, i8259);
+    usb_uhci_init(pci_bus, piix4_devfn + 2);
+    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100);
+    eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
+    for (i = 0; i < 8; i++) {
+        /* TODO: Populate SPD eeprom data.  */
+        smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
+    }
     pit = pit_init(0x40, i8259[0]);
     DMA_init(0);
 
