@@ -260,6 +260,7 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_UM     0x0001 /* user mode                          */
 #define MIPS_HFLAG_DM     0x0008 /* Debug mode                         */
 #define MIPS_HFLAG_SM     0x0010 /* Supervisor mode                    */
+#define MIPS_HFLAG_64     0x0020 /* 64-bit instructions enabled        */
 #define MIPS_HFLAG_RE     0x0040 /* Reversed endianness                */
     /* If translation is interrupted between the branch instruction and
      * the delay slot, record what type of branch it is so that we can

@@ -730,9 +730,9 @@ OP_ST_TABLE(dl);
 OP_ST_TABLE(dr);
 OP_LD_TABLE(ld);
 OP_ST_TABLE(cd);
+OP_LD_TABLE(wu);
 #endif
 OP_LD_TABLE(w);
-OP_LD_TABLE(wu);
 OP_LD_TABLE(wl);
 OP_LD_TABLE(wr);
 OP_ST_TABLE(w);
@@ -773,6 +773,11 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
      */
     switch (opc) {
 #ifdef TARGET_MIPS64
+    case OPC_LWU:
+        op_ldst(lwu);
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "lwu";
+        break;
     case OPC_LD:
         op_ldst(ld);
         GEN_STORE_TN_REG(rt, T0);
@@ -822,11 +827,6 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         op_ldst(lw);
         GEN_STORE_TN_REG(rt, T0);
         opn = "lw";
-        break;
-    case OPC_LWU:
-        op_ldst(lwu);
-        GEN_STORE_TN_REG(rt, T0);
-        opn = "lwu";
         break;
     case OPC_SW:
         GEN_LOAD_REG_TN(T1, rt);
@@ -5377,14 +5377,20 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_DSRL ... OPC_DSRA:
         case OPC_DSLL32:
         case OPC_DSRL32 ... OPC_DSRA32:
+            if (!(ctx->hflags & MIPS_HFLAG_64))
+                generate_exception(ctx, EXCP_RI);
             gen_arith_imm(ctx, op1, rd, rt, sa);
             break;
         case OPC_DSLLV:
         case OPC_DSRLV ... OPC_DSRAV:
         case OPC_DADD ... OPC_DSUBU:
+            if (!(ctx->hflags & MIPS_HFLAG_64))
+                generate_exception(ctx, EXCP_RI);
             gen_arith(ctx, op1, rd, rs, rt);
             break;
         case OPC_DMULT ... OPC_DDIVU:
+            if (!(ctx->hflags & MIPS_HFLAG_64))
+                generate_exception(ctx, EXCP_RI);
             gen_muldiv(ctx, op1, rs, rt);
             break;
 #endif
@@ -5420,6 +5426,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
 #ifdef TARGET_MIPS64
         case OPC_DCLZ ... OPC_DCLO:
+            if (!(ctx->hflags & MIPS_HFLAG_64))
+                generate_exception(ctx, EXCP_RI);
             gen_cl(ctx, op1, rd, rs);
             break;
 #endif
@@ -5491,9 +5499,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 #ifdef TARGET_MIPS64
         case OPC_DEXTM ... OPC_DEXT:
         case OPC_DINSM ... OPC_DINS:
+            if (!(ctx->hflags & MIPS_HFLAG_64))
+                generate_exception(ctx, EXCP_RI);
             gen_bitops(ctx, op1, rt, rs, sa, rd);
             break;
         case OPC_DBSHFL:
+            if (!(ctx->hflags & MIPS_HFLAG_64))
+                generate_exception(ctx, EXCP_RI);
             op2 = MASK_DBSHFL(ctx->opcode);
             switch (op2) {
             case OPC_DSBH:
@@ -5732,9 +5744,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_LD:
     case OPC_SCD:
     case OPC_SD:
+        if (!(ctx->hflags & MIPS_HFLAG_64))
+            generate_exception(ctx, EXCP_RI);
         gen_ldst(ctx, op, rt, rs, imm);
         break;
     case OPC_DADDI ... OPC_DADDIU:
+        if (!(ctx->hflags & MIPS_HFLAG_64))
+            generate_exception(ctx, EXCP_RI);
         gen_arith_imm(ctx, op, rt, rs, imm);
         break;
 #endif
@@ -6072,11 +6088,14 @@ void cpu_reset (CPUMIPSState *env)
         /* If the exception was raised from a delay slot,
          * come back to the jump.  */
         env->CP0_ErrorEPC = env->PC - 4;
-        env->hflags &= ~MIPS_HFLAG_BMASK;
     } else {
         env->CP0_ErrorEPC = env->PC;
     }
+#ifdef TARGET_MIPS64
+    env->hflags = MIPS_HFLAG_64;
+#else
     env->hflags = 0;
+#endif
     env->PC = (int32_t)0xBFC00000;
     env->CP0_Wired = 0;
     /* SMP not implemented */

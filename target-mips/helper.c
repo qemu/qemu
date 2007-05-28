@@ -370,6 +370,7 @@ void do_interrupt (CPUState *env)
         }
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM;
+        env->hflags |= MIPS_HFLAG_64;
         env->hflags &= ~MIPS_HFLAG_UM;
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
@@ -395,6 +396,7 @@ void do_interrupt (CPUState *env)
             env->CP0_ErrorEPC = env->PC;
         }
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
+        env->hflags |= MIPS_HFLAG_64;
         env->hflags &= ~MIPS_HFLAG_UM;
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
@@ -493,6 +495,7 @@ void do_interrupt (CPUState *env)
                 env->CP0_Cause &= ~(1 << CP0Ca_BD);
             }
             env->CP0_Status |= (1 << CP0St_EXL);
+            env->hflags |= MIPS_HFLAG_64;
             env->hflags &= ~MIPS_HFLAG_UM;
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
