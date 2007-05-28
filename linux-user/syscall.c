@@ -953,7 +953,7 @@ static long do_recvfrom(int fd, target_ulong msg, size_t len, int flags,
     return ret;
 }
 
-static long do_socketcall(int num, target_ulong vptr)
+static long do_socketcall(int num, target_phys_addr_t vptr)
 {
     long ret;
     const int n = sizeof(target_ulong);
