@@ -4229,6 +4229,7 @@ static int net_client_init(const char *str)
         char ifname[64];
         char setup_script[1024];
         int fd;
+        vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             fd = strtol(buf, NULL, 0);
             ret = -1;
@@ -4241,7 +4242,6 @@ static int net_client_init(const char *str)
             if (get_param_value(setup_script, sizeof(setup_script), "script", p) == 0) {
                 pstrcpy(setup_script, sizeof(setup_script), DEFAULT_NETWORK_SCRIPT);
             }
-            vlan->nb_host_devs++;
             ret = net_tap_init(vlan, ifname, setup_script);
         }
     } else
