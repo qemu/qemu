@@ -858,6 +858,7 @@ extern uint8_t *phys_ram_dirty;
    exception, the write memory callback gets the ram offset instead of
    the physical address */
 #define IO_MEM_ROMD        (1)
+#define IO_MEM_SUBPAGE     (2)
 
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);

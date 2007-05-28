@@ -282,7 +282,35 @@ void qemu_system_powerdown(void)
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
+
     cpu_reset(env);
+    ptimer_set_limit(env->tick, 0x7fffffffffffffffULL, 1);
+    ptimer_run(env->tick, 0);
+    ptimer_set_limit(env->stick, 0x7fffffffffffffffULL, 1);
+    ptimer_run(env->stick, 0);
+    ptimer_set_limit(env->hstick, 0x7fffffffffffffffULL, 1);
+    ptimer_run(env->hstick, 0);
+}
+
+void tick_irq(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+}
+
+void stick_irq(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+}
+
+void hstick_irq(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
@@ -311,6 +339,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     long prom_offset, initrd_size, kernel_size;
     PCIBus *pci_bus;
     const sparc_def_t *def;
+    QEMUBH *bh;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -324,8 +353,20 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     }
     env = cpu_init();
     cpu_sparc_register(env, def);
+    bh = qemu_bh_new(tick_irq, env);
+    env->tick = ptimer_init(bh);
+    ptimer_set_period(env->tick, 1ULL);
+
+    bh = qemu_bh_new(stick_irq, env);
+    env->stick = ptimer_init(bh);
+    ptimer_set_period(env->stick, 1ULL);
+
+    bh = qemu_bh_new(hstick_irq, env);
+    env->hstick = ptimer_init(bh);
+    ptimer_set_period(env->hstick, 1ULL);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
+    main_cpu_reset(env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);

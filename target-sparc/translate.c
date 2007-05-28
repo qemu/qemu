@@ -1203,7 +1203,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_movl_T0_reg(rd);
                     break;
 		case 0x18: /* System tick */
-                    gen_op_rdtick(); // XXX
+                    gen_op_rdstick();
                     gen_movl_T0_reg(rd);
                     break;
 		case 0x19: /* System tick compare */
@@ -1992,21 +1992,23 @@ static void disas_sparc_insn(DisasContext * dc)
 				if (!supervisor(dc))
 				    goto illegal_insn;
 #endif
-				gen_op_movtl_env_T0(offsetof(CPUSPARCState, tick_cmpr));
+                                gen_op_movtl_env_T0(offsetof(CPUSPARCState, tick_cmpr));
+                                gen_op_wrtick_cmpr();
 				break;
 			    case 0x18: /* System tick */
 #if !defined(CONFIG_USER_ONLY)
 				if (!supervisor(dc))
 				    goto illegal_insn;
 #endif
-				gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
+                                gen_op_wrstick();
 				break;
 			    case 0x19: /* System tick compare */
 #if !defined(CONFIG_USER_ONLY)
 				if (!supervisor(dc))
 				    goto illegal_insn;
 #endif
-				gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
+                                gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
+                                gen_op_wrstick_cmpr();
 				break;
 
 			    case 0x10: /* Performance Control */
@@ -2156,7 +2158,8 @@ static void disas_sparc_insn(DisasContext * dc)
                                 gen_op_movl_env_T0(offsetof(CPUSPARCState, htba));
                                 break;
                             case 31: // hstick_cmpr
-                                gen_op_movl_env_T0(offsetof(CPUSPARCState, hstick_cmpr));
+                                gen_op_movtl_env_T0(offsetof(CPUSPARCState, hstick_cmpr));
+                                gen_op_wrhstick_cmpr();
                                 break;
                             case 6: // hver readonly
                             default:

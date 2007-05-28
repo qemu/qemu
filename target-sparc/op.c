@@ -1096,12 +1096,38 @@ void OPPROTO op_wrccr(void)
 
 void OPPROTO op_rdtick(void)
 {
-    T0 = 0; // XXX read cycle counter and bit 31
+    T0 = do_tick_get_count(env->tick);
 }
 
 void OPPROTO op_wrtick(void)
 {
-    T0 = 0; // XXX write cycle counter and bit 31
+    do_tick_set_count(env->tick, T0);
+}
+
+void OPPROTO op_wrtick_cmpr(void)
+{
+    do_tick_set_limit(env->tick, T0);
+}
+
+void OPPROTO op_rdstick(void)
+{
+    T0 = do_tick_get_count(env->stick);
+}
+
+void OPPROTO op_wrstick(void)
+{
+    do_tick_set_count(env->stick, T0);
+    do_tick_set_count(env->hstick, T0);
+}
+
+void OPPROTO op_wrstick_cmpr(void)
+{
+    do_tick_set_limit(env->stick, T0);
+}
+
+void OPPROTO op_wrhstick_cmpr(void)
+{
+    do_tick_set_limit(env->hstick, T0);
 }
 
 void OPPROTO op_rdtpc(void)

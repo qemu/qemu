@@ -63,7 +63,7 @@ void glue(op_lw, MEMSUFFIX) (void)
 
 void glue(op_lwu, MEMSUFFIX) (void)
 {
-    T0 = glue(ldl, MEMSUFFIX)(T0);
+    T0 = (uint32_t)glue(ldl, MEMSUFFIX)(T0);
     RETURN();
 }
 

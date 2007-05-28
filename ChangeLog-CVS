@@ -1,3 +1,169 @@
+2007-05-28 23:01  ths
+
+	* Makefile.target, vl.h, hw/acpi.c, hw/mips_malta.c, hw/pc.c: SMBus
+	  support for MIPS Malta.
+
+2007-05-28 22:36  ths
+
+	* target-mips/: cpu.h, helper.c, op.c, translate.c: Handle PX/UX
+	  status flags correctly, by Aurelien Jarno.
+
+2007-05-28 22:07  ths
+
+	* linux-user/syscall.c: Revert last change, this workaround is long
+	  obsolete.
+
+2007-05-28 19:36  ths
+
+	* target-mips/op_helper.c: Fix ddivu for 32bit hosts, by Aurelien
+	  Jarno.
+
+2007-05-28 19:09  ths
+
+	* target-mips/op_mem.c: Do not sign extend lwu, by Aurelien Jarno.
+
+2007-05-28 19:03  ths
+
+	* target-mips/: op.c, op_template.c, translate.c: MIPS64 addressing
+	  fixes, by Aurelien Jarno.
+
+2007-05-28 16:05  ths
+
+	* linux-user/syscall.c: Fix do_socketcall argument, by Daniel
+	  Jacobowitz.
+
+2007-05-28 15:40  ths
+
+	* mips-dis.c: MIPS disassembler update.
+
+2007-05-28 13:26  balrog
+
+	* hw/: pxa.h, pxa2xx.c: Remove a local subpage IO hack, now that
+	  general subpage IO works.
+
+2007-05-28 04:29  pbrook
+
+	* vl.c: Fix tap device counting.
+
+2007-05-28 04:20  pbrook
+
+	* target-m68k/: op.c, translate.c: Implement ColdFire ff1.
+
+2007-05-28 03:46  pbrook
+
+	* target-m68k/translate.c: Add diagnostic for bad opcode masks.
+
+2007-05-27 21:42  blueswir1
+
+	* hw/slavio_intctl.c: Interrupt debugging DPRINTFs
+
+2007-05-27 21:41  blueswir1
+
+	* qemu-doc.texi, hw/integratorcp.c, hw/mips_r4k.c, hw/pc.c,
+	  hw/pci.c, hw/ppc_prep.c, hw/sun4m.c: New option -net nic,model=?
+	  (Mark Glines) Network documentation update (Mark Glines)
+
+2007-05-27 21:39  blueswir1
+
+	* sparc-dis.c, linux-user/main.c, target-i386/helper.c,
+	  target-i386/translate.c, target-ppc/translate.c: Spelling fix
+	  (Mark Glines)
+
+2007-05-27 21:38  blueswir1
+
+	* hw/: pcnet.c, sun4m.c: Handle unconnected vlan case in lance
+
+2007-05-27 21:36  blueswir1
+
+	* vl.c, vl.h: Improved sanity checking to -net options
+
+2007-05-27 21:36  blueswir1
+
+	* target-sparc/: cpu.h, op_helper.c: Separate fault for code access
+	  to unassigned memory
+
+2007-05-27 18:42  blueswir1
+
+	* vl.h, hw/slavio_intctl.c, hw/sun4m.c: Use qemu_irqs between CPUs
+	  and interrupt controller Fix interrupt priority handling which
+	  prevented SMP from working
+
+2007-05-27 18:37  blueswir1
+
+	* vl.h, hw/slavio_intctl.c, hw/slavio_timer.c, hw/sun4m.c: Use
+	  qemu_irq between interrupt controller and timers
+
+2007-05-27 18:36  blueswir1
+
+	* vl.h, hw/esp.c, hw/pcnet.c, hw/sparc32_dma.c, hw/sun4m.c: Use
+	  qemu_irqs between dma controllers and esp, lance
+
+2007-05-27 01:48  pbrook
+
+	* target-m68k/translate.c: Fix typo in m68k outer displacement
+	  addressing (Andreas Schwab).
+
+2007-05-27 00:11  pbrook
+
+	* target-m68k/translate.c: Generate m68k address faults.
+
+2007-05-26 23:16  pbrook
+
+	* target-m68k/: cpu.h, translate.c: M68k extended addressing modes.
+
+2007-05-26 19:39  blueswir1
+
+	* vl.h, hw/cs4231.c, hw/esp.c, hw/pcnet.c, hw/slavio_intctl.c,
+	  hw/slavio_misc.c, hw/slavio_serial.c, hw/slavio_timer.c,
+	  hw/sparc32_dma.c, hw/sun4m.c: Split DMA controller in two Fix
+	  register size related bugs
+
+2007-05-26 19:36  blueswir1
+
+	* cpu-all.h, exec.c: Implement generic sub-page I/O based on
+	  earlier work by J. Mayer.
+
+2007-05-26 18:59  pbrook
+
+	* .cvsignore: Ignore m68k-softmmu.
+
+2007-05-26 18:56  pbrook
+
+	* Changelog: Update Changelog.
+
+2007-05-26 18:52  pbrook
+
+	* linux-user/main.c, target-m68k/cpu.h, target-m68k/helper.c,
+	  target-m68k/translate.c: Rework m68k cpu feature flags.
+
+2007-05-26 18:46  pbrook
+
+	* softmmu-semi.h: Add missing file.
+
+2007-05-26 18:38  pbrook
+
+	* configure: Reject invalid targets.
+
+2007-05-26 17:18  pbrook
+
+	* linux-user/syscall_defs.h: Suppress pointer from integer of
+	  different size warning.
+
+2007-05-26 17:09  pbrook
+
+	* Makefile.target, arm-semi.c, gdbstub.c, m68k-semi.c,
+	  qemu-doc.texi, vl.c, linux-user/m68k-semi.c, linux-user/main.c,
+	  linux-user/qemu.h, target-m68k/cpu.h, target-m68k/op.c,
+	  target-m68k/op_helper.c, target-m68k/translate.c: M68k system
+	  mode semihosting.
+
+2007-05-25 20:50  blueswir1
+
+	* Makefile.target, hw/sun4u.c, target-sparc/cpu.h,
+	  target-sparc/op.c, target-sparc/op_helper.c,
+	  target-sparc/translate.c: Implement Sparc64 CPU timers using
+	  ptimers
+
 2007-05-24 21:48  blueswir1
 
 	* Makefile.target, vl.h, hw/ptimer.c, hw/slavio_timer.c: Change

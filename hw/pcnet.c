@@ -1267,7 +1267,8 @@ static void pcnet_transmit(PCNetState *s)
             if (CSR_LOOP(s))
                 pcnet_receive(s, s->buffer, s->xmit_pos);
             else
-                qemu_send_packet(s->vc, s->buffer, s->xmit_pos);
+                if (s->vc)
+                    qemu_send_packet(s->vc, s->buffer, s->xmit_pos);
 
             s->csr[0] &= ~0x0008;   /* clear TDMD */
             s->csr[4] |= 0x0004;    /* set TXSTRT */
@@ -1554,7 +1555,7 @@ static uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap)
     return val;
 }
 
-void pcnet_h_reset(void *opaque)
+static void pcnet_h_reset(void *opaque)
 {
     PCNetState *s = opaque;
     int i;
@@ -1562,7 +1563,8 @@ void pcnet_h_reset(void *opaque)
 
     /* Initialize the PROM */
 
-    memcpy(s->prom, s->nd->macaddr, 6);
+    if (s->nd)
+        memcpy(s->prom, s->nd->macaddr, 6);
     s->prom[12] = s->prom[13] = 0x00;
     s->prom[14] = s->prom[15] = 0x57;
 
@@ -1898,18 +1900,21 @@ static void pcnet_common_init(PCNetState *d, NICInfo *nd, const char *info_str)
 
     d->nd = nd;
 
-    d->vc = qemu_new_vlan_client(nd->vlan, pcnet_receive, 
-                                 pcnet_can_receive, d);
-    
-    snprintf(d->vc->info_str, sizeof(d->vc->info_str),
-             "pcnet macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             d->nd->macaddr[0],
-             d->nd->macaddr[1],
-             d->nd->macaddr[2],
-             d->nd->macaddr[3],
-             d->nd->macaddr[4],
-             d->nd->macaddr[5]);
+    if (nd && nd->vlan) {
+        d->vc = qemu_new_vlan_client(nd->vlan, pcnet_receive,
+                                     pcnet_can_receive, d);
 
+        snprintf(d->vc->info_str, sizeof(d->vc->info_str),
+                 "pcnet macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+                 d->nd->macaddr[0],
+                 d->nd->macaddr[1],
+                 d->nd->macaddr[2],
+                 d->nd->macaddr[3],
+                 d->nd->macaddr[4],
+                 d->nd->macaddr[5]);
+    } else {
+        d->vc = NULL;
+    }
     pcnet_h_reset(d);
     register_savevm("pcnet", 0, 2, pcnet_save, pcnet_load, d);
 }
@@ -2018,7 +2023,7 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
     (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
 };
 
-void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
+void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
                  qemu_irq irq)
 {
     PCNetState *d;
@@ -2026,12 +2031,14 @@ void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
 
     d = qemu_mallocz(sizeof(PCNetState));
     if (!d)
-        return NULL;
+        return;
 
     lance_io_memory =
         cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);
 
     d->dma_opaque = dma_opaque;
+    sparc32_dma_set_reset_data(dma_opaque, pcnet_h_reset, d);
+
     cpu_register_physical_memory(leaddr, 4, lance_io_memory);
 
     d->irq = irq;
@@ -2039,7 +2046,5 @@ void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
     d->phys_mem_write = ledma_memory_write;
 
     pcnet_common_init(d, nd, "lance");
-
-    return d;
 }
 #endif /* TARGET_SPARC */

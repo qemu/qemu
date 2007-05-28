@@ -51,6 +51,7 @@
 #define EXCP_ICE            13
 
 #define EXCP_RTE            0x100
+#define EXCP_HALT_INSN      0x101
 
 typedef struct CPUM68KState {
     uint32_t dregs[8];
@@ -83,6 +84,8 @@ typedef struct CPUM68KState {
     uint32_t vbr;
     uint32_t mbar;
     uint32_t rambar0;
+
+    uint32_t features;
 
     /* ??? remove this.  */
     uint32_t t1;
@@ -147,6 +150,26 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name);
 void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector);
 
 #define M68K_FPCR_PREC (1 << 6)
+
+void do_m68k_semihosting(CPUM68KState *env, int nr);
+
+enum m68k_features {
+    M68K_FEATURE_CF_ISA_A,
+    M68K_FEATURE_CF_ISA_B,
+    M68K_FEATURE_CF_ISA_C,
+    M68K_FEATURE_CF_FPU,
+    M68K_FEATURE_CF_MAC,
+    M68K_FEATURE_CF_EMAC,
+    M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
+    M68K_FEATURE_WORD_INDEX /* word sized address index registers.  */
+};
+
+static inline int m68k_feature(CPUM68KState *env, int feature)
+{
+    return (env->features & (1u << feature)) != 0;
+}
+
+void register_m68k_insns (CPUM68KState *env);
 
 #ifdef CONFIG_USER_ONLY
 /* Linux uses 8k pages.  */

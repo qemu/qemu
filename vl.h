@@ -397,6 +397,7 @@ typedef struct VLANState {
     int id;
     VLANClientState *first_client;
     struct VLANState *next;
+    unsigned int nb_guest_devs, nb_host_devs;
 } VLANState;
 
 VLANState *qemu_find_vlan(int id);
@@ -1062,8 +1063,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 /* pcnet.c */
 
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pcnet_h_reset(void *opaque);
-void *lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
+void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
                  qemu_irq irq);
 
 /* tnetw1130.c */
@@ -1159,7 +1159,7 @@ int pcspk_audio_init(AudioState *, qemu_irq *pic);
 
 /* acpi.c */
 extern int acpi_enabled;
-i2c_bus *piix4_pm_init(PCIBus *bus, int devfn);
+i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 void acpi_bios_init(void);
 
@@ -1263,11 +1263,10 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
               int depth);
 
 /* slavio_intctl.c */
-void pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
 void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          const uint32_t *intbit_to_level,
-                         qemu_irq **irq);
-void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env);
+                         qemu_irq **irq, qemu_irq **cpu_irq,
+                         qemu_irq **parent_irq, unsigned int cputimer);
 void slavio_pic_info(void *opaque);
 void slavio_irq_info(void *opaque);
 
@@ -1280,8 +1279,7 @@ int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
-void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
-                       unsigned int cpu, void *intctl);
+void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode);
 
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
@@ -1296,23 +1294,19 @@ void slavio_set_power_fail(void *opaque, int power_failing);
 /* esp.c */
 void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
-               void *dma_opaque);
-void esp_reset(void *opaque);
+               void *dma_opaque, qemu_irq irq);
 
 /* sparc32_dma.c */
-void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq espirq,
-                       qemu_irq leirq, void *iommu);
-void ledma_set_irq(void *opaque, int isr);
+void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
+                       void *iommu, qemu_irq **dev_irq);
 void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
                        uint8_t *buf, int len, int do_bswap);
 void ledma_memory_write(void *opaque, target_phys_addr_t addr, 
                         uint8_t *buf, int len, int do_bswap);
-void espdma_raise_irq(void *opaque);
-void espdma_clear_irq(void *opaque);
 void espdma_memory_read(void *opaque, uint8_t *buf, int len);
 void espdma_memory_write(void *opaque, uint8_t *buf, int len);
-void sparc32_dma_set_reset_data(void *opaque, void *esp_opaque,
-                                void *lance_opaque);
+void sparc32_dma_set_reset_data(void *opaque, void (*dev_reset)(void *opaque),
+                                void *dev_opaque);
 
 /* cs4231.c */
 void cs_init(target_phys_addr_t base, int irq, void *intctl);

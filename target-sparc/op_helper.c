@@ -1111,7 +1111,10 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
         printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
                "\n", addr, env->pc);
 #endif
-        raise_exception(TT_DATA_ACCESS);
+        if (is_exec)
+            raise_exception(TT_CODE_ACCESS);
+        else
+            raise_exception(TT_DATA_ACCESS);
     }
     env = saved_env;
 }
@@ -1130,6 +1133,26 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
            addr, env->pc);
     env = saved_env;
 #endif
-    raise_exception(TT_DATA_ACCESS);
+    if (is_exec)
+        raise_exception(TT_CODE_ACCESS);
+    else
+        raise_exception(TT_DATA_ACCESS);
+}
+#endif
+
+#ifdef TARGET_SPARC64
+void do_tick_set_count(void *opaque, uint64_t count)
+{
+    ptimer_set_count(opaque, -count);
+}
+
+uint64_t do_tick_get_count(void *opaque)
+{
+    return -ptimer_get_count(opaque);
+}
+
+void do_tick_set_limit(void *opaque, uint64_t limit)
+{
+    ptimer_set_limit(opaque, -limit, 0);
 }
 #endif

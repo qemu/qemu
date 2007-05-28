@@ -865,7 +865,12 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         if (strcmp(nd->model, "ne2k_isa") == 0) {
             pc_init_ne2k_isa(nd, i8259);
         } else if (pci_enabled) {
+            if (strcmp(nd->model, "?") == 0)
+                fprintf(stderr, "qemu: Supported ISA NICs: ne2k_isa\n");
             pci_nic_init(pci_bus, nd, -1);
+        } else if (strcmp(nd->model, "?") == 0) {
+            fprintf(stderr, "qemu: Supported ISA NICs: ne2k_isa\n");
+            exit(1);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
             exit(1);
@@ -900,7 +905,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         i2c_bus *smbus;
 
         /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3);
+        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100);
         for (i = 0; i < 8; i++) {
             smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
         }

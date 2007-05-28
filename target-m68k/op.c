@@ -167,6 +167,16 @@ OP(btest)
     FORCE_RET();
 }
 
+OP(ff1)
+{
+    uint32_t arg = get_op(PARAM2);
+    int n;
+    for (n = 32; arg; n--)
+        arg >>= 1;
+    set_op(PARAM1, n);
+    FORCE_RET();
+}
+
 OP(subx_cc)
 {
     uint32_t op1 = get_op(PARAM1);
@@ -380,7 +390,14 @@ OP(divs)
     FORCE_RET();
 }
 
+/* Halt is special because it may be a semihosting call.  */
 OP(halt)
+{
+    RAISE_EXCEPTION(EXCP_HALT_INSN);
+    FORCE_RET();
+}
+
+OP(stop)
 {
     env->halted = 1;
     RAISE_EXCEPTION(EXCP_HLT);

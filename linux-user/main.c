@@ -1491,9 +1491,9 @@ void cpu_loop(CPUM68KState *env)
                 }
             }
             break;
-        case EXCP_HALTED:
+        case EXCP_HALT_INSN:
             /* Semihosing syscall.  */
-            env->pc += 2;
+            env->pc += 4;
             do_m68k_semihosting(env, env->dregs[0]);
             break;
         case EXCP_LINEA:
@@ -1622,7 +1622,7 @@ void cpu_loop (CPUState *env)
             call_pal(env, (trapnr >> 6) | 0x80);
             break;
         case EXCP_CALL_PALP ... (EXCP_CALL_PALE - 1):
-            fprintf(stderr, "Priviledged call to PALcode\n");
+            fprintf(stderr, "Privileged call to PALcode\n");
             exit(1);
             break;
         case EXCP_DEBUG:
@@ -1909,10 +1909,6 @@ int main(int argc, char **argv)
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
         }
-        ts->stack_base = info->start_stack;
-        ts->heap_base = info->brk;
-        /* This will be filled in on the first SYS_HEAPINFO call.  */
-        ts->heap_limit = 0;
     }
 #elif defined(TARGET_SPARC)
     {
@@ -1969,7 +1965,7 @@ int main(int argc, char **argv)
 #elif defined(TARGET_M68K)
     {
         if (cpu_model == NULL)
-            cpu_model = "cfv4e";
+            cpu_model = "any";
         if (cpu_m68k_set_model(env, cpu_model)) {
             cpu_abort(cpu_single_env,
                       "Unable to find m68k CPU definition\n");
@@ -2038,6 +2034,13 @@ int main(int argc, char **argv)
     }
 #else
 #error unsupported target CPU
+#endif
+
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
+    ts->stack_base = info->start_stack;
+    ts->heap_base = info->brk;
+    /* This will be filled in on the first SYS_HEAPINFO call.  */
+    ts->heap_limit = 0;
 #endif
 
     if (gdbstub_port) {

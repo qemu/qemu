@@ -182,10 +182,10 @@ __target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cms
 
   __cmsg = (struct target_cmsghdr *) ((unsigned char *) __cmsg
                                + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len)));
-  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) tswapl(__mhdr->msg_control)
+  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) (unsigned long)tswapl(__mhdr->msg_control)
                                         + tswapl(__mhdr->msg_controllen))
       || ((unsigned char *) __cmsg + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len))
-          > ((unsigned char *) tswapl(__mhdr->msg_control) 
+          > ((unsigned char *) (unsigned long) tswapl(__mhdr->msg_control) 
              + tswapl(__mhdr->msg_controllen))))
     /* No more entries.  */
     return 0;

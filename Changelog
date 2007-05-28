@@ -5,6 +5,8 @@
   - CPU model selection support (J. Mayer, Paul Brook, Herve Poussineau)
   - Several Sparc fixes (Aurelien Jarno, Blue Swirl)
   - MIPS 64-bit FPU support (Thiemo Seufer)
+  - Xscale PDA emulation (Andrzei Zaborowski)
+  - ColdFire system emulation (Paul Brook)
 
 version 0.9.0:
 

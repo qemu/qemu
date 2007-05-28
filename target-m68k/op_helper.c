@@ -28,6 +28,8 @@ void do_interrupt(int is_hw)
 
 #else
 
+extern int semihosting_enabled;
+
 #define MMUSUFFIX _mmu
 #define GETPC() (__builtin_return_address(0))
 
@@ -103,6 +105,20 @@ void do_interrupt(int is_hw)
         case EXCP_RTE:
             /* Return from an exception.  */
             do_rte();
+            return;
+        case EXCP_HALT_INSN:
+            if (semihosting_enabled
+                    && (env->sr & SR_S) != 0
+                    && (env->pc & 3) == 0
+                    && lduw_code(env->pc - 4) == 0x4e71
+                    && ldl_code(env->pc) == 0x4e7bf000) {
+                env->pc += 4;
+                do_m68k_semihosting(env, env->dregs[0]);
+                return;
+            }
+            env->halted = 1;
+            env->exception_index = EXCP_HLT;
+            cpu_loop_exit();
             return;
         }
         if (env->exception_index >= EXCP_TRAP0

@@ -153,7 +153,7 @@ PS/2 mouse and keyboard
 @item
 Floppy disk
 @item 
-NE2000 PCI network adapters
+PCI/ISA PCI network adapters
 @item
 Serial ports
 @item
@@ -355,7 +355,7 @@ Network options:
 
 @item -net nic[,vlan=n][,macaddr=addr][,model=type]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
-= 0 is the default). The NIC is currently an NE2000 on the PC
+= 0 is the default). The NIC is an ne2k_pci by default on the PC
 target. Optionally, the MAC address can be changed. If no
 @option{-net} option is specified, a single NIC is created.
 Qemu can emulate several different models of network card.
@@ -363,7 +363,8 @@ Valid values for @var{type} are
 @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
 @code{smc91c111} and @code{lance}.
-Not all devices are supported on all targets.
+Not all devices are supported on all targets.  Use -net nic,model=?
+for a list of available devices for your target.
 
 @item -net user[,vlan=n][,hostname=name]
 Use the user mode network stack which requires no administrator
@@ -715,7 +716,11 @@ Exit instead of rebooting.
 Start right away with a saved state (@code{loadvm} in monitor)
 
 @item -semihosting
-Enable "Angel" semihosting interface (ARM target machines only).
+Enable semihosting syscall emulation (ARM and M68K target machines only).
+
+On ARM this implements the "Angel" interface.
+On M68K this implements the "ColdFire GDB" interface used by libgloss.
+
 Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
 @end table
@@ -1206,7 +1211,7 @@ What you should @emph{never} do:
 @node pcsys_network
 @section Network emulation
 
-QEMU can simulate several networks cards (NE2000 boards on the PC
+QEMU can simulate several networks cards (PCI or ISA cards on the PC
 target) and can connect them to an arbitrary number of Virtual Local
 Area Networks (VLANs). Host TAP devices can be connected to any QEMU
 VLAN. VLAN can be connected between separate instances of QEMU to

@@ -48,17 +48,16 @@ do { printf("TIMER: " fmt , ##args); } while (0)
  */
 
 typedef struct SLAVIO_TIMERState {
+    qemu_irq irq;
     ptimer_state *timer;
     uint32_t count, counthigh, reached;
     uint64_t limit;
-    int irq;
     int stopped;
     int mode; // 0 = processor, 1 = user, 2 = system
-    unsigned int cpu;
-    void *intctl;
 } SLAVIO_TIMERState;
 
 #define TIMER_MAXADDR 0x1f
+#define TIMER_SIZE (TIMER_MAXADDR + 1)
 
 // Update count, set irq, update expire_time
 // Convert from ptimer countdown units
@@ -82,7 +81,7 @@ static void slavio_timer_irq(void *opaque)
     DPRINTF("callback: count %x%08x\n", s->counthigh, s->count);
     s->reached = 0x80000000;
     if (s->mode != 1)
-	pic_set_irq_cpu(s->intctl, s->irq, 1, s->cpu);
+	qemu_irq_raise(s->irq);
 }
 
 static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -97,7 +96,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
 	// part of counter (user mode)
 	if (s->mode != 1) {
 	    // clear irq
-	    pic_set_irq_cpu(s->intctl, s->irq, 0, s->cpu);
+            qemu_irq_lower(s->irq);
 	    s->reached = 0;
             ret = s->limit & 0x7fffffff;
 	}
@@ -144,7 +143,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
     case 0:
 	// set limit, reset counter
         reload = 1;
-        pic_set_irq_cpu(s->intctl, s->irq, 0, s->cpu);
+	qemu_irq_lower(s->irq);
 	// fall through
     case 2:
 	// set limit without resetting counter
@@ -171,7 +170,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
 	if (s->mode == 0 || s->mode == 1)
 	    s->mode = val & 1;
         if (s->mode == 1) {
-            pic_set_irq_cpu(s->intctl, s->irq, 0, s->cpu);
+            qemu_irq_lower(s->irq);
             s->limit = -1ULL;
         }
         ptimer_set_limit(s->timer, s->limit >> 9, 1);
@@ -200,7 +199,7 @@ static void slavio_timer_save(QEMUFile *f, void *opaque)
     qemu_put_be64s(f, &s->limit);
     qemu_put_be32s(f, &s->count);
     qemu_put_be32s(f, &s->counthigh);
-    qemu_put_be32s(f, &s->irq);
+    qemu_put_be32(f, 0); // Was irq
     qemu_put_be32s(f, &s->reached);
     qemu_put_be32s(f, &s->stopped);
     qemu_put_be32s(f, &s->mode);
@@ -210,6 +209,7 @@ static void slavio_timer_save(QEMUFile *f, void *opaque)
 static int slavio_timer_load(QEMUFile *f, void *opaque, int version_id)
 {
     SLAVIO_TIMERState *s = opaque;
+    uint32_t tmp;
     
     if (version_id != 2)
         return -EINVAL;
@@ -217,7 +217,7 @@ static int slavio_timer_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be64s(f, &s->limit);
     qemu_get_be32s(f, &s->count);
     qemu_get_be32s(f, &s->counthigh);
-    qemu_get_be32s(f, &s->irq);
+    qemu_get_be32s(f, &tmp); // Was irq
     qemu_get_be32s(f, &s->reached);
     qemu_get_be32s(f, &s->stopped);
     qemu_get_be32s(f, &s->mode);
@@ -237,11 +237,10 @@ static void slavio_timer_reset(void *opaque)
     ptimer_set_limit(s->timer, s->limit >> 9, 1);
     ptimer_run(s->timer, 0);
     s->stopped = 1;
-    slavio_timer_irq(s);
+    qemu_irq_lower(s->irq);
 }
 
-void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
-                       unsigned int cpu, void *intctl)
+void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;
@@ -252,15 +251,13 @@ void slavio_timer_init(target_phys_addr_t addr, int irq, int mode,
         return;
     s->irq = irq;
     s->mode = mode;
-    s->cpu = cpu;
     bh = qemu_bh_new(slavio_timer_irq, s);
     s->timer = ptimer_init(bh);
     ptimer_set_period(s->timer, 500ULL);
-    s->intctl = intctl;
 
     slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
 						    slavio_timer_mem_write, s);
-    cpu_register_physical_memory(addr, TIMER_MAXADDR, slavio_timer_io_memory);
+    cpu_register_physical_memory(addr, TIMER_SIZE, slavio_timer_io_memory);
     register_savevm("slavio_timer", addr, 2, slavio_timer_save, slavio_timer_load, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);

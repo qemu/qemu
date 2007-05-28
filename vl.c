@@ -4197,6 +4197,7 @@ static int net_client_init(const char *str)
         }
         nd->vlan = vlan;
         nb_nics++;
+        vlan->nb_guest_devs++;
         ret = 0;
     } else
     if (!strcmp(device, "none")) {
@@ -4209,6 +4210,7 @@ static int net_client_init(const char *str)
         if (get_param_value(buf, sizeof(buf), "hostname", p)) {
             pstrcpy(slirp_hostname, sizeof(slirp_hostname), buf);
         }
+        vlan->nb_host_devs++;
         ret = net_slirp_init(vlan);
     } else
 #endif
@@ -4219,6 +4221,7 @@ static int net_client_init(const char *str)
             fprintf(stderr, "tap: no interface name\n");
             return -1;
         }
+        vlan->nb_host_devs++;
         ret = tap_win32_init(vlan, ifname);
     } else
 #else
@@ -4226,6 +4229,7 @@ static int net_client_init(const char *str)
         char ifname[64];
         char setup_script[1024];
         int fd;
+        vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             fd = strtol(buf, NULL, 0);
             ret = -1;
@@ -4259,6 +4263,7 @@ static int net_client_init(const char *str)
             fprintf(stderr, "Unknown socket options: %s\n", p);
             return -1;
         }
+        vlan->nb_host_devs++;
     } else
     {
         fprintf(stderr, "Unknown network device: %s\n", device);
@@ -6867,7 +6872,7 @@ const QEMUOption qemu_options[] = {
     { "show-cursor", 0, QEMU_OPTION_show_cursor },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
-#if defined(TARGET_ARM)
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
     { "semihosting", 0, QEMU_OPTION_semihosting },
 #endif
     { "name", HAS_ARG, QEMU_OPTION_name },
@@ -7173,6 +7178,7 @@ int main(int argc, char **argv)
     int usb_devices_index;
     int fds[2];
     const char *pid_file = NULL;
+    VLANState *vlan;
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -7803,6 +7809,18 @@ int main(int argc, char **argv)
     for(i = 0;i < nb_net_clients; i++) {
         if (net_client_init(net_clients[i]) < 0)
             exit(1);
+    }
+    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
+        if (vlan->nb_guest_devs == 0 && vlan->nb_host_devs == 0)
+            continue;
+        if (vlan->nb_guest_devs == 0) {
+            fprintf(stderr, "Invalid vlan (%d) with no nics\n", vlan->id);
+            exit(1);
+        }
+        if (vlan->nb_host_devs == 0)
+            fprintf(stderr,
+                    "Warning: vlan %d is not connected to host network\n",
+                    vlan->id);
     }
 
 #ifdef TARGET_I386

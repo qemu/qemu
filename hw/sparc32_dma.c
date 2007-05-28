@@ -41,22 +41,25 @@ do { printf("DMA: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...)
 #endif
 
-#define DMA_REGS 8
-#define DMA_MAXADDR (DMA_REGS * 4 - 1)
+#define DMA_REGS 4
+#define DMA_SIZE (4 * sizeof(uint32_t))
+#define DMA_MAXADDR (DMA_SIZE - 1)
 
 #define DMA_VER 0xa0000000
 #define DMA_INTR 1
 #define DMA_INTREN 0x10
 #define DMA_WRITE_MEM 0x100
 #define DMA_LOADED 0x04000000
+#define DMA_DRAIN_FIFO 0x40
 #define DMA_RESET 0x80
 
 typedef struct DMAState DMAState;
 
 struct DMAState {
     uint32_t dmaregs[DMA_REGS];
-    qemu_irq espirq, leirq;
-    void *iommu, *esp_opaque, *lance_opaque;
+    qemu_irq irq;
+    void *iommu, *dev_opaque;
+    void (*dev_reset)(void *dev_opaque);
     qemu_irq *pic;
 };
 
@@ -69,7 +72,7 @@ void ledma_memory_read(void *opaque, target_phys_addr_t addr,
 
     DPRINTF("DMA write, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
-    addr |= s->dmaregs[7];
+    addr |= s->dmaregs[3];
     if (do_bswap) {
         sparc_iommu_memory_read(s->iommu, addr, buf, len);
     } else {
@@ -91,7 +94,7 @@ void ledma_memory_write(void *opaque, target_phys_addr_t addr,
 
     DPRINTF("DMA read, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
-    addr |= s->dmaregs[7];
+    addr |= s->dmaregs[3];
     if (do_bswap) {
         sparc_iommu_memory_write(s->iommu, addr, buf, len);
     } else {
@@ -112,22 +115,18 @@ void ledma_memory_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-void espdma_raise_irq(void *opaque)
+static void dma_set_irq(void *opaque, int irq, int level)
 {
     DMAState *s = opaque;
-
-    DPRINTF("Raise ESP IRQ\n");
-    s->dmaregs[0] |= DMA_INTR;
-    qemu_irq_raise(s->espirq);
-}
-
-void espdma_clear_irq(void *opaque)
-{
-    DMAState *s = opaque;
-
-    s->dmaregs[0] &= ~DMA_INTR;
-    DPRINTF("Lower ESP IRQ\n");
-    qemu_irq_lower(s->espirq);
+    if (level) {
+        DPRINTF("Raise ESP IRQ\n");
+        s->dmaregs[0] |= DMA_INTR;
+        qemu_irq_raise(s->irq);
+    } else {
+        s->dmaregs[0] &= ~DMA_INTR;
+        DPRINTF("Lower ESP IRQ\n");
+        qemu_irq_lower(s->irq);
+    }
 }
 
 void espdma_memory_read(void *opaque, uint8_t *buf, int len)
@@ -158,7 +157,8 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     uint32_t saddr;
 
     saddr = (addr & DMA_MAXADDR) >> 2;
-    DPRINTF("read dmareg[%d]: 0x%8.8x\n", saddr, s->dmaregs[saddr]);
+    DPRINTF("read dmareg " TARGET_FMT_plx ": 0x%8.8x\n", addr,
+            s->dmaregs[saddr]);
 
     return s->dmaregs[saddr];
 }
@@ -169,36 +169,25 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint32_t saddr;
 
     saddr = (addr & DMA_MAXADDR) >> 2;
-    DPRINTF("write dmareg[%d]: 0x%8.8x -> 0x%8.8x\n", saddr, s->dmaregs[saddr], val);
+    DPRINTF("write dmareg " TARGET_FMT_plx ": 0x%8.8x -> 0x%8.8x\n", addr,
+            s->dmaregs[saddr], val);
     switch (saddr) {
     case 0:
         if (!(val & DMA_INTREN)) {
-            DPRINTF("Lower ESP IRQ\n");
-            qemu_irq_lower(s->espirq);
+            DPRINTF("Lower IRQ\n");
+            qemu_irq_lower(s->irq);
         }
         if (val & DMA_RESET) {
-            esp_reset(s->esp_opaque);
-        } else if (val & 0x40) {
-            val &= ~0x40;
+            s->dev_reset(s->dev_opaque);
+        } else if (val & DMA_DRAIN_FIFO) {
+            val &= ~DMA_DRAIN_FIFO;
         } else if (val == 0)
-            val = 0x40;
+            val = DMA_DRAIN_FIFO;
         val &= 0x0fffffff;
         val |= DMA_VER;
         break;
     case 1:
         s->dmaregs[0] |= DMA_LOADED;
-        break;
-    case 4:
-        /* ??? Should this mask out the lance IRQ?  The NIC may re-assert
-           this IRQ unexpectedly.  */
-        if (!(val & DMA_INTREN)) {
-            DPRINTF("Lower Lance IRQ\n");
-            qemu_irq_lower(s->leirq);
-        }
-        if (val & DMA_RESET)
-            pcnet_h_reset(s->lance_opaque);
-        val &= 0x0fffffff;
-        val |= DMA_VER;
         break;
     default:
         break;
@@ -222,9 +211,8 @@ static void dma_reset(void *opaque)
 {
     DMAState *s = opaque;
 
-    memset(s->dmaregs, 0, DMA_REGS * 4);
+    memset(s->dmaregs, 0, DMA_SIZE);
     s->dmaregs[0] = DMA_VER;
-    s->dmaregs[4] = DMA_VER;
 }
 
 static void dma_save(QEMUFile *f, void *opaque)
@@ -241,7 +229,7 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
     DMAState *s = opaque;
     unsigned int i;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
     for (i = 0; i < DMA_REGS; i++)
         qemu_get_be32s(f, &s->dmaregs[i]);
@@ -249,8 +237,8 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq espirq,
-                       qemu_irq leirq, void *iommu)
+void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
+                       void *iommu, qemu_irq **dev_irq)
 {
     DMAState *s;
     int dma_io_memory;
@@ -259,24 +247,24 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq espirq,
     if (!s)
         return NULL;
 
-    s->espirq = espirq;
-    s->leirq = leirq;
+    s->irq = parent_irq;
     s->iommu = iommu;
 
     dma_io_memory = cpu_register_io_memory(0, dma_mem_read, dma_mem_write, s);
-    cpu_register_physical_memory(daddr, 16 * 2, dma_io_memory);
+    cpu_register_physical_memory(daddr, DMA_SIZE, dma_io_memory);
 
-    register_savevm("sparc32_dma", daddr, 1, dma_save, dma_load, s);
+    register_savevm("sparc32_dma", daddr, 2, dma_save, dma_load, s);
     qemu_register_reset(dma_reset, s);
+    *dev_irq = qemu_allocate_irqs(dma_set_irq, s, 1);
 
     return s;
 }
 
-void sparc32_dma_set_reset_data(void *opaque, void *esp_opaque,
-                                void *lance_opaque)
+void sparc32_dma_set_reset_data(void *opaque, void (*dev_reset)(void *opaque),
+                                void *dev_opaque)
 {
     DMAState *s = opaque;
 
-    s->esp_opaque = esp_opaque;
-    s->lance_opaque = lance_opaque;
+    s->dev_reset = dev_reset;
+    s->dev_opaque = dev_opaque;
 }

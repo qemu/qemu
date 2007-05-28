@@ -40,6 +40,7 @@
 #define TT_DFAULT   0x09
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
+#define TT_CODE_ACCESS 0x21
 #define TT_DATA_ACCESS 0x29
 #define TT_DIV_ZERO 0x2a
 #define TT_NCP_INSN 0x24
@@ -47,6 +48,7 @@
 #else
 #define TT_TFAULT   0x08
 #define TT_TMISS    0x09
+#define TT_CODE_ACCESS 0x0a
 #define TT_ILL_INSN 0x10
 #define TT_PRIV_INSN 0x11
 #define TT_NFPU_INSN 0x20
@@ -226,10 +228,12 @@ typedef struct CPUSPARCState {
     uint64_t mgregs[8]; /* mmu general registers */
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
+    void *tick, *stick;
     uint64_t gsr;
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
+    void *hstick; // UA 2005
 #endif
 #if !defined(TARGET_SPARC64) && !defined(reg_T2)
     target_ulong t2;
@@ -292,6 +296,9 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 void raise_exception(int tt);
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi);
+void do_tick_set_count(void *opaque, uint64_t count);
+uint64_t do_tick_get_count(void *opaque);
+void do_tick_set_limit(void *opaque, uint64_t limit);
 
 #include "cpu-all.h"
 

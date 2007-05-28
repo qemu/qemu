@@ -41,7 +41,9 @@ do { printf("ESP: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...)
 #endif
 
-#define ESP_MAXREG 0x3f
+#define ESP_MASK 0x3f
+#define ESP_REGS 16
+#define ESP_SIZE (ESP_REGS * 4)
 #define TI_BUFSZ 32
 /* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
 #define ESP_MAX_DEVS      7
@@ -49,9 +51,10 @@ do { printf("ESP: " fmt , ##args); } while (0)
 typedef struct ESPState ESPState;
 
 struct ESPState {
+    qemu_irq irq;
     BlockDriverState **bd;
-    uint8_t rregs[ESP_MAXREG];
-    uint8_t wregs[ESP_MAXREG];
+    uint8_t rregs[ESP_REGS];
+    uint8_t wregs[ESP_REGS];
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint8_t ti_buf[TI_BUFSZ];
@@ -124,7 +127,7 @@ static int get_cmd(ESPState *s, uint8_t *buf)
 	s->rregs[4] = STAT_IN;
 	s->rregs[5] = INTR_DC;
 	s->rregs[6] = SEQ_0;
-	espdma_raise_irq(s->dma_opaque);
+	qemu_irq_raise(s->irq);
 	return 0;
     }
     s->current_dev = s->scsi_dev[target];
@@ -154,7 +157,7 @@ static void do_cmd(ESPState *s, uint8_t *buf)
     }
     s->rregs[5] = INTR_BS | INTR_FC;
     s->rregs[6] = SEQ_CD;
-    espdma_raise_irq(s->dma_opaque);
+    qemu_irq_raise(s->irq);
 }
 
 static void handle_satn(ESPState *s)
@@ -176,7 +179,7 @@ static void handle_satn_stop(ESPState *s)
         s->rregs[4] = STAT_IN | STAT_TC | STAT_CD;
         s->rregs[5] = INTR_BS | INTR_FC;
         s->rregs[6] = SEQ_CD;
-        espdma_raise_irq(s->dma_opaque);
+        qemu_irq_raise(s->irq);
     }
 }
 
@@ -196,7 +199,7 @@ static void write_response(ESPState *s)
 	s->ti_wptr = 0;
 	s->rregs[7] = 2;
     }
-    espdma_raise_irq(s->dma_opaque);
+    qemu_irq_raise(s->irq);
 }
 
 static void esp_dma_done(ESPState *s)
@@ -207,7 +210,7 @@ static void esp_dma_done(ESPState *s)
     s->rregs[7] = 0;
     s->rregs[0] = 0;
     s->rregs[1] = 0;
-    espdma_raise_irq(s->dma_opaque);
+    qemu_irq_raise(s->irq);
 }
 
 static void esp_do_dma(ESPState *s)
@@ -327,12 +330,12 @@ static void handle_ti(ESPState *s)
     }
 }
 
-void esp_reset(void *opaque)
+static void esp_reset(void *opaque)
 {
     ESPState *s = opaque;
 
-    memset(s->rregs, 0, ESP_MAXREG);
-    memset(s->wregs, 0, ESP_MAXREG);
+    memset(s->rregs, 0, ESP_REGS);
+    memset(s->wregs, 0, ESP_REGS);
     s->rregs[0x0e] = 0x4; // Indicate fas100a
     s->ti_size = 0;
     s->ti_rptr = 0;
@@ -346,7 +349,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & ESP_MAXREG) >> 2;
+    saddr = (addr & ESP_MASK) >> 2;
     DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
     switch (saddr) {
     case 2:
@@ -360,7 +363,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
             } else {
                 s->rregs[2] = s->ti_buf[s->ti_rptr++];
             }
-            espdma_raise_irq(s->dma_opaque);
+            qemu_irq_raise(s->irq);
 	}
 	if (s->ti_size == 0) {
             s->ti_rptr = 0;
@@ -371,7 +374,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
         // interrupt
         // Clear interrupt/error status bits
         s->rregs[4] &= ~(STAT_IN | STAT_GE | STAT_PE);
-	espdma_clear_irq(s->dma_opaque);
+	qemu_irq_lower(s->irq);
         break;
     default:
 	break;
@@ -384,7 +387,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & ESP_MAXREG) >> 2;
+    saddr = (addr & ESP_MASK) >> 2;
     DPRINTF("write reg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->wregs[saddr], val);
     switch (saddr) {
     case 0:
@@ -434,7 +437,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    DPRINTF("Bus reset (%2.2x)\n", val);
 	    s->rregs[5] = INTR_RST;
             if (!(s->wregs[8] & 0x40)) {
-                espdma_raise_irq(s->dma_opaque);
+                qemu_irq_raise(s->irq);
             }
 	    break;
 	case 0x10:
@@ -501,8 +504,8 @@ static void esp_save(QEMUFile *f, void *opaque)
 {
     ESPState *s = opaque;
 
-    qemu_put_buffer(f, s->rregs, ESP_MAXREG);
-    qemu_put_buffer(f, s->wregs, ESP_MAXREG);
+    qemu_put_buffer(f, s->rregs, ESP_REGS);
+    qemu_put_buffer(f, s->wregs, ESP_REGS);
     qemu_put_be32s(f, &s->ti_size);
     qemu_put_be32s(f, &s->ti_rptr);
     qemu_put_be32s(f, &s->ti_wptr);
@@ -523,8 +526,8 @@ static int esp_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id != 3)
         return -EINVAL; // Cannot emulate 2
 
-    qemu_get_buffer(f, s->rregs, ESP_MAXREG);
-    qemu_get_buffer(f, s->wregs, ESP_MAXREG);
+    qemu_get_buffer(f, s->rregs, ESP_REGS);
+    qemu_get_buffer(f, s->wregs, ESP_REGS);
     qemu_get_be32s(f, &s->ti_size);
     qemu_get_be32s(f, &s->ti_rptr);
     qemu_get_be32s(f, &s->ti_wptr);
@@ -563,7 +566,7 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
 }
 
 void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
-               void *dma_opaque)
+               void *dma_opaque, qemu_irq irq)
 {
     ESPState *s;
     int esp_io_memory;
@@ -573,10 +576,12 @@ void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
         return NULL;
 
     s->bd = bd;
+    s->irq = irq;
     s->dma_opaque = dma_opaque;
+    sparc32_dma_set_reset_data(dma_opaque, esp_reset, s);
 
     esp_io_memory = cpu_register_io_memory(0, esp_mem_read, esp_mem_write, s);
-    cpu_register_physical_memory(espaddr, ESP_MAXREG*4, esp_io_memory);
+    cpu_register_physical_memory(espaddr, ESP_SIZE, esp_io_memory);
 
     esp_reset(s);
 

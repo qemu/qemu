@@ -596,6 +596,10 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
         pci_pcnet_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "tnetw1130") == 0) {
         pci_tnetw1130_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "?") == 0) {
+        fprintf(stderr, "qemu: Supported PCI NICs: dp83816 i82551 i82557b i82559er"
+                        " ne2k_pci pcnet rtl8139 tnetw1130\n");
+        exit (1);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
         exit (1);

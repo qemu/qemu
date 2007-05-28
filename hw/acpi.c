@@ -24,7 +24,6 @@
 #define PM_FREQ 3579545
 
 #define ACPI_DBG_IO_ADDR  0xb044
-#define SMB_IO_BASE       0xb100
 
 typedef struct PIIX4PMState {
     PCIDevice dev;
@@ -451,11 +450,10 @@ static int pm_load(QEMUFile* f,void* opaque,int version_id)
     return 0;
 }
 
-i2c_bus *piix4_pm_init(PCIBus *bus, int devfn)
+i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
 {
     PIIX4PMState *s;
     uint8_t *pci_conf;
-    uint32_t smb_io_base;
 
     s = (PIIX4PMState *)pci_register_device(bus,
                                          "PM", sizeof(PIIX4PMState),
@@ -486,7 +484,6 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn)
     pci_conf[0x67] = (serial_hds[0] != NULL ? 0x08 : 0) |
 	(serial_hds[1] != NULL ? 0x90 : 0);
 
-    smb_io_base = SMB_IO_BASE;
     pci_conf[0x90] = smb_io_base | 1;
     pci_conf[0x91] = smb_io_base >> 8;
     pci_conf[0xd2] = 0x09;
