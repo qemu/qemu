@@ -2440,8 +2440,12 @@ register_opcode (disas_proc proc, uint16_t opcode, uint16_t mask)
   int to;
 
   /* Sanity check.  All set bits must be included in the mask.  */
-  if (opcode & ~mask)
+  if (opcode & ~mask) {
+      fprintf(stderr,
+              "qemu internal error: bogus opcode definition %04x/%04x\n",
+              opcode, mask);
       abort();
+  }
   /* This could probably be cleverer.  For now just optimize the case where
      the top bits are known.  */
   /* Find the first zero bit in the mask.  */
