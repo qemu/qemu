@@ -569,6 +569,18 @@ do {                                                                          \
     }                                                                         \
 } while (0)
 
+#ifdef TARGET_MIPS64
+#define GEN_LOAD_IMM_TN(Tn, Imm)                                              \
+do {                                                                          \
+    if (Imm == 0) {                                                           \
+        glue(gen_op_reset_, Tn)();                                            \
+    } else if ((int32_t)Imm == Imm) {                                         \
+        glue(gen_op_set_, Tn)(Imm);                                           \
+    } else {                                                                  \
+        glue(gen_op_set64_, Tn)(((uint64_t)Imm) >> 32, (uint32_t)Imm);        \
+    }                                                                         \
+} while (0)
+#else
 #define GEN_LOAD_IMM_TN(Tn, Imm)                                              \
 do {                                                                          \
     if (Imm == 0) {                                                           \
@@ -577,6 +589,7 @@ do {                                                                          \
         glue(gen_op_set_, Tn)(Imm);                                           \
     }                                                                         \
 } while (0)
+#endif
 
 #define GEN_STORE_TN_REG(Rn, Tn)                                              \
 do {                                                                          \
@@ -595,6 +608,32 @@ do {                                                                          \
     glue(gen_op_store_fpr_, FTn)(Fn);                                         \
 } while (0)
 
+static inline void gen_save_pc(target_ulong pc)
+{
+#ifdef TARGET_MIPS64
+    if (pc == (int32_t)pc) {
+        gen_op_save_pc(pc);
+    } else {
+        gen_op_save_pc64(pc >> 32, (uint32_t)pc);
+    }
+#else
+    gen_op_save_pc(pc);
+#endif
+}
+
+static inline void gen_save_btarget(target_ulong btarget)
+{
+#ifdef TARGET_MIPS64
+    if (btarget == (int32_t)btarget) {
+        gen_op_save_btarget(btarget);
+    } else {
+        gen_op_save_btarget64(btarget >> 32, (uint32_t)btarget);
+    }
+#else
+    gen_op_save_btarget(btarget);
+#endif
+}
+
 static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 {
 #if defined MIPS_DEBUG_DISAS
@@ -604,7 +643,7 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
     }
 #endif
     if (do_save_pc && ctx->pc != ctx->saved_pc) {
-        gen_op_save_pc(ctx->pc);
+        gen_save_pc(ctx->pc);
         ctx->saved_pc = ctx->pc;
     }
     if (ctx->hflags != ctx->saved_hflags) {
@@ -621,7 +660,7 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
             /* bcond was already saved by the BL insn */
             /* fall through */
         case MIPS_HFLAG_B:
-            gen_op_save_btarget(ctx->btarget);
+            gen_save_btarget(ctx->btarget);
             break;
         }
     }
@@ -946,7 +985,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
         GEN_LOAD_IMM_TN(T1, uimm);
         break;
     case OPC_LUI:
-        GEN_LOAD_IMM_TN(T0, uimm << 16);
+        GEN_LOAD_IMM_TN(T0, imm << 16);
         break;
     case OPC_SLL:
     case OPC_SRA:
@@ -1491,10 +1530,10 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
             gen_op_goto_tb0(TBPARAM(tb));
         else
             gen_op_goto_tb1(TBPARAM(tb));
-        gen_op_save_pc(dest);
+        gen_save_pc(dest);
         gen_op_set_T0((long)tb + n);
     } else {
-        gen_op_save_pc(dest);
+        gen_save_pc(dest);
         gen_op_reset_T0();
     }
     gen_op_exit_tb();
@@ -1556,7 +1595,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     case OPC_J:
     case OPC_JAL:
         /* Jump to immediate */
-        btarget = ((ctx->pc + 4) & (int32_t)0xF0000000) | offset;
+        btarget = ((ctx->pc + 4) & (int32_t)0xF0000000) | (uint32_t)offset;
         break;
     case OPC_JR:
     case OPC_JALR:
@@ -1602,12 +1641,12 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("bnever (NOP)");
             return;
         case OPC_BLTZAL:  /* 0 < 0           */
-            gen_op_set_T0(ctx->pc + 8);
+            GEN_LOAD_IMM_TN(T0, ctx->pc + 8);
             gen_op_store_T0_gpr(31);
             MIPS_DEBUG("bnever and link");
             return;
         case OPC_BLTZALL: /* 0 < 0 likely */
-            gen_op_set_T0(ctx->pc + 8);
+            GEN_LOAD_IMM_TN(T0, ctx->pc + 8);
             gen_op_store_T0_gpr(31);
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever, link and skip");
@@ -1732,9 +1771,10 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     }
     MIPS_DEBUG("enter ds: link %d cond %02x target " TARGET_FMT_lx,
                blink, ctx->hflags, btarget);
+
     ctx->btarget = btarget;
     if (blink > 0) {
-        gen_op_set_T0(ctx->pc + 8);
+        GEN_LOAD_IMM_TN(T0, ctx->pc + 8);
         gen_op_store_T0_gpr(blink);
     }
 }

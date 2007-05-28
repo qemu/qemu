@@ -68,4 +68,20 @@ SET_RESET(T1, _T1)
 SET_RESET(T2, _T2)
 
 #undef SET_RESET
+
+#ifdef TARGET_MIPS64
+#define SET64(treg, tregname)                               \
+    void glue(op_set64, tregname)(void)                     \
+    {                                                       \
+        treg = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2; \
+        RETURN();                                           \
+    }
+
+SET64(T0, _T0)
+SET64(T1, _T1)
+SET64(T2, _T2)
+
+#undef SET64
+
+#endif
 #endif

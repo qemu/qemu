@@ -976,6 +976,14 @@ void op_save_btarget (void)
     RETURN();
 }
 
+#ifdef TARGET_MIPS64
+void op_save_btarget64 (void)
+{
+    env->btarget = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
+    RETURN();
+}
+#endif
+
 /* Conditional branch */
 void op_set_bcond (void)
 {
@@ -2408,6 +2416,14 @@ void op_save_pc (void)
     env->PC = PARAM1;
     RETURN();
 }
+
+#ifdef TARGET_MIPS64
+void op_save_pc64 (void)
+{
+    env->PC = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
+    RETURN();
+}
+#endif
 
 void op_interrupt_restart (void)
 {
