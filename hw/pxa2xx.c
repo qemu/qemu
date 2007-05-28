@@ -69,16 +69,9 @@ static struct {
 #define PCMD0	0x80	/* Power Manager I2C Command register File 0 */
 #define PCMD31	0xfc	/* Power Manager I2C Command register File 31 */
 
-static uint32_t pxa2xx_i2c_read(void *, target_phys_addr_t);
-static void pxa2xx_i2c_write(void *, target_phys_addr_t, uint32_t);
-
 static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    if (addr > s->pm_base + PCMD31) {
-        /* Special case: PWRI2C registers appear in the same range.  */
-        return pxa2xx_i2c_read(s->i2c[1], addr);
-    }
     addr -= s->pm_base;
 
     switch (addr) {
@@ -99,11 +92,6 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    if (addr > s->pm_base + PCMD31) {
-        /* Special case: PWRI2C registers appear in the same range.  */
-        pxa2xx_i2c_write(s->i2c[1], addr, value);
-        return;
-    }
     addr -= s->pm_base;
 
     switch (addr) {
@@ -1484,7 +1472,7 @@ static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
-                qemu_irq irq, int ioregister)
+                qemu_irq irq, uint32_t page_size)
 {
     int iomemtype;
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *)
@@ -1497,11 +1485,9 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
     s->slave.send = pxa2xx_i2c_tx;
     s->bus = i2c_init_bus();
 
-    if (ioregister) {
-        iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
-                        pxa2xx_i2c_writefn, s);
-        cpu_register_physical_memory(s->base & 0xfffff000, 0xfff, iomemtype);
-    }
+    iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
+                    pxa2xx_i2c_writefn, s);
+    cpu_register_physical_memory(s->base & ~page_size, page_size, iomemtype);
 
     register_savevm("pxa2xx_i2c", base, 0,
                     pxa2xx_i2c_save, pxa2xx_i2c_load, s);
@@ -2089,6 +2075,12 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     cpu_register_physical_memory(s->mm_base, 0xfff, iomemtype);
     register_savevm("pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
+    s->pm_base = 0x40f00000;
+    iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
+                    pxa2xx_pm_writefn, s);
+    cpu_register_physical_memory(s->pm_base, 0xff, iomemtype);
+    register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
     s->ssp = (struct pxa2xx_ssp_s **)
             qemu_mallocz(sizeof(struct pxa2xx_ssp_s *) * i);
@@ -2120,17 +2112,8 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     pxa2xx_rtc_init(s);
     register_savevm("pxa2xx_rtc", 0, 0, pxa2xx_rtc_save, pxa2xx_rtc_load, s);
 
-    /* Note that PM registers are in the same page with PWRI2C registers.
-     * As a workaround we don't map PWRI2C into memory and we expect
-     * PM handlers to call PWRI2C handlers when appropriate.  */
-    s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 1);
-    s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0);
-
-    s->pm_base = 0x40f00000;
-    iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
-                    pxa2xx_pm_writefn, s);
-    cpu_register_physical_memory(s->pm_base, 0xfff, iomemtype);
-    register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 0xffff);
+    s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0xff);
 
     s->i2s = pxa2xx_i2s_init(0x40400000, s->pic[PXA2XX_PIC_I2S], s->dma);
 
@@ -2201,6 +2184,12 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     cpu_register_physical_memory(s->mm_base, 0xfff, iomemtype);
     register_savevm("pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
+    s->pm_base = 0x40f00000;
+    iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
+                    pxa2xx_pm_writefn, s);
+    cpu_register_physical_memory(s->pm_base, 0xff, iomemtype);
+    register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+
     for (i = 0; pxa255_ssp[i].io_base; i ++);
     s->ssp = (struct pxa2xx_ssp_s **)
             qemu_mallocz(sizeof(struct pxa2xx_ssp_s *) * i);
@@ -2232,17 +2221,8 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     pxa2xx_rtc_init(s);
     register_savevm("pxa2xx_rtc", 0, 0, pxa2xx_rtc_save, pxa2xx_rtc_load, s);
 
-    /* Note that PM registers are in the same page with PWRI2C registers.
-     * As a workaround we don't map PWRI2C into memory and we expect
-     * PM handlers to call PWRI2C handlers when appropriate.  */
-    s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 1);
-    s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0);
-
-    s->pm_base = 0x40f00000;
-    iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
-                    pxa2xx_pm_writefn, s);
-    cpu_register_physical_memory(s->pm_base, 0xfff, iomemtype);
-    register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 0xffff);
+    s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0xff);
 
     s->i2s = pxa2xx_i2s_init(0x40400000, s->pic[PXA2XX_PIC_I2S], s->dma);
 

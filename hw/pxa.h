@@ -117,7 +117,7 @@ void pxa2xx_ssp_attach(struct pxa2xx_ssp_s *port,
 
 struct pxa2xx_i2c_s;
 struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
-                qemu_irq irq, int ioregister);
+                qemu_irq irq, uint32_t page_size);
 i2c_bus *pxa2xx_i2c_bus(struct pxa2xx_i2c_s *s);
 
 struct pxa2xx_i2s_s;
