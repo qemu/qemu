@@ -201,7 +201,9 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->PC;
 #elif defined(TARGET_M68K)
-    flags = (env->fpcr & M68K_FPCR_PREC) | (env->sr & SR_S);
+    flags = (env->fpcr & M68K_FPCR_PREC)  /* Bit  6 */
+            | (env->sr & SR_S)            /* Bit  13 */
+            | ((env->macsr >> 4) & 0xf);  /* Bits 0-3 */
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_SH4)

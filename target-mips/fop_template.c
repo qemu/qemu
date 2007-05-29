@@ -49,7 +49,7 @@ OP_WSTORE_FREG(WT2, WT2_fpr, FREG)
 #define OP_DLOAD_FREG(treg, tregname, FREG)              \
     void glue(glue(op_load_fpr_,tregname), FREG) (void)  \
     {                                                    \
-        if (env->CP0_Status & (1 << CP0St_FR))           \
+        if (env->hflags & MIPS_HFLAG_F64)                \
             treg = env->fpr[FREG].fd;                    \
         else                                             \
             treg = (uint64_t)(env->fpr[FREG | 1].fs[FP_ENDIAN_IDX]) << 32 | \
@@ -60,7 +60,7 @@ OP_WSTORE_FREG(WT2, WT2_fpr, FREG)
 #define OP_DSTORE_FREG(treg, tregname, FREG)             \
     void glue(glue(op_store_fpr_,tregname), FREG) (void) \
     {                                                    \
-        if (env->CP0_Status & (1 << CP0St_FR))           \
+        if (env->hflags & MIPS_HFLAG_F64)                \
             env->fpr[FREG].fd = treg;                    \
         else {                                           \
             env->fpr[FREG | 1].fs[FP_ENDIAN_IDX] = treg >> 32; \

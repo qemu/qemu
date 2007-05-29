@@ -282,6 +282,16 @@ OP(shr_cc)
     FORCE_RET();
 }
 
+OP(sar32)
+{
+    int32_t op2 = get_op(PARAM2);
+    uint32_t op3 = get_op(PARAM3);
+    uint32_t result;
+    result = op2 >> op3;
+    set_op(PARAM1, result);
+    FORCE_RET();
+}
+
 OP(sar_cc)
 {
     int32_t op1 = get_op(PARAM1);
@@ -648,3 +658,410 @@ OP(movec)
 #define MEMSUFFIX _kernel
 #include "op_mem.h"
 #endif
+
+/* MAC unit.  */
+/* TODO: The MAC instructions use 64-bit arithmetic fairly extensively.
+   This results in fairly large ops (and sometimes other issues) on 32-bit
+   hosts.  Maybe move most of them into helpers.  */
+OP(macmuls)
+{
+    uint32_t op1 = get_op(PARAM1);
+    uint32_t op2 = get_op(PARAM2);
+    int64_t product;
+    int64_t res;
+
+    product = (uint64_t)op1 * op2;
+    res = (product << 24) >> 24;
+    if (res != product) {
+        env->macsr |= MACSR_V;
+        if (env->macsr & MACSR_OMC) {
+            /* Make sure the accumulate operation overflows.  */
+            if (product < 0)
+                res = ~(1ll << 50);
+            else
+                res = 1ll << 50;
+        }
+    }
+    env->mactmp = res;
+    FORCE_RET();
+}
+
+OP(macmulu)
+{
+    uint32_t op1 = get_op(PARAM1);
+    uint32_t op2 = get_op(PARAM2);
+    uint64_t product;
+
+    product = (uint64_t)op1 * op2;
+    if (product & (0xffffffull << 40)) {
+        env->macsr |= MACSR_V;
+        if (env->macsr & MACSR_OMC) {
+            /* Make sure the accumulate operation overflows.  */
+            product = 1ll << 50;
+        } else {
+            product &= ((1ull << 40) - 1);
+        }
+    }
+    env->mactmp = product;
+    FORCE_RET();
+}
+
+OP(macmulf)
+{
+    int32_t op1 = get_op(PARAM1);
+    int32_t op2 = get_op(PARAM2);
+    uint64_t product;
+    uint32_t remainder;
+
+    product = (uint64_t)op1 * op2;
+    if (env->macsr & MACSR_RT) {
+        remainder = product & 0xffffff;
+        product >>= 24;
+        if (remainder > 0x800000)
+            product++;
+        else if (remainder == 0x800000)
+            product += (product & 1);
+    } else {
+        product >>= 24;
+    }
+    env->mactmp = product;
+    FORCE_RET();
+}
+
+OP(macshl)
+{
+    env->mactmp <<= 1;
+}
+
+OP(macshr)
+{
+    env->mactmp >>= 1;
+}
+
+OP(macadd)
+{
+    int acc = PARAM1;
+    env->macc[acc] += env->mactmp;
+    FORCE_RET();
+}
+
+OP(macsub)
+{
+    int acc = PARAM1;
+    env->macc[acc] -= env->mactmp;
+    FORCE_RET();
+}
+
+OP(macsats)
+{
+    int acc = PARAM1;
+    int64_t sum;
+    int64_t result;
+
+    sum = env->macc[acc];
+    result = (sum << 16) >> 16;
+    if (result != sum) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_V) {
+        env->macsr |= MACSR_PAV0 << acc;
+        if (env->macsr & MACSR_OMC) {
+            /* The result is saturated to 32 bits, despite overflow occuring
+               at 48 bits.  Seems weird, but that's what the hardware docs
+               say.  */
+            result = (result >> 63) ^ 0x7fffffff;
+        }
+    }
+    env->macc[acc] = result;
+    FORCE_RET();
+}
+
+OP(macsatu)
+{
+    int acc = PARAM1;
+    uint64_t sum;
+
+    sum = env->macc[acc];
+    if (sum & (0xffffull << 48)) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_V) {
+        env->macsr |= MACSR_PAV0 << acc;
+        if (env->macsr & MACSR_OMC) {
+            if (sum > (1ull << 53))
+                sum = 0;
+            else
+                sum = (1ull << 48) - 1;
+        } else {
+            sum &= ((1ull << 48) - 1);
+        }
+    }
+    FORCE_RET();
+}
+
+OP(macsatf)
+{
+    int acc = PARAM1;
+    int64_t sum;
+    int64_t result;
+
+    sum = env->macc[acc];
+    result = (sum << 16) >> 16;
+    if (result != sum) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_V) {
+        env->macsr |= MACSR_PAV0 << acc;
+        if (env->macsr & MACSR_OMC) {
+            result = (result >> 63) ^ 0x7fffffffffffll;
+        }
+    }
+    env->macc[acc] = result;
+    FORCE_RET();
+}
+
+OP(mac_clear_flags)
+{
+    env->macsr &= ~(MACSR_V | MACSR_Z | MACSR_N | MACSR_EV);
+}
+
+OP(mac_set_flags)
+{
+    int acc = PARAM1;
+    uint64_t val;
+    val = env->macc[acc];
+    if (val == 0)
+        env->macsr |= MACSR_Z;
+    else if (val & (1ull << 47));
+        env->macsr |= MACSR_N;
+    if (env->macsr & (MACSR_PAV0 << acc)) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_FI) {
+        val = ((int64_t)val) >> 40;
+        if (val != 0 && val != -1)
+            env->macsr |= MACSR_EV;
+    } else if (env->macsr & MACSR_SU) {
+        val = ((int64_t)val) >> 32;
+        if (val != 0 && val != -1)
+            env->macsr |= MACSR_EV;
+    } else {
+        if ((val >> 32) != 0)
+            env->macsr |= MACSR_EV;
+    }
+    FORCE_RET();
+}
+
+OP(get_macf)
+{
+    int acc = PARAM2;
+    int64_t val;
+    int rem;
+    uint32_t result;
+
+    val = env->macc[acc];
+    if (env->macsr & MACSR_SU) {
+        /* 16-bit rounding.  */
+        rem = val & 0xffffff;
+        val = (val >> 24) & 0xffffu;
+        if (rem > 0x800000)
+            val++;
+        else if (rem == 0x800000)
+            val += (val & 1);
+    } else if (env->macsr & MACSR_RT) {
+        /* 32-bit rounding.  */
+        rem = val & 0xff;
+        val >>= 8;
+        if (rem > 0x80)
+            val++;
+        else if (rem == 0x80)
+            val += (val & 1);
+    } else {
+        /* No rounding.  */
+        val >>= 8;
+    }
+    if (env->macsr & MACSR_OMC) {
+        /* Saturate.  */
+        if (env->macsr & MACSR_SU) {
+            if (val != (uint16_t) val) {
+                result = ((val >> 63) ^ 0x7fff) & 0xffff;
+            } else {
+                result = val & 0xffff;
+            }
+        } else {
+            if (val != (uint32_t)val) {
+                result = ((uint32_t)(val >> 63) & 0x7fffffff);
+            } else {
+                result = (uint32_t)val;
+            }
+        }
+    } else {
+        /* No saturation.  */
+        if (env->macsr & MACSR_SU) {
+            result = val & 0xffff;
+        } else {
+            result = (uint32_t)val;
+        }
+    }
+    set_op(PARAM1, result);
+    FORCE_RET();
+}
+
+OP(get_maci)
+{
+    int acc = PARAM2;
+    set_op(PARAM1, (uint32_t)env->macc[acc]);
+    FORCE_RET();
+}
+
+OP(get_macs)
+{
+    int acc = PARAM2;
+    int64_t val = env->macc[acc];
+    uint32_t result;
+    if (val == (int32_t)val) {
+        result = (int32_t)val;
+    } else {
+        result = (val >> 61) ^ 0x7fffffff;
+    }
+    set_op(PARAM1, result);
+    FORCE_RET();
+}
+
+OP(get_macu)
+{
+    int acc = PARAM2;
+    uint64_t val = env->macc[acc];
+    uint32_t result;
+    if ((val >> 32) == 0) {
+        result = (uint32_t)val;
+    } else {
+        result = 0xffffffffu;
+    }
+    set_op(PARAM1, result);
+    FORCE_RET();
+}
+
+OP(clear_mac)
+{
+    int acc = PARAM1;
+
+    env->macc[acc] = 0;
+    env->macsr &= ~(MACSR_PAV0 << acc);
+    FORCE_RET();
+}
+
+OP(move_mac)
+{
+    int dest = PARAM1;
+    int src = PARAM2;
+    uint32_t mask;
+    env->macc[dest] = env->macc[src];
+    mask = MACSR_PAV0 << dest;
+    if (env->macsr & (MACSR_PAV0 << src))
+        env->macsr |= mask;
+    else
+        env->macsr &= ~mask;
+    FORCE_RET();
+}
+
+OP(get_mac_extf)
+{
+    uint32_t val;
+    int acc = PARAM2;
+    val = env->macc[acc] & 0x00ff;
+    val = (env->macc[acc] >> 32) & 0xff00;
+    val |= (env->macc[acc + 1] << 16) & 0x00ff0000;
+    val |= (env->macc[acc + 1] >> 16) & 0xff000000;
+    set_op(PARAM1, val);
+    FORCE_RET();
+}
+
+OP(get_mac_exti)
+{
+    uint32_t val;
+    int acc = PARAM2;
+    val = (env->macc[acc] >> 32) & 0xffff;
+    val |= (env->macc[acc + 1] >> 16) & 0xffff0000;
+    set_op(PARAM1, val);
+    FORCE_RET();
+}
+
+OP(set_macf)
+{
+    int acc = PARAM2;
+    int32_t val = get_op(PARAM1);
+    env->macc[acc] = ((int64_t)val) << 8;
+    env->macsr &= ~(MACSR_PAV0 << acc);
+    FORCE_RET();
+}
+
+OP(set_macs)
+{
+    int acc = PARAM2;
+    int32_t val = get_op(PARAM1);
+    env->macc[acc] = val;
+    env->macsr &= ~(MACSR_PAV0 << acc);
+    FORCE_RET();
+}
+
+OP(set_macu)
+{
+    int acc = PARAM2;
+    uint32_t val = get_op(PARAM1);
+    env->macc[acc] = val;
+    env->macsr &= ~(MACSR_PAV0 << acc);
+    FORCE_RET();
+}
+
+OP(set_mac_extf)
+{
+    int acc = PARAM2;
+    int32_t val = get_op(PARAM1);
+    int64_t res;
+    int32_t tmp;
+    res = env->macc[acc] & 0xffffffff00ull;
+    tmp = (int16_t)(val & 0xff00);
+    res |= ((int64_t)tmp) << 32;
+    res |= val & 0xff;
+    env->macc[acc] = res;
+    res = env->macc[acc + 1] & 0xffffffff00ull;
+    tmp = (val & 0xff000000);
+    res |= ((int64_t)tmp) << 16;
+    res |= (val >> 16) & 0xff;
+    env->macc[acc + 1] = res;
+}
+
+OP(set_mac_exts)
+{
+    int acc = PARAM2;
+    int32_t val = get_op(PARAM1);
+    int64_t res;
+    int32_t tmp;
+    res = (uint32_t)env->macc[acc];
+    tmp = (int16_t)val;
+    res |= ((int64_t)tmp) << 32;
+    env->macc[acc] = res;
+    res = (uint32_t)env->macc[acc + 1];
+    tmp = val & 0xffff0000;
+    res |= (int64_t)tmp << 16;
+    env->macc[acc + 1] = res;
+}
+
+OP(set_mac_extu)
+{
+    int acc = PARAM2;
+    int32_t val = get_op(PARAM1);
+    uint64_t res;
+    res = (uint32_t)env->macc[acc];
+    res |= ((uint64_t)(val & 0xffff)) << 32;
+    env->macc[acc] = res;
+    res = (uint32_t)env->macc[acc + 1];
+    res |= (uint64_t)(val & 0xffff0000) << 16;
+    env->macc[acc + 1] = res;
+}
+
+OP(set_macsr)
+{
+    m68k_set_macsr(env, get_op(PARAM1));
+}

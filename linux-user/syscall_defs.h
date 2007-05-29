@@ -176,19 +176,14 @@ struct target_cmsghdr {
 static __inline__ struct target_cmsghdr *
 __target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cmsg)
 {
-  if (tswapl(__cmsg->cmsg_len) < sizeof (struct target_cmsghdr))
-    /* The kernel header does this so there may be a reason.  */
-    return 0;
+  struct target_cmsghdr *__ptr;
 
-  __cmsg = (struct target_cmsghdr *) ((unsigned char *) __cmsg
-                               + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len)));
-  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) (unsigned long)tswapl(__mhdr->msg_control)
-                                        + tswapl(__mhdr->msg_controllen))
-      || ((unsigned char *) __cmsg + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len))
-          > ((unsigned char *) (unsigned long) tswapl(__mhdr->msg_control) 
-             + tswapl(__mhdr->msg_controllen))))
+  __ptr = (struct target_cmsghdr *)((unsigned char *) __cmsg
+                                    + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len)));
+  if ((unsigned long)((char *)(__ptr+1) - (char *)(size_t)tswapl(__mhdr->msg_control))
+      > tswapl(__mhdr->msg_controllen))
     /* No more entries.  */
-    return 0;
+    return (struct target_cmsghdr *)0;
   return __cmsg;
 }
 

@@ -1,3 +1,24 @@
+2007-05-29 20:55  ths
+
+	* target-mips/cpu.h: Fix usermode check, thanks Aurelien Jarno.
+
+2007-05-29 18:52  ths
+
+	* target-mips/: cpu.h, fop_template.c, op.c, translate.c: Don't
+	  check the FPU state for each FPU instruction, use hflags to
+	  handle this per-tb.
+
+2007-05-29 16:57  pbrook
+
+	* cpu-exec.c, target-m68k/cpu.h, target-m68k/helper.c,
+	  target-m68k/op.c, target-m68k/qregs.def, target-m68k/translate.c:
+	  ColdFire EMAC support.
+
+2007-05-28 23:35  ths
+
+	* linux-user/syscall_defs.h: Sync __target_cmsg_nxthdr
+	  implementation with kernel header.
+
 2007-05-28 23:01  ths
 
 	* Makefile.target, vl.h, hw/acpi.c, hw/mips_malta.c, hw/pc.c: SMBus

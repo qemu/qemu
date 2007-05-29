@@ -71,6 +71,14 @@ typedef struct CPUM68KState {
     uint32_t fpsr;
     float_status fp_status;
 
+    uint64_t mactmp;
+    /* EMAC Hardware deals with 48-bit values composed of one 32-bit and
+       two 8-bit parts.  We store a single 64-bit value and
+       rearrange/extend this when changing modes.  */
+    uint64_t macc[4];
+    uint32_t macsr;
+    uint32_t mac_mask;
+
     /* Temporary storage for DIV helpers.  */
     uint32_t div1;
     uint32_t div2;
@@ -143,11 +151,22 @@ enum {
 #define SR_S  0x2000
 #define SR_T  0x8000
 
+#define MACSR_PAV0  0x100
+#define MACSR_OMC   0x080
+#define MACSR_SU    0x040
+#define MACSR_FI    0x020
+#define MACSR_RT    0x010
+#define MACSR_N     0x008
+#define MACSR_Z     0x004
+#define MACSR_V     0x002
+#define MACSR_EV    0x001
+
 typedef struct m68k_def_t m68k_def_t;
 
 int cpu_m68k_set_model(CPUM68KState *env, const char * name);
 
 void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector);
+void m68k_set_macsr(CPUM68KState *env, uint32_t val);
 
 #define M68K_FPCR_PREC (1 << 6)
 
