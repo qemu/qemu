@@ -69,7 +69,6 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_C);
         m68k_set_feature(env, M68K_FEATURE_CF_FPU);
-        m68k_set_feature(env, M68K_FEATURE_CF_MAC);
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
         break;
     case M68K_CPUID_ANY:
@@ -77,7 +76,8 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_C);
         m68k_set_feature(env, M68K_FEATURE_CF_FPU);
-        m68k_set_feature(env, M68K_FEATURE_CF_MAC);
+        /* MAC and EMAC are mututally exclusive, so pick EMAC.
+           It's mostly backwards compatible.  */
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
         m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
         break;
@@ -225,6 +225,40 @@ void helper_movec(CPUM68KState *env, int reg, uint32_t val)
         cpu_abort(env, "Unimplemented control register write 0x%x = 0x%x\n",
                   reg, val);
     }
+}
+
+void m68k_set_macsr(CPUM68KState *env, uint32_t val)
+{
+    uint32_t acc;
+    int8_t exthigh;
+    uint8_t extlow;
+    uint64_t regval;
+    int i;
+    if ((env->macsr ^ val) & (MACSR_FI | MACSR_SU)) {
+        for (i = 0; i < 4; i++) {
+            regval = env->macc[i];
+            exthigh = regval >> 40;
+            if (env->macsr & MACSR_FI) {
+                acc = regval >> 8;
+                extlow = regval;
+            } else {
+                acc = regval;
+                extlow = regval >> 32;
+            }
+            if (env->macsr & MACSR_FI) {
+                regval = (((uint64_t)acc) << 8) | extlow;
+                regval |= ((int64_t)exthigh) << 40;
+            } else if (env->macsr & MACSR_SU) {
+                regval = acc | (((int64_t)extlow) << 32);
+                regval |= ((int64_t)exthigh) << 40;
+            } else {
+                regval = acc | (((uint64_t)extlow) << 32);
+                regval |= ((uint64_t)(uint8_t)exthigh) << 40;
+            }
+            env->macc[i] = regval;
+        }
+    }
+    env->macsr = val;
 }
 
 /* MMU */

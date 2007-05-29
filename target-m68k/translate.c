@@ -2433,6 +2433,279 @@ DISAS_INSN(fsave)
     qemu_assert(0, "FSAVE not implemented");
 }
 
+static inline int gen_mac_extract_word(DisasContext *s, int val, int upper)
+{
+    int tmp = gen_new_qreg(QMODE_I32);
+    if (s->env->macsr & MACSR_FI) {
+        if (upper)
+            gen_op_and32(tmp, val, gen_im32(0xffff0000));
+        else
+            gen_op_shl32(tmp, val, gen_im32(16));
+    } else if (s->env->macsr & MACSR_SU) {
+        if (upper)
+            gen_op_sar32(tmp, val, gen_im32(16));
+        else
+            gen_op_ext16s32(tmp, val);
+    } else {
+        if (upper)
+            gen_op_shr32(tmp, val, gen_im32(16));
+        else
+            gen_op_ext16u32(tmp, val);
+    }
+    return tmp;
+}
+
+DISAS_INSN(mac)
+{
+    int rx;
+    int ry;
+    uint16_t ext;
+    int acc;
+    int l1;
+    int tmp;
+    int addr;
+    int loadval;
+    int dual;
+    int saved_flags = -1;
+
+    ext = lduw_code(s->pc);
+    s->pc += 2;
+
+    acc = ((insn >> 7) & 1) | ((ext >> 3) & 2);
+    dual = ((insn & 0x30) != 0 && (ext & 3) != 0);
+    if (insn & 0x30) {
+        /* MAC with load.  */
+        tmp = gen_lea(s, insn, OS_LONG);
+        addr = gen_new_qreg(QMODE_I32);
+        gen_op_and32(addr, tmp, QREG_MAC_MASK);
+        /* Load the value now to ensure correct exception behavior.
+           Perform writeback after reading the MAC inputs.  */
+        loadval = gen_load(s, OS_LONG, addr, 0);
+
+        acc ^= 1;
+        rx = (ext & 0x8000) ? AREG(ext, 12) : DREG(insn, 12);
+        ry = (ext & 8) ? AREG(ext, 0) : DREG(ext, 0);
+    } else {
+        loadval = addr = -1;
+        rx = (insn & 0x40) ? AREG(insn, 9) : DREG(insn, 9);
+        ry = (insn & 8) ? AREG(insn, 0) : DREG(insn, 0);
+    }
+
+    gen_op_mac_clear_flags();
+    l1 = -1;
+    if ((s->env->macsr & MACSR_OMC) != 0 && !dual) {
+        /* Skip the multiply if we know we will ignore it.  */
+        l1 = gen_new_label();
+        tmp = gen_new_qreg(QMODE_I32);
+        gen_op_and32(tmp, QREG_MACSR, gen_im32(1 << (acc + 8)));
+        gen_op_jmp_nz32(tmp, l1);
+    }
+
+    if ((ext & 0x0800) == 0) {
+        /* Word.  */
+        rx = gen_mac_extract_word(s, rx, (ext & 0x80) != 0);
+        ry = gen_mac_extract_word(s, ry, (ext & 0x40) != 0);
+    }
+    if (s->env->macsr & MACSR_FI) {
+        gen_op_macmulf(rx, ry);
+    } else {
+        if (s->env->macsr & MACSR_SU)
+            gen_op_macmuls(rx, ry);
+        else
+            gen_op_macmulu(rx, ry);
+        switch ((ext >> 9) & 3) {
+        case 1:
+            gen_op_macshl();
+            break;
+        case 3:
+            gen_op_macshr();
+            break;
+        }
+    }
+
+    if (dual) {
+        /* Save the overflow flag from the multiply.  */
+        saved_flags = gen_new_qreg(QMODE_I32);
+        gen_op_mov32(saved_flags, QREG_MACSR);
+    }
+
+    if ((s->env->macsr & MACSR_OMC) != 0 && dual) {
+        /* Skip the accumulate if the value is already saturated.  */
+        l1 = gen_new_label();
+        tmp = gen_new_qreg(QMODE_I32);
+        gen_op_and32(tmp, QREG_MACSR, gen_im32(MACSR_PAV0 << acc));
+        gen_op_jmp_nz32(tmp, l1);
+    }
+
+    if (insn & 0x100)
+        gen_op_macsub(acc);
+    else
+        gen_op_macadd(acc);
+
+    if (s->env->macsr & MACSR_FI)
+        gen_op_macsatf(acc);
+    else if (s->env->macsr & MACSR_SU)
+        gen_op_macsats(acc);
+    else
+        gen_op_macsatu(acc);
+
+    if (l1 != -1)
+        gen_set_label(l1);
+
+    if (dual) {
+        /* Dual accumulate variant.  */
+        acc = (ext >> 2) & 3;
+        /* Restore the overflow flag from the multiplier.  */
+        gen_op_mov32(QREG_MACSR, saved_flags);
+        if ((s->env->macsr & MACSR_OMC) != 0) {
+            /* Skip the accumulate if the value is already saturated.  */
+            l1 = gen_new_label();
+            tmp = gen_new_qreg(QMODE_I32);
+            gen_op_and32(tmp, QREG_MACSR, gen_im32(MACSR_PAV0 << acc));
+            gen_op_jmp_nz32(tmp, l1);
+        }
+        if (ext & 2)
+            gen_op_macsub(acc);
+        else
+            gen_op_macadd(acc);
+        if (s->env->macsr & MACSR_FI)
+            gen_op_macsatf(acc);
+        else if (s->env->macsr & MACSR_SU)
+            gen_op_macsats(acc);
+        else
+            gen_op_macsatu(acc);
+        if (l1 != -1)
+            gen_set_label(l1);
+    }
+    gen_op_mac_set_flags(acc);
+
+    if (insn & 0x30) {
+        int rw;
+        rw = (insn & 0x40) ? AREG(insn, 9) : DREG(insn, 9);
+        gen_op_mov32(rw, loadval);
+        /* FIXME: Should address writeback happen with the masked or
+           unmasked value?  */
+        switch ((insn >> 3) & 7) {
+        case 3: /* Post-increment.  */
+            gen_op_add32(AREG(insn, 0), addr, gen_im32(4));
+            break;
+        case 4: /* Pre-decrement.  */
+            gen_op_mov32(AREG(insn, 0), addr);
+        }
+    }
+}
+
+DISAS_INSN(from_mac)
+{
+    int rx;
+    int acc;
+
+    rx = (insn & 8) ? AREG(insn, 0) : DREG(insn, 0);
+    acc = (insn >> 9) & 3;
+    if (s->env->macsr & MACSR_FI) {
+        gen_op_get_macf(rx, acc);
+    } else if ((s->env->macsr & MACSR_OMC) == 0) {
+        gen_op_get_maci(rx, acc);
+    } else if (s->env->macsr & MACSR_SU) {
+        gen_op_get_macs(rx, acc);
+    } else {
+        gen_op_get_macu(rx, acc);
+    }
+    if (insn & 0x40)
+        gen_op_clear_mac(acc);
+}
+
+DISAS_INSN(move_mac)
+{
+    int src;
+    int dest;
+    src = insn & 3;
+    dest = (insn >> 9) & 3;
+    gen_op_move_mac(dest, src);
+    gen_op_mac_clear_flags();
+    gen_op_mac_set_flags(dest);
+}
+
+DISAS_INSN(from_macsr)
+{
+    int reg;
+
+    reg = (insn & 8) ? AREG(insn, 0) : DREG(insn, 0);
+    gen_op_mov32(reg, QREG_MACSR);
+}
+
+DISAS_INSN(from_mask)
+{
+    int reg;
+    reg = (insn & 8) ? AREG(insn, 0) : DREG(insn, 0);
+    gen_op_mov32(reg, QREG_MAC_MASK);
+}
+
+DISAS_INSN(from_mext)
+{
+    int reg;
+    int acc;
+    reg = (insn & 8) ? AREG(insn, 0) : DREG(insn, 0);
+    acc = (insn & 0x400) ? 2 : 0;
+    if (s->env->macsr & MACSR_FI)
+        gen_op_get_mac_extf(reg, acc);
+    else
+        gen_op_get_mac_exti(reg, acc);
+}
+
+DISAS_INSN(macsr_to_ccr)
+{
+    gen_op_mov32(QREG_CC_X, gen_im32(0));
+    gen_op_and32(QREG_CC_DEST, QREG_MACSR, gen_im32(0xf));
+    s->cc_op = CC_OP_FLAGS;
+}
+
+DISAS_INSN(to_mac)
+{
+    int acc;
+    int val;
+    acc = (insn >>9) & 3;
+    SRC_EA(val, OS_LONG, 0, NULL);
+    if (s->env->macsr & MACSR_FI) {
+        gen_op_set_macf(val, acc);
+    } else if (s->env->macsr & MACSR_SU) {
+        gen_op_set_macs(val, acc);
+    } else {
+        gen_op_set_macu(val, acc);
+    }
+    gen_op_mac_clear_flags();
+    gen_op_mac_set_flags(acc);
+}
+
+DISAS_INSN(to_macsr)
+{
+    int val;
+    SRC_EA(val, OS_LONG, 0, NULL);
+    gen_op_set_macsr(val);
+    gen_lookup_tb(s);
+}
+
+DISAS_INSN(to_mask)
+{
+    int val;
+    SRC_EA(val, OS_LONG, 0, NULL);
+    gen_op_or32(QREG_MAC_MASK, val, gen_im32(0xffff0000));
+}
+
+DISAS_INSN(to_mext)
+{
+    int val;
+    int acc;
+    SRC_EA(val, OS_LONG, 0, NULL);
+    acc = (insn & 0x400) ? 2 : 0;
+    if (s->env->macsr & MACSR_FI)
+        gen_op_set_mac_extf(val, acc);
+    else if (s->env->macsr & MACSR_SU)
+        gen_op_set_mac_exts(val, acc);
+    else
+        gen_op_set_mac_extu(val, acc);
+}
+
 static disas_proc opcode_table[65536];
 
 static void
@@ -2545,7 +2818,20 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(addsub,    9000, f000, CF_ISA_A);
     INSN(subx,      9180, f1f8, CF_ISA_A);
     INSN(suba,      91c0, f1c0, CF_ISA_A);
+
     INSN(undef_mac, a000, f000, CF_ISA_A);
+    INSN(mac,       a000, f100, CF_EMAC);
+    INSN(from_mac,  a180, f9b0, CF_EMAC);
+    INSN(move_mac,  a110, f9fc, CF_EMAC);
+    INSN(from_macsr,a980, f9f0, CF_EMAC);
+    INSN(from_mask, ad80, fff0, CF_EMAC);
+    INSN(from_mext, ab80, fbf0, CF_EMAC);
+    INSN(macsr_to_ccr, a9c0, ffff, CF_EMAC);
+    INSN(to_mac,    a100, f9c0, CF_EMAC);
+    INSN(to_macsr,  a900, ffc0, CF_EMAC);
+    INSN(to_mext,   ab00, fbc0, CF_EMAC);
+    INSN(to_mask,   ad00, ffc0, CF_EMAC);
+
     INSN(mov3q,     a140, f1c0, CF_ISA_B);
     INSN(cmp,       b000, f1c0, CF_ISA_B); /* cmp.b */
     INSN(cmp,       b040, f1c0, CF_ISA_B); /* cmp.w */
