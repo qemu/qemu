@@ -256,7 +256,7 @@ struct CPUMIPSState {
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
 #define MIPS_HFLAG_TMASK  0x007F
-#define MIPS_HFLAG_MODE   0x001F /* execution modes                    */
+#define MIPS_HFLAG_MODE   0x0007 /* execution modes                    */
 #define MIPS_HFLAG_UM     0x0001 /* user mode                          */
 #define MIPS_HFLAG_DM     0x0002 /* Debug mode                         */
 #define MIPS_HFLAG_SM     0x0004 /* Supervisor mode                    */
