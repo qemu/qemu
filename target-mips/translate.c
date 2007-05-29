@@ -703,6 +703,35 @@ static inline void generate_exception (DisasContext *ctx, int excp)
     generate_exception_err (ctx, excp, 0);
 }
 
+static inline void check_cp1_enabled(DisasContext *ctx)
+{
+    if (!(ctx->hflags & MIPS_HFLAG_FPU))
+        generate_exception_err(ctx, EXCP_CpU, 1);
+}
+
+static inline void check_cp1_64bitmode(DisasContext *ctx)
+{
+    if (!(ctx->hflags & MIPS_HFLAG_F64))
+        generate_exception(ctx, EXCP_RI);
+}
+
+/*
+ * Verify if floating point register is valid; an operation is not defined
+ * if bit 0 of any register specification is set and the FR bit in the
+ * Status register equals zero, since the register numbers specify an
+ * even-odd pair of adjacent coprocessor general registers. When the FR bit
+ * in the Status register equals one, both even and odd register numbers
+ * are valid. This limitation exists only for 64 bit wide (d,l,ps) registers.
+ *
+ * Multiple 64 bit wide registers can be checked by calling
+ * gen_op_cp1_registers(freg1 | freg2 | ... | fregN);
+ */
+void check_cp1_registers(DisasContext *ctx, int regs)
+{
+    if (!(ctx->hflags & MIPS_HFLAG_F64) && (regs & 1))
+        generate_exception(ctx, EXCP_RI);
+}
+
 #if defined(CONFIG_USER_ONLY)
 #define op_ldst(name)        gen_op_##name##_raw()
 #define OP_LD_TABLE(width)
@@ -4243,8 +4272,8 @@ GEN_MOVCF(s);
 GEN_MOVCF(ps);
 #undef GEN_MOVCF
 
-static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
-                        int fs, int fd, int cc)
+static void gen_farith (DisasContext *ctx, uint32_t op1,
+                        int ft, int fs, int fd, int cc)
 {
     const char *opn = "farith";
     const char *condnames[] = {
@@ -4344,28 +4373,28 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "neg.s";
         break;
     case FOP(8, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_roundl_s();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "round.l.s";
         break;
     case FOP(9, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_truncl_s();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "trunc.l.s";
         break;
     case FOP(10, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_ceill_s();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "ceil.l.s";
         break;
     case FOP(11, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_floorl_s();
         GEN_STORE_FTN_FREG(fd, DT2);
@@ -4432,7 +4461,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "rsqrt.s";
         break;
     case FOP(28, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT2, fd);
         gen_op_float_recip2_s();
@@ -4440,21 +4469,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "recip2.s";
         break;
     case FOP(29, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_recip1_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "recip1.s";
         break;
     case FOP(30, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_rsqrt1_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "rsqrt1.s";
         break;
     case FOP(31, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT2, fd);
         gen_op_float_rsqrt2_s();
@@ -4462,7 +4491,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "rsqrt2.s";
         break;
     case FOP(33, 16):
-        gen_op_cp1_registers(fd);
+        check_cp1_registers(ctx, fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvtd_s();
         GEN_STORE_FTN_FREG(fd, DT2);
@@ -4475,14 +4504,14 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "cvt.w.s";
         break;
     case FOP(37, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvtl_s();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "cvt.l.s";
         break;
     case FOP(38, 16):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT1, fs);
         GEN_LOAD_FREG_FTN(WT0, ft);
         gen_op_float_cvtps_s();
@@ -4508,7 +4537,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         if (ctx->opcode & (1 << 6)) {
-            gen_op_cp1_64bitmode();
+            check_cp1_64bitmode(ctx);
             gen_cmpabs_s(func-48, cc);
             opn = condnames_abs[func-48];
         } else {
@@ -4517,7 +4546,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         }
         break;
     case FOP(0, 17):
-        gen_op_cp1_registers(fs | ft | fd);
+        check_cp1_registers(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
         gen_op_float_add_d();
@@ -4526,7 +4555,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         optype = BINOP;
         break;
     case FOP(1, 17):
-        gen_op_cp1_registers(fs | ft | fd);
+        check_cp1_registers(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
         gen_op_float_sub_d();
@@ -4535,7 +4564,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         optype = BINOP;
         break;
     case FOP(2, 17):
-        gen_op_cp1_registers(fs | ft | fd);
+        check_cp1_registers(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
         gen_op_float_mul_d();
@@ -4544,7 +4573,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         optype = BINOP;
         break;
     case FOP(3, 17):
-        gen_op_cp1_registers(fs | ft | fd);
+        check_cp1_registers(ctx, fs | ft | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
         gen_op_float_div_d();
@@ -4553,84 +4582,84 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         optype = BINOP;
         break;
     case FOP(4, 17):
-        gen_op_cp1_registers(fs | fd);
+        check_cp1_registers(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_sqrt_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "sqrt.d";
         break;
     case FOP(5, 17):
-        gen_op_cp1_registers(fs | fd);
+        check_cp1_registers(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_abs_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "abs.d";
         break;
     case FOP(6, 17):
-        gen_op_cp1_registers(fs | fd);
+        check_cp1_registers(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_mov_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "mov.d";
         break;
     case FOP(7, 17):
-        gen_op_cp1_registers(fs | fd);
+        check_cp1_registers(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_chs_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "neg.d";
         break;
     case FOP(8, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_roundl_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "round.l.d";
         break;
     case FOP(9, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_truncl_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "trunc.l.d";
         break;
     case FOP(10, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_ceill_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "ceil.l.d";
         break;
     case FOP(11, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_floorl_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "floor.l.d";
         break;
     case FOP(12, 17):
-        gen_op_cp1_registers(fs);
+        check_cp1_registers(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_roundw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "round.w.d";
         break;
     case FOP(13, 17):
-        gen_op_cp1_registers(fs);
+        check_cp1_registers(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_truncw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "trunc.w.d";
         break;
     case FOP(14, 17):
-        gen_op_cp1_registers(fs);
+        check_cp1_registers(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_ceilw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "ceil.w.d";
         break;
     case FOP(15, 17):
-        gen_op_cp1_registers(fs);
+        check_cp1_registers(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_floorw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
@@ -4661,21 +4690,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "movn.d";
         break;
     case FOP(21, 17):
-        gen_op_cp1_registers(fs | fd);
+        check_cp1_registers(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_recip_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "recip.d";
         break;
     case FOP(22, 17):
-        gen_op_cp1_registers(fs | fd);
+        check_cp1_registers(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_rsqrt_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "rsqrt.d";
         break;
     case FOP(28, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT2, ft);
         gen_op_float_recip2_d();
@@ -4683,21 +4712,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "recip2.d";
         break;
     case FOP(29, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_recip1_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "recip1.d";
         break;
     case FOP(30, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_rsqrt1_d();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "rsqrt1.d";
         break;
     case FOP(31, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT2, ft);
         gen_op_float_rsqrt2_d();
@@ -4723,31 +4752,31 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         GEN_LOAD_FREG_FTN(DT0, fs);
         GEN_LOAD_FREG_FTN(DT1, ft);
         if (ctx->opcode & (1 << 6)) {
-            gen_op_cp1_64bitmode();
+            check_cp1_64bitmode(ctx);
             gen_cmpabs_d(func-48, cc);
             opn = condnames_abs[func-48];
         } else {
-            gen_op_cp1_registers(fs | ft);
+            check_cp1_registers(ctx, fs | ft);
             gen_cmp_d(func-48, cc);
             opn = condnames[func-48];
         }
         break;
     case FOP(32, 17):
-        gen_op_cp1_registers(fs);
+        check_cp1_registers(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvts_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.d";
         break;
     case FOP(36, 17):
-        gen_op_cp1_registers(fs);
+        check_cp1_registers(ctx, fs);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvtw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.w.d";
         break;
     case FOP(37, 17):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvtl_d();
         GEN_STORE_FTN_FREG(fd, DT2);
@@ -4760,21 +4789,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "cvt.s.w";
         break;
     case FOP(33, 20):
-        gen_op_cp1_registers(fd);
+        check_cp1_registers(ctx, fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvtd_w();
         GEN_STORE_FTN_FREG(fd, DT2);
         opn = "cvt.d.w";
         break;
     case FOP(32, 21):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvts_l();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.l";
         break;
     case FOP(33, 21):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvtd_l();
         GEN_STORE_FTN_FREG(fd, DT2);
@@ -4782,7 +4811,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         break;
     case FOP(38, 20):
     case FOP(38, 21):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_cvtps_pw();
@@ -4791,7 +4820,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "cvt.ps.pw";
         break;
     case FOP(0, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
@@ -4802,7 +4831,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "add.ps";
         break;
     case FOP(1, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
@@ -4813,7 +4842,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "sub.ps";
         break;
     case FOP(2, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
@@ -4824,7 +4853,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "mul.ps";
         break;
     case FOP(5, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_abs_ps();
@@ -4833,7 +4862,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "abs.ps";
         break;
     case FOP(6, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_mov_ps();
@@ -4842,7 +4871,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "mov.ps";
         break;
     case FOP(7, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_chs_ps();
@@ -4851,7 +4880,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "neg.ps";
         break;
     case FOP(17, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_REG_TN(T0, ft);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
@@ -4863,7 +4892,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "movcf.ps";
         break;
     case FOP(18, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_REG_TN(T0, ft);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
@@ -4875,7 +4904,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "movz.ps";
         break;
     case FOP(19, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_REG_TN(T0, ft);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
@@ -4887,7 +4916,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "movn.ps";
         break;
     case FOP(24, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, ft);
         GEN_LOAD_FREG_FTN(WTH0, ft);
         GEN_LOAD_FREG_FTN(WT1, fs);
@@ -4898,7 +4927,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "addr.ps";
         break;
     case FOP(26, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, ft);
         GEN_LOAD_FREG_FTN(WTH0, ft);
         GEN_LOAD_FREG_FTN(WT1, fs);
@@ -4909,7 +4938,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "mulr.ps";
         break;
     case FOP(28, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT2, fd);
@@ -4920,7 +4949,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "recip2.ps";
         break;
     case FOP(29, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_recip1_ps();
@@ -4929,7 +4958,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "recip1.ps";
         break;
     case FOP(30, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_rsqrt1_ps();
@@ -4938,7 +4967,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "rsqrt1.ps";
         break;
     case FOP(31, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT2, fd);
@@ -4949,14 +4978,14 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "rsqrt2.ps";
         break;
     case FOP(32, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_cvts_pu();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.pu";
         break;
     case FOP(36, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         gen_op_float_cvtpw_ps();
@@ -4965,14 +4994,14 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "cvt.pw.ps";
         break;
     case FOP(40, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         gen_op_float_cvts_pl();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.pl";
         break;
     case FOP(44, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_op_float_pll_ps();
@@ -4980,7 +5009,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "pll.ps";
         break;
     case FOP(45, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH1, ft);
         gen_op_float_plu_ps();
@@ -4988,7 +5017,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "plu.ps";
         break;
     case FOP(46, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
         gen_op_float_pul_ps();
@@ -4996,7 +5025,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
         opn = "pul.ps";
         break;
     case FOP(47, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WTH1, ft);
         gen_op_float_puu_ps();
@@ -5019,7 +5048,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
     case FOP(61, 22):
     case FOP(62, 22):
     case FOP(63, 22):
-        gen_op_cp1_64bitmode();
+        check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT1, ft);
@@ -5051,14 +5080,14 @@ static void gen_farith (DisasContext *ctx, uint32_t op1, int ft,
 }
 
 /* Coprocessor 3 (FPU) */
-static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc, int fd,
-                           int fs, int base, int index)
+static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
+                           int fd, int fs, int base, int index)
 {
     const char *opn = "extended float load/store";
     int store = 0;
 
     /* All of those work only on 64bit FPUs. */
-    gen_op_cp1_64bitmode();
+    check_cp1_64bitmode(ctx);
     if (base == 0) {
         if (index == 0)
             gen_op_reset_T0();
@@ -5117,13 +5146,13 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc, int fd,
                regnames[index], regnames[base]);
 }
 
-static void gen_flt3_arith (DisasContext *ctx, uint32_t opc, int fd,
-                            int fr, int fs, int ft)
+static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
+                            int fd, int fr, int fs, int ft)
 {
     const char *opn = "flt3_arith";
 
     /* All of those work only on 64bit FPUs. */
-    gen_op_cp1_64bitmode();
+    check_cp1_64bitmode(ctx);
     switch (opc) {
     case OPC_ALNV_PS:
         GEN_LOAD_REG_TN(T0, fr);
@@ -5363,7 +5392,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MOVCI:
             if (env->CP0_Config1 & (1 << CP0C1_FP)) {
                 save_cpu_state(ctx, 1);
-                gen_op_cp1_enabled();
+                check_cp1_enabled(ctx);
                 gen_movci(ctx, rd, rs, (ctx->opcode >> 18) & 0x7,
                           (ctx->opcode >> 16) & 1);
             } else {
@@ -5634,7 +5663,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_SDC1:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
             save_cpu_state(ctx, 1);
-            gen_op_cp1_enabled();
+            check_cp1_enabled(ctx);
             gen_flt_ldst(ctx, op, rt, rs, imm);
         } else {
             generate_exception_err(ctx, EXCP_CpU, 1);
@@ -5644,7 +5673,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_CP1:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
             save_cpu_state(ctx, 1);
-            gen_op_cp1_enabled();
+            check_cp1_enabled(ctx);
             op1 = MASK_CP1(ctx->opcode);
             switch (op1) {
             case OPC_MFC1:
@@ -5696,7 +5725,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_CP3:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
             save_cpu_state(ctx, 1);
-            gen_op_cp1_enabled();
+            check_cp1_enabled(ctx);
             op1 = MASK_CP3(ctx->opcode);
             switch (op1) {
             case OPC_LWXC1:
@@ -5960,7 +5989,7 @@ void fpu_dump_state(CPUState *env, FILE *f,
                     int flags)
 {
     int i;
-    int is_fpu64 = !!(env->CP0_Status & (1 << CP0St_FR));
+    int is_fpu64 = !!(env->hflags & MIPS_HFLAG_F64);
 
 #define printfpr(fp)                                                        \
     do {                                                                    \
@@ -6038,7 +6067,6 @@ void cpu_dump_state (CPUState *env, FILE *f,
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                      int flags)
 {
-    uint32_t c0_status;
     int i;
     
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
@@ -6051,13 +6079,11 @@ void cpu_dump_state (CPUState *env, FILE *f,
             cpu_fprintf(f, "\n");
     }
 
-    c0_status = env->CP0_Status;
-
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TARGET_FMT_lx "\n",
-                c0_status, env->CP0_Cause, env->CP0_EPC);
+                env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TARGET_FMT_lx "\n",
                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
-    if (c0_status & (1 << CP0St_CU1))
+    if (env->hflags & MIPS_HFLAG_FPU)
         fpu_dump_state(env, f, cpu_fprintf, flags);
 #if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
     cpu_mips_check_sign_extensions(env, f, cpu_fprintf, flags);
