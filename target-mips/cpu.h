@@ -48,6 +48,8 @@ struct r4k_tlb_t {
     target_ulong PFN[2];
 };
 
+typedef struct mips_def_t mips_def_t;
+
 typedef struct CPUMIPSState CPUMIPSState;
 struct CPUMIPSState {
     /* General integer registers */
@@ -295,6 +297,8 @@ struct CPUMIPSState {
     const char *kernel_cmdline;
     const char *initrd_filename;
 
+    mips_def_t *cpu_model;
+
     struct QEMUTimer *timer; /* Internal timer */
 };
 
@@ -308,7 +312,6 @@ void r4k_do_tlbwi (void);
 void r4k_do_tlbwr (void);
 void r4k_do_tlbp (void);
 void r4k_do_tlbr (void);
-typedef struct mips_def_t mips_def_t;
 int mips_find_by_name (const unsigned char *name, mips_def_t **def);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);

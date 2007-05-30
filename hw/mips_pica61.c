@@ -51,6 +51,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
+    cpu_mips_register(env, NULL);
 }
 
 static

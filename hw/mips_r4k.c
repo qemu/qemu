@@ -128,6 +128,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
+    cpu_mips_register(env, NULL);
 
     if (env->kernel_filename)
         load_kernel (env, env->ram_size, env->kernel_filename,

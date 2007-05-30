@@ -207,12 +207,14 @@ static void r4k_mmu_init (CPUMIPSState *env, mips_def_t *def)
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
 {
     if (!def)
+        def = env->cpu_model;
+    if (!def)
         cpu_abort(env, "Unable to find MIPS CPU definition\n");
+    env->cpu_model = def;
     env->CP0_PRid = def->CP0_PRid;
-#ifdef TARGET_WORDS_BIGENDIAN
-    env->CP0_Config0 = def->CP0_Config0 | (1 << CP0C0_BE);
-#else
     env->CP0_Config0 = def->CP0_Config0;
+#ifdef TARGET_WORDS_BIGENDIAN
+    env->CP0_Config0 |= (1 << CP0C0_BE);
 #endif
     env->CP0_Config1 = def->CP0_Config1;
     env->CP0_Config2 = def->CP0_Config2;

@@ -748,6 +748,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
+    cpu_mips_register(env, NULL);
 
     /* The bootload does not need to be rewritten as it is located in a
        read only location. The kernel location and the arguments table
