@@ -1,3 +1,11 @@
+2007-05-30 20:54  blueswir1
+
+	* hw/apb_pci.c: Replace target_ulong with target_phys_addr_t
+
+2007-05-30 19:25  blueswir1
+
+	* exec.c: Fix the bug introduced by subpage code preventing PC boot
+
 2007-05-29 20:55  ths
 
 	* target-mips/cpu.h: Fix usermode check, thanks Aurelien Jarno.

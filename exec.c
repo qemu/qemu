@@ -1923,7 +1923,7 @@ static void *subpage_init (target_phys_addr_t base, uint32_t *phys,
                 need_subpage = 1;                                       \
         }                                                               \
                                                                         \
-        if (end_addr - addr > TARGET_PAGE_SIZE)                         \
+        if ((start_addr + orig_size) - addr >= TARGET_PAGE_SIZE)        \
             end_addr2 = TARGET_PAGE_SIZE - 1;                           \
         else {                                                          \
             end_addr2 = (start_addr + orig_size - 1) & ~TARGET_PAGE_MASK; \
@@ -1945,8 +1945,8 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     unsigned long orig_size = size;
     void *subpage;
 
-    end_addr = start_addr + (target_phys_addr_t)size;
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
+    end_addr = start_addr + (target_phys_addr_t)size;
 
 #if defined(DEBUG)
 # define logout(fmt, args...) fprintf(stderr, "QEMU\t%-24s" fmt, __func__, ##args)
@@ -1956,7 +1956,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     logout(" 0x%08x...0x%08x, size 0x%08lx, phys_offset 0x%08lx\n",
         start_addr, end_addr, size, phys_offset);
 
-    for(addr = start_addr; addr < end_addr; addr += TARGET_PAGE_SIZE) {
+    for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find(addr >> TARGET_PAGE_BITS);
         if (p && p->phys_offset != IO_MEM_UNASSIGNED) {
             unsigned long orig_memory = p->phys_offset;

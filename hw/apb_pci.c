@@ -206,13 +206,13 @@ static void pci_apb_set_irq(qemu_irq *pic, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
+PCIBus *pci_apb_init(target_phys_addr_t special_base,
+                     target_phys_addr_t mem_base,
                      qemu_irq *pic)
 {
     APBState *s;
     PCIDevice *d;
     int pci_mem_config, pci_mem_data, apb_config, pci_ioport;
-    PCIDevice *apb;
     PCIBus *secondary;
 
     s = qemu_mallocz(sizeof(APBState));
