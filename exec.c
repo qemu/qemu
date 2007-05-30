@@ -1922,7 +1922,7 @@ static void *subpage_init (target_phys_addr_t base, uint32_t *phys,
                 need_subpage = 1;                                       \
         }                                                               \
                                                                         \
-        if (end_addr - addr > TARGET_PAGE_SIZE)                         \
+        if ((start_addr + orig_size) - addr >= TARGET_PAGE_SIZE)        \
             end_addr2 = TARGET_PAGE_SIZE - 1;                           \
         else {                                                          \
             end_addr2 = (start_addr + orig_size - 1) & ~TARGET_PAGE_MASK; \
@@ -1944,9 +1944,9 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     unsigned long orig_size = size;
     void *subpage;
 
-    end_addr = start_addr + (target_phys_addr_t)size;
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
-    for(addr = start_addr; addr < end_addr; addr += TARGET_PAGE_SIZE) {
+    end_addr = start_addr + (target_phys_addr_t)size;
+    for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find(addr >> TARGET_PAGE_BITS);
         if (p && p->phys_offset != IO_MEM_UNASSIGNED) {
             unsigned long orig_memory = p->phys_offset;
