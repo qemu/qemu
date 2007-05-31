@@ -5843,7 +5843,7 @@ static inline int
 gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                 int search_pc)
 {
-    DisasContext ctx, *ctxp = &ctx;
+    DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int j, lj = -1;
@@ -5884,7 +5884,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
                 if (env->breakpoints[j] == ctx.pc) {
-                    save_cpu_state(ctxp, 1);
+                    save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
                     gen_op_debug();
                     goto done_generating;
@@ -5918,7 +5918,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
     }
     if (env->singlestep_enabled) {
-        save_cpu_state(ctxp, ctx.bstate == BS_NONE);
+        save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         gen_op_debug();
     } else {
 	switch (ctx.bstate) {
@@ -5927,7 +5927,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_NONE:
-            save_cpu_state(ctxp, 0);
+            save_cpu_state(&ctx, 0);
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_EXCP:
