@@ -1,3 +1,22 @@
+2007-05-31 18:18  ths
+
+	* target-mips/cpu.h: Don't kill the registered irqs on reset.
+
+2007-05-31 18:17  ths
+
+	* fpu/softfloat.h, target-mips/op_helper.c: Add proper
+	  float*_is_nan prototypes.
+
+2007-05-30 23:30  ths
+
+	* hw/mips_malta.c: Fix typo in comment.
+
+2007-05-30 22:46  ths
+
+	* hw/mips_malta.c, hw/mips_pica61.c, hw/mips_r4k.c,
+	  target-mips/cpu.h, target-mips/translate_init.c: Fix CPU
+	  (re-)selection on reset.
+
 2007-05-30 20:54  blueswir1
 
 	* hw/apb_pci.c: Replace target_ulong with target_phys_addr_t

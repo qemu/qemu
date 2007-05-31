@@ -291,19 +291,21 @@ struct CPUMIPSState {
     int CCRes; /* Cycle count resolution/divisor */
     int Status_rw_bitmask; /* Read/write bits in CP0_Status */
 
-    CPU_COMMON
-
-#if defined(CONFIG_USER_ONLY)
+#ifdef CONFIG_USER_ONLY
     target_ulong tls_value;
-#else
-    void *irq[8];
 #endif
 
-    mips_def_t *mips_def;
+    CPU_COMMON
+
     int ram_size;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *initrd_filename;
+
+    mips_def_t *cpu_model;
+#ifndef CONFIG_USER_ONLY
+    void *irq[8];
+#endif
 
     struct QEMUTimer *timer; /* Internal timer */
 };

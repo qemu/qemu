@@ -1171,7 +1171,6 @@ void do_cmpabs_s_ ## op (long cc)              \
 
 flag float32_is_unordered(int sig, float32 a, float32 b STATUS_PARAM)
 {
-    extern flag float32_is_nan(float32 a);
     if (float32_is_signaling_nan(a) ||
         float32_is_signaling_nan(b) ||
         (sig && (float32_is_nan(a) || float32_is_nan(b)))) {
