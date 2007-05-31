@@ -3551,7 +3551,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-    cpu_mips_register(env, env->mips_def);
+    cpu_mips_register(env, NULL);
     ar7_mips_init(env);
     /* AR7 is MIPS32 release 1. */
     env->CP0_Config0 &= ~(7 << CP0C0_AR);
@@ -3595,7 +3595,6 @@ static void mips_ar7_common_init (int ram_size,
         def = NULL;
     }
     env = cpu_init();
-    env->mips_def = def;
     cpu_mips_register(env, def);
     ar7_mips_init(env);
 
