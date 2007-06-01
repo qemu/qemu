@@ -1616,3 +1616,5 @@ struct target_sysinfo {
 };
 
 #include "socket.h"
+
+#include "errno_defs.h"
