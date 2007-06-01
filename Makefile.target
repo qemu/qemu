@@ -30,7 +30,7 @@ endif
 BASE_CFLAGS=
 BASE_LDFLAGS=
 #CFLAGS+=-Werror
-BASE_CFLAGS += -MMD
+BASE_CFLAGS += -MMD -MP
 BASE_LDFLAGS += -g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
@@ -118,7 +118,7 @@ OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
 
-OP_CFLAGS += -MMD
+OP_CFLAGS += -MMD -MP
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
