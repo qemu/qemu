@@ -2338,8 +2338,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             int host_pipe[2];
             ret = get_errno(pipe(host_pipe));
             if (!is_error(ret)) {
+#if defined(TARGET_MIPS)
+		((CPUMIPSState*)cpu_env)->gpr[3] = host_pipe[1];
+		ret = host_pipe[0];
+#else
                 tput32(arg1, host_pipe[0]);
                 tput32(arg1 + 4, host_pipe[1]);
+#endif
             }
         }
         break;
