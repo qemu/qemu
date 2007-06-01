@@ -3108,9 +3108,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         do_stat:
             if (!is_error(ret)) {
                 struct target_stat *target_st;
-                
+
                 lock_user_struct(target_st, arg2, 0);
+#if defined(TARGET_MIPS)
+                target_st->st_dev = tswap32(st.st_dev);
+#else
                 target_st->st_dev = tswap16(st.st_dev);
+#endif
                 target_st->st_ino = tswapl(st.st_ino);
 #if defined(TARGET_PPC) || defined(TARGET_MIPS)
                 target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
@@ -3121,8 +3125,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->st_uid = tswap16(st.st_uid);
                 target_st->st_gid = tswap16(st.st_gid);
 #endif
+#if defined(TARGET_MIPS)
+		/* If this is the same on PPC, then just merge w/ the above ifdef */
+                target_st->st_nlink = tswapl(st.st_nlink);
+                target_st->st_rdev = tswapl(st.st_rdev);
+#else
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_rdev = tswap16(st.st_rdev);
+#endif
                 target_st->st_size = tswapl(st.st_size);
                 target_st->st_blksize = tswapl(st.st_blksize);
                 target_st->st_blocks = tswapl(st.st_blocks);
