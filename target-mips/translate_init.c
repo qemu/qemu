@@ -225,7 +225,12 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CCRes = def->CCRes;
     env->Status_rw_bitmask = def->Status_rw_bitmask;
     env->fcr0 = def->CP1_fcr0;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    if (env->CP0_Config1 & (1 << CP0C1_FP))
+        env->hflags |= MIPS_HFLAG_FPU;
+    if (env->fcr0 & (1 << FCR0_F64))
+        env->hflags |= MIPS_HFLAG_F64;
+#else
     switch ((env->CP0_Config0 >> CP0C0_MT) & 3) {
         case 0:
             no_mmu_init(env, def);
