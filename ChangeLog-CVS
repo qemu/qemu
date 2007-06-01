@@ -1,3 +1,74 @@
+2007-06-01 19:47  ths
+
+	* target-mips/translate.c: Make sure hflags are updated for
+	  CP0_Status changes.
+
+2007-06-01 19:03  blueswir1
+
+	* vl.h: Forgot to update vl.h during latest Sparc64 target_ulong
+	  fix
+
+2007-06-01 18:59  blueswir1
+
+	* sparc-dis.c: Constification
+
+2007-06-01 18:58  blueswir1
+
+	* hw/tcx.c: Force display update on palette change or loadvm
+
+2007-06-01 18:56  blueswir1
+
+	* target-sparc/cpu.h: Enable 36-bit physical address space also on
+	  32-bit hosts
+
+2007-06-01 18:45  blueswir1
+
+	* target-sparc/op_helper.c: Sparc64 linux-user build fix
+
+2007-06-01 18:44  blueswir1
+
+	* Makefile.target: Update Sparc dependencies
+
+2007-06-01 17:18  ths
+
+	* target-mips/TODO: Update TODO.
+
+2007-06-01 16:58  ths
+
+	* hw/mips_malta.c, target-mips/translate_init.c: Add support for
+	  5Kc/5Kf/20Kc, based on a patch by Aurelien Jarno.  Note that the
+	  F64 flag isn't usable on any of those (and the R4000), so all our
+	  64bit FPU goodness goes out of the window until a shadow
+	  capability flag is implemented. :-(
+
+2007-06-01 15:18  ths
+
+	* gdbstub.c: GDB stub for MIPS64, by Jason Wessel.
+
+2007-06-01 14:09  ths
+
+	* linux-user/: errno_defs.h, syscall.c, syscall_defs.h,
+	  mips/syscall.h: linux-user errno mapping, by Stuart Anderson.
+
+2007-06-01 13:50  ths
+
+	* linux-user/syscall.c: Patch for pipe() result handling, by Stuart
+	  Anderson.
+
+2007-06-01 13:49  ths
+
+	* linux-user/syscall.c: Fix struct stat mapping for MIPS, by Stuart
+	  Anderson.
+
+2007-06-01 13:47  ths
+
+	* target-mips/translate_init.c: Allow again FPU for usermode
+	  emulation.
+
+2007-06-01 01:42  ths
+
+	* target-mips/translate.c: Simplify code.
+
 2007-05-31 18:18  ths
 
 	* target-mips/cpu.h: Don't kill the registered irqs on reset.

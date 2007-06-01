@@ -181,10 +181,117 @@ extern int setresgid(gid_t, gid_t, gid_t);
 extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
+/*
+ * This list is the union of errno values overidden in asm-<arch>/errno.h
+ * minus the errnos that are not actually generic to all archs.
+ */
+static uint16_t host_to_target_errno_table[1200] = {
+    [EIDRM]		= TARGET_EIDRM,
+    [ECHRNG]		= TARGET_ECHRNG,
+    [EL2NSYNC]		= TARGET_EL2NSYNC,
+    [EL3HLT]		= TARGET_EL3HLT,
+    [EL3RST]		= TARGET_EL3RST,
+    [ELNRNG]		= TARGET_ELNRNG,
+    [EUNATCH]		= TARGET_EUNATCH,
+    [ENOCSI]		= TARGET_ENOCSI,
+    [EL2HLT]		= TARGET_EL2HLT,
+    [EDEADLK]		= TARGET_EDEADLK,
+    [ENOLCK]		= TARGET_ENOLCK,
+    [EBADE]		= TARGET_EBADE,
+    [EBADR]		= TARGET_EBADR,
+    [EXFULL]		= TARGET_EXFULL,
+    [ENOANO]		= TARGET_ENOANO,
+    [EBADRQC]		= TARGET_EBADRQC,
+    [EBADSLT]		= TARGET_EBADSLT,
+    [EBFONT]		= TARGET_EBFONT,
+    [ENOSTR]		= TARGET_ENOSTR,
+    [ENODATA]		= TARGET_ENODATA,
+    [ETIME]		= TARGET_ETIME,
+    [ENOSR]		= TARGET_ENOSR,
+    [ENONET]		= TARGET_ENONET,
+    [ENOPKG]		= TARGET_ENOPKG,
+    [EREMOTE]		= TARGET_EREMOTE,
+    [ENOLINK]		= TARGET_ENOLINK,
+    [EADV]		= TARGET_EADV,
+    [ESRMNT]		= TARGET_ESRMNT,
+    [ECOMM]		= TARGET_ECOMM,
+    [EPROTO]		= TARGET_EPROTO,
+    [EDOTDOT]		= TARGET_EDOTDOT,
+    [EMULTIHOP]		= TARGET_EMULTIHOP,
+    [EBADMSG]		= TARGET_EBADMSG,
+    [ENAMETOOLONG]	= TARGET_ENAMETOOLONG,
+    [EOVERFLOW]		= TARGET_EOVERFLOW,
+    [ENOTUNIQ]		= TARGET_ENOTUNIQ,
+    [EBADFD]		= TARGET_EBADFD,
+    [EREMCHG]		= TARGET_EREMCHG,
+    [ELIBACC]		= TARGET_ELIBACC,
+    [ELIBBAD]		= TARGET_ELIBBAD,
+    [ELIBSCN]		= TARGET_ELIBSCN,
+    [ELIBMAX]		= TARGET_ELIBMAX,
+    [ELIBEXEC]		= TARGET_ELIBEXEC,
+    [EILSEQ]		= TARGET_EILSEQ,
+    [ENOSYS]		= TARGET_ENOSYS,
+    [ELOOP]		= TARGET_ELOOP,
+    [ERESTART]		= TARGET_ERESTART,
+    [ESTRPIPE]		= TARGET_ESTRPIPE,
+    [ENOTEMPTY]		= TARGET_ENOTEMPTY,
+    [EUSERS]		= TARGET_EUSERS,
+    [ENOTSOCK]		= TARGET_ENOTSOCK,
+    [EDESTADDRREQ]	= TARGET_EDESTADDRREQ,
+    [EMSGSIZE]		= TARGET_EMSGSIZE,
+    [EPROTOTYPE]	= TARGET_EPROTOTYPE,
+    [ENOPROTOOPT]	= TARGET_ENOPROTOOPT,
+    [EPROTONOSUPPORT]	= TARGET_EPROTONOSUPPORT,
+    [ESOCKTNOSUPPORT]	= TARGET_ESOCKTNOSUPPORT,
+    [EOPNOTSUPP]	= TARGET_EOPNOTSUPP,
+    [EPFNOSUPPORT]	= TARGET_EPFNOSUPPORT,
+    [EAFNOSUPPORT]	= TARGET_EAFNOSUPPORT,
+    [EADDRINUSE]	= TARGET_EADDRINUSE,
+    [EADDRNOTAVAIL]	= TARGET_EADDRNOTAVAIL,
+    [ENETDOWN]		= TARGET_ENETDOWN,
+    [ENETUNREACH]	= TARGET_ENETUNREACH,
+    [ENETRESET]		= TARGET_ENETRESET,
+    [ECONNABORTED]	= TARGET_ECONNABORTED,
+    [ECONNRESET]	= TARGET_ECONNRESET,
+    [ENOBUFS]		= TARGET_ENOBUFS,
+    [EISCONN]		= TARGET_EISCONN,
+    [ENOTCONN]		= TARGET_ENOTCONN,
+    [EUCLEAN]		= TARGET_EUCLEAN,
+    [ENOTNAM]		= TARGET_ENOTNAM,
+    [ENAVAIL]		= TARGET_ENAVAIL,
+    [EISNAM]		= TARGET_EISNAM,
+    [EREMOTEIO]		= TARGET_EREMOTEIO,
+    [ESHUTDOWN]		= TARGET_ESHUTDOWN,
+    [ETOOMANYREFS]	= TARGET_ETOOMANYREFS,
+    [ETIMEDOUT]		= TARGET_ETIMEDOUT,
+    [ECONNREFUSED]	= TARGET_ECONNREFUSED,
+    [EHOSTDOWN]		= TARGET_EHOSTDOWN,
+    [EHOSTUNREACH]	= TARGET_EHOSTUNREACH,
+    [EALREADY]		= TARGET_EALREADY,
+    [EINPROGRESS]	= TARGET_EINPROGRESS,
+    [ESTALE]		= TARGET_ESTALE,
+    [ECANCELED]		= TARGET_ECANCELED,
+    [ENOMEDIUM]		= TARGET_ENOMEDIUM,
+    [EMEDIUMTYPE]	= TARGET_EMEDIUMTYPE,
+    [ENOKEY]		= TARGET_ENOKEY,
+    [EKEYEXPIRED]	= TARGET_EKEYEXPIRED,
+    [EKEYREVOKED]	= TARGET_EKEYREVOKED,
+    [EKEYREJECTED]	= TARGET_EKEYREJECTED,
+    [EOWNERDEAD]	= TARGET_EOWNERDEAD,
+    [ENOTRECOVERABLE]	= TARGET_ENOTRECOVERABLE,
+	};
+
+static inline int host_to_target_errno(int err)
+{
+    if(host_to_target_errno_table[err])
+        return host_to_target_errno_table[err];
+    return err;
+}
+
 static inline long get_errno(long ret)
 {
     if (ret == -1)
-        return -errno;
+        return -host_to_target_errno(errno);
     else
         return ret;
 }
@@ -2338,8 +2445,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             int host_pipe[2];
             ret = get_errno(pipe(host_pipe));
             if (!is_error(ret)) {
+#if defined(TARGET_MIPS)
+		((CPUMIPSState*)cpu_env)->gpr[3] = host_pipe[1];
+		ret = host_pipe[0];
+#else
                 tput32(arg1, host_pipe[0]);
                 tput32(arg1 + 4, host_pipe[1]);
+#endif
             }
         }
         break;
@@ -3108,9 +3220,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         do_stat:
             if (!is_error(ret)) {
                 struct target_stat *target_st;
-                
+
                 lock_user_struct(target_st, arg2, 0);
+#if defined(TARGET_MIPS)
+                target_st->st_dev = tswap32(st.st_dev);
+#else
                 target_st->st_dev = tswap16(st.st_dev);
+#endif
                 target_st->st_ino = tswapl(st.st_ino);
 #if defined(TARGET_PPC) || defined(TARGET_MIPS)
                 target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
@@ -3121,8 +3237,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->st_uid = tswap16(st.st_uid);
                 target_st->st_gid = tswap16(st.st_gid);
 #endif
+#if defined(TARGET_MIPS)
+		/* If this is the same on PPC, then just merge w/ the above ifdef */
+                target_st->st_nlink = tswapl(st.st_nlink);
+                target_st->st_rdev = tswapl(st.st_rdev);
+#else
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_rdev = tswap16(st.st_rdev);
+#endif
                 target_st->st_size = tswapl(st.st_size);
                 target_st->st_blksize = tswapl(st.st_blksize);
                 target_st->st_blocks = tswapl(st.st_blocks);

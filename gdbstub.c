@@ -549,41 +549,41 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     ptr = mem_buf;
     for (i = 0; i < 32; i++)
       {
-        *(uint32_t *)ptr = tswapl(env->gpr[i]);
-        ptr += 4;
+        *(target_ulong *)ptr = tswapl(env->gpr[i]);
+        ptr += sizeof(target_ulong);
       }
 
-    *(uint32_t *)ptr = tswapl(env->CP0_Status);
-    ptr += 4;
+    *(target_ulong *)ptr = tswapl(env->CP0_Status);
+    ptr += sizeof(target_ulong);
 
-    *(uint32_t *)ptr = tswapl(env->LO);
-    ptr += 4;
+    *(target_ulong *)ptr = tswapl(env->LO);
+    ptr += sizeof(target_ulong);
 
-    *(uint32_t *)ptr = tswapl(env->HI);
-    ptr += 4;
+    *(target_ulong *)ptr = tswapl(env->HI);
+    ptr += sizeof(target_ulong);
 
-    *(uint32_t *)ptr = tswapl(env->CP0_BadVAddr);
-    ptr += 4;
+    *(target_ulong *)ptr = tswapl(env->CP0_BadVAddr);
+    ptr += sizeof(target_ulong);
 
-    *(uint32_t *)ptr = tswapl(env->CP0_Cause);
-    ptr += 4;
+    *(target_ulong *)ptr = tswapl(env->CP0_Cause);
+    ptr += sizeof(target_ulong);
 
-    *(uint32_t *)ptr = tswapl(env->PC);
-    ptr += 4;
+    *(target_ulong *)ptr = tswapl(env->PC);
+    ptr += sizeof(target_ulong);
 
     if (env->CP0_Config1 & (1 << CP0C1_FP))
       {
         for (i = 0; i < 32; i++)
           {
-            *(uint32_t *)ptr = tswapl(env->fpr[i].fs[FP_ENDIAN_IDX]);
-            ptr += 4;
+            *(target_ulong *)ptr = tswapl(env->fpr[i].fs[FP_ENDIAN_IDX]);
+            ptr += sizeof(target_ulong);
           }
 
-        *(uint32_t *)ptr = tswapl(env->fcr31);
-        ptr += 4;
+        *(target_ulong *)ptr = tswapl(env->fcr31);
+        ptr += sizeof(target_ulong);
 
-        *(uint32_t *)ptr = tswapl(env->fcr0);
-        ptr += 4;
+        *(target_ulong *)ptr = tswapl(env->fcr0);
+        ptr += sizeof(target_ulong);
       }
 
     /* 32 FP registers, fsr, fir, fp.  Not yet implemented.  */
@@ -611,41 +611,41 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     ptr = mem_buf;
     for (i = 0; i < 32; i++)
       {
-        env->gpr[i] = tswapl(*(uint32_t *)ptr);
-        ptr += 4;
+        env->gpr[i] = tswapl(*(target_ulong *)ptr);
+        ptr += sizeof(target_ulong);
       }
 
-    env->CP0_Status = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
+    env->CP0_Status = tswapl(*(target_ulong *)ptr);
+    ptr += sizeof(target_ulong);
 
-    env->LO = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
+    env->LO = tswapl(*(target_ulong *)ptr);
+    ptr += sizeof(target_ulong);
 
-    env->HI = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
+    env->HI = tswapl(*(target_ulong *)ptr);
+    ptr += sizeof(target_ulong);
 
-    env->CP0_BadVAddr = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
+    env->CP0_BadVAddr = tswapl(*(target_ulong *)ptr);
+    ptr += sizeof(target_ulong);
 
-    env->CP0_Cause = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
+    env->CP0_Cause = tswapl(*(target_ulong *)ptr);
+    ptr += sizeof(target_ulong);
 
-    env->PC = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
+    env->PC = tswapl(*(target_ulong *)ptr);
+    ptr += sizeof(target_ulong);
 
     if (env->CP0_Config1 & (1 << CP0C1_FP))
       {
         for (i = 0; i < 32; i++)
           {
-            env->fpr[i].fs[FP_ENDIAN_IDX] = tswapl(*(uint32_t *)ptr);
-            ptr += 4;
+            env->fpr[i].fs[FP_ENDIAN_IDX] = tswapl(*(target_ulong *)ptr);
+            ptr += sizeof(target_ulong);
           }
 
-        env->fcr31 = tswapl(*(uint32_t *)ptr) & 0x0183FFFF;
-        ptr += 4;
+        env->fcr31 = tswapl(*(target_ulong *)ptr) & 0x0183FFFF;
+        ptr += sizeof(target_ulong);
 
-        env->fcr0 = tswapl(*(uint32_t *)ptr);
-        ptr += 4;
+        env->fcr0 = tswapl(*(target_ulong *)ptr);
+        ptr += sizeof(target_ulong);
 
         /* set rounding mode */
         RESTORE_ROUNDING_MODE;

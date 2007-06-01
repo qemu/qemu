@@ -2641,25 +2641,32 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             gen_op_mtc0_status();
+            /* BS_STOP isn't good enough here, hflags may have changed. */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Status";
             break;
         case 1:
             gen_op_mtc0_intctl();
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "IntCtl";
             break;
         case 2:
             gen_op_mtc0_srsctl();
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "SRSCtl";
             break;
         case 3:
             gen_op_mtc0_srsmap();
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "SRSMap";
             break;
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 13:
         switch (sel) {
@@ -2795,29 +2802,40 @@ static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             gen_op_mtc0_debug(); /* EJTAG support */
+            /* BS_STOP isn't good enough here, hflags may have changed. */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Debug";
             break;
         case 1:
 //            gen_op_mtc0_tracecontrol(); /* PDtrace support */
             rn = "TraceControl";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
 //            break;
         case 2:
 //            gen_op_mtc0_tracecontrol2(); /* PDtrace support */
             rn = "TraceControl2";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
 //            break;
         case 3:
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
 //            gen_op_mtc0_usertracedata(); /* PDtrace support */
             rn = "UserTraceData";
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
 //            break;
         case 4:
 //            gen_op_mtc0_debug(); /* PDtrace support */
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "TraceBPC";
 //            break;
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 24:
         switch (sel) {
@@ -3718,25 +3736,32 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             gen_op_mtc0_status();
+            /* BS_STOP isn't good enough here, hflags may have changed. */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Status";
             break;
         case 1:
             gen_op_mtc0_intctl();
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "IntCtl";
             break;
         case 2:
             gen_op_mtc0_srsctl();
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "SRSCtl";
             break;
         case 3:
             gen_op_mtc0_srsmap();
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "SRSMap";
             break;
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 13:
         switch (sel) {
@@ -3863,29 +3888,38 @@ static void gen_dmtc0 (DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             gen_op_mtc0_debug(); /* EJTAG support */
+            /* BS_STOP isn't good enough here, hflags may have changed. */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Debug";
             break;
         case 1:
 //            gen_op_mtc0_tracecontrol(); /* PDtrace support */
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "TraceControl";
 //            break;
         case 2:
 //            gen_op_mtc0_tracecontrol2(); /* PDtrace support */
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "TraceControl2";
 //            break;
         case 3:
 //            gen_op_mtc0_usertracedata(); /* PDtrace support */
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "UserTraceData";
 //            break;
         case 4:
 //            gen_op_mtc0_debug(); /* PDtrace support */
+            /* Stop translation as we may have switched the execution mode */
+            ctx->bstate = BS_STOP;
             rn = "TraceBPC";
 //            break;
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 24:
         switch (sel) {
@@ -5861,7 +5895,7 @@ static inline int
 gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                 int search_pc)
 {
-    DisasContext ctx, *ctxp = &ctx;
+    DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int j, lj = -1;
@@ -5902,7 +5936,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
                 if (env->breakpoints[j] == ctx.pc) {
-                    save_cpu_state(ctxp, 1);
+                    save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
                     gen_op_debug();
                     goto done_generating;
@@ -5936,7 +5970,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
     }
     if (env->singlestep_enabled) {
-        save_cpu_state(ctxp, ctx.bstate == BS_NONE);
+        save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         gen_op_debug();
     } else {
 	switch (ctx.bstate) {
@@ -5945,7 +5979,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_NONE:
-            save_cpu_state(ctxp, 0);
+            save_cpu_state(&ctx, 0);
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_EXCP:

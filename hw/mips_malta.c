@@ -817,7 +817,7 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     /* init CPUs */
     if (cpu_model == NULL) {
 #ifdef TARGET_MIPS64
-        cpu_model = "R4000";
+        cpu_model = "20Kc";
 #else
         cpu_model = "24Kf";
 #endif

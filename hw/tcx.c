@@ -44,6 +44,8 @@ typedef struct TCXState {
 
 static void tcx_screen_dump(void *opaque, const char *filename);
 static void tcx24_screen_dump(void *opaque, const char *filename);
+static void tcx_invalidate_display(void *opaque);
+static void tcx24_invalidate_display(void *opaque);
 
 /* XXX: unify with vga draw line functions */
 static inline unsigned int rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
@@ -86,6 +88,10 @@ static void update_palette_entries(TCXState *s, int start, int end)
             break;
         }
     }
+    if (s->depth == 24)
+        tcx24_invalidate_display(s);
+    else
+        tcx_invalidate_display(s);
 }
 
 static void tcx_draw_line32(TCXState *s1, uint8_t *d, 
@@ -391,7 +397,10 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->dac_index);
     qemu_get_8s(f, &s->dac_state);
     update_palette_entries(s, 0, 256);
-    tcx_invalidate_display(s);
+    if (s->depth == 24)
+        tcx24_invalidate_display(s);
+    else
+        tcx_invalidate_display(s);
 
     return 0;
 }

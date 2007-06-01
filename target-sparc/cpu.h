@@ -13,6 +13,8 @@
 #define TARGET_PAGE_BITS 12 /* XXX */
 #endif
 
+#define TARGET_PHYS_ADDR_BITS 64
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"

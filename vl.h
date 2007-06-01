@@ -861,7 +861,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic);
 PCIBus *pci_pmac_init(qemu_irq *pic);
 
 /* apb_pci.c */
-PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
+PCIBus *pci_apb_init(target_phys_addr_t special_base, target_phys_addr_t mem_base,
                      qemu_irq *pic);
 
 PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview);

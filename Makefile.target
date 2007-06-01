@@ -646,8 +646,10 @@ pl110.o: pl110_template.h
 endif
 
 ifeq ($(TARGET_BASE_ARCH), sparc)
-op.o: op.c op_template.h op_mem.h fop_template.h fbranch_template.h
-magic_load.o: elf_op.h
+helper.o: cpu.h exec-all.h
+op.o: op.c op_template.h op_mem.h fop_template.h fbranch_template.h exec.h cpu.h
+op_helper.o: exec.h softmmu_template.h cpu.h
+translate.o: cpu.h exec-all.h disas.h
 endif
 
 ifeq ($(TARGET_BASE_ARCH), ppc)
