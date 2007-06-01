@@ -2206,7 +2206,7 @@ sparc_decode_asi_v8 (int value)
 
 /* Handle membar masks.  */
 
-static arg membar_table[] =
+static const arg membar_table[] =
 {
   { 0x40, "#Sync" },
   { 0x20, "#MemIssue" },
@@ -2238,7 +2238,7 @@ sparc_decode_membar (value)
 
 /* Handle prefetch args.  */
 
-static arg prefetch_table[] =
+static const arg prefetch_table[] =
 {
   { 0, "#n_reads" },
   { 1, "#one_read" },
@@ -2269,7 +2269,7 @@ sparc_decode_prefetch (value)
 
 /* Handle sparclet coprocessor registers.  */
 
-static arg sparclet_cpreg_table[] =
+static const arg sparclet_cpreg_table[] =
 {
   { 0, "%ccsr" },
   { 1, "%ccfr" },
@@ -2320,7 +2320,7 @@ static const struct sparc_opcode **sorted_opcodes;
 /* It is important that we only look at insn code bits as that is how the
    opcode table is hashed.  OPCODE_BITS is a table of valid bits for each
    of the main types (0,1,2,3).  */
-static int opcode_bits[4] = { 0x01c00000, 0x0, 0x01f80000, 0x01f80000 };
+static const int opcode_bits[4] = { 0x01c00000, 0x0, 0x01f80000, 0x01f80000 };
 #define HASH_INSN(INSN) \
   ((((INSN) >> 24) & 0xc0) | (((INSN) & opcode_bits[((INSN) >> 30) & 3]) >> 19))
 struct opcode_hash {
@@ -2340,7 +2340,7 @@ static int compute_arch_mask PARAMS ((unsigned long));
 	((((int)(value)) << ((8 * sizeof (int)) - bits))	\
 			 >> ((8 * sizeof (int)) - bits) )
 
-static  char *reg_names[] =
+static const char * const reg_names[] =
 { "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",	
   "o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7",	
   "l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",	
@@ -2361,7 +2361,7 @@ static  char *reg_names[] =
 
 /* These are ordered according to there register number in
    rdpr and wrpr insns.  */
-static char *v9_priv_reg_names[] =
+static const char * const v9_priv_reg_names[] =
 {
   "tpc", "tnpc", "tstate", "tt", "tick", "tba", "pstate", "tl",
   "pil", "cwp", "cansave", "canrestore", "cleanwin", "otherwin",
@@ -2371,7 +2371,7 @@ static char *v9_priv_reg_names[] =
 
 /* These are ordered according to there register number in
    rd and wr insns (-16).  */
-static char *v9a_asr_reg_names[] =
+static const char * const v9a_asr_reg_names[] =
 {
   "pcr", "pic", "dcr", "gsr", "set_softint", "clear_softint",
   "softint", "tick_cmpr", "sys_tick", "sys_tick_cmpr"
