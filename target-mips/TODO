@@ -7,16 +7,16 @@ General
 - Missing per-CPU instruction decoding, currently all implemented
   instructions are regarded as valid
 - Applications running on top of a emulated Linux segfault sometimes
-  when the Qemu FPU emulation is disabled. Also gdb inside the emulated
-  system does not work. Both problems are caused by insufficient
-  handling of self-modifying code.
-- Floating point exception emulation is incomplete.
+  when the Qemu FPU emulation is disabled, the tb misses a flush
+  in that case.
+- gdb breakpoints inside the emulated system work only due to a hack
+  which disassembles over the end of the current tb.
+- Floating point results of ceil/floor/round are wrong for IEEE cornercases.
+- recip/rsqrt FPU instructions are not implemented
 
 MIPS64
 ------
-- No 64bit TLB support
-- 64bit FPU not fully implemented
-- 64bit mul/div handling broken
+- 64bit FPU enable flag not handled correctly
 
 "Generic" 4Kc system emulation
 ------------------------------
