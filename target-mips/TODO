@@ -16,7 +16,7 @@ General
 
 MIPS64
 ------
-- 64bit FPU enable flag not handled correctly
+- Only lighly tested but apparently functional as of 2007-05-31.
 
 "Generic" 4Kc system emulation
 ------------------------------

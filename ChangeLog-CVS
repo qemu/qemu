@@ -1,3 +1,18 @@
+2007-06-02 02:25  ths
+
+	* target-mips/translate.c: Check for R2 instructions, and throw RI
+	  if we don't emulate R2.
+
+2007-06-02 01:50  ths
+
+	* linux-user/main.c: Delete leftover Status FPU flag check.
+
+2007-06-01 23:57  ths
+
+	* target-mips/: TODO, translate_init.c: Update some comments, 64bit
+	  FPU support is functional regardless of funny non-standard fcr0
+	  bits on earlier CPUs.
+
 2007-06-01 19:47  ths
 
 	* target-mips/translate.c: Make sure hflags are updated for

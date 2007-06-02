@@ -146,7 +146,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 16,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3678FFFF,
-	/* XXX: The R4000 has a full 64bit FPU doesn't use the fcr0 bits. */
+	/* The R4000 has a full 64bit FPU doesn't use the fcr0 bits. */
         .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x0 << FCR0_REV),
     },
     {
@@ -176,7 +176,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3678FFFF,
-	/* XXX: The 5Kf has F64 / L / W but doesn't use the fcr0 bits. */
+	/* The 5Kf has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x81 << FCR0_PRID) | (0x0 << FCR0_REV),
     },
@@ -193,7 +193,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x36FBFFFF,
-	/* XXX: The 20Kc has F64 / L / W but doesn't use the fcr0 bits. */
+	/* The 20Kc has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_3D) | (1 << FCR0_PS) |
                     (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x82 << FCR0_PRID) | (0x0 << FCR0_REV),
@@ -279,6 +279,10 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     if (env->fcr0 & (1 << FCR0_F64))
         env->hflags |= MIPS_HFLAG_F64;
 #else
+    /* There are more full-featured MMU variants in older MIPS CPUs,
+       R3000, R6000 and R8000 come to mind. If we ever support them,
+       this check will need to look up a different place than those
+       newfangled config registers. */
     switch ((env->CP0_Config0 >> CP0C0_MT) & 3) {
         case 0:
             no_mmu_init(env, def);
@@ -290,7 +294,6 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
             fixed_mmu_init(env, def);
             break;
         default:
-            /* Older CPUs like the R3000 may need nonstandard handling here. */
             cpu_abort(env, "MMU type not supported\n");
     }
     env->CP0_Random = env->nb_tlb - 1;

@@ -2007,9 +2007,6 @@ int main(int argc, char **argv)
             env->gpr[i] = regs->regs[i];
         }
         env->PC = regs->cp0_epc;
-        if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-            env->CP0_Status |= (1 << CP0St_CU1);
-        }
     }
 #elif defined(TARGET_SH4)
     {
