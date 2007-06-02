@@ -5679,10 +5679,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MFMC0:
             check_mips_r2(env, ctx);
             op2 = MASK_MFMC0(ctx->opcode);
-            if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (0 << CP0C0_AR)) {
-                /* MIPS32 R1. */
-                op2 = 0;
-            }
             switch (op2) {
             case OPC_DI:
                 gen_op_di();
