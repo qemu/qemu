@@ -148,6 +148,7 @@ void do_interrupt(int is_hw)
     env->sr |= SR_S;
     if (is_hw) {
         env->sr = (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
+        env->sr &= ~SR_M;
     }
     /* Jump to vector.  */
     env->pc = ldl_kernel(env->vbr + vector);
