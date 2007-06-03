@@ -445,9 +445,9 @@ static void cuda_update(CUDAState *s)
             cuda_update_irq(s);
         } else {
             if (!(s->last_b & TIP)) {
-                /* handle end of host to cuda transfert */
+                /* handle end of host to cuda transfer */
                 packet_received = (s->data_out_index > 0);
-                /* always an IRQ at the end of transfert */
+                /* always an IRQ at the end of transfer */
                 s->ifr |= SR_INT;
                 cuda_update_irq(s);
             }

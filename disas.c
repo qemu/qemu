@@ -134,7 +134,7 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
 }
 #endif
 
-/* Disassemble this for me please... (debugging). 'flags' has teh following
+/* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - nonzero means 16 bit code
     arm  - nonzero means thumb code 

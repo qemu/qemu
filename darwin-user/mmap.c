@@ -199,7 +199,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
 
     if (!(flags & MAP_FIXED)) {
 #if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__)
-        /* tell the kenel to search at the same place as i386 */
+        /* tell the kernel to search at the same place as i386 */
         if (host_start == 0) {
             host_start = last_start;
             last_start += HOST_PAGE_ALIGN(len);
