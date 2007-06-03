@@ -40,14 +40,14 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
-#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_M68K) || \
-    defined(TARGET_ALPHA)
-/* XXX: unify with i386 target */
 void cpu_loop_exit(void)
 {
+    /* NOTE: the register at this point must be saved by hand because
+       longjmp restore them */
+    regs_to_env();
     longjmp(env->jmp_env, 1);
 }
-#endif
+
 #if !(defined(TARGET_SPARC) || defined(TARGET_SH4) || defined(TARGET_M68K))
 #define reg_T2
 #endif
@@ -249,65 +249,8 @@ int cpu_exec(CPUState *env1)
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
-#if defined(TARGET_I386)
-    /* handle exit of HALTED state */
-    if (env1->hflags & HF_HALTED_MASK) {
-        /* disable halt condition */
-        if ((env1->interrupt_request & CPU_INTERRUPT_HARD) &&
-            (env1->eflags & IF_MASK)) {
-            env1->hflags &= ~HF_HALTED_MASK;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_PPC)
-    if (env1->halted) {
-        if (env1->msr[MSR_EE] && 
-            (env1->interrupt_request & CPU_INTERRUPT_HARD)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_SPARC)
-    if (env1->halted) {
-        if ((env1->interrupt_request & CPU_INTERRUPT_HARD) &&
-            (env1->psret != 0)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_ARM)
-    if (env1->halted) {
-        /* An interrupt wakes the CPU even if the I and F CPSR bits are
-           set.  We use EXITTB to silently wake CPU without causing an
-           actual interrupt.  */
-        if (env1->interrupt_request &
-            (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_MIPS)
-    if (env1->halted) {
-        if (env1->interrupt_request &
-            (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_ALPHA) || defined(TARGET_M68K)
-    if (env1->halted) {
-        if (env1->interrupt_request & CPU_INTERRUPT_HARD) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#endif
+    if (cpu_halted(env1) == EXCP_HALTED)
+        return EXCP_HALTED;
 
     cpu_single_env = env1; 
 

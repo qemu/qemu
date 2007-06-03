@@ -106,14 +106,6 @@ void cpu_unlock(void)
     spin_unlock(&global_cpu_lock);
 }
 
-void cpu_loop_exit(void)
-{
-    /* NOTE: the register at this point must be saved by hand because
-       longjmp restore them */
-    regs_to_env();
-    longjmp(env->jmp_env, 1);
-}
-
 /* return non zero if error */
 static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
                                int selector)

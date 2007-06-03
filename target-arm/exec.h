@@ -48,6 +48,20 @@ static inline void regs_to_env(void)
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
+static inline int cpu_halted(CPUState *env) {
+    if (!env->halted)
+        return 0;
+    /* An interrupt wakes the CPU even if the I and F CPSR bits are
+       set.  We use EXITTB to silently wake CPU without causing an
+       actual interrupt.  */
+    if (env->interrupt_request &
+        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB)) {
+        env->halted = 0;
+        return 0;
+    }
+    return EXCP_HALTED;
+}
+
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif

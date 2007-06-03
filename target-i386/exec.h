@@ -575,3 +575,16 @@ static inline void regs_to_env(void)
     env->regs[R_EDI] = EDI;
 #endif
 }
+
+static inline int cpu_halted(CPUState *env) {
+    /* handle exit of HALTED state */
+    if (env->hflags & HF_HALTED_MASK)
+        return 0;
+    /* disable halt condition */
+    if ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+        (env->eflags & IF_MASK)) {
+        env->hflags &= ~HF_HALTED_MASK;
+        return 0;
+    }
+    return EXCP_HALTED;
+}

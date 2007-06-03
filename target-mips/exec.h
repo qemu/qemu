@@ -56,14 +56,6 @@ register target_ulong T2 asm(AREG3);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-static inline void env_to_regs(void)
-{
-}
-
-static inline void regs_to_env(void)
-{
-}
-
 #ifdef TARGET_MIPS64
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_dsll (void);
@@ -239,5 +231,24 @@ FOP_PROTO(nge)
 FOP_PROTO(le)
 FOP_PROTO(ngt)
 #undef FOP_PROTO
+
+static inline void env_to_regs(void)
+{
+}
+
+static inline void regs_to_env(void)
+{
+}
+
+static inline int cpu_halted(CPUState *env) {
+    if (!env->halted)
+        return 0;
+    if (env->interrupt_request &
+        (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER)) {
+        env->halted = 0;
+        return 0;
+    }
+    return EXCP_HALTED;
+}
 
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */
