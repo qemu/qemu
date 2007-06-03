@@ -68,13 +68,15 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
         break;
     case M68K_CPUID_M5208:
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
+        m68k_set_feature(env, M68K_FEATURE_CF_ISA_APLUSC);
+        m68k_set_feature(env, M68K_FEATURE_BRAL);
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
         m68k_set_feature(env, M68K_FEATURE_USP);
         break;
     case M68K_CPUID_CFV4E:
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_C);
+        m68k_set_feature(env, M68K_FEATURE_BRAL);
         m68k_set_feature(env, M68K_FEATURE_CF_FPU);
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
         m68k_set_feature(env, M68K_FEATURE_USP);
@@ -82,13 +84,16 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
     case M68K_CPUID_ANY:
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_C);
+        m68k_set_feature(env, M68K_FEATURE_CF_ISA_APLUSC);
+        m68k_set_feature(env, M68K_FEATURE_BRAL);
         m68k_set_feature(env, M68K_FEATURE_CF_FPU);
         /* MAC and EMAC are mututally exclusive, so pick EMAC.
            It's mostly backwards compatible.  */
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
+        m68k_set_feature(env, M68K_FEATURE_CF_EMAC_B);
         m68k_set_feature(env, M68K_FEATURE_USP);
         m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
+        m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
         break;
     }
 
