@@ -263,28 +263,27 @@ int cpu_exec(CPUState *env1)
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
 #endif
 
-#if defined(TARGET_I386)
     env_to_regs();
+#if defined(TARGET_I386)
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-#elif defined(TARGET_ARM)
 #elif defined(TARGET_SPARC)
 #if defined(reg_REGWPTR)
     saved_regwptr = REGWPTR;
 #endif
-#elif defined(TARGET_PPC)
 #elif defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = env->sr & 0xf;
     env->cc_x = (env->sr >> 4) & 1;
+#elif defined(TARGET_ALPHA)
+#elif defined(TARGET_ARM)
+#elif defined(TARGET_PPC)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
     /* XXXXX */
-#elif defined(TARGET_ALPHA)
-    env_to_regs();
 #else
 #error unsupported target CPU
 #endif
@@ -522,32 +521,9 @@ int cpu_exec(CPUState *env1)
                 }
 #ifdef DEBUG_EXEC
                 if ((loglevel & CPU_LOG_TB_CPU)) {
-#if defined(TARGET_I386)
                     /* restore flags in standard format */
-#ifdef reg_EAX
-                    env->regs[R_EAX] = EAX;
-#endif
-#ifdef reg_EBX
-                    env->regs[R_EBX] = EBX;
-#endif
-#ifdef reg_ECX
-                    env->regs[R_ECX] = ECX;
-#endif
-#ifdef reg_EDX
-                    env->regs[R_EDX] = EDX;
-#endif
-#ifdef reg_ESI
-                    env->regs[R_ESI] = ESI;
-#endif
-#ifdef reg_EDI
-                    env->regs[R_EDI] = EDI;
-#endif
-#ifdef reg_EBP
-                    env->regs[R_EBP] = EBP;
-#endif
-#ifdef reg_ESP
-                    env->regs[R_ESP] = ESP;
-#endif
+                    regs_to_env();
+#if defined(TARGET_I386)
                     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
                     cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
