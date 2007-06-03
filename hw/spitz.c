@@ -705,7 +705,7 @@ static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
 
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, &s[0]);
-    cpu_register_physical_memory(s[0].target_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s[0].target_base, 0x1000, iomemtype);
     register_savevm("scoop", 0, 0, scoop_save, scoop_load, &s[0]);
 
     if (count < 2)
@@ -713,7 +713,7 @@ static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
 
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, &s[1]);
-    cpu_register_physical_memory(s[1].target_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s[1].target_base, 0x1000, iomemtype);
     register_savevm("scoop", 1, 0, scoop_save, scoop_load, &s[1]);
 
     return s;

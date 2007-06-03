@@ -149,7 +149,7 @@ struct pxa2xx_pcmcia_s *pxa2xx_pcmcia_init(target_phys_addr_t base)
     s->io_base = base | 0x00000000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_io_readfn,
                     pxa2xx_pcmcia_io_writefn, s);
-    cpu_register_physical_memory(s->io_base, 0x03ffffff, iomemtype);
+    cpu_register_physical_memory(s->io_base, 0x04000000, iomemtype);
 
     /* Then next 64 MB is reserved */
 
@@ -157,13 +157,13 @@ struct pxa2xx_pcmcia_s *pxa2xx_pcmcia_init(target_phys_addr_t base)
     s->attr_base = base | 0x08000000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_attr_readfn,
                     pxa2xx_pcmcia_attr_writefn, s);
-    cpu_register_physical_memory(s->attr_base, 0x03ffffff, iomemtype);
+    cpu_register_physical_memory(s->attr_base, 0x04000000, iomemtype);
 
     /* Socket Common Memory Space */
     s->common_base = base | 0x0c000000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_common_readfn,
                     pxa2xx_pcmcia_common_writefn, s);
-    cpu_register_physical_memory(s->common_base, 0x03ffffff, iomemtype);
+    cpu_register_physical_memory(s->common_base, 0x04000000, iomemtype);
 
     if (base == 0x30000000)
         s->slot.slot_string = "PXA PC Card Socket 1";

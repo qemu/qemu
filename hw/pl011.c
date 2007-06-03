@@ -232,7 +232,7 @@ void pl011_init(uint32_t base, qemu_irq irq,
     s = (pl011_state *)qemu_mallocz(sizeof(pl011_state));
     iomemtype = cpu_register_io_memory(0, pl011_readfn,
                                        pl011_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
     s->base = base;
     s->irq = irq;
     s->chr = chr;

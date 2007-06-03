@@ -407,7 +407,7 @@ void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq,
     s = (pl110_state *)qemu_mallocz(sizeof(pl110_state));
     iomemtype = cpu_register_io_memory(0, pl110_readfn,
                                        pl110_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
     s->base = base;
     s->ds = ds;
     s->versatile = versatile;

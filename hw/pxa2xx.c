@@ -1725,7 +1725,7 @@ static struct pxa2xx_i2s_s *pxa2xx_i2s_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_i2s_readfn,
                     pxa2xx_i2s_writefn, s);
-    cpu_register_physical_memory(s->base & 0xfff00000, 0xfffff, iomemtype);
+    cpu_register_physical_memory(s->base & 0xfff00000, 0x100000, iomemtype);
 
     register_savevm("pxa2xx_i2s", base, 0,
                     pxa2xx_i2s_save, pxa2xx_i2s_load, s);
@@ -1988,7 +1988,7 @@ static struct pxa2xx_fir_s *pxa2xx_fir_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_fir_readfn,
                     pxa2xx_fir_writefn, s);
-    cpu_register_physical_memory(s->base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->base, 0x1000, iomemtype);
 
     if (chr)
         qemu_chr_add_handlers(chr, pxa2xx_fir_is_empty,
@@ -2061,7 +2061,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     iomemtype = cpu_register_io_memory(0, pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s);
-    cpu_register_physical_memory(s->cm_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
     register_savevm("pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
@@ -2072,13 +2072,13 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
     iomemtype = cpu_register_io_memory(0, pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s);
-    cpu_register_physical_memory(s->mm_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
     register_savevm("pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s);
-    cpu_register_physical_memory(s->pm_base, 0xff, iomemtype);
+    cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
     register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
@@ -2093,7 +2093,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
 
         iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
                         pxa2xx_ssp_writefn, &ssp[i]);
-        cpu_register_physical_memory(ssp[i].base, 0xfff, iomemtype);
+        cpu_register_physical_memory(ssp[i].base, 0x1000, iomemtype);
         register_savevm("pxa2xx_ssp", i, 0,
                         pxa2xx_ssp_save, pxa2xx_ssp_load, s);
     }
@@ -2108,7 +2108,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     s->rtc_base = 0x40900000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_rtc_readfn,
                     pxa2xx_rtc_writefn, s);
-    cpu_register_physical_memory(s->rtc_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
     pxa2xx_rtc_init(s);
     register_savevm("pxa2xx_rtc", 0, 0, pxa2xx_rtc_save, pxa2xx_rtc_load, s);
 
@@ -2170,7 +2170,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     iomemtype = cpu_register_io_memory(0, pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s);
-    cpu_register_physical_memory(s->cm_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
     register_savevm("pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
@@ -2181,13 +2181,13 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
     iomemtype = cpu_register_io_memory(0, pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s);
-    cpu_register_physical_memory(s->mm_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
     register_savevm("pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s);
-    cpu_register_physical_memory(s->pm_base, 0xff, iomemtype);
+    cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
     register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
@@ -2202,7 +2202,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
 
         iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
                         pxa2xx_ssp_writefn, &ssp[i]);
-        cpu_register_physical_memory(ssp[i].base, 0xfff, iomemtype);
+        cpu_register_physical_memory(ssp[i].base, 0x1000, iomemtype);
         register_savevm("pxa2xx_ssp", i, 0,
                         pxa2xx_ssp_save, pxa2xx_ssp_load, s);
     }
@@ -2217,7 +2217,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     s->rtc_base = 0x40900000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_rtc_readfn,
                     pxa2xx_rtc_writefn, s);
-    cpu_register_physical_memory(s->rtc_base, 0xfff, iomemtype);
+    cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
     pxa2xx_rtc_init(s);
     register_savevm("pxa2xx_rtc", 0, 0, pxa2xx_rtc_save, pxa2xx_rtc_load, s);
 
