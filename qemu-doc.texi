@@ -368,7 +368,7 @@ for a list of available devices for your target.
 
 @item -net user[,vlan=n][,hostname=name]
 Use the user mode network stack which requires no administrator
-priviledge to run.  @option{hostname=name} can be used to specify the client
+privilege to run.  @option{hostname=name} can be used to specify the client
 hostname reported by the builtin DHCP server.
 
 @item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
@@ -423,7 +423,8 @@ correct multicast setup for these hosts).
 @item
 mcast support is compatible with User Mode Linux (argument @option{eth@var{N}=mcast}), see
 @url{http://user-mode-linux.sf.net}.
-@item Use @option{fd=h} to specify an already opened UDP multicast socket.
+@item
+Use @option{fd=h} to specify an already opened UDP multicast socket.
 @end enumerate
 
 Example:
@@ -576,7 +577,7 @@ name pipe @var{filename}
 @item COMn
 [Windows only] Use host serial port @var{n}
 @item udp:[remote_host]:remote_port[@@[src_ip]:src_port]
-This implements UDP Net Console.  When @var{remote_host} or @var{src_ip} are not specified they default to @code{0.0.0.0}.  When not using a specifed @var{src_port} a random port is automatically chosen.
+This implements UDP Net Console.  When @var{remote_host} or @var{src_ip} are not specified they default to @code{0.0.0.0}.  When not using a specified @var{src_port} a random port is automatically chosen.
 
 If you just want a simple readonly console you can use @code{netcat} or
 @code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
@@ -609,7 +610,7 @@ the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
 the @var{server} option QEMU will wait for a client socket application
 to connect to the port before continuing, unless the @code{nowait}
 option was specified.  The @code{nodelay} option disables the Nagle buffering
-algoritm.  If @var{host} is omitted, 0.0.0.0 is assumed. Only
+algorithm.  If @var{host} is omitted, 0.0.0.0 is assumed. Only
 one TCP connection at a time is accepted. You can use @code{telnet} to
 connect to the corresponding character device.
 @table @code
@@ -692,7 +693,7 @@ Output log in /tmp/qemu.log
 Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
 @var{h} <= 16, 1 <= @var{s} <= 63) and optionally force the BIOS
 translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
-all thoses parameters. This option is useful for old MS-DOS disk
+all those parameters. This option is useful for old MS-DOS disk
 images.
 
 @item -L path
@@ -929,7 +930,7 @@ data. Its syntax is: @option{/@{count@}@{format@}@{size@}}
 is the number of items to be dumped.
 
 @item format
-can be x (hexa), d (signed decimal), u (unsigned decimal), o (octal),
+can be x (hex), d (signed decimal), u (unsigned decimal), o (octal),
 c (char) or i (asm instruction).
 
 @item size
@@ -1118,7 +1119,7 @@ devices. We describe here the usage for QEMU version >= 0.8.3.
 @subsubsection Linux
 
 On Linux, you can directly use the host device filename instead of a
-disk image filename provided you have enough proviledge to access
+disk image filename provided you have enough privileges to access
 it. For example, use @file{/dev/cdrom} to access to the CDROM or
 @file{/dev/fd0} for the floppy.
 
@@ -1145,7 +1146,7 @@ line option or modify the device permissions accordingly).
 
 @table @code
 @item CD
-The prefered syntax is the drive letter (e.g. @file{d:}). The
+The preferred syntax is the drive letter (e.g. @file{d:}). The
 alternate syntax @file{\\.\d:} is supported. @file{/dev/cdrom} is
 supported as an alias to the first CDROM drive.
 
@@ -1209,11 +1210,11 @@ What you should @emph{never} do:
 @node pcsys_network
 @section Network emulation
 
-QEMU can simulate several networks cards (PCI or ISA cards on the PC
+QEMU can simulate several network cards (PCI or ISA cards on the PC
 target) and can connect them to an arbitrary number of Virtual Local
 Area Networks (VLANs). Host TAP devices can be connected to any QEMU
 VLAN. VLAN can be connected between separate instances of QEMU to
-simulate large networks. For simpler usage, a non priviledged user mode
+simulate large networks. For simpler usage, a non privileged user mode
 network stack can replace the TAP device to have a basic network
 connection.
 
@@ -1253,7 +1254,7 @@ so download OpenVPN from : @url{http://openvpn.net/}.
 
 By using the option @option{-net user} (default configuration if no
 @option{-net} option is specified), QEMU uses a completely user mode
-network stack (you don't need root priviledge to use the virtual
+network stack (you don't need root privilege to use the virtual
 network). The virtual network configuration is the following:
 
 @example
@@ -1276,7 +1277,7 @@ the address 10.0.2.2 and verify that you got an address in the range
 10.0.2.x from the QEMU virtual DHCP server.
 
 Note that @code{ping} is not supported reliably to the internet as it
-would require root priviledges. It means you can only ping the local
+would require root privileges. It means you can only ping the local
 router (10.0.2.2).
 
 When using the built-in TFTP server, the router is also the TFTP
@@ -1465,7 +1466,7 @@ cannot simulate exactly.
 When using a 2.6 guest Linux kernel, verify that the 4G/4G patch is
 not activated because QEMU is slower with this patch. The QEMU
 Accelerator Module is also much slower in this case. Earlier Fedora
-Core 3 Linux kernel (< 2.6.9-1.724_FC3) were known to incorporte this
+Core 3 Linux kernel (< 2.6.9-1.724_FC3) were known to incorporate this
 patch by default. Newer kernels don't have it.
 
 @subsection Windows
@@ -1547,7 +1548,7 @@ problem.
 
 QEMU is a generic emulator and it emulates many non PC
 machines. Most of the options are similar to the PC emulator. The
-differences are mentionned in the following sections.
+differences are mentioned in the following sections.
 
 @menu
 * QEMU PowerPC System emulator::
@@ -1760,8 +1761,8 @@ PL050 KMI with PS/2 keyboard and mouse.
 @item
 PCI host bridge.  Note the emulated PCI bridge only provides access to
 PCI memory space.  It does not provide access to PCI IO space.
-This means some devices (eg. ne2k_pci NIC) are not useable, and others
-(eg. rtl8139 NIC) are only useable when the guest drivers use the memory
+This means some devices (eg. ne2k_pci NIC) are not usable, and others
+(eg. rtl8139 NIC) are only usable when the guest drivers use the memory
 mapped control registers.
 @item
 PCI OHCI USB controller.
@@ -1859,9 +1860,9 @@ The following OS are supported in user space emulation:
 
 @itemize @minus
 @item
-Linux (refered as qemu-linux-user)
+Linux (referred as qemu-linux-user)
 @item
-Mac OS X/Darwin (refered as qemu-darwin-user)
+Mac OS X/Darwin (referred as qemu-darwin-user)
 @end itemize
 
 @node Linux User space emulator
@@ -2119,7 +2120,7 @@ in particular on x86 ones, @emph{gcc 4.x is not supported}. If your
 Linux distribution includes a gcc 4.x compiler, you can usually
 install an older version (it is invoked by @code{gcc32} or
 @code{gcc34}). The QEMU configure script automatically probes for
-these older versions so that usally you don't have to do anything.
+these older versions so that usually you don't have to do anything.
 
 @node Windows
 @section Windows
@@ -2171,7 +2172,7 @@ Configure QEMU for Windows cross compilation:
 ./configure --enable-mingw32
 @end example
 If necessary, you can change the cross-prefix according to the prefix
-choosen for the MinGW tools with --cross-prefix. You can also use
+chosen for the MinGW tools with --cross-prefix. You can also use
 --prefix to set the Win32 install path.
 
 @item You can install QEMU in the installation directory by typing 

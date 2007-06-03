@@ -89,7 +89,7 @@ Commit the changes recorded in @var{filename} in its base image.
 @item convert [-c] [-e] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
 
 Convert the disk image @var{filename} to disk image @var{output_filename}
-using format @var{output_fmt}. It can be optionnaly encrypted
+using format @var{output_fmt}. It can be optionally encrypted
 (@code{-e} option) or compressed (@code{-c} option).
 
 Only the format @code{qcow} supports encryption or compression. The
