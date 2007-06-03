@@ -308,7 +308,7 @@ struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_gpio_readfn,
                     pxa2xx_gpio_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
 
     register_savevm("pxa2xx_gpio", 0, 0,
                     pxa2xx_gpio_save, pxa2xx_gpio_load, s);

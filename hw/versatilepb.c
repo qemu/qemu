@@ -140,7 +140,7 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
     s->irq = irq;
     iomemtype = cpu_register_io_memory(0, vpb_sic_readfn,
                                        vpb_sic_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
     /* ??? Save/restore.  */
     return qi;
 }

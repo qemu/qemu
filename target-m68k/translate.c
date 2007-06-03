@@ -1346,7 +1346,7 @@ static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
     gen_op_logic_cc(gen_im32(val & 0xf));
     gen_op_update_xflag_tst(gen_im32((val & 0x10) >> 4));
     if (!ccr_only) {
-        gen_op_mov32(QREG_SR, gen_im32(val & 0xff00));
+        gen_op_set_sr(gen_im32(val & 0xff00));
     }
 }
 
@@ -1366,7 +1366,7 @@ static void gen_set_sr(DisasContext *s, uint16_t insn, int ccr_only)
         gen_op_and32(src1, src1, gen_im32(1));
         gen_op_update_xflag_tst(src1);
         if (!ccr_only) {
-            gen_op_and32(QREG_SR, reg, gen_im32(0xff00));
+            gen_op_set_sr(reg);
         }
       }
     else if ((insn & 0x3f) == 0x3c)
@@ -2474,6 +2474,10 @@ DISAS_INSN(mac)
 
     acc = ((insn >> 7) & 1) | ((ext >> 3) & 2);
     dual = ((insn & 0x30) != 0 && (ext & 3) != 0);
+    if (dual && !m68k_feature(s->env, M68K_FEATURE_CF_EMAC_B)) {
+        disas_undef(s, insn);
+        return;
+    }
     if (insn & 0x30) {
         /* MAC with load.  */
         tmp = gen_lea(s, insn, OS_LONG);
@@ -2746,20 +2750,21 @@ register_opcode (disas_proc proc, uint16_t opcode, uint16_t mask)
    Later insn override earlier ones.  */
 void register_m68k_insns (CPUM68KState *env)
 {
-#define INSN(name, opcode, mask, feature) \
+#define INSN(name, opcode, mask, feature) do { \
     if (m68k_feature(env, M68K_FEATURE_##feature)) \
-        register_opcode(disas_##name, 0x##opcode, 0x##mask)
+        register_opcode(disas_##name, 0x##opcode, 0x##mask); \
+    } while(0)
     INSN(undef,     0000, 0000, CF_ISA_A);
     INSN(arith_im,  0080, fff8, CF_ISA_A);
-    INSN(bitrev,    00c0, fff8, CF_ISA_C);
+    INSN(bitrev,    00c0, fff8, CF_ISA_APLUSC);
     INSN(bitop_reg, 0100, f1c0, CF_ISA_A);
     INSN(bitop_reg, 0140, f1c0, CF_ISA_A);
     INSN(bitop_reg, 0180, f1c0, CF_ISA_A);
     INSN(bitop_reg, 01c0, f1c0, CF_ISA_A);
     INSN(arith_im,  0280, fff8, CF_ISA_A);
-    INSN(byterev,   02c0, fff8, CF_ISA_A);
+    INSN(byterev,   02c0, fff8, CF_ISA_APLUSC);
     INSN(arith_im,  0480, fff8, CF_ISA_A);
-    INSN(ff1,       04c0, fff8, CF_ISA_C);
+    INSN(ff1,       04c0, fff8, CF_ISA_APLUSC);
     INSN(arith_im,  0680, fff8, CF_ISA_A);
     INSN(bitop_im,  0800, ffc0, CF_ISA_A);
     INSN(bitop_im,  0840, ffc0, CF_ISA_A);
@@ -2770,7 +2775,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(move,      1000, f000, CF_ISA_A);
     INSN(move,      2000, f000, CF_ISA_A);
     INSN(move,      3000, f000, CF_ISA_A);
-    INSN(strldsr,   40e7, ffff, CF_ISA_A);
+    INSN(strldsr,   40e7, ffff, CF_ISA_APLUSC);
     INSN(negx,      4080, fff8, CF_ISA_A);
     INSN(move_from_sr, 40c0, fff8, CF_ISA_A);
     INSN(lea,       41c0, f1c0, CF_ISA_A);
@@ -2798,8 +2803,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(trap,      4e40, fff0, CF_ISA_A);
     INSN(link,      4e50, fff8, CF_ISA_A);
     INSN(unlk,      4e58, fff8, CF_ISA_A);
-    INSN(move_to_usp, 4e60, fff8, CF_ISA_B);
-    INSN(move_from_usp, 4e68, fff8, CF_ISA_B);
+    INSN(move_to_usp, 4e60, fff8, USP);
+    INSN(move_from_usp, 4e68, fff8, USP);
     INSN(nop,       4e71, ffff, CF_ISA_A);
     INSN(stop,      4e72, ffff, CF_ISA_A);
     INSN(rte,       4e73, ffff, CF_ISA_A);
@@ -2811,7 +2816,15 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(scc,       50c0, f0f8, CF_ISA_A);
     INSN(addsubq,   5080, f1c0, CF_ISA_A);
     INSN(tpf,       51f8, fff8, CF_ISA_A);
+
+    /* Branch instructions.  */
     INSN(branch,    6000, f000, CF_ISA_A);
+    /* Disable long branch instructions, then add back the ones we want.  */
+    INSN(undef,     60ff, f0ff, CF_ISA_A); /* All long branches.  */
+    INSN(branch,    60ff, f0ff, CF_ISA_B);
+    INSN(undef,     60ff, ffff, CF_ISA_B); /* bra.l */
+    INSN(branch,    60ff, ffff, BRAL);
+
     INSN(moveq,     7000, f100, CF_ISA_A);
     INSN(mvzs,      7100, f100, CF_ISA_B);
     INSN(or,        8000, f000, CF_ISA_A);
@@ -3262,6 +3275,7 @@ void cpu_reset(CPUM68KState *env)
 #if !defined (CONFIG_USER_ONLY)
     env->sr = 0x2700;
 #endif
+    m68k_switch_sp(env);
     /* ??? FP regs should be initialized to NaN.  */
     env->cc_op = CC_OP_FLAGS;
     /* TODO: We should set PC from the interrupt vector.  */

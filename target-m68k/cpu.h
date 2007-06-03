@@ -59,6 +59,10 @@ typedef struct CPUM68KState {
     uint32_t pc;
     uint32_t sr;
 
+    /* SSP and USP.  The current_sp is stored in aregs[7], the other here.  */
+    int current_sp;
+    uint32_t sp[2];
+
     /* Condition flags.  */
     uint32_t cc_op;
     uint32_t cc_dest;
@@ -92,6 +96,7 @@ typedef struct CPUM68KState {
     uint32_t vbr;
     uint32_t mbar;
     uint32_t rambar0;
+    uint32_t cacr;
 
     uint32_t features;
 
@@ -151,6 +156,12 @@ enum {
 #define SR_S  0x2000
 #define SR_T  0x8000
 
+#define M68K_SSP    0
+#define M68K_USP    1
+
+/* CACR fields are implementation defined, but some bits are common.  */
+#define M68K_CACR_EUSP  0x10
+
 #define MACSR_PAV0  0x100
 #define MACSR_OMC   0x080
 #define MACSR_SU    0x040
@@ -167,18 +178,26 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name);
 
 void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector);
 void m68k_set_macsr(CPUM68KState *env, uint32_t val);
+void m68k_switch_sp(CPUM68KState *env);
 
 #define M68K_FPCR_PREC (1 << 6)
 
 void do_m68k_semihosting(CPUM68KState *env, int nr);
 
+/* There are 4 ColdFire core ISA revisions: A, A+, B and C.
+   Each feature covers the subset of instructions common to the
+   ISA revisions mentioned.  */
+
 enum m68k_features {
     M68K_FEATURE_CF_ISA_A,
-    M68K_FEATURE_CF_ISA_B,
-    M68K_FEATURE_CF_ISA_C,
+    M68K_FEATURE_CF_ISA_B, /* (ISA B or C).  */
+    M68K_FEATURE_CF_ISA_APLUSC, /* BIT/BITREV, FF1, STRLDSR (ISA A+ or C).  */
+    M68K_FEATURE_BRAL, /* Long unconditional branch.  (ISA A+ or B).  */
     M68K_FEATURE_CF_FPU,
     M68K_FEATURE_CF_MAC,
     M68K_FEATURE_CF_EMAC,
+    M68K_FEATURE_CF_EMAC_B, /* Revision B EMAC (dual accumulate).  */
+    M68K_FEATURE_USP, /* User Stack Pointer.  (ISA A+, B or C).  */
     M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
     M68K_FEATURE_WORD_INDEX /* word sized address index registers.  */
 };

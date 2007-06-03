@@ -1026,7 +1026,7 @@ struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_lcdc_readfn,
                     pxa2xx_lcdc_writefn, s);
-    cpu_register_physical_memory(base, 0x000fffff, iomemtype);
+    cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
     graphic_console_init(ds, pxa2xx_update_display,
                     pxa2xx_invalidate_display, pxa2xx_screen_dump, s);

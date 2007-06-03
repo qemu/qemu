@@ -508,7 +508,7 @@ static struct pxa2xx_dma_state_s *pxa2xx_dma_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_dma_readfn,
                     pxa2xx_dma_writefn, s);
-    cpu_register_physical_memory(base, 0x0000ffff, iomemtype);
+    cpu_register_physical_memory(base, 0x00010000, iomemtype);
 
     register_savevm("pxa2xx_dma", 0, 0, pxa2xx_dma_save, pxa2xx_dma_load, s);
 

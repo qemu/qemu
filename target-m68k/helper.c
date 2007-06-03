@@ -28,6 +28,7 @@
 
 enum m68k_cpuid {
     M68K_CPUID_M5206,
+    M68K_CPUID_M5208,
     M68K_CPUID_CFV4E,
     M68K_CPUID_ANY,
 };
@@ -39,6 +40,7 @@ struct m68k_def_t {
 
 static m68k_def_t m68k_cpu_defs[] = {
     {"m5206", M68K_CPUID_M5206}, 
+    {"m5208", M68K_CPUID_M5208}, 
     {"cfv4e", M68K_CPUID_CFV4E},
     {"any", M68K_CPUID_ANY},
     {NULL, 0}, 
@@ -64,22 +66,34 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
     case M68K_CPUID_M5206:
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
         break;
+    case M68K_CPUID_M5208:
+        m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
+        m68k_set_feature(env, M68K_FEATURE_CF_ISA_APLUSC);
+        m68k_set_feature(env, M68K_FEATURE_BRAL);
+        m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
+        m68k_set_feature(env, M68K_FEATURE_USP);
+        break;
     case M68K_CPUID_CFV4E:
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_C);
+        m68k_set_feature(env, M68K_FEATURE_BRAL);
         m68k_set_feature(env, M68K_FEATURE_CF_FPU);
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
+        m68k_set_feature(env, M68K_FEATURE_USP);
         break;
     case M68K_CPUID_ANY:
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
         m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_C);
+        m68k_set_feature(env, M68K_FEATURE_CF_ISA_APLUSC);
+        m68k_set_feature(env, M68K_FEATURE_BRAL);
         m68k_set_feature(env, M68K_FEATURE_CF_FPU);
         /* MAC and EMAC are mututally exclusive, so pick EMAC.
            It's mostly backwards compatible.  */
         m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
+        m68k_set_feature(env, M68K_FEATURE_CF_EMAC_B);
+        m68k_set_feature(env, M68K_FEATURE_USP);
         m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
+        m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
         break;
     }
 
@@ -215,7 +229,11 @@ void helper_movec(CPUM68KState *env, int reg, uint32_t val)
 {
     switch (reg) {
     case 0x02: /* CACR */
-        /* Ignored.  */
+        env->cacr = val;
+        m68k_switch_sp(env);
+        break;
+    case 0x04: case 0x05: case 0x06: case 0x07: /* ACR[0-3] */
+        /* TODO: Implement Access Control Registers.  */
         break;
     case 0x801: /* VBR */
         env->vbr = val;
@@ -259,6 +277,17 @@ void m68k_set_macsr(CPUM68KState *env, uint32_t val)
         }
     }
     env->macsr = val;
+}
+
+void m68k_switch_sp(CPUM68KState *env)
+{
+    int new_sp;
+
+    env->sp[env->current_sp] = env->aregs[7];
+    new_sp = (env->sr & SR_S && env->cacr & M68K_CACR_EUSP)
+             ? M68K_SSP : M68K_USP;
+    env->aregs[7] = env->sp[new_sp];
+    env->current_sp = new_sp;
 }
 
 /* MMU */

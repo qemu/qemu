@@ -232,10 +232,12 @@ GEN_ST(l_c);
 GEN_LD(q_l);
 GEN_ST(q_c);
 
+#if 0 /* currently unused */
 GEN_LD(f);
 GEN_ST(f);
 GEN_LD(g);
 GEN_ST(g);
+#endif /* 0 */
 GEN_LD(s);
 GEN_ST(s);
 GEN_LD(t);

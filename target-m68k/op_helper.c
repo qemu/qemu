@@ -87,6 +87,7 @@ static void do_rte(void)
     env->pc = ldl_kernel(sp + 4);
     sp |= (fmt >> 28) & 3;
     env->sr = fmt & 0xffff;
+    m68k_switch_sp(env);
     env->aregs[7] = sp + 8;
 }
 
@@ -128,15 +129,21 @@ void do_interrupt(int is_hw)
         }
     }
 
-    /* TODO: Implement USP.  */
-    sp = env->aregs[7];
-
     vector = env->exception_index << 2;
 
     fmt |= 0x40000000;
     fmt |= (sp & 3) << 28;
     fmt |= vector << 16;
     fmt |= env->sr;
+
+    env->sr |= SR_S;
+    if (is_hw) {
+        env->sr = (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
+        env->sr &= ~SR_M;
+    }
+    m68k_switch_sp(env);
+
+    sp = env->aregs[7];
 
     /* ??? This could cause MMU faults.  */
     sp &= ~3;
@@ -145,10 +152,6 @@ void do_interrupt(int is_hw)
     sp -= 4;
     stl_kernel(sp, fmt);
     env->aregs[7] = sp;
-    env->sr |= SR_S;
-    if (is_hw) {
-        env->sr = (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
-    }
     /* Jump to vector.  */
     env->pc = ldl_kernel(env->vbr + vector);
 }

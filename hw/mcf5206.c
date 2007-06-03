@@ -139,285 +139,12 @@ static m5206_timer_state *m5206_timer_init(qemu_irq irq)
     return s;
 }
 
-/* UART */
-
-typedef struct {
-    uint8_t mr[2];
-    uint8_t sr;
-    uint8_t isr;
-    uint8_t imr;
-    uint8_t bg1;
-    uint8_t bg2;
-    uint8_t fifo[4];
-    uint8_t tb;
-    int current_mr;
-    int fifo_len;
-    int tx_enabled;
-    int rx_enabled;
-    qemu_irq irq;
-    CharDriverState *chr;
-} m5206_uart_state;
-
-/* UART Status Register bits.  */
-#define M5206_UART_RxRDY  0x01
-#define M5206_UART_FFULL  0x02
-#define M5206_UART_TxRDY  0x04
-#define M5206_UART_TxEMP  0x08
-#define M5206_UART_OE     0x10
-#define M5206_UART_PE     0x20
-#define M5206_UART_FE     0x40
-#define M5206_UART_RB     0x80
-
-/* Interrupt flags.  */
-#define M5206_UART_TxINT  0x01
-#define M5206_UART_RxINT  0x02
-#define M5206_UART_DBINT  0x04
-#define M5206_UART_COSINT 0x80
-
-/* UMR1 flags.  */
-#define M5206_UART_BC0    0x01
-#define M5206_UART_BC1    0x02
-#define M5206_UART_PT     0x04
-#define M5206_UART_PM0    0x08
-#define M5206_UART_PM1    0x10
-#define M5206_UART_ERR    0x20
-#define M5206_UART_RxIRQ  0x40
-#define M5206_UART_RxRTS  0x80
-
-static void m5206_uart_update(m5206_uart_state *s)
-{
-    s->isr &= ~(M5206_UART_TxINT | M5206_UART_RxINT);
-    if (s->sr & M5206_UART_TxRDY)
-        s->isr |= M5206_UART_TxINT;
-    if ((s->sr & ((s->mr[0] & M5206_UART_RxIRQ)
-                  ? M5206_UART_FFULL : M5206_UART_RxRDY)) != 0)
-        s->isr |= M5206_UART_RxINT;
-
-    qemu_set_irq(s->irq, (s->isr & s->imr) != 0);
-}
-
-static uint32_t m5206_uart_read(m5206_uart_state *s, uint32_t addr)
-{
-    switch (addr) {
-    case 0x00:
-        return s->mr[s->current_mr];
-    case 0x04:
-        return s->sr;
-    case 0x0c:
-        {
-            uint8_t val;
-            int i;
-
-            if (s->fifo_len == 0)
-                return 0;
-
-            val = s->fifo[0];
-            s->fifo_len--;
-            for (i = 0; i < s->fifo_len; i++)
-                s->fifo[i] = s->fifo[i + 1];
-            s->sr &= ~M5206_UART_FFULL;
-            if (s->fifo_len == 0)
-                s->sr &= ~M5206_UART_RxRDY;
-            m5206_uart_update(s);
-            return val;
-        }
-    case 0x10:
-        /* TODO: Implement IPCR.  */
-        return 0;
-    case 0x14:
-        return s->isr;
-    case 0x18:
-        return s->bg1;
-    case 0x1c:
-        return s->bg2;
-    default:
-        return 0;
-    }
-}
-
-/* Update TxRDY flag and set data if present and enabled.  */
-static void m5206_uart_do_tx(m5206_uart_state *s)
-{
-    if (s->tx_enabled && (s->sr & M5206_UART_TxEMP) == 0) {
-        if (s->chr)
-            qemu_chr_write(s->chr, (unsigned char *)&s->tb, 1);
-        s->sr |= M5206_UART_TxEMP;
-    }
-    if (s->tx_enabled) {
-        s->sr |= M5206_UART_TxRDY;
-    } else {
-        s->sr &= ~M5206_UART_TxRDY;
-    }
-}
-
-static void m5206_do_command(m5206_uart_state *s, uint8_t cmd)
-{
-    /* Misc command.  */
-    switch ((cmd >> 4) & 3) {
-    case 0: /* No-op.  */
-        break;
-    case 1: /* Reset mode register pointer.  */
-        s->current_mr = 0;
-        break;
-    case 2: /* Reset receiver.  */
-        s->rx_enabled = 0;
-        s->fifo_len = 0;
-        s->sr &= ~(M5206_UART_RxRDY | M5206_UART_FFULL);
-        break;
-    case 3: /* Reset transmitter.  */
-        s->tx_enabled = 0;
-        s->sr |= M5206_UART_TxEMP;
-        s->sr &= ~M5206_UART_TxRDY;
-        break;
-    case 4: /* Reset error status.  */
-        break;
-    case 5: /* Reset break-change interrupt.  */
-        s->isr &= ~M5206_UART_DBINT;
-        break;
-    case 6: /* Start break.  */
-    case 7: /* Stop break.  */
-        break;
-    }
-
-    /* Transmitter command.  */
-    switch ((cmd >> 2) & 3) {
-    case 0: /* No-op.  */
-        break;
-    case 1: /* Enable.  */
-        s->tx_enabled = 1;
-        m5206_uart_do_tx(s);
-        break;
-    case 2: /* Disable.  */
-        s->tx_enabled = 0;
-        m5206_uart_do_tx(s);
-        break;
-    case 3: /* Reserved.  */
-        fprintf(stderr, "m5206_uart: Bad TX command\n");
-        break;
-    }
-
-    /* Receiver command.  */
-    switch (cmd & 3) {
-    case 0: /* No-op.  */
-        break;
-    case 1: /* Enable.  */
-        s->rx_enabled = 1;
-        break;
-    case 2:
-        s->rx_enabled = 0;
-        break;
-    case 3: /* Reserved.  */
-        fprintf(stderr, "m5206_uart: Bad RX command\n");
-        break;
-    }
-}
-
-static void m5206_uart_write(m5206_uart_state *s, uint32_t addr, uint32_t val)
-{
-    switch (addr) {
-    case 0x00:
-        s->mr[s->current_mr] = val;
-        s->current_mr = 1;
-        break;
-    case 0x04:
-        /* CSR is ignored.  */
-        break;
-    case 0x08: /* Command Register.  */
-        m5206_do_command(s, val);
-        break;
-    case 0x0c: /* Transmit Buffer.  */
-        s->sr &= ~M5206_UART_TxEMP;
-        s->tb = val;
-        m5206_uart_do_tx(s);
-        break;
-    case 0x10:
-        /* ACR is ignored.  */
-        break;
-    case 0x14:
-        s->imr = val;
-        break;
-    default:
-        break;
-    }
-    m5206_uart_update(s);
-}
-
-static void m5206_uart_reset(m5206_uart_state *s)
-{
-    s->fifo_len = 0;
-    s->mr[0] = 0;
-    s->mr[1] = 0;
-    s->sr = M5206_UART_TxEMP;
-    s->tx_enabled = 0;
-    s->rx_enabled = 0;
-    s->isr = 0;
-    s->imr = 0;
-}
-
-static void m5206_uart_push_byte(m5206_uart_state *s, uint8_t data)
-{
-    /* Break events overwrite the last byte if the fifo is full.  */
-    if (s->fifo_len == 4)
-        s->fifo_len--;
-
-    s->fifo[s->fifo_len] = data;
-    s->fifo_len++;
-    s->sr |= M5206_UART_RxRDY;
-    if (s->fifo_len == 4)
-        s->sr |= M5206_UART_FFULL;
-
-    m5206_uart_update(s);
-}
-
-static void m5206_uart_event(void *opaque, int event)
-{
-    m5206_uart_state *s = (m5206_uart_state *)opaque;
-
-    switch (event) {
-    case CHR_EVENT_BREAK:
-        s->isr |= M5206_UART_DBINT;
-        m5206_uart_push_byte(s, 0);
-        break;
-    default:
-        break;
-    }
-}
-
-static int m5206_uart_can_receive(void *opaque)
-{
-    m5206_uart_state *s = (m5206_uart_state *)opaque;
-
-    return s->rx_enabled && (s->sr & M5206_UART_FFULL) == 0;
-}
-
-static void m5206_uart_receive(void *opaque, const uint8_t *buf, int size)
-{
-    m5206_uart_state *s = (m5206_uart_state *)opaque;
-
-    m5206_uart_push_byte(s, buf[0]);
-}
-
-static m5206_uart_state *m5206_uart_init(qemu_irq irq, CharDriverState *chr)
-{
-    m5206_uart_state *s;
-
-    s = qemu_mallocz(sizeof(m5206_uart_state));
-    s->chr = chr;
-    s->irq = irq;
-    if (chr) {
-        qemu_chr_add_handlers(chr, m5206_uart_can_receive, m5206_uart_receive,
-                              m5206_uart_event, s);
-    }
-    m5206_uart_reset(s);
-    return s;
-}
-
 /* System Integration Module.  */
 
 typedef struct {
     CPUState *env;
     m5206_timer_state *timer[2];
-    m5206_uart_state *uart[2];
+    void *uart[2];
     uint8_t scr;
     uint8_t icr[14];
     uint16_t imr; /* 1 == interrupt is masked.  */
@@ -540,9 +267,9 @@ static uint32_t m5206_mbar_read(m5206_mbar_state *s, uint32_t offset)
     } else if (offset >= 0x120 && offset < 0x140) {
         return m5206_timer_read(s->timer[1], offset - 0x120);
     } else if (offset >= 0x140 && offset < 0x160) {
-        return m5206_uart_read(s->uart[0], offset - 0x140);
+        return mcf_uart_read(s->uart[0], offset - 0x140);
     } else if (offset >= 0x180 && offset < 0x1a0) {
-        return m5206_uart_read(s->uart[1], offset - 0x180);
+        return mcf_uart_read(s->uart[1], offset - 0x180);
     }
     switch (offset) {
     case 0x03: return s->scr;
@@ -580,10 +307,10 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
         m5206_timer_write(s->timer[1], offset - 0x120, value);
         return;
     } else if (offset >= 0x140 && offset < 0x160) {
-        m5206_uart_write(s->uart[0], offset - 0x140, value);
+        mcf_uart_write(s->uart[0], offset - 0x140, value);
         return;
     } else if (offset >= 0x180 && offset < 0x1a0) {
-        m5206_uart_write(s->uart[1], offset - 0x180, value);
+        mcf_uart_write(s->uart[1], offset - 0x180, value);
         return;
     }
     switch (offset) {
@@ -798,13 +525,13 @@ qemu_irq *mcf5206_init(uint32_t base, CPUState *env)
     s = (m5206_mbar_state *)qemu_mallocz(sizeof(m5206_mbar_state));
     iomemtype = cpu_register_io_memory(0, m5206_mbar_readfn,
                                        m5206_mbar_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
 
     pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
     s->timer[0] = m5206_timer_init(pic[9]);
     s->timer[1] = m5206_timer_init(pic[10]);
-    s->uart[0] = m5206_uart_init(pic[12], serial_hds[0]);
-    s->uart[1] = m5206_uart_init(pic[13], serial_hds[1]);
+    s->uart[0] = mcf_uart_init(pic[12], serial_hds[0]);
+    s->uart[1] = mcf_uart_init(pic[13], serial_hds[1]);
     s->env = env;
 
     m5206_mbar_reset(s);

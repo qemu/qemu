@@ -1,3 +1,72 @@
+2007-06-03 19:10  ths
+
+	* target-alpha/translate.c: Avoid compiler warning.
+
+2007-06-03 19:08  ths
+
+	* gdbstub.c: Proper target format for qOffsets.
+
+2007-06-03 17:33  ths
+
+	* linux-user/linuxload.c: Fix typo in comment.
+
+2007-06-03 17:31  ths
+
+	* linux-user/mmap.c: Add __mips__to mmap specialcase.
+
+2007-06-03 17:19  pbrook
+
+	* hw/: arm_gic.c, arm_sysctl.c, arm_timer.c, integratorcp.c,
+	  pl011.c, pl050.c, pl080.c, pl110.c, pl181.c, pl190.c, pxa2xx.c,
+	  pxa2xx_dma.c, pxa2xx_gpio.c, pxa2xx_lcd.c, pxa2xx_mmci.c,
+	  pxa2xx_pcmcia.c, pxa2xx_pic.c, pxa2xx_timer.c, spitz.c,
+	  usb-ohci.c, versatilepb.c: Fix off-by-one memory region sizes.
+
+2007-06-03 16:27  ths
+
+	* linux-user/syscall.c: IPC message translation.
+
+2007-06-03 16:26  ths
+
+	* linux-user/: syscall.c, alpha/syscall.h, i386/syscall.h,
+	  ppc/syscall.h: Semaphore structure mapping, by Stuart Anderson.
+
+2007-06-03 15:41  ths
+
+	* qemu-doc.texi, qemu-img.texi: Documentation spelling fixes, by
+	  Mark Glines.
+
+2007-06-03 15:35  ths
+
+	* disas.c, exec.c, sdl.c, darwin-user/mmap.c, hw/cirrus_vga.c,
+	  hw/cuda.c, hw/ne2000.c, hw/scsi-disk.c, hw/vga.c,
+	  linux-user/elfload.c, target-i386/translate.c: Spelling fixes, by
+	  Stefan Weil.
+
+2007-06-03 14:54  pbrook
+
+	* hw/mcf5208.c: MCF5208 timer fix.
+
+2007-06-03 14:35  pbrook
+
+	* target-m68k/: cpu.h, helper.c, translate.c: Improve ColdFire CPU
+	  selection.
+
+2007-06-03 13:13  pbrook
+
+	* Makefile.target, vl.c, vl.h, hw/an5206.c, hw/mcf5206.c,
+	  hw/mcf5208.c, hw/mcf_intc.c, hw/mcf_uart.c, target-m68k/cpu.h,
+	  target-m68k/helper.c, target-m68k/op.c, target-m68k/op_helper.c,
+	  target-m68k/translate.c: MCF5208 emulation.
+
+2007-06-03 12:44  pbrook
+
+	* hw/ptimer.c: Leave running timer alone if not reloading.
+
+2007-06-02 19:59  pbrook
+
+	* target-m68k/op_helper.c: Clear SR_M on a hardware interrupt.
+
 2007-06-02 02:25  ths
 
 	* target-mips/translate.c: Check for R2 instructions, and throw RI

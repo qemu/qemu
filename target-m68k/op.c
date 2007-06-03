@@ -475,6 +475,13 @@ OP(fp_result)
     FORCE_RET();
 }
 
+OP(set_sr)
+{
+    env->sr = get_op(PARAM1);
+    m68k_switch_sp(env);
+    FORCE_RET();
+}
+
 OP(jmp)
 {
     GOTO_LABEL_PARAM(1);

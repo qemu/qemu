@@ -157,7 +157,7 @@ long target_mmap(target_ulong start, target_ulong len, int prot,
     target_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
     long host_start;
 #if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__) || \
-    defined(__ia64) || defined(__mips__)
+        defined(__ia64) || defined(__mips__)
     static target_ulong last_start = 0x40000000;
 #elif defined(__CYGWIN__)
     /* Cygwin doesn't have a whole lot of address space.  */

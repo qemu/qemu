@@ -1,4 +1,4 @@
-/* Code for loading Linux executables.  Mostly linux kenrel code.  */
+/* Code for loading Linux executables.  Mostly linux kernel code.  */
 
 #include <sys/types.h>
 #include <sys/stat.h>

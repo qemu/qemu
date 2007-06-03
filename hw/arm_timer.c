@@ -233,7 +233,7 @@ void sp804_init(uint32_t base, qemu_irq irq)
     s->timer[1] = arm_timer_init(1000000, qi[1]);
     iomemtype = cpu_register_io_memory(0, sp804_readfn,
                                        sp804_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
     /* ??? Save/restore.  */
 }
 
@@ -301,7 +301,7 @@ void icp_pit_init(uint32_t base, qemu_irq *pic, int irq)
 
     iomemtype = cpu_register_io_memory(0, icp_pit_readfn,
                                        icp_pit_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
     /* ??? Save/restore.  */
 }
 

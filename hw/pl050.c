@@ -131,7 +131,7 @@ void pl050_init(uint32_t base, qemu_irq irq, int is_mouse)
     s = (pl050_state *)qemu_mallocz(sizeof(pl050_state));
     iomemtype = cpu_register_io_memory(0, pl050_readfn,
                                        pl050_writefn, s);
-    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
+    cpu_register_physical_memory(base, 0x00001000, iomemtype);
     s->base = base;
     s->irq = irq;
     s->is_mouse = is_mouse;
