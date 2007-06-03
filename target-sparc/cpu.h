@@ -302,6 +302,12 @@ void do_tick_set_count(void *opaque, uint64_t count);
 uint64_t do_tick_get_count(void *opaque);
 void do_tick_set_limit(void *opaque, uint64_t limit);
 
+#define CPUState CPUSPARCState
+#define cpu_init cpu_sparc_init
+#define cpu_exec cpu_sparc_exec
+#define cpu_gen_code cpu_sparc_gen_code
+#define cpu_signal_handler cpu_sparc_signal_handler
+
 #include "cpu-all.h"
 
 #endif
