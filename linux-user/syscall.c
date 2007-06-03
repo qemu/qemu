@@ -1437,6 +1437,117 @@ static inline long do_semctl(long first, long second, long third, long ptr)
     return ret;
 }
 
+struct target_msqid_ds
+{
+  struct target_ipc_perm msg_perm;
+  target_ulong msg_stime;
+  target_ulong __unused1;
+  target_ulong msg_rtime;
+  target_ulong __unused2;
+  target_ulong msg_ctime;
+  target_ulong __unused3;
+  target_ulong __msg_cbytes;
+  target_ulong msg_qnum;
+  target_ulong msg_qbytes;
+  target_ulong msg_lspid;
+  target_ulong msg_lrpid;
+  target_ulong __unused4;
+  target_ulong __unused5;
+};
+
+static inline void target_to_host_msqid_ds(struct msqid_ds *host_md,
+                                          target_ulong target_addr)
+{
+    struct target_msqid_ds *target_md;
+
+    lock_user_struct(target_md, target_addr, 1);
+    target_to_host_ipc_perm(&(host_md->msg_perm),target_addr);
+    host_md->msg_stime = tswapl(target_md->msg_stime);
+    host_md->msg_rtime = tswapl(target_md->msg_rtime);
+    host_md->msg_ctime = tswapl(target_md->msg_ctime);
+    host_md->__msg_cbytes = tswapl(target_md->__msg_cbytes);
+    host_md->msg_qnum = tswapl(target_md->msg_qnum);
+    host_md->msg_qbytes = tswapl(target_md->msg_qbytes);
+    host_md->msg_lspid = tswapl(target_md->msg_lspid);
+    host_md->msg_lrpid = tswapl(target_md->msg_lrpid);
+    unlock_user_struct(target_md, target_addr, 0);
+}
+
+static inline void host_to_target_msqid_ds(target_ulong target_addr,
+                                           struct msqid_ds *host_md)
+{
+    struct target_msqid_ds *target_md;
+
+    lock_user_struct(target_md, target_addr, 0);
+    host_to_target_ipc_perm(target_addr,&(host_md->msg_perm));
+    target_md->msg_stime = tswapl(host_md->msg_stime);
+    target_md->msg_rtime = tswapl(host_md->msg_rtime);
+    target_md->msg_ctime = tswapl(host_md->msg_ctime);
+    target_md->__msg_cbytes = tswapl(host_md->__msg_cbytes);
+    target_md->msg_qnum = tswapl(host_md->msg_qnum);
+    target_md->msg_qbytes = tswapl(host_md->msg_qbytes);
+    target_md->msg_lspid = tswapl(host_md->msg_lspid);
+    target_md->msg_lrpid = tswapl(host_md->msg_lrpid);
+    unlock_user_struct(target_md, target_addr, 1);
+}
+
+static inline long do_msgctl(long first, long second, long ptr)
+{
+    struct msqid_ds dsarg;
+    int cmd = second&0xff;
+    long ret = 0;
+    switch( cmd ) {
+    case IPC_STAT:
+    case IPC_SET:
+        target_to_host_msqid_ds(&dsarg,ptr);
+        ret = get_errno(msgctl(first, cmd, &dsarg));
+        host_to_target_msqid_ds(ptr,&dsarg);
+    default:
+        ret = get_errno(msgctl(first, cmd, &dsarg));
+    }
+    return ret;
+}
+
+struct target_msgbuf {
+	target_ulong mtype;
+	char	mtext[1];
+};
+
+static inline long do_msgsnd(long msqid, long msgp, long msgsz, long msgflg)
+{
+    struct target_msgbuf *target_mb;
+    struct msgbuf *host_mb;
+    long ret = 0;
+
+    lock_user_struct(target_mb,msgp,0);
+    host_mb = malloc(msgsz+sizeof(long));
+    host_mb->mtype = tswapl(target_mb->mtype);
+    memcpy(host_mb->mtext,target_mb->mtext,msgsz);
+    ret = get_errno(msgsnd(msqid, host_mb, msgsz, msgflg));
+    free(host_mb);
+    unlock_user_struct(target_mb, msgp, 0);
+
+    return ret;
+}
+
+static inline long do_msgrcv(long msqid, long msgp, long msgsz, long msgtype, long msgflg)
+{
+    struct target_msgbuf *target_mb;
+    struct msgbuf *host_mb;
+    long ret = 0;
+
+    lock_user_struct(target_mb, msgp, 0);
+    host_mb = malloc(msgsz+sizeof(long));
+    ret = get_errno(msgrcv(msqid, host_mb, msgsz, 1, msgflg));
+    if (ret > 0)
+    	memcpy(target_mb->mtext, host_mb->mtext, ret);
+    target_mb->mtype = tswapl(host_mb->mtype);
+    free(host_mb);
+    unlock_user_struct(target_mb, msgp, 0);
+
+    return ret;
+}
+
 /* ??? This only works with linear mappings.  */
 static long do_ipc(long call, long first, long second, long third,
 		   long ptr, long fifth)
@@ -1473,27 +1584,27 @@ static long do_ipc(long call, long first, long second, long third,
 		break;
 
 	case IPCOP_msgsnd:
-		ret = get_errno(msgsnd(first, (struct msgbuf *) ptr, second, third));
+		ret = do_msgsnd(first, ptr, second, third);
 		break;
 
 	case IPCOP_msgctl:
-		ret = get_errno(msgctl(first, second, (struct msqid_ds *) ptr));
+        	ret = do_msgctl(first, second, ptr);
 		break;
 
 	case IPCOP_msgrcv:
-		{
-			struct ipc_kludge
-			{
-				void *__unbounded msgp;
-				long int msgtyp;
-			};
+                {
+                      struct ipc_kludge
+                      {
+                              void *__unbounded msgp;
+                              long int msgtyp;
+                      };
 
-			struct ipc_kludge *foo = (struct ipc_kludge *) ptr;
-			struct msgbuf *msgp = (struct msgbuf *) foo->msgp;
+                      struct ipc_kludge *foo = (struct ipc_kludge *) ptr;
+                      struct msgbuf *msgp = (struct msgbuf *) foo->msgp;
 
-			ret = get_errno(msgrcv(first, msgp, second, 0, third));
+                      ret = do_msgrcv(first, (long)msgp, second, 0, third);
 
-		}
+                }
 		break;
 
     case IPCOP_shmat:
