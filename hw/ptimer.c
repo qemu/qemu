@@ -149,7 +149,7 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
     s->limit = limit;
     if (reload)
         s->delta = limit;
-    if (s->enabled) {
+    if (s->enabled && reload) {
         s->next_event = qemu_get_clock(vm_clock);
         ptimer_reload(s);
     }
