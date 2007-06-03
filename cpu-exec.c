@@ -710,7 +710,7 @@ int cpu_exec(CPUState *env1)
                     cpu_loop_exit();
                 }
 #endif
-            }
+            } /* for(;;) */
         } else {
             env_to_regs();
         }
