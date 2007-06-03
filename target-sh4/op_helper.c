@@ -20,11 +20,6 @@
 #include <assert.h>
 #include "exec.h"
 
-void cpu_loop_exit(void)
-{
-    longjmp(env->jmp_env, 1);
-}
-
 void do_raise_exception(void)
 {
     cpu_loop_exit();

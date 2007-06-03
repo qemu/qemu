@@ -1,3 +1,24 @@
+2007-06-03 21:16  ths
+
+	* disas.c: One day we might support MIPS16...
+
+2007-06-03 20:52  ths
+
+	* cpu-exec.c: Add comment.
+
+2007-06-03 20:45  ths
+
+	* cpu-exec.c: Some more regs_to_env/envs_to_regs cleanup.
+
+2007-06-03 19:44  ths
+
+	* cpu-exec.c, target-alpha/exec.h, target-arm/exec.h,
+	  target-i386/exec.h, target-i386/helper.c, target-m68k/exec.h,
+	  target-mips/exec.h, target-mips/op_helper.c, target-ppc/exec.h,
+	  target-ppc/op_helper.c, target-sh4/op_helper.c,
+	  target-sparc/exec.h: Clean up of some target specifics in
+	  exec.c/cpu-exec.c.
+
 2007-06-03 19:10  ths
 
 	* target-alpha/translate.c: Avoid compiler warning.

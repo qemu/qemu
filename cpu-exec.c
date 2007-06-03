@@ -41,14 +41,14 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
-#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_M68K) || \
-    defined(TARGET_ALPHA)
-/* XXX: unify with i386 target */
 void cpu_loop_exit(void)
 {
+    /* NOTE: the register at this point must be saved by hand because
+       longjmp restore them */
+    regs_to_env();
     longjmp(env->jmp_env, 1);
 }
-#endif
+
 #if !(defined(TARGET_SPARC) || defined(TARGET_SH4) || defined(TARGET_M68K))
 #define reg_T2
 #endif
@@ -254,65 +254,8 @@ int cpu_exec(CPUState *env1)
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
-#if defined(TARGET_I386)
-    /* handle exit of HALTED state */
-    if (env1->hflags & HF_HALTED_MASK) {
-        /* disable halt condition */
-        if ((env1->interrupt_request & CPU_INTERRUPT_HARD) &&
-            (env1->eflags & IF_MASK)) {
-            env1->hflags &= ~HF_HALTED_MASK;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_PPC)
-    if (env1->halted) {
-        if (env1->msr[MSR_EE] && 
-            (env1->interrupt_request & CPU_INTERRUPT_HARD)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_SPARC)
-    if (env1->halted) {
-        if ((env1->interrupt_request & CPU_INTERRUPT_HARD) &&
-            (env1->psret != 0)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_ARM)
-    if (env1->halted) {
-        /* An interrupt wakes the CPU even if the I and F CPSR bits are
-           set.  We use EXITTB to silently wake CPU without causing an
-           actual interrupt.  */
-        if (env1->interrupt_request &
-            (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_MIPS)
-    if (env1->halted) {
-        if (env1->interrupt_request &
-            (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER)) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#elif defined(TARGET_ALPHA) || defined(TARGET_M68K)
-    if (env1->halted) {
-        if (env1->interrupt_request & CPU_INTERRUPT_HARD) {
-            env1->halted = 0;
-        } else {
-            return EXCP_HALTED;
-        }
-    }
-#endif
+    if (cpu_halted(env1) == EXCP_HALTED)
+        return EXCP_HALTED;
 
     cpu_single_env = env1; 
 
@@ -325,28 +268,27 @@ int cpu_exec(CPUState *env1)
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
 #endif
 
-#if defined(TARGET_I386)
     env_to_regs();
+#if defined(TARGET_I386)
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-#elif defined(TARGET_ARM)
 #elif defined(TARGET_SPARC)
 #if defined(reg_REGWPTR)
     saved_regwptr = REGWPTR;
 #endif
-#elif defined(TARGET_PPC)
 #elif defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = env->sr & 0xf;
     env->cc_x = (env->sr >> 4) & 1;
+#elif defined(TARGET_ALPHA)
+#elif defined(TARGET_ARM)
+#elif defined(TARGET_PPC)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
     /* XXXXX */
-#elif defined(TARGET_ALPHA)
-    env_to_regs();
 #else
 #error unsupported target CPU
 #endif
@@ -584,32 +526,9 @@ int cpu_exec(CPUState *env1)
                 }
 #ifdef DEBUG_EXEC
                 if ((loglevel & CPU_LOG_TB_CPU)) {
-#if defined(TARGET_I386)
                     /* restore flags in standard format */
-#ifdef reg_EAX
-                    env->regs[R_EAX] = EAX;
-#endif
-#ifdef reg_EBX
-                    env->regs[R_EBX] = EBX;
-#endif
-#ifdef reg_ECX
-                    env->regs[R_ECX] = ECX;
-#endif
-#ifdef reg_EDX
-                    env->regs[R_EDX] = EDX;
-#endif
-#ifdef reg_ESI
-                    env->regs[R_ESI] = ESI;
-#endif
-#ifdef reg_EDI
-                    env->regs[R_EDI] = EDI;
-#endif
-#ifdef reg_EBP
-                    env->regs[R_EBP] = EBP;
-#endif
-#ifdef reg_ESP
-                    env->regs[R_ESP] = ESP;
-#endif
+                    regs_to_env();
+#if defined(TARGET_I386)
                     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
                     cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -796,7 +715,7 @@ int cpu_exec(CPUState *env1)
                     cpu_loop_exit();
                 }
 #endif
-            }
+            } /* for(;;) */
         } else {
             env_to_regs();
         }

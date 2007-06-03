@@ -122,4 +122,14 @@ static inline void regs_to_env(void)
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
+static inline int cpu_halted(CPUState *env) {
+    if (!env->halted)
+        return 0;
+    if (env->msr[MSR_EE] && (env->interrupt_request & CPU_INTERRUPT_HARD)) {
+        env->halted = 0;
+        return 0;
+    }
+    return EXCP_HALTED;
+}
+
 #endif /* !defined (__PPC_H__) */

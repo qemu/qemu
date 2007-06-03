@@ -79,4 +79,14 @@ int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 
 void do_interrupt (CPUState *env);
 
+static inline int cpu_halted(CPUState *env) {
+    if (!env->halted)
+        return 0;
+    if (env->interrupt_request & CPU_INTERRUPT_HARD) {
+        env->halted = 0;
+        return 0;
+    }
+    return EXCP_HALTED;
+}
+
 #endif /* !defined (__ALPHA_EXEC_H__) */
