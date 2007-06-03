@@ -62,9 +62,9 @@ static void m5208_timer_write(m5208_timer_state *s, int offset,
         prescale = 1 << ((s->pcsr & PCSR_PRE_MASK) >> PCSR_PRE_SHIFT);
         ptimer_set_freq(s->timer, (SYS_FREQ / 2) / prescale);
         if (s->pcsr & PCSR_RLD)
-            limit = 0xffff;
-        else
             limit = s->pmr;
+        else
+            limit = 0xffff;
         ptimer_set_limit(s->timer, limit, 0);
 
         if (s->pcsr & PCSR_EN)
@@ -73,9 +73,12 @@ static void m5208_timer_write(m5208_timer_state *s, int offset,
     case 2:
         s->pmr = value;
         s->pcsr &= ~PCSR_PIF;
-        if (s->pcsr & PCSR_RLD)
-            value = 0xffff;
-        ptimer_set_limit(s->timer, value, s->pcsr & PCSR_OVW);
+        if ((s->pcsr & PCSR_RLD) == 0) {
+            if (s->pcsr & PCSR_OVW)
+                ptimer_set_count(s->timer, value);
+        } else {
+            ptimer_set_limit(s->timer, value, s->pcsr & PCSR_OVW);
+        }
         break;
     case 4:
         break;
