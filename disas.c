@@ -308,8 +308,8 @@ const char *lookup_symbol(target_ulong orig_addr)
 		continue;
 
 	    addr = sym[i].st_value;
-#ifdef TARGET_ARM
-            /* The bottom address bit marks a Thumb symbol.  */
+#if defined(TARGET_ARM) || defined (TARGET_MIPS)
+            /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
             addr &= ~(target_ulong)1;
 #endif
 	    if (orig_addr >= addr
