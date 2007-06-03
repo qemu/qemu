@@ -40,7 +40,9 @@ static void an5206_init(int ram_size, int vga_ram_size, int boot_device,
     env = cpu_init();
     if (!cpu_model)
         cpu_model = "m5206";
-    cpu_m68k_set_model(env, cpu_model);
+    if (cpu_m68k_set_model(env, cpu_model)) {
+        cpu_abort(env, "Unable to find m68k CPU definition\n");
+    }
 
     /* Initialize CPU registers.  */
     env->vbr = 0;

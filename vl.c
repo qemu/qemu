@@ -6972,6 +6972,7 @@ void register_machines(void)
 #elif defined(TARGET_ALPHA)
     /* XXX: TODO */
 #elif defined(TARGET_M68K)
+    qemu_register_machine(&mcf5208evb_machine);
     qemu_register_machine(&an5206_machine);
 #else
 #error unsupported CPU

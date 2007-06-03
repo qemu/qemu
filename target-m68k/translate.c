@@ -1345,7 +1345,7 @@ static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
     gen_op_logic_cc(gen_im32(val & 0xf));
     gen_op_update_xflag_tst(gen_im32((val & 0x10) >> 4));
     if (!ccr_only) {
-        gen_op_mov32(QREG_SR, gen_im32(val & 0xff00));
+        gen_op_set_sr(gen_im32(val & 0xff00));
     }
 }
 
@@ -1365,7 +1365,7 @@ static void gen_set_sr(DisasContext *s, uint16_t insn, int ccr_only)
         gen_op_and32(src1, src1, gen_im32(1));
         gen_op_update_xflag_tst(src1);
         if (!ccr_only) {
-            gen_op_and32(QREG_SR, reg, gen_im32(0xff00));
+            gen_op_set_sr(reg);
         }
       }
     else if ((insn & 0x3f) == 0x3c)
@@ -2797,8 +2797,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(trap,      4e40, fff0, CF_ISA_A);
     INSN(link,      4e50, fff8, CF_ISA_A);
     INSN(unlk,      4e58, fff8, CF_ISA_A);
-    INSN(move_to_usp, 4e60, fff8, CF_ISA_B);
-    INSN(move_from_usp, 4e68, fff8, CF_ISA_B);
+    INSN(move_to_usp, 4e60, fff8, USP);
+    INSN(move_from_usp, 4e68, fff8, USP);
     INSN(nop,       4e71, ffff, CF_ISA_A);
     INSN(stop,      4e72, ffff, CF_ISA_A);
     INSN(rte,       4e73, ffff, CF_ISA_A);
@@ -3261,6 +3261,7 @@ void cpu_reset(CPUM68KState *env)
 #if !defined (CONFIG_USER_ONLY)
     env->sr = 0x2700;
 #endif
+    m68k_switch_sp(env);
     /* ??? FP regs should be initialized to NaN.  */
     env->cc_op = CC_OP_FLAGS;
     /* TODO: We should set PC from the interrupt vector.  */

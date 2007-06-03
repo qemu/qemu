@@ -1593,11 +1593,24 @@ void qemu_get_ptimer(QEMUFile *f, ptimer_state *s);
 
 #include "hw/pxa.h"
 
+/* mcf_uart.c */
+uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr);
+void mcf_uart_write(void *opaque, target_phys_addr_t addr, uint32_t val);
+void *mcf_uart_init(qemu_irq irq, CharDriverState *chr);
+void mcf_uart_mm_init(target_phys_addr_t base, qemu_irq irq,
+                      CharDriverState *chr);
+
+/* mcf_intc.c */
+qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env);
+
 /* mcf5206.c */
 qemu_irq *mcf5206_init(uint32_t base, CPUState *env);
 
 /* an5206.c */
 extern QEMUMachine an5206_machine;
+
+/* mcf5208.c */
+extern QEMUMachine mcf5208evb_machine;
 
 #include "gdbstub.h"
 
