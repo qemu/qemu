@@ -1603,6 +1603,9 @@ void mcf_uart_mm_init(target_phys_addr_t base, qemu_irq irq,
 /* mcf_intc.c */
 qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env);
 
+/* mcf_fec.c */
+void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq);
+
 /* mcf5206.c */
 qemu_irq *mcf5206_init(uint32_t base, CPUState *env);
 

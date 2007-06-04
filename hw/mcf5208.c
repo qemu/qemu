@@ -236,10 +236,27 @@ static void mcf5208evb_init(int ram_size, int vga_ram_size, int boot_device,
 
     mcf5208_sys_init(pic);
 
+    if (nb_nics > 1) {
+        fprintf(stderr, "Too many NICs\n");
+        exit(1);
+    }
+    if (nd_table[0].vlan) {
+        if (nd_table[0].model == NULL
+            || strcmp(nd_table[0].model, "mcf_fec") == 0) {
+            mcf_fec_init(&nd_table[0], 0xfc030000, pic + 36);
+        } else if (strcmp(nd_table[0].model, "?") == 0) {
+            fprintf(stderr, "qemu: Supported NICs: mcf_fec\n");
+            exit (1);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            exit (1);
+        }
+    }
+
     /*  0xfc000000 SCM.  */
     /*  0xfc004000 XBS.  */
     /*  0xfc008000 FlexBus CS.  */
-    /*  0xfc030000 FEC.  */
+    /* 0xfc030000 FEC.  */
     /*  0xfc040000 SCM + Power management.  */
     /*  0xfc044000 eDMA.  */
     /* 0xfc048000 INTC.  */
