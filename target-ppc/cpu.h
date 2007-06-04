@@ -899,6 +899,12 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address);
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
+#define CPUState CPUPPCState
+#define cpu_init cpu_ppc_init
+#define cpu_exec cpu_ppc_exec
+#define cpu_gen_code cpu_ppc_gen_code
+#define cpu_signal_handler cpu_ppc_signal_handler
+
 #include "cpu-all.h"
 
 /*****************************************************************************/

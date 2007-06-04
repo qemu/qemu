@@ -216,6 +216,13 @@ void register_m68k_insns (CPUM68KState *env);
 /* Smallest TLB entry size is 1k.  */ 
 #define TARGET_PAGE_BITS 10
 #endif
+
+#define CPUState CPUM68KState
+#define cpu_init cpu_m68k_init
+#define cpu_exec cpu_m68k_exec
+#define cpu_gen_code cpu_m68k_gen_code
+#define cpu_signal_handler cpu_m68k_signal_handler
+
 #include "cpu-all.h"
 
 #endif

@@ -285,6 +285,13 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
    architecture revisions.  Maybe an a configure option to disable them.  */
 #define TARGET_PAGE_BITS 10
 #endif
+
+#define CPUState CPUARMState
+#define cpu_init cpu_arm_init
+#define cpu_exec cpu_arm_exec
+#define cpu_gen_code cpu_arm_gen_code
+#define cpu_signal_handler cpu_arm_signal_handler
+
 #include "cpu-all.h"
 
 #endif

@@ -300,6 +300,12 @@ struct CPUAlphaState {
     pal_handler_t *pal_handler;
 };
 
+#define CPUState CPUAlphaState
+#define cpu_init cpu_alpha_init
+#define cpu_exec cpu_alpha_exec
+#define cpu_gen_code cpu_alpha_gen_code
+#define cpu_signal_handler cpu_alpha_signal_handler
+
 #include "cpu-all.h"
 
 enum {

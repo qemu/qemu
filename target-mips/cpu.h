@@ -324,6 +324,12 @@ int mips_find_by_name (const unsigned char *name, mips_def_t **def);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
 
+#define CPUState CPUMIPSState
+#define cpu_init cpu_mips_init
+#define cpu_exec cpu_mips_exec
+#define cpu_gen_code cpu_mips_gen_code
+#define cpu_signal_handler cpu_mips_signal_handler
+
 #include "cpu-all.h"
 
 /* Memory access type :

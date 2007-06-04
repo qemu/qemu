@@ -661,6 +661,13 @@ static inline int cpu_get_time_fast(void)
 #endif
 
 #define TARGET_PAGE_BITS 12
+
+#define CPUState CPUX86State
+#define cpu_init cpu_x86_init
+#define cpu_exec cpu_x86_exec
+#define cpu_gen_code cpu_x86_gen_code
+#define cpu_signal_handler cpu_x86_signal_handler
+
 #include "cpu-all.h"
 
 #endif /* CPU_I386_H */

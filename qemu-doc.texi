@@ -81,6 +81,7 @@ For system emulation, the following hardware targets are supported:
 @item ARM Versatile baseboard (ARM926E)
 @item ARM RealView Emulation baseboard (ARM926EJ-S)
 @item Spitz, Akita, Borzoi and Terrier PDAs (PXA270 processor)
+@item Freescale MCF5208EVB (ColdFire V2).
 @item Arnewsh MCF5206 evaluation board (ColdFire V2).
 @end itemize
 
@@ -362,7 +363,7 @@ Qemu can emulate several different models of network card.
 Valid values for @var{type} are
 @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
-@code{smc91c111} and @code{lance}.
+@code{smc91c111}, @code{lance} and @code{mcf_fec}.
 Not all devices are supported on all targets.  Use -net nic,model=?
 for a list of available devices for your target.
 
@@ -1837,7 +1838,19 @@ information is available in the QEMU mailing-list archive.
 
 Use the executable @file{qemu-system-m68k} to simulate a ColdFire machine.
 The emulator is able to boot a uClinux kernel.
-The following devices are emulated:
+
+The M5208EVB emulation includes the following devices:
+
+@itemize @minus
+@item 
+MCF5208 ColdFire V2 Microprocessor (ISA A+ with EMAC).
+@item
+Three Two on-chip UARTs.
+@item
+Fast Ethernet Controller (FEC)
+@end itemize
+
+The AN5206 emulation includes the following devices:
 
 @itemize @minus
 @item 
