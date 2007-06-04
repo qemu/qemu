@@ -236,17 +236,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
         val = s->brk;
         break;
 
-    /* UART Registers */
-    case 0x00900:
-    case 0x00908:
-    case 0x00910:
-    case 0x00918:
-    case 0x00920:
-    case 0x00928:
-    case 0x00930:
-    case 0x00938:
-        val = serial_mm_readb(s->uart, addr);
-        break;
+    /* UART Registers are handled directly by the serial device */
 
     /* GPOUT Register */
     case 0x00a00:
@@ -348,17 +338,7 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
         s->brk = val & 0xff;
         break;
 
-    /* UART Registers */
-    case 0x00900:
-    case 0x00908:
-    case 0x00910:
-    case 0x00918:
-    case 0x00920:
-    case 0x00928:
-    case 0x00930:
-    case 0x00938:
-        serial_mm_writeb(s->uart, addr, val);
-        break;
+    /* UART Registers are handled directly by the serial device */
 
     /* GPOUT Register */
     case 0x00a00:
@@ -430,7 +410,8 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     malta = cpu_register_io_memory(0, malta_fpga_read,
                                    malta_fpga_write, s);
 
-    cpu_register_physical_memory(base, 0x100000, malta);
+    cpu_register_physical_memory(base, 0x900, malta);
+    cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
     s->display = qemu_chr_open("vc");
     qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
@@ -445,7 +426,7 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
 
     uart_chr = qemu_chr_open("vc");
     qemu_chr_printf(uart_chr, "CBUS UART\r\n");
-    s->uart = serial_mm_init(base, 3, env->irq[2], uart_chr, 0);
+    s->uart = serial_mm_init(base + 0x900, 3, env->irq[2], uart_chr, 1);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
