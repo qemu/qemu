@@ -778,9 +778,23 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x1fc00000LL,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
-    /* Load a BIOS image except if a kernel image has been specified. In
-       the later case, just write a small bootloader to the flash
-       location. */
+    /* FPGA */
+    malta_fpga = malta_fpga_init(0x1f000000LL, env);
+
+    /* Load a BIOS image unless a kernel image has been specified. */
+    if (!kernel_filename) {
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+        ret = load_image(buf, phys_ram_base + bios_offset);
+        if (ret < 0 || ret > BIOS_SIZE) {
+            fprintf(stderr,
+                    "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
+                    buf);
+            exit(1);
+        }
+    }
+
+    /* If a kernel image has been specified, write a small bootloader
+       to the flash location. */
     if (kernel_filename) {
         env->ram_size = ram_size;
         env->kernel_filename = kernel_filename;
@@ -789,14 +803,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
         kernel_entry = load_kernel(env);
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         write_bootloader(env, bios_offset, kernel_entry);
-    } else {
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-        ret = load_image(buf, phys_ram_base + bios_offset);
-        if (ret < 0 || ret > BIOS_SIZE) {
-            fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-                    buf);
-            exit(1);
-        }
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
@@ -808,9 +814,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
-
-    /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL, env);
 
     /* Interrupt controller */
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
