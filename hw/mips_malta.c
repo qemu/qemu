@@ -451,17 +451,8 @@ static void audio_init (PCIBus *pci_bus)
         s = AUD_init ();
         if (s) {
             for (c = soundhw; c->name; ++c) {
-                if (c->enabled) {
-                    if (c->isa) {
-                        fprintf(stderr, "qemu: Unsupported Sound Card: %s\n", c->name);
-                        exit(1);
-                    }
-                    else {
-                        if (pci_bus) {
-                            c->init.init_pci (pci_bus, s);
-                        }
-                    }
-                }
+                if (c->enabled)
+                    c->init.init_pci (pci_bus, s);
             }
         }
     }
