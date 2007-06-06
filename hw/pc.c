@@ -897,7 +897,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     cmos_init(ram_size, boot_device, bs_table);
 
     if (pci_enabled && usb_enabled) {
-        usb_uhci_init(pci_bus, piix3_devfn + 2);
+        usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
     }
 
     if (pci_enabled && acpi_enabled) {

@@ -993,6 +993,8 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
                          int secondary_ide_enabled);
 void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
                         qemu_irq *pic);
+void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
+                        qemu_irq *pic);
 int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq);
 
 /* cdrom.c */

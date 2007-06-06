@@ -1,3 +1,49 @@
+2007-06-06 19:19  ths
+
+	* hw/mips_malta.c: Make the Malta bootloader handling a bit more
+	  transparent.
+
+2007-06-06 18:54  ths
+
+	* hw/mips_malta.c: Fix formatting.
+
+2007-06-06 18:52  ths
+
+	* hw/mips_malta.c: Malta has no ISA bus.
+
+2007-06-06 18:28  ths
+
+	* hw/serial.c: Big endian byte swap for serial mmapped interface.
+
+2007-06-06 18:26  ths
+
+	* vl.h, hw/ide.c, hw/mips_malta.c, hw/pc.c, hw/usb-uhci.c,
+	  hw/usb.h: Use the correct PCI IDs for Malta.
+
+2007-06-04 20:29  ths
+
+	* hw/mips_malta.c: Take advantage of subpage support.
+
+2007-06-04 02:50  pbrook
+
+	* qemu-doc.texi: Add documentation for new ColdFire board.
+
+2007-06-04 02:31  pbrook
+
+	* Makefile.target, qemu-doc.texi, vl.h, hw/mcf5208.c, hw/mcf_fec.c:
+	  ColdFire Ethernet support.
+
+2007-06-04 00:54  ths
+
+	* target-i386/exec.h: Fix typo.
+
+2007-06-03 23:02  ths
+
+	* cpu-all.h, target-alpha/cpu.h, target-arm/cpu.h,
+	  target-i386/cpu.h, target-m68k/cpu.h, target-mips/cpu.h,
+	  target-ppc/cpu.h, target-sh4/cpu.h, target-sparc/cpu.h: Move
+	  target-specific defines to the target directories.
+
 2007-06-03 21:16  ths
 
 	* disas.c: One day we might support MIPS16...

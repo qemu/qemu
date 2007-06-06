@@ -473,17 +473,8 @@ static void audio_init (PCIBus *pci_bus)
         s = AUD_init ();
         if (s) {
             for (c = soundhw; c->name; ++c) {
-                if (c->enabled) {
-                    if (c->isa) {
-                        fprintf(stderr, "qemu: Unsupported Sound Card: %s\n", c->name);
-                        exit(1);
-                    }
-                    else {
-                        if (pci_bus) {
-                            c->init.init_pci (pci_bus, s);
-                        }
-                    }
-                }
+                if (c->enabled)
+                    c->init.init_pci (pci_bus, s);
             }
         }
     }
@@ -706,7 +697,7 @@ static int64_t load_kernel (CPUState *env)
                  &kernel_entry, &kernel_low, &kernel_high) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 env->kernel_filename);
-      exit(1);
+        exit(1);
     }
 
     /* load initrd */
@@ -820,9 +811,26 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x1fc00000LL,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
-    /* Load a BIOS image except if a kernel image has been specified. In
-       the later case, just write a small bootloader to the flash
-       location. */
+    /* FPGA */
+    malta_fpga = malta_fpga_init(0x1f000000LL, env);
+
+    /* Load a BIOS image unless a kernel image has been specified. */
+    if (!kernel_filename) {
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+        ret = load_image(buf, phys_ram_base + bios_offset);
+        if (ret < 0 || ret > BIOS_SIZE) {
+            fprintf(stderr,
+                    "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
+                    buf);
+            exit(1);
+        }
+        pflash_t *pf;
+        pf = pflash_device_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
+                             MANUFACTURER_INTEL, I28F160S5);
+    }
+
+    /* If a kernel image has been specified, write a small bootloader
+       to the flash location. */
     if (kernel_filename) {
         env->ram_size = ram_size;
         env->kernel_filename = kernel_filename;
@@ -831,19 +839,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
         kernel_entry = load_kernel(env);
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         write_bootloader(env, bios_offset, kernel_entry);
-    } else {
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-        ret = load_image(buf, phys_ram_base + bios_offset);
-        logout("BIOS 0x%08x...0x%08x (max 0x%08x)\n",
-            0x1fc00000, 0x1fc00000 + ret, 0x1fc00000 + BIOS_SIZE);
-        if (ret < 0 || ret > BIOS_SIZE) {
-            fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-                    buf);
-            exit(1);
-        }
-        pflash_t *pf;
-        pf = pflash_device_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
-                             MANUFACTURER_INTEL, I28F160S5);
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
@@ -856,9 +851,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
 
-    /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL, env);
-
     /* Interrupt controller */
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
     i8259 = i8259_init(env->irq[2]);
@@ -868,8 +860,8 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* Southbridge */
     piix4_devfn = piix4_init(pci_bus, 80);
-    pci_piix3_ide_init(pci_bus, bs_table, piix4_devfn + 1, i8259);
-    usb_uhci_init(pci_bus, piix4_devfn + 2);
+    pci_piix4_ide_init(pci_bus, bs_table, piix4_devfn + 1, i8259);
+    usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100);
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
     for (i = 0; i < 8; i++) {
