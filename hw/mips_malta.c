@@ -830,8 +830,8 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* Southbridge */
     piix4_devfn = piix4_init(pci_bus, 80);
-    pci_piix3_ide_init(pci_bus, bs_table, piix4_devfn + 1, i8259);
-    usb_uhci_init(pci_bus, piix4_devfn + 2);
+    pci_piix4_ide_init(pci_bus, bs_table, piix4_devfn + 1, i8259);
+    usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100);
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
     for (i = 0; i < 8; i++) {

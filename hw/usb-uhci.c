@@ -783,7 +783,7 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
-void usb_uhci_init(PCIBus *bus, int devfn)
+void usb_uhci_piix3_init(PCIBus *bus, int devfn)
 {
     UHCIState *s;
     uint8_t *pci_conf;
@@ -817,3 +817,39 @@ void usb_uhci_init(PCIBus *bus, int devfn)
     pci_register_io_region(&s->dev, 4, 0x20, 
                            PCI_ADDRESS_SPACE_IO, uhci_map);
 }
+
+void usb_uhci_piix4_init(PCIBus *bus, int devfn)
+{
+    UHCIState *s;
+    uint8_t *pci_conf;
+    int i;
+
+    s = (UHCIState *)pci_register_device(bus,
+                                        "USB-UHCI", sizeof(UHCIState),
+                                        devfn, NULL, NULL);
+    pci_conf = s->dev.config;
+    pci_conf[0x00] = 0x86;
+    pci_conf[0x01] = 0x80;
+    pci_conf[0x02] = 0x12;
+    pci_conf[0x03] = 0x71;
+    pci_conf[0x08] = 0x01; // revision number
+    pci_conf[0x09] = 0x00;
+    pci_conf[0x0a] = 0x03;
+    pci_conf[0x0b] = 0x0c;
+    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[0x3d] = 4; // interrupt pin 3
+    pci_conf[0x60] = 0x10; // release number
+
+    for(i = 0; i < NB_PORTS; i++) {
+        qemu_register_usb_port(&s->ports[i].port, s, i, uhci_attach);
+    }
+    s->frame_timer = qemu_new_timer(vm_clock, uhci_frame_timer, s);
+
+    uhci_reset(s);
+
+    /* Use region 4 for consistency with real hardware.  BSD guests seem
+       to rely on this.  */
+    pci_register_io_region(&s->dev, 4, 0x20,
+                           PCI_ADDRESS_SPACE_IO, uhci_map);
+}
+
