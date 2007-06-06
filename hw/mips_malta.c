@@ -671,7 +671,7 @@ static int64_t load_kernel (CPUState *env)
                  &kernel_entry, &kernel_low, &kernel_high) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 env->kernel_filename);
-      exit(1);
+        exit(1);
     }
 
     /* load initrd */
