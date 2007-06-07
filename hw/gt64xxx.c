@@ -720,7 +720,7 @@ static uint32_t gt64120_readl (void *opaque,
         if (!(s->pci->config_reg & (1u << 31)))
             val = 0xffffffff;
         else
-            val = pci_data_read(s->pci->bus, s->pci->config_reg, 4);
+            val = pci_host_data_readl(s->pci, 0);
         break;
 
     case GT_PCI0_CMD:
