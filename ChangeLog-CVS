@@ -1,3 +1,7 @@
+2007-06-07 20:09  ths
+
+	* hw/gt64xxx.c: Initialize more GT64xxx registers on reset.
+
 2007-06-07 19:38  ths
 
 	* hw/gt64xxx.c: Fix some Malta PCI config bits.

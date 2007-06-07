@@ -879,19 +879,31 @@ void gt64120_reset(void *opaque)
 {
     GT64120State *s = opaque;
 
+    /* FIXME: Malta specific hw assumptions ahead */
+
     /* CPU Configuration */
 #ifdef TARGET_WORDS_BIGENDIAN
     s->regs[GT_CPU]           = 0x00000000;
 #else
     s->regs[GT_CPU]           = 0x00001000;
 #endif
-    s->regs[GT_MULTI]         = 0x00000000;
+    s->regs[GT_MULTI]         = 0x00000003;
 
-    /* CPU Address decode FIXME: not complete*/
+    /* CPU Address decode */
+    s->regs[GT_SCS10LD]       = 0x00000000;
+    s->regs[GT_SCS10HD]       = 0x00000007;
+    s->regs[GT_SCS32LD]       = 0x00000008;
+    s->regs[GT_SCS32HD]       = 0x0000000f;
+    s->regs[GT_CS20LD]        = 0x000000e0;
+    s->regs[GT_CS20HD]        = 0x00000070;
+    s->regs[GT_CS3BOOTLD]     = 0x000000f8;
+    s->regs[GT_CS3BOOTHD]     = 0x0000007f;
+
     s->regs[GT_PCI0IOLD]      = 0x00000080;
     s->regs[GT_PCI0IOHD]      = 0x0000000f;
     s->regs[GT_PCI0M0LD]      = 0x00000090;
     s->regs[GT_PCI0M0HD]      = 0x0000001f;
+    s->regs[GT_ISD]           = 0x000000a0;
     s->regs[GT_PCI0M1LD]      = 0x00000790;
     s->regs[GT_PCI0M1HD]      = 0x0000001f;
     s->regs[GT_PCI1IOLD]      = 0x00000100;
@@ -900,6 +912,12 @@ void gt64120_reset(void *opaque)
     s->regs[GT_PCI1M0HD]      = 0x0000001f;
     s->regs[GT_PCI1M1LD]      = 0x00000120;
     s->regs[GT_PCI1M1HD]      = 0x0000002f;
+
+    s->regs[GT_SCS10AR]       = 0x00000000;
+    s->regs[GT_SCS32AR]       = 0x00000008;
+    s->regs[GT_CS20R]         = 0x000000e0;
+    s->regs[GT_CS3BOOTR]      = 0x000000f8;
+
     s->regs[GT_PCI0IOREMAP]   = 0x00000080;
     s->regs[GT_PCI0M0REMAP]   = 0x00000090;
     s->regs[GT_PCI0M1REMAP]   = 0x00000790;
@@ -914,6 +932,43 @@ void gt64120_reset(void *opaque)
     s->regs[GT_CPUERR_DATAHI] = 0xffffffff;
     s->regs[GT_CPUERR_PARITY] = 0x000000ff;
 
+    /* CPU Sync Barrier */
+    s->regs[GT_PCI0SYNC]      = 0x00000000;
+    s->regs[GT_PCI1SYNC]      = 0x00000000;
+
+    /* SDRAM and Device Address Decode */
+    s->regs[GT_SCS0LD]        = 0x00000000;
+    s->regs[GT_SCS0HD]        = 0x00000007;
+    s->regs[GT_SCS1LD]        = 0x00000008;
+    s->regs[GT_SCS1HD]        = 0x0000000f;
+    s->regs[GT_SCS2LD]        = 0x00000010;
+    s->regs[GT_SCS2HD]        = 0x00000017;
+    s->regs[GT_SCS3LD]        = 0x00000018;
+    s->regs[GT_SCS3HD]        = 0x0000001f;
+    s->regs[GT_CS0LD]         = 0x000000c0;
+    s->regs[GT_CS0HD]         = 0x000000c7;
+    s->regs[GT_CS1LD]         = 0x000000c8;
+    s->regs[GT_CS1HD]         = 0x000000cf;
+    s->regs[GT_CS2LD]         = 0x000000d0;
+    s->regs[GT_CS2HD]         = 0x000000df;
+    s->regs[GT_CS3LD]         = 0x000000f0;
+    s->regs[GT_CS3HD]         = 0x000000fb;
+    s->regs[GT_BOOTLD]        = 0x000000fc;
+    s->regs[GT_BOOTHD]        = 0x000000ff;
+    s->regs[GT_ADERR]         = 0xffffffff;
+
+    /* SDRAM Configuration */
+    s->regs[GT_SDRAM_CFG]     = 0x00000200;
+    s->regs[GT_SDRAM_OPMODE]  = 0x00000000;
+    s->regs[GT_SDRAM_BM]      = 0x00000007;
+    s->regs[GT_SDRAM_ADDRDECODE] = 0x00000002;
+
+    /* SDRAM Parameters */
+    s->regs[GT_SDRAM_B0]      = 0x00000005;
+    s->regs[GT_SDRAM_B1]      = 0x00000005;
+    s->regs[GT_SDRAM_B2]      = 0x00000005;
+    s->regs[GT_SDRAM_B3]      = 0x00000005;
+
     /* ECC */
     s->regs[GT_ECC_ERRDATALO] = 0x00000000;
     s->regs[GT_ECC_ERRDATAHI] = 0x00000000;
@@ -921,22 +976,69 @@ void gt64120_reset(void *opaque)
     s->regs[GT_ECC_CALC]      = 0x00000000;
     s->regs[GT_ECC_ERRADDR]   = 0x00000000;
 
-    /* SDRAM Parameters */
-    s->regs[GT_SDRAM_B0]      = 0x00000005;    
-    s->regs[GT_SDRAM_B1]      = 0x00000005;    
-    s->regs[GT_SDRAM_B2]      = 0x00000005;    
-    s->regs[GT_SDRAM_B3]      = 0x00000005;    
+    /* Device Parameters */
+    s->regs[GT_DEV_B0]        = 0x386fffff;
+    s->regs[GT_DEV_B1]        = 0x386fffff;
+    s->regs[GT_DEV_B2]        = 0x386fffff;
+    s->regs[GT_DEV_B3]        = 0x386fffff;
+    s->regs[GT_DEV_BOOT]      = 0x146fffff;
 
-    /* PCI Internal FIXME: not complete*/
+    /* DMA registers are all zeroed at reset */
+
+    /* Timer/Counter */
+    s->regs[GT_TC0]           = 0xffffffff;
+    s->regs[GT_TC1]           = 0x00ffffff;
+    s->regs[GT_TC2]           = 0x00ffffff;
+    s->regs[GT_TC3]           = 0x00ffffff;
+    s->regs[GT_TC_CONTROL]    = 0x00000000;
+
+    /* PCI Internal */
 #ifdef TARGET_WORDS_BIGENDIAN
     s->regs[GT_PCI0_CMD]      = 0x00000000;
-    s->regs[GT_PCI1_CMD]      = 0x00000000;
 #else
     s->regs[GT_PCI0_CMD]      = 0x00010001;
+#endif
+    s->regs[GT_PCI0_TOR]      = 0x0000070f;
+    s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
+    s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
+    s->regs[GT_PCI0_BS_CS20]  = 0x01fff000;
+    s->regs[GT_PCI0_BS_CS3BT] = 0x00fff000;
+    s->regs[GT_PCI1_IACK]     = 0x00000000;
+    s->regs[GT_PCI0_IACK]     = 0x00000000;
+    s->regs[GT_PCI0_BARE]     = 0x0000000f;
+    s->regs[GT_PCI0_PREFMBR]  = 0x00000040;
+    s->regs[GT_PCI0_SCS10_BAR] = 0x00000000;
+    s->regs[GT_PCI0_SCS32_BAR] = 0x01000000;
+    s->regs[GT_PCI0_CS20_BAR] = 0x1c000000;
+    s->regs[GT_PCI0_CS3BT_BAR] = 0x1f000000;
+    s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
+    s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
+    s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
+#ifdef TARGET_WORDS_BIGENDIAN
+    s->regs[GT_PCI1_CMD]      = 0x00000000;
+#else
     s->regs[GT_PCI1_CMD]      = 0x00010001;
 #endif
-    s->regs[GT_PCI0_IACK]     = 0x00000000;
-    s->regs[GT_PCI1_IACK]     = 0x00000000;
+    s->regs[GT_PCI1_TOR]      = 0x0000070f;
+    s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
+    s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
+    s->regs[GT_PCI1_BS_CS20]  = 0x01fff000;
+    s->regs[GT_PCI1_BS_CS3BT] = 0x00fff000;
+    s->regs[GT_PCI1_BARE]     = 0x0000000f;
+    s->regs[GT_PCI1_PREFMBR]  = 0x00000040;
+    s->regs[GT_PCI1_SCS10_BAR] = 0x00000000;
+    s->regs[GT_PCI1_SCS32_BAR] = 0x01000000;
+    s->regs[GT_PCI1_CS20_BAR] = 0x1c000000;
+    s->regs[GT_PCI1_CS3BT_BAR] = 0x1f000000;
+    s->regs[GT_PCI1_SSCS10_BAR] = 0x00000000;
+    s->regs[GT_PCI1_SSCS32_BAR] = 0x01000000;
+    s->regs[GT_PCI1_SCS3BT_BAR] = 0x1f000000;
+    s->regs[GT_PCI1_CFGADDR]  = 0x00000000;
+    s->regs[GT_PCI1_CFGDATA]  = 0x00000000;
+    s->regs[GT_PCI0_CFGADDR]  = 0x00000000;
+    s->regs[GT_PCI0_CFGDATA]  = 0x00000000;
+
+    /* Interrupt registers are all zeroed at reset */
 
     gt64120_pci_mapping(s);
 }
