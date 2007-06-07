@@ -1,5 +1,5 @@
 /*
- * QEMU Malta board support
+ * QEMU Acer Pica Machine support
  *
  * Copyright (c) 2007 Hervé Poussineau
  *
