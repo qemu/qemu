@@ -824,6 +824,18 @@ void mips_malta_init (int ram_size, int vga_ram_size, int boot_device,
                     buf);
             exit(1);
         }
+        /* In little endian mode the 32bit words in the bios are swapped,
+           a neat trick which allows bi-endian firmware. */
+#ifndef TARGET_WORDS_BIGENDIAN
+        {
+            uint32_t *addr;
+            for (addr = (uint32_t *)(phys_ram_base + bios_offset);
+                 addr < (uint32_t *)(phys_ram_base + bios_offset + ret);
+		 addr++) {
+                *addr = bswap32(*addr);
+            }
+        }
+#endif
         pflash_t *pf;
         pf = pflash_device_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
                              MANUFACTURER_INTEL, I28F160S5);
