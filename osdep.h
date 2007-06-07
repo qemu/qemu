@@ -17,4 +17,15 @@ void *get_mmap_addr(unsigned long size);
 
 int qemu_create_pidfile(const char *filename);
 
+#ifdef _WIN32
+typedef struct {
+    long tv_sec;
+    long tv_usec;
+} qemu_timeval;
+int qemu_gettimeofday(qemu_timeval *tp);
+#else
+typedef struct timeval qemu_timeval;
+#define qemu_gettimeofday(tp) gettimeofday(tp, NULL);
+#endif /* !_WIN32 */
+
 #endif

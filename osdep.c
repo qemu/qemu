@@ -264,3 +264,27 @@ int qemu_create_pidfile(const char *filename)
 #endif
     return 0;
 }
+
+#ifdef _WIN32
+
+/* Offset between 1/1/1601 and 1/1/1970 in 100 nanosec units */
+#define _W32_FT_OFFSET (116444736000000000ULL)
+
+int qemu_gettimeofday(qemu_timeval *tp)
+{
+  union {
+    unsigned long long ns100; /*time since 1 Jan 1601 in 100ns units */
+    FILETIME ft;
+  }  _now;
+
+  if(tp)
+    {
+      GetSystemTimeAsFileTime (&_now.ft);
+      tp->tv_usec=(long)((_now.ns100 / 10ULL) % 1000000ULL );
+      tp->tv_sec= (long)((_now.ns100 - _W32_FT_OFFSET) / 10000000ULL);
+    }
+  /* Always return 0 as per Open Group Base Specifications Issue 6.
+     Do not set errno on error.  */
+  return 0;
+}
+#endif /* _WIN32 */

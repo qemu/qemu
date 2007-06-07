@@ -116,8 +116,14 @@ static void translate_stat(CPUState *env, target_ulong addr, struct stat *s)
     p->gdb_st_gid = cpu_to_be32(s->st_gid);
     p->gdb_st_rdev = cpu_to_be32(s->st_rdev);
     p->gdb_st_size = cpu_to_be64(s->st_size);
+#ifdef _WIN32
+    /* Windows stat is missing some fields.  */
+    p->gdb_st_blksize = 0;
+    p->gdb_st_blocks = 0;
+#else
     p->gdb_st_blksize = cpu_to_be64(s->st_blksize);
     p->gdb_st_blocks = cpu_to_be64(s->st_blocks);
+#endif
     p->gdb_st_atime = cpu_to_be32(s->st_atime);
     p->gdb_st_mtime = cpu_to_be32(s->st_mtime);
     p->gdb_st_ctime = cpu_to_be32(s->st_ctime);
@@ -281,9 +287,9 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                            ARG(0), ARG(1));
             return;
         } else {
-            struct timeval tv;
+            qemu_timeval tv;
             struct gdb_timeval *p;
-            result = gettimeofday(&tv, NULL);
+            result = qemu_gettimeofday(&tv);
             if (result != 0) {
                 p = lock_user(ARG(0), sizeof(struct gdb_timeval), 0);
                 p->tv_sec = cpu_to_be32(tv.tv_sec);
