@@ -945,6 +945,25 @@ static void gt64120_write_config(PCIDevice *d, uint32_t address, uint32_t val,
     pci_default_write_config(d, address, val, len);
 }
 
+static void gt64120_save(QEMUFile* f, void *opaque)
+{
+    PCIDevice *d = opaque;
+    pci_device_save(d, f);
+}
+
+static int gt64120_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIDevice *d = opaque;
+    int ret;
+
+    if (version_id != 1)
+        return -EINVAL;
+    ret = pci_device_load(d, f);
+    if (ret < 0)
+        return ret;
+    return 0;
+}
+
 PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
@@ -987,6 +1006,8 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
     d->config[0x23] = 0x14;
     d->config[0x27] = 0x14;
     d->config[0x3D] = 0x01;
+
+    register_savevm("GT64120 PCI Bus", 0, 1, gt64120_save, gt64120_load, d);
 
     return s->pci->bus;
 }
