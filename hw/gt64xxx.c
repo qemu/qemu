@@ -504,10 +504,10 @@ static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
         return 3;
       /* AMD 79C973 Ethernet */
       case 11:
-        return 0;
+        return 1;
       /* Crystal 4281 Sound */
       case 12:
-        return 0;
+        return 2;
       /* PCI slot 1 to 4 */
       case 18 ... 21:
         return ((slot - 18) + irq_num) & 0x03;
