@@ -1,3 +1,8 @@
+2007-06-07 21:45  ths
+
+	* hw/gt64xxx.c: Unbreak PCI config register, noticed by Stefan
+	  Weil.
+
 2007-06-07 20:09  ths
 
 	* hw/gt64xxx.c: Initialize more GT64xxx registers on reset.
