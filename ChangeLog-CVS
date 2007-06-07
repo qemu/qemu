@@ -1,3 +1,15 @@
+2007-06-07 19:38  ths
+
+	* hw/gt64xxx.c: Fix some Malta PCI config bits.
+
+2007-06-07 19:31  ths
+
+	* hw/gt64xxx.c: PCI device saving for GT64xxx.
+
+2007-06-07 19:00  ths
+
+	* hw/gt64xxx.c: Implement some more Gallileo registers.
+
 2007-06-07 14:32  ths
 
 	* hw/mips_pica61.c: Fix comment.
