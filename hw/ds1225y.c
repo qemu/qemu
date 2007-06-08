@@ -33,7 +33,7 @@ typedef enum
 
 struct ds1225y_t
 {
-    target_ulong mem_base;
+    target_phys_addr_t mem_base;
     uint32_t capacity;
     const char *filename;
     QEMUFile *file;
@@ -99,7 +99,7 @@ static CPUWriteMemoryFunc *nvram_none[] = {
 };
 
 /* Initialisation routine */
-ds1225y_t *ds1225y_init(target_ulong mem_base, const char *filename)
+ds1225y_t *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
 {
     ds1225y_t *s;
     int mem_index1, mem_index2;

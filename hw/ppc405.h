@@ -83,7 +83,8 @@ qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr);
 /* SDRAM controller */
 void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
-                        target_ulong *ram_bases, target_ulong *ram_sizes,
+                        target_phys_addr_t *ram_bases,
+                        target_phys_addr_t *ram_sizes,
                         int do_init);
 /* Peripheral controller */
 void ppc405_ebc_init (CPUState *env);
@@ -107,15 +108,17 @@ void ppc4xx_gpt_init (CPUState *env, ppc4xx_mmio_t *mmio,
 /* Memory access layer */
 void ppc405_mal_init (CPUState *env, qemu_irq irqs[4]);
 /* PowerPC 405 microcontrollers */
-CPUState *ppc405cr_init (target_ulong ram_bases[4], target_ulong ram_sizes[4],
+CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
+                         target_phys_addr_t ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
                          ram_addr_t *offsetp, int do_init);
-CPUState *ppc405ep_init (target_ulong ram_bases[2], target_ulong ram_sizes[2],
+CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
+                         target_phys_addr_t ram_sizes[2],
                          uint32_t sysclk, qemu_irq **picp,
                          ram_addr_t *offsetp, int do_init);
 /* IBM STBxxx microcontrollers */
-CPUState *ppc_stb025_init (target_ulong ram_bases[2],
-                           target_ulong ram_sizes[2],
+CPUState *ppc_stb025_init (target_phys_addr_t ram_bases[2],
+                           target_phys_addr_t ram_sizes[2],
                            uint32_t sysclk, qemu_irq **picp,
                            ram_addr_t *offsetp);
 

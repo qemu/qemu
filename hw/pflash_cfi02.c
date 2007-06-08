@@ -50,9 +50,9 @@ do {                                               \
 
 struct pflash_t {
     BlockDriverState *bs;
-    target_ulong base;
-    target_ulong sector_len;
-    target_ulong total_len;
+    target_phys_addr_t base;
+    uint32_t sector_len;
+    uint32_t total_len;
     int width;
     int wcycle; /* if 0, the flash is read normally */
     int bypass;
@@ -85,9 +85,9 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 {
-    target_ulong boff;
+    uint32_t boff;
     uint32_t ret;
     uint8_t *p;
 
@@ -199,10 +199,10 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
+static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
                           int width)
 {
-    target_ulong boff;
+    uint32_t boff;
     uint8_t *p;
     uint8_t cmd;
 
@@ -219,7 +219,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d %d\n", __func__,
             offset, value, width, pfl->wcycle);
     if (pfl->wcycle == 0)
-        offset -= (target_ulong)(long)pfl->storage;
+        offset -= (uint32_t)(long)pfl->storage;
     else
         offset -= pfl->base;
         
@@ -521,14 +521,14 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
-pflash_t *pflash_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs,
-                           target_ulong sector_len, int nb_blocs, int width,
+                           uint32_t sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1, 
                            uint16_t id2, uint16_t id3)
 {
     pflash_t *pfl;
-    target_long total_len;
+    int32_t total_len;
 
     total_len = sector_len * nb_blocs;
     /* XXX: to be fixed */

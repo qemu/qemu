@@ -421,8 +421,8 @@ static CPUWriteMemoryFunc *kbd_mm_write[] = {
     &kbd_mm_writeb,
 };
 
-void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq, target_ulong base,
-                   int it_shift)
+void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
+                   target_phys_addr_t base, int it_shift)
 {
     KBDState *s = &kbd_state;
     int s_io_memory;
