@@ -63,9 +63,9 @@ typedef enum {
 
 struct pflash_t {
     BlockDriverState *bs;
-    target_ulong base;
-    target_ulong sector_len;
-    target_ulong total_len;
+    target_phys_addr_t base;
+    uint32_t sector_len;
+    uint32_t total_len;
     int width;
     flash_mode_t mode;
     int ro;
@@ -98,7 +98,7 @@ static void pflash_rom_mode(pflash_t *pfl)
   }
 }
 
-static uint32_t pflash_read_data(const void *addr, target_ulong offset, int width)
+static uint32_t pflash_read_data(const void *addr, uint32_t offset, int width)
 {
     //~ check, maybe should use HOST_WORDS_BIGENDIAN
     const uint8_t *p = addr;
@@ -138,7 +138,7 @@ static uint32_t pflash_read_data(const void *addr, target_ulong offset, int widt
     return value;
 }
 
-static void pflash_write_data(void *addr, target_ulong offset, uint32_t value, int width)
+static void pflash_write_data(void *addr, uint32_t offset, uint32_t value, int width)
 {
     //~ check, maybe should use HOST_WORDS_BIGENDIAN
     uint8_t *p = addr;
@@ -182,9 +182,9 @@ static void pflash_timer (void *opaque)
     //~ pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 {
-    target_ulong boff;
+    uint32_t boff;
     uint32_t ret = 0xffffffffU;
 
     offset -= pfl->base;
@@ -302,17 +302,17 @@ static void pflash_update(pflash_t *pfl, int offset,
 #define FlashCommandPrefix1     0xAA
 #define FlashCommandPrefix2     0x55
 
-static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
+static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
                           int width)
 {
-    target_ulong boff;
+    uint32_t boff;
     uint8_t cmd = value;
-    target_ulong sector_len = pfl->sector_len;
+    uint32_t sector_len = pfl->sector_len;
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
     if (pfl->mode == rom_mode) {
-        offset -= (target_ulong)(long)pfl->storage;
+        offset -= (uint32_t)(long)pfl->storage;
     } else {
         offset -= pfl->base;
     }
@@ -535,9 +535,9 @@ static void flash_reset(void *opaque)
     pfl->cmd = 0;
 }
 
-pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
                                  BlockDriverState *bs,
-                                 target_ulong sector_len, int nb_blocs, int width,
+                                 uint32_t sector_len, int nb_blocs, int width,
                                  uint16_t id0, uint16_t id1, 
                                  uint16_t id2, uint16_t id3)
 {

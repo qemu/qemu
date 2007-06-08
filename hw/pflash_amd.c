@@ -62,9 +62,9 @@ typedef enum {
 
 struct pflash_t {
     BlockDriverState *bs;
-    target_ulong base;
-    target_ulong sector_len;
-    target_ulong total_len;
+    target_phys_addr_t base;
+    uint32_t sector_len;
+    uint32_t total_len;
     int width;
     int wcycle; /* if 0, the flash is read normally */
     flash_mode_t mode;
@@ -117,9 +117,9 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 {
-    target_ulong boff;
+    uint32_t boff;
     uint32_t ret;
     uint8_t *p;
 
@@ -233,18 +233,18 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
+static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
                           int width)
 {
-    target_ulong boff;
+    uint32_t boff;
     uint8_t *p;
     uint8_t cmd = value;
-    target_ulong sector_len = pfl->sector_len;
+    uint32_t sector_len = pfl->sector_len;
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
     if (pfl->mode == rom_mode) {
-        offset -= (target_ulong)pfl->storage;
+        offset -= (uint32_t)pfl->storage;
     } else {
         offset -= pfl->base;
     }
@@ -565,9 +565,9 @@ static void flash_reset(void *opaque)
     pfl->cmd = 0;
 }
 
-pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs,
-                           target_ulong sector_len, int nb_blocs, int width,
+                           uint32_t sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1,
                            uint16_t id2, uint16_t id3)
 {

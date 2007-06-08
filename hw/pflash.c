@@ -20,7 +20,7 @@
 
 #include "pflash.h"
 
-pflash_t *pflash_device_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs, uint32_t size, int width,
                            uint16_t flash_manufacturer, uint16_t flash_type)
 {
