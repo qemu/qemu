@@ -153,7 +153,6 @@ int ram_size;
 int pit_min_timer_count = 0;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
-QEMUTimer *gui_timer;
 int vm_running;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 1;
@@ -4481,32 +4480,6 @@ void pcmcia_info(void)
 }
 
 /***********************************************************/
-/* dumb display */
-
-static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
-{
-}
-
-static void dumb_resize(DisplayState *ds, int w, int h)
-{
-}
-
-static void dumb_refresh(DisplayState *ds)
-{
-    vga_hw_update();
-}
-
-void dumb_display_init(DisplayState *ds)
-{
-    ds->data = NULL;
-    ds->linesize = 0;
-    ds->depth = 0;
-    ds->dpy_update = dumb_update;
-    ds->dpy_resize = dumb_resize;
-    ds->dpy_refresh = dumb_refresh;
-}
-
-/***********************************************************/
 /* I/O handling */
 
 #define MAX_IO_HANDLERS 64
@@ -6198,8 +6171,9 @@ QEMUMachine *find_machine(const char *name)
 
 void gui_update(void *opaque)
 {
-    display_state.dpy_refresh(&display_state);
-    qemu_mod_timer(gui_timer, GUI_REFRESH_INTERVAL + qemu_get_clock(rt_clock));
+    DisplayState *ds = opaque;
+    ds->dpy_refresh(ds);
+    qemu_mod_timer(ds->gui_timer, GUI_REFRESH_INTERVAL + qemu_get_clock(rt_clock));
 }
 
 struct vm_change_state_entry {
@@ -7899,17 +7873,16 @@ int main(int argc, char **argv)
     init_ioports();
 
     /* terminal init */
+    memset(&display_state, 0, sizeof(display_state));
     if (nographic) {
-        dumb_display_init(ds);
+        /* nothing to do */
     } else if (vnc_display != NULL) {
-	vnc_display_init(ds, vnc_display);
+        vnc_display_init(ds, vnc_display);
     } else {
 #if defined(CONFIG_SDL)
         sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
         cocoa_display_init(ds, full_screen);
-#else
-        dumb_display_init(ds);
 #endif
     }
 
@@ -7977,8 +7950,10 @@ int main(int argc, char **argv)
         }
     }
 
-    gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
-    qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
+    if (display_state.dpy_refresh) {
+        display_state.gui_timer = qemu_new_timer(rt_clock, gui_update, &display_state);
+        qemu_mod_timer(display_state.gui_timer, qemu_get_clock(rt_clock));
+    }
 
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
