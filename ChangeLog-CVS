@@ -1,3 +1,26 @@
+2007-06-08 18:45  blueswir1
+
+	* vl.h, hw/dma.c, hw/ds1225y.c, hw/pckbd.c, hw/pflash_cfi02.c,
+	  hw/ppc405.h, hw/ppc405_boards.c, hw/ppc405_uc.c, hw/serial.c:
+	  Fix incorrect target_ulong use in hw devices
+
+2007-06-08 03:57  ths
+
+	* vl.c, vl.h: Don't refresh a graphical screen when it isn't
+	  displayed, by Herve Poussineau.
+
+2007-06-08 01:24  pbrook
+
+	* hw/mcf_fec.c: Fix return type.
+
+2007-06-08 01:09  pbrook
+
+	* m68k-semi.c, osdep.c, osdep.h: Windows build fixes.
+
+2007-06-07 23:07  ths
+
+	* hw/parallel.c: Fix code formatting, by Herve Poussineau.
+
 2007-06-07 21:45  ths
 
 	* hw/gt64xxx.c: Unbreak PCI config register, noticed by Stefan

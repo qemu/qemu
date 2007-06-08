@@ -86,7 +86,7 @@ struct SerialState {
     qemu_irq irq;
     CharDriverState *chr;
     int last_break_enable;
-    target_ulong base;
+    target_phys_addr_t base;
     int it_shift;
 };
 
@@ -451,7 +451,7 @@ static CPUWriteMemoryFunc *serial_mm_write[] = {
     &serial_mm_writel,
 };
 
-SerialState *serial_mm_init (target_ulong base, int it_shift,
+SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, CharDriverState *chr,
                              int ioregister)
 {

@@ -924,6 +924,7 @@ struct DisplayState {
     int width;
     int height;
     void *opaque;
+    QEMUTimer *gui_timer;
 
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
@@ -1003,7 +1004,7 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num);
 
 /* ds1225y.c */
 typedef struct ds1225y_t ds1225y_t;
-ds1225y_t *ds1225y_init(target_ulong mem_base, const char *filename);
+ds1225y_t *ds1225y_init(target_phys_addr_t mem_base, const char *filename);
 
 /* es1370.c */
 int es1370_init (PCIBus *bus, AudioState *s);
@@ -1078,7 +1079,8 @@ void *vmmouse_init(void *m);
 /* pckbd.c */
 
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
-void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq, target_ulong base, int it_shift);
+void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
+                   target_phys_addr_t base, int it_shift);
 
 /* mc146818rtc.c */
 
@@ -1095,7 +1097,7 @@ typedef struct SerialState SerialState;
 SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr);
 SerialState *serial_16450_init(int base, qemu_irq irq, CharDriverState *chr);
 SerialState *serial_16550_init(int base, qemu_irq irq, CharDriverState *chr);
-SerialState *serial_mm_init (target_ulong base, int it_shift,
+SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, CharDriverState *chr,
                              int ioregister);
 
@@ -1516,9 +1518,9 @@ int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
 extern BlockDriverState *pflash_table[MAX_PFLASH];
 typedef struct pflash_t pflash_t;
 
-pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
+pflash_t *pflash_cfi02_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs,
-                           target_ulong sector_len, int nb_blocs, int width,
+                           uint32_t sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1, 
                            uint16_t id2, uint16_t id3);
 

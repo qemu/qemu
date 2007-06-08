@@ -903,8 +903,8 @@ typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
 struct ppc4xx_sdram_t {
     uint32_t addr;
     int nbanks;
-    target_ulong ram_bases[4];
-    target_ulong ram_sizes[4];
+    target_phys_addr_t ram_bases[4];
+    target_phys_addr_t ram_sizes[4];
     uint32_t besr0;
     uint32_t besr1;
     uint32_t bear;
@@ -924,7 +924,7 @@ enum {
     SDRAM0_CFGDATA = 0x011,
 };
 
-static uint32_t sdram_bcr (target_ulong ram_base, target_ulong ram_size)
+static uint32_t sdram_bcr (target_phys_addr_t ram_base, target_phys_addr_t ram_size)
 {
     uint32_t bcr;
 
@@ -960,7 +960,7 @@ static uint32_t sdram_bcr (target_ulong ram_base, target_ulong ram_size)
     return bcr;
 }
 
-static inline target_ulong sdram_base (uint32_t bcr)
+static inline target_phys_addr_t sdram_base (uint32_t bcr)
 {
     return bcr & 0xFF800000;
 }
@@ -1206,7 +1206,8 @@ static void sdram_reset (void *opaque)
 }
 
 void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
-                        target_ulong *ram_bases, target_ulong *ram_sizes,
+                        target_phys_addr_t *ram_bases,
+                        target_phys_addr_t *ram_sizes,
                         int do_init)
 {
     ppc4xx_sdram_t *sdram;
@@ -1215,10 +1216,10 @@ void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
     if (sdram != NULL) {
         sdram->irq = irq;
         sdram->nbanks = nbanks;
-        memset(sdram->ram_bases, 0, 4 * sizeof(target_ulong));
-        memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(target_ulong));
-        memset(sdram->ram_sizes, 0, 4 * sizeof(target_ulong));
-        memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(target_ulong));
+        memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
+        memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(target_phys_addr_t));
+        memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
+        memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(target_phys_addr_t));
         sdram_reset(sdram);
         qemu_register_reset(&sdram_reset, sdram);
         ppc_dcr_register(env, SDRAM0_CFGADDR,
@@ -3017,7 +3018,8 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
     }
 }
 
-CPUState *ppc405cr_init (target_ulong ram_bases[4], target_ulong ram_sizes[4],
+CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
+                         target_phys_addr_t ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
                          ram_addr_t *offsetp, int do_init)
 {
@@ -3365,7 +3367,8 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
     }
 }
 
-CPUState *ppc405ep_init (target_ulong ram_bases[2], target_ulong ram_sizes[2],
+CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
+                         target_phys_addr_t ram_sizes[2],
                          uint32_t sysclk, qemu_irq **picp,
                          ram_addr_t *offsetp, int do_init)
 {

@@ -184,7 +184,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
     CPUPPCState *env;
     qemu_irq *pic;
     ram_addr_t sram_offset, bios_offset, bdloc;
-    target_ulong ram_bases[2], ram_sizes[2];
+    target_phys_addr_t ram_bases[2], ram_sizes[2];
     target_ulong sram_size, bios_size;
     //int phy_addr = 0;
     //static int phy_addr = 1;
@@ -506,7 +506,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
     CPUPPCState *env;
     qemu_irq *pic;
     ram_addr_t bios_offset;
-    target_ulong ram_bases[2], ram_sizes[2];
+    target_phys_addr_t ram_bases[2], ram_sizes[2];
     target_ulong bios_size;
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;

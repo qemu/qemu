@@ -188,7 +188,7 @@ static void mcf_fec_do_tx(mcf_fec_state *s)
     s->tx_descriptor = addr;
 }
 
-static int mcf_fec_enable_rx(mcf_fec_state *s)
+static void mcf_fec_enable_rx(mcf_fec_state *s)
 {
     mcf_fec_bd bd;
 
