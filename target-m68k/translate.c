@@ -345,7 +345,8 @@ static inline void gen_flush_flags(DisasContext *s)
 {
     if (s->cc_op == CC_OP_FLAGS)
         return;
-    gen_op_flush_flags(s->cc_op);
+    gen_flush_cc_op(s);
+    gen_op_flush_flags();
     s->cc_op = CC_OP_FLAGS;
 }
 

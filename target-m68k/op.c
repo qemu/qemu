@@ -338,10 +338,7 @@ OP(ext16s32)
 
 OP(flush_flags)
 {
-    int cc_op  = PARAM1;
-    if (cc_op == CC_OP_DYNAMIC)
-        cc_op = env->cc_op;
-    cpu_m68k_flush_flags(env, cc_op);
+    cpu_m68k_flush_flags(env, env->cc_op);
     FORCE_RET();
 }
 
@@ -480,7 +477,7 @@ OP(fp_result)
 
 OP(set_sr)
 {
-    env->sr = get_op(PARAM1);
+    env->sr = get_op(PARAM1) & 0xffff;
     m68k_switch_sp(env);
     FORCE_RET();
 }
