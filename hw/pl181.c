@@ -36,9 +36,14 @@ typedef struct {
     uint32_t datacnt;
     uint32_t status;
     uint32_t mask[2];
-    uint32_t fifocnt;
     int fifo_pos;
     int fifo_len;
+    /* The linux 2.6.21 driver is buggy, and misbehaves if new data arrives
+       while it is reading the FIFO.  We hack around this be defering
+       subsequent transfers until after the driver polls the status word.
+       http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=4446/1
+     */
+    int linux_hack;
     uint32_t fifo[PL181_FIFO_LEN];
     qemu_irq irq[2];
 } pl181_state;
@@ -182,7 +187,8 @@ static void pl181_fifo_run(pl181_state *s)
     int is_read;
 
     is_read = (s->datactrl & PL181_DATA_DIRECTION) != 0;
-    if (s->datacnt != 0 && (!is_read || sd_data_ready(s->card))) {
+    if (s->datacnt != 0 && (!is_read || sd_data_ready(s->card))
+            && !s->linux_hack) {
         limit = is_read ? PL181_FIFO_LEN : 0;
         n = 0;
         value = 0;
@@ -217,7 +223,7 @@ static void pl181_fifo_run(pl181_state *s)
         s->status |= PL181_STATUS_DATABLOCKEND;
         DPRINTF("Transfer Complete\n");
     }
-    if (s->datacnt == 0 && s->fifocnt == 0) {
+    if (s->datacnt == 0 && s->fifo_len == 0) {
         s->datactrl &= ~PL181_DATA_ENABLE;
         DPRINTF("Data engine idle\n");
     } else {
@@ -252,6 +258,7 @@ static void pl181_fifo_run(pl181_state *s)
 static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
 {
     pl181_state *s = (pl181_state *)opaque;
+    uint32_t tmp;
 
     offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -285,24 +292,42 @@ static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
     case 0x30: /* DataCnt */
         return s->datacnt;
     case 0x34: /* Status */
-        return s->status;
+        tmp = s->status;
+        if (s->linux_hack) {
+            s->linux_hack = 0;
+            pl181_fifo_run(s);
+            pl181_update(s);
+        }
+        return tmp;
     case 0x3c: /* Mask0 */
         return s->mask[0];
     case 0x40: /* Mask1 */
         return s->mask[1];
     case 0x48: /* FifoCnt */
-        return s->fifocnt;
+        /* The documentation is somewhat vague about exactly what FifoCnt
+           does.  On real hardware it appears to be when decrememnted
+           when a word is transfered between the FIFO and the serial
+           data engine.  DataCnt is decremented after each byte is
+           transfered between the serial engine and the card.
+           We don't emulate this level of detail, so both can be the same.  */
+        tmp = (s->datacnt + 3) >> 2;
+        if (s->linux_hack) {
+            s->linux_hack = 0;
+            pl181_fifo_run(s);
+            pl181_update(s);
+        }
+        return tmp;
     case 0x80: case 0x84: case 0x88: case 0x8c: /* FifoData */
     case 0x90: case 0x94: case 0x98: case 0x9c:
     case 0xa0: case 0xa4: case 0xa8: case 0xac:
     case 0xb0: case 0xb4: case 0xb8: case 0xbc:
-        if (s->fifocnt == 0) {
+        if (s->fifo_len == 0) {
             fprintf(stderr, "pl181: Unexpected FIFO read\n");
             return 0;
         } else {
             uint32_t value;
-            s->fifocnt--;
             value = pl181_fifo_pop(s);
+            s->linux_hack = 1;
             pl181_fifo_run(s);
             pl181_update(s);
             return value;
@@ -356,7 +381,6 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
         s->datactrl = value & 0xff;
         if (value & PL181_DATA_ENABLE) {
             s->datacnt = s->datalength;
-            s->fifocnt = (s->datalength + 3) >> 2;
             pl181_fifo_run(s);
         }
         break;
@@ -373,10 +397,9 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
     case 0x90: case 0x94: case 0x98: case 0x9c:
     case 0xa0: case 0xa4: case 0xa8: case 0xac:
     case 0xb0: case 0xb4: case 0xb8: case 0xbc:
-        if (s->fifocnt == 0) {
+        if (s->datacnt == 0) {
             fprintf(stderr, "pl181: Unexpected FIFO write\n");
         } else {
-            s->fifocnt--;
             pl181_fifo_push(s, value);
             pl181_fifo_run(s);
         }
@@ -418,9 +441,9 @@ static void pl181_reset(void *opaque)
     s->datactrl = 0;
     s->datacnt = 0;
     s->status = 0;
+    s->linux_hack = 0;
     s->mask[0] = 0;
     s->mask[1] = 0;
-    s->fifocnt = 0;
 }
 
 void pl181_init(uint32_t base, BlockDriverState *bd,
