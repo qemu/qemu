@@ -487,37 +487,38 @@ OP(jmp)
     GOTO_LABEL_PARAM(1);
 }
 
-/* These ops involve a function call, which probably requires a stack frame
-   and breaks things on some hosts.  */
-OP(jmp_z32)
+OP(set_T0_z32)
 {
     uint32_t arg = get_op(PARAM1);
-    if (arg == 0)
-        GOTO_LABEL_PARAM(2);
+    T0 = (arg == 0);
     FORCE_RET();
 }
 
-OP(jmp_nz32)
+OP(set_T0_nz32)
 {
     uint32_t arg = get_op(PARAM1);
-    if (arg != 0)
-        GOTO_LABEL_PARAM(2);
+    T0 = (arg != 0);
     FORCE_RET();
 }
 
-OP(jmp_s32)
+OP(set_T0_s32)
 {
     int32_t arg = get_op(PARAM1);
-    if (arg < 0)
-        GOTO_LABEL_PARAM(2);
+    T0 = (arg > 0);
     FORCE_RET();
 }
 
-OP(jmp_ns32)
+OP(set_T0_ns32)
 {
     int32_t arg = get_op(PARAM1);
-    if (arg >= 0)
-        GOTO_LABEL_PARAM(2);
+    T0 = (arg >= 0);
+    FORCE_RET();
+}
+
+OP(jmp_T0)
+{
+    if (T0)
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
