@@ -42,7 +42,7 @@
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
-
+extern int nographic;
 extern FILE *logfile;
 
 typedef struct {
@@ -67,16 +67,18 @@ static void malta_fpga_update_display(void *opaque)
     int i;
     MaltaFPGAState *s = opaque;
 
-    for (i = 7 ; i >= 0 ; i--) {
-        if (s->leds & (1 << i))
-            leds_text[i] = '#';
-	else
-            leds_text[i] = ' ';
-    }
-    leds_text[8] = '\0';
+    if (!nographic) {
+        for (i = 7 ; i >= 0 ; i--) {
+            if (s->leds & (1 << i))
+                leds_text[i] = '#';
+            else
+                leds_text[i] = ' ';
+        }
+        leds_text[8] = '\0';
 
-    qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
-    qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+        qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
+        qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+    }
 }
 
 /*
@@ -413,20 +415,22 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     cpu_register_physical_memory(base, 0x900, malta);
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
-    s->display = qemu_chr_open("vc");
-    qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "+        +\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "\n");
-    qemu_chr_printf(s->display, "Malta ASCII\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "+        +\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
+    if (!nographic) {
+        s->display = qemu_chr_open("vc");
+        qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
+        qemu_chr_printf(s->display, "+--------+\r\n");
+        qemu_chr_printf(s->display, "+        +\r\n");
+        qemu_chr_printf(s->display, "+--------+\r\n");
+        qemu_chr_printf(s->display, "\n");
+        qemu_chr_printf(s->display, "Malta ASCII\r\n");
+        qemu_chr_printf(s->display, "+--------+\r\n");
+        qemu_chr_printf(s->display, "+        +\r\n");
+        qemu_chr_printf(s->display, "+--------+\r\n");
 
-    uart_chr = qemu_chr_open("vc");
-    qemu_chr_printf(uart_chr, "CBUS UART\r\n");
-    s->uart = serial_mm_init(base + 0x900, 3, env->irq[2], uart_chr, 1);
+        uart_chr = qemu_chr_open("vc");
+        qemu_chr_printf(uart_chr, "CBUS UART\r\n");
+        s->uart = serial_mm_init(base + 0x900, 3, env->irq[2], uart_chr, 1);
+    }
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
