@@ -1286,6 +1286,10 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     cpu_dump_state(env, stderr, fprintf, 0);
 #endif
     va_end(ap);
+    if (logfile) {
+        fflush(logfile);
+        fclose(logfile);
+    }
     abort();
 }
 
