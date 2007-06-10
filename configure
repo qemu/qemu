@@ -291,7 +291,7 @@ else
 fi
 
 # default flags for all hosts
-CFLAGS="$CFLAGS -Wall -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -Wall -Wshadow -O2 -g -fno-strict-aliasing"
 LDFLAGS="$LDFLAGS -g"
 
 #
