@@ -23,6 +23,7 @@
  */
 #include "vl.h"
 #include "vga_int.h"
+#include "pixel_ops.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -811,31 +812,6 @@ typedef void vga_draw_glyph9_func(uint8_t *d, int linesize,
                                   uint32_t fgcol, uint32_t bgcol, int dup9);
 typedef void vga_draw_line_func(VGAState *s1, uint8_t *d, 
                                 const uint8_t *s, int width);
-
-static inline unsigned int rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6);
-}
-
-static inline unsigned int rgb_to_pixel15(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-}
-
-static inline unsigned int rgb_to_pixel16(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-}
-
-static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
-{
-    return (r << 16) | (g << 8) | b;
-}
-
-static inline unsigned int rgb_to_pixel32bgr(unsigned int r, unsigned int g, unsigned b)
-{
-    return (b << 16) | (g << 8) | r;
-}
 
 #define DEPTH 8
 #include "vga_template.h"
