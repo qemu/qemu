@@ -52,6 +52,7 @@ typedef struct DisasContext {
     uint32_t fpcr;
     struct TranslationBlock *tb;
     int singlestep_enabled;
+    int is_mem;
 } DisasContext;
 
 #define DISAS_JUMP_NEXT 4
@@ -130,6 +131,7 @@ typedef void (*disas_proc)(DisasContext *, uint16_t);
 static inline int gen_load(DisasContext * s, int opsize, int addr, int sign)
 {
     int tmp;
+    s->is_mem = 1;
     switch(opsize) {
     case OS_BYTE:
         tmp = gen_new_qreg(QMODE_I32);
@@ -167,6 +169,7 @@ static inline int gen_load(DisasContext * s, int opsize, int addr, int sign)
 /* Generate a store.  */
 static inline void gen_store(DisasContext *s, int opsize, int addr, int val)
 {
+    s->is_mem = 1;
     switch(opsize) {
     case OS_BYTE:
         gen_st(s, 8, addr, val);
@@ -346,7 +349,8 @@ static inline void gen_flush_flags(DisasContext *s)
 {
     if (s->cc_op == CC_OP_FLAGS)
         return;
-    gen_op_flush_flags(s->cc_op);
+    gen_flush_cc_op(s);
+    gen_op_flush_flags();
     s->cc_op = CC_OP_FLAGS;
 }
 
@@ -2205,6 +2209,7 @@ DISAS_INSN(fpu)
         dest = QREG_F0;
         while (mask) {
             if (ext & mask) {
+                s->is_mem = 1;
                 if (ext & (1 << 13)) {
                     /* store */
                     gen_st(s, f64, addr, dest);
@@ -3169,6 +3174,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
+    dc->is_mem = 0;
     nb_gen_labels = 0;
     lj = -1;
     do {
@@ -3199,6 +3205,12 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         last_cc_op = dc->cc_op;
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
+
+        /* Terminate the TB on memory ops if watchpoints are present.  */
+        /* FIXME: This should be replacd by the deterministic execution
+         * IRQ raising bits.  */
+        if (dc->is_mem && env->nb_watchpoints)
+            break;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32));

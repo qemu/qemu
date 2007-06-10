@@ -1,3 +1,49 @@
+2007-06-10 17:08  ths
+
+	* hw/: gt64xxx.c, mips_malta.c: More PCI mapping/remapping for
+	  Gallileo.
+
+2007-06-10 16:07  balrog
+
+	* exec.c: Flush the debug log when qemu Aborts (patch by Herve
+	  Poussineau)
+
+2007-06-10 15:53  balrog
+
+	* target-arm/translate.c: Use the same offset for all STR and STM
+	  instructions that store r15, as specified in ARM ARM (patch from
+	  Chris McNett).
+
+2007-06-09 23:30  pbrook
+
+	* target-m68k/translate.c: M68K watchpoint hacks.
+
+2007-06-09 22:50  pbrook
+
+	* target-m68k/: op-hacks.h, op.c: Workaround dyngen problems with
+	  m68k conditional branch ops.
+
+2007-06-09 22:48  pbrook
+
+	* target-m68k/: op.c, op_helper.c, translate.c: M68K status
+	  register fixes.
+
+2007-06-09 17:44  ths
+
+	* hw/mips_malta.c: Don't try to use "vt" output in nographic mode.
+
+2007-06-09 16:44  pbrook
+
+	* arm-semi.c: ARM GDB semihosting fixes
+
+2007-06-09 16:07  pbrook
+
+	* hw/pl181.c: ARM PL181 MMCI fixes.
+
+2007-06-09 14:29  ths
+
+	* target-mips/translate_init.c: R5k has PX implemented.
+
 2007-06-08 18:45  blueswir1
 
 	* vl.h, hw/dma.c, hw/ds1225y.c, hw/pckbd.c, hw/pflash_cfi02.c,

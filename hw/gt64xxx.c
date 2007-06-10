@@ -233,32 +233,216 @@ typedef target_phys_addr_t pci_addr_t;
 #define logout(fmt, args...) ((void)0)
 #endif
 
+#define PCI_MAPPING_ENTRY(regname)            \
+    target_phys_addr_t regname ##_start;      \
+    target_phys_addr_t regname ##_length;     \
+    int regname ##_handle
+
+#define PCI_REMAPPING_ENTRY(regname)          \
+    target_phys_addr_t regname ##_start;      \
+    target_phys_addr_t regname ##_length;     \
+    target_phys_addr_t regname ##_offset;     \
+    int regname ##_handle
+
 typedef PCIHostState GT64120PCIState;
 
 typedef struct GT64120State {
     GT64120PCIState *pci;
     uint32_t regs[GT_REGS];
-    target_phys_addr_t PCI0IO_start;
-    target_phys_addr_t PCI0IO_length;
+    PCI_MAPPING_ENTRY(SCS10);
+    PCI_REMAPPING_ENTRY(SCS10AR);
+    PCI_MAPPING_ENTRY(SCS32);
+    PCI_REMAPPING_ENTRY(SCS32AR);
+    PCI_MAPPING_ENTRY(CS20);
+    PCI_REMAPPING_ENTRY(CS20R);
+    PCI_MAPPING_ENTRY(CS3BOOT);
+    PCI_REMAPPING_ENTRY(CS3BOOTR);
+    PCI_MAPPING_ENTRY(PCI0IO);
+    PCI_REMAPPING_ENTRY(PCI0IOREMAP);
+    PCI_MAPPING_ENTRY(PCI0M0);
+    PCI_REMAPPING_ENTRY(PCI0M0REMAP);
+    PCI_MAPPING_ENTRY(PCI0M1);
+    PCI_REMAPPING_ENTRY(PCI0M1REMAP);
+    PCI_MAPPING_ENTRY(PCI1IO);
+    PCI_REMAPPING_ENTRY(PCI1IOREMAP);
+    PCI_MAPPING_ENTRY(PCI1M0);
+    PCI_REMAPPING_ENTRY(PCI1M0REMAP);
+    PCI_MAPPING_ENTRY(PCI1M1);
+    PCI_REMAPPING_ENTRY(PCI1M1REMAP);
+    PCI_MAPPING_ENTRY(ISD);
 } GT64120State;
 
-static void gt64120_pci_mapping(GT64120State *s)
+/* Adjust range to avoid touching space which isn't mappable via PCI */
+/* XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
+                                    0x1fc00000 - 0x1fd00000  */
+static void check_reserved_space (target_phys_addr_t *start,
+                                  target_phys_addr_t *length)
 {
-    /* Update IO mapping */
-    if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD])
-    {
-      /* Unmap old IO address */	    
-      if (s->PCI0IO_length)
-      {
-        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);	     
-      }
-      /* Map new IO address */
-      s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
-      s->PCI0IO_length = ((s->regs[GT_PCI0IOHD] + 1) - (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
-      isa_mem_base = s->PCI0IO_start;
-      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length);
-    }
+    target_phys_addr_t begin = *start;
+    target_phys_addr_t end = *start + *length;
+
+    if (end >= 0x1e000000LL && end < 0x1f100000LL)
+        end = 0x1e000000LL;
+    if (begin >= 0x1e000000LL && begin < 0x1f100000LL)
+        begin = 0x1f100000LL;
+    if (end >= 0x1fc00000LL && end < 0x1fd00000LL)
+        end = 0x1fc00000LL;
+    if (begin >= 0x1fc00000LL && begin < 0x1fd00000LL)
+        begin = 0x1fd00000LL;
+    /* XXX: This is broken when a reserved range splits the requested range */
+    if (end >= 0x1f100000LL && begin < 0x1e000000LL)
+        end = 0x1e000000LL;
+    if (end >= 0x1fd00000LL && begin < 0x1fc00000LL)
+        end = 0x1fc00000LL;
+
+    *start = begin;
+    *length = end - begin;
 }
+
+/* XXX: cpu_register_physical_memory isn't really suited for dynamic mappings
+   since it doesn't layer several mappings over the same address range.
+   This should keep track of mappings as set of 2 MB pages / 20 mappings. */
+
+#define BUILD_UPDATE_PCI_MAPPING(reg, remap)                                  \
+static void gt64120_## reg ##_mapping(GT64120State *s)                        \
+{                                                                             \
+    target_phys_addr_t start = s->regs[GT_## reg ##LD] << 21;                 \
+    target_phys_addr_t length = ((s->regs[GT_## reg ##HD] + 1) -              \
+                                 (s->regs[GT_## reg ##LD] & 0x7f)) << 21;     \
+                                                                              \
+    /* Unmap old address */                                                   \
+    if (s->remap ##_length)                                                   \
+        cpu_register_physical_memory(s->remap ##_start,                       \
+                                     s->remap ##_length,                      \
+                                     IO_MEM_UNASSIGNED);                      \
+    s->remap ##_length = 0;                                                   \
+    if (s->reg ##_length)                                                     \
+        cpu_register_physical_memory(s->reg ##_start,                         \
+                                     s->reg ##_length,                        \
+                                     IO_MEM_UNASSIGNED);                      \
+                                                                              \
+    if ((s->regs[GT_## reg ##LD] & 0x7f) <= s->regs[GT_## reg ##HD])          \
+    {                                                                         \
+        check_reserved_space(&start, &length);                                \
+        /* Map new address */                                                 \
+dprintf("PCI " # reg ": %x@%x -> %x@%x, %x\n", s->reg ##_length, s->reg ##_start, length, start, s->reg ##_handle); \
+        s->reg ##_start = start;                                              \
+        s->reg ##_length = length;                                            \
+        cpu_register_physical_memory(s->reg ##_start,                         \
+                                     s->reg ##_length,                        \
+                                     s->reg ##_handle);                       \
+    } else                                                                    \
+dprintf("PCI " # reg ": %x@%x disabled, %x\n", s->reg ##_length, s->reg ##_start, s->reg ##_handle); \
+}                                                                             \
+                                                                              \
+static void gt64120_## remap ##_mapping(GT64120State *s)                      \
+{                                                                             \
+    /* XXX: range calculation is broken */                                    \
+    target_phys_addr_t start = (s->reg ## _start & ~(0x7ff << 21)) |          \
+                               (s->regs[GT_## remap] << 21);                  \
+    target_phys_addr_t length = s->reg ##_length;                             \
+                                                                              \
+    if (s->remap ##_length)                                                   \
+        cpu_register_physical_memory(s->remap ##_start,                       \
+                                     s->remap ##_length,                      \
+                                     IO_MEM_UNASSIGNED);                      \
+    check_reserved_space(&start, &length);                                    \
+    s->remap ##_start = start;                                                \
+    s->remap ##_length = length;                                              \
+    s->remap ##_offset = s->reg ##_start - start;                             \
+dprintf("PCI " # remap ": %x@%x +> %x@%x, %x\n", s->reg ##_length, s->reg ##_start, length, start, s->remap ##_handle); \
+    cpu_register_physical_memory(s->remap ##_start,                           \
+                                 s->remap ##_length,                          \
+                                 s->remap ##_handle);                         \
+}
+
+BUILD_UPDATE_PCI_MAPPING(SCS10, SCS10AR)
+BUILD_UPDATE_PCI_MAPPING(SCS32, SCS32AR)
+BUILD_UPDATE_PCI_MAPPING(CS20, CS20R)
+BUILD_UPDATE_PCI_MAPPING(CS3BOOT, CS3BOOTR)
+BUILD_UPDATE_PCI_MAPPING(PCI0IO, PCI0IOREMAP)
+BUILD_UPDATE_PCI_MAPPING(PCI0M0, PCI0M0REMAP)
+BUILD_UPDATE_PCI_MAPPING(PCI0M1, PCI0M1REMAP)
+BUILD_UPDATE_PCI_MAPPING(PCI1IO, PCI1IOREMAP)
+BUILD_UPDATE_PCI_MAPPING(PCI1M0, PCI1M0REMAP)
+BUILD_UPDATE_PCI_MAPPING(PCI1M1, PCI1M1REMAP)
+
+static void gt64120_isd_mapping(GT64120State *s)
+{
+    if (s->ISD_length)
+        cpu_register_physical_memory(s->ISD_start, s->ISD_length,
+                                     IO_MEM_UNASSIGNED);
+dprintf("PCI ISD: %x@%x -> %x@%x, %x\n", s->ISD_length, s->ISD_start, 0x1000, s->regs[GT_ISD] << 21, s->ISD_handle);
+    s->ISD_start = s->regs[GT_ISD] << 21;
+    s->ISD_length = 0x1000;
+    cpu_register_physical_memory(s->ISD_start, s->ISD_length, s->ISD_handle);
+}
+
+static void gt64120_mmio_writeb (void *opaque, target_phys_addr_t addr,
+                                 uint32_t val)
+{
+    cpu_outb(NULL, addr & 0xffff, val);
+}
+
+static void gt64120_mmio_writew (void *opaque, target_phys_addr_t addr,
+                                 uint32_t val)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    cpu_outw(NULL, addr & 0xffff, val);
+}
+
+static void gt64120_mmio_writel (void *opaque, target_phys_addr_t addr,
+                                 uint32_t val)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    cpu_outl(NULL, addr & 0xffff, val);
+}
+
+static uint32_t gt64120_mmio_readb (void *opaque, target_phys_addr_t addr)
+{
+    uint32_t val;
+
+    val = cpu_inb(NULL, addr & 0xffff);
+    return val;
+}
+
+static uint32_t gt64120_mmio_readw (void *opaque, target_phys_addr_t addr)
+{
+    uint32_t val;
+
+    val = cpu_inw(NULL, addr & 0xffff);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    return val;
+}
+
+static uint32_t gt64120_mmio_readl (void *opaque, target_phys_addr_t addr)
+{
+    uint32_t val;
+
+    val = cpu_inl(NULL, addr & 0xffff);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
+}
+
+static CPUWriteMemoryFunc *gt64120_mmio_write[] = {
+    &gt64120_mmio_writeb,
+    &gt64120_mmio_writew,
+    &gt64120_mmio_writel,
+};
+
+static CPUReadMemoryFunc *gt64120_mmio_read[] = {
+    &gt64120_mmio_readb,
+    &gt64120_mmio_readw,
+    &gt64120_mmio_readl,
+};
 
 static void gt64120_writel (void *opaque, target_phys_addr_t addr,
                             uint32_t val)
@@ -284,53 +468,142 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         break;
 
     /* CPU Address Decode */
+    case GT_SCS10LD:
+        s->regs[GT_SCS10LD] = val & 0x00007fff;
+        s->regs[GT_SCS10AR] = val & 0x000007ff;
+        gt64120_SCS10_mapping(s);
+        break;
+    case GT_SCS32LD:
+        s->regs[GT_SCS32LD] = val & 0x00007fff;
+        s->regs[GT_SCS32AR] = val & 0x000007ff;
+//
+//        gt64120_SCS32_mapping(s);
+        break;
+    case GT_CS20LD:
+        s->regs[GT_CS20LD] = val & 0x00007fff;
+        s->regs[GT_CS20R]  = val & 0x000007ff;
+        gt64120_CS20_mapping(s);
+        break;
+    case GT_CS3BOOTLD:
+        s->regs[GT_CS3BOOTLD] = val & 0x00007fff;
+        s->regs[GT_CS3BOOTR]  = val & 0x000007ff;
+        gt64120_CS3BOOT_mapping(s);
+        break;
+    case GT_SCS10HD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_SCS10_mapping(s);
+        break;
+    case GT_SCS32HD:
+        s->regs[saddr] = val & 0x0000007f;
+//
+//        gt64120_SCS32_mapping(s);
+        break;
+    case GT_CS20HD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_CS20_mapping(s);
+        break;
+    case GT_CS3BOOTHD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_CS3BOOT_mapping(s);
+        break;
     case GT_PCI0IOLD:
         s->regs[GT_PCI0IOLD]    = val & 0x00007fff;
         s->regs[GT_PCI0IOREMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI0IO_mapping(s);
         break;
     case GT_PCI0M0LD:
         s->regs[GT_PCI0M0LD]    = val & 0x00007fff;
         s->regs[GT_PCI0M0REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI0M0_mapping(s);
         break;
     case GT_PCI0M1LD:
         s->regs[GT_PCI0M1LD]    = val & 0x00007fff;
         s->regs[GT_PCI0M1REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI0M1_mapping(s);
         break;
     case GT_PCI1IOLD:
         s->regs[GT_PCI1IOLD]    = val & 0x00007fff;
         s->regs[GT_PCI1IOREMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI1IO_mapping(s);
         break;
     case GT_PCI1M0LD:
         s->regs[GT_PCI1M0LD]    = val & 0x00007fff;
         s->regs[GT_PCI1M0REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI1M1_mapping(s);
         break;
     case GT_PCI1M1LD:
         s->regs[GT_PCI1M1LD]    = val & 0x00007fff;
         s->regs[GT_PCI1M1REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI1M1_mapping(s);
         break;
     case GT_PCI0IOHD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_PCI0IO_mapping(s);
+        break;
     case GT_PCI0M0HD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_PCI0M0_mapping(s);
+        break;
     case GT_PCI0M1HD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_PCI0M1_mapping(s);
+        break;
     case GT_PCI1IOHD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_PCI1IO_mapping(s);
+        break;
     case GT_PCI1M0HD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_PCI1M0_mapping(s);
+        break;
     case GT_PCI1M1HD:
         s->regs[saddr] = val & 0x0000007f;
-        gt64120_pci_mapping(s);
+        gt64120_PCI1M1_mapping(s);
+        break;
+    case GT_ISD:
+        s->regs[saddr] = val & 0x00007fff;
+        gt64120_isd_mapping(s);
+        break;
+
+    case GT_SCS10AR:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_SCS10AR_mapping(s);
+        break;
+    case GT_SCS32AR:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_SCS32AR_mapping(s);
+        break;
+    case GT_CS20R:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_CS20R_mapping(s);
+        break;
+    case GT_CS3BOOTR:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_CS3BOOTR_mapping(s);
         break;
     case GT_PCI0IOREMAP:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_PCI0IOREMAP_mapping(s);
+        break;
     case GT_PCI0M0REMAP:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_PCI0M0REMAP_mapping(s);
+        break;
     case GT_PCI0M1REMAP:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_PCI0M1REMAP_mapping(s);
+        break;
     case GT_PCI1IOREMAP:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_PCI1IOREMAP_mapping(s);
+        break;
     case GT_PCI1M0REMAP:
+        s->regs[saddr] = val & 0x000007ff;
+        gt64120_PCI1M0REMAP_mapping(s);
+        break;
     case GT_PCI1M1REMAP:
         s->regs[saddr] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        gt64120_PCI1M1REMAP_mapping(s);
         break;
 
     /* CPU Error Report */
@@ -1040,7 +1313,17 @@ void gt64120_reset(void *opaque)
 
     /* Interrupt registers are all zeroed at reset */
 
-    gt64120_pci_mapping(s);
+    gt64120_isd_mapping(s);
+    gt64120_SCS10_mapping(s);
+//    gt64120_SCS32_mapping(s);
+    gt64120_CS20_mapping(s);
+    gt64120_CS3BOOT_mapping(s);
+    gt64120_PCI0IO_mapping(s);
+    gt64120_PCI0M0_mapping(s);
+    gt64120_PCI0M1_mapping(s);
+    gt64120_PCI1IO_mapping(s);
+    gt64120_PCI1M0_mapping(s);
+    gt64120_PCI1M1_mapping(s);
 }
 
 static uint32_t gt64120_read_config(PCIDevice *d, uint32_t address, int len)
@@ -1084,18 +1367,16 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
     PCIDevice *d;
-    int gt64120;
 
     s = qemu_mallocz(sizeof(GT64120State));
     s->pci = qemu_mallocz(sizeof(GT64120PCIState));
-    gt64120_reset(s);
-
     s->pci->bus = pci_register_bus(pci_gt64120_set_irq, pci_gt64120_map_irq,
                                    pic, 144, 4);
 
-    gt64120 = cpu_register_io_memory(0, gt64120_read,
-                                     gt64120_write, s);
-    cpu_register_physical_memory(0x1be00000LL, 0x1000, gt64120);
+    s->ISD_handle = cpu_register_io_memory(0, gt64120_read, gt64120_write, s);
+    s->PCI0IO_handle = cpu_register_io_memory(0, gt64120_mmio_read,
+                                              gt64120_mmio_write, s);
+    gt64120_reset(s);
 
     d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice),
                             0, gt64120_read_config, gt64120_write_config);

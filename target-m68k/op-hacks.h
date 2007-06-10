@@ -103,3 +103,28 @@ static inline void gen_op_goto_tb(int dummy, int n, long tb)
         gen_op_goto_tb1(TBPARAM(tb));
     }
 }
+
+static inline void gen_op_jmp_z32(int val, int label)
+{
+    gen_op_set_T0_z32(val);
+    gen_op_jmp_T0(label);
+}
+
+static inline void gen_op_jmp_nz32(int val, int label)
+{
+    gen_op_set_T0_nz32(val);
+    gen_op_jmp_T0(label);
+}
+
+static inline void gen_op_jmp_s32(int val, int label)
+{
+    gen_op_set_T0_s32(val);
+    gen_op_jmp_T0(label);
+}
+
+static inline void gen_op_jmp_ns32(int val, int label)
+{
+    gen_op_set_T0_ns32(val);
+    gen_op_jmp_T0(label);
+}
+

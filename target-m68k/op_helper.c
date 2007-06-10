@@ -131,6 +131,8 @@ void do_interrupt(int is_hw)
 
     vector = env->exception_index << 2;
 
+    sp = env->aregs[7];
+
     fmt |= 0x40000000;
     fmt |= (sp & 3) << 28;
     fmt |= vector << 16;
@@ -142,8 +144,6 @@ void do_interrupt(int is_hw)
         env->sr &= ~SR_M;
     }
     m68k_switch_sp(env);
-
-    sp = env->aregs[7];
 
     /* ??? This could cause MMU faults.  */
     sp &= ~3;
