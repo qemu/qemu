@@ -2802,9 +2802,9 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 #endif
 	    }
-	    if (xop < 4 || (xop > 7 && xop < 0x14 && xop != 0x0e) || \
-		    (xop > 0x17 && xop <= 0x1d ) || \
-		    (xop > 0x2c && xop <= 0x33) || xop == 0x1f) {
+            if (xop < 4 || (xop > 7 && xop < 0x14 && xop != 0x0e) ||
+                (xop > 0x17 && xop <= 0x1d ) ||
+                (xop > 0x2c && xop <= 0x33) || xop == 0x1f || xop == 0x3d) {
 		switch (xop) {
 		case 0x0:	/* load word */
 		    gen_op_ldst(ld);
