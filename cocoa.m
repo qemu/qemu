@@ -164,7 +164,12 @@ static void cocoa_resize(DisplayState *ds, int w, int h)
     ds->depth = device_bpp;
     ds->width = w;
     ds->height = h;
-    
+#ifdef __LITTLE_ENDIAN__
+    ds->bgr = 1;
+#else
+    ds->bgr = 0;
+#endif
+
     current_ds = *ds;
 }
 
