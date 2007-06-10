@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "pixel_ops.h"
 
 #define MAXX 1024
 #define MAXY 768
@@ -47,27 +48,6 @@ static void tcx24_screen_dump(void *opaque, const char *filename);
 static void tcx_invalidate_display(void *opaque);
 static void tcx24_invalidate_display(void *opaque);
 
-/* XXX: unify with vga draw line functions */
-static inline unsigned int rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6);
-}
-
-static inline unsigned int rgb_to_pixel15(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-}
-
-static inline unsigned int rgb_to_pixel16(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-}
-
-static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
-{
-    return (r << 16) | (g << 8) | b;
-}
-
 static void update_palette_entries(TCXState *s, int start, int end)
 {
     int i;
@@ -78,13 +58,22 @@ static void update_palette_entries(TCXState *s, int start, int end)
             s->palette[i] = rgb_to_pixel8(s->r[i], s->g[i], s->b[i]);
             break;
         case 15:
-            s->palette[i] = rgb_to_pixel15(s->r[i], s->g[i], s->b[i]);
+            if (s->ds->bgr)
+                s->palette[i] = rgb_to_pixel15bgr(s->r[i], s->g[i], s->b[i]);
+            else
+                s->palette[i] = rgb_to_pixel15(s->r[i], s->g[i], s->b[i]);
             break;
         case 16:
-            s->palette[i] = rgb_to_pixel16(s->r[i], s->g[i], s->b[i]);
+            if (s->ds->bgr)
+                s->palette[i] = rgb_to_pixel16bgr(s->r[i], s->g[i], s->b[i]);
+            else
+                s->palette[i] = rgb_to_pixel16(s->r[i], s->g[i], s->b[i]);
             break;
         case 32:
-            s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
+            if (s->ds->bgr)
+                s->palette[i] = rgb_to_pixel32bgr(s->r[i], s->g[i], s->b[i]);
+            else
+                s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
             break;
         }
     }

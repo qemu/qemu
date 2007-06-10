@@ -1360,6 +1360,10 @@ Pass through the host device identified by @var{bus.addr}
 @item @code{host:vendor_id:product_id}
 Pass through the host device identified by @var{vendor_id:product_id}
 (Linux only)
+@item @code{wacom-tablet}
+Virtual Wacom PenPartner tablet.  This device is similar to the @code{tablet}
+above but it can be used with the tslib library because in addition to touch
+coordinates it reports touch pressure.
 @end table
 
 @node host_usb_devices
@@ -1631,7 +1635,7 @@ More information is available at
 @section Sparc32 System emulator invocation
 
 Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
-(sun4m architecture). The emulation is somewhat complete.
+or SparcStation 10 (sun4m architecture). The emulation is somewhat complete.
 
 QEMU emulates the following sun4m peripherals:
 
@@ -1651,6 +1655,8 @@ and power/reset logic
 ESP SCSI controller with hard disk and CD-ROM support
 @item
 Floppy drive
+@item
+CS4231 sound device (only on SS-5, not working yet)
 @end itemize
 
 The number of peripherals is fixed in the architecture.
@@ -1666,13 +1672,14 @@ Solaris kernels don't work.
 
 @c man begin OPTIONS
 
-The following options are specific to the Sparc emulation:
+The following options are specific to the Sparc32 emulation:
 
 @table @option
 
-@item -g WxH
+@item -g WxHx[xDEPTH]
 
-Set the initial TCX graphic mode. The default is 1024x768.
+Set the initial TCX graphic mode. The default is 1024x768x8, currently
+the only other possible mode is 1024x768x24.
 
 @item -prom-env string
 
@@ -1682,6 +1689,10 @@ Set OpenBIOS variables in NVRAM, for example:
 qemu-system-sparc -prom-env 'auto-boot?=false' \
  -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
 @end example
+
+@item -M [SS-5|SS-10]
+
+Set the emulated machine type. Default is SS-5.
 
 @end table
 

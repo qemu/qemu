@@ -434,6 +434,7 @@ VL_OBJS+= scsi-disk.o cdrom.o lsi53c895a.o
 
 # USB layer
 VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o usb-msd.o
+VL_OBJS+= usb-wacom.o
 
 # EEPROM emulation
 VL_OBJS += eeprom93xx.o
@@ -635,6 +636,10 @@ cpu-exec.o: cpu-exec.c
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: signal.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+
+vga.o: pixel_ops.h
+
+tcx.o: pixel_ops.h
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 op.o: op.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h ops_sse.h

@@ -1,3 +1,30 @@
+2007-06-10 22:26  blueswir1
+
+	* target-sparc/translate.c:  Fix Sparc64 prefetcha op
+
+2007-06-10 21:21  balrog
+
+	* Makefile.target, qemu-doc.texi, vl.c, hw/usb-wacom.c, hw/usb.h:
+	  Wacom PenPartner tablet (virtual USB device).
+
+2007-06-10 19:01  blueswir1
+
+	* qemu-doc.texi, hw/vga.c:  Fix patch splitting lossage in vga.c
+
+2007-06-10 18:35  blueswir1
+
+	* hw/pixel_ops.h:  Add hw/pixel_ops.h
+
+2007-06-10 18:07  blueswir1
+
+	* cocoa.m, sdl.c, hw/tcx.c, hw/vga.c:  Attempt to fix incorrect
+	  colours on some BGR displays
+
+2007-06-10 18:06  blueswir1
+
+	* Makefile.target, hw/tcx.c, hw/vga.c:	Merge TCX and VGA pixel
+	  operations
+
 2007-06-10 17:08  ths
 
 	* hw/: gt64xxx.c, mips_malta.c: More PCI mapping/remapping for
