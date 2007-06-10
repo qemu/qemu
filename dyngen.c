@@ -1867,7 +1867,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         /* patch relocations */
 #if defined(HOST_I386)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -1890,18 +1890,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         continue;
                     }
 
-                    get_reloc_expr(name, sizeof(name), sym_name);
+                    get_reloc_expr(relname, sizeof(relname), sym_name);
                     addend = get32((uint32_t *)(text + rel->r_offset));
 #ifdef CONFIG_FORMAT_ELF
                     type = ELF32_R_TYPE(rel->r_info);
                     switch(type) {
                     case R_386_32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                reloc_offset, name, addend);
+                                reloc_offset, relname, addend);
                         break;
                     case R_386_PC32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n", 
-                                reloc_offset, name, reloc_offset, addend);
+                                reloc_offset, relname, reloc_offset, addend);
                         break;
                     default:
                         error("unsupported i386 relocation (%d)", type);
@@ -1924,11 +1924,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     switch(type) {
                     case DIR32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                reloc_offset, name, addend);
+                                reloc_offset, relname, addend);
                         break;
                     case DISP32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d -4;\n", 
-                                reloc_offset, name, reloc_offset, addend);
+                                reloc_offset, relname, reloc_offset, addend);
                         break;
                     default:
                         error("unsupported i386 relocation (%d)", type);
@@ -1941,7 +1941,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_X86_64)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -1949,22 +1949,22 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
                     sym_name = get_rel_sym_name(rel);
-                    get_reloc_expr(name, sizeof(name), sym_name);
+                    get_reloc_expr(relname, sizeof(relname), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
                     reloc_offset = rel->r_offset - start_offset;
                     switch(type) {
                     case R_X86_64_32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (uint32_t)%s + %d;\n", 
-                                reloc_offset, name, addend);
+                                reloc_offset, relname, addend);
                         break;
                     case R_X86_64_32S:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (int32_t)%s + %d;\n", 
-                                reloc_offset, name, addend);
+                                reloc_offset, relname, addend);
                         break;
                     case R_X86_64_PC32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n", 
-                                reloc_offset, name, reloc_offset, addend);
+                                reloc_offset, relname, reloc_offset, addend);
                         break;
                     default:
                         error("unsupported X86_64 relocation (%d)", type);
@@ -1975,7 +1975,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #elif defined(HOST_PPC)
             {
 #ifdef CONFIG_FORMAT_ELF
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -1996,30 +1996,30 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                             continue;
                         }
                         
-                        get_reloc_expr(name, sizeof(name), sym_name);
+                        get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         switch(type) {
                         case R_PPC_ADDR32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         case R_PPC_ADDR16_LO:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d);\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         case R_PPC_ADDR16_HI:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d) >> 16;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         case R_PPC_ADDR16_HA:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d + 0x8000) >> 16;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         case R_PPC_REL24:
                             /* warning: must be at 32 MB distancy */
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((%s - (long)(gen_code_ptr + %d) + %d) & 0x03fffffc);\n", 
-                                    reloc_offset, reloc_offset, name, reloc_offset, addend);
+                                    reloc_offset, reloc_offset, relname, reloc_offset, addend);
                             break;
                         default:
                             error("unsupported powerpc relocation (%d)", type);
@@ -2077,7 +2077,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 					if(!sym_name)
 					{
 						fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
-						           name, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
+						           relname, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
 						continue; /* dunno how to handle without final_sym_name */
 					}
 													   
@@ -2089,7 +2089,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     						fprintf(outfile, "{\n");
     						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
     						fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n", 
-											slide, slide, name, sslide );
+											slide, slide, relname, sslide );
     						fprintf(outfile, "}\n");
     					} else {
 							fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | (((long)%s - (long)gen_code_ptr - %d) & 0x03fffffc);\n",
@@ -2118,7 +2118,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_S390)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -2126,22 +2126,22 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = get_rel_sym_name(rel);
-                        get_reloc_expr(name, sizeof(name), sym_name);
+                        get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         reloc_offset = rel->r_offset - start_offset;
                         switch(type) {
                         case R_390_32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         case R_390_16:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         case R_390_8:
                             fprintf(outfile, "    *(uint8_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
                             break;
                         default:
                             error("unsupported s390 relocation (%d)", type);
@@ -2209,7 +2209,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             {
 		unsigned long sym_idx;
 		long code_offset;
-                char name[256];
+                char relname[256];
                 int type;
                 long addend;
 
@@ -2232,7 +2232,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				n, code_offset);
 			continue;
 		    }
-		    get_reloc_expr(name, sizeof(name), sym_name);
+		    get_reloc_expr(relname, sizeof(relname), sym_name);
 		    type = ELF64_R_TYPE(rel->r_info);
 		    addend = rel->r_addend;
 		    switch(type) {
@@ -2240,19 +2240,19 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			  fprintf(outfile,
 				  "    ia64_imm64(gen_code_ptr + %ld, "
 				  "%s + %ld);\n",
-				  code_offset, name, addend);
+				  code_offset, relname, addend);
 			  break;
 		      case R_IA64_LTOFF22X:
 		      case R_IA64_LTOFF22:
 			  fprintf(outfile, "    IA64_LTOFF(gen_code_ptr + %ld,"
 				  " %s + %ld, %d);\n",
-				  code_offset, name, addend,
+				  code_offset, relname, addend,
 				  (type == R_IA64_LTOFF22X));
 			  break;
 		      case R_IA64_LDXMOV:
 			  fprintf(outfile,
 				  "    ia64_ldxmov(gen_code_ptr + %ld,"
-				  " %s + %ld);\n", code_offset, name, addend);
+				  " %s + %ld);\n", code_offset, relname, addend);
 			  break;
 
 		      case R_IA64_PCREL21B:
@@ -2261,7 +2261,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				      "    ia64_imm21b(gen_code_ptr + %ld,"
 				      " (long) (%s + %ld -\n\t\t"
 				      "((long) gen_code_ptr + %ld)) >> 4);\n",
-				      code_offset, name, addend,
+				      code_offset, relname, addend,
 				      code_offset & ~0xfUL);
 			  } else {
 			      fprintf(outfile,
@@ -2282,7 +2282,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_SPARC)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -2290,14 +2290,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
-                        get_reloc_expr(name, sizeof(name), sym_name);
+                        get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         reloc_offset = rel->r_offset - start_offset;
                         switch(type) {
                         case R_SPARC_32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
 			    break;
 			case R_SPARC_HI22:
                             fprintf(outfile,
@@ -2305,7 +2305,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3fffff) "
 				    " | (((%s + %d) >> 10) & 0x3fffff);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
 			case R_SPARC_LO10:
                             fprintf(outfile,
@@ -2313,7 +2313,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3ff) "
 				    " | ((%s + %d) & 0x3ff);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
 			case R_SPARC_WDISP30:
 			    fprintf(outfile,
@@ -2322,7 +2322,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    " & ~0x3fffffff) "
 				    " | ((((%s + %d) - (long)(gen_code_ptr + %d))>>2) "
 				    "    & 0x3fffffff);\n",
-				    reloc_offset, reloc_offset, name, addend,
+				    reloc_offset, reloc_offset, relname, addend,
 				    reloc_offset);
 			    break;
                         case R_SPARC_WDISP22:
@@ -2334,7 +2334,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                     "    & 0x3fffff);\n",
                                     rel->r_offset - start_offset,
                                     rel->r_offset - start_offset,
-                                    name, addend,
+                                    relname, addend,
                                     rel->r_offset - start_offset);
                             break;
                         default:
@@ -2345,7 +2345,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_SPARC64)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -2353,14 +2353,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-                        get_reloc_expr(name, sizeof(name), sym_name);
+                        get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         reloc_offset = rel->r_offset - start_offset;
                         switch(type) {
                         case R_SPARC_32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                    reloc_offset, name, addend);
+                                    reloc_offset, relname, addend);
 			    break;
 			case R_SPARC_HI22:
                             fprintf(outfile,
@@ -2368,7 +2368,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3fffff) "
 				    " | (((%s + %d) >> 10) & 0x3fffff);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
 			case R_SPARC_LO10:
                             fprintf(outfile,
@@ -2376,7 +2376,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3ff) "
 				    " | ((%s + %d) & 0x3ff);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
                         case R_SPARC_OLO10:
                             addend += ELF64_R_TYPE_DATA (rel->r_info);
@@ -2385,7 +2385,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3ff) "
 				    " | ((%s + %d) & 0x3ff);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
 			case R_SPARC_WDISP30:
 			    fprintf(outfile,
@@ -2394,7 +2394,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    " & ~0x3fffffff) "
 				    " | ((((%s + %d) - (long)(gen_code_ptr + %d))>>2) "
 				    "    & 0x3fffffff);\n",
-				    reloc_offset, reloc_offset, name, addend,
+				    reloc_offset, reloc_offset, relname, addend,
 				    reloc_offset);
 			    break;
                         case R_SPARC_WDISP22:
@@ -2404,7 +2404,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                     " & ~0x3fffff) "
                                     " | ((((%s + %d) - (long)(gen_code_ptr + %d))>>2) "
                                     "    & 0x3fffff);\n",
-                                    reloc_offset, reloc_offset, name, addend,
+                                    reloc_offset, reloc_offset, relname, addend,
 				    reloc_offset);
                             break;
                         case R_SPARC_HH22:
@@ -2413,7 +2413,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x00000000) "
 				    " | (((%s + %d) >> 42) & 0x00000000);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
                              break;
 
 			case R_SPARC_LM22:
@@ -2422,7 +2422,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x00000000) "
 				    " | (((%s + %d) >> 10) & 0x00000000);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
 
 			case R_SPARC_HM10:
@@ -2431,18 +2431,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x00000000) "
 				    " | ((((%s + %d) >> 32 & 0x3ff)) & 0x00000000);\n",
-                                    reloc_offset, reloc_offset, name, addend);
+                                    reloc_offset, reloc_offset, relname, addend);
 			    break;
 
                         default:
-			    error("unsupported sparc64 relocation (%d) for symbol %s", type, name);
+			    error("unsupported sparc64 relocation (%d) for symbol %s", type, relname);
                         }
                     }
                 }
             }
 #elif defined(HOST_ARM)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -2477,7 +2477,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     fprintf(outfile,
                             "    *(uint32_t *)gen_code_ptr = 0x%x;\n", opcode);
                 }
-                arm_emit_ldr_info(name, start_offset, outfile, p_start, p_end,
+                arm_emit_ldr_info(relname, start_offset, outfile, p_start, p_end,
                                   relocs, nb_relocs);
 
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -2487,20 +2487,20 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     /* the compiler leave some unnecessary references to the code */
                     if (sym_name[0] == '\0')
                         continue;
-                    get_reloc_expr(name, sizeof(name), sym_name);
+                    get_reloc_expr(relname, sizeof(relname), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset));
                     reloc_offset = rel->r_offset - start_offset;
                     switch(type) {
                     case R_ARM_ABS32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                reloc_offset, name, addend);
+                                reloc_offset, relname, addend);
                         break;
                     case R_ARM_PC24:
                     case R_ARM_JUMP24:
                     case R_ARM_CALL:
                         fprintf(outfile, "    arm_reloc_pc24((uint32_t *)(gen_code_ptr + %d), 0x%x, %s);\n", 
-                                reloc_offset, addend, name);
+                                reloc_offset, addend, relname);
                         break;
                     default:
                         error("unsupported arm relocation (%d)", type);
@@ -2510,7 +2510,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_M68K)
             {
-                char name[256];
+                char relname[256];
                 int type;
                 int addend;
                 int reloc_offset;
@@ -2520,7 +2520,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 		    rel->r_offset < start_offset + copy_size) {
 		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
                     sym_name = get_rel_sym_name(rel);
-                    get_reloc_expr(name, sizeof(name), sym_name);
+                    get_reloc_expr(relname, sizeof(relname), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset)) + rel->r_addend;
                     reloc_offset = rel->r_offset - start_offset;
@@ -2528,12 +2528,12 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     case R_68K_32:
 		        fprintf(outfile, "    /* R_68K_32 RELOC, offset %x */\n", rel->r_offset) ;
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %#x;\n", 
-                                reloc_offset, name, addend );
+                                reloc_offset, relname, addend );
                         break;
                     case R_68K_PC32:
 		        fprintf(outfile, "    /* R_68K_PC32 RELOC, offset %x */\n", rel->r_offset);
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %#x) + %#x;\n", 
-                                reloc_offset, name, reloc_offset, /*sym->st_value+*/ addend);
+                                reloc_offset, relname, reloc_offset, /*sym->st_value+*/ addend);
                         break;
                     default:
                         error("unsupported m68k relocation (%d)", type);
@@ -2545,11 +2545,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             {
 #ifdef CONFIG_FORMAT_ELF
 #warning "relocation code for mips still untested"
-                char xname[256];
                 for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
                     host_ulong r_offset = rel->r_offset;
                     if (r_offset >= start_offset &&
                         r_offset < start_offset + copy_size) {
+                        char relname[256];
                         int reloc_offset = r_offset - start_offset;
 #if defined(WORDS_BIGENDIAN)
                         int reloc_offset_lsb = reloc_offset + 2;
@@ -2559,30 +2559,30 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         int addend = get32((uint32_t *)(text + r_offset));
                         int type = ELF32_R_TYPE(rel->r_info);
                         sym_name = get_rel_sym_name(rel);
-                        get_reloc_expr(xname, sizeof(xname), sym_name);
+                        get_reloc_expr(relname, sizeof(relname), sym_name);
                         switch(type) {
                         case R_MIPS_HI16:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)((uint32_t)(%s) >> 16); // r_offset = %d // R_MIPS_HI16\n", 
-                                    reloc_offset_lsb, xname, r_offset);
+                                    reloc_offset_lsb, relname, r_offset);
                             break;
                         case R_MIPS_LO16:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)(%s); // r_offset = %d // R_MIPS_LO16\n", 
-                                    reloc_offset_lsb, xname, r_offset);
+                                    reloc_offset_lsb, relname, r_offset);
                             break;
                         case R_MIPS_GOT16:
                             /* No need to relocate. */
                             fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_GOT16\n", 
-                                    xname, reloc_offset, r_offset);
+                                    relname, reloc_offset, r_offset);
                             break;
                         case R_MIPS_PC16:
                             fprintf(outfile, "#warning untested mips relocation R_MIPS_PC16\n");
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)(%s - (long)(gen_code_ptr + %d) + %d); // r_offset = %d // R_MIPS_PC16\n", 
-                                    reloc_offset_lsb, xname, reloc_offset + 4, addend, r_offset);
+                                    reloc_offset_lsb, relname, reloc_offset + 4, addend, r_offset);
                             break;
                         case R_MIPS_CALL16:
                             /* No need to relocate. */
                             fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_CALL16\n", 
-                                    xname, reloc_offset, r_offset);
+                                    relname, reloc_offset, r_offset);
                             break;
                         case R_MIPS_GOTHI16:
                             fprintf(outfile, "#error unsupported mips relocation R_MIPS_GOTHI16\n");
@@ -2593,15 +2593,15 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         case R_MIPS_CALLHI16:
                             fprintf(outfile, "#warning untested mips relocation R_MIPS_CALLHI16\n");
                             fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_CALLHI16\n", 
-                                    xname, reloc_offset, r_offset);
+                                    relname, reloc_offset, r_offset);
                             break;
                         case R_MIPS_CALLLO16:
                             fprintf(outfile, "#warning untested mips relocation R_MIPS_CALLLO16\n");
                             fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_CALLLO16\n", 
-                                    xname, reloc_offset, r_offset);
+                                    relname, reloc_offset, r_offset);
                             break;
                         default:
-                            error("unsupported mips relocation (%d) for %s in %s\n", type, sym_name, name);
+                            error("unsupported mips relocation (%d) for %s in %s\n", type, sym_name, relname);
                         }
                     }
                 }
@@ -2613,7 +2613,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             {
                 for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
 		    if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
-                        char xname[256];
+                        char relname[256];
                         int type;
                         int addend;
                         int reloc_offset;
@@ -2622,7 +2622,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         /* the compiler leave some unnecessary references to the code */
                         if (sym_name[0] == '\0')
                             continue;
-                        get_reloc_expr(xname, sizeof(xname), sym_name);
+                        get_reloc_expr(relname, sizeof(relname), sym_name);
 			type = ELF32_R_TYPE(rel->r_info);
                         addend = get32((uint32_t *)(text + rel->r_offset));
                         reloc_offset = rel->r_offset - start_offset;
@@ -2635,7 +2635,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "(0x%x & ~0x3fffff) "
 				    "| ((0x%x + ((%s - (*(uint32_t *)(gen_code_ptr + 0x%x))) >> 2)) "
 				    "   & 0x3fffff);\n",
-                                    reloc_offset, addend, addend, xname, reloc_offset);
+                                    reloc_offset, addend, addend, relname, reloc_offset);
 			    break;
 			case R_MIPS_HI16:
                             fprintf(outfile, "    /* R_MIPS_HI16 RELOC, offset 0x%x, name %s */\n",
@@ -2645,7 +2645,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
 				    " & ~0xffff) "
 				    " | (((%s - 0x8000) >> 16) & 0xffff);\n",
-                                    reloc_offset, reloc_offset, xname);
+                                    reloc_offset, reloc_offset, relname);
 			    break;
 			case R_MIPS_LO16:
                             fprintf(outfile, "    /* R_MIPS_LO16 RELOC, offset 0x%x, name %s */\n",
@@ -2655,7 +2655,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
 				    " & ~0xffff) "
 				    " | (%s & 0xffff);\n",
-                                    reloc_offset, reloc_offset, xname);
+                                    reloc_offset, reloc_offset, relname);
 			    break;
 			case R_MIPS_PC16:
                             fprintf(outfile, "    /* R_MIPS_PC16 RELOC, offset 0x%x, name %s */\n",
@@ -2665,7 +2665,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "(0x%x & ~0xffff) "
 				    "| ((0x%x + ((%s - (*(uint32_t *)(gen_code_ptr + 0x%x))) >> 2)) "
 				    "   & 0xffff);\n",
-                                    reloc_offset, addend, addend, xname, reloc_offset);
+                                    reloc_offset, addend, addend, relname, reloc_offset);
 			    break;
 			case R_MIPS_GOT16:
 			case R_MIPS_CALL16:
@@ -2676,7 +2676,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
 				    " & ~0xffff) "
 				    " | (((%s - 0x8000) >> 16) & 0xffff);\n",
-                                    reloc_offset, reloc_offset, xname);
+                                    reloc_offset, reloc_offset, relname);
 			    break;
 			default:
 			    error("unsupported MIPS relocation (%d)", type);
