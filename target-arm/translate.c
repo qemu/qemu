@@ -2837,8 +2837,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         } else {
                             /* store */
                             if (i == 15) {
-                                /* special case: r15 = PC + 12 */
-                                val = (long)s->pc + 8;
+                                /* special case: r15 = PC + 8 */
+                                val = (long)s->pc + 4;
                                 gen_op_movl_TN_im[0](val);
                             } else if (user) {
                                 gen_op_movl_T0_user(i);
