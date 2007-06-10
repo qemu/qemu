@@ -819,6 +819,14 @@ typedef void vga_draw_line_func(VGAState *s1, uint8_t *d,
 #define DEPTH 15
 #include "vga_template.h"
 
+#define BGR_FORMAT
+#define DEPTH 15
+#include "vga_template.h"
+
+#define DEPTH 16
+#include "vga_template.h"
+
+#define BGR_FORMAT
 #define DEPTH 16
 #include "vga_template.h"
 
