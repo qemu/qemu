@@ -409,6 +409,7 @@ VL_OBJS+= scsi-disk.o cdrom.o lsi53c895a.o
 
 # USB layer
 VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o usb-msd.o
+VL_OBJS+= usb-wacom.o
 
 # EEPROM emulation
 VL_OBJS += eeprom93xx.o

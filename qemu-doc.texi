@@ -1358,6 +1358,10 @@ Pass through the host device identified by @var{bus.addr}
 @item @code{host:vendor_id:product_id}
 Pass through the host device identified by @var{vendor_id:product_id}
 (Linux only)
+@item @code{wacom-tablet}
+Virtual Wacom PenPartner tablet.  This device is similar to the @code{tablet}
+above but it can be used with the tslib library because in addition to touch
+coordinates it reports touch pressure.
 @end table
 
 @node host_usb_devices

@@ -4321,6 +4321,8 @@ static int usb_device_add(const char *devname)
 	dev = usb_tablet_init();
     } else if (strstart(devname, "disk:", &p)) {
         dev = usb_msd_init(p);
+    } else if (!strcmp(devname, "wacom-tablet")) {
+        dev = usb_wacom_init();
     } else {
         return -1;
     }
