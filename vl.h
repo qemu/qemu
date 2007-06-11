@@ -940,16 +940,12 @@ struct DisplayState {
 
 static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
 {
-    if (s->dpy_update) {
-        s->dpy_update(s, x, y, w, h);
-    }
+    s->dpy_update(s, x, y, w, h);
 }
 
 static inline void dpy_resize(DisplayState *s, int w, int h)
 {
-    if (s->dpy_resize) {
-        s->dpy_resize(s, w, h);
-    }
+    s->dpy_resize(s, w, h);
 }
 
 int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
