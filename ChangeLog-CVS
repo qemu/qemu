@@ -1,3 +1,7 @@
+2007-06-11 20:59  pbrook
+
+	* target-arm/translate.c: Fix "blx lr" (Lauro Venancio).
+
 2007-06-10 22:26  blueswir1
 
 	* target-sparc/translate.c:  Fix Sparc64 prefetcha op
