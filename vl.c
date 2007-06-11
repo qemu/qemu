@@ -4481,6 +4481,24 @@ void pcmcia_info(void)
                     "Empty");
 }
 
+/***********************************************************/
+/* dumb display */
+
+static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
+{
+}
+
+static void dumb_resize(DisplayState *ds, int w, int h)
+{
+}
+
+static void dumb_refresh(DisplayState *ds)
+{
+#if defined(CONFIG_SDL)
+    vga_hw_update();
+#endif
+}
+
 static void dumb_display_init(DisplayState *ds)
 {
     ds->data = NULL;
