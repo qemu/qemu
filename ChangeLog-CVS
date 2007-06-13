@@ -1,3 +1,18 @@
+2007-06-12 23:22  ths
+
+	* linux-user/alpha/termbits.h: Fix alpha user build failure.
+
+2007-06-12 23:06  ths
+
+	* hw/: gt64xxx.c, mips_malta.c: Revert the Gallileo PCI mapping
+	  patch, it conflicts with the supposedly "generic" PC-style
+	  implementation.
+
+2007-06-12 14:43  ths
+
+	* target-mips/translate_init.c: Change 20Kc PRID to a later
+	  version.
+
 2007-06-11 20:59  pbrook
 
 	* target-arm/translate.c: Fix "blx lr" (Lauro Venancio).

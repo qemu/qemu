@@ -182,7 +182,9 @@ static mips_def_t mips_defs[] =
     },
     {
         .name = "20Kc",
-        .CP0_PRid = 0x00018200,
+	/* We emulate a later version of the 20Kc, earlier ones had a broken
+           WAIT instruction. */
+        .CP0_PRid = 0x000182a0,
         .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) | (1 << CP0C0_VI),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (47 << CP0C1_MMU) |
 		    (2 << CP0C1_IS) | (4 << CP0C1_IL) | (3 << CP0C1_IA) |
