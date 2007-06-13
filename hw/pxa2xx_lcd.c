@@ -8,6 +8,7 @@
  */
 
 #include "vl.h"
+#include "pixel_ops.h"
 
 typedef void (*drawfn)(uint32_t *, uint8_t *, const uint8_t *, int, int);
 
@@ -574,36 +575,6 @@ static CPUWriteMemoryFunc *pxa2xx_lcdc_writefn[] = {
     pxa2xx_lcdc_write,
     pxa2xx_lcdc_write
 };
-
-static inline
-uint32_t rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6);
-}
-
-static inline
-uint32_t rgb_to_pixel15(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-}
-
-static inline
-uint32_t rgb_to_pixel16(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-}
-
-static inline
-uint32_t rgb_to_pixel24(unsigned int r, unsigned int g, unsigned b)
-{
-    return (r << 16) | (g << 8) | b;
-}
-
-static inline
-uint32_t rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
-{
-    return (r << 16) | (g << 8) | b;
-}
 
 /* Load new palette for a given DMA channel, convert to internal format */
 static void pxa2xx_palette_parse(struct pxa2xx_lcdc_s *s, int ch, int bpp)
