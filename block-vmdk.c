@@ -75,7 +75,24 @@ typedef struct BDRVVmdkState {
 
     unsigned int cluster_sectors;
     uint32_t parent_cid;
+    int is_parent;
 } BDRVVmdkState;
+
+typedef struct VmdkMetaData {
+    uint32_t offset;
+    unsigned int l1_index;
+    unsigned int l2_index;
+    unsigned int l2_offset;
+    int valid;
+} VmdkMetaData;
+
+typedef struct ActiveBDRVState{
+    BlockDriverState *hd;            // active image handler
+    uint64_t cluster_offset;         // current write offset
+}ActiveBDRVState;
+
+static ActiveBDRVState activeBDRV;
+
 
 static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -305,7 +322,7 @@ static void vmdk_parent_close(BlockDriverState *bs)
         bdrv_close(bs->backing_hd);
 }
 
-
+int parent_open = 0;
 static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
 {
     BDRVVmdkState *s = bs->opaque;
@@ -339,8 +356,10 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
             bdrv_close(s->hd);
             return -1;
         }
-        if (bdrv_open(s->hd->backing_hd, parent_img_name, 0) < 0)
+        parent_open = 1;
+        if (bdrv_open(s->hd->backing_hd, parent_img_name, BDRV_O_RDONLY) < 0)
             goto failure;
+        parent_open = 0;
     }
 
     return 0;
@@ -351,6 +370,11 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
     int l1_size, i, ret;
+
+    if (parent_open)
+        // Parent must be opened as RO.
+        flags = BDRV_O_RDONLY;
+    fprintf(stderr, "(VMDK) image open: flags=0x%x filename=%s\n", flags, bs->filename);
 
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)
@@ -386,6 +410,11 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
             / s->l1_entry_sectors;
         s->l1_table_offset = le64_to_cpu(header.rgd_offset) << 9;
         s->l1_backup_table_offset = le64_to_cpu(header.gd_offset) << 9;
+
+        if (parent_open)
+            s->is_parent = 1;
+        else
+            s->is_parent = 0;
 
         // try to open parent images, if exist
         if (vmdk_parent_open(bs, filename) != 0)
@@ -430,7 +459,8 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     return -1;
 }
 
-static uint64_t get_cluster_offset(BlockDriverState *bs, uint64_t offset, int allocate);
+static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
+                                   uint64_t offset, int allocate);
 
 static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
                              uint64_t offset, int allocate)
@@ -446,27 +476,55 @@ static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
 
         if (!vmdk_is_cid_valid(bs))
             return -1;
-        parent_cluster_offset = get_cluster_offset(s->hd->backing_hd, offset, allocate);
-        if (bdrv_pread(ps->hd, parent_cluster_offset, whole_grain, ps->cluster_sectors*512) != 
-                                                                            ps->cluster_sectors*512)
-            return -1;
 
-        if (bdrv_pwrite(s->hd, cluster_offset << 9, whole_grain, sizeof(whole_grain)) != 
-                                                                            sizeof(whole_grain))
-            return -1;
+        parent_cluster_offset = get_cluster_offset(s->hd->backing_hd, NULL, offset, allocate);
+
+        if (parent_cluster_offset) {
+            BDRVVmdkState *act_s = activeBDRV.hd->opaque;
+
+            if (bdrv_pread(ps->hd, parent_cluster_offset, whole_grain, ps->cluster_sectors*512) != ps->cluster_sectors*512)
+                return -1;
+
+            //Write grain only into the active image
+            if (bdrv_pwrite(act_s->hd, activeBDRV.cluster_offset << 9, whole_grain, sizeof(whole_grain)) != sizeof(whole_grain))
+                return -1;
+        }
     }
     return 0;
 }
 
-static uint64_t get_cluster_offset(BlockDriverState *bs,
+static int vmdk_L2update(BlockDriverState *bs, VmdkMetaData *m_data)
+{
+    BDRVVmdkState *s = bs->opaque;
+
+    /* update L2 table */
+    if (bdrv_pwrite(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
+                    &(m_data->offset), sizeof(m_data->offset)) != sizeof(m_data->offset))
+        return -1;
+    /* update backup L2 table */
+    if (s->l1_backup_table_offset != 0) {
+        m_data->l2_offset = s->l1_backup_table[m_data->l1_index];
+        if (bdrv_pwrite(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
+                        &(m_data->offset), sizeof(m_data->offset)) != sizeof(m_data->offset))
+            return -1;
+    }
+
+    return 0;
+}
+
+static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
                                    uint64_t offset, int allocate)
 {
     BDRVVmdkState *s = bs->opaque;
     unsigned int l1_index, l2_offset, l2_index;
     int min_index, i, j;
-    uint32_t min_count, *l2_table, tmp;
+    uint32_t min_count, *l2_table, tmp = 0;
     uint64_t cluster_offset;
-    
+    int status;
+
+    if (m_data)
+        m_data->valid = 0;
+
     l1_index = (offset >> 9) / s->l1_entry_sectors;
     if (l1_index >= s->l1_size)
         return 0;
@@ -504,32 +562,45 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
  found:
     l2_index = ((offset >> 9) / s->cluster_sectors) % s->l2_size;
     cluster_offset = le32_to_cpu(l2_table[l2_index]);
+
     if (!cluster_offset) {
         struct stat file_buf;
 
         if (!allocate)
             return 0;
-        stat(s->hd->filename, &file_buf);
-        cluster_offset = file_buf.st_size;
-        bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
-
-        cluster_offset >>= 9;
-        /* update L2 table */
-        tmp = cpu_to_le32(cluster_offset);
-        l2_table[l2_index] = tmp;
-        if (bdrv_pwrite(s->hd, ((int64_t)l2_offset * 512) + (l2_index * sizeof(tmp)), 
-                        &tmp, sizeof(tmp)) != sizeof(tmp))
-            return 0;
-        /* update backup L2 table */
-        if (s->l1_backup_table_offset != 0) {
-            l2_offset = s->l1_backup_table[l1_index];
-            if (bdrv_pwrite(s->hd, ((int64_t)l2_offset * 512) + (l2_index * sizeof(tmp)), 
-                            &tmp, sizeof(tmp)) != sizeof(tmp))
+        // Avoid the L2 tables update for the images that have snapshots.
+        if (!s->is_parent) {
+            status = stat(s->hd->filename, &file_buf);
+            if (status == -1) {
+                fprintf(stderr, "(VMDK) Fail file stat: filename =%s size=0x%lx errno=%s\n",
+                                s->hd->filename, (uint64_t)file_buf.st_size, strerror(errno));
                 return 0;
-        }
+            }
+            cluster_offset = file_buf.st_size;
+            bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
 
+            cluster_offset >>= 9;
+            tmp = cpu_to_le32(cluster_offset);
+            l2_table[l2_index] = tmp;
+            // Save the active image state
+            activeBDRV.cluster_offset = cluster_offset;
+            activeBDRV.hd = bs;
+        }
+        /* First of all we write grain itself, to avoid race condition
+         * that may to corrupt the image.
+         * This problem may occur because of insufficient space on host disk
+         * or inappropriate VM shutdown.
+         */
         if (get_whole_cluster(bs, cluster_offset, offset, allocate) == -1)
             return 0;
+
+        if (m_data) {
+            m_data->offset = tmp;
+            m_data->l1_index = l1_index;
+            m_data->l2_index = l2_index;
+            m_data->l2_offset = l2_offset;
+            m_data->valid = 1;
+        }
     }
     cluster_offset <<= 9;
     return cluster_offset;
@@ -542,7 +613,7 @@ static int vmdk_is_allocated(BlockDriverState *bs, int64_t sector_num,
     int index_in_cluster, n;
     uint64_t cluster_offset;
 
-    cluster_offset = get_cluster_offset(bs, sector_num << 9, 0);
+    cluster_offset = get_cluster_offset(bs, NULL, sector_num << 9, 0);
     index_in_cluster = sector_num % s->cluster_sectors;
     n = s->cluster_sectors - index_in_cluster;
     if (n > nb_sectors)
@@ -559,7 +630,7 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
     uint64_t cluster_offset;
 
     while (nb_sectors > 0) {
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 0);
+        cluster_offset = get_cluster_offset(bs, NULL, sector_num << 9, 0);
         index_in_cluster = sector_num % s->cluster_sectors;
         n = s->cluster_sectors - index_in_cluster;
         if (n > nb_sectors)
@@ -590,20 +661,34 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
     BDRVVmdkState *s = bs->opaque;
+    VmdkMetaData m_data;
     int index_in_cluster, n;
     uint64_t cluster_offset;
     static int cid_update = 0;
+
+    if (sector_num > bs->total_sectors) {
+        fprintf(stderr,
+                "(VMDK) Wrong offset: sector_num=0x%lx total_sectors=0x%lx\n",
+                sector_num, bs->total_sectors);
+        return -1;
+    }
 
     while (nb_sectors > 0) {
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         n = s->cluster_sectors - index_in_cluster;
         if (n > nb_sectors)
             n = nb_sectors;
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 1);
+        cluster_offset = get_cluster_offset(bs, &m_data, sector_num << 9, 1);
         if (!cluster_offset)
             return -1;
+
         if (bdrv_pwrite(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
             return -1;
+        if (m_data.valid) {
+            /* update L2 tables */
+            if (vmdk_L2update(bs, &m_data) == -1)
+                return -1;
+        }
         nb_sectors -= n;
         sector_num += n;
         buf += n * 512;
