@@ -71,6 +71,9 @@ struct ParallelState {
     int hw_driver;
     int epp_timeout;
     uint32_t last_read_offset; /* For debugging */
+    /* Memory-mapped interface */
+    target_phys_addr_t base;
+    int it_shift;
 };
 
 static void parallel_update_irq(ParallelState *s)
@@ -400,15 +403,8 @@ static uint32_t parallel_ioport_ecp_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-/* If fd is zero, it means that the parallel device uses the console */
-ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
+static void parallel_reset(ParallelState *s, qemu_irq irq, CharDriverState *chr)
 {
-    ParallelState *s;
-    uint8_t dummy;
-
-    s = qemu_mallocz(sizeof(ParallelState));
-    if (!s)
-        return NULL;
     s->datar = ~0;
     s->dataw = ~0;
     s->status = PARA_STS_BUSY;
@@ -423,6 +419,18 @@ ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
     s->hw_driver = 0;
     s->epp_timeout = 0;
     s->last_read_offset = ~0U;
+}
+
+/* If fd is zero, it means that the parallel device uses the console */
+ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
+{
+    ParallelState *s;
+    uint8_t dummy;
+
+    s = qemu_mallocz(sizeof(ParallelState));
+    if (!s)
+        return NULL;
+    parallel_reset(s, irq, chr);
 
     if (qemu_chr_ioctl(chr, CHR_IOCTL_PP_READ_STATUS, &dummy) == 0) {
         s->hw_driver = 1;
@@ -443,5 +451,81 @@ ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
         register_ioport_write(base, 8, 1, parallel_ioport_write_sw, s);
         register_ioport_read(base, 8, 1, parallel_ioport_read_sw, s);
     }
+    return s;
+}
+
+/* Memory mapped interface */
+uint32_t parallel_mm_readb (void *opaque, target_phys_addr_t addr)
+{
+    ParallelState *s = opaque;
+
+    return parallel_ioport_read_sw(s, (addr - s->base) >> s->it_shift) & 0xFF;
+}
+
+void parallel_mm_writeb (void *opaque,
+                       target_phys_addr_t addr, uint32_t value)
+{
+    ParallelState *s = opaque;
+
+    parallel_ioport_write_sw(s, (addr - s->base) >> s->it_shift, value & 0xFF);
+}
+
+uint32_t parallel_mm_readw (void *opaque, target_phys_addr_t addr)
+{
+    ParallelState *s = opaque;
+
+    return parallel_ioport_read_sw(s, (addr - s->base) >> s->it_shift) & 0xFFFF;
+}
+
+void parallel_mm_writew (void *opaque,
+                       target_phys_addr_t addr, uint32_t value)
+{
+    ParallelState *s = opaque;
+
+    parallel_ioport_write_sw(s, (addr - s->base) >> s->it_shift, value & 0xFFFF);
+}
+
+uint32_t parallel_mm_readl (void *opaque, target_phys_addr_t addr)
+{
+    ParallelState *s = opaque;
+
+    return parallel_ioport_read_sw(s, (addr - s->base) >> s->it_shift);
+}
+
+void parallel_mm_writel (void *opaque,
+                       target_phys_addr_t addr, uint32_t value)
+{
+    ParallelState *s = opaque;
+
+    parallel_ioport_write_sw(s, (addr - s->base) >> s->it_shift, value);
+}
+
+static CPUReadMemoryFunc *parallel_mm_read_sw[] = {
+    &parallel_mm_readb,
+    &parallel_mm_readw,
+    &parallel_mm_readl,
+};
+
+static CPUWriteMemoryFunc *parallel_mm_write_sw[] = {
+    &parallel_mm_writeb,
+    &parallel_mm_writew,
+    &parallel_mm_writel,
+};
+
+/* If fd is zero, it means that the parallel device uses the console */
+ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq, CharDriverState *chr)
+{
+    ParallelState *s;
+    int io_sw;
+
+    s = qemu_mallocz(sizeof(ParallelState));
+    if (!s)
+        return NULL;
+    parallel_reset(s, irq, chr);
+    s->base = base;
+    s->it_shift = it_shift;
+
+    io_sw = cpu_register_io_memory(0, parallel_mm_read_sw, parallel_mm_write_sw, s);
+    cpu_register_physical_memory(base, 8 << it_shift, io_sw);
     return s;
 }
