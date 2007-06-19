@@ -1,3 +1,33 @@
+2007-06-18 20:55  ths
+
+	* vl.h, hw/mips_pica61.c, hw/parallel.c: Add parallel memory mapped
+	  interface, by Herve Poussineau.
+
+2007-06-18 17:01  ths
+
+	* block-vmdk.c: Fix a race condition and non-leaf imagesgrowing in
+	  VMDK chains, by Igor Lvovsky.
+
+2007-06-17 18:41  ths
+
+	* Makefile: Remove cscope.* files on 'make clean', by George G.
+	  Davis.
+
+2007-06-17 18:38  ths
+
+	* linux-user/main.c: Option to drop LD_PRELOAD from emulated
+	  environment, by Lauri Leukkunen.
+
+2007-06-17 17:32  ths
+
+	* linux-user/path.c: Allow relative paths for the interpreter
+	  prefix in linux-user emulation.
+
+2007-06-14 00:36  balrog
+
+	* hw/: pixel_ops.h, pxa2xx_lcd.c: Use pixel_ops.h in PXA LCD screen
+	  drawing.
+
 2007-06-12 23:22  ths
 
 	* linux-user/alpha/termbits.h: Fix alpha user build failure.

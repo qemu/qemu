@@ -1655,11 +1655,12 @@ void usage(void)
            "usage: qemu-" TARGET_ARCH " [-h] [-g] [-d opts] [-L path] [-s size] [-cpu model] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
-           "-h           print this help\n"
-           "-g port      wait gdb connection to port\n"
-           "-L path      set the elf interpreter prefix (default=%s)\n"
-           "-s size      set the stack size in bytes (default=%ld)\n"
-           "-cpu model   select CPU (-cpu ? for list)\n"
+           "-h                print this help\n"
+           "-g port           wait gdb connection to port\n"
+           "-L path           set the elf interpreter prefix (default=%s)\n"
+           "-s size           set the stack size in bytes (default=%ld)\n"
+           "-cpu model        select CPU (-cpu ? for list)\n"
+           "-drop-ld-preload  drop LD_PRELOAD for target process\n"
            "\n"
            "debug options:\n"
 #ifdef USE_CODE_COPY
@@ -1691,7 +1692,9 @@ int main(int argc, char **argv)
     int optind;
     const char *r;
     int gdbstub_port = 0;
-    
+    int drop_ld_preload = 0, environ_count = 0;
+    char **target_environ, **wrk, **dst;
+
     if (argc <= 1)
         usage();
 
@@ -1765,6 +1768,8 @@ int main(int argc, char **argv)
 #endif
                 _exit(1);
             }
+        } else if (!strcmp(r, "drop-ld-preload")) {
+            drop_ld_preload = 1;
         } else 
 #ifdef USE_CODE_COPY
         if (!strcmp(r, "no-code-copy")) {
@@ -1793,11 +1798,31 @@ int main(int argc, char **argv)
     env = cpu_init();
     global_env = env;
     
-    if (loader_exec(filename, argv+optind, environ, regs, info) != 0) {
-	printf("Error loading %s\n", filename);
-	_exit(1);
+    wrk = environ;
+    while (*(wrk++))
+        environ_count++;
+
+    target_environ = malloc((environ_count + 1) * sizeof(char *));
+    if (!target_environ)
+        abort();
+    for (wrk = environ, dst = target_environ; *wrk; wrk++) {
+        if (drop_ld_preload && !strncmp(*wrk, "LD_PRELOAD=", 11))
+            continue;
+        *(dst++) = strdup(*wrk);
+    }
+    dst = NULL; /* NULL terminate target_environ */
+
+    if (loader_exec(filename, argv+optind, target_environ, regs, info) != 0) {
+        printf("Error loading %s\n", filename);
+        _exit(1);
+    }
+
+    for (wrk = target_environ; *wrk; wrk++) {
+        free(*wrk);
     }
     
+    free(target_environ);
+
     if (loglevel) {
         page_dump(logfile);
     

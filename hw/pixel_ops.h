@@ -28,6 +28,18 @@ static inline unsigned int rgb_to_pixel16bgr(unsigned int r, unsigned int g,
     return ((b >> 3) << 11) | ((g >> 2) << 5) | (r >> 3);
 }
 
+static inline unsigned int rgb_to_pixel24(unsigned int r, unsigned int g,
+                                          unsigned int b)
+{
+    return (r << 16) | (g << 8) | b;
+}
+
+static inline unsigned int rgb_to_pixel24bgr(unsigned int r, unsigned int g,
+                                             unsigned int b)
+{
+    return (b << 16) | (g << 8) | r;
+}
+
 static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g,
                                           unsigned int b)
 {
