@@ -2547,8 +2547,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #warning "relocation code for mips still untested"
                 for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
                     host_ulong r_offset = rel->r_offset;
-                    if (r_offset >= start_offset &&
-                        r_offset < start_offset + copy_size) {
+                    if (r_offset >= start_offset && r_offset < start_offset + copy_size) {
                         char relname[256];
                         int reloc_offset = r_offset - start_offset;
 #if defined(WORDS_BIGENDIAN)

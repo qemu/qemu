@@ -3012,10 +3012,10 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4) ||
                INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         uint32_t oldvalue = ar7_io_memread(opaque, addr & ~3);
-        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
-        oldvalue &= ~(0xff << 8 * (addr & 3));
-        value = oldvalue + ((value & 0xff) << 8 * (addr & 3));
-        ar7_io_memwrite(0, addr & ~3, value);
+        //~ logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+        oldvalue &= ~(0xff << (8 * (addr & 3)));
+        value = oldvalue + ((value & 0xff) << (8 * (addr & 3)));
+        ar7_io_memwrite(opaque, addr & ~3, value);
     } else if (addr & 3) {
         ar7_io_memwrite(opaque, addr & ~3, value);
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
@@ -3041,9 +3041,9 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
         value &= 0xff;
         logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
-        value >>= (addr & 3) * 8;
+        value >>= ((addr & 3) * 8);
         value &= 0xff;
-        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+        //~ logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
     } else if (addr & 3) {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
