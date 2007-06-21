@@ -4483,6 +4483,34 @@ void pcmcia_info(void)
 }
 
 /***********************************************************/
+/* dumb display */
+
+static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
+{
+}
+
+static void dumb_resize(DisplayState *ds, int w, int h)
+{
+}
+
+static void dumb_refresh(DisplayState *ds)
+{
+#if defined(CONFIG_SDL)
+    vga_hw_update();
+#endif
+}
+
+static void dumb_display_init(DisplayState *ds)
+{
+    ds->data = NULL;
+    ds->linesize = 0;
+    ds->depth = 0;
+    ds->dpy_update = dumb_update;
+    ds->dpy_resize = dumb_resize;
+    ds->dpy_refresh = dumb_refresh;
+}
+
+/***********************************************************/
 /* I/O handling */
 
 #define MAX_IO_HANDLERS 64
@@ -7884,7 +7912,8 @@ int main(int argc, char **argv)
     /* terminal init */
     memset(&display_state, 0, sizeof(display_state));
     if (nographic) {
-        /* nothing to do */
+        /* nearly nothing to do */
+        dumb_display_init(ds);
     } else if (vnc_display != NULL) {
         vnc_display_init(ds, vnc_display);
     } else {
