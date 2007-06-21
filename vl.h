@@ -156,6 +156,7 @@ extern int graphic_depth;
 extern const char *keyboard_layout;
 extern int kqemu_allowed;
 extern int win2k_install_hack;
+extern int alt_grab;
 extern int usb_enabled;
 extern int smp_cpus;
 extern int cursor_hide;
