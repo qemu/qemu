@@ -273,3 +273,5 @@
 
 #define TARGET_NR_tgkill		270
 #define TARGET_NR_utimes		271
+
+#define TARGET_NR_set_robust_list	311

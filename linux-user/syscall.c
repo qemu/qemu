@@ -4612,10 +4612,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	break;
 #endif
 
+#ifdef TARGET_NR_set_robust_list
+    case TARGET_NR_set_robust_list:
+	goto unimplemented_nowarn;
+#endif
+
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
-#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname)
+#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname) || defined(TARGET_NR_set_robust_list)
     unimplemented_nowarn:
 #endif
         ret = -ENOSYS;
