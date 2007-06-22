@@ -125,7 +125,7 @@ void cpu_dump_state(CPUState * env, FILE * f,
 void cpu_sh4_reset(CPUSH4State * env)
 {
 #if defined(CONFIG_USER_ONLY)
-    env->sr = 0x00000000;
+    env->sr = SR_FD;            /* FD - kernel does lazy fpu context switch */
 #else
     env->sr = 0x700000F0;	/* MD, RB, BL, I3-I0 */
 #endif
