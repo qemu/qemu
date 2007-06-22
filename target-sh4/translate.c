@@ -125,13 +125,19 @@ void cpu_dump_state(CPUState * env, FILE * f,
 void cpu_sh4_reset(CPUSH4State * env)
 {
 #if defined(CONFIG_USER_ONLY)
-    env->sr = 0x00000000;
+    env->sr = SR_FD;            /* FD - kernel does lazy fpu context switch */
 #else
     env->sr = 0x700000F0;	/* MD, RB, BL, I3-I0 */
 #endif
     env->vbr = 0;
     env->pc = 0xA0000000;
-    env->fpscr = 0x00040001;
+#if defined(CONFIG_USER_ONLY)
+    env->fpscr = FPSCR_PR; /* value for userspace according to the kernel */
+    env->fp_status.float_rounding_mode = float_round_nearest_even; /* ?! */
+#else
+    env->fpscr = 0x00040001; /* CPU reset value according to SH4 manual */
+    env->fp_status.float_rounding_mode = float_round_to_zero;
+#endif
     env->mmucr = 0;
 }
 
@@ -238,6 +244,7 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
 #define FREG(x) (ctx->fpscr & FPSCR_FR ? (x) ^ 0x10 : (x))
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
 #define XREG(x) (ctx->fpscr & FPSCR_FR ? XHACK(x) ^ 0x10 : XHACK(x))
+#define DREG(x) FREG(x) /* Assumes lsb of (x) is always 0 */
 
 #define CHECK_NOT_DELAY_SLOT \
   if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) \
@@ -640,29 +647,22 @@ void decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_xor_T0_rN(REG(B11_8));
 	return;
-    case 0xf00c:		/* fmov {F,D,X}Rm,{F,D,X}Rn */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0110)
 		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
+	    gen_op_fmov_drN_DT0(DREG(B7_4));
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
 	} else {
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf00a:		/* fmov {F,D,X}Rm,@Rn */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
-	    gen_op_stfq_DT0_T1(ctx);
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0010)
 		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
+	    gen_op_fmov_drN_DT0(DREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
 	} else {
@@ -671,35 +671,26 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_stfl_FT0_T1(ctx);
 	}
 	return;
-    case 0xf008:		/* fmov @Rm,{F,D,X}Rn */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_movl_rN_T0(REG(B7_4));
-	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfl_T0_FT0(ctx);
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf009:		/* fmov @Rm+,{F,D,X}Rn */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_movl_rN_T0(REG(B7_4));
-	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
-	    gen_op_inc8_rN(REG(B7_4));
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
 	    gen_op_inc8_rN(REG(B7_4));
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
@@ -708,17 +699,12 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_inc4_rN(REG(B7_4));
 	}
 	return;
-    case 0xf00b:		/* fmov {F,D,X}Rm,@-Rn */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_dec8_rN(REG(B11_8));
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
-	    gen_op_stfq_DT0_T1(ctx);
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    gen_op_dec8_rN(REG(B11_8));
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
+	    gen_op_fmov_drN_DT0(DREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
 	} else {
@@ -728,19 +714,14 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_stfl_FT0_T1(ctx);
 	}
 	return;
-    case 0xf006:		/* fmov @(R0,Rm),{F,D,X}Rm */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_movl_rN_T0(REG(B7_4));
-	    gen_op_add_rN_T0(REG(0));
-	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
 	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
@@ -748,16 +729,11 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf007:		/* fmov {F,D,X}Rn,@(R0,Rn) */
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
-	    gen_op_add_rN_T1(REG(0));
-	    gen_op_stfq_DT0_T1(ctx);
-	} else if (ctx->fpscr & FPSCR_SZ) {
+    case 0xf007: /* fmov {F,D,X}Rn,@(R0,Rn) - FPSCR: Nothing */
+	if (ctx->fpscr & FPSCR_SZ) {
 	    if (ctx->opcode & 0x0010)
 		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
+	    gen_op_fmov_drN_DT0(DREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_add_rN_T1(REG(0));
 	    gen_op_stfq_DT0_T1(ctx);
@@ -766,6 +742,49 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_add_rN_T1(REG(0));
 	    gen_op_stfl_FT0_T1(ctx);
+	}
+	return;
+    case 0xf000: /* fadd Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf001: /* fsub Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf002: /* fmul Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf003: /* fdiv Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf004: /* fcmp/eq Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
+    case 0xf005: /* fcmp/gt Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
+	if (ctx->fpscr & FPSCR_PR) {
+	    if (ctx->opcode & 0x0110)
+		break; /* illegal instruction */
+	    gen_op_fmov_drN_DT1(DREG(B7_4));
+	    gen_op_fmov_drN_DT0(DREG(B11_8));
+	}
+	else {
+	    gen_op_fmov_frN_FT1(FREG(B7_4));
+	    gen_op_fmov_frN_FT0(FREG(B11_8));
+	}
+
+	switch (ctx->opcode & 0xf00f) {
+	case 0xf000:		/* fadd Rm,Rn */
+	    ctx->fpscr & FPSCR_PR ? gen_op_fadd_DT() : gen_op_fadd_FT();
+	    break;
+	case 0xf001:		/* fsub Rm,Rn */
+	    ctx->fpscr & FPSCR_PR ? gen_op_fsub_DT() : gen_op_fsub_FT();
+	    break;
+	case 0xf002:		/* fmul Rm,Rn */
+	    ctx->fpscr & FPSCR_PR ? gen_op_fmul_DT() : gen_op_fmul_FT();
+	    break;
+	case 0xf003:		/* fdiv Rm,Rn */
+	    ctx->fpscr & FPSCR_PR ? gen_op_fdiv_DT() : gen_op_fdiv_FT();
+	    break;
+	case 0xf004:		/* fcmp/eq Rm,Rn */
+	    return;
+	case 0xf005:		/* fcmp/gt Rm,Rn */
+	    return;
+	}
+
+	if (ctx->fpscr & FPSCR_PR) {
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	}
+	else {
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
     }
@@ -1071,14 +1090,52 @@ void decode_opc(DisasContext * ctx)
     case 0x401b:		/* tas.b @Rn */
 	gen_op_tasb_rN(REG(B11_8));
 	return;
-    case 0xf00d:		/* fsts FPUL,FRn */
+    case 0xf00d: /* fsts FPUL,FRn - FPSCR: Nothing */
 	gen_op_movl_fpul_FT0();
 	gen_op_fmov_FT0_frN(FREG(B11_8));
 	return;
-    case 0xf01d:		/* flds FRm.FPUL */
+    case 0xf01d: /* flds FRm,FPUL - FPSCR: Nothing */
 	gen_op_fmov_frN_FT0(FREG(B11_8));
 	gen_op_movl_FT0_fpul();
 	return;
+    case 0xf02d: /* float FPUL,FRn/DRn - FPSCR: R[PR,Enable.I]/W[Cause,Flag] */
+	if (ctx->fpscr & FPSCR_PR) {
+	    if (ctx->opcode & 0x0100)
+		break; /* illegal instruction */
+	    gen_op_float_DT();
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	}
+	else {
+	    gen_op_float_FT();
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	}
+	return;
+    case 0xf03d: /* ftrc FRm/DRm,FPUL - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
+	if (ctx->fpscr & FPSCR_PR) {
+	    if (ctx->opcode & 0x0100)
+		break; /* illegal instruction */
+	    gen_op_fmov_drN_DT0(DREG(B11_8));
+	    gen_op_ftrc_DT();
+	}
+	else {
+	    gen_op_fmov_frN_FT0(FREG(B11_8));
+	    gen_op_ftrc_FT();
+	}
+	return;
+    case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
+	if (!(ctx->fpscr & FPSCR_PR)) {
+	    gen_op_movl_imm_T0(0);
+	    gen_op_fmov_T0_frN(FREG(B11_8));
+	    return;
+	}
+	break;
+    case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
+	if (!(ctx->fpscr & FPSCR_PR)) {
+	    gen_op_movl_imm_T0(0x3f800000);
+	    gen_op_fmov_T0_frN(FREG(B11_8));
+	    return;
+	}
+	break;
     }
 
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",

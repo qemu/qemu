@@ -144,6 +144,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
+#define __NR_sys_tgkill __NR_tgkill
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -164,6 +165,7 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
+_syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
@@ -4604,10 +4606,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
       break;
 #endif
 
+#ifdef TARGET_NR_tgkill
+    case TARGET_NR_tgkill:
+	ret = get_errno(sys_tgkill((int)arg1, (int)arg2, (int)arg3));
+	break;
+#endif
+
+#ifdef TARGET_NR_set_robust_list
+    case TARGET_NR_set_robust_list:
+	goto unimplemented_nowarn;
+#endif
+
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
-#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname)
+#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname) || defined(TARGET_NR_set_robust_list)
     unimplemented_nowarn:
 #endif
         ret = -ENOSYS;

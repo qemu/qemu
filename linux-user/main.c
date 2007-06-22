@@ -1924,6 +1924,8 @@ int main(int argc, char **argv)
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
 
+    /* This hack makes Wine work... */
+    env->segs[R_FS].selector = 0;
 #elif defined(TARGET_ARM)
     {
         int i;

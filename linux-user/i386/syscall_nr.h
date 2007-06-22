@@ -271,4 +271,7 @@
 #define TARGET_NR_clock_getres	(TARGET_NR_timer_create+7)
 #define TARGET_NR_clock_nanosleep	(TARGET_NR_timer_create+8)
 
+#define TARGET_NR_tgkill		270
 #define TARGET_NR_utimes		271
+
+#define TARGET_NR_set_robust_list	311

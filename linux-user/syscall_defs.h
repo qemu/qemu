@@ -869,7 +869,7 @@ struct target_winsize {
 #define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
 #endif
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4)
+#if defined(TARGET_I386) || defined(TARGET_ARM)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
@@ -1240,6 +1240,65 @@ struct target_stat64 {
        target_ulong    target_st_ctime;
        target_ulong    target_st_ctime_nsec;
        target_long     __unused[3];
+};
+
+#elif defined(TARGET_SH4)
+
+struct target_stat {
+	target_ulong  st_dev;
+	target_ulong  st_ino;
+	unsigned short st_mode;
+	unsigned short st_nlink;
+	unsigned short st_uid;
+	unsigned short st_gid;
+	target_ulong  st_rdev;
+	target_ulong  st_size;
+	target_ulong  st_blksize;
+	target_ulong  st_blocks;
+	target_ulong  target_st_atime;
+	target_ulong  target_st_atime_nsec;
+	target_ulong  target_st_mtime;
+	target_ulong  target_st_mtime_nsec;
+	target_ulong  target_st_ctime;
+	target_ulong  target_st_ctime_nsec;
+	target_ulong  __unused4;
+	target_ulong  __unused5;
+};
+
+/* This matches struct stat64 in glibc2.1, hence the absolutely
+ * insane amounts of padding around dev_t's.
+ */
+struct target_stat64 {
+	unsigned long long	st_dev;
+	unsigned char	__pad0[4];
+
+#define TARGET_STAT64_HAS_BROKEN_ST_INO	1
+	target_ulong	__st_ino;
+
+	unsigned int	st_mode;
+	unsigned int	st_nlink;
+
+	target_ulong	st_uid;
+	target_ulong	st_gid;
+
+	unsigned long long	st_rdev;
+	unsigned char	__pad3[4];
+
+	long long	st_size;
+	target_ulong	st_blksize;
+
+	unsigned long long	st_blocks;	/* Number 512-byte blocks allocated. */
+
+	target_ulong	target_st_atime;
+	target_ulong	target_st_atime_nsec;
+
+	target_ulong	target_st_mtime;
+	target_ulong	target_st_mtime_nsec;
+
+	target_ulong	target_st_ctime;
+	target_ulong	target_st_ctime_nsec; 
+
+	unsigned long long	st_ino;
 };
 
 #else

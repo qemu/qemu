@@ -1,3 +1,88 @@
+2007-06-22 13:50  ths
+
+	* target-mips/op.c: Fix write to K0 bits in Config0, by Aurelien
+	  Jarno.
+
+2007-06-22 13:47  ths
+
+	* target-sh4/translate.c: Ignore PR flag in FPSCR when performing
+	  fmov, by Magnus Damm.
+
+2007-06-22 13:44  ths
+
+	* target-sh4/translate.c: Document FPSCR usage, by Magnus Damm.
+
+2007-06-22 13:43  ths
+
+	* target-sh4/translate.c: Use DREG() instead of XREG() wherever
+	  possible, by Magnus Damm.
+
+2007-06-22 13:12  ths
+
+	* target-sh4/: cpu.h, op.c, translate.c: Emulate more fpu opcodes,
+	  by Magnus Damm.
+
+2007-06-22 12:15  ths
+
+	* linux-user/syscall_defs.h: Use correct data structures for stat
+	  syscalls, by Magnus Damm.
+
+2007-06-22 12:13  ths
+
+	* linux-user/elfload.c: Setup stack properly, fixes wrong argc
+	  value problem, by Magnus Damm.
+
+2007-06-22 12:12  ths
+
+	* target-sh4/translate.c: Set FD bit in SR to emulate kernel
+	  behaviour, by Magnus Damm.
+
+2007-06-22 12:11  ths
+
+	* target-sh4/: cpu.h, exec.h: Add missing cpu_halted function, by
+	  Magnus Damm.
+
+2007-06-22 10:23  balrog
+
+	* vl.c: Use HAS_ARG instead of numeric value (patch by Balazs
+	  Attila-Mihaly).
+
+2007-06-22 10:15  balrog
+
+	* qemu-doc.texi, vl.c, hw/usb-hid.c, hw/usb.h: Add USB HID
+	  keyboard.
+
+2007-06-22 01:38  ths
+
+	* hw/mips_malta.c: Revert workaround for -nographic segfault.
+
+2007-06-22 01:34  ths
+
+	* vl.c: Fix segfault in -nographic mode, by Stefen Weil.
+
+2007-06-22 00:55  ths
+
+	* linux-user/main.c: Hack to keep wine happy, by Alexander Graf.
+
+2007-06-21 23:57  ths
+
+	* linux-user/: syscall.c, i386/syscall_nr.h: Implement
+	  set_robust_list, by Alexander Graf.
+
+2007-06-21 23:45  ths
+
+	* linux-user/: syscall.c, i386/syscall_nr.h: Implement tgkill, by
+	  Alexander Graf.
+
+2007-06-21 23:08  ths
+
+	* sdl.c, vl.c, vl.h: Add alternate grab key, by Michael Mohr.
+
+2007-06-21 19:56  balrog
+
+	* sdl.c: Unpause the emulation after shutdown request on SDL close,
+	  so that it can take effect.
+
 2007-06-18 20:55  ths
 
 	* vl.h, hw/mips_pica61.c, hw/parallel.c: Add parallel memory mapped

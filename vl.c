@@ -196,6 +196,7 @@ int nb_option_roms;
 int semihosting_enabled = 0;
 int autostart = 1;
 const char *qemu_name;
+int alt_grab = 0;
 #ifdef TARGET_SPARC
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
@@ -4318,7 +4319,9 @@ static int usb_device_add(const char *devname)
     } else if (!strcmp(devname, "mouse")) {
         dev = usb_mouse_init();
     } else if (!strcmp(devname, "tablet")) {
-	dev = usb_tablet_init();
+        dev = usb_tablet_init();
+    } else if (!strcmp(devname, "keyboard")) {
+        dev = usb_keyboard_init();
     } else if (strstart(devname, "disk:", &p)) {
         dev = usb_msd_init(p);
     } else if (!strcmp(devname, "wacom-tablet")) {
@@ -6581,6 +6584,7 @@ void help(void)
            "-snapshot       write to temporary files instead of disk image files\n"
 #ifdef CONFIG_SDL
            "-no-frame       open SDL window without a frame and window decorations\n"
+           "-alt-grab       use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt)\n"
            "-no-quit        disable SDL window close capability\n"
 #endif
 #ifdef TARGET_I386
@@ -6764,6 +6768,7 @@ enum {
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
     QEMU_OPTION_no_frame,
+    QEMU_OPTION_alt_grab,
     QEMU_OPTION_no_quit,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
@@ -6849,14 +6854,15 @@ const QEMUOption qemu_options[] = {
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
     { "std-vga", 0, QEMU_OPTION_std_vga },
-    { "echr", 1, QEMU_OPTION_echr },
-    { "monitor", 1, QEMU_OPTION_monitor },
-    { "serial", 1, QEMU_OPTION_serial },
-    { "parallel", 1, QEMU_OPTION_parallel },
+    { "echr", HAS_ARG, QEMU_OPTION_echr },
+    { "monitor", HAS_ARG, QEMU_OPTION_monitor },
+    { "serial", HAS_ARG, QEMU_OPTION_serial },
+    { "parallel", HAS_ARG, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
 #ifdef CONFIG_SDL
     { "no-frame", 0, QEMU_OPTION_no_frame },
+    { "alt-grab", 0, QEMU_OPTION_alt_grab },
     { "no-quit", 0, QEMU_OPTION_no_quit },
 #endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
@@ -7620,6 +7626,9 @@ int main(int argc, char **argv)
 #ifdef CONFIG_SDL
             case QEMU_OPTION_no_frame:
                 no_frame = 1;
+                break;
+            case QEMU_OPTION_alt_grab:
+                alt_grab = 1;
                 break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;

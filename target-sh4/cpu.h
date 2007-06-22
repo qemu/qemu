@@ -99,6 +99,7 @@ typedef struct CPUSH4State {
     /* temporary float registers */
     float32 ft0, ft1;
     float64 dt0, dt1;
+    float_status fp_status;
 
     /* Those belong to the specific unit (SH7750) but are handled here */
     uint32_t mmucr;		/* MMU control register */
@@ -114,6 +115,7 @@ typedef struct CPUSH4State {
     jmp_buf jmp_env;
     int user_mode_only;
     int interrupt_request;
+    int halted;
     int exception_index;
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */

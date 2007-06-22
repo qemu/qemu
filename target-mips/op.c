@@ -1433,7 +1433,7 @@ void op_mtc0_ebase (void)
 
 void op_mtc0_config0 (void)
 {
-    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000001);
+    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000007);
     RETURN();
 }
 
