@@ -325,7 +325,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 {
   /* Check other registers XXXXX */
   regs->pc = infop->entry;
-  regs->regs[15] = infop->start_stack - 16 * 4;
+  regs->regs[15] = infop->start_stack;
 }
 
 #define USE_ELF_CORE_DUMP
