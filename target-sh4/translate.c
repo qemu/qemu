@@ -647,7 +647,7 @@ void decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_xor_T0_rN(REG(B11_8));
 	return;
-    case 0xf00c:		/* fmov {F,D,X}Rm,{F,D,X}Rn */
+    case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_fmov_DT0_drN(XREG(B11_8));
@@ -661,7 +661,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf00a:		/* fmov {F,D,X}Rm,@Rn */
+    case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
@@ -678,7 +678,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_stfl_FT0_T1(ctx);
 	}
 	return;
-    case 0xf008:		/* fmov @Rm,{F,D,X}Rn */
+    case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
@@ -695,7 +695,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf009:		/* fmov @Rm+,{F,D,X}Rn */
+    case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
@@ -715,7 +715,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_inc4_rN(REG(B7_4));
 	}
 	return;
-    case 0xf00b:		/* fmov {F,D,X}Rm,@-Rn */
+    case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_dec8_rN(REG(B11_8));
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
@@ -735,7 +735,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_stfl_FT0_T1(ctx);
 	}
 	return;
-    case 0xf006:		/* fmov @(R0,Rm),{F,D,X}Rm */
+    case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
@@ -755,7 +755,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf007:		/* fmov {F,D,X}Rn,@(R0,Rn) */
+    case 0xf007: /* fmov {F,D,X}Rn,@(R0,Rn) - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_PR) {
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
@@ -775,12 +775,12 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_stfl_FT0_T1(ctx);
 	}
 	return;
-    case 0xf000:		/* fadd Rm,Rn */
-    case 0xf001:		/* fsub Rm,Rn */
-    case 0xf002:		/* fmul Rm,Rn */
-    case 0xf003:		/* fdiv Rm,Rn */
-    case 0xf004:		/* fcmp/eq Rm,Rn */
-    case 0xf005:		/* fcmp/gt Rm,Rn */
+    case 0xf000: /* fadd Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf001: /* fsub Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf002: /* fmul Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf003: /* fdiv Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
+    case 0xf004: /* fcmp/eq Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
+    case 0xf005: /* fcmp/gt Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0110)
 		break; /* illegal instruction */
@@ -1121,15 +1121,15 @@ void decode_opc(DisasContext * ctx)
     case 0x401b:		/* tas.b @Rn */
 	gen_op_tasb_rN(REG(B11_8));
 	return;
-    case 0xf00d:		/* fsts FPUL,FRn */
+    case 0xf00d: /* fsts FPUL,FRn - FPSCR: Nothing */
 	gen_op_movl_fpul_FT0();
 	gen_op_fmov_FT0_frN(FREG(B11_8));
 	return;
-    case 0xf01d:		/* flds FRm.FPUL */
+    case 0xf01d: /* flds FRm,FPUL - FPSCR: Nothing */
 	gen_op_fmov_frN_FT0(FREG(B11_8));
 	gen_op_movl_FT0_fpul();
 	return;
-    case 0xf02d:		/* float FPUL,FRn/DRn */
+    case 0xf02d: /* float FPUL,FRn/DRn - FPSCR: R[PR,Enable.I]/W[Cause,Flag] */
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
@@ -1141,7 +1141,7 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
-    case 0xf03d:		/* ftrc FRm/DRm,FPUL */
+    case 0xf03d: /* ftrc FRm/DRm,FPUL - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
@@ -1153,14 +1153,14 @@ void decode_opc(DisasContext * ctx)
 	    gen_op_ftrc_FT();
 	}
 	return;
-    case 0xf08d:		/* fldi0 FRn */
+    case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    gen_op_movl_imm_T0(0);
 	    gen_op_fmov_T0_frN(FREG(B11_8));
 	    return;
 	}
 	break;
-    case 0xf09d:		/* fldi1 FRn */
+    case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    gen_op_movl_imm_T0(0x3f800000);
 	    gen_op_fmov_T0_frN(FREG(B11_8));
