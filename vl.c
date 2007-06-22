@@ -6854,10 +6854,10 @@ const QEMUOption qemu_options[] = {
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
     { "std-vga", 0, QEMU_OPTION_std_vga },
-    { "echr", 1, QEMU_OPTION_echr },
-    { "monitor", 1, QEMU_OPTION_monitor },
-    { "serial", 1, QEMU_OPTION_serial },
-    { "parallel", 1, QEMU_OPTION_parallel },
+    { "echr", HAS_ARG, QEMU_OPTION_echr },
+    { "monitor", HAS_ARG, QEMU_OPTION_monitor },
+    { "serial", HAS_ARG, QEMU_OPTION_serial },
+    { "parallel", HAS_ARG, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
 #ifdef CONFIG_SDL
