@@ -509,6 +509,9 @@ void OPPROTO op_##store##_##target##_T0 (void) \
 void OPPROTO op_lds_T0_fpscr(void)
 {
     env->fpscr = T0 & 0x003fffff;
+    env->fp_status.float_rounding_mode = T0 & 0x01 ?
+      float_round_to_zero : float_round_nearest_even;
+
     RETURN();
 }
 
@@ -705,6 +708,18 @@ void OPPROTO op_fmov_drN_DT0(void)
     RETURN();
 }
 
+void OPPROTO op_fmov_frN_FT1(void)
+{
+    FT1 = *(float32 *)&env->fregs[PARAM1];
+    RETURN();
+}
+
+void OPPROTO op_fmov_drN_DT1(void)
+{
+    DT1 = *(float64 *)&env->fregs[PARAM1];
+    RETURN();
+}
+
 void OPPROTO op_fmov_FT0_frN(void)
 {
     *(float32 *)&env->fregs[PARAM1] = FT0;
@@ -714,6 +729,84 @@ void OPPROTO op_fmov_FT0_frN(void)
 void OPPROTO op_fmov_DT0_drN(void)
 {
     *(float64 *)&env->fregs[PARAM1] = DT0;
+    RETURN();
+}
+
+void OPPROTO op_fadd_FT(void)
+{
+    FT0 = float32_add(FT0, FT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fadd_DT(void)
+{
+    DT0 = float64_add(DT0, DT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fsub_FT(void)
+{
+    FT0 = float32_sub(FT0, FT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fsub_DT(void)
+{
+    DT0 = float64_sub(DT0, DT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fmul_FT(void)
+{
+    FT0 = float32_mul(FT0, FT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fmul_DT(void)
+{
+    DT0 = float64_mul(DT0, DT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fdiv_FT(void)
+{
+    FT0 = float32_div(FT0, FT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fdiv_DT(void)
+{
+    DT0 = float64_div(DT0, DT1, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_float_FT(void)
+{
+    FT0 = int32_to_float32(env->fpul, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_float_DT(void)
+{
+    DT0 = int32_to_float64(env->fpul, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_ftrc_FT(void)
+{
+    env->fpul = float32_to_int32_round_to_zero(FT0, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_ftrc_DT(void)
+{
+    env->fpul = float64_to_int32_round_to_zero(DT0, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fmov_T0_frN(void)
+{
+    *(unsigned int *)&env->fregs[PARAM1] = T0;
     RETURN();
 }
 
