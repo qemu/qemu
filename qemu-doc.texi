@@ -1362,6 +1362,8 @@ Pass through the host device identified by @var{vendor_id:product_id}
 Virtual Wacom PenPartner tablet.  This device is similar to the @code{tablet}
 above but it can be used with the tslib library because in addition to touch
 coordinates it reports touch pressure.
+@item @code{keyboard}
+Standard USB keyboard.  Will override the PS/2 keyboard (if present).
 @end table
 
 @node host_usb_devices
