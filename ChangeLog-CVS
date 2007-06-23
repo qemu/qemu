@@ -1,3 +1,8 @@
+2007-06-23 01:50  ths
+
+	* target-mips/translate_init.c: Allow emulation of 32bit targets in
+	  the MIPS64 capable qemu version.
+
 2007-06-22 13:50  ths
 
 	* target-mips/op.c: Fix write to K0 bits in Config0, by Aurelien
