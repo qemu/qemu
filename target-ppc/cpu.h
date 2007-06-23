@@ -1326,7 +1326,7 @@ enum {
     EXCP_FP_ZX         = 0x03,  /* FP divide by zero                */
     EXCP_FP_XX         = 0x04,  /* FP inexact                       */
     EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op               */
-    EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite substraction */
+    EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite subtraction */
     EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide       */
     EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide           */
     EXCP_FP_VXIMZ      = 0x09,  /* FP invalid infinite * zero       */

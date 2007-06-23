@@ -784,7 +784,7 @@ static const KeyDef key_defs[] = {
 
     { 0xb5, "kp_divide" },
     { 0x37, "kp_multiply" },
-    { 0x4a, "kp_substract" },
+    { 0x4a, "kp_subtract" },
     { 0x4e, "kp_add" },
     { 0x9c, "kp_enter" },
     { 0x53, "kp_decimal" },
