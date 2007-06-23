@@ -1328,7 +1328,7 @@ void op_mtc0_entryhi (void)
     /* 1k pages not implemented */
     val = T0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
 #ifdef TARGET_MIPS64
-    val = T0 & 0xC00000FFFFFFFFFFULL;
+    val &= env->SEGMask;
 #endif
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
@@ -1526,7 +1526,8 @@ void op_mtc0_desave (void)
 #ifdef TARGET_MIPS64
 void op_mtc0_xcontext (void)
 {
-    env->CP0_XContext = (env->CP0_XContext & 0x1ffffffffULL) | (T0 & ~0x1ffffffffULL);
+    target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
+    env->CP0_XContext = (env->CP0_XContext & mask) | (T0 & ~mask);
     RETURN();
 }
 

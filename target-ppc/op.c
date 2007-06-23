@@ -1025,7 +1025,7 @@ void OPPROTO op_nego_64 (void)
 }
 #endif
 
-/* substract from */
+/* subtract from */
 PPC_OP(subf)
 {
     T0 = T1 - T0;
@@ -1058,7 +1058,7 @@ void OPPROTO op_check_subfo_64 (void)
 }
 #endif
 
-/* substract from carrying */
+/* subtract from carrying */
 void OPPROTO op_check_subfc (void)
 {
     if (likely((uint32_t)T0 > (uint32_t)T1)) {
@@ -1081,7 +1081,7 @@ void OPPROTO op_check_subfc_64 (void)
 }
 #endif
 
-/* substract from extended */
+/* subtract from extended */
 void OPPROTO op_subfe (void)
 {
     do_subfe();
@@ -1096,7 +1096,7 @@ void OPPROTO op_subfe_64 (void)
 }
 #endif
 
-/* substract from immediate carrying */
+/* subtract from immediate carrying */
 void OPPROTO op_subfic (void)
 {
     T0 = (int32_t)PARAM1 + ~T0 + 1;
@@ -1121,7 +1121,7 @@ void OPPROTO op_subfic_64 (void)
 }
 #endif
 
-/* substract from minus one extended */
+/* subtract from minus one extended */
 void OPPROTO op_subfme (void)
 {
     T0 = ~T0 + xer_ca - 1;
@@ -1154,7 +1154,7 @@ void OPPROTO op_subfmeo_64 (void)
 }
 #endif
 
-/* substract from zero extended */
+/* subtract from zero extended */
 void OPPROTO op_subfze (void)
 {
     T1 = ~T0;

@@ -297,7 +297,7 @@ static int img_create(int argc, char **argv)
     drv = bdrv_find_format(fmt);
     if (!drv)
         error("Unknown file format '%s'", fmt);
-    printf("Formating '%s', fmt=%s",
+    printf("Formatting '%s', fmt=%s",
            filename, fmt);
     if (encrypted)
         printf(", encrypted");

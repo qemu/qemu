@@ -112,6 +112,12 @@ OS_CFLAGS="-mno-cygwin"
 MINGW32*)
 mingw32="yes"
 ;;
+GNU/kFreeBSD)
+oss="yes"
+if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+    kqemu="yes"
+fi
+;;
 FreeBSD)
 bsd="yes"
 oss="yes"

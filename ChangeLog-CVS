@@ -1,3 +1,26 @@
+2007-06-23 20:21  ths
+
+	* target-i386/translate.c: Fix division by zero handling, by Joris
+	  van Rantwijk.
+
+2007-06-23 20:04  ths
+
+	* target-mips/: cpu.h, helper.c, op.c, op_helper.c,
+	  translate_init.c: Handle MIPS64 SEGBITS value correctly.
+
+2007-06-23 18:03  ths
+
+	* configure, vl.c: Kfreebsd config, by Aurelien Jarno.
+
+2007-06-23 18:02  ths
+
+	* monitor.c, qemu-img.c, target-ppc/cpu.h, target-ppc/op.c:
+	  Spelling fixes, by Aurelien Jarno.
+
+2007-06-23 18:01  ths
+
+	* vl.c: Return success for -M '?' query option.
+
 2007-06-23 01:50  ths
 
 	* target-mips/translate_init.c: Allow emulation of 32bit targets in

@@ -77,7 +77,7 @@ int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
         target_ulong tag = address & ~mask;
         target_ulong VPN = tlb->VPN & ~mask;
 #ifdef TARGET_MIPS64
-        tag &= 0xC00000FFFFFFFFFFULL;
+        tag &= env->SEGMask;
 #endif
 
         /* Check ASID, virtual page number & size */
@@ -143,18 +143,17 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 /*
    XXX: Assuming :
    - PABITS = 36 (correct for MIPS64R1)
-   - SEGBITS = 40
 */
     } else if (address < 0x3FFFFFFFFFFFFFFFULL) {
         /* xuseg */
-	if (UX && address < 0x000000FFFFFFFFFFULL) {
+	if (UX && address < (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
         }
     } else if (address < 0x7FFFFFFFFFFFFFFFULL) {
         /* xsseg */
-	if (SX && address < 0x400000FFFFFFFFFFULL) {
+	if (SX && address < (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
@@ -162,9 +161,9 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     } else if (address < 0xBFFFFFFFFFFFFFFFULL) {
         /* xkphys */
         /* XXX: check supervisor mode */
-        if (KX && (address & 0x03FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL)
+        if (KX && (address & 0x07FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL)
 	{
-            *physical = address & 0X000000FFFFFFFFFFULL;
+            *physical = address & 0X0000000FFFFFFFFFULL;
             *prot = PAGE_READ | PAGE_WRITE;
 	} else {
 	    ret = TLBRET_BADADDR;
@@ -172,7 +171,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     } else if (address < 0xFFFFFFFF7FFFFFFFULL) {
         /* xkseg */
         /* XXX: check supervisor mode */
-	if (KX && address < 0xC00000FF7FFFFFFFULL) {
+	if (KX && address < (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
             ret = env->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
@@ -312,10 +311,10 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         env->CP0_EntryHi =
             (env->CP0_EntryHi & 0xFF) | (address & (TARGET_PAGE_MASK << 1));
 #ifdef TARGET_MIPS64
-        env->CP0_EntryHi &= 0xc00000ffffffffffULL;
-        env->CP0_XContext = (env->CP0_XContext & 0xfffffffe00000000ULL) |
-                            ((address >> 31) & 0x0000000180000000ULL) |
-                            ((address >> 9) & 0x000000007ffffff0ULL);
+        env->CP0_EntryHi &= env->SEGMask;
+        env->CP0_XContext = (env->CP0_XContext & ((~0ULL) << (env->SEGBITS - 7))) |
+                            ((address & 0xC00000000000ULL) >> (env->SEGBITS - 9)) |
+                            ((address & ((1ULL << env->SEGBITS) - 1) & 0xFFFFFFFFFFFFE000ULL) >> 9);
 #endif
         env->exception_index = exception;
         env->error_code = error_code;
@@ -565,7 +564,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     if (tlb->V0) {
         addr = tlb->VPN & ~mask;
 #ifdef TARGET_MIPS64
-        if (addr >= 0xC00000FF80000000ULL) {
+        if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
             addr |= 0x3FFFFF0000000000ULL;
         }
 #endif
@@ -579,7 +578,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     if (tlb->V1) {
         addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
 #ifdef TARGET_MIPS64
-        if (addr >= 0xC00000FF80000000ULL) {
+        if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
             addr |= 0x3FFFFF0000000000ULL;
         }
 #endif

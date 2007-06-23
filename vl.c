@@ -47,6 +47,8 @@
 #ifndef __APPLE__
 #include <libutil.h>
 #endif
+#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
+#include <freebsd/stdlib.h>
 #else
 #ifndef __sun__
 #include <linux/if.h>
@@ -3451,7 +3453,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan, int fd)
     return s;
 }
 
-#ifdef _BSD
+#if defined (_BSD) || defined (__FreeBSD_kernel__)
 static int tap_open(char *ifname, int ifname_size)
 {
     int fd;
@@ -6705,7 +6707,7 @@ void help(void)
 #endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
-    exit(1);
+    exit(strcmp(optarg, "?"));
 }
 
 #define HAS_ARG 0x0001

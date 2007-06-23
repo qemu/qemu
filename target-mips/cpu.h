@@ -102,6 +102,8 @@ struct CPUMIPSState {
 
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
+    uint32_t SEGBITS;
+    target_ulong SEGMask;
     int (*map_address) (CPUMIPSState *env, target_ulong *physical, int *prot, target_ulong address, int rw, int access_type);
     void (*do_tlbwi) (void);
     void (*do_tlbwr) (void);
