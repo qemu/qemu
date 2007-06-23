@@ -6705,7 +6705,7 @@ void help(void)
 #endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
-    exit(1);
+    exit(strcmp(optarg, "?"));
 }
 
 #define HAS_ARG 0x0001
