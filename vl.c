@@ -47,6 +47,8 @@
 #ifndef __APPLE__
 #include <libutil.h>
 #endif
+#elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
+#include <freebsd/stdlib.h>
 #else
 #ifndef __sun__
 #include <linux/if.h>
@@ -3451,7 +3453,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan, int fd)
     return s;
 }
 
-#ifdef _BSD
+#if defined (_BSD) || defined (__FreeBSD_kernel__)
 static int tap_open(char *ifname, int ifname_size)
 {
     int fd;
