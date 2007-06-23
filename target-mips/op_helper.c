@@ -374,7 +374,7 @@ static void r4k_fill_tlb (int idx)
     tlb = &env->mmu.r4k.tlb[idx];
     tlb->VPN = env->CP0_EntryHi & (TARGET_PAGE_MASK << 1);
 #ifdef TARGET_MIPS64
-    tlb->VPN &= 0xC00000FFFFFFFFFFULL;
+    tlb->VPN &= env->SEGMask;
 #endif
     tlb->ASID = env->CP0_EntryHi & 0xFF;
     tlb->PageMask = env->CP0_PageMask;

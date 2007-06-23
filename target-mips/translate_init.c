@@ -71,6 +71,7 @@ struct mips_def_t {
     int32_t CCRes;
     int32_t Status_rw_bitmask;
     int32_t CP1_fcr0;
+    int32_t SEGBITS;
 };
 
 /*****************************************************************************/
@@ -87,6 +88,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
+        .SEGBITS = 32,
     },
     {
         .name = "4KEcR1",
@@ -98,6 +100,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
+        .SEGBITS = 32,
     },
     {
         .name = "4KEc",
@@ -109,6 +112,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
+        .SEGBITS = 32,
     },
     {
         .name = "24Kc",
@@ -120,6 +124,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
+        .SEGBITS = 32,
     },
     {
         .name = "24Kf",
@@ -133,6 +138,7 @@ static mips_def_t mips_defs[] =
         .Status_rw_bitmask = 0x3678FF17,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
+        .SEGBITS = 32,
     },
 #ifdef TARGET_MIPS64
     {
@@ -147,6 +153,7 @@ static mips_def_t mips_defs[] =
         .Status_rw_bitmask = 0x3678FFFF,
 	/* The R4000 has a full 64bit FPU doesn't use the fcr0 bits. */
         .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x0 << FCR0_REV),
+        .SEGBITS = 40,
     },
     {
         .name = "5Kc",
@@ -161,6 +168,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x32F8FFFF,
+        .SEGBITS = 42,
     },
     {
         .name = "5Kf",
@@ -178,6 +186,7 @@ static mips_def_t mips_defs[] =
 	/* The 5Kf has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x81 << FCR0_PRID) | (0x0 << FCR0_REV),
+        .SEGBITS = 42,
     },
     {
         .name = "20Kc",
@@ -198,6 +207,7 @@ static mips_def_t mips_defs[] =
         .CP1_fcr0 = (1 << FCR0_3D) | (1 << FCR0_PS) |
                     (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x82 << FCR0_PRID) | (0x0 << FCR0_REV),
+        .SEGBITS = 40,
     },
 #endif
 };
@@ -274,6 +284,10 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CCRes = def->CCRes;
     env->Status_rw_bitmask = def->Status_rw_bitmask;
     env->fcr0 = def->CP1_fcr0;
+#ifdef TARGET_MIPS64
+    env->SEGBITS = def->SEGBITS;
+    env->SEGMask = (3ULL << 62) | ((1ULL << def->SEGBITS) - 1);
+#endif
 #ifdef CONFIG_USER_ONLY
     if (env->CP0_Config1 & (1 << CP0C1_FP))
         env->hflags |= MIPS_HFLAG_FPU;
