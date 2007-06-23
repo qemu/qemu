@@ -1268,7 +1268,7 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
     if (cur_drv->bs == NULL ||
         bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
-        FLOPPY_ERROR("formating sector %d\n", fd_sector(cur_drv));
+        FLOPPY_ERROR("formatting sector %d\n", fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
     } else {
 	if (cur_drv->sect == cur_drv->last_sect) {
