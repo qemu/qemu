@@ -2071,7 +2071,8 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
 #ifdef DEBUG_UNASSIGNED
     char buffer[256];
-    fprintf(stderr, "Unassigned mem read " TARGET_FMT_lx " %s\n", addr, backtrace(buffer, sizeof(buffer)));
+    fprintf(stderr, "Unassigned mem read " TARGET_FMT_lx " %s\n",
+            addr, backtrace(buffer, sizeof(buffer)));
 #if defined(TARGET_MIPS)
     //~ vm_stop(0);
 #endif /* TARGET_MIPS */
@@ -2086,7 +2087,8 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
 {
 #ifdef DEBUG_UNASSIGNED
     char buffer[256];
-    fprintf(stderr, "Unassigned mem write " TARGET_FMT_lx " = 0x%x %s\n", (int)addr, val, backtrace(buffer, sizeof(buffer)));
+    fprintf(stderr, "Unassigned mem write " TARGET_FMT_lx " = 0x%x %s\n",
+            addr, val, backtrace(buffer, sizeof(buffer)));
     //~ vm_stop(0);
 #endif
 #ifdef TARGET_SPARC

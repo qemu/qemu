@@ -6959,9 +6959,9 @@ void register_machines(void)
     qemu_register_machine(&ref405ep_machine);
     qemu_register_machine(&taihu_machine);
 #elif defined(TARGET_MIPS)
-#if !defined(TARGET_MIPS64)
+//~ #if !defined(TARGET_MIPS64)
     qemu_register_ar7_machines();
-#endif
+//~ #endif
     qemu_register_mips_machines();
     qemu_register_machine(&mips_malta_machine);
     qemu_register_machine(&mips_pica61_machine);
