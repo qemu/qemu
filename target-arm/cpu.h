@@ -83,6 +83,7 @@ typedef struct CPUARMState {
         uint32_t c0_cachetype;
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
+        uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint32_t c2_base; /* MMU translation table base.  */
         uint32_t c2_data; /* MPU data cachable bits.  */
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
