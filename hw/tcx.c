@@ -180,7 +180,7 @@ static void tcx_update_display(void *opaque)
     ram_addr_t page, page_min, page_max;
     int y, y_start, dd, ds;
     uint8_t *d, *s;
-    void (*f)(TCXState *s1, uint8_t *d, const uint8_t *s, int width);
+    void (*f)(TCXState *s1, uint8_t *dst, const uint8_t *src, int width);
 
     if (ts->ds->depth == 0)
 	return;
