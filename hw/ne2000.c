@@ -224,7 +224,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
 {
     NE2000State *s = opaque;
     uint8_t *p;
-    int total_len, next, avail, len, index, mcast_idx;
+    unsigned int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];
     static const uint8_t broadcast_macaddr[6] = 
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -293,7 +293,10 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
 
     /* write packet data */
     while (size > 0) {
-        avail = s->stop - index;
+        if (index <= s->stop)
+            avail = s->stop - index;
+        else
+            avail = 0;
         len = size;
         if (len > avail)
             len = avail;
