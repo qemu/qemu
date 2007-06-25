@@ -80,7 +80,7 @@ typedef struct tlb_t {
 typedef struct CPUSH4State {
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
-    uint32_t fregs[32];		/* floating point registers */
+    float32 fregs[32];		/* floating point registers */
     uint32_t sr;		/* status register */
     uint32_t ssr;		/* saved status register */
     uint32_t spc;		/* saved program counter */

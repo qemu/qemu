@@ -698,37 +698,49 @@ void OPPROTO op_movl_imm_rN(void)
 
 void OPPROTO op_fmov_frN_FT0(void)
 {
-    FT0 = *(float32 *)&env->fregs[PARAM1];
+    FT0 = env->fregs[PARAM1];
     RETURN();
 }
 
 void OPPROTO op_fmov_drN_DT0(void)
 {
-    DT0 = *(float64 *)&env->fregs[PARAM1];
+    CPU_DoubleU d;
+
+    d.l.upper = *(uint32_t *)&env->fregs[PARAM1];
+    d.l.lower = *(uint32_t *)&env->fregs[PARAM1 + 1];
+    DT0 = d.d;
     RETURN();
 }
 
 void OPPROTO op_fmov_frN_FT1(void)
 {
-    FT1 = *(float32 *)&env->fregs[PARAM1];
+    FT1 = env->fregs[PARAM1];
     RETURN();
 }
 
 void OPPROTO op_fmov_drN_DT1(void)
 {
-    DT1 = *(float64 *)&env->fregs[PARAM1];
+    CPU_DoubleU d;
+
+    d.l.upper = *(uint32_t *)&env->fregs[PARAM1];
+    d.l.lower = *(uint32_t *)&env->fregs[PARAM1 + 1];
+    DT1 = d.d;
     RETURN();
 }
 
 void OPPROTO op_fmov_FT0_frN(void)
 {
-    *(float32 *)&env->fregs[PARAM1] = FT0;
+    env->fregs[PARAM1] = FT0;
     RETURN();
 }
 
 void OPPROTO op_fmov_DT0_drN(void)
 {
-    *(float64 *)&env->fregs[PARAM1] = DT0;
+    CPU_DoubleU d;
+
+    d.d = DT0;
+    *(uint32_t *)&env->fregs[PARAM1] = d.l.upper;
+    *(uint32_t *)&env->fregs[PARAM1 + 1] = d.l.lower;
     RETURN();
 }
 
