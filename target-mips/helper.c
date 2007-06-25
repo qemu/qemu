@@ -130,11 +130,11 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 
     if (address <= (int32_t)0x7FFFFFFFUL) {
         /* useg */
-        if (!(env->CP0_Status & (1 << CP0St_ERL) && user_mode)) {
-            ret = env->map_address(env, physical, prot, address, rw, access_type);
-        } else {
+        if (env->CP0_Status & (1 << CP0St_ERL)) {
             *physical = address & 0xFFFFFFFF;
             *prot = PAGE_READ | PAGE_WRITE;
+        } else {
+            ret = env->map_address(env, physical, prot, address, rw, access_type);
         }
 #ifdef TARGET_MIPS64
 /*
