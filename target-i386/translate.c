@@ -2277,7 +2277,7 @@ static void gen_eob(DisasContext *s)
     if (s->singlestep_enabled) {
         gen_op_debug();
     } else if (s->tf) {
-        gen_op_raise_exception(EXCP01_SSTP);
+	gen_op_single_step();
     } else {
         gen_op_movl_T0_0();
         gen_op_exit_tb();

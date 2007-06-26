@@ -1622,6 +1622,12 @@ void helper_cmpxchg8b(void)
     CC_SRC = eflags;
 }
 
+void helper_single_step()
+{
+    env->dr[6] |= 0x4000;
+    raise_exception(EXCP01_SSTP);
+}
+
 void helper_cpuid(void)
 {
     uint32_t index;

@@ -730,6 +730,11 @@ void OPPROTO op_cmpxchg8b(void)
     helper_cmpxchg8b();
 }
 
+void OPPROTO op_single_step(void)
+{
+    helper_single_step();
+}
+
 void OPPROTO op_movl_T0_0(void)
 {
     T0 = 0;
