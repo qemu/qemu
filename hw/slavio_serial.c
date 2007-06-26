@@ -354,7 +354,7 @@ static void slavio_serial_update_parameters(ChannelState *s)
 
 static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    SerialState *ser = opaque;
+    SerialState *serial = opaque;
     ChannelState *s;
     uint32_t saddr;
     int newreg, channel;
@@ -362,7 +362,7 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
     val &= 0xff;
     saddr = (addr & 3) >> 1;
     channel = (addr & SERIAL_MAXADDR) >> 2;
-    s = &ser->chn[channel];
+    s = &serial->chn[channel];
     switch (saddr) {
     case 0:
 	SER_DPRINTF("Write channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, val & 0xff);
@@ -407,13 +407,13 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 	    default:
 		break;
 	    case 0x40:
-		slavio_serial_reset_chn(&ser->chn[1]);
+		slavio_serial_reset_chn(&serial->chn[1]);
 		return;
 	    case 0x80:
-		slavio_serial_reset_chn(&ser->chn[0]);
+		slavio_serial_reset_chn(&serial->chn[0]);
 		return;
 	    case 0xc0:
-		slavio_serial_reset(ser);
+		slavio_serial_reset(serial);
 		return;
 	    }
 	    break;
@@ -446,7 +446,7 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 
 static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
 {
-    SerialState *ser = opaque;
+    SerialState *serial = opaque;
     ChannelState *s;
     uint32_t saddr;
     uint32_t ret;
@@ -454,7 +454,7 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
 
     saddr = (addr & 3) >> 1;
     channel = (addr & SERIAL_MAXADDR) >> 2;
-    s = &ser->chn[channel];
+    s = &serial->chn[channel];
     switch (saddr) {
     case 0:
 	SER_DPRINTF("Read channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, s->rregs[s->reg]);

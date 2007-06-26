@@ -599,7 +599,8 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
     }
 }
 
-static inline void gen_branch2(DisasContext *dc, long tb, target_ulong pc1, target_ulong pc2)
+static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
+                               target_ulong pc2)
 {
     int l1;
 
@@ -613,7 +614,8 @@ static inline void gen_branch2(DisasContext *dc, long tb, target_ulong pc1, targ
     gen_goto_tb(dc, 1, pc2, pc2 + 4);
 }
 
-static inline void gen_branch_a(DisasContext *dc, long tb, target_ulong pc1, target_ulong pc2)
+static inline void gen_branch_a(DisasContext *dc, target_ulong pc1,
+                                target_ulong pc2)
 {
     int l1;
 
@@ -627,12 +629,13 @@ static inline void gen_branch_a(DisasContext *dc, long tb, target_ulong pc1, tar
     gen_goto_tb(dc, 1, pc2 + 4, pc2 + 8);
 }
 
-static inline void gen_branch(DisasContext *dc, long tb, target_ulong pc, target_ulong npc)
+static inline void gen_branch(DisasContext *dc, target_ulong pc,
+                              target_ulong npc)
 {
     gen_goto_tb(dc, 0, pc, npc);
 }
 
-static inline void gen_generic_branch(DisasContext *dc, target_ulong npc1, target_ulong npc2)
+static inline void gen_generic_branch(target_ulong npc1, target_ulong npc2)
 {
     int l1, l2;
 
@@ -652,7 +655,7 @@ static inline void gen_generic_branch(DisasContext *dc, target_ulong npc1, targe
 static inline void flush_T2(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc, dc->jump_pc[0], dc->jump_pc[1]);
+        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
         dc->npc = DYNAMIC_PC;
     }
 }
@@ -660,7 +663,7 @@ static inline void flush_T2(DisasContext * dc)
 static inline void save_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc, dc->jump_pc[0], dc->jump_pc[1]);
+        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
         dc->npc = DYNAMIC_PC;
     } else if (dc->npc != DYNAMIC_PC) {
         gen_movl_npc_im(dc->npc);
@@ -676,7 +679,7 @@ static inline void save_state(DisasContext * dc)
 static inline void gen_mov_pc_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc, dc->jump_pc[0], dc->jump_pc[1]);
+        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
         gen_op_mov_pc_npc();
         dc->pc = DYNAMIC_PC;
     } else if (dc->npc == DYNAMIC_PC) {
@@ -862,7 +865,7 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
         flush_T2(dc);
         gen_cond[cc][cond]();
 	if (a) {
-	    gen_branch_a(dc, (long)dc->tb, target, dc->npc);
+	    gen_branch_a(dc, target, dc->npc);
             dc->is_br = 1;
 	} else {
             dc->pc = dc->npc;
@@ -901,7 +904,7 @@ static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
         flush_T2(dc);
         gen_fcond[cc][cond]();
 	if (a) {
-	    gen_branch_a(dc, (long)dc->tb, target, dc->npc);
+	    gen_branch_a(dc, target, dc->npc);
             dc->is_br = 1;
 	} else {
             dc->pc = dc->npc;
@@ -922,7 +925,7 @@ static void do_branch_reg(DisasContext * dc, int32_t offset, uint32_t insn)
     flush_T2(dc);
     gen_cond_reg(cond);
     if (a) {
-	gen_branch_a(dc, (long)dc->tb, target, dc->npc);
+	gen_branch_a(dc, target, dc->npc);
 	dc->is_br = 1;
     } else {
 	dc->pc = dc->npc;
@@ -3124,7 +3127,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	gen_op_next_insn();
     } else if (dc->npc == JUMP_PC) {
         /* we can do a static jump */
-        gen_branch2(dc, (long)dc->tb, dc->jump_pc[0], dc->jump_pc[1]);
+        gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1]);
         dc->is_br = 1;
     } else {
 	dc->pc = dc->npc;
@@ -3250,7 +3253,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         if (dc->pc != DYNAMIC_PC && 
             (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
             /* static PC and NPC: we can use direct chaining */
-            gen_branch(dc, (long)tb, dc->pc, dc->npc);
+            gen_branch(dc, dc->pc, dc->npc);
         } else {
             if (dc->pc != DYNAMIC_PC)
                 gen_jmp_im(dc->pc);

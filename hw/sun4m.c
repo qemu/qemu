@@ -154,8 +154,6 @@ static void nvram_finish_partition (m48t59_t *nvram, uint32_t start,
     m48t59_write(nvram, start + 1, sum & 0xff);
 }
 
-static m48t59_t *nvram;
-
 extern int nographic;
 
 static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
@@ -292,13 +290,13 @@ static void secondary_cpu_reset(void *opaque)
     env->halted = 1;
 }
 
-static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
-                          DisplayState *ds, const char *cpu_model)
+static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
+                           DisplayState *ds, const char *cpu_model)
 
 {
     CPUState *env, *envs[MAX_CPUS];
     unsigned int i;
-    void *iommu, *espdma, *ledma, *main_esp;
+    void *iommu, *espdma, *ledma, *main_esp, *nvram;
     const sparc_def_t *def;
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
         *espdma_irq, *ledma_irq;
@@ -328,7 +326,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, 0);
+    cpu_register_physical_memory(0, RAM_size, 0);
 
     iommu = iommu_init(hwdef->iommu_base);
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
@@ -347,7 +345,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(ds, hwdef->tcx_base, phys_ram_base + ram_size, ram_size,
+    tcx_init(ds, hwdef->tcx_base, phys_ram_base + RAM_size, RAM_size,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
     if (nd_table[0].model == NULL
@@ -388,13 +386,16 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int ram_size,
                                    slavio_irq[hwdef->me_irq]);
     if (hwdef->cs_base != (target_phys_addr_t)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
+
+    return nvram;
 }
 
-static void sun4m_load_kernel(long vram_size, int ram_size, int boot_device,
+static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
                               const char *kernel_filename,
                               const char *kernel_cmdline,
                               const char *initrd_filename,
-                              int machine_id)
+                              int machine_id,
+                              void *nvram)
 {
     int ret, linux_boot;
     char buf[1024];
@@ -403,7 +404,7 @@ static void sun4m_load_kernel(long vram_size, int ram_size, int boot_device,
 
     linux_boot = (kernel_filename != NULL);
 
-    prom_offset = ram_size + vram_size;
+    prom_offset = RAM_size + vram_size;
     cpu_register_physical_memory(PROM_ADDR, 
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK, 
                                  prom_offset | IO_MEM_ROM);
@@ -451,7 +452,7 @@ static void sun4m_load_kernel(long vram_size, int ram_size, int boot_device,
         }
     }
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
-               boot_device, ram_size, kernel_size, graphic_width,
+               boot_device, RAM_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, machine_id);
 }
 
@@ -524,46 +525,48 @@ static const struct hwdef hwdefs[] = {
     },
 };
 
-static void sun4m_common_init(int ram_size, int boot_device, DisplayState *ds,
+static void sun4m_common_init(int RAM_size, int boot_device, DisplayState *ds,
                               const char *kernel_filename, const char *kernel_cmdline,
                               const char *initrd_filename, const char *cpu_model,
                               unsigned int machine, int max_ram)
 {
-    if ((unsigned int)ram_size > (unsigned int)max_ram) {
+    void *nvram;
+
+    if ((unsigned int)RAM_size > (unsigned int)max_ram) {
         fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)ram_size / (1024 * 1024),
+                (unsigned int)RAM_size / (1024 * 1024),
                 (unsigned int)max_ram / (1024 * 1024));
         exit(1);
     }
-    sun4m_hw_init(&hwdefs[machine], ram_size, ds, cpu_model);
+    nvram = sun4m_hw_init(&hwdefs[machine], RAM_size, ds, cpu_model);
 
-    sun4m_load_kernel(hwdefs[machine].vram_size, ram_size, boot_device,
+    sun4m_load_kernel(hwdefs[machine].vram_size, RAM_size, boot_device,
                       kernel_filename, kernel_cmdline, initrd_filename,
-                      hwdefs[machine].machine_id);
+                      hwdefs[machine].machine_id, nvram);
 }
 
 /* SPARCstation 5 hardware initialisation */
-static void ss5_init(int ram_size, int vga_ram_size, int boot_device,
+static void ss5_init(int RAM_size, int vga_ram_size, int boot_device,
                        DisplayState *ds, const char **fd_filename, int snapshot,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
     if (cpu_model == NULL)
         cpu_model = "Fujitsu MB86904";
-    sun4m_common_init(ram_size, boot_device, ds, kernel_filename,
+    sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
                       kernel_cmdline, initrd_filename, cpu_model,
                       0, 0x10000000);
 }
 
 /* SPARCstation 10 hardware initialisation */
-static void ss10_init(int ram_size, int vga_ram_size, int boot_device,
+static void ss10_init(int RAM_size, int vga_ram_size, int boot_device,
                             DisplayState *ds, const char **fd_filename, int snapshot,
                             const char *kernel_filename, const char *kernel_cmdline,
                             const char *initrd_filename, const char *cpu_model)
 {
     if (cpu_model == NULL)
         cpu_model = "TI SuperSparc II";
-    sun4m_common_init(ram_size, boot_device, ds, kernel_filename,
+    sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
                       kernel_cmdline, initrd_filename, cpu_model,
                       1, PROM_ADDR); // XXX prom overlap, actually first 4GB ok
 }

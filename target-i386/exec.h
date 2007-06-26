@@ -190,6 +190,7 @@ void helper_divq_EAX_T0(void);
 void helper_idivq_EAX_T0(void);
 void helper_bswapq_T0(void);
 void helper_cmpxchg8b(void);
+void helper_single_step(void);
 void helper_cpuid(void);
 void helper_enter_level(int level, int data32);
 void helper_enter64_level(int level, int data64);
