@@ -1626,17 +1626,18 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
         for (i = 0; i < env->nb_watchpoints; i++) {
             if (vaddr == (env->watchpoint[i].vaddr & TARGET_PAGE_MASK)) {
                 if (address & ~TARGET_PAGE_MASK) {
-                    env->watchpoint[i].is_ram = 0;
+                    env->watchpoint[i].addend = 0;
                     address = vaddr | io_mem_watch;
                 } else {
-                    env->watchpoint[i].is_ram = 1;
+                    env->watchpoint[i].addend = pd - paddr +
+                        (unsigned long) phys_ram_base;
                     /* TODO: Figure out how to make read watchpoints coexist
                        with code.  */
                     pd = (pd & TARGET_PAGE_MASK) | io_mem_watch | IO_MEM_ROMD;
                 }
             }
         }
-        
+
         index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         addend -= vaddr;
         te = &env->tlb_table[is_user][index];
@@ -2178,7 +2179,7 @@ static uint32_t watch_mem_readl(void *opaque, target_phys_addr_t addr)
 
 /* Generate a debug exception if a watchpoint has been hit.
    Returns the real physical address of the access.  addr will be a host
-   address in the is_ram case.  */
+   address in case of a RAM location.  */
 static target_ulong check_watchpoint(target_phys_addr_t addr)
 {
     CPUState *env = cpu_single_env;
@@ -2190,8 +2191,7 @@ static target_ulong check_watchpoint(target_phys_addr_t addr)
     for (i = 0; i < env->nb_watchpoints; i++) {
         watch = env->watchpoint[i].vaddr;
         if (((env->mem_write_vaddr ^ watch) & TARGET_PAGE_MASK) == 0) {
-            if (env->watchpoint[i].is_ram)
-                retaddr = addr - (unsigned long)phys_ram_base;
+            retaddr = addr - env->watchpoint[i].addend;
             if (((addr ^ watch) & ~TARGET_PAGE_MASK) == 0) {
                 cpu_single_env->watchpoint_hit = i + 1;
                 cpu_interrupt(cpu_single_env, CPU_INTERRUPT_DEBUG);
