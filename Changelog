@@ -7,6 +7,9 @@
   - MIPS 64-bit FPU support (Thiemo Seufer)
   - Xscale PDA emulation (Andrzei Zaborowski)
   - ColdFire system emulation (Paul Brook)
+  - Improved SH4 support (Magnus Damm)
+  - MIPS64 support (Aurelien Jarno, Thiemo Seufer)
+  - Preliminary Alpha guest support (J. Mayer)
 
 version 0.9.0:
 

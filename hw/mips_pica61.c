@@ -170,6 +170,9 @@ void mips_pica61_init (int ram_size, int vga_ram_size, int boot_device,
      * but let's do with what Qemu currenly emulates... */
     isa_vga_mm_init(ds, phys_ram_base + ram_size, ram_size, vga_ram_size,
                     0x40000000, 0x60000000, 0);
+
+    /* LED indicator */
+    jazz_led_init(ds, 0x8000f000);
 }
 
 QEMUMachine mips_pica61_machine = {

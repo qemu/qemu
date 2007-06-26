@@ -1155,6 +1155,9 @@ int pit_get_initial_count(PITState *pit, int channel);
 int pit_get_mode(PITState *pit, int channel);
 int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
+/* jazz_led.c */
+extern void jazz_led_init(DisplayState *ds, target_phys_addr_t base);
+
 /* pcspk.c */
 void pcspk_init(PITState *);
 int pcspk_audio_init(AudioState *, qemu_irq *pic);

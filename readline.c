@@ -156,6 +156,45 @@ static void term_backspace(void)
     }
 }
 
+static void term_backword(void)
+{
+    int start;
+
+    if (term_cmd_buf_index == 0 || term_cmd_buf_index > term_cmd_buf_size) {
+        return;
+    }
+
+    start = term_cmd_buf_index - 1;
+
+    /* find first word (backwards) */
+    while (start > 0) {
+        if (!isspace(term_cmd_buf[start])) {
+            break;
+        }
+
+        --start;
+    }
+
+    /* find first space (backwards) */
+    while (start > 0) {
+        if (isspace(term_cmd_buf[start])) {
+            ++start;
+            break;
+        }
+
+        --start;
+    }
+
+    /* remove word */
+    if (start < term_cmd_buf_index) {
+        memmove(term_cmd_buf + start,
+                term_cmd_buf + term_cmd_buf_index,
+                term_cmd_buf_size - term_cmd_buf_index);
+        term_cmd_buf_size -= term_cmd_buf_index - start;
+        term_cmd_buf_index = start;
+    }
+}
+
 static void term_bol(void)
 {
     term_cmd_buf_index = 0;
@@ -337,6 +376,10 @@ void readline_handle_byte(int ch)
             term_printf("\n");
             /* NOTE: readline_start can be called here */
             term_readline_func(term_readline_opaque, term_cmd_buf);
+            break;
+        case 23:
+            /* ^W */
+            term_backword();
             break;
         case 27:
             term_esc_state = IS_ESC;

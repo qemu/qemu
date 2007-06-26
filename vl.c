@@ -1764,17 +1764,19 @@ static CharDriverState *qemu_chr_open_stdio(void)
     return chr;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__sun__)
 static CharDriverState *qemu_chr_open_pty(void)
 {
     struct termios tty;
     char slave_name[1024];
     int master_fd, slave_fd;
     
+#if defined(__linux__)
     /* Not satisfying */
     if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
         return NULL;
     }
+#endif
     
     /* Disabling local echo and line-buffered output */
     tcgetattr (master_fd, &tty);
@@ -1921,7 +1923,14 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     qemu_chr_reset(chr);
     return chr;
 }
+#else  /* ! __linux__ && ! __sun__ */
+static CharDriverState *qemu_chr_open_pty(void)
+{
+    return NULL;
+}
+#endif /* __linux__ || __sun__ */
 
+#if defined(__linux__)
 typedef struct {
     int fd;
     int mode;
@@ -2064,17 +2073,10 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
 
     return chr;
 }
+#endif /* __linux__ */
 
-#else
-static CharDriverState *qemu_chr_open_pty(void)
-{
-    return NULL;
-}
-#endif
+#else /* _WIN32 */
 
-#endif /* !defined(_WIN32) */
-
-#ifdef _WIN32
 typedef struct {
     int max_size;
     HANDLE hcom, hrecv, hsend;
@@ -2440,7 +2442,7 @@ static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 
     return qemu_chr_open_win_file(fd_out);
 }
-#endif
+#endif /* !_WIN32 */
 
 /***********************************************************/
 /* UDP Net console */
@@ -2954,16 +2956,15 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else if (!strcmp(filename, "stdio")) {
         return qemu_chr_open_stdio();
     } else 
-#endif
 #if defined(__linux__)
     if (strstart(filename, "/dev/parport", NULL)) {
         return qemu_chr_open_pp(filename);
     } else 
+#endif
     if (strstart(filename, "/dev/", NULL)) {
         return qemu_chr_open_tty(filename);
     } else 
-#endif
-#ifdef _WIN32
+#else /* !_WIN32 */
     if (strstart(filename, "COM", NULL)) {
         return qemu_chr_open_win(filename);
     } else
@@ -5717,6 +5718,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c0_cachetype);
     qemu_put_be32(f, env->cp15.c1_sys);
     qemu_put_be32(f, env->cp15.c1_coproc);
+    qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
     qemu_put_be32(f, env->cp15.c2_base);
     qemu_put_be32(f, env->cp15.c2_data);
     qemu_put_be32(f, env->cp15.c2_insn);
@@ -5788,6 +5790,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c0_cachetype = qemu_get_be32(f);
     env->cp15.c1_sys = qemu_get_be32(f);
     env->cp15.c1_coproc = qemu_get_be32(f);
+    env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
     env->cp15.c2_base = qemu_get_be32(f);
     env->cp15.c2_data = qemu_get_be32(f);
     env->cp15.c2_insn = qemu_get_be32(f);

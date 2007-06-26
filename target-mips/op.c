@@ -297,7 +297,7 @@ void op_addr_add (void)
    with Status_UX = 0 should be casted to 32-bit and sign extended.
    See the MIPS64 PRA manual, section 4.10. */
 #ifdef TARGET_MIPS64
-    if ((env->CP0_Status & (1 << CP0St_UM)) &&
+    if ((env->hflags & MIPS_HFLAG_UM) &&
         !(env->CP0_Status & (1 << CP0St_UX)))
         T0 = (int64_t)(int32_t)(T0 + T1);
     else
@@ -1608,7 +1608,7 @@ void op_dmfc0_errorepc (void)
 void op_cp0_enabled(void)
 {
     if (!(env->CP0_Status & (1 << CP0St_CU0)) &&
-	(env->hflags & MIPS_HFLAG_UM)) {
+        (env->hflags & MIPS_HFLAG_UM)) {
         CALL_FROM_TB2(do_raise_exception_err, EXCP_CpU, 0);
     }
     RETURN();

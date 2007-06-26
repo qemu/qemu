@@ -1,3 +1,46 @@
+2007-06-25 19:34  ths
+
+	* target-mips/: helper.c, op.c: MIPS64 improvements, based on a
+	  patch by Aurelien Jarno.
+
+2007-06-25 15:53  ths
+
+	* target-sh4/: cpu.h, op.c: Handle endianness of double floats, by
+	  Magnus Damm.
+
+2007-06-25 15:47  ths
+
+	* hw/ne2000.c: Insufficient input validation in NE2000 card,
+	  written by Tavis Ormandy, contributed by Aurelien Jarno.
+
+2007-06-25 13:48  ths
+
+	* vl.c: Enable serial (tty) support on Solaris host, by Marion
+	  Hakanson.
+
+2007-06-25 13:41  ths
+
+	* Changelog: Update Changelog.
+
+2007-06-25 13:36  ths
+
+	* readline.c: Implement ^W in readline.c, by Michal Hanselmann.
+
+2007-06-25 12:57  ths
+
+	* Makefile.target, vl.h, hw/jazz_led.c, hw/mips_pica61.c: Add a 7
+	  segments + led display, by Herve Poussineau.
+
+2007-06-24 15:45  balrog
+
+	* hw/: ads7846.c, spitz.c: Make touchscreen calibration values
+	  better match the HW.	Invert WM8750 GPIO.
+
+2007-06-24 14:09  balrog
+
+	* vl.c, target-arm/cpu.h, target-arm/helper.c: Reset ARM
+	  cp15.c1_sys to default values.  Fix XScale cp15 accesses.
+
 2007-06-23 20:21  ths
 
 	* target-i386/translate.c: Fix division by zero handling, by Joris

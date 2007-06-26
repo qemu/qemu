@@ -30,10 +30,10 @@ struct ads7846_state_s {
 #define CB_A2		(1 << 6)
 #define CB_START	(1 << 7)
 
-#define X_AXIS_DMAX	3680
-#define X_AXIS_MIN	150
-#define Y_AXIS_DMAX	3640
-#define Y_AXIS_MIN	190
+#define X_AXIS_DMAX	3470
+#define X_AXIS_MIN	290
+#define Y_AXIS_DMAX	3450
+#define Y_AXIS_MIN	200
 
 #define ADS_VBAT	2000
 #define ADS_VAUX	2000
@@ -95,10 +95,11 @@ static void ads7846_ts_event(void *opaque,
     struct ads7846_state_s *s = opaque;
 
     if (buttons_state) {
-        s->input[1] = ADS_YPOS(x, y);
+        x = 0x7fff - x;
+        s->input[1] = ADS_XPOS(x, y);
         s->input[3] = ADS_Z1POS(x, y);
         s->input[4] = ADS_Z2POS(x, y);
-        s->input[5] = ADS_XPOS(x, y);
+        s->input[5] = ADS_YPOS(x, y);
     }
 
     if (s->pressure == !buttons_state) {

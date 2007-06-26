@@ -19,16 +19,19 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
         env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c1_sys = 0x00090078;
         break;
     case ARM_CPUID_ARM946:
         set_feature(env, ARM_FEATURE_MPU);
         env->cp15.c0_cachetype = 0x0f004006;
+        env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_ARM1026:
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
         env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c1_sys = 0x00090078;
         break;
     case ARM_CPUID_PXA250:
     case ARM_CPUID_PXA255:
@@ -38,6 +41,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
         env->cp15.c0_cachetype = 0xd172172;
+        env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_PXA270_A0:
     case ARM_CPUID_PXA270_A1:
@@ -50,6 +54,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_IWMMXT);
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
         env->cp15.c0_cachetype = 0xd172172;
+        env->cp15.c1_sys = 0x00000078;
         break;
     default:
         cpu_abort(env, "Bad CPU ID: %x\n", id);
@@ -638,6 +643,8 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     crm = insn & 0xf;
     switch ((insn >> 16) & 0xf) {
     case 0: /* ID codes.  */
+        if (arm_feature(env, ARM_FEATURE_XSCALE))
+            break;
         goto bad_reg;
     case 1: /* System configuration.  */
         switch (op2) {
@@ -649,12 +656,14 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
             tlb_flush(env, 1);
             break;
         case 1:
-            /* XScale doesn't implement AUX CR (P-Bit) but allows
-             * writing with zero and reading.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
+            if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+                env->cp15.c1_xscaleauxcr = val;
                 break;
+            }
             goto bad_reg;
         case 2:
+            if (arm_feature(env, ARM_FEATURE_XSCALE))
+                goto bad_reg;
             env->cp15.c1_coproc = val;
             /* ??? Is this safe when called from within a TB?  */
             tb_flush(env);
@@ -836,6 +845,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         case 1: /* Cache Type.  */
             return env->cp15.c0_cachetype;
         case 2: /* TCM status.  */
+            if (arm_feature(env, ARM_FEATURE_XSCALE))
+                goto bad_reg;
             return 0;
         }
     case 1: /* System configuration.  */
@@ -846,9 +857,11 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
             if (arm_feature(env, ARM_FEATURE_AUXCR))
                 return 1;
             if (arm_feature(env, ARM_FEATURE_XSCALE))
-                return 0;
+                return env->cp15.c1_xscaleauxcr;
             goto bad_reg;
         case 2: /* Coprocessor access register.  */
+            if (arm_feature(env, ARM_FEATURE_XSCALE))
+                goto bad_reg;
             return env->cp15.c1_coproc;
         default:
             goto bad_reg;

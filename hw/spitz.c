@@ -919,8 +919,8 @@ static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
 /* Wm8750 and Max7310 on I2C */
 
 #define AKITA_MAX_ADDR	0x18
-#define SPITZ_WM_ADDRL	0x1a
-#define SPITZ_WM_ADDRH	0x1b
+#define SPITZ_WM_ADDRL	0x1b
+#define SPITZ_WM_ADDRH	0x1a
 
 #define SPITZ_GPIO_WM	5
 
