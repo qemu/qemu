@@ -529,13 +529,13 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     uint32_t rxdp = op_reg_read(s, DP8381X_RXDP);
     logout("rxdp 0x%08x\n", rxdp);
     cpu_physical_memory_read(rxdp, (uint8_t *) & rx, sizeof(rx));
-    uint32_t link = le32_to_cpu(rx.link);
+    uint32_t rxlink = le32_to_cpu(rx.link);
     uint32_t cmdsts = le32_to_cpu(rx.cmdsts);
     uint32_t bufptr = le32_to_cpu(rx.bufptr);
     uint32_t length = (cmdsts & CMDSTS_SIZE);
     TRACE(LOG_RX, logout("rxdp 0x%08x, link 0x%08x, cmdsts 0x%08x, "
                          "bufptr 0x%08x, length %u\n",
-                         rxdp, link, cmdsts, bufptr, length));
+                         rxdp, rxlink, cmdsts, bufptr, length));
 
     /* Linux subtracts 4 bytes for fcs, so we add it here. */
     size += 4;
@@ -555,11 +555,11 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     stl_phys(rxdp + 4, cmdsts);
     dp8381x_interrupt(s, ISR_RXOK);
     dp8381x_interrupt(s, ISR_RXDESC);
-    if (link == 0) {
+    if (rxlink == 0) {
         s->rx_state = idle;
         dp8381x_interrupt(s, ISR_RXIDLE);
     } else {
-        rxdp = link;
+        rxdp = rxlink;
         op_reg_write(s, DP8381X_RXDP, rxdp);
     }
     //~ dp8381x_interrupt(s, ISR_RXOVR);
@@ -574,13 +574,13 @@ static void dp8381x_transmit(dp8381x_t * s)
     TRACE(LOG_TX, logout("txdp 0x%08x\n", txdp));
     while (txdp != 0) {
         cpu_physical_memory_read(txdp, (uint8_t *) & tx, sizeof(tx));
-        uint32_t link = le32_to_cpu(tx.link);
+        uint32_t txlink = le32_to_cpu(tx.link);
         uint32_t cmdsts = le32_to_cpu(tx.cmdsts);
         uint32_t bufptr = le32_to_cpu(tx.bufptr);
         uint32_t length = (cmdsts & CMDSTS_SIZE);
         TRACE(LOG_TX, logout("txdp 0x%08x, link 0x%08x, cmdsts 0x%08x, "
                              "bufptr 0x%08x, length %u/%u\n",
-                             txdp, link, cmdsts, bufptr, length, size));
+                             txdp, txlink, cmdsts, bufptr, length, size));
         if (!(tx.cmdsts & CMDSTS_OWN)) {
             s->tx_state = idle;
             dp8381x_interrupt(s, ISR_TXIDLE);
@@ -594,8 +594,8 @@ static void dp8381x_transmit(dp8381x_t * s)
         }
         cmdsts &= ~CMDSTS_OWN;
         if (cmdsts & CMDSTS_MORE) {
-            assert(link != 0);
-            txdp = link;
+            assert(txlink != 0);
+            txdp = txlink;
             stl_phys(txdp + 4, cmdsts);
             continue;
         }
@@ -604,12 +604,12 @@ static void dp8381x_transmit(dp8381x_t * s)
         dp8381x_interrupt(s, ISR_TXOK);
         TRACE(LOG_TX, logout("sending\n"));
         qemu_send_packet(s->vc, buffer, size);
-        if (link == 0) {
+        if (txlink == 0) {
             s->tx_state = idle;
             dp8381x_interrupt(s, ISR_TXIDLE);
             break;
         }
-        txdp = link;
+        txdp = txlink;
     }
     op_reg_write(s, DP8381X_TXDP, txdp);
 }
@@ -866,6 +866,9 @@ static uint16_t dp8381x_readw(pci_dp8381x_t * d, target_phys_addr_t addr)
     if (logging) {
         logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), val);
     }
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap16(val);
+#endif
     return val;
 }
 
@@ -966,6 +969,9 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
     if (logging) {
         logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), val);
     }
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap32(val);
+#endif
     return val;
 }
 
@@ -987,6 +993,9 @@ static void dp8381x_writew(pci_dp8381x_t * d, target_phys_addr_t addr,
 {
     dp8381x_t *s = &d->dp8381x;
     int logging = 1;
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap16(val);
+#endif
     if ((addr & 1) != 0) {
         logout("??? address not on word boundary, addr=%s val=0x%08x\n",
                dp8381x_regname(addr), val);
@@ -1042,6 +1051,9 @@ static void dp8381x_writel(pci_dp8381x_t * d, target_phys_addr_t addr,
 {
     dp8381x_t *s = &d->dp8381x;
     int logging = 1;
+#if defined(TARGET_WORDS_BIGENDIAN)
+    val = bswap32(val);
+#endif
     if ((addr & 3) != 0) {
         logout("??? address not on double word boundary, addr=%s val=0x%08x\n",
                dp8381x_regname(addr), val);
