@@ -597,6 +597,13 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
 
 /* Complex FPU operations which may need stack space. */
 
+#define FLOAT_SIGN32 (1 << 31)
+#define FLOAT_SIGN64 (1ULL << 63)
+#define FLOAT_ONE32 (0x3f8 << 20)
+#define FLOAT_ONE64 (0x3ffULL << 52)
+#define FLOAT_TWO32 (1 << 30)
+#define FLOAT_TWO64 (1ULL << 62)
+
 /* convert MIPS rounding mode in FCR31 to IEEE library */
 unsigned int ieee_rm[] = {
     float_round_nearest_even,
@@ -912,58 +919,78 @@ FLOAT_OP(floorw, s)
         WT2 = 0x7fffffff;
 }
 
-/* unary operations, MIPS specific, s and d */
-#define FLOAT_UNOP(name)  \
-FLOAT_OP(name, d)         \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FDT2 = float64_ ## name (FDT0, &env->fp_status);*/          \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
-}                         \
-FLOAT_OP(name, s)         \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FST2 = float32_ ## name (FST0, &env->fp_status);*/          \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
+/* MIPS specific unary operations */
+FLOAT_OP(recip, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = float64_div(FLOAT_ONE64, FDT0, &env->fp_status);
+    update_fcr31();
 }
-FLOAT_UNOP(rsqrt)
-FLOAT_UNOP(recip)
-#undef FLOAT_UNOP
+FLOAT_OP(recip, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_div(FLOAT_ONE32, FST0, &env->fp_status);
+    update_fcr31();
+}
 
-/* unary operations, MIPS specific, s, d and ps */
-#define FLOAT_UNOP(name)  \
-FLOAT_OP(name, d)         \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FDT2 = float64_ ## name (FDT0, &env->fp_status);*/          \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
-}                         \
-FLOAT_OP(name, s)         \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FST2 = float32_ ## name (FST0, &env->fp_status);*/          \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
-}                         \
-FLOAT_OP(name, ps)        \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FST2 = float32_ ## name (FST0, &env->fp_status);*/          \
-/*    FSTH2 = float32_ ## name (FSTH0, &env->fp_status);*/        \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
+FLOAT_OP(rsqrt, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = float64_sqrt(FDT0, &env->fp_status);
+    FDT2 = float64_div(FLOAT_ONE64, FDT2, &env->fp_status);
+    update_fcr31();
 }
-FLOAT_UNOP(rsqrt1)
-FLOAT_UNOP(recip1)
-#undef FLOAT_UNOP
+FLOAT_OP(rsqrt, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_sqrt(FST0, &env->fp_status);
+    FST2 = float32_div(FLOAT_ONE32, FST2, &env->fp_status);
+    update_fcr31();
+}
+
+FLOAT_OP(recip1, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = float64_div(FLOAT_ONE64, FDT0, &env->fp_status);
+    update_fcr31();
+}
+FLOAT_OP(recip1, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_div(FLOAT_ONE32, FST0, &env->fp_status);
+    update_fcr31();
+}
+FLOAT_OP(recip1, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_div(FLOAT_ONE32, FST0, &env->fp_status);
+    FSTH2 = float32_div(FLOAT_ONE32, FSTH0, &env->fp_status);
+    update_fcr31();
+}
+
+FLOAT_OP(rsqrt1, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = float64_sqrt(FDT0, &env->fp_status);
+    FDT2 = float64_div(FLOAT_ONE64, FDT2, &env->fp_status);
+    update_fcr31();
+}
+FLOAT_OP(rsqrt1, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_sqrt(FST0, &env->fp_status);
+    FST2 = float32_div(FLOAT_ONE32, FST2, &env->fp_status);
+    update_fcr31();
+}
+FLOAT_OP(rsqrt1, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_sqrt(FST0, &env->fp_status);
+    FSTH2 = float32_sqrt(FSTH0, &env->fp_status);
+    FST2 = float32_div(FLOAT_ONE32, FST2, &env->fp_status);
+    FSTH2 = float32_div(FLOAT_ONE32, FSTH2, &env->fp_status);
+    update_fcr31();
+}
 
 /* binary operations */
 #define FLOAT_BINOP(name) \
@@ -976,7 +1003,7 @@ FLOAT_OP(name, d)         \
         FDT2 = 0x7ff7ffffffffffffULL;                         \
     else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {       \
         if ((env->fcr31 & 0x3) == 0)                          \
-            FDT2 &= 0x8000000000000000ULL;                    \
+            FDT2 &= FLOAT_SIGN64;                             \
     }                     \
 }                         \
 FLOAT_OP(name, s)         \
@@ -988,7 +1015,7 @@ FLOAT_OP(name, s)         \
         FST2 = 0x7fbfffff;                                    \
     else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {       \
         if ((env->fcr31 & 0x3) == 0)                          \
-            FST2 &= 0x80000000ULL;                            \
+            FST2 &= FLOAT_SIGN32;                             \
     }                     \
 }                         \
 FLOAT_OP(name, ps)        \
@@ -1002,8 +1029,8 @@ FLOAT_OP(name, ps)        \
         FSTH2 = 0x7fbfffff;                                   \
     } else if (GET_FP_CAUSE(env->fcr31) & FP_UNDERFLOW) {     \
         if ((env->fcr31 & 0x3) == 0) {                        \
-            FST2 &= 0x80000000ULL;                            \
-            FSTH2 &= 0x80000000ULL;                           \
+            FST2 &= FLOAT_SIGN32;                             \
+            FSTH2 &= FLOAT_SIGN32;                            \
         }                 \
     }                     \
 }
@@ -1013,36 +1040,58 @@ FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
 
-/* binary operations, MIPS specific */
-#define FLOAT_BINOP(name) \
-FLOAT_OP(name, d)         \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FDT2 = float64_ ## name (FDT0, FDT1, &env->fp_status);*/    \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
-}                         \
-FLOAT_OP(name, s)         \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FST2 = float32_ ## name (FST0, FST1, &env->fp_status);*/    \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
-}                         \
-FLOAT_OP(name, ps)        \
-{                         \
-    set_float_exception_flags(0, &env->fp_status);            \
-/* XXX: not implemented */ \
-/*    FST2 = float32_ ## name (FST0, FST1, &env->fp_status);*/    \
-/*    FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fp_status);*/ \
-do_raise_exception(EXCP_RI); \
-    update_fcr31();       \
+/* MIPS specific binary operations */
+FLOAT_OP(recip2, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = float64_mul(FDT0, FDT2, &env->fp_status);
+    FDT2 = float64_sub(FDT2, FLOAT_ONE64, &env->fp_status) ^ FLOAT_SIGN64;
+    update_fcr31();
 }
-FLOAT_BINOP(rsqrt2)
-FLOAT_BINOP(recip2)
-#undef FLOAT_BINOP
+FLOAT_OP(recip2, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_mul(FST0, FST2, &env->fp_status);
+    FST2 = float32_sub(FST2, FLOAT_ONE32, &env->fp_status) ^ FLOAT_SIGN32;
+    update_fcr31();
+}
+FLOAT_OP(recip2, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_mul(FST0, FST2, &env->fp_status);
+    FSTH2 = float32_mul(FSTH0, FSTH2, &env->fp_status);
+    FST2 = float32_sub(FST2, FLOAT_ONE32, &env->fp_status) ^ FLOAT_SIGN32;
+    FSTH2 = float32_sub(FSTH2, FLOAT_ONE32, &env->fp_status) ^ FLOAT_SIGN32;
+    update_fcr31();
+}
+
+FLOAT_OP(rsqrt2, d)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FDT2 = float64_mul(FDT0, FDT2, &env->fp_status);
+    FDT2 = float64_sub(FDT2, FLOAT_ONE64, &env->fp_status);
+    FDT2 = float64_div(FDT2, FLOAT_TWO64, &env->fp_status) ^ FLOAT_SIGN64;
+    update_fcr31();
+}
+FLOAT_OP(rsqrt2, s)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_mul(FST0, FST2, &env->fp_status);
+    FST2 = float32_sub(FST2, FLOAT_ONE32, &env->fp_status);
+    FST2 = float32_div(FST2, FLOAT_TWO32, &env->fp_status) ^ FLOAT_SIGN32;
+    update_fcr31();
+}
+FLOAT_OP(rsqrt2, ps)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FST2 = float32_mul(FST0, FST2, &env->fp_status);
+    FSTH2 = float32_mul(FSTH0, FSTH2, &env->fp_status);
+    FST2 = float32_sub(FST2, FLOAT_ONE32, &env->fp_status);
+    FSTH2 = float32_sub(FSTH2, FLOAT_ONE32, &env->fp_status);
+    FST2 = float32_div(FST2, FLOAT_TWO32, &env->fp_status) ^ FLOAT_SIGN32;
+    FSTH2 = float32_div(FSTH2, FLOAT_TWO32, &env->fp_status) ^ FLOAT_SIGN32;
+    update_fcr31();
+}
 
 FLOAT_OP(addr, ps)
 {
@@ -1060,6 +1109,7 @@ FLOAT_OP(mulr, ps)
     update_fcr31();
 }
 
+/* compare operations */
 #define FOP_COND_D(op, cond)                   \
 void do_cmp_d_ ## op (long cc)                 \
 {                                              \
@@ -1073,8 +1123,8 @@ void do_cmp_d_ ## op (long cc)                 \
 void do_cmpabs_d_ ## op (long cc)              \
 {                                              \
     int c;                                     \
-    FDT0 &= ~(1ULL << 63);                     \
-    FDT1 &= ~(1ULL << 63);                     \
+    FDT0 &= ~FLOAT_SIGN64;                     \
+    FDT1 &= ~FLOAT_SIGN64;                     \
     c = cond;                                  \
     update_fcr31();                            \
     if (c)                                     \
@@ -1131,8 +1181,8 @@ void do_cmp_s_ ## op (long cc)                 \
 void do_cmpabs_s_ ## op (long cc)              \
 {                                              \
     int c;                                     \
-    FST0 &= ~(1 << 31);                        \
-    FST1 &= ~(1 << 31);                        \
+    FST0 &= ~FLOAT_SIGN32;                     \
+    FST1 &= ~FLOAT_SIGN32;                     \
     c = cond;                                  \
     update_fcr31();                            \
     if (c)                                     \
@@ -1194,10 +1244,10 @@ void do_cmp_ps_ ## op (long cc)                \
 void do_cmpabs_ps_ ## op (long cc)             \
 {                                              \
     int cl, ch;                                \
-    FST0 &= ~(1 << 31);                        \
-    FSTH0 &= ~(1 << 31);                       \
-    FST1 &= ~(1 << 31);                        \
-    FSTH1 &= ~(1 << 31);                       \
+    FST0 &= ~FLOAT_SIGN32;                     \
+    FSTH0 &= ~FLOAT_SIGN32;                    \
+    FST1 &= ~FLOAT_SIGN32;                     \
+    FSTH1 &= ~FLOAT_SIGN32;                    \
     cl = condl;                                \
     ch = condh;                                \
     update_fcr31();                            \
