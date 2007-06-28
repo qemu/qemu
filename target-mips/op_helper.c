@@ -782,8 +782,7 @@ FLOAT_OP(cvtw, d)
 FLOAT_OP(roundl, d)
 {
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    DT2 = float64_round_to_int(FDT0, &env->fp_status);
-    DT2 = float64_to_int64(DT2, &env->fp_status);
+    DT2 = float64_to_int64(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -792,8 +791,7 @@ FLOAT_OP(roundl, d)
 FLOAT_OP(roundl, s)
 {
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    WT2 = float32_round_to_int(FST0, &env->fp_status);
-    DT2 = float32_to_int64(WT2, &env->fp_status);
+    DT2 = float32_to_int64(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -802,10 +800,7 @@ FLOAT_OP(roundl, s)
 FLOAT_OP(roundw, d)
 {
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    DT2 = float64_round_to_int(FDT0, &env->fp_status);
-// ???
-    env->fp_status.float_exception_flags &= ~float_flag_inexact;
-    WT2 = float64_to_int32(DT2, &env->fp_status);
+    WT2 = float64_to_int32(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -814,8 +809,7 @@ FLOAT_OP(roundw, d)
 FLOAT_OP(roundw, s)
 {
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    WT2 = float32_round_to_int(FST0, &env->fp_status);
-    WT2 = float32_to_int32(WT2, &env->fp_status);
+    WT2 = float32_to_int32(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -854,8 +848,7 @@ FLOAT_OP(truncw, s)
 FLOAT_OP(ceill, d)
 {
     set_float_rounding_mode(float_round_up, &env->fp_status);
-    DT2 = float64_round_to_int(FDT0, &env->fp_status);
-    DT2 = float64_to_int64(DT2, &env->fp_status);
+    DT2 = float64_to_int64(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -864,8 +857,7 @@ FLOAT_OP(ceill, d)
 FLOAT_OP(ceill, s)
 {
     set_float_rounding_mode(float_round_up, &env->fp_status);
-    WT2 = float32_round_to_int(FST0, &env->fp_status);
-    DT2 = float32_to_int64(WT2, &env->fp_status);
+    DT2 = float32_to_int64(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -874,10 +866,7 @@ FLOAT_OP(ceill, s)
 FLOAT_OP(ceilw, d)
 {
     set_float_rounding_mode(float_round_up, &env->fp_status);
-    DT2 = float64_round_to_int(FDT0, &env->fp_status);
-// ???
-    env->fp_status.float_exception_flags &= ~float_flag_inexact;
-    WT2 = float64_to_int32(DT2, &env->fp_status);
+    WT2 = float64_to_int32(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -886,8 +875,7 @@ FLOAT_OP(ceilw, d)
 FLOAT_OP(ceilw, s)
 {
     set_float_rounding_mode(float_round_up, &env->fp_status);
-    WT2 = float32_round_to_int(FST0, &env->fp_status);
-    WT2 = float32_to_int32(WT2, &env->fp_status);
+    WT2 = float32_to_int32(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -897,8 +885,7 @@ FLOAT_OP(ceilw, s)
 FLOAT_OP(floorl, d)
 {
     set_float_rounding_mode(float_round_down, &env->fp_status);
-    DT2 = float64_round_to_int(FDT0, &env->fp_status);
-    DT2 = float64_to_int64(DT2, &env->fp_status);
+    DT2 = float64_to_int64(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -907,8 +894,7 @@ FLOAT_OP(floorl, d)
 FLOAT_OP(floorl, s)
 {
     set_float_rounding_mode(float_round_down, &env->fp_status);
-    WT2 = float32_round_to_int(FST0, &env->fp_status);
-    DT2 = float32_to_int64(WT2, &env->fp_status);
+    DT2 = float32_to_int64(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -917,10 +903,7 @@ FLOAT_OP(floorl, s)
 FLOAT_OP(floorw, d)
 {
     set_float_rounding_mode(float_round_down, &env->fp_status);
-    DT2 = float64_round_to_int(FDT0, &env->fp_status);
-// ???
-    env->fp_status.float_exception_flags &= ~float_flag_inexact;
-    WT2 = float64_to_int32(DT2, &env->fp_status);
+    WT2 = float64_to_int32(FDT0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -929,8 +912,7 @@ FLOAT_OP(floorw, d)
 FLOAT_OP(floorw, s)
 {
     set_float_rounding_mode(float_round_down, &env->fp_status);
-    WT2 = float32_round_to_int(FST0, &env->fp_status);
-    WT2 = float32_to_int32(WT2, &env->fp_status);
+    WT2 = float32_to_int32(FST0, &env->fp_status);
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fcr31) & (FP_OVERFLOW | FP_INVALID))
