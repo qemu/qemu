@@ -14,8 +14,7 @@
 - OpenBIOS (http://www.openbios.org/) is a free (GPL v2) portable
   firmware implementation. The goal is to implement a 100% IEEE
   1275-1994 (referred to as Open Firmware) compliant firmware.
-  The included Sparc32 image is built from SVN version 149 and Sparc64
-  image from version 125.
+  The included Sparc32 and Sparc64 images are built from SVN version 157.
 
 - The PXE roms come from Rom-o-Matic etherboot 5.4.2.
   pcnet32:pcnet32 -- [0x1022,0x2000]
