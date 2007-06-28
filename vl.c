@@ -6568,7 +6568,7 @@ int main_loop(void)
     return ret;
 }
 
-void help(void)
+static void help(const char *optarg)
 {
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
@@ -7450,12 +7450,12 @@ int main(int argc, char **argv)
                 break;
 #endif
             case QEMU_OPTION_h:
-                help();
+                help(optarg);
                 break;
             case QEMU_OPTION_m:
                 ram_size = atoi(optarg) * 1024 * 1024;
                 if (ram_size <= 0)
-                    help();
+                    help(optarg);
                 if (ram_size > PHYS_RAM_MAX_SIZE) {
                     fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
                             PHYS_RAM_MAX_SIZE / (1024 * 1024));
@@ -7741,7 +7741,7 @@ int main(int argc, char **argv)
         hd_filename[0] == '\0' && 
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
-        help();
+        help("");
 
     /* boot to floppy or the default cd if no hard disk defined yet */
     if (hd_filename[0] == '\0' && boot_device == 'c') {
