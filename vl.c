@@ -2961,9 +2961,11 @@ CharDriverState *qemu_chr_open(const char *filename)
         return qemu_chr_open_pp(filename);
     } else 
 #endif
+#if defined(__linux__) || defined(__sun__)
     if (strstart(filename, "/dev/", NULL)) {
         return qemu_chr_open_tty(filename);
-    } else 
+    } else
+#endif
 #else /* !_WIN32 */
     if (strstart(filename, "COM", NULL)) {
         return qemu_chr_open_win(filename);
