@@ -6570,7 +6570,7 @@ int main_loop(void)
     return ret;
 }
 
-static void help(const char *optarg)
+static void help(int exitcode)
 {
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
@@ -6712,7 +6712,7 @@ static void help(const char *optarg)
 #endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
-    exit(strcmp(optarg, "?"));
+    exit(exitcode);
 }
 
 #define HAS_ARG 0x0001
@@ -7283,12 +7283,12 @@ int main(int argc, char **argv)
                                m->name, m->desc, 
                                m == first_machine ? " (default)" : "");
                     }
-                    exit(1);
+                    exit(*optarg != '?');
                 }
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
-                if (optarg[0] == '?') {
+                if (*optarg == '?') {
 #if defined(TARGET_PPC)
                     ppc_cpu_list(stdout, &fprintf);
 #elif defined(TARGET_ARM)
@@ -7298,7 +7298,7 @@ int main(int argc, char **argv)
 #elif defined(TARGET_SPARC)
                     sparc_cpu_list(stdout, &fprintf);
 #endif
-                    exit(1);
+                    exit(0);
                 } else {
                     cpu_model = optarg;
                 }
@@ -7452,12 +7452,12 @@ int main(int argc, char **argv)
                 break;
 #endif
             case QEMU_OPTION_h:
-                help(optarg);
+                help(0);
                 break;
             case QEMU_OPTION_m:
                 ram_size = atoi(optarg) * 1024 * 1024;
                 if (ram_size <= 0)
-                    help(optarg);
+                    help(1);
                 if (ram_size > PHYS_RAM_MAX_SIZE) {
                     fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
                             PHYS_RAM_MAX_SIZE / (1024 * 1024));
@@ -7743,7 +7743,7 @@ int main(int argc, char **argv)
         hd_filename[0] == '\0' && 
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
-        help("");
+        help(1);
 
     /* boot to floppy or the default cd if no hard disk defined yet */
     if (hd_filename[0] == '\0' && boot_device == 'c') {
