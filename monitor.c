@@ -406,6 +406,11 @@ static void do_screen_dump(const char *filename)
     vga_hw_screen_dump(filename);
 }
 
+static void do_logfile(const char *filename)
+{
+    cpu_set_log_filename(filename);
+}
+
 static void do_log(const char *items)
 {
     int mask;
@@ -1213,6 +1218,8 @@ static term_cmd_t term_cmds[] = {
       "device filename", "change a removable medium" },
     { "screendump", "F", do_screen_dump, 
       "filename", "save screen into PPM image 'filename'" },
+    { "logfile", "s", do_logfile,
+      "filename", "output logs to 'filename'" },
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
     { "savevm", "s?", do_savevm,

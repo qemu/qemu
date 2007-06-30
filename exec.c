@@ -152,6 +152,7 @@ static int io_mem_watch;
 char *logfilename = "/tmp/qemu.log";
 FILE *logfile;
 int loglevel;
+static int log_append = 0;
 
 /* statistics */
 static int tlb_flush_count;
@@ -1160,7 +1161,7 @@ void cpu_set_log(int log_flags)
 {
     loglevel = log_flags;
     if (loglevel && !logfile) {
-        logfile = fopen(logfilename, "w");
+        logfile = fopen(logfilename, log_append ? "wa" : "w");
         if (!logfile) {
             perror(logfilename);
             _exit(1);
@@ -1174,12 +1175,22 @@ void cpu_set_log(int log_flags)
 #else
         setvbuf(logfile, NULL, _IOLBF, 0);
 #endif
+        log_append = 1;
+    }
+    if (!loglevel && logfile) {
+        fclose(logfile);
+        logfile = NULL;
     }
 }
 
 void cpu_set_log_filename(const char *filename)
 {
     logfilename = strdup(filename);
+    if (logfile) {
+        fclose(logfile);
+        logfile = NULL;
+    }
+    cpu_set_log(loglevel);
 }
 
 /* mask must never be zero, except for A20 change call */
