@@ -57,6 +57,8 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
 
     pl181_init(0x10005000, sd_bdrv, pic[17], pic[18]);
 
+    pl031_init(0x10017000, pic[10]);
+
     pci_bus = pci_vpb_init(pic, 48, 1);
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
@@ -102,7 +104,7 @@ static void realview_init(int ram_size, int vga_ram_size, int boot_device,
     /*  0x10014000 GPIO 1.  */
     /*  0x10015000 GPIO 2.  */
     /* 0x10016000 Reserved.  */
-    /*  0x10017000 RTC.  */
+    /* 0x10017000 RTC.  */
     /*  0x10018000 DMC.  */
     /*  0x10019000 PCI controller config.  */
     /*  0x10020000 CLCD.  */

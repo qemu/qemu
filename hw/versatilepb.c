@@ -223,6 +223,9 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
     pl181_init(0x1000b000, NULL, sic, 23, 2);
 #endif
 
+    /* Add PL031 Real Time Clock. */
+    pl031_init(0x101e8000,pic[10]);
+
     /* Memory map for Versatile/PB:  */
     /* 0x10000000 System registers.  */
     /* 0x10001000 PCI controller config registers.  */
