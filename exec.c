@@ -1161,7 +1161,7 @@ void cpu_set_log(int log_flags)
 {
     loglevel = log_flags;
     if (loglevel && !logfile) {
-        logfile = fopen(logfilename, log_append ? "wa" : "w");
+        logfile = fopen(logfilename, log_append ? "a" : "w");
         if (!logfile) {
             perror(logfilename);
             _exit(1);
