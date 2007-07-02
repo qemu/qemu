@@ -1810,7 +1810,7 @@ int main(int argc, char **argv)
             continue;
         *(dst++) = strdup(*wrk);
     }
-    dst = NULL; /* NULL terminate target_environ */
+    *dst = NULL; /* NULL terminate target_environ */
 
     if (loader_exec(filename, argv+optind, target_environ, regs, info) != 0) {
         printf("Error loading %s\n", filename);

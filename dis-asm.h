@@ -421,7 +421,7 @@ extern int generic_symbol_at_address
 /* Call this macro to initialize only the internal variables for the
    disassembler.  Architecture dependent things such as byte order, or machine
    variant are not touched by this macro.  This makes things much easier for
-   GDB which must initialize these things seperatly.  */
+   GDB which must initialize these things separatly.  */
 
 #define INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC) \
   (INFO).fprintf_func = (FPRINTF_FUNC), \

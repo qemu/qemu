@@ -302,8 +302,12 @@ static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
     case 5: /* LCDLPBASE */
         return s->lpbase;
     case 6: /* LCDIMSC */
+	if (s->versatile)
+	  return s->cr;
         return s->int_mask;
     case 7: /* LCDControl */
+	if (s->versatile)
+	  return s->int_mask;
         return s->cr;
     case 8: /* LCDRIS */
         return s->int_status;

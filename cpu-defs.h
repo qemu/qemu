@@ -141,7 +141,7 @@ typedef struct CPUTLBEntry {
                                                                         \
     struct {                                                            \
         target_ulong vaddr;                                             \
-        int is_ram;                                                     \
+        target_phys_addr_t addend;                                      \
     } watchpoint[MAX_WATCHPOINTS];                                      \
     int nb_watchpoints;                                                 \
     int watchpoint_hit;                                                 \

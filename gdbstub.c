@@ -1242,12 +1242,12 @@ int gdbserver_start(int port)
     return 0;
 }
 #else
-static int gdb_chr_can_recieve(void *opaque)
+static int gdb_chr_can_receive(void *opaque)
 {
   return 1;
 }
 
-static void gdb_chr_recieve(void *opaque, const uint8_t *buf, int size)
+static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
 {
     GDBState *s = opaque;
     int i;
@@ -1298,7 +1298,7 @@ int gdbserver_start(const char *port)
     }
     s->env = first_cpu; /* XXX: allow to change CPU */
     s->chr = chr;
-    qemu_chr_add_handlers(chr, gdb_chr_can_recieve, gdb_chr_recieve,
+    qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
                           gdb_chr_event, s);
     qemu_add_vm_stop_handler(gdb_vm_stopped, s);
     return 0;

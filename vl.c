@@ -204,6 +204,8 @@ unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
 
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
+
 /***********************************************************/
 /* x86 ISA bus support */
 
@@ -1029,7 +1031,7 @@ static int rtc_fd;
 
 static int start_rtc_timer(void)
 {
-    rtc_fd = open("/dev/rtc", O_RDONLY);
+    TFR(rtc_fd = open("/dev/rtc", O_RDONLY));
     if (rtc_fd < 0)
         return -1;
     if (ioctl(rtc_fd, RTC_IRQP_SET, RTC_FREQ) < 0) {
@@ -1640,7 +1642,7 @@ static CharDriverState *qemu_chr_open_file_out(const char *file_out)
 {
     int fd_out;
 
-    fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666);
+    TFR(fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666));
     if (fd_out < 0)
         return NULL;
     return qemu_chr_open_fd(-1, fd_out);
@@ -1653,14 +1655,14 @@ static CharDriverState *qemu_chr_open_pipe(const char *filename)
 
     snprintf(filename_in, 256, "%s.in", filename);
     snprintf(filename_out, 256, "%s.out", filename);
-    fd_in = open(filename_in, O_RDWR | O_BINARY);
-    fd_out = open(filename_out, O_RDWR | O_BINARY);
+    TFR(fd_in = open(filename_in, O_RDWR | O_BINARY));
+    TFR(fd_out = open(filename_out, O_RDWR | O_BINARY));
     if (fd_in < 0 || fd_out < 0) {
 	if (fd_in >= 0)
 	    close(fd_in);
 	if (fd_out >= 0)
 	    close(fd_out);
-        fd_in = fd_out = open(filename, O_RDWR | O_BINARY);
+        TFR(fd_in = fd_out = open(filename, O_RDWR | O_BINARY));
         if (fd_in < 0)
             return NULL;
     }
@@ -1911,14 +1913,14 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     CharDriverState *chr;
     int fd;
 
-    fd = open(filename, O_RDWR | O_NONBLOCK);
-    if (fd < 0)
-        return NULL;
+    TFR(fd = open(filename, O_RDWR | O_NONBLOCK));
     fcntl(fd, F_SETFL, O_NONBLOCK);
     tty_serial_init(fd, 115200, 'N', 8, 1);
     chr = qemu_chr_open_fd(fd, fd);
-    if (!chr)
+    if (!chr) {
+        close(fd);
         return NULL;
+    }
     chr->chr_ioctl = tty_serial_ioctl;
     qemu_chr_reset(chr);
     return chr;
@@ -2041,7 +2043,7 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
     ParallelCharDriver *drv;
     int fd;
 
-    fd = open(filename, O_RDWR);
+    TFR(fd = open(filename, O_RDWR));
     if (fd < 0)
         return NULL;
 
@@ -2961,9 +2963,11 @@ CharDriverState *qemu_chr_open(const char *filename)
         return qemu_chr_open_pp(filename);
     } else 
 #endif
+#if defined(__linux__) || defined(__sun__)
     if (strstart(filename, "/dev/", NULL)) {
         return qemu_chr_open_tty(filename);
-    } else 
+    } else
+#endif
 #else /* !_WIN32 */
     if (strstart(filename, "COM", NULL)) {
         return qemu_chr_open_win(filename);
@@ -3193,11 +3197,11 @@ int qemu_can_send_packet(VLANClientState *vc1)
 
     for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
         if (vc != vc1) {
-            if (vc->fd_can_read && !vc->fd_can_read(vc->opaque))
-                return 0;
+            if (vc->fd_can_read && vc->fd_can_read(vc->opaque))
+                return 1;
         }
     }
-    return 1;
+    return 0;
 }
 
 void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
@@ -3461,7 +3465,7 @@ static int tap_open(char *ifname, int ifname_size)
     char *dev;
     struct stat s;
 
-    fd = open("/dev/tap", O_RDWR);
+    TFR(fd = open("/dev/tap", O_RDWR));
     if (fd < 0) {
         fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
         return -1;
@@ -3505,12 +3509,14 @@ int tap_alloc(char *dev)
     if( ip_fd )
        close(ip_fd);
 
-    if( (ip_fd = open("/dev/udp", O_RDWR, 0)) < 0){
+    TFR(ip_fd = open("/dev/udp", O_RDWR, 0));
+    if (ip_fd < 0) {
        syslog(LOG_ERR, "Can't open /dev/ip (actually /dev/udp)");
        return -1;
     }
 
-    if( (tap_fd = open("/dev/tap", O_RDWR, 0)) < 0){
+    TFR(tap_fd = open("/dev/tap", O_RDWR, 0));
+    if (tap_fd < 0) {
        syslog(LOG_ERR, "Can't open /dev/tap");
        return -1;
     }
@@ -3523,7 +3529,8 @@ int tap_alloc(char *dev)
     if ((ppa = ioctl (tap_fd, I_STR, &strioc_ppa)) < 0)
        syslog (LOG_ERR, "Can't assign new interface");
 
-    if( (if_fd = open("/dev/tap", O_RDWR, 0)) < 0){
+    TFR(if_fd = open("/dev/tap", O_RDWR, 0));
+    if (if_fd < 0) {
        syslog(LOG_ERR, "Can't open /dev/tap (2)");
        return -1;
     }
@@ -3555,7 +3562,8 @@ int tap_alloc(char *dev)
     if (ioctl (ip_fd, I_PUSH, "arp") < 0)
         syslog (LOG_ERR, "Can't push ARP module (3)\n");
     /* Open arp_fd */
-    if ((arp_fd = open ("/dev/tap", O_RDWR, 0)) < 0)
+    TFR(arp_fd = open ("/dev/tap", O_RDWR, 0));
+    if (arp_fd < 0)
        syslog (LOG_ERR, "Can't open %s\n", "/dev/tap");
 
     /* Set ifname to arp */
@@ -3611,7 +3619,7 @@ static int tap_open(char *ifname, int ifname_size)
     struct ifreq ifr;
     int fd, ret;
     
-    fd = open("/dev/net/tun", O_RDWR);
+    TFR(fd = open("/dev/net/tun", O_RDWR));
     if (fd < 0) {
         fprintf(stderr, "warning: could not open /dev/net/tun: no virtual network emulation\n");
         return -1;
@@ -3647,7 +3655,7 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
         pstrcpy(ifname, sizeof(ifname), ifname1);
     else
         ifname[0] = '\0';
-    fd = tap_open(ifname, sizeof(ifname));
+    TFR(fd = tap_open(ifname, sizeof(ifname)));
     if (fd < 0)
         return -1;
 
@@ -6568,7 +6576,7 @@ int main_loop(void)
     return ret;
 }
 
-void help(void)
+static void help(int exitcode)
 {
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
@@ -6710,7 +6718,7 @@ void help(void)
 #endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
-    exit(strcmp(optarg, "?"));
+    exit(exitcode);
 }
 
 #define HAS_ARG 0x0001
@@ -7328,12 +7336,12 @@ int main(int argc, char **argv)
                                m->name, m->desc, 
                                m == first_machine ? " (default)" : "");
                     }
-                    exit(1);
+                    exit(*optarg != '?');
                 }
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
-                if (optarg[0] == '?') {
+                if (*optarg == '?') {
 #if defined(TARGET_PPC)
                     ppc_cpu_list(stdout, &fprintf);
 #elif defined(TARGET_ARM)
@@ -7345,7 +7353,7 @@ int main(int argc, char **argv)
 #else
                     printf("Target ignores cpu selection\n");
 #endif
-                    exit(1);
+                    exit(0);
                 } else {
                     cpu_model = optarg;
                 }
@@ -7499,12 +7507,12 @@ int main(int argc, char **argv)
                 break;
 #endif
             case QEMU_OPTION_h:
-                help();
+                help(0);
                 break;
             case QEMU_OPTION_m:
                 ram_size = atoi(optarg) * 1024 * 1024;
                 if (ram_size <= 0)
-                    help();
+                    help(1);
                 if (ram_size > PHYS_RAM_MAX_SIZE) {
                     fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
                             PHYS_RAM_MAX_SIZE / (1024 * 1024));
@@ -7791,7 +7799,7 @@ int main(int argc, char **argv)
         hd_filename[0] == '\0' && 
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
-        help();
+        help(1);
 #endif
 
     /* boot to floppy or the default cd if no hard disk defined yet */
@@ -8063,8 +8071,9 @@ int main(int argc, char **argv)
                     gdbstub_port);
             exit(1);
         }
-    } else 
+    }
 #endif
+
     if (loadvm)
         do_loadvm(loadvm);
 
@@ -8089,7 +8098,7 @@ int main(int argc, char **argv)
 	if (len != 1)
 	    exit(1);
 
-	fd = open("/dev/null", O_RDWR);
+	TFR(fd = open("/dev/null", O_RDWR));
 	if (fd == -1)
 	    exit(1);
 

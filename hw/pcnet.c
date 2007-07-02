@@ -2011,16 +2011,39 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 
 #if defined (TARGET_SPARC) && !defined(TARGET_SPARC64) // Avoid compile failure
 
+static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+#ifdef PCNET_DEBUG_IO
+    printf("lance_mem_writew addr=" TARGET_FMT_plx " val=0x%04x\n", addr,
+           val & 0xffff);
+#endif
+    pcnet_ioport_writew(opaque, addr & 7, val & 0xffff);
+}
+
+static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t val;
+
+    val = pcnet_ioport_readw(opaque, addr & 7);
+#ifdef PCNET_DEBUG_IO
+    printf("pcnet_mmio_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
+           val & 0xffff);
+#endif
+
+    return val & 0xffff;
+}
+
 static CPUReadMemoryFunc *lance_mem_read[3] = {
-    (CPUReadMemoryFunc *)&pcnet_ioport_readw,
-    (CPUReadMemoryFunc *)&pcnet_ioport_readw,
-    (CPUReadMemoryFunc *)&pcnet_ioport_readw,
+    lance_mem_readw,
+    lance_mem_readw,
+    lance_mem_readw,
 };
 
 static CPUWriteMemoryFunc *lance_mem_write[3] = {
-    (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
-    (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
-    (CPUWriteMemoryFunc *)&pcnet_ioport_writew,
+    lance_mem_writew,
+    lance_mem_writew,
+    lance_mem_writew,
 };
 
 void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,

@@ -1461,6 +1461,9 @@ void ps2_mouse_fake_event(void *opaque);
 /* smc91c111.c */
 void smc91c111_init(NICInfo *, uint32_t, qemu_irq);
 
+/* pl031.c */
+void pl031_init(uint32_t base, qemu_irq irq);
+
 /* pl110.c */
 void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq, int);
 

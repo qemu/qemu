@@ -4565,7 +4565,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(31, 16):
         check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
+        GEN_LOAD_FREG_FTN(WT2, ft);
         gen_op_float_rsqrt2_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "rsqrt2.s";
@@ -5050,8 +5050,8 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        GEN_LOAD_FREG_FTN(WTH2, fd);
+        GEN_LOAD_FREG_FTN(WT2, ft);
+        GEN_LOAD_FREG_FTN(WTH2, ft);
         gen_op_float_rsqrt2_ps();
         GEN_STORE_FTN_FREG(fd, WT2);
         GEN_STORE_FTN_FREG(fd, WTH2);

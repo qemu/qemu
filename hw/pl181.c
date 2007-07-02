@@ -160,7 +160,7 @@ static void pl181_send_command(pl181_state *s)
             s->response[2] = RWORD(8);
             s->response[3] = RWORD(12) & ~1;
         }
-        DPRINTF("Response recieved\n");
+        DPRINTF("Response received\n");
         s->status |= PL181_STATUS_CMDRESPEND;
 #undef RWORD
     } else {
@@ -174,7 +174,7 @@ error:
     s->status |= PL181_STATUS_CMDTIMEOUT;
 }
 
-/* Transfer data between teh card and the FIFO.  This is complicated by
+/* Transfer data between the card and the FIFO.  This is complicated by
    the FIFO holding 32-bit words and the card taking data in single byte
    chunks.  FIFO bytes are transferred in little-endian order.  */
    

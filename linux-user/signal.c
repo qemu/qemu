@@ -245,7 +245,7 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 }
 
 /* XXX: we support only POSIX RT signals are used. */
-/* XXX: find a solution for 64 bit (additionnal malloced data is needed) */
+/* XXX: find a solution for 64 bit (additional malloced data is needed) */
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
 {
     info->si_signo = tswap32(tinfo->si_signo);

@@ -490,6 +490,7 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
                        cpu_pic[ARM_PIC_CPU_FIQ]);
     icp_pic_init(0xca000000, pic[26], NULL);
     icp_pit_init(0x13000000, pic, 5);
+    pl031_init(0x15000000, pic[8]);
     pl011_init(0x16000000, pic[1], serial_hds[0]);
     pl011_init(0x17000000, pic[2], serial_hds[1]);
     icp_control_init(0xcb000000);

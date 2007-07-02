@@ -24,6 +24,7 @@
 #include "vl.h"
 
 //#define DEBUG_SERIAL
+#define DEBUG_SERIAL
 
 #define UART_LCR_DLAB	0x80	/* Divisor latch access bit */
 
@@ -148,7 +149,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
     addr &= 7;
 #ifdef DEBUG_SERIAL
-    printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
+    fprintf(stderr, "serial: write addr=0x%02x val=0x%02x\n", addr, val);
 #endif
     switch(addr) {
     default:
@@ -267,7 +268,7 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
         break;
     }
 #ifdef DEBUG_SERIAL
-    printf("serial: read addr=0x%02x val=0x%02x\n", addr, ret);
+    fprintf(stderr, "serial: read addr=0x%02x val=0x%02x\n", addr, ret);
 #endif
     return ret;
 }

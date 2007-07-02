@@ -1567,7 +1567,7 @@ static void ide_atapi_cmd(IDEState *s)
         buf[1] = 0x80; /* removable */
         buf[2] = 0x00; /* ISO */
         buf[3] = 0x21; /* ATAPI-2 (XXX: put ATAPI-4 ?) */
-        buf[4] = 31; /* additionnal length */
+        buf[4] = 31; /* additional length */
         buf[5] = 0; /* reserved */
         buf[6] = 0; /* reserved */
         buf[7] = 0; /* reserved */
