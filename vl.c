@@ -3195,11 +3195,11 @@ int qemu_can_send_packet(VLANClientState *vc1)
 
     for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
         if (vc != vc1) {
-            if (vc->fd_can_read && !vc->fd_can_read(vc->opaque))
-                return 0;
+            if (vc->fd_can_read && vc->fd_can_read(vc->opaque))
+                return 1;
         }
     }
-    return 1;
+    return 0;
 }
 
 void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
