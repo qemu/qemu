@@ -8011,8 +8011,9 @@ int main(int argc, char **argv)
                     gdbstub_port);
             exit(1);
         }
-    } else 
+    }
 #endif
+
     if (loadvm)
         do_loadvm(loadvm);
 
