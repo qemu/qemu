@@ -204,6 +204,8 @@ unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
 
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
+
 /***********************************************************/
 /* x86 ISA bus support */
 
@@ -1029,7 +1031,7 @@ static int rtc_fd;
 
 static int start_rtc_timer(void)
 {
-    rtc_fd = open("/dev/rtc", O_RDONLY);
+    TFR(rtc_fd = open("/dev/rtc", O_RDONLY));
     if (rtc_fd < 0)
         return -1;
     if (ioctl(rtc_fd, RTC_IRQP_SET, RTC_FREQ) < 0) {
@@ -1640,7 +1642,7 @@ static CharDriverState *qemu_chr_open_file_out(const char *file_out)
 {
     int fd_out;
 
-    fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666);
+    TFR(fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666));
     if (fd_out < 0)
         return NULL;
     return qemu_chr_open_fd(-1, fd_out);
@@ -1653,14 +1655,14 @@ static CharDriverState *qemu_chr_open_pipe(const char *filename)
 
     snprintf(filename_in, 256, "%s.in", filename);
     snprintf(filename_out, 256, "%s.out", filename);
-    fd_in = open(filename_in, O_RDWR | O_BINARY);
-    fd_out = open(filename_out, O_RDWR | O_BINARY);
+    TFR(fd_in = open(filename_in, O_RDWR | O_BINARY));
+    TFR(fd_out = open(filename_out, O_RDWR | O_BINARY));
     if (fd_in < 0 || fd_out < 0) {
 	if (fd_in >= 0)
 	    close(fd_in);
 	if (fd_out >= 0)
 	    close(fd_out);
-        fd_in = fd_out = open(filename, O_RDWR | O_BINARY);
+        TFR(fd_in = fd_out = open(filename, O_RDWR | O_BINARY));
         if (fd_in < 0)
             return NULL;
     }
@@ -1911,14 +1913,14 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     CharDriverState *chr;
     int fd;
 
-    fd = open(filename, O_RDWR | O_NONBLOCK);
-    if (fd < 0)
-        return NULL;
+    TFR(fd = open(filename, O_RDWR | O_NONBLOCK));
     fcntl(fd, F_SETFL, O_NONBLOCK);
     tty_serial_init(fd, 115200, 'N', 8, 1);
     chr = qemu_chr_open_fd(fd, fd);
-    if (!chr)
+    if (!chr) {
+        close(fd);
         return NULL;
+    }
     chr->chr_ioctl = tty_serial_ioctl;
     qemu_chr_reset(chr);
     return chr;
@@ -2041,7 +2043,7 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
     ParallelCharDriver *drv;
     int fd;
 
-    fd = open(filename, O_RDWR);
+    TFR(fd = open(filename, O_RDWR));
     if (fd < 0)
         return NULL;
 
@@ -3463,7 +3465,7 @@ static int tap_open(char *ifname, int ifname_size)
     char *dev;
     struct stat s;
 
-    fd = open("/dev/tap", O_RDWR);
+    TFR(fd = open("/dev/tap", O_RDWR));
     if (fd < 0) {
         fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
         return -1;
@@ -3507,12 +3509,14 @@ int tap_alloc(char *dev)
     if( ip_fd )
        close(ip_fd);
 
-    if( (ip_fd = open("/dev/udp", O_RDWR, 0)) < 0){
+    TFR(ip_fd = open("/dev/udp", O_RDWR, 0));
+    if (ip_fd < 0) {
        syslog(LOG_ERR, "Can't open /dev/ip (actually /dev/udp)");
        return -1;
     }
 
-    if( (tap_fd = open("/dev/tap", O_RDWR, 0)) < 0){
+    TFR(tap_fd = open("/dev/tap", O_RDWR, 0));
+    if (tap_fd < 0) {
        syslog(LOG_ERR, "Can't open /dev/tap");
        return -1;
     }
@@ -3525,7 +3529,8 @@ int tap_alloc(char *dev)
     if ((ppa = ioctl (tap_fd, I_STR, &strioc_ppa)) < 0)
        syslog (LOG_ERR, "Can't assign new interface");
 
-    if( (if_fd = open("/dev/tap", O_RDWR, 0)) < 0){
+    TFR(if_fd = open("/dev/tap", O_RDWR, 0));
+    if (if_fd < 0) {
        syslog(LOG_ERR, "Can't open /dev/tap (2)");
        return -1;
     }
@@ -3557,7 +3562,8 @@ int tap_alloc(char *dev)
     if (ioctl (ip_fd, I_PUSH, "arp") < 0)
         syslog (LOG_ERR, "Can't push ARP module (3)\n");
     /* Open arp_fd */
-    if ((arp_fd = open ("/dev/tap", O_RDWR, 0)) < 0)
+    TFR(arp_fd = open ("/dev/tap", O_RDWR, 0));
+    if (arp_fd < 0)
        syslog (LOG_ERR, "Can't open %s\n", "/dev/tap");
 
     /* Set ifname to arp */
@@ -3613,7 +3619,7 @@ static int tap_open(char *ifname, int ifname_size)
     struct ifreq ifr;
     int fd, ret;
     
-    fd = open("/dev/net/tun", O_RDWR);
+    TFR(fd = open("/dev/net/tun", O_RDWR));
     if (fd < 0) {
         fprintf(stderr, "warning: could not open /dev/net/tun: no virtual network emulation\n");
         return -1;
@@ -3649,7 +3655,7 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
         pstrcpy(ifname, sizeof(ifname), ifname1);
     else
         ifname[0] = '\0';
-    fd = tap_open(ifname, sizeof(ifname));
+    TFR(fd = tap_open(ifname, sizeof(ifname)));
     if (fd < 0)
         return -1;
 
@@ -8038,7 +8044,7 @@ int main(int argc, char **argv)
 	if (len != 1)
 	    exit(1);
 
-	fd = open("/dev/null", O_RDWR);
+	TFR(fd = open("/dev/null", O_RDWR));
 	if (fd == -1)
 	    exit(1);
 
