@@ -392,7 +392,8 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 	0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,	/* nop 0; brl IP */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0
     };
-    uint8_t *gen_code_ptr = *gen_code_pp, *plt_start, *got_start, *vp;
+    uint8_t *gen_code_ptr = *gen_code_pp, *plt_start, *got_start;
+    uint64_t *vp;
     struct ia64_fixup *fixup;
     unsigned int offset = 0;
     struct fdesc {
@@ -429,12 +430,12 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
     /* First, create the GOT: */
     for (fixup = ltoff_fixes; fixup; fixup = fixup->next) {
 	/* first check if we already have this value in the GOT: */
-	for (vp = got_start; vp < gen_code_ptr; ++vp)
-	    if (*(uint64_t *) vp == fixup->value)
+	for (vp = (uint64_t *) got_start; vp < (uint64_t *) gen_code_ptr; ++vp)
+	    if (*vp == fixup->value)
 		break;
-	if (vp == gen_code_ptr) {
+	if (vp == (uint64_t *) gen_code_ptr) {
 	    /* Nope, we need to put the value in the GOT: */
-	    *(uint64_t *) vp = fixup->value;
+	    *vp = fixup->value;
 	    gen_code_ptr += 8;
 	}
 	ia64_imm22(fixup->addr, (long) vp - gp);
