@@ -259,7 +259,7 @@ static int iommu_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     for (i = 0; i < IOMMU_NREGS; i++)
-	qemu_put_be32s(f, &s->regs[i]);
+        qemu_get_be32s(f, &s->regs[i]);
     qemu_get_be64s(f, &s->iostart);
 
     return 0;

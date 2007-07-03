@@ -354,9 +354,6 @@ static void tcx_save(QEMUFile *f, void *opaque)
 {
     TCXState *s = opaque;
     
-    qemu_put_be32s(f, (uint32_t *)&s->vram);
-    qemu_put_be32s(f, (uint32_t *)&s->vram24);
-    qemu_put_be32s(f, (uint32_t *)&s->cplane);
     qemu_put_be16s(f, (uint16_t *)&s->height);
     qemu_put_be16s(f, (uint16_t *)&s->width);
     qemu_put_be16s(f, (uint16_t *)&s->depth);
@@ -370,13 +367,16 @@ static void tcx_save(QEMUFile *f, void *opaque)
 static int tcx_load(QEMUFile *f, void *opaque, int version_id)
 {
     TCXState *s = opaque;
-    
-    if (version_id != 3)
+    uint32_t dummy;
+
+    if (version_id != 3 && version_id != 4)
         return -EINVAL;
 
-    qemu_get_be32s(f, (uint32_t *)&s->vram);
-    qemu_get_be32s(f, (uint32_t *)&s->vram24);
-    qemu_get_be32s(f, (uint32_t *)&s->cplane);
+    if (version_id == 3) {
+        qemu_get_be32s(f, (uint32_t *)&dummy);
+        qemu_get_be32s(f, (uint32_t *)&dummy);
+        qemu_get_be32s(f, (uint32_t *)&dummy);
+    }
     qemu_get_be16s(f, (uint16_t *)&s->height);
     qemu_get_be16s(f, (uint16_t *)&s->width);
     qemu_get_be16s(f, (uint16_t *)&s->depth);
@@ -546,7 +546,7 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
     cpu_register_physical_memory(addr + 0x00301000ULL, TCX_THC_NREGS_24,
                                  dummy_memory);
 
-    register_savevm("tcx", addr, 3, tcx_save, tcx_load, s);
+    register_savevm("tcx", addr, 4, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
     dpy_resize(s->ds, width, height);
