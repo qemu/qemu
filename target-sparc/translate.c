@@ -84,7 +84,7 @@ enum {
     GET_FIELD(X, 31 - (TO), 31 - (FROM))
 
 #define GET_FIELDs(x,a,b) sign_extend (GET_FIELD(x,a,b), (b) - (a) + 1)
-#define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), 32 - ((b) - (a) + 1))
+#define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), ((b) - (a) + 1))
 
 #ifdef TARGET_SPARC64
 #define DFPREG(r) (((r & 1) << 6) | (r & 0x1e))
@@ -2226,7 +2226,7 @@ static void disas_sparc_insn(DisasContext * dc)
 			    gen_movl_reg_T0(rs1);
 			    gen_cond_reg(cond);
 			    if (IS_IMM) {	/* immediate */
-				rs2 = GET_FIELD_SPs(insn, 0, 10);
+				rs2 = GET_FIELD_SPs(insn, 0, 9);
 				gen_movl_simm_T1(rs2);
 			    }
 			    else {
