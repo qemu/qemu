@@ -28,7 +28,8 @@
  *
  * Tested features (dp83816):
  *      PXE boot (i386) ok
- *      Linux networking (i386) ok
+ *      Linux networking (i386, mipsel) ok
+ *      big endian target (mips malta) ok
  *
  * Untested features:
  *      big endian host cpu
@@ -324,6 +325,12 @@ typedef enum {
     MISR_MINT = BIT(15),
 } misr_bit_t;
 
+static void st_le32_phys(target_phys_addr_t addr, uint32_t val)
+{
+  uint8_t *buf = (uint8_t *)&val;
+  cpu_physical_memory_write(addr, buf, sizeof(val));
+}
+
 static uint32_t op_reg_read(dp8381x_t * s, uint32_t addr)
 {
     assert(addr < 0x80 && !(addr & 3));
@@ -462,7 +469,7 @@ typedef descriptor_t tx_descriptor_t;
 
 static int dp8381x_can_receive(void *opaque)
 {
-    dp8381x_t *s = opaque;
+    dp8381x_t *s = (dp8381x_t *)opaque;
 
     logout("\n");
 
@@ -489,7 +496,7 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    dp8381x_t *s = opaque;
+    dp8381x_t *s = (dp8381x_t *)opaque;
 #if 0
     uint8_t *p;
     int total_len, next, avail, len, index, mcast_idx;
@@ -552,7 +559,7 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     cmdsts |= (size & CMDSTS_SIZE);
     cmdsts |= CMDSTS_OWN;
     cmdsts |= CMDSTS_OK;
-    stl_phys(rxdp + 4, cmdsts);
+    st_le32_phys(rxdp + 4, cmdsts);
     dp8381x_interrupt(s, ISR_RXOK);
     dp8381x_interrupt(s, ISR_RXDESC);
     if (rxlink == 0) {
@@ -596,11 +603,11 @@ static void dp8381x_transmit(dp8381x_t * s)
         if (cmdsts & CMDSTS_MORE) {
             assert(txlink != 0);
             txdp = txlink;
-            stl_phys(txdp + 4, cmdsts);
+            st_le32_phys(txdp + 4, cmdsts);
             continue;
         }
         cmdsts |= CMDSTS_OK;
-        stl_phys(txdp + 4, cmdsts);
+        st_le32_phys(txdp + 4, cmdsts);
         dp8381x_interrupt(s, ISR_TXOK);
         TRACE(LOG_TX, logout("sending\n"));
         qemu_send_packet(s->vc, buffer, size);
@@ -943,6 +950,7 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
     } else if (addr >= DP8381X_MIB0 && addr <= DP8381X_MIB6) {  /* 0x60 ... 0x78 */
         /* TODO: statistics counters. */
         val = op_reg_read(s, addr);
+    /* TODO: check following cases for big endian target. */
     } else if (addr == DP8381X_BMCR) {  /* 0x80 */
         val = bmcr_read(s);
         logging = 0;
