@@ -27,6 +27,7 @@
  * - TNETD7300 (best emulation)
  *
  * TODO:
+ * - ldl_phys, stl_phys wrong for big endian AR7
  * - TNETD7100 emulation is missing
  * - TNETD7200 emulation is very incomplete
  * - reboot loops endless reading device config latch (AVALANCHE_DCL_BASE)
