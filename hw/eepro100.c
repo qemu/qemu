@@ -23,6 +23,8 @@
  * Tested features (i82559):
  *      PXE boot (i386) no valid link
  *      Linux networking (i386) ok
+ *      Linux networking e100 driver (mips, mipsel) ok
+ *      Linux networking eepro100 driver (mipsel) not ok
  *
  * Untested:
  *      non-i386 platforms
@@ -72,7 +74,7 @@
 #define KiB 1024
 
 /* debug EEPRO100 card */
-#define DEBUG_EEPRO100
+//~ #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
@@ -741,10 +743,10 @@ static void tx_command(EEPRO100State *s)
     } else {
         /* Flexible mode. */
         uint8_t tbd_count = 0;
-        if (!(s->configuration[6] & BIT(4))) {
-            /* Extended TCB. */
+        if (!(s->configuration[6] & BIT(4)) && s->device != i82557C) {
+            /* Extended TCB (not for 82557). */
             assert(tcb_bytes == 0);
-            for (; tbd_count < 2; tbd_count++) {
+            for (; tbd_count < 2 && tbd_count < s->tx.tbd_count; tbd_count++) {
                 uint32_t tx_buffer_address = ldl_le_phys(tbd_address);
                 uint16_t tx_buffer_size = lduw_le_phys(tbd_address + 4);
                 uint16_t tx_buffer_el = lduw_le_phys(tbd_address + 6);
@@ -754,7 +756,8 @@ static void tx_command(EEPRO100State *s)
                      tx_buffer_address, tx_buffer_size);
                 if (size + tx_buffer_size > sizeof(buf)) {
                     logout("bad extended TCB with size 0x%04x\n", tx_buffer_size);
-                } else {
+                } else if (tx_buffer_size > 0) {
+                    assert(tx_buffer_address != 0);
                     cpu_physical_memory_read(tx_buffer_address, &buf[size],
                                              tx_buffer_size);
                     size += tx_buffer_size;
@@ -1918,48 +1921,3 @@ void pci_i82559er_init(PCIBus * bus, NICInfo * nd, int devfn)
 }
 
 /* eof */
-
-/*
-EE100   nic_receive             0x9bb554c received frame for me, len=1514
-EE100   nic_receive             command 0x0000, link 0x04deb812, addr 0xffffffff, size 1518
-EE100   enable_interrupt        interrupt enabled
-EE100   eepro100_read1          addr=Command/Status+1 val=0x40
-EE100   eepro100_write1         addr=Command/Status+1 val=0x40
-EE100   disable_interrupt       interrupt disabled
-EE100   eepro100_write1         addr=Command/Status+3 val=0x01
-EE100   eepro100_read1          addr=Command/Status+0 val=0x50
-EE100   eepro100_write1         addr=Command/Status+3 val=0x00
-EE100   eepro100_read1          addr=Command/Status+0 val=0x50
-EE100   eepro100_read1          addr=Command/Status+2 val=0x00
-EE100   eepro100_write1         addr=Command/Status+2 val=0x20
-EE100   eepro100_cu_command     CU resuming
-EE100   eepro100_cu_command     val=0x20 (cu start), status=0x0000, command=0x5f0c, link=0x04e20230
-EE100   eepro100_cu_command     transmit, TBD array address 0x04e20010, TCB byte count 0x0000, TBD count 1
-EE100   eepro100_cu_command     TBD (extended mode): buffer address 0x058884ce, size 0x0042
-EE100   eepro100_cu_command     TBD (extended mode): buffer address 0x0ef70e36, size 0x1fff
-qemu: /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/hw/eepro100.c:754: eepro100_cu_command: Assertion `size + tx_buffer_size <= sizeof(buf)' failed.
-
-Program received signal SIGABRT, Aborted.
-[Switching to Thread -1212320064 (LWP 29061)]
-0xb7fbb410 in ?? ()
-(gdb) i s
-#0  0xb7fbb410 in ?? ()
-#1  0xbfe5ce20 in ?? ()
-#2  0x00000006 in ?? ()
-#3  0x00007185 in ?? ()
-#4  0xb7ce4811 in raise () from /lib/tls/i686/cmov/libc.so.6
-#5  0xb7ce5fb9 in abort () from /lib/tls/i686/cmov/libc.so.6
-#6  0xb7cddfbf in __assert_fail () from /lib/tls/i686/cmov/libc.so.6
-#7  0x0807f41c in eepro100_cu_command (s=0x9bb554c, val=32 ' ')
-    at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/hw/eepro100.c:754
-#8  0x0807fb3e in eepro100_write_command (s=0x9bb554c, val=32 ' ')
-    at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/hw/eepro100.c:901
-#9  0x080806c2 in eepro100_write1 (s=0x9bb554c, addr=2, val=32 ' ')
-    at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/hw/eepro100.c:1257
-#10 0x08080ceb in pci_mmio_writeb (opaque=0x9bb554c, addr=2, val=32)
-    at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/hw/eepro100.c:1397
-#11 0x0810d828 in __stb_mmu (addr=3364610050, val=32 ' ', is_user=0)
-    at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/softmmu_template.h:197
-#12 0x08ffce74 in code_gen_buffer ()
-#13 0x00000000 in ?? ()
-*/
