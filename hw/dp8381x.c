@@ -78,7 +78,7 @@
  ****************************************************************************/
 
 /* Debug DP8381x card. */
-//~ #define DEBUG_DP8381X
+#define DEBUG_DP8381X
 
 #if defined(DEBUG_DP8381X)
 # define logout(fmt, args...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##args)
@@ -325,10 +325,10 @@ typedef enum {
     MISR_MINT = BIT(15),
 } misr_bit_t;
 
-static void st_le32_phys(target_phys_addr_t addr, uint32_t val)
+static void stl_le_phys(target_phys_addr_t addr, uint32_t val)
 {
-  uint8_t *buf = (uint8_t *)&val;
-  cpu_physical_memory_write(addr, buf, sizeof(val));
+    val = cpu_to_le32(val);
+    cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
 }
 
 static uint32_t op_reg_read(dp8381x_t * s, uint32_t addr)
@@ -534,7 +534,6 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
 
     rx_descriptor_t rx;
     uint32_t rxdp = op_reg_read(s, DP8381X_RXDP);
-    logout("rxdp 0x%08x\n", rxdp);
     cpu_physical_memory_read(rxdp, (uint8_t *) & rx, sizeof(rx));
     uint32_t rxlink = le32_to_cpu(rx.link);
     uint32_t cmdsts = le32_to_cpu(rx.cmdsts);
@@ -550,7 +549,7 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     assert(bufptr != 0);
     assert(length >= size);
     if (cmdsts & CMDSTS_OWN) {
-        assert(0);
+        logout("wrong owner flag for receive buffer\n");
     }
 
     cpu_physical_memory_write(bufptr, buf, size);
@@ -559,16 +558,16 @@ static void dp8381x_receive(void *opaque, const uint8_t * buf, int size)
     cmdsts |= (size & CMDSTS_SIZE);
     cmdsts |= CMDSTS_OWN;
     cmdsts |= CMDSTS_OK;
-    st_le32_phys(rxdp + 4, cmdsts);
+    stl_le_phys(rxdp + 4, cmdsts);
     dp8381x_interrupt(s, ISR_RXOK);
     dp8381x_interrupt(s, ISR_RXDESC);
     if (rxlink == 0) {
         s->rx_state = idle;
         dp8381x_interrupt(s, ISR_RXIDLE);
     } else {
+    }
         rxdp = rxlink;
         op_reg_write(s, DP8381X_RXDP, rxdp);
-    }
     //~ dp8381x_interrupt(s, ISR_RXOVR);
 }
 
@@ -603,11 +602,11 @@ static void dp8381x_transmit(dp8381x_t * s)
         if (cmdsts & CMDSTS_MORE) {
             assert(txlink != 0);
             txdp = txlink;
-            st_le32_phys(txdp + 4, cmdsts);
+            stl_le_phys(txdp + 4, cmdsts);
             continue;
         }
         cmdsts |= CMDSTS_OK;
-        st_le32_phys(txdp + 4, cmdsts);
+        stl_le_phys(txdp + 4, cmdsts);
         dp8381x_interrupt(s, ISR_TXOK);
         TRACE(LOG_TX, logout("sending\n"));
         qemu_send_packet(s->vc, buffer, size);
