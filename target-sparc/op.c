@@ -1184,12 +1184,12 @@ void OPPROTO op_wrpstate(void)
 // order.
 void OPPROTO op_rdcwp(void)
 {
-    T0 = NWINDOWS - 1 - env->cwp;
+    T0 = GET_CWP64(env);
 }
 
 void OPPROTO op_wrcwp(void)
 {
-    env->cwp = NWINDOWS - 1 - T0;
+    PUT_CWP64(env, T0);
 }
 
 /* XXX: use another pointer for %iN registers to avoid slow wrapping

@@ -288,11 +288,17 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
     } while (0)
 
 #ifdef TARGET_SPARC64
-#define GET_CCR(env) ((env->xcc << 4) | (env->psr & PSR_ICC))
+#define GET_CCR(env) (((env->xcc >> 20) << 4) | ((env->psr & PSR_ICC) >> 20))
 #define PUT_CCR(env, val) do { int _tmp = val;				\
-	env->xcc = _tmp >> 4;						\
+	env->xcc = (_tmp >> 4) << 20;						\
 	env->psr = (_tmp & 0xf) << 20;					\
     } while (0)
+#define GET_CWP64(env) (NWINDOWS - 1 - (env)->cwp)
+#define PUT_CWP64(env, val)  do {                                       \
+        env->cwp = NWINDOWS - 1 - ((val) & 0xff);                       \
+        cpu_set_cwp(env, env->cwp);                                     \
+    } while(0)
+
 #endif
 
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);

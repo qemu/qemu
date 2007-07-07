@@ -871,7 +871,7 @@ void do_done(void)
     PUT_CCR(env, env->tstate[env->tl] >> 32);
     env->asi = (env->tstate[env->tl] >> 24) & 0xff;
     env->pstate = (env->tstate[env->tl] >> 8) & 0xfff;
-    set_cwp(env->tstate[env->tl] & 0xff);
+    PUT_CWP64(env, env->tstate[env->tl] & 0xff);
 }
 
 void do_retry(void)
@@ -882,7 +882,7 @@ void do_retry(void)
     PUT_CCR(env, env->tstate[env->tl] >> 32);
     env->asi = (env->tstate[env->tl] >> 24) & 0xff;
     env->pstate = (env->tstate[env->tl] >> 8) & 0xfff;
-    set_cwp(env->tstate[env->tl] & 0xff);
+    PUT_CWP64(env, env->tstate[env->tl] & 0xff);
 }
 #endif
 
@@ -952,7 +952,7 @@ void do_interrupt(int intno)
     }
 #endif
     env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
-	((env->pstate & 0xfff) << 8) | (env->cwp & 0xff);
+	((env->pstate & 0xfff) << 8) | GET_CWP64(env);
     env->tpc[env->tl] = env->pc;
     env->tnpc[env->tl] = env->npc;
     env->tt[env->tl] = intno;
