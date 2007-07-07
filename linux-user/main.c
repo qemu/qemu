@@ -620,7 +620,20 @@ void cpu_loop (CPUSPARCState *env)
         case TT_FILL: /* window underflow */
             restore_window(env);
             break;
-	    // XXX
+        case TT_TFAULT:
+        case TT_DFAULT:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                if (trapnr == TT_DFAULT)
+                    info._sifields._sigfault._addr = env->dmmuregs[4];
+                else
+                    info._sifields._sigfault._addr = env->tpc[env->tl];
+                queue_signal(info.si_signo, &info);
+            }
+            break;
 #endif
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
