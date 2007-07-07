@@ -433,7 +433,7 @@ MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     cpu_register_physical_memory(base, 0x900, malta);
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
-    s->display = qemu_chr_open("vc");
+    s->display = qemu_chr_open("vc:320x200");
     qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
     qemu_chr_printf(s->display, "+        +\r\n");

@@ -2923,7 +2923,9 @@ CharDriverState *qemu_chr_open(const char *filename)
     const char *p;
 
     if (!strcmp(filename, "vc")) {
-        return text_console_init(&display_state);
+        return text_console_init(&display_state, 0);
+    } else if (strstart(filename, "vc:", &p)) {
+        return text_console_init(&display_state, p);
     } else if (!strcmp(filename, "null")) {
         return qemu_chr_open_null();
     } else 
@@ -7270,14 +7272,14 @@ int main(int argc, char **argv)
 #endif
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    pstrcpy(monitor_device, sizeof(monitor_device), "vc");
+    pstrcpy(monitor_device, sizeof(monitor_device), "vc:800x600");
 
-    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc");
+    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc:640x480");
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i][0] = '\0';
     serial_device_index = 0;
 
-    pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc");
+    pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc:640x480");
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
         parallel_devices[i][0] = '\0';
     parallel_device_index = 0;
@@ -8022,7 +8024,7 @@ int main(int argc, char **argv)
                         devname);
                 exit(1);
             }
-            if (!strcmp(devname, "vc"))
+            if (strstart(devname, "vc", 0))
                 qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
         }
     }
@@ -8036,7 +8038,7 @@ int main(int argc, char **argv)
                         devname);
                 exit(1);
             }
-            if (!strcmp(devname, "vc"))
+            if (strstart(devname, "vc", 0))
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
         }
     }

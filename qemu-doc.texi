@@ -555,8 +555,15 @@ Use @code{-serial none} to disable all serial ports.
 
 Available character devices are:
 @table @code
-@item vc
-Virtual console
+@item vc[:WxH]
+Virtual console. Optionally, a width and height can be given in pixel with
+@example
+vc:800x600
+@end example
+It is also possible to specify width or height in characters:
+@example
+vc:80Cx24C
+@end example
 @item pty
 [Linux only] Pseudo TTY (a new PTY is automatically allocated)
 @item none

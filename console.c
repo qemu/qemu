@@ -104,10 +104,16 @@ int qemu_fifo_read(QEMUFIFO *f, uint8_t *buf, int len1)
     return len1;
 }
 
+typedef enum {
+    GRAPHIC_CONSOLE,
+    TEXT_CONSOLE,
+    TEXT_CONSOLE_FIXED_SIZE
+} console_type_t;
+
 /* ??? This is mis-named.
    It is used for both text and graphical consoles.  */
 struct TextConsole {
-    int text_console; /* true if text console */
+    console_type_t console_type;
     DisplayState *ds;
     /* Graphic console state.  */
     vga_hw_update_ptr hw_update;
@@ -587,7 +593,7 @@ static void console_scroll(int ydelta)
     int i, y1;
     
     s = active_console;
-    if (!s || !s->text_console)
+    if (!s || (s->console_type == GRAPHIC_CONSOLE))
         return;
 
     if (ydelta > 0) {
@@ -990,12 +996,16 @@ void console_select(unsigned int index)
     s = consoles[index];
     if (s) {
         active_console = s;
-        if (s->text_console) {
+        if (s->console_type != GRAPHIC_CONSOLE) {
             if (s->g_width != s->ds->width ||
                 s->g_height != s->ds->height) {
-                s->g_width = s->ds->width;
-                s->g_height = s->ds->height;
-                text_console_resize(s);
+                if (s->console_type == TEXT_CONSOLE_FIXED_SIZE) {
+                    dpy_resize(s->ds, s->g_width, s->g_height);
+                } else {
+                    s->g_width = s->ds->width;
+                    s->g_height = s->ds->height;
+                    text_console_resize(s);
+                }
             }
             console_refresh(s);
         } else {
@@ -1062,7 +1072,7 @@ void kbd_put_keysym(int keysym)
     int c;
 
     s = active_console;
-    if (!s || !s->text_console)
+    if (!s || (s->console_type == GRAPHIC_CONSOLE))
         return;
 
     switch(keysym) {
@@ -1104,7 +1114,7 @@ void kbd_put_keysym(int keysym)
     }
 }
 
-static TextConsole *new_console(DisplayState *ds, int text)
+static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
 {
     TextConsole *s;
     int i;
@@ -1115,16 +1125,18 @@ static TextConsole *new_console(DisplayState *ds, int text)
     if (!s) {
         return NULL;
     }
-    if (!active_console || (active_console->text_console && !text))
+    if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
+        (console_type == GRAPHIC_CONSOLE))) {
         active_console = s;
+    }
     s->ds = ds;
-    s->text_console = text;
-    if (text) {
+    s->console_type = console_type;
+    if (console_type != GRAPHIC_CONSOLE) {
         consoles[nb_consoles++] = s;
     } else {
         /* HACK: Put graphical consoles before text consoles.  */
         for (i = nb_consoles; i > 0; i--) {
-            if (!consoles[i - 1]->text_console)
+            if (consoles[i - 1]->console_type == GRAPHIC_CONSOLE)
                 break;
             consoles[i] = consoles[i - 1];
         }
@@ -1152,20 +1164,22 @@ TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
 
 int is_graphic_console(void)
 {
-    return !active_console->text_console;
+    return active_console->console_type == GRAPHIC_CONSOLE;
 }
 
-CharDriverState *text_console_init(DisplayState *ds)
+CharDriverState *text_console_init(DisplayState *ds, const char *p)
 {
     CharDriverState *chr;
     TextConsole *s;
     int i,j;
+    unsigned width;
+    unsigned height;
     static int color_inited;
 
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
         return NULL;
-    s = new_console(ds, 1);
+    s = new_console(ds, (p == 0) ? 1 : 2);
     if (!s) {
         free(chr);
         return NULL;
@@ -1193,8 +1207,25 @@ CharDriverState *text_console_init(DisplayState *ds)
     s->total_height = DEFAULT_BACKSCROLL;
     s->x = 0;
     s->y = 0;
-    s->g_width = s->ds->width;
-    s->g_height = s->ds->height;
+    width = s->ds->width;
+    height = s->ds->height;
+    if (p != 0) {
+        width = strtoul(p, (char **)&p, 10);
+        if (*p == 'C') {
+            p++;
+            width *= FONT_WIDTH;
+        }
+        if (*p == 'x') {
+            p++;
+            height = strtoul(p, (char **)&p, 10);
+            if (*p == 'C') {
+                p++;
+                height *= FONT_HEIGHT;
+            }
+        }
+    }
+    s->g_width = width;
+    s->g_height = height;
 
     /* Set text attribute defaults */
     s->t_attrib_default.bold = 0;

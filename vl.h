@@ -359,7 +359,7 @@ void vga_hw_invalidate(void);
 void vga_hw_screen_dump(const char *filename);
 
 int is_graphic_console(void);
-CharDriverState *text_console_init(DisplayState *ds);
+CharDriverState *text_console_init(DisplayState *ds, const char *p);
 void console_select(unsigned int index);
 
 /* serial ports */
