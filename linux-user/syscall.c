@@ -308,7 +308,7 @@ static target_ulong target_original_brk;
 
 void target_set_brk(target_ulong new_brk)
 {
-    target_original_brk = target_brk = new_brk;
+    target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
 }
 
 long do_brk(target_ulong new_brk)
