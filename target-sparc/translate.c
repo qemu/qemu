@@ -470,6 +470,7 @@ OP_LD_TABLE(ldf);
 OP_LD_TABLE(lddf);
 
 #ifdef TARGET_SPARC64
+OP_LD_TABLE(lduw);
 OP_LD_TABLE(ldsw);
 OP_LD_TABLE(ldx);
 OP_LD_TABLE(stx);
@@ -2810,7 +2811,11 @@ static void disas_sparc_insn(DisasContext * dc)
                 (xop > 0x2c && xop <= 0x33) || xop == 0x1f || xop == 0x3d) {
 		switch (xop) {
 		case 0x0:	/* load word */
+#ifndef TARGET_SPARC64
 		    gen_op_ldst(ld);
+#else
+                    gen_op_ldst(lduw);
+#endif
 		    break;
 		case 0x1:	/* load unsigned byte */
 		    gen_op_ldst(ldub);
@@ -2844,8 +2849,10 @@ static void disas_sparc_insn(DisasContext * dc)
 			goto illegal_insn;
 		    if (!supervisor(dc))
 			goto priv_insn;
-#endif
 		    gen_op_lda(insn, 1, 4, 0);
+#else
+                    gen_op_lduwa(insn, 1, 4, 0);
+#endif
 		    break;
 		case 0x11:	/* load unsigned byte alternate */
 #ifndef TARGET_SPARC64
@@ -2926,6 +2933,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     (void) &gen_op_ldfa;
                     (void) &gen_op_lddfa;
 #else
+                    (void) &gen_op_lda;
 #if !defined(CONFIG_USER_ONLY)
 		    (void) &gen_op_cas;
 		    (void) &gen_op_casx;
