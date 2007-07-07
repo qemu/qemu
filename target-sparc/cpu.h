@@ -10,7 +10,7 @@
 #else
 #define TARGET_LONG_BITS 64
 #define TARGET_FPREGS 64
-#define TARGET_PAGE_BITS 12 /* XXX */
+#define TARGET_PAGE_BITS 13 /* 8k */
 #endif
 
 #define TARGET_PHYS_ADDR_BITS 64
