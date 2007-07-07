@@ -3315,8 +3315,10 @@ void cpu_reset(CPUSPARCState *env)
 #if defined(CONFIG_USER_ONLY)
     env->user_mode_only = 1;
 #ifdef TARGET_SPARC64
-    env->cleanwin = NWINDOWS - 1;
-    env->cansave = NWINDOWS - 1;
+    env->cleanwin = NWINDOWS - 2;
+    env->cansave = NWINDOWS - 2;
+    env->pstate = PS_RMO | PS_PEF | PS_IE;
+    env->asi = 0x82; // Primary no-fault
 #endif
 #else
     env->psret = 0;

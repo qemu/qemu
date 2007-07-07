@@ -89,6 +89,7 @@
 #if defined(TARGET_SPARC64)
 #define PS_IG    (1<<11)
 #define PS_MG    (1<<10)
+#define PS_RMO   (1<<7)
 #define PS_RED   (1<<5)
 #define PS_PEF   (1<<4)
 #define PS_AM    (1<<3)
