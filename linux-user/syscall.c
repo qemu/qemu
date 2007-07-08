@@ -3535,7 +3535,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat *target_st;
 
                 lock_user_struct(target_st, arg2, 0);
-#if defined(TARGET_MIPS)
+#if defined(TARGET_MIPS) || defined(TARGET_SPARC64)
                 target_st->st_dev = tswap32(st.st_dev);
 #else
                 target_st->st_dev = tswap16(st.st_dev);
@@ -3543,6 +3543,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->st_ino = tswapl(st.st_ino);
 #if defined(TARGET_PPC) || defined(TARGET_MIPS)
                 target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
+                target_st->st_uid = tswap32(st.st_uid);
+                target_st->st_gid = tswap32(st.st_gid);
+#elif defined(TARGET_SPARC64)
+                target_st->st_mode = tswap32(st.st_mode);
                 target_st->st_uid = tswap32(st.st_uid);
                 target_st->st_gid = tswap32(st.st_gid);
 #else
@@ -3554,6 +3558,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 		/* If this is the same on PPC, then just merge w/ the above ifdef */
                 target_st->st_nlink = tswapl(st.st_nlink);
                 target_st->st_rdev = tswapl(st.st_rdev);
+#elif defined(TARGET_SPARC64)
+                target_st->st_nlink = tswap32(st.st_nlink);
+                target_st->st_rdev = tswap32(st.st_rdev);
 #else
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_rdev = tswap16(st.st_rdev);
