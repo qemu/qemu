@@ -2651,6 +2651,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef TARGET_SPARC64
 	    } else if (xop == 0x39) { /* V9 return */
                 rs1 = GET_FIELD(insn, 13, 17);
+                save_state(dc);
 		gen_movl_reg_T0(rs1);
                 if (IS_IMM) {	/* immediate */
 		    rs2 = GET_FIELDs(insn, 19, 31);
