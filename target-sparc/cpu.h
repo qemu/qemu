@@ -294,10 +294,8 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 	env->psr = (_tmp & 0xf) << 20;					\
     } while (0)
 #define GET_CWP64(env) (NWINDOWS - 1 - (env)->cwp)
-#define PUT_CWP64(env, val)  do {                                       \
-        env->cwp = NWINDOWS - 1 - ((val) & 0xff);                       \
-        cpu_set_cwp(env, env->cwp);                                     \
-    } while(0)
+#define PUT_CWP64(env, val) \
+    cpu_set_cwp(env, NWINDOWS - 1 - ((val) & (NWINDOWS - 1)))
 
 #endif
 
