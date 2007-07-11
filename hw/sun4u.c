@@ -29,6 +29,7 @@
 #define INITRD_LOAD_ADDR     0x00300000
 #define PROM_SIZE_MAX        (512 * 1024)
 #define PROM_ADDR	     0x1fff0000000ULL
+#define PROM_VADDR	     0x000ffd00000ULL
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
 #define APB_MEM_BASE	     0x1ff00000000ULL
 #define VGA_BASE	     (APB_MEM_BASE + 0x400000ULL)
@@ -244,7 +245,7 @@ int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
 
     // OpenBIOS nvram variables
     // Variable partition
-    start = 252;
+    start = 256;
     m48t59_write(nvram, start, 0x70);
     NVRAM_set_string(nvram, start + 4, "system", 12);
 
@@ -313,6 +314,10 @@ void hstick_irq(void *opaque)
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
+static void dummy_cpu_set_irq(void *opaque, int irq, int level)
+{
+}
+
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -340,6 +345,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     PCIBus *pci_bus;
     const sparc_def_t *def;
     QEMUBH *bh;
+    qemu_irq *irq;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -377,7 +383,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
                                  prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
-    ret = load_elf(buf, 0, NULL, NULL, NULL);
+    ret = load_elf(buf, PROM_ADDR - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0) {
 	fprintf(stderr, "qemu: could not load prom '%s'\n", 
 		buf);
@@ -441,7 +447,9 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
 	pci_nic_init(pci_bus, &nd_table[i], -1);
     }
 
-    pci_cmd646_ide_init(pci_bus, bs_table, 1);
+    irq = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, 32);
+    // XXX pci_cmd646_ide_init(pci_bus, bs_table, 1);
+    pci_piix3_ide_init(pci_bus, bs_table, -1, irq);
     /* FIXME: wire up interrupts.  */
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
     floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd_table);
