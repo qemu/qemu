@@ -1751,7 +1751,7 @@ The Malta emulation supports the following devices:
 
 @itemize @minus
 @item
-Core board with MIPS 24Kf CPU and Galilleo system controller
+Core board with MIPS 24Kf CPU and Galileo system controller
 @item
 PIIX4 PCI/USB/SMbus controller
 @item
