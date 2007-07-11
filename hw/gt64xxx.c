@@ -330,36 +330,33 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_PCI0M0LD:
         s->regs[GT_PCI0M0LD]    = val & 0x00007fff;
         s->regs[GT_PCI0M0REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
         break;
     case GT_PCI0M1LD:
         s->regs[GT_PCI0M1LD]    = val & 0x00007fff;
         s->regs[GT_PCI0M1REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
         break;
     case GT_PCI1IOLD:
         s->regs[GT_PCI1IOLD]    = val & 0x00007fff;
         s->regs[GT_PCI1IOREMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
         break;
     case GT_PCI1M0LD:
         s->regs[GT_PCI1M0LD]    = val & 0x00007fff;
         s->regs[GT_PCI1M0REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
         break;
     case GT_PCI1M1LD:
         s->regs[GT_PCI1M1LD]    = val & 0x00007fff;
         s->regs[GT_PCI1M1REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
         break;
     case GT_PCI0IOHD:
+        s->regs[saddr] = val & 0x0000007f;
+        gt64120_pci_mapping(s);
+        break;
     case GT_PCI0M0HD:
     case GT_PCI0M1HD:
     case GT_PCI1IOHD:
     case GT_PCI1M0HD:
     case GT_PCI1M1HD:
         s->regs[saddr] = val & 0x0000007f;
-        gt64120_pci_mapping(s);
         break;
     case GT_ISD:
         s->regs[saddr] = val & 0x00007fff;
@@ -373,7 +370,6 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     case GT_PCI1M0REMAP:
     case GT_PCI1M1REMAP:
         s->regs[saddr] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
         break;
 
     /* CPU Error Report */
