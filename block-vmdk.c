@@ -572,7 +572,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
         if (!s->is_parent) {
             status = stat(s->hd->filename, &file_buf);
             if (status == -1) {
-                fprintf(stderr, "(VMDK) Fail file stat: filename =%s size=0x%lx errno=%s\n",
+                fprintf(stderr, "(VMDK) Fail file stat: filename =%s size=0x%llx errno=%s\n",
                                 s->hd->filename, (uint64_t)file_buf.st_size, strerror(errno));
                 return 0;
             }
@@ -668,7 +668,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
 
     if (sector_num > bs->total_sectors) {
         fprintf(stderr,
-                "(VMDK) Wrong offset: sector_num=0x%lx total_sectors=0x%lx\n",
+                "(VMDK) Wrong offset: sector_num=0x%llx total_sectors=0x%llx\n",
                 sector_num, bs->total_sectors);
         return -1;
     }
