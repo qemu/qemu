@@ -176,7 +176,7 @@ static void pl011_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static int pl011_can_recieve(void *opaque)
+static int pl011_can_receive(void *opaque)
 {
     pl011_state *s = (pl011_state *)opaque;
 
@@ -186,7 +186,7 @@ static int pl011_can_recieve(void *opaque)
         return s->read_count < 1;
 }
 
-static void pl011_recieve(void *opaque, const uint8_t *buf, int size)
+static void pl011_receive(void *opaque, const uint8_t *buf, int size)
 {
     pl011_state *s = (pl011_state *)opaque;
     int slot;
@@ -241,7 +241,7 @@ void pl011_init(uint32_t base, qemu_irq irq,
     s->cr = 0x300;
     s->flags = 0x90;
     if (chr){ 
-        qemu_chr_add_handlers(chr, pl011_can_recieve, pl011_recieve,
+        qemu_chr_add_handlers(chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
     }
     /* ??? Save/restore.  */

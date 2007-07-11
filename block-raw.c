@@ -1295,7 +1295,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 
 #if 0
 /***********************************************/
-/* removable device additionnal commands */
+/* removable device additional commands */
 
 static int raw_is_inserted(BlockDriverState *bs)
 {

@@ -121,7 +121,7 @@
 #define VIP_MASK                0x00100000
 #define ID_MASK                 0x00200000
 
-/* hidden flags - used internally by qemu to represent additionnal cpu
+/* hidden flags - used internally by qemu to represent additional cpu
    states. Only the CPL, INHIBIT_IRQ and HALTED are not redundant. We avoid
    using the IOPL_MASK, TF_MASK and VM_MASK bit position to ease oring
    with eflags. */

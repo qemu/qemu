@@ -10,7 +10,7 @@ enum i2c_event {
     I2C_START_RECV,
     I2C_START_SEND,
     I2C_FINISH,
-    I2C_NACK /* Masker NACKed a recieve byte.  */
+    I2C_NACK /* Masker NACKed a receive byte.  */
 };
 
 typedef struct i2c_slave i2c_slave;

@@ -140,7 +140,7 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
                     s->setup_state = SETUP_STATE_IDLE;
                     /* transfer OK */
                 } else {
-                    /* ignore additionnal output */
+                    /* ignore additional output */
                 }
                 break;
             case SETUP_STATE_DATA:

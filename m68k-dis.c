@@ -560,7 +560,7 @@ static char *const reg_names[] =
 };
 
 /* Name of register halves for MAC/EMAC.
-   Seperate from reg_names since 'spu', 'fpl' look weird.  */
+   Separate from reg_names since 'spu', 'fpl' look weird.  */
 static char *const reg_half_names[] =
 {
   "%d0", "%d1", "%d2", "%d3", "%d4", "%d5", "%d6", "%d7",

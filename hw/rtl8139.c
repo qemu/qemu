@@ -790,7 +790,7 @@ static int rtl8139_can_receive(void *opaque)
     RTL8139State *s = opaque;
     int avail;
 
-    /* Recieve (drop) packets if card is disabled.  */
+    /* Receive (drop) packets if card is disabled.  */
     if (!s->clock_enabled)
       return 1;
     if (!rtl8139_receiver_enabled(s))
