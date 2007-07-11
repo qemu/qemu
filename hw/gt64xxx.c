@@ -225,12 +225,62 @@ typedef target_phys_addr_t pci_addr_t;
 
 typedef PCIHostState GT64120PCIState;
 
+#define PCI_MAPPING_ENTRY(regname)            \
+    target_phys_addr_t regname ##_start;      \
+    target_phys_addr_t regname ##_length;     \
+    int regname ##_handle
+
 typedef struct GT64120State {
     GT64120PCIState *pci;
     uint32_t regs[GT_REGS];
-    target_phys_addr_t PCI0IO_start;
-    target_phys_addr_t PCI0IO_length;
+    PCI_MAPPING_ENTRY(PCI0IO);
+    PCI_MAPPING_ENTRY(ISD);
 } GT64120State;
+
+/* Adjust range to avoid touching space which isn't mappable via PCI */
+/* XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
+                                    0x1fc00000 - 0x1fd00000  */
+static void check_reserved_space (target_phys_addr_t *start,
+                                  target_phys_addr_t *length)
+{
+    target_phys_addr_t begin = *start;
+    target_phys_addr_t end = *start + *length;
+
+    if (end >= 0x1e000000LL && end < 0x1f100000LL)
+        end = 0x1e000000LL;
+    if (begin >= 0x1e000000LL && begin < 0x1f100000LL)
+        begin = 0x1f100000LL;
+    if (end >= 0x1fc00000LL && end < 0x1fd00000LL)
+        end = 0x1fc00000LL;
+    if (begin >= 0x1fc00000LL && begin < 0x1fd00000LL)
+        begin = 0x1fd00000LL;
+    /* XXX: This is broken when a reserved range splits the requested range */
+    if (end >= 0x1f100000LL && begin < 0x1e000000LL)
+        end = 0x1e000000LL;
+    if (end >= 0x1fd00000LL && begin < 0x1fc00000LL)
+        end = 0x1fc00000LL;
+
+    *start = begin;
+    *length = end - begin;
+}
+
+static void gt64120_isd_mapping(GT64120State *s)
+{
+    target_phys_addr_t start = s->regs[GT_ISD] << 21;
+    target_phys_addr_t length = 0x1000;
+
+    if (s->ISD_length)
+        cpu_register_physical_memory(s->ISD_start, s->ISD_length,
+                                     IO_MEM_UNASSIGNED);
+    check_reserved_space(&start, &length);
+    length = 0x1000;
+    /* Map new address */
+    dprintf("ISD: %x@%x -> %x@%x, %x\n", s->ISD_length, s->ISD_start,
+            length, start, s->ISD_handle);
+    s->ISD_start = start;
+    s->ISD_length = length;
+    cpu_register_physical_memory(s->ISD_start, s->ISD_length, s->ISD_handle);
+}
 
 static void gt64120_pci_mapping(GT64120State *s)
 {
@@ -311,6 +361,11 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         s->regs[saddr] = val & 0x0000007f;
         gt64120_pci_mapping(s);
         break;
+    case GT_ISD:
+        s->regs[saddr] = val & 0x00007fff;
+        gt64120_isd_mapping(s);
+        break;
+
     case GT_PCI0IOREMAP:
     case GT_PCI0M0REMAP:
     case GT_PCI0M1REMAP:
@@ -1026,6 +1081,7 @@ void gt64120_reset(void *opaque)
 
     /* Interrupt registers are all zeroed at reset */
 
+    gt64120_isd_mapping(s);
     gt64120_pci_mapping(s);
 }
 
@@ -1070,27 +1126,21 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
     PCIDevice *d;
-    int gt64120;
 
     s = qemu_mallocz(sizeof(GT64120State));
     s->pci = qemu_mallocz(sizeof(GT64120PCIState));
-    gt64120_reset(s);
 
     s->pci->bus = pci_register_bus(pci_gt64120_set_irq, pci_gt64120_map_irq,
                                    pic, 144, 4);
-
-    gt64120 = cpu_register_io_memory(0, gt64120_read,
-                                     gt64120_write, s);
-    cpu_register_physical_memory(0x1be00000LL, 0x1000, gt64120);
-
+    s->ISD_handle = cpu_register_io_memory(0, gt64120_read, gt64120_write, s);
     d = pci_register_device(s->pci->bus, "GT64120 PCI Bus", sizeof(PCIDevice),
                             0, gt64120_read_config, gt64120_write_config);
 
     /* FIXME: Malta specific hw assumptions ahead */
 
-    d->config[0x00] = 0xab; // vendor_id
+    d->config[0x00] = 0xab; /* vendor_id */
     d->config[0x01] = 0x11;
-    d->config[0x02] = 0x20; // device_id
+    d->config[0x02] = 0x20; /* device_id */
     d->config[0x03] = 0x46;
 
     d->config[0x04] = 0x00;
@@ -1112,6 +1162,8 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
     d->config[0x24] = 0x01;
     d->config[0x27] = 0x14;
     d->config[0x3D] = 0x01;
+
+    gt64120_reset(s);
 
     register_savevm("GT64120 PCI Bus", 0, 1, gt64120_save, gt64120_load, d);
 
