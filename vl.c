@@ -2923,7 +2923,9 @@ CharDriverState *qemu_chr_open(const char *filename)
     const char *p;
 
     if (!strcmp(filename, "vc")) {
-        return text_console_init(&display_state);
+        return text_console_init(&display_state, 0);
+    } else if (strstart(filename, "vc:", &p)) {
+        return text_console_init(&display_state, p);
     } else if (!strcmp(filename, "null")) {
         return qemu_chr_open_null();
     } else 
@@ -7970,7 +7972,7 @@ int main(int argc, char **argv)
                         devname);
                 exit(1);
             }
-            if (!strcmp(devname, "vc"))
+            if (strstart(devname, "vc", 0))
                 qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
         }
     }
@@ -7984,7 +7986,7 @@ int main(int argc, char **argv)
                         devname);
                 exit(1);
             }
-            if (!strcmp(devname, "vc"))
+            if (strstart(devname, "vc", 0))
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
         }
     }
