@@ -11,8 +11,6 @@ General
   in that case.
 - gdb breakpoints inside the emulated system work only due to a hack
   which disassembles over the end of the current tb.
-- Floating point results of ceil/floor/round are wrong for IEEE cornercases.
-- recip/rsqrt FPU instructions are not implemented
 
 MIPS64
 ------
