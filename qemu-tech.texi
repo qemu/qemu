@@ -35,6 +35,7 @@
 * intro_features::        Features
 * intro_x86_emulation::   x86 emulation
 * intro_arm_emulation::   ARM emulation
+* intro_mips_emulation::  MIPS emulation
 * intro_ppc_emulation::   PowerPC emulation
 * intro_sparc_emulation:: SPARC emulation
 @end menu
@@ -149,6 +150,31 @@ maximum performances.
 @item NWFPE FPU support included in user Linux emulation.
 
 @item Can run most ARM Linux binaries.
+
+@end itemize
+
+@node intro_mips_emulation
+@section MIPS emulation
+
+@itemize
+
+@item The system emulation allows full MIPS32/MIPS64 Release 2 emulation,
+including privileged instructions, FPU and MMU, in both little and big
+endian modes.
+
+@item The Linux userland emulation can run many 32 bit MIPS Linux binaries.
+
+@end itemize
+
+Current QEMU limitations:
+
+@itemize
+
+@item Self-modifying code is not always handled correctly.
+
+@item 64 bit userland emulation is not implemented.
+
+@item The system emulation is not complete enough to run real firmware.
 
 @end itemize
 
