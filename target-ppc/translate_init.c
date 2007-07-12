@@ -270,7 +270,8 @@ static void spr_write_sdr1 (void *opaque, int sprn)
 
 /* 64 bits PowerPC specific SPRs */
 /* ASR */
-#if defined(TARGET_PPC64)
+/* Currently unused */
+#if 0 && defined(TARGET_PPC64)
 static void spr_read_asr (void *opaque, int sprn)
 {
     gen_op_load_asr();
