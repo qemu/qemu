@@ -176,6 +176,8 @@ Current QEMU limitations:
 
 @item The system emulation is not complete enough to run real firmware.
 
+@item The watchpoint debug facility is not implemented.
+
 @end itemize
 
 @node intro_ppc_emulation
@@ -575,7 +577,7 @@ The TwoOStwo PC virtualizer.
 @chapter Regression Tests
 
 In the directory @file{tests/}, various interesting testing programs
-are available. There are used for regression testing.
+are available. They are used for regression testing.
 
 @menu
 * test-i386::
