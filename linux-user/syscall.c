@@ -145,6 +145,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
+#define __NR_sys_tkill __NR_tkill
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -165,7 +166,12 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
+#ifdef TARGET_NR_tgkill
 _syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
+#endif
+#ifdef TARGET_NR_tkill
+_syscall2(int,sys_tkill,int,tid,int,sig)
+#endif
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
@@ -4611,6 +4617,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_set_tid_address:
       ret = get_errno(set_tid_address((int *) arg1));
       break;
+#endif
+
+#ifdef TARGET_NR_tkill
+    case TARGET_NR_tkill:
+        ret = get_errno(sys_tkill((int)arg1, (int)arg2));
+        break;
 #endif
 
 #ifdef TARGET_NR_tgkill
