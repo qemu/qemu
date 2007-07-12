@@ -184,7 +184,7 @@ extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
 /*
- * This list is the union of errno values overidden in asm-<arch>/errno.h
+ * This list is the union of errno values overridden in asm-<arch>/errno.h
  * minus the errnos that are not actually generic to all archs.
  */
 static uint16_t host_to_target_errno_table[1200] = {

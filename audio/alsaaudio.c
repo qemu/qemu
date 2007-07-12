@@ -50,11 +50,11 @@ static struct {
     unsigned int period_size_out;
     unsigned int threshold;
 
-    int buffer_size_in_overriden;
-    int period_size_in_overriden;
+    int buffer_size_in_overridden;
+    int period_size_in_overridden;
 
-    int buffer_size_out_overriden;
-    int period_size_out_overriden;
+    int buffer_size_out_overridden;
+    int period_size_out_overridden;
     int verbose;
 } conf = {
 #define DEFAULT_BUFFER_SIZE 1024
@@ -75,10 +75,10 @@ static struct {
     .period_size_in = DEFAULT_PERIOD_SIZE * 4,
     .buffer_size_out = DEFAULT_BUFFER_SIZE,
     .period_size_out = DEFAULT_PERIOD_SIZE,
-    .buffer_size_in_overriden = 0,
-    .buffer_size_out_overriden = 0,
-    .period_size_in_overriden = 0,
-    .period_size_out_overriden = 0,
+    .buffer_size_in_overridden = 0,
+    .buffer_size_out_overridden = 0,
+    .period_size_in_overridden = 0,
+    .period_size_out_overridden = 0,
 #endif
     .threshold = 0,
     .verbose = 0
@@ -414,8 +414,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 }
                 else {
                     if (period_size < minval) {
-                        if ((in && conf.period_size_in_overriden)
-                            || (!in && conf.period_size_out_overriden)) {
+                        if ((in && conf.period_size_in_overridden)
+                            || (!in && conf.period_size_out_overridden)) {
                             dolog ("%s period size(%d) is less "
                                    "than minmal period size(%ld)\n",
                                    typ,
@@ -450,8 +450,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
             }
             else {
                 if (buffer_size < minval) {
-                    if ((in && conf.buffer_size_in_overriden)
-                        || (!in && conf.buffer_size_out_overriden)) {
+                    if ((in && conf.buffer_size_in_overridden)
+                        || (!in && conf.buffer_size_out_overridden)) {
                         dolog (
                             "%s buffer size(%d) is less "
                             "than minimal buffer size(%ld)\n",
@@ -945,16 +945,16 @@ static struct audio_option alsa_options[] = {
     {"DAC_SIZE_IN_USEC", AUD_OPT_BOOL, &conf.size_in_usec_out,
      "DAC period/buffer size in microseconds (otherwise in frames)", NULL, 0},
     {"DAC_PERIOD_SIZE", AUD_OPT_INT, &conf.period_size_out,
-     "DAC period size", &conf.period_size_out_overriden, 0},
+     "DAC period size", &conf.period_size_out_overridden, 0},
     {"DAC_BUFFER_SIZE", AUD_OPT_INT, &conf.buffer_size_out,
-     "DAC buffer size", &conf.buffer_size_out_overriden, 0},
+     "DAC buffer size", &conf.buffer_size_out_overridden, 0},
 
     {"ADC_SIZE_IN_USEC", AUD_OPT_BOOL, &conf.size_in_usec_in,
      "ADC period/buffer size in microseconds (otherwise in frames)", NULL, 0},
     {"ADC_PERIOD_SIZE", AUD_OPT_INT, &conf.period_size_in,
-     "ADC period size", &conf.period_size_in_overriden, 0},
+     "ADC period size", &conf.period_size_in_overridden, 0},
     {"ADC_BUFFER_SIZE", AUD_OPT_INT, &conf.buffer_size_in,
-     "ADC buffer size", &conf.buffer_size_in_overriden, 0},
+     "ADC buffer size", &conf.buffer_size_in_overridden, 0},
 
     {"THRESHOLD", AUD_OPT_INT, &conf.threshold,
      "(undocumented)", NULL, 0},
