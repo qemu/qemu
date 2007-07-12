@@ -108,9 +108,16 @@ case $targetos in
 CYGWIN*)
 mingw32="yes"
 OS_CFLAGS="-mno-cygwin"
+VL_OS_LDFLAGS="-mno-cygwin"
+if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+fi
 ;;
 MINGW32*)
 mingw32="yes"
+if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+fi
 ;;
 GNU/kFreeBSD)
 oss="yes"
@@ -390,9 +397,6 @@ if test "$mingw32" = "yes" ; then
     linux="no"
     EXESUF=".exe"
     oss="no"
-    if [ "$cpu" = "i386" ] ; then
-        kqemu="yes"
-    fi
 fi
 
 # Check for gcc4, error if pre-gcc4 
@@ -713,6 +717,7 @@ echo "AR=$ar" >> $config_mak
 echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak
 echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "OS_LDFLAGS=$OS_LDFLAGS" >> $config_mak
+echo "VL_OS_LDFLAGS=$VL_OS_LDFLAGS" >> $config_mak
 echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
 echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak
