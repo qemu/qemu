@@ -773,7 +773,9 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_ARM)
             env->regs[15] = addr;
 #elif defined (TARGET_SH4)
-	    env->pc = addr;
+            env->pc = addr;
+#elif defined (TARGET_MIPS)
+            env->PC = addr;
 #endif
         }
 #ifdef CONFIG_USER_ONLY
@@ -784,7 +786,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 	return RS_IDLE;
     case 's':
         if (*p != '\0') {
-            addr = strtoul(p, (char **)&p, 16);
+            addr = strtoull(p, (char **)&p, 16);
 #if defined(TARGET_I386)
             env->eip = addr;
 #elif defined (TARGET_PPC)
@@ -795,7 +797,9 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_ARM)
             env->regs[15] = addr;
 #elif defined (TARGET_SH4)
-	    env->pc = addr;
+            env->pc = addr;
+#elif defined (TARGET_MIPS)
+            env->PC = addr;
 #endif
         }
         cpu_single_step(env, 1);
