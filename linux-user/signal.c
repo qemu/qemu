@@ -207,6 +207,8 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
         /* should never come here, but who knows. The information for
            the target is irrelevant */
         tinfo->_sifields._sigfault._addr = 0;
+    } else if (sig == SIGIO) {
+	tinfo->_sifields._sigpoll._fd = info->si_fd;
     } else if (sig >= TARGET_SIGRTMIN) {
         tinfo->_sifields._rt._pid = info->si_pid;
         tinfo->_sifields._rt._uid = info->si_uid;
@@ -228,6 +230,8 @@ static void tswap_siginfo(target_siginfo_t *tinfo,
         sig == SIGBUS || sig == SIGTRAP) {
         tinfo->_sifields._sigfault._addr = 
             tswapl(info->_sifields._sigfault._addr);
+    } else if (sig == SIGIO) {
+	tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
     } else if (sig >= TARGET_SIGRTMIN) {
         tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
         tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
