@@ -41,7 +41,10 @@ int no_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
     *physical = address;
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ;
+    if (rw) {
+        *prot |= PAGE_WRITE;
+    }
     return TLBRET_MATCH;
 }
 
@@ -59,7 +62,10 @@ int fixed_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
     else
         *physical = address;
 
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ;
+    if (rw) {
+        *prot |= PAGE_WRITE;
+    }
     return TLBRET_MATCH;
 }
 
@@ -164,7 +170,10 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         if (KX && (address & 0x07FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL)
 	{
             *physical = address & 0X0000000FFFFFFFFFULL;
-            *prot = PAGE_READ | PAGE_WRITE;
+            *prot = PAGE_READ;
+            if (rw) {
+                *prot |= PAGE_WRITE;
+            }
 	} else {
 	    ret = TLBRET_BADADDR;
 	}
@@ -183,7 +192,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         *physical = address - (int32_t)0x80000000UL;
         *prot = PAGE_READ;
         if (rw) {
-                *prot |= PAGE_WRITE;
+            *prot |= PAGE_WRITE;
         }
     } else if (address < (int32_t)0xC0000000UL) {
         /* kseg1 */
@@ -191,7 +200,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         *physical = address - (int32_t)0xA0000000UL;
         *prot = PAGE_READ;
         if (rw) {
-                *prot |= PAGE_WRITE;
+            *prot |= PAGE_WRITE;
         }
     } else if (address < (int32_t)0xE0000000UL) {
         /* kseg2 */
