@@ -1164,8 +1164,6 @@ change or eject media.
 @item Hard disks
 Hard disks can be used with the syntax: @file{\\.\PhysicalDriveN}
 where @var{N} is the drive number (0 is the first hard disk).
-@file{/dev/hda} is supported as an alias to the first hard disk
-drive @file{\\.\PhysicalDrive0}.
 
 WARNING: unless you know what you do, it is better to only make
 READ-ONLY accesses to the hard disk otherwise you may corrupt your
