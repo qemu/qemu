@@ -36,10 +36,8 @@
  *    - optimize bitblt functions
  */
 
-#if defined(TARGET_MIPS)
-#define DEBUG_CIRRUS
-#define DEBUG_BITBLT
-#endif
+//#define DEBUG_CIRRUS
+//#define DEBUG_BITBLT
 
 /***************************************
  *
