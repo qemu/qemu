@@ -25,14 +25,11 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 
-#if defined(TARGET_MIPS)
-#warning DEBUG_VGA enabled
-#define DEBUG_VGA
-#define DEBUG_VGA_MEM
-#define DEBUG_VGA_REG
+//#define DEBUG_VGA
+//#define DEBUG_VGA_MEM
+//#define DEBUG_VGA_REG
 
-#define DEBUG_BOCHS_VBE
-#endif
+//#define DEBUG_BOCHS_VBE
 
 #define printf(fmt, args...) fprintf(stderr, fmt, ##args)
 
