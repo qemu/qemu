@@ -2005,91 +2005,90 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     }
                 }
 #elif defined(CONFIG_FORMAT_MACH)
-				struct scattered_relocation_info *scarel;
-				struct relocation_info * rel;
-				char final_sym_name[256];
-				const char *sym_name;
-				const char *p;
-				int slide, sslide;
-				int i;
-	
-				for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
-					unsigned int offset, length, value = 0;
-					unsigned int type, pcrel, isym = 0;
-					unsigned int usesym = 0;
-				
-					if(R_SCATTERED & rel->r_address) {
-						scarel = (struct scattered_relocation_info*)rel;
-						offset = (unsigned int)scarel->r_address;
-						length = scarel->r_length;
-						pcrel = scarel->r_pcrel;
-						type = scarel->r_type;
-						value = scarel->r_value;
-					} else {
-						value = isym = rel->r_symbolnum;
-						usesym = (rel->r_extern);
-						offset = rel->r_address;
-						length = rel->r_length;
-						pcrel = rel->r_pcrel;
-						type = rel->r_type;
-					}
-				
-					slide = offset - start_offset;
-		
-					if (!(offset >= start_offset && offset < start_offset + size)) 
-						continue;  /* not in our range */
+                struct scattered_relocation_info *scarel;
+                struct relocation_info * rel;
+                char final_sym_name[256];
+                const char *sym_name;
+                const char *p;
+                int slide, sslide;
+                int i;
 
-					sym_name = get_reloc_name(rel, &sslide);
-					
-					if(usesym && symtab[isym].n_type & N_STAB)
-						continue; /* don't handle STAB (debug sym) */
-					
-					if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
-						int n;
-						n = strtol(p, NULL, 10);
-						fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
-							n, slide);
-						continue; /* Nothing more to do */
-					}
-					
-					if(!sym_name)
-					{
-						fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
-						           relname, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
-						continue; /* dunno how to handle without final_sym_name */
-					}
-													   
-                                        get_reloc_expr(final_sym_name, sizeof(final_sym_name), 
-                                                       sym_name);
-					switch(type) {
-					case PPC_RELOC_BR24:
-					    if (!strstart(sym_name,"__op_gen_label",&p)) {
-    						fprintf(outfile, "{\n");
-    						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
-    						fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n", 
-											slide, slide, relname, sslide );
-    						fprintf(outfile, "}\n");
-    					} else {
-							fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | (((long)%s - (long)gen_code_ptr - %d) & 0x03fffffc);\n",
-											slide, slide, final_sym_name, slide);
-    					}
-						break;
-					case PPC_RELOC_HI16:
-						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d) >> 16;\n", 
-							slide, final_sym_name, sslide);
-						break;
-					case PPC_RELOC_LO16:
-						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d);\n", 
-					slide, final_sym_name, sslide);
+                for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+                    unsigned int offset, length, value = 0;
+                    unsigned int type, pcrel, isym = 0;
+                    unsigned int usesym = 0;
+
+                    if(R_SCATTERED & rel->r_address) {
+                        scarel = (struct scattered_relocation_info*)rel;
+                        offset = (unsigned int)scarel->r_address;
+                        length = scarel->r_length;
+                        pcrel = scarel->r_pcrel;
+                        type = scarel->r_type;
+                        value = scarel->r_value;
+                    } else {
+                        value = isym = rel->r_symbolnum;
+                        usesym = (rel->r_extern);
+                        offset = rel->r_address;
+                        length = rel->r_length;
+                        pcrel = rel->r_pcrel;
+                        type = rel->r_type;
+                    }
+
+                    slide = offset - start_offset;
+
+                    if (!(offset >= start_offset && offset < start_offset + size)) 
+                        continue;  /* not in our range */
+
+                        sym_name = get_reloc_name(rel, &sslide);
+
+                        if(usesym && symtab[isym].n_type & N_STAB)
+                            continue; /* don't handle STAB (debug sym) */
+
+                        if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
+                            int n;
+                            n = strtol(p, NULL, 10);
+                            fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
+                                    n, slide);
+                            continue; /* Nothing more to do */
+                        }
+
+                        if(!sym_name) {
+                            fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
+                                    name, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
+                            continue; /* dunno how to handle without final_sym_name */
+                        }
+
+                        get_reloc_expr(final_sym_name, sizeof(final_sym_name), 
+                                       sym_name);
+                        switch(type) {
+                        case PPC_RELOC_BR24:
+                            if (!strstart(sym_name,"__op_gen_label",&p)) {
+                                fprintf(outfile, "{\n");
+                                fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
+                                fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n",
+                                        slide, slide, name, sslide);
+                                fprintf(outfile, "}\n");
+                            } else {
+                                fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | (((long)%s - (long)gen_code_ptr - %d) & 0x03fffffc);\n",
+                                        slide, slide, final_sym_name, slide);
+                            }
                             break;
-					case PPC_RELOC_HA16:
-						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d + 0x8000) >> 16;\n", 
-							slide, final_sym_name, sslide);
-						break;
-				default:
-					error("unsupported powerpc relocation (%d)", type);
-				}
-			}
+                        case PPC_RELOC_HI16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d) >> 16;\n", 
+                                    slide, final_sym_name, sslide);
+                            break;
+                        case PPC_RELOC_LO16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d);\n", 
+                                    slide, final_sym_name, sslide);
+                            break;
+                        case PPC_RELOC_HA16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d + 0x8000) >> 16;\n", 
+                                    slide, final_sym_name, sslide);
+                            break;
+                        default:
+                            error("unsupported powerpc relocation (%d)", type);
+                    }
+                }
 #else
 #error unsupport object format
 #endif
