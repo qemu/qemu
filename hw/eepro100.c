@@ -1194,7 +1194,7 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
     case PORT_SELFTEST:
         logout("selftest address=0x%08x\n", address);
         eepro100_selftest_t data;
-        //~ cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
+        cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
         data.st_sign = 0xffffffff;
         data.st_result = 0;
         cpu_physical_memory_write(address, (uint8_t *) & data, sizeof(data));
