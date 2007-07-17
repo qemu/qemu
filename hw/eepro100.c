@@ -1638,10 +1638,10 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     }
 
     if (get_ru_state(s) != ru_ready) {
-        /* No ressources available. */
-        logout("no ressources, state=%u\n", get_ru_state(s));
+        /* No resources available. */
+        logout("no resources, state=%u\n", get_ru_state(s));
         s->statistics.rx_resource_errors++;
-        //~ assert(!"no ressources");
+        //~ assert(!"no resources");
         return;
     }
     //~ !!!

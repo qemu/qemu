@@ -341,7 +341,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     case 4:
         switch (pfl->cmd) {
         case 0xA0:
-            /* Ignore writes while flash data write is occuring */
+            /* Ignore writes while flash data write is occurring */
             /* As we suppose write is immediate, this should never happen */
             return;
         case 0x80:
