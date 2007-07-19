@@ -693,7 +693,7 @@ struct CPUPPCState {
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
      */ 
-    target_ulong t0, t1, t2;
+    ppc_gpr_t t0, t1, t2;
 #endif
     ppc_avr_t t0_avr, t1_avr, t2_avr;
 

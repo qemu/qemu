@@ -289,7 +289,10 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
     "nop")
 #else
 #define EXIT_TB() asm volatile ("jr $ra")
-#define GOTO_LABEL_PARAM(n) asm volatile (".set noat; la $1, " ASM_NAME(__op_gen_label) #n "; jr $1; .set at")
+#define GOTO_LABEL_PARAM(n) asm volatile (\
+    "lui $2,%hi(" ASM_NAME(__op_gen_label) #n ")\n\t" \
+    "ori $2,$2,%lo(" ASM_NAME(__op_gen_label)#n ")\n\t" \
+    "jr $2")
 #endif
 #else
 #error unsupported CPU

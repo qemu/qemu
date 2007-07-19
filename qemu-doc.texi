@@ -1568,11 +1568,11 @@ differences are mentioned in the following sections.
 
 @menu
 * QEMU PowerPC System emulator::
-* Sparc32 System emulator invocation::
-* Sparc64 System emulator invocation::
-* MIPS System emulator invocation::
-* ARM System emulator invocation::
-* ColdFire System emulator invocation::
+* Sparc32 System emulator::
+* Sparc64 System emulator::
+* MIPS System emulator::
+* ARM System emulator::
+* ColdFire System emulator::
 @end menu
 
 @node QEMU PowerPC System emulator
@@ -1640,8 +1640,8 @@ Set the initial VGA graphic mode. The default is 800x600x15.
 More information is available at
 @url{http://perso.magic.fr/l_indien/qemu-ppc/}.
 
-@node Sparc32 System emulator invocation
-@section Sparc32 System emulator invocation
+@node Sparc32 System emulator
+@section Sparc32 System emulator
 
 Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
 or SparcStation 10 (sun4m architecture). The emulation is somewhat complete.
@@ -1707,8 +1707,8 @@ Set the emulated machine type. Default is SS-5.
 
 @c man end 
 
-@node Sparc64 System emulator invocation
-@section Sparc64 System emulator invocation
+@node Sparc64 System emulator
+@section Sparc64 System emulator
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
 The emulator is not usable for anything yet.
@@ -1726,26 +1726,68 @@ Non Volatile RAM M48T59
 PC-compatible serial ports
 @end itemize
 
-@node MIPS System emulator invocation
-@section MIPS System emulator invocation
+@node MIPS System emulator
+@section MIPS System emulator
 
 Use the executable @file{qemu-system-mips} to simulate a MIPS machine.
-The emulator is able to boot a Linux kernel and to run a Linux Debian
-installation from NFS. The following devices are emulated:
+Three different machine types are emulated:
+
+@itemize @minus
+@item
+A generic ISA PC-like machine "mips"
+@item
+The MIPS Malta prototype board "malta"
+@item
+An ACER Pica "pica61"
+@end itemize
+
+The generic emulation is supported by Debian 'Etch' and is able to
+install Debian into a virtual disk image. The following devices are
+emulated:
 
 @itemize @minus
 @item 
-MIPS R4K CPU
+MIPS 24Kf CPU
 @item
 PC style serial port
+@item
+PC style IDE disk
 @item
 NE2000 network card
 @end itemize
 
-More information is available in the QEMU mailing-list archive.
+The Malta emulation supports the following devices:
 
-@node ARM System emulator invocation
-@section ARM System emulator invocation
+@itemize @minus
+@item
+Core board with MIPS 24Kf CPU and Galileo system controller
+@item
+PIIX4 PCI/USB/SMbus controller
+@item
+The Multi-I/O chip's serial device
+@item
+PCnet32 PCI network card
+@item
+Malta FPGA serial device
+@item
+Cirrus VGA graphics card
+@end itemize
+
+The ACER Pica emulation supports:
+
+@itemize @minus
+@item
+MIPS R4000 CPU
+@item
+PC-style IRQ and DMA controllers
+@item
+PC Keyboard
+@item
+IDE controller
+@end itemize
+
+@node ARM System emulator
+@section ARM System emulator
 
 Use the executable @file{qemu-system-arm} to simulate a ARM
 machine. The ARM Integrator/CP board is emulated with the following
@@ -1853,8 +1895,8 @@ WM8750 audio CODEC on I@math{^2}C and I@math{^2}S busses
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
 
-@node ColdFire System emulator invocation
-@section ColdFire System emulator invocation
+@node ColdFire System emulator
+@section ColdFire System emulator
 
 Use the executable @file{qemu-system-m68k} to simulate a ColdFire machine.
 The emulator is able to boot a uClinux kernel.

@@ -108,9 +108,16 @@ case $targetos in
 CYGWIN*)
 mingw32="yes"
 OS_CFLAGS="-mno-cygwin"
+VL_OS_LDFLAGS="-mno-cygwin"
+if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+fi
 ;;
 MINGW32*)
 mingw32="yes"
+if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+fi
 ;;
 GNU/kFreeBSD)
 oss="yes"
@@ -390,9 +397,6 @@ if test "$mingw32" = "yes" ; then
     linux="no"
     EXESUF=".exe"
     oss="no"
-    if [ "$cpu" = "i386" ] ; then
-        kqemu="yes"
-    fi
 fi
 
 # Check for gcc4, error if pre-gcc4 
@@ -536,58 +540,52 @@ EOF
 sdl_too_old=no
 
 if test -z "$sdl" ; then
+    sdl_config="sdl-config"
+    sdl=no
+    sdl_static=no
 
-sdl_config="sdl-config"
-sdl=no
-sdl_static=no
-
-if test "$mingw32" = "yes" -a ! -z "$cross_prefix" ; then
-# win32 cross compilation case
-    sdl_config="i386-mingw32msvc-sdl-config"
-    sdl=yes
-else
-# normal SDL probe
+    if test "$mingw32" = "yes" -a ! -z "$cross_prefix" ; then
+    # win32 cross compilation case
+        sdl_config="i386-mingw32msvc-sdl-config"
+        sdl=yes
+    else
+        # normal SDL probe
 cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
+        if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
+            _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
+            if test "$_sdlversion" -lt 121 ; then
+                sdl_too_old=yes
+            else
+                if test "$cocoa" = "no" ; then
+                    sdl=yes
+                fi
+            fi
 
-if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /dev/null ; then
-_sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
-if test "$_sdlversion" -lt 121 ; then
-sdl_too_old=yes
+            # static link with sdl ?
+            if test "$sdl" = "yes" ; then
+                aa="no"
+                `$sdl_config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
+                sdl_static_libs=`$sdl_config --static-libs 2>/dev/null`
+                if [ "$aa" = "yes" ] ; then
+                    sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
+                fi
+
+                if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
+                    sdl_static=yes
+                fi
+            fi # static link
+        fi # sdl compile test
+    fi # cross compilation
 else
- if test "$cocoa" = "no" ; then
-   sdl=yes
- fi
-fi
-
-# static link with sdl ?
-if test "$sdl" = "yes" ; then
-aa="no"
-`$sdl_config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
-sdl_static_libs=`$sdl_config --static-libs 2>/dev/null`
-if [ "$aa" = "yes" ] ; then
-  sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
-fi
-
-if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
-  sdl_static=yes
-fi
-
-fi # static link
-
-fi # sdl compile test
-
-fi # cross compilation
-
-else
- # Make sure to disable cocoa if sdl was set
- if test "$sdl" = "yes" ; then
-   cocoa="no"
-   coreaudio="no"
- fi
+    # Make sure to disable cocoa if sdl was set
+    if test "$sdl" = "yes" ; then
+       cocoa="no"
+       coreaudio="no"
+    fi
 fi # -z $sdl
 
 ##########################################
@@ -688,6 +686,11 @@ echo "uname -r          $uname_release"
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
+if [ -s /tmp/qemu-$$-sdl-config.log ]; then
+  echo "The error log from compiling the libSDL test is: "
+  cat /tmp/qemu-$$-sdl-config.log
+fi
+rm -f /tmp/qemu-$$-sdl-config.log
 #if test "$sdl_static" = "no"; then
 #  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
 #fi
@@ -714,6 +717,7 @@ echo "AR=$ar" >> $config_mak
 echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak
 echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "OS_LDFLAGS=$OS_LDFLAGS" >> $config_mak
+echo "VL_OS_LDFLAGS=$VL_OS_LDFLAGS" >> $config_mak
 echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
 echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak

@@ -468,8 +468,10 @@ static inline int testandset (int *p)
 {
     int ret;
 
-#if 0
-    __asm__ __volatile__(".set mips2\n"
+#if 1
+    __asm__ __volatile__(
+            ".set push\n"
+            ".set mips2\n"
             "ll %0,%1\n"
             ".set noreorder\n"
             "bnez %0,1f\n"
@@ -477,6 +479,7 @@ static inline int testandset (int *p)
             "li %0,1\n"
             "sc %0,%1\n"
             "1:\n"
+            ".set pop\n"
             : "=r" (ret), "=m" (*p));
 #else
     __asm__ __volatile__ (

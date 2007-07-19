@@ -42,6 +42,21 @@ const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
 #endif
 
+/* for recent libc, we add these dummy symbols which are not declared
+   when generating a linked object (bug in ld ?) */
+#if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)) && !defined(CONFIG_STATIC)
+typedef void (*dummy_function_t)(void);
+static void dummy_function(void)
+{
+}
+dummy_function_t __preinit_array_start = dummy_function;
+dummy_function_t __preinit_array_end = dummy_function;
+dummy_function_t __init_array_start = dummy_function;
+dummy_function_t __init_array_end = dummy_function;
+dummy_function_t __fini_array_start = dummy_function;
+dummy_function_t __fini_array_end = dummy_function;
+#endif
+
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
    by remapping the process stack directly at the right place */
@@ -609,7 +624,20 @@ void cpu_loop (CPUSPARCState *env)
         case TT_FILL: /* window underflow */
             restore_window(env);
             break;
-	    // XXX
+        case TT_TFAULT:
+        case TT_DFAULT:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                if (trapnr == TT_DFAULT)
+                    info._sifields._sigfault._addr = env->dmmuregs[4];
+                else
+                    info._sifields._sigfault._addr = env->tpc[env->tl];
+                queue_signal(info.si_signo, &info);
+            }
+            break;
 #endif
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */

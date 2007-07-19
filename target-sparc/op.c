@@ -1184,12 +1184,12 @@ void OPPROTO op_wrpstate(void)
 // order.
 void OPPROTO op_rdcwp(void)
 {
-    T0 = NWINDOWS - 1 - env->cwp;
+    T0 = GET_CWP64(env);
 }
 
 void OPPROTO op_wrcwp(void)
 {
-    env->cwp = NWINDOWS - 1 - T0;
+    PUT_CWP64(env, T0);
 }
 
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
@@ -1518,10 +1518,7 @@ void OPPROTO op_movl_npc_im(void)
 
 void OPPROTO op_movl_npc_T0(void)
 {
-    if (T0 & 0x3)
-	raise_exception(TT_UNALIGNED);
-    else
-	env->npc = T0;
+    env->npc = T0;
 }
 
 void OPPROTO op_mov_pc_npc(void)
@@ -2368,3 +2365,15 @@ VIS_CMPOP(op_fcmple, FCMPLE)
 VIS_CMPOP(op_fcmpne, FCMPNE)
 
 #endif
+
+#define CHECK_ALIGN_OP(align)                           \
+    void OPPROTO op_check_align_T0_ ## align (void)     \
+    {                                                   \
+        if (T0 & align)                                 \
+            raise_exception(TT_UNALIGNED);              \
+        FORCE_RET();                                    \
+    }
+
+CHECK_ALIGN_OP(1)
+CHECK_ALIGN_OP(3)
+CHECK_ALIGN_OP(7)

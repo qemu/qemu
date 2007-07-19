@@ -103,6 +103,11 @@ void OPPROTO glue(op_casx, MEMSUFFIX)(void)
     T2 = tmp;
 }
 
+void OPPROTO glue(op_lduw, MEMSUFFIX)(void)
+{
+    T1 = (uint64_t)(glue(ldl, MEMSUFFIX)(T0) & 0xffffffff);
+}
+
 void OPPROTO glue(op_ldsw, MEMSUFFIX)(void)
 {
     T1 = (int64_t)(glue(ldl, MEMSUFFIX)(T0) & 0xffffffff);

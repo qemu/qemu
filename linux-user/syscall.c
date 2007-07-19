@@ -145,6 +145,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
+#define __NR_sys_tkill __NR_tkill
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -165,7 +166,12 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
+#ifdef TARGET_NR_tgkill
 _syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
+#endif
+#ifdef TARGET_NR_tkill
+_syscall2(int,sys_tkill,int,tid,int,sig)
+#endif
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
@@ -184,7 +190,7 @@ extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
 /*
- * This list is the union of errno values overidden in asm-<arch>/errno.h
+ * This list is the union of errno values overridden in asm-<arch>/errno.h
  * minus the errnos that are not actually generic to all archs.
  */
 static uint16_t host_to_target_errno_table[1200] = {
@@ -308,7 +314,7 @@ static target_ulong target_original_brk;
 
 void target_set_brk(target_ulong new_brk)
 {
-    target_original_brk = target_brk = new_brk;
+    target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
 }
 
 long do_brk(target_ulong new_brk)
@@ -3535,7 +3541,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat *target_st;
 
                 lock_user_struct(target_st, arg2, 0);
-#if defined(TARGET_MIPS)
+#if defined(TARGET_MIPS) || defined(TARGET_SPARC64)
                 target_st->st_dev = tswap32(st.st_dev);
 #else
                 target_st->st_dev = tswap16(st.st_dev);
@@ -3543,6 +3549,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->st_ino = tswapl(st.st_ino);
 #if defined(TARGET_PPC) || defined(TARGET_MIPS)
                 target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
+                target_st->st_uid = tswap32(st.st_uid);
+                target_st->st_gid = tswap32(st.st_gid);
+#elif defined(TARGET_SPARC64)
+                target_st->st_mode = tswap32(st.st_mode);
                 target_st->st_uid = tswap32(st.st_uid);
                 target_st->st_gid = tswap32(st.st_gid);
 #else
@@ -3554,6 +3564,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 		/* If this is the same on PPC, then just merge w/ the above ifdef */
                 target_st->st_nlink = tswapl(st.st_nlink);
                 target_st->st_rdev = tswapl(st.st_rdev);
+#elif defined(TARGET_SPARC64)
+                target_st->st_nlink = tswap32(st.st_nlink);
+                target_st->st_rdev = tswap32(st.st_rdev);
 #else
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_rdev = tswap16(st.st_rdev);
@@ -4604,6 +4617,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_set_tid_address:
       ret = get_errno(set_tid_address((int *) arg1));
       break;
+#endif
+
+#ifdef TARGET_NR_tkill
+    case TARGET_NR_tkill:
+        ret = get_errno(sys_tkill((int)arg1, (int)arg2));
+        break;
 #endif
 
 #ifdef TARGET_NR_tgkill

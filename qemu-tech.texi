@@ -158,25 +158,25 @@ maximum performances.
 
 @itemize
 
-@item User mode emulation and full system mode emulation.
+@item The system emulation allows full MIPS32/MIPS64 Release 2 emulation,
+including privileged instructions, FPU and MMU, in both little and big
+endian modes.
 
-@item Supports big endian and little endian mode.
-
-@item Can run some MIPS32 Linux binaries.
-
-@item Can boot some MIPS32 Linux kernels.
+@item The Linux userland emulation can run many 32 bit MIPS Linux binaries.
 
 @end itemize
 
 Current QEMU limitations:
 
-@itemize 
+@itemize
 
-@item MIPS64 not supported.
+@item Self-modifying code is not always handled correctly.
 
-@item Watchpoint debug facility not implemented.
+@item 64 bit userland emulation is not implemented.
 
-@item setup_frame not implemented (needed for fork in user mode).
+@item The system emulation is not complete enough to run real firmware.
+
+@item The watchpoint debug facility is not implemented.
 
 @end itemize
 

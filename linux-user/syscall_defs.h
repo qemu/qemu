@@ -962,6 +962,57 @@ struct target_eabi_stat64 {
 } __attribute__ ((packed));
 #endif
 
+#elif defined(TARGET_SPARC64)
+struct target_stat {
+	unsigned int	st_dev;
+	target_ulong	st_ino;
+	unsigned int	st_mode;
+	unsigned int	st_nlink;
+	unsigned int	st_uid;
+	unsigned int	st_gid;
+	unsigned int	st_rdev;
+	target_long	st_size;
+	target_long	target_st_atime;
+	target_long	target_st_mtime;
+	target_long	target_st_ctime;
+	target_long	st_blksize;
+	target_long	st_blocks;
+	target_ulong	__unused4[2];
+};
+
+struct target_stat64 {
+	unsigned char	__pad0[6];
+	unsigned short	st_dev;
+
+	uint64_t	st_ino;
+	uint64_t	st_nlink;
+
+	unsigned int	st_mode;
+
+	unsigned int	st_uid;
+	unsigned int	st_gid;
+
+	unsigned char	__pad2[6];
+	unsigned short	st_rdev;
+
+        int64_t		st_size;
+	int64_t		st_blksize;
+
+	unsigned char	__pad4[4];
+	unsigned int	st_blocks;
+
+	target_ulong	target_st_atime;
+	target_ulong	__unused1;
+
+	target_ulong	target_st_mtime;
+	target_ulong	__unused2;
+
+	target_ulong	target_st_ctime;
+	target_ulong	__unused3;
+
+	target_ulong	__unused4[3];
+};
+
 #elif defined(TARGET_SPARC)
 
 struct target_stat {

@@ -204,7 +204,7 @@ BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-OP_CFLAGS+=-mabi=32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
+OP_CFLAGS += -G 0 -fomit-frame-pointer -fno-delayed-branch
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
@@ -531,7 +531,7 @@ tcp_subr.o tcp_timer.o udp.o bootp.o debug.o tftp.o
 VL_OBJS+=$(addprefix slirp/, $(SLIRP_OBJS))
 endif
 
-VL_LDFLAGS=
+VL_LDFLAGS=$(VL_OS_LDFLAGS)
 VL_LIBS=$(AIOLIBS)
 # specific flags are needed for non soft mmu emulator
 ifdef CONFIG_STATIC

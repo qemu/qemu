@@ -99,7 +99,7 @@ static int mmap_frag(target_ulong real_start,
                      target_ulong start, target_ulong end, 
                      int prot, int flags, int fd, target_ulong offset)
 {
-    target_ulong real_end, ret, addr;
+    target_ulong real_end, addr;
     void *host_start;
     int prot1, prot_new;
 
@@ -115,10 +115,10 @@ static int mmap_frag(target_ulong real_start,
     
     if (prot1 == 0) {
         /* no page was there, so we allocate one */
-        ret = (long)mmap(host_start, qemu_host_page_size, prot, 
+        void *ret = mmap(host_start, qemu_host_page_size, prot,
                          flags | MAP_ANONYMOUS, -1, 0);
-        if (ret == -1)
-            return ret;
+        if (ret == MAP_FAILED)
+            return -1;
         prot1 = prot;
     }
     prot1 &= PAGE_BITS;
@@ -306,15 +306,16 @@ abort();
     
     /* map the middle (easier) */
     if (real_start < real_end) {
+        void *p;
         unsigned long offset1;
-	if (flags & MAP_ANONYMOUS)
-	  offset1 = 0;
-	else
-	  offset1 = offset + real_start - start;
-        ret = (long)mmap(g2h(real_start), real_end - real_start, 
-                         prot, flags, fd, offset1);
-        if (ret == -1)
-            return ret;
+        if (flags & MAP_ANONYMOUS)
+          offset1 = 0;
+        else
+          offset1 = offset + real_start - start;
+        p = mmap(g2h(real_start), real_end - real_start,
+                 prot, flags, fd, offset1);
+        if (p == MAP_FAILED)
+            return -1;
     }
  the_end1:
     page_set_flags(start, start + len, prot | PAGE_VALID);

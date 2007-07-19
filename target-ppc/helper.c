@@ -1494,10 +1494,12 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
         break;
     }
     if (enter_pm) {
-        /* power save: exit cpu loop */
-        env->halted = 1;
-        env->exception_index = EXCP_HLT;
-        cpu_loop_exit();
+        if (likely(!env->halted)) {
+            /* power save: exit cpu loop */
+            env->halted = 1;
+            env->exception_index = EXCP_HLT;
+            cpu_loop_exit();
+        }
     }
 }
 

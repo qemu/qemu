@@ -25,6 +25,13 @@
 #include <SDL_thread.h>
 #include "vl.h"
 
+#ifndef _WIN32
+#ifdef __sun__
+#define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+#include <signal.h>
+#endif
+
 #define AUDIO_CAP "sdl"
 #include "audio_int.h"
 
@@ -177,11 +184,22 @@ static int sdl_to_audfmt (int sdlfmt, audfmt_e *fmt, int *endianess)
 static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
 {
     int status;
+#ifndef _WIN32
+    sigset_t new, old;
+
+    /* Make sure potential threads created by SDL don't hog signals.  */
+    sigfillset (&new);
+    pthread_sigmask (SIG_BLOCK, &new, &old);
+#endif
 
     status = SDL_OpenAudio (req, obt);
     if (status) {
         sdl_logerr ("SDL_OpenAudio failed\n");
     }
+
+#ifndef _WIN32
+    pthread_sigmask (SIG_SETMASK, &old, 0);
+#endif
     return status;
 }
 

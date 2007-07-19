@@ -2118,7 +2118,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     s->i2s = pxa2xx_i2s_init(0x40400000, s->pic[PXA2XX_PIC_I2S], s->dma);
 
     /* GPIO1 resets the processor */
-    /* The handler can be overriden by board-specific code */
+    /* The handler can be overridden by board-specific code */
     pxa2xx_gpio_handler_set(s->gpio, 1, pxa2xx_reset, s);
     return s;
 }
@@ -2227,7 +2227,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     s->i2s = pxa2xx_i2s_init(0x40400000, s->pic[PXA2XX_PIC_I2S], s->dma);
 
     /* GPIO1 resets the processor */
-    /* The handler can be overriden by board-specific code */
+    /* The handler can be overridden by board-specific code */
     pxa2xx_gpio_handler_set(s->gpio, 1, pxa2xx_reset, s);
     return s;
 }

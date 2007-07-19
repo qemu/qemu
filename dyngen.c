@@ -1669,8 +1669,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         } else if (get32((uint32_t *)(p + 4)) != INSN_NOP) {
             error("nop expected at the end of %s", name);
         } else if ((get32((uint32_t *)(p_start)) >> 16) == 0x3c1c &&
-                   (get32((uint32_t *)(p_start + 4)) >> 16) == 0x279c &&
-                    get32((uint32_t *)(p_start + 8)) == 0x0399e021) {
+                  (get32((uint32_t *)(p_start + 4)) >> 16) == 0x279c &&
+                  get32((uint32_t *)(p_start + 8)) == 0x0399e021) {
             /* Skip prologue
                lui      gp,nn
                addiu    gp,gp,nn
@@ -1680,7 +1680,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         }
         copy_size = p - p_start;
     }
-#elif defined(HOST_MIPS) && 0
+#elif (defined(HOST_MIPS) || defined(HOST_MIPS64)) && 0
     {
 #define INSN_RETURN     0x03e00008
 #define INSN_NOP        0x00000000
@@ -2027,91 +2027,90 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     }
                 }
 #elif defined(CONFIG_FORMAT_MACH)
-				struct scattered_relocation_info *scarel;
-				struct relocation_info * rel;
-				char final_sym_name[256];
-				const char *sym_name;
-				const char *p;
-				int slide, sslide;
-				int i;
-	
-				for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
-					unsigned int offset, length, value = 0;
-					unsigned int type, pcrel, isym = 0;
-					unsigned int usesym = 0;
-				
-					if(R_SCATTERED & rel->r_address) {
-						scarel = (struct scattered_relocation_info*)rel;
-						offset = (unsigned int)scarel->r_address;
-						length = scarel->r_length;
-						pcrel = scarel->r_pcrel;
-						type = scarel->r_type;
-						value = scarel->r_value;
-					} else {
-						value = isym = rel->r_symbolnum;
-						usesym = (rel->r_extern);
-						offset = rel->r_address;
-						length = rel->r_length;
-						pcrel = rel->r_pcrel;
-						type = rel->r_type;
-					}
-				
-					slide = offset - start_offset;
-		
-					if (!(offset >= start_offset && offset < start_offset + size)) 
-						continue;  /* not in our range */
+                struct scattered_relocation_info *scarel;
+                struct relocation_info * rel;
+                char final_sym_name[256];
+                const char *sym_name;
+                const char *p;
+                int slide, sslide;
+                int i;
 
-					sym_name = get_reloc_name(rel, &sslide);
-					
-					if(usesym && symtab[isym].n_type & N_STAB)
-						continue; /* don't handle STAB (debug sym) */
-					
-					if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
-						int n;
-						n = strtol(p, NULL, 10);
-						fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
-							n, slide);
-						continue; /* Nothing more to do */
-					}
-					
-					if(!sym_name)
-					{
-						fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
-						           relname, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
-						continue; /* dunno how to handle without final_sym_name */
-					}
-													   
-                                        get_reloc_expr(final_sym_name, sizeof(final_sym_name), 
-                                                       sym_name);
-					switch(type) {
-					case PPC_RELOC_BR24:
-					    if (!strstart(sym_name,"__op_gen_label",&p)) {
-    						fprintf(outfile, "{\n");
-    						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
-    						fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n", 
-											slide, slide, relname, sslide );
-    						fprintf(outfile, "}\n");
-    					} else {
-							fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | (((long)%s - (long)gen_code_ptr - %d) & 0x03fffffc);\n",
-											slide, slide, final_sym_name, slide);
-    					}
-						break;
-					case PPC_RELOC_HI16:
-						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d) >> 16;\n", 
-							slide, final_sym_name, sslide);
-						break;
-					case PPC_RELOC_LO16:
-						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d);\n", 
-					slide, final_sym_name, sslide);
+                for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+                    unsigned int offset, length, value = 0;
+                    unsigned int type, pcrel, isym = 0;
+                    unsigned int usesym = 0;
+
+                    if(R_SCATTERED & rel->r_address) {
+                        scarel = (struct scattered_relocation_info*)rel;
+                        offset = (unsigned int)scarel->r_address;
+                        length = scarel->r_length;
+                        pcrel = scarel->r_pcrel;
+                        type = scarel->r_type;
+                        value = scarel->r_value;
+                    } else {
+                        value = isym = rel->r_symbolnum;
+                        usesym = (rel->r_extern);
+                        offset = rel->r_address;
+                        length = rel->r_length;
+                        pcrel = rel->r_pcrel;
+                        type = rel->r_type;
+                    }
+
+                    slide = offset - start_offset;
+
+                    if (!(offset >= start_offset && offset < start_offset + size)) 
+                        continue;  /* not in our range */
+
+                        sym_name = get_reloc_name(rel, &sslide);
+
+                        if(usesym && symtab[isym].n_type & N_STAB)
+                            continue; /* don't handle STAB (debug sym) */
+
+                        if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
+                            int n;
+                            n = strtol(p, NULL, 10);
+                            fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
+                                    n, slide);
+                            continue; /* Nothing more to do */
+                        }
+
+                        if(!sym_name) {
+                            fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
+                                    name, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
+                            continue; /* dunno how to handle without final_sym_name */
+                        }
+
+                        get_reloc_expr(final_sym_name, sizeof(final_sym_name), 
+                                       sym_name);
+                        switch(type) {
+                        case PPC_RELOC_BR24:
+                            if (!strstart(sym_name,"__op_gen_label",&p)) {
+                                fprintf(outfile, "{\n");
+                                fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
+                                fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n",
+                                        slide, slide, name, sslide);
+                                fprintf(outfile, "}\n");
+                            } else {
+                                fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | (((long)%s - (long)gen_code_ptr - %d) & 0x03fffffc);\n",
+                                        slide, slide, final_sym_name, slide);
+                            }
                             break;
-					case PPC_RELOC_HA16:
-						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d + 0x8000) >> 16;\n", 
-							slide, final_sym_name, sslide);
-						break;
-				default:
-					error("unsupported powerpc relocation (%d)", type);
-				}
-			}
+                        case PPC_RELOC_HI16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d) >> 16;\n", 
+                                    slide, final_sym_name, sslide);
+                            break;
+                        case PPC_RELOC_LO16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d);\n", 
+                                    slide, final_sym_name, sslide);
+                            break;
+                        case PPC_RELOC_HA16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d + 0x8000) >> 16;\n", 
+                                    slide, final_sym_name, sslide);
+                            break;
+                        default:
+                            error("unsupported powerpc relocation (%d)", type);
+                    }
+                }
 #else
 #error unsupport object format
 #endif
@@ -2611,11 +2610,17 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #elif defined(HOST_MIPS) && 0
             {
                 for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
-		    if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
+                    host_ulong r_offset = rel->r_offset;
+		    if (r_offset >= start_offset && r_offset < start_offset + copy_size) {
                         char relname[256];
                         int type;
                         int addend;
-                        int reloc_offset;
+                        int reloc_offset = r_offset - start_offset;
+#if defined(WORDS_BIGENDIAN)
+                        int reloc_offset_lsb = reloc_offset + 2;
+#else
+                        int reloc_offset_lsb = reloc_offset;
+#endif
 
 			sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
                         /* the compiler leave some unnecessary references to the code */
@@ -2624,7 +2629,6 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         get_reloc_expr(relname, sizeof(relname), sym_name);
 			type = ELF32_R_TYPE(rel->r_info);
                         addend = get32((uint32_t *)(text + rel->r_offset));
-                        reloc_offset = rel->r_offset - start_offset;
 			switch (type) {
 			case R_MIPS_26:
                             fprintf(outfile, "    /* R_MIPS_26 RELOC, offset 0x%x, name %s */\n",
@@ -2636,26 +2640,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "   & 0x3fffff);\n",
                                     reloc_offset, addend, addend, relname, reloc_offset);
 			    break;
-			case R_MIPS_HI16:
-                            fprintf(outfile, "    /* R_MIPS_HI16 RELOC, offset 0x%x, name %s */\n",
-				    rel->r_offset, sym_name);
-                            fprintf(outfile,
-				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
-				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
-				    " & ~0xffff) "
-				    " | (((%s - 0x8000) >> 16) & 0xffff);\n",
-                                    reloc_offset, reloc_offset, relname);
-			    break;
-			case R_MIPS_LO16:
-                            fprintf(outfile, "    /* R_MIPS_LO16 RELOC, offset 0x%x, name %s */\n",
-				    rel->r_offset, sym_name);
-                            fprintf(outfile,
-				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
-				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
-				    " & ~0xffff) "
-				    " | (%s & 0xffff);\n",
-                                    reloc_offset, reloc_offset, relname);
-			    break;
+                        case R_MIPS_HI16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)((uint32_t)(%s) >> 16); // R_MIPS_HI16\n", 
+                                    reloc_offset_lsb, relname);
+                            break;
+                        case R_MIPS_LO16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)(%s); // R_MIPS_LO16\n", 
+                                    reloc_offset_lsb, relname);
+                            break;
 			case R_MIPS_PC16:
                             fprintf(outfile, "    /* R_MIPS_PC16 RELOC, offset 0x%x, name %s */\n",
 				    rel->r_offset, sym_name);
@@ -2668,14 +2660,10 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			    break;
 			case R_MIPS_GOT16:
 			case R_MIPS_CALL16:
-                            fprintf(outfile, "    /* R_MIPS_GOT16 RELOC, offset 0x%x, name %s */\n",
+                            /* No need to relocate. */
+                            fprintf(outfile, "    /* R_MIPS_CALL16 / R_MIPS_GOT16 RELOC, offset 0x%x, name %s */\n",
 				    rel->r_offset, sym_name);
-                            fprintf(outfile,
-				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
-				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
-				    " & ~0xffff) "
-				    " | (((%s - 0x8000) >> 16) & 0xffff);\n",
-                                    reloc_offset, reloc_offset, relname);
+                            fprintf(outfile, "    (void)%s;\n", relname);
 			    break;
 			default:
 			    error("unsupported MIPS relocation (%d)", type);

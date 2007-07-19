@@ -44,8 +44,8 @@ struct audio_option {
     audio_option_tag_e tag;
     void *valp;
     const char *descr;
-    int *overridenp;
-    int overriden;
+    int *overriddenp;
+    int overridden;
 };
 
 struct audio_callback {

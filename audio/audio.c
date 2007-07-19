@@ -386,7 +386,7 @@ static void audio_print_options (const char *prefix,
         const char *state = "default";
         printf ("  %s_%s: ", uprefix, opt->name);
 
-        if (opt->overridenp && *opt->overridenp) {
+        if (opt->overriddenp && *opt->overriddenp) {
             state = "current";
         }
 
@@ -516,10 +516,10 @@ static void audio_process_options (const char *prefix,
             break;
         }
 
-        if (!opt->overridenp) {
-            opt->overridenp = &opt->overriden;
+        if (!opt->overriddenp) {
+            opt->overriddenp = &opt->overridden;
         }
-        *opt->overridenp = !def;
+        *opt->overriddenp = !def;
         qemu_free (optname);
     }
 }

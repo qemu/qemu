@@ -1152,7 +1152,7 @@ TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
 {
     TextConsole *s;
 
-    s = new_console(ds, 0);
+    s = new_console(ds, GRAPHIC_CONSOLE);
     if (!s)
       return NULL;
     s->hw_update = update;
@@ -1179,7 +1179,7 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
         return NULL;
-    s = new_console(ds, (p == 0) ? 1 : 2);
+    s = new_console(ds, (p == 0) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
     if (!s) {
         free(chr);
         return NULL;

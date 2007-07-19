@@ -845,12 +845,11 @@ static inline uint64_t *get_gregset(uint64_t pstate)
     }
 }
 
-void do_wrpstate()
+static inline void change_pstate(uint64_t new_pstate)
 {
-    uint64_t new_pstate, pstate_regs, new_pstate_regs;
+    uint64_t pstate_regs, new_pstate_regs;
     uint64_t *src, *dst;
 
-    new_pstate = T0 & 0xf3f;
     pstate_regs = env->pstate & 0xc01;
     new_pstate_regs = new_pstate & 0xc01;
     if (new_pstate_regs != pstate_regs) {
@@ -863,6 +862,11 @@ void do_wrpstate()
     env->pstate = new_pstate;
 }
 
+void do_wrpstate(void)
+{
+    change_pstate(T0 & 0xf3f);
+}
+
 void do_done(void)
 {
     env->tl--;
@@ -870,8 +874,8 @@ void do_done(void)
     env->npc = env->tnpc[env->tl] + 4;
     PUT_CCR(env, env->tstate[env->tl] >> 32);
     env->asi = (env->tstate[env->tl] >> 24) & 0xff;
-    env->pstate = (env->tstate[env->tl] >> 8) & 0xfff;
-    set_cwp(env->tstate[env->tl] & 0xff);
+    change_pstate((env->tstate[env->tl] >> 8) & 0xf3f);
+    PUT_CWP64(env, env->tstate[env->tl] & 0xff);
 }
 
 void do_retry(void)
@@ -881,8 +885,8 @@ void do_retry(void)
     env->npc = env->tnpc[env->tl];
     PUT_CCR(env, env->tstate[env->tl] >> 32);
     env->asi = (env->tstate[env->tl] >> 24) & 0xff;
-    env->pstate = (env->tstate[env->tl] >> 8) & 0xfff;
-    set_cwp(env->tstate[env->tl] & 0xff);
+    change_pstate((env->tstate[env->tl] >> 8) & 0xf3f);
+    PUT_CWP64(env, env->tstate[env->tl] & 0xff);
 }
 #endif
 
@@ -952,11 +956,18 @@ void do_interrupt(int intno)
     }
 #endif
     env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
-	((env->pstate & 0xfff) << 8) | (env->cwp & 0xff);
+	((env->pstate & 0xf3f) << 8) | GET_CWP64(env);
     env->tpc[env->tl] = env->pc;
     env->tnpc[env->tl] = env->npc;
     env->tt[env->tl] = intno;
-    env->pstate = PS_PEF | PS_PRIV | PS_AG;
+    change_pstate(PS_PEF | PS_PRIV | PS_AG);
+
+    if (intno == TT_CLRWIN)
+        set_cwp((env->cwp - 1) & (NWINDOWS - 1));
+    else if ((intno & 0x1c0) == TT_SPILL)
+        set_cwp((env->cwp - env->cansave - 2) & (NWINDOWS - 1));
+    else if ((intno & 0x1c0) == TT_FILL)
+        set_cwp((env->cwp + 1) & (NWINDOWS - 1));
     env->tbr &= ~0x7fffULL;
     env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
     if (env->tl < MAXTL - 1) {

@@ -10,7 +10,7 @@
 #else
 #define TARGET_LONG_BITS 64
 #define TARGET_FPREGS 64
-#define TARGET_PAGE_BITS 12 /* XXX */
+#define TARGET_PAGE_BITS 13 /* 8k */
 #endif
 
 #define TARGET_PHYS_ADDR_BITS 64
@@ -89,6 +89,7 @@
 #if defined(TARGET_SPARC64)
 #define PS_IG    (1<<11)
 #define PS_MG    (1<<10)
+#define PS_RMO   (1<<7)
 #define PS_RED   (1<<5)
 #define PS_PEF   (1<<4)
 #define PS_AM    (1<<3)
@@ -287,11 +288,15 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
     } while (0)
 
 #ifdef TARGET_SPARC64
-#define GET_CCR(env) ((env->xcc << 4) | (env->psr & PSR_ICC))
+#define GET_CCR(env) (((env->xcc >> 20) << 4) | ((env->psr & PSR_ICC) >> 20))
 #define PUT_CCR(env, val) do { int _tmp = val;				\
-	env->xcc = _tmp >> 4;						\
+	env->xcc = (_tmp >> 4) << 20;						\
 	env->psr = (_tmp & 0xf) << 20;					\
     } while (0)
+#define GET_CWP64(env) (NWINDOWS - 1 - (env)->cwp)
+#define PUT_CWP64(env, val) \
+    cpu_set_cwp(env, NWINDOWS - 1 - ((val) & (NWINDOWS - 1)))
+
 #endif
 
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
