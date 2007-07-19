@@ -321,7 +321,7 @@ void stl_le_phys(target_phys_addr_t addr, uint32_t val)
 
 /* From FreeBSD */
 /* XXX: optimize */
-static int compute_mcast_idx(const uint8_t * ep)
+static unsigned compute_mcast_idx(const uint8_t * ep)
 {
     uint32_t crc;
     int carry, i, j;
@@ -338,7 +338,7 @@ static int compute_mcast_idx(const uint8_t * ep)
                 crc = ((crc ^ POLYNOMIAL) | carry);
         }
     }
-    return (crc >> 26);
+    return (crc & BITS(7, 2)) >> 2;
 }
 
 #if defined(DEBUG_EEPRO100)
@@ -796,6 +796,21 @@ static void tx_command(EEPRO100State *s)
     //~ eepro100_cx_interrupt(s);
 }
 
+static void set_multicast_list(EEPRO100State *s, uint16_t multicast_count)
+{
+      uint16_t i;
+      memset(&s->mult[0], 0, sizeof(s->mult));
+      logout("multicast list, %u entries\n", multicast_count);
+      for (i = 0; i < multicast_count; i++) {
+          uint8_t multicast_addr[6];
+          cpu_physical_memory_read(s->cb_address + 10 + 6 * i, multicast_addr, 6);
+          logout("multicast entry %s\n", nic_dump(multicast_addr, 6));
+          unsigned mcast_idx = compute_mcast_idx(multicast_addr);
+          assert(mcast_idx < 64);
+          s->mult[mcast_idx >> 3] |= (1 << (mcast_idx & 7));
+      }
+}
+
 static void action_command(EEPRO100State *s)
 {
     for (;;) {
@@ -821,7 +836,7 @@ static void action_command(EEPRO100State *s)
             logout("configuration: %s\n", nic_dump(&s->configuration[0], 16));
             break;
         case CmdMulticastList:
-            //~ missing("multicast list");
+            set_multicast_list(s, s->tx.tbd_array_addr & BITS(13, 0));
             break;
         case CmdTx:
             tx_command(s);
@@ -1619,12 +1634,16 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
         rfd_status |= 0x0002;
     } else if (buf[0] & 0x01) { // !!!
         /* Multicast frame. */
-        logout("%p received multicast, len=%d\n", s, size);
-        /* TODO: check multicast all bit. */
-        assert(!(s->configuration[21] & BIT(3)));
-        int mcast_idx = compute_mcast_idx(buf);
-        if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
-            return;
+        logout("%p received multicast, len=%d,%s\n", s, size, nic_dump(buf, size));
+        if (s->configuration[21] & BIT(3)) {
+          /* Multicast all bit is set, receive all frames. */
+        } else {
+          unsigned mcast_idx = compute_mcast_idx(buf);
+          assert(mcast_idx < 64);
+          if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
+              logout("%p multicast ignored\n", s);
+              return;
+          }
         }
         rfd_status |= 0x0002;
     } else if (s->configuration[15] & 1) {
