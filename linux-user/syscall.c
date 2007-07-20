@@ -3352,7 +3352,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             put_user(stfs.f_bavail, &target_stfs->f_bavail);
             put_user(stfs.f_files, &target_stfs->f_files);
             put_user(stfs.f_ffree, &target_stfs->f_ffree);
-            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
+            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]);
+            put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]);
             put_user(stfs.f_namelen, &target_stfs->f_namelen);
             unlock_user_struct(target_stfs, arg2, 1);
         }
@@ -3378,7 +3379,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             put_user(stfs.f_bavail, &target_stfs->f_bavail);
             put_user(stfs.f_files, &target_stfs->f_files);
             put_user(stfs.f_ffree, &target_stfs->f_ffree);
-            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
+            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]);
+            put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]);
             put_user(stfs.f_namelen, &target_stfs->f_namelen);
             unlock_user_struct(target_stfs, arg3, 0);
         }
