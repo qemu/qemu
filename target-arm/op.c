@@ -819,7 +819,7 @@ void OPPROTO op_shll_T0_im_thumb(void)
     int shift;
     shift = PARAM1;
     if (shift != 0) {
-	env->CF = (T1 >> (32 - shift)) & 1;
+	env->CF = (T0 >> (32 - shift)) & 1;
 	T0 = T0 << shift;
     }
     env->NZF = T0;
@@ -832,7 +832,7 @@ void OPPROTO op_shrl_T0_im_thumb(void)
 
     shift = PARAM1;
     if (shift == 0) {
-	env->CF = ((uint32_t)shift) >> 31;
+	env->CF = ((uint32_t)T0) >> 31;
 	T0 = 0;
     } else {
 	env->CF = (T0 >> (shift - 1)) & 1;
