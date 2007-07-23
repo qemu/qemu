@@ -268,6 +268,28 @@ typedef struct {
     uint8_t mem[PCI_MEM_SIZE];
 } EEPRO100State;
 
+typedef enum {
+    eeprom_cnfg_mdix  = 0x03,
+    eeprom_id         = 0x0a,
+    eeprom_config_asf = 0x0d,
+    eeprom_smbus_addr = 0x90,
+} eeprom_offset_t;
+
+/* Bit values for EEPROM ID word (offset 0x0a). */
+typedef enum {
+    eeprom_id_mdm = BIT(0),     /* Modem */
+    eeprom_id_stb = BIT(1),     /* Standby Enable */
+    eeprom_id_wmr = BIT(2),     /* ??? */
+    eeprom_id_wol = BIT(5),     /* Wake on LAN */
+    eeprom_id_dpd = BIT(6),     /* Deep Power Down */
+    eeprom_id_alt = BIT(7),     /* */
+    /* BITS(10, 8) device revision */
+    eeprom_id_bd = BIT(11),     /* boot disable */
+    eeprom_id_id = BIT(13),     /* id bit */
+    /* BITS(15, 14) signature */
+    eeprom_id_valid = BIT(14),  /* signature for valid eeprom */
+} eeprom_id_t;
+
 /* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
     /* MDI Registers 0 - 6, 7 */
@@ -558,12 +580,16 @@ static void nic_selective_reset(EEPRO100State * s)
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
     //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, s->macaddr, 6);
-    eeprom_contents[0xa] = 0x4000;
+    for (i = 0; i < 3; i++) {
+      eeprom_contents[i] = le16_to_cpu(eeprom_contents[i]);
+    }
+    /* TODO: eeprom_id_alt for i82559 */
+    eeprom_contents[eeprom_id] = eeprom_id_valid;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
     }
-    eeprom_contents[EEPROM_SIZE - 1] = 0xbaba - sum;
+    eeprom_contents[EEPROM_SIZE - 1] = (0xbaba - sum);
 
     memset(s->mem, 0, sizeof(s->mem));
     uint32_t val = cpu_to_le32(BIT(21));
@@ -829,6 +855,7 @@ static void action_command(EEPRO100State *s)
         case CmdIASetup:
             cpu_physical_memory_read(s->cb_address + 8, &s->macaddr[0], 6);
             logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
+        // !!! missing
             break;
         case CmdConfigure:
             cpu_physical_memory_read(s->cb_address + 8, &s->configuration[0],
@@ -996,18 +1023,21 @@ static uint16_t eepro100_read_eeprom(EEPRO100State * s)
 {
     uint16_t val;
     memcpy(&val, &s->mem[SCBeeprom], sizeof(val));
-    val = le32_to_cpu(val);
+    val = le16_to_cpu(val);
     if (eeprom93xx_read(s->eeprom)) {
         val |= EEPROM_DO;
     } else {
         val &= ~EEPROM_DO;
+    
     }
-    return cpu_to_le32(val);
+    val = cpu_to_le16(val);
+    logout("val=0x%04x\n", val);
+    return val;
 }
 
 static void eepro100_write_eeprom(eeprom_t * eeprom, uint8_t val)
 {
-    //~ logout("write val=0x%02x\n", val);
+    logout("val=0x%02x\n", val);
 
     /* mask unwriteable bits */
     //~ val = SET_MASKED(val, 0x31, eeprom->value);
@@ -1091,6 +1121,9 @@ static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
     uint8_t phy = (val & BITS(25, 21)) >> 21;
     uint8_t reg = (val & BITS(20, 16)) >> 16;
     uint16_t data = (val & BITS(15, 0));
+        TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
+                          val, raiseint, mdi_op_name[opcode], phy,
+                          reg2name(reg), data));
     if (phy != 1) {
         /* Unsupported PHY address. */
         //~ logout("phy must be 1 but is %u\n", phy);
@@ -1210,8 +1243,8 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
         logout("selftest address=0x%08x\n", address);
         eepro100_selftest_t data;
         cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
-        data.st_sign = 0xffffffff;
-        data.st_result = 0;
+        data.st_sign = cpu_to_le32(0xffffffff);
+        data.st_result = cpu_to_le32(0);
         cpu_physical_memory_write(address, (uint8_t *) & data, sizeof(data));
         break;
     case PORT_SELECTIVE_RESET:
@@ -1257,7 +1290,7 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
         logout("addr=%s val=0x%02x\n", regname(addr), val);
         break;
     case SCBeeprom:
-        val = eepro100_read_eeprom(s);
+        val = le16_to_cpu(eepro100_read_eeprom(s));
         break;
     case 0x1b:                 /* PMDR (power management driver register) */
         val = 0;
@@ -1324,7 +1357,7 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
         logout("addr=%s val=0x%08x\n", regname(addr), val);
         break;
     case SCBCtrlMDI:
-        val = eepro100_read_mdi(s);
+        val = le32_to_cpu(eepro100_read_mdi(s));
         break;
     default:
         logout("addr=%s val=0x%08x\n", regname(addr), val);
@@ -1413,7 +1446,7 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
-    val = le32_to_cpu(val);
+    //~ val = le32_to_cpu(val);
 
     switch (addr) {
     case SCBPointer:
@@ -1912,9 +1945,8 @@ static void nic_init(PCIBus * bus, NICInfo * nd,
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "eepro100 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             s->macaddr[0],
-             s->macaddr[1],
-             s->macaddr[2], s->macaddr[3], s->macaddr[4], s->macaddr[5]);
+             s->macaddr[0], s->macaddr[1], s->macaddr[2],
+             s->macaddr[3], s->macaddr[4], s->macaddr[5]);
 
     qemu_register_reset(nic_reset, s);
 
