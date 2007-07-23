@@ -281,12 +281,24 @@ static uint16_t host_to_target_errno_table[1200] = {
     [ECANCELED]		= TARGET_ECANCELED,
     [ENOMEDIUM]		= TARGET_ENOMEDIUM,
     [EMEDIUMTYPE]	= TARGET_EMEDIUMTYPE,
+#ifdef ENOKEY
     [ENOKEY]		= TARGET_ENOKEY,
+#endif
+#ifdef EKEYEXPIRED
     [EKEYEXPIRED]	= TARGET_EKEYEXPIRED,
+#endif
+#ifdef EKEYREVOKED
     [EKEYREVOKED]	= TARGET_EKEYREVOKED,
+#endif
+#ifdef EKEYREJECTED
     [EKEYREJECTED]	= TARGET_EKEYREJECTED,
+#endif
+#ifdef EOWNERDEAD
     [EOWNERDEAD]	= TARGET_EOWNERDEAD,
+#endif
+#ifdef ENOTRECOVERABLE
     [ENOTRECOVERABLE]	= TARGET_ENOTRECOVERABLE,
+#endif
 	};
 
 static inline int host_to_target_errno(int err)
