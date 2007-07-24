@@ -280,7 +280,7 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
 
         case 1:
             /* Idle */
-            if (!(s->cm_regs[CCCR] & (1 << 31))) {	/* CPDIS */
+            if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) {	/* CPDIS */
                 cpu_interrupt(s->env, CPU_INTERRUPT_HALT);
                 break;
             }
@@ -2057,7 +2057,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
         s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD], ds);
 
     s->cm_base = 0x41300000;
-    s->cm_regs[CCCR >> 4] = 0x02000210;	/* 416.0 MHz */
+    s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     iomemtype = cpu_register_io_memory(0, pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s);
@@ -2166,7 +2166,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
         s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD], ds);
 
     s->cm_base = 0x41300000;
-    s->cm_regs[CCCR >> 4] = 0x02000210;	/* 416.0 MHz */
+    s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     iomemtype = cpu_register_io_memory(0, pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s);

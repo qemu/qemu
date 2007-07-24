@@ -283,7 +283,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #else
 /* The ARM MMU allows 1k pages.  */
 /* ??? Linux doesn't actually use these, and they're deprecated in recent
-   architecture revisions.  Maybe an a configure option to disable them.  */
+   architecture revisions.  Maybe a configure option to disable them.  */
 #define TARGET_PAGE_BITS 10
 #endif
 
