@@ -23,7 +23,7 @@ static="no"
 cross_prefix=""
 cc="gcc"
 gcc3_search="yes"
-gcc3_list="gcc-3.4 gcc34 gcc-3.3 gcc33 gcc-3.2 gcc32"
+gcc3_list="gcc-3.4 gcc34 gcc-3.3.6 gcc-3.3 gcc33 gcc-3.2 gcc32"
 host_cc="gcc"
 ar="ar"
 make="make"
@@ -413,7 +413,7 @@ EOF
 	if test "$gcc3_search" = "yes" ; then
 	    echo "Looking for gcc 3.x"
 	    for compat_cc in $gcc3_list ; do
-		if "$cross_prefix$compat_cc" --version > /dev/null 2>&1 ; then
+		if "$cross_prefix$compat_cc" --version 2> /dev/null | fgrep '(GCC) 3.' > /dev/null 2>&1 ; then
 		    echo "Found \"$compat_cc\""
 		    cc="$cross_prefix$compat_cc"
 		    found_compat_cc="yes"
