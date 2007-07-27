@@ -1530,6 +1530,8 @@ static inline void pxa2xx_i2s_update(struct pxa2xx_i2s_s *i2s)
     pxa2xx_dma_request(i2s->dma, PXA2XX_TX_RQ_I2S, tfs);
 
     i2s->status &= 0xe0;
+    if (i2s->fifo_len < 16 || !i2s->enable)
+        i2s->status |= 1 << 0;			/* TNF */
     if (i2s->rx_len)
         i2s->status |= 1 << 1;			/* RNE */
     if (i2s->enable)
