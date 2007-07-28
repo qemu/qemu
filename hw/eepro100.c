@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Tested features (i82559):
- *      PXE boot (i386) no valid link
+ *      PXE boot (i386) ok
  *      Linux networking (i386) ok
  *      Linux networking e100 driver (mips, mipsel) ok
  *      Linux networking eepro100 driver (mipsel) not ok
@@ -34,10 +34,6 @@
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
  */
-
-#if defined(TARGET_I386)
-# warning "PXE boot still not working!"
-#endif
 
 #include <assert.h>
 #include <stddef.h>             /* offsetof */
@@ -254,6 +250,9 @@ typedef struct {
     uint32_t ru_offset;         /* RU address offset */
     uint32_t statsaddr;         /* pointer to eepro100_stats_t */
 
+    cu_state_t cu_state;
+    ru_state_t ru_state;
+
     /* Temporary data. */
     eepro100_tx_t tx;
     uint32_t cb_address;
@@ -270,6 +269,7 @@ typedef struct {
 
 typedef enum {
     eeprom_cnfg_mdix  = 0x03,
+    eeprom_phy_id     = 0x06,
     eeprom_id         = 0x0a,
     eeprom_config_asf = 0x0d,
     eeprom_smbus_addr = 0x90,
@@ -583,6 +583,7 @@ static void nic_selective_reset(EEPRO100State * s)
     for (i = 0; i < 3; i++) {
       eeprom_contents[i] = le16_to_cpu(eeprom_contents[i]);
     }
+    eeprom_contents[eeprom_phy_id] = 1;
     /* TODO: eeprom_id_alt for i82559 */
     eeprom_contents[eeprom_id] = eeprom_id_valid;
     uint16_t sum = 0;
@@ -686,21 +687,25 @@ enum commands {
 
 static cu_state_t get_cu_state(EEPRO100State * s)
 {
-    return ((s->mem[SCBStatus] >> 6) & 0x03);
+    return s->cu_state;
+    //~ return ((s->mem[SCBStatus] >> 6) & 0x03);
 }
 
 static void set_cu_state(EEPRO100State * s, cu_state_t state)
 {
+    s->cu_state = state;
     s->mem[SCBStatus] = (s->mem[SCBStatus] & 0x3f) + (state << 6);
 }
 
 static ru_state_t get_ru_state(EEPRO100State * s)
 {
-    return ((s->mem[SCBStatus] >> 2) & 0x0f);
+    return s->ru_state;
+    //~ return ((s->mem[SCBStatus] >> 2) & 0x0f);
 }
 
 static void set_ru_state(EEPRO100State * s, ru_state_t state)
 {
+    s->ru_state = state;
     s->mem[SCBStatus] = (s->mem[SCBStatus] & 0xc3) + (state << 2);
 }
 
