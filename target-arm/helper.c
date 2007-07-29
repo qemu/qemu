@@ -516,16 +516,16 @@ static int get_phys_addr(CPUState *env, uint32_t address, int access_type,
                 ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
                 break;
             case 3: /* 1k page.  */
-                if (arm_feature(env, ARM_FEATURE_XSCALE))
-                    phys_addr = (desc & 0xfffff000) | (address & 0xfff);
-                else {
-                    if (type == 1) {
+                if (type == 1) {
+                    if (arm_feature(env, ARM_FEATURE_XSCALE))
+                        phys_addr = (desc & 0xfffff000) | (address & 0xfff);
+                    else {
                         /* Page translation fault.  */
                         code = 7;
                         goto do_fault;
                     }
+                } else
                     phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
-                }
                 ap = (desc >> 4) & 3;
                 break;
             default:
