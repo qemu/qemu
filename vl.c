@@ -6999,6 +6999,7 @@ void register_machines(void)
     qemu_register_machine(&spitzpda_machine);
     qemu_register_machine(&borzoipda_machine);
     qemu_register_machine(&terrierpda_machine);
+    qemu_register_machine(&palmte_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
 #elif defined(TARGET_ALPHA)
