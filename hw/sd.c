@@ -1151,9 +1151,10 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
             return 0;
         }
 
-    if (last_status & APP_CMD)
+    if (last_status & APP_CMD) {
         rtype = sd_app_command(sd, *req);
-    else
+        sd->card_status &= ~APP_CMD;
+    } else
         rtype = sd_normal_command(sd, *req);
 
     sd->current_cmd = req->cmd;
