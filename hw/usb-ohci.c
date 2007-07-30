@@ -120,6 +120,8 @@ struct ohci_hcca {
     uint32_t done;
 };
 
+static void ohci_bus_stop(OHCIState *ohci);
+
 /* Bitfields for the first word of an Endpoint Desciptor.  */
 #define OHCI_ED_FA_SHIFT  0
 #define OHCI_ED_FA_MASK   (0x7f<<OHCI_ED_FA_SHIFT)
@@ -344,11 +346,13 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
 }
 
 /* Reset the controller */
-static void ohci_reset(OHCIState *ohci)
+static void ohci_reset(void *opaque)
 {
+    OHCIState *ohci = opaque;
     OHCIPort *port;
     int i;
 
+    ohci_bus_stop(ohci);
     ohci->ctl = 0;
     ohci->old_ctl = 0;
     ohci->status = 0;
@@ -833,6 +837,7 @@ static void ohci_bus_stop(OHCIState *ohci)
 {
     if (ohci->eof_timer)
         qemu_del_timer(ohci->eof_timer);
+    ohci->eof_timer = NULL;
 }
 
 /* Sets a flag in a port status register but only set it if the port is
@@ -918,6 +923,7 @@ static void ohci_set_ctl(OHCIState *ohci, uint32_t val)
         dprintf("usb-ohci: %s: USB Resume\n", ohci->name);
         break;
     case OHCI_USB_RESET:
+        ohci_reset(ohci);
         dprintf("usb-ohci: %s: USB Reset\n", ohci->name);
         break;
     }
@@ -1291,6 +1297,7 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
     }
 
     ohci->async_td = 0;
+    qemu_register_reset(ohci_reset, ohci);
     ohci_reset(ohci);
 }
 

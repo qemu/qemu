@@ -197,6 +197,9 @@ const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
 int autostart = 1;
+#ifdef TARGET_ARM
+int old_param = 0;
+#endif
 const char *qemu_name;
 int alt_grab = 0;
 #ifdef TARGET_SPARC
@@ -6801,6 +6804,7 @@ enum {
     QEMU_OPTION_semihosting,
     QEMU_OPTION_name,
     QEMU_OPTION_prom_env,
+    QEMU_OPTION_old_param,
 };
 
 typedef struct QEMUOption {
@@ -6902,6 +6906,9 @@ const QEMUOption qemu_options[] = {
 #if defined(TARGET_SPARC)
     { "prom-env", HAS_ARG, QEMU_OPTION_prom_env },
 #endif
+#if defined(TARGET_ARM)
+    { "old-param", 0, QEMU_OPTION_old_param },
+#endif
     { NULL },
 };
 
@@ -6996,6 +7003,7 @@ void register_machines(void)
     qemu_register_machine(&spitzpda_machine);
     qemu_register_machine(&borzoipda_machine);
     qemu_register_machine(&terrierpda_machine);
+    qemu_register_machine(&palmte_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
 #elif defined(TARGET_ALPHA)
@@ -7724,6 +7732,10 @@ int main(int argc, char **argv)
                 prom_envs[nb_prom_envs] = optarg;
                 nb_prom_envs++;
                 break;
+#endif
+#ifdef TARGET_ARM
+            case QEMU_OPTION_old_param:
+                old_param = 1;
 #endif
             }
         }

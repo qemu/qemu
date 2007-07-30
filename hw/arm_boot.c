@@ -76,6 +76,77 @@ static void set_kernel_args(uint32_t ram_size, int initrd_size,
     stl_raw(p++, 0);
 }
 
+static void set_kernel_args_old(uint32_t ram_size, int initrd_size,
+                                const char *kernel_cmdline,
+                                target_phys_addr_t loader_start)
+{
+    uint32_t *p;
+    unsigned char *s;
+
+    /* see linux/include/asm-arm/setup.h */
+    p = (uint32_t *)(phys_ram_base + KERNEL_ARGS_ADDR);
+    /* page_size */
+    stl_raw(p++, 4096);
+    /* nr_pages */
+    stl_raw(p++, ram_size / 4096);
+    /* ramdisk_size */
+    stl_raw(p++, 0);
+#define FLAG_READONLY	1
+#define FLAG_RDLOAD	4
+#define FLAG_RDPROMPT	8
+    /* flags */
+    stl_raw(p++, FLAG_READONLY | FLAG_RDLOAD | FLAG_RDPROMPT);
+    /* rootdev */
+    stl_raw(p++, (31 << 8) | 0);	/* /dev/mtdblock0 */
+    /* video_num_cols */
+    stl_raw(p++, 0);
+    /* video_num_rows */
+    stl_raw(p++, 0);
+    /* video_x */
+    stl_raw(p++, 0);
+    /* video_y */
+    stl_raw(p++, 0);
+    /* memc_control_reg */
+    stl_raw(p++, 0);
+    /* unsigned char sounddefault */
+    /* unsigned char adfsdrives */
+    /* unsigned char bytes_per_char_h */
+    /* unsigned char bytes_per_char_v */
+    stl_raw(p++, 0);
+    /* pages_in_bank[4] */
+    stl_raw(p++, 0);
+    stl_raw(p++, 0);
+    stl_raw(p++, 0);
+    stl_raw(p++, 0);
+    /* pages_in_vram */
+    stl_raw(p++, 0);
+    /* initrd_start */
+    if (initrd_size)
+        stl_raw(p++, loader_start + INITRD_LOAD_ADDR);
+    else
+        stl_raw(p++, 0);
+    /* initrd_size */
+    stl_raw(p++, initrd_size);
+    /* rd_start */
+    stl_raw(p++, 0);
+    /* system_rev */
+    stl_raw(p++, 0);
+    /* system_serial_low */
+    stl_raw(p++, 0);
+    /* system_serial_high */
+    stl_raw(p++, 0);
+    /* mem_fclk_21285 */
+    stl_raw(p++, 0);
+    /* zero unused fields */
+    memset(p, 0, 256 + 1024 -
+           (p - ((uint32_t *)(phys_ram_base + KERNEL_ARGS_ADDR))));
+    s = phys_ram_base + KERNEL_ARGS_ADDR + 256 + 1024;
+    if (kernel_cmdline)
+        strcpy (s, kernel_cmdline);
+    else
+        stb_raw(s, 0);
+}
+
 void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      const char *kernel_cmdline, const char *initrd_filename,
                      int board_id, target_phys_addr_t loader_start)
@@ -140,6 +211,11 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++)
             stl_raw(phys_ram_base + (n * 4), bootloader[n]);
-        set_kernel_args(ram_size, initrd_size, kernel_cmdline, loader_start);
+        if (old_param)
+            set_kernel_args_old(ram_size, initrd_size,
+                                kernel_cmdline, loader_start);
+        else
+            set_kernel_args(ram_size, initrd_size,
+                            kernel_cmdline, loader_start);
     }
 }

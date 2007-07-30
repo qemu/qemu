@@ -33,6 +33,15 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
+    case ARM_CPUID_TI915T:
+    case ARM_CPUID_TI925T:
+        set_feature(env, ARM_FEATURE_OMAPCP);
+        env->cp15.c0_cpuid = ARM_CPUID_TI925T; /* Depends on wiring.  */
+        env->cp15.c0_cachetype = 0x5109149;
+        env->cp15.c1_sys = 0x00000070;
+        env->cp15.c15_i_max = 0x000;
+        env->cp15.c15_i_min = 0xff0;
+        break;
     case ARM_CPUID_PXA250:
     case ARM_CPUID_PXA255:
     case ARM_CPUID_PXA260:
@@ -102,6 +111,7 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_ARM926, "arm926"},
     { ARM_CPUID_ARM946, "arm946"},
     { ARM_CPUID_ARM1026, "arm1026"},
+    { ARM_CPUID_TI925T, "ti925t" },
     { ARM_CPUID_PXA250, "pxa250" },
     { ARM_CPUID_PXA255, "pxa255" },
     { ARM_CPUID_PXA260, "pxa260" },
@@ -507,16 +517,16 @@ static int get_phys_addr(CPUState *env, uint32_t address, int access_type,
                 ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
                 break;
             case 3: /* 1k page.  */
-                if (arm_feature(env, ARM_FEATURE_XSCALE))
-                    phys_addr = (desc & 0xfffff000) | (address & 0xfff);
-                else {
-                    if (type == 1) {
+                if (type == 1) {
+                    if (arm_feature(env, ARM_FEATURE_XSCALE))
+                        phys_addr = (desc & 0xfffff000) | (address & 0xfff);
+                    else {
                         /* Page translation fault.  */
                         code = 7;
                         goto do_fault;
                     }
+                } else
                     phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
-                }
                 ap = (desc >> 4) & 3;
                 break;
             default:
@@ -645,8 +655,12 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 0: /* ID codes.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE))
             break;
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            break;
         goto bad_reg;
     case 1: /* System configuration.  */
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            op2 = 0;
         switch (op2) {
         case 0:
             if (!arm_feature(env, ARM_FEATURE_XSCALE) || crm == 0)
@@ -694,6 +708,8 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 4: /* Reserved.  */
         goto bad_reg;
     case 5: /* MMU Fault status / MPU access permission.  */
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            op2 = 0;
         switch (op2) {
         case 0:
             if (arm_feature(env, ARM_FEATURE_MPU))
@@ -725,6 +741,8 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
                 goto bad_reg;
             env->cp15.c6_region[crm] = val;
         } else {
+            if (arm_feature(env, ARM_FEATURE_OMAPCP))
+                op2 = 0;
             switch (op2) {
             case 0:
                 env->cp15.c6_data = val;
@@ -738,6 +756,8 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
         }
         break;
     case 7: /* Cache control.  */
+        env->cp15.c15_i_max = 0x000;
+        env->cp15.c15_i_min = 0xff0;
         /* No cache, so nothing to do.  */
         break;
     case 8: /* MMU TLB control.  */
@@ -764,6 +784,8 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
         }
         break;
     case 9:
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            break;
         switch (crm) {
         case 0: /* Cache lockdown.  */
             switch (op2) {
@@ -824,6 +846,31 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
             }
             goto bad_reg;
         }
+        if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
+            switch (crm) {
+            case 0:
+                break;
+            case 1: /* Set TI925T configuration.  */
+                env->cp15.c15_ticonfig = val & 0xe7;
+                env->cp15.c0_cpuid = (val & (1 << 5)) ? /* OS_TYPE bit */
+                        ARM_CPUID_TI915T : ARM_CPUID_TI925T;
+                break;
+            case 2: /* Set I_max.  */
+                env->cp15.c15_i_max = val;
+                break;
+            case 3: /* Set I_min.  */
+                env->cp15.c15_i_min = val;
+                break;
+            case 4: /* Set thread-ID.  */
+                env->cp15.c15_threadid = val & 0xffff;
+                break;
+            case 8: /* Wait-for-interrupt (deprecated).  */
+                cpu_interrupt(env, CPU_INTERRUPT_HALT);
+                break;
+            default:
+                goto bad_reg;
+            }
+        }
         break;
     }
     return;
@@ -835,8 +882,10 @@ bad_reg:
 uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
 {
     uint32_t op2;
+    uint32_t crm;
 
     op2 = (insn >> 5) & 7;
+    crm = insn & 0xf;
     switch ((insn >> 16) & 0xf) {
     case 0: /* ID codes.  */
         switch (op2) {
@@ -850,6 +899,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
             return 0;
         }
     case 1: /* System configuration.  */
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            op2 = 0;
         switch (op2) {
         case 0: /* Control register.  */
             return env->cp15.c1_sys;
@@ -886,6 +937,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
     case 4: /* Reserved.  */
         goto bad_reg;
     case 5: /* MMU Fault status / MPU access permission.  */
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            op2 = 0;
         switch (op2) {
         case 0:
             if (arm_feature(env, ARM_FEATURE_MPU))
@@ -914,6 +967,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
                 goto bad_reg;
             return env->cp15.c6_region[n];
         } else {
+            if (arm_feature(env, ARM_FEATURE_OMAPCP))
+                op2 = 0;
             switch (op2) {
             case 0:
                 return env->cp15.c6_data;
@@ -934,6 +989,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
     case 8: /* MMU TLB control.  */
         goto bad_reg;
     case 9: /* Cache lockdown.  */
+        if (arm_feature(env, ARM_FEATURE_OMAPCP))
+            return 0;
         switch (op2) {
         case 0:
             return env->cp15.c9_data;
@@ -961,9 +1018,26 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         goto bad_reg;
     case 15: /* Implementation specific.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-            if (op2 == 0 && (insn & 0xf) == 1)
+            if (op2 == 0 && crm == 1)
                 return env->cp15.c15_cpar;
 
+            goto bad_reg;
+        }
+        if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
+            switch (crm) {
+            case 0:
+                return 0;
+            case 1: /* Read TI925T configuration.  */
+                return env->cp15.c15_ticonfig;
+            case 2: /* Read I_max.  */
+                return env->cp15.c15_i_max;
+            case 3: /* Read I_min.  */
+                return env->cp15.c15_i_min;
+            case 4: /* Read thread-ID.  */
+                return env->cp15.c15_threadid;
+            case 8: /* TI925T_status */
+                return 0;
+            }
             goto bad_reg;
         }
         return 0;

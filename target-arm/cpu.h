@@ -99,6 +99,10 @@ typedef struct CPUARMState {
         uint32_t c13_fcse; /* FCSE PID.  */
         uint32_t c13_context; /* Context ID.  */
         uint32_t c15_cpar; /* XScale Coprocessor Access Register */
+        uint32_t c15_ticonfig; /* TI925T configuration byte.  */
+        uint32_t c15_i_max; /* Maximum D-cache dirty line index.  */
+        uint32_t c15_i_min; /* Minimum D-cache dirty line index.  */
+        uint32_t c15_threadid; /* TI debugger thread-ID.  */
     } cp15;
 
     /* Coprocessor IO used by peripherals */
@@ -247,7 +251,8 @@ enum arm_features {
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
-    ARM_FEATURE_MPU     /* Only has Memory Protection Unit, not full MMU.  */
+    ARM_FEATURE_MPU,    /* Only has Memory Protection Unit, not full MMU.  */
+    ARM_FEATURE_OMAPCP  /* OMAP specific CP15 ops handling.  */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -265,6 +270,8 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define ARM_CPUID_ARM1026   0x4106a262
 #define ARM_CPUID_ARM926    0x41069265
 #define ARM_CPUID_ARM946    0x41059461
+#define ARM_CPUID_TI915T    0x54029152
+#define ARM_CPUID_TI925T    0x54029252
 #define ARM_CPUID_PXA250    0x69052100
 #define ARM_CPUID_PXA255    0x69052d00
 #define ARM_CPUID_PXA260    0x69052903
@@ -283,7 +290,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #else
 /* The ARM MMU allows 1k pages.  */
 /* ??? Linux doesn't actually use these, and they're deprecated in recent
-   architecture revisions.  Maybe an a configure option to disable them.  */
+   architecture revisions.  Maybe a configure option to disable them.  */
 #define TARGET_PAGE_BITS 10
 #endif
 

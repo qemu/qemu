@@ -165,6 +165,7 @@ extern int graphic_rotate;
 extern int no_quit;
 extern int semihosting_enabled;
 extern int autostart;
+extern int old_param;
 extern const char *bootp_filename;
 
 #define MAX_OPTION_ROMS 16
@@ -1448,6 +1449,9 @@ extern QEMUMachine spitzpda_machine;
 extern QEMUMachine borzoipda_machine;
 extern QEMUMachine terrierpda_machine;
 
+/* palm.c */
+extern QEMUMachine palmte_machine;
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
@@ -1636,6 +1640,8 @@ void qemu_put_ptimer(QEMUFile *f, ptimer_state *s);
 void qemu_get_ptimer(QEMUFile *f, ptimer_state *s);
 
 #include "hw/pxa.h"
+
+#include "hw/omap.h"
 
 /* mcf_uart.c */
 uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr);

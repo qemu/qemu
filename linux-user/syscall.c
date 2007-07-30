@@ -281,12 +281,24 @@ static uint16_t host_to_target_errno_table[1200] = {
     [ECANCELED]		= TARGET_ECANCELED,
     [ENOMEDIUM]		= TARGET_ENOMEDIUM,
     [EMEDIUMTYPE]	= TARGET_EMEDIUMTYPE,
+#ifdef ENOKEY
     [ENOKEY]		= TARGET_ENOKEY,
+#endif
+#ifdef EKEYEXPIRED
     [EKEYEXPIRED]	= TARGET_EKEYEXPIRED,
+#endif
+#ifdef EKEYREVOKED
     [EKEYREVOKED]	= TARGET_EKEYREVOKED,
+#endif
+#ifdef EKEYREJECTED
     [EKEYREJECTED]	= TARGET_EKEYREJECTED,
+#endif
+#ifdef EOWNERDEAD
     [EOWNERDEAD]	= TARGET_EOWNERDEAD,
+#endif
+#ifdef ENOTRECOVERABLE
     [ENOTRECOVERABLE]	= TARGET_ENOTRECOVERABLE,
+#endif
 	};
 
 static inline int host_to_target_errno(int err)
@@ -3352,7 +3364,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             put_user(stfs.f_bavail, &target_stfs->f_bavail);
             put_user(stfs.f_files, &target_stfs->f_files);
             put_user(stfs.f_ffree, &target_stfs->f_ffree);
-            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
+            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]);
+            put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]);
             put_user(stfs.f_namelen, &target_stfs->f_namelen);
             unlock_user_struct(target_stfs, arg2, 1);
         }
@@ -3378,7 +3391,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             put_user(stfs.f_bavail, &target_stfs->f_bavail);
             put_user(stfs.f_files, &target_stfs->f_files);
             put_user(stfs.f_ffree, &target_stfs->f_ffree);
-            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
+            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]);
+            put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]);
             put_user(stfs.f_namelen, &target_stfs->f_namelen);
             unlock_user_struct(target_stfs, arg3, 0);
         }

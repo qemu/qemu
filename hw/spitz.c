@@ -78,6 +78,18 @@ static uint32_t sl_readb(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
+static uint32_t sl_readl(void *opaque, target_phys_addr_t addr)
+{
+    struct sl_nand_s *s = (struct sl_nand_s *) opaque;
+    addr -= s->target_base;
+
+    if (addr == FLASH_FLASHIO)
+        return ecc_digest(&s->ecc, nand_getio(s->nand)) |
+                (ecc_digest(&s->ecc, nand_getio(s->nand)) << 16);
+
+    return sl_readb(opaque, addr);
+}
+
 static void sl_writeb(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
@@ -139,7 +151,7 @@ static void sl_flash_register(struct pxa2xx_state_s *cpu, int size)
     CPUReadMemoryFunc *sl_readfn[] = {
         sl_readb,
         sl_readb,
-        sl_readb,
+        sl_readl,
     };
     CPUWriteMemoryFunc *sl_writefn[] = {
         sl_writeb,
