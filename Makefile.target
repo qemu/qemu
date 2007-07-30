@@ -599,12 +599,6 @@ libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
-translate.o: translate.c gen-op.h opc.h cpu.h
-
-translate-all.o: translate-all.c opc.h cpu.h
-
-translate-op.o: translate-all.c op.h opc.h cpu.h
-
 $(DYNGEN):
 	make -C .. dyngen$(EXESUF)
 
@@ -639,57 +633,7 @@ cpu-exec.o: cpu-exec.c
 signal.o: signal.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
-vga.o: pixel_ops.h
-
-tcx.o: pixel_ops.h
-
-ifeq ($(TARGET_BASE_ARCH), i386)
-op.o: op.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h ops_sse.h
-endif
-
-ifeq ($(TARGET_ARCH), arm)
-op.o: op.c op_template.h
-pl110.o: pl110_template.h
-endif
-
-ifeq ($(TARGET_BASE_ARCH), sparc)
-helper.o: cpu.h exec-all.h
-op.o: op.c op_template.h op_mem.h fop_template.h fbranch_template.h exec.h cpu.h
-op_helper.o: exec.h softmmu_template.h cpu.h
-translate.o: cpu.h exec-all.h disas.h
-endif
-
-ifeq ($(TARGET_BASE_ARCH), ppc)
-op.o: op.c op_template.h op_mem.h
-op_helper.o: op_helper_mem.h
-translate.o: translate.c translate_init.c
-endif
-
-ifeq ($(TARGET_BASE_ARCH), mips)
-helper.o: cpu.h exec-all.h
-op.o: op_template.c fop_template.c op_mem.c exec.h cpu.h
-op_helper.o: op_helper_mem.c exec.h softmmu_template.h cpu.h
-translate.o: translate_init.c exec-all.h disas.h
-endif
-
-loader.o: loader.c elf_ops.h
-
-ifeq ($(TARGET_ARCH), sh4)
-op.o: op.c op_mem.c cpu.h
-op_helper.o: op_helper.c exec.h cpu.h
-helper.o: helper.c exec.h cpu.h
-sh7750.o: sh7750.c sh7750_regs.h sh7750_regnames.h cpu.h
-shix.o: shix.c sh7750_regs.h sh7750_regnames.h
-sh7750_regnames.o: sh7750_regnames.c sh7750_regnames.h sh7750_regs.h
-tc58128.o: tc58128.c
-endif
-
-ifeq ($(TARGET_BASE_ARCH), alpha)
-op.o: op.c op_template.h op_mem.h
-op_helper.o: op_helper_mem.h
-endif
-
-$(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h
+# $(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
