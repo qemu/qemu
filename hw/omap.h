@@ -163,7 +163,7 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
 # define OMAP_INT_USB_W2FC		20
 # define OMAP_INT_1WIRE			21
 # define OMAP_INT_OS_TIMER		22
-# define OMAP_INT_MMC			23
+# define OMAP_INT_OQN			23
 # define OMAP_INT_GAUGE_32K		24
 # define OMAP_INT_RTC_TIMER		25
 # define OMAP_INT_RTC_ALARM		26
@@ -457,6 +457,12 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
                 struct omap_dma_lcd_channel_s *dma, DisplayState *ds,
                 ram_addr_t imif_base, ram_addr_t emiff_base, omap_clk clk);
 
+/* omap_mmc.c */
+struct omap_mmc_s;
+struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
+                qemu_irq irq, qemu_irq dma[], omap_clk clk);
+void omap_mmc_reset(struct omap_mmc_s *s);
+
 # define cpu_is_omap310(cpu)		(cpu->mpu_model == omap310)
 # define cpu_is_omap1510(cpu)		(cpu->mpu_model == omap1510)
 # define cpu_is_omap15xx(cpu)		\
@@ -496,6 +502,8 @@ struct omap_mpu_state_s {
 
     struct omap_uart_s *uart1;
     struct omap_uart_s *uart2;
+
+    struct omap_mmc_s *mmc;
 
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
@@ -565,6 +573,13 @@ struct omap_mpu_state_s {
 # else
 #  error TARGET_PHYS_ADDR_BITS undefined
 # endif
+
+uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr);
+void omap_badwidth_write16(void *opaque, target_phys_addr_t addr,
+                uint32_t value);
+uint32_t omap_badwidth_read32(void *opaque, target_phys_addr_t addr);
+void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
+                uint32_t value);
 
 # define OMAP_BAD_REG(paddr)		\
         printf("%s: Bad register " OMAP_FMT_plx "\n", __FUNCTION__, paddr)

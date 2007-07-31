@@ -22,25 +22,25 @@
 #include "arm_pic.h"
 
 /* Should signal the TCMI */
-static uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr)
+uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr)
 {
     OMAP_16B_REG(addr);
     return 0;
 }
 
-static void omap_badwidth_write16(void *opaque, target_phys_addr_t addr,
+void omap_badwidth_write16(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     OMAP_16B_REG(addr);
 }
 
-static uint32_t omap_badwidth_read32(void *opaque, target_phys_addr_t addr)
+uint32_t omap_badwidth_read32(void *opaque, target_phys_addr_t addr)
 {
     OMAP_32B_REG(addr);
     return 0;
 }
 
-static void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
+void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     OMAP_32B_REG(addr);
@@ -2816,6 +2816,7 @@ static void omap_mpu_reset(void *opaque)
     omap_uart_reset(mpu->uart1);
     omap_uart_reset(mpu->uart2);
     omap_uart_reset(mpu->uart3);
+    omap_mmc_reset(mpu->mmc);
     cpu_reset(mpu->env);
 }
 
@@ -2920,6 +2921,9 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     omap_dpll_init(&s->dpll[0], 0xfffecf00, omap_findclk(s, "dpll1"));
     omap_dpll_init(&s->dpll[1], 0xfffed000, omap_findclk(s, "dpll2"));
     omap_dpll_init(&s->dpll[2], 0xfffed100, omap_findclk(s, "dpll3"));
+
+    s->mmc = omap_mmc_init(0xfffb7800, s->irq[1][OMAP_INT_OQN],
+                    &s->drq[OMAP_DMA_MMC_TX], omap_findclk(s, "mmc_ck"));
 
     qemu_register_reset(omap_mpu_reset, s);
     s->wakeup = qemu_allocate_irqs(omap_mpu_wakeup, s, 1)[0];
