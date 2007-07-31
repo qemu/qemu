@@ -402,7 +402,54 @@ static const cirrus_bitblt_rop_t cirrus_bkwd_rop[16] = {
     cirrus_bitblt_rop_bkwd_notsrc_or_dst,
     cirrus_bitblt_rop_bkwd_notsrc_and_notdst,
 };
-    
+
+#define TRANSP_ROP(name) {\
+    name ## _8,\
+    name ## _16,\
+        }
+#define TRANSP_NOP(func) {\
+    func,\
+    func,\
+        }
+
+static const cirrus_bitblt_rop_t cirrus_fwd_transp_rop[16][2] = {
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_0),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src_and_dst),
+    TRANSP_NOP(cirrus_bitblt_rop_nop),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src_and_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_1),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_notsrc_and_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src_xor_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src_or_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_notsrc_or_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src_notxor_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_src_or_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_notsrc),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_notsrc_or_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_fwd_transp_notsrc_and_notdst),
+};
+
+static const cirrus_bitblt_rop_t cirrus_bkwd_transp_rop[16][2] = {
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_0),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src_and_dst),
+    TRANSP_NOP(cirrus_bitblt_rop_nop),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src_and_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_1),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_notsrc_and_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src_xor_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src_or_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_notsrc_or_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src_notxor_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_src_or_notdst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_notsrc),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_notsrc_or_dst),
+    TRANSP_ROP(cirrus_bitblt_rop_bkwd_transp_notsrc_and_notdst),
+};
+
 #define ROP2(name) {\
     name ## _8,\
     name ## _16,\
@@ -950,15 +997,28 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
                 s->cirrus_rop = cirrus_patternfill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
             }
         } else {
-            if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
-                s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
-                s->cirrus_blt_srcpitch = -s->cirrus_blt_srcpitch;
-                s->cirrus_rop = cirrus_bkwd_rop[rop_to_index[blt_rop]];
-            } else {
-                s->cirrus_rop = cirrus_fwd_rop[rop_to_index[blt_rop]];
-            }
-        }
-        
+	    if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
+		if (s->cirrus_blt_pixelwidth > 2) {
+		    printf("src transparent without colorexpand must be 8bpp or 16bpp\n");
+		    goto bitblt_ignore;
+		}
+		if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
+		    s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
+		    s->cirrus_blt_srcpitch = -s->cirrus_blt_srcpitch;
+		    s->cirrus_rop = cirrus_bkwd_transp_rop[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+		} else {
+		    s->cirrus_rop = cirrus_fwd_transp_rop[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+		}
+	    } else {
+		if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
+		    s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
+		    s->cirrus_blt_srcpitch = -s->cirrus_blt_srcpitch;
+		    s->cirrus_rop = cirrus_bkwd_rop[rop_to_index[blt_rop]];
+		} else {
+		    s->cirrus_rop = cirrus_fwd_rop[rop_to_index[blt_rop]];
+		}
+	    }
+	}
         // setup bitblt engine.
         if (s->cirrus_blt_mode & CIRRUS_BLTMODE_MEMSYSSRC) {
             if (!cirrus_bitblt_cputovideo(s))
