@@ -340,6 +340,24 @@ do {\
 		  "1:\n");\
 } while (0)
 
+#elif defined(__s390__)
+/* GCC spills R13, so we have to restore it before branching away */
+
+#define GOTO_TB(opname, tbparam, n)\
+do {\
+    static void __attribute__((used)) *dummy ## n = &&dummy_label ## n;\
+    static void __attribute__((used)) *__op_label ## n \
+        __asm__(ASM_OP_LABEL_NAME(n, opname)) = &&label ## n;\
+	__asm__ __volatile__ ( \
+		"l %%r13,52(%%r15)\n" \
+		"br %0\n" \
+	: : "r" (((TranslationBlock*)tbparam)->tb_next[n]));\
+	\
+	for(;*((int*)0);); /* just to keep GCC busy */ \
+label ## n: ;\
+dummy_label ## n: ;\
+} while(0)
+
 #else
 
 /* jump to next block operations (more portable code, does not need
