@@ -54,6 +54,9 @@ typedef struct PIIX4PMState {
 
 #define SUS_EN (1 << 13)
 
+#define ACPI_ENABLE 0xf1
+#define ACPI_DISABLE 0xf0
+
 #define SMBHSTSTS 0x00
 #define SMBHSTCNT 0x02
 #define SMBHSTCMD 0x03
@@ -216,6 +219,14 @@ static void pm_smi_writeb(void *opaque, uint32_t addr, uint32_t val)
 #endif
     if (addr == 0) {
         s->apmc = val;
+
+        /* ACPI specs 3.0, 4.7.2.5 */
+        if (val == ACPI_ENABLE) {
+            s->pmcntrl |= SCI_EN;
+        } else if (val == ACPI_DISABLE) {
+            s->pmcntrl &= ~SCI_EN;
+        }
+
         if (s->dev.config[0x5b] & (1 << 1)) {
             cpu_interrupt(first_cpu, CPU_INTERRUPT_SMI);
         }
