@@ -347,6 +347,9 @@ endif
 ifeq ($(findstring sh4, $(TARGET_ARCH) $(ARCH)),sh4)
 LIBOBJS+=sh4-dis.o
 endif
+ifeq ($(findstring s390, $(TARGET_ARCH) $(ARCH)),s390)
+LIBOBJS+=s390-dis.o
+endif
 
 ifdef CONFIG_GDBSTUB
 OBJS+=gdbstub.o

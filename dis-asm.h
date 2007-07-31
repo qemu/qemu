@@ -202,6 +202,8 @@ enum bfd_architecture
   bfd_arch_mn10300,    /* Matsushita MN10300 */
   bfd_arch_last
   };
+#define bfd_mach_s390_31 31
+#define bfd_mach_s390_64 64
 
 typedef struct symbol_cache_entry
 {
@@ -379,6 +381,7 @@ extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ppc		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_alpha             PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_s390		PARAMS ((bfd_vma, disassemble_info*));
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */
