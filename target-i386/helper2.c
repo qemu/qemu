@@ -155,6 +155,8 @@ void cpu_reset(CPUX86State *env)
 
     tlb_flush(env, 1);
 
+    env->old_exception = -1;
+
     /* init to reset state */
 
 #ifdef CONFIG_SOFTMMU
