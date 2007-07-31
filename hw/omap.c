@@ -70,16 +70,20 @@ struct omap_intr_handler_s {
 
 static void omap_inth_update(struct omap_intr_handler_s *s)
 {
-    uint32_t irq = s->new_irq_agr & s->irqs & ~s->mask & ~s->fiq;
-    uint32_t fiq = s->new_fiq_agr & s->irqs & ~s->mask & s->fiq;
+    uint32_t irq = s->irqs & ~s->mask & ~s->fiq;
+    uint32_t fiq = s->irqs & ~s->mask & s->fiq;
 
-    qemu_set_irq(s->parent_pic[ARM_PIC_CPU_IRQ], irq);
-    if (irq)
-        s->new_irq_agr = 0;
+    if (s->new_irq_agr || !irq) {
+       qemu_set_irq(s->parent_pic[ARM_PIC_CPU_IRQ], irq);
+       if (irq)
+           s->new_irq_agr = 0;
+    }
 
-    qemu_set_irq(s->parent_pic[ARM_PIC_CPU_FIQ], fiq);
-    if (fiq)
-        s->new_fiq_agr = 0;
+    if (s->new_fiq_agr || !irq) {
+        qemu_set_irq(s->parent_pic[ARM_PIC_CPU_FIQ], fiq);
+        if (fiq)
+            s->new_fiq_agr = 0;
+    }
 }
 
 static void omap_inth_sir_update(struct omap_intr_handler_s *s)
@@ -124,7 +128,7 @@ static void omap_set_intr(void *opaque, int irq, int req)
     if (req) {
         rise = ~ih->irqs & (1 << irq);
         ih->irqs |= rise;
-        ih->stats[irq] ++;
+        ih->stats[irq] += !!rise;
     } else {
         rise = ih->sens_edge & ih->irqs & (1 << irq);
         ih->irqs &= ~rise;
