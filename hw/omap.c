@@ -403,6 +403,7 @@ struct omap_dma_s {
     target_phys_addr_t base;
     omap_clk clk;
     int64_t delay;
+    uint32_t drq;
 
     uint16_t gcr;
     int run_count;
@@ -511,7 +512,7 @@ next_channel:
     if (request > 0)
         s->ch[channel].status |= 0x40;	/* External request */
 
-    if (s->delay)
+    if (s->delay && !qemu_timer_pending(s->tm))
         qemu_mod_timer(s->tm, qemu_get_clock(vm_clock) + s->delay);
 
     if (request > 0) {
@@ -593,7 +594,8 @@ static void omap_dma_channel_run(struct omap_dma_s *s)
                 if (s->ch[ch].interrupts & 0x08)
                     s->ch[ch].status |= 0x08;
 
-                if (s->ch[ch].sync && s->ch[ch].fs) {
+                if (s->ch[ch].sync && s->ch[ch].fs &&
+                                !(s->drq & (1 << s->ch[ch].sync))) {
                     s->ch[ch].status &= ~0x40;
                     omap_dma_request_stop(s, ch);
                 }
@@ -607,7 +609,8 @@ static void omap_dma_channel_run(struct omap_dma_s *s)
                 if (s->ch[ch].interrupts & 0x04)
                     s->ch[ch].status |= 0x04;
 
-            if (s->ch[ch].sync && !s->ch[ch].fs) {
+            if (s->ch[ch].sync && !s->ch[ch].fs &&
+                            !(s->drq & (1 << s->ch[ch].sync))) {
                 s->ch[ch].status &= ~0x40;
                 omap_dma_request_stop(s, ch);
             }
@@ -750,7 +753,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
                 s->ch[ch].running = 1;
                 omap_dma_channel_load(s, ch);
             }
-            if (!s->ch[ch].sync)
+            if (!s->ch[ch].sync || (s->drq & (1 << s->ch[ch].sync)))
                 omap_dma_request_run(s, ch, 0);
         } else {
             s->ch[ch].running = 0;
@@ -949,9 +952,14 @@ static CPUWriteMemoryFunc *omap_dma_writefn[] = {
 static void omap_dma_request(void *opaque, int drq, int req)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
-    /* All the request pins are edge triggered.  */
-    if (req)
-        omap_dma_request_run(s, 0, drq);
+    /* The request pins are level triggered.  */
+    if (req) {
+        if (~s->drq & (1 << drq)) {
+            s->drq |= 1 << drq;
+            omap_dma_request_run(s, 0, drq);
+        }
+    } else
+        s->drq &= ~(1 << drq);
 }
 
 static void omap_dma_clk_update(void *opaque, int line, int on)
@@ -974,6 +982,7 @@ static void omap_dma_reset(struct omap_dma_s *s)
 
     qemu_del_timer(s->tm);
     s->gcr = 0x0004;
+    s->drq = 0x00000000;
     s->run_count = 0;
     s->lcd_ch.src = emiff;
     s->lcd_ch.condition = 0;
@@ -1002,6 +1011,7 @@ struct omap_dma_s *omap_dma_init(target_phys_addr_t base,
     omap_clk_adduser(s->clk, qemu_allocate_irqs(omap_dma_clk_update, s, 1)[0]);
     mpu->drq = qemu_allocate_irqs(omap_dma_request, s, 32);
     omap_dma_reset(s);
+    omap_dma_clk_update(s, 0, 1);
 
     iomemtype = cpu_register_io_memory(0, omap_dma_readfn,
                     omap_dma_writefn, s);
