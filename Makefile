@@ -32,7 +32,7 @@ subdir-%: dyngen$(EXESUF)
 
 recurse-all: $(patsubst %,subdir-%, $(TARGET_DIRS))
 
-qemu-img$(EXESUF): qemu-img.c cutils.c block.c block-raw.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c block-bochs.c block-vpc.c block-vvfat.c block-qcow2.c
+qemu-img$(EXESUF): qemu-img.c cutils.c block.c block-raw.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c block-bochs.c block-vpc.c block-vvfat.c block-qcow2.c block-parallels.c
 	$(CC) -DQEMU_TOOL $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 dyngen$(EXESUF): dyngen.c
