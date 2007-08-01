@@ -2230,6 +2230,13 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             gen_op_movl_T0_im(val);
             gen_bx(s);
             return;
+        } else if ((insn & 0x0e000f00) == 0x0c000100) {
+            if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+                /* iWMMXt register transfer.  */
+                if (env->cp15.c15_cpar & (1 << 1))
+                    if (!disas_iwmmxt_insn(env, s, insn))
+                        return;
+            }
         } else if ((insn & 0x0fe00000) == 0x0c400000) {
             /* Coprocessor double register transfer.  */
         } else if ((insn & 0x0f000010) == 0x0e000010) {
