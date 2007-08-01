@@ -264,7 +264,7 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
 #elif defined(__s390__)
 #define EXIT_TB() asm volatile ("br %r14")
-#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
+#define GOTO_LABEL_PARAM(n) asm volatile ("bras %r7,8; .long " ASM_NAME(__op_gen_label) #n "; l %r7, 0(%r7); br %r7")
 #elif defined(__alpha__)
 #define EXIT_TB() asm volatile ("ret")
 #elif defined(__ia64__)

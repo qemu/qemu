@@ -53,7 +53,7 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
-  s390)
+  s390*)
     cpu="s390"
   ;;
   sparc|sun4[cdmuv])

@@ -839,9 +839,11 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 15: /* Implementation specific.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {
             if (op2 == 0 && crm == 1) {
-                /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
-                tb_flush(env);
-                env->cp15.c15_cpar = (val & 0x3fff) | 2;
+                if (env->cp15.c15_cpar != (val & 0x3fff)) {
+                    /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
+                    tb_flush(env);
+                    env->cp15.c15_cpar = val & 0x3fff;
+                }
                 break;
             }
             goto bad_reg;

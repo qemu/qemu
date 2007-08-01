@@ -578,6 +578,7 @@ extern BlockDriver bdrv_bochs;
 extern BlockDriver bdrv_vpc;
 extern BlockDriver bdrv_vvfat;
 extern BlockDriver bdrv_qcow2;
+extern BlockDriver bdrv_parallels;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */

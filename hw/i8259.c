@@ -351,7 +351,7 @@ static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case 1:
             s->irq_base = val & 0xf8;
-            s->init_state = s->single_mode && s->init4 ? 3 : 2;
+            s->init_state = s->single_mode ? (s->init4 ? 3 : 0) : 2;
             break;
         case 2:
             if (s->init4) {
