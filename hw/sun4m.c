@@ -240,26 +240,41 @@ void irq_info()
     slavio_irq_info(slavio_intctl);
 }
 
+void cpu_check_irqs(CPUState *env)
+{
+    if (env->pil_in && (env->interrupt_index == 0 ||
+                        (env->interrupt_index & ~15) == TT_EXTINT)) {
+        unsigned int i;
+
+        for (i = 15; i > 0; i--) {
+            if (env->pil_in & (1 << i)) {
+                int old_interrupt = env->interrupt_index;
+
+                env->interrupt_index = TT_EXTINT | i;
+                if (old_interrupt != env->interrupt_index)
+                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                break;
+            }
+        }
+    } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
+        env->interrupt_index = 0;
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    }
+}
+
 static void cpu_set_irq(void *opaque, int irq, int level)
 {
     CPUState *env = opaque;
 
     if (level) {
         DPRINTF("Raise CPU IRQ %d\n", irq);
-
         env->halted = 0;
-
-        if (env->interrupt_index == 0 ||
-            ((env->interrupt_index & ~15) == TT_EXTINT &&
-             (env->interrupt_index & 15) < irq)) {
-            env->interrupt_index = TT_EXTINT | irq;
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
-        } else {
-            DPRINTF("Not triggered, pending exception %d\n",
-                    env->interrupt_index);
-        }
+        env->pil_in |= 1 << irq;
+        cpu_check_irqs(env);
     } else {
         DPRINTF("Lower CPU IRQ %d\n", irq);
+        env->pil_in &= ~(1 << irq);
+        cpu_check_irqs(env);
     }
 }
 

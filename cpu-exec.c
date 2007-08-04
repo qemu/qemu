@@ -461,6 +461,9 @@ int cpu_exec(CPUState *env1)
 			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 			    do_interrupt(env->interrupt_index);
 			    env->interrupt_index = 0;
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+                            cpu_check_irqs(env);
+#endif
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else

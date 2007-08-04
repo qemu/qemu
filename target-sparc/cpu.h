@@ -181,7 +181,8 @@ typedef struct CPUSPARCState {
     int      psrs;     /* supervisor mode (extracted from PSR) */
     int      psrps;    /* previous supervisor mode */
     int      psret;    /* enable traps */
-    uint32_t psrpil;   /* interrupt level */
+    uint32_t psrpil;   /* interrupt blocking level */
+    uint32_t pil_in;   /* incoming interrupt level bitmap */
     int      psref;    /* enable fpu */
     target_ulong version;
     jmp_buf  jmp_env;
@@ -306,6 +307,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 void do_tick_set_count(void *opaque, uint64_t count);
 uint64_t do_tick_get_count(void *opaque);
 void do_tick_set_limit(void *opaque, uint64_t limit);
+void cpu_check_irqs(CPUSPARCState *env);
 
 #define CPUState CPUSPARCState
 #define cpu_init cpu_sparc_init
