@@ -84,7 +84,7 @@ static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = 0;
         break;
     }
-    DPRINTF("read cpu %d reg 0x%x = %x\n", addr, ret);
+    DPRINTF("read cpu %d reg 0x" TARGET_FMT_plx " = %x\n", cpu, addr, ret);
 
     return ret;
 }
@@ -97,7 +97,7 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
 
     cpu = (addr & (MAX_CPUS - 1) * TARGET_PAGE_SIZE) >> 12;
     saddr = (addr & INTCTL_MAXADDR) >> 2;
-    DPRINTF("write cpu %d reg 0x%x = %x\n", cpu, addr, val);
+    DPRINTF("write cpu %d reg 0x" TARGET_FMT_plx " = %x\n", cpu, addr, val);
     switch (saddr) {
     case 1: // clear pending softints
 	if (val & 0x4000)
@@ -151,7 +151,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = 0;
         break;
     }
-    DPRINTF("read system reg 0x%x = %x\n", addr, ret);
+    DPRINTF("read system reg 0x" TARGET_FMT_plx " = %x\n", addr, ret);
 
     return ret;
 }
@@ -162,7 +162,7 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     uint32_t saddr;
 
     saddr = (addr & INTCTLM_MASK) >> 2;
-    DPRINTF("write system reg 0x%x = %x\n", addr, val);
+    DPRINTF("write system reg 0x" TARGET_FMT_plx " = %x\n", addr, val);
     switch (saddr) {
     case 2: // clear (enable)
 	// Force clear unused bits
