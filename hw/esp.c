@@ -464,6 +464,9 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    DPRINTF("Set ATN & stop (%2.2x)\n", val);
 	    handle_satn_stop(s);
 	    break;
+        case 0x44:
+            DPRINTF("Enable selection (%2.2x)\n", val);
+            break;
 	default:
 	    DPRINTF("Unhandled ESP command (%2.2x)\n", val);
 	    break;
