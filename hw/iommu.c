@@ -100,7 +100,7 @@ static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
     saddr = (addr - s->addr) >> 2;
     switch (saddr) {
     default:
-	DPRINTF("read reg[%d] = %x\n", saddr, s->regs[saddr]);
+	DPRINTF("read reg[%d] = %x\n", (int)saddr, s->regs[saddr]);
 	return s->regs[saddr];
 	break;
     }
@@ -113,7 +113,7 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
     target_phys_addr_t saddr;
 
     saddr = (addr - s->addr) >> 2;
-    DPRINTF("write reg[%d] = %x\n", saddr, val);
+    DPRINTF("write reg[%d] = %x\n", (int)saddr, val);
     switch (saddr) {
     case IOMMU_CTRL:
 	switch (val & IOMMU_CTRL_RNGE) {
@@ -143,7 +143,7 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
 	    s->iostart = 0xffffffff80000000ULL;
 	    break;
 	}
-	DPRINTF("iostart = %llx\n", s->iostart);
+	DPRINTF("iostart = " TARGET_FMT_plx "\n", s->iostart);
 	s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | IOMMU_VERSION);
 	break;
     case IOMMU_BASE:
@@ -188,12 +188,19 @@ static CPUWriteMemoryFunc *iommu_mem_write[3] = {
 
 static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
 {
-    uint32_t iopte;
+    uint32_t iopte, ret;
+#ifdef DEBUG_IOMMU
+    target_phys_addr_t pa = addr;
+#endif
 
-    iopte = s->regs[1] << 4;
+    iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (PAGE_SHIFT - 2)) & ~3;
-    return ldl_phys(iopte);
+    ret = ldl_phys(iopte);
+    DPRINTF("get flags addr " TARGET_FMT_plx " => pte %x, *ptes = %x\n", pa,
+            iopte, ret);
+
+    return ret;
 }
 
 static target_phys_addr_t iommu_translate_pa(IOMMUState *s,
@@ -271,7 +278,7 @@ static void iommu_reset(void *opaque)
 
     memset(s->regs, 0, IOMMU_NREGS * 4);
     s->iostart = 0;
-    s->regs[0] = IOMMU_VERSION;
+    s->regs[IOMMU_CTRL] = IOMMU_VERSION;
 }
 
 void *iommu_init(target_phys_addr_t addr)
