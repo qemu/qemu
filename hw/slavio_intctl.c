@@ -84,7 +84,7 @@ static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = 0;
         break;
     }
-    DPRINTF("read cpu %d reg 0x%x = %x\n", addr, ret);
+    DPRINTF("read cpu %d reg 0x" TARGET_FMT_plx " = %x\n", cpu, addr, ret);
 
     return ret;
 }
@@ -97,13 +97,14 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
 
     cpu = (addr & (MAX_CPUS - 1) * TARGET_PAGE_SIZE) >> 12;
     saddr = (addr & INTCTL_MAXADDR) >> 2;
-    DPRINTF("write cpu %d reg 0x%x = %x\n", cpu, addr, val);
+    DPRINTF("write cpu %d reg 0x" TARGET_FMT_plx " = %x\n", cpu, addr, val);
     switch (saddr) {
     case 1: // clear pending softints
 	if (val & 0x4000)
 	    val |= 80000000;
 	val &= 0xfffe0000;
 	s->intreg_pending[cpu] &= ~val;
+        slavio_check_interrupts(s);
 	DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
 	break;
     case 2: // set softint
@@ -150,7 +151,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = 0;
         break;
     }
-    DPRINTF("read system reg 0x%x = %x\n", addr, ret);
+    DPRINTF("read system reg 0x" TARGET_FMT_plx " = %x\n", addr, ret);
 
     return ret;
 }
@@ -161,7 +162,7 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     uint32_t saddr;
 
     saddr = (addr & INTCTLM_MASK) >> 2;
-    DPRINTF("write system reg 0x%x = %x\n", addr, val);
+    DPRINTF("write system reg 0x" TARGET_FMT_plx " = %x\n", addr, val);
     switch (saddr) {
     case 2: // clear (enable)
 	// Force clear unused bits
@@ -175,10 +176,12 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
 	val &= ~0x4fb2007f;
 	s->intregm_disabled |= val;
 	s->intregm_pending &= ~val;
+        slavio_check_interrupts(s);
 	DPRINTF("Disabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
 	break;
     case 4:
 	s->target_cpu = val & (MAX_CPUS - 1);
+        slavio_check_interrupts(s);
 	DPRINTF("Set master irq cpu %d\n", s->target_cpu);
 	break;
     default:
@@ -227,53 +230,36 @@ void slavio_irq_info(void *opaque)
 #endif
 }
 
-static void raise_pil(SLAVIO_INTCTLState *s, unsigned int pil,
-                      unsigned int cpu)
-{
-    qemu_irq irq;
-    unsigned int oldmax;
-
-    irq = s->cpu_irqs[cpu][pil];
-
-#ifdef DEBUG_IRQ_COUNT
-    s->irq_count[pil]++;
-#endif
-    oldmax = s->pil_out[cpu];
-    if (oldmax > 0 && oldmax != pil)
-        qemu_irq_lower(s->cpu_irqs[cpu][oldmax]);
-    s->pil_out[cpu] = pil;
-    if (pil > 0)
-        qemu_irq_raise(irq);
-    DPRINTF("cpu %d pil %d\n", cpu, pil);
-}
-
 static void slavio_check_interrupts(void *opaque)
 {
     SLAVIO_INTCTLState *s = opaque;
-    uint32_t pending = s->intregm_pending;
-    unsigned int i, j, max = 0;
+    uint32_t pending = s->intregm_pending, pil_pending;
+    unsigned int i, j;
 
     pending &= ~s->intregm_disabled;
 
     DPRINTF("pending %x disabled %x\n", pending, s->intregm_disabled);
     for (i = 0; i < MAX_CPUS; i++) {
-        max = 0;
+        pil_pending = 0;
         if (pending && !(s->intregm_disabled & 0x80000000) &&
             (i == s->target_cpu)) {
             for (j = 0; j < 32; j++) {
-                if (pending & (1 << j)) {
-                    if (max < s->intbit_to_level[j])
-                        max = s->intbit_to_level[j];
-                }
+                if (pending & (1 << j))
+                    pil_pending |= 1 << s->intbit_to_level[j];
             }
         }
-        for (j = 17; j < 32; j++) {
-            if (s->intreg_pending[i] & (1 << j)) {
-                if (max < j - 16)
-                    max = j - 16;
+        pil_pending |= (s->intreg_pending[i] >> 16) & 0xfffe;
+
+        for (j = 0; j < MAX_PILS; j++) {
+            if (pil_pending & (1 << j)) {
+                if (!(s->pil_out[i] & (1 << j)))
+                    qemu_irq_raise(s->cpu_irqs[i][j]);
+            } else {
+                if (s->pil_out[i] & (1 << j))
+                    qemu_irq_lower(s->cpu_irqs[i][j]);
             }
         }
-        raise_pil(s, max, i);
+        s->pil_out[i] = pil_pending;
     }
 }
 
@@ -291,6 +277,9 @@ static void slavio_set_irq(void *opaque, int irq, int level)
             level);
     if (pil > 0) {
         if (level) {
+#ifdef DEBUG_IRQ_COUNT
+            s->irq_count[pil]++;
+#endif
             s->intregm_pending |= mask;
             s->intreg_pending[s->target_cpu] |= 1 << pil;
         } else {
@@ -342,6 +331,7 @@ static int slavio_intctl_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->intregm_pending);
     qemu_get_be32s(f, &s->intregm_disabled);
     qemu_get_be32s(f, &s->target_cpu);
+    slavio_check_interrupts(s);
     return 0;
 }
 
@@ -356,6 +346,7 @@ static void slavio_intctl_reset(void *opaque)
     s->intregm_disabled = ~0xffb2007f;
     s->intregm_pending = 0;
     s->target_cpu = 0;
+    slavio_check_interrupts(s);
 }
 
 void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,

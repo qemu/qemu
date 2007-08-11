@@ -1036,6 +1036,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, char *fmt, ...)
             *(p++) = *(fmt++);
         }
     }
+    *p = 0;
     va_end(va);
     put_packet(s, buf);
 #ifdef CONFIG_USER_ONLY

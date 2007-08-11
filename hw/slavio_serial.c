@@ -427,17 +427,17 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 	break;
     case 1:
 	SER_DPRINTF("Write channel %c, ch %d\n", CHN_C(s), val);
+        s->tx = val;
 	if (s->wregs[5] & 8) { // tx enabled
-	    s->tx = val;
 	    if (s->chr)
 		qemu_chr_write(s->chr, &s->tx, 1);
 	    else if (s->type == kbd) {
 		handle_kbd_command(s, val);
 	    }
-	    s->rregs[0] |= 4; // Tx buffer empty
-	    s->rregs[1] |= 1; // All sent
-            set_txint(s);
 	}
+        s->rregs[0] |= 4; // Tx buffer empty
+        s->rregs[1] |= 1; // All sent
+        set_txint(s);
 	break;
     default:
 	break;

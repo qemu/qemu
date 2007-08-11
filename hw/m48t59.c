@@ -80,7 +80,10 @@ static void get_time (m48t59_t *NVRAM, struct tm *tm)
 #ifdef _WIN32
     memcpy(tm,localtime(&t),sizeof(*tm));
 #else
-    localtime_r (&t, tm) ;
+    if (rtc_utc)
+        gmtime_r (&t, tm);
+    else
+        localtime_r (&t, tm) ;
 #endif
 }
 
@@ -146,7 +149,10 @@ static void get_alarm (m48t59_t *NVRAM, struct tm *tm)
 #ifdef _WIN32
     memcpy(tm,localtime(&NVRAM->alarm),sizeof(*tm));
 #else
-    localtime_r (&NVRAM->alarm, tm);
+    if (rtc_utc)
+        gmtime_r (&NVRAM->alarm, tm);
+    else
+        localtime_r (&NVRAM->alarm, tm);
 #endif
 }
 
