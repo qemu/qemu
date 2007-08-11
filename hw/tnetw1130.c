@@ -172,38 +172,38 @@ typedef enum {
     ACX1xx_CMD_RESET = 0x00,
     ACX1xx_CMD_INTERROGATE = 0x01,
     ACX1xx_CMD_CONFIGURE = 0x02,
-#define ACX1xx_CMD_ENABLE_RX		0x03
-#define ACX1xx_CMD_ENABLE_TX		0x04
-#define ACX1xx_CMD_DISABLE_RX		0x05
-#define ACX1xx_CMD_DISABLE_TX		0x06
-#define ACX1xx_CMD_FLUSH_QUEUE		0x07
-#define ACX1xx_CMD_SCAN			0x08
+    ACX1xx_CMD_ENABLE_RX = 0x03,
+    ACX1xx_CMD_ENABLE_TX = 0x04,
+    ACX1xx_CMD_DISABLE_RX = 0x05,
+    ACX1xx_CMD_DISABLE_TX = 0x06,
+    ACX1xx_CMD_FLUSH_QUEUE  = 0x07,
+    ACX1xx_CMD_SCAN = 0x08,
     ACX1xx_CMD_STOP_SCAN = 0x09,
     ACX1xx_CMD_CONFIG_TIM = 0x0a,
-#define ACX1xx_CMD_JOIN			0x0b
-#define ACX1xx_CMD_WEP_MGMT		0x0c
+    ACX1xx_CMD_JOIN = 0x0b,
+    ACX1xx_CMD_WEP_MGMT = 0x0c,
 #ifdef OLD_FIRMWARE_VERSIONS
-#define ACX100_CMD_HALT			0x0e	/* mapped to unknownCMD in FW150 */
+    ACX100_CMD_HALT = 0x0e,             /* mapped to unknownCMD in FW150 */
 #else
-#define ACX1xx_CMD_MEM_READ		0x0d
-#define ACX1xx_CMD_MEM_WRITE		0x0e
+    ACX1xx_CMD_MEM_READ = 0x0d,
+    ACX1xx_CMD_MEM_WRITE = 0x0e,
 #endif
-#define ACX1xx_CMD_SLEEP		0x0f
-#define ACX1xx_CMD_WAKE			0x10
-#define ACX1xx_CMD_UNKNOWN_11		0x11	/* mapped to unknownCMD in FW150 */
-#define ACX100_CMD_INIT_MEMORY		0x12
-#define ACX1FF_CMD_DISABLE_RADIO	0x12	/* new firmware? TNETW1450? */
+    ACX1xx_CMD_SLEEP = 0x0f,
+    ACX1xx_CMD_WAKE = 0x10,
+    ACX1xx_CMD_UNKNOWN_11 = 0x11,       /* mapped to unknownCMD in FW150 */
+    ACX100_CMD_INIT_MEMORY = 0x12,
+    ACX1xx_CMD_DISABLE_RADIO = 0x12,    /* new firmware? TNETW1450? */
     ACX1xx_CMD_CONFIG_BEACON = 0x13,
     ACX1xx_CMD_CONFIG_PROBE_RESPONSE = 0x14,
     ACX1xx_CMD_CONFIG_NULL_DATA = 0x15,
     ACX1xx_CMD_CONFIG_PROBE_REQUEST = 0x16,
-#define ACX1xx_CMD_FCC_TEST		0x17
-#define ACX1xx_CMD_RADIOINIT		0x18
-#define ACX111_CMD_RADIOCALIB		0x19
-#define ACX1FF_CMD_NOISE_HISTOGRAM	0x1c /* new firmware? TNETW1450? */
-#define ACX1FF_CMD_RX_RESET		0x1d /* new firmware? TNETW1450? */
-#define ACX1FF_CMD_LNA_CONTROL		0x20 /* new firmware? TNETW1450? */
-#define ACX1FF_CMD_CONTROL_DBG_TRACE	0x21 /* new firmware? TNETW1450? */
+    ACX1xx_CMD_FCC_TEST = 0x17,
+    ACX1xx_CMD_RADIOINIT = 0x18,
+    ACX111_CMD_RADIOCALIB = 0x19,
+    ACX1FF_CMD_NOISE_HISTOGRAM = 0x1c,  /* new firmware? TNETW1450? */
+    ACX1FF_CMD_RX_RESET = 0x1d,         /* new firmware? TNETW1450? */
+    ACX1FF_CMD_LNA_CONTROL = 0x20,      /* new firmware? TNETW1450? */
+    ACX1FF_CMD_CONTROL_DBG_TRACE = 0x21, /* new firmware? TNETW1450? */
 } tnetw1130_command_t;
 
 /* IRQ Constants */
@@ -359,7 +359,23 @@ static const offset_name_t cmd2name[] = {
     ENTRY(RESET),
     ENTRY(INTERROGATE),
     ENTRY(CONFIGURE),
+    ENTRY(ENABLE_RX),
+    ENTRY(ENABLE_TX),
+    ENTRY(DISABLE_RX),
+    ENTRY(DISABLE_TX),
+    ENTRY(FLUSH_QUEUE),
+    ENTRY(SCAN),
+    ENTRY(STOP_SCAN),
     ENTRY(CONFIG_TIM),
+    ENTRY(JOIN),
+    ENTRY(WEP_MGMT),
+    ENTRY(MEM_READ),
+    ENTRY(MEM_WRITE),
+    ENTRY(SLEEP),
+    ENTRY(WAKE),
+    ENTRY(UNKNOWN_11),
+    //~ ENTRY(INIT_MEMORY),
+    ENTRY(DISABLE_RADIO),
     ENTRY(CONFIG_BEACON),
     ENTRY(CONFIG_PROBE_RESPONSE),
     ENTRY(CONFIG_NULL_DATA),
@@ -436,8 +452,9 @@ static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
 {
     tnetw1130_t *s = &d->tnetw1130;
     uint16_t value = 0;
-    assert(addr < TNETW1130_MEM0_SIZE);
-    value = reg_read16(s->mem0, addr);
+    if (addr < TNETW1130_MEM0_SIZE) {
+        value = reg_read16(s->mem0, addr);
+    }
     if (0) {
     } else if (addr == TNETW1130_SOFT_RESET) {
     } else if (addr == TNETW1130_IRQ_STATUS_NON_DES) {
@@ -528,8 +545,9 @@ static void tnetw1130_write0l(pci_tnetw1130_t * d, target_phys_addr_t addr,
                            uint32_t value)
 {
     tnetw1130_t *s = &d->tnetw1130;
-    assert(addr < TNETW1130_MEM0_SIZE);
-    reg_write32(s->mem0, addr, value);
+    if (addr < TNETW1130_MEM0_SIZE) {
+        reg_write32(s->mem0, addr, value);
+    }
     if (addr == TNETW1130_SLV_MEM_ADDR) {
         s->fw_addr = value;
         if (value >= TNETW1130_FW_SIZE) {
@@ -932,8 +950,10 @@ void vlynq_tnetw1130_init(void)
 
     //~ tnetw1130_mem_map(&d->dev, 0, 0x04000000, 0x22000, 0);  /* 0xf0000000 */
     //~ tnetw1130_mem_map(&d->dev, 1, 0x04022000, 0x40000, 0);  /* 0xc0000000 */
-    tnetw1130_mem_map(&d->dev, 1, 0x04000000, 0x40000, 0);
-    tnetw1130_mem_map(&d->dev, 0, 0x04040000, 0x22000, 0);
+    //~ tnetw1130_mem_map(&d->dev, 1, 0x04000000, 0x40000, 0);
+    //~ tnetw1130_mem_map(&d->dev, 0, 0x04040000, 0x22000, 0);
+    tnetw1130_mem_map(&d->dev, 0, 0x04000000, TNETW1130_MEM0_SIZE, 0);
+    tnetw1130_mem_map(&d->dev, 1, 0x04022000, TNETW1130_MEM1_SIZE, 0);
 }
 
 /*
