@@ -59,6 +59,20 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_PGFLUSH       (0x0018 >> 2)
 #define IOMMU_PGFLUSH_MASK  0xffffffff
 
+#define IOMMU_AFSR          (0x1000 >> 2)
+#define IOMMU_AFSR_ERR      0x80000000 /* LE, TO, or BE asserted */
+#define IOMMU_AFSR_LE       0x40000000 /* SBUS reports error after transaction */
+#define IOMMU_AFSR_TO       0x20000000 /* Write access took more than 12.8 us. */
+#define IOMMU_AFSR_BE       0x10000000 /* Write access received error acknowledge */
+#define IOMMU_AFSR_SIZE     0x0e000000 /* Size of transaction causing error */
+#define IOMMU_AFSR_S        0x01000000 /* Sparc was in supervisor mode */
+#define IOMMU_AFSR_RESV     0x00f00000 /* Reserved, forced to 0x8 by hardware */
+#define IOMMU_AFSR_ME       0x00080000 /* Multiple errors occurred */
+#define IOMMU_AFSR_RD       0x00040000 /* A read operation was in progress */
+#define IOMMU_AFSR_FAV      0x00020000 /* IOMMU afar has valid contents */
+
+#define IOMMU_AFAR          (0x1004 >> 2)
+
 #define IOMMU_SBCFG0        (0x1010 >> 2) /* SBUS configration per-slot */
 #define IOMMU_SBCFG1        (0x1014 >> 2) /* SBUS configration per-slot */
 #define IOMMU_SBCFG2        (0x1018 >> 2) /* SBUS configration per-slot */
@@ -218,6 +232,16 @@ static target_phys_addr_t iommu_translate_pa(IOMMUState *s,
     return pa;
 }
 
+static void iommu_bad_addr(IOMMUState *s, target_phys_addr_t addr, int is_write)
+{
+    DPRINTF("bad addr " TARGET_FMT_plx "\n", addr);
+    s->regs[IOMMU_AFSR] = IOMMU_AFSR_ERR | IOMMU_AFSR_LE | (8 << 20) |
+        IOMMU_AFSR_FAV;
+    if (!is_write)
+        s->regs[IOMMU_AFSR] |= IOMMU_AFSR_RD;
+    s->regs[IOMMU_AFAR] = addr;
+}
+
 void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                            uint8_t *buf, int len, int is_write)
 {
@@ -231,12 +255,16 @@ void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
         if (l > len)
             l = len;
         flags = iommu_page_get_flags(opaque, page);
-        if (!(flags & IOPTE_VALID))
+        if (!(flags & IOPTE_VALID)) {
+            iommu_bad_addr(opaque, page, is_write);
             return;
+        }
         phys_addr = iommu_translate_pa(opaque, addr, flags);
         if (is_write) {
-            if (!(flags & IOPTE_WRITE))
+            if (!(flags & IOPTE_WRITE)) {
+                iommu_bad_addr(opaque, page, is_write);
                 return;
+            }
             cpu_physical_memory_write(phys_addr, buf, len);
         } else {
             cpu_physical_memory_read(phys_addr, buf, len);
