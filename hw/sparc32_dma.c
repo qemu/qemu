@@ -59,7 +59,6 @@ struct DMAState {
     uint32_t dmaregs[DMA_REGS];
     qemu_irq irq;
     void *iommu;
-    qemu_irq *pic;
     qemu_irq dev_reset;
 };
 
@@ -119,12 +118,12 @@ static void dma_set_irq(void *opaque, int irq, int level)
 {
     DMAState *s = opaque;
     if (level) {
-        DPRINTF("Raise ESP IRQ\n");
+        DPRINTF("Raise IRQ\n");
         s->dmaregs[0] |= DMA_INTR;
         qemu_irq_raise(s->irq);
     } else {
         s->dmaregs[0] &= ~DMA_INTR;
-        DPRINTF("Lower ESP IRQ\n");
+        DPRINTF("Lower IRQ\n");
         qemu_irq_lower(s->irq);
     }
 }
