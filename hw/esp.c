@@ -344,6 +344,12 @@ static void esp_reset(void *opaque)
     s->do_cmd = 0;
 }
 
+static void parent_esp_reset(void *opaque, int irq, int level)
+{
+    if (level)
+        esp_reset(opaque);
+}
+
 static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     ESPState *s = opaque;
@@ -569,7 +575,7 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
 }
 
 void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
-               void *dma_opaque, qemu_irq irq)
+               void *dma_opaque, qemu_irq irq, qemu_irq *reset)
 {
     ESPState *s;
     int esp_io_memory;
@@ -581,7 +587,6 @@ void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
     s->bd = bd;
     s->irq = irq;
     s->dma_opaque = dma_opaque;
-    sparc32_dma_set_reset_data(dma_opaque, esp_reset, s);
 
     esp_io_memory = cpu_register_io_memory(0, esp_mem_read, esp_mem_write, s);
     cpu_register_physical_memory(espaddr, ESP_SIZE, esp_io_memory);
@@ -590,6 +595,8 @@ void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
 
     register_savevm("esp", espaddr, 3, esp_save, esp_load, s);
     qemu_register_reset(esp_reset, s);
+
+    *reset = *qemu_allocate_irqs(parent_esp_reset, s, 1);
 
     return s;
 }

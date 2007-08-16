@@ -58,9 +58,9 @@ typedef struct DMAState DMAState;
 struct DMAState {
     uint32_t dmaregs[DMA_REGS];
     qemu_irq irq;
-    void *iommu, *dev_opaque;
-    void (*dev_reset)(void *dev_opaque);
+    void *iommu;
     qemu_irq *pic;
+    qemu_irq dev_reset;
 };
 
 /* Note: on sparc, the lance 16 bit bus is swapped */
@@ -178,7 +178,8 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             qemu_irq_lower(s->irq);
         }
         if (val & DMA_RESET) {
-            s->dev_reset(s->dev_opaque);
+            qemu_irq_raise(s->dev_reset);
+            qemu_irq_lower(s->dev_reset);
         } else if (val & DMA_DRAIN_FIFO) {
             val &= ~DMA_DRAIN_FIFO;
         } else if (val == 0)
@@ -238,7 +239,7 @@ static int dma_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
-                       void *iommu, qemu_irq **dev_irq)
+                       void *iommu, qemu_irq **dev_irq, qemu_irq **reset)
 {
     DMAState *s;
     int dma_io_memory;
@@ -257,14 +258,7 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
     qemu_register_reset(dma_reset, s);
     *dev_irq = qemu_allocate_irqs(dma_set_irq, s, 1);
 
+    *reset = &s->dev_reset;
+
     return s;
-}
-
-void sparc32_dma_set_reset_data(void *opaque, void (*dev_reset)(void *opaque),
-                                void *dev_opaque)
-{
-    DMAState *s = opaque;
-
-    s->dev_reset = dev_reset;
-    s->dev_opaque = dev_opaque;
 }

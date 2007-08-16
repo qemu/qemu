@@ -1054,7 +1054,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
-                 qemu_irq irq);
+                qemu_irq irq, qemu_irq *reset);
 
 /* vmmouse.c */
 void *vmmouse_init(void *m);
@@ -1273,19 +1273,17 @@ void slavio_set_power_fail(void *opaque, int power_failing);
 /* esp.c */
 void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
 void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
-               void *dma_opaque, qemu_irq irq);
+               void *dma_opaque, qemu_irq irq, qemu_irq *reset);
 
 /* sparc32_dma.c */
 void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
-                       void *iommu, qemu_irq **dev_irq);
+                       void *iommu, qemu_irq **dev_irq, qemu_irq **reset);
 void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
                        uint8_t *buf, int len, int do_bswap);
 void ledma_memory_write(void *opaque, target_phys_addr_t addr, 
                         uint8_t *buf, int len, int do_bswap);
 void espdma_memory_read(void *opaque, uint8_t *buf, int len);
 void espdma_memory_write(void *opaque, uint8_t *buf, int len);
-void sparc32_dma_set_reset_data(void *opaque, void (*dev_reset)(void *opaque),
-                                void *dev_opaque);
 
 /* cs4231.c */
 void cs_init(target_phys_addr_t base, int irq, void *intctl);
