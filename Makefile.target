@@ -606,6 +606,12 @@ libqemu.a: $(LIBOBJS)
 $(DYNGEN):
 	make -C .. dyngen$(EXESUF)
 
+translate.o: translate.c gen-op.h opc.h cpu.h
+
+translate-all.o: translate-all.c opc.h cpu.h
+
+translate-op.o: translate-all.c op.h opc.h cpu.h
+
 op.h: op.o $(DYNGEN)
 	$(DYNGEN) -o $@ $<
 
