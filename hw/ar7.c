@@ -914,7 +914,10 @@ static uint32_t clock_read(unsigned offset)
     unsigned index = offset / 4;
     if (index == 0x0c || index == 0x14 || index == 0x1c || index == 0x24) {
         /* Reset PLL status bit after a short delay. */
-        if (val == last) {
+        if (val == 0x00000005 || val == 0x00007005 || val == 0x000047fd || val == 0x000057fd) {
+          /* Workaround for AVM Linux 2.6.13.1. */
+          val &= ~1;
+        } else if (val == last) {
           if (count > 0) {
             count--;
           } else {
