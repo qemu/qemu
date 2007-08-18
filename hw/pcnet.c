@@ -35,8 +35,6 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-/* TODO: remove little endian host assumptions */
- 
 #include "vl.h"
 
 //#define PCNET_DEBUG
