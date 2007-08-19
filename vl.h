@@ -447,7 +447,6 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
 int qemu_timer_pending(QEMUTimer *ts);
 
 extern int64_t ticks_per_sec;
-extern int pit_min_timer_count;
 
 int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);

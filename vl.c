@@ -781,18 +781,58 @@ struct QEMUTimer {
     struct QEMUTimer *next;
 };
 
+struct qemu_alarm_timer {
+    char const *name;
+
+    int (*start)(struct qemu_alarm_timer *t);
+    void (*stop)(struct qemu_alarm_timer *t);
+    void *priv;
+};
+
+static struct qemu_alarm_timer *alarm_timer;
+
+#ifdef _WIN32
+
+struct qemu_alarm_win32 {
+    MMRESULT timerId;
+    HANDLE host_alarm;
+    unsigned int period;
+} alarm_win32_data = {0, NULL, -1};
+
+static int win32_start_timer(struct qemu_alarm_timer *t);
+static void win32_stop_timer(struct qemu_alarm_timer *t);
+
+#else
+
+static int unix_start_timer(struct qemu_alarm_timer *t);
+static void unix_stop_timer(struct qemu_alarm_timer *t);
+
+#ifdef __linux__
+
+static int rtc_start_timer(struct qemu_alarm_timer *t);
+static void rtc_stop_timer(struct qemu_alarm_timer *t);
+
+#endif
+
+#endif /* _WIN32 */
+
+static struct qemu_alarm_timer alarm_timers[] = {
+#ifdef __linux__
+    /* RTC - if available - is preferred */
+    {"rtc", rtc_start_timer, rtc_stop_timer, NULL},
+#endif
+#ifndef _WIN32
+    {"unix", unix_start_timer, unix_stop_timer, NULL},
+#else
+    {"win32", win32_start_timer, win32_stop_timer, &alarm_win32_data},
+#endif
+    {NULL, }
+};
+
 QEMUClock *rt_clock;
 QEMUClock *vm_clock;
 
 static QEMUTimer *active_timers[2];
-#ifdef _WIN32
-static MMRESULT timerID;
-static HANDLE host_alarm = NULL;
-static unsigned int period = 1;
-#else
-/* frequency of the times() clock tick */
-static int timer_freq;
-#endif
 
 QEMUClock *qemu_new_clock(int type)
 {
@@ -1009,7 +1049,8 @@ static void host_alarm_handler(int host_signum)
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
 #ifdef _WIN32
-        SetEvent(host_alarm);
+        struct qemu_alarm_win32 *data = ((struct qemu_alarm_timer*)dwUser)->priv;
+        SetEvent(data->host_alarm);
 #endif
         CPUState *env = cpu_single_env;
         if (env) {
@@ -1030,10 +1071,27 @@ static void host_alarm_handler(int host_signum)
 
 #define RTC_FREQ 1024
 
-static int rtc_fd;
-
-static int start_rtc_timer(void)
+static void enable_sigio_timer(int fd)
 {
+    struct sigaction act;
+
+    /* timer signal */
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0;
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+    act.sa_flags |= SA_ONSTACK;
+#endif
+    act.sa_handler = host_alarm_handler;
+
+    sigaction(SIGIO, &act, NULL);
+    fcntl(fd, F_SETFL, O_ASYNC);
+    fcntl(fd, F_SETOWN, getpid());
+}
+
+static int rtc_start_timer(struct qemu_alarm_timer *t)
+{
+    int rtc_fd;
+
     TFR(rtc_fd = open("/dev/rtc", O_RDONLY));
     if (rtc_fd < 0)
         return -1;
@@ -1048,117 +1106,142 @@ static int start_rtc_timer(void)
         close(rtc_fd);
         return -1;
     }
-    pit_min_timer_count = PIT_FREQ / RTC_FREQ;
+
+    enable_sigio_timer(rtc_fd);
+
+    t->priv = (void *)rtc_fd;
+
     return 0;
 }
 
-#else
-
-static int start_rtc_timer(void)
+static void rtc_stop_timer(struct qemu_alarm_timer *t)
 {
-    return -1;
+    int rtc_fd = (int)t->priv;
+
+    close(rtc_fd);
 }
 
 #endif /* !defined(__linux__) */
 
+static int unix_start_timer(struct qemu_alarm_timer *t)
+{
+    struct sigaction act;
+    struct itimerval itv;
+    int err;
+
+    /* timer signal */
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0;
+#if defined(TARGET_I386) && defined(USE_CODE_COPY)
+    act.sa_flags |= SA_ONSTACK;
+#endif
+    act.sa_handler = host_alarm_handler;
+
+    sigaction(SIGALRM, &act, NULL);
+
+    itv.it_interval.tv_sec = 0;
+    /* for i386 kernel 2.6 to get 1 ms */
+    itv.it_interval.tv_usec = 999;
+    itv.it_value.tv_sec = 0;
+    itv.it_value.tv_usec = 10 * 1000;
+
+    err = setitimer(ITIMER_REAL, &itv, NULL);
+    if (err)
+        return -1;
+
+    return 0;
+}
+
+static void unix_stop_timer(struct qemu_alarm_timer *t)
+{
+    struct itimerval itv;
+
+    memset(&itv, 0, sizeof(itv));
+    setitimer(ITIMER_REAL, &itv, NULL);
+}
+
 #endif /* !defined(_WIN32) */
+
+#ifdef _WIN32
+
+static int win32_start_timer(struct qemu_alarm_timer *t)
+{
+    TIMECAPS tc;
+    struct qemu_alarm_win32 *data = t->priv;
+
+    data->host_alarm = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (!data->host_alarm) {
+        perror("Failed CreateEvent");
+        return -1
+    }
+
+    memset(&tc, 0, sizeof(tc));
+    timeGetDevCaps(&tc, sizeof(tc));
+
+    if (data->period < tc.wPeriodMin)
+        data->period = tc.wPeriodMin;
+
+    timeBeginPeriod(data->period);
+
+    data->timerId = timeSetEvent(1,         // interval (ms)
+                        data->period,       // resolution
+                        host_alarm_handler, // function
+                        (DWORD)t,           // parameter
+                        TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+
+    if (!data->timerId) {
+        perror("Failed to initialize win32 alarm timer");
+
+        timeEndPeriod(data->period);
+        CloseHandle(data->host_alarm);
+        return -1;
+    }
+
+    qemu_add_wait_object(data->host_alarm, NULL, NULL);
+
+    return 0;
+}
+
+static void win32_stop_timer(struct qemu_alarm_timer *t)
+{
+    struct qemu_alarm_win32 *data = t->priv;
+
+    timeKillEvent(data->timerId);
+    timeEndPeriod(data->period);
+
+    CloseHandle(data->host_alarm);
+}
+
+#endif /* _WIN32 */
 
 static void init_timer_alarm(void)
 {
-#ifdef _WIN32
-    {
-        int count=0;
-        TIMECAPS tc;
+    struct qemu_alarm_timer *t;
+    int i, err = -1;
 
-        ZeroMemory(&tc, sizeof(TIMECAPS));
-        timeGetDevCaps(&tc, sizeof(TIMECAPS));
-        if (period < tc.wPeriodMin)
-            period = tc.wPeriodMin;
-        timeBeginPeriod(period);
-        timerID = timeSetEvent(1,     // interval (ms)
-                               period,     // resolution
-                               host_alarm_handler, // function
-                               (DWORD)&count,  // user parameter
-                               TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
- 	if( !timerID ) {
-            perror("failed timer alarm");
-            exit(1);
- 	}
-        host_alarm = CreateEvent(NULL, FALSE, FALSE, NULL);
-        if (!host_alarm) {
-            perror("failed CreateEvent");
-            exit(1);
-        }
-        qemu_add_wait_object(host_alarm, NULL, NULL);
+    for (i = 0; alarm_timers[i].name; i++) {
+        t = &alarm_timers[i];
+
+        printf("trying %s...\n", t->name);
+
+        err = t->start(t);
+        if (!err)
+            break;
     }
-    pit_min_timer_count = ((uint64_t)10000 * PIT_FREQ) / 1000000;
-#else
-    {
-        struct sigaction act;
-        struct itimerval itv;
-        
-        /* get times() syscall frequency */
-        timer_freq = sysconf(_SC_CLK_TCK);
-        
-        /* timer signal */
-        sigfillset(&act.sa_mask);
-       act.sa_flags = 0;
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-        act.sa_flags |= SA_ONSTACK;
-#endif
-        act.sa_handler = host_alarm_handler;
-        sigaction(SIGALRM, &act, NULL);
 
-        itv.it_interval.tv_sec = 0;
-        itv.it_interval.tv_usec = 999; /* for i386 kernel 2.6 to get 1 ms */
-        itv.it_value.tv_sec = 0;
-        itv.it_value.tv_usec = 10 * 1000;
-        setitimer(ITIMER_REAL, &itv, NULL);
-        /* we probe the tick duration of the kernel to inform the user if
-           the emulated kernel requested a too high timer frequency */
-        getitimer(ITIMER_REAL, &itv);
-
-#if defined(__linux__)
-        /* XXX: force /dev/rtc usage because even 2.6 kernels may not
-           have timers with 1 ms resolution. The correct solution will
-           be to use the POSIX real time timers available in recent
-           2.6 kernels */
-        if (itv.it_interval.tv_usec > 1000 || 1) {
-            /* try to use /dev/rtc to have a faster timer */
-            if (start_rtc_timer() < 0)
-                goto use_itimer;
-            /* disable itimer */
-            itv.it_interval.tv_sec = 0;
-            itv.it_interval.tv_usec = 0;
-            itv.it_value.tv_sec = 0;
-            itv.it_value.tv_usec = 0;
-            setitimer(ITIMER_REAL, &itv, NULL);
-
-            /* use the RTC */
-            sigaction(SIGIO, &act, NULL);
-            fcntl(rtc_fd, F_SETFL, O_ASYNC);
-            fcntl(rtc_fd, F_SETOWN, getpid());
-        } else 
-#endif /* defined(__linux__) */
-        {
-        use_itimer:
-            pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * 
-                                   PIT_FREQ) / 1000000;
-        }
+    if (err) {
+        fprintf(stderr, "Unable to find any suitable alarm timer.\n");
+        fprintf(stderr, "Terminating\n");
+        exit(1);
     }
-#endif
+
+    alarm_timer = t;
 }
 
 void quit_timers(void)
 {
-#ifdef _WIN32
-    timeKillEvent(timerID);
-    timeEndPeriod(period);
-    if (host_alarm) {
-        CloseHandle(host_alarm);
-        host_alarm = NULL;
-    }
-#endif
+    alarm_timer->stop(alarm_timer);
+    alarm_timer = NULL;
 }
 
 /***********************************************************/
