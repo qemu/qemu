@@ -150,6 +150,21 @@ void cpu_ppc_store_decr (CPUState *env, uint32_t value)
     /* TO FIX */
 }
 
+void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
+{
+    cpu_ppc_store_tbu( env, value );
+}
+
+uint32_t cpu_ppc601_load_rtcu (CPUState *env)
+{
+    cpu_ppc_load_tbu(env);
+}
+
+uint32_t cpu_ppc601_load_rtcl (CPUState *env)
+{
+    return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
+}
+
 void cpu_loop(CPUPPCState *env)
 {
     int trapnr;
