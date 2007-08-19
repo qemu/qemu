@@ -2758,102 +2758,91 @@ int bfd_mips_num_opcodes = MIPS_NUM_OPCODES;
 /* Mips instructions are at maximum this many bytes long.  */
 #define INSNLEN 4
 
-static void set_default_mips_dis_options
-  PARAMS ((struct disassemble_info *));
-static void parse_mips_dis_option
-  PARAMS ((const char *, unsigned int));
-static void parse_mips_dis_options
-  PARAMS ((const char *));
-static int _print_insn_mips
-  PARAMS ((bfd_vma, struct disassemble_info *, enum bfd_endian));
-static int print_insn_mips
-  PARAMS ((bfd_vma, unsigned long int, struct disassemble_info *));
-static void print_insn_args
-  PARAMS ((const char *, unsigned long, bfd_vma, struct disassemble_info *));
-#if 0
-static int print_insn_mips16
-  PARAMS ((bfd_vma, struct disassemble_info *));
-#endif
-#if 0
-static int is_newabi
-  PARAMS ((Elf32_Ehdr *));
-#endif
-#if 0
-static void print_mips16_insn_arg
-  PARAMS ((int, const struct mips_opcode *, int, bfd_boolean, int, bfd_vma,
-	   struct disassemble_info *));
-#endif
 
 /* FIXME: These should be shared with gdb somehow.  */
 
-struct mips_cp0sel_name {
-	unsigned int cp0reg;
-	unsigned int sel;
-	const char * const name;
+struct mips_cp0sel_name
+{
+  unsigned int cp0reg;
+  unsigned int sel;
+  const char * const name;
 };
 
-/* The mips16 register names.  */
-static const char * const mips16_reg_names[] = {
-  "s0", "s1", "v0", "v1", "a0", "a1", "a2", "a3"
+/* The mips16 registers.  */
+static const unsigned int mips16_to_32_reg_map[] =
+{
+  16, 17, 2, 3, 4, 5, 6, 7
 };
 
-static const char * const mips_gpr_names_numeric[32] = {
+#define mips16_reg_names(rn)	mips_gpr_names[mips16_to_32_reg_map[rn]]
+
+
+static const char * const mips_gpr_names_numeric[32] =
+{
   "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
   "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
   "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
   "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
 };
 
-static const char * const mips_gpr_names_oldabi[32] = {
+static const char * const mips_gpr_names_oldabi[32] =
+{
   "zero", "at",   "v0",   "v1",   "a0",   "a1",   "a2",   "a3",
   "t0",   "t1",   "t2",   "t3",   "t4",   "t5",   "t6",   "t7",
   "s0",   "s1",   "s2",   "s3",   "s4",   "s5",   "s6",   "s7",
   "t8",   "t9",   "k0",   "k1",   "gp",   "sp",   "s8",   "ra"
 };
 
-static const char * const mips_gpr_names_newabi[32] = {
+static const char * const mips_gpr_names_newabi[32] =
+{
   "zero", "at",   "v0",   "v1",   "a0",   "a1",   "a2",   "a3",
   "a4",   "a5",   "a6",   "a7",   "t0",   "t1",   "t2",   "t3",
   "s0",   "s1",   "s2",   "s3",   "s4",   "s5",   "s6",   "s7",
   "t8",   "t9",   "k0",   "k1",   "gp",   "sp",   "s8",   "ra"
 };
 
-static const char * const mips_fpr_names_numeric[32] = {
+static const char * const mips_fpr_names_numeric[32] =
+{
   "$f0",  "$f1",  "$f2",  "$f3",  "$f4",  "$f5",  "$f6",  "$f7",
   "$f8",  "$f9",  "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
   "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
   "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$f31"
 };
 
-static const char * const mips_fpr_names_32[32] = {
+static const char * const mips_fpr_names_32[32] =
+{
   "fv0",  "fv0f", "fv1",  "fv1f", "ft0",  "ft0f", "ft1",  "ft1f",
   "ft2",  "ft2f", "ft3",  "ft3f", "fa0",  "fa0f", "fa1",  "fa1f",
   "ft4",  "ft4f", "ft5",  "ft5f", "fs0",  "fs0f", "fs1",  "fs1f",
   "fs2",  "fs2f", "fs3",  "fs3f", "fs4",  "fs4f", "fs5",  "fs5f"
 };
 
-static const char * const mips_fpr_names_n32[32] = {
+static const char * const mips_fpr_names_n32[32] =
+{
   "fv0",  "ft14", "fv1",  "ft15", "ft0",  "ft1",  "ft2",  "ft3",
   "ft4",  "ft5",  "ft6",  "ft7",  "fa0",  "fa1",  "fa2",  "fa3",
   "fa4",  "fa5",  "fa6",  "fa7",  "fs0",  "ft8",  "fs1",  "ft9",
   "fs2",  "ft10", "fs3",  "ft11", "fs4",  "ft12", "fs5",  "ft13"
 };
 
-static const char * const mips_fpr_names_64[32] = {
+static const char * const mips_fpr_names_64[32] =
+{
   "fv0",  "ft12", "fv1",  "ft13", "ft0",  "ft1",  "ft2",  "ft3",
   "ft4",  "ft5",  "ft6",  "ft7",  "fa0",  "fa1",  "fa2",  "fa3",
   "fa4",  "fa5",  "fa6",  "fa7",  "ft8",  "ft9",  "ft10", "ft11",
   "fs0",  "fs1",  "fs2",  "fs3",  "fs4",  "fs5",  "fs6",  "fs7"
 };
 
-static const char * const mips_cp0_names_numeric[32] = {
+static const char * const mips_cp0_names_numeric[32] =
+{
   "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
   "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
   "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
   "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
 };
 
-static const char * const mips_cp0_names_mips3264[32] = {
+static const char * const mips_cp0_names_mips3264[32] =
+{
   "c0_index",     "c0_random",    "c0_entrylo0",  "c0_entrylo1",
   "c0_context",   "c0_pagemask",  "c0_wired",     "$7",
   "c0_badvaddr",  "c0_count",     "c0_entryhi",   "c0_compare",
@@ -2864,7 +2853,35 @@ static const char * const mips_cp0_names_mips3264[32] = {
   "c0_taglo",     "c0_taghi",     "c0_errorepc",  "c0_desave",
 };
 
-static const struct mips_cp0sel_name mips_cp0sel_names_mips3264[] = {
+static const struct mips_cp0sel_name mips_cp0sel_names_mips3264[] =
+{
+  {  4, 1, "c0_contextconfig"	},
+  {  0, 1, "c0_mvpcontrol"	},
+  {  0, 2, "c0_mvpconf0"	},
+  {  0, 3, "c0_mvpconf1"	},
+  {  1, 1, "c0_vpecontrol"	},
+  {  1, 2, "c0_vpeconf0"	},
+  {  1, 3, "c0_vpeconf1"	},
+  {  1, 4, "c0_yqmask"		},
+  {  1, 5, "c0_vpeschedule"	},
+  {  1, 6, "c0_vpeschefback"	},
+  {  2, 1, "c0_tcstatus"	},
+  {  2, 2, "c0_tcbind"		},
+  {  2, 3, "c0_tcrestart"	},
+  {  2, 4, "c0_tchalt"		},
+  {  2, 5, "c0_tccontext"	},
+  {  2, 6, "c0_tcschedule"	},
+  {  2, 7, "c0_tcschefback"	},
+  {  5, 1, "c0_pagegrain"	},
+  {  6, 1, "c0_srsconf0"	},
+  {  6, 2, "c0_srsconf1"	},
+  {  6, 3, "c0_srsconf2"	},
+  {  6, 4, "c0_srsconf3"	},
+  {  6, 5, "c0_srsconf4"	},
+  { 12, 1, "c0_intctl"		},
+  { 12, 2, "c0_srsctl"		},
+  { 12, 3, "c0_srsmap"		},
+  { 15, 1, "c0_ebase"		},
   { 16, 1, "c0_config1"		},
   { 16, 2, "c0_config2"		},
   { 16, 3, "c0_config3"		},
@@ -2882,6 +2899,10 @@ static const struct mips_cp0sel_name mips_cp0sel_names_mips3264[] = {
   { 19, 5, "c0_watchhi,5"	},
   { 19, 6, "c0_watchhi,6"	},
   { 19, 7, "c0_watchhi,7"	},
+  { 23, 1, "c0_tracecontrol"	},
+  { 23, 2, "c0_tracecontrol2"	},
+  { 23, 3, "c0_usertracedata"	},
+  { 23, 4, "c0_tracebpc"	},
   { 25, 1, "c0_perfcnt,1"	},
   { 25, 2, "c0_perfcnt,2"	},
   { 25, 3, "c0_perfcnt,3"	},
@@ -2893,10 +2914,23 @@ static const struct mips_cp0sel_name mips_cp0sel_names_mips3264[] = {
   { 27, 2, "c0_cacheerr,2"	},
   { 27, 3, "c0_cacheerr,3"	},
   { 28, 1, "c0_datalo"		},
-  { 29, 1, "c0_datahi"		}
+  { 28, 2, "c0_taglo1"		},
+  { 28, 3, "c0_datalo1"		},
+  { 28, 4, "c0_taglo2"		},
+  { 28, 5, "c0_datalo2"		},
+  { 28, 6, "c0_taglo3"		},
+  { 28, 7, "c0_datalo3"		},
+  { 29, 1, "c0_datahi"		},
+  { 29, 2, "c0_taghi1"		},
+  { 29, 3, "c0_datahi1"		},
+  { 29, 4, "c0_taghi2"		},
+  { 29, 5, "c0_datahi2"		},
+  { 29, 6, "c0_taghi3"		},
+  { 29, 7, "c0_datahi3"		},
 };
 
-static const char * const mips_cp0_names_mips3264r2[32] = {
+static const char * const mips_cp0_names_mips3264r2[32] =
+{
   "c0_index",     "c0_random",    "c0_entrylo0",  "c0_entrylo1",
   "c0_context",   "c0_pagemask",  "c0_wired",     "c0_hwrena",
   "c0_badvaddr",  "c0_count",     "c0_entryhi",   "c0_compare",
@@ -2907,7 +2941,8 @@ static const char * const mips_cp0_names_mips3264r2[32] = {
   "c0_taglo",     "c0_taghi",     "c0_errorepc",  "c0_desave",
 };
 
-static const struct mips_cp0sel_name mips_cp0sel_names_mips3264r2[] = {
+static const struct mips_cp0sel_name mips_cp0sel_names_mips3264r2[] =
+{
   {  4, 1, "c0_contextconfig"	},
   {  5, 1, "c0_pagegrain"	},
   { 12, 1, "c0_intctl"		},
@@ -2962,7 +2997,8 @@ static const struct mips_cp0sel_name mips_cp0sel_names_mips3264r2[] = {
 };
 
 /* SB-1: MIPS64 (mips_cp0_names_mips3264) with minor mods.  */
-static const char * const mips_cp0_names_sb1[32] = {
+static const char * const mips_cp0_names_sb1[32] =
+{
   "c0_index",     "c0_random",    "c0_entrylo0",  "c0_entrylo1",
   "c0_context",   "c0_pagemask",  "c0_wired",     "$7",
   "c0_badvaddr",  "c0_count",     "c0_entryhi",   "c0_compare",
@@ -2973,7 +3009,8 @@ static const char * const mips_cp0_names_sb1[32] = {
   "c0_taglo_i",   "c0_taghi_i",   "c0_errorepc",  "c0_desave",
 };
 
-static const struct mips_cp0sel_name mips_cp0sel_names_sb1[] = {
+static const struct mips_cp0sel_name mips_cp0sel_names_sb1[] =
+{
   { 16, 1, "c0_config1"		},
   { 18, 1, "c0_watchlo,1"	},
   { 19, 1, "c0_watchhi,1"	},
@@ -2997,14 +3034,16 @@ static const struct mips_cp0sel_name mips_cp0sel_names_sb1[] = {
   { 29, 3, "c0_datahi_d"	},
 };
 
-static const char * const mips_hwr_names_numeric[32] = {
+static const char * const mips_hwr_names_numeric[32] =
+{
   "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
   "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
   "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
   "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
 };
 
-static const char * const mips_hwr_names_mips3264r2[32] = {
+static const char * const mips_hwr_names_mips3264r2[32] =
+{
   "hwr_cpunum",   "hwr_synci_step", "hwr_cc",     "hwr_ccres",
   "$4",          "$5",            "$6",           "$7",
   "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
@@ -3012,20 +3051,23 @@ static const char * const mips_hwr_names_mips3264r2[32] = {
   "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
 };
 
-struct mips_abi_choice {
+struct mips_abi_choice
+{
   const char *name;
   const char * const *gpr_names;
   const char * const *fpr_names;
 };
 
-struct mips_abi_choice mips_abi_choices[] = {
+struct mips_abi_choice mips_abi_choices[] =
+{
   { "numeric", mips_gpr_names_numeric, mips_fpr_names_numeric },
   { "32", mips_gpr_names_oldabi, mips_fpr_names_32 },
   { "n32", mips_gpr_names_newabi, mips_fpr_names_n32 },
   { "64", mips_gpr_names_newabi, mips_fpr_names_64 },
 };
 
-struct mips_arch_choice {
+struct mips_arch_choice
+{
   const char *name;
   int bfd_mach_valid;
   unsigned long bfd_mach;
@@ -3054,6 +3096,7 @@ struct mips_arch_choice {
 #define bfd_mach_mips6000              6000
 #define bfd_mach_mips7000              7000
 #define bfd_mach_mips8000              8000
+#define bfd_mach_mips9000              9000
 #define bfd_mach_mips10000             10000
 #define bfd_mach_mips12000             12000
 #define bfd_mach_mips16                16
@@ -3066,7 +3109,8 @@ struct mips_arch_choice {
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-const struct mips_arch_choice mips_arch_choices[] = {
+const struct mips_arch_choice mips_arch_choices[] =
+{
   { "numeric",	0, 0, 0, 0,
     mips_cp0_names_numeric, NULL, 0, mips_hwr_names_numeric },
 
@@ -3119,13 +3163,14 @@ const struct mips_arch_choice mips_arch_choices[] = {
      MIPS32 Architecture_ (MIPS Document Number MD00082, Revision 0.95),
      page 1.  */
   { "mips32",	1, bfd_mach_mipsisa32, CPU_MIPS32,
-    ISA_MIPS32 | INSN_MIPS16,
+    ISA_MIPS32 | INSN_MIPS16 | INSN_SMARTMIPS,
     mips_cp0_names_mips3264,
     mips_cp0sel_names_mips3264, ARRAY_SIZE (mips_cp0sel_names_mips3264),
     mips_hwr_names_numeric },
 
   { "mips32r2",	1, bfd_mach_mipsisa32r2, CPU_MIPS32R2,
-    ISA_MIPS32R2 | INSN_MIPS16,
+    (ISA_MIPS32R2 | INSN_MIPS16 | INSN_SMARTMIPS | INSN_DSP | INSN_DSPR2
+     | INSN_MIPS3D | INSN_MT),
     mips_cp0_names_mips3264r2,
     mips_cp0sel_names_mips3264r2, ARRAY_SIZE (mips_cp0sel_names_mips3264r2),
     mips_hwr_names_mips3264r2 },
@@ -3138,7 +3183,8 @@ const struct mips_arch_choice mips_arch_choices[] = {
     mips_hwr_names_numeric },
 
   { "mips64r2",	1, bfd_mach_mipsisa64r2, CPU_MIPS64R2,
-    ISA_MIPS64R2 | INSN_MIPS16 | INSN_MIPS3D | INSN_MDMX,
+    (ISA_MIPS64R2 | INSN_MIPS16 | INSN_MIPS3D | INSN_DSP | INSN_DSPR2
+     | INSN_DSP64 | INSN_MT | INSN_MDMX),
     mips_cp0_names_mips3264r2,
     mips_cp0sel_names_mips3264r2, ARRAY_SIZE (mips_cp0sel_names_mips3264r2),
     mips_hwr_names_mips3264r2 },
@@ -3167,53 +3213,39 @@ static const struct mips_cp0sel_name *mips_cp0sel_names;
 static int mips_cp0sel_names_len;
 static const char * const *mips_hwr_names;
 
-static const struct mips_abi_choice *choose_abi_by_name
-  PARAMS ((const char *, unsigned int));
-static const struct mips_arch_choice *choose_arch_by_name
-  PARAMS ((const char *, unsigned int));
-static const struct mips_arch_choice *choose_arch_by_number
-  PARAMS ((unsigned long));
-static const struct mips_cp0sel_name *lookup_mips_cp0sel_name
-  PARAMS ((const struct mips_cp0sel_name *, unsigned int, unsigned int,
-	   unsigned int));
+/* Other options */
+static int no_aliases;	/* If set disassemble as most general inst.  */
 
 static const struct mips_abi_choice *
-choose_abi_by_name (name, namelen)
-     const char *name;
-     unsigned int namelen;
+choose_abi_by_name (const char *name, unsigned int namelen)
 {
   const struct mips_abi_choice *c;
   unsigned int i;
 
   for (i = 0, c = NULL; i < ARRAY_SIZE (mips_abi_choices) && c == NULL; i++)
-    {
-      if (strncmp (mips_abi_choices[i].name, name, namelen) == 0
-	  && strlen (mips_abi_choices[i].name) == namelen)
-	c = &mips_abi_choices[i];
-    }
+    if (strncmp (mips_abi_choices[i].name, name, namelen) == 0
+	&& strlen (mips_abi_choices[i].name) == namelen)
+      c = &mips_abi_choices[i];
+
   return c;
 }
 
 static const struct mips_arch_choice *
-choose_arch_by_name (name, namelen)
-     const char *name;
-     unsigned int namelen;
+choose_arch_by_name (const char *name, unsigned int namelen)
 {
   const struct mips_arch_choice *c = NULL;
   unsigned int i;
 
   for (i = 0, c = NULL; i < ARRAY_SIZE (mips_arch_choices) && c == NULL; i++)
-    {
-      if (strncmp (mips_arch_choices[i].name, name, namelen) == 0
-	  && strlen (mips_arch_choices[i].name) == namelen)
-	c = &mips_arch_choices[i];
-    }
+    if (strncmp (mips_arch_choices[i].name, name, namelen) == 0
+	&& strlen (mips_arch_choices[i].name) == namelen)
+      c = &mips_arch_choices[i];
+
   return c;
 }
 
 static const struct mips_arch_choice *
-choose_arch_by_number (mach)
-     unsigned long mach;
+choose_arch_by_number (unsigned long mach)
 {
   static unsigned long hint_bfd_mach;
   static const struct mips_arch_choice *hint_arch_choice;
@@ -3241,8 +3273,7 @@ choose_arch_by_number (mach)
 }
 
 void
-set_default_mips_dis_options (info)
-     struct disassemble_info *info;
+set_default_mips_dis_options (struct disassemble_info *info)
 {
   const struct mips_arch_choice *chosen_arch;
 
@@ -3256,6 +3287,7 @@ set_default_mips_dis_options (info)
   mips_cp0sel_names = NULL;
   mips_cp0sel_names_len = 0;
   mips_hwr_names = mips_hwr_names_numeric;
+  no_aliases = 0;
 
   /* If an ELF "newabi" binary, use the n32/(n)64 GPR names.  */
 #if 0
@@ -3383,9 +3415,8 @@ parse_mips_dis_option (option, len)
   /* Invalid option.  */
 }
 
-void
-parse_mips_dis_options (options)
-     const char *options;
+static void
+parse_mips_dis_options (const char *options)
 {
   const char *option_end;
 
@@ -3415,9 +3446,10 @@ parse_mips_dis_options (options)
 }
 
 static const struct mips_cp0sel_name *
-lookup_mips_cp0sel_name(names, len, cp0reg, sel)
-	const struct mips_cp0sel_name *names;
-	unsigned int len, cp0reg, sel;
+lookup_mips_cp0sel_name (const struct mips_cp0sel_name *names,
+			 unsigned int len,
+			 unsigned int cp0reg,
+			 unsigned int sel)
 {
   unsigned int i;
 
@@ -3430,11 +3462,11 @@ lookup_mips_cp0sel_name(names, len, cp0reg, sel)
 /* Print insn arguments for 32/64-bit code.  */
 
 static void
-print_insn_args (d, l, pc, info)
-     const char *d;
-     register unsigned long int l;
-     bfd_vma pc;
-     struct disassemble_info *info;
+print_insn_args (const char *d,
+		 register unsigned long int l,
+		 bfd_vma pc,
+		 struct disassemble_info *info,
+		 const struct mips_opcode *opp)
 {
   int op, delta;
   unsigned int lsb, msb, msbd;
@@ -3468,10 +3500,30 @@ print_insn_args (d, l, pc, info)
 	      lsb = (l >> OP_SH_SHAMT) & OP_MASK_SHAMT;
 	      (*info->fprintf_func) (info->stream, "0x%x", lsb);
 	      break;
-	
+
 	    case 'B':
 	      msb = (l >> OP_SH_INSMSB) & OP_MASK_INSMSB;
 	      (*info->fprintf_func) (info->stream, "0x%x", msb - lsb + 1);
+	      break;
+
+	    case '1':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI1) & OP_MASK_UDI1);
+	      break;
+
+	    case '2':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI2) & OP_MASK_UDI2);
+	      break;
+
+	    case '3':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI3) & OP_MASK_UDI3);
+	      break;
+
+	    case '4':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI4) & OP_MASK_UDI4);
 	      break;
 
 	    case 'C':
@@ -3517,6 +3569,34 @@ print_insn_args (d, l, pc, info)
 	      (*info->fprintf_func) (info->stream, "0x%x", msbd + 1);
 	      break;
 
+	    case 't': /* Coprocessor 0 reg name */
+	      (*info->fprintf_func) (info->stream, "%s",
+				     mips_cp0_names[(l >> OP_SH_RT) &
+						     OP_MASK_RT]);
+	      break;
+
+	    case 'T': /* Coprocessor 0 reg name */
+	      {
+		const struct mips_cp0sel_name *n;
+		unsigned int cp0reg, sel;
+
+		cp0reg = (l >> OP_SH_RT) & OP_MASK_RT;
+		sel = (l >> OP_SH_SEL) & OP_MASK_SEL;
+
+		/* CP0 register including 'sel' code for mftc0, to be
+		   printed textually if known.  If not known, print both
+		   CP0 register name and sel numerically since CP0 register
+		   with sel 0 may have a name unrelated to register being
+		   printed.  */
+		n = lookup_mips_cp0sel_name(mips_cp0sel_names,
+					    mips_cp0sel_names_len, cp0reg, sel);
+		if (n != NULL)
+		  (*info->fprintf_func) (info->stream, "%s", n->name);
+		else
+		  (*info->fprintf_func) (info->stream, "$%d,%d", cp0reg, sel);
+		break;
+	      }
+
 	    default:
 	      /* xgettext:c-format */
 	      (*info->fprintf_func) (info->stream,
@@ -3524,6 +3604,98 @@ print_insn_args (d, l, pc, info)
 				     *d);
 	      return;
 	    }
+	  break;
+
+	case '2':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_BP) & OP_MASK_BP);
+	  break;
+
+	case '3':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_SA3) & OP_MASK_SA3);
+	  break;
+
+	case '4':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_SA4) & OP_MASK_SA4);
+	  break;
+
+	case '5':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_IMM8) & OP_MASK_IMM8);
+	  break;
+
+	case '6':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_RS) & OP_MASK_RS);
+	  break;
+
+	case '7':
+	  (*info->fprintf_func) (info->stream, "$ac%ld",
+				 (l >> OP_SH_DSPACC) & OP_MASK_DSPACC);
+	  break;
+
+	case '8':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_WRDSP) & OP_MASK_WRDSP);
+	  break;
+
+	case '9':
+	  (*info->fprintf_func) (info->stream, "$ac%ld",
+				 (l >> OP_SH_DSPACC_S) & OP_MASK_DSPACC_S);
+	  break;
+
+	case '0': /* dsp 6-bit signed immediate in bit 20 */
+	  delta = ((l >> OP_SH_DSPSFT) & OP_MASK_DSPSFT);
+	  if (delta & 0x20) /* test sign bit */
+	    delta |= ~OP_MASK_DSPSFT;
+	  (*info->fprintf_func) (info->stream, "%d", delta);
+	  break;
+
+	case ':': /* dsp 7-bit signed immediate in bit 19 */
+	  delta = ((l >> OP_SH_DSPSFT_7) & OP_MASK_DSPSFT_7);
+	  if (delta & 0x40) /* test sign bit */
+	    delta |= ~OP_MASK_DSPSFT_7;
+	  (*info->fprintf_func) (info->stream, "%d", delta);
+	  break;
+
+	case '\'':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_RDDSP) & OP_MASK_RDDSP);
+	  break;
+
+	case '@': /* dsp 10-bit signed immediate in bit 16 */
+	  delta = ((l >> OP_SH_IMM10) & OP_MASK_IMM10);
+	  if (delta & 0x200) /* test sign bit */
+	    delta |= ~OP_MASK_IMM10;
+	  (*info->fprintf_func) (info->stream, "%d", delta);
+	  break;
+
+	case '!':
+	  (*info->fprintf_func) (info->stream, "%ld",
+				 (l >> OP_SH_MT_U) & OP_MASK_MT_U);
+	  break;
+
+	case '$':
+	  (*info->fprintf_func) (info->stream, "%ld",
+				 (l >> OP_SH_MT_H) & OP_MASK_MT_H);
+	  break;
+
+	case '*':
+	  (*info->fprintf_func) (info->stream, "$ac%ld",
+				 (l >> OP_SH_MTACC_T) & OP_MASK_MTACC_T);
+	  break;
+
+	case '&':
+	  (*info->fprintf_func) (info->stream, "$ac%ld",
+				 (l >> OP_SH_MTACC_D) & OP_MASK_MTACC_D);
+	  break;
+
+	case 'g':
+	  /* Coprocessor register for CTTC1, MTTC2, MTHC2, CTTC2.  */
+	  (*info->fprintf_func) (info->stream, "$%ld",
+				 (l >> OP_SH_RD) & OP_MASK_RD);
 	  break;
 
 	case 's':
@@ -3542,7 +3714,7 @@ print_insn_args (d, l, pc, info)
 
 	case 'i':
 	case 'u':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
 				 (l >> OP_SH_IMMEDIATE) & OP_MASK_IMMEDIATE);
 	  break;
 
@@ -3570,6 +3742,10 @@ print_insn_args (d, l, pc, info)
 	case 'a':
 	  info->target = (((pc + 4) & ~(bfd_vma) 0x0fffffff)
 			  | (((l >> OP_SH_TARGET) & OP_MASK_TARGET) << 2));
+	  /* For gdb disassembler, force odd address on jalx.  */
+	  if (info->flavour == bfd_target_unknown_flavour
+	      && strcmp (opp->name, "jalx") == 0)
+	    info->target |= 1;
 	  (*info->print_address_func) (info->target, info);
 	  break;
 
@@ -3616,32 +3792,33 @@ print_insn_args (d, l, pc, info)
 	  break;
 
 	case '<':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
 				 (l >> OP_SH_SHAMT) & OP_MASK_SHAMT);
 	  break;
 
 	case 'c':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
 				 (l >> OP_SH_CODE) & OP_MASK_CODE);
 	  break;
 
 	case 'q':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
 				 (l >> OP_SH_CODE2) & OP_MASK_CODE2);
 	  break;
 
 	case 'C':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
 				 (l >> OP_SH_COPZ) & OP_MASK_COPZ);
 	  break;
 
 	case 'B':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+
 				 (l >> OP_SH_CODE20) & OP_MASK_CODE20);
 	  break;
 
 	case 'J':
-	  (*info->fprintf_func) (info->stream, "0x%x",
+	  (*info->fprintf_func) (info->stream, "0x%lx",
 				 (l >> OP_SH_CODE19) & OP_MASK_CODE19);
 	  break;
 
@@ -3675,7 +3852,7 @@ print_insn_args (d, l, pc, info)
 	     'T' format.  Therefore, until we gain understanding of
 	     cp2 register names, we can simply print the register
 	     numbers.  */
-	  (*info->fprintf_func) (info->stream, "$%d",
+	  (*info->fprintf_func) (info->stream, "$%ld",
 				 (l >> OP_SH_RT) & OP_MASK_RT);
 	  break;
 
@@ -3689,7 +3866,7 @@ print_insn_args (d, l, pc, info)
 	    (*info->fprintf_func) (info->stream, "%s",
 				   mips_cp0_names[(l >> OP_SH_RD) & OP_MASK_RD]);
 	  else
-	    (*info->fprintf_func) (info->stream, "$%d",
+	    (*info->fprintf_func) (info->stream, "$%ld",
 				   (l >> OP_SH_RD) & OP_MASK_RD);
 	  break;
 
@@ -3699,79 +3876,83 @@ print_insn_args (d, l, pc, info)
 	  break;
 
 	case 'N':
-	  (*info->fprintf_func) (info->stream, "$fcc%d",
+	  (*info->fprintf_func) (info->stream,
+				 ((opp->pinfo & (FP_D | FP_S)) != 0
+				  ? "$fcc%ld" : "$cc%ld"),
 				 (l >> OP_SH_BCC) & OP_MASK_BCC);
 	  break;
 
 	case 'M':
-	  (*info->fprintf_func) (info->stream, "$fcc%d",
+	  (*info->fprintf_func) (info->stream, "$fcc%ld",
 				 (l >> OP_SH_CCC) & OP_MASK_CCC);
 	  break;
 
 	case 'P':
-	  (*info->fprintf_func) (info->stream, "%d",
+	  (*info->fprintf_func) (info->stream, "%ld",
 				 (l >> OP_SH_PERFREG) & OP_MASK_PERFREG);
 	  break;
 
 	case 'e':
-	  (*info->fprintf_func) (info->stream, "%d",
+	  (*info->fprintf_func) (info->stream, "%ld",
 				 (l >> OP_SH_VECBYTE) & OP_MASK_VECBYTE);
 	  break;
 
 	case '%':
-	  (*info->fprintf_func) (info->stream, "%d",
+	  (*info->fprintf_func) (info->stream, "%ld",
 				 (l >> OP_SH_VECALIGN) & OP_MASK_VECALIGN);
 	  break;
 
 	case 'H':
-	  (*info->fprintf_func) (info->stream, "%d",
+	  (*info->fprintf_func) (info->stream, "%ld",
 				 (l >> OP_SH_SEL) & OP_MASK_SEL);
 	  break;
 
 	case 'O':
-	  (*info->fprintf_func) (info->stream, "%d",
+	  (*info->fprintf_func) (info->stream, "%ld",
 				 (l >> OP_SH_ALN) & OP_MASK_ALN);
 	  break;
 
 	case 'Q':
 	  {
 	    unsigned int vsel = (l >> OP_SH_VSEL) & OP_MASK_VSEL;
+
 	    if ((vsel & 0x10) == 0)
 	      {
 		int fmt;
+
 		vsel &= 0x0f;
 		for (fmt = 0; fmt < 3; fmt++, vsel >>= 1)
 		  if ((vsel & 1) == 0)
 		    break;
-		(*info->fprintf_func) (info->stream, "$v%d[%d]",
+		(*info->fprintf_func) (info->stream, "$v%ld[%d]",
 				       (l >> OP_SH_FT) & OP_MASK_FT,
 				       vsel >> 1);
 	      }
 	    else if ((vsel & 0x08) == 0)
 	      {
-		(*info->fprintf_func) (info->stream, "$v%d",
+		(*info->fprintf_func) (info->stream, "$v%ld",
 				       (l >> OP_SH_FT) & OP_MASK_FT);
 	      }
 	    else
 	      {
-		(*info->fprintf_func) (info->stream, "0x%x",
+		(*info->fprintf_func) (info->stream, "0x%lx",
 				       (l >> OP_SH_FT) & OP_MASK_FT);
 	      }
 	  }
 	  break;
 
 	case 'X':
-	  (*info->fprintf_func) (info->stream, "$v%d",
+	  (*info->fprintf_func) (info->stream, "$v%ld",
 				 (l >> OP_SH_FD) & OP_MASK_FD);
 	  break;
 
 	case 'Y':
-	  (*info->fprintf_func) (info->stream, "$v%d",
+	  (*info->fprintf_func) (info->stream, "$v%ld",
 				 (l >> OP_SH_FS) & OP_MASK_FS);
 	  break;
 
 	case 'Z':
-	  (*info->fprintf_func) (info->stream, "$v%d",
+	  (*info->fprintf_func) (info->stream, "$v%ld",
 				 (l >> OP_SH_FT) & OP_MASK_FT);
 	  break;
 
@@ -3809,12 +3990,11 @@ is_newabi (header)
    this is little-endian code.  */
 
 static int
-print_insn_mips (memaddr, word, info)
-     bfd_vma memaddr;
-     unsigned long int word;
-     struct disassemble_info *info;
+print_insn_mips (bfd_vma memaddr,
+		 unsigned long int word,
+		 struct disassemble_info *info)
 {
-  register const struct mips_opcode *op;
+  const struct mips_opcode *op;
   static bfd_boolean init = 0;
   static const struct mips_opcode *mips_hash[OP_MASK_OP + 1];
 
@@ -3827,7 +4007,8 @@ print_insn_mips (memaddr, word, info)
 	{
 	  for (op = mips_opcodes; op < &mips_opcodes[NUMOPCODES]; op++)
 	    {
-	      if (op->pinfo == INSN_MACRO)
+	      if (op->pinfo == INSN_MACRO
+		  || (no_aliases && (op->pinfo2 & INSN2_ALIAS)))
 		continue;
 	      if (i == ((op->match >> OP_SH_OP) & OP_MASK_OP))
 		{
@@ -3854,9 +4035,11 @@ print_insn_mips (memaddr, word, info)
     {
       for (; op < &mips_opcodes[NUMOPCODES]; op++)
 	{
-	  if (op->pinfo != INSN_MACRO && (word & op->mask) == op->match)
+	  if (op->pinfo != INSN_MACRO
+	      && !(no_aliases && (op->pinfo2 & INSN2_ALIAS))
+	      && (word & op->mask) == op->match)
 	    {
-	      register const char *d;
+	      const char *d;
 
 	      /* We always allow to disassemble the jalx instruction.  */
 	      if (! OPCODE_IS_MEMBER (op, mips_isa, mips_processor)
@@ -3891,7 +4074,7 @@ print_insn_mips (memaddr, word, info)
 	      if (d != NULL && *d != '\0')
 		{
 		  (*info->fprintf_func) (info->stream, "\t");
-		  print_insn_args (d, word, memaddr, info);
+		  print_insn_args (d, word, memaddr, info, op);
 		}
 
 	      return INSNLEN;
@@ -3901,7 +4084,7 @@ print_insn_mips (memaddr, word, info)
 
   /* Handle undefined instructions.  */
   info->insn_type = dis_noninsn;
-  (*info->fprintf_func) (info->stream, "0x%x", word);
+  (*info->fprintf_func) (info->stream, "0x%lx", word);
   return INSNLEN;
 }
 
@@ -3912,10 +4095,9 @@ print_insn_mips (memaddr, word, info)
    this works.  Otherwise, we need a clue.  Sometimes.  */
 
 static int
-_print_insn_mips (memaddr, info, endianness)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
-     enum bfd_endian endianness;
+_print_insn_mips (bfd_vma memaddr,
+		  struct disassemble_info *info,
+		  enum bfd_endian endianness)
 {
   bfd_byte buffer[INSNLEN];
   int status;
@@ -3961,17 +4143,13 @@ _print_insn_mips (memaddr, info, endianness)
 }
 
 int
-print_insn_big_mips (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_big_mips (bfd_vma memaddr, struct disassemble_info *info)
 {
   return _print_insn_mips (memaddr, info, BFD_ENDIAN_BIG);
 }
 
 int
-print_insn_little_mips (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_little_mips (bfd_vma memaddr, struct disassemble_info *info)
 {
   return _print_insn_mips (memaddr, info, BFD_ENDIAN_LITTLE);
 }
@@ -3979,9 +4157,7 @@ print_insn_little_mips (memaddr, info)
 /* Disassemble mips16 instructions.  */
 #if 0
 static int
-print_insn_mips16 (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
 {
   int status;
   bfd_byte buffer[2];
@@ -4054,7 +4230,9 @@ print_insn_mips16 (memaddr, info)
   opend = mips16_opcodes + bfd_mips16_num_opcodes;
   for (op = mips16_opcodes; op < opend; op++)
     {
-      if (op->pinfo != INSN_MACRO && (insn & op->mask) == op->match)
+      if (op->pinfo != INSN_MACRO
+	  && !(no_aliases && (op->pinfo2 & INSN2_ALIAS))
+	  && (insn & op->mask) == op->match)
 	{
 	  const char *s;
 
@@ -4135,14 +4313,13 @@ print_insn_mips16 (memaddr, info)
 /* Disassemble an operand for a mips16 instruction.  */
 
 static void
-print_mips16_insn_arg (type, op, l, use_extend, extend, memaddr, info)
-     char type;
-     const struct mips_opcode *op;
-     int l;
-     bfd_boolean use_extend;
-     int extend;
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_mips16_insn_arg (char type,
+		       const struct mips_opcode *op,
+		       int l,
+		       bfd_boolean use_extend,
+		       int extend,
+		       bfd_vma memaddr,
+		       struct disassemble_info *info)
 {
   switch (type)
     {
@@ -4155,27 +4332,27 @@ print_mips16_insn_arg (type, op, l, use_extend, extend, memaddr, info)
     case 'y':
     case 'w':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_RY)
-					       & MIPS16OP_MASK_RY)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_RY)
+					       & MIPS16OP_MASK_RY)));
       break;
 
     case 'x':
     case 'v':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_RX)
-					       & MIPS16OP_MASK_RX)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_RX)
+					       & MIPS16OP_MASK_RX)));
       break;
 
     case 'z':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_RZ)
-					       & MIPS16OP_MASK_RZ)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_RZ)
+					       & MIPS16OP_MASK_RZ)));
       break;
 
     case 'Z':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_MOVE32Z)
-					       & MIPS16OP_MASK_MOVE32Z)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_MOVE32Z)
+					       & MIPS16OP_MASK_MOVE32Z)));
       break;
 
     case '0':
@@ -4457,15 +4634,26 @@ print_mips16_insn_arg (type, op, l, use_extend, extend, memaddr, info)
 		  }
 	      }
 	    info->target = (baseaddr & ~((1 << shift) - 1)) + immed;
+	    if (pcrel && branch
+		&& info->flavour == bfd_target_unknown_flavour)
+	      /* For gdb disassembler, maintain odd address.  */
+	      info->target |= 1;
 	    (*info->print_address_func) (info->target, info);
 	  }
       }
       break;
 
     case 'a':
-      if (! use_extend)
-	extend = 0;
-      l = ((l & 0x1f) << 23) | ((l & 0x3e0) << 13) | (extend << 2);
+      {
+	int jalx = l & 0x400;
+
+	if (! use_extend)
+	  extend = 0;
+	l = ((l & 0x1f) << 23) | ((l & 0x3e0) << 13) | (extend << 2);
+	if (!jalx && info->flavour == bfd_target_unknown_flavour)
+	  /* For gdb disassembler, maintain odd address.  */
+	  l |= 1;
+      }
       info->target = ((memaddr + 4) & ~(bfd_vma) 0x0fffffff) | l;
       (*info->print_address_func) (info->target, info);
       info->insn_type = dis_jsr;
@@ -4528,6 +4716,92 @@ print_mips16_insn_arg (type, op, l, use_extend, extend, memaddr, info)
       }
       break;
 
+    case 'm':
+    case 'M':
+      /* MIPS16e save/restore.  */
+      {
+      int need_comma = 0;
+      int amask, args, statics;
+      int nsreg, smask;
+      int framesz;
+      int i, j;
+
+      l = l & 0x7f;
+      if (use_extend)
+        l |= extend << 16;
+
+      amask = (l >> 16) & 0xf;
+      if (amask == MIPS16_ALL_ARGS)
+        {
+          args = 4;
+          statics = 0;
+        }
+      else if (amask == MIPS16_ALL_STATICS)
+        {
+          args = 0;
+          statics = 4;
+        }
+      else
+        {
+          args = amask >> 2;
+          statics = amask & 3;
+        }
+
+      if (args > 0) {
+          (*info->fprintf_func) (info->stream, "%s", mips_gpr_names[4]);
+          if (args > 1)
+            (*info->fprintf_func) (info->stream, "-%s",
+                                   mips_gpr_names[4 + args - 1]);
+          need_comma = 1;
+      }
+
+      framesz = (((l >> 16) & 0xf0) | (l & 0x0f)) * 8;
+      if (framesz == 0 && !use_extend)
+        framesz = 128;
+
+      (*info->fprintf_func) (info->stream, "%s%d",
+                             need_comma ? "," : "",
+                             framesz);
+
+      if (l & 0x40)                   /* $ra */
+        (*info->fprintf_func) (info->stream, ",%s", mips_gpr_names[31]);
+
+      nsreg = (l >> 24) & 0x7;
+      smask = 0;
+      if (l & 0x20)                   /* $s0 */
+        smask |= 1 << 0;
+      if (l & 0x10)                   /* $s1 */
+        smask |= 1 << 1;
+      if (nsreg > 0)                  /* $s2-$s8 */
+        smask |= ((1 << nsreg) - 1) << 2;
+
+      /* Find first set static reg bit.  */
+      for (i = 0; i < 9; i++)
+        {
+          if (smask & (1 << i))
+            {
+              (*info->fprintf_func) (info->stream, ",%s",
+                                     mips_gpr_names[i == 8 ? 30 : (16 + i)]);
+              /* Skip over string of set bits.  */
+              for (j = i; smask & (2 << j); j++)
+                continue;
+              if (j > i)
+                (*info->fprintf_func) (info->stream, "-%s",
+                                       mips_gpr_names[j == 8 ? 30 : (16 + j)]);
+              i = j + 1;
+            }
+        }
+
+      /* Statics $ax - $a3.  */
+      if (statics == 1)
+        (*info->fprintf_func) (info->stream, ",%s", mips_gpr_names[7]);
+      else if (statics > 0)
+        (*info->fprintf_func) (info->stream, ",%s-%s",
+                               mips_gpr_names[7 - statics + 1],
+                               mips_gpr_names[7]);
+      }
+      break;
+
     default:
       /* xgettext:c-format */
       (*info->fprintf_func)
@@ -4540,8 +4814,7 @@ print_mips16_insn_arg (type, op, l, use_extend, extend, memaddr, info)
 #endif
 
 void
-print_mips_disassembler_options (stream)
-     FILE *stream;
+print_mips_disassembler_options (FILE *stream)
 {
   unsigned int i;
 

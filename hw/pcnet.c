@@ -35,8 +35,6 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-/* TODO: remove little endian host assumptions */
- 
 #include "vl.h"
 
 //#define PCNET_DEBUG
@@ -2011,6 +2009,12 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 
 #if defined (TARGET_SPARC) && !defined(TARGET_SPARC64) // Avoid compile failure
 
+static void parent_lance_reset(void *opaque, int irq, int level)
+{
+    if (level)
+        pcnet_h_reset(opaque);
+}
+
 static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
@@ -2047,7 +2051,7 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
 };
 
 void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
-                 qemu_irq irq)
+                qemu_irq irq, qemu_irq *reset)
 {
     PCNetState *d;
     int lance_io_memory;
@@ -2060,7 +2064,8 @@ void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
         cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);
 
     d->dma_opaque = dma_opaque;
-    sparc32_dma_set_reset_data(dma_opaque, pcnet_h_reset, d);
+
+    *reset = *qemu_allocate_irqs(parent_lance_reset, d, 1);
 
     cpu_register_physical_memory(leaddr, 4, lance_io_memory);
 
