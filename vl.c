@@ -56,6 +56,7 @@
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
+#include <linux/hpet.h>
 #include <linux/ppdev.h>
 #include <linux/parport.h>
 #else
@@ -809,6 +810,9 @@ static void unix_stop_timer(struct qemu_alarm_timer *t);
 
 #ifdef __linux__
 
+static int hpet_start_timer(struct qemu_alarm_timer *t);
+static void hpet_stop_timer(struct qemu_alarm_timer *t);
+
 static int rtc_start_timer(struct qemu_alarm_timer *t);
 static void rtc_stop_timer(struct qemu_alarm_timer *t);
 
@@ -818,7 +822,9 @@ static void rtc_stop_timer(struct qemu_alarm_timer *t);
 
 static struct qemu_alarm_timer alarm_timers[] = {
 #ifdef __linux__
-    /* RTC - if available - is preferred */
+    /* HPET - if available - is preferred */
+    {"hpet", hpet_start_timer, hpet_stop_timer, NULL},
+    /* ...otherwise try RTC */
     {"rtc", rtc_start_timer, rtc_stop_timer, NULL},
 #endif
 #ifndef _WIN32
@@ -1086,6 +1092,55 @@ static void enable_sigio_timer(int fd)
     sigaction(SIGIO, &act, NULL);
     fcntl(fd, F_SETFL, O_ASYNC);
     fcntl(fd, F_SETOWN, getpid());
+}
+
+static int hpet_start_timer(struct qemu_alarm_timer *t)
+{
+    struct hpet_info info;
+    int r, fd;
+
+    fd = open("/dev/hpet", O_RDONLY);
+    if (fd < 0)
+        return -1;
+
+    /* Set frequency */
+    r = ioctl(fd, HPET_IRQFREQ, RTC_FREQ);
+    if (r < 0) {
+        fprintf(stderr, "Could not configure '/dev/hpet' to have a 1024Hz timer. This is not a fatal\n"
+                "error, but for better emulation accuracy type:\n"
+                "'echo 1024 > /proc/sys/dev/hpet/max-user-freq' as root.\n");
+        goto fail;
+    }
+
+    /* Check capabilities */
+    r = ioctl(fd, HPET_INFO, &info);
+    if (r < 0)
+        goto fail;
+
+    /* Enable periodic mode */
+    r = ioctl(fd, HPET_EPI, 0);
+    if (info.hi_flags && (r < 0))
+        goto fail;
+
+    /* Enable interrupt */
+    r = ioctl(fd, HPET_IE_ON, 0);
+    if (r < 0)
+        goto fail;
+
+    enable_sigio_timer(fd);
+    t->priv = (void *)fd;
+
+    return 0;
+fail:
+    close(fd);
+    return -1;
+}
+
+static void hpet_stop_timer(struct qemu_alarm_timer *t)
+{
+    int fd = (int)t->priv;
+
+    close(fd);
 }
 
 static int rtc_start_timer(struct qemu_alarm_timer *t)
