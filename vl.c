@@ -1227,7 +1227,7 @@ static int win32_start_timer(struct qemu_alarm_timer *t)
     data->host_alarm = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (!data->host_alarm) {
         perror("Failed CreateEvent");
-        return -1
+        return -1;
     }
 
     memset(&tc, 0, sizeof(tc));
