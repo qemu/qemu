@@ -1128,7 +1128,7 @@ static int hpet_start_timer(struct qemu_alarm_timer *t)
         goto fail;
 
     enable_sigio_timer(fd);
-    t->priv = (void *)fd;
+    t->priv = (void *)(long)fd;
 
     return 0;
 fail:
@@ -1138,7 +1138,7 @@ fail:
 
 static void hpet_stop_timer(struct qemu_alarm_timer *t)
 {
-    int fd = (int)t->priv;
+    int fd = (long)t->priv;
 
     close(fd);
 }
@@ -1164,14 +1164,14 @@ static int rtc_start_timer(struct qemu_alarm_timer *t)
 
     enable_sigio_timer(rtc_fd);
 
-    t->priv = (void *)rtc_fd;
+    t->priv = (void *)(long)rtc_fd;
 
     return 0;
 }
 
 static void rtc_stop_timer(struct qemu_alarm_timer *t)
 {
-    int rtc_fd = (int)t->priv;
+    int rtc_fd = (long)t->priv;
 
     close(rtc_fd);
 }
