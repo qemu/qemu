@@ -1510,8 +1510,6 @@ static void init_timer_alarm(void)
     for (i = 0; alarm_timers[i].name; i++) {
         t = &alarm_timers[i];
 
-        printf("trying %s...\n", t->name);
-
         err = t->start(t);
         if (!err)
             break;
