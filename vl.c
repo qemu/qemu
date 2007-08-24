@@ -835,6 +835,71 @@ static struct qemu_alarm_timer alarm_timers[] = {
     {NULL, }
 };
 
+static void show_available_alarms()
+{
+    int i;
+
+    printf("Available alarm timers, in order of precedence:\n");
+    for (i = 0; alarm_timers[i].name; i++)
+        printf("%s\n", alarm_timers[i].name);
+}
+
+static void configure_alarms(char const *opt)
+{
+    int i;
+    int cur = 0;
+    int count = (sizeof(alarm_timers) / sizeof(*alarm_timers)) - 1;
+    char *arg;
+    char *name;
+
+    if (!strcmp(opt, "help")) {
+        show_available_alarms();
+        exit(0);
+    }
+
+    arg = strdup(opt);
+
+    /* Reorder the array */
+    name = strtok(arg, ",");
+    while (name) {
+        struct qemu_alarm_timer tmp;
+
+        for (i = 0; i < count; i++) {
+            if (!strcmp(alarm_timers[i].name, name))
+                break;
+        }
+
+        if (i == count) {
+            fprintf(stderr, "Unknown clock %s\n", name);
+            goto next;
+        }
+
+        if (i < cur)
+            /* Ignore */
+            goto next;
+
+	/* Swap */
+        tmp = alarm_timers[i];
+        alarm_timers[i] = alarm_timers[cur];
+        alarm_timers[cur] = tmp;
+
+        cur++;
+next:
+        name = strtok(NULL, ",");
+    }
+
+    free(arg);
+
+    if (cur) {
+	/* Disable remaining timers */
+        for (i = cur; i < count; i++)
+            alarm_timers[i].name = NULL;
+    }
+
+    /* debug */
+    show_available_alarms();
+}
+
 QEMUClock *rt_clock;
 QEMUClock *vm_clock;
 
@@ -6846,6 +6911,8 @@ static void help(int exitcode)
 #ifdef TARGET_SPARC
            "-prom-env variable=value  set OpenBIOS nvram variables\n"
 #endif
+           "-clock          force the use of the given methods for timer alarm.\n"
+           "                To see what timers are available use -clock help\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -6943,6 +7010,7 @@ enum {
     QEMU_OPTION_name,
     QEMU_OPTION_prom_env,
     QEMU_OPTION_old_param,
+    QEMU_OPTION_clock,
 };
 
 typedef struct QEMUOption {
@@ -7047,6 +7115,7 @@ const QEMUOption qemu_options[] = {
 #if defined(TARGET_ARM)
     { "old-param", 0, QEMU_OPTION_old_param },
 #endif
+    { "clock", HAS_ARG, QEMU_OPTION_clock },
     { NULL },
 };
 
@@ -7826,6 +7895,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_old_param:
                 old_param = 1;
 #endif
+            case QEMU_OPTION_clock:
+                configure_alarms(optarg);
+                break;
             }
         }
     }
