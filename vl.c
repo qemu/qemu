@@ -8319,7 +8319,9 @@ int main(int argc, char **argv)
         /* nearly nothing to do */
         dumb_display_init(ds);
     } else if (vnc_display != NULL) {
-        vnc_display_init(ds, vnc_display);
+        vnc_display_init(ds);
+        if (vnc_display_open(ds, vnc_display) < 0)
+            exit(1);
     } else {
 #if defined(CONFIG_SDL)
         sdl_display_init(ds, full_screen, no_frame);
