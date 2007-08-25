@@ -405,6 +405,11 @@ SOUND_HW += fmopl.o adlib.o
 endif
 AUDIODRV+= wavcapture.o
 
+ifdef CONFIG_VNC_TLS
+CPPFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
+LIBS += $(CONFIG_VNC_TLS_LIBS)
+endif
+
 VL_OBJS += i2c.o smbus.o
 
 # SCSI layer
