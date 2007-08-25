@@ -105,6 +105,14 @@ enum {
     VNC_AUTH_VENCRYPT_X509VNC = 261,
     VNC_AUTH_VENCRYPT_X509PLAIN = 262,
 };
+
+#if CONFIG_VNC_TLS
+#define X509_CA_CERT_FILE "ca-cert.pem"
+#define X509_CA_CRL_FILE "ca-crl.pem"
+#define X509_SERVER_KEY_FILE "server-key.pem"
+#define X509_SERVER_CERT_FILE "server-cert.pem"
+#endif
+
 #endif /* CONFIG_VNC_TLS */
 
 struct VncState
@@ -1377,16 +1385,60 @@ static gnutls_anon_server_credentials vnc_tls_initialize_anon_cred(void)
 }
 
 
+static gnutls_certificate_credentials_t vnc_tls_initialize_x509_cred(void)
+{
+    gnutls_certificate_credentials_t x509_cred;
+    int ret;
+    struct stat st;
+
+    if ((ret = gnutls_certificate_allocate_credentials(&x509_cred)) < 0) {
+	VNC_DEBUG("Cannot allocate credentials %s\n", gnutls_strerror(ret));
+	return NULL;
+    }
+    if ((ret = gnutls_certificate_set_x509_trust_file(x509_cred, X509_CA_CERT_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+	VNC_DEBUG("Cannot load CA certificate %s\n", gnutls_strerror(ret));
+	gnutls_certificate_free_credentials(x509_cred);
+	return NULL;
+    }
+
+    if ((ret = gnutls_certificate_set_x509_key_file (x509_cred, X509_SERVER_CERT_FILE,
+						     X509_SERVER_KEY_FILE,
+						     GNUTLS_X509_FMT_PEM)) < 0) {
+	VNC_DEBUG("Cannot load certificate & key %s\n", gnutls_strerror(ret));
+	gnutls_certificate_free_credentials(x509_cred);
+	return NULL;
+    }
+
+    if (stat(X509_CA_CRL_FILE, &st) < 0) {
+	if (errno != ENOENT) {
+	    gnutls_certificate_free_credentials(x509_cred);
+	    return NULL;
+	}
+    } else {
+	if ((ret = gnutls_certificate_set_x509_crl_file(x509_cred, X509_CA_CRL_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+	    VNC_DEBUG("Cannot load CRL %s\n", gnutls_strerror(ret));
+	    gnutls_certificate_free_credentials(x509_cred);
+	    return NULL;
+	}
+    }
+
+    gnutls_certificate_set_dh_params (x509_cred, dh_params);
+
+    return x509_cred;
+}
+
 static int start_auth_vencrypt_subauth(VncState *vs)
 {
     switch (vs->subauth) {
     case VNC_AUTH_VENCRYPT_TLSNONE:
+    case VNC_AUTH_VENCRYPT_X509NONE:
        VNC_DEBUG("Accept TLS auth none\n");
        vnc_write_u32(vs, 0); /* Accept auth completion */
        vnc_read_when(vs, protocol_client_init, 1);
        break;
 
     case VNC_AUTH_VENCRYPT_TLSVNC:
+    case VNC_AUTH_VENCRYPT_X509VNC:
        VNC_DEBUG("Start TLS auth VNC\n");
        return start_auth_vnc(vs);
 
@@ -1437,11 +1489,17 @@ static void vnc_handshake_io(void *opaque) {
     vnc_continue_handshake(vs);
 }
 
+#define NEED_X509_AUTH(vs)			      \
+    ((vs)->subauth == VNC_AUTH_VENCRYPT_X509NONE ||   \
+     (vs)->subauth == VNC_AUTH_VENCRYPT_X509VNC ||    \
+     (vs)->subauth == VNC_AUTH_VENCRYPT_X509PLAIN)
+
+
 static int vnc_start_tls(struct VncState *vs) {
     static const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
     static const int protocol_priority[]= { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
     static const int kx_anon[] = {GNUTLS_KX_ANON_DH, 0};
-    gnutls_anon_server_credentials anon_cred = NULL;
+    static const int kx_x509[] = {GNUTLS_KX_DHE_DSS, GNUTLS_KX_RSA, GNUTLS_KX_DHE_RSA, GNUTLS_KX_SRP, 0};
 
     VNC_DEBUG("Do TLS setup\n");
     if (vnc_tls_initialize() < 0) {
@@ -1462,7 +1520,7 @@ static int vnc_start_tls(struct VncState *vs) {
 	    return -1;
 	}
 
-	if (gnutls_kx_set_priority(vs->tls_session, kx_anon) < 0) {
+	if (gnutls_kx_set_priority(vs->tls_session, NEED_X509_AUTH(vs) ? kx_x509 : kx_anon) < 0) {
 	    gnutls_deinit(vs->tls_session);
 	    vs->tls_session = NULL;
 	    vnc_client_error(vs);
@@ -1483,19 +1541,36 @@ static int vnc_start_tls(struct VncState *vs) {
 	    return -1;
 	}
 
-	anon_cred = vnc_tls_initialize_anon_cred();
-	if (!anon_cred) {
-	    gnutls_deinit(vs->tls_session);
-	    vs->tls_session = NULL;
-	    vnc_client_error(vs);
-	    return -1;
-	}
-	if (gnutls_credentials_set(vs->tls_session, GNUTLS_CRD_ANON, anon_cred) < 0) {
-	    gnutls_deinit(vs->tls_session);
-	    vs->tls_session = NULL;
-	    gnutls_anon_free_server_credentials(anon_cred);
-	    vnc_client_error(vs);
-	    return -1;
+	if (NEED_X509_AUTH(vs)) {
+	    gnutls_certificate_server_credentials x509_cred = vnc_tls_initialize_x509_cred();
+	    if (!x509_cred) {
+		gnutls_deinit(vs->tls_session);
+		vs->tls_session = NULL;
+		vnc_client_error(vs);
+		return -1;
+	    }
+	    if (gnutls_credentials_set(vs->tls_session, GNUTLS_CRD_CERTIFICATE, x509_cred) < 0) {
+		gnutls_deinit(vs->tls_session);
+		vs->tls_session = NULL;
+		gnutls_certificate_free_credentials(x509_cred);
+		vnc_client_error(vs);
+		return -1;
+	    }
+	} else {
+	    gnutls_anon_server_credentials anon_cred = vnc_tls_initialize_anon_cred();
+	    if (!anon_cred) {
+		gnutls_deinit(vs->tls_session);
+		vs->tls_session = NULL;
+		vnc_client_error(vs);
+		return -1;
+	    }
+	    if (gnutls_credentials_set(vs->tls_session, GNUTLS_CRD_ANON, anon_cred) < 0) {
+		gnutls_deinit(vs->tls_session);
+		vs->tls_session = NULL;
+		gnutls_anon_free_server_credentials(anon_cred);
+		vnc_client_error(vs);
+		return -1;
+	    }
 	}
 
 	gnutls_transport_set_ptr(vs->tls_session, (gnutls_transport_ptr_t)vs);
@@ -1797,7 +1872,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     const char *options;
     int password = 0;
 #if CONFIG_VNC_TLS
-    int tls = 0;
+    int tls = 0, x509 = 0;
 #endif
 
     vnc_display_close(ds);
@@ -1815,15 +1890,22 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #if CONFIG_VNC_TLS
 	else if (strncmp(options, "tls", 3) == 0)
 	    tls = 1; /* Require TLS */
+	else if (strncmp(options, "x509", 4) == 0)
+	    x509 = 1; /* Require x509 certificates */
 #endif
     }
 
     if (password) {
 #if CONFIG_VNC_TLS
 	if (tls) {
-	    VNC_DEBUG("Initializing VNC server with TLS password auth\n");
 	    vs->auth = VNC_AUTH_VENCRYPT;
-	    vs->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
+	    if (x509) {
+		VNC_DEBUG("Initializing VNC server with x509 password auth\n");
+		vs->subauth = VNC_AUTH_VENCRYPT_X509VNC;
+	    } else {
+		VNC_DEBUG("Initializing VNC server with TLS password auth\n");
+		vs->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
+	    }
 	} else {
 #endif
 	    VNC_DEBUG("Initializing VNC server with password auth\n");
@@ -1835,9 +1917,14 @@ int vnc_display_open(DisplayState *ds, const char *display)
     } else {
 #if CONFIG_VNC_TLS
 	if (tls) {
-	    VNC_DEBUG("Initializing VNC server with TLS no auth\n");
 	    vs->auth = VNC_AUTH_VENCRYPT;
-	    vs->subauth = VNC_AUTH_VENCRYPT_TLSNONE;
+	    if (x509) {
+		VNC_DEBUG("Initializing VNC server with x509 no auth\n");
+		vs->subauth = VNC_AUTH_VENCRYPT_X509NONE;
+	    } else {
+		VNC_DEBUG("Initializing VNC server with TLS no auth\n");
+		vs->subauth = VNC_AUTH_VENCRYPT_TLSNONE;
+	    }
 	} else {
 #endif
 	    VNC_DEBUG("Initializing VNC server with no auth\n");
