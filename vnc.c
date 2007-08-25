@@ -143,6 +143,11 @@ struct VncState
 #if CONFIG_VNC_TLS
     int subauth;
     int x509verify;
+
+    char *x509cacert;
+    char *x509cacrl;
+    char *x509cert;
+    char *x509key;
 #endif
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
 
@@ -1386,37 +1391,49 @@ static gnutls_anon_server_credentials vnc_tls_initialize_anon_cred(void)
 }
 
 
-static gnutls_certificate_credentials_t vnc_tls_initialize_x509_cred(void)
+static gnutls_certificate_credentials_t vnc_tls_initialize_x509_cred(VncState *vs)
 {
     gnutls_certificate_credentials_t x509_cred;
     int ret;
-    struct stat st;
+
+    if (!vs->x509cacert) {
+	VNC_DEBUG("No CA x509 certificate specified\n");
+	return NULL;
+    }
+    if (!vs->x509cert) {
+	VNC_DEBUG("No server x509 certificate specified\n");
+	return NULL;
+    }
+    if (!vs->x509key) {
+	VNC_DEBUG("No server private key specified\n");
+	return NULL;
+    }
 
     if ((ret = gnutls_certificate_allocate_credentials(&x509_cred)) < 0) {
 	VNC_DEBUG("Cannot allocate credentials %s\n", gnutls_strerror(ret));
 	return NULL;
     }
-    if ((ret = gnutls_certificate_set_x509_trust_file(x509_cred, X509_CA_CERT_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+    if ((ret = gnutls_certificate_set_x509_trust_file(x509_cred,
+						      vs->x509cacert,
+						      GNUTLS_X509_FMT_PEM)) < 0) {
 	VNC_DEBUG("Cannot load CA certificate %s\n", gnutls_strerror(ret));
 	gnutls_certificate_free_credentials(x509_cred);
 	return NULL;
     }
 
-    if ((ret = gnutls_certificate_set_x509_key_file (x509_cred, X509_SERVER_CERT_FILE,
-						     X509_SERVER_KEY_FILE,
+    if ((ret = gnutls_certificate_set_x509_key_file (x509_cred,
+						     vs->x509cert,
+						     vs->x509key,
 						     GNUTLS_X509_FMT_PEM)) < 0) {
 	VNC_DEBUG("Cannot load certificate & key %s\n", gnutls_strerror(ret));
 	gnutls_certificate_free_credentials(x509_cred);
 	return NULL;
     }
 
-    if (stat(X509_CA_CRL_FILE, &st) < 0) {
-	if (errno != ENOENT) {
-	    gnutls_certificate_free_credentials(x509_cred);
-	    return NULL;
-	}
-    } else {
-	if ((ret = gnutls_certificate_set_x509_crl_file(x509_cred, X509_CA_CRL_FILE, GNUTLS_X509_FMT_PEM)) < 0) {
+    if (vs->x509cacrl) {
+	if ((ret = gnutls_certificate_set_x509_crl_file(x509_cred,
+							vs->x509cacrl,
+							GNUTLS_X509_FMT_PEM)) < 0) {
 	    VNC_DEBUG("Cannot load CRL %s\n", gnutls_strerror(ret));
 	    gnutls_certificate_free_credentials(x509_cred);
 	    return NULL;
@@ -1632,7 +1649,7 @@ static int vnc_start_tls(struct VncState *vs) {
 	}
 
 	if (NEED_X509_AUTH(vs)) {
-	    gnutls_certificate_server_credentials x509_cred = vnc_tls_initialize_x509_cred();
+	    gnutls_certificate_server_credentials x509_cred = vnc_tls_initialize_x509_cred(vs);
 	    if (!x509_cred) {
 		gnutls_deinit(vs->tls_session);
 		vs->tls_session = NULL;
@@ -1903,6 +1920,63 @@ void vnc_display_init(DisplayState *ds)
     vnc_dpy_resize(vs->ds, 640, 400);
 }
 
+#if CONFIG_VNC_TLS
+static int vnc_set_x509_credential(VncState *vs,
+				   const char *certdir,
+				   const char *filename,
+				   char **cred,
+				   int ignoreMissing)
+{
+    struct stat sb;
+
+    if (*cred) {
+	qemu_free(*cred);
+	*cred = NULL;
+    }
+
+    if (!(*cred = qemu_malloc(strlen(certdir) + strlen(filename) + 2)))
+	return -1;
+
+    strcpy(*cred, certdir);
+    strcat(*cred, "/");
+    strcat(*cred, filename);
+
+    VNC_DEBUG("Check %s\n", *cred);
+    if (stat(*cred, &sb) < 0) {
+	qemu_free(*cred);
+	*cred = NULL;
+	if (ignoreMissing && errno == ENOENT)
+	    return 0;
+	return -1;
+    }
+
+    return 0;
+}
+
+static int vnc_set_x509_credential_dir(VncState *vs,
+				       const char *certdir)
+{
+    if (vnc_set_x509_credential(vs, certdir, X509_CA_CERT_FILE, &vs->x509cacert, 0) < 0)
+	goto cleanup;
+    if (vnc_set_x509_credential(vs, certdir, X509_CA_CRL_FILE, &vs->x509cacrl, 1) < 0)
+	goto cleanup;
+    if (vnc_set_x509_credential(vs, certdir, X509_SERVER_CERT_FILE, &vs->x509cert, 0) < 0)
+	goto cleanup;
+    if (vnc_set_x509_credential(vs, certdir, X509_SERVER_KEY_FILE, &vs->x509key, 0) < 0)
+	goto cleanup;
+
+    return 0;
+
+ cleanup:
+    qemu_free(vs->x509cacert);
+    qemu_free(vs->x509cacrl);
+    qemu_free(vs->x509cert);
+    qemu_free(vs->x509key);
+    vs->x509cacert = vs->x509cacrl = vs->x509cert = vs->x509key = NULL;
+    return -1;
+}
+#endif /* CONFIG_VNC_TLS */
+
 void vnc_display_close(DisplayState *ds)
 {
     VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
@@ -1986,11 +2060,36 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #if CONFIG_VNC_TLS
 	} else if (strncmp(options, "tls", 3) == 0) {
 	    tls = 1; /* Require TLS */
-	} else if (strncmp(options, "x509verify", 10) == 0) {
-	    x509 = 1; /* Require x509 certificates... */
-	    vs->x509verify = 1;/* ...and verify client certs */
 	} else if (strncmp(options, "x509", 4) == 0) {
+	    char *start, *end;
 	    x509 = 1; /* Require x509 certificates */
+	    if (strncmp(options, "x509verify", 10) == 0)
+	        vs->x509verify = 1; /* ...and verify client certs */
+
+	    /* Now check for 'x509=/some/path' postfix
+	     * and use that to setup x509 certificate/key paths */
+	    start = strchr(options, '=');
+	    end = strchr(options, ',');
+	    if (start && (!end || (start < end))) {
+		int len = end ? end-(start+1) : strlen(start+1);
+		char *path = qemu_malloc(len+1);
+		strncpy(path, start+1, len);
+		path[len] = '\0';
+		VNC_DEBUG("Trying certificate path '%s'\n", path);
+		if (vnc_set_x509_credential_dir(vs, path) < 0) {
+		    fprintf(stderr, "Failed to find x509 certificates/keys in %s\n", path);
+		    qemu_free(path);
+		    qemu_free(vs->display);
+		    vs->display = NULL;
+		    return -1;
+		}
+		qemu_free(path);
+	    } else {
+		fprintf(stderr, "No certificate path provided\n");
+		qemu_free(vs->display);
+		vs->display = NULL;
+		return -1;
+	    }
 #endif
 	}
     }
