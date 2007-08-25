@@ -30,6 +30,15 @@
 
 #include "vnc_keysym.h"
 #include "keymaps.c"
+#include "d3des.h"
+
+// #define _VNC_DEBUG
+
+#ifdef _VNC_DEBUG
+#define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define VNC_DEBUG(fmt, ...) do { } while (0)
+#endif
 
 typedef struct Buffer
 {
@@ -54,6 +63,20 @@ typedef void VncSendHextileTile(VncState *vs,
 #define VNC_MAX_HEIGHT 2048
 #define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
 
+#define VNC_AUTH_CHALLENGE_SIZE 16
+
+enum {
+    VNC_AUTH_INVALID = 0,
+    VNC_AUTH_NONE = 1,
+    VNC_AUTH_VNC = 2,
+    VNC_AUTH_RA2 = 5,
+    VNC_AUTH_RA2NE = 6,
+    VNC_AUTH_TIGHT = 16,
+    VNC_AUTH_ULTRA = 17,
+    VNC_AUTH_TLS = 18,
+    VNC_AUTH_VENCRYPT = 19
+};
+
 struct VncState
 {
     QEMUTimer *timer;
@@ -73,7 +96,13 @@ struct VncState
     int last_x;
     int last_y;
 
+    int major;
+    int minor;
+
     char *display;
+    char *password;
+    int auth;
+    char challenge[VNC_AUTH_CHALLENGE_SIZE];
 
     Buffer output;
     Buffer input;
@@ -1125,23 +1154,171 @@ static int protocol_client_init(VncState *vs, char *data, size_t len)
     return 0;
 }
 
-static int protocol_version(VncState *vs, char *version, size_t len)
+static void make_challenge(VncState *vs)
 {
-    char local[13];
-    int maj, min;
+    int i;
 
-    memcpy(local, version, 12);
-    local[12] = 0;
+    srand(time(NULL)+getpid()+getpid()*987654+rand());
 
-    if (sscanf(local, "RFB %03d.%03d\n", &maj, &min) != 2) {
+    for (i = 0 ; i < sizeof(vs->challenge) ; i++)
+        vs->challenge[i] = (int) (256.0*rand()/(RAND_MAX+1.0));
+}
+
+static int protocol_client_auth_vnc(VncState *vs, char *data, size_t len)
+{
+    char response[VNC_AUTH_CHALLENGE_SIZE];
+    int i, j, pwlen;
+    char key[8];
+
+    if (!vs->password || !vs->password[0]) {
+	VNC_DEBUG("No password configured on server");
+	vnc_write_u32(vs, 1); /* Reject auth */
+	if (vs->minor >= 8) {
+	    static const char err[] = "Authentication failed";
+	    vnc_write_u32(vs, sizeof(err));
+	    vnc_write(vs, err, sizeof(err));
+	}
+	vnc_flush(vs);
 	vnc_client_error(vs);
 	return 0;
     }
 
-    vnc_write_u32(vs, 1); /* None */
+    memcpy(response, vs->challenge, VNC_AUTH_CHALLENGE_SIZE);
+
+    /* Calculate the expected challenge response */
+    pwlen = strlen(vs->password);
+    for (i=0; i<sizeof(key); i++)
+        key[i] = i<pwlen ? vs->password[i] : 0;
+    deskey(key, EN0);
+    for (j = 0; j < VNC_AUTH_CHALLENGE_SIZE; j += 8)
+        des(response+j, response+j);
+
+    /* Compare expected vs actual challenge response */
+    if (memcmp(response, data, VNC_AUTH_CHALLENGE_SIZE) != 0) {
+	VNC_DEBUG("Client challenge reponse did not match\n");
+	vnc_write_u32(vs, 1); /* Reject auth */
+	if (vs->minor >= 8) {
+	    static const char err[] = "Authentication failed";
+	    vnc_write_u32(vs, sizeof(err));
+	    vnc_write(vs, err, sizeof(err));
+	}
+	vnc_flush(vs);
+	vnc_client_error(vs);
+    } else {
+	VNC_DEBUG("Accepting VNC challenge response\n");
+	vnc_write_u32(vs, 0); /* Accept auth */
+	vnc_flush(vs);
+
+	vnc_read_when(vs, protocol_client_init, 1);
+    }
+    return 0;
+}
+
+static int start_auth_vnc(VncState *vs)
+{
+    make_challenge(vs);
+    /* Send client a 'random' challenge */
+    vnc_write(vs, vs->challenge, sizeof(vs->challenge));
     vnc_flush(vs);
 
-    vnc_read_when(vs, protocol_client_init, 1);
+    vnc_read_when(vs, protocol_client_auth_vnc, sizeof(vs->challenge));
+    return 0;
+}
+
+static int protocol_client_auth(VncState *vs, char *data, size_t len)
+{
+    /* We only advertise 1 auth scheme at a time, so client
+     * must pick the one we sent. Verify this */
+    if (data[0] != vs->auth) { /* Reject auth */
+       VNC_DEBUG("Reject auth %d\n", (int)data[0]);
+       vnc_write_u32(vs, 1);
+       if (vs->minor >= 8) {
+           static const char err[] = "Authentication failed";
+           vnc_write_u32(vs, sizeof(err));
+           vnc_write(vs, err, sizeof(err));
+       }
+       vnc_client_error(vs);
+    } else { /* Accept requested auth */
+       VNC_DEBUG("Client requested auth %d\n", (int)data[0]);
+       switch (vs->auth) {
+       case VNC_AUTH_NONE:
+           VNC_DEBUG("Accept auth none\n");
+           vnc_write_u32(vs, 0); /* Accept auth completion */
+           vnc_read_when(vs, protocol_client_init, 1);
+           break;
+
+       case VNC_AUTH_VNC:
+           VNC_DEBUG("Start VNC auth\n");
+           return start_auth_vnc(vs);
+
+       default: /* Should not be possible, but just in case */
+           VNC_DEBUG("Reject auth %d\n", vs->auth);
+           vnc_write_u8(vs, 1);
+           if (vs->minor >= 8) {
+               static const char err[] = "Authentication failed";
+               vnc_write_u32(vs, sizeof(err));
+               vnc_write(vs, err, sizeof(err));
+           }
+           vnc_client_error(vs);
+       }
+    }
+    return 0;
+}
+
+static int protocol_version(VncState *vs, char *version, size_t len)
+{
+    char local[13];
+
+    memcpy(local, version, 12);
+    local[12] = 0;
+
+    if (sscanf(local, "RFB %03d.%03d\n", &vs->major, &vs->minor) != 2) {
+	VNC_DEBUG("Malformed protocol version %s\n", local);
+	vnc_client_error(vs);
+	return 0;
+    }
+    VNC_DEBUG("Client request protocol version %d.%d\n", vs->major, vs->minor);
+    if (vs->major != 3 ||
+	(vs->minor != 3 &&
+	 vs->minor != 5 &&
+	 vs->minor != 7 &&
+	 vs->minor != 8)) {
+	VNC_DEBUG("Unsupported client version\n");
+	vnc_write_u32(vs, VNC_AUTH_INVALID);
+	vnc_flush(vs);
+	vnc_client_error(vs);
+	return 0;
+    }
+    /* Some broken client report v3.5 which spec requires to be treated
+     * as equivalent to v3.3 by servers
+     */
+    if (vs->minor == 5)
+	vs->minor = 3;
+
+    if (vs->minor == 3) {
+	if (vs->auth == VNC_AUTH_NONE) {
+            VNC_DEBUG("Tell client auth none\n");
+            vnc_write_u32(vs, vs->auth);
+            vnc_flush(vs);
+            vnc_read_when(vs, protocol_client_init, 1);
+       } else if (vs->auth == VNC_AUTH_VNC) {
+            VNC_DEBUG("Tell client VNC auth\n");
+            vnc_write_u32(vs, vs->auth);
+            vnc_flush(vs);
+            start_auth_vnc(vs);
+       } else {
+            VNC_DEBUG("Unsupported auth %d for protocol 3.3\n", vs->auth);
+            vnc_write_u32(vs, VNC_AUTH_INVALID);
+            vnc_flush(vs);
+            vnc_client_error(vs);
+       }
+    } else {
+	VNC_DEBUG("Telling client we support auth %d\n", vs->auth);
+	vnc_write_u8(vs, 1); /* num auth */
+	vnc_write_u8(vs, vs->auth);
+	vnc_read_when(vs, protocol_client_auth, 1);
+	vnc_flush(vs);
+    }
 
     return 0;
 }
@@ -1156,7 +1333,7 @@ static void vnc_listen_read(void *opaque)
     if (vs->csock != -1) {
         socket_set_nonblock(vs->csock);
 	qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, opaque);
-	vnc_write(vs, "RFB 003.003\n", 12);
+	vnc_write(vs, "RFB 003.008\n", 12);
 	vnc_flush(vs);
 	vnc_read_when(vs, protocol_version, 12);
 	memset(vs->old_data, 0, vs->ds->linesize * vs->ds->height);
@@ -1180,6 +1357,7 @@ void vnc_display_init(DisplayState *ds)
     ds->opaque = vs;
     vnc_state = vs;
     vs->display = NULL;
+    vs->password = NULL;
 
     vs->lsock = -1;
     vs->csock = -1;
@@ -1227,9 +1405,26 @@ void vnc_display_close(DisplayState *ds)
 	buffer_reset(&vs->output);
 	vs->need_update = 0;
     }
+    vs->auth = VNC_AUTH_INVALID;
 }
 
-int vnc_display_open(DisplayState *ds, const char *arg)
+int vnc_display_password(DisplayState *ds, const char *password)
+{
+    VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
+
+    if (vs->password) {
+	qemu_free(vs->password);
+	vs->password = NULL;
+    }
+    if (password && password[0]) {
+	if (!(vs->password = qemu_strdup(password)))
+	    return -1;
+    }
+
+    return 0;
+}
+
+int vnc_display_open(DisplayState *ds, const char *display)
 {
     struct sockaddr *addr;
     struct sockaddr_in iaddr;
@@ -1240,15 +1435,32 @@ int vnc_display_open(DisplayState *ds, const char *arg)
     socklen_t addrlen;
     const char *p;
     VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
+    const char *options;
+    int password = 0;
 
     vnc_display_close(ds);
-    if (strcmp(arg, "none") == 0)
+    if (strcmp(display, "none") == 0)
 	return 0;
 
-    if (!(vs->display = strdup(arg)))
+    if (!(vs->display = strdup(display)))
 	return -1;
+
+    options = display;
+    while ((options = strchr(options, ','))) {
+	options++;
+	if (strncmp(options, "password", 8) == 0)
+	    password = 1; /* Require password auth */
+    }
+
+    if (password) {
+	VNC_DEBUG("Initializing VNC server with password auth\n");
+	vs->auth = VNC_AUTH_VNC;
+    } else {
+	VNC_DEBUG("Initializing VNC server with no auth\n");
+	vs->auth = VNC_AUTH_NONE;
+    }
 #ifndef _WIN32
-    if (strstart(arg, "unix:", &p)) {
+    if (strstart(display, "unix:", &p)) {
 	addr = (struct sockaddr *)&uaddr;
 	addrlen = sizeof(uaddr);
 
@@ -1271,7 +1483,7 @@ int vnc_display_open(DisplayState *ds, const char *arg)
 	addr = (struct sockaddr *)&iaddr;
 	addrlen = sizeof(iaddr);
 
-	if (parse_host_port(&iaddr, arg) < 0) {
+	if (parse_host_port(&iaddr, display) < 0) {
 	    fprintf(stderr, "Could not parse VNC address\n");
 	    free(vs->display);
 	    vs->display = NULL;
