@@ -142,6 +142,7 @@ struct VncState
     int auth;
 #if CONFIG_VNC_TLS
     int subauth;
+    int x509verify;
 #endif
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
 
@@ -1427,6 +1428,85 @@ static gnutls_certificate_credentials_t vnc_tls_initialize_x509_cred(void)
     return x509_cred;
 }
 
+static int vnc_validate_certificate(struct VncState *vs)
+{
+    int ret;
+    unsigned int status;
+    const gnutls_datum_t *certs;
+    unsigned int nCerts, i;
+    time_t now;
+
+    VNC_DEBUG("Validating client certificate\n");
+    if ((ret = gnutls_certificate_verify_peers2 (vs->tls_session, &status)) < 0) {
+	VNC_DEBUG("Verify failed %s\n", gnutls_strerror(ret));
+	return -1;
+    }
+
+    if ((now = time(NULL)) == ((time_t)-1)) {
+	return -1;
+    }
+
+    if (status != 0) {
+	if (status & GNUTLS_CERT_INVALID)
+	    VNC_DEBUG("The certificate is not trusted.\n");
+
+	if (status & GNUTLS_CERT_SIGNER_NOT_FOUND)
+	    VNC_DEBUG("The certificate hasn't got a known issuer.\n");
+
+	if (status & GNUTLS_CERT_REVOKED)
+	    VNC_DEBUG("The certificate has been revoked.\n");
+
+	if (status & GNUTLS_CERT_INSECURE_ALGORITHM)
+	    VNC_DEBUG("The certificate uses an insecure algorithm\n");
+
+	return -1;
+    } else {
+	VNC_DEBUG("Certificate is valid!\n");
+    }
+
+    /* Only support x509 for now */
+    if (gnutls_certificate_type_get(vs->tls_session) != GNUTLS_CRT_X509)
+	return -1;
+
+    if (!(certs = gnutls_certificate_get_peers(vs->tls_session, &nCerts)))
+	return -1;
+
+    for (i = 0 ; i < nCerts ; i++) {
+	gnutls_x509_crt_t cert;
+	VNC_DEBUG ("Checking certificate chain %d\n", i);
+	if (gnutls_x509_crt_init (&cert) < 0)
+	    return -1;
+
+	if (gnutls_x509_crt_import(cert, &certs[i], GNUTLS_X509_FMT_DER) < 0) {
+	    gnutls_x509_crt_deinit (cert);
+	    return -1;
+	}
+
+	if (gnutls_x509_crt_get_expiration_time (cert) < now) {
+	    VNC_DEBUG("The certificate has expired\n");
+	    gnutls_x509_crt_deinit (cert);
+	    return -1;
+	}
+
+	if (gnutls_x509_crt_get_activation_time (cert) > now) {
+	    VNC_DEBUG("The certificate is not yet activated\n");
+	    gnutls_x509_crt_deinit (cert);
+	    return -1;
+	}
+
+	if (gnutls_x509_crt_get_activation_time (cert) > now) {
+	    VNC_DEBUG("The certificate is not yet activated\n");
+	    gnutls_x509_crt_deinit (cert);
+	    return -1;
+	}
+
+	gnutls_x509_crt_deinit (cert);
+    }
+
+    return 0;
+}
+
+
 static int start_auth_vencrypt_subauth(VncState *vs)
 {
     switch (vs->subauth) {
@@ -1473,6 +1553,16 @@ static int vnc_continue_handshake(struct VncState *vs) {
        VNC_DEBUG("Handshake failed %s\n", gnutls_strerror(ret));
        vnc_client_error(vs);
        return -1;
+    }
+
+    if (vs->x509verify) {
+	if (vnc_validate_certificate(vs) < 0) {
+	    VNC_DEBUG("Client verification failed\n");
+	    vnc_client_error(vs);
+	    return -1;
+	} else {
+	    VNC_DEBUG("Client verification passed\n");
+	}
     }
 
     VNC_DEBUG("Handshake done, switching to TLS data mode\n");
@@ -1556,6 +1646,11 @@ static int vnc_start_tls(struct VncState *vs) {
 		vnc_client_error(vs);
 		return -1;
 	    }
+	    if (vs->x509verify) {
+		VNC_DEBUG("Requesting a client certificate\n");
+		gnutls_certificate_server_set_request (vs->tls_session, GNUTLS_CERT_REQUEST);
+	    }
+
 	} else {
 	    gnutls_anon_server_credentials anon_cred = vnc_tls_initialize_anon_cred();
 	    if (!anon_cred) {
@@ -1839,6 +1934,7 @@ void vnc_display_close(DisplayState *ds)
     vs->auth = VNC_AUTH_INVALID;
 #if CONFIG_VNC_TLS
     vs->subauth = VNC_AUTH_INVALID;
+    vs->x509verify = 0;
 #endif
 }
 
@@ -1885,14 +1981,18 @@ int vnc_display_open(DisplayState *ds, const char *display)
     options = display;
     while ((options = strchr(options, ','))) {
 	options++;
-	if (strncmp(options, "password", 8) == 0)
+	if (strncmp(options, "password", 8) == 0) {
 	    password = 1; /* Require password auth */
 #if CONFIG_VNC_TLS
-	else if (strncmp(options, "tls", 3) == 0)
+	} else if (strncmp(options, "tls", 3) == 0) {
 	    tls = 1; /* Require TLS */
-	else if (strncmp(options, "x509", 4) == 0)
+	} else if (strncmp(options, "x509verify", 10) == 0) {
+	    x509 = 1; /* Require x509 certificates... */
+	    vs->x509verify = 1;/* ...and verify client certs */
+	} else if (strncmp(options, "x509", 4) == 0) {
 	    x509 = 1; /* Require x509 certificates */
 #endif
+	}
     }
 
     if (password) {
