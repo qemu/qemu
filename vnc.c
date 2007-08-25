@@ -1208,7 +1208,7 @@ void vnc_display_init(DisplayState *ds)
 
 void vnc_display_close(DisplayState *ds)
 {
-    VncState *vs = (VncState *)ds->opaque;
+    VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
 
     if (vs->display) {
 	qemu_free(vs->display);
@@ -1239,7 +1239,7 @@ int vnc_display_open(DisplayState *ds, const char *arg)
     int reuse_addr, ret;
     socklen_t addrlen;
     const char *p;
-    VncState *vs = (VncState *)ds->opaque;
+    VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
 
     vnc_display_close(ds);
     if (strcmp(arg, "none") == 0)

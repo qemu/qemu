@@ -386,7 +386,7 @@ static void do_eject(int force, const char *filename)
     eject_device(bs, force);
 }
 
-static void do_change(const char *device, const char *filename)
+static void do_change_block(const char *device, const char *filename)
 {
     BlockDriverState *bs;
 
@@ -399,6 +399,21 @@ static void do_change(const char *device, const char *filename)
         return;
     bdrv_open(bs, filename, 0);
     qemu_key_check(bs, filename);
+}
+
+static void do_change_vnc(const char *target)
+{
+    if (vnc_display_open(NULL, target) < 0)
+	term_printf("could not start VNC server on %s\n", target);
+}
+
+static void do_change(const char *device, const char *target)
+{
+    if (strcmp(device, "vnc") == 0) {
+	do_change_vnc(target);
+    } else {
+	do_change_block(device, target);
+    }
 }
 
 static void do_screen_dump(const char *filename)
