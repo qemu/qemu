@@ -692,6 +692,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         if (pci_enabled) {
             apic_init(env);
         }
+        vmport_init(env);
     }
 
     /* allocate RAM */

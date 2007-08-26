@@ -39,7 +39,6 @@
 
 #define VMMOUSE_QUEUE_SIZE	1024
 
-#define VMMOUSE_MAGIC		0x564D5868
 #define VMMOUSE_VERSION		0x3442554a
 
 #ifdef DEBUG_VMMOUSE
@@ -57,13 +56,6 @@ typedef struct _VMMouseState
     QEMUPutMouseEntry *entry;
     void *ps2_mouse;
 } VMMouseState;
-
-static uint32_t vmmouse_get_version(VMMouseState *s, uint32_t *magic)
-{
-    DPRINTF("vmmouse_get_version(%x)\n", *magic);
-    *magic = VMMOUSE_MAGIC;
-    return VMMOUSE_VERSION;
-}
 
 static uint32_t vmmouse_get_status(VMMouseState *s)
 {
@@ -201,15 +193,10 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
     uint16_t command;
 
     vmmouse_get_data(data);
-    if (data[0] != VMMOUSE_MAGIC)
-        goto error;
 
     command = data[2] & 0xFFFF;
 
     switch (command) {
-    case VMMOUSE_GETVERSION:
-        data[0] = vmmouse_get_version(s, &data[1]);
-        break;
     case VMMOUSE_STATUS:
         data[0] = vmmouse_get_status(s);
         break;
@@ -240,7 +227,6 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
         break;
     }
 
-error:
     vmmouse_set_data(data);
     return data[0];
 }
@@ -292,7 +278,9 @@ void *vmmouse_init(void *m)
     s->status = 0xffff;
     s->ps2_mouse = m;
 
-    register_ioport_read(0x5658, 1, 4, vmmouse_ioport_read, s);
+    vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
+    vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
+    vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
     register_savevm("vmmouse", 0, 0, vmmouse_save, vmmouse_load, s);
 
     return s;
