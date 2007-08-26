@@ -1061,6 +1061,12 @@ void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
 /* vmmouse.c */
 void *vmmouse_init(void *m);
 
+/* vmport.c */
+#ifdef TARGET_I386
+void vmport_init(CPUState *env);
+void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
+#endif
+
 /* pckbd.c */
 
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
