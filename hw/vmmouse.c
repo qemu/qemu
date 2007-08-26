@@ -77,21 +77,21 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
     int buttons = 0;
 
     if (s->nb_queue > (VMMOUSE_QUEUE_SIZE - 4))
-	return;
+        return;
 
     DPRINTF("vmmouse_mouse_event(%d, %d, %d, %d)\n",
-	    x, y, dz, buttons_state);
+            x, y, dz, buttons_state);
 
     if ((buttons_state & MOUSE_EVENT_LBUTTON))
-	buttons |= 0x20;
+        buttons |= 0x20;
     if ((buttons_state & MOUSE_EVENT_RBUTTON))
-	buttons |= 0x10;
+        buttons |= 0x10;
     if ((buttons_state & MOUSE_EVENT_MBUTTON))
-	buttons |= 0x08;
+        buttons |= 0x08;
 
     if (s->absolute) {
-	x <<= 1;
-	y <<= 1;
+        x <<= 1;
+        y <<= 1;
     }
 
     s->queue[s->nb_queue++] = buttons;
@@ -107,13 +107,13 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
 static void vmmouse_update_handler(VMMouseState *s)
 {
     if (s->entry) {
-	qemu_remove_mouse_event_handler(s->entry);
-	s->entry = NULL;
+        qemu_remove_mouse_event_handler(s->entry);
+        s->entry = NULL;
     }
     if (s->status == 0)
-	s->entry = qemu_add_mouse_event_handler(vmmouse_mouse_event,
-						s, s->absolute,
-						"vmmouse");
+        s->entry = qemu_add_mouse_event_handler(vmmouse_mouse_event,
+                                                s, s->absolute,
+                                                "vmmouse");
 }
 
 static void vmmouse_read_id(VMMouseState *s)
@@ -121,7 +121,7 @@ static void vmmouse_read_id(VMMouseState *s)
     DPRINTF("vmmouse_read_id()\n");
 
     if (s->nb_queue == VMMOUSE_QUEUE_SIZE)
-	return;
+        return;
 
     s->queue[s->nb_queue++] = VMMOUSE_VERSION;
     s->status = 0;
@@ -156,18 +156,18 @@ static void vmmouse_data(VMMouseState *s, uint32_t *data, uint32_t size)
     DPRINTF("vmmouse_data(%d)\n", size);
 
     if (size == 0 || size > 6 || size > s->nb_queue) {
-	printf("vmmouse: driver requested too much data %d\n", size);
-	s->status = 0xffff;
-	vmmouse_update_handler(s);
-	return;
+        printf("vmmouse: driver requested too much data %d\n", size);
+        s->status = 0xffff;
+        vmmouse_update_handler(s);
+        return;
     }
 
     for (i = 0; i < size; i++)
-	data[i] = s->queue[i];
+        data[i] = s->queue[i];
 
     s->nb_queue -= size;
     if (s->nb_queue)
-	memmove(s->queue, &s->queue[size], sizeof(s->queue[0]) * s->nb_queue);
+        memmove(s->queue, &s->queue[size], sizeof(s->queue[0]) * s->nb_queue);
 }
 
 static void vmmouse_get_data(uint32_t *data)
@@ -179,7 +179,7 @@ static void vmmouse_get_data(uint32_t *data)
     data[4] = env->regs[R_ESI]; data[5] = env->regs[R_EDI];
 
     DPRINTF("get_data = {%x, %x, %x, %x, %x, %x}\n",
-	    data[0], data[1], data[2], data[3], data[4], data[5]);
+            data[0], data[1], data[2], data[3], data[4], data[5]);
 }
 
 static void vmmouse_set_data(const uint32_t *data)
@@ -187,7 +187,7 @@ static void vmmouse_set_data(const uint32_t *data)
     CPUState *env = cpu_single_env;
 
     DPRINTF("set_data = {%x, %x, %x, %x, %x, %x}\n",
-	    data[0], data[1], data[2], data[3], data[4], data[5]);
+            data[0], data[1], data[2], data[3], data[4], data[5]);
 
     env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
     env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];
@@ -202,42 +202,42 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
 
     vmmouse_get_data(data);
     if (data[0] != VMMOUSE_MAGIC)
-	goto error;
+        goto error;
 
     command = data[2] & 0xFFFF;
 
     switch (command) {
     case VMMOUSE_GETVERSION:
-	data[0] = vmmouse_get_version(s, &data[1]);
-	break;
+        data[0] = vmmouse_get_version(s, &data[1]);
+        break;
     case VMMOUSE_STATUS:
-	data[0] = vmmouse_get_status(s);
-	break;
+        data[0] = vmmouse_get_status(s);
+        break;
     case VMMOUSE_COMMAND:
-	switch (data[1]) {
-	case VMMOUSE_DISABLE:
-	    vmmouse_disable(s);
-	    break;
-	case VMMOUSE_READ_ID:
-	    vmmouse_read_id(s);
-	    break;
-	case VMMOUSE_REQUEST_RELATIVE:
-	    vmmouse_request_relative(s);
-	    break;
-	case VMMOUSE_REQUEST_ABSOLUTE:
-	    vmmouse_request_absolute(s);
-	    break;
-	default:
-	    printf("vmmouse: unknown command %x\n", data[1]);
-	    break;
-	}
-	break;
+        switch (data[1]) {
+        case VMMOUSE_DISABLE:
+            vmmouse_disable(s);
+            break;
+        case VMMOUSE_READ_ID:
+            vmmouse_read_id(s);
+            break;
+        case VMMOUSE_REQUEST_RELATIVE:
+            vmmouse_request_relative(s);
+            break;
+        case VMMOUSE_REQUEST_ABSOLUTE:
+            vmmouse_request_absolute(s);
+            break;
+        default:
+            printf("vmmouse: unknown command %x\n", data[1]);
+            break;
+        }
+        break;
     case VMMOUSE_DATA:
-	vmmouse_data(s, data, data[1]);
-	break;
+        vmmouse_data(s, data, data[1]);
+        break;
     default:
-	printf("vmmouse: unknown command %x\n", command);
-	break;
+        printf("vmmouse: unknown command %x\n", command);
+        break;
     }
 
 error:
@@ -252,7 +252,7 @@ static void vmmouse_save(QEMUFile *f, void *opaque)
 
     qemu_put_be32(f, VMMOUSE_QUEUE_SIZE);
     for (i = 0; i < VMMOUSE_QUEUE_SIZE; i++)
-	qemu_put_be32s(f, &s->queue[i]);
+        qemu_put_be32s(f, &s->queue[i]);
     qemu_put_be16s(f, &s->nb_queue);
     qemu_put_be16s(f, &s->status);
     qemu_put_8s(f, &s->absolute);
@@ -267,9 +267,9 @@ static int vmmouse_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     if (qemu_get_be32(f) != VMMOUSE_QUEUE_SIZE)
-	return -EINVAL;
+        return -EINVAL;
     for (i = 0; i < VMMOUSE_QUEUE_SIZE; i++)
-	qemu_get_be32s(f, &s->queue[i]);
+        qemu_get_be32s(f, &s->queue[i]);
     qemu_get_be16s(f, &s->nb_queue);
     qemu_get_be16s(f, &s->status);
     qemu_get_8s(f, &s->absolute);
@@ -287,7 +287,7 @@ void *vmmouse_init(void *m)
 
     s = qemu_mallocz(sizeof(VMMouseState));
     if (!s)
-	return NULL;
+        return NULL;
 
     s->status = 0xffff;
     s->ps2_mouse = m;
