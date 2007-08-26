@@ -2225,6 +2225,8 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
 #ifdef TARGET_MIPS64
+	    if (!(ctx->hflags & MIPS_HFLAG_64))
+	        goto die;
             gen_op_mfc0_xcontext();
             rn = "XContext";
             break;
@@ -2781,6 +2783,8 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
 #ifdef TARGET_MIPS64
+	    if (!(ctx->hflags & MIPS_HFLAG_64))
+	        goto die;
             gen_op_mtc0_xcontext();
             rn = "XContext";
             break;
@@ -3331,11 +3335,9 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-#ifdef TARGET_MIPS64
             gen_op_dmfc0_xcontext();
             rn = "XContext";
             break;
-#endif
         default:
             goto die;
         }
@@ -3878,11 +3880,9 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
-#ifdef TARGET_MIPS64
             gen_op_mtc0_xcontext();
             rn = "XContext";
             break;
-#endif
         default:
             goto die;
         }
@@ -4107,6 +4107,8 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
 #ifdef TARGET_MIPS64
     case OPC_DMFC0:
+        if (!(ctx->hflags & MIPS_HFLAG_64))
+            generate_exception(ctx, EXCP_RI);
         if (rt == 0) {
             /* Treat as NOP */
             return;
@@ -4116,6 +4118,8 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         opn = "dmfc0";
         break;
     case OPC_DMTC0:
+        if (!(ctx->hflags & MIPS_HFLAG_64))
+            generate_exception(ctx, EXCP_RI);
         GEN_LOAD_REG_TN(T0, rt);
         gen_dmtc0(env,ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
@@ -6183,11 +6187,7 @@ void cpu_reset (CPUMIPSState *env)
     } else {
         env->CP0_ErrorEPC = env->PC;
     }
-#ifdef TARGET_MIPS64
-    env->hflags = MIPS_HFLAG_64;
-#else
     env->hflags = 0;
-#endif
     env->PC = (int32_t)0xBFC00000;
     env->CP0_Wired = 0;
     /* SMP not implemented */
