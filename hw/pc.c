@@ -197,6 +197,9 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
     case 'd':
         rtc_set_memory(s, 0x3d, 0x03); /* CD-ROM boot */
         break;
+    case 'n':
+        rtc_set_memory(s, 0x3d, 0x04); /* Network boot */
+        break;	
     }
 
     /* floppy type */

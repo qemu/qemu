@@ -8203,7 +8203,6 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "No valid PXE rom found for network device\n");
 	    exit(1);
 	}
-	boot_device = 'c'; /* to prevent confusion by the BIOS */
     }
 #endif
 
