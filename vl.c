@@ -1373,7 +1373,7 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
     }
 }
 
-#endif /* !defined(__linux__) */
+#endif /* defined(__linux__) */
 
 static int unix_start_timer(struct qemu_alarm_timer *t)
 {
