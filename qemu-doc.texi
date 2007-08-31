@@ -129,6 +129,7 @@ Download the experimental binary installer at
 * pcsys_network::      Network emulation
 * direct_linux_boot::  Direct Linux Boot
 * pcsys_usb::          USB emulation
+* vnc_security::       VNC security
 * gdb_usage::          GDB usage
 * pcsys_os_specific::  Target OS specific information
 @end menu
@@ -243,53 +244,6 @@ Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
 CPUs are supported.
 
-@item -nographic
-
-Normally, QEMU uses SDL to display the VGA output. With this option,
-you can totally disable graphical output so that QEMU is a simple
-command line application. The emulated serial port is redirected on
-the console. Therefore, you can still use QEMU to debug a Linux kernel
-with a serial console.
-
-@item -no-frame
-
-Do not use decorations for SDL windows and start them using the whole
-available screen space. This makes the using QEMU in a dedicated desktop
-workspace more convenient.
-
-@item -vnc display
-
-Normally, QEMU uses SDL to display the VGA output.  With this option,
-you can have QEMU listen on VNC display @var{display} and redirect the VGA
-display over the VNC session.  It is very useful to enable the usb
-tablet device when using this option (option @option{-usbdevice
-tablet}). When using the VNC display, you must use the @option{-k}
-option to set the keyboard layout if you are not using en-us.
-
-@var{display} may be in the form @var{interface:d}, in which case connections
-will only be allowed from @var{interface} on display @var{d}. Optionally,
-@var{interface} can be omitted.  @var{display} can also be in the form
-@var{unix:path} where @var{path} is the location of a unix socket to listen for
-connections on.
-
-
-@item -k language
-
-Use keyboard layout @var{language} (for example @code{fr} for
-French). This option is only needed where it is not easy to get raw PC
-keycodes (e.g. on Macs, with some X11 servers or with a VNC
-display). You don't normally need to use it on PC/Linux or PC/Windows
-hosts.
-
-The available layouts are:
-@example
-ar  de-ch  es  fo     fr-ca  hu  ja  mk     no  pt-br  sv
-da  en-gb  et  fr     fr-ch  is  lt  nl     pl  ru     th
-de  en-us  fi  fr-be  hr     it  lv  nl-be  pt  sl     tr
-@end example
-
-The default is @code{en-us}.
-
 @item -audio-help
 
 Will show the audio subsystem help: list of drivers, tunable
@@ -311,9 +265,6 @@ qemu -soundhw ?
 Set the real time clock to local time (the default is to UTC
 time). This option is needed to have correct date in MS-DOS or
 Windows.
-
-@item -full-screen
-Start in full screen.
 
 @item -pidfile file
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
@@ -337,6 +288,117 @@ things like EtherBoot.
 @item -name string
 Sets the name of the guest.  This name will be display in the SDL window
 caption.  The name will also be used for the VNC server.
+
+@end table
+
+Display options:
+@table @option
+
+@item -nographic
+
+Normally, QEMU uses SDL to display the VGA output. With this option,
+you can totally disable graphical output so that QEMU is a simple
+command line application. The emulated serial port is redirected on
+the console. Therefore, you can still use QEMU to debug a Linux kernel
+with a serial console.
+
+@item -no-frame
+
+Do not use decorations for SDL windows and start them using the whole
+available screen space. This makes the using QEMU in a dedicated desktop
+workspace more convenient.
+
+@item -full-screen
+Start in full screen.
+
+@item -vnc display[,option[,option[,...]]]
+
+Normally, QEMU uses SDL to display the VGA output.  With this option,
+you can have QEMU listen on VNC display @var{display} and redirect the VGA
+display over the VNC session.  It is very useful to enable the usb
+tablet device when using this option (option @option{-usbdevice
+tablet}). When using the VNC display, you must use the @option{-k}
+parameter to set the keyboard layout if you are not using en-us. Valid
+syntax for the @var{display} is
+
+@table @code
+
+@item @var{interface:d}
+
+TCP connections will only be allowed from @var{interface} on display @var{d}.
+By convention the TCP port is 5900+@var{d}. Optionally, @var{interface} can
+be omitted in which case the server will bind to all interfaces.
+
+@item @var{unix:path}
+
+Connections will be allowed over UNIX domain sockets where @var{path} is the
+location of a unix socket to listen for connections on.
+
+@item @var{none}
+
+VNC is initialized by not started. The monitor @code{change} command can be used
+to later start the VNC server.
+
+@end table
+
+Following the @var{display} value there may be one or more @var{option} flags
+separated by commas. Valid options are
+
+@table @code
+
+@item @var{password}
+
+Require that password based authentication is used for client connections.
+The password must be set separately using the @code{change} command in the
+@ref{pcsys_monitor}
+
+@item @var{tls}
+
+Require that client use TLS when communicating with the VNC server. This
+uses anonymous TLS credentials so is susceptible to a man-in-the-middle
+attack. It is recommended that this option be combined with either the
+@var{x509} or @var{x509verify} options.
+
+@item @var{x509=/path/to/certificate/dir}
+
+Valid if @var{tls} is specified. Require that x509 credentials are used
+for negotiating the TLS session. The server will send its x509 certificate
+to the client. It is recommended that a password be set on the VNC server
+to provide authentication of the client when this is used. The path following
+this option specifies where the x509 certificates are to be loaded from.
+See the @ref{vnc_security} section for details on generating certificates.
+
+@item @var{x509verify=/path/to/certificate/dir}
+
+Valid if @var{tls} is specified. Require that x509 credentials are used
+for negotiating the TLS session. The server will send its x509 certificate
+to the client, and request that the client send its own x509 certificate.
+The server will validate the client's certificate against the CA certificate,
+and reject clients when validation fails. If the certificate authority is
+trusted, this is a sufficient authentication mechanism. You may still wish
+to set a password on the VNC server as a second authentication layer. The
+path following this option specifies where the x509 certificates are to
+be loaded from. See the @ref{vnc_security} section for details on generating
+certificates.
+
+@end table
+
+@item -k language
+
+Use keyboard layout @var{language} (for example @code{fr} for
+French). This option is only needed where it is not easy to get raw PC
+keycodes (e.g. on Macs, with some X11 servers or with a VNC
+display). You don't normally need to use it on PC/Linux or PC/Windows
+hosts.
+
+The available layouts are:
+@example
+ar  de-ch  es  fo     fr-ca  hu  ja  mk     no  pt-br  sv
+da  en-gb  et  fr     fr-ch  is  lt  nl     pl  ru     th
+de  en-us  fi  fr-be  hr     it  lv  nl-be  pt  sl     tr
+@end example
+
+The default is @code{en-us}.
 
 @end table
 
@@ -862,8 +924,38 @@ Quit the emulator.
 @item eject [-f] device
 Eject a removable medium (use -f to force it).
 
-@item change device filename
-Change a removable medium.
+@item change device setting
+
+Change the configuration of a device
+
+@table @option
+@item change @var{diskdevice} @var{filename}
+Change the medium for a removable disk device to point to @var{filename}. eg
+
+@example
+(qemu) change cdrom /path/to/some.iso
+@end example
+
+@item change vnc @var{display,options}
+Change the configuration of the VNC server. The valid syntax for @var{display}
+and @var{options} are described at @ref{sec_invocation}. eg
+
+@example
+(qemu) change vnc localhost:1
+@end example
+
+@item change vnc password
+
+Change the password associated with the VNC server. The monitor will prompt for
+the new password to be entered. VNC passwords are only significant upto 8 letters.
+eg.
+
+@example
+(qemu) change vnc password
+Password: ********
+@end example
+
+@end table
 
 @item screendump filename
 Save screen into PPM image @var{filename}.
@@ -1422,6 +1514,213 @@ plugged. You can use the option @option{-usbdevice} to do the same.
 
 When relaunching QEMU, you may have to unplug and plug again the USB
 device to make it work again (this is a bug).
+
+@node vnc_security
+@section VNC security
+
+The VNC server capability provides access to the graphical console
+of the guest VM across the network. This has a number of security
+considerations depending on the deployment scenarios.
+
+@menu
+* vnc_sec_none::
+* vnc_sec_password::
+* vnc_sec_certificate::
+* vnc_sec_certificate_verify::
+* vnc_sec_certificate_pw::
+* vnc_generate_cert::
+@end menu
+@node vnc_sec_none
+@subsection Without passwords
+
+The simplest VNC server setup does not include any form of authentication.
+For this setup it is recommended to restrict it to listen on a UNIX domain
+socket only. For example
+
+@example
+qemu [...OPTIONS...] -vnc unix:/home/joebloggs/.qemu-myvm-vnc
+@end example
+
+This ensures that only users on local box with read/write access to that
+path can access the VNC server. To securely access the VNC server from a
+remote machine, a combination of netcat+ssh can be used to provide a secure
+tunnel.
+
+@node vnc_sec_password
+@subsection With passwords
+
+The VNC protocol has limited support for password based authentication. Since
+the protocol limits passwords to 8 characters it should not be considered
+to provide high security. The password can be fairly easily brute-forced by
+a client making repeat connections. For this reason, a VNC server using password
+authentication should be restricted to only listen on the loopback interface
+or UNIX domain sockets. Password ayuthentication is requested with the @code{password}
+option, and then once QEMU is running the password is set with the monitor. Until
+the monitor is used to set the password all clients will be rejected.
+
+@example
+qemu [...OPTIONS...] -vnc :1,password -monitor stdio
+(qemu) change vnc password
+Password: ********
+(qemu)
+@end example
+
+@node vnc_sec_certificate
+@subsection With x509 certificates
+
+The QEMU VNC server also implements the VeNCrypt extension allowing use of
+TLS for encryption of the session, and x509 certificates for authentication.
+The use of x509 certificates is strongly recommended, because TLS on its
+own is susceptible to man-in-the-middle attacks. Basic x509 certificate
+support provides a secure session, but no authentication. This allows any
+client to connect, and provides an encrypted session.
+
+@example
+qemu [...OPTIONS...] -vnc :1,tls,x509=/etc/pki/qemu -monitor stdio
+@end example
+
+In the above example @code{/etc/pki/qemu} should contain at least three files,
+@code{ca-cert.pem}, @code{server-cert.pem} and @code{server-key.pem}. Unprivileged
+users will want to use a private directory, for example @code{$HOME/.pki/qemu}.
+NB the @code{server-key.pem} file should be protected with file mode 0600 to
+only be readable by the user owning it.
+
+@node vnc_sec_certificate_verify
+@subsection With x509 certificates and client verification
+
+Certificates can also provide a means to authenticate the client connecting.
+The server will request that the client provide a certificate, which it will
+then validate against the CA certificate. This is a good choice if deploying
+in an environment with a private internal certificate authority.
+
+@example
+qemu [...OPTIONS...] -vnc :1,tls,x509verify=/etc/pki/qemu -monitor stdio
+@end example
+
+
+@node vnc_sec_certificate_pw
+@subsection With x509 certificates, client verification and passwords
+
+Finally, the previous method can be combined with VNC password authentication
+to provide two layers of authentication for clients.
+
+@example
+qemu [...OPTIONS...] -vnc :1,password,tls,x509verify=/etc/pki/qemu -monitor stdio
+(qemu) change vnc password
+Password: ********
+(qemu)
+@end example
+
+@node vnc_generate_cert
+@subsection Generating certificates for VNC
+
+The GNU TLS packages provides a command called @code{certtool} which can
+be used to generate certificates and keys in PEM format. At a minimum it
+is neccessary to setup a certificate authority, and issue certificates to
+each server. If using certificates for authentication, then each client
+will also need to be issued a certificate. The recommendation is for the
+server to keep its certificates in either @code{/etc/pki/qemu} or for
+unprivileged users in @code{$HOME/.pki/qemu}.
+
+@menu
+* vnc_generate_ca::
+* vnc_generate_server::
+* vnc_generate_client::
+@end menu
+@node vnc_generate_ca
+@subsubsection Setup the Certificate Authority
+
+This step only needs to be performed once per organization / organizational
+unit. First the CA needs a private key. This key must be kept VERY secret
+and secure. If this key is compromised the entire trust chain of the certificates
+issued with it is lost.
+
+@example
+# certtool --generate-privkey > ca-key.pem
+@end example
+
+A CA needs to have a public certificate. For simplicity it can be a self-signed
+certificate, or one issue by a commercial certificate issuing authority. To
+generate a self-signed certificate requires one core piece of information, the
+name of the organization.
+
+@example
+# cat > ca.info <<EOF
+cn = Name of your organization
+ca
+cert_signing_key
+EOF
+# certtool --generate-self-signed \
+           --load-privkey ca-key.pem
+           --template ca.info \
+           --outfile ca-cert.pem
+@end example
+
+The @code{ca-cert.pem} file should be copied to all servers and clients wishing to utilize
+TLS support in the VNC server. The @code{ca-key.pem} must not be disclosed/copied at all.
+
+@node vnc_generate_server
+@subsubsection Issuing server certificates
+
+Each server (or host) needs to be issued with a key and certificate. When connecting
+the certificate is sent to the client which validates it against the CA certificate.
+The core piece of information for a server certificate is the hostname. This should
+be the fully qualified hostname that the client will connect with, since the client
+will typically also verify the hostname in the certificate. On the host holding the
+secure CA private key:
+
+@example
+# cat > server.info <<EOF
+organization = Name  of your organization
+cn = server.foo.example.com
+tls_www_server
+encryption_key
+signing_key
+EOF
+# certtool --generate-privkey > server-key.pem
+# certtool --generate-certificate \
+           --load-ca-certificate ca-cert.pem \
+           --load-ca-privkey ca-key.pem \
+           --load-privkey server server-key.pem \
+           --template server.info \
+           --outfile server-cert.pem
+@end example
+
+The @code{server-key.pem} and @code{server-cert.pem} files should now be securely copied
+to the server for which they were generated. The @code{server-key.pem} is security
+sensitive and should be kept protected with file mode 0600 to prevent disclosure.
+
+@node vnc_generate_client
+@subsubsection Issuing client certificates
+
+If the QEMU VNC server is to use the @code{x509verify} option to validate client
+certificates as its authentication mechanism, each client also needs to be issued
+a certificate. The client certificate contains enough metadata to uniquely identify
+the client, typically organization, state, city, building, etc. On the host holding
+the secure CA private key:
+
+@example
+# cat > client.info <<EOF
+country = GB
+state = London
+locality = London
+organiazation = Name of your organization
+cn = client.foo.example.com
+tls_www_client
+encryption_key
+signing_key
+EOF
+# certtool --generate-privkey > client-key.pem
+# certtool --generate-certificate \
+           --load-ca-certificate ca-cert.pem \
+           --load-ca-privkey ca-key.pem \
+           --load-privkey client-key.pem \
+           --template client.info \
+           --outfile client-cert.pem
+@end example
+
+The @code{client-key.pem} and @code{client-cert.pem} files should now be securely
+copied to the client for which they were generated.
 
 @node gdb_usage
 @section GDB usage

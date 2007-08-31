@@ -374,6 +374,10 @@ void readline_handle_byte(int ch)
             if (!term_is_password)
                 term_hist_add(term_cmd_buf);
             term_printf("\n");
+            term_cmd_buf_index = 0;
+            term_cmd_buf_size = 0;
+            term_last_cmd_buf_index = 0;
+            term_last_cmd_buf_size = 0;
             /* NOTE: readline_start can be called here */
             term_readline_func(term_readline_opaque, term_cmd_buf);
             break;

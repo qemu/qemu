@@ -455,7 +455,6 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
 int qemu_timer_pending(QEMUTimer *ts);
 
 extern int64_t ticks_per_sec;
-extern int pit_min_timer_count;
 
 int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);
@@ -978,7 +977,10 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
 void cocoa_display_init(DisplayState *ds, int full_screen);
 
 /* vnc.c */
-void vnc_display_init(DisplayState *ds, const char *display);
+void vnc_display_init(DisplayState *ds);
+void vnc_display_close(DisplayState *ds);
+int vnc_display_open(DisplayState *ds, const char *display);
+int vnc_display_password(DisplayState *ds, const char *password);
 void do_info_vnc(void);
 
 /* x_keymap.c */
@@ -1078,6 +1080,12 @@ void pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* vmmouse.c */
 void *vmmouse_init(void *m);
+
+/* vmport.c */
+#ifdef TARGET_I386
+void vmport_init(CPUState *env);
+void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
+#endif
 
 /* pckbd.c */
 

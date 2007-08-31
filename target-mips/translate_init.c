@@ -86,7 +86,6 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
-        .SEGBITS = 32,
     },
     {
         .name = "4KEcR1",
@@ -100,7 +99,6 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
-        .SEGBITS = 32,
     },
     {
         .name = "4KEc",
@@ -114,7 +112,6 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
-        .SEGBITS = 32,
     },
     {
         .name = "24Kc",
@@ -128,7 +125,6 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .Status_rw_bitmask = 0x3278FF17,
-        .SEGBITS = 32,
     },
     {
         .name = "24Kf",
@@ -144,7 +140,6 @@ static mips_def_t mips_defs[] =
         .Status_rw_bitmask = 0x3678FF17,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
-        .SEGBITS = 32,
     },
 #ifdef TARGET_MIPS64
     {
@@ -293,8 +288,15 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->Status_rw_bitmask = def->Status_rw_bitmask;
     env->fcr0 = def->CP1_fcr0;
 #ifdef TARGET_MIPS64
-    env->SEGBITS = def->SEGBITS;
-    env->SEGMask = (3ULL << 62) | ((1ULL << def->SEGBITS) - 1);
+    if ((env->CP0_Config0 & (0x3 << CP0C0_AT)))
+    {
+        env->hflags |= MIPS_HFLAG_64;
+        env->SEGBITS = def->SEGBITS;
+        env->SEGMask = (3ULL << 62) | ((1ULL << def->SEGBITS) - 1);
+    } else {
+        env->SEGBITS = 32;
+        env->SEGMask = 0xFFFFFFFF;
+    }
 #endif
 #ifdef CONFIG_USER_ONLY
     if (env->CP0_Config1 & (1 << CP0C1_FP))
