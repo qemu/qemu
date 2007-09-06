@@ -2189,8 +2189,8 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         /* ??? is this sufficient?  */
 #elif defined(TARGET_MIPS)
         if (!newsp)
-            newsp = env->gpr[29];
-        new_env->gpr[29] = newsp;
+            newsp = env->gpr[29][env->current_tc];
+        new_env->gpr[29][env->current_tc] = newsp;
 #elif defined(TARGET_PPC)
         if (!newsp)
             newsp = env->gpr[1];
@@ -2777,7 +2777,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(pipe(host_pipe));
             if (!is_error(ret)) {
 #if defined(TARGET_MIPS)
-		((CPUMIPSState*)cpu_env)->gpr[3] = host_pipe[1];
+                CPUMIPSState *env = (CPUMIPSState*)cpu_env;
+		env->gpr[3][env->current_tc] = host_pipe[1];
 		ret = host_pipe[0];
 #else
                 tput32(arg1, host_pipe[0]);

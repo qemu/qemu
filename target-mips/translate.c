@@ -266,6 +266,8 @@ enum {
     OPC_DINSM    = 0x05 | OPC_SPECIAL3,
     OPC_DINSU    = 0x06 | OPC_SPECIAL3,
     OPC_DINS     = 0x07 | OPC_SPECIAL3,
+    OPC_FORK     = 0x08 | OPC_SPECIAL3,
+    OPC_YIELD    = 0x09 | OPC_SPECIAL3,
     OPC_BSHFL    = 0x20 | OPC_SPECIAL3,
     OPC_DBSHFL   = 0x24 | OPC_SPECIAL3,
     OPC_RDHWR    = 0x3B | OPC_SPECIAL3,
@@ -296,8 +298,10 @@ enum {
     OPC_DMFC0    = (0x01 << 21) | OPC_CP0,
     OPC_MTC0     = (0x04 << 21) | OPC_CP0,
     OPC_DMTC0    = (0x05 << 21) | OPC_CP0,
+    OPC_MFTR     = (0x08 << 21) | OPC_CP0,
     OPC_RDPGPR   = (0x0A << 21) | OPC_CP0,
     OPC_MFMC0    = (0x0B << 21) | OPC_CP0,
+    OPC_MTTR     = (0x0C << 21) | OPC_CP0,
     OPC_WRPGPR   = (0x0E << 21) | OPC_CP0,
     OPC_C0       = (0x10 << 21) | OPC_CP0,
     OPC_C0_FIRST = (0x10 << 21) | OPC_CP0,
@@ -308,6 +312,10 @@ enum {
 #define MASK_MFMC0(op)     MASK_CP0(op) | (op & 0xFFFF)
 
 enum {
+    OPC_DMT      = 0x01 | (0 << 5) | (0x0F << 6) | (0x01 << 11) | OPC_MFMC0,
+    OPC_EMT      = 0x01 | (1 << 5) | (0x0F << 6) | (0x01 << 11) | OPC_MFMC0,
+    OPC_DVPE     = 0x01 | (0 << 5) | OPC_MFMC0,
+    OPC_EVPE     = 0x01 | (1 << 5) | OPC_MFMC0,
     OPC_DI       = (0 << 5) | (0x0C << 11) | OPC_MFMC0,
     OPC_EI       = (1 << 5) | (0x0C << 11) | OPC_MFMC0,
 };
@@ -441,6 +449,10 @@ GEN32(gen_op_load_gpr_T2, gen_op_load_gpr_T2_gpr);
 GEN32(gen_op_store_T0_gpr, gen_op_store_T0_gpr_gpr);
 GEN32(gen_op_store_T1_gpr, gen_op_store_T1_gpr_gpr);
 
+/* Moves to/from shadow registers */
+GEN32(gen_op_load_srsgpr_T0, gen_op_load_srsgpr_T0_gpr);
+GEN32(gen_op_store_T0_srsgpr, gen_op_store_T0_srsgpr_gpr);
+
 static const char *fregnames[] =
     { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
       "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
@@ -569,6 +581,15 @@ do {                                                                          \
     }                                                                         \
 } while (0)
 
+#define GEN_LOAD_SRSREG_TN(Tn, Rn)                                            \
+do {                                                                          \
+    if (Rn == 0) {                                                            \
+        glue(gen_op_reset_, Tn)();                                            \
+    } else {                                                                  \
+        glue(gen_op_load_srsgpr_, Tn)(Rn);                                    \
+    }                                                                         \
+} while (0)
+
 #ifdef TARGET_MIPS64
 #define GEN_LOAD_IMM_TN(Tn, Imm)                                              \
 do {                                                                          \
@@ -595,6 +616,13 @@ do {                                                                          \
 do {                                                                          \
     if (Rn != 0) {                                                            \
         glue(glue(gen_op_store_, Tn),_gpr)(Rn);                               \
+    }                                                                         \
+} while (0)
+
+#define GEN_STORE_TN_SRSREG(Rn, Tn)                                           \
+do {                                                                          \
+    if (Rn != 0) {                                                            \
+        glue(glue(gen_op_store_, Tn),_srsgpr)(Rn);                            \
     }                                                                         \
 } while (0)
 
@@ -740,6 +768,14 @@ static inline void check_mips_r2(CPUState *env, DisasContext *ctx)
         generate_exception(ctx, EXCP_RI);
 }
 
+/* This code generates a "reserved instruction" exception if the
+   CPU is not MIPS MT capable. */
+static inline void check_mips_mt(CPUState *env, DisasContext *ctx)
+{
+    if (!(env->CP0_Config3 & (1 << CP0C3_MT)))
+        generate_exception(ctx, EXCP_RI);
+}
+
 #if defined(CONFIG_USER_ONLY)
 #define op_ldst(name)        gen_op_##name##_raw()
 #define OP_LD_TABLE(width)
@@ -806,8 +842,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         gen_op_addr_add();
     }
     /* Don't do NOP if destination is zero: we must perform the actual
-     * memory access
-     */
+       memory access. */
     switch (opc) {
 #ifdef TARGET_MIPS64
     case OPC_LWU:
@@ -958,8 +993,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         gen_op_addr_add();
     }
     /* Don't do NOP if destination is zero: we must perform the actual
-     * memory access
-     */
+       memory access. */
     switch (opc) {
     case OPC_LWC1:
         op_ldst(lwc1);
@@ -997,9 +1031,8 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
     const char *opn = "imm arith";
 
     if (rt == 0 && opc != OPC_ADDI && opc != OPC_DADDI) {
-        /* if no destination, treat it as a NOP 
-         * For addi, we must generate the overflow exception when needed.
-         */
+        /* If no destination, treat it as a NOP.
+           For addi, we must generate the overflow exception when needed. */
         MIPS_DEBUG("NOP");
         return;
     }
@@ -1175,9 +1208,8 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
 
     if (rd == 0 && opc != OPC_ADD && opc != OPC_SUB
        && opc != OPC_DADD && opc != OPC_DSUB) {
-        /* if no destination, treat it as a NOP 
-         * For add & sub, we must generate the overflow exception when needed.
-         */
+        /* If no destination, treat it as a NOP.
+           For add & sub, we must generate the overflow exception when needed. */
         MIPS_DEBUG("NOP");
         return;
     }
@@ -1324,29 +1356,29 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
     const char *opn = "hilo";
 
     if (reg == 0 && (opc == OPC_MFHI || opc == OPC_MFLO)) {
-        /* Treat as a NOP */
+        /* Treat as NOP. */
         MIPS_DEBUG("NOP");
         return;
     }
     switch (opc) {
     case OPC_MFHI:
-        gen_op_load_HI();
+        gen_op_load_HI(0);
         GEN_STORE_TN_REG(reg, T0);
         opn = "mfhi";
         break;
     case OPC_MFLO:
-        gen_op_load_LO();
+        gen_op_load_LO(0);
         GEN_STORE_TN_REG(reg, T0);
         opn = "mflo";
         break;
     case OPC_MTHI:
         GEN_LOAD_REG_TN(T0, reg);
-        gen_op_store_HI();
+        gen_op_store_HI(0);
         opn = "mthi";
         break;
     case OPC_MTLO:
         GEN_LOAD_REG_TN(T0, reg);
-        gen_op_store_LO();
+        gen_op_store_LO(0);
         opn = "mtlo";
         break;
     default:
@@ -1428,7 +1460,7 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
 {
     const char *opn = "CLx";
     if (rd == 0) {
-        /* Treat as a NOP */
+        /* Treat as NOP. */
         MIPS_DEBUG("NOP");
         return;
     }
@@ -1514,7 +1546,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
         case OPC_TLTIU: /* r0 < 0  unsigned  */
         case OPC_TNE:   /* rs != rs          */
         case OPC_TNEI:  /* r0 != 0           */
-            /* Never trap: treat as NOP */
+            /* Never trap: treat as NOP. */
             return;
         default:
             MIPS_INVAL("trap");
@@ -1674,7 +1706,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         case OPC_BNE:     /* rx != rx        */
         case OPC_BGTZ:    /* 0 > 0           */
         case OPC_BLTZ:    /* 0 < 0           */
-            /* Treated as NOP */
+            /* Treat as NOP. */
             MIPS_DEBUG("bnever (NOP)");
             return;
         case OPC_BLTZAL:  /* 0 < 0           */
@@ -1886,17 +1918,20 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-//            gen_op_mfc0_mvpcontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_mvpcontrol();
             rn = "MVPControl";
-//            break;
+            break;
         case 2:
-//            gen_op_mfc0_mvpconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_mvpconf0();
             rn = "MVPConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_mfc0_mvpconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_mvpconf1();
             rn = "MVPConf1";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -1908,33 +1943,40 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-//            gen_op_mfc0_vpecontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpecontrol();
             rn = "VPEControl";
-//            break;
+            break;
         case 2:
-//            gen_op_mfc0_vpeconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeconf0();
             rn = "VPEConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_mfc0_vpeconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeconf1();
             rn = "VPEConf1";
-//            break;
+            break;
         case 4:
-//            gen_op_mfc0_YQMask(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_yqmask();
             rn = "YQMask";
-//            break;
+            break;
         case 5:
-//            gen_op_mfc0_vpeschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeschedule();
             rn = "VPESchedule";
-//            break;
+            break;
         case 6:
-//            gen_op_mfc0_vpeschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeschefback();
             rn = "VPEScheFBack";
-//            break;
+            break;
         case 7:
-//            gen_op_mfc0_vpeopt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeopt();
             rn = "VPEOpt";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -1946,33 +1988,40 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-//            gen_op_mfc0_tcstatus(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcstatus();
             rn = "TCStatus";
-//            break;
+            break;
         case 2:
-//            gen_op_mfc0_tcbind(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcbind();
             rn = "TCBind";
-//            break;
+            break;
         case 3:
-//            gen_op_mfc0_tcrestart(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcrestart();
             rn = "TCRestart";
-//            break;
+            break;
         case 4:
-//            gen_op_mfc0_tchalt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tchalt();
             rn = "TCHalt";
-//            break;
+            break;
         case 5:
-//            gen_op_mfc0_tccontext(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tccontext();
             rn = "TCContext";
-//            break;
+            break;
         case 6:
-//            gen_op_mfc0_tcschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcschedule();
             rn = "TCSchedule";
-//            break;
+            break;
         case 7:
-//            gen_op_mfc0_tcschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcschefback();
             rn = "TCScheFBack";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -2023,25 +2072,25 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
-//            gen_op_mfc0_srsconf0(); /* shadow registers */
+            gen_op_mfc0_srsconf0();
             rn = "SRSConf0";
-//            break;
+            break;
         case 2:
-//            gen_op_mfc0_srsconf1(); /* shadow registers */
+            gen_op_mfc0_srsconf1();
             rn = "SRSConf1";
-//            break;
+            break;
         case 3:
-//            gen_op_mfc0_srsconf2(); /* shadow registers */
+            gen_op_mfc0_srsconf2();
             rn = "SRSConf2";
-//            break;
+            break;
         case 4:
-//            gen_op_mfc0_srsconf3(); /* shadow registers */
+            gen_op_mfc0_srsconf3();
             rn = "SRSConf3";
-//            break;
+            break;
         case 5:
-//            gen_op_mfc0_srsconf4(); /* shadow registers */
+            gen_op_mfc0_srsconf4();
             rn = "SRSConf4";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -2430,17 +2479,20 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-//            gen_op_mtc0_mvpcontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_mvpcontrol();
             rn = "MVPControl";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_mvpconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            /* ignored */
             rn = "MVPConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_mvpconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            /* ignored */
             rn = "MVPConf1";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -2452,33 +2504,40 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-//            gen_op_mtc0_vpecontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpecontrol();
             rn = "VPEControl";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_vpeconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeconf0();
             rn = "VPEConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_vpeconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeconf1();
             rn = "VPEConf1";
-//            break;
+            break;
         case 4:
-//            gen_op_mtc0_YQMask(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_yqmask();
             rn = "YQMask";
-//            break;
+            break;
         case 5:
-//            gen_op_mtc0_vpeschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeschedule();
             rn = "VPESchedule";
-//            break;
+            break;
         case 6:
-//            gen_op_mtc0_vpeschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeschefback();
             rn = "VPEScheFBack";
-//            break;
+            break;
         case 7:
-//            gen_op_mtc0_vpeopt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeopt();
             rn = "VPEOpt";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -2490,33 +2549,40 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-//            gen_op_mtc0_tcstatus(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcstatus();
             rn = "TCStatus";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_tcbind(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcbind();
             rn = "TCBind";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_tcrestart(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcrestart();
             rn = "TCRestart";
-//            break;
+            break;
         case 4:
-//            gen_op_mtc0_tchalt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tchalt();
             rn = "TCHalt";
-//            break;
+            break;
         case 5:
-//            gen_op_mtc0_tccontext(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tccontext();
             rn = "TCContext";
-//            break;
+            break;
         case 6:
-//            gen_op_mtc0_tcschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcschedule();
             rn = "TCSchedule";
-//            break;
+            break;
         case 7:
-//            gen_op_mtc0_tcschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcschefback();
             rn = "TCScheFBack";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -2567,25 +2633,25 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
-//            gen_op_mtc0_srsconf0(); /* shadow registers */
+            gen_op_mtc0_srsconf0();
             rn = "SRSConf0";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_srsconf1(); /* shadow registers */
+            gen_op_mtc0_srsconf1();
             rn = "SRSConf1";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_srsconf2(); /* shadow registers */
+            gen_op_mtc0_srsconf2();
             rn = "SRSConf2";
-//            break;
+            break;
         case 4:
-//            gen_op_mtc0_srsconf3(); /* shadow registers */
+            gen_op_mtc0_srsconf3();
             rn = "SRSConf3";
-//            break;
+            break;
         case 5:
-//            gen_op_mtc0_srsconf4(); /* shadow registers */
+            gen_op_mtc0_srsconf4();
             rn = "SRSConf4";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3006,17 +3072,20 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-//            gen_op_dmfc0_mvpcontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_mvpcontrol();
             rn = "MVPControl";
-//            break;
+            break;
         case 2:
-//            gen_op_dmfc0_mvpconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_mvpconf0();
             rn = "MVPConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_dmfc0_mvpconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_mvpconf1();
             rn = "MVPConf1";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3028,33 +3097,40 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-//            gen_op_dmfc0_vpecontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpecontrol();
             rn = "VPEControl";
-//            break;
+            break;
         case 2:
-//            gen_op_dmfc0_vpeconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeconf0();
             rn = "VPEConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_dmfc0_vpeconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeconf1();
             rn = "VPEConf1";
-//            break;
+            break;
         case 4:
-//            gen_op_dmfc0_YQMask(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_yqmask();
             rn = "YQMask";
-//            break;
+            break;
         case 5:
-//            gen_op_dmfc0_vpeschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_vpeschedule();
             rn = "VPESchedule";
-//            break;
+            break;
         case 6:
-//            gen_op_dmfc0_vpeschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_vpeschefback();
             rn = "VPEScheFBack";
-//            break;
+            break;
         case 7:
-//            gen_op_dmfc0_vpeopt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_vpeopt();
             rn = "VPEOpt";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3066,33 +3142,40 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-//            gen_op_dmfc0_tcstatus(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcstatus();
             rn = "TCStatus";
-//            break;
+            break;
         case 2:
-//            gen_op_dmfc0_tcbind(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mfc0_tcbind();
             rn = "TCBind";
-//            break;
+            break;
         case 3:
-//            gen_op_dmfc0_tcrestart(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_tcrestart();
             rn = "TCRestart";
-//            break;
+            break;
         case 4:
-//            gen_op_dmfc0_tchalt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_tchalt();
             rn = "TCHalt";
-//            break;
+            break;
         case 5:
-//            gen_op_dmfc0_tccontext(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_tccontext();
             rn = "TCContext";
-//            break;
+            break;
         case 6:
-//            gen_op_dmfc0_tcschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_tcschedule();
             rn = "TCSchedule";
-//            break;
+            break;
         case 7:
-//            gen_op_dmfc0_tcschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_dmfc0_tcschefback();
             rn = "TCScheFBack";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3143,25 +3226,25 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
-//            gen_op_dmfc0_srsconf0(); /* shadow registers */
+            gen_op_mfc0_srsconf0();
             rn = "SRSConf0";
-//            break;
+            break;
         case 2:
-//            gen_op_dmfc0_srsconf1(); /* shadow registers */
+            gen_op_mfc0_srsconf1();
             rn = "SRSConf1";
-//            break;
+            break;
         case 3:
-//            gen_op_dmfc0_srsconf2(); /* shadow registers */
+            gen_op_mfc0_srsconf2();
             rn = "SRSConf2";
-//            break;
+            break;
         case 4:
-//            gen_op_dmfc0_srsconf3(); /* shadow registers */
+            gen_op_mfc0_srsconf3();
             rn = "SRSConf3";
-//            break;
+            break;
         case 5:
-//            gen_op_dmfc0_srsconf4(); /* shadow registers */
+            gen_op_mfc0_srsconf4();
             rn = "SRSConf4";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3237,7 +3320,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 3:
             check_mips_r2(env, ctx);
-            gen_op_mfc0_srsmap(); /* shadow registers */
+            gen_op_mfc0_srsmap();
             rn = "SRSMap";
             break;
         default:
@@ -3537,17 +3620,20 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-//            gen_op_mtc0_mvpcontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_mvpcontrol();
             rn = "MVPControl";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_mvpconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            /* ignored */
             rn = "MVPConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_mvpconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            /* ignored */
             rn = "MVPConf1";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3559,33 +3645,40 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-//            gen_op_mtc0_vpecontrol(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpecontrol();
             rn = "VPEControl";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_vpeconf0(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeconf0();
             rn = "VPEConf0";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_vpeconf1(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeconf1();
             rn = "VPEConf1";
-//            break;
+            break;
         case 4:
-//            gen_op_mtc0_YQMask(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_yqmask();
             rn = "YQMask";
-//            break;
+            break;
         case 5:
-//            gen_op_mtc0_vpeschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeschedule();
             rn = "VPESchedule";
-//            break;
+            break;
         case 6:
-//            gen_op_mtc0_vpeschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeschefback();
             rn = "VPEScheFBack";
-//            break;
+            break;
         case 7:
-//            gen_op_mtc0_vpeopt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_vpeopt();
             rn = "VPEOpt";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3597,33 +3690,40 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-//            gen_op_mtc0_tcstatus(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcstatus();
             rn = "TCStatus";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_tcbind(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcbind();
             rn = "TCBind";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_tcrestart(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcrestart();
             rn = "TCRestart";
-//            break;
+            break;
         case 4:
-//            gen_op_mtc0_tchalt(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tchalt();
             rn = "TCHalt";
-//            break;
+            break;
         case 5:
-//            gen_op_mtc0_tccontext(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tccontext();
             rn = "TCContext";
-//            break;
+            break;
         case 6:
-//            gen_op_mtc0_tcschedule(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcschedule();
             rn = "TCSchedule";
-//            break;
+            break;
         case 7:
-//            gen_op_mtc0_tcschefback(); /* MT ASE */
+            check_mips_mt(env, ctx);
+            gen_op_mtc0_tcschefback();
             rn = "TCScheFBack";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -3674,25 +3774,25 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
-//            gen_op_mtc0_srsconf0(); /* shadow registers */
+            gen_op_mtc0_srsconf0();
             rn = "SRSConf0";
-//            break;
+            break;
         case 2:
-//            gen_op_mtc0_srsconf1(); /* shadow registers */
+            gen_op_mtc0_srsconf1();
             rn = "SRSConf1";
-//            break;
+            break;
         case 3:
-//            gen_op_mtc0_srsconf2(); /* shadow registers */
+            gen_op_mtc0_srsconf2();
             rn = "SRSConf2";
-//            break;
+            break;
         case 4:
-//            gen_op_mtc0_srsconf3(); /* shadow registers */
+            gen_op_mtc0_srsconf3();
             rn = "SRSConf3";
-//            break;
+            break;
         case 5:
-//            gen_op_mtc0_srsconf4(); /* shadow registers */
+            gen_op_mtc0_srsconf4();
             rn = "SRSConf4";
-//            break;
+            break;
         default:
             goto die;
         }
@@ -4086,6 +4186,334 @@ die:
 }
 #endif /* TARGET_MIPS64 */
 
+static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
+                     int u, int sel, int h)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    if ((env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) == 0 &&
+        ((env->CP0_TCBind[other_tc] & (0xf << CP0TCBd_CurVPE)) !=
+         (env->CP0_TCBind[env->current_tc] & (0xf << CP0TCBd_CurVPE))))
+        gen_op_set_T0(-1);
+    else if ((env->CP0_VPEControl & (0xff << CP0VPECo_TargTC)) >
+             (env->mvp->CP0_MVPConf0 & (0xff << CP0MVPC0_PTC)))
+        gen_op_set_T0(-1);
+    else if (u == 0) {
+        switch (rt) {
+        case 2:
+            switch (sel) {
+            case 1:
+                gen_op_mftc0_tcstatus();
+                break;
+            case 2:
+                gen_op_mftc0_tcbind();
+                break;
+            case 3:
+                gen_op_mftc0_tcrestart();
+                break;
+            case 4:
+                gen_op_mftc0_tchalt();
+                break;
+            case 5:
+                gen_op_mftc0_tccontext();
+                break;
+            case 6:
+                gen_op_mftc0_tcschedule();
+                break;
+            case 7:
+                gen_op_mftc0_tcschefback();
+                break;
+            default:
+                gen_mfc0(env, ctx, rt, sel);
+                break;
+            }
+            break;
+        case 10:
+            switch (sel) {
+            case 0:
+                gen_op_mftc0_entryhi();
+                break;
+            default:
+                gen_mfc0(env, ctx, rt, sel);
+                break;
+            }
+        case 12:
+            switch (sel) {
+            case 0:
+                gen_op_mftc0_status();
+                break;
+            default:
+                gen_mfc0(env, ctx, rt, sel);
+                break;
+            }
+        case 23:
+            switch (sel) {
+            case 0:
+                gen_op_mftc0_debug();
+                break;
+            default:
+                gen_mfc0(env, ctx, rt, sel);
+                break;
+            }
+            break;
+        default:
+            gen_mfc0(env, ctx, rt, sel);
+        }
+    } else switch (sel) {
+    /* GPR registers. */
+    case 0:
+        gen_op_mftgpr(rt);
+        break;
+    /* Auxiliary CPU registers */
+    case 1:
+        switch (rt) {
+        case 0:
+            gen_op_mftlo(0);
+            break;
+        case 1:
+            gen_op_mfthi(0);
+            break;
+        case 2:
+            gen_op_mftacx(0);
+            break;
+        case 4:
+            gen_op_mftlo(1);
+            break;
+        case 5:
+            gen_op_mfthi(1);
+            break;
+        case 6:
+            gen_op_mftacx(1);
+            break;
+        case 8:
+            gen_op_mftlo(2);
+            break;
+        case 9:
+            gen_op_mfthi(2);
+            break;
+        case 10:
+            gen_op_mftacx(2);
+            break;
+        case 12:
+            gen_op_mftlo(3);
+            break;
+        case 13:
+            gen_op_mfthi(3);
+            break;
+        case 14:
+            gen_op_mftacx(3);
+            break;
+        case 16:
+            gen_op_mftdsp();
+            break;
+        default:
+            goto die;
+        }
+        break;
+    /* Floating point (COP1). */
+    case 2:
+        /* XXX: For now we support only a single FPU context. */
+        if (h == 0) {
+            GEN_LOAD_FREG_FTN(WT0, rt);
+            gen_op_mfc1();
+        } else {
+            GEN_LOAD_FREG_FTN(WTH0, rt);
+            gen_op_mfhc1();
+        }
+        break;
+    case 3:
+        /* XXX: For now we support only a single FPU context. */
+        gen_op_cfc1(rt);
+        break;
+    /* COP2: Not implemented. */
+    case 4:
+    case 5:
+        /* fall through */
+    default:
+        goto die;
+    }
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "mftr (reg %d u %d sel %d h %d)\n",
+                rt, u, sel, h);
+    }
+#endif
+    return;
+
+die:
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "mftr (reg %d u %d sel %d h %d)\n",
+                rt, u, sel, h);
+    }
+#endif
+    generate_exception(ctx, EXCP_RI);
+}
+
+static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
+                     int u, int sel, int h)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    if ((env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) == 0 &&
+        ((env->CP0_TCBind[other_tc] & (0xf << CP0TCBd_CurVPE)) !=
+         (env->CP0_TCBind[env->current_tc] & (0xf << CP0TCBd_CurVPE))))
+        /* NOP */ ;
+    else if ((env->CP0_VPEControl & (0xff << CP0VPECo_TargTC)) >
+             (env->mvp->CP0_MVPConf0 & (0xff << CP0MVPC0_PTC)))
+        /* NOP */ ;
+    else if (u == 0) {
+        switch (rd) {
+        case 2:
+            switch (sel) {
+            case 1:
+                gen_op_mttc0_tcstatus();
+                break;
+            case 2:
+                gen_op_mttc0_tcbind();
+                break;
+            case 3:
+                gen_op_mttc0_tcrestart();
+                break;
+            case 4:
+                gen_op_mttc0_tchalt();
+                break;
+            case 5:
+                gen_op_mttc0_tccontext();
+                break;
+            case 6:
+                gen_op_mttc0_tcschedule();
+                break;
+            case 7:
+                gen_op_mttc0_tcschefback();
+                break;
+            default:
+                gen_mtc0(env, ctx, rd, sel);
+                break;
+            }
+            break;
+        case 10:
+            switch (sel) {
+            case 0:
+                gen_op_mttc0_entryhi();
+                break;
+            default:
+                gen_mtc0(env, ctx, rd, sel);
+                break;
+            }
+        case 12:
+            switch (sel) {
+            case 0:
+                gen_op_mttc0_status();
+                break;
+            default:
+                gen_mtc0(env, ctx, rd, sel);
+                break;
+            }
+        case 23:
+            switch (sel) {
+            case 0:
+                gen_op_mttc0_debug();
+                break;
+            default:
+                gen_mtc0(env, ctx, rd, sel);
+                break;
+            }
+            break;
+        default:
+            gen_mtc0(env, ctx, rd, sel);
+        }
+    } else switch (sel) {
+    /* GPR registers. */
+    case 0:
+        gen_op_mttgpr(rd);
+        break;
+    /* Auxiliary CPU registers */
+    case 1:
+        switch (rd) {
+        case 0:
+            gen_op_mttlo(0);
+            break;
+        case 1:
+            gen_op_mtthi(0);
+            break;
+        case 2:
+            gen_op_mttacx(0);
+            break;
+        case 4:
+            gen_op_mttlo(1);
+            break;
+        case 5:
+            gen_op_mtthi(1);
+            break;
+        case 6:
+            gen_op_mttacx(1);
+            break;
+        case 8:
+            gen_op_mttlo(2);
+            break;
+        case 9:
+            gen_op_mtthi(2);
+            break;
+        case 10:
+            gen_op_mttacx(2);
+            break;
+        case 12:
+            gen_op_mttlo(3);
+            break;
+        case 13:
+            gen_op_mtthi(3);
+            break;
+        case 14:
+            gen_op_mttacx(3);
+            break;
+        case 16:
+            gen_op_mttdsp();
+            break;
+        default:
+            goto die;
+        }
+        break;
+    /* Floating point (COP1). */
+    case 2:
+        /* XXX: For now we support only a single FPU context. */
+        if (h == 0) {
+            gen_op_mtc1();
+            GEN_STORE_FTN_FREG(rd, WT0);
+        } else {
+            gen_op_mthc1();
+            GEN_STORE_FTN_FREG(rd, WTH0);
+        }
+        break;
+    case 3:
+        /* XXX: For now we support only a single FPU context. */
+        gen_op_ctc1(rd);
+        break;
+    /* COP2: Not implemented. */
+    case 4:
+    case 5:
+        /* fall through */
+    default:
+        goto die;
+    }
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "mttr (reg %d u %d sel %d h %d)\n",
+                rd, u, sel, h);
+    }
+#endif
+    return;
+
+die:
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "mttr (reg %d u %d sel %d h %d)\n",
+                rd, u, sel, h);
+    }
+#endif
+    generate_exception(ctx, EXCP_RI);
+}
+
 static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
     const char *opn = "ldst";
@@ -4093,7 +4521,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
     switch (opc) {
     case OPC_MFC0:
         if (rt == 0) {
-            /* Treat as NOP */
+            /* Treat as NOP. */
             return;
         }
         gen_mfc0(env, ctx, rd, ctx->opcode & 0x7);
@@ -4110,7 +4538,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         if (!(ctx->hflags & MIPS_HFLAG_64))
             generate_exception(ctx, EXCP_RI);
         if (rt == 0) {
-            /* Treat as NOP */
+            /* Treat as NOP. */
             return;
         }
         gen_dmfc0(env, ctx, rd, ctx->opcode & 0x7);
@@ -4121,31 +4549,49 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         if (!(ctx->hflags & MIPS_HFLAG_64))
             generate_exception(ctx, EXCP_RI);
         GEN_LOAD_REG_TN(T0, rt);
-        gen_dmtc0(env,ctx, rd, ctx->opcode & 0x7);
+        gen_dmtc0(env, ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
         break;
 #endif
+    case OPC_MFTR:
+        check_mips_mt(env, ctx);
+        if (rd == 0) {
+            /* Treat as NOP. */
+            return;
+        }
+        gen_mftr(env, ctx, rt, (ctx->opcode >> 5) & 1,
+                 ctx->opcode & 0x7, (ctx->opcode >> 4) & 1);
+        gen_op_store_T0_gpr(rd);
+        opn = "mftr";
+        break;
+    case OPC_MTTR:
+        check_mips_mt(env, ctx);
+        GEN_LOAD_REG_TN(T0, rt);
+        gen_mttr(env, ctx, rd, (ctx->opcode >> 5) & 1,
+                 ctx->opcode & 0x7, (ctx->opcode >> 4) & 1);
+        opn = "mttr";
+        break;
     case OPC_TLBWI:
         opn = "tlbwi";
-        if (!env->do_tlbwi)
+        if (!env->tlb->do_tlbwi)
             goto die;
         gen_op_tlbwi();
         break;
     case OPC_TLBWR:
         opn = "tlbwr";
-        if (!env->do_tlbwr)
+        if (!env->tlb->do_tlbwr)
             goto die;
         gen_op_tlbwr();
         break;
     case OPC_TLBP:
         opn = "tlbp";
-        if (!env->do_tlbp)
+        if (!env->tlb->do_tlbp)
             goto die;
         gen_op_tlbp();
         break;
     case OPC_TLBR:
         opn = "tlbr";
-        if (!env->do_tlbr)
+        if (!env->tlb->do_tlbr)
             goto die;
         gen_op_tlbr();
         break;
@@ -4263,15 +4709,13 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         opn = "mtc1";
         break;
     case OPC_CFC1:
-        GEN_LOAD_IMM_TN(T1, fs);
-        gen_op_cfc1();
+        gen_op_cfc1(fs);
         GEN_STORE_TN_REG(rt, T0);
         opn = "cfc1";
         break;
     case OPC_CTC1:
-        GEN_LOAD_IMM_TN(T1, fs);
         GEN_LOAD_REG_TN(T0, rt);
-        gen_op_ctc1();
+        gen_op_ctc1(fs);
         opn = "ctc1";
         break;
     case OPC_DMFC1:
@@ -5171,8 +5615,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         gen_op_addr_add();
     }
     /* Don't do NOP if destination is zero: we must perform the actual
-     * memory access
-     */
+       memory access. */
     switch (opc) {
     case OPC_LWXC1:
         op_ldst(lwc1);
@@ -5456,7 +5899,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 #endif
             break;
         case OPC_SYNC:
-            /* Treat as a noop. */
+            /* Treat as NOP. */
             break;
 
         case OPC_MOVCI:
@@ -5521,7 +5964,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             } else {
                 generate_exception(ctx, EXCP_DBp);
             }
-            /* Treat as a noop */
+            /* Treat as NOP. */
             break;
 #ifdef TARGET_MIPS64
         case OPC_DCLZ ... OPC_DCLO:
@@ -5586,7 +6029,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 break;
             case 29:
 #if defined (CONFIG_USER_ONLY)
-                gen_op_tls_value ();
+                gen_op_tls_value();
                 break;
 #endif
             default:            /* Invalid */
@@ -5595,6 +6038,18 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 break;
             }
             GEN_STORE_TN_REG(rt, T0);
+            break;
+        case OPC_FORK:
+            check_mips_mt(env, ctx);
+            GEN_LOAD_REG_TN(T0, rt);
+            GEN_LOAD_REG_TN(T1, rs);
+            gen_op_fork();
+            break;
+        case OPC_YIELD:
+            check_mips_mt(env, ctx);
+            GEN_LOAD_REG_TN(T0, rs);
+            gen_op_yield();
+            GEN_STORE_TN_REG(rd, T0);
             break;
 #ifdef TARGET_MIPS64
         case OPC_DEXTM ... OPC_DEXT:
@@ -5642,7 +6097,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
         case OPC_SYNCI:
             check_mips_r2(env, ctx);
-            /* treat as noop */
+            /* Treat as NOP. */
             break;
         default:            /* Invalid */
             MIPS_INVAL("regimm");
@@ -5657,6 +6112,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_MFC0:
         case OPC_MTC0:
+        case OPC_MFTR:
+        case OPC_MTTR:
 #ifdef TARGET_MIPS64
         case OPC_DMFC0:
         case OPC_DMTC0:
@@ -5670,6 +6127,22 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             check_mips_r2(env, ctx);
             op2 = MASK_MFMC0(ctx->opcode);
             switch (op2) {
+            case OPC_DMT:
+                check_mips_mt(env, ctx);
+                gen_op_dmt();
+                break;
+            case OPC_EMT:
+                check_mips_mt(env, ctx);
+                gen_op_emt();
+                break;
+            case OPC_DVPE:
+                check_mips_mt(env, ctx);
+                gen_op_dvpe();
+                break;
+            case OPC_EVPE:
+                check_mips_mt(env, ctx);
+                gen_op_evpe();
+                break;
             case OPC_DI:
                 gen_op_di();
                 /* Stop translation as we may have switched the execution mode */
@@ -5688,11 +6161,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             GEN_STORE_TN_REG(rt, T0);
             break;
         case OPC_RDPGPR:
+            check_mips_r2(env, ctx);
+            GEN_LOAD_SRSREG_TN(T0, rt);
+            GEN_STORE_TN_REG(rd, T0);
+            break;
         case OPC_WRPGPR:
             check_mips_r2(env, ctx);
-            /* Shadow registers not implemented. */
             GEN_LOAD_REG_TN(T0, rt);
-            GEN_STORE_TN_REG(rd, T0);
+            GEN_STORE_TN_SRSREG(rd, T0);
             break;
         default:
             MIPS_INVAL("cp0");
@@ -5719,10 +6195,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
          gen_ldst(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
-        /* Treat as a noop */
+        /* Treat as NOP. */
         break;
     case OPC_PREF:
-        /* Treat as a noop */
+        /* Treat as NOP. */
         break;
 
     /* Floating point (COP1). */
@@ -5807,7 +6283,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_flt3_ldst(ctx, op1, sa, rd, rs, rt);
                 break;
             case OPC_PREFX:
-                /* treat as noop */
+                /* Treat as NOP. */
                 break;
             case OPC_ALNV_PS:
             case OPC_MADD_S:
@@ -6079,13 +6555,14 @@ void fpu_dump_state(CPUState *env, FILE *f,
 
 
     fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
-                env->fcr0, env->fcr31, is_fpu64, env->fp_status, get_float_exception_flags(&env->fp_status));
-    fpu_fprintf(f, "FT0: "); printfpr(&env->ft0);
-    fpu_fprintf(f, "FT1: "); printfpr(&env->ft1);
-    fpu_fprintf(f, "FT2: "); printfpr(&env->ft2);
+                env->fpu->fcr0, env->fpu->fcr31, is_fpu64, env->fpu->fp_status,
+                get_float_exception_flags(&env->fpu->fp_status));
+    fpu_fprintf(f, "FT0: "); printfpr(&env->fpu->ft0);
+    fpu_fprintf(f, "FT1: "); printfpr(&env->fpu->ft1);
+    fpu_fprintf(f, "FT2: "); printfpr(&env->fpu->ft2);
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
-        printfpr(&env->fpr[i]);
+        printfpr(&env->fpu->fpr[i]);
     }
 
 #undef printfpr
@@ -6095,7 +6572,7 @@ void dump_fpu (CPUState *env)
 {
     if (loglevel) { 
        fprintf(logfile, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-               env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
+               env->PC[env->current_tc], env->HI[0][env->current_tc], env->LO[0][env->current_tc], env->hflags, env->btarget, env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
 }
@@ -6112,18 +6589,18 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 {
     int i;
 
-    if (!SIGN_EXT_P(env->PC))
-        cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC);
-    if (!SIGN_EXT_P(env->HI))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI);
-    if (!SIGN_EXT_P(env->LO))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO);
+    if (!SIGN_EXT_P(env->PC[env->current_tc]))
+        cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC[env->current_tc]);
+    if (!SIGN_EXT_P(env->HI[env->current_tc]))
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[env->current_tc]);
+    if (!SIGN_EXT_P(env->LO[env->current_tc]))
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[env->current_tc]);
     if (!SIGN_EXT_P(env->btarget))
         cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 
     for (i = 0; i < 32; i++) {
-        if (!SIGN_EXT_P(env->gpr[i]))
-            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[i]);
+        if (!SIGN_EXT_P(env->gpr[i][env->current_tc]))
+            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[i][env->current_tc]);
     }
 
     if (!SIGN_EXT_P(env->CP0_EPC))
@@ -6140,11 +6617,11 @@ void cpu_dump_state (CPUState *env, FILE *f,
     int i;
     
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-                env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
+                env->PC[env->current_tc], env->HI[env->current_tc], env->LO[env->current_tc], env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[i]);
+        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[i][env->current_tc]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
@@ -6183,12 +6660,12 @@ void cpu_reset (CPUMIPSState *env)
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
          * come back to the jump.  */
-        env->CP0_ErrorEPC = env->PC - 4;
+        env->CP0_ErrorEPC = env->PC[env->current_tc] - 4;
     } else {
-        env->CP0_ErrorEPC = env->PC;
+        env->CP0_ErrorEPC = env->PC[env->current_tc];
     }
     env->hflags = 0;
-    env->PC = (int32_t)0xBFC00000;
+    env->PC[env->current_tc] = (int32_t)0xBFC00000;
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;

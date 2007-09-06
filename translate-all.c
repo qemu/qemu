@@ -305,7 +305,7 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_M68K)
     env->pc = gen_opc_pc[j];
 #elif defined(TARGET_MIPS)
-    env->PC = gen_opc_pc[j];
+    env->PC[env->current_tc] = gen_opc_pc[j];
     env->hflags &= ~MIPS_HFLAG_BMASK;
     env->hflags |= gen_opc_hflags[j];
 #elif defined(TARGET_ALPHA)

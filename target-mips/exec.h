@@ -23,24 +23,24 @@ register target_ulong T2 asm(AREG3);
 #if defined (USE_HOST_FLOAT_REGS)
 #error "implement me."
 #else
-#define FDT0 (env->ft0.fd)
-#define FDT1 (env->ft1.fd)
-#define FDT2 (env->ft2.fd)
-#define FST0 (env->ft0.fs[FP_ENDIAN_IDX])
-#define FST1 (env->ft1.fs[FP_ENDIAN_IDX])
-#define FST2 (env->ft2.fs[FP_ENDIAN_IDX])
-#define FSTH0 (env->ft0.fs[!FP_ENDIAN_IDX])
-#define FSTH1 (env->ft1.fs[!FP_ENDIAN_IDX])
-#define FSTH2 (env->ft2.fs[!FP_ENDIAN_IDX])
-#define DT0 (env->ft0.d)
-#define DT1 (env->ft1.d)
-#define DT2 (env->ft2.d)
-#define WT0 (env->ft0.w[FP_ENDIAN_IDX])
-#define WT1 (env->ft1.w[FP_ENDIAN_IDX])
-#define WT2 (env->ft2.w[FP_ENDIAN_IDX])
-#define WTH0 (env->ft0.w[!FP_ENDIAN_IDX])
-#define WTH1 (env->ft1.w[!FP_ENDIAN_IDX])
-#define WTH2 (env->ft2.w[!FP_ENDIAN_IDX])
+#define FDT0 (env->fpu->ft0.fd)
+#define FDT1 (env->fpu->ft1.fd)
+#define FDT2 (env->fpu->ft2.fd)
+#define FST0 (env->fpu->ft0.fs[FP_ENDIAN_IDX])
+#define FST1 (env->fpu->ft1.fs[FP_ENDIAN_IDX])
+#define FST2 (env->fpu->ft2.fs[FP_ENDIAN_IDX])
+#define FSTH0 (env->fpu->ft0.fs[!FP_ENDIAN_IDX])
+#define FSTH1 (env->fpu->ft1.fs[!FP_ENDIAN_IDX])
+#define FSTH2 (env->fpu->ft2.fs[!FP_ENDIAN_IDX])
+#define DT0 (env->fpu->ft0.d)
+#define DT1 (env->fpu->ft1.d)
+#define DT2 (env->fpu->ft2.d)
+#define WT0 (env->fpu->ft0.w[FP_ENDIAN_IDX])
+#define WT1 (env->fpu->ft1.w[FP_ENDIAN_IDX])
+#define WT2 (env->fpu->ft2.w[FP_ENDIAN_IDX])
+#define WTH0 (env->fpu->ft0.w[!FP_ENDIAN_IDX])
+#define WTH1 (env->fpu->ft1.w[!FP_ENDIAN_IDX])
+#define WTH2 (env->fpu->ft2.w[!FP_ENDIAN_IDX])
 #endif
 
 #if defined (DEBUG_OP)
@@ -157,7 +157,8 @@ void cpu_mips_update_irq (CPUState *env);
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
 
-void do_ctc1 (void);
+void do_cfc1 (int reg);
+void do_ctc1 (int reg);
 
 #define FOP_PROTO(op)              \
 void do_float_ ## op ## _s(void);  \

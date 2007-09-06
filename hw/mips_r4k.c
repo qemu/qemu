@@ -77,7 +77,7 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
-        env->PC = entry;
+        env->PC[env->current_tc] = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 kernel_filename);

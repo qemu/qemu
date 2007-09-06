@@ -10,7 +10,7 @@ uint32_t cpu_mips_get_random (CPUState *env)
     static uint32_t seed = 0;
     uint32_t idx;
     seed = seed * 314159 + 1;
-    idx = (seed >> 16) % (env->nb_tlb - env->CP0_Wired) + env->CP0_Wired;
+    idx = (seed >> 16) % (env->tlb->nb_tlb - env->CP0_Wired) + env->CP0_Wired;
     return idx;
 }
 

@@ -254,25 +254,25 @@ void op_dup_T0 (void)
 
 void op_load_HI (void)
 {
-    T0 = env->HI;
+    T0 = env->HI[PARAM1][env->current_tc];
     RETURN();
 }
 
 void op_store_HI (void)
 {
-    env->HI = T0;
+    env->HI[PARAM1][env->current_tc] = T0;
     RETURN();
 }
 
 void op_load_LO (void)
 {
-    T0 = env->LO;
+    T0 = env->LO[PARAM1][env->current_tc];
     RETURN();
 }
 
 void op_store_LO (void)
 {
-    env->LO = T0;
+    env->LO[PARAM1][env->current_tc] = T0;
     RETURN();
 }
 
@@ -363,8 +363,8 @@ void op_div (void)
 void op_div (void)
 {
     if (T1 != 0) {
-        env->LO = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
-        env->HI = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
+        env->LO[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
+        env->HI[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
     }
     RETURN();
 }
@@ -373,8 +373,8 @@ void op_div (void)
 void op_divu (void)
 {
     if (T1 != 0) {
-        env->LO = (int32_t)((uint32_t)T0 / (uint32_t)T1);
-        env->HI = (int32_t)((uint32_t)T0 % (uint32_t)T1);
+        env->LO[0][env->current_tc] = (int32_t)((uint32_t)T0 / (uint32_t)T1);
+        env->HI[0][env->current_tc] = (int32_t)((uint32_t)T0 % (uint32_t)T1);
     }
     RETURN();
 }
@@ -442,8 +442,8 @@ void op_ddivu (void)
 void op_ddivu (void)
 {
     if (T1 != 0) {
-        env->LO = T0 / T1;
-        env->HI = T0 % T1;
+        env->LO[0][env->current_tc] = T0 / T1;
+        env->HI[0][env->current_tc] = T0 % T1;
     }
     RETURN();
 }
@@ -814,13 +814,14 @@ void op_msubu (void)
 
 static inline uint64_t get_HILO (void)
 {
-    return ((uint64_t)env->HI << 32) | ((uint64_t)(uint32_t)env->LO);
+    return ((uint64_t)env->HI[0][env->current_tc] << 32) |
+            ((uint64_t)(uint32_t)env->LO[0][env->current_tc]);
 }
 
 static inline void set_HILO (uint64_t HILO)
 {
-    env->LO = (int32_t)(HILO & 0xFFFFFFFF);
-    env->HI = (int32_t)(HILO >> 32);
+    env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
 }
 
 void op_mult (void)
@@ -875,13 +876,13 @@ void op_msubu (void)
 #ifdef TARGET_MIPS64
 void op_dmult (void)
 {
-    CALL_FROM_TB4(muls64, &(env->HI), &(env->LO), T0, T1);
+    CALL_FROM_TB4(muls64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
     RETURN();
 }
 
 void op_dmultu (void)
 {
-    CALL_FROM_TB4(mulu64, &(env->HI), &(env->LO), T0, T1);
+    CALL_FROM_TB4(mulu64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
     RETURN();
 }
 #endif
@@ -890,27 +891,27 @@ void op_dmultu (void)
 void op_movn (void)
 {
     if (T1 != 0)
-        env->gpr[PARAM1] = T0;
+        env->gpr[PARAM1][env->current_tc] = T0;
     RETURN();
 }
 
 void op_movz (void)
 {
     if (T1 == 0)
-        env->gpr[PARAM1] = T0;
+        env->gpr[PARAM1][env->current_tc] = T0;
     RETURN();
 }
 
 void op_movf (void)
 {
-    if (!(env->fcr31 & PARAM1))
+    if (!(env->fpu->fcr31 & PARAM1))
         T0 = T1;
     RETURN();
 }
 
 void op_movt (void)
 {
-    if (env->fcr31 & PARAM1)
+    if (env->fpu->fcr31 & PARAM1)
         T0 = T1;
     RETURN();
 }
@@ -966,7 +967,7 @@ void op_restore_breg_target (void)
 
 void op_breg (void)
 {
-    env->PC = T2;
+    env->PC[env->current_tc] = T2;
     RETURN();
 }
 
@@ -1017,15 +1018,173 @@ void op_mfc0_index (void)
     RETURN();
 }
 
+void op_mfc0_mvpcontrol (void)
+{
+    T0 = env->mvp->CP0_MVPControl;
+    RETURN();
+}
+
+void op_mfc0_mvpconf0 (void)
+{
+    T0 = env->mvp->CP0_MVPConf0;
+    RETURN();
+}
+
+void op_mfc0_mvpconf1 (void)
+{
+    T0 = env->mvp->CP0_MVPConf1;
+    RETURN();
+}
+
 void op_mfc0_random (void)
 {
     CALL_FROM_TB0(do_mfc0_random);
     RETURN();
 }
 
+void op_mfc0_vpecontrol (void)
+{
+    T0 = env->CP0_VPEControl;
+    RETURN();
+}
+
+void op_mfc0_vpeconf0 (void)
+{
+    T0 = env->CP0_VPEConf0;
+    RETURN();
+}
+
+void op_mfc0_vpeconf1 (void)
+{
+    T0 = env->CP0_VPEConf1;
+    RETURN();
+}
+
+void op_mfc0_yqmask (void)
+{
+    T0 = env->CP0_YQMask;
+    RETURN();
+}
+
+void op_mfc0_vpeschedule (void)
+{
+    T0 = env->CP0_VPESchedule;
+    RETURN();
+}
+
+void op_mfc0_vpeschefback (void)
+{
+    T0 = env->CP0_VPEScheFBack;
+    RETURN();
+}
+
+void op_mfc0_vpeopt (void)
+{
+    T0 = env->CP0_VPEOpt;
+    RETURN();
+}
+
 void op_mfc0_entrylo0 (void)
 {
     T0 = (int32_t)env->CP0_EntryLo0;
+    RETURN();
+}
+
+void op_mfc0_tcstatus (void)
+{
+    T0 = env->CP0_TCStatus[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tcstatus(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCStatus[other_tc];
+    RETURN();
+}
+
+void op_mfc0_tcbind (void)
+{
+    T0 = env->CP0_TCBind[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tcbind(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCBind[other_tc];
+    RETURN();
+}
+
+void op_mfc0_tcrestart (void)
+{
+    T0 = env->PC[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tcrestart(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->PC[other_tc];
+    RETURN();
+}
+
+void op_mfc0_tchalt (void)
+{
+    T0 = env->CP0_TCHalt[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tchalt(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCHalt[other_tc];
+    RETURN();
+}
+
+void op_mfc0_tccontext (void)
+{
+    T0 = env->CP0_TCContext[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tccontext(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCContext[other_tc];
+    RETURN();
+}
+
+void op_mfc0_tcschedule (void)
+{
+    T0 = env->CP0_TCSchedule[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tcschedule(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCSchedule[other_tc];
+    RETURN();
+}
+
+void op_mfc0_tcschefback (void)
+{
+    T0 = env->CP0_TCScheFBack[env->current_tc];
+    RETURN();
+}
+
+void op_mftc0_tcschefback(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCScheFBack[other_tc];
     RETURN();
 }
 
@@ -1059,6 +1218,36 @@ void op_mfc0_wired (void)
     RETURN();
 }
 
+void op_mfc0_srsconf0 (void)
+{
+    T0 = env->CP0_SRSConf0;
+    RETURN();
+}
+
+void op_mfc0_srsconf1 (void)
+{
+    T0 = env->CP0_SRSConf1;
+    RETURN();
+}
+
+void op_mfc0_srsconf2 (void)
+{
+    T0 = env->CP0_SRSConf2;
+    RETURN();
+}
+
+void op_mfc0_srsconf3 (void)
+{
+    T0 = env->CP0_SRSConf3;
+    RETURN();
+}
+
+void op_mfc0_srsconf4 (void)
+{
+    T0 = env->CP0_SRSConf4;
+    RETURN();
+}
+
 void op_mfc0_hwrena (void)
 {
     T0 = env->CP0_HWREna;
@@ -1083,6 +1272,14 @@ void op_mfc0_entryhi (void)
     RETURN();
 }
 
+void op_mftc0_entryhi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
+    RETURN();
+}
+
 void op_mfc0_compare (void)
 {
     T0 = env->CP0_Compare;
@@ -1092,6 +1289,18 @@ void op_mfc0_compare (void)
 void op_mfc0_status (void)
 {
     T0 = env->CP0_Status;
+    RETURN();
+}
+
+void op_mftc0_status(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+
+    T0 = env->CP0_Status & ~0xf1000018;
+    T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
+    T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
+    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_R0);
     RETURN();
 }
 
@@ -1211,6 +1420,17 @@ void op_mfc0_debug (void)
     RETURN();
 }
 
+void op_mftc0_debug(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    /* XXX: Might be wrong, check with EJTAG spec. */
+    T0 = (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
+         (env->CP0_Debug_tcstatus[other_tc] &
+          ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+    RETURN();
+}
+
 void op_mfc0_depc (void)
 {
     T0 = (int32_t)env->CP0_DEPC;
@@ -1261,7 +1481,105 @@ void op_mfc0_desave (void)
 
 void op_mtc0_index (void)
 {
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 % env->nb_tlb);
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 % env->tlb->nb_tlb);
+    RETURN();
+}
+
+void op_mtc0_mvpcontrol (void)
+{
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP))
+        mask |= (1 << CP0MVPCo_CPA) | (1 << CP0MVPCo_VPC) |
+                (1 << CP0MVPCo_EVP);
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (1 << CP0MVPCo_STLB);
+    newval = (env->mvp->CP0_MVPControl & ~mask) | (T0 & mask);
+
+    // TODO: Enable/disable shared TLB, enable/disable VPEs.
+
+    env->mvp->CP0_MVPControl = newval;
+    RETURN();
+}
+
+void op_mtc0_vpecontrol (void)
+{
+    uint32_t mask;
+    uint32_t newval;
+
+    mask = (1 << CP0VPECo_YSI) | (1 << CP0VPECo_GSI) |
+           (1 << CP0VPECo_TE) | (0xff << CP0VPECo_TargTC);
+    newval = (env->CP0_VPEControl & ~mask) | (T0 & mask);
+
+    /* Yield scheduler intercept not implemented. */
+    /* Gating storage scheduler intercept not implemented. */
+
+    // TODO: Enable/disable TCs.
+
+    env->CP0_VPEControl = newval;
+    RETURN();
+}
+
+void op_mtc0_vpeconf0 (void)
+{
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) {
+        if (env->CP0_VPEConf0 & (1 << CP0VPEC0_VPA))
+            mask |= (0xff << CP0VPEC0_XTC);
+        mask |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
+    }
+    newval = (env->CP0_VPEConf0 & ~mask) | (T0 & mask);
+
+    // TODO: TC exclusive handling due to ERL/EXL.
+
+    env->CP0_VPEConf0 = newval;
+    RETURN();
+}
+
+void op_mtc0_vpeconf1 (void)
+{
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (0xff << CP0VPEC1_NCX) | (0xff << CP0VPEC1_NCP2) |
+                (0xff << CP0VPEC1_NCP1);
+    newval = (env->CP0_VPEConf1 & ~mask) | (T0 & mask);
+
+    /* UDI not implemented. */
+    /* CP2 not implemented. */
+
+    // TODO: Handle FPU (CP1) binding.
+
+    env->CP0_VPEConf1 = newval;
+    RETURN();
+}
+
+void op_mtc0_yqmask (void)
+{
+    /* Yield qualifier inputs not implemented. */
+    env->CP0_YQMask = 0x00000000;
+    RETURN();
+}
+
+void op_mtc0_vpeschedule (void)
+{
+    env->CP0_VPESchedule = T0;
+    RETURN();
+}
+
+void op_mtc0_vpeschefback (void)
+{
+    env->CP0_VPEScheFBack = T0;
+    RETURN();
+}
+
+void op_mtc0_vpeopt (void)
+{
+    env->CP0_VPEOpt = T0 & 0x0000ffff;
     RETURN();
 }
 
@@ -1270,6 +1588,135 @@ void op_mtc0_entrylo0 (void)
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
+    RETURN();
+}
+
+void op_mtc0_tcstatus (void)
+{
+    uint32_t mask = env->CP0_TCStatus_rw_bitmask;
+    uint32_t newval;
+
+    newval = (env->CP0_TCStatus[env->current_tc] & ~mask) | (T0 & mask);
+
+    // TODO: Sync with CP0_Status.
+
+    env->CP0_TCStatus[env->current_tc] = newval;
+    RETURN();
+}
+
+void op_mttc0_tcstatus (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    // TODO: Sync with CP0_Status.
+
+    env->CP0_TCStatus[other_tc] = T0;
+    RETURN();
+}
+
+void op_mtc0_tcbind (void)
+{
+    uint32_t mask = (1 << CP0TCBd_TBE);
+    uint32_t newval;
+
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (1 << CP0TCBd_CurVPE);
+    newval = (env->CP0_TCBind[env->current_tc] & ~mask) | (T0 & mask);
+    env->CP0_TCBind[env->current_tc] = newval;
+    RETURN();
+}
+
+void op_mttc0_tcbind (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t mask = (1 << CP0TCBd_TBE);
+    uint32_t newval;
+
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (1 << CP0TCBd_CurVPE);
+    newval = (env->CP0_TCBind[other_tc] & ~mask) | (T0 & mask);
+    env->CP0_TCBind[other_tc] = newval;
+    RETURN();
+}
+
+void op_mtc0_tcrestart (void)
+{
+    env->PC[env->current_tc] = T0;
+    env->CP0_TCStatus[env->current_tc] &= ~(1 << CP0TCSt_TDS);
+    env->CP0_LLAddr = 0ULL;
+    /* MIPS16 not implemented. */
+    RETURN();
+}
+
+void op_mttc0_tcrestart (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->PC[other_tc] = T0;
+    env->CP0_TCStatus[other_tc] &= ~(1 << CP0TCSt_TDS);
+    env->CP0_LLAddr = 0ULL;
+    /* MIPS16 not implemented. */
+    RETURN();
+}
+
+void op_mtc0_tchalt (void)
+{
+    env->CP0_TCHalt[env->current_tc] = T0 & 0x1;
+
+    // TODO: Halt TC / Restart (if allocated+active) TC.
+
+    RETURN();
+}
+
+void op_mttc0_tchalt (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    // TODO: Halt TC / Restart (if allocated+active) TC.
+
+    env->CP0_TCHalt[other_tc] = T0;
+    RETURN();
+}
+
+void op_mtc0_tccontext (void)
+{
+    env->CP0_TCContext[env->current_tc] = T0;
+    RETURN();
+}
+
+void op_mttc0_tccontext (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCContext[other_tc] = T0;
+    RETURN();
+}
+
+void op_mtc0_tcschedule (void)
+{
+    env->CP0_TCSchedule[env->current_tc] = T0;
+    RETURN();
+}
+
+void op_mttc0_tcschedule (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCSchedule[other_tc] = T0;
+    RETURN();
+}
+
+void op_mtc0_tcschefback (void)
+{
+    env->CP0_TCScheFBack[env->current_tc] = T0;
+    RETURN();
+}
+
+void op_mttc0_tcschefback (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCScheFBack[other_tc] = T0;
     RETURN();
 }
 
@@ -1305,7 +1752,37 @@ void op_mtc0_pagegrain (void)
 
 void op_mtc0_wired (void)
 {
-    env->CP0_Wired = T0 % env->nb_tlb;
+    env->CP0_Wired = T0 % env->tlb->nb_tlb;
+    RETURN();
+}
+
+void op_mtc0_srsconf0 (void)
+{
+    env->CP0_SRSConf0 |= T0 & env->CP0_SRSConf0_rw_bitmask;
+    RETURN();
+}
+
+void op_mtc0_srsconf1 (void)
+{
+    env->CP0_SRSConf1 |= T0 & env->CP0_SRSConf1_rw_bitmask;
+    RETURN();
+}
+
+void op_mtc0_srsconf2 (void)
+{
+    env->CP0_SRSConf2 |= T0 & env->CP0_SRSConf2_rw_bitmask;
+    RETURN();
+}
+
+void op_mtc0_srsconf3 (void)
+{
+    env->CP0_SRSConf3 |= T0 & env->CP0_SRSConf3_rw_bitmask;
+    RETURN();
+}
+
+void op_mtc0_srsconf4 (void)
+{
+    env->CP0_SRSConf4 |= T0 & env->CP0_SRSConf4_rw_bitmask;
     RETURN();
 }
 
@@ -1332,9 +1809,22 @@ void op_mtc0_entryhi (void)
 #endif
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        uint32_t tcst = env->CP0_TCStatus[env->current_tc] & ~0xff;
+        env->CP0_TCStatus[env->current_tc] = tcst | (val & 0xff);
+    }
     /* If the ASID changes, flush qemu's TLB.  */
     if ((old & 0xFF) != (val & 0xFF))
         CALL_FROM_TB2(cpu_mips_tlb_flush, env, 1);
+    RETURN();
+}
+
+void op_mttc0_entryhi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (T0 & ~0xff);
+    env->CP0_TCStatus[other_tc] = (env->CP0_TCStatus[other_tc] & ~0xff) | (T0 & 0xff);
     RETURN();
 }
 
@@ -1347,9 +1837,8 @@ void op_mtc0_compare (void)
 void op_mtc0_status (void)
 {
     uint32_t val, old;
-    uint32_t mask = env->Status_rw_bitmask;
+    uint32_t mask = env->CP0_Status_rw_bitmask;
 
-    /* No reverse endianness, no MDMX/DSP implemented. */
     val = T0 & mask;
     old = env->CP0_Status;
     if (!(val & (1 << CP0St_EXL)) &&
@@ -1379,6 +1868,19 @@ void op_mtc0_status (void)
     RETURN();
 }
 
+void op_mttc0_status(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+
+    env->CP0_Status = T0 & ~0xf1000018;
+    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (T0 & (0xf << CP0St_CU0));
+    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((T0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
+    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_R0)) << (CP0TCSt_TKSU - CP0St_R0));
+    env->CP0_TCStatus[other_tc] = tcstatus;
+    RETURN();
+}
+
 void op_mtc0_intctl (void)
 {
     /* vectored interrupts not implemented, timer on int 7,
@@ -1389,15 +1891,14 @@ void op_mtc0_intctl (void)
 
 void op_mtc0_srsctl (void)
 {
-    /* shadow registers not implemented */
-    env->CP0_SRSCtl = 0;
+    uint32_t mask = (0xf << CP0SRSCtl_ESS) | (0xf << CP0SRSCtl_PSS);
+    env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (T0 & mask);
     RETURN();
 }
 
 void op_mtc0_srsmap (void)
 {
-    /* shadow registers not implemented */
-    env->CP0_SRSMap = 0;
+    env->CP0_SRSMap = T0;
     RETURN();
 }
 
@@ -1460,6 +1961,13 @@ void op_mtc0_watchhi (void)
     RETURN();
 }
 
+void op_mtc0_xcontext (void)
+{
+    target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
+    env->CP0_XContext = (env->CP0_XContext & mask) | (T0 & ~mask);
+    RETURN();
+}
+
 void op_mtc0_framemask (void)
 {
     env->CP0_Framemask = T0; /* XXX */
@@ -1473,6 +1981,17 @@ void op_mtc0_debug (void)
         env->hflags |= MIPS_HFLAG_DM;
     else
         env->hflags &= ~MIPS_HFLAG_DM;
+    RETURN();
+}
+
+void op_mttc0_debug(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    /* XXX: Might be wrong, check with EJTAG spec. */
+    env->CP0_Debug_tcstatus[other_tc] = T0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
+    env->CP0_Debug = (env->CP0_Debug & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
+                     (T0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
     RETURN();
 }
 
@@ -1525,16 +2044,57 @@ void op_mtc0_desave (void)
 }
 
 #ifdef TARGET_MIPS64
-void op_mtc0_xcontext (void)
+void op_dmfc0_yqmask (void)
 {
-    target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
-    env->CP0_XContext = (env->CP0_XContext & mask) | (T0 & ~mask);
+    T0 = env->CP0_YQMask;
+    RETURN();
+}
+
+void op_dmfc0_vpeschedule (void)
+{
+    T0 = env->CP0_VPESchedule;
+    RETURN();
+}
+
+void op_dmfc0_vpeschefback (void)
+{
+    T0 = env->CP0_VPEScheFBack;
     RETURN();
 }
 
 void op_dmfc0_entrylo0 (void)
 {
     T0 = env->CP0_EntryLo0;
+    RETURN();
+}
+
+void op_dmfc0_tcrestart (void)
+{
+    T0 = env->PC[env->current_tc];
+    RETURN();
+}
+
+void op_dmfc0_tchalt (void)
+{
+    T0 = env->CP0_TCHalt[env->current_tc];
+    RETURN();
+}
+
+void op_dmfc0_tccontext (void)
+{
+    T0 = env->CP0_TCContext[env->current_tc];
+    RETURN();
+}
+
+void op_dmfc0_tcschedule (void)
+{
+    T0 = env->CP0_TCSchedule[env->current_tc];
+    RETURN();
+}
+
+void op_dmfc0_tcschefback (void)
+{
+    T0 = env->CP0_TCScheFBack[env->current_tc];
     RETURN();
 }
 
@@ -1599,6 +2159,157 @@ void op_dmfc0_errorepc (void)
 }
 #endif /* TARGET_MIPS64 */
 
+/* MIPS MT functions */
+void op_mftgpr(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->gpr[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mftlo(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->LO[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mfthi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->HI[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mftacx(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->ACX[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mftdsp(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->DSPControl[other_tc];
+    RETURN();
+}
+
+void op_mttgpr(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->gpr[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mttlo(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->LO[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mtthi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->HI[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mttacx(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->ACX[PARAM1][other_tc];
+    RETURN();
+}
+
+void op_mttdsp(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->DSPControl[other_tc];
+    RETURN();
+}
+
+
+void op_dmt(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+    RETURN();
+}
+
+void op_emt(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+    RETURN();
+}
+
+void op_dvpe(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+    RETURN();
+}
+
+void op_evpe(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+    RETURN();
+}
+
+void op_fork(void)
+{
+    // T0 = rt, T1 = rs
+    T0 = 0;
+    // TODO: store to TC register
+    RETURN();
+}
+
+void op_yield(void)
+{
+    if (T0 < 0) {
+        /* No scheduling policy implemented. */
+        if (T0 != -2) {
+            if (env->CP0_VPEControl & (1 << CP0VPECo_YSI) &&
+                env->CP0_TCStatus[env->current_tc] & (1 << CP0TCSt_DT)) {
+                env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
+                env->CP0_VPEControl |= 4 << CP0VPECo_EXCPT;
+                CALL_FROM_TB1(do_raise_exception, EXCP_THREAD);
+            }
+        }
+    } else if (T0 == 0) {
+	if (0 /* TODO: TC underflow */) {
+            env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
+            CALL_FROM_TB1(do_raise_exception, EXCP_THREAD);
+        } else {
+            // TODO: Deallocate TC
+        }
+    } else if (T0 > 0) {
+        /* Yield qualifier inputs not implemented. */
+        env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
+        env->CP0_VPEControl |= 2 << CP0VPECo_EXCPT;
+        CALL_FROM_TB1(do_raise_exception, EXCP_THREAD);
+    }
+    T0 = env->CP0_YQMask;
+    RETURN();
+}
+
 /* CP1 functions */
 #if 0
 # define DEBUG_FPU_STATE() CALL_FROM_TB1(dump_fpu, env)
@@ -1617,30 +2328,14 @@ void op_cp0_enabled(void)
 
 void op_cfc1 (void)
 {
-    switch (T1) {
-    case 0:
-        T0 = (int32_t)env->fcr0;
-        break;
-    case 25:
-        T0 = ((env->fcr31 >> 24) & 0xfe) | ((env->fcr31 >> 23) & 0x1);
-        break;
-    case 26:
-        T0 = env->fcr31 & 0x0003f07c;
-        break;
-    case 28:
-        T0 = (env->fcr31 & 0x00000f83) | ((env->fcr31 >> 22) & 0x4);
-        break;
-    default:
-        T0 = (int32_t)env->fcr31;
-        break;
-    }
+    CALL_FROM_TB1(do_cfc1, PARAM1);
     DEBUG_FPU_STATE();
     RETURN();
 }
 
 void op_ctc1 (void)
 {
-    CALL_FROM_TB0(do_ctc1);
+    CALL_FROM_TB1(do_ctc1, PARAM1);
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -1842,21 +2537,21 @@ FLOAT_ROUNDOP(floor, w, s)
 
 FLOAT_OP(movf, d)
 {
-    if (!(env->fcr31 & PARAM1))
+    if (!(env->fpu->fcr31 & PARAM1))
         DT2 = DT0;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(movf, s)
 {
-    if (!(env->fcr31 & PARAM1))
+    if (!(env->fpu->fcr31 & PARAM1))
         WT2 = WT0;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(movf, ps)
 {
-    if (!(env->fcr31 & PARAM1)) {
+    if (!(env->fpu->fcr31 & PARAM1)) {
         WT2 = WT0;
         WTH2 = WTH0;
     }
@@ -1865,21 +2560,21 @@ FLOAT_OP(movf, ps)
 }
 FLOAT_OP(movt, d)
 {
-    if (env->fcr31 & PARAM1)
+    if (env->fpu->fcr31 & PARAM1)
         DT2 = DT0;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(movt, s)
 {
-    if (env->fcr31 & PARAM1)
+    if (env->fpu->fcr31 & PARAM1)
         WT2 = WT0;
     DEBUG_FPU_STATE();
     RETURN();
 }
 FLOAT_OP(movt, ps)
 {
-    if (env->fcr31 & PARAM1) {
+    if (env->fpu->fcr31 & PARAM1) {
         WT2 = WT0;
         WTH2 = WTH0;
     }
@@ -1997,24 +2692,24 @@ FLOAT_HOP(mulr)
 #define FLOAT_TERNOP(name1, name2) \
 FLOAT_OP(name1 ## name2, d)        \
 {                                  \
-    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fp_status);    \
-    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fp_status);    \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
     DEBUG_FPU_STATE();             \
     RETURN();                      \
 }                                  \
 FLOAT_OP(name1 ## name2, s)        \
 {                                  \
-    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
-    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
     DEBUG_FPU_STATE();             \
     RETURN();                      \
 }                                  \
 FLOAT_OP(name1 ## name2, ps)       \
 {                                  \
-    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
-    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fp_status); \
-    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
-    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fp_status); \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
     DEBUG_FPU_STATE();             \
     RETURN();                      \
 }
@@ -2026,26 +2721,26 @@ FLOAT_TERNOP(mul, sub)
 #define FLOAT_NTERNOP(name1, name2) \
 FLOAT_OP(n ## name1 ## name2, d)    \
 {                                   \
-    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fp_status);    \
-    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fp_status);    \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
     FDT2 ^= 1ULL << 63;             \
     DEBUG_FPU_STATE();              \
     RETURN();                       \
 }                                   \
 FLOAT_OP(n ## name1 ## name2, s)    \
 {                                   \
-    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
-    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
     FST2 ^= 1 << 31;                \
     DEBUG_FPU_STATE();              \
     RETURN();                       \
 }                                   \
 FLOAT_OP(n ## name1 ## name2, ps)   \
 {                                   \
-    FST0 = float32_ ## name1 (FST0, FST1, &env->fp_status);    \
-    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fp_status); \
-    FST2 = float32_ ## name2 (FST0, FST2, &env->fp_status);    \
-    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fp_status); \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
     FST2 ^= 1 << 31;                \
     FSTH2 ^= 1 << 31;               \
     DEBUG_FPU_STATE();              \
@@ -2059,13 +2754,13 @@ FLOAT_NTERNOP(mul, sub)
 #define FLOAT_UNOP(name)  \
 FLOAT_OP(name, d)         \
 {                         \
-    FDT2 = float64_ ## name(FDT0, &env->fp_status);   \
+    FDT2 = float64_ ## name(FDT0, &env->fpu->fp_status);   \
     DEBUG_FPU_STATE();    \
     RETURN();                      \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
-    FST2 = float32_ ## name(FST0, &env->fp_status);   \
+    FST2 = float32_ ## name(FST0, &env->fpu->fp_status);   \
     DEBUG_FPU_STATE();    \
     RETURN();             \
 }
@@ -2141,9 +2836,9 @@ FLOAT_OP(alnv, ps)
 
 #ifdef CONFIG_SOFTFLOAT
 #define clear_invalid() do {                                \
-    int flags = get_float_exception_flags(&env->fp_status); \
+    int flags = get_float_exception_flags(&env->fpu->fp_status); \
     flags &= ~float_flag_invalid;                           \
-    set_float_exception_flags(flags, &env->fp_status);      \
+    set_float_exception_flags(flags, &env->fpu->fp_status);      \
 } while(0)
 #else
 #define clear_invalid() do { } while(0)
@@ -2190,63 +2885,63 @@ CMP_OPS(ngt)
 
 void op_bc1f (void)
 {
-    T0 = !!(~GET_FP_COND(env) & (0x1 << PARAM1));
+    T0 = !!(~GET_FP_COND(env->fpu) & (0x1 << PARAM1));
     DEBUG_FPU_STATE();
     RETURN();
 }
 void op_bc1any2f (void)
 {
-    T0 = !!(~GET_FP_COND(env) & (0x3 << PARAM1));
+    T0 = !!(~GET_FP_COND(env->fpu) & (0x3 << PARAM1));
     DEBUG_FPU_STATE();
     RETURN();
 }
 void op_bc1any4f (void)
 {
-    T0 = !!(~GET_FP_COND(env) & (0xf << PARAM1));
+    T0 = !!(~GET_FP_COND(env->fpu) & (0xf << PARAM1));
     DEBUG_FPU_STATE();
     RETURN();
 }
 
 void op_bc1t (void)
 {
-    T0 = !!(GET_FP_COND(env) & (0x1 << PARAM1));
+    T0 = !!(GET_FP_COND(env->fpu) & (0x1 << PARAM1));
     DEBUG_FPU_STATE();
     RETURN();
 }
 void op_bc1any2t (void)
 {
-    T0 = !!(GET_FP_COND(env) & (0x3 << PARAM1));
+    T0 = !!(GET_FP_COND(env->fpu) & (0x3 << PARAM1));
     DEBUG_FPU_STATE();
     RETURN();
 }
 void op_bc1any4t (void)
 {
-    T0 = !!(GET_FP_COND(env) & (0xf << PARAM1));
+    T0 = !!(GET_FP_COND(env->fpu) & (0xf << PARAM1));
     DEBUG_FPU_STATE();
     RETURN();
 }
 
 void op_tlbwi (void)
 {
-    CALL_FROM_TB0(env->do_tlbwi);
+    CALL_FROM_TB0(env->tlb->do_tlbwi);
     RETURN();
 }
 
 void op_tlbwr (void)
 {
-    CALL_FROM_TB0(env->do_tlbwr);
+    CALL_FROM_TB0(env->tlb->do_tlbwr);
     RETURN();
 }
 
 void op_tlbp (void)
 {
-    CALL_FROM_TB0(env->do_tlbp);
+    CALL_FROM_TB0(env->tlb->do_tlbp);
     RETURN();
 }
 
 void op_tlbr (void)
 {
-    CALL_FROM_TB0(env->do_tlbr);
+    CALL_FROM_TB0(env->tlb->do_tlbr);
     RETURN();
 }
 
@@ -2307,10 +3002,10 @@ void op_eret (void)
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_pre_eret);
     if (env->CP0_Status & (1 << CP0St_ERL)) {
-        env->PC = env->CP0_ErrorEPC;
+        env->PC[env->current_tc] = env->CP0_ErrorEPC;
         env->CP0_Status &= ~(1 << CP0St_ERL);
     } else {
-        env->PC = env->CP0_EPC;
+        env->PC[env->current_tc] = env->CP0_EPC;
         env->CP0_Status &= ~(1 << CP0St_EXL);
     }
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
@@ -2335,7 +3030,7 @@ void op_deret (void)
 {
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_pre_eret);
-    env->PC = env->CP0_DEPC;
+    env->PC[env->current_tc] = env->CP0_DEPC;
     env->hflags |= MIPS_HFLAG_DM;
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
@@ -2407,14 +3102,14 @@ void op_save_state (void)
 
 void op_save_pc (void)
 {
-    env->PC = PARAM1;
+    env->PC[env->current_tc] = PARAM1;
     RETURN();
 }
 
 #ifdef TARGET_MIPS64
 void op_save_pc64 (void)
 {
-    env->PC = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
+    env->PC[env->current_tc] = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
     RETURN();
 }
 #endif
