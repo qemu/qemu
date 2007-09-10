@@ -114,7 +114,7 @@ CPUX86State *cpu_x86_init(void)
         env->cpuid_ext_features = CPUID_EXT_SSE3;
         env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
         env->cpuid_features |= CPUID_APIC;
-        env->cpuid_xlevel = 0;
+        env->cpuid_xlevel = 0x80000006;
         {
             const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
             int c, len, i;
