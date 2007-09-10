@@ -520,7 +520,6 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
     int min_index, i, j;
     uint32_t min_count, *l2_table, tmp = 0;
     uint64_t cluster_offset;
-    int status;
 
     if (m_data)
         m_data->valid = 0;
@@ -564,19 +563,11 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
     cluster_offset = le32_to_cpu(l2_table[l2_index]);
 
     if (!cluster_offset) {
-        struct stat file_buf;
-
         if (!allocate)
             return 0;
         // Avoid the L2 tables update for the images that have snapshots.
         if (!s->is_parent) {
-            status = stat(s->hd->filename, &file_buf);
-            if (status == -1) {
-                fprintf(stderr, "(VMDK) Fail file stat: filename =%s size=0x%llx errno=%s\n",
-                                s->hd->filename, (uint64_t)file_buf.st_size, strerror(errno));
-                return 0;
-            }
-            cluster_offset = file_buf.st_size;
+            cluster_offset = bdrv_getlength(s->hd);
             bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
 
             cluster_offset >>= 9;
