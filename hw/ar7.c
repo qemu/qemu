@@ -365,8 +365,8 @@ const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
-    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->PC));
-    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->gpr[31]));
+    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->PC[ar7.cpu_env->current_tc]));
+    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->gpr[31][ar7.cpu_env->current_tc]));
     assert((p - buffer) < sizeof(buffer));
     return buffer;
 }
@@ -2145,7 +2145,7 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
         TRACE(RESET, logout("reset\n"));
         qemu_system_reset_request();
         //~ CPUState *cpu_env = first_cpu;
-        //~ cpu_env->PC = 0xbfc00000;
+        //~ cpu_env->PC[env->current_tc] = 0xbfc00000;
     } else {
         TRACE(RESET, logout("reset[%u]=0x%08x\n", offset, val));
     }
@@ -3458,7 +3458,7 @@ static int64_t load_kernel (CPUState *env)
         fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx"
                 " and size %d bytes\n",
                 env->kernel_filename, (unsigned long)kernel_addr, kernel_size);
-        env->PC = kernel_addr;
+        env->PC[env->current_tc] = kernel_addr;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 env->kernel_filename);
@@ -3466,12 +3466,12 @@ static int64_t load_kernel (CPUState *env)
     }
 
     /* a0 = argc, a1 = argv, a2 = envp */
-    env->gpr[4] = 0;
-    env->gpr[5] = K1(INITRD_LOAD_ADDR);
-    env->gpr[6] = K1(INITRD_LOAD_ADDR);
+    env->gpr[4][env->current_tc] = 0;
+    env->gpr[5][env->current_tc] = K1(INITRD_LOAD_ADDR);
+    env->gpr[6][env->current_tc] = K1(INITRD_LOAD_ADDR);
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->gpr[29] = env->PC + env->ram_size - 0x1000;
+    env->gpr[29][env->current_tc] = env->PC[env->current_tc] + env->ram_size - 0x1000;
 
     /* TODO: use code from Malta for command line setup. */
     if (env->kernel_cmdline && *env->kernel_cmdline) {
@@ -3498,7 +3498,7 @@ static int64_t load_kernel (CPUState *env)
         argc = 0;
         i = ((i + 3) & ~3);
         argv = (uint8_t **)(address + i);
-        env->gpr[5] = K1(INITRD_LOAD_ADDR + i);
+        env->gpr[5][env->current_tc] = K1(INITRD_LOAD_ADDR + i);
         arg0 = argv;
         *argv = (uint8_t *)K1(INITRD_LOAD_ADDR);
         for (i = 0; i < size;) {
@@ -3508,8 +3508,8 @@ static int64_t load_kernel (CPUState *env)
                 if (address[i] == '\0' && argc == 0) {
                   argc = argv - arg0;
                   *argv = (uint8_t *)0;
-                  env->gpr[4] = argc;
-                  env->gpr[6] = env->gpr[5] + 4 * (argc + 1);
+                  env->gpr[4][env->current_tc] = argc;
+                  env->gpr[6][env->current_tc] = env->gpr[5][env->current_tc] + 4 * (argc + 1);
                 }
             }
         }

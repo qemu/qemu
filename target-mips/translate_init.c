@@ -43,11 +43,11 @@
 
 /* No config4, no DSP ASE, no large physaddr,
    no external interrupt controller, no vectored interupts,
-   no 1kb pages, no MT ASE, no SmartMIPS ASE, no trace logic */
+   no 1kb pages, no SmartMIPS ASE, no trace logic */
 #define MIPS_CONFIG3                                              \
 ((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |          \
  (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |        \
- (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL))
+ (0 << CP0C3_SM) | (0 << CP0C3_TL))
 
 /* Define a implementation number of 1.
    Define a major version 1, minor version 0. */
@@ -65,9 +65,21 @@ struct mips_def_t {
     int32_t CP0_Config7;
     int32_t SYNCI_Step;
     int32_t CCRes;
-    int32_t Status_rw_bitmask;
+    int32_t CP0_Status_rw_bitmask;
+    int32_t CP0_TCStatus_rw_bitmask;
+    int32_t CP0_SRSCtl;
     int32_t CP1_fcr0;
     int32_t SEGBITS;
+    int32_t CP0_SRSConf0_rw_bitmask;
+    int32_t CP0_SRSConf0;
+    int32_t CP0_SRSConf1_rw_bitmask;
+    int32_t CP0_SRSConf1;
+    int32_t CP0_SRSConf2_rw_bitmask;
+    int32_t CP0_SRSConf2;
+    int32_t CP0_SRSConf3_rw_bitmask;
+    int32_t CP0_SRSConf3;
+    int32_t CP0_SRSConf4_rw_bitmask;
+    int32_t CP0_SRSConf4;
 };
 
 /*****************************************************************************/
@@ -85,7 +97,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x3278FF17,
+        .CP0_Status_rw_bitmask = 0x1278FF17,
     },
     {
         .name = "4KEcR1",
@@ -98,7 +110,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x3278FF17,
+        .CP0_Status_rw_bitmask = 0x1278FF17,
     },
     {
         .name = "4KEc",
@@ -108,10 +120,10 @@ static mips_def_t mips_defs[] =
 		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
 		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3,
+        .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt),
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x3278FF17,
+        .CP0_Status_rw_bitmask = 0x1278FF17,
     },
     {
         .name = "24Kc",
@@ -121,10 +133,11 @@ static mips_def_t mips_defs[] =
 		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
 		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3,
+        .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt),
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x3278FF17,
+        /* No DSP implemented. */
+        .CP0_Status_rw_bitmask = 0x1278FF17,
     },
     {
         .name = "24Kf",
@@ -134,12 +147,52 @@ static mips_def_t mips_defs[] =
 		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
 		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3,
+        .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt),
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x3678FF17,
+        /* No DSP implemented. */
+        .CP0_Status_rw_bitmask = 0x3678FF17,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
+    },
+    {
+        .name = "34Kf",
+        .CP0_PRid = 0x00019500,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
+        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (15 << CP0C1_MMU) |
+		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt) | (1 << CP0C3_MT),
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        /* No DSP implemented. */
+        .CP0_Status_rw_bitmask = 0x3678FF17,
+        /* No DSP implemented. */
+        .CP0_TCStatus_rw_bitmask = (0 << CP0TCSt_TCU3) | (0 << CP0TCSt_TCU2) |
+                    (1 << CP0TCSt_TCU1) | (1 << CP0TCSt_TCU0) |
+                    (0 << CP0TCSt_TMX) | (1 << CP0TCSt_DT) |
+                    (1 << CP0TCSt_DA) | (1 << CP0TCSt_A) |
+                    (0x3 << CP0TCSt_TKSU) | (1 << CP0TCSt_IXMT) |
+                    (0xff << CP0TCSt_TASID),
+        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
+                    (1 << FCR0_D) | (1 << FCR0_S) | (0x95 << FCR0_PRID),
+        .CP0_SRSCtl = (0xf << CP0SRSCtl_HSS),
+        .CP0_SRSConf0_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf0 = (1 << CP0SRSC0_M) | (0x3fe << CP0SRSC0_SRS3) |
+                    (0x3fe << CP0SRSC0_SRS2) | (0x3fe << CP0SRSC0_SRS1),
+        .CP0_SRSConf1_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf1 = (1 << CP0SRSC1_M) | (0x3fe << CP0SRSC1_SRS6) |
+                    (0x3fe << CP0SRSC1_SRS5) | (0x3fe << CP0SRSC1_SRS4),
+        .CP0_SRSConf2_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf2 = (1 << CP0SRSC2_M) | (0x3fe << CP0SRSC2_SRS9) |
+                    (0x3fe << CP0SRSC2_SRS8) | (0x3fe << CP0SRSC2_SRS7),
+        .CP0_SRSConf3_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf3 = (1 << CP0SRSC3_M) | (0x3fe << CP0SRSC3_SRS12) |
+                    (0x3fe << CP0SRSC3_SRS11) | (0x3fe << CP0SRSC3_SRS10),
+        .CP0_SRSConf4_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf4 = (0x3fe << CP0SRSC4_SRS15) |
+                    (0x3fe << CP0SRSC4_SRS14) | (0x3fe << CP0SRSC4_SRS13),
     },
 #ifdef TARGET_MIPS64
     {
@@ -153,7 +206,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 16,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x3678FFFF,
+        .CP0_Status_rw_bitmask = 0x3678FFFF,
 	/* The R4000 has a full 64bit FPU doesn't use the fcr0 bits. */
         .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 40,
@@ -170,7 +223,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x32F8FFFF,
+        .CP0_Status_rw_bitmask = 0x32F8FFFF,
         .SEGBITS = 42,
     },
     {
@@ -185,7 +238,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x36F8FFFF,
+        .CP0_Status_rw_bitmask = 0x36F8FFFF,
 	/* The 5Kf has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x81 << FCR0_PRID) | (0x0 << FCR0_REV),
@@ -205,7 +258,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        .Status_rw_bitmask = 0x36FBFFFF,
+        .CP0_Status_rw_bitmask = 0x36FBFFFF,
 	/* The 20Kc has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_3D) | (1 << FCR0_PS) |
                     (1 << FCR0_D) | (1 << FCR0_S) |
@@ -245,26 +298,87 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 #ifndef CONFIG_USER_ONLY
 static void no_mmu_init (CPUMIPSState *env, mips_def_t *def)
 {
-    env->nb_tlb = 1;
-    env->map_address = &no_mmu_map_address;
+    env->tlb->nb_tlb = 1;
+    env->tlb->map_address = &no_mmu_map_address;
 }
 
 static void fixed_mmu_init (CPUMIPSState *env, mips_def_t *def)
 {
-    env->nb_tlb = 1;
-    env->map_address = &fixed_mmu_map_address;
+    env->tlb->nb_tlb = 1;
+    env->tlb->map_address = &fixed_mmu_map_address;
 }
 
 static void r4k_mmu_init (CPUMIPSState *env, mips_def_t *def)
 {
-    env->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
-    env->map_address = &r4k_map_address;
-    env->do_tlbwi = r4k_do_tlbwi;
-    env->do_tlbwr = r4k_do_tlbwr;
-    env->do_tlbp = r4k_do_tlbp;
-    env->do_tlbr = r4k_do_tlbr;
+    env->tlb->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
+    env->tlb->map_address = &r4k_map_address;
+    env->tlb->do_tlbwi = r4k_do_tlbwi;
+    env->tlb->do_tlbwr = r4k_do_tlbwr;
+    env->tlb->do_tlbp = r4k_do_tlbp;
+    env->tlb->do_tlbr = r4k_do_tlbr;
+}
+
+static void mmu_init (CPUMIPSState *env, mips_def_t *def)
+{
+    env->tlb = qemu_mallocz(sizeof(CPUMIPSTLBContext));
+
+    /* There are more full-featured MMU variants in older MIPS CPUs,
+       R3000, R6000 and R8000 come to mind. If we ever support them,
+       this check will need to look up a different place than those
+       newfangled config registers. */
+    switch ((env->CP0_Config0 >> CP0C0_MT) & 3) {
+        case 0:
+            no_mmu_init(env, def);
+            break;
+        case 1:
+            r4k_mmu_init(env, def);
+            break;
+        case 3:
+            fixed_mmu_init(env, def);
+            break;
+        default:
+            cpu_abort(env, "MMU type not supported\n");
+    }
+    env->CP0_Random = env->tlb->nb_tlb - 1;
+    env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
 #endif /* CONFIG_USER_ONLY */
+
+static void fpu_init (CPUMIPSState *env, mips_def_t *def)
+{
+    env->fpu = qemu_mallocz(sizeof(CPUMIPSFPUContext));
+
+    env->fpu->fcr0 = def->CP1_fcr0;
+#ifdef CONFIG_USER_ONLY
+    if (env->CP0_Config1 & (1 << CP0C1_FP))
+        env->hflags |= MIPS_HFLAG_FPU;
+    if (env->fpu->fcr0 & (1 << FCR0_F64))
+        env->hflags |= MIPS_HFLAG_F64;
+#endif
+}
+
+static void mvp_init (CPUMIPSState *env, mips_def_t *def)
+{
+    env->mvp = qemu_mallocz(sizeof(CPUMIPSMVPContext));
+
+    /* MVPConf1 implemented, TLB sharable, no gating storage support,
+       programmable cache partitioning implemented, number of allocatable
+       and sharable TLB entries, MVP has allocatable TCs, 2 VPEs
+       implemented, 5 TCs implemented. */
+    env->mvp->CP0_MVPConf0 = (1 << CP0MVPC0_M) | (1 << CP0MVPC0_TLBS) |
+                             (0 << CP0MVPC0_GS) | (1 << CP0MVPC0_PCP) |
+                             (env->tlb->nb_tlb << CP0MVPC0_PTLBE) |
+// TODO: actually do 2 VPEs.
+//                             (1 << CP0MVPC0_TCA) | (0x1 << CP0MVPC0_PVPE) |
+//                             (0x04 << CP0MVPC0_PTC);
+                             (1 << CP0MVPC0_TCA) | (0x0 << CP0MVPC0_PVPE) |
+                             (0x04 << CP0MVPC0_PTC);
+    /* Allocatable CP1 have media extensions, allocatable CP1 have FP support,
+       no UDI implemented, no CP2 implemented, 1 CP1 implemented. */
+    env->mvp->CP0_MVPConf1 = (1 << CP0MVPC1_CIM) | (1 << CP0MVPC1_CIF) |
+                             (0x0 << CP0MVPC1_PCX) | (0x0 << CP0MVPC1_PCP2) |
+                             (0x1 << CP0MVPC1_PCP1);
+}
 
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
 {
@@ -285,8 +399,9 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CP0_Config7 = def->CP0_Config7;
     env->SYNCI_Step = def->SYNCI_Step;
     env->CCRes = def->CCRes;
-    env->Status_rw_bitmask = def->Status_rw_bitmask;
-    env->fcr0 = def->CP1_fcr0;
+    env->CP0_Status_rw_bitmask = def->CP0_Status_rw_bitmask;
+    env->CP0_TCStatus_rw_bitmask = def->CP0_TCStatus_rw_bitmask;
+    env->CP0_SRSCtl = def->CP0_SRSCtl;
 #ifdef TARGET_MIPS64
     if ((env->CP0_Config0 & (0x3 << CP0C0_AT)))
     {
@@ -298,31 +413,21 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
         env->SEGMask = 0xFFFFFFFF;
     }
 #endif
-#ifdef CONFIG_USER_ONLY
-    if (env->CP0_Config1 & (1 << CP0C1_FP))
-        env->hflags |= MIPS_HFLAG_FPU;
-    if (env->fcr0 & (1 << FCR0_F64))
-        env->hflags |= MIPS_HFLAG_F64;
-#else
-    /* There are more full-featured MMU variants in older MIPS CPUs,
-       R3000, R6000 and R8000 come to mind. If we ever support them,
-       this check will need to look up a different place than those
-       newfangled config registers. */
-    switch ((env->CP0_Config0 >> CP0C0_MT) & 3) {
-        case 0:
-            no_mmu_init(env, def);
-            break;
-        case 1:
-            r4k_mmu_init(env, def);
-            break;
-        case 3:
-            fixed_mmu_init(env, def);
-            break;
-        default:
-            cpu_abort(env, "MMU type not supported\n");
-    }
-    env->CP0_Random = env->nb_tlb - 1;
-    env->tlb_in_use = env->nb_tlb;
-#endif /* CONFIG_USER_ONLY */
+    env->CP0_SRSConf0_rw_bitmask = def->CP0_SRSConf0_rw_bitmask;
+    env->CP0_SRSConf0 = def->CP0_SRSConf0;
+    env->CP0_SRSConf1_rw_bitmask = def->CP0_SRSConf1_rw_bitmask;
+    env->CP0_SRSConf1 = def->CP0_SRSConf1;
+    env->CP0_SRSConf2_rw_bitmask = def->CP0_SRSConf2_rw_bitmask;
+    env->CP0_SRSConf2 = def->CP0_SRSConf2;
+    env->CP0_SRSConf3_rw_bitmask = def->CP0_SRSConf3_rw_bitmask;
+    env->CP0_SRSConf3 = def->CP0_SRSConf3;
+    env->CP0_SRSConf4_rw_bitmask = def->CP0_SRSConf4_rw_bitmask;
+    env->CP0_SRSConf4 = def->CP0_SRSConf4;
+
+#ifndef CONFIG_USER_ONLY
+    mmu_init(env, def);
+#endif
+    fpu_init(env, def);
+    mvp_init(env, def);
     return 0;
 }

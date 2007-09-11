@@ -526,7 +526,10 @@ static int uhci_handle_td(UHCIState *s, UHCI_TD *td, int *int_mask)
         td->ctrl &= ~TD_CTRL_ACTIVE;
     if (ret >= 0) {
         td->ctrl = (td->ctrl & ~0x7ff) | ((len - 1) & 0x7ff);
-        td->ctrl &= ~TD_CTRL_ACTIVE;
+        /* The NAK bit may have been set by a previous frame, so clear it
+           here.  The docs are somewhat unclear, but win2k relies on this
+           behavior.  */
+        td->ctrl &= ~(TD_CTRL_ACTIVE | TD_CTRL_NAK);
         if (pid == USB_TOKEN_IN && 
             (td->ctrl & TD_CTRL_SPD) &&
             len < max_len) {

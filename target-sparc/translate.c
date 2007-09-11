@@ -3366,7 +3366,6 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;
-        tb->size = 0;
 #if 0
         if (loglevel > 0) {
             page_dump(logfile);

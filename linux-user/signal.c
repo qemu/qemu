@@ -1683,10 +1683,10 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 {
     int err = 0;
 
-    err |= __put_user(regs->PC, &sc->sc_pc);
+    err |= __put_user(regs->PC[regs->current_tc], &sc->sc_pc);
 
-#define save_gp_reg(i) do {   					\
-        err |= __put_user(regs->gpr[i], &sc->sc_regs[i]);	\
+#define save_gp_reg(i) do {   							\
+        err |= __put_user(regs->gpr[i][regs->current_tc], &sc->sc_regs[i]);	\
     } while(0)
     __put_user(0, &sc->sc_regs[0]); save_gp_reg(1); save_gp_reg(2);
     save_gp_reg(3); save_gp_reg(4); save_gp_reg(5); save_gp_reg(6);
@@ -1699,8 +1699,8 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
     save_gp_reg(31);
 #undef save_gp_reg
 
-    err |= __put_user(regs->HI, &sc->sc_mdhi);
-    err |= __put_user(regs->LO, &sc->sc_mdlo);
+    err |= __put_user(regs->HI[0][regs->current_tc], &sc->sc_mdhi);
+    err |= __put_user(regs->LO[0][regs->current_tc], &sc->sc_mdlo);
 
     /* Not used yet, but might be useful if we ever have DSP suppport */
 #if 0
@@ -1760,11 +1760,11 @@ restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 
     err |= __get_user(regs->CP0_EPC, &sc->sc_pc);
 
-    err |= __get_user(regs->HI, &sc->sc_mdhi);
-    err |= __get_user(regs->LO, &sc->sc_mdlo);
+    err |= __get_user(regs->HI[0][regs->current_tc], &sc->sc_mdhi);
+    err |= __get_user(regs->LO[0][regs->current_tc], &sc->sc_mdlo);
 
-#define restore_gp_reg(i) do {   					\
-        err |= __get_user(regs->gpr[i], &sc->sc_regs[i]);		\
+#define restore_gp_reg(i) do {   							\
+        err |= __get_user(regs->gpr[i][regs->current_tc], &sc->sc_regs[i]);		\
     } while(0)
     restore_gp_reg( 1); restore_gp_reg( 2); restore_gp_reg( 3);
     restore_gp_reg( 4); restore_gp_reg( 5); restore_gp_reg( 6);
@@ -1830,7 +1830,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, size_t frame_size)
     unsigned long sp;
 
     /* Default to using normal stack */
-    sp = regs->gpr[29];
+    sp = regs->gpr[29][regs->current_tc];
 
     /*
      * FPU emulator may have it's own trampoline active just
@@ -1878,15 +1878,15 @@ static void setup_frame(int sig, struct emulated_sigaction * ka,
     * $25 and PC point to the signal handler, $29 points to the
     * struct sigframe.
     */
-    regs->gpr[ 4] = sig;
-    regs->gpr[ 5] = 0;
-    regs->gpr[ 6] = h2g(&frame->sf_sc);
-    regs->gpr[29] = h2g(frame);
-    regs->gpr[31] = h2g(frame->sf_code);
+    regs->gpr[ 4][regs->current_tc] = sig;
+    regs->gpr[ 5][regs->current_tc] = 0;
+    regs->gpr[ 6][regs->current_tc] = h2g(&frame->sf_sc);
+    regs->gpr[29][regs->current_tc] = h2g(frame);
+    regs->gpr[31][regs->current_tc] = h2g(frame->sf_code);
     /* The original kernel code sets CP0_EPC to the handler
     * since it returns to userland using eret
     * we cannot do this here, and we must set PC directly */
-    regs->PC = regs->gpr[25] = ka->sa._sa_handler;
+    regs->PC[regs->current_tc] = regs->gpr[25][regs->current_tc] = ka->sa._sa_handler;
     return;
 
 give_sigsegv:
@@ -1904,7 +1904,7 @@ long do_sigreturn(CPUState *regs)
 #if defined(DEBUG_SIGNAL)
     fprintf(stderr, "do_sigreturn\n");
 #endif
-    frame = (struct sigframe *) regs->gpr[29];
+    frame = (struct sigframe *) regs->gpr[29][regs->current_tc];
     if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
    	goto badframe;
 
@@ -1931,7 +1931,7 @@ long do_sigreturn(CPUState *regs)
     /* Unreached */
 #endif
     
-    regs->PC = regs->CP0_EPC;
+    regs->PC[regs->current_tc] = regs->CP0_EPC;
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     regs->CP0_EPC = 0;

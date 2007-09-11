@@ -81,7 +81,7 @@ void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
-        env->PC = entry;
+        env->PC[env->current_tc] = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 kernel_filename);
@@ -89,7 +89,7 @@ void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
     }
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+    env->gpr[29][env->current_tc] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
 
     /* load initrd */
     initrd_size = 0;

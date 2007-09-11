@@ -1378,8 +1378,8 @@ void cpu_loop(CPUMIPSState *env)
         trapnr = cpu_mips_exec(env);
         switch(trapnr) {
         case EXCP_SYSCALL:
-            syscall_num = env->gpr[2] - 4000;
-            env->PC += 4;
+            syscall_num = env->gpr[2][env->current_tc] - 4000;
+            env->PC[env->current_tc] += 4;
             if (syscall_num >= sizeof(mips_syscall_args)) {
                 ret = -ENOSYS;
             } else {
@@ -1388,7 +1388,7 @@ void cpu_loop(CPUMIPSState *env)
                 target_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
 
                 nb_args = mips_syscall_args[syscall_num];
-                sp_reg = env->gpr[29];
+                sp_reg = env->gpr[29][env->current_tc];
                 switch (nb_args) {
                 /* these arguments are taken from the stack */
                 case 8: arg8 = tgetl(sp_reg + 28);
@@ -1398,18 +1398,20 @@ void cpu_loop(CPUMIPSState *env)
                 default:
                     break;
                 }
-                ret = do_syscall(env, env->gpr[2],
-                                 env->gpr[4], env->gpr[5],
-                                 env->gpr[6], env->gpr[7],
+                ret = do_syscall(env, env->gpr[2][env->current_tc],
+                                 env->gpr[4][env->current_tc],
+                                 env->gpr[5][env->current_tc],
+                                 env->gpr[6][env->current_tc],
+                                 env->gpr[7][env->current_tc],
                                  arg5, arg6/*, arg7, arg8*/);
             }
             if ((unsigned int)ret >= (unsigned int)(-1133)) {
-                env->gpr[7] = 1; /* error flag */
+                env->gpr[7][env->current_tc] = 1; /* error flag */
                 ret = -ret;
             } else {
-                env->gpr[7] = 0; /* error flag */
+                env->gpr[7][env->current_tc] = 0; /* error flag */
             }
-            env->gpr[2] = ret;
+            env->gpr[2][env->current_tc] = ret;
             break;
         case EXCP_TLBL:
         case EXCP_TLBS:
@@ -2059,9 +2061,9 @@ int main(int argc, char **argv)
         cpu_mips_register(env, def);
 
         for(i = 0; i < 32; i++) {
-            env->gpr[i] = regs->regs[i];
+            env->gpr[i][env->current_tc] = regs->regs[i];
         }
-        env->PC = regs->cp0_epc;
+        env->PC[env->current_tc] = regs->cp0_epc;
     }
 #elif defined(TARGET_SH4)
     {

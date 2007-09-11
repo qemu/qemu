@@ -559,17 +559,17 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     ptr = mem_buf;
     for (i = 0; i < 32; i++)
       {
-        *(target_ulong *)ptr = tswapl(env->gpr[i]);
+        *(target_ulong *)ptr = tswapl(env->gpr[i][env->current_tc]);
         ptr += sizeof(target_ulong);
       }
 
     *(target_ulong *)ptr = tswapl(env->CP0_Status);
     ptr += sizeof(target_ulong);
 
-    *(target_ulong *)ptr = tswapl(env->LO);
+    *(target_ulong *)ptr = tswapl(env->LO[0][env->current_tc]);
     ptr += sizeof(target_ulong);
 
-    *(target_ulong *)ptr = tswapl(env->HI);
+    *(target_ulong *)ptr = tswapl(env->HI[0][env->current_tc]);
     ptr += sizeof(target_ulong);
 
     *(target_ulong *)ptr = tswapl(env->CP0_BadVAddr);
@@ -578,21 +578,21 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     *(target_ulong *)ptr = tswapl(env->CP0_Cause);
     ptr += sizeof(target_ulong);
 
-    *(target_ulong *)ptr = tswapl(env->PC);
+    *(target_ulong *)ptr = tswapl(env->PC[env->current_tc]);
     ptr += sizeof(target_ulong);
 
     if (env->CP0_Config1 & (1 << CP0C1_FP))
       {
         for (i = 0; i < 32; i++)
           {
-            *(target_ulong *)ptr = tswapl(env->fpr[i].fs[FP_ENDIAN_IDX]);
+            *(target_ulong *)ptr = tswapl(env->fpu->fpr[i].fs[FP_ENDIAN_IDX]);
             ptr += sizeof(target_ulong);
           }
 
-        *(target_ulong *)ptr = tswapl(env->fcr31);
+        *(target_ulong *)ptr = tswapl(env->fpu->fcr31);
         ptr += sizeof(target_ulong);
 
-        *(target_ulong *)ptr = tswapl(env->fcr0);
+        *(target_ulong *)ptr = tswapl(env->fpu->fcr0);
         ptr += sizeof(target_ulong);
       }
 
@@ -611,7 +611,7 @@ static unsigned int ieee_rm[] =
     float_round_down
   };
 #define RESTORE_ROUNDING_MODE \
-    set_float_rounding_mode(ieee_rm[env->fcr31 & 3], &env->fp_status)
+    set_float_rounding_mode(ieee_rm[env->fpu->fcr31 & 3], &env->fpu->fp_status)
 
 static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 {
@@ -621,17 +621,17 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     ptr = mem_buf;
     for (i = 0; i < 32; i++)
       {
-        env->gpr[i] = tswapl(*(target_ulong *)ptr);
+        env->gpr[i][env->current_tc] = tswapl(*(target_ulong *)ptr);
         ptr += sizeof(target_ulong);
       }
 
     env->CP0_Status = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
-    env->LO = tswapl(*(target_ulong *)ptr);
+    env->LO[0][env->current_tc] = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
-    env->HI = tswapl(*(target_ulong *)ptr);
+    env->HI[0][env->current_tc] = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
     env->CP0_BadVAddr = tswapl(*(target_ulong *)ptr);
@@ -640,21 +640,21 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->CP0_Cause = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
-    env->PC = tswapl(*(target_ulong *)ptr);
+    env->PC[env->current_tc] = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
     if (env->CP0_Config1 & (1 << CP0C1_FP))
       {
         for (i = 0; i < 32; i++)
           {
-            env->fpr[i].fs[FP_ENDIAN_IDX] = tswapl(*(target_ulong *)ptr);
+            env->fpu->fpr[i].fs[FP_ENDIAN_IDX] = tswapl(*(target_ulong *)ptr);
             ptr += sizeof(target_ulong);
           }
 
-        env->fcr31 = tswapl(*(target_ulong *)ptr) & 0x0183FFFF;
+        env->fpu->fcr31 = tswapl(*(target_ulong *)ptr) & 0x0183FFFF;
         ptr += sizeof(target_ulong);
 
-        env->fcr0 = tswapl(*(target_ulong *)ptr);
+        env->fpu->fcr0 = tswapl(*(target_ulong *)ptr);
         ptr += sizeof(target_ulong);
 
         /* set rounding mode */
@@ -777,7 +777,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_SH4)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
-            env->PC = addr;
+            env->PC[env->current_tc] = addr;
 #endif
         }
 #ifdef CONFIG_USER_ONLY
@@ -803,7 +803,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_SH4)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
-            env->PC = addr;
+            env->PC[env->current_tc] = addr;
 #endif
         }
         cpu_single_step(env, 1);

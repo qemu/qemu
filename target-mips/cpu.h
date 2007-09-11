@@ -17,21 +17,7 @@ typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 #endif
 
-typedef union fpr_t fpr_t;
-union fpr_t {
-    float64  fd;   /* ieee double precision */
-    float32  fs[2];/* ieee single precision */
-    uint64_t d;    /* binary double fixed-point */
-    uint32_t w[2]; /* binary single fixed-point */
-};
-/* define FP_ENDIAN_IDX to access the same location
- * in the fpr_t union regardless of the host endianess
- */
-#if defined(WORDS_BIGENDIAN)
-#  define FP_ENDIAN_IDX 1
-#else
-#  define FP_ENDIAN_IDX 0
-#endif
+struct CPUMIPSState;
 
 typedef struct r4k_tlb_t r4k_tlb_t;
 struct r4k_tlb_t {
@@ -48,20 +34,40 @@ struct r4k_tlb_t {
     target_ulong PFN[2];
 };
 
-typedef struct mips_def_t mips_def_t;
+typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
+struct CPUMIPSTLBContext {
+    uint32_t nb_tlb;
+    uint32_t tlb_in_use;
+    int (*map_address) (struct CPUMIPSState *env, target_ulong *physical, int *prot, target_ulong address, int rw, int access_type);
+    void (*do_tlbwi) (void);
+    void (*do_tlbwr) (void);
+    void (*do_tlbp) (void);
+    void (*do_tlbr) (void);
+    union {
+        struct {
+            r4k_tlb_t tlb[MIPS_TLB_MAX];
+        } r4k;
+    } mmu;
+};
 
-typedef struct CPUMIPSState CPUMIPSState;
-struct CPUMIPSState {
-    /* General integer registers */
-    target_ulong gpr[32];
-    /* Special registers */
-    target_ulong PC;
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-    target_ulong t0;
-    target_ulong t1;
-    target_ulong t2;
+typedef union fpr_t fpr_t;
+union fpr_t {
+    float64  fd;   /* ieee double precision */
+    float32  fs[2];/* ieee single precision */
+    uint64_t d;    /* binary double fixed-point */
+    uint32_t w[2]; /* binary single fixed-point */
+};
+/* define FP_ENDIAN_IDX to access the same location
+ * in the fpr_t union regardless of the host endianess
+ */
+#if defined(WORDS_BIGENDIAN)
+#  define FP_ENDIAN_IDX 1
+#else
+#  define FP_ENDIAN_IDX 0
 #endif
-    target_ulong HI, LO;
+
+typedef struct CPUMIPSFPUContext CPUMIPSFPUContext;
+struct CPUMIPSFPUContext {
     /* Floating point registers */
     fpr_t fpr[32];
 #ifndef USE_HOST_FLOAT_REGS
@@ -99,30 +105,161 @@ struct CPUMIPSState {
 #define FP_DIV0           8
 #define FP_INVALID        16
 #define FP_UNIMPLEMENTED  32
+};
 
-    uint32_t nb_tlb;
-    uint32_t tlb_in_use;
+typedef struct CPUMIPSMVPContext CPUMIPSMVPContext;
+struct CPUMIPSMVPContext {
+    int32_t CP0_MVPControl;
+#define CP0MVPCo_CPA	3
+#define CP0MVPCo_STLB	2
+#define CP0MVPCo_VPC	1
+#define CP0MVPCo_EVP	0
+    int32_t CP0_MVPConf0;
+#define CP0MVPC0_M	31
+#define CP0MVPC0_TLBS	29
+#define CP0MVPC0_GS	28
+#define CP0MVPC0_PCP	27
+#define CP0MVPC0_PTLBE	16
+#define CP0MVPC0_TCA	15
+#define CP0MVPC0_PVPE	10
+#define CP0MVPC0_PTC	0
+    int32_t CP0_MVPConf1;
+#define CP0MVPC1_CIM	31
+#define CP0MVPC1_CIF	30
+#define CP0MVPC1_PCX	20
+#define CP0MVPC1_PCP2	10
+#define CP0MVPC1_PCP1	0
+};
+
+typedef struct mips_def_t mips_def_t;
+
+#define MIPS_SHADOW_SET_MAX 16
+#define MIPS_TC_MAX 5
+#define MIPS_DSP_ACC 4
+
+typedef struct CPUMIPSState CPUMIPSState;
+struct CPUMIPSState {
+    /* General integer registers */
+    target_ulong gpr[32][MIPS_SHADOW_SET_MAX];
+    /* Special registers */
+    target_ulong PC[MIPS_TC_MAX];
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    target_ulong t0;
+    target_ulong t1;
+    target_ulong t2;
+#endif
+    target_ulong HI[MIPS_DSP_ACC][MIPS_TC_MAX];
+    target_ulong LO[MIPS_DSP_ACC][MIPS_TC_MAX];
+    target_ulong ACX[MIPS_DSP_ACC][MIPS_TC_MAX];
+    target_ulong DSPControl[MIPS_TC_MAX];
+
+    CPUMIPSMVPContext *mvp;
+    CPUMIPSTLBContext *tlb;
+    CPUMIPSFPUContext *fpu;
+    uint32_t current_tc;
+
     uint32_t SEGBITS;
     target_ulong SEGMask;
-    int (*map_address) (CPUMIPSState *env, target_ulong *physical, int *prot, target_ulong address, int rw, int access_type);
-    void (*do_tlbwi) (void);
-    void (*do_tlbwr) (void);
-    void (*do_tlbp) (void);
-    void (*do_tlbr) (void);
-    union {
-        struct {
-            r4k_tlb_t tlb[MIPS_TLB_MAX];
-        } r4k;
-    } mmu;
 
     int32_t CP0_Index;
+    /* CP0_MVP* are per MVP registers. */
     int32_t CP0_Random;
+    int32_t CP0_VPEControl;
+#define CP0VPECo_YSI	21
+#define CP0VPECo_GSI	20
+#define CP0VPECo_EXCPT	16
+#define CP0VPECo_TE	15
+#define CP0VPECo_TargTC	0
+    int32_t CP0_VPEConf0;
+#define CP0VPEC0_M	31
+#define CP0VPEC0_XTC	21
+#define CP0VPEC0_TCS	19
+#define CP0VPEC0_SCS	18
+#define CP0VPEC0_DSC	17
+#define CP0VPEC0_ICS	16
+#define CP0VPEC0_MVP	1
+#define CP0VPEC0_VPA	0
+    int32_t CP0_VPEConf1;
+#define CP0VPEC1_NCX	20
+#define CP0VPEC1_NCP2	10
+#define CP0VPEC1_NCP1	0
+    target_ulong CP0_YQMask;
+    target_ulong CP0_VPESchedule;
+    target_ulong CP0_VPEScheFBack;
+    int32_t CP0_VPEOpt;
+#define CP0VPEOpt_IWX7	15
+#define CP0VPEOpt_IWX6	14
+#define CP0VPEOpt_IWX5	13
+#define CP0VPEOpt_IWX4	12
+#define CP0VPEOpt_IWX3	11
+#define CP0VPEOpt_IWX2	10
+#define CP0VPEOpt_IWX1	9
+#define CP0VPEOpt_IWX0	8
+#define CP0VPEOpt_DWX7	7
+#define CP0VPEOpt_DWX6	6
+#define CP0VPEOpt_DWX5	5
+#define CP0VPEOpt_DWX4	4
+#define CP0VPEOpt_DWX3	3
+#define CP0VPEOpt_DWX2	2
+#define CP0VPEOpt_DWX1	1
+#define CP0VPEOpt_DWX0	0
     target_ulong CP0_EntryLo0;
+    int32_t CP0_TCStatus[MIPS_TC_MAX];
+#define CP0TCSt_TCU3	31
+#define CP0TCSt_TCU2	30
+#define CP0TCSt_TCU1	29
+#define CP0TCSt_TCU0	28
+#define CP0TCSt_TMX	27
+#define CP0TCSt_RNST	23
+#define CP0TCSt_TDS	21
+#define CP0TCSt_DT	20
+#define CP0TCSt_DA	15
+#define CP0TCSt_A	13
+#define CP0TCSt_TKSU	11
+#define CP0TCSt_IXMT	10
+#define CP0TCSt_TASID	0
+    int32_t CP0_TCBind[MIPS_TC_MAX];
+#define CP0TCBd_CurTC	21
+#define CP0TCBd_TBE	17
+#define CP0TCBd_CurVPE	0
+    target_ulong CP0_TCHalt[MIPS_TC_MAX];
+    target_ulong CP0_TCContext[MIPS_TC_MAX];
+    target_ulong CP0_TCSchedule[MIPS_TC_MAX];
+    target_ulong CP0_TCScheFBack[MIPS_TC_MAX];
     target_ulong CP0_EntryLo1;
     target_ulong CP0_Context;
     int32_t CP0_PageMask;
     int32_t CP0_PageGrain;
     int32_t CP0_Wired;
+    int32_t CP0_SRSConf0_rw_bitmask;
+    int32_t CP0_SRSConf0;
+#define CP0SRSC0_M	31
+#define CP0SRSC0_SRS3	20
+#define CP0SRSC0_SRS2	10
+#define CP0SRSC0_SRS1	0
+    int32_t CP0_SRSConf1_rw_bitmask;
+    int32_t CP0_SRSConf1;
+#define CP0SRSC1_M	31
+#define CP0SRSC1_SRS6	20
+#define CP0SRSC1_SRS5	10
+#define CP0SRSC1_SRS4	0
+    int32_t CP0_SRSConf2_rw_bitmask;
+    int32_t CP0_SRSConf2;
+#define CP0SRSC2_M	31
+#define CP0SRSC2_SRS9	20
+#define CP0SRSC2_SRS8	10
+#define CP0SRSC2_SRS7	0
+    int32_t CP0_SRSConf3_rw_bitmask;
+    int32_t CP0_SRSConf3;
+#define CP0SRSC3_M	31
+#define CP0SRSC3_SRS12	20
+#define CP0SRSC3_SRS11	10
+#define CP0SRSC3_SRS10	0
+    int32_t CP0_SRSConf4_rw_bitmask;
+    int32_t CP0_SRSConf4;
+#define CP0SRSC4_SRS15	20
+#define CP0SRSC4_SRS14	10
+#define CP0SRSC4_SRS13	0
     int32_t CP0_HWREna;
     target_ulong CP0_BadVAddr;
     int32_t CP0_Count;
@@ -152,8 +289,24 @@ struct CPUMIPSState {
 #define CP0St_EXL   1
 #define CP0St_IE    0
     int32_t CP0_IntCtl;
+#define CP0IntCtl_IPTI 29
+#define CP0IntCtl_IPPC1 26
+#define CP0IntCtl_VS 5
     int32_t CP0_SRSCtl;
+#define CP0SRSCtl_HSS 26
+#define CP0SRSCtl_EICSS 18
+#define CP0SRSCtl_ESS 12
+#define CP0SRSCtl_PSS 6
+#define CP0SRSCtl_CSS 0
     int32_t CP0_SRSMap;
+#define CP0SRSMap_SSV7 28
+#define CP0SRSMap_SSV6 24
+#define CP0SRSMap_SSV5 20
+#define CP0SRSMap_SSV4 16
+#define CP0SRSMap_SSV3 12
+#define CP0SRSMap_SSV2 8
+#define CP0SRSMap_SSV1 4
+#define CP0SRSMap_SSV0 0
     int32_t CP0_Cause;
 #define CP0Ca_BD   31
 #define CP0Ca_TI   30
@@ -220,13 +373,14 @@ struct CPUMIPSState {
 #define CP0C3_TL   0
     int32_t CP0_Config6;
     int32_t CP0_Config7;
+    /* XXX: Maybe make LLAddr per-TC? */
     target_ulong CP0_LLAddr;
     target_ulong CP0_WatchLo[8];
     int32_t CP0_WatchHi[8];
     target_ulong CP0_XContext;
     int32_t CP0_Framemask;
     int32_t CP0_Debug;
-#define CPDB_DBD   31
+#define CP0DB_DBD  31
 #define CP0DB_DM   30
 #define CP0DB_LSNM 28
 #define CP0DB_Doze 27
@@ -244,10 +398,7 @@ struct CPUMIPSState {
 #define CP0DB_DDBL 2
 #define CP0DB_DBp  1
 #define CP0DB_DSS  0
-    uint32_t CP0_TraceControl;
-    uint32_t CP0_TraceControl2;
-    uint32_t CP0_UserTraceData;
-    uint32_t CP0_TraceBPC;
+    int32_t CP0_Debug_tcstatus[MIPS_TC_MAX];
     target_ulong CP0_DEPC;
     //~ uint32_t CP0_ErrCtl;
     int32_t CP0_Performance0;
@@ -291,7 +442,8 @@ struct CPUMIPSState {
 
     int SYNCI_Step; /* Address step size for SYNCI */
     int CCRes; /* Cycle count resolution/divisor */
-    int Status_rw_bitmask; /* Read/write bits in CP0_Status */
+    uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
+    uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
 
 #ifdef CONFIG_USER_ONLY
     target_ulong tls_value;
@@ -383,6 +535,7 @@ enum {
     EXCP_TLBS,
     EXCP_DBE,
     EXCP_DDBL,
+    EXCP_THREAD,
     EXCP_MTCP0         = 0x104, /* mtmsr instruction:               */
                                 /* may change privilege level       */
     EXCP_BRANCH        = 0x108, /* branch instruction               */
