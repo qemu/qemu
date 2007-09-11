@@ -144,6 +144,10 @@ typedef enum {
     SCBeeprom = 14,             /* EEPROM control. */
     SCBCtrlMDI = 16,            /* MDI interface control. */
     SCBEarlyRx = 20,            /* Early receive byte count. */
+    SCBFlow = 24,               /* Flow Control. */
+    SCBpmdr = 27,               /* Power Management Driver. */
+    SCBgctrl = 28,              /* General Control. */
+    SCBgstat = 29,              /* General Status. */
 } speedo_offset_t;
 
 /* A speedo3 transmit buffer descriptor with two buffers... */
@@ -424,14 +428,14 @@ static void eepro100_acknowledge(EEPRO100State * s)
     }
 }
 
-static void eepro100_interrupt(EEPRO100State * s, uint8_t stat)
+static void eepro100_interrupt(EEPRO100State * s, uint8_t status)
 {
     uint8_t mask = ~s->mem[SCBIntmask];
-    s->mem[SCBAck] |= stat;
-    stat = s->scb_stat = s->mem[SCBAck];
-    stat &= (mask | 0x0f);
-    //~ stat &= (~s->mem[SCBIntmask] | 0x0xf);
-    if (stat && (mask & 0x01)) {
+    s->mem[SCBAck] |= status;
+    status = s->scb_stat = s->mem[SCBAck];
+    status &= (mask | 0x0f);
+    //~ status &= (~s->mem[SCBIntmask] | 0x0xf);
+    if (status && (mask & 0x01)) {
         /* SCB mask and SCB Bit M do not disable interrupt. */
         enable_interrupt(s);
     } else if (s->int_stat) {
@@ -627,7 +631,7 @@ static const char *reg[PCI_IO_SIZE / 4] = {
     "EEPROM/Flash Control",
     "MDI Control",
     "Receive DMA Byte Count",
-    "Flow control register",
+    "Flow Control",
     "General Status/Control"
 };
 
@@ -1305,11 +1309,11 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
     case SCBeeprom:
         val = le16_to_cpu(eepro100_read_eeprom(s));
         break;
-    case 0x1b:                 /* PMDR (power management driver register) */
+    case SCBpmdr:       /* Power Management Driver Register */
         val = 0;
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
-    case 0x1d:                 /* general status register */
+    case SCBgstat:      /* General Status Register */
         /* 100 Mbps full duplex, valid link */
         val = 0x07;
         TRACE(OTHER, logout("addr=General Status val=%02x\n", val));
@@ -1408,6 +1412,10 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         eepro100_interrupt(s, 0);
         break;
     case SCBPort + 3:
+    case SCBFlow:       /* does not exist on 82557 */
+    case SCBFlow + 1:
+    case SCBFlow + 2:
+    case SCBpmdr:       /* does not exist on 82557 */
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
     case SCBeeprom:
