@@ -1242,7 +1242,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
         ii++;
         while (ii <= i)
             gen_opc_instr_start[ii++] = 0;
-        tb->size = 0;
     } else {
         tb->size = ctx.pc - pc_start;
     }

@@ -5882,10 +5882,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             generate_exception(ctx, EXCP_SYSCALL);
             break;
         case OPC_BREAK:
-            /* XXX: Hack to work around wrong handling of self-modifying code. */
-            ctx->pc += 4;
-            save_cpu_state(ctx, 1);
-            ctx->pc -= 4;
             generate_exception(ctx, EXCP_BREAK);
             break;
         case OPC_SPIM:
@@ -6433,6 +6429,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
                     gen_op_debug();
+                    /* Include the breakpoint location or the tb won't
+                     * be flushed when it must be.  */
+                    ctx.pc += 4;
                     goto done_generating;
                 }
             }
@@ -6493,7 +6492,6 @@ done_generating:
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;
-        tb->size = 0;
     } else {
         tb->size = ctx.pc - pc_start;
     }
