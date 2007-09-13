@@ -1843,5 +1843,13 @@ enqueue:
 static void fdctrl_result_timer(void *opaque)
 {
     fdctrl_t *fdctrl = opaque;
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+    /* Pretend we are spinning.
+     * This is needed for Coherent, which uses READ ID to check for
+     * sector interleaving.
+     */
+    if (cur_drv->last_sect != 0) {
+        cur_drv->sect = (cur_drv->sect % cur_drv->last_sect) + 1;
+    }
     fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
