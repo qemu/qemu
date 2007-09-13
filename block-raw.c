@@ -59,6 +59,13 @@
 
 //#define DEBUG_FLOPPY
 
+#define DEBUG_BLOCK
+#if defined(DEBUG_BLOCK) && !defined(QEMU_TOOL)
+#define DEBUG_BLOCK_PRINT(formatCstr, args...) fprintf(logfile, formatCstr, ##args); fflush(logfile)
+#else
+#define DEBUG_BLOCK_PRINT(formatCstr, args...)
+#endif
+
 #define FTYPE_FILE   0
 #define FTYPE_CD     1
 #define FTYPE_FD     2
@@ -70,6 +77,7 @@
 typedef struct BDRVRawState {
     int fd;
     int type;
+    unsigned int lseek_err_cnt;
 #if defined(__linux__)
     /* linux floppy specific */
     int fd_open_flags;
@@ -86,6 +94,8 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, open_flags, ret;
+
+    s->lseek_err_cnt = 0;
 
     open_flags = O_BINARY;
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
@@ -137,8 +147,45 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return ret;
 
-    lseek(s->fd, offset, SEEK_SET);
+    if (lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
+        ++(s->lseek_err_cnt);
+        if(s->lseek_err_cnt <= 10) {
+            DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %lld, %p, %d) [%lld] lseek failed : %d = %s\n",
+                              s->fd, bs->filename, offset, buf, count,
+                              bs->total_sectors, errno, strerror(errno));
+        }
+        return -1;
+    }
+    s->lseek_err_cnt=0;
+
     ret = read(s->fd, buf, count);
+    if (ret == count)
+        goto label__raw_read__success;
+
+    DEBUG_BLOCK_PRINT("raw_read(%d:%s, %lld, %p, %d) [%lld] read failed %d : %d = %s\n",
+                      s->fd, bs->filename, offset, buf, count,
+                      bs->total_sectors, ret, errno, strerror(errno));
+
+    /* Try harder for CDrom. */
+    if (bs->type == BDRV_TYPE_CDROM) {
+        lseek(s->fd, offset, SEEK_SET);
+        ret = read(s->fd, buf, count);
+        if (ret == count)
+            goto label__raw_read__success;
+        lseek(s->fd, offset, SEEK_SET);
+        ret = read(s->fd, buf, count);
+        if (ret == count)
+            goto label__raw_read__success;
+
+        DEBUG_BLOCK_PRINT("raw_read(%d:%s, %lld, %p, %d) [%lld] retry read failed %d : %d = %s\n",
+                          s->fd, bs->filename, offset, buf, count,
+                          bs->total_sectors, ret, errno, strerror(errno));
+    }
+
+    return -1;
+
+label__raw_read__success:
+
     return ret;
 }
 
@@ -152,8 +199,29 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return ret;
 
-    lseek(s->fd, offset, SEEK_SET);
+    if (lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
+        ++(s->lseek_err_cnt);
+        if(s->lseek_err_cnt) {
+            DEBUG_BLOCK_PRINT("raw_write(%d:%s, %lld, %p, %d) [%lld] lseek failed : %d = %s\n",
+                              s->fd, bs->filename, offset, buf, count,
+                              bs->total_sectors, errno, strerror(errno));
+        }
+        return -1;
+    }
+    s->lseek_err_cnt = 0;
+
     ret = write(s->fd, buf, count);
+    if (ret == count)
+        goto label__raw_write__success;
+
+    DEBUG_BLOCK_PRINT("raw_write(%d:%s, %lld, %p, %d) [%lld] write failed %d : %d = %s\n",
+                      s->fd, bs->filename, offset, buf, count,
+                      bs->total_sectors, ret, errno, strerror(errno));
+
+    return -1;
+
+label__raw_write__success:
+
     return ret;
 }
 
