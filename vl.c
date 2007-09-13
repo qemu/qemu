@@ -42,6 +42,8 @@
 #include <netinet/in.h>
 #include <dirent.h>
 #include <netdb.h>
+#include <sys/select.h>
+#include <arpa/inet.h>
 #ifdef _BSD
 #include <sys/stat.h>
 #ifndef __APPLE__
@@ -63,7 +65,6 @@
 #include <sys/stat.h>
 #include <sys/ethernet.h>
 #include <sys/sockio.h>
-#include <arpa/inet.h>
 #include <netinet/arp.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -76,6 +77,9 @@
 #include <stropts.h>
 #endif
 #endif
+#else
+#include <winsock2.h>
+int inet_aton(const char *cp, struct in_addr *ia);
 #endif
 
 #if defined(CONFIG_SLIRP)

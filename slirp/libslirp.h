@@ -1,14 +1,6 @@
 #ifndef _LIBSLIRP_H
 #define _LIBSLIRP_H
 
-#ifdef _WIN32
-#include <winsock2.h>
-int inet_aton(const char *cp, struct in_addr *ia);
-#else
-#include <sys/select.h>
-#include <arpa/inet.h>
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
