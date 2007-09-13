@@ -1256,6 +1256,10 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         eepro100_interrupt(s, 0);
         break;
     case SCBPort + 3:
+    case 24:
+    case 25:
+    case 26:
+    case 27:
         logout("addr=%s val=0x%02x\n", regname(addr), val);
         break;
     case SCBeeprom:
