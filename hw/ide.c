@@ -1986,6 +1986,8 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             case 0x67: /* NOP */
             case 0x96: /* NOP */
             case 0x9a: /* NOP */
+            case 0x42: /* enable Automatic Acoustic Mode */
+            case 0xc2: /* disable Automatic Acoustic Mode */
                 s->status = READY_STAT | SEEK_STAT;
                 ide_set_irq(s);
                 break;
@@ -2024,13 +2026,17 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	    s->status = READY_STAT;
             ide_set_irq(s);
             break;
-	case WIN_STANDBYNOW1:
+        case WIN_STANDBY:
+        case WIN_STANDBY2:
+        case WIN_STANDBYNOW1:
         case WIN_STANDBYNOW2:
         case WIN_IDLEIMMEDIATE:
         case CFA_IDLEIMMEDIATE:
         case WIN_SETIDLE1:
         case WIN_SETIDLE2:
-	    s->status = READY_STAT;
+        case WIN_SLEEPNOW1:
+        case WIN_SLEEPNOW2:
+            s->status = READY_STAT;
             ide_set_irq(s);
             break;
             /* ATAPI commands */
