@@ -1657,10 +1657,10 @@ void helper_cpuid(void)
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
-        EAX = 0x410601;
+        EAX = 1;
         EBX = 0;
         ECX = 0;
-        EDX = 0;
+        EDX = 0x2c307d;
         break;
     case 0x80000000:
         EAX = env->cpuid_xlevel;
