@@ -140,6 +140,7 @@ enum speedo_offsets {
     SCBflash = 12, SCBeeprom = 14,      /* EEPROM and flash memory control. */
     SCBCtrlMDI = 16,            /* MDI interface control. */
     SCBEarlyRx = 20,            /* Early receive byte count. */
+    SCBFlow = 24,
 };
 
 /* A speedo3 transmit buffer descriptor with two buffers... */
@@ -1256,10 +1257,10 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         eepro100_interrupt(s, 0);
         break;
     case SCBPort + 3:
-    case 24:
-    case 25:
-    case 26:
-    case 27:
+    case SCBFlow:
+    case SCBFlow + 1:
+    case SCBFlow + 2:
+    case SCBFlow + 3:
         logout("addr=%s val=0x%02x\n", regname(addr), val);
         break;
     case SCBeeprom:
