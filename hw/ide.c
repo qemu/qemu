@@ -261,6 +261,7 @@
  * older drives only.
  */
 #define GPCMD_GET_MEDIA_STATUS		    0xda
+#define GPCMD_MODE_SENSE_6		    0x1a
 
 /* Mode page codes for mode sense/set */
 #define GPMODE_R_W_ERROR_PAGE		0x01
@@ -1329,10 +1330,14 @@ static void ide_atapi_cmd(IDEState *s)
                                 ASC_MEDIUM_NOT_PRESENT);
         }
         break;
+    case GPCMD_MODE_SENSE_6:
     case GPCMD_MODE_SENSE_10:
         {
             int action, code;
-            max_len = ube16_to_cpu(packet + 7);
+            if (packet[0] == GPCMD_MODE_SENSE_10)
+                max_len = ube16_to_cpu(packet + 7);
+            else
+                max_len = packet[4];
             action = packet[2] >> 6;
             code = packet[2] & 0x3f;
             switch(action) {
@@ -1368,7 +1373,7 @@ static void ide_atapi_cmd(IDEState *s)
 
                     buf[8] = 0x2a;
                     buf[9] = 0x12;
-                    buf[10] = 0x00;
+                    buf[10] = 0x08;
                     buf[11] = 0x00;
                     
                     buf[12] = 0x70;
@@ -1582,6 +1587,50 @@ static void ide_atapi_cmd(IDEState *s)
             ide_atapi_cmd_reply(s, 8, 8);
         }
         break;
+    case GPCMD_READ_DVD_STRUCTURE:
+        {
+            int media = packet[1];
+            int layer = packet[6];
+            int format = packet[2];
+            int64_t total_sectors;
+
+            if (media != 0 || layer != 0)
+            {
+                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                                    ASC_INV_FIELD_IN_CMD_PACKET);
+            }
+
+            switch (format) {
+                case 0:
+                    bdrv_get_geometry(s->bs, &total_sectors);
+                    total_sectors >>= 2;
+
+                    memset(buf, 0, 2052);
+
+                    buf[4] = 1;   // DVD-ROM, part version 1
+                    buf[5] = 0xf; // 120mm disc, maximum rate unspecified
+                    buf[6] = 0;   // one layer, embossed data
+                    buf[7] = 0;
+
+                    cpu_to_ube32(buf + 8, 0);
+                    cpu_to_ube32(buf + 12, total_sectors - 1);
+                    cpu_to_ube32(buf + 16, total_sectors - 1);
+
+                    cpu_to_be16wu((uint16_t *)buf, 2048 + 4);
+
+                    ide_atapi_cmd_reply(s, 2048 + 3, 2048 + 4);
+                    break;
+
+                default:
+                    ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                                        ASC_INV_FIELD_IN_CMD_PACKET);
+                    break;
+            }
+        }
+        break;
+    case GPCMD_SET_SPEED:
+        ide_atapi_cmd_ok(s);
+        break;
     case GPCMD_INQUIRY:
         max_len = packet[4];
         buf[0] = 0x05; /* CD-ROM */
@@ -1597,6 +1646,29 @@ static void ide_atapi_cmd(IDEState *s)
         padstr8(buf + 32, 4, QEMU_VERSION);
         ide_atapi_cmd_reply(s, 36, max_len);
         break;
+    case GPCMD_GET_CONFIGURATION:
+        {
+            int64_t total_sectors;
+
+            /* only feature 0 is supported */
+            if (packet[2] != 0 || packet[3] != 0) {
+                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                                    ASC_INV_FIELD_IN_CMD_PACKET);
+                break;
+            }
+            memset(buf, 0, 32);
+            bdrv_get_geometry(s->bs, &total_sectors);
+            buf[3] = 16;
+            buf[7] = total_sectors <= 1433600 ? 0x08 : 0x10; /* current profile */
+            buf[10] = 0x10 | 0x1;
+            buf[11] = 0x08; /* size of profile list */
+            buf[13] = 0x10; /* DVD-ROM profile */
+            buf[14] = buf[7] == 0x10; /* (in)active */
+            buf[17] = 0x08; /* CD-ROM profile */
+            buf[18] = buf[7] == 0x08; /* (in)active */
+            ide_atapi_cmd_reply(s, 32, 32);
+            break;
+        }
     default:
         ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
                             ASC_ILLEGAL_OPCODE);
@@ -1916,6 +1988,8 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             case 0x67: /* NOP */
             case 0x96: /* NOP */
             case 0x9a: /* NOP */
+            case 0x42: /* enable Automatic Acoustic Mode */
+            case 0xc2: /* disable Automatic Acoustic Mode */
                 s->status = READY_STAT | SEEK_STAT;
                 ide_set_irq(s);
                 break;
@@ -1954,13 +2028,17 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	    s->status = READY_STAT;
             ide_set_irq(s);
             break;
-	case WIN_STANDBYNOW1:
+        case WIN_STANDBY:
+        case WIN_STANDBY2:
+        case WIN_STANDBYNOW1:
         case WIN_STANDBYNOW2:
         case WIN_IDLEIMMEDIATE:
         case CFA_IDLEIMMEDIATE:
         case WIN_SETIDLE1:
         case WIN_SETIDLE2:
-	    s->status = READY_STAT;
+        case WIN_SLEEPNOW1:
+        case WIN_SLEEPNOW2:
+            s->status = READY_STAT;
             ide_set_irq(s);
             break;
             /* ATAPI commands */

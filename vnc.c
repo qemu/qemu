@@ -1195,8 +1195,11 @@ static int protocol_client_msg(VncState *vs, char *data, size_t len)
 	if (len == 1)
 	    return 8;
 
-	if (len == 8)
-	    return 8 + read_u32(data, 4);
+	if (len == 8) {
+            uint32_t dlen = read_u32(data, 4);
+            if (dlen > 0)
+                return 8 + dlen;
+        }
 
 	client_cut_text(vs, read_u32(data, 4), data + 8);
 	break;

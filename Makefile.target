@@ -117,6 +117,7 @@ OP_CFLAGS+=$(call cc-option, -fno-crossjumping, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
+OP_CFLAGS+=$(call cc-option, -fno-section-anchors, "")
 
 OP_CFLAGS += -MMD -MP
 
