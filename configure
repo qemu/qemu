@@ -155,6 +155,12 @@ SunOS)
     install="ginstall"
     needs_libsunmath="no"
     solarisrev=`uname -r | cut -f2 -d.`
+    # have to select again, because `uname -m` returns i86pc
+    # even on an x86_64 box.
+    solariscpu=`isainfo -k`
+    if test "${solariscpu}" = "amd64" ; then
+        cpu="x86_64"
+    fi
     if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
         if test "$solarisrev" -le 9 ; then
             if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
@@ -332,6 +338,16 @@ case $cpu in
            fi
            ;;
 esac
+
+if [ "$solaris" = "yes" -a  "$cpu" = "x86_64" ] ; then
+    CFLAGS="${CFLAGS} -m64"
+    OS_CFLAGS="${OS_CFLAGS} -m64"
+fi
+
+if [ "$solaris" = "yes" -a  "$cpu" = "i386" ] ; then
+    CFLAGS="${CFLAGS} -m32"
+    OS_CFLAGS="${OS_CFLAGS} -m32"
+fi
 
 if test x"$show_help" = x"yes" ; then
 cat << EOF
