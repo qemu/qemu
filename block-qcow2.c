@@ -1076,7 +1076,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     s->cluster_size = 1 << s->cluster_bits;
     header.cluster_bits = cpu_to_be32(s->cluster_bits);
     header_size = (header_size + 7) & ~7;
-    if (flags) {
+    if (flags & BLOCK_FLAG_ENCRYPT) {
         header.crypt_method = cpu_to_be32(QCOW_CRYPT_AES);
     } else {
         header.crypt_method = cpu_to_be32(QCOW_CRYPT_NONE);

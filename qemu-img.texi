@@ -8,9 +8,9 @@ usage: qemu-img command [command options]
 
 The following commands are supported:
 @table @option
-@item create [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-e] [-6] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
 @item commit [-f @var{fmt}] @var{filename}
-@item convert [-c] [-e] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
+@item convert [-c] [-e] [-6] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
 @item info [-f @var{fmt}] @var{filename}
 @end table
 
@@ -67,12 +67,14 @@ is the destination disk image filename
 indicates that target image must be compressed (qcow format only)
 @item -e
 indicates that the target image must be encrypted (qcow format only)
+@item -6
+indicates that the target image must use compatibility level 6 (vmdk format only)
 @end table
 
 Command description:
 
 @table @option
-@item create [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-6] [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
 
 Create the new disk image @var{filename} of size @var{size} and format
 @var{fmt}.

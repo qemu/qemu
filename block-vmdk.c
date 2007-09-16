@@ -712,7 +712,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
         "# The Disk Data Base \n"
         "#DDB\n"
         "\n"
-        "ddb.virtualHWVersion = \"4\"\n"
+        "ddb.virtualHWVersion = \"%d\"\n"
         "ddb.geometry.cylinders = \"%lu\"\n"
         "ddb.geometry.heads = \"16\"\n"
         "ddb.geometry.sectors = \"63\"\n"
@@ -789,7 +789,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
     if ((temp_str = strrchr(real_filename, ':')) != NULL)
         real_filename = temp_str + 1;
     sprintf(desc, desc_template, time(NULL), (unsigned long)total_size,
-            real_filename, total_size / (63 * 16));
+            real_filename, (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
 
     /* write the descriptor */
     lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);

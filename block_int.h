@@ -24,6 +24,10 @@
 #ifndef BLOCK_INT_H
 #define BLOCK_INT_H
 
+#define BLOCK_FLAG_ENCRYPT	1
+#define BLOCK_FLAG_COMPRESS	2
+#define BLOCK_FLAG_COMPAT6	4
+
 struct BlockDriver {
     const char *format_name;
     int instance_size;
