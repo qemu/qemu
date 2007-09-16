@@ -161,15 +161,17 @@ static int gettid(void) {
 _syscall1(int,sys_uname,struct new_utsname *,buf)
 _syscall2(int,sys_getcwd1,char *,buf,size_t,size)
 _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
+#if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
 _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
+#endif
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
-#ifdef TARGET_NR_tgkill
+#if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
 _syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
 #endif
-#ifdef TARGET_NR_tkill
+#if defined(TARGET_NR_tkill) && defined(__NR_tkill)
 _syscall2(int,sys_tkill,int,tid,int,sig)
 #endif
 #ifdef __NR_exit_group
@@ -3845,7 +3847,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
 #endif
         break;
-#ifdef TARGET_NR_getdents64
+#if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
     case TARGET_NR_getdents64:
         {
             struct dirent64 *dirp;
@@ -4634,13 +4636,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
       break;
 #endif
 
-#ifdef TARGET_NR_tkill
+#if defined(TARGET_NR_tkill) && defined(__NR_tkill)
     case TARGET_NR_tkill:
         ret = get_errno(sys_tkill((int)arg1, (int)arg2));
         break;
 #endif
 
-#ifdef TARGET_NR_tgkill
+#if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
     case TARGET_NR_tgkill:
 	ret = get_errno(sys_tgkill((int)arg1, (int)arg2, (int)arg3));
 	break;
