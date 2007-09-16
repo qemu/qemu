@@ -1,4 +1,4 @@
-/* 
+/*
  * ARM RealView Baseboard System emulation.
  *
  * Copyright (c) 2006-2007 CodeSourcery.

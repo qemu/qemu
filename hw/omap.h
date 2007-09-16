@@ -483,7 +483,7 @@ struct omap_mpu_state_s {
     qemu_irq wakeup;
 
     struct omap_dma_port_if_s {
-        uint32_t (*read[3])(struct omap_mpu_state_s *s, 
+        uint32_t (*read[3])(struct omap_mpu_state_s *s,
                         target_phys_addr_t offset);
         void (*write[3])(struct omap_mpu_state_s *s,
                         target_phys_addr_t offset, uint32_t value);

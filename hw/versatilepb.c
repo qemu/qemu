@@ -1,4 +1,4 @@
-/* 
+/*
  * ARM Versatile Platform/Application Baseboard System emulation.
  *
  * Copyright (c) 2005-2007 CodeSourcery.

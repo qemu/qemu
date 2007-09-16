@@ -1,8 +1,8 @@
 /*
  * QEMU PPC CHRP/PMAC hardware System Emulator
- * 
+ *
  * Copyright (c) 2004-2007 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -129,16 +129,16 @@ static MacIONVRAMState *macio_nvram_init(void)
     s = qemu_mallocz(sizeof(MacIONVRAMState));
     if (!s)
         return NULL;
-    macio_nvram_mem_index = cpu_register_io_memory(0, macio_nvram_read, 
+    macio_nvram_mem_index = cpu_register_io_memory(0, macio_nvram_read,
                                                    macio_nvram_write, s);
     return s;
 }
 
-static void macio_map(PCIDevice *pci_dev, int region_num, 
+static void macio_map(PCIDevice *pci_dev, int region_num,
                       uint32_t addr, uint32_t size, int type)
 {
     if (heathrow_pic_mem_index >= 0) {
-        cpu_register_physical_memory(addr + 0x00000, 0x1000, 
+        cpu_register_physical_memory(addr + 0x00000, 0x1000,
                                      heathrow_pic_mem_index);
     }
     cpu_register_physical_memory(addr + 0x08000, 0x1000, dbdma_mem_index);
@@ -148,7 +148,7 @@ static void macio_map(PCIDevice *pci_dev, int region_num,
     if (ide1_mem_index >= 0)
         cpu_register_physical_memory(addr + 0x20000, 0x1000, ide1_mem_index);
     if (openpic_mem_index >= 0) {
-        cpu_register_physical_memory(addr + 0x40000, 0x40000, 
+        cpu_register_physical_memory(addr + 0x40000, 0x40000,
                                      openpic_mem_index);
     }
     if (macio_nvram_mem_index >= 0)
@@ -173,10 +173,10 @@ static void macio_init(PCIBus *bus, int device_id)
     d->config[0x0e] = 0x00; // header_type
 
     d->config[0x3d] = 0x01; // interrupt on pin 1
-    
+   
     dbdma_mem_index = cpu_register_io_memory(0, dbdma_read, dbdma_write, NULL);
 
-    pci_register_io_region(d, 0, 0x80000, 
+    pci_register_io_region(d, 0, 0x80000,
                            PCI_ADDRESS_SPACE_MEM, macio_map);
 }
 
@@ -208,7 +208,7 @@ static int vga_osi_call(CPUState *env)
 {
     static int vga_vbl_enabled;
     int linesize;
-    
+   
     //    printf("osi_call R5=%d\n", env->gpr[5]);
 
     /* same handler as PearPC, coming from the original MOL video
@@ -229,7 +229,7 @@ static int vga_osi_call(CPUState *env)
                 break;
             }
         }
-        env->gpr[3] = 0; 
+        env->gpr[3] = 0;
         env->gpr[4] = (1 << 16) | 1; /* num_vmodes, cur_vmode */
         env->gpr[5] = (1 << 16) | 0; /* num_depths, cur_depth_mode */
         env->gpr[6] = (graphic_width << 16) | graphic_height; /* w, h */
@@ -255,7 +255,7 @@ static int vga_osi_call(CPUState *env)
         break;
     case 64: /* get color */
         /* R6 = index */
-        env->gpr[3] = 0; 
+        env->gpr[3] = 0;
         break;
     case 116: /* set hwcursor */
         /* R6 = x, R7 = y, R8 = visible, R9 = data */
@@ -280,14 +280,14 @@ static uint8_t nvram_chksum(const uint8_t *buf, int n)
 void pmac_format_nvram_partition(uint8_t *buf, int len)
 {
     char partition_name[12] = "wwwwwwwwwwww";
-    
+   
     buf[0] = 0x7f; /* free partition magic */
     buf[1] = 0; /* checksum */
     buf[2] = len >> 8;
     buf[3] = len;
     memcpy(buf + 4, partition_name, 12);
     buf[1] = nvram_chksum(buf, 16);
-}    
+}   
 
 /* PowerPC CHRP hardware initialisation */
 static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
@@ -355,7 +355,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
     bios_size = (bios_size + 0xfff) & ~0xfff;
     cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
-    
+   
     /* allocate and load VGA BIOS */
     vga_bios_offset = bios_offset + bios_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
@@ -371,12 +371,12 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
         phys_ram_base[vga_bios_offset + 1] = 'D';
         phys_ram_base[vga_bios_offset + 2] = 'R';
         phys_ram_base[vga_bios_offset + 3] = 'V';
-        cpu_to_be32w((uint32_t *)(phys_ram_base + vga_bios_offset + 4), 
+        cpu_to_be32w((uint32_t *)(phys_ram_base + vga_bios_offset + 4),
                      vga_bios_size);
         vga_bios_size += 8;
     }
     vga_bios_size = (vga_bios_size + 0xfff) & ~0xfff;
-    
+   
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
@@ -427,24 +427,24 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
         /* XXX: suppress that */
         dummy_irq = i8259_init(NULL);
-        
+       
         /* XXX: use Mac Serial port */
         serial_init(0x3f8, dummy_irq[4], serial_hds[0]);
-        
+       
         for(i = 0; i < nb_nics; i++) {
             if (!nd_table[i].model)
                 nd_table[i].model = "ne2k_pci";
             pci_nic_init(pci_bus, &nd_table[i], -1);
         }
-        
+       
         pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
 
         /* cuda also initialize ADB */
         cuda_mem_index = cuda_init(pic[0x12]);
-        
+       
         adb_kbd_init(&adb_bus);
         adb_mouse_init(&adb_bus);
-        
+       
         {
             MacIONVRAMState *nvr;
             nvr = macio_nvram_init();
@@ -534,14 +534,14 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 #endif
         /* cuda also initialize ADB */
         cuda_mem_index = cuda_init(pic[0x19]);
-        
+       
         adb_kbd_init(&adb_bus);
         adb_mouse_init(&adb_bus);
-        
+       
         macio_init(pci_bus, 0x0022);
-        
+       
         nvram = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
-        
+       
         arch_name = "MAC99";
     }
 
@@ -578,7 +578,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size, int boot_device,
                   kernel_filename, kernel_cmdline,
                   initrd_filename, cpu_model, 0);
 }
-    
+   
 static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
                                DisplayState *ds, const char **fd_filename,
                                int snapshot,

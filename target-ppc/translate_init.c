@@ -1,6 +1,6 @@
 /*
  *  PowerPC CPU initialization for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -2142,7 +2142,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         /* Allocate hardware IRQ controller */
         ppc6xx_irq_init(env);
         break;
-        
+       
     case CPU_PPC_G2:      /* PowerPC G2 family             */
     case CPU_PPC_G2H4:
     case CPU_PPC_G2gp:
@@ -2577,7 +2577,7 @@ static int register_ind_insn (opc_handler_t **ppc_opcodes,
     return ret;
 }
 
-static int register_dblind_insn (opc_handler_t **ppc_opcodes, 
+static int register_dblind_insn (opc_handler_t **ppc_opcodes,
                                  unsigned char idx1, unsigned char idx2,
                                  unsigned char idx3, opc_handler_t *handler)
 {

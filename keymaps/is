@@ -1,6 +1,6 @@
-# 2004-03-16 Halldór Guðmundsson and Morten Lange 
+# 2004-03-16 Halldór Guðmundsson and Morten Lange
 # Keyboard definition file for the Icelandic keyboard
-# to be used in rdesktop 1.3.x ( See rdesktop.org) 
+# to be used in rdesktop 1.3.x ( See rdesktop.org)
 # generated from XKB map de, and changed manually
 # Location for example /usr/local/share/rdesktop/keymaps/is
 include common
@@ -71,8 +71,8 @@ Ooblique 0x18 shift altgr
 #Udiaeresis 0x1a shift
 #dead_diaeresis 0x1a altgr
 #dead_abovering 0x1a shift altgr
-eth 0x1a 
-ETH 0x1a shift 
+eth 0x1a
+ETH 0x1a shift
 apostrophe 0x1b
 question 0x1b shift
 #plus 0x1b
@@ -84,9 +84,9 @@ asciitilde 0x1b altgr
 #ae 0x1e altgr
 #AE 0x1e shift altgr
 #eth 0x20 altgr
-#eth 0x20 
+#eth 0x20
 #ETH 0x20 shift altgr
-#ETH 0x20 shift 
+#ETH 0x20 shift
 dstroke 0x21 altgr
 ordfeminine 0x21 shift altgr
 eng 0x22 altgr
@@ -96,8 +96,8 @@ Hstroke 0x23 shift altgr
 kra 0x25 altgr
 #adiaeresis 0x27
 #Adiaeresis 0x27 shift
-ae 0x27 
-AE 0x27 shift 
+ae 0x27
+AE 0x27 shift
 dead_doubleacute 0x27 altgr
 #adiaeresis 0x28
 #Adiaeresis 0x28 shift
@@ -133,8 +133,8 @@ periodcentered 0x34 altgr
 division 0x34 shift altgr
 #minus 0x35
 #underscore 0x35 shift
-thorn 0x35 
-THORN 0x35 shift 
+thorn 0x35
+THORN 0x35 shift
 dead_belowdot 0x35 altgr
 dead_abovedot 0x35 shift altgr
 

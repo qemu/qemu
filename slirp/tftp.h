@@ -18,11 +18,11 @@ struct tftp_t {
   struct udphdr udp;
   u_int16_t tp_op;
   union {
-    struct { 
+    struct {
       u_int16_t tp_block_nr;
       u_int8_t tp_buf[512];
     } tp_data;
-    struct { 
+    struct {
       u_int16_t tp_error_code;
       u_int8_t tp_msg[512];
     } tp_error;

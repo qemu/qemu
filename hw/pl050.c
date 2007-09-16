@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL050 Keyboard / Mouse Interface
  *
  * Copyright (c) 2006-2007 CodeSourcery.

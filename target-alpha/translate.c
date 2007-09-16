@@ -1,6 +1,6 @@
 /*
  *  Alpha emulation cpu translation for qemu.
- * 
+ *
  *  Copyright (c) 2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -562,49 +562,49 @@ static void gen_s4addl (void)
 {
     gen_op_s4();
     gen_op_addl();
-} 
+}
 
 static void gen_s4subl (void)
 {
     gen_op_s4();
     gen_op_subl();
-} 
+}
 
 static void gen_s8addl (void)
 {
     gen_op_s8();
     gen_op_addl();
-} 
+}
 
 static void gen_s8subl (void)
 {
     gen_op_s8();
     gen_op_subl();
-} 
+}
 
 static void gen_s4addq (void)
 {
     gen_op_s4();
     gen_op_addq();
-} 
+}
 
 static void gen_s4subq (void)
 {
     gen_op_s4();
     gen_op_subq();
-} 
+}
 
 static void gen_s8addq (void)
 {
     gen_op_s8();
     gen_op_addq();
-} 
+}
 
 static void gen_s8subq (void)
 {
     gen_op_s8();
     gen_op_subq();
-} 
+}
 
 static void gen_amask (void)
 {

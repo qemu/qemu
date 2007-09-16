@@ -1,6 +1,6 @@
 /*
  *  PPC emulation for qemu: syscall definitions.
- * 
+ *
  *  Copyright (c) 2003 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -55,8 +55,8 @@ struct target_revectored_struct {
 
 #define TARGET_SEMOP           1
 #define TARGET_SEMGET          2
-#define TARGET_SEMCTL          3 
-#define TARGET_MSGSND          11 
+#define TARGET_SEMCTL          3
+#define TARGET_MSGSND          11
 #define TARGET_MSGRCV          12
 #define TARGET_MSGGET          13
 #define TARGET_MSGCTL          14
@@ -73,7 +73,7 @@ struct target_msgbuf {
 struct target_ipc_kludge {
 	unsigned int	msgp;	/* Really (struct msgbuf *) */
 	int msgtyp;
-};	
+};
 
 struct target_ipc_perm {
 	int	key;

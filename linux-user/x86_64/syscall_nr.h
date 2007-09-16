@@ -181,7 +181,7 @@
 #define TARGET_NR_nfsservctl                        180
 #define TARGET_NR_getpmsg                           181	/* reserved for LiS/STREAMS */
 #define TARGET_NR_putpmsg                           182	/* reserved for LiS/STREAMS */
-#define TARGET_NR_afs_syscall                       183	/* reserved for AFS */ 
+#define TARGET_NR_afs_syscall                       183	/* reserved for AFS */
 #define TARGET_NR_tuxcall      		184 /* reserved for tux */
 #define TARGET_NR_security			185
 #define TARGET_NR_gettid		186

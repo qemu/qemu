@@ -1,6 +1,6 @@
 /*
  *  m68k/ColdFire Semihosting syscall interface
- * 
+ *
  *  Copyright (c) 2005-2007 CodeSourcery.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -231,7 +231,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         }
     case HOSTED_RENAME:
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "rename,%s,%s", 
+            gdb_do_syscall(m68k_semi_cb, "rename,%s,%s",
                            ARG(0), (int)ARG(1), ARG(2), (int)ARG(3));
             return;
         } else {

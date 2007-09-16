@@ -1,4 +1,4 @@
-/* 
+/*
  * QEMU LSI53C895A SCSI Host Bus Adapter emulation
  *
  * Copyright (c) 2006 CodeSourcery.
@@ -1773,7 +1773,7 @@ static void lsi_io_writel(void *opaque, uint32_t addr, uint32_t val)
     lsi_reg_writeb(s, addr + 3, (val >> 24) & 0xff);
 }
 
-static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num, 
+static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
                            uint32_t addr, uint32_t size, int type)
 {
     LSIState *s = (LSIState *)pci_dev;
@@ -1788,7 +1788,7 @@ static void lsi_io_mapfunc(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 256, 4, lsi_io_readl, s);
 }
 
-static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num, 
+static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
     LSIState *s = (LSIState *)pci_dev;
@@ -1798,7 +1798,7 @@ static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0, 0x2000, s->ram_io_addr);
 }
 
-static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num, 
+static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                              uint32_t addr, uint32_t size, int type)
 {
     LSIState *s = (LSIState *)pci_dev;

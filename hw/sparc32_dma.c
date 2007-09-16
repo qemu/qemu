@@ -63,7 +63,7 @@ struct DMAState {
 };
 
 /* Note: on sparc, the lance 16 bit bus is swapped */
-void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
+void ledma_memory_read(void *opaque, target_phys_addr_t addr,
                        uint8_t *buf, int len, int do_bswap)
 {
     DMAState *s = opaque;
@@ -84,7 +84,7 @@ void ledma_memory_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-void ledma_memory_write(void *opaque, target_phys_addr_t addr, 
+void ledma_memory_write(void *opaque, target_phys_addr_t addr,
                         uint8_t *buf, int len, int do_bswap)
 {
     DMAState *s = opaque;

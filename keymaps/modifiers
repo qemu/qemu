@@ -8,10 +8,10 @@ Alt_L 0x38
 Control_R 0x9d
 Control_L 0x1d
 
-# Translate Super to Windows keys. 
-# This is hardcoded. See documentation for details. 
+# Translate Super to Windows keys.
+# This is hardcoded. See documentation for details.
 Super_R 0xdb
 Super_L 0xdc
 
-# Translate Menu to the Windows Application key. 
+# Translate Menu to the Windows Application key.
 Menu 0xdd

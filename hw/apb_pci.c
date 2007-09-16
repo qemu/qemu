@@ -2,7 +2,7 @@
  * QEMU Ultrasparc APB PCI host
  *
  * Copyright (c) 2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -233,7 +233,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     cpu_register_physical_memory(special_base + 0x2000000ULL, 0x10000, pci_ioport);
     cpu_register_physical_memory(mem_base, 0x10000000, pci_mem_data); // XXX size should be 4G-prom
 
-    d = pci_register_device(s->bus, "Advanced PCI Bus", sizeof(PCIDevice), 
+    d = pci_register_device(s->bus, "Advanced PCI Bus", sizeof(PCIDevice),
                             0, NULL, NULL);
     d->config[0x00] = 0x8e; // vendor_id : Sun
     d->config[0x01] = 0x10;

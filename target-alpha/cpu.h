@@ -1,6 +1,6 @@
 /*
  *  Alpha emulation cpu definitions for qemu.
- * 
+ *
  *  Copyright (c) 2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -276,7 +276,7 @@ struct CPUAlphaState {
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
-     */ 
+     */
     target_ulong t0, t1, t2;
 #endif
     /* */
@@ -393,7 +393,7 @@ int cpu_alpha_exec(CPUAlphaState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-int cpu_alpha_signal_handler(int host_signum, void *pinfo, 
+int cpu_alpha_signal_handler(int host_signum, void *pinfo,
                              void *puc);
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);

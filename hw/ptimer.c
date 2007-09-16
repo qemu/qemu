@@ -1,4 +1,4 @@
-/* 
+/*
  * General purpose implementation of a simple periodic countdown timer.
  *
  * Copyright (c) 2007 CodeSourcery.

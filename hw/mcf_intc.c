@@ -1,4 +1,4 @@
-/* 
+/*
  * ColdFire Interrupt Controller emulation.
  *
  * Copyright (c) 2007 CodeSourcery.

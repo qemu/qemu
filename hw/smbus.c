@@ -1,4 +1,4 @@
-/* 
+/*
  * QEMU SMBus device emulation.
  *
  * Copyright (c) 2007 CodeSourcery.

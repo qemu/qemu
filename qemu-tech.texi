@@ -50,13 +50,13 @@ QEMU has two operating modes:
 
 @itemize @minus
 
-@item 
+@item
 Full system emulation. In this mode, QEMU emulates a full system
 (usually a PC), including a processor and various peripherals. It can
 be used to launch an different Operating System without rebooting the
 PC or to debug system code.
 
-@item 
+@item
 User mode emulation (Linux host only). In this mode, QEMU can launch
 Linux processes compiled for one CPU on another CPU. It can be used to
 launch the Wine Windows API emulator (@url{http://www.winehq.org}) or
@@ -69,7 +69,7 @@ easy to use.
 
 QEMU generic features:
 
-@itemize 
+@itemize
 
 @item User space only or full system emulation.
 
@@ -81,23 +81,23 @@ QEMU generic features:
 
 @item Precise exceptions support.
 
-@item The virtual CPU is a library (@code{libqemu}) which can be used 
+@item The virtual CPU is a library (@code{libqemu}) which can be used
 in other projects (look at @file{qemu/tests/qruncom.c} to have an
 example of user mode @code{libqemu} usage).
 
 @end itemize
 
 QEMU user mode emulation features:
-@itemize 
+@itemize
 @item Generic Linux system call converter, including most ioctls.
 
 @item clone() emulation using native CPU clone() to use Linux scheduler for threads.
 
-@item Accurate signal handling by remapping host signals to target signals. 
+@item Accurate signal handling by remapping host signals to target signals.
 @end itemize
 
 QEMU full system emulation features:
-@itemize 
+@itemize
 @item QEMU can either use a full software MMU for maximum portability or use the host system call mmap() to simulate the target MMU.
 @end itemize
 
@@ -106,23 +106,23 @@ QEMU full system emulation features:
 
 QEMU x86 target features:
 
-@itemize 
+@itemize
 
-@item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
+@item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation.
 LDT/GDT and IDT are emulated. VM86 mode is also supported to run DOSEMU.
 
 @item Support of host page sizes bigger than 4KB in user mode emulation.
 
 @item QEMU can emulate itself on x86.
 
-@item An extensive Linux x86 CPU test program is included @file{tests/test-i386}. 
+@item An extensive Linux x86 CPU test program is included @file{tests/test-i386}.
 It can be used to test other x86 virtual CPUs.
 
 @end itemize
 
 Current QEMU limitations:
 
-@itemize 
+@itemize
 
 @item No SSE/MMX support (yet).
 
@@ -130,11 +130,11 @@ Current QEMU limitations:
 
 @item IPC syscalls are missing.
 
-@item The x86 segment limits and access rights are not tested at every 
+@item The x86 segment limits and access rights are not tested at every
 memory access (yet). Hopefully, very few OSes seem to rely on that for
 normal use.
 
-@item On non x86 host CPUs, @code{double}s are used instead of the non standard 
+@item On non x86 host CPUs, @code{double}s are used instead of the non standard
 10 byte @code{long double}s of x86 for floating point emulation to get
 maximum performances.
 
@@ -185,7 +185,7 @@ Current QEMU limitations:
 
 @itemize
 
-@item Full PowerPC 32 bit emulation, including privileged instructions, 
+@item Full PowerPC 32 bit emulation, including privileged instructions,
 FPU and MMU.
 
 @item Can run most PowerPC Linux binaries.
@@ -207,7 +207,7 @@ instructions, FPU and I/D MMU, but misses most VIS instructions.
 
 Current QEMU limitations:
 
-@itemize 
+@itemize
 
 @item IPC syscalls are missing.
 
@@ -306,7 +306,7 @@ to generate a dynamic code generator which concatenates the simple
 instructions to build a function (see @file{op.h:dyngen_code()}).
 
 In essence, the process is similar to [1], but more work is done at
-compile time. 
+compile time.
 
 A key idea to get optimal performances is that constant parameters can
 be passed to the simple operations. For that purpose, dummy ELF
@@ -398,7 +398,7 @@ translated code in the page and enables write accesses to the page.
 
 Correct translated code invalidation is done efficiently by maintaining
 a linked list of every translated block contained in a given page. Other
-linked lists are also maintained to undo direct block chaining. 
+linked lists are also maintained to undo direct block chaining.
 
 Although the overhead of doing @code{mprotect()} calls is important,
 most MSDOS programs can be emulated at reasonnable speed with QEMU and
@@ -418,7 +418,7 @@ only data is modified in the page.
 @section Exception support
 
 longjmp() is used when an exception such as division by zero is
-encountered. 
+encountered.
 
 The host SIGSEGV and SIGBUS signal handlers are used to get invalid
 memory accesses. The exact CPU state can be retrieved because all the
@@ -446,7 +446,7 @@ speed up the translation.
 
 In order to avoid flushing the translated code each time the MMU
 mappings change, QEMU uses a physically indexed translation cache. It
-means that each basic block is indexed with its physical address. 
+means that each basic block is indexed with its physical address.
 
 When MMU mappings change, only the chaining of the basic blocks is
 reset (i.e. a basic block can no longer jump directly to another one).
@@ -525,7 +525,7 @@ relocated at load time.
 
 @table @asis
 
-@item [1] 
+@item [1]
 @url{http://citeseer.nj.nec.com/piumarta98optimizing.html}, Optimizing
 direct threaded code by selective inlining (1998) by Ian Piumarta, Fabio
 Riccardi.
@@ -552,23 +552,23 @@ Chernoff and Ray Hookway.
 Willows Software.
 
 @item [7]
-@url{http://user-mode-linux.sourceforge.net/}, 
+@url{http://user-mode-linux.sourceforge.net/},
 The User-mode Linux Kernel.
 
 @item [8]
-@url{http://www.plex86.org/}, 
+@url{http://www.plex86.org/},
 The new Plex86 project.
 
 @item [9]
-@url{http://www.vmware.com/}, 
+@url{http://www.vmware.com/},
 The VMWare PC virtualizer.
 
 @item [10]
-@url{http://www.microsoft.com/windowsxp/virtualpc/}, 
+@url{http://www.microsoft.com/windowsxp/virtualpc/},
 The VirtualPC PC virtualizer.
 
 @item [11]
-@url{http://www.twoostwo.org/}, 
+@url{http://www.twoostwo.org/},
 The TwoOStwo PC virtualizer.
 
 @end table

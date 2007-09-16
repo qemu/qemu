@@ -1,7 +1,7 @@
 /*
  *  i386 micro operations (included several times to generate
  *  different operand sizes)
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -84,8 +84,8 @@ void OPPROTO glue(glue(op_rol, MEM_SUFFIX), _T0_T1_cc)(void)
         /* gcc 3.2 workaround. This is really a bug in gcc. */
         asm volatile("" : : "r" (T0));
 #endif
-        CC_SRC = (cc_table[CC_OP].compute_all() & ~(CC_O | CC_C)) | 
-            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
+        CC_SRC = (cc_table[CC_OP].compute_all() & ~(CC_O | CC_C)) |
+            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) |
             (T0 & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
@@ -109,7 +109,7 @@ void OPPROTO glue(glue(op_ror, MEM_SUFFIX), _T0_T1_cc)(void)
         asm volatile("" : : "r" (T0));
 #endif
         CC_SRC = (cc_table[CC_OP].compute_all() & ~(CC_O | CC_C)) |
-            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
+            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) |
             ((T0 >> (DATA_BITS - 1)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
@@ -168,7 +168,7 @@ void OPPROTO glue(glue(op_rcl, MEM_SUFFIX), _T0_T1_cc)(void)
         glue(st, MEM_SUFFIX)(A0, T0);
 #endif
         CC_SRC = (eflags & ~(CC_C | CC_O)) |
-            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
+            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) |
             ((src >> (DATA_BITS - count)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
@@ -199,7 +199,7 @@ void OPPROTO glue(glue(op_rcr, MEM_SUFFIX), _T0_T1_cc)(void)
         glue(st, MEM_SUFFIX)(A0, T0);
 #endif
         CC_SRC = (eflags & ~(CC_C | CC_O)) |
-            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
+            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) |
             ((src >> (count - 1)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }

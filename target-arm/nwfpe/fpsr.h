@@ -30,7 +30,7 @@ one byte.
 	EXCEPTION TRAP ENABLE BYTE
 	SYSTEM CONTROL BYTE
 	CUMULATIVE EXCEPTION FLAGS BYTE
-	
+
 The FPCR is a 32 bit register consisting of bit flags.
 */
 
@@ -43,7 +43,7 @@ typedef unsigned int FPCR;  /* type for floating point control register */
 
 #define MASK_SYSID		0xff000000
 #define BIT_HARDWARE		0x80000000
-#define FP_EMULATOR		0x01000000	/* System ID for emulator */ 
+#define FP_EMULATOR		0x01000000	/* System ID for emulator */
 #define FP_ACCELERATOR		0x81000000	/* System ID for FPA11 */
 
 /* EXCEPTION TRAP ENABLE BYTE

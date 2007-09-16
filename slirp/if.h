@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- * 
- * Please read the file COPYRIGHT for the 
+ *
+ * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
 
@@ -39,11 +39,11 @@ struct slirp_ifstats {
 	u_int in_bytes;		/* Input bytes */
 	u_int in_errpkts;		/* Input Error Packets */
 	u_int in_errbytes;	/* Input Error Bytes */
-	
+
 	u_int bytes_saved;	/* Number of bytes that compression "saved" */
 				/* ie: number of bytes that didn't need to be sent over the link
 				 * because of compression */
-	
+
 	u_int in_mbad;		/* Bad incoming packets */
 };
 

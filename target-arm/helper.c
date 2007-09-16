@@ -161,7 +161,7 @@ void cpu_arm_close(CPUARMState *env)
     free(env);
 }
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 
 void do_interrupt (CPUState *env)
 {

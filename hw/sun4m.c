@@ -1,8 +1,8 @@
 /*
  * QEMU Sun4m System Emulator
- * 
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -425,14 +425,14 @@ static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
     linux_boot = (kernel_filename != NULL);
 
     prom_offset = RAM_size + vram_size;
-    cpu_register_physical_memory(PROM_ADDR, 
-                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK, 
+    cpu_register_physical_memory(PROM_ADDR,
+                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK,
                                  prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
     ret = load_elf(buf, 0, NULL, NULL, NULL);
     if (ret < 0) {
-	fprintf(stderr, "qemu: could not load prom '%s'\n", 
+	fprintf(stderr, "qemu: could not load prom '%s'\n",
 		buf);
 	exit(1);
     }
@@ -445,7 +445,7 @@ static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
 	if (kernel_size < 0)
 	    kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
 	    exit(1);
         }
@@ -455,7 +455,7 @@ static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
         if (initrd_filename) {
             initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
                 exit(1);
             }

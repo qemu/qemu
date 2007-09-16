@@ -45,7 +45,7 @@ less 0x2b
 greater 0x2b shift
 guillemotleft 0x2c altgr
 guillemotright 0x2d altgr
-copyright 0x2e altgr 
+copyright 0x2e altgr
 mu 0x32 altgr
 comma 0x33
 semicolon 0x33 shift

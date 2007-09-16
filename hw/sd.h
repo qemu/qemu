@@ -1,4 +1,4 @@
-/* 
+/*
  * SD Memory Card emulation.  Mostly correct for MMC too.
  *
  * Copyright (c) 2006 Andrzej Zaborowski  <balrog@zabor.org>

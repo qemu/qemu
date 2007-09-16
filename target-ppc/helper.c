@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation helpers for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -255,7 +255,7 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
     tlb = &env->tlb[nr].tlb6;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "Set TLB %d/%d EPN " ADDRX " PTE0 " ADDRX 
+        fprintf(logfile, "Set TLB %d/%d EPN " ADDRX " PTE0 " ADDRX
                 " PTE1 " ADDRX "\n", nr, env->nb_tlb, EPN, pte0, pte1);
     }
 #endif
@@ -383,7 +383,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
         bl = (*BATu & 0x00001FFC) << 15;
 #if defined (DEBUG_BATS)
         if (loglevel != 0) {
-            fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX 
+            fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX
                     " BATl 0x" ADDRX "\n",
                     __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
                     *BATu, *BATl);
@@ -452,7 +452,7 @@ static int find_pte (mmu_ctx_t *ctx, int h, int rw)
         pte1 =  ldl_phys(base + (i * 8) + 4);
 #if defined (DEBUG_MMU)
         if (loglevel > 0) {
-            fprintf(logfile, "Load pte from 0x" ADDRX " => 0x" ADDRX 
+            fprintf(logfile, "Load pte from 0x" ADDRX " => 0x" ADDRX
                     " 0x" ADDRX " %d %d %d 0x" ADDRX "\n",
                     base + (i * 8), pte0, pte1,
                     pte0 >> 31, h, (pte0 >> 6) & 1, ctx->ptem);
@@ -528,7 +528,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 ((sr & 0x40000000) && msr_pr == 0)) ? 1 : 0;
     if ((sr & 0x80000000) == 0) {
 #if defined (DEBUG_MMU)
-        if (loglevel > 0) 
+        if (loglevel > 0)
             fprintf(logfile, "pte segment: key=%d n=0x" ADDRX "\n",
                     ctx->key, sr & 0x10000000);
 #endif
@@ -709,7 +709,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
     int i, ret, zsel, zpr;
-            
+           
     ret = -1;
     raddr = -1;
     for (i = 0; i < env->nb_tlb; i++) {
@@ -808,7 +808,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 " %d %d\n", __func__, address, raddr, ctx->prot,
                 ret);
     }
-    
+   
     return ret;
 }
 
@@ -825,7 +825,7 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
                            target_ulong eaddr, int rw)
 {
     int in_plb, ret;
-        
+       
     ctx->raddr = eaddr;
     ctx->prot = PAGE_READ;
     ret = 0;

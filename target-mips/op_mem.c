@@ -1,6 +1,6 @@
 /*
  *  MIPS emulation memory micro-operations for qemu.
- * 
+ *
  *  Copyright (c) 2004-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or

@@ -1,8 +1,8 @@
 /*
  * QEMU PPC PREP hardware System Emulator
- * 
+ *
  * Copyright (c) 2003-2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -612,7 +612,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+    pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size,
                  vga_ram_size, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);

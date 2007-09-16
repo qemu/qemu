@@ -1,4 +1,4 @@
-/* 
+/*
  * Motorola ColdFire MCF5206 SoC embedded peripheral emulation.
  *
  * Copyright (c) 2007 CodeSourcery.
@@ -58,7 +58,7 @@ static void m5206_timer_recalibrate(m5206_timer_state *s)
         prescale *= 16;
 
     if (mode == 3 || mode == 0)
-        cpu_abort(cpu_single_env, 
+        cpu_abort(cpu_single_env,
                   "m5206_timer: mode %d not implemented\n", mode);
     if ((s->tmr & TMR_FRR) == 0)
         cpu_abort(cpu_single_env,
@@ -354,7 +354,7 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
 
 /* Internal peripherals use a variety of register widths.
    This lookup table allows a single routine to handle all of them.  */
-static const int m5206_mbar_width[] = 
+static const int m5206_mbar_width[] =
 {
   /* 000-040 */ 1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  2, 2, 2, 2,
   /* 040-080 */ 1, 2, 2, 2,  4, 1, 2, 4,  1, 2, 4, 2,  2, 4, 2, 2,

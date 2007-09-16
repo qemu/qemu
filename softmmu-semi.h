@@ -1,4 +1,4 @@
-/* 
+/*
  * Helper routines to provide target memory access for semihosting
  * syscalls in system emulation mode.
  *

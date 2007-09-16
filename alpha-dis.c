@@ -374,7 +374,7 @@ const struct alpha_operand alpha_operands[] =
 
   /* The signed "23-bit" aligned displacement of Branch format insns */
 #define BDISP		(MDISP + 1)
-  { 21, 0, BFD_RELOC_23_PCREL_S2, 
+  { 21, 0, BFD_RELOC_23_PCREL_S2,
     AXP_OPERAND_RELATIVE, insert_bdisp, extract_bdisp },
 
   /* The 26-bit PALcode function */

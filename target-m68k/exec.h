@@ -1,6 +1,6 @@
 /*
  *  m68k execution defines
- * 
+ *
  *  Copyright (c) 2005-2006 CodeSourcery
  *  Written by Paul Brook
  *

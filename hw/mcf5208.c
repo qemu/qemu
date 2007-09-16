@@ -1,4 +1,4 @@
-/* 
+/*
  * Motorola ColdFire MCF5208 SoC emulation.
  *
  * Copyright (c) 2007 CodeSourcery.

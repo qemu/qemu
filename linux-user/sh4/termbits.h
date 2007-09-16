@@ -245,7 +245,7 @@ struct target_termios {
 ndbreak() */
 #define TARGET_TIOCSBRK        TARGET_IO('T', 39) /* 0x5427 */ /* BSD compatibility */
 #define TARGET_TIOCCBRK        TARGET_IO('T', 40) /* 0x5428 */ /* BSD compatibility */
-#define TARGET_TIOCGSID        TARGET_IOR('T', 41, pid_t) /* 0x5429 */ /* Return the session 
+#define TARGET_TIOCGSID        TARGET_IOR('T', 41, pid_t) /* 0x5429 */ /* Return the session
 ID of FD */
 #define TARGET_TIOCGPTN        TARGET_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-m
 ux device) */
@@ -263,12 +263,12 @@ ebugging only */
 tus register */
   /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 # define TIOCSER_TEMT    0x01   /* Transmitter physically empty */
-#define TARGET_TIOCSERGETMULTI TARGET_IOR('T', 90, int) /* 0x545A 
+#define TARGET_TIOCSERGETMULTI TARGET_IOR('T', 90, int) /* 0x545A
 */ /* Get multiport config  */
-#define TARGET_TIOCSERSETMULTI TARGET_IOW('T', 91, int) /* 0x545B 
+#define TARGET_TIOCSERSETMULTI TARGET_IOW('T', 91, int) /* 0x545B
 */ /* Set multiport config */
 
-#define TARGET_TIOCMIWAIT      TARGET_IO('T', 92) /* 0x545C */       /* wait for a change on 
+#define TARGET_TIOCMIWAIT      TARGET_IO('T', 92) /* 0x545C */       /* wait for a change on
 serial input line(s) */
-#define TARGET_TIOCGICOUNT     TARGET_IOR('T', 93, int) /* 0x545D */ /* read 
+#define TARGET_TIOCGICOUNT     TARGET_IOR('T', 93, int) /* 0x545D */ /* read
 serial port inline interrupt counts */

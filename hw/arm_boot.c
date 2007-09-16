@@ -1,4 +1,4 @@
-/* 
+/*
  * ARM kernel loader.
  *
  * Copyright (c) 2006 CodeSourcery.
@@ -30,8 +30,8 @@ static void main_cpu_reset(void *opaque)
 
     cpu_reset(env);
     if (env->kernel_filename)
-        arm_load_kernel(env, env->ram_size, env->kernel_filename, 
-                        env->kernel_cmdline, env->initrd_filename, 
+        arm_load_kernel(env, env->ram_size, env->kernel_filename,
+                        env->kernel_cmdline, env->initrd_filename,
                         env->board_id, env->loader_start);
 }
 

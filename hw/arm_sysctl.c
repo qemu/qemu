@@ -1,4 +1,4 @@
-/* 
+/*
  * Status and system control registers for ARM RealView/Versatile boards.
  *
  * Copyright (c) 2006 CodeSourcery.

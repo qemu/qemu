@@ -2,7 +2,7 @@
  * QEMU USB emulation
  *
  * Copyright (c) 2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -31,7 +31,7 @@ void usb_attach(USBPort *port, USBDevice *dev)
 /**********************/
 /* generic USB device helpers (you are not forced to use them when
    writing your USB device driver, but they help handling the
-   protocol) 
+   protocol)
 */
 
 #define SETUP_STATE_IDLE 0
@@ -66,7 +66,7 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
         s->setup_len = (s->setup_buf[7] << 8) | s->setup_buf[6];
         s->setup_index = 0;
         if (s->setup_buf[0] & USB_DIR_IN) {
-            ret = s->handle_control(s, 
+            ret = s->handle_control(s,
                                     (s->setup_buf[0] << 8) | s->setup_buf[1],
                                     (s->setup_buf[3] << 8) | s->setup_buf[2],
                                     (s->setup_buf[5] << 8) | s->setup_buf[4],
@@ -93,7 +93,7 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
             case SETUP_STATE_ACK:
                 if (!(s->setup_buf[0] & USB_DIR_IN)) {
                     s->setup_state = SETUP_STATE_IDLE;
-                    ret = s->handle_control(s, 
+                    ret = s->handle_control(s,
                                       (s->setup_buf[0] << 8) | s->setup_buf[1],
                                       (s->setup_buf[3] << 8) | s->setup_buf[2],
                                       (s->setup_buf[5] << 8) | s->setup_buf[4],

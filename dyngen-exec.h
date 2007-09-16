@@ -209,7 +209,7 @@ extern int printf(const char *, ...);
 /* the symbols are considered non exported so a br immediate is generated */
 #define __hidden __attribute__((visibility("hidden")))
 #else
-#define __hidden 
+#define __hidden
 #endif
 
 #if defined(__alpha__)

@@ -50,18 +50,18 @@ dead_grave 0xd shift
 # QWERTY first row
 #
 EuroSign 0x12 altgr
-aring 0x1a 
+aring 0x1a
 Aring 0x1a shift
-dead_diaeresis 0x1b 
+dead_diaeresis 0x1b
 dead_circumflex 0x1b shift
 dead_tilde 0x1b altgr
 
 #
 # QWERTY second row
 #
-odiaeresis 0x27 
+odiaeresis 0x27
 Odiaeresis 0x27 shift
-adiaeresis 0x28 
+adiaeresis 0x28
 Adiaeresis 0x28 shift
 apostrophe 0x2b
 asterisk 0x2b shift

@@ -403,7 +403,7 @@ if test "$mingw32" = "yes" ; then
     oss="no"
 fi
 
-# Check for gcc4, error if pre-gcc4 
+# Check for gcc4, error if pre-gcc4
 if test "$check_gcc" = "yes" ; then
     cat > $TMPC <<EOF
 #if __GNUC__ < 4
@@ -444,7 +444,7 @@ if test "$solaris" = "yes" ; then
   #
   # gcc for solaris 10/fcs in /usr/sfw/bin doesn't compile qemu correctly
   # override the check with --disable-gcc-check
-  # 
+  #
   if test "$solarisrev" -eq 10 -a "$check_gcc" = "yes" ; then
     solgcc=`which $cc`
     if test "$solgcc" = "/usr/sfw/bin/gcc" ; then
@@ -475,7 +475,7 @@ if test "$solaris" = "yes" ; then
     fi
     exit 1
   fi
-fi 
+fi
 
 
 if test -z "$target_list" ; then

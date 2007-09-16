@@ -1,8 +1,8 @@
 /*
  * QEMU PowerPC 405 embedded processors emulation
- * 
+ *
  * Copyright (c) 2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -2212,7 +2212,7 @@ static void ppc4xx_gpt_set_outputs (ppc4xx_gpt_t *gpt)
         }
         mask = mask >> 1;
     }
-        
+       
 }
 
 static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
@@ -2228,7 +2228,7 @@ static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
             qemu_irq_lower(gpt->irqs[i]);
         mask = mask >> 1;
     }
-        
+       
 }
 
 static void ppc4xx_gpt_compute_timer (ppc4xx_gpt_t *gpt)

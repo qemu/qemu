@@ -646,7 +646,7 @@ const struct powerpc_operand powerpc_operands[] =
    same.  */
 
 /*ARGSUSED*/
-static unsigned long 
+static unsigned long
 insert_bat (insn, value, errmsg)
      uint32_t insn;
      int32_t value;
@@ -1122,7 +1122,7 @@ insert_ras (insn, value, errmsg)
    extraction function just checks that the fields are the same.  */
 
 /*ARGSUSED*/
-static unsigned long 
+static unsigned long
 insert_rbs (insn, value, errmsg)
      uint32_t insn;
      int32_t value;

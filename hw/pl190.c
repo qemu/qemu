@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL190 Vector Interrupt Controller
  *
  * Copyright (c) 2006 CodeSourcery.

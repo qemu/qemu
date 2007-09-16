@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation cpu definitions for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -692,7 +692,7 @@ struct CPUPPCState {
 #if TARGET_GPR_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
-     */ 
+     */
     ppc_gpr_t t0, t1, t2;
 #endif
     ppc_avr_t t0_avr, t1_avr, t2_avr;
@@ -828,7 +828,7 @@ void cpu_ppc_close(CPUPPCState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-int cpu_ppc_signal_handler(int host_signum, void *pinfo, 
+int cpu_ppc_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 void do_interrupt (CPUPPCState *env);

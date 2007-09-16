@@ -1,6 +1,6 @@
 /*
  *  CFI parallel flash with AMD command set emulation
- * 
+ *
  *  Copyright (c) 2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -185,7 +185,7 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 }
 
 /* update flash content on disk */
-static void pflash_update(pflash_t *pfl, int offset, 
+static void pflash_update(pflash_t *pfl, int offset,
                           int size)
 {
     int offset_end;
@@ -194,7 +194,7 @@ static void pflash_update(pflash_t *pfl, int offset,
         /* round to sectors */
         offset = offset >> 9;
         offset_end = (offset_end + 511) >> 9;
-        bdrv_write(pfl->bs, offset, pfl->storage + (offset << 9), 
+        bdrv_write(pfl->bs, offset, pfl->storage + (offset << 9),
                    offset_end - offset);
     }
 }
@@ -222,7 +222,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         offset -= (uint32_t)(long)pfl->storage;
     else
         offset -= pfl->base;
-        
+       
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d\n", __func__,
             offset, value, width);
     /* Set the device in I/O access mode */
@@ -369,7 +369,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             pfl->status = 0x00;
             pflash_update(pfl, 0, pfl->total_len);
             /* Let's wait 5 seconds before chip erase is done */
-            qemu_mod_timer(pfl->timer, 
+            qemu_mod_timer(pfl->timer,
                            qemu_get_clock(vm_clock) + (ticks_per_sec * 5));
             break;
         case 0x30:
@@ -382,7 +382,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             pflash_update(pfl, offset, pfl->sector_len);
             pfl->status = 0x00;
             /* Let's wait 1/2 second before sector erase is done */
-            qemu_mod_timer(pfl->timer, 
+            qemu_mod_timer(pfl->timer,
                            qemu_get_clock(vm_clock) + (ticks_per_sec / 2));
             break;
         default:
@@ -524,7 +524,7 @@ static int ctz32 (uint32_t n)
 pflash_t *pflash_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs,
                            uint32_t sector_len, int nb_blocs, int width,
-                           uint16_t id0, uint16_t id1, 
+                           uint16_t id0, uint16_t id1,
                            uint16_t id2, uint16_t id3)
 {
     pflash_t *pfl;

@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation helpers for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -231,7 +231,7 @@ static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 
     b0 = b;
     b1 = b >> 32;
-    
+   
     v = (uint64_t)a0 * (uint64_t)b0;
     *plow = v;
     *phigh = 0;
@@ -1270,7 +1270,7 @@ void do_rfmci (void)
 void do_load_dcr (void)
 {
     target_ulong val;
-    
+   
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
@@ -2554,7 +2554,7 @@ void do_4xx_tlbwe_hi (void)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size,
                 tlb->prot & PAGE_READ ? 'r' : '-',
                 tlb->prot & PAGE_WRITE ? 'w' : '-',
                 tlb->prot & PAGE_EXEC ? 'x' : '-',
@@ -2596,7 +2596,7 @@ void do_4xx_tlbwe_lo (void)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size,
                 tlb->prot & PAGE_READ ? 'r' : '-',
                 tlb->prot & PAGE_WRITE ? 'w' : '-',
                 tlb->prot & PAGE_EXEC ? 'x' : '-',

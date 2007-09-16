@@ -1,8 +1,8 @@
 /*
  * QEMU disk image utility
- * 
+ *
  * Copyright (c) 2003-2007 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -75,7 +75,7 @@ void term_print_filename(const char *filename)
     term_printf(filename);
 }
 
-void __attribute__((noreturn)) error(const char *fmt, ...) 
+void __attribute__((noreturn)) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -166,7 +166,7 @@ static void term_init(void)
     tty.c_cflag |= CS8;
     tty.c_cc[VMIN] = 1;
     tty.c_cc[VTIME] = 0;
-    
+   
     tcsetattr (0, TCSANOW, &tty);
 
     atexit(term_exit);
@@ -248,7 +248,7 @@ static int img_create(int argc, char **argv)
     int64_t size;
     const char *p;
     BlockDriver *drv;
-    
+   
     encrypted = 0;
     for(;;) {
         c = getopt(argc, argv, "b:f:he");
@@ -269,7 +269,7 @@ static int img_create(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
     size = 0;
@@ -338,7 +338,7 @@ static int img_commit(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
 
@@ -446,13 +446,13 @@ static int img_convert(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     out_filename = argv[optind++];
-    
+   
     bs = bdrv_new_open(filename, fmt);
 
     drv = bdrv_find_format(out_fmt);
@@ -473,7 +473,7 @@ static int img_convert(int argc, char **argv)
             error("Error while formatting '%s'", out_filename);
         }
     }
-    
+   
     out_bs = bdrv_new_open(out_filename, out_fmt);
 
     if (compress) {
@@ -492,12 +492,12 @@ static int img_convert(int argc, char **argv)
                 n = cluster_sectors;
             else
                 n = nb_sectors;
-            if (bdrv_read(bs, sector_num, buf, n) < 0) 
+            if (bdrv_read(bs, sector_num, buf, n) < 0)
                 error("error while reading");
             if (n < cluster_sectors)
                 memset(buf + n * 512, 0, cluster_size - n * 512);
             if (is_not_zero(buf, cluster_size)) {
-                if (bdrv_write_compressed(out_bs, sector_num, buf, 
+                if (bdrv_write_compressed(out_bs, sector_num, buf,
                                           cluster_sectors) != 0)
                     error("error while compressing sector %" PRId64,
                           sector_num);
@@ -516,7 +516,7 @@ static int img_convert(int argc, char **argv)
                 n = (IO_BUF_SIZE / 512);
             else
                 n = nb_sectors;
-            if (bdrv_read(bs, sector_num, buf, n) < 0) 
+            if (bdrv_read(bs, sector_num, buf, n) < 0)
                 error("error while reading");
             /* NOTE: at the same time we convert, we do not write zero
                sectors to have a chance to compress the image. Ideally, we
@@ -524,7 +524,7 @@ static int img_convert(int argc, char **argv)
             buf1 = buf;
             while (n > 0) {
                 if (is_allocated_sectors(buf1, n, &n1)) {
-                    if (bdrv_write(out_bs, sector_num, buf1, n1) < 0) 
+                    if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");
                 }
                 sector_num += n1;
@@ -554,7 +554,7 @@ static int64_t get_allocated_file_size(const char *filename)
 	    return (((int64_t) high) << 32) + low;
     }
 
-    if (_stati64(filename, &st) < 0) 
+    if (_stati64(filename, &st) < 0)
         return -1;
     return st.st_size;
 }
@@ -562,7 +562,7 @@ static int64_t get_allocated_file_size(const char *filename)
 static int64_t get_allocated_file_size(const char *filename)
 {
     struct stat st;
-    if (stat(filename, &st) < 0) 
+    if (stat(filename, &st) < 0)
         return -1;
     return (int64_t)st.st_blocks * 512;
 }
@@ -612,7 +612,7 @@ static int img_info(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
 
@@ -636,26 +636,26 @@ static int img_info(int argc, char **argv)
     if (allocated_size < 0)
 	sprintf(dsize_buf, "unavailable");
     else
-        get_human_readable_size(dsize_buf, sizeof(dsize_buf), 
+        get_human_readable_size(dsize_buf, sizeof(dsize_buf),
                                 allocated_size);
     printf("image: %s\n"
            "file format: %s\n"
            "virtual size: %s (%" PRId64 " bytes)\n"
            "disk size: %s\n",
-           filename, fmt_name, size_buf, 
+           filename, fmt_name, size_buf,
            (total_sectors * 512),
            dsize_buf);
     if (bdrv_is_encrypted(bs))
         printf("encrypted: yes\n");
     if (bdrv_get_info(bs, &bdi) >= 0) {
-        if (bdi.cluster_size != 0) 
+        if (bdi.cluster_size != 0)
             printf("cluster_size: %d\n", bdi.cluster_size);
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {
         path_combine(backing_filename2, sizeof(backing_filename2),
                      filename, backing_filename);
-        printf("backing file: %s (actual path: %s)\n", 
+        printf("backing file: %s (actual path: %s)\n",
                backing_filename,
                backing_filename2);
     }

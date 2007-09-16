@@ -40,7 +40,7 @@ dyngen$(EXESUF): dyngen.c
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
-	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h 
+	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.a $(TOOLS) dyngen$(EXESUF) TAGS cscope.* *.pod *~ */*~
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS); do \
@@ -89,7 +89,7 @@ endif
 test speed test2: all
 	$(MAKE) -C tests $@
 
-TAGS: 
+TAGS:
 	etags *.[ch] tests/*.[ch]
 
 cscope:
