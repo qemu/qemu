@@ -375,7 +375,7 @@ int elf_must_swap(struct elfhdr *h)
   return (h->e_ident[EI_DATA] == ELFDATA2MSB) !=
       (swaptest.b[0] == 0);
 }
- 
+
 void elf_swap_ehdr(struct elfhdr *h)
 {
     swab16s(&h->e_type);			/* Object file type */
@@ -483,11 +483,11 @@ int load_object(const char *filename)
     ElfW(Sym) *sym;
     char *shstr;
     ELF_RELOC *rel;
-   
+
     fd = open(filename, O_RDONLY);
     if (fd < 0)
         error("can't open file '%s'", filename);
-   
+
     /* Read ELF header.  */
     if (read(fd, &ehdr, sizeof (ehdr)) != sizeof (ehdr))
         error("unable to read file header");
@@ -524,7 +524,7 @@ int load_object(const char *filename)
     /* read all section data */
     sdata = malloc(sizeof(void *) * ehdr.e_shnum);
     memset(sdata, 0, sizeof(void *) * ehdr.e_shnum);
-   
+
     for(i = 0;i < ehdr.e_shnum; i++) {
         sec = &shdr[i];
         if (sec->sh_type != SHT_NOBITS)
@@ -569,7 +569,7 @@ int load_object(const char *filename)
 
     symtab = (ElfW(Sym) *)sdata[symtab_sec - shdr];
     strtab = (char *)sdata[symtab_sec->sh_link];
-   
+
     nb_syms = symtab_sec->sh_size / sizeof(ElfW(Sym));
     if (do_swap) {
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
@@ -609,7 +609,7 @@ void sym_ent_name(struct external_syment *ext_sym, EXE_SYM *sym)
 {
     char *q;
     int c, i, len;
-   
+
     if (ext_sym->e.e.e_zeroes != 0) {
         q = sym->st_name;
         for(i = 0; i < 8; i++) {
@@ -643,7 +643,7 @@ char *name_for_dotdata(struct coff_rel *rel)
 		if (sym->st_syment->e_scnum == data_shndx &&
                     text_data >= sym->st_value &&
                     text_data < sym->st_value + sym->st_size) {
-                   
+
                     return sym->st_name;
 
 		}
@@ -709,7 +709,7 @@ int load_object(const char *filename)
               );
     if (fd < 0)
         error("can't open file '%s'", filename);
-   
+
     /* Read COFF header.  */
     if (read(fd, &fhdr, sizeof (fhdr)) != sizeof (fhdr))
         error("unable to read file header");
@@ -726,7 +726,7 @@ int load_object(const char *filename)
     /* read all section data */
     sdata = malloc(sizeof(void *) * fhdr.f_nscns);
     memset(sdata, 0, sizeof(void *) * fhdr.f_nscns);
-   
+
     const char *p;
     for(i = 0;i < fhdr.f_nscns; i++) {
         sec = &shdr[i];
@@ -747,7 +747,7 @@ int load_object(const char *filename)
     if (!data_sec)
         error("could not find .data section");
     coff_data_shndx = data_sec - shdr;
-   
+
     coff_symtab = load_data(fd, fhdr.f_symptr, fhdr.f_nsyms*SYMESZ);
     for (i = 0, ext_sym = coff_symtab; i < nb_syms; i++, ext_sym++) {
         for(i=0;i<8;i++)
@@ -758,7 +758,7 @@ int load_object(const char *filename)
 
     n_strtab = load_data(fd, (fhdr.f_symptr + fhdr.f_nsyms*SYMESZ), STRTAB_SIZE);
     strtab = load_data(fd, (fhdr.f_symptr + fhdr.f_nsyms*SYMESZ), *n_strtab);
-   
+
     nb_syms = fhdr.f_nsyms;
 
     for (i = 0, ext_sym = coff_symtab; i < nb_syms; i++, ext_sym++) {
@@ -805,12 +805,12 @@ int load_object(const char *filename)
 		} else {
 			sym->st_size = 0;
 		}
-	
+
 		sym->st_type = ext_sym->e_type;
 		sym->st_shndx = ext_sym->e_scnum;
 	}
 
-	
+
     /* find text relocations, if any */
     sec = &shdr[coff_text_shndx];
     coff_relocs = load_data(fd, sec->s_relptr, sec->s_nreloc*RELSZ);
@@ -870,7 +870,7 @@ static char *get_sym_name(EXE_SYM *sym)
 
 	if ( sym->n_type & N_STAB ) /* Debug symbols are ignored */
 		return "debug";
-		
+
 	if(!name)
 		return name;
 	if(name[0]=='_')
@@ -953,23 +953,23 @@ static const char * find_reloc_name_in_sec_ptr(int address, struct section * sec
 {
     unsigned int tocindex, symindex, size;
     const char *name = 0;
-   
+
     /* Sanity check */
     if(!( address >= sec_hdr->addr && address < (sec_hdr->addr + sec_hdr->size) ) )
         return (char*)0;
-	
+
 	if( sec_hdr->flags & S_SYMBOL_STUBS ){
 		size = sec_hdr->reserved2;
 		if(size == 0)
 		    error("size = 0");
-	
+
 	}
 	else if( sec_hdr->flags & S_LAZY_SYMBOL_POINTERS ||
 	            sec_hdr->flags & S_NON_LAZY_SYMBOL_POINTERS)
 		size = sizeof(unsigned long);
 	else
 		return 0;
-	
+
     /* Compute our index in toc */
 	tocindex = (address - sec_hdr->addr)/size;
 	symindex = tocdylib[sec_hdr->reserved1 + tocindex];
@@ -1015,7 +1015,7 @@ static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
 
 	/* Intruction contains an offset to the symbols pointed to, in the rel->r_symbolnum section */
 	sectoffset = *(uint32_t *)(text + rel->r_address) & 0xffff;
-		
+
 	if(sectnum==0xffffff)
 		return 0;
 
@@ -1041,7 +1041,7 @@ static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
 
 	if(rel->r_pcrel)
 		sectoffset += rel->r_address;
-		
+
 	if (rel->r_type == PPC_RELOC_BR24)
 		name = (char *)find_reloc_name_in_sec_ptr((int)sectoffset, &section_hdr[sectnum-1]);
 
@@ -1080,11 +1080,11 @@ int load_object(const char *filename)
     unsigned int i, j;
 	EXE_SYM *sym;
 	struct nlist *syment;
-   
+
 	fd = open(filename, O_RDONLY);
     if (fd < 0)
         error("can't open file '%s'", filename);
-	
+
     /* Read Mach header.  */
     if (read(fd, &mach_hdr, sizeof (mach_hdr)) != sizeof (mach_hdr))
         error("unable to read file header");
@@ -1093,13 +1093,13 @@ int load_object(const char *filename)
     if (!check_mach_header(mach_hdr)) {
         error("bad Mach header");
     }
-   
+
     if (mach_hdr.cputype != CPU_TYPE_POWERPC)
         error("Unsupported CPU");
-       
+
     if (mach_hdr.filetype != MH_OBJECT)
         error("Unsupported Mach Object");
-   
+
     /* read segment headers */
     for(i=0, j=sizeof(mach_hdr); i<mach_hdr.ncmds ; i++)
     {
@@ -1143,7 +1143,7 @@ int load_object(const char *filename)
     /* read all section data */
     sdata = (uint8_t **)malloc(sizeof(void *) * segment->nsects);
     memset(sdata, 0, sizeof(void *) * segment->nsects);
-   
+
 	/* Load the data in section data */
 	for(i = 0; i < segment->nsects; i++) {
         sdata[i] = load_data(fd, section_hdr[i].offset, section_hdr[i].size);
@@ -1159,10 +1159,10 @@ int load_object(const char *filename)
     /* Make sure dysym was loaded */
     if(!(int)dysymtabcmd)
         error("could not find __DYSYMTAB segment");
-   
+
     /* read the table of content of the indirect sym */
     tocdylib = load_data( fd, dysymtabcmd->indirectsymoff, dysymtabcmd->nindirectsyms * sizeof(uint32_t) );
-   
+
     /* Make sure symtab was loaded  */
     if(!(int)symtabcmd)
         error("could not find __SYMTAB segment");
@@ -1178,12 +1178,12 @@ int load_object(const char *filename)
         struct nlist *sym_follow, *sym_next = 0;
         unsigned int j;
 		memset(sym, 0, sizeof(*sym));
-	
+
 		if ( syment->n_type & N_STAB ) /* Debug symbols are skipped */
             continue;
-		
+
 		memcpy(sym, syment, sizeof(*syment));
-		
+
 		/* Find the following symbol in order to get the current symbol size */
         for(j = 0, sym_follow = symtab_std; j < nb_syms; j++, sym_follow++) {
             if ( sym_follow->n_sect != 1 || sym_follow->n_type & N_STAB || !(sym_follow->n_value > sym->st_value))
@@ -1286,9 +1286,9 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
     uint8_t data_allocated[1024];
     unsigned int data_index;
     int type;
-   
+
     memset(data_allocated, 0, sizeof(data_allocated));
-   
+
     p = p_start;
     min_offset = p_end - p_start;
     spare = 0x7fffffff;
@@ -1478,7 +1478,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         }
         copy_size = len;
     }
-#endif   
+#endif
 #elif defined(HOST_PPC)
     {
         uint8_t *p;
@@ -1510,7 +1510,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #endif
         if (get32((uint32_t *)p) != 0x6bfa8001)
             error("ret expected at the end of %s", name);
-        copy_size = p - p_start;	   
+        copy_size = p - p_start;
     }
 #elif defined(HOST_IA64)
     {
@@ -1611,14 +1611,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         } else {
             error("No save at the beginning of %s", name);
         }
-       
+
         /* Skip a preceeding nop, if present.  */
         if (p > p_start) {
             skip_insn = get32((uint32_t *)(p - 0x4));
             if (skip_insn == 0x01000000)
                 p -= 4;
         }
-       
+
         copy_size = p - p_start;
     }
 #elif defined(HOST_ARM)
@@ -1700,7 +1700,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
         }
     }
-   
+
     nb_args = 0;
     while (nb_args < MAX_ARGS && args_present[nb_args])
         nb_args++;
@@ -1784,7 +1784,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (strstart(sym_name, "__op_label", &p)) {
                     uint8_t *ptr;
                     unsigned long offset;
-                   
+
                     /* test if the variable refers to a label inside
                        the code we are generating */
 #ifdef CONFIG_FORMAT_COFF
@@ -1828,7 +1828,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                             }
                         }
                     }
-#endif                   
+#endif
                     if (val >= start_offset && val <= start_offset + copy_size) {
                         n = strtol(p, NULL, 10);
                         fprintf(outfile, "    label_offsets[%d] = %ld + (gen_code_ptr - gen_code_buf);\n", n, (long)(val - start_offset));
@@ -1973,7 +1973,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                     n, reloc_offset);
                             continue;
                         }
-                       
+
                         get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
@@ -2652,7 +2652,7 @@ int gen_file(FILE *outfile, int out_type)
                 gen_code(name, sym->st_value, sym->st_size, outfile, 0);
             }
         }
-       
+
     } else {
         /* generate big code generation switch */
 
@@ -2695,7 +2695,7 @@ fprintf(outfile,
    eliminating the neeed to jump around the pool.
 
    We currently generate:
-  
+
    [ For this example we assume merging would move op1_pool out of range.
      In practice we should be able to combine many ops before the offset
      limits are reached. ]

@@ -96,7 +96,7 @@ cloop_close:
     if(inflateInit(&s->zstream) != Z_OK)
 	goto cloop_close;
     s->current_block=s->n_blocks;
-   
+
     s->sectors_per_block = s->block_size/512;
     bs->total_sectors = s->n_blocks*s->sectors_per_block;
     return 0;
@@ -107,7 +107,7 @@ static inline int cloop_read_block(BDRVCloopState *s,int block_num)
     if(s->current_block != block_num) {
 	int ret;
         uint32_t bytes = s->offsets[block_num+1]-s->offsets[block_num];
-	   
+
 	lseek(s->fd, s->offsets[block_num], SEEK_SET);
         ret = read(s->fd, s->compressed_block, bytes);
         if (ret != bytes)

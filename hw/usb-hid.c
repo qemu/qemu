@@ -102,7 +102,7 @@ static const uint8_t qemu_mouse_config_descriptor[] = {
 				     5: Remote wakeup,
 				     4..0: resvd */
 	50,         /*  u8  MaxPower; */
-     
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -124,7 +124,7 @@ static const uint8_t qemu_mouse_config_descriptor[] = {
 	0x01,       /*  u8  if_bInterfaceSubClass; */
 	0x02,       /*  u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
 	0x07,       /*  u8  if_iInterface; */
-    
+
         /* HID descriptor */
         0x09,        /*  u8  bLength; */
         0x21,        /*  u8 bDescriptorType; */
@@ -157,7 +157,7 @@ static const uint8_t qemu_tablet_config_descriptor[] = {
 				     5: Remote wakeup,
 				     4..0: resvd */
 	50,         /*  u8  MaxPower; */
-     
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -474,7 +474,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
                                                   0, "QEMU USB Mouse");
 	s->mouse_grabbed = 1;
     }
-   
+
     dx = int_clamp(s->dx, -128, 127);
     dy = int_clamp(s->dy, -128, 127);
     dz = int_clamp(s->dz, -128, 127);
@@ -482,7 +482,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
     s->dx -= dx;
     s->dy -= dy;
     s->dz -= dz;
-   
+
     b = 0;
     if (s->buttons_state & MOUSE_EVENT_LBUTTON)
         b |= 0x01;
@@ -490,7 +490,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
         b |= 0x02;
     if (s->buttons_state & MOUSE_EVENT_MBUTTON)
         b |= 0x04;
-   
+
     buf[0] = b;
     buf[1] = dx;
     buf[2] = dy;
@@ -512,7 +512,7 @@ static int usb_tablet_poll(USBHIDState *hs, uint8_t *buf, int len)
                                                   1, "QEMU USB Tablet");
 	s->mouse_grabbed = 1;
     }
-   
+
     dz = int_clamp(s->dz, -128, 127);
     s->dz -= dz;
 

@@ -179,7 +179,7 @@ if_output(so, ifm)
 	}
 
 	/*
-	 * See if there's already a batchq list for this session. 
+	 * See if there's already a batchq list for this session.
 	 * This can include an interactive session, which should go on fastq,
 	 * but gets too greedy... hence it'll be downgraded from fastq to batchq.
 	 * We mustn't put this packet back on the fastq (or we'll send it out of order)
@@ -231,10 +231,10 @@ diddit:
 		 */
 		if (on_fastq && ((so->so_nqueued >= 6) &&
 				 (so->so_nqueued - so->so_queued) >= 3)) {
-		
+
 			/* Remove from current queue... */
 			remque(ifm->ifs_next);
-		
+
 			/* ...And insert in the new.  That'll teach ya! */
 			insque(ifm->ifs_next, &if_batchq);
 		}
@@ -290,7 +290,7 @@ if_start(void)
 		   ifm = next_m;
 		else
 		   ifm = if_batchq.ifq_next;
-	
+
 		/* Set which packet to send on next iteration */
 		next_m = ifm->ifq_next;
 	}

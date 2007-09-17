@@ -356,7 +356,7 @@ send:
 		}
 		m->m_data += if_maxlinkhdr;
 		m->m_len = hdrlen;
-	
+
 		/*
 		 * This will always succeed, since we make sure our mbufs
 		 * are big enough to hold one MSS packet + header + ... etc.
@@ -449,7 +449,7 @@ send:
 
 	if (SEQ_GT(tp->snd_up, tp->snd_una)) {
 		ti->ti_urp = htons((u_int16_t)(tp->snd_up - ntohl(ti->ti_seq)));
-#ifdef notdef	
+#ifdef notdef
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
 		ti->ti_urp = htons((u_int16_t)(tp->snd_up - tp->snd_nxt));
 #endif
@@ -533,12 +533,12 @@ send:
 	m->m_len = hdrlen + len; /* XXX Needed? m_len should be correct */
 
     {
-	   
+
 	((struct ip *)ti)->ip_len = m->m_len;
 
 	((struct ip *)ti)->ip_ttl = ip_defttl;
 	((struct ip *)ti)->ip_tos = so->so_iptos;
-	   
+
 /* #if BSD >= 43 */
 	/* Don't do IP options... */
 /*	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,

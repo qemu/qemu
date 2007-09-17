@@ -79,7 +79,7 @@ struct BlockDriver {
     int (*bdrv_media_changed)(BlockDriverState *bs);
     int (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
     int (*bdrv_set_locked)(BlockDriverState *bs, int locked);
-   
+
     BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;
 };
@@ -111,7 +111,7 @@ struct BlockDriverState {
     /* async read/write emulation */
 
     void *sync_aiocb;
-   
+
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;

@@ -222,7 +222,7 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
             foreach_apic(apic_iter, deliver_bitmask,
                          apic_init_ipi(apic_iter) );
             return;
-   
+
         case APIC_DM_EXTINT:
             /* handled in I/O APIC code */
             break;
@@ -471,7 +471,7 @@ int apic_get_interrupt(CPUState *env)
         return -1;
     if (!(s->spurious_vec & APIC_SV_ENABLE))
         return -1;
-   
+
     /* XXX: spurious IRQ handling */
     intno = get_highest_priority_int(s->irr);
     if (intno < 0)
@@ -505,7 +505,7 @@ static uint32_t apic_get_current_count(APICState *s)
 static void apic_timer_update(APICState *s, int64_t current_time)
 {
     int64_t next_time, d;
-   
+
     if (!(s->lvt[APIC_LVT_TIMER] & APIC_LVT_MASKED)) {
         d = (current_time - s->initial_count_load_time) >>
             s->count_shift;
@@ -834,7 +834,7 @@ int apic_init(CPUState *env)
 
     register_savevm("apic", s->id, 2, apic_save, apic_load, s);
     qemu_register_reset(apic_reset, s);
-   
+
     local_apics[s->id] = s;
     return 0;
 }
@@ -868,7 +868,7 @@ static void ioapic_service(IOAPICState *s)
                     vector = pic_read_irq(isa_pic);
                 else
                     vector = entry & 0xff;
-               
+
                 apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
                 apic_bus_deliver(deliver_bitmask, delivery_mode,
                                  vector, polarity, trig_mode);
@@ -1042,6 +1042,6 @@ IOAPICState *ioapic_init(void)
 
     register_savevm("ioapic", 0, 1, ioapic_save, ioapic_load, s);
     qemu_register_reset(ioapic_reset, s);
-   
+
     return s;
 }

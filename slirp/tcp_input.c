@@ -262,7 +262,7 @@ tcp_input(m, iphlen, inso)
 	 */
 	if (m == NULL) {
 		so = inso;
-	
+
 		/* Re-set a few variables */
 		tp = sototcpcb(so);
 		m = so->so_m;
@@ -270,7 +270,7 @@ tcp_input(m, iphlen, inso)
 		ti = so->so_ti;
 		tiwin = ti->ti_win;
 		tiflags = ti->ti_flags;
-	
+
 		goto cont_conn;
 	}
 
@@ -394,32 +394,32 @@ findso:
 	if (so == 0) {
 	  if ((tiflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) != TH_SYN)
 	    goto dropwithreset;
-	
+
 	  if ((so = socreate()) == NULL)
 	    goto dropwithreset;
 	  if (tcp_attach(so) < 0) {
 	    free(so); /* Not sofree (if it failed, it's not insqued) */
 	    goto dropwithreset;
 	  }
-	
+
 	  sbreserve(&so->so_snd, tcp_sndspace);
 	  sbreserve(&so->so_rcv, tcp_rcvspace);
-	 
+
 	  /*		tcp_last_so = so; */  /* XXX ? */
 	  /*		tp = sototcpcb(so);    */
-	
+
 	  so->so_laddr = ti->ti_src;
 	  so->so_lport = ti->ti_sport;
 	  so->so_faddr = ti->ti_dst;
 	  so->so_fport = ti->ti_dport;
-	
+
 	  if ((so->so_iptos = tcp_tos(so)) == 0)
 	    so->so_iptos = ((struct ip *)ti)->ip_tos;
-	
+
 	  tp = sototcpcb(so);
 	  tp->t_state = TCPS_LISTEN;
 	}
-          
+
         /*
          * If this is a still-connecting socket, this probably
          * a retransmit of the SYN.  Whether it's a retransmit SYN
@@ -567,14 +567,14 @@ findso:
 				if (tcp_emu(so,m)) sbappend(so, m);
 			} else
 				sbappend(so, m);
-		
+
 			/*
 			 * XXX This is called when data arrives.  Later, check
 			 * if we can actually write() to the socket
 			 * XXX Need to check? It's be NON_BLOCKING
 			 */
 /*			sorwakeup(so); */
-		
+
 			/*
 			 * If this is a short packet, then ACK now - with Nagel
 			 *	congestion avoidance sender won't send more until
@@ -624,12 +624,12 @@ findso:
 	    goto dropwithreset;
 	  if ((tiflags & TH_SYN) == 0)
 	    goto drop;
-	
+
 	  /*
 	   * This has way too many gotos...
 	   * But a bit of spaghetti code never hurt anybody :)
 	   */
-	 
+
 	  /*
 	   * If this is destined for the control address, then flag to
 	   * tcp_ctl once connected, otherwise connect
@@ -658,12 +658,12 @@ findso:
 	    }
 	    /* CTL_ALIAS: Do nothing, tcp_fconnect will be called on it */
 	  }
-	 
+
 	  if (so->so_emu & EMU_NOCONNECT) {
 	    so->so_emu &= ~EMU_NOCONNECT;
 	    goto cont_input;
 	  }
-	 
+
 	  if((tcp_fconnect(so) == -1) && (errno != EINPROGRESS) && (errno != EWOULDBLOCK)) {
 	    u_char code=ICMP_UNREACH_NET;
 	    DEBUG_MISC((dfd," tcp fconnect errno = %d-%s\n",
@@ -699,7 +699,7 @@ findso:
 	  }
 	  return;
 
-	cont_conn:    
+	cont_conn:
 	  /* m==NULL
 	   * Check if the connect succeeded
 	   */
@@ -707,14 +707,14 @@ findso:
 	    tp = tcp_close(tp);
 	    goto dropwithreset;
 	  }
-	cont_input:	
+	cont_input:
 	  tcp_template(tp);
-	 
+
 	  if (optp)
 	    tcp_dooptions(tp, (u_char *)optp, optlen, ti);
 	  /* , */
 	  /*				&ts_present, &ts_val, &ts_ecr); */
-	 
+
 	  if (iss)
 	    tp->iss = iss;
 	  else
@@ -770,7 +770,7 @@ findso:
 			tcpstat.tcps_connects++;
 			soisfconnected(so);
 			tp->t_state = TCPS_ESTABLISHED;
-		
+
 			/* Do window scaling on this connection? */
 /*			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
  *				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
@@ -866,7 +866,7 @@ trimthenstep6:
 			 * of sequence; drop it.
 			 */
 			tiflags &= ~TH_FIN;
-		
+
 			/*
 			 * Send an ACK to resynchronize and drop any data.
 			 * But keep on processing for RST or ACK.
@@ -1022,7 +1022,7 @@ trimthenstep6:
 		 * The first data byte already in the buffer will get
 		 * lost if no correction is made.  This is only needed for
 		 * SS_CTL since the buffer is empty otherwise.
-		 * tp->snd_una++; or:    
+		 * tp->snd_una++; or:
 		 */
 		tp->snd_una=ti->ti_ack;
 		if (so->so_state & SS_CTL) {
@@ -1040,7 +1040,7 @@ trimthenstep6:
 		} else {
 		  soisfconnected(so);
 		}
-	
+
 		/* Do window scaling? */
 /*		if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
  *			(TF_RCVD_SCALE|TF_REQ_SCALE)) {
@@ -1159,7 +1159,7 @@ trimthenstep6:
 /*		if (ts_present)
  *			tcp_xmit_timer(tp, tcp_now-ts_ecr+1);
  *		else
- */		    
+ */
 		     if (tp->t_rtt && SEQ_GT(ti->ti_ack, tp->t_rtseq))
 			tcp_xmit_timer(tp,tp->t_rtt);
 
@@ -1328,7 +1328,7 @@ step6:
 			so->so_urgc =  so->so_rcv.sb_cc +
 				(tp->rcv_up - tp->rcv_nxt); /* -1; */
 			tp->rcv_up = ti->ti_seq + ti->ti_urp;
-	
+
 		}
 	} else
 		/*
@@ -1379,7 +1379,7 @@ dodata:
 			 */
 /*			sofcantrcvmore(so); */
 			sofwdrain(so);
-		
+
 			tp->t_flags |= TF_ACKNOW;
 			tp->rcv_nxt++;
 		}

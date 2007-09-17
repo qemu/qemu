@@ -28,7 +28,7 @@
 
 typedef struct BDRVDMGState {
     int fd;
-   
+
     /* each chunk contains a certain number of sectors,
      * offsets[i] is the offset in the .dmg file,
      * lengths[i] is the length of the compressed chunk,
@@ -86,7 +86,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
     bs->read_only = 1;
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = 0;
-   
+
     /* read offset of info blocks */
     if(lseek(s->fd,-0x1d8,SEEK_END)<0) {
 dmg_close:
@@ -167,7 +167,7 @@ dmg_close:
 	goto dmg_close;
 
     s->current_chunk = s->n_chunks;
-   
+
     return 0;
 }
 

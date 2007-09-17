@@ -168,7 +168,7 @@ static void term_init(void)
     tty.c_cflag |= CS8;
     tty.c_cc[VMIN] = 1;
     tty.c_cc[VTIME] = 0;
-   
+
     tcsetattr (0, TCSANOW, &tty);
 
     atexit(term_exit);
@@ -250,7 +250,7 @@ static int img_create(int argc, char **argv)
     int64_t size;
     const char *p;
     BlockDriver *drv;
-   
+
     flags = 0;
     for(;;) {
         c = getopt(argc, argv, "b:f:he6");
@@ -461,7 +461,7 @@ static int img_convert(int argc, char **argv)
     if (optind >= argc)
         help();
     out_filename = argv[optind++];
-   
+
     bs = bdrv_new_open(filename, fmt);
 
     drv = bdrv_find_format(out_fmt);
@@ -484,7 +484,7 @@ static int img_convert(int argc, char **argv)
             error("Error while formatting '%s'", out_filename);
         }
     }
-   
+
     out_bs = bdrv_new_open(out_filename, out_fmt);
 
     if (flags && BLOCK_FLAG_COMPRESS) {

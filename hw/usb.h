@@ -119,7 +119,7 @@ struct USBDevice {
     void (*handle_destroy)(USBDevice *dev);
 
     int speed;
-   
+
     /* The following fields are used by the generic USB device
        layer. They are here just to avoid creating a new structure for
        them. */
@@ -129,7 +129,7 @@ struct USBDevice {
     int (*handle_data)(USBDevice *dev, USBPacket *p);
     uint8_t addr;
     char devname[32];
-   
+
     int state;
     uint8_t setup_buf[8];
     uint8_t data_buf[1024];

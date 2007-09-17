@@ -37,7 +37,7 @@ sbdrop(sb, num)
 	sb->sb_rptr += num;
 	if(sb->sb_rptr >= sb->sb_data + sb->sb_datalen)
 		sb->sb_rptr -= sb->sb_datalen;
-  
+
 }
 
 void
@@ -198,4 +198,4 @@ sbcopy(sb, off, len, to)
 		   memcpy(to+off,sb->sb_data,len);
 	}
 }
-	
+

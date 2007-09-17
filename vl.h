@@ -798,7 +798,7 @@ struct PCIDevice {
     int devfn;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
-   
+
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;

@@ -35,7 +35,7 @@ ARM Floating Point Instruction Classes
 
 CPDT		data transfer instructions
 		LDF, STF, LFM, SFM
-	
+
 CPDO		dyadic arithmetic instructions
 		ADF, MUF, SUF, RSF, DVF, RDF,
 		POW, RPW, RMF, FML, FDV, FRD, POL
@@ -43,7 +43,7 @@ CPDO		dyadic arithmetic instructions
 CPDO		monadic arithmetic instructions
 		MVF, MNF, ABS, RND, SQT, LOG, LGN, EXP,
 		SIN, COS, TAN, ASN, ACS, ATN, URD, NRM
-	
+
 CPRT		joint arithmetic/data transfer instructions
 		FIX (arithmetic followed by load/store)
 		FLT (load/store followed by arithmetic)
@@ -57,7 +57,7 @@ U		up/down bit: 0 = stack grows down, 1 = stack grows up
 W		write back bit: 1 = update base register (Rn)
 L		load/store bit: 0 = store, 1 = load
 Rn		base register
-Rd		destination/source register	
+Rd		destination/source register
 Fd		floating point destination register
 Fn		floating point source register
 Fm		floating point source register or floating point constant

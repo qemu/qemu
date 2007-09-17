@@ -168,7 +168,7 @@ udp_input(m, iphlen)
 	if (so->so_lport != uh->uh_sport ||
 	    so->so_laddr.s_addr != ip->ip_src.s_addr) {
 		struct socket *tmp;
-	
+
 		for (tmp = udb.so_next; tmp != &udb; tmp = tmp->so_next) {
 			if (tmp->so_lport == uh->uh_sport &&
 			    tmp->so_laddr.s_addr == ip->ip_src.s_addr) {
@@ -198,17 +198,17 @@ udp_input(m, iphlen)
 	    sofree(so);
 	    goto bad;
 	  }
-	 
+
 	  /*
 	   * Setup fields
 	   */
 	  /* udp_last_so = so; */
 	  so->so_laddr = ip->ip_src;
 	  so->so_lport = uh->uh_sport;
-	 
+
 	  if ((so->so_iptos = udp_tos(so)) == 0)
 	    so->so_iptos = ip->ip_tos;
-	 
+
 	  /*
 	   * XXXXX Here, check if it's in udpexec_list,
 	   * and if it is, do the fork_exec() etc.
@@ -233,7 +233,7 @@ udp_input(m, iphlen)
 	  m->m_data -= iphlen;
 	  *ip=save_ip;
 	  DEBUG_MISC((dfd,"udp tx errno = %d-%s\n",errno,strerror(errno)));
-	  icmp_error(m, ICMP_UNREACH,ICMP_UNREACH_NET, 0,strerror(errno)); 
+	  icmp_error(m, ICMP_UNREACH,ICMP_UNREACH_NET, 0,strerror(errno));
 	}
 
 	m_free(so->so_m);   /* used for ICMP if error on sorecvfrom */
@@ -320,7 +320,7 @@ int udp_output(struct socket *so, struct mbuf *m,
     }
     daddr.sin_addr = so->so_laddr;
     daddr.sin_port = so->so_lport;
-   
+
     return udp_output2(so, m, &saddr, &daddr, so->so_iptos);
 }
 
@@ -449,7 +449,7 @@ struct cu_header {
 		 */
 		if (getsockname(so->s, (struct sockaddr *)&addr, &addrlen) < 0)
 			return;
-	
+
 #define	IS_OLD	(so->so_emu == EMU_TALK)
 
 #define COPY_MSG(dest, src) { dest->type = src->type; \
@@ -480,10 +480,10 @@ struct cu_header {
 			OTOSIN(nmsg, ctl_addr)->sin_addr = our_addr;
 			strncpy(nmsg->l_name, getlogin(), NAME_SIZE_OLD);
 		}
-	
+
 		if (type == LOOK_UP)
 			return;		/* for LOOK_UP this is enough */
-		
+
 		if (IS_OLD) {		/* make a copy of the message */
 			COPY_MSG(nmsg, omsg);
 			nmsg->vers = 1;
@@ -507,39 +507,39 @@ struct cu_header {
 		if (type == ANNOUNCE) {
 			int s;
 			u_short temp_port;
-		
+
 			for(req = req_tbl; req; req = req->next)
 				if (so == req->udp_so)
 					break;  	/* found it */
-				
+
 			if (!req) {	/* no entry for so, create new */
 				req = (struct talk_request *)
 					malloc(sizeof(struct talk_request));
 				req->udp_so = so;
-				req->tcp_so = solisten(0,	
+				req->tcp_so = solisten(0,
 					OTOSIN(omsg, addr)->sin_addr.s_addr,
 					OTOSIN(omsg, addr)->sin_port,
 					SS_FACCEPTONCE);
 				req->next = req_tbl;
 				req_tbl = req;
-			}		
-		
+			}
+
 			/* replace port number in addr field */
 			addrlen = sizeof(addr);
 			getsockname(req->tcp_so->s,
 					(struct sockaddr *) &addr,
-					&addrlen);	
+					&addrlen);
 			OTOSIN(omsg, addr)->sin_port = addr.sin_port;
 			OTOSIN(omsg, addr)->sin_addr = our_addr;
 			OTOSIN(nmsg, addr)->sin_port = addr.sin_port;
-			OTOSIN(nmsg, addr)->sin_addr = our_addr;	
-		
+			OTOSIN(nmsg, addr)->sin_addr = our_addr;
+
 			/* send LEAVE_INVITEs */
 			temp_port = OTOSIN(omsg, ctl_addr)->sin_port;
 			OTOSIN(omsg, ctl_addr)->sin_port = 0;
 			OTOSIN(nmsg, ctl_addr)->sin_port = 0;
-			omsg->type = nmsg->type = LEAVE_INVITE;		
-		
+			omsg->type = nmsg->type = LEAVE_INVITE;
+
 			s = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 			addr.sin_addr = our_addr;
 			addr.sin_family = AF_INET;
@@ -555,22 +555,22 @@ struct cu_header {
 			OTOSIN(omsg, ctl_addr)->sin_port = temp_port;
 			OTOSIN(nmsg, ctl_addr)->sin_port = temp_port;
 		}
-	
+
 		/*
 		 * If it is a DELETE message, we send a copy to the
 		 * local daemons. Then we delete the entry corresponding
 		 * to our socket from the request table.
 		 */
-	
+
 		if (type == DELETE) {
 			struct talk_request *temp_req, *req_next;
 			int s;
 			u_short temp_port;
-		
+
 			temp_port = OTOSIN(omsg, ctl_addr)->sin_port;
 			OTOSIN(omsg, ctl_addr)->sin_port = 0;
 			OTOSIN(nmsg, ctl_addr)->sin_port = 0;
-		
+
 			s = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 			addr.sin_addr = our_addr;
 			addr.sin_family = AF_INET;
@@ -581,7 +581,7 @@ struct cu_header {
 			sendto(s, (char *)nmsg, sizeof(*nmsg), 0,
 				(struct sockaddr *)&addr, sizeof(addr));
 			closesocket(s);
-		
+
 			OTOSIN(omsg, ctl_addr)->sin_port = temp_port;
 			OTOSIN(nmsg, ctl_addr)->sin_port = temp_port;
 
@@ -604,10 +604,10 @@ struct cu_header {
 				}
 			}
 		}
-	
-		return;	
+
+		return;
 #endif
-	
+
 	case EMU_CUSEEME:
 
 		/*
@@ -623,7 +623,7 @@ struct cu_header {
 			cu_head->s_port = addr.sin_port;
 			cu_head->so_addr = our_addr.s_addr;
 		}
-	
+
 		return;
 	}
 }

@@ -208,7 +208,7 @@ static void tcx_update_display(void *opaque)
     case 0:
 	return;
     }
-   
+
     for(y = 0; y < ts->height; y += 4, page += TARGET_PAGE_SIZE) {
 	if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG)) {
 	    if (y_start < 0)
@@ -353,7 +353,7 @@ static void tcx24_invalidate_display(void *opaque)
 static void tcx_save(QEMUFile *f, void *opaque)
 {
     TCXState *s = opaque;
-   
+
     qemu_put_be16s(f, (uint16_t *)&s->height);
     qemu_put_be16s(f, (uint16_t *)&s->width);
     qemu_put_be16s(f, (uint16_t *)&s->depth);

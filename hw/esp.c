@@ -531,7 +531,7 @@ static void esp_save(QEMUFile *f, void *opaque)
 static int esp_load(QEMUFile *f, void *opaque, int version_id)
 {
     ESPState *s = opaque;
-   
+
     if (version_id != 3)
         return -EINVAL; // Cannot emulate 2
 

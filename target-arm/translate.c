@@ -116,7 +116,7 @@ const uint8_t table_logic_cc[16] = {
     1, /* bic */
     1, /* mvn */
 };
-   
+
 static GenOpFunc1 *gen_shift_T1_im[4] = {
     gen_op_shll_T1_im,
     gen_op_shrl_T1_im,
@@ -390,7 +390,7 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
                                         int extra)
 {
     int val, rm;
-   
+
     if (insn & (1 << 22)) {
         /* immediate */
         val = (insn & 0xf) | ((insn >> 4) & 0xf0);
@@ -1784,7 +1784,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
             delta_m = 0;
             delta_d = 0;
             bank_mask = 0;
-           
+
             if (veclen > 0) {
                 if (dp)
                     bank_mask = 0xc;
@@ -2205,10 +2205,10 @@ static void gen_exception_return(DisasContext *s)
 static void disas_arm_insn(CPUState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
-   
+
     insn = ldl_code(s->pc);
     s->pc += 4;
-   
+
     cond = insn >> 28;
     if (cond == 0xf){
         /* Unconditional instructions.  */
@@ -2403,7 +2403,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 (insn & 0x00000090) != 0x90) ||
                ((insn & 0x0e000000) == (1 << 25))) {
         int set_cc, logic_cc, shiftop;
-       
+
         op1 = (insn >> 21) & 0xf;
         set_cc = (insn >> 20) & 1;
         logic_cc = table_logic_cc[op1] & set_cc;
@@ -2626,7 +2626,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     } else {
                         /* SWP instruction */
                         rm = (insn) & 0xf;
-                       
+
                         gen_movl_T0_reg(s, rm);
                         gen_movl_T1_reg(s, rn);
                         if (insn & (1 << 22)) {
@@ -2799,7 +2799,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 }
                 rn = (insn >> 16) & 0xf;
                 gen_movl_T1_reg(s, rn);
-               
+
                 /* compute total size */
                 loaded_base = 0;
                 n = 0;
@@ -2897,7 +2897,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0xb:
             {
                 int32_t offset;
-               
+
                 /* branch (and link) */
                 val = (int32_t)s->pc;
                 if (insn & (1 << 24)) {
@@ -3500,7 +3500,7 @@ static void disas_thumb_insn(DisasContext *s)
         val = (uint32_t)s->pc + 2;
         gen_op_movl_T1_im(val | 1);
         gen_movl_reg_T1(s, 14);
-       
+
         val += offset << 1;
         if (insn & (1 << 12)) {
             /* bl */
@@ -3532,10 +3532,10 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     int j, lj;
     target_ulong pc_start;
     uint32_t next_page_start;
-   
+
     /* generate intermediate code */
     pc_start = tb->pc;
-      
+
     dc->tb = tb;
 
     gen_opc_ptr = gen_opc_buf;

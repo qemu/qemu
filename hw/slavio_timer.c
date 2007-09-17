@@ -210,7 +210,7 @@ static int slavio_timer_load(QEMUFile *f, void *opaque, int version_id)
 {
     SLAVIO_TIMERState *s = opaque;
     uint32_t tmp;
-   
+
     if (version_id != 2)
         return -EINVAL;
 

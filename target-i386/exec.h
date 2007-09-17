@@ -443,7 +443,7 @@ static inline CPU86_LDouble helper_fldt(target_ulong ptr)
 static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 {
     CPU86_LDoubleU temp;
-   
+
     temp.d = f;
     stq(ptr, temp.l.lower);
     stw(ptr + 8, temp.l.upper);

@@ -73,7 +73,7 @@ static void glue(vga_draw_glyph8_, DEPTH)(uint8_t *d, int linesize,
                                           uint32_t fgcol, uint32_t bgcol)
 {
     uint32_t font_data, xorcol;
-   
+
     xorcol = bgcol ^ fgcol;
     do {
         font_data = font_ptr[0];
@@ -88,7 +88,7 @@ static void glue(vga_draw_glyph16_, DEPTH)(uint8_t *d, int linesize,
                                           uint32_t fgcol, uint32_t bgcol)
 {
     uint32_t font_data, xorcol;
-   
+
     xorcol = bgcol ^ fgcol;
     do {
         font_data = font_ptr[0];
@@ -108,7 +108,7 @@ static void glue(vga_draw_glyph9_, DEPTH)(uint8_t *d, int linesize,
                                           uint32_t fgcol, uint32_t bgcol, int dup9)
 {
     uint32_t font_data, xorcol, v;
-   
+
     xorcol = bgcol ^ fgcol;
     do {
         font_data = font_ptr[0];
@@ -120,7 +120,7 @@ static void glue(vga_draw_glyph9_, DEPTH)(uint8_t *d, int linesize,
             ((uint8_t *)d)[8] = v >> (24 * (1 - BIG));
         else
             ((uint8_t *)d)[8] = bgcol;
-       
+
 #elif BPP == 2
         cpu_to_32wu(((uint32_t *)d)+0, (dmask4[(font_data >> 6)] & xorcol) ^ bgcol);
         cpu_to_32wu(((uint32_t *)d)+1, (dmask4[(font_data >> 4) & 3] & xorcol) ^ bgcol);
@@ -433,7 +433,7 @@ static void glue(vga_draw_line15_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
         s += 2;
         d += BPP;
     } while (--w != 0);
-#endif   
+#endif
 }
 
 /*
@@ -458,7 +458,7 @@ static void glue(vga_draw_line16_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
         s += 2;
         d += BPP;
     } while (--w != 0);
-#endif   
+#endif
 }
 
 /*

@@ -308,7 +308,7 @@ static void slavio_intctl_save(QEMUFile *f, void *opaque)
 {
     SLAVIO_INTCTLState *s = opaque;
     int i;
-   
+
     for (i = 0; i < MAX_CPUS; i++) {
 	qemu_put_be32s(f, &s->intreg_pending[i]);
     }

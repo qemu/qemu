@@ -275,7 +275,7 @@ typedef struct PCICirrusVGAState {
 } PCICirrusVGAState;
 
 static uint8_t rop_to_index[256];
-   
+
 /***************************************
  *
  *  prototypes.
@@ -788,7 +788,7 @@ static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
 {
     int copy_count;
     uint8_t *end_ptr;
-   
+
     if (s->cirrus_srccounter > 0) {
         if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
             cirrus_bitblt_common_patterncopy(s, s->cirrus_bltbuf);
@@ -1148,7 +1148,7 @@ static int cirrus_get_bpp(VGAState *s1)
 static void cirrus_get_resolution(VGAState *s, int *pwidth, int *pheight)
 {
     int width, height;
-   
+
     width = (s->cr[0x01] + 1) * 8;
     height = s->cr[0x12] |
         ((s->cr[0x07] & 0x02) << 7) |
@@ -2223,7 +2223,7 @@ static void cirrus_cursor_invalidate(VGAState *s1)
         s->last_hw_cursor_y != s->hw_cursor_y) {
 
         invalidate_cursor1(s);
-       
+
         s->last_hw_cursor_size = size;
         s->last_hw_cursor_x = s->hw_cursor_x;
         s->last_hw_cursor_y = s->hw_cursor_y;
@@ -2240,7 +2240,7 @@ static void cirrus_cursor_draw_line(VGAState *s1, uint8_t *d1, int scr_y)
     unsigned int color0, color1;
     const uint8_t *palette, *src;
     uint32_t content;
-   
+
     if (!(s->sr[0x12] & CIRRUS_CURSOR_SHOW))
         return;
     /* fast test to see if the cursor intersects with the scan line */
@@ -2252,7 +2252,7 @@ static void cirrus_cursor_draw_line(VGAState *s1, uint8_t *d1, int scr_y)
     if (scr_y < s->hw_cursor_y ||
         scr_y >= (s->hw_cursor_y + h))
         return;
-   
+
     src = s->vram_ptr + s->real_vram_size - 16 * 1024;
     if (s->sr[0x12] & CIRRUS_CURSOR_LARGE) {
         src += (s->sr[0x13] & 0x3c) * 256;
@@ -2379,7 +2379,7 @@ static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
     unsigned mode;
 
     addr &= s->cirrus_addr_mask;
-       
+
     if (((s->sr[0x17] & 0x44) == 0x44) &&
         ((addr & s->linear_mmio_mask) ==  s->linear_mmio_mask)) {
 	/* memory-mapped I/O */
@@ -2600,7 +2600,7 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 	} else if (s->gr[0x0B] & 0x02) {
             goto generic_io;
         }
-       
+
 	mode = s->gr[0x05] & 0x7;
 	if (mode < 4 || mode > 5 || ((s->gr[0x0B] & 0x4) == 0)) {
             s->cirrus_linear_write[0] = cirrus_linear_mem_writeb;
@@ -3190,7 +3190,7 @@ void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     CirrusVGAState *s;
 
     s = qemu_mallocz(sizeof(CirrusVGAState));
-   
+
     vga_common_init((VGAState *)s,
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0);
@@ -3231,7 +3231,7 @@ void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     uint8_t *pci_conf;
     CirrusVGAState *s;
     int device_id;
-   
+
     device_id = CIRRUS_ID_CLGD5446;
 
     /* setup PCI configuration registers */

@@ -182,7 +182,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
             return -1;
         }
     }
-   
+
     if(retval>=0) {
         /* success.  Initialize important registers */
         do_init_thread(regs, infop);

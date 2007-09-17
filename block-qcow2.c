@@ -37,7 +37,7 @@
   - Size of compressed clusters is stored in sectors to reduce bit usage
     in the cluster offsets.
   - Support for storing additional data (such as the VM state) in the
-    snapshots. 
+    snapshots.
   - If a backing store is used, the cluster size is not constrained
     (could be backported to QCOW).
   - L2 tables have always a size of one cluster.
@@ -176,7 +176,7 @@ static void check_refcounts(BlockDriverState *bs);
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
-   
+
     if (buf_size >= sizeof(QCowHeader) &&
         be32_to_cpu(cow_header->magic) == QCOW_MAGIC &&
         be32_to_cpu(cow_header->version) == QCOW_VERSION)
@@ -209,7 +209,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     be32_to_cpus(&header.refcount_table_clusters);
     be64_to_cpus(&header.snapshots_offset);
     be32_to_cpus(&header.nb_snapshots);
-   
+
     if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION)
         goto fail;
     if (header.size <= 1 ||
@@ -267,7 +267,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (!s->cluster_data)
         goto fail;
     s->cluster_cache_offset = -1;
-   
+
     if (refcount_init(bs) < 0)
         goto fail;
 
@@ -304,7 +304,7 @@ static int qcow_set_key(BlockDriverState *bs, const char *key)
     BDRVQcowState *s = bs->opaque;
     uint8_t keybuf[16];
     int len, i;
-   
+
     memset(keybuf, 0, 16);
     len = strlen(key);
     if (len > 16)
@@ -451,7 +451,7 @@ static int grow_l1_table(BlockDriverState *bs, int min_size)
 
     /* write new table (align to cluster) */
     new_l1_table_offset = alloc_clusters(bs, new_l1_size2);
-   
+
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
     ret = bdrv_pwrite(s->hd, new_l1_table_offset, new_l1_table, new_l1_size2);
@@ -459,7 +459,7 @@ static int grow_l1_table(BlockDriverState *bs, int min_size)
         goto fail;
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = be64_to_cpu(new_l1_table[i]);
-   
+
     /* set new table */
     data64 = cpu_to_be64(new_l1_table_offset);
     if (bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_table_offset),
@@ -501,7 +501,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     int min_index, i, j, l1_index, l2_index, ret;
     uint64_t l2_offset, *l2_table, cluster_offset, tmp, old_l2_offset;
-   
+
     l1_index = offset >> (s->l2_bits + s->cluster_bits);
     if (l1_index >= s->l1_size) {
         /* outside l1 table is allowed: we grow the table if needed */
@@ -600,7 +600,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
            written */
         if ((n_end - n_start) < s->cluster_sectors) {
             uint64_t start_sect;
-           
+
             start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
             ret = copy_sectors(bs, start_sect,
                                cluster_offset, 0, n_start);
@@ -672,7 +672,7 @@ static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
     inflateEnd(strm);
     return 0;
 }
-                             
+
 static int decompress_cluster(BDRVQcowState *s, uint64_t cluster_offset)
 {
     int ret, csize, nb_csectors, sector_offset;
@@ -717,7 +717,7 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
     BDRVQcowState *s = bs->opaque;
     int ret, index_in_cluster, n, n1;
     uint64_t cluster_offset;
-   
+
     while (nb_sectors > 0) {
         cluster_offset = get_cluster_offset(bs, sector_num << 9, 0, 0, 0, 0);
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
@@ -762,7 +762,7 @@ static int qcow_write(BlockDriverState *bs, int64_t sector_num,
     BDRVQcowState *s = bs->opaque;
     int ret, index_in_cluster, n;
     uint64_t cluster_offset;
-   
+
     while (nb_sectors > 0) {
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         n = s->cluster_sectors - index_in_cluster;
@@ -841,7 +841,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         qemu_aio_release(acb);
         return;
     }
-   
+
     /* prepare next AIO request */
     acb->cluster_offset = get_cluster_offset(bs, acb->sector_num << 9,
                                              0, 0, 0, 0);
@@ -948,7 +948,7 @@ static void qcow_aio_write_cb(void *opaque, int ret)
         qemu_aio_release(acb);
         return;
     }
-   
+
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
     acb->n = s->cluster_sectors - index_in_cluster;
     if (acb->n > acb->nb_sectors)
@@ -988,13 +988,13 @@ static BlockDriverAIOCB *qcow_aio_write(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     QCowAIOCB *acb;
-   
+
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
     acb = qcow_aio_setup(bs, sector_num, (uint8_t*)buf, nb_sectors, cb, opaque);
     if (!acb)
         return NULL;
-   
+
     qcow_aio_write_cb(acb, 0);
     return &acb->common;
 }
@@ -1054,7 +1054,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     QCowHeader header;
     uint64_t tmp, offset;
     QCowCreateState s1, *s = &s1;
-   
+
     memset(s, 0, sizeof(*s));
 
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
@@ -1096,7 +1096,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     s->refcount_block = qemu_mallocz(s->cluster_size);
     if (!s->refcount_block)
         goto fail;
-   
+
     s->refcount_table_offset = offset;
     header.refcount_table_offset = cpu_to_be64(offset);
     header.refcount_table_clusters = cpu_to_be32(1);
@@ -1111,7 +1111,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     create_refcount_update(s, s->l1_table_offset, l1_size * sizeof(uint64_t));
     create_refcount_update(s, s->refcount_table_offset, s->cluster_size);
     create_refcount_update(s, s->refcount_block_offset, s->cluster_size);
-   
+
     /* write all the data */
     write(fd, &header, sizeof(header));
     if (backing_file) {
@@ -1124,7 +1124,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     }
     lseek(fd, s->refcount_table_offset, SEEK_SET);
     write(fd, s->refcount_table, s->cluster_size);
-   
+
     lseek(fd, s->refcount_block_offset, SEEK_SET);
     write(fd, s->refcount_block, s->cluster_size);
 
@@ -1153,7 +1153,7 @@ static int qcow_make_empty(BlockDriverState *bs)
     ret = bdrv_truncate(s->hd, s->l1_table_offset + l1_length);
     if (ret < 0)
         return ret;
-   
+
     l2_cache_reset(bs);
 #endif
     return 0;
@@ -1223,7 +1223,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
             return -1;
         }
     }
-   
+
     qemu_free(out_buf);
     return 0;
 }
@@ -1256,7 +1256,7 @@ static int update_snapshot_refcount(BlockDriverState *bs,
     uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2, l1_allocated;
     int64_t old_offset, old_l2_offset;
     int l2_size, i, j, l1_modified, l2_modified, nb_csectors, refcount;
-   
+
     l2_cache_reset(bs);
 
     l2_table = NULL;
@@ -1278,7 +1278,7 @@ static int update_snapshot_refcount(BlockDriverState *bs,
         l1_table = s->l1_table;
         l1_allocated = 0;
     }
-   
+
     l2_size = s->l2_size * sizeof(uint64_t);
     l2_table = qemu_malloc(l2_size);
     if (!l2_table)
@@ -1455,7 +1455,7 @@ static int qcow_write_snapshots(BlockDriverState *bs)
 
     snapshots_offset = alloc_clusters(bs, snapshots_size);
     offset = snapshots_offset;
-   
+
     for(i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
         memset(&h, 0, sizeof(h));
@@ -1465,7 +1465,7 @@ static int qcow_write_snapshots(BlockDriverState *bs)
         h.date_sec = cpu_to_be32(sn->date_sec);
         h.date_nsec = cpu_to_be32(sn->date_nsec);
         h.vm_clock_nsec = cpu_to_be64(sn->vm_clock_nsec);
-       
+
         id_str_size = strlen(sn->id_str);
         name_size = strlen(sn->name);
         h.id_str_size = cpu_to_be16(id_str_size);
@@ -1533,7 +1533,7 @@ static int find_snapshot_by_id_or_name(BlockDriverState *bs, const char *name)
 {
     BDRVQcowState *s = bs->opaque;
     int i, ret;
-   
+
     ret = find_snapshot_by_id(bs, name);
     if (ret >= 0)
         return ret;
@@ -1552,7 +1552,7 @@ static int qcow_snapshot_create(BlockDriverState *bs,
     QCowSnapshot *snapshots1, sn1, *sn = &sn1;
     int i, ret;
     uint64_t *l1_table = NULL;
-   
+
     memset(sn, 0, sizeof(*sn));
 
     if (sn_info->id_str[0] == '\0') {
@@ -1663,7 +1663,7 @@ static int qcow_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
     int snapshot_index, ret;
-   
+
     snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_id);
     if (snapshot_index < 0)
         return -ENOENT;
@@ -1731,7 +1731,7 @@ static int refcount_init(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret, refcount_table_size2, i;
-   
+
     s->refcount_block_cache = qemu_malloc(s->cluster_size);
     if (!s->refcount_block_cache)
         goto fail;
@@ -1839,7 +1839,7 @@ static int64_t alloc_bytes(BlockDriverState *bs, int size)
     BDRVQcowState *s = bs->opaque;
     int64_t offset, cluster_offset;
     int free_in_cluster;
-   
+
     assert(size > 0 && size <= s->cluster_size);
     if (s->free_byte_offset == 0) {
         s->free_byte_offset = alloc_clusters(bs, s->cluster_size);
@@ -2043,7 +2043,7 @@ static void inc_refcounts(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     int64_t start, last, cluster_offset;
     int k;
-   
+
     if (size <= 0)
         return;
 
@@ -2086,7 +2086,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
         goto fail;
     for(i = 0;i < l1_size; i++)
         be64_to_cpus(&l1_table[i]);
-   
+
     l2_size = s->l2_size * sizeof(uint64_t);
     l2_table = qemu_malloc(l2_size);
     if (!l2_table)
@@ -2165,7 +2165,7 @@ static void check_refcounts(BlockDriverState *bs)
     /* header */
     inc_refcounts(bs, refcount_table, nb_clusters,
                   0, s->cluster_size);
-   
+
     check_refcounts_l1(bs, refcount_table, nb_clusters,
                        s->l1_table_offset, s->l1_size, 1);
 

@@ -1285,7 +1285,7 @@ void OPPROTO op_eval_be(void)
 void OPPROTO op_eval_ble(void)
 {
     target_ulong Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
-   
+
     T2 = Z | (N ^ V);
 }
 
@@ -1373,7 +1373,7 @@ void OPPROTO op_eval_xbe(void)
 void OPPROTO op_eval_xble(void)
 {
     target_ulong Z = XFLAG_SET(PSR_ZERO), N = XFLAG_SET(PSR_NEG), V = XFLAG_SET(PSR_OVF);
-   
+
     T2 = Z | (N ^ V);
 }
 

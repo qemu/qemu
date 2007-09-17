@@ -35,7 +35,7 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     else
         env->exception_index = EXCP_DFAULT;
     env->ipr[IPR_EXC_ADDR] = address;
-   
+
     return 1;
 }
 

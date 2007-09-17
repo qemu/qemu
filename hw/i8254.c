@@ -309,7 +309,7 @@ static uint32_t pit_ioport_read(void *opaque, uint32_t addr)
     PITState *pit = opaque;
     int ret, count;
     PITChannelState *s;
-   
+
     addr &= 3;
     s = &pit->channels[addr];
     if (s->status_latched) {
@@ -391,7 +391,7 @@ static void pit_save(QEMUFile *f, void *opaque)
     PITState *pit = opaque;
     PITChannelState *s;
     int i;
-   
+
     for(i = 0; i < 3; i++) {
         s = &pit->channels[i];
         qemu_put_be32s(f, &s->count);
@@ -419,7 +419,7 @@ static int pit_load(QEMUFile *f, void *opaque, int version_id)
     PITState *pit = opaque;
     PITChannelState *s;
     int i;
-   
+
     if (version_id != 1)
         return -EINVAL;
 

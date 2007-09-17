@@ -210,7 +210,7 @@ static void vga_fill_rect (DisplayState *ds,
 {
     uint8_t *d, *d1;
     int x, y, bpp;
-   
+
     bpp = (ds->depth + 7) >> 3;
     d1 = ds->data +
         ds->linesize * posy + bpp * posx;
@@ -591,7 +591,7 @@ static void console_scroll(int ydelta)
 {
     TextConsole *s;
     int i, y1;
-   
+
     s = active_console;
     if (!s || (s->console_type == GRAPHIC_CONSOLE))
         return;
@@ -1047,7 +1047,7 @@ static void kbd_send_chars(void *opaque)
     TextConsole *s = opaque;
     int len;
     uint8_t buf[16];
-   
+
     len = qemu_chr_can_read(s->chr);
     if (len > s->out_fifo.count)
         len = s->out_fifo.count;
@@ -1192,7 +1192,7 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
     s->kbd_timer = qemu_new_timer(rt_clock, kbd_send_chars, s);
-   
+
     if (!color_inited) {
         color_inited = 1;
         for(j = 0; j < 2; j++) {

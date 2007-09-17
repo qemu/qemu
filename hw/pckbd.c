@@ -338,7 +338,7 @@ static void kbd_reset(void *opaque)
 static void kbd_save(QEMUFile* f, void* opaque)
 {
     KBDState *s = (KBDState*)opaque;
-   
+
     qemu_put_8s(f, &s->write_cmd);
     qemu_put_8s(f, &s->status);
     qemu_put_8s(f, &s->mode);
@@ -348,7 +348,7 @@ static void kbd_save(QEMUFile* f, void* opaque)
 static int kbd_load(QEMUFile* f, void* opaque, int version_id)
 {
     KBDState *s = (KBDState*)opaque;
-   
+
     if (version_id != 3)
         return -EINVAL;
     qemu_get_8s(f, &s->write_cmd);

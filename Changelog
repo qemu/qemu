@@ -86,7 +86,7 @@ version 0.8.0:
     (Johannes Schindelin)
 
 version 0.7.2:
- 
+
   - x86_64 fixes (Win2000 and Linux 2.6 boot in 32 bit)
   - merge self modifying code handling in dirty ram page mecanism.
   - MIPS fixes (Ralf Baechle)
@@ -201,7 +201,7 @@ version 0.5.5:
   - FDC fixes for Win98
 
 version 0.5.4:
- 
+
   - qemu-fast fixes
   - BIOS area protection fix (aka EMM386.EXE fix) (Mike Nordell)
   - keyboard/mouse fix (Mike Nordell)
@@ -266,7 +266,7 @@ version 0.5.2:
   - eflags optimisation fix for string operations
 
 version 0.5.1:
- 
+
   - float access fixes when using soft mmu
   - PC emulation support on PowerPC
   - A20 support
@@ -281,7 +281,7 @@ version 0.5.1:
   - Major SPARC target fixes (dynamically linked programs begin to work)
 
 version 0.5.0:
- 
+
   - full hardware level VGA emulation
   - graphical display with SDL
   - added PS/2 mouse and keyboard emulation
@@ -319,7 +319,7 @@ version 0.4.2:
  - SMP kernels can at least be booted
 
 version 0.4.1:
- 
+
  - more accurate timer support in vl.
  - more reliable NE2000 probe in vl.
  - added 2.5.66 kernel in vl-test.

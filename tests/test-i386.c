@@ -739,7 +739,7 @@ void fpu_clear_exceptions(void)
         uint32_t ignored[4];
         long double fpregs[8];
     } float_env32;
-   
+
     asm volatile ("fnstenv %0\n" : : "m" (float_env32));
     float_env32.fpus &= ~0x7f;
     asm volatile ("fldenv %0\n" : : "m" (float_env32));
@@ -1041,7 +1041,7 @@ void test_bcd(void)
     TEST_BCD(aaa, 0x12340306, 0, (CC_C | CC_A));
     TEST_BCD(aaa, 0x1234040a, 0, (CC_C | CC_A));
     TEST_BCD(aaa, 0x123405fa, 0, (CC_C | CC_A));
-   
+
     TEST_BCD(aas, 0x12340205, CC_A, (CC_C | CC_A));
     TEST_BCD(aas, 0x12340306, CC_A, (CC_C | CC_A));
     TEST_BCD(aas, 0x1234040a, CC_A, (CC_C | CC_A));
@@ -1381,7 +1381,7 @@ void test_misc(void)
         /* NOTE: we assume that &func_lret < 4GB */
         desc.offset = (long)&func_lret;
         desc.seg = cs_sel;
-       
+
         asm volatile ("xor %%rax, %%rax\n"
                       "rex64 lcall %1\n"
                       : "=a" (res)
@@ -1562,7 +1562,7 @@ void test_vm86(void)
         case VM86_INTx:
             {
                 int int_num, ah, v;
-               
+
                 int_num = VM86_ARG(ret);
                 if (int_num != 0x21)
                     goto unknown_int;
@@ -1665,7 +1665,7 @@ void test_exceptions(void)
 {
     struct sigaction act;
     volatile int val;
-   
+
     act.sa_sigaction = sig_handler;
     sigemptyset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO | SA_NODEFER;
@@ -1718,7 +1718,7 @@ void test_exceptions(void)
         ldt.seg_not_present = 1;
         ldt.useable = 1;
         modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
-       
+
         if (setjmp(jmp_env) == 0) {
             /* segment not present */
             asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
@@ -1743,7 +1743,7 @@ void test_exceptions(void)
         /* read from an invalid address */
         v1 = *(char *)0x1234;
     }
-   
+
     /* test illegal instruction reporting */
     printf("UD2 exception:\n");
     if (setjmp(jmp_env) == 0) {
@@ -1755,7 +1755,7 @@ void test_exceptions(void)
         /* now execute an invalid instruction */
         asm volatile("lock nop");
     }
-   
+
     printf("INT exception:\n");
     if (setjmp(jmp_env) == 0) {
         asm volatile ("int $0xfd");
@@ -1884,13 +1884,13 @@ void test_single_step(void)
                   "rep cmpsb\n"
                   "movl $4, %%ecx\n"
                   "rep cmpsb\n"
-                 
+
                   /* getpid() syscall: single step should skip one
                      instruction */
                   "movl $20, %%eax\n"
                   "int $0x80\n"
                   "movl $0, %%eax\n"
-                 
+
                   /* when modifying SS, trace is not done on the next
                      instruction */
                   "movl %%ss, %%ecx\n"
@@ -1906,7 +1906,7 @@ void test_single_step(void)
                   "popl %%ss\n"
                   "addl $1, %0\n"
                   "movl $1, %%eax\n"
-                 
+
                   "pushf\n"
                   "andl $~0x00100, (%%esp)\n"
                   "popf\n"
@@ -2341,7 +2341,7 @@ void test_sse(void)
 
     MMX_OP2(pmulhuw);
     MMX_OP2(pmulhw);
-   
+
     MMX_OP2(psubsb);
     MMX_OP2(psubsw);
     MMX_OP2(pminsw);
@@ -2380,7 +2380,7 @@ void test_sse(void)
 
     asm volatile ("pmovmskb %1, %0" : "=r" (r.l[0]) : "y" (a.q[0]));
     printf("%-9s: r=%08x\n", "pmovmskb", r.l[0]);
-   
+
     asm volatile ("pmovmskb %1, %0" : "=r" (r.l[0]) : "x" (a.dq));
     printf("%-9s: r=%08x\n", "pmovmskb", r.l[0]);
 
@@ -2506,8 +2506,8 @@ void test_sse(void)
         SSE_OPS(cmpnlt);
         SSE_OPS(cmpnle);
         SSE_OPS(cmpord);
-       
-       
+
+
         a.d[0] = 2.7;
         a.d[1] = -3.4;
         b.d[0] = 45.7;

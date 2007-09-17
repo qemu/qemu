@@ -286,7 +286,7 @@ static void kqemu_reset_modified_ram_pages(void)
 {
     int i;
     unsigned long page_index;
-   
+
     for(i = 0; i < nb_modified_ram_pages; i++) {
         page_index = modified_ram_pages[i] >> TARGET_PAGE_BITS;
         modified_ram_pages_table[page_index] = 0;
@@ -364,7 +364,7 @@ static void restore_native_fp_frstor(CPUState *env)
 {
     int fptag, i, j;
     struct fpstate fp1, *fp = &fp1;
-   
+
     fp->fpuc = env->fpuc;
     fp->fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
@@ -470,7 +470,7 @@ static int do_syscall(CPUState *env,
                       struct kqemu_cpu_state *kenv)
 {
     int selector;
-   
+
     selector = (env->star >> 32) & 0xffff;
 #ifdef __x86_64__
     if (env->hflags & HF_LMA_MASK) {
@@ -501,7 +501,7 @@ static int do_syscall(CPUState *env,
 #endif
     {
         env->regs[R_ECX] = (uint32_t)kenv->next_eip;
-       
+
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc,
                            0, 0xffffffff,
@@ -605,7 +605,7 @@ void kqemu_record_dump(void)
         }
     }
     qsort(pr, nb_pc_records, sizeof(PCRecord *), pc_rec_cmp);
-   
+
     f = fopen("/tmp/kqemu.stats", "w");
     if (!f) {
         perror("/tmp/kqemu.stats");
@@ -697,7 +697,7 @@ int kqemu_cpu_exec(CPUState *env)
     kenv->nb_ram_pages_to_update = nb_ram_pages_to_update;
 #endif
     nb_ram_pages_to_update = 0;
-   
+
 #if KQEMU_VERSION >= 0x010300
     kenv->nb_modified_ram_pages = nb_modified_ram_pages;
 #endif
@@ -828,7 +828,7 @@ int kqemu_cpu_exec(CPUState *env)
         env->hflags |= HF_OSFXSR_MASK;
     else
         env->hflags &= ~HF_OSFXSR_MASK;
-       
+
 #ifdef DEBUG
     if (loglevel & CPU_LOG_INT) {
         fprintf(logfile, "kqemu: kqemu_cpu_exec: ret=0x%x\n", ret);

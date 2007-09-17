@@ -75,7 +75,7 @@ CPUX86State *cpu_x86_init(void)
         ldt.seg_not_present = 0;
         ldt.useable = 1;
         modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
-       
+
         asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
     }
 #endif
@@ -173,19 +173,19 @@ void cpu_reset(CPUX86State *env)
     env->ldt.flags = DESC_P_MASK;
     env->tr.limit = 0xffff;
     env->tr.flags = DESC_P_MASK;
-   
+
     cpu_x86_load_seg_cache(env, R_CS, 0xf000, 0xffff0000, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffff, 0);
-   
+
     env->eip = 0xfff0;
     env->regs[R_EDX] = 0x600; /* indicate P6 processor */
-   
+
     env->eflags = 0x2;
-   
+
     /* FPU init */
     for(i = 0;i < 8; i++)
         env->fptags[i] = 1;
@@ -516,7 +516,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
     }
 #endif
     env->cr[0] = new_cr0 | CR0_ET_MASK;
-   
+
     /* update PE flag in hidden flags */
     pe_state = (env->cr[0] & CR0_PE_MASK);
     env->hflags = (env->hflags & ~HF_PE_MASK) | (pe_state << HF_PE_SHIFT);
@@ -603,13 +603,13 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     int error_code, is_dirty, prot, page_size, ret, is_write;
     unsigned long paddr, page_offset;
     target_ulong vaddr, virt_addr;
-   
+
 #if defined(DEBUG_MMU)
     printf("MMU fault: addr=" TARGET_FMT_lx " w=%d u=%d eip=" TARGET_FMT_lx "\n",
            addr, is_write1, is_user, env->eip);
 #endif
     is_write = is_write1 & 1;
-   
+
     if (!(env->cr[0] & CR0_PG_MASK)) {
         pte = addr;
         virt_addr = addr & TARGET_PAGE_MASK;
@@ -635,7 +635,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                 env->exception_index = EXCP0D_GPF;
                 return 1;
             }
-           
+
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
                 env->a20_mask;
             pml4e = ldq_phys(pml4e_addr);
@@ -794,7 +794,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                     pde |= PG_DIRTY_MASK;
                 stl_phys_notdirty(pde_addr, pde);
             }
-       
+
             pte = pde & ~( (page_size - 1) & ~0xfff); /* align to page_size */
             ptep = pte;
             virt_addr = addr & ~(page_size - 1);
@@ -859,7 +859,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     vaddr = virt_addr + page_offset;
-   
+
     ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
     return ret;
  do_fault_protect:
@@ -897,13 +897,13 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
             sext = (int64_t)addr >> 47;
             if (sext != 0 && sext != -1)
                 return -1;
-           
+
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
                 env->a20_mask;
             pml4e = ldl_phys(pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK))
                 return -1;
-           
+
             pdpe_addr = ((pml4e & ~0xfff) + (((addr >> 30) & 0x1ff) << 3)) &
                 env->a20_mask;
             pdpe = ldl_phys(pdpe_addr);
@@ -987,7 +987,7 @@ void restore_native_fp_state(CPUState *env)
 {
     int fptag, i, j;
     struct fpstate fp1, *fp = &fp1;
-   
+
     fp->fpuc = env->fpuc;
     fp->fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;

@@ -63,7 +63,7 @@ typedef struct DisasContext {
     /* code output */
     uint8_t *gen_code_ptr;
     uint8_t *gen_code_start;
-   
+
     /* current block context */
     target_ulong cs_base; /* base of CS segment */
     int pe;     /* protected mode */
@@ -155,7 +155,7 @@ static void gen_jcc(DisasContext *s, int op,
     gb(s, 0xe9); /* jmp */
     tb->tb_jmp_offset[1] = s->gen_code_ptr - s->gen_code_start;
     gl(s, 0);
-   
+
     tb->tb_next_offset[0] = s->gen_code_ptr - s->gen_code_start;
     gen_movl_addr_im(s, CPU_FIELD_OFFSET(eip), target_eip);
     gen_movl_addr_im(s, CPU_FIELD_OFFSET(tmp0), (uint32_t)tb);
@@ -194,7 +194,7 @@ static inline void gen_lea_modrm(DisasContext *s, int modrm)
         base = rm;
         index = 0;
         scale = 0;
-       
+
         if (base == 4) {
             havesib = 1;
             code = ldub_code(s->pc++);
@@ -222,7 +222,7 @@ static inline void gen_lea_modrm(DisasContext *s, int modrm)
             s->pc += 4;
             break;
         }
-       
+
     } else {
         switch (mod) {
         case 0:
@@ -248,7 +248,7 @@ static inline void gen_lea_modrm(DisasContext *s, int modrm)
 static inline void parse_modrm(DisasContext *s, int modrm)
 {
     if ((modrm & 0xc0) != 0xc0)
-        gen_lea_modrm(s, modrm);       
+        gen_lea_modrm(s, modrm);
 }
 
 static inline uint32_t insn_get(DisasContext *s, int ot)
@@ -351,7 +351,7 @@ static int disas_insn(DisasContext *s)
         /* extended op code */
         b = ldub_code(s->pc++) | 0x100;
         goto reswitch;
-       
+
         /**************************/
         /* arith & logic */
     case 0x00 ... 0x05:
@@ -370,7 +370,7 @@ static int disas_insn(DisasContext *s)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-           
+
             switch(f) {
             case 0: /* OP Ev, Gv */
                 modrm = ldub_code(s->pc++);
@@ -396,7 +396,7 @@ static int disas_insn(DisasContext *s)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-           
+
             modrm = ldub_code(s->pc++);
             parse_modrm(s, modrm);
 
@@ -506,7 +506,7 @@ static int disas_insn(DisasContext *s)
             ot = dflag ? OT_LONG : OT_WORD;
         insn_get(s, ot);
         break;
-       
+
     case 0x98: /* CWDE/CBW */
         break;
     case 0x99: /* CDQ/CWD */
@@ -527,7 +527,7 @@ static int disas_insn(DisasContext *s)
 
     case 0x84: /* test Ev, Gv */
     case 0x85:
-       
+
     case 0x1c0:
     case 0x1c1: /* xadd Ev, Gv */
 
@@ -583,7 +583,7 @@ static int disas_insn(DisasContext *s)
             goto illegal_op;
         parse_modrm(s, modrm);
         break;
-       
+
         /**************************/
         /* push/pop */
     case 0x50 ... 0x57: /* push */
@@ -850,7 +850,7 @@ static int disas_insn(DisasContext *s)
             goto illegal_op;
         parse_modrm(s, modrm);
         break;
-       
+
     case 0xa0: /* mov EAX, Ov */
     case 0xa1:
     case 0xa2: /* mov Ov, EAX */
@@ -888,14 +888,14 @@ static int disas_insn(DisasContext *s)
         parse_modrm(s, modrm);
         ldub_code(s->pc++);
         break;
-       
+
         /************************/
         /* string ops */
 
     case 0xa4: /* movsS */
     case 0xa5:
         break;
-       
+
     case 0xaa: /* stosS */
     case 0xab:
         break;
@@ -955,7 +955,7 @@ static int disas_insn(DisasContext *s)
 
     case 0xc3: /* ret */
         gb(s, CPU_SEG);
-        if (!s->dflag) 
+        if (!s->dflag)
             gb(s, 0x66); /* d16 */
         gb(s, 0x8f); /* pop addr */
         gb(s, 0x05);
@@ -1244,7 +1244,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             break;
         }
     }
-   
+
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
@@ -1304,7 +1304,7 @@ int cpu_restore_state_copy(TranslationBlock *tb,
         return ret;
     /* restore all the CPU state from the CPU context from the
        signal. The FPU context stays in the host CPU. */
-   
+
     env->regs[R_EAX] = uc->uc_mcontext.gregs[REG_EAX];
     env->regs[R_ECX] = uc->uc_mcontext.gregs[REG_ECX];
     env->regs[R_EDX] = uc->uc_mcontext.gregs[REG_EDX];

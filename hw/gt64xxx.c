@@ -287,10 +287,10 @@ static void gt64120_pci_mapping(GT64120State *s)
     /* Update IO mapping */
     if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD])
     {
-      /* Unmap old IO address */	   
+      /* Unmap old IO address */
       if (s->PCI0IO_length)
       {
-        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);	    
+        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);
       }
       /* Map new IO address */
       s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;

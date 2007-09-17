@@ -329,7 +329,7 @@
 #define TARGET_NR_lremovexattr		392
 #define TARGET_NR_fremovexattr		393
 #define TARGET_NR_futex			394
-#define TARGET_NR_sched_setaffinity		395    
+#define TARGET_NR_sched_setaffinity		395
 #define TARGET_NR_sched_getaffinity		396
 #define TARGET_NR_tuxcall			397
 #define TARGET_NR_io_setup			398

@@ -123,7 +123,7 @@ static inline void return_to_32bit(CPUX86State *env, int retval)
 static inline int set_IF(CPUX86State *env)
 {
     TaskState *ts = env->opaque;
-   
+
     ts->v86flags |= VIF_MASK;
     if (ts->v86flags & VIP_MASK) {
         return_to_32bit(env, TARGET_VM86_STI);
@@ -264,7 +264,7 @@ void handle_vm86_fault(CPUX86State *env)
     csp = (uint8_t *)(env->segs[R_CS].selector << 4);
     ip = env->eip & 0xffff;
     pc = csp + ip;
-   
+
     ssp = (uint8_t *)(env->segs[R_SS].selector << 4);
     sp = env->regs[R_ESP] & 0xffff;
 
@@ -362,12 +362,12 @@ void handle_vm86_fault(CPUX86State *env)
                 return;
         }
         VM86_FAULT_RETURN;
-       
+
     case 0xfa: /* cli */
         env->eip = ip;
         clear_IF(env);
         VM86_FAULT_RETURN;
-       
+
     case 0xfb: /* sti */
         env->eip = ip;
         if (set_IF(env))
@@ -386,7 +386,7 @@ int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
     TaskState *ts = env->opaque;
     struct target_vm86plus_struct * target_v86;
     int ret;
-   
+
     switch (subfunction) {
     case TARGET_VM86_REQUEST_IRQ:
     case TARGET_VM86_FREE_IRQ:
@@ -470,7 +470,7 @@ int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
     memcpy(&ts->vm86plus.vm86plus.vm86dbg_intxxtab,
            target_v86->vm86plus.vm86dbg_intxxtab, 32);
     unlock_user_struct(target_v86, vm86_addr, 0);
-   
+
 #ifdef DEBUG_VM86
     fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n",
             env->segs[R_CS].selector, env->eip);

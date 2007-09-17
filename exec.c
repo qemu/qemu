@@ -175,10 +175,10 @@ static void page_init(void)
     {
         SYSTEM_INFO system_info;
         DWORD old_protect;
-       
+
         GetSystemInfo(&system_info);
         qemu_real_host_page_size = system_info.dwPageSize;
-       
+
         VirtualProtect(code_gen_buffer, sizeof(code_gen_buffer),
                        PAGE_EXECUTE_READWRITE, &old_protect);
     }
@@ -189,11 +189,11 @@ static void page_init(void)
 
         start = (unsigned long)code_gen_buffer;
         start &= ~(qemu_real_host_page_size - 1);
-       
+
         end = (unsigned long)code_gen_buffer + sizeof(code_gen_buffer);
         end += qemu_real_host_page_size - 1;
         end &= ~(qemu_real_host_page_size - 1);
-       
+
         mprotect((void *)start, end - start,
                  PROT_READ | PROT_WRITE | PROT_EXEC);
     }
@@ -345,7 +345,7 @@ void tb_flush(CPUState *env1)
            nb_tbs > 0 ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0);
 #endif
     nb_tbs = 0;
-   
+
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
         memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
     }
@@ -382,7 +382,7 @@ static void tb_page_check(void)
 {
     TranslationBlock *tb;
     int i, flags1, flags2;
-   
+
     for(i = 0;i < CODE_GEN_PHYS_HASH_SIZE; i++) {
         for(tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             flags1 = page_get_flags(tb->pc);
@@ -491,7 +491,7 @@ static inline void tb_phys_invalidate(TranslationBlock *tb, unsigned int page_ad
     unsigned int h, n1;
     target_ulong phys_pc;
     TranslationBlock *tb1, *tb2;
-   
+
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_phys_hash_func(phys_pc);
@@ -571,7 +571,7 @@ static void build_page_bitmap(PageDesc *p)
 {
     int n, tb_start, tb_end;
     TranslationBlock *tb;
-   
+
     p->code_bitmap = qemu_malloc(TARGET_PAGE_SIZE / 8);
     if (!p->code_bitmap)
         return;
@@ -624,7 +624,7 @@ static void tb_gen_code(CPUState *env,
     tb->cflags = cflags;
     cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-   
+
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
@@ -634,7 +634,7 @@ static void tb_gen_code(CPUState *env,
     tb_link_phys(tb, phys_pc, phys_page2);
 }
 #endif
-   
+
 /* invalidate all TBs which intersect with the target physical page
    starting in range [start;end[. NOTE: start and end must refer to
    the same physical page. 'is_cpu_write_access' should be true if called
@@ -700,7 +700,7 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
                 that the modification is after the current PC, but it
                 would require a specialized function to partially
                 restore the CPU state */
-               
+
                 current_tb_modified = 1;
                 cpu_restore_state(current_tb, env,
                                   env->mem_write_pc, NULL);
@@ -819,7 +819,7 @@ static void tb_invalidate_phys_page(target_ulong addr,
                    that the modification is after the current PC, but it
                    would require a specialized function to partially
                    restore the CPU state */
-           
+
             current_tb_modified = 1;
             cpu_restore_state(current_tb, env, pc, puc);
 #if defined(TARGET_I386)
@@ -1024,7 +1024,7 @@ static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
         }
         *ptb = tb->jmp_next[n];
         tb->jmp_next[n] = NULL;
-       
+
         /* suppress the jump to next tb in generated code */
         tb_reset_jump(tb, n);
 
@@ -1103,7 +1103,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
 {
 #if defined(TARGET_HAS_ICE)
     int i;
-   
+
     for(i = 0; i < env->nb_breakpoints; i++) {
         if (env->breakpoints[i] == pc)
             return 0;
@@ -1112,7 +1112,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
     if (env->nb_breakpoints >= MAX_BREAKPOINTS)
         return -1;
     env->breakpoints[env->nb_breakpoints++] = pc;
-   
+
     breakpoint_invalidate(env, pc);
     return 0;
 #else
@@ -1249,7 +1249,7 @@ static int cmp1(const char *s1, int n, const char *s2)
         return 0;
     return memcmp(s1, s2, n) == 0;
 }
-     
+
 /* takes a comma separated list of log masks. Return 0 if error. */
 int cpu_str_to_log_mask(const char *str)
 {
@@ -1703,7 +1703,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
                         /* if code is present, we only map as read only and save the
                            original mapping */
                         VirtPageDesc *vp;
-                       
+
                         vp = virt_page_find_alloc(vaddr >> TARGET_PAGE_BITS, 1);
                         vp->phys_addr = pd;
                         vp->prot = prot;
@@ -2008,7 +2008,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
             }
         }
     }
-   
+
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
     /* XXX: slow ! */
@@ -2492,7 +2492,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
     target_phys_addr_t page;
     unsigned long pd;
     PhysPageDesc *p;
-   
+
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
         l = (page + TARGET_PAGE_SIZE) - addr;
@@ -2504,7 +2504,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         } else {
             pd = p->phys_offset;
         }
-       
+
         if (is_write) {
             if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
@@ -2583,7 +2583,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
     target_phys_addr_t page;
     unsigned long pd;
     PhysPageDesc *p;
-   
+
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
         l = (page + TARGET_PAGE_SIZE) - addr;
@@ -2595,7 +2595,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
         } else {
             pd = p->phys_offset;
         }
-       
+
         if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
             (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM &&
             !(pd & IO_MEM_ROMD)) {
@@ -2629,7 +2629,7 @@ uint32_t ldl_phys(target_phys_addr_t addr)
     } else {
         pd = p->phys_offset;
     }
-       
+
     if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
         !(pd & IO_MEM_ROMD)) {
         /* I/O case */
@@ -2659,7 +2659,7 @@ uint64_t ldq_phys(target_phys_addr_t addr)
     } else {
         pd = p->phys_offset;
     }
-       
+
     if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
         !(pd & IO_MEM_ROMD)) {
         /* I/O case */
@@ -2712,7 +2712,7 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
     } else {
         pd = p->phys_offset;
     }
-       
+
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
@@ -2736,7 +2736,7 @@ void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
     } else {
         pd = p->phys_offset;
     }
-       
+
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -2767,7 +2767,7 @@ void stl_phys(target_phys_addr_t addr, uint32_t val)
     } else {
         pd = p->phys_offset;
     }
-       
+
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
@@ -2842,7 +2842,7 @@ void dump_exec_info(FILE *f,
     int i, target_code_size, max_target_code_size;
     int direct_jmp_count, direct_jmp2_count, cross_page;
     TranslationBlock *tb;
-   
+
     target_code_size = 0;
     max_target_code_size = 0;
     cross_page = 0;

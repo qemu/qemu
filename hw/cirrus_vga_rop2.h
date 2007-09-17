@@ -34,7 +34,7 @@
 #define PUTPIXEL()    ROP_OP(((uint32_t *)d)[0], col)
 #else
 #error unsupported DEPTH
-#endif               
+#endif
 
 static void
 glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)

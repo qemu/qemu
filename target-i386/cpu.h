@@ -476,7 +476,7 @@ typedef struct CPUX86State {
 	int i32;
         int64_t i64;
     } fp_convert;
-   
+
     float_status sse_status;
     uint32_t mxcsr;
     XMMReg xmm_regs[CPU_NB_REGS];
@@ -504,7 +504,7 @@ typedef struct CPUX86State {
     uint32_t saved_esp;
     int native_fp_regs; /* if true, the FPU state is in the native CPU regs */
 #endif
-   
+
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
@@ -531,7 +531,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_model[12];
     uint32_t cpuid_ext2_features;
     uint32_t cpuid_apic_id;
-   
+
 #ifdef USE_KQEMU
     int kqemu_enabled;
     int last_io_time;
@@ -558,7 +558,7 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
 {
     SegmentCache *sc;
     unsigned int new_hflags;
-   
+
     sc = &env->segs[seg_reg];
     sc->selector = selector;
     sc->base = base;

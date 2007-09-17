@@ -86,7 +86,7 @@ typedef struct CPUM68KState {
     /* Temporary storage for DIV helpers.  */
     uint32_t div1;
     uint32_t div2;
-   
+
     /* MMU status.  */
     struct {
         uint32_t ar;

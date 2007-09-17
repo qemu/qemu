@@ -2566,7 +2566,7 @@ print_insn_sparc (memaddr, info)
 	  /* Nonzero means that we have found a plus sign in the args
 	     field of the opcode table.  */
 	  int found_plus = 0;
-	 
+
 	  /* Nonzero means we have an annulled branch.  */
 	  int is_annulled = 0;
 
@@ -2621,7 +2621,7 @@ print_insn_sparc (memaddr, info)
 		  }		/* while there are comma started args */
 
 		(*info->fprintf_func) (stream, " ");
-		
+
 		switch (*s)
 		  {
 		  case '+':
@@ -2722,7 +2722,7 @@ print_insn_sparc (memaddr, info)
 			 not before it.  */
 		      if (found_plus)
 			imm_added_to_rs1 = 1;
-		     
+
 		      if (imm <= 9)
 			(*info->fprintf_func) (stream, "%d", imm);
 		      else
@@ -2806,7 +2806,7 @@ print_insn_sparc (memaddr, info)
 		  case 'o':
 		    (*info->fprintf_func) (stream, "%%asi");
 		    break;
-		   
+
 		  case 'W':
 		    (*info->fprintf_func) (stream, "%%tick");
 		    break;
@@ -2859,15 +2859,15 @@ print_insn_sparc (memaddr, info)
 			(*info->fprintf_func) (stream, "%d", X_RD (insn));
 		      break;
 		    }
-		   
+
 		  case 'M':
 		    (*info->fprintf_func) (stream, "%%asr%d", X_RS1 (insn));
 		    break;
-		   
+
 		  case 'm':
 		    (*info->fprintf_func) (stream, "%%asr%d", X_RD (insn));
 		    break;
-		   
+
 		  case 'L':
 		    info->target = memaddr + SEX (X_DISP30 (insn), 30) * 4;
 		    (*info->print_address_func) (info->target, info);

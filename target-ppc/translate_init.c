@@ -2142,7 +2142,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         /* Allocate hardware IRQ controller */
         ppc6xx_irq_init(env);
         break;
-       
+
     case CPU_PPC_G2:      /* PowerPC G2 family             */
     case CPU_PPC_G2H4:
     case CPU_PPC_G2gp:

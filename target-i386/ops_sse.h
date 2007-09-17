@@ -1213,7 +1213,7 @@ void OPPROTO glue(op_pinsrw, SUFFIX) (void)
 {
     Reg *d = (Reg *)((char *)env + PARAM1);
     int pos = PARAM2;
-   
+
     d->W(pos) = T0;
 }
 
@@ -1221,7 +1221,7 @@ void OPPROTO glue(op_pextrw, SUFFIX) (void)
 {
     Reg *s = (Reg *)((char *)env + PARAM1);
     int pos = PARAM2;
-   
+
     T0 = s->W(pos);
 }
 

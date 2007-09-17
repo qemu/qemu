@@ -84,13 +84,13 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     unsigned int h;
     target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
     uint8_t *tc_ptr;
-   
+
     spin_lock(&tb_lock);
 
     tb_invalidated_flag = 0;
-   
+
     regs_to_env(); /* XXX: do it just before cpu_gen_code() */
-   
+
     /* find translated block using physical mappings */
     phys_pc = get_phys_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
@@ -135,7 +135,7 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     tb->flags = flags;
     cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-   
+
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
@@ -143,7 +143,7 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
         phys_page2 = get_phys_addr_code(env, virt_page2);
     }
     tb_link_phys(tb, phys_pc, phys_page2);
-   
+
  found:
     /* we add the TB in the virtual pc hash table */
     env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
@@ -371,7 +371,7 @@ int cpu_exec(CPUState *env1)
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
                 /* g1 can be modified by some libc? functions */
                 tmp_T0 = T0;
-#endif	   
+#endif
                 interrupt_request = env->interrupt_request;
                 if (__builtin_expect(interrupt_request, 0)) {
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
@@ -565,7 +565,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
                 T0 = tmp_T0;
-#endif	   
+#endif
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
                    jump. */
@@ -796,7 +796,7 @@ void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32)
 
     saved_env = env;
     env = s;
-   
+
     helper_fsave((target_ulong)ptr, data32);
 
     env = saved_env;
@@ -808,7 +808,7 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
 
     saved_env = env;
     env = s;
-   
+
     helper_frstor((target_ulong)ptr, data32);
 
     env = saved_env;
@@ -953,7 +953,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     TranslationBlock *tb;
     int ret;
-   
+
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)
@@ -1042,7 +1042,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     TranslationBlock *tb;
     int ret;
-   
+
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)
@@ -1092,7 +1092,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     TranslationBlock *tb;
     int ret;
-   
+
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)
@@ -1137,7 +1137,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     TranslationBlock *tb;
     int ret;
-   
+
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)
@@ -1371,7 +1371,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     unsigned long pc;
     int is_write;
     uint32_t insn;
-   
+
     /* XXX: is there a standard glibc define ? */
     pc = regs[1];
     /* XXX: need kernel patch to get write flag faster */
@@ -1403,7 +1403,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
-   
+
     pc = uc->uc_mcontext.gregs[R15];
     /* XXX: compute is_write */
     is_write = 0;
@@ -1421,7 +1421,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
-   
+
     pc = uc->uc_mcontext.gregs[16];
     /* XXX: compute is_write */
     is_write = 0;
@@ -1473,7 +1473,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     struct ucontext *uc = puc;
     unsigned long pc;
     int is_write;
-   
+
     pc = uc->uc_mcontext.psw.addr;
     /* XXX: compute is_write */
     is_write = 0;
@@ -1490,7 +1490,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     struct ucontext *uc = puc;
     greg_t pc = uc->uc_mcontext.pc;
     int is_write;
-   
+
     /* XXX: compute is_write */
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,

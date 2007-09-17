@@ -14,7 +14,7 @@ vm86_code_start:
         movw %ax, %es
         es movw $GET_OFFSET(int90_test), 0x90 * 4
         es movw %cs, 0x90 * 4 + 2
-       
+
         /* launch int 0x90 */
 
         int $0x90
@@ -35,12 +35,12 @@ vm86_code_start:
         movb $0xff, %ah
         int $0x21
 
-        sti       
+        sti
         pushfl
         popl %edx
         movb $0xff, %ah
         int $0x21
-       
+
 #if 0
         movw $GET_OFFSET(IF_msg1), %dx
         movb $0x09, %ah
@@ -58,7 +58,7 @@ vm86_code_start:
         popw %dx
         movb $0xff, %ah
         int $0x21
-       
+
         pushfl
         movw %sp, %bx
         orw $0x200, (%bx)
@@ -82,12 +82,12 @@ int90_test:
         movw 4(%bx), %dx
         movb $0xff, %ah
         int $0x21
-       
+
         movw $GET_OFFSET(int90_msg), %dx
         movb $0x09, %ah
         int $0x21
         iret
-                   
+
 int90_msg:
         .string "INT90 started\n$"
 

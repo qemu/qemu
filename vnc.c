@@ -912,7 +912,7 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
     int keycode;
 
     keycode = keysym2scancode(vs->kbd_layout, sym & 0xFFFF);
-   
+
     /* QEMU console switch */
     switch(keycode) {
     case 0x2a:                          /* Left Shift */

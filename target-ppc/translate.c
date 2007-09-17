@@ -1147,7 +1147,7 @@ GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     uint32_t mb, me, sh;
-   
+
     sh = SH(ctx->opcode);
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
@@ -1676,7 +1676,7 @@ GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
 GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
 {
     uint8_t crb;
-   
+
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
         return;
@@ -1693,7 +1693,7 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
 GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
 {
     uint8_t crb;
-   
+
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
         return;
@@ -2775,7 +2775,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
                 else
 #endif
                     gen_op_test_ctr_false(mask);
-                break;                          
+                break;
             case 2:
 #if defined(TARGET_PPC64)
                 if (ctx->sf_mode)
@@ -2815,17 +2815,17 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 }
 
 GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
-{                    
+{
     gen_bcond(ctx, BCOND_IM);
 }
 
 GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW)
-{                   
+{
     gen_bcond(ctx, BCOND_CTR);
 }
 
 GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW)
-{                    
+{
     gen_bcond(ctx, BCOND_LR);
 }
 
@@ -2968,7 +2968,7 @@ GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC)
 GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC)
 {
     uint32_t crm, crn;
-   
+
     if (likely(ctx->opcode & 0x00100000)) {
         crm = CRM(ctx->opcode);
         if (likely((crm ^ (crm - 1)) == 0)) {
@@ -3058,7 +3058,7 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_TB)
 GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 {
     uint32_t crm, crn;
-   
+
     gen_op_load_gpr_T0(rS(ctx->opcode));
     crm = CRM(ctx->opcode);
     if (likely((ctx->opcode & 0x00100000) || (crm ^ (crm - 1)) == 0)) {

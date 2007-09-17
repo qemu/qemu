@@ -28,7 +28,7 @@ STRUCT(ifmap,
 
 STRUCT(sockaddr_ifreq,
        MK_ARRAY(TYPE_CHAR, IFNAMSIZ), MK_STRUCT(STRUCT_sockaddr))
-    
+
 STRUCT(short_ifreq,
        MK_ARRAY(TYPE_CHAR, IFNAMSIZ), TYPE_SHORT)
 

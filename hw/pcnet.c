@@ -731,7 +731,7 @@ static void pcnet_s_reset(PCNetState *s)
     s->rdra = 0;
     s->tdra = 0;
     s->rap = 0;
-   
+
     s->bcr[BCR_BSBC] &= ~0x0080;
 
     s->csr[0]   = 0x0004;
@@ -770,7 +770,7 @@ static void pcnet_update_irq(PCNetState *s)
 {
     int isr = 0;
     s->csr[0] &= ~0x0080;
-   
+
 #if 1
     if (((s->csr[0] & ~s->csr[3]) & 0x5f00) ||
         (((s->csr[4]>>1) & ~s->csr[4]) & 0x0115) ||
@@ -790,11 +790,11 @@ static void pcnet_update_irq(PCNetState *s)
         (!!(s->csr[5] & 0x0008) && !!(s->csr[5] & 0x0010)) /* MPINT */)
 #endif
     {
-      
+
         isr = CSR_INEA(s);
         s->csr[0] |= 0x0080;
     }
-   
+
     if (!!(s->csr[4] & 0x0080) && CSR_INEA(s)) { /* UINT */
         s->csr[4] &= ~0x0080;
         s->csr[4] |= 0x0040;
@@ -834,7 +834,7 @@ static void pcnet_init(PCNetState *s)
 #ifdef PCNET_DEBUG
     printf("pcnet_init init_addr=0x%08x\n", PHYSADDR(s,CSR_IADR(s)));
 #endif
-   
+
     if (BCR_SSIZE32(s)) {
         struct pcnet_initblk32 initblk;
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s,CSR_IADR(s)),
@@ -898,7 +898,7 @@ static void pcnet_init(PCNetState *s)
         s->rdra, CSR_RCVRL(s), s->tdra, CSR_XMTRL(s));
 #endif
 
-    s->csr[0] |= 0x0101;   
+    s->csr[0] |= 0x0101;
     s->csr[0] &= ~0x0004;       /* clear STOP bit */
 }
 
@@ -910,7 +910,7 @@ static void pcnet_start(PCNetState *s)
 
     if (!CSR_DTX(s))
         s->csr[0] |= 0x0010;    /* set TXON */
-       
+
     if (!CSR_DRX(s))
         s->csr[0] |= 0x0020;    /* set RXON */
 
@@ -976,7 +976,7 @@ static void pcnet_rdte_poll(PCNetState *s)
 #endif
         }
     }
-   
+
     if (CSR_CRDA(s)) {
         struct pcnet_RMD rmd;
         RMDLOAD(&rmd, PHYSADDR(s,CSR_CRDA(s)));
@@ -991,7 +991,7 @@ static void pcnet_rdte_poll(PCNetState *s)
     } else {
         CSR_CRBC(s) = CSR_CRST(s) = 0;
     }
-   
+
     if (CSR_NRDA(s)) {
         struct pcnet_RMD rmd;
         RMDLOAD(&rmd, PHYSADDR(s,CSR_NRDA(s)));
@@ -1030,14 +1030,14 @@ static int pcnet_tdte_poll(PCNetState *s)
     if (CSR_CXDA(s)) {
         struct pcnet_TMD tmd;
 
-        TMDLOAD(&tmd, PHYSADDR(s,CSR_CXDA(s)));               
+        TMDLOAD(&tmd, PHYSADDR(s,CSR_CXDA(s)));
 
         CSR_CXBC(s) = GET_FIELD(tmd.length, TMDL, BCNT);
         CSR_CXST(s) = tmd.status;
     } else {
         CSR_CXBC(s) = CSR_CXST(s) = 0;
     }
-   
+
     return !!(CSR_CXST(s) & 0x8000);
 }
 
@@ -1046,7 +1046,7 @@ static int pcnet_can_receive(void *opaque)
     PCNetState *s = opaque;
     if (CSR_STOP(s) || CSR_SPND(s))
         return 0;
-       
+
     if (s->recv_pos > 0)
         return 0;
 
@@ -1093,7 +1093,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
                 nrda = s->rdra +
                     (CSR_RCVRL(s) - rcvrc) *
                     (BCR_SWSTYLE(s) ? 16 : 8 );
-                RMDLOAD(&rmd, PHYSADDR(s,nrda));                 
+                RMDLOAD(&rmd, PHYSADDR(s,nrda));
                 if (GET_FIELD(rmd.status, RMDS, OWN)) {
 #ifdef PCNET_DEBUG_RMD
                     printf("pcnet - scan buffer: RCVRC=%d PREV_RCVRC=%d\n",
@@ -1119,7 +1119,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
             int pktcount = 0;
 
             memcpy(src, buf, size);
-           
+
 #if 1
             /* no need to compute the CRC */
             src[size] = 0;
@@ -1136,7 +1136,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
                 while (size < 46) {
                     src[size++] = 0;
                 }
-               
+
                 while (p != &src[size]) {
                     CRC(fcs, *p++);
                 }
@@ -1178,7 +1178,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
                             PCNET_RECV_STORE();
                         }
                     }
-                }               
+                }
             }
 
 #undef PCNET_RECV_STORE
@@ -1203,22 +1203,22 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
 #endif
 #ifdef PCNET_DEBUG_RMD
             PRINT_RMD(&rmd);
-#endif       
+#endif
 
             while (pktcount--) {
                 if (CSR_RCVRC(s) <= 1)
                     CSR_RCVRC(s) = CSR_RCVRL(s);
                 else
-                    CSR_RCVRC(s)--;           
+                    CSR_RCVRC(s)--;
             }
-           
+
             pcnet_rdte_poll(s);
 
-        }       
+        }
     }
 
     pcnet_poll(s);
-    pcnet_update_irq(s);   
+    pcnet_update_irq(s);
 }
 
 static void pcnet_transmit(PCNetState *s)
@@ -1226,7 +1226,7 @@ static void pcnet_transmit(PCNetState *s)
     target_phys_addr_t xmit_cxda = 0;
     int count = CSR_XMTRL(s)-1;
     s->xmit_pos = -1;
-   
+
     if (!CSR_TXON(s)) {
         s->csr[0] &= ~0x0008;
         return;
@@ -1332,7 +1332,7 @@ static void pcnet_poll_timer(void *opaque)
         pcnet_transmit(s);
     }
 
-    pcnet_update_irq(s);   
+    pcnet_update_irq(s);
 
     if (!CSR_STOP(s) && !CSR_SPND(s) && !CSR_DPOLL(s)) {
         uint64_t now = qemu_get_clock(vm_clock) * 33;
@@ -1592,11 +1592,11 @@ static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
     PCNetState *s = opaque;
 #ifdef PCNET_DEBUG
     printf("pcnet_aprom_writeb addr=0x%08x val=0x%02x\n", addr, val);
-#endif   
+#endif
     /* Check APROMWE bit to enable write access */
     if (pcnet_bcr_readw(s,2) & 0x80)
         s->prom[addr & 15] = val;
-}      
+}
 
 static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
 {
@@ -1685,7 +1685,7 @@ static void pcnet_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
         pcnet_bcr_writew(s, BCR_BSBC, pcnet_bcr_readw(s, BCR_BSBC) | 0x0080);
 #ifdef PCNET_DEBUG_IO
         printf("device switched into dword i/o mode\n");
-#endif       
+#endif
     }
     pcnet_update_irq(s);
 }
@@ -1695,7 +1695,7 @@ static uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
     PCNetState *s = opaque;
     uint32_t val = -1;
     pcnet_poll_timer(s);
-    if (BCR_DWIO(s)) { 
+    if (BCR_DWIO(s)) {
         switch (addr & 0x0f) {
         case 0x00: /* RDP */
             val = pcnet_csr_readw(s, s->rap);
@@ -1730,7 +1730,7 @@ static void pcnet_ioport_map(PCIDevice *pci_dev, int region_num,
 
     register_ioport_write(addr, 16, 1, pcnet_aprom_writeb, d);
     register_ioport_read(addr, 16, 1, pcnet_aprom_readb, d);
-   
+
     register_ioport_write(addr + 0x10, 0x10, 2, pcnet_ioport_writew, d);
     register_ioport_read(addr + 0x10, 0x10, 2, pcnet_ioport_readw, d);
     register_ioport_write(addr + 0x10, 0x10, 4, pcnet_ioport_writel, d);
@@ -1967,11 +1967,11 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     d = (PCNetState *)pci_register_device(bus, "PCNet", sizeof(PCNetState),
                                           devfn, NULL, NULL);
-                                         
+
     pci_conf = d->dev.config;
-   
+
     *(uint16_t *)&pci_conf[0x00] = cpu_to_le16(0x1022);
-    *(uint16_t *)&pci_conf[0x02] = cpu_to_le16(0x2000);   
+    *(uint16_t *)&pci_conf[0x02] = cpu_to_le16(0x2000);
     *(uint16_t *)&pci_conf[0x04] = cpu_to_le16(0x0007);
     *(uint16_t *)&pci_conf[0x06] = cpu_to_le16(0x0280);
     pci_conf[0x08] = 0x10;
@@ -1979,10 +1979,10 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_conf[0x0a] = 0x00; // ethernet network controller
     pci_conf[0x0b] = 0x02;
     pci_conf[0x0e] = 0x00; // header_type
-   
+
     *(uint32_t *)&pci_conf[0x10] = cpu_to_le32(0x00000001);
     *(uint32_t *)&pci_conf[0x14] = cpu_to_le32(0x00000000);
-   
+
     pci_conf[0x3d] = 1; // interrupt pin 0
     pci_conf[0x3e] = 0x06;
     pci_conf[0x3f] = 0xff;
@@ -1993,10 +1993,10 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     pci_register_io_region((PCIDevice *)d, 0, PCNET_IOPORT_SIZE,
                            PCI_ADDRESS_SPACE_IO, pcnet_ioport_map);
-                          
+
     pci_register_io_region((PCIDevice *)d, 1, PCNET_PNPMMIO_SIZE,
                            PCI_ADDRESS_SPACE_MEM, pcnet_mmio_map);
-                          
+
     d->irq = d->dev.irq[0];
     d->phys_mem_read = pci_physical_memory_read;
     d->phys_mem_write = pci_physical_memory_write;

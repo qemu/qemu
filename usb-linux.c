@@ -161,7 +161,7 @@ USBDevice *usb_host_device_open(const char *devname)
                              product_name, sizeof(product_name),
                              devname) < 0)
         return NULL;
-   
+
     snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d",
              bus_num, addr);
     fd = open(buf, O_RDWR);
@@ -176,7 +176,7 @@ USBDevice *usb_host_device_open(const char *devname)
         perror("read descr");
         goto fail;
     }
-   
+
     i = 0;
     dev_descr_len = descr[0];
     if (dev_descr_len > descr_len)
@@ -228,7 +228,7 @@ USBDevice *usb_host_device_open(const char *devname)
 
 #ifdef DEBUG
     printf("host USB device %d.%d grabbed\n", bus_num, addr);
-#endif   
+#endif
 
     dev = qemu_mallocz(sizeof(USBHostDevice));
     if (!dev)
@@ -285,7 +285,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
     int bus_num, addr, speed, device_count, class_id, product_id, vendor_id;
     int ret;
     char product_name[512];
-   
+
     f = fopen(USBDEVFS_PATH "/devices", "r");
     if (!f) {
         term_printf("Could not open %s\n", USBDEVFS_PATH "/devices");

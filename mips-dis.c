@@ -392,7 +392,7 @@ struct mips_opcode
    "l" 32 bit floating point constant in .lit4
 
    MDMX instruction operands (note that while these use the FP register
-   fields, they accept both $fN and $vN names for the registers): 
+   fields, they accept both $fN and $vN names for the registers):
    "O"	MDMX alignment offset (OP_*_ALN)
    "Q"	MDMX vector/scalar/immediate source (OP_*_VSEL and OP_*_FT)
    "X"	MDMX destination register (OP_*_FD)

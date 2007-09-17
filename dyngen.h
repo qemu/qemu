@@ -51,7 +51,7 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
 
     start &= ~(MIN_CACHE_LINE_SIZE - 1);
     stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
-   
+
     for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
         asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
     }
@@ -169,12 +169,12 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
         arm_reloc_pc24((uint32_t *)gen_code_ptr, 0xeafffffe, target);
         gen_code_ptr += 4;
     }
-  
+
     /* copy the data */
     data_ptr = gen_code_ptr;
     memcpy(gen_code_ptr, data_start, data_size);
     gen_code_ptr += data_size;
-   
+
     /* patch the ldr to point to the data */
     for(le = ldr_start; le < ldr_end; le++) {
         ptr = (uint32_t *)le->ptr;

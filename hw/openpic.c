@@ -475,7 +475,7 @@ static uint32_t read_doorbell_register (openpic_t *opp,
 
     return retval;
 }
-    
+
 static void write_doorbell_register (penpic_t *opp, int n_dbl,
 				     uint32_t offset, uint32_t value)
 {
@@ -831,7 +831,7 @@ static uint32_t openpic_cpu_read (void *opaque, uint32_t addr)
     IRQ_dst_t *dst;
     uint32_t retval;
     int idx, n_IRQ;
-   
+
     DPRINTF("%s: addr %08x\n", __func__, addr);
     retval = 0xFFFFFFFF;
     if (addr & 0xF)
@@ -1005,7 +1005,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     openpic_t *opp;
     uint8_t *pci_conf;
     int i, m;
-   
+
     /* XXX: for now, only one CPU is supported */
     if (nb_cpus != 1)
         return NULL;
@@ -1023,7 +1023,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
         pci_conf[0x0b] = 0x08;
         pci_conf[0x0e] = 0x00; // header_type
         pci_conf[0x3d] = 0x00; // no interrupt pin
-       
+
         /* Register I/O spaces */
         pci_register_io_region((PCIDevice *)opp, 0, 0x40000,
                                PCI_ADDRESS_SPACE_MEM, &openpic_map);
@@ -1032,7 +1032,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     }
     opp->mem_index = cpu_register_io_memory(0, openpic_read,
                                             openpic_write, opp);
-   
+
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
     /* Set IRQ types */

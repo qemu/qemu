@@ -9,7 +9,7 @@ void raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit();
-}  
+}
 
 void check_ieee_exceptions()
 {
@@ -173,7 +173,7 @@ void helper_ld_asi(int asi, int size, int sign)
     case 4: /* read MMU regs */
 	{
 	    int reg = (T0 >> 8) & 0xf;
-	   
+
 	    ret = env->mmuregs[reg];
 	    if (reg == 3) /* Fault status cleared on read */
 		env->mmuregs[reg] = 0;
@@ -291,7 +291,7 @@ void helper_st_asi(int asi, int size, int sign)
 	{
 	    int reg = (T0 >> 8) & 0xf;
 	    uint32_t oldreg;
-	   
+
 	    oldreg = env->mmuregs[reg];
             switch(reg) {
             case 0:
@@ -342,7 +342,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    // copy 32 bytes
             unsigned int i;
             uint32_t src = T1 & ~3, dst = T0 & ~3, temp;
-	   
+
             for (i = 0; i < 32; i += 4, src += 4, dst += 4) {
                 temp = ldl_kernel(src);
                 stl_kernel(dst, temp);
@@ -489,7 +489,7 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x56: // I-MMU tag read
 	{
 	    unsigned int i;
-	   
+
 	    for (i = 0; i < 64; i++) {
 		// Valid, ctx match, vaddr match
 		if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0 &&
@@ -510,7 +510,7 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x5e: // D-MMU tag read
 	{
 	    unsigned int i;
-	   
+
 	    for (i = 0; i < 64; i++) {
 		// Valid, ctx match, vaddr match
 		if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0 &&
@@ -605,7 +605,7 @@ void helper_st_asi(int asi, int size, int sign)
 	{
 	    int reg = (T0 >> 3) & 0xf;
 	    uint64_t oldreg;
-	   
+
 	    oldreg = env->immuregs[reg];
             switch(reg) {
             case 0: // RO
@@ -672,7 +672,7 @@ void helper_st_asi(int asi, int size, int sign)
 	{
 	    int reg = (T0 >> 3) & 0xf;
 	    uint64_t oldreg;
-	   
+
 	    oldreg = env->dmmuregs[reg];
             switch(reg) {
             case 0: // RO

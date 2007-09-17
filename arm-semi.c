@@ -401,7 +401,7 @@ uint32_t do_arm_semihosting(CPUState *env)
                 }
                 ts->heap_limit = limit;
             }
-             
+
             ptr = lock_user(ARG(0), 16, 0);
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);

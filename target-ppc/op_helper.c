@@ -231,7 +231,7 @@ static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 
     b0 = b;
     b1 = b >> 32;
-   
+
     v = (uint64_t)a0 * (uint64_t)b0;
     *plow = v;
     *phigh = 0;
@@ -1270,7 +1270,7 @@ void do_rfmci (void)
 void do_load_dcr (void)
 {
     target_ulong val;
-   
+
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");

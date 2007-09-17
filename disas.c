@@ -176,7 +176,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
     disasm_info.mach = bfd_mach_sparc_v9b;
-#endif   
+#endif
 #elif defined(TARGET_PPC)
     if (flags)
         disasm_info.endian = BFD_ENDIAN_LITTLE;
@@ -298,7 +298,7 @@ const char *lookup_symbol(target_ulong orig_addr)
     Elf32_Sym *sym;
     struct syminfo *s;
     target_ulong addr;
-   
+
     for (s = syminfos; s; s = s->next) {
 	sym = s->disas_symtab;
 	for (i = 0; i < s->disas_num_syms; i++) {

@@ -192,7 +192,7 @@ tcpstats()
 	lprint("          %6d control (SYN/FIN/RST) packets\r\n", tcpstat.tcps_sndctrl);
 	lprint("          %6d times tcp_output did nothing\r\n", tcpstat.tcps_didnuttin);
 
-	lprint("  %6d packets received\r\n", tcpstat.tcps_rcvtotal);      
+	lprint("  %6d packets received\r\n", tcpstat.tcps_rcvtotal);
 	lprint("          %6d acks (for %d bytes)\r\n",
 			tcpstat.tcps_rcvackpack, tcpstat.tcps_rcvackbyte);
 	lprint("          %6d duplicate acks\r\n", tcpstat.tcps_rcvdupack);
@@ -302,9 +302,9 @@ sockstats()
 
 	lprint(
 	   "Proto[state]     Sock     Local Address, Port  Remote Address, Port RecvQ SendQ\r\n");
-		
+
 	for (so = tcb.so_next; so != &tcb; so = so->so_next) {
-	
+
 		n = sprintf(buff, "tcp[%s]", so->so_tcpcb?tcpstates[so->so_tcpcb->t_state]:"NONE");
 		while (n < 17)
 		   buff[n++] = ' ';
@@ -316,9 +316,9 @@ sockstats()
 				inet_ntoa(so->so_faddr), ntohs(so->so_fport),
 				so->so_rcv.sb_cc, so->so_snd.sb_cc);
 	}
-		  
+
 	for (so = udb.so_next; so != &udb; so = so->so_next) {
-	
+
 		n = sprintf(buff, "udp[%d sec]", (so->so_expire - curtime) / 1000);
 		while (n < 17)
 		   buff[n++] = ' ';
@@ -347,7 +347,7 @@ slirp_exit(exit_status)
 		if (!dfd)
 		   debug_init("slirp_stats", 0xf);
 		lprint_arg = (char **)&dfd;
-	
+
 		ipstats();
 		tcpstats();
 		udpstats();

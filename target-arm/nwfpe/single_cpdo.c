@@ -47,13 +47,13 @@ unsigned int SingleCPDO(const unsigned int opcode)
      rFm = getSingleConstant(Fm);
    }
    else
-   { 
+   {
      switch (fpa11->fType[Fm])
      {
         case typeSingle:
           rFm = fpa11->fpreg[Fm].fSingle;
         break;
-       
+
         default: return 0;
      }
    }
@@ -186,7 +186,7 @@ unsigned int SingleCPDO(const unsigned int opcode)
 
       case NRM_CODE:
       break;
-     
+
       default:
       {
         nRc = 0;

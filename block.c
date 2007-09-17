@@ -180,7 +180,7 @@ int bdrv_create(BlockDriver *drv,
 void get_tmp_filename(char *filename, int size)
 {
     char temp_dir[MAX_PATH];
-   
+
     GetTempPath(MAX_PATH, temp_dir);
     GetTempFileName(temp_dir, "qem", 0, filename);
 }
@@ -202,7 +202,7 @@ static int is_windows_drive_prefix(const char *filename)
              (filename[0] >= 'A' && filename[0] <= 'Z')) &&
             filename[1] == ':');
 }
-   
+
 static int is_windows_drive(const char *filename)
 {
     if (is_windows_drive_prefix(filename) &&
@@ -251,7 +251,7 @@ static BlockDriver *find_image_format(const char *filename)
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
     BlockDriverState *bs;
-   
+
     /* detect host devices. By convention, /dev/cdrom[N] is always
        recognized as a host CDROM */
     if (strstart(filename, "/dev/cdrom", NULL))
@@ -268,7 +268,7 @@ static BlockDriver *find_image_format(const char *filename)
         }
     }
 #endif
-   
+
     drv = find_protocol(filename);
     /* no need to test disk image formats for vvfat */
     if (drv == &bdrv_vvfat)
@@ -324,7 +324,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     int ret, open_flags;
     char tmp_filename[PATH_MAX];
     char backing_filename[PATH_MAX];
-   
+
     bs->read_only = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
@@ -332,7 +332,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
         int64_t total_size;
-       
+
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
 
@@ -347,7 +347,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         }
         total_size = bdrv_getlength(bs1) >> SECTOR_BITS;
         bdrv_delete(bs1);
-       
+
         get_tmp_filename(tmp_filename, sizeof(tmp_filename));
         realpath(filename, backing_filename);
         if (bdrv_create(&bdrv_qcow2, tmp_filename,
@@ -540,7 +540,7 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     if (bs->read_only)
         return -EACCES;
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
-        memcpy(bs->boot_sector_data, buf, 512);  
+        memcpy(bs->boot_sector_data, buf, 512);
     }
     if (drv->bdrv_pwrite) {
         int ret, len;
@@ -919,7 +919,7 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
         return -ENOTSUP;
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
-   
+
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BlockDriver *drv = bs->drv;
@@ -1062,7 +1062,7 @@ BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
 
     if (!drv)
         return NULL;
-   
+
     /* XXX: we assume that nb_sectors == 0 is suppored by the async read */
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
         memcpy(buf, bs->boot_sector_data, 512);
@@ -1085,7 +1085,7 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
     if (bs->read_only)
         return NULL;
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
-        memcpy(bs->boot_sector_data, buf, 512);  
+        memcpy(bs->boot_sector_data, buf, 512);
     }
 
     return drv->bdrv_aio_write(bs, sector_num, buf, nb_sectors, cb, opaque);

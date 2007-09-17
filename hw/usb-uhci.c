@@ -149,7 +149,7 @@ static void uhci_reset(UHCIState *s)
 static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     UHCIState *s = opaque;
-   
+
     addr &= 0x1f;
     switch(addr) {
     case 0x0c:
@@ -178,7 +178,7 @@ static uint32_t uhci_ioport_readb(void *opaque, uint32_t addr)
 static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     UHCIState *s = opaque;
-   
+
     addr &= 0x1f;
 #ifdef DEBUG
     printf("uhci writew port=0x%04x val=0x%04x\n", addr, val);
@@ -458,7 +458,7 @@ static int uhci_handle_td(UHCIState *s, UHCI_TD *td, int *int_mask)
     if (td->ctrl & TD_CTRL_IOC) {
         *int_mask |= 0x01;
     }
-   
+
     if (!(td->ctrl & TD_CTRL_ACTIVE))
         return 1;
 
@@ -807,7 +807,7 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
-   
+
     for(i = 0; i < NB_PORTS; i++) {
         qemu_register_usb_port(&s->ports[i].port, s, i, uhci_attach);
     }

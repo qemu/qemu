@@ -91,7 +91,7 @@ const CPU86_LDouble f15rk[7] =
     1.44269504088896340739L,  /*l2e*/
     3.32192809488736234781L,  /*l2t*/
 };
-   
+
 /* thread support */
 
 spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
@@ -126,7 +126,7 @@ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
     *e2_ptr = ldl_kernel(ptr + 4);
     return 0;
 }
-                                    
+
 static inline unsigned int get_seg_limit(uint32_t e1, uint32_t e2)
 {
     unsigned int limit;
@@ -160,7 +160,7 @@ static inline void get_ss_esp_from_tss(uint32_t *ss_ptr,
                                        uint32_t *esp_ptr, int dpl)
 {
     int type, index, shift;
-   
+
 #if 0
     {
         int i;
@@ -325,7 +325,7 @@ static void switch_tss(int tss_selector,
         new_segs[R_GS] = 0;
         new_trap = 0;
     }
-   
+
     /* NOTE: we must avoid memory exceptions during the task switch,
        so we make dummy accesses before */
     /* XXX: it can still fail in some cases, so a bigger hack is
@@ -335,7 +335,7 @@ static void switch_tss(int tss_selector,
     v2 = ldub_kernel(env->tr.base + old_tss_limit_max);
     stb_kernel(env->tr.base, v1);
     stb_kernel(env->tr.base + old_tss_limit_max, v2);
-   
+
     /* clear busy bit (it is restartable) */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
         target_ulong ptr;
@@ -348,7 +348,7 @@ static void switch_tss(int tss_selector,
     old_eflags = compute_eflags();
     if (source == SWITCH_TSS_IRET)
         old_eflags &= ~NT_MASK;
-   
+
     /* save the current state in the old TSS */
     if (type & 8) {
         /* 32 bit */
@@ -379,7 +379,7 @@ static void switch_tss(int tss_selector,
         for(i = 0; i < 4; i++)
             stw_kernel(env->tr.base + (0x22 + i * 4), env->segs[i].selector);
     }
-   
+
     /* now if an exception occurs, it will occurs in the next task
        context */
 
@@ -406,11 +406,11 @@ static void switch_tss(int tss_selector,
     env->tr.base = tss_base;
     env->tr.limit = tss_limit;
     env->tr.flags = e2 & ~DESC_TSS_BUSY_MASK;
-   
+
     if ((type & 8) && (env->cr[0] & CR0_PG_MASK)) {
         cpu_x86_update_cr3(env, new_cr3);
     }
-   
+
     /* load all registers without an exception, then reload them with
        possible exception */
     env->eip = new_eip;
@@ -440,7 +440,7 @@ static void switch_tss(int tss_selector,
         for(i = 0; i < 6; i++)
             cpu_x86_load_seg_cache(env, i, new_segs[i], 0, 0, 0);
     }
-   
+
     env->ldt.selector = new_ldt & ~4;
     env->ldt.base = 0;
     env->ldt.limit = 0;
@@ -464,7 +464,7 @@ static void switch_tss(int tss_selector,
             raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
         load_seg_cache_raw_dt(&env->ldt, e1, e2);
     }
-   
+
     /* load the segments */
     if (!(new_eflags & VM_MASK)) {
         tss_load_seg(R_CS, new_segs[R_CS]);
@@ -474,7 +474,7 @@ static void switch_tss(int tss_selector,
         tss_load_seg(R_FS, new_segs[R_FS]);
         tss_load_seg(R_GS, new_segs[R_GS]);
     }
-   
+
     /* check that EIP is in the CS segment limits */
     if (new_eip > env->segs[R_CS].limit) {
         /* XXX: different exception if CALL ? */
@@ -486,7 +486,7 @@ static void switch_tss(int tss_selector,
 static inline void check_io(int addr, int size)
 {
     int io_offset, val, mask;
-   
+
     /* TSS must be a valid 32 bit one */
     if (!(env->tr.flags & DESC_P_MASK) ||
         ((env->tr.flags >> DESC_TYPE_SHIFT) & 0xf) != 9 ||
@@ -760,7 +760,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
             PUSHW(ssp, esp, sp_mask, error_code);
         }
     }
-   
+
     if (new_stack) {
         if (env->eflags & VM_MASK) {
             cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0, 0);
@@ -806,7 +806,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
 static inline target_ulong get_rsp_from_tss(int level)
 {
     int index;
-   
+
 #if 0
     printf("TR: base=" TARGET_FMT_lx " limit=%x\n",
            env->tr.base, env->tr.limit);
@@ -926,7 +926,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
     if (has_error_code) {
         PUSHQ(esp, error_code);
     }
-   
+
     if (new_stack) {
         ss = 0 | dpl;
         cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, 0);
@@ -963,7 +963,7 @@ void helper_syscall(int next_eip_addend)
 
         ECX = env->eip + next_eip_addend;
         env->regs[11] = compute_eflags();
-       
+
         code64 = env->hflags & HF_CS64_MASK;
 
         cpu_x86_set_cpl(env, 0);
@@ -986,7 +986,7 @@ void helper_syscall(int next_eip_addend)
 #endif
     {
         ECX = (uint32_t)(env->eip + next_eip_addend);
-       
+
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc,
                            0, 0xffffffff,
@@ -1096,7 +1096,7 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     PUSHW(ssp, esp, 0xffff, compute_eflags());
     PUSHW(ssp, esp, 0xffff, old_cs);
     PUSHW(ssp, esp, 0xffff, old_eip);
-   
+
     /* update processor state */
     ESP = (ESP & ~0xffff) | (esp & 0xffff);
     env->eip = offset;
@@ -1117,7 +1117,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
     dt = &env->idt;
     ptr = dt->base + (intno * 8);
     e2 = ldl_kernel(ptr + 4);
-   
+
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
     /* check privledge if software int */
@@ -1134,7 +1134,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 /*
  * Begin execution of an interruption. is_int is TRUE if coming from
  * the int instruction. next_eip is the EIP value AFTER the interrupt
- * instruction. It is only relevant if is_int is TRUE. 
+ * instruction. It is only relevant if is_int is TRUE.
  */
 void do_interrupt(int intno, int is_int, int error_code,
                   target_ulong next_eip, int is_hw)
@@ -1222,7 +1222,7 @@ int check_exception(int intno, int *error_code)
  * Signal an interruption. It is executed in the main CPU loop.
  * is_int is TRUE if coming from the int instruction. next_eip is the
  * EIP value AFTER the interrupt instruction. It is only relevant if
- * is_int is TRUE. 
+ * is_int is TRUE.
  */
 void raise_interrupt(int intno, int is_int, int error_code,
                      int next_eip_addend)
@@ -1296,7 +1296,7 @@ void do_smm_enter(void)
     cpu_smm_update(env);
 
     sm_state = env->smbase + 0x8000;
-   
+
 #ifdef TARGET_X86_64
     for(i = 0; i < 6; i++) {
         dt = &env->segs[i];
@@ -1314,7 +1314,7 @@ void do_smm_enter(void)
     stq_phys(sm_state + 0x7e78, env->ldt.base);
     stl_phys(sm_state + 0x7e74, env->ldt.limit);
     stw_phys(sm_state + 0x7e72, (env->ldt.flags >> 8) & 0xf0ff);
-   
+
     stq_phys(sm_state + 0x7e88, env->idt.base);
     stl_phys(sm_state + 0x7e84, env->idt.limit);
 
@@ -1322,7 +1322,7 @@ void do_smm_enter(void)
     stq_phys(sm_state + 0x7e98, env->tr.base);
     stl_phys(sm_state + 0x7e94, env->tr.limit);
     stw_phys(sm_state + 0x7e92, (env->tr.flags >> 8) & 0xf0ff);
-   
+
     stq_phys(sm_state + 0x7ed0, env->efer);
 
     stq_phys(sm_state + 0x7ff8, EAX);
@@ -1361,17 +1361,17 @@ void do_smm_enter(void)
     stl_phys(sm_state + 0x7fd0, EAX);
     stl_phys(sm_state + 0x7fcc, env->dr[6]);
     stl_phys(sm_state + 0x7fc8, env->dr[7]);
-   
+
     stl_phys(sm_state + 0x7fc4, env->tr.selector);
     stl_phys(sm_state + 0x7f64, env->tr.base);
     stl_phys(sm_state + 0x7f60, env->tr.limit);
     stl_phys(sm_state + 0x7f5c, (env->tr.flags >> 8) & 0xf0ff);
-   
+
     stl_phys(sm_state + 0x7fc0, env->ldt.selector);
     stl_phys(sm_state + 0x7f80, env->ldt.base);
     stl_phys(sm_state + 0x7f7c, env->ldt.limit);
     stl_phys(sm_state + 0x7f78, (env->ldt.flags >> 8) & 0xf0ff);
-   
+
     stl_phys(sm_state + 0x7f74, env->gdt.base);
     stl_phys(sm_state + 0x7f70, env->gdt.limit);
 
@@ -1409,7 +1409,7 @@ void do_smm_enter(void)
     cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffffffff, 0);
     cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffffffff, 0);
     cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffffffff, 0);
-   
+
     cpu_x86_update_cr0(env,
                        env->cr[0] & ~(CR0_PE_MASK | CR0_EM_MASK | CR0_TS_MASK | CR0_PG_MASK));
     cpu_x86_update_cr4(env, 0);
@@ -1447,7 +1447,7 @@ void helper_rsm(void)
     env->ldt.base = ldq_phys(sm_state + 0x7e78);
     env->ldt.limit = ldl_phys(sm_state + 0x7e74);
     env->ldt.flags = (lduw_phys(sm_state + 0x7e72) & 0xf0ff) << 8;
-   
+
     env->idt.base = ldq_phys(sm_state + 0x7e88);
     env->idt.limit = ldl_phys(sm_state + 0x7e84);
 
@@ -1455,7 +1455,7 @@ void helper_rsm(void)
     env->tr.base = ldq_phys(sm_state + 0x7e98);
     env->tr.limit = ldl_phys(sm_state + 0x7e94);
     env->tr.flags = (lduw_phys(sm_state + 0x7e92) & 0xf0ff) << 8;
-   
+
     EAX = ldq_phys(sm_state + 0x7ff8);
     ECX = ldq_phys(sm_state + 0x7ff0);
     EDX = ldq_phys(sm_state + 0x7fe8);
@@ -1496,17 +1496,17 @@ void helper_rsm(void)
     EAX = ldl_phys(sm_state + 0x7fd0);
     env->dr[6] = ldl_phys(sm_state + 0x7fcc);
     env->dr[7] = ldl_phys(sm_state + 0x7fc8);
-   
+
     env->tr.selector = ldl_phys(sm_state + 0x7fc4) & 0xffff;
     env->tr.base = ldl_phys(sm_state + 0x7f64);
     env->tr.limit = ldl_phys(sm_state + 0x7f60);
     env->tr.flags = (ldl_phys(sm_state + 0x7f5c) & 0xf0ff) << 8;
-   
+
     env->ldt.selector = ldl_phys(sm_state + 0x7fc0) & 0xffff;
     env->ldt.base = ldl_phys(sm_state + 0x7f80);
     env->ldt.limit = ldl_phys(sm_state + 0x7f7c);
     env->ldt.flags = (ldl_phys(sm_state + 0x7f78) & 0xf0ff) << 8;
-   
+
     env->gdt.base = ldl_phys(sm_state + 0x7f74);
     env->gdt.limit = ldl_phys(sm_state + 0x7f70);
 
@@ -1564,7 +1564,7 @@ void helper_divl_EAX_T0(void)
 {
     unsigned int den, r;
     uint64_t num, q;
-   
+
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
     den = T0;
     if (den == 0) {
@@ -1586,7 +1586,7 @@ void helper_idivl_EAX_T0(void)
 {
     int den, r;
     int64_t num, q;
-   
+
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
     den = T0;
     if (den == 0) {
@@ -1632,7 +1632,7 @@ void helper_cpuid(void)
 {
     uint32_t index;
     index = (uint32_t)EAX;
-   
+
     /* test if maximum index reached */
     if (index & 0x80000000) {
         if (index > env->cpuid_xlevel)
@@ -1641,7 +1641,7 @@ void helper_cpuid(void)
         if (index > env->cpuid_level)
             index = env->cpuid_level;
     }
-       
+
     switch(index) {
     case 0:
         EAX = env->cpuid_level;
@@ -1783,7 +1783,7 @@ void helper_lldt_T0(void)
     uint32_t e1, e2;
     int index, entry_limit;
     target_ulong ptr;
-   
+
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* XXX: NULL selector case: invalid LDT */
@@ -1798,7 +1798,7 @@ void helper_lldt_T0(void)
         if (env->hflags & HF_LMA_MASK)
             entry_limit = 15;
         else
-#endif           
+#endif
             entry_limit = 7;
         if ((index + entry_limit) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
@@ -1831,7 +1831,7 @@ void helper_ltr_T0(void)
     uint32_t e1, e2;
     int index, type, entry_limit;
     target_ulong ptr;
-   
+
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* NULL selector case: invalid TR */
@@ -1847,7 +1847,7 @@ void helper_ltr_T0(void)
         if (env->hflags & HF_LMA_MASK)
             entry_limit = 15;
         else
-#endif           
+#endif
             entry_limit = 7;
         if ((index + entry_limit) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
@@ -1901,7 +1901,7 @@ void load_seg(int seg_reg, int selector)
             raise_exception_err(EXCP0D_GPF, 0);
         cpu_x86_load_seg_cache(env, seg_reg, selector, 0, 0, 0);
     } else {
-       
+
         if (selector & 0x4)
             dt = &env->ldt;
         else
@@ -1912,7 +1912,7 @@ void load_seg(int seg_reg, int selector)
         ptr = dt->base + index;
         e1 = ldl_kernel(ptr);
         e2 = ldl_kernel(ptr + 4);
-       
+
         if (!(e2 & DESC_S_MASK))
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         rpl = selector & 3;
@@ -1927,7 +1927,7 @@ void load_seg(int seg_reg, int selector)
             /* must be readable segment */
             if ((e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK)
                 raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-           
+
             if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
                 /* if not conforming code, test rights */
                 if (dpl < cpl || dpl < rpl)
@@ -1965,7 +1965,7 @@ void helper_ljmp_protected_T0_T1(int next_eip_addend)
     int new_cs, gate_cs, type;
     uint32_t e1, e2, cpl, dpl, rpl, limit;
     target_ulong new_eip, next_eip;
-   
+
     new_cs = T0;
     new_eip = T1;
     if ((new_cs & 0xfffc) == 0)
@@ -2084,7 +2084,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
     uint32_t ss, ss_e1, ss_e2, sp, type, ss_dpl, sp_mask;
     uint32_t val, limit, old_sp_mask;
     target_ulong ssp, old_ssp, next_eip, new_eip;
-   
+
     new_cs = T0;
     new_eip = T1;
     next_eip = env->eip + next_eip_addend;
@@ -2151,7 +2151,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
                 PUSHW(ssp, sp, sp_mask, env->segs[R_CS].selector);
                 PUSHW(ssp, sp, sp_mask, next_eip);
             }
-           
+
             limit = get_seg_limit(e1, e2);
             if (new_eip > limit)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
@@ -2228,12 +2228,12 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
                 raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
             if (!(ss_e2 & DESC_P_MASK))
                 raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
-           
+
             //            push_size = ((param_count * 2) + 8) << shift;
 
             old_sp_mask = get_sp_mask(env->segs[R_SS].flags);
             old_ssp = env->segs[R_SS].base;
-           
+
             sp_mask = get_sp_mask(ss_e2);
             ssp = get_seg_base(ss_e1, ss_e2);
             if (shift) {
@@ -2360,7 +2360,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     uint32_t e1, e2, ss_e1, ss_e2;
     int cpl, dpl, rpl, eflags_mask, iopl;
     target_ulong ssp, sp, new_eip, new_esp, sp_mask;
-   
+
 #ifdef TARGET_X86_64
     if (shift == 2)
         sp_mask = -1;
@@ -2425,7 +2425,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     }
     if (!(e2 & DESC_P_MASK))
         raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
-   
+
     sp += addend;
     if (rpl == cpl && (!(env->hflags & HF_CS64_MASK) ||
                        ((env->hflags & HF_CS64_MASK) && !is_iret))) {
@@ -2539,7 +2539,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     POPL(ssp, sp, sp_mask, new_ds);
     POPL(ssp, sp, sp_mask, new_fs);
     POPL(ssp, sp, sp_mask, new_gs);
-   
+
     /* modify processor state */
     load_eflags(new_eflags, TF_MASK | AC_MASK | ID_MASK |
                 IF_MASK | IOPL_MASK | VM_MASK | NT_MASK | VIF_MASK | VIP_MASK);
@@ -2559,7 +2559,7 @@ void helper_iret_protected(int shift, int next_eip)
 {
     int tss_selector, type;
     uint32_t e1, e2;
-   
+
     /* specific case for TSS */
     if (env->eflags & NT_MASK) {
 #ifdef TARGET_X86_64
@@ -3080,7 +3080,7 @@ void helper_f2xm1(void)
 void helper_fyl2x(void)
 {
     CPU86_LDouble fptemp;
-   
+
     fptemp = ST0;
     if (fptemp>0.0){
         fptemp = log(fptemp)/log(2.0);	 /* log2(ST) */
@@ -3490,7 +3490,7 @@ void helper_fxsave(target_ulong ptr, int data64)
         helper_fstt(tmp, addr);
         addr += 16;
     }
-   
+
     if (env->cr[4] & CR4_OSFXSR_MASK) {
         /* XXX: finish it */
         stl(ptr + 0x18, env->mxcsr); /* mxcsr */

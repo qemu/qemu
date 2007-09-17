@@ -110,7 +110,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
 #ifdef DEBUG_CMOS
         printf("cmos: write index=0x%02x val=0x%02x\n",
                s->cmos_index, data);
-#endif       
+#endif
         switch(s->cmos_index) {
         case RTC_SECONDS_ALARM:
         case RTC_MINUTES_ALARM:
@@ -283,7 +283,7 @@ static void rtc_update_second(void *opaque)
         qemu_mod_timer(s->second_timer, s->next_second_time);
     } else {
         rtc_next_second(&s->current_tm);
-       
+
         if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
             /* update in progress bit */
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;
@@ -411,7 +411,7 @@ static void rtc_save(QEMUFile *f, void *opaque)
 
     qemu_put_buffer(f, s->cmos_data, 128);
     qemu_put_8s(f, &s->cmos_index);
-   
+
     qemu_put_be32s(f, &s->current_tm.tm_sec);
     qemu_put_be32s(f, &s->current_tm.tm_min);
     qemu_put_be32s(f, &s->current_tm.tm_hour);

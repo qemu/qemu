@@ -67,7 +67,7 @@ enum bfd_architecture
 #define bfd_mach_mcf5249   16
 #define bfd_mach_mcf547x   17
 #define bfd_mach_mcf548x   18
-  bfd_arch_vax,        /* DEC Vax */  
+  bfd_arch_vax,        /* DEC Vax */
   bfd_arch_i960,       /* Intel 960 */
      /* The order of the following is important.
        lower number indicates a machine type that

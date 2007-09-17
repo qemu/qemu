@@ -42,14 +42,14 @@ unsigned int DoubleCPDO(const unsigned int opcode)
    unsigned int Fd, Fm, Fn, nRc = 1;
 
    //printk("DoubleCPDO(0x%08x)\n",opcode);
-  
+
    Fm = getFm(opcode);
    if (CONSTANT_FM(opcode))
    {
      rFm = getDoubleConstant(Fm);
    }
    else
-   { 
+   {
      switch (fpa11->fType[Fm])
      {
         case typeSingle:
@@ -85,7 +85,7 @@ unsigned int DoubleCPDO(const unsigned int opcode)
         case typeDouble:
           rFn = fpa11->fpreg[Fn].fDouble;
         break;
-       
+
         default: return 0;
       }
    }
@@ -220,7 +220,7 @@ unsigned int DoubleCPDO(const unsigned int opcode)
 
       case NRM_CODE:
       break;
-     
+
       default:
       {
         nRc = 0;

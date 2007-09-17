@@ -65,7 +65,7 @@ struct vpc_subheader {
 
 typedef struct BDRVVPCState {
     int fd;
-   
+
     int pagetable_entries;
     uint32_t *pagetable;
 
@@ -74,7 +74,7 @@ typedef struct BDRVVPCState {
     uint8_t *pageentry_u8;
     uint32_t *pageentry_u32;
     uint16_t *pageentry_u16;
-   
+
     uint64_t last_bitmap;
 #endif
 } BDRVVPCState;
@@ -97,7 +97,7 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
         return -1;
 
     bs->read_only = 1; // no write support yet
-   
+
     s->fd = fd;
 
     if (read(fd, &header, HEADER_SIZE) != HEADER_SIZE)
@@ -153,13 +153,13 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 
     pagetable_index = offset / s->pageentry_size;
     pageentry_index = (offset % s->pageentry_size) / 512;
-   
+
     if (pagetable_index > s->pagetable_entries || s->pagetable[pagetable_index] == 0xffffffff)
 	return -1; // not allocated
 
     bitmap_offset = 512 * s->pagetable[pagetable_index];
     block_offset = bitmap_offset + 512 + (512 * pageentry_index);
-   
+
 //    printf("sector: %" PRIx64 ", index: %x, offset: %x, bioff: %" PRIx64 ", bloff: %" PRIx64 "\n",
 //	sector_num, pagetable_index, pageentry_index,
 //	bitmap_offset, block_offset);

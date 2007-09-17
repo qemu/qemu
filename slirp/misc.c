@@ -335,13 +335,13 @@ fork_exec(so, ex, do_pty)
 		addr.sin_family = AF_INET;
 		addr.sin_port = 0;
 		addr.sin_addr.s_addr = INADDR_ANY;
-	
+
 		if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0 ||
 		    bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
 		    listen(s, 1) < 0) {
 			lprint("Error: inet socket: %s\n", strerror(errno));
 			closesocket(s);
-		
+
 			return 0;
 		}
 	}
@@ -353,7 +353,7 @@ fork_exec(so, ex, do_pty)
 		if (do_pty == 2)
 		   close(master);
 		return 0;
-	
+
 	 case 0:
 		/* Set the DISPLAY */
 		if (do_pty == 2) {
@@ -375,7 +375,7 @@ fork_exec(so, ex, do_pty)
                             ret = connect(s, (struct sockaddr *)&addr, addrlen);
                         } while (ret < 0 && errno == EINTR);
 		}
-	
+
 #if 0
 		if (x_port >= 0) {
 #ifdef HAVE_SETENV
@@ -392,7 +392,7 @@ fork_exec(so, ex, do_pty)
 		dup2(s, 2);
 		for (s = 3; s <= 255; s++)
 		   close(s);
-	
+
 		i = 0;
 		bptr = strdup(ex); /* No need to free() this */
 		if (do_pty == 1) {
@@ -410,21 +410,21 @@ fork_exec(so, ex, do_pty)
 			*bptr++ = (char)0;
 			argv[i++] = strdup(curarg);
 		   } while (c);
-	
+
 		argv[i] = 0;
 		execvp(argv[0], argv);
-	
+
 		/* Ooops, failed, let's tell the user why */
 		  {
 			  char buff[256];
-			 
+
 			  sprintf(buff, "Error: execvp of %s failed: %s\n",
 				  argv[0], strerror(errno));
 			  write(2, buff, strlen(buff)+1);
 		  }
 		close(0); close(1); close(2); /* XXX */
 		exit(1);
-	
+
 	 default:
 		if (do_pty == 2) {
 			close(s);
@@ -447,13 +447,13 @@ fork_exec(so, ex, do_pty)
 			setsockopt(so->s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int));
 		}
 		fd_nonblock(so->s);
-	
+
 		/* Append the telnet options now */
 		if (so->so_m != 0 && do_pty == 1)  {
 			sbappend(so, so->so_m);
 			so->so_m = 0;
 		}
-	
+
 		return 1;
 	}
 }
@@ -570,15 +570,15 @@ relay(s)
 
 	while (1) {
 		FD_ZERO(&readfds);
-	
+
 		FD_SET(0, &readfds);
 		FD_SET(s, &readfds);
-	
+
 		n = select(s+1, &readfds, (fd_set *)0, (fd_set *)0, (struct timeval *)0);
-	
+
 		if (n <= 0)
 		   slirp_exit(0);
-	
+
 		if (FD_ISSET(0, &readfds)) {
 			n = read(0, buf, 8192);
 			if (n <= 0)
@@ -587,7 +587,7 @@ relay(s)
 			if (n <= 0)
 			   slirp_exit(0);
 		}
-	
+
 		if (FD_ISSET(s, &readfds)) {
 			n = read(s, buf, 8192);
 			if (n <= 0)
@@ -614,7 +614,7 @@ lprint(va_alist) va_dcl
 #endif
 {
 	va_list args;
-       
+
 #ifdef __STDC__
         va_start(args, format);
 #else
@@ -631,15 +631,15 @@ lprint(va_alist) va_dcl
 			int deltaw = lprint_sb->sb_wptr - lprint_sb->sb_data;
 			int deltar = lprint_sb->sb_rptr - lprint_sb->sb_data;
 			int deltap = lprint_ptr -         lprint_sb->sb_data;
-			                       
+
 			lprint_sb->sb_data = (char *)realloc(lprint_sb->sb_data,
 							     lprint_sb->sb_datalen + TCP_SNDSPACE);
-		
+
 			/* Adjust all values */
 			lprint_sb->sb_wptr = lprint_sb->sb_data + deltaw;
 			lprint_sb->sb_rptr = lprint_sb->sb_data + deltar;
 			lprint_ptr =         lprint_sb->sb_data + deltap;
-		
+
 			lprint_sb->sb_datalen += TCP_SNDSPACE;
 		}
 	}
@@ -655,9 +655,9 @@ lprint(va_alist) va_dcl
 		 */
 		int len = strlen(format);
 		char *bptr1, *bptr2;
-	
+
 		bptr1 = bptr2 = strdup(format);
-	
+
 		while (len--) {
 			if (*bptr1 == '\r')
 			   memcpy(bptr1, bptr1+1, len+1);
@@ -900,11 +900,11 @@ rsh_exec(so,ns, user, host, args)
            close(fd0[0]);
            close(fd0[1]);
            return 0;
-          
+
 	 case 0:
            close(fd[0]);
            close(fd0[0]);
-          
+
 		/* Set the DISPLAY */
            if (x_port >= 0) {
 #ifdef HAVE_SETENV
@@ -915,29 +915,29 @@ rsh_exec(so,ns, user, host, args)
              putenv(buff);
 #endif
            }
-          
+
            dup2(fd0[1], 0);
            dup2(fd0[1], 1);
            dup2(fd[1], 2);
            for (s = 3; s <= 255; s++)
              close(s);
-          
+
            execlp("rsh","rsh","-l", user, host, args, NULL);
-          
+
            /* Ooops, failed, let's tell the user why */
-          
+
            sprintf(buff, "Error: execlp of %s failed: %s\n",
                    "rsh", strerror(errno));
            write(2, buff, strlen(buff)+1);
            close(0); close(1); close(2); /* XXX */
            exit(1);
-          
+
         default:
           close(fd[1]);
           close(fd0[1]);
           ns->s=fd[0];
           so->s=fd0[0];
-         
+
           return 1;
 	}
 }

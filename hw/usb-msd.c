@@ -99,7 +99,7 @@ static const uint8_t qemu_msd_config_descriptor[] = {
 				     5: Remote wakeup,
 				     4..0: resvd */
 	0x00,       /*  u8  MaxPower; */
-     
+
 	/* one interface */
 	0x09,       /*  u8  if_bLength; */
 	0x04,       /*  u8  if_bDescriptorType; Interface */
@@ -110,7 +110,7 @@ static const uint8_t qemu_msd_config_descriptor[] = {
 	0x06,       /*  u8  if_bInterfaceSubClass; SCSI */
 	0x50,       /*  u8  if_bInterfaceProtocol; Bulk Only */
 	0x00,       /*  u8  if_iInterface; */
-    
+
 	/* Bulk-In endpoint */
 	0x07,       /*  u8  ep_bLength; */
 	0x05,       /*  u8  ep_bDescriptorType; Endpoint */

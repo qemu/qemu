@@ -222,7 +222,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         offset -= (uint32_t)(long)pfl->storage;
     else
         offset -= pfl->base;
-       
+
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d\n", __func__,
             offset, value, width);
     /* Set the device in I/O access mode */

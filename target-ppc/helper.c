@@ -709,7 +709,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
     int i, ret, zsel, zpr;
-           
+
     ret = -1;
     raddr = -1;
     for (i = 0; i < env->nb_tlb; i++) {
@@ -808,7 +808,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 " %d %d\n", __func__, address, raddr, ctx->prot,
                 ret);
     }
-   
+
     return ret;
 }
 
@@ -825,7 +825,7 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
                            target_ulong eaddr, int rw)
 {
     int in_plb, ret;
-       
+
     ctx->raddr = eaddr;
     ctx->prot = PAGE_READ;
     ret = 0;

@@ -511,7 +511,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors;
-   
+
     /* RAM is soldered to the board so the size cannot be changed */
     ram_bases[0] = 0x00000000;
     ram_sizes[0] = 0x04000000;

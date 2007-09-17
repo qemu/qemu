@@ -333,7 +333,7 @@ static void do_info_history (void)
 {
     int i;
     const char *str;
-   
+
     i = 0;
     for(;;) {
         str = readline_get_history(i);
@@ -442,7 +442,7 @@ static void do_logfile(const char *filename)
 static void do_log(const char *items)
 {
     int mask;
-   
+
     if (!strcmp(items, "none")) {
         mask = 0;
     } else {
@@ -744,7 +744,7 @@ typedef struct {
 static const KeyDef key_defs[] = {
     { 0x2a, "shift" },
     { 0x36, "shift_r" },
-   
+
     { 0x38, "alt" },
     { 0xb8, "alt_r" },
     { 0x1d, "ctrl" },
@@ -799,7 +799,7 @@ static const KeyDef key_defs[] = {
     { 0x30, "b" },
     { 0x31, "n" },
     { 0x32, "m" },
-   
+
     { 0x39, "spc" },
     { 0x3a, "caps_lock" },
     { 0x3b, "f1" },
@@ -832,7 +832,7 @@ static const KeyDef key_defs[] = {
     { 0x47, "kp_7" },
     { 0x48, "kp_8" },
     { 0x49, "kp_9" },
-   
+
     { 0x56, "<" },
 
     { 0x57, "f11" },
@@ -879,7 +879,7 @@ static void do_send_key(const char *string)
     uint8_t keycodes[16];
     const char *p;
     int nb_keycodes, keycode, i;
-   
+
     nb_keycodes = 0;
     p = string;
     while (*p != '\0') {
@@ -1769,7 +1769,7 @@ static target_long expr_unary(void)
     case '$':
         {
             char buf[128], *q;
-           
+
             pch++;
             q = buf;
             while ((*pch >= 'a' && *pch <= 'z') ||
@@ -1816,7 +1816,7 @@ static target_long expr_prod(void)
 {
     target_long val, val2;
     int op;
-   
+
     val = expr_unary();
     for(;;) {
         op = *pch;
@@ -1989,7 +1989,7 @@ static void monitor_handle_command(const char *cmdline)
 #ifdef DEBUG
     term_printf("command='%s'\n", cmdline);
 #endif
-   
+
     /* extract the command name */
     p = cmdline;
     q = cmdname;
@@ -2005,7 +2005,7 @@ static void monitor_handle_command(const char *cmdline)
         len = sizeof(cmdname) - 1;
     memcpy(cmdname, pstart, len);
     cmdname[len] = '\0';
-   
+
     /* find the command */
     for(cmd = term_cmds; cmd->name != NULL; cmd++) {
         if (compare_cmd(cmdname, cmd->name))
@@ -2017,7 +2017,7 @@ static void monitor_handle_command(const char *cmdline)
 
     for(i = 0; i < MAX_ARGS; i++)
         str_allocated[i] = NULL;
-   
+
     /* parse the parameters */
     typestr = cmd->args_type;
     nb_args = 0;
@@ -2033,7 +2033,7 @@ static void monitor_handle_command(const char *cmdline)
             {
                 int ret;
                 char *str;
-               
+
                 while (isspace(*p))
                     p++;
                 if (*typestr == '?') {
@@ -2074,7 +2074,7 @@ static void monitor_handle_command(const char *cmdline)
         case '/':
             {
                 int count, format, size;
-               
+
                 while (isspace(*p))
                     p++;
                 if (*p == '/') {
@@ -2207,7 +2207,7 @@ static void monitor_handle_command(const char *cmdline)
             {
                 int has_option;
                 /* option */
-               
+
                 c = *typestr++;
                 if (c == '\0')
                     goto bad_type;

@@ -1639,7 +1639,7 @@ DISAS_INSN(branch)
     uint32_t base;
     int op;
     int l1;
-   
+
     base = s->pc;
     op = (insn >> 8) & 0xf;
     offset = (int8_t)insn;
@@ -3065,7 +3065,7 @@ static void expand_op_addx_cc(qOP *qop)
     int arg0 = qop->args[0];
     int arg1 = qop->args[1];
     int l1, l2;
-   
+
     gen_op_add32 (arg0, arg0, arg1);
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -3159,7 +3159,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
     /* generate intermediate code */
     pc_start = tb->pc;
-      
+
     dc->tb = tb;
 
     gen_opc_ptr = gen_opc_buf;

@@ -695,7 +695,7 @@ static unsigned long create_elf_tables(target_ulong p, int argc, int envc,
         size *= n;
         if (size & 15)
             sp -= 16 - (size & 15);
-       
+
 #define NEW_AUX_ENT(id, val) do { \
             sp -= n; tputl(sp, val); \
             sp -= n; tputl(sp, id); \
@@ -833,7 +833,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 		 elf_type,
 		 interpreter_fd,
 		 eppnt->p_offset - TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr));
-	   
+
 	    if (error == -1) {
 	      /* Real error */
 	      close(interpreter_fd);
@@ -1199,10 +1199,10 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         int elf_prot = 0;
         int elf_flags = 0;
         unsigned long error;
-       
+
 	if (elf_ppnt->p_type != PT_LOAD)
             continue;
-       
+
         if (elf_ppnt->p_flags & PF_R) elf_prot |= PROT_READ;
         if (elf_ppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
         if (elf_ppnt->p_flags & PF_X) elf_prot |= PROT_EXEC;
@@ -1224,7 +1224,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
             load_bias = TARGET_ELF_PAGESTART(error - elf_ppnt->p_vaddr);
         }
-       
+
         error = target_mmap(TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr),
                             (elf_ppnt->p_filesz +
                              TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)),
@@ -1242,7 +1242,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         if (TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr) < elf_stack)
             elf_stack = TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr);
 #endif
-       
+
         if (!load_addr_set) {
             load_addr_set = 1;
             load_addr = elf_ppnt->p_vaddr - elf_ppnt->p_offset;

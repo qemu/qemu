@@ -33,16 +33,16 @@ struct socket {
   struct in_addr so_laddr;	   /* local host table entry */
   u_int16_t so_fport;		   /* foreign port */
   u_int16_t so_lport;		   /* local port */
- 
+
   u_int8_t	so_iptos;	/* Type of service */
   u_int8_t	so_emu;		/* Is the socket emulated? */
- 
+
   u_char	so_type;		/* Type of socket, UDP or TCP */
   int	so_state;		/* internal state flags SS_*, below */
- 
+
   struct 	tcpcb *so_tcpcb;	/* pointer to TCP protocol control block */
   u_int	so_expire;		/* When the socket will expire */
- 
+
   int	so_queued;		/* Number of packets queued from this socket */
   int	so_nqueued;		/* Number of packets queued in a row
 				 * Used to determine when to "downgrade" a session

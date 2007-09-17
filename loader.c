@@ -261,7 +261,7 @@ static void bswap_uboot_header(uboot_image_header_t *hdr)
 /* Load a U-Boot image.  */
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
 {
-   
+
     int fd;
     int size;
     uboot_image_header_t h;

@@ -156,7 +156,7 @@ m_inc(m, size)
 	  m->m_ext = (char *)realloc(m->m_ext,size);
 /*		if (m->m_ext == NULL)
  *			return (struct mbuf *)NULL;
- */	
+ */
 	  m->m_data = m->m_ext + datasize;
         } else {
 	  char *dat;
@@ -166,7 +166,7 @@ m_inc(m, size)
  *			return (struct mbuf *)NULL;
  */
 	  memcpy(dat, m->m_dat, m->m_size);
-	 
+
 	  m->m_ext = dat;
 	  m->m_data = m->m_ext + datasize;
 	  m->m_flags |= M_EXT;

@@ -68,7 +68,7 @@ typedef void (GenOpFunc)(void);
 typedef void (GenOpFunc1)(long);
 typedef void (GenOpFunc2)(long, long);
 typedef void (GenOpFunc3)(long, long, long);
-                   
+
 #if defined(TARGET_I386)
 
 void optimize_flags_init(void);
@@ -287,7 +287,7 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     if (!tb->jmp_next[n]) {
         /* patch the native jump address */
         tb_set_jmp_target(tb, n, (unsigned long)tb_next->tc_ptr);
-       
+
         /* add in TB jmp circular list */
         tb->jmp_next[n] = tb_next->jmp_first;
         tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
@@ -398,7 +398,7 @@ static inline int testandset (int *p)
 static inline int testandset (int *p)
 {
     long int readval = 0;
-   
+
     __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
                           : "+m" (*p), "+a" (readval)
                           : "r" (1)
@@ -409,7 +409,7 @@ static inline int testandset (int *p)
 static inline int testandset (int *p)
 {
     long int readval = 0;
-   
+
     __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
                           : "+m" (*p), "+a" (readval)
                           : "r" (1)
@@ -464,7 +464,7 @@ static inline int testandset (int *spinlock)
     __asm__ __volatile__("swp %0, %1, [%2]"
                          : "=r"(ret)
                          : "0"(1), "r"(spinlock));
-   
+
     return ret;
 }
 #elif defined(__mc68000)

@@ -164,12 +164,12 @@ tcp_timers(tp, timer)
 	 * to a longer retransmit interval and retransmit one segment.
 	 */
 	case TCPT_REXMT:
-	
+
 		/*
 		 * XXXXX If a packet has timed out, then remove all the queued
 		 * packets for that session.
 		 */
-	
+
 		if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 			/*
 			 * This is a hack to suit our terminal server here at the uni of canberra
@@ -185,7 +185,7 @@ tcp_timers(tp, timer)
 			 *
 			 * *sigh*
 			 */
-		
+
 			tp->t_maxseg >>= 1;
 			if (tp->t_maxseg < 32) {
 				/*
@@ -197,7 +197,7 @@ tcp_timers(tp, timer)
 				/* tp->t_softerror : ETIMEDOUT); */ /* XXX */
 				return (tp); /* XXX */
 			}
-		
+
 			/*
 			 * Set rxtshift to 6, which is still at the maximum
 			 * backoff time

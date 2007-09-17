@@ -182,7 +182,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
         val = 65535;
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
-   
+
     switch(boot_device) {
     case 'a':
     case 'b':
@@ -209,7 +209,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
 
     val = (cmos_get_fd_drive_type(fd0) << 4) | cmos_get_fd_drive_type(fd1);
     rtc_set_memory(s, 0x10, val);
-   
+
     val = 0;
     nb = 0;
     if (fd0 < 3)
@@ -294,7 +294,7 @@ void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 {
     static const char shutdown_str[8] = "Shutdown";
     static int shutdown_index = 0;
-   
+
     switch(addr) {
         /* Bochs BIOS messages */
     case 0x400:
@@ -783,7 +783,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     /* map all the bios at the top of memory */
     cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
-   
+
     bochs_bios_init();
 
     if (linux_boot)
@@ -914,7 +914,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
             smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
         }
     }
-   
+
     if (i440fx_state) {
         i440fx_init_memory_mappings(i440fx_state);
     }

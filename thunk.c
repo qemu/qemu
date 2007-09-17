@@ -64,7 +64,7 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
     int nb_fields, offset, max_align, align, size, i, j;
 
     se = struct_entries + id;
-   
+
     /* first we count the number of fields */
     type_ptr = types;
     nb_fields = 0;
@@ -182,7 +182,7 @@ const argtype *thunk_convert(void *dst, const void *src,
             uint8_t  *d;
             const argtype *field_types;
             const int *dst_offsets, *src_offsets;
-           
+
             se = struct_entries + *type_ptr++;
             if (se->convert[0] != NULL) {
                 /* specific conversion is needed */

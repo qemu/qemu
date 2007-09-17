@@ -110,11 +110,11 @@ static void dyngen_labels(long *gen_labels, int nb_gen_labels,
     uint8_t *gen_code_ptr;
     int c, i;
     unsigned long gen_code_addr[OPC_BUF_SIZE];
-   
+
     if (nb_gen_labels == 0)
         return;
     /* compute the address of each op code */
-   
+
     gen_code_ptr = gen_code_buf;
     i = 0;
     for(;;) {
@@ -125,7 +125,7 @@ static void dyngen_labels(long *gen_labels, int nb_gen_labels,
         gen_code_ptr += opc_copy_size[c];
         i++;
     }
-   
+
     /* compute the address of each label */
     for(i = 0; i < nb_gen_labels; i++) {
         gen_labels[i] = gen_code_addr[gen_labels[i]];
@@ -202,7 +202,7 @@ int cpu_restore_state(TranslationBlock *tb,
 #endif
     if (gen_intermediate_code_pc(env, tb) < 0)
         return -1;
-   
+
     /* find opc index corresponding to search_pc */
     tc_ptr = (unsigned long)tb->tc_ptr;
     if (searched_pc < tc_ptr)
@@ -279,7 +279,7 @@ int cpu_restore_state(TranslationBlock *tb,
         case INDEX_op_ ## op ## _user:\
         case INDEX_op_ ## op ## _kernel
 #endif
-           
+
         CASE3(stfd):
         CASE3(stfs):
         CASE3(lfd):

@@ -143,7 +143,7 @@ ip_output(so, m0)
 	  m->m_data += if_maxlinkhdr;
 	  mhip = mtod(m, struct ip *);
 	  *mhip = *ip;
-	
+
 		/* No options */
 /*		if (hlen > sizeof (struct ip)) {
  *			mhlen = ip_optcopy(ip, mhip) + sizeof (struct ip);
@@ -159,12 +159,12 @@ ip_output(so, m0)
 	  else
 	    mhip->ip_off |= IP_MF;
 	  mhip->ip_len = htons((u_int16_t)(len + mhlen));
-	 
+
 	  if (m_copy(m, m0, off, len) < 0) {
 	    error = -1;
 	    goto sendorfree;
 	  }
-	 
+
 	  mhip->ip_off = htons((u_int16_t)mhip->ip_off);
 	  mhip->ip_sum = 0;
 	  mhip->ip_sum = cksum(m, mhlen);

@@ -341,7 +341,7 @@ long do_brk(target_ulong new_brk)
         return target_brk;
     if (new_brk < target_original_brk)
         return -ENOMEM;
-   
+
     brk_page = HOST_PAGE_ALIGN(target_brk);
 
     /* If the new brk is less than this, set it and we're done... */
@@ -506,7 +506,7 @@ static long do_select(long n,
         target_efds = NULL;
         efds_ptr = NULL;
     }
-           
+
     if (target_tv) {
         target_to_host_timeval(&tv, target_tv);
         tv_ptr = &tv;
@@ -652,13 +652,13 @@ static long do_setsockopt(int sockfd, int level, int optname,
                           target_ulong optval, socklen_t optlen)
 {
     int val, ret;
-           
+
     switch(level) {
     case SOL_TCP:
         /* TCP options all take an 'int' value.  */
         if (optlen < sizeof(uint32_t))
             return -EINVAL;
-       
+
         val = tget32(optval);
         ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
         break;
@@ -918,7 +918,7 @@ static long do_bind(int sockfd, target_ulong target_addr,
                     socklen_t addrlen)
 {
     void *addr = alloca(addrlen);
-   
+
     target_to_host_sockaddr(addr, target_addr, addrlen);
     return get_errno(bind(sockfd, addr, addrlen));
 }
@@ -927,7 +927,7 @@ static long do_connect(int sockfd, target_ulong target_addr,
                     socklen_t addrlen)
 {
     void *addr = alloca(addrlen);
-   
+
     target_to_host_sockaddr(addr, target_addr, addrlen);
     return get_errno(connect(sockfd, addr, addrlen));
 }
@@ -955,14 +955,14 @@ static long do_sendrecvmsg(int fd, target_ulong target_msg,
     msg.msg_controllen = 2 * tswapl(msgp->msg_controllen);
     msg.msg_control = alloca(msg.msg_controllen);
     msg.msg_flags = tswap32(msgp->msg_flags);
-   
+
     count = tswapl(msgp->msg_iovlen);
     vec = alloca(count * sizeof(struct iovec));
     target_vec = tswapl(msgp->msg_iov);
     lock_iovec(vec, target_vec, count, send);
     msg.msg_iovlen = count;
     msg.msg_iov = vec;
-   
+
     if (send) {
         target_to_host_cmsg(&msg, msgp);
         ret = get_errno(sendmsg(fd, &msg, flags));
@@ -1636,7 +1636,7 @@ static long do_ipc(long call, long first, long second, long third,
             break;
         raddr = ret;
 	/* find out the length of the shared memory segment */
-       
+
         ret = get_errno(shmctl(first, IPC_STAT, &shm_info));
         if (is_error(ret)) {
             /* can't get length, bail out */
@@ -1910,7 +1910,7 @@ static void target_to_host_termios (void *dst, const void *src)
 {
     struct host_termios *host = dst;
     const struct target_termios *target = src;
-   
+
     host->c_iflag =
         target_to_host_bitmask(tswap32(target->c_iflag), iflag_tbl);
     host->c_oflag =
@@ -1920,26 +1920,26 @@ static void target_to_host_termios (void *dst, const void *src)
     host->c_lflag =
         target_to_host_bitmask(tswap32(target->c_lflag), lflag_tbl);
     host->c_line = target->c_line;
-   
+
     host->c_cc[VINTR] = target->c_cc[TARGET_VINTR];
     host->c_cc[VQUIT] = target->c_cc[TARGET_VQUIT];
-    host->c_cc[VERASE] = target->c_cc[TARGET_VERASE];      
+    host->c_cc[VERASE] = target->c_cc[TARGET_VERASE];
     host->c_cc[VKILL] = target->c_cc[TARGET_VKILL];
-    host->c_cc[VEOF] = target->c_cc[TARGET_VEOF];  
+    host->c_cc[VEOF] = target->c_cc[TARGET_VEOF];
     host->c_cc[VTIME] = target->c_cc[TARGET_VTIME];
-    host->c_cc[VMIN] = target->c_cc[TARGET_VMIN];  
+    host->c_cc[VMIN] = target->c_cc[TARGET_VMIN];
     host->c_cc[VSWTC] = target->c_cc[TARGET_VSWTC];
-    host->c_cc[VSTART] = target->c_cc[TARGET_VSTART];      
+    host->c_cc[VSTART] = target->c_cc[TARGET_VSTART];
     host->c_cc[VSTOP] = target->c_cc[TARGET_VSTOP];
     host->c_cc[VSUSP] = target->c_cc[TARGET_VSUSP];
-    host->c_cc[VEOL] = target->c_cc[TARGET_VEOL];  
-    host->c_cc[VREPRINT] = target->c_cc[TARGET_VREPRINT];  
-    host->c_cc[VDISCARD] = target->c_cc[TARGET_VDISCARD];  
-    host->c_cc[VWERASE] = target->c_cc[TARGET_VWERASE];    
-    host->c_cc[VLNEXT] = target->c_cc[TARGET_VLNEXT];      
+    host->c_cc[VEOL] = target->c_cc[TARGET_VEOL];
+    host->c_cc[VREPRINT] = target->c_cc[TARGET_VREPRINT];
+    host->c_cc[VDISCARD] = target->c_cc[TARGET_VDISCARD];
+    host->c_cc[VWERASE] = target->c_cc[TARGET_VWERASE];
+    host->c_cc[VLNEXT] = target->c_cc[TARGET_VLNEXT];
     host->c_cc[VEOL2] = target->c_cc[TARGET_VEOL2];
 }
- 
+
 static void host_to_target_termios (void *dst, const void *src)
 {
     struct target_termios *target = dst;
@@ -1954,7 +1954,7 @@ static void host_to_target_termios (void *dst, const void *src)
     target->c_lflag =
         tswap32(host_to_target_bitmask(host->c_lflag, lflag_tbl));
     target->c_line = host->c_line;
- 
+
     target->c_cc[TARGET_VINTR] = host->c_cc[VINTR];
     target->c_cc[TARGET_VQUIT] = host->c_cc[VQUIT];
     target->c_cc[TARGET_VERASE] = host->c_cc[VERASE];
@@ -2052,7 +2052,7 @@ static int write_ldt(CPUX86State *env,
     ldt_info.limit = tswap32(target_ldt_info->limit);
     ldt_info.flags = tswap32(target_ldt_info->flags);
     unlock_user_struct(target_ldt_info, ptr, 0);
-   
+
     if (ldt_info.entry_number >= TARGET_LDT_ENTRIES)
         return -EINVAL;
     seg_32bit = ldt_info.flags & 1;
@@ -2093,7 +2093,7 @@ static int write_ldt(CPUX86State *env,
             goto install;
         }
     }
-   
+
     entry_1 = ((ldt_info.base_addr & 0x0000ffff) << 16) |
         (ldt_info.limit & 0x0ffff);
     entry_2 = (ldt_info.base_addr & 0xff000000) |
@@ -2120,7 +2120,7 @@ install:
 int do_modify_ldt(CPUX86State *env, int func, target_ulong ptr, unsigned long bytecount)
 {
     int ret = -ENOSYS;
-   
+
     switch (func) {
     case 0:
         ret = read_ldt(ptr, bytecount);
@@ -2155,7 +2155,7 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
     TaskState *ts;
     uint8_t *new_stack;
     CPUState *new_env;
-   
+
     if (flags & CLONE_VM) {
         ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
         memset(ts, 0, sizeof(TaskState));
@@ -2263,7 +2263,7 @@ static long do_fcntl(int fd, int cmd, target_ulong arg)
             unlock_user_struct(target_fl, arg, 1);
         }
         break;
-       
+
     case TARGET_F_SETLK:
     case TARGET_F_SETLKW:
         lock_user_struct(target_fl, arg, 1);
@@ -2275,7 +2275,7 @@ static long do_fcntl(int fd, int cmd, target_ulong arg)
         unlock_user_struct(target_fl, arg, 0);
         ret = fcntl(fd, cmd, &fl);
         break;
-       
+
     case TARGET_F_GETLK64:
         lock_user_struct(target_fl64, arg, 1);
         fl64.l_type = tswap16(target_fl64->l_type) >> 1;
@@ -2468,7 +2468,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     struct stat st;
     struct statfs stfs;
     void *p;
-   
+
 #ifdef DEBUG
     gemu_log("syscall %d", num);
 #endif
@@ -2980,7 +2980,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             int how = arg1;
             sigset_t set, oldset, *set_ptr;
-           
+
             if (arg2) {
                 switch(how) {
                 case TARGET_SIG_BLOCK:
@@ -3017,7 +3017,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             int how = arg1;
             sigset_t set, oldset, *set_ptr;
-           
+
             if (arg2) {
                 switch(how) {
                 case TARGET_SIG_BLOCK:
@@ -3098,7 +3098,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             sigset_t set;
             struct timespec uts, *puts;
             siginfo_t uinfo;
-           
+
             p = lock_user(arg1, sizeof(target_sigset_t), 1);
             target_to_host_sigset(&set, p);
             unlock_user(p, arg1, 0);
@@ -3159,7 +3159,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             int resource = arg1;
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
-           
+
             ret = get_errno(getrlimit(resource, &rlim));
             if (!is_error(ret)) {
                 lock_user_struct(target_rlim, arg2, 0);
@@ -3357,7 +3357,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     convert_statfs:
         if (!is_error(ret)) {
             struct target_statfs *target_stfs;
-           
+
             lock_user_struct(target_stfs, arg2, 0);
             /* ??? put_user is probably wrong.  */
             put_user(stfs.f_type, &target_stfs->f_type);
@@ -3384,7 +3384,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     convert_statfs64:
         if (!is_error(ret)) {
             struct target_statfs64 *target_stfs;
-           
+
             lock_user_struct(target_stfs, arg3, 0);
             /* ??? put_user is probably wrong.  */
             put_user(stfs.f_type, &target_stfs->f_type);
@@ -3530,7 +3530,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getitimer:
         {
             struct itimerval value;
-           
+
             ret = get_errno(getitimer(arg1, &value));
             if (!is_error(ret) && arg2) {
                 host_to_target_timeval(arg2,
@@ -3699,7 +3699,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         /* no need to transcode because we use the linux syscall */
         {
             struct new_utsname * buf;
-   
+
             lock_user_struct(buf, arg1, 0);
             ret = get_errno(sys_uname(buf));
             if (!is_error(ret)) {
@@ -3786,7 +3786,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	    dirp = malloc(count);
 	    if (!dirp)
                 return -ENOMEM;
-           
+
             ret = get_errno(sys_getdents(arg1, dirp, count));
             if (!is_error(ret)) {
                 struct dirent *de;
@@ -4354,7 +4354,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             uint32_t *target_grouplist;
             gid_t *grouplist;
             int i;
-           
+
             grouplist = alloca(gidsetsize * sizeof(gid_t));
             target_grouplist = lock_user(arg2, gidsetsize * 4, 1);
             for(i = 0;i < gidsetsize; i++)

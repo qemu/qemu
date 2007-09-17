@@ -93,11 +93,11 @@ void test_file(void)
 
     if (getcwd(cur_dir, sizeof(cur_dir)) == NULL)
         error("getcwd");
-   
+
     chk_error(mkdir(TESTPATH, 0755));
-   
+
     chk_error(chdir(TESTPATH));
-   
+
     /* open/read/write/close/readv/writev/lseek */
 
     fd = chk_error(open("file1", O_WRONLY | O_TRUNC | O_CREAT, 0644));
@@ -124,7 +124,7 @@ void test_file(void)
         error("read");
     if (memcmp(buf, buf2, FILE_BUF_SIZE) != 0)
         error("memcmp");
-   
+
 #define FOFFSET 16
     ret = chk_error(lseek(fd, FOFFSET, SEEK_SET));
     if (ret != 16)
@@ -138,7 +138,7 @@ void test_file(void)
         error("readv");
     if (memcmp(buf + FOFFSET, buf3, FILE_BUF_SIZE - FOFFSET) != 0)
         error("memcmp");
-   
+
     chk_error(close(fd));
 
     /* access */
@@ -171,18 +171,18 @@ void test_file(void)
     chk_error(ftruncate(fd, 50));
     chk_error(fstat(fd, &st));
     chk_error(close(fd));
-   
+
     if (st.st_size != 50)
         error("stat size");
     if (!S_ISREG(st.st_mode))
         error("stat mode");
-   
+
     /* symlink/lstat */
     chk_error(symlink("file2", "file3"));
     chk_error(lstat("file3", &st));
     if (!S_ISLNK(st.st_mode))
         error("stat mode");
-   
+
     /* getdents */
     dir = opendir(TESTPATH);
     if (!dir)
@@ -241,7 +241,7 @@ void test_time(void)
     ti = tv2.tv_sec - tv.tv_sec;
     if (ti >= 2)
         error("gettimeofday");
-   
+
     chk_error(getrusage(RUSAGE_SELF, &rusg1));
     for(i = 0;i < 10000; i++);
     chk_error(getrusage(RUSAGE_SELF, &rusg2));
@@ -327,7 +327,7 @@ void test_socket(void)
     chk_error(getsockopt(server_fd, SOL_SOCKET, SO_TYPE, &val, &len));
     if (val != SOCK_STREAM)
         error("getsockopt");
-   
+
     pid = chk_error(fork());
     if (pid == 0) {
         client_fd = client_socket();
@@ -465,7 +465,7 @@ void test_signal(void)
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     chk_error(sigaction(SIGALRM, &act, NULL));
-   
+
     it.it_interval.tv_sec = 0;
     it.it_interval.tv_usec = 10 * 1000;
     it.it_value.tv_sec = 0;
@@ -475,7 +475,7 @@ void test_signal(void)
     if (oit.it_value.tv_sec != it.it_value.tv_sec ||
         oit.it_value.tv_usec != it.it_value.tv_usec)
         error("itimer");
-   
+
     while (alarm_count < 5) {
         usleep(10 * 1000);
     }
@@ -498,7 +498,7 @@ void test_signal(void)
     if (setjmp(jmp_env) == 0) {
         *(uint8_t *)0 = 0;
     }
-   
+
     act.sa_handler = SIG_DFL;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;

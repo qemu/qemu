@@ -392,7 +392,7 @@ typedef struct BMDMAState {
     uint8_t cmd;
     uint8_t status;
     uint32_t addr;
-   
+
     struct PCIIDEState *pci_dev;
     /* current transfer state */
     uint32_t cur_addr;
@@ -469,7 +469,7 @@ static void ide_identify(IDEState *s)
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
     padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40); /* model */
-#if MAX_MULT_SECTORS > 1   
+#if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
     put_le16(p + 48, 1); /* dword I/O */
@@ -923,7 +923,7 @@ static void ide_sector_write(IDEState *s)
         ide_transfer_start(s, s->io_buffer, 512 * n1, ide_sector_write);
     }
     ide_set_sector(s, sector_num + n);
-   
+
     bm->aiocb = bdrv_aio_write(s->bs, sector_num, s->io_buffer, n,
 			       ide_sector_write_aio_cb, bm);
 }
@@ -1246,7 +1246,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         bm->aiocb = NULL;
         return;
     }
-   
+
     s->io_buffer_index = 0;
     if (s->cd_sector_size == 2352) {
         n = 1;
@@ -1375,7 +1375,7 @@ static void ide_atapi_cmd(IDEState *s)
                     buf[9] = 0x12;
                     buf[10] = 0x08;
                     buf[11] = 0x00;
-                   
+
                     buf[12] = 0x70;
                     buf[13] = 3 << 5;
                     buf[14] = (1 << 0) | (1 << 3) | (1 << 5);
@@ -1501,7 +1501,7 @@ static void ide_atapi_cmd(IDEState *s)
             int start, eject;
             start = packet[4] & 1;
             eject = (packet[4] >> 1) & 1;
-           
+
             if (eject && !start) {
                 /* eject the disk */
                 bdrv_eject(s->bs, 1);
@@ -2330,7 +2330,7 @@ static uint32_t ide_data_readl(void *opaque, uint32_t addr)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
-   
+
     p = s->data_ptr;
     ret = cpu_to_le32(*(uint32_t *)p);
     p += 4;
@@ -2509,7 +2509,7 @@ static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
         register_ioport_read(iobase2, 1, 1, ide_status_read, ide_state);
         register_ioport_write(iobase2, 1, 1, ide_cmd_write, ide_state);
     }
-   
+
     /* data ports */
     register_ioport_write(iobase, 2, 2, ide_data_writew, ide_state);
     register_ioport_read(iobase, 2, 2, ide_data_readw, ide_state);
@@ -2584,7 +2584,7 @@ void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
     ide_state = qemu_mallocz(sizeof(IDEState) * 2);
     if (!ide_state)
         return;
-   
+
     ide_init2(ide_state, hd0, hd1, irq);
     ide_init_ioport(ide_state, iobase, iobase2);
 }
@@ -2671,7 +2671,7 @@ static uint32_t bmdma_readb(void *opaque, uint32_t addr)
     BMDMAState *bm = opaque;
     PCIIDEState *pci_dev;
     uint32_t val;
-   
+
     switch(addr & 3) {
     case 0:
         val = bm->cmd;
@@ -2835,7 +2835,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
-   
+
     if (secondary_ide_enabled) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
         pci_conf[0x51] = 0x80; /* enable IDE1 */
@@ -2853,7 +2853,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
-   
+
     for(i = 0; i < 4; i++)
         d->ide_if[i].pci_dev = (PCIDevice *)d;
 
@@ -2945,7 +2945,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
-   
+
     /* register a function 1 of PIIX3 */
     d = (PCIIDEState *)pci_register_device(bus, "PIIX3 IDE",
                                            sizeof(PCIIDEState),
@@ -3133,7 +3133,7 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
 
     ide_if = qemu_mallocz(sizeof(IDEState) * 2);
     ide_init2(&ide_if[0], hd_table[0], hd_table[1], irq);
-   
+
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);
     return pmac_ide_memory;

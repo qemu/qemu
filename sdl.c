@@ -345,7 +345,7 @@ static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
     int mod_state;
-                    
+
     if (last_vm_running != vm_running) {
         last_vm_running = vm_running;
         sdl_update_caption();
@@ -494,7 +494,7 @@ static void sdl_refresh(DisplayState *ds)
                     } else if (bev->button == SDL_BUTTON_WHEELDOWN && ev->type == SDL_MOUSEBUTTONDOWN) {
                         dz = 1;
                     }
-#endif              
+#endif
                     sdl_send_mouse_event(dz);
                 }
             }

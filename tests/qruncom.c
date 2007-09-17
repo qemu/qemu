@@ -160,7 +160,7 @@ int main(int argc, char **argv)
     if (argc != 2)
         usage();
     filename = argv[1];
-   
+
     vm86_mem = mmap((void *)0x00000000, 0x110000,
                     PROT_WRITE | PROT_READ | PROT_EXEC,
                     MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     /* install exception handler for CPU emulator */
     {
         struct sigaction act;
-       
+
         sigfillset(&act.sa_mask);
         act.sa_flags = SA_SIGINFO;
         //        act.sa_flags |= SA_ONSTACK;
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
     /* flags setup : we activate the IRQs by default as in user
        mode. We also activate the VM86 flag to run DOS code */
     env->eflags |= IF_MASK | VM_MASK;
-   
+
     /* init basic registers */
     env->eip = 0x100;
     env->regs[R_ESP] = 0xfffe;
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
     set_idt(17, 0);
     set_idt(18, 0);
     set_idt(19, 0);
-       
+
     /* put return code */
     *seg_to_linear(env->segs[R_CS].selector, 0) = 0xb4; /* mov ah, $0 */
     *seg_to_linear(env->segs[R_CS].selector, 1) = 0x00;

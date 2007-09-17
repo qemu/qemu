@@ -146,7 +146,7 @@ uint32_t ps2_read_data(void *opaque)
     PS2State *s = (PS2State *)opaque;
     PS2Queue *q;
     int val, index;
-   
+
     q = &s->queue;
     if (q->count == 0) {
         /* NOTE: if no data left, we return the last keyboard one
@@ -311,7 +311,7 @@ static void ps2_mouse_event(void *opaque,
         s->mouse_buttons == buttons_state)
 	return;
     s->mouse_buttons = buttons_state;
-   
+
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
         (s->common.queue.count < (PS2_QUEUE_SIZE - 16))) {
         for(;;) {

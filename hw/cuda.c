@@ -116,10 +116,10 @@ typedef struct CUDAState {
     uint8_t anh;    /* A-side data, no handshake */
 
     CUDATimer timers[2];
-   
+
     uint8_t last_b; /* last value of B register */
     uint8_t last_acr; /* last value of B register */
-   
+
     int data_in_size;
     int data_in_index;
     int data_out_index;
@@ -196,7 +196,7 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
         counter = (d - (s->counter_value + 1)) % (s->latch + 2);
         counter = (s->latch - counter) & 0xffff;
     }
-   
+
     /* Note: we consider the irq is raised on 0 */
     if (counter == 0xffff) {
         next_time = d + s->latch + 1;
@@ -317,7 +317,7 @@ static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
 static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     CUDAState *s = opaque;
-   
+
     addr = (addr >> 9) & 0xf;
 #ifdef DEBUG_CUDA
     printf("cuda: write: reg=0x%x val=%02x\n", addr, val);

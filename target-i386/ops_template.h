@@ -502,7 +502,7 @@ void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
 {
     int count;
     target_long res;
-   
+
     res = T0 & DATA_MASK;
     if (res != 0) {
         count = 0;

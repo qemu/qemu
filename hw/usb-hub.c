@@ -118,7 +118,7 @@ static const uint8_t qemu_hub_config_descriptor[] = {
 				     5: Remote wakeup,
 				     4..0: resvd */
 	0x00,       /*  u8  MaxPower; */
-     
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -140,7 +140,7 @@ static const uint8_t qemu_hub_config_descriptor[] = {
 	0x00,       /*  u8  if_bInterfaceSubClass; */
 	0x00,       /*  u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
 	0x00,       /*  u8  if_iInterface; */
-    
+
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  u8  ep_bLength; */
 	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
@@ -167,11 +167,11 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
 {
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
-   
+
     if (dev) {
         if (port->port.dev)
             usb_attach(port1, NULL);
-       
+
         port->wPortStatus |= PORT_STAT_CONNECTION;
         port->wPortChange |= PORT_STAT_C_CONNECTION;
         if (dev->speed == USB_SPEED_LOW)

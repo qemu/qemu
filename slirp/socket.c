@@ -251,7 +251,7 @@ sosendoob(so)
 		/* We can send it directly */
 		n = send(so->s, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 		so->so_urgc -= n;
-	
+
 		DEBUG_MISC((dfd, " --- sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	} else {
 		/*
@@ -274,7 +274,7 @@ sosendoob(so)
 #ifdef DEBUG
 		if (n != len)
 		   DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
-#endif	
+#endif
 		DEBUG_MISC((dfd, " ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	}
 
@@ -396,17 +396,17 @@ sorecvfrom(so)
 	if (so->so_type == IPPROTO_ICMP) {   /* This is a "ping" reply */
 	  char buff[256];
 	  int len;
-	
+
 	  len = recvfrom(so->s, buff, 256, 0,
 			 (struct sockaddr *)&addr, &addrlen);
 	  /* XXX Check if reply is "correct"? */
-	 
+
 	  if(len == -1 || len == 0) {
 	    u_char code=ICMP_UNREACH_PORT;
 
 	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
 	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
-	   
+
 	    DEBUG_MISC((dfd," udp icmp rx errno = %d-%s\n",
 			errno,strerror(errno)));
 	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
@@ -422,7 +422,7 @@ sorecvfrom(so)
 
 	  if (!(m = m_get())) return;
 	  m->m_data += if_maxlinkhdr;
-	
+
 	  /*
 	   * XXX Shouldn't FIONREAD packets destined for port 53,
 	   * but I don't know the max packet size for DNS lookups
@@ -430,14 +430,14 @@ sorecvfrom(so)
 	  len = M_FREEROOM(m);
 	  /* if (so->so_fport != htons(53)) { */
 	  ioctlsocket(so->s, FIONREAD, &n);
-	 
+
 	  if (n > len) {
 	    n = (m->m_data - m->m_dat) + m->m_len + n + 1;
 	    m_inc(m, n);
 	    len = M_FREEROOM(m);
 	  }
 	  /* } */
-	
+
 	  m->m_len = recvfrom(so->s, m->m_data, len, 0,
 			      (struct sockaddr *)&addr, &addrlen);
 	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n",
@@ -447,7 +447,7 @@ sorecvfrom(so)
 
 	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
 	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
-	   
+
 	    DEBUG_MISC((dfd," rx error, tx icmp ICMP_UNREACH:%i\n", code));
 	    icmp_error(so->so_m, ICMP_UNREACH,code, 0,strerror(errno));
 	    m_free(m);
@@ -470,7 +470,7 @@ sorecvfrom(so)
 	     *			m->m_len = 0;
 	     *		}
 	     */
-	   
+
 	    /*
 	     * If this packet was destined for CTL_ADDR,
 	     * make it look like that's where it came from, done by udp_output
@@ -580,7 +580,7 @@ solisten(port, laddr, lport, flags)
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {
 		int tmperrno = errno; /* Don't clobber the real reason we failed */
-	
+
 		close(s);
 		sofree(so);
 		/* Restore the real errno */

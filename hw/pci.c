@@ -105,7 +105,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
 
     if (pci_irq_index >= PCI_DEVICES_MAX)
         return NULL;
-   
+
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < 256; devfn += 8) {
             if (!bus->devices[devfn])
@@ -166,7 +166,7 @@ static void pci_update_mappings(PCIDevice *d)
     PCIIORegion *r;
     int cmd, i;
     uint32_t last_addr, new_addr, config_ofs;
-   
+
     cmd = le16_to_cpu(*(uint16_t *)(d->config + PCI_COMMAND));
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
@@ -367,7 +367,7 @@ void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len)
     PCIBus *s = opaque;
     PCIDevice *pci_dev;
     int config_addr, bus_num;
-   
+
 #if defined(DEBUG_PCI) && 0
     printf("pci_data_write: addr=%08x val=%08x len=%d\n",
            addr, val, len);
@@ -440,7 +440,7 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
     PCIDevice *pci_dev = (PCIDevice *)opaque;
     PCIBus *bus;
     int change;
-   
+
     change = level - pci_dev->irq_state[irq_num];
     if (!change)
         return;
@@ -556,7 +556,7 @@ void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d))
     PCIBus *bus = first_bus;
     PCIDevice *d;
     int devfn;
-   
+
     while (bus && bus->bus_num != bus_num)
         bus = bus->next;
     if (bus) {

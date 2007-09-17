@@ -343,7 +343,7 @@ static int get_device_guid(
             0,
             KEY_READ,
             &connection_key);
-       
+
         if (status == ERROR_SUCCESS) {
             len = sizeof (name_data);
             status = RegQueryValueEx(
@@ -467,7 +467,7 @@ static int tap_win32_write(tap_win32_overlapped_t *overlapped,
 
     result = WriteFile(overlapped->handle, buffer, size,
                        &write_size, &overlapped->write_overlapped);
-   
+
     if (!result) {
         switch (error = GetLastError())
         {
@@ -660,7 +660,7 @@ static void tap_win32_send(void *opaque)
 int tap_win32_init(VLANState *vlan, const char *ifname)
 {
     TAPState *s;
-   
+
     s = qemu_mallocz(sizeof(TAPState));
     if (!s)
         return -1;
@@ -670,7 +670,7 @@ int tap_win32_init(VLANState *vlan, const char *ifname)
     }
 
     s->vc = qemu_new_vlan_client(vlan, tap_receive, NULL, s);
-   
+
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s", ifname);
 

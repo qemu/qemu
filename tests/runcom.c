@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     if (argc != 2)
         usage();
     filename = argv[1];
-   
+
     vm86_mem = mmap((void *)0x00000000, 0x110000,
                     PROT_WRITE | PROT_READ | PROT_EXEC,
                     MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
         case VM86_INTx:
             {
                 int int_num, ah;
-               
+
                 int_num = VM86_ARG(ret);
                 if (int_num != 0x21)
                     goto unknown_int;

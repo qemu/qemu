@@ -757,7 +757,7 @@ Change gdb connection port.  @var{port} can be either a decimal number
 to specify a TCP port, or a host device (same devices as the serial port).
 @item -S
 Do not start CPU at startup (you must type 'c' in the monitor).
-@item -d            
+@item -d
 Output log in /tmp/qemu.log
 @item -hdachs c,h,s,[,t]
 Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
@@ -832,9 +832,9 @@ During emulation, if you are using the @option{-nographic} option, use
 @table @key
 @item Ctrl-a h
 Print this help
-@item Ctrl-a x   
+@item Ctrl-a x
 Exit emulator
-@item Ctrl-a s   
+@item Ctrl-a s
 Save disk data back to file (if -snapshot)
 @item Ctrl-a t
 toggle console timestamps
@@ -889,7 +889,7 @@ The following commands are available:
 @item help or ? [cmd]
 Show the help for all commands or just for command @var{cmd}.
 
-@item commit 
+@item commit
 Commit changes to the disk images (if -snapshot is used)
 
 @item info subcommand
@@ -1363,7 +1363,7 @@ network). The virtual network configuration is the following:
                            |          (10.0.2.2)
                            |
                            ---->  DNS server (10.0.2.3)
-                           |    
+                           |
                            ---->  SMB server (10.0.2.4)
 @end example
 
@@ -1925,7 +1925,7 @@ The following options are specific to the PowerPC emulation:
 
 @table @option
 
-@item -g WxH[xDEPTH] 
+@item -g WxH[xDEPTH]
 
 Set the initial VGA graphic mode. The default is 800x600x15.
 
@@ -2339,7 +2339,7 @@ usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
 @table @option
 @item -h
 Print the help
-@item -L path  
+@item -L path
 Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
 @item -s size
 Set the x86 stack size in bytes (default=524288)
@@ -2437,7 +2437,7 @@ usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
 @table @option
 @item -h
 Print the help
-@item -L path  
+@item -L path
 Set the library root path (default=/)
 @item -s size
 Set the stack size in bytes (default=524288)

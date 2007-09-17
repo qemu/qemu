@@ -748,9 +748,9 @@ struct target_pollfd {
  */
 #define TARGET_CDROMREADCOOKED		0x5315	/* read data in cooked mode */
 #define TARGET_CDROMSEEK		0x5316  /* seek msf address */
- 
+
 /*
- * This ioctl is only used by the scsi-cd driver. 
+ * This ioctl is only used by the scsi-cd driver.
    It is for playing audio in logical block addressing mode.
  */
 #define TARGET_CDROMPLAYBLK		0x5317	/* (struct cdrom_blk) */

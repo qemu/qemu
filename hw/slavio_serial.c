@@ -136,7 +136,7 @@ static uint32_t get_queue(void *opaque)
     ChannelState *s = opaque;
     SERIOQueue *q = &s->queue;
     int val;
-   
+
     if (q->count == 0) {
 	return 0;
     } else {

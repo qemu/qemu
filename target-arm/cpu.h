@@ -64,11 +64,11 @@ typedef struct CPUARMState {
     uint32_t banked_spsr[6];
     uint32_t banked_r13[6];
     uint32_t banked_r14[6];
-   
+
     /* These hold r8-r12.  */
     uint32_t usr_regs[5];
     uint32_t fiq_regs[5];
-   
+
     /* cpsr flag cache for faster execution */
     uint32_t CF; /* 0 or 1 */
     uint32_t VF; /* V is the bit 31. All other bits are undefined */
@@ -134,7 +134,7 @@ typedef struct CPUARMState {
         /* Temporary variables if we don't have spare fp regs.  */
         float32 tmp0s, tmp1s;
         float64 tmp0d, tmp1d;
-       
+
         float_status fp_status;
     } vfp;
 

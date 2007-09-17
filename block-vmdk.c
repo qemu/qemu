@@ -110,7 +110,7 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 
 #define CHECK_CID 1
 
-#define SECTOR_SIZE 512			
+#define SECTOR_SIZE 512
 #define DESC_SIZE 20*SECTOR_SIZE	// 20 sectors of 512 bytes each
 #define HEADER_SIZE 512   			// first sector of 512 bytes
 
@@ -308,7 +308,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
 
     fail_gd:
     qemu_free(gd_buf);
-    fail_rgd:  
+    fail_rgd:
     qemu_free(rgd_buf);
     fail:
     close(p_fd);
@@ -341,7 +341,7 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
         p_name += sizeof("parentFileNameHint") + 1;
         if ((end_name = strchr(p_name,'\"')) == 0)
             return -1;
-               
+
         strncpy(s->hd->backing_file, p_name, end_name - p_name);
         if (stat(s->hd->backing_file, &file_buf) != 0) {
             path_combine(parent_img_name, sizeof(parent_img_name),
@@ -761,8 +761,8 @@ static int vmdk_create(const char *filename, int64_t total_size,
     header.check_bytes[1] = 0x20;
     header.check_bytes[2] = 0xd;
     header.check_bytes[3] = 0xa;
-   
-    /* write all the data */   
+
+    /* write all the data */
     write(fd, &magic, sizeof(magic));
     write(fd, &header, sizeof(header));
 
@@ -773,7 +773,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
     for (i = 0, tmp = header.rgd_offset + gd_size;
          i < gt_count; i++, tmp += gt_size)
         write(fd, &tmp, sizeof(tmp));
-  
+
     /* write backup grain directory */
     lseek(fd, le64_to_cpu(header.gd_offset) << 9, SEEK_SET);
     for (i = 0, tmp = header.gd_offset + gd_size;

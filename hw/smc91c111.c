@@ -649,7 +649,7 @@ static void smc91c111_receive(void *opaque, const uint8_t *buf, int size)
     /* Pad short packets.  */
     if (size < 64) {
         int pad;
-       
+
         if (size & 1)
             *(p++) = buf[size - 1];
         pad = 64 - size;

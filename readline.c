@@ -304,7 +304,7 @@ static void term_completion(void)
     char *cmdline;
 
     nb_completions = 0;
-   
+
     cmdline = qemu_malloc(term_cmd_buf_index + 1);
     if (!cmdline)
         return;

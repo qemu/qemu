@@ -293,7 +293,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             /* TLB match but 'D' bit is cleared */
             exception = EXCP_LTLBL;
             break;
-               
+
         }
         /* Raise exception */
         env->CP0_BadVAddr = address;

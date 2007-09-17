@@ -212,7 +212,7 @@ static int ne2000_buffer_full(NE2000State *s)
 static int ne2000_can_receive(void *opaque)
 {
     NE2000State *s = opaque;
-   
+
     if (s->cmd & E8390_STOP)
         return 1;
     return !ne2000_buffer_full(s);
@@ -228,14 +228,14 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
     uint8_t buf1[60];
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-   
+
 #if defined(DEBUG_NE2000)
     printf("NE2000: received len=%d\n", size);
 #endif
 
     if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
         return;
-   
+
     /* XXX: check this */
     if (s->rxcr & 0x10) {
         /* promiscuous: receive all */
@@ -252,10 +252,10 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
                 return;
         } else if (s->mem[0] == buf[0] &&
-                   s->mem[2] == buf[1] &&                  
-                   s->mem[4] == buf[2] &&           
-                   s->mem[6] == buf[3] &&           
-                   s->mem[8] == buf[4] &&           
+                   s->mem[2] == buf[1] &&
+                   s->mem[4] == buf[2] &&
+                   s->mem[6] == buf[3] &&
+                   s->mem[8] == buf[4] &&
                    s->mem[10] == buf[5]) {
             /* match */
         } else {
@@ -718,11 +718,11 @@ static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 {
     NE2000State *s;
-   
+
     s = qemu_mallocz(sizeof(NE2000State));
     if (!s)
         return;
-   
+
     register_ioport_write(base, 16, 1, ne2000_ioport_write, s);
     register_ioport_read(base, 16, 1, ne2000_ioport_read, s);
 
@@ -749,7 +749,7 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
              s->macaddr[3],
              s->macaddr[4],
              s->macaddr[5]);
-            
+
     register_savevm("ne2000", 0, 2, ne2000_save, ne2000_load, s);
 }
 
@@ -786,7 +786,7 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
     PCINE2000State *d;
     NE2000State *s;
     uint8_t *pci_conf;
-   
+
     d = (PCINE2000State *)pci_register_device(bus,
                                               "NE2000", sizeof(PCINE2000State),
                                               devfn,
@@ -800,7 +800,7 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_conf[0x0b] = 0x02;
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 1; // interrupt pin 0
-   
+
     pci_register_io_region(&d->dev, 0, 0x100,
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
@@ -819,7 +819,7 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
              s->macaddr[3],
              s->macaddr[4],
              s->macaddr[5]);
-            
+
     /* XXX: instance number ? */
     register_savevm("ne2000", 0, 3, ne2000_save, ne2000_load, s);
 }

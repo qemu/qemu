@@ -88,7 +88,7 @@ static void
 parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = opaque;
-   
+
     pdebug("write addr=0x%02x val=0x%02x\n", addr, val);
 
     addr &= 7;

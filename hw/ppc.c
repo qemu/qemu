@@ -623,7 +623,7 @@ struct ppcemb_timer_t {
     uint64_t wdt_next;    /* Tick for next WDT interrupt  */
     struct QEMUTimer *wdt_timer;
 };
-  
+
 /* Fixed interval timer */
 static void cpu_4xx_fit_cb (void *opaque)
 {

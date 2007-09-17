@@ -252,7 +252,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     registers[41] = 0; /* foseg */
     registers[42] = 0; /* fooff */
     registers[43] = 0; /* fop */
-   
+
     for(i = 0; i < 16; i++)
         tswapls(&registers[i]);
     for(i = 36; i < 44; i++)
@@ -748,7 +748,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
     uint8_t mem_buf[2000];
     uint32_t *registers;
     target_ulong addr, len;
-   
+
 #ifdef DEBUG_GDB
     printf("command='%s'\n", line_buf);
 #endif
@@ -1201,7 +1201,7 @@ static void gdb_accept(void *opaque)
     /* set short latency */
     val = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
-   
+
     s = &gdbserver_state;
     memset (s, 0, sizeof (GDBState));
     s->env = first_cpu; /* XXX: allow to change CPU */

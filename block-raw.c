@@ -142,7 +142,7 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
 {
     BDRVRawState *s = bs->opaque;
     int ret;
-   
+
     ret = fd_open(bs);
     if (ret < 0)
         return ret;
@@ -194,7 +194,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 {
     BDRVRawState *s = bs->opaque;
     int ret;
-   
+
     ret = fd_open(bs);
     if (ret < 0)
         return ret;
@@ -259,7 +259,7 @@ void qemu_aio_init(void)
     struct sigaction act;
 
     aio_initialized = 1;
-   
+
     sigfillset(&act.sa_mask);
     act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
     act.sa_handler = aio_signal_handler;
@@ -547,7 +547,7 @@ BlockDriver bdrv_raw = {
     raw_close,
     raw_create,
     raw_flush,
-   
+
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
@@ -576,7 +576,7 @@ kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
     if ( KERN_SUCCESS != kernResult ) {
         printf( "IOMasterPort returned %d\n", kernResult );
     }
-   
+
     classesToMatch = IOServiceMatching( kIOCDMediaClass );
     if ( classesToMatch == NULL ) {
         printf( "IOServiceMatching returned a NULL dictionary.\n" );
@@ -588,7 +588,7 @@ kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
     {
         printf( "IOServiceGetMatchingServices returned %d\n", kernResult );
     }
-   
+
     return kernResult;
 }
 
@@ -614,7 +614,7 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
         }
         IOObjectRelease( nextMedia );
     }
-   
+
     return kernResult;
 }
 
@@ -634,7 +634,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 
         kernResult = FindEjectableCDMedia( &mediaIterator );
         kernResult = GetBSDPath( mediaIterator, bsdPath, sizeof( bsdPath ) );
-   
+
         if ( bsdPath[ 0 ] != '\0' ) {
             strcat(bsdPath,"s0");
             /* some CDs don't have a partition 0 */
@@ -646,7 +646,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
             }
             filename = bsdPath;
         }
-       
+
         if ( mediaIterator )
             IOObjectRelease( mediaIterator );
     }
@@ -883,7 +883,7 @@ BlockDriver bdrv_host_device = {
     raw_close,
     NULL,
     raw_flush,
-   
+
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
@@ -999,7 +999,7 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     OVERLAPPED ov;
     DWORD ret_count;
     int ret;
-   
+
     memset(&ov, 0, sizeof(ov));
     ov.Offset = offset;
     ov.OffsetHigh = offset >> 32;
@@ -1021,7 +1021,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     OVERLAPPED ov;
     DWORD ret_count;
     int ret;
-   
+
     memset(&ov, 0, sizeof(ov));
     ov.Offset = offset;
     ov.OffsetHigh = offset >> 32;
@@ -1256,7 +1256,7 @@ BlockDriver bdrv_raw = {
     raw_close,
     raw_create,
     raw_flush,
-   
+
 #if 0
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
@@ -1335,7 +1335,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
     s->type = find_device_type(bs, filename);
-   
+
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
     } else {
@@ -1406,7 +1406,7 @@ BlockDriver bdrv_host_device = {
     raw_close,
     NULL,
     raw_flush,
-   
+
 #if 0
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,

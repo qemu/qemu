@@ -27,10 +27,10 @@
 struct tftp_session {
     int in_use;
     unsigned char filename[TFTP_FILENAME_MAX];
-   
+
     struct in_addr client_ip;
     u_int16_t client_port;
-   
+
     int timestamp;
 };
 
@@ -146,14 +146,14 @@ static int tftp_send_oack(struct tftp_session *spt,
     m->m_data += if_maxlinkhdr;
     tp = (void *)m->m_data;
     m->m_data += sizeof(struct udpiphdr);
-   
+
     tp->tp_op = htons(TFTP_OACK);
     n += sprintf(tp->x.tp_buf + n, "%s", key) + 1;
     n += sprintf(tp->x.tp_buf + n, "%u", value) + 1;
 
     saddr.sin_addr = recv_tp->ip.ip_dst;
     saddr.sin_port = recv_tp->udp.uh_dport;
-   
+
     daddr.sin_addr = spt->client_ip;
     daddr.sin_port = spt->client_port;
 
@@ -186,7 +186,7 @@ static int tftp_send_error(struct tftp_session *spt,
   m->m_data += if_maxlinkhdr;
   tp = (void *)m->m_data;
   m->m_data += sizeof(struct udpiphdr);
- 
+
   tp->tp_op = htons(TFTP_ERROR);
   tp->x.tp_error.tp_error_code = htons(errorcode);
   strcpy(tp->x.tp_error.tp_msg, msg);
@@ -233,7 +233,7 @@ static int tftp_send_data(struct tftp_session *spt,
   m->m_data += if_maxlinkhdr;
   tp = (void *)m->m_data;
   m->m_data += sizeof(struct udpiphdr);
- 
+
   tp->tp_op = htons(TFTP_DATA);
   tp->x.tp_data.tp_block_nr = htons(block_nr);
 
@@ -297,23 +297,23 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
     else {
       return;
     }
-   
+
     if (src[k] == '\0') {
       break;
     }
   }
-     
+
   if (k >= n) {
     return;
   }
- 
+
   k++;
- 
+
   /* check mode */
   if ((n - k) < 6) {
     return;
   }
- 
+
   if (memcmp(&src[k], "octet\0", 6) != 0) {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
@@ -338,7 +338,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   }
 
   /* check if the file exists */
- 
+
   if (tftp_read_data(spt, 0, spt->filename, 0) < 0) {
       tftp_send_error(spt, 1, "File not found", tp);
       return;

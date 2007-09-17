@@ -117,7 +117,7 @@ int cksum(struct mbuf *m, int len)
 			sum += s_util.s;
 			mlen = 0;
 		} else
-		  
+
 		   mlen = -1;
 	} else if (mlen == -1)
 	   s_util.c[0] = *(u_int8_t *)w;

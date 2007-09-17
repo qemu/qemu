@@ -85,14 +85,14 @@ static int cow_open(BlockDriverState *bs, const char *filename, int flags)
         be32_to_cpu(cow_header.version) != COW_VERSION) {
         goto fail;
     }
-       
+
     /* cow image found */
     size = be64_to_cpu(cow_header.size);
     bs->total_sectors = size / 512;
 
     pstrcpy(bs->backing_file, sizeof(bs->backing_file),
             cow_header.backing_file);
-   
+
     /* mmap the bitmap */
     s->cow_bitmap_size = ((bs->total_sectors + 7) >> 3) + sizeof(cow_header);
     s->cow_bitmap_addr = mmap(get_mmap_addr(s->cow_bitmap_size),
@@ -155,7 +155,7 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
 {
     BDRVCowState *s = bs->opaque;
     int ret, n;
-   
+
     while (nb_sectors > 0) {
         if (is_changed(s->cow_bitmap, sector_num, nb_sectors, &n)) {
             lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
@@ -184,7 +184,7 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
 {
     BDRVCowState *s = bs->opaque;
     int ret, i;
-   
+
     lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
     ret = write(s->fd, buf, nb_sectors * 512);
     if (ret != nb_sectors * 512)

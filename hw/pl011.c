@@ -44,7 +44,7 @@ static const unsigned char pl011_id[] =
 static void pl011_update(pl011_state *s)
 {
     uint32_t flags;
-   
+
     flags = s->int_level & s->int_enabled;
     qemu_set_irq(s->irq, flags != 0);
 }

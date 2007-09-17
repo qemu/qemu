@@ -90,7 +90,7 @@ static void get_time (m48t59_t *NVRAM, struct tm *tm)
 static void set_time (m48t59_t *NVRAM, struct tm *tm)
 {
     time_t now, new_time;
-   
+
     new_time = mktime(tm);
     now = time(NULL);
     NVRAM->time_offset = new_time - now;
@@ -510,7 +510,7 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
 static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t59_t *NVRAM = opaque;
-   
+
     addr -= NVRAM->mem_base;
     m48t59_write(NVRAM, addr, value & 0xff);
 }
@@ -518,7 +518,7 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t59_t *NVRAM = opaque;
-   
+
     addr -= NVRAM->mem_base;
     m48t59_write(NVRAM, addr, (value >> 8) & 0xff);
     m48t59_write(NVRAM, addr + 1, value & 0xff);
@@ -527,7 +527,7 @@ static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t59_t *NVRAM = opaque;
-   
+
     addr -= NVRAM->mem_base;
     m48t59_write(NVRAM, addr, (value >> 24) & 0xff);
     m48t59_write(NVRAM, addr + 1, (value >> 16) & 0xff);
@@ -539,7 +539,7 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
 {
     m48t59_t *NVRAM = opaque;
     uint32_t retval;
-   
+
     addr -= NVRAM->mem_base;
     retval = m48t59_read(NVRAM, addr);
     return retval;
@@ -549,7 +549,7 @@ static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
 {
     m48t59_t *NVRAM = opaque;
     uint32_t retval;
-   
+
     addr -= NVRAM->mem_base;
     retval = m48t59_read(NVRAM, addr) << 8;
     retval |= m48t59_read(NVRAM, addr + 1);

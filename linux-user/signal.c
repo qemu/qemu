@@ -108,7 +108,7 @@ static void host_to_target_sigset_internal(target_sigset_t *d,
     int i;
     unsigned long sigmask;
     uint32_t target_sigmask;
-   
+
     sigmask = ((unsigned long *)s)[0];
     target_sigmask = 0;
     for(i = 0; i < 32; i++) {
@@ -171,7 +171,7 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
         s1.sig[i] = tswapl(s->sig[i]);
     target_to_host_sigset_internal(d, &s1);
 }
-   
+
 void host_to_target_old_sigset(target_ulong *old_sigset,
                                const sigset_t *sigset)
 {
@@ -274,7 +274,7 @@ void signal_init(void)
         j = host_to_target_signal_table[i];
         target_to_host_signal_table[j] = i;
     }
-       
+
     /* set all host signal handlers. ALL signals are blocked during
        the handlers to serialize them. */
     sigfillset(&act.sa_mask);
@@ -283,7 +283,7 @@ void signal_init(void)
     for(i = 1; i < NSIG; i++) {
         sigaction(i, &act, NULL);
     }
-   
+
     memset(sigact_table, 0, sizeof(sigact_table));
 
     first_free = &sigqueue_table[0];
@@ -865,7 +865,7 @@ long do_sigreturn(CPUX86State *env)
 
     target_to_host_sigset_internal(&set, &target_set);
     sigprocmask(SIG_SETMASK, &set, NULL);
-   
+
     /* restore registers */
     if (restore_sigcontext(env, &frame->sc, &eax))
         goto badframe;
@@ -1933,7 +1933,7 @@ long do_sigreturn(CPUState *regs)
    	:"r" (&regs));
     /* Unreached */
 #endif
-   
+
     regs->PC[regs->current_tc] = regs->CP0_EPC;
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
@@ -1995,7 +1995,7 @@ void process_pending_signals(void *cpu_env)
     target_sigset_t target_old_set;
     struct emulated_sigaction *k;
     struct sigqueue *q;
-   
+
     if (!signal_pending)
         return;
 
@@ -2018,7 +2018,7 @@ void process_pending_signals(void *cpu_env)
     k->first = q->next;
     if (!k->first)
         k->pending = 0;
-     
+
     sig = gdb_handlesig (cpu_env, sig);
     if (!sig) {
         fprintf (stderr, "Lost signal\n");
@@ -2044,7 +2044,7 @@ void process_pending_signals(void *cpu_env)
            blocked during the handler */
         if (!(k->sa.sa_flags & TARGET_SA_NODEFER))
             sigaddset(&set, target_to_host_signal(sig));
-       
+
         /* block signals in the handler using Linux */
         sigprocmask(SIG_BLOCK, &set, &old_set);
         /* save the previous blocked signal state to restore it at the

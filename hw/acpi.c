@@ -87,7 +87,7 @@ static void pm_update_sci(PIIX4PMState *s)
 {
     int sci_level, pmsts;
     int64_t expire_time;
-   
+
     pmsts = get_pmsts(s);
     sci_level = (((pmsts & s->pmen) &
                   (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
@@ -239,7 +239,7 @@ static uint32_t pm_smi_readb(void *opaque, uint32_t addr)
 {
     PIIX4PMState *s = opaque;
     uint32_t val;
-   
+
     addr &= 1;
     if (addr == 0) {
         val = s->apmc;
@@ -480,9 +480,9 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
     pci_conf[0x0b] = 0x06; // bridge device
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 0x01; // interrupt pin 1
-   
+
     pci_conf[0x40] = 0x01; /* PM io base read only bit */
-   
+
     register_ioport_write(0xb2, 2, 1, pm_smi_writeb, s);
     register_ioport_read(0xb2, 2, 1, pm_smi_readb, s);
 

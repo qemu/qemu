@@ -321,21 +321,21 @@ void fpu_handle_exception(void)
 
     enable = GET_FP_ENABLE(env->fpu->fcr31);
 
-    /* determine current flags */  
+    /* determine current flags */
     if (flags & float_flag_invalid) {
         cpuflags |= FP_INVALID;
         cause |= FP_INVALID & enable;
     }
     if (flags & float_flag_divbyzero) {
-        cpuflags |= FP_DIV0;   
+        cpuflags |= FP_DIV0;
         cause |= FP_DIV0 & enable;
     }
     if (flags & float_flag_overflow) {
-        cpuflags |= FP_OVERFLOW;   
+        cpuflags |= FP_OVERFLOW;
         cause |= FP_OVERFLOW & enable;
     }
     if (flags & float_flag_underflow) {
-        cpuflags |= FP_UNDERFLOW;  
+        cpuflags |= FP_UNDERFLOW;
         cause |= FP_UNDERFLOW & enable;
     }
     if (flags & float_flag_inexact) {

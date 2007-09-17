@@ -94,7 +94,7 @@ static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
 void smbus_eeprom_device_init(i2c_bus *bus, uint8_t addr, uint8_t *buf)
 {
     SMBusEEPROMDevice *eeprom;
-   
+
     eeprom = (SMBusEEPROMDevice *)smbus_device_init(bus, addr,
         sizeof(SMBusEEPROMDevice));
 

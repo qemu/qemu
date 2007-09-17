@@ -52,7 +52,7 @@ int target_mprotect(target_ulong start, target_ulong len, int prot)
         return -EINVAL;
     if (len == 0)
         return 0;
-   
+
     host_start = start & qemu_host_page_mask;
     host_end = HOST_PAGE_ALIGN(end);
     if (start > host_start) {
@@ -83,7 +83,7 @@ int target_mprotect(target_ulong start, target_ulong len, int prot)
             return ret;
         host_end -= qemu_host_page_size;
     }
-   
+
     /* handle the pages in the middle */
     if (host_start < host_end) {
         ret = mprotect(g2h(host_start), host_end - host_start, prot);
@@ -112,7 +112,7 @@ static int mmap_frag(target_ulong real_start,
         if (addr < start || addr >= end)
             prot1 |= page_get_flags(addr);
     }
-   
+
     if (prot1 == 0) {
         /* no page was there, so we allocate one */
         ret = (long)mmap(host_start, qemu_host_page_size, prot,
@@ -134,10 +134,10 @@ static int mmap_frag(target_ulong real_start,
         /* adjust protection to be able to read */
         if (!(prot1 & PROT_WRITE))
             mprotect(host_start, qemu_host_page_size, prot1 | PROT_WRITE);
-       
+
         /* read the corresponding file data */
         pread(fd, g2h(start), end - start, offset);
-       
+
         /* put final protection */
         if (prot_new != (prot1 | PROT_WRITE))
             mprotect(host_start, qemu_host_page_size, prot_new);
@@ -244,7 +244,7 @@ abort();
             goto the_end1;
         }
     }
-   
+
     if (start & ~TARGET_PAGE_MASK) {
         errno = EINVAL;
         return -1;
@@ -303,7 +303,7 @@ abort();
             return ret;
         real_end -= qemu_host_page_size;
     }
-   
+
     /* map the middle (easier) */
     if (real_start < real_end) {
         unsigned long offset1;
@@ -367,7 +367,7 @@ int target_munmap(target_ulong start, target_ulong len)
         if (prot != 0)
             real_end -= qemu_host_page_size;
     }
-   
+
     /* unmap what we can */
     if (real_start < real_end) {
         ret = munmap((void *)real_start, real_end - real_start);
@@ -410,7 +410,7 @@ int target_msync(target_ulong start, target_ulong len, int flags)
         return -EINVAL;
     if (end == start)
         return 0;
-   
+
     start &= qemu_host_page_mask;
     return msync(g2h(start), end - start, flags);
 }

@@ -890,10 +890,10 @@ static void rtl8139_do_receive(void *opaque, const uint8_t *buf, int size, int d
             ++s->tally_counters.RxOkMul;
 
         } else if (s->phys[0] == buf[0] &&
-                   s->phys[1] == buf[1] &&                  
-                   s->phys[2] == buf[2] &&           
-                   s->phys[3] == buf[3] &&           
-                   s->phys[4] == buf[4] &&           
+                   s->phys[1] == buf[1] &&
+                   s->phys[2] == buf[2] &&
+                   s->phys[3] == buf[3] &&
+                   s->phys[4] == buf[4] &&
                    s->phys[5] == buf[5]) {
             /* match */
             if (!(s->RxConfig & AcceptMyPhys))
@@ -2420,17 +2420,17 @@ static uint16_t rtl8139_TSAD_read(RTL8139State *s)
          |((s->TxStatus[2] & TxUnderrun)?TSAD_TUN2:0)
          |((s->TxStatus[1] & TxUnderrun)?TSAD_TUN1:0)
          |((s->TxStatus[0] & TxUnderrun)?TSAD_TUN0:0)
-        
+
          |((s->TxStatus[3] & TxAborted )?TSAD_TABT3:0)
          |((s->TxStatus[2] & TxAborted )?TSAD_TABT2:0)
          |((s->TxStatus[1] & TxAborted )?TSAD_TABT1:0)
          |((s->TxStatus[0] & TxAborted )?TSAD_TABT0:0)
-        
+
          |((s->TxStatus[3] & TxHostOwns )?TSAD_OWN3:0)
          |((s->TxStatus[2] & TxHostOwns )?TSAD_OWN2:0)
          |((s->TxStatus[1] & TxHostOwns )?TSAD_OWN1:0)
          |((s->TxStatus[0] & TxHostOwns )?TSAD_OWN0:0) ;
-      
+
 
     DEBUG_PRINT(("RTL8139: TSAD read val=0x%04x\n", ret));
 
@@ -3410,7 +3410,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     PCIRTL8139State *d;
     RTL8139State *s;
     uint8_t *pci_conf;
-   
+
     d = (PCIRTL8139State *)pci_register_device(bus,
                                               "RTL8139", sizeof(PCIRTL8139State),
                                               devfn,
@@ -3458,7 +3458,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     s->cplus_txbuffer = NULL;
     s->cplus_txbuffer_len = 0;
     s->cplus_txbuffer_offset = 0;
-            
+
     /* XXX: instance number ? */
     register_savevm("rtl8139", 0, 3, rtl8139_save, rtl8139_load, s);
 

@@ -2212,7 +2212,7 @@ static void ppc4xx_gpt_set_outputs (ppc4xx_gpt_t *gpt)
         }
         mask = mask >> 1;
     }
-       
+
 }
 
 static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
@@ -2228,7 +2228,7 @@ static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
             qemu_irq_lower(gpt->irqs[i]);
         mask = mask >> 1;
     }
-       
+
 }
 
 static void ppc4xx_gpt_compute_timer (ppc4xx_gpt_t *gpt)
