@@ -802,6 +802,8 @@ GEN_HANDLER(addic_, 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
         else
 #endif
             gen_op_check_addc();
+    } else {
+        gen_op_clear_xer_ca();
     }
     gen_op_store_T0_gpr(rD(ctx->opcode));
     gen_set_Rc0(ctx);

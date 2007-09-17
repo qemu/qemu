@@ -131,7 +131,7 @@ void OPPROTO op_print_mem_EA (void)
 /* set_Rc0 */
 void OPPROTO op_set_Rc0 (void)
 {
-    env->crf[0] = T0 | xer_ov;
+    env->crf[0] = T0 | xer_so;
     RETURN();
 }
 
@@ -731,8 +731,8 @@ void OPPROTO op_check_addo (void)
                  ((uint32_t)T2 ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -744,8 +744,8 @@ void OPPROTO op_check_addo_64 (void)
                  ((uint64_t)T2 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -1028,8 +1028,8 @@ void OPPROTO op_check_subfo (void)
                  ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -1041,8 +1041,8 @@ void OPPROTO op_check_subfo_64 (void)
                  ((uint64_t)(~T2) ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -1196,6 +1196,7 @@ void OPPROTO op_cmp (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1209,6 +1210,7 @@ void OPPROTO op_cmp_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1223,6 +1225,7 @@ void OPPROTO op_cmpi (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1236,6 +1239,7 @@ void OPPROTO op_cmpi_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1250,6 +1254,7 @@ void OPPROTO op_cmpl (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1263,6 +1268,7 @@ void OPPROTO op_cmpl_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1277,6 +1283,7 @@ void OPPROTO op_cmpli (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1290,6 +1297,7 @@ void OPPROTO op_cmpli_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif

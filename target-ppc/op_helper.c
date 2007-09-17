@@ -311,8 +311,8 @@ void do_addmeo (void)
                  ((uint32_t)T1 ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely(T1 != 0))
         xer_ca = 1;
@@ -327,8 +327,8 @@ void do_addmeo_64 (void)
                  ((uint64_t)T1 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely(T1 != 0))
         xer_ca = 1;
@@ -342,8 +342,8 @@ void do_divwo (void)
         xer_ov = 0;
         T0 = (int32_t)T0 / (int32_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = (-1) * ((uint32_t)T0 >> 31);
     }
 }
@@ -356,8 +356,8 @@ void do_divdo (void)
         xer_ov = 0;
         T0 = (int64_t)T0 / (int64_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = (-1ULL) * ((uint64_t)T0 >> 63);
     }
 }
@@ -369,8 +369,8 @@ void do_divwuo (void)
         xer_ov = 0;
         T0 = (uint32_t)T0 / (uint32_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = 0;
     }
 }
@@ -382,8 +382,8 @@ void do_divduo (void)
         xer_ov = 0;
         T0 = (uint64_t)T0 / (uint64_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = 0;
     }
 }
@@ -475,8 +475,8 @@ void do_subfmeo (void)
                  (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely((uint32_t)T1 != UINT32_MAX))
         xer_ca = 1;
@@ -491,8 +491,8 @@ void do_subfmeo_64 (void)
                  (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely((uint64_t)T1 != UINT64_MAX))
         xer_ca = 1;
@@ -1073,8 +1073,8 @@ void do_POWER_dozo (void)
         T0 = T1 - T0;
         if (((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
             ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)) {
-            xer_so = 1;
             xer_ov = 1;
+            xer_so = 1;
         } else {
             xer_ov = 0;
         }
@@ -2499,7 +2499,7 @@ void do_4xx_tlbsx (void)
 
 void do_4xx_tlbsx_ (void)
 {
-    int tmp = xer_ov;
+    int tmp = xer_so;
 
     T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
     if (T0 != -1)
