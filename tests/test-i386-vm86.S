@@ -14,7 +14,7 @@ vm86_code_start:
         movw %ax, %es
         es movw $GET_OFFSET(int90_test), 0x90 * 4
         es movw %cs, 0x90 * 4 + 2
-        
+
         /* launch int 0x90 */
 
         int $0x90
@@ -24,23 +24,23 @@ vm86_code_start:
         movb $0x09, %ah
         int $0x21
 
-        pushf 
+        pushf
         popw %dx
         movb $0xff, %ah
         int $0x21
 
         cli
-        pushf 
+        pushf
         popw %dx
         movb $0xff, %ah
         int $0x21
 
-        sti        
-        pushfl 
+        sti
+        pushfl
         popl %edx
         movb $0xff, %ah
         int $0x21
-        
+
 #if 0
         movw $GET_OFFSET(IF_msg1), %dx
         movb $0x09, %ah
@@ -54,11 +54,11 @@ vm86_code_start:
         cli
 #endif
 
-        pushf 
+        pushf
         popw %dx
         movb $0xff, %ah
         int $0x21
-        
+
         pushfl
         movw %sp, %bx
         orw $0x200, (%bx)
@@ -73,7 +73,7 @@ vm86_code_start:
         int $0x21
 
 int90_test:
-        pushf 
+        pushf
         pop %dx
         movb $0xff, %ah
         int $0x21
@@ -82,15 +82,15 @@ int90_test:
         movw 4(%bx), %dx
         movb $0xff, %ah
         int $0x21
-        
+
         movw $GET_OFFSET(int90_msg), %dx
         movb $0x09, %ah
         int $0x21
         iret
-                    
+
 int90_msg:
         .string "INT90 started\n$"
- 
+
 hello_world:
         .string "Hello VM86 world\n$"
 
@@ -101,4 +101,3 @@ IF_msg1:
         .string "If you see a diff here, your Linux kernel is buggy, please update to 2.4.20 kernel\n$"
 
 vm86_code_end:
-        

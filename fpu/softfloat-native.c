@@ -59,7 +59,7 @@ double qemu_rint(double x)
     double y = 4503599627370496.0;
     if (fabs(x) >= y)
         return x;
-    if (x < 0) 
+    if (x < 0)
         y = -y;
     y = (x + y) - y;
     if (y == 0.0)
@@ -131,7 +131,7 @@ static inline int long_to_int32(long a)
 #else
 static inline int long_to_int32(long a)
 {
-    if (a != (int32_t)a) 
+    if (a != (int32_t)a)
         a = 0x80000000;
     return a;
 }

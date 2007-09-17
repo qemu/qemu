@@ -1,6 +1,6 @@
 /*
  *  MIPS emulation helpers for qemu.
- * 
+ *
  *  Copyright (c) 2004-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -221,7 +221,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     return ret;
 }
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
@@ -311,7 +311,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             /* TLB match but 'D' bit is cleared */
             exception = EXCP_LTLBL;
             break;
-                
+
         }
         /* Raise exception */
         env->CP0_BadVAddr = address;

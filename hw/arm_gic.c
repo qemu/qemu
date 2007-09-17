@@ -1,4 +1,4 @@
-/* 
+/*
  * ARM AMBA Generic/Distributed Interrupt Controller
  *
  * Copyright (c) 2006 CodeSourcery.
@@ -115,7 +115,7 @@ static void gic_set_irq(void *opaque, int irq, int level)
     gic_state *s = (gic_state *)opaque;
     /* The first external input line is internal interrupt 32.  */
     irq += 32;
-    if (level == GIC_TEST_LEVEL(irq)) 
+    if (level == GIC_TEST_LEVEL(irq))
         return;
 
     if (level) {

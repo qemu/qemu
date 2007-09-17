@@ -1,8 +1,8 @@
 /*
  * QEMU Block driver for DMG images
- * 
+ *
  * Copyright (c) 2004 Johannes E. Schindelin
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -28,7 +28,7 @@
 
 typedef struct BDRVDMGState {
     int fd;
-    
+
     /* each chunk contains a certain number of sectors,
      * offsets[i] is the offset in the .dmg file,
      * lengths[i] is the length of the compressed chunk,
@@ -86,7 +86,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
     bs->read_only = 1;
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = 0;
-    
+
     /* read offset of info blocks */
     if(lseek(s->fd,-0x1d8,SEEK_END)<0) {
 dmg_close:
@@ -167,7 +167,7 @@ dmg_close:
 	goto dmg_close;
 
     s->current_chunk = s->n_chunks;
-    
+
     return 0;
 }
 
@@ -227,7 +227,7 @@ static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
 
 	    if (ret != s->lengths[chunk])
 		return -1;
-	
+
 	    s->zstream.next_in = s->compressed_chunk;
 	    s->zstream.avail_in = s->lengths[chunk];
 	    s->zstream.next_out = s->uncompressed_chunk;
@@ -253,7 +253,7 @@ static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
     return 0;
 }
 
-static int dmg_read(BlockDriverState *bs, int64_t sector_num, 
+static int dmg_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVDMGState *s = bs->opaque;

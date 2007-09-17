@@ -1,7 +1,7 @@
 /*
- * MIPS emulation micro-operations templates for floating point reg 
+ * MIPS emulation micro-operations templates for floating point reg
  * load & store for qemu.
- * 
+ *
  * Copyright (c) 2006 Marius Groeger
  *
  * This library is free software; you can redistribute it and/or

@@ -30,26 +30,26 @@ unsigned int EmulateCPDO(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();
    unsigned int Fd, nType, nDest, nRc = 1;
-   
+
    //printk("EmulateCPDO(0x%08x)\n",opcode);
 
    /* Get the destination size.  If not valid let Linux perform
       an invalid instruction trap. */
    nDest = getDestinationSize(opcode);
    if (typeNone == nDest) return 0;
-   
+
    SetRoundingMode(opcode);
-     
+
    /* Compare the size of the operands in Fn and Fm.
       Choose the largest size and perform operations in that size,
-      in order to make use of all the precision of the operands. 
-      If Fm is a constant, we just grab a constant of a size 
+      in order to make use of all the precision of the operands.
+      If Fm is a constant, we just grab a constant of a size
       matching the size of the operand in Fn. */
    if (MONADIC_INSTRUCTION(opcode))
      nType = nDest;
    else
      nType = fpa11->fType[getFn(opcode)];
-   
+
    if (!CONSTANT_FM(opcode))
    {
      register unsigned int Fm = getFm(opcode);
@@ -79,39 +79,39 @@ unsigned int EmulateCPDO(const unsigned int opcode)
        case typeSingle:
        {
          if (typeDouble == nType)
-           fpa11->fpreg[Fd].fSingle = 
+           fpa11->fpreg[Fd].fSingle =
               float64_to_float32(fpa11->fpreg[Fd].fDouble, &fpa11->fp_status);
          else
-           fpa11->fpreg[Fd].fSingle = 
+           fpa11->fpreg[Fd].fSingle =
               floatx80_to_float32(fpa11->fpreg[Fd].fExtended, &fpa11->fp_status);
        }
        break;
-          
+
        case typeDouble:
        {
          if (typeSingle == nType)
-           fpa11->fpreg[Fd].fDouble = 
+           fpa11->fpreg[Fd].fDouble =
               float32_to_float64(fpa11->fpreg[Fd].fSingle, &fpa11->fp_status);
          else
-           fpa11->fpreg[Fd].fDouble = 
+           fpa11->fpreg[Fd].fDouble =
               floatx80_to_float64(fpa11->fpreg[Fd].fExtended, &fpa11->fp_status);
        }
        break;
-          
+
        case typeExtended:
        {
          if (typeSingle == nType)
-           fpa11->fpreg[Fd].fExtended = 
+           fpa11->fpreg[Fd].fExtended =
               float32_to_floatx80(fpa11->fpreg[Fd].fSingle, &fpa11->fp_status);
          else
-           fpa11->fpreg[Fd].fExtended = 
+           fpa11->fpreg[Fd].fExtended =
               float64_to_floatx80(fpa11->fpreg[Fd].fDouble, &fpa11->fp_status);
        }
        break;
      }
-     
+
      fpa11->fType[Fd] = nDest;
    }
-   
+
    return nRc;
 }

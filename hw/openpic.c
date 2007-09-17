@@ -1,8 +1,8 @@
 /*
  * OpenPIC emulation
- * 
+ *
  * Copyright (c) 2004 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -30,7 +30,7 @@
  * - Motorola Harrier programmer manuel
  *
  * Serial interrupts, as implemented in Raven chipset are not supported yet.
- * 
+ *
  */
 #include "vl.h"
 
@@ -224,7 +224,7 @@ static void IRQ_check (openpic_t *opp, IRQ_queue_t *q)
     priority = -1;
     for (i = 0; i < MAX_IRQ; i++) {
 	if (IRQ_testbit(q, i)) {
-            DPRINTF("IRQ_check: irq %d set ipvp_pr=%d pr=%d\n", 
+            DPRINTF("IRQ_check: irq %d set ipvp_pr=%d pr=%d\n",
                     i, IPVP_PRIORITY(opp->src[i].ipvp), priority);
 	    if (IPVP_PRIORITY(opp->src[i].ipvp) > priority) {
 		next = i;
@@ -350,7 +350,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     IRQ_src_t *src;
 
     src = &opp->src[n_IRQ];
-    DPRINTF("openpic: set irq %d = %d ipvp=%08x\n", 
+    DPRINTF("openpic: set irq %d = %d ipvp=%08x\n",
             n_IRQ, level, src->ipvp);
     if (test_bit(&src->ipvp, IPVP_SENSE)) {
         /* level-sensitive irq */
@@ -438,11 +438,11 @@ static inline void write_IRQreg (openpic_t *opp, int n_IRQ,
         /* NOTE: not fully accurate for special IRQs, but simple and
            sufficient */
         /* ACTIVITY bit is read-only */
-	opp->src[n_IRQ].ipvp = 
+	opp->src[n_IRQ].ipvp =
             (opp->src[n_IRQ].ipvp & 0x40000000) |
             (val & 0x800F00FF);
         openpic_update_irq(opp, n_IRQ);
-        DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n", 
+        DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n",
                 n_IRQ, val, opp->src[n_IRQ].ipvp);
 	break;
     case IRQ_IDE:
@@ -475,7 +475,7 @@ static uint32_t read_doorbell_register (openpic_t *opp,
 
     return retval;
 }
-     
+
 static void write_doorbell_register (penpic_t *opp, int n_dbl,
 				     uint32_t offset, uint32_t value)
 {
@@ -831,7 +831,7 @@ static uint32_t openpic_cpu_read (void *opaque, uint32_t addr)
     IRQ_dst_t *dst;
     uint32_t retval;
     int idx, n_IRQ;
-    
+
     DPRINTF("%s: addr %08x\n", __func__, addr);
     retval = 0xFFFFFFFF;
     if (addr & 0xF)
@@ -971,7 +971,7 @@ static CPUReadMemoryFunc *openpic_read[] = {
     &openpic_readl,
 };
 
-static void openpic_map(PCIDevice *pci_dev, int region_num, 
+static void openpic_map(PCIDevice *pci_dev, int region_num,
                         uint32_t addr, uint32_t size, int type)
 {
     openpic_t *opp;
@@ -1005,7 +1005,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     openpic_t *opp;
     uint8_t *pci_conf;
     int i, m;
-    
+
     /* XXX: for now, only one CPU is supported */
     if (nb_cpus != 1)
         return NULL;
@@ -1023,7 +1023,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
         pci_conf[0x0b] = 0x08;
         pci_conf[0x0e] = 0x00; // header_type
         pci_conf[0x3d] = 0x00; // no interrupt pin
-        
+
         /* Register I/O spaces */
         pci_register_io_region((PCIDevice *)opp, 0, 0x40000,
                                PCI_ADDRESS_SPACE_MEM, &openpic_map);
@@ -1032,7 +1032,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     }
     opp->mem_index = cpu_register_io_memory(0, openpic_read,
                                             openpic_write, opp);
-    
+
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
     /* Set IRQ types */

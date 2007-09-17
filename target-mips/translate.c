@@ -1,6 +1,6 @@
 /*
  *  MIPS32 emulation for qemu: main translation routines.
- * 
+ *
  *  Copyright (c) 2004-2005 Jocelyn Mayer
  *  Copyright (c) 2006 Marius Groeger (FPU operations)
  *  Copyright (c) 2006 Thiemo Seufer (MIPS32R2 support)
@@ -6528,7 +6528,7 @@ done_generating:
         fprintf(logfile, "---------------- %d %08x\n", ctx.bstate, ctx.hflags);
     }
 #endif
-    
+
     return 0;
 }
 
@@ -6542,7 +6542,7 @@ int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
-void fpu_dump_state(CPUState *env, FILE *f, 
+void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
 {
@@ -6582,7 +6582,7 @@ void fpu_dump_state(CPUState *env, FILE *f,
 
 void dump_fpu (CPUState *env)
 {
-    if (loglevel) { 
+    if (loglevel) {
        fprintf(logfile, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
                env->PC[env->current_tc], env->HI[0][env->current_tc], env->LO[0][env->current_tc], env->hflags, env->btarget, env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
@@ -6622,12 +6622,12 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 }
 #endif
 
-void cpu_dump_state (CPUState *env, FILE *f, 
+void cpu_dump_state (CPUState *env, FILE *f,
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                      int flags)
 {
     int i;
-    
+
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
                 env->PC[env->current_tc], env->HI[env->current_tc], env->LO[env->current_tc], env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {

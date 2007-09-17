@@ -1,6 +1,6 @@
 /*
  *  PPC emulation for qemu: syscall definitions.
- * 
+ *
  *  Copyright (c) 2003 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or

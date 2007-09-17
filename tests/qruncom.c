@@ -59,7 +59,7 @@ uint64_t cpu_get_tsc(CPUState *env)
     return 0;
 }
 
-static void set_gate(void *ptr, unsigned int type, unsigned int dpl, 
+static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
                      unsigned long addr, unsigned int sel)
 {
     unsigned int e1, e2;
@@ -141,7 +141,7 @@ static inline void pushw(CPUState *env, int val)
     *(uint16_t *)seg_to_linear(env->segs[R_SS].selector, env->regs[R_ESP]) = val;
 }
 
-static void host_segv_handler(int host_signum, siginfo_t *info, 
+static void host_segv_handler(int host_signum, siginfo_t *info,
                               void *puc)
 {
     if (cpu_signal_handler(host_signum, info, puc)) {
@@ -160,9 +160,9 @@ int main(int argc, char **argv)
     if (argc != 2)
         usage();
     filename = argv[1];
-    
-    vm86_mem = mmap((void *)0x00000000, 0x110000, 
-                    PROT_WRITE | PROT_READ | PROT_EXEC, 
+
+    vm86_mem = mmap((void *)0x00000000, 0x110000,
+                    PROT_WRITE | PROT_READ | PROT_EXEC,
                     MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
     if (vm86_mem == MAP_FAILED) {
         perror("mmap");
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     /* install exception handler for CPU emulator */
     {
         struct sigaction act;
-        
+
         sigfillset(&act.sa_mask);
         act.sa_flags = SA_SIGINFO;
         //        act.sa_flags |= SA_ONSTACK;
@@ -218,23 +218,23 @@ int main(int argc, char **argv)
     /* flags setup : we activate the IRQs by default as in user
        mode. We also activate the VM86 flag to run DOS code */
     env->eflags |= IF_MASK | VM_MASK;
-    
+
     /* init basic registers */
     env->eip = 0x100;
     env->regs[R_ESP] = 0xfffe;
     seg = (COM_BASE_ADDR - 0x100) >> 4;
 
-    cpu_x86_load_seg_cache(env, R_CS, seg, 
+    cpu_x86_load_seg_cache(env, R_CS, seg,
                            (seg << 4), 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_SS, seg, 
+    cpu_x86_load_seg_cache(env, R_SS, seg,
                            (seg << 4), 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_DS, seg, 
+    cpu_x86_load_seg_cache(env, R_DS, seg,
                            (seg << 4), 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_ES, seg, 
+    cpu_x86_load_seg_cache(env, R_ES, seg,
                            (seg << 4), 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_FS, seg, 
+    cpu_x86_load_seg_cache(env, R_FS, seg,
                            (seg << 4), 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_GS, seg, 
+    cpu_x86_load_seg_cache(env, R_GS, seg,
                            (seg << 4), 0xffff, 0);
 
     /* exception support */
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
     set_idt(17, 0);
     set_idt(18, 0);
     set_idt(19, 0);
-        
+
     /* put return code */
     *seg_to_linear(env->segs[R_CS].selector, 0) = 0xb4; /* mov ah, $0 */
     *seg_to_linear(env->segs[R_CS].selector, 1) = 0x00;
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
     env->regs[R_EDI] = 0xfffe;
 
     /* inform the emulator of the mmaped memory */
-    page_set_flags(0x00000000, 0x110000, 
+    page_set_flags(0x00000000, 0x110000,
                    PAGE_WRITE | PAGE_READ | PAGE_EXEC | PAGE_VALID);
 
     for(;;) {

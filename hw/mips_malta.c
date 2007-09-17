@@ -535,9 +535,9 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x00000000);                                      /* nop */
 
     /* YAMON service vector */
-    stl_raw(phys_ram_base + bios_offset + 0x500, 0xbfc00580);      /* start: */					
+    stl_raw(phys_ram_base + bios_offset + 0x500, 0xbfc00580);      /* start: */
     stl_raw(phys_ram_base + bios_offset + 0x504, 0xbfc0083c);      /* print_count: */
-    stl_raw(phys_ram_base + bios_offset + 0x520, 0xbfc00580);      /* start: */					
+    stl_raw(phys_ram_base + bios_offset + 0x520, 0xbfc00580);      /* start: */
     stl_raw(phys_ram_base + bios_offset + 0x52c, 0xbfc00800);      /* flush_cache: */
     stl_raw(phys_ram_base + bios_offset + 0x534, 0xbfc00808);      /* print: */
     stl_raw(phys_ram_base + bios_offset + 0x538, 0xbfc00800);      /* reg_cpu_isr: */

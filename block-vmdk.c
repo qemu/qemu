@@ -1,9 +1,9 @@
 /*
  * Block driver for the VMDK format
- * 
+ *
  * Copyright (c) 2004 Fabrice Bellard
  * Copyright (c) 2005 Filip Navara
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -110,16 +110,16 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 
 #define CHECK_CID 1
 
-#define SECTOR_SIZE 512				
+#define SECTOR_SIZE 512
 #define DESC_SIZE 20*SECTOR_SIZE	// 20 sectors of 512 bytes each
-#define HEADER_SIZE 512   			// first sector of 512 bytes 
+#define HEADER_SIZE 512   			// first sector of 512 bytes
 
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 {
     BDRVVmdkState *s = bs->opaque;
     char desc[DESC_SIZE];
     uint32_t cid;
-    char *p_name, *cid_str; 
+    char *p_name, *cid_str;
     size_t cid_str_size;
 
     /* the descriptor offset = 0x200 */
@@ -187,7 +187,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
 {
     int snp_fd, p_fd;
     uint32_t p_cid;
-    char *p_name, *gd_buf, *rgd_buf; 
+    char *p_name, *gd_buf, *rgd_buf;
     const char *real_filename, *temp_str;
     VMDK4Header header;
     uint32_t gde_entries, gd_size;
@@ -271,7 +271,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
     gt_size = (int64_t)header.num_gtes_per_gte * header.granularity * SECTOR_SIZE;
     if (!gt_size)
         goto fail;
-    gde_entries = (uint32_t)(capacity / gt_size);  // number of gde/rgde 
+    gde_entries = (uint32_t)(capacity / gt_size);  // number of gde/rgde
     gd_size = gde_entries * sizeof(uint32_t);
 
     /* write RGD */
@@ -308,7 +308,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
 
     fail_gd:
     qemu_free(gd_buf);
-    fail_rgd:   
+    fail_rgd:
     qemu_free(rgd_buf);
     fail:
     close(p_fd);
@@ -326,7 +326,7 @@ int parent_open = 0;
 static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
 {
     BDRVVmdkState *s = bs->opaque;
-    char *p_name; 
+    char *p_name;
     char desc[DESC_SIZE];
     char parent_img_name[1024];
 
@@ -341,7 +341,7 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
         p_name += sizeof("parentFileNameHint") + 1;
         if ((end_name = strchr(p_name,'\"')) == 0)
             return -1;
-                
+
         strncpy(s->hd->backing_file, p_name, end_name - p_name);
         if (stat(s->hd->backing_file, &file_buf) != 0) {
             path_combine(parent_img_name, sizeof(parent_img_name),
@@ -406,7 +406,7 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
         s->l1_entry_sectors = s->l2_size * s->cluster_sectors;
         if (s->l1_entry_sectors <= 0)
             goto fail;
-        s->l1_size = (bs->total_sectors + s->l1_entry_sectors - 1) 
+        s->l1_size = (bs->total_sectors + s->l1_entry_sectors - 1)
             / s->l1_entry_sectors;
         s->l1_table_offset = le64_to_cpu(header.rgd_offset) << 9;
         s->l1_backup_table_offset = le64_to_cpu(header.gd_offset) << 9;
@@ -552,7 +552,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
         }
     }
     l2_table = s->l2_cache + (min_index * s->l2_size);
-    if (bdrv_pread(s->hd, (int64_t)l2_offset * 512, l2_table, s->l2_size * sizeof(uint32_t)) != 
+    if (bdrv_pread(s->hd, (int64_t)l2_offset * 512, l2_table, s->l2_size * sizeof(uint32_t)) !=
                                                                         s->l2_size * sizeof(uint32_t))
         return 0;
 
@@ -597,7 +597,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
     return cluster_offset;
 }
 
-static int vmdk_is_allocated(BlockDriverState *bs, int64_t sector_num, 
+static int vmdk_is_allocated(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int *pnum)
 {
     BDRVVmdkState *s = bs->opaque;
@@ -613,7 +613,7 @@ static int vmdk_is_allocated(BlockDriverState *bs, int64_t sector_num,
     return (cluster_offset != 0);
 }
 
-static int vmdk_read(BlockDriverState *bs, int64_t sector_num, 
+static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVVmdkState *s = bs->opaque;
@@ -648,7 +648,7 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int vmdk_write(BlockDriverState *bs, int64_t sector_num, 
+static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
     BDRVVmdkState *s = bs->opaque;
@@ -712,7 +712,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
         "# The Disk Data Base \n"
         "#DDB\n"
         "\n"
-        "ddb.virtualHWVersion = \"4\"\n"
+        "ddb.virtualHWVersion = \"%d\"\n"
         "ddb.geometry.cylinders = \"%lu\"\n"
         "ddb.geometry.heads = \"16\"\n"
         "ddb.geometry.sectors = \"63\"\n"
@@ -761,8 +761,8 @@ static int vmdk_create(const char *filename, int64_t total_size,
     header.check_bytes[1] = 0x20;
     header.check_bytes[2] = 0xd;
     header.check_bytes[3] = 0xa;
-    
-    /* write all the data */    
+
+    /* write all the data */
     write(fd, &magic, sizeof(magic));
     write(fd, &header, sizeof(header));
 
@@ -773,7 +773,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
     for (i = 0, tmp = header.rgd_offset + gd_size;
          i < gt_count; i++, tmp += gt_size)
         write(fd, &tmp, sizeof(tmp));
-   
+
     /* write backup grain directory */
     lseek(fd, le64_to_cpu(header.gd_offset) << 9, SEEK_SET);
     for (i = 0, tmp = header.gd_offset + gd_size;
@@ -789,7 +789,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
     if ((temp_str = strrchr(real_filename, ':')) != NULL)
         real_filename = temp_str + 1;
     sprintf(desc, desc_template, time(NULL), (unsigned long)total_size,
-            real_filename, total_size / (63 * 16));
+            real_filename, (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
 
     /* write the descriptor */
     lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);

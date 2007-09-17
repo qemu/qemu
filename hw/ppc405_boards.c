@@ -1,8 +1,8 @@
 /*
  * QEMU PowerPC 405 evaluation boards emulation
- * 
+ *
  * Copyright (c) 2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -172,9 +172,9 @@ static void ref405ep_fpga_init (uint32_t base)
 }
 
 static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
-                           DisplayState *ds, const char **fd_filename, 
+                           DisplayState *ds, const char **fd_filename,
                            int snapshot,
-                           const char *kernel_filename, 
+                           const char *kernel_filename,
                            const char *kernel_cmdline,
                            const char *initrd_filename,
                            const char *cpu_model)
@@ -243,7 +243,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
             exit(1);
         }
         bios_size = (bios_size + 0xfff) & ~0xfff;
-        cpu_register_physical_memory((uint32_t)(-bios_size), 
+        cpu_register_physical_memory((uint32_t)(-bios_size),
                                      bios_size, bios_offset | IO_MEM_ROM);
     }
     bios_offset += bios_size;
@@ -294,7 +294,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
         /* now we can load the kernel */
         kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
@@ -310,7 +310,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_size = load_image(initrd_filename,
                                      phys_ram_base + initrd_base);
             if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
                 exit(1);
             }
@@ -495,9 +495,9 @@ static void taihu_cpld_init (uint32_t base)
 }
 
 static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
-                             DisplayState *ds, const char **fd_filename, 
+                             DisplayState *ds, const char **fd_filename,
                              int snapshot,
-                             const char *kernel_filename, 
+                             const char *kernel_filename,
                              const char *kernel_cmdline,
                              const char *initrd_filename,
                              const char *cpu_model)
@@ -511,7 +511,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors;
-    
+
     /* RAM is soldered to the board so the size cannot be changed */
     ram_bases[0] = 0x00000000;
     ram_sizes[0] = 0x04000000;
@@ -556,7 +556,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
             exit(1);
         }
         bios_size = (bios_size + 0xfff) & ~0xfff;
-        cpu_register_physical_memory((uint32_t)(-bios_size), 
+        cpu_register_physical_memory((uint32_t)(-bios_size),
                                      bios_size, bios_offset | IO_MEM_ROM);
     }
     bios_offset += bios_size;
@@ -592,7 +592,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
         /* now we can load the kernel */
         kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
@@ -603,7 +603,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
                                      phys_ram_base + initrd_base);
             if (initrd_size < 0) {
                 fprintf(stderr,
-                        "qemu: could not load initial ram disk '%s'\n", 
+                        "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
                 exit(1);
             }

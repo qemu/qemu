@@ -1363,7 +1363,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
     s->type = find_device_type(bs, filename);
-    
+
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
     } else {

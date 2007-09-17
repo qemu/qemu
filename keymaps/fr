@@ -97,7 +97,7 @@ Ooblique 0x18 shift altgr
 thorn 0x19 altgr
 THORN 0x19 shift altgr
 
-dead_circumflex 0x1a 
+dead_circumflex 0x1a
 dead_diaeresis 0x1a shift
 dead_abovering 0x1a shift altgr
 

@@ -1,4 +1,4 @@
-/* 
+/*
  * ColdFire UART emulation.
  *
  * Copyright (c) 2007 CodeSourcery.

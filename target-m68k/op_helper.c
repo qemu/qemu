@@ -1,6 +1,6 @@
 /*
  *  M68K helper routines
- * 
+ *
  *  Copyright (c) 2007 CodeSourcery
  *
  * This library is free software; you can redistribute it and/or

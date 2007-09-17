@@ -1,8 +1,8 @@
 /*
  * QEMU ATAPI CD-ROM Emulator
- * 
+ *
  * Copyright (c) 2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -41,7 +41,7 @@ int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track)
 {
     uint8_t *q;
     int len;
-    
+
     if (start_track > 1 && start_track != 0xaa)
         return -1;
     q = buf + 2;
@@ -85,7 +85,7 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
 {
     uint8_t *q;
     int len;
-    
+
     q = buf + 2;
     *q++ = 1; /* first session */
     *q++ = 1; /* last session */
@@ -101,7 +101,7 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
     *q++ = 1; /* first track */
     *q++ = 0x00; /* disk type */
     *q++ = 0x00;
-    
+
     *q++ = 1; /* session number */
     *q++ = 0x14; /* data track */
     *q++ = 0; /* track number */
@@ -113,7 +113,7 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
     *q++ = 1; /* last track */
     *q++ = 0x00;
     *q++ = 0x00;
-    
+
     *q++ = 1; /* session number */
     *q++ = 0x14; /* data track */
     *q++ = 0; /* track number */
@@ -138,14 +138,14 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
     *q++ = 0; /* sec */
     *q++ = 0; /* frame */
     if (msf) {
-        *q++ = 0; 
+        *q++ = 0;
         lba_to_msf(q, 0);
         q += 3;
     } else {
-        *q++ = 0; 
-        *q++ = 0; 
-        *q++ = 0; 
-        *q++ = 0; 
+        *q++ = 0;
+        *q++ = 0;
+        *q++ = 0;
+        *q++ = 0;
     }
 
     len = q - buf;

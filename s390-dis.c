@@ -569,7 +569,7 @@ const struct s390_operand s390_operands[] =
       quite close.
 
       For example the instruction "mvo" is defined in the PoP as follows:
-      
+
       MVO  D1(L1,B1),D2(L2,B2)   [SS]
 
       --------------------------------------

@@ -1,6 +1,6 @@
 /*
  *  Emulation of Linux signals
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -51,7 +51,7 @@ static struct sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
 static struct sigqueue *first_free; /* first free siginfo queue entry */
 static int signal_pending; /* non zero if a signal may be pending */
 
-static void host_signal_handler(int host_signum, siginfo_t *info, 
+static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc);
 
 static uint8_t host_to_target_signal_table[65] = {
@@ -103,17 +103,17 @@ static inline int target_to_host_signal(int sig)
     return target_to_host_signal_table[sig];
 }
 
-static void host_to_target_sigset_internal(target_sigset_t *d, 
+static void host_to_target_sigset_internal(target_sigset_t *d,
                                            const sigset_t *s)
 {
     int i;
     unsigned long sigmask;
     uint32_t target_sigmask;
-    
+
     sigmask = ((unsigned long *)s)[0];
     target_sigmask = 0;
     for(i = 0; i < 32; i++) {
-        if (sigmask & (1 << i)) 
+        if (sigmask & (1 << i))
             target_sigmask |= 1 << (host_to_target_signal(i + 1) - 1);
     }
 #if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
@@ -148,7 +148,7 @@ void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
     target_sigmask = s->sig[0];
     sigmask = 0;
     for(i = 0; i < 32; i++) {
-        if (target_sigmask & (1 << i)) 
+        if (target_sigmask & (1 << i))
             sigmask |= 1 << (target_to_host_signal(i + 1) - 1);
     }
 #if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
@@ -172,8 +172,8 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
         s1.sig[i] = tswapl(s->sig[i]);
     target_to_host_sigset_internal(d, &s1);
 }
-    
-void host_to_target_old_sigset(target_ulong *old_sigset, 
+
+void host_to_target_old_sigset(target_ulong *old_sigset,
                                const sigset_t *sigset)
 {
     target_sigset_t d;
@@ -181,7 +181,7 @@ void host_to_target_old_sigset(target_ulong *old_sigset,
     *old_sigset = d.sig[0];
 }
 
-void target_to_host_old_sigset(sigset_t *sigset, 
+void target_to_host_old_sigset(sigset_t *sigset,
                                const target_ulong *old_sigset)
 {
     target_sigset_t d;
@@ -195,7 +195,7 @@ void target_to_host_old_sigset(sigset_t *sigset,
 
 /* siginfo conversion */
 
-static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo, 
+static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
                                                  const siginfo_t *info)
 {
     int sig;
@@ -203,7 +203,7 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_signo = sig;
     tinfo->si_errno = 0;
     tinfo->si_code = 0;
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || 
+    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV ||
         sig == SIGBUS || sig == SIGTRAP) {
         /* should never come here, but who knows. The information for
            the target is irrelevant */
@@ -214,12 +214,12 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
         tinfo->_sifields._rt._pid = info->si_pid;
         tinfo->_sifields._rt._uid = info->si_uid;
         /* XXX: potential problem if 64 bit */
-        tinfo->_sifields._rt._sigval.sival_ptr = 
+        tinfo->_sifields._rt._sigval.sival_ptr =
             (target_ulong)info->si_value.sival_ptr;
     }
 }
 
-static void tswap_siginfo(target_siginfo_t *tinfo, 
+static void tswap_siginfo(target_siginfo_t *tinfo,
                           const target_siginfo_t *info)
 {
     int sig;
@@ -227,16 +227,16 @@ static void tswap_siginfo(target_siginfo_t *tinfo,
     tinfo->si_signo = tswap32(sig);
     tinfo->si_errno = tswap32(info->si_errno);
     tinfo->si_code = tswap32(info->si_code);
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || 
+    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV ||
         sig == SIGBUS || sig == SIGTRAP) {
-        tinfo->_sifields._sigfault._addr = 
+        tinfo->_sifields._sigfault._addr =
             tswapl(info->_sifields._sigfault._addr);
     } else if (sig == SIGIO) {
 	tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
     } else if (sig >= TARGET_SIGRTMIN) {
         tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
         tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
-        tinfo->_sifields._rt._sigval.sival_ptr = 
+        tinfo->_sifields._rt._sigval.sival_ptr =
             tswapl(info->_sifields._rt._sigval.sival_ptr);
     }
 }
@@ -257,7 +257,7 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
     info->si_code = tswap32(tinfo->si_code);
     info->si_pid = tswap32(tinfo->_sifields._rt._pid);
     info->si_uid = tswap32(tinfo->_sifields._rt._uid);
-    info->si_value.sival_ptr = 
+    info->si_value.sival_ptr =
         (void *)tswapl(tinfo->_sifields._rt._sigval.sival_ptr);
 }
 
@@ -275,7 +275,7 @@ void signal_init(void)
         j = host_to_target_signal_table[i];
         target_to_host_signal_table[j] = i;
     }
-        
+
     /* set all host signal handlers. ALL signals are blocked during
        the handlers to serialize them. */
     sigfillset(&act.sa_mask);
@@ -284,11 +284,11 @@ void signal_init(void)
     for(i = 1; i < NSIG; i++) {
         sigaction(i, &act, NULL);
     }
-    
+
     memset(sigact_table, 0, sizeof(sigact_table));
 
     first_free = &sigqueue_table[0];
-    for(i = 0; i < MAX_SIGQUEUE_SIZE - 1; i++) 
+    for(i = 0; i < MAX_SIGQUEUE_SIZE - 1; i++)
         sigqueue_table[i].next = &sigqueue_table[i + 1];
     sigqueue_table[MAX_SIGQUEUE_SIZE - 1].next = NULL;
 }
@@ -315,7 +315,7 @@ void __attribute((noreturn)) force_sig(int sig)
 {
     int host_sig;
     host_sig = target_to_host_signal(sig);
-    fprintf(stderr, "qemu: uncaught target signal %d (%s) - exiting\n", 
+    fprintf(stderr, "qemu: uncaught target signal %d (%s) - exiting\n",
             sig, strsignal(host_sig));
 #if 1
     _exit(-host_sig);
@@ -340,15 +340,15 @@ int queue_signal(int sig, target_siginfo_t *info)
     target_ulong handler;
 
 #if defined(DEBUG_SIGNAL)
-    fprintf(stderr, "queue_signal: sig=%d\n", 
+    fprintf(stderr, "queue_signal: sig=%d\n",
             sig);
 #endif
     k = &sigact_table[sig - 1];
     handler = k->sa._sa_handler;
     if (handler == TARGET_SIG_DFL) {
         /* default handler : ignore some signal. The other are fatal */
-        if (sig != TARGET_SIGCHLD && 
-            sig != TARGET_SIGURG && 
+        if (sig != TARGET_SIGCHLD &&
+            sig != TARGET_SIGURG &&
             sig != TARGET_SIGWINCH) {
             force_sig(sig);
         } else {
@@ -389,7 +389,7 @@ int queue_signal(int sig, target_siginfo_t *info)
     }
 }
 
-static void host_signal_handler(int host_signum, siginfo_t *info, 
+static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc)
 {
     int sig;
@@ -397,7 +397,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 
     /* the CPU emulator uses some host signals to detect exceptions,
        we we forward to it some signals */
-    if (host_signum == SIGSEGV || host_signum == SIGBUS 
+    if (host_signum == SIGSEGV || host_signum == SIGBUS
 #if defined(TARGET_I386) && defined(USE_CODE_COPY)
         || host_signum == SIGFPE
 #endif
@@ -431,7 +431,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
         return -EINVAL;
     k = &sigact_table[sig - 1];
 #if defined(DEBUG_SIGNAL)
-    fprintf(stderr, "sigaction sig=%d act=0x%08x, oact=0x%08x\n", 
+    fprintf(stderr, "sigaction sig=%d act=0x%08x, oact=0x%08x\n",
             sig, (int)act, (int)oact);
 #endif
     if (oact) {
@@ -473,7 +473,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     return 0;
 }
 
-static inline int copy_siginfo_to_user(target_siginfo_t *tinfo, 
+static inline int copy_siginfo_to_user(target_siginfo_t *tinfo,
                                        const target_siginfo_t *info)
 {
     tswap_siginfo(tinfo, info);
@@ -645,7 +645,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUX86State *env, size_t frame_size)
 	}
 
 	/* This is the legacy signal stack switching. */
-	else 
+	else
 #endif
         if ((env->segs[R_SS].selector & 0xffff) != __USER_DS &&
             !(ka->sa.sa_flags & TARGET_SA_RESTORER) &&
@@ -720,7 +720,7 @@ give_sigsegv:
 	force_sig(TARGET_SIGSEGV /* , current */);
 }
 
-static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUX86State *env)
 {
@@ -814,7 +814,7 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
 
         cpu_x86_load_seg(env, R_CS, lduw(&sc->cs) | 3);
         cpu_x86_load_seg(env, R_SS, lduw(&sc->ss) | 3);
-	
+
 	{
 		unsigned int tmpflags;
                 tmpflags = ldl(&sc->eflags);
@@ -862,7 +862,7 @@ long do_sigreturn(CPUX86State *env)
 
     target_to_host_sigset_internal(&set, &target_set);
     sigprocmask(SIG_SETMASK, &set, NULL);
-    
+
     /* restore registers */
     if (restore_sigcontext(env, &frame->sc, &eax))
         goto badframe;
@@ -886,7 +886,7 @@ long do_rt_sigreturn(CPUX86State *env)
 #endif
         target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
         sigprocmask(SIG_SETMASK, &set, NULL);
-	
+
 	if (restore_sigcontext(env, &frame->uc.tuc_mcontext, &eax))
 		goto badframe;
 
@@ -1124,7 +1124,7 @@ static void setup_frame(int usig, struct emulated_sigaction *ka,
         //	return err;
 }
 
-static void setup_rt_frame(int usig, struct emulated_sigaction *ka, 
+static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUState *env)
 {
@@ -1544,7 +1544,7 @@ restore_fpu_state(CPUState *env, qemu_siginfo_fpu_t *fpu)
 }
 
 
-static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUState *env)
 {
@@ -1848,7 +1848,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, size_t frame_size)
     return g2h((sp - frame_size) & ~7);
 }
 
-static void setup_frame(int sig, struct emulated_sigaction * ka, 
+static void setup_frame(int sig, struct emulated_sigaction * ka,
    		target_sigset_t *set, CPUState *regs)
 {
     struct sigframe *frame;
@@ -1891,7 +1891,7 @@ static void setup_frame(int sig, struct emulated_sigaction * ka,
 
 give_sigsegv:
     force_sig(TARGET_SIGSEGV/*, current*/);
-    return;	
+    return;
 }
 
 long do_sigreturn(CPUState *regs)
@@ -1930,7 +1930,7 @@ long do_sigreturn(CPUState *regs)
    	:"r" (&regs));
     /* Unreached */
 #endif
-    
+
     regs->PC[regs->current_tc] = regs->CP0_EPC;
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
@@ -1942,7 +1942,7 @@ badframe:
     return 0;
 }
 
-static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUState *env)
 {
@@ -1963,7 +1963,7 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
     fprintf(stderr, "setup_frame: not implemented\n");
 }
 
-static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUState *env)
 {
@@ -1992,7 +1992,7 @@ void process_pending_signals(void *cpu_env)
     target_sigset_t target_old_set;
     struct emulated_sigaction *k;
     struct sigqueue *q;
-    
+
     if (!signal_pending)
         return;
 
@@ -2015,7 +2015,7 @@ void process_pending_signals(void *cpu_env)
     k->first = q->next;
     if (!k->first)
         k->pending = 0;
-      
+
     sig = gdb_handlesig (cpu_env, sig);
     if (!sig) {
         fprintf (stderr, "Lost signal\n");
@@ -2025,8 +2025,8 @@ void process_pending_signals(void *cpu_env)
     handler = k->sa._sa_handler;
     if (handler == TARGET_SIG_DFL) {
         /* default handler : ignore some signal. The other are fatal */
-        if (sig != TARGET_SIGCHLD && 
-            sig != TARGET_SIGURG && 
+        if (sig != TARGET_SIGCHLD &&
+            sig != TARGET_SIGURG &&
             sig != TARGET_SIGWINCH) {
             force_sig(sig);
         }
@@ -2041,7 +2041,7 @@ void process_pending_signals(void *cpu_env)
            blocked during the handler */
         if (!(k->sa.sa_flags & TARGET_SA_NODEFER))
             sigaddset(&set, target_to_host_signal(sig));
-        
+
         /* block signals in the handler using Linux */
         sigprocmask(SIG_BLOCK, &set, &old_set);
         /* save the previous blocked signal state to restore it at the

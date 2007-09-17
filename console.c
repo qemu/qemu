@@ -1,8 +1,8 @@
 /*
  * QEMU graphical console
- * 
+ *
  * Copyright (c) 2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -180,8 +180,8 @@ static unsigned int vga_get_color(DisplayState *ds, unsigned int rgba)
         r = (rgba >> 16) & 0xff;
         g = (rgba >> 8) & 0xff;
         b = (rgba) & 0xff;
-        color = (rgb_to_index[r] * 6 * 6) + 
-            (rgb_to_index[g] * 6) + 
+        color = (rgb_to_index[r] * 6 * 6) +
+            (rgb_to_index[g] * 6) +
             (rgb_to_index[b]);
         break;
 #endif
@@ -205,14 +205,14 @@ static unsigned int vga_get_color(DisplayState *ds, unsigned int rgba)
     return color;
 }
 
-static void vga_fill_rect (DisplayState *ds, 
+static void vga_fill_rect (DisplayState *ds,
                            int posx, int posy, int width, int height, uint32_t color)
 {
     uint8_t *d, *d1;
     int x, y, bpp;
-    
+
     bpp = (ds->depth + 7) >> 3;
-    d1 = ds->data + 
+    d1 = ds->data +
         ds->linesize * posy + bpp * posx;
     for (y = 0; y < height; y++) {
         d = d1;
@@ -250,9 +250,9 @@ static void vga_bitblt(DisplayState *ds, int xs, int ys, int xd, int yd, int w, 
     bpp = (ds->depth + 7) >> 3;
     wb = w * bpp;
     if (yd <= ys) {
-        s = ds->data + 
+        s = ds->data +
             ds->linesize * ys + bpp * xs;
-        d = ds->data + 
+        d = ds->data +
             ds->linesize * yd + bpp * xd;
         for (y = 0; y < h; y++) {
             memmove(d, s, wb);
@@ -260,9 +260,9 @@ static void vga_bitblt(DisplayState *ds, int xs, int ys, int xd, int yd, int w, 
             s += ds->linesize;
         }
     } else {
-        s = ds->data + 
+        s = ds->data +
             ds->linesize * (ys + h - 1) + bpp * xs;
-        d = ds->data + 
+        d = ds->data +
             ds->linesize * (yd + h - 1) + bpp * xd;
        for (y = 0; y < h; y++) {
             memmove(d, s, wb);
@@ -405,7 +405,7 @@ static void console_print_text_attributes(TextAttributes *t_attrib, char ch)
 }
 #endif
 
-static void vga_putcharxy(DisplayState *ds, int x, int y, int ch, 
+static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
                           TextAttributes *t_attrib)
 {
     uint8_t *d;
@@ -428,7 +428,7 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     }
 
     bpp = (ds->depth + 7) >> 3;
-    d = ds->data + 
+    d = ds->data +
         ds->linesize * y * FONT_HEIGHT + bpp * x * FONT_WIDTH;
     linesize = ds->linesize;
     font_ptr = vgafont16 + FONT_HEIGHT * ch;
@@ -525,9 +525,9 @@ static void update_xy(TextConsole *s, int x, int y)
             y2 += s->total_height;
         if (y2 < s->height) {
             c = &s->cells[y1 * s->width + x];
-            vga_putcharxy(s->ds, x, y2, c->ch, 
+            vga_putcharxy(s->ds, x, y2, c->ch,
                           &(c->t_attrib));
-            dpy_update(s->ds, x * FONT_WIDTH, y2 * FONT_HEIGHT, 
+            dpy_update(s->ds, x * FONT_WIDTH, y2 * FONT_HEIGHT,
                        FONT_WIDTH, FONT_HEIGHT);
         }
     }
@@ -556,7 +556,7 @@ static void console_show_cursor(TextConsole *s, int show)
             } else {
                 vga_putcharxy(s->ds, x, y, c->ch, &(c->t_attrib));
             }
-            dpy_update(s->ds, x * FONT_WIDTH, y * FONT_HEIGHT, 
+            dpy_update(s->ds, x * FONT_WIDTH, y * FONT_HEIGHT,
                        FONT_WIDTH, FONT_HEIGHT);
         }
     }
@@ -567,7 +567,7 @@ static void console_refresh(TextConsole *s)
     TextCell *c;
     int x, y, y1;
 
-    if (s != active_console) 
+    if (s != active_console)
         return;
 
     vga_fill_rect(s->ds, 0, 0, s->ds->width, s->ds->height,
@@ -576,7 +576,7 @@ static void console_refresh(TextConsole *s)
     for(y = 0; y < s->height; y++) {
         c = s->cells + y1 * s->width;
         for(x = 0; x < s->width; x++) {
-            vga_putcharxy(s->ds, x, y, c->ch, 
+            vga_putcharxy(s->ds, x, y, c->ch,
                           &(c->t_attrib));
             c++;
         }
@@ -591,7 +591,7 @@ static void console_scroll(int ydelta)
 {
     TextConsole *s;
     int i, y1;
-    
+
     s = active_console;
     if (!s || (s->console_type == GRAPHIC_CONSOLE))
         return;
@@ -646,13 +646,13 @@ static void console_put_lf(TextConsole *s)
             c++;
         }
         if (s == active_console && s->y_displayed == s->y_base) {
-            vga_bitblt(s->ds, 0, FONT_HEIGHT, 0, 0, 
-                       s->width * FONT_WIDTH, 
+            vga_bitblt(s->ds, 0, FONT_HEIGHT, 0, 0,
+                       s->width * FONT_WIDTH,
                        (s->height - 1) * FONT_HEIGHT);
             vga_fill_rect(s->ds, 0, (s->height - 1) * FONT_HEIGHT,
-                          s->width * FONT_WIDTH, FONT_HEIGHT, 
+                          s->width * FONT_WIDTH, FONT_HEIGHT,
                           color_table[0][s->t_attrib_default.bgcol]);
-            dpy_update(s->ds, 0, 0, 
+            dpy_update(s->ds, 0, 0,
                        s->width * FONT_WIDTH, s->height * FONT_HEIGHT);
         }
     }
@@ -781,7 +781,7 @@ static void console_putchar(TextConsole *s, int ch)
             console_put_lf(s);
             break;
         case '\b':  /* backspace */
-            if (s->x > 0) 
+            if (s->x > 0)
                 s->x--;
             break;
         case '\t':  /* tabspace */
@@ -832,7 +832,7 @@ static void console_putchar(TextConsole *s, int ch)
     case TTY_STATE_CSI: /* handle escape sequence parameters */
         if (ch >= '0' && ch <= '9') {
             if (s->nb_esc_params < MAX_ESC_PARAMS) {
-                s->esc_params[s->nb_esc_params] = 
+                s->esc_params[s->nb_esc_params] =
                     s->esc_params[s->nb_esc_params] * 10 + ch - '0';
             }
         } else {
@@ -1047,7 +1047,7 @@ static void kbd_send_chars(void *opaque)
     TextConsole *s = opaque;
     int len;
     uint8_t buf[16];
-    
+
     len = qemu_chr_can_read(s->chr);
     if (len > s->out_fifo.count)
         len = s->out_fifo.count;
@@ -1192,12 +1192,12 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
     s->kbd_timer = qemu_new_timer(rt_clock, kbd_send_chars, s);
-    
+
     if (!color_inited) {
         color_inited = 1;
         for(j = 0; j < 2; j++) {
             for(i = 0; i < 8; i++) {
-                color_table[j][i] = col_expand(s->ds, 
+                color_table[j][i] = col_expand(s->ds,
                         vga_get_color(s->ds, color_table_rgb[j][i]));
             }
         }

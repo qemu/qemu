@@ -96,7 +96,7 @@ void do_mtc0_entryhi(uint32_t in);
 void do_mtc0_status_debug(uint32_t old, uint32_t val);
 void do_mtc0_status_irqraise_debug(void);
 void dump_fpu(CPUState *env);
-void fpu_dump_state(CPUState *env, FILE *f, 
+void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
 void dump_sc (void);
@@ -145,7 +145,7 @@ void do_raise_exception (uint32_t exception);
 void do_raise_exception_direct_err (uint32_t exception, int error_code);
 void do_raise_exception_direct (uint32_t exception);
 
-void cpu_dump_state(CPUState *env, FILE *f, 
+void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
 void cpu_mips_irqctrl_init (void);

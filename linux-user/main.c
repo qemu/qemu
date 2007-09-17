@@ -1,6 +1,6 @@
 /*
  *  qemu user main
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -135,7 +135,7 @@ uint64_t cpu_get_tsc(CPUX86State *env)
     return cpu_get_real_ticks();
 }
 
-static void write_dt(void *ptr, unsigned long addr, unsigned long limit, 
+static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
                      int flags)
 {
     unsigned int e1, e2;
@@ -148,7 +148,7 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
     p[1] = tswapl(e2);
 }
 
-static void set_gate(void *ptr, unsigned int type, unsigned int dpl, 
+static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
                      unsigned long addr, unsigned int sel)
 {
     unsigned int e1, e2;
@@ -180,8 +180,8 @@ void cpu_loop(CPUX86State *env)
         switch(trapnr) {
         case 0x80:
             /* linux syscall */
-            env->regs[R_EAX] = do_syscall(env, 
-                                          env->regs[R_EAX], 
+            env->regs[R_EAX] = do_syscall(env,
+                                          env->regs[R_EAX],
                                           env->regs[R_EBX],
                                           env->regs[R_ECX],
                                           env->regs[R_EDX],
@@ -297,7 +297,7 @@ void cpu_loop(CPUX86State *env)
             break;
         default:
             pc = env->segs[R_CS].base + env->eip;
-            fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n", 
+            fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
                     (long)pc, trapnr);
             abort();
         }
@@ -335,7 +335,7 @@ void cpu_loop(CPUARMState *env)
     unsigned int n, insn;
     target_siginfo_t info;
     uint32_t addr;
-    
+
     for(;;) {
         trapnr = cpu_arm_exec(env);
         switch(trapnr) {
@@ -347,7 +347,7 @@ void cpu_loop(CPUARMState *env)
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
                 opcode = tget32(env->regs[15]);
-                
+
                 if (EmulateAll(opcode, &ts->fpa, env) == 0) {
                     info.si_signo = SIGILL;
                     info.si_errno = 0;
@@ -399,8 +399,8 @@ void cpu_loop(CPUARMState *env)
                         n -= ARM_SYSCALL_BASE;
                         env->eabi = 0;
                     }
-                    env->regs[0] = do_syscall(env, 
-                                              n, 
+                    env->regs[0] = do_syscall(env,
+                                              n,
                                               env->regs[0],
                                               env->regs[1],
                                               env->regs[2],
@@ -447,7 +447,7 @@ void cpu_loop(CPUARMState *env)
             break;
         default:
         error:
-            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);
             abort();
@@ -479,10 +479,10 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 {
     unsigned int i;
     target_ulong sp_ptr;
-    
+
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
-    printf("win_overflow: sp_ptr=0x%x save_cwp=%d\n", 
+    printf("win_overflow: sp_ptr=0x%x save_cwp=%d\n",
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
@@ -510,15 +510,15 @@ static void restore_window(CPUSPARCState *env)
 {
     unsigned int new_wim, i, cwp1;
     target_ulong sp_ptr;
-    
+
     new_wim = ((env->wim << 1) | (env->wim >> (NWINDOWS - 1))) &
         ((1LL << NWINDOWS) - 1);
-    
+
     /* restore the invalid window */
     cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
-    printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n", 
+    printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n",
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
@@ -559,20 +559,20 @@ void cpu_loop (CPUSPARCState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
-    
+
     while (1) {
         trapnr = cpu_sparc_exec (env);
-        
+
         switch (trapnr) {
 #ifndef TARGET_SPARC64
-        case 0x88: 
+        case 0x88:
         case 0x90:
 #else
         case 0x16d:
 #endif
             ret = do_syscall (env, env->gregs[1],
-                              env->regwptr[0], env->regwptr[1], 
-                              env->regwptr[2], env->regwptr[3], 
+                              env->regwptr[0], env->regwptr[1],
+                              env->regwptr[2], env->regwptr[3],
                               env->regwptr[4], env->regwptr[5]);
             if ((unsigned int)ret >= (unsigned int)(-515)) {
 #ifdef TARGET_SPARC64
@@ -674,17 +674,17 @@ static inline uint64_t cpu_ppc_get_tb (CPUState *env)
     /* TO FIX */
     return 0;
 }
-  
+
 uint32_t cpu_ppc_load_tbl (CPUState *env)
 {
     return cpu_ppc_get_tb(env) & 0xFFFFFFFF;
 }
-  
+
 uint32_t cpu_ppc_load_tbu (CPUState *env)
 {
     return cpu_ppc_get_tb(env) >> 32;
 }
-  
+
 static void cpu_ppc_store_tb (CPUState *env, uint64_t value)
 {
     /* TO FIX */
@@ -694,7 +694,7 @@ void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
 {
     cpu_ppc_store_tb(env, ((uint64_t)value << 32) | cpu_ppc_load_tbl(env));
 }
- 
+
 void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
 {
     cpu_ppc_store_tb(env, ((uint64_t)cpu_ppc_load_tbl(env) << 32) | value);
@@ -721,7 +721,7 @@ void cpu_loop(CPUPPCState *env)
     target_siginfo_t info;
     int trapnr;
     uint32_t ret;
-    
+
     for(;;) {
         trapnr = cpu_ppc_exec(env);
         if (trapnr != EXCP_SYSCALL_USER && trapnr != EXCP_BRANCH &&
@@ -1030,7 +1030,7 @@ void cpu_loop(CPUPPCState *env)
             }
             break;
         default:
-            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
             if (loglevel) {
                 fprintf(logfile, "qemu: unhandled CPU exception 0x%02x - "
@@ -1441,7 +1441,7 @@ void cpu_loop(CPUMIPSState *env)
             break;
         default:
             //        error:
-            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);
             abort();
@@ -1456,19 +1456,19 @@ void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
-    
+
     while (1) {
         trapnr = cpu_sh4_exec (env);
-        
+
         switch (trapnr) {
         case 0x160:
-            ret = do_syscall(env, 
-                             env->gregs[3], 
-                             env->gregs[4], 
-                             env->gregs[5], 
-                             env->gregs[6], 
-                             env->gregs[7], 
-                             env->gregs[0], 
+            ret = do_syscall(env,
+                             env->gregs[3],
+                             env->gregs[4],
+                             env->gregs[5],
+                             env->gregs[6],
+                             env->gregs[7],
+                             env->gregs[0],
                              0);
             env->gregs[0] = ret;
             env->pc += 2;
@@ -1505,7 +1505,7 @@ void cpu_loop(CPUM68KState *env)
     unsigned int n;
     target_siginfo_t info;
     TaskState *ts = env->opaque;
-    
+
     for(;;) {
         trapnr = cpu_m68k_exec(env);
         switch(trapnr) {
@@ -1541,8 +1541,8 @@ void cpu_loop(CPUM68KState *env)
                 ts->sim_syscalls = 0;
                 n = env->dregs[0];
                 env->pc += 2;
-                env->dregs[0] = do_syscall(env, 
-                                          n, 
+                env->dregs[0] = do_syscall(env,
+                                          n,
                                           env->dregs[1],
                                           env->dregs[2],
                                           env->dregs[3],
@@ -1579,7 +1579,7 @@ void cpu_loop(CPUM68KState *env)
             }
             break;
         default:
-            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);
             abort();
@@ -1594,10 +1594,10 @@ void cpu_loop (CPUState *env)
 {
     int trapnr;
     target_siginfo_t info;
-    
+
     while (1) {
         trapnr = cpu_alpha_exec (env);
-        
+
         switch (trapnr) {
         case EXCP_RESET:
             fprintf(stderr, "Reset requested. Exit\n");
@@ -1612,7 +1612,7 @@ void cpu_loop (CPUState *env)
             exit(1);
             break;
         case EXCP_HW_INTERRUPT:
-            fprintf(stderr, "External interrupt. Exit\n"); 
+            fprintf(stderr, "External interrupt. Exit\n");
             exit(1);
             break;
         case EXCP_DFAULT:
@@ -1699,7 +1699,7 @@ void usage(void)
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
-           interp_prefix, 
+           interp_prefix,
            x86_stack_size,
            DEBUG_LOGFILE);
     _exit(1);
@@ -1749,7 +1749,7 @@ int main(int argc, char **argv)
 
 	    if (optind >= argc)
 		break;
-            
+
 	    r = argv[optind++];
             mask = cpu_str_to_log_mask(r);
             if (!mask) {
@@ -1800,11 +1800,11 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(r, "drop-ld-preload")) {
             drop_ld_preload = 1;
-        } else 
+        } else
 #ifdef USE_CODE_COPY
         if (!strcmp(r, "no-code-copy")) {
             code_copy_enabled = 0;
-        } else 
+        } else
 #endif
         {
             usage();
@@ -1827,7 +1827,7 @@ int main(int argc, char **argv)
        qemu_host_page_size */
     env = cpu_init();
     global_env = env;
-    
+
     wrk = environ;
     while (*(wrk++))
         environ_count++;
@@ -1850,12 +1850,12 @@ int main(int argc, char **argv)
     for (wrk = target_environ; *wrk; wrk++) {
         free(*wrk);
     }
-    
+
     free(target_environ);
 
     if (loglevel) {
         page_dump(logfile);
-    
+
         fprintf(logfile, "start_brk   0x%08lx\n" , info->start_brk);
         fprintf(logfile, "end_code    0x%08lx\n" , info->end_code);
         fprintf(logfile, "start_code  0x%08lx\n" , info->start_code);
@@ -1876,7 +1876,7 @@ int main(int argc, char **argv)
     ts->used = 1;
     ts->info = info;
     env->user_mode_only = 1;
-    
+
 #if defined(TARGET_I386)
     cpu_x86_set_cpl(env, 3);
 
@@ -1889,7 +1889,7 @@ int main(int argc, char **argv)
 
     /* flags setup : we activate the IRQs by default as in user mode */
     env->eflags |= IF_MASK;
-    
+
     /* linux register setup */
 #if defined(TARGET_X86_64)
     env->regs[R_EAX] = regs->rax;
@@ -1942,10 +1942,10 @@ int main(int argc, char **argv)
     env->gdt.base = h2g(gdt_table);
     env->gdt.limit = sizeof(gdt_table) - 1;
     write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
-             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | 
+             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
              (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
     write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
-             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | 
+             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
              (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
     cpu_x86_load_seg(env, R_CS, __USER_CS);
     cpu_x86_load_seg(env, R_DS, __USER_DS);

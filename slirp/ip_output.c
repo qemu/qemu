@@ -65,7 +65,7 @@ ip_output(so, m0)
 	DEBUG_CALL("ip_output");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m0 = %lx", (long)m0);
-	
+
 	/* We do no options */
 /*	if (opt) {
  *		m = ip_insertoptions(m, opt, &len);
@@ -92,7 +92,7 @@ ip_output(so, m0)
  *		goto bad;
  *	}
  */
-	
+
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
@@ -115,7 +115,7 @@ ip_output(so, m0)
 		ipstat.ips_cantfrag++;
 		goto bad;
 	}
-	
+
 	len = (if_mtu - hlen) &~ 7;       /* ip databytes per packet */
 	if (len < 8) {
 		error = -1;
@@ -143,7 +143,7 @@ ip_output(so, m0)
 	  m->m_data += if_maxlinkhdr;
 	  mhip = mtod(m, struct ip *);
 	  *mhip = *ip;
-		
+
 		/* No options */
 /*		if (hlen > sizeof (struct ip)) {
  *			mhlen = ip_optcopy(ip, mhip) + sizeof (struct ip);
@@ -156,15 +156,15 @@ ip_output(so, m0)
 	    mhip->ip_off |= IP_MF;
 	  if (off + len >= (u_int16_t)ip->ip_len)
 	    len = (u_int16_t)ip->ip_len - off;
-	  else 
+	  else
 	    mhip->ip_off |= IP_MF;
 	  mhip->ip_len = htons((u_int16_t)(len + mhlen));
-	  
+
 	  if (m_copy(m, m0, off, len) < 0) {
 	    error = -1;
 	    goto sendorfree;
 	  }
-	  
+
 	  mhip->ip_off = htons((u_int16_t)mhip->ip_off);
 	  mhip->ip_sum = 0;
 	  mhip->ip_sum = cksum(m, mhlen);

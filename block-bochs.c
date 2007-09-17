@@ -1,9 +1,9 @@
 /*
  * Block driver for the various disk image formats used by Bochs
  * Currently only for "growing" type in read-only mode
- * 
+ *
  * Copyright (c) 2005 Alex Beregszaszi
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -44,7 +44,7 @@ struct bochs_header_v1 {
     char subtype[16]; // "Undoable" / "Volatile" / "Growing"
     uint32_t version;
     uint32_t header; // size of header
-    
+
     union {
 	struct {
 	    uint32_t catalog; // num of entries
@@ -64,7 +64,7 @@ struct bochs_header {
     char subtype[16]; // "Undoable" / "Volatile" / "Growing"
     uint32_t version;
     uint32_t header; // size of header
-    
+
     union {
 	struct {
 	    uint32_t catalog; // num of entries
@@ -83,9 +83,9 @@ typedef struct BDRVBochsState {
 
     uint32_t *catalog_bitmap;
     int catalog_size;
-    
+
     int data_offset;
-    
+
     int bitmap_blocks;
     int extent_blocks;
     int extent_size;
@@ -94,7 +94,7 @@ typedef struct BDRVBochsState {
 static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const struct bochs_header *bochs = (const void *)buf;
-    
+
     if (buf_size < HEADER_SIZE)
 	return 0;
 
@@ -121,9 +121,9 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
         if (fd < 0)
             return -1;
     }
-    
+
     bs->read_only = 1; // no write support yet
-    
+
     s->fd = fd;
 
     if (read(fd, &bochs, sizeof(bochs)) != sizeof(bochs)) {
@@ -161,7 +161,7 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
 
     s->bitmap_blocks = 1 + (le32_to_cpu(bochs.extra.redolog.bitmap) - 1) / 512;
     s->extent_blocks = 1 + (le32_to_cpu(bochs.extra.redolog.extent) - 1) / 512;
-    
+
     s->extent_size = le32_to_cpu(bochs.extra.redolog.extent);
 
     return 0;
@@ -180,7 +180,7 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     // seek to sector
     extent_index = offset / s->extent_size;
     extent_offset = (offset % s->extent_size) / 512;
-    
+
     if (s->catalog_bitmap[extent_index] == 0xffffffff)
     {
 //	fprintf(stderr, "page not allocated [%x - %x:%x]\n",
@@ -191,17 +191,17 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     bitmap_offset = s->data_offset + (512 * s->catalog_bitmap[extent_index] *
 	(s->extent_blocks + s->bitmap_blocks));
     block_offset = bitmap_offset + (512 * (s->bitmap_blocks + extent_offset));
-    
+
 //    fprintf(stderr, "sect: %x [ext i: %x o: %x] -> %x bitmap: %x block: %x\n",
 //	sector_num, extent_index, extent_offset,
 //	le32_to_cpu(s->catalog_bitmap[extent_index]),
 //	bitmap_offset, block_offset);
-    
+
     // read in bitmap for current extent
     lseek(s->fd, bitmap_offset + (extent_offset / 8), SEEK_SET);
-    
+
     read(s->fd, &bitmap_entry, 1);
-    
+
     if (!((bitmap_entry >> (extent_offset % 8)) & 1))
     {
 //	fprintf(stderr, "sector (%x) in bitmap not allocated\n",
@@ -210,11 +210,11 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     }
 
     lseek(s->fd, block_offset, SEEK_SET);
-    
+
     return 0;
 }
 
-static int bochs_read(BlockDriverState *bs, int64_t sector_num, 
+static int bochs_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVBochsState *s = bs->opaque;

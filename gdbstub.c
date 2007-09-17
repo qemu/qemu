@@ -1,6 +1,6 @@
 /*
  * gdb server stub
- * 
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -252,7 +252,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     registers[41] = 0; /* foseg */
     registers[42] = 0; /* fooff */
     registers[43] = 0; /* fop */
-    
+
     for(i = 0; i < 16; i++)
         tswapls(&registers[i]);
     for(i = 36; i < 44; i++)
@@ -543,7 +543,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     /* F0-F7.  The 68881/68040 have 12-bit extended precision registers.
        ColdFire has 8-bit double precision registers.  */
     for (i = 0; i < 8; i++) {
-        u.l.upper = tswap32(*(uint32_t *)ptr); 
+        u.l.upper = tswap32(*(uint32_t *)ptr);
         u.l.lower = tswap32(*(uint32_t *)ptr);
         env->fregs[i] = u.d;
     }
@@ -748,7 +748,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
     uint8_t mem_buf[2000];
     uint32_t *registers;
     target_ulong addr, len;
-    
+
 #ifdef DEBUG_GDB
     printf("command='%s'\n", line_buf);
 #endif
@@ -1077,7 +1077,7 @@ static void gdb_read_byte(GDBState *s, int ch)
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
         vm_stop(EXCP_INTERRUPT);
-    } else 
+    } else
 #endif
     {
         switch(s->state) {
@@ -1205,7 +1205,7 @@ static void gdb_accept(void *opaque)
     /* set short latency */
     val = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
-    
+
     s = &gdbserver_state;
     memset (s, 0, sizeof (GDBState));
     s->env = first_cpu; /* XXX: allow to change CPU */

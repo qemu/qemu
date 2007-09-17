@@ -1,8 +1,8 @@
 /*
  * QEMU PC keyboard emulation
- * 
+ *
  * Copyright (c) 2003 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -148,7 +148,7 @@ static void kbd_update_irq(KBDState *s)
             if (s->mode & KBD_MODE_MOUSE_INT)
                 irq_mouse_level = 1;
         } else {
-            if ((s->mode & KBD_MODE_KBD_INT) && 
+            if ((s->mode & KBD_MODE_KBD_INT) &&
                 !(s->mode & KBD_MODE_DISABLE_KBD))
                 irq_kbd_level = 1;
         }
@@ -338,7 +338,7 @@ static void kbd_reset(void *opaque)
 static void kbd_save(QEMUFile* f, void* opaque)
 {
     KBDState *s = (KBDState*)opaque;
-    
+
     qemu_put_8s(f, &s->write_cmd);
     qemu_put_8s(f, &s->status);
     qemu_put_8s(f, &s->mode);
@@ -348,7 +348,7 @@ static void kbd_save(QEMUFile* f, void* opaque)
 static int kbd_load(QEMUFile* f, void* opaque, int version_id)
 {
     KBDState *s = (KBDState*)opaque;
-    
+
     if (version_id != 3)
         return -EINVAL;
     qemu_get_8s(f, &s->write_cmd);

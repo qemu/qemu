@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation definitions for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -58,10 +58,6 @@ register unsigned long T2 asm(AREG3);
 #define T1_avr (env->t1_avr)
 #define T2_avr (env->t2_avr)
 
-/* XXX: to clean: remove this mess */
-#define PARAM(n) ((uint32_t)PARAM##n)
-#define SPARAM(n) ((int32_t)PARAM##n)
-
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
 #define FT2 (env->ft2)
@@ -111,18 +107,19 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
                        target_ulong pte0, target_ulong pte1);
 void ppc4xx_tlb_invalidate_all (CPUState *env);
 
-static inline void env_to_regs(void)
+static inline void env_to_regs (void)
 {
 }
 
-static inline void regs_to_env(void)
+static inline void regs_to_env (void)
 {
 }
 
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
-static inline int cpu_halted(CPUState *env) {
+static inline int cpu_halted (CPUState *env)
+{
     if (!env->halted)
         return 0;
     if (env->msr[MSR_EE] && (env->interrupt_request & CPU_INTERRUPT_HARD)) {

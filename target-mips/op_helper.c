@@ -1,6 +1,6 @@
 /*
  *  MIPS emulation helpers for qemu.
- * 
+ *
  *  Copyright (c) 2004-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -244,7 +244,7 @@ void do_ddivu (void)
 #endif
 #endif /* TARGET_MIPS64 */
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 void do_mfc0_random (void)
 {
     cpu_abort(env, "mfc0 random\n");
@@ -345,25 +345,25 @@ void fpu_handle_exception(void)
 
     enable = GET_FP_ENABLE(env->fpu->fcr31);
 
-    /* determine current flags */   
+    /* determine current flags */
     if (flags & float_flag_invalid) {
         cpuflags |= FP_INVALID;
         cause |= FP_INVALID & enable;
     }
     if (flags & float_flag_divbyzero) {
-        cpuflags |= FP_DIV0;    
+        cpuflags |= FP_DIV0;
         cause |= FP_DIV0 & enable;
     }
     if (flags & float_flag_overflow) {
-        cpuflags |= FP_OVERFLOW;    
+        cpuflags |= FP_OVERFLOW;
         cause |= FP_OVERFLOW & enable;
     }
     if (flags & float_flag_underflow) {
-        cpuflags |= FP_UNDERFLOW;   
+        cpuflags |= FP_UNDERFLOW;
         cause |= FP_UNDERFLOW & enable;
     }
     if (flags & float_flag_inexact) {
-        cpuflags |= FP_INEXACT; 
+        cpuflags |= FP_INEXACT;
         cause |= FP_INEXACT & enable;
     }
     SET_FP_FLAGS(env->fpu->fcr31, cpuflags);
@@ -563,7 +563,7 @@ void do_pmon (int function)
     }
 }
 
-#if !defined(CONFIG_USER_ONLY) 
+#if !defined(CONFIG_USER_ONLY)
 
 static void do_unaligned_access (target_ulong addr, int is_write, int is_user, void *retaddr);
 

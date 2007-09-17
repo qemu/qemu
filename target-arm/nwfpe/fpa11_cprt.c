@@ -55,7 +55,7 @@ unsigned int EmulateCPRT(const unsigned int opcode)
   {
     case  FLT_CODE >> 20: nRc = PerformFLT(opcode); break;
     case  FIX_CODE >> 20: nRc = PerformFIX(opcode); break;
-    
+
     case  WFS_CODE >> 20: writeFPSR(readRegister(getRd(opcode))); break;
     case  RFS_CODE >> 20: writeRegister(getRd(opcode),readFPSR()); break;
 
@@ -67,14 +67,14 @@ unsigned int EmulateCPRT(const unsigned int opcode)
 
     default: nRc = 0;
   }
-  
+
   return nRc;
 }
 
 unsigned int PerformFLT(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();
-   
+
    unsigned int nRc = 1;
    SetRoundingMode(opcode);
 
@@ -95,7 +95,7 @@ unsigned int PerformFLT(const unsigned int opcode)
             int32_to_float64(readRegister(getRd(opcode)), &fpa11->fp_status);
       }
       break;
-        
+
       case ROUND_EXTENDED:
       {
         fpa11->fType[getFn(opcode)] = typeExtended;
@@ -103,10 +103,10 @@ unsigned int PerformFLT(const unsigned int opcode)
 	   int32_to_floatx80(readRegister(getRd(opcode)), &fpa11->fp_status);
       }
       break;
-      
+
       default: nRc = 0;
   }
-  
+
   return nRc;
 }
 
@@ -115,7 +115,7 @@ unsigned int PerformFIX(const unsigned int opcode)
    FPA11 *fpa11 = GET_FPA11();
    unsigned int nRc = 1;
    unsigned int Fn = getFm(opcode);
-   
+
    SetRoundingMode(opcode);
 
    switch (fpa11->fType[Fn])
@@ -134,21 +134,21 @@ unsigned int PerformFIX(const unsigned int opcode)
 	               float64_to_int32(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status));
       }
       break;
-      	               
+
       case typeExtended:
       {
          writeRegister(getRd(opcode),
 	               floatx80_to_int32(fpa11->fpreg[Fn].fExtended, &fpa11->fp_status));
       }
       break;
-      
+
       default: nRc = 0;
   }
-  
+
   return nRc;
 }
 
-   
+
 static unsigned int __inline__
 PerformComparisonOperation(floatx80 Fn, floatx80 Fm)
 {
@@ -160,7 +160,7 @@ PerformComparisonOperation(floatx80 Fn, floatx80 Fm)
    {
       flags |= CC_NEGATIVE;
    }
-  
+
    /* test for equal condition */
    if (floatx80_eq(Fn,Fm, &fpa11->fp_status))
    {
@@ -172,13 +172,13 @@ PerformComparisonOperation(floatx80 Fn, floatx80 Fm)
    {
       flags |= CC_CARRY;
    }
-   
+
    writeConditionCodes(flags);
    return 1;
 }
 
 /* This instruction sets the flags N, Z, C, V in the FPSR. */
-   
+
 static unsigned int PerformComparison(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();
@@ -200,27 +200,27 @@ static unsigned int PerformComparison(const unsigned int opcode)
       comparison (cheaper than an 80-bit one).  */
    switch (fpa11->fType[Fn])
    {
-      case typeSingle: 
+      case typeSingle:
         //printk("single.\n");
 	if (float32_is_nan(fpa11->fpreg[Fn].fSingle))
 	   goto unordered;
         rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
       break;
 
-      case typeDouble: 
+      case typeDouble:
         //printk("double.\n");
 	if (float64_is_nan(fpa11->fpreg[Fn].fDouble))
 	   goto unordered;
         rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
       break;
-      
-      case typeExtended: 
+
+      case typeExtended:
         //printk("extended.\n");
 	if (floatx80_is_nan(fpa11->fpreg[Fn].fExtended))
 	   goto unordered;
         rFn = fpa11->fpreg[Fn].fExtended;
       break;
-      
+
       default: return 0;
    }
 
@@ -236,27 +236,27 @@ static unsigned int PerformComparison(const unsigned int opcode)
      //printk("Fm = r%d which contains a ",Fm);
       switch (fpa11->fType[Fm])
       {
-         case typeSingle: 
+         case typeSingle:
            //printk("single.\n");
 	   if (float32_is_nan(fpa11->fpreg[Fm].fSingle))
 	      goto unordered;
            rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle, &fpa11->fp_status);
          break;
 
-         case typeDouble: 
+         case typeDouble:
            //printk("double.\n");
 	   if (float64_is_nan(fpa11->fpreg[Fm].fDouble))
 	      goto unordered;
            rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble, &fpa11->fp_status);
          break;
-      
-         case typeExtended: 
+
+         case typeExtended:
            //printk("extended.\n");
 	   if (floatx80_is_nan(fpa11->fpreg[Fm].fExtended))
 	      goto unordered;
            rFm = fpa11->fpreg[Fm].fExtended;
          break;
-      
+
          default: return 0;
       }
    }

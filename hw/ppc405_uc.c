@@ -1,8 +1,8 @@
 /*
  * QEMU PowerPC 405 embedded processors emulation
- * 
+ *
  * Copyright (c) 2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -924,7 +924,8 @@ enum {
     SDRAM0_CFGDATA = 0x011,
 };
 
-static uint32_t sdram_bcr (target_phys_addr_t ram_base, target_phys_addr_t ram_size)
+static uint32_t sdram_bcr (target_phys_addr_t ram_base,
+                           target_phys_addr_t ram_size)
 {
     uint32_t bcr;
 
@@ -1217,9 +1218,11 @@ void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
         sdram->irq = irq;
         sdram->nbanks = nbanks;
         memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
-        memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(target_phys_addr_t));
+        memcpy(sdram->ram_bases, ram_bases,
+               nbanks * sizeof(target_phys_addr_t));
         memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
-        memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(target_phys_addr_t));
+        memcpy(sdram->ram_sizes, ram_sizes,
+               nbanks * sizeof(target_phys_addr_t));
         sdram_reset(sdram);
         qemu_register_reset(&sdram_reset, sdram);
         ppc_dcr_register(env, SDRAM0_CFGADDR,
@@ -2212,7 +2215,6 @@ static void ppc4xx_gpt_set_outputs (ppc4xx_gpt_t *gpt)
         }
         mask = mask >> 1;
     }
-        
 }
 
 static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
@@ -2228,7 +2230,6 @@ static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
             qemu_irq_lower(gpt->irqs[i]);
         mask = mask >> 1;
     }
-        
 }
 
 static void ppc4xx_gpt_compute_timer (ppc4xx_gpt_t *gpt)

@@ -1,9 +1,9 @@
 /*
  * QEMU Parallel PORT emulation
- * 
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
  * Copyright (c) 2007 Marko Kohtala
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -88,7 +88,7 @@ static void
 parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = opaque;
-    
+
     pdebug("write addr=0x%02x val=0x%02x\n", addr, val);
 
     addr &= 7;

@@ -2,7 +2,7 @@
  * QEMU GT64120 PCI host
  *
  * Copyright (c) 2006,2007 Aurelien Jarno
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -297,10 +297,10 @@ static void gt64120_pci_mapping(GT64120State *s)
     /* Update IO mapping */
     if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD])
     {
-      /* Unmap old IO address */	    
+      /* Unmap old IO address */
       if (s->PCI0IO_length)
       {
-        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);	     
+        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);
       }
       /* Map new IO address */
       s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
@@ -616,7 +616,7 @@ static uint32_t gt64120_readl (void *opaque,
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
         /* Emulated memory has no error, always return the initial
-           values */ 
+           values */
         val = s->regs[saddr];
         break;
 
@@ -626,7 +626,7 @@ static uint32_t gt64120_readl (void *opaque,
         /* Reading those register should empty all FIFO on the PCI
            bus, which are not emulated. The return value should be
            a random value that should be ignored. */
-        val = 0xc000ffee; 
+        val = 0xc000ffee;
         break;
 
     /* ECC */
@@ -636,7 +636,7 @@ static uint32_t gt64120_readl (void *opaque,
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
         /* Emulated memory has no error, always return the initial
-           values */ 
+           values */
         val = s->regs[saddr];
         break;
 
@@ -675,7 +675,7 @@ static uint32_t gt64120_readl (void *opaque,
         val = s->regs[saddr];
         break;
     case GT_PCI0_IACK:
-        /* Read the IRQ number */ 
+        /* Read the IRQ number */
         val = pic_read_irq(isa_pic);
         break;
 

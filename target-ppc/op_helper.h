@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation helpers header for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or

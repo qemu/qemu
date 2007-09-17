@@ -2378,7 +2378,7 @@ const struct m68k_opcode m68k_opcodes[] =
 {"eor", 4,	one(0005174),	one(0177777), "#wSs", m68000up },
 {"eor", 4,	one(0005100),	one(0177700), "#w$s", m68000up },
 {"eor", 2,	one(0130500),	one(0170700), "Dd$s", m68000up },
-		
+
 {"exg", 2,	one(0140500),	one(0170770), "DdDs", m68000up },
 {"exg", 2,	one(0140510),	one(0170770), "AdAs", m68000up },
 {"exg", 2,	one(0140610),	one(0170770), "DdAs", m68000up },
@@ -4011,13 +4011,13 @@ const struct m68k_opcode m68k_opcodes[] =
 {"roxrl", 2,	one(0160260),		one(0170770), "DdDs", m68000up },
 
 {"rtd", 4,	one(0047164),		one(0177777), "#w", m68010up },
-		
+
 {"rte", 2,	one(0047163),		one(0177777), "",   m68000up | mcfisa_a },
-		
+
 {"rtm", 2,	one(0003300),		one(0177760), "Rs", m68020 },
-		
+
 {"rtr", 2,	one(0047167),		one(0177777), "",   m68000up },
-		
+
 {"rts", 2,	one(0047165),		one(0177777), "",   m68000up | mcfisa_a },
 
 {"satsl", 2,	one(0046200),		one(0177770), "Ds", mcfisa_b },
@@ -4561,12 +4561,12 @@ floatformat_i387_ext_is_valid (const struct floatformat *fmt, const char *from)
      zero can it be zero, and then it must be zero.  */
   unsigned long exponent, int_bit;
   const unsigned char *ufrom = (const unsigned char *) from;
-  
+
   exponent = get_field (ufrom, fmt->byteorder, fmt->totalsize,
 			fmt->exp_start, fmt->exp_len);
   int_bit = get_field (ufrom, fmt->byteorder, fmt->totalsize,
 		       fmt->man_start, 1);
-  
+
   if ((exponent == 0) != (int_bit == 0))
     return 0;
   else
@@ -4699,7 +4699,7 @@ get_field (const unsigned char *data, enum floatformat_byteorders order,
     }
   return result;
 }
-  
+
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif

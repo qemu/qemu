@@ -1,6 +1,6 @@
 /*
  * internal execution defines for qemu
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -68,7 +68,7 @@ typedef void (GenOpFunc)(void);
 typedef void (GenOpFunc1)(long);
 typedef void (GenOpFunc2)(long, long);
 typedef void (GenOpFunc3)(long, long, long);
-                    
+
 #if defined(TARGET_I386)
 
 void optimize_flags_init(void);
@@ -86,27 +86,27 @@ int gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
 void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int max_code_size, int *gen_code_size_ptr);
-int cpu_restore_state(struct TranslationBlock *tb, 
+int cpu_restore_state(struct TranslationBlock *tb,
                       CPUState *env, unsigned long searched_pc,
                       void *puc);
 int cpu_gen_code_copy(CPUState *env, struct TranslationBlock *tb,
                       int max_code_size, int *gen_code_size_ptr);
-int cpu_restore_state_copy(struct TranslationBlock *tb, 
+int cpu_restore_state_copy(struct TranslationBlock *tb,
                            CPUState *env, unsigned long searched_pc,
                            void *puc);
 void cpu_resume_from_signal(CPUState *env1, void *puc);
 void cpu_exec_init(CPUState *env);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
-void tb_invalidate_phys_page_range(target_ulong start, target_ulong end, 
+void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
                                    int is_cpu_write_access);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, target_ulong addr);
 void tlb_flush(CPUState *env, int flush_global);
-int tlb_set_page_exec(CPUState *env, target_ulong vaddr, 
-                      target_phys_addr_t paddr, int prot, 
+int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
+                      target_phys_addr_t paddr, int prot,
                       int is_user, int is_softmmu);
-static inline int tlb_set_page(CPUState *env, target_ulong vaddr, 
-                               target_phys_addr_t paddr, int prot, 
+static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
+                               target_phys_addr_t paddr, int prot,
                                int is_user, int is_softmmu)
 {
     if (prot & PAGE_READ)
@@ -156,7 +156,7 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 
 #define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
 
-#if defined(__powerpc__) 
+#if defined(__powerpc__)
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
@@ -177,11 +177,11 @@ typedef struct TranslationBlock {
 
     uint8_t *tc_ptr;    /* pointer to the translated code */
     /* next matching tb for physical address. */
-    struct TranslationBlock *phys_hash_next; 
+    struct TranslationBlock *phys_hash_next;
     /* first and second physical page containing code. The lower bit
        of the pointer tells the index in page_next[] */
-    struct TranslationBlock *page_next[2]; 
-    target_ulong page_addr[2]; 
+    struct TranslationBlock *page_next[2];
+    target_ulong page_addr[2];
 
     /* the following data are used to directly call another TB from
        the code of this one. */
@@ -195,7 +195,7 @@ typedef struct TranslationBlock {
        the two least significant bits of the pointers to tell what is
        the next pointer: 0 = jmp_next[0], 1 = jmp_next[1], 2 =
        jmp_first */
-    struct TranslationBlock *jmp_next[2]; 
+    struct TranslationBlock *jmp_next[2];
     struct TranslationBlock *jmp_first;
 } TranslationBlock;
 
@@ -221,7 +221,7 @@ static inline unsigned int tb_phys_hash_func(unsigned long pc)
 
 TranslationBlock *tb_alloc(target_ulong pc);
 void tb_flush(CPUState *env);
-void tb_link_phys(TranslationBlock *tb, 
+void tb_link_phys(TranslationBlock *tb,
                   target_ulong phys_pc, target_ulong phys_page2);
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
@@ -257,7 +257,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
 }
 #endif
 
-static inline void tb_set_jmp_target(TranslationBlock *tb, 
+static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, unsigned long addr)
 {
     unsigned long offset;
@@ -272,7 +272,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 #else
 
 /* set the jump target */
-static inline void tb_set_jmp_target(TranslationBlock *tb, 
+static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, unsigned long addr)
 {
     tb->tb_next[n] = addr;
@@ -280,14 +280,14 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 
 #endif
 
-static inline void tb_add_jump(TranslationBlock *tb, int n, 
+static inline void tb_add_jump(TranslationBlock *tb, int n,
                                TranslationBlock *tb_next)
 {
     /* NOTE: this test is only needed for thread safety */
     if (!tb->jmp_next[n]) {
         /* patch the native jump address */
         tb_set_jmp_target(tb, n, (unsigned long)tb_next->tc_ptr);
-        
+
         /* add in TB jmp circular list */
         tb->jmp_next[n] = tb_next->jmp_first;
         tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
@@ -394,7 +394,7 @@ static inline int testandset (int *p)
 static inline int testandset (int *p)
 {
     long int readval = 0;
-    
+
     __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
                           : "+m" (*p), "+a" (readval)
                           : "r" (1)
@@ -405,7 +405,7 @@ static inline int testandset (int *p)
 static inline int testandset (int *p)
 {
     long int readval = 0;
-    
+
     __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
                           : "+m" (*p), "+a" (readval)
                           : "r" (1)
@@ -420,7 +420,7 @@ static inline int testandset (int *p)
     __asm__ __volatile__ ("0: cs    %0,%1,0(%2)\n"
 			  "   jl    0b"
 			  : "=&d" (ret)
-			  : "r" (1), "a" (p), "0" (*p) 
+			  : "r" (1), "a" (p), "0" (*p)
 			  : "cc", "memory" );
     return ret;
 }
@@ -460,7 +460,7 @@ static inline int testandset (int *spinlock)
     __asm__ __volatile__("swp %0, %1, [%2]"
                          : "=r"(ret)
                          : "0"(1), "r"(spinlock));
-    
+
     return ret;
 }
 #elif defined(__mc68000)
@@ -560,7 +560,7 @@ extern int tb_invalidated_flag;
 
 #if !defined(CONFIG_USER_ONLY)
 
-void tlb_fill(target_ulong addr, int is_write, int is_user, 
+void tlb_fill(target_ulong addr, int is_write, int is_user,
               void *retaddr);
 
 #define ACCESS_TYPE 3
@@ -618,7 +618,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 #else
 #error unimplemented CPU
 #endif
-    if (__builtin_expect(env->tlb_table[is_user][index].addr_code != 
+    if (__builtin_expect(env->tlb_table[is_user][index].addr_code !=
                          (addr & TARGET_PAGE_MASK), 0)) {
         ldub_code(addr);
     }
@@ -649,11 +649,11 @@ void kqemu_record_dump(void);
 static inline int kqemu_is_ok(CPUState *env)
 {
     return(env->kqemu_enabled &&
-           (env->cr[0] & CR0_PE_MASK) && 
+           (env->cr[0] & CR0_PE_MASK) &&
            !(env->hflags & HF_INHIBIT_IRQ_MASK) &&
            (env->eflags & IF_MASK) &&
            !(env->eflags & VM_MASK) &&
-           (env->kqemu_enabled == 2 || 
+           (env->kqemu_enabled == 2 ||
             ((env->hflags & HF_CPL_MASK) == 3 &&
              (env->eflags & IOPL_MASK) != IOPL_MASK)));
 }

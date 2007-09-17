@@ -1,6 +1,6 @@
 /*
  *  SH4 emulation
- * 
+ *
  *  Copyright (c) 2005 Samuel Tardieu
  *
  * This library is free software; you can redistribute it and/or

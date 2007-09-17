@@ -1,6 +1,6 @@
 /*
  *  i386 on i386 translation
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -43,7 +43,7 @@ extern char exec_loop;
 enum {
     OT_BYTE = 0,
     OT_WORD,
-    OT_LONG, 
+    OT_LONG,
     OT_QUAD,
 };
 
@@ -64,7 +64,7 @@ typedef struct DisasContext {
     /* code output */
     uint8_t *gen_code_ptr;
     uint8_t *gen_code_start;
-    
+
     /* current block context */
     target_ulong cs_base; /* base of CS segment */
     int pe;     /* protected mode */
@@ -106,22 +106,22 @@ static inline void gjmp(DisasContext *s, long val)
     gl(s, val - (long)(s->gen_code_ptr + 4));
 }
 
-static inline void gen_movl_addr_im(DisasContext *s, 
+static inline void gen_movl_addr_im(DisasContext *s,
                                     uint32_t addr, uint32_t val)
 {
     gb(s, CPU_SEG); /* seg movl im, addr */
-    gb(s, 0xc7); 
+    gb(s, 0xc7);
     gb(s, 0x05);
     gl(s, addr);
     gl(s, val);
 }
 
-static inline void gen_movw_addr_im(DisasContext *s, 
+static inline void gen_movw_addr_im(DisasContext *s,
                                     uint32_t addr, uint32_t val)
 {
     gb(s, CPU_SEG); /* seg movl im, addr */
-    gb(s, 0x66); 
-    gb(s, 0xc7); 
+    gb(s, 0x66);
+    gb(s, 0xc7);
     gb(s, 0x05);
     gl(s, addr);
     gw(s, val);
@@ -156,7 +156,7 @@ static void gen_jcc(DisasContext *s, int op,
     gb(s, 0xe9); /* jmp */
     tb->tb_jmp_offset[1] = s->gen_code_ptr - s->gen_code_start;
     gl(s, 0);
-    
+
     tb->tb_next_offset[0] = s->gen_code_ptr - s->gen_code_start;
     gen_movl_addr_im(s, CPU_FIELD_OFFSET(eip), target_eip);
     gen_movl_addr_im(s, CPU_FIELD_OFFSET(tmp0), (uint32_t)tb);
@@ -195,7 +195,7 @@ static inline void gen_lea_modrm(DisasContext *s, int modrm)
         base = rm;
         index = 0;
         scale = 0;
-        
+
         if (base == 4) {
             havesib = 1;
             code = ldub_code(s->pc++);
@@ -223,7 +223,7 @@ static inline void gen_lea_modrm(DisasContext *s, int modrm)
             s->pc += 4;
             break;
         }
-        
+
     } else {
         switch (mod) {
         case 0:
@@ -249,7 +249,7 @@ static inline void gen_lea_modrm(DisasContext *s, int modrm)
 static inline void parse_modrm(DisasContext *s, int modrm)
 {
     if ((modrm & 0xc0) != 0xc0)
-        gen_lea_modrm(s, modrm);        
+        gen_lea_modrm(s, modrm);
 }
 
 static inline uint32_t insn_get(DisasContext *s, int ot)
@@ -352,7 +352,7 @@ static int disas_insn(DisasContext *s)
         /* extended op code */
         b = ldub_code(s->pc++) | 0x100;
         goto reswitch;
-        
+
         /**************************/
         /* arith & logic */
     case 0x00 ... 0x05:
@@ -371,7 +371,7 @@ static int disas_insn(DisasContext *s)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-            
+
             switch(f) {
             case 0: /* OP Ev, Gv */
                 modrm = ldub_code(s->pc++);
@@ -397,7 +397,7 @@ static int disas_insn(DisasContext *s)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-            
+
             modrm = ldub_code(s->pc++);
             parse_modrm(s, modrm);
 
@@ -476,8 +476,8 @@ static int disas_insn(DisasContext *s)
             break;
         case 2: /* call Ev */
             /* XXX: optimize and handle MEM exceptions specifically
-               fs movl %eax, regs[0] 
-               movl Ev, %eax 
+               fs movl %eax, regs[0]
+               movl Ev, %eax
                pushl next_eip
                fs movl %eax, eip
             */
@@ -486,8 +486,8 @@ static int disas_insn(DisasContext *s)
             goto unsupported_op;
         case 4: /* jmp Ev */
             /* XXX: optimize and handle MEM exceptions specifically
-               fs movl %eax, regs[0] 
-               movl Ev, %eax 
+               fs movl %eax, regs[0]
+               movl Ev, %eax
                fs movl %eax, eip
             */
             goto unsupported_op;
@@ -507,7 +507,7 @@ static int disas_insn(DisasContext *s)
             ot = dflag ? OT_LONG : OT_WORD;
         insn_get(s, ot);
         break;
-        
+
     case 0x98: /* CWDE/CBW */
         break;
     case 0x99: /* CDQ/CWD */
@@ -527,8 +527,8 @@ static int disas_insn(DisasContext *s)
         break;
 
     case 0x84: /* test Ev, Gv */
-    case 0x85: 
-        
+    case 0x85:
+
     case 0x1c0:
     case 0x1c1: /* xadd Ev, Gv */
 
@@ -584,7 +584,7 @@ static int disas_insn(DisasContext *s)
             goto illegal_op;
         parse_modrm(s, modrm);
         break;
-        
+
         /**************************/
         /* push/pop */
     case 0x50 ... 0x57: /* push */
@@ -655,7 +655,7 @@ static int disas_insn(DisasContext *s)
         goto unsupported_op;
         /************************/
         /* floats */
-    case 0xd8 ... 0xdf: 
+    case 0xd8 ... 0xdf:
 #if 1
         /* currently not stable enough */
         goto unsupported_op;
@@ -851,7 +851,7 @@ static int disas_insn(DisasContext *s)
             goto illegal_op;
         parse_modrm(s, modrm);
         break;
-        
+
     case 0xa0: /* mov EAX, Ov */
     case 0xa1:
     case 0xa2: /* mov Ov, EAX */
@@ -889,14 +889,14 @@ static int disas_insn(DisasContext *s)
         parse_modrm(s, modrm);
         ldub_code(s->pc++);
         break;
-        
+
         /************************/
         /* string ops */
 
     case 0xa4: /* movsS */
     case 0xa5:
         break;
-        
+
     case 0xaa: /* stosS */
     case 0xab:
         break;
@@ -956,7 +956,7 @@ static int disas_insn(DisasContext *s)
 
     case 0xc3: /* ret */
         gb(s, CPU_SEG);
-        if (!s->dflag)  
+        if (!s->dflag)
             gb(s, 0x66); /* d16 */
         gb(s, 0x8f); /* pop addr */
         gb(s, 0x05);
@@ -1012,7 +1012,7 @@ static int disas_insn(DisasContext *s)
         if (dflag) {
             val = insn_get(s, OT_LONG);
         } else {
-            val = (int16_t)insn_get(s, OT_WORD); 
+            val = (int16_t)insn_get(s, OT_WORD);
         }
     do_jcc:
         next_eip = s->pc - s->cs_base;
@@ -1072,7 +1072,7 @@ static int disas_insn(DisasContext *s)
     case 0x90: /* nop */
         break;
     case 0x9b: /* fwait */
-        if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) == 
+        if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) ==
             (HF_MP_MASK | HF_TS_MASK)) {
             goto unsupported_op;
         }
@@ -1172,7 +1172,7 @@ static int disas_insn(DisasContext *s)
 #define GEN_CODE_MAX_INSN_SIZE 512
 
 static inline int gen_intermediate_code_internal(CPUState *env,
-                                                 TranslationBlock *tb, 
+                                                 TranslationBlock *tb,
                                                  uint8_t *gen_code_ptr,
                                                  int *gen_code_size_ptr,
                                                  int search_pc,
@@ -1187,14 +1187,14 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         env->singlestep_enabled)
         return -1;
     flags = tb->flags;
-    if (flags & (HF_TF_MASK | HF_ADDSEG_MASK | 
+    if (flags & (HF_TF_MASK | HF_ADDSEG_MASK |
                  HF_SOFTMMU_MASK | HF_INHIBIT_IRQ_MASK))
         return -1;
     if (!(flags & HF_SS32_MASK))
         return -1;
     if (tb->cflags & CF_SINGLE_INSN)
         return -1;
-    gen_code_end = gen_code_ptr + 
+    gen_code_end = gen_code_ptr +
         GEN_CODE_MAX_SIZE - GEN_CODE_MAX_INSN_SIZE;
     dc->gen_code_ptr = gen_code_ptr;
     dc->gen_code_start = gen_code_ptr;
@@ -1245,11 +1245,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             break;
         }
     }
-    
+
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
-        fprintf(logfile, "IN: COPY: %s fpu=%d\n", 
+        fprintf(logfile, "IN: COPY: %s fpu=%d\n",
                 lookup_symbol(pc_start),
                 tb->cflags & CF_TB_FP_USED ? 1 : 0);
 	target_disas(logfile, pc_start, dc->pc - pc_start, !dc->code32);
@@ -1280,14 +1280,14 @@ int cpu_gen_code_copy(CPUState *env, TranslationBlock *tb,
     tb->tb_jmp_offset[2] = 0xffff;
     tb->tb_jmp_offset[3] = 0xffff;
 #endif
-    return gen_intermediate_code_internal(env, tb, 
+    return gen_intermediate_code_internal(env, tb,
                                           tb->tc_ptr, gen_code_size_ptr,
                                           0, NULL);
 }
 
 static uint8_t dummy_gen_code_buf[GEN_CODE_MAX_SIZE];
 
-int cpu_restore_state_copy(TranslationBlock *tb, 
+int cpu_restore_state_copy(TranslationBlock *tb,
                            CPUState *env, unsigned long searched_pc,
                            void *puc)
 {
@@ -1298,14 +1298,14 @@ int cpu_restore_state_copy(TranslationBlock *tb,
     if (searched_pc < (unsigned long)tb->tc_ptr)
         return -1;
     searched_pc = searched_pc - (long)tb->tc_ptr + (long)dummy_gen_code_buf;
-    ret = gen_intermediate_code_internal(env, tb, 
+    ret = gen_intermediate_code_internal(env, tb,
                                          dummy_gen_code_buf, NULL,
                                          1, (uint8_t *)searched_pc);
     if (ret < 0)
         return ret;
     /* restore all the CPU state from the CPU context from the
        signal. The FPU context stays in the host CPU. */
-    
+
     env->regs[R_EAX] = uc->uc_mcontext.gregs[REG_EAX];
     env->regs[R_ECX] = uc->uc_mcontext.gregs[REG_ECX];
     env->regs[R_EDX] = uc->uc_mcontext.gregs[REG_EDX];

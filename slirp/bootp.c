@@ -1,8 +1,8 @@
 /*
  * QEMU BOOTP/DHCP server
- * 
+ *
  * Copyright (c) 2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -89,7 +89,7 @@ static void dhcp_decode(const uint8_t *buf, int size,
     const uint8_t *p, *p_end;
     int len, tag;
 
-    *pmsg_type = 0;    
+    *pmsg_type = 0;
 
     p = buf;
     p_end = buf + size;
@@ -101,7 +101,7 @@ static void dhcp_decode(const uint8_t *buf, int size,
     while (p < p_end) {
         tag = p[0];
         if (tag == RFC1533_PAD) {
-            p++; 
+            p++;
         } else if (tag == RFC1533_END) {
             break;
         } else {
@@ -137,16 +137,16 @@ static void bootp_reply(struct bootp_t *bp)
     /* extract exact DHCP msg type */
     dhcp_decode(bp->bp_vend, DHCP_OPT_LEN, &dhcp_msg_type);
     dprintf("bootp packet op=%d msgtype=%d\n", bp->bp_op, dhcp_msg_type);
-    
+
     if (dhcp_msg_type == 0)
         dhcp_msg_type = DHCPREQUEST; /* Force reply for old BOOTP clients */
-        
-    if (dhcp_msg_type != DHCPDISCOVER && 
+
+    if (dhcp_msg_type != DHCPDISCOVER &&
         dhcp_msg_type != DHCPREQUEST)
         return;
     /* XXX: this is a hack to get the client mac address */
     memcpy(client_ethaddr, bp->bp_hwaddr, 6);
-    
+
     if ((m = m_get()) == NULL)
         return;
     m->m_data += if_maxlinkhdr;
@@ -203,7 +203,7 @@ static void bootp_reply(struct bootp_t *bp)
         *q++ = 1;
         *q++ = DHCPACK;
     }
-        
+
     if (dhcp_msg_type == DHCPDISCOVER ||
         dhcp_msg_type == DHCPREQUEST) {
         *q++ = RFC2132_SRV_ID;
@@ -217,12 +217,12 @@ static void bootp_reply(struct bootp_t *bp)
         *q++ = 0xff;
         *q++ = 0xff;
         *q++ = 0x00;
-        
+
         *q++ = RFC1533_GATEWAY;
         *q++ = 4;
         memcpy(q, &saddr.sin_addr, 4);
         q += 4;
-        
+
         *q++ = RFC1533_DNS;
         *q++ = 4;
         dns_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_DNS);
@@ -244,8 +244,8 @@ static void bootp_reply(struct bootp_t *bp)
         }
     }
     *q++ = RFC1533_END;
-    
-    m->m_len = sizeof(struct bootp_t) - 
+
+    m->m_len = sizeof(struct bootp_t) -
         sizeof(struct ip) - sizeof(struct udphdr);
     udp_output2(NULL, m, &saddr, &daddr, IPTOS_LOWDELAY);
 }

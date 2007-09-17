@@ -2,7 +2,7 @@
  * QEMU Sparc SLAVIO timer controller emulation
  *
  * Copyright (c) 2003-2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -38,7 +38,7 @@ do { printf("TIMER: " fmt , ##args); } while (0)
  * This is the timer/counter part of chip STP2001 (Slave I/O), also
  * produced as NCR89C105. See
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR89C105.txt
- * 
+ *
  * The 31-bit counter is incremented every 500ns by bit 9. Bits 8..0
  * are zero. Bit 31 is 1 when count has been reached.
  *
@@ -210,7 +210,7 @@ static int slavio_timer_load(QEMUFile *f, void *opaque, int version_id)
 {
     SLAVIO_TIMERState *s = opaque;
     uint32_t tmp;
-    
+
     if (version_id != 2)
         return -EINVAL;
 

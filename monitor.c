@@ -1,8 +1,8 @@
 /*
  * QEMU monitor
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -32,7 +32,7 @@
 
 /*
  * Supported types:
- * 
+ *
  * 'F'          filename
  * 'B'          block device name
  * 's'          string (accept optional quote)
@@ -204,7 +204,7 @@ static void do_commit(const char *device)
     all_devices = !strcmp(device, "all");
     for (i = 0; i < MAX_DISKS; i++) {
         if (bs_table[i]) {
-            if (all_devices || 
+            if (all_devices ||
                 !strcmp(bdrv_get_device_name(bs_table[i]), device))
                 bdrv_commit(bs_table[i]);
         }
@@ -221,7 +221,7 @@ static void do_info(const char *item)
     if (!item)
         goto help;
     for(cmd = info_cmds; cmd->name != NULL; cmd++) {
-        if (compare_cmd(item, cmd->name)) 
+        if (compare_cmd(item, cmd->name))
             goto found;
     }
  help:
@@ -279,7 +279,7 @@ static void do_info_registers(void)
     cpu_dump_state(env, NULL, monitor_fprintf,
                    X86_DUMP_FPU);
 #else
-    cpu_dump_state(env, NULL, monitor_fprintf, 
+    cpu_dump_state(env, NULL, monitor_fprintf,
                    0);
 #endif
 }
@@ -292,7 +292,7 @@ static void do_info_cpus(void)
     mon_get_cpu();
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        term_printf("%c CPU #%d:", 
+        term_printf("%c CPU #%d:",
                     (env == mon_cpu) ? '*' : ' ',
                     env->cpu_index);
 #if defined(TARGET_I386)
@@ -331,7 +331,7 @@ static void do_info_history (void)
 {
     int i;
     const char *str;
-    
+
     i = 0;
     for(;;) {
         str = readline_get_history(i);
@@ -442,7 +442,7 @@ static void do_logfile(const char *filename)
 static void do_log(const char *items)
 {
     int mask;
-    
+
     if (!strcmp(items, "none")) {
         mask = 0;
     } else {
@@ -505,7 +505,7 @@ static void term_printc(int c)
     term_printf("'");
 }
 
-static void memory_dump(int count, int format, int wsize, 
+static void memory_dump(int count, int format, int wsize,
                         target_ulong addr, int is_physical)
 {
     CPUState *env;
@@ -529,7 +529,7 @@ static void memory_dump(int count, int format, int wsize,
             flags = 0;
             if (env) {
 #ifdef TARGET_X86_64
-                if ((env->efer & MSR_EFER_LMA) && 
+                if ((env->efer & MSR_EFER_LMA) &&
                     (env->segs[R_CS].flags & DESC_L_MASK))
                     flags = 2;
                 else
@@ -581,7 +581,7 @@ static void memory_dump(int count, int format, int wsize,
                 break;
             cpu_memory_rw_debug(env, addr, buf, l, 0);
         }
-        i = 0; 
+        i = 0;
         while (i < l) {
             switch(wsize) {
             default:
@@ -630,7 +630,7 @@ static void memory_dump(int count, int format, int wsize,
 #define GET_TLONG(h, l) (l)
 #endif
 
-static void do_memory_dump(int count, int format, int size, 
+static void do_memory_dump(int count, int format, int size,
                            uint32_t addrh, uint32_t addrl)
 {
     target_long addr = GET_TLONG(addrh, addrl);
@@ -690,7 +690,7 @@ static void do_print(int count, int format, int size, unsigned int valh, unsigne
     term_printf("\n");
 }
 
-static void do_memory_save(unsigned int valh, unsigned int vall, 
+static void do_memory_save(unsigned int valh, unsigned int vall,
                            uint32_t size, const char *filename)
 {
     FILE *f;
@@ -744,7 +744,7 @@ typedef struct {
 static const KeyDef key_defs[] = {
     { 0x2a, "shift" },
     { 0x36, "shift_r" },
-    
+
     { 0x38, "alt" },
     { 0xb8, "alt_r" },
     { 0x1d, "ctrl" },
@@ -799,7 +799,7 @@ static const KeyDef key_defs[] = {
     { 0x30, "b" },
     { 0x31, "n" },
     { 0x32, "m" },
-    
+
     { 0x39, "spc" },
     { 0x3a, "caps_lock" },
     { 0x3b, "f1" },
@@ -832,7 +832,7 @@ static const KeyDef key_defs[] = {
     { 0x47, "kp_7" },
     { 0x48, "kp_8" },
     { 0x49, "kp_9" },
-    
+
     { 0x56, "<" },
 
     { 0x57, "f11" },
@@ -879,7 +879,7 @@ static void do_send_key(const char *string)
     uint8_t keycodes[16];
     const char *p;
     int nb_keycodes, keycode, i;
-    
+
     nb_keycodes = 0;
     p = string;
     while (*p != '\0') {
@@ -919,14 +919,14 @@ static void do_send_key(const char *string)
 
 static int mouse_button_state;
 
-static void do_mouse_move(const char *dx_str, const char *dy_str, 
+static void do_mouse_move(const char *dx_str, const char *dy_str,
                           const char *dz_str)
 {
     int dx, dy, dz;
     dx = strtol(dx_str, NULL, 0);
     dy = strtol(dy_str, NULL, 0);
     dz = 0;
-    if (dz_str) 
+    if (dz_str)
         dz = strtol(dz_str, NULL, 0);
     kbd_mouse_event(dx, dy, dz, mouse_button_state);
 }
@@ -980,7 +980,7 @@ static void do_system_powerdown(void)
 #if defined(TARGET_I386)
 static void print_pte(uint32_t addr, uint32_t pte, uint32_t mask)
 {
-    term_printf("%08x: %08x %c%c%c%c%c%c%c%c\n", 
+    term_printf("%08x: %08x %c%c%c%c%c%c%c%c\n",
                 addr,
                 pte & mask,
                 pte & PG_GLOBAL_MASK ? 'G' : '-',
@@ -1016,12 +1016,12 @@ static void tlb_info(void)
                 print_pte((l1 << 22), pde, ~((1 << 20) - 1));
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
-                    cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, 
+                    cpu_physical_memory_read((pde & ~0xfff) + l2 * 4,
                                              (uint8_t *)&pte, 4);
                     pte = le32_to_cpu(pte);
                     if (pte & PG_PRESENT_MASK) {
-                        print_pte((l1 << 22) + (l2 << 12), 
-                                  pte & ~PG_PSE_MASK, 
+                        print_pte((l1 << 22) + (l2 << 12),
+                                  pte & ~PG_PSE_MASK,
                                   ~0xfff);
                     }
                 }
@@ -1030,7 +1030,7 @@ static void tlb_info(void)
     }
 }
 
-static void mem_print(uint32_t *pstart, int *plast_prot, 
+static void mem_print(uint32_t *pstart, int *plast_prot,
                       uint32_t end, int prot)
 {
     int prot1;
@@ -1038,7 +1038,7 @@ static void mem_print(uint32_t *pstart, int *plast_prot,
     if (prot != prot1) {
         if (*pstart != -1) {
             term_printf("%08x-%08x %08x %c%c%c\n",
-                        *pstart, end, end - *pstart, 
+                        *pstart, end, end - *pstart,
                         prot1 & PG_USER_MASK ? 'u' : '-',
                         'r',
                         prot1 & PG_RW_MASK ? 'w' : '-');
@@ -1078,7 +1078,7 @@ static void mem_info(void)
                 mem_print(&start, &last_prot, end, prot);
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
-                    cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, 
+                    cpu_physical_memory_read((pde & ~0xfff) + l2 * 4,
                                              (uint8_t *)&pte, 4);
                     pte = le32_to_cpu(pte);
                     end = (l1 << 22) + (l2 << 12);
@@ -1126,7 +1126,7 @@ static void do_info_kqemu(void)
 #else
     term_printf("kqemu support: not compiled\n");
 #endif
-} 
+}
 
 #ifdef CONFIG_PROFILER
 
@@ -1232,9 +1232,9 @@ static void do_wav_capture (const char *path,
 #endif
 
 static term_cmd_t term_cmds[] = {
-    { "help|?", "s?", do_help, 
+    { "help|?", "s?", do_help,
       "[cmd]", "show the help" },
-    { "commit", "s", do_commit, 
+    { "commit", "s", do_commit,
       "device|all", "commit changes to the disk images (if -snapshot is used) or backing files" },
     { "info", "s?", do_info,
       "subcommand", "show various information about the system state" },
@@ -1245,53 +1245,53 @@ static term_cmd_t term_cmds[] = {
     { "change", "BF", do_change,
       "device filename", "change a removable medium" },
 #if defined(CONFIG_SDL)
-    { "screendump", "F", do_screen_dump, 
+    { "screendump", "F", do_screen_dump,
       "filename", "save screen into PPM image 'filename'" },
 #endif
     { "logfile", "s", do_logfile,
       "filename", "output logs to 'filename'" },
     { "log", "s", do_log,
-      "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
+      "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" },
     { "savevm", "s?", do_savevm,
-      "tag|id", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" }, 
+      "tag|id", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" },
     { "loadvm", "s", do_loadvm,
-      "tag|id", "restore a VM snapshot from its tag or id" }, 
+      "tag|id", "restore a VM snapshot from its tag or id" },
     { "delvm", "s", do_delvm,
-      "tag|id", "delete a VM snapshot from its tag or id" }, 
-    { "stop", "", do_stop, 
+      "tag|id", "delete a VM snapshot from its tag or id" },
+    { "stop", "", do_stop,
       "", "stop emulation", },
-    { "c|cont", "", do_cont, 
+    { "c|cont", "", do_cont,
       "", "resume emulation", },
 #ifdef CONFIG_GDBSTUB
-    { "gdbserver", "s?", do_gdbserver, 
+    { "gdbserver", "s?", do_gdbserver,
       "[port]", "start gdbserver session (default port=1234)", },
 #endif
-    { "x", "/l", do_memory_dump, 
+    { "x", "/l", do_memory_dump,
       "/fmt addr", "virtual memory dump starting at 'addr'", },
-    { "xp", "/l", do_physical_memory_dump, 
+    { "xp", "/l", do_physical_memory_dump,
       "/fmt addr", "physical memory dump starting at 'addr'", },
-    { "p|print", "/l", do_print, 
+    { "p|print", "/l", do_print,
       "/fmt expr", "print expression value (use $reg for CPU register access)", },
-    { "i", "/ii.", do_ioport_read, 
+    { "i", "/ii.", do_ioport_read,
       "/fmt addr", "I/O port read" },
 
-    { "sendkey", "s", do_send_key, 
+    { "sendkey", "s", do_send_key,
       "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
-    { "system_reset", "", do_system_reset, 
+    { "system_reset", "", do_system_reset,
       "", "reset the system" },
-    { "system_powerdown", "", do_system_powerdown, 
+    { "system_powerdown", "", do_system_powerdown,
       "", "send system power down event" },
-    { "sum", "ii", do_sum, 
+    { "sum", "ii", do_sum,
       "addr size", "compute the checksum of a memory region" },
     { "usb_add", "s", do_usb_add,
       "device", "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')" },
     { "usb_del", "s", do_usb_del,
       "device", "remove USB device 'bus.addr'" },
-    { "cpu", "i", do_cpu_set, 
+    { "cpu", "i", do_cpu_set,
       "index", "set the default CPU" },
-    { "mouse_move", "sss?", do_mouse_move, 
+    { "mouse_move", "sss?", do_mouse_move,
       "dx dy [dz]", "send mouse move events" },
-    { "mouse_button", "i", do_mouse_button, 
+    { "mouse_button", "i", do_mouse_button,
       "state", "change mouse button state (1=L, 2=M, 4=R)" },
     { "mouse_set", "i", do_mouse_set,
       "index", "set which mouse device receives events" },
@@ -1302,9 +1302,9 @@ static term_cmd_t term_cmds[] = {
 #endif
      { "stopcapture", "i", do_stop_capture,
        "capture index", "stop capture" },
-    { "memsave", "lis", do_memory_save, 
+    { "memsave", "lis", do_memory_save,
       "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
-    { NULL, NULL, }, 
+    { NULL, NULL, },
 };
 
 static const term_cmd_t info_cmds[] = {
@@ -1680,7 +1680,7 @@ static MonitorDef monitor_defs[] = {
     { NULL },
 };
 
-static void expr_error(const char *fmt) 
+static void expr_error(const char *fmt)
 {
     term_printf(fmt);
     term_printf("\n");
@@ -1771,7 +1771,7 @@ static target_long expr_unary(void)
     case '$':
         {
             char buf[128], *q;
-            
+
             pch++;
             q = buf;
             while ((*pch >= 'a' && *pch <= 'z') ||
@@ -1788,7 +1788,7 @@ static target_long expr_unary(void)
             ret = get_monitor_def(&n, buf);
             if (ret == -1)
                 expr_error("unknown register");
-            else if (ret == -2) 
+            else if (ret == -2)
                 expr_error("no cpu defined");
         }
         break;
@@ -1818,7 +1818,7 @@ static target_long expr_prod(void)
 {
     target_long val, val2;
     int op;
-    
+
     val = expr_unary();
     for(;;) {
         op = *pch;
@@ -1833,7 +1833,7 @@ static target_long expr_prod(void)
             break;
         case '/':
         case '%':
-            if (val2 == 0) 
+            if (val2 == 0)
                 expr_error("division by zero");
             if (op == '/')
                 val /= val2;
@@ -1991,7 +1991,7 @@ static void monitor_handle_command(const char *cmdline)
 #ifdef DEBUG
     term_printf("command='%s'\n", cmdline);
 #endif
-    
+
     /* extract the command name */
     p = cmdline;
     q = cmdname;
@@ -2007,10 +2007,10 @@ static void monitor_handle_command(const char *cmdline)
         len = sizeof(cmdname) - 1;
     memcpy(cmdname, pstart, len);
     cmdname[len] = '\0';
-    
+
     /* find the command */
     for(cmd = term_cmds; cmd->name != NULL; cmd++) {
-        if (compare_cmd(cmdname, cmd->name)) 
+        if (compare_cmd(cmdname, cmd->name))
             goto found;
     }
     term_printf("unknown command: '%s'\n", cmdname);
@@ -2019,7 +2019,7 @@ static void monitor_handle_command(const char *cmdline)
 
     for(i = 0; i < MAX_ARGS; i++)
         str_allocated[i] = NULL;
-    
+
     /* parse the parameters */
     typestr = cmd->args_type;
     nb_args = 0;
@@ -2035,8 +2035,8 @@ static void monitor_handle_command(const char *cmdline)
             {
                 int ret;
                 char *str;
-                
-                while (isspace(*p)) 
+
+                while (isspace(*p))
                     p++;
                 if (*typestr == '?') {
                     typestr++;
@@ -2076,7 +2076,7 @@ static void monitor_handle_command(const char *cmdline)
         case '/':
             {
                 int count, format, size;
-                
+
                 while (isspace(*p))
                     p++;
                 if (*p == '/') {
@@ -2157,7 +2157,7 @@ static void monitor_handle_command(const char *cmdline)
         case 'l':
             {
                 target_long val;
-                while (isspace(*p)) 
+                while (isspace(*p))
                     p++;
                 if (*typestr == '?' || *typestr == '.') {
                     if (*typestr == '?') {
@@ -2168,7 +2168,7 @@ static void monitor_handle_command(const char *cmdline)
                     } else {
                         if (*p == '.') {
                             p++;
-                            while (isspace(*p)) 
+                            while (isspace(*p))
                                 p++;
                             has_arg = 1;
                         } else {
@@ -2209,17 +2209,17 @@ static void monitor_handle_command(const char *cmdline)
             {
                 int has_option;
                 /* option */
-                
+
                 c = *typestr++;
                 if (c == '\0')
                     goto bad_type;
-                while (isspace(*p)) 
+                while (isspace(*p))
                     p++;
                 has_option = 0;
                 if (*p == '-') {
                     p++;
                     if (*p != c) {
-                        term_printf("%s: unsupported option -%c\n", 
+                        term_printf("%s: unsupported option -%c\n",
                                     cmdname, *p);
                         goto fail;
                     }
@@ -2241,7 +2241,7 @@ static void monitor_handle_command(const char *cmdline)
     while (isspace(*p))
         p++;
     if (*p != '\0') {
-        term_printf("%s: extraneous characters at the end of line\n", 
+        term_printf("%s: extraneous characters at the end of line\n",
                     cmdname);
         goto fail;
     }
@@ -2316,7 +2316,7 @@ static void file_completion(const char *input)
     int input_path_len;
     const char *p;
 
-    p = strrchr(input, '/'); 
+    p = strrchr(input, '/');
     if (!p) {
         input_path_len = 0;
         pstrcpy(file_prefix, sizeof(file_prefix), input);

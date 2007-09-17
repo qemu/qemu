@@ -1,6 +1,6 @@
 /*
  *  APIC support
- * 
+ *
  *  Copyright (c) 2004-2005 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -182,7 +182,7 @@ static inline void reset_bit(uint32_t *tab, int index)
     }\
 }
 
-static void apic_bus_deliver(const uint32_t *deliver_bitmask, 
+static void apic_bus_deliver(const uint32_t *deliver_bitmask,
                              uint8_t delivery_mode,
                              uint8_t vector_num, uint8_t polarity,
                              uint8_t trigger_mode)
@@ -219,10 +219,10 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
 
         case APIC_DM_INIT:
             /* normal INIT IPI sent to processors */
-            foreach_apic(apic_iter, deliver_bitmask, 
+            foreach_apic(apic_iter, deliver_bitmask,
                          apic_init_ipi(apic_iter) );
             return;
-    
+
         case APIC_DM_EXTINT:
             /* handled in I/O APIC code */
             break;
@@ -231,7 +231,7 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
             return;
     }
 
-    foreach_apic(apic_iter, deliver_bitmask, 
+    foreach_apic(apic_iter, deliver_bitmask,
                  apic_set_irq(apic_iter, vector_num, trigger_mode) );
 }
 
@@ -241,7 +241,7 @@ void cpu_set_apic_base(CPUState *env, uint64_t val)
 #ifdef DEBUG_APIC
     printf("cpu_set_apic_base: %016" PRIx64 "\n", val);
 #endif
-    s->apicbase = (val & 0xfffff000) | 
+    s->apicbase = (val & 0xfffff000) |
         (s->apicbase & (MSR_IA32_APICBASE_BSP | MSR_IA32_APICBASE_ENABLE));
     /* if disabled, cannot be enabled again */
     if (!(val & MSR_IA32_APICBASE_ENABLE)) {
@@ -407,7 +407,7 @@ static void apic_startup(APICState *s, int vector_num)
     if (!(env->hflags & HF_HALTED_MASK))
         return;
     env->eip = 0;
-    cpu_x86_load_seg_cache(env, R_CS, vector_num << 8, vector_num << 12, 
+    cpu_x86_load_seg_cache(env, R_CS, vector_num << 8, vector_num << 12,
                            0xffff, 0);
     env->hflags &= ~HF_HALTED_MASK;
 }
@@ -443,7 +443,7 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                 int trig_mode = (s->icr[0] >> 15) & 1;
                 int level = (s->icr[0] >> 14) & 1;
                 if (level == 0 && trig_mode == 1) {
-                    foreach_apic(apic_iter, deliver_bitmask, 
+                    foreach_apic(apic_iter, deliver_bitmask,
                                  apic_iter->arb_id = apic_iter->id );
                     return;
                 }
@@ -451,7 +451,7 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
             break;
 
         case APIC_DM_SIPI:
-            foreach_apic(apic_iter, deliver_bitmask, 
+            foreach_apic(apic_iter, deliver_bitmask,
                          apic_startup(apic_iter, vector_num) );
             return;
     }
@@ -471,7 +471,7 @@ int apic_get_interrupt(CPUState *env)
         return -1;
     if (!(s->spurious_vec & APIC_SV_ENABLE))
         return -1;
-    
+
     /* XXX: spurious IRQ handling */
     intno = get_highest_priority_int(s->irr);
     if (intno < 0)
@@ -488,7 +488,7 @@ static uint32_t apic_get_current_count(APICState *s)
 {
     int64_t d;
     uint32_t val;
-    d = (qemu_get_clock(vm_clock) - s->initial_count_load_time) >> 
+    d = (qemu_get_clock(vm_clock) - s->initial_count_load_time) >>
         s->count_shift;
     if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
         /* periodic */
@@ -505,9 +505,9 @@ static uint32_t apic_get_current_count(APICState *s)
 static void apic_timer_update(APICState *s, int64_t current_time)
 {
     int64_t next_time, d;
-    
+
     if (!(s->lvt[APIC_LVT_TIMER] & APIC_LVT_MASKED)) {
-        d = (current_time - s->initial_count_load_time) >> 
+        d = (current_time - s->initial_count_load_time) >>
             s->count_shift;
         if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
             d = ((d / ((uint64_t)s->initial_count + 1)) + 1) * ((uint64_t)s->initial_count + 1);
@@ -818,14 +818,14 @@ int apic_init(CPUState *env)
     s->id = last_apic_id++;
     env->cpuid_apic_id = s->id;
     s->cpu_env = env;
-    s->apicbase = 0xfee00000 | 
+    s->apicbase = 0xfee00000 |
         (s->id ? 0 : MSR_IA32_APICBASE_BSP) | MSR_IA32_APICBASE_ENABLE;
 
     /* XXX: mapping more APICs at the same memory location */
     if (apic_io_memory == 0) {
         /* NOTE: the APIC is directly connected to the CPU - it is not
            on the global memory bus. */
-        apic_io_memory = cpu_register_io_memory(0, apic_mem_read, 
+        apic_io_memory = cpu_register_io_memory(0, apic_mem_read,
                                                 apic_mem_write, NULL);
         cpu_register_physical_memory(s->apicbase & ~0xfff, 0x1000,
                                      apic_io_memory);
@@ -834,7 +834,7 @@ int apic_init(CPUState *env)
 
     register_savevm("apic", s->id, 2, apic_save, apic_load, s);
     qemu_register_reset(apic_reset, s);
-    
+
     local_apics[s->id] = s;
     return 0;
 }
@@ -868,9 +868,9 @@ static void ioapic_service(IOAPICState *s)
                     vector = pic_read_irq(isa_pic);
                 else
                     vector = entry & 0xff;
-                
+
                 apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
-                apic_bus_deliver(deliver_bitmask, delivery_mode, 
+                apic_bus_deliver(deliver_bitmask, delivery_mode,
                                  vector, polarity, trig_mode);
             }
         }
@@ -1036,12 +1036,12 @@ IOAPICState *ioapic_init(void)
     ioapic_reset(s);
     s->id = last_apic_id++;
 
-    io_memory = cpu_register_io_memory(0, ioapic_mem_read, 
+    io_memory = cpu_register_io_memory(0, ioapic_mem_read,
                                        ioapic_mem_write, s);
     cpu_register_physical_memory(0xfec00000, 0x1000, io_memory);
 
     register_savevm("ioapic", 0, 1, ioapic_save, ioapic_load, s);
     qemu_register_reset(ioapic_reset, s);
-    
+
     return s;
 }

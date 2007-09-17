@@ -1,9 +1,9 @@
 /* vim:set shiftwidth=4 ts=8: */
 /*
  * QEMU Block driver for virtual VFAT (shadows a local directory)
- * 
+ *
  * Copyright (c) 2004,2005 Johannes E. Schindelin
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -38,7 +38,7 @@
 /* TODO: add ":bootsector=blabla.img:" */
 /* LATER TODO: add automatic boot sector generation from
     BOOTEASY.ASM and Ranish Partition Manager
-    Note that DOS assumes the system files to be the first files in the 
+    Note that DOS assumes the system files to be the first files in the
     file system (test if the boot sector still relies on that fact)! */
 /* MAYBE TODO: write block-visofs.c */
 /* TODO: call try_commit() only after a timeout */
@@ -153,7 +153,7 @@ static inline int array_roll(array_t* array,int index_to,int index_from,int coun
 	    index_to<0 || index_to>=array->next ||
 	    index_from<0 || index_from>=array->next)
 	return -1;
-    
+
     if(index_to==index_from)
 	return 0;
 
@@ -167,7 +167,7 @@ static inline int array_roll(array_t* array,int index_to,int index_from,int coun
 	memmove(to+is*count,to,from-to);
     else
 	memmove(from,from+is*count,to-from);
-    
+
     memcpy(to,buf,is*count);
 
     free(buf);
@@ -319,10 +319,10 @@ typedef struct BDRVVVFATState {
     BlockDriverState* bs; /* pointer to parent */
     unsigned int first_sectors_number; /* 1 for a single partition, 0x40 for a disk with partition table */
     unsigned char first_sectors[0x40*0x200];
-    
+
     int fat_type; /* 16 or 32 */
     array_t fat,directory,mapping;
-   
+
     unsigned int cluster_size;
     unsigned int sectors_per_cluster;
     unsigned int sectors_per_fat;
@@ -332,7 +332,7 @@ typedef struct BDRVVVFATState {
     uint32_t sector_count; /* total number of sectors of the partition */
     uint32_t cluster_count; /* total number of clusters of this partition */
     uint32_t max_fat_value;
-   
+
     int current_fd;
     mapping_t* current_mapping;
     unsigned char* cluster; /* points to current cluster */
@@ -358,7 +358,7 @@ static void init_mbr(BDRVVVFATState* s)
     partition_t* partition=&(real_mbr->partition[0]);
 
     memset(s->first_sectors,0,512);
-   
+
     partition->attributes=0x80; /* bootable */
     partition->start_head=1;
     partition->start_sector=1;
@@ -478,7 +478,7 @@ static inline uint8_t fat_chksum(const direntry_t* entry)
     for(i=0;i<11;i++)
 	chksum=(((chksum&0xfe)>>1)|((chksum&0x01)?0x80:0))
 	    +(unsigned char)entry->name[i];
-    
+
     return chksum;
 }
 
@@ -554,7 +554,7 @@ static inline void init_fat(BDRVVVFATState* s)
 		s->sectors_per_fat * 0x200 / s->fat.item_size - 1);
     }
     memset(s->fat.pointer,0,s->fat.size);
-    
+
     switch(s->fat_type) {
 	case 12: s->max_fat_value=0xfff; break;
 	case 16: s->max_fat_value=0xffff; break;
@@ -579,10 +579,10 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 	memcpy(entry->name,filename,strlen(filename));
 	return entry;
     }
-    
+
     entry_long=create_long_filename(s,filename);
-  
-    i = strlen(filename); 
+
+    i = strlen(filename);
     for(j = i - 1; j>0  && filename[j]!='.';j--);
     if (j > 0)
 	i = (j > 8 ? 8 : j);
@@ -592,7 +592,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
     entry=array_get_next(&(s->directory));
     memset(entry->name,0x20,11);
     strncpy(entry->name,filename,i);
-    
+
     if(j > 0)
 	for (i = 0; i < 3 && filename[j+1+i]; i++)
 	    entry->extension[i] = filename[j+1+i];
@@ -618,7 +618,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 	if(entry1==entry) /* no dupe found */
 	    break;
 
-	/* use all 8 characters of name */	
+	/* use all 8 characters of name */
 	if(entry->name[7]==' ') {
 	    int j;
 	    for(j=6;j>0 && entry->name[j]==' ';j--)
@@ -675,11 +675,11 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	mapping->end = mapping->begin;
 	return -1;
     }
-   
+
     i = mapping->info.dir.first_dir_index =
 	    first_cluster == 0 ? 0 : s->directory.next;
 
-    /* actually read the directory, and allocate the mappings */ 
+    /* actually read the directory, and allocate the mappings */
     while((entry=readdir(dir))) {
 	unsigned int length=strlen(dirname)+2+strlen(entry->d_name);
         char* buffer;
@@ -690,7 +690,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 
 	if(first_cluster == 0 && (is_dotdot || is_dot))
 	    continue;
-	
+
 	buffer=(char*)malloc(length);
 	assert(buffer);
 	snprintf(buffer,length,"%s/%s",dirname,entry->d_name);
@@ -765,7 +765,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	memset(array_get(&(s->directory), cur), 0,
 		(ROOT_ENTRIES - cur) * sizeof(direntry_t));
     }
-	
+
      /* reget the mapping, since s->mapping was possibly realloc()ed */
     mapping = (mapping_t*)array_get(&(s->mapping), mapping_index);
     first_cluster += (s->directory.next - mapping->info.dir.first_dir_index)
@@ -774,7 +774,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 
     direntry = (direntry_t*)array_get(&(s->directory), mapping->dir_index);
     set_begin_of_direntry(direntry, mapping->begin);
-   
+
     return 0;
 }
 
@@ -825,7 +825,7 @@ static int init_directories(BDRVVVFATState* s,
      */
     i = 1+s->sectors_per_cluster*0x200*8/s->fat_type;
     s->sectors_per_fat=(s->sector_count+i)/i; /* round up */
-    
+
     array_init(&(s->mapping),sizeof(mapping_t));
     array_init(&(s->directory),sizeof(direntry_t));
 
@@ -857,7 +857,7 @@ static int init_directories(BDRVVVFATState* s,
 
     for (i = 0, cluster = 0; i < s->mapping.next; i++) {
 	int j;
-	/* MS-DOS expects the FAT to be 0 for the root directory 
+	/* MS-DOS expects the FAT to be 0 for the root directory
 	 * (except for the media byte). */
 	/* LATER TODO: still true for FAT32? */
 	int fix_fat = (i != 0);
@@ -987,7 +987,7 @@ DLOG(if (stderr == NULL) {
     s->qcow_filename = NULL;
     s->fat2 = NULL;
     s->downcase_short_names = 1;
-    
+
     if (!strstart(dirname, "fat:", NULL))
 	return -1;
 
@@ -1076,7 +1076,7 @@ static inline int find_mapping_for_cluster_aux(BDRVVVFATState* s,int cluster_num
 	assert(index1<=index2);
 	DLOG(mapping=array_get(&(s->mapping),index1);
 	assert(mapping->begin<=cluster_num);
-	assert(index2 >= s->mapping.next || 
+	assert(index2 >= s->mapping.next ||
 		((mapping = array_get(&(s->mapping),index2)) &&
 		mapping->end>cluster_num)));
     }
@@ -1239,7 +1239,7 @@ static void print_mapping(const mapping_t* mapping)
 }
 #endif
 
-static int vvfat_read(BlockDriverState *bs, int64_t sector_num, 
+static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVVVFATState *s = bs->opaque;
@@ -1674,7 +1674,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
 }
 
 /*
- * This function looks at the modified data (qcow). 
+ * This function looks at the modified data (qcow).
  * It returns 0 upon inconsistency or error, and the number of clusters
  * used by the directory, its subdirectories and their files.
  */
@@ -1709,7 +1709,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
     } else
 	/* new directory */
 	schedule_mkdir(s, cluster_num, strdup(path));
-		
+
     lfn_init(&lfn);
     do {
 	int i;
@@ -2049,7 +2049,7 @@ static int commit_mappings(BDRVVVFATState* s,
 	    }
 
 	    next_mapping->dir_index = mapping->dir_index;
-	    next_mapping->first_mapping_index = 
+	    next_mapping->first_mapping_index =
 		mapping->first_mapping_index < 0 ?
 		array_index(&(s->mapping), mapping) :
 		mapping->first_mapping_index;
@@ -2069,7 +2069,7 @@ static int commit_mappings(BDRVVVFATState* s,
 
 	    mapping = next_mapping;
 	}
-		
+
 	cluster = c1;
     }
 
@@ -2555,7 +2555,7 @@ static int do_commit(BDRVVVFATState* s)
 	return ret;
     }
 
-    /* copy FAT (with bdrv_read) */ 
+    /* copy FAT (with bdrv_read) */
     memcpy(s->fat.pointer, s->fat2, 0x200 * s->sectors_per_fat);
 
     /* recurse direntries from root (using bs->bdrv_read) */
@@ -2597,10 +2597,10 @@ DLOG(checkpoint());
     return do_commit(s);
 }
 
-static int vvfat_write(BlockDriverState *bs, int64_t sector_num, 
+static int vvfat_write(BlockDriverState *bs, int64_t sector_num,
                     const uint8_t *buf, int nb_sectors)
 {
-    BDRVVVFATState *s = bs->opaque; 
+    BDRVVVFATState *s = bs->opaque;
     int i, ret;
 
 DLOG(checkpoint());
@@ -2639,7 +2639,7 @@ DLOG(checkpoint());
 		    begin = sector_num;
 		if (end > sector_num + nb_sectors)
 		    end = sector_num + nb_sectors;
-		dir_index  = mapping->dir_index + 
+		dir_index  = mapping->dir_index +
 		    0x10 * (begin - mapping->begin * s->sectors_per_cluster);
 		direntries = (direntry_t*)(buf + 0x200 * (begin - sector_num));
 
@@ -2698,7 +2698,7 @@ static int vvfat_is_allocated(BlockDriverState *bs,
 	*n = nb_sectors;
     else if (*n < 0)
 	return 0;
-    return 1;	
+    return 1;
 }
 
 static int write_target_commit(BlockDriverState *bs, int64_t sector_num,

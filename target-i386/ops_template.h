@@ -1,7 +1,7 @@
 /*
  *  i386 micro operations (included several times to generate
  *  different operand sizes)
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -239,7 +239,7 @@ static int glue(compute_all_sar, SUFFIX)(void)
     zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
     /* of is defined if shift count == 1 */
-    of = lshift(CC_SRC ^ CC_DST, 12 - DATA_BITS) & CC_O; 
+    of = lshift(CC_SRC ^ CC_DST, 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
@@ -502,7 +502,7 @@ void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
 {
     int count;
     target_long res;
-    
+
     res = T0 & DATA_MASK;
     if (res != 0) {
         count = 0;

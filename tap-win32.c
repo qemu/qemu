@@ -110,7 +110,7 @@ typedef struct tap_win32_overlapped {
 
 static tap_win32_overlapped_t tap_overlapped;
 
-static tun_buffer_t* get_buffer_from_free_list(tap_win32_overlapped_t* const overlapped) 
+static tun_buffer_t* get_buffer_from_free_list(tap_win32_overlapped_t* const overlapped)
 {
     tun_buffer_t* buffer = NULL;
     WaitForSingleObject(overlapped->free_list_semaphore, INFINITE);
@@ -132,18 +132,18 @@ static void put_buffer_on_free_list(tap_win32_overlapped_t* const overlapped, tu
     ReleaseSemaphore(overlapped->free_list_semaphore, 1, NULL);
 }
 
-static tun_buffer_t* get_buffer_from_output_queue(tap_win32_overlapped_t* const overlapped, const int block) 
+static tun_buffer_t* get_buffer_from_output_queue(tap_win32_overlapped_t* const overlapped, const int block)
 {
     tun_buffer_t* buffer = NULL;
     DWORD result, timeout = block ? INFINITE : 0L;
 
     // Non-blocking call
-    result = WaitForSingleObject(overlapped->output_queue_semaphore, timeout); 
+    result = WaitForSingleObject(overlapped->output_queue_semaphore, timeout);
 
-    switch (result) 
-    { 
+    switch (result)
+    {
         // The semaphore object was signaled.
-        case WAIT_OBJECT_0: 
+        case WAIT_OBJECT_0:
             EnterCriticalSection(&overlapped->output_queue_cs);
 
             buffer = overlapped->output_queue_front;
@@ -154,18 +154,18 @@ static tun_buffer_t* get_buffer_from_output_queue(tap_win32_overlapped_t* const 
             }
 
             LeaveCriticalSection(&overlapped->output_queue_cs);
-            break; 
+            break;
 
         // Semaphore was nonsignaled, so a time-out occurred.
-        case WAIT_TIMEOUT: 
+        case WAIT_TIMEOUT:
             // Cannot open another window.
-            break; 
+            break;
     }
 
     return buffer;
 }
 
-static tun_buffer_t* get_buffer_from_output_queue_immediate (tap_win32_overlapped_t* const overlapped) 
+static tun_buffer_t* get_buffer_from_output_queue_immediate (tap_win32_overlapped_t* const overlapped)
 {
     return get_buffer_from_output_queue(overlapped, 0);
 }
@@ -332,7 +332,7 @@ static int get_device_guid(
             return -1;
         }
 
-        snprintf(connection_string, 
+        snprintf(connection_string,
              sizeof(connection_string),
              "%s\\%s\\Connection",
              NETWORK_CONNECTIONS_KEY, enum_name);
@@ -343,7 +343,7 @@ static int get_device_guid(
             0,
             KEY_READ,
             &connection_key);
-        
+
         if (status == ERROR_SUCCESS) {
             len = sizeof (name_data);
             status = RegQueryValueEx(
@@ -416,7 +416,7 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
     InitializeCriticalSection(&overlapped->output_queue_cs);
     InitializeCriticalSection(&overlapped->free_list_cs);
 
-    overlapped->output_queue_semaphore = CreateSemaphore( 
+    overlapped->output_queue_semaphore = CreateSemaphore(
         NULL,   // default security attributes
         0,   // initial count
         TUN_MAX_BUFFER_COUNT,   // maximum count
@@ -426,7 +426,7 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
         fprintf(stderr, "error creating output queue semaphore!\n");
     }
 
-    overlapped->free_list_semaphore = CreateSemaphore( 
+    overlapped->free_list_semaphore = CreateSemaphore(
         NULL,   // default security attributes
         TUN_MAX_BUFFER_COUNT,   // initial count
         TUN_MAX_BUFFER_COUNT,   // maximum count
@@ -452,7 +452,7 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
         fprintf(stderr, "error creating tap_semaphore.\n");
 }
 
-static int tap_win32_write(tap_win32_overlapped_t *overlapped, 
+static int tap_win32_write(tap_win32_overlapped_t *overlapped,
                            const void *buffer, unsigned long size)
 {
     unsigned long write_size;
@@ -467,18 +467,18 @@ static int tap_win32_write(tap_win32_overlapped_t *overlapped,
 
     result = WriteFile(overlapped->handle, buffer, size,
                        &write_size, &overlapped->write_overlapped);
-    
-    if (!result) { 
+
+    if (!result) {
         switch (error = GetLastError())
-        { 
-        case ERROR_IO_PENDING: 
+        {
+        case ERROR_IO_PENDING:
 #ifndef TUN_ASYNCHRONOUS_WRITES
             WaitForSingleObject(overlapped->write_event, INFINITE);
 #endif
             break;
         default:
             return -1;
-        } 
+        }
     }
 
     return 0;
@@ -539,7 +539,7 @@ static DWORD WINAPI tap_win32_thread_entry(LPVOID param)
     return 0;
 }
 
-static int tap_win32_read(tap_win32_overlapped_t *overlapped, 
+static int tap_win32_read(tap_win32_overlapped_t *overlapped,
                           uint8_t **pbuf, int max_size)
 {
     int size = 0;
@@ -557,14 +557,14 @@ static int tap_win32_read(tap_win32_overlapped_t *overlapped,
     return size;
 }
 
-static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped, 
-                                  char* pbuf) 
+static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
+                                  char* pbuf)
 {
     tun_buffer_t* buffer = (tun_buffer_t*)pbuf;
     put_buffer_on_free_list(overlapped, buffer);
 }
 
-static int tap_win32_open(tap_win32_overlapped_t **phandle, 
+static int tap_win32_open(tap_win32_overlapped_t **phandle,
                           const char *prefered_name)
 {
     char device_path[256];
@@ -660,7 +660,7 @@ static void tap_win32_send(void *opaque)
 int tap_win32_init(VLANState *vlan, const char *ifname)
 {
     TAPState *s;
-    
+
     s = qemu_mallocz(sizeof(TAPState));
     if (!s)
         return -1;
@@ -670,7 +670,7 @@ int tap_win32_init(VLANState *vlan, const char *ifname)
     }
 
     s->vc = qemu_new_vlan_client(vlan, tap_receive, NULL, s);
-    
+
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s", ifname);
 

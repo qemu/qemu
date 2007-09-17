@@ -49,7 +49,7 @@ static void glue(bswap_sym, SZ)(struct elf_sym *sym)
     bswap16s(&sym->st_shndx);
 }
 
-static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table, 
+static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
                                                int n, int type)
 {
     int i;
@@ -71,17 +71,17 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     int nsyms, i;
     char *str = NULL;
 
-    shdr_table = load_at(fd, ehdr->e_shoff, 
+    shdr_table = load_at(fd, ehdr->e_shoff,
                          sizeof(struct elf_shdr) * ehdr->e_shnum);
     if (!shdr_table)
         return -1;
-    
+
     if (must_swab) {
         for (i = 0; i < ehdr->e_shnum; i++) {
             glue(bswap_shdr, SZ)(shdr_table + i);
         }
     }
-        
+
     symtab = glue(find_section, SZ)(shdr_table, ehdr->e_shnum, SHT_SYMTAB);
     if (!symtab)
         goto fail;
@@ -176,7 +176,7 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
             glue(bswap_phdr, SZ)(ph);
         }
     }
-    
+
     total_size = 0;
     for(i = 0; i < ehdr.e_phnum; i++) {
         ph = &phdr[i];

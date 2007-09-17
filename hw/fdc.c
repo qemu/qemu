@@ -1,8 +1,8 @@
 /*
  * QEMU Floppy disk emulator (Intel 82078)
- * 
+ *
  * Copyright (c) 2003, 2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -217,7 +217,7 @@ static fd_format_t fd_formats[] = {
     { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 40, 0,  "180 kB 5\"1/4", },
     { FDRIVE_DRV_120, FDRIVE_DISK_288, 10, 41, 1,  "410 kB 5\"1/4", },
     { FDRIVE_DRV_120, FDRIVE_DISK_288, 10, 42, 1,  "420 kB 5\"1/4", },
-    /* 320 kB 5"1/4 floppy disks */ 
+    /* 320 kB 5"1/4 floppy disks */
     { FDRIVE_DRV_120, FDRIVE_DISK_288,  8, 40, 1,  "320 kB 5\"1/4", },
     { FDRIVE_DRV_120, FDRIVE_DISK_288,  8, 40, 0,  "160 kB 5\"1/4", },
     /* 360 kB must match 5"1/4 better than 3"1/2... */
@@ -467,7 +467,7 @@ static uint32_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg)
     return fdctrl_read(opaque, (uint32_t)reg);
 }
 
-static void fdctrl_write_mem (void *opaque, 
+static void fdctrl_write_mem (void *opaque,
                               target_phys_addr_t reg, uint32_t value)
 {
     fdctrl_write(opaque, (uint32_t)reg, value);
@@ -578,7 +578,7 @@ static void fdctrl_external_reset(void *opaque)
     fdctrl_reset(s, 0);
 }
 
-fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped, 
+fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
                        target_phys_addr_t io_base,
                        BlockDriverState **fds)
 {
@@ -590,7 +590,7 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl = qemu_mallocz(sizeof(fdctrl_t));
     if (!fdctrl)
         return NULL;
-    fdctrl->result_timer = qemu_new_timer(vm_clock, 
+    fdctrl->result_timer = qemu_new_timer(vm_clock,
                                           fdctrl_result_timer, fdctrl);
 
     fdctrl->version = 0x90; /* Intel 82078 controller */
@@ -842,7 +842,7 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 static int fdctrl_media_changed(fdrive_t *drv)
 {
     int ret;
-    if (!drv->bs) 
+    if (!drv->bs)
         return 0;
     ret = bdrv_media_changed(drv->bs);
     if (ret) {
@@ -1141,7 +1141,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
 		cur_drv->sect = 1;
 		if (FD_MULTI_TRACK(fdctrl->data_state)) {
 		    if (cur_drv->head == 0 &&
-			(cur_drv->flags & FDISK_DBL_SIDES) != 0) {	
+			(cur_drv->flags & FDISK_DBL_SIDES) != 0) {
                         cur_drv->head = 1;
                     } else {
                         cur_drv->head = 0;
@@ -1732,7 +1732,7 @@ enqueue:
             FLOPPY_DPRINTF("treat READ_ID command\n");
             /* XXX: should set main status register to busy */
             cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
-            qemu_mod_timer(fdctrl->result_timer, 
+            qemu_mod_timer(fdctrl->result_timer,
                            qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
             break;
         case 0x4C:

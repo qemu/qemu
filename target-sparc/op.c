@@ -287,7 +287,7 @@ typedef union UREG64 {
     __p.l.v1 = PARAM1;\
     __p.l.v0 = PARAM2;\
     __p.q;\
-}) 
+})
 
 void OPPROTO op_movq_T0_im64(void)
 {
@@ -1065,7 +1065,7 @@ void OPPROTO op_rett(void)
 void OPPROTO op_save(void)
 {
     uint32_t cwp;
-    cwp = (env->cwp - 1) & (NWINDOWS - 1); 
+    cwp = (env->cwp - 1) & (NWINDOWS - 1);
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_OVF);
     }
@@ -1076,7 +1076,7 @@ void OPPROTO op_save(void)
 void OPPROTO op_restore(void)
 {
     uint32_t cwp;
-    cwp = (env->cwp + 1) & (NWINDOWS - 1); 
+    cwp = (env->cwp + 1) & (NWINDOWS - 1);
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_UNF);
     }
@@ -1197,9 +1197,9 @@ void OPPROTO op_wrcwp(void)
 void OPPROTO op_save(void)
 {
     uint32_t cwp;
-    cwp = (env->cwp - 1) & (NWINDOWS - 1); 
+    cwp = (env->cwp - 1) & (NWINDOWS - 1);
     if (env->cansave == 0) {
-        raise_exception(TT_SPILL | (env->otherwin != 0 ? 
+        raise_exception(TT_SPILL | (env->otherwin != 0 ?
 				    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
 				    ((env->wstate & 0x7) << 2)));
     } else {
@@ -1218,9 +1218,9 @@ void OPPROTO op_save(void)
 void OPPROTO op_restore(void)
 {
     uint32_t cwp;
-    cwp = (env->cwp + 1) & (NWINDOWS - 1); 
+    cwp = (env->cwp + 1) & (NWINDOWS - 1);
     if (env->canrestore == 0) {
-        raise_exception(TT_FILL | (env->otherwin != 0 ? 
+        raise_exception(TT_FILL | (env->otherwin != 0 ?
 				   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
 				   ((env->wstate & 0x7) << 2)));
     } else {
@@ -1285,7 +1285,7 @@ void OPPROTO op_eval_be(void)
 void OPPROTO op_eval_ble(void)
 {
     target_ulong Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
-    
+
     T2 = Z | (N ^ V);
 }
 
@@ -1373,7 +1373,7 @@ void OPPROTO op_eval_xbe(void)
 void OPPROTO op_eval_xble(void)
 {
     target_ulong Z = XFLAG_SET(PSR_ZERO), N = XFLAG_SET(PSR_NEG), V = XFLAG_SET(PSR_OVF);
-    
+
     T2 = Z | (N ^ V);
 }
 
@@ -1802,7 +1802,7 @@ void OPPROTO op_mov_cc(void)
 void OPPROTO op_flushw(void)
 {
     if (env->cansave != NWINDOWS - 2) {
-        raise_exception(TT_SPILL | (env->otherwin != 0 ? 
+        raise_exception(TT_SPILL | (env->otherwin != 0 ?
 				    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
 				    ((env->wstate & 0x7) << 2)));
     }

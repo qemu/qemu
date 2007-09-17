@@ -1,8 +1,8 @@
 /*
  * QEMU PPC PREP hardware System Emulator
- * 
+ *
  * Copyright (c) 2003-2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -76,7 +76,7 @@ static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 int speaker_data_on;
 int dummy_refresh_clock;
 
-static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void speaker_ioport_write (void *opaque, uint32_t addr, uint32_t val)
 {
 #if 0
     speaker_data_on = (val >> 1) & 1;
@@ -110,7 +110,7 @@ static inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
 
     if (addr == 0xBFFFFFF0)
         retval = pic_intack_read(isa_pic);
-       //   printf("%s: 0x%08x <= %d\n", __func__, addr, retval);
+    //   printf("%s: 0x%08x <= %d\n", __func__, addr, retval);
 
     return retval;
 }
@@ -177,12 +177,14 @@ static struct {
     /* Error diagnostic */
 } XCSR;
 
-static void PPC_XCSR_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void PPC_XCSR_writeb (void *opaque,
+                             target_phys_addr_t addr, uint32_t value)
 {
     printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
 }
 
-static void PPC_XCSR_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void PPC_XCSR_writew (void *opaque,
+                             target_phys_addr_t addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
@@ -190,7 +192,8 @@ static void PPC_XCSR_writew (void *opaque, target_phys_addr_t addr, uint32_t val
     printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
 }
 
-static void PPC_XCSR_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void PPC_XCSR_writel (void *opaque,
+                             target_phys_addr_t addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
@@ -612,7 +615,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+    pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size,
                  vga_ram_size, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);
@@ -664,7 +667,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0xBFFFFFF0, 0x4, PPC_io_memory);
     /* PowerPC control and status register group */
 #if 0
-    PPC_io_memory = cpu_register_io_memory(0, PPC_XCSR_read, PPC_XCSR_write, NULL);
+    PPC_io_memory = cpu_register_io_memory(0, PPC_XCSR_read, PPC_XCSR_write,
+                                           NULL);
     cpu_register_physical_memory(0xFEFF0000, 0x1000, PPC_io_memory);
 #endif
 

@@ -42,14 +42,14 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
    unsigned int Fd, Fm, Fn, nRc = 1;
 
    //printk("ExtendedCPDO(0x%08x)\n",opcode);
-   
+
    Fm = getFm(opcode);
    if (CONSTANT_FM(opcode))
    {
      rFm = getExtendedConstant(Fm);
    }
    else
-   {  
+   {
      switch (fpa11->fType[Fm])
      {
         case typeSingle:
@@ -59,15 +59,15 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
         case typeDouble:
           rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble, &fpa11->fp_status);
         break;
-        
+
         case typeExtended:
           rFm = fpa11->fpreg[Fm].fExtended;
         break;
-        
+
         default: return 0;
      }
    }
-   
+
    if (!MONADIC_INSTRUCTION(opcode))
    {
       Fn = getFn(opcode);
@@ -80,11 +80,11 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
         case typeDouble:
           rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
         break;
-        
+
         case typeExtended:
           rFn = fpa11->fpreg[Fn].fExtended;
         break;
-        
+
         default: return 0;
       }
    }
@@ -204,13 +204,13 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
 
       case NRM_CODE:
       break;
-      
+
       default:
       {
         nRc = 0;
       }
    }
-   
+
    if (0 != nRc) fpa11->fType[Fd] = typeExtended;
    return nRc;
 }
@@ -263,11 +263,11 @@ floatx80 floatx80_arccos(floatx80 rFm)
 
 floatx80 floatx80_pow(floatx80 rFn,floatx80 rFm)
 {
-  return floatx80_exp(floatx80_mul(rFm,floatx80_ln(rFn))); 
+  return floatx80_exp(floatx80_mul(rFm,floatx80_ln(rFn)));
 }
 
 floatx80 floatx80_pol(floatx80 rFn,floatx80 rFm)
 {
-  return floatx80_arctan(floatx80_div(rFn,rFm)); 
+  return floatx80_arctan(floatx80_div(rFn,rFm));
 }
 #endif

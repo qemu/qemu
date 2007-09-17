@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL011 UART
  *
  * Copyright (c) 2006 CodeSourcery.
@@ -44,7 +44,7 @@ static const unsigned char pl011_id[] =
 static void pl011_update(pl011_state *s)
 {
     uint32_t flags;
-    
+
     flags = s->int_level & s->int_enabled;
     qemu_set_irq(s->irq, flags != 0);
 }
@@ -240,7 +240,7 @@ void pl011_init(uint32_t base, qemu_irq irq,
     s->ifl = 0x12;
     s->cr = 0x300;
     s->flags = 0x90;
-    if (chr){ 
+    if (chr){
         qemu_chr_add_handlers(chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
     }

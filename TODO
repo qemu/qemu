@@ -16,7 +16,7 @@ short term:
 - do not resize vga if invalid size.
 - avoid looping if only exceptions
 - TLB code protection support for PPC
-- see openMosix Doc 
+- see openMosix Doc
 - disable SMC handling for ARM/SPARC/PPC (not finished)
 - see undefined flags for BTx insn
 - user/kernel PUSHL/POPL in helper.c

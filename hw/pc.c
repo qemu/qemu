@@ -1,8 +1,8 @@
 /*
  * QEMU PC System Emulator
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -65,7 +65,7 @@ uint64_t cpu_get_tsc(CPUX86State *env)
 #if USE_KQEMU
     if (env->kqemu_enabled) {
         return cpu_get_real_ticks();
-    } else 
+    } else
 #endif
     {
         return cpu_get_ticks();
@@ -89,7 +89,7 @@ int cpu_get_pic_interrupt(CPUState *env)
     if (intno >= 0) {
         /* set irq request if a PIC irq is still pending */
         /* XXX: improve that */
-        pic_update_irq(isa_pic); 
+        pic_update_irq(isa_pic);
         return intno;
     }
     /* read the irq from the PIC */
@@ -134,7 +134,7 @@ static int cmos_get_fd_drive_type(int fd0)
     return val;
 }
 
-static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd) 
+static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd)
 {
     RTCState *s = rtc_state;
     int cylinders, heads, sectors;
@@ -182,7 +182,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
         val = 65535;
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
-    
+
     switch(boot_device) {
     case 'a':
     case 'b':
@@ -199,7 +199,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
         break;
     case 'n':
         rtc_set_memory(s, 0x3d, 0x04); /* Network boot */
-        break;	
+        break;
     }
 
     /* floppy type */
@@ -209,7 +209,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
 
     val = (cmos_get_fd_drive_type(fd0) << 4) | cmos_get_fd_drive_type(fd1);
     rtc_set_memory(s, 0x10, val);
-    
+
     val = 0;
     nb = 0;
     if (fd0 < 3)
@@ -235,7 +235,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
     rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
     if (hd_table[0])
         cmos_init_hd(0x19, 0x1b, hd_table[0]);
-    if (hd_table[1]) 
+    if (hd_table[1])
         cmos_init_hd(0x1a, 0x24, hd_table[1]);
 
     val = 0;
@@ -294,7 +294,7 @@ void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 {
     static const char shutdown_str[8] = "Shutdown";
     static int shutdown_index = 0;
-    
+
     switch(addr) {
         /* Bochs BIOS messages */
     case 0x400:
@@ -404,7 +404,7 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
 }
 
-int load_kernel(const char *filename, uint8_t *addr, 
+int load_kernel(const char *filename, uint8_t *addr,
                 uint8_t *real_addr)
 {
     int fd, size;
@@ -420,7 +420,7 @@ int load_kernel(const char *filename, uint8_t *addr,
     setup_sects = real_addr[0x1F1];
     if (!setup_sects)
         setup_sects = 4;
-    if (read(fd, real_addr + 512, setup_sects * 512) != 
+    if (read(fd, real_addr + 512, setup_sects * 512) !=
         setup_sects * 512)
         goto fail;
 
@@ -708,7 +708,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     /* BIOS load */
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     bios_size = get_image_size(buf);
-    if (bios_size <= 0 || 
+    if (bios_size <= 0 ||
         (bios_size % 65536) != 0) {
         goto bios_error;
     }
@@ -727,7 +727,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
     }
     vga_bios_size = get_image_size(buf);
-    if (vga_bios_size <= 0 || vga_bios_size > 65536) 
+    if (vga_bios_size <= 0 || vga_bios_size > 65536)
         goto vga_bios_error;
     vga_bios_offset = qemu_ram_alloc(65536);
 
@@ -739,17 +739,17 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* setup basic memory access */
-    cpu_register_physical_memory(0xc0000, 0x10000, 
+    cpu_register_physical_memory(0xc0000, 0x10000,
                                  vga_bios_offset | IO_MEM_ROM);
 
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = bios_size;
     if (isa_bios_size > (128 * 1024))
         isa_bios_size = 128 * 1024;
-    cpu_register_physical_memory(0xd0000, (192 * 1024) - isa_bios_size, 
+    cpu_register_physical_memory(0xd0000, (192 * 1024) - isa_bios_size,
                                  IO_MEM_UNASSIGNED);
-    cpu_register_physical_memory(0x100000 - isa_bios_size, 
-                                 isa_bios_size, 
+    cpu_register_physical_memory(0x100000 - isa_bios_size,
+                                 isa_bios_size,
                                  (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
 
     {
@@ -760,7 +760,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         for (i = 0; i < nb_option_roms; i++) {
             size = get_image_size(option_rom[i]);
             if (size < 0) {
-                fprintf(stderr, "Could not load option rom '%s'\n", 
+                fprintf(stderr, "Could not load option rom '%s'\n",
                         option_rom[i]);
                 exit(1);
             }
@@ -781,9 +781,9 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* map all the bios at the top of memory */
-    cpu_register_physical_memory((uint32_t)(-bios_size), 
+    cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
-    
+
     bochs_bios_init();
 
     if (linux_boot)
@@ -807,11 +807,11 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     if (cirrus_vga_enabled) {
         if (pci_enabled) {
-            pci_cirrus_vga_init(pci_bus, 
-                                ds, phys_ram_base + vga_ram_addr, 
+            pci_cirrus_vga_init(pci_bus,
+                                ds, phys_ram_base + vga_ram_addr,
                                 vga_ram_addr, vga_ram_size);
         } else {
-            isa_cirrus_vga_init(ds, phys_ram_base + vga_ram_addr, 
+            isa_cirrus_vga_init(ds, phys_ram_base + vga_ram_addr,
                                 vga_ram_addr, vga_ram_size);
         }
     } else if (vmsvga_enabled) {
@@ -822,10 +822,10 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else {
         if (pci_enabled) {
-            pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_addr, 
+            pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_addr,
                          vga_ram_addr, vga_ram_size, 0, 0);
         } else {
-            isa_vga_init(ds, phys_ram_base + vga_ram_addr, 
+            isa_vga_init(ds, phys_ram_base + vga_ram_addr,
                          vga_ram_addr, vga_ram_size);
         }
     }
@@ -914,7 +914,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
             smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
         }
     }
-    
+
     if (i440fx_state) {
         i440fx_init_memory_mappings(i440fx_state);
     }
@@ -938,9 +938,9 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 }
 
 static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,
-                        DisplayState *ds, const char **fd_filename, 
-                        int snapshot, 
-                        const char *kernel_filename, 
+                        DisplayState *ds, const char **fd_filename,
+                        int snapshot,
+                        const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
@@ -952,9 +952,9 @@ static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,
 }
 
 static void pc_init_isa(int ram_size, int vga_ram_size, int boot_device,
-                        DisplayState *ds, const char **fd_filename, 
-                        int snapshot, 
-                        const char *kernel_filename, 
+                        DisplayState *ds, const char **fd_filename,
+                        int snapshot,
+                        const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)

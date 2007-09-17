@@ -140,7 +140,7 @@ target_ulong loader_build_argptr(int envc, int argc, target_ulong sp,
     return sp;
 }
 
-int loader_exec(const char * filename, char ** argv, char ** envp, 
+int loader_exec(const char * filename, char ** argv, char ** envp,
              struct target_pt_regs * regs, struct image_info *infop)
 {
     struct linux_binprm bprm;
@@ -182,7 +182,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
             return -1;
         }
     }
-    
+
     if(retval>=0) {
         /* success.  Initialize important registers */
         do_init_thread(regs, infop);

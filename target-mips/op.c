@@ -1,6 +1,6 @@
 /*
  *  MIPS emulation micro-operations for qemu.
- * 
+ *
  *  Copyright (c) 2004-2005 Jocelyn Mayer
  *  Copyright (c) 2006 Marius Groeger (FPU operations)
  *  Copyright (c) 2007 Thiemo Seufer (64-bit FPU support)

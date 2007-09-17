@@ -1,8 +1,8 @@
 /*
  * QEMU PS/2 keyboard/mouse emulation
- * 
+ *
  * Copyright (c) 2003 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -146,7 +146,7 @@ uint32_t ps2_read_data(void *opaque)
     PS2State *s = (PS2State *)opaque;
     PS2Queue *q;
     int val, index;
-    
+
     q = &s->queue;
     if (q->count == 0) {
         /* NOTE: if no data left, we return the last keyboard one
@@ -300,7 +300,7 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
     s->mouse_dz -= dz1;
 }
 
-static void ps2_mouse_event(void *opaque, 
+static void ps2_mouse_event(void *opaque,
                             int dx, int dy, int dz, int buttons_state)
 {
     PS2MouseState *s = opaque;
@@ -317,7 +317,7 @@ static void ps2_mouse_event(void *opaque,
         s->mouse_buttons == buttons_state)
 	return;
     s->mouse_buttons = buttons_state;
-    
+
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
         (s->common.queue.count < (PS2_QUEUE_SIZE - 16))) {
         for(;;) {
@@ -440,12 +440,12 @@ void ps2_write_mouse(void *opaque, int val)
                 s->mouse_detect_state = 0;
             break;
         case 2:
-            if (val == 80) 
+            if (val == 80)
                 s->mouse_type = 3; /* IMPS/2 */
             s->mouse_detect_state = 0;
             break;
         case 3:
-            if (val == 80) 
+            if (val == 80)
                 s->mouse_type = 4; /* IMEX */
             s->mouse_detect_state = 0;
             break;

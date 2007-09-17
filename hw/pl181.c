@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL181 MultiMedia Card Interface
  *
  * Copyright (c) 2007 CodeSourcery.
@@ -177,7 +177,7 @@ error:
 /* Transfer data between the card and the FIFO.  This is complicated by
    the FIFO holding 32-bit words and the card taking data in single byte
    chunks.  FIFO bytes are transferred in little-endian order.  */
-   
+
 static void pl181_fifo_run(pl181_state *s)
 {
     uint32_t bits;

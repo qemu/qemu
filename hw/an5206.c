@@ -1,4 +1,4 @@
-/* 
+/*
  * Arnewsh 5206 ColdFire system emulation.
  *
  * Copyright (c) 2007 CodeSourcery.

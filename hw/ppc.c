@@ -1,8 +1,8 @@
 /*
  * QEMU generic PowerPC hardware System Emulator
- * 
+ *
  * Copyright (c) 2003-2007 Jocelyn Mayer
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -623,7 +623,7 @@ struct ppcemb_timer_t {
     uint64_t wdt_next;    /* Tick for next WDT interrupt  */
     struct QEMUTimer *wdt_timer;
 };
-   
+
 /* Fixed interval timer */
 static void cpu_4xx_fit_cb (void *opaque)
 {

@@ -2,7 +2,7 @@
  * QEMU Grackle (heathrow PPC) PCI host
  *
  * Copyright (c) 2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -95,13 +95,13 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     s->bus = pci_register_bus(pci_grackle_set_irq, pci_grackle_map_irq,
                               pic, 0, 0);
 
-    pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read, 
+    pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read,
                                             pci_grackle_config_write, s);
     pci_mem_data = cpu_register_io_memory(0, pci_grackle_read,
                                           pci_grackle_write, s);
     cpu_register_physical_memory(base, 0x1000, pci_mem_config);
     cpu_register_physical_memory(base + 0x00200000, 0x1000, pci_mem_data);
-    d = pci_register_device(s->bus, "Grackle host bridge", sizeof(PCIDevice), 
+    d = pci_register_device(s->bus, "Grackle host bridge", sizeof(PCIDevice),
                             0, NULL, NULL);
     d->config[0x00] = 0x57; // vendor_id
     d->config[0x01] = 0x10;
@@ -118,12 +118,12 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     d->config[0x1a] = 0x00;  // subordinate_bus
     d->config[0x1c] = 0x00;
     d->config[0x1d] = 0x00;
-    
+
     d->config[0x20] = 0x00; // memory_base
     d->config[0x21] = 0x00;
     d->config[0x22] = 0x01; // memory_limit
     d->config[0x23] = 0x00;
-    
+
     d->config[0x24] = 0x00; // prefetchable_memory_base
     d->config[0x25] = 0x00;
     d->config[0x26] = 0x00; // prefetchable_memory_limit
@@ -145,12 +145,12 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     d->config[0x1a] = 0x1;  // subordinate_bus
     d->config[0x1c] = 0x10; // io_base
     d->config[0x1d] = 0x20; // io_limit
-    
+
     d->config[0x20] = 0x80; // memory_base
     d->config[0x21] = 0x80;
     d->config[0x22] = 0x90; // memory_limit
     d->config[0x23] = 0x80;
-    
+
     d->config[0x24] = 0x00; // prefetchable_memory_base
     d->config[0x25] = 0x84;
     d->config[0x26] = 0x00; // prefetchable_memory_limit

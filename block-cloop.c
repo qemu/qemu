@@ -1,8 +1,8 @@
 /*
  * QEMU Block driver for CLOOP images
- * 
+ *
  * Copyright (c) 2004 Johannes E. Schindelin
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -96,7 +96,7 @@ cloop_close:
     if(inflateInit(&s->zstream) != Z_OK)
 	goto cloop_close;
     s->current_block=s->n_blocks;
-    
+
     s->sectors_per_block = s->block_size/512;
     bs->total_sectors = s->n_blocks*s->sectors_per_block;
     return 0;
@@ -107,12 +107,12 @@ static inline int cloop_read_block(BDRVCloopState *s,int block_num)
     if(s->current_block != block_num) {
 	int ret;
         uint32_t bytes = s->offsets[block_num+1]-s->offsets[block_num];
-	    
+
 	lseek(s->fd, s->offsets[block_num], SEEK_SET);
         ret = read(s->fd, s->compressed_block, bytes);
-        if (ret != bytes) 
+        if (ret != bytes)
             return -1;
-	
+
 	s->zstream.next_in = s->compressed_block;
 	s->zstream.avail_in = bytes;
 	s->zstream.next_out = s->uncompressed_block;
@@ -123,13 +123,13 @@ static inline int cloop_read_block(BDRVCloopState *s,int block_num)
 	ret = inflate(&s->zstream, Z_FINISH);
 	if(ret != Z_STREAM_END || s->zstream.total_out != s->block_size)
 	    return -1;
-	
+
 	s->current_block = block_num;
     }
     return 0;
 }
 
-static int cloop_read(BlockDriverState *bs, int64_t sector_num, 
+static int cloop_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVCloopState *s = bs->opaque;

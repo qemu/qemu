@@ -1,6 +1,6 @@
 /*
  *  sparc helpers
- * 
+ *
  *  Copyright (c) 2003-2005 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -46,7 +46,7 @@ void cpu_unlock(void)
     spin_unlock(&global_cpu_lock);
 }
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 
 int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
                                int is_user, int is_softmmu)

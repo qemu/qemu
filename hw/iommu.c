@@ -2,7 +2,7 @@
  * QEMU SPARC iommu emulation
  *
  * Copyright (c) 2003-2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -279,7 +279,7 @@ static void iommu_save(QEMUFile *f, void *opaque)
 {
     IOMMUState *s = opaque;
     int i;
-    
+
     for (i = 0; i < IOMMU_NREGS; i++)
 	qemu_put_be32s(f, &s->regs[i]);
     qemu_put_be64s(f, &s->iostart);
@@ -289,7 +289,7 @@ static int iommu_load(QEMUFile *f, void *opaque, int version_id)
 {
     IOMMUState *s = opaque;
     int i;
-    
+
     if (version_id != 2)
         return -EINVAL;
 
@@ -322,7 +322,7 @@ void *iommu_init(target_phys_addr_t addr)
 
     iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read, iommu_mem_write, s);
     cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
-    
+
     register_savevm("iommu", addr, 2, iommu_save, iommu_load, s);
     qemu_register_reset(iommu_reset, s);
     return s;

@@ -1,8 +1,8 @@
 /*
  * QEMU 16450 UART emulation
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -119,7 +119,7 @@ static void serial_update_parameters(SerialState *s)
     } else {
             parity = 'N';
     }
-    if (s->lcr & 0x04) 
+    if (s->lcr & 0x04)
         stop_bits = 2;
     else
         stop_bits = 1;
@@ -133,7 +133,7 @@ static void serial_update_parameters(SerialState *s)
     ssp.stop_bits = stop_bits;
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 #if 0
-    printf("speed=%d parity=%c data=%d stop=%d\n", 
+    printf("speed=%d parity=%c data=%d stop=%d\n",
            speed, parity, data_bits, stop_bits);
 #endif
 }
@@ -190,7 +190,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break_enable = (val >> 6) & 1;
             if (break_enable != s->last_break_enable) {
                 s->last_break_enable = break_enable;
-                qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_BREAK, 
+                qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
                                &break_enable);
             }
         }
@@ -221,7 +221,7 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
     default:
     case 0:
         if (s->lcr & UART_LCR_DLAB) {
-            ret = s->divider & 0xff; 
+            ret = s->divider & 0xff;
         } else {
             ret = s->rbr;
             s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);

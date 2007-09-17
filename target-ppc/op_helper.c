@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation helpers for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -88,7 +88,7 @@ void do_store_cr (uint32_t mask)
 {
     int i, sh;
 
-    for (i = 0, sh = 7; i < 8; i++, sh --) {
+    for (i = 0, sh = 7; i < 8; i++, sh--) {
         if (mask & (1 << sh))
             env->crf[i] = (T0 >> (sh * 4)) & 0xFUL;
     }
@@ -216,8 +216,8 @@ static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 
 static void neg128 (uint64_t *plow, uint64_t *phigh)
 {
-    *plow = ~ *plow;
-    *phigh = ~ *phigh;
+    *plow = ~*plow;
+    *phigh = ~*phigh;
     add128(plow, phigh, 1, 0);
 }
 
@@ -231,7 +231,7 @@ static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 
     b0 = b;
     b1 = b >> 32;
-    
+
     v = (uint64_t)a0 * (uint64_t)b0;
     *plow = v;
     *phigh = 0;
@@ -258,6 +258,7 @@ void do_mul64 (uint64_t *plow, uint64_t *phigh)
 static void imul64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
 {
     int sa, sb;
+
     sa = (a < 0);
     if (sa)
         a = -a;
@@ -310,8 +311,8 @@ void do_addmeo (void)
                  ((uint32_t)T1 ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely(T1 != 0))
         xer_ca = 1;
@@ -326,8 +327,8 @@ void do_addmeo_64 (void)
                  ((uint64_t)T1 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely(T1 != 0))
         xer_ca = 1;
@@ -341,8 +342,8 @@ void do_divwo (void)
         xer_ov = 0;
         T0 = (int32_t)T0 / (int32_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = (-1) * ((uint32_t)T0 >> 31);
     }
 }
@@ -355,8 +356,8 @@ void do_divdo (void)
         xer_ov = 0;
         T0 = (int64_t)T0 / (int64_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = (-1ULL) * ((uint64_t)T0 >> 63);
     }
 }
@@ -368,8 +369,8 @@ void do_divwuo (void)
         xer_ov = 0;
         T0 = (uint32_t)T0 / (uint32_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = 0;
     }
 }
@@ -381,8 +382,8 @@ void do_divduo (void)
         xer_ov = 0;
         T0 = (uint64_t)T0 / (uint64_t)T1;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
         T0 = 0;
     }
 }
@@ -474,8 +475,8 @@ void do_subfmeo (void)
                  (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely((uint32_t)T1 != UINT32_MAX))
         xer_ca = 1;
@@ -490,8 +491,8 @@ void do_subfmeo_64 (void)
                  (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     if (likely((uint64_t)T1 != UINT64_MAX))
         xer_ca = 1;
@@ -1072,8 +1073,8 @@ void do_POWER_dozo (void)
         T0 = T1 - T0;
         if (((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
             ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)) {
-            xer_so = 1;
             xer_ov = 1;
+            xer_so = 1;
         } else {
             xer_ov = 0;
         }
@@ -1270,7 +1271,7 @@ void do_rfmci (void)
 void do_load_dcr (void)
 {
     target_ulong val;
-    
+
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
@@ -2493,14 +2494,14 @@ void do_4xx_tlbre_hi (void)
 
 void do_4xx_tlbsx (void)
 {
-    T0 = ppcemb_tlb_search(env, T0);
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
 }
 
 void do_4xx_tlbsx_ (void)
 {
-    int tmp = xer_ov;
+    int tmp = xer_so;
 
-    T0 = ppcemb_tlb_search(env, T0);
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
     if (T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;
@@ -2555,7 +2556,7 @@ void do_4xx_tlbwe_hi (void)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size,
                 tlb->prot & PAGE_READ ? 'r' : '-',
                 tlb->prot & PAGE_WRITE ? 'w' : '-',
                 tlb->prot & PAGE_EXEC ? 'x' : '-',
@@ -2598,7 +2599,7 @@ void do_4xx_tlbwe_lo (void)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)T0, tlb->RPN, tlb->EPN, tlb->size, 
+                (int)T0, tlb->RPN, tlb->EPN, tlb->size,
                 tlb->prot & PAGE_READ ? 'r' : '-',
                 tlb->prot & PAGE_WRITE ? 'w' : '-',
                 tlb->prot & PAGE_EXEC ? 'x' : '-',

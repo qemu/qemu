@@ -24,18 +24,18 @@
 
 /*
 ARM Floating Point Instruction Classes
-| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
 |c o n d|1 1 0 P|U|u|W|L|   Rn  |v|  Fd |0|0|0|1|  o f f s e t  | CPDT
 |c o n d|1 1 0 P|U|w|W|L|   Rn  |x|  Fd |0|0|0|1|  o f f s e t  | CPDT
-| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
 |c o n d|1 1 1 0|a|b|c|d|e|  Fn |j|  Fd |0|0|0|1|f|g|h|0|i|  Fm | CPDO
 |c o n d|1 1 1 0|a|b|c|L|e|  Fn |   Rd  |0|0|0|1|f|g|h|1|i|  Fm | CPRT
 |c o n d|1 1 1 0|a|b|c|1|e|  Fn |1|1|1|1|0|0|0|1|f|g|h|1|i|  Fm | comparisons
-| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
 
 CPDT		data transfer instructions
 		LDF, STF, LFM, SFM
-		
+
 CPDO		dyadic arithmetic instructions
 		ADF, MUF, SUF, RSF, DVF, RDF,
 		POW, RPW, RMF, FML, FDV, FRD, POL
@@ -43,7 +43,7 @@ CPDO		dyadic arithmetic instructions
 CPDO		monadic arithmetic instructions
 		MVF, MNF, ABS, RND, SQT, LOG, LGN, EXP,
 		SIN, COS, TAN, ASN, ACS, ATN, URD, NRM
-		
+
 CPRT		joint arithmetic/data transfer instructions
 		FIX (arithmetic followed by load/store)
 		FLT (load/store followed by arithmetic)
@@ -57,7 +57,7 @@ U		up/down bit: 0 = stack grows down, 1 = stack grows up
 W		write back bit: 1 = update base register (Rn)
 L		load/store bit: 0 = store, 1 = load
 Rn		base register
-Rd		destination/source register		
+Rd		destination/source register
 Fd		floating point destination register
 Fn		floating point source register
 Fm		floating point source register or floating point constant
@@ -370,19 +370,19 @@ static inline const floatx80 getExtendedConstant(const unsigned int nIndex)
 {
    extern const floatx80 floatx80Constant[];
    return floatx80Constant[nIndex];
-} 
+}
 
 static inline const float64 getDoubleConstant(const unsigned int nIndex)
 {
    extern const float64 float64Constant[];
    return float64Constant[nIndex];
-} 
+}
 
 static inline const float32 getSingleConstant(const unsigned int nIndex)
 {
    extern const float32 float32Constant[];
    return float32Constant[nIndex];
-} 
+}
 
 extern unsigned int getRegisterCount(const unsigned int opcode);
 extern unsigned int getDestinationSize(const unsigned int opcode);

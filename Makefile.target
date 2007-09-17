@@ -292,7 +292,7 @@ OBJS+= libqemu.a
 
 # cpu emulator library
 LIBOBJS=exec.o kqemu.o translate-op.o translate-all.o cpu-exec.o\
-        translate.o op.o 
+        translate.o op.o
 ifdef CONFIG_SOFTFLOAT
 LIBOBJS+=fpu/softfloat.o
 else
@@ -343,7 +343,7 @@ LIBOBJS+= op_helper.o helper.o alpha_palcode.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=disas.o 
+LIBOBJS+=disas.o
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
 USE_I386_DIS=y
 endif
@@ -520,7 +520,7 @@ VL_OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 VL_OBJS+= m68k-semi.o
 endif
 ifdef CONFIG_GDBSTUB
-VL_OBJS+=gdbstub.o 
+VL_OBJS+=gdbstub.o
 endif
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o x_keymap.o
@@ -548,7 +548,7 @@ ifdef CONFIG_STATIC
 VL_LDFLAGS+=-static
 endif
 ifndef CONFIG_SOFTMMU
-VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld 
+VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld
 endif
 ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
@@ -603,7 +603,7 @@ depend: $(SRCS)
 vldepend: $(VL_OBJS:.o=.c)
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $^ 1>.depend
 
-# libqemu 
+# libqemu
 
 libqemu.a: $(LIBOBJS)
 	rm -f $@
@@ -661,7 +661,7 @@ clean:
 	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o fpu/*.o
 	rm -f *.d */*.d
 
-install: all 
+install: all
 ifneq ($(PROGS),)
 	$(INSTALL) -m 755 -s $(PROGS) "$(DESTDIR)$(bindir)"
 endif

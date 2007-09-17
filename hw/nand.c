@@ -323,7 +323,7 @@ static int nand_iid = 0;
  *
  * CE, WP and R/B are active low.
  */
-void nand_setpins(struct nand_flash_s *s, 
+void nand_setpins(struct nand_flash_s *s,
                 int cle, int ale, int ce, int wp, int gnd)
 {
     s->cle = cle;
@@ -416,7 +416,7 @@ void nand_setio(struct nand_flash_s *s, uint8_t value)
 uint8_t nand_getio(struct nand_flash_s *s)
 {
     int offset;
- 
+
     /* Allow sequential reading */
     if (!s->iolen && s->cmd == NAND_CMD_READ0) {
         offset = (s->addr & ((1 << s->addr_shift) - 1)) + s->offset;

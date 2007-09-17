@@ -1,8 +1,8 @@
 /*
  * Block driver for Conectix/Microsoft Virtual PC images
- * 
+ *
  * Copyright (c) 2005 Alex Beregszaszi
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -65,7 +65,7 @@ struct vpc_subheader {
 
 typedef struct BDRVVPCState {
     int fd;
-    
+
     int pagetable_entries;
     uint32_t *pagetable;
 
@@ -74,7 +74,7 @@ typedef struct BDRVVPCState {
     uint8_t *pageentry_u8;
     uint32_t *pageentry_u32;
     uint16_t *pageentry_u16;
-    
+
     uint64_t last_bitmap;
 #endif
 } BDRVVPCState;
@@ -97,7 +97,7 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
         return -1;
 
     bs->read_only = 1; // no write support yet
-    
+
     s->fd = fd;
 
     if (read(fd, &header, HEADER_SIZE) != HEADER_SIZE)
@@ -153,13 +153,13 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 
     pagetable_index = offset / s->pageentry_size;
     pageentry_index = (offset % s->pageentry_size) / 512;
-    
+
     if (pagetable_index > s->pagetable_entries || s->pagetable[pagetable_index] == 0xffffffff)
 	return -1; // not allocated
 
     bitmap_offset = 512 * s->pagetable[pagetable_index];
     block_offset = bitmap_offset + 512 + (512 * pageentry_index);
-    
+
 //    printf("sector: %" PRIx64 ", index: %x, offset: %x, bioff: %" PRIx64 ", bloff: %" PRIx64 "\n",
 //	sector_num, pagetable_index, pageentry_index,
 //	bitmap_offset, block_offset);
@@ -172,7 +172,7 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 	lseek(s->fd, bitmap_offset, SEEK_SET);
 
 	s->last_bitmap = bitmap_offset;
-	
+
 	// Scary! Bitmap is stored as big endian 32bit entries,
 	// while we used to look it up byte by byte
 	read(s->fd, s->pageentry_u8, 512);
@@ -184,7 +184,7 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 	return -1;
 #else
     lseek(s->fd, bitmap_offset + (pageentry_index / 8), SEEK_SET);
-	
+
     read(s->fd, &bitmap_entry, 1);
 
     if ((bitmap_entry >> (pageentry_index % 8)) & 1)
@@ -196,7 +196,7 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     return 0;
 }
 
-static int vpc_read(BlockDriverState *bs, int64_t sector_num, 
+static int vpc_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVVPCState *s = bs->opaque;

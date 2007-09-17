@@ -1,5 +1,5 @@
 
-void glue(glue(test_, OP), b)(long op0, long op1) 
+void glue(glue(test_, OP), b)(long op0, long op1)
 {
     long res, s1, s0, flags;
     s0 = op0;
@@ -8,7 +8,7 @@ void glue(glue(test_, OP), b)(long op0, long op1)
     flags = 0;
     asm ("push %4\n\t"
          "popf\n\t"
-         stringify(OP)"b %b2\n\t" 
+         stringify(OP)"b %b2\n\t"
          "pushf\n\t"
          "pop %1\n\t"
          : "=a" (res), "=g" (flags)
@@ -17,7 +17,7 @@ void glue(glue(test_, OP), b)(long op0, long op1)
            stringify(OP) "b", s0, s1, res, flags & CC_MASK);
 }
 
-void glue(glue(test_, OP), w)(long op0h, long op0, long op1) 
+void glue(glue(test_, OP), w)(long op0h, long op0, long op1)
 {
     long res, s1, flags, resh;
     s1 = op1;
@@ -26,7 +26,7 @@ void glue(glue(test_, OP), w)(long op0h, long op0, long op1)
     flags = 0;
     asm ("push %5\n\t"
          "popf\n\t"
-         stringify(OP) "w %w3\n\t" 
+         stringify(OP) "w %w3\n\t"
          "pushf\n\t"
          "pop %1\n\t"
          : "=a" (res), "=g" (flags), "=d" (resh)
@@ -35,7 +35,7 @@ void glue(glue(test_, OP), w)(long op0h, long op0, long op1)
            stringify(OP) "w", op0h, op0, s1, resh, res, flags & CC_MASK);
 }
 
-void glue(glue(test_, OP), l)(long op0h, long op0, long op1) 
+void glue(glue(test_, OP), l)(long op0h, long op0, long op1)
 {
     long res, s1, flags, resh;
     s1 = op1;
@@ -44,7 +44,7 @@ void glue(glue(test_, OP), l)(long op0h, long op0, long op1)
     flags = 0;
     asm ("push %5\n\t"
          "popf\n\t"
-         stringify(OP) "l %k3\n\t" 
+         stringify(OP) "l %k3\n\t"
          "pushf\n\t"
          "pop %1\n\t"
          : "=a" (res), "=g" (flags), "=d" (resh)
@@ -54,7 +54,7 @@ void glue(glue(test_, OP), l)(long op0h, long op0, long op1)
 }
 
 #if defined(__x86_64__)
-void glue(glue(test_, OP), q)(long op0h, long op0, long op1) 
+void glue(glue(test_, OP), q)(long op0h, long op0, long op1)
 {
     long res, s1, flags, resh;
     s1 = op1;
@@ -63,7 +63,7 @@ void glue(glue(test_, OP), q)(long op0h, long op0, long op1)
     flags = 0;
     asm ("push %5\n\t"
          "popf\n\t"
-         stringify(OP) "q %3\n\t" 
+         stringify(OP) "q %3\n\t"
          "pushf\n\t"
          "pop %1\n\t"
          : "=a" (res), "=g" (flags), "=d" (resh)

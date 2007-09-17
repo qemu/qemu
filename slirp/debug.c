@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
  * Portions copyright (c) 2000 Kelly Price.
- * 
- * Please read the file COPYRIGHT for the 
+ *
+ * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
 
@@ -18,7 +18,7 @@ int slirp_debug = 0;
 
 extern char *strerror _P((int));
 
-/* Carry over one item from main.c so that the tty's restored. 
+/* Carry over one item from main.c so that the tty's restored.
  * Only done when the tty being used is /dev/tty --RedWolf */
 extern struct termios slirp_tty_settings;
 extern int slirp_tty_restore;
@@ -32,7 +32,7 @@ debug_init(file, dbg)
 	/* Close the old debugging file */
 	if (dfd)
 	   fclose(dfd);
-	
+
 	dfd = fopen(file,"w");
 	if (dfd != NULL) {
 #if 0
@@ -58,7 +58,7 @@ dump_packet(dat, n)
 {
 	u_char *pptr = (u_char *)dat;
 	int j,k;
-	
+
 	n /= 16;
 	n++;
 	DEBUG_MISC((dfd, "PACKET DUMPED: \n"));
@@ -74,7 +74,7 @@ dump_packet(dat, n)
 #if 0
 /*
  * Statistic routines
- * 
+ *
  * These will print statistics to the screen, the debug file (dfd), or
  * a buffer, depending on "type", so that the stats can be sent over
  * the link as well.
@@ -86,9 +86,9 @@ ttystats(ttyp)
 {
 	struct slirp_ifstats *is = &ttyp->ifstats;
 	char buff[512];
-	
+
 	lprint(" \r\n");
-	
+
 	if (if_comp & IF_COMPRESS)
 	   strcpy(buff, "on");
 	else if (if_comp & IF_NOCOMPRESS)
@@ -123,7 +123,7 @@ void
 allttystats()
 {
 	struct ttys *ttyp;
-	
+
 	for (ttyp = ttys; ttyp; ttyp = ttyp->next)
 	   ttystats(ttyp);
 }
@@ -132,7 +132,7 @@ allttystats()
 void
 ipstats()
 {
-	lprint(" \r\n");	
+	lprint(" \r\n");
 
 	lprint("IP stats:\r\n");
 	lprint("  %6d total packets received (%d were unaligned)\r\n",
@@ -158,9 +158,9 @@ void
 vjstats()
 {
 	lprint(" \r\n");
-	
+
 	lprint("VJ compression stats:\r\n");
-	
+
 	lprint("  %6d outbound packets (%d compressed)\r\n",
 	       comp_s.sls_packets, comp_s.sls_compressed);
 	lprint("  %6d searches for connection stats (%d misses)\r\n",
@@ -178,7 +178,7 @@ tcpstats()
 	lprint(" \r\n");
 
 	lprint("TCP stats:\r\n");
-	
+
 	lprint("  %6d packets sent\r\n", tcpstat.tcps_sndtotal);
 	lprint("          %6d data packets (%d bytes)\r\n",
 			tcpstat.tcps_sndpack, tcpstat.tcps_sndbyte);
@@ -191,8 +191,8 @@ tcpstats()
 	lprint("          %6d window update packets\r\n", tcpstat.tcps_sndwinup);
 	lprint("          %6d control (SYN/FIN/RST) packets\r\n", tcpstat.tcps_sndctrl);
 	lprint("          %6d times tcp_output did nothing\r\n", tcpstat.tcps_didnuttin);
-	
-	lprint("  %6d packets received\r\n", tcpstat.tcps_rcvtotal);       
+
+	lprint("  %6d packets received\r\n", tcpstat.tcps_rcvtotal);
 	lprint("          %6d acks (for %d bytes)\r\n",
 			tcpstat.tcps_rcvackpack, tcpstat.tcps_rcvackbyte);
 	lprint("          %6d duplicate acks\r\n", tcpstat.tcps_rcvdupack);
@@ -201,7 +201,7 @@ tcpstats()
 			tcpstat.tcps_rcvpack, tcpstat.tcps_rcvbyte);
         lprint("          %6d completely duplicate packets (%d bytes)\r\n",
 			tcpstat.tcps_rcvduppack, tcpstat.tcps_rcvdupbyte);
-	
+
 	lprint("          %6d packets with some duplicate data (%d bytes duped)\r\n",
 			tcpstat.tcps_rcvpartduppack, tcpstat.tcps_rcvpartdupbyte);
 	lprint("          %6d out-of-order packets (%d bytes)\r\n",
@@ -214,7 +214,7 @@ tcpstats()
 	lprint("          %6d discarded for bad checksums\r\n", tcpstat.tcps_rcvbadsum);
 	lprint("          %6d discarded for bad header offset fields\r\n",
 			tcpstat.tcps_rcvbadoff);
-	
+
 	lprint("  %6d connection requests\r\n", tcpstat.tcps_connattempt);
 	lprint("  %6d connection accepts\r\n", tcpstat.tcps_accepts);
 	lprint("  %6d connections established (including accepts)\r\n", tcpstat.tcps_connects);
@@ -233,8 +233,8 @@ tcpstats()
 	lprint("  %6d correct ACK header predictions\r\n", tcpstat.tcps_predack);
 	lprint("  %6d correct data packet header predictions\n", tcpstat.tcps_preddat);
 	lprint("  %6d TCP cache misses\r\n", tcpstat.tcps_socachemiss);
-	
-	
+
+
 /*	lprint("    Packets received too short:		%d\r\n", tcpstat.tcps_rcvshort); */
 /*	lprint("    Segments dropped due to PAWS:	%d\r\n", tcpstat.tcps_pawsdrop); */
 
@@ -272,18 +272,18 @@ mbufstats()
 {
 	struct mbuf *m;
 	int i;
-	
+
         lprint(" \r\n");
-	
+
 	lprint("Mbuf stats:\r\n");
 
 	lprint("  %6d mbufs allocated (%d max)\r\n", mbuf_alloced, mbuf_max);
-	
+
 	i = 0;
 	for (m = m_freelist.m_next; m != &m_freelist; m = m->m_next)
 		i++;
 	lprint("  %6d mbufs on free list\r\n",  i);
-	
+
 	i = 0;
 	for (m = m_usedlist.m_next; m != &m_usedlist; m = m->m_next)
 		i++;
@@ -299,12 +299,12 @@ sockstats()
 	struct socket *so;
 
         lprint(" \r\n");
-	
+
 	lprint(
 	   "Proto[state]     Sock     Local Address, Port  Remote Address, Port RecvQ SendQ\r\n");
-			
+
 	for (so = tcb.so_next; so != &tcb; so = so->so_next) {
-		
+
 		n = sprintf(buff, "tcp[%s]", so->so_tcpcb?tcpstates[so->so_tcpcb->t_state]:"NONE");
 		while (n < 17)
 		   buff[n++] = ' ';
@@ -316,9 +316,9 @@ sockstats()
 				inet_ntoa(so->so_faddr), ntohs(so->so_fport),
 				so->so_rcv.sb_cc, so->so_snd.sb_cc);
 	}
-		   
+
 	for (so = udb.so_next; so != &udb; so = so->so_next) {
-		
+
 		n = sprintf(buff, "udp[%d sec]", (so->so_expire - curtime) / 1000);
 		while (n < 17)
 		   buff[n++] = ' ';
@@ -338,7 +338,7 @@ slirp_exit(exit_status)
 	int exit_status;
 {
 	struct ttys *ttyp;
-	
+
 	DEBUG_CALL("slirp_exit");
 	DEBUG_ARG("exit_status = %d", exit_status);
 
@@ -347,7 +347,7 @@ slirp_exit(exit_status)
 		if (!dfd)
 		   debug_init("slirp_stats", 0xf);
 		lprint_arg = (char **)&dfd;
-		
+
 		ipstats();
 		tcpstats();
 		udpstats();
@@ -357,17 +357,17 @@ slirp_exit(exit_status)
 		allttystats();
 		vjstats();
 	}
-	
+
 	for (ttyp = ttys; ttyp; ttyp = ttyp->next)
 	   tty_detached(ttyp, 1);
-	
+
 	if (slirp_forked) {
 		/* Menendez time */
 		if (kill(getppid(), SIGQUIT) < 0)
 			lprint("Couldn't kill parent process %ld!\n",
 			    (long) getppid());
     	}
-	
+
 	/* Restore the terminal if we gotta */
 	if(slirp_tty_restore)
 	  tcsetattr(0,TCSANOW, &slirp_tty_settings);  /* NOW DAMMIT! */

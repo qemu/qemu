@@ -281,9 +281,9 @@ static inline void target_siginitset(target_sigset_t *d, target_ulong set)
 
 void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
 void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
-void host_to_target_old_sigset(target_ulong *old_sigset, 
+void host_to_target_old_sigset(target_ulong *old_sigset,
                                const sigset_t *sigset);
-void target_to_host_old_sigset(sigset_t *sigset, 
+void target_to_host_old_sigset(sigset_t *sigset,
                                const target_ulong *old_sigset);
 struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
@@ -709,59 +709,59 @@ struct target_pollfd {
 #define TARGET_FIGETBSZ   TARGET_IO(0x00,2)  /* get the block size used for bmap */
 
 /* cdrom commands */
-#define TARGET_CDROMPAUSE		0x5301 /* Pause Audio Operation */ 
+#define TARGET_CDROMPAUSE		0x5301 /* Pause Audio Operation */
 #define TARGET_CDROMRESUME		0x5302 /* Resume paused Audio Operation */
 #define TARGET_CDROMPLAYMSF		0x5303 /* Play Audio MSF (struct cdrom_msf) */
-#define TARGET_CDROMPLAYTRKIND		0x5304 /* Play Audio Track/index 
+#define TARGET_CDROMPLAYTRKIND		0x5304 /* Play Audio Track/index
                                            (struct cdrom_ti) */
-#define TARGET_CDROMREADTOCHDR		0x5305 /* Read TOC header 
+#define TARGET_CDROMREADTOCHDR		0x5305 /* Read TOC header
                                            (struct cdrom_tochdr) */
-#define TARGET_CDROMREADTOCENTRY	0x5306 /* Read TOC entry 
+#define TARGET_CDROMREADTOCENTRY	0x5306 /* Read TOC entry
                                            (struct cdrom_tocentry) */
 #define TARGET_CDROMSTOP		0x5307 /* Stop the cdrom drive */
 #define TARGET_CDROMSTART		0x5308 /* Start the cdrom drive */
 #define TARGET_CDROMEJECT		0x5309 /* Ejects the cdrom media */
-#define TARGET_CDROMVOLCTRL		0x530a /* Control output volume 
+#define TARGET_CDROMVOLCTRL		0x530a /* Control output volume
                                            (struct cdrom_volctrl) */
-#define TARGET_CDROMSUBCHNL		0x530b /* Read subchannel data 
+#define TARGET_CDROMSUBCHNL		0x530b /* Read subchannel data
                                            (struct cdrom_subchnl) */
-#define TARGET_CDROMREADMODE2		0x530c /* Read TARGET_CDROM mode 2 data (2336 Bytes) 
+#define TARGET_CDROMREADMODE2		0x530c /* Read TARGET_CDROM mode 2 data (2336 Bytes)
                                            (struct cdrom_read) */
 #define TARGET_CDROMREADMODE1		0x530d /* Read TARGET_CDROM mode 1 data (2048 Bytes)
                                            (struct cdrom_read) */
 #define TARGET_CDROMREADAUDIO		0x530e /* (struct cdrom_read_audio) */
 #define TARGET_CDROMEJECT_SW		0x530f /* enable(1)/disable(0) auto-ejecting */
-#define TARGET_CDROMMULTISESSION	0x5310 /* Obtain the start-of-last-session 
-                                           address of multi session disks 
+#define TARGET_CDROMMULTISESSION	0x5310 /* Obtain the start-of-last-session
+                                           address of multi session disks
                                            (struct cdrom_multisession) */
-#define TARGET_CDROM_GET_MCN		0x5311 /* Obtain the "Universal Product Code" 
+#define TARGET_CDROM_GET_MCN		0x5311 /* Obtain the "Universal Product Code"
                                            if available (struct cdrom_mcn) */
-#define TARGET_CDROM_GET_UPC		TARGET_CDROM_GET_MCN  /* This one is depricated, 
+#define TARGET_CDROM_GET_UPC		TARGET_CDROM_GET_MCN  /* This one is depricated,
                                           but here anyway for compatability */
 #define TARGET_CDROMRESET		0x5312 /* hard-reset the drive */
-#define TARGET_CDROMVOLREAD		0x5313 /* Get the drive's volume setting 
+#define TARGET_CDROMVOLREAD		0x5313 /* Get the drive's volume setting
                                           (struct cdrom_volctrl) */
 #define TARGET_CDROMREADRAW		0x5314	/* read data in raw mode (2352 Bytes)
                                            (struct cdrom_read) */
-/* 
+/*
  * These ioctls are used only used in aztcd.c and optcd.c
  */
 #define TARGET_CDROMREADCOOKED		0x5315	/* read data in cooked mode */
 #define TARGET_CDROMSEEK		0x5316  /* seek msf address */
-  
+
 /*
- * This ioctl is only used by the scsi-cd driver.  
+ * This ioctl is only used by the scsi-cd driver.
    It is for playing audio in logical block addressing mode.
  */
 #define TARGET_CDROMPLAYBLK		0x5317	/* (struct cdrom_blk) */
 
-/* 
+/*
  * These ioctls are only used in optcd.c
  */
 #define TARGET_CDROMREADALL		0x5318	/* read all 2646 bytes */
 
-/* 
- * These ioctls are (now) only in ide-cd.c for controlling 
+/*
+ * These ioctls are (now) only in ide-cd.c for controlling
  * drive spindown time.  They should be implemented in the
  * Uniform driver, via generic packet commands, GPCMD_MODE_SELECT_10,
  * GPCMD_MODE_SENSE_10 and the GPMODE_POWER_PAGE...
@@ -770,7 +770,7 @@ struct target_pollfd {
 #define TARGET_CDROMGETSPINDOWN        0x531d
 #define TARGET_CDROMSETSPINDOWN        0x531e
 
-/* 
+/*
  * These ioctls are implemented through the uniform CD-ROM driver
  * They _will_ be adopted by all CD-ROM drivers, when all the CD-ROM
  * drivers are eventually ported to the uniform CD-ROM driver interface.
@@ -1285,7 +1285,7 @@ struct target_stat64 {
        unsigned int    __pad0;
 
        target_ulong    target_st_atime;
-       target_ulong    target_st_atime_nsec; 
+       target_ulong    target_st_atime_nsec;
        target_ulong    target_st_mtime;
        target_ulong    target_st_mtime_nsec;
        target_ulong    target_st_ctime;
@@ -1347,7 +1347,7 @@ struct target_stat64 {
 	target_ulong	target_st_mtime_nsec;
 
 	target_ulong	target_st_ctime;
-	target_ulong	target_st_ctime_nsec; 
+	target_ulong	target_st_ctime_nsec;
 
 	unsigned long long	st_ino;
 };

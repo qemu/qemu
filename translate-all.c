@@ -1,6 +1,6 @@
 /*
  *  Host code generation
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -89,7 +89,7 @@ void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
     for(;;) {
         c = *opc_ptr++;
         n = op_nb_args[c];
-        fprintf(logfile, "0x%04x: %s", 
+        fprintf(logfile, "0x%04x: %s",
                 (int)(opc_ptr - opc_buf - 1), op_str[c]);
         for(i = 0; i < n; i++) {
             fprintf(logfile, " 0x%x", opparam_ptr[i]);
@@ -110,11 +110,11 @@ static void dyngen_labels(long *gen_labels, int nb_gen_labels,
     uint8_t *gen_code_ptr;
     int c, i;
     unsigned long gen_code_addr[OPC_BUF_SIZE];
-    
+
     if (nb_gen_labels == 0)
         return;
     /* compute the address of each op code */
-    
+
     gen_code_ptr = gen_code_buf;
     i = 0;
     for(;;) {
@@ -125,7 +125,7 @@ static void dyngen_labels(long *gen_labels, int nb_gen_labels,
         gen_code_ptr += opc_copy_size[c];
         i++;
     }
-    
+
     /* compute the address of each label */
     for(i = 0; i < nb_gen_labels; i++) {
         gen_labels[i] = gen_code_addr[gen_labels[i]];
@@ -133,7 +133,7 @@ static void dyngen_labels(long *gen_labels, int nb_gen_labels,
 }
 
 /* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception. 
+   the virtual CPU can trigger an exception.
 
    '*gen_code_size_ptr' contains the size of the generated code (host
    code).
@@ -185,9 +185,9 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
     return 0;
 }
 
-/* The cpu state corresponding to 'searched_pc' is restored. 
+/* The cpu state corresponding to 'searched_pc' is restored.
  */
-int cpu_restore_state(TranslationBlock *tb, 
+int cpu_restore_state(TranslationBlock *tb,
                       CPUState *env, unsigned long searched_pc,
                       void *puc)
 {
@@ -202,7 +202,7 @@ int cpu_restore_state(TranslationBlock *tb,
 #endif
     if (gen_intermediate_code_pc(env, tb) < 0)
         return -1;
-    
+
     /* find opc index corresponding to search_pc */
     tc_ptr = (unsigned long)tb->tc_ptr;
     if (searched_pc < tc_ptr)
@@ -234,8 +234,8 @@ int cpu_restore_state(TranslationBlock *tb,
                     fprintf(logfile, "0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
                 }
             }
-            fprintf(logfile, "spc=0x%08lx j=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n", 
-                    searched_pc, j, gen_opc_pc[j] - tb->cs_base, 
+            fprintf(logfile, "spc=0x%08lx j=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
+                    searched_pc, j, gen_opc_pc[j] - tb->cs_base,
                     (uint32_t)tb->cs_base);
         }
 #endif
@@ -256,7 +256,7 @@ int cpu_restore_state(TranslationBlock *tb,
         } else if (npc == 2) {
             target_ulong t2 = (target_ulong)puc;
             /* jump PC: use T2 and the jump targets of the translation */
-            if (t2) 
+            if (t2)
                 env->npc = gen_opc_jump_pc[0];
             else
                 env->npc = gen_opc_jump_pc[1];
@@ -279,7 +279,7 @@ int cpu_restore_state(TranslationBlock *tb,
         case INDEX_op_ ## op ## _user:\
         case INDEX_op_ ## op ## _kernel
 #endif
-            
+
         CASE3(stfd):
         CASE3(stfs):
         CASE3(lfd):

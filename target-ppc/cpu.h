@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation cpu definitions for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -692,7 +692,7 @@ struct CPUPPCState {
 #if TARGET_GPR_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
-     */ 
+     */
     ppc_gpr_t t0, t1, t2;
 #endif
     ppc_avr_t t0_avr, t1_avr, t2_avr;
@@ -822,18 +822,18 @@ struct mmu_ctx_t {
 };
 
 /*****************************************************************************/
-CPUPPCState *cpu_ppc_init(void);
-int cpu_ppc_exec(CPUPPCState *s);
-void cpu_ppc_close(CPUPPCState *s);
+CPUPPCState *cpu_ppc_init (void);
+int cpu_ppc_exec (CPUPPCState *s);
+void cpu_ppc_close (CPUPPCState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-int cpu_ppc_signal_handler(int host_signum, void *pinfo, 
-                           void *puc);
+int cpu_ppc_signal_handler (int host_signum, void *pinfo,
+                            void *puc);
 
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
-void cpu_loop_exit(void);
+void cpu_loop_exit (void);
 
 void dump_stack (CPUPPCState *env);
 
@@ -891,7 +891,7 @@ void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
-int ppcemb_tlb_search (CPUPPCState *env, target_ulong address);
+int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
 
@@ -915,12 +915,12 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define XER_OV 30
 #define XER_CA 29
 #define XER_CMP 8
-#define XER_BC 0
+#define XER_BC  0
 #define xer_so  env->xer[4]
 #define xer_ov  env->xer[6]
 #define xer_ca  env->xer[2]
 #define xer_cmp env->xer[1]
-#define xer_bc env->xer[0]
+#define xer_bc  env->xer[0]
 
 /* SPR definitions */
 #define SPR_MQ           (0x000)

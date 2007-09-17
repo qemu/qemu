@@ -577,7 +577,7 @@ unsigned long setup_arg_pages(target_ulong p, struct linux_binprm * bprm,
     size = x86_stack_size;
     if (size < MAX_ARG_PAGES*TARGET_PAGE_SIZE)
         size = MAX_ARG_PAGES*TARGET_PAGE_SIZE;
-    error = target_mmap(0, 
+    error = target_mmap(0,
                         size + qemu_host_page_size,
                         PROT_READ | PROT_WRITE,
                         MAP_PRIVATE | MAP_ANONYMOUS,
@@ -637,7 +637,7 @@ static void padzero(unsigned long elf_bss, unsigned long last_bss)
            size must be known */
         if (qemu_real_host_page_size < qemu_host_page_size) {
             unsigned long end_addr, end_addr1;
-            end_addr1 = (elf_bss + qemu_real_host_page_size - 1) & 
+            end_addr1 = (elf_bss + qemu_real_host_page_size - 1) &
                 ~(qemu_real_host_page_size - 1);
             end_addr = HOST_PAGE_ALIGN(elf_bss);
             if (end_addr1 < end_addr) {
@@ -695,7 +695,7 @@ static unsigned long create_elf_tables(target_ulong p, int argc, int envc,
         size *= n;
         if (size & 15)
             sp -= 16 - (size & 15);
-        
+
 #define NEW_AUX_ENT(id, val) do { \
             sp -= n; tputl(sp, val); \
             sp -= n; tputl(sp, id); \
@@ -718,7 +718,7 @@ static unsigned long create_elf_tables(target_ulong p, int argc, int envc,
         if (k_platform)
             NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO
-	/* 
+	/*
 	 * ARCH_DLINFO must come last so platform specific code can enforce
 	 * special alignment requirements on the AUXV if necessary (eg. PPC).
 	 */
@@ -743,7 +743,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	unsigned long last_bss, elf_bss;
 	unsigned long error;
 	int i;
-	
+
 	elf_bss = 0;
 	last_bss = 0;
 	error = 0;
@@ -752,24 +752,24 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
         bswap_ehdr(interp_elf_ex);
 #endif
 	/* First of all, some simple consistency checks */
-	if ((interp_elf_ex->e_type != ET_EXEC && 
-             interp_elf_ex->e_type != ET_DYN) || 
+	if ((interp_elf_ex->e_type != ET_EXEC &&
+             interp_elf_ex->e_type != ET_DYN) ||
 	   !elf_check_arch(interp_elf_ex->e_machine)) {
 		return ~0UL;
 	}
-	
+
 
 	/* Now read in all of the header information */
-	
+
 	if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > TARGET_PAGE_SIZE)
 	    return ~0UL;
-	
-	elf_phdata =  (struct elf_phdr *) 
+
+	elf_phdata =  (struct elf_phdr *)
 		malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
 
 	if (!elf_phdata)
 	  return ~0UL;
-	
+
 	/*
 	 * If the size of this structure has changed, then punt, since
 	 * we will be doing the wrong thing.
@@ -802,7 +802,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
             /* in order to avoid hardcoding the interpreter load
                address in qemu, we allocate a big enough memory zone */
             error = target_mmap(0, INTERP_MAP_SIZE,
-                                PROT_NONE, MAP_PRIVATE | MAP_ANON, 
+                                PROT_NONE, MAP_PRIVATE | MAP_ANON,
                                 -1, 0);
             if (error == -1) {
                 perror("mmap");
@@ -833,7 +833,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 		 elf_type,
 		 interpreter_fd,
 		 eppnt->p_offset - TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr));
-	    
+
 	    if (error == -1) {
 	      /* Real error */
 	      close(interpreter_fd);
@@ -860,7 +860,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	    k = load_addr + eppnt->p_memsz + eppnt->p_vaddr;
 	    if (k > last_bss) last_bss = k;
 	  }
-	
+
 	/* Now use mmap to map the library into memory. */
 
 	close(interpreter_fd);
@@ -932,7 +932,7 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     s->disas_strtab = strings = malloc(strtab.sh_size);
     if (!s->disas_symtab || !s->disas_strtab)
 	return;
-	
+
     lseek(fd, symtab.sh_offset, SEEK_SET);
     if (read(fd, s->disas_symtab, symtab.sh_size) != symtab.sh_size)
 	return;
@@ -1019,7 +1019,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     retval = lseek(bprm->fd, elf_ex.e_phoff, SEEK_SET);
     if(retval > 0) {
-	retval = read(bprm->fd, (char *) elf_phdata, 
+	retval = read(bprm->fd, (char *) elf_phdata,
 				elf_ex.e_phentsize * elf_ex.e_phnum);
     }
 
@@ -1078,7 +1078,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 	    if(retval < 0) {
 	 	perror("load_elf_binary2");
 		exit(-1);
-	    }	
+	    }
 
 	    /* If the program interpreter is one of these two,
 	       then assume an iBCS2 image. Otherwise assume
@@ -1199,10 +1199,10 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         int elf_prot = 0;
         int elf_flags = 0;
         unsigned long error;
-        
+
 	if (elf_ppnt->p_type != PT_LOAD)
             continue;
-        
+
         if (elf_ppnt->p_flags & PF_R) elf_prot |= PROT_READ;
         if (elf_ppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
         if (elf_ppnt->p_flags & PF_X) elf_prot |= PROT_EXEC;
@@ -1216,7 +1216,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             /* NOTE: for qemu, we do a big mmap to get enough space
                without hardcoding any address */
             error = target_mmap(0, ET_DYN_MAP_SIZE,
-                                PROT_NONE, MAP_PRIVATE | MAP_ANON, 
+                                PROT_NONE, MAP_PRIVATE | MAP_ANON,
                                 -1, 0);
             if (error == -1) {
                 perror("mmap");
@@ -1224,14 +1224,14 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
             load_bias = TARGET_ELF_PAGESTART(error - elf_ppnt->p_vaddr);
         }
-        
+
         error = target_mmap(TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr),
                             (elf_ppnt->p_filesz +
                              TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)),
                             elf_prot,
                             (MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE),
                             bprm->fd,
-                            (elf_ppnt->p_offset - 
+                            (elf_ppnt->p_offset -
                              TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)));
         if (error == -1) {
             perror("mmap");
@@ -1242,7 +1242,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         if (TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr) < elf_stack)
             elf_stack = TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr);
 #endif
-        
+
         if (!load_addr_set) {
             load_addr_set = 1;
             load_addr = elf_ppnt->p_vaddr - elf_ppnt->p_offset;
@@ -1254,14 +1254,14 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
         }
         k = elf_ppnt->p_vaddr;
-        if (k < start_code) 
+        if (k < start_code)
             start_code = k;
         k = elf_ppnt->p_vaddr + elf_ppnt->p_filesz;
-        if (k > elf_bss) 
+        if (k > elf_bss)
             elf_bss = k;
         if ((elf_ppnt->p_flags & PF_X) && end_code <  k)
             end_code = k;
-        if (end_data < k) 
+        if (end_data < k)
             end_data = k;
         k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
         if (k > elf_brk) elf_brk = k;

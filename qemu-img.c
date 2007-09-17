@@ -1,8 +1,8 @@
 /*
  * QEMU disk image utility
- * 
+ *
  * Copyright (c) 2003-2007 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "block_int.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -75,7 +76,7 @@ void term_print_filename(const char *filename)
     term_printf(filename);
 }
 
-void __attribute__((noreturn)) error(const char *fmt, ...) 
+void __attribute__((noreturn)) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -98,9 +99,9 @@ void help(void)
            "QEMU disk image utility\n"
            "\n"
            "Command syntax:\n"
-           "  create [-e] [-b base_image] [-f fmt] filename [size]\n"
+           "  create [-e] [-6] [-b base_image] [-f fmt] filename [size]\n"
            "  commit [-f fmt] filename\n"
-           "  convert [-c] [-e] [-f fmt] filename [-O output_fmt] output_filename\n"
+           "  convert [-c] [-e] [-6] [-f fmt] filename [-O output_fmt] output_filename\n"
            "  info [-f fmt] filename\n"
            "\n"
            "Command parameters:\n"
@@ -114,6 +115,7 @@ void help(void)
            "  'output_fmt' is the destination format\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
            "  '-e' indicates that the target image must be encrypted (qcow format only)\n"
+           "  '-6' indicates that the target image must use compatibility level 6 (vmdk format only)\n"
            );
     printf("\nSupported format:");
     bdrv_iterate_format(format_print, NULL);
@@ -166,7 +168,7 @@ static void term_init(void)
     tty.c_cflag |= CS8;
     tty.c_cc[VMIN] = 1;
     tty.c_cc[VTIME] = 0;
-    
+
     tcsetattr (0, TCSANOW, &tty);
 
     atexit(term_exit);
@@ -241,17 +243,17 @@ static BlockDriverState *bdrv_new_open(const char *filename,
 
 static int img_create(int argc, char **argv)
 {
-    int c, ret, encrypted;
+    int c, ret, flags;
     const char *fmt = "raw";
     const char *filename;
     const char *base_filename = NULL;
     int64_t size;
     const char *p;
     BlockDriver *drv;
-    
-    encrypted = 0;
+
+    flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "b:f:he");
+        c = getopt(argc, argv, "b:f:he6");
         if (c == -1)
             break;
         switch(c) {
@@ -265,11 +267,14 @@ static int img_create(int argc, char **argv)
             fmt = optarg;
             break;
         case 'e':
-            encrypted = 1;
+            flags |= BLOCK_FLAG_ENCRYPT;
             break;
+		case '6':
+            flags |= BLOCK_FLAG_COMPAT6;
+			break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
     size = 0;
@@ -299,14 +304,16 @@ static int img_create(int argc, char **argv)
         error("Unknown file format '%s'", fmt);
     printf("Formatting '%s', fmt=%s",
            filename, fmt);
-    if (encrypted)
+    if (flags & BLOCK_FLAG_ENCRYPT)
         printf(", encrypted");
+    if (flags & BLOCK_FLAG_COMPAT6)
+        printf(", compatibility level=6");
     if (base_filename) {
         printf(", backing_file=%s",
                base_filename);
     }
     printf(", size=%" PRId64 " kB\n", (int64_t) (size / 1024));
-    ret = bdrv_create(drv, filename, size / 512, base_filename, encrypted);
+    ret = bdrv_create(drv, filename, size / 512, base_filename, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting or formatting option not supported for file format '%s'", fmt);
@@ -338,7 +345,7 @@ static int img_commit(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
 
@@ -411,7 +418,7 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 
 static int img_convert(int argc, char **argv)
 {
-    int c, ret, n, n1, compress, cluster_size, cluster_sectors, encrypt;
+    int c, ret, n, n1, flags, cluster_size, cluster_sectors;
     const char *filename, *fmt, *out_fmt, *out_filename;
     BlockDriver *drv;
     BlockDriverState *bs, *out_bs;
@@ -422,10 +429,9 @@ static int img_convert(int argc, char **argv)
 
     fmt = NULL;
     out_fmt = "raw";
-    compress = 0;
-    encrypt = 0;
+    flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:hce");
+        c = getopt(argc, argv, "f:O:hce6");
         if (c == -1)
             break;
         switch(c) {
@@ -439,33 +445,38 @@ static int img_convert(int argc, char **argv)
             out_fmt = optarg;
             break;
         case 'c':
-            compress = 1;
+            flags |= BLOCK_FLAG_COMPRESS;
             break;
         case 'e':
-            encrypt = 1;
+            flags |= BLOCK_FLAG_ENCRYPT;
+            break;
+        case '6':
+            flags |= BLOCK_FLAG_COMPAT6;
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     out_filename = argv[optind++];
-    
+
     bs = bdrv_new_open(filename, fmt);
 
     drv = bdrv_find_format(out_fmt);
     if (!drv)
         error("Unknown file format '%s'", out_fmt);
-    if (compress && drv != &bdrv_qcow && drv != &bdrv_qcow2)
+    if (flags & BLOCK_FLAG_COMPRESS && drv != &bdrv_qcow && drv != &bdrv_qcow2)
         error("Compression not supported for this file format");
-    if (encrypt && drv != &bdrv_qcow && drv != &bdrv_qcow2)
+    if (flags & BLOCK_FLAG_ENCRYPT && drv != &bdrv_qcow && drv != &bdrv_qcow2)
         error("Encryption not supported for this file format");
-    if (compress && encrypt)
+    if (flags & BLOCK_FLAG_COMPRESS && drv != &bdrv_vmdk)
+        error("Alternative compatibility level not supported for this file format");
+    if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
         error("Compression and encryption not supported at the same time");
     bdrv_get_geometry(bs, &total_sectors);
-    ret = bdrv_create(drv, out_filename, total_sectors, NULL, encrypt);
+    ret = bdrv_create(drv, out_filename, total_sectors, NULL, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting not supported for file format '%s'", fmt);
@@ -473,10 +484,10 @@ static int img_convert(int argc, char **argv)
             error("Error while formatting '%s'", out_filename);
         }
     }
-    
+
     out_bs = bdrv_new_open(out_filename, out_fmt);
 
-    if (compress) {
+    if (flags && BLOCK_FLAG_COMPRESS) {
         if (bdrv_get_info(out_bs, &bdi) < 0)
             error("could not get block driver info");
         cluster_size = bdi.cluster_size;
@@ -492,12 +503,12 @@ static int img_convert(int argc, char **argv)
                 n = cluster_sectors;
             else
                 n = nb_sectors;
-            if (bdrv_read(bs, sector_num, buf, n) < 0) 
+            if (bdrv_read(bs, sector_num, buf, n) < 0)
                 error("error while reading");
             if (n < cluster_sectors)
                 memset(buf + n * 512, 0, cluster_size - n * 512);
             if (is_not_zero(buf, cluster_size)) {
-                if (bdrv_write_compressed(out_bs, sector_num, buf, 
+                if (bdrv_write_compressed(out_bs, sector_num, buf,
                                           cluster_sectors) != 0)
                     error("error while compressing sector %" PRId64,
                           sector_num);
@@ -516,7 +527,7 @@ static int img_convert(int argc, char **argv)
                 n = (IO_BUF_SIZE / 512);
             else
                 n = nb_sectors;
-            if (bdrv_read(bs, sector_num, buf, n) < 0) 
+            if (bdrv_read(bs, sector_num, buf, n) < 0)
                 error("error while reading");
             /* NOTE: at the same time we convert, we do not write zero
                sectors to have a chance to compress the image. Ideally, we
@@ -524,7 +535,7 @@ static int img_convert(int argc, char **argv)
             buf1 = buf;
             while (n > 0) {
                 if (is_allocated_sectors(buf1, n, &n1)) {
-                    if (bdrv_write(out_bs, sector_num, buf1, n1) < 0) 
+                    if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");
                 }
                 sector_num += n1;
@@ -554,7 +565,7 @@ static int64_t get_allocated_file_size(const char *filename)
 	    return (((int64_t) high) << 32) + low;
     }
 
-    if (_stati64(filename, &st) < 0) 
+    if (_stati64(filename, &st) < 0)
         return -1;
     return st.st_size;
 }
@@ -562,7 +573,7 @@ static int64_t get_allocated_file_size(const char *filename)
 static int64_t get_allocated_file_size(const char *filename)
 {
     struct stat st;
-    if (stat(filename, &st) < 0) 
+    if (stat(filename, &st) < 0)
         return -1;
     return (int64_t)st.st_blocks * 512;
 }
@@ -612,7 +623,7 @@ static int img_info(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) 
+    if (optind >= argc)
         help();
     filename = argv[optind++];
 
@@ -636,26 +647,26 @@ static int img_info(int argc, char **argv)
     if (allocated_size < 0)
 	sprintf(dsize_buf, "unavailable");
     else
-        get_human_readable_size(dsize_buf, sizeof(dsize_buf), 
+        get_human_readable_size(dsize_buf, sizeof(dsize_buf),
                                 allocated_size);
     printf("image: %s\n"
            "file format: %s\n"
            "virtual size: %s (%" PRId64 " bytes)\n"
            "disk size: %s\n",
-           filename, fmt_name, size_buf, 
+           filename, fmt_name, size_buf,
            (total_sectors * 512),
            dsize_buf);
     if (bdrv_is_encrypted(bs))
         printf("encrypted: yes\n");
     if (bdrv_get_info(bs, &bdi) >= 0) {
-        if (bdi.cluster_size != 0) 
+        if (bdi.cluster_size != 0)
             printf("cluster_size: %d\n", bdi.cluster_size);
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {
         path_combine(backing_filename2, sizeof(backing_filename2),
                      filename, backing_filename);
-        printf("backing file: %s (actual path: %s)\n", 
+        printf("backing file: %s (actual path: %s)\n",
                backing_filename,
                backing_filename2);
     }

@@ -1,4 +1,4 @@
-/* 
+/*
  * SD Memory Card emulation as defined in the "SD Memory Card Physical
  * layer specification, Version 1.10."
  *

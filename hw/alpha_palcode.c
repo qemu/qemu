@@ -1,6 +1,6 @@
 /*
  *  Alpha emulation - PALcode emulation for qemu.
- * 
+ *
  *  Copyright (c) 2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -62,7 +62,7 @@ static void update_itb ()
     mtpr(TB_TAG);
     mtpr(TB_CTL);
     /* This commits the TB update */
-    mtpr(ITB_PTE); 
+    mtpr(ITB_PTE);
 }
 
 static void update_dtb ();
@@ -937,7 +937,7 @@ static int paddr_from_pte (uint64_t *paddr, int *zbitsp, int *prot,
         }
     }
     *paddr = (pfn << page_bits) | (vaddr & page_mask);
-    
+
     return 0;
 }
 
@@ -998,7 +998,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
 
     if (env->user_mode_only) {
         ret = 2;
-    } else { 
+    } else {
         ret = virtual_to_physical(env, &physical, &zbits, &prot,
                                   address, is_user, rw);
     }

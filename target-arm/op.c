@@ -1,6 +1,6 @@
 /*
  *  ARM micro operations
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *  Copyright (c) 2005 CodeSourcery, LLC
  *
@@ -774,7 +774,7 @@ void OPPROTO op_addl_T0_T1_saturate(void)
   }
   else
     T0 = res;
-  
+
   FORCE_RET();
 }
 
@@ -792,7 +792,7 @@ void OPPROTO op_subl_T0_T1_saturate(void)
   }
   else
     T0 = res;
-  
+
   FORCE_RET();
 }
 
@@ -1127,7 +1127,7 @@ void OPPROTO op_vfp_msr(void)
 void OPPROTO op_vfp_mrrd(void)
 {
     CPU_DoubleU u;
-    
+
     u.d = FT0d;
     T0 = u.l.lower;
     T1 = u.l.upper;
@@ -1136,7 +1136,7 @@ void OPPROTO op_vfp_mrrd(void)
 void OPPROTO op_vfp_mdrr(void)
 {
     CPU_DoubleU u;
-    
+
     u.l.lower = T0;
     u.l.upper = T1;
     FT0d = u.d;

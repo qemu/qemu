@@ -1336,7 +1336,7 @@ static inline long bswap_syctl(int * mib, int count, void *buf, int size)
         if(!(sysctl = sysctl->childs))
             break;
     }
-    
+
     if(ret->childs)
         qerror("we shouldn't have a directory element\n");
 
@@ -1375,7 +1375,7 @@ long do___sysctl(int * name, uint32_t namelen, void * oldp, size_t * oldlenp, vo
         //bswap_syctl(name, namelen, newp, newlen);
         tswap32s((uint32_t*)oldlenp);
     }
-        
+
     if(name) /* Sometimes sysctl is called with no arg1, ignore */
         ret = get_errno(sysctl(name, namelen, oldp, oldlenp, newp, newlen));
 

@@ -1,6 +1,6 @@
 /*
  * m68k virtual CPU header
- * 
+ *
  *  Copyright (c) 2005-2007 CodeSourcery
  *  Written by Paul Brook
  *
@@ -86,7 +86,7 @@ typedef struct CPUM68KState {
     /* Temporary storage for DIV helpers.  */
     uint32_t div1;
     uint32_t div2;
-    
+
     /* MMU status.  */
     struct {
         uint32_t ar;
@@ -125,7 +125,7 @@ void do_interrupt(int is_hw);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-int cpu_m68k_signal_handler(int host_signum, void *pinfo, 
+int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 void cpu_m68k_flush_flags(CPUM68KState *, int);
 
@@ -213,7 +213,7 @@ void register_m68k_insns (CPUM68KState *env);
 /* Linux uses 8k pages.  */
 #define TARGET_PAGE_BITS 13
 #else
-/* Smallest TLB entry size is 1k.  */ 
+/* Smallest TLB entry size is 1k.  */
 #define TARGET_PAGE_BITS 10
 #endif
 

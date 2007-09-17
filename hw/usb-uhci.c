@@ -1,8 +1,8 @@
 /*
  * USB UHCI controller emulation
- * 
+ *
  * Copyright (c) 2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -84,7 +84,7 @@ typedef struct UHCIState {
     /* For simplicity of implementation we only allow a single pending USB
        request.  This means all usb traffic on this controller is effectively
        suspended until that transfer completes.  When the transfer completes
-       the next transfer from that queue will be processed.  However 
+       the next transfer from that queue will be processed.  However
        other queues will not be processed until the next frame.  The solution
        is to allow multiple pending requests.  */
     uint32_t async_qh;
@@ -149,7 +149,7 @@ static void uhci_reset(UHCIState *s)
 static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     UHCIState *s = opaque;
-    
+
     addr &= 0x1f;
     switch(addr) {
     case 0x0c:
@@ -178,7 +178,7 @@ static uint32_t uhci_ioport_readb(void *opaque, uint32_t addr)
 static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     UHCIState *s = opaque;
-    
+
     addr &= 0x1f;
 #ifdef DEBUG
     printf("uhci writew port=0x%04x val=0x%04x\n", addr, val);
@@ -243,7 +243,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             dev = port->port.dev;
             if (dev) {
                 /* port reset */
-                if ( (val & UHCI_PORT_RESET) && 
+                if ( (val & UHCI_PORT_RESET) &&
                      !(port->ctrl & UHCI_PORT_RESET) ) {
                     usb_send_msg(dev, USB_MSG_RESET);
                 }
@@ -280,7 +280,7 @@ static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
             UHCIPort *port;
             int n;
             n = (addr >> 1) & 7;
-            if (n >= NB_PORTS) 
+            if (n >= NB_PORTS)
                 goto read_default;
             port = &s->ports[n];
             val = port->ctrl;
@@ -458,7 +458,7 @@ static int uhci_handle_td(UHCIState *s, UHCI_TD *td, int *int_mask)
     if (td->ctrl & TD_CTRL_IOC) {
         *int_mask |= 0x01;
     }
-    
+
     if (!(td->ctrl & TD_CTRL_ACTIVE))
         return 1;
 
@@ -530,7 +530,7 @@ static int uhci_handle_td(UHCIState *s, UHCI_TD *td, int *int_mask)
            here.  The docs are somewhat unclear, but win2k relies on this
            behavior.  */
         td->ctrl &= ~(TD_CTRL_ACTIVE | TD_CTRL_NAK);
-        if (pid == USB_TOKEN_IN && 
+        if (pid == USB_TOKEN_IN &&
             (td->ctrl & TD_CTRL_SPD) &&
             len < max_len) {
             *int_mask |= 0x02;
@@ -555,7 +555,7 @@ static int uhci_handle_td(UHCIState *s, UHCI_TD *td, int *int_mask)
                     uhci_update_irq(s);
                 }
             }
-            td->ctrl = (td->ctrl & ~(3 << TD_CTRL_ERROR_SHIFT)) | 
+            td->ctrl = (td->ctrl & ~(3 << TD_CTRL_ERROR_SHIFT)) |
                 (err << TD_CTRL_ERROR_SHIFT);
             return 1;
         case USB_RET_NAK:
@@ -597,7 +597,7 @@ static void uhci_async_complete_packet(USBPacket * packet, void *opaque)
     le32_to_cpus(&qh.el_link);
     /* Re-process the queue containing the async packet.  */
     while (1) {
-        cpu_physical_memory_read(qh.el_link & ~0xf, 
+        cpu_physical_memory_read(qh.el_link & ~0xf,
                                  (uint8_t *)&td, sizeof(td));
         le32_to_cpus(&td.link);
         le32_to_cpus(&td.ctrl);
@@ -608,8 +608,8 @@ static void uhci_async_complete_packet(USBPacket * packet, void *opaque)
         /* update the status bits of the TD */
         if (old_td_ctrl != td.ctrl) {
             val = cpu_to_le32(td.ctrl);
-            cpu_physical_memory_write((qh.el_link & ~0xf) + 4, 
-                                      (const uint8_t *)&val, 
+            cpu_physical_memory_write((qh.el_link & ~0xf) + 4,
+                                      (const uint8_t *)&val,
                                       sizeof(val));
         }
         if (ret < 0)
@@ -621,8 +621,8 @@ static void uhci_async_complete_packet(USBPacket * packet, void *opaque)
             /* update qh element link */
             qh.el_link = td.link;
             val = cpu_to_le32(qh.el_link);
-            cpu_physical_memory_write((link & ~0xf) + 4, 
-                                      (const uint8_t *)&val, 
+            cpu_physical_memory_write((link & ~0xf) + 4,
+                                      (const uint8_t *)&val,
                                       sizeof(val));
             if (!(qh.el_link & 4))
                 break;
@@ -690,7 +690,7 @@ static void uhci_frame_timer(void *opaque)
                 /* TD */
                 if (--cnt == 0)
                     break;
-                cpu_physical_memory_read(qh.el_link & ~0xf, 
+                cpu_physical_memory_read(qh.el_link & ~0xf,
                                          (uint8_t *)&td, sizeof(td));
                 le32_to_cpus(&td.link);
                 le32_to_cpus(&td.ctrl);
@@ -701,8 +701,8 @@ static void uhci_frame_timer(void *opaque)
                 /* update the status bits of the TD */
                 if (old_td_ctrl != td.ctrl) {
                     val = cpu_to_le32(td.ctrl);
-                    cpu_physical_memory_write((qh.el_link & ~0xf) + 4, 
-                                              (const uint8_t *)&val, 
+                    cpu_physical_memory_write((qh.el_link & ~0xf) + 4,
+                                              (const uint8_t *)&val,
                                               sizeof(val));
                 }
                 if (ret < 0)
@@ -713,8 +713,8 @@ static void uhci_frame_timer(void *opaque)
                     /* update qh element link */
                     qh.el_link = td.link;
                     val = cpu_to_le32(qh.el_link);
-                    cpu_physical_memory_write((link & ~0xf) + 4, 
-                                              (const uint8_t *)&val, 
+                    cpu_physical_memory_write((link & ~0xf) + 4,
+                                              (const uint8_t *)&val,
                                               sizeof(val));
                     if (qh.el_link & 4) {
                         /* depth first */
@@ -740,8 +740,8 @@ static void uhci_frame_timer(void *opaque)
                 /* update the status bits of the TD */
                 if (old_td_ctrl != td.ctrl) {
                     val = cpu_to_le32(td.ctrl);
-                    cpu_physical_memory_write((link & ~0xf) + 4, 
-                                              (const uint8_t *)&val, 
+                    cpu_physical_memory_write((link & ~0xf) + 4,
+                                              (const uint8_t *)&val,
                                               sizeof(val));
                 }
                 if (ret < 0)
@@ -768,12 +768,12 @@ static void uhci_frame_timer(void *opaque)
         s->async_qh = 0;
     }
     /* prepare the timer for the next frame */
-    expire_time = qemu_get_clock(vm_clock) + 
+    expire_time = qemu_get_clock(vm_clock) +
         (ticks_per_sec / FRAME_TIMER_FREQ);
     qemu_mod_timer(s->frame_timer, expire_time);
 }
 
-static void uhci_map(PCIDevice *pci_dev, int region_num, 
+static void uhci_map(PCIDevice *pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
 {
     UHCIState *s = (UHCIState *)pci_dev;
@@ -807,7 +807,7 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
-    
+
     for(i = 0; i < NB_PORTS; i++) {
         qemu_register_usb_port(&s->ports[i].port, s, i, uhci_attach);
     }
@@ -817,7 +817,7 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
 
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
-    pci_register_io_region(&s->dev, 4, 0x20, 
+    pci_register_io_region(&s->dev, 4, 0x20,
                            PCI_ADDRESS_SPACE_IO, uhci_map);
 }
 

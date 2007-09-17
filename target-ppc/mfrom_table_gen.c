@@ -8,7 +8,7 @@ int main (void)
     double d;
     uint8_t n;
     int i;
-    
+
     printf("static const uint8_t mfrom_ROM_table[602] =\n{\n    ");
     for (i = 0; i < 602; i++) {
         /* Extremly decomposed:

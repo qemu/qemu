@@ -1,6 +1,6 @@
 /*
  *  Arm "Angel" semihosting syscalls
- * 
+ *
  *  Copyright (c) 2005, 2007 CodeSourcery.
  *  Written by Paul Brook.
  *
@@ -194,7 +194,7 @@ uint32_t do_arm_semihosting(CPUState *env)
                 return STDOUT_FILENO;
         }
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "open,%s,%x,1a4", ARG(0), 
+            gdb_do_syscall(arm_semi_cb, "open,%s,%x,1a4", ARG(0),
 			   (int)ARG(2)+1, gdb_open_modeflags[ARG(1)]);
             return env->regs[0];
         } else {
@@ -283,7 +283,7 @@ uint32_t do_arm_semihosting(CPUState *env)
         }
     case SYS_FLEN:
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_flen_cb, "fstat,%x,%x", 
+            gdb_do_syscall(arm_semi_flen_cb, "fstat,%x,%x",
 			   ARG(0), env->regs[13]-64);
             return env->regs[0];
         } else {
@@ -401,7 +401,7 @@ uint32_t do_arm_semihosting(CPUState *env)
                 }
                 ts->heap_limit = limit;
             }
-              
+
             ptr = lock_user(ARG(0), 16, 0);
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);

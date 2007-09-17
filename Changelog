@@ -86,7 +86,7 @@ version 0.8.0:
     (Johannes Schindelin)
 
 version 0.7.2:
-  
+
   - x86_64 fixes (Win2000 and Linux 2.6 boot in 32 bit)
   - merge self modifying code handling in dirty ram page mecanism.
   - MIPS fixes (Ralf Baechle)
@@ -135,7 +135,7 @@ version 0.6.1:
   - Mac OS X port (Pierre d'Herbemont)
   - Virtual console support
   - Better monitor line edition
-  - New block device layer 
+  - New block device layer
   - New 'qcow' growable disk image support with AES encryption and
     transparent decompression
   - VMware 3 and 4 read-only disk image support (untested)
@@ -201,7 +201,7 @@ version 0.5.5:
   - FDC fixes for Win98
 
 version 0.5.4:
-  
+
   - qemu-fast fixes
   - BIOS area protection fix (aka EMM386.EXE fix) (Mike Nordell)
   - keyboard/mouse fix (Mike Nordell)
@@ -228,7 +228,7 @@ version 0.5.3:
   - added accurate CR0.MP/ME/TS emulation
   - fixed DMA memory write access (Win95 boot floppy fix)
   - graphical x86 linux loader
-  - command line monitor 
+  - command line monitor
   - generic removable device support
   - support of CD-ROM change
   - multiple network interface support
@@ -266,7 +266,7 @@ version 0.5.2:
   - eflags optimisation fix for string operations
 
 version 0.5.1:
-  
+
   - float access fixes when using soft mmu
   - PC emulation support on PowerPC
   - A20 support
@@ -281,7 +281,7 @@ version 0.5.1:
   - Major SPARC target fixes (dynamically linked programs begin to work)
 
 version 0.5.0:
-  
+
   - full hardware level VGA emulation
   - graphical display with SDL
   - added PS/2 mouse and keyboard emulation
@@ -319,7 +319,7 @@ version 0.4.2:
  - SMP kernels can at least be booted
 
 version 0.4.1:
-  
+
  - more accurate timer support in vl.
  - more reliable NE2000 probe in vl.
  - added 2.5.66 kernel in vl-test.
@@ -405,7 +405,7 @@ version 0.1.3:
  - added bound, cmpxchg8b, cpuid instructions
  - added 16 bit addressing support/override for string operations
  - poll() fix
- 
+
 version 0.1.2:
 
  - compile fixes

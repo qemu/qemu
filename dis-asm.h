@@ -44,7 +44,7 @@ enum bfd_flavour {
 
 enum bfd_endian { BFD_ENDIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN };
 
-enum bfd_architecture 
+enum bfd_architecture
 {
   bfd_arch_unknown,    /* File arch not known */
   bfd_arch_obscure,    /* Arch known, not one of these */
@@ -67,14 +67,14 @@ enum bfd_architecture
 #define bfd_mach_mcf5249   16
 #define bfd_mach_mcf547x   17
 #define bfd_mach_mcf548x   18
-  bfd_arch_vax,        /* DEC Vax */   
+  bfd_arch_vax,        /* DEC Vax */
   bfd_arch_i960,       /* Intel 960 */
      /* The order of the following is important.
-       lower number indicates a machine type that 
+       lower number indicates a machine type that
        only accepts a subset of the instructions
        available to machines with higher numbers.
        The exception is the "ca", which is
-       incompatible with all other machines except 
+       incompatible with all other machines except
        "core". */
 
 #define bfd_mach_i960_core      1
@@ -228,7 +228,7 @@ enum dis_insn_type {
   dis_dref2			/* Two data references in instruction */
 };
 
-/* This struct is passed into the instruction decoding routine, 
+/* This struct is passed into the instruction decoding routine,
    and is passed back out into each callback.  The various fields are used
    for conveying information from your main routine into your callbacks,
    for passing information into the instruction decoders (such as the

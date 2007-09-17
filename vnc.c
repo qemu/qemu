@@ -1,9 +1,9 @@
 /*
  * QEMU VNC display driver
- * 
+ *
  * Copyright (C) 2006 Anthony Liguori <anthony@codemonkey.ws>
  * Copyright (C) 2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -68,7 +68,7 @@ typedef void VncWritePixels(VncState *vs, void *data, int size);
 
 typedef void VncSendHextileTile(VncState *vs,
                                 int x, int y, int w, int h,
-                                uint32_t *last_bg, 
+                                uint32_t *last_bg,
                                 uint32_t *last_fg,
                                 int *has_bg, int *has_fg);
 
@@ -226,7 +226,7 @@ static inline void vnc_set_bits(uint32_t *d, int n, int nb_words)
         d[j++] = -1;
         n -= 32;
     }
-    if (n > 0) 
+    if (n > 0)
         d[j++] = (1 << n) - 1;
     while (j < nb_words)
         d[j++] = 0;
@@ -237,7 +237,7 @@ static inline int vnc_get_bit(const uint32_t *d, int k)
     return (d[k >> 5] >> (k & 0x1f)) & 1;
 }
 
-static inline int vnc_and_bits(const uint32_t *d1, const uint32_t *d2, 
+static inline int vnc_and_bits(const uint32_t *d1, const uint32_t *d2,
                                int nb_words)
 {
     int i;
@@ -314,8 +314,8 @@ static void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v)
     r = (v >> vs->red_shift1) & vs->red_max;
     g = (v >> vs->green_shift1) & vs->green_max;
     b = (v >> vs->blue_shift1) & vs->blue_max;
-    v = (r << vs->red_shift) | 
-        (g << vs->green_shift) | 
+    v = (r << vs->red_shift) |
+        (g << vs->green_shift) |
         (b << vs->blue_shift);
     switch(vs->pix_bpp) {
     case 1:
@@ -409,7 +409,7 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
     has_fg = has_bg = 0;
     for (j = y; j < (y + h); j += 16) {
 	for (i = x; i < (x + w); i += 16) {
-            vs->send_hextile_tile(vs, i, j, 
+            vs->send_hextile_tile(vs, i, j,
                                   MIN(16, x + w - i), MIN(16, y + h - j),
                                   &last_bg32, &last_fg32, &has_bg, &has_fg);
 	}
@@ -912,7 +912,7 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
     int keycode;
 
     keycode = keysym2scancode(vs->kbd_layout, sym & 0xFFFF);
-    
+
     /* QEMU console switch */
     switch(keycode) {
     case 0x2a:                          /* Left Shift */
@@ -926,7 +926,7 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
         else
             vs->modifiers_state[keycode] = 0;
         break;
-    case 0x02 ... 0x0a: /* '1' to '9' keys */ 
+    case 0x02 ... 0x0a: /* '1' to '9' keys */
         if (down && vs->modifiers_state[0x1d] && vs->modifiers_state[0x38]) {
             /* Reset the modifiers sent to the current console */
             reset_keys(vs);
@@ -1015,7 +1015,7 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 	char *old_row = vs->old_data + y_position * vs->ds->linesize;
 
 	for (i = 0; i < h; i++) {
-            vnc_set_bits(vs->dirty_row[y_position + i], 
+            vnc_set_bits(vs->dirty_row[y_position + i],
                          (vs->ds->width / 16), VNC_DIRTY_WORDS);
 	    memset(old_row, 42, vs->ds->width * vs->depth);
 	    old_row += vs->ds->linesize;
@@ -1087,29 +1087,29 @@ static void set_pixel_format(VncState *vs,
 	vnc_client_error(vs);
         return;
     }
-    if (bits_per_pixel == 32 && 
+    if (bits_per_pixel == 32 &&
         host_big_endian_flag == big_endian_flag &&
         red_max == 0xff && green_max == 0xff && blue_max == 0xff &&
         red_shift == 16 && green_shift == 8 && blue_shift == 0) {
         vs->depth = 4;
         vs->write_pixels = vnc_write_pixels_copy;
         vs->send_hextile_tile = send_hextile_tile_32;
-    } else 
-    if (bits_per_pixel == 16 && 
+    } else
+    if (bits_per_pixel == 16 &&
         host_big_endian_flag == big_endian_flag &&
         red_max == 31 && green_max == 63 && blue_max == 31 &&
         red_shift == 11 && green_shift == 5 && blue_shift == 0) {
         vs->depth = 2;
         vs->write_pixels = vnc_write_pixels_copy;
         vs->send_hextile_tile = send_hextile_tile_16;
-    } else 
-    if (bits_per_pixel == 8 && 
+    } else
+    if (bits_per_pixel == 8 &&
         red_max == 7 && green_max == 7 && blue_max == 3 &&
         red_shift == 5 && green_shift == 2 && blue_shift == 0) {
         vs->depth = 1;
         vs->write_pixels = vnc_write_pixels_copy;
         vs->send_hextile_tile = send_hextile_tile_8;
-    } else 
+    } else
     {
         /* generic and slower case */
         if (bits_per_pixel != 8 &&
@@ -1208,7 +1208,7 @@ static int protocol_client_msg(VncState *vs, char *data, size_t len)
 	vnc_client_error(vs);
 	break;
     }
-	
+
     vnc_read_when(vs, protocol_client_msg, 1);
     return 0;
 }
@@ -1259,7 +1259,7 @@ static int protocol_client_init(VncState *vs, char *data, size_t len)
         vs->send_hextile_tile = send_hextile_tile_8;
     }
     vs->write_pixels = vnc_write_pixels_copy;
-	
+
     vnc_write(vs, pad, 3);           /* padding */
 
     if (qemu_name)

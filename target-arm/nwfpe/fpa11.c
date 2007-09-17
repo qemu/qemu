@@ -43,16 +43,16 @@ void resetFPA11(void)
 {
   int i;
   FPA11 *fpa11 = GET_FPA11();
-  
+
   /* initialize the register type array */
   for (i=0;i<=7;i++)
   {
     fpa11->fType[i] = typeNone;
   }
-  
+
   /* FPSR: set system id to FP_EMULATOR, set AC, clear all other bits */
   fpa11->fpsr = FP_EMULATOR | BIT_AC;
-  
+
   /* FPCR: set SB, AB and DA bits, clear all others */
 #if MAINTAIN_FPCR
   fpa11->fpcr = MASK_RESET;
@@ -66,36 +66,36 @@ void SetRoundingMode(const unsigned int opcode)
 
 #if MAINTAIN_FPCR
    fpa11->fpcr &= ~MASK_ROUNDING_MODE;
-#endif   
+#endif
    switch (opcode & MASK_ROUNDING_MODE)
    {
       default:
       case ROUND_TO_NEAREST:
          rounding_mode = float_round_nearest_even;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_TO_NEAREST;
-#endif         
+#endif
       break;
-      
+
       case ROUND_TO_PLUS_INFINITY:
          rounding_mode = float_round_up;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_TO_PLUS_INFINITY;
-#endif         
+#endif
       break;
-      
+
       case ROUND_TO_MINUS_INFINITY:
          rounding_mode = float_round_down;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_TO_MINUS_INFINITY;
-#endif         
+#endif
       break;
-      
+
       case ROUND_TO_ZERO:
          rounding_mode = float_round_to_zero;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_TO_ZERO;
-#endif         
+#endif
       break;
   }
    set_float_rounding_mode(rounding_mode, &fpa11->fp_status);
@@ -107,30 +107,30 @@ void SetRoundingPrecision(const unsigned int opcode)
    FPA11 *fpa11 = GET_FPA11();
 #if MAINTAIN_FPCR
    fpa11->fpcr &= ~MASK_ROUNDING_PRECISION;
-#endif   
+#endif
    switch (opcode & MASK_ROUNDING_PRECISION)
    {
       case ROUND_SINGLE:
          rounding_precision = 32;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_SINGLE;
-#endif         
+#endif
       break;
-      
+
       case ROUND_DOUBLE:
          rounding_precision = 64;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_DOUBLE;
-#endif         
+#endif
       break;
-      
+
       case ROUND_EXTENDED:
          rounding_precision = 80;
-#if MAINTAIN_FPCR         
+#if MAINTAIN_FPCR
          fpa11->fpcr |= ROUND_EXTENDED;
-#endif         
+#endif
       break;
-      
+
       default: rounding_precision = 80;
   }
    set_floatx80_rounding_precision(rounding_precision, &fpa11->fp_status);
@@ -142,12 +142,12 @@ unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs)
 {
   unsigned int nRc = 0;
 //  unsigned long flags;
-  FPA11 *fpa11; 
+  FPA11 *fpa11;
 //  save_flags(flags); sti();
 
   qemufpa=qfpa;
   user_registers=qregs;
-  
+
 #if 0
   fprintf(stderr,"emulating FP insn 0x%08x, PC=0x%08x\n",
           opcode, qregs[REG_PC]);
@@ -222,14 +222,14 @@ unsigned int EmulateAll1(unsigned int opcode)
           }
       }
      break;
-     
-     case 0xe: 
+
+     case 0xe:
        if (opcode & 0x10)
          return EmulateCPDO(opcode);
        else
          return EmulateCPRT(opcode);
      break;
-  
+
      default: return 0;
   }
 }

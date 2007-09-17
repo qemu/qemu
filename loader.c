@@ -1,8 +1,8 @@
 /*
  * QEMU Executable loader
- * 
+ *
  * Copyright (c) 2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -261,7 +261,7 @@ static void bswap_uboot_header(uboot_image_header_t *hdr)
 /* Load a U-Boot image.  */
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
 {
-    
+
     int fd;
     int size;
     uboot_image_header_t h;

@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation for qemu: main translation routines.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -118,7 +118,7 @@ GEN8(gen_op_store_T1_crf, gen_op_store_T1_crf_crf);
 GEN8(gen_op_load_fpscr_T0, gen_op_load_fpscr_T0_fpscr);
 GEN8(gen_op_store_T0_fpscr, gen_op_store_T0_fpscr_fpscr);
 GEN8(gen_op_clear_fpscr, gen_op_clear_fpscr_fpscr);
-static inline void gen_op_store_T0_fpscri(int n, uint8_t param)
+static inline void gen_op_store_T0_fpscri (int n, uint8_t param)
 {
     gen_op_set_T0(param);
     gen_op_store_T0_fpscr(n);
@@ -802,6 +802,8 @@ GEN_HANDLER(addic_, 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
         else
 #endif
             gen_op_check_addc();
+    } else {
+        gen_op_clear_xer_ca();
     }
     gen_op_store_T0_gpr(rD(ctx->opcode));
     gen_set_Rc0(ctx);
@@ -1147,7 +1149,7 @@ GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     uint32_t mb, me, sh;
-    
+
     sh = SH(ctx->opcode);
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
@@ -1312,7 +1314,7 @@ static inline void gen_rldcl (DisasContext *ctx, int mbn)
     mb = MB(ctx->opcode) | (mbn << 5);
     gen_rldnm(ctx, mb, 63);
 }
-GEN_PPC64_R2(rldcl, 0x1E, 0x08)
+GEN_PPC64_R2(rldcl, 0x1E, 0x08);
 /* rldcr - rldcr. */
 static inline void gen_rldcr (DisasContext *ctx, int men)
 {
@@ -1321,7 +1323,7 @@ static inline void gen_rldcr (DisasContext *ctx, int men)
     me = MB(ctx->opcode) | (men << 5);
     gen_rldnm(ctx, 0, me);
 }
-GEN_PPC64_R2(rldcr, 0x1E, 0x09)
+GEN_PPC64_R2(rldcr, 0x1E, 0x09);
 /* rldimi - rldimi. */
 static inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
 {
@@ -1355,7 +1357,7 @@ static inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx);
 }
-GEN_PPC64_R4(rldimi, 0x1E, 0x06)
+GEN_PPC64_R4(rldimi, 0x1E, 0x06);
 #endif
 
 /***                             Integer shift                             ***/
@@ -1676,7 +1678,7 @@ GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
 GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
 {
     uint8_t crb;
-    
+
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
         return;
@@ -1693,7 +1695,7 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
 GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
 {
     uint8_t crb;
-    
+
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
         return;
@@ -2287,7 +2289,7 @@ GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_INTEGER)
 GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_INTEGER)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4); 
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     gen_op_load_xer_bc();
     op_ldsts(stsw, rS(ctx->opcode));
@@ -2601,8 +2603,7 @@ GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 }
 
 /***                                Branch                                 ***/
-
-static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static inline void gen_goto_tb (DisasContext *ctx, int n, target_ulong dest)
 {
     TranslationBlock *tb;
     tb = ctx->tb;
@@ -2669,7 +2670,7 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 #define BCOND_LR  1
 #define BCOND_CTR 2
 
-static inline void gen_bcond(DisasContext *ctx, int type)
+static inline void gen_bcond (DisasContext *ctx, int type)
 {
     target_ulong target = 0;
     target_ulong li;
@@ -2775,7 +2776,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
                 else
 #endif
                     gen_op_test_ctr_false(mask);
-                break;                           
+                break;
             case 2:
 #if defined(TARGET_PPC64)
                 if (ctx->sf_mode)
@@ -2806,7 +2807,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 #endif
             gen_op_btest_T1(ctx->nip);
         gen_op_reset_T0();
- no_test:
+    no_test:
         if (ctx->singlestep_enabled)
             gen_op_debug();
         gen_op_exit_tb();
@@ -2815,17 +2816,17 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 }
 
 GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
-{                     
+{
     gen_bcond(ctx, BCOND_IM);
 }
 
 GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW)
-{                    
+{
     gen_bcond(ctx, BCOND_CTR);
 }
 
 GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW)
-{                     
+{
     gen_bcond(ctx, BCOND_LR);
 }
 
@@ -2968,7 +2969,7 @@ GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC)
 GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC)
 {
     uint32_t crm, crn;
-    
+
     if (likely(ctx->opcode & 0x00100000)) {
         crm = CRM(ctx->opcode);
         if (likely((crm ^ (crm - 1)) == 0)) {
@@ -3058,7 +3059,7 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_TB)
 GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 {
     uint32_t crm, crn;
-    
+
     gen_op_load_gpr_T0(rS(ctx->opcode));
     crm = CRM(ctx->opcode);
     if (likely((ctx->opcode & 0x00100000) || (crm ^ (crm - 1)) == 0)) {
@@ -5585,9 +5586,9 @@ static inline uint32_t load_xer (CPUState *env)
         (xer_cmp << XER_CMP);
 }
 
-void cpu_dump_state(CPUState *env, FILE *f, 
-                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
-                    int flags)
+void cpu_dump_state (CPUState *env, FILE *f,
+                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                     int flags)
 {
 #if defined(TARGET_PPC64) || 1
 #define FILL ""
@@ -5753,7 +5754,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         if (unlikely(env->nb_breakpoints > 0)) {
             for (j = 0; j < env->nb_breakpoints; j++) {
                 if (env->breakpoints[j] == ctx.nip) {
-                    gen_update_nip(&ctx, ctx.nip); 
+                    gen_update_nip(&ctx, ctx.nip);
                     gen_op_debug();
                     break;
                 }

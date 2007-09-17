@@ -29,18 +29,18 @@
 
 #if DEPTH == 8
 # define BPP 1
-# define PIXEL_TYPE uint8_t 
+# define PIXEL_TYPE uint8_t
 #elif DEPTH == 15 || DEPTH == 16
 # define BPP 2
-# define PIXEL_TYPE uint16_t 
+# define PIXEL_TYPE uint16_t
 #elif DEPTH == 32
 # define BPP 4
-# define PIXEL_TYPE uint32_t 
+# define PIXEL_TYPE uint32_t
 #else
 # error unsupport depth
 #endif
 
-/* 
+/*
  * 2-bit colour
  */
 static void glue(draw_line2_, DEPTH)(
@@ -78,7 +78,7 @@ static void glue(draw_line2_, DEPTH)(
     } while (width > 0);
 }
 
-/* 
+/*
  * 4-bit colour
  */
 static void glue(draw_line4_, DEPTH)(
@@ -104,7 +104,7 @@ static void glue(draw_line4_, DEPTH)(
     } while (width > 0);
 }
 
-/* 
+/*
  * 8-bit colour
  */
 static void glue(draw_line8_, DEPTH)(
@@ -123,7 +123,7 @@ static void glue(draw_line8_, DEPTH)(
     } while (-- width != 0);
 }
 
-/* 
+/*
  * 12-bit colour
  */
 static void glue(draw_line12_, DEPTH)(
@@ -143,7 +143,7 @@ static void glue(draw_line12_, DEPTH)(
     } while (-- width != 0);
 }
 
-/* 
+/*
  * 16-bit colour
  */
 static void glue(draw_line16_, DEPTH)(

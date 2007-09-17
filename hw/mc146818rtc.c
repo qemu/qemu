@@ -1,8 +1,8 @@
 /*
  * QEMU MC146818 RTC emulation
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -75,7 +75,7 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
     int64_t cur_clock, next_irq_clock;
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
-    if (period_code != 0 && 
+    if (period_code != 0 &&
         (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
         if (period_code <= 2)
             period_code += 7;
@@ -110,7 +110,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
 #ifdef DEBUG_CMOS
         printf("cmos: write index=0x%02x val=0x%02x\n",
                s->cmos_index, data);
-#endif        
+#endif
         switch(s->cmos_index) {
         case RTC_SECONDS_ALARM:
         case RTC_MINUTES_ALARM:
@@ -221,8 +221,8 @@ static void rtc_copy_date(RTCState *s)
 /* month is between 0 and 11. */
 static int get_days_in_month(int month, int year)
 {
-    static const int days_tab[12] = { 
-        31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 
+    static const int days_tab[12] = {
+        31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
     int d;
     if ((unsigned )month >= 12)
@@ -253,7 +253,7 @@ static void rtc_next_second(struct tm *tm)
                 tm->tm_wday++;
                 if ((unsigned)tm->tm_wday >= 7)
                     tm->tm_wday = 0;
-                days_in_month = get_days_in_month(tm->tm_mon, 
+                days_in_month = get_days_in_month(tm->tm_mon,
                                                   tm->tm_year + 1900);
                 tm->tm_mday++;
                 if (tm->tm_mday < 1) {
@@ -283,7 +283,7 @@ static void rtc_update_second(void *opaque)
         qemu_mod_timer(s->second_timer, s->next_second_time);
     } else {
         rtc_next_second(&s->current_tm);
-        
+
         if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
             /* update in progress bit */
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;
@@ -293,7 +293,7 @@ static void rtc_update_second(void *opaque)
         delay = (ticks_per_sec * 1) / 100;
         if (delay < 1)
             delay = 1;
-        qemu_mod_timer(s->second_timer2, 
+        qemu_mod_timer(s->second_timer2,
                        s->next_second_time + delay);
     }
 }
@@ -315,14 +315,14 @@ static void rtc_update_second2(void *opaque)
             ((s->cmos_data[RTC_HOURS_ALARM] & 0xc0) == 0xc0 ||
              s->cmos_data[RTC_HOURS_ALARM] == s->current_tm.tm_hour)) {
 
-            s->cmos_data[RTC_REG_C] |= 0xa0; 
+            s->cmos_data[RTC_REG_C] |= 0xa0;
             qemu_irq_raise(s->irq);
         }
     }
 
     /* update ended interrupt */
     if (s->cmos_data[RTC_REG_B] & REG_B_UIE) {
-        s->cmos_data[RTC_REG_C] |= 0x90; 
+        s->cmos_data[RTC_REG_C] |= 0x90;
         qemu_irq_raise(s->irq);
     }
 
@@ -356,7 +356,7 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
         case RTC_REG_C:
             ret = s->cmos_data[s->cmos_index];
             qemu_irq_lower(s->irq);
-            s->cmos_data[RTC_REG_C] = 0x00; 
+            s->cmos_data[RTC_REG_C] = 0x00;
             break;
         default:
             ret = s->cmos_data[s->cmos_index];
@@ -411,7 +411,7 @@ static void rtc_save(QEMUFile *f, void *opaque)
 
     qemu_put_buffer(f, s->cmos_data, 128);
     qemu_put_8s(f, &s->cmos_index);
-    
+
     qemu_put_be32s(f, &s->current_tm.tm_sec);
     qemu_put_be32s(f, &s->current_tm.tm_min);
     qemu_put_be32s(f, &s->current_tm.tm_hour);
@@ -471,11 +471,11 @@ RTCState *rtc_init(int base, qemu_irq irq)
 
     rtc_set_date_from_host(s);
 
-    s->periodic_timer = qemu_new_timer(vm_clock, 
+    s->periodic_timer = qemu_new_timer(vm_clock,
                                        rtc_periodic_timer, s);
-    s->second_timer = qemu_new_timer(vm_clock, 
+    s->second_timer = qemu_new_timer(vm_clock,
                                      rtc_update_second, s);
-    s->second_timer2 = qemu_new_timer(vm_clock, 
+    s->second_timer2 = qemu_new_timer(vm_clock,
                                       rtc_update_second2, s);
 
     s->next_second_time = qemu_get_clock(vm_clock) + (ticks_per_sec * 99) / 100;

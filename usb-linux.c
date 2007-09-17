@@ -2,7 +2,7 @@
  * Linux host USB redirector
  *
  * Copyright (c) 2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -41,9 +41,9 @@ struct usb_ctrltransfer {
 };
 
 typedef int USBScanFunc(void *opaque, int bus_num, int addr, int class_id,
-                        int vendor_id, int product_id, 
+                        int vendor_id, int product_id,
                         const char *product_name, int speed);
-static int usb_host_find_device(int *pbus_num, int *paddr, 
+static int usb_host_find_device(int *pbus_num, int *paddr,
                                 char *product_name, int product_name_size,
                                 const char *devname);
 
@@ -65,7 +65,7 @@ static void usb_host_handle_reset(USBDevice *dev)
        done by the host OS */
     ioctl(s->fd, USBDEVFS_RESET);
 #endif
-} 
+}
 
 static void usb_host_handle_destroy(USBDevice *dev)
 {
@@ -157,12 +157,12 @@ USBDevice *usb_host_device_open(const char *devname)
     int bus_num, addr;
     char product_name[PRODUCT_NAME_SZ];
 
-    if (usb_host_find_device(&bus_num, &addr, 
+    if (usb_host_find_device(&bus_num, &addr,
                              product_name, sizeof(product_name),
-                             devname) < 0) 
+                             devname) < 0)
         return NULL;
-    
-    snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d", 
+
+    snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d",
              bus_num, addr);
     fd = open(buf, O_RDWR);
     if (fd < 0) {
@@ -176,7 +176,7 @@ USBDevice *usb_host_device_open(const char *devname)
         perror("read descr");
         goto fail;
     }
-    
+
     i = 0;
     dev_descr_len = descr[0];
     if (dev_descr_len > descr_len)
@@ -228,7 +228,7 @@ USBDevice *usb_host_device_open(const char *devname)
 
 #ifdef DEBUG
     printf("host USB device %d.%d grabbed\n", bus_num, addr);
-#endif    
+#endif
 
     dev = qemu_mallocz(sizeof(USBHostDevice));
     if (!dev)
@@ -256,7 +256,7 @@ USBDevice *usb_host_device_open(const char *devname)
 }
 
 static int get_tag_value(char *buf, int buf_size,
-                         const char *str, const char *tag, 
+                         const char *str, const char *tag,
                          const char *stopchars)
 {
     const char *p;
@@ -285,7 +285,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
     int bus_num, addr, speed, device_count, class_id, product_id, vendor_id;
     int ret;
     char product_name[512];
-    
+
     f = fopen(USBDEVFS_PATH "/devices", "r");
     if (!f) {
         term_printf("Could not open %s\n", USBDEVFS_PATH "/devices");
@@ -302,7 +302,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
         if (line[0] == 'T' && line[1] == ':') {
             if (device_count && (vendor_id || product_id)) {
                 /* New device.  Add the previously discovered device.  */
-                ret = func(opaque, bus_num, addr, class_id, vendor_id, 
+                ret = func(opaque, bus_num, addr, class_id, vendor_id,
                            product_id, product_name, speed);
                 if (ret)
                     goto the_end;
@@ -346,7 +346,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
     }
     if (device_count && (vendor_id || product_id)) {
         /* Add the last device.  */
-        ret = func(opaque, bus_num, addr, class_id, vendor_id, 
+        ret = func(opaque, bus_num, addr, class_id, vendor_id,
                    product_id, product_name, speed);
     }
  the_end:
@@ -362,9 +362,9 @@ typedef struct FindDeviceState {
     char product_name[PRODUCT_NAME_SZ];
 } FindDeviceState;
 
-static int usb_host_find_device_scan(void *opaque, int bus_num, int addr, 
+static int usb_host_find_device_scan(void *opaque, int bus_num, int addr,
                                      int class_id,
-                                     int vendor_id, int product_id, 
+                                     int vendor_id, int product_id,
                                      const char *product_name, int speed)
 {
     FindDeviceState *s = opaque;
@@ -381,10 +381,10 @@ static int usb_host_find_device_scan(void *opaque, int bus_num, int addr,
     }
 }
 
-/* the syntax is : 
-   'bus.addr' (decimal numbers) or 
+/* the syntax is :
+   'bus.addr' (decimal numbers) or
    'vendor_id:product_id' (hexa numbers) */
-static int usb_host_find_device(int *pbus_num, int *paddr, 
+static int usb_host_find_device(int *pbus_num, int *paddr,
                                 char *product_name, int product_name_size,
                                 const char *devname)
 {
@@ -454,31 +454,31 @@ static const char *usb_class_str(uint8_t class)
 }
 
 void usb_info_device(int bus_num, int addr, int class_id,
-                     int vendor_id, int product_id, 
+                     int vendor_id, int product_id,
                      const char *product_name,
                      int speed)
 {
     const char *class_str, *speed_str;
 
     switch(speed) {
-    case USB_SPEED_LOW: 
-        speed_str = "1.5"; 
+    case USB_SPEED_LOW:
+        speed_str = "1.5";
         break;
-    case USB_SPEED_FULL: 
-        speed_str = "12"; 
+    case USB_SPEED_FULL:
+        speed_str = "12";
         break;
-    case USB_SPEED_HIGH: 
-        speed_str = "480"; 
+    case USB_SPEED_HIGH:
+        speed_str = "480";
         break;
     default:
-        speed_str = "?"; 
+        speed_str = "?";
         break;
     }
 
-    term_printf("  Device %d.%d, speed %s Mb/s\n", 
+    term_printf("  Device %d.%d, speed %s Mb/s\n",
                 bus_num, addr, speed_str);
     class_str = usb_class_str(class_id);
-    if (class_str) 
+    if (class_str)
         term_printf("    %s:", class_str);
     else
         term_printf("    Class %02x:", class_id);
@@ -488,9 +488,9 @@ void usb_info_device(int bus_num, int addr, int class_id,
     term_printf("\n");
 }
 
-static int usb_host_info_device(void *opaque, int bus_num, int addr, 
+static int usb_host_info_device(void *opaque, int bus_num, int addr,
                                 int class_id,
-                                int vendor_id, int product_id, 
+                                int vendor_id, int product_id,
                                 const char *product_name,
                                 int speed)
 {

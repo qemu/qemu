@@ -1,6 +1,6 @@
 /*
  *  Software MMU support
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -47,10 +47,10 @@
 #define ADDR_READ addr_read
 #endif
 
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, 
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                         int is_user,
                                                         void *retaddr);
-static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr, 
+static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
                                               target_ulong tlb_addr)
 {
     DATA_TYPE res;
@@ -83,7 +83,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
     target_ulong tlb_addr;
     target_phys_addr_t physaddr;
     void *retaddr;
-    
+
     /* test if there is match for unaligned or IO access */
     /* XXX: could done more in memory macro in a non portable way */
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -103,7 +103,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 #ifdef ALIGNED_ONLY
             do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
 #endif
-            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr, 
+            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr,
                                                          is_user, retaddr);
         } else {
             /* unaligned/aligned access in the same page */
@@ -129,7 +129,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 }
 
 /* handle all unaligned cases */
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, 
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                         int is_user,
                                                         void *retaddr)
 {
@@ -153,9 +153,9 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* slow unaligned access (it spans two pages) */
             addr1 = addr & ~(DATA_SIZE - 1);
             addr2 = addr1 + DATA_SIZE;
-            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr1, 
+            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr1,
                                                           is_user, retaddr);
-            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr2, 
+            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr2,
                                                           is_user, retaddr);
             shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -178,12 +178,12 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
 #ifndef SOFTMMU_CODE_ACCESS
 
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr, 
-                                                   DATA_TYPE val, 
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
+                                                   DATA_TYPE val,
                                                    int is_user,
                                                    void *retaddr);
 
-static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr, 
+static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
                                           DATA_TYPE val,
                                           target_ulong tlb_addr,
                                           void *retaddr)
@@ -209,7 +209,7 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
 #endif
 }
 
-void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, 
+void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                     DATA_TYPE val,
                                                     int is_user)
 {
@@ -217,7 +217,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
     target_ulong tlb_addr;
     void *retaddr;
     int index;
-    
+
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_table[is_user][index].addr_write;
@@ -235,7 +235,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
 #ifdef ALIGNED_ONLY
             do_unaligned_access(addr, 1, is_user, retaddr);
 #endif
-            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(addr, val, 
+            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(addr, val,
                                                    is_user, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
@@ -260,7 +260,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
 }
 
 /* handles all unaligned cases */
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr, 
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    DATA_TYPE val,
                                                    int is_user,
                                                    void *retaddr)
@@ -284,10 +284,10 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* XXX: not efficient, but simple */
             for(i = 0;i < DATA_SIZE; i++) {
 #ifdef TARGET_WORDS_BIGENDIAN
-                glue(slow_stb, MMUSUFFIX)(addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)), 
+                glue(slow_stb, MMUSUFFIX)(addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)),
                                           is_user, retaddr);
 #else
-                glue(slow_stb, MMUSUFFIX)(addr + i, val >> (i * 8), 
+                glue(slow_stb, MMUSUFFIX)(addr + i, val >> (i * 8),
                                           is_user, retaddr);
 #endif
             }

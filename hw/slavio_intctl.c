@@ -1,8 +1,8 @@
 /*
  * QEMU Sparc SLAVIO interrupt controller emulation
- * 
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -40,7 +40,7 @@ do { printf("IRQ: " fmt , ##args); } while (0)
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR89C105.txt
  *
  * There is a system master controller and one for each cpu.
- * 
+ *
  */
 
 #define MAX_CPUS 16
@@ -308,7 +308,7 @@ static void slavio_intctl_save(QEMUFile *f, void *opaque)
 {
     SLAVIO_INTCTLState *s = opaque;
     int i;
-    
+
     for (i = 0; i < MAX_CPUS; i++) {
 	qemu_put_be32s(f, &s->intreg_pending[i]);
     }

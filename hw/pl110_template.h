@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL110 Color LCD Controller
  *
  * Copyright (c) 2005 CodeSourcery, LLC.
@@ -15,7 +15,7 @@
 #define COPY_PIXEL(to, from) *(to++) = from
 #elif BITS == 15 || BITS == 16
 #define COPY_PIXEL(to, from) *(uint16_t *)to = from; to += 2;
-#elif BITS == 24 
+#elif BITS == 24
 #define COPY_PIXEL(to, from) \
   *(to++) = from; *(to++) = (from) >> 8; *(to++) = (from) >> 16
 #elif BITS == 32

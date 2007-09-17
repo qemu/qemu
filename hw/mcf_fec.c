@@ -1,4 +1,4 @@
-/* 
+/*
  * ColdFire Fast Ethernet Controller emulation.
  *
  * Copyright (c) 2007 CodeSourcery.

@@ -1,9 +1,9 @@
 /*
  * QEMU USB HID devices
- * 
+ *
  * Copyright (c) 2005 Fabrice Bellard
  * Copyright (c) 2007 OpenMoko, Inc.  (andrew@openedhand.com)
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -96,13 +96,13 @@ static const uint8_t qemu_mouse_config_descriptor[] = {
 	0x01,       /*  u8  bNumInterfaces; (1) */
 	0x01,       /*  u8  bConfigurationValue; */
 	0x04,       /*  u8  iConfiguration; */
-	0xa0,       /*  u8  bmAttributes; 
+	0xa0,       /*  u8  bmAttributes;
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
 				     4..0: resvd */
 	50,         /*  u8  MaxPower; */
-      
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -124,7 +124,7 @@ static const uint8_t qemu_mouse_config_descriptor[] = {
 	0x01,       /*  u8  if_bInterfaceSubClass; */
 	0x02,       /*  u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
 	0x07,       /*  u8  if_iInterface; */
-     
+
         /* HID descriptor */
         0x09,        /*  u8  bLength; */
         0x21,        /*  u8 bDescriptorType; */
@@ -151,13 +151,13 @@ static const uint8_t qemu_tablet_config_descriptor[] = {
 	0x01,       /*  u8  bNumInterfaces; (1) */
 	0x01,       /*  u8  bConfigurationValue; */
 	0x05,       /*  u8  iConfiguration; */
-	0xa0,       /*  u8  bmAttributes; 
+	0xa0,       /*  u8  bmAttributes;
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
 				     4..0: resvd */
 	50,         /*  u8  MaxPower; */
-      
+
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
 	 *	one interface, protocol 0
@@ -206,7 +206,7 @@ static const uint8_t qemu_keyboard_config_descriptor[] = {
     0x01,		/*  u8  bNumInterfaces; (1) */
     0x01,		/*  u8  bConfigurationValue; */
     0x06,		/*  u8  iConfiguration; */
-    0xa0,		/*  u8  bmAttributes; 
+    0xa0,		/*  u8  bmAttributes;
 				Bit 7: must be set,
 				    6: Self-powered,
 				    5: Remote wakeup,
@@ -254,11 +254,11 @@ static const uint8_t qemu_keyboard_config_descriptor[] = {
 };
 
 static const uint8_t qemu_mouse_hid_report_descriptor[] = {
-    0x05, 0x01, 0x09, 0x02, 0xA1, 0x01, 0x09, 0x01, 
+    0x05, 0x01, 0x09, 0x02, 0xA1, 0x01, 0x09, 0x01,
     0xA1, 0x00, 0x05, 0x09, 0x19, 0x01, 0x29, 0x03,
-    0x15, 0x00, 0x25, 0x01, 0x95, 0x03, 0x75, 0x01, 
+    0x15, 0x00, 0x25, 0x01, 0x95, 0x03, 0x75, 0x01,
     0x81, 0x02, 0x95, 0x01, 0x75, 0x05, 0x81, 0x01,
-    0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x15, 0x81, 
+    0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x15, 0x81,
     0x25, 0x7F, 0x75, 0x08, 0x95, 0x02, 0x81, 0x06,
     0xC0, 0xC0,
 };
@@ -474,7 +474,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
                                                   0, "QEMU USB Mouse");
 	s->mouse_grabbed = 1;
     }
-    
+
     dx = int_clamp(s->dx, -128, 127);
     dy = int_clamp(s->dy, -128, 127);
     dz = int_clamp(s->dz, -128, 127);
@@ -482,7 +482,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
     s->dx -= dx;
     s->dy -= dy;
     s->dz -= dz;
-    
+
     b = 0;
     if (s->buttons_state & MOUSE_EVENT_LBUTTON)
         b |= 0x01;
@@ -490,7 +490,7 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
         b |= 0x02;
     if (s->buttons_state & MOUSE_EVENT_MBUTTON)
         b |= 0x04;
-    
+
     buf[0] = b;
     buf[1] = dx;
     buf[2] = dy;
@@ -512,7 +512,7 @@ static int usb_tablet_poll(USBHIDState *hs, uint8_t *buf, int len)
                                                   1, "QEMU USB Tablet");
 	s->mouse_grabbed = 1;
     }
-    
+
     dz = int_clamp(s->dz, -128, 127);
     s->dz -= dz;
 
@@ -582,7 +582,7 @@ static void usb_keyboard_handle_reset(USBDevice *dev)
 {
     USBHIDState *s = (USBHIDState *)dev;
 
-    qemu_add_kbd_event_handler(usb_keyboard_event, &s->kbd);
+    qemu_add_kbd_event_handler(usb_keyboard_event, s);
     s->protocol = 1;
 }
 
@@ -622,21 +622,21 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
     case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
         switch(value >> 8) {
         case USB_DT_DEVICE:
-            memcpy(data, qemu_mouse_dev_descriptor, 
+            memcpy(data, qemu_mouse_dev_descriptor,
                    sizeof(qemu_mouse_dev_descriptor));
             ret = sizeof(qemu_mouse_dev_descriptor);
             break;
         case USB_DT_CONFIG:
 	    if (s->kind == USB_MOUSE) {
-		memcpy(data, qemu_mouse_config_descriptor, 
+		memcpy(data, qemu_mouse_config_descriptor,
 		       sizeof(qemu_mouse_config_descriptor));
 		ret = sizeof(qemu_mouse_config_descriptor);
 	    } else if (s->kind == USB_TABLET) {
-		memcpy(data, qemu_tablet_config_descriptor, 
+		memcpy(data, qemu_tablet_config_descriptor,
 		       sizeof(qemu_tablet_config_descriptor));
 		ret = sizeof(qemu_tablet_config_descriptor);
             } else if (s->kind == USB_KEYBOARD) {
-                memcpy(data, qemu_keyboard_config_descriptor, 
+                memcpy(data, qemu_keyboard_config_descriptor,
                        sizeof(qemu_keyboard_config_descriptor));
                 ret = sizeof(qemu_keyboard_config_descriptor);
             }
@@ -702,15 +702,15 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
         switch(value >> 8) {
         case 0x22:
 	    if (s->kind == USB_MOUSE) {
-		memcpy(data, qemu_mouse_hid_report_descriptor, 
+		memcpy(data, qemu_mouse_hid_report_descriptor,
 		       sizeof(qemu_mouse_hid_report_descriptor));
 		ret = sizeof(qemu_mouse_hid_report_descriptor);
 	    } else if (s->kind == USB_TABLET) {
-		memcpy(data, qemu_tablet_hid_report_descriptor, 
+		memcpy(data, qemu_tablet_hid_report_descriptor,
 		       sizeof(qemu_tablet_hid_report_descriptor));
 		ret = sizeof(qemu_tablet_hid_report_descriptor);
             } else if (s->kind == USB_KEYBOARD) {
-                memcpy(data, qemu_keyboard_hid_report_descriptor, 
+                memcpy(data, qemu_keyboard_hid_report_descriptor,
                        sizeof(qemu_keyboard_hid_report_descriptor));
                 ret = sizeof(qemu_keyboard_hid_report_descriptor);
             }

@@ -14,7 +14,7 @@
 # define COPY_PIXEL(to, from)	*to = from; SKIP_PIXEL(to)
 #elif BITS == 15 || BITS == 16
 # define COPY_PIXEL(to, from)	*(uint16_t *) to = from; SKIP_PIXEL(to)
-#elif BITS == 24 
+#elif BITS == 24
 # define COPY_PIXEL(to, from)	\
 	*(uint16_t *) to = from; *(to + 2) = (from) >> 16; SKIP_PIXEL(to)
 #elif BITS == 32

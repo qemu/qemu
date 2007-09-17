@@ -1,8 +1,8 @@
 /*
  * QEMU 8259 interrupt controller emulation
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -152,10 +152,10 @@ void pic_update_irq(PicState2 *s)
         {
             int i;
             for(i = 0; i < 2; i++) {
-                printf("pic%d: imr=%x irr=%x padd=%d\n", 
-                       i, s->pics[i].imr, s->pics[i].irr, 
+                printf("pic%d: imr=%x irr=%x padd=%d\n",
+                       i, s->pics[i].imr, s->pics[i].irr,
                        s->pics[i].priority_add);
-                
+
             }
         }
         printf("pic: cpu_interrupt\n");
@@ -243,10 +243,10 @@ int pic_read_irq(PicState2 *s)
         intno = s->pics[0].irq_base + irq;
     }
     pic_update_irq(s);
-        
+
 #ifdef DEBUG_IRQ_LATENCY
-    printf("IRQ%d latency=%0.3fus\n", 
-           irq, 
+    printf("IRQ%d latency=%0.3fus\n",
+           irq,
            (double)(qemu_get_clock(vm_clock) - irq_time[irq]) * 1000000.0 / ticks_per_sec);
 #endif
 #if defined(DEBUG_PIC)
@@ -429,7 +429,7 @@ uint32_t pic_intack_read(PicState2 *s)
         ret = pic_poll_read(&s->pics[1], 0x80) + 8;
     /* Prepare for ISR read */
     s->pics[0].read_reg_select = 1;
-    
+
     return ret;
 }
 
@@ -448,7 +448,7 @@ static uint32_t elcr_ioport_read(void *opaque, uint32_t addr1)
 static void pic_save(QEMUFile *f, void *opaque)
 {
     PicState *s = opaque;
-    
+
     qemu_put_8s(f, &s->last_irr);
     qemu_put_8s(f, &s->irr);
     qemu_put_8s(f, &s->imr);
@@ -470,7 +470,7 @@ static void pic_save(QEMUFile *f, void *opaque)
 static int pic_load(QEMUFile *f, void *opaque, int version_id)
 {
     PicState *s = opaque;
-    
+
     if (version_id != 1)
         return -EINVAL;
 
@@ -510,15 +510,15 @@ void pic_info(void)
 {
     int i;
     PicState *s;
-    
+
     if (!isa_pic)
         return;
 
     for(i=0;i<2;i++) {
         s = &isa_pic->pics[i];
         term_printf("pic%d: irr=%02x imr=%02x isr=%02x hprio=%d irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
-                    i, s->irr, s->imr, s->isr, s->priority_add, 
-                    s->irq_base, s->read_reg_select, s->elcr, 
+                    i, s->irr, s->imr, s->isr, s->priority_add,
+                    s->irq_base, s->read_reg_select, s->elcr,
                     s->special_fully_nested_mode);
     }
 }

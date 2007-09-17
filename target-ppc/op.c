@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation micro-operations for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -23,16 +23,6 @@
 #include "config.h"
 #include "exec.h"
 #include "op_helper.h"
-
-/* XXX: this is to be suppressed */
-#define regs (env)
-
-#define FT0 (env->ft0)
-#define FT1 (env->ft1)
-#define FT2 (env->ft2)
-
-/* XXX: this is to be suppressed... */
-#define PPC_OP(name) void OPPROTO glue(op_, name)(void)
 
 #define REG 0
 #include "op_template.h"
@@ -139,16 +129,16 @@ void OPPROTO op_print_mem_EA (void)
 
 /* PowerPC state maintenance operations */
 /* set_Rc0 */
-PPC_OP(set_Rc0)
+void OPPROTO op_set_Rc0 (void)
 {
-    env->crf[0] = T0 | xer_ov;
+    env->crf[0] = T0 | xer_so;
     RETURN();
 }
 
 /* Set Rc1 (for floating point arithmetic) */
-PPC_OP(set_Rc1)
+void OPPROTO op_set_Rc1 (void)
 {
-    env->crf[1] = regs->fpscr[7];
+    env->crf[1] = env->fpscr[7];
     RETURN();
 }
 
@@ -159,7 +149,7 @@ void OPPROTO op_reset_T0 (void)
     RETURN();
 }
 
-PPC_OP(set_T0)
+void OPPROTO op_set_T0 (void)
 {
     T0 = (uint32_t)PARAM1;
     RETURN();
@@ -173,7 +163,7 @@ void OPPROTO op_set_T0_64 (void)
 }
 #endif
 
-PPC_OP(set_T1)
+void OPPROTO op_set_T1 (void)
 {
     T1 = (uint32_t)PARAM1;
     RETURN();
@@ -188,9 +178,9 @@ void OPPROTO op_set_T1_64 (void)
 #endif
 
 #if 0 // unused
-PPC_OP(set_T2)
+void OPPROTO op_set_T2 (void)
 {
-    T2 = PARAM(1);
+    T2 = PARAM1;
     RETURN();
 }
 #endif
@@ -208,12 +198,12 @@ void OPPROTO op_move_T2_T0 (void)
 }
 
 /* Generate exceptions */
-PPC_OP(raise_exception_err)
+void OPPROTO op_raise_exception_err (void)
 {
-    do_raise_exception_err(PARAM(1), PARAM(2));
+    do_raise_exception_err(PARAM1, PARAM2);
 }
 
-PPC_OP(update_nip)
+void OPPROTO op_update_nip (void)
 {
     env->nip = (uint32_t)PARAM1;
     RETURN();
@@ -227,26 +217,26 @@ void OPPROTO op_update_nip_64 (void)
 }
 #endif
 
-PPC_OP(debug)
+void OPPROTO op_debug (void)
 {
     do_raise_exception(EXCP_DEBUG);
 }
 
-PPC_OP(exit_tb)
+void OPPROTO op_exit_tb (void)
 {
     EXIT_TB();
 }
 
 /* Load/store special registers */
-PPC_OP(load_cr)
+void OPPROTO op_load_cr (void)
 {
     do_load_cr();
     RETURN();
 }
 
-PPC_OP(store_cr)
+void OPPROTO op_store_cr (void)
 {
-    do_store_cr(PARAM(1));
+    do_store_cr(PARAM1);
     RETURN();
 }
 
@@ -262,26 +252,26 @@ void OPPROTO op_store_cro (void)
     RETURN();
 }
 
-PPC_OP(load_xer_cr)
+void OPPROTO op_load_xer_cr (void)
 {
     T0 = (xer_so << 3) | (xer_ov << 2) | (xer_ca << 1);
     RETURN();
 }
 
-PPC_OP(clear_xer_ov)
+void OPPROTO op_clear_xer_ov (void)
 {
     xer_so = 0;
     xer_ov = 0;
     RETURN();
 }
 
-PPC_OP(clear_xer_ca)
+void OPPROTO op_clear_xer_ca (void)
 {
     xer_ca = 0;
     RETURN();
 }
 
-PPC_OP(load_xer_bc)
+void OPPROTO op_load_xer_bc (void)
 {
     T1 = xer_bc;
     RETURN();
@@ -293,13 +283,13 @@ void OPPROTO op_store_xer_bc (void)
     RETURN();
 }
 
-PPC_OP(load_xer)
+void OPPROTO op_load_xer (void)
 {
     do_load_xer();
     RETURN();
 }
 
-PPC_OP(store_xer)
+void OPPROTO op_store_xer (void)
 {
     do_store_xer();
     RETURN();
@@ -307,25 +297,25 @@ PPC_OP(store_xer)
 
 #if !defined(CONFIG_USER_ONLY)
 /* Segment registers load and store */
-PPC_OP(load_sr)
+void OPPROTO op_load_sr (void)
 {
-    T0 = regs->sr[T1];
+    T0 = env->sr[T1];
     RETURN();
 }
 
-PPC_OP(store_sr)
+void OPPROTO op_store_sr (void)
 {
     do_store_sr(env, T1, T0);
     RETURN();
 }
 
-PPC_OP(load_sdr1)
+void OPPROTO op_load_sdr1 (void)
 {
-    T0 = regs->sdr1;
+    T0 = env->sdr1;
     RETURN();
 }
 
-PPC_OP(store_sdr1)
+void OPPROTO op_store_sdr1 (void)
 {
     do_store_sdr1(env, T0);
     RETURN();
@@ -345,13 +335,13 @@ void OPPROTO op_store_asr (void)
 }
 #endif
 
-PPC_OP(load_msr)
+void OPPROTO op_load_msr (void)
 {
     T0 = do_load_msr(env);
     RETURN();
 }
 
-PPC_OP(store_msr)
+void OPPROTO op_store_msr (void)
 {
     do_store_msr(env, T0);
     RETURN();
@@ -397,70 +387,70 @@ void OPPROTO op_mask_spr (void)
     RETURN();
 }
 
-PPC_OP(load_lr)
+void OPPROTO op_load_lr (void)
 {
-    T0 = regs->lr;
+    T0 = env->lr;
     RETURN();
 }
 
-PPC_OP(store_lr)
+void OPPROTO op_store_lr (void)
 {
-    regs->lr = T0;
+    env->lr = T0;
     RETURN();
 }
 
-PPC_OP(load_ctr)
+void OPPROTO op_load_ctr (void)
 {
-    T0 = regs->ctr;
+    T0 = env->ctr;
     RETURN();
 }
 
-PPC_OP(store_ctr)
+void OPPROTO op_store_ctr (void)
 {
-    regs->ctr = T0;
+    env->ctr = T0;
     RETURN();
 }
 
-PPC_OP(load_tbl)
+void OPPROTO op_load_tbl (void)
 {
-    T0 = cpu_ppc_load_tbl(regs);
+    T0 = cpu_ppc_load_tbl(env);
     RETURN();
 }
 
-PPC_OP(load_tbu)
+void OPPROTO op_load_tbu (void)
 {
-    T0 = cpu_ppc_load_tbu(regs);
+    T0 = cpu_ppc_load_tbu(env);
     RETURN();
 }
 
 #if !defined(CONFIG_USER_ONLY)
-PPC_OP(store_tbl)
+void OPPROTO op_store_tbl (void)
 {
-    cpu_ppc_store_tbl(regs, T0);
+    cpu_ppc_store_tbl(env, T0);
     RETURN();
 }
 
-PPC_OP(store_tbu)
+void OPPROTO op_store_tbu (void)
 {
-    cpu_ppc_store_tbu(regs, T0);
+    cpu_ppc_store_tbu(env, T0);
     RETURN();
 }
 
-PPC_OP(load_decr)
+void OPPROTO op_load_decr (void)
 {
-    T0 = cpu_ppc_load_decr(regs);
+    T0 = cpu_ppc_load_decr(env);
     RETURN();
 }
 
-PPC_OP(store_decr)
+void OPPROTO op_store_decr (void)
 {
-    cpu_ppc_store_decr(regs, T0);
+    cpu_ppc_store_decr(env, T0);
     RETURN();
 }
 
-PPC_OP(load_ibat)
+void OPPROTO op_load_ibat (void)
 {
-    T0 = regs->IBAT[PARAM(1)][PARAM(2)];
+    T0 = env->IBAT[PARAM1][PARAM2];
     RETURN();
 }
 
@@ -480,9 +470,9 @@ void OPPROTO op_store_ibatl (void)
     RETURN();
 }
 
-PPC_OP(load_dbat)
+void OPPROTO op_load_dbat (void)
 {
-    T0 = regs->DBAT[PARAM(1)][PARAM(2)];
+    T0 = env->DBAT[PARAM1][PARAM2];
     RETURN();
 }
 
@@ -504,85 +494,85 @@ void OPPROTO op_store_dbatl (void)
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* FPSCR */
-PPC_OP(load_fpscr)
+void OPPROTO op_load_fpscr (void)
 {
     do_load_fpscr();
     RETURN();
 }
 
-PPC_OP(store_fpscr)
+void OPPROTO op_store_fpscr (void)
 {
     do_store_fpscr(PARAM1);
     RETURN();
 }
 
-PPC_OP(reset_scrfx)
+void OPPROTO op_reset_scrfx (void)
 {
-    regs->fpscr[7] &= ~0x8;
+    env->fpscr[7] &= ~0x8;
     RETURN();
 }
 
 /* crf operations */
-PPC_OP(getbit_T0)
+void OPPROTO op_getbit_T0 (void)
 {
-    T0 = (T0 >> PARAM(1)) & 1;
+    T0 = (T0 >> PARAM1) & 1;
     RETURN();
 }
 
-PPC_OP(getbit_T1)
+void OPPROTO op_getbit_T1 (void)
 {
-    T1 = (T1 >> PARAM(1)) & 1;
+    T1 = (T1 >> PARAM1) & 1;
     RETURN();
 }
 
-PPC_OP(setcrfbit)
+void OPPROTO op_setcrfbit (void)
 {
-    T1 = (T1 & PARAM(1)) | (T0 << PARAM(2));
+    T1 = (T1 & PARAM1) | (T0 << PARAM2);
     RETURN();
 }
 
 /* Branch */
-#define EIP regs->nip
+#define EIP env->nip
 
-PPC_OP(setlr)
+void OPPROTO op_setlr (void)
 {
-    regs->lr = (uint32_t)PARAM1;
+    env->lr = (uint32_t)PARAM1;
     RETURN();
 }
 
 #if defined (TARGET_PPC64)
 void OPPROTO op_setlr_64 (void)
 {
-    regs->lr = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
+    env->lr = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
     RETURN();
 }
 #endif
 
-PPC_OP(goto_tb0)
+void OPPROTO op_goto_tb0 (void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
 }
 
-PPC_OP(goto_tb1)
+void OPPROTO op_goto_tb1 (void)
 {
     GOTO_TB(op_goto_tb1, PARAM1, 1);
 }
 
 void OPPROTO op_b_T1 (void)
 {
-    regs->nip = (uint32_t)(T1 & ~3);
+    env->nip = (uint32_t)(T1 & ~3);
     RETURN();
 }
 
 #if defined (TARGET_PPC64)
 void OPPROTO op_b_T1_64 (void)
 {
-    regs->nip = (uint64_t)(T1 & ~3);
+    env->nip = (uint64_t)(T1 & ~3);
     RETURN();
 }
 #endif
 
-PPC_OP(jz_T0)
+void OPPROTO op_jz_T0 (void)
 {
     if (!T0)
         GOTO_LABEL_PARAM(1);
@@ -592,9 +582,9 @@ PPC_OP(jz_T0)
 void OPPROTO op_btest_T1 (void)
 {
     if (T0) {
-        regs->nip = (uint32_t)(T1 & ~3);
+        env->nip = (uint32_t)(T1 & ~3);
     } else {
-        regs->nip = (uint32_t)PARAM1;
+        env->nip = (uint32_t)PARAM1;
     }
     RETURN();
 }
@@ -603,133 +593,133 @@ void OPPROTO op_btest_T1 (void)
 void OPPROTO op_btest_T1_64 (void)
 {
     if (T0) {
-        regs->nip = (uint64_t)(T1 & ~3);
+        env->nip = (uint64_t)(T1 & ~3);
     } else {
-        regs->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
+        env->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
     }
     RETURN();
 }
 #endif
 
-PPC_OP(movl_T1_ctr)
+void OPPROTO op_movl_T1_ctr (void)
 {
-    T1 = regs->ctr;
+    T1 = env->ctr;
     RETURN();
 }
 
-PPC_OP(movl_T1_lr)
+void OPPROTO op_movl_T1_lr (void)
 {
-    T1 = regs->lr;
+    T1 = env->lr;
     RETURN();
 }
 
 /* tests with result in T0 */
 void OPPROTO op_test_ctr (void)
 {
-    T0 = (uint32_t)regs->ctr;
+    T0 = (uint32_t)env->ctr;
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_test_ctr_64 (void)
 {
-    T0 = (uint64_t)regs->ctr;
+    T0 = (uint64_t)env->ctr;
     RETURN();
 }
 #endif
 
 void OPPROTO op_test_ctr_true (void)
 {
-    T0 = ((uint32_t)regs->ctr != 0 && (T0 & PARAM1) != 0);
+    T0 = ((uint32_t)env->ctr != 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_test_ctr_true_64 (void)
 {
-    T0 = ((uint64_t)regs->ctr != 0 && (T0 & PARAM1) != 0);
+    T0 = ((uint64_t)env->ctr != 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
 #endif
 
 void OPPROTO op_test_ctr_false (void)
 {
-    T0 = ((uint32_t)regs->ctr != 0 && (T0 & PARAM1) == 0);
+    T0 = ((uint32_t)env->ctr != 0 && (T0 & PARAM1) == 0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_test_ctr_false_64 (void)
 {
-    T0 = ((uint64_t)regs->ctr != 0 && (T0 & PARAM1) == 0);
+    T0 = ((uint64_t)env->ctr != 0 && (T0 & PARAM1) == 0);
     RETURN();
 }
 #endif
 
 void OPPROTO op_test_ctrz (void)
 {
-    T0 = ((uint32_t)regs->ctr == 0);
+    T0 = ((uint32_t)env->ctr == 0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_test_ctrz_64 (void)
 {
-    T0 = ((uint64_t)regs->ctr == 0);
+    T0 = ((uint64_t)env->ctr == 0);
     RETURN();
 }
 #endif
 
 void OPPROTO op_test_ctrz_true (void)
 {
-    T0 = ((uint32_t)regs->ctr == 0 && (T0 & PARAM1) != 0);
+    T0 = ((uint32_t)env->ctr == 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_test_ctrz_true_64 (void)
 {
-    T0 = ((uint64_t)regs->ctr == 0 && (T0 & PARAM1) != 0);
+    T0 = ((uint64_t)env->ctr == 0 && (T0 & PARAM1) != 0);
     RETURN();
 }
 #endif
 
 void OPPROTO op_test_ctrz_false (void)
 {
-    T0 = ((uint32_t)regs->ctr == 0 && (T0 & PARAM1) == 0);
+    T0 = ((uint32_t)env->ctr == 0 && (T0 & PARAM1) == 0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_test_ctrz_false_64 (void)
 {
-    T0 = ((uint64_t)regs->ctr == 0 && (T0 & PARAM1) == 0);
+    T0 = ((uint64_t)env->ctr == 0 && (T0 & PARAM1) == 0);
     RETURN();
 }
 #endif
 
-PPC_OP(test_true)
+void OPPROTO op_test_true (void)
 {
-    T0 = (T0 & PARAM(1));
+    T0 = (T0 & PARAM1);
     RETURN();
 }
 
-PPC_OP(test_false)
+void OPPROTO op_test_false (void)
 {
-    T0 = ((T0 & PARAM(1)) == 0);
+    T0 = ((T0 & PARAM1) == 0);
     RETURN();
 }
 
 /* CTR maintenance */
-PPC_OP(dec_ctr)
+void OPPROTO op_dec_ctr (void)
 {
-    regs->ctr--;
+    env->ctr--;
     RETURN();
 }
 
 /***                           Integer arithmetic                          ***/
 /* add */
-PPC_OP(add)
+void OPPROTO op_add (void)
 {
     T0 += T1;
     RETURN();
@@ -741,8 +731,8 @@ void OPPROTO op_check_addo (void)
                  ((uint32_t)T2 ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -754,8 +744,8 @@ void OPPROTO op_check_addo_64 (void)
                  ((uint64_t)T2 ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -800,9 +790,9 @@ void OPPROTO op_adde_64 (void)
 #endif
 
 /* add immediate */
-PPC_OP(addi)
+void OPPROTO op_addi (void)
 {
-    T0 += (int32_t)PARAM(1);
+    T0 += (int32_t)PARAM1;
     RETURN();
 }
 
@@ -957,14 +947,14 @@ void OPPROTO op_mulhdu (void)
 #endif
 
 /* multiply low immediate */
-PPC_OP(mulli)
+void OPPROTO op_mulli (void)
 {
     T0 = ((int32_t)T0 * (int32_t)PARAM1);
     RETURN();
 }
 
 /* multiply low word */
-PPC_OP(mullw)
+void OPPROTO op_mullw (void)
 {
     T0 = (int32_t)(T0 * T1);
     RETURN();
@@ -1026,7 +1016,7 @@ void OPPROTO op_nego_64 (void)
 #endif
 
 /* subtract from */
-PPC_OP(subf)
+void OPPROTO op_subf (void)
 {
     T0 = T1 - T0;
     RETURN();
@@ -1038,8 +1028,8 @@ void OPPROTO op_check_subfo (void)
                  ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -1051,8 +1041,8 @@ void OPPROTO op_check_subfo_64 (void)
                  ((uint64_t)(~T2) ^ (uint64_t)T0) & (1ULL << 63)))) {
         xer_ov = 0;
     } else {
-        xer_so = 1;
         xer_ov = 1;
+        xer_so = 1;
     }
     RETURN();
 }
@@ -1206,6 +1196,7 @@ void OPPROTO op_cmp (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1219,6 +1210,7 @@ void OPPROTO op_cmp_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1233,6 +1225,7 @@ void OPPROTO op_cmpi (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1246,6 +1239,7 @@ void OPPROTO op_cmpi_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1260,6 +1254,7 @@ void OPPROTO op_cmpl (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1273,6 +1268,7 @@ void OPPROTO op_cmpl_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1287,6 +1283,7 @@ void OPPROTO op_cmpli (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 
@@ -1300,6 +1297,7 @@ void OPPROTO op_cmpli_64 (void)
     } else {
         T0 = 0x02;
     }
+    T0 |= xer_so;
     RETURN();
 }
 #endif
@@ -1329,14 +1327,14 @@ void OPPROTO op_popcntb_64 (void)
 
 /***                            Integer logical                            ***/
 /* and */
-PPC_OP(and)
+void OPPROTO op_and (void)
 {
     T0 &= T1;
     RETURN();
 }
 
 /* andc */
-PPC_OP(andc)
+void OPPROTO op_andc (void)
 {
     T0 &= ~T1;
     RETURN();
@@ -1345,7 +1343,7 @@ PPC_OP(andc)
 /* andi. */
 void OPPROTO op_andi_T0 (void)
 {
-    T0 &= PARAM(1);
+    T0 &= PARAM1;
     RETURN();
 }
 
@@ -1371,7 +1369,7 @@ void OPPROTO op_cntlzd (void)
 #endif
 
 /* eqv */
-PPC_OP(eqv)
+void OPPROTO op_eqv (void)
 {
     T0 = ~(T0 ^ T1);
     RETURN();
@@ -1408,51 +1406,51 @@ void OPPROTO op_extsw (void)
 #endif
 
 /* nand */
-PPC_OP(nand)
+void OPPROTO op_nand (void)
 {
     T0 = ~(T0 & T1);
     RETURN();
 }
 
 /* nor */
-PPC_OP(nor)
+void OPPROTO op_nor (void)
 {
     T0 = ~(T0 | T1);
     RETURN();
 }
 
 /* or */
-PPC_OP(or)
+void OPPROTO op_or (void)
 {
     T0 |= T1;
     RETURN();
 }
 
 /* orc */
-PPC_OP(orc)
+void OPPROTO op_orc (void)
 {
     T0 |= ~T1;
     RETURN();
 }
 
 /* ori */
-PPC_OP(ori)
+void OPPROTO op_ori (void)
 {
-    T0 |= PARAM(1);
+    T0 |= PARAM1;
     RETURN();
 }
 
 /* xor */
-PPC_OP(xor)
+void OPPROTO op_xor (void)
 {
     T0 ^= T1;
     RETURN();
 }
 
 /* xori */
-PPC_OP(xori)
+void OPPROTO op_xori (void)
 {
-    T0 ^= PARAM(1);
+    T0 ^= PARAM1;
     RETURN();
 }
 
@@ -1630,56 +1628,56 @@ void OPPROTO op_srli_T1_64 (void)
 
 /***                       Floating-Point arithmetic                       ***/
 /* fadd - fadd. */
-PPC_OP(fadd)
+void OPPROTO op_fadd (void)
 {
     FT0 = float64_add(FT0, FT1, &env->fp_status);
     RETURN();
 }
 
 /* fsub - fsub. */
-PPC_OP(fsub)
+void OPPROTO op_fsub (void)
 {
     FT0 = float64_sub(FT0, FT1, &env->fp_status);
     RETURN();
 }
 
 /* fmul - fmul. */
-PPC_OP(fmul)
+void OPPROTO op_fmul (void)
 {
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
     RETURN();
 }
 
 /* fdiv - fdiv. */
-PPC_OP(fdiv)
+void OPPROTO op_fdiv (void)
 {
     FT0 = float64_div(FT0, FT1, &env->fp_status);
     RETURN();
 }
 
 /* fsqrt - fsqrt. */
-PPC_OP(fsqrt)
+void OPPROTO op_fsqrt (void)
 {
     do_fsqrt();
     RETURN();
 }
 
 /* fres - fres. */
-PPC_OP(fres)
+void OPPROTO op_fres (void)
 {
     do_fres();
     RETURN();
 }
 
 /* frsqrte  - frsqrte. */
-PPC_OP(frsqrte)
+void OPPROTO op_frsqrte (void)
 {
     do_frsqrte();
     RETURN();
 }
 
 /* fsel - fsel. */
-PPC_OP(fsel)
+void OPPROTO op_fsel (void)
 {
     do_fsel();
     RETURN();
@@ -1687,7 +1685,7 @@ PPC_OP(fsel)
 
 /***                     Floating-Point multiply-and-add                   ***/
 /* fmadd - fmadd. */
-PPC_OP(fmadd)
+void OPPROTO op_fmadd (void)
 {
 #if USE_PRECISE_EMULATION
     do_fmadd();
@@ -1699,7 +1697,7 @@ PPC_OP(fmadd)
 }
 
 /* fmsub - fmsub. */
-PPC_OP(fmsub)
+void OPPROTO op_fmsub (void)
 {
 #if USE_PRECISE_EMULATION
     do_fmsub();
@@ -1711,14 +1709,14 @@ PPC_OP(fmsub)
 }
 
 /* fnmadd - fnmadd. - fnmadds - fnmadds. */
-PPC_OP(fnmadd)
+void OPPROTO op_fnmadd (void)
 {
     do_fnmadd();
     RETURN();
 }
 
 /* fnmsub - fnmsub. */
-PPC_OP(fnmsub)
+void OPPROTO op_fnmsub (void)
 {
     do_fnmsub();
     RETURN();
@@ -1726,21 +1724,21 @@ PPC_OP(fnmsub)
 
 /***                     Floating-Point round & convert                    ***/
 /* frsp - frsp. */
-PPC_OP(frsp)
+void OPPROTO op_frsp (void)
 {
     FT0 = float64_to_float32(FT0, &env->fp_status);
     RETURN();
 }
 
 /* fctiw - fctiw. */
-PPC_OP(fctiw)
+void OPPROTO op_fctiw (void)
 {
     do_fctiw();
     RETURN();
 }
 
 /* fctiwz - fctiwz. */
-PPC_OP(fctiwz)
+void OPPROTO op_fctiwz (void)
 {
     do_fctiwz();
     RETURN();
@@ -1748,21 +1746,21 @@ PPC_OP(fctiwz)
 
 #if defined(TARGET_PPC64)
 /* fcfid - fcfid. */
-PPC_OP(fcfid)
+void OPPROTO op_fcfid (void)
 {
     do_fcfid();
     RETURN();
 }
 
 /* fctid - fctid. */
-PPC_OP(fctid)
+void OPPROTO op_fctid (void)
 {
     do_fctid();
     RETURN();
 }
 
 /* fctidz - fctidz. */
-PPC_OP(fctidz)
+void OPPROTO op_fctidz (void)
 {
     do_fctidz();
     RETURN();
@@ -1771,14 +1769,14 @@ PPC_OP(fctidz)
 
 /***                         Floating-Point compare                        ***/
 /* fcmpu */
-PPC_OP(fcmpu)
+void OPPROTO op_fcmpu (void)
 {
     do_fcmpu();
     RETURN();
 }
 
 /* fcmpo */
-PPC_OP(fcmpo)
+void OPPROTO op_fcmpo (void)
 {
     do_fcmpo();
     RETURN();
@@ -1786,14 +1784,14 @@ PPC_OP(fcmpo)
 
 /***                         Floating-point move                           ***/
 /* fabs */
-PPC_OP(fabs)
+void OPPROTO op_fabs (void)
 {
     FT0 = float64_abs(FT0);
     RETURN();
 }
 
 /* fnabs */
-PPC_OP(fnabs)
+void OPPROTO op_fnabs (void)
 {
     FT0 = float64_abs(FT0);
     FT0 = float64_chs(FT0);
@@ -1801,7 +1799,7 @@ PPC_OP(fnabs)
 }
 
 /* fneg */
-PPC_OP(fneg)
+void OPPROTO op_fneg (void)
 {
     FT0 = float64_chs(FT0);
     RETURN();
@@ -1871,7 +1869,7 @@ void OPPROTO op_td (void)
 
 #if !defined(CONFIG_USER_ONLY)
 /* tlbia */
-PPC_OP(tlbia)
+void OPPROTO op_tlbia (void)
 {
     do_tlbia();
     RETURN();

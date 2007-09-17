@@ -78,7 +78,7 @@ static const uint8_t qemu_wacom_config_descriptor[] = {
     0x01,	/*  u8  bNumInterfaces; (1) */
     0x01,	/*  u8  bConfigurationValue; */
     0x00,	/*  u8  iConfiguration; */
-    0x80,	/*  u8  bmAttributes; 
+    0x80,	/*  u8  bmAttributes;
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
@@ -272,12 +272,12 @@ static int usb_wacom_handle_control(USBDevice *dev, int request, int value,
     case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
         switch (value >> 8) {
         case USB_DT_DEVICE:
-            memcpy(data, qemu_wacom_dev_descriptor, 
+            memcpy(data, qemu_wacom_dev_descriptor,
                    sizeof(qemu_wacom_dev_descriptor));
             ret = sizeof(qemu_wacom_dev_descriptor);
             break;
         case USB_DT_CONFIG:
-       	    memcpy(data, qemu_wacom_config_descriptor, 
+       	    memcpy(data, qemu_wacom_config_descriptor,
                    sizeof(qemu_wacom_config_descriptor));
             ret = sizeof(qemu_wacom_config_descriptor);
             break;

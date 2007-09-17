@@ -8,9 +8,9 @@ usage: qemu-img command [command options]
 
 The following commands are supported:
 @table @option
-@item create [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-e] [-6] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
 @item commit [-f @var{fmt}] @var{filename}
-@item convert [-c] [-e] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
+@item convert [-c] [-e] [-6] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
 @item info [-f @var{fmt}] @var{filename}
 @end table
 
@@ -18,11 +18,11 @@ Command parameters:
 @table @var
 @item filename
  is a disk image filename
-@item base_image 
+@item base_image
 is the read-only disk image which is used as base for a copy on
     write image; the copy on write image only stores the modified data
 
-@item fmt 
+@item fmt
 is the disk image format. It is guessed automatically in most cases. The following formats are supported:
 
 @table @code
@@ -53,29 +53,31 @@ Linux Compressed Loop image, useful only to reuse directly compressed
 CD-ROM images present for example in the Knoppix CD-ROMs.
 @end table
 
-@item size 
+@item size
 is the disk image size in kilobytes. Optional suffixes @code{M}
-(megabyte) and @code{G} (gigabyte) are supported 
+(megabyte) and @code{G} (gigabyte) are supported
 
 @item output_filename
-is the destination disk image filename 
+is the destination disk image filename
 
 @item output_fmt
  is the destination format
 
 @item -c
 indicates that target image must be compressed (qcow format only)
-@item -e 
+@item -e
 indicates that the target image must be encrypted (qcow format only)
+@item -6
+indicates that the target image must use compatibility level 6 (vmdk format only)
 @end table
 
 Command description:
 
 @table @option
-@item create [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-6] [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
 
 Create the new disk image @var{filename} of size @var{size} and format
-@var{fmt}. 
+@var{fmt}.
 
 If @var{base_image} is specified, then the image will record only the
 differences from @var{base_image}. No size needs to be specified in

@@ -1,8 +1,8 @@
 /*
  * QEMU SDL display driver
- * 
+ *
  * Copyright (c) 2003 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -345,7 +345,7 @@ static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
     int mod_state;
-                     
+
     if (last_vm_running != vm_running) {
         last_vm_running = vm_running;
         sdl_update_caption();
@@ -377,7 +377,7 @@ static void sdl_refresh(DisplayState *ds)
                         toggle_full_screen(ds);
                         gui_keysym = 1;
                         break;
-                    case 0x02 ... 0x0a: /* '1' to '9' keys */ 
+                    case 0x02 ... 0x0a: /* '1' to '9' keys */
                         /* Reset the modifiers sent to the current console */
                         reset_keys();
                         console_select(keycode - 0x02);
@@ -460,7 +460,7 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             }
-            if (is_graphic_console() && !gui_keysym) 
+            if (is_graphic_console() && !gui_keysym)
                 sdl_process_key(&ev->key);
             break;
         case SDL_QUIT:
@@ -494,7 +494,7 @@ static void sdl_refresh(DisplayState *ds)
                     } else if (bev->button == SDL_BUTTON_WHEELDOWN && ev->type == SDL_MOUSEBUTTONDOWN) {
                         dz = 1;
                     }
-#endif               
+#endif
                     sdl_send_mouse_event(dz);
                 }
             }
@@ -578,7 +578,7 @@ static void sdl_mouse_define(int width, int height, int bpp,
         SDL_SetCursor(guest_sprite);
 }
 
-static void sdl_cleanup(void) 
+static void sdl_cleanup(void)
 {
     if (guest_sprite)
         SDL_FreeCursor(guest_sprite);

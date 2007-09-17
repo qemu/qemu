@@ -54,7 +54,7 @@ tcp_fasttimo()
 	register struct tcpcb *tp;
 
 	DEBUG_CALL("tcp_fasttimo");
-	
+
 	so = tcb.so_next;
 	if (so)
 	for (; so != &tcb; so = so->so_next)
@@ -80,7 +80,7 @@ tcp_slowtimo()
 	register int i;
 
 	DEBUG_CALL("tcp_slowtimo");
-	
+
 	tcp_maxidle = TCPTV_KEEPCNT * tcp_keepintvl;
 	/*
 	 * Search through tcb's and update active timers.
@@ -139,9 +139,9 @@ tcp_timers(tp, timer)
 	int timer;
 {
 	register int rexmt;
-	
+
 	DEBUG_CALL("tcp_timers");
-	
+
 	switch (timer) {
 
 	/*
@@ -164,12 +164,12 @@ tcp_timers(tp, timer)
 	 * to a longer retransmit interval and retransmit one segment.
 	 */
 	case TCPT_REXMT:
-		
+
 		/*
 		 * XXXXX If a packet has timed out, then remove all the queued
 		 * packets for that session.
 		 */
-		
+
 		if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 			/*
 			 * This is a hack to suit our terminal server here at the uni of canberra
@@ -178,14 +178,14 @@ tcp_timers(tp, timer)
 			 * keep retransmitting it, it'll keep eating the zeroes, so we keep
 			 * retransmitting, and eventually the connection dies...
 			 * (this only happens on incoming data)
-			 * 
+			 *
 			 * So, if we were gonna drop the connection from too many retransmits,
 			 * don't... instead halve the t_maxseg, which might break up the NULLs and
 			 * let them through
-			 * 
+			 *
 			 * *sigh*
 			 */
-			
+
 			tp->t_maxseg >>= 1;
 			if (tp->t_maxseg < 32) {
 				/*
@@ -197,7 +197,7 @@ tcp_timers(tp, timer)
 				/* tp->t_softerror : ETIMEDOUT); */ /* XXX */
 				return (tp); /* XXX */
 			}
-			
+
 			/*
 			 * Set rxtshift to 6, which is still at the maximum
 			 * backoff time
@@ -240,7 +240,7 @@ tcp_timers(tp, timer)
 		 * size increase exponentially with time.  If the
 		 * window is larger than the path can handle, this
 		 * exponential growth results in dropped packet(s)
-		 * almost immediately.  To get more time between 
+		 * almost immediately.  To get more time between
 		 * drops but still "push" the network to take advantage
 		 * of improving conditions, we switch from exponential
 		 * to linear window opening at some threshold size.

@@ -77,12 +77,12 @@ writen(fd, bptr, n)
 {
 	int ret;
 	int total;
-	
+
 	/* This should succeed most of the time */
 	ret = send(fd, bptr, n,0);
 	if (ret == n || ret <= 0)
 	   return ret;
-	
+
 	/* Didn't write everything, go into the loop */
 	total = ret;
 	while (n > total) {
@@ -97,7 +97,7 @@ writen(fd, bptr, n)
 /*
  * if_input - read() the tty, do "top level" processing (ie: check for any escapes),
  * and pass onto (*ttyp->if_input)
- * 
+ *
  * XXXXX Any zeros arriving by themselves are NOT placed into the arriving packet.
  */
 #define INBUFF_SIZE 2048 /* XXX */
@@ -107,14 +107,14 @@ if_input(ttyp)
 {
 	u_char if_inbuff[INBUFF_SIZE];
 	int if_n;
-	
+
 	DEBUG_CALL("if_input");
 	DEBUG_ARG("ttyp = %lx", (long)ttyp);
-	
+
 	if_n = recv(ttyp->fd, (char *)if_inbuff, INBUFF_SIZE,0);
-	
+
 	DEBUG_MISC((dfd, " read %d bytes\n", if_n));
-	
+
 	if (if_n <= 0) {
 		if (if_n == 0 || (errno != EINTR && errno != EAGAIN)) {
 			if (ttyp->up)
@@ -138,19 +138,19 @@ if_input(ttyp)
 		}
 	}
 	ttyp->ones = ttyp->zeros = 0;
-	
+
 	(*ttyp->if_input)(ttyp, if_inbuff, if_n);
 }
-#endif	
-	
+#endif
+
 /*
  * if_output: Queue packet into an output queue.
- * There are 2 output queue's, if_fastq and if_batchq. 
+ * There are 2 output queue's, if_fastq and if_batchq.
  * Each output queue is a doubly linked list of double linked lists
  * of mbufs, each list belonging to one "session" (socket).  This
  * way, we can output packets fairly by sending one packet from each
  * session, instead of all the packets from one session, then all packets
- * from the next session, etc.  Packets on the if_fastq get absolute 
+ * from the next session, etc.  Packets on the if_fastq get absolute
  * priority, but if one session hogs the link, it gets "downgraded"
  * to the batchq until it runs out of packets, then it'll return
  * to the fastq (eg. if the user does an ls -alR in a telnet session,
@@ -163,11 +163,11 @@ if_output(so, ifm)
 {
 	struct mbuf *ifq;
 	int on_fastq = 1;
-	
+
 	DEBUG_CALL("if_output");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("ifm = %lx", (long)ifm);
-	
+
 	/*
 	 * First remove the mbuf from m_usedlist,
 	 * since we're gonna use m_next and m_prev ourselves
@@ -177,9 +177,9 @@ if_output(so, ifm)
 		remque(ifm);
 		ifm->m_flags &= ~M_USEDLIST;
 	}
-	
+
 	/*
-	 * See if there's already a batchq list for this session.  
+	 * See if there's already a batchq list for this session.
 	 * This can include an interactive session, which should go on fastq,
 	 * but gets too greedy... hence it'll be downgraded from fastq to batchq.
 	 * We mustn't put this packet back on the fastq (or we'll send it out of order)
@@ -193,7 +193,7 @@ if_output(so, ifm)
 			goto diddit;
 		}
 	}
-	
+
 	/* No match, check which queue to put it on */
 	if (so && (so->so_iptos & IPTOS_LOWDELAY)) {
 		ifq = if_fastq.ifq_prev;
@@ -209,15 +209,15 @@ if_output(so, ifm)
 		}
 	} else
 		ifq = if_batchq.ifq_prev;
-	
+
 	/* Create a new doubly linked list for this session */
 	ifm->ifq_so = so;
 	ifs_init(ifm);
 	insque(ifm, ifq);
-	
+
 diddit:
 	++if_queued;
-	
+
 	if (so) {
 		/* Update *_queued */
 		so->so_queued++;
@@ -229,12 +229,12 @@ diddit:
 		 * have been sent over the link
 		 * (XXX These are arbitrary numbers, probably not optimal..)
 		 */
-		if (on_fastq && ((so->so_nqueued >= 6) && 
+		if (on_fastq && ((so->so_nqueued >= 6) &&
 				 (so->so_nqueued - so->so_queued) >= 3)) {
-			
+
 			/* Remove from current queue... */
 			remque(ifm->ifs_next);
-			
+
 			/* ...And insert in the new.  That'll teach ya! */
 			insque(ifm->ifs_next, &if_batchq);
 		}
@@ -267,12 +267,12 @@ void
 if_start(void)
 {
 	struct mbuf *ifm, *ifqt;
-	
+
 	DEBUG_CALL("if_start");
-	
+
 	if (if_queued == 0)
 	   return; /* Nothing to do */
-	
+
  again:
         /* check if we can really output */
         if (!slirp_can_output())
@@ -290,7 +290,7 @@ if_start(void)
 		   ifm = next_m;
 		else
 		   ifm = if_batchq.ifq_next;
-		
+
 		/* Set which packet to send on next iteration */
 		next_m = ifm->ifq_next;
 	}
@@ -298,20 +298,20 @@ if_start(void)
 	ifqt = ifm->ifq_prev;
 	remque(ifm);
 	--if_queued;
-	
+
 	/* If there are more packets for this session, re-queue them */
 	if (ifm->ifs_next != /* ifm->ifs_prev != */ ifm) {
 		insque(ifm->ifs_next, ifqt);
 		ifs_remque(ifm);
 	}
-	
+
 	/* Update so_queued */
 	if (ifm->ifq_so) {
 		if (--ifm->ifq_so->so_queued == 0)
 		   /* If there's no more queued, reset nqueued */
 		   ifm->ifq_so->so_nqueued = 0;
 	}
-	
+
 	/* Encapsulate the packet for sending */
         if_encap(ifm->m_data, ifm->m_len);
 

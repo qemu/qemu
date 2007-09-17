@@ -1,6 +1,6 @@
 /*
  * iwMMXt micro operations for XScale.
- * 
+ *
  * Copyright (c) 2007 OpenedHand, Ltd.
  * Written by Andrzej Zaborowski <andrew@openedhand.com>
  *
@@ -146,7 +146,7 @@ void OPPROTO op_iwmmxt_muluw_M0_wRn(void)
 void OPPROTO op_iwmmxt_macsw_M0_wRn(void)
 {
 #define MACS(SHR) ( \
-        EXTEND16((M0 >> SHR) & 0xffff) * EXTEND16S((M1 >> SHR) & 0xffff)) 
+        EXTEND16((M0 >> SHR) & 0xffff) * EXTEND16S((M1 >> SHR) & 0xffff))
     M0 = (int64_t) (MACS(0) + MACS(16) + MACS(32) + MACS(48));
 #undef MACS
 }
@@ -155,7 +155,7 @@ void OPPROTO op_iwmmxt_macuw_M0_wRn(void)
 {
 #define MACU(SHR) ( \
         (uint32_t) ((M0 >> SHR) & 0xffff) * \
-        (uint32_t) ((M1 >> SHR) & 0xffff)) 
+        (uint32_t) ((M1 >> SHR) & 0xffff))
     M0 = MACU(0) + MACU(16) + MACU(32) + MACU(48);
 #undef MACU
 }

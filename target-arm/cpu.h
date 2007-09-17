@@ -1,6 +1,6 @@
 /*
  * ARM virtual CPU header
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -64,11 +64,11 @@ typedef struct CPUARMState {
     uint32_t banked_spsr[6];
     uint32_t banked_r13[6];
     uint32_t banked_r14[6];
-    
+
     /* These hold r8-r12.  */
     uint32_t usr_regs[5];
     uint32_t fiq_regs[5];
-    
+
     /* cpsr flag cache for faster execution */
     uint32_t CF; /* 0 or 1 */
     uint32_t VF; /* V is the bit 31. All other bits are undefined */
@@ -134,7 +134,7 @@ typedef struct CPUARMState {
         /* Temporary variables if we don't have spare fp regs.  */
         float32 tmp0s, tmp1s;
         float64 tmp0d, tmp1d;
-        
+
         float_status fp_status;
     } vfp;
 
@@ -171,7 +171,7 @@ void switch_mode(CPUARMState *, int);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
-int cpu_arm_signal_handler(int host_signum, void *pinfo, 
+int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 #define CPSR_M (0x1f)
@@ -193,7 +193,7 @@ static inline uint32_t cpsr_read(CPUARMState *env)
 {
     int ZF;
     ZF = (env->NZF == 0);
-    return env->uncached_cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
+    return env->uncached_cpsr | (env->NZF & 0x80000000) | (ZF << 30) |
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 5);
 }

@@ -1,9 +1,9 @@
 /*
  * QEMU Cocoa display driver
- * 
+ *
  * Copyright (c) 2005 Pierre d'Herbemont
  *                    many code/inspiration from SDL 1.2 code (LGPL)
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 /*
-    Todo :    x  miniaturize window 
+    Todo :    x  miniaturize window
               x  center the window
               -  save window position
               -  handle keyboard event
@@ -84,7 +84,7 @@ static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
     MacSetRectRgn (temp, x, y,
                         x + w, y + h);
     MacUnionRgn (dirty, temp, dirty);
-                
+
     /* Flush the dirty region */
     QDFlushPortBuffer ( [ qd_view  qdPort ], dirty );
     DisposeRgn (dirty);
@@ -102,9 +102,9 @@ static void cocoa_resize(DisplayState *ds, int w, int h)
     static void *screen_pixels;
     static int  screen_pitch;
     NSRect contentRect;
-    
+
     //printf("resizing to %d %d\n", w, h);
-    
+
     contentRect = NSMakeRect (0, 0, w, h);
     if(window)
     {
@@ -119,44 +119,44 @@ static void cocoa_resize(DisplayState *ds, int w, int h)
         fprintf(stderr, "(cocoa) can't create window\n");
         exit(1);
     }
-    
+
     if(qd_view)
         [qd_view release];
-    
+
     qd_view = [ [ NSQuickDrawView alloc ] initWithFrame:contentRect ];
-    
+
     if(!qd_view)
     {
          fprintf(stderr, "(cocoa) can't create qd_view\n");
         exit(1);
     }
-    
+
     [ window setAcceptsMouseMovedEvents:YES ];
     [ window setTitle:@"Qemu" ];
     [ window setReleasedWhenClosed:NO ];
-    
+
     /* Set screen to black */
     [ window setBackgroundColor: [NSColor blackColor] ];
-    
+
     /* set window position */
     [ window center ];
-    
+
     [ qd_view setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable ];
     [ [ window contentView ] addSubview:qd_view ];
     [ qd_view release ];
     [ window makeKeyAndOrderFront:nil ];
-    
+
     /* Careful here, the window seems to have to be onscreen to do that */
     LockPortBits ( [ qd_view qdPort ] );
     screen_pixels = GetPixBaseAddr ( GetPortPixMap ( [ qd_view qdPort ] ) );
     screen_pitch  = GetPixRowBytes ( GetPortPixMap ( [ qd_view qdPort ] ) );
     UnlockPortBits ( [ qd_view qdPort ] );
-    { 
-            int vOffset = [ window frame ].size.height - 
+    {
+            int vOffset = [ window frame ].size.height -
                 [ qd_view frame ].size.height - [ qd_view frame ].origin.y;
-            
+
             int hOffset = [ qd_view frame ].origin.x;
-                    
+
             screen_pixels += (vOffset * screen_pitch) + hOffset * (device_bpp/8);
     }
     ds->data = screen_pixels;
@@ -310,38 +310,38 @@ int keymap[] =
     208,//  125     0x7D    0xd0    E0,50   D ARROW QZ_DOWN
     200,//  126     0x7E    0xc8    E0,48   U ARROW QZ_UP
 /* completed according to http://www.libsdl.org/cgi/cvsweb.cgi/SDL12/src/video/quartz/SDL_QuartzKeys.h?rev=1.6&content-type=text/x-cvsweb-markup */
-  
+
 /* Aditional 104 Key XP-Keyboard Scancodes from http://www.computer-engineering.org/ps2keyboard/scancodes1.html */
 /*
-    219 //          0xdb            e0,5b   L GUI   
-    220 //          0xdc            e0,5c   R GUI   
-    221 //          0xdd            e0,5d   APPS    
-        //              E0,2A,E0,37         PRNT SCRN   
-        //              E1,1D,45,E1,9D,C5   PAUSE   
-    83  //          0x53    0x53            KP .    
-// ACPI Scan Codes                              
-    222 //          0xde            E0, 5E  Power   
-    223 //          0xdf            E0, 5F  Sleep   
-    227 //          0xe3            E0, 63  Wake    
-// Windows Multimedia Scan Codes                                
-    153 //          0x99            E0, 19  Next Track  
-    144 //          0x90            E0, 10  Previous Track  
-    164 //          0xa4            E0, 24  Stop    
-    162 //          0xa2            E0, 22  Play/Pause  
-    160 //          0xa0            E0, 20  Mute    
-    176 //          0xb0            E0, 30  Volume Up   
-    174 //          0xae            E0, 2E  Volume Down 
-    237 //          0xed            E0, 6D  Media Select    
-    236 //          0xec            E0, 6C  E-Mail  
-    161 //          0xa1            E0, 21  Calculator  
-    235 //          0xeb            E0, 6B  My Computer 
-    229 //          0xe5            E0, 65  WWW Search  
-    178 //          0xb2            E0, 32  WWW Home    
-    234 //          0xea            E0, 6A  WWW Back    
-    233 //          0xe9            E0, 69  WWW Forward 
-    232 //          0xe8            E0, 68  WWW Stop    
-    231 //          0xe7            E0, 67  WWW Refresh 
-    230 //          0xe6            E0, 66  WWW Favorites   
+    219 //          0xdb            e0,5b   L GUI
+    220 //          0xdc            e0,5c   R GUI
+    221 //          0xdd            e0,5d   APPS
+        //              E0,2A,E0,37         PRNT SCRN
+        //              E1,1D,45,E1,9D,C5   PAUSE
+    83  //          0x53    0x53            KP .
+// ACPI Scan Codes
+    222 //          0xde            E0, 5E  Power
+    223 //          0xdf            E0, 5F  Sleep
+    227 //          0xe3            E0, 63  Wake
+// Windows Multimedia Scan Codes
+    153 //          0x99            E0, 19  Next Track
+    144 //          0x90            E0, 10  Previous Track
+    164 //          0xa4            E0, 24  Stop
+    162 //          0xa2            E0, 22  Play/Pause
+    160 //          0xa0            E0, 20  Mute
+    176 //          0xb0            E0, 30  Volume Up
+    174 //          0xae            E0, 2E  Volume Down
+    237 //          0xed            E0, 6D  Media Select
+    236 //          0xec            E0, 6C  E-Mail
+    161 //          0xa1            E0, 21  Calculator
+    235 //          0xeb            E0, 6B  My Computer
+    229 //          0xe5            E0, 65  WWW Search
+    178 //          0xb2            E0, 32  WWW Home
+    234 //          0xea            E0, 6A  WWW Back
+    233 //          0xe9            E0, 69  WWW Forward
+    232 //          0xe8            E0, 68  WWW Stop
+    231 //          0xe7            E0, 67  WWW Refresh
+    230 //          0xe6            E0, 66  WWW Favorites
 */
 };
 
@@ -366,10 +366,10 @@ static void cocoa_refresh(DisplayState *ds)
     NSDate *distantPast;
     NSEvent *event;
     NSAutoreleasePool *pool;
-    
+
     pool = [ [ NSAutoreleasePool alloc ] init ];
     distantPast = [ NSDate distantPast ];
-    
+
     vga_hw_update();
 
     do {
@@ -415,8 +415,8 @@ static void cocoa_refresh(DisplayState *ds)
 
                 case NSKeyDown:
                     {
-                        int keycode = cocoa_keycode_to_qemu([event keyCode]);               
-                        
+                        int keycode = cocoa_keycode_to_qemu([event keyCode]);
+
                         /* handle command Key Combos */
                         if ([event modifierFlags] & NSCommandKeyMask) {
                             switch ([event keyCode]) {
@@ -427,7 +427,7 @@ static void cocoa_refresh(DisplayState *ds)
                                     return;
                             }
                         }
-                        
+
                         /* handle control + alt Key Combos */
                         if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
                             switch (keycode) {
@@ -482,10 +482,10 @@ static void cocoa_refresh(DisplayState *ds)
                         }
                     }
                     break;
-                    
+
                 case NSKeyUp:
                     {
-                        int keycode = cocoa_keycode_to_qemu([event keyCode]);   
+                        int keycode = cocoa_keycode_to_qemu([event keyCode]);
                         if (is_graphic_console()) {
                             if (keycode & 0x80)
                                 kbd_put_keycode(0xe0);
@@ -493,7 +493,7 @@ static void cocoa_refresh(DisplayState *ds)
                         }
                     }
                     break;
-                    
+
                 case NSMouseMoved:
                     if (grab) {
                         int dx = [event deltaX];
@@ -503,11 +503,11 @@ static void cocoa_refresh(DisplayState *ds)
                         kbd_mouse_event(dx, dy, dz, buttons);
                     }
                     break;
-                        
+
                 case NSLeftMouseDown:
                     if (grab) {
                         int buttons = 0;
-                        
+
                         /* leftclick+command simulates rightclick */
                         if ([event modifierFlags] & NSCommandKeyMask) {
                             buttons |= MOUSE_EVENT_RBUTTON;
@@ -519,7 +519,7 @@ static void cocoa_refresh(DisplayState *ds)
                         [NSApp sendEvent: event];
                     }
                     break;
-                        
+
                 case NSLeftMouseDragged:
                     if (grab) {
                         int dx = [event deltaX];
@@ -534,7 +534,7 @@ static void cocoa_refresh(DisplayState *ds)
                         kbd_mouse_event(dx, dy, dz, buttons);
                     }
                     break;
-                        
+
                 case NSLeftMouseUp:
                     if (grab) {
                         kbd_mouse_event(0, 0, 0, 0);
@@ -546,18 +546,18 @@ static void cocoa_refresh(DisplayState *ds)
                         //[NSApp sendEvent: event];
                     }
                     break;
-                        
+
                 case NSRightMouseDown:
                     if (grab) {
                         int buttons = 0;
-                        
+
                         buttons |= MOUSE_EVENT_RBUTTON;
                         kbd_mouse_event(0, 0, 0, buttons);
                     } else {
                         [NSApp sendEvent: event];
                     }
                     break;
-                    
+
                 case NSRightMouseDragged:
                     if (grab) {
                         int dx = [event deltaX];
@@ -568,7 +568,7 @@ static void cocoa_refresh(DisplayState *ds)
                         kbd_mouse_event(dx, dy, dz, buttons);
                     }
                     break;
-                    
+
                 case NSRightMouseUp:
                     if (grab) {
                         kbd_mouse_event(0, 0, 0, 0);
@@ -576,7 +576,7 @@ static void cocoa_refresh(DisplayState *ds)
                         [NSApp sendEvent: event];
                     }
                     break;
-                        
+
                 case NSOtherMouseDragged:
                     if (grab) {
                         int dx = [event deltaX];
@@ -587,7 +587,7 @@ static void cocoa_refresh(DisplayState *ds)
                         kbd_mouse_event(dx, dy, dz, buttons);
                     }
                     break;
-                    
+
                 case NSOtherMouseDown:
                     if (grab) {
                         int buttons = 0;
@@ -597,7 +597,7 @@ static void cocoa_refresh(DisplayState *ds)
                         [NSApp sendEvent:event];
                     }
                     break;
-                        
+
                 case NSOtherMouseUp:
                     if (grab) {
                         kbd_mouse_event(0, 0, 0, 0);
@@ -605,14 +605,14 @@ static void cocoa_refresh(DisplayState *ds)
                         [NSApp sendEvent: event];
                     }
                     break;
-                        
+
                 case NSScrollWheel:
                     if (grab) {
                         int dz = [event deltaY];
                         kbd_mouse_event(0, 0, -dz, 0);
                     }
                     break;
-                
+
                 default: [NSApp sendEvent:event];
             }
         }
@@ -625,7 +625,7 @@ static void cocoa_refresh(DisplayState *ds)
  ------------------------------------------------------
 */
 
-static void cocoa_cleanup(void) 
+static void cocoa_cleanup(void)
 {
 
 }
@@ -641,9 +641,9 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
     ds->dpy_update = cocoa_update;
     ds->dpy_resize = cocoa_resize;
     ds->dpy_refresh = cocoa_refresh;
-    
+
     cocoa_resize(ds, 640, 400);
-    
+
     atexit(cocoa_cleanup);
 }
 
@@ -661,17 +661,17 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
  ------------------------------------------------------
 */
 static void QZ_SetPortAlphaOpaque ()
-{    
+{
     /* Assume 32 bit if( bpp == 32 )*/
     if ( 1 ) {
-    
+
         uint32_t    *pixels = (uint32_t*) current_ds.data;
         uint32_t    rowPixels = current_ds.linesize / 4;
         uint32_t    i, j;
-        
+
         for (i = 0; i < current_ds.height; i++)
             for (j = 0; j < current_ds.width; j++) {
-        
+
                 pixels[ (i * rowPixels) + j ] |= 0xFF000000;
             }
     }
@@ -680,32 +680,32 @@ static void QZ_SetPortAlphaOpaque ()
 @implementation QemuWindow
 - (void)miniaturize:(id)sender
 {
-        
+
     /* make the alpha channel opaque so anim won't have holes in it */
     QZ_SetPortAlphaOpaque ();
-    
+
     [ super miniaturize:sender ];
-    
+
 }
 - (void)display
-{    
-    /* 
+{
+    /*
         This method fires just before the window deminaturizes from the Dock.
-        
+
         We'll save the current visible surface, let the window manager redraw any
-        UI elements, and restore the SDL surface. This way, no expose event 
+        UI elements, and restore the SDL surface. This way, no expose event
         is required, and the deminiaturize works perfectly.
     */
-    
+
     /* make sure pixels are fully opaque */
     QZ_SetPortAlphaOpaque ();
-    
+
     /* save current visible SDL surface */
     [ self cacheImageInRect:[ qd_view frame ] ];
-    
+
     /* let the window manager redraw controls, border, etc */
     [ super display ];
-    
+
     /* restore visible SDL surface */
     [ self restoreCachedImage ];
 }
@@ -742,13 +742,13 @@ static void QZ_SetPortAlphaOpaque ()
     if( gArgc <= 1 || strncmp (gArgv[1], "-psn", 4) == 0)
     {
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
-        
+
         cocoa_resize(&current_ds, 640, 400);
-        
+
         [op setPrompt:@"Boot image"];
-        
+
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
-        
+
         [op beginSheetForDirectory:nil file:nil types:[NSArray arrayWithObjects:@"img",@"iso",@"dmg",@"qcow",@"cow",@"cloop",@"vmdk",nil]
               modalForWindow:window modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
@@ -774,20 +774,20 @@ static void QZ_SetPortAlphaOpaque ()
     {
         exit(0);
     }
-    
+
     if(returnCode == NSOKButton)
     {
         char *bin = "qemu";
         char *img = (char*)[ [ sheet filename ] cString];
-        
+
         char **argv = (char**)malloc( sizeof(char*)*3 );
-        
+
         asprintf(&argv[0], "%s", bin);
         asprintf(&argv[1], "-hda");
         asprintf(&argv[2], "%s", img);
-        
+
         printf("Using argc %d argv %s -hda %s\n", 3, bin, img);
-        
+
         [self startEmulationWithArgc:3 argv:(char**)argv];
     }
 }
@@ -827,10 +827,10 @@ static void setApplicationMenu(void)
     NSMenuItem *menuItem;
     NSString *title;
     NSString *appName;
-    
+
     appName = @"Qemu";
     appleMenu = [[NSMenu alloc] initWithTitle:@""];
-    
+
     /* Add menu items */
     title = [@"About " stringByAppendingString:appName];
     [appleMenu addItemWithTitle:title action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
@@ -850,7 +850,7 @@ static void setApplicationMenu(void)
     title = [@"Quit " stringByAppendingString:appName];
     [appleMenu addItemWithTitle:title action:@selector(terminate:) keyEquivalent:@"q"];
 
-    
+
     /* Put menu into the menubar */
     menuItem = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
     [menuItem setSubmenu:appleMenu];
@@ -872,17 +872,17 @@ static void setupWindowMenu(void)
     NSMenuItem  *menuItem;
 
     windowMenu = [[NSMenu alloc] initWithTitle:@"Window"];
-    
+
     /* "Minimize" item */
     menuItem = [[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
     [windowMenu addItem:menuItem];
     [menuItem release];
-    
+
     /* Put menu into the menubar */
     windowMenuItem = [[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""];
     [windowMenuItem setSubmenu:windowMenu];
     [[NSApp mainMenu] addItem:windowMenuItem];
-    
+
     /* Tell the application object that this is now the window menu */
     [NSApp setWindowsMenu:windowMenu];
 
@@ -896,14 +896,14 @@ static void CustomApplicationMain(void)
     NSAutoreleasePool   *pool = [[NSAutoreleasePool alloc] init];
     QemuCocoaGUIController *gui_controller;
     CPSProcessSerNum PSN;
-    
+
     [NSApplication sharedApplication];
-    
+
     if (!CPSGetCurrentProcess(&PSN))
         if (!CPSEnableForegroundOperation(&PSN,0x03,0x3C,0x2C,0x1103))
             if (!CPSSetFrontProcess(&PSN))
                 [NSApplication sharedApplication];
-                
+
     /* Set up the menubar */
     [NSApp setMainMenu:[[NSMenu alloc] init]];
     setApplicationMenu();
@@ -912,10 +912,10 @@ static void CustomApplicationMain(void)
     /* Create SDLMain and make it the app delegate */
     gui_controller = [[QemuCocoaGUIController alloc] init];
     [NSApp setDelegate:gui_controller];
-    
+
     /* Start the main event loop */
     [NSApp run];
-    
+
     [gui_controller release];
     [pool release];
 }

@@ -1,8 +1,8 @@
 /*
  * Block driver for the COW format
- * 
+ *
  * Copyright (c) 2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -56,7 +56,7 @@ static int cow_probe(const uint8_t *buf, int buf_size, const char *filename)
 
     if (buf_size >= sizeof(struct cow_header_v2) &&
         be32_to_cpu(cow_header->magic) == COW_MAGIC &&
-        be32_to_cpu(cow_header->version) == COW_VERSION) 
+        be32_to_cpu(cow_header->version) == COW_VERSION)
         return 100;
     else
         return 0;
@@ -85,18 +85,18 @@ static int cow_open(BlockDriverState *bs, const char *filename, int flags)
         be32_to_cpu(cow_header.version) != COW_VERSION) {
         goto fail;
     }
-        
+
     /* cow image found */
     size = be64_to_cpu(cow_header.size);
     bs->total_sectors = size / 512;
 
-    pstrcpy(bs->backing_file, sizeof(bs->backing_file), 
+    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
             cow_header.backing_file);
-    
+
     /* mmap the bitmap */
     s->cow_bitmap_size = ((bs->total_sectors + 7) >> 3) + sizeof(cow_header);
-    s->cow_bitmap_addr = mmap(get_mmap_addr(s->cow_bitmap_size), 
-                              s->cow_bitmap_size, 
+    s->cow_bitmap_addr = mmap(get_mmap_addr(s->cow_bitmap_size),
+                              s->cow_bitmap_size,
                               PROT_READ | PROT_WRITE,
                               MAP_SHARED, s->fd, 0);
     if (s->cow_bitmap_addr == MAP_FAILED)
@@ -143,24 +143,24 @@ static inline int is_changed(uint8_t *bitmap,
     return changed;
 }
 
-static int cow_is_allocated(BlockDriverState *bs, int64_t sector_num, 
+static int cow_is_allocated(BlockDriverState *bs, int64_t sector_num,
                             int nb_sectors, int *pnum)
 {
     BDRVCowState *s = bs->opaque;
     return is_changed(s->cow_bitmap, sector_num, nb_sectors, pnum);
 }
 
-static int cow_read(BlockDriverState *bs, int64_t sector_num, 
+static int cow_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
     BDRVCowState *s = bs->opaque;
     int ret, n;
-    
+
     while (nb_sectors > 0) {
         if (is_changed(s->cow_bitmap, sector_num, nb_sectors, &n)) {
             lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
             ret = read(s->fd, buf, n * 512);
-            if (ret != n * 512) 
+            if (ret != n * 512)
                 return -1;
         } else {
             if (bs->backing_hd) {
@@ -179,15 +179,15 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int cow_write(BlockDriverState *bs, int64_t sector_num, 
+static int cow_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
     BDRVCowState *s = bs->opaque;
     int ret, i;
-    
+
     lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
     ret = write(s->fd, buf, nb_sectors * 512);
-    if (ret != nb_sectors * 512) 
+    if (ret != nb_sectors * 512)
         return -1;
     for (i = 0; i < nb_sectors; i++)
         cow_set_bit(s->cow_bitmap, sector_num + i);
@@ -211,7 +211,7 @@ static int cow_create(const char *filename, int64_t image_sectors,
     if (flags)
         return -ENOTSUP;
 
-    cow_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 
+    cow_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
               0644);
     if (cow_fd < 0)
         return -1;

@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL110 Color LCD Controller
  *
  * Copyright (c) 2005-2006 CodeSourcery.
@@ -117,7 +117,7 @@ static void pl110_update_display(void *opaque)
 
     if (!pl110_enabled(s))
         return;
-    
+
     switch (s->ds->depth) {
     case 0:
         return;
@@ -151,7 +151,7 @@ static void pl110_update_display(void *opaque)
       fn = fntable[s->bpp + 12];
     else
       fn = fntable[s->bpp];
-    
+
     src_width = s->cols;
     switch (s->bpp) {
     case BPP_1:

@@ -1,6 +1,6 @@
 /*
  *  Alpha emulation cpu micro-operations for memory accesses for qemu.
- * 
+ *
  *  Copyright (c) 2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or

@@ -1,6 +1,6 @@
 /*
  *  m68k simulator syscall interface
- * 
+ *
  *  Copyright (c) 2005 CodeSourcery, LLC. Written by Paul Brook.
  *
  *  This program is free software; you can redistribute it and/or modify

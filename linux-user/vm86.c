@@ -1,6 +1,6 @@
 /*
  *  vm86 linux syscall support
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -85,7 +85,7 @@ void save_v86_state(CPUX86State *env)
     target_v86->regs.eflags = tswap32(env->eflags);
     unlock_user_struct(target_v86, ts->target_v86, 1);
 #ifdef DEBUG_VM86
-    fprintf(logfile, "save_v86_state: eflags=%08x cs:ip=%04x:%04x\n", 
+    fprintf(logfile, "save_v86_state: eflags=%08x cs:ip=%04x:%04x\n",
             env->eflags, env->segs[R_CS].selector, env->eip);
 #endif
 
@@ -123,7 +123,7 @@ static inline void return_to_32bit(CPUX86State *env, int retval)
 static inline int set_IF(CPUX86State *env)
 {
     TaskState *ts = env->opaque;
-    
+
     ts->v86flags |= VIF_MASK;
     if (ts->v86flags & VIP_MASK) {
         return_to_32bit(env, TARGET_VM86_STI);
@@ -202,7 +202,7 @@ static void do_int(CPUX86State *env, int intno)
         goto cannot_handle;
     if (is_revectored(intno, &ts->vm86plus.int_revectored))
         goto cannot_handle;
-    if (intno == 0x21 && is_revectored((env->regs[R_EAX] >> 8) & 0xff, 
+    if (intno == 0x21 && is_revectored((env->regs[R_EAX] >> 8) & 0xff,
                                        &ts->vm86plus.int21_revectored))
         goto cannot_handle;
     int_ptr = (uint32_t *)(intno << 2);
@@ -210,7 +210,7 @@ static void do_int(CPUX86State *env, int intno)
     if ((segoffs >> 16) == TARGET_BIOSSEG)
         goto cannot_handle;
 #if defined(DEBUG_VM86)
-    fprintf(logfile, "VM86: emulating int 0x%x. CS:IP=%04x:%04x\n", 
+    fprintf(logfile, "VM86: emulating int 0x%x. CS:IP=%04x:%04x\n",
             intno, segoffs >> 16, segoffs & 0xffff);
 #endif
     /* save old state */
@@ -264,7 +264,7 @@ void handle_vm86_fault(CPUX86State *env)
     csp = (uint8_t *)(env->segs[R_CS].selector << 4);
     ip = env->eip & 0xffff;
     pc = csp + ip;
-    
+
     ssp = (uint8_t *)(env->segs[R_SS].selector << 4);
     sp = env->regs[R_ESP] & 0xffff;
 
@@ -330,7 +330,7 @@ void handle_vm86_fault(CPUX86State *env)
         ADD16(ip, 1);
         env->eip = ip;
         if (ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_active) {
-            if ( (ts->vm86plus.vm86plus.vm86dbg_intxxtab[intno >> 3] >> 
+            if ( (ts->vm86plus.vm86plus.vm86dbg_intxxtab[intno >> 3] >>
                   (intno &7)) & 1) {
                 return_to_32bit(env, TARGET_VM86_INTx + (intno << 8));
                 return;
@@ -362,12 +362,12 @@ void handle_vm86_fault(CPUX86State *env)
                 return;
         }
         VM86_FAULT_RETURN;
-        
+
     case 0xfa: /* cli */
         env->eip = ip;
         clear_IF(env);
         VM86_FAULT_RETURN;
-        
+
     case 0xfb: /* sti */
         env->eip = ip;
         if (set_IF(env))
@@ -386,7 +386,7 @@ int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
     TaskState *ts = env->opaque;
     struct target_vm86plus_struct * target_v86;
     int ret;
-    
+
     switch (subfunction) {
     case TARGET_VM86_REQUEST_IRQ:
     case TARGET_VM86_FREE_IRQ:
@@ -427,7 +427,7 @@ int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
     lock_user_struct(target_v86, vm86_addr, 1);
     /* build vm86 CPU state */
     ts->v86flags = tswap32(target_v86->regs.eflags);
-    env->eflags = (env->eflags & ~SAFE_MASK) | 
+    env->eflags = (env->eflags & ~SAFE_MASK) |
         (tswap32(target_v86->regs.eflags) & SAFE_MASK) | VM_MASK;
 
     ts->vm86plus.cpu_type = tswapl(target_v86->cpu_type);
@@ -462,17 +462,17 @@ int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
     cpu_x86_load_seg(env, R_GS, tswap16(target_v86->regs.gs));
     ret = tswap32(target_v86->regs.eax); /* eax will be restored at
                                             the end of the syscall */
-    memcpy(&ts->vm86plus.int_revectored, 
+    memcpy(&ts->vm86plus.int_revectored,
            &target_v86->int_revectored, 32);
-    memcpy(&ts->vm86plus.int21_revectored, 
+    memcpy(&ts->vm86plus.int21_revectored,
            &target_v86->int21_revectored, 32);
     ts->vm86plus.vm86plus.flags = tswapl(target_v86->vm86plus.flags);
-    memcpy(&ts->vm86plus.vm86plus.vm86dbg_intxxtab, 
+    memcpy(&ts->vm86plus.vm86plus.vm86dbg_intxxtab,
            target_v86->vm86plus.vm86dbg_intxxtab, 32);
     unlock_user_struct(target_v86, vm86_addr, 0);
-    
+
 #ifdef DEBUG_VM86
-    fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n", 
+    fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n",
             env->segs[R_CS].selector, env->eip);
 #endif
     /* now the virtual CPU is ready for vm86 execution ! */

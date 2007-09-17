@@ -392,10 +392,10 @@ struct mips_opcode
    "l" 32 bit floating point constant in .lit4
 
    MDMX instruction operands (note that while these use the FP register
-   fields, they accept both $fN and $vN names for the registers):  
+   fields, they accept both $fN and $vN names for the registers):
    "O"	MDMX alignment offset (OP_*_ALN)
    "Q"	MDMX vector/scalar/immediate source (OP_*_VSEL and OP_*_FT)
-   "X"	MDMX destination register (OP_*_FD) 
+   "X"	MDMX destination register (OP_*_FD)
    "Y"	MDMX source register (OP_*_FS)
    "Z"	MDMX source register (OP_*_FT)
 
@@ -1214,7 +1214,7 @@ extern const int bfd_mips16_num_opcodes;
 
    Because of the lookup algorithm used, entries with the same opcode
    name must be contiguous.
- 
+
    Many instructions are short hand for other instructions (i.e., The
    jal <register> instruction is short for jalr <register>).  */
 
@@ -3558,7 +3558,7 @@ print_insn_args (const char *d,
 	      lsb = ((l >> OP_SH_SHAMT) & OP_MASK_SHAMT) + 32;
 	      (*info->fprintf_func) (info->stream, "0x%x", lsb);
 	      break;
-	
+
 	    case 'F':
 	      msb = ((l >> OP_SH_INSMSB) & OP_MASK_INSMSB) + 32;
 	      (*info->fprintf_func) (info->stream, "0x%x", msb - lsb + 1);

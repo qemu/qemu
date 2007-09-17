@@ -1,6 +1,6 @@
 /*
  *  Alpha emulation cpu helpers for qemu.
- * 
+ *
  *  Copyright (c) 2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                 int is_user, int is_softmmu)
@@ -35,7 +35,7 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     else
         env->exception_index = EXCP_DFAULT;
     env->ipr[IPR_EXC_ADDR] = address;
-    
+
     return 1;
 }
 
@@ -407,7 +407,7 @@ void do_interrupt (CPUState *env)
 }
 #endif
 
-void cpu_dump_state (CPUState *env, FILE *f, 
+void cpu_dump_state (CPUState *env, FILE *f,
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                      int flags)
 {

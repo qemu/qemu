@@ -1,8 +1,8 @@
 /*
  * QEMU Cirrus CLGD 54xx VGA Emulator.
- * 
+ *
  * Copyright (c) 2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -34,13 +34,13 @@
 #define PUTPIXEL()    ROP_OP(((uint32_t *)d)[0], col)
 #else
 #error unsupported DEPTH
-#endif                
+#endif
 
 static void
 glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
      (CirrusVGAState * s, uint8_t * dst,
-      const uint8_t * src, 
-      int dstpitch, int srcpitch, 
+      const uint8_t * src,
+      int dstpitch, int srcpitch,
       int bltwidth, int bltheight)
 {
     uint8_t *d;
@@ -94,8 +94,8 @@ glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
 static void
 glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
      (CirrusVGAState * s, uint8_t * dst,
-      const uint8_t * src, 
-      int dstpitch, int srcpitch, 
+      const uint8_t * src,
+      int dstpitch, int srcpitch,
       int bltwidth, int bltheight)
 {
     uint8_t *d;
@@ -143,8 +143,8 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
 static void
 glue(glue(glue(cirrus_colorexpand_, ROP_NAME), _),DEPTH)
      (CirrusVGAState * s, uint8_t * dst,
-      const uint8_t * src, 
-      int dstpitch, int srcpitch, 
+      const uint8_t * src,
+      int dstpitch, int srcpitch,
       int bltwidth, int bltheight)
 {
     uint32_t colors[2];
@@ -179,8 +179,8 @@ glue(glue(glue(cirrus_colorexpand_, ROP_NAME), _),DEPTH)
 static void
 glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
      (CirrusVGAState * s, uint8_t * dst,
-      const uint8_t * src, 
-      int dstpitch, int srcpitch, 
+      const uint8_t * src,
+      int dstpitch, int srcpitch,
       int bltwidth, int bltheight)
 {
     uint8_t *d;
@@ -223,8 +223,8 @@ glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
 static void
 glue(glue(glue(cirrus_colorexpand_pattern_, ROP_NAME), _),DEPTH)
      (CirrusVGAState * s, uint8_t * dst,
-      const uint8_t * src, 
-      int dstpitch, int srcpitch, 
+      const uint8_t * src,
+      int dstpitch, int srcpitch,
       int bltwidth, int bltheight)
 {
     uint32_t colors[2];
@@ -254,10 +254,10 @@ glue(glue(glue(cirrus_colorexpand_pattern_, ROP_NAME), _),DEPTH)
     }
 }
 
-static void 
+static void
 glue(glue(glue(cirrus_fill_, ROP_NAME), _),DEPTH)
      (CirrusVGAState *s,
-      uint8_t *dst, int dst_pitch, 
+      uint8_t *dst, int dst_pitch,
       int width, int height)
 {
     uint8_t *d, *d1;

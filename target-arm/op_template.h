@@ -1,7 +1,7 @@
 /*
  *  ARM micro operations (templates for various register related
  *  operations)
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or

@@ -1,4 +1,4 @@
-/* 
+/*
  * Generic ARM Programmable Interrupt Controller support.
  *
  * Copyright (c) 2006 CodeSourcery.

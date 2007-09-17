@@ -38,7 +38,7 @@ struct flat_hdr {
 	target_ulong reloc_start;  /* Offset of relocation records from
 	                               beginning of file */
 	target_ulong reloc_count;  /* Number of relocation records */
-	target_ulong flags;       
+	target_ulong flags;
 	target_ulong build_date;   /* When the program/library was built */
 	target_ulong filler[5];    /* Reservered, set to zero */
 };

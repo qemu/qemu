@@ -1,8 +1,8 @@
 /*
  * QEMU Sparc SLAVIO serial port emulation
- * 
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -35,7 +35,7 @@
  * This is the serial port, mouse and keyboard part of chip STP2001
  * (Slave I/O), also produced as NCR89C105. See
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR89C105.txt
- * 
+ *
  * The serial ports implement full AMD AM8530 or Zilog Z8530 chips,
  * mouse and keyboard ports don't implement all functions and they are
  * only asynchronous. There is no DMA.
@@ -136,7 +136,7 @@ static uint32_t get_queue(void *opaque)
     ChannelState *s = opaque;
     SERIOQueue *q = &s->queue;
     int val;
-    
+
     if (q->count == 0) {
 	return 0;
     } else {
@@ -662,7 +662,7 @@ static void handle_kbd_command(ChannelState *s, int val)
     }
 }
 
-static void sunmouse_event(void *opaque, 
+static void sunmouse_event(void *opaque,
                                int dx, int dy, int dz, int buttons_state)
 {
     ChannelState *s = opaque;

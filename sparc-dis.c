@@ -359,7 +359,7 @@ sparc_opcode_lookup_arch (name)
 #define FBFCC(x)	(((x)&0x3)<<20)	/* v9 */
 
 /* The order of the opcodes in the table is significant:
-	
+
 	* The assembler requires that all instances of the same mnemonic must
 	be consecutive.	If they aren't, the assembler will bomb at runtime.
 
@@ -2341,16 +2341,16 @@ static int compute_arch_mask PARAMS ((unsigned long));
 			 >> ((8 * sizeof (int)) - bits) )
 
 static const char * const reg_names[] =
-{ "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",	
-  "o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7",	
-  "l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",	
-  "i0", "i1", "i2", "i3", "i4", "i5", "fp", "i7",	
-  "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",	
-  "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",	
+{ "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
+  "o0", "o1", "o2", "o3", "o4", "o5", "sp", "o7",
+  "l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",
+  "i0", "i1", "i2", "i3", "i4", "i5", "fp", "i7",
+  "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
+  "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
   "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
   "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
-  "f32", "f33", "f34", "f35", "f36", "f37", "f38", "f39",	
-  "f40", "f41", "f42", "f43", "f44", "f45", "f46", "f47",	
+  "f32", "f33", "f34", "f35", "f36", "f37", "f38", "f39",
+  "f40", "f41", "f42", "f43", "f44", "f45", "f46", "f47",
   "f48", "f49", "f50", "f51", "f52", "f53", "f54", "f55",
   "f56", "f57", "f58", "f59", "f60", "f61", "f62", "f63",
 /* psr, wim, tbr, fpsr, cpsr are v8 only.  */
@@ -2566,7 +2566,7 @@ print_insn_sparc (memaddr, info)
 	  /* Nonzero means that we have found a plus sign in the args
 	     field of the opcode table.  */
 	  int found_plus = 0;
-	  
+
 	  /* Nonzero means we have an annulled branch.  */
 	  int is_annulled = 0;
 
@@ -2621,7 +2621,7 @@ print_insn_sparc (memaddr, info)
 		  }		/* while there are comma started args */
 
 		(*info->fprintf_func) (stream, " ");
-			
+
 		switch (*s)
 		  {
 		  case '+':
@@ -2722,7 +2722,7 @@ print_insn_sparc (memaddr, info)
 			 not before it.  */
 		      if (found_plus)
 			imm_added_to_rs1 = 1;
-		      
+
 		      if (imm <= 9)
 			(*info->fprintf_func) (stream, "%d", imm);
 		      else
@@ -2806,7 +2806,7 @@ print_insn_sparc (memaddr, info)
 		  case 'o':
 		    (*info->fprintf_func) (stream, "%%asi");
 		    break;
-		    
+
 		  case 'W':
 		    (*info->fprintf_func) (stream, "%%tick");
 		    break;
@@ -2859,15 +2859,15 @@ print_insn_sparc (memaddr, info)
 			(*info->fprintf_func) (stream, "%d", X_RD (insn));
 		      break;
 		    }
-		    
+
 		  case 'M':
 		    (*info->fprintf_func) (stream, "%%asr%d", X_RS1 (insn));
 		    break;
-		    
+
 		  case 'm':
 		    (*info->fprintf_func) (stream, "%%asr%d", X_RD (insn));
 		    break;
-		    
+
 		  case 'L':
 		    info->target = memaddr + SEX (X_DISP30 (insn), 30) * 4;
 		    (*info->print_address_func) (info->target, info);
@@ -2999,7 +2999,7 @@ print_insn_sparc (memaddr, info)
 		      && X_RD (prev_insn) == X_RS1 (insn))
 		    {
 		      (*info->fprintf_func) (stream, "\t! ");
-		      info->target = 
+		      info->target =
 			((unsigned) 0xFFFFFFFF
 			 & ((int) X_IMM22 (prev_insn) << 10));
 		      if (imm_added_to_rs1)

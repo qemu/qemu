@@ -1,6 +1,6 @@
 /*
  *  Generic thunking code to convert data between host and target CPU
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -64,7 +64,7 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
     int nb_fields, offset, max_align, align, size, i, j;
 
     se = struct_entries + id;
-    
+
     /* first we count the number of fields */
     type_ptr = types;
     nb_fields = 0;
@@ -76,7 +76,7 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
     se->nb_fields = nb_fields;
     se->name = name;
 #ifdef DEBUG
-    printf("struct %s: id=%d nb_fields=%d\n", 
+    printf("struct %s: id=%d nb_fields=%d\n",
            se->name, id, se->nb_fields);
 #endif
     /* now we can alloc the data */
@@ -100,7 +100,7 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
         se->size[i] = offset;
         se->align[i] = max_align;
 #ifdef DEBUG
-        printf("%s: size=%d align=%d\n", 
+        printf("%s: size=%d align=%d\n",
                i == THUNK_HOST ? "host" : "target", offset, max_align);
 #endif
     }
@@ -116,7 +116,7 @@ void thunk_register_struct_direct(int id, const char *name, StructEntry *se1)
 
 
 /* now we can define the main conversion functions */
-const argtype *thunk_convert(void *dst, const void *src, 
+const argtype *thunk_convert(void *dst, const void *src,
                              const argtype *type_ptr, int to_host)
 {
     int type;
@@ -182,7 +182,7 @@ const argtype *thunk_convert(void *dst, const void *src,
             uint8_t  *d;
             const argtype *field_types;
             const int *dst_offsets, *src_offsets;
-            
+
             se = struct_entries + *type_ptr++;
             if (se->convert[0] != NULL) {
                 /* specific conversion is needed */
@@ -195,8 +195,8 @@ const argtype *thunk_convert(void *dst, const void *src,
                 d = dst;
                 s = src;
                 for(i = 0;i < se->nb_fields; i++) {
-                    field_types = thunk_convert(d + dst_offsets[i], 
-                                                s + src_offsets[i], 
+                    field_types = thunk_convert(d + dst_offsets[i],
+                                                s + src_offsets[i],
                                                 field_types, to_host);
                 }
             }
@@ -214,7 +214,7 @@ const argtype *thunk_convert(void *dst, const void *src,
 /* Utility function: Table-driven functions to translate bitmasks
  * between X86 and Alpha formats...
  */
-unsigned int target_to_host_bitmask(unsigned int x86_mask, 
+unsigned int target_to_host_bitmask(unsigned int x86_mask,
                                     bitmask_transtbl * trans_tbl)
 {
     bitmask_transtbl *	btp;
@@ -228,7 +228,7 @@ unsigned int target_to_host_bitmask(unsigned int x86_mask,
     return(alpha_mask);
 }
 
-unsigned int host_to_target_bitmask(unsigned int alpha_mask, 
+unsigned int host_to_target_bitmask(unsigned int alpha_mask,
                                     bitmask_transtbl * trans_tbl)
 {
     bitmask_transtbl *	btp;

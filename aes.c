@@ -1,5 +1,5 @@
 /**
- * 
+ *
  * aes.c - integrated in QEMU by Fabrice Bellard from the OpenSSL project.
  */
 /*
@@ -1267,7 +1267,7 @@ void AES_decrypt(const unsigned char *in, unsigned char *out,
 
 void AES_cbc_encrypt(const unsigned char *in, unsigned char *out,
 		     const unsigned long length, const AES_KEY *key,
-		     unsigned char *ivec, const int enc) 
+		     unsigned char *ivec, const int enc)
 {
 
 	unsigned long n;
@@ -1294,7 +1294,7 @@ void AES_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			AES_encrypt(tmp, tmp, key);
 			memcpy(out, tmp, AES_BLOCK_SIZE);
 			memcpy(ivec, tmp, AES_BLOCK_SIZE);
-		}			
+		}
 	} else {
 		while (len >= AES_BLOCK_SIZE) {
 			memcpy(tmp, in, AES_BLOCK_SIZE);
@@ -1312,6 +1312,6 @@ void AES_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			for(n=0; n < len; ++n)
 				out[n] = tmp[n] ^ ivec[n];
 			memcpy(ivec, tmp, AES_BLOCK_SIZE);
-		}			
+		}
 	}
 }

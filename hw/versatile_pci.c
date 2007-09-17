@@ -1,4 +1,4 @@
-/* 
+/*
  * ARM Versatile/PB PCI host controller
  *
  * Copyright (c) 2006 CodeSourcery.

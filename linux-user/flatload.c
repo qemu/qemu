@@ -359,7 +359,7 @@ void old_reloc(struct lib_info *libinfo, uint32_t rl)
 		"(address %p, currently %x) into segment %s\n",
 		offset, ptr, (int)*ptr, segment[reloc_type]);
 #endif
-	
+
 	switch (reloc_type) {
 	case OLD_FLAT_RELOC_TYPE_TEXT:
 		*ptr += libinfo->start_code;
@@ -376,7 +376,7 @@ void old_reloc(struct lib_info *libinfo, uint32_t rl)
 		break;
 	}
 	DBG_FLT("Relocation became %x\n", (int)*ptr);
-}		
+}
 
 /****************************************************************************/
 
@@ -416,7 +416,7 @@ static int load_flat_file(struct linux_binprm * bprm,
                 rev, (int) FLAT_VERSION);
         return -ENOEXEC;
     }
-    
+
     /* Don't allow old format executables to use shared libraries */
     if (rev == OLD_FLAT_VERSION && id != 0) {
         fprintf(stderr, "BINFMT_FLAT: shared libraries are not available\n");
@@ -463,7 +463,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 
         textpos = target_mmap(0, text_len, PROT_READ|PROT_EXEC,
                               MAP_PRIVATE, bprm->fd, 0);
-        if (textpos == -1) { 
+        if (textpos == -1) {
             fprintf(stderr, "Unable to mmap process text\n");
             return -1;
         }
@@ -484,7 +484,7 @@ static int load_flat_file(struct linux_binprm * bprm,
         fpos = ntohl(hdr->data_start);
 #ifdef CONFIG_BINFMT_ZFLAT
         if (flags & FLAT_FLAG_GZDATA) {
-            result = decompress_exec(bprm, fpos, (char *) datapos, 
+            result = decompress_exec(bprm, fpos, (char *) datapos,
                                      data_len + (relocs * sizeof(target_ulong)))
         } else
 #endif
@@ -581,7 +581,7 @@ static int load_flat_file(struct linux_binprm * bprm,
     libinfo[id].loaded = 1;
     libinfo[id].entry = (0x00ffffff & ntohl(hdr->entry)) + textpos;
     libinfo[id].build_date = ntohl(hdr->build_date);
-    
+
     /*
      * We just load the allocations into some temporary memory to
      * help simplify all this mumbo jumbo
@@ -662,7 +662,7 @@ static int load_flat_file(struct linux_binprm * bprm,
             old_reloc(&libinfo[0], relval);
         }
     }
-    
+
     /* zero the BSS.  */
     memset((void*)(datapos + data_len), 0, bss_len);
 
@@ -732,11 +732,11 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     stack_len += (bprm->argc + 1) * 4; /* the argv array */
     stack_len += (bprm->envc + 1) * 4; /* the envp array */
 
-    
+
     res = load_flat_file(bprm, libinfo, 0, &stack_len);
     if (res > (unsigned long)-4096)
             return res;
-    
+
     /* Update data segment pointers for all libraries */
     for (i=0; i<MAX_SHARED_LIBS; i++) {
         if (libinfo[i].loaded) {
@@ -767,7 +767,7 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     if ((sp + stack_len) & 15)
         sp -= 16 - ((sp + stack_len) & 15);
     sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p, 1);
-    
+
     /* Fake some return addresses to ensure the call chain will
      * initialise library in order for us.  We are required to call
      * lib 1 first, then 2, ... and finally the main program (id 0).
@@ -784,7 +784,7 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
     }
 #endif
-    
+
     /* Stash our initial stack pointer into the mm structure */
     info->start_code = libinfo[0].start_code;
     info->end_code = libinfo[0].start_code = libinfo[0].text_len;
@@ -798,6 +798,6 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     DBG_FLT("start_thread(entry=0x%x, start_stack=0x%x)\n",
             (int)info->entry, (int)info->start_stack);
-    
+
     return 0;
 }

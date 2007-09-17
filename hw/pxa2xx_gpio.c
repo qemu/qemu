@@ -53,7 +53,7 @@ static struct {
 } pxa2xx_gpio_regs[0x200] = {
     [0 ... 0x1ff] = { GPIO_NONE, 0 },
 #define PXA2XX_REG(reg, a0, a1, a2, a3)	\
-    [a0] = { reg, 0 }, [a1] = { reg, 1 }, [a2] = { reg, 2 }, [a3] = { reg, 3 }, 
+    [a0] = { reg, 0 }, [a1] = { reg, 1 }, [a2] = { reg, 2 }, [a3] = { reg, 3 },
 
     PXA2XX_REG(GPLR, 0x000, 0x004, 0x008, 0x100)
     PXA2XX_REG(GPSR, 0x018, 0x01c, 0x020, 0x118)

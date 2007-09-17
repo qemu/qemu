@@ -7,7 +7,7 @@ CS_SEG = 0xf
 code16_start:
 
         .globl code16_func1
-        
+
         /* basic test */
 code16_func1 = . - code16_start
         mov $1, %eax
@@ -24,7 +24,7 @@ code16_func2 = . - code16_start
         pop %ax
         data32 lret
 
-/* test various jmp opcodes */        
+/* test various jmp opcodes */
         .globl code16_func3
 code16_func3 = . - code16_start
         jmp 1f
@@ -36,9 +36,9 @@ code16_func3 = . - code16_start
         jz 2f
         add $2, %ax
 2:
-        
+
         call myfunc
-        
+
         lcall $CS_SEG, $(myfunc2 - code16_start)
 
         ljmp $CS_SEG, $(myjmp1 - code16_start)
@@ -50,7 +50,7 @@ myjmp1_next:
 myjmp2_next:
 
         data32 lret
-        
+
 myfunc2_addr:
         .short myfunc2 - code16_start
         .short CS_SEG

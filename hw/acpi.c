@@ -1,8 +1,8 @@
 /*
  * ACPI implementation
- * 
+ *
  * Copyright (c) 2006 Fabrice Bellard
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License version 2 as published by the Free Software Foundation.
@@ -87,9 +87,9 @@ static void pm_update_sci(PIIX4PMState *s)
 {
     int sci_level, pmsts;
     int64_t expire_time;
-    
+
     pmsts = get_pmsts(s);
-    sci_level = (((pmsts & s->pmen) & 
+    sci_level = (((pmsts & s->pmen) &
                   (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
     qemu_set_irq(s->dev.irq[0], sci_level);
     /* schedule a timer interruption if needed */
@@ -239,7 +239,7 @@ static uint32_t pm_smi_readb(void *opaque, uint32_t addr)
 {
     PIIX4PMState *s = opaque;
     uint32_t val;
-    
+
     addr &= 1;
     if (addr == 0) {
         val = s->apmc;
@@ -413,7 +413,7 @@ static void pm_io_space_update(PIIX4PMState *s)
     }
 }
 
-static void pm_write_config(PCIDevice *d, 
+static void pm_write_config(PCIDevice *d,
                             uint32_t address, uint32_t val, int len)
 {
     pci_default_write_config(d, address, val, len);
@@ -480,9 +480,9 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
     pci_conf[0x0b] = 0x06; // bridge device
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 0x01; // interrupt pin 1
-    
+
     pci_conf[0x40] = 0x01; /* PM io base read only bit */
-    
+
     register_ioport_write(0xb2, 2, 1, pm_smi_writeb, s);
     register_ioport_read(0xb2, 2, 1, pm_smi_readb, s);
 

@@ -483,7 +483,7 @@ const sh_opcode_info sh_table[] =
 /* 0100nnnn10111010 lds <REG_N>,Y1	*/{"lds",{A_REG_N,A_Y1},{HEX_4,REG_N,HEX_B,HEX_A}, arch_sh_dsp_up},
 
 /* 0100nnnn01011010 lds <REG_N>,FPUL    */{"lds",{A_REG_M,FPUL_N},{HEX_4,REG_M,HEX_5,HEX_A}, arch_sh2e_up},
-  
+
 /* 0100nnnn01101010 lds <REG_M>,FPSCR   */{"lds",{A_REG_M,FPSCR_N},{HEX_4,REG_M,HEX_6,HEX_A}, arch_sh2e_up},
 
 /* 0100nnnn00000110 lds.l @<REG_N>+,MACH*/{"lds.l",{A_INC_N,A_MACH},{HEX_4,REG_N,HEX_0,HEX_6}, arch_sh1_up},
@@ -505,7 +505,7 @@ const sh_opcode_info sh_table[] =
 /* 0100nnnn10110110 lds.l @<REG_N>+,Y1	*/{"lds.l",{A_INC_N,A_Y1},{HEX_4,REG_N,HEX_B,HEX_6}, arch_sh_dsp_up},
 
 /* 0100nnnn01010110 lds.l @<REG_M>+,FPUL*/{"lds.l",{A_INC_M,FPUL_N},{HEX_4,REG_M,HEX_5,HEX_6}, arch_sh2e_up},
-  
+
 /* 0100nnnn01100110 lds.l @<REG_M>+,FPSCR*/{"lds.l",{A_INC_M,FPSCR_N},{HEX_4,REG_M,HEX_6,HEX_6}, arch_sh2e_up},
 
 /* 0000000000111000 ldtlb               */{"ldtlb",{0},{HEX_0,HEX_0,HEX_3,HEX_8}, arch_sh3_up},
@@ -758,7 +758,7 @@ const sh_opcode_info sh_table[] =
 /* 0000nnnn10111010 sts Y1,<REG_N>	*/{"sts",{A_Y1,A_REG_N},{HEX_0,REG_N,HEX_B,HEX_A}, arch_sh_dsp_up},
 
 /* 0000nnnn01011010 sts FPUL,<REG_N>    */{"sts",{FPUL_M,A_REG_N},{HEX_0,REG_N,HEX_5,HEX_A}, arch_sh2e_up},
-  
+
 /* 0000nnnn01101010 sts FPSCR,<REG_N>   */{"sts",{FPSCR_M,A_REG_N},{HEX_0,REG_N,HEX_6,HEX_A}, arch_sh2e_up},
 
 /* 0100nnnn00000010 sts.l MACH,@-<REG_N>*/{"sts.l",{A_MACH,A_DEC_N},{HEX_4,REG_N,HEX_0,HEX_2}, arch_sh1_up},
@@ -780,7 +780,7 @@ const sh_opcode_info sh_table[] =
 /* 0100nnnn10110110 sts.l Y1,@-<REG_N>	*/{"sts.l",{A_Y1,A_DEC_N},{HEX_4,REG_N,HEX_B,HEX_2}, arch_sh_dsp_up},
 
 /* 0100nnnn01010010 sts.l FPUL,@-<REG_N>*/{"sts.l",{FPUL_M,A_DEC_N},{HEX_4,REG_N,HEX_5,HEX_2}, arch_sh2e_up},
-  
+
 /* 0100nnnn01100010 sts.l FPSCR,@-<REG_N>*/{"sts.l",{FPSCR_M,A_DEC_N},{HEX_4,REG_N,HEX_6,HEX_2}, arch_sh2e_up},
 
 /* 0011nnnnmmmm1000 sub <REG_M>,<REG_N> */{"sub",{ A_REG_M,A_REG_N},{HEX_3,REG_N,REG_M,HEX_8}, arch_sh1_up},
@@ -1155,7 +1155,7 @@ const sh_opcode_info sh_table[] =
 /* 0011nnnnmmmm0001 1001dddddddddddd movu.w @(<DISP12>,<REG_M>),<REG_N> */
 {"movu.w",{A_DISP_REG_M,A_REG_N},{HEX_3,REG_N,REG_M,HEX_1,HEX_9,DISP0_12BY2}, arch_sh2a_nofpu_up | arch_op32},
 
-{ 0, {0}, {0}, 0 } 
+{ 0, {0}, {0}, 0 }
 };
 
 #endif
@@ -1293,7 +1293,7 @@ print_insn_ddt (insn, info)
 	while (op->nibbles[2] != (unsigned) ((insn >> 4) & 3)
 	       || op->nibbles[3] != (unsigned) (insn & 0xf))
 	  op++;
-	
+
 	print_movxy (op,
 		     (4 * ((insn & (is_movy ? 0x200 : 0x100)) == 0)
 		      + 2 * is_movy

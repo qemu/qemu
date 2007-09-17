@@ -1,8 +1,8 @@
 /*
  * QEMU SMBus EEPROM device
- * 
+ *
  * Copyright (c) 2007 Arastra, Inc.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -94,7 +94,7 @@ static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
 void smbus_eeprom_device_init(i2c_bus *bus, uint8_t addr, uint8_t *buf)
 {
     SMBusEEPROMDevice *eeprom;
-    
+
     eeprom = (SMBusEEPROMDevice *)smbus_device_init(bus, addr,
         sizeof(SMBusEEPROMDevice));
 

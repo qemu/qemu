@@ -1,6 +1,6 @@
 /*
  *  mmap support for qemu
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -52,7 +52,7 @@ int target_mprotect(target_ulong start, target_ulong len, int prot)
         return -EINVAL;
     if (len == 0)
         return 0;
-    
+
     host_start = start & qemu_host_page_mask;
     host_end = HOST_PAGE_ALIGN(end);
     if (start > host_start) {
@@ -77,13 +77,13 @@ int target_mprotect(target_ulong start, target_ulong len, int prot)
         for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        ret = mprotect(g2h(host_end - qemu_host_page_size), qemu_host_page_size, 
+        ret = mprotect(g2h(host_end - qemu_host_page_size), qemu_host_page_size,
                        prot1 & PAGE_BITS);
         if (ret != 0)
             return ret;
         host_end -= qemu_host_page_size;
     }
-    
+
     /* handle the pages in the middle */
     if (host_start < host_end) {
         ret = mprotect(g2h(host_start), host_end - host_start, prot);
@@ -95,8 +95,8 @@ int target_mprotect(target_ulong start, target_ulong len, int prot)
 }
 
 /* map an incomplete host page */
-static int mmap_frag(target_ulong real_start, 
-                     target_ulong start, target_ulong end, 
+static int mmap_frag(target_ulong real_start,
+                     target_ulong start, target_ulong end,
                      int prot, int flags, int fd, target_ulong offset)
 {
     target_ulong real_end, addr;
@@ -112,7 +112,7 @@ static int mmap_frag(target_ulong real_start,
         if (addr < start || addr >= end)
             prot1 |= page_get_flags(addr);
     }
-    
+
     if (prot1 == 0) {
         /* no page was there, so we allocate one */
         void *ret = mmap(host_start, qemu_host_page_size, prot,
@@ -134,10 +134,10 @@ static int mmap_frag(target_ulong real_start,
         /* adjust protection to be able to read */
         if (!(prot1 & PROT_WRITE))
             mprotect(host_start, qemu_host_page_size, prot1 | PROT_WRITE);
-        
+
         /* read the corresponding file data */
         pread(fd, g2h(start), end - start, offset);
-        
+
         /* put final protection */
         if (prot_new != (prot1 | PROT_WRITE))
             mprotect(host_start, qemu_host_page_size, prot_new);
@@ -151,7 +151,7 @@ static int mmap_frag(target_ulong real_start,
 }
 
 /* NOTE: all the constants are the HOST ones */
-long target_mmap(target_ulong start, target_ulong len, int prot, 
+long target_mmap(target_ulong start, target_ulong len, int prot,
                  int flags, int fd, target_ulong offset)
 {
     target_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
@@ -167,7 +167,7 @@ long target_mmap(target_ulong start, target_ulong len, int prot,
 #ifdef DEBUG_MMAP
     {
         printf("mmap: start=0x%lx len=0x%lx prot=%c%c%c flags=",
-               start, len, 
+               start, len,
                prot & PROT_READ ? 'r' : '-',
                prot & PROT_WRITE ? 'w' : '-',
                prot & PROT_EXEC ? 'x' : '-');
@@ -216,7 +216,7 @@ long target_mmap(target_ulong start, target_ulong len, int prot,
             /* ??? This needs fixing for remapping.  */
 abort();
             host_len = HOST_PAGE_ALIGN(len) + qemu_host_page_size - TARGET_PAGE_SIZE;
-            real_start = (long)mmap(g2h(real_start), host_len, PROT_NONE, 
+            real_start = (long)mmap(g2h(real_start), host_len, PROT_NONE,
                                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
             if (real_start == -1)
                 return real_start;
@@ -238,13 +238,13 @@ abort();
             if (host_start == -1)
                 return host_start;
             /* update start so that it points to the file position at 'offset' */
-            if (!(flags & MAP_ANONYMOUS)) 
+            if (!(flags & MAP_ANONYMOUS))
                 host_start += offset - host_offset;
             start = h2g(host_start);
             goto the_end1;
         }
     }
-    
+
     if (start & ~TARGET_PAGE_MASK) {
         errno = EINVAL;
         return -1;
@@ -263,8 +263,8 @@ abort();
             errno = EINVAL;
             return -1;
         }
-        retaddr = target_mmap(start, len, prot | PROT_WRITE, 
-                              MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, 
+        retaddr = target_mmap(start, len, prot | PROT_WRITE,
+                              MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS,
                               -1, 0);
         if (retaddr == -1)
             return retaddr;
@@ -295,15 +295,15 @@ abort();
     }
     /* handle the end of the mapping */
     if (end < real_end) {
-        ret = mmap_frag(real_end - qemu_host_page_size, 
+        ret = mmap_frag(real_end - qemu_host_page_size,
                         real_end - qemu_host_page_size, real_end,
-                        prot, flags, fd, 
+                        prot, flags, fd,
                         offset + real_end - qemu_host_page_size - start);
         if (ret == -1)
             return ret;
         real_end -= qemu_host_page_size;
     }
-    
+
     /* map the middle (easier) */
     if (real_start < real_end) {
         void *p;
@@ -368,7 +368,7 @@ int target_munmap(target_ulong start, target_ulong len)
         if (prot != 0)
             real_end -= qemu_host_page_size;
     }
-    
+
     /* unmap what we can */
     if (real_start < real_end) {
         ret = munmap((void *)real_start, real_end - real_start);
@@ -382,7 +382,7 @@ int target_munmap(target_ulong start, target_ulong len)
 
 /* XXX: currently, we only handle MAP_ANONYMOUS and not MAP_FIXED
    blocks which have been allocated starting on a host page */
-long target_mremap(target_ulong old_addr, target_ulong old_size, 
+long target_mremap(target_ulong old_addr, target_ulong old_size,
                    target_ulong new_size, unsigned long flags,
                    target_ulong new_addr)
 {
@@ -411,7 +411,7 @@ int target_msync(target_ulong start, target_ulong len, int flags)
         return -EINVAL;
     if (end == start)
         return 0;
-    
+
     start &= qemu_host_page_mask;
     return msync(g2h(start), end - start, flags);
 }

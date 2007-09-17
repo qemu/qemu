@@ -35,7 +35,7 @@ const floatx80 floatx80Constant[] = {
   { 0xa000000000000000ULL, 0x4001},	/* extended 5.0 */
   { 0x8000000000000000ULL, 0x3ffe},	/* extended 0.5 */
   { 0xa000000000000000ULL, 0x4002}	/* extended 10.0 */
-};  
+};
 
 const float64 float64Constant[] = {
   0x0000000000000000ULL,		/* double 0.0 */
@@ -46,7 +46,7 @@ const float64 float64Constant[] = {
   0x4014000000000000ULL,		/* double 5.0 */
   0x3fe0000000000000ULL,		/* double 0.5 */
   0x4024000000000000ULL			/* double 10.0 */
-};  
+};
 
 const float32 float32Constant[] = {
   0x00000000,				/* single 0.0 */
@@ -57,12 +57,12 @@ const float32 float32Constant[] = {
   0x40a00000,				/* single 5.0 */
   0x3f000000,				/* single 0.5 */
   0x41200000				/* single 10.0 */
-};  
+};
 
 unsigned int getTransferLength(const unsigned int opcode)
 {
   unsigned int nRc;
-  
+
   switch (opcode & MASK_TRANSFER_LENGTH)
   {
     case 0x00000000: nRc = 1; break; /* single precision */
@@ -70,14 +70,14 @@ unsigned int getTransferLength(const unsigned int opcode)
     case 0x00400000: nRc = 3; break; /* extended precision */
     default: nRc = 0;
   }
-  
+
   return(nRc);
 }
 
 unsigned int getRegisterCount(const unsigned int opcode)
 {
   unsigned int nRc;
-  
+
   switch (opcode & MASK_REGISTER_COUNT)
   {
     case 0x00000000: nRc = 4; break;
@@ -86,14 +86,14 @@ unsigned int getRegisterCount(const unsigned int opcode)
     case 0x00408000: nRc = 3; break;
     default: nRc = 0;
   }
-  
+
   return(nRc);
 }
 
 unsigned int getRoundingPrecision(const unsigned int opcode)
 {
   unsigned int nRc;
-  
+
   switch (opcode & MASK_ROUNDING_PRECISION)
   {
     case 0x00000000: nRc = 1; break;
@@ -101,14 +101,14 @@ unsigned int getRoundingPrecision(const unsigned int opcode)
     case 0x00080000: nRc = 3; break;
     default: nRc = 0;
   }
-  
+
   return(nRc);
 }
 
 unsigned int getDestinationSize(const unsigned int opcode)
 {
   unsigned int nRc;
-  
+
   switch (opcode & MASK_DESTINATION_SIZE)
   {
     case 0x00000000: nRc = typeSingle; break;
@@ -116,7 +116,7 @@ unsigned int getDestinationSize(const unsigned int opcode)
     case 0x00080000: nRc = typeExtended; break;
     default: nRc = typeNone;
   }
-  
+
   return(nRc);
 }
 

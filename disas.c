@@ -137,7 +137,7 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
 /* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - nonzero means 16 bit code
-    arm  - nonzero means thumb code 
+    arm  - nonzero means thumb code
     ppc  - nonzero means little endian
     other targets - unused
  */
@@ -162,7 +162,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #if defined(TARGET_I386)
     if (flags == 2)
         disasm_info.mach = bfd_mach_x86_64;
-    else if (flags == 1) 
+    else if (flags == 1)
         disasm_info.mach = bfd_mach_i386_i8086;
     else
         disasm_info.mach = bfd_mach_i386_i386;
@@ -176,7 +176,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
     disasm_info.mach = bfd_mach_sparc_v9b;
-#endif    
+#endif
 #elif defined(TARGET_PPC)
     if (flags)
         disasm_info.endian = BFD_ENDIAN_LITTLE;
@@ -261,7 +261,7 @@ void disas(FILE *out, void *code, unsigned long size)
 #if defined(__sparc_v8plus__) || defined(__sparc_v8plusa__) || defined(__sparc_v9__)
     disasm_info.mach = bfd_mach_sparc_v9b;
 #endif
-#elif defined(__arm__) 
+#elif defined(__arm__)
     print_insn = print_insn_arm;
 #elif defined(__MIPSEB__)
     print_insn = print_insn_big_mips;
@@ -298,7 +298,7 @@ const char *lookup_symbol(target_ulong orig_addr)
     Elf32_Sym *sym;
     struct syminfo *s;
     target_ulong addr;
-    
+
     for (s = syminfos; s; s = s->next) {
 	sym = s->disas_symtab;
 	for (i = 0; i < s->disas_num_syms; i++) {
@@ -377,7 +377,7 @@ void monitor_disas(CPUState *env,
 #if defined(TARGET_I386)
     if (flags == 2)
         disasm_info.mach = bfd_mach_x86_64;
-    else if (flags == 1) 
+    else if (flags == 1)
         disasm_info.mach = bfd_mach_i386_i8086;
     else
         disasm_info.mach = bfd_mach_i386_i386;

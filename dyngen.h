@@ -1,6 +1,6 @@
 /*
  * dyngen helpers
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -51,7 +51,7 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
 
     start &= ~(MIN_CACHE_LINE_SIZE - 1);
     stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
-    
+
     for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
         asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
     }
@@ -148,8 +148,8 @@ static inline void arm_reloc_pc24(uint32_t *ptr, uint32_t insn, int val)
 }
 
 static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
-                              LDREntry *ldr_start, LDREntry *ldr_end, 
-                              uint32_t *data_start, uint32_t *data_end, 
+                              LDREntry *ldr_start, LDREntry *ldr_end,
+                              uint32_t *data_start, uint32_t *data_end,
                               int gen_jmp)
 {
     LDREntry *le;
@@ -158,7 +158,7 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
     uint8_t *data_ptr;
     uint32_t insn;
     uint32_t mask;
- 
+
     data_size = (data_end - data_start) << 2;
 
     if (gen_jmp) {
@@ -169,17 +169,17 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
         arm_reloc_pc24((uint32_t *)gen_code_ptr, 0xeafffffe, target);
         gen_code_ptr += 4;
     }
-   
+
     /* copy the data */
     data_ptr = gen_code_ptr;
     memcpy(gen_code_ptr, data_start, data_size);
     gen_code_ptr += data_size;
-    
+
     /* patch the ldr to point to the data */
     for(le = ldr_start; le < ldr_end; le++) {
         ptr = (uint32_t *)le->ptr;
-        offset = ((unsigned long)(le->data_ptr) - (unsigned long)data_start) + 
-            (unsigned long)data_ptr - 
+        offset = ((unsigned long)(le->data_ptr) - (unsigned long)data_start) +
+            (unsigned long)data_ptr -
             (unsigned long)ptr - 8;
         if (offset < 0) {
             fprintf(stderr, "Negative constant pool offset\n");

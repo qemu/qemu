@@ -1,8 +1,8 @@
 /*
  * QEMU TCX Frame buffer
- * 
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -83,7 +83,7 @@ static void update_palette_entries(TCXState *s, int start, int end)
         tcx_invalidate_display(s);
 }
 
-static void tcx_draw_line32(TCXState *s1, uint8_t *d, 
+static void tcx_draw_line32(TCXState *s1, uint8_t *d,
 			    const uint8_t *s, int width)
 {
     int x;
@@ -96,7 +96,7 @@ static void tcx_draw_line32(TCXState *s1, uint8_t *d,
     }
 }
 
-static void tcx_draw_line16(TCXState *s1, uint8_t *d, 
+static void tcx_draw_line16(TCXState *s1, uint8_t *d,
 			    const uint8_t *s, int width)
 {
     int x;
@@ -109,7 +109,7 @@ static void tcx_draw_line16(TCXState *s1, uint8_t *d,
     }
 }
 
-static void tcx_draw_line8(TCXState *s1, uint8_t *d, 
+static void tcx_draw_line8(TCXState *s1, uint8_t *d,
 			   const uint8_t *s, int width)
 {
     int x;
@@ -208,7 +208,7 @@ static void tcx_update_display(void *opaque)
     case 0:
 	return;
     }
-    
+
     for(y = 0; y < ts->height; y += 4, page += TARGET_PAGE_SIZE) {
 	if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG)) {
 	    if (y_start < 0)
@@ -232,7 +232,7 @@ static void tcx_update_display(void *opaque)
 	} else {
             if (y_start >= 0) {
                 /* flush to display */
-                dpy_update(ts->ds, 0, y_start, 
+                dpy_update(ts->ds, 0, y_start,
                            ts->width, y - y_start);
                 y_start = -1;
             }
@@ -242,7 +242,7 @@ static void tcx_update_display(void *opaque)
     }
     if (y_start >= 0) {
 	/* flush to display */
-	dpy_update(ts->ds, 0, y_start, 
+	dpy_update(ts->ds, 0, y_start,
 		   ts->width, y - y_start);
     }
     /* reset modified pages */
@@ -353,7 +353,7 @@ static void tcx24_invalidate_display(void *opaque)
 static void tcx_save(QEMUFile *f, void *opaque)
 {
     TCXState *s = opaque;
-    
+
     qemu_put_be16s(f, (uint16_t *)&s->height);
     qemu_put_be16s(f, (uint16_t *)&s->width);
     qemu_put_be16s(f, (uint16_t *)&s->depth);

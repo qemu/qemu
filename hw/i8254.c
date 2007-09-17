@@ -1,8 +1,8 @@
 /*
  * QEMU 8253/8254 interval timer emulation
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -121,7 +121,7 @@ int pit_get_out(PITState *pit, int channel, int64_t current_time)
 }
 
 /* return -1 if no transition will occur.  */
-static int64_t pit_get_next_transition_time(PITChannelState *s, 
+static int64_t pit_get_next_transition_time(PITChannelState *s,
                                             int64_t current_time)
 {
     uint64_t d, next_time, base;
@@ -147,7 +147,7 @@ static int64_t pit_get_next_transition_time(PITChannelState *s,
     case 3:
         base = (d / s->count) * s->count;
         period2 = ((s->count + 1) >> 1);
-        if ((d - base) < period2) 
+        if ((d - base) < period2)
             next_time = base + period2;
         else
             next_time = base + s->count;
@@ -309,7 +309,7 @@ static uint32_t pit_ioport_read(void *opaque, uint32_t addr)
     PITState *pit = opaque;
     int ret, count;
     PITChannelState *s;
-    
+
     addr &= 3;
     s = &pit->channels[addr];
     if (s->status_latched) {
@@ -369,7 +369,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
     qemu_set_irq(s->irq, irq_level);
 #ifdef DEBUG_PIT
     printf("irq_level=%d next_delay=%f\n",
-           irq_level, 
+           irq_level,
            (double)(expire_time - current_time) / ticks_per_sec);
 #endif
     s->next_transition_time = expire_time;
@@ -391,7 +391,7 @@ static void pit_save(QEMUFile *f, void *opaque)
     PITState *pit = opaque;
     PITChannelState *s;
     int i;
-    
+
     for(i = 0; i < 3; i++) {
         s = &pit->channels[i];
         qemu_put_be32s(f, &s->count);
@@ -419,7 +419,7 @@ static int pit_load(QEMUFile *f, void *opaque, int version_id)
     PITState *pit = opaque;
     PITChannelState *s;
     int i;
-    
+
     if (version_id != 1)
         return -EINVAL;
 

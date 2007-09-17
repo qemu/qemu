@@ -1,6 +1,6 @@
 /*
  *  Generic thunking code to convert data between host and target CPU
- * 
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -69,7 +69,7 @@ typedef struct bitmask_transtbl {
 
 void thunk_register_struct(int id, const char *name, const argtype *types);
 void thunk_register_struct_direct(int id, const char *name, StructEntry *se1);
-const argtype *thunk_convert(void *dst, const void *src, 
+const argtype *thunk_convert(void *dst, const void *src,
                              const argtype *type_ptr, int to_host);
 #ifndef NO_THUNK_TYPE_SIZE
 
@@ -150,9 +150,9 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
 
 #endif /* NO_THUNK_TYPE_SIZE */
 
-unsigned int target_to_host_bitmask(unsigned int x86_mask, 
+unsigned int target_to_host_bitmask(unsigned int x86_mask,
                                     bitmask_transtbl * trans_tbl);
-unsigned int host_to_target_bitmask(unsigned int alpha_mask, 
+unsigned int host_to_target_bitmask(unsigned int alpha_mask,
                                     bitmask_transtbl * trans_tbl);
 
 #endif

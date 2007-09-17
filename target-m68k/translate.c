@@ -1,6 +1,6 @@
 /*
  *  m68k translation
- * 
+ *
  *  Copyright (c) 2005-2007 CodeSourcery
  *  Written by Paul Brook
  *
@@ -1640,7 +1640,7 @@ DISAS_INSN(branch)
     uint32_t base;
     int op;
     int l1;
-    
+
     base = s->pc;
     op = (insn >> 8) & 0xf;
     offset = (int8_t)insn;
@@ -2191,7 +2191,7 @@ DISAS_INSN(fpu)
         }
         DEST_EA(insn, OS_LONG, res, NULL);
         break;
-    case 6: /* fmovem */ 
+    case 6: /* fmovem */
     case 7:
         {
         int addr;
@@ -2324,7 +2324,7 @@ DISAS_INSN(fpu)
         tmp = gen_new_qreg(QMODE_F32);
         gen_op_f64_to_f32(tmp, res);
         gen_op_f32_to_f64(res, tmp);
-    } 
+    }
     gen_op_fp_result(res);
     if (dest) {
         gen_op_movf64(dest, res);
@@ -3066,7 +3066,7 @@ static void expand_op_addx_cc(qOP *qop)
     int arg0 = qop->args[0];
     int arg1 = qop->args[1];
     int l1, l2;
-    
+
     gen_op_add32 (arg0, arg0, arg1);
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -3160,7 +3160,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
     /* generate intermediate code */
     pc_start = tb->pc;
-       
+
     dc->tb = tb;
 
     gen_opc_ptr = gen_opc_buf;
@@ -3312,7 +3312,7 @@ void cpu_m68k_close(CPUM68KState *env)
     free(env);
 }
 
-void cpu_dump_state(CPUState *env, FILE *f, 
+void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
 {

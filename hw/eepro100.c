@@ -1800,7 +1800,7 @@ static int nic_load(QEMUFile * f, void *opaque, int version_id)
     for (i = 0; i < 3; i++)
         qemu_get_be32s(f, &s->region[i]);
     qemu_get_buffer(f, s->macaddr, 6);
-    for (i = 0; i < 19; i++) 
+    for (i = 0; i < 19; i++)
         qemu_get_be32s(f, &s->statcounter[i]);
     for (i = 0; i < 32; i++)
         qemu_get_be16s(f, &s->mdimem[i]);
@@ -1879,7 +1879,7 @@ static void nic_save(QEMUFile * f, void *opaque)
     for (i = 0; i < 3; i++)
         qemu_put_be32s(f, &s->region[i]);
     qemu_put_buffer(f, s->macaddr, 6);
-    for (i = 0; i < 19; i++) 
+    for (i = 0; i < 19; i++)
         qemu_put_be32s(f, &s->statcounter[i]);
     for (i = 0; i < 32; i++)
         qemu_put_be16s(f, &s->mdimem[i]);

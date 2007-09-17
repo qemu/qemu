@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation micro-operations for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -517,7 +517,7 @@ void OPPROTO glue(op_lwarx, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ldl, MEMSUFFIX)((uint32_t)T0);
-        regs->reserve = (uint32_t)T0;
+        env->reserve = (uint32_t)T0;
     }
     RETURN();
 }
@@ -529,7 +529,7 @@ void OPPROTO glue(op_lwarx_64, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ldl, MEMSUFFIX)((uint64_t)T0);
-        regs->reserve = (uint64_t)T0;
+        env->reserve = (uint64_t)T0;
     }
     RETURN();
 }
@@ -540,7 +540,7 @@ void OPPROTO glue(op_ldarx, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ldq, MEMSUFFIX)((uint32_t)T0);
-        regs->reserve = (uint32_t)T0;
+        env->reserve = (uint32_t)T0;
     }
     RETURN();
 }
@@ -551,7 +551,7 @@ void OPPROTO glue(op_ldarx_64, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ldq, MEMSUFFIX)((uint64_t)T0);
-        regs->reserve = (uint64_t)T0;
+        env->reserve = (uint64_t)T0;
     }
     RETURN();
 }
@@ -563,7 +563,7 @@ void OPPROTO glue(op_lwarx_le, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
-        regs->reserve = (uint32_t)T0;
+        env->reserve = (uint32_t)T0;
     }
     RETURN();
 }
@@ -575,7 +575,7 @@ void OPPROTO glue(op_lwarx_le_64, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
-        regs->reserve = (uint64_t)T0;
+        env->reserve = (uint64_t)T0;
     }
     RETURN();
 }
@@ -586,7 +586,7 @@ void OPPROTO glue(op_ldarx_le, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ld64r, MEMSUFFIX)((uint32_t)T0);
-        regs->reserve = (uint32_t)T0;
+        env->reserve = (uint32_t)T0;
     }
     RETURN();
 }
@@ -597,7 +597,7 @@ void OPPROTO glue(op_ldarx_le_64, MEMSUFFIX) (void)
         do_raise_exception(EXCP_ALIGN);
     } else {
         T1 = glue(ld64r, MEMSUFFIX)((uint64_t)T0);
-        regs->reserve = (uint64_t)T0;
+        env->reserve = (uint64_t)T0;
     }
     RETURN();
 }
@@ -609,14 +609,14 @@ void OPPROTO glue(op_stwcx, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint32_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(stl, MEMSUFFIX)((uint32_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 
@@ -626,14 +626,14 @@ void OPPROTO glue(op_stwcx_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint64_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(stl, MEMSUFFIX)((uint64_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 
@@ -642,14 +642,14 @@ void OPPROTO glue(op_stdcx, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint32_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(stq, MEMSUFFIX)((uint32_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 
@@ -658,14 +658,14 @@ void OPPROTO glue(op_stdcx_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint64_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(stq, MEMSUFFIX)((uint64_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 #endif
@@ -675,14 +675,14 @@ void OPPROTO glue(op_stwcx_le, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint32_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(st32r, MEMSUFFIX)((uint32_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 
@@ -692,14 +692,14 @@ void OPPROTO glue(op_stwcx_le_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint64_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(st32r, MEMSUFFIX)((uint64_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 
@@ -708,14 +708,14 @@ void OPPROTO glue(op_stdcx_le, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint32_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint32_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(st64r, MEMSUFFIX)((uint32_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 
@@ -724,14 +724,14 @@ void OPPROTO glue(op_stdcx_le_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-        if (unlikely(regs->reserve != (uint64_t)T0)) {
-            env->crf[0] = xer_ov;
+        if (unlikely(env->reserve != (uint64_t)T0)) {
+            env->crf[0] = xer_so;
         } else {
             glue(st64r, MEMSUFFIX)((uint64_t)T0, T1);
-            env->crf[0] = xer_ov | 0x02;
+            env->crf[0] = xer_so | 0x02;
         }
     }
-    regs->reserve = -1;
+    env->reserve = -1;
     RETURN();
 }
 #endif
@@ -1095,7 +1095,7 @@ static inline void glue(spe_stwwo, MEMSUFFIX) (target_ulong EA, uint64_t data)
 }
 PPC_SPE_ST_OP(wwo, spe_stwwo);
 static inline void glue(spe_stwwo_le, MEMSUFFIX) (target_ulong EA,
-                                                 uint64_t data)
+                                                  uint64_t data)
 {
     glue(st32r, MEMSUFFIX)(EA, data);
 }

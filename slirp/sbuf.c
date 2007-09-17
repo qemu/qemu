@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- * 
- * Please read the file COPYRIGHT for the 
+ *
+ * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
 
@@ -9,7 +9,7 @@
 
 /* Done as a macro in socket.h */
 /* int
- * sbspace(struct sockbuff *sb) 
+ * sbspace(struct sockbuff *sb)
  * {
  *	return SB_DATALEN - sb->sb_cc;
  * }
@@ -25,11 +25,11 @@ sbfree(sb)
 void
 sbdrop(sb, num)
 	struct sbuf *sb;
-	int num; 
+	int num;
 {
-	/* 
+	/*
 	 * We can only drop how much we have
-	 * This should never succeed 
+	 * This should never succeed
 	 */
 	if(num > sb->sb_cc)
 		num = sb->sb_cc;
@@ -37,7 +37,7 @@ sbdrop(sb, num)
 	sb->sb_rptr += num;
 	if(sb->sb_rptr >= sb->sb_data + sb->sb_datalen)
 		sb->sb_rptr -= sb->sb_datalen;
-   
+
 }
 
 void
@@ -77,18 +77,18 @@ sbappend(so, m)
 	struct mbuf *m;
 {
 	int ret = 0;
-	
+
 	DEBUG_CALL("sbappend");
 	DEBUG_ARG("so = %lx", (long)so);
 	DEBUG_ARG("m = %lx", (long)m);
 	DEBUG_ARG("m->m_len = %d", m->m_len);
-	
+
 	/* Shouldn't happen, but...  e.g. foreign host closes connection */
 	if (m->m_len <= 0) {
 		m_free(m);
 		return;
 	}
-	
+
 	/*
 	 * If there is urgent data, call sosendoob
 	 * if not all was sent, sowrite will take care of the rest
@@ -100,16 +100,16 @@ sbappend(so, m)
 		sosendoob(so);
 		return;
 	}
-	
+
 	/*
 	 * We only write if there's nothing in the buffer,
 	 * ottherwise it'll arrive out of order, and hence corrupt
 	 */
 	if (!so->so_rcv.sb_cc)
 	   ret = send(so->s, m->m_data, m->m_len, 0);
-	
+
 	if (ret <= 0) {
-		/* 
+		/*
 		 * Nothing was written
 		 * It's possible that the socket has closed, but
 		 * we don't need to check because if it has closed,
@@ -139,7 +139,7 @@ sbappendsb(sb, m)
 	 struct mbuf *m;
 {
 	int len, n,  nn;
-	
+
 	len = m->m_len;
 
 	if (sb->sb_wptr < sb->sb_rptr) {
@@ -180,7 +180,7 @@ sbcopy(sb, off, len, to)
 	char *to;
 {
 	char *from;
-	
+
 	from = sb->sb_rptr + off;
 	if (from >= sb->sb_data + sb->sb_datalen)
 		from -= sb->sb_datalen;
@@ -198,4 +198,4 @@ sbcopy(sb, off, len, to)
 		   memcpy(to+off,sb->sb_data,len);
 	}
 }
-		
+

@@ -1,8 +1,8 @@
 /*
  * QEMU System Emulator block driver
- * 
+ *
  * Copyright (c) 2003 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -24,17 +24,21 @@
 #ifndef BLOCK_INT_H
 #define BLOCK_INT_H
 
+#define BLOCK_FLAG_ENCRYPT	1
+#define BLOCK_FLAG_COMPRESS	2
+#define BLOCK_FLAG_COMPAT6	4
+
 struct BlockDriver {
     const char *format_name;
     int instance_size;
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_open)(BlockDriverState *bs, const char *filename, int flags);
-    int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num, 
+    int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
-    int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num, 
+    int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
-    int (*bdrv_create)(const char *filename, int64_t total_sectors, 
+    int (*bdrv_create)(const char *filename, int64_t total_sectors,
                        const char *backing_file, int flags);
     void (*bdrv_flush)(BlockDriverState *bs);
     int (*bdrv_is_allocated)(BlockDriverState *bs, int64_t sector_num,
@@ -52,21 +56,21 @@ struct BlockDriver {
     int aiocb_size;
 
     const char *protocol_name;
-    int (*bdrv_pread)(BlockDriverState *bs, int64_t offset, 
+    int (*bdrv_pread)(BlockDriverState *bs, int64_t offset,
                       uint8_t *buf, int count);
-    int (*bdrv_pwrite)(BlockDriverState *bs, int64_t offset, 
+    int (*bdrv_pwrite)(BlockDriverState *bs, int64_t offset,
                        const uint8_t *buf, int count);
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
-    int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num, 
+    int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num,
                                  const uint8_t *buf, int nb_sectors);
 
-    int (*bdrv_snapshot_create)(BlockDriverState *bs, 
+    int (*bdrv_snapshot_create)(BlockDriverState *bs,
                                 QEMUSnapshotInfo *sn_info);
-    int (*bdrv_snapshot_goto)(BlockDriverState *bs, 
+    int (*bdrv_snapshot_goto)(BlockDriverState *bs,
                               const char *snapshot_id);
     int (*bdrv_snapshot_delete)(BlockDriverState *bs, const char *snapshot_id);
-    int (*bdrv_snapshot_list)(BlockDriverState *bs, 
+    int (*bdrv_snapshot_list)(BlockDriverState *bs,
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
 
@@ -75,7 +79,7 @@ struct BlockDriver {
     int (*bdrv_media_changed)(BlockDriverState *bs);
     int (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
     int (*bdrv_set_locked)(BlockDriverState *bs, int locked);
-    
+
     BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;
 };
@@ -107,7 +111,7 @@ struct BlockDriverState {
     /* async read/write emulation */
 
     void *sync_aiocb;
-    
+
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;

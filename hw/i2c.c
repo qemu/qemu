@@ -1,4 +1,4 @@
-/* 
+/*
  * QEMU I2C bus interface.
  *
  * Copyright (c) 2007 CodeSourcery.

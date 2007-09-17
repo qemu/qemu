@@ -232,7 +232,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
         }
     }
 
-    isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
+    isa_vga_init(ds, phys_ram_base + ram_size, ram_size,
                  vga_ram_size);
 
     if (nd_table[0].vlan) {

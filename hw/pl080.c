@@ -1,4 +1,4 @@
-/* 
+/*
  * Arm PrimeCell PL080/PL081 DMA controller
  *
  * Copyright (c) 2006 CodeSourcery.
@@ -111,7 +111,7 @@ again:
                 continue;
             flow = (ch->conf >> 11) & 7;
             if (flow >= 4) {
-                cpu_abort(cpu_single_env, 
+                cpu_abort(cpu_single_env,
                     "pl080_run: Peripheral flow control not implemented\n");
             }
             src_id = (ch->conf >> 1) & 0x1f;

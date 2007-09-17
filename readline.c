@@ -1,8 +1,8 @@
 /*
  * QEMU readline utility
- * 
+ *
  * Copyright (c) 2003-2004 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -221,7 +221,7 @@ static void term_up_char(void)
     }
     term_hist_entry--;
     if (term_hist_entry >= 0) {
-	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf), 
+	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf),
                 term_history[term_hist_entry]);
 	term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
     }
@@ -304,7 +304,7 @@ static void term_completion(void)
     char *cmdline;
 
     nb_completions = 0;
-    
+
     cmdline = qemu_malloc(term_cmd_buf_index + 1);
     if (!cmdline)
         return;

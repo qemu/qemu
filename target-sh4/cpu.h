@@ -1,6 +1,6 @@
 /*
  *  SH4 emulation
- * 
+ *
  *  Copyright (c) 2005 Samuel Tardieu
  *
  * This library is free software; you can redistribute it and/or
@@ -123,7 +123,7 @@ typedef struct CPUSH4State {
 
 CPUSH4State *cpu_sh4_init(void);
 int cpu_sh4_exec(CPUSH4State * s);
-int cpu_sh4_signal_handler(int host_signum, void *pinfo, 
+int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 #include "softfloat.h"

@@ -1,8 +1,8 @@
 /*
  * Heathrow PIC support (standard PowerMac PIC)
- * 
+ *
  * Copyright (c) 2005 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -88,7 +88,7 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
     HeathrowPIC *pic;
     unsigned int n;
     uint32_t value;
-    
+
     n = ((addr & 0xfff) - 0x10) >> 4;
     if (n >= 2) {
         value = 0;
@@ -159,7 +159,7 @@ static void heathrow_pic_set_irq(void *opaque, int num, int level)
 qemu_irq *heathrow_pic_init(int *pmem_index)
 {
     HeathrowPICS *s;
-    
+
     s = qemu_mallocz(sizeof(HeathrowPICS));
     s->pics[0].level_triggered = 0;
     s->pics[1].level_triggered = 0x1ff00000;

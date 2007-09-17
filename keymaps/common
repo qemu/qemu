@@ -82,7 +82,7 @@ F12 0x58 localstate
 
 # Printscreen, Scrollock and Pause
 # Printscreen really requires four scancodes (0xe0, 0x2a, 0xe0, 0x37),
-# but (0xe0, 0x37) seems to work. 
+# but (0xe0, 0x37) seems to work.
 Print 0xb7 localstate
 Sys_Req 0xb7 localstate
 Execute 0xb7 localstate

@@ -1,8 +1,8 @@
 /*
  * KQEMU header
- * 
+ *
  * Copyright (c) 2004-2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -91,7 +91,7 @@ struct kqemu_cpu_state {
     long retval;
 
     /* number of ram_dirty entries to update */
-    unsigned int nb_ram_pages_to_update; 
+    unsigned int nb_ram_pages_to_update;
 #define KQEMU_MAX_RAM_PAGES_TO_UPDATE 512
 #define KQEMU_RAM_PAGES_UPDATE_ALL (KQEMU_MAX_RAM_PAGES_TO_UPDATE + 1)
 

@@ -69,12 +69,12 @@ struct m_hdr {
 
 	int	mh_size;		/* Size of data */
 	struct	socket *mh_so;
-	
+
 	caddr_t	mh_data;		/* Location of data */
 	int	mh_len;			/* Amount of data in this mbuf */
 };
 
-/* 
+/*
  * How much room is in the mbuf, from m_data to the end of the mbuf
  */
 #define M_ROOM(m) ((m->m_flags & M_EXT)? \
@@ -126,7 +126,7 @@ struct mbuf {
 
 struct mbstat {
 	int mbs_alloced;		/* Number of mbufs allocated */
-	
+
 };
 
 extern struct	mbstat mbstat;

@@ -47,13 +47,13 @@ unsigned int SingleCPDO(const unsigned int opcode)
      rFm = getSingleConstant(Fm);
    }
    else
-   {  
+   {
      switch (fpa11->fType[Fm])
      {
         case typeSingle:
           rFm = fpa11->fpreg[Fm].fSingle;
         break;
-        
+
         default: return 0;
      }
    }
@@ -186,7 +186,7 @@ unsigned int SingleCPDO(const unsigned int opcode)
 
       case NRM_CODE:
       break;
-      
+
       default:
       {
         nRc = 0;
@@ -245,11 +245,11 @@ float32 float32_tan(float32 rFm)
 
 float32 float32_pow(float32 rFn,float32 rFm)
 {
-  return float32_exp(float32_mul(rFm,float32_ln(rFn))); 
+  return float32_exp(float32_mul(rFm,float32_ln(rFn)));
 }
 
 float32 float32_pol(float32 rFn,float32 rFm)
 {
-  return float32_arctan(float32_div(rFn,rFm)); 
+  return float32_arctan(float32_div(rFn,rFm));
 }
 #endif

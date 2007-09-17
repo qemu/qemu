@@ -1,6 +1,6 @@
 /*
  * common defines for all CPUs
- * 
+ *
  * Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@
 #error TARGET_LONG_BITS must be defined before including this header
 #endif
 
-#ifndef TARGET_PHYS_ADDR_BITS 
+#ifndef TARGET_PHYS_ADDR_BITS
 #if TARGET_LONG_BITS >= HOST_LONG_BITS
 #define TARGET_PHYS_ADDR_BITS TARGET_LONG_BITS
 #else
@@ -97,17 +97,17 @@ typedef unsigned long ram_addr_t;
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
 typedef struct CPUTLBEntry {
-    /* bit 31 to TARGET_PAGE_BITS : virtual address 
+    /* bit 31 to TARGET_PAGE_BITS : virtual address
        bit TARGET_PAGE_BITS-1..IO_MEM_SHIFT : if non zero, memory io
                                               zone number
        bit 3                      : indicates that the entry is invalid
        bit 2..0                   : zero
     */
-    target_ulong addr_read; 
-    target_ulong addr_write; 
-    target_ulong addr_code; 
+    target_ulong addr_read;
+    target_ulong addr_write;
+    target_ulong addr_code;
     /* addend to virtual address to get physical address */
-    target_phys_addr_t addend; 
+    target_phys_addr_t addend;
 } CPUTLBEntry;
 
 /* Alpha has 4 different running levels */

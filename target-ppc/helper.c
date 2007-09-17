@@ -1,6 +1,6 @@
 /*
  *  PowerPC emulation helpers for qemu.
- * 
+ *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
@@ -64,6 +64,7 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return addr;
 }
+
 #else
 /* Common routines used by software and hardware TLBs emulation */
 static inline int pte_is_valid (target_ulong pte0)
@@ -255,7 +256,7 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
     tlb = &env->tlb[nr].tlb6;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "Set TLB %d/%d EPN " ADDRX " PTE0 " ADDRX 
+        fprintf(logfile, "Set TLB %d/%d EPN " ADDRX " PTE0 " ADDRX
                 " PTE1 " ADDRX "\n", nr, env->nb_tlb, EPN, pte0, pte1);
     }
 #endif
@@ -383,7 +384,7 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
         bl = (*BATu & 0x00001FFC) << 15;
 #if defined (DEBUG_BATS)
         if (loglevel != 0) {
-            fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX 
+            fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX
                     " BATl 0x" ADDRX "\n",
                     __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
                     *BATu, *BATl);
@@ -452,7 +453,7 @@ static int find_pte (mmu_ctx_t *ctx, int h, int rw)
         pte1 =  ldl_phys(base + (i * 8) + 4);
 #if defined (DEBUG_MMU)
         if (loglevel > 0) {
-            fprintf(logfile, "Load pte from 0x" ADDRX " => 0x" ADDRX 
+            fprintf(logfile, "Load pte from 0x" ADDRX " => 0x" ADDRX
                     " 0x" ADDRX " %d %d %d 0x" ADDRX "\n",
                     base + (i * 8), pte0, pte1,
                     pte0 >> 31, h, (pte0 >> 6) & 1, ctx->ptem);
@@ -528,7 +529,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 ((sr & 0x40000000) && msr_pr == 0)) ? 1 : 0;
     if ((sr & 0x80000000) == 0) {
 #if defined (DEBUG_MMU)
-        if (loglevel > 0) 
+        if (loglevel > 0)
             fprintf(logfile, "pte segment: key=%d n=0x" ADDRX "\n",
                     ctx->key, sr & 0x10000000);
 #endif
@@ -635,7 +636,8 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
 /* Generic TLB check function for embedded PowerPC implementations */
 static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
                              target_phys_addr_t *raddrp,
-                             target_ulong address, int i)
+                             target_ulong address,
+                             uint32_t pid, int ext, int i)
 {
     target_ulong mask;
 
@@ -649,22 +651,25 @@ static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
     if (loglevel != 0) {
         fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
                 ADDRX " " ADDRX " %d\n",
-                __func__, i, address, (int)env->spr[SPR_40x_PID],
-                tlb->EPN, mask, (int)tlb->PID);
+                __func__, i, address, pid, tlb->EPN, mask, (int)tlb->PID);
     }
     /* Check PID */
-    if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
+    if (tlb->PID != 0 && tlb->PID != pid)
         return -1;
     /* Check effective address */
     if ((address & mask) != tlb->EPN)
         return -1;
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
+    if (ext) {
+        /* Extend the physical address to 36 bits */
+        *raddrp |= (target_phys_addr_t)(tlb->RPN & 0xF) << 32;
+    }
 
     return 0;
 }
 
 /* Generic TLB search function for PowerPC embedded implementations */
-int ppcemb_tlb_search (CPUState *env, target_ulong address)
+int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
@@ -674,7 +679,7 @@ int ppcemb_tlb_search (CPUState *env, target_ulong address)
     ret = -1;
     for (i = 0; i < 64; i++) {
         tlb = &env->tlb[i].tlbe;
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, i) == 0) {
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
             ret = i;
             break;
         }
@@ -704,18 +709,19 @@ void ppc4xx_tlb_invalidate_all (CPUState *env)
     tlb_flush(env, 1);
 }
 
-int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
+int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                                  target_ulong address, int rw, int access_type)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
     int i, ret, zsel, zpr;
-            
+
     ret = -1;
     raddr = -1;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, i) < 0)
+        if (ppcemb_tlb_check(env, tlb, &raddr, address,
+                             env->spr[SPR_40x_PID], 0, i) < 0)
             continue;
         zsel = (tlb->attr >> 4) & 0xF;
         zpr = (env->spr[SPR_40x_ZPR] >> (28 - (2 * zsel))) & 0x3;
@@ -809,7 +815,7 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                 " %d %d\n", __func__, address, raddr, ctx->prot,
                 ret);
     }
-    
+
     return ret;
 }
 
@@ -826,7 +832,7 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
                            target_ulong eaddr, int rw)
 {
     int in_plb, ret;
-        
+
     ctx->raddr = eaddr;
     ctx->prot = PAGE_READ;
     ret = 0;
@@ -891,7 +897,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             break;
         case PPC_FLAGS_MMU_SOFT_4xx:
         case PPC_FLAGS_MMU_403:
-            ret = mmu4xx_get_physical_address(env, ctx, eaddr,
+            ret = mmu40x_get_physical_address(env, ctx, eaddr,
                                               rw, access_type);
             break;
         case PPC_FLAGS_MMU_601:
@@ -1537,7 +1543,7 @@ void ppc_hw_interrupt (CPUState *env)
     env->exception_index = -1;
 }
 #else /* defined (CONFIG_USER_ONLY) */
-static void dump_syscall(CPUState *env)
+static void dump_syscall (CPUState *env)
 {
     fprintf(logfile, "syscall r0=0x" REGX " r3=0x" REGX " r4=0x" REGX
             " r5=0x" REGX " r6=0x" REGX " nip=0x" ADDRX "\n",

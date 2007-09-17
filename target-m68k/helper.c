@@ -1,6 +1,6 @@
 /*
  *  m68k op helpers
- * 
+ *
  *  Copyright (c) 2006-2007 CodeSourcery
  *  Written by Paul Brook
  *
@@ -39,11 +39,11 @@ struct m68k_def_t {
 };
 
 static m68k_def_t m68k_cpu_defs[] = {
-    {"m5206", M68K_CPUID_M5206}, 
-    {"m5208", M68K_CPUID_M5208}, 
+    {"m5206", M68K_CPUID_M5206},
+    {"m5208", M68K_CPUID_M5208},
     {"cfv4e", M68K_CPUID_CFV4E},
     {"any", M68K_CPUID_ANY},
-    {NULL, 0}, 
+    {NULL, 0},
 };
 
 static void m68k_set_feature(CPUM68KState *env, int feature)
@@ -298,7 +298,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return addr;
 }
 
-#if defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY)
 
 int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int is_user, int is_softmmu)

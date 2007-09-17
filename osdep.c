@@ -1,8 +1,8 @@
 /*
  * QEMU low level functions
- * 
+ *
  * Copyright (c) 2003 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -114,7 +114,7 @@ void *kqemu_vmalloc(size_t size)
             free_space = (int64_t)stfs.f_bavail * stfs.f_bsize;
             if ((ram_size + 8192 * 1024) >= free_space) {
                 ram_mb = (ram_size / (1024 * 1024));
-                fprintf(stderr, 
+                fprintf(stderr,
                         "You do not have enough space in '%s' for the %d MB of QEMU virtual RAM.\n",
                         tmpdir, ram_mb);
                 if (strcmp(tmpdir, "/dev/shm") == 0) {
@@ -123,7 +123,7 @@ void *kqemu_vmalloc(size_t size)
                             "mount -t tmpfs -o size=%dm none /dev/shm\n",
                             ram_mb + 16);
                 } else {
-                    fprintf(stderr, 
+                    fprintf(stderr,
                             "Use the '-m' option of QEMU to diminish the amount of virtual RAM or use the\n"
                             "QEMU_TMPDIR environment variable to set another directory where the QEMU\n"
                             "temporary RAM file will be opened.\n");
@@ -132,20 +132,20 @@ void *kqemu_vmalloc(size_t size)
                 exit(1);
             }
         }
-        snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX", 
+        snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX",
                  tmpdir);
         phys_ram_fd = mkstemp(phys_ram_file);
         if (phys_ram_fd < 0) {
-            fprintf(stderr, 
+            fprintf(stderr,
                     "warning: could not create temporary file in '%s'.\n"
                     "Use QEMU_TMPDIR to select a directory in a tmpfs filesystem.\n"
                     "Using '/tmp' as fallback.\n",
                     tmpdir);
-            snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX", 
+            snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX",
                      "/tmp");
             phys_ram_fd = mkstemp(phys_ram_file);
             if (phys_ram_fd < 0) {
-                fprintf(stderr, "Could not create temporary memory file '%s'\n", 
+                fprintf(stderr, "Could not create temporary memory file '%s'\n",
                         phys_ram_file);
                 exit(1);
             }
@@ -154,9 +154,9 @@ void *kqemu_vmalloc(size_t size)
     }
     size = (size + 4095) & ~4095;
     ftruncate(phys_ram_fd, phys_ram_size + size);
-    ptr = mmap(NULL, 
-               size, 
-               PROT_WRITE | PROT_READ, MAP_SHARED, 
+    ptr = mmap(NULL,
+               size,
+               PROT_WRITE | PROT_READ, MAP_SHARED,
                phys_ram_fd, phys_ram_size);
     if (ptr == MAP_FAILED) {
         fprintf(stderr, "Could not map physical memory\n");
@@ -242,7 +242,7 @@ int qemu_create_pidfile(const char *filename)
     BOOL ret;
 
     /* Open for writing with no sharing. */
-    file = CreateFile(filename, GENERIC_WRITE, 0, NULL, 
+    file = CreateFile(filename, GENERIC_WRITE, 0, NULL,
 		      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (file == INVALID_HANDLE_VALUE)
@@ -257,7 +257,7 @@ int qemu_create_pidfile(const char *filename)
 
     /* Write PID to file. */
     len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
-    ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len, 
+    ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len,
 		      &overlap, NULL);
     if (ret == 0)
       return -1;

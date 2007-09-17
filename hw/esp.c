@@ -1,8 +1,8 @@
 /*
  * QEMU ESP/NCR53C9x emulation
- * 
+ *
  * Copyright (c) 2005-2006 Fabrice Bellard
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -531,7 +531,7 @@ static void esp_save(QEMUFile *f, void *opaque)
 static int esp_load(QEMUFile *f, void *opaque, int version_id)
 {
     ESPState *s = opaque;
-    
+
     if (version_id != 3)
         return -EINVAL; // Cannot emulate 2
 

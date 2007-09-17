@@ -1,6 +1,6 @@
 /*
  *  m68k micro operations
- * 
+ *
  *  Copyright (c) 2006-2007 CodeSourcery
  *  Written by Paul Brook
  *
@@ -346,7 +346,7 @@ OP(divu)
     uint32_t quot;
     uint32_t rem;
     uint32_t flags;
-    
+
     num = env->div1;
     den = env->div2;
     /* ??? This needs to make sure the throwing location is accurate.  */
@@ -377,7 +377,7 @@ OP(divs)
     int32_t quot;
     int32_t rem;
     int32_t flags;
-    
+
     num = env->div1;
     den = env->div2;
     if (den == 0)

@@ -581,7 +581,7 @@ static inline void gen_movl_npc_im(target_ulong npc)
 #endif
 }
 
-static inline void gen_goto_tb(DisasContext *s, int tb_num, 
+static inline void gen_goto_tb(DisasContext *s, int tb_num,
                                target_ulong pc, target_ulong npc)
 {
     TranslationBlock *tb;
@@ -850,11 +850,11 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
-	
+
     if (cond == 0x0) {
 	/* unconditional not taken */
 	if (a) {
-	    dc->pc = dc->npc + 4; 
+	    dc->pc = dc->npc + 4;
 	    dc->npc = dc->pc + 4;
 	} else {
 	    dc->pc = dc->npc;
@@ -1020,7 +1020,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 	    case 0x3:		/* V9 BPr */
 		{
-		    target = GET_FIELD_SP(insn, 0, 13) | 
+		    target = GET_FIELD_SP(insn, 0, 13) |
                         (GET_FIELD_SP(insn, 20, 21) << 14);
 		    target = sign_extend(target, 16);
 		    target <<= 2;
@@ -3348,7 +3348,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
 
  exit_gen_loop:
     if (!dc->is_br) {
-        if (dc->pc != DYNAMIC_PC && 
+        if (dc->pc != DYNAMIC_PC &&
             (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
             /* static PC and NPC: we can use direct chaining */
             gen_branch(dc, dc->pc, dc->npc);
@@ -3531,7 +3531,7 @@ int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def)
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')
 
-void cpu_dump_state(CPUState *env, FILE *f, 
+void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
 {
@@ -3575,7 +3575,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n", GET_PSR(env),
 	    GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
 	    GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
-	    env->psrs?'S':'-', env->psrps?'P':'-', 
+	    env->psrs?'S':'-', env->psrps?'P':'-',
 	    env->psret?'E':'-', env->wim);
 #endif
     cpu_fprintf(f, "fsr: 0x%08x\n", GET_FSR32(env));
