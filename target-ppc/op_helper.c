@@ -88,7 +88,7 @@ void do_store_cr (uint32_t mask)
 {
     int i, sh;
 
-    for (i = 0, sh = 7; i < 8; i++, sh --) {
+    for (i = 0, sh = 7; i < 8; i++, sh--) {
         if (mask & (1 << sh))
             env->crf[i] = (T0 >> (sh * 4)) & 0xFUL;
     }
@@ -216,8 +216,8 @@ static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 
 static void neg128 (uint64_t *plow, uint64_t *phigh)
 {
-    *plow = ~ *plow;
-    *phigh = ~ *phigh;
+    *plow = ~*plow;
+    *phigh = ~*phigh;
     add128(plow, phigh, 1, 0);
 }
 
@@ -258,6 +258,7 @@ void do_mul64 (uint64_t *plow, uint64_t *phigh)
 static void imul64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
 {
     int sa, sb;
+
     sa = (a < 0);
     if (sa)
         a = -a;
@@ -2493,14 +2494,14 @@ void do_4xx_tlbre_hi (void)
 
 void do_4xx_tlbsx (void)
 {
-    T0 = ppcemb_tlb_search(env, T0);
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
 }
 
 void do_4xx_tlbsx_ (void)
 {
     int tmp = xer_ov;
 
-    T0 = ppcemb_tlb_search(env, T0);
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
     if (T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;

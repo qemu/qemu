@@ -46,22 +46,26 @@ static int macio_nvram_mem_index = -1;
 
 /* DBDMA: currently no op - should suffice right now */
 
-static void dbdma_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void dbdma_writeb (void *opaque,
+                          target_phys_addr_t addr, uint32_t value)
 {
     printf("%s: 0x" PADDRX " <= 0x%08x\n", __func__, addr, value);
 }
 
-static void dbdma_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void dbdma_writew (void *opaque,
+                          target_phys_addr_t addr, uint32_t value)
 {
 }
 
-static void dbdma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void dbdma_writel (void *opaque,
+                          target_phys_addr_t addr, uint32_t value)
 {
 }
 
 static uint32_t dbdma_readb (void *opaque, target_phys_addr_t addr)
 {
     printf("%s: 0x" PADDRX " => 0x00000000\n", __func__, addr);
+
     return 0;
 }
 
@@ -92,7 +96,8 @@ typedef struct MacIONVRAMState {
     uint8_t data[0x2000];
 } MacIONVRAMState;
 
-static void macio_nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void macio_nvram_writeb (void *opaque,
+                                target_phys_addr_t addr, uint32_t value)
 {
     MacIONVRAMState *s = opaque;
     addr = (addr >> 4) & 0x1fff;
@@ -108,6 +113,7 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     addr = (addr >> 4) & 0x1fff;
     value = s->data[addr];
     //    printf("macio_nvram_readb %04x = %02x\n", addr, value);
+
     return value;
 }
 
@@ -123,7 +129,7 @@ static CPUReadMemoryFunc *macio_nvram_read[] = {
     &macio_nvram_readb,
 };
 
-static MacIONVRAMState *macio_nvram_init(void)
+static MacIONVRAMState *macio_nvram_init (void)
 {
     MacIONVRAMState *s;
     s = qemu_mallocz(sizeof(MacIONVRAMState));
@@ -131,11 +137,12 @@ static MacIONVRAMState *macio_nvram_init(void)
         return NULL;
     macio_nvram_mem_index = cpu_register_io_memory(0, macio_nvram_read,
                                                    macio_nvram_write, s);
+
     return s;
 }
 
-static void macio_map(PCIDevice *pci_dev, int region_num,
-                      uint32_t addr, uint32_t size, int type)
+static void macio_map (PCIDevice *pci_dev, int region_num,
+                       uint32_t addr, uint32_t size, int type)
 {
     if (heathrow_pic_mem_index >= 0) {
         cpu_register_physical_memory(addr + 0x00000, 0x1000,
@@ -152,10 +159,11 @@ static void macio_map(PCIDevice *pci_dev, int region_num,
                                      openpic_mem_index);
     }
     if (macio_nvram_mem_index >= 0)
-        cpu_register_physical_memory(addr + 0x60000, 0x20000, macio_nvram_mem_index);
+        cpu_register_physical_memory(addr + 0x60000, 0x20000,
+                                     macio_nvram_mem_index);
 }
 
-static void macio_init(PCIBus *bus, int device_id)
+static void macio_init (PCIBus *bus, int device_id)
 {
     PCIDevice *d;
 
@@ -204,7 +212,8 @@ static CPUReadMemoryFunc *unin_read[] = {
 
 /* temporary frame buffer OSI calls for the video.x driver. The right
    solution is to modify the driver to use VGA PCI I/Os */
-static int vga_osi_call(CPUState *env)
+/* XXX: to be removed. This is no way related to emulation */
+static int vga_osi_call (CPUState *env)
 {
     static int vga_vbl_enabled;
     int linesize;
@@ -264,10 +273,11 @@ static int vga_osi_call(CPUState *env)
         fprintf(stderr, "unsupported OSI call R5=" REGX "\n", env->gpr[5]);
         break;
     }
+
     return 1; /* osi_call handled */
 }
 
-static uint8_t nvram_chksum(const uint8_t *buf, int n)
+static uint8_t nvram_chksum (const uint8_t *buf, int n)
 {
     int sum, i;
     sum = 0;
@@ -277,7 +287,7 @@ static uint8_t nvram_chksum(const uint8_t *buf, int n)
 }
 
 /* set a free Mac OS NVRAM partition */
-void pmac_format_nvram_partition(uint8_t *buf, int len)
+void pmac_format_nvram_partition (uint8_t *buf, int len)
 {
     char partition_name[12] = "wwwwwwwwwwww";
 
@@ -503,8 +513,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                     ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_HRESET];
                 break;
             default:
-                cpu_abort(env,
-                          "Only bus model not supported on mac99 machine\n");
+                cpu_abort(env, "Bus model not supported on mac99 machine\n");
                 exit(1);
             }
         }

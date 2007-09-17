@@ -271,7 +271,7 @@ void glue(do_icbi_64, MEMSUFFIX) (void)
 }
 #endif
 
-/* PPC 601 specific instructions (POWER bridge) */
+/* PowerPC 601 specific instructions (POWER bridge) */
 // XXX: to be tested
 void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb)
 {

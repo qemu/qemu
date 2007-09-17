@@ -2896,7 +2896,7 @@ static ppc_def_t ppc_defs[] = {
         .name        = "Npe405H",
         .pvr         = CPU_PPC_NPE405H,
         .pvr_mask    = 0xFFFFFFFF,
-            .insns_flags = PPC_INSNS_405,
+        .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
         .msr_mask    = 0x00000000020EFF30ULL,
     },
@@ -3000,7 +3000,7 @@ static ppc_def_t ppc_defs[] = {
         .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-        /* Xilinx PowerPC 405 cores */
+    /* Xilinx PowerPC 405 cores */
 #if defined (TODO)
     {
         .name        = "x2vp4",

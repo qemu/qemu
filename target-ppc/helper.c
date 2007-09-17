@@ -64,6 +64,7 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return addr;
 }
+
 #else
 /* Common routines used by software and hardware TLBs emulation */
 static inline int pte_is_valid (target_ulong pte0)
@@ -635,7 +636,8 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
 /* Generic TLB check function for embedded PowerPC implementations */
 static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
                              target_phys_addr_t *raddrp,
-                             target_ulong address, int i)
+                             target_ulong address,
+                             uint32_t pid, int ext, int i)
 {
     target_ulong mask;
 
@@ -649,22 +651,25 @@ static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
     if (loglevel != 0) {
         fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
                 ADDRX " " ADDRX " %d\n",
-                __func__, i, address, (int)env->spr[SPR_40x_PID],
-                tlb->EPN, mask, (int)tlb->PID);
+                __func__, i, address, pid, tlb->EPN, mask, (int)tlb->PID);
     }
     /* Check PID */
-    if (tlb->PID != 0 && tlb->PID != env->spr[SPR_40x_PID])
+    if (tlb->PID != 0 && tlb->PID != pid)
         return -1;
     /* Check effective address */
     if ((address & mask) != tlb->EPN)
         return -1;
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
+    if (ext) {
+        /* Extend the physical address to 36 bits */
+        *raddrp |= (target_phys_addr_t)(tlb->RPN & 0xF) << 32;
+    }
 
     return 0;
 }
 
 /* Generic TLB search function for PowerPC embedded implementations */
-int ppcemb_tlb_search (CPUState *env, target_ulong address)
+int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
@@ -674,7 +679,7 @@ int ppcemb_tlb_search (CPUState *env, target_ulong address)
     ret = -1;
     for (i = 0; i < 64; i++) {
         tlb = &env->tlb[i].tlbe;
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, i) == 0) {
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
             ret = i;
             break;
         }
@@ -703,7 +708,7 @@ void ppc4xx_tlb_invalidate_all (CPUState *env)
     tlb_flush(env, 1);
 }
 
-int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
+int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                                  target_ulong address, int rw, int access_type)
 {
     ppcemb_tlb_t *tlb;
@@ -714,7 +719,8 @@ int mmu4xx_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     raddr = -1;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, i) < 0)
+        if (ppcemb_tlb_check(env, tlb, &raddr, address,
+                             env->spr[SPR_40x_PID], 0, i) < 0)
             continue;
         zsel = (tlb->attr >> 4) & 0xF;
         zpr = (env->spr[SPR_40x_ZPR] >> (28 - (2 * zsel))) & 0x3;
@@ -890,7 +896,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             break;
         case PPC_FLAGS_MMU_SOFT_4xx:
         case PPC_FLAGS_MMU_403:
-            ret = mmu4xx_get_physical_address(env, ctx, eaddr,
+            ret = mmu40x_get_physical_address(env, ctx, eaddr,
                                               rw, access_type);
             break;
         case PPC_FLAGS_MMU_601:
@@ -1536,7 +1542,7 @@ void ppc_hw_interrupt (CPUState *env)
     env->exception_index = -1;
 }
 #else /* defined (CONFIG_USER_ONLY) */
-static void dump_syscall(CPUState *env)
+static void dump_syscall (CPUState *env)
 {
     fprintf(logfile, "syscall r0=0x" REGX " r3=0x" REGX " r4=0x" REGX
             " r5=0x" REGX " r6=0x" REGX " nip=0x" ADDRX "\n",
