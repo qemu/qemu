@@ -23,19 +23,10 @@
 #include "config.h"
 #include <inttypes.h>
 
-#if !defined(TARGET_PPCEMB)
-#if defined(TARGET_PPC64) || (HOST_LONG_BITS >= 64)
-/* When using 64 bits temporary registers,
- * we can use 64 bits GPR with no extra cost
- */
-#define TARGET_PPCEMB
-#endif
-#endif
-
 #if defined (TARGET_PPC64)
 typedef uint64_t ppc_gpr_t;
-#define TARGET_LONG_BITS 64
 #define TARGET_GPR_BITS  64
+#define TARGET_LONG_BITS 64
 #define REGX "%016" PRIx64
 #define TARGET_PAGE_BITS 12
 #elif defined(TARGET_PPCEMB)
@@ -43,15 +34,32 @@ typedef uint64_t ppc_gpr_t;
 #define TARGET_PHYS_ADDR_BITS 64
 /* GPR are 64 bits: used by vector extension */
 typedef uint64_t ppc_gpr_t;
-#define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  64
+#define TARGET_LONG_BITS 32
 #define REGX "%016" PRIx64
+#if defined(CONFIG_USER_ONLY)
+/* It looks like a lot of Linux programs assume page size
+ * is 4kB long. This is evil, but we have to deal with it...
+ */
+#define TARGET_PAGE_BITS 12
+#else
 /* Pages can be 1 kB small */
 #define TARGET_PAGE_BITS 10
+#endif
+#else
+#if (HOST_LONG_BITS >= 64)
+/* When using 64 bits temporary registers,
+ * we can use 64 bits GPR with no extra cost
+ * It's even an optimization as it will prevent
+ * the compiler to do unuseful masking in the micro-ops.
+ */
+typedef uint64_t ppc_gpr_t;
+#define TARGET_GPR_BITS  64
 #else
 typedef uint32_t ppc_gpr_t;
-#define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  32
+#endif
+#define TARGET_LONG_BITS 32
 #define REGX "%08" PRIx32
 #define TARGET_PAGE_BITS 12
 #endif
