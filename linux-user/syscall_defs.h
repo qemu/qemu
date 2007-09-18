@@ -865,8 +865,13 @@ struct target_winsize {
 #define TARGET_MAP_GROWSDOWN	0x0100		/* stack-like segment */
 #define TARGET_MAP_DENYWRITE	0x0800		/* ETXTBSY */
 #define TARGET_MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+#if defined(TARGET_PPC)
+#define TARGET_MAP_LOCKED	0x0080		/* pages are locked */
+#define TARGET_MAP_NORESERVE	0x0040		/* don't check for reservations */
+#else
 #define TARGET_MAP_LOCKED	0x2000		/* pages are locked */
 #define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
+#endif
 #endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM)
