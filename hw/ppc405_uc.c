@@ -75,7 +75,10 @@ ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd)
     int i, n;
 
     /* We put the bd structure at the top of memory */
-    bdloc = bd->bi_memsize - sizeof(struct ppc4xx_bd_info_t);
+    if (bd->bi_memsize >= 0x01000000UL)
+        bdloc = 0x01000000UL - sizeof(struct ppc4xx_bd_info_t);
+    else
+        bdloc = bd->bi_memsize - sizeof(struct ppc4xx_bd_info_t);
     stl_raw(phys_ram_base + bdloc + 0x00, bd->bi_memstart);
     stl_raw(phys_ram_base + bdloc + 0x04, bd->bi_memsize);
     stl_raw(phys_ram_base + bdloc + 0x08, bd->bi_flashstart);
@@ -952,7 +955,8 @@ static uint32_t sdram_bcr (target_phys_addr_t ram_base,
         bcr = 0x000C0000;
         break;
     default:
-        printf("%s: invalid RAM size " TARGET_FMT_ld "\n", __func__, ram_size);
+        printf("%s: invalid RAM size " TARGET_FMT_plx "\n",
+               __func__, ram_size);
         return 0x00000000;
     }
     bcr |= ram_base & 0xFF800000;
@@ -985,8 +989,8 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     if (*bcrp & 0x00000001) {
         /* Unmap RAM */
 #ifdef DEBUG_SDRAM
-        printf("%s: unmap RAM area " ADDRX " " ADDRX "\n", __func__,
-               sdram_base(*bcrp), sdram_size(*bcrp));
+        printf("%s: unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
+               __func__, sdram_base(*bcrp), sdram_size(*bcrp));
 #endif
         cpu_register_physical_memory(sdram_base(*bcrp), sdram_size(*bcrp),
                                      IO_MEM_UNASSIGNED);
@@ -994,8 +998,8 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     *bcrp = bcr & 0xFFDEE001;
     if (enabled && (bcr & 0x00000001)) {
 #ifdef DEBUG_SDRAM
-        printf("%s: Map RAM area " ADDRX " " ADDRX "\n", __func__,
-               sdram_base(bcr), sdram_size(bcr));
+        printf("%s: Map RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
+               __func__, sdram_base(bcr), sdram_size(bcr));
 #endif
         cpu_register_physical_memory(sdram_base(bcr), sdram_size(bcr),
                                      sdram_base(bcr) | IO_MEM_RAM);
@@ -1023,8 +1027,8 @@ static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
 
     for (i = 0; i < sdram->nbanks; i++) {
 #ifdef DEBUG_SDRAM
-        printf("%s: Unmap RAM area " ADDRX " " ADDRX "\n", __func__,
-               sdram_base(sdram->bcr[i]), sdram_size(sdram->bcr[i]));
+        printf("%s: Unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
+               __func__, sdram_base(sdram->bcr[i]), sdram_size(sdram->bcr[i]));
 #endif
         cpu_register_physical_memory(sdram_base(sdram->bcr[i]),
                                      sdram_size(sdram->bcr[i]),
