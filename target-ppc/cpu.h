@@ -55,12 +55,13 @@ typedef uint64_t ppc_gpr_t;
  */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
+#define REGX "%08" PRIx64
 #else
 typedef uint32_t ppc_gpr_t;
 #define TARGET_GPR_BITS  32
+#define REGX "%08" PRIx32
 #endif
 #define TARGET_LONG_BITS 32
-#define REGX "%08" PRIx32
 #define TARGET_PAGE_BITS 12
 #endif
 

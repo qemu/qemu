@@ -2537,7 +2537,8 @@ void do_4xx_tlbwe_hi (void)
      * of the ppc or ppc64 one
      */
     if ((T1 & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
-        cpu_abort(env, "TLB size %u < %u are not supported (%d)\n",
+        cpu_abort(env, "TLB size " TARGET_FMT_lu " < %u "
+                  "are not supported (%d)\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((T1 >> 7) & 0x7));
     }
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
