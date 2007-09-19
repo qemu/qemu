@@ -187,8 +187,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = env->npc;
     pc = env->pc;
 #elif defined(TARGET_PPC)
-    flags = (msr_pr << MSR_PR) | (msr_fp << MSR_FP) |
-        (msr_se << MSR_SE) | (msr_le << MSR_LE);
+    flags = env->hflags;
     cs_base = 0;
     pc = env->nip;
 #elif defined(TARGET_MIPS)
