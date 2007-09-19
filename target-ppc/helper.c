@@ -1013,6 +1013,52 @@ void store_40x_sler (CPUPPCState *env, uint32_t val)
     env->spr[SPR_405_SLER] = val;
 }
 
+int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
+                                   target_ulong address, int rw,
+                                   int access_type)
+{
+    ppcemb_tlb_t *tlb;
+    target_phys_addr_t raddr;
+    int i, prot, ret;
+
+    ret = -1;
+    raddr = -1;
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb[i].tlbe;
+        if (ppcemb_tlb_check(env, tlb, &raddr, address,
+                             env->spr[SPR_BOOKE_PID], 1, i) < 0)
+            continue;
+        if (msr_pr)
+            prot = tlb->prot & 0xF;
+        else
+            prot = (tlb->prot >> 4) & 0xF;
+        /* Check the address space */
+        if (access_type == ACCESS_CODE) {
+            if (msr_is != (tlb->attr & 1))
+                continue;
+            ctx->prot = prot;
+            if (prot & PAGE_EXEC) {
+                ret = 0;
+                break;
+            }
+            ret = -3;
+        } else {
+            if (msr_ds != (tlb->attr & 1))
+                continue;
+            ctx->prot = prot;
+            if ((!rw && prot & PAGE_READ) || (rw && (prot & PAGE_WRITE))) {
+                ret = 0;
+                break;
+            }
+            ret = -2;
+        }
+    }
+    if (ret >= 0)
+        ctx->raddr = raddr;
+
+    return ret;
+}
+
 static int check_physical (CPUState *env, mmu_ctx_t *ctx,
                            target_ulong eaddr, int rw)
 {
@@ -1115,9 +1161,9 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             cpu_abort(env, "601 MMU model not implemented\n");
             return -1;
         case PPC_FLAGS_MMU_BOOKE:
-            /* XXX: TODO */
-            cpu_abort(env, "BookeE MMU model not implemented\n");
-            return -1;
+            ret = mmubooke_get_physical_address(env, ctx, eaddr,
+                                                rw, access_type);
+            break;
         case PPC_FLAGS_MMU_BOOKE_FSL:
             /* XXX: TODO */
             cpu_abort(env, "BookE FSL MMU model not implemented\n");
@@ -1950,7 +1996,7 @@ void do_interrupt (CPUState *env)
         cpu_abort(env, "Floating point assist exception "
                   "is not implemented yet !\n");
         goto store_next;
-        /* 64 bits PowerPC exceptions */
+    /* 64 bits PowerPC exceptions */
     case EXCP_DSEG: /* 0x0380 */
         /* XXX: TODO */
         cpu_abort(env, "Data segment exception is not implemented yet !\n");
@@ -2446,28 +2492,39 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
 void cpu_ppc_reset (void *opaque)
 {
     CPUPPCState *env;
+    int i;
 
     env = opaque;
+    /* XXX: some of those flags initialisation values could depend
+     *      on the actual PowerPC implementation
+     */
+    for (i = 0; i < 63; i++)
+        env->msr[i] = 0;
+#if defined(TARGET_PPC64)
+    msr_hv = 0; /* Should be 1... */
+#endif
+    msr_ap = 0; /* TO BE CHECKED */
+    msr_sa = 0; /* TO BE CHECKED */
+    msr_ip = 0; /* TO BE CHECKED */
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
     msr_be = 1;
 #endif
-    msr_fp = 1; /* Allow floating point exceptions */
-    msr_me = 1; /* Allow machine check exceptions  */
-#if defined(TARGET_PPC64)
-    msr_sf = 0; /* Boot in 32 bits mode */
-    msr_cm = 0;
-#endif
 #if defined(CONFIG_USER_ONLY)
+    msr_fp = 1; /* Allow floating point exceptions */
     msr_pr = 1;
-    tlb_flush(env, 1);
 #else
     env->nip = 0xFFFFFFFC;
     ppc_tlb_invalidate_all(env);
 #endif
     do_compute_hflags(env);
     env->reserve = -1;
+    /* Be sure no exception or interrupt is pending */
+    env->pending_interrupts = 0;
+    env->exception_index = EXCP_NONE;
+    /* Flush all TLBs */
+    tlb_flush(env, 1);
 }
 
 CPUPPCState *cpu_ppc_init (void)

@@ -2365,6 +2365,54 @@ void OPPROTO op_wrte (void)
     RETURN();
 }
 
+void OPPROTO op_booke_tlbre0 (void)
+{
+    do_booke_tlbre0();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbre1 (void)
+{
+    do_booke_tlbre1();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbre2 (void)
+{
+    do_booke_tlbre2();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbsx (void)
+{
+    do_booke_tlbsx();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbsx_ (void)
+{
+    do_booke_tlbsx_();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbwe0 (void)
+{
+    do_booke_tlbwe0();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbwe1 (void)
+{
+    do_booke_tlbwe1();
+    RETURN();
+}
+
+void OPPROTO op_booke_tlbwe2 (void)
+{
+    do_booke_tlbwe2();
+    RETURN();
+}
+
 void OPPROTO op_4xx_tlbre_lo (void)
 {
     do_4xx_tlbre_lo();

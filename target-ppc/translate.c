@@ -4618,9 +4618,10 @@ GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_BOOKE)
     RET_CHG_FLOW(ctx);
 #endif
 }
+
 /* TLB management - PowerPC 405 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
+GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4648,7 +4649,7 @@ GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
+GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4667,7 +4668,7 @@ GEN_HANDLER(tlbsx, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
 }
 
 /* tlbwe */
-GEN_HANDLER(tlbwe, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
+GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4686,6 +4687,92 @@ GEN_HANDLER(tlbwe, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
         gen_op_load_gpr_T0(rA(ctx->opcode));
         gen_op_load_gpr_T1(rS(ctx->opcode));
         gen_op_4xx_tlbwe_lo();
+        break;
+    default:
+        RET_INVAL(ctx);
+        break;
+    }
+#endif
+}
+
+/* TLB management - PowerPC BookE implementation */
+/* tlbre */
+GEN_HANDLER(tlbre_booke, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    switch (rB(ctx->opcode)) {
+    case 0:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_booke_tlbre0();
+        gen_op_store_T0_gpr(rD(ctx->opcode));
+        break;
+    case 1:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_booke_tlbre1();
+        gen_op_store_T0_gpr(rD(ctx->opcode));
+        break;
+    case 2:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_booke_tlbre2();
+        gen_op_store_T0_gpr(rD(ctx->opcode));
+        break;
+    default:
+        RET_INVAL(ctx);
+        break;
+    }
+#endif
+}
+
+/* tlbsx - tlbsx. */
+GEN_HANDLER(tlbsx_booke, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    gen_addr_reg_index(ctx);
+    if (Rc(ctx->opcode))
+        gen_op_booke_tlbsx_();
+    else
+        gen_op_booke_tlbsx();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
+#endif
+}
+
+/* tlbwe */
+GEN_HANDLER(tlbwe_booke, 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    switch (rB(ctx->opcode)) {
+    case 0:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rS(ctx->opcode));
+        gen_op_booke_tlbwe0();
+        break;
+    case 1:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rS(ctx->opcode));
+        gen_op_booke_tlbwe1();
+        break;
+    case 2:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rS(ctx->opcode));
+        gen_op_booke_tlbwe2();
         break;
     default:
         RET_INVAL(ctx);

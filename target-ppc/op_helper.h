@@ -156,6 +156,18 @@ void do_POWER_rfsvc (void);
 void do_op_602_mfrom (void);
 #endif
 
+/* PowerPC BookE specific helpers */
+#if !defined(CONFIG_USER_ONLY)
+void do_booke_tlbre0 (void);
+void do_booke_tlbre1 (void);
+void do_booke_tlbre2 (void);
+void do_booke_tlbsx (void);
+void do_booke_tlbsx_ (void);
+void do_booke_tlbwe0 (void);
+void do_booke_tlbwe1 (void);
+void do_booke_tlbwe2 (void);
+#endif
+
 /* PowerPC 4xx specific helpers */
 void do_405_check_ov (void);
 void do_405_check_sat (void);
