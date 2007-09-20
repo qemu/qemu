@@ -77,7 +77,7 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
 
 static TranslationBlock *tb_find_slow(target_ulong pc,
                                       target_ulong cs_base,
-                                      unsigned int flags)
+                                      uint64_t flags)
 {
     TranslationBlock *tb, **ptb1;
     int code_gen_size;
@@ -155,7 +155,7 @@ static inline TranslationBlock *tb_find_fast(void)
 {
     TranslationBlock *tb;
     target_ulong cs_base, pc;
-    unsigned int flags;
+    uint64_t flags;
 
     /* we record a subset of the CPU state. It will
        always be the same before a given translated block

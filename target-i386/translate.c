@@ -95,7 +95,7 @@ typedef struct DisasContext {
     int singlestep_enabled; /* "hardware" single step enabled */
     int jmp_opt; /* use direct block chaining for direct jumps */
     int mem_index; /* select memory access functions */
-    int flags; /* all execution flags */
+    uint64_t flags; /* all execution flags */
     struct TranslationBlock *tb;
     int popl_esp_hack; /* for correct popl with esp base handling */
     int rip_offset; /* only used in x86_64, but left for simplicity */
@@ -6462,7 +6462,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
     uint16_t *gen_opc_end;
-    int flags, j, lj, cflags;
+    int j, lj, cflags;
+    uint64_t flags;
     target_ulong pc_start;
     target_ulong cs_base;
 

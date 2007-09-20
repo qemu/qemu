@@ -171,7 +171,7 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 typedef struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
-    unsigned int flags; /* flags defining in which context the code was generated */
+    uint64_t flags; /* flags defining in which context the code was generated */
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint16_t cflags;    /* compile flags */
