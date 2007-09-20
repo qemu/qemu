@@ -520,8 +520,11 @@ void OPPROTO op_tadd_T1_T0_ccTV(void)
 {
     target_ulong src1;
 
-    if ((T0 & 0x03) || (T1 & 0x03))
+    if ((T0 & 0x03) || (T1 & 0x03)) {
         raise_exception(TT_TOVF);
+        FORCE_RET();
+        return;
+    }
 
     src1 = T0;
     T0 += T1;
