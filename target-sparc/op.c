@@ -376,33 +376,33 @@ void OPPROTO op_add_T1_T0_cc(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
-	env->psr |= PSR_OVF;
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        env->psr |= PSR_OVF;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (T0 < src1)
-	env->xcc |= PSR_CARRY;
+        env->xcc |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1ULL << 63))
-	env->xcc |= PSR_OVF;
+        env->xcc |= PSR_OVF;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (T0 < src1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -448,26 +448,26 @@ void OPPROTO op_addx_T1_T0_cc(void)
     }
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
-	env->psr |= PSR_OVF;
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        env->psr |= PSR_OVF;
 
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1ULL << 63))
-	env->xcc |= PSR_OVF;
+        env->xcc |= PSR_OVF;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -481,37 +481,37 @@ void OPPROTO op_tadd_T1_T0_cc(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
-	env->psr |= PSR_OVF;
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        env->psr |= PSR_OVF;
     if ((src1 & 0x03) || (T1 & 0x03))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (T0 < src1)
-	env->xcc |= PSR_CARRY;
+        env->xcc |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1ULL << 63))
-	env->xcc |= PSR_OVF;
+        env->xcc |= PSR_OVF;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (T0 < src1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
     if ((src1 & 0x03) || (T1 & 0x03))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -528,7 +528,7 @@ void OPPROTO op_tadd_T1_T0_ccTV(void)
 
 #ifdef TARGET_SPARC64
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
         raise_exception(TT_TOVF);
 #else
     if ((src1 & 0x03) || (T1 & 0x03))
@@ -538,26 +538,26 @@ void OPPROTO op_tadd_T1_T0_ccTV(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (T0 < src1)
-	env->xcc |= PSR_CARRY;
+        env->xcc |= PSR_CARRY;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (T0 < src1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
 #endif
     FORCE_RET();
 }
@@ -576,33 +576,33 @@ void OPPROTO op_sub_T1_T0_cc(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
-	env->psr |= PSR_OVF;
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        env->psr |= PSR_OVF;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (src1 < T1)
-	env->xcc |= PSR_CARRY;
+        env->xcc |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
-	env->xcc |= PSR_OVF;
+        env->xcc |= PSR_OVF;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (src1 < T1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -648,26 +648,26 @@ void OPPROTO op_subx_T1_T0_cc(void)
     }
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
-	env->psr |= PSR_OVF;
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        env->psr |= PSR_OVF;
 
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
-	env->xcc |= PSR_OVF;
+        env->xcc |= PSR_OVF;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -681,37 +681,37 @@ void OPPROTO op_tsub_T1_T0_cc(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
-	env->psr |= PSR_OVF;
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+        env->psr |= PSR_OVF;
     if ((src1 & 0x03) || (T1 & 0x03))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (src1 < T1)
-	env->xcc |= PSR_CARRY;
+        env->xcc |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
-	env->xcc |= PSR_OVF;
+        env->xcc |= PSR_OVF;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (src1 < T1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
     if ((src1 & 0x03) || (T1 & 0x03))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -728,7 +728,7 @@ void OPPROTO op_tsub_T1_T0_ccTV(void)
 
 #ifdef TARGET_SPARC64
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
-	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+         ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
         raise_exception(TT_TOVF);
 #else
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
@@ -738,26 +738,26 @@ void OPPROTO op_tsub_T1_T0_ccTV(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
     if (src1 < T1)
-	env->xcc |= PSR_CARRY;
+        env->xcc |= PSR_CARRY;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (src1 < T1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
 #endif
     FORCE_RET();
 }
@@ -833,13 +833,13 @@ void OPPROTO op_mulscc_T1_T0(void)
     T0 += T1;
     env->psr = 0;
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (T0 < src1)
-	env->psr |= PSR_CARRY;
+        env->psr |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
     env->y = (b2 << 31) | (env->y >> 1);
     FORCE_RET();
 }
@@ -858,11 +858,11 @@ void OPPROTO op_udiv_T1_T0(void)
 
     x0 = x0 / x1;
     if (x0 > 0xffffffff) {
-	T0 = 0xffffffff;
-	T1 = 1;
+        T0 = 0xffffffff;
+        T1 = 1;
     } else {
-	T0 = x0;
-	T1 = 0;
+        T0 = x0;
+        T1 = 0;
     }
     FORCE_RET();
 }
@@ -881,11 +881,11 @@ void OPPROTO op_sdiv_T1_T0(void)
 
     x0 = x0 / x1;
     if ((int32_t) x0 != x0) {
-	T0 = x0 < 0? 0x80000000: 0x7fffffff;
-	T1 = 1;
+        T0 = x0 < 0? 0x80000000: 0x7fffffff;
+        T1 = 1;
     } else {
-	T0 = x0;
-	T1 = 0;
+        T0 = x0;
+        T1 = 0;
     }
     FORCE_RET();
 }
@@ -895,24 +895,24 @@ void OPPROTO op_div_cc(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (T1)
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
     if (T1)
-	env->psr |= PSR_OVF;
+        env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
 }
@@ -939,9 +939,9 @@ void OPPROTO op_sdivx_T1_T0(void)
         raise_exception(TT_DIV_ZERO);
     }
     if (T0 == INT64_MIN && T1 == -1)
-	T0 = INT64_MIN;
+        T0 = INT64_MIN;
     else
-	T0 /= (target_long) T1;
+        T0 /= (target_long) T1;
     FORCE_RET();
 }
 #endif
@@ -951,20 +951,20 @@ void OPPROTO op_logic_T0_cc(void)
     env->psr = 0;
 #ifdef TARGET_SPARC64
     if (!(T0 & 0xffffffff))
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
 
     env->xcc = 0;
     if (!T0)
-	env->xcc |= PSR_ZERO;
+        env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
-	env->xcc |= PSR_NEG;
+        env->xcc |= PSR_NEG;
 #else
     if (!T0)
-	env->psr |= PSR_ZERO;
+        env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
-	env->psr |= PSR_NEG;
+        env->psr |= PSR_NEG;
 #endif
     FORCE_RET();
 }
@@ -1200,17 +1200,17 @@ void OPPROTO op_save(void)
     cwp = (env->cwp - 1) & (NWINDOWS - 1);
     if (env->cansave == 0) {
         raise_exception(TT_SPILL | (env->otherwin != 0 ?
-				    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-				    ((env->wstate & 0x7) << 2)));
+                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+                                    ((env->wstate & 0x7) << 2)));
     } else {
-	if (env->cleanwin - env->canrestore == 0) {
-	    // XXX Clean windows without trap
-	    raise_exception(TT_CLRWIN);
-	} else {
-	    env->cansave--;
-	    env->canrestore++;
-	    set_cwp(cwp);
-	}
+        if (env->cleanwin - env->canrestore == 0) {
+            // XXX Clean windows without trap
+            raise_exception(TT_CLRWIN);
+        } else {
+            env->cansave--;
+            env->canrestore++;
+            set_cwp(cwp);
+        }
     }
     FORCE_RET();
 }
@@ -1221,12 +1221,12 @@ void OPPROTO op_restore(void)
     cwp = (env->cwp + 1) & (NWINDOWS - 1);
     if (env->canrestore == 0) {
         raise_exception(TT_FILL | (env->otherwin != 0 ?
-				   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-				   ((env->wstate & 0x7) << 2)));
+                                   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+                                   ((env->wstate & 0x7) << 2)));
     } else {
-	env->cansave++;
-	env->canrestore--;
-	set_cwp(cwp);
+        env->cansave++;
+        env->canrestore--;
+        set_cwp(cwp);
     }
     FORCE_RET();
 }
@@ -1576,15 +1576,15 @@ void OPPROTO op_clear_ieee_excp_and_FTT(void)
 #define F_BINOP(name)                                           \
     F_OP(name, s)                                               \
     {                                                           \
-	set_float_exception_flags(0, &env->fp_status);		\
+        set_float_exception_flags(0, &env->fp_status);          \
         FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
-	check_ieee_exceptions();				\
+        check_ieee_exceptions();                                \
     }                                                           \
     F_OP(name, d)                                               \
     {                                                           \
-	set_float_exception_flags(0, &env->fp_status);		\
+        set_float_exception_flags(0, &env->fp_status);          \
         DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
-	check_ieee_exceptions();				\
+        check_ieee_exceptions();                                \
     }
 
 F_BINOP(add);
@@ -1784,27 +1784,27 @@ void OPPROTO op_fdtox(void)
 void OPPROTO op_fmovs_cc(void)
 {
     if (T2)
-	FT0 = FT1;
+        FT0 = FT1;
 }
 
 void OPPROTO op_fmovd_cc(void)
 {
     if (T2)
-	DT0 = DT1;
+        DT0 = DT1;
 }
 
 void OPPROTO op_mov_cc(void)
 {
     if (T2)
-	T0 = T1;
+        T0 = T1;
 }
 
 void OPPROTO op_flushw(void)
 {
     if (env->cansave != NWINDOWS - 2) {
         raise_exception(TT_SPILL | (env->otherwin != 0 ?
-				    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-				    ((env->wstate & 0x7) << 2)));
+                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+                                    ((env->wstate & 0x7) << 2)));
     }
 }
 
@@ -1812,9 +1812,9 @@ void OPPROTO op_saved(void)
 {
     env->cansave++;
     if (env->otherwin == 0)
-	env->canrestore--;
+        env->canrestore--;
     else
-	env->otherwin--;
+        env->otherwin--;
     FORCE_RET();
 }
 
@@ -1822,11 +1822,11 @@ void OPPROTO op_restored(void)
 {
     env->canrestore++;
     if (env->cleanwin < NWINDOWS - 1)
-	env->cleanwin++;
+        env->cleanwin++;
     if (env->otherwin == 0)
-	env->cansave--;
+        env->cansave--;
     else
-	env->otherwin--;
+        env->otherwin--;
     FORCE_RET();
 }
 

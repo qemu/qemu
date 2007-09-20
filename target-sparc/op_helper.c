@@ -16,29 +16,29 @@ void check_ieee_exceptions()
      T0 = get_float_exception_flags(&env->fp_status);
      if (T0)
      {
-	/* Copy IEEE 754 flags into FSR */
-	if (T0 & float_flag_invalid)
-	    env->fsr |= FSR_NVC;
-	if (T0 & float_flag_overflow)
-	    env->fsr |= FSR_OFC;
-	if (T0 & float_flag_underflow)
-	    env->fsr |= FSR_UFC;
-	if (T0 & float_flag_divbyzero)
-	    env->fsr |= FSR_DZC;
-	if (T0 & float_flag_inexact)
-	    env->fsr |= FSR_NXC;
+        /* Copy IEEE 754 flags into FSR */
+        if (T0 & float_flag_invalid)
+            env->fsr |= FSR_NVC;
+        if (T0 & float_flag_overflow)
+            env->fsr |= FSR_OFC;
+        if (T0 & float_flag_underflow)
+            env->fsr |= FSR_UFC;
+        if (T0 & float_flag_divbyzero)
+            env->fsr |= FSR_DZC;
+        if (T0 & float_flag_inexact)
+            env->fsr |= FSR_NXC;
 
-	if ((env->fsr & FSR_CEXC_MASK) & ((env->fsr & FSR_TEM_MASK) >> 23))
-	{
-	    /* Unmasked exception, generate a trap */
-	    env->fsr |= FSR_FTT_IEEE_EXCP;
-	    raise_exception(TT_FP_EXCP);
-	}
-	else
-	{
-	    /* Accumulate exceptions */
-	    env->fsr |= (env->fsr & FSR_CEXC_MASK) << 5;
-	}
+        if ((env->fsr & FSR_CEXC_MASK) & ((env->fsr & FSR_TEM_MASK) >> 23))
+        {
+            /* Unmasked exception, generate a trap */
+            env->fsr |= FSR_FTT_IEEE_EXCP;
+            raise_exception(TT_FP_EXCP);
+        }
+        else
+        {
+            /* Accumulate exceptions */
+            env->fsr |= (env->fsr & FSR_CEXC_MASK) << 5;
+        }
      }
 }
 
@@ -155,33 +155,33 @@ void helper_ld_asi(int asi, int size, int sign)
     case 2: /* SuperSparc MXCC registers */
         break;
     case 3: /* MMU probe */
-	{
-	    int mmulev;
+        {
+            int mmulev;
 
-	    mmulev = (T0 >> 8) & 15;
-	    if (mmulev > 4)
-		ret = 0;
-	    else {
-		ret = mmu_probe(env, T0, mmulev);
-		//bswap32s(&ret);
-	    }
+            mmulev = (T0 >> 8) & 15;
+            if (mmulev > 4)
+                ret = 0;
+            else {
+                ret = mmu_probe(env, T0, mmulev);
+                //bswap32s(&ret);
+            }
 #ifdef DEBUG_MMU
-	    printf("mmu_probe: 0x%08x (lev %d) -> 0x%08x\n", T0, mmulev, ret);
+            printf("mmu_probe: 0x%08x (lev %d) -> 0x%08x\n", T0, mmulev, ret);
 #endif
-	}
-	break;
+        }
+        break;
     case 4: /* read MMU regs */
-	{
-	    int reg = (T0 >> 8) & 0xf;
+        {
+            int reg = (T0 >> 8) & 0xf;
 
-	    ret = env->mmuregs[reg];
-	    if (reg == 3) /* Fault status cleared on read */
-		env->mmuregs[reg] = 0;
+            ret = env->mmuregs[reg];
+            if (reg == 3) /* Fault status cleared on read */
+                env->mmuregs[reg] = 0;
 #ifdef DEBUG_MMU
-	    printf("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
+            printf("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
 #endif
-	}
-	break;
+        }
+        break;
     case 9: /* Supervisor code access */
         switch(size) {
         case 1:
@@ -218,11 +218,11 @@ void helper_ld_asi(int asi, int size, int sign)
             ret = ldl_phys(T0 & ~3);
             break;
         case 8:
-	    ret = ldl_phys(T0 & ~3);
-	    T0 = ldl_phys((T0 + 4) & ~3);
-	    break;
+            ret = ldl_phys(T0 & ~3);
+            T0 = ldl_phys((T0 + 4) & ~3);
+            break;
         }
-	break;
+        break;
     case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
     case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
         switch(size) {
@@ -244,14 +244,14 @@ void helper_ld_asi(int asi, int size, int sign)
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
             T0 = ldl_phys((target_phys_addr_t)((T0 + 4) & ~3)
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
-	    break;
+            break;
         }
-	break;
+        break;
     case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 0, 0, 1);
-	ret = 0;
-	break;
+        ret = 0;
+        break;
     }
     T1 = ret;
 }
@@ -262,48 +262,48 @@ void helper_st_asi(int asi, int size, int sign)
     case 2: /* SuperSparc MXCC registers */
         break;
     case 3: /* MMU flush */
-	{
-	    int mmulev;
+        {
+            int mmulev;
 
-	    mmulev = (T0 >> 8) & 15;
+            mmulev = (T0 >> 8) & 15;
 #ifdef DEBUG_MMU
-	    printf("mmu flush level %d\n", mmulev);
+            printf("mmu flush level %d\n", mmulev);
 #endif
-	    switch (mmulev) {
-	    case 0: // flush page
-		tlb_flush_page(env, T0 & 0xfffff000);
-		break;
-	    case 1: // flush segment (256k)
-	    case 2: // flush region (16M)
-	    case 3: // flush context (4G)
-	    case 4: // flush entire
-		tlb_flush(env, 1);
-		break;
-	    default:
-		break;
-	    }
+            switch (mmulev) {
+            case 0: // flush page
+                tlb_flush_page(env, T0 & 0xfffff000);
+                break;
+            case 1: // flush segment (256k)
+            case 2: // flush region (16M)
+            case 3: // flush context (4G)
+            case 4: // flush entire
+                tlb_flush(env, 1);
+                break;
+            default:
+                break;
+            }
 #ifdef DEBUG_MMU
-	    dump_mmu(env);
+            dump_mmu(env);
 #endif
-	    return;
-	}
+            return;
+        }
     case 4: /* write MMU regs */
-	{
-	    int reg = (T0 >> 8) & 0xf;
-	    uint32_t oldreg;
+        {
+            int reg = (T0 >> 8) & 0xf;
+            uint32_t oldreg;
 
-	    oldreg = env->mmuregs[reg];
+            oldreg = env->mmuregs[reg];
             switch(reg) {
             case 0:
-		env->mmuregs[reg] &= ~(MMU_E | MMU_NF);
-		env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF);
-		// Mappings generated during no-fault mode or MMU
-		// disabled mode are invalid in normal mode
+                env->mmuregs[reg] &= ~(MMU_E | MMU_NF);
+                env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF);
+                // Mappings generated during no-fault mode or MMU
+                // disabled mode are invalid in normal mode
                 if (oldreg != env->mmuregs[reg])
                     tlb_flush(env, 1);
                 break;
             case 2:
-		env->mmuregs[reg] = T1;
+                env->mmuregs[reg] = T1;
                 if (oldreg != env->mmuregs[reg]) {
                     /* we flush when the MMU context changes because
                        QEMU has no MMU context support */
@@ -314,17 +314,17 @@ void helper_st_asi(int asi, int size, int sign)
             case 4:
                 break;
             default:
-		env->mmuregs[reg] = T1;
+                env->mmuregs[reg] = T1;
                 break;
             }
 #ifdef DEBUG_MMU
             if (oldreg != env->mmuregs[reg]) {
                 printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->mmuregs[reg]);
             }
-	    dump_mmu(env);
+            dump_mmu(env);
 #endif
-	    return;
-	}
+            return;
+        }
     case 0xc: /* I-cache tag */
     case 0xd: /* I-cache data */
     case 0xe: /* D-cache tag */
@@ -336,10 +336,10 @@ void helper_st_asi(int asi, int size, int sign)
     case 0x14: /* I/D-cache flush user */
         break;
     case 0x17: /* Block copy, sta access */
-	{
-	    // value (T1) = src
-	    // address (T0) = dst
-	    // copy 32 bytes
+        {
+            // value (T1) = src
+            // address (T0) = dst
+            // copy 32 bytes
             unsigned int i;
             uint32_t src = T1 & ~3, dst = T0 & ~3, temp;
 
@@ -347,13 +347,13 @@ void helper_st_asi(int asi, int size, int sign)
                 temp = ldl_kernel(src);
                 stl_kernel(dst, temp);
             }
-	}
-	return;
+        }
+        return;
     case 0x1f: /* Block fill, stda access */
-	{
-	    // value (T1, T2)
-	    // address (T0) = dst
-	    // fill 32 bytes
+        {
+            // value (T1, T2)
+            // address (T0) = dst
+            // fill 32 bytes
             unsigned int i;
             uint32_t dst = T0 & 7;
             uint64_t val;
@@ -362,10 +362,10 @@ void helper_st_asi(int asi, int size, int sign)
 
             for (i = 0; i < 32; i += 8, dst += 8)
                 stq_kernel(dst, val);
-	}
-	return;
+        }
+        return;
     case 0x20: /* MMU passthrough */
-	{
+        {
             switch(size) {
             case 1:
                 stb_phys(T0, T1);
@@ -382,11 +382,11 @@ void helper_st_asi(int asi, int size, int sign)
                 stl_phys((T0 + 4) & ~3, T2);
                 break;
             }
-	}
-	return;
+        }
+        return;
     case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
     case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
-	{
+        {
             switch(size) {
             case 1:
                 stb_phys((target_phys_addr_t)T0
@@ -408,8 +408,8 @@ void helper_st_asi(int asi, int size, int sign)
                            | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
                 break;
             }
-	}
-	return;
+        }
+        return;
     case 0x31: /* Ross RT620 I-cache flush */
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
@@ -418,7 +418,7 @@ void helper_st_asi(int asi, int size, int sign)
     case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 1, 0, 1);
-	return;
+        return;
     }
 }
 
@@ -429,12 +429,12 @@ void helper_ld_asi(int asi, int size, int sign)
     uint64_t ret = 0;
 
     if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-	raise_exception(TT_PRIV_ACT);
+        raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
     case 0x14: // Bypass
     case 0x15: // Bypass, non-cacheable
-	{
+        {
             switch(size) {
             case 1:
                 ret = ldub_phys(T0);
@@ -450,8 +450,8 @@ void helper_ld_asi(int asi, int size, int sign)
                 ret = ldq_phys(T0 & ~7);
                 break;
             }
-	    break;
-	}
+            break;
+        }
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
     case 0x10: // As if user primary
@@ -469,58 +469,58 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x89: // Secondary LE
     case 0x8a: // Primary no-fault LE
     case 0x8b: // Secondary no-fault LE
-	// XXX
-	break;
+        // XXX
+        break;
     case 0x45: // LSU
-	ret = env->lsu;
-	break;
+        ret = env->lsu;
+        break;
     case 0x50: // I-MMU regs
-	{
-	    int reg = (T0 >> 3) & 0xf;
+        {
+            int reg = (T0 >> 3) & 0xf;
 
-	    ret = env->immuregs[reg];
-	    break;
-	}
+            ret = env->immuregs[reg];
+            break;
+        }
     case 0x51: // I-MMU 8k TSB pointer
     case 0x52: // I-MMU 64k TSB pointer
     case 0x55: // I-MMU data access
-	// XXX
-	break;
+        // XXX
+        break;
     case 0x56: // I-MMU tag read
-	{
-	    unsigned int i;
+        {
+            unsigned int i;
 
-	    for (i = 0; i < 64; i++) {
-		// Valid, ctx match, vaddr match
-		if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0 &&
-		    env->itlb_tag[i] == T0) {
-		    ret = env->itlb_tag[i];
-		    break;
-		}
-	    }
-	    break;
-	}
+            for (i = 0; i < 64; i++) {
+                // Valid, ctx match, vaddr match
+                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0 &&
+                    env->itlb_tag[i] == T0) {
+                    ret = env->itlb_tag[i];
+                    break;
+                }
+            }
+            break;
+        }
     case 0x58: // D-MMU regs
-	{
-	    int reg = (T0 >> 3) & 0xf;
+        {
+            int reg = (T0 >> 3) & 0xf;
 
-	    ret = env->dmmuregs[reg];
-	    break;
-	}
+            ret = env->dmmuregs[reg];
+            break;
+        }
     case 0x5e: // D-MMU tag read
-	{
-	    unsigned int i;
+        {
+            unsigned int i;
 
-	    for (i = 0; i < 64; i++) {
-		// Valid, ctx match, vaddr match
-		if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0 &&
-		    env->dtlb_tag[i] == T0) {
-		    ret = env->dtlb_tag[i];
-		    break;
-		}
-	    }
-	    break;
-	}
+            for (i = 0; i < 64; i++) {
+                // Valid, ctx match, vaddr match
+                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0 &&
+                    env->dtlb_tag[i] == T0) {
+                    ret = env->dtlb_tag[i];
+                    break;
+                }
+            }
+            break;
+        }
     case 0x59: // D-MMU 8k TSB pointer
     case 0x5a: // D-MMU 64k TSB pointer
     case 0x5b: // D-MMU data pointer
@@ -528,8 +528,8 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x48: // Interrupt dispatch, RO
     case 0x49: // Interrupt data receive
     case 0x7f: // Incoming interrupt vector, RO
-	// XXX
-	break;
+        // XXX
+        break;
     case 0x54: // I-MMU data in, WO
     case 0x57: // I-MMU demap, WO
     case 0x5c: // D-MMU data in, WO
@@ -537,8 +537,8 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x77: // Interrupt vector, WO
     default:
         do_unassigned_access(T0, 0, 0, 1);
-	ret = 0;
-	break;
+        ret = 0;
+        break;
     }
     T1 = ret;
 }
@@ -546,12 +546,12 @@ void helper_ld_asi(int asi, int size, int sign)
 void helper_st_asi(int asi, int size, int sign)
 {
     if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-	raise_exception(TT_PRIV_ACT);
+        raise_exception(TT_PRIV_ACT);
 
     switch(asi) {
     case 0x14: // Bypass
     case 0x15: // Bypass, non-cacheable
-	{
+        {
             switch(size) {
             case 1:
                 stb_phys(T0, T1);
@@ -567,8 +567,8 @@ void helper_st_asi(int asi, int size, int sign)
                 stq_phys(T0 & ~7, T1);
                 break;
             }
-	}
-	return;
+        }
+        return;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
     case 0x10: // As if user primary
@@ -582,31 +582,31 @@ void helper_st_asi(int asi, int size, int sign)
     case 0x4a: // UPA config
     case 0x88: // Primary LE
     case 0x89: // Secondary LE
-	// XXX
-	return;
+        // XXX
+        return;
     case 0x45: // LSU
-	{
-	    uint64_t oldreg;
+        {
+            uint64_t oldreg;
 
-	    oldreg = env->lsu;
-	    env->lsu = T1 & (DMMU_E | IMMU_E);
-	    // Mappings generated during D/I MMU disabled mode are
-	    // invalid in normal mode
-	    if (oldreg != env->lsu) {
+            oldreg = env->lsu;
+            env->lsu = T1 & (DMMU_E | IMMU_E);
+            // Mappings generated during D/I MMU disabled mode are
+            // invalid in normal mode
+            if (oldreg != env->lsu) {
 #ifdef DEBUG_MMU
                 printf("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n", oldreg, env->lsu);
-		dump_mmu(env);
+                dump_mmu(env);
 #endif
-		tlb_flush(env, 1);
-	    }
-	    return;
-	}
+                tlb_flush(env, 1);
+            }
+            return;
+        }
     case 0x50: // I-MMU regs
-	{
-	    int reg = (T0 >> 3) & 0xf;
-	    uint64_t oldreg;
+        {
+            int reg = (T0 >> 3) & 0xf;
+            uint64_t oldreg;
 
-	    oldreg = env->immuregs[reg];
+            oldreg = env->immuregs[reg];
             switch(reg) {
             case 0: // RO
             case 4:
@@ -617,73 +617,73 @@ void helper_st_asi(int asi, int size, int sign)
             case 8:
                 return;
             case 3: // SFSR
-		if ((T1 & 1) == 0)
-		    T1 = 0; // Clear SFSR
+                if ((T1 & 1) == 0)
+                    T1 = 0; // Clear SFSR
                 break;
             case 5: // TSB access
             case 6: // Tag access
             default:
                 break;
             }
-	    env->immuregs[reg] = T1;
+            env->immuregs[reg] = T1;
 #ifdef DEBUG_MMU
             if (oldreg != env->immuregs[reg]) {
                 printf("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08" PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
-	    dump_mmu(env);
+            dump_mmu(env);
 #endif
-	    return;
-	}
+            return;
+        }
     case 0x54: // I-MMU data in
-	{
-	    unsigned int i;
+        {
+            unsigned int i;
 
-	    // Try finding an invalid entry
-	    for (i = 0; i < 64; i++) {
-		if ((env->itlb_tte[i] & 0x8000000000000000ULL) == 0) {
-		    env->itlb_tag[i] = env->immuregs[6];
-		    env->itlb_tte[i] = T1;
-		    return;
-		}
-	    }
-	    // Try finding an unlocked entry
-	    for (i = 0; i < 64; i++) {
-		if ((env->itlb_tte[i] & 0x40) == 0) {
-		    env->itlb_tag[i] = env->immuregs[6];
-		    env->itlb_tte[i] = T1;
-		    return;
-		}
-	    }
-	    // error state?
-	    return;
-	}
+            // Try finding an invalid entry
+            for (i = 0; i < 64; i++) {
+                if ((env->itlb_tte[i] & 0x8000000000000000ULL) == 0) {
+                    env->itlb_tag[i] = env->immuregs[6];
+                    env->itlb_tte[i] = T1;
+                    return;
+                }
+            }
+            // Try finding an unlocked entry
+            for (i = 0; i < 64; i++) {
+                if ((env->itlb_tte[i] & 0x40) == 0) {
+                    env->itlb_tag[i] = env->immuregs[6];
+                    env->itlb_tte[i] = T1;
+                    return;
+                }
+            }
+            // error state?
+            return;
+        }
     case 0x55: // I-MMU data access
-	{
-	    unsigned int i = (T0 >> 3) & 0x3f;
+        {
+            unsigned int i = (T0 >> 3) & 0x3f;
 
-	    env->itlb_tag[i] = env->immuregs[6];
-	    env->itlb_tte[i] = T1;
-	    return;
-	}
+            env->itlb_tag[i] = env->immuregs[6];
+            env->itlb_tte[i] = T1;
+            return;
+        }
     case 0x57: // I-MMU demap
-	// XXX
-	return;
+        // XXX
+        return;
     case 0x58: // D-MMU regs
-	{
-	    int reg = (T0 >> 3) & 0xf;
-	    uint64_t oldreg;
+        {
+            int reg = (T0 >> 3) & 0xf;
+            uint64_t oldreg;
 
-	    oldreg = env->dmmuregs[reg];
+            oldreg = env->dmmuregs[reg];
             switch(reg) {
             case 0: // RO
             case 4:
                 return;
             case 3: // SFSR
-		if ((T1 & 1) == 0) {
-		    T1 = 0; // Clear SFSR, Fault address
-		    env->dmmuregs[4] = 0;
-		}
-		env->dmmuregs[reg] = T1;
+                if ((T1 & 1) == 0) {
+                    T1 = 0; // Clear SFSR, Fault address
+                    env->dmmuregs[4] = 0;
+                }
+                env->dmmuregs[reg] = T1;
                 break;
             case 1: // Primary context
             case 2: // Secondary context
@@ -694,50 +694,50 @@ void helper_st_asi(int asi, int size, int sign)
             default:
                 break;
             }
-	    env->dmmuregs[reg] = T1;
+            env->dmmuregs[reg] = T1;
 #ifdef DEBUG_MMU
             if (oldreg != env->dmmuregs[reg]) {
                 printf("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08" PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }
-	    dump_mmu(env);
+            dump_mmu(env);
 #endif
-	    return;
-	}
+            return;
+        }
     case 0x5c: // D-MMU data in
-	{
-	    unsigned int i;
+        {
+            unsigned int i;
 
-	    // Try finding an invalid entry
-	    for (i = 0; i < 64; i++) {
-		if ((env->dtlb_tte[i] & 0x8000000000000000ULL) == 0) {
-		    env->dtlb_tag[i] = env->dmmuregs[6];
-		    env->dtlb_tte[i] = T1;
-		    return;
-		}
-	    }
-	    // Try finding an unlocked entry
-	    for (i = 0; i < 64; i++) {
-		if ((env->dtlb_tte[i] & 0x40) == 0) {
-		    env->dtlb_tag[i] = env->dmmuregs[6];
-		    env->dtlb_tte[i] = T1;
-		    return;
-		}
-	    }
-	    // error state?
-	    return;
-	}
+            // Try finding an invalid entry
+            for (i = 0; i < 64; i++) {
+                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) == 0) {
+                    env->dtlb_tag[i] = env->dmmuregs[6];
+                    env->dtlb_tte[i] = T1;
+                    return;
+                }
+            }
+            // Try finding an unlocked entry
+            for (i = 0; i < 64; i++) {
+                if ((env->dtlb_tte[i] & 0x40) == 0) {
+                    env->dtlb_tag[i] = env->dmmuregs[6];
+                    env->dtlb_tte[i] = T1;
+                    return;
+                }
+            }
+            // error state?
+            return;
+        }
     case 0x5d: // D-MMU data access
-	{
-	    unsigned int i = (T0 >> 3) & 0x3f;
+        {
+            unsigned int i = (T0 >> 3) & 0x3f;
 
-	    env->dtlb_tag[i] = env->dmmuregs[6];
-	    env->dtlb_tte[i] = T1;
-	    return;
-	}
+            env->dtlb_tag[i] = env->dmmuregs[6];
+            env->dtlb_tte[i] = T1;
+            return;
+        }
     case 0x5f: // D-MMU demap
     case 0x49: // Interrupt data receive
-	// XXX
-	return;
+        // XXX
+        return;
     case 0x51: // I-MMU 8k TSB pointer, RO
     case 0x52: // I-MMU 64k TSB pointer, RO
     case 0x56: // I-MMU tag read, RO
@@ -753,7 +753,7 @@ void helper_st_asi(int asi, int size, int sign)
     case 0x8b: // Secondary no-fault LE, RO
     default:
         do_unassigned_access(T0, 1, 0, 1);
-	return;
+        return;
     }
 }
 #endif
@@ -783,17 +783,17 @@ void helper_ldfsr(void)
     switch (env->fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
         rnd_mode = float_round_nearest_even;
-	break;
+        break;
     default:
     case FSR_RD_ZERO:
         rnd_mode = float_round_to_zero;
-	break;
+        break;
     case FSR_RD_POS:
         rnd_mode = float_round_up;
-	break;
+        break;
     case FSR_RD_NEG:
         rnd_mode = float_round_down;
-	break;
+        break;
     }
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
@@ -835,13 +835,13 @@ static inline uint64_t *get_gregset(uint64_t pstate)
     switch (pstate) {
     default:
     case 0:
-	return env->bgregs;
+        return env->bgregs;
     case PS_AG:
-	return env->agregs;
+        return env->agregs;
     case PS_MG:
-	return env->mgregs;
+        return env->mgregs;
     case PS_IG:
-	return env->igregs;
+        return env->igregs;
     }
 }
 
@@ -853,11 +853,11 @@ static inline void change_pstate(uint64_t new_pstate)
     pstate_regs = env->pstate & 0xc01;
     new_pstate_regs = new_pstate & 0xc01;
     if (new_pstate_regs != pstate_regs) {
-	// Switch global register bank
-	src = get_gregset(new_pstate_regs);
-	dst = get_gregset(pstate_regs);
-	memcpy32(dst, env->gregs);
-	memcpy32(env->gregs, src);
+        // Switch global register bank
+        src = get_gregset(new_pstate_regs);
+        dst = get_gregset(pstate_regs);
+        memcpy32(dst, env->gregs);
+        memcpy32(env->gregs, src);
     }
     env->pstate = new_pstate;
 }
@@ -927,36 +927,36 @@ void do_interrupt(int intno)
 {
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
-	static int count;
-	fprintf(logfile, "%6d: v=%04x pc=%016" PRIx64 " npc=%016" PRIx64 " SP=%016" PRIx64 "\n",
+        static int count;
+        fprintf(logfile, "%6d: v=%04x pc=%016" PRIx64 " npc=%016" PRIx64 " SP=%016" PRIx64 "\n",
                 count, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
-	cpu_dump_state(env, logfile, fprintf, 0);
+        cpu_dump_state(env, logfile, fprintf, 0);
 #if 0
-	{
-	    int i;
-	    uint8_t *ptr;
+        {
+            int i;
+            uint8_t *ptr;
 
-	    fprintf(logfile, "       code=");
-	    ptr = (uint8_t *)env->pc;
-	    for(i = 0; i < 16; i++) {
-		fprintf(logfile, " %02x", ldub(ptr + i));
-	    }
-	    fprintf(logfile, "\n");
-	}
+            fprintf(logfile, "       code=");
+            ptr = (uint8_t *)env->pc;
+            for(i = 0; i < 16; i++) {
+                fprintf(logfile, " %02x", ldub(ptr + i));
+            }
+            fprintf(logfile, "\n");
+        }
 #endif
-	count++;
+        count++;
     }
 #endif
 #if !defined(CONFIG_USER_ONLY)
     if (env->tl == MAXTL) {
         cpu_abort(env, "Trap 0x%04x while trap level is MAXTL, Error state", env->exception_index);
-	return;
+        return;
     }
 #endif
     env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
-	((env->pstate & 0xf3f) << 8) | GET_CWP64(env);
+        ((env->pstate & 0xf3f) << 8) | GET_CWP64(env);
     env->tpc[env->tl] = env->pc;
     env->tnpc[env->tl] = env->npc;
     env->tt[env->tl] = intno;
@@ -971,11 +971,11 @@ void do_interrupt(int intno)
     env->tbr &= ~0x7fffULL;
     env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
     if (env->tl < MAXTL - 1) {
-	env->tl++;
+        env->tl++;
     } else {
-	env->pstate |= PS_RED;
-	if (env->tl != MAXTL)
-	    env->tl++;
+        env->pstate |= PS_RED;
+        if (env->tl != MAXTL)
+            env->tl++;
     }
     env->pc = env->tbr;
     env->npc = env->pc + 4;
@@ -988,32 +988,32 @@ void do_interrupt(int intno)
 
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
-	static int count;
-	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
+        static int count;
+        fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
                 count, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
-	cpu_dump_state(env, logfile, fprintf, 0);
+        cpu_dump_state(env, logfile, fprintf, 0);
 #if 0
-	{
-	    int i;
-	    uint8_t *ptr;
+        {
+            int i;
+            uint8_t *ptr;
 
-	    fprintf(logfile, "       code=");
-	    ptr = (uint8_t *)env->pc;
-	    for(i = 0; i < 16; i++) {
-		fprintf(logfile, " %02x", ldub(ptr + i));
-	    }
-	    fprintf(logfile, "\n");
-	}
+            fprintf(logfile, "       code=");
+            ptr = (uint8_t *)env->pc;
+            for(i = 0; i < 16; i++) {
+                fprintf(logfile, " %02x", ldub(ptr + i));
+            }
+            fprintf(logfile, "\n");
+        }
 #endif
-	count++;
+        count++;
     }
 #endif
 #if !defined(CONFIG_USER_ONLY)
     if (env->psret == 0) {
         cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
-	return;
+        return;
     }
 #endif
     env->psret = 0;
@@ -1106,7 +1106,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     saved_env = env;
     env = cpu_single_env;
     if (env->mmuregs[3]) /* Fault status register */
-	env->mmuregs[3] = 1; /* overflow (not read before another fault) */
+        env->mmuregs[3] = 1; /* overflow (not read before another fault) */
     if (is_asi)
         env->mmuregs[3] |= 1 << 16;
     if (env->psrs)

@@ -2,13 +2,13 @@
 #define SPARC_LD_OP(name, qp)                                                 \
 void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)                           \
 {                                                                             \
-    T1 = (target_ulong)glue(qp, MEMSUFFIX)(T0);				\
+    T1 = (target_ulong)glue(qp, MEMSUFFIX)(T0);                         \
 }
 
-#define SPARC_LD_OP_S(name, qp)						\
-    void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)			\
-    {									\
-	T1 = (target_long)glue(qp, MEMSUFFIX)(T0);			\
+#define SPARC_LD_OP_S(name, qp)                                         \
+    void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)                 \
+    {                                                                   \
+        T1 = (target_long)glue(qp, MEMSUFFIX)(T0);                      \
     }
 
 #define SPARC_ST_OP(name, op)                                                 \
@@ -85,7 +85,7 @@ void OPPROTO glue(op_cas, MEMSUFFIX)(void)
     tmp = glue(ldl, MEMSUFFIX)(T0);
     T2 &=  0xffffffffULL;
     if (tmp == (T1 & 0xffffffffULL)) {
-	glue(stl, MEMSUFFIX)(T0, T2);
+        glue(stl, MEMSUFFIX)(T0, T2);
     }
     T2 = tmp;
 }
@@ -98,7 +98,7 @@ void OPPROTO glue(op_casx, MEMSUFFIX)(void)
     tmp = (uint64_t)glue(ldl, MEMSUFFIX)(T0) << 32;
     tmp |= glue(ldl, MEMSUFFIX)(T0);
     if (tmp == T1) {
-	glue(stq, MEMSUFFIX)(T0, T2);
+        glue(stq, MEMSUFFIX)(T0, T2);
     }
     T2 = tmp;
 }
