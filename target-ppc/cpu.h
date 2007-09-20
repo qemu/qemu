@@ -88,10 +88,6 @@ typedef uint32_t ppc_gpr_t;
 #define ICACHE_LINE_SIZE 32
 #define DCACHE_LINE_SIZE 32
 
-/* XXX: put this in a common place */
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC */
 enum {
