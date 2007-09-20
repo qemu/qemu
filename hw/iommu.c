@@ -202,7 +202,8 @@ static CPUWriteMemoryFunc *iommu_mem_write[3] = {
 
 static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
 {
-    uint32_t iopte, ret;
+    uint32_t ret;
+    target_phys_addr_t iopte;
 #ifdef DEBUG_IOMMU
     target_phys_addr_t pa = addr;
 #endif
@@ -210,9 +211,10 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
     iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (PAGE_SHIFT - 2)) & ~3;
-    ret = ldl_phys(iopte);
-    DPRINTF("get flags addr " TARGET_FMT_plx " => pte %x, *ptes = %x\n", pa,
-            iopte, ret);
+    cpu_physical_memory_read(iopte, (uint8_t *)&ret, 4);
+    bswap32s(&ret);
+    DPRINTF("get flags addr " TARGET_FMT_plx " => pte " TARGET_FMT_plx
+            ", *pte = %x\n", pa, iopte, ret);
 
     return ret;
 }
