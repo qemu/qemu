@@ -61,7 +61,8 @@
 
 #define DEBUG_BLOCK
 #if defined(DEBUG_BLOCK) && !defined(QEMU_TOOL)
-#define DEBUG_BLOCK_PRINT(formatCstr, args...) fprintf(logfile, formatCstr, ##args); fflush(logfile)
+#define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
+    { fprintf(stderr, formatCstr, ##args); fflush(stderr); } } while (0)
 #else
 #define DEBUG_BLOCK_PRINT(formatCstr, args...)
 #endif
@@ -162,7 +163,7 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     if (ret == count)
         goto label__raw_read__success;
 
-    DEBUG_BLOCK_PRINT("raw_read(%d:%s, %lld, %p, %d) [%lld] read failed %d : %d = %s\n",
+    DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %lld, %p, %d) [%lld] read failed %d : %d = %s\n",
                       s->fd, bs->filename, offset, buf, count,
                       bs->total_sectors, ret, errno, strerror(errno));
 
@@ -177,12 +178,10 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
         if (ret == count)
             goto label__raw_read__success;
 
-        DEBUG_BLOCK_PRINT("raw_read(%d:%s, %lld, %p, %d) [%lld] retry read failed %d : %d = %s\n",
+        DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %lld, %p, %d) [%lld] retry read failed %d : %d = %s\n",
                           s->fd, bs->filename, offset, buf, count,
                           bs->total_sectors, ret, errno, strerror(errno));
     }
-
-    return -1;
 
 label__raw_read__success:
 
@@ -202,7 +201,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     if (lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
         ++(s->lseek_err_cnt);
         if(s->lseek_err_cnt) {
-            DEBUG_BLOCK_PRINT("raw_write(%d:%s, %lld, %p, %d) [%lld] lseek failed : %d = %s\n",
+            DEBUG_BLOCK_PRINT("raw_pwrite(%d:%s, %lld, %p, %d) [%lld] lseek failed : %d = %s\n",
                               s->fd, bs->filename, offset, buf, count,
                               bs->total_sectors, errno, strerror(errno));
         }
@@ -214,11 +213,9 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     if (ret == count)
         goto label__raw_write__success;
 
-    DEBUG_BLOCK_PRINT("raw_write(%d:%s, %lld, %p, %d) [%lld] write failed %d : %d = %s\n",
+    DEBUG_BLOCK_PRINT("raw_pwrite(%d:%s, %lld, %p, %d) [%lld] write failed %d : %d = %s\n",
                       s->fd, bs->filename, offset, buf, count,
                       bs->total_sectors, ret, errno, strerror(errno));
-
-    return -1;
 
 label__raw_write__success:
 
