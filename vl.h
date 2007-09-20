@@ -93,6 +93,15 @@ static inline char *realpath(const char *path, char *resolved_path)
 #define tostring(s)	#s
 #endif
 
+#ifndef likely
+#if __GNUC__ < 3
+#define __builtin_expect(x, n) (x)
+#endif
+
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x)   __builtin_expect(!!(x), 0)
+#endif
+
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif

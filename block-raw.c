@@ -62,7 +62,7 @@
 #define DEBUG_BLOCK
 #if defined(DEBUG_BLOCK) && !defined(QEMU_TOOL)
 #define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
-    { fprintf(stderr, formatCstr, ##args); fflush(stderr); } } while (0)
+    { fprintf(logfile, formatCstr, ##args); fflush(logfile); } } while (0)
 #else
 #define DEBUG_BLOCK_PRINT(formatCstr, args...)
 #endif

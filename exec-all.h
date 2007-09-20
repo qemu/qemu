@@ -28,12 +28,14 @@
 #define tostring(s)	#s
 #endif
 
+#ifndef likely
 #if __GNUC__ < 3
 #define __builtin_expect(x, n) (x)
 #endif
 
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x)   __builtin_expect(!!(x), 0)
+#endif
 
 #ifdef __i386__
 #define REGPARM(n) __attribute((regparm(n)))
