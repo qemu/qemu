@@ -1072,6 +1072,7 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
     case PPC_FLAGS_MMU_SOFT_6xx:
     case PPC_FLAGS_MMU_601:
     case PPC_FLAGS_MMU_SOFT_4xx:
+    case PPC_FLAGS_MMU_401:
         ctx->prot |= PAGE_WRITE;
         break;
 #if defined(TARGET_PPC64)
@@ -1167,6 +1168,9 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         case PPC_FLAGS_MMU_BOOKE_FSL:
             /* XXX: TODO */
             cpu_abort(env, "BookE FSL MMU model not implemented\n");
+            return -1;
+        case PPC_FLAGS_MMU_401:
+            cpu_abort(env, "PowerPC 401 does not do any translation\n");
             return -1;
         default:
             cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1267,6 +1271,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
+                case PPC_FLAGS_MMU_401:
+                    cpu_abort(env, "PowerPC 401 should never raise any MMU "
+                              "exceptions\n");
+                    return -1;
                 default:
                     cpu_abort(env, "Unknown or invalid MMU model\n");
                     return -1;
@@ -1347,6 +1355,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 case PPC_FLAGS_MMU_BOOKE_FSL:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_401:
+                    cpu_abort(env, "PowerPC 401 should never raise any MMU "
+                              "exceptions\n");
                     return -1;
                 default:
                     cpu_abort(env, "Unknown or invalid MMU model\n");

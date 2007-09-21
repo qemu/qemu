@@ -1123,6 +1123,7 @@ static void gen_spr_BookE (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+#if 0
     spr_register(env, SPR_BOOKE_DSRR0, "DSRR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -1139,6 +1140,7 @@ static void gen_spr_BookE (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+#endif
     /* Debug */
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_IAC1, "IAC1",
@@ -1277,6 +1279,7 @@ static void gen_spr_BookE (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+#if 0
     spr_register(env, SPR_BOOKE_IVOR32, "IVOR32",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -1301,6 +1304,7 @@ static void gen_spr_BookE (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+#endif
     spr_register(env, SPR_BOOKE_PID, "PID",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -1469,22 +1473,22 @@ static void gen_spr_440 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_DVT0, "DVT0",
+    spr_register(env, SPR_440_DTV0, "DTV0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_DVT1, "DVT1",
+    spr_register(env, SPR_440_DTV1, "DTV1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_DVT2, "DVT2",
+    spr_register(env, SPR_440_DTV2, "DTV2",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_DVT3, "DVT3",
+    spr_register(env, SPR_440_DTV3, "DTV3",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1514,22 +1518,22 @@ static void gen_spr_440 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_IVT0, "IVT0",
+    spr_register(env, SPR_440_ITV0, "ITV0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_IVT1, "IVT1",
+    spr_register(env, SPR_440_ITV1, "ITV1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_IVT2, "IVT2",
+    spr_register(env, SPR_440_ITV2, "ITV2",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_440_IVT3, "IVT3",
+    spr_register(env, SPR_440_ITV3, "ITV3",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1540,27 +1544,27 @@ static void gen_spr_440 (CPUPPCState *env)
                  0x00000000);
     /* Cache debug */
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_DCBTRH, "DCBTRH",
+    spr_register(env, SPR_BOOKE_DCDBTRH, "DCDBTRH",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_DCBTRL, "DCBTRL",
+    spr_register(env, SPR_BOOKE_DCDBTRL, "DCDBTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_ICBDR, "ICBDR",
+    spr_register(env, SPR_BOOKE_ICDBDR, "ICDBDR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_ICBTRH, "ICBTRH",
+    spr_register(env, SPR_BOOKE_ICDBTRH, "ICDBTRH",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_ICBTRL, "ICBTRL",
+    spr_register(env, SPR_BOOKE_ICDBTRL, "ICDBTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
@@ -1605,7 +1609,7 @@ static void gen_spr_40x (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_ICBDR, "ICBDR",
+    spr_register(env, SPR_BOOKE_ICDBDR, "ICDBDR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
@@ -1614,15 +1618,6 @@ static void gen_spr_40x (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFFFFFFF);
-    spr_register(env, SPR_40x_ZPR, "ZPR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* MMU */
-    spr_register(env, SPR_40x_PID, "PID",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     /* Exception */
     spr_register(env, SPR_40x_DEAR, "DEAR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -1657,7 +1652,37 @@ static void gen_spr_40x (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_booke_tsr,
                  0x00000000);
+}
+
+/* SPR specific to PowerPC 405 implementation */
+static void gen_spr_405 (CPUPPCState *env)
+{
+    /* MMU */
+    spr_register(env, SPR_40x_PID, "PID",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_4xx_CCR0, "CCR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00700000);
     /* Debug interface */
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DBCR0, "DBCR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_40x_dbcr0,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_405_DBCR1, "DBCR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DBSR, "DBSR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_clear,
+                 /* Last reset was system reset */
+                 0x00000300);
     /* XXX : not implemented */
     spr_register(env, SPR_40x_DAC1, "DAC1",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -1668,47 +1693,21 @@ static void gen_spr_40x (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_40x_DBCR0, "DBCR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_40x_dbcr0,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DBSR, "DBSR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 /* Last reset was system reset */
-                 0x00000300);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_IAC1, "IAC1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_40x_IAC2, "IAC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
-/* SPR specific to PowerPC 405 implementation */
-static void gen_spr_405 (CPUPPCState *env)
-{
-    spr_register(env, SPR_4xx_CCR0, "CCR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00700000);
-    /* Debug */
-    /* XXX : not implemented */
-    spr_register(env, SPR_405_DBCR1, "DBCR1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_405_DVC1, "DVC1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_405_DVC2, "DVC2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_IAC1, "IAC1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_40x_IAC2, "IAC2",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1726,6 +1725,10 @@ static void gen_spr_405 (CPUPPCState *env)
     spr_register(env, SPR_405_SLER, "SLER",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_40x_sler,
+                 0x00000000);
+    spr_register(env, SPR_40x_ZPR, "ZPR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_405_SU0R, "SU0R",
@@ -1799,10 +1802,76 @@ static void gen_spr_401_403 (CPUPPCState *env)
                  0x00000000);
 }
 
+/* SPR specific to PowerPC 401 implementation */
+static void gen_spr_401 (CPUPPCState *env)
+{
+    /* Debug interface */
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DBCR0, "DBCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_40x_dbcr0,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DBSR, "DBSR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_clear,
+                 /* Last reset was system reset */
+                 0x00000300);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DAC1, "DAC",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_IAC1, "IAC",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* Storage control */
+    spr_register(env, SPR_405_SLER, "SLER",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_40x_sler,
+                 0x00000000);
+}
+
 /* SPR specific to PowerPC 403 implementation */
 static void gen_spr_403 (CPUPPCState *env)
 {
+    /* Debug interface */
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DBCR0, "DBCR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_40x_dbcr0,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DBSR, "DBSR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_clear,
+                 /* Last reset was system reset */
+                 0x00000300);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_DAC1, "DAC1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_40x_DAC2, "DAC2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_40x_IAC1, "IAC1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_40x_IAC2, "IAC2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
     /* MMU */
+    spr_register(env, SPR_40x_PID, "PID",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
     spr_register(env, SPR_403_PBL1,  "PBL1",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_403_pbr, &spr_write_403_pbr,
@@ -1819,14 +1888,7 @@ static void gen_spr_403 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_403_pbr, &spr_write_403_pbr,
                  0x00000000);
-    /* Debug */
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DAC2, "DAC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_IAC2, "IAC2",
+    spr_register(env, SPR_40x_ZPR, "ZPR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -1843,23 +1905,40 @@ static void gen_spr_compress (CPUPPCState *env)
 }
 #endif
 
-// XXX: TODO (64 bits PowerPC SPRs)
+// XXX: TODO
 /*
- * ASR => SPR 280 (64 bits)
- * FPECR => SPR 1022 (?)
- * VRSAVE => SPR 256 (Altivec)
- * SCOMC => SPR 276 (64 bits ?)
- * SCOMD => SPR 277 (64 bits ?)
- * HSPRG0 => SPR 304 (hypervisor)
- * HSPRG1 => SPR 305 (hypervisor)
- * HDEC => SPR 310 (hypervisor)
- * HIOR => SPR 311 (hypervisor)
- * RMOR => SPR 312 (970)
- * HRMOR => SPR 313 (hypervisor)
- * HSRR0 => SPR 314 (hypervisor)
- * HSRR1 => SPR 315 (hypervisor)
- * LPCR => SPR 316 (970)
- * LPIDR => SPR 317 (970)
+ * AMR     => SPR 29 (Power 2.04)
+ * CTRL    => SPR 136 (Power 2.04)
+ * CTRL    => SPR 152 (Power 2.04)
+ * VRSAVE  => SPR 256 (Altivec)
+ * SCOMC   => SPR 276 (64 bits ?)
+ * SCOMD   => SPR 277 (64 bits ?)
+ * ASR     => SPR 280 (64 bits)
+ * TBU40   => SPR 286 (Power 2.04 hypv)
+ * HSPRG0  => SPR 304 (Power 2.04 hypv)
+ * HSPRG1  => SPR 305 (Power 2.04 hypv)
+ * HDSISR  => SPR 306 (Power 2.04 hypv)
+ * HDAR    => SPR 307 (Power 2.04 hypv)
+ * PURR    => SPR 309 (Power 2.04 hypv)
+ * HDEC    => SPR 310 (Power 2.04 hypv)
+ * HIOR    => SPR 311 (hypv)
+ * RMOR    => SPR 312 (970)
+ * HRMOR   => SPR 313 (Power 2.04 hypv)
+ * HSRR0   => SPR 314 (Power 2.04 hypv)
+ * HSRR1   => SPR 315 (Power 2.04 hypv)
+ * LPCR    => SPR 316 (970)
+ * LPIDR   => SPR 317 (970)
+ * SPEFSCR => SPR 512 (Power 2.04 emb)
+ * ATBL    => SPR 526 (Power 2.04 emb)
+ * ATBU    => SPR 527 (Power 2.04 emb)
+ * EPR     => SPR 702 (Power 2.04 emb)
+ * perf    => 768-783 (Power 2.04)
+ * perf    => 784-799 (Power 2.04)
+ * PPR     => SPR 896 (Power 2.04)
+ * EPLC    => SPR 947 (Power 2.04 emb)
+ * EPSC    => SPR 948 (Power 2.04 emb)
+ * DABRX   => 1015    (Power 2.04 hypv)
+ * FPECR   => SPR 1022 (?)
  * ... and more (thermal management, performance counters, ...)
  */
 
@@ -1886,6 +1965,9 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     /* Embedded PowerPC from IBM                           */
     case CPU_PPC_401A1:   /* 401 A1 family                 */
     case CPU_PPC_401B2:   /* 401 B2 family                 */
+#if 0
+    case CPU_PPC_401B3:   /* 401 B3 family                 */
+#endif
     case CPU_PPC_401C2:   /* 401 C2 family                 */
     case CPU_PPC_401D2:   /* 401 D2 family                 */
     case CPU_PPC_401E2:   /* 401 E2 family                 */
@@ -1896,6 +1978,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         gen_spr_generic(env);
         gen_spr_40x(env);
         gen_spr_401_403(env);
+        gen_spr_401(env);
 #if defined (TODO)
         /* XXX: optional ? */
         gen_spr_compress(env);
@@ -2413,7 +2496,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
 #endif /* defined (TARGET_PPC64) */
 
 #if defined (TODO)
-        /* POWER                                               */
+    /* POWER                                               */
     case CPU_POWER:       /* POWER                         */
     case CPU_POWER2:      /* POWER2                        */
         break;
@@ -2460,7 +2543,7 @@ static void dump_sprs (CPUPPCState *env)
             uw = spr->uea_write != NULL && spr->uea_write != SPR_NOACCESS;
             ur = spr->uea_read != NULL && spr->uea_read != SPR_NOACCESS;
             if (sw || sr || uw || ur) {
-                printf("%4d (%03x) %8s s%c%c u%c%c\n",
+                printf("SPR: %4d (%03x) %-8s s%c%c u%c%c\n",
                        (i << 5) | j, (i << 5) | j, spr->name,
                        sw ? 'w' : '-', sr ? 'r' : '-',
                        uw ? 'w' : '-', ur ? 'r' : '-');
@@ -2678,15 +2761,15 @@ static int create_ppc_opcodes (CPUPPCState *env, ppc_def_t *def)
             if (opc1 != 0x00) {
                 if (opc->opc3 == 0xFF) {
                     if (opc->opc2 == 0xFF) {
-                        printf(" %02x -- -- (%2d ----) : %s\n",
+                        printf("INSN: %02x -- -- (%02d ----) : %s\n",
                                opc->opc1, opc->opc1, opc->oname);
                     } else {
-                        printf(" %02x %02x -- (%2d %4d) : %s\n",
+                        printf("INSN: %02x %02x -- (%02d %04d) : %s\n",
                                opc->opc1, opc->opc2, opc->opc1, opc->opc2,
                                opc->oname);
                     }
                 } else {
-                    printf(" %02x %02x %02x (%2d %4d) : %s\n",
+                    printf("INSN: %02x %02x %02x (%02d %04d) : %s\n",
                            opc->opc1, opc->opc2, opc->opc3,
                            opc->opc1, (opc->opc3 << 5) | opc->opc2,
                            opc->oname);
@@ -2724,15 +2807,98 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
 /* PowerPC CPU definitions */
 static ppc_def_t ppc_defs[] = {
     /* Embedded PowerPC */
-#if defined (TODO)
-    /* PowerPC 401 */
+    /* Generic PowerPC 401 */
     {
         .name        = "401",
         .pvr         = CPU_PPC_401,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_401,
         .flags       = PPC_FLAGS_401,
-        .msr_mask    = xxx,
+        .msr_mask    = 0x000FD201,
+    },
+    /* PowerPC 401A1 */
+    {
+        .name        = "401a1",
+        .pvr         = CPU_PPC_401A1,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+    /* PowerPC 401B2 */
+    {
+        .name        = "401b2",
+        .pvr         = CPU_PPC_401B2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+#if defined (TODO)
+    /* PowerPC 401B3 */
+    {
+        .name        = "401b3",
+        .pvr         = CPU_PPC_401B3,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+#endif
+    /* PowerPC 401C2 */
+    {
+        .name        = "401c2",
+        .pvr         = CPU_PPC_401C2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+    /* PowerPC 401D2 */
+    {
+        .name        = "401d2",
+        .pvr         = CPU_PPC_401D2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+    /* PowerPC 401E2 */
+    {
+        .name        = "401e2",
+        .pvr         = CPU_PPC_401E2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+    /* PowerPC 401F2 */
+    {
+        .name        = "401f2",
+        .pvr         = CPU_PPC_401F2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+    /* PowerPC 401G2 */
+    {
+        .name        = "401g2",
+        .pvr         = CPU_PPC_401G2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
+    },
+#if defined (TODO)
+    /* PowerPC 401G2 */
+    {
+        .name        = "401gf",
+        .pvr         = CPU_PPC_401GF,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_401,
+        .flags       = PPC_FLAGS_401,
+        .msr_mask    = 0x000FD201,
     },
 #endif
 #if defined (TODO)
@@ -2740,10 +2906,10 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "iop480",
         .pvr         = CPU_PPC_IOP480,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_401,
         .flags       = PPC_FLAGS_401,
-        .msr_mask    = xxx,
+        .msr_mask    = 0x000FD201,
     },
 #endif
 #if defined (TODO)
@@ -2751,62 +2917,63 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Cobra",
         .pvr         = CPU_PPC_COBRA,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_401,
         .flags       = PPC_FLAGS_401,
-        .msr_mask    = xxx,
+        .msr_mask    = 0x000FD201,
     },
 #endif
-#if defined (TODO)
     /* Generic PowerPC 403 */
     {
         .name        = "403",
         .pvr         = CPU_PPC_403,
-        .pvr_mask    = 0xFFFFFF00,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
         .msr_mask    = 0x000000000007D23DULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 403 GA */
     {
         .name        = "403ga",
         .pvr         = CPU_PPC_403GA,
-        .pvr_mask    = 0xFFFFFF00,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
         .msr_mask    = 0x000000000007D23DULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 403 GB */
     {
         .name        = "403gb",
         .pvr         = CPU_PPC_403GB,
-        .pvr_mask    = 0xFFFFFF00,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
         .msr_mask    = 0x000000000007D23DULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 403 GC */
     {
         .name        = "403gc",
         .pvr         = CPU_PPC_403GC,
-        .pvr_mask    = 0xFFFFFF00,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
         .msr_mask    = 0x000000000007D23DULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 403 GCX */
     {
         .name        = "403gcx",
         .pvr         = CPU_PPC_403GCX,
-        .pvr_mask    = 0xFFFFFF00,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_403,
+        .flags       = PPC_FLAGS_403,
+        .msr_mask    = 0x000000000007D23DULL,
+    },
+#if defined (TODO)
+    /* PowerPC 403 GP */
+    {
+        .name        = "403gp",
+        .pvr         = CPU_PPC_403GP,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_403,
         .flags       = PPC_FLAGS_403,
         .msr_mask    = 0x000000000007D23DULL,
@@ -2816,7 +2983,58 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "405",
         .pvr         = CPU_PPC_405,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+#if defined (TODO)
+    /* PowerPC 405 A3 */
+    {
+        .name        = "405a3",
+        .pvr         = CPU_PPC_405A3,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 405 A4 */
+    {
+        .name        = "405a4",
+        .pvr         = CPU_PPC_405A4,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 405 B3 */
+    {
+        .name        = "405b3",
+        .pvr         = CPU_PPC_405B3,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+#endif
+    /* PowerPC 405 D2 */
+    {
+        .name        = "405d2",
+        .pvr         = CPU_PPC_405D2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+    /* PowerPC 405 D4 */
+    {
+        .name        = "405d4",
+        .pvr         = CPU_PPC_405D4,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
         .msr_mask    = 0x00000000020EFF30ULL,
@@ -2824,23 +3042,21 @@ static ppc_def_t ppc_defs[] = {
     /* PowerPC 405 CR */
     {
         .name        = "405cr",
-        .pvr         = CPU_PPC_405,
+        .pvr         = CPU_PPC_405CR,
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
         .msr_mask    = 0x00000000020EFF30ULL,
     },
-#if defined (TODO)
     /* PowerPC 405 GP */
     {
         .name        = "405gp",
-        .pvr         = CPU_PPC_405,
+        .pvr         = CPU_PPC_405GP,
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
         .msr_mask    = 0x00000000020EFF30ULL,
     },
-#endif
     /* PowerPC 405 EP */
     {
         .name        = "405ep",
@@ -2872,25 +3088,17 @@ static ppc_def_t ppc_defs[] = {
         .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-    /* PowerPC 405 D2 */
-    {
-        .name        = "405d2",
-        .pvr         = CPU_PPC_405D2,
-        .pvr_mask    = 0xFFFFFFFF,
-        .insns_flags = PPC_INSNS_405,
-        .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30ULL,
-    },
-    /* PowerPC 405 D4 */
-    {
-        .name        = "405d4",
-        .pvr         = CPU_PPC_405D4,
-        .pvr_mask    = 0xFFFFFFFF,
-        .insns_flags = PPC_INSNS_405,
-        .flags       = PPC_FLAGS_405,
-        .msr_mask    = 0x00000000020EFF30ULL,
-    },
 #if defined (TODO)
+    /* PowerPC 405 LP */
+    {
+        .name        = "405lp",
+        .pvr         = CPU_PPC_405EZ,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+#endif
     /* Npe405 H */
     {
         .name        = "Npe405H",
@@ -2900,12 +3108,29 @@ static ppc_def_t ppc_defs[] = {
         .flags       = PPC_FLAGS_405,
         .msr_mask    = 0x00000000020EFF30ULL,
     },
-#endif
-#if defined (TODO)
+    /* Npe405 H2 */
+    {
+        .name        = "Npe405H2",
+        .pvr         = CPU_PPC_NPE405H2,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
     /* Npe405 L */
     {
         .name        = "Npe405L",
         .pvr         = CPU_PPC_NPE405L,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_405,
+        .flags       = PPC_FLAGS_405,
+        .msr_mask    = 0x00000000020EFF30ULL,
+    },
+#if defined (TODO)
+    /* PowerPC LP777000 */
+    {
+        .name        = "lp777000",
+        .pvr         = CPU_PPC_LP777000,
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_405,
         .flags       = PPC_FLAGS_405,
@@ -2978,7 +3203,7 @@ static ppc_def_t ppc_defs[] = {
         .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-#if defined (TODO)
+#if defined (TODO) || 1
     /* STB25xx */
     {
         .name        = "STB25",
@@ -3035,105 +3260,98 @@ static ppc_def_t ppc_defs[] = {
         .msr_mask    = 0x00000000020EFF30ULL,
     },
 #endif
-#if defined (TODO)
     /* PowerPC 440 EP */
     {
         .name        = "440ep",
         .pvr         = CPU_PPC_440EP,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 GR */
     {
         .name        = "440gr",
         .pvr         = CPU_PPC_440GR,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 GP */
     {
         .name        = "440gp",
         .pvr         = CPU_PPC_440GP,
-        .pvr_mask    = 0xFFFFFF00,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
+        .flags       = PPC_FLAGS_440,
+        .msr_mask    = 0x000000000006D630ULL,
+    },
+#if defined (TODO)
+    /* PowerPC 440 GRX */
+    {
+        .name        = "440grx",
+        .pvr         = CPU_PPC_440GRX,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
 #endif
-#if defined (TODO)
     /* PowerPC 440 GX */
     {
         .name        = "440gx",
         .pvr         = CPU_PPC_440GX,
-        .pvr_mask    = 0xFFFF0000,
-        .insns_flags = PPC_INSNS_405,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 GXc */
     {
         .name        = "440gxc",
-        .pvr         = CPU_PPC_440GXC,
-        .pvr_mask    = 0xFFFF0000,
-        .insns_flags = PPC_INSNS_405,
+        .pvr         = CPU_PPC_440GXc,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 GXf */
     {
         .name        = "440gxf",
-        .pvr         = CPU_PPC_440GXF,
-        .pvr_mask    = 0xFFFF0000,
-        .insns_flags = PPC_INSNS_405,
+        .pvr         = CPU_PPC_440GXf,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 SP */
     {
         .name        = "440sp",
         .pvr         = CPU_PPC_440SP,
-        .pvr_mask    = 0xFFFF0000,
-        .insns_flags = PPC_INSNS_405,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 SP2 */
     {
         .name        = "440sp2",
         .pvr         = CPU_PPC_440SP2,
-        .pvr_mask    = 0xFFFF0000,
-        .insns_flags = PPC_INSNS_405,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
-#if defined (TODO)
     /* PowerPC 440 SPE */
     {
         .name        = "440spe",
         .pvr         = CPU_PPC_440SPE,
-        .pvr_mask    = 0xFFFF0000,
-        .insns_flags = PPC_INSNS_405,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_440,
         .flags       = PPC_FLAGS_440,
         .msr_mask    = 0x000000000006D630ULL,
     },
-#endif
     /* Fake generic BookE PowerPC */
     {
         .name        = "BookE",
@@ -3157,7 +3375,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "601",
         .pvr         = CPU_PPC_601,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_601,
         .flags       = PPC_FLAGS_601,
         .msr_mask    = 0x000000000000FD70ULL,
@@ -3168,7 +3386,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "602",
         .pvr         = CPU_PPC_602,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_602,
         .flags       = PPC_FLAGS_602,
         .msr_mask    = 0x0000000000C7FF73ULL,
@@ -3258,7 +3476,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "G2",
         .pvr         = CPU_PPC_G2,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000006FFF2ULL,
@@ -3266,7 +3484,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "G2h4",
         .pvr         = CPU_PPC_G2H4,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000006FFF2ULL,
@@ -3274,7 +3492,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "G2gp",
         .pvr         = CPU_PPC_G2gp,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000006FFF2ULL,
@@ -3282,7 +3500,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "G2ls",
         .pvr         = CPU_PPC_G2ls,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000006FFF2ULL,
@@ -3290,7 +3508,7 @@ static ppc_def_t ppc_defs[] = {
     { /* Same as G2, with LE mode support */
         .name        = "G2le",
         .pvr         = CPU_PPC_G2LE,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000007FFF3ULL,
@@ -3298,7 +3516,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "G2legp",
         .pvr         = CPU_PPC_G2LEgp,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000007FFF3ULL,
@@ -3306,7 +3524,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "G2lels",
         .pvr         = CPU_PPC_G2LEls,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_G2,
         .flags       = PPC_FLAGS_G2,
         .msr_mask    = 0x000000000007FFF3ULL,
@@ -3365,45 +3583,15 @@ static ppc_def_t ppc_defs[] = {
         .flags       = PPC_FLAGS_7x0,
         .msr_mask    = 0x000000000007FF77ULL,
     },
-#if defined (TODO)
-    /* MPC745 (G3) */
+    /* 740E (G3) */
     {
-        .name        = "745",
-        .pvr         = CPU_PPC_74x,
-        .pvr_mask    = 0xFFFFF000,
-        .insns_flags = PPC_INSNS_7x5,
-        .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77ULL,
-    },
-    {
-        .name        = "Goldfinger",
-        .pvr         = CPU_PPC_74x,
-        .pvr_mask    = 0xFFFFF000,
-        .insns_flags = PPC_INSNS_7x5,
-        .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77ULL,
-    },
-#endif
-    /* MPC750 (G3) */
-    {
-        .name        = "750",
-        .pvr         = CPU_PPC_74x,
+        .name        = "740e",
+        .pvr         = CPU_PPC_740E,
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
         .msr_mask    = 0x000000000007FF77ULL,
     },
-#if defined (TODO)
-    /* MPC755 (G3) */
-    {
-        .name        = "755",
-        .pvr         = CPU_PPC_755,
-        .pvr_mask    = 0xFFFFF000,
-        .insns_flags = PPC_INSNS_7x5,
-        .flags       = PPC_FLAGS_7x5,
-        .msr_mask    = 0x000000000007FF77ULL,
-    },
-#endif
     /* MPC740P (G3) */
     {
         .name        = "740p",
@@ -3422,16 +3610,44 @@ static ppc_def_t ppc_defs[] = {
         .msr_mask    = 0x000000000007FF77ULL,
     },
 #if defined (TODO)
-    /* MPC745P (G3) */
+    /* MPC745 (G3) */
     {
-        .name        = "745p",
-        .pvr         = CPU_PPC_74xP,
-        .pvr_mask    = 0xFFFFF000,
+        .name        = "745",
+        .pvr         = CPU_PPC_74x,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x5,
+        .flags       = PPC_FLAGS_7x5,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+    {
+        .name        = "Goldfinger",
+        .pvr         = CPU_PPC_74x,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x5,
         .flags       = PPC_FLAGS_7x5,
         .msr_mask    = 0x000000000007FF77ULL,
     },
 #endif
+#if defined (TODO)
+    /* MPC745P (G3) */
+    {
+        .name        = "745p",
+        .pvr         = CPU_PPC_74xP,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x5,
+        .flags       = PPC_FLAGS_7x5,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+#endif
+    /* MPC750 (G3) */
+    {
+        .name        = "750",
+        .pvr         = CPU_PPC_74x,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x0,
+        .flags       = PPC_FLAGS_7x0,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
     /* MPC750P (G3) */
     {
         .name        = "750p",
@@ -3441,21 +3657,28 @@ static ppc_def_t ppc_defs[] = {
         .flags       = PPC_FLAGS_7x0,
         .msr_mask    = 0x000000000007FF77ULL,
     },
-#if defined (TODO)
-    /* MPC755P (G3) */
+    /* 750E (G3) */
     {
-        .name        = "755p",
-        .pvr         = CPU_PPC_74xP,
-        .pvr_mask    = 0xFFFFF000,
-        .insns_flags = PPC_INSNS_7x5,
-        .flags       = PPC_FLAGS_7x5,
+        .name        = "750e",
+        .pvr         = CPU_PPC_750E,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x0,
+        .flags       = PPC_FLAGS_7x0,
         .msr_mask    = 0x000000000007FF77ULL,
     },
-#endif
     /* IBM 750CXe (G3 embedded) */
     {
         .name        = "750cxe",
         .pvr         = CPU_PPC_750CXE,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x0,
+        .flags       = PPC_FLAGS_7x0,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+    /* IBM 750CXr (G3 embedded) */
+    {
+        .name        = "750cxr",
+        .pvr         = CPU_PPC_750CXR,
         .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_7x0,
         .flags       = PPC_FLAGS_7x0,
@@ -3470,6 +3693,15 @@ static ppc_def_t ppc_defs[] = {
         .flags       = PPC_FLAGS_7x0,
         .msr_mask    = 0x000000000007FF77ULL,
     },
+    /* IBM 750FL (G3 embedded) */
+    {
+        .name        = "750fl",
+        .pvr         = CPU_PPC_750FL,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x0,
+        .flags       = PPC_FLAGS_7x0,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
     /* IBM 750GX (G3 embedded) */
     {
         .name        = "750gx",
@@ -3479,12 +3711,74 @@ static ppc_def_t ppc_defs[] = {
         .flags       = PPC_FLAGS_7x0,
         .msr_mask    = 0x000000000007FF77ULL,
     },
+    /* IBM 750L (G3 embedded) */
+    {
+        .name        = "750l",
+        .pvr         = CPU_PPC_750L,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x0,
+        .flags       = PPC_FLAGS_7x0,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+    /* IBM 750CL (G3 embedded) */
+    {
+        .name        = "750cl",
+        .pvr         = CPU_PPC_750CL,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x0,
+        .flags       = PPC_FLAGS_7x0,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+#if defined (TODO)
+    /* MPC755 (G3) */
+    {
+        .name        = "755",
+        .pvr         = CPU_PPC_755,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x5,
+        .flags       = PPC_FLAGS_7x5,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* MPC755D (G3) */
+    {
+        .name        = "755d",
+        .pvr         = CPU_PPC_755D,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x5,
+        .flags       = PPC_FLAGS_7x5,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* MPC755E (G3) */
+    {
+        .name        = "755e",
+        .pvr         = CPU_PPC_755E,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x5,
+        .flags       = PPC_FLAGS_7x5,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* MPC755P (G3) */
+    {
+        .name        = "755p",
+        .pvr         = CPU_PPC_74xP,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_7x5,
+        .flags       = PPC_FLAGS_7x5,
+        .msr_mask    = 0x000000000007FF77ULL,
+    },
+#endif
 #if defined (TODO)
     /* generic G4 */
     {
         .name        = "G4",
         .pvr         = CPU_PPC_7400,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3495,7 +3789,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "7400",
         .pvr         = CPU_PPC_7400,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3503,7 +3797,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Max",
         .pvr         = CPU_PPC_7400,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3514,7 +3808,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "7410",
         .pvr         = CPU_PPC_7410,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3522,22 +3816,73 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Nitro",
         .pvr         = CPU_PPC_7410,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
-    /* XXX: 7441 */
-    /* XXX: 7445 */
-    /* XXX: 7447 */
-    /* XXX: 7447A */
+#if defined (TODO)
+    /* PowerPC 7441 (G4) */
+    {
+        .name        = "7441",
+        .pvr         = CPU_PPC_7441,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7445 (G4) */
+    {
+        .name        = "7445",
+        .pvr         = CPU_PPC_7445,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7447 (G4) */
+    {
+        .name        = "7447",
+        .pvr         = CPU_PPC_7447,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7447A (G4) */
+    {
+        .name        = "7447A",
+        .pvr         = CPU_PPC_7447A,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7448 (G4) */
+    {
+        .name        = "7448",
+        .pvr         = CPU_PPC_7448,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
 #if defined (TODO)
     /* PowerPC 7450 (G4) */
     {
         .name        = "7450",
         .pvr         = CPU_PPC_7450,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3545,19 +3890,51 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Vger",
         .pvr         = CPU_PPC_7450,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
     },
 #endif
-    /* XXX: 7451 */
+#if defined (TODO)
+    /* PowerPC 7450b (G4) */
+    {
+        .name        = "7450b",
+        .pvr         = CPU_PPC_7450B,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7451 (G4) */
+    {
+        .name        = "7451",
+        .pvr         = CPU_PPC_7451,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7451g (G4) */
+    {
+        .name        = "7451g",
+        .pvr         = CPU_PPC_7451G,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
 #if defined (TODO)
     /* PowerPC 7455 (G4) */
     {
         .name        = "7455",
         .pvr         = CPU_PPC_7455,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3565,7 +3942,29 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Apollo 6",
         .pvr         = CPU_PPC_7455,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7455F (G4) */
+    {
+        .name        = "7455f",
+        .pvr         = CPU_PPC_7455F,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7455G (G4) */
+    {
+        .name        = "7455g",
+        .pvr         = CPU_PPC_7455G,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3576,7 +3975,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "7457",
         .pvr         = CPU_PPC_7457,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3584,7 +3983,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Apollo 7",
         .pvr         = CPU_PPC_7457,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3595,7 +3994,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "7457A",
         .pvr         = CPU_PPC_7457A,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3603,7 +4002,18 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Apollo 7 PM",
         .pvr         = CPU_PPC_7457A,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_74xx,
+        .flags       = PPC_FLAGS_74xx,
+        .msr_mask    = 0x000000000205FF77ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 7457C (G4) */
+    {
+        .name        = "7457c",
+        .pvr         = CPU_PPC_7457C,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_74xx,
         .flags       = PPC_FLAGS_74xx,
         .msr_mask    = 0x000000000205FF77ULL,
@@ -3616,7 +4026,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "620",
         .pvr         = CPU_PPC_620,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_620,
         .flags       = PPC_FLAGS_620,
         .msr_mask    = 0x800000000005FF73ULL,
@@ -3627,7 +4037,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "630",
         .pvr         = CPU_PPC_630,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_630,
         .flags       = PPC_FLAGS_630,
         .msr_mask    = xxx,
@@ -3635,7 +4045,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER3",
         .pvr         = CPU_PPC_630,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_630,
         .flags       = PPC_FLAGS_630,
         .msr_mask    = xxx,
@@ -3646,7 +4056,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "631",
         .pvr         = CPU_PPC_631,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_631,
         .flags       = PPC_FLAGS_631,
         .msr_mask    = xxx,
@@ -3654,7 +4064,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER3+",
         .pvr         = CPU_PPC_631,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_631,
         .flags       = PPC_FLAGS_631,
         .msr_mask    = xxx,
@@ -3665,7 +4075,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER4",
         .pvr         = CPU_PPC_POWER4,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_POWER4,
         .flags       = PPC_FLAGS_POWER4,
         .msr_mask    = xxx,
@@ -3676,7 +4086,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER4+",
         .pvr         = CPU_PPC_POWER4P,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_POWER4,
         .flags       = PPC_FLAGS_POWER4,
         .msr_mask    = xxx,
@@ -3687,7 +4097,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER5",
         .pvr         = CPU_PPC_POWER5,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_POWER5,
         .flags       = PPC_FLAGS_POWER5,
         .msr_mask    = xxx,
@@ -3698,9 +4108,20 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER5+",
         .pvr         = CPU_PPC_POWER5P,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_POWER5,
         .flags       = PPC_FLAGS_POWER5,
+        .msr_mask    = xxx,
+    },
+#endif
+#if defined (TODO)
+    /* POWER6 */
+    {
+        .name        = "POWER6",
+        .pvr         = CPU_PPC_POWER6,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_POWER6,
+        .flags       = PPC_FLAGS_POWER6,
         .msr_mask    = xxx,
     },
 #endif
@@ -3709,7 +4130,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "970",
         .pvr         = CPU_PPC_970,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_970,
         .flags       = PPC_FLAGS_970,
         .msr_mask    = 0x900000000204FF36ULL,
@@ -3720,10 +4141,32 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "970fx",
         .pvr         = CPU_PPC_970FX,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_970FX,
         .flags       = PPC_FLAGS_970FX,
         .msr_mask    = 0x800000000204FF36ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC 970MP */
+    {
+        .name        = "970MP",
+        .pvr         = CPU_PPC_970MP,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_970,
+        .flags       = PPC_FLAGS_970,
+        .msr_mask    = 0x900000000204FF36ULL,
+    },
+#endif
+#if defined (TODO)
+    /* PowerPC Cell */
+    {
+        .name        = "Cell",
+        .pvr         = CPU_PPC_CELL,
+        .pvr_mask    = 0xFFFFFFFF,
+        .insns_flags = PPC_INSNS_970,
+        .flags       = PPC_FLAGS_970,
+        .msr_mask    = 0x900000000204FF36ULL,
     },
 #endif
 #if defined (TODO)
@@ -3734,7 +4177,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "RS64",
         .pvr         = CPU_PPC_RS64,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3742,7 +4185,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Apache",
         .pvr         = CPU_PPC_RS64,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3750,7 +4193,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "A35",
         .pvr         = CPU_PPC_RS64,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3761,7 +4204,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "RS64-II",
         .pvr         = CPU_PPC_RS64II,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3769,7 +4212,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "NortStar",
         .pvr         = CPU_PPC_RS64II,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3777,7 +4220,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "A50",
         .pvr         = CPU_PPC_RS64II,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3788,7 +4231,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "RS64-III",
         .pvr         = CPU_PPC_RS64III,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3796,7 +4239,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "Pulsar",
         .pvr         = CPU_PPC_RS64III,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3807,7 +4250,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "RS64-IV",
         .pvr         = CPU_PPC_RS64IV,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3815,7 +4258,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "IceStar",
         .pvr         = CPU_PPC_RS64IV,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3823,7 +4266,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "IStar",
         .pvr         = CPU_PPC_RS64IV,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3831,7 +4274,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "SStar",
         .pvr         = CPU_PPC_RS64IV,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_RS64,
         .flags       = PPC_FLAGS_RS64,
         .msr_mask    = xxx,
@@ -3843,7 +4286,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER",
         .pvr         = CPU_POWER,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_POWER,
         .flags       = PPC_FLAGS_POWER,
         .msr_mask    = xxx,
@@ -3855,7 +4298,7 @@ static ppc_def_t ppc_defs[] = {
     {
         .name        = "POWER2",
         .pvr         = CPU_POWER2,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_POWER,
         .flags       = PPC_FLAGS_POWER,
         .msr_mask    = xxx,
@@ -3865,8 +4308,8 @@ static ppc_def_t ppc_defs[] = {
 #if defined (TODO)
     {
         .name        = "ppc64",
-        .pvr         = CPU_PPC_970,
-        .pvr_mask    = 0xFFFF0000,
+        .pvr         = CPU_PPC_970FX,
+        .pvr_mask    = 0xFFFFFFFF,
         .insns_flags = PPC_INSNS_PPC64,
         .flags       = PPC_FLAGS_PPC64,
         .msr_mask    = 0xA00000000204FF36ULL,
