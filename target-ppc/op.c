@@ -2365,51 +2365,27 @@ void OPPROTO op_wrte (void)
     RETURN();
 }
 
-void OPPROTO op_booke_tlbre0 (void)
+void OPPROTO op_440_tlbre (void)
 {
-    do_booke_tlbre0();
+    do_440_tlbre(PARAM1);
     RETURN();
 }
 
-void OPPROTO op_booke_tlbre1 (void)
+void OPPROTO op_440_tlbsx (void)
 {
-    do_booke_tlbre1();
+    do_440_tlbsx();
     RETURN();
 }
 
-void OPPROTO op_booke_tlbre2 (void)
+void OPPROTO op_440_tlbsx_ (void)
 {
-    do_booke_tlbre2();
+    do_440_tlbsx_();
     RETURN();
 }
 
-void OPPROTO op_booke_tlbsx (void)
+void OPPROTO op_440_tlbwe (void)
 {
-    do_booke_tlbsx();
-    RETURN();
-}
-
-void OPPROTO op_booke_tlbsx_ (void)
-{
-    do_booke_tlbsx_();
-    RETURN();
-}
-
-void OPPROTO op_booke_tlbwe0 (void)
-{
-    do_booke_tlbwe0();
-    RETURN();
-}
-
-void OPPROTO op_booke_tlbwe1 (void)
-{
-    do_booke_tlbwe1();
-    RETURN();
-}
-
-void OPPROTO op_booke_tlbwe2 (void)
-{
-    do_booke_tlbwe2();
+    do_440_tlbwe(PARAM1);
     RETURN();
 }
 

@@ -4695,9 +4695,9 @@ GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
 #endif
 }
 
-/* TLB management - PowerPC BookE implementation */
+/* TLB management - PowerPC 440 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre_booke, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
+GEN_HANDLER(tlbre_440, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4708,18 +4708,10 @@ GEN_HANDLER(tlbre_booke, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
     }
     switch (rB(ctx->opcode)) {
     case 0:
-        gen_op_load_gpr_T0(rA(ctx->opcode));
-        gen_op_booke_tlbre0();
-        gen_op_store_T0_gpr(rD(ctx->opcode));
-        break;
     case 1:
-        gen_op_load_gpr_T0(rA(ctx->opcode));
-        gen_op_booke_tlbre1();
-        gen_op_store_T0_gpr(rD(ctx->opcode));
-        break;
     case 2:
         gen_op_load_gpr_T0(rA(ctx->opcode));
-        gen_op_booke_tlbre2();
+        gen_op_440_tlbre(rB(ctx->opcode));
         gen_op_store_T0_gpr(rD(ctx->opcode));
         break;
     default:
@@ -4730,7 +4722,7 @@ GEN_HANDLER(tlbre_booke, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx_booke, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
+GEN_HANDLER(tlbsx_440, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4741,15 +4733,15 @@ GEN_HANDLER(tlbsx_booke, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
     }
     gen_addr_reg_index(ctx);
     if (Rc(ctx->opcode))
-        gen_op_booke_tlbsx_();
+        gen_op_440_tlbsx_();
     else
-        gen_op_booke_tlbsx();
+        gen_op_440_tlbsx();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
 
 /* tlbwe */
-GEN_HANDLER(tlbwe_booke, 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
+GEN_HANDLER(tlbwe_440, 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4760,19 +4752,11 @@ GEN_HANDLER(tlbwe_booke, 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
     }
     switch (rB(ctx->opcode)) {
     case 0:
-        gen_op_load_gpr_T0(rA(ctx->opcode));
-        gen_op_load_gpr_T1(rS(ctx->opcode));
-        gen_op_booke_tlbwe0();
-        break;
     case 1:
-        gen_op_load_gpr_T0(rA(ctx->opcode));
-        gen_op_load_gpr_T1(rS(ctx->opcode));
-        gen_op_booke_tlbwe1();
-        break;
     case 2:
         gen_op_load_gpr_T0(rA(ctx->opcode));
         gen_op_load_gpr_T1(rS(ctx->opcode));
-        gen_op_booke_tlbwe2();
+        gen_op_440_tlbwe(rB(ctx->opcode));
         break;
     default:
         RET_INVAL(ctx);
