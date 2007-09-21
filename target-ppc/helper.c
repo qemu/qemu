@@ -846,10 +846,12 @@ static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
     if ((address & mask) != tlb->EPN)
         return -1;
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
+#if (TARGET_PHYS_ADDR_BITS >= 36)
     if (ext) {
         /* Extend the physical address to 36 bits */
         *raddrp |= (target_phys_addr_t)(tlb->RPN & 0xF) << 32;
     }
+#endif
 
     return 0;
 }
@@ -1078,11 +1080,11 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
 #if defined(TARGET_PPC64)
     case PPC_FLAGS_MMU_64B:
     case PPC_FLAGS_MMU_64BRIDGE:
-#endif
         /* Real address are 60 bits long */
         ctx->raddr &= 0x0FFFFFFFFFFFFFFFUL;
         ctx->prot |= PAGE_WRITE;
         break;
+#endif
     case PPC_FLAGS_MMU_403:
         if (unlikely(msr_pe != 0)) {
             /* 403 family add some particular protections,
