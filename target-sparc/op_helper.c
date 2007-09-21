@@ -137,16 +137,8 @@ GEN_FCMP(fcmpes_fcc3, float32, FT0, FT1, 26, 1);
 GEN_FCMP(fcmped_fcc3, float64, DT0, DT1, 26, 1);
 #endif
 
-#if defined(CONFIG_USER_ONLY)
-void helper_ld_asi(int asi, int size, int sign)
-{
-}
-
-void helper_st_asi(int asi, int size, int sign)
-{
-}
-#else
 #ifndef TARGET_SPARC64
+#ifndef CONFIG_USER_ONLY
 void helper_ld_asi(int asi, int size, int sign)
 {
     uint32_t ret = 0;
@@ -197,6 +189,42 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             ret = ldl_code(T0 & ~3);
             T0 = ldl_code((T0 + 4) & ~3);
+            break;
+        }
+        break;
+    case 0xa: /* User data access */
+        switch(size) {
+        case 1:
+            ret = ldub_user(T0);
+            break;
+        case 2:
+            ret = lduw_user(T0 & ~1);
+            break;
+        default:
+        case 4:
+            ret = ldl_user(T0 & ~3);
+            break;
+        case 8:
+            ret = ldl_user(T0 & ~3);
+            T0 = ldl_user((T0 + 4) & ~3);
+            break;
+        }
+        break;
+    case 0xb: /* Supervisor data access */
+        switch(size) {
+        case 1:
+            ret = ldub_kernel(T0);
+            break;
+        case 2:
+            ret = lduw_kernel(T0 & ~1);
+            break;
+        default:
+        case 4:
+            ret = ldl_kernel(T0 & ~3);
+            break;
+        case 8:
+            ret = ldl_kernel(T0 & ~3);
+            T0 = ldl_kernel((T0 + 4) & ~3);
             break;
         }
         break;
@@ -253,10 +281,22 @@ void helper_ld_asi(int asi, int size, int sign)
         ret = 0;
         break;
     }
-    T1 = ret;
+    if (sign) {
+        switch(size) {
+        case 1:
+            T1 = (int8_t) ret;
+        case 2:
+            T1 = (int16_t) ret;
+        default:
+            T1 = ret;
+            break;
+        }
+    }
+    else
+        T1 = ret;
 }
 
-void helper_st_asi(int asi, int size, int sign)
+void helper_st_asi(int asi, int size)
 {
     switch(asi) {
     case 2: /* SuperSparc MXCC registers */
@@ -325,6 +365,42 @@ void helper_st_asi(int asi, int size, int sign)
 #endif
             return;
         }
+    case 0xa: /* User data access */
+        switch(size) {
+        case 1:
+            stb_user(T0, T1);
+            break;
+        case 2:
+            stw_user(T0 & ~1, T1);
+            break;
+        default:
+        case 4:
+            stl_user(T0 & ~3, T1);
+            break;
+        case 8:
+            stl_user(T0 & ~3, T1);
+            stl_user((T0 + 4) & ~3, T2);
+            break;
+        }
+        break;
+    case 0xb: /* Supervisor data access */
+        switch(size) {
+        case 1:
+            stb_kernel(T0, T1);
+            break;
+        case 2:
+            stw_kernel(T0 & ~1, T1);
+            break;
+        default:
+        case 4:
+            stl_kernel(T0 & ~3, T1);
+            break;
+        case 8:
+            stl_kernel(T0 & ~3, T1);
+            stl_kernel((T0 + 4) & ~3, T2);
+            break;
+        }
+        break;
     case 0xc: /* I-cache tag */
     case 0xd: /* I-cache data */
     case 0xe: /* D-cache tag */
@@ -422,7 +498,146 @@ void helper_st_asi(int asi, int size, int sign)
     }
 }
 
-#else
+#endif /* CONFIG_USER_ONLY */
+#else /* TARGET_SPARC64 */
+
+#ifdef CONFIG_USER_ONLY
+void helper_ld_asi(int asi, int size, int sign)
+{
+    uint64_t ret = 0;
+
+    if (asi < 0x80)
+        raise_exception(TT_PRIV_ACT);
+
+    switch (asi) {
+    case 0x80: // Primary
+    case 0x82: // Primary no-fault
+    case 0x88: // Primary LE
+    case 0x8a: // Primary no-fault LE
+        {
+            switch(size) {
+            case 1:
+                ret = ldub_raw(T0);
+                break;
+            case 2:
+                ret = lduw_raw(T0 & ~1);
+                break;
+            case 4:
+                ret = ldl_raw(T0 & ~3);
+                break;
+            default:
+            case 8:
+                ret = ldq_raw(T0 & ~7);
+                break;
+            }
+        }
+        break;
+    case 0x81: // Secondary
+    case 0x83: // Secondary no-fault
+    case 0x89: // Secondary LE
+    case 0x8b: // Secondary no-fault LE
+        // XXX
+        break;
+    default:
+        break;
+    }
+
+    /* Convert from little endian */
+    switch (asi) {
+    case 0x88: // Primary LE
+    case 0x89: // Secondary LE
+    case 0x8a: // Primary no-fault LE
+    case 0x8b: // Secondary no-fault LE
+        switch(size) {
+        case 2:
+            ret = bswap16(ret);
+        case 4:
+            ret = bswap32(ret);
+        case 8:
+            ret = bswap64(ret);
+        default:
+            break;
+        }
+    default:
+        break;
+    }
+
+    /* Convert to signed number */
+    if (sign) {
+        switch(size) {
+        case 1:
+            ret = (int8_t) ret;
+        case 2:
+            ret = (int16_t) ret;
+        case 4:
+            ret = (int32_t) ret;
+        default:
+            break;
+        }
+    }
+    T1 = ret;
+}
+
+void helper_st_asi(int asi, int size)
+{
+    if (asi < 0x80)
+        raise_exception(TT_PRIV_ACT);
+
+    /* Convert to little endian */
+    switch (asi) {
+    case 0x88: // Primary LE
+    case 0x89: // Secondary LE
+        switch(size) {
+        case 2:
+            T0 = bswap16(T0);
+        case 4:
+            T0 = bswap32(T0);
+        case 8:
+            T0 = bswap64(T0);
+        default:
+            break;
+        }
+    default:
+        break;
+    }
+
+    switch(asi) {
+    case 0x80: // Primary
+    case 0x88: // Primary LE
+        {
+            switch(size) {
+            case 1:
+                stb_raw(T0, T1);
+                break;
+            case 2:
+                stw_raw(T0 & ~1, T1);
+                break;
+            case 4:
+                stl_raw(T0 & ~3, T1);
+                break;
+            case 8:
+            default:
+                stq_raw(T0 & ~7, T1);
+                break;
+            }
+        }
+        break;
+    case 0x81: // Secondary
+    case 0x89: // Secondary LE
+        // XXX
+        return;
+
+    case 0x82: // Primary no-fault, RO
+    case 0x83: // Secondary no-fault, RO
+    case 0x8a: // Primary no-fault LE, RO
+    case 0x8b: // Secondary no-fault LE, RO
+    default:
+        do_unassigned_access(T0, 1, 0, 1);
+        return;
+    }
+}
+
+#else /* CONFIG_USER_ONLY */
 
 void helper_ld_asi(int asi, int size, int sign)
 {
@@ -432,8 +647,50 @@ void helper_ld_asi(int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
+    case 0x10: // As if user primary
+    case 0x18: // As if user primary LE
+    case 0x80: // Primary
+    case 0x82: // Primary no-fault
+    case 0x88: // Primary LE
+    case 0x8a: // Primary no-fault LE
+        if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
+            switch(size) {
+            case 1:
+                ret = ldub_kernel(T0);
+                break;
+            case 2:
+                ret = lduw_kernel(T0 & ~1);
+                break;
+            case 4:
+                ret = ldl_kernel(T0 & ~3);
+                break;
+            default:
+            case 8:
+                ret = ldq_kernel(T0 & ~7);
+                break;
+            }
+        } else {
+            switch(size) {
+            case 1:
+                ret = ldub_user(T0);
+                break;
+            case 2:
+                ret = lduw_user(T0 & ~1);
+                break;
+            case 4:
+                ret = ldl_user(T0 & ~3);
+                break;
+            default:
+            case 8:
+                ret = ldq_user(T0 & ~7);
+                break;
+            }
+        }
+        break;
     case 0x14: // Bypass
     case 0x15: // Bypass, non-cacheable
+    case 0x1c: // Bypass LE
+    case 0x1d: // Bypass, non-cacheable LE
         {
             switch(size) {
             case 1:
@@ -454,20 +711,14 @@ void helper_ld_asi(int asi, int size, int sign)
         }
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
-    case 0x10: // As if user primary
     case 0x11: // As if user secondary
-    case 0x18: // As if user primary LE
     case 0x19: // As if user secondary LE
-    case 0x1c: // Bypass LE
-    case 0x1d: // Bypass, non-cacheable LE
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic
     case 0x4a: // UPA config
-    case 0x82: // Primary no-fault
+    case 0x81: // Secondary
     case 0x83: // Secondary no-fault
-    case 0x88: // Primary LE
     case 0x89: // Secondary LE
-    case 0x8a: // Primary no-fault LE
     case 0x8b: // Secondary no-fault LE
         // XXX
         break;
@@ -540,17 +791,120 @@ void helper_ld_asi(int asi, int size, int sign)
         ret = 0;
         break;
     }
+
+    /* Convert from little endian */
+    switch (asi) {
+    case 0x0c: // Nucleus Little Endian (LE)
+    case 0x18: // As if user primary LE
+    case 0x19: // As if user secondary LE
+    case 0x1c: // Bypass LE
+    case 0x1d: // Bypass, non-cacheable LE
+    case 0x88: // Primary LE
+    case 0x89: // Secondary LE
+    case 0x8a: // Primary no-fault LE
+    case 0x8b: // Secondary no-fault LE
+        switch(size) {
+        case 2:
+            ret = bswap16(ret);
+        case 4:
+            ret = bswap32(ret);
+        case 8:
+            ret = bswap64(ret);
+        default:
+            break;
+        }
+    default:
+        break;
+    }
+
+    /* Convert to signed number */
+    if (sign) {
+        switch(size) {
+        case 1:
+            ret = (int8_t) ret;
+        case 2:
+            ret = (int16_t) ret;
+        case 4:
+            ret = (int32_t) ret;
+        default:
+            break;
+        }
+    }
     T1 = ret;
 }
 
-void helper_st_asi(int asi, int size, int sign)
+void helper_st_asi(int asi, int size)
 {
     if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
         raise_exception(TT_PRIV_ACT);
 
+    /* Convert to little endian */
+    switch (asi) {
+    case 0x0c: // Nucleus Little Endian (LE)
+    case 0x18: // As if user primary LE
+    case 0x19: // As if user secondary LE
+    case 0x1c: // Bypass LE
+    case 0x1d: // Bypass, non-cacheable LE
+    case 0x81: // Secondary
+    case 0x88: // Primary LE
+    case 0x89: // Secondary LE
+        switch(size) {
+        case 2:
+            T0 = bswap16(T0);
+        case 4:
+            T0 = bswap32(T0);
+        case 8:
+            T0 = bswap64(T0);
+        default:
+            break;
+        }
+    default:
+        break;
+    }
+
     switch(asi) {
+    case 0x10: // As if user primary
+    case 0x18: // As if user primary LE
+    case 0x80: // Primary
+    case 0x88: // Primary LE
+        if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
+            switch(size) {
+            case 1:
+                stb_kernel(T0, T1);
+                break;
+            case 2:
+                stw_kernel(T0 & ~1, T1);
+                break;
+            case 4:
+                stl_kernel(T0 & ~3, T1);
+                break;
+            case 8:
+            default:
+                stq_kernel(T0 & ~7, T1);
+                break;
+            }
+        } else {
+            switch(size) {
+            case 1:
+                stb_user(T0, T1);
+                break;
+            case 2:
+                stw_user(T0 & ~1, T1);
+                break;
+            case 4:
+                stl_user(T0 & ~3, T1);
+                break;
+            case 8:
+            default:
+                stq_user(T0 & ~7, T1);
+                break;
+            }
+        }
+        break;
     case 0x14: // Bypass
     case 0x15: // Bypass, non-cacheable
+    case 0x1c: // Bypass LE
+    case 0x1d: // Bypass, non-cacheable LE
         {
             switch(size) {
             case 1:
@@ -571,16 +925,11 @@ void helper_st_asi(int asi, int size, int sign)
         return;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
-    case 0x10: // As if user primary
     case 0x11: // As if user secondary
-    case 0x18: // As if user primary LE
     case 0x19: // As if user secondary LE
-    case 0x1c: // Bypass LE
-    case 0x1d: // Bypass, non-cacheable LE
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic
     case 0x4a: // UPA config
-    case 0x88: // Primary LE
     case 0x89: // Secondary LE
         // XXX
         return;
@@ -756,8 +1105,8 @@ void helper_st_asi(int asi, int size, int sign)
         return;
     }
 }
-#endif
-#endif /* !CONFIG_USER_ONLY */
+#endif /* CONFIG_USER_ONLY */
+#endif /* TARGET_SPARC64 */
 
 #ifndef TARGET_SPARC64
 void helper_rett()

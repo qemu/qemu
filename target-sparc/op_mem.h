@@ -76,33 +76,6 @@ void OPPROTO glue(op_lddf, MEMSUFFIX) (void)
 }
 
 #ifdef TARGET_SPARC64
-/* XXX: Should be Atomically */
-/* XXX: There are no cas[x] instructions, only cas[x]a */
-void OPPROTO glue(op_cas, MEMSUFFIX)(void)
-{
-    uint32_t tmp;
-
-    tmp = glue(ldl, MEMSUFFIX)(T0);
-    T2 &=  0xffffffffULL;
-    if (tmp == (T1 & 0xffffffffULL)) {
-        glue(stl, MEMSUFFIX)(T0, T2);
-    }
-    T2 = tmp;
-}
-
-void OPPROTO glue(op_casx, MEMSUFFIX)(void)
-{
-    uint64_t tmp;
-
-    // XXX
-    tmp = (uint64_t)glue(ldl, MEMSUFFIX)(T0) << 32;
-    tmp |= glue(ldl, MEMSUFFIX)(T0);
-    if (tmp == T1) {
-        glue(stq, MEMSUFFIX)(T0, T2);
-    }
-    T2 = tmp;
-}
-
 void OPPROTO glue(op_lduw, MEMSUFFIX)(void)
 {
     T1 = (uint64_t)(glue(ldl, MEMSUFFIX)(T0) & 0xffffffff);

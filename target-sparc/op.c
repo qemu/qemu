@@ -1862,10 +1862,126 @@ void OPPROTO op_ld_asi_reg()
 void OPPROTO op_st_asi_reg()
 {
     T0 += PARAM1;
-    helper_st_asi(env->asi, PARAM2, PARAM3);
+    helper_st_asi(env->asi, PARAM2);
+}
+
+void OPPROTO op_ldstub_asi_reg()             /* XXX: should be atomically */
+{
+    target_ulong tmp;
+
+    T0 += PARAM1;
+    helper_ld_asi(env->asi, 1, 0);
+    tmp = T1;
+    T1 = 0xff;
+    helper_st_asi(env->asi, 1);
+    T1 = tmp;
+}
+
+void OPPROTO op_swap_asi_reg()               /* XXX: should be atomically */
+{
+    target_ulong tmp1, tmp2;
+
+    T0 += PARAM1;
+    tmp1 = T1;
+    helper_ld_asi(env->asi, 4, 0);
+    tmp2 = T1;
+    T1 = tmp1;
+    helper_st_asi(env->asi, 4);
+    T1 = tmp2;
+}
+
+void OPPROTO op_ldda_asi()
+{
+    helper_ld_asi(PARAM1, 8, 0);
+    T0 = T1 & 0xffffffffUL;
+    T1 >>= 32;
+}
+
+void OPPROTO op_ldda_asi_reg()
+{
+    T0 += PARAM1;
+    helper_ld_asi(env->asi, 8, 0);
+    T0 = T1 & 0xffffffffUL;
+    T1 >>= 32;
+}
+
+void OPPROTO op_stda_asi()
+{
+    T1 <<= 32;
+    T1 += T2 & 0xffffffffUL;
+    helper_st_asi(PARAM1, 8);
+}
+
+void OPPROTO op_stda_asi_reg()
+{
+    T0 += PARAM1;
+    T1 <<= 32;
+    T1 += T2 & 0xffffffffUL;
+    helper_st_asi(env->asi, 8);
+}
+
+void OPPROTO op_cas_asi()                    /* XXX: should be atomically */
+{
+    target_ulong tmp;
+
+    tmp = T1 & 0xffffffffUL;
+    helper_ld_asi(PARAM1, 4, 0);
+    if (tmp == T1) {
+        tmp = T1;
+        T1 = T2 & 0xffffffffUL;
+        helper_st_asi(PARAM1, 4);
+        T1 = tmp;
+    }
+    T1 &= 0xffffffffUL;
+}
+
+void OPPROTO op_cas_asi_reg()                /* XXX: should be atomically */
+{
+    target_ulong tmp;
+
+    T0 += PARAM1;
+    tmp = T1 & 0xffffffffUL;
+    helper_ld_asi(env->asi, 4, 0);
+    if (tmp == T1) {
+        tmp = T1;
+        T1 = T2 & 0xffffffffUL;
+        helper_st_asi(env->asi, 4);
+        T1 = tmp;
+    }
+    T1 &= 0xffffffffUL;
+}
+
+void OPPROTO op_casx_asi()                   /* XXX: should be atomically */
+{
+    target_ulong tmp;
+
+    tmp = T1;
+    helper_ld_asi(PARAM1, 8, 0);
+    if (tmp == T1) {
+        tmp = T1;
+        T1 = T2;
+        helper_st_asi(PARAM1, 8);
+        T1 = tmp;
+    }
+}
+
+void OPPROTO op_casx_asi_reg()               /* XXX: should be atomically */
+{
+    target_ulong tmp;
+
+    T0 += PARAM1;
+    tmp = T1;
+    helper_ld_asi(env->asi, 8, 0);
+    if (tmp == T1) {
+        tmp = T1;
+        T1 = T2;
+        helper_st_asi(env->asi, 8);
+        T1 = tmp;
+    }
 }
 #endif
 
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 void OPPROTO op_ld_asi()
 {
     helper_ld_asi(PARAM1, PARAM2, PARAM3);
@@ -1873,8 +1989,32 @@ void OPPROTO op_ld_asi()
 
 void OPPROTO op_st_asi()
 {
-    helper_st_asi(PARAM1, PARAM2, PARAM3);
+    helper_st_asi(PARAM1, PARAM2);
 }
+
+void OPPROTO op_ldstub_asi()                 /* XXX: should be atomically */
+{
+    target_ulong tmp;
+
+    helper_ld_asi(PARAM1, 1, 0);
+    tmp = T1;
+    T1 = 0xff;
+    helper_st_asi(PARAM1, 1);
+    T1 = tmp;
+}
+
+void OPPROTO op_swap_asi()                   /* XXX: should be atomically */
+{
+    target_ulong tmp1, tmp2;
+
+    tmp1 = T1;
+    helper_ld_asi(PARAM1, 4, 0);
+    tmp2 = T1;
+    T1 = tmp1;
+    helper_st_asi(PARAM1, 4);
+    T1 = tmp2;
+}
+#endif
 
 #ifdef TARGET_SPARC64
 // This function uses non-native bit order

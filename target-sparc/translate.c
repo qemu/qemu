@@ -353,112 +353,27 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 #endif
 #endif
 
-#ifdef TARGET_SPARC64
-// 'a' versions allowed to user depending on asi
-#if defined(CONFIG_USER_ONLY)
+/* moves */
+#ifdef CONFIG_USER_ONLY
 #define supervisor(dc) 0
+#ifdef TARGET_SPARC64
 #define hypervisor(dc) 0
+#endif
 #define gen_op_ldst(name)        gen_op_##name##_raw()
-#define OP_LD_TABLE(width)                                              \
-    static void gen_op_##width##a(int insn, int is_ld, int size, int sign) \
-    {                                                                   \
-        int asi, offset;                                                \
-                                                                        \
-        if (IS_IMM) {                                                   \
-            offset = GET_FIELD(insn, 25, 31);                           \
-            if (is_ld)                                                  \
-                gen_op_ld_asi_reg(offset, size, sign);                  \
-            else                                                        \
-                gen_op_st_asi_reg(offset, size, sign);                  \
-            return;                                                     \
-        }                                                               \
-        asi = GET_FIELD(insn, 19, 26);                                  \
-        switch (asi) {                                                  \
-        case 0x80: /* Primary address space */                          \
-            gen_op_##width##_raw();                                     \
-            break;                                                      \
-        case 0x82: /* Primary address space, non-faulting load */       \
-            gen_op_##width##_raw();                                     \
-            break;                                                      \
-        default:                                                        \
-            break;                                                      \
-        }                                                               \
-    }
-
 #else
+#define supervisor(dc) (dc->mem_idx == 1)
+#ifdef TARGET_SPARC64
+#define hypervisor(dc) (dc->mem_idx == 2)
+#endif
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
 #define OP_LD_TABLE(width)                                              \
     static GenOpFunc * const gen_op_##width[] = {                       \
         &gen_op_##width##_user,                                         \
         &gen_op_##width##_kernel,                                       \
-    };                                                                  \
-                                                                        \
-    static void gen_op_##width##a(int insn, int is_ld, int size, int sign) \
-    {                                                                   \
-        int asi, offset;                                                \
-                                                                        \
-        if (IS_IMM) {                                                   \
-            offset = GET_FIELD(insn, 25, 31);                           \
-            if (is_ld)                                                  \
-                gen_op_ld_asi_reg(offset, size, sign);                  \
-            else                                                        \
-                gen_op_st_asi_reg(offset, size, sign);                  \
-            return;                                                     \
-        }                                                               \
-        asi = GET_FIELD(insn, 19, 26);                                  \
-        if (is_ld)                                                      \
-            gen_op_ld_asi(asi, size, sign);                             \
-        else                                                            \
-            gen_op_st_asi(asi, size, sign);                             \
-    }
-
-#define supervisor(dc) (dc->mem_idx == 1)
-#define hypervisor(dc) (dc->mem_idx == 2)
-#endif
-#else
-#if defined(CONFIG_USER_ONLY)
-#define gen_op_ldst(name)        gen_op_##name##_raw()
-#define OP_LD_TABLE(width)
-#define supervisor(dc) 0
-#else
-#define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
-#define OP_LD_TABLE(width)                                                    \
-static GenOpFunc * const gen_op_##width[] = {                                 \
-    &gen_op_##width##_user,                                                   \
-    &gen_op_##width##_kernel,                                                 \
-};                                                                            \
-                                                                              \
-static void gen_op_##width##a(int insn, int is_ld, int size, int sign)        \
-{                                                                             \
-    int asi;                                                                  \
-                                                                              \
-    asi = GET_FIELD(insn, 19, 26);                                            \
-    switch (asi) {                                                            \
-        case 10: /* User data access */                                       \
-            gen_op_##width##_user();                                          \
-            break;                                                            \
-        case 11: /* Supervisor data access */                                 \
-            gen_op_##width##_kernel();                                        \
-            break;                                                            \
-        case 0x20 ... 0x2f: /* MMU passthrough */                             \
-            if (is_ld)                                                        \
-                gen_op_ld_asi(asi, size, sign);                               \
-            else                                                              \
-                gen_op_st_asi(asi, size, sign);                               \
-            break;                                                            \
-        default:                                                              \
-            if (is_ld)                                                        \
-                gen_op_ld_asi(asi, size, sign);                               \
-            else                                                              \
-                gen_op_st_asi(asi, size, sign);                               \
-            break;                                                            \
-    }                                                                         \
-}
-
-#define supervisor(dc) (dc->mem_idx == 1)
-#endif
+    };
 #endif
 
+#ifndef CONFIG_USER_ONLY
 OP_LD_TABLE(ld);
 OP_LD_TABLE(st);
 OP_LD_TABLE(ldub);
@@ -481,8 +396,164 @@ OP_LD_TABLE(lduw);
 OP_LD_TABLE(ldsw);
 OP_LD_TABLE(ldx);
 OP_LD_TABLE(stx);
-OP_LD_TABLE(cas);
-OP_LD_TABLE(casx);
+#endif
+#endif
+
+/* asi moves */
+#ifdef TARGET_SPARC64
+static inline void gen_ld_asi(int insn, int size, int sign)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_ld_asi_reg(offset, size, sign);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_ld_asi(asi, size, sign);
+    }
+}
+
+static inline void gen_st_asi(int insn, int size)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_st_asi_reg(offset, size);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_st_asi(asi, size);
+    }
+}
+
+static inline void gen_swap_asi(int insn)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_swap_asi_reg(offset);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_swap_asi(asi);
+    }
+}
+
+static inline void gen_ldstub_asi(int insn)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_ldstub_asi_reg(offset);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_ldstub_asi(asi);
+    }
+}
+
+static inline void gen_ldda_asi(int insn)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_ldda_asi_reg(offset);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_ldda_asi(asi);
+    }
+}
+
+static inline void gen_stda_asi(int insn)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_stda_asi_reg(offset);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_stda_asi(asi);
+    }
+}
+
+static inline void gen_cas_asi(int insn)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_cas_asi_reg(offset);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_cas_asi(asi);
+    }
+}
+
+static inline void gen_casx_asi(int insn)
+{
+    int asi, offset;
+
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_casx_asi_reg(offset);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_casx_asi(asi);
+    }
+}
+
+#elif !defined(CONFIG_USER_ONLY)
+
+static inline void gen_ld_asi(int insn, int size, int sign)
+{
+    int asi;
+
+    asi = GET_FIELD(insn, 19, 26);
+    gen_op_ld_asi(asi, size, sign);
+}
+
+static inline void gen_st_asi(int insn, int size)
+{
+    int asi;
+
+    asi = GET_FIELD(insn, 19, 26);
+    gen_op_st_asi(asi, size);
+}
+
+static inline void gen_ldstub_asi(int insn)
+{
+    int asi;
+
+    asi = GET_FIELD(insn, 19, 26);
+    gen_op_ldstub_asi(asi);
+}
+
+static inline void gen_swap_asi(int insn)
+{
+    int asi;
+
+    asi = GET_FIELD(insn, 19, 26);
+    gen_op_swap_asi(asi);
+}
+
+static inline void gen_ldda_asi(int insn)
+{
+    int asi;
+
+    asi = GET_FIELD(insn, 19, 26);
+    gen_op_ld_asi(asi, 8, 0);
+}
+
+static inline void gen_stda_asi(int insn)
+{
+    int asi;
+
+    asi = GET_FIELD(insn, 19, 26);
+    gen_op_st_asi(asi, 8);
+}
 #endif
 
 static inline void gen_movl_imm_TN(int reg, uint32_t imm)
@@ -2796,7 +2867,12 @@ static void disas_sparc_insn(DisasContext * dc)
             rs1 = GET_FIELD(insn, 13, 17);
             save_state(dc);
             gen_movl_reg_T0(rs1);
-            if (IS_IMM) {       /* immediate */
+            if (xop == 0x3c || xop == 0x3e)
+            {
+                rs2 = GET_FIELD(insn, 27, 31);
+                gen_movl_reg_T1(rs2);
+            }
+            else if (IS_IMM) {       /* immediate */
                 rs2 = GET_FIELDs(insn, 19, 31);
 #if defined(OPTIM)
                 if (rs2 != 0) {
@@ -2873,16 +2949,10 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#ifdef CONFIG_USER_ONLY
+#elif CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_lda(insn, 1, 4, 0);
-#else
-#ifdef CONFIG_USER_ONLY
-                    gen_op_check_align_T0_3();
-#endif
-                    gen_op_lduwa(insn, 1, 4, 0);
-#endif
+                    gen_ld_asi(insn, 4, 0);
                     break;
                 case 0x11:      /* load unsigned byte alternate */
 #ifndef TARGET_SPARC64
@@ -2891,7 +2961,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    gen_op_lduba(insn, 1, 1, 0);
+                    gen_ld_asi(insn, 1, 0);
                     break;
                 case 0x12:      /* load unsigned halfword alternate */
 #ifndef TARGET_SPARC64
@@ -2899,11 +2969,10 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#endif
-#ifdef CONFIG_USER_ONLY
+#elif CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
 #endif
-                    gen_op_lduha(insn, 1, 2, 0);
+                    gen_ld_asi(insn, 2, 0);
                     break;
                 case 0x13:      /* load double word alternate */
 #ifndef TARGET_SPARC64
@@ -2915,7 +2984,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (rd & 1)
                         goto illegal_insn;
                     gen_op_check_align_T0_7();
-                    gen_op_ldda(insn, 1, 8, 0);
+                    gen_ldda_asi(insn);
                     gen_movl_T0_reg(rd + 1);
                     break;
                 case 0x19:      /* load signed byte alternate */
@@ -2925,7 +2994,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    gen_op_ldsba(insn, 1, 1, 1);
+                    gen_ld_asi(insn, 1, 1);
                     break;
                 case 0x1a:      /* load signed halfword alternate */
 #ifndef TARGET_SPARC64
@@ -2933,11 +3002,10 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#endif
-#ifdef CONFIG_USER_ONLY
+#elif CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
 #endif
-                    gen_op_ldsha(insn, 1, 2 ,1);
+                    gen_ld_asi(insn, 2, 1);
                     break;
                 case 0x1d:      /* ldstuba -- XXX: should be atomically */
 #ifndef TARGET_SPARC64
@@ -2946,7 +3014,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    gen_op_ldstuba(insn, 1, 1, 0);
+                    gen_ldstub_asi(insn);
                     break;
                 case 0x1f:      /* swap reg with alt. memory. Also atomically */
 #ifndef TARGET_SPARC64
@@ -2954,12 +3022,11 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#endif
-                    gen_movl_reg_T1(rd);
-#ifdef CONFIG_USER_ONLY
+#elif CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_swapa(insn, 1, 4, 0);
+                    gen_movl_reg_T1(rd);
+                    gen_swap_asi(insn);
                     break;
 
 #ifndef TARGET_SPARC64
@@ -2967,17 +3034,6 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x31: /* ldcsr */
                 case 0x33: /* lddc */
                     goto ncp_insn;
-                    /* avoid warnings */
-                    (void) &gen_op_stfa;
-                    (void) &gen_op_stdfa;
-                    (void) &gen_op_ldfa;
-                    (void) &gen_op_lddfa;
-#else
-                    (void) &gen_op_lda;
-#if !defined(CONFIG_USER_ONLY)
-                    (void) &gen_op_cas;
-                    (void) &gen_op_casx;
-#endif
 #endif
 #endif
 #ifdef TARGET_SPARC64
@@ -2995,11 +3051,11 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_ldswa(insn, 1, 4, 1);
+                    gen_ld_asi(insn, 4, 1);
                     break;
                 case 0x1b: /* V9 ldxa */
                     gen_op_check_align_T0_7();
-                    gen_op_ldxa(insn, 1, 8, 0);
+                    gen_ld_asi(insn, 8, 0);
                     break;
                 case 0x2d: /* V9 prefetch, no effect */
                     goto skip_move;
@@ -3007,13 +3063,12 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_ldfa(insn, 1, 8, 0); // XXX
-                    break;
+                    gen_ld_asi(insn, 8, 0); // XXX
+                    goto skip_move;
                 case 0x33: /* V9 lddfa */
                     gen_op_check_align_T0_7();
-                    gen_op_lddfa(insn, 1, 8, 0); // XXX
-
-                    break;
+                    gen_ld_asi(insn, 8, 0); // XXX
+                    goto skip_move;
                 case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
                 case 0x32: /* V9 ldqfa */
@@ -3092,7 +3147,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_sta(insn, 0, 4, 0);
+                    gen_st_asi(insn, 4);
                     break;
                 case 0x15:
 #ifndef TARGET_SPARC64
@@ -3101,7 +3156,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    gen_op_stba(insn, 0, 1, 0);
+                    gen_st_asi(insn, 1);
                     break;
                 case 0x16:
 #ifndef TARGET_SPARC64
@@ -3113,7 +3168,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
 #endif
-                    gen_op_stha(insn, 0, 2, 0);
+                    gen_st_asi(insn, 2);
                     break;
                 case 0x17:
 #ifndef TARGET_SPARC64
@@ -3127,7 +3182,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_check_align_T0_7();
                     flush_T2(dc);
                     gen_movl_reg_T2(rd + 1);
-                    gen_op_stda(insn, 0, 8, 0);
+                    gen_stda_asi(insn);
                     break;
 #endif
 #ifdef TARGET_SPARC64
@@ -3137,7 +3192,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x1e: /* V9 stxa */
                     gen_op_check_align_T0_7();
-                    gen_op_stxa(insn, 0, 8, 0); // XXX
+                    gen_st_asi(insn, 8);
                     break;
 #endif
                 default:
@@ -3184,21 +3239,27 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_stfa(insn, 0, 0, 0); // XXX
+                    gen_st_asi(insn, 0); // XXX
                     break;
                 case 0x37: /* V9 stdfa */
                     gen_op_check_align_T0_7();
-                    gen_op_stdfa(insn, 0, 0, 0); // XXX
+                    gen_st_asi(insn, 0); // XXX
                     break;
                 case 0x3c: /* V9 casa */
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_casa(insn, 0, 4, 0); // XXX
+                    flush_T2(dc);
+                    gen_movl_reg_T2(rd);
+                    gen_cas_asi(insn);
+                    gen_movl_T1_reg(rd);
                     break;
                 case 0x3e: /* V9 casxa */
                     gen_op_check_align_T0_7();
-                    gen_op_casxa(insn, 0, 8, 0); // XXX
+                    flush_T2(dc);
+                    gen_movl_reg_T2(rd);
+                    gen_casx_asi(insn);
+                    gen_movl_T1_reg(rd);
                     break;
                 case 0x36: /* V9 stqfa */
                     goto nfpu_insn;
