@@ -1776,13 +1776,14 @@ void ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
 void do_compute_hflags (CPUPPCState *env)
 {
     /* Compute current hflags */
-    env->hflags = (msr_cm << MSR_CM) | (msr_vr << MSR_VR) |
+    env->hflags = (msr_vr << MSR_VR) |
         (msr_ap << MSR_AP) | (msr_sa << MSR_SA) | (msr_pr << MSR_PR) |
         (msr_fp << MSR_FP) | (msr_fe0 << MSR_FE0) | (msr_se << MSR_SE) |
         (msr_be << MSR_BE) | (msr_fe1 << MSR_FE1) | (msr_le << MSR_LE);
 #if defined (TARGET_PPC64)
-    /* No care here: PowerPC 64 MSR_SF means the same as MSR_CM for BookE */
-    env->hflags |= (msr_sf << (MSR_SF - 32)) | (msr_hv << (MSR_HV - 32));
+    env->hflags |= msr_cm << MSR_CM;
+    env->hflags |= (uint64_t)msr_sf << MSR_SF;
+    env->hflags |= (uint64_t)msr_hv << MSR_HV;
 #endif
 }
 

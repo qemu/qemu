@@ -807,7 +807,7 @@ struct CPUPPCState {
     /* Those resources are used only in Qemu core */
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
-    uint32_t hflags;
+    target_ulong hflags; /* hflags is a MSR & HFLAGS_MASK */
 
     /* Power management */
     int power_mode;
