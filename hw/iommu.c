@@ -212,7 +212,7 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
     addr &= ~s->iostart;
     iopte += (addr >> (PAGE_SHIFT - 2)) & ~3;
     cpu_physical_memory_read(iopte, (uint8_t *)&ret, 4);
-    bswap32s(&ret);
+    tswap32s(&ret);
     DPRINTF("get flags addr " TARGET_FMT_plx " => pte " TARGET_FMT_plx
             ", *pte = %x\n", pa, iopte, ret);
 
