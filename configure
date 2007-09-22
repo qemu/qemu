@@ -910,6 +910,12 @@ fi
 
 echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_h
 
+tools=
+if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
+  tools="qemu-img\$(EXESUF) $tools"
+fi
+echo "TOOLS=$tools" >> $config_mak
+
 test -f ${config_h}~ && cmp -s $config_h ${config_h}~ && mv ${config_h}~ $config_h
 
 for target in $target_list; do
