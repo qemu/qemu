@@ -1995,6 +1995,98 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, target_ulong cur_eip)
     }
 }
 
+#ifdef TARGET_X86_64
+#define SVM_movq_T1_im(x) gen_op_movq_T1_im64((x) >> 32, x)
+#else
+#define SVM_movq_T1_im(x) gen_op_movl_T1_im(x)
+#endif
+
+static inline int
+gen_svm_check_io(DisasContext *s, target_ulong pc_start, uint64_t type)
+{
+#if !defined(CONFIG_USER_ONLY)
+    if(s->flags & (1ULL << INTERCEPT_IOIO_PROT)) {
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        SVM_movq_T1_im(s->pc - s->cs_base);
+        gen_jmp_im(pc_start - s->cs_base);
+        gen_op_geneflags();
+        gen_op_svm_check_intercept_io((uint32_t)(type >> 32), (uint32_t)type);
+        s->cc_op = CC_OP_DYNAMIC;
+        /* FIXME: maybe we could move the io intercept vector to the TB as well
+                  so we know if this is an EOB or not ... let's assume it's not
+                  for now. */
+    }
+#endif
+    return 0;
+}
+
+static inline int svm_is_rep(int prefixes)
+{
+    return ((prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) ? 8 : 0);
+}
+
+static inline int
+gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
+                              uint64_t type, uint64_t param)
+{
+    if(!(s->flags & (INTERCEPT_SVM_MASK)))
+	/* no SVM activated */
+        return 0;
+    switch(type) {
+        /* CRx and DRx reads/writes */
+        case SVM_EXIT_READ_CR0 ... SVM_EXIT_EXCP_BASE - 1:
+            if (s->cc_op != CC_OP_DYNAMIC) {
+                gen_op_set_cc_op(s->cc_op);
+                s->cc_op = CC_OP_DYNAMIC;
+            }
+            gen_jmp_im(pc_start - s->cs_base);
+            SVM_movq_T1_im(param);
+            gen_op_geneflags();
+            gen_op_svm_check_intercept_param((uint32_t)(type >> 32), (uint32_t)type);
+            /* this is a special case as we do not know if the interception occurs
+               so we assume there was none */
+            return 0;
+        case SVM_EXIT_MSR:
+            if(s->flags & (1ULL << INTERCEPT_MSR_PROT)) {
+                if (s->cc_op != CC_OP_DYNAMIC) {
+                    gen_op_set_cc_op(s->cc_op);
+                    s->cc_op = CC_OP_DYNAMIC;
+                }
+                gen_jmp_im(pc_start - s->cs_base);
+                SVM_movq_T1_im(param);
+                gen_op_geneflags();
+                gen_op_svm_check_intercept_param((uint32_t)(type >> 32), (uint32_t)type);
+                /* this is a special case as we do not know if the interception occurs
+                   so we assume there was none */
+                return 0;
+            }
+            break;
+        default:
+            if(s->flags & (1ULL << ((type - SVM_EXIT_INTR) + INTERCEPT_INTR))) {
+                if (s->cc_op != CC_OP_DYNAMIC) {
+                    gen_op_set_cc_op(s->cc_op);
+		    s->cc_op = CC_OP_EFLAGS;
+                }
+                gen_jmp_im(pc_start - s->cs_base);
+                SVM_movq_T1_im(param);
+                gen_op_geneflags();
+                gen_op_svm_vmexit(type >> 32, type);
+                /* we can optimize this one so TBs don't get longer
+                   than up to vmexit */
+                gen_eob(s);
+                return 1;
+            }
+    }
+    return 0;
+}
+
+static inline int
+gen_svm_check_intercept(DisasContext *s, target_ulong pc_start, uint64_t type)
+{
+    return gen_svm_check_intercept_param(s, pc_start, type, 0);
+}
+
 static inline void gen_stack_update(DisasContext *s, int addend)
 {
 #ifdef TARGET_X86_64
@@ -4880,6 +4972,12 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         gen_check_io(s, ot, 1, pc_start - s->cs_base);
+        gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
+        gen_op_andl_T0_ffff();
+        if (gen_svm_check_io(s, pc_start,
+                             SVM_IOIO_TYPE_MASK | (1 << (4+ot)) |
+                             svm_is_rep(prefixes) | 4 | (1 << (7+s->aflag))))
+            break;
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_ins(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
@@ -4893,6 +4991,12 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         gen_check_io(s, ot, 1, pc_start - s->cs_base);
+        gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
+        gen_op_andl_T0_ffff();
+        if (gen_svm_check_io(s, pc_start,
+                             (1 << (4+ot)) | svm_is_rep(prefixes) |
+                             4 | (1 << (7+s->aflag))))
+            break;
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_outs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
@@ -4902,6 +5006,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 
         /************************/
         /* port I/O */
+
     case 0xe4:
     case 0xe5:
         if ((b & 1) == 0)
@@ -4911,6 +5016,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         val = ldub_code(s->pc++);
         gen_op_movl_T0_im(val);
         gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        if (gen_svm_check_io(s, pc_start,
+                             SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) |
+                             (1 << (4+ot))))
+            break;
         gen_op_in[ot]();
         gen_op_mov_reg_T1[ot][R_EAX]();
         break;
@@ -4923,6 +5032,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         val = ldub_code(s->pc++);
         gen_op_movl_T0_im(val);
         gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        if (gen_svm_check_io(s, pc_start, svm_is_rep(prefixes) |
+                             (1 << (4+ot))))
+            break;
         gen_op_mov_TN_reg[ot][1][R_EAX]();
         gen_op_out[ot]();
         break;
@@ -4935,6 +5047,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
         gen_op_andl_T0_ffff();
         gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        if (gen_svm_check_io(s, pc_start,
+                             SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) |
+                             (1 << (4+ot))))
+            break;
         gen_op_in[ot]();
         gen_op_mov_reg_T1[ot][R_EAX]();
         break;
@@ -4947,6 +5063,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
         gen_op_andl_T0_ffff();
         gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        if (gen_svm_check_io(s, pc_start,
+                             svm_is_rep(prefixes) | (1 << (4+ot))))
+            break;
         gen_op_mov_TN_reg[ot][1][R_EAX]();
         gen_op_out[ot]();
         break;
@@ -5004,6 +5123,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         val = 0;
         goto do_lret;
     case 0xcf: /* iret */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_IRET))
+            break;
         if (!s->pe) {
             /* real mode */
             gen_op_iret_real(s->dflag);
@@ -5125,6 +5246,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         /************************/
         /* flags */
     case 0x9c: /* pushf */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_PUSHF))
+            break;
         if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
@@ -5135,6 +5258,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         }
         break;
     case 0x9d: /* popf */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_POPF))
+            break;
         if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
@@ -5348,6 +5473,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         /* XXX: correct lock test for all insn */
         if (prefixes & PREFIX_LOCK)
             goto illegal_op;
+        if (prefixes & PREFIX_REPZ) {
+            gen_svm_check_intercept(s, pc_start, SVM_EXIT_PAUSE);
+        }
         break;
     case 0x9b: /* fwait */
         if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) ==
@@ -5361,10 +5489,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         }
         break;
     case 0xcc: /* int3 */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_SWINT))
+            break;
         gen_interrupt(s, EXCP03_INT3, pc_start - s->cs_base, s->pc - s->cs_base);
         break;
     case 0xcd: /* int N */
         val = ldub_code(s->pc++);
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_SWINT))
+            break;
         if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
@@ -5374,12 +5506,16 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0xce: /* into */
         if (CODE64(s))
             goto illegal_op;
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_SWINT))
+            break;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_jmp_im(pc_start - s->cs_base);
         gen_op_into(s->pc - pc_start);
         break;
     case 0xf1: /* icebp (undocumented, exits to external debugger) */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_ICEBP))
+            break;
 #if 1
         gen_debug(s, pc_start - s->cs_base);
 #else
@@ -5415,6 +5551,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_op_set_inhibit_irq();
                 /* give a chance to handle pending irqs */
                 gen_jmp_im(s->pc - s->cs_base);
+                if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_VINTR))
+                    break;
                 gen_eob(s);
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -5507,13 +5645,21 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            if (b & 2)
+            int retval = 0;
+            if (b & 2) {
+                retval = gen_svm_check_intercept_param(s, pc_start, SVM_EXIT_MSR, 0);
                 gen_op_rdmsr();
-            else
+            } else {
+                retval = gen_svm_check_intercept_param(s, pc_start, SVM_EXIT_MSR, 1);
                 gen_op_wrmsr();
+            }
+            if(retval)
+                gen_eob(s);
         }
         break;
     case 0x131: /* rdtsc */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_RDTSC))
+            break;
         gen_jmp_im(pc_start - s->cs_base);
         gen_op_rdtsc();
         break;
@@ -5576,12 +5722,16 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
 #endif
     case 0x1a2: /* cpuid */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_CPUID))
+            break;
         gen_op_cpuid();
         break;
     case 0xf4: /* hlt */
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
+            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_HLT))
+                break;
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             gen_jmp_im(s->pc - s->cs_base);
@@ -5597,6 +5747,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         case 0: /* sldt */
             if (!s->pe || s->vm86)
                 goto illegal_op;
+            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_LDTR_READ))
+                break;
             gen_op_movl_T0_env(offsetof(CPUX86State,ldt.selector));
             ot = OT_WORD;
             if (mod == 3)
@@ -5609,6 +5761,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
+                if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_LDTR_WRITE))
+                    break;
                 gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_op_lldt_T0();
@@ -5617,6 +5771,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         case 1: /* str */
             if (!s->pe || s->vm86)
                 goto illegal_op;
+            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_TR_READ))
+                break;
             gen_op_movl_T0_env(offsetof(CPUX86State,tr.selector));
             ot = OT_WORD;
             if (mod == 3)
@@ -5629,6 +5785,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
+                if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_TR_WRITE))
+                    break;
                 gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_op_ltr_T0();
@@ -5660,6 +5818,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         case 0: /* sgdt */
             if (mod == 3)
                 goto illegal_op;
+            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_GDTR_READ))
+                break;
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_op_movl_T0_env(offsetof(CPUX86State, gdt.limit));
             gen_op_st_T0_A0[OT_WORD + s->mem_index]();
@@ -5676,6 +5836,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) ||
                         s->cpl != 0)
                         goto illegal_op;
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_MONITOR))
+                        break;
                     gen_jmp_im(pc_start - s->cs_base);
 #ifdef TARGET_X86_64
                     if (s->aflag == 2) {
@@ -5700,6 +5862,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_op_set_cc_op(s->cc_op);
                         s->cc_op = CC_OP_DYNAMIC;
                     }
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_MWAIT))
+                        break;
                     gen_jmp_im(s->pc - s->cs_base);
                     gen_op_mwait();
                     gen_eob(s);
@@ -5708,6 +5872,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     goto illegal_op;
                 }
             } else { /* sidt */
+                if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_READ))
+                    break;
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 gen_op_movl_T0_env(offsetof(CPUX86State, idt.limit));
                 gen_op_st_T0_A0[OT_WORD + s->mem_index]();
@@ -5720,11 +5886,63 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         case 2: /* lgdt */
         case 3: /* lidt */
-            if (mod == 3)
-                goto illegal_op;
-            if (s->cpl != 0) {
+            if (mod == 3) {
+                switch(rm) {
+                case 0: /* VMRUN */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_VMRUN))
+                        break;
+                    if (s->cc_op != CC_OP_DYNAMIC)
+                        gen_op_set_cc_op(s->cc_op);
+                    gen_jmp_im(s->pc - s->cs_base);
+                    gen_op_vmrun();
+                    s->cc_op = CC_OP_EFLAGS;
+                    gen_eob(s);
+                    break;
+                case 1: /* VMMCALL */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_VMMCALL))
+                         break;
+                    /* FIXME: cause #UD if hflags & SVM */
+                    gen_op_vmmcall();
+                    break;
+                case 2: /* VMLOAD */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_VMLOAD))
+                         break;
+                    gen_op_vmload();
+                    break;
+                case 3: /* VMSAVE */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_VMSAVE))
+                         break;
+                    gen_op_vmsave();
+                    break;
+                case 4: /* STGI */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_STGI))
+                         break;
+                    gen_op_stgi();
+                    break;
+                case 5: /* CLGI */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_CLGI))
+                         break;
+                    gen_op_clgi();
+                    break;
+                case 6: /* SKINIT */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_SKINIT))
+                         break;
+                    gen_op_skinit();
+                    break;
+                case 7: /* INVLPGA */
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_INVLPGA))
+                         break;
+                    gen_op_invlpga();
+                    break;
+                default:
+                    goto illegal_op;
+                }
+            } else if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
+                if (gen_svm_check_intercept(s, pc_start,
+                                            op==2 ? SVM_EXIT_GDTR_WRITE : SVM_EXIT_IDTR_WRITE))
+                    break;
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 gen_op_ld_T1_A0[OT_WORD + s->mem_index]();
                 gen_add_A0_im(s, 2);
@@ -5741,6 +5959,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             }
             break;
         case 4: /* smsw */
+            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_CR0))
+                break;
             gen_op_movl_T0_env(offsetof(CPUX86State,cr[0]));
             gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 1);
             break;
@@ -5748,6 +5968,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
+                if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0))
+                    break;
                 gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
                 gen_op_lmsw_T0();
                 gen_jmp_im(s->pc - s->cs_base);
@@ -5772,6 +5994,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         goto illegal_op;
                     }
                 } else {
+                    if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_INVLPG))
+                        break;
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                     gen_op_invlpg_A0();
                     gen_jmp_im(s->pc - s->cs_base);
@@ -5788,6 +6012,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
+            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_INVD))
+                break;
             /* nothing to do */
         }
         break;
@@ -5908,11 +6134,13 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             case 4:
             case 8:
                 if (b & 2) {
+                    gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0 + reg);
                     gen_op_mov_TN_reg[ot][0][rm]();
                     gen_op_movl_crN_T0(reg);
                     gen_jmp_im(s->pc - s->cs_base);
                     gen_eob(s);
                 } else {
+                    gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_CR0 + reg);
 #if !defined(CONFIG_USER_ONLY)
                     if (reg == 8)
                         gen_op_movtl_T0_cr8();
@@ -5945,11 +6173,13 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (reg == 4 || reg == 5 || reg >= 8)
                 goto illegal_op;
             if (b & 2) {
+                gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_DR0 + reg);
                 gen_op_mov_TN_reg[ot][0][rm]();
                 gen_op_movl_drN_T0(reg);
                 gen_jmp_im(s->pc - s->cs_base);
                 gen_eob(s);
             } else {
+                gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_DR0 + reg);
                 gen_op_movtl_T0_env(offsetof(CPUX86State,dr[reg]));
                 gen_op_mov_reg_T0[ot][rm]();
             }
@@ -5959,6 +6189,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
+            gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
             gen_op_clts();
             /* abort block because static cpu state changed */
             gen_jmp_im(s->pc - s->cs_base);
@@ -6050,6 +6281,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         /* ignore for now */
         break;
     case 0x1aa: /* rsm */
+        if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_RSM))
+            break;
         if (!(s->flags & HF_SMM_MASK))
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC) {

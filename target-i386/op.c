@@ -513,8 +513,6 @@ typedef union UREG64 {
 } UREG64;
 #endif
 
-#ifdef TARGET_X86_64
-
 #define PARAMQ1 \
 ({\
     UREG64 __p;\
@@ -522,6 +520,8 @@ typedef union UREG64 {
     __p.l.v0 = PARAM2;\
     __p.q;\
 })
+
+#ifdef TARGET_X86_64
 
 void OPPROTO op_movq_T0_im64(void)
 {
@@ -1242,11 +1242,51 @@ void OPPROTO op_ltr_T0(void)
     helper_ltr_T0();
 }
 
-/* CR registers access */
+/* CR registers access. */
 void OPPROTO op_movl_crN_T0(void)
 {
     helper_movl_crN_T0(PARAM1);
 }
+
+/* These pseudo-opcodes check for SVM intercepts. */
+void OPPROTO op_svm_check_intercept(void)
+{
+    A0 = PARAM1 & PARAM2;
+    svm_check_intercept(PARAMQ1);
+}
+
+void OPPROTO op_svm_check_intercept_param(void)
+{
+    A0 = PARAM1 & PARAM2;
+    svm_check_intercept_param(PARAMQ1, T1);
+}
+
+void OPPROTO op_svm_vmexit(void)
+{
+    A0 = PARAM1 & PARAM2;
+    vmexit(PARAMQ1, T1);
+}
+
+void OPPROTO op_geneflags(void)
+{
+    CC_SRC = cc_table[CC_OP].compute_all();
+}
+
+/* This pseudo-opcode checks for IO intercepts. */
+#if !defined(CONFIG_USER_ONLY)
+void OPPROTO op_svm_check_intercept_io(void)
+{
+    A0 = PARAM1 & PARAM2;
+    /* PARAMQ1 = TYPE (0 = OUT, 1 = IN; 4 = STRING; 8 = REP)
+       T0      = PORT
+       T1      = next eip */
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), T1);
+    /* ASIZE does not appear on real hw */
+    svm_check_intercept_param(SVM_EXIT_IOIO,
+                              (PARAMQ1 & ~SVM_IOIO_ASIZE_MASK) |
+                              ((T0 & 0xffff) << 16));
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_movtl_T0_cr8(void)
@@ -2452,3 +2492,45 @@ void OPPROTO op_emms(void)
 
 #define SHIFT 1
 #include "ops_sse.h"
+
+/* Secure Virtual Machine ops */
+
+void OPPROTO op_vmrun(void)
+{
+    helper_vmrun(EAX);
+}
+
+void OPPROTO op_vmmcall(void)
+{
+    helper_vmmcall();
+}
+
+void OPPROTO op_vmload(void)
+{
+    helper_vmload(EAX);
+}
+
+void OPPROTO op_vmsave(void)
+{
+    helper_vmsave(EAX);
+}
+
+void OPPROTO op_stgi(void)
+{
+    helper_stgi();
+}
+
+void OPPROTO op_clgi(void)
+{
+    helper_clgi();
+}
+
+void OPPROTO op_skinit(void)
+{
+    helper_skinit();
+}
+
+void OPPROTO op_invlpga(void)
+{
+    helper_invlpga();
+}

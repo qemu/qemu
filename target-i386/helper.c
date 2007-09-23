@@ -594,7 +594,18 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2;
     uint32_t old_eip, sp_mask;
+    int svm_should_check = 1;
 
+    if ((env->intercept & INTERCEPT_SVM_MASK) && !is_int && next_eip==-1) {
+        next_eip = EIP;
+        svm_should_check = 0;
+    }
+
+    if (svm_should_check
+        && (INTERCEPTEDl(_exceptions, 1 << intno)
+        && !is_int)) {
+        raise_interrupt(intno, is_int, error_code, 0);
+    }
     has_error_code = 0;
     if (!is_int && !is_hw) {
         switch(intno) {
@@ -830,7 +841,17 @@ static void do_interrupt64(int intno, int is_int, int error_code,
     int has_error_code, new_stack;
     uint32_t e1, e2, e3, ss;
     target_ulong old_eip, esp, offset;
+    int svm_should_check = 1;
 
+    if ((env->intercept & INTERCEPT_SVM_MASK) && !is_int && next_eip==-1) {
+        next_eip = EIP;
+        svm_should_check = 0;
+    }
+    if (svm_should_check
+        && INTERCEPTEDl(_exceptions, 1 << intno)
+        && !is_int) {
+        raise_interrupt(intno, is_int, error_code, 0);
+    }
     has_error_code = 0;
     if (!is_int && !is_hw) {
         switch(intno) {
@@ -1077,7 +1098,17 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     int selector;
     uint32_t offset, esp;
     uint32_t old_cs, old_eip;
+    int svm_should_check = 1;
 
+    if ((env->intercept & INTERCEPT_SVM_MASK) && !is_int && next_eip==-1) {
+        next_eip = EIP;
+        svm_should_check = 0;
+    }
+    if (svm_should_check
+        && INTERCEPTEDl(_exceptions, 1 << intno)
+        && !is_int) {
+        raise_interrupt(intno, is_int, error_code, 0);
+    }
     /* real mode (simpler !) */
     dt = &env->idt;
     if (intno * 4 + 3 > dt->limit)
@@ -1227,8 +1258,10 @@ int check_exception(int intno, int *error_code)
 void raise_interrupt(int intno, int is_int, int error_code,
                      int next_eip_addend)
 {
-    if (!is_int)
+    if (!is_int) {
+        svm_check_intercept_param(SVM_EXIT_EXCP_BASE + intno, error_code);
         intno = check_exception(intno, &error_code);
+    }
 
     env->exception_index = intno;
     env->error_code = error_code;
@@ -1671,7 +1704,7 @@ void helper_cpuid(void)
     case 0x80000001:
         EAX = env->cpuid_features;
         EBX = 0;
-        ECX = 0;
+        ECX = env->cpuid_ext3_features;
         EDX = env->cpuid_ext2_features;
         break;
     case 0x80000002:
@@ -2745,6 +2778,9 @@ void helper_wrmsr(void)
     case MSR_PAT:
         env->pat = val;
         break;
+    case MSR_VM_HSAVE_PA:
+        env->vm_hsave = val;
+        break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:
         env->lstar = val;
@@ -2795,6 +2831,9 @@ void helper_rdmsr(void)
         break;
     case MSR_PAT:
         val = env->pat;
+        break;
+    case MSR_VM_HSAVE_PA:
+        val = env->vm_hsave;
         break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:
@@ -3877,3 +3916,483 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
     }
     env = saved_env;
 }
+
+
+/* Secure Virtual Machine helpers */
+
+void helper_stgi(void)
+{
+    env->hflags |= HF_GIF_MASK;
+}
+
+void helper_clgi(void)
+{
+    env->hflags &= ~HF_GIF_MASK;
+}
+
+#if defined(CONFIG_USER_ONLY)
+
+void helper_vmrun(target_ulong addr) { }
+void helper_vmmcall(void) { }
+void helper_vmload(target_ulong addr) { }
+void helper_vmsave(target_ulong addr) { }
+void helper_skinit(void) { }
+void helper_invlpga(void) { }
+void vmexit(uint64_t exit_code, uint64_t exit_info_1) { }
+int svm_check_intercept_param(uint32_t type, uint64_t param)
+{
+    return 0;
+}
+
+#else
+
+static inline uint32_t
+vmcb2cpu_attrib(uint16_t vmcb_attrib, uint32_t vmcb_base, uint32_t vmcb_limit)
+{
+    return    ((vmcb_attrib & 0x00ff) << 8)          /* Type, S, DPL, P */
+	    | ((vmcb_attrib & 0x0f00) << 12)         /* AVL, L, DB, G */
+	    | ((vmcb_base >> 16) & 0xff)             /* Base 23-16 */
+	    | (vmcb_base & 0xff000000)               /* Base 31-24 */
+	    | (vmcb_limit & 0xf0000);                /* Limit 19-16 */
+}
+
+static inline uint16_t cpu2vmcb_attrib(uint32_t cpu_attrib)
+{
+    return    ((cpu_attrib >> 8) & 0xff)             /* Type, S, DPL, P */
+	    | ((cpu_attrib & 0xf00000) >> 12);       /* AVL, L, DB, G */
+}
+
+extern uint8_t *phys_ram_base;
+void helper_vmrun(target_ulong addr)
+{
+    uint32_t event_inj;
+    uint32_t int_ctl;
+
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+        fprintf(logfile,"vmrun! " TARGET_FMT_lx "\n", addr);
+
+    env->vm_vmcb = addr;
+    regs_to_env();
+
+    /* save the current CPU state in the hsave page */
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.base), env->gdt.base);
+    stl_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.limit), env->gdt.limit);
+
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.idtr.base), env->idt.base);
+    stl_phys(env->vm_hsave + offsetof(struct vmcb, save.idtr.limit), env->idt.limit);
+
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr0), env->cr[0]);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr2), env->cr[2]);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr3), env->cr[3]);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr4), env->cr[4]);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8), env->cr[8]);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr6), env->dr[6]);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr7), env->dr[7]);
+
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer), env->efer);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rflags), compute_eflags());
+
+    SVM_SAVE_SEG(env->vm_hsave, segs[R_ES], es);
+    SVM_SAVE_SEG(env->vm_hsave, segs[R_CS], cs);
+    SVM_SAVE_SEG(env->vm_hsave, segs[R_SS], ss);
+    SVM_SAVE_SEG(env->vm_hsave, segs[R_DS], ds);
+
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip), EIP);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp), ESP);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rax), EAX);
+
+    /* load the interception bitmaps so we do not need to access the
+       vmcb in svm mode */
+    /* We shift all the intercept bits so we can OR them with the TB
+       flags later on */
+    env->intercept            = (ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.intercept)) << INTERCEPT_INTR) | INTERCEPT_SVM_MASK;
+    env->intercept_cr_read    = lduw_phys(env->vm_vmcb + offsetof(struct vmcb, control.intercept_cr_read));
+    env->intercept_cr_write   = lduw_phys(env->vm_vmcb + offsetof(struct vmcb, control.intercept_cr_write));
+    env->intercept_dr_read    = lduw_phys(env->vm_vmcb + offsetof(struct vmcb, control.intercept_dr_read));
+    env->intercept_dr_write   = lduw_phys(env->vm_vmcb + offsetof(struct vmcb, control.intercept_dr_write));
+    env->intercept_exceptions = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.intercept_exceptions));
+
+    env->gdt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.base));
+    env->gdt.limit = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.limit));
+
+    env->idt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.idtr.base));
+    env->idt.limit = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, save.idtr.limit));
+
+    /* clear exit_info_2 so we behave like the real hardware */
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), 0);
+
+    cpu_x86_update_cr0(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr0)));
+    cpu_x86_update_cr4(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr4)));
+    cpu_x86_update_cr3(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr3)));
+    env->cr[2] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr2));
+    int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
+    if (int_ctl & V_INTR_MASKING_MASK) {
+        env->cr[8] = int_ctl & V_TPR_MASK;
+        if (env->eflags & IF_MASK)
+            env->hflags |= HF_HIF_MASK;
+    }
+
+#ifdef TARGET_X86_64
+    env->efer = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.efer));
+    env->hflags &= ~HF_LMA_MASK;
+    if (env->efer & MSR_EFER_LMA)
+       env->hflags |= HF_LMA_MASK;
+#endif
+    env->eflags = 0;
+    load_eflags(ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rflags)),
+                ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
+    CC_OP = CC_OP_EFLAGS;
+    CC_DST = 0xffffffff;
+
+    SVM_LOAD_SEG(env->vm_vmcb, ES, es);
+    SVM_LOAD_SEG(env->vm_vmcb, CS, cs);
+    SVM_LOAD_SEG(env->vm_vmcb, SS, ss);
+    SVM_LOAD_SEG(env->vm_vmcb, DS, ds);
+
+    EIP = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip));
+    env->eip = EIP;
+    ESP = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp));
+    EAX = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax));
+    env->dr[7] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7));
+    env->dr[6] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr6));
+    cpu_x86_set_cpl(env, ldub_phys(env->vm_vmcb + offsetof(struct vmcb, save.cpl)));
+
+    /* FIXME: guest state consistency checks */
+
+    switch(ldub_phys(env->vm_vmcb + offsetof(struct vmcb, control.tlb_ctl))) {
+        case TLB_CONTROL_DO_NOTHING:
+            break;
+        case TLB_CONTROL_FLUSH_ALL_ASID:
+            /* FIXME: this is not 100% correct but should work for now */
+            tlb_flush(env, 1);
+        break;
+    }
+
+    helper_stgi();
+
+    regs_to_env();
+
+    /* maybe we need to inject an event */
+    event_inj = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj));
+    if (event_inj & SVM_EVTINJ_VALID) {
+        uint8_t vector = event_inj & SVM_EVTINJ_VEC_MASK;
+        uint16_t valid_err = event_inj & SVM_EVTINJ_VALID_ERR;
+        uint32_t event_inj_err = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj_err));
+        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), event_inj & ~SVM_EVTINJ_VALID);
+
+        if (loglevel & CPU_LOG_TB_IN_ASM)
+            fprintf(logfile, "Injecting(%#hx): ", valid_err);
+        /* FIXME: need to implement valid_err */
+        switch (event_inj & SVM_EVTINJ_TYPE_MASK) {
+        case SVM_EVTINJ_TYPE_INTR:
+                env->exception_index = vector;
+                env->error_code = event_inj_err;
+                env->exception_is_int = 1;
+                env->exception_next_eip = -1;
+                if (loglevel & CPU_LOG_TB_IN_ASM)
+                    fprintf(logfile, "INTR");
+                break;
+        case SVM_EVTINJ_TYPE_NMI:
+                env->exception_index = vector;
+                env->error_code = event_inj_err;
+                env->exception_is_int = 1;
+                env->exception_next_eip = EIP;
+                if (loglevel & CPU_LOG_TB_IN_ASM)
+                    fprintf(logfile, "NMI");
+                break;
+        case SVM_EVTINJ_TYPE_EXEPT:
+                env->exception_index = vector;
+                env->error_code = event_inj_err;
+                env->exception_is_int = 0;
+                env->exception_next_eip = -1;
+                if (loglevel & CPU_LOG_TB_IN_ASM)
+                    fprintf(logfile, "EXEPT");
+                break;
+        case SVM_EVTINJ_TYPE_SOFT:
+                env->exception_index = vector;
+                env->error_code = event_inj_err;
+                env->exception_is_int = 1;
+                env->exception_next_eip = EIP;
+                if (loglevel & CPU_LOG_TB_IN_ASM)
+                    fprintf(logfile, "SOFT");
+                break;
+        }
+        if (loglevel & CPU_LOG_TB_IN_ASM)
+            fprintf(logfile, " %#x %#x\n", env->exception_index, env->error_code);
+    }
+    if (int_ctl & V_IRQ_MASK)
+        env->interrupt_request |= CPU_INTERRUPT_VIRQ;
+
+    cpu_loop_exit();
+}
+
+void helper_vmmcall(void)
+{
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+        fprintf(logfile,"vmmcall!\n");
+}
+
+void helper_vmload(target_ulong addr)
+{
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+        fprintf(logfile,"vmload! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
+                addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
+                env->segs[R_FS].base);
+
+    SVM_LOAD_SEG2(addr, segs[R_FS], fs);
+    SVM_LOAD_SEG2(addr, segs[R_GS], gs);
+    SVM_LOAD_SEG2(addr, tr, tr);
+    SVM_LOAD_SEG2(addr, ldt, ldtr);
+
+#ifdef TARGET_X86_64
+    env->kernelgsbase = ldq_phys(addr + offsetof(struct vmcb, save.kernel_gs_base));
+    env->lstar = ldq_phys(addr + offsetof(struct vmcb, save.lstar));
+    env->cstar = ldq_phys(addr + offsetof(struct vmcb, save.cstar));
+    env->fmask = ldq_phys(addr + offsetof(struct vmcb, save.sfmask));
+#endif
+    env->star = ldq_phys(addr + offsetof(struct vmcb, save.star));
+    env->sysenter_cs = ldq_phys(addr + offsetof(struct vmcb, save.sysenter_cs));
+    env->sysenter_esp = ldq_phys(addr + offsetof(struct vmcb, save.sysenter_esp));
+    env->sysenter_eip = ldq_phys(addr + offsetof(struct vmcb, save.sysenter_eip));
+}
+
+void helper_vmsave(target_ulong addr)
+{
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+        fprintf(logfile,"vmsave! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
+                addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
+                env->segs[R_FS].base);
+
+    SVM_SAVE_SEG(addr, segs[R_FS], fs);
+    SVM_SAVE_SEG(addr, segs[R_GS], gs);
+    SVM_SAVE_SEG(addr, tr, tr);
+    SVM_SAVE_SEG(addr, ldt, ldtr);
+
+#ifdef TARGET_X86_64
+    stq_phys(addr + offsetof(struct vmcb, save.kernel_gs_base), env->kernelgsbase);
+    stq_phys(addr + offsetof(struct vmcb, save.lstar), env->lstar);
+    stq_phys(addr + offsetof(struct vmcb, save.cstar), env->cstar);
+    stq_phys(addr + offsetof(struct vmcb, save.sfmask), env->fmask);
+#endif
+    stq_phys(addr + offsetof(struct vmcb, save.star), env->star);
+    stq_phys(addr + offsetof(struct vmcb, save.sysenter_cs), env->sysenter_cs);
+    stq_phys(addr + offsetof(struct vmcb, save.sysenter_esp), env->sysenter_esp);
+    stq_phys(addr + offsetof(struct vmcb, save.sysenter_eip), env->sysenter_eip);
+}
+
+void helper_skinit(void)
+{
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+        fprintf(logfile,"skinit!\n");
+}
+
+void helper_invlpga(void)
+{
+    tlb_flush(env, 0);
+}
+
+int svm_check_intercept_param(uint32_t type, uint64_t param)
+{
+    switch(type) {
+    case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR0 + 8:
+        if (INTERCEPTEDw(_cr_read, (1 << (type - SVM_EXIT_READ_CR0)))) {
+            vmexit(type, param);
+            return 1;
+        }
+        break;
+    case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR0 + 8:
+        if (INTERCEPTEDw(_dr_read, (1 << (type - SVM_EXIT_READ_DR0)))) {
+            vmexit(type, param);
+            return 1;
+        }
+        break;
+    case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR0 + 8:
+        if (INTERCEPTEDw(_cr_write, (1 << (type - SVM_EXIT_WRITE_CR0)))) {
+            vmexit(type, param);
+            return 1;
+        }
+        break;
+    case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR0 + 8:
+        if (INTERCEPTEDw(_dr_write, (1 << (type - SVM_EXIT_WRITE_DR0)))) {
+            vmexit(type, param);
+            return 1;
+        }
+        break;
+    case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 16:
+        if (INTERCEPTEDl(_exceptions, (1 << (type - SVM_EXIT_EXCP_BASE)))) {
+            vmexit(type, param);
+            return 1;
+        }
+        break;
+    case SVM_EXIT_IOIO:
+        if (INTERCEPTED(1ULL << INTERCEPT_IOIO_PROT)) {
+            /* FIXME: this should be read in at vmrun (faster this way?) */
+            uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.iopm_base_pa));
+            uint16_t port = (uint16_t) (param >> 16);
+
+            if(ldub_phys(addr + port / 8) & (1 << (port % 8)))
+                vmexit(type, param);
+        }
+        break;
+
+    case SVM_EXIT_MSR:
+        if (INTERCEPTED(1ULL << INTERCEPT_MSR_PROT)) {
+            /* FIXME: this should be read in at vmrun (faster this way?) */
+            uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.msrpm_base_pa));
+            switch((uint32_t)ECX) {
+            case 0 ... 0x1fff:
+                T0 = (ECX * 2) % 8;
+                T1 = ECX / 8;
+                break;
+            case 0xc0000000 ... 0xc0001fff:
+                T0 = (8192 + ECX - 0xc0000000) * 2;
+                T1 = (T0 / 8);
+                T0 %= 8;
+                break;
+            case 0xc0010000 ... 0xc0011fff:
+                T0 = (16384 + ECX - 0xc0010000) * 2;
+                T1 = (T0 / 8);
+                T0 %= 8;
+                break;
+            default:
+                vmexit(type, param);
+                return 1;
+            }
+            if (ldub_phys(addr + T1) & ((1 << param) << T0))
+                vmexit(type, param);
+            return 1;
+        }
+        break;
+    default:
+        if (INTERCEPTED((1ULL << ((type - SVM_EXIT_INTR) + INTERCEPT_INTR)))) {
+            vmexit(type, param);
+            return 1;
+        }
+        break;
+    }
+    return 0;
+}
+
+void vmexit(uint64_t exit_code, uint64_t exit_info_1)
+{
+    uint32_t int_ctl;
+
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+        fprintf(logfile,"vmexit(%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", " TARGET_FMT_lx ")!\n",
+                exit_code, exit_info_1,
+                ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2)),
+                EIP);
+
+    /* Save the VM state in the vmcb */
+    SVM_SAVE_SEG(env->vm_vmcb, segs[R_ES], es);
+    SVM_SAVE_SEG(env->vm_vmcb, segs[R_CS], cs);
+    SVM_SAVE_SEG(env->vm_vmcb, segs[R_SS], ss);
+    SVM_SAVE_SEG(env->vm_vmcb, segs[R_DS], ds);
+
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.base), env->gdt.base);
+    stl_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.limit), env->gdt.limit);
+
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.idtr.base), env->idt.base);
+    stl_phys(env->vm_vmcb + offsetof(struct vmcb, save.idtr.limit), env->idt.limit);
+
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.efer), env->efer);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr0), env->cr[0]);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr2), env->cr[2]);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr3), env->cr[3]);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr4), env->cr[4]);
+
+    if ((int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl))) & V_INTR_MASKING_MASK) {
+        int_ctl &= ~V_TPR_MASK;
+        int_ctl |= env->cr[8] & V_TPR_MASK;
+        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
+    }
+
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rflags), compute_eflags());
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip), env->eip);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp), ESP);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax), EAX);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7), env->dr[7]);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr6), env->dr[6]);
+    stb_phys(env->vm_vmcb + offsetof(struct vmcb, save.cpl), env->hflags & HF_CPL_MASK);
+
+    /* Reload the host state from vm_hsave */
+    env->hflags &= ~HF_HIF_MASK;
+    env->intercept = 0;
+    env->intercept_exceptions = 0;
+    env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+
+    env->gdt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.base));
+    env->gdt.limit = ldl_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.limit));
+
+    env->idt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.idtr.base));
+    env->idt.limit = ldl_phys(env->vm_hsave + offsetof(struct vmcb, save.idtr.limit));
+
+    cpu_x86_update_cr0(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr0)) | CR0_PE_MASK);
+    cpu_x86_update_cr4(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr4)));
+    cpu_x86_update_cr3(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr3)));
+    if (int_ctl & V_INTR_MASKING_MASK)
+        env->cr[8] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8));
+    /* we need to set the efer after the crs so the hidden flags get set properly */
+#ifdef TARGET_X86_64
+    env->efer  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer));
+    env->hflags &= ~HF_LMA_MASK;
+    if (env->efer & MSR_EFER_LMA)
+       env->hflags |= HF_LMA_MASK;
+#endif
+
+    env->eflags = 0;
+    load_eflags(ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rflags)),
+                ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
+    CC_OP = CC_OP_EFLAGS;
+
+    SVM_LOAD_SEG(env->vm_hsave, ES, es);
+    SVM_LOAD_SEG(env->vm_hsave, CS, cs);
+    SVM_LOAD_SEG(env->vm_hsave, SS, ss);
+    SVM_LOAD_SEG(env->vm_hsave, DS, ds);
+
+    EIP = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip));
+    ESP = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp));
+    EAX = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rax));
+
+    env->dr[6] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr6));
+    env->dr[7] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr7));
+
+    /* other setups */
+    cpu_x86_set_cpl(env, 0);
+    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_code_hi), (uint32_t)(exit_code >> 32));
+    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_code), exit_code);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_1), exit_info_1);
+
+    helper_clgi();
+    /* FIXME: Resets the current ASID register to zero (host ASID). */
+
+    /* Clears the V_IRQ and V_INTR_MASKING bits inside the processor. */
+
+    /* Clears the TSC_OFFSET inside the processor. */
+
+    /* If the host is in PAE mode, the processor reloads the host's PDPEs
+       from the page table indicated the host's CR3. If the PDPEs contain
+       illegal state, the processor causes a shutdown. */
+
+    /* Forces CR0.PE = 1, RFLAGS.VM = 0. */
+    env->cr[0] |= CR0_PE_MASK;
+    env->eflags &= ~VM_MASK;
+
+    /* Disables all breakpoints in the host DR7 register. */
+
+    /* Checks the reloaded host state for consistency. */
+
+    /* If the host's rIP reloaded by #VMEXIT is outside the limit of the
+       host's code segment or non-canonical (in the case of long mode), a
+       #GP fault is delivered inside the host.) */
+
+    /* remove any pending exception */
+    env->exception_index = -1;
+    env->error_code = 0;
+    env->old_exception = -1;
+
+    regs_to_env();
+    cpu_loop_exit();
+}
+
+#endif

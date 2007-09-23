@@ -27,6 +27,7 @@
 
 #include "cpu.h"
 #include "exec-all.h"
+#include "svm.h"
 
 //#define DEBUG_MMU
 
@@ -111,10 +112,11 @@ CPUX86State *cpu_x86_init(void)
                                CPUID_CX8 | CPUID_PGE | CPUID_CMOV |
                                CPUID_PAT);
         env->pat = 0x0007040600070406ULL;
+        env->cpuid_ext3_features = CPUID_EXT3_SVM;
         env->cpuid_ext_features = CPUID_EXT_SSE3;
         env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
         env->cpuid_features |= CPUID_APIC;
-        env->cpuid_xlevel = 0x80000006;
+        env->cpuid_xlevel = 0x8000000e;
         {
             const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
             int c, len, i;
@@ -131,7 +133,6 @@ CPUX86State *cpu_x86_init(void)
         /* currently not enabled for std i386 because not fully tested */
         env->cpuid_ext2_features = (env->cpuid_features & 0x0183F3FF);
         env->cpuid_ext2_features |= CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX;
-        env->cpuid_xlevel = 0x80000008;
 
         /* these features are needed for Win64 and aren't fully implemented */
         env->cpuid_features |= CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA;
@@ -162,6 +163,7 @@ void cpu_reset(CPUX86State *env)
 #ifdef CONFIG_SOFTMMU
     env->hflags |= HF_SOFTMMU_MASK;
 #endif
+    env->hflags |= HF_GIF_MASK;
 
     cpu_x86_update_cr0(env, 0x60000010);
     env->a20_mask = 0xffffffff;
@@ -865,7 +867,6 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
  do_fault_protect:
     error_code = PG_ERROR_P_MASK;
  do_fault:
-    env->cr[2] = addr;
     error_code |= (is_write << PG_ERROR_W_BIT);
     if (is_user)
         error_code |= PG_ERROR_U_MASK;
@@ -873,8 +874,16 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         (env->efer & MSR_EFER_NXE) &&
         (env->cr[4] & CR4_PAE_MASK))
         error_code |= PG_ERROR_I_D_MASK;
+    if (INTERCEPTEDl(_exceptions, 1 << EXCP0E_PAGE)) {
+        stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
+    } else {
+        env->cr[2] = addr;
+    }
     env->error_code = error_code;
     env->exception_index = EXCP0E_PAGE;
+    /* the VMM will handle this */
+    if (INTERCEPTEDl(_exceptions, 1 << EXCP0E_PAGE))
+        return 2;
     return 1;
 }
 

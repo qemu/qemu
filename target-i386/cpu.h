@@ -84,6 +84,7 @@
 #define DESC_AVL_MASK   (1 << 20)
 #define DESC_P_MASK     (1 << 15)
 #define DESC_DPL_SHIFT  13
+#define DESC_DPL_MASK   (1 << DESC_DPL_SHIFT)
 #define DESC_S_MASK     (1 << 12)
 #define DESC_TYPE_SHIFT 8
 #define DESC_A_MASK     (1 << 8)
@@ -149,6 +150,8 @@
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 #define HF_HALTED_SHIFT     18 /* CPU halted */
 #define HF_SMM_SHIFT        19 /* CPU in SMM mode */
+#define HF_GIF_SHIFT        20 /* if set CPU takes interrupts */
+#define HF_HIF_SHIFT        21 /* shadow copy of IF_MASK when in SVM */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -166,6 +169,8 @@
 #define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 #define HF_HALTED_MASK       (1 << HF_HALTED_SHIFT)
 #define HF_SMM_MASK          (1 << HF_SMM_SHIFT)
+#define HF_GIF_MASK          (1 << HF_GIF_SHIFT)
+#define HF_HIF_MASK          (1 << HF_HIF_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -249,6 +254,8 @@
 #define MSR_GSBASE                      0xc0000101
 #define MSR_KERNELGSBASE                0xc0000102
 
+#define MSR_VM_HSAVE_PA                 0xc0010117
+
 /* cpuid_features bits */
 #define CPUID_FP87 (1 << 0)
 #define CPUID_VME  (1 << 1)
@@ -282,6 +289,8 @@
 #define CPUID_EXT2_NX      (1 << 20)
 #define CPUID_EXT2_FFXSR   (1 << 25)
 #define CPUID_EXT2_LM      (1 << 29)
+
+#define CPUID_EXT3_SVM     (1 << 2)
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
@@ -489,6 +498,16 @@ typedef struct CPUX86State {
     uint32_t sysenter_eip;
     uint64_t efer;
     uint64_t star;
+
+    target_phys_addr_t vm_hsave;
+    target_phys_addr_t vm_vmcb;
+    uint64_t intercept;
+    uint16_t intercept_cr_read;
+    uint16_t intercept_cr_write;
+    uint16_t intercept_dr_read;
+    uint16_t intercept_dr_write;
+    uint32_t intercept_exceptions;
+
 #ifdef TARGET_X86_64
     target_ulong lstar;
     target_ulong cstar;
@@ -530,6 +549,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_xlevel;
     uint32_t cpuid_model[12];
     uint32_t cpuid_ext2_features;
+    uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
 
 #ifdef USE_KQEMU
@@ -669,5 +689,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 
 #include "cpu-all.h"
+
+#include "svm.h"
 
 #endif /* CPU_I386_H */
