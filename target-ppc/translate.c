@@ -4221,12 +4221,14 @@ GEN_HANDLER(stfqx, 0x1F, 0x17, 0x1C, 0x00000001, PPC_POWER2)
 }
 
 /* BookE specific instructions */
+/* XXX: not implemented on 440 ? */
 GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_BOOKE)
 {
     /* XXX: TODO */
     RET_INVAL(ctx);
 }
 
+/* XXX: not implemented on 440 ? */
 GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -4329,98 +4331,99 @@ static inline void gen_405_mulladd_insn (DisasContext *ctx, int opc2, int opc3,
     }
 }
 
-#define GEN_MAC_HANDLER(name, opc2, opc3)                                     \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_405_MAC)                  \
+#define GEN_MAC_HANDLER(name, opc2, opc3, is_440)                                     \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000,                               \
+            is_440 ? PPC_440_SPEC : PPC_405_MAC)                              \
 {                                                                             \
     gen_405_mulladd_insn(ctx, opc2, opc3, rA(ctx->opcode), rB(ctx->opcode),   \
                          rD(ctx->opcode), Rc(ctx->opcode));                   \
 }
 
 /* macchw    - macchw.    */
-GEN_MAC_HANDLER(macchw, 0x0C, 0x05);
+GEN_MAC_HANDLER(macchw, 0x0C, 0x05, 0);
 /* macchwo   - macchwo.   */
-GEN_MAC_HANDLER(macchwo, 0x0C, 0x15);
+GEN_MAC_HANDLER(macchwo, 0x0C, 0x15, 0);
 /* macchws   - macchws.   */
-GEN_MAC_HANDLER(macchws, 0x0C, 0x07);
+GEN_MAC_HANDLER(macchws, 0x0C, 0x07, 0);
 /* macchwso  - macchwso.  */
-GEN_MAC_HANDLER(macchwso, 0x0C, 0x17);
+GEN_MAC_HANDLER(macchwso, 0x0C, 0x17, 0);
 /* macchwsu  - macchwsu.  */
-GEN_MAC_HANDLER(macchwsu, 0x0C, 0x06);
+GEN_MAC_HANDLER(macchwsu, 0x0C, 0x06, 0);
 /* macchwsuo - macchwsuo. */
-GEN_MAC_HANDLER(macchwsuo, 0x0C, 0x16);
+GEN_MAC_HANDLER(macchwsuo, 0x0C, 0x16, 0);
 /* macchwu   - macchwu.   */
-GEN_MAC_HANDLER(macchwu, 0x0C, 0x04);
+GEN_MAC_HANDLER(macchwu, 0x0C, 0x04, 0);
 /* macchwuo  - macchwuo.  */
-GEN_MAC_HANDLER(macchwuo, 0x0C, 0x14);
+GEN_MAC_HANDLER(macchwuo, 0x0C, 0x14, 0);
 /* machhw    - machhw.    */
-GEN_MAC_HANDLER(machhw, 0x0C, 0x01);
+GEN_MAC_HANDLER(machhw, 0x0C, 0x01, 0);
 /* machhwo   - machhwo.   */
-GEN_MAC_HANDLER(machhwo, 0x0C, 0x11);
+GEN_MAC_HANDLER(machhwo, 0x0C, 0x11, 0);
 /* machhws   - machhws.   */
-GEN_MAC_HANDLER(machhws, 0x0C, 0x03);
+GEN_MAC_HANDLER(machhws, 0x0C, 0x03, 0);
 /* machhwso  - machhwso.  */
-GEN_MAC_HANDLER(machhwso, 0x0C, 0x13);
+GEN_MAC_HANDLER(machhwso, 0x0C, 0x13, 0);
 /* machhwsu  - machhwsu.  */
-GEN_MAC_HANDLER(machhwsu, 0x0C, 0x02);
+GEN_MAC_HANDLER(machhwsu, 0x0C, 0x02, 0);
 /* machhwsuo - machhwsuo. */
-GEN_MAC_HANDLER(machhwsuo, 0x0C, 0x12);
+GEN_MAC_HANDLER(machhwsuo, 0x0C, 0x12, 0);
 /* machhwu   - machhwu.   */
-GEN_MAC_HANDLER(machhwu, 0x0C, 0x00);
+GEN_MAC_HANDLER(machhwu, 0x0C, 0x00, 0);
 /* machhwuo  - machhwuo.  */
-GEN_MAC_HANDLER(machhwuo, 0x0C, 0x10);
+GEN_MAC_HANDLER(machhwuo, 0x0C, 0x10, 0);
 /* maclhw    - maclhw.    */
-GEN_MAC_HANDLER(maclhw, 0x0C, 0x0D);
+GEN_MAC_HANDLER(maclhw, 0x0C, 0x0D, 0);
 /* maclhwo   - maclhwo.   */
-GEN_MAC_HANDLER(maclhwo, 0x0C, 0x1D);
+GEN_MAC_HANDLER(maclhwo, 0x0C, 0x1D, 0);
 /* maclhws   - maclhws.   */
-GEN_MAC_HANDLER(maclhws, 0x0C, 0x0F);
+GEN_MAC_HANDLER(maclhws, 0x0C, 0x0F, 0);
 /* maclhwso  - maclhwso.  */
-GEN_MAC_HANDLER(maclhwso, 0x0C, 0x1F);
+GEN_MAC_HANDLER(maclhwso, 0x0C, 0x1F, 0);
 /* maclhwu   - maclhwu.   */
-GEN_MAC_HANDLER(maclhwu, 0x0C, 0x0C);
+GEN_MAC_HANDLER(maclhwu, 0x0C, 0x0C, 0);
 /* maclhwuo  - maclhwuo.  */
-GEN_MAC_HANDLER(maclhwuo, 0x0C, 0x1C);
+GEN_MAC_HANDLER(maclhwuo, 0x0C, 0x1C, 0);
 /* maclhwsu  - maclhwsu.  */
-GEN_MAC_HANDLER(maclhwsu, 0x0C, 0x0E);
+GEN_MAC_HANDLER(maclhwsu, 0x0C, 0x0E, 0);
 /* maclhwsuo - maclhwsuo. */
-GEN_MAC_HANDLER(maclhwsuo, 0x0C, 0x1E);
+GEN_MAC_HANDLER(maclhwsuo, 0x0C, 0x1E, 0);
 /* nmacchw   - nmacchw.   */
-GEN_MAC_HANDLER(nmacchw, 0x0E, 0x05);
+GEN_MAC_HANDLER(nmacchw, 0x0E, 0x05, 0);
 /* nmacchwo  - nmacchwo.  */
-GEN_MAC_HANDLER(nmacchwo, 0x0E, 0x15);
+GEN_MAC_HANDLER(nmacchwo, 0x0E, 0x15, 0);
 /* nmacchws  - nmacchws.  */
-GEN_MAC_HANDLER(nmacchws, 0x0E, 0x07);
+GEN_MAC_HANDLER(nmacchws, 0x0E, 0x07, 0);
 /* nmacchwso - nmacchwso. */
-GEN_MAC_HANDLER(nmacchwso, 0x0E, 0x17);
+GEN_MAC_HANDLER(nmacchwso, 0x0E, 0x17, 0);
 /* nmachhw   - nmachhw.   */
-GEN_MAC_HANDLER(nmachhw, 0x0E, 0x01);
+GEN_MAC_HANDLER(nmachhw, 0x0E, 0x01, 0);
 /* nmachhwo  - nmachhwo.  */
-GEN_MAC_HANDLER(nmachhwo, 0x0E, 0x11);
+GEN_MAC_HANDLER(nmachhwo, 0x0E, 0x11, 0);
 /* nmachhws  - nmachhws.  */
-GEN_MAC_HANDLER(nmachhws, 0x0E, 0x03);
+GEN_MAC_HANDLER(nmachhws, 0x0E, 0x03, 1);
 /* nmachhwso - nmachhwso. */
-GEN_MAC_HANDLER(nmachhwso, 0x0E, 0x13);
+GEN_MAC_HANDLER(nmachhwso, 0x0E, 0x13, 1);
 /* nmaclhw   - nmaclhw.   */
-GEN_MAC_HANDLER(nmaclhw, 0x0E, 0x0D);
+GEN_MAC_HANDLER(nmaclhw, 0x0E, 0x0D, 1);
 /* nmaclhwo  - nmaclhwo.  */
-GEN_MAC_HANDLER(nmaclhwo, 0x0E, 0x1D);
+GEN_MAC_HANDLER(nmaclhwo, 0x0E, 0x1D, 1);
 /* nmaclhws  - nmaclhws.  */
-GEN_MAC_HANDLER(nmaclhws, 0x0E, 0x0F);
+GEN_MAC_HANDLER(nmaclhws, 0x0E, 0x0F, 1);
 /* nmaclhwso - nmaclhwso. */
-GEN_MAC_HANDLER(nmaclhwso, 0x0E, 0x1F);
+GEN_MAC_HANDLER(nmaclhwso, 0x0E, 0x1F, 1);
 
 /* mulchw  - mulchw.  */
-GEN_MAC_HANDLER(mulchw, 0x08, 0x05);
+GEN_MAC_HANDLER(mulchw, 0x08, 0x05, 0);
 /* mulchwu - mulchwu. */
-GEN_MAC_HANDLER(mulchwu, 0x08, 0x04);
+GEN_MAC_HANDLER(mulchwu, 0x08, 0x04, 0);
 /* mulhhw  - mulhhw.  */
-GEN_MAC_HANDLER(mulhhw, 0x08, 0x01);
+GEN_MAC_HANDLER(mulhhw, 0x08, 0x01, 0);
 /* mulhhwu - mulhhwu. */
-GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00);
+GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00, 0);
 /* mullhw  - mullhw.  */
-GEN_MAC_HANDLER(mullhw, 0x08, 0x0D);
+GEN_MAC_HANDLER(mullhw, 0x08, 0x0D, 0);
 /* mullhwu - mullhwu. */
-GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C);
+GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C, 0);
 
 /* mfdcr */
 GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_EMB_COMMON)
@@ -4459,6 +4462,7 @@ GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_EMB_COMMON)
 }
 
 /* mfdcrx */
+/* XXX: not implemented on 440 ? */
 GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -4475,6 +4479,7 @@ GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000001, PPC_BOOKE)
 }
 
 /* mtdcrx */
+/* XXX: not implemented on 440 ? */
 GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -4521,7 +4526,7 @@ GEN_HANDLER(dcread, 0x1F, 0x06, 0x0F, 0x00000001, PPC_4xx_COMMON)
 }
 
 /* icbt */
-GEN_HANDLER(icbt_40x, 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_SPEC)
+GEN_HANDLER(icbt_40x, 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT)
 {
     /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
@@ -4589,6 +4594,7 @@ GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE)
 }
 
 /* BookE specific */
+/* XXX: not implemented on 440 ? */
 GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -4604,6 +4610,7 @@ GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE)
 #endif
 }
 
+/* XXX: not implemented on 440 ? */
 GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -4618,9 +4625,10 @@ GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_BOOKE)
     RET_CHG_FLOW(ctx);
 #endif
 }
+
 /* TLB management - PowerPC 405 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
+GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4648,7 +4656,7 @@ GEN_HANDLER(tlbre, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
+GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4667,7 +4675,7 @@ GEN_HANDLER(tlbsx, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
 }
 
 /* tlbwe */
-GEN_HANDLER(tlbwe, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
+GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4686,6 +4694,76 @@ GEN_HANDLER(tlbwe, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
         gen_op_load_gpr_T0(rA(ctx->opcode));
         gen_op_load_gpr_T1(rS(ctx->opcode));
         gen_op_4xx_tlbwe_lo();
+        break;
+    default:
+        RET_INVAL(ctx);
+        break;
+    }
+#endif
+}
+
+/* TLB management - PowerPC 440 implementation */
+/* tlbre */
+GEN_HANDLER(tlbre_440, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    switch (rB(ctx->opcode)) {
+    case 0:
+    case 1:
+    case 2:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_440_tlbre(rB(ctx->opcode));
+        gen_op_store_T0_gpr(rD(ctx->opcode));
+        break;
+    default:
+        RET_INVAL(ctx);
+        break;
+    }
+#endif
+}
+
+/* tlbsx - tlbsx. */
+GEN_HANDLER(tlbsx_440, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    gen_addr_reg_index(ctx);
+    if (Rc(ctx->opcode))
+        gen_op_440_tlbsx_();
+    else
+        gen_op_440_tlbsx();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
+#endif
+}
+
+/* tlbwe */
+GEN_HANDLER(tlbwe_440, 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
+{
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        RET_PRIVOPC(ctx);
+        return;
+    }
+    switch (rB(ctx->opcode)) {
+    case 0:
+    case 1:
+    case 2:
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rS(ctx->opcode));
+        gen_op_440_tlbwe(rB(ctx->opcode));
         break;
     default:
         RET_INVAL(ctx);

@@ -23,36 +23,45 @@
 #include "config.h"
 #include <inttypes.h>
 
-#if !defined(TARGET_PPCEMB)
-#if defined(TARGET_PPC64) || (HOST_LONG_BITS >= 64)
-/* When using 64 bits temporary registers,
- * we can use 64 bits GPR with no extra cost
- */
-#define TARGET_PPCEMB
-#endif
-#endif
-
 #if defined (TARGET_PPC64)
 typedef uint64_t ppc_gpr_t;
-#define TARGET_LONG_BITS 64
 #define TARGET_GPR_BITS  64
+#define TARGET_LONG_BITS 64
 #define REGX "%016" PRIx64
 #define TARGET_PAGE_BITS 12
 #elif defined(TARGET_PPCEMB)
-/* e500v2 have 36 bits physical address space */
+/* BookE have 36 bits physical address space */
 #define TARGET_PHYS_ADDR_BITS 64
 /* GPR are 64 bits: used by vector extension */
 typedef uint64_t ppc_gpr_t;
-#define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  64
+#define TARGET_LONG_BITS 32
 #define REGX "%016" PRIx64
+#if defined(CONFIG_USER_ONLY)
+/* It looks like a lot of Linux programs assume page size
+ * is 4kB long. This is evil, but we have to deal with it...
+ */
+#define TARGET_PAGE_BITS 12
+#else
 /* Pages can be 1 kB small */
 #define TARGET_PAGE_BITS 10
+#endif
+#else
+#if (HOST_LONG_BITS >= 64)
+/* When using 64 bits temporary registers,
+ * we can use 64 bits GPR with no extra cost
+ * It's even an optimization as it will prevent
+ * the compiler to do unuseful masking in the micro-ops.
+ */
+typedef uint64_t ppc_gpr_t;
+#define TARGET_GPR_BITS  64
+#define REGX "%08" PRIx64
 #else
 typedef uint32_t ppc_gpr_t;
-#define TARGET_LONG_BITS 32
 #define TARGET_GPR_BITS  32
 #define REGX "%08" PRIx32
+#endif
+#define TARGET_LONG_BITS 32
 #define TARGET_PAGE_BITS 12
 #endif
 
@@ -79,21 +88,23 @@ typedef uint32_t ppc_gpr_t;
 #define ICACHE_LINE_SIZE 32
 #define DCACHE_LINE_SIZE 32
 
-/* XXX: put this in a common place */
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC */
 enum {
     /* PowerPC 401 cores */
     CPU_PPC_401A1     = 0x00210000,
     CPU_PPC_401B2     = 0x00220000,
+#if 0
+    CPU_PPC_401B3     = xxx,
+#endif
     CPU_PPC_401C2     = 0x00230000,
     CPU_PPC_401D2     = 0x00240000,
     CPU_PPC_401E2     = 0x00250000,
     CPU_PPC_401F2     = 0x00260000,
     CPU_PPC_401G2     = 0x00270000,
+#if 0
+    CPU_PPC_401GF     = xxx,
+#endif
 #define CPU_PPC_401 CPU_PPC_401G2
     CPU_PPC_IOP480    = 0x40100000, /* 401B2 ? */
     CPU_PPC_COBRA     = 0x10100000, /* IBM Processor for Network Resources */
@@ -102,19 +113,39 @@ enum {
     CPU_PPC_403GB     = 0x00200100,
     CPU_PPC_403GC     = 0x00200200,
     CPU_PPC_403GCX    = 0x00201400,
+#if 0
+    CPU_PPC_403GP     = xxx,
+#endif
 #define CPU_PPC_403 CPU_PPC_403GCX
     /* PowerPC 405 cores */
+#if 0
+    CPU_PPC_405A3     = xxx,
+#endif
+#if 0
+    CPU_PPC_405A4     = xxx,
+#endif
+#if 0
+    CPU_PPC_405B3     = xxx,
+#endif
+    CPU_PPC_405D2     = 0x20010000,
+    CPU_PPC_405D4     = 0x41810000,
     CPU_PPC_405CR     = 0x40110145,
 #define CPU_PPC_405GP CPU_PPC_405CR
     CPU_PPC_405EP     = 0x51210950,
+#if 0
+    CPU_PPC_405EZ     = xxx,
+#endif
     CPU_PPC_405GPR    = 0x50910951,
-    CPU_PPC_405D2     = 0x20010000,
-    CPU_PPC_405D4     = 0x41810000,
+#if 0
+    CPU_PPC_405LP     = xxx,
+#endif
 #define CPU_PPC_405 CPU_PPC_405D4
     CPU_PPC_NPE405H   = 0x414100C0,
     CPU_PPC_NPE405H2  = 0x41410140,
     CPU_PPC_NPE405L   = 0x416100C0,
-    /* XXX: missing 405LP, LC77700 */
+#if 0
+    CPU_PPC_LC77700   = xxx,
+#endif
     /* IBM STBxxx (PowerPC 401/403/405 core based microcontrollers) */
 #if 0
     CPU_PPC_STB01000  = xxx,
@@ -145,14 +176,22 @@ enum {
     CPU_PPC_440EP     = 0x422218D3,
 #define CPU_PPC_440GR CPU_PPC_440EP
     CPU_PPC_440GP     = 0x40120481,
+#if 0
+    CPU_PPC_440GRX    = xxx,
+#endif
     CPU_PPC_440GX     = 0x51B21850,
     CPU_PPC_440GXc    = 0x51B21892,
     CPU_PPC_440GXf    = 0x51B21894,
     CPU_PPC_440SP     = 0x53221850,
     CPU_PPC_440SP2    = 0x53221891,
     CPU_PPC_440SPE    = 0x53421890,
-    /* XXX: missing 440GRX */
-    /* PowerPC 460 cores - TODO */
+    /* PowerPC 460 cores */
+#if 0
+    CPU_PPC_464H90    = xxx,
+#endif
+#if 0
+    CPU_PPC_464H90FP  = xxx,
+#endif
     /* PowerPC MPC 5xx cores */
     CPU_PPC_5xx       = 0x00020020,
     /* PowerPC MPC 8xx cores (aka PowerQUICC) */
@@ -192,14 +231,8 @@ enum {
     /* PowerPC 74x/75x cores (aka G3) */
     CPU_PPC_74x       = 0x00080000,
     CPU_PPC_740E      = 0x00080100,
-    CPU_PPC_750E      = 0x00080200,
-    CPU_PPC_755_10    = 0x00083100,
-    CPU_PPC_755_11    = 0x00083101,
-    CPU_PPC_755_20    = 0x00083200,
-    CPU_PPC_755D      = 0x00083202,
-    CPU_PPC_755E      = 0x00083203,
-#define CPU_PPC_755 CPU_PPC_755E
     CPU_PPC_74xP      = 0x10080000,
+    CPU_PPC_750E      = 0x00080200,
     CPU_PPC_750CXE21  = 0x00082201,
     CPU_PPC_750CXE22  = 0x00082212,
     CPU_PPC_750CXE23  = 0x00082203,
@@ -223,12 +256,20 @@ enum {
     CPU_PPC_750GL     = 0x70020102,
     CPU_PPC_750L30    = 0x00088300,
     CPU_PPC_750L32    = 0x00088302,
+#define CPU_PPC_750L CPU_PPC_750L32
     CPU_PPC_750CL     = 0x00087200,
+    CPU_PPC_755_10    = 0x00083100,
+    CPU_PPC_755_11    = 0x00083101,
+    CPU_PPC_755_20    = 0x00083200,
+    CPU_PPC_755D      = 0x00083202,
+    CPU_PPC_755E      = 0x00083203,
+#define CPU_PPC_755 CPU_PPC_755E
     /* PowerPC 74xx cores (aka G4) */
     CPU_PPC_7400      = 0x000C0100,
     CPU_PPC_7410C     = 0x800C1102,
     CPU_PPC_7410D     = 0x800C1103,
     CPU_PPC_7410E     = 0x800C1104,
+#define CPU_PPC_7410 CPU_PPC_7410E
     CPU_PPC_7441      = 0x80000210,
     CPU_PPC_7445      = 0x80010100,
     CPU_PPC_7447      = 0x80020100,
@@ -252,6 +293,9 @@ enum {
     CPU_PPC_POWER4P   = 0x00380000,
     CPU_PPC_POWER5    = 0x003A0000,
     CPU_PPC_POWER5P   = 0x003B0000,
+#if 0
+    CPU_PPC_POWER6    = xxx,
+#endif
     CPU_PPC_970       = 0x00390000,
     CPU_PPC_970FX10   = 0x00391100,
     CPU_PPC_970FX20   = 0x003C0200,
@@ -380,73 +424,81 @@ enum {
     PPC_64_BRIDGE   = 0x0000000004000000ULL,
     /* BookE (embedded) PowerPC specification      */
     PPC_BOOKE       = 0x0000000008000000ULL,
-    /* eieio */
+    /* eieio                                       */
     PPC_MEM_EIEIO   = 0x0000000010000000ULL,
-    /* e500 vector instructions */
+    /* e500 vector instructions                    */
     PPC_E500_VECTOR = 0x0000000020000000ULL,
-    /* PowerPC 4xx dedicated instructions     */
+    /* PowerPC 4xx dedicated instructions          */
     PPC_4xx_COMMON  = 0x0000000040000000ULL,
-    /* PowerPC 2.03 specification extensions */
+    /* PowerPC 2.03 specification extensions       */
     PPC_203         = 0x0000000080000000ULL,
-    /* PowerPC 2.03 SPE extension */
+    /* PowerPC 2.03 SPE extension                  */
     PPC_SPE         = 0x0000000100000000ULL,
-    /* PowerPC 2.03 SPE floating-point extension */
+    /* PowerPC 2.03 SPE floating-point extension   */
     PPC_SPEFPU      = 0x0000000200000000ULL,
-    /* SLB management */
+    /* SLB management                              */
     PPC_SLBI        = 0x0000000400000000ULL,
+    /* PowerPC 40x ibct instructions               */
+    PPC_40x_ICBT    = 0x0000000800000000ULL,
 };
 
 /* CPU run-time flags (MMU and exception model) */
 enum {
-    /* MMU model */
+    /* MMU model                         */
     PPC_FLAGS_MMU_MASK       = 0x000000FF,
-    /* Standard 32 bits PowerPC MMU */
+    /* Standard 32 bits PowerPC MMU      */
     PPC_FLAGS_MMU_32B        = 0x00000000,
-    /* Standard 64 bits PowerPC MMU */
+    /* Standard 64 bits PowerPC MMU      */
     PPC_FLAGS_MMU_64B        = 0x00000001,
-    /* PowerPC 601 MMU */
+    /* PowerPC 601 MMU                   */
     PPC_FLAGS_MMU_601        = 0x00000002,
     /* PowerPC 6xx MMU with software TLB */
     PPC_FLAGS_MMU_SOFT_6xx   = 0x00000003,
     /* PowerPC 4xx MMU with software TLB */
     PPC_FLAGS_MMU_SOFT_4xx   = 0x00000004,
-    /* PowerPC 403 MMU */
+    /* PowerPC 403 MMU                  */
     PPC_FLAGS_MMU_403        = 0x00000005,
-    /* BookE FSL MMU model */
+    /* BookE FSL MMU model              */
     PPC_FLAGS_MMU_BOOKE_FSL  = 0x00000006,
-    /* BookE MMU model */
+    /* BookE MMU model                  */
     PPC_FLAGS_MMU_BOOKE      = 0x00000007,
-    /* 64 bits "bridge" PowerPC MMU */
+    /* 64 bits "bridge" PowerPC MMU     */
     PPC_FLAGS_MMU_64BRIDGE   = 0x00000008,
-    /* Exception model */
+    /* PowerPC 401 MMU (real mode only) */
+    PPC_FLAGS_MMU_401        = 0x00000009,
+    /* Exception model                  */
     PPC_FLAGS_EXCP_MASK      = 0x0000FF00,
     /* Standard PowerPC exception model */
     PPC_FLAGS_EXCP_STD       = 0x00000000,
-    /* PowerPC 40x exception model */
+    /* PowerPC 40x exception model      */
     PPC_FLAGS_EXCP_40x       = 0x00000100,
-    /* PowerPC 601 exception model */
+    /* PowerPC 601 exception model      */
     PPC_FLAGS_EXCP_601       = 0x00000200,
-    /* PowerPC 602 exception model */
+    /* PowerPC 602 exception model      */
     PPC_FLAGS_EXCP_602       = 0x00000300,
-    /* PowerPC 603 exception model */
+    /* PowerPC 603 exception model      */
     PPC_FLAGS_EXCP_603       = 0x00000400,
-    /* PowerPC 604 exception model */
+    /* PowerPC 604 exception model      */
     PPC_FLAGS_EXCP_604       = 0x00000500,
-    /* PowerPC 7x0 exception model */
+    /* PowerPC 7x0 exception model      */
     PPC_FLAGS_EXCP_7x0       = 0x00000600,
-    /* PowerPC 7x5 exception model */
+    /* PowerPC 7x5 exception model      */
     PPC_FLAGS_EXCP_7x5       = 0x00000700,
-    /* PowerPC 74xx exception model */
+    /* PowerPC 74xx exception model     */
     PPC_FLAGS_EXCP_74xx      = 0x00000800,
-    /* PowerPC 970 exception model */
+    /* PowerPC 970 exception model      */
     PPC_FLAGS_EXCP_970       = 0x00000900,
-    /* BookE exception model */
+    /* BookE exception model            */
     PPC_FLAGS_EXCP_BOOKE     = 0x00000A00,
-    /* Input pins model */
+    /* Input pins model                 */
     PPC_FLAGS_INPUT_MASK     = 0x000F0000,
+    /* PowerPC 6xx bus                  */
     PPC_FLAGS_INPUT_6xx      = 0x00000000,
+    /* BookE bus                        */
     PPC_FLAGS_INPUT_BookE    = 0x00010000,
+    /* PowerPC 4xx bus                  */
     PPC_FLAGS_INPUT_40x      = 0x00020000,
+    /* PowerPC 970 bus                  */
     PPC_FLAGS_INPUT_970      = 0x00030000,
 };
 
@@ -461,36 +513,40 @@ enum {
 #define PPC_FLAGS_TODO (0x00000000)
 
 /* PowerPC 40x instruction set */
-#define PPC_INSNS_EMB (PPC_INSNS_BASE | PPC_MEM_TLBSYNC | PPC_EMB_COMMON)
+#define PPC_INSNS_EMB (PPC_INSNS_BASE | PPC_EMB_COMMON)
 /* PowerPC 401 */
-#define PPC_INSNS_401 (PPC_INSNS_TODO)
-#define PPC_FLAGS_401 (PPC_FLAGS_TODO)
+#define PPC_INSNS_401 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
+                       PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
+#define PPC_FLAGS_401 (PPC_FLAGS_MMU_401 | PPC_FLAGS_EXCP_40x |               \
+                       PPC_FLAGS_INPUT_40x)
 /* PowerPC 403 */
 #define PPC_INSNS_403 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
-                       PPC_MEM_TLBIA | PPC_4xx_COMMON | PPC_40x_EXCP |        \
-                       PPC_40x_SPEC)
+                       PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | PPC_4xx_COMMON |     \
+                       PPC_40x_EXCP | PPC_40x_SPEC | PPC_40x_ICBT)
 #define PPC_FLAGS_403 (PPC_FLAGS_MMU_403 | PPC_FLAGS_EXCP_40x |               \
                        PPC_FLAGS_INPUT_40x)
 /* PowerPC 405 */
 #define PPC_INSNS_405 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
-                       PPC_CACHE_OPT | PPC_MEM_TLBIA | PPC_TB |               \
-                       PPC_4xx_COMMON | PPC_40x_SPEC |  PPC_40x_EXCP |        \
-                       PPC_405_MAC)
+                       PPC_CACHE_OPT | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |      \
+                       PPC_TB | PPC_4xx_COMMON | PPC_40x_SPEC |               \
+                       PPC_40x_ICBT | PPC_40x_EXCP | PPC_405_MAC)
 #define PPC_FLAGS_405 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x |          \
                        PPC_FLAGS_INPUT_40x)
 /* PowerPC 440 */
 #define PPC_INSNS_440 (PPC_INSNS_EMB | PPC_CACHE_OPT | PPC_BOOKE |            \
-                       PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
+                       PPC_MEM_TLBSYNC | PPC_4xx_COMMON | PPC_405_MAC |       \
+                       PPC_440_SPEC)
 #define PPC_FLAGS_440 (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE |           \
                        PPC_FLAGS_INPUT_BookE)
 /* Generic BookE PowerPC */
-#define PPC_INSNS_BOOKE (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |          \
-                         PPC_FLOAT | PPC_FLOAT_OPT | PPC_CACHE_OPT)
+#define PPC_INSNS_BOOKE (PPC_INSNS_EMB | PPC_MEM_TLBSYNC | PPC_BOOKE |        \
+                         PPC_MEM_EIEIO | PPC_FLOAT | PPC_FLOAT_OPT |          \
+                         PPC_CACHE_OPT)
 #define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE |         \
                          PPC_FLAGS_INPUT_BookE)
 /* e500 core */
-#define PPC_INSNS_E500 (PPC_INSNS_EMB | PPC_BOOKE | PPC_MEM_EIEIO |           \
-                        PPC_CACHE_OPT | PPC_E500_VECTOR)
+#define PPC_INSNS_E500 (PPC_INSNS_EMB | PPC_MEM_TLBSYNC | PPC_BOOKE |         \
+                        PPC_MEM_EIEIO | PPC_CACHE_OPT | PPC_E500_VECTOR)
 #define PPC_FLAGS_E500 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x |         \
                         PPC_FLAGS_INPUT_BookE)
 /* Non-embedded PowerPC */
@@ -802,7 +858,7 @@ struct CPUPPCState {
     /* Those resources are used only in Qemu core */
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
-    uint32_t hflags;
+    target_ulong hflags; /* hflags is a MSR & HFLAGS_MASK */
 
     /* Power management */
     int power_mode;
@@ -909,8 +965,6 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
 /*****************************************************************************/
 /* Registers definitions */
-#define ugpr(n) (env->gpr[n])
-
 #define XER_SO 31
 #define XER_OV 30
 #define XER_CA 29
@@ -938,6 +992,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_SDR1         (0x019)
 #define SPR_SRR0         (0x01A)
 #define SPR_SRR1         (0x01B)
+#define SPR_AMR          (0x01D)
 #define SPR_BOOKE_PID    (0x030)
 #define SPR_BOOKE_DECAR  (0x036)
 #define SPR_BOOKE_CSRR0  (0x03A)
@@ -948,6 +1003,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_8xx_EIE      (0x050)
 #define SPR_8xx_EID      (0x051)
 #define SPR_8xx_NRE      (0x052)
+#define SPR_CTRL         (0x088)
 #define SPR_58x_CMPA     (0x090)
 #define SPR_58x_CMPB     (0x091)
 #define SPR_58x_CMPC     (0x092)
@@ -956,6 +1012,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_58x_DER      (0x094)
 #define SPR_58x_COUNTA   (0x096)
 #define SPR_58x_COUNTB   (0x097)
+#define SPR_UCTRL        (0x098)
 #define SPR_58x_CMPE     (0x098)
 #define SPR_58x_CMPF     (0x099)
 #define SPR_58x_CMPG     (0x09A)
@@ -989,14 +1046,18 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_EAR          (0x11A)
 #define SPR_TBL          (0x11C)
 #define SPR_TBU          (0x11D)
+#define SPR_TBU40        (0x11E)
 #define SPR_SVR          (0x11E)
 #define SPR_BOOKE_PIR    (0x11E)
 #define SPR_PVR          (0x11F)
 #define SPR_HSPRG0       (0x130)
 #define SPR_BOOKE_DBSR   (0x130)
 #define SPR_HSPRG1       (0x131)
+#define SPR_HDSISR       (0x132)
+#define SPR_HDAR         (0x133)
 #define SPR_BOOKE_DBCR0  (0x134)
 #define SPR_IBCR         (0x135)
+#define SPR_PURR         (0x135)
 #define SPR_BOOKE_DBCR1  (0x135)
 #define SPR_DBCR         (0x136)
 #define SPR_HDEC         (0x136)
@@ -1036,7 +1097,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_IVOR13 (0x19D)
 #define SPR_BOOKE_IVOR14 (0x19E)
 #define SPR_BOOKE_IVOR15 (0x19F)
-#define SPR_E500_SPEFSCR (0x200)
+#define SPR_BOOKE_SPEFSCR (0x200)
 #define SPR_E500_BBEAR   (0x201)
 #define SPR_E500_BBTAR   (0x202)
 #define SPR_BOOKE_ATBL   (0x20E)
@@ -1102,29 +1163,62 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_TLB2CFG (0x2B2)
 #define SPR_BOOKE_TLB3CFG (0x2B3)
 #define SPR_BOOKE_EPR    (0x2BE)
+#define SPR_PERF0        (0x300)
+#define SPR_PERF1        (0x301)
+#define SPR_PERF2        (0x302)
+#define SPR_PERF3        (0x303)
+#define SPR_PERF4        (0x304)
+#define SPR_PERF5        (0x305)
+#define SPR_PERF6        (0x306)
+#define SPR_PERF7        (0x307)
+#define SPR_PERF8        (0x308)
+#define SPR_PERF9        (0x309)
+#define SPR_PERFA        (0x30A)
+#define SPR_PERFB        (0x30B)
+#define SPR_PERFC        (0x30C)
+#define SPR_PERFD        (0x30D)
+#define SPR_PERFE        (0x30E)
+#define SPR_PERFF        (0x30F)
+#define SPR_UPERF0       (0x310)
+#define SPR_UPERF1       (0x311)
+#define SPR_UPERF2       (0x312)
+#define SPR_UPERF3       (0x313)
+#define SPR_UPERF4       (0x314)
+#define SPR_UPERF5       (0x315)
+#define SPR_UPERF6       (0x316)
+#define SPR_UPERF7       (0x317)
+#define SPR_UPERF8       (0x318)
+#define SPR_UPERF9       (0x319)
+#define SPR_UPERFA       (0x31A)
+#define SPR_UPERFB       (0x31B)
+#define SPR_UPERFC       (0x31C)
+#define SPR_UPERFD       (0x31D)
+#define SPR_UPERFE       (0x31E)
+#define SPR_UPERFF       (0x31F)
 #define SPR_440_INV0     (0x370)
 #define SPR_440_INV1     (0x371)
 #define SPR_440_INV2     (0x372)
 #define SPR_440_INV3     (0x373)
-#define SPR_440_IVT0     (0x374)
-#define SPR_440_IVT1     (0x375)
-#define SPR_440_IVT2     (0x376)
-#define SPR_440_IVT3     (0x377)
+#define SPR_440_ITV0     (0x374)
+#define SPR_440_ITV1     (0x375)
+#define SPR_440_ITV2     (0x376)
+#define SPR_440_ITV3     (0x377)
+#define SPR_PPR          (0x380)
 #define SPR_440_DNV0     (0x390)
 #define SPR_440_DNV1     (0x391)
 #define SPR_440_DNV2     (0x392)
 #define SPR_440_DNV3     (0x393)
-#define SPR_440_DVT0     (0x394)
-#define SPR_440_DVT1     (0x395)
-#define SPR_440_DVT2     (0x396)
-#define SPR_440_DVT3     (0x397)
+#define SPR_440_DTV0     (0x394)
+#define SPR_440_DTV1     (0x395)
+#define SPR_440_DTV2     (0x396)
+#define SPR_440_DTV3     (0x397)
 #define SPR_440_DVLIM    (0x398)
 #define SPR_440_IVLIM    (0x399)
 #define SPR_440_RSTCFG   (0x39B)
-#define SPR_BOOKE_DCBTRL (0x39C)
-#define SPR_BOOKE_DCBTRH (0x39D)
-#define SPR_BOOKE_ICBTRL (0x39E)
-#define SPR_BOOKE_ICBTRH (0x39F)
+#define SPR_BOOKE_DCDBTRL (0x39C)
+#define SPR_BOOKE_DCDBTRH (0x39D)
+#define SPR_BOOKE_ICDBTRL (0x39E)
+#define SPR_BOOKE_ICDBTRH (0x39F)
 #define SPR_UMMCR0       (0x3A8)
 #define SPR_UPMC1        (0x3A9)
 #define SPR_UPMC2        (0x3AA)
@@ -1163,7 +1257,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_DCMP         (0x3D1)
 #define SPR_HASH1        (0x3D2)
 #define SPR_HASH2        (0x3D3)
-#define SPR_BOOKE_ICBDR  (0x3D3)
+#define SPR_BOOKE_ICDBDR (0x3D3)
 #define SPR_IMISS        (0x3D4)
 #define SPR_40x_ESR      (0x3D4)
 #define SPR_ICMP         (0x3D5)
@@ -1201,6 +1295,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_40x_IAC2     (0x3F5)
 #define SPR_601_HID5     (0x3F5)
 #define SPR_40x_DAC1     (0x3F6)
+#define SPR_DABRX        (0x3F7)
 #define SPR_40x_DAC2     (0x3F7)
 #define SPR_BOOKE_MMUCFG (0x3F7)
 #define SPR_L2PM         (0x3F8)
@@ -1307,7 +1402,6 @@ enum {
                                    /* may change privilege level             */
 #define EXCP_BRANCH        0x11001 /* branch instruction                     */
 #define EXCP_SYSCALL_USER  0x12000 /* System call in user mode only          */
-#define EXCP_INTERRUPT_CRITICAL 0x13000 /* critical IRQ                      */
 
 /* Error codes */
 enum {
@@ -1342,8 +1436,8 @@ enum {
     EXCP_INVAL_FP      = 0x04,  /* Unimplemented mandatory fp instr */
     /* Privileged instruction */
     EXCP_PRIV          = 0x30,
-    EXCP_PRIV_OPC      = 0x01,
-    EXCP_PRIV_REG      = 0x02,
+    EXCP_PRIV_OPC      = 0x01,  /* Privileged operation exception   */
+    EXCP_PRIV_REG      = 0x02,  /* Privileged register exception    */
     /* Trap */
     EXCP_TRAP          = 0x40,
 };

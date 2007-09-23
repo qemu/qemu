@@ -32,10 +32,6 @@
 
 #include "softfloat.h"
 
-/* XXX: put this in a common place */
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x)   __builtin_expect(!!(x), 0)
-
 #define TARGET_HAS_ICE 1
 
 #define ELF_MACHINE	EM_ALPHA

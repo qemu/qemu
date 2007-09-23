@@ -156,6 +156,14 @@ void do_POWER_rfsvc (void);
 void do_op_602_mfrom (void);
 #endif
 
+/* PowerPC 440 specific helpers */
+#if !defined(CONFIG_USER_ONLY)
+void do_440_tlbre (int word);
+void do_440_tlbsx (void);
+void do_440_tlbsx_ (void);
+void do_440_tlbwe (int word);
+#endif
+
 /* PowerPC 4xx specific helpers */
 void do_405_check_ov (void);
 void do_405_check_sat (void);

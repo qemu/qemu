@@ -6417,7 +6417,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
     /* Restore delay slot state from the tb context.  */
-    ctx.hflags = tb->flags;
+    ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     restore_cpu_state(env, &ctx);
 #if defined(CONFIG_USER_ONLY)
     ctx.mem_idx = 0;

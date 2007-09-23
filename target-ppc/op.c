@@ -2365,6 +2365,30 @@ void OPPROTO op_wrte (void)
     RETURN();
 }
 
+void OPPROTO op_440_tlbre (void)
+{
+    do_440_tlbre(PARAM1);
+    RETURN();
+}
+
+void OPPROTO op_440_tlbsx (void)
+{
+    do_440_tlbsx();
+    RETURN();
+}
+
+void OPPROTO op_440_tlbsx_ (void)
+{
+    do_440_tlbsx_();
+    RETURN();
+}
+
+void OPPROTO op_440_tlbwe (void)
+{
+    do_440_tlbwe(PARAM1);
+    RETURN();
+}
+
 void OPPROTO op_4xx_tlbre_lo (void)
 {
     do_4xx_tlbre_lo();

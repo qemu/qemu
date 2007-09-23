@@ -77,24 +77,62 @@ static inline void pte_invalidate (target_ulong *pte0)
     *pte0 &= ~0x80000000;
 }
 
+#if defined(TARGET_PPC64)
+static inline int pte64_is_valid (target_ulong pte0)
+{
+    return pte0 & 0x0000000000000001ULL ? 1 : 0;
+}
+
+static inline void pte64_invalidate (target_ulong *pte0)
+{
+    *pte0 &= ~0x0000000000000001ULL;
+}
+#endif
+
 #define PTE_PTEM_MASK 0x7FFFFFBF
 #define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
+#if defined(TARGET_PPC64)
+#define PTE64_PTEM_MASK 0xFFFFFFFFFFFFFF80ULL
+#define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
+#endif
 
-static int pte_check (mmu_ctx_t *ctx,
-                      target_ulong pte0, target_ulong pte1, int h, int rw)
+static inline int _pte_check (mmu_ctx_t *ctx, int is_64b,
+                              target_ulong pte0, target_ulong pte1,
+                              int h, int rw)
 {
-    int access, ret;
+    target_ulong ptem, mmask;
+    int access, ret, pteh, ptev;
 
     access = 0;
     ret = -1;
     /* Check validity and table match */
-    if (pte_is_valid(pte0) && (h == ((pte0 >> 6) & 1))) {
+#if defined(TARGET_PPC64)
+    if (is_64b) {
+        ptev = pte64_is_valid(pte0);
+        pteh = (pte0 >> 1) & 1;
+    } else
+#endif
+    {
+        ptev = pte_is_valid(pte0);
+        pteh = (pte0 >> 6) & 1;
+    }
+    if (ptev && h == pteh) {
         /* Check vsid & api */
-        if ((pte0 & PTE_PTEM_MASK) == ctx->ptem) {
+#if defined(TARGET_PPC64)
+        if (is_64b) {
+            ptem = pte0 & PTE64_PTEM_MASK;
+            mmask = PTE64_CHECK_MASK;
+        } else
+#endif
+        {
+            ptem = pte0 & PTE_PTEM_MASK;
+            mmask = PTE_CHECK_MASK;
+        }
+        if (ptem == ctx->ptem) {
             if (ctx->raddr != (target_ulong)-1) {
                 /* all matches should have equal RPN, WIMG & PP */
-                if ((ctx->raddr & PTE_CHECK_MASK) != (pte1 & PTE_CHECK_MASK)) {
-                    if (loglevel > 0)
+                if ((ctx->raddr & mmask) != (pte1 & mmask)) {
+                    if (loglevel != 0)
                         fprintf(logfile, "Bad RPN/WIMG/PP\n");
                     return -3;
                 }
@@ -142,6 +180,20 @@ static int pte_check (mmu_ctx_t *ctx,
 
     return ret;
 }
+
+static int pte32_check (mmu_ctx_t *ctx,
+                        target_ulong pte0, target_ulong pte1, int h, int rw)
+{
+    return _pte_check(ctx, 0, pte0, pte1, h, rw);
+}
+
+#if defined(TARGET_PPC64)
+static int pte64_check (mmu_ctx_t *ctx,
+                        target_ulong pte0, target_ulong pte1, int h, int rw)
+{
+    return _pte_check(ctx, 1, pte0, pte1, h, rw);
+}
+#endif
 
 static int pte_update_flags (mmu_ctx_t *ctx, target_ulong *pte1p,
                              int ret, int rw)
@@ -305,7 +357,7 @@ static int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
                     rw ? 'S' : 'L', access_type == ACCESS_CODE ? 'I' : 'D');
         }
 #endif
-        switch (pte_check(ctx, tlb->pte0, tlb->pte1, 0, rw)) {
+        switch (pte32_check(ctx, tlb->pte0, tlb->pte1, 0, rw)) {
         case -3:
             /* TLB inconsistency */
             return -1;
@@ -440,26 +492,36 @@ static int get_bat (CPUState *env, mmu_ctx_t *ctx,
 }
 
 /* PTE table lookup */
-static int find_pte (mmu_ctx_t *ctx, int h, int rw)
+static inline int _find_pte (mmu_ctx_t *ctx, int is_64b, int h, int rw)
 {
     target_ulong base, pte0, pte1;
     int i, good = -1;
-    int ret;
+    int ret, r;
 
     ret = -1; /* No entry found */
     base = ctx->pg_addr[h];
     for (i = 0; i < 8; i++) {
-        pte0 = ldl_phys(base + (i * 8));
-        pte1 =  ldl_phys(base + (i * 8) + 4);
+#if defined(TARGET_PPC64)
+        if (is_64b) {
+            pte0 = ldq_phys(base + (i * 16));
+            pte1 =  ldq_phys(base + (i * 16) + 8);
+            r = pte64_check(ctx, pte0, pte1, h, rw);
+        } else
+#endif
+        {
+            pte0 = ldl_phys(base + (i * 8));
+            pte1 =  ldl_phys(base + (i * 8) + 4);
+            r = pte32_check(ctx, pte0, pte1, h, rw);
+        }
 #if defined (DEBUG_MMU)
-        if (loglevel > 0) {
+        if (loglevel != 0) {
             fprintf(logfile, "Load pte from 0x" ADDRX " => 0x" ADDRX
                     " 0x" ADDRX " %d %d %d 0x" ADDRX "\n",
                     base + (i * 8), pte0, pte1,
-                    pte0 >> 31, h, (pte0 >> 6) & 1, ctx->ptem);
+                    (int)(pte0 >> 31), h, (int)((pte0 >> 6) & 1), ctx->ptem);
         }
 #endif
-        switch (pte_check(ctx, pte0, pte1, h, rw)) {
+        switch (r) {
         case -3:
             /* PTE inconsistency */
             return -1;
@@ -494,59 +556,183 @@ static int find_pte (mmu_ctx_t *ctx, int h, int rw)
 #endif
         /* Update page flags */
         pte1 = ctx->raddr;
-        if (pte_update_flags(ctx, &pte1, ret, rw) == 1)
-            stl_phys_notdirty(base + (good * 8) + 4, pte1);
+        if (pte_update_flags(ctx, &pte1, ret, rw) == 1) {
+#if defined(TARGET_PPC64)
+            if (is_64b) {
+                stq_phys_notdirty(base + (good * 16) + 8, pte1);
+            } else
+#endif
+            {
+                stl_phys_notdirty(base + (good * 8) + 4, pte1);
+            }
+        }
     }
 
     return ret;
 }
 
+static int find_pte32 (mmu_ctx_t *ctx, int h, int rw)
+{
+    return _find_pte(ctx, 0, h, rw);
+}
+
+#if defined(TARGET_PPC64)
+static int find_pte64 (mmu_ctx_t *ctx, int h, int rw)
+{
+    return _find_pte(ctx, 1, h, rw);
+}
+#endif
+
+static inline int find_pte (CPUState *env, mmu_ctx_t *ctx, int h, int rw)
+{
+#if defined(TARGET_PPC64)
+    if (PPC_MMU(env) == PPC_FLAGS_MMU_64B ||
+        PPC_MMU(env) == PPC_FLAGS_MMU_64BRIDGE)
+        return find_pte64(ctx, h, rw);
+#endif
+
+    return find_pte32(ctx, h, rw);
+}
+
 static inline target_phys_addr_t get_pgaddr (target_phys_addr_t sdr1,
+                                             int sdr_sh,
                                              target_phys_addr_t hash,
                                              target_phys_addr_t mask)
 {
-    return (sdr1 & 0xFFFF0000) | (hash & mask);
+    return (sdr1 & ((target_ulong)(-1ULL) << sdr_sh)) | (hash & mask);
 }
+
+#if defined(TARGET_PPC64)
+static int slb_lookup (CPUState *env, target_ulong eaddr,
+                       target_ulong *vsid, target_ulong *page_mask, int *attr)
+{
+    target_phys_addr_t sr_base;
+    target_ulong mask;
+    uint64_t tmp64;
+    uint32_t tmp;
+    int n, ret;
+    int slb_nr;
+
+    ret = -5;
+    sr_base = env->spr[SPR_ASR];
+    mask = 0x0000000000000000ULL; /* Avoid gcc warning */
+#if 0 /* XXX: Fix this */
+    slb_nr = env->slb_nr;
+#else
+    slb_nr = 32;
+#endif
+    for (n = 0; n < slb_nr; n++) {
+        tmp64 = ldq_phys(sr_base);
+        if (tmp64 & 0x0000000008000000ULL) {
+            /* SLB entry is valid */
+            switch (tmp64 & 0x0000000006000000ULL) {
+            case 0x0000000000000000ULL:
+                /* 256 MB segment */
+                mask = 0xFFFFFFFFF0000000ULL;
+                break;
+            case 0x0000000002000000ULL:
+                /* 1 TB segment */
+                mask = 0xFFFF000000000000ULL;
+                break;
+            case 0x0000000004000000ULL:
+            case 0x0000000006000000ULL:
+                /* Reserved => segment is invalid */
+                continue;
+            }
+            if ((eaddr & mask) == (tmp64 & mask)) {
+                /* SLB match */
+                tmp = ldl_phys(sr_base + 8);
+                *vsid = ((tmp64 << 24) | (tmp >> 8)) & 0x0003FFFFFFFFFFFFULL;
+                *page_mask = ~mask;
+                *attr = tmp & 0xFF;
+                ret = 0;
+                break;
+            }
+        }
+        sr_base += 12;
+    }
+
+    return ret;
+}
+#endif /* defined(TARGET_PPC64) */
 
 /* Perform segment based translation */
 static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                         target_ulong eaddr, int rw, int type)
 {
-    target_phys_addr_t sdr, hash, mask;
-    target_ulong sr, vsid, pgidx;
-    int ret = -1, ret2;
-
-    sr = env->sr[eaddr >> 28];
-#if defined (DEBUG_MMU)
-    if (loglevel > 0) {
-        fprintf(logfile, "Check segment v=0x" ADDRX " %d 0x" ADDRX " nip=0x"
-                ADDRX " lr=0x" ADDRX " ir=%d dr=%d pr=%d %d t=%d\n",
-                eaddr, eaddr >> 28, sr, env->nip,
-                env->lr, msr_ir, msr_dr, msr_pr, rw, type);
-    }
+    target_phys_addr_t sdr, hash, mask, sdr_mask;
+    target_ulong sr, vsid, vsid_mask, pgidx, page_mask;
+#if defined(TARGET_PPC64)
+    int attr;
 #endif
-    ctx->key = (((sr & 0x20000000) && msr_pr == 1) ||
-                ((sr & 0x40000000) && msr_pr == 0)) ? 1 : 0;
-    if ((sr & 0x80000000) == 0) {
+    int ds, nx, vsid_sh, sdr_sh;
+    int ret, ret2;
+
+#if defined(TARGET_PPC64)
+    if (PPC_MMU(env) == PPC_FLAGS_MMU_64B) {
+        ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr);
+        if (ret < 0)
+            return ret;
+        ctx->key = ((attr & 0x40) && msr_pr == 1) ||
+            ((attr & 0x80) && msr_pr == 0) ? 1 : 0;
+        ds = 0;
+        nx = attr & 0x20 ? 1 : 0;
+        vsid_mask = 0x00003FFFFFFFFF80ULL;
+        vsid_sh = 7;
+        sdr_sh = 18;
+        sdr_mask = 0x3FF80;
+    } else
+#endif /* defined(TARGET_PPC64) */
+    {
+        sr = env->sr[eaddr >> 28];
+        page_mask = 0x0FFFFFFF;
+        ctx->key = (((sr & 0x20000000) && msr_pr == 1) ||
+                    ((sr & 0x40000000) && msr_pr == 0)) ? 1 : 0;
+        ds = sr & 0x80000000 ? 1 : 0;
+        nx = sr & 0x10000000 ? 1 : 0;
+        vsid = sr & 0x00FFFFFF;
+        vsid_mask = 0x01FFFFC0;
+        vsid_sh = 6;
+        sdr_sh = 16;
+        sdr_mask = 0xFFC0;
 #if defined (DEBUG_MMU)
-        if (loglevel > 0)
+        if (loglevel != 0) {
+            fprintf(logfile, "Check segment v=0x" ADDRX " %d 0x" ADDRX
+                    " nip=0x" ADDRX " lr=0x" ADDRX
+                    " ir=%d dr=%d pr=%d %d t=%d\n",
+                    eaddr, (int)(eaddr >> 28), sr, env->nip,
+                    env->lr, msr_ir, msr_dr, msr_pr, rw, type);
+        }
+        if (!ds && loglevel != 0) {
             fprintf(logfile, "pte segment: key=%d n=0x" ADDRX "\n",
                     ctx->key, sr & 0x10000000);
+        }
 #endif
+    }
+    ret = -1;
+    if (!ds) {
         /* Check if instruction fetch is allowed, if needed */
-        if (type != ACCESS_CODE || (sr & 0x10000000) == 0) {
+        if (type != ACCESS_CODE || nx == 0) {
             /* Page address translation */
-            pgidx = (eaddr >> TARGET_PAGE_BITS) & 0xFFFF;
-            vsid = sr & 0x00FFFFFF;
-            hash = ((vsid ^ pgidx) & 0x0007FFFF) << 6;
+            pgidx = (eaddr & page_mask) >> TARGET_PAGE_BITS;
+            hash = ((vsid ^ pgidx) << vsid_sh) & vsid_mask;
             /* Primary table address */
             sdr = env->sdr1;
-            mask = ((sdr & 0x000001FF) << 16) | 0xFFC0;
-            ctx->pg_addr[0] = get_pgaddr(sdr, hash, mask);
+            mask = ((sdr & 0x000001FF) << sdr_sh) | sdr_mask;
+            ctx->pg_addr[0] = get_pgaddr(sdr, sdr_sh, hash, mask);
             /* Secondary table address */
-            hash = (~hash) & 0x01FFFFC0;
-            ctx->pg_addr[1] = get_pgaddr(sdr, hash, mask);
-            ctx->ptem = (vsid << 7) | (pgidx >> 10);
+            hash = (~hash) & vsid_mask;
+            ctx->pg_addr[1] = get_pgaddr(sdr, sdr_sh, hash, mask);
+#if defined(TARGET_PPC64)
+            if (PPC_MMU(env) == PPC_FLAGS_MMU_64B ||
+                PPC_MMU(env) == PPC_FLAGS_MMU_64BRIDGE) {
+                /* Only 5 bits of the page index are used in the AVPN */
+                ctx->ptem = (vsid << 12) | ((pgidx >> 4) & 0x0F80);
+            } else
+#endif
+            {
+                ctx->ptem = (vsid << 7) | (pgidx >> 10);
+            }
             /* Initialize real address with an invalid value */
             ctx->raddr = (target_ulong)-1;
             if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
@@ -562,7 +748,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 }
 #endif
                 /* Primary table lookup */
-                ret = find_pte(ctx, 0, rw);
+                ret = find_pte(env, ctx, 0, rw);
                 if (ret < 0) {
                     /* Secondary table lookup */
 #if defined (DEBUG_MMU)
@@ -574,7 +760,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                                 (uint32_t)hash, ctx->pg_addr[1]);
                     }
 #endif
-                    ret2 = find_pte(ctx, 1, rw);
+                    ret2 = find_pte(env, ctx, 1, rw);
                     if (ret2 != -1)
                         ret = ret2;
                 }
@@ -660,10 +846,12 @@ static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
     if ((address & mask) != tlb->EPN)
         return -1;
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
+#if (TARGET_PHYS_ADDR_BITS >= 36)
     if (ext) {
         /* Extend the physical address to 36 bits */
         *raddrp |= (target_phys_addr_t)(tlb->RPN & 0xF) << 32;
     }
+#endif
 
     return 0;
 }
@@ -828,6 +1016,52 @@ void store_40x_sler (CPUPPCState *env, uint32_t val)
     env->spr[SPR_405_SLER] = val;
 }
 
+int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
+                                   target_ulong address, int rw,
+                                   int access_type)
+{
+    ppcemb_tlb_t *tlb;
+    target_phys_addr_t raddr;
+    int i, prot, ret;
+
+    ret = -1;
+    raddr = -1;
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb[i].tlbe;
+        if (ppcemb_tlb_check(env, tlb, &raddr, address,
+                             env->spr[SPR_BOOKE_PID], 1, i) < 0)
+            continue;
+        if (msr_pr)
+            prot = tlb->prot & 0xF;
+        else
+            prot = (tlb->prot >> 4) & 0xF;
+        /* Check the address space */
+        if (access_type == ACCESS_CODE) {
+            if (msr_is != (tlb->attr & 1))
+                continue;
+            ctx->prot = prot;
+            if (prot & PAGE_EXEC) {
+                ret = 0;
+                break;
+            }
+            ret = -3;
+        } else {
+            if (msr_ds != (tlb->attr & 1))
+                continue;
+            ctx->prot = prot;
+            if ((!rw && prot & PAGE_READ) || (rw && (prot & PAGE_WRITE))) {
+                ret = 0;
+                break;
+            }
+            ret = -2;
+        }
+    }
+    if (ret >= 0)
+        ctx->raddr = raddr;
+
+    return ret;
+}
+
 static int check_physical (CPUState *env, mmu_ctx_t *ctx,
                            target_ulong eaddr, int rw)
 {
@@ -836,29 +1070,55 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
     ctx->raddr = eaddr;
     ctx->prot = PAGE_READ;
     ret = 0;
-    if (unlikely(msr_pe != 0 && PPC_MMU(env) == PPC_FLAGS_MMU_403)) {
-        /* 403 family add some particular protections,
-         * using PBL/PBU registers for accesses with no translation.
-         */
-        in_plb =
-            /* Check PLB validity */
-            (env->pb[0] < env->pb[1] &&
-             /* and address in plb area */
-             eaddr >= env->pb[0] && eaddr < env->pb[1]) ||
-            (env->pb[2] < env->pb[3] &&
-             eaddr >= env->pb[2] && eaddr < env->pb[3]) ? 1 : 0;
-        if (in_plb ^ msr_px) {
-            /* Access in protected area */
-            if (rw == 1) {
-                /* Access is not allowed */
-                ret = -2;
-            }
-        } else {
-            /* Read-write access is allowed */
-            ctx->prot |= PAGE_WRITE;
-        }
-    } else {
+    switch (PPC_MMU(env)) {
+    case PPC_FLAGS_MMU_32B:
+    case PPC_FLAGS_MMU_SOFT_6xx:
+    case PPC_FLAGS_MMU_601:
+    case PPC_FLAGS_MMU_SOFT_4xx:
+    case PPC_FLAGS_MMU_401:
         ctx->prot |= PAGE_WRITE;
+        break;
+#if defined(TARGET_PPC64)
+    case PPC_FLAGS_MMU_64B:
+    case PPC_FLAGS_MMU_64BRIDGE:
+        /* Real address are 60 bits long */
+        ctx->raddr &= 0x0FFFFFFFFFFFFFFFUL;
+        ctx->prot |= PAGE_WRITE;
+        break;
+#endif
+    case PPC_FLAGS_MMU_403:
+        if (unlikely(msr_pe != 0)) {
+            /* 403 family add some particular protections,
+             * using PBL/PBU registers for accesses with no translation.
+             */
+            in_plb =
+                /* Check PLB validity */
+                (env->pb[0] < env->pb[1] &&
+                 /* and address in plb area */
+                 eaddr >= env->pb[0] && eaddr < env->pb[1]) ||
+                (env->pb[2] < env->pb[3] &&
+                 eaddr >= env->pb[2] && eaddr < env->pb[3]) ? 1 : 0;
+            if (in_plb ^ msr_px) {
+                /* Access in protected area */
+                if (rw == 1) {
+                    /* Access is not allowed */
+                    ret = -2;
+                }
+            } else {
+                /* Read-write access is allowed */
+                ctx->prot |= PAGE_WRITE;
+            }
+        }
+    case PPC_FLAGS_MMU_BOOKE:
+        ctx->prot |= PAGE_WRITE;
+        break;
+    case PPC_FLAGS_MMU_BOOKE_FSL:
+        /* XXX: TODO */
+        cpu_abort(env, "BookE FSL MMU model not implemented\n");
+        break;
+    default:
+        cpu_abort(env, "Unknown or invalid MMU model\n");
+        return -1;
     }
 
     return ret;
@@ -905,12 +1165,15 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             cpu_abort(env, "601 MMU model not implemented\n");
             return -1;
         case PPC_FLAGS_MMU_BOOKE:
-            /* XXX: TODO */
-            cpu_abort(env, "BookeE MMU model not implemented\n");
-            return -1;
+            ret = mmubooke_get_physical_address(env, ctx, eaddr,
+                                                rw, access_type);
+            break;
         case PPC_FLAGS_MMU_BOOKE_FSL:
             /* XXX: TODO */
             cpu_abort(env, "BookE FSL MMU model not implemented\n");
+            return -1;
+        case PPC_FLAGS_MMU_401:
+            cpu_abort(env, "PowerPC 401 does not do any translation\n");
             return -1;
         default:
             cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1011,6 +1274,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
+                case PPC_FLAGS_MMU_401:
+                    cpu_abort(env, "PowerPC 401 should never raise any MMU "
+                              "exceptions\n");
+                    return -1;
                 default:
                     cpu_abort(env, "Unknown or invalid MMU model\n");
                     return -1;
@@ -1091,6 +1358,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 case PPC_FLAGS_MMU_BOOKE_FSL:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
+                    return -1;
+                case PPC_FLAGS_MMU_401:
+                    cpu_abort(env, "PowerPC 401 should never raise any MMU "
+                              "exceptions\n");
                     return -1;
                 default:
                     cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1520,13 +1791,14 @@ void ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
 void do_compute_hflags (CPUPPCState *env)
 {
     /* Compute current hflags */
-    env->hflags = (msr_cm << MSR_CM) | (msr_vr << MSR_VR) |
+    env->hflags = (msr_vr << MSR_VR) |
         (msr_ap << MSR_AP) | (msr_sa << MSR_SA) | (msr_pr << MSR_PR) |
         (msr_fp << MSR_FP) | (msr_fe0 << MSR_FE0) | (msr_se << MSR_SE) |
         (msr_be << MSR_BE) | (msr_fe1 << MSR_FE1) | (msr_le << MSR_LE);
 #if defined (TARGET_PPC64)
-    /* No care here: PowerPC 64 MSR_SF means the same as MSR_CM for BookE */
-    env->hflags |= (msr_sf << (MSR_SF - 32)) | (msr_hv << (MSR_HV - 32));
+    env->hflags |= msr_cm << MSR_CM;
+    env->hflags |= (uint64_t)msr_sf << MSR_SF;
+    env->hflags |= (uint64_t)msr_hv << MSR_HV;
 #endif
 }
 
@@ -1740,7 +2012,7 @@ void do_interrupt (CPUState *env)
         cpu_abort(env, "Floating point assist exception "
                   "is not implemented yet !\n");
         goto store_next;
-        /* 64 bits PowerPC exceptions */
+    /* 64 bits PowerPC exceptions */
     case EXCP_DSEG: /* 0x0380 */
         /* XXX: TODO */
         cpu_abort(env, "Data segment exception is not implemented yet !\n");
@@ -2236,28 +2508,39 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
 void cpu_ppc_reset (void *opaque)
 {
     CPUPPCState *env;
+    int i;
 
     env = opaque;
+    /* XXX: some of those flags initialisation values could depend
+     *      on the actual PowerPC implementation
+     */
+    for (i = 0; i < 63; i++)
+        env->msr[i] = 0;
+#if defined(TARGET_PPC64)
+    msr_hv = 0; /* Should be 1... */
+#endif
+    msr_ap = 0; /* TO BE CHECKED */
+    msr_sa = 0; /* TO BE CHECKED */
+    msr_ip = 0; /* TO BE CHECKED */
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
     msr_be = 1;
 #endif
-    msr_fp = 1; /* Allow floating point exceptions */
-    msr_me = 1; /* Allow machine check exceptions  */
-#if defined(TARGET_PPC64)
-    msr_sf = 0; /* Boot in 32 bits mode */
-    msr_cm = 0;
-#endif
 #if defined(CONFIG_USER_ONLY)
+    msr_fp = 1; /* Allow floating point exceptions */
     msr_pr = 1;
-    tlb_flush(env, 1);
 #else
     env->nip = 0xFFFFFFFC;
     ppc_tlb_invalidate_all(env);
 #endif
     do_compute_hflags(env);
     env->reserve = -1;
+    /* Be sure no exception or interrupt is pending */
+    env->pending_interrupts = 0;
+    env->exception_index = EXCP_NONE;
+    /* Flush all TLBs */
+    tlb_flush(env, 1);
 }
 
 CPUPPCState *cpu_ppc_init (void)

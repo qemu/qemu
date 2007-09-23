@@ -4,6 +4,216 @@ The goal of this file is to provide a reference status to avoid regressions.
 ===============================================================================
 PowerPC core emulation status
 
+32 bits PowerPC
+PowerPC 601:
+INSN
+SPR
+MMU
+EXCP
+
+PowerPC 602:
+INSN
+SPR
+MMU
+EXCP
+
+PowerPC 603:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP OK
+
+PowerPC 604:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP OK
+
+PowerPC 740:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP OK
+
+PowerPC 745:
+INSN
+SPR
+MMU
+EXCP
+
+PowerPC 750:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP OK
+
+PowerPC 755:
+INSN
+SPR
+MMU
+EXCP
+
+PowerPC 7400:
+INSN KO
+SPR  KO
+MMU  OK
+EXCP OK
+
+PowerPC 7410:
+INSN KO
+SPR  KO
+MMU  OK
+EXCP OK
+
+PowerPC 7450:
+INSN KO
+SPR  KO
+MMU  OK
+EXCP OK
+
+PowerPC 7455:
+INSN KO
+SPR  KO
+MMU  OK
+EXCP OK
+
+PowerPC 7457:
+INSN KO
+SPR  KO
+MMU  OK
+EXCP OK
+
+PowerPC 7457A:
+INSN KO
+SPR  KO
+MMU  OK
+EXCP OK
+
+64 bits PowerPC
+PowerPC 970:
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+PowerPC 620: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+PowerPC 630: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+PowerPC 631: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+POWER4: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+POWER4+: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+POWER5: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+POWER5+: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+POWER6: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+RS64: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+RS64-II: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+RS64-III: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+RS64-IV: (lack of precise informations)
+INSN KO
+SPR  KO
+MMU  KO
+EXCP KO
+
+Embedded PowerPC cores
+PowerPC 401:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP ?
+
+PowerPC 403:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP ?
+
+PowerPC 405:
+INSN OK
+SPR  OK
+MMU  OK
+EXCP OK
+
+PowerPC 440:
+INSN  OK
+SPR   OK
+MMU   ?
+EXCP  ?
+
+PowerPC 460: (lack of precise informations)
+INSN  KO
+SPR   KO
+MMU   KO
+EXCP  KO
+
+Freescale (to be completed) ...
+
+Original POWER
+POWER: (lack of precise informations)
+INSN  KO
+SPR   KO
+MMU   KO
+EXCP  KO
+
+POWER2: (lack of precise informations)
+INSN  KO
+SPR   KO
+MMU   KO
+EXCP  KO
+
 PowerPC CPU known to work (ie booting at least Linux 2.4):
 * main stream PowerPC cores
 - PowerPC 603 & derivatives

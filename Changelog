@@ -11,6 +11,7 @@
   - MIPS64 support (Aurelien Jarno, Thiemo Seufer)
   - Preliminary Alpha guest support (J. Mayer)
   - Read-only support for Parallels disk images (Alex Beregszaszi)
+  - SVM (x86 virtualization) support (Alexander Graf)
 
 version 0.9.0:
 

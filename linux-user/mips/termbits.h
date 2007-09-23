@@ -26,6 +26,7 @@ struct target_termios {
 #define TARGET_IXANY   0004000
 #define TARGET_IXOFF   0010000
 #define TARGET_IMAXBEL 0020000
+#define TARGET_IUTF8   0040000
 
 /* c_oflag bits */
 #define TARGET_OPOST   0000001
@@ -92,12 +93,25 @@ struct target_termios {
 #define TARGET_HUPCL   0002000
 #define TARGET_CLOCAL  0004000
 #define TARGET_CBAUDEX 0010000
-#define  TARGET_B57600  0010001
-#define  TARGET_B115200 0010002
-#define  TARGET_B230400 0010003
-#define  TARGET_B460800 0010004
+#define  TARGET_BOTHER   0010000
+#define  TARGET_B57600   0010001
+#define  TARGET_B115200  0010002
+#define  TARGET_B230400  0010003
+#define  TARGET_B460800  0010004
+#define  TARGET_B500000  0010005
+#define  TARGET_B576000  0010006
+#define  TARGET_B921600  0010007
+#define  TARGET_B1000000 0010010
+#define  TARGET_B1152000 0010011
+#define  TARGET_B1500000 0010012
+#define  TARGET_B2000000 0010013
+#define  TARGET_B2500000 0010014
+#define  TARGET_B3000000 0010015
+#define  TARGET_B3500000 0010016
+#define  TARGET_B4000000 0010017
 #define TARGET_CIBAUD    002003600000  /* input baud rate (not used) */
-#define TARGET_CRTSCTS   020000000000          /* flow control */
+#define TARGET_CMSPAR    010000000000  /* mark or space (stick) parity */
+#define TARGET_CRTSCTS   020000000000  /* flow control */
 
 /* c_lflag bits */
 #define TARGET_ISIG    0000001
@@ -108,32 +122,34 @@ struct target_termios {
 #define TARGET_ECHOK   0000040
 #define TARGET_ECHONL  0000100
 #define TARGET_NOFLSH  0000200
-#define TARGET_TOSTOP  0000400
+#define TARGET_IEXTEN  0000400
 #define TARGET_ECHOCTL 0001000
 #define TARGET_ECHOPRT 0002000
 #define TARGET_ECHOKE  0004000
 #define TARGET_FLUSHO  0010000
 #define TARGET_PENDIN  0040000
-#define TARGET_IEXTEN  0100000
+#define TARGET_TOSTOP  0100000
+#define TARGET_ITOSTOP TARGET_TOSTOP
 
 /* c_cc character offsets */
 #define TARGET_VINTR	0
 #define TARGET_VQUIT	1
 #define TARGET_VERASE	2
 #define TARGET_VKILL	3
-#define TARGET_VEOF	4
+#define TARGET_VMIN	4
 #define TARGET_VTIME	5
-#define TARGET_VMIN	6
+#define TARGET_VEOL2	6
 #define TARGET_VSWTC	7
 #define TARGET_VSTART	8
 #define TARGET_VSTOP	9
 #define TARGET_VSUSP	10
-#define TARGET_VEOL	11
+/* VDSUSP not supported */
 #define TARGET_VREPRINT	12
 #define TARGET_VDISCARD	13
 #define TARGET_VWERASE	14
 #define TARGET_VLNEXT	15
-#define TARGET_VEOL2	16
+#define TARGET_VEOF	16
+#define TARGET_VEOL	17
 
 /* ioctls */
 
@@ -154,7 +170,7 @@ struct target_termios {
 #define TARGET_TIOCEXCL	0x740d		/* set exclusive use of tty */
 #define TARGET_TIOCNXCL	0x740e		/* reset exclusive use of tty */
 #define TARGET_TIOCOUTQ	0x7472		/* output queue size */
-#define TARGET_TIOCSTI		0x5472		/* simulate terminal input */
+#define TARGET_TIOCSTI	0x5472		/* simulate terminal input */
 #define TARGET_TIOCMGET	0x741d		/* get all modem bits */
 #define TARGET_TIOCMBIS	0x741b		/* bis modem bits */
 #define TARGET_TIOCMBIC	0x741c		/* bic modem bits */

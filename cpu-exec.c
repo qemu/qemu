@@ -78,7 +78,7 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
 
 static TranslationBlock *tb_find_slow(target_ulong pc,
                                       target_ulong cs_base,
-                                      unsigned int flags)
+                                      uint64_t flags)
 {
     TranslationBlock *tb, **ptb1;
     int code_gen_size;
@@ -160,7 +160,7 @@ static inline TranslationBlock *tb_find_fast(void)
 {
     TranslationBlock *tb;
     target_ulong cs_base, pc;
-    unsigned int flags;
+    uint64_t flags;
 
     /* we record a subset of the CPU state. It will
        always be the same before a given translated block
@@ -168,6 +168,7 @@ static inline TranslationBlock *tb_find_fast(void)
 #if defined(TARGET_I386)
     flags = env->hflags;
     flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
+    flags |= env->intercept;
     cs_base = env->segs[R_CS].base;
     pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
@@ -192,8 +193,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = env->npc;
     pc = env->pc;
 #elif defined(TARGET_PPC)
-    flags = (msr_pr << MSR_PR) | (msr_fp << MSR_FP) |
-        (msr_se << MSR_SE) | (msr_le << MSR_LE);
+    flags = env->hflags;
     cs_base = 0;
     pc = env->nip;
 #elif defined(TARGET_MIPS)
@@ -378,7 +378,11 @@ int cpu_exec(CPUState *env1)
                 tmp_T0 = T0;
 #endif
                 interrupt_request = env->interrupt_request;
-                if (__builtin_expect(interrupt_request, 0)) {
+                if (__builtin_expect(interrupt_request, 0)
+#if defined(TARGET_I386)
+			&& env->hflags & HF_GIF_MASK
+#endif
+				) {
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
@@ -396,6 +400,7 @@ int cpu_exec(CPUState *env1)
 #if defined(TARGET_I386)
                     if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                         !(env->hflags & HF_SMM_MASK)) {
+                        svm_check_intercept(SVM_EXIT_SMI);
                         env->interrupt_request &= ~CPU_INTERRUPT_SMI;
                         do_smm_enter();
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
@@ -404,9 +409,10 @@ int cpu_exec(CPUState *env1)
                         T0 = 0;
 #endif
                     } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->eflags & IF_MASK) &&
+                        (env->eflags & IF_MASK || env->hflags & HF_HIF_MASK) &&
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;
+                        svm_check_intercept(SVM_EXIT_INTR);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                         intno = cpu_get_pic_interrupt(env);
                         if (loglevel & CPU_LOG_TB_IN_ASM) {
@@ -419,6 +425,24 @@ int cpu_exec(CPUState *env1)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
+#endif
+#if !defined(CONFIG_USER_ONLY)
+                    } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
+                        (env->eflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
+                         int intno;
+                         /* FIXME: this should respect TPR */
+                         env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+                         stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
+                                  ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
+                         intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
+                         if (loglevel & CPU_LOG_TB_IN_ASM)
+                             fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
+	                 do_interrupt(intno, 0, 0, -1, 1);
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+                         tmp_T0 = 0;
+#else
+                         T0 = 0;
+#endif
 #endif
                     }
 #elif defined(TARGET_PPC)

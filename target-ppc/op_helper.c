@@ -2538,7 +2538,8 @@ void do_4xx_tlbwe_hi (void)
      * of the ppc or ppc64 one
      */
     if ((T1 & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
-        cpu_abort(env, "TLB size %u < %u are not supported (%d)\n",
+        cpu_abort(env, "TLB size " TARGET_FMT_lu " < %u "
+                  "are not supported (%d)\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((T1 >> 7) & 0x7));
     }
     tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
@@ -2606,5 +2607,131 @@ void do_4xx_tlbwe_lo (void)
                 tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
     }
 #endif
+}
+
+/* PowerPC 440 TLB management */
+void do_440_tlbwe (int word)
+{
+    ppcemb_tlb_t *tlb;
+    target_ulong EPN, RPN, size;
+    int do_flush_tlbs;
+
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s word %d T0 " REGX " T1 " REGX "\n",
+                __func__, word, T0, T1);
+    }
+#endif
+    do_flush_tlbs = 0;
+    T0 &= 0x3F;
+    tlb = &env->tlb[T0].tlbe;
+    switch (word) {
+    default:
+        /* Just here to please gcc */
+    case 0:
+        EPN = T1 & 0xFFFFFC00;
+        if ((tlb->prot & PAGE_VALID) && EPN != tlb->EPN)
+            do_flush_tlbs = 1;
+        tlb->EPN = EPN;
+        size = booke_tlb_to_page_size((T1 >> 4) & 0xF);
+        if ((tlb->prot & PAGE_VALID) && tlb->size < size)
+            do_flush_tlbs = 1;
+        tlb->size = size;
+        tlb->attr &= ~0x1;
+        tlb->attr |= (T1 >> 8) & 1;
+        if (T1 & 0x200) {
+            tlb->prot |= PAGE_VALID;
+        } else {
+            if (tlb->prot & PAGE_VALID) {
+                tlb->prot &= ~PAGE_VALID;
+                do_flush_tlbs = 1;
+            }
+        }
+        tlb->PID = env->spr[SPR_440_MMUCR] & 0x000000FF;
+        if (do_flush_tlbs)
+            tlb_flush(env, 1);
+        break;
+    case 1:
+        RPN = T1 & 0xFFFFFC0F;
+        if ((tlb->prot & PAGE_VALID) && tlb->RPN != RPN)
+            tlb_flush(env, 1);
+        tlb->RPN = RPN;
+        break;
+    case 2:
+        tlb->attr = (tlb->attr & 0x1) | (T1 & 0x0000FF00);
+        tlb->prot = tlb->prot & PAGE_VALID;
+        if (T1 & 0x1)
+            tlb->prot |= PAGE_READ << 4;
+        if (T1 & 0x2)
+            tlb->prot |= PAGE_WRITE << 4;
+        if (T1 & 0x4)
+            tlb->prot |= PAGE_EXEC << 4;
+        if (T1 & 0x8)
+            tlb->prot |= PAGE_READ;
+        if (T1 & 0x10)
+            tlb->prot |= PAGE_WRITE;
+        if (T1 & 0x20)
+            tlb->prot |= PAGE_EXEC;
+        break;
+    }
+}
+
+void do_440_tlbsx (void)
+{
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR]);
+}
+
+void do_440_tlbsx_ (void)
+{
+    int tmp = xer_so;
+
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR]);
+    if (T0 != -1)
+        tmp |= 0x02;
+    env->crf[0] = tmp;
+}
+
+void do_440_tlbre (int word)
+{
+    ppcemb_tlb_t *tlb;
+    int size;
+
+    T0 &= 0x3F;
+    tlb = &env->tlb[T0].tlbe;
+    switch (word) {
+    default:
+        /* Just here to please gcc */
+    case 0:
+        T0 = tlb->EPN;
+        size = booke_page_size_to_tlb(tlb->size);
+        if (size < 0 || size > 0xF)
+            size = 1;
+        T0 |= size << 4;
+        if (tlb->attr & 0x1)
+            T0 |= 0x100;
+        if (tlb->prot & PAGE_VALID)
+            T0 |= 0x200;
+        env->spr[SPR_440_MMUCR] &= ~0x000000FF;
+        env->spr[SPR_440_MMUCR] |= tlb->PID;
+        break;
+    case 1:
+        T0 = tlb->RPN;
+        break;
+    case 2:
+        T0 = tlb->attr & ~0x1;
+        if (tlb->prot & (PAGE_READ << 4))
+            T0 |= 0x1;
+        if (tlb->prot & (PAGE_WRITE << 4))
+            T0 |= 0x2;
+        if (tlb->prot & (PAGE_EXEC << 4))
+            T0 |= 0x4;
+        if (tlb->prot & PAGE_READ)
+            T0 |= 0x8;
+        if (tlb->prot & PAGE_WRITE)
+            T0 |= 0x10;
+        if (tlb->prot & PAGE_EXEC)
+            T0 |= 0x20;
+        break;
+    }
 }
 #endif /* !CONFIG_USER_ONLY */

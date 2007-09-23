@@ -502,6 +502,15 @@ void update_fp_status(void);
 void helper_hlt(void);
 void helper_monitor(void);
 void helper_mwait(void);
+void helper_vmrun(target_ulong addr);
+void helper_vmmcall(void);
+void helper_vmload(target_ulong addr);
+void helper_vmsave(target_ulong addr);
+void helper_stgi(void);
+void helper_clgi(void);
+void helper_skinit(void);
+void helper_invlpga(void);
+void vmexit(uint64_t exit_code, uint64_t exit_info_1);
 
 extern const uint8_t parity_table[256];
 extern const uint8_t rclw_table[32];
@@ -589,3 +598,4 @@ static inline int cpu_halted(CPUState *env) {
     }
     return EXCP_HALTED;
 }
+

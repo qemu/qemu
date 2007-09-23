@@ -46,9 +46,6 @@ void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
     OMAP_32B_REG(addr);
 }
 
-#define likely
-#define unlikely
-
 /* Interrupt Handlers */
 struct omap_intr_handler_s {
     qemu_irq *pins;

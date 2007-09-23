@@ -318,3 +318,8 @@
 #define TARGET_NR_epoll_pwait		(TARGET_NR_Linux + 313)
 #define TARGET_NR_ioprio_set		(TARGET_NR_Linux + 314)
 #define TARGET_NR_ioprio_get		(TARGET_NR_Linux + 315)
+#define TARGET_NR_utimensat		(TARGET_NR_Linux + 316)
+#define TARGET_NR_signalfd		(TARGET_NR_Linux + 317)
+#define TARGET_NR_timerfd		(TARGET_NR_Linux + 318)
+#define TARGET_NR_eventfd		(TARGET_NR_Linux + 319)
+#define TARGET_NR_fallocate		(TARGET_NR_Linux + 320)

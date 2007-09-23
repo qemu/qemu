@@ -1408,21 +1408,7 @@ static target_long monitor_get_msr (struct MonitorDef *md, int val)
     CPUState *env = mon_get_cpu();
     if (!env)
         return 0;
-    return (env->msr[MSR_POW] << MSR_POW) |
-        (env->msr[MSR_ILE] << MSR_ILE) |
-        (env->msr[MSR_EE] << MSR_EE) |
-        (env->msr[MSR_PR] << MSR_PR) |
-        (env->msr[MSR_FP] << MSR_FP) |
-        (env->msr[MSR_ME] << MSR_ME) |
-        (env->msr[MSR_FE0] << MSR_FE0) |
-        (env->msr[MSR_SE] << MSR_SE) |
-        (env->msr[MSR_BE] << MSR_BE) |
-        (env->msr[MSR_FE1] << MSR_FE1) |
-        (env->msr[MSR_IP] << MSR_IP) |
-        (env->msr[MSR_IR] << MSR_IR) |
-        (env->msr[MSR_DR] << MSR_DR) |
-        (env->msr[MSR_RI] << MSR_RI) |
-        (env->msr[MSR_LE] << MSR_LE);
+    return do_load_msr(env);
 }
 
 static target_long monitor_get_xer (struct MonitorDef *md, int val)
@@ -1430,10 +1416,7 @@ static target_long monitor_get_xer (struct MonitorDef *md, int val)
     CPUState *env = mon_get_cpu();
     if (!env)
         return 0;
-    return (env->xer[XER_SO] << XER_SO) |
-        (env->xer[XER_OV] << XER_OV) |
-        (env->xer[XER_CA] << XER_CA) |
-        (env->xer[XER_BC] << XER_BC);
+    return ppc_load_xer(env);
 }
 
 static target_long monitor_get_decr (struct MonitorDef *md, int val)
@@ -1517,6 +1500,7 @@ static MonitorDef monitor_defs[] = {
     SEG("gs", R_GS)
     { "pc", 0, monitor_get_pc, },
 #elif defined(TARGET_PPC)
+    /* General purpose registers */
     { "r0", offsetof(CPUState, gpr[0]) },
     { "r1", offsetof(CPUState, gpr[1]) },
     { "r2", offsetof(CPUState, gpr[2]) },
@@ -1549,15 +1533,56 @@ static MonitorDef monitor_defs[] = {
     { "r29", offsetof(CPUState, gpr[29]) },
     { "r30", offsetof(CPUState, gpr[30]) },
     { "r31", offsetof(CPUState, gpr[31]) },
+    /* Floating point registers */
+    { "f0", offsetof(CPUState, fpr[0]) },
+    { "f1", offsetof(CPUState, fpr[1]) },
+    { "f2", offsetof(CPUState, fpr[2]) },
+    { "f3", offsetof(CPUState, fpr[3]) },
+    { "f4", offsetof(CPUState, fpr[4]) },
+    { "f5", offsetof(CPUState, fpr[5]) },
+    { "f6", offsetof(CPUState, fpr[6]) },
+    { "f7", offsetof(CPUState, fpr[7]) },
+    { "f8", offsetof(CPUState, fpr[8]) },
+    { "f9", offsetof(CPUState, fpr[9]) },
+    { "f10", offsetof(CPUState, fpr[10]) },
+    { "f11", offsetof(CPUState, fpr[11]) },
+    { "f12", offsetof(CPUState, fpr[12]) },
+    { "f13", offsetof(CPUState, fpr[13]) },
+    { "f14", offsetof(CPUState, fpr[14]) },
+    { "f15", offsetof(CPUState, fpr[15]) },
+    { "f16", offsetof(CPUState, fpr[16]) },
+    { "f17", offsetof(CPUState, fpr[17]) },
+    { "f18", offsetof(CPUState, fpr[18]) },
+    { "f19", offsetof(CPUState, fpr[19]) },
+    { "f20", offsetof(CPUState, fpr[20]) },
+    { "f21", offsetof(CPUState, fpr[21]) },
+    { "f22", offsetof(CPUState, fpr[22]) },
+    { "f23", offsetof(CPUState, fpr[23]) },
+    { "f24", offsetof(CPUState, fpr[24]) },
+    { "f25", offsetof(CPUState, fpr[25]) },
+    { "f26", offsetof(CPUState, fpr[26]) },
+    { "f27", offsetof(CPUState, fpr[27]) },
+    { "f28", offsetof(CPUState, fpr[28]) },
+    { "f29", offsetof(CPUState, fpr[29]) },
+    { "f30", offsetof(CPUState, fpr[30]) },
+    { "f31", offsetof(CPUState, fpr[31]) },
+    { "fpscr", offsetof(CPUState, fpscr) },
+    /* Next instruction pointer */
     { "nip|pc", offsetof(CPUState, nip) },
     { "lr", offsetof(CPUState, lr) },
     { "ctr", offsetof(CPUState, ctr) },
     { "decr", 0, &monitor_get_decr, },
     { "ccr", 0, &monitor_get_ccr, },
+    /* Machine state register */
     { "msr", 0, &monitor_get_msr, },
     { "xer", 0, &monitor_get_xer, },
     { "tbu", 0, &monitor_get_tbu, },
     { "tbl", 0, &monitor_get_tbl, },
+#if defined(TARGET_PPC64)
+    /* Address space register */
+    { "asr", offsetof(CPUState, asr) },
+#endif
+    /* Segment registers */
     { "sdr1", offsetof(CPUState, sdr1) },
     { "sr0", offsetof(CPUState, sr[0]) },
     { "sr1", offsetof(CPUState, sr[1]) },

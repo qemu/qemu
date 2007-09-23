@@ -22,9 +22,9 @@
 #define TARGET_HAS_ICE 1
 
 #if !defined(TARGET_SPARC64)
-#define ELF_MACHINE	EM_SPARC
+#define ELF_MACHINE     EM_SPARC
 #else
-#define ELF_MACHINE	EM_SPARCV9
+#define ELF_MACHINE     EM_SPARCV9
 #endif
 
 /*#define EXCP_INTERRUPT 0x100*/
@@ -143,8 +143,8 @@
 #define FSR_FCC0  (1<<10)
 
 /* MMU */
-#define MMU_E	  (1<<0)
-#define MMU_NF	  (1<<1)
+#define MMU_E     (1<<0)
+#define MMU_NF    (1<<1)
 
 #define PTE_ENTRYTYPE_MASK 3
 #define PTE_ACCESS_MASK    0x1c
@@ -152,8 +152,8 @@
 #define PTE_PPN_SHIFT      7
 #define PTE_ADDR_MASK      0xffffff00
 
-#define PG_ACCESSED_BIT	5
-#define PG_MODIFIED_BIT	6
+#define PG_ACCESSED_BIT 5
+#define PG_MODIFIED_BIT 6
 #define PG_CACHE_BIT    7
 
 #define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
@@ -221,7 +221,7 @@ typedef struct CPUSPARCState {
     uint64_t tnpc[MAXTL];
     uint64_t tstate[MAXTL];
     uint32_t tt[MAXTL];
-    uint32_t xcc;		/* Extended integer condition codes */
+    uint32_t xcc;               /* Extended integer condition codes */
     uint32_t asi;
     uint32_t pstate;
     uint32_t tl;
@@ -245,12 +245,12 @@ typedef struct CPUSPARCState {
 } CPUSPARCState;
 #if defined(TARGET_SPARC64)
 #define GET_FSR32(env) (env->fsr & 0xcfc1ffff)
-#define PUT_FSR32(env, val) do { uint32_t _tmp = val;			\
-	env->fsr = (_tmp & 0xcfc1c3ff) | (env->fsr & 0x3f00000000ULL);	\
+#define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
+        env->fsr = (_tmp & 0xcfc1c3ff) | (env->fsr & 0x3f00000000ULL);  \
     } while (0)
 #define GET_FSR64(env) (env->fsr & 0x3fcfc1ffffULL)
-#define PUT_FSR64(env, val) do { uint64_t _tmp = val;	\
-	env->fsr = _tmp & 0x3fcfc1c3ffULL;		\
+#define PUT_FSR64(env, val) do { uint64_t _tmp = val;   \
+        env->fsr = _tmp & 0x3fcfc1c3ffULL;              \
     } while (0)
 #else
 #define GET_FSR32(env) (env->fsr)
@@ -268,31 +268,31 @@ void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
 int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def);
 
 #define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
-		      (env->psref? PSR_EF : 0) |			\
-		      (env->psrpil << 8) |				\
-		      (env->psrs? PSR_S : 0) |				\
-		      (env->psrps? PSR_PS : 0) |			\
-		      (env->psret? PSR_ET : 0) | env->cwp)
+                      (env->psref? PSR_EF : 0) |                        \
+                      (env->psrpil << 8) |                              \
+                      (env->psrs? PSR_S : 0) |                          \
+                      (env->psrps? PSR_PS : 0) |                        \
+                      (env->psret? PSR_ET : 0) | env->cwp)
 
 #ifndef NO_CPU_IO_DEFS
 void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 #endif
 
-#define PUT_PSR(env, val) do { int _tmp = val;				\
-	env->psr = _tmp & PSR_ICC;					\
-	env->psref = (_tmp & PSR_EF)? 1 : 0;				\
-	env->psrpil = (_tmp & PSR_PIL) >> 8;				\
-	env->psrs = (_tmp & PSR_S)? 1 : 0;				\
-	env->psrps = (_tmp & PSR_PS)? 1 : 0;				\
-	env->psret = (_tmp & PSR_ET)? 1 : 0;				\
+#define PUT_PSR(env, val) do { int _tmp = val;                          \
+        env->psr = _tmp & PSR_ICC;                                      \
+        env->psref = (_tmp & PSR_EF)? 1 : 0;                            \
+        env->psrpil = (_tmp & PSR_PIL) >> 8;                            \
+        env->psrs = (_tmp & PSR_S)? 1 : 0;                              \
+        env->psrps = (_tmp & PSR_PS)? 1 : 0;                            \
+        env->psret = (_tmp & PSR_ET)? 1 : 0;                            \
         cpu_set_cwp(env, _tmp & PSR_CWP);                               \
     } while (0)
 
 #ifdef TARGET_SPARC64
 #define GET_CCR(env) (((env->xcc >> 20) << 4) | ((env->psr & PSR_ICC) >> 20))
-#define PUT_CCR(env, val) do { int _tmp = val;				\
-	env->xcc = (_tmp >> 4) << 20;						\
-	env->psr = (_tmp & 0xf) << 20;					\
+#define PUT_CCR(env, val) do { int _tmp = val;                          \
+        env->xcc = (_tmp >> 4) << 20;                                           \
+        env->psr = (_tmp & 0xf) << 20;                                  \
     } while (0)
 #define GET_CWP64(env) (NWINDOWS - 1 - (env)->cwp)
 #define PUT_CWP64(env, val) \

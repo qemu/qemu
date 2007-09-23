@@ -903,7 +903,7 @@ static void configure_alarms(char const *opt)
     while (name) {
         struct qemu_alarm_timer tmp;
 
-        for (i = 0; i < count; i++) {
+        for (i = 0; i < count && alarm_timers[i].name; i++) {
             if (!strcmp(alarm_timers[i].name, name))
                 break;
         }

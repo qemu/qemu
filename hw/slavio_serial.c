@@ -95,6 +95,7 @@ typedef struct ChannelState {
     uint8_t rx, tx, wregs[16], rregs[16];
     SERIOQueue queue;
     CharDriverState *chr;
+    int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
 } ChannelState;
 
 struct SerialState {
@@ -194,6 +195,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
     s->rxint_under_svc = s->txint_under_svc = 0;
+    s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
     clear_queue(s);
 }
 
@@ -632,30 +634,82 @@ static const uint8_t keycodes[128] = {
     0, 45, 2, 4, 48, 0, 0, 21, 0, 0, 0, 0, 0, 120, 122, 67,
 };
 
+static const uint8_t e0_keycodes[128] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90, 76, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 109, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 68, 69, 70, 0, 91, 0, 93, 0, 112,
+    113, 114, 94, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+
 static void sunkbd_event(void *opaque, int ch)
 {
     ChannelState *s = opaque;
     int release = ch & 0x80;
 
-    ch = keycodes[ch & 0x7f];
-    KBD_DPRINTF("Keycode %d (%s)\n", ch, release? "release" : "press");
+    KBD_DPRINTF("Untranslated keycode %2.2x (%s)\n", ch, release? "release" : "press");
+    switch (ch) {
+    case 58: // Caps lock press
+        s->caps_lock_mode ^= 1;
+        if (s->caps_lock_mode == 2)
+            return; // Drop second press
+        break;
+    case 69: // Num lock press
+        s->num_lock_mode ^= 1;
+        if (s->num_lock_mode == 2)
+            return; // Drop second press
+        break;
+    case 186: // Caps lock release
+        s->caps_lock_mode ^= 2;
+        if (s->caps_lock_mode == 3)
+            return; // Drop first release
+        break;
+    case 197: // Num lock release
+        s->num_lock_mode ^= 2;
+        if (s->num_lock_mode == 3)
+            return; // Drop first release
+        break;
+    case 0xe0:
+        s->e0_mode = 1;
+        return;
+    default:
+        break;
+    }
+    if (s->e0_mode) {
+        s->e0_mode = 0;
+        ch = e0_keycodes[ch & 0x7f];
+    } else {
+        ch = keycodes[ch & 0x7f];
+    }
+    KBD_DPRINTF("Translated keycode %2.2x\n", ch);
     put_queue(s, ch | release);
 }
 
 static void handle_kbd_command(ChannelState *s, int val)
 {
     KBD_DPRINTF("Command %d\n", val);
+    if (s->led_mode) { // Ignore led byte
+        s->led_mode = 0;
+        return;
+    }
     switch (val) {
     case 1: // Reset, return type code
         clear_queue(s);
 	put_queue(s, 0xff);
 	put_queue(s, 4); // Type 4
+	put_queue(s, 0x7f);
 	break;
+    case 0xe: // Set leds
+        s->led_mode = 1;
+        break;
     case 7: // Query layout
     case 0xf:
         clear_queue(s);
 	put_queue(s, 0xfe);
-	put_queue(s, 19); // XXX, layout?
+	put_queue(s, 0); // XXX, layout?
 	break;
     default:
 	break;
