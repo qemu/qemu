@@ -95,7 +95,7 @@ typedef struct ChannelState {
     uint8_t rx, tx, wregs[16], rregs[16];
     SERIOQueue queue;
     CharDriverState *chr;
-    int e0_mode, led_mode;
+    int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
 } ChannelState;
 
 struct SerialState {
@@ -195,7 +195,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
     s->rxint_under_svc = s->txint_under_svc = 0;
-    s->e0_mode = s->led_mode = 0;
+    s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
     clear_queue(s);
 }
 
@@ -651,9 +651,32 @@ static void sunkbd_event(void *opaque, int ch)
     int release = ch & 0x80;
 
     KBD_DPRINTF("Untranslated keycode %2.2x (%s)\n", ch, release? "release" : "press");
-    if (ch == 0xe0) {
+    switch (ch) {
+    case 58: // Caps lock press
+        s->caps_lock_mode ^= 1;
+        if (s->caps_lock_mode == 2)
+            return; // Drop second press
+        break;
+    case 69: // Num lock press
+        s->num_lock_mode ^= 1;
+        if (s->num_lock_mode == 2)
+            return; // Drop second press
+        break;
+    case 186: // Caps lock release
+        s->caps_lock_mode ^= 2;
+        if (s->caps_lock_mode == 3)
+            return; // Drop first release
+        break;
+    case 197: // Num lock release
+        s->num_lock_mode ^= 2;
+        if (s->num_lock_mode == 3)
+            return; // Drop first release
+        break;
+    case 0xe0:
         s->e0_mode = 1;
         return;
+    default:
+        break;
     }
     if (s->e0_mode) {
         s->e0_mode = 0;
