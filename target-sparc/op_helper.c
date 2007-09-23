@@ -285,8 +285,10 @@ void helper_ld_asi(int asi, int size, int sign)
         switch(size) {
         case 1:
             T1 = (int8_t) ret;
+            break;
         case 2:
             T1 = (int16_t) ret;
+            break;
         default:
             T1 = ret;
             break;
@@ -551,10 +553,13 @@ void helper_ld_asi(int asi, int size, int sign)
         switch(size) {
         case 2:
             ret = bswap16(ret);
+            break;
         case 4:
             ret = bswap32(ret);
+            break;
         case 8:
             ret = bswap64(ret);
+            break;
         default:
             break;
         }
@@ -567,10 +572,13 @@ void helper_ld_asi(int asi, int size, int sign)
         switch(size) {
         case 1:
             ret = (int8_t) ret;
+            break;
         case 2:
             ret = (int16_t) ret;
+            break;
         case 4:
             ret = (int32_t) ret;
+            break;
         default:
             break;
         }
@@ -590,10 +598,13 @@ void helper_st_asi(int asi, int size)
         switch(size) {
         case 2:
             T0 = bswap16(T0);
+            break;
         case 4:
             T0 = bswap32(T0);
+            break;
         case 8:
             T0 = bswap64(T0);
+            break;
         default:
             break;
         }
@@ -806,10 +817,13 @@ void helper_ld_asi(int asi, int size, int sign)
         switch(size) {
         case 2:
             ret = bswap16(ret);
+            break;
         case 4:
             ret = bswap32(ret);
+            break;
         case 8:
             ret = bswap64(ret);
+            break;
         default:
             break;
         }
@@ -822,10 +836,13 @@ void helper_ld_asi(int asi, int size, int sign)
         switch(size) {
         case 1:
             ret = (int8_t) ret;
+            break;
         case 2:
             ret = (int16_t) ret;
+            break;
         case 4:
             ret = (int32_t) ret;
+            break;
         default:
             break;
         }
@@ -851,10 +868,13 @@ void helper_st_asi(int asi, int size)
         switch(size) {
         case 2:
             T0 = bswap16(T0);
+            break;
         case 4:
             T0 = bswap32(T0);
+            break;
         case 8:
             T0 = bswap64(T0);
+            break;
         default:
             break;
         }
