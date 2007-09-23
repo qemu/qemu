@@ -27,6 +27,7 @@ struct target_termios {
 #define TARGET_IXANY   0004000
 #define TARGET_IXOFF   0010000
 #define TARGET_IMAXBEL 0020000
+#define TARGET_IUTF8   0040000
 
 /* c_oflag bits */
 #define TARGET_OPOST   0000001
@@ -98,7 +99,8 @@ struct target_termios {
 #define  TARGET_B230400 0010003
 #define  TARGET_B460800 0010004
 #define TARGET_CIBAUD    002003600000  /* input baud rate (not used) */
-#define TARGET_CRTSCTS   020000000000          /* flow control */
+#define TARGET_CMSPAR    010000000000  /* mark or space (stick) parity */
+#define TARGET_CRTSCTS   020000000000  /* flow control */
 
 /* c_lflag bits */
 #define TARGET_ISIG    0000001

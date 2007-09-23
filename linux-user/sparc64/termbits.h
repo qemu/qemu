@@ -51,6 +51,7 @@ struct target_termios {
 #define TARGET_IXANY	0x00000800
 #define TARGET_IXOFF	0x00001000
 #define TARGET_IMAXBEL	0x00002000
+#define TARGET_IUTF8	0x00004000
 
 /* c_oflag bits */
 #define TARGET_OPOST	0x00000001
