@@ -367,7 +367,10 @@ static void mvp_init (CPUMIPSState *env, mips_def_t *def)
        implemented, 5 TCs implemented. */
     env->mvp->CP0_MVPConf0 = (1 << CP0MVPC0_M) | (1 << CP0MVPC0_TLBS) |
                              (0 << CP0MVPC0_GS) | (1 << CP0MVPC0_PCP) |
+#ifndef CONFIG_USER_ONLY
+                             /* Usermode has no TLB support */
                              (env->tlb->nb_tlb << CP0MVPC0_PTLBE) |
+#endif
 // TODO: actually do 2 VPEs.
 //                             (1 << CP0MVPC0_TCA) | (0x1 << CP0MVPC0_PVPE) |
 //                             (0x04 << CP0MVPC0_PTC);
