@@ -150,6 +150,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
 #define __NR_sys_tkill __NR_tkill
+#define __NR_sys_unlinkat __NR_unlinkat
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -197,6 +198,9 @@ _syscall1(int,exit_group,int,error_code)
 #endif
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
 _syscall1(int,set_tid_address,int *,tidptr)
+#endif
+#if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
+_syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 #endif
 
 extern int personality(int);
@@ -2577,6 +2581,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(unlink(p));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
+    case TARGET_NR_unlinkat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_unlinkat(arg1, p, arg3));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_execve:
         {
             char **argp, **envp;
