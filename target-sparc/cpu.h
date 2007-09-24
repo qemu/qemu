@@ -145,6 +145,7 @@
 /* MMU */
 #define MMU_E     (1<<0)
 #define MMU_NF    (1<<1)
+#define MMU_BM    (1<<14)
 
 #define PTE_ENTRYTYPE_MASK 3
 #define PTE_ACCESS_MASK    0x1c

@@ -3486,8 +3486,9 @@ void cpu_reset(CPUSPARCState *env)
     env->pstate = PS_PRIV;
     env->pc = 0x1fff0000000ULL;
 #else
-    env->pc = 0xffd00000;
+    env->pc = 0;
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);
+    env->mmuregs[0] |= MMU_BM;
 #endif
     env->npc = env->pc + 4;
 #endif
@@ -3584,7 +3585,7 @@ int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def)
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
 #if !defined(TARGET_SPARC64)
-    env->mmuregs[0] = def->mmu_version;
+    env->mmuregs[0] |= def->mmu_version;
 #endif
     return 0;
 }
