@@ -143,6 +143,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_mkdirat __NR_mkdirat
+#define __NR_sys_mknodat __NR_mknodat
 #define __NR_sys_openat __NR_openat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
@@ -170,6 +171,10 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 #if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
 _syscall3(int,sys_mkdirat,int,dirfd,const char *,pathname,mode_t,mode)
+#endif
+#if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
+_syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
+          mode_t,mode,dev_t,dev)
 #endif
 #if defined(TARGET_NR_openat) && defined(__NR_openat)
 _syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
@@ -2643,6 +2648,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(mknod(p, arg2, arg3));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
+    case TARGET_NR_mknodat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_mknodat(arg1, p, arg3, arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_chmod:
         p = lock_user_string(arg1);
         ret = get_errno(chmod(p, arg2));
