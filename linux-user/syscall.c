@@ -139,6 +139,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 
 
 #define __NR_sys_uname __NR_uname
+#define __NR_sys_faccessat __NR_faccessat
 #define __NR_sys_fchmodat __NR_fchmodat
 #define __NR_sys_fchownat __NR_fchownat
 #define __NR_sys_getcwd1 __NR_getcwd
@@ -169,6 +170,9 @@ static int gettid(void) {
 }
 #endif
 _syscall1(int,sys_uname,struct new_utsname *,buf)
+#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
+_syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
+#endif
 #if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
 _syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
           mode_t,mode,int,flags)
@@ -2851,6 +2855,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(access(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
+    case TARGET_NR_faccessat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+    	    ret = -EFAULT;
+        else
+            ret = get_errno(sys_faccessat(arg1, p, arg3, arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
 #ifdef TARGET_NR_nice /* not on alpha */
     case TARGET_NR_nice:
         ret = get_errno(nice(arg1));
