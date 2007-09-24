@@ -1847,10 +1847,9 @@ void op_mtc0_status (void)
         (val & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
 #ifdef TARGET_MIPS64
-    if (!(env->CP0_Config0 & (0x3 << CP0C0_AT)) ||
-        ((env->hflags & MIPS_HFLAG_UM) &&
+    if  ((env->hflags & MIPS_HFLAG_UM) &&
         !(val & (1 << CP0St_PX)) &&
-        !(val & (1 << CP0St_UX))))
+        !(val & (1 << CP0St_UX)))
         env->hflags &= ~MIPS_HFLAG_64;
 #endif
     if (val & (1 << CP0St_CU1))
@@ -1906,7 +1905,7 @@ void op_mtc0_cause (void)
 {
     uint32_t mask = 0x00C00300;
 
-    if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
+    if (env->insn_flags & ISA_MIPS32R2)
         mask |= 1 << CP0Ca_DC;
 
     env->CP0_Cause = (env->CP0_Cause & ~mask) | (T0 & mask);
@@ -3014,10 +3013,9 @@ void op_eret (void)
         (env->CP0_Status & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
 #ifdef TARGET_MIPS64
-    if (!(env->CP0_Config0 & (0x3 << CP0C0_AT)) ||
-        ((env->hflags & MIPS_HFLAG_UM) &&
+     if ((env->hflags & MIPS_HFLAG_UM) &&
         !(env->CP0_Status & (1 << CP0St_PX)) &&
-        !(env->CP0_Status & (1 << CP0St_UX))))
+        !(env->CP0_Status & (1 << CP0St_UX)))
         env->hflags &= ~MIPS_HFLAG_64;
 #endif
     if (loglevel & CPU_LOG_EXEC)
@@ -3038,10 +3036,9 @@ void op_deret (void)
         (env->CP0_Status & (1 << CP0St_UM)))
         env->hflags |= MIPS_HFLAG_UM;
 #ifdef TARGET_MIPS64
-    if (!(env->CP0_Config0 & (0x3 << CP0C0_AT)) ||
-        ((env->hflags & MIPS_HFLAG_UM) &&
+    if ((env->hflags & MIPS_HFLAG_UM) &&
         !(env->CP0_Status & (1 << CP0St_PX)) &&
-        !(env->CP0_Status & (1 << CP0St_UX))))
+        !(env->CP0_Status & (1 << CP0St_UX)))
         env->hflags &= ~MIPS_HFLAG_64;
 #endif
     if (loglevel & CPU_LOG_EXEC)

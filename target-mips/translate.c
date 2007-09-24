@@ -142,7 +142,7 @@ enum {
     OPC_SRL      = 0x02 | OPC_SPECIAL, /* also ROTR */
     OPC_SRA      = 0x03 | OPC_SPECIAL,
     OPC_SLLV     = 0x04 | OPC_SPECIAL,
-    OPC_SRLV     = 0x06 | OPC_SPECIAL,
+    OPC_SRLV     = 0x06 | OPC_SPECIAL, /* also ROTRV */
     OPC_SRAV     = 0x07 | OPC_SPECIAL,
     OPC_DSLLV    = 0x14 | OPC_SPECIAL,
     OPC_DSRLV    = 0x16 | OPC_SPECIAL, /* also DROTRV */
@@ -761,10 +761,10 @@ void check_cp1_registers(DisasContext *ctx, int regs)
 }
 
 /* This code generates a "reserved instruction" exception if the
-   CPU is not a MIPS R2 (or higher) CPU. */
-static inline void check_mips_r2(CPUState *env, DisasContext *ctx)
+   CPU does not support the instruction set corresponding to flags. */
+static inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
 {
-    if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) < (1 << CP0C0_AR))
+    if (unlikely(!(env->insn_flags & flags)))
         generate_exception(ctx, EXCP_RI);
 }
 
@@ -773,6 +773,14 @@ static inline void check_mips_r2(CPUState *env, DisasContext *ctx)
 static inline void check_mips_mt(CPUState *env, DisasContext *ctx)
 {
     if (!(env->CP0_Config3 & (1 << CP0C3_MT)))
+        generate_exception(ctx, EXCP_RI);
+}
+
+/* This code generates a "reserved instruction" exception if 64-bit
+   instructions are not enabled. */
+static inline void check_mips_64(DisasContext *ctx)
+{
+    if (!(ctx->hflags & MIPS_HFLAG_64))
         generate_exception(ctx, EXCP_RI);
 }
 
@@ -1024,8 +1032,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
 }
 
 /* Arithmetic with immediate operand */
-static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
-                           int rs, int16_t imm)
+static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
+                           int rt, int rs, int16_t imm)
 {
     target_ulong uimm;
     const char *opn = "imm arith";
@@ -1132,8 +1140,14 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
             opn = "srl";
             break;
         case 1:
-            gen_op_rotr();
-            opn = "rotr";
+            /* rotr is decoded as srl on non-R2 CPUs */
+            if (env->insn_flags & ISA_MIPS32R2) {
+                gen_op_rotr();
+                opn = "rotr";
+            } else {
+                gen_op_srl();
+                opn = "srl";
+            }
             break;
         default:
             MIPS_INVAL("invalid srl flag");
@@ -1157,8 +1171,14 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
             opn = "dsrl";
             break;
         case 1:
-            gen_op_drotr();
-            opn = "drotr";
+            /* drotr is decoded as dsrl on non-R2 CPUs */
+            if (env->insn_flags & ISA_MIPS32R2) {
+                gen_op_drotr();
+                opn = "drotr";
+            } else {
+                gen_op_dsrl();
+                opn = "dsrl";
+            }
             break;
         default:
             MIPS_INVAL("invalid dsrl flag");
@@ -1181,8 +1201,14 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
             opn = "dsrl32";
             break;
         case 1:
-            gen_op_drotr32();
-            opn = "drotr32";
+            /* drotr32 is decoded as dsrl32 on non-R2 CPUs */
+            if (env->insn_flags & ISA_MIPS32R2) {
+                gen_op_drotr32();
+                opn = "drotr32";
+            } else {
+                gen_op_dsrl32();
+                opn = "dsrl32";
+            }
             break;
         default:
             MIPS_INVAL("invalid dsrl32 flag");
@@ -1201,7 +1227,7 @@ static void gen_arith_imm (DisasContext *ctx, uint32_t opc, int rt,
 }
 
 /* Arithmetic */
-static void gen_arith (DisasContext *ctx, uint32_t opc,
+static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                        int rd, int rs, int rt)
 {
     const char *opn = "arith";
@@ -1305,8 +1331,14 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
             opn = "srlv";
             break;
         case 1:
-            gen_op_rotrv();
-            opn = "rotrv";
+            /* rotrv is decoded as srlv on non-R2 CPUs */
+            if (env->insn_flags & ISA_MIPS32R2) {
+                gen_op_rotrv();
+                opn = "rotrv";
+            } else {
+                gen_op_srlv();
+                opn = "srlv";
+            }
             break;
         default:
             MIPS_INVAL("invalid srlv flag");
@@ -1330,8 +1362,14 @@ static void gen_arith (DisasContext *ctx, uint32_t opc,
             opn = "dsrlv";
             break;
         case 1:
-            gen_op_drotrv();
-            opn = "drotrv";
+            /* drotrv is decoded as dsrlv on non-R2 CPUs */
+            if (env->insn_flags & ISA_MIPS32R2) {
+                gen_op_drotrv();
+                opn = "drotrv";
+            } else {
+                gen_op_dsrlv();
+                opn = "dsrlv";
+            }
             break;
         default:
             MIPS_INVAL("invalid dsrlv flag");
@@ -1910,6 +1948,9 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
 
+    if (sel != 0)
+        check_insn(env, ctx, ISA_MIPS32);
+
     switch (reg) {
     case 0:
         switch (sel) {
@@ -2057,7 +2098,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PageMask";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_pagegrain();
             rn = "PageGrain";
             break;
@@ -2072,22 +2113,27 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf0();
             rn = "SRSConf0";
             break;
         case 2:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf1();
             rn = "SRSConf1";
             break;
         case 3:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf2();
             rn = "SRSConf2";
             break;
         case 4:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf3();
             rn = "SRSConf3";
             break;
         case 5:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf4();
             rn = "SRSConf4";
             break;
@@ -2098,7 +2144,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_hwrena();
             rn = "HWREna";
             break;
@@ -2155,17 +2201,17 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Status";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_intctl();
             rn = "IntCtl";
             break;
         case 2:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsctl();
             rn = "SRSCtl";
             break;
         case 3:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsmap();
             rn = "SRSMap";
             break;
@@ -2200,7 +2246,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PRid";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_ebase();
             rn = "EBase";
             break;
@@ -2274,8 +2320,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
 #ifdef TARGET_MIPS64
-	    if (!(ctx->hflags & MIPS_HFLAG_64))
-	        goto die;
+            check_insn(env, ctx, ISA_MIPS3);
             gen_op_mfc0_xcontext();
             rn = "XContext";
             break;
@@ -2471,6 +2516,9 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
 
+    if (sel != 0)
+        check_insn(env, ctx, ISA_MIPS32);
+
     switch (reg) {
     case 0:
         switch (sel) {
@@ -2618,7 +2666,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PageMask";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_pagegrain();
             rn = "PageGrain";
             break;
@@ -2633,22 +2681,27 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf0();
             rn = "SRSConf0";
             break;
         case 2:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf1();
             rn = "SRSConf1";
             break;
         case 3:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf2();
             rn = "SRSConf2";
             break;
         case 4:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf3();
             rn = "SRSConf3";
             break;
         case 5:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf4();
             rn = "SRSConf4";
             break;
@@ -2659,7 +2712,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_hwrena();
             rn = "HWREna";
             break;
@@ -2717,21 +2770,21 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Status";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_intctl();
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "IntCtl";
             break;
         case 2:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsctl();
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "SRSCtl";
             break;
         case 3:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsmap();
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -2770,7 +2823,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PRid";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_ebase();
             rn = "EBase";
             break;
@@ -2849,8 +2902,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
 #ifdef TARGET_MIPS64
-	    if (!(ctx->hflags & MIPS_HFLAG_64))
-	        goto die;
+            check_insn(env, ctx, ISA_MIPS3);
             gen_op_mtc0_xcontext();
             rn = "XContext";
             break;
@@ -3064,6 +3116,9 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
 
+    if (sel != 0)
+        check_insn(env, ctx, ISA_MIPS64);
+
     switch (reg) {
     case 0:
         switch (sel) {
@@ -3211,7 +3266,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PageMask";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_pagegrain();
             rn = "PageGrain";
             break;
@@ -3226,22 +3281,27 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf0();
             rn = "SRSConf0";
             break;
         case 2:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf1();
             rn = "SRSConf1";
             break;
         case 3:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf2();
             rn = "SRSConf2";
             break;
         case 4:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf3();
             rn = "SRSConf3";
             break;
         case 5:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsconf4();
             rn = "SRSConf4";
             break;
@@ -3252,7 +3312,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_hwrena();
             rn = "HWREna";
             break;
@@ -3309,17 +3369,17 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Status";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_intctl();
             rn = "IntCtl";
             break;
         case 2:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsctl();
             rn = "SRSCtl";
             break;
         case 3:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_srsmap();
             rn = "SRSMap";
             break;
@@ -3354,7 +3414,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PRid";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mfc0_ebase();
             rn = "EBase";
             break;
@@ -3418,6 +3478,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
+            check_insn(env, ctx, ISA_MIPS3);
             gen_op_dmfc0_xcontext();
             rn = "XContext";
             break;
@@ -3612,6 +3673,9 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
 
+    if (sel != 0)
+        check_insn(env, ctx, ISA_MIPS64);
+
     switch (reg) {
     case 0:
         switch (sel) {
@@ -3759,7 +3823,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PageMask";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_pagegrain();
             rn = "PageGrain";
             break;
@@ -3774,22 +3838,27 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Wired";
             break;
         case 1:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf0();
             rn = "SRSConf0";
             break;
         case 2:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf1();
             rn = "SRSConf1";
             break;
         case 3:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf2();
             rn = "SRSConf2";
             break;
         case 4:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf3();
             rn = "SRSConf3";
             break;
         case 5:
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsconf4();
             rn = "SRSConf4";
             break;
@@ -3800,7 +3869,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 7:
         switch (sel) {
         case 0:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_hwrena();
             rn = "HWREna";
             break;
@@ -3858,21 +3927,21 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Status";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_intctl();
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "IntCtl";
             break;
         case 2:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsctl();
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "SRSCtl";
             break;
         case 3:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_srsmap();
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -3911,7 +3980,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "PRid";
             break;
         case 1:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             gen_op_mtc0_ebase();
             rn = "EBase";
             break;
@@ -3980,6 +4049,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 20:
         switch (sel) {
         case 0:
+            check_insn(env, ctx, ISA_MIPS3);
             gen_op_mtc0_xcontext();
             rn = "XContext";
             break;
@@ -4535,8 +4605,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
 #ifdef TARGET_MIPS64
     case OPC_DMFC0:
-        if (!(ctx->hflags & MIPS_HFLAG_64))
-            generate_exception(ctx, EXCP_RI);
+        check_insn(env, ctx, ISA_MIPS3);
         if (rt == 0) {
             /* Treat as NOP. */
             return;
@@ -4546,8 +4615,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         opn = "dmfc0";
         break;
     case OPC_DMTC0:
-        if (!(ctx->hflags & MIPS_HFLAG_64))
-            generate_exception(ctx, EXCP_RI);
+        check_insn(env, ctx, ISA_MIPS3);
         GEN_LOAD_REG_TN(T0, rt);
         gen_dmtc0(env, ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
@@ -4597,11 +4665,13 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
     case OPC_ERET:
         opn = "eret";
+        check_insn(env, ctx, ISA_MIPS2);
         gen_op_eret();
         ctx->bstate = BS_EXCP;
         break;
     case OPC_DERET:
         opn = "deret";
+        check_insn(env, ctx, ISA_MIPS32);
         if (!(ctx->hflags & MIPS_HFLAG_DM)) {
             MIPS_INVAL(opn);
             generate_exception(ctx, EXCP_RI);
@@ -4612,6 +4682,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
     case OPC_WAIT:
         opn = "wait";
+        check_insn(env, ctx, ISA_MIPS3 | ISA_MIPS32);
         /* If we get an exception, we want to restart at next instruction */
         ctx->pc += 4;
         save_cpu_state(ctx, 1);
@@ -4629,11 +4700,14 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
 }
 
 /* CP1 Branches (before delay slot) */
-static void gen_compute_branch1 (DisasContext *ctx, uint32_t op,
+static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
                                  int32_t cc, int32_t offset)
 {
     target_ulong btarget;
     const char *opn = "cp1 cond branch";
+
+    if (cc != 0)
+        check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32);
 
     btarget = ctx->pc + 4 + offset;
 
@@ -5843,14 +5917,15 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_SLL:          /* Arithmetic with immediate */
         case OPC_SRL ... OPC_SRA:
-            gen_arith_imm(ctx, op1, rd, rt, sa);
+            gen_arith_imm(env, ctx, op1, rd, rt, sa);
             break;
+        case OPC_MOVZ ... OPC_MOVN:
+            check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32);
         case OPC_SLLV:         /* Arithmetic */
         case OPC_SRLV ... OPC_SRAV:
-        case OPC_MOVZ ... OPC_MOVN:
         case OPC_ADD ... OPC_NOR:
         case OPC_SLT ... OPC_SLTU:
-            gen_arith(ctx, op1, rd, rs, rt);
+            gen_arith(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_MULT ... OPC_DIVU:
             gen_muldiv(ctx, op1, rs, rt);
@@ -5899,6 +5974,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
 
         case OPC_MOVCI:
+            check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32);
             if (env->CP0_Config1 & (1 << CP0C1_FP)) {
                 save_cpu_state(ctx, 1);
                 check_cp1_enabled(ctx);
@@ -5915,20 +5991,20 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_DSRL ... OPC_DSRA:
         case OPC_DSLL32:
         case OPC_DSRL32 ... OPC_DSRA32:
-            if (!(ctx->hflags & MIPS_HFLAG_64))
-                generate_exception(ctx, EXCP_RI);
-            gen_arith_imm(ctx, op1, rd, rt, sa);
+            check_insn(env, ctx, ISA_MIPS3);
+            check_mips_64(ctx);
+            gen_arith_imm(env, ctx, op1, rd, rt, sa);
             break;
         case OPC_DSLLV:
         case OPC_DSRLV ... OPC_DSRAV:
         case OPC_DADD ... OPC_DSUBU:
-            if (!(ctx->hflags & MIPS_HFLAG_64))
-                generate_exception(ctx, EXCP_RI);
-            gen_arith(ctx, op1, rd, rs, rt);
+            check_insn(env, ctx, ISA_MIPS3);
+            check_mips_64(ctx);
+            gen_arith(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_DMULT ... OPC_DDIVU:
-            if (!(ctx->hflags & MIPS_HFLAG_64))
-                generate_exception(ctx, EXCP_RI);
+            check_insn(env, ctx, ISA_MIPS3);
+            check_mips_64(ctx);
             gen_muldiv(ctx, op1, rs, rt);
             break;
 #endif
@@ -5943,18 +6019,21 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_MADD ... OPC_MADDU: /* Multiply and add/sub */
         case OPC_MSUB ... OPC_MSUBU:
+            check_insn(env, ctx, ISA_MIPS32);
             gen_muldiv(ctx, op1, rs, rt);
             break;
         case OPC_MUL:
-            gen_arith(ctx, op1, rd, rs, rt);
+            gen_arith(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_CLZ ... OPC_CLO:
+            check_insn(env, ctx, ISA_MIPS32);
             gen_cl(ctx, op1, rd, rs);
             break;
         case OPC_SDBBP:
             /* XXX: not clear which exception should be raised
              *      when in debug mode...
              */
+            check_insn(env, ctx, ISA_MIPS32);
             if (!(ctx->hflags & MIPS_HFLAG_DM)) {
                 generate_exception(ctx, EXCP_DBp);
             } else {
@@ -5964,8 +6043,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
 #ifdef TARGET_MIPS64
         case OPC_DCLZ ... OPC_DCLO:
-            if (!(ctx->hflags & MIPS_HFLAG_64))
-                generate_exception(ctx, EXCP_RI);
+            check_insn(env, ctx, ISA_MIPS64);
+            check_mips_64(ctx);
             gen_cl(ctx, op1, rd, rs);
             break;
 #endif
@@ -5976,14 +6055,15 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
-         check_mips_r2(env, ctx);
          op1 = MASK_SPECIAL3(ctx->opcode);
          switch (op1) {
          case OPC_EXT:
          case OPC_INS:
+             check_insn(env, ctx, ISA_MIPS32R2);
              gen_bitops(ctx, op1, rt, rs, sa, rd);
              break;
          case OPC_BSHFL:
+             check_insn(env, ctx, ISA_MIPS32R2);
              op2 = MASK_BSHFL(ctx->opcode);
              switch (op2) {
              case OPC_WSBH:
@@ -6006,6 +6086,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             GEN_STORE_TN_REG(rd, T0);
             break;
         case OPC_RDHWR:
+            check_insn(env, ctx, ISA_MIPS32R2);
             switch (rd) {
             case 0:
                 save_cpu_state(ctx, 1);
@@ -6050,13 +6131,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 #ifdef TARGET_MIPS64
         case OPC_DEXTM ... OPC_DEXT:
         case OPC_DINSM ... OPC_DINS:
-            if (!(ctx->hflags & MIPS_HFLAG_64))
-                generate_exception(ctx, EXCP_RI);
+            check_insn(env, ctx, ISA_MIPS64R2);
+            check_mips_64(ctx);
             gen_bitops(ctx, op1, rt, rs, sa, rd);
             break;
         case OPC_DBSHFL:
-            if (!(ctx->hflags & MIPS_HFLAG_64))
-                generate_exception(ctx, EXCP_RI);
+            check_insn(env, ctx, ISA_MIPS64R2);
+            check_mips_64(ctx);
             op2 = MASK_DBSHFL(ctx->opcode);
             switch (op2) {
             case OPC_DSBH:
@@ -6092,7 +6173,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_trap(ctx, op1, rs, -1, imm);
             break;
         case OPC_SYNCI:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             /* Treat as NOP. */
             break;
         default:            /* Invalid */
@@ -6120,7 +6201,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_cp0(env, ctx, MASK_C0(ctx->opcode), rt, rd);
             break;
         case OPC_MFMC0:
-            check_mips_r2(env, ctx);
             op2 = MASK_MFMC0(ctx->opcode);
             switch (op2) {
             case OPC_DMT:
@@ -6140,11 +6220,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_op_evpe();
                 break;
             case OPC_DI:
+                check_insn(env, ctx, ISA_MIPS32R2);
                 gen_op_di();
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;
             case OPC_EI:
+                check_insn(env, ctx, ISA_MIPS32R2);
                 gen_op_ei();
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
@@ -6157,12 +6239,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             GEN_STORE_TN_REG(rt, T0);
             break;
         case OPC_RDPGPR:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             GEN_LOAD_SRSREG_TN(T0, rt);
             GEN_STORE_TN_REG(rd, T0);
             break;
         case OPC_WRPGPR:
-            check_mips_r2(env, ctx);
+            check_insn(env, ctx, ISA_MIPS32R2);
             GEN_LOAD_REG_TN(T0, rt);
             GEN_STORE_TN_SRSREG(rd, T0);
             break;
@@ -6173,7 +6255,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_ADDI ... OPC_LUI: /* Arithmetic with immediate opcode */
-         gen_arith_imm(ctx, op, rt, rs, imm);
+         gen_arith_imm(env, ctx, op, rt, rs, imm);
          break;
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
@@ -6191,9 +6273,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
          gen_ldst(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
+        check_insn(env, ctx, ISA_MIPS3 | ISA_MIPS32);
         /* Treat as NOP. */
         break;
     case OPC_PREF:
+        check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32);
         /* Treat as NOP. */
         break;
 
@@ -6219,21 +6303,24 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             switch (op1) {
             case OPC_MFHC1:
             case OPC_MTHC1:
-                check_mips_r2(env, ctx);
+                check_insn(env, ctx, ISA_MIPS32R2);
             case OPC_MFC1:
             case OPC_CFC1:
             case OPC_MTC1:
             case OPC_CTC1:
+                gen_cp1(ctx, op1, rt, rd);
+                break;
 #ifdef TARGET_MIPS64
             case OPC_DMFC1:
             case OPC_DMTC1:
-#endif
+                check_insn(env, ctx, ISA_MIPS3);
                 gen_cp1(ctx, op1, rt, rd);
                 break;
+#endif
             case OPC_BC1:
             case OPC_BC1ANY2:
             case OPC_BC1ANY4:
-                gen_compute_branch1(ctx, MASK_BC1(ctx->opcode),
+                gen_compute_branch1(env, ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
                 return;
             case OPC_S_FMT:
@@ -6315,24 +6402,22 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_LD:
     case OPC_SCD:
     case OPC_SD:
-        if (!(ctx->hflags & MIPS_HFLAG_64))
-            generate_exception(ctx, EXCP_RI);
+        check_insn(env, ctx, ISA_MIPS3);
+        check_mips_64(ctx);
         gen_ldst(ctx, op, rt, rs, imm);
         break;
     case OPC_DADDI ... OPC_DADDIU:
-        if (!(ctx->hflags & MIPS_HFLAG_64))
-            generate_exception(ctx, EXCP_RI);
-        gen_arith_imm(ctx, op, rt, rs, imm);
+        check_insn(env, ctx, ISA_MIPS3);
+        check_mips_64(ctx);
+        gen_arith_imm(env, ctx, op, rt, rs, imm);
         break;
 #endif
-#ifdef MIPS_HAS_MIPS16
     case OPC_JALX:
+        check_insn(env, ctx, ASE_MIPS16);
         /* MIPS16: Not implemented. */
-#endif
-#ifdef MIPS_HAS_MDMX
     case OPC_MDMX:
+        check_insn(env, ctx, ASE_MDMX);
         /* MDMX: Not implemented. */
-#endif
     default:            /* Invalid */
         MIPS_INVAL("major opcode");
         generate_exception(ctx, EXCP_RI);

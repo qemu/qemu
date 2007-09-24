@@ -441,6 +441,7 @@ struct CPUMIPSState {
     int CCRes; /* Cycle count resolution/divisor */
     uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
+    int insn_flags; /* Supported instruction set */
 
 #ifdef CONFIG_USER_ONLY
     target_ulong tls_value;
