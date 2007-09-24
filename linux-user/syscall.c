@@ -149,6 +149,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_openat __NR_openat
 #define __NR_sys_renameat __NR_renameat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
+#define __NR_sys_symlinkat __NR_symlinkat
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
 #define __NR_sys_tkill __NR_tkill
@@ -196,6 +197,10 @@ _syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
           int,newdirfd,const char *,newpath)
 #endif
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
+#ifdef TARGET_NR_symlinkat
+_syscall3(int,sys_symlinkat,const char *,oldpath,
+          int,newdirfd,const char *,newpath)
+#endif
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 #if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
 _syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
@@ -3361,6 +3366,28 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
+    case TARGET_NR_symlinkat:
+        if (!arg1 || !arg3) {
+            ret = -EFAULT;
+	    goto fail;
+	}
+        {
+            void *p2 = NULL;
+            p  = lock_user_string(arg1);
+            p2 = lock_user_string(arg3);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+                ret = -EFAULT;
+            else
+                ret = get_errno(sys_symlinkat(p, arg2, p2));
+            if (p2)
+                unlock_user(p2, arg3, 0);
+            if (p)
+                unlock_user(p, arg1, 0);
+        }
+        break;
+#endif
 #ifdef TARGET_NR_oldlstat
     case TARGET_NR_oldlstat:
         goto unimplemented;
