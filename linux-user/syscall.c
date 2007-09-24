@@ -139,6 +139,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 
 
 #define __NR_sys_uname __NR_uname
+#define __NR_sys_fchmodat __NR_fchmodat
 #define __NR_sys_fchownat __NR_fchownat
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
@@ -168,6 +169,10 @@ static int gettid(void) {
 }
 #endif
 _syscall1(int,sys_uname,struct new_utsname *,buf)
+#if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
+_syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
+          mode_t,mode,int,flags)
+#endif
 #if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
 _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
           uid_t,owner,gid_t,group,int,flags)
@@ -3533,6 +3538,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fchmod:
         ret = get_errno(fchmod(arg1, arg2));
         break;
+#if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
+    case TARGET_NR_fchmodat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_fchmodat(arg1, p, arg3, arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_getpriority:
         ret = get_errno(getpriority(arg1, arg2));
         break;
