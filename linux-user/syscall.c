@@ -142,6 +142,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
+#define __NR_sys_openat __NR_openat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
@@ -166,6 +167,9 @@ _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 #endif
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
+#if defined(TARGET_NR_openat) && defined(__NR_openat)
+_syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
+#endif
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 #if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
@@ -2500,6 +2504,24 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                              arg3));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_openat) && defined(__NR_openat)
+    case TARGET_NR_openat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_openat(arg1,
+                                       path(p),
+                                       target_to_host_bitmask(arg3, fcntl_flags_tbl),
+                                       arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
