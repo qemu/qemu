@@ -325,3 +325,34 @@
 #define TARGET_NR_mbind			319
 #define TARGET_NR_get_mempolicy		320
 #define TARGET_NR_set_mempolicy		321
+#define TARGET_NR_openat			(322)
+#define TARGET_NR_mkdirat			(323)
+#define TARGET_NR_mknodat			(324)
+#define TARGET_NR_fchownat			(325)
+#define TARGET_NR_futimesat			(326)
+#define TARGET_NR_fstatat64			(327)
+#define TARGET_NR_unlinkat			(328)
+#define TARGET_NR_renameat			(329)
+#define TARGET_NR_linkat			(330)
+#define TARGET_NR_symlinkat			(331)
+#define TARGET_NR_readlinkat			(332)
+#define TARGET_NR_fchmodat			(333)
+#define TARGET_NR_faccessat			(334)
+					/* 335 for pselect6 */
+					/* 336 for ppoll */
+#define TARGET_NR_unshare			(337)
+#define TARGET_NR_set_robust_list		(338)
+#define TARGET_NR_get_robust_list		(339)
+#define TARGET_NR_splice			(340)
+#define TARGET_NR_arm_sync_file_range	(341)
+#define TARGET_NR_sync_file_range2		TARGET_NR_arm_sync_file_range
+#define TARGET_NR_tee			(342)
+#define TARGET_NR_vmsplice			(343)
+#define TARGET_NR_move_pages			(344)
+#define TARGET_NR_getcpu			(345)
+					/* 346 for epoll_pwait */
+#define TARGET_NR_kexec_load			(347)
+#define TARGET_NR_utimensat			(348)
+#define TARGET_NR_signalfd			(349)
+#define TARGET_NR_timerfd			(350)
+#define TARGET_NR_eventfd			(351)

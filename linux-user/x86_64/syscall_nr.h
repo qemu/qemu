@@ -278,3 +278,9 @@
 #define TARGET_NR_sync_file_range	277
 #define TARGET_NR_vmsplice		278
 #define TARGET_NR_move_pages		279
+#define TARGET_NR_utimensat		280
+#define TARGET_NR_epoll_pwait	281
+#define TARGET_NR_signalfd		282
+#define TARGET_NR_timerfd		283
+#define TARGET_NR_eventfd		284
+#define TARGET_NR_fallocate		285

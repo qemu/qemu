@@ -226,6 +226,7 @@
 #define TARGET_NR_fcntl64		221
 /* 223 is unused */
 #define TARGET_NR_gettid		224
+#define TARGET_NR_readahead		225
 #define TARGET_NR_setxattr		226
 #define TARGET_NR_lsetxattr		227
 #define TARGET_NR_fsetxattr		228
@@ -288,5 +289,40 @@
 #define TARGET_NR_add_key		285
 #define TARGET_NR_request_key	286
 #define TARGET_NR_keyctl		287
-
-#define TARGET_NR_readahead             225        /* XXXXX */
+#define TARGET_NR_ioprio_set		288
+#define TARGET_NR_ioprio_get		289
+#define TARGET_NR_inotify_init	290
+#define TARGET_NR_inotify_add_watch	291
+#define TARGET_NR_inotify_rm_watch	292
+/* 293 is unused */
+#define TARGET_NR_migrate_pages	294
+#define TARGET_NR_openat		295
+#define TARGET_NR_mkdirat		296
+#define TARGET_NR_mknodat		297
+#define TARGET_NR_fchownat		298
+#define TARGET_NR_futimesat		299
+#define TARGET_NR_fstatat64		300
+#define TARGET_NR_unlinkat		301
+#define TARGET_NR_renameat		302
+#define TARGET_NR_linkat		303
+#define TARGET_NR_symlinkat		304
+#define TARGET_NR_readlinkat		305
+#define TARGET_NR_fchmodat		306
+#define TARGET_NR_faccessat		307
+#define TARGET_NR_pselect6		308
+#define TARGET_NR_ppoll		309
+#define TARGET_NR_unshare		310
+#define TARGET_NR_set_robust_list	311
+#define TARGET_NR_get_robust_list	312
+#define TARGET_NR_splice		313
+#define TARGET_NR_sync_file_range	314
+#define TARGET_NR_tee		315
+#define TARGET_NR_vmsplice		316
+#define TARGET_NR_move_pages		317
+#define TARGET_NR_getcpu		318
+#define TARGET_NR_epoll_pwait	319
+#define TARGET_NR_utimensat		320
+#define TARGET_NR_signalfd		321
+#define TARGET_NR_timerfd		322
+#define TARGET_NR_eventfd		323
+#define TARGET_NR_fallocate		324

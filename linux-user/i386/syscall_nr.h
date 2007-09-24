@@ -253,7 +253,7 @@
 #define TARGET_NR_io_submit		248
 #define TARGET_NR_io_cancel		249
 #define TARGET_NR_fadvise64		250
-
+/* 251 is available for reuse (was briefly sys_set_zone_reclaim) */
 #define TARGET_NR_exit_group		252
 #define TARGET_NR_lookup_dcookie	253
 #define TARGET_NR_epoll_create	254
@@ -270,8 +270,60 @@
 #define TARGET_NR_clock_gettime	(TARGET_NR_timer_create+6)
 #define TARGET_NR_clock_getres	(TARGET_NR_timer_create+7)
 #define TARGET_NR_clock_nanosleep	(TARGET_NR_timer_create+8)
-
+#define TARGET_NR_statfs64		268
+#define TARGET_NR_fstatfs64		269
 #define TARGET_NR_tgkill		270
 #define TARGET_NR_utimes		271
-
+#define TARGET_NR_fadvise64_64	272
+#define TARGET_NR_vserver		273
+#define TARGET_NR_mbind		274
+#define TARGET_NR_get_mempolicy	275
+#define TARGET_NR_set_mempolicy	276
+#define TARGET_NR_mq_open 		277
+#define TARGET_NR_mq_unlink		(TARGET_NR_mq_open+1)
+#define TARGET_NR_mq_timedsend	(TARGET_NR_mq_open+2)
+#define TARGET_NR_mq_timedreceive	(TARGET_NR_mq_open+3)
+#define TARGET_NR_mq_notify		(TARGET_NR_mq_open+4)
+#define TARGET_NR_mq_getsetattr	(TARGET_NR_mq_open+5)
+#define TARGET_NR_kexec_load		283
+#define TARGET_NR_waitid		284
+/* #define TARGET_NR_sys_setaltroot	285 */
+#define TARGET_NR_add_key		286
+#define TARGET_NR_request_key	287
+#define TARGET_NR_keyctl		288
+#define TARGET_NR_ioprio_set		289
+#define TARGET_NR_ioprio_get		290
+#define TARGET_NR_inotify_init	291
+#define TARGET_NR_inotify_add_watch	292
+#define TARGET_NR_inotify_rm_watch	293
+#define TARGET_NR_migrate_pages	294
+#define TARGET_NR_openat		295
+#define TARGET_NR_mkdirat		296
+#define TARGET_NR_mknodat		297
+#define TARGET_NR_fchownat		298
+#define TARGET_NR_futimesat		299
+#define TARGET_NR_fstatat64		300
+#define TARGET_NR_unlinkat		301
+#define TARGET_NR_renameat		302
+#define TARGET_NR_linkat		303
+#define TARGET_NR_symlinkat		304
+#define TARGET_NR_readlinkat		305
+#define TARGET_NR_fchmodat		306
+#define TARGET_NR_faccessat		307
+#define TARGET_NR_pselect6		308
+#define TARGET_NR_ppoll		309
+#define TARGET_NR_unshare		310
 #define TARGET_NR_set_robust_list	311
+#define TARGET_NR_get_robust_list	312
+#define TARGET_NR_splice		313
+#define TARGET_NR_sync_file_range	314
+#define TARGET_NR_tee		315
+#define TARGET_NR_vmsplice		316
+#define TARGET_NR_move_pages		317
+#define TARGET_NR_getcpu		318
+#define TARGET_NR_epoll_pwait	319
+#define TARGET_NR_utimensat		320
+#define TARGET_NR_signalfd		321
+#define TARGET_NR_timerfd		322
+#define TARGET_NR_eventfd		323
+#define TARGET_NR_fallocate		324
