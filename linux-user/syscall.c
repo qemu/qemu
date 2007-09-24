@@ -146,6 +146,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_mkdirat __NR_mkdirat
 #define __NR_sys_mknodat __NR_mknodat
 #define __NR_sys_openat __NR_openat
+#define __NR_sys_renameat __NR_renameat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
@@ -184,6 +185,10 @@ _syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
 #endif
 #if defined(TARGET_NR_openat) && defined(__NR_openat)
 _syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
+#endif
+#if defined(TARGET_NR_renameat) && defined(__NR_renameat)
+_syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
+          int,newdirfd,const char *,newpath)
 #endif
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
@@ -2830,6 +2835,28 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_renameat) && defined(__NR_renameat)
+    case TARGET_NR_renameat:
+        if (!arg2 || !arg4) {
+            ret = -EFAULT;
+	    goto fail;
+        }
+        {
+            void *p2 = NULL;
+            p  = lock_user_string(arg2);
+            p2 = lock_user_string(arg4);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+                ret = -EFAULT;
+            else
+                ret = get_errno(sys_renameat(arg1, p, arg3, p2));
+            if (p2)
+                unlock_user(p2, arg4, 0);
+            if (p)
+                unlock_user(p, arg2, 0);
+        }
+        break;
+#endif
     case TARGET_NR_mkdir:
         p = lock_user_string(arg1);
         ret = get_errno(mkdir(p, arg2));
