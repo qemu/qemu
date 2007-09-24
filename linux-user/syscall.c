@@ -147,6 +147,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_mkdirat __NR_mkdirat
 #define __NR_sys_mknodat __NR_mknodat
 #define __NR_sys_openat __NR_openat
+#define __NR_sys_readlinkat __NR_readlinkat
 #define __NR_sys_renameat __NR_renameat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_symlinkat __NR_symlinkat
@@ -191,6 +192,10 @@ _syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
 #endif
 #if defined(TARGET_NR_openat) && defined(__NR_openat)
 _syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
+#endif
+#if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
+_syscall4(int,sys_readlinkat,int,dirfd,const char *,pathname,
+          char *,buf,size_t,bufsize)
 #endif
 #if defined(TARGET_NR_renameat) && defined(__NR_renameat)
 _syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
@@ -3402,6 +3407,28 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
+    case TARGET_NR_readlinkat:
+        if (!arg2 || !arg3) {
+            ret = -EFAULT;
+            goto fail;
+	}
+        {
+            void *p2 = NULL;
+            p  = lock_user_string(arg2);
+            p2 = lock_user(arg3, arg4, 0);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+        	ret = -EFAULT;
+            else
+                ret = get_errno(sys_readlinkat(arg1, path(p), p2, arg4));
+            if (p2)
+                unlock_user(p2, arg3, ret);
+            if (p)
+                unlock_user(p, arg2, 0);
+        }
+        break;
+#endif
 #ifdef TARGET_NR_uselib
     case TARGET_NR_uselib:
         goto unimplemented;
