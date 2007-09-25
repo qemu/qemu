@@ -1852,6 +1852,10 @@ void op_mtc0_status (void)
         !(val & (1 << CP0St_UX)))
         env->hflags &= ~MIPS_HFLAG_64;
 #endif
+    if ((val & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
+        env->hflags |= MIPS_HFLAG_CP0;
+    else
+        env->hflags &= ~MIPS_HFLAG_CP0;
     if (val & (1 << CP0St_CU1))
         env->hflags |= MIPS_HFLAG_FPU;
     else
@@ -2315,15 +2319,6 @@ void op_yield(void)
 #else
 # define DEBUG_FPU_STATE() do { } while(0)
 #endif
-
-void op_cp0_enabled(void)
-{
-    if (!(env->CP0_Status & (1 << CP0St_CU0)) &&
-        (env->hflags & MIPS_HFLAG_UM)) {
-        CALL_FROM_TB2(do_raise_exception_err, EXCP_CpU, 0);
-    }
-    RETURN();
-}
 
 void op_cfc1 (void)
 {
@@ -3018,6 +3013,10 @@ void op_eret (void)
         !(env->CP0_Status & (1 << CP0St_UX)))
         env->hflags &= ~MIPS_HFLAG_64;
 #endif
+    if ((env->CP0_Status & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
+        env->hflags |= MIPS_HFLAG_CP0;
+    else
+        env->hflags &= ~MIPS_HFLAG_CP0;
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
@@ -3041,6 +3040,10 @@ void op_deret (void)
         !(env->CP0_Status & (1 << CP0St_UX)))
         env->hflags &= ~MIPS_HFLAG_64;
 #endif
+    if ((env->CP0_Status & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
+        env->hflags |= MIPS_HFLAG_CP0;
+    else
+        env->hflags &= ~MIPS_HFLAG_CP0;
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
@@ -3049,9 +3052,8 @@ void op_deret (void)
 
 void op_rdhwr_cpunum(void)
 {
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
-        (env->CP0_HWREna & (1 << 0)) ||
-        (env->CP0_Status & (1 << CP0St_CU0)))
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 0)))
         T0 = env->CP0_EBase & 0x3ff;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
@@ -3060,9 +3062,8 @@ void op_rdhwr_cpunum(void)
 
 void op_rdhwr_synci_step(void)
 {
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
-        (env->CP0_HWREna & (1 << 1)) ||
-        (env->CP0_Status & (1 << CP0St_CU0)))
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 1)))
         T0 = env->SYNCI_Step;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
@@ -3071,9 +3072,8 @@ void op_rdhwr_synci_step(void)
 
 void op_rdhwr_cc(void)
 {
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
-        (env->CP0_HWREna & (1 << 2)) ||
-        (env->CP0_Status & (1 << CP0St_CU0)))
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 2)))
         T0 = env->CP0_Count;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
@@ -3082,9 +3082,8 @@ void op_rdhwr_cc(void)
 
 void op_rdhwr_ccres(void)
 {
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
-        (env->CP0_HWREna & (1 << 3)) ||
-        (env->CP0_Status & (1 << CP0St_CU0)))
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 3)))
         T0 = env->CCRes;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);

@@ -731,6 +731,12 @@ static inline void generate_exception (DisasContext *ctx, int excp)
     generate_exception_err (ctx, excp, 0);
 }
 
+static inline void check_cp0_enabled(DisasContext *ctx)
+{
+    if (!(ctx->hflags & MIPS_HFLAG_CP0))
+        generate_exception_err(ctx, EXCP_CpU, 1);
+}
+
 static inline void check_cp1_enabled(DisasContext *ctx)
 {
     if (!(ctx->hflags & MIPS_HFLAG_FPU))
@@ -4600,6 +4606,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
     case OPC_MTC0:
         GEN_LOAD_REG_TN(T0, rt);
+        save_cpu_state(ctx, 1);
         gen_mtc0(env, ctx, rd, ctx->opcode & 0x7);
         opn = "mtc0";
         break;
@@ -4617,6 +4624,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
     case OPC_DMTC0:
         check_insn(env, ctx, ISA_MIPS3);
         GEN_LOAD_REG_TN(T0, rt);
+        save_cpu_state(ctx, 1);
         gen_dmtc0(env, ctx, rd, ctx->opcode & 0x7);
         opn = "dmtc0";
         break;
@@ -4666,6 +4674,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
     case OPC_ERET:
         opn = "eret";
         check_insn(env, ctx, ISA_MIPS2);
+        save_cpu_state(ctx, 1);
         gen_op_eret();
         ctx->bstate = BS_EXCP;
         break;
@@ -4676,6 +4685,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             MIPS_INVAL(opn);
             generate_exception(ctx, EXCP_RI);
         } else {
+            save_cpu_state(ctx, 1);
             gen_op_deret();
             ctx->bstate = BS_EXCP;
         }
@@ -6183,8 +6193,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_CP0:
-        save_cpu_state(ctx, 1);
-        gen_op_cp0_enabled();
+        check_cp0_enabled(ctx);
         op1 = MASK_CP0(ctx->opcode);
         switch (op1) {
         case OPC_MFC0:
@@ -6221,12 +6230,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 break;
             case OPC_DI:
                 check_insn(env, ctx, ISA_MIPS32R2);
+                save_cpu_state(ctx, 1);
                 gen_op_di();
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;
             case OPC_EI:
                 check_insn(env, ctx, ISA_MIPS32R2);
+                save_cpu_state(ctx, 1);
                 gen_op_ei();
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
@@ -6747,7 +6758,6 @@ void cpu_reset (CPUMIPSState *env)
     } else {
         env->CP0_ErrorEPC = env->PC[env->current_tc];
     }
-    env->hflags = 0;
     env->PC[env->current_tc] = (int32_t)0xBFC00000;
     env->CP0_Wired = 0;
     /* SMP not implemented */
@@ -6771,8 +6781,10 @@ void cpu_reset (CPUMIPSState *env)
 #endif
     env->exception_index = EXCP_NONE;
 #if defined(CONFIG_USER_ONLY)
-    env->hflags |= MIPS_HFLAG_UM;
+    env->hflags = MIPS_HFLAG_UM;
     env->user_mode_only = 1;
+#else
+    env->hflags = MIPS_HFLAG_CP0;
 #endif
 }
 
