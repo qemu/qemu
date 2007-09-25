@@ -1886,9 +1886,8 @@ void op_mttc0_status(void)
 
 void op_mtc0_intctl (void)
 {
-    /* vectored interrupts not implemented, timer on int 7,
-       no performance counters. */
-    env->CP0_IntCtl |= T0 & 0x000002e0;
+    /* vectored interrupts not implemented, no performance counters. */
+    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (T0 & 0x000002e0);
     RETURN();
 }
 
@@ -1908,11 +1907,19 @@ void op_mtc0_srsmap (void)
 void op_mtc0_cause (void)
 {
     uint32_t mask = 0x00C00300;
+    uint32_t old = env->CP0_Cause;
 
     if (env->insn_flags & ISA_MIPS32R2)
         mask |= 1 << CP0Ca_DC;
 
     env->CP0_Cause = (env->CP0_Cause & ~mask) | (T0 & mask);
+
+    if ((old ^ env->CP0_Cause) & (1 << CP0Ca_DC)) {
+        if (env->CP0_Cause & (1 << CP0Ca_DC))
+            CALL_FROM_TB1(cpu_mips_stop_count, env);
+        else
+            CALL_FROM_TB1(cpu_mips_start_count, env);
+    }
 
     /* Handle the software interrupt as an hardware one, as they
        are very similar */
