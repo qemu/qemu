@@ -157,6 +157,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_tgkill __NR_tgkill
 #define __NR_sys_tkill __NR_tkill
 #define __NR_sys_unlinkat __NR_unlinkat
+#define __NR_sys_utimensat __NR_utimensat
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -230,6 +231,10 @@ _syscall1(int,set_tid_address,int *,tidptr)
 #endif
 #if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
 _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
+#endif
+#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+_syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
+          const struct timespec *,tsp,int,flags)
 #endif
 
 extern int personality(int);
@@ -4898,6 +4903,27 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
 	goto unimplemented_nowarn;
+#endif
+
+#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+    case TARGET_NR_utimensat:
+        {
+            struct timespec ts[2];
+            target_to_host_timespec(ts, arg3);
+            target_to_host_timespec(ts+1, arg3+sizeof(struct target_timespec));
+            if (!arg2)
+                ret = get_errno(sys_utimensat(arg1, NULL, ts, arg4));
+            else {
+                p = lock_user_string(arg2);
+                if (!access_ok(VERIFY_READ, p, 1))
+                    ret = -EFAULT;
+                else
+                    ret = get_errno(sys_utimensat(arg1, path(p), ts, arg4));
+                if (p)
+                    unlock_user(p, arg2, 0);
+            }
+        }
+	break;
 #endif
 
     default:
