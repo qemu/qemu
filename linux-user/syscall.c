@@ -211,7 +211,7 @@ _syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
           int,newdirfd,const char *,newpath)
 #endif
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
-#ifdef TARGET_NR_symlinkat
+#if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
 _syscall3(int,sys_symlinkat,const char *,oldpath,
           int,newdirfd,const char *,newpath)
 #endif
