@@ -1761,11 +1761,11 @@ static void next(void)
     }
 }
 
-static target_phys_addr_t expr_sum(void);
+static int64_t expr_sum(void);
 
-static target_phys_addr_t expr_unary(void)
+static int64_t expr_unary(void)
 {
-    target_phys_addr_t n;
+    int64_t n;
     char *p;
     int ret;
 
@@ -1848,9 +1848,9 @@ static target_phys_addr_t expr_unary(void)
 }
 
 
-static target_phys_addr_t expr_prod(void)
+static int64_t expr_prod(void)
 {
-    target_phys_addr_t val, val2;
+    int64_t val, val2;
     int op;
 
     val = expr_unary();
@@ -1879,9 +1879,9 @@ static target_phys_addr_t expr_prod(void)
     return val;
 }
 
-static target_phys_addr_t expr_logic(void)
+static int64_t expr_logic(void)
 {
-    target_phys_addr_t val, val2;
+    int64_t val, val2;
     int op;
 
     val = expr_prod();
@@ -1907,9 +1907,9 @@ static target_phys_addr_t expr_logic(void)
     return val;
 }
 
-static target_phys_addr_t expr_sum(void)
+static int64_t expr_sum(void)
 {
-    target_phys_addr_t val, val2;
+    int64_t val, val2;
     int op;
 
     val = expr_logic();
@@ -1927,7 +1927,7 @@ static target_phys_addr_t expr_sum(void)
     return val;
 }
 
-static int get_expr(target_phys_addr_t *pval, const char **pp)
+static int get_expr(int64_t *pval, const char **pp)
 {
     pch = *pp;
     if (setjmp(expr_env)) {
@@ -2190,7 +2190,7 @@ static void monitor_handle_command(const char *cmdline)
         case 'i':
         case 'l':
             {
-                target_phys_addr_t val;
+                int64_t val;
 
                 while (isspace(*p))
                     p++;
