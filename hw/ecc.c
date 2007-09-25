@@ -8,11 +8,7 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-struct ecc_state_s {
-    uint8_t cp;		/* Column parity */
-    uint16_t lp[2];	/* Line parity */
-    uint16_t count;
-};
+#include "vl.h"
 
 /*
  * Pre-calculated 256-way 1 byte column parity.  Table borrowed from Linux.
@@ -53,7 +49,7 @@ static const uint8_t nand_ecc_precalc_table[] = {
 };
 
 /* Update ECC parity count.  */
-static inline uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample)
+uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample)
 {
     uint8_t idx = nand_ecc_precalc_table[sample];
 
@@ -68,7 +64,7 @@ static inline uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample)
 }
 
 /* Reinitialise the counters.  */
-static inline void ecc_reset(struct ecc_state_s *s)
+void ecc_reset(struct ecc_state_s *s)
 {
     s->lp[0] = 0x0000;
     s->lp[1] = 0x0000;
@@ -77,7 +73,7 @@ static inline void ecc_reset(struct ecc_state_s *s)
 }
 
 /* Save/restore */
-static inline void ecc_put(QEMUFile *f, struct ecc_state_s *s)
+void ecc_put(QEMUFile *f, struct ecc_state_s *s)
 {
     qemu_put_8s(f, &s->cp);
     qemu_put_be16s(f, &s->lp[0]);
@@ -85,7 +81,7 @@ static inline void ecc_put(QEMUFile *f, struct ecc_state_s *s)
     qemu_put_be16s(f, &s->count);
 }
 
-static inline void ecc_get(QEMUFile *f, struct ecc_state_s *s)
+void ecc_get(QEMUFile *f, struct ecc_state_s *s)
 {
     qemu_get_8s(f, &s->cp);
     qemu_get_be16s(f, &s->lp[0]);
