@@ -300,7 +300,7 @@ void add_completion(const char *str)
 
 static void term_completion(void)
 {
-    int len, i, j, max_width, nb_cols;
+    int len, i, j, max_width, nb_cols, max_prefix;
     char *cmdline;
 
     nb_completions = 0;
@@ -327,11 +327,26 @@ static void term_completion(void)
     } else {
         term_printf("\n");
         max_width = 0;
+        max_prefix = 0;	
         for(i = 0; i < nb_completions; i++) {
             len = strlen(completions[i]);
+            if (i==0) {
+                max_prefix = len;
+            } else {
+                if (len < max_prefix)
+                    max_prefix = len;
+                for(j=0; j<max_prefix; j++) {
+                    if (completions[i][j] != completions[0][j])
+                        max_prefix = j;
+                }
+            }
             if (len > max_width)
                 max_width = len;
         }
+        if (max_prefix > 0) 
+            for(i = completion_index; i < max_prefix; i++) {
+                term_insert_char(completions[0][i]);
+            }
         max_width += 2;
         if (max_width < 10)
             max_width = 10;
