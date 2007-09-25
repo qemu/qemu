@@ -146,7 +146,7 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     struct elf_phdr *phdr = NULL, *ph;
     int size, i, total_size;
     elf_word mem_size;
-    target_phys_addr_t addr, low = 0, high = 0;
+    uint64_t addr, low = 0, high = 0;
     uint8_t *data = NULL;
 
     if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
