@@ -126,10 +126,11 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 void memcpy_to_target(target_ulong dest, const void *src,
                       unsigned long len);
 void target_set_brk(target_ulong new_brk);
-long do_brk(target_ulong new_brk);
+target_long do_brk(target_ulong new_brk);
 void syscall_init(void);
-long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
-                long arg4, long arg5, long arg6);
+target_long do_syscall(void *cpu_env, int num, target_long arg1,
+                       target_long arg2, target_long arg3, target_long arg4,
+                       target_long arg5, target_long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern CPUState *global_env;
 void cpu_loop(CPUState *env);
