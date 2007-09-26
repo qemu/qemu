@@ -243,7 +243,8 @@ static inline void regs_to_env(void)
 {
 }
 
-static inline int cpu_halted(CPUState *env) {
+static inline int cpu_halted(CPUState *env)
+{
     if (!env->halted)
         return 0;
     if (env->interrupt_request &
@@ -252,6 +253,29 @@ static inline int cpu_halted(CPUState *env) {
         return 0;
     }
     return EXCP_HALTED;
+}
+
+static inline void compute_hflags(CPUState *env)
+{
+    env->hflags &= ~(MIPS_HFLAG_64 | MIPS_HFLAG_CP0 | MIPS_HFLAG_F64 |
+                     MIPS_HFLAG_FPU | MIPS_HFLAG_UM);
+    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & (1 << CP0St_UM)))
+        env->hflags |= MIPS_HFLAG_UM;
+#ifdef TARGET_MIPS64
+    if (!(env->hflags & MIPS_HFLAG_UM) ||
+        (env->CP0_Status & (1 << CP0St_PX)) ||
+        (env->CP0_Status & (1 << CP0St_UX)))
+        env->hflags |= MIPS_HFLAG_64;
+#endif
+    if ((env->CP0_Status & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
+        env->hflags |= MIPS_HFLAG_CP0;
+    if (env->CP0_Status & (1 << CP0St_CU1))
+        env->hflags |= MIPS_HFLAG_FPU;
+    if (env->CP0_Status & (1 << CP0St_FR))
+        env->hflags |= MIPS_HFLAG_F64;
 }
 
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */

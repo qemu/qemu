@@ -1841,30 +1841,8 @@ void op_mtc0_status (void)
 
     val = T0 & mask;
     old = env->CP0_Status;
-    if (!(val & (1 << CP0St_EXL)) &&
-        !(val & (1 << CP0St_ERL)) &&
-        !(env->hflags & MIPS_HFLAG_DM) &&
-        (val & (1 << CP0St_UM)))
-        env->hflags |= MIPS_HFLAG_UM;
-#ifdef TARGET_MIPS64
-    if  ((env->hflags & MIPS_HFLAG_UM) &&
-        !(val & (1 << CP0St_PX)) &&
-        !(val & (1 << CP0St_UX)))
-        env->hflags &= ~MIPS_HFLAG_64;
-#endif
-    if ((val & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
-        env->hflags |= MIPS_HFLAG_CP0;
-    else
-        env->hflags &= ~MIPS_HFLAG_CP0;
-    if (val & (1 << CP0St_CU1))
-        env->hflags |= MIPS_HFLAG_FPU;
-    else
-        env->hflags &= ~MIPS_HFLAG_FPU;
-    if (val & (1 << CP0St_FR))
-        env->hflags |= MIPS_HFLAG_F64;
-    else
-        env->hflags &= ~MIPS_HFLAG_F64;
     env->CP0_Status = (env->CP0_Status & ~mask) | val;
+    CALL_FROM_TB1(compute_hflags, env);
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB2(do_mtc0_status_debug, old, val);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
@@ -3009,21 +2987,7 @@ void op_eret (void)
         env->PC[env->current_tc] = env->CP0_EPC;
         env->CP0_Status &= ~(1 << CP0St_EXL);
     }
-    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
-        !(env->CP0_Status & (1 << CP0St_ERL)) &&
-        !(env->hflags & MIPS_HFLAG_DM) &&
-        (env->CP0_Status & (1 << CP0St_UM)))
-        env->hflags |= MIPS_HFLAG_UM;
-#ifdef TARGET_MIPS64
-     if ((env->hflags & MIPS_HFLAG_UM) &&
-        !(env->CP0_Status & (1 << CP0St_PX)) &&
-        !(env->CP0_Status & (1 << CP0St_UX)))
-        env->hflags &= ~MIPS_HFLAG_64;
-#endif
-    if ((env->CP0_Status & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
-        env->hflags |= MIPS_HFLAG_CP0;
-    else
-        env->hflags &= ~MIPS_HFLAG_CP0;
+    CALL_FROM_TB1(compute_hflags, env);
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
@@ -3035,22 +2999,8 @@ void op_deret (void)
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_pre_eret);
     env->PC[env->current_tc] = env->CP0_DEPC;
-    env->hflags |= MIPS_HFLAG_DM;
-    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
-        !(env->CP0_Status & (1 << CP0St_ERL)) &&
-        !(env->hflags & MIPS_HFLAG_DM) &&
-        (env->CP0_Status & (1 << CP0St_UM)))
-        env->hflags |= MIPS_HFLAG_UM;
-#ifdef TARGET_MIPS64
-    if ((env->hflags & MIPS_HFLAG_UM) &&
-        !(env->CP0_Status & (1 << CP0St_PX)) &&
-        !(env->CP0_Status & (1 << CP0St_UX)))
-        env->hflags &= ~MIPS_HFLAG_64;
-#endif
-    if ((env->CP0_Status & (1 << CP0St_CU0)) || !(env->hflags & MIPS_HFLAG_UM))
-        env->hflags |= MIPS_HFLAG_CP0;
-    else
-        env->hflags &= ~MIPS_HFLAG_CP0;
+    env->hflags &= MIPS_HFLAG_DM;
+    CALL_FROM_TB1(compute_hflags, env);
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
