@@ -27,11 +27,14 @@
 #include "exec-all.h"
 #include "disas.h"
 
+/* Include definitions for instructions classes and implementations flags */
 //#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
 //#define DEBUG_MEMORY_ACCESSES
 //#define DO_PPC_STATISTICS
 
+/*****************************************************************************/
+/* Code translation helpers                                                  */
 #if defined(USE_DIRECT_JUMP)
 #define TBPARAM(x)
 #else
@@ -175,8 +178,10 @@ struct opc_handler_t {
     uint64_t type;
     /* handler */
     void (*handler)(DisasContext *ctx);
-#if defined(DO_PPC_STATISTICS)
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
     const unsigned char *oname;
+#endif
+#if defined(DO_PPC_STATISTICS)
     uint64_t count;
 #endif
 };
@@ -249,6 +254,7 @@ typedef struct opcode_t {
     const unsigned char *oname;
 } opcode_t;
 
+/*****************************************************************************/
 /***                           Instruction decoding                        ***/
 #define EXTRACT_HELPER(name, shift, nb)                                       \
 static inline uint32_t name (uint32_t opcode)                                 \
@@ -365,6 +371,106 @@ static inline target_ulong MASK (uint32_t start, uint32_t end)
     return ret;
 }
 
+/*****************************************************************************/
+/* PowerPC Instructions types definitions                                    */
+enum {
+    PPC_NONE          = 0x0000000000000000ULL,
+    /* integer operations instructions                  */
+    /* flow control instructions                        */
+    /* virtual memory instructions                      */
+    /* ld/st with reservation instructions              */
+    /* cache control instructions                       */
+    /* spr/msr access instructions                      */
+    PPC_INSNS_BASE    = 0x0000000000000001ULL,
+#define PPC_INTEGER PPC_INSNS_BASE
+#define PPC_FLOW    PPC_INSNS_BASE
+#define PPC_MEM     PPC_INSNS_BASE
+#define PPC_RES     PPC_INSNS_BASE
+#define PPC_CACHE   PPC_INSNS_BASE
+#define PPC_MISC    PPC_INSNS_BASE
+    /* Optional floating point instructions             */
+    PPC_FLOAT         = 0x0000000000000002ULL,
+    PPC_FLOAT_FSQRT   = 0x0000000000000004ULL,
+    PPC_FLOAT_FRES    = 0x0000000000000008ULL,
+    PPC_FLOAT_FRSQRTE = 0x0000000000000010ULL,
+    PPC_FLOAT_FSEL    = 0x0000000000000020ULL,
+    PPC_FLOAT_STFIWX  = 0x0000000000000040ULL,
+    /* external control instructions                    */
+    PPC_EXTERN        = 0x0000000000000080ULL,
+    /* segment register access instructions             */
+    PPC_SEGMENT       = 0x0000000000000100ULL,
+    /* Optional cache control instruction               */
+    PPC_CACHE_DCBA    = 0x0000000000000200ULL,
+    /* Optional memory control instructions             */
+    PPC_MEM_TLBIA     = 0x0000000000000400ULL,
+    PPC_MEM_TLBIE     = 0x0000000000000800ULL,
+    PPC_MEM_TLBSYNC   = 0x0000000000001000ULL,
+    /* eieio & sync                                     */
+    PPC_MEM_SYNC      = 0x0000000000002000ULL,
+    /* PowerPC 6xx TLB management instructions          */
+    PPC_6xx_TLB       = 0x0000000000004000ULL,
+    /* Altivec support                                  */
+    PPC_ALTIVEC       = 0x0000000000008000ULL,
+    /* Time base mftb instruction                       */
+    PPC_MFTB          = 0x0000000000010000ULL,
+    /* Embedded PowerPC dedicated instructions          */
+    PPC_EMB_COMMON    = 0x0000000000020000ULL,
+    /* PowerPC 40x exception model                      */
+    PPC_40x_EXCP      = 0x0000000000040000ULL,
+    /* PowerPC 40x TLB management instructions          */
+    PPC_40x_TLB       = 0x0000000000080000ULL,
+    /* PowerPC 405 Mac instructions                     */
+    PPC_405_MAC       = 0x0000000000100000ULL,
+    /* PowerPC 440 specific instructions                */
+    PPC_440_SPEC      = 0x0000000000200000ULL,
+    /* Power-to-PowerPC bridge (601)                    */
+    PPC_POWER_BR      = 0x0000000000400000ULL,
+    /* PowerPC 602 specific */
+    PPC_602_SPEC      = 0x0000000000800000ULL,
+    /* Deprecated instructions                          */
+    /* Original POWER instruction set                   */
+    PPC_POWER         = 0x0000000001000000ULL,
+    /* POWER2 instruction set extension                 */
+    PPC_POWER2        = 0x0000000002000000ULL,
+    /* Power RTC support */
+    PPC_POWER_RTC     = 0x0000000004000000ULL,
+    /* 64 bits PowerPC instructions                     */
+    /* 64 bits PowerPC instruction set                  */
+    PPC_64B           = 0x0000000008000000ULL,
+    /* 64 bits hypervisor extensions                    */
+    PPC_64H           = 0x0000000010000000ULL,
+    /* 64 bits PowerPC "bridge" features                */
+    PPC_64_BRIDGE     = 0x0000000020000000ULL,
+    /* BookE (embedded) PowerPC specification           */
+    PPC_BOOKE         = 0x0000000040000000ULL,
+    /* eieio                                            */
+    PPC_MEM_EIEIO     = 0x0000000080000000ULL,
+    /* e500 vector instructions                         */
+    PPC_E500_VECTOR   = 0x0000000100000000ULL,
+    /* PowerPC 4xx dedicated instructions               */
+    PPC_4xx_COMMON    = 0x0000000200000000ULL,
+    /* PowerPC 2.03 specification extensions            */
+    PPC_203           = 0x0000000400000000ULL,
+    /* PowerPC 2.03 SPE extension                       */
+    PPC_SPE           = 0x0000000800000000ULL,
+    /* PowerPC 2.03 SPE floating-point extension        */
+    PPC_SPEFPU        = 0x0000001000000000ULL,
+    /* SLB management                                   */
+    PPC_SLBI          = 0x0000002000000000ULL,
+    /* PowerPC 40x ibct instructions                    */
+    PPC_40x_ICBT      = 0x0000004000000000ULL,
+    /* PowerPC 74xx TLB management instructions         */
+    PPC_74xx_TLB      = 0x0000008000000000ULL,
+    /* More BookE (embedded) instructions...            */
+    PPC_BOOKE_EXT     = 0x0000010000000000ULL,
+    /* rfmci is not implemented in all BookE PowerPC    */
+    PPC_RFMCI         = 0x0000020000000000ULL,
+    /* user-mode DCR access, implemented in PowerPC 460 */
+    PPC_DCRUX         = 0x0000040000000000ULL,
+};
+
+/*****************************************************************************/
+/* PowerPC instructions table                                                */
 #if HOST_LONG_BITS == 64
 #define OPC_ALIGN 8
 #else
@@ -845,15 +951,15 @@ GEN_HANDLER(subfic, 0x08, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
 #if defined(TARGET_PPC64)
 /* mulhd  mulhd.                   */
-GEN_INT_ARITHN (mulhd,  0x1F, 0x09, 0x02, PPC_INTEGER);
+GEN_INT_ARITHN (mulhd,  0x1F, 0x09, 0x02, PPC_64B);
 /* mulhdu mulhdu.                  */
-GEN_INT_ARITHN (mulhdu, 0x1F, 0x09, 0x00, PPC_INTEGER);
+GEN_INT_ARITHN (mulhdu, 0x1F, 0x09, 0x00, PPC_64B);
 /* mulld  mulld.  mulldo  mulldo.  */
-GEN_INT_ARITH2 (mulld,  0x1F, 0x09, 0x07, PPC_INTEGER);
+GEN_INT_ARITH2 (mulld,  0x1F, 0x09, 0x07, PPC_64B);
 /* divd   divd.   divdo   divdo.   */
-GEN_INT_ARITH2 (divd,   0x1F, 0x09, 0x0F, PPC_INTEGER);
+GEN_INT_ARITH2 (divd,   0x1F, 0x09, 0x0F, PPC_64B);
 /* divdu  divdu.  divduo  divduo.  */
-GEN_INT_ARITH2 (divdu,  0x1F, 0x09, 0x0E, PPC_INTEGER);
+GEN_INT_ARITH2 (divdu,  0x1F, 0x09, 0x0E, PPC_64B);
 #endif
 
 /***                           Integer comparison                          ***/
@@ -1424,8 +1530,8 @@ __GEN_LOGICAL2(srd, 0x1B, 0x10, PPC_64B);
 #endif
 
 /***                       Floating-Point arithmetic                       ***/
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat)                           \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, PPC_FLOAT)                   \
+#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, type)                     \
+GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type)                        \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -1444,9 +1550,9 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, PPC_FLOAT)                   \
         gen_op_set_Rc1();                                                     \
 }
 
-#define GEN_FLOAT_ACB(name, op2)                                              \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0);                                     \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1);
+#define GEN_FLOAT_ACB(name, op2, type)                                        \
+_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, type);                               \
+_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, type);
 
 #define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat)                     \
 GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
@@ -1492,8 +1598,8 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
 _GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0);                               \
 _GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1);
 
-#define GEN_FLOAT_B(name, op2, op3)                                           \
-GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, PPC_FLOAT)                   \
+#define GEN_FLOAT_B(name, op2, op3, type)                                     \
+GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type)                        \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -1507,8 +1613,8 @@ GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, PPC_FLOAT)                   \
         gen_op_set_Rc1();                                                     \
 }
 
-#define GEN_FLOAT_BS(name, op1, op2)                                          \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, PPC_FLOAT)                   \
+#define GEN_FLOAT_BS(name, op1, op2, type)                                    \
+GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type)                        \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -1529,19 +1635,19 @@ GEN_FLOAT_AB(div, 0x12, 0x000007C0);
 /* fmul - fmuls */
 GEN_FLOAT_AC(mul, 0x19, 0x0000F800);
 
-/* fres */ /* XXX: not in 601 */
-GEN_FLOAT_BS(res, 0x3B, 0x18);
+/* fres */
+GEN_FLOAT_BS(res, 0x3B, 0x18, PPC_FLOAT_FRES);
 
-/* frsqrte */ /* XXX: not in 601 */
-GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A);
+/* frsqrte */
+GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, PPC_FLOAT_FRSQRTE);
 
-/* fsel */ /* XXX: not in 601 */
-_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0);
+/* fsel */
+_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, PPC_FLOAT_FSEL);
 /* fsub - fsubs */
 GEN_FLOAT_AB(sub, 0x14, 0x000007C0);
 /* Optional: */
 /* fsqrt */
-GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
+GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
 {
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
@@ -1555,7 +1661,7 @@ GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
         gen_op_set_Rc1();
 }
 
-GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
+GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
 {
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
@@ -1572,28 +1678,28 @@ GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
 
 /***                     Floating-Point multiply-and-add                   ***/
 /* fmadd - fmadds */
-GEN_FLOAT_ACB(madd, 0x1D);
+GEN_FLOAT_ACB(madd, 0x1D, PPC_FLOAT);
 /* fmsub - fmsubs */
-GEN_FLOAT_ACB(msub, 0x1C);
+GEN_FLOAT_ACB(msub, 0x1C, PPC_FLOAT);
 /* fnmadd - fnmadds */
-GEN_FLOAT_ACB(nmadd, 0x1F);
+GEN_FLOAT_ACB(nmadd, 0x1F, PPC_FLOAT);
 /* fnmsub - fnmsubs */
-GEN_FLOAT_ACB(nmsub, 0x1E);
+GEN_FLOAT_ACB(nmsub, 0x1E, PPC_FLOAT);
 
 /***                     Floating-Point round & convert                    ***/
 /* fctiw */
-GEN_FLOAT_B(ctiw, 0x0E, 0x00);
+GEN_FLOAT_B(ctiw, 0x0E, 0x00, PPC_FLOAT);
 /* fctiwz */
-GEN_FLOAT_B(ctiwz, 0x0F, 0x00);
+GEN_FLOAT_B(ctiwz, 0x0F, 0x00, PPC_FLOAT);
 /* frsp */
-GEN_FLOAT_B(rsp, 0x0C, 0x00);
+GEN_FLOAT_B(rsp, 0x0C, 0x00, PPC_FLOAT);
 #if defined(TARGET_PPC64)
 /* fcfid */
-GEN_FLOAT_B(cfid, 0x0E, 0x1A);
+GEN_FLOAT_B(cfid, 0x0E, 0x1A, PPC_64B);
 /* fctid */
-GEN_FLOAT_B(ctid, 0x0E, 0x19);
+GEN_FLOAT_B(ctid, 0x0E, 0x19, PPC_64B);
 /* fctidz */
-GEN_FLOAT_B(ctidz, 0x0F, 0x19);
+GEN_FLOAT_B(ctidz, 0x0F, 0x19, PPC_64B);
 #endif
 
 /***                         Floating-Point compare                        ***/
@@ -1627,7 +1733,7 @@ GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
 
 /***                         Floating-point move                           ***/
 /* fabs */
-GEN_FLOAT_B(abs, 0x08, 0x08);
+GEN_FLOAT_B(abs, 0x08, 0x08, PPC_FLOAT);
 
 /* fmr  - fmr. */
 GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT)
@@ -1644,9 +1750,9 @@ GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT)
 }
 
 /* fnabs */
-GEN_FLOAT_B(nabs, 0x08, 0x04);
+GEN_FLOAT_B(nabs, 0x08, 0x04, PPC_FLOAT);
 /* fneg */
-GEN_FLOAT_B(neg, 0x08, 0x01);
+GEN_FLOAT_B(neg, 0x08, 0x01, PPC_FLOAT);
 
 /***                  Floating-Point status & ctrl register                ***/
 /* mcrfs */
@@ -2426,7 +2532,7 @@ static GenOpFunc *gen_op_stdcx[] = {
 #endif
 
 /* ldarx */
-GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_RES)
+GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 {
     gen_addr_reg_index(ctx);
     op_ldarx();
@@ -2434,7 +2540,7 @@ GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_RES)
 }
 
 /* stdcx. */
-GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_RES)
+GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
     gen_addr_reg_index(ctx);
     gen_op_load_gpr_T1(rS(ctx->opcode));
@@ -2591,7 +2697,7 @@ GEN_STFS(fs, 0x14);
 
 /* Optional: */
 /* stfiwx */
-GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
+GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT_STFIWX)
 {
     if (unlikely(!ctx->fpu_enabled)) {
         RET_EXCP(ctx, EXCP_NO_FP, 0);
@@ -2886,7 +2992,7 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW)
 }
 
 #if defined(TARGET_PPC64)
-GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_FLOW)
+GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -3050,7 +3156,7 @@ GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC)
 }
 
 /* mftb */
-GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_TB)
+GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB)
 {
     gen_op_mfspr(ctx);
 }
@@ -3074,7 +3180,7 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 
 /* mtmsr */
 #if defined(TARGET_PPC64)
-GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_MISC)
+GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVREG(ctx);
@@ -3296,7 +3402,7 @@ GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 
 /* Optional: */
 /* dcba */
-GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_OPT)
+GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_DCBA)
 {
 }
 
@@ -3568,7 +3674,7 @@ GEN_HANDLER(abso, 0x1F, 0x08, 0x1B, 0x0000F800, PPC_POWER_BR)
 }
 
 /* clcs */
-GEN_HANDLER(clcs, 0x1F, 0x10, 0x13, 0x0000F800, PPC_POWER_BR) /* 601 ? */
+GEN_HANDLER(clcs, 0x1F, 0x10, 0x13, 0x0000F800, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
     gen_op_POWER_clcs();
@@ -4222,14 +4328,14 @@ GEN_HANDLER(stfqx, 0x1F, 0x17, 0x1C, 0x00000001, PPC_POWER2)
 
 /* BookE specific instructions */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_BOOKE)
+GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_BOOKE_EXT)
 {
     /* XXX: TODO */
     RET_INVAL(ctx);
 }
 
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_BOOKE)
+GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_BOOKE_EXT)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4331,99 +4437,98 @@ static inline void gen_405_mulladd_insn (DisasContext *ctx, int opc2, int opc3,
     }
 }
 
-#define GEN_MAC_HANDLER(name, opc2, opc3, is_440)                                     \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000,                               \
-            is_440 ? PPC_440_SPEC : PPC_405_MAC)                              \
+#define GEN_MAC_HANDLER(name, opc2, opc3)                                     \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_405_MAC)                  \
 {                                                                             \
     gen_405_mulladd_insn(ctx, opc2, opc3, rA(ctx->opcode), rB(ctx->opcode),   \
                          rD(ctx->opcode), Rc(ctx->opcode));                   \
 }
 
 /* macchw    - macchw.    */
-GEN_MAC_HANDLER(macchw, 0x0C, 0x05, 0);
+GEN_MAC_HANDLER(macchw, 0x0C, 0x05);
 /* macchwo   - macchwo.   */
-GEN_MAC_HANDLER(macchwo, 0x0C, 0x15, 0);
+GEN_MAC_HANDLER(macchwo, 0x0C, 0x15);
 /* macchws   - macchws.   */
-GEN_MAC_HANDLER(macchws, 0x0C, 0x07, 0);
+GEN_MAC_HANDLER(macchws, 0x0C, 0x07);
 /* macchwso  - macchwso.  */
-GEN_MAC_HANDLER(macchwso, 0x0C, 0x17, 0);
+GEN_MAC_HANDLER(macchwso, 0x0C, 0x17);
 /* macchwsu  - macchwsu.  */
-GEN_MAC_HANDLER(macchwsu, 0x0C, 0x06, 0);
+GEN_MAC_HANDLER(macchwsu, 0x0C, 0x06);
 /* macchwsuo - macchwsuo. */
-GEN_MAC_HANDLER(macchwsuo, 0x0C, 0x16, 0);
+GEN_MAC_HANDLER(macchwsuo, 0x0C, 0x16);
 /* macchwu   - macchwu.   */
-GEN_MAC_HANDLER(macchwu, 0x0C, 0x04, 0);
+GEN_MAC_HANDLER(macchwu, 0x0C, 0x04);
 /* macchwuo  - macchwuo.  */
-GEN_MAC_HANDLER(macchwuo, 0x0C, 0x14, 0);
+GEN_MAC_HANDLER(macchwuo, 0x0C, 0x14);
 /* machhw    - machhw.    */
-GEN_MAC_HANDLER(machhw, 0x0C, 0x01, 0);
+GEN_MAC_HANDLER(machhw, 0x0C, 0x01);
 /* machhwo   - machhwo.   */
-GEN_MAC_HANDLER(machhwo, 0x0C, 0x11, 0);
+GEN_MAC_HANDLER(machhwo, 0x0C, 0x11);
 /* machhws   - machhws.   */
-GEN_MAC_HANDLER(machhws, 0x0C, 0x03, 0);
+GEN_MAC_HANDLER(machhws, 0x0C, 0x03);
 /* machhwso  - machhwso.  */
-GEN_MAC_HANDLER(machhwso, 0x0C, 0x13, 0);
+GEN_MAC_HANDLER(machhwso, 0x0C, 0x13);
 /* machhwsu  - machhwsu.  */
-GEN_MAC_HANDLER(machhwsu, 0x0C, 0x02, 0);
+GEN_MAC_HANDLER(machhwsu, 0x0C, 0x02);
 /* machhwsuo - machhwsuo. */
-GEN_MAC_HANDLER(machhwsuo, 0x0C, 0x12, 0);
+GEN_MAC_HANDLER(machhwsuo, 0x0C, 0x12);
 /* machhwu   - machhwu.   */
-GEN_MAC_HANDLER(machhwu, 0x0C, 0x00, 0);
+GEN_MAC_HANDLER(machhwu, 0x0C, 0x00);
 /* machhwuo  - machhwuo.  */
-GEN_MAC_HANDLER(machhwuo, 0x0C, 0x10, 0);
+GEN_MAC_HANDLER(machhwuo, 0x0C, 0x10);
 /* maclhw    - maclhw.    */
-GEN_MAC_HANDLER(maclhw, 0x0C, 0x0D, 0);
+GEN_MAC_HANDLER(maclhw, 0x0C, 0x0D);
 /* maclhwo   - maclhwo.   */
-GEN_MAC_HANDLER(maclhwo, 0x0C, 0x1D, 0);
+GEN_MAC_HANDLER(maclhwo, 0x0C, 0x1D);
 /* maclhws   - maclhws.   */
-GEN_MAC_HANDLER(maclhws, 0x0C, 0x0F, 0);
+GEN_MAC_HANDLER(maclhws, 0x0C, 0x0F);
 /* maclhwso  - maclhwso.  */
-GEN_MAC_HANDLER(maclhwso, 0x0C, 0x1F, 0);
+GEN_MAC_HANDLER(maclhwso, 0x0C, 0x1F);
 /* maclhwu   - maclhwu.   */
-GEN_MAC_HANDLER(maclhwu, 0x0C, 0x0C, 0);
+GEN_MAC_HANDLER(maclhwu, 0x0C, 0x0C);
 /* maclhwuo  - maclhwuo.  */
-GEN_MAC_HANDLER(maclhwuo, 0x0C, 0x1C, 0);
+GEN_MAC_HANDLER(maclhwuo, 0x0C, 0x1C);
 /* maclhwsu  - maclhwsu.  */
-GEN_MAC_HANDLER(maclhwsu, 0x0C, 0x0E, 0);
+GEN_MAC_HANDLER(maclhwsu, 0x0C, 0x0E);
 /* maclhwsuo - maclhwsuo. */
-GEN_MAC_HANDLER(maclhwsuo, 0x0C, 0x1E, 0);
+GEN_MAC_HANDLER(maclhwsuo, 0x0C, 0x1E);
 /* nmacchw   - nmacchw.   */
-GEN_MAC_HANDLER(nmacchw, 0x0E, 0x05, 0);
+GEN_MAC_HANDLER(nmacchw, 0x0E, 0x05);
 /* nmacchwo  - nmacchwo.  */
-GEN_MAC_HANDLER(nmacchwo, 0x0E, 0x15, 0);
+GEN_MAC_HANDLER(nmacchwo, 0x0E, 0x15);
 /* nmacchws  - nmacchws.  */
-GEN_MAC_HANDLER(nmacchws, 0x0E, 0x07, 0);
+GEN_MAC_HANDLER(nmacchws, 0x0E, 0x07);
 /* nmacchwso - nmacchwso. */
-GEN_MAC_HANDLER(nmacchwso, 0x0E, 0x17, 0);
+GEN_MAC_HANDLER(nmacchwso, 0x0E, 0x17);
 /* nmachhw   - nmachhw.   */
-GEN_MAC_HANDLER(nmachhw, 0x0E, 0x01, 0);
+GEN_MAC_HANDLER(nmachhw, 0x0E, 0x01);
 /* nmachhwo  - nmachhwo.  */
-GEN_MAC_HANDLER(nmachhwo, 0x0E, 0x11, 0);
+GEN_MAC_HANDLER(nmachhwo, 0x0E, 0x11);
 /* nmachhws  - nmachhws.  */
-GEN_MAC_HANDLER(nmachhws, 0x0E, 0x03, 1);
+GEN_MAC_HANDLER(nmachhws, 0x0E, 0x03);
 /* nmachhwso - nmachhwso. */
-GEN_MAC_HANDLER(nmachhwso, 0x0E, 0x13, 1);
+GEN_MAC_HANDLER(nmachhwso, 0x0E, 0x13);
 /* nmaclhw   - nmaclhw.   */
-GEN_MAC_HANDLER(nmaclhw, 0x0E, 0x0D, 1);
+GEN_MAC_HANDLER(nmaclhw, 0x0E, 0x0D);
 /* nmaclhwo  - nmaclhwo.  */
-GEN_MAC_HANDLER(nmaclhwo, 0x0E, 0x1D, 1);
+GEN_MAC_HANDLER(nmaclhwo, 0x0E, 0x1D);
 /* nmaclhws  - nmaclhws.  */
-GEN_MAC_HANDLER(nmaclhws, 0x0E, 0x0F, 1);
+GEN_MAC_HANDLER(nmaclhws, 0x0E, 0x0F);
 /* nmaclhwso - nmaclhwso. */
-GEN_MAC_HANDLER(nmaclhwso, 0x0E, 0x1F, 1);
+GEN_MAC_HANDLER(nmaclhwso, 0x0E, 0x1F);
 
 /* mulchw  - mulchw.  */
-GEN_MAC_HANDLER(mulchw, 0x08, 0x05, 0);
+GEN_MAC_HANDLER(mulchw, 0x08, 0x05);
 /* mulchwu - mulchwu. */
-GEN_MAC_HANDLER(mulchwu, 0x08, 0x04, 0);
+GEN_MAC_HANDLER(mulchwu, 0x08, 0x04);
 /* mulhhw  - mulhhw.  */
-GEN_MAC_HANDLER(mulhhw, 0x08, 0x01, 0);
+GEN_MAC_HANDLER(mulhhw, 0x08, 0x01);
 /* mulhhwu - mulhhwu. */
-GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00, 0);
+GEN_MAC_HANDLER(mulhhwu, 0x08, 0x00);
 /* mullhw  - mullhw.  */
-GEN_MAC_HANDLER(mullhw, 0x08, 0x0D, 0);
+GEN_MAC_HANDLER(mullhw, 0x08, 0x0D);
 /* mullhwu - mullhwu. */
-GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C, 0);
+GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C);
 
 /* mfdcr */
 GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_EMB_COMMON)
@@ -4463,7 +4568,7 @@ GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_EMB_COMMON)
 
 /* mfdcrx */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000001, PPC_BOOKE)
+GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_BOOKE_EXT)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVREG(ctx);
@@ -4475,12 +4580,13 @@ GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000001, PPC_BOOKE)
     gen_op_load_gpr_T0(rA(ctx->opcode));
     gen_op_load_dcr();
     gen_op_store_T0_gpr(rD(ctx->opcode));
+    /* Note: Rc update flag set leads to undefined state of Rc0 */
 #endif
 }
 
 /* mtdcrx */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000001, PPC_BOOKE)
+GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_BOOKE_EXT)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVREG(ctx);
@@ -4492,7 +4598,26 @@ GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000001, PPC_BOOKE)
     gen_op_load_gpr_T0(rA(ctx->opcode));
     gen_op_load_gpr_T1(rS(ctx->opcode));
     gen_op_store_dcr();
+    /* Note: Rc update flag set leads to undefined state of Rc0 */
 #endif
+}
+
+/* mfdcrux (PPC 460) : user-mode access to DCR */
+GEN_HANDLER(mfdcrux, 0x1F, 0x03, 0x09, 0x00000000, PPC_DCRUX)
+{
+    gen_op_load_gpr_T0(rA(ctx->opcode));
+    gen_op_load_dcr();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
+    /* Note: Rc update flag set leads to undefined state of Rc0 */
+}
+
+/* mtdcrux (PPC 460) : user-mode access to DCR */
+GEN_HANDLER(mtdcrux, 0x1F, 0x03, 0x0D, 0x00000000, PPC_DCRUX)
+{
+    gen_op_load_gpr_T0(rA(ctx->opcode));
+    gen_op_load_gpr_T1(rS(ctx->opcode));
+    gen_op_store_dcr();
+    /* Note: Rc update flag set leads to undefined state of Rc0 */
 }
 
 /* dccci */
@@ -4595,7 +4720,7 @@ GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE)
 
 /* BookE specific */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE)
+GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE_EXT)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4611,7 +4736,7 @@ GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE)
 }
 
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_BOOKE)
+GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4628,7 +4753,7 @@ GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_BOOKE)
 
 /* TLB management - PowerPC 405 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
+GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4656,7 +4781,7 @@ GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_SPEC)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
+GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -4675,7 +4800,7 @@ GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_SPEC)
 }
 
 /* tlbwe */
-GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_SPEC)
+GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -5701,7 +5826,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & (RGPL - 1)) == 0)
             cpu_fprintf(f, "GPR%02d", i);
-        cpu_fprintf(f, " " REGX, env->gpr[i]);
+        cpu_fprintf(f, " " REGX, (target_ulong)env->gpr[i]);
         if ((i & (RGPL - 1)) == (RGPL - 1))
             cpu_fprintf(f, "\n");
     }

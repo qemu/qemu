@@ -2319,7 +2319,6 @@ void OPPROTO op_405_check_satu (void)
     RETURN();
 }
 
-#if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_load_dcr (void)
 {
     do_load_dcr();
@@ -2332,6 +2331,7 @@ void OPPROTO op_store_dcr (void)
     RETURN();
 }
 
+#if !defined(CONFIG_USER_ONLY)
 /* Return from critical interrupt :
  * same as rfi, except nip & MSR are loaded from SRR2/3 instead of SRR0/1
  */

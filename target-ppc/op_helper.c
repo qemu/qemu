@@ -1206,6 +1206,41 @@ void do_405_check_sat (void)
     }
 }
 
+/* XXX: to be improved to check access rights when in user-mode */
+void do_load_dcr (void)
+{
+    target_ulong val;
+
+    if (unlikely(env->dcr_env == NULL)) {
+        if (loglevel != 0) {
+            fprintf(logfile, "No DCR environment\n");
+        }
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
+    } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
+        if (loglevel != 0) {
+            fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
+        }
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
+    } else {
+        T0 = val;
+    }
+}
+
+void do_store_dcr (void)
+{
+    if (unlikely(env->dcr_env == NULL)) {
+        if (loglevel != 0) {
+            fprintf(logfile, "No DCR environment\n");
+        }
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
+    } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
+        if (loglevel != 0) {
+            fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
+        }
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
+    }
+}
+
 #if !defined(CONFIG_USER_ONLY)
 void do_40x_rfci (void)
 {
@@ -1266,40 +1301,6 @@ void do_rfmci (void)
     cpu_dump_rfi(env->nip, do_load_msr(env));
 #endif
     env->interrupt_request = CPU_INTERRUPT_EXITTB;
-}
-
-void do_load_dcr (void)
-{
-    target_ulong val;
-
-    if (unlikely(env->dcr_env == NULL)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "No DCR environment\n");
-        }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
-        }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
-    } else {
-        T0 = val;
-    }
-}
-
-void do_store_dcr (void)
-{
-    if (unlikely(env->dcr_env == NULL)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "No DCR environment\n");
-        }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
-        }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
-    }
 }
 
 void do_load_403_pb (int num)
@@ -2238,7 +2239,7 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
-            pc = (target_phys_addr_t)retaddr;
+            pc = (target_phys_addr_t)(unsigned long)retaddr;
             tb = tb_find_pc(pc);
             if (likely(tb)) {
                 /* the PC is inside the translated code. It means that we have
@@ -2261,16 +2262,14 @@ void do_tlbie (void)
 {
     T0 = (uint32_t)T0;
 #if !defined(FLUSH_ALL_TLBS)
-    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+    /* XXX: Remove thoses tests */
+    if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
         ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 0);
         if (env->id_tlbs == 1)
             ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 1);
-    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
-        /* XXX: TODO */
-#if 0
-        ppcbooke_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK,
-                                     env->spr[SPR_BOOKE_PID]);
-#endif
+    } else if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_4xx)) {
+        ppc4xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK,
+                                   env->spr[SPR_40x_PID]);
     } else {
         /* tlbie invalidate TLBs for all segments */
         T0 &= TARGET_PAGE_MASK;
@@ -2305,11 +2304,11 @@ void do_tlbie_64 (void)
 {
     T0 = (uint64_t)T0;
 #if !defined(FLUSH_ALL_TLBS)
-    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+    if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
         ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 0);
         if (env->id_tlbs == 1)
             ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 1);
-    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
+    } else if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_4xx)) {
         /* XXX: TODO */
 #if 0
         ppcbooke_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK,
@@ -2541,7 +2540,7 @@ void do_4xx_tlbwe_hi (void)
                   "are not supported (%d)\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((T1 >> 7) & 0x7));
     }
-    tlb->EPN = (T1 & 0xFFFFFC00) & ~(tlb->size - 1);
+    tlb->EPN = T1 & ~(tlb->size - 1);
     if (T1 & 0x40)
         tlb->prot |= PAGE_VALID;
     else
@@ -2676,14 +2675,14 @@ void do_440_tlbwe (int word)
 
 void do_440_tlbsx (void)
 {
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR]);
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR] & 0xFF);
 }
 
 void do_440_tlbsx_ (void)
 {
     int tmp = xer_so;
 
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR]);
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR] & 0xFF);
     if (T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;

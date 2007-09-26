@@ -712,6 +712,17 @@ uint32_t cpu_ppc601_load_rtcl (CPUState *env)
     return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
 }
 
+/* XXX: to be fixed */
+int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp)
+{
+    return -1;
+}
+
+int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val)
+{
+    return -1;
+}
+
 void cpu_loop(CPUPPCState *env)
 {
     target_siginfo_t info;
@@ -761,7 +772,7 @@ void cpu_loop(CPUPPCState *env)
         case EXCP_MACHINE_CHECK:
             fprintf(stderr, "Machine check exeption...  Stop emulation\n");
             if (loglevel)
-                fprintf(logfile, "RESET asked... Stop emulation\n");
+                fprintf(logfile, "Machine check exception. Stop emulation\n");
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
             info.si_code = TARGET_BUS_OBJERR;
@@ -914,7 +925,7 @@ void cpu_loop(CPUPPCState *env)
                     info.si_code = TARGET_ILL_ILLOPC;
                     break;
                 case EXCP_INVAL_LSWX:
-            info.si_code = TARGET_ILL_ILLOPN;
+                    info.si_code = TARGET_ILL_ILLOPN;
                     break;
                 case EXCP_INVAL_SPR:
                     info.si_code = TARGET_ILL_PRVREG;
@@ -1003,7 +1014,7 @@ void cpu_loop(CPUPPCState *env)
                 if (loglevel)
                     fprintf(logfile, "Tried to go into supervisor mode !\n");
                 abort();
-        }
+            }
             break;
         case EXCP_BRANCH:
             /* We stopped because of a jump... */

@@ -376,11 +376,11 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
             /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
             if (loglevel & CPU_LOG_INT) {
-                fprintf(logfile, "%s: set the external IRQ state to %d\n",
+                fprintf(logfile, "%s: set the debug pin state to %d\n",
                         __func__, level);
             }
 #endif
-            ppc_set_irq(env, EXCP_40x_DEBUG, level);
+            ppc_set_irq(env, PPC_INTERRUPT_DEBUG, level);
             break;
         default:
             /* Unknown pin - do nothing */
@@ -904,6 +904,9 @@ struct ppc_dcrn_t {
     void *opaque;
 };
 
+/* XXX: on 460, DCR addresses are 32 bits wide,
+ *      using DCRIPR to get the 22 upper bits of the DCR address
+ */
 #define DCRN_NB 1024
 struct ppc_dcr_t {
     ppc_dcrn_t dcrn[DCRN_NB];

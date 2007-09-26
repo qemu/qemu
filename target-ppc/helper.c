@@ -586,8 +586,8 @@ static int find_pte64 (mmu_ctx_t *ctx, int h, int rw)
 static inline int find_pte (CPUState *env, mmu_ctx_t *ctx, int h, int rw)
 {
 #if defined(TARGET_PPC64)
-    if (PPC_MMU(env) == PPC_FLAGS_MMU_64B ||
-        PPC_MMU(env) == PPC_FLAGS_MMU_64BRIDGE)
+    if (env->mmu_model == POWERPC_MMU_64B ||
+        env->mmu_model == POWERPC_MMU_64BRIDGE)
         return find_pte64(ctx, h, rw);
 #endif
 
@@ -669,7 +669,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
     int ret, ret2;
 
 #if defined(TARGET_PPC64)
-    if (PPC_MMU(env) == PPC_FLAGS_MMU_64B) {
+    if (env->mmu_model == POWERPC_MMU_64B) {
         ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr);
         if (ret < 0)
             return ret;
@@ -724,8 +724,8 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
             hash = (~hash) & vsid_mask;
             ctx->pg_addr[1] = get_pgaddr(sdr, sdr_sh, hash, mask);
 #if defined(TARGET_PPC64)
-            if (PPC_MMU(env) == PPC_FLAGS_MMU_64B ||
-                PPC_MMU(env) == PPC_FLAGS_MMU_64BRIDGE) {
+            if (env->mmu_model == POWERPC_MMU_64B ||
+                env->mmu_model == POWERPC_MMU_64BRIDGE) {
                 /* Only 5 bits of the page index are used in the AVPN */
                 ctx->ptem = (vsid << 12) | ((pgidx >> 4) & 0x0F80);
             } else
@@ -735,7 +735,7 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
             }
             /* Initialize real address with an invalid value */
             ctx->raddr = (target_ulong)-1;
-            if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+            if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
                 /* Software TLB search */
                 ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
             } else {
@@ -865,7 +865,7 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
 
     /* Default return value is no match */
     ret = -1;
-    for (i = 0; i < 64; i++) {
+    for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
         if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
             ret = i;
@@ -874,6 +874,26 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
     }
 
     return ret;
+}
+
+void ppc4xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
+                                 uint32_t pid)
+{
+    ppcemb_tlb_t *tlb;
+    target_phys_addr_t raddr;
+    target_ulong page, end;
+    int i;
+
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb[i].tlbe;
+        if (ppcemb_tlb_check(env, tlb, &raddr, eaddr, pid, 0, i) == 0) {
+            end = tlb->EPN + tlb->size;
+            for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
+                tlb_flush_page(env, page);
+            tlb->prot &= ~PAGE_VALID;
+            break;
+        }
+    }
 }
 
 /* Helpers specific to PowerPC 40x implementations */
@@ -1069,23 +1089,23 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
     ctx->raddr = eaddr;
     ctx->prot = PAGE_READ;
     ret = 0;
-    switch (PPC_MMU(env)) {
-    case PPC_FLAGS_MMU_32B:
-    case PPC_FLAGS_MMU_SOFT_6xx:
-    case PPC_FLAGS_MMU_601:
-    case PPC_FLAGS_MMU_SOFT_4xx:
-    case PPC_FLAGS_MMU_401:
+    switch (env->mmu_model) {
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_SOFT_6xx:
+    case POWERPC_MMU_601:
+    case POWERPC_MMU_SOFT_4xx:
+    case POWERPC_MMU_REAL_4xx:
         ctx->prot |= PAGE_WRITE;
         break;
 #if defined(TARGET_PPC64)
-    case PPC_FLAGS_MMU_64B:
-    case PPC_FLAGS_MMU_64BRIDGE:
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_64BRIDGE:
         /* Real address are 60 bits long */
-        ctx->raddr &= 0x0FFFFFFFFFFFFFFFUL;
+        ctx->raddr &= 0x0FFFFFFFFFFFFFFFULL;
         ctx->prot |= PAGE_WRITE;
         break;
 #endif
-    case PPC_FLAGS_MMU_403:
+    case POWERPC_MMU_SOFT_4xx_Z:
         if (unlikely(msr_pe != 0)) {
             /* 403 family add some particular protections,
              * using PBL/PBU registers for accesses with no translation.
@@ -1108,10 +1128,10 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
                 ctx->prot |= PAGE_WRITE;
             }
         }
-    case PPC_FLAGS_MMU_BOOKE:
+    case POWERPC_MMU_BOOKE:
         ctx->prot |= PAGE_WRITE;
         break;
-    case PPC_FLAGS_MMU_BOOKE_FSL:
+    case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
         cpu_abort(env, "BookE FSL MMU model not implemented\n");
         break;
@@ -1138,40 +1158,40 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         ret = check_physical(env, ctx, eaddr, rw);
     } else {
         ret = -1;
-        switch (PPC_MMU(env)) {
-        case PPC_FLAGS_MMU_32B:
-        case PPC_FLAGS_MMU_SOFT_6xx:
+        switch (env->mmu_model) {
+        case POWERPC_MMU_32B:
+        case POWERPC_MMU_SOFT_6xx:
             /* Try to find a BAT */
             if (check_BATs)
                 ret = get_bat(env, ctx, eaddr, rw, access_type);
             /* No break here */
 #if defined(TARGET_PPC64)
-        case PPC_FLAGS_MMU_64B:
-        case PPC_FLAGS_MMU_64BRIDGE:
+        case POWERPC_MMU_64B:
+        case POWERPC_MMU_64BRIDGE:
 #endif
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */
                 ret = get_segment(env, ctx, eaddr, rw, access_type);
             }
             break;
-        case PPC_FLAGS_MMU_SOFT_4xx:
-        case PPC_FLAGS_MMU_403:
+        case POWERPC_MMU_SOFT_4xx:
+        case POWERPC_MMU_SOFT_4xx_Z:
             ret = mmu40x_get_physical_address(env, ctx, eaddr,
                                               rw, access_type);
             break;
-        case PPC_FLAGS_MMU_601:
+        case POWERPC_MMU_601:
             /* XXX: TODO */
             cpu_abort(env, "601 MMU model not implemented\n");
             return -1;
-        case PPC_FLAGS_MMU_BOOKE:
+        case POWERPC_MMU_BOOKE:
             ret = mmubooke_get_physical_address(env, ctx, eaddr,
                                                 rw, access_type);
             break;
-        case PPC_FLAGS_MMU_BOOKE_FSL:
+        case POWERPC_MMU_BOOKE_FSL:
             /* XXX: TODO */
             cpu_abort(env, "BookE FSL MMU model not implemented\n");
             return -1;
-        case PPC_FLAGS_MMU_401:
+        case POWERPC_MMU_REAL_4xx:
             cpu_abort(env, "PowerPC 401 does not do any translation\n");
             return -1;
         default:
@@ -1234,46 +1254,46 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
-                switch (PPC_MMU(env)) {
-                case PPC_FLAGS_MMU_SOFT_6xx:
+                switch (env->mmu_model) {
+                case POWERPC_MMU_SOFT_6xx:
                     exception = EXCP_I_TLBMISS;
                     env->spr[SPR_IMISS] = address;
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
                     error_code = 1 << 18;
                     goto tlb_miss;
-                case PPC_FLAGS_MMU_SOFT_4xx:
-                case PPC_FLAGS_MMU_403:
+                case POWERPC_MMU_SOFT_4xx:
+                case POWERPC_MMU_SOFT_4xx_Z:
                     exception = EXCP_40x_ITLBMISS;
                     error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
-                case PPC_FLAGS_MMU_32B:
+                case POWERPC_MMU_32B:
                     error_code = 0x40000000;
                     break;
 #if defined(TARGET_PPC64)
-                case PPC_FLAGS_MMU_64B:
+                case POWERPC_MMU_64B:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_64BRIDGE:
+                case POWERPC_MMU_64BRIDGE:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
 #endif
-                case PPC_FLAGS_MMU_601:
+                case POWERPC_MMU_601:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_BOOKE:
+                case POWERPC_MMU_BOOKE:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_BOOKE_FSL:
+                case POWERPC_MMU_BOOKE_FSL:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_401:
+                case POWERPC_MMU_REAL_4xx:
                     cpu_abort(env, "PowerPC 401 should never raise any MMU "
                               "exceptions\n");
                     return -1;
@@ -1306,8 +1326,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
-                switch (PPC_MMU(env)) {
-                case PPC_FLAGS_MMU_SOFT_6xx:
+                switch (env->mmu_model) {
+                case POWERPC_MMU_SOFT_6xx:
                     if (rw == 1) {
                         exception = EXCP_DS_TLBMISS;
                         error_code = 1 << 16;
@@ -1323,8 +1343,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->spr[SPR_HASH2] = ctx.pg_addr[1];
                     /* Do not alter DAR nor DSISR */
                     goto out;
-                case PPC_FLAGS_MMU_SOFT_4xx:
-                case PPC_FLAGS_MMU_403:
+                case POWERPC_MMU_SOFT_4xx:
+                case POWERPC_MMU_SOFT_4xx_Z:
                     exception = EXCP_40x_DTLBMISS;
                     error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
@@ -1333,32 +1353,32 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     else
                         env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
-                case PPC_FLAGS_MMU_32B:
+                case POWERPC_MMU_32B:
                     error_code = 0x40000000;
                     break;
 #if defined(TARGET_PPC64)
-                case PPC_FLAGS_MMU_64B:
+                case POWERPC_MMU_64B:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_64BRIDGE:
+                case POWERPC_MMU_64BRIDGE:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
 #endif
-                case PPC_FLAGS_MMU_601:
+                case POWERPC_MMU_601:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_BOOKE:
+                case POWERPC_MMU_BOOKE:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_BOOKE_FSL:
+                case POWERPC_MMU_BOOKE_FSL:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
                     return -1;
-                case PPC_FLAGS_MMU_401:
+                case POWERPC_MMU_REAL_4xx:
                     cpu_abort(env, "PowerPC 401 should never raise any MMU "
                               "exceptions\n");
                     return -1;
@@ -1544,9 +1564,9 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
 /* TLB management */
 void ppc_tlb_invalidate_all (CPUPPCState *env)
 {
-    if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_6xx)) {
+    if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
         ppc6xx_tlb_invalidate_all(env);
-    } else if (unlikely(PPC_MMU(env) == PPC_FLAGS_MMU_SOFT_4xx)) {
+    } else if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_4xx)) {
         ppc4xx_tlb_invalidate_all(env);
     } else {
         tlb_flush(env, 1);
@@ -1707,9 +1727,11 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
         fprintf(logfile, "%s: T0 %08lx\n", __func__, value);
     }
 #endif
-    switch (PPC_EXCP(env)) {
-    case PPC_FLAGS_EXCP_602:
-    case PPC_FLAGS_EXCP_603:
+    switch (env->excp_model) {
+    case POWERPC_EXCP_602:
+    case POWERPC_EXCP_603:
+    case POWERPC_EXCP_603E:
+    case POWERPC_EXCP_G2:
         if (((value >> MSR_TGPR) & 1) != msr_tgpr) {
             /* Swap temporary saved registers with GPRs */
             swap_gpr_tgpr(env);
@@ -1750,19 +1772,21 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
     do_compute_hflags(env);
 
     enter_pm = 0;
-    switch (PPC_EXCP(env)) {
-    case PPC_FLAGS_EXCP_603:
+    switch (env->excp_model) {
+    case POWERPC_EXCP_603:
+    case POWERPC_EXCP_603E:
+    case POWERPC_EXCP_G2:
         /* Don't handle SLEEP mode: we should disable all clocks...
          * No dynamic power-management.
          */
         if (msr_pow == 1 && (env->spr[SPR_HID0] & 0x00C00000) != 0)
             enter_pm = 1;
         break;
-    case PPC_FLAGS_EXCP_604:
+    case POWERPC_EXCP_604:
         if (msr_pow == 1)
             enter_pm = 1;
         break;
-    case PPC_FLAGS_EXCP_7x0:
+    case POWERPC_EXCP_7x0:
         if (msr_pow == 1 && (env->spr[SPR_HID0] & 0x00E00000) != 0)
             enter_pm = 1;
         break;
@@ -1854,12 +1878,12 @@ void do_interrupt (CPUState *env)
     switch (excp) {
     /* Generic PowerPC exceptions */
     case EXCP_RESET: /* 0x0100 */
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             srr_0 = &env->spr[SPR_40x_SRR2];
             srr_1 = &env->spr[SPR_40x_SRR3];
             break;
-        case PPC_FLAGS_EXCP_BOOKE:
+        case POWERPC_EXCP_BOOKE:
             idx = 0;
             srr_0 = &env->spr[SPR_BOOKE_CSRR0];
             srr_1 = &env->spr[SPR_BOOKE_CSRR1];
@@ -1872,12 +1896,12 @@ void do_interrupt (CPUState *env)
         }
         goto store_next;
     case EXCP_MACHINE_CHECK: /* 0x0200 */
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             srr_0 = &env->spr[SPR_40x_SRR2];
             srr_1 = &env->spr[SPR_40x_SRR3];
             break;
-        case PPC_FLAGS_EXCP_BOOKE:
+        case POWERPC_EXCP_BOOKE:
             idx = 1;
             srr_0 = &env->spr[SPR_BOOKE_MCSRR0];
             srr_1 = &env->spr[SPR_BOOKE_MCSRR1];
@@ -1920,7 +1944,7 @@ void do_interrupt (CPUState *env)
         idx = 4;
         goto store_next;
     case EXCP_ALIGN: /* 0x0600 */
-        if (likely(PPC_EXCP(env) != PPC_FLAGS_EXCP_601)) {
+        if (likely(env->excp_model != POWERPC_EXCP_601)) {
             /* Store exception cause */
             idx = 5;
             /* Get rS/rD and rA from faulting opcode */
@@ -2028,26 +2052,27 @@ void do_interrupt (CPUState *env)
         goto store_next;
     /* Implementation specific exceptions */
     case 0x0A00:
-        if (likely(env->spr[SPR_PVR] == CPU_PPC_G2 ||
-                   env->spr[SPR_PVR] == CPU_PPC_G2LE)) {
+        switch (env->excp_model) {
+        case POWERPC_EXCP_G2:
             /* Critical interrupt on G2 */
             /* XXX: TODO */
             cpu_abort(env, "G2 critical interrupt is not implemented yet !\n");
             goto store_next;
-        } else {
+        default:
             cpu_abort(env, "Invalid exception 0x0A00 !\n");
+            break;
         }
         return;
     case 0x0F20:
         idx = 9;
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* APU unavailable on 405 */
             /* XXX: TODO */
             cpu_abort(env,
                       "APU unavailable exception is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_74xx:
+        case POWERPC_EXCP_74xx:
             /* Altivec unavailable */
             /* XXX: TODO */
             cpu_abort(env, "Altivec unavailable exception "
@@ -2060,8 +2085,8 @@ void do_interrupt (CPUState *env)
         return;
     case 0x1000:
         idx = 10;
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* PIT on 4xx */
             msr &= ~0xFFFF0000;
 #if defined (DEBUG_EXCEPTIONS)
@@ -2069,11 +2094,13 @@ void do_interrupt (CPUState *env)
                 fprintf(logfile, "PIT exception\n");
 #endif
             goto store_next;
-        case PPC_FLAGS_EXCP_602:
-        case PPC_FLAGS_EXCP_603:
+        case POWERPC_EXCP_602:
+        case POWERPC_EXCP_603:
+        case POWERPC_EXCP_603E:
+        case POWERPC_EXCP_G2:
             /* ITLBMISS on 602/603 */
             goto store_gprs;
-        case PPC_FLAGS_EXCP_7x5:
+        case POWERPC_EXCP_7x5:
             /* ITLBMISS on 745/755 */
             goto tlb_miss;
         default:
@@ -2083,8 +2110,8 @@ void do_interrupt (CPUState *env)
         return;
     case 0x1010:
         idx = 11;
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* FIT on 4xx */
             msr &= ~0xFFFF0000;
 #if defined (DEBUG_EXCEPTIONS)
@@ -2099,8 +2126,8 @@ void do_interrupt (CPUState *env)
         return;
     case 0x1020:
         idx = 12;
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* Watchdog on 4xx */
             msr &= ~0xFFFF0000;
 #if defined (DEBUG_EXCEPTIONS)
@@ -2108,7 +2135,7 @@ void do_interrupt (CPUState *env)
                 fprintf(logfile, "WDT exception\n");
 #endif
             goto store_next;
-        case PPC_FLAGS_EXCP_BOOKE:
+        case POWERPC_EXCP_BOOKE:
             srr_0 = &env->spr[SPR_BOOKE_CSRR0];
             srr_1 = &env->spr[SPR_BOOKE_CSRR1];
             break;
@@ -2119,16 +2146,18 @@ void do_interrupt (CPUState *env)
         return;
     case 0x1100:
         idx = 13;
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* DTLBMISS on 4xx */
             msr &= ~0xFFFF0000;
             goto store_next;
-        case PPC_FLAGS_EXCP_602:
-        case PPC_FLAGS_EXCP_603:
+        case POWERPC_EXCP_602:
+        case POWERPC_EXCP_603:
+        case POWERPC_EXCP_603E:
+        case POWERPC_EXCP_G2:
             /* DLTLBMISS on 602/603 */
             goto store_gprs;
-        case PPC_FLAGS_EXCP_7x5:
+        case POWERPC_EXCP_7x5:
             /* DLTLBMISS on 745/755 */
             goto tlb_miss;
         default:
@@ -2138,13 +2167,15 @@ void do_interrupt (CPUState *env)
         return;
     case 0x1200:
         idx = 14;
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* ITLBMISS on 4xx */
             msr &= ~0xFFFF0000;
             goto store_next;
-        case PPC_FLAGS_EXCP_602:
-        case PPC_FLAGS_EXCP_603:
+        case POWERPC_EXCP_602:
+        case POWERPC_EXCP_603:
+        case POWERPC_EXCP_603E:
+        case POWERPC_EXCP_G2:
             /* DSTLBMISS on 602/603 */
         store_gprs:
             /* Swap temporary saved registers with GPRs */
@@ -2177,7 +2208,7 @@ void do_interrupt (CPUState *env)
             }
 #endif
             goto tlb_miss;
-        case PPC_FLAGS_EXCP_7x5:
+        case POWERPC_EXCP_7x5:
             /* DSTLBMISS on 745/755 */
         tlb_miss:
             msr &= ~0xF83F0000;
@@ -2192,13 +2223,15 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1300:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_601:
-        case PPC_FLAGS_EXCP_602:
-        case PPC_FLAGS_EXCP_603:
-        case PPC_FLAGS_EXCP_604:
-        case PPC_FLAGS_EXCP_7x0:
-        case PPC_FLAGS_EXCP_7x5:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_601:
+        case POWERPC_EXCP_602:
+        case POWERPC_EXCP_603:
+        case POWERPC_EXCP_603E:
+        case POWERPC_EXCP_G2:
+        case POWERPC_EXCP_604:
+        case POWERPC_EXCP_7x0:
+        case POWERPC_EXCP_7x5:
             /* IABR on 6xx/7xx */
             /* XXX: TODO */
             cpu_abort(env, "IABR exception is not implemented yet !\n");
@@ -2209,13 +2242,15 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1400:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_601:
-        case PPC_FLAGS_EXCP_602:
-        case PPC_FLAGS_EXCP_603:
-        case PPC_FLAGS_EXCP_604:
-        case PPC_FLAGS_EXCP_7x0:
-        case PPC_FLAGS_EXCP_7x5:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_601:
+        case POWERPC_EXCP_602:
+        case POWERPC_EXCP_603:
+        case POWERPC_EXCP_603E:
+        case POWERPC_EXCP_G2:
+        case POWERPC_EXCP_604:
+        case POWERPC_EXCP_7x0:
+        case POWERPC_EXCP_7x5:
             /* SMI on 6xx/7xx */
             /* XXX: TODO */
             cpu_abort(env, "SMI exception is not implemented yet !\n");
@@ -2226,20 +2261,20 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1500:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_602:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_602:
             /* Watchdog on 602 */
             /* XXX: TODO */
             cpu_abort(env,
                       "602 watchdog exception is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_970:
+        case POWERPC_EXCP_970:
             /* Soft patch exception on 970 */
             /* XXX: TODO */
             cpu_abort(env,
                       "970 soft-patch exception is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_74xx:
+        case POWERPC_EXCP_74xx:
             /* VPU assist on 74xx */
             /* XXX: TODO */
             cpu_abort(env, "VPU assist exception is not implemented yet !\n");
@@ -2250,14 +2285,14 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1600:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_602:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_602:
             /* Emulation trap on 602 */
             /* XXX: TODO */
             cpu_abort(env, "602 emulation trap exception "
                       "is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_970:
+        case POWERPC_EXCP_970:
             /* Maintenance exception on 970 */
             /* XXX: TODO */
             cpu_abort(env,
@@ -2269,15 +2304,15 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1700:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_7x0:
-        case PPC_FLAGS_EXCP_7x5:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_7x0:
+        case POWERPC_EXCP_7x5:
             /* Thermal management interrupt on G3 */
             /* XXX: TODO */
             cpu_abort(env, "G3 thermal management exception "
                       "is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_970:
+        case POWERPC_EXCP_970:
             /* VPU assist on 970 */
             /* XXX: TODO */
             cpu_abort(env,
@@ -2289,8 +2324,8 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x1800:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_970:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_970:
             /* Thermal exception on 970 */
             /* XXX: TODO */
             cpu_abort(env, "970 thermal management exception "
@@ -2302,19 +2337,19 @@ void do_interrupt (CPUState *env)
         }
         return;
     case 0x2000:
-        switch (PPC_EXCP(env)) {
-        case PPC_FLAGS_EXCP_40x:
+        switch (env->excp_model) {
+        case POWERPC_EXCP_40x:
             /* DEBUG on 4xx */
             /* XXX: TODO */
             cpu_abort(env, "40x debug exception is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_601:
+        case POWERPC_EXCP_601:
             /* Run mode exception on 601 */
             /* XXX: TODO */
             cpu_abort(env,
                       "601 run mode exception is not implemented yet !\n");
             goto store_next;
-        case PPC_FLAGS_EXCP_BOOKE:
+        case POWERPC_EXCP_BOOKE:
             srr_0 = &env->spr[SPR_BOOKE_CSRR0];
             srr_1 = &env->spr[SPR_BOOKE_CSRR1];
             break;
@@ -2361,7 +2396,7 @@ void do_interrupt (CPUState *env)
     msr_dr = 0;
     msr_ri = 0;
     msr_le = msr_ile;
-    if (PPC_EXCP(env) == PPC_FLAGS_EXCP_BOOKE) {
+    if (env->excp_model == POWERPC_EXCP_BOOKE) {
         msr_cm = msr_icm;
         if (idx == -1 || (idx >= 16 && idx < 32)) {
             cpu_abort(env, "Invalid exception index for excp %d %08x idx %d\n",
