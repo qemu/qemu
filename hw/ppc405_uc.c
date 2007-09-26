@@ -69,7 +69,8 @@ CPUState *ppc405_init (const unsigned char *cpu_model,
     return env;
 }
 
-ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd)
+ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
+                                uint32_t flags)
 {
     ram_addr_t bdloc;
     int i, n;
@@ -103,7 +104,7 @@ ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd)
     for (i = 0; i < 6; i++)
         stb_raw(phys_ram_base + bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
     n = 0x6A;
-    if (env->spr[SPR_PVR] == CPU_PPC_405EP) {
+    if (flags & 0x00000001) {
         for (i = 0; i < 6; i++)
             stb_raw(phys_ram_base + bdloc + n++, bd->bi_pci_enetaddr2[i]);
     }

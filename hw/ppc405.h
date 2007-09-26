@@ -57,7 +57,8 @@ struct ppc4xx_bd_info_t {
 CPUState *ppc405_init (const unsigned char *cpu_model,
                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                        uint32_t sysclk);
-ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd);
+ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
+                                uint32_t flags);
 
 /* */
 typedef struct ppc4xx_mmio_t ppc4xx_mmio_t;
