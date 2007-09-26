@@ -139,13 +139,25 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 
 
 #define __NR_sys_uname __NR_uname
+#define __NR_sys_faccessat __NR_faccessat
+#define __NR_sys_fchmodat __NR_fchmodat
+#define __NR_sys_fchownat __NR_fchownat
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
+#define __NR_sys_linkat __NR_linkat
+#define __NR_sys_mkdirat __NR_mkdirat
+#define __NR_sys_mknodat __NR_mknodat
+#define __NR_sys_openat __NR_openat
+#define __NR_sys_readlinkat __NR_readlinkat
+#define __NR_sys_renameat __NR_renameat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
+#define __NR_sys_symlinkat __NR_symlinkat
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
 #define __NR_sys_tkill __NR_tkill
+#define __NR_sys_unlinkat __NR_unlinkat
+#define __NR_sys_utimensat __NR_utimensat
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -159,6 +171,17 @@ static int gettid(void) {
 }
 #endif
 _syscall1(int,sys_uname,struct new_utsname *,buf)
+#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
+_syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
+#endif
+#if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
+_syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
+          mode_t,mode,int,flags)
+#endif
+#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
+_syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
+          uid_t,owner,gid_t,group,int,flags)
+#endif
 _syscall2(int,sys_getcwd1,char *,buf,size_t,size)
 _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
@@ -166,7 +189,33 @@ _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 #endif
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
+#if defined(TARGET_NR_linkat) && defined(__NR_linkat)
+_syscall5(int,sys_linkat,int,olddirfd,const char *,oldpath,
+	  int,newdirfd,const char *,newpath,int,flags)
+#endif
+#if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
+_syscall3(int,sys_mkdirat,int,dirfd,const char *,pathname,mode_t,mode)
+#endif
+#if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
+_syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
+          mode_t,mode,dev_t,dev)
+#endif
+#if defined(TARGET_NR_openat) && defined(__NR_openat)
+_syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
+#endif
+#if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
+_syscall4(int,sys_readlinkat,int,dirfd,const char *,pathname,
+          char *,buf,size_t,bufsize)
+#endif
+#if defined(TARGET_NR_renameat) && defined(__NR_renameat)
+_syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
+          int,newdirfd,const char *,newpath)
+#endif
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
+#if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
+_syscall3(int,sys_symlinkat,const char *,oldpath,
+          int,newdirfd,const char *,newpath)
+#endif
 _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 #if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
 _syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
@@ -179,6 +228,13 @@ _syscall1(int,exit_group,int,error_code)
 #endif
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
 _syscall1(int,set_tid_address,int *,tidptr)
+#endif
+#if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
+_syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
+#endif
+#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+_syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
+          const struct timespec *,tsp,int,flags)
 #endif
 
 extern int personality(int);
@@ -2500,6 +2556,24 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                              arg3));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_openat) && defined(__NR_openat)
+    case TARGET_NR_openat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_openat(arg1,
+                                       path(p),
+                                       target_to_host_bitmask(arg3, fcntl_flags_tbl),
+                                       arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
@@ -2536,11 +2610,48 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_linkat) && defined(__NR_linkat)
+    case TARGET_NR_linkat:
+        if (!arg2 || !arg4) {
+            ret = -EFAULT;
+            goto fail;
+	}
+        {
+            void * p2 = NULL;
+            p  = lock_user_string(arg2);
+            p2 = lock_user_string(arg4);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+                ret = -EFAULT;
+            else
+                ret = get_errno(sys_linkat(arg1, p, arg3, p2, arg5));
+            if (p2)
+                unlock_user(p, arg2, 0);
+            if (p)
+                unlock_user(p2, arg4, 0);
+        }
+        break;
+#endif
     case TARGET_NR_unlink:
         p = lock_user_string(arg1);
         ret = get_errno(unlink(p));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
+    case TARGET_NR_unlinkat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_unlinkat(arg1, p, arg3));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_execve:
         {
             char **argp, **envp;
@@ -2617,6 +2728,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(mknod(p, arg2, arg3));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
+    case TARGET_NR_mknodat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_mknodat(arg1, p, arg3, arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_chmod:
         p = lock_user_string(arg1);
         ret = get_errno(chmod(p, arg2));
@@ -2734,6 +2860,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(access(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
+    case TARGET_NR_faccessat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+    	    ret = -EFAULT;
+        else
+            ret = get_errno(sys_faccessat(arg1, p, arg3, arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
 #ifdef TARGET_NR_nice /* not on alpha */
     case TARGET_NR_nice:
         ret = get_errno(nice(arg1));
@@ -2760,11 +2901,48 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_renameat) && defined(__NR_renameat)
+    case TARGET_NR_renameat:
+        if (!arg2 || !arg4) {
+            ret = -EFAULT;
+	    goto fail;
+        }
+        {
+            void *p2 = NULL;
+            p  = lock_user_string(arg2);
+            p2 = lock_user_string(arg4);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+                ret = -EFAULT;
+            else
+                ret = get_errno(sys_renameat(arg1, p, arg3, p2));
+            if (p2)
+                unlock_user(p2, arg4, 0);
+            if (p)
+                unlock_user(p, arg2, 0);
+        }
+        break;
+#endif
     case TARGET_NR_mkdir:
         p = lock_user_string(arg1);
         ret = get_errno(mkdir(p, arg2));
         unlock_user(p, arg1, 0);
         break;
+#if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
+    case TARGET_NR_mkdirat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_mkdirat(arg1, p, arg3));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_rmdir:
         p = lock_user_string(arg1);
         ret = get_errno(rmdir(p));
@@ -3222,6 +3400,28 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
+    case TARGET_NR_symlinkat:
+        if (!arg1 || !arg3) {
+            ret = -EFAULT;
+	    goto fail;
+	}
+        {
+            void *p2 = NULL;
+            p  = lock_user_string(arg1);
+            p2 = lock_user_string(arg3);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+                ret = -EFAULT;
+            else
+                ret = get_errno(sys_symlinkat(p, arg2, p2));
+            if (p2)
+                unlock_user(p2, arg3, 0);
+            if (p)
+                unlock_user(p, arg1, 0);
+        }
+        break;
+#endif
 #ifdef TARGET_NR_oldlstat
     case TARGET_NR_oldlstat:
         goto unimplemented;
@@ -3236,6 +3436,28 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
+    case TARGET_NR_readlinkat:
+        if (!arg2 || !arg3) {
+            ret = -EFAULT;
+            goto fail;
+	}
+        {
+            void *p2 = NULL;
+            p  = lock_user_string(arg2);
+            p2 = lock_user(arg3, arg4, 0);
+            if (!access_ok(VERIFY_READ, p, 1)
+                || !access_ok(VERIFY_READ, p2, 1))
+        	ret = -EFAULT;
+            else
+                ret = get_errno(sys_readlinkat(arg1, path(p), p2, arg4));
+            if (p2)
+                unlock_user(p2, arg3, ret);
+            if (p)
+                unlock_user(p, arg2, 0);
+        }
+        break;
+#endif
 #ifdef TARGET_NR_uselib
     case TARGET_NR_uselib:
         goto unimplemented;
@@ -3340,6 +3562,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fchmod:
         ret = get_errno(fchmod(arg1, arg2));
         break;
+#if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
+    case TARGET_NR_fchmodat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+        else
+            ret = get_errno(sys_fchmodat(arg1, p, arg3, arg4));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
     case TARGET_NR_getpriority:
         ret = get_errno(getpriority(arg1, arg2));
         break;
@@ -4232,6 +4469,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fchown:
         ret = get_errno(fchown(arg1, low2highuid(arg2), low2highgid(arg3)));
         break;
+#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
+    case TARGET_NR_fchownat:
+        if (!arg2) {
+            ret = -EFAULT;
+            goto fail;
+        }
+        p = lock_user_string(arg2);
+        if (!access_ok(VERIFY_READ, p, 1))
+            ret = -EFAULT;
+	else
+            ret = get_errno(sys_fchownat(arg1, p, low2highuid(arg3), low2highgid(arg4), arg5));
+        if (p)
+            unlock_user(p, arg2, 0);
+        break;
+#endif
 #ifdef TARGET_NR_setresuid
     case TARGET_NR_setresuid:
         ret = get_errno(setresuid(low2highuid(arg1),
@@ -4651,6 +4903,27 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
 	goto unimplemented_nowarn;
+#endif
+
+#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+    case TARGET_NR_utimensat:
+        {
+            struct timespec ts[2];
+            target_to_host_timespec(ts, arg3);
+            target_to_host_timespec(ts+1, arg3+sizeof(struct target_timespec));
+            if (!arg2)
+                ret = get_errno(sys_utimensat(arg1, NULL, ts, arg4));
+            else {
+                p = lock_user_string(arg2);
+                if (!access_ok(VERIFY_READ, p, 1))
+                    ret = -EFAULT;
+                else
+                    ret = get_errno(sys_utimensat(arg1, path(p), ts, arg4));
+                if (p)
+                    unlock_user(p, arg2, 0);
+            }
+        }
+	break;
 #endif
 
     default:

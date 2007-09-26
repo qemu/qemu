@@ -186,8 +186,9 @@ static inline TranslationBlock *tb_find_fast(void)
     flags = (((env->pstate & PS_PEF) >> 1) | ((env->fprs & FPRS_FEF) << 2))
         | (env->pstate & PS_PRIV) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
 #else
-    // FPU enable . MMU enabled . MMU no-fault . Supervisor
-    flags = (env->psref << 3) | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1)
+    // FPU enable . MMU Boot . MMU enabled . MMU no-fault . Supervisor
+    flags = (env->psref << 4) | (((env->mmuregs[0] & MMU_BM) >> 14) << 3)
+        | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1)
         | env->psrs;
 #endif
     cs_base = env->npc;

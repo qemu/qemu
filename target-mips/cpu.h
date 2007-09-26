@@ -416,24 +416,25 @@ struct CPUMIPSState {
     int user_mode_only; /* user mode only simulation */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0x007F
+#define MIPS_HFLAG_TMASK  0x00FF
 #define MIPS_HFLAG_MODE   0x0007 /* execution modes                    */
 #define MIPS_HFLAG_UM     0x0001 /* user mode                          */
 #define MIPS_HFLAG_DM     0x0002 /* Debug mode                         */
 #define MIPS_HFLAG_SM     0x0004 /* Supervisor mode                    */
 #define MIPS_HFLAG_64     0x0008 /* 64-bit instructions enabled        */
-#define MIPS_HFLAG_FPU    0x0010 /* FPU enabled                        */
-#define MIPS_HFLAG_F64    0x0020 /* 64-bit FPU enabled                 */
-#define MIPS_HFLAG_RE     0x0040 /* Reversed endianness                */
+#define MIPS_HFLAG_CP0    0x0010 /* CP0 enabled                        */
+#define MIPS_HFLAG_FPU    0x0020 /* FPU enabled                        */
+#define MIPS_HFLAG_F64    0x0040 /* 64-bit FPU enabled                 */
+#define MIPS_HFLAG_RE     0x0080 /* Reversed endianness                */
     /* If translation is interrupted between the branch instruction and
      * the delay slot, record what type of branch it is so that we can
      * resume translation properly.  It might be possible to reduce
      * this from three bits to two.  */
-#define MIPS_HFLAG_BMASK  0x0380
-#define MIPS_HFLAG_B      0x0080 /* Unconditional branch               */
-#define MIPS_HFLAG_BC     0x0100 /* Conditional branch                 */
-#define MIPS_HFLAG_BL     0x0180 /* Likely branch                      */
-#define MIPS_HFLAG_BR     0x0200 /* branch to register (can't link TB) */
+#define MIPS_HFLAG_BMASK  0x0700
+#define MIPS_HFLAG_B      0x0100 /* Unconditional branch               */
+#define MIPS_HFLAG_BC     0x0200 /* Conditional branch                 */
+#define MIPS_HFLAG_BL     0x0300 /* Likely branch                      */
+#define MIPS_HFLAG_BR     0x0400 /* branch to register (can't link TB) */
     target_ulong btarget;        /* Jump / branch target               */
     int bcond;                   /* Branch condition (if needed)       */
 
@@ -444,6 +445,7 @@ struct CPUMIPSState {
     int CCRes; /* Cycle count resolution/divisor */
     uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
+    int insn_flags; /* Supported instruction set */
 
 #ifdef CONFIG_USER_ONLY
     target_ulong tls_value;

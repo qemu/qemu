@@ -242,21 +242,25 @@ typedef struct bootsector_t {
     uint8_t magic[2];
 } __attribute__((packed)) bootsector_t;
 
+typedef struct {
+    uint8_t head;
+    uint8_t sector;
+    uint8_t cylinder;
+} mbr_chs_t;
+
 typedef struct partition_t {
     uint8_t attributes; /* 0x80 = bootable */
-    uint8_t start_head;
-    uint8_t start_sector;
-    uint8_t start_cylinder;
-    uint8_t fs_type; /* 0x1 = FAT12, 0x6 = FAT16, 0xb = FAT32 */
-    uint8_t end_head;
-    uint8_t end_sector;
-    uint8_t end_cylinder;
+    mbr_chs_t start_CHS;
+    uint8_t   fs_type; /* 0x1 = FAT12, 0x6 = FAT16, 0xe = FAT16_LBA, 0xb = FAT32, 0xc = FAT32_LBA */
+    mbr_chs_t end_CHS;
     uint32_t start_sector_long;
-    uint32_t end_sector_long;
+    uint32_t length_sector_long;
 } __attribute__((packed)) partition_t;
 
 typedef struct mbr_t {
-    uint8_t ignored[0x1be];
+    uint8_t ignored[0x1b8];
+    uint32_t nt_id;
+    uint8_t ignored2[2];
     partition_t partition[4];
     uint8_t magic[2];
 } __attribute__((packed)) mbr_t;
@@ -350,26 +354,57 @@ typedef struct BDRVVVFATState {
     int downcase_short_names;
 } BDRVVVFATState;
 
+/* take the sector position spos and convert it to Cylinder/Head/Sector position
+ * if the position is outside the specified geometry, fill maximum value for CHS
+ * and return 1 to signal overflow.
+ */
+static int sector2CHS(BlockDriverState* bs, mbr_chs_t * chs, int spos){
+    int head,sector;
+    sector   = spos % (bs->secs);  spos/= bs->secs;
+    head     = spos % (bs->heads); spos/= bs->heads;
+    if(spos >= bs->cyls){
+        /* Overflow,
+        it happens if 32bit sector positions are used, while CHS is only 24bit.
+        Windows/Dos is said to take 1023/255/63 as nonrepresentable CHS */
+        chs->head     = 0xFF;
+        chs->sector   = 0xFF;
+        chs->cylinder = 0xFF;
+        return 1;
+    }
+    chs->head     = (uint8_t)head;
+    chs->sector   = (uint8_t)( (sector+1) | ((spos>>8)<<6) );
+    chs->cylinder = (uint8_t)spos;
+    return 0;
+}
 
 static void init_mbr(BDRVVVFATState* s)
 {
     /* TODO: if the files mbr.img and bootsect.img exist, use them */
     mbr_t* real_mbr=(mbr_t*)s->first_sectors;
     partition_t* partition=&(real_mbr->partition[0]);
+    int lba;
 
     memset(s->first_sectors,0,512);
 
+    /* Win NT Disk Signature */
+    real_mbr->nt_id= cpu_to_le32(0xbe1afdfa);
+
     partition->attributes=0x80; /* bootable */
-    partition->start_head=1;
-    partition->start_sector=1;
-    partition->start_cylinder=0;
+
+    /* LBA is used when partition is outside the CHS geometry */
+    lba = sector2CHS(s->bs, &partition->start_CHS, s->first_sectors_number-1);
+    lba|= sector2CHS(s->bs, &partition->end_CHS,   s->sector_count);
+
+    /*LBA partitions are identified only by start/length_sector_long not by CHS*/
+    partition->start_sector_long =cpu_to_le32(s->first_sectors_number-1);
+    partition->length_sector_long=cpu_to_le32(s->sector_count - s->first_sectors_number+1);
+
     /* FAT12/FAT16/FAT32 */
-    partition->fs_type=(s->fat_type==12?0x1:s->fat_type==16?0x6:0xb);
-    partition->end_head=s->bs->heads-1;
-    partition->end_sector=0xff; /* end sector & upper 2 bits of cylinder */;
-    partition->end_cylinder=0xff; /* lower 8 bits of end cylinder */;
-    partition->start_sector_long=cpu_to_le32(s->bs->secs);
-    partition->end_sector_long=cpu_to_le32(s->sector_count);
+    /* DOS uses different types when partition is LBA,
+       probably to prevent older versions from using CHS on them */
+    partition->fs_type= s->fat_type==12 ? 0x1:
+                        s->fat_type==16 ? (lba?0xe:0x06):
+                         /*fat_tyoe==32*/ (lba?0xc:0x0b);
 
     real_mbr->magic[0]=0x55; real_mbr->magic[1]=0xaa;
 }
@@ -973,10 +1008,9 @@ DLOG(if (stderr == NULL) {
 
     s->fat_type=16;
     /* LATER TODO: if FAT32, adjust */
-    s->sector_count=0xec04f;
     s->sectors_per_cluster=0x10;
-    /* LATER TODO: this could be wrong for FAT32 */
-    bs->cyls=1023; bs->heads=15; bs->secs=63;
+    /* 504MB disk*/
+    bs->cyls=1024; bs->heads=16; bs->secs=63;
 
     s->current_cluster=0xffffffff;
 
@@ -991,12 +1025,6 @@ DLOG(if (stderr == NULL) {
     if (!strstart(dirname, "fat:", NULL))
 	return -1;
 
-    if (strstr(dirname, ":rw:")) {
-	if (enable_write_target(s))
-	    return -1;
-	bs->read_only = 0;
-    }
-
     if (strstr(dirname, ":floppy:")) {
 	floppy = 1;
 	s->fat_type = 12;
@@ -1004,6 +1032,8 @@ DLOG(if (stderr == NULL) {
 	s->sectors_per_cluster=2;
 	bs->cyls = 80; bs->heads = 2; bs->secs = 36;
     }
+
+    s->sector_count=bs->cyls*bs->heads*bs->secs;
 
     if (strstr(dirname, ":32:")) {
 	fprintf(stderr, "Big fat greek warning: FAT32 has not been tested. You are welcome to do so!\n");
@@ -1015,6 +1045,12 @@ DLOG(if (stderr == NULL) {
 	s->sector_count=2880;
     }
 
+    if (strstr(dirname, ":rw:")) {
+	if (enable_write_target(s))
+	    return -1;
+	bs->read_only = 0;
+    }
+
     i = strrchr(dirname, ':') - dirname;
     assert(i >= 3);
     if (dirname[i-2] == ':' && isalpha(dirname[i-1]))
@@ -1024,10 +1060,11 @@ DLOG(if (stderr == NULL) {
 	dirname += i+1;
 
     bs->total_sectors=bs->cyls*bs->heads*bs->secs;
-    if (s->sector_count > bs->total_sectors)
-	s->sector_count = bs->total_sectors;
+
     if(init_directories(s, dirname))
 	return -1;
+
+    s->sector_count = s->faked_sectors + s->sectors_per_cluster*s->cluster_count;
 
     if(s->first_sectors_number==0x40)
 	init_mbr(s);

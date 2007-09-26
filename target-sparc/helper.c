@@ -110,7 +110,14 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     unsigned long page_offset;
 
     virt_addr = address & TARGET_PAGE_MASK;
+
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
+        // Boot mode: instruction fetches are taken from PROM
+        if (rw == 2 && (env->mmuregs[0] & MMU_BM)) {
+            *physical = 0xff0000000ULL | (address & 0x3ffffULL);
+            *prot = PAGE_READ | PAGE_EXEC;
+            return 0;
+        }
         *physical = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return 0;

@@ -17,9 +17,12 @@ uint32_t cpu_mips_get_random (CPUState *env)
 /* MIPS R4K timer */
 uint32_t cpu_mips_get_count (CPUState *env)
 {
-    return env->CP0_Count +
-        (uint32_t)muldiv64(qemu_get_clock(vm_clock),
-                           100 * 1000 * 1000, ticks_per_sec);
+    if (env->CP0_Cause & (1 << CP0Ca_DC))
+        return env->CP0_Count;
+    else
+        return env->CP0_Count +
+            (uint32_t)muldiv64(qemu_get_clock(vm_clock),
+                               100 * 1000 * 1000, ticks_per_sec);
 }
 
 void cpu_mips_store_count (CPUState *env, uint32_t count)
@@ -63,7 +66,19 @@ void cpu_mips_store_compare (CPUState *env, uint32_t value)
     cpu_mips_update_count(env, cpu_mips_get_count(env));
     if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
         env->CP0_Cause &= ~(1 << CP0Ca_TI);
-    qemu_irq_lower(env->irq[7]);
+    qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+}
+
+void cpu_mips_start_count(CPUState *env)
+{
+    cpu_mips_store_count(env, env->CP0_Count);
+}
+
+void cpu_mips_stop_count(CPUState *env)
+{
+    /* Store the current value */
+    env->CP0_Count += (uint32_t)muldiv64(qemu_get_clock(vm_clock),
+                                         100 * 1000 * 1000, ticks_per_sec);
 }
 
 static void mips_timer_cb (void *opaque)
@@ -76,10 +91,14 @@ static void mips_timer_cb (void *opaque)
         fprintf(logfile, "%s\n", __func__);
     }
 #endif
+
+    if (env->CP0_Cause & (1 << CP0Ca_DC))
+        return;
+
     cpu_mips_update_count(env, cpu_mips_get_count(env));
     if ((env->CP0_Config0 & (0x7 << CP0C0_AR)) == (1 << CP0C0_AR))
         env->CP0_Cause |= 1 << CP0Ca_TI;
-    qemu_irq_raise(env->irq[7]);
+    qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
 }
 
 void cpu_mips_clock_init (CPUState *env)

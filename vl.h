@@ -1571,7 +1571,17 @@ uint8_t nand_getio(struct nand_flash_s *s);
 #define NAND_MFR_HYNIX		0xad
 #define NAND_MFR_MICRON		0x2c
 
-#include "ecc.h"
+/* ecc.c */
+struct ecc_state_s {
+    uint8_t cp;		/* Column parity */
+    uint16_t lp[2];	/* Line parity */
+    uint16_t count;
+};
+
+uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample);
+void ecc_reset(struct ecc_state_s *s);
+void ecc_put(QEMUFile *f, struct ecc_state_s *s);
+void ecc_get(QEMUFile *f, struct ecc_state_s *s);
 
 /* GPIO */
 typedef void (*gpio_handler_t)(int line, int level, void *opaque);

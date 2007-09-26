@@ -27,10 +27,10 @@ struct target_termios {
 
 #define TARGET_VWERASE 	10
 #define TARGET_VREPRINT	11
-#define TARGET_VSUSP 		12
-#define TARGET_VSTART		13
-#define TARGET_VSTOP		14
-#define TARGET_VLNEXT		15
+#define TARGET_VSUSP    12
+#define TARGET_VSTART   13
+#define TARGET_VSTOP    14
+#define TARGET_VLNEXT   15
 #define TARGET_VDISCARD	16
 
 #define TARGET_IGNBRK	0000001
@@ -47,6 +47,7 @@ struct target_termios {
 #define TARGET_IXANY	0004000
 #define TARGET_IUCLC	0010000
 #define TARGET_IMAXBEL	0020000
+#define	TARGET_IUTF8	0040000
 
 /* c_oflag bits */
 #define TARGET_OPOST	0000001
@@ -69,6 +70,7 @@ struct target_termios {
 #define   TARGET_TAB1	00002000
 #define   TARGET_TAB2	00004000
 #define   TARGET_TAB3	00006000
+#define   TARGET_XTABS	00006000	/* required by POSIX to == TAB3 */
 #define TARGET_CRDLY	00030000
 #define   TARGET_CR0	00000000
 #define   TARGET_CR1	00010000
@@ -83,7 +85,6 @@ struct target_termios {
 #define TARGET_VTDLY	00200000
 #define   TARGET_VT0	00000000
 #define   TARGET_VT1	00200000
-#define TARGET_XTABS	01000000 /* Hmm.. Linux/i386 considers this part of TABDLY.. */
 
 /* c_cflag bit meaning */
 #define TARGET_CBAUD	0000377
@@ -135,7 +136,8 @@ struct target_termios {
 #define TARGET_HUPCL	00040000
 
 #define TARGET_CLOCAL	00100000
-#define TARGET_CRTSCTS	  020000000000		/* flow control */
+#define TARGET_CMSPAR	010000000000		/* mark or space (stick) parity */
+#define TARGET_CRTSCTS	020000000000		/* flow control */
 
 /* c_lflag bits */
 #define TARGET_ISIG	0x00000080

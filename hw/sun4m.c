@@ -50,7 +50,8 @@
 #define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
 #define PROM_SIZE_MAX        (256 * 1024)
-#define PROM_ADDR	     0xffd00000
+#define PROM_PADDR           0xff0000000ULL
+#define PROM_VADDR           0xffd00000
 #define PROM_FILENAME	     "openbios-sparc32"
 
 #define MAX_CPUS 16
@@ -425,12 +426,12 @@ static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
     linux_boot = (kernel_filename != NULL);
 
     prom_offset = RAM_size + vram_size;
-    cpu_register_physical_memory(PROM_ADDR,
+    cpu_register_physical_memory(PROM_PADDR,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK,
                                  prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
-    ret = load_elf(buf, 0, NULL, NULL, NULL);
+    ret = load_elf(buf, PROM_PADDR - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0) {
 	fprintf(stderr, "qemu: could not load prom '%s'\n",
 		buf);
@@ -588,7 +589,7 @@ static void ss10_init(int RAM_size, int vga_ram_size, int boot_device,
         cpu_model = "TI SuperSparc II";
     sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
                       kernel_cmdline, initrd_filename, cpu_model,
-                      1, PROM_ADDR); // XXX prom overlap, actually first 4GB ok
+                      1, 0xffffffff); // XXX actually first 62GB ok
 }
 
 QEMUMachine ss5_machine = {
