@@ -733,19 +733,19 @@ static inline void generate_exception (DisasContext *ctx, int excp)
 
 static inline void check_cp0_enabled(DisasContext *ctx)
 {
-    if (!(ctx->hflags & MIPS_HFLAG_CP0))
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0)))
         generate_exception_err(ctx, EXCP_CpU, 1);
 }
 
 static inline void check_cp1_enabled(DisasContext *ctx)
 {
-    if (!(ctx->hflags & MIPS_HFLAG_FPU))
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_FPU)))
         generate_exception_err(ctx, EXCP_CpU, 1);
 }
 
 static inline void check_cp1_64bitmode(DisasContext *ctx)
 {
-    if (!(ctx->hflags & MIPS_HFLAG_F64))
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_F64)))
         generate_exception(ctx, EXCP_RI);
 }
 
@@ -762,7 +762,7 @@ static inline void check_cp1_64bitmode(DisasContext *ctx)
  */
 void check_cp1_registers(DisasContext *ctx, int regs)
 {
-    if (!(ctx->hflags & MIPS_HFLAG_F64) && (regs & 1))
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_F64) && (regs & 1)))
         generate_exception(ctx, EXCP_RI);
 }
 
@@ -778,7 +778,7 @@ static inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
    CPU is not MIPS MT capable. */
 static inline void check_mips_mt(CPUState *env, DisasContext *ctx)
 {
-    if (!(env->CP0_Config3 & (1 << CP0C3_MT)))
+    if (unlikely(!(env->CP0_Config3 & (1 << CP0C3_MT))))
         generate_exception(ctx, EXCP_RI);
 }
 
@@ -786,7 +786,7 @@ static inline void check_mips_mt(CPUState *env, DisasContext *ctx)
    instructions are not enabled. */
 static inline void check_mips_64(DisasContext *ctx)
 {
-    if (!(ctx->hflags & MIPS_HFLAG_64))
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_64)))
         generate_exception(ctx, EXCP_RI);
 }
 
