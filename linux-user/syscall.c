@@ -4318,7 +4318,14 @@ target_long do_syscall(void *cpu_env, int num, target_long arg1,
     case TARGET_NR_capset:
         goto unimplemented;
     case TARGET_NR_sigaltstack:
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC)
+        ret = do_sigaltstack((struct target_sigaltstack *)arg1,
+                             (struct target_sigaltstack *)arg2,
+                             get_sp_from_cpustate((CPUState *)cpu_env));
+        break;
+#else
         goto unimplemented;
+#endif
     case TARGET_NR_sendfile:
         goto unimplemented;
 #ifdef TARGET_NR_getpmsg

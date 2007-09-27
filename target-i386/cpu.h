@@ -688,6 +688,11 @@ static inline int cpu_get_time_fast(void)
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
 
+static inline target_ulong get_sp_from_cpustate(CPUX86State *state)
+{
+    return state->regs[R_ESP];
+}
+
 #include "cpu-all.h"
 
 #include "svm.h"

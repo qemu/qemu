@@ -9,6 +9,7 @@
 
 #include "cpu.h"
 #include "syscall.h"
+#include "target_signal.h"
 #include "gdbstub.h"
 
 /* This struct is used to hold certain information about the image.
@@ -149,6 +150,9 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 long do_sigreturn(CPUState *env);
 long do_rt_sigreturn(CPUState *env);
+int do_sigaltstack(const struct target_sigaltstack *uss,
+                   struct target_sigaltstack *uoss,
+                   target_ulong sp);
 
 #ifdef TARGET_I386
 /* vm86.c */

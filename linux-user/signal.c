@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <sys/ucontext.h>
 
+#include "target_signal.h"
 #include "qemu.h"
 
 //#define DEBUG_SIGNAL
@@ -43,6 +44,12 @@ struct emulated_sigaction {
     struct sigqueue *first;
     struct sigqueue info; /* in order to always have memory for the
                              first signal, we put it here */
+};
+
+struct target_sigaltstack target_sigaltstack_used = {
+    .ss_sp = 0,
+    .ss_size = 0,
+    .ss_flags = TARGET_SS_DISABLE,
 };
 
 static struct emulated_sigaction sigact_table[TARGET_NSIG];
@@ -91,6 +98,18 @@ static uint8_t host_to_target_signal_table[65] = {
     /* next signals stay the same */
 };
 static uint8_t target_to_host_signal_table[65];
+
+static inline int on_sig_stack(unsigned long sp)
+{
+    return (sp - target_sigaltstack_used.ss_sp
+            < target_sigaltstack_used.ss_size);
+}
+
+static inline int sas_ss_flags(unsigned long sp)
+{
+    return (target_sigaltstack_used.ss_size == 0 ? SS_DISABLE
+            : on_sig_stack(sp) ? SS_ONSTACK : 0);
+}
 
 static inline int host_to_target_signal(int sig)
 {
@@ -419,6 +438,67 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     }
 }
 
+int do_sigaltstack(const struct target_sigaltstack *uss,
+                   struct target_sigaltstack *uoss,
+                   target_ulong sp)
+{
+    int ret;
+    struct target_sigaltstack oss;
+
+    /* XXX: test errors */
+    if(uoss)
+    {
+        __put_user(target_sigaltstack_used.ss_sp, &oss.ss_sp);
+        __put_user(target_sigaltstack_used.ss_size, &oss.ss_size);
+        __put_user(sas_ss_flags(sp), &oss.ss_flags);
+    }
+
+    if(uss)
+    {
+	struct target_sigaltstack ss;
+
+	ret = -EFAULT;
+	if (!access_ok(VERIFY_READ, uss, sizeof(*uss))
+	    || __get_user(ss.ss_sp, &uss->ss_sp)
+	    || __get_user(ss.ss_size, &uss->ss_size)
+	    || __get_user(ss.ss_flags, &uss->ss_flags))
+            goto out;
+
+	ret = -EPERM;
+	if (on_sig_stack(sp))
+            goto out;
+
+	ret = -EINVAL;
+	if (ss.ss_flags != TARGET_SS_DISABLE
+            && ss.ss_flags != TARGET_SS_ONSTACK
+            && ss.ss_flags != 0)
+            goto out;
+
+	if (ss.ss_flags == TARGET_SS_DISABLE) {
+            ss.ss_size = 0;
+            ss.ss_sp = 0;
+	} else {
+            ret = -ENOMEM;
+            if (ss.ss_size < MINSIGSTKSZ)
+                goto out;
+	}
+
+        target_sigaltstack_used.ss_sp = ss.ss_sp;
+        target_sigaltstack_used.ss_size = ss.ss_size;
+    }
+
+    if (uoss) {
+        ret = -EFAULT;
+        if (!access_ok(VERIFY_WRITE, uoss, sizeof(oss)))
+            goto out;
+        memcpy(uoss, &oss, sizeof(oss));
+    }
+
+    ret = 0;
+out:
+    return ret;
+}
+
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact)
 {
@@ -551,12 +631,6 @@ struct target_sigcontext {
 	target_ulong cr2;
 };
 
-typedef struct target_sigaltstack {
-	target_ulong ss_sp;
-	int ss_flags;
-	target_ulong ss_size;
-} target_stack_t;
-
 struct target_ucontext {
         target_ulong	  tuc_flags;
 	target_ulong      tuc_link;
@@ -640,16 +714,14 @@ get_sigframe(struct emulated_sigaction *ka, CPUX86State *env, size_t frame_size)
 
 	/* Default to using normal stack */
 	esp = env->regs[R_ESP];
-#if 0
 	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(esp) == 0)
-			esp = current->sas_ss_sp + current->sas_ss_size;
-	}
+        if (ka->sa.sa_flags & TARGET_SA_ONSTACK) {
+            if (sas_ss_flags(esp) == 0)
+                esp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+        }
 
 	/* This is the legacy signal stack switching. */
 	else
-#endif
         if ((env->segs[R_SS].selector & 0xffff) != __USER_DS &&
             !(ka->sa.sa_flags & TARGET_SA_RESTORER) &&
             ka->sa.sa_restorer) {
@@ -750,11 +822,11 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.tuc_flags);
 	err |= __put_user(0, &frame->uc.tuc_link);
-	err |= __put_user(/*current->sas_ss_sp*/ 0,
+	err |= __put_user(target_sigaltstack_used.ss_sp,
 			  &frame->uc.tuc_stack.ss_sp);
-	err |= __put_user(/* sas_ss_flags(regs->esp) */ 0,
+	err |= __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
 			  &frame->uc.tuc_stack.ss_flags);
-	err |= __put_user(/* current->sas_ss_size */ 0,
+	err |= __put_user(target_sigaltstack_used.ss_size,
 			  &frame->uc.tuc_stack.ss_size);
 	err |= setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate,
 			        env, set->sig[0]);
@@ -880,7 +952,6 @@ long do_rt_sigreturn(CPUX86State *env)
 {
 	struct rt_sigframe *frame = (struct rt_sigframe *)g2h(env->regs[R_ESP] - 4);
         sigset_t set;
-        //	stack_t st;
 	int eax;
 
 #if 0
@@ -893,13 +964,9 @@ long do_rt_sigreturn(CPUX86State *env)
 	if (restore_sigcontext(env, &frame->uc.tuc_mcontext, &eax))
 		goto badframe;
 
-#if 0
-	if (__copy_from_user(&st, &frame->uc.tuc_stack, sizeof(st)))
+	if (do_sigaltstack(&frame->uc.tuc_stack, NULL, get_sp_from_cpustate(env)) == -EFAULT)
 		goto badframe;
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs->esp);
-#endif
+
 	return eax;
 
 badframe:
@@ -932,12 +999,6 @@ struct target_sigcontext {
 	target_ulong arm_cpsr;
 	target_ulong fault_address;
 };
-
-typedef struct target_sigaltstack {
-	target_ulong ss_sp;
-	int ss_flags;
-	target_ulong ss_size;
-} target_stack_t;
 
 struct target_ucontext {
     target_ulong tuc_flags;
@@ -1031,13 +1092,11 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, int framesize)
 {
 	unsigned long sp = regs->regs[13];
 
-#if 0
 	/*
 	 * This is the X/Open sanctioned signal stack switching.
 	 */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && !sas_ss_flags(sp))
-		sp = current->sas_ss_sp + current->sas_ss_size;
-#endif
+	if ((ka->sa.sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp))
+            sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
 	/*
 	 * ATPCS B01 mandates 8-byte alignment
 	 */
@@ -1074,8 +1133,8 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 		else
 			cpsr &= ~T_BIT;
 	}
-#endif
-#endif
+#endif /* CONFIG_ARM_THUMB */
+#endif /* 0 */
 #endif /* TARGET_CONFIG_CPU_32 */
 
 	if (ka->sa.sa_flags & TARGET_SA_RESTORER) {
@@ -1132,6 +1191,7 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 			   target_sigset_t *set, CPUState *env)
 {
 	struct rt_sigframe *frame = get_sigframe(ka, env, sizeof(*frame));
+	struct target_sigaltstack stack;
 	int i, err = 0;
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
@@ -1143,6 +1203,15 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 
 	/* Clear all the bits of the ucontext we don't use.  */
 	memset(&frame->uc, 0, offsetof(struct target_ucontext, tuc_mcontext));
+
+        memset(&stack, 0, sizeof(stack));
+        __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
+        __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
+        __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
+        if (!access_ok(VERIFY_WRITE, &frame->uc.tuc_stack, sizeof(stack)))
+            err = 1;
+        else
+            memcpy(&frame->uc.tuc_stack, &stack, sizeof(stack));
 
 	err |= setup_sigcontext(&frame->uc.tuc_mcontext, /*&frame->fpstate,*/
 				env, set->sig[0]);
@@ -1270,6 +1339,9 @@ long do_rt_sigreturn(CPUState *env)
 	if (restore_sigcontext(env, &frame->uc.tuc_mcontext))
 		goto badframe;
 
+	if (do_sigaltstack(&frame->uc.tuc_stack, NULL, get_sp_from_cpustate(env)) == -EFAULT)
+		goto badframe;
+
 #if 0
 	/* Send SIGTRAP if we're single-stepping */
 	if (ptrace_cancel_bpt(current))
@@ -1382,14 +1454,13 @@ static inline void *get_sigframe(struct emulated_sigaction *sa, CPUState *env, u
 	unsigned long sp;
 
 	sp = env->regwptr[UREG_FP];
-#if 0
 
 	/* This is the X/Open sanctioned signal stack switching.  */
-	if (sa->sa_flags & TARGET_SA_ONSTACK) {
-		if (!on_sig_stack(sp) && !((current->sas_ss_sp + current->sas_ss_size) & 7))
-			sp = current->sas_ss_sp + current->sas_ss_size;
+	if (sa->sa.sa_flags & TARGET_SA_ONSTACK) {
+            if (!on_sig_stack(sp)
+                && !((target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size) & 7))
+                sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
 	}
-#endif
 	return g2h(sp - framesize);
 }
 
@@ -1842,11 +1913,10 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, size_t frame_size)
      */
     sp -= 32;
 
-#if 0
     /* This is the X/Open sanctioned signal stack switching.  */
-    if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
-	sp = current->sas_ss_sp + current->sas_ss_size;
-#endif
+    if ((ka->sa.sa_flags & TARGET_SA_ONSTACK) && (sas_ss_flags (sp) == 0)) {
+        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+    }
 
     return g2h((sp - frame_size) & ~7);
 }

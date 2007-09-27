@@ -397,4 +397,9 @@ void cpu_loop_exit (void);
 void pal_init (CPUState *env);
 void call_pal (CPUState *env, int palcode);
 
+static inline target_ulong get_sp_from_cpustate(CPUAlphaState *state)
+{
+    return state->ir[IR_SP];
+}
+
 #endif /* !defined (__CPU_ALPHA_H__) */
