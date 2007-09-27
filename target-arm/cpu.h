@@ -300,11 +300,6 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_signal_handler cpu_arm_signal_handler
 
-static inline target_ulong get_sp_from_cpustate(CPUARMState *state)
-{
-   return state->regs[13];
-}
-
 #include "cpu-all.h"
 
 #endif

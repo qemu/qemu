@@ -1146,9 +1146,4 @@ enum {
 
 /*****************************************************************************/
 
-static inline target_ulong get_sp_from_cpustate(CPUPPCState *state)
-{
-    return state->gpr[1];
-}
-
 #endif /* !defined (__CPU_PPC_H__) */

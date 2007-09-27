@@ -548,9 +548,4 @@ CPUMIPSState *cpu_mips_init(void);
 uint32_t cpu_mips_get_clock (void);
 int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 
-static inline target_ulong get_sp_from_cpustate(CPUMIPSState *state)
-{
-    return state->gpr[29][state->current_tc];
-}
-
 #endif /* !defined (__MIPS_CPU_H__) */
