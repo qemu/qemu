@@ -16,6 +16,7 @@
  * task_struct fields in the kernel
  */
 struct image_info {
+        target_ulong    load_addr;
 	unsigned long	start_code;
 	unsigned long	end_code;
         unsigned long   start_data;

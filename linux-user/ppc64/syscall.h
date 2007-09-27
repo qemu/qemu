@@ -65,18 +65,21 @@ struct target_revectored_struct {
 #define TARGET_SHMGET          23
 #define TARGET_SHMCTL          24
 
+#if 0 // To make it compile, even if the definition in syscall.c is bugged
 struct target_msgbuf {
 	int mtype;
 	char mtext[1];
 };
+#endif
 
 struct target_ipc_kludge {
 	unsigned int	msgp;	/* Really (struct msgbuf *) */
 	int msgtyp;
 };
 
+#if 0 // To make it compile, even if the definition in syscall.c is bugged
 struct target_ipc_perm {
-	int	key;
+	int	__key;
 	unsigned short	uid;
 	unsigned short	gid;
 	unsigned short	cuid;
@@ -84,7 +87,9 @@ struct target_ipc_perm {
 	unsigned short	mode;
 	unsigned short	seq;
 };
+#endif
 
+#if 0 // To make it compile, even if the definition in syscall.c is bugged
 struct target_msqid_ds {
 	struct target_ipc_perm	msg_perm;
 	unsigned int		msg_first;	/* really struct target_msg* */
@@ -100,7 +105,9 @@ struct target_msqid_ds {
 	unsigned short		msg_lspid;
 	unsigned short		msg_lrpid;
 };
+#endif
 
+#if 0 // To make it compile, even if the definition in syscall.c is bugged
 struct target_shmid_ds {
 	struct target_ipc_perm	shm_perm;
 	int			shm_segsz;
@@ -114,17 +121,10 @@ struct target_shmid_ds {
 	unsigned long		*shm_pages;
 	void 			*attaches;	/* really struct shm_desc * */
 };
+#endif
 
 #define TARGET_IPC_RMID	0
 #define TARGET_IPC_SET	1
 #define TARGET_IPC_STAT	2
 
-union target_semun {
-    int val;
-    unsigned int buf;	/* really struct semid_ds * */
-    unsigned int array; /* really unsigned short * */
-    unsigned int __buf;	/* really struct seminfo * */
-    unsigned int __pad;	/* really void* */
-};
-
-#define UNAME_MACHINE "ppc"
+#define UNAME_MACHINE "ppc64"

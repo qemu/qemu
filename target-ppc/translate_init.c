@@ -3368,7 +3368,6 @@ static void init_proc_7455 (CPUPPCState *env)
 
 #if defined (TARGET_PPC64)
 /* PowerPC 970                                                               */
-#if defined (TODO)
 #define POWERPC_INSNS_970    (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_64_BRIDGE | PPC_SLBI)
@@ -3408,10 +3407,8 @@ static void init_proc_970 (CPUPPCState *env)
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
 }
-#endif /* TODO */
 
 /* PowerPC 970FX (aka G5)                                                    */
-#if defined (TODO)
 #define POWERPC_INSNS_970FX  (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_64_BRIDGE | PPC_SLBI)
@@ -3451,10 +3448,8 @@ static void init_proc_970FX (CPUPPCState *env)
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
 }
-#endif /* TODO */
 
 /* PowerPC 970 GX                                                            */
-#if defined (TODO)
 #define POWERPC_INSNS_970GX  (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_64_BRIDGE | PPC_SLBI)
@@ -3494,7 +3489,6 @@ static void init_proc_970GX (CPUPPCState *env)
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
 }
-#endif /* TODO */
 
 /* PowerPC 620                                                               */
 #if defined (TODO)
@@ -4897,50 +4891,28 @@ static ppc_def_t ppc_defs[] = {
     /* POWER6A                                                               */
     POWERPC_DEF("POWER6A",     CPU_POWERPC_POWER6A,     0xFFFFFFFF, POWER6),
 #endif
-#if defined (TODO)
     /* PowerPC 970                                                           */
     POWERPC_DEF("970",         CPU_POWERPC_970,         0xFFFFFFFF, 970),
-#endif
-#if defined (TODO)
     /* PowerPC 970FX (G5)                                                    */
     POWERPC_DEF("970fx",       CPU_POWERPC_970FX,       0xFFFFFFFF, 970FX),
-#endif
-#if defined (TODO)
     /* PowerPC 970FX v1.0 (G5)                                               */
     POWERPC_DEF("970fx1.0",    CPU_POWERPC_970FX_v10,   0xFFFFFFFF, 970FX),
-#endif
-#if defined (TODO)
     /* PowerPC 970FX v2.0 (G5)                                               */
     POWERPC_DEF("970fx2.0",    CPU_POWERPC_970FX_v20,   0xFFFFFFFF, 970FX),
-#endif
-#if defined (TODO)
     /* PowerPC 970FX v2.1 (G5)                                               */
     POWERPC_DEF("970fx2.1",    CPU_POWERPC_970FX_v21,   0xFFFFFFFF, 970FX),
-#endif
-#if defined (TODO)
     /* PowerPC 970FX v3.0 (G5)                                               */
     POWERPC_DEF("970fx3.0",    CPU_POWERPC_970FX_v30,   0xFFFFFFFF, 970FX),
-#endif
-#if defined (TODO)
     /* PowerPC 970FX v3.1 (G5)                                               */
     POWERPC_DEF("970fx3.1",    CPU_POWERPC_970FX_v31,   0xFFFFFFFF, 970FX),
-#endif
-#if defined (TODO)
     /* PowerPC 970GX (G5)                                                    */
     POWERPC_DEF("970gx",       CPU_POWERPC_970GX,       0xFFFFFFFF, 970GX),
-#endif
-#if defined (TODO)
     /* PowerPC 970MP                                                         */
     POWERPC_DEF("970mp",       CPU_POWERPC_970MP,       0xFFFFFFFF, 970),
-#endif
-#if defined (TODO)
     /* PowerPC 970MP v1.0                                                    */
     POWERPC_DEF("970mp1.0",    CPU_POWERPC_970MP_v10,   0xFFFFFFFF, 970),
-#endif
-#if defined (TODO)
     /* PowerPC 970MP v1.1                                                    */
     POWERPC_DEF("970mp1.1",    CPU_POWERPC_970MP_v11,   0xFFFFFFFF, 970),
-#endif
 #if defined (TODO)
     /* PowerPC Cell                                                          */
     POWERPC_DEF("Cell",        CPU_POWERPC_CELL,        0xFFFFFFFF, 970),

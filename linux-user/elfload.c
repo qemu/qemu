@@ -1315,6 +1315,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 		    interp_load_addr,
 		    (interpreter_type == INTERPRETER_AOUT ? 0 : 1),
 		    info);
+    info->load_addr = reloc_func_desc;
     info->start_brk = info->brk = elf_brk;
     info->end_code = end_code;
     info->start_code = start_code;
