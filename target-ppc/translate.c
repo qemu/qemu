@@ -969,7 +969,7 @@ GEN_HANDLER(name, 0x1F, 0x00, opc, 0x00400000, type)                          \
 {                                                                             \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
-    if (ctx->sf_mode)                                                         \
+    if (ctx->sf_mode && (ctx->opcode & 0x00200000))                           \
         gen_op_##name##_64();                                                 \
     else                                                                      \
         gen_op_##name();                                                      \
@@ -993,7 +993,7 @@ GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
 #if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
+    if (ctx->sf_mode && (ctx->opcode & 0x00200000))
         gen_op_cmpi_64(SIMM(ctx->opcode));
     else
 #endif
@@ -1007,7 +1007,7 @@ GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
 #if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
+    if (ctx->sf_mode && (ctx->opcode & 0x00200000))
         gen_op_cmpli_64(UIMM(ctx->opcode));
     else
 #endif
@@ -2565,7 +2565,7 @@ GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
-GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03FF0801, PPC_MEM_SYNC)
+GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03CF0801, PPC_MEM_SYNC)
 {
 }
 
