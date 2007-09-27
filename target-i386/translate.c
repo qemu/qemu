@@ -5551,8 +5551,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_op_set_inhibit_irq();
                 /* give a chance to handle pending irqs */
                 gen_jmp_im(s->pc - s->cs_base);
-                if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_VINTR))
-                    break;
                 gen_eob(s);
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);

@@ -409,7 +409,7 @@ int cpu_exec(CPUState *env1)
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;
                         svm_check_intercept(SVM_EXIT_INTR);
-                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                        env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                         intno = cpu_get_pic_interrupt(env);
                         if (loglevel & CPU_LOG_TB_IN_ASM) {
                             fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
@@ -428,12 +428,13 @@ int cpu_exec(CPUState *env1)
                          int intno;
                          /* FIXME: this should respect TPR */
                          env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
-                         stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
-                                  ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
+                         svm_check_intercept(SVM_EXIT_VINTR);
                          intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
                          if (loglevel & CPU_LOG_TB_IN_ASM)
                              fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
 	                 do_interrupt(intno, 0, 0, -1, 1);
+                         stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
+                                  ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
                          tmp_T0 = 0;
 #else
