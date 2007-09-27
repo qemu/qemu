@@ -1339,6 +1339,22 @@ GEN_HANDLER(name##3, opc1, opc2 | 0x11, 0xFF, 0x00000000, PPC_64B)            \
     gen_##name(ctx, 1, 1);                                                    \
 }
 
+static inline void gen_andi_T0_64 (DisasContext *ctx, uint64_t mask)
+{
+    if (mask >> 32)
+        gen_op_andi_T0_64(mask >> 32, mask & 0xFFFFFFFF);
+    else
+        gen_op_andi_T0(mask);
+}
+
+static inline void gen_andi_T1_64 (DisasContext *ctx, uint64_t mask)
+{
+    if (mask >> 32)
+        gen_op_andi_T1_64(mask >> 32, mask & 0xFFFFFFFF);
+    else
+        gen_op_andi_T1(mask);
+}
+
 static inline void gen_rldinm (DisasContext *ctx, uint32_t mb, uint32_t me,
                                uint32_t sh)
 {
@@ -1348,7 +1364,7 @@ static inline void gen_rldinm (DisasContext *ctx, uint32_t mb, uint32_t me,
     }
     if (likely(mb == 0)) {
         if (likely(me == 63)) {
-            gen_op_rotli32_T0(sh);
+            gen_op_rotli64_T0(sh);
             goto do_store;
         } else if (likely(me == (63 - sh))) {
             gen_op_sli_T0(sh);
@@ -1356,13 +1372,13 @@ static inline void gen_rldinm (DisasContext *ctx, uint32_t mb, uint32_t me,
         }
     } else if (likely(me == 63)) {
         if (likely(sh == (64 - mb))) {
-            gen_op_srli_T0(mb);
+            gen_op_srli_T0_64(mb);
             goto do_store;
         }
     }
     gen_op_rotli64_T0(sh);
  do_mask:
-    gen_op_andi_T0(MASK(mb, me));
+    gen_andi_T0_64(ctx, MASK(mb, me));
  do_store:
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -1405,7 +1421,7 @@ static inline void gen_rldnm (DisasContext *ctx, uint32_t mb, uint32_t me)
     gen_op_load_gpr_T1(rB(ctx->opcode));
     gen_op_rotl64_T0_T1();
     if (unlikely(mb != 0 || me != 63)) {
-        gen_op_andi_T0(MASK(mb, me));
+        gen_andi_T0_64(ctx, MASK(mb, me));
     }
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -1452,11 +1468,11 @@ static inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rA(ctx->opcode));
-    gen_op_rotli64_T0(SH(ctx->opcode));
+    gen_op_rotli64_T0(sh);
  do_mask:
     mask = MASK(mb, 63 - sh);
-    gen_op_andi_T0(mask);
-    gen_op_andi_T1(~mask);
+    gen_andi_T0_64(ctx, mask);
+    gen_andi_T1_64(ctx, ~mask);
     gen_op_or();
  do_store:
     gen_op_store_T0_gpr(rA(ctx->opcode));
