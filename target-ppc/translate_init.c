@@ -3539,21 +3539,21 @@ static void init_proc_620 (CPUPPCState *env)
 
 /* Default PowerPC target will be PowerPC 32 */
 #if defined (TARGET_PPC64) && 0 // XXX: TODO
-#define CPU_POWERPC_PPC       CPU_POWERPC_PPC64
-#define POWERPC_INSNS_PPC     POWERPC_INSNS_PPC64
-#define POWERPC_MSRM_PPC      POWERPC_MSRM_PPC64
-#define POWERPC_MMU_PPC       POWERPC_MMU_PPC64
-#define POWERPC_EXCP_PPC      POWERPC_EXCP_PPC64
-#define POWERPC_INPUT_PPC     POWERPC_INPUT_PPC64
-#define init_proc_PPC         init_proc_PPC64
+#define CPU_POWERPC_PPC               CPU_POWERPC_PPC64
+#define POWERPC_INSNS_PPC_GENERIC     POWERPC_INSNS_PPC64
+#define POWERPC_MSRM_PPC_GENERIC      POWERPC_MSRM_PPC64
+#define POWERPC_MMU_PPC_GENERIC       POWERPC_MMU_PPC64
+#define POWERPC_EXCP_PPC_GENERIC      POWERPC_EXCP_PPC64
+#define POWERPC_INPUT_PPC_GENERIC     POWERPC_INPUT_PPC64
+#define init_proc_PPC_GENERIC         init_proc_PPC64
 #else
-#define CPU_POWERPC_PPC       CPU_POWERPC_PPC32
-#define POWERPC_INSNS_PPC     POWERPC_INSNS_PPC32
-#define POWERPC_MSRM_PPC      POWERPC_MSRM_PPC32
-#define POWERPC_MMU_PPC       POWERPC_MMU_PPC32
-#define POWERPC_EXCP_PPC      POWERPC_EXCP_PPC32
-#define POWERPC_INPUT_PPC     POWERPC_INPUT_PPC32
-#define init_proc_PPC         init_proc_PPC32
+#define CPU_POWERPC_PPC               CPU_POWERPC_PPC32
+#define POWERPC_INSNS_PPC_GENERIC     POWERPC_INSNS_PPC32
+#define POWERPC_MSRM_PPC_GENERIC      POWERPC_MSRM_PPC32
+#define POWERPC_MMU_PPC_GENERIC       POWERPC_MMU_PPC32
+#define POWERPC_EXCP_PPC_GENERIC      POWERPC_EXCP_PPC32
+#define POWERPC_INPUT_PPC_GENERIC     POWERPC_INPUT_PPC32
+#define init_proc_PPC_GENERIC         init_proc_PPC32
 #endif
 
 /*****************************************************************************/
@@ -4994,7 +4994,7 @@ static ppc_def_t ppc_defs[] = {
 #endif
     POWERPC_DEF("ppc32",       CPU_POWERPC_PPC32,       0xFFFFFFFF, PPC32),
     /* Fallback                                                              */
-    POWERPC_DEF("ppc",         CPU_POWERPC_PPC,         0xFFFFFFFF, PPC),
+    POWERPC_DEF("ppc",         CPU_POWERPC_PPC,         0xFFFFFFFF, PPC_GENERIC),
 };
 
 /*****************************************************************************/
