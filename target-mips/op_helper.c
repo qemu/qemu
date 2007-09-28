@@ -1032,10 +1032,6 @@ FLOAT_OP(name, d)         \
     update_fcr31();                                                \
     if (GET_FP_CAUSE(env->fpu->fcr31) & FP_INVALID)                \
         FDT2 = 0x7ff7ffffffffffffULL;                              \
-    else if (GET_FP_CAUSE(env->fpu->fcr31) & FP_UNDERFLOW) {       \
-        if ((env->fpu->fcr31 & 0x3) == 0)                          \
-            FDT2 &= FLOAT_SIGN64;                                  \
-    }                     \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
@@ -1044,10 +1040,6 @@ FLOAT_OP(name, s)         \
     update_fcr31();                                                \
     if (GET_FP_CAUSE(env->fpu->fcr31) & FP_INVALID)                \
         FST2 = 0x7fbfffff;                                         \
-    else if (GET_FP_CAUSE(env->fpu->fcr31) & FP_UNDERFLOW) {       \
-        if ((env->fpu->fcr31 & 0x3) == 0)                          \
-            FST2 &= FLOAT_SIGN32;                                  \
-    }                     \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
@@ -1058,11 +1050,6 @@ FLOAT_OP(name, ps)        \
     if (GET_FP_CAUSE(env->fpu->fcr31) & FP_INVALID) {              \
         FST2 = 0x7fbfffff;                                         \
         FSTH2 = 0x7fbfffff;                                        \
-    } else if (GET_FP_CAUSE(env->fpu->fcr31) & FP_UNDERFLOW) {     \
-        if ((env->fpu->fcr31 & 0x3) == 0) {                        \
-            FST2 &= FLOAT_SIGN32;                                  \
-            FSTH2 &= FLOAT_SIGN32;                                 \
-        }                 \
     }                     \
 }
 FLOAT_BINOP(add)
