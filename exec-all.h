@@ -37,6 +37,14 @@
 #define unlikely(x)   __builtin_expect(!!(x), 0)
 #endif
 
+#ifndef always_inline
+#if __GNUC__ < 3
+#define always_inline inline
+#else
+#define always_inline __attribute__ (( always_inline )) inline
+#endif
+#endif
+
 #ifdef __i386__
 #define REGPARM(n) __attribute((regparm(n)))
 #else

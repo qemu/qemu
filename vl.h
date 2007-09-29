@@ -109,6 +109,14 @@ static inline char *realpath(const char *path, char *resolved_path)
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef always_inline
+#if __GNUC__ < 3
+#define always_inline inline
+#else
+#define always_inline __attribute__ (( always_inline )) inline
+#endif
+#endif
+
 /* cutils.c */
 void pstrcpy(char *buf, int buf_size, const char *str);
 char *pstrcat(char *buf, int buf_size, const char *s);
