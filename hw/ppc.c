@@ -412,6 +412,13 @@ struct ppc_tb_t {
     /* Decrementer management */
     uint64_t decr_next;    /* Tick for next decr interrupt  */
     struct QEMUTimer *decr_timer;
+#if defined(TARGET_PPC64H)
+    /* Hypervisor decrementer management */
+    uint64_t hdecr_next;    /* Tick for next hdecr interrupt  */
+    struct QEMUTimer *hdecr_timer;
+    uint64_t purr_load;
+    uint64_t purr_start;
+#endif
     void *opaque;
 };
 
@@ -489,7 +496,7 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
                      ((uint64_t)cpu_ppc_load_tbu(env) << 32) | value);
 }
 
-uint32_t cpu_ppc_load_decr (CPUState *env)
+static inline uint32_t _cpu_ppc_load_decr (CPUState *env, uint64_t *next)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint32_t decr;
@@ -509,6 +516,32 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
     return decr;
 }
 
+uint32_t cpu_ppc_load_decr (CPUState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    return _cpu_ppc_load_decr(env, &tb_env->decr_next);
+}
+
+#if defined(TARGET_PPC64H)
+uint32_t cpu_ppc_load_hdecr (CPUState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    return _cpu_ppc_load_decr(env, &tb_env->hdecr_next);
+}
+
+uint64_t cpu_ppc_load_purr (CPUState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t diff;
+
+    diff = qemu_get_clock(vm_clock) - tb_env->purr_start;
+    
+    return tb_env->purr_load + muldiv64(diff, tb_env->tb_freq, ticks_per_sec);
+}
+#endif /* defined(TARGET_PPC64H) */
+
 /* When decrementer expires,
  * all we need to do is generate or queue a CPU exception
  */
@@ -523,8 +556,22 @@ static inline void cpu_ppc_decr_excp (CPUState *env)
     ppc_set_irq(env, PPC_INTERRUPT_DECR, 1);
 }
 
-static void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
-                                 uint32_t value, int is_excp)
+static inline void cpu_ppc_hdecr_excp (CPUState *env)
+{
+    /* Raise it */
+#ifdef PPC_DEBUG_TB
+    if (loglevel != 0) {
+        fprintf(logfile, "raise decrementer exception\n");
+    }
+#endif
+    ppc_set_irq(env, PPC_INTERRUPT_HDECR, 1);
+}
+
+static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
+                                 struct QEMUTimer *timer,
+                                 void (*raise_excp)(CPUState *),
+                                 uint32_t decr, uint32_t value,
+                                 int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t now, next;
@@ -537,17 +584,27 @@ static void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
     now = qemu_get_clock(vm_clock);
     next = now + muldiv64(value, ticks_per_sec, tb_env->tb_freq);
     if (is_excp)
-        next += tb_env->decr_next - now;
+        next += *nextp - now;
     if (next == now)
         next++;
-    tb_env->decr_next = next;
+    *nextp = next;
     /* Adjust timer */
-    qemu_mod_timer(tb_env->decr_timer, next);
+    qemu_mod_timer(timer, next);
     /* If we set a negative value and the decrementer was positive,
      * raise an exception.
      */
     if ((value & 0x80000000) && !(decr & 0x80000000))
-        cpu_ppc_decr_excp(env);
+        (*raise_excp)(env);
+}
+
+
+static inline void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
+                                        uint32_t value, int is_excp)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    __cpu_ppc_store_decr(env, &tb_env->decr_next, tb_env->decr_timer,
+                         &cpu_ppc_decr_excp, decr, value, is_excp);
 }
 
 void cpu_ppc_store_decr (CPUState *env, uint32_t value)
@@ -560,6 +617,35 @@ static void cpu_ppc_decr_cb (void *opaque)
     _cpu_ppc_store_decr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
+#if defined(TARGET_PPC64H)
+static inline void _cpu_ppc_store_hdecr (CPUState *env, uint32_t hdecr,
+                                        uint32_t value, int is_excp)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    __cpu_ppc_store_decr(env, &tb_env->hdecr_next, tb_env->hdecr_timer,
+                         &cpu_ppc_hdecr_excp, hdecr, value, is_excp);
+}
+
+void cpu_ppc_store_hdecr (CPUState *env, uint32_t value)
+{
+    _cpu_ppc_store_hdecr(env, cpu_ppc_load_hdecr(env), value, 0);
+}
+
+static void cpu_ppc_hdecr_cb (void *opaque)
+{
+    _cpu_ppc_store_hdecr(opaque, 0x00000000, 0xFFFFFFFF, 1);
+}
+
+void cpu_ppc_store_purr (CPUState *env, uint64_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+
+    tb_env->purr_load = value;
+    tb_env->purr_start = qemu_get_clock(vm_clock);
+}
+#endif /* defined(TARGET_PPC64H) */
+
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 {
     CPUState *env = opaque;
@@ -571,6 +657,10 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
      * it's not ready to handle it...
      */
     _cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+#if defined(TARGET_PPC64H)
+    _cpu_ppc_store_hdecr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+    cpu_ppc_store_purr(env, 0x0000000000000000ULL);
+#endif /* defined(TARGET_PPC64H) */
 }
 
 /* Set up (once) timebase frequency (in Hz) */
@@ -584,6 +674,9 @@ clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
     env->tb_env = tb_env;
     /* Create new timer */
     tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
+#if defined(TARGET_PPC64H)
+    tb_env->hdecr_timer = qemu_new_timer(vm_clock, &cpu_ppc_hdecr_cb, env);
+#endif /* defined(TARGET_PPC64H) */
     cpu_ppc_set_tb_clk(env, freq);
 
     return &cpu_ppc_set_tb_clk;
