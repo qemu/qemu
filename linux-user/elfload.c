@@ -517,7 +517,7 @@ static void bswap_sym(struct elf_sym *sym)
  *
  */
 static unsigned long copy_elf_strings(int argc,char ** argv, void **page,
-                                      unsigned long p)
+                                      target_ulong p)
 {
     char *tmp, *tmp1, *pag = NULL;
     int len, offset = 0;
@@ -544,6 +544,7 @@ static unsigned long copy_elf_strings(int argc,char ** argv, void **page,
                 pag = (char *)page[p/TARGET_PAGE_SIZE];
                 if (!pag) {
                     pag = (char *)malloc(TARGET_PAGE_SIZE);
+                    memset(pag, 0, TARGET_PAGE_SIZE);
                     page[p/TARGET_PAGE_SIZE] = pag;
                     if (!pag)
                         return 0;
@@ -1315,6 +1316,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 		    interp_load_addr,
 		    (interpreter_type == INTERPRETER_AOUT ? 0 : 1),
 		    info);
+    info->load_addr = reloc_func_desc;
     info->start_brk = info->brk = elf_brk;
     info->end_code = end_code;
     info->start_code = start_code;

@@ -9,6 +9,7 @@
 
 #include "cpu.h"
 #include "syscall.h"
+#include "target_signal.h"
 #include "gdbstub.h"
 
 /* This struct is used to hold certain information about the image.
@@ -16,6 +17,7 @@
  * task_struct fields in the kernel
  */
 struct image_info {
+        target_ulong    load_addr;
 	unsigned long	start_code;
 	unsigned long	end_code;
         unsigned long   start_data;
@@ -126,10 +128,11 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 void memcpy_to_target(target_ulong dest, const void *src,
                       unsigned long len);
 void target_set_brk(target_ulong new_brk);
-long do_brk(target_ulong new_brk);
+target_long do_brk(target_ulong new_brk);
 void syscall_init(void);
-long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
-                long arg4, long arg5, long arg6);
+target_long do_syscall(void *cpu_env, int num, target_long arg1,
+                       target_long arg2, target_long arg3, target_long arg4,
+                       target_long arg5, target_long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern CPUState *global_env;
 void cpu_loop(CPUState *env);
@@ -147,6 +150,9 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 long do_sigreturn(CPUState *env);
 long do_rt_sigreturn(CPUState *env);
+int do_sigaltstack(const struct target_sigaltstack *uss,
+                   struct target_sigaltstack *uoss,
+                   target_ulong sp);
 
 #ifdef TARGET_I386
 /* vm86.c */

@@ -7387,6 +7387,7 @@ void register_machines(void)
     qemu_register_machine(&palmte_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
+    qemu_register_machine(&r2d_machine);
 #elif defined(TARGET_ALPHA)
     /* XXX: TODO */
 #elif defined(TARGET_M68K)

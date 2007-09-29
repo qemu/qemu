@@ -4120,8 +4120,9 @@ void helper_vmrun(target_ulong addr)
         if (loglevel & CPU_LOG_TB_IN_ASM)
             fprintf(logfile, " %#x %#x\n", env->exception_index, env->error_code);
     }
-    if (int_ctl & V_IRQ_MASK)
+    if ((int_ctl & V_IRQ_MASK) || (env->intercept & INTERCEPT_VINTR)) {
         env->interrupt_request |= CPU_INTERRUPT_VIRQ;
+    }
 
     cpu_loop_exit();
 }
@@ -4282,6 +4283,13 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
                 exit_code, exit_info_1,
                 ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2)),
                 EIP);
+
+    if(env->hflags & HF_INHIBIT_IRQ_MASK) {
+        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_state), SVM_INTERRUPT_SHADOW_MASK);
+        env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+    } else {
+        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_state), 0);
+    }
 
     /* Save the VM state in the vmcb */
     SVM_SAVE_SEG(env->vm_vmcb, segs[R_ES], es);

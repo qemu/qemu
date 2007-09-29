@@ -292,7 +292,7 @@ OBJS+= libqemu.a
 
 # cpu emulator library
 LIBOBJS=exec.o kqemu.o translate-op.o translate-all.o cpu-exec.o\
-        translate.o op.o
+        translate.o op.o host-utils.o
 ifdef CONFIG_SOFTFLOAT
 LIBOBJS+=fpu/softfloat.o
 else
@@ -395,7 +395,6 @@ endif
 # must use static linking to avoid leaving stuff in virtual address space
 VL_OBJS=vl.o osdep.o readline.o monitor.o pci.o console.o loader.o isa_mmio.o
 VL_OBJS+=cutils.o
-VL_OBJS+=host-utils.o
 VL_OBJS+=block.o block-raw.o
 VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o block-dmg.o block-bochs.o block-vpc.o block-vvfat.o block-qcow2.o block-parallels.o
 VL_OBJS+=irq.o
@@ -513,7 +512,8 @@ VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o palm.o ecc.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
-VL_OBJS+= shix.o sh7750.o sh7750_regnames.o tc58128.o
+VL_OBJS+= shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
+VL_OBJS+= sh_timer.o ptimer.o sh_serial.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 VL_OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
@@ -648,8 +648,6 @@ cpu-exec.o: cpu-exec.c
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: signal.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
-
-# $(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<

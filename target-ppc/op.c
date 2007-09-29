@@ -1353,6 +1353,21 @@ void OPPROTO op_andi_T1 (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_andi_T0_64 (void)
+{
+    T0 &= ((uint64_t)PARAM1 << 32) | PARAM2;
+    RETURN();
+}
+
+void OPPROTO op_andi_T1_64 (void)
+{
+    T1 &= ((uint64_t)PARAM1 << 32) | PARAM2;
+    RETURN();
+}
+#endif
+
+
 /* count leading zero */
 void OPPROTO op_cntlzw (void)
 {
@@ -2319,7 +2334,6 @@ void OPPROTO op_405_check_satu (void)
     RETURN();
 }
 
-#if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_load_dcr (void)
 {
     do_load_dcr();
@@ -2332,6 +2346,7 @@ void OPPROTO op_store_dcr (void)
     RETURN();
 }
 
+#if !defined(CONFIG_USER_ONLY)
 /* Return from critical interrupt :
  * same as rfi, except nip & MSR are loaded from SRR2/3 instead of SRR0/1
  */

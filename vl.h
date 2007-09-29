@@ -109,6 +109,14 @@ static inline char *realpath(const char *path, char *resolved_path)
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef always_inline
+#if __GNUC__ < 3
+#define always_inline inline
+#else
+#define always_inline __attribute__ (( always_inline )) inline
+#endif
+#endif
+
 /* cutils.c */
 void pstrcpy(char *buf, int buf_size, const char *str);
 char *pstrcat(char *buf, int buf_size, const char *s);
@@ -1230,6 +1238,9 @@ extern void cpu_mips_irqctrl_init (void);
 /* shix.c */
 extern QEMUMachine shix_machine;
 
+/* r2d.c */
+extern QEMUMachine r2d_machine;
+
 #ifdef TARGET_PPC
 /* PowerPC hardware exceptions management helpers */
 typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
@@ -1538,6 +1549,17 @@ typedef struct {
 
 int sh7750_register_io_device(struct SH7750State *s,
 			      sh7750_io_device * device);
+/* sh_timer.c */
+#define TMU012_FEAT_TOCR   (1 << 0)
+#define TMU012_FEAT_3CHAN  (1 << 1)
+#define TMU012_FEAT_EXTCLK (1 << 2)
+void tmu012_init(uint32_t base, int feat, uint32_t freq);
+
+/* sh_serial.c */
+#define SH_SERIAL_FEAT_SCIF (1 << 0)
+void sh_serial_init (target_phys_addr_t base, int feat,
+		     uint32_t freq, CharDriverState *chr);
+
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
 

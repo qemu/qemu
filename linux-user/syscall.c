@@ -366,7 +366,7 @@ static inline int host_to_target_errno(int err)
     return err;
 }
 
-static inline long get_errno(long ret)
+static inline target_long get_errno(target_long ret)
 {
     if (ret == -1)
         return -host_to_target_errno(errno);
@@ -374,9 +374,9 @@ static inline long get_errno(long ret)
         return ret;
 }
 
-static inline int is_error(long ret)
+static inline int is_error(target_long ret)
 {
-    return (unsigned long)ret >= (unsigned long)(-4096);
+    return (target_ulong)ret >= (target_ulong)(-4096);
 }
 
 static target_ulong target_brk;
@@ -387,10 +387,10 @@ void target_set_brk(target_ulong new_brk)
     target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
 }
 
-long do_brk(target_ulong new_brk)
+target_long do_brk(target_ulong new_brk)
 {
     target_ulong brk_page;
-    long mapped_addr;
+    target_long mapped_addr;
     int	new_alloc_size;
 
     if (!new_brk)
@@ -471,7 +471,7 @@ static inline void host_to_target_fds(target_long *target_fds,
 #define HOST_HZ 100
 #endif
 
-static inline long host_to_target_clock_t(long ticks)
+static inline target_long host_to_target_clock_t(long ticks)
 {
 #if HOST_HZ == TARGET_HZ
     return ticks;
@@ -530,15 +530,15 @@ static inline void host_to_target_timeval(target_ulong target_addr,
 }
 
 
-static long do_select(long n,
-                      target_ulong rfd_p, target_ulong wfd_p,
-                      target_ulong efd_p, target_ulong target_tv)
+static target_long do_select(int n,
+                             target_ulong rfd_p, target_ulong wfd_p,
+                             target_ulong efd_p, target_ulong target_tv)
 {
     fd_set rfds, wfds, efds;
     fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
     target_long *target_rfds, *target_wfds, *target_efds;
     struct timeval tv, *tv_ptr;
-    long ret;
+    target_long ret;
     int ok;
 
     if (rfd_p) {
@@ -704,10 +704,11 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
     msgh->msg_controllen = tswapl(space);
 }
 
-static long do_setsockopt(int sockfd, int level, int optname,
-                          target_ulong optval, socklen_t optlen)
+static target_long do_setsockopt(int sockfd, int level, int optname,
+                                 target_ulong optval, socklen_t optlen)
 {
-    int val, ret;
+    target_long ret;
+    int val;
 
     switch(level) {
     case SOL_TCP:
@@ -824,10 +825,11 @@ static long do_setsockopt(int sockfd, int level, int optname,
     return ret;
 }
 
-static long do_getsockopt(int sockfd, int level, int optname,
-                          target_ulong optval, target_ulong optlen)
+static target_long do_getsockopt(int sockfd, int level, int optname,
+                                 target_ulong optval, target_ulong optlen)
 {
-    int len, lv, val, ret;
+    target_long ret;
+    int len, lv, val;
 
     switch(level) {
     case TARGET_SOL_SOCKET:
@@ -943,7 +945,7 @@ static void unlock_iovec(struct iovec *vec, target_ulong target_addr,
     unlock_user (target_vec, target_addr, 0);
 }
 
-static long do_socket(int domain, int type, int protocol)
+static target_long do_socket(int domain, int type, int protocol)
 {
 #if defined(TARGET_MIPS)
     switch(type) {
@@ -970,8 +972,8 @@ static long do_socket(int domain, int type, int protocol)
     return get_errno(socket(domain, type, protocol));
 }
 
-static long do_bind(int sockfd, target_ulong target_addr,
-                    socklen_t addrlen)
+static target_long do_bind(int sockfd, target_ulong target_addr,
+                           socklen_t addrlen)
 {
     void *addr = alloca(addrlen);
 
@@ -979,8 +981,8 @@ static long do_bind(int sockfd, target_ulong target_addr,
     return get_errno(bind(sockfd, addr, addrlen));
 }
 
-static long do_connect(int sockfd, target_ulong target_addr,
-                    socklen_t addrlen)
+static target_long do_connect(int sockfd, target_ulong target_addr,
+                              socklen_t addrlen)
 {
     void *addr = alloca(addrlen);
 
@@ -988,10 +990,10 @@ static long do_connect(int sockfd, target_ulong target_addr,
     return get_errno(connect(sockfd, addr, addrlen));
 }
 
-static long do_sendrecvmsg(int fd, target_ulong target_msg,
-                           int flags, int send)
+static target_long do_sendrecvmsg(int fd, target_ulong target_msg,
+                                  int flags, int send)
 {
-    long ret;
+    target_long ret;
     struct target_msghdr *msgp;
     struct msghdr msg;
     int count;
@@ -1031,12 +1033,12 @@ static long do_sendrecvmsg(int fd, target_ulong target_msg,
     return ret;
 }
 
-static long do_accept(int fd, target_ulong target_addr,
-                      target_ulong target_addrlen)
+static target_long do_accept(int fd, target_ulong target_addr,
+                             target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
     void *addr = alloca(addrlen);
-    long ret;
+    target_long ret;
 
     ret = get_errno(accept(fd, addr, &addrlen));
     if (!is_error(ret)) {
@@ -1046,12 +1048,12 @@ static long do_accept(int fd, target_ulong target_addr,
     return ret;
 }
 
-static long do_getpeername(int fd, target_ulong target_addr,
-                           target_ulong target_addrlen)
+static target_long do_getpeername(int fd, target_ulong target_addr,
+                                  target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
     void *addr = alloca(addrlen);
-    long ret;
+    target_long ret;
 
     ret = get_errno(getpeername(fd, addr, &addrlen));
     if (!is_error(ret)) {
@@ -1061,12 +1063,12 @@ static long do_getpeername(int fd, target_ulong target_addr,
     return ret;
 }
 
-static long do_getsockname(int fd, target_ulong target_addr,
-                           target_ulong target_addrlen)
+static target_long do_getsockname(int fd, target_ulong target_addr,
+                                  target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
     void *addr = alloca(addrlen);
-    long ret;
+    target_long ret;
 
     ret = get_errno(getsockname(fd, addr, &addrlen));
     if (!is_error(ret)) {
@@ -1076,11 +1078,11 @@ static long do_getsockname(int fd, target_ulong target_addr,
     return ret;
 }
 
-static long do_socketpair(int domain, int type, int protocol,
-                          target_ulong target_tab)
+static target_long do_socketpair(int domain, int type, int protocol,
+                                 target_ulong target_tab)
 {
     int tab[2];
-    long ret;
+    target_long ret;
 
     ret = get_errno(socketpair(domain, type, protocol, tab));
     if (!is_error(ret)) {
@@ -1090,12 +1092,12 @@ static long do_socketpair(int domain, int type, int protocol,
     return ret;
 }
 
-static long do_sendto(int fd, target_ulong msg, size_t len, int flags,
-                      target_ulong target_addr, socklen_t addrlen)
+static target_long do_sendto(int fd, target_ulong msg, size_t len, int flags,
+                             target_ulong target_addr, socklen_t addrlen)
 {
     void *addr;
     void *host_msg;
-    long ret;
+    target_long ret;
 
     host_msg = lock_user(msg, len, 1);
     if (target_addr) {
@@ -1109,13 +1111,14 @@ static long do_sendto(int fd, target_ulong msg, size_t len, int flags,
     return ret;
 }
 
-static long do_recvfrom(int fd, target_ulong msg, size_t len, int flags,
-                        target_ulong target_addr, target_ulong target_addrlen)
+static target_long do_recvfrom(int fd, target_ulong msg, size_t len, int flags,
+                               target_ulong target_addr,
+                               target_ulong target_addrlen)
 {
     socklen_t addrlen;
     void *addr;
     void *host_msg;
-    long ret;
+    target_long ret;
 
     host_msg = lock_user(msg, len, 0);
     if (target_addr) {
@@ -1138,9 +1141,10 @@ static long do_recvfrom(int fd, target_ulong msg, size_t len, int flags,
     return ret;
 }
 
-static long do_socketcall(int num, target_ulong vptr)
+#ifdef TARGET_NR_socketcall
+static target_long do_socketcall(int num, target_ulong vptr)
 {
-    long ret;
+    target_long ret;
     const int n = sizeof(target_ulong);
 
     switch(num) {
@@ -1300,7 +1304,9 @@ static long do_socketcall(int num, target_ulong vptr)
     }
     return ret;
 }
+#endif
 
+#ifdef TARGET_NR_ipc
 #define N_SHM_REGIONS	32
 
 static struct shm_region {
@@ -1407,7 +1413,7 @@ union target_semun {
 	unsigned short int *array;
 };
 
-static inline void target_to_host_semun(unsigned long cmd,
+static inline void target_to_host_semun(int cmd,
                                         union semun *host_su,
                                         target_ulong target_addr,
                                         struct semid_ds *ds)
@@ -1439,7 +1445,7 @@ static inline void target_to_host_semun(unsigned long cmd,
     }
 }
 
-static inline void host_to_target_semun(unsigned long cmd,
+static inline void host_to_target_semun(int cmd,
                                         target_ulong target_addr,
                                         union semun *host_su,
                                         struct semid_ds *ds)
@@ -1470,12 +1476,13 @@ static inline void host_to_target_semun(unsigned long cmd,
     }
 }
 
-static inline long do_semctl(long first, long second, long third, long ptr)
+static inline target_long do_semctl(int first, int second, int third,
+                                    target_long ptr)
 {
     union semun arg;
     struct semid_ds dsarg;
     int cmd = third&0xff;
-    long ret = 0;
+    target_long ret = 0;
 
     switch( cmd ) {
 	case GETVAL:
@@ -1534,7 +1541,7 @@ struct target_msqid_ds
 };
 
 static inline void target_to_host_msqid_ds(struct msqid_ds *host_md,
-                                          target_ulong target_addr)
+                                           target_ulong target_addr)
 {
     struct target_msqid_ds *target_md;
 
@@ -1569,11 +1576,11 @@ static inline void host_to_target_msqid_ds(target_ulong target_addr,
     unlock_user_struct(target_md, target_addr, 1);
 }
 
-static inline long do_msgctl(long first, long second, long ptr)
+static inline target_long do_msgctl(int first, int second, target_long ptr)
 {
     struct msqid_ds dsarg;
     int cmd = second&0xff;
-    long ret = 0;
+    target_long ret = 0;
     switch( cmd ) {
     case IPC_STAT:
     case IPC_SET:
@@ -1591,11 +1598,12 @@ struct target_msgbuf {
 	char	mtext[1];
 };
 
-static inline long do_msgsnd(long msqid, long msgp, long msgsz, long msgflg)
+static inline target_long do_msgsnd(int msqid, target_long msgp,
+                                    unsigned int msgsz, int msgflg)
 {
     struct target_msgbuf *target_mb;
     struct msgbuf *host_mb;
-    long ret = 0;
+    target_long ret = 0;
 
     lock_user_struct(target_mb,msgp,0);
     host_mb = malloc(msgsz+sizeof(long));
@@ -1608,11 +1616,13 @@ static inline long do_msgsnd(long msqid, long msgp, long msgsz, long msgflg)
     return ret;
 }
 
-static inline long do_msgrcv(long msqid, long msgp, long msgsz, long msgtype, long msgflg)
+static inline target_long do_msgrcv(int msqid, target_long msgp,
+                                    unsigned int msgsz, int msgtype,
+                                    int msgflg)
 {
     struct target_msgbuf *target_mb;
     struct msgbuf *host_mb;
-    long ret = 0;
+    target_long ret = 0;
 
     lock_user_struct(target_mb, msgp, 0);
     host_mb = malloc(msgsz+sizeof(long));
@@ -1627,11 +1637,12 @@ static inline long do_msgrcv(long msqid, long msgp, long msgsz, long msgtype, lo
 }
 
 /* ??? This only works with linear mappings.  */
-static long do_ipc(long call, long first, long second, long third,
-		   long ptr, long fifth)
+static target_long do_ipc(unsigned int call, int first,
+                          int second, int third,
+                          target_long ptr, target_long fifth)
 {
     int version;
-    long ret = 0;
+    target_long ret = 0;
     unsigned long raddr;
     struct shmid_ds shm_info;
     int i;
@@ -1653,7 +1664,7 @@ static long do_ipc(long call, long first, long second, long third,
         break;
 
     case IPCOP_semtimedop:
-        gemu_log("Unsupported ipc call: %ld (version %d)\n", call, version);
+        gemu_log("Unsupported ipc call: %d (version %d)\n", call, version);
         ret = -ENOSYS;
         break;
 
@@ -1709,7 +1720,7 @@ static long do_ipc(long call, long first, long second, long third,
                 break;
 	    }
 	}
-	if (put_user(raddr, (uint32_t *)third))
+	if (put_user(raddr, (target_ulong *)third))
             return -EFAULT;
         ret = 0;
 	break;
@@ -1743,12 +1754,13 @@ static long do_ipc(long call, long first, long second, long third,
         break;
     default:
     unimplemented:
-	gemu_log("Unsupported ipc call: %ld (version %d)\n", call, version);
+	gemu_log("Unsupported ipc call: %d (version %d)\n", call, version);
 	ret = -ENOSYS;
 	break;
     }
     return ret;
 }
+#endif
 
 /* kernel structure types definitions */
 #define IFNAMSIZ        16
@@ -1789,11 +1801,11 @@ IOCTLEntry ioctl_entries[] = {
 };
 
 /* ??? Implement proper locking for ioctls.  */
-static long do_ioctl(long fd, long cmd, long arg)
+static target_long do_ioctl(int fd, target_long cmd, target_long arg)
 {
     const IOCTLEntry *ie;
     const argtype *arg_type;
-    long ret;
+    target_long ret;
     uint8_t buf_temp[MAX_STRUCT_SIZE];
     int target_size;
     void *argptr;
@@ -1801,7 +1813,7 @@ static long do_ioctl(long fd, long cmd, long arg)
     ie = ioctl_entries;
     for(;;) {
         if (ie->target_cmd == 0) {
-            gemu_log("Unsupported ioctl: cmd=0x%04lx\n", cmd);
+            gemu_log("Unsupported ioctl: cmd=0x%04lx\n", (long)cmd);
             return -ENOSYS;
         }
         if (ie->target_cmd == cmd)
@@ -1810,7 +1822,7 @@ static long do_ioctl(long fd, long cmd, long arg)
     }
     arg_type = ie->arg_type;
 #if defined(DEBUG)
-    gemu_log("ioctl: cmd=0x%04lx (%s)\n", cmd, ie->name);
+    gemu_log("ioctl: cmd=0x%04lx (%s)\n", (long)cmd, ie->name);
 #endif
     switch(arg_type[0]) {
     case TYPE_NULL:
@@ -1855,7 +1867,8 @@ static long do_ioctl(long fd, long cmd, long arg)
         }
         break;
     default:
-        gemu_log("Unsupported ioctl type: cmd=0x%04lx type=%d\n", cmd, arg_type[0]);
+        gemu_log("Unsupported ioctl type: cmd=0x%04lx type=%d\n",
+                 (long)cmd, arg_type[0]);
         ret = -ENOSYS;
         break;
     }
@@ -2205,7 +2218,7 @@ static int clone_func(void *arg)
     return 0;
 }
 
-int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
+int do_fork(CPUState *env, unsigned int flags, target_ulong newsp)
 {
     int ret;
     TaskState *ts;
@@ -2291,13 +2304,13 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
     return ret;
 }
 
-static long do_fcntl(int fd, int cmd, target_ulong arg)
+static target_long do_fcntl(int fd, int cmd, target_ulong arg)
 {
     struct flock fl;
     struct target_flock *target_fl;
     struct flock64 fl64;
     struct target_flock64 *target_fl64;
-    long ret;
+    target_long ret;
 
     switch(cmd) {
     case TARGET_F_GETLK:
@@ -2456,6 +2469,7 @@ void syscall_init(void)
     }
 }
 
+#if TARGET_LONG_BITS == 32
 static inline uint64_t target_offset64(uint32_t word0, uint32_t word1)
 {
 #ifdef TARGET_WORDS_BIG_ENDIAN
@@ -2464,10 +2478,18 @@ static inline uint64_t target_offset64(uint32_t word0, uint32_t word1)
     return ((uint64_t)word1 << 32) | word0;
 #endif
 }
+#else /* TARGET_LONG_BITS == 32 */
+static inline uint64_t target_offset64(uint64_t word0, uint64_t word1)
+{
+    return word0;
+}
+#endif /* TARGET_LONG_BITS != 32 */
 
 #ifdef TARGET_NR_truncate64
-static inline long target_truncate64(void *cpu_env, const char *arg1,
-                                     long arg2, long arg3, long arg4)
+static inline target_long target_truncate64(void *cpu_env, const char *arg1,
+                                            target_long arg2,
+                                            target_long arg3,
+                                            target_long arg4)
 {
 #ifdef TARGET_ARM
     if (((CPUARMState *)cpu_env)->eabi)
@@ -2481,8 +2503,10 @@ static inline long target_truncate64(void *cpu_env, const char *arg1,
 #endif
 
 #ifdef TARGET_NR_ftruncate64
-static inline long target_ftruncate64(void *cpu_env, long arg1, long arg2,
-                                      long arg3, long arg4)
+static inline target_long target_ftruncate64(void *cpu_env, target_long arg1,
+                                             target_long arg2,
+                                             target_long arg3,
+                                             target_long arg4)
 {
 #ifdef TARGET_ARM
     if (((CPUARMState *)cpu_env)->eabi)
@@ -2517,10 +2541,11 @@ static inline void host_to_target_timespec(target_ulong target_addr,
     unlock_user_struct(target_ts, target_addr, 1);
 }
 
-long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
-                long arg4, long arg5, long arg6)
+target_long do_syscall(void *cpu_env, int num, target_long arg1,
+                       target_long arg2, target_long arg3, target_long arg4,
+                       target_long arg5, target_long arg6)
 {
-    long ret;
+    target_long ret;
     struct stat st;
     struct statfs stfs;
     void *p;
@@ -4018,7 +4043,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             struct target_dirent *target_dirp;
             struct dirent *dirp;
-            long count = arg3;
+            target_long count = arg3;
 
 	    dirp = malloc(count);
 	    if (!dirp)
@@ -4060,7 +4085,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #else
         {
             struct dirent *dirp;
-            long count = arg3;
+            target_long count = arg3;
 
             dirp = lock_user(arg2, count, 0);
             ret = get_errno(sys_getdents(arg1, dirp, count));
@@ -4088,7 +4113,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getdents64:
         {
             struct dirent64 *dirp;
-            long count = arg3;
+            target_long count = arg3;
             dirp = lock_user(arg2, count, 0);
             ret = get_errno(sys_getdents64(arg1, dirp, count));
             if (!is_error(ret)) {
@@ -4293,7 +4318,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_capset:
         goto unimplemented;
     case TARGET_NR_sigaltstack:
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_MIPS) || \
+    defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_ALPHA)
+        ret = do_sigaltstack((struct target_sigaltstack *)arg1,
+                             (struct target_sigaltstack *)arg2,
+                             get_sp_from_cpustate((CPUState *)cpu_env));
+        break;
+#else
         goto unimplemented;
+#endif
     case TARGET_NR_sendfile:
         goto unimplemented;
 #ifdef TARGET_NR_getpmsg
@@ -4941,4 +4974,3 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
     return ret;
 }
-

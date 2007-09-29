@@ -167,9 +167,9 @@ void do_440_tlbwe (int word);
 /* PowerPC 4xx specific helpers */
 void do_405_check_ov (void);
 void do_405_check_sat (void);
-#if !defined(CONFIG_USER_ONLY)
 void do_load_dcr (void);
 void do_store_dcr (void);
+#if !defined(CONFIG_USER_ONLY)
 void do_40x_rfci (void);
 void do_rfci (void);
 void do_rfdi (void);

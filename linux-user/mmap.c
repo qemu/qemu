@@ -224,9 +224,9 @@ abort();
             start = HOST_PAGE_ALIGN(real_start);
             end = start + HOST_PAGE_ALIGN(len);
             if (start > real_start)
-                munmap((void *)real_start, start - real_start);
+                munmap((void *)g2h(real_start), start - real_start);
             if (end < real_end)
-                munmap((void *)end, real_end - end);
+                munmap((void *)g2h(end), real_end - end);
             /* use it as a fixed mapping */
             flags |= MAP_FIXED;
         } else {
@@ -371,7 +371,7 @@ int target_munmap(target_ulong start, target_ulong len)
 
     /* unmap what we can */
     if (real_start < real_end) {
-        ret = munmap((void *)real_start, real_end - real_start);
+        ret = munmap(g2h(real_start), real_end - real_start);
         if (ret != 0)
             return ret;
     }

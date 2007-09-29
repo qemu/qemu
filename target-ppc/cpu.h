@@ -89,528 +89,210 @@ typedef uint32_t ppc_gpr_t;
 #define DCACHE_LINE_SIZE 32
 
 /*****************************************************************************/
-/* PVR definitions for most known PowerPC */
+/* MMU model                                                                 */
 enum {
-    /* PowerPC 401 cores */
-    CPU_PPC_401A1     = 0x00210000,
-    CPU_PPC_401B2     = 0x00220000,
-#if 0
-    CPU_PPC_401B3     = xxx,
-#endif
-    CPU_PPC_401C2     = 0x00230000,
-    CPU_PPC_401D2     = 0x00240000,
-    CPU_PPC_401E2     = 0x00250000,
-    CPU_PPC_401F2     = 0x00260000,
-    CPU_PPC_401G2     = 0x00270000,
-#if 0
-    CPU_PPC_401GF     = xxx,
-#endif
-#define CPU_PPC_401 CPU_PPC_401G2
-    CPU_PPC_IOP480    = 0x40100000, /* 401B2 ? */
-    CPU_PPC_COBRA     = 0x10100000, /* IBM Processor for Network Resources */
-    /* PowerPC 403 cores */
-    CPU_PPC_403GA     = 0x00200011,
-    CPU_PPC_403GB     = 0x00200100,
-    CPU_PPC_403GC     = 0x00200200,
-    CPU_PPC_403GCX    = 0x00201400,
-#if 0
-    CPU_PPC_403GP     = xxx,
-#endif
-#define CPU_PPC_403 CPU_PPC_403GCX
-    /* PowerPC 405 cores */
-#if 0
-    CPU_PPC_405A3     = xxx,
-#endif
-#if 0
-    CPU_PPC_405A4     = xxx,
-#endif
-#if 0
-    CPU_PPC_405B3     = xxx,
-#endif
-    CPU_PPC_405D2     = 0x20010000,
-    CPU_PPC_405D4     = 0x41810000,
-    CPU_PPC_405CR     = 0x40110145,
-#define CPU_PPC_405GP CPU_PPC_405CR
-    CPU_PPC_405EP     = 0x51210950,
-#if 0
-    CPU_PPC_405EZ     = xxx,
-#endif
-    CPU_PPC_405GPR    = 0x50910951,
-#if 0
-    CPU_PPC_405LP     = xxx,
-#endif
-#define CPU_PPC_405 CPU_PPC_405D4
-    CPU_PPC_NPE405H   = 0x414100C0,
-    CPU_PPC_NPE405H2  = 0x41410140,
-    CPU_PPC_NPE405L   = 0x416100C0,
-#if 0
-    CPU_PPC_LC77700   = xxx,
-#endif
-    /* IBM STBxxx (PowerPC 401/403/405 core based microcontrollers) */
-#if 0
-    CPU_PPC_STB01000  = xxx,
-#endif
-#if 0
-    CPU_PPC_STB01010  = xxx,
-#endif
-#if 0
-    CPU_PPC_STB0210   = xxx,
-#endif
-    CPU_PPC_STB03     = 0x40310000,
-#if 0
-    CPU_PPC_STB043    = xxx,
-#endif
-#if 0
-    CPU_PPC_STB045    = xxx,
-#endif
-    CPU_PPC_STB25     = 0x51510950,
-#if 0
-    CPU_PPC_STB130    = xxx,
-#endif
-    /* Xilinx cores */
-    CPU_PPC_X2VP4     = 0x20010820,
-#define CPU_PPC_X2VP7 CPU_PPC_X2VP4
-    CPU_PPC_X2VP20    = 0x20010860,
-#define CPU_PPC_X2VP50 CPU_PPC_X2VP20
-    /* PowerPC 440 cores */
-    CPU_PPC_440EP     = 0x422218D3,
-#define CPU_PPC_440GR CPU_PPC_440EP
-    CPU_PPC_440GP     = 0x40120481,
-#if 0
-    CPU_PPC_440GRX    = xxx,
-#endif
-    CPU_PPC_440GX     = 0x51B21850,
-    CPU_PPC_440GXc    = 0x51B21892,
-    CPU_PPC_440GXf    = 0x51B21894,
-    CPU_PPC_440SP     = 0x53221850,
-    CPU_PPC_440SP2    = 0x53221891,
-    CPU_PPC_440SPE    = 0x53421890,
-    /* PowerPC 460 cores */
-#if 0
-    CPU_PPC_464H90    = xxx,
-#endif
-#if 0
-    CPU_PPC_464H90FP  = xxx,
-#endif
-    /* PowerPC MPC 5xx cores */
-    CPU_PPC_5xx       = 0x00020020,
-    /* PowerPC MPC 8xx cores (aka PowerQUICC) */
-    CPU_PPC_8xx       = 0x00500000,
-    /* PowerPC MPC 8xxx cores (aka PowerQUICC-II) */
-    CPU_PPC_82xx_HIP3 = 0x00810101,
-    CPU_PPC_82xx_HIP4 = 0x80811014,
-    CPU_PPC_827x      = 0x80822013,
-    /* eCores */
-    CPU_PPC_e200      = 0x81120000,
-    CPU_PPC_e500v110  = 0x80200010,
-    CPU_PPC_e500v120  = 0x80200020,
-    CPU_PPC_e500v210  = 0x80210010,
-    CPU_PPC_e500v220  = 0x80210020,
-#define CPU_PPC_e500 CPU_PPC_e500v220
-    CPU_PPC_e600      = 0x80040010,
-    /* PowerPC 6xx cores */
-    CPU_PPC_601       = 0x00010001,
-    CPU_PPC_602       = 0x00050100,
-    CPU_PPC_603       = 0x00030100,
-    CPU_PPC_603E      = 0x00060101,
-    CPU_PPC_603P      = 0x00070000,
-    CPU_PPC_603E7v    = 0x00070100,
-    CPU_PPC_603E7v2   = 0x00070201,
-    CPU_PPC_603E7     = 0x00070200,
-    CPU_PPC_603R      = 0x00071201,
-    CPU_PPC_G2        = 0x00810011,
-    CPU_PPC_G2H4      = 0x80811010,
-    CPU_PPC_G2gp      = 0x80821010,
-    CPU_PPC_G2ls      = 0x90810010,
-    CPU_PPC_G2LE      = 0x80820010,
-    CPU_PPC_G2LEgp    = 0x80822010,
-    CPU_PPC_G2LEls    = 0xA0822010,
-    CPU_PPC_604       = 0x00040000,
-    CPU_PPC_604E      = 0x00090100, /* Also 2110 & 2120 */
-    CPU_PPC_604R      = 0x000a0101,
-    /* PowerPC 74x/75x cores (aka G3) */
-    CPU_PPC_74x       = 0x00080000,
-    CPU_PPC_740E      = 0x00080100,
-    CPU_PPC_74xP      = 0x10080000,
-    CPU_PPC_750E      = 0x00080200,
-    CPU_PPC_750CXE21  = 0x00082201,
-    CPU_PPC_750CXE22  = 0x00082212,
-    CPU_PPC_750CXE23  = 0x00082203,
-    CPU_PPC_750CXE24  = 0x00082214,
-    CPU_PPC_750CXE24b = 0x00083214,
-    CPU_PPC_750CXE31  = 0x00083211,
-    CPU_PPC_750CXE31b = 0x00083311,
-#define CPU_PPC_750CXE CPU_PPC_750CXE31b
-    CPU_PPC_750CXR    = 0x00083410,
-    CPU_PPC_750FX10   = 0x70000100,
-    CPU_PPC_750FX20   = 0x70000200,
-    CPU_PPC_750FX21   = 0x70000201,
-    CPU_PPC_750FX22   = 0x70000202,
-    CPU_PPC_750FX23   = 0x70000203,
-#define CPU_PPC_750FX CPU_PPC_750FX23
-    CPU_PPC_750FL     = 0x700A0203,
-    CPU_PPC_750GX10   = 0x70020100,
-    CPU_PPC_750GX11   = 0x70020101,
-    CPU_PPC_750GX12   = 0x70020102,
-#define CPU_PPC_750GX CPU_PPC_750GX12
-    CPU_PPC_750GL     = 0x70020102,
-    CPU_PPC_750L30    = 0x00088300,
-    CPU_PPC_750L32    = 0x00088302,
-#define CPU_PPC_750L CPU_PPC_750L32
-    CPU_PPC_750CL     = 0x00087200,
-    CPU_PPC_755_10    = 0x00083100,
-    CPU_PPC_755_11    = 0x00083101,
-    CPU_PPC_755_20    = 0x00083200,
-    CPU_PPC_755D      = 0x00083202,
-    CPU_PPC_755E      = 0x00083203,
-#define CPU_PPC_755 CPU_PPC_755E
-    /* PowerPC 74xx cores (aka G4) */
-    CPU_PPC_7400      = 0x000C0100,
-    CPU_PPC_7410C     = 0x800C1102,
-    CPU_PPC_7410D     = 0x800C1103,
-    CPU_PPC_7410E     = 0x800C1104,
-#define CPU_PPC_7410 CPU_PPC_7410E
-    CPU_PPC_7441      = 0x80000210,
-    CPU_PPC_7445      = 0x80010100,
-    CPU_PPC_7447      = 0x80020100,
-    CPU_PPC_7447A     = 0x80030101,
-    CPU_PPC_7448      = 0x80040100,
-    CPU_PPC_7450      = 0x80000200,
-    CPU_PPC_7450b     = 0x80000201,
-    CPU_PPC_7451      = 0x80000203,
-    CPU_PPC_7451G     = 0x80000210,
-    CPU_PPC_7455      = 0x80010201,
-    CPU_PPC_7455F     = 0x80010303,
-    CPU_PPC_7455G     = 0x80010304,
-    CPU_PPC_7457      = 0x80020101,
-    CPU_PPC_7457C     = 0x80020102,
-    CPU_PPC_7457A     = 0x80030000,
-    /* 64 bits PowerPC */
-    CPU_PPC_620       = 0x00140000,
-    CPU_PPC_630       = 0x00400000,
-    CPU_PPC_631       = 0x00410000,
-    CPU_PPC_POWER4    = 0x00350000,
-    CPU_PPC_POWER4P   = 0x00380000,
-    CPU_PPC_POWER5    = 0x003A0000,
-    CPU_PPC_POWER5P   = 0x003B0000,
-#if 0
-    CPU_PPC_POWER6    = xxx,
-#endif
-    CPU_PPC_970       = 0x00390000,
-    CPU_PPC_970FX10   = 0x00391100,
-    CPU_PPC_970FX20   = 0x003C0200,
-    CPU_PPC_970FX21   = 0x003C0201,
-    CPU_PPC_970FX30   = 0x003C0300,
-    CPU_PPC_970FX31   = 0x003C0301,
-#define CPU_PPC_970FX CPU_PPC_970FX31
-    CPU_PPC_970MP10   = 0x00440100,
-    CPU_PPC_970MP11   = 0x00440101,
-#define CPU_PPC_970MP CPU_PPC_970MP11
-    CPU_PPC_CELL10    = 0x00700100,
-    CPU_PPC_CELL20    = 0x00700400,
-    CPU_PPC_CELL30    = 0x00700500,
-    CPU_PPC_CELL31    = 0x00700501,
-#define CPU_PPC_CELL32 CPU_PPC_CELL31
-#define CPU_PPC_CELL CPU_PPC_CELL32
-    CPU_PPC_RS64      = 0x00330000,
-    CPU_PPC_RS64II    = 0x00340000,
-    CPU_PPC_RS64III   = 0x00360000,
-    CPU_PPC_RS64IV    = 0x00370000,
-    /* Original POWER */
-    /* XXX: should be POWER (RIOS), RSC3308, RSC4608,
-     * POWER2 (RIOS2) & RSC2 (P2SC) here
-     */
-#if 0
-    CPU_POWER         = xxx,
-#endif
-#if 0
-    CPU_POWER2        = xxx,
-#endif
-};
-
-/* System version register (used on MPC 8xxx) */
-enum {
-    PPC_SVR_8540      = 0x80300000,
-    PPC_SVR_8541E     = 0x807A0010,
-    PPC_SVR_8543v10   = 0x80320010,
-    PPC_SVR_8543v11   = 0x80320011,
-    PPC_SVR_8543v20   = 0x80320020,
-    PPC_SVR_8543Ev10  = 0x803A0010,
-    PPC_SVR_8543Ev11  = 0x803A0011,
-    PPC_SVR_8543Ev20  = 0x803A0020,
-    PPC_SVR_8545      = 0x80310220,
-    PPC_SVR_8545E     = 0x80390220,
-    PPC_SVR_8547E     = 0x80390120,
-    PPC_SCR_8548v10   = 0x80310010,
-    PPC_SCR_8548v11   = 0x80310011,
-    PPC_SCR_8548v20   = 0x80310020,
-    PPC_SVR_8548Ev10  = 0x80390010,
-    PPC_SVR_8548Ev11  = 0x80390011,
-    PPC_SVR_8548Ev20  = 0x80390020,
-    PPC_SVR_8555E     = 0x80790010,
-    PPC_SVR_8560v10   = 0x80700010,
-    PPC_SVR_8560v20   = 0x80700020,
+    POWERPC_MMU_UNKNOWN    = 0,
+    /* Standard 32 bits PowerPC MMU                            */
+    POWERPC_MMU_32B,
+    /* Standard 64 bits PowerPC MMU                            */
+    POWERPC_MMU_64B,
+    /* PowerPC 601 MMU                                         */
+    POWERPC_MMU_601,
+    /* PowerPC 6xx MMU with software TLB                       */
+    POWERPC_MMU_SOFT_6xx,
+    /* PowerPC 74xx MMU with software TLB                      */
+    POWERPC_MMU_SOFT_74xx,
+    /* PowerPC 4xx MMU with software TLB                       */
+    POWERPC_MMU_SOFT_4xx,
+    /* PowerPC 4xx MMU with software TLB and zones protections */
+    POWERPC_MMU_SOFT_4xx_Z,
+    /* PowerPC 4xx MMU in real mode only                       */
+    POWERPC_MMU_REAL_4xx,
+    /* BookE MMU model                                         */
+    POWERPC_MMU_BOOKE,
+    /* BookE FSL MMU model                                     */
+    POWERPC_MMU_BOOKE_FSL,
+    /* 64 bits "bridge" PowerPC MMU                            */
+    POWERPC_MMU_64BRIDGE,
 };
 
 /*****************************************************************************/
-/* Instruction types */
+/* Exception model                                                           */
 enum {
-    PPC_NONE        = 0x00000000,
-    /* integer operations instructions             */
-    /* flow control instructions                   */
-    /* virtual memory instructions                 */
-    /* ld/st with reservation instructions         */
-    /* cache control instructions                  */
-    /* spr/msr access instructions                 */
-    PPC_INSNS_BASE  = 0x0000000000000001ULL,
-#define PPC_INTEGER PPC_INSNS_BASE
-#define PPC_FLOW    PPC_INSNS_BASE
-#define PPC_MEM     PPC_INSNS_BASE
-#define PPC_RES     PPC_INSNS_BASE
-#define PPC_CACHE   PPC_INSNS_BASE
-#define PPC_MISC    PPC_INSNS_BASE
-    /* floating point operations instructions      */
-    PPC_FLOAT       = 0x0000000000000002ULL,
-    /* more floating point operations instructions */
-    PPC_FLOAT_EXT   = 0x0000000000000004ULL,
-    /* external control instructions               */
-    PPC_EXTERN      = 0x0000000000000008ULL,
-    /* segment register access instructions        */
-    PPC_SEGMENT     = 0x0000000000000010ULL,
-    /* Optional cache control instructions         */
-    PPC_CACHE_OPT   = 0x0000000000000020ULL,
-    /* Optional floating point op instructions     */
-    PPC_FLOAT_OPT   = 0x0000000000000040ULL,
-    /* Optional memory control instructions        */
-    PPC_MEM_TLBIA   = 0x0000000000000080ULL,
-    PPC_MEM_TLBIE   = 0x0000000000000100ULL,
-    PPC_MEM_TLBSYNC = 0x0000000000000200ULL,
-    /* eieio & sync                                */
-    PPC_MEM_SYNC    = 0x0000000000000400ULL,
-    /* PowerPC 6xx TLB management instructions     */
-    PPC_6xx_TLB     = 0x0000000000000800ULL,
-    /* Altivec support                             */
-    PPC_ALTIVEC     = 0x0000000000001000ULL,
-    /* Time base support                           */
-    PPC_TB          = 0x0000000000002000ULL,
-    /* Embedded PowerPC dedicated instructions     */
-    PPC_EMB_COMMON  = 0x0000000000004000ULL,
-    /* PowerPC 40x exception model                 */
-    PPC_40x_EXCP    = 0x0000000000008000ULL,
-    /* PowerPC 40x specific instructions           */
-    PPC_40x_SPEC    = 0x0000000000010000ULL,
-    /* PowerPC 405 Mac instructions                */
-    PPC_405_MAC     = 0x0000000000020000ULL,
-    /* PowerPC 440 specific instructions           */
-    PPC_440_SPEC    = 0x0000000000040000ULL,
-    /* Specific extensions */
-    /* Power-to-PowerPC bridge (601)               */
-    PPC_POWER_BR    = 0x0000000000080000ULL,
-    /* PowerPC 602 specific */
-    PPC_602_SPEC    = 0x0000000000100000ULL,
-    /* Deprecated instructions                     */
-    /* Original POWER instruction set              */
-    PPC_POWER       = 0x0000000000200000ULL,
-    /* POWER2 instruction set extension            */
-    PPC_POWER2      = 0x0000000000400000ULL,
-    /* Power RTC support */
-    PPC_POWER_RTC   = 0x0000000000800000ULL,
-    /* 64 bits PowerPC instructions                */
-    /* 64 bits PowerPC instruction set             */
-    PPC_64B         = 0x0000000001000000ULL,
-    /* 64 bits hypervisor extensions               */
-    PPC_64H         = 0x0000000002000000ULL,
-    /* 64 bits PowerPC "bridge" features           */
-    PPC_64_BRIDGE   = 0x0000000004000000ULL,
-    /* BookE (embedded) PowerPC specification      */
-    PPC_BOOKE       = 0x0000000008000000ULL,
-    /* eieio                                       */
-    PPC_MEM_EIEIO   = 0x0000000010000000ULL,
-    /* e500 vector instructions                    */
-    PPC_E500_VECTOR = 0x0000000020000000ULL,
-    /* PowerPC 4xx dedicated instructions          */
-    PPC_4xx_COMMON  = 0x0000000040000000ULL,
-    /* PowerPC 2.03 specification extensions       */
-    PPC_203         = 0x0000000080000000ULL,
-    /* PowerPC 2.03 SPE extension                  */
-    PPC_SPE         = 0x0000000100000000ULL,
-    /* PowerPC 2.03 SPE floating-point extension   */
-    PPC_SPEFPU      = 0x0000000200000000ULL,
-    /* SLB management                              */
-    PPC_SLBI        = 0x0000000400000000ULL,
-    /* PowerPC 40x ibct instructions               */
-    PPC_40x_ICBT    = 0x0000000800000000ULL,
-};
-
-/* CPU run-time flags (MMU and exception model) */
-enum {
-    /* MMU model                         */
-    PPC_FLAGS_MMU_MASK       = 0x000000FF,
-    /* Standard 32 bits PowerPC MMU      */
-    PPC_FLAGS_MMU_32B        = 0x00000000,
-    /* Standard 64 bits PowerPC MMU      */
-    PPC_FLAGS_MMU_64B        = 0x00000001,
-    /* PowerPC 601 MMU                   */
-    PPC_FLAGS_MMU_601        = 0x00000002,
-    /* PowerPC 6xx MMU with software TLB */
-    PPC_FLAGS_MMU_SOFT_6xx   = 0x00000003,
-    /* PowerPC 4xx MMU with software TLB */
-    PPC_FLAGS_MMU_SOFT_4xx   = 0x00000004,
-    /* PowerPC 403 MMU                  */
-    PPC_FLAGS_MMU_403        = 0x00000005,
-    /* BookE FSL MMU model              */
-    PPC_FLAGS_MMU_BOOKE_FSL  = 0x00000006,
-    /* BookE MMU model                  */
-    PPC_FLAGS_MMU_BOOKE      = 0x00000007,
-    /* 64 bits "bridge" PowerPC MMU     */
-    PPC_FLAGS_MMU_64BRIDGE   = 0x00000008,
-    /* PowerPC 401 MMU (real mode only) */
-    PPC_FLAGS_MMU_401        = 0x00000009,
-    /* Exception model                  */
-    PPC_FLAGS_EXCP_MASK      = 0x0000FF00,
+    POWERPC_EXCP_UNKNOWN   = 0,
     /* Standard PowerPC exception model */
-    PPC_FLAGS_EXCP_STD       = 0x00000000,
+    POWERPC_EXCP_STD,
     /* PowerPC 40x exception model      */
-    PPC_FLAGS_EXCP_40x       = 0x00000100,
+    POWERPC_EXCP_40x,
     /* PowerPC 601 exception model      */
-    PPC_FLAGS_EXCP_601       = 0x00000200,
+    POWERPC_EXCP_601,
     /* PowerPC 602 exception model      */
-    PPC_FLAGS_EXCP_602       = 0x00000300,
+    POWERPC_EXCP_602,
     /* PowerPC 603 exception model      */
-    PPC_FLAGS_EXCP_603       = 0x00000400,
+    POWERPC_EXCP_603,
+    /* PowerPC 603e exception model     */
+    POWERPC_EXCP_603E,
+    /* PowerPC G2 exception model       */
+    POWERPC_EXCP_G2,
     /* PowerPC 604 exception model      */
-    PPC_FLAGS_EXCP_604       = 0x00000500,
+    POWERPC_EXCP_604,
     /* PowerPC 7x0 exception model      */
-    PPC_FLAGS_EXCP_7x0       = 0x00000600,
+    POWERPC_EXCP_7x0,
     /* PowerPC 7x5 exception model      */
-    PPC_FLAGS_EXCP_7x5       = 0x00000700,
+    POWERPC_EXCP_7x5,
     /* PowerPC 74xx exception model     */
-    PPC_FLAGS_EXCP_74xx      = 0x00000800,
+    POWERPC_EXCP_74xx,
     /* PowerPC 970 exception model      */
-    PPC_FLAGS_EXCP_970       = 0x00000900,
+    POWERPC_EXCP_970,
     /* BookE exception model            */
-    PPC_FLAGS_EXCP_BOOKE     = 0x00000A00,
-    /* Input pins model                 */
-    PPC_FLAGS_INPUT_MASK     = 0x000F0000,
-    /* PowerPC 6xx bus                  */
-    PPC_FLAGS_INPUT_6xx      = 0x00000000,
-    /* BookE bus                        */
-    PPC_FLAGS_INPUT_BookE    = 0x00010000,
-    /* PowerPC 4xx bus                  */
-    PPC_FLAGS_INPUT_40x      = 0x00020000,
-    /* PowerPC 970 bus                  */
-    PPC_FLAGS_INPUT_970      = 0x00030000,
+    POWERPC_EXCP_BOOKE,
 };
 
-#define PPC_MMU(env) (env->flags & PPC_FLAGS_MMU_MASK)
-#define PPC_EXCP(env) (env->flags & PPC_FLAGS_EXCP_MASK)
-#define PPC_INPUT(env) (env->flags & PPC_FLAGS_INPUT_MASK)
+/*****************************************************************************/
+/* Exception vectors definitions                                             */
+enum {
+    POWERPC_EXCP_NONE    = -1,
+    /* The 64 first entries are used by the PowerPC embedded specification   */
+    POWERPC_EXCP_CRITICAL = 0,  /* Critical input                            */
+    POWERPC_EXCP_MCHECK   = 1,  /* Machine check exception                   */
+    POWERPC_EXCP_DSI      = 2,  /* Data storage exception                    */
+    POWERPC_EXCP_ISI      = 3,  /* Instruction storage exception             */
+    POWERPC_EXCP_EXTERNAL = 4,  /* External input                            */
+    POWERPC_EXCP_ALIGN    = 5,  /* Alignment exception                       */
+    POWERPC_EXCP_PROGRAM  = 6,  /* Program exception                         */
+    POWERPC_EXCP_FPU      = 7,  /* Floating-point unavailable exception      */
+    POWERPC_EXCP_SYSCALL  = 8,  /* System call exception                     */
+    POWERPC_EXCP_APU      = 9,  /* Auxiliary processor unavailable           */
+    POWERPC_EXCP_DECR     = 10, /* Decrementer exception                     */
+    POWERPC_EXCP_FIT      = 11, /* Fixed-interval timer interrupt            */
+    POWERPC_EXCP_WDT      = 12, /* Watchdog timer interrupt                  */
+    POWERPC_EXCP_DTLB     = 13, /* Data TLB error                            */
+    POWERPC_EXCP_ITLB     = 14, /* Instruction TLB error                     */
+    POWERPC_EXCP_DEBUG    = 15, /* Debug interrupt                           */
+    /* Vectors 16 to 31 are reserved                                         */
+#if defined(TARGET_PPCEMB)
+    POWERPC_EXCP_SPEU     = 32, /* SPE/embedded floating-point unavailable   */
+    POWERPC_EXCP_EFPDI    = 33, /* Embedded floating-point data interrupt    */
+    POWERPC_EXCP_EFPRI    = 34, /* Embedded floating-point round interrupt   */
+    POWERPC_EXCP_EPERFM   = 35, /* Embedded performance monitor interrupt    */
+    POWERPC_EXCP_DOORI    = 36, /* Embedded doorbell interrupt               */
+    POWERPC_EXCP_DOORCI   = 37, /* Embedded doorbell critical interrupt      */
+#endif /* defined(TARGET_PPCEMB) */
+    /* Vectors 38 to 63 are reserved                                         */
+    /* Exceptions defined in the PowerPC server specification                */
+    POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
+#if defined(TARGET_PPC64) /* PowerPC 64 */
+    POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
+    POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
+#endif /* defined(TARGET_PPC64) */
+#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+    POWERPC_EXCP_HDECR    = 67, /* Hypervisor decrementer exception          */
+#endif /* defined(TARGET_PPC64H) */
+    POWERPC_EXCP_TRACE    = 68, /* Trace exception                           */
+#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+    POWERPC_EXCP_HDSI     = 69, /* Hypervisor data storage exception         */
+    POWERPC_EXCP_HISI     = 70, /* Hypervisor instruction storage exception  */
+    POWERPC_EXCP_HDSEG    = 71, /* Hypervisor data segment exception         */
+    POWERPC_EXCP_HISEG    = 72, /* Hypervisor instruction segment exception  */
+#endif /* defined(TARGET_PPC64H) */
+    POWERPC_EXCP_VPU      = 73, /* Vector unavailable exception              */
+    /* 40x specific exceptions                                               */
+    POWERPC_EXCP_PIT      = 74, /* Programmable interval timer interrupt     */
+    /* 601 specific exceptions                                               */
+    POWERPC_EXCP_IO       = 75, /* IO error exception                        */
+    POWERPC_EXCP_RUNM     = 76, /* Run mode exception                        */
+    /* 602 specific exceptions                                               */
+    POWERPC_EXCP_EMUL     = 77, /* Emulation trap exception                  */
+    /* 602/603 specific exceptions                                           */
+    POWERPC_EXCP_IFTLB    = 78, /* Instruction fetch TLB error               */
+    POWERPC_EXCP_DLTLB    = 79, /* Data load TLB miss                        */
+    POWERPC_EXCP_DSTLB    = 80, /* Data store TLB miss                       */
+    /* Exceptions available on most PowerPC                                  */
+    POWERPC_EXCP_FPA      = 81, /* Floating-point assist exception           */
+    POWERPC_EXCP_IABR     = 82, /* Instruction address breakpoint            */
+    POWERPC_EXCP_SMI      = 83, /* System management interrupt               */
+    POWERPC_EXCP_PERFM    = 84, /* Embedded performance monitor interrupt    */
+    /* 7xx/74xx specific exceptions                                          */
+    POWERPC_EXCP_THERM    = 85, /* Thermal interrupt                         */
+    /* 74xx specific exceptions                                              */
+    POWERPC_EXCP_VPUA     = 86, /* Vector assist exception                   */
+    /* 970FX specific exceptions                                             */
+    POWERPC_EXCP_SOFTP    = 87, /* Soft patch exception                      */
+    POWERPC_EXCP_MAINT    = 88, /* Maintenance exception                     */
+    /* EOL                                                                   */
+    POWERPC_EXCP_NB       = 96,
+    /* Qemu exceptions: used internally during code translation              */
+    POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
+    POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
+    /* Qemu exceptions: special cases we want to stop translation            */
+    POWERPC_EXCP_SYNC         = 0x202, /* context synchronizing instruction  */
+    POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
+};
+
+
+/* Exceptions error codes                                                    */
+enum {
+    /* Exception subtypes for POWERPC_EXCP_ALIGN                             */
+    POWERPC_EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception            */
+    POWERPC_EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store  */
+    POWERPC_EXCP_ALIGN_LE      = 0x03,  /* Multiple little-endian access     */
+    POWERPC_EXCP_ALIGN_PROT    = 0x04,  /* Access cross protection boundary  */
+    POWERPC_EXCP_ALIGN_BAT     = 0x05,  /* Access cross a BAT/seg boundary   */
+    POWERPC_EXCP_ALIGN_CACHE   = 0x06,  /* Impossible dcbz access            */
+    /* Exception subtypes for POWERPC_EXCP_PROGRAM                           */
+    /* FP exceptions                                                         */
+    POWERPC_EXCP_FP            = 0x10,
+    POWERPC_EXCP_FP_OX         = 0x01,  /* FP overflow                       */
+    POWERPC_EXCP_FP_UX         = 0x02,  /* FP underflow                      */
+    POWERPC_EXCP_FP_ZX         = 0x03,  /* FP divide by zero                 */
+    POWERPC_EXCP_FP_XX         = 0x04,  /* FP inexact                        */
+    POWERPC_EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op                */
+    POWERPC_EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite subtraction   */
+    POWERPC_EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide        */
+    POWERPC_EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide            */
+    POWERPC_EXCP_FP_VXIMZ      = 0x09,  /* FP invalid infinite * zero        */
+    POWERPC_EXCP_FP_VXVC       = 0x0A,  /* FP invalid compare                */
+    POWERPC_EXCP_FP_VXSOFT     = 0x0B,  /* FP invalid operation              */
+    POWERPC_EXCP_FP_VXSQRT     = 0x0C,  /* FP invalid square root            */
+    POWERPC_EXCP_FP_VXCVI      = 0x0D,  /* FP invalid integer conversion     */
+    /* Invalid instruction                                                   */
+    POWERPC_EXCP_INVAL         = 0x20,
+    POWERPC_EXCP_INVAL_INVAL   = 0x01,  /* Invalid instruction               */
+    POWERPC_EXCP_INVAL_LSWX    = 0x02,  /* Invalid lswx instruction          */
+    POWERPC_EXCP_INVAL_SPR     = 0x03,  /* Invalid SPR access                */
+    POWERPC_EXCP_INVAL_FP      = 0x04,  /* Unimplemented mandatory fp instr  */
+    /* Privileged instruction                                                */
+    POWERPC_EXCP_PRIV          = 0x30,
+    POWERPC_EXCP_PRIV_OPC      = 0x01,  /* Privileged operation exception    */
+    POWERPC_EXCP_PRIV_REG      = 0x02,  /* Privileged register exception     */
+    /* Trap                                                                  */
+    POWERPC_EXCP_TRAP          = 0x40,
+};
 
 /*****************************************************************************/
-/* Supported instruction set definitions */
-/* This generates an empty opcode table... */
-#define PPC_INSNS_TODO (PPC_NONE)
-#define PPC_FLAGS_TODO (0x00000000)
+/* Input pins model                                                          */
+enum {
+    PPC_FLAGS_INPUT_UNKNOWN = 0,
+    /* PowerPC 6xx bus                  */
+    PPC_FLAGS_INPUT_6xx,
+    /* BookE bus                        */
+    PPC_FLAGS_INPUT_BookE,
+    /* PowerPC 405 bus                  */
+    PPC_FLAGS_INPUT_405,
+    /* PowerPC 970 bus                  */
+    PPC_FLAGS_INPUT_970,
+    /* PowerPC 401 bus                  */
+    PPC_FLAGS_INPUT_401,
+};
 
-/* PowerPC 40x instruction set */
-#define PPC_INSNS_EMB (PPC_INSNS_BASE | PPC_EMB_COMMON)
-/* PowerPC 401 */
-#define PPC_INSNS_401 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
-                       PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
-#define PPC_FLAGS_401 (PPC_FLAGS_MMU_401 | PPC_FLAGS_EXCP_40x |               \
-                       PPC_FLAGS_INPUT_40x)
-/* PowerPC 403 */
-#define PPC_INSNS_403 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
-                       PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | PPC_4xx_COMMON |     \
-                       PPC_40x_EXCP | PPC_40x_SPEC | PPC_40x_ICBT)
-#define PPC_FLAGS_403 (PPC_FLAGS_MMU_403 | PPC_FLAGS_EXCP_40x |               \
-                       PPC_FLAGS_INPUT_40x)
-/* PowerPC 405 */
-#define PPC_INSNS_405 (PPC_INSNS_EMB | PPC_MEM_SYNC | PPC_MEM_EIEIO |         \
-                       PPC_CACHE_OPT | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |      \
-                       PPC_TB | PPC_4xx_COMMON | PPC_40x_SPEC |               \
-                       PPC_40x_ICBT | PPC_40x_EXCP | PPC_405_MAC)
-#define PPC_FLAGS_405 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x |          \
-                       PPC_FLAGS_INPUT_40x)
-/* PowerPC 440 */
-#define PPC_INSNS_440 (PPC_INSNS_EMB | PPC_CACHE_OPT | PPC_BOOKE |            \
-                       PPC_MEM_TLBSYNC | PPC_4xx_COMMON | PPC_405_MAC |       \
-                       PPC_440_SPEC)
-#define PPC_FLAGS_440 (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE |           \
-                       PPC_FLAGS_INPUT_BookE)
-/* Generic BookE PowerPC */
-#define PPC_INSNS_BOOKE (PPC_INSNS_EMB | PPC_MEM_TLBSYNC | PPC_BOOKE |        \
-                         PPC_MEM_EIEIO | PPC_FLOAT | PPC_FLOAT_OPT |          \
-                         PPC_CACHE_OPT)
-#define PPC_FLAGS_BOOKE (PPC_FLAGS_MMU_BOOKE | PPC_FLAGS_EXCP_BOOKE |         \
-                         PPC_FLAGS_INPUT_BookE)
-/* e500 core */
-#define PPC_INSNS_E500 (PPC_INSNS_EMB | PPC_MEM_TLBSYNC | PPC_BOOKE |         \
-                        PPC_MEM_EIEIO | PPC_CACHE_OPT | PPC_E500_VECTOR)
-#define PPC_FLAGS_E500 (PPC_FLAGS_MMU_SOFT_4xx | PPC_FLAGS_EXCP_40x |         \
-                        PPC_FLAGS_INPUT_BookE)
-/* Non-embedded PowerPC */
-#define PPC_INSNS_COMMON  (PPC_INSNS_BASE | PPC_FLOAT | PPC_MEM_SYNC |        \
-                           PPC_MEM_EIEIO | PPC_SEGMENT | PPC_MEM_TLBIE)
-/* PowerPC 601 */
-#define PPC_INSNS_601 (PPC_INSNS_COMMON | PPC_EXTERN | PPC_POWER_BR)
-#define PPC_FLAGS_601 (PPC_FLAGS_MMU_601 | PPC_FLAGS_EXCP_601 |               \
-                       PPC_FLAGS_INPUT_6xx)
-/* PowerPC 602 */
-#define PPC_INSNS_602 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |       \
-                       PPC_MEM_TLBSYNC | PPC_TB | PPC_602_SPEC)
-#define PPC_FLAGS_602 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_602 |          \
-                       PPC_FLAGS_INPUT_6xx)
-/* PowerPC 603 */
-#define PPC_INSNS_603 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |       \
-                       PPC_MEM_TLBSYNC | PPC_EXTERN | PPC_TB)
-#define PPC_FLAGS_603 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_603 |          \
-                       PPC_FLAGS_INPUT_6xx)
-/* PowerPC G2 */
-#define PPC_INSNS_G2 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_6xx_TLB |        \
-                      PPC_MEM_TLBSYNC | PPC_EXTERN | PPC_TB)
-#define PPC_FLAGS_G2 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_603 |           \
-                      PPC_FLAGS_INPUT_6xx)
-/* PowerPC 604 */
-#define PPC_INSNS_604 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_EXTERN |        \
-                       PPC_MEM_TLBSYNC | PPC_TB)
-#define PPC_FLAGS_604 (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_604 |               \
-                       PPC_FLAGS_INPUT_6xx)
-/* PowerPC 740/750 (aka G3) */
-#define PPC_INSNS_7x0 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_EXTERN |        \
-                       PPC_MEM_TLBSYNC | PPC_TB)
-#define PPC_FLAGS_7x0 (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_7x0 |               \
-                       PPC_FLAGS_INPUT_6xx)
-/* PowerPC 745/755 */
-#define PPC_INSNS_7x5 (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_EXTERN |        \
-                       PPC_MEM_TLBSYNC | PPC_TB | PPC_6xx_TLB)
-#define PPC_FLAGS_7x5 (PPC_FLAGS_MMU_SOFT_6xx | PPC_FLAGS_EXCP_7x5 |          \
-                       PPC_FLAGS_INPUT_6xx)
-/* PowerPC 74xx (aka G4) */
-#define PPC_INSNS_74xx (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_ALTIVEC |      \
-                        PPC_MEM_TLBSYNC | PPC_TB)
-#define PPC_FLAGS_74xx (PPC_FLAGS_MMU_32B | PPC_FLAGS_EXCP_74xx |             \
-                        PPC_FLAGS_INPUT_6xx)
-/* PowerPC 970 (aka G5) */
-#define PPC_INSNS_970  (PPC_INSNS_COMMON | PPC_FLOAT_EXT | PPC_FLOAT_OPT |    \
-                        PPC_ALTIVEC | PPC_MEM_TLBSYNC | PPC_TB |              \
-                        PPC_64B | PPC_64_BRIDGE | PPC_SLBI)
-#define PPC_FLAGS_970  (PPC_FLAGS_MMU_64BRIDGE | PPC_FLAGS_EXCP_970 |         \
-                        PPC_FLAGS_INPUT_970)
+#define PPC_INPUT(env) (env->bus_model)
 
-/* Default PowerPC will be 604/970 */
-#define PPC_INSNS_PPC32 PPC_INSNS_604
-#define PPC_FLAGS_PPC32 PPC_FLAGS_604
-#define PPC_INSNS_PPC64 PPC_INSNS_970
-#define PPC_FLAGS_PPC64 PPC_FLAGS_970
-#define PPC_INSNS_DEFAULT PPC_INSNS_604
-#define PPC_FLAGS_DEFAULT PPC_FLAGS_604
 typedef struct ppc_def_t ppc_def_t;
+typedef struct opc_handler_t opc_handler_t;
 
 /*****************************************************************************/
 /* Types used to describe some PowerPC registers */
 typedef struct CPUPPCState CPUPPCState;
-typedef struct opc_handler_t opc_handler_t;
 typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
@@ -832,7 +514,12 @@ struct CPUPPCState {
 
     /* Those resources are used during exception processing */
     /* CPU model definition */
-    uint64_t msr_mask;
+    target_ulong msr_mask;
+    uint8_t mmu_model;
+    uint8_t excp_model;
+    uint8_t bus_model;
+    uint8_t pad;
+    int bfd_mach;
     uint32_t flags;
 
     int exception_index;
@@ -845,6 +532,11 @@ struct CPUPPCState {
      */
     uint32_t irq_input_state;
     void **irq_inputs;
+    /* Exception vectors */
+    target_ulong excp_vectors[POWERPC_EXCP_NB];
+    target_ulong excp_prefix;
+    target_ulong ivor_mask;
+    target_ulong ivpr_mask;
 #endif
 
     /* Those resources are used only during code translation */
@@ -935,6 +627,12 @@ void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
+#if defined(TARGET_PPC64H)
+uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
+void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value);
+uint64_t cpu_ppc_load_purr (CPUPPCState *env);
+void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value);
+#endif
 uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
 #if !defined(CONFIG_USER_ONLY)
@@ -985,7 +683,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_LR           (0x008)
 #define SPR_CTR          (0x009)
 #define SPR_DSISR        (0x012)
-#define SPR_DAR          (0x013)
+#define SPR_DAR          (0x013) /* DAE for PowerPC 601 */
 #define SPR_601_RTCU     (0x014)
 #define SPR_601_RTCL     (0x015)
 #define SPR_DECR         (0x016)
@@ -1068,9 +766,9 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_IAC1   (0x138)
 #define SPR_HRMOR        (0x139)
 #define SPR_BOOKE_IAC2   (0x139)
-#define SPR_HSSR0        (0x13A)
+#define SPR_HSRR0        (0x13A)
 #define SPR_BOOKE_IAC3   (0x13A)
-#define SPR_HSSR1        (0x13B)
+#define SPR_HSRR1        (0x13B)
 #define SPR_BOOKE_IAC4   (0x13B)
 #define SPR_LPCR         (0x13C)
 #define SPR_BOOKE_DAC1   (0x13C)
@@ -1203,6 +901,8 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_440_ITV1     (0x375)
 #define SPR_440_ITV2     (0x376)
 #define SPR_440_ITV3     (0x377)
+#define SPR_440_CCR1     (0x378)
+#define SPR_DCRIPR       (0x37B)
 #define SPR_PPR          (0x380)
 #define SPR_440_DNV0     (0x390)
 #define SPR_440_DNV1     (0x391)
@@ -1219,38 +919,63 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_DCDBTRH (0x39D)
 #define SPR_BOOKE_ICDBTRL (0x39E)
 #define SPR_BOOKE_ICDBTRH (0x39F)
+#define SPR_UMMCR2       (0x3A0)
+#define SPR_UPMC5        (0x3A1)
+#define SPR_UPMC6        (0x3A2)
+#define SPR_UBAMR        (0x3A7)
 #define SPR_UMMCR0       (0x3A8)
 #define SPR_UPMC1        (0x3A9)
 #define SPR_UPMC2        (0x3AA)
-#define SPR_USIA         (0x3AB)
+#define SPR_USIAR        (0x3AB)
 #define SPR_UMMCR1       (0x3AC)
 #define SPR_UPMC3        (0x3AD)
 #define SPR_UPMC4        (0x3AE)
 #define SPR_USDA         (0x3AF)
 #define SPR_40x_ZPR      (0x3B0)
 #define SPR_BOOKE_MAS7   (0x3B0)
+#define SPR_620_PMR0     (0x3B0)
+#define SPR_MMCR2        (0x3B0)
+#define SPR_PMC5         (0x3B1)
 #define SPR_40x_PID      (0x3B1)
+#define SPR_620_PMR1     (0x3B1)
+#define SPR_PMC6         (0x3B2)
 #define SPR_440_MMUCR    (0x3B2)
+#define SPR_620_PMR2     (0x3B2)
 #define SPR_4xx_CCR0     (0x3B3)
 #define SPR_BOOKE_EPLC   (0x3B3)
+#define SPR_620_PMR3     (0x3B3)
 #define SPR_405_IAC3     (0x3B4)
 #define SPR_BOOKE_EPSC   (0x3B4)
+#define SPR_620_PMR4     (0x3B4)
 #define SPR_405_IAC4     (0x3B5)
+#define SPR_620_PMR5     (0x3B5)
 #define SPR_405_DVC1     (0x3B6)
+#define SPR_620_PMR6     (0x3B6)
 #define SPR_405_DVC2     (0x3B7)
+#define SPR_620_PMR7     (0x3B7)
+#define SPR_BAMR         (0x3B7)
 #define SPR_MMCR0        (0x3B8)
+#define SPR_620_PMR8     (0x3B8)
 #define SPR_PMC1         (0x3B9)
 #define SPR_40x_SGR      (0x3B9)
+#define SPR_620_PMR9     (0x3B9)
 #define SPR_PMC2         (0x3BA)
 #define SPR_40x_DCWR     (0x3BA)
-#define SPR_SIA          (0x3BB)
+#define SPR_620_PMRA     (0x3BA)
+#define SPR_SIAR         (0x3BB)
 #define SPR_405_SLER     (0x3BB)
+#define SPR_620_PMRB     (0x3BB)
 #define SPR_MMCR1        (0x3BC)
 #define SPR_405_SU0R     (0x3BC)
+#define SPR_620_PMRC     (0x3BC)
+#define SPR_401_SKR      (0x3BC)
 #define SPR_PMC3         (0x3BD)
 #define SPR_405_DBCR1    (0x3BD)
+#define SPR_620_PMRD     (0x3BD)
 #define SPR_PMC4         (0x3BE)
+#define SPR_620_PMRE     (0x3BE)
 #define SPR_SDA          (0x3BF)
+#define SPR_620_PMRF     (0x3BF)
 #define SPR_403_VTBL     (0x3CC)
 #define SPR_403_VTBU     (0x3CD)
 #define SPR_DMISS        (0x3D0)
@@ -1258,18 +983,23 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_HASH1        (0x3D2)
 #define SPR_HASH2        (0x3D3)
 #define SPR_BOOKE_ICDBDR (0x3D3)
+#define SPR_TLBMISS      (0x3D4)
 #define SPR_IMISS        (0x3D4)
 #define SPR_40x_ESR      (0x3D4)
+#define SPR_PTEHI        (0x3D5)
 #define SPR_ICMP         (0x3D5)
 #define SPR_40x_DEAR     (0x3D5)
+#define SPR_PTELO        (0x3D6)
 #define SPR_RPA          (0x3D6)
 #define SPR_40x_EVPR     (0x3D6)
+#define SPR_L3PM         (0x3D7)
 #define SPR_403_CDBCR    (0x3D7)
+#define SPR_L3OHCR       (0x3D8)
 #define SPR_TCR          (0x3D8)
 #define SPR_40x_TSR      (0x3D8)
 #define SPR_IBR          (0x3DA)
 #define SPR_40x_TCR      (0x3DA)
-#define SPR_ESASR        (0x3DB)
+#define SPR_ESASRR       (0x3DB)
 #define SPR_40x_PIT      (0x3DB)
 #define SPR_403_TBL      (0x3DC)
 #define SPR_403_TBU      (0x3DD)
@@ -1277,6 +1007,10 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_40x_SRR2     (0x3DE)
 #define SPR_SER          (0x3DF)
 #define SPR_40x_SRR3     (0x3DF)
+#define SPR_L3ITCR0      (0x3E8)
+#define SPR_L3ITCR1      (0x3E9)
+#define SPR_L3ITCR2      (0x3EA)
+#define SPR_L3ITCR3      (0x3EB)
 #define SPR_HID0         (0x3F0)
 #define SPR_40x_DBSR     (0x3F0)
 #define SPR_HID1         (0x3F1)
@@ -1284,9 +1018,11 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_40x_DBCR0    (0x3F2)
 #define SPR_601_HID2     (0x3F2)
 #define SPR_E500_L1CSR0  (0x3F2)
+#define SPR_ICTRL        (0x3F3)
 #define SPR_HID2         (0x3F3)
 #define SPR_E500_L1CSR1  (0x3F3)
 #define SPR_440_DBDR     (0x3F3)
+#define SPR_LDSTDB       (0x3F4)
 #define SPR_40x_IAC1     (0x3F4)
 #define SPR_BOOKE_MMUCSR0 (0x3F4)
 #define SPR_DABR         (0x3F5)
@@ -1295,12 +1031,18 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_40x_IAC2     (0x3F5)
 #define SPR_601_HID5     (0x3F5)
 #define SPR_40x_DAC1     (0x3F6)
+#define SPR_MSSCR0       (0x3F6)
+#define SPR_MSSSR0       (0x3F7)
 #define SPR_DABRX        (0x3F7)
 #define SPR_40x_DAC2     (0x3F7)
 #define SPR_BOOKE_MMUCFG (0x3F7)
-#define SPR_L2PM         (0x3F8)
+#define SPR_LDSTCR       (0x3F8)
+#define SPR_L2PMCR       (0x3F8)
 #define SPR_750_HID2     (0x3F8)
+#define SPR_620_HID8     (0x3F8)
 #define SPR_L2CR         (0x3F9)
+#define SPR_620_HID9     (0x3F9)
+#define SPR_L3CR         (0x3FA)
 #define SPR_IABR2        (0x3FA)
 #define SPR_40x_DCCR     (0x3FA)
 #define SPR_ICTC         (0x3FB)
@@ -1310,6 +1052,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_SP           (0x3FD)
 #define SPR_THRM2        (0x3FD)
 #define SPR_403_PBU1     (0x3FD)
+#define SPR_604_HID13    (0x3FD)
 #define SPR_LT           (0x3FE)
 #define SPR_THRM3        (0x3FE)
 #define SPR_FPECR        (0x3FE)
@@ -1317,6 +1060,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_PIR          (0x3FF)
 #define SPR_403_PBU2     (0x3FF)
 #define SPR_601_HID15    (0x3FF)
+#define SPR_604_HID15    (0x3FF)
 #define SPR_E500_SVR     (0x3FF)
 
 /*****************************************************************************/
@@ -1334,112 +1078,6 @@ enum {
     ACCESS_RES   = 0x40, /* load/store with reservation      */
     ACCESS_EXT   = 0x50, /* external access                  */
     ACCESS_CACHE = 0x60, /* Cache manipulation               */
-};
-
-/*****************************************************************************/
-/* Exceptions */
-#define EXCP_NONE          -1
-/* PowerPC hardware exceptions : exception vectors defined in PowerPC book 3 */
-#define EXCP_RESET         0x0100 /* System reset                            */
-#define EXCP_MACHINE_CHECK 0x0200 /* Machine check exception                 */
-#define EXCP_DSI           0x0300 /* Data storage exception                  */
-#define EXCP_DSEG          0x0380 /* Data segment exception                  */
-#define EXCP_ISI           0x0400 /* Instruction storage exception           */
-#define EXCP_ISEG          0x0480 /* Instruction segment exception           */
-#define EXCP_EXTERNAL      0x0500 /* External interruption                   */
-#define EXCP_ALIGN         0x0600 /* Alignment exception                     */
-#define EXCP_PROGRAM       0x0700 /* Program exception                       */
-#define EXCP_NO_FP         0x0800 /* Floating point unavailable exception    */
-#define EXCP_DECR          0x0900 /* Decrementer exception                   */
-#define EXCP_HDECR         0x0980 /* Hypervisor decrementer exception        */
-#define EXCP_SYSCALL       0x0C00 /* System call                             */
-#define EXCP_TRACE         0x0D00 /* Trace exception                         */
-#define EXCP_PERF          0x0F00 /* Performance monitor exception           */
-/* Exceptions defined in PowerPC 32 bits programming environment manual      */
-#define EXCP_FP_ASSIST     0x0E00 /* Floating-point assist                   */
-/* Implementation specific exceptions                                        */
-/* 40x exceptions                                                            */
-#define EXCP_40x_PIT       0x1000 /* Programmable interval timer interrupt   */
-#define EXCP_40x_FIT       0x1010 /* Fixed interval timer interrupt          */
-#define EXCP_40x_WATCHDOG  0x1020 /* Watchdog timer exception                */
-#define EXCP_40x_DTLBMISS  0x1100 /* Data TLB miss exception                 */
-#define EXCP_40x_ITLBMISS  0x1200 /* Instruction TLB miss exception          */
-#define EXCP_40x_DEBUG     0x2000 /* Debug exception                         */
-/* 405 specific exceptions                                                   */
-#define EXCP_405_APU       0x0F20 /* APU unavailable exception               */
-/* TLB assist exceptions (602/603)                                           */
-#define EXCP_I_TLBMISS     0x1000 /* Instruction TLB miss                    */
-#define EXCP_DL_TLBMISS    0x1100 /* Data load TLB miss                      */
-#define EXCP_DS_TLBMISS    0x1200 /* Data store TLB miss                     */
-/* Breakpoint exceptions (602/603/604/620/740/745/750/755...)                */
-#define EXCP_IABR          0x1300 /* Instruction address breakpoint          */
-#define EXCP_SMI           0x1400 /* System management interrupt             */
-/* Altivec related exceptions                                                */
-#define EXCP_VPU           0x0F20 /* VPU unavailable exception               */
-/* 601 specific exceptions                                                   */
-#define EXCP_601_IO        0x0600 /* IO error exception                      */
-#define EXCP_601_RUNM      0x2000 /* Run mode exception                      */
-/* 602 specific exceptions                                                   */
-#define EXCP_602_WATCHDOG  0x1500 /* Watchdog exception                      */
-#define EXCP_602_EMUL      0x1600 /* Emulation trap exception                */
-/* G2 specific exceptions                                                    */
-#define EXCP_G2_CRIT       0x0A00 /* Critical interrupt                      */
-/* MPC740/745/750 & IBM 750 specific exceptions                              */
-#define EXCP_THRM          0x1700 /* Thermal management interrupt            */
-/* 74xx specific exceptions                                                  */
-#define EXCP_74xx_VPUA     0x1600 /* VPU assist exception                    */
-/* 970FX specific exceptions                                                 */
-#define EXCP_970_SOFTP     0x1500 /* Soft patch exception                    */
-#define EXCP_970_MAINT     0x1600 /* Maintenance exception                   */
-#define EXCP_970_THRM      0x1800 /* Thermal exception                       */
-#define EXCP_970_VPUA      0x1700 /* VPU assist exception                    */
-/* SPE related exceptions                                                    */
-#define EXCP_NO_SPE        0x0F20 /* SPE unavailable exception               */
-/* End of exception vectors area                                             */
-#define EXCP_PPC_MAX       0x4000
-/* Qemu exceptions: special cases we want to stop translation                */
-#define EXCP_MTMSR         0x11000 /* mtmsr instruction:                     */
-                                   /* may change privilege level             */
-#define EXCP_BRANCH        0x11001 /* branch instruction                     */
-#define EXCP_SYSCALL_USER  0x12000 /* System call in user mode only          */
-
-/* Error codes */
-enum {
-    /* Exception subtypes for EXCP_ALIGN                            */
-    EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception           */
-    EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store */
-    EXCP_ALIGN_LE      = 0x03,  /* Multiple little-endian access    */
-    EXCP_ALIGN_PROT    = 0x04,  /* Access cross protection boundary */
-    EXCP_ALIGN_BAT     = 0x05,  /* Access cross a BAT/seg boundary  */
-    EXCP_ALIGN_CACHE   = 0x06,  /* Impossible dcbz access           */
-    /* Exception subtypes for EXCP_PROGRAM                          */
-    /* FP exceptions */
-    EXCP_FP            = 0x10,
-    EXCP_FP_OX         = 0x01,  /* FP overflow                      */
-    EXCP_FP_UX         = 0x02,  /* FP underflow                     */
-    EXCP_FP_ZX         = 0x03,  /* FP divide by zero                */
-    EXCP_FP_XX         = 0x04,  /* FP inexact                       */
-    EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op               */
-    EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite subtraction */
-    EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide       */
-    EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide           */
-    EXCP_FP_VXIMZ      = 0x09,  /* FP invalid infinite * zero       */
-    EXCP_FP_VXVC       = 0x0A,  /* FP invalid compare               */
-    EXCP_FP_VXSOFT     = 0x0B,  /* FP invalid operation             */
-    EXCP_FP_VXSQRT     = 0x0C,  /* FP invalid square root           */
-    EXCP_FP_VXCVI      = 0x0D,  /* FP invalid integer conversion    */
-    /* Invalid instruction */
-    EXCP_INVAL         = 0x20,
-    EXCP_INVAL_INVAL   = 0x01,  /* Invalid instruction              */
-    EXCP_INVAL_LSWX    = 0x02,  /* Invalid lswx instruction         */
-    EXCP_INVAL_SPR     = 0x03,  /* Invalid SPR access               */
-    EXCP_INVAL_FP      = 0x04,  /* Unimplemented mandatory fp instr */
-    /* Privileged instruction */
-    EXCP_PRIV          = 0x30,
-    EXCP_PRIV_OPC      = 0x01,  /* Privileged operation exception   */
-    EXCP_PRIV_REG      = 0x02,  /* Privileged register exception    */
-    /* Trap */
-    EXCP_TRAP          = 0x40,
 };
 
 /* Hardware interruption sources:
@@ -1468,6 +1106,15 @@ enum {
 };
 
 enum {
+    /* PowerPC 401/403 input pins */
+    PPC401_INPUT_RESET      = 0,
+    PPC401_INPUT_CINT       = 1,
+    PPC401_INPUT_INT        = 2,
+    PPC401_INPUT_BERR       = 3,
+    PPC401_INPUT_HALT       = 4,
+};
+
+enum {
     /* PowerPC 405 input pins */
     PPC405_INPUT_RESET_CORE = 0,
     PPC405_INPUT_RESET_CHIP = 1,
@@ -1476,6 +1123,18 @@ enum {
     PPC405_INPUT_INT        = 4,
     PPC405_INPUT_HALT       = 5,
     PPC405_INPUT_DEBUG      = 6,
+};
+
+enum {
+    /* PowerPC 620 (and probably others) input pins */
+    PPC620_INPUT_HRESET     = 0,
+    PPC620_INPUT_SRESET     = 1,
+    PPC620_INPUT_CKSTP      = 2,
+    PPC620_INPUT_TBEN       = 3,
+    PPC620_INPUT_WAKEUP     = 4,
+    PPC620_INPUT_MCP        = 5,
+    PPC620_INPUT_SMI        = 6,
+    PPC620_INPUT_INT        = 7,
 };
 
 enum {
@@ -1492,19 +1151,22 @@ enum {
 /* Hardware exceptions definitions */
 enum {
     /* External hardware exception sources */
-    PPC_INTERRUPT_RESET  = 0,  /* Reset exception                      */
-    PPC_INTERRUPT_MCK    = 1,  /* Machine check exception              */
-    PPC_INTERRUPT_EXT    = 2,  /* External interrupt                   */
-    PPC_INTERRUPT_SMI    = 3,  /* System management interrupt          */
-    PPC_INTERRUPT_CEXT   = 4,  /* Critical external interrupt          */
-    PPC_INTERRUPT_DEBUG  = 5,  /* External debug exception             */
-    PPC_INTERRUPT_THERM  = 6,  /* Thermal exception                    */
+    PPC_INTERRUPT_RESET     = 0,  /* Reset exception                      */
+    PPC_INTERRUPT_MCK       = 1,  /* Machine check exception              */
+    PPC_INTERRUPT_EXT       = 2,  /* External interrupt                   */
+    PPC_INTERRUPT_SMI       = 3,  /* System management interrupt          */
+    PPC_INTERRUPT_CEXT      = 4,  /* Critical external interrupt          */
+    PPC_INTERRUPT_DEBUG     = 5,  /* External debug exception             */
+    PPC_INTERRUPT_THERM     = 6,  /* Thermal exception                    */
     /* Internal hardware exception sources */
-    PPC_INTERRUPT_DECR   = 7,  /* Decrementer exception                */
-    PPC_INTERRUPT_HDECR  = 8,  /* Hypervisor decrementer exception     */
-    PPC_INTERRUPT_PIT    = 9,  /* Programmable inteval timer interrupt */
-    PPC_INTERRUPT_FIT    = 10, /* Fixed interval timer interrupt       */
-    PPC_INTERRUPT_WDT    = 11, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_DECR      = 7,  /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR     = 8,  /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT       = 9,  /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT       = 10, /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT       = 11, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_CDOORBELL = 12, /* Critical doorbell interrupt          */
+    PPC_INTERRUPT_DOORBELL  = 13, /* Doorbell interrupt                   */
+    PPC_INTERRUPT_PERFM     = 14, /* Performance monitor interrupt        */
 };
 
 /*****************************************************************************/
