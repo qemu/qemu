@@ -178,13 +178,18 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     disasm_info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
-    if (flags)
+    if (flags >> 16)
         disasm_info.endian = BFD_ENDIAN_LITTLE;
+    if (flags & 0xFFFF) {
+        /* If we have a precise definitions of the instructions set, use it */
+        disasm_info.mach = flags & 0xFFFF;
+    } else {
 #ifdef TARGET_PPC64
-    disasm_info.mach = bfd_mach_ppc64;
+        disasm_info.mach = bfd_mach_ppc64;
 #else
-    disasm_info.mach = bfd_mach_ppc;
+        disasm_info.mach = bfd_mach_ppc;
 #endif
+    }
     print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;

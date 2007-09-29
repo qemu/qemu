@@ -6108,7 +6108,8 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         int flags;
-        flags = msr_le;
+        flags = env->bfd_mach;
+        flags |= msr_le << 16;
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.nip - pc_start, flags);
         fprintf(logfile, "\n");

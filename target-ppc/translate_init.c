@@ -23,6 +23,8 @@
  * inside "#if defined(TODO) ... #endif" statements to make tests easier.
  */
 
+#include "dis-asm.h"
+
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
 //#define PPC_DEBUG_IRQ
@@ -37,6 +39,7 @@ struct ppc_def_t {
     uint8_t excp_model;
     uint8_t bus_model;
     uint8_t pad;
+    int bfd_mach;
     void (*init_proc)(CPUPPCState *env);
 };
 
@@ -2163,6 +2166,7 @@ static void gen_spr_620 (CPUPPCState *env)
 #define POWERPC_MMU_401      (POWERPC_MMU_REAL_4xx)
 #define POWERPC_EXCP_401     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401    (PPC_FLAGS_INPUT_401)
+#define POWERPC_BFDM_401     (bfd_mach_ppc_403)
 
 static void init_proc_401 (CPUPPCState *env)
 {
@@ -2192,6 +2196,7 @@ static void init_proc_401 (CPUPPCState *env)
 #define POWERPC_MMU_401x2    (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_401x2   (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401x2  (PPC_FLAGS_INPUT_401)
+#define POWERPC_BFDM_401x2   (bfd_mach_ppc_403)
 
 static void init_proc_401x2 (CPUPPCState *env)
 {
@@ -2227,6 +2232,7 @@ static void init_proc_401x2 (CPUPPCState *env)
 #define POWERPC_MMU_401x3    (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_401x3   (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401x3  (PPC_FLAGS_INPUT_401)
+#define POWERPC_BFDM_401x3   (bfd_mach_ppc_403)
 
 static void init_proc_401x2 (CPUPPCState *env)
 {
@@ -2243,6 +2249,7 @@ static void init_proc_401x2 (CPUPPCState *env)
 #define POWERPC_MMU_IOP480   (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_IOP480  (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_IOP480 (PPC_FLAGS_INPUT_401)
+#define POWERPC_BFDM_IOP480  (bfd_mach_ppc_403)
 
 static void init_proc_IOP480 (CPUPPCState *env)
 {
@@ -2276,6 +2283,7 @@ static void init_proc_IOP480 (CPUPPCState *env)
 #define POWERPC_MMU_403      (POWERPC_MMU_REAL_4xx)
 #define POWERPC_EXCP_403     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_403    (PPC_FLAGS_INPUT_401)
+#define POWERPC_BFDM_403     (bfd_mach_ppc_403)
 
 static void init_proc_403 (CPUPPCState *env)
 {
@@ -2295,6 +2303,7 @@ static void init_proc_403 (CPUPPCState *env)
 #define POWERPC_MMU_403GCX   (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_403GCX  (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_403GCX (PPC_FLAGS_INPUT_401)
+#define POWERPC_BFDM_403GCX  (bfd_mach_ppc_403)
 
 static void init_proc_403GCX (CPUPPCState *env)
 {
@@ -2330,6 +2339,7 @@ static void init_proc_403GCX (CPUPPCState *env)
 #define POWERPC_MMU_405      (POWERPC_MMU_SOFT_4xx)
 #define POWERPC_EXCP_405     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_405    (PPC_FLAGS_INPUT_405)
+#define POWERPC_BFDM_405     (bfd_mach_ppc_403)
 
 static void init_proc_405 (CPUPPCState *env)
 {
@@ -2364,6 +2374,7 @@ static void init_proc_405 (CPUPPCState *env)
 #define POWERPC_MMU_440EP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440EP   (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_440EP  (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_440EP   (bfd_mach_ppc_403)
 
 static void init_proc_440EP (CPUPPCState *env)
 {
@@ -2403,6 +2414,7 @@ static void init_proc_440EP (CPUPPCState *env)
 #define POWERPC_MMU_440GP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440GP   (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_440GP  (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_440GP   (bfd_mach_ppc_403)
 
 static void init_proc_440GP (CPUPPCState *env)
 {
@@ -2427,6 +2439,7 @@ static void init_proc_440GP (CPUPPCState *env)
 #define POWERPC_MMU_440x4    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440x4   (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_440x4  (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_440x4   (bfd_mach_ppc_403)
 
 static void init_proc_440x4 (CPUPPCState *env)
 {
@@ -2451,6 +2464,7 @@ static void init_proc_440x4 (CPUPPCState *env)
 #define POWERPC_MMU_440x5    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440x5   (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_440x5  (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_440x5   (bfd_mach_ppc_403)
 
 static void init_proc_440x5 (CPUPPCState *env)
 {
@@ -2491,6 +2505,7 @@ static void init_proc_440x5 (CPUPPCState *env)
 #define POWERPC_MMU_460      (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460     (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_460    (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_460     (bfd_mach_ppc_403)
 
 static void init_proc_460 (CPUPPCState *env)
 {
@@ -2510,6 +2525,7 @@ static void init_proc_460 (CPUPPCState *env)
 #define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_460F   (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_460F    (bfd_mach_ppc_403)
 
 static void init_proc_460 (CPUPPCState *env)
 {
@@ -2558,6 +2574,7 @@ static void init_proc_460 (CPUPPCState *env)
 #define POWERPC_MMU_BookE    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_BookE   (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_BookE  (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_BookE   (bfd_mach_ppc_403)
 
 static void init_proc_BookE (CPUPPCState *env)
 {
@@ -2581,6 +2598,7 @@ static void init_proc_BookE (CPUPPCState *env)
 #define POWERPC_MMU_e500     (POWERPC_MMU_SOFT_4xx)
 #define POWERPC_EXCP_e500    (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_e500   (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_e500    (bfd_mach_ppc_403)
 
 static void init_proc_e500 (CPUPPCState *env)
 {
@@ -2623,6 +2641,7 @@ static void init_proc_e500 (CPUPPCState *env)
 //#define POWERPC_MMU_601      (POWERPC_MMU_601)
 //#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
 #define POWERPC_INPUT_601    (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_601     (bfd_mach_ppc_601)
 
 static void init_proc_601 (CPUPPCState *env)
 {
@@ -2671,6 +2690,7 @@ static void init_proc_601 (CPUPPCState *env)
 #define POWERPC_MMU_602      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_602     (POWERPC_EXCP_602)
 #define POWERPC_INPUT_602    (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_602     (bfd_mach_ppc_602)
 
 static void init_proc_602 (CPUPPCState *env)
 {
@@ -2702,6 +2722,7 @@ static void init_proc_602 (CPUPPCState *env)
 #define POWERPC_MMU_603      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_603     (POWERPC_EXCP_603)
 #define POWERPC_INPUT_603    (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_603     (bfd_mach_ppc_603)
 
 static void init_proc_603 (CPUPPCState *env)
 {
@@ -2733,6 +2754,7 @@ static void init_proc_603 (CPUPPCState *env)
 #define POWERPC_MMU_603E     (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_603E    (POWERPC_EXCP_603E)
 #define POWERPC_INPUT_603E   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_603E    (bfd_mach_ppc_ec603e)
 
 static void init_proc_603E (CPUPPCState *env)
 {
@@ -2769,6 +2791,7 @@ static void init_proc_603E (CPUPPCState *env)
 #define POWERPC_MMU_G2       (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_G2      (POWERPC_EXCP_G2)
 #define POWERPC_INPUT_G2     (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_G2      (bfd_mach_ppc_ec603e)
 
 static void init_proc_G2 (CPUPPCState *env)
 {
@@ -2807,6 +2830,7 @@ static void init_proc_G2 (CPUPPCState *env)
 #define POWERPC_MMU_G2LE     (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_G2LE    (POWERPC_EXCP_G2)
 #define POWERPC_INPUT_G2LE   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_G2LE    (bfd_mach_ppc_ec603e)
 
 static void init_proc_G2LE (CPUPPCState *env)
 {
@@ -2845,6 +2869,7 @@ static void init_proc_G2LE (CPUPPCState *env)
 #define POWERPC_MMU_604      (POWERPC_MMU_32B)
 //#define POWERPC_EXCP_604     (POWERPC_EXCP_604)
 #define POWERPC_INPUT_604    (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_604     (bfd_mach_ppc_604)
 
 static void init_proc_604 (CPUPPCState *env)
 {
@@ -2875,6 +2900,7 @@ static void init_proc_604 (CPUPPCState *env)
 #define POWERPC_MMU_7x0      (POWERPC_MMU_32B)
 //#define POWERPC_EXCP_7x0     (POWERPC_EXCP_7x0)
 #define POWERPC_INPUT_7x0    (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7x0     (bfd_mach_ppc_750)
 
 static void init_proc_7x0 (CPUPPCState *env)
 {
@@ -2907,6 +2933,7 @@ static void init_proc_7x0 (CPUPPCState *env)
 #define POWERPC_MMU_750fx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750fx   (POWERPC_EXCP_7x0)
 #define POWERPC_INPUT_750fx  (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_750fx   (bfd_mach_ppc_750)
 
 static void init_proc_750fx (CPUPPCState *env)
 {
@@ -2946,6 +2973,7 @@ static void init_proc_750fx (CPUPPCState *env)
 #define POWERPC_MMU_7x5      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_7x5     (POWERPC_EXCP_7x5)
 #define POWERPC_INPUT_7x5    (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7x5     (bfd_mach_ppc_750)
 
 static void init_proc_7x5 (CPUPPCState *env)
 {
@@ -2996,6 +3024,7 @@ static void init_proc_7x5 (CPUPPCState *env)
 #define POWERPC_MMU_7400     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_7400    (POWERPC_EXCP_74xx)
 #define POWERPC_INPUT_7400   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7400    (bfd_mach_ppc_7400)
 
 static void init_proc_7400 (CPUPPCState *env)
 {
@@ -3021,6 +3050,7 @@ static void init_proc_7400 (CPUPPCState *env)
 #define POWERPC_MMU_7410     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_7410    (POWERPC_EXCP_74xx)
 #define POWERPC_INPUT_7410   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7410    (bfd_mach_ppc_7400)
 
 static void init_proc_7410 (CPUPPCState *env)
 {
@@ -3059,6 +3089,7 @@ static void init_proc_7410 (CPUPPCState *env)
 #define POWERPC_MMU_7440     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7440    (POWERPC_EXCP_74xx)
 #define POWERPC_INPUT_7440   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7440    (bfd_mach_ppc_7400)
 
 static void init_proc_7440 (CPUPPCState *env)
 {
@@ -3120,6 +3151,7 @@ static void init_proc_7440 (CPUPPCState *env)
 #define POWERPC_MMU_7450     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7450    (POWERPC_EXCP_74xx)
 #define POWERPC_INPUT_7450   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7450    (bfd_mach_ppc_7400)
 
 static void init_proc_7450 (CPUPPCState *env)
 {
@@ -3183,6 +3215,7 @@ static void init_proc_7450 (CPUPPCState *env)
 #define POWERPC_MMU_7445     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7445    (POWERPC_EXCP_74xx)
 #define POWERPC_INPUT_7445   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7445    (bfd_mach_ppc_7400)
 
 static void init_proc_7445 (CPUPPCState *env)
 {
@@ -3278,6 +3311,7 @@ static void init_proc_7445 (CPUPPCState *env)
 #define POWERPC_MMU_7455     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7455    (POWERPC_EXCP_74xx)
 #define POWERPC_INPUT_7455   (PPC_FLAGS_INPUT_6xx)
+#define POWERPC_BFDM_7455    (bfd_mach_ppc_7400)
 
 static void init_proc_7455 (CPUPPCState *env)
 {
@@ -3375,6 +3409,7 @@ static void init_proc_7455 (CPUPPCState *env)
 #define POWERPC_MMU_970      (POWERPC_MMU_64BRIDGE)
 //#define POWERPC_EXCP_970     (POWERPC_EXCP_970)
 #define POWERPC_INPUT_970    (PPC_FLAGS_INPUT_970)
+#define POWERPC_BFDM_970     (bfd_mach_ppc64)
 
 static void init_proc_970 (CPUPPCState *env)
 {
@@ -3416,6 +3451,7 @@ static void init_proc_970 (CPUPPCState *env)
 #define POWERPC_MMU_970FX    (POWERPC_MMU_64BRIDGE)
 #define POWERPC_EXCP_970FX   (POWERPC_EXCP_970)
 #define POWERPC_INPUT_970FX  (PPC_FLAGS_INPUT_970)
+#define POWERPC_BFDM_970FX   (bfd_mach_ppc64)
 
 static void init_proc_970FX (CPUPPCState *env)
 {
@@ -3457,6 +3493,7 @@ static void init_proc_970FX (CPUPPCState *env)
 #define POWERPC_MMU_970GX    (POWERPC_MMU_64BRIDGE)
 #define POWERPC_EXCP_970GX   (POWERPC_EXCP_970)
 #define POWERPC_INPUT_970GX  (PPC_FLAGS_INPUT_970)
+#define POWERPC_BFDM_970GX   (bfd_mach_ppc64)
 
 static void init_proc_970GX (CPUPPCState *env)
 {
@@ -3498,6 +3535,7 @@ static void init_proc_970GX (CPUPPCState *env)
 #define POWERPC_MMU_620      (POWERPC_MMU_64B)
 #define POWERPC_EXCP_620     (POWERPC_EXCP_970)
 #define POWERPC_INPUT_620    (PPC_FLAGS_INPUT_970)
+#define POWERPC_BFDM_620     (bfd_mach_ppc64)
 
 static void init_proc_620 (CPUPPCState *env)
 {
@@ -3527,6 +3565,7 @@ static void init_proc_620 (CPUPPCState *env)
 #define POWERPC_EXCP_PPC32    POWERPC_EXCP_604
 #define POWERPC_INPUT_PPC32   POWERPC_INPUT_604
 #define init_proc_PPC32       init_proc_604
+#define POWERPC_BFDM_PPC32    POWERPC_BFDM_604
 
 /* Default 64 bits PowerPC target will be 970 FX */
 #define CPU_POWERPC_PPC64     CPU_POWERPC_970FX
@@ -3536,6 +3575,7 @@ static void init_proc_620 (CPUPPCState *env)
 #define POWERPC_EXCP_PPC64    POWERPC_EXCP_970FX
 #define POWERPC_INPUT_PPC64   POWERPC_INPUT_970FX
 #define init_proc_PPC64       init_proc_970FX
+#define POWERPC_BFDM_PPC64    POWERPC_BFDM_970FX
 
 /* Default PowerPC target will be PowerPC 32 */
 #if defined (TARGET_PPC64) && 0 // XXX: TODO
@@ -3546,6 +3586,7 @@ static void init_proc_620 (CPUPPCState *env)
 #define POWERPC_EXCP_DEFAULT  POWERPC_EXCP_PPC64
 #define POWERPC_INPUT_DEFAULT POWERPC_INPUT_PPC64
 #define init_proc_DEFAULT     init_proc_PPC64
+#define POWERPC_BFDM_DEFAULT  POWERPC_BFDM_PPC64
 #else
 #define CPU_POWERPC_DEFAULT   CPU_POWERPC_PPC32
 #define POWERPC_INSNS_DEFAULT POWERPC_INSNS_PPC32
@@ -3554,6 +3595,7 @@ static void init_proc_620 (CPUPPCState *env)
 #define POWERPC_EXCP_DEFAULT  POWERPC_EXCP_PPC32
 #define POWERPC_INPUT_DEFAULT POWERPC_INPUT_PPC32
 #define init_proc_DEFAULT     init_proc_PPC32
+#define POWERPC_BFDM_DEFAULT  POWERPC_BFDM_PPC32
 #endif
 
 /*****************************************************************************/
@@ -4048,6 +4090,7 @@ enum {
         .mmu_model   = glue(POWERPC_MMU_,_type),                              \
         .excp_model  = glue(POWERPC_EXCP_,_type),                             \
         .bus_model   = glue(POWERPC_INPUT_,_type),                            \
+        .bfd_mach    = glue(POWERPC_BFDM_,_type),                             \
         .init_proc   = &glue(init_proc_,_type),                               \
     }
 
@@ -5332,6 +5375,7 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
     env->mmu_model = def->mmu_model;
     env->excp_model = def->excp_model;
     env->bus_model = def->bus_model;
+    env->bfd_mach = def->bfd_mach;
     if (create_ppc_opcodes(env, def) < 0)
         return -1;
     init_ppc_proc(env, def);

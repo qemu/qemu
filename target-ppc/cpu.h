@@ -398,6 +398,7 @@ struct CPUPPCState {
     uint8_t excp_model;
     uint8_t bus_model;
     uint8_t pad;
+    int bfd_mach;
     uint32_t flags;
 
     int exception_index;
