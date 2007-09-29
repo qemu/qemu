@@ -47,8 +47,8 @@ void do_raise_exception_err (uint32_t exception, int error_code)
     printf("Raise exception %3x code : %d\n", exception, error_code);
 #endif
     switch (exception) {
-    case EXCP_PROGRAM:
-        if (error_code == EXCP_FP && msr_fe0 == 0 && msr_fe1 == 0)
+    case POWERPC_EXCP_PROGRAM:
+        if (error_code == POWERPC_EXCP_FP && msr_fe0 == 0 && msr_fe1 == 0)
             return;
         break;
     default:
@@ -947,7 +947,7 @@ void do_tw (int flags)
                   ((int32_t)T0 == (int32_t)T1 && (flags & 0x04)) ||
                   ((uint32_t)T0 < (uint32_t)T1 && (flags & 0x02)) ||
                   ((uint32_t)T0 > (uint32_t)T1 && (flags & 0x01))))) {
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+        do_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
     }
 }
 
@@ -959,7 +959,7 @@ void do_td (int flags)
                   ((int64_t)T0 == (int64_t)T1 && (flags & 0x04)) ||
                   ((uint64_t)T0 < (uint64_t)T1 && (flags & 0x02)) ||
                   ((uint64_t)T0 > (uint64_t)T1 && (flags & 0x01)))))
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+        do_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
 }
 #endif
 
@@ -1215,12 +1215,14 @@ void do_load_dcr (void)
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
         }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
+        do_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
         if (loglevel != 0) {
             fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
         }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
+        do_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     } else {
         T0 = val;
     }
@@ -1232,12 +1234,14 @@ void do_store_dcr (void)
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
         }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL);
+        do_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
         if (loglevel != 0) {
             fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
         }
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG);
+        do_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                               POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
 }
 

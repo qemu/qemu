@@ -192,7 +192,7 @@ static void spr_write_ibatu (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_ibatu((sprn - SPR_IBAT0U) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_ibatu_h (void *opaque, int sprn)
@@ -200,7 +200,7 @@ static void spr_write_ibatu_h (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_ibatu((sprn - SPR_IBAT4U) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_ibatl (void *opaque, int sprn)
@@ -208,7 +208,7 @@ static void spr_write_ibatl (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_ibatl((sprn - SPR_IBAT0L) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_ibatl_h (void *opaque, int sprn)
@@ -216,7 +216,7 @@ static void spr_write_ibatl_h (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_ibatl((sprn - SPR_IBAT4L) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 /* DBAT0U...DBAT7U */
@@ -236,7 +236,7 @@ static void spr_write_dbatu (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_dbatu((sprn - SPR_DBAT0U) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_dbatu_h (void *opaque, int sprn)
@@ -244,7 +244,7 @@ static void spr_write_dbatu_h (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_dbatu((sprn - SPR_DBAT4U) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_dbatl (void *opaque, int sprn)
@@ -252,7 +252,7 @@ static void spr_write_dbatl (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_dbatl((sprn - SPR_DBAT0L) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_dbatl_h (void *opaque, int sprn)
@@ -260,7 +260,7 @@ static void spr_write_dbatl_h (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_dbatl((sprn - SPR_DBAT4L) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 /* SDR1 */
@@ -274,7 +274,7 @@ static void spr_write_sdr1 (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_sdr1();
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 /* 64 bits PowerPC specific SPRs */
@@ -291,7 +291,7 @@ static void spr_write_asr (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_asr();
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 #endif
 #endif
@@ -332,7 +332,7 @@ static void spr_write_601_ubatu (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_601_batu((sprn - SPR_IBAT0U) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_601_ubatl (void *opaque, int sprn)
@@ -340,7 +340,7 @@ static void spr_write_601_ubatl (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_601_batl((sprn - SPR_IBAT0L) / 2);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 #endif
 
@@ -362,7 +362,7 @@ static void spr_write_40x_dbcr0 (void *opaque, int sprn)
 
     gen_op_store_40x_dbcr0();
     /* We must stop translation as we may have rebooted */
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_40x_sler (void *opaque, int sprn)
@@ -373,7 +373,7 @@ static void spr_write_40x_sler (void *opaque, int sprn)
     /* We must stop the translation as we may have changed
      * some regions endianness
      */
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_booke_tcr (void *opaque, int sprn)
@@ -400,7 +400,7 @@ static void spr_write_403_pbr (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_403_pb(sprn - SPR_403_PBL1);
-    RET_STOP(ctx);
+    GEN_STOP(ctx);
 }
 
 static void spr_write_pir (void *opaque, int sprn)
@@ -2153,6 +2153,323 @@ static void gen_spr_620 (CPUPPCState *env)
  */
 
 /*****************************************************************************/
+/* Exception vectors models                                                  */
+static void init_excp_4xx_real (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_PIT]      = 0x00001000;
+    env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00001010;
+    env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001020;
+    env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
+#endif
+}
+
+static void init_excp_4xx_softmmu (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_PIT]      = 0x00001000;
+    env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00001010;
+    env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001020;
+    env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00001100;
+    env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00001200;
+    env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
+#endif
+}
+
+static void init_excp_BookE (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_APU]      = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00000000;
+    env->excp_prefix = 0x00000000;
+    env->ivor_mask = 0x0000FFE0;
+    env->ivpr_mask = 0xFFFF0000;
+#endif
+}
+
+static void init_excp_601 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_IO]       = 0x00000A00;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_RUNM]     = 0x00002000;
+    env->excp_prefix = 0xFFF00000;
+#endif
+}
+
+static void init_excp_602 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_FPA]      = 0x00000E00;
+    env->excp_vectors[POWERPC_EXCP_IFTLB]    = 0x00001000;
+    env->excp_vectors[POWERPC_EXCP_DLTLB]    = 0x00001100;
+    env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001500;
+    env->excp_vectors[POWERPC_EXCP_EMUL]     = 0x00001600;
+    env->excp_prefix = 0xFFF00000;
+#endif
+}
+
+static void init_excp_603 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_IFTLB]    = 0x00001000;
+    env->excp_vectors[POWERPC_EXCP_DLTLB]    = 0x00001100;
+    env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+#endif
+}
+
+static void init_excp_G2 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000A00;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_IFTLB]    = 0x00001000;
+    env->excp_vectors[POWERPC_EXCP_DLTLB]    = 0x00001100;
+    env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+#endif
+}
+
+static void init_excp_604 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+#endif
+}
+
+#if defined (TODO)
+static void init_excp_620 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_FPA]      = 0x00000E00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+#endif
+}
+#endif /* defined (TODO) */
+
+static void init_excp_7x0 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+#endif
+}
+
+static void init_excp_750FX (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+#endif
+}
+
+static void init_excp_7400 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
+    env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+#endif
+}
+
+#if defined (TODO)
+static void init_excp_7450 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
+    env->excp_vectors[POWERPC_EXCP_IFTLB]    = 0x00001000;
+    env->excp_vectors[POWERPC_EXCP_DLTLB]    = 0x00001100;
+    env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
+#endif
+}
+#endif /* defined (TODO) */
+
+#if defined (TARGET_PPC64)
+static void init_excp_970 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_DSEG]     = 0x00000380;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_ISEG]     = 0x00000480;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+    env->excp_vectors[POWERPC_EXCP_HDECR]    = 0x00000980;
+#endif
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
+    env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
+    env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
+#endif
+}
+#endif
+
+/*****************************************************************************/
 /* PowerPC implementations definitions                                       */
 
 /* PowerPC 40x instruction set                                               */
@@ -2183,6 +2500,7 @@ static void init_proc_401 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    init_excp_4xx_real(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2218,6 +2536,7 @@ static void init_proc_401x2 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_4xx_softmmu(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2234,8 +2553,9 @@ static void init_proc_401x2 (CPUPPCState *env)
 #define POWERPC_INPUT_401x3  (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_401x3   (bfd_mach_ppc_403)
 
-static void init_proc_401x2 (CPUPPCState *env)
+static void init_proc_401x3 (CPUPPCState *env)
 {
+    init_excp_4xx_softmmu(env);
 }
 #endif /* TODO */
 
@@ -2271,6 +2591,7 @@ static void init_proc_IOP480 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_4xx_softmmu(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2291,6 +2612,7 @@ static void init_proc_403 (CPUPPCState *env)
     gen_spr_401_403(env);
     gen_spr_403(env);
     gen_spr_403_real(env);
+    init_excp_4xx_real(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2326,6 +2648,7 @@ static void init_proc_403GCX (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_4xx_softmmu(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2361,6 +2684,7 @@ static void init_proc_405 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_4xx_softmmu(env);
     /* Allocate hardware IRQ controller */
     ppc405_irq_init(env);
 }
@@ -2402,6 +2726,7 @@ static void init_proc_440EP (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_BookE(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2426,6 +2751,7 @@ static void init_proc_440GP (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_BookE(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2451,6 +2777,7 @@ static void init_proc_440x4 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_BookE(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 #endif /* TODO */
@@ -2492,6 +2819,7 @@ static void init_proc_440x5 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_BookE(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2506,26 +2834,6 @@ static void init_proc_440x5 (CPUPPCState *env)
 #define POWERPC_EXCP_460     (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_460    (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_460     (bfd_mach_ppc_403)
-
-static void init_proc_460 (CPUPPCState *env)
-{
-}
-#endif /* TODO */
-
-/* PowerPC 460F (guessed)                                                    */
-#if defined(TODO)
-#define POWERPC_INSNS_460F   (POWERPC_INSNS_EMB |                             \
-                              PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
-                              PPC_FLOAT | PPC_FLOAT_FSQRT | PPC_FLOAT_FRES |  \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |            \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_BOOKE | PPC_BOOKE_EXT | PPC_4xx_COMMON |    \
-                              PPC_405_MAC | PPC_440_SPEC | PPC_DCRUX)
-#define POWERPC_MSRM_460     (0x000000000006FF30ULL)
-#define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_460F   (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_460F    (bfd_mach_ppc_403)
 
 static void init_proc_460 (CPUPPCState *env)
 {
@@ -2557,6 +2865,57 @@ static void init_proc_460 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_BookE(env);
+    /* XXX: TODO: allocate internal IRQ controller */
+}
+#endif /* TODO */
+
+/* PowerPC 460F (guessed)                                                    */
+#if defined(TODO)
+#define POWERPC_INSNS_460F   (POWERPC_INSNS_EMB |                             \
+                              PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
+                              PPC_FLOAT | PPC_FLOAT_FSQRT | PPC_FLOAT_FRES |  \
+                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |            \
+                              PPC_FLOAT_STFIWX |                              \
+                              PPC_BOOKE | PPC_BOOKE_EXT | PPC_4xx_COMMON |    \
+                              PPC_405_MAC | PPC_440_SPEC | PPC_DCRUX)
+#define POWERPC_MSRM_460     (0x000000000006FF30ULL)
+#define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
+#define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
+#define POWERPC_INPUT_460F   (PPC_FLAGS_INPUT_BookE)
+#define POWERPC_BFDM_460F    (bfd_mach_ppc_403)
+
+static void init_proc_460F (CPUPPCState *env)
+{
+    /* Time base */
+    gen_tbl(env);
+    gen_spr_BookE(env);
+    gen_spr_440(env);
+    spr_register(env, SPR_BOOKE_MCSR, "MCSR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MCSRR0, "MCSRR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MCSRR1, "MCSRR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_440_CCR1, "CCR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_DCRIPR, "SPR_DCRIPR",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* Memory management */
+    env->nb_tlb = 64;
+    env->nb_ways = 1;
+    env->id_tlbs = 0;
+    init_excp_BookE(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 #endif /* TODO */
@@ -2578,6 +2937,7 @@ static void init_proc_460 (CPUPPCState *env)
 
 static void init_proc_BookE (CPUPPCState *env)
 {
+    init_excp_BookE(env);
 }
 #endif /* TODO */
 
@@ -2610,6 +2970,7 @@ static void init_proc_e500 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    init_excp_BookE(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 #endif /* TODO */
@@ -2678,6 +3039,7 @@ static void init_proc_601 (CPUPPCState *env)
     env->nb_ways = 2;
     env->id_tlbs = 0;
     env->id_tlbs = 0;
+    init_excp_601(env);
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
@@ -2712,6 +3074,7 @@ static void init_proc_602 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    init_excp_602(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2744,6 +3107,7 @@ static void init_proc_603 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    init_excp_603(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2781,6 +3145,7 @@ static void init_proc_603E (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    init_excp_603(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2820,6 +3185,7 @@ static void init_proc_G2 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    init_excp_G2(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2859,6 +3225,7 @@ static void init_proc_G2LE (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    init_excp_G2(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2890,6 +3257,7 @@ static void init_proc_604 (CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     gen_low_BATs(env);
+    init_excp_604(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2923,6 +3291,7 @@ static void init_proc_7x0 (CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     gen_low_BATs(env);
+    init_excp_7x0(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -2963,6 +3332,7 @@ static void init_proc_750fx (CPUPPCState *env)
     gen_low_BATs(env);
     /* PowerPC 750fx & 750gx has 8 DBATs and 8 IBATs */
     gen_high_BATs(env);
+    init_excp_750FX(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -3038,6 +3408,7 @@ static void init_proc_7400 (CPUPPCState *env)
     gen_spr_thrm(env);
     /* Memory management */
     gen_low_BATs(env);
+    init_excp_7400(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -3076,6 +3447,7 @@ static void init_proc_7410 (CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     gen_low_BATs(env);
+    init_excp_7400(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -3201,6 +3573,7 @@ static void init_proc_7450 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_74xx_soft_tlb(env);
+    init_excp_7450(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -3297,6 +3670,7 @@ static void init_proc_7445 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     gen_74xx_soft_tlb(env);
+    init_excp_7450(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -3395,6 +3769,7 @@ static void init_proc_7455 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     gen_74xx_soft_tlb(env);
+    init_excp_7450(env);
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
@@ -3439,6 +3814,7 @@ static void init_proc_970 (CPUPPCState *env)
 #if 0 // TODO
     env->slb_nr = 32;
 #endif
+    init_excp_970(env);
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
 }
@@ -3481,6 +3857,7 @@ static void init_proc_970FX (CPUPPCState *env)
 #if 0 // TODO
     env->slb_nr = 32;
 #endif
+    init_excp_970(env);
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
 }
@@ -3523,6 +3900,7 @@ static void init_proc_970GX (CPUPPCState *env)
 #if 0 // TODO
     env->slb_nr = 32;
 #endif
+    init_excp_970(env);
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
 }
@@ -3552,6 +3930,7 @@ static void init_proc_620 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_high_BATs(env);
+    init_excp_620(env);
     /* XXX: TODO: initialize internal interrupt controller */
 }
 #endif /* TODO */
@@ -5046,7 +5425,15 @@ static ppc_def_t ppc_defs[] = {
 static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
 {
 #if !defined(CONFIG_USER_ONLY)
+    int i;
+
     env->irq_inputs = NULL;
+    /* Set all exception vectors to an invalid address */
+    for (i = 0; i < POWERPC_EXCP_NB; i++)
+        env->excp_vectors[i] = (target_ulong)(-1ULL);
+    env->excp_prefix = 0x00000000;
+    env->ivor_mask = 0x00000000;
+    env->ivpr_mask = 0x00000000;
 #endif
     /* Default MMU definitions */
     env->nb_BATs = 0;

@@ -149,6 +149,127 @@ enum {
 };
 
 /*****************************************************************************/
+/* Exception vectors definitions                                             */
+enum {
+    POWERPC_EXCP_NONE    = -1,
+    /* The 64 first entries are used by the PowerPC embedded specification   */
+    POWERPC_EXCP_CRITICAL = 0,  /* Critical input                            */
+    POWERPC_EXCP_MCHECK   = 1,  /* Machine check exception                   */
+    POWERPC_EXCP_DSI      = 2,  /* Data storage exception                    */
+    POWERPC_EXCP_ISI      = 3,  /* Instruction storage exception             */
+    POWERPC_EXCP_EXTERNAL = 4,  /* External input                            */
+    POWERPC_EXCP_ALIGN    = 5,  /* Alignment exception                       */
+    POWERPC_EXCP_PROGRAM  = 6,  /* Program exception                         */
+    POWERPC_EXCP_FPU      = 7,  /* Floating-point unavailable exception      */
+    POWERPC_EXCP_SYSCALL  = 8,  /* System call exception                     */
+    POWERPC_EXCP_APU      = 9,  /* Auxiliary processor unavailable           */
+    POWERPC_EXCP_DECR     = 10, /* Decrementer exception                     */
+    POWERPC_EXCP_FIT      = 11, /* Fixed-interval timer interrupt            */
+    POWERPC_EXCP_WDT      = 12, /* Watchdog timer interrupt                  */
+    POWERPC_EXCP_DTLB     = 13, /* Data TLB error                            */
+    POWERPC_EXCP_ITLB     = 14, /* Instruction TLB error                     */
+    POWERPC_EXCP_DEBUG    = 15, /* Debug interrupt                           */
+    /* Vectors 16 to 31 are reserved                                         */
+#if defined(TARGET_PPCEMB)
+    POWERPC_EXCP_SPEU     = 32, /* SPE/embedded floating-point unavailable   */
+    POWERPC_EXCP_EFPDI    = 33, /* Embedded floating-point data interrupt    */
+    POWERPC_EXCP_EFPRI    = 34, /* Embedded floating-point round interrupt   */
+    POWERPC_EXCP_EPERFM   = 35, /* Embedded performance monitor interrupt    */
+    POWERPC_EXCP_DOORI    = 36, /* Embedded doorbell interrupt               */
+    POWERPC_EXCP_DOORCI   = 37, /* Embedded doorbell critical interrupt      */
+#endif /* defined(TARGET_PPCEMB) */
+    /* Vectors 38 to 63 are reserved                                         */
+    /* Exceptions defined in the PowerPC server specification                */
+    POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
+#if defined(TARGET_PPC64) /* PowerPC 64 */
+    POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
+    POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
+#endif /* defined(TARGET_PPC64) */
+#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+    POWERPC_EXCP_HDECR    = 67, /* Hypervisor decrementer exception          */
+#endif /* defined(TARGET_PPC64H) */
+    POWERPC_EXCP_TRACE    = 68, /* Trace exception                           */
+#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+    POWERPC_EXCP_HDSI     = 69, /* Hypervisor data storage exception         */
+    POWERPC_EXCP_HISI     = 70, /* Hypervisor instruction storage exception  */
+    POWERPC_EXCP_HDSEG    = 71, /* Hypervisor data segment exception         */
+    POWERPC_EXCP_HISEG    = 72, /* Hypervisor instruction segment exception  */
+#endif /* defined(TARGET_PPC64H) */
+    POWERPC_EXCP_VPU      = 73, /* Vector unavailable exception              */
+    /* 40x specific exceptions                                               */
+    POWERPC_EXCP_PIT      = 74, /* Programmable interval timer interrupt     */
+    /* 601 specific exceptions                                               */
+    POWERPC_EXCP_IO       = 75, /* IO error exception                        */
+    POWERPC_EXCP_RUNM     = 76, /* Run mode exception                        */
+    /* 602 specific exceptions                                               */
+    POWERPC_EXCP_EMUL     = 77, /* Emulation trap exception                  */
+    /* 602/603 specific exceptions                                           */
+    POWERPC_EXCP_IFTLB    = 78, /* Instruction fetch TLB error               */
+    POWERPC_EXCP_DLTLB    = 79, /* Data load TLB miss                        */
+    POWERPC_EXCP_DSTLB    = 80, /* Data store TLB miss                       */
+    /* Exceptions available on most PowerPC                                  */
+    POWERPC_EXCP_FPA      = 81, /* Floating-point assist exception           */
+    POWERPC_EXCP_IABR     = 82, /* Instruction address breakpoint            */
+    POWERPC_EXCP_SMI      = 83, /* System management interrupt               */
+    POWERPC_EXCP_PERFM    = 84, /* Embedded performance monitor interrupt    */
+    /* 7xx/74xx specific exceptions                                          */
+    POWERPC_EXCP_THERM    = 85, /* Thermal interrupt                         */
+    /* 74xx specific exceptions                                              */
+    POWERPC_EXCP_VPUA     = 86, /* Vector assist exception                   */
+    /* 970FX specific exceptions                                             */
+    POWERPC_EXCP_SOFTP    = 87, /* Soft patch exception                      */
+    POWERPC_EXCP_MAINT    = 88, /* Maintenance exception                     */
+    /* EOL                                                                   */
+    POWERPC_EXCP_NB       = 96,
+    /* Qemu exceptions: used internally during code translation              */
+    POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
+    POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
+    /* Qemu exceptions: special cases we want to stop translation            */
+    POWERPC_EXCP_SYNC         = 0x202, /* context synchronizing instruction  */
+    POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
+};
+
+
+/* Exceptions error codes                                                    */
+enum {
+    /* Exception subtypes for POWERPC_EXCP_ALIGN                             */
+    POWERPC_EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception            */
+    POWERPC_EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store  */
+    POWERPC_EXCP_ALIGN_LE      = 0x03,  /* Multiple little-endian access     */
+    POWERPC_EXCP_ALIGN_PROT    = 0x04,  /* Access cross protection boundary  */
+    POWERPC_EXCP_ALIGN_BAT     = 0x05,  /* Access cross a BAT/seg boundary   */
+    POWERPC_EXCP_ALIGN_CACHE   = 0x06,  /* Impossible dcbz access            */
+    /* Exception subtypes for POWERPC_EXCP_PROGRAM                           */
+    /* FP exceptions                                                         */
+    POWERPC_EXCP_FP            = 0x10,
+    POWERPC_EXCP_FP_OX         = 0x01,  /* FP overflow                       */
+    POWERPC_EXCP_FP_UX         = 0x02,  /* FP underflow                      */
+    POWERPC_EXCP_FP_ZX         = 0x03,  /* FP divide by zero                 */
+    POWERPC_EXCP_FP_XX         = 0x04,  /* FP inexact                        */
+    POWERPC_EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op                */
+    POWERPC_EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite subtraction   */
+    POWERPC_EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide        */
+    POWERPC_EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide            */
+    POWERPC_EXCP_FP_VXIMZ      = 0x09,  /* FP invalid infinite * zero        */
+    POWERPC_EXCP_FP_VXVC       = 0x0A,  /* FP invalid compare                */
+    POWERPC_EXCP_FP_VXSOFT     = 0x0B,  /* FP invalid operation              */
+    POWERPC_EXCP_FP_VXSQRT     = 0x0C,  /* FP invalid square root            */
+    POWERPC_EXCP_FP_VXCVI      = 0x0D,  /* FP invalid integer conversion     */
+    /* Invalid instruction                                                   */
+    POWERPC_EXCP_INVAL         = 0x20,
+    POWERPC_EXCP_INVAL_INVAL   = 0x01,  /* Invalid instruction               */
+    POWERPC_EXCP_INVAL_LSWX    = 0x02,  /* Invalid lswx instruction          */
+    POWERPC_EXCP_INVAL_SPR     = 0x03,  /* Invalid SPR access                */
+    POWERPC_EXCP_INVAL_FP      = 0x04,  /* Unimplemented mandatory fp instr  */
+    /* Privileged instruction                                                */
+    POWERPC_EXCP_PRIV          = 0x30,
+    POWERPC_EXCP_PRIV_OPC      = 0x01,  /* Privileged operation exception    */
+    POWERPC_EXCP_PRIV_REG      = 0x02,  /* Privileged register exception     */
+    /* Trap                                                                  */
+    POWERPC_EXCP_TRAP          = 0x40,
+};
+
+/*****************************************************************************/
 /* Input pins model                                                          */
 enum {
     PPC_FLAGS_INPUT_UNKNOWN = 0,
@@ -411,6 +532,11 @@ struct CPUPPCState {
      */
     uint32_t irq_input_state;
     void **irq_inputs;
+    /* Exception vectors */
+    target_ulong excp_vectors[POWERPC_EXCP_NB];
+    target_ulong excp_prefix;
+    target_ulong ivor_mask;
+    target_ulong ivpr_mask;
 #endif
 
     /* Those resources are used only during code translation */
@@ -634,9 +760,9 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_IAC1   (0x138)
 #define SPR_HRMOR        (0x139)
 #define SPR_BOOKE_IAC2   (0x139)
-#define SPR_HSSR0        (0x13A)
+#define SPR_HSRR0        (0x13A)
 #define SPR_BOOKE_IAC3   (0x13A)
-#define SPR_HSSR1        (0x13B)
+#define SPR_HSRR1        (0x13B)
 #define SPR_BOOKE_IAC4   (0x13B)
 #define SPR_LPCR         (0x13C)
 #define SPR_BOOKE_DAC1   (0x13C)
@@ -948,117 +1074,6 @@ enum {
     ACCESS_CACHE = 0x60, /* Cache manipulation               */
 };
 
-/*****************************************************************************/
-/* Exceptions */
-#define EXCP_NONE          -1
-/* PowerPC hardware exceptions : exception vectors defined in PowerPC book 3 */
-#define EXCP_RESET         0x0100 /* System reset                            */
-#define EXCP_MACHINE_CHECK 0x0200 /* Machine check exception                 */
-#define EXCP_DSI           0x0300 /* Data storage exception                  */
-#define EXCP_DSEG          0x0380 /* Data segment exception                  */
-#define EXCP_ISI           0x0400 /* Instruction storage exception           */
-#define EXCP_ISEG          0x0480 /* Instruction segment exception           */
-#define EXCP_EXTERNAL      0x0500 /* External interruption                   */
-#define EXCP_ALIGN         0x0600 /* Alignment exception                     */
-#define EXCP_PROGRAM       0x0700 /* Program exception                       */
-#define EXCP_NO_FP         0x0800 /* Floating point unavailable exception    */
-#define EXCP_DECR          0x0900 /* Decrementer exception                   */
-#define EXCP_HDECR         0x0980 /* Hypervisor decrementer exception        */
-#define EXCP_SYSCALL       0x0C00 /* System call                             */
-#define EXCP_TRACE         0x0D00 /* Trace exception                         */
-#define EXCP_PERF          0x0F00 /* Performance monitor exception           */
-/* Exceptions defined in PowerPC 32 bits programming environment manual      */
-#define EXCP_FP_ASSIST     0x0E00 /* Floating-point assist                   */
-/* Implementation specific exceptions                                        */
-/* 40x exceptions                                                            */
-#define EXCP_40x_PIT       0x1000 /* Programmable interval timer interrupt   */
-#define EXCP_40x_FIT       0x1010 /* Fixed interval timer interrupt          */
-#define EXCP_40x_WATCHDOG  0x1020 /* Watchdog timer exception                */
-#define EXCP_40x_DTLBMISS  0x1100 /* Data TLB miss exception                 */
-#define EXCP_40x_ITLBMISS  0x1200 /* Instruction TLB miss exception          */
-#define EXCP_40x_DEBUG     0x2000 /* Debug exception                         */
-/* 405 specific exceptions                                                   */
-#define EXCP_405_APU       0x0F20 /* APU unavailable exception               */
-/* 440 specific exceptions                                                   */
-#define EXCP_440_CRIT      0x0100 /* Critical interrupt                      */
-#define EXCP_440_SPEU      0x1600 /* SPE unavailable exception               */
-#define EXCP_440_SPED      0x1700 /* SPE floating-point data exception       */
-#define EXCP_440_SPER      0x1800 /* SPE floating-point round exception      */
-/* TLB assist exceptions (602/603)                                           */
-#define EXCP_I_TLBMISS     0x1000 /* Instruction TLB miss                    */
-#define EXCP_DL_TLBMISS    0x1100 /* Data load TLB miss                      */
-#define EXCP_DS_TLBMISS    0x1200 /* Data store TLB miss                     */
-/* Breakpoint exceptions (602/603/604/620/740/745/750/755...)                */
-#define EXCP_IABR          0x1300 /* Instruction address breakpoint          */
-#define EXCP_SMI           0x1400 /* System management interrupt             */
-/* Altivec related exceptions                                                */
-#define EXCP_VPU           0x0F20 /* VPU unavailable exception               */
-/* 601 specific exceptions                                                   */
-#define EXCP_601_IO        0x0A00 /* IO error exception                      */
-#define EXCP_601_RUNM      0x2000 /* Run mode exception                      */
-/* 602 specific exceptions                                                   */
-#define EXCP_602_WATCHDOG  0x1500 /* Watchdog exception                      */
-#define EXCP_602_EMUL      0x1600 /* Emulation trap exception                */
-/* G2 specific exceptions                                                    */
-#define EXCP_G2_CRIT       0x0A00 /* Critical interrupt                      */
-/* MPC740/745/750 & IBM 750 specific exceptions                              */
-#define EXCP_THRM          0x1700 /* Thermal management interrupt            */
-/* 74xx specific exceptions                                                  */
-#define EXCP_74xx_VPUA     0x1600 /* VPU assist exception                    */
-/* 970FX specific exceptions                                                 */
-#define EXCP_970_SOFTP     0x1500 /* Soft patch exception                    */
-#define EXCP_970_MAINT     0x1600 /* Maintenance exception                   */
-#define EXCP_970_THRM      0x1800 /* Thermal exception                       */
-#define EXCP_970_VPUA      0x1700 /* VPU assist exception                    */
-/* SPE related exceptions                                                    */
-#define EXCP_NO_SPE        0x0F20 /* SPE unavailable exception               */
-/* End of exception vectors area                                             */
-#define EXCP_PPC_MAX       0x4000
-/* Qemu exceptions: special cases we want to stop translation                */
-#define EXCP_MTMSR         0x11000 /* mtmsr instruction:                     */
-                                   /* may change privilege level             */
-#define EXCP_BRANCH        0x11001 /* branch instruction                     */
-#define EXCP_SYSCALL_USER  0x12000 /* System call in user mode only          */
-
-/* Error codes */
-enum {
-    /* Exception subtypes for EXCP_ALIGN                            */
-    EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception           */
-    EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store */
-    EXCP_ALIGN_LE      = 0x03,  /* Multiple little-endian access    */
-    EXCP_ALIGN_PROT    = 0x04,  /* Access cross protection boundary */
-    EXCP_ALIGN_BAT     = 0x05,  /* Access cross a BAT/seg boundary  */
-    EXCP_ALIGN_CACHE   = 0x06,  /* Impossible dcbz access           */
-    /* Exception subtypes for EXCP_PROGRAM                          */
-    /* FP exceptions */
-    EXCP_FP            = 0x10,
-    EXCP_FP_OX         = 0x01,  /* FP overflow                      */
-    EXCP_FP_UX         = 0x02,  /* FP underflow                     */
-    EXCP_FP_ZX         = 0x03,  /* FP divide by zero                */
-    EXCP_FP_XX         = 0x04,  /* FP inexact                       */
-    EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op               */
-    EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite subtraction */
-    EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide       */
-    EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide           */
-    EXCP_FP_VXIMZ      = 0x09,  /* FP invalid infinite * zero       */
-    EXCP_FP_VXVC       = 0x0A,  /* FP invalid compare               */
-    EXCP_FP_VXSOFT     = 0x0B,  /* FP invalid operation             */
-    EXCP_FP_VXSQRT     = 0x0C,  /* FP invalid square root           */
-    EXCP_FP_VXCVI      = 0x0D,  /* FP invalid integer conversion    */
-    /* Invalid instruction */
-    EXCP_INVAL         = 0x20,
-    EXCP_INVAL_INVAL   = 0x01,  /* Invalid instruction              */
-    EXCP_INVAL_LSWX    = 0x02,  /* Invalid lswx instruction         */
-    EXCP_INVAL_SPR     = 0x03,  /* Invalid SPR access               */
-    EXCP_INVAL_FP      = 0x04,  /* Unimplemented mandatory fp instr */
-    /* Privileged instruction */
-    EXCP_PRIV          = 0x30,
-    EXCP_PRIV_OPC      = 0x01,  /* Privileged operation exception   */
-    EXCP_PRIV_REG      = 0x02,  /* Privileged register exception    */
-    /* Trap */
-    EXCP_TRAP          = 0x40,
-};
-
 /* Hardware interruption sources:
  * all those exception can be raised simulteaneously
  */
@@ -1130,19 +1145,22 @@ enum {
 /* Hardware exceptions definitions */
 enum {
     /* External hardware exception sources */
-    PPC_INTERRUPT_RESET  = 0,  /* Reset exception                      */
-    PPC_INTERRUPT_MCK    = 1,  /* Machine check exception              */
-    PPC_INTERRUPT_EXT    = 2,  /* External interrupt                   */
-    PPC_INTERRUPT_SMI    = 3,  /* System management interrupt          */
-    PPC_INTERRUPT_CEXT   = 4,  /* Critical external interrupt          */
-    PPC_INTERRUPT_DEBUG  = 5,  /* External debug exception             */
-    PPC_INTERRUPT_THERM  = 6,  /* Thermal exception                    */
+    PPC_INTERRUPT_RESET     = 0,  /* Reset exception                      */
+    PPC_INTERRUPT_MCK       = 1,  /* Machine check exception              */
+    PPC_INTERRUPT_EXT       = 2,  /* External interrupt                   */
+    PPC_INTERRUPT_SMI       = 3,  /* System management interrupt          */
+    PPC_INTERRUPT_CEXT      = 4,  /* Critical external interrupt          */
+    PPC_INTERRUPT_DEBUG     = 5,  /* External debug exception             */
+    PPC_INTERRUPT_THERM     = 6,  /* Thermal exception                    */
     /* Internal hardware exception sources */
-    PPC_INTERRUPT_DECR   = 7,  /* Decrementer exception                */
-    PPC_INTERRUPT_HDECR  = 8,  /* Hypervisor decrementer exception     */
-    PPC_INTERRUPT_PIT    = 9,  /* Programmable inteval timer interrupt */
-    PPC_INTERRUPT_FIT    = 10, /* Fixed interval timer interrupt       */
-    PPC_INTERRUPT_WDT    = 11, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_DECR      = 7,  /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR     = 8,  /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT       = 9,  /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT       = 10, /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT       = 11, /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_CDOORBELL = 12, /* Critical doorbell interrupt          */
+    PPC_INTERRUPT_DOORBELL  = 13, /* Doorbell interrupt                   */
+    PPC_INTERRUPT_PERFM     = 14, /* Performance monitor interrupt        */
 };
 
 /*****************************************************************************/
