@@ -1206,6 +1206,9 @@ extern void cpu_mips_irqctrl_init (void);
 /* shix.c */
 extern QEMUMachine shix_machine;
 
+/* r2d.c */
+extern QEMUMachine r2d_machine;
+
 #ifdef TARGET_PPC
 /* PowerPC hardware exceptions management helpers */
 typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
