@@ -277,7 +277,7 @@ void decode_opc(DisasContext * ctx)
     case 0x0038:		/* ldtlb */
 	assert(0);		/* XXXXX */
 	return;
-    case 0x004b:		/* rte */
+    case 0x002b:		/* rte */
 	CHECK_NOT_DELAY_SLOT gen_op_rte();
 	ctx->flags |= DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
