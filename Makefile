@@ -132,7 +132,7 @@ tar:
 
 # generate a binary distribution
 tarbin:
-	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
+	( cd / ; tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
 	$(bindir)/qemu \
 	$(bindir)/qemu-system-ppc \
 	$(bindir)/qemu-system-ppc64 \
