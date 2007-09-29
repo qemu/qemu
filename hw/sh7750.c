@@ -51,6 +51,14 @@ typedef struct SH7750State {
     uint16_t periph_pdtrb;	/* Imposed by the peripherals */
     uint16_t periph_portdirb;	/* Direction seen from the peripherals */
     sh7750_io_device *devices[NB_DEVICES];	/* External peripherals */
+
+    uint16_t icr;
+    uint16_t ipra;
+    uint16_t iprb;
+    uint16_t iprc;
+    uint16_t iprd;
+    uint32_t intpri00;
+    uint32_t intmsk00;
     /* Cache */
     uint32_t ccr;
 
@@ -207,6 +215,16 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
 	return porta_lines(s);
     case SH7750_PDTRB_A7:
 	return portb_lines(s);
+    case 0x1fd00000:
+        return s->icr;
+    case 0x1fd00004:
+        return s->ipra;
+    case 0x1fd00008:
+        return s->iprb;
+    case 0x1fd0000c:
+        return s->iprc;
+    case 0x1fd00010:
+        return s->iprd;
     default:
 	error_access("word read", addr);
 	assert(0);
@@ -242,6 +260,14 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
 	return 0x00110000;	/* Minimum caches */
     case 0x1f000044:		/* Processor version PRR */
 	return 0x00000100;	/* SH7750R */
+    case 0x1e080000:
+        return s->intpri00;
+    case 0x1e080020:
+        return 0;
+    case 0x1e080040:
+        return s->intmsk00;
+    case 0x1e080060:
+        return 0;
     default:
 	error_access("long read", addr);
 	assert(0);
@@ -299,6 +325,21 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
 	    fprintf(stderr, "I/O interrupts not implemented\n");
 	    assert(0);
 	}
+	return;
+    case 0x1fd00000:
+        s->icr = mem_value;
+	return;
+    case 0x1fd00004:
+        s->ipra = mem_value;
+	return;
+    case 0x1fd00008:
+        s->iprb = mem_value;
+	return;
+    case 0x1fd0000c:
+        s->iprc = mem_value;
+	return;
+    case 0x1fd00010:
+        s->iprd = mem_value;
 	return;
     default:
 	error_access("word write", addr);
@@ -364,6 +405,16 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     case SH7750_CCR_A7:
 	s->ccr = mem_value;
 	return;
+    case 0x1e080000:
+        s->intpri00 = mem_value;
+	return;
+    case 0x1e080020:
+        return;
+    case 0x1e080040:
+        s->intmsk00 = mem_value;
+	return;
+    case 0x1e080060:
+        return;
     default:
 	error_access("long write", addr);
 	assert(0);
