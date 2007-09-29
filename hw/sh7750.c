@@ -207,6 +207,8 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
     SH7750State *s = opaque;
 
     switch (addr) {
+    case SH7750_FRQCR_A7:
+	return 0;
     case SH7750_RFCR_A7:
 	fprintf(stderr,
 		"Read access to refresh count register, incrementing\n");
