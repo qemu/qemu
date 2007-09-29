@@ -189,34 +189,22 @@ static void spr_read_ibat_h (void *opaque, int sprn)
 
 static void spr_write_ibatu (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_ibatu((sprn - SPR_IBAT0U) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_ibatu_h (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_ibatu((sprn - SPR_IBAT4U) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_ibatl (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_ibatl((sprn - SPR_IBAT0L) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_ibatl_h (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_ibatl((sprn - SPR_IBAT4L) / 2);
-    GEN_STOP(ctx);
 }
 
 /* DBAT0U...DBAT7U */
@@ -233,34 +221,22 @@ static void spr_read_dbat_h (void *opaque, int sprn)
 
 static void spr_write_dbatu (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_dbatu((sprn - SPR_DBAT0U) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_dbatu_h (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_dbatu((sprn - SPR_DBAT4U) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_dbatl (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_dbatl((sprn - SPR_DBAT0L) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_dbatl_h (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_dbatl((sprn - SPR_DBAT4L) / 2);
-    GEN_STOP(ctx);
 }
 
 /* SDR1 */
@@ -271,10 +247,7 @@ static void spr_read_sdr1 (void *opaque, int sprn)
 
 static void spr_write_sdr1 (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_sdr1();
-    GEN_STOP(ctx);
 }
 
 /* 64 bits PowerPC specific SPRs */
@@ -291,7 +264,6 @@ static void spr_write_asr (void *opaque, int sprn)
     DisasContext *ctx = opaque;
 
     gen_op_store_asr();
-    GEN_STOP(ctx);
 }
 #endif
 #endif
@@ -329,18 +301,12 @@ static void spr_read_601_ubat (void *opaque, int sprn)
 
 static void spr_write_601_ubatu (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_601_batu((sprn - SPR_IBAT0U) / 2);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_601_ubatl (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_601_batl((sprn - SPR_IBAT0L) / 2);
-    GEN_STOP(ctx);
 }
 #endif
 
@@ -367,13 +333,7 @@ static void spr_write_40x_dbcr0 (void *opaque, int sprn)
 
 static void spr_write_40x_sler (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_40x_sler();
-    /* We must stop the translation as we may have changed
-     * some regions endianness
-     */
-    GEN_STOP(ctx);
 }
 
 static void spr_write_booke_tcr (void *opaque, int sprn)
@@ -397,10 +357,7 @@ static void spr_read_403_pbr (void *opaque, int sprn)
 
 static void spr_write_403_pbr (void *opaque, int sprn)
 {
-    DisasContext *ctx = opaque;
-
     gen_op_store_403_pb(sprn - SPR_403_PBL1);
-    GEN_STOP(ctx);
 }
 
 static void spr_write_pir (void *opaque, int sprn)

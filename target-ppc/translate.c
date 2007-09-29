@@ -3230,7 +3230,8 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_64B)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_msr();
     /* Must stop the translation as machine state (may have) changed */
-    GEN_SYNC(ctx);
+    /* Note that mtmsr is not always defined as context-synchronizing */
+    GEN_STOP(ctx);
 #endif
 }
 #endif
@@ -3253,7 +3254,8 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
 #endif
         gen_op_store_msr();
     /* Must stop the translation as machine state (may have) changed */
-    GEN_SYNC(ctx);
+    /* Note that mtmsrd is not always defined as context-synchronizing */
+    GEN_STOP(ctx);
 #endif
 }
 
@@ -4936,6 +4938,9 @@ GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_EMB_COMMON)
     }
     gen_op_load_gpr_T0(rD(ctx->opcode));
     gen_op_wrte();
+    /* Stop translation to have a chance to raise an exception
+     * if we just set msr_ee to 1
+     */
     GEN_STOP(ctx);
 #endif
 }
@@ -4952,6 +4957,9 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_EMB_COMMON)
     }
     gen_op_set_T0(ctx->opcode & 0x00010000);
     gen_op_wrte();
+    /* Stop translation to have a chance to raise an exception
+     * if we just set msr_ee to 1
+     */
     GEN_STOP(ctx);
 #endif
 }
