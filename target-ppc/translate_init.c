@@ -3539,21 +3539,21 @@ static void init_proc_620 (CPUPPCState *env)
 
 /* Default PowerPC target will be PowerPC 32 */
 #if defined (TARGET_PPC64) && 0 // XXX: TODO
-#define CPU_POWERPC_PPC               CPU_POWERPC_PPC64
-#define POWERPC_INSNS_PPC_GENERIC     POWERPC_INSNS_PPC64
-#define POWERPC_MSRM_PPC_GENERIC      POWERPC_MSRM_PPC64
-#define POWERPC_MMU_PPC_GENERIC       POWERPC_MMU_PPC64
-#define POWERPC_EXCP_PPC_GENERIC      POWERPC_EXCP_PPC64
-#define POWERPC_INPUT_PPC_GENERIC     POWERPC_INPUT_PPC64
-#define init_proc_PPC_GENERIC         init_proc_PPC64
+#define CPU_POWERPC_DEFAULT   CPU_POWERPC_PPC64
+#define POWERPC_INSNS_DEFAULT POWERPC_INSNS_PPC64
+#define POWERPC_MSRM_DEFAULT  POWERPC_MSRM_PPC64
+#define POWERPC_MMU_DEFAULT   POWERPC_MMU_PPC64
+#define POWERPC_EXCP_DEFAULT  POWERPC_EXCP_PPC64
+#define POWERPC_INPUT_DEFAULT POWERPC_INPUT_PPC64
+#define init_proc_DEFAULT     init_proc_PPC64
 #else
-#define CPU_POWERPC_PPC               CPU_POWERPC_PPC32
-#define POWERPC_INSNS_PPC_GENERIC     POWERPC_INSNS_PPC32
-#define POWERPC_MSRM_PPC_GENERIC      POWERPC_MSRM_PPC32
-#define POWERPC_MMU_PPC_GENERIC       POWERPC_MMU_PPC32
-#define POWERPC_EXCP_PPC_GENERIC      POWERPC_EXCP_PPC32
-#define POWERPC_INPUT_PPC_GENERIC     POWERPC_INPUT_PPC32
-#define init_proc_PPC_GENERIC         init_proc_PPC32
+#define CPU_POWERPC_DEFAULT   CPU_POWERPC_PPC32
+#define POWERPC_INSNS_DEFAULT POWERPC_INSNS_PPC32
+#define POWERPC_MSRM_DEFAULT  POWERPC_MSRM_PPC32
+#define POWERPC_MMU_DEFAULT   POWERPC_MMU_PPC32
+#define POWERPC_EXCP_DEFAULT  POWERPC_EXCP_PPC32
+#define POWERPC_INPUT_DEFAULT POWERPC_INPUT_PPC32
+#define init_proc_DEFAULT     init_proc_PPC32
 #endif
 
 /*****************************************************************************/
@@ -4607,7 +4607,7 @@ static ppc_def_t ppc_defs[] = {
     /* PowerPC 750E (G3)                                                     */
     POWERPC_DEF("750e",        CPU_POWERPC_750E,        0xFFFFFFFF, 7x0),
     /* PowerPC 750FL (G3 embedded)                                           */
-    POWERPC_DEF("750fl",       CPU_POWERPC_750FL,       0xFFFFFFFF, 7x0),
+    POWERPC_DEF("750fl",       CPU_POWERPC_750FL,       0xFFFFFFFF, 750fx),
     /* PowerPC 750FX (G3 embedded)                                           */
     POWERPC_DEF("750fx",       CPU_POWERPC_750FX,       0xFFFFFFFF, 750fx),
     /* PowerPC 750FX v1.0 (G3 embedded)                                      */
@@ -4621,7 +4621,7 @@ static ppc_def_t ppc_defs[] = {
     /* PowerPC 750FX v2.3 (G3 embedded)                                      */
     POWERPC_DEF("750fx2.3",    CPU_POWERPC_750FX_v23,   0xFFFFFFFF, 750fx),
     /* PowerPC 750GL (G3 embedded)                                           */
-    POWERPC_DEF("750gl",       CPU_POWERPC_750GL,       0xFFFFFFFF, 7x0),
+    POWERPC_DEF("750gl",       CPU_POWERPC_750GL,       0xFFFFFFFF, 750fx),
     /* PowerPC 750GX (G3 embedded)                                           */
     POWERPC_DEF("750gx",       CPU_POWERPC_750GX,       0xFFFFFFFF, 750fx),
     /* PowerPC 750GX v1.0 (G3 embedded)                                      */
@@ -4993,8 +4993,9 @@ static ppc_def_t ppc_defs[] = {
 #endif
 #endif
     POWERPC_DEF("ppc32",       CPU_POWERPC_PPC32,       0xFFFFFFFF, PPC32),
+    POWERPC_DEF("ppc",         CPU_POWERPC_DEFAULT,     0xFFFFFFFF, DEFAULT),
     /* Fallback                                                              */
-    POWERPC_DEF("ppc",         CPU_POWERPC_PPC,         0xFFFFFFFF, PPC_GENERIC),
+    POWERPC_DEF("default",     CPU_POWERPC_DEFAULT,     0xFFFFFFFF, DEFAULT),
 };
 
 /*****************************************************************************/
@@ -5463,7 +5464,7 @@ int ppc_find_by_name (const unsigned char *name, ppc_def_t **def)
 
     ret = -1;
     *def = NULL;
-    for (i = 0; strcmp(ppc_defs[i].name, "ppc") != 0; i++) {
+    for (i = 0; strcmp(ppc_defs[i].name, "default") != 0; i++) {
         if (strcasecmp(name, ppc_defs[i].name) == 0) {
             *def = &ppc_defs[i];
             ret = 0;
@@ -5499,7 +5500,7 @@ void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     for (i = 0; ; i++) {
         (*cpu_fprintf)(f, "PowerPC %-16s PVR %08x\n",
                        ppc_defs[i].name, ppc_defs[i].pvr);
-        if (strcmp(ppc_defs[i].name, "ppc") == 0)
+        if (strcmp(ppc_defs[i].name, "default") == 0)
             break;
     }
 }

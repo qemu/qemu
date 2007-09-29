@@ -544,9 +544,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     qemu_register_reset(&cpu_ppc_reset, env);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
-    /* Default CPU is a 604 */
     if (cpu_model == NULL)
-        cpu_model = "604";
+        cpu_model = "default";
     ppc_find_by_name(cpu_model, &def);
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");

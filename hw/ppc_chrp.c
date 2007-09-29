@@ -330,15 +330,8 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
     qemu_register_reset(&cpu_ppc_reset, env);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
-    /* Default CPU is a generic 74x/75x */
     if (cpu_model == NULL)
-        cpu_model = "750";
-    /* XXX: CPU model (or PVR) should be provided on command line */
-    //    ppc_find_by_name("750gx", &def); // Linux boot OK
-    //    ppc_find_by_name("750fx", &def); // Linux boot OK
-    /* Linux does not boot on 750cxe (and probably other 750cx based)
-     * because it assumes it has 8 IBAT & DBAT pairs as it only have 4.
-     */
+        cpu_model = "default";
     ppc_find_by_name(cpu_model, &def);
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
