@@ -624,8 +624,8 @@ translate.o: cpu.h exec-all.h disas.h
 endif
 
 ifeq ($(TARGET_BASE_ARCH), ppc)
-op.o: op.c op_template.h op_mem.h
-op_helper.o: op_helper_mem.h
+op.o: op.c op_template.h op_mem.h op_helper.h
+op_helper.o: op_helper.c mfrom_table.c op_helper_mem.h op_helper.h
 translate.o: translate.c translate_init.c
 endif
 
