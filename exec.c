@@ -1301,11 +1301,19 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
 #else
     cpu_dump_state(env, stderr, fprintf, 0);
 #endif
-    va_end(ap);
     if (logfile) {
+        fprintf(logfile, "qemu: fatal: ");
+        vfprintf(logfile, fmt, ap);
+        fprintf(logfile, "\n");
+#ifdef TARGET_I386
+        cpu_dump_state(env, logfile, fprintf, X86_DUMP_FPU | X86_DUMP_CCOP);
+#else
+        cpu_dump_state(env, logfile, fprintf, 0);
+#endif
         fflush(logfile);
         fclose(logfile);
     }
+    va_end(ap);
     abort();
 }
 
