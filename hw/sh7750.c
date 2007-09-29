@@ -64,13 +64,6 @@ typedef struct SH7750State {
     uint8_t scbrr2;
     fifo serial2_receive_fifo;
     fifo serial2_transmit_fifo;
-    /* Timers */
-    uint8_t tstr;
-    /* Timer 0 */
-    QEMUTimer *timer0;
-    uint16_t tcr0;
-    uint32_t tcor0;
-    uint32_t tcnt0;
     /* IO ports */
     uint16_t gpioic;
     uint32_t pctra;
@@ -88,83 +81,8 @@ typedef struct SH7750State {
     sh7750_io_device *devices[NB_DEVICES];	/* External peripherals */
     /* Cache */
     uint32_t ccr;
+
 } SH7750State;
-
-/**********************************************************************
- Timers
-**********************************************************************/
-
-/* XXXXX At this time, timer0 works in underflow only mode, that is
-   the value of tcnt0 is read at alarm computation time and cannot
-   be read back by the guest OS */
-
-static void start_timer0(SH7750State * s)
-{
-    uint64_t now, next, prescaler;
-
-    if ((s->tcr0 & 6) == 6) {
-	fprintf(stderr, "rtc clock for timer 0 not supported\n");
-	assert(0);
-    }
-
-    if ((s->tcr0 & 7) == 5) {
-	fprintf(stderr, "timer 0 configuration not supported\n");
-	assert(0);
-    }
-
-    if ((s->tcr0 & 4) == 4)
-	prescaler = 1024;
-    else
-	prescaler = 4 << (s->tcr0 & 3);
-
-    now = qemu_get_clock(vm_clock);
-    /* XXXXX */
-    next =
-	now + muldiv64(prescaler * s->tcnt0, ticks_per_sec,
-		       s->periph_freq);
-    if (next == now)
-	next = now + 1;
-    fprintf(stderr, "now=%016" PRIx64 ", next=%016" PRIx64 "\n", now, next);
-    fprintf(stderr, "timer will underflow in %f seconds\n",
-	    (float) (next - now) / (float) ticks_per_sec);
-
-    qemu_mod_timer(s->timer0, next);
-}
-
-static void timer_start_changed(SH7750State * s)
-{
-    if (s->tstr & SH7750_TSTR_STR0) {
-	start_timer0(s);
-    } else {
-	fprintf(stderr, "timer 0 is stopped\n");
-	qemu_del_timer(s->timer0);
-    }
-}
-
-static void timer0_cb(void *opaque)
-{
-    SH7750State *s = opaque;
-
-    s->tcnt0 = (uint32_t) 0;	/* XXXXX */
-    if (--s->tcnt0 == (uint32_t) - 1) {
-	fprintf(stderr, "timer 0 underflow\n");
-	s->tcnt0 = s->tcor0;
-	s->tcr0 |= SH7750_TCR_UNF;
-	if (s->tcr0 & SH7750_TCR_UNIE) {
-	    fprintf(stderr,
-		    "interrupt generation for timer 0 not supported\n");
-	    assert(0);
-	}
-    }
-    start_timer0(s);
-}
-
-static void init_timers(SH7750State * s)
-{
-    s->tcor0 = 0xffffffff;
-    s->tcnt0 = 0xffffffff;
-    s->timer0 = qemu_new_timer(vm_clock, &timer0_cb, s);
-}
 
 /**********************************************************************
  First serial port
@@ -581,8 +499,6 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
 	fprintf(stderr,
 		"Read access to refresh count register, incrementing\n");
 	return s->rfcr++;
-    case SH7750_TCR0_A7:
-	return s->tcr0;
     case SH7750_SCLSR2_A7:
 	/* Read and clear overflow bit */
 	r = s->sclsr2;
@@ -648,10 +564,6 @@ static void sh7750_mem_writeb(void *opaque, target_phys_addr_t addr,
 	return;
     case SH7750_SCBRR2_A7:
 	s->scbrr2 = mem_value;
-	return;
-    case SH7750_TSTR_A7:
-	s->tstr = mem_value;
-	timer_start_changed(s);
 	return;
     case SH7750_SCSCR1_A7:
 	s->scscr1 = mem_value;
@@ -721,9 +633,6 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
     case SH7750_SCSMR2_A7:
 	s->scsmr2 = mem_value;
 	return;
-    case SH7750_TCR0_A7:
-	s->tcr0 = mem_value;
-	return;
     case SH7750_GPIOIC_A7:
 	s->gpioic = mem_value;
 	if (mem_value != 0) {
@@ -767,9 +676,6 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
 	s->portdirb = portdir(mem_value);
 	s->portpullupb = portpullup(mem_value);
 	portb_changed(s, temp);
-	return;
-    case SH7750_TCNT0_A7:
-	s->tcnt0 = mem_value & 0xf;
 	return;
     case SH7750_MMUCR_A7:
 	s->cpu->mmucr = mem_value;
@@ -828,7 +734,11 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 					      sh7750_mem_read,
 					      sh7750_mem_write, s);
     cpu_register_physical_memory(0x1c000000, 0x04000000, sh7750_io_memory);
-    init_timers(s);
     init_serial_ports(s);
+
+    tmu012_init(0x1fd80000,
+		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
+		s->periph_freq);
+    tmu012_init(0x1e100000, 0, s->periph_freq);
     return s;
 }
