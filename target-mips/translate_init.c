@@ -141,7 +141,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         /* No DSP implemented. */
-        .CP0_Status_rw_bitmask = 0x1278FF17,
+        .CP0_Status_rw_bitmask = 0x1278FF1F,
         .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
     },
     {
@@ -156,7 +156,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         /* No DSP implemented. */
-        .CP0_Status_rw_bitmask = 0x3678FF17,
+        .CP0_Status_rw_bitmask = 0x3678FF1F,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
         .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
@@ -173,7 +173,7 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         /* No DSP implemented. */
-        .CP0_Status_rw_bitmask = 0x3678FF17,
+        .CP0_Status_rw_bitmask = 0x3678FF1F,
         /* No DSP implemented. */
         .CP0_TCStatus_rw_bitmask = (0 << CP0TCSt_TCU3) | (0 << CP0TCSt_TCU2) |
                     (1 << CP0TCSt_TCU1) | (1 << CP0TCSt_TCU0) |

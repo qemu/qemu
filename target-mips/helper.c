@@ -106,6 +106,8 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 {
     /* User mode can only access useg/xuseg */
     int user_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM;
+    int supervisor_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_SM;
+    int kernel_mode = !user_mode && !supervisor_mode;
 #ifdef TARGET_MIPS64
     int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
     int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
@@ -118,14 +120,6 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         fprintf(logfile, "user mode %d h %08x\n",
                 user_mode, env->hflags);
     }
-#endif
-
-#ifdef TARGET_MIPS64
-    if (user_mode && address > 0x3FFFFFFFFFFFFFFFULL)
-        return TLBRET_BADADDR;
-#else
-    if (user_mode && address > 0x7FFFFFFFUL)
-        return TLBRET_BADADDR;
 #endif
 
     if (address <= (int32_t)0x7FFFFFFFUL) {
@@ -150,16 +144,16 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         }
     } else if (address < 0x7FFFFFFFFFFFFFFFULL) {
         /* xsseg */
-	if (SX && address < (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
+	if ((supervisor_mode || kernel_mode) &&
+	    SX && address < (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
         }
     } else if (address < 0xBFFFFFFFFFFFFFFFULL) {
         /* xkphys */
-        /* XXX: check supervisor mode */
-        if (KX && (address & 0x07FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL)
-	{
+        if (kernel_mode && KX &&
+            (address & 0x07FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL) {
             *physical = address & 0X0000000FFFFFFFFFULL;
             *prot = PAGE_READ | PAGE_WRITE;
 	} else {
@@ -167,8 +161,8 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 	}
     } else if (address < 0xFFFFFFFF7FFFFFFFULL) {
         /* xkseg */
-        /* XXX: check supervisor mode */
-	if (KX && address < (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
+	if (kernel_mode && KX &&
+	    address < (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
@@ -176,22 +170,35 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #endif
     } else if (address < (int32_t)0xA0000000UL) {
         /* kseg0 */
-        /* XXX: check supervisor mode */
-        *physical = address - (int32_t)0x80000000UL;
-        *prot = PAGE_READ | PAGE_WRITE;
+        if (kernel_mode) {
+            *physical = address - (int32_t)0x80000000UL;
+            *prot = PAGE_READ | PAGE_WRITE;
+        } else {
+            ret = TLBRET_BADADDR;
+        }
     } else if (address < (int32_t)0xC0000000UL) {
         /* kseg1 */
-        /* XXX: check supervisor mode */
-        *physical = address - (int32_t)0xA0000000UL;
-        *prot = PAGE_READ | PAGE_WRITE;
+        if (kernel_mode) {
+            *physical = address - (int32_t)0xA0000000UL;
+            *prot = PAGE_READ | PAGE_WRITE;
+        } else {
+            ret = TLBRET_BADADDR;
+        }
     } else if (address < (int32_t)0xE0000000UL) {
-        /* kseg2 */
-        ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
+        /* sseg */
+        if (supervisor_mode || kernel_mode) {
+            ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
+        } else {
+            ret = TLBRET_BADADDR;
+        }
     } else {
         /* kseg3 */
-        /* XXX: check supervisor mode */
         /* XXX: debug segment is not emulated */
-        ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
+        if (kernel_mode) {
+            ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
+        } else {
+            ret = TLBRET_BADADDR;
+        }
     }
 #if 0
     if (logfile) {
@@ -369,7 +376,7 @@ void do_interrupt (CPUState *env)
         }
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM | MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
-        env->hflags &= ~MIPS_HFLAG_UM;
+        env->hflags &= ~(MIPS_HFLAG_SM | MIPS_HFLAG_UM);
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
@@ -395,7 +402,7 @@ void do_interrupt (CPUState *env)
         }
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
         env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
-        env->hflags &= ~MIPS_HFLAG_UM;
+        env->hflags &= ~(MIPS_HFLAG_SM | MIPS_HFLAG_UM);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->PC[env->current_tc] = (int32_t)0xBFC00000;
@@ -497,7 +504,7 @@ void do_interrupt (CPUState *env)
             }
             env->CP0_Status |= (1 << CP0St_EXL);
             env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
-            env->hflags &= ~MIPS_HFLAG_UM;
+            env->hflags &= ~(MIPS_HFLAG_SM | MIPS_HFLAG_UM);
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {
