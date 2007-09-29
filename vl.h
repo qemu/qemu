@@ -1523,6 +1523,11 @@ int sh7750_register_io_device(struct SH7750State *s,
 #define TMU012_FEAT_EXTCLK (1 << 2)
 void tmu012_init(uint32_t base, int feat, uint32_t freq);
 
+/* sh_serial.c */
+#define SH_SERIAL_FEAT_SCIF (1 << 0)
+void sh_serial_init (target_phys_addr_t base, int feat,
+		     uint32_t freq, CharDriverState *chr);
+
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
 
