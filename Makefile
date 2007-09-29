@@ -137,7 +137,7 @@ tar:
 
 # generate a binary distribution
 tarbin:
-	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
+	( cd / ; tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
 	$(bindir)/qemu \
 	$(bindir)/qemu-system-ppc \
 	$(bindir)/qemu-system-ppc64 \
@@ -149,6 +149,8 @@ tarbin:
 	$(bindir)/qemu-system-mips64 \
 	$(bindir)/qemu-system-mips64el \
 	$(bindir)/qemu-system-arm \
+	$(bindir)/qemu-system-m68k \
+	$(bindir)/qemu-system-sh4 \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
         $(bindir)/qemu-armeb \
@@ -158,6 +160,8 @@ tarbin:
         $(bindir)/qemu-mips \
         $(bindir)/qemu-mipsel \
         $(bindir)/qemu-alpha \
+        $(bindir)/qemu-m68k \
+        $(bindir)/qemu-sh4 \
         $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
