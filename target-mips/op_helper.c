@@ -613,6 +613,10 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
 #define FLOAT_ONE64 (0x3ffULL << 52)
 #define FLOAT_TWO32 (1 << 30)
 #define FLOAT_TWO64 (1ULL << 62)
+#define FLOAT_QNAN32 0x7fbfffff
+#define FLOAT_QNAN64 0x7ff7ffffffffffffULL
+#define FLOAT_SNAN32 0x7fffffff
+#define FLOAT_SNAN64 0x7fffffffffffffffULL
 
 /* convert MIPS rounding mode in FCR31 to IEEE library */
 unsigned int ieee_rm[] = {
@@ -736,7 +740,7 @@ FLOAT_OP(cvtl, d)
     DT2 = float64_to_int64(FDT0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(cvtl, s)
 {
@@ -744,7 +748,7 @@ FLOAT_OP(cvtl, s)
     DT2 = float32_to_int64(FST0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 
 FLOAT_OP(cvtps, pw)
@@ -761,7 +765,7 @@ FLOAT_OP(cvtpw, ps)
     WTH2 = float32_to_int32(FSTH0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 FLOAT_OP(cvts, d)
 {
@@ -799,7 +803,7 @@ FLOAT_OP(cvtw, s)
     WT2 = float32_to_int32(FST0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 FLOAT_OP(cvtw, d)
 {
@@ -807,7 +811,7 @@ FLOAT_OP(cvtw, d)
     WT2 = float64_to_int32(FDT0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 
 FLOAT_OP(roundl, d)
@@ -817,7 +821,7 @@ FLOAT_OP(roundl, d)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(roundl, s)
 {
@@ -826,7 +830,7 @@ FLOAT_OP(roundl, s)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(roundw, d)
 {
@@ -835,7 +839,7 @@ FLOAT_OP(roundw, d)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 FLOAT_OP(roundw, s)
 {
@@ -844,7 +848,7 @@ FLOAT_OP(roundw, s)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 
 FLOAT_OP(truncl, d)
@@ -852,28 +856,28 @@ FLOAT_OP(truncl, d)
     DT2 = float64_to_int64_round_to_zero(FDT0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(truncl, s)
 {
     DT2 = float32_to_int64_round_to_zero(FST0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(truncw, d)
 {
     WT2 = float64_to_int32_round_to_zero(FDT0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 FLOAT_OP(truncw, s)
 {
     WT2 = float32_to_int32_round_to_zero(FST0, &env->fpu->fp_status);
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 
 FLOAT_OP(ceill, d)
@@ -883,7 +887,7 @@ FLOAT_OP(ceill, d)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(ceill, s)
 {
@@ -892,7 +896,7 @@ FLOAT_OP(ceill, s)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(ceilw, d)
 {
@@ -901,7 +905,7 @@ FLOAT_OP(ceilw, d)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 FLOAT_OP(ceilw, s)
 {
@@ -910,7 +914,7 @@ FLOAT_OP(ceilw, s)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 
 FLOAT_OP(floorl, d)
@@ -920,7 +924,7 @@ FLOAT_OP(floorl, d)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(floorl, s)
 {
@@ -929,7 +933,7 @@ FLOAT_OP(floorl, s)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        DT2 = 0x7fffffffffffffffULL;
+        DT2 = FLOAT_SNAN64;
 }
 FLOAT_OP(floorw, d)
 {
@@ -938,7 +942,7 @@ FLOAT_OP(floorw, d)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 FLOAT_OP(floorw, s)
 {
@@ -947,7 +951,7 @@ FLOAT_OP(floorw, s)
     RESTORE_ROUNDING_MODE;
     update_fcr31();
     if (GET_FP_CAUSE(env->fpu->fcr31) & (FP_OVERFLOW | FP_INVALID))
-        WT2 = 0x7fffffff;
+        WT2 = FLOAT_SNAN32;
 }
 
 /* MIPS specific unary operations */
@@ -1031,7 +1035,7 @@ FLOAT_OP(name, d)         \
     FDT2 = float64_ ## name (FDT0, FDT1, &env->fpu->fp_status);    \
     update_fcr31();                                                \
     if (GET_FP_CAUSE(env->fpu->fcr31) & FP_INVALID)                \
-        FDT2 = 0x7ff7ffffffffffffULL;                              \
+        FDT2 = FLOAT_QNAN64;                                       \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
@@ -1039,7 +1043,7 @@ FLOAT_OP(name, s)         \
     FST2 = float32_ ## name (FST0, FST1, &env->fpu->fp_status);    \
     update_fcr31();                                                \
     if (GET_FP_CAUSE(env->fpu->fcr31) & FP_INVALID)                \
-        FST2 = 0x7fbfffff;                                         \
+        FST2 = FLOAT_QNAN32;                                       \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
@@ -1048,8 +1052,8 @@ FLOAT_OP(name, ps)        \
     FSTH2 = float32_ ## name (FSTH0, FSTH1, &env->fpu->fp_status); \
     update_fcr31();       \
     if (GET_FP_CAUSE(env->fpu->fcr31) & FP_INVALID) {              \
-        FST2 = 0x7fbfffff;                                         \
-        FSTH2 = 0x7fbfffff;                                        \
+        FST2 = FLOAT_QNAN32;                                       \
+        FSTH2 = FLOAT_QNAN32;                                      \
     }                     \
 }
 FLOAT_BINOP(add)
