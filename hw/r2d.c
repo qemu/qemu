@@ -32,7 +32,6 @@ void r2d_init(int ram_size, int vga_ram_size, int boot_device,
 	      const char *kernel_filename, const char *kernel_cmdline,
 	      const char *initrd_filename, const char *cpu_model)
 {
-    int ret;
     CPUState *env;
     struct SH7750State *s;
 
