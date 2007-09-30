@@ -478,6 +478,8 @@ enum {
     PPC_DCRUX         = 0x0000040000000000ULL,
     /* New floating-point extensions (PowerPC 2.0x)     */
     PPC_FLOAT_EXT     = 0x0000080000000000ULL,
+    /* New wait instruction (PowerPC 2.0x)              */
+    PPC_WAIT          = 0x0000100000000000ULL,
 };
 
 /*****************************************************************************/
@@ -2463,12 +2465,12 @@ GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_INTEGER)
 
 /***                        Memory synchronisation                         ***/
 /* eieio */
-GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FF0801, PPC_MEM_EIEIO)
+GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FFF801, PPC_MEM_EIEIO)
 {
 }
 
 /* isync */
-GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FF0801, PPC_MEM)
+GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM)
 {
     GEN_STOP(ctx);
 }
@@ -2610,8 +2612,16 @@ GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
-GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03CF0801, PPC_MEM_SYNC)
+GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03BFF801, PPC_MEM_SYNC)
 {
+}
+
+/* wait */
+GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT)
+{
+    /* Stop translation, as the CPU is supposed to sleep from now */
+    /* XXX: TODO: handle this idle CPU case */
+    GEN_STOP(ctx);
 }
 
 /***                         Floating-point load                           ***/
@@ -3328,7 +3338,7 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
  * We just have to flush tb while invalidating instruction cache lines...
  */
 /* dcbf */
-GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE)
 {
     gen_addr_reg_index(ctx);
     op_ldst(lbz);
@@ -3360,16 +3370,18 @@ GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE)
 }
 
 /* dcbt */
-GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x02000001, PPC_CACHE)
 {
+    /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
      *      but does not generate any exception
      */
 }
 
 /* dcbtst */
-GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE)
 {
+    /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
      *      but does not generate any exception
      */
@@ -3468,6 +3480,10 @@ GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 /* dcba */
 GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_DCBA)
 {
+    /* interpreted as no-op */
+    /* XXX: specification say this is treated as a store by the MMU
+     *      but does not generate any exception
+     */
 }
 
 /***                    Segment register manipulation                      ***/
@@ -5012,7 +5028,7 @@ GEN_HANDLER(mbar, 0x1F, 0x16, 0x13, 0x001FF801, PPC_BOOKE)
 }
 
 /* msync replaces sync on 440 */
-GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FF0801, PPC_BOOKE)
+GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE)
 {
     /* interpreted as no-op */
 }
