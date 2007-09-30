@@ -2581,8 +2581,8 @@ GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03CF0801, PPC_MEM_SYNC)
 }
 
 /***                         Floating-point load                           ***/
-#define GEN_LDF(width, opc)                                                   \
-GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                 \
+#define GEN_LDF(width, opc, type)                                             \
+GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, type)                      \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2593,8 +2593,8 @@ GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                 \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
 }
 
-#define GEN_LDUF(width, opc)                                                  \
-GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)              \
+#define GEN_LDUF(width, opc, type)                                            \
+GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2610,8 +2610,8 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)              \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_LDUXF(width, opc)                                                 \
-GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)             \
+#define GEN_LDUXF(width, opc, type)                                           \
+GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                  \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2627,8 +2627,8 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)             \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_LDXF(width, opc2, opc3)                                           \
-GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)             \
+#define GEN_LDXF(width, opc2, opc3, type)                                     \
+GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, type)                  \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2639,21 +2639,21 @@ GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)             \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
 }
 
-#define GEN_LDFS(width, op)                                                   \
+#define GEN_LDFS(width, op, type)                                             \
 OP_LD_TABLE(width);                                                           \
-GEN_LDF(width, op | 0x20);                                                    \
-GEN_LDUF(width, op | 0x21);                                                   \
-GEN_LDUXF(width, op | 0x01);                                                  \
-GEN_LDXF(width, 0x17, op | 0x00)
+GEN_LDF(width, op | 0x20, type);                                              \
+GEN_LDUF(width, op | 0x21, type);                                             \
+GEN_LDUXF(width, op | 0x01, type);                                            \
+GEN_LDXF(width, 0x17, op | 0x00, type)
 
 /* lfd lfdu lfdux lfdx */
-GEN_LDFS(fd, 0x12);
+GEN_LDFS(fd, 0x12, PPC_FLOAT);
 /* lfs lfsu lfsux lfsx */
-GEN_LDFS(fs, 0x10);
+GEN_LDFS(fs, 0x10, PPC_FLOAT);
 
 /***                         Floating-point store                          ***/
-#define GEN_STF(width, opc)                                                   \
-GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
+#define GEN_STF(width, opc, type)                                             \
+GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, type)                     \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2664,8 +2664,8 @@ GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
     op_ldst(st##width);                                                       \
 }
 
-#define GEN_STUF(width, opc)                                                  \
-GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
+#define GEN_STUF(width, opc, type)                                            \
+GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2681,8 +2681,8 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_STUXF(width, opc)                                                 \
-GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
+#define GEN_STUXF(width, opc, type)                                           \
+GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                 \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2698,8 +2698,8 @@ GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_STXF(width, opc2, opc3)                                           \
-GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)            \
+#define GEN_STXF(width, opc2, opc3, type)                                     \
+GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, type)                 \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2710,30 +2710,22 @@ GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)            \
     op_ldst(st##width);                                                       \
 }
 
-#define GEN_STFS(width, op)                                                   \
+#define GEN_STFS(width, op, type)                                             \
 OP_ST_TABLE(width);                                                           \
-GEN_STF(width, op | 0x20);                                                    \
-GEN_STUF(width, op | 0x21);                                                   \
-GEN_STUXF(width, op | 0x01);                                                  \
-GEN_STXF(width, 0x17, op | 0x00)
+GEN_STF(width, op | 0x20, type);                                              \
+GEN_STUF(width, op | 0x21, type);                                             \
+GEN_STUXF(width, op | 0x01, type);                                            \
+GEN_STXF(width, 0x17, op | 0x00, type)
 
 /* stfd stfdu stfdux stfdx */
-GEN_STFS(fd, 0x16);
+GEN_STFS(fd, 0x16, PPC_FLOAT);
 /* stfs stfsu stfsux stfsx */
-GEN_STFS(fs, 0x14);
+GEN_STFS(fs, 0x14, PPC_FLOAT);
 
 /* Optional: */
 /* stfiwx */
-GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT_STFIWX)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        GEN_EXCP_NO_FP(ctx);
-        return;
-    }
-    gen_addr_reg_index(ctx);
-    /* XXX: TODO: memcpy low order 32 bits of FRP(rs) into memory */
-    GEN_EXCP_INVAL(ctx);
-}
+OP_ST_TABLE(fiwx);
+GEN_STXF(fiwx, 0x17, 0x1E, PPC_FLOAT_STFIWX);
 
 /***                                Branch                                 ***/
 static inline void gen_goto_tb (DisasContext *ctx, int n, target_ulong dest)

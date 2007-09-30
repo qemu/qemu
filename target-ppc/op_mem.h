@@ -403,11 +403,30 @@ void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
 }
 #endif
 
+static inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
+{
+    glue(stfl, MEMSUFFIX)(EA, float64_to_float32(d, &env->fp_status));
+}
+
+static inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
+{
+    union {
+        double d;
+        uint64_t u;
+    } u;
+
+    /* Store the low order 32 bits without any conversion */
+    u.d = d;
+    glue(stl, MEMSUFFIX)(EA, u.u);
+}
+
 PPC_STF_OP(fd, stfq);
-PPC_STF_OP(fs, stfl);
+PPC_STF_OP(fs, stfs);
+PPC_STF_OP(fiwx, stfiwx);
 #if defined(TARGET_PPC64)
 PPC_STF_OP_64(fd, stfq);
-PPC_STF_OP_64(fs, stfl);
+PPC_STF_OP_64(fs, stfs);
+PPC_STF_OP_64(fiwx, stfiwx);
 #endif
 
 static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
@@ -429,14 +448,14 @@ static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
     glue(stfq, MEMSUFFIX)(EA, u.d);
 }
 
-static inline void glue(stflr, MEMSUFFIX) (target_ulong EA, float f)
+static inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         float f;
         uint32_t u;
     } u;
 
-    u.f = f;
+    u.f = float64_to_float32(d, &env->fp_status);
     u.u = ((u.u & 0xFF000000UL) >> 24) |
         ((u.u & 0x00FF0000ULL) >> 8) |
         ((u.u & 0x0000FF00UL) << 8) |
@@ -444,11 +463,30 @@ static inline void glue(stflr, MEMSUFFIX) (target_ulong EA, float f)
     glue(stfl, MEMSUFFIX)(EA, u.f);
 }
 
+static inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
+{
+    union {
+        double d;
+        uint64_t u;
+    } u;
+
+    /* Store the low order 32 bits without any conversion */
+    u.d = d;
+    u.u = ((u.u & 0xFF000000UL) >> 24) |
+        ((u.u & 0x00FF0000ULL) >> 8) |
+        ((u.u & 0x0000FF00UL) << 8) |
+        ((u.u & 0x000000FFULL) << 24);
+    glue(stl, MEMSUFFIX)(EA, u.u);
+}
+
+
 PPC_STF_OP(fd_le, stfqr);
-PPC_STF_OP(fs_le, stflr);
+PPC_STF_OP(fs_le, stfsr);
+PPC_STF_OP(fiwx_le, stfiwxr);
 #if defined(TARGET_PPC64)
 PPC_STF_OP_64(fd_le, stfqr);
-PPC_STF_OP_64(fs_le, stflr);
+PPC_STF_OP_64(fs_le, stfsr);
+PPC_STF_OP_64(fiwx_le, stfiwxr);
 #endif
 
 /***                         Floating-point load                           ***/
@@ -468,11 +506,16 @@ void OPPROTO glue(glue(glue(op_l, name), _64), MEMSUFFIX) (void)              \
 }
 #endif
 
+static inline double glue(ldfs, MEMSUFFIX) (target_ulong EA)
+{
+    return float32_to_float64(glue(ldfl, MEMSUFFIX)(EA), &env->fp_status);
+}
+
 PPC_LDF_OP(fd, ldfq);
-PPC_LDF_OP(fs, ldfl);
+PPC_LDF_OP(fs, ldfs);
 #if defined(TARGET_PPC64)
 PPC_LDF_OP_64(fd, ldfq);
-PPC_LDF_OP_64(fs, ldfl);
+PPC_LDF_OP_64(fs, ldfs);
 #endif
 
 static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
@@ -495,7 +538,7 @@ static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
     return u.d;
 }
 
-static inline float glue(ldflr, MEMSUFFIX) (target_ulong EA)
+static inline double glue(ldfsr, MEMSUFFIX) (target_ulong EA)
 {
     union {
         float f;
@@ -508,14 +551,14 @@ static inline float glue(ldflr, MEMSUFFIX) (target_ulong EA)
         ((u.u & 0x0000FF00UL) << 8) |
         ((u.u & 0x000000FFULL) << 24);
 
-    return u.f;
+    return float32_to_float64(u.f, &env->fp_status);
 }
 
 PPC_LDF_OP(fd_le, ldfqr);
-PPC_LDF_OP(fs_le, ldflr);
+PPC_LDF_OP(fs_le, ldfsr);
 #if defined(TARGET_PPC64)
 PPC_LDF_OP_64(fd_le, ldfqr);
-PPC_LDF_OP_64(fs_le, ldflr);
+PPC_LDF_OP_64(fs_le, ldfsr);
 #endif
 
 /* Load and set reservation */
