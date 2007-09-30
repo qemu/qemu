@@ -6,9 +6,9 @@
 /* this struct defines a stack used during syscall handling */
 
 typedef struct target_sigaltstack {
-	target_long ss_sp;
-	target_ulong ss_size;
-	target_long ss_flags;
+	int32_t ss_sp;
+	uint32_t ss_size;
+	int32_t ss_flags;
 } target_stack_t;
 
 

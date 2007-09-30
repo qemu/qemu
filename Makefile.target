@@ -4,6 +4,9 @@ TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
 endif
+ifeq ($(TARGET_ARCH), mipsn32)
+TARGET_BASE_ARCH:=mips
+endif
 ifeq ($(TARGET_ARCH), mips64)
 TARGET_BASE_ARCH:=mips
 endif
@@ -48,6 +51,11 @@ endif
 ifeq ($(TARGET_ARCH),mips)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mipsel
+  endif
+endif
+ifeq ($(TARGET_ARCH),mipsn32)
+  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
+    TARGET_ARCH2=mipsn32el
   endif
 endif
 ifeq ($(TARGET_ARCH),mips64)

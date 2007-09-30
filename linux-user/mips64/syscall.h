@@ -3,9 +3,6 @@
    stack during a system call. */
 
 struct target_pt_regs {
-	/* Pad bytes for argument save space on the stack. */
-	target_ulong pad0[6];
-
 	/* Saved main processor registers. */
 	target_ulong regs[32];
 
@@ -221,4 +218,4 @@ struct target_pt_regs {
 
 
 
-#define UNAME_MACHINE "mips"
+#define UNAME_MACHINE "mips64"

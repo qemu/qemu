@@ -1704,6 +1704,64 @@ long do_rt_sigreturn(CPUState *env)
     return -ENOSYS;
 }
 
+#elif defined(TARGET_MIPS64)
+
+# warning signal handling not implemented
+
+static void setup_frame(int sig, struct emulated_sigaction *ka,
+			target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_frame: not implemented\n");
+}
+
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_rt_frame: not implemented\n");
+}
+
+long do_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_sigreturn: not implemented\n");
+    return -ENOSYS;
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
+    return -ENOSYS;
+}
+
+#elif defined(TARGET_MIPSN32)
+
+# warning signal handling not implemented
+
+static void setup_frame(int sig, struct emulated_sigaction *ka,
+			target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_frame: not implemented\n");
+}
+
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_rt_frame: not implemented\n");
+}
+
+long do_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_sigreturn: not implemented\n");
+    return -ENOSYS;
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
+    return -ENOSYS;
+}
+
 #elif defined(TARGET_MIPS)
 
 struct target_sigcontext {

@@ -154,6 +154,10 @@ tarbin:
         $(bindir)/qemu-ppc64 \
         $(bindir)/qemu-mips \
         $(bindir)/qemu-mipsel \
+        $(bindir)/qemu-mipsn32 \
+        $(bindir)/qemu-mipsn32el \
+        $(bindir)/qemu-mips64 \
+        $(bindir)/qemu-mips64el \
         $(bindir)/qemu-alpha \
         $(bindir)/qemu-m68k \
         $(bindir)/qemu-sh4 \

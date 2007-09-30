@@ -7,7 +7,7 @@ General
 
 MIPS64
 ------
-- Only lighly tested but apparently functional as of 2007-05-31.
+- Userland emulation (both n32 and n64) not functional.
 
 "Generic" 4Kc system emulation
 ------------------------------

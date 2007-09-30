@@ -2145,7 +2145,11 @@ int main(int argc, char **argv)
 
         /* Choose and initialise CPU */
         if (cpu_model == NULL)
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+            cpu_model = "20Kc";
+#else
             cpu_model = "24Kf";
+#endif
         mips_find_by_name(cpu_model, &def);
         if (def == NULL)
             cpu_abort(env, "Unable to find MIPS CPU definition\n");

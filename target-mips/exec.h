@@ -56,7 +56,7 @@ register target_ulong T2 asm(AREG3);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_dsll (void);
 void do_dsll32 (void);
@@ -84,7 +84,7 @@ void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
 #endif
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void do_ddiv (void);
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_ddivu (void);
@@ -104,7 +104,7 @@ void do_lwl_raw (uint32_t);
 void do_lwr_raw (uint32_t);
 uint32_t do_swl_raw (uint32_t);
 uint32_t do_swr_raw (uint32_t);
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void do_ldl_raw (uint64_t);
 void do_ldr_raw (uint64_t);
 uint64_t do_sdl_raw (uint64_t);
@@ -119,7 +119,7 @@ uint32_t do_swl_user (uint32_t);
 uint32_t do_swl_kernel (uint32_t);
 uint32_t do_swr_user (uint32_t);
 uint32_t do_swr_kernel (uint32_t);
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void do_ldl_user (uint64_t);
 void do_ldl_kernel (uint64_t);
 void do_ldr_user (uint64_t);
@@ -267,7 +267,7 @@ static inline void compute_hflags(CPUState *env)
         if (env->CP0_Status & (1 << CP0St_R0))
             env->hflags |= MIPS_HFLAG_SM;
     }
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     if (!(env->hflags & MIPS_HFLAG_UM) ||
         (env->CP0_Status & (1 << CP0St_PX)) ||
         (env->CP0_Status & (1 << CP0St_UX)))

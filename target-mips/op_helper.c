@@ -74,7 +74,7 @@ void do_raise_exception_direct (uint32_t exception)
 #undef MEMSUFFIX
 #endif
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */
 void do_dsll (void)
@@ -154,7 +154,7 @@ void do_drotrv (void)
        T0 = T1;
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-#endif /* TARGET_MIPS64 */
+#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -223,7 +223,7 @@ void do_div (void)
 }
 #endif
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void do_ddiv (void)
 {
     if (T1 != 0) {
@@ -242,7 +242,7 @@ void do_ddivu (void)
     }
 }
 #endif
-#endif /* TARGET_MIPS64 */
+#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 #if defined(CONFIG_USER_ONLY)
 void do_mfc0_random (void)
@@ -383,7 +383,7 @@ static void r4k_fill_tlb (int idx)
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb->mmu.r4k.tlb[idx];
     tlb->VPN = env->CP0_EntryHi & (TARGET_PAGE_MASK << 1);
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     tlb->VPN &= env->SEGMask;
 #endif
     tlb->ASID = env->CP0_EntryHi & 0xFF;
