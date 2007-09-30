@@ -5872,11 +5872,12 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
 
 int ppc_find_by_name (const unsigned char *name, ppc_def_t **def)
 {
-    int i, ret;
+    int i, max, ret;
 
     ret = -1;
     *def = NULL;
-    for (i = 0; strcmp(ppc_defs[i].name, "default") != 0; i++) {
+    max = sizeof(ppc_defs) / sizeof(ppc_def_t);
+    for (i = 0; i < max; i++) {
         if (strcasecmp(name, ppc_defs[i].name) == 0) {
             *def = &ppc_defs[i];
             ret = 0;
@@ -5889,11 +5890,12 @@ int ppc_find_by_name (const unsigned char *name, ppc_def_t **def)
 
 int ppc_find_by_pvr (uint32_t pvr, ppc_def_t **def)
 {
-    int i, ret;
+    int i, max, ret;
 
     ret = -1;
     *def = NULL;
-    for (i = 0; ppc_defs[i].name != NULL; i++) {
+    max = sizeof(ppc_defs) / sizeof(ppc_def_t);
+    for (i = 0; i < max; i++) {
         if ((pvr & ppc_defs[i].pvr_mask) ==
             (ppc_defs[i].pvr & ppc_defs[i].pvr_mask)) {
             *def = &ppc_defs[i];
@@ -5907,12 +5909,11 @@ int ppc_find_by_pvr (uint32_t pvr, ppc_def_t **def)
 
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
-    int i;
+    int i, max;
 
-    for (i = 0; ; i++) {
+    max = sizeof(ppc_defs) / sizeof(ppc_def_t);
+    for (i = 0; i < max; i++) {
         (*cpu_fprintf)(f, "PowerPC %-16s PVR %08x\n",
                        ppc_defs[i].name, ppc_defs[i].pvr);
-        if (strcmp(ppc_defs[i].name, "default") == 0)
-            break;
     }
 }
