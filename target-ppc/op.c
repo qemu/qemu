@@ -295,6 +295,14 @@ void OPPROTO op_store_xer (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_store_pri (void)
+{
+    do_store_pri(PARAM1);
+    RETURN();
+}
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 /* Segment registers load and store */
 void OPPROTO op_load_sr (void)

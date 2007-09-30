@@ -112,6 +112,14 @@ void do_store_xer (void)
     xer_bc = (T0 >> XER_BC) & 0x7F;
 }
 
+#if defined(TARGET_PPC64)
+void do_store_pri (int prio)
+{
+    env->spr[SPR_PPR] &= ~0x001C000000000000ULL;
+    env->spr[SPR_PPR] |= ((uint64_t)prio & 0x7) << 50;
+}
+#endif
+
 void do_load_fpscr (void)
 {
     /* The 32 MSB of the target fpr are undefined.

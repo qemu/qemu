@@ -1124,6 +1124,26 @@ GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER)
     } else if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_op_load_gpr_T0(rs);
         gen_set_Rc0(ctx);
+#if defined(TARGET_PPC64)
+    } else {
+        switch (rs) {
+        case 1:
+            /* Set process priority to low */
+            gen_op_store_pri(2);
+            break;
+        case 6:
+            /* Set process priority to medium-low */
+            gen_op_store_pri(3);
+            break;
+        case 2:
+            /* Set process priority to normal */
+            gen_op_store_pri(4);
+            break;
+        default:
+            /* nop */
+            break;
+        }
+#endif
     }
 }
 

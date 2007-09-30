@@ -57,6 +57,9 @@ void do_load_cr (void);
 void do_store_cr (uint32_t mask);
 void do_load_xer (void);
 void do_store_xer (void);
+#if defined(TARGET_PPC64)
+void do_store_pri (int prio);
+#endif
 void do_load_fpscr (void);
 void do_store_fpscr (uint32_t mask);
 target_ulong ppc_load_dump_spr (int sprn);
