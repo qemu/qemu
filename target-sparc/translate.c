@@ -2043,9 +2043,11 @@ static void disas_sparc_insn(DisasContext * dc)
                                 break;
 #else
                             case 0x2: /* V9 wrccr */
+                                gen_op_xor_T1_T0();
                                 gen_op_wrccr();
                                 break;
                             case 0x3: /* V9 wrasi */
+                                gen_op_xor_T1_T0();
                                 gen_op_movl_env_T0(offsetof(CPUSPARCState, asi));
                                 break;
                             case 0x6: /* V9 wrfprs */
@@ -2066,6 +2068,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             case 0x13: /* Graphics Status */
                                 if (gen_trap_ifnofpu(dc))
                                     goto jmp_insn;
+                                gen_op_xor_T1_T0();
                                 gen_op_movtl_env_T0(offsetof(CPUSPARCState, gsr));
                                 break;
                             case 0x17: /* Tick compare */
@@ -2073,6 +2076,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 if (!supervisor(dc))
                                     goto illegal_insn;
 #endif
+                                gen_op_xor_T1_T0();
                                 gen_op_movtl_env_T0(offsetof(CPUSPARCState, tick_cmpr));
                                 gen_op_wrtick_cmpr();
                                 break;
@@ -2081,6 +2085,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 if (!supervisor(dc))
                                     goto illegal_insn;
 #endif
+                                gen_op_xor_T1_T0();
                                 gen_op_wrstick();
                                 break;
                             case 0x19: /* System tick compare */
@@ -2088,6 +2093,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 if (!supervisor(dc))
                                     goto illegal_insn;
 #endif
+                                gen_op_xor_T1_T0();
                                 gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
                                 gen_op_wrstick_cmpr();
                                 break;
