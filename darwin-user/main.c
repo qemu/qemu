@@ -529,6 +529,9 @@ void cpu_loop(CPUPPCState *env)
             /* Return value */
             env->gpr[3] = ret;
             break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
         default:
             cpu_abort(env, "Unknown exception 0x%d. Aborting\n", trapnr);
             break;

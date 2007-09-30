@@ -1127,6 +1127,9 @@ void cpu_loop(CPUPPCState *env)
             printf("syscall returned 0x%08x (%d)\n", ret, ret);
 #endif
             break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
         default:
             cpu_abort(env, "Unknown exception 0x%d. Aborting\n", trapnr);
             break;
