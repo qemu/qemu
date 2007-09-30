@@ -2302,13 +2302,13 @@ static always_inline void powerpc_excp (CPUState *env,
                 const unsigned char *es;
                 target_ulong *miss, *cmp;
                 int en;
-                if (excp == 0x1000) {
+                if (excp == POWERPC_EXCP_IFTLB) {
                     es = "I";
                     en = 'I';
                     miss = &env->spr[SPR_IMISS];
                     cmp = &env->spr[SPR_ICMP];
                 } else {
-                    if (excp == 0x1100)
+                    if (excp == POWERPC_EXCP_DLTLB)
                         es = "DL";
                     else
                         es = "DS";
