@@ -1818,6 +1818,7 @@ static int protocol_version(VncState *vs, char *version, size_t len)
     VNC_DEBUG("Client request protocol version %d.%d\n", vs->major, vs->minor);
     if (vs->major != 3 ||
 	(vs->minor != 3 &&
+	 vs->minor != 4 &&
 	 vs->minor != 5 &&
 	 vs->minor != 7 &&
 	 vs->minor != 8)) {
@@ -1827,10 +1828,10 @@ static int protocol_version(VncState *vs, char *version, size_t len)
 	vnc_client_error(vs);
 	return 0;
     }
-    /* Some broken client report v3.5 which spec requires to be treated
+    /* Some broken clients report v3.4 or v3.5, which spec requires to be treated
      * as equivalent to v3.3 by servers
      */
-    if (vs->minor == 5)
+    if (vs->minor == 4 || vs->minor == 5)
 	vs->minor = 3;
 
     if (vs->minor == 3) {
