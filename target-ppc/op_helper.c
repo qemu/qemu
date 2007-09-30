@@ -1002,6 +1002,22 @@ void do_rfid (void)
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 #endif
+#if defined(TARGET_PPC64H)
+void do_hrfid (void)
+{
+    if (env->spr[SPR_HSRR1] & (1ULL << MSR_SF)) {
+        env->nip = (uint64_t)(env->spr[SPR_HSRR0] & ~0x00000003);
+        do_store_msr(env, (uint64_t)(env->spr[SPR_HSRR1] & ~0xFFFF0000UL));
+    } else {
+        env->nip = (uint32_t)(env->spr[SPR_HSRR0] & ~0x00000003);
+        do_store_msr(env, (uint32_t)(env->spr[SPR_HSRR1] & ~0xFFFF0000UL));
+    }
+#if defined (DEBUG_OP)
+    cpu_dump_rfi(env->nip, do_load_msr(env));
+#endif
+    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+}
+#endif
 #endif
 
 void do_tw (int flags)

@@ -131,6 +131,9 @@ void do_rfi (void);
 #if defined(TARGET_PPC64)
 void do_rfid (void);
 #endif
+#if defined(TARGET_PPC64H)
+void do_hrfid (void);
+#endif
 void do_tlbia (void);
 void do_tlbie (void);
 #if defined(TARGET_PPC64)

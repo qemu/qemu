@@ -355,6 +355,13 @@ void OPPROTO op_store_msr (void)
     RETURN();
 }
 
+void OPPROTO op_update_riee (void)
+{
+    msr_ri = (T0 >> MSR_RI) & 1;
+    msr_ee = (T0 >> MSR_EE) & 1;
+    RETURN();
+}
+
 #if defined (TARGET_PPC64)
 void OPPROTO op_store_msr_32 (void)
 {
@@ -1913,6 +1920,12 @@ void OPPROTO op_check_reservation_64 (void)
 }
 #endif
 
+void OPPROTO op_wait (void)
+{
+    env->halted = 1;
+    RETURN();
+}
+
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_rfi (void)
@@ -1925,6 +1938,14 @@ void OPPROTO op_rfi (void)
 void OPPROTO op_rfid (void)
 {
     do_rfid();
+    RETURN();
+}
+#endif
+
+#if defined(TARGET_PPC64H)
+void OPPROTO op_hrfid (void)
+{
+    do_hrfid();
     RETURN();
 }
 #endif
@@ -2557,6 +2578,7 @@ void OPPROTO op_store_40x_pit (void)
 void OPPROTO op_store_40x_dbcr0 (void)
 {
     store_40x_dbcr0(env, T0);
+    RETURN();
 }
 
 void OPPROTO op_store_40x_sler (void)
@@ -2576,7 +2598,6 @@ void OPPROTO op_store_booke_tsr (void)
     store_booke_tsr(env, T0);
     RETURN();
 }
-
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #if defined(TARGET_PPCEMB)

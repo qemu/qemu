@@ -480,6 +480,8 @@ enum {
     PPC_FLOAT_EXT     = 0x0000080000000000ULL,
     /* New wait instruction (PowerPC 2.0x)              */
     PPC_WAIT          = 0x0000100000000000ULL,
+    /* New 64 bits extensions (PowerPC 2.0x)            */
+    PPC_64BX          = 0x0000200000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1141,6 +1143,34 @@ GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER)
             /* Set process priority to normal */
             gen_op_store_pri(4);
             break;
+#if !defined(CONFIG_USER_ONLY)
+        case 31:
+            if (ctx->supervisor > 0) {
+                /* Set process priority to very low */
+                gen_op_store_pri(1);
+            }
+            break;
+        case 5:
+            if (ctx->supervisor > 0) {
+                /* Set process priority to medium-hight */
+                gen_op_store_pri(5);
+            }
+            break;
+        case 3:
+            if (ctx->supervisor > 0) {
+                /* Set process priority to high */
+                gen_op_store_pri(6);
+            }
+            break;
+#if defined(TARGET_PPC64H)
+        case 7:
+            if (ctx->supervisor > 1) {
+                /* Set process priority to very high */
+                gen_op_store_pri(7);
+            }
+            break;
+#endif
+#endif
         default:
             /* nop */
             break;
@@ -1902,12 +1932,11 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 
 /***                           Addressing modes                            ***/
 /* Register indirect with immediate index : EA = (rA|0) + SIMM */
-static inline void gen_addr_imm_index (DisasContext *ctx, int maskl)
+static inline void gen_addr_imm_index (DisasContext *ctx, target_long maskl)
 {
     target_long simm = SIMM(ctx->opcode);
 
-    if (maskl)
-        simm &= ~0x03;
+    simm &= ~maskl;
     if (rA(ctx->opcode) == 0) {
         gen_set_T0(simm);
     } else {
@@ -2051,7 +2080,7 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
         return;                                                               \
     }                                                                         \
     if (type == PPC_64B)                                                      \
-        gen_addr_imm_index(ctx, 1);                                           \
+        gen_addr_imm_index(ctx, 0x03);                                        \
     else                                                                      \
         gen_addr_imm_index(ctx, 0);                                           \
     op_ldst(l##width);                                                        \
@@ -2116,7 +2145,7 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
             return;
         }
     }
-    gen_addr_imm_index(ctx, 1);
+    gen_addr_imm_index(ctx, 0x03);
     if (ctx->opcode & 0x02) {
         /* lwa (lwau is undefined) */
         op_ldst(lwa);
@@ -2127,6 +2156,38 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
     gen_op_store_T1_gpr(rD(ctx->opcode));
     if (Rc(ctx->opcode))
         gen_op_store_T0_gpr(rA(ctx->opcode));
+}
+/* lq */
+GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    int ra, rd;
+
+    /* Restore CPU state */
+    if (unlikely(ctx->supervisor == 0)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    ra = rA(ctx->opcode);
+    rd = rD(ctx->opcode);
+    if (unlikely((rd & 1) || rd == ra)) {
+        GEN_EXCP_INVAL(ctx);
+        return;
+    }
+    if (unlikely(ctx->mem_idx & 1)) {
+        /* Little-endian mode is not handled */
+        GEN_EXCP(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+        return;
+    }
+    gen_addr_imm_index(ctx, 0x0F);
+    op_ldst(ld);
+    gen_op_store_T1_gpr(rd);
+    gen_op_addi(8);
+    op_ldst(ld);
+    gen_op_store_T1_gpr(rd + 1);
+#endif
 }
 #endif
 
@@ -2147,7 +2208,7 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
         return;                                                               \
     }                                                                         \
     if (type == PPC_64B)                                                      \
-        gen_addr_imm_index(ctx, 1);                                           \
+        gen_addr_imm_index(ctx, 0x03);                                        \
     else                                                                      \
         gen_addr_imm_index(ctx, 0);                                           \
     gen_op_load_gpr_T1(rS(ctx->opcode));                                      \
@@ -2193,19 +2254,50 @@ GEN_STS(w, 0x04, PPC_INTEGER);
 OP_ST_TABLE(d);
 GEN_STUX(d, 0x15, 0x05, PPC_64B);
 GEN_STX(d, 0x15, 0x04, PPC_64B);
-GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000002, PPC_64B)
+GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
 {
-    if (Rc(ctx->opcode)) {
-        if (unlikely(rA(ctx->opcode) == 0)) {
+    int rs;
+
+    rs = rS(ctx->opcode);
+    if ((ctx->opcode & 0x3) == 0x2) {
+#if defined(CONFIG_USER_ONLY)
+        GEN_EXCP_PRIVOPC(ctx);
+#else
+        /* stq */
+        if (unlikely(ctx->supervisor == 0)) {
+            GEN_EXCP_PRIVOPC(ctx);
+            return;
+        }
+        if (unlikely(rs & 1)) {
             GEN_EXCP_INVAL(ctx);
             return;
         }
+        if (unlikely(ctx->mem_idx & 1)) {
+            /* Little-endian mode is not handled */
+            GEN_EXCP(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+            return;
+        }
+        gen_addr_imm_index(ctx, 0x03);
+        gen_op_load_gpr_T1(rs);
+        op_ldst(std);
+        gen_op_addi(8);
+        gen_op_load_gpr_T1(rs + 1);
+        op_ldst(std);
+#endif
+    } else {
+        /* std / stdu */
+        if (Rc(ctx->opcode)) {
+            if (unlikely(rA(ctx->opcode) == 0)) {
+                GEN_EXCP_INVAL(ctx);
+                return;
+            }
+        }
+        gen_addr_imm_index(ctx, 0x03);
+        gen_op_load_gpr_T1(rs);
+        op_ldst(std);
+        if (Rc(ctx->opcode))
+            gen_op_store_T0_gpr(rA(ctx->opcode));
     }
-    gen_addr_imm_index(ctx, 1);
-    gen_op_load_gpr_T1(rS(ctx->opcode));
-    op_ldst(std);
-    if (Rc(ctx->opcode))
-        gen_op_store_T0_gpr(rA(ctx->opcode));
 }
 #endif
 /***                Integer load and store with byte reverse               ***/
@@ -2620,8 +2712,8 @@ GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03BFF801, PPC_MEM_SYNC)
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT)
 {
     /* Stop translation, as the CPU is supposed to sleep from now */
-    /* XXX: TODO: handle this idle CPU case */
-    GEN_STOP(ctx);
+    gen_op_wait();
+    GEN_EXCP(ctx, EXCP_HLT, 1);
 }
 
 /***                         Floating-point load                           ***/
@@ -3077,6 +3169,23 @@ GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B)
 }
 #endif
 
+#if defined(TARGET_PPC64H)
+GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64B)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    /* Restore CPU state */
+    if (unlikely(ctx->supervisor <= 1)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_hrfid();
+    GEN_SYNC(ctx);
+#endif
+}
+#endif
+
 /* sc */
 GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFF01D, PPC_FLOW)
 {
@@ -3193,6 +3302,11 @@ static inline void gen_op_mfspr (DisasContext *ctx)
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64H)
+    if (ctx->supervisor == 2)
+        read_cb = ctx->spr_cb[sprn].hea_read;
+    else
+#endif
     if (ctx->supervisor)
         read_cb = ctx->spr_cb[sprn].oea_read;
     else
@@ -3253,7 +3367,7 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 
 /* mtmsr */
 #if defined(TARGET_PPC64)
-GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_64B)
+GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -3262,12 +3376,17 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_64B)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_update_nip(ctx, ctx->nip);
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_store_msr();
-    /* Must stop the translation as machine state (may have) changed */
-    /* Note that mtmsr is not always defined as context-synchronizing */
-    GEN_STOP(ctx);
+    if (ctx->opcode & 0x00010000) {
+        /* Special form that does not need any synchronisation */
+        gen_op_update_riee();
+    } else {
+        gen_update_nip(ctx, ctx->nip);
+        gen_op_store_msr();
+        /* Must stop the translation as machine state (may have) changed */
+        /* Note that mtmsr is not always defined as context-synchronizing */
+        GEN_STOP(ctx);
+    }
 #endif
 }
 #endif
@@ -3281,17 +3400,22 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_update_nip(ctx, ctx->nip);
     gen_op_load_gpr_T0(rS(ctx->opcode));
+    if (ctx->opcode & 0x00010000) {
+        /* Special form that does not need any synchronisation */
+        gen_op_update_riee();
+    } else {
+        gen_update_nip(ctx, ctx->nip);
 #if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        gen_op_store_msr_32();
-    else
+        if (!ctx->sf_mode)
+            gen_op_store_msr_32();
+        else
 #endif
-        gen_op_store_msr();
-    /* Must stop the translation as machine state (may have) changed */
-    /* Note that mtmsrd is not always defined as context-synchronizing */
-    GEN_STOP(ctx);
+            gen_op_store_msr();
+        /* Must stop the translation as machine state (may have) changed */
+        /* Note that mtmsrd is not always defined as context-synchronizing */
+        GEN_STOP(ctx);
+    }
 #endif
 }
 
@@ -3302,6 +3426,11 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64H)
+    if (ctx->supervisor == 2)
+        write_cb = ctx->spr_cb[sprn].hea_write;
+    else
+#endif
     if (ctx->supervisor)
         write_cb = ctx->spr_cb[sprn].oea_write;
     else
@@ -6011,7 +6140,12 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.mem_idx |= msr_sf << 1;
 #endif
 #else
-    ctx.supervisor = 1 - msr_pr;
+#if defined(TARGET_PPC64H)
+    if (msr_pr == 0 && msr_hv == 1)
+        ctx.supervisor = 2;
+    else
+#endif
+        ctx.supervisor = 1 - msr_pr;
     ctx.mem_idx = ((1 - msr_pr) << 1) | msr_le;
 #if defined(TARGET_PPC64)
     ctx.mem_idx |= msr_sf << 2;
