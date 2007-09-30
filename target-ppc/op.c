@@ -423,6 +423,18 @@ void OPPROTO op_load_tbu (void)
     RETURN();
 }
 
+void OPPROTO op_load_atbl (void)
+{
+    T0 = cpu_ppc_load_atbl(env);
+    RETURN();
+}
+
+void OPPROTO op_load_atbu (void)
+{
+    T0 = cpu_ppc_load_atbu(env);
+    RETURN();
+}
+
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_store_tbl (void)
 {
@@ -433,6 +445,18 @@ void OPPROTO op_store_tbl (void)
 void OPPROTO op_store_tbu (void)
 {
     cpu_ppc_store_tbu(env, T0);
+    RETURN();
+}
+
+void OPPROTO op_store_atbl (void)
+{
+    cpu_ppc_store_atbl(env, T0);
+    RETURN();
+}
+
+void OPPROTO op_store_atbu (void)
+{
+    cpu_ppc_store_atbu(env, T0);
     RETURN();
 }
 

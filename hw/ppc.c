@@ -408,6 +408,7 @@ void ppc405_irq_init (CPUState *env)
 struct ppc_tb_t {
     /* Time base management */
     int64_t  tb_offset;    /* Compensation               */
+    int64_t  atb_offset;   /* Compensation               */
     uint32_t tb_freq;      /* TB frequency               */
     /* Decrementer management */
     uint64_t decr_next;    /* Tick for next decr interrupt  */
@@ -422,7 +423,7 @@ struct ppc_tb_t {
     void *opaque;
 };
 
-static inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env)
+static inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env, int64_t tb_offset)
 {
     /* TB time in tb periods */
     return muldiv64(qemu_get_clock(vm_clock) + tb_env->tb_offset,
@@ -434,19 +435,10 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env);
-#ifdef PPC_DEBUG_TB
-    {
-        static int last_time;
-        int now;
-        now = time(NULL);
-        if (last_time != now) {
-            last_time = now;
-            if (loglevel != 0) {
-                fprintf(logfile, "%s: tb=0x%016lx %d %08lx\n",
-                        __func__, tb, now, tb_env->tb_offset);
-            }
-        }
+    tb = cpu_ppc_get_tb(tb_env, tb_env->tb_offset);
+#if defined(PPC_DEBUG_TB)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
     }
 #endif
 
@@ -458,7 +450,7 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env);
+    tb = cpu_ppc_get_tb(tb_env, tb_env->tb_offset);
 #if defined(PPC_DEBUG_TB)
     if (loglevel != 0) {
         fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
@@ -468,32 +460,89 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     return tb >> 32;
 }
 
-static void cpu_ppc_store_tb (ppc_tb_t *tb_env, uint64_t value)
+static inline void cpu_ppc_store_tb (ppc_tb_t *tb_env, int64_t *tb_offsetp,
+                                     uint64_t value)
 {
-    tb_env->tb_offset = muldiv64(value, ticks_per_sec, tb_env->tb_freq)
+    *tb_offsetp = muldiv64(value, ticks_per_sec, tb_env->tb_freq)
         - qemu_get_clock(vm_clock);
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
         fprintf(logfile, "%s: tb=0x%016lx offset=%08lx\n", __func__, value,
-                tb_env->tb_offset);
+                *tb_offsetp);
     }
 #endif
-}
-
-void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
-{
-    ppc_tb_t *tb_env = env->tb_env;
-
-    cpu_ppc_store_tb(tb_env,
-                     ((uint64_t)value << 32) | cpu_ppc_load_tbl(env));
 }
 
 void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
 
-    cpu_ppc_store_tb(tb_env,
-                     ((uint64_t)cpu_ppc_load_tbu(env) << 32) | value);
+    tb = cpu_ppc_get_tb(tb_env, tb_env->tb_offset);
+    tb &= 0xFFFFFFFF00000000ULL;
+    cpu_ppc_store_tb(tb_env, &tb_env->tb_offset, tb | (uint64_t)value);
+}
+
+void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
+
+    tb = cpu_ppc_get_tb(tb_env, tb_env->tb_offset);
+    tb &= 0x00000000FFFFFFFFULL;
+    cpu_ppc_store_tb(tb_env, &tb_env->tb_offset,
+                     ((uint64_t)value << 32) | tb);
+}
+
+uint32_t cpu_ppc_load_atbl (CPUState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
+
+    tb = cpu_ppc_get_tb(tb_env, tb_env->atb_offset);
+#if defined(PPC_DEBUG_TB)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
+    }
+#endif
+
+    return tb & 0xFFFFFFFF;
+}
+
+uint32_t cpu_ppc_load_atbu (CPUState *env)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
+
+    tb = cpu_ppc_get_tb(tb_env, tb_env->atb_offset);
+#if defined(PPC_DEBUG_TB)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
+    }
+#endif
+
+    return tb >> 32;
+}
+
+void cpu_ppc_store_atbl (CPUState *env, uint32_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
+
+    tb = cpu_ppc_get_tb(tb_env, tb_env->atb_offset);
+    tb &= 0xFFFFFFFF00000000ULL;
+    cpu_ppc_store_tb(tb_env, &tb_env->atb_offset, tb | (uint64_t)value);
+}
+
+void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
+{
+    ppc_tb_t *tb_env = env->tb_env;
+    uint64_t tb;
+
+    tb = cpu_ppc_get_tb(tb_env, tb_env->atb_offset);
+    tb &= 0x00000000FFFFFFFFULL;
+    cpu_ppc_store_tb(tb_env, &tb_env->atb_offset,
+                     ((uint64_t)value << 32) | tb);
 }
 
 static inline uint32_t _cpu_ppc_load_decr (CPUState *env, uint64_t *next)

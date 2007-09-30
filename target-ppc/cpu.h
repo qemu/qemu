@@ -625,6 +625,10 @@ uint32_t cpu_ppc_load_tbl (CPUPPCState *env);
 uint32_t cpu_ppc_load_tbu (CPUPPCState *env);
 void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
+uint32_t cpu_ppc_load_atbl (CPUPPCState *env);
+uint32_t cpu_ppc_load_atbu (CPUPPCState *env);
+void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
+void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 #if defined(TARGET_PPC64H)
@@ -798,8 +802,8 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_SPEFSCR (0x200)
 #define SPR_E500_BBEAR   (0x201)
 #define SPR_E500_BBTAR   (0x202)
-#define SPR_BOOKE_ATBL   (0x20E)
-#define SPR_BOOKE_ATBU   (0x20F)
+#define SPR_ATBL         (0x20E)
+#define SPR_ATBU         (0x20F)
 #define SPR_IBAT0U       (0x210)
 #define SPR_BOOKE_IVOR32 (0x210)
 #define SPR_IBAT0L       (0x211)

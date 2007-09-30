@@ -162,6 +162,18 @@ static void spr_read_tbu (void *opaque, int sprn)
     gen_op_load_tbu();
 }
 
+__attribute__ (( unused ))
+static void spr_read_atbl (void *opaque, int sprn)
+{
+    gen_op_load_atbl();
+}
+
+__attribute__ (( unused ))
+static void spr_read_atbu (void *opaque, int sprn)
+{
+    gen_op_load_atbu();
+}
+
 #if !defined(CONFIG_USER_ONLY)
 static void spr_write_tbl (void *opaque, int sprn)
 {
@@ -171,6 +183,18 @@ static void spr_write_tbl (void *opaque, int sprn)
 static void spr_write_tbu (void *opaque, int sprn)
 {
     gen_op_store_tbu();
+}
+
+__attribute__ (( unused ))
+static void spr_write_atbl (void *opaque, int sprn)
+{
+    gen_op_store_atbl();
+}
+
+__attribute__ (( unused ))
+static void spr_write_atbu (void *opaque, int sprn)
+{
+    gen_op_store_atbu();
 }
 #endif
 
