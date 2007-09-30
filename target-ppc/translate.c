@@ -2704,7 +2704,7 @@ GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
-GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03BFF801, PPC_MEM_SYNC)
+GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC)
 {
 }
 
