@@ -427,6 +427,34 @@ static inline void gen_st_asi(int insn, int size)
     }
 }
 
+static inline void gen_ldf_asi(int insn, int size)
+{
+    int asi, offset, rd;
+
+    rd = GET_FIELD(insn, 2, 6);
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_ldf_asi_reg(offset, size, rd);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_ldf_asi(asi, size, rd);
+    }
+}
+
+static inline void gen_stf_asi(int insn, int size)
+{
+    int asi, offset, rd;
+
+    rd = GET_FIELD(insn, 2, 6);
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_stf_asi_reg(offset, size, rd);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_stf_asi(asi, size, rd);
+    }
+}
+
 static inline void gen_swap_asi(int insn)
 {
     int asi, offset;
@@ -3069,11 +3097,11 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_ld_asi(insn, 8, 0); // XXX
+                    gen_ldf_asi(insn, 4);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
-                    gen_op_check_align_T0_7();
-                    gen_ld_asi(insn, 8, 0); // XXX
+                    gen_op_check_align_T0_3();
+                    gen_ldf_asi(insn, 8);
                     goto skip_move;
                 case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
@@ -3245,11 +3273,13 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_st_asi(insn, 0); // XXX
+                    gen_op_load_fpr_FT0(rd);
+                    gen_stf_asi(insn, 4);
                     break;
                 case 0x37: /* V9 stdfa */
-                    gen_op_check_align_T0_7();
-                    gen_st_asi(insn, 0); // XXX
+                    gen_op_check_align_T0_3();
+                    gen_op_load_fpr_DT0(DFPREG(rd));
+                    gen_stf_asi(insn, 8);
                     break;
                 case 0x3c: /* V9 casa */
 #ifdef CONFIG_USER_ONLY

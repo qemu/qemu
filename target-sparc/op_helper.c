@@ -1126,6 +1126,79 @@ void helper_st_asi(int asi, int size)
     }
 }
 #endif /* CONFIG_USER_ONLY */
+
+void helper_ldf_asi(int asi, int size, int rd)
+{
+    target_ulong tmp_T0 = T0, tmp_T1 = T1;
+    unsigned int i;
+
+    switch (asi) {
+    case 0xf0: // Block load primary
+    case 0xf1: // Block load secondary
+    case 0xf8: // Block load primary LE
+    case 0xf9: // Block load secondary LE
+        for (i = 0; i < 8; i++) {
+            helper_ld_asi(asi & 0x8f, 8, 0);
+            *((int64_t *)&DT0) = T1;
+            T0 += 8;
+        }
+        T0 = tmp_T0;
+        T1 = tmp_T1;
+
+        return;
+    default:
+        break;
+    }
+
+    helper_ld_asi(asi, size, 0);
+    switch(size) {
+    default:
+    case 4:
+        *((uint32_t *)&FT0) = T1;
+        break;
+    case 8:
+        *((int64_t *)&DT0) = T1;
+        break;
+    }
+    T1 = tmp_T1;
+}
+
+void helper_stf_asi(int asi, int size, int rd)
+{
+    target_ulong tmp_T0 = T0, tmp_T1 = T1;
+    unsigned int i;
+
+    switch (asi) {
+    case 0xf0: // Block store primary
+    case 0xf1: // Block store secondary
+    case 0xf8: // Block store primary LE
+    case 0xf9: // Block store secondary LE
+        for (i = 0; i < 8; i++) {
+            T1 = *((int64_t *)&DT0);
+            helper_st_asi(asi & 0x8f, 8);
+            T0 += 8;
+        }
+        T0 = tmp_T0;
+        T1 = tmp_T1;
+
+        return;
+    default:
+        break;
+    }
+
+    switch(size) {
+    default:
+    case 4:
+        T1 = *((uint32_t *)&FT0);
+        break;
+    case 8:
+        T1 = *((int64_t *)&DT0);
+        break;
+    }
+    helper_st_asi(asi, size);
+    T1 = tmp_T1;
+}
+
 #endif /* TARGET_SPARC64 */
 
 #ifndef TARGET_SPARC64
