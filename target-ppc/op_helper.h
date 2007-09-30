@@ -94,6 +94,7 @@ void do_popcntb_64 (void);
 
 /* Floating-point arithmetic helpers */
 void do_fsqrt (void);
+void do_fre (void);
 void do_fres (void);
 void do_frsqrte (void);
 void do_fsel (void);
@@ -110,6 +111,10 @@ void do_fcfid (void);
 void do_fctid (void);
 void do_fctidz (void);
 #endif
+void do_frin (void);
+void do_friz (void);
+void do_frip (void);
+void do_frim (void);
 void do_fcmpu (void);
 void do_fcmpo (void);
 

@@ -700,6 +700,36 @@ void do_fctidz (void)
 
 #endif
 
+static inline void do_fri (int rounding_mode)
+{
+    int curmode;
+
+    curmode = env->fp_status.float_rounding_mode;
+    set_float_rounding_mode(rounding_mode, &env->fp_status);
+    FT0 = float64_round_to_int(FT0, &env->fp_status);
+    set_float_rounding_mode(curmode, &env->fp_status);
+}
+
+void do_frin (void)
+{
+    do_fri(float_round_nearest_even);
+}
+
+void do_friz (void)
+{
+    do_fri(float_round_to_zero);
+}
+
+void do_frip (void)
+{
+    do_fri(float_round_up);
+}
+
+void do_frim (void)
+{
+    do_fri(float_round_down);
+}
+
 #if USE_PRECISE_EMULATION
 void do_fmadd (void)
 {
@@ -787,6 +817,32 @@ void do_fnmsub (void)
 void do_fsqrt (void)
 {
     FT0 = float64_sqrt(FT0, &env->fp_status);
+}
+
+void do_fre (void)
+{
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    if (likely(isnormal(FT0))) {
+        FT0 = float64_div(1.0, FT0, &env->fp_status);
+    } else {
+        p.d = FT0;
+        if (p.i == 0x8000000000000000ULL) {
+            p.i = 0xFFF0000000000000ULL;
+        } else if (p.i == 0x0000000000000000ULL) {
+            p.i = 0x7FF0000000000000ULL;
+        } else if (isnan(FT0)) {
+            p.i = 0x7FF8000000000000ULL;
+        } else if (FT0 < 0.0) {
+            p.i = 0x8000000000000000ULL;
+        } else {
+            p.i = 0x0000000000000000ULL;
+        }
+        FT0 = p.d;
+    }
 }
 
 void do_fres (void)

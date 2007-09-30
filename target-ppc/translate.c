@@ -476,6 +476,8 @@ enum {
     PPC_RFMCI         = 0x0000020000000000ULL,
     /* user-mode DCR access, implemented in PowerPC 460 */
     PPC_DCRUX         = 0x0000040000000000ULL,
+    /* New floating-point extensions (PowerPC 2.0x)     */
+    PPC_FLOAT_EXT     = 0x0000080000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1660,6 +1662,9 @@ GEN_FLOAT_AB(div, 0x12, 0x000007C0);
 /* fmul - fmuls */
 GEN_FLOAT_AC(mul, 0x19, 0x0000F800);
 
+/* fre */
+GEN_FLOAT_BS(re, 0x3F, 0x18, PPC_FLOAT_EXT);
+
 /* fres */
 GEN_FLOAT_BS(res, 0x3B, 0x18, PPC_FLOAT_FRES);
 
@@ -1726,6 +1731,15 @@ GEN_FLOAT_B(ctid, 0x0E, 0x19, PPC_64B);
 /* fctidz */
 GEN_FLOAT_B(ctidz, 0x0F, 0x19, PPC_64B);
 #endif
+
+/* frin */
+GEN_FLOAT_B(rin, 0x08, 0x0C, PPC_FLOAT_EXT);
+/* friz */
+GEN_FLOAT_B(riz, 0x08, 0x0D, PPC_FLOAT_EXT);
+/* frip */
+GEN_FLOAT_B(rip, 0x08, 0x0E, PPC_FLOAT_EXT);
+/* frim */
+GEN_FLOAT_B(rim, 0x08, 0x0F, PPC_FLOAT_EXT);
 
 /***                         Floating-Point compare                        ***/
 /* fcmpo */

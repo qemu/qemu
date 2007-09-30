@@ -1701,6 +1701,13 @@ void OPPROTO op_fsqrt (void)
     RETURN();
 }
 
+/* fre - fre. */
+void OPPROTO op_fre (void)
+{
+    do_fre();
+    RETURN();
+}
+
 /* fres - fres. */
 void OPPROTO op_fres (void)
 {
@@ -1805,6 +1812,30 @@ void OPPROTO op_fctidz (void)
     RETURN();
 }
 #endif
+
+void OPPROTO op_frin (void)
+{
+    do_frin();
+    RETURN();
+}
+
+void OPPROTO op_friz (void)
+{
+    do_friz();
+    RETURN();
+}
+
+void OPPROTO op_frip (void)
+{
+    do_frip();
+    RETURN();
+}
+
+void OPPROTO op_frim (void)
+{
+    do_frim();
+    RETURN();
+}
 
 /***                         Floating-Point compare                        ***/
 /* fcmpu */
