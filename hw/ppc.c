@@ -445,7 +445,7 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
     return tb & 0xFFFFFFFF;
 }
 
-uint32_t cpu_ppc_load_tbu (CPUState *env)
+static inline uint32_t _cpu_ppc_load_tbu (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -458,6 +458,11 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
 #endif
 
     return tb >> 32;
+}
+
+uint32_t cpu_ppc_load_tbu (CPUState *env)
+{
+    return _cpu_ppc_load_tbu(env);
 }
 
 static inline void cpu_ppc_store_tb (ppc_tb_t *tb_env, int64_t *tb_offsetp,
@@ -483,7 +488,7 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
     cpu_ppc_store_tb(tb_env, &tb_env->tb_offset, tb | (uint64_t)value);
 }
 
-void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+static inline void _cpu_ppc_store_tbu (CPUState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -492,6 +497,11 @@ void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
     tb &= 0x00000000FFFFFFFFULL;
     cpu_ppc_store_tb(tb_env, &tb_env->tb_offset,
                      ((uint64_t)value << 32) | tb);
+}
+
+void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+{
+    _cpu_ppc_store_tbu(env, value);
 }
 
 uint32_t cpu_ppc_load_atbl (CPUState *env)
@@ -738,10 +748,14 @@ clk_setup_cb cpu_ppc601_rtc_init (CPUState *env)
 }
 
 void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
-__attribute__ (( alias ("cpu_ppc_store_tbu") ));
+{
+    _cpu_ppc_store_tbu(env, value);
+}
 
 uint32_t cpu_ppc601_load_rtcu (CPUState *env)
-__attribute__ (( alias ("cpu_ppc_load_tbu") ));
+{
+    return _cpu_ppc_load_tbu(env);
+}
 
 void cpu_ppc601_store_rtcl (CPUState *env, uint32_t value)
 {
