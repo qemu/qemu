@@ -603,8 +603,8 @@ void ppc_store_asr (CPUPPCState *env, target_ulong value);
 target_ulong do_load_sr (CPUPPCState *env, int srnum);
 void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif
-uint32_t ppc_load_xer (CPUPPCState *env);
-void ppc_store_xer (CPUPPCState *env, uint32_t value);
+target_ulong ppc_load_xer (CPUPPCState *env);
+void ppc_store_xer (CPUPPCState *env, target_ulong value);
 target_ulong do_load_msr (CPUPPCState *env);
 void do_store_msr (CPUPPCState *env, target_ulong value);
 void ppc_store_msr_32 (CPUPPCState *env, uint32_t value);

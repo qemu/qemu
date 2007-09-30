@@ -1644,7 +1644,7 @@ void do_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 }
 #endif /* !defined (CONFIG_USER_ONLY) */
 
-uint32_t ppc_load_xer (CPUPPCState *env)
+target_ulong ppc_load_xer (CPUPPCState *env)
 {
     return (xer_so << XER_SO) |
         (xer_ov << XER_OV) |
@@ -1653,7 +1653,7 @@ uint32_t ppc_load_xer (CPUPPCState *env)
         (xer_cmp << XER_CMP);
 }
 
-void ppc_store_xer (CPUPPCState *env, uint32_t value)
+void ppc_store_xer (CPUPPCState *env, target_ulong value)
 {
     xer_so = (value >> XER_SO) & 0x01;
     xer_ov = (value >> XER_OV) & 0x01;
