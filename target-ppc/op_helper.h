@@ -134,16 +134,7 @@ void do_rfid (void);
 #if defined(TARGET_PPC64H)
 void do_hrfid (void);
 #endif
-void do_tlbia (void);
-void do_tlbie (void);
-#if defined(TARGET_PPC64)
-void do_tlbie_64 (void);
-#endif
 void do_load_6xx_tlb (int is_code);
-#if defined(TARGET_PPC64)
-void do_slbia (void);
-void do_slbie (void);
-#endif
 #endif
 
 /* POWER / PowerPC 601 specific helpers */
@@ -170,8 +161,6 @@ void do_op_602_mfrom (void);
 /* PowerPC 440 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_440_tlbre (int word);
-void do_440_tlbsx (void);
-void do_440_tlbsx_ (void);
 void do_440_tlbwe (int word);
 #endif
 
@@ -187,8 +176,6 @@ void do_rfdi (void);
 void do_rfmci (void);
 void do_4xx_tlbre_lo (void);
 void do_4xx_tlbre_hi (void);
-void do_4xx_tlbsx (void);
-void do_4xx_tlbsx_ (void);
 void do_4xx_tlbwe_lo (void);
 void do_4xx_tlbwe_hi (void);
 #endif
