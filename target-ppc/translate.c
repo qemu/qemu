@@ -4299,7 +4299,7 @@ GEN_HANDLER(mfrom, 0x1F, 0x09, 0x08, 0x03E0F801, PPC_602_SPEC)
 
 /* 602 - 603 - G2 TLB management */
 /* tlbld */
-GEN_HANDLER(tlbld, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
+GEN_HANDLER(tlbld_6xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4314,7 +4314,7 @@ GEN_HANDLER(tlbld, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
 }
 
 /* tlbli */
-GEN_HANDLER(tlbli, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
+GEN_HANDLER(tlbli_6xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4325,6 +4325,37 @@ GEN_HANDLER(tlbli, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
     }
     gen_op_load_gpr_T0(rB(ctx->opcode));
     gen_op_6xx_tlbli();
+#endif
+}
+
+/* 74xx TLB management */
+/* tlbld */
+GEN_HANDLER(tlbld_74xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rB(ctx->opcode));
+    gen_op_74xx_tlbld();
+#endif
+}
+
+/* tlbli */
+GEN_HANDLER(tlbli_74xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rB(ctx->opcode));
+    gen_op_74xx_tlbli();
 #endif
 }
 

@@ -2363,6 +2363,27 @@ void do_load_6xx_tlb (int is_code)
                      way, is_code, CMP, RPN);
 }
 
+void do_load_74xx_tlb (int is_code)
+{
+    target_ulong RPN, CMP, EPN;
+    int way;
+
+    RPN = env->spr[SPR_PTELO];
+    CMP = env->spr[SPR_PTEHI];
+    EPN = env->spr[SPR_TLBMISS] & ~0x3;
+    way = env->spr[SPR_TLBMISS] & 0x3;
+#if defined (DEBUG_SOFTWARE_TLB)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: EPN %08lx %08lx PTE0 %08lx PTE1 %08lx way %d\n",
+                __func__, (unsigned long)T0, (unsigned long)EPN,
+                (unsigned long)CMP, (unsigned long)RPN, way);
+    }
+#endif
+    /* Store this TLB */
+    ppc6xx_tlb_store(env, (uint32_t)(T0 & TARGET_PAGE_MASK),
+                     way, is_code, CMP, RPN);
+}
+
 static target_ulong booke_tlb_to_page_size (int size)
 {
     return 1024 << (2 * size);

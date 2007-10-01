@@ -664,7 +664,8 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
     int ret, ret2;
 
 #if defined(TARGET_PPC64)
-    if (env->mmu_model == POWERPC_MMU_64B) {
+    if (env->mmu_model == POWERPC_MMU_64B ||
+        env->mmu_model == POWERPC_MMU_64BRIDGE) {
         ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr);
         if (ret < 0)
             return ret;
@@ -730,7 +731,8 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
             }
             /* Initialize real address with an invalid value */
             ctx->raddr = (target_ulong)-1;
-            if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
+            if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx ||
+                         env->mmu_model == POWERPC_MMU_SOFT_74xx)) {
                 /* Software TLB search */
                 ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
             } else {
@@ -1092,9 +1094,11 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
     switch (env->mmu_model) {
     case POWERPC_MMU_32B:
     case POWERPC_MMU_SOFT_6xx:
+    case POWERPC_MMU_SOFT_74xx:
     case POWERPC_MMU_601:
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_REAL_4xx:
+    case POWERPC_MMU_BOOKE:
         ctx->prot |= PAGE_WRITE;
         break;
 #if defined(TARGET_PPC64)
@@ -1129,9 +1133,6 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
             }
         }
         break;
-    case POWERPC_MMU_BOOKE:
-        ctx->prot |= PAGE_WRITE;
-        break;
     case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
         cpu_abort(env, "BookE FSL MMU model not implemented\n");
@@ -1162,6 +1163,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         switch (env->mmu_model) {
         case POWERPC_MMU_32B:
         case POWERPC_MMU_SOFT_6xx:
+        case POWERPC_MMU_SOFT_74xx:
             /* Try to find a BAT */
             if (check_BATs)
                 ret = get_bat(env, ctx, eaddr, rw, access_type);
@@ -1262,6 +1264,9 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
                     error_code = 1 << 18;
                     goto tlb_miss;
+                case POWERPC_MMU_SOFT_74xx:
+                    exception = POWERPC_EXCP_IFTLB;
+                    goto tlb_miss_74xx;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
                     exception = POWERPC_EXCP_ITLB;
@@ -1346,6 +1351,19 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->spr[SPR_HASH2] = ctx.pg_addr[1];
                     /* Do not alter DAR nor DSISR */
                     goto out;
+                case POWERPC_MMU_SOFT_74xx:
+                    if (rw == 1) {
+                        exception = POWERPC_EXCP_DSTLB;
+                    } else {
+                        exception = POWERPC_EXCP_DLTLB;
+                    }
+                tlb_miss_74xx:
+                    /* Implement LRU algorithm */
+                    env->spr[SPR_TLBMISS] = (address & ~((target_ulong)0x3)) |
+                        ((env->last_way + 1) & (env->nb_ways - 1));
+                    env->spr[SPR_PTEHI] = 0x80000000 | ctx.ptem;
+                    error_code = ctx.key << 19;
+                    break;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
                     exception = POWERPC_EXCP_DTLB;
@@ -1571,13 +1589,31 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
 {
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
+    case POWERPC_MMU_SOFT_74xx:
         ppc6xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_all(env);
         break;
-    default:
+    case POWERPC_MMU_REAL_4xx:
+        cpu_abort(env, "No TLB for PowerPC 4xx in real mode\n");
+        break;
+    case POWERPC_MMU_BOOKE:
+        /* XXX: TODO */
+        cpu_abort(env, "MMU model not implemented\n");
+        break;
+    case POWERPC_MMU_BOOKE_FSL:
+        /* XXX: TODO */
+        cpu_abort(env, "MMU model not implemented\n");
+        break;
+    case POWERPC_MMU_601:
+        /* XXX: TODO */
+        cpu_abort(env, "MMU model not implemented\n");
+        break;
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_64BRIDGE:
         tlb_flush(env, 1);
         break;
     }
@@ -1589,6 +1625,7 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
     addr &= TARGET_PAGE_MASK;
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
+    case POWERPC_MMU_SOFT_74xx:
         ppc6xx_tlb_invalidate_virt(env, addr, 0);
         if (env->id_tlbs == 1)
             ppc6xx_tlb_invalidate_virt(env, addr, 1);
@@ -1597,7 +1634,22 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_virt(env, addr, env->spr[SPR_40x_PID]);
         break;
-    default:
+    case POWERPC_MMU_REAL_4xx:
+        cpu_abort(env, "No TLB for PowerPC 4xx in real mode\n");
+        break;
+    case POWERPC_MMU_BOOKE:
+        /* XXX: TODO */
+        cpu_abort(env, "MMU model not implemented\n");
+        break;
+    case POWERPC_MMU_BOOKE_FSL:
+        /* XXX: TODO */
+        cpu_abort(env, "MMU model not implemented\n");
+        break;
+    case POWERPC_MMU_601:
+        /* XXX: TODO */
+        cpu_abort(env, "MMU model not implemented\n");
+        break;
+    case POWERPC_MMU_32B:
         /* tlbie invalidate TLBs for all segments */
         addr &= ~((target_ulong)-1 << 28);
         /* XXX: this case should be optimized,
@@ -1619,6 +1671,15 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
         tlb_flush_page(env, addr | (0xD << 28));
         tlb_flush_page(env, addr | (0xE << 28));
         tlb_flush_page(env, addr | (0xF << 28));
+        break;
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_64BRIDGE:
+        /* tlbie invalidate TLBs for all segments */
+        /* XXX: given the fact that there are too many segments to invalidate,
+         *      we just invalidate all TLBs
+         */
+        tlb_flush(env, 1);
+        break;
     }
 #else
     ppc_tlb_invalidate_all(env);
@@ -2317,6 +2378,8 @@ static always_inline void powerpc_excp (CPUState *env,
             goto tlb_miss_tgpr;
         case POWERPC_EXCP_7x5:
             goto tlb_miss;
+        case POWERPC_EXCP_74xx:
+            goto tlb_miss_74xx;
         default:
             cpu_abort(env, "Invalid instruction TLB miss exception\n");
             break;
@@ -2336,6 +2399,8 @@ static always_inline void powerpc_excp (CPUState *env,
             goto tlb_miss_tgpr;
         case POWERPC_EXCP_7x5:
             goto tlb_miss;
+        case POWERPC_EXCP_74xx:
+            goto tlb_miss_74xx;
         default:
             cpu_abort(env, "Invalid data load TLB miss exception\n");
             break;
@@ -2389,6 +2454,34 @@ static always_inline void powerpc_excp (CPUState *env,
             msr |= env->error_code; /* key, D/I, S/L bits */
             /* Set way using a LRU mechanism */
             msr |= ((env->last_way + 1) & (env->nb_ways - 1)) << 17;
+            break;
+        case POWERPC_EXCP_74xx:
+        tlb_miss_74xx:
+#if defined (DEBUG_SOFTWARE_TLB)
+            if (loglevel != 0) {
+                const unsigned char *es;
+                target_ulong *miss, *cmp;
+                int en;
+                if (excp == POWERPC_EXCP_IFTLB) {
+                    es = "I";
+                    en = 'I';
+                    miss = &env->spr[SPR_IMISS];
+                    cmp = &env->spr[SPR_ICMP];
+                } else {
+                    if (excp == POWERPC_EXCP_DLTLB)
+                        es = "DL";
+                    else
+                        es = "DS";
+                    en = 'D';
+                    miss = &env->spr[SPR_TLBMISS];
+                    cmp = &env->spr[SPR_PTEHI];
+                }
+                fprintf(logfile, "74xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
+                        " %08x\n",
+                        es, en, *miss, en, *cmp, env->error_code);
+            }
+#endif
+            msr |= env->error_code; /* key bit */
             break;
         default:
             cpu_abort(env, "Invalid data store TLB miss exception\n");
