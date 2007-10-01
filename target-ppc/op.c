@@ -1985,21 +1985,21 @@ void OPPROTO op_td (void)
 /* tlbia */
 void OPPROTO op_tlbia (void)
 {
-    do_tlbia();
+    ppc_tlb_invalidate_all(env);
     RETURN();
 }
 
 /* tlbie */
 void OPPROTO op_tlbie (void)
 {
-    do_tlbie();
+    ppc_tlb_invalidate_one(env, (uint32_t)T0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_tlbie_64 (void)
 {
-    do_tlbie_64();
+    ppc_tlb_invalidate_one(env, T0);
     RETURN();
 }
 #endif
@@ -2007,13 +2007,19 @@ void OPPROTO op_tlbie_64 (void)
 #if defined(TARGET_PPC64)
 void OPPROTO op_slbia (void)
 {
-    do_slbia();
+    ppc_slb_invalidate_all(env);
     RETURN();
 }
 
 void OPPROTO op_slbie (void)
 {
-    do_slbie();
+    ppc_slb_invalidate_one(env, (uint32_t)T0);
+    RETURN();
+}
+
+void OPPROTO op_slbie_64 (void)
+{
+    ppc_slb_invalidate_one(env, T0);
     RETURN();
 }
 #endif
@@ -2487,13 +2493,18 @@ void OPPROTO op_440_tlbre (void)
 
 void OPPROTO op_440_tlbsx (void)
 {
-    do_440_tlbsx();
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR] & 0xFF);
     RETURN();
 }
 
-void OPPROTO op_440_tlbsx_ (void)
+void OPPROTO op_4xx_tlbsx_check (void)
 {
-    do_440_tlbsx_();
+    int tmp;
+
+    tmp = xer_so;
+    if (T0 != -1)
+        tmp |= 0x02;
+    env->crf[0] = tmp;
     RETURN();
 }
 
@@ -2517,13 +2528,7 @@ void OPPROTO op_4xx_tlbre_hi (void)
 
 void OPPROTO op_4xx_tlbsx (void)
 {
-    do_4xx_tlbsx();
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbsx_ (void)
-{
-    do_4xx_tlbsx_();
+    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
     RETURN();
 }
 

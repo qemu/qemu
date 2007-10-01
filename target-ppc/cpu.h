@@ -656,6 +656,11 @@ void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
+void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
+#if defined(TARGET_PPC64)
+void ppc_slb_invalidate_all (CPUPPCState *env);
+void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0);
+#endif
 int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif

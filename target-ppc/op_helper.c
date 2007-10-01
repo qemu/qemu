@@ -36,7 +36,6 @@
 //#define DEBUG_OP
 //#define DEBUG_EXCEPTIONS
 //#define DEBUG_SOFTWARE_TLB
-//#define FLUSH_ALL_TLBS
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
@@ -2336,118 +2335,6 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
     env = saved_env;
 }
 
-/* TLB invalidation helpers */
-void do_tlbia (void)
-{
-    ppc_tlb_invalidate_all(env);
-}
-
-void do_tlbie (void)
-{
-    T0 = (uint32_t)T0;
-#if !defined(FLUSH_ALL_TLBS)
-    /* XXX: Remove thoses tests */
-    if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
-        ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 0);
-        if (env->id_tlbs == 1)
-            ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 1);
-    } else if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_4xx)) {
-        ppc4xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK,
-                                   env->spr[SPR_40x_PID]);
-    } else {
-        /* tlbie invalidate TLBs for all segments */
-        T0 &= TARGET_PAGE_MASK;
-        T0 &= ~((target_ulong)-1 << 28);
-        /* XXX: this case should be optimized,
-         * giving a mask to tlb_flush_page
-         */
-        tlb_flush_page(env, T0 | (0x0 << 28));
-        tlb_flush_page(env, T0 | (0x1 << 28));
-        tlb_flush_page(env, T0 | (0x2 << 28));
-        tlb_flush_page(env, T0 | (0x3 << 28));
-        tlb_flush_page(env, T0 | (0x4 << 28));
-        tlb_flush_page(env, T0 | (0x5 << 28));
-        tlb_flush_page(env, T0 | (0x6 << 28));
-        tlb_flush_page(env, T0 | (0x7 << 28));
-        tlb_flush_page(env, T0 | (0x8 << 28));
-        tlb_flush_page(env, T0 | (0x9 << 28));
-        tlb_flush_page(env, T0 | (0xA << 28));
-        tlb_flush_page(env, T0 | (0xB << 28));
-        tlb_flush_page(env, T0 | (0xC << 28));
-        tlb_flush_page(env, T0 | (0xD << 28));
-        tlb_flush_page(env, T0 | (0xE << 28));
-        tlb_flush_page(env, T0 | (0xF << 28));
-    }
-#else
-    do_tlbia();
-#endif
-}
-
-#if defined(TARGET_PPC64)
-void do_tlbie_64 (void)
-{
-    T0 = (uint64_t)T0;
-#if !defined(FLUSH_ALL_TLBS)
-    if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
-        ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 0);
-        if (env->id_tlbs == 1)
-            ppc6xx_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK, 1);
-    } else if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_4xx)) {
-        /* XXX: TODO */
-#if 0
-        ppcbooke_tlb_invalidate_virt(env, T0 & TARGET_PAGE_MASK,
-                                     env->spr[SPR_BOOKE_PID]);
-#endif
-    } else {
-        /* tlbie invalidate TLBs for all segments
-         * As we have 2^36 segments, invalidate all qemu TLBs
-         */
-#if 0
-        T0 &= TARGET_PAGE_MASK;
-        T0 &= ~((target_ulong)-1 << 28);
-        /* XXX: this case should be optimized,
-         * giving a mask to tlb_flush_page
-         */
-        tlb_flush_page(env, T0 | (0x0 << 28));
-        tlb_flush_page(env, T0 | (0x1 << 28));
-        tlb_flush_page(env, T0 | (0x2 << 28));
-        tlb_flush_page(env, T0 | (0x3 << 28));
-        tlb_flush_page(env, T0 | (0x4 << 28));
-        tlb_flush_page(env, T0 | (0x5 << 28));
-        tlb_flush_page(env, T0 | (0x6 << 28));
-        tlb_flush_page(env, T0 | (0x7 << 28));
-        tlb_flush_page(env, T0 | (0x8 << 28));
-        tlb_flush_page(env, T0 | (0x9 << 28));
-        tlb_flush_page(env, T0 | (0xA << 28));
-        tlb_flush_page(env, T0 | (0xB << 28));
-        tlb_flush_page(env, T0 | (0xC << 28));
-        tlb_flush_page(env, T0 | (0xD << 28));
-        tlb_flush_page(env, T0 | (0xE << 28));
-        tlb_flush_page(env, T0 | (0xF << 28));
-#else
-        tlb_flush(env, 1);
-#endif
-    }
-#else
-    do_tlbia();
-#endif
-}
-#endif
-
-#if defined(TARGET_PPC64)
-void do_slbia (void)
-{
-    /* XXX: TODO */
-    tlb_flush(env, 1);
-}
-
-void do_slbie (void)
-{
-    /* XXX: TODO */
-    tlb_flush(env, 1);
-}
-#endif
-
 /* Software driven TLBs management */
 /* PowerPC 602/603 software TLB load instructions helpers */
 void do_load_6xx_tlb (int is_code)
@@ -2573,21 +2460,6 @@ void do_4xx_tlbre_hi (void)
         T0 |= 0x200;
     if (tlb->prot & PAGE_WRITE)
         T0 |= 0x100;
-}
-
-void do_4xx_tlbsx (void)
-{
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
-}
-
-void do_4xx_tlbsx_ (void)
-{
-    int tmp = xer_so;
-
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
-    if (T0 != -1)
-        tmp |= 0x02;
-    env->crf[0] = tmp;
 }
 
 void do_4xx_tlbwe_hi (void)
@@ -2755,21 +2627,6 @@ void do_440_tlbwe (int word)
             tlb->prot |= PAGE_EXEC;
         break;
     }
-}
-
-void do_440_tlbsx (void)
-{
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR] & 0xFF);
-}
-
-void do_440_tlbsx_ (void)
-{
-    int tmp = xer_so;
-
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR] & 0xFF);
-    if (T0 != -1)
-        tmp |= 0x02;
-    env->crf[0] = tmp;
 }
 
 void do_440_tlbre (int word)

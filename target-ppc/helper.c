@@ -237,7 +237,7 @@ static int ppc6xx_tlb_getnum (CPUState *env, target_ulong eaddr,
     return nr;
 }
 
-void ppc6xx_tlb_invalidate_all (CPUState *env)
+static void ppc6xx_tlb_invalidate_all (CPUState *env)
 {
     ppc6xx_tlb_t *tlb;
     int nr, max;
@@ -253,14 +253,9 @@ void ppc6xx_tlb_invalidate_all (CPUState *env)
         max *= 2;
     for (nr = 0; nr < max; nr++) {
         tlb = &env->tlb[nr].tlb6;
-#if !defined(FLUSH_ALL_TLBS)
-        tlb_flush_page(env, tlb->EPN);
-#endif
         pte_invalidate(&tlb->pte0);
     }
-#if defined(FLUSH_ALL_TLBS)
     tlb_flush(env, 1);
-#endif
 }
 
 static inline void __ppc6xx_tlb_invalidate_virt (CPUState *env,
@@ -292,8 +287,8 @@ static inline void __ppc6xx_tlb_invalidate_virt (CPUState *env,
 #endif
 }
 
-void ppc6xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
-                                 int is_code)
+static void ppc6xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
+                                        int is_code)
 {
     __ppc6xx_tlb_invalidate_virt(env, eaddr, is_code, 0);
 }
@@ -834,11 +829,13 @@ static int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
         return -1;
     }
     mask = ~(tlb->size - 1);
+#if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
         fprintf(logfile, "%s: TLB %d address " ADDRX " PID %d <=> "
                 ADDRX " " ADDRX " %d\n",
                 __func__, i, address, pid, tlb->EPN, mask, (int)tlb->PID);
     }
+#endif
     /* Check PID */
     if (tlb->PID != 0 && tlb->PID != pid)
         return -1;
@@ -876,9 +873,23 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
     return ret;
 }
 
-void ppc4xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
-                                 uint32_t pid)
+/* Helpers specific to PowerPC 40x implementations */
+static void ppc4xx_tlb_invalidate_all (CPUState *env)
 {
+    ppcemb_tlb_t *tlb;
+    int i;
+
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb[i].tlbe;
+        tlb->prot &= ~PAGE_VALID;
+    }
+    tlb_flush(env, 1);
+}
+
+static void ppc4xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
+                                        uint32_t pid)
+{
+#if !defined(FLUSH_ALL_TLBS)
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
     target_ulong page, end;
@@ -894,26 +905,9 @@ void ppc4xx_tlb_invalidate_virt (CPUState *env, target_ulong eaddr,
             break;
         }
     }
-}
-
-/* Helpers specific to PowerPC 40x implementations */
-void ppc4xx_tlb_invalidate_all (CPUState *env)
-{
-    ppcemb_tlb_t *tlb;
-    int i;
-
-    for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
-        if (tlb->prot & PAGE_VALID) {
-#if 0 // XXX: TLB have variable sizes then we flush all Qemu TLB.
-            end = tlb->EPN + tlb->size;
-            for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
-                tlb_flush_page(env, page);
+#else
+    ppc4xx_tlb_invalidate_all(env);
 #endif
-            tlb->prot &= ~PAGE_VALID;
-        }
-    }
-    tlb_flush(env, 1);
 }
 
 int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
@@ -932,10 +926,12 @@ int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             continue;
         zsel = (tlb->attr >> 4) & 0xF;
         zpr = (env->spr[SPR_40x_ZPR] >> (28 - (2 * zsel))) & 0x3;
+#if defined (DEBUG_SOFTWARE_TLB)
         if (loglevel != 0) {
             fprintf(logfile, "%s: TLB %d zsel %d zpr %d rw %d attr %08x\n",
                     __func__, i, zsel, zpr, rw, tlb->attr);
         }
+#endif
         if (access_type == ACCESS_CODE) {
             /* Check execute enable bit */
             switch (zpr) {
@@ -1009,19 +1005,23 @@ int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         }
         if (ret >= 0) {
             ctx->raddr = raddr;
+#if defined (DEBUG_SOFTWARE_TLB)
             if (loglevel != 0) {
                 fprintf(logfile, "%s: access granted " ADDRX " => " REGX
                         " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
                         ret);
             }
+#endif
             return 0;
         }
     }
+#if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
         fprintf(logfile, "%s: access refused " ADDRX " => " REGX
                 " %d %d\n", __func__, address, raddr, ctx->prot,
                 ret);
     }
+#endif
 
     return ret;
 }
@@ -1569,14 +1569,76 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
 /* TLB management */
 void ppc_tlb_invalidate_all (CPUPPCState *env)
 {
-    if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx)) {
+    switch (env->mmu_model) {
+    case POWERPC_MMU_SOFT_6xx:
         ppc6xx_tlb_invalidate_all(env);
-    } else if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_4xx)) {
+        break;
+    case POWERPC_MMU_SOFT_4xx:
+    case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_all(env);
-    } else {
+        break;
+    default:
         tlb_flush(env, 1);
+        break;
     }
 }
+
+void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
+{
+#if !defined(FLUSH_ALL_TLBS)
+    addr &= TARGET_PAGE_MASK;
+    switch (env->mmu_model) {
+    case POWERPC_MMU_SOFT_6xx:
+        ppc6xx_tlb_invalidate_virt(env, addr, 0);
+        if (env->id_tlbs == 1)
+            ppc6xx_tlb_invalidate_virt(env, addr, 1);
+        break;
+    case POWERPC_MMU_SOFT_4xx:
+    case POWERPC_MMU_SOFT_4xx_Z:
+        ppc4xx_tlb_invalidate_virt(env, addr, env->spr[SPR_40x_PID]);
+        break;
+    default:
+        /* tlbie invalidate TLBs for all segments */
+        addr &= ~((target_ulong)-1 << 28);
+        /* XXX: this case should be optimized,
+         * giving a mask to tlb_flush_page
+         */
+        tlb_flush_page(env, addr | (0x0 << 28));
+        tlb_flush_page(env, addr | (0x1 << 28));
+        tlb_flush_page(env, addr | (0x2 << 28));
+        tlb_flush_page(env, addr | (0x3 << 28));
+        tlb_flush_page(env, addr | (0x4 << 28));
+        tlb_flush_page(env, addr | (0x5 << 28));
+        tlb_flush_page(env, addr | (0x6 << 28));
+        tlb_flush_page(env, addr | (0x7 << 28));
+        tlb_flush_page(env, addr | (0x8 << 28));
+        tlb_flush_page(env, addr | (0x9 << 28));
+        tlb_flush_page(env, addr | (0xA << 28));
+        tlb_flush_page(env, addr | (0xB << 28));
+        tlb_flush_page(env, addr | (0xC << 28));
+        tlb_flush_page(env, addr | (0xD << 28));
+        tlb_flush_page(env, addr | (0xE << 28));
+        tlb_flush_page(env, addr | (0xF << 28));
+    }
+#else
+    ppc_tlb_invalidate_all(env);
+#endif
+}
+
+#if defined(TARGET_PPC64)
+void ppc_slb_invalidate_all (CPUPPCState *env)
+{
+    /* XXX: TODO */
+    tlb_flush(env, 1);
+}
+
+void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
+{
+    /* XXX: TODO */
+    tlb_flush(env, 1);
+}
+#endif
+
 
 /*****************************************************************************/
 /* Special registers manipulation */

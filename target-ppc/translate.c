@@ -4991,10 +4991,9 @@ GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
         return;
     }
     gen_addr_reg_index(ctx);
+    gen_op_4xx_tlbsx();
     if (Rc(ctx->opcode))
-        gen_op_4xx_tlbsx_();
-    else
-        gen_op_4xx_tlbsx();
+        gen_op_4xx_tlbsx_check();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
@@ -5064,10 +5063,9 @@ GEN_HANDLER(tlbsx_440, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
         return;
     }
     gen_addr_reg_index(ctx);
+    gen_op_440_tlbsx();
     if (Rc(ctx->opcode))
-        gen_op_440_tlbsx_();
-    else
-        gen_op_440_tlbsx();
+        gen_op_4xx_tlbsx_check();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
