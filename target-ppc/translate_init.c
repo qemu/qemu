@@ -1720,12 +1720,12 @@ static void gen_spr_440 (CPUPPCState *env)
 static void gen_spr_40x (CPUPPCState *env)
 {
     /* Cache */
-    /* XXX : not implemented */
+    /* not emulated, as Qemu do not emulate caches */
     spr_register(env, SPR_40x_DCCR, "DCCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    /* XXX : not implemented */
+    /* not emulated, as Qemu do not emulate caches */
     spr_register(env, SPR_40x_ICCR, "ICCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -1839,6 +1839,7 @@ static void gen_spr_405 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Storage control */
+    /* XXX: TODO: not implemented */
     spr_register(env, SPR_405_SLER, "SLER",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_40x_sler,
@@ -1945,9 +1946,20 @@ static void gen_spr_401 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Storage control */
+    /* XXX: TODO: not implemented */
     spr_register(env, SPR_405_SLER, "SLER",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_40x_sler,
+                 0x00000000);
+    /* not emulated, as Qemu never does speculative access */
+    spr_register(env, SPR_40x_SGR, "SGR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0xFFFFFFFF);
+    /* not emulated, as Qemu do not emulate caches */
+    spr_register(env, SPR_40x_DCWR, "DCWR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
 }
 
@@ -2502,16 +2514,6 @@ static void init_proc_401 (CPUPPCState *env)
     gen_spr_40x(env);
     gen_spr_401_403(env);
     gen_spr_401(env);
-    /* Bus access control */
-    spr_register(env, SPR_40x_SGR, "SGR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFFFFFFF);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DCWR, "DCWR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     init_excp_4xx_real(env);
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
@@ -2535,16 +2537,6 @@ static void init_proc_401x2 (CPUPPCState *env)
     gen_spr_401_403(env);
     gen_spr_401x2(env);
     gen_spr_compress(env);
-    /* Bus access control */
-    spr_register(env, SPR_40x_SGR, "SGR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFFFFFFF);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DCWR, "DCWR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     /* Memory management */
     env->nb_tlb = 64;
     env->nb_ways = 1;
@@ -2598,16 +2590,6 @@ static void init_proc_IOP480 (CPUPPCState *env)
     gen_spr_401_403(env);
     gen_spr_401x2(env);
     gen_spr_compress(env);
-    /* Bus access control */
-    spr_register(env, SPR_40x_SGR, "SGR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFFFFFFF);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DCWR, "DCWR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
     /* Memory management */
     env->nb_tlb = 64;
     env->nb_ways = 1;
@@ -2658,11 +2640,12 @@ static void init_proc_403GCX (CPUPPCState *env)
     gen_spr_403_real(env);
     gen_spr_403_mmu(env);
     /* Bus access control */
+    /* not emulated, as Qemu never does speculative access */
     spr_register(env, SPR_40x_SGR, "SGR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFFFFFFF);
-    /* XXX : not implemented */
+    /* not emulated, as Qemu do not emulate caches */
     spr_register(env, SPR_40x_DCWR, "DCWR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -2695,11 +2678,12 @@ static void init_proc_405 (CPUPPCState *env)
     gen_spr_40x(env);
     gen_spr_405(env);
     /* Bus access control */
+    /* not emulated, as Qemu never does speculative access */
     spr_register(env, SPR_40x_SGR, "SGR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFFFFFFF);
-    /* XXX : not implemented */
+    /* not emulated, as Qemu do not emulate caches */
     spr_register(env, SPR_40x_DCWR, "DCWR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
