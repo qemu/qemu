@@ -2634,6 +2634,8 @@ static GenOpFunc *gen_op_stwcx[] = {
 /* lwarx */
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     op_lwarx();
     gen_op_store_T1_gpr(rD(ctx->opcode));
@@ -2642,6 +2644,8 @@ GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 /* stwcx. */
 GEN_HANDLER(stwcx_, 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     gen_op_load_gpr_T1(rS(ctx->opcode));
     op_stwcx();
@@ -2689,6 +2693,8 @@ static GenOpFunc *gen_op_stdcx[] = {
 /* ldarx */
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     op_ldarx();
     gen_op_store_T1_gpr(rD(ctx->opcode));
@@ -2697,6 +2703,8 @@ GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 /* stdcx. */
 GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     gen_op_load_gpr_T1(rS(ctx->opcode));
     op_stdcx();
@@ -3612,6 +3620,8 @@ static GenOpFunc *gen_op_icbi[] = {
 
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     op_icbi();
 }
