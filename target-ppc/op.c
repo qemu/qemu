@@ -1949,6 +1949,21 @@ void OPPROTO op_hrfid (void)
     RETURN();
 }
 #endif
+
+/* Exception vectors */
+void OPPROTO op_store_excp_prefix (void)
+{
+    T0 &= env->ivpr_mask;
+    env->excp_prefix = T0;
+    RETURN();
+}
+
+void OPPROTO op_store_excp_vector (void)
+{
+    T0 &= env->ivor_mask;
+    env->excp_vectors[PARAM1] = T0;
+    RETURN();
+}
 #endif
 
 /* Trap word */

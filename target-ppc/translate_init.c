@@ -389,6 +389,32 @@ static void spr_write_pir (void *opaque, int sprn)
 }
 #endif
 
+#if !defined(CONFIG_USER_ONLY)
+/* Callback used to write the exception vector base */
+static void spr_write_excp_prefix (void *opaque, int sprn)
+{
+    gen_op_store_excp_prefix();
+    gen_op_store_spr(sprn);
+}
+
+static void spr_write_excp_vector (void *opaque, int sprn)
+{
+    DisasContext *ctx = opaque;
+
+    if (sprn >= SPR_BOOKE_IVOR0 && sprn <= SPR_BOOKE_IVOR15) {
+        gen_op_store_excp_vector(sprn - SPR_BOOKE_IVOR0);
+        gen_op_store_spr(sprn);
+    } else if (sprn >= SPR_BOOKE_IVOR32 && sprn <= SPR_BOOKE_IVOR37) {
+        gen_op_store_excp_vector(sprn - SPR_BOOKE_IVOR32 + 32);
+        gen_op_store_spr(sprn);
+    } else {
+        printf("Trying to write an unknown exception vector %d %03x\n",
+               sprn, sprn);
+        GEN_EXCP_PRIVREG(ctx);
+    }
+}
+#endif
+
 #if defined(CONFIG_USER_ONLY)
 #define spr_register(env, num, name, uea_read, uea_write,                     \
                      oea_read, oea_write, initial_value)                      \
@@ -1311,97 +1337,97 @@ static void gen_spr_BookE (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVPR, "IVPR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_prefix,
                  0x00000000);
     /* Exception vectors */
     spr_register(env, SPR_BOOKE_IVOR0, "IVOR0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR1, "IVOR1",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR2, "IVOR2",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR3, "IVOR3",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR4, "IVOR4",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR5, "IVOR5",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR6, "IVOR6",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR7, "IVOR7",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR8, "IVOR8",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR9, "IVOR9",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR10, "IVOR10",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR11, "IVOR11",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR12, "IVOR12",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR13, "IVOR13",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR14, "IVOR14",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR15, "IVOR15",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
 #if 0
     spr_register(env, SPR_BOOKE_IVOR32, "IVOR32",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR33, "IVOR33",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR34, "IVOR34",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR35, "IVOR35",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR36, "IVOR36",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
     spr_register(env, SPR_BOOKE_IVOR37, "IVOR37",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_vector,
                  0x00000000);
 #endif
     spr_register(env, SPR_BOOKE_PID, "PID",
@@ -1720,7 +1746,7 @@ static void gen_spr_40x (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_40x_EVPR, "EVPR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_excp_prefix,
                  0x00000000);
     spr_register(env, SPR_40x_SRR2, "SRR2",
                  &spr_read_generic, &spr_write_generic,
@@ -2147,6 +2173,9 @@ static void init_excp_4xx_real (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00001010;
     env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001020;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
+    env->excp_prefix = 0x00000000;
+    env->ivor_mask = 0x0000FFF0;
+    env->ivpr_mask = 0xFFFF0000;
 #endif
 }
 
@@ -2167,6 +2196,9 @@ static void init_excp_4xx_softmmu (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00001100;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
+    env->excp_prefix = 0x00000000;
+    env->ivor_mask = 0x0000FFF0;
+    env->ivpr_mask = 0xFFFF0000;
 #endif
 }
 
