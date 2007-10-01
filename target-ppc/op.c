@@ -180,7 +180,7 @@ void OPPROTO op_set_T1_64 (void)
 #if 0 // unused
 void OPPROTO op_set_T2 (void)
 {
-    T2 = PARAM1;
+    T2 = (uint32_t)PARAM1;
     RETURN();
 }
 #endif
@@ -572,7 +572,7 @@ void OPPROTO op_getbit_T1 (void)
 
 void OPPROTO op_setcrfbit (void)
 {
-    T1 = (T1 & PARAM1) | (T0 << PARAM2);
+    T1 = (T1 & (uint32_t)PARAM1) | (T0 << PARAM2);
     RETURN();
 }
 
@@ -1146,7 +1146,7 @@ void OPPROTO op_subfic (void)
 #if defined(TARGET_PPC64)
 void OPPROTO op_subfic_64 (void)
 {
-    T0 = PARAM1 + ~T0 + 1;
+    T0 = (int64_t)PARAM1 + ~T0 + 1;
     if ((uint64_t)T0 <= (uint64_t)PARAM1) {
         xer_ca = 1;
     } else {
@@ -1388,26 +1388,26 @@ void OPPROTO op_andc (void)
 /* andi. */
 void OPPROTO op_andi_T0 (void)
 {
-    T0 &= PARAM1;
+    T0 &= (uint32_t)PARAM1;
     RETURN();
 }
 
 void OPPROTO op_andi_T1 (void)
 {
-    T1 &= PARAM1;
+    T1 &= (uint32_t)PARAM1;
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_andi_T0_64 (void)
 {
-    T0 &= ((uint64_t)PARAM1 << 32) | PARAM2;
+    T0 &= ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
     RETURN();
 }
 
 void OPPROTO op_andi_T1_64 (void)
 {
-    T1 &= ((uint64_t)PARAM1 << 32) | PARAM2;
+    T1 &= ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
     RETURN();
 }
 #endif
@@ -1496,7 +1496,7 @@ void OPPROTO op_orc (void)
 /* ori */
 void OPPROTO op_ori (void)
 {
-    T0 |= PARAM1;
+    T0 |= (uint32_t)PARAM1;
     RETURN();
 }
 
@@ -1510,7 +1510,7 @@ void OPPROTO op_xor (void)
 /* xori */
 void OPPROTO op_xori (void)
 {
-    T0 ^= PARAM1;
+    T0 ^= (uint32_t)PARAM1;
     RETURN();
 }
 
@@ -2229,7 +2229,7 @@ void OPPROTO op_POWER_nabso (void)
 void OPPROTO op_POWER_rlmi (void)
 {
     T0 = rotl32(T0, T2) & PARAM1;
-    T0 |= T1 & PARAM2;
+    T0 |= T1 & (uint32_t)PARAM2;
     RETURN();
 }
 
