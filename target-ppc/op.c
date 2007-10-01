@@ -351,7 +351,10 @@ void OPPROTO op_load_msr (void)
 
 void OPPROTO op_store_msr (void)
 {
-    do_store_msr(env, T0);
+    if (do_store_msr(env, T0)) {
+        env->halted = 1;
+        do_raise_exception(EXCP_HLT);
+    }
     RETURN();
 }
 
@@ -365,7 +368,10 @@ void OPPROTO op_update_riee (void)
 #if defined (TARGET_PPC64)
 void OPPROTO op_store_msr_32 (void)
 {
-    ppc_store_msr_32(env, T0);
+    if (ppc_store_msr_32(env, T0)) {
+        env->halted = 1;
+        do_raise_exception(EXCP_HLT);
+    }
     RETURN();
 }
 #endif

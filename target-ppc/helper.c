@@ -1839,7 +1839,7 @@ target_ulong do_load_msr (CPUPPCState *env)
         ((target_ulong)msr_le   << MSR_LE);
 }
 
-void do_store_msr (CPUPPCState *env, target_ulong value)
+int do_store_msr (CPUPPCState *env, target_ulong value)
 {
     int enter_pm;
 
@@ -1921,21 +1921,15 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
     default:
         break;
     }
-    if (enter_pm) {
-        if (likely(!env->halted)) {
-            /* power save: exit cpu loop */
-            env->halted = 1;
-            env->exception_index = EXCP_HLT;
-            cpu_loop_exit();
-        }
-    }
+
+    return enter_pm;
 }
 
 #if defined(TARGET_PPC64)
-void ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
+int ppc_store_msr_32 (CPUPPCState *env, uint32_t value)
 {
-    do_store_msr(env,
-                 (do_load_msr(env) & ~0xFFFFFFFFULL) | (value & 0xFFFFFFFF));
+    return do_store_msr(env, (do_load_msr(env) & ~0xFFFFFFFFULL) |
+                        (value & 0xFFFFFFFF));
 }
 #endif
 
