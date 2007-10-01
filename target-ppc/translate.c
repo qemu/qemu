@@ -2996,6 +2996,7 @@ static inline void gen_bcond (DisasContext *ctx, int type)
         case 6:
             if (type == BCOND_IM) {
                 gen_goto_tb(ctx, 0, target);
+                goto out;
             } else {
 #if defined(TARGET_PPC64)
                 if (ctx->sf_mode)
@@ -3004,8 +3005,9 @@ static inline void gen_bcond (DisasContext *ctx, int type)
 #endif
                     gen_op_b_T1();
                 gen_op_reset_T0();
+                goto no_test;
             }
-            goto no_test;
+            break;
         }
     } else {
         mask = 1 << (3 - (bi & 0x03));
@@ -3079,6 +3081,7 @@ static inline void gen_bcond (DisasContext *ctx, int type)
             gen_op_debug();
         gen_op_exit_tb();
     }
+ out:
     ctx->exception = POWERPC_EXCP_BRANCH;
 }
 
@@ -3381,11 +3384,15 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B)
         /* Special form that does not need any synchronisation */
         gen_op_update_riee();
     } else {
+        /* XXX: we need to update nip before the store
+         *      if we enter power saving mode, we will exit the loop
+         *      directly from ppc_store_msr
+         */
         gen_update_nip(ctx, ctx->nip);
         gen_op_store_msr();
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
-        GEN_STOP(ctx);
+        ctx->exception = POWERPC_EXCP_STOP;
     }
 #endif
 }
@@ -3405,6 +3412,10 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
         /* Special form that does not need any synchronisation */
         gen_op_update_riee();
     } else {
+        /* XXX: we need to update nip before the store
+         *      if we enter power saving mode, we will exit the loop
+         *      directly from ppc_store_msr
+         */
         gen_update_nip(ctx, ctx->nip);
 #if defined(TARGET_PPC64)
         if (!ctx->sf_mode)
@@ -3414,7 +3425,7 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
             gen_op_store_msr();
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsrd is not always defined as context-synchronizing */
-        GEN_STOP(ctx);
+        ctx->exception = POWERPC_EXCP_STOP;
     }
 #endif
 }
