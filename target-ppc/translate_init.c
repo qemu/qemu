@@ -54,8 +54,7 @@ static inline void glue(glue(ppc, name),_irq_init) (CPUPPCState *env)         \
 void glue(glue(ppc, name),_irq_init) (CPUPPCState *env);
 #endif
 
-PPC_IRQ_INIT_FN(401);
-PPC_IRQ_INIT_FN(405);
+PPC_IRQ_INIT_FN(40x);
 PPC_IRQ_INIT_FN(6xx);
 PPC_IRQ_INIT_FN(970);
 
@@ -2482,7 +2481,8 @@ static void init_proc_401 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     init_excp_4xx_real(env);
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 401x2                                                             */
@@ -2518,7 +2518,8 @@ static void init_proc_401x2 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 401x3                                                             */
@@ -2536,7 +2537,14 @@ static void init_proc_401x2 (CPUPPCState *env)
 
 static void init_proc_401x3 (CPUPPCState *env)
 {
+    gen_spr_40x(env);
+    gen_spr_401_403(env);
+    gen_spr_401(env);
+    gen_spr_401x2(env);
+    gen_spr_compress(env);
     init_excp_4xx_softmmu(env);
+    /* Allocate hardware IRQ controller */
+    ppc40x_irq_init(env);
 }
 #endif /* TODO */
 
@@ -2573,7 +2581,8 @@ static void init_proc_IOP480 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 403                                                               */
@@ -2594,7 +2603,8 @@ static void init_proc_403 (CPUPPCState *env)
     gen_spr_403(env);
     gen_spr_403_real(env);
     init_excp_4xx_real(env);
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 403 GCX                                                           */
@@ -2630,7 +2640,8 @@ static void init_proc_403GCX (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 405                                                               */
@@ -2667,7 +2678,7 @@ static void init_proc_405 (CPUPPCState *env)
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
     /* Allocate hardware IRQ controller */
-    ppc405_irq_init(env);
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 440 EP                                                            */

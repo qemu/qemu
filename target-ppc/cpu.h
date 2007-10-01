@@ -1117,23 +1117,15 @@ enum {
 };
 
 enum {
-    /* PowerPC 401/403 input pins */
-    PPC401_INPUT_RESET      = 0,
-    PPC401_INPUT_CINT       = 1,
-    PPC401_INPUT_INT        = 2,
-    PPC401_INPUT_BERR       = 3,
-    PPC401_INPUT_HALT       = 4,
-};
-
-enum {
-    /* PowerPC 405 input pins */
-    PPC405_INPUT_RESET_CORE = 0,
-    PPC405_INPUT_RESET_CHIP = 1,
-    PPC405_INPUT_RESET_SYS  = 2,
-    PPC405_INPUT_CINT       = 3,
-    PPC405_INPUT_INT        = 4,
-    PPC405_INPUT_HALT       = 5,
-    PPC405_INPUT_DEBUG      = 6,
+    /* PowerPC 40x input pins */
+    PPC40x_INPUT_RESET_CORE = 0,
+    PPC40x_INPUT_RESET_CHIP = 1,
+    PPC40x_INPUT_RESET_SYS  = 2,
+    PPC40x_INPUT_CINT       = 3,
+    PPC40x_INPUT_INT        = 4,
+    PPC40x_INPUT_HALT       = 5,
+    PPC40x_INPUT_DEBUG      = 6,
+    PPC40x_INPUT_NB,
 };
 
 enum {

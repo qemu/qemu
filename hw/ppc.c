@@ -284,8 +284,8 @@ void ppc970_irq_init (CPUState *env)
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env, 7);
 }
 
-/* PowerPC 405 internal IRQ controller */
-static void ppc405_set_irq (void *opaque, int pin, int level)
+/* PowerPC 40x internal IRQ controller */
+static void ppc40x_set_irq (void *opaque, int pin, int level)
 {
     CPUState *env = opaque;
     int cur_level;
@@ -300,7 +300,7 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
     /* Don't generate spurious events */
     if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
         switch (pin) {
-        case PPC405_INPUT_RESET_SYS:
+        case PPC40x_INPUT_RESET_SYS:
             if (level) {
 #if defined(PPC_DEBUG_IRQ)
                 if (loglevel & CPU_LOG_INT) {
@@ -311,7 +311,7 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
                 ppc40x_system_reset(env);
             }
             break;
-        case PPC405_INPUT_RESET_CHIP:
+        case PPC40x_INPUT_RESET_CHIP:
             if (level) {
 #if defined(PPC_DEBUG_IRQ)
                 if (loglevel & CPU_LOG_INT) {
@@ -321,8 +321,7 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
                 ppc40x_chip_reset(env);
             }
             break;
-            /* No break here */
-        case PPC405_INPUT_RESET_CORE:
+        case PPC40x_INPUT_RESET_CORE:
             /* XXX: TODO: update DBSR[MRR] */
             if (level) {
 #if defined(PPC_DEBUG_IRQ)
@@ -333,7 +332,7 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
                 ppc40x_core_reset(env);
             }
             break;
-        case PPC405_INPUT_CINT:
+        case PPC40x_INPUT_CINT:
             /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
             if (loglevel & CPU_LOG_INT) {
@@ -341,10 +340,9 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
                         __func__, level);
             }
 #endif
-            /* XXX: TOFIX */
-            ppc_set_irq(env, PPC_INTERRUPT_RESET, level);
+            ppc_set_irq(env, PPC_INTERRUPT_CEXT, level);
             break;
-        case PPC405_INPUT_INT:
+        case PPC40x_INPUT_INT:
             /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
             if (loglevel & CPU_LOG_INT) {
@@ -354,7 +352,7 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
 #endif
             ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
             break;
-        case PPC405_INPUT_HALT:
+        case PPC40x_INPUT_HALT:
             /* Level sensitive - active low */
             if (level) {
 #if defined(PPC_DEBUG_IRQ)
@@ -372,7 +370,7 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
                 env->halted = 0;
             }
             break;
-        case PPC405_INPUT_DEBUG:
+        case PPC40x_INPUT_DEBUG:
             /* Level sensitive - active high */
 #if defined(PPC_DEBUG_IRQ)
             if (loglevel & CPU_LOG_INT) {
@@ -398,9 +396,10 @@ static void ppc405_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc405_irq_init (CPUState *env)
+void ppc40x_irq_init (CPUState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc405_set_irq, env, 7);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc40x_set_irq,
+                                                  env, PPC40x_INPUT_NB);
 }
 
 /*****************************************************************************/
