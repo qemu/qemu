@@ -862,7 +862,6 @@ void helper_st_asi(int asi, int size)
     case 0x19: // As if user secondary LE
     case 0x1c: // Bypass LE
     case 0x1d: // Bypass, non-cacheable LE
-    case 0x81: // Secondary
     case 0x88: // Primary LE
     case 0x89: // Secondary LE
         switch(size) {
@@ -950,6 +949,7 @@ void helper_st_asi(int asi, int size)
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic
     case 0x4a: // UPA config
+    case 0x81: // Secondary
     case 0x89: // Secondary LE
         // XXX
         return;
@@ -1137,10 +1137,18 @@ void helper_ldf_asi(int asi, int size, int rd)
     case 0xf1: // Block load secondary
     case 0xf8: // Block load primary LE
     case 0xf9: // Block load secondary LE
-        for (i = 0; i < 8; i++) {
-            helper_ld_asi(asi & 0x8f, 8, 0);
-            *((int64_t *)&DT0) = T1;
-            T0 += 8;
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        if (T0 & 0x3f) {
+            raise_exception(TT_UNALIGNED);
+            return;
+        }
+        for (i = 0; i < 16; i++) {
+            helper_ld_asi(asi & 0x8f, 4, 0);
+            *(uint32_t *)&env->fpr[rd++] = T1;
+            T0 += 4;
         }
         T0 = tmp_T0;
         T1 = tmp_T1;
@@ -1173,10 +1181,18 @@ void helper_stf_asi(int asi, int size, int rd)
     case 0xf1: // Block store secondary
     case 0xf8: // Block store primary LE
     case 0xf9: // Block store secondary LE
-        for (i = 0; i < 8; i++) {
-            T1 = *((int64_t *)&DT0);
-            helper_st_asi(asi & 0x8f, 8);
-            T0 += 8;
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        if (T0 & 0x3f) {
+            raise_exception(TT_UNALIGNED);
+            return;
+        }
+        for (i = 0; i < 16; i++) {
+            T1 = *(uint32_t *)&env->fpr[rd++];
+            helper_st_asi(asi & 0x8f, 4);
+            T0 += 4;
         }
         T0 = tmp_T0;
         T1 = tmp_T1;
