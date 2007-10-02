@@ -1979,6 +1979,7 @@ static inline void gen_addr_register (DisasContext *ctx)
 #define op_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
 #if defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
+/* User mode only - 64 bits */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_raw,                                                   \
@@ -1997,6 +1998,7 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 #define gen_op_stb_le_64_raw gen_op_stb_64_raw
 #define gen_op_lbz_le_64_raw gen_op_lbz_64_raw
 #else
+/* User mode only - 32 bits */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_raw,                                                   \
@@ -2013,14 +2015,53 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 #define gen_op_lbz_le_raw gen_op_lbz_raw
 #else
 #if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64H)
+/* Full system - 64 bits with hypervisor mode */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_user,                                                  \
     &gen_op_l##width##_le_user,                                               \
-    &gen_op_l##width##_kernel,                                                \
-    &gen_op_l##width##_le_kernel,                                             \
     &gen_op_l##width##_64_user,                                               \
     &gen_op_l##width##_le_64_user,                                            \
+    &gen_op_l##width##_kernel,                                                \
+    &gen_op_l##width##_le_kernel,                                             \
+    &gen_op_l##width##_64_kernel,                                             \
+    &gen_op_l##width##_le_64_kernel,                                          \
+    &gen_op_l##width##_hypv,                                                  \
+    &gen_op_l##width##_le_hypv,                                               \
+    &gen_op_l##width##_64_hypv,                                               \
+    &gen_op_l##width##_le_64_hypv,                                            \
+};
+#define OP_ST_TABLE(width)                                                    \
+static GenOpFunc *gen_op_st##width[] = {                                      \
+    &gen_op_st##width##_user,                                                 \
+    &gen_op_st##width##_le_user,                                              \
+    &gen_op_st##width##_64_user,                                              \
+    &gen_op_st##width##_le_64_user,                                           \
+    &gen_op_st##width##_kernel,                                               \
+    &gen_op_st##width##_le_kernel,                                            \
+    &gen_op_st##width##_64_kernel,                                            \
+    &gen_op_st##width##_le_64_kernel,                                         \
+    &gen_op_st##width##_hypv,                                                 \
+    &gen_op_st##width##_le_hypv,                                              \
+    &gen_op_st##width##_64_hypv,                                              \
+    &gen_op_st##width##_le_64_hypv,                                           \
+};
+/* Byte access routine are endian safe */
+#define gen_op_stb_le_hypv      gen_op_stb_64_hypv
+#define gen_op_lbz_le_hypv      gen_op_lbz_64_hypv
+#define gen_op_stb_le_64_hypv   gen_op_stb_64_hypv
+#define gen_op_lbz_le_64_hypv   gen_op_lbz_64_hypv
+#else
+/* Full system - 64 bits */
+#define OP_LD_TABLE(width)                                                    \
+static GenOpFunc *gen_op_l##width[] = {                                       \
+    &gen_op_l##width##_user,                                                  \
+    &gen_op_l##width##_le_user,                                               \
+    &gen_op_l##width##_64_user,                                               \
+    &gen_op_l##width##_le_64_user,                                            \
+    &gen_op_l##width##_kernel,                                                \
+    &gen_op_l##width##_le_kernel,                                             \
     &gen_op_l##width##_64_kernel,                                             \
     &gen_op_l##width##_le_64_kernel,                                          \
 };
@@ -2028,19 +2069,21 @@ static GenOpFunc *gen_op_l##width[] = {                                       \
 static GenOpFunc *gen_op_st##width[] = {                                      \
     &gen_op_st##width##_user,                                                 \
     &gen_op_st##width##_le_user,                                              \
-    &gen_op_st##width##_kernel,                                               \
-    &gen_op_st##width##_le_kernel,                                            \
     &gen_op_st##width##_64_user,                                              \
     &gen_op_st##width##_le_64_user,                                           \
+    &gen_op_st##width##_kernel,                                               \
+    &gen_op_st##width##_le_kernel,                                            \
     &gen_op_st##width##_64_kernel,                                            \
     &gen_op_st##width##_le_64_kernel,                                         \
 };
+#endif
 /* Byte access routine are endian safe */
-#define gen_op_stb_le_64_user gen_op_stb_64_user
-#define gen_op_lbz_le_64_user gen_op_lbz_64_user
+#define gen_op_stb_le_64_user   gen_op_stb_64_user
+#define gen_op_lbz_le_64_user   gen_op_lbz_64_user
 #define gen_op_stb_le_64_kernel gen_op_stb_64_kernel
 #define gen_op_lbz_le_64_kernel gen_op_lbz_64_kernel
 #else
+/* Full system - 32 bits */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_user,                                                  \
@@ -2057,8 +2100,8 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 };
 #endif
 /* Byte access routine are endian safe */
-#define gen_op_stb_le_user gen_op_stb_user
-#define gen_op_lbz_le_user gen_op_lbz_user
+#define gen_op_stb_le_user   gen_op_stb_user
+#define gen_op_lbz_le_user   gen_op_lbz_user
 #define gen_op_stb_le_kernel gen_op_stb_kernel
 #define gen_op_lbz_le_kernel gen_op_lbz_kernel
 #endif
@@ -2316,51 +2359,61 @@ GEN_STX(wbr, 0x16, 0x14, PPC_INTEGER);
 
 /***                    Integer load and store multiple                    ***/
 #define op_ldstm(name, reg) (*gen_op_##name[ctx->mem_idx])(reg)
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc1 *gen_op_lmw[] = {
     &gen_op_lmw_raw,
     &gen_op_lmw_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lmw_64_raw,
     &gen_op_lmw_le_64_raw,
-};
-static GenOpFunc1 *gen_op_stmw[] = {
-    &gen_op_stmw_64_raw,
-    &gen_op_stmw_le_64_raw,
-};
-#else
-static GenOpFunc1 *gen_op_lmw[] = {
-    &gen_op_lmw_user,
-    &gen_op_lmw_le_user,
-    &gen_op_lmw_kernel,
-    &gen_op_lmw_le_kernel,
-    &gen_op_lmw_64_user,
-    &gen_op_lmw_le_64_user,
-    &gen_op_lmw_64_kernel,
-    &gen_op_lmw_le_64_kernel,
-};
-static GenOpFunc1 *gen_op_stmw[] = {
-    &gen_op_stmw_user,
-    &gen_op_stmw_le_user,
-    &gen_op_stmw_kernel,
-    &gen_op_stmw_le_kernel,
-    &gen_op_stmw_64_user,
-    &gen_op_stmw_le_64_user,
-    &gen_op_stmw_64_kernel,
-    &gen_op_stmw_le_64_kernel,
-};
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc1 *gen_op_lmw[] = {
-    &gen_op_lmw_raw,
-    &gen_op_lmw_le_raw,
 };
 static GenOpFunc1 *gen_op_stmw[] = {
     &gen_op_stmw_raw,
     &gen_op_stmw_le_raw,
+#if defined(TARGET_PPC64)
+    &gen_op_stmw_64_raw,
+    &gen_op_stmw_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+static GenOpFunc1 *gen_op_lmw[] = {
+    &gen_op_lmw_user,
+    &gen_op_lmw_le_user,
+    &gen_op_lmw_64_user,
+    &gen_op_lmw_le_64_user,
+    &gen_op_lmw_kernel,
+    &gen_op_lmw_le_kernel,
+    &gen_op_lmw_64_kernel,
+    &gen_op_lmw_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lmw_hypv,
+    &gen_op_lmw_le_hypv,
+    &gen_op_lmw_64_hypv,
+    &gen_op_lmw_le_64_hypv,
+#endif
+};
+static GenOpFunc1 *gen_op_stmw[] = {
+    &gen_op_stmw_user,
+    &gen_op_stmw_le_user,
+    &gen_op_stmw_64_user,
+    &gen_op_stmw_le_64_user,
+    &gen_op_stmw_kernel,
+    &gen_op_stmw_le_kernel,
+    &gen_op_stmw_64_kernel,
+    &gen_op_stmw_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_stmw_hypv,
+    &gen_op_stmw_le_hypv,
+    &gen_op_stmw_64_hypv,
+    &gen_op_stmw_le_64_hypv,
+#endif
+};
+#else
+/* Full system - 32 bits mode */
 static GenOpFunc1 *gen_op_lmw[] = {
     &gen_op_lmw_user,
     &gen_op_lmw_le_user,
@@ -2397,73 +2450,85 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 /***                    Integer load and store strings                     ***/
 #define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
 #define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_raw,
     &gen_op_lswi_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lswi_64_raw,
     &gen_op_lswi_le_64_raw,
+#endif
 };
 static GenOpFunc3 *gen_op_lswx[] = {
     &gen_op_lswx_raw,
     &gen_op_lswx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lswx_64_raw,
     &gen_op_lswx_le_64_raw,
+#endif
 };
 static GenOpFunc1 *gen_op_stsw[] = {
     &gen_op_stsw_raw,
     &gen_op_stsw_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_stsw_64_raw,
     &gen_op_stsw_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_user,
     &gen_op_lswi_le_user,
-    &gen_op_lswi_kernel,
-    &gen_op_lswi_le_kernel,
     &gen_op_lswi_64_user,
     &gen_op_lswi_le_64_user,
+    &gen_op_lswi_kernel,
+    &gen_op_lswi_le_kernel,
     &gen_op_lswi_64_kernel,
     &gen_op_lswi_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lswi_hypv,
+    &gen_op_lswi_le_hypv,
+    &gen_op_lswi_64_hypv,
+    &gen_op_lswi_le_64_hypv,
+#endif
 };
 static GenOpFunc3 *gen_op_lswx[] = {
     &gen_op_lswx_user,
     &gen_op_lswx_le_user,
-    &gen_op_lswx_kernel,
-    &gen_op_lswx_le_kernel,
     &gen_op_lswx_64_user,
     &gen_op_lswx_le_64_user,
+    &gen_op_lswx_kernel,
+    &gen_op_lswx_le_kernel,
     &gen_op_lswx_64_kernel,
     &gen_op_lswx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lswx_hypv,
+    &gen_op_lswx_le_hypv,
+    &gen_op_lswx_64_hypv,
+    &gen_op_lswx_le_64_hypv,
+#endif
 };
 static GenOpFunc1 *gen_op_stsw[] = {
     &gen_op_stsw_user,
     &gen_op_stsw_le_user,
-    &gen_op_stsw_kernel,
-    &gen_op_stsw_le_kernel,
     &gen_op_stsw_64_user,
     &gen_op_stsw_le_64_user,
+    &gen_op_stsw_kernel,
+    &gen_op_stsw_le_kernel,
     &gen_op_stsw_64_kernel,
     &gen_op_stsw_le_64_kernel,
-};
+#if defined(TARGET_PPC64H)
+    &gen_op_stsw_hypv,
+    &gen_op_stsw_le_hypv,
+    &gen_op_stsw_64_hypv,
+    &gen_op_stsw_le_64_hypv,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc1 *gen_op_lswi[] = {
-    &gen_op_lswi_raw,
-    &gen_op_lswi_le_raw,
-};
-static GenOpFunc3 *gen_op_lswx[] = {
-    &gen_op_lswx_raw,
-    &gen_op_lswx_le_raw,
-};
-static GenOpFunc1 *gen_op_stsw[] = {
-    &gen_op_stsw_raw,
-    &gen_op_stsw_le_raw,
 };
 #else
+/* Full system - 32 bits mode */
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_user,
     &gen_op_lswi_le_user,
@@ -2569,53 +2634,61 @@ GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM)
 
 #define op_lwarx() (*gen_op_lwarx[ctx->mem_idx])()
 #define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_raw,
     &gen_op_lwarx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lwarx_64_raw,
     &gen_op_lwarx_le_64_raw,
+#endif
 };
 static GenOpFunc *gen_op_stwcx[] = {
     &gen_op_stwcx_raw,
     &gen_op_stwcx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_stwcx_64_raw,
     &gen_op_stwcx_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_user,
     &gen_op_lwarx_le_user,
-    &gen_op_lwarx_kernel,
-    &gen_op_lwarx_le_kernel,
     &gen_op_lwarx_64_user,
     &gen_op_lwarx_le_64_user,
+    &gen_op_lwarx_kernel,
+    &gen_op_lwarx_le_kernel,
     &gen_op_lwarx_64_kernel,
     &gen_op_lwarx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lwarx_hypv,
+    &gen_op_lwarx_le_hypv,
+    &gen_op_lwarx_64_hypv,
+    &gen_op_lwarx_le_64_hypv,
+#endif
 };
 static GenOpFunc *gen_op_stwcx[] = {
     &gen_op_stwcx_user,
     &gen_op_stwcx_le_user,
-    &gen_op_stwcx_kernel,
-    &gen_op_stwcx_le_kernel,
     &gen_op_stwcx_64_user,
     &gen_op_stwcx_le_64_user,
+    &gen_op_stwcx_kernel,
+    &gen_op_stwcx_le_kernel,
     &gen_op_stwcx_64_kernel,
     &gen_op_stwcx_le_64_kernel,
-};
+#if defined(TARGET_PPC64H)
+    &gen_op_stwcx_hypv,
+    &gen_op_stwcx_le_hypv,
+    &gen_op_stwcx_64_hypv,
+    &gen_op_stwcx_le_64_hypv,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_lwarx[] = {
-    &gen_op_lwarx_raw,
-    &gen_op_lwarx_le_raw,
-};
-static GenOpFunc *gen_op_stwcx[] = {
-    &gen_op_stwcx_raw,
-    &gen_op_stwcx_le_raw,
 };
 #else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_user,
     &gen_op_lwarx_le_user,
@@ -2655,6 +2728,7 @@ GEN_HANDLER(stwcx_, 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 #define op_ldarx() (*gen_op_ldarx[ctx->mem_idx])()
 #define op_stdcx() (*gen_op_stdcx[ctx->mem_idx])()
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc *gen_op_ldarx[] = {
     &gen_op_ldarx_raw,
     &gen_op_ldarx_le_raw,
@@ -2668,25 +2742,38 @@ static GenOpFunc *gen_op_stdcx[] = {
     &gen_op_stdcx_le_64_raw,
 };
 #else
+/* Full system */
 static GenOpFunc *gen_op_ldarx[] = {
     &gen_op_ldarx_user,
     &gen_op_ldarx_le_user,
-    &gen_op_ldarx_kernel,
-    &gen_op_ldarx_le_kernel,
     &gen_op_ldarx_64_user,
     &gen_op_ldarx_le_64_user,
+    &gen_op_ldarx_kernel,
+    &gen_op_ldarx_le_kernel,
     &gen_op_ldarx_64_kernel,
     &gen_op_ldarx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_ldarx_hypv,
+    &gen_op_ldarx_le_hypv,
+    &gen_op_ldarx_64_hypv,
+    &gen_op_ldarx_le_64_hypv,
+#endif
 };
 static GenOpFunc *gen_op_stdcx[] = {
     &gen_op_stdcx_user,
     &gen_op_stdcx_le_user,
-    &gen_op_stdcx_kernel,
-    &gen_op_stdcx_le_kernel,
     &gen_op_stdcx_64_user,
     &gen_op_stdcx_le_64_user,
+    &gen_op_stdcx_kernel,
+    &gen_op_stdcx_le_kernel,
     &gen_op_stdcx_64_kernel,
     &gen_op_stdcx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_stdcx_hypv,
+    &gen_op_stdcx_le_hypv,
+    &gen_op_stdcx_64_hypv,
+    &gen_op_stdcx_le_64_hypv,
+#endif
 };
 #endif
 
@@ -3537,33 +3624,37 @@ GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE)
 
 /* dcbz */
 #define op_dcbz() (*gen_op_dcbz[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+/* User-mode only */
+static GenOpFunc *gen_op_dcbz[] = {
+    &gen_op_dcbz_raw,
+    &gen_op_dcbz_raw,
 #if defined(TARGET_PPC64)
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_raw,
-    &gen_op_dcbz_raw,
     &gen_op_dcbz_64_raw,
     &gen_op_dcbz_64_raw,
-};
-#else
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_user,
-    &gen_op_dcbz_user,
-    &gen_op_dcbz_kernel,
-    &gen_op_dcbz_kernel,
-    &gen_op_dcbz_64_user,
-    &gen_op_dcbz_64_user,
-    &gen_op_dcbz_64_kernel,
-    &gen_op_dcbz_64_kernel,
-};
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_raw,
-    &gen_op_dcbz_raw,
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+static GenOpFunc *gen_op_dcbz[] = {
+    &gen_op_dcbz_user,
+    &gen_op_dcbz_user,
+    &gen_op_dcbz_64_user,
+    &gen_op_dcbz_64_user,
+    &gen_op_dcbz_kernel,
+    &gen_op_dcbz_kernel,
+    &gen_op_dcbz_64_kernel,
+    &gen_op_dcbz_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_dcbz_hypv,
+    &gen_op_dcbz_hypv,
+    &gen_op_dcbz_64_hypv,
+    &gen_op_dcbz_64_hypv,
+#endif
+};
+#else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_dcbz[] = {
     &gen_op_dcbz_user,
     &gen_op_dcbz_user,
@@ -3582,33 +3673,37 @@ GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE)
 
 /* icbi */
 #define op_icbi() (*gen_op_icbi[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+/* User-mode only */
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_raw,
+    &gen_op_icbi_raw,
 #if defined(TARGET_PPC64)
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_icbi[] = {
-    &gen_op_icbi_raw,
-    &gen_op_icbi_raw,
     &gen_op_icbi_64_raw,
     &gen_op_icbi_64_raw,
-};
-#else
-static GenOpFunc *gen_op_icbi[] = {
-    &gen_op_icbi_user,
-    &gen_op_icbi_user,
-    &gen_op_icbi_kernel,
-    &gen_op_icbi_kernel,
-    &gen_op_icbi_64_user,
-    &gen_op_icbi_64_user,
-    &gen_op_icbi_64_kernel,
-    &gen_op_icbi_64_kernel,
-};
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_icbi[] = {
-    &gen_op_icbi_raw,
-    &gen_op_icbi_raw,
 };
 #else
+/* Full system - 64 bits mode */
+#if defined(TARGET_PPC64)
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_user,
+    &gen_op_icbi_user,
+    &gen_op_icbi_64_user,
+    &gen_op_icbi_64_user,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_64_kernel,
+    &gen_op_icbi_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_icbi_hypv,
+    &gen_op_icbi_hypv,
+    &gen_op_icbi_64_hypv,
+    &gen_op_icbi_64_hypv,
+#endif
+};
+#else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_icbi[] = {
     &gen_op_icbi_user,
     &gen_op_icbi_user,
@@ -3796,53 +3891,61 @@ GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI)
 /* Optional: */
 #define op_eciwx() (*gen_op_eciwx[ctx->mem_idx])()
 #define op_ecowx() (*gen_op_ecowx[ctx->mem_idx])()
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_raw,
     &gen_op_eciwx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_eciwx_64_raw,
     &gen_op_eciwx_le_64_raw,
+#endif
 };
 static GenOpFunc *gen_op_ecowx[] = {
     &gen_op_ecowx_raw,
     &gen_op_ecowx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_ecowx_64_raw,
     &gen_op_ecowx_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_user,
     &gen_op_eciwx_le_user,
-    &gen_op_eciwx_kernel,
-    &gen_op_eciwx_le_kernel,
     &gen_op_eciwx_64_user,
     &gen_op_eciwx_le_64_user,
+    &gen_op_eciwx_kernel,
+    &gen_op_eciwx_le_kernel,
     &gen_op_eciwx_64_kernel,
     &gen_op_eciwx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_eciwx_hypv,
+    &gen_op_eciwx_le_hypv,
+    &gen_op_eciwx_64_hypv,
+    &gen_op_eciwx_le_64_hypv,
+#endif
 };
 static GenOpFunc *gen_op_ecowx[] = {
     &gen_op_ecowx_user,
     &gen_op_ecowx_le_user,
-    &gen_op_ecowx_kernel,
-    &gen_op_ecowx_le_kernel,
     &gen_op_ecowx_64_user,
     &gen_op_ecowx_le_64_user,
+    &gen_op_ecowx_kernel,
+    &gen_op_ecowx_le_kernel,
     &gen_op_ecowx_64_kernel,
     &gen_op_ecowx_le_64_kernel,
-};
+#if defined(TARGET_PPC64H)
+    &gen_op_ecowx_hypv,
+    &gen_op_ecowx_le_hypv,
+    &gen_op_ecowx_64_hypv,
+    &gen_op_ecowx_le_64_hypv,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_eciwx[] = {
-    &gen_op_eciwx_raw,
-    &gen_op_eciwx_le_raw,
-};
-static GenOpFunc *gen_op_ecowx[] = {
-    &gen_op_ecowx_raw,
-    &gen_op_ecowx_le_raw,
 };
 #else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_user,
     &gen_op_eciwx_le_user,
@@ -3981,7 +4084,7 @@ GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR)
 }
 
 /* As lscbx load from memory byte after byte, it's always endian safe */
-#define op_POWER_lscbx(start, ra, rb) \
+#define op_POWER_lscbx(start, ra, rb)                                         \
 (*gen_op_POWER_lscbx[ctx->mem_idx])(start, ra, rb)
 #if defined(CONFIG_USER_ONLY)
 static GenOpFunc3 *gen_op_POWER_lscbx[] = {
@@ -5269,6 +5372,7 @@ static inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
 #define op_spe_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
 #if defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
+/* User-mode only - 64 bits mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_raw,                                                \
@@ -5284,6 +5388,7 @@ static GenOpFunc *gen_op_spe_st##name[] = {                                   \
     &gen_op_spe_st##name##_le_64_raw,                                         \
 };
 #else /* defined(TARGET_PPC64) */
+/* User-mode only - 32 bits mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_raw,                                                \
@@ -5296,15 +5401,48 @@ static GenOpFunc *gen_op_spe_st##name[] = {                                   \
 };
 #endif /* defined(TARGET_PPC64) */
 #else /* defined(CONFIG_USER_ONLY) */
-#if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64H)
+/* Full system with hypervisor mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_user,                                               \
     &gen_op_spe_l##name##_le_user,                                            \
-    &gen_op_spe_l##name##_kernel,                                             \
-    &gen_op_spe_l##name##_le_kernel,                                          \
     &gen_op_spe_l##name##_64_user,                                            \
     &gen_op_spe_l##name##_le_64_user,                                         \
+    &gen_op_spe_l##name##_kernel,                                             \
+    &gen_op_spe_l##name##_le_kernel,                                          \
+    &gen_op_spe_l##name##_64_kernel,                                          \
+    &gen_op_spe_l##name##_le_64_kernel,                                       \
+    &gen_op_spe_l##name##_hypv,                                               \
+    &gen_op_spe_l##name##_le_hypv,                                            \
+    &gen_op_spe_l##name##_64_hypv,                                            \
+    &gen_op_spe_l##name##_le_64_hypv,                                         \
+};
+#define OP_SPE_ST_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_st##name[] = {                                   \
+    &gen_op_spe_st##name##_user,                                              \
+    &gen_op_spe_st##name##_le_user,                                           \
+    &gen_op_spe_st##name##_64_user,                                           \
+    &gen_op_spe_st##name##_le_64_user,                                        \
+    &gen_op_spe_st##name##_kernel,                                            \
+    &gen_op_spe_st##name##_le_kernel,                                         \
+    &gen_op_spe_st##name##_64_kernel,                                         \
+    &gen_op_spe_st##name##_le_64_kernel,                                      \
+    &gen_op_spe_st##name##_hypv,                                              \
+    &gen_op_spe_st##name##_le_hypv,                                           \
+    &gen_op_spe_st##name##_64_hypv,                                           \
+    &gen_op_spe_st##name##_le_64_hypv,                                        \
+};
+#elif defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+#define OP_SPE_LD_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_l##name[] = {                                    \
+    &gen_op_spe_l##name##_user,                                               \
+    &gen_op_spe_l##name##_le_user,                                            \
+    &gen_op_spe_l##name##_64_user,                                            \
+    &gen_op_spe_l##name##_le_64_user,                                         \
+    &gen_op_spe_l##name##_kernel,                                             \
+    &gen_op_spe_l##name##_le_kernel,                                          \
     &gen_op_spe_l##name##_64_kernel,                                          \
     &gen_op_spe_l##name##_le_64_kernel,                                       \
 };
@@ -5312,14 +5450,15 @@ static GenOpFunc *gen_op_spe_l##name[] = {                                    \
 static GenOpFunc *gen_op_spe_st##name[] = {                                   \
     &gen_op_spe_st##name##_user,                                              \
     &gen_op_spe_st##name##_le_user,                                           \
-    &gen_op_spe_st##name##_kernel,                                            \
-    &gen_op_spe_st##name##_le_kernel,                                         \
     &gen_op_spe_st##name##_64_user,                                           \
     &gen_op_spe_st##name##_le_64_user,                                        \
+    &gen_op_spe_st##name##_kernel,                                            \
+    &gen_op_spe_st##name##_le_kernel,                                         \
     &gen_op_spe_st##name##_64_kernel,                                         \
     &gen_op_spe_st##name##_le_64_kernel,                                      \
 };
 #else /* defined(TARGET_PPC64) */
+/* Full system - 32 bits mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_user,                                               \
@@ -6173,6 +6312,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     opc_handler_t **table, *handler;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
+    int supervisor;
     int j, lj = -1;
 
     pc_start = tb->pc;
@@ -6185,24 +6325,21 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
 #if defined(CONFIG_USER_ONLY)
-    ctx.mem_idx = msr_le;
-#if defined(TARGET_PPC64)
-    ctx.mem_idx |= msr_sf << 1;
-#endif
+    supervisor = 0;
 #else
 #if defined(TARGET_PPC64H)
     if (msr_pr == 0 && msr_hv == 1)
-        ctx.supervisor = 2;
+        supervisor = 2;
     else
 #endif
-        ctx.supervisor = 1 - msr_pr;
-    ctx.mem_idx = ((1 - msr_pr) << 1) | msr_le;
-#if defined(TARGET_PPC64)
-    ctx.mem_idx |= msr_sf << 2;
-#endif
+        supervisor = 1 - msr_pr;
+    ctx.supervisor = supervisor;
 #endif
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_sf;
+    ctx.mem_idx = (supervisor << 2) | (msr_sf << 1) | msr_le;
+#else
+    ctx.mem_idx = (supervisor << 1) | msr_le;
 #endif
     ctx.fpu_enabled = msr_fp;
 #if defined(TARGET_PPCEMB)
