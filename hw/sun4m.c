@@ -440,7 +440,8 @@ static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
 
     kernel_size = 0;
     if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, -0xf0000000, NULL, NULL, NULL);
+        kernel_size = load_elf(kernel_filename, -0xf0000000ULL, NULL, NULL,
+                               NULL);
         if (kernel_size < 0)
 	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
 	if (kernel_size < 0)
