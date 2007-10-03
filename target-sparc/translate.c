@@ -87,7 +87,7 @@ enum {
 #define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), ((b) - (a) + 1))
 
 #ifdef TARGET_SPARC64
-#define DFPREG(r) (((r & 1) << 6) | (r & 0x1e))
+#define DFPREG(r) (((r & 1) << 5) | (r & 0x1e))
 #else
 #define DFPREG(r) (r & 0x1e)
 #endif
@@ -431,7 +431,7 @@ static inline void gen_ldf_asi(int insn, int size)
 {
     int asi, offset, rd;
 
-    rd = GET_FIELD(insn, 2, 6);
+    rd = DFPREG(GET_FIELD(insn, 2, 6));
     if (IS_IMM) {
         offset = GET_FIELD(insn, 25, 31);
         gen_op_ldf_asi_reg(offset, size, rd);
@@ -445,7 +445,7 @@ static inline void gen_stf_asi(int insn, int size)
 {
     int asi, offset, rd;
 
-    rd = GET_FIELD(insn, 2, 6);
+    rd = DFPREG(GET_FIELD(insn, 2, 6));
     if (IS_IMM) {
         offset = GET_FIELD(insn, 25, 31);
         gen_op_stf_asi_reg(offset, size, rd);
