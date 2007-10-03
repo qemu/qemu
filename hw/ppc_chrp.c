@@ -491,6 +491,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                 openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
                     ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_HRESET];
                 break;
+#if defined(TARGET_PPC64)
             case PPC_FLAGS_INPUT_970:
                 openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
                 openpic_irqs[i][OPENPIC_OUTPUT_INT] =
@@ -505,6 +506,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                 openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
                     ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_HRESET];
                 break;
+#endif /* defined(TARGET_PPC64) */
             default:
                 cpu_abort(env, "Bus model not supported on mac99 machine\n");
                 exit(1);

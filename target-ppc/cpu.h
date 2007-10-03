@@ -94,8 +94,6 @@ enum {
     POWERPC_MMU_UNKNOWN    = 0,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B,
-    /* Standard 64 bits PowerPC MMU                            */
-    POWERPC_MMU_64B,
     /* PowerPC 601 MMU                                         */
     POWERPC_MMU_601,
     /* PowerPC 6xx MMU with software TLB                       */
@@ -112,8 +110,12 @@ enum {
     POWERPC_MMU_BOOKE,
     /* BookE FSL MMU model                                     */
     POWERPC_MMU_BOOKE_FSL,
+#if defined(TARGET_PPC64)
+    /* Standard 64 bits PowerPC MMU                            */
+    POWERPC_MMU_64B,
     /* 64 bits "bridge" PowerPC MMU                            */
     POWERPC_MMU_64BRIDGE,
+#endif /* defined(TARGET_PPC64) */
 };
 
 /*****************************************************************************/
@@ -142,10 +144,12 @@ enum {
     POWERPC_EXCP_7x5,
     /* PowerPC 74xx exception model     */
     POWERPC_EXCP_74xx,
-    /* PowerPC 970 exception model      */
-    POWERPC_EXCP_970,
     /* BookE exception model            */
     POWERPC_EXCP_BOOKE,
+#if defined(TARGET_PPC64)
+    /* PowerPC 970 exception model      */
+    POWERPC_EXCP_970,
+#endif /* defined(TARGET_PPC64) */
 };
 
 /*****************************************************************************/
@@ -1133,6 +1137,7 @@ enum {
     PPC40x_INPUT_NB,
 };
 
+#if defined(TARGET_PPC64)
 enum {
     /* PowerPC 620 (and probably others) input pins */
     PPC620_INPUT_HRESET     = 0,
@@ -1155,6 +1160,7 @@ enum {
     PPC970_INPUT_INT        = 5,
     PPC970_INPUT_THINT      = 6,
 };
+#endif
 
 /* Hardware exceptions definitions */
 enum {

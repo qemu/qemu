@@ -4448,6 +4448,7 @@ enum {
     CPU_POWERPC_74x7_v11    = 0x80030101, /* aka B: 1.1 */
     CPU_POWERPC_74x7_v12    = 0x80020102, /* aka C: 1.2 */
     /* 64 bits PowerPC */
+#if defined(TARGET_PPC64)
     CPU_POWERPC_620         = 0x00140000,
     CPU_POWERPC_630         = 0x00400000,
     CPU_POWERPC_631         = 0x00410104,
@@ -4481,6 +4482,7 @@ enum {
     CPU_POWERPC_RS64II      = 0x00340000,
     CPU_POWERPC_RS64III     = 0x00360000,
     CPU_POWERPC_RS64IV      = 0x00370000,
+#endif /* defined(TARGET_PPC64) */
     /* Original POWER */
     /* XXX: should be POWER (RIOS), RSC3308, RSC4608,
      * POWER2 (RIOS2) & RSC2 (P2SC) here
@@ -5835,9 +5837,6 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
         case POWERPC_MMU_32B:
             mmu_model = "PowerPC 32";
             break;
-        case POWERPC_MMU_64B:
-            mmu_model = "PowerPC 64";
-            break;
         case POWERPC_MMU_601:
             mmu_model = "PowerPC 601";
             break;
@@ -5863,9 +5862,14 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
         case POWERPC_MMU_BOOKE_FSL:
             mmu_model = "PowerPC BookE FSL";
             break;
+#if defined (TARGET_PPC64)
+        case POWERPC_MMU_64B:
+            mmu_model = "PowerPC 64";
+            break;
         case POWERPC_MMU_64BRIDGE:
             mmu_model = "PowerPC 64 bridge";
             break;
+#endif
         default:
             mmu_model = "Unknown or invalid";
             break;
@@ -5901,12 +5905,14 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
         case POWERPC_EXCP_74xx:
             excp_model = "PowerPC 74xx";
             break;
-        case POWERPC_EXCP_970:
-            excp_model = "PowerPC 970";
-            break;
         case POWERPC_EXCP_BOOKE:
             excp_model = "PowerPC BookE";
             break;
+#if defined (TARGET_PPC64)
+        case POWERPC_EXCP_970:
+            excp_model = "PowerPC 970";
+            break;
+#endif
         default:
             excp_model = "Unknown or invalid";
             break;
@@ -5921,12 +5927,14 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
         case PPC_FLAGS_INPUT_405:
             bus_model = "PowerPC 405";
             break;
-        case PPC_FLAGS_INPUT_970:
-            bus_model = "PowerPC 970";
-            break;
         case PPC_FLAGS_INPUT_401:
             bus_model = "PowerPC 401/403";
             break;
+#if defined (TARGET_PPC64)
+        case PPC_FLAGS_INPUT_970:
+            bus_model = "PowerPC 970";
+            break;
+#endif
         default:
             bus_model = "Unknown or invalid";
             break;

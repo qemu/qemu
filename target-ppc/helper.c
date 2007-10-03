@@ -1612,9 +1612,15 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
         cpu_abort(env, "MMU model not implemented\n");
         break;
     case POWERPC_MMU_32B:
+#if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_64BRIDGE:
+#endif /* defined(TARGET_PPC64) */
         tlb_flush(env, 1);
+        break;
+    default:
+        /* XXX: TODO */
+        cpu_abort(env, "Unknown MMU model %d\n", env->mmu_model);
         break;
     }
 }
@@ -1672,13 +1678,20 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
         tlb_flush_page(env, addr | (0xE << 28));
         tlb_flush_page(env, addr | (0xF << 28));
         break;
+#if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_64BRIDGE:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,
+         *      and we still don't have a tlb_flush_mask(env, n, mask) in Qemu,
          *      we just invalidate all TLBs
          */
         tlb_flush(env, 1);
+        break;
+#endif /* defined(TARGET_PPC64) */
+    default:
+        /* XXX: TODO */
+        cpu_abort(env, "Unknown MMU model 2\n");
         break;
     }
 #else

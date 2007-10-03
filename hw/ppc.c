@@ -30,7 +30,7 @@
 extern FILE *logfile;
 extern int loglevel;
 
-void ppc_set_irq (CPUState *env, int n_IRQ, int level)
+static void ppc_set_irq (CPUState *env, int n_IRQ, int level)
 {
     if (level) {
         env->pending_interrupts |= 1 << n_IRQ;
@@ -162,6 +162,7 @@ void ppc6xx_irq_init (CPUState *env)
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env, 6);
 }
 
+#if defined(TARGET_PPC64)
 /* PowerPC 970 internal IRQ controller */
 static void ppc970_set_irq (void *opaque, int pin, int level)
 {
@@ -283,6 +284,7 @@ void ppc970_irq_init (CPUState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env, 7);
 }
+#endif /* defined(TARGET_PPC64) */
 
 /* PowerPC 40x internal IRQ controller */
 static void ppc40x_set_irq (void *opaque, int pin, int level)
