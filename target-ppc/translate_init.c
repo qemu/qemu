@@ -3859,7 +3859,7 @@ static void init_proc_970 (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_clear,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
@@ -3902,7 +3902,7 @@ static void init_proc_970FX (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_clear,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
@@ -3945,7 +3945,7 @@ static void init_proc_970GX (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_clear,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
