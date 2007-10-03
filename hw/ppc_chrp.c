@@ -327,9 +327,6 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* init CPUs */
     env = cpu_init();
-    qemu_register_reset(&cpu_ppc_reset, env);
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-
     if (cpu_model == NULL)
         cpu_model = "default";
     ppc_find_by_name(cpu_model, &def);
@@ -338,9 +335,12 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
     }
     for (i = 0; i < smp_cpus; i++) {
         cpu_ppc_register(env, def);
+        cpu_ppc_reset(env);
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         env->osi_call = vga_osi_call;
+        qemu_register_reset(&cpu_ppc_reset, env);
+        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;
     }
 
