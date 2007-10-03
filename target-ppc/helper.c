@@ -45,10 +45,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
     if (rw == 2) {
         exception = POWERPC_EXCP_ISI;
-        error_code = 0;
+        error_code = 0x40000000;
     } else {
         exception = POWERPC_EXCP_DSI;
-        error_code = 0;
+        error_code = 0x40000000;
         if (rw)
             error_code |= 0x02000000;
         env->spr[SPR_DAR] = address;
@@ -1227,7 +1227,6 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
     mmu_ctx_t ctx;
-    int exception = 0, error_code = 0;
     int access_type;
     int ret = 0;
 
@@ -1253,40 +1252,34 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             cpu_dump_state(env, logfile, fprintf, 0);
 #endif
         if (access_type == ACCESS_CODE) {
-            exception = POWERPC_EXCP_ISI;
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
                 switch (env->mmu_model) {
                 case POWERPC_MMU_SOFT_6xx:
-                    exception = POWERPC_EXCP_IFTLB;
+                    env->exception_index = POWERPC_EXCP_IFTLB;
+                    env->error_code = 1 << 18;
                     env->spr[SPR_IMISS] = address;
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
-                    error_code = 1 << 18;
                     goto tlb_miss;
                 case POWERPC_MMU_SOFT_74xx:
-                    exception = POWERPC_EXCP_IFTLB;
+                    env->exception_index = POWERPC_EXCP_IFTLB;
                     goto tlb_miss_74xx;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
-                    exception = POWERPC_EXCP_ITLB;
-                    error_code = 0;
+                    env->exception_index = POWERPC_EXCP_ITLB;
+                    env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
                 case POWERPC_MMU_32B:
-                    error_code = 0x40000000;
-                    break;
 #if defined(TARGET_PPC64)
                 case POWERPC_MMU_64B:
-                    /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
-                    return -1;
                 case POWERPC_MMU_64BRIDGE:
-                    /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
-                    return -1;
 #endif
+                    env->exception_index = POWERPC_EXCP_ISI;
+                    env->error_code = 0x40000000;
+                    break;
                 case POWERPC_MMU_601:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
@@ -1310,64 +1303,65 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 break;
             case -2:
                 /* Access rights violation */
-                error_code = 0x08000000;
+                env->exception_index = POWERPC_EXCP_ISI;
+                env->error_code = 0x08000000;
                 break;
             case -3:
                 /* No execute protection violation */
-                error_code = 0x10000000;
+                env->exception_index = POWERPC_EXCP_ISI;
+                env->error_code = 0x10000000;
                 break;
             case -4:
                 /* Direct store exception */
                 /* No code fetch is allowed in direct-store areas */
-                error_code = 0x10000000;
+                env->exception_index = POWERPC_EXCP_ISI;
+                env->error_code = 0x10000000;
                 break;
 #if defined(TARGET_PPC64)
             case -5:
                 /* No match in segment table */
-                exception = POWERPC_EXCP_ISEG;
-                error_code = 0;
+                env->exception_index = POWERPC_EXCP_ISEG;
+                env->error_code = 0;
                 break;
 #endif
             }
         } else {
-            exception = POWERPC_EXCP_DSI;
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
                 switch (env->mmu_model) {
                 case POWERPC_MMU_SOFT_6xx:
                     if (rw == 1) {
-                        exception = POWERPC_EXCP_DSTLB;
-                        error_code = 1 << 16;
+                        env->exception_index = POWERPC_EXCP_DSTLB;
+                        env->error_code = 1 << 16;
                     } else {
-                        exception = POWERPC_EXCP_DLTLB;
-                        error_code = 0;
+                        env->exception_index = POWERPC_EXCP_DLTLB;
+                        env->error_code = 0;
                     }
                     env->spr[SPR_DMISS] = address;
                     env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
                 tlb_miss:
-                    error_code |= ctx.key << 19;
+                    env->error_code |= ctx.key << 19;
                     env->spr[SPR_HASH1] = ctx.pg_addr[0];
                     env->spr[SPR_HASH2] = ctx.pg_addr[1];
-                    /* Do not alter DAR nor DSISR */
-                    goto out;
+                    break;
                 case POWERPC_MMU_SOFT_74xx:
                     if (rw == 1) {
-                        exception = POWERPC_EXCP_DSTLB;
+                        env->exception_index = POWERPC_EXCP_DSTLB;
                     } else {
-                        exception = POWERPC_EXCP_DLTLB;
+                        env->exception_index = POWERPC_EXCP_DLTLB;
                     }
                 tlb_miss_74xx:
                     /* Implement LRU algorithm */
+                    env->error_code = ctx.key << 19;
                     env->spr[SPR_TLBMISS] = (address & ~((target_ulong)0x3)) |
                         ((env->last_way + 1) & (env->nb_ways - 1));
                     env->spr[SPR_PTEHI] = 0x80000000 | ctx.ptem;
-                    error_code = ctx.key << 19;
                     break;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
-                    exception = POWERPC_EXCP_DTLB;
-                    error_code = 0;
+                    env->exception_index = POWERPC_EXCP_DTLB;
+                    env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     if (rw)
                         env->spr[SPR_40x_ESR] = 0x00800000;
@@ -1375,18 +1369,18 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                         env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
                 case POWERPC_MMU_32B:
-                    error_code = 0x40000000;
-                    break;
 #if defined(TARGET_PPC64)
                 case POWERPC_MMU_64B:
-                    /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
-                    return -1;
                 case POWERPC_MMU_64BRIDGE:
-                    /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
-                    return -1;
 #endif
+                    env->exception_index = POWERPC_EXCP_DSI;
+                    env->error_code = 0;
+                    env->spr[SPR_DAR] = address;
+                    if (rw == 1)
+                        env->spr[SPR_DSISR] = 0x42000000;
+                    else
+                        env->spr[SPR_DSISR] = 0x40000000;
+                    break;
                 case POWERPC_MMU_601:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
@@ -1410,52 +1404,66 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 break;
             case -2:
                 /* Access rights violation */
-                error_code = 0x08000000;
+                env->exception_index = POWERPC_EXCP_DSI;
+                env->error_code = 0;
+                env->spr[SPR_DAR] = address;
+                if (rw == 1)
+                    env->spr[SPR_DSISR] = 0x0A000000;
+                else
+                    env->spr[SPR_DSISR] = 0x08000000;
                 break;
             case -4:
                 /* Direct store exception */
                 switch (access_type) {
                 case ACCESS_FLOAT:
                     /* Floating point load/store */
-                    exception = POWERPC_EXCP_ALIGN;
-                    error_code = POWERPC_EXCP_ALIGN_FP;
+                    env->exception_index = POWERPC_EXCP_ALIGN;
+                    env->error_code = POWERPC_EXCP_ALIGN_FP;
+                    env->spr[SPR_DAR] = address;
                     break;
                 case ACCESS_RES:
-                    /* lwarx, ldarx or srwcx. */
-                    error_code = 0x04000000;
+                    /* lwarx, ldarx or stwcx. */
+                    env->exception_index = POWERPC_EXCP_DSI;
+                    env->error_code = 0;
+                    env->spr[SPR_DAR] = address;
+                    if (rw == 1)
+                        env->spr[SPR_DSISR] = 0x06000000;
+                    else
+                        env->spr[SPR_DSISR] = 0x04000000;
                     break;
                 case ACCESS_EXT:
                     /* eciwx or ecowx */
-                    error_code = 0x04100000;
+                    env->exception_index = POWERPC_EXCP_DSI;
+                    env->error_code = 0;
+                    env->spr[SPR_DAR] = address;
+                    if (rw == 1)
+                        env->spr[SPR_DSISR] = 0x06100000;
+                    else
+                        env->spr[SPR_DSISR] = 0x04100000;
                     break;
                 default:
                     printf("DSI: invalid exception (%d)\n", ret);
-                    exception = POWERPC_EXCP_PROGRAM;
-                    error_code = POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
+                    env->exception_index = POWERPC_EXCP_PROGRAM;
+                    env->error_code =
+                        POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
+                    env->spr[SPR_DAR] = address;
                     break;
                 }
                 break;
 #if defined(TARGET_PPC64)
             case -5:
                 /* No match in segment table */
-                exception = POWERPC_EXCP_DSEG;
-                error_code = 0;
+                env->exception_index = POWERPC_EXCP_DSEG;
+                env->error_code = 0;
+                env->spr[SPR_DAR] = address;
                 break;
 #endif
             }
-            if (exception == POWERPC_EXCP_DSI && rw == 1)
-                error_code |= 0x02000000;
-            /* Store fault address */
-            env->spr[SPR_DAR] = address;
-            env->spr[SPR_DSISR] = error_code;
         }
-    out:
 #if 0
-        printf("%s: set exception to %d %02x\n",
-               __func__, exception, error_code);
+        printf("%s: set exception to %d %02x\n", __func__,
+               env->exception, env->error_code);
 #endif
-        env->exception_index = exception;
-        env->error_code = error_code;
         ret = 1;
     }
 
@@ -2291,8 +2299,6 @@ static always_inline void powerpc_excp (CPUState *env,
         if (lpes1 == 0)
             msr_hv = 1;
 #endif
-        /* XXX: TODO */
-        cpu_abort(env, "Data segment exception is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_ISEG:      /* Instruction segment exception            */
         msr_ri = 0;
@@ -2300,9 +2306,6 @@ static always_inline void powerpc_excp (CPUState *env,
         if (lpes1 == 0)
             msr_hv = 1;
 #endif
-        /* XXX: TODO */
-        cpu_abort(env,
-                  "Instruction segment exception is not implemented yet !\n");
         goto store_next;
 #endif /* defined(TARGET_PPC64) */
 #if defined(TARGET_PPC64H)
