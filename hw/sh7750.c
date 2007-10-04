@@ -1,6 +1,7 @@
 /*
  * SH7750 device
  *
+ * Copyright (c) 2007 Magnus Damm
  * Copyright (c) 2005 Samuel Tardieu
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,6 +27,7 @@
 #include "vl.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
+#include "sh_intc.h"
 
 #define NB_DEVICES 4
 
@@ -53,15 +55,10 @@ typedef struct SH7750State {
     sh7750_io_device *devices[NB_DEVICES];	/* External peripherals */
 
     uint16_t icr;
-    uint16_t ipra;
-    uint16_t iprb;
-    uint16_t iprc;
-    uint16_t iprd;
-    uint32_t intpri00;
-    uint32_t intmsk00;
     /* Cache */
     uint32_t ccr;
 
+    struct intc_desc intc;
 } SH7750State;
 
 
@@ -219,14 +216,6 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
 	return portb_lines(s);
     case 0x1fd00000:
         return s->icr;
-    case 0x1fd00004:
-        return s->ipra;
-    case 0x1fd00008:
-        return s->iprb;
-    case 0x1fd0000c:
-        return s->iprc;
-    case 0x1fd00010:
-        return s->iprd;
     default:
 	error_access("word read", addr);
 	assert(0);
@@ -262,14 +251,6 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
 	return 0x00110000;	/* Minimum caches */
     case 0x1f000044:		/* Processor version PRR */
 	return 0x00000100;	/* SH7750R */
-    case 0x1e080000:
-        return s->intpri00;
-    case 0x1e080020:
-        return 0;
-    case 0x1e080040:
-        return s->intmsk00;
-    case 0x1e080060:
-        return 0;
     default:
 	error_access("long read", addr);
 	assert(0);
@@ -330,18 +311,6 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
 	return;
     case 0x1fd00000:
         s->icr = mem_value;
-	return;
-    case 0x1fd00004:
-        s->ipra = mem_value;
-	return;
-    case 0x1fd00008:
-        s->iprb = mem_value;
-	return;
-    case 0x1fd0000c:
-        s->iprc = mem_value;
-	return;
-    case 0x1fd00010:
-        s->iprd = mem_value;
 	return;
     default:
 	error_access("word write", addr);
@@ -407,16 +376,6 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     case SH7750_CCR_A7:
 	s->ccr = mem_value;
 	return;
-    case 0x1e080000:
-        s->intpri00 = mem_value;
-	return;
-    case 0x1e080020:
-        return;
-    case 0x1e080040:
-        s->intmsk00 = mem_value;
-	return;
-    case 0x1e080060:
-        return;
     default:
 	error_access("long write", addr);
 	assert(0);
@@ -435,10 +394,144 @@ static CPUWriteMemoryFunc *sh7750_mem_write[] = {
     sh7750_mem_writel
 };
 
+/* sh775x interrupt controller tables for sh_intc.c
+ * stolen from linux/arch/sh/kernel/cpu/sh4/setup-sh7750.c
+ */
+
+enum {
+	UNUSED = 0,
+
+	/* interrupt sources */
+	IRL0, IRL1, IRL2, IRL3, /* only IRLM mode supported */
+	HUDI, GPIOI,
+	DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2, DMAC_DMTE3,
+	DMAC_DMTE4, DMAC_DMTE5, DMAC_DMTE6, DMAC_DMTE7,
+	DMAC_DMAE,
+	PCIC0_PCISERR, PCIC1_PCIERR, PCIC1_PCIPWDWN, PCIC1_PCIPWON,
+	PCIC1_PCIDMA0, PCIC1_PCIDMA1, PCIC1_PCIDMA2, PCIC1_PCIDMA3,
+	TMU3, TMU4, TMU0, TMU1, TMU2_TUNI, TMU2_TICPI,
+	RTC_ATI, RTC_PRI, RTC_CUI,
+	SCI1_ERI, SCI1_RXI, SCI1_TXI, SCI1_TEI,
+	SCIF_ERI, SCIF_RXI, SCIF_BRI, SCIF_TXI,
+	WDT,
+	REF_RCMI, REF_ROVI,
+
+	/* interrupt groups */
+	DMAC, PCIC1, TMU2, RTC, SCI1, SCIF, REF,
+
+	NR_SOURCES,
+};
+
+static struct intc_vect vectors[] = {
+	INTC_VECT(HUDI, 0x600), INTC_VECT(GPIOI, 0x620),
+	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
+	INTC_VECT(TMU2_TUNI, 0x440), INTC_VECT(TMU2_TICPI, 0x460),
+	INTC_VECT(RTC_ATI, 0x480), INTC_VECT(RTC_PRI, 0x4a0),
+	INTC_VECT(RTC_CUI, 0x4c0),
+	INTC_VECT(SCI1_ERI, 0x4e0), INTC_VECT(SCI1_RXI, 0x500),
+	INTC_VECT(SCI1_TXI, 0x520), INTC_VECT(SCI1_TEI, 0x540),
+	INTC_VECT(SCIF_ERI, 0x700), INTC_VECT(SCIF_RXI, 0x720),
+	INTC_VECT(SCIF_BRI, 0x740), INTC_VECT(SCIF_TXI, 0x760),
+	INTC_VECT(WDT, 0x560),
+	INTC_VECT(REF_RCMI, 0x580), INTC_VECT(REF_ROVI, 0x5a0),
+};
+
+static struct intc_group groups[] = {
+	INTC_GROUP(TMU2, TMU2_TUNI, TMU2_TICPI),
+	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
+	INTC_GROUP(SCI1, SCI1_ERI, SCI1_RXI, SCI1_TXI, SCI1_TEI),
+	INTC_GROUP(SCIF, SCIF_ERI, SCIF_RXI, SCIF_BRI, SCIF_TXI),
+	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
+};
+
+static struct intc_prio_reg prio_registers[] = {
+	{ 0xffd00004, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
+	{ 0xffd00008, 0, 16, 4, /* IPRB */ { WDT, REF, SCI1, 0 } },
+	{ 0xffd0000c, 0, 16, 4, /* IPRC */ { GPIOI, DMAC, SCIF, HUDI } },
+	{ 0xffd00010, 0, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
+	{ 0xfe080000, 0, 32, 4, /* INTPRI00 */ { 0, 0, 0, 0,
+						 TMU4, TMU3,
+						 PCIC1, PCIC0_PCISERR } },
+};
+
+/* SH7750, SH7750S, SH7751 and SH7091 all have 4-channel DMA controllers */
+
+static struct intc_vect vectors_dma4[] = {
+	INTC_VECT(DMAC_DMTE0, 0x640), INTC_VECT(DMAC_DMTE1, 0x660),
+	INTC_VECT(DMAC_DMTE2, 0x680), INTC_VECT(DMAC_DMTE3, 0x6a0),
+	INTC_VECT(DMAC_DMAE, 0x6c0),
+};
+
+static struct intc_group groups_dma4[] = {
+	INTC_GROUP(DMAC, DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2,
+		   DMAC_DMTE3, DMAC_DMAE),
+};
+
+/* SH7750R and SH7751R both have 8-channel DMA controllers */
+
+static struct intc_vect vectors_dma8[] = {
+	INTC_VECT(DMAC_DMTE0, 0x640), INTC_VECT(DMAC_DMTE1, 0x660),
+	INTC_VECT(DMAC_DMTE2, 0x680), INTC_VECT(DMAC_DMTE3, 0x6a0),
+	INTC_VECT(DMAC_DMTE4, 0x780), INTC_VECT(DMAC_DMTE5, 0x7a0),
+	INTC_VECT(DMAC_DMTE6, 0x7c0), INTC_VECT(DMAC_DMTE7, 0x7e0),
+	INTC_VECT(DMAC_DMAE, 0x6c0),
+};
+
+static struct intc_group groups_dma8[] = {
+	INTC_GROUP(DMAC, DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2,
+		   DMAC_DMTE3, DMAC_DMTE4, DMAC_DMTE5,
+		   DMAC_DMTE6, DMAC_DMTE7, DMAC_DMAE),
+};
+
+/* SH7750R, SH7751 and SH7751R all have two extra timer channels */
+
+static struct intc_vect vectors_tmu34[] = {
+	INTC_VECT(TMU3, 0xb00), INTC_VECT(TMU4, 0xb80),
+};
+
+static struct intc_mask_reg mask_registers[] = {
+	{ 0xfe080040, 0xfe080060, 32, /* INTMSK00 / INTMSKCLR00 */
+	  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, TMU4, TMU3,
+	    PCIC1_PCIERR, PCIC1_PCIPWDWN, PCIC1_PCIPWON,
+	    PCIC1_PCIDMA0, PCIC1_PCIDMA1, PCIC1_PCIDMA2,
+	    PCIC1_PCIDMA3, PCIC0_PCISERR } },
+};
+
+/* SH7750S, SH7750R, SH7751 and SH7751R all have IRLM priority registers */
+
+static struct intc_vect vectors_irlm[] = {
+	INTC_VECT(IRL0, 0x240), INTC_VECT(IRL1, 0x2a0),
+	INTC_VECT(IRL2, 0x300), INTC_VECT(IRL3, 0x360),
+};
+
+/* SH7751 and SH7751R both have PCI */
+
+static struct intc_vect vectors_pci[] = {
+	INTC_VECT(PCIC0_PCISERR, 0xa00), INTC_VECT(PCIC1_PCIERR, 0xae0),
+	INTC_VECT(PCIC1_PCIPWDWN, 0xac0), INTC_VECT(PCIC1_PCIPWON, 0xaa0),
+	INTC_VECT(PCIC1_PCIDMA0, 0xa80), INTC_VECT(PCIC1_PCIDMA1, 0xa60),
+	INTC_VECT(PCIC1_PCIDMA2, 0xa40), INTC_VECT(PCIC1_PCIDMA3, 0xa20),
+};
+
+static struct intc_group groups_pci[] = {
+	INTC_GROUP(PCIC1, PCIC1_PCIERR, PCIC1_PCIPWDWN, PCIC1_PCIPWON,
+		   PCIC1_PCIDMA0, PCIC1_PCIDMA1, PCIC1_PCIDMA2, PCIC1_PCIDMA3),
+};
+
+#define SH_CPU_SH7750  (1 << 0)
+#define SH_CPU_SH7750S (1 << 1)
+#define SH_CPU_SH7750R (1 << 2)
+#define SH_CPU_SH7751  (1 << 3)
+#define SH_CPU_SH7751R (1 << 4)
+#define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
+#define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
+
 SH7750State *sh7750_init(CPUSH4State * cpu)
 {
     SH7750State *s;
     int sh7750_io_memory;
+    int cpu_model = SH_CPU_SH7751R; /* for now */
 
     s = qemu_mallocz(sizeof(SH7750State));
     s->cpu = cpu;
@@ -448,6 +541,14 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 					      sh7750_mem_write, s);
     cpu_register_physical_memory(0x1c000000, 0x04000000, sh7750_io_memory);
 
+    sh_intc_init(&s->intc, NR_SOURCES,
+		 _INTC_ARRAY(mask_registers),
+		 _INTC_ARRAY(prio_registers));
+
+    sh_intc_register_sources(&s->intc, 
+			     _INTC_ARRAY(vectors),
+			     _INTC_ARRAY(groups));
+
     sh_serial_init(0x1fe00000, 0, s->periph_freq, serial_hds[0]);
     sh_serial_init(0x1fe80000, SH_SERIAL_FEAT_SCIF,
 		   s->periph_freq, serial_hds[1]);
@@ -455,6 +556,38 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     tmu012_init(0x1fd80000,
 		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
 		s->periph_freq);
-    tmu012_init(0x1e100000, 0, s->periph_freq);
+
+
+    if (cpu_model & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
+        sh_intc_register_sources(&s->intc, 
+				 _INTC_ARRAY(vectors_dma4),
+				 _INTC_ARRAY(groups_dma4));
+    }
+
+    if (cpu_model & (SH_CPU_SH7750R | SH_CPU_SH7751R)) {
+        sh_intc_register_sources(&s->intc, 
+				 _INTC_ARRAY(vectors_dma8),
+				 _INTC_ARRAY(groups_dma8));
+    }
+
+    if (cpu_model & (SH_CPU_SH7750R | SH_CPU_SH7751 | SH_CPU_SH7751R)) {
+        sh_intc_register_sources(&s->intc, 
+				 _INTC_ARRAY(vectors_tmu34),
+				 _INTC_ARRAY(NULL));
+        tmu012_init(0x1e100000, 0, s->periph_freq);
+    }
+
+    if (cpu_model & (SH_CPU_SH7751_ALL)) {
+        sh_intc_register_sources(&s->intc, 
+				 _INTC_ARRAY(vectors_pci),
+				 _INTC_ARRAY(groups_pci));
+    }
+
+    if (cpu_model & (SH_CPU_SH7750S | SH_CPU_SH7750R | SH_CPU_SH7751_ALL)) {
+        sh_intc_register_sources(&s->intc, 
+				 _INTC_ARRAY(vectors_irlm),
+				 _INTC_ARRAY(NULL));
+    }
+
     return s;
 }
