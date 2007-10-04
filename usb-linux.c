@@ -84,9 +84,9 @@ typedef struct PendingURB {
     struct PendingURB *next;
 } PendingURB;
 
-PendingURB *pending_urbs = NULL;
+static PendingURB *pending_urbs = NULL;
 
-int add_pending_urb(struct usbdevfs_urb *urb)
+static int add_pending_urb(struct usbdevfs_urb *urb)
 {
     PendingURB *purb = qemu_mallocz(sizeof(PendingURB));
     if (purb) {
@@ -101,7 +101,7 @@ int add_pending_urb(struct usbdevfs_urb *urb)
     return 0;
 }
 
-int del_pending_urb(struct usbdevfs_urb *urb)
+static int del_pending_urb(struct usbdevfs_urb *urb)
 {
     PendingURB *purb = pending_urbs;
     PendingURB *prev = NULL;
@@ -123,7 +123,8 @@ int del_pending_urb(struct usbdevfs_urb *urb)
     return 0;
 }
 
-PendingURB *get_pending_urb(struct usbdevfs_urb *urb)
+#ifdef USE_ASYNCIO
+static PendingURB *get_pending_urb(struct usbdevfs_urb *urb)
 {
     PendingURB *purb = pending_urbs;
 
@@ -136,6 +137,7 @@ PendingURB *get_pending_urb(struct usbdevfs_urb *urb)
     }
     return NULL;
 }
+#endif
 
 static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
 {
@@ -338,9 +340,46 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_linux_bh_cb(void *opaque);
+#ifdef USE_ASYNCIO
+static void usb_linux_bh_cb(void *opaque)
+{
+    PendingURB *pending_urb = (PendingURB *)opaque;
+    USBHostDevice *s = pending_urb->dev;
+    struct usbdevfs_urb *purb = NULL;
+    USBPacket *p = s->packet;
+    int ret;
 
-void isoch_done(int signum, siginfo_t *info, void *context) {
+    /* FIXME: handle purb->status */
+    qemu_free(pending_urb->bh);
+    del_pending_urb(pending_urb->urb);
+
+    if (!p) {
+        s->urbs_ready++;
+        return;
+    }
+
+    ret = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &purb);
+    if (ret < 0) {
+        printf("usb_linux_bh_cb: REAPURBNDELAY ioctl=%d errno=%d\n",
+               ret, errno);
+        return;
+    }
+
+#ifdef DEBUG_ISOCH
+    if (purb == pending_urb->urb) {
+        printf("usb_linux_bh_cb: urb mismatch reaped=%p pending=%p\n",
+               purb, urb);
+    }
+#endif
+
+    p->len = purb->actual_length;
+    usb_packet_complete(p);
+    qemu_free(purb);
+    s->packet = NULL;
+}
+
+static void isoch_done(int signum, siginfo_t *info, void *context)
+{
     struct usbdevfs_urb *urb = (struct usbdevfs_urb *)info->si_addr;
     USBHostDevice *s = (USBHostDevice *)urb->usercontext;
     PendingURB *purb;
@@ -360,6 +399,7 @@ void isoch_done(int signum, siginfo_t *info, void *context) {
         }
     }
 }
+#endif
 
 static int usb_host_handle_isoch(USBDevice *dev, USBPacket *p)
 {
@@ -445,43 +485,6 @@ static int usb_host_handle_isoch(USBDevice *dev, USBPacket *p)
     }
     return ret;
 #endif
-}
-
-static void usb_linux_bh_cb(void *opaque)
-{
-    PendingURB *pending_urb = (PendingURB *)opaque;
-    USBHostDevice *s = pending_urb->dev;
-    struct usbdevfs_urb *purb = NULL;
-    USBPacket *p = s->packet;
-    int ret;
-
-    /* FIXME: handle purb->status */
-    qemu_free(pending_urb->bh);
-    del_pending_urb(pending_urb->urb);
-
-    if (!p) {
-        s->urbs_ready++;
-        return;
-    }
-
-    ret = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &purb);
-    if (ret < 0) {
-        printf("usb_linux_bh_cb: REAPURBNDELAY ioctl=%d errno=%d\n",
-               ret, errno);
-        return;
-    }
-
-#ifdef DEBUG_ISOCH
-    if (purb == pending_urb->urb) {
-        printf("usb_linux_bh_cb: urb mismatch reaped=%p pending=%p\n",
-               purb, urb);
-    }
-#endif
-
-    p->len = purb->actual_length;
-    usb_packet_complete(p);
-    qemu_free(purb);
-    s->packet = NULL;
 }
 
 /* returns 1 on problem encountered or 0 for success */
