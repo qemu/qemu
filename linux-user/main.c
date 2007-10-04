@@ -2100,7 +2100,7 @@ int main(int argc, char **argv)
                       "Unable to find PowerPC CPU definition\n");
         }
         cpu_ppc_register(env, def);
-
+        cpu_ppc_reset(env);
         for (i = 0; i < 32; i++) {
             if (i != 12 && i != 6 && i != 13)
                 env->msr[i] = (regs->msr >> i) & 1;
