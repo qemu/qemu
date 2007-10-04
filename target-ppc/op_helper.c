@@ -1061,21 +1061,21 @@ void do_POWER_clcs (void)
     switch (T0) {
     case 0x0CUL:
         /* Instruction cache line size */
-        T0 = ICACHE_LINE_SIZE;
+        T0 = env->icache_line_size;
         break;
     case 0x0DUL:
         /* Data cache line size */
-        T0 = DCACHE_LINE_SIZE;
+        T0 = env->dcache_line_size;
         break;
     case 0x0EUL:
         /* Minimum cache line size */
-        T0 = ICACHE_LINE_SIZE < DCACHE_LINE_SIZE ?
-            ICACHE_LINE_SIZE : DCACHE_LINE_SIZE;
+        T0 = env->icache_line_size < env->dcache_line_size ?
+            env->icache_line_size : env->dcache_line_size;
         break;
     case 0x0FUL:
         /* Maximum cache line size */
-        T0 = ICACHE_LINE_SIZE > DCACHE_LINE_SIZE ?
-            ICACHE_LINE_SIZE : DCACHE_LINE_SIZE;
+        T0 = env->icache_line_size > env->dcache_line_size ?
+            env->icache_line_size : env->dcache_line_size;
         break;
     default:
         /* Undefined */

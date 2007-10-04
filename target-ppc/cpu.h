@@ -82,12 +82,6 @@ typedef uint32_t ppc_gpr_t;
 #define ELF_MACHINE     EM_PPC
 #endif
 
-/* XXX: this should be tunable: PowerPC 601 & 64 bits PowerPC
- *                              have different cache line sizes
- */
-#define ICACHE_LINE_SIZE 32
-#define DCACHE_LINE_SIZE 32
-
 /*****************************************************************************/
 /* MMU model                                                                 */
 enum {
@@ -521,6 +515,9 @@ struct CPUPPCState {
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
 
+    int dcache_line_size;
+    int icache_line_size;
+
     /* Those resources are used during exception processing */
     /* CPU model definition */
     target_ulong msr_mask;
@@ -546,6 +543,7 @@ struct CPUPPCState {
     target_ulong excp_prefix;
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
+    target_ulong hreset_vector;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1052,6 +1050,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_601_HID5     (0x3F5)
 #define SPR_40x_DAC1     (0x3F6)
 #define SPR_MSSCR0       (0x3F6)
+#define SPR_970_HID5     (0x3F6)
 #define SPR_MSSSR0       (0x3F7)
 #define SPR_DABRX        (0x3F7)
 #define SPR_40x_DAC2     (0x3F7)

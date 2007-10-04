@@ -30,6 +30,7 @@ void glue(do_lmw_le, MEMSUFFIX) (int dst);
 void glue(do_stmw, MEMSUFFIX) (int src);
 void glue(do_stmw_le, MEMSUFFIX) (int src);
 void glue(do_icbi, MEMSUFFIX) (void);
+void glue(do_dcbz, MEMSUFFIX) (void);
 void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb);
 void glue(do_POWER2_lfq, MEMSUFFIX) (void);
 void glue(do_POWER2_lfq_le, MEMSUFFIX) (void);
@@ -46,6 +47,7 @@ void glue(do_lmw_le_64, MEMSUFFIX) (int dst);
 void glue(do_stmw_64, MEMSUFFIX) (int src);
 void glue(do_stmw_le_64, MEMSUFFIX) (int src);
 void glue(do_icbi_64, MEMSUFFIX) (void);
+void glue(do_dcbz_64, MEMSUFFIX) (void);
 #endif
 
 #else

@@ -2542,7 +2542,7 @@ static void init_excp_970 (CPUPPCState *env)
 /* PowerPC implementations definitions                                       */
 
 /* PowerPC 40x instruction set                                               */
-#define POWERPC_INSNS_EMB    (PPC_INSNS_BASE | PPC_EMB_COMMON)
+#define POWERPC_INSNS_EMB    (PPC_INSNS_BASE | PPC_CACHE_DCBZ | PPC_EMB_COMMON)
 
 /* PowerPC 401                                                               */
 #define POWERPC_INSNS_401    (POWERPC_INSNS_EMB |                             \
@@ -2560,8 +2560,14 @@ static void init_proc_401 (CPUPPCState *env)
     gen_spr_401_403(env);
     gen_spr_401(env);
     init_excp_4xx_real(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 401x2                                                             */
@@ -2587,8 +2593,14 @@ static void init_proc_401x2 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 401x3                                                             */
@@ -2612,8 +2624,14 @@ static void init_proc_401x3 (CPUPPCState *env)
     gen_spr_401x2(env);
     gen_spr_compress(env);
     init_excp_4xx_softmmu(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* IOP480                                                                    */
@@ -2639,8 +2657,14 @@ static void init_proc_IOP480 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 403                                                               */
@@ -2661,8 +2685,14 @@ static void init_proc_403 (CPUPPCState *env)
     gen_spr_403(env);
     gen_spr_403_real(env);
     init_excp_4xx_real(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 403 GCX                                                           */
@@ -2699,8 +2729,14 @@ static void init_proc_403GCX (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 405                                                               */
@@ -2737,8 +2773,14 @@ static void init_proc_405 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_4xx_softmmu(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 440 EP                                                            */
@@ -2781,7 +2823,13 @@ static void init_proc_440EP (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 440 GP                                                            */
@@ -2806,7 +2854,13 @@ static void init_proc_440GP (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 440x4                                                             */
@@ -2832,7 +2886,13 @@ static void init_proc_440x4 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 440x5                                                             */
@@ -2875,7 +2935,13 @@ static void init_proc_440x5 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 460 (guessed)                                                     */
@@ -2924,7 +2990,13 @@ static void init_proc_460 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 460F (guessed)                                                    */
@@ -2976,7 +3048,13 @@ static void init_proc_460F (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* Generic BookE PowerPC                                                     */
@@ -2997,6 +3075,12 @@ __attribute__ (( unused ))
 static void init_proc_BookE (CPUPPCState *env)
 {
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* e200 core                                                                 */
@@ -3025,7 +3109,13 @@ static void init_proc_e500 (CPUPPCState *env)
     env->nb_ways = 1;
     env->id_tlbs = 0;
     init_excp_BookE(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* e600 core                                                                 */
@@ -3038,7 +3128,7 @@ static void init_proc_e500 (CPUPPCState *env)
 #define POWERPC_INSNS_WORKS  (POWERPC_INSNS_6xx | PPC_FLOAT_FSQRT |           \
                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
                               PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
-                              PPC_MEM_TLBSYNC | PPC_MFTB)
+                              PPC_MEM_TLBSYNC | PPC_CACHE_DCBZ | PPC_MFTB)
 
 /* POWER : same as 601, without mfmsr, mfsr                                  */
 #if defined(TODO)
@@ -3048,7 +3138,8 @@ static void init_proc_e500 (CPUPPCState *env)
 #endif /* TODO */
 
 /* PowerPC 601                                                               */
-#define POWERPC_INSNS_601    (POWERPC_INSNS_6xx | PPC_EXTERN | PPC_POWER_BR)
+#define POWERPC_INSNS_601    (POWERPC_INSNS_6xx | PPC_CACHE_DCBZ |            \
+                              PPC_EXTERN | PPC_POWER_BR)
 #define POWERPC_MSRM_601     (0x000000000000FE70ULL)
 //#define POWERPC_MMU_601      (POWERPC_MMU_601)
 //#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
@@ -3091,14 +3182,21 @@ static void init_proc_601 (CPUPPCState *env)
     env->id_tlbs = 0;
     env->id_tlbs = 0;
     init_excp_601(env);
+    env->dcache_line_size = 64;
+    env->icache_line_size = 64;
     /* XXX: TODO: allocate internal IRQ controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 602                                                               */
 #define POWERPC_INSNS_602    (POWERPC_INSNS_6xx | PPC_MFTB |                  \
                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
                               PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
-                              PPC_6xx_TLB | PPC_MEM_TLBSYNC | PPC_602_SPEC)
+                              PPC_6xx_TLB | PPC_MEM_TLBSYNC | PPC_CACHE_DCBZ |\
+                              PPC_602_SPEC)
 #define POWERPC_MSRM_602     (0x000000000033FF73ULL)
 #define POWERPC_MMU_602      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_602     (POWERPC_EXCP_602)
@@ -3126,8 +3224,14 @@ static void init_proc_602 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
     init_excp_602(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 603                                                               */
@@ -3159,8 +3263,14 @@ static void init_proc_603 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
     init_excp_603(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 603e                                                              */
@@ -3197,8 +3307,14 @@ static void init_proc_603E (CPUPPCState *env)
     gen_low_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
     init_excp_603(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC G2                                                                */
@@ -3237,8 +3353,14 @@ static void init_proc_G2 (CPUPPCState *env)
     gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
     init_excp_G2(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC G2LE                                                              */
@@ -3277,8 +3399,14 @@ static void init_proc_G2LE (CPUPPCState *env)
     gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
     init_excp_G2(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 604                                                               */
@@ -3309,8 +3437,14 @@ static void init_proc_604 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     init_excp_604(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 740/750 (aka G3)                                                  */
@@ -3343,8 +3477,14 @@ static void init_proc_7x0 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     init_excp_7x0(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 750FX/GX                                                          */
@@ -3384,8 +3524,14 @@ static void init_proc_750fx (CPUPPCState *env)
     /* PowerPC 750fx & 750gx has 8 DBATs and 8 IBATs */
     gen_high_BATs(env);
     init_excp_750FX(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 745/755                                                           */
@@ -3433,8 +3579,14 @@ static void init_proc_7x5 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 7400 (aka G4)                                                     */
@@ -3460,8 +3612,14 @@ static void init_proc_7400 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     init_excp_7400(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 7410 (aka G4)                                                     */
@@ -3499,8 +3657,14 @@ static void init_proc_7410 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     init_excp_7400(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 7440 (aka G4)                                                     */
@@ -3564,8 +3728,14 @@ static void init_proc_7440 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_74xx_soft_tlb(env, 128, 2);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 7450 (aka G4)                                                     */
@@ -3632,8 +3802,14 @@ static void init_proc_7450 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 7445 (aka G4)                                                     */
@@ -3732,8 +3908,14 @@ static void init_proc_7445 (CPUPPCState *env)
     gen_high_BATs(env);
     gen_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 /* PowerPC 7455 (aka G4)                                                     */
@@ -3834,13 +4016,23 @@ static void init_proc_7455 (CPUPPCState *env)
     gen_high_BATs(env);
     gen_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
+#endif
 }
 
 #if defined (TARGET_PPC64)
+#define POWERPC_INSNS_WORK64  (POWERPC_INSNS_6xx | PPC_FLOAT_FSQRT |          \
+                              PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
+                              PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
+                              PPC_MEM_TLBSYNC | PPC_CACHE_DCBZT | PPC_MFTB)
 /* PowerPC 970                                                               */
-#define POWERPC_INSNS_970    (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
+#define POWERPC_INSNS_970    (POWERPC_INSNS_WORK64 | PPC_FLOAT_FSQRT |        \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_64_BRIDGE | PPC_SLBI)
 #define POWERPC_MSRM_970     (0x900000000204FF36ULL)
@@ -3860,7 +4052,7 @@ static void init_proc_970 (CPUPPCState *env)
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_clear,
-                 0x00000000);
+                 0x60000000);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3878,12 +4070,18 @@ static void init_proc_970 (CPUPPCState *env)
     env->slb_nr = 32;
 #endif
     init_excp_970(env);
+    env->dcache_line_size = 128;
+    env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL;
+#endif
 }
 
 /* PowerPC 970FX (aka G5)                                                    */
-#define POWERPC_INSNS_970FX  (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
+#define POWERPC_INSNS_970FX  (POWERPC_INSNS_WORK64 | PPC_FLOAT_FSQRT |        \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_64_BRIDGE | PPC_SLBI)
 #define POWERPC_MSRM_970FX   (0x800000000204FF36ULL)
@@ -3903,7 +4101,7 @@ static void init_proc_970FX (CPUPPCState *env)
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_clear,
-                 0x00000000);
+                 0x60000000);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3914,6 +4112,11 @@ static void init_proc_970FX (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_970_HID5, "HID5",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
@@ -3921,12 +4124,18 @@ static void init_proc_970FX (CPUPPCState *env)
     env->slb_nr = 32;
 #endif
     init_excp_970(env);
+    env->dcache_line_size = 128;
+    env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL;
+#endif
 }
 
 /* PowerPC 970 GX                                                            */
-#define POWERPC_INSNS_970GX  (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
+#define POWERPC_INSNS_970GX  (POWERPC_INSNS_WORK64 | PPC_FLOAT_FSQRT |        \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_64_BRIDGE | PPC_SLBI)
 #define POWERPC_MSRM_970GX   (0x800000000204FF36ULL)
@@ -3946,7 +4155,7 @@ static void init_proc_970GX (CPUPPCState *env)
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_clear,
-                 0x00000000);
+                 0x60000000);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3957,6 +4166,11 @@ static void init_proc_970GX (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_970_HID5, "HID5",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
@@ -3964,8 +4178,14 @@ static void init_proc_970GX (CPUPPCState *env)
     env->slb_nr = 32;
 #endif
     init_excp_970(env);
+    env->dcache_line_size = 128;
+    env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL;
+#endif
 }
 
 /* PowerPC 620                                                               */
@@ -3994,7 +4214,13 @@ static void init_proc_620 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     init_excp_620(env);
+    env->dcache_line_size = 64;
+    env->icache_line_size = 64;
     /* XXX: TODO: initialize internal interrupt controller */
+#if !defined(CONFIG_USER_ONLY)
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL; /* ? */
+#endif
 }
 #endif /* defined (TARGET_PPC64) */
 
