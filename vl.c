@@ -1181,7 +1181,7 @@ static void host_alarm_handler(int host_signum)
 
 static uint64_t qemu_next_deadline(void)
 {
-    int64_t nearest_delta_us = UINT64_MAX;
+    int64_t nearest_delta_us = INT64_MAX;
     int64_t vmdelta_us;
 
     if (active_timers[QEMU_TIMER_REALTIME])
