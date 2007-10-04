@@ -988,8 +988,6 @@ void qemu_del_timer(QEMUTimer *ts)
         }
         pt = &t->next;
     }
-
-    qemu_rearm_alarm_timer(alarm_timer);
 }
 
 /* modify the current timer so that it will be fired when current_time
