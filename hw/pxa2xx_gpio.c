@@ -24,6 +24,7 @@ struct pxa2xx_gpio_info_s {
     uint32_t rising[PXA2XX_GPIO_BANKS];
     uint32_t falling[PXA2XX_GPIO_BANKS];
     uint32_t status[PXA2XX_GPIO_BANKS];
+    uint32_t gpsr[PXA2XX_GPIO_BANKS];
     uint32_t gafr[PXA2XX_GPIO_BANKS * 2];
 
     uint32_t prev_level[PXA2XX_GPIO_BANKS];
@@ -152,6 +153,11 @@ static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
     case GPDR:		/* GPIO Pin-Direction registers */
         return s->dir[bank];
 
+    case GPSR:		/* GPIO Pin-Output Set registers */
+        printf("%s: Read from a write-only register " REG_FMT "\n",
+                        __FUNCTION__, offset);
+        return s->gpsr[bank];	/* Return last written value.  */
+
     case GRER:		/* GPIO Rising-Edge Detect Enable registers */
         return s->rising[bank];
 
@@ -201,6 +207,7 @@ static void pxa2xx_gpio_write(void *opaque,
     case GPSR:		/* GPIO Pin-Output Set registers */
         s->olevel[bank] |= value;
         pxa2xx_gpio_handler_update(s);
+        s->gpsr[bank] = value;
         break;
 
     case GPCR:		/* GPIO Pin-Output Clear registers */
