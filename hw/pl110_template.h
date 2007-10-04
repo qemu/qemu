@@ -24,35 +24,68 @@
 #error unknown bit depth
 #endif
 
+#undef RGB
+#define BORDER bgr
 #define ORDER 0
 #include "pl110_template.h"
 #define ORDER 1
 #include "pl110_template.h"
 #define ORDER 2
 #include "pl110_template.h"
+#undef BORDER
+#define RGB
+#define BORDER rgb
+#define ORDER 0
+#include "pl110_template.h"
+#define ORDER 1
+#include "pl110_template.h"
+#define ORDER 2
+#include "pl110_template.h"
+#undef BORDER
 
-static drawfn glue(pl110_draw_fn_,BITS)[18] =
+static drawfn glue(pl110_draw_fn_,BITS)[36] =
 {
-    glue(pl110_draw_line1_lblp,BITS),
-    glue(pl110_draw_line2_lblp,BITS),
-    glue(pl110_draw_line4_lblp,BITS),
-    glue(pl110_draw_line8_lblp,BITS),
-    glue(pl110_draw_line16_lblp,BITS),
-    glue(pl110_draw_line32_lblp,BITS),
+    glue(pl110_draw_line1_lblp_bgr,BITS),
+    glue(pl110_draw_line2_lblp_bgr,BITS),
+    glue(pl110_draw_line4_lblp_bgr,BITS),
+    glue(pl110_draw_line8_lblp_bgr,BITS),
+    glue(pl110_draw_line16_lblp_bgr,BITS),
+    glue(pl110_draw_line32_lblp_bgr,BITS),
 
-    glue(pl110_draw_line1_bbbp,BITS),
-    glue(pl110_draw_line2_bbbp,BITS),
-    glue(pl110_draw_line4_bbbp,BITS),
-    glue(pl110_draw_line8_bbbp,BITS),
-    glue(pl110_draw_line16_bbbp,BITS),
-    glue(pl110_draw_line32_bbbp,BITS),
+    glue(pl110_draw_line1_bbbp_bgr,BITS),
+    glue(pl110_draw_line2_bbbp_bgr,BITS),
+    glue(pl110_draw_line4_bbbp_bgr,BITS),
+    glue(pl110_draw_line8_bbbp_bgr,BITS),
+    glue(pl110_draw_line16_bbbp_bgr,BITS),
+    glue(pl110_draw_line32_bbbp_bgr,BITS),
 
-    glue(pl110_draw_line1_lbbp,BITS),
-    glue(pl110_draw_line2_lbbp,BITS),
-    glue(pl110_draw_line4_lbbp,BITS),
-    glue(pl110_draw_line8_lbbp,BITS),
-    glue(pl110_draw_line16_lbbp,BITS),
-    glue(pl110_draw_line32_lbbp,BITS)
+    glue(pl110_draw_line1_lbbp_bgr,BITS),
+    glue(pl110_draw_line2_lbbp_bgr,BITS),
+    glue(pl110_draw_line4_lbbp_bgr,BITS),
+    glue(pl110_draw_line8_lbbp_bgr,BITS),
+    glue(pl110_draw_line16_lbbp_bgr,BITS),
+    glue(pl110_draw_line32_lbbp_bgr,BITS),
+
+    glue(pl110_draw_line1_lblp_rgb,BITS),
+    glue(pl110_draw_line2_lblp_rgb,BITS),
+    glue(pl110_draw_line4_lblp_rgb,BITS),
+    glue(pl110_draw_line8_lblp_rgb,BITS),
+    glue(pl110_draw_line16_lblp_rgb,BITS),
+    glue(pl110_draw_line32_lblp_rgb,BITS),
+
+    glue(pl110_draw_line1_bbbp_rgb,BITS),
+    glue(pl110_draw_line2_bbbp_rgb,BITS),
+    glue(pl110_draw_line4_bbbp_rgb,BITS),
+    glue(pl110_draw_line8_bbbp_rgb,BITS),
+    glue(pl110_draw_line16_bbbp_rgb,BITS),
+    glue(pl110_draw_line32_bbbp_rgb,BITS),
+
+    glue(pl110_draw_line1_lbbp_rgb,BITS),
+    glue(pl110_draw_line2_lbbp_rgb,BITS),
+    glue(pl110_draw_line4_lbbp_rgb,BITS),
+    glue(pl110_draw_line8_lbbp_rgb,BITS),
+    glue(pl110_draw_line16_lbbp_rgb,BITS),
+    glue(pl110_draw_line32_lbbp_rgb,BITS),
 };
 
 #undef BITS
@@ -61,18 +94,18 @@ static drawfn glue(pl110_draw_fn_,BITS)[18] =
 #else
 
 #if ORDER == 0
-#define NAME glue(lblp, BITS)
+#define NAME glue(glue(lblp_, BORDER), BITS)
 #ifdef WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #elif ORDER == 1
-#define NAME glue(bbbp, BITS)
+#define NAME glue(glue(bbbp_, BORDER), BITS)
 #ifndef WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #else
 #define SWAP_PIXELS 1
-#define NAME glue(lbbp, BITS)
+#define NAME glue(glue(lbbp_, BORDER), BITS)
 #ifdef WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
@@ -195,29 +228,38 @@ static void glue(pl110_draw_line16_,NAME)(uint32_t *pallette, uint8_t *d, const 
 #ifdef SWAP_WORDS
         data = bswap32(data);
 #endif
+#ifdef RGB
+#define LSB r
+#define MSB b
+#else
+#define LSB b
+#define MSB r
+#endif
 #if 0
-        r = data & 0x1f;
+        LSB = data & 0x1f;
         data >>= 5;
         g = data & 0x3f;
         data >>= 6;
-        b = data & 0x1f;
+        MSB = data & 0x1f;
         data >>= 5;
 #else
-        r = (data & 0x1f) << 3;
+        LSB = (data & 0x1f) << 3;
         data >>= 5;
         g = (data & 0x3f) << 2;
         data >>= 6;
-        b = (data & 0x1f) << 3;
+        MSB = (data & 0x1f) << 3;
         data >>= 5;
 #endif
         COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
-        r = (data & 0x1f) << 3;
+        LSB = (data & 0x1f) << 3;
         data >>= 5;
         g = (data & 0x3f) << 2;
         data >>= 6;
-        b = (data & 0x1f) << 3;
+        MSB = (data & 0x1f) << 3;
         data >>= 5;
         COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+#undef MSB
+#undef LSB
         width -= 2;
         src += 4;
     }
@@ -229,16 +271,25 @@ static void glue(pl110_draw_line32_,NAME)(uint32_t *pallette, uint8_t *d, const 
     unsigned int r, g, b;
     while (width > 0) {
         data = *(uint32_t *)src;
-#ifdef SWAP_WORDS
-        r = data & 0xff;
-        g = (data >> 8) & 0xff;
-        b = (data >> 16) & 0xff;
+#ifdef RGB
+#define LSB r
+#define MSB b
 #else
-        r = (data >> 24) & 0xff;
+#define LSB b
+#define MSB r
+#endif
+#ifdef SWAP_WORDS
+        LSB = data & 0xff;
+        g = (data >> 8) & 0xff;
+        MSB = (data >> 16) & 0xff;
+#else
+        LSB = (data >> 24) & 0xff;
         g = (data >> 16) & 0xff;
-        b = (data >> 8) & 0xff;
+        MSB = (data >> 8) & 0xff;
 #endif
         COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+#undef MSB
+#undef LSB
         width--;
         src += 4;
     }
