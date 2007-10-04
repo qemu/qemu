@@ -4063,6 +4063,16 @@ static void init_proc_970 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_970_HID5, "HID5",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+#if defined(CONFIG_USER_ONLY)
+                 0x00000080
+#else
+                 0x00000000
+#endif
+                 );
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
@@ -4116,7 +4126,12 @@ static void init_proc_970FX (CPUPPCState *env)
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+#if defined(CONFIG_USER_ONLY)
+                 0x00000080
+#else
+                 0x00000000
+#endif
+                 );
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
@@ -4170,7 +4185,12 @@ static void init_proc_970GX (CPUPPCState *env)
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+#if defined(CONFIG_USER_ONLY)
+                 0x00000080
+#else
+                 0x00000000
+#endif
+                 );
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);

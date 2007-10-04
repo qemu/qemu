@@ -324,7 +324,7 @@ void glue(do_dcbz_64, MEMSUFFIX) (void)
     int dcache_line_size = env->dcache_line_size;
 
     /* XXX: should be 970 specific (?) */
-    if (((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1)
+    if (((env->spr[SPR_970_HID5] >> 6) & 0x3) == 0x2)
         dcache_line_size = 32;
     glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
     glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
