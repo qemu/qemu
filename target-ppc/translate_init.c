@@ -2235,6 +2235,8 @@ static void init_excp_4xx_real (CPUPPCState *env)
     env->excp_prefix = 0x00000000;
     env->ivor_mask = 0x0000FFF0;
     env->ivpr_mask = 0xFFFF0000;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2258,6 +2260,8 @@ static void init_excp_4xx_softmmu (CPUPPCState *env)
     env->excp_prefix = 0x00000000;
     env->ivor_mask = 0x0000FFF0;
     env->ivpr_mask = 0xFFFF0000;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2283,6 +2287,8 @@ static void init_excp_BookE (CPUPPCState *env)
     env->excp_prefix = 0x00000000;
     env->ivor_mask = 0x0000FFE0;
     env->ivpr_mask = 0xFFFF0000;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2302,6 +2308,8 @@ static void init_excp_601 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
     env->excp_vectors[POWERPC_EXCP_RUNM]     = 0x00002000;
     env->excp_prefix = 0xFFF00000;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2328,6 +2336,8 @@ static void init_excp_602 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001500;
     env->excp_vectors[POWERPC_EXCP_EMUL]     = 0x00001600;
     env->excp_prefix = 0xFFF00000;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2350,6 +2360,8 @@ static void init_excp_603 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2373,6 +2385,8 @@ static void init_excp_G2 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2393,6 +2407,8 @@ static void init_excp_604 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2415,6 +2431,8 @@ static void init_excp_620 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL; /* ? */
 #endif
 }
 #endif /* defined(TARGET_PPC64) */
@@ -2436,6 +2454,8 @@ static void init_excp_7x0 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2457,6 +2477,8 @@ static void init_excp_750FX (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2480,6 +2502,8 @@ static void init_excp_7400 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2505,6 +2529,8 @@ static void init_excp_7450 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
+    /* Hardware reset vector */
+    env->hreset_vector = 0xFFFFFFFCUL;
 #endif
 }
 
@@ -2534,6 +2560,8 @@ static void init_excp_970 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL;
 #endif
 }
 #endif
@@ -2564,10 +2592,6 @@ static void init_proc_401 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 401x2                                                             */
@@ -2597,10 +2621,6 @@ static void init_proc_401x2 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 401x3                                                             */
@@ -2628,10 +2648,6 @@ static void init_proc_401x3 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* IOP480                                                                    */
@@ -2661,10 +2677,6 @@ static void init_proc_IOP480 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 403                                                               */
@@ -2733,10 +2745,6 @@ static void init_proc_403GCX (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 405                                                               */
@@ -2777,10 +2785,6 @@ static void init_proc_405 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 440 EP                                                            */
@@ -2826,10 +2830,6 @@ static void init_proc_440EP (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 440 GP                                                            */
@@ -2857,10 +2857,6 @@ static void init_proc_440GP (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 440x4                                                             */
@@ -2889,10 +2885,6 @@ static void init_proc_440x4 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 440x5                                                             */
@@ -2938,10 +2930,6 @@ static void init_proc_440x5 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 460 (guessed)                                                     */
@@ -2993,10 +2981,6 @@ static void init_proc_460 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 460F (guessed)                                                    */
@@ -3051,10 +3035,6 @@ static void init_proc_460F (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* Generic BookE PowerPC                                                     */
@@ -3077,10 +3057,6 @@ static void init_proc_BookE (CPUPPCState *env)
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* e200 core                                                                 */
@@ -3112,10 +3088,6 @@ static void init_proc_e500 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* e600 core                                                                 */
@@ -3185,10 +3157,6 @@ static void init_proc_601 (CPUPPCState *env)
     env->dcache_line_size = 64;
     env->icache_line_size = 64;
     /* XXX: TODO: allocate internal IRQ controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 602                                                               */
@@ -3228,10 +3196,6 @@ static void init_proc_602 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 603                                                               */
@@ -3267,10 +3231,6 @@ static void init_proc_603 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 603e                                                              */
@@ -3311,10 +3271,6 @@ static void init_proc_603E (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC G2                                                                */
@@ -3357,10 +3313,6 @@ static void init_proc_G2 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC G2LE                                                              */
@@ -3403,10 +3355,6 @@ static void init_proc_G2LE (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 604                                                               */
@@ -3441,10 +3389,6 @@ static void init_proc_604 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 740/750 (aka G3)                                                  */
@@ -3481,10 +3425,6 @@ static void init_proc_7x0 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 750FX/GX                                                          */
@@ -3528,10 +3468,6 @@ static void init_proc_750fx (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 745/755                                                           */
@@ -3579,6 +3515,7 @@ static void init_proc_7x5 (CPUPPCState *env)
     gen_low_BATs(env);
     gen_high_BATs(env);
     gen_6xx_7xx_soft_tlb(env, 64, 2);
+    /* XXX: exception vectors ? */
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
@@ -3616,10 +3553,6 @@ static void init_proc_7400 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 7410 (aka G4)                                                     */
@@ -3661,10 +3594,6 @@ static void init_proc_7410 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 7440 (aka G4)                                                     */
@@ -3728,14 +3657,11 @@ static void init_proc_7440 (CPUPPCState *env)
     /* Memory management */
     gen_low_BATs(env);
     gen_74xx_soft_tlb(env, 128, 2);
+    init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 7450 (aka G4)                                                     */
@@ -3806,10 +3732,6 @@ static void init_proc_7450 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 7445 (aka G4)                                                     */
@@ -3912,10 +3834,6 @@ static void init_proc_7445 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 /* PowerPC 7455 (aka G4)                                                     */
@@ -4020,10 +3938,6 @@ static void init_proc_7455 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
 }
 
 #if defined (TARGET_PPC64)
@@ -4084,10 +3998,6 @@ static void init_proc_970 (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0x0000000000000100ULL;
-#endif
 }
 
 /* PowerPC 970FX (aka G5)                                                    */
@@ -4143,10 +4053,6 @@ static void init_proc_970FX (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0x0000000000000100ULL;
-#endif
 }
 
 /* PowerPC 970 GX                                                            */
@@ -4202,10 +4108,6 @@ static void init_proc_970GX (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0x0000000000000100ULL;
-#endif
 }
 
 /* PowerPC 620                                                               */
@@ -4237,10 +4139,6 @@ static void init_proc_620 (CPUPPCState *env)
     env->dcache_line_size = 64;
     env->icache_line_size = 64;
     /* XXX: TODO: initialize internal interrupt controller */
-#if !defined(CONFIG_USER_ONLY)
-    /* Hardware reset vector */
-    env->hreset_vector = 0x0000000000000100ULL; /* ? */
-#endif
 }
 #endif /* defined (TARGET_PPC64) */
 

@@ -2792,11 +2792,7 @@ void cpu_ppc_reset (void *opaque)
     msr_fp = 1; /* Allow floating point exceptions */
     msr_pr = 1;
 #else
-#if defined(TARGET_PPC64)
-    env->nip = 0x00000100;
-#else
-    env->nip = 0xFFFFFFFC;
-#endif
+    env->nip = env->hreset_vector | env->excp_prefix;
     ppc_tlb_invalidate_all(env);
 #endif
     do_compute_hflags(env);
