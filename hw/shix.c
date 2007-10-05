@@ -83,12 +83,14 @@ void shix_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x0c000000, 0x01000000, 0x01004000);
 
     /* Load BIOS in 0 (and access it through P2, 0xA0000000) */
-    printf("%s: load BIOS '%s'\n", __func__, BIOS_FILENAME);
-    ret = load_image(BIOS_FILENAME, phys_ram_base);
+    if (bios_name == NULL)
+        bios_name = BIOS_FILENAME;
+    printf("%s: load BIOS '%s'\n", __func__, bios_name);
+    ret = load_image(bios_name, phys_ram_base);
     if (ret < 0) {		/* Check bios size */
 	fprintf(stderr, "ret=%d\n", ret);
 	fprintf(stderr, "qemu: could not load SHIX bios '%s'\n",
-		BIOS_FILENAME);
+		bios_name);
 	exit(1);
     }
 

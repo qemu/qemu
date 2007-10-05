@@ -129,6 +129,7 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 void hw_error(const char *fmt, ...);
 
 extern const char *bios_dir;
+extern const char *bios_name;
 
 extern int vm_running;
 extern const char *qemu_name;

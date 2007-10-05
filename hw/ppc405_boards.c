@@ -236,7 +236,9 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
 #ifdef DEBUG_BOARD_INIT
         printf("Load BIOS from file\n");
 #endif
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+        if (bios_name == NULL)
+            bios_name = BIOS_FILENAME;
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
         bios_size = load_image(buf, phys_ram_base + bios_offset);
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
             fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);
@@ -549,7 +551,9 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
 #ifdef DEBUG_BOARD_INIT
         printf("Load BIOS from file\n");
 #endif
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+        if (bios_name == NULL)
+            bios_name = BIOS_FILENAME;
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
         bios_size = load_image(buf, phys_ram_base + bios_offset);
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
             fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);

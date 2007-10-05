@@ -382,7 +382,9 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK,
                                  prom_offset | IO_MEM_ROM);
 
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
+    if (bios_name == NULL)
+        bios_name = PROM_FILENAME;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     ret = load_elf(buf, PROM_ADDR - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0) {
 	fprintf(stderr, "qemu: could not load prom '%s'\n",
