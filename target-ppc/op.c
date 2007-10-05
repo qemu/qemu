@@ -317,6 +317,20 @@ void OPPROTO op_store_sr (void)
     RETURN();
 }
 
+#if defined(TARGET_PPC64)
+void OPPROTO op_load_slb (void)
+{
+    T0 = ppc_load_slb(env, T1);
+    RETURN();
+}
+
+void OPPROTO op_store_slb (void)
+{
+    ppc_store_slb(env, T1, T0);
+    RETURN();
+}
+#endif /* defined(TARGET_PPC64) */
+
 void OPPROTO op_load_sdr1 (void)
 {
     T0 = env->sdr1;

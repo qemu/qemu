@@ -105,10 +105,8 @@ enum {
     /* BookE FSL MMU model                                     */
     POWERPC_MMU_BOOKE_FSL,
 #if defined(TARGET_PPC64)
-    /* Standard 64 bits PowerPC MMU                            */
+    /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B,
-    /* 64 bits "bridge" PowerPC MMU                            */
-    POWERPC_MMU_64BRIDGE,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -514,6 +512,8 @@ struct CPUPPCState {
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
+    /* PowerPC 64 SLB area */
+    int slb_nr;
 
     int dcache_line_size;
     int icache_line_size;
@@ -606,10 +606,14 @@ void do_store_sdr1 (CPUPPCState *env, target_ulong value);
 #if defined(TARGET_PPC64)
 target_ulong ppc_load_asr (CPUPPCState *env);
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
-#endif
+target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
+void ppc_store_slb (CPUPPCState *env, int slb_nr, target_ulong rs);
+#endif /* defined(TARGET_PPC64) */
+#if 0 // Unused
 target_ulong do_load_sr (CPUPPCState *env, int srnum);
-void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif
+void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
+#endif /* !defined(CONFIG_USER_ONLY) */
 target_ulong ppc_load_xer (CPUPPCState *env);
 void ppc_store_xer (CPUPPCState *env, target_ulong value);
 target_ulong do_load_msr (CPUPPCState *env);

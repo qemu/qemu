@@ -3095,12 +3095,13 @@ static void init_proc_e500 (CPUPPCState *env)
 /* Non-embedded PowerPC                                                      */
 /* Base instructions set for all 6xx/7xx/74xx/970 PowerPC                    */
 #define POWERPC_INSNS_6xx    (PPC_INSNS_BASE | PPC_FLOAT | PPC_MEM_SYNC |     \
-                              PPC_MEM_EIEIO | PPC_SEGMENT | PPC_MEM_TLBIE)
+                              PPC_MEM_EIEIO | PPC_MEM_TLBIE)
 /* Instructions common to all 6xx/7xx/74xx/970 PowerPC except 601 & 602      */
 #define POWERPC_INSNS_WORKS  (POWERPC_INSNS_6xx | PPC_FLOAT_FSQRT |           \
                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
                               PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
-                              PPC_MEM_TLBSYNC | PPC_CACHE_DCBZ | PPC_MFTB)
+                              PPC_MEM_TLBSYNC | PPC_CACHE_DCBZ | PPC_MFTB |   \
+                              PPC_SEGMENT)
 
 /* POWER : same as 601, without mfmsr, mfsr                                  */
 #if defined(TODO)
@@ -3111,7 +3112,7 @@ static void init_proc_e500 (CPUPPCState *env)
 
 /* PowerPC 601                                                               */
 #define POWERPC_INSNS_601    (POWERPC_INSNS_6xx | PPC_CACHE_DCBZ |            \
-                              PPC_EXTERN | PPC_POWER_BR)
+                              PPC_SEGMENT | PPC_EXTERN | PPC_POWER_BR)
 #define POWERPC_MSRM_601     (0x000000000000FE70ULL)
 //#define POWERPC_MMU_601      (POWERPC_MMU_601)
 //#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
@@ -3164,7 +3165,7 @@ static void init_proc_601 (CPUPPCState *env)
                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
                               PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
                               PPC_6xx_TLB | PPC_MEM_TLBSYNC | PPC_CACHE_DCBZ |\
-                              PPC_602_SPEC)
+                              PPC_SEGMENT | PPC_602_SPEC)
 #define POWERPC_MSRM_602     (0x000000000033FF73ULL)
 #define POWERPC_MMU_602      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_602     (POWERPC_EXCP_602)
@@ -3942,15 +3943,15 @@ static void init_proc_7455 (CPUPPCState *env)
 
 #if defined (TARGET_PPC64)
 #define POWERPC_INSNS_WORK64  (POWERPC_INSNS_6xx | PPC_FLOAT_FSQRT |          \
-                              PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
-                              PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
-                              PPC_MEM_TLBSYNC | PPC_CACHE_DCBZT | PPC_MFTB)
+                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |           \
+                               PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |            \
+                               PPC_MEM_TLBSYNC | PPC_CACHE_DCBZT | PPC_MFTB)
 /* PowerPC 970                                                               */
 #define POWERPC_INSNS_970    (POWERPC_INSNS_WORK64 | PPC_FLOAT_FSQRT |        \
                               PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_64_BRIDGE | PPC_SLBI)
+                              PPC_SEGMENT_64B | PPC_SLBI)
 #define POWERPC_MSRM_970     (0x900000000204FF36ULL)
-#define POWERPC_MMU_970      (POWERPC_MMU_64BRIDGE)
+#define POWERPC_MMU_970      (POWERPC_MMU_64B)
 //#define POWERPC_EXCP_970     (POWERPC_EXCP_970)
 #define POWERPC_INPUT_970    (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970     (bfd_mach_ppc64)
@@ -3990,9 +3991,24 @@ static void init_proc_970 (CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-#if 0 // TODO
-    env->slb_nr = 32;
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCFG, "MMUCFG",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000); /* TOFIX */
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000); /* TOFIX */
+    spr_register(env, SPR_HIOR, "SPR_HIOR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0xFFF00000); /* XXX: This is a hack */
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_prefix = 0xFFF00000;
 #endif
+    env->slb_nr = 32;
     init_excp_970(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
@@ -4003,9 +4019,9 @@ static void init_proc_970 (CPUPPCState *env)
 /* PowerPC 970FX (aka G5)                                                    */
 #define POWERPC_INSNS_970FX  (POWERPC_INSNS_WORK64 | PPC_FLOAT_FSQRT |        \
                               PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_64_BRIDGE | PPC_SLBI)
+                              PPC_SEGMENT_64B | PPC_SLBI)
 #define POWERPC_MSRM_970FX   (0x800000000204FF36ULL)
-#define POWERPC_MMU_970FX    (POWERPC_MMU_64BRIDGE)
+#define POWERPC_MMU_970FX    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970FX   (POWERPC_EXCP_970)
 #define POWERPC_INPUT_970FX  (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970FX   (bfd_mach_ppc64)
@@ -4045,9 +4061,24 @@ static void init_proc_970FX (CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-#if 0 // TODO
-    env->slb_nr = 32;
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCFG, "MMUCFG",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000); /* TOFIX */
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000); /* TOFIX */
+    spr_register(env, SPR_HIOR, "SPR_HIOR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0xFFF00000); /* XXX: This is a hack */
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_prefix = 0xFFF00000;
 #endif
+    env->slb_nr = 32;
     init_excp_970(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
@@ -4058,9 +4089,9 @@ static void init_proc_970FX (CPUPPCState *env)
 /* PowerPC 970 GX                                                            */
 #define POWERPC_INSNS_970GX  (POWERPC_INSNS_WORK64 | PPC_FLOAT_FSQRT |        \
                               PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_64_BRIDGE | PPC_SLBI)
+                              PPC_SEGMENT_64B | PPC_SLBI)
 #define POWERPC_MSRM_970GX   (0x800000000204FF36ULL)
-#define POWERPC_MMU_970GX    (POWERPC_MMU_64BRIDGE)
+#define POWERPC_MMU_970GX    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970GX   (POWERPC_EXCP_970)
 #define POWERPC_INPUT_970GX  (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970GX   (bfd_mach_ppc64)
@@ -4100,9 +4131,24 @@ static void init_proc_970GX (CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-#if 0 // TODO
-    env->slb_nr = 32;
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCFG, "MMUCFG",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000); /* TOFIX */
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000); /* TOFIX */
+    spr_register(env, SPR_HIOR, "SPR_HIOR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0xFFF00000); /* XXX: This is a hack */
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_prefix = 0xFFF00000;
 #endif
+    env->slb_nr = 32;
     init_excp_970(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
@@ -6009,9 +6055,6 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
 #if defined (TARGET_PPC64)
         case POWERPC_MMU_64B:
             mmu_model = "PowerPC 64";
-            break;
-        case POWERPC_MMU_64BRIDGE:
-            mmu_model = "PowerPC 64 bridge";
             break;
 #endif
         default:
