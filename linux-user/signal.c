@@ -1443,6 +1443,9 @@ struct target_rt_signal_frame {
 #define UREG_I0        0
 #define UREG_I1        1
 #define UREG_I2        2
+#define UREG_I3        3
+#define UREG_I4        4
+#define UREG_I5        5
 #define UREG_I6        6
 #define UREG_I7        7
 #define UREG_L0	       8
@@ -1704,6 +1707,239 @@ long do_rt_sigreturn(CPUState *env)
     return -ENOSYS;
 }
 
+#ifdef TARGET_SPARC64
+#define MC_TSTATE 0
+#define MC_PC 1
+#define MC_NPC 2
+#define MC_Y 3
+#define MC_G1 4
+#define MC_G2 5
+#define MC_G3 6
+#define MC_G4 7
+#define MC_G5 8
+#define MC_G6 9
+#define MC_G7 10
+#define MC_O0 11
+#define MC_O1 12
+#define MC_O2 13
+#define MC_O3 14
+#define MC_O4 15
+#define MC_O5 16
+#define MC_O6 17
+#define MC_O7 18
+#define MC_NGREG 19
+
+typedef target_ulong target_mc_greg_t;
+typedef target_mc_greg_t target_mc_gregset_t[MC_NGREG];
+
+struct target_mc_fq {
+    target_ulong *mcfq_addr;
+    uint32_t mcfq_insn;
+};
+
+struct target_mc_fpu {
+    union {
+        uint32_t sregs[32];
+        uint64_t dregs[32];
+        //uint128_t qregs[16];
+    } mcfpu_fregs;
+    target_ulong mcfpu_fsr;
+    target_ulong mcfpu_fprs;
+    target_ulong mcfpu_gsr;
+    struct target_mc_fq *mcfpu_fq;
+    unsigned char mcfpu_qcnt;
+    unsigned char mcfpu_qentsz;
+    unsigned char mcfpu_enab;
+};
+typedef struct target_mc_fpu target_mc_fpu_t;
+
+typedef struct {
+    target_mc_gregset_t mc_gregs;
+    target_mc_greg_t mc_fp;
+    target_mc_greg_t mc_i7;
+    target_mc_fpu_t mc_fpregs;
+} target_mcontext_t;
+
+struct target_ucontext {
+    struct target_ucontext *uc_link;
+    target_ulong uc_flags;
+    target_sigset_t uc_sigmask;
+    target_mcontext_t uc_mcontext;
+};
+
+/* A V9 register window */
+struct target_reg_window {
+    target_ulong locals[8];
+    target_ulong ins[8];
+};
+
+#define TARGET_STACK_BIAS 2047
+
+/* {set, get}context() needed for 64-bit SparcLinux userland. */
+void sparc64_set_context(CPUSPARCState *env)
+{
+    struct target_ucontext *ucp = (struct target_ucontext *)
+        env->regwptr[UREG_I0];
+    target_mc_gregset_t *grp;
+    target_ulong pc, npc, tstate;
+    target_ulong fp, i7;
+    unsigned char fenab;
+    int err;
+    unsigned int i;
+    target_ulong *src, *dst;
+
+    grp  = &ucp->uc_mcontext.mc_gregs;
+    err  = get_user(pc, &((*grp)[MC_PC]));
+    err |= get_user(npc, &((*grp)[MC_NPC]));
+    if (err || ((pc | npc) & 3))
+        goto do_sigsegv;
+    if (env->regwptr[UREG_I1]) {
+        target_sigset_t target_set;
+        sigset_t set;
+
+        if (TARGET_NSIG_WORDS == 1) {
+            if (get_user(target_set.sig[0], &ucp->uc_sigmask.sig[0]))
+                goto do_sigsegv;
+        } else {
+            src = &ucp->uc_sigmask;
+            dst = &target_set;
+            for (i = 0; i < sizeof(target_sigset_t) / sizeof(target_ulong);
+                 i++, dst++, src++)
+                err |= get_user(dst, src);
+            if (err)
+                goto do_sigsegv;
+        }
+        target_to_host_sigset_internal(&set, &target_set);
+        sigprocmask(SIG_SETMASK, &set, NULL);
+    }
+    env->pc = pc;
+    env->npc = npc;
+    err |= get_user(env->y, &((*grp)[MC_Y]));
+    err |= get_user(tstate, &((*grp)[MC_TSTATE]));
+    env->asi = (tstate >> 24) & 0xff;
+    PUT_CCR(env, tstate >> 32);
+    PUT_CWP64(env, tstate & 0x1f);
+    err |= get_user(env->gregs[1], (&(*grp)[MC_G1]));
+    err |= get_user(env->gregs[2], (&(*grp)[MC_G2]));
+    err |= get_user(env->gregs[3], (&(*grp)[MC_G3]));
+    err |= get_user(env->gregs[4], (&(*grp)[MC_G4]));
+    err |= get_user(env->gregs[5], (&(*grp)[MC_G5]));
+    err |= get_user(env->gregs[6], (&(*grp)[MC_G6]));
+    err |= get_user(env->gregs[7], (&(*grp)[MC_G7]));
+    err |= get_user(env->regwptr[UREG_I0], (&(*grp)[MC_O0]));
+    err |= get_user(env->regwptr[UREG_I1], (&(*grp)[MC_O1]));
+    err |= get_user(env->regwptr[UREG_I2], (&(*grp)[MC_O2]));
+    err |= get_user(env->regwptr[UREG_I3], (&(*grp)[MC_O3]));
+    err |= get_user(env->regwptr[UREG_I4], (&(*grp)[MC_O4]));
+    err |= get_user(env->regwptr[UREG_I5], (&(*grp)[MC_O5]));
+    err |= get_user(env->regwptr[UREG_I6], (&(*grp)[MC_O6]));
+    err |= get_user(env->regwptr[UREG_I7], (&(*grp)[MC_O7]));
+
+    err |= get_user(fp, &(ucp->uc_mcontext.mc_fp));
+    err |= get_user(i7, &(ucp->uc_mcontext.mc_i7));
+    err |= put_user(fp,
+                    (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[6])));
+    err |= put_user(i7,
+                    (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[7])));
+
+    err |= get_user(fenab, &(ucp->uc_mcontext.mc_fpregs.mcfpu_enab));
+    err |= get_user(env->fprs, &(ucp->uc_mcontext.mc_fpregs.mcfpu_fprs));
+    src = &(ucp->uc_mcontext.mc_fpregs.mcfpu_fregs);
+    dst = &env->fpr;
+    for (i = 0; i < 64; i++, dst++, src++)
+        err |= get_user(dst, src);
+    err |= get_user(env->fsr,
+                    &(ucp->uc_mcontext.mc_fpregs.mcfpu_fsr));
+    err |= get_user(env->gsr,
+                    &(ucp->uc_mcontext.mc_fpregs.mcfpu_gsr));
+    if (err)
+        goto do_sigsegv;
+
+    return;
+ do_sigsegv:
+    force_sig(SIGSEGV);
+}
+
+void sparc64_get_context(CPUSPARCState *env)
+{
+    struct target_ucontext *ucp = (struct target_ucontext *)
+        env->regwptr[UREG_I0];
+    target_mc_gregset_t *grp;
+    target_mcontext_t *mcp;
+    target_ulong fp, i7;
+    int err;
+    unsigned int i;
+    target_ulong *src, *dst;
+    target_sigset_t target_set;
+    sigset_t set;
+
+    mcp = &ucp->uc_mcontext;
+    grp = &mcp->mc_gregs;
+
+    /* Skip over the trap instruction, first. */
+    env->pc = env->npc;
+    env->npc += 4;
+
+    err = 0;
+
+    sigprocmask(0, NULL, &set);
+    host_to_target_sigset_internal(&target_set, &set);
+    if (TARGET_NSIG_WORDS == 1)
+        err |= put_user(target_set.sig[0],
+                        (target_ulong *)&ucp->uc_sigmask);
+    else {
+        src = &target_set;
+        dst = &ucp->uc_sigmask;
+        for (i = 0; i < sizeof(target_sigset_t) / sizeof(target_ulong);
+             i++, dst++, src++)
+            err |= put_user(src, dst);
+        if (err)
+            goto do_sigsegv;
+    }
+
+    err |= put_user(env->tstate, &((*grp)[MC_TSTATE]));
+    err |= put_user(env->pc, &((*grp)[MC_PC]));
+    err |= put_user(env->npc, &((*grp)[MC_NPC]));
+    err |= put_user(env->y, &((*grp)[MC_Y]));
+    err |= put_user(env->gregs[1], &((*grp)[MC_G1]));
+    err |= put_user(env->gregs[2], &((*grp)[MC_G2]));
+    err |= put_user(env->gregs[3], &((*grp)[MC_G3]));
+    err |= put_user(env->gregs[4], &((*grp)[MC_G4]));
+    err |= put_user(env->gregs[5], &((*grp)[MC_G5]));
+    err |= put_user(env->gregs[6], &((*grp)[MC_G6]));
+    err |= put_user(env->gregs[7], &((*grp)[MC_G7]));
+    err |= put_user(env->regwptr[UREG_I0], &((*grp)[MC_O0]));
+    err |= put_user(env->regwptr[UREG_I1], &((*grp)[MC_O1]));
+    err |= put_user(env->regwptr[UREG_I2], &((*grp)[MC_O2]));
+    err |= put_user(env->regwptr[UREG_I3], &((*grp)[MC_O3]));
+    err |= put_user(env->regwptr[UREG_I4], &((*grp)[MC_O4]));
+    err |= put_user(env->regwptr[UREG_I5], &((*grp)[MC_O5]));
+    err |= put_user(env->regwptr[UREG_I6], &((*grp)[MC_O6]));
+    err |= put_user(env->regwptr[UREG_I7], &((*grp)[MC_O7]));
+
+    err |= get_user(fp,
+                    (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[6])));
+    err |= get_user(i7,
+                    (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[7])));
+    err |= put_user(fp, &(mcp->mc_fp));
+    err |= put_user(i7, &(mcp->mc_i7));
+
+    src = &env->fpr;
+    dst = &(ucp->uc_mcontext.mc_fpregs.mcfpu_fregs);
+    for (i = 0; i < 64; i++, dst++, src++)
+        err |= put_user(src, dst);
+    err |= put_user(env->fsr, &(mcp->mc_fpregs.mcfpu_fsr));
+    err |= put_user(env->gsr, &(mcp->mc_fpregs.mcfpu_gsr));
+    err |= put_user(env->fprs, &(mcp->mc_fpregs.mcfpu_fprs));
+
+    if (err)
+        goto do_sigsegv;
+
+    return;
+ do_sigsegv:
+    force_sig(SIGSEGV);
+}
+#endif
 #elif defined(TARGET_MIPS64)
 
 # warning signal handling not implemented

@@ -634,6 +634,14 @@ void cpu_loop (CPUSPARCState *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+        case 0x16e:
+            flush_windows(env);
+            sparc64_get_context(env);
+            break;
+        case 0x16f:
+            flush_windows(env);
+            sparc64_set_context(env);
+            break;
 #endif
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
