@@ -1562,12 +1562,12 @@ static void gen_spr_BookE_FSL (CPUPPCState *env)
                      0x00000000);
     }
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_MMUCFG, "MMUCFG",
+    spr_register(env, SPR_MMUCFG, "MMUCFG",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000); /* TOFIX */
     /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_MMUCSR0, "MMUCSR0",
+    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000); /* TOFIX */
