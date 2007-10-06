@@ -28,12 +28,12 @@
 #define CMDLINE_ADDR         0x003ff000
 #define INITRD_LOAD_ADDR     0x00300000
 #define PROM_SIZE_MAX        (512 * 1024)
-#define PROM_ADDR	     0x1fff0000000ULL
-#define PROM_VADDR	     0x000ffd00000ULL
+#define PROM_ADDR            0x1fff0000000ULL
+#define PROM_VADDR           0x000ffd00000ULL
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
-#define APB_MEM_BASE	     0x1ff00000000ULL
-#define VGA_BASE	     (APB_MEM_BASE + 0x400000ULL)
-#define PROM_FILENAME	     "openbios-sparc64"
+#define APB_MEM_BASE         0x1ff00000000ULL
+#define VGA_BASE             (APB_MEM_BASE + 0x400000ULL)
+#define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 
 /* TSC handling */
@@ -162,10 +162,10 @@ uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
     odd = count & 1;
     count &= ~1;
     for (i = 0; i != count; i++) {
-	crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
+        crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
     }
     if (odd) {
-	crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
+        crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
     }
 
     return crc;
@@ -387,9 +387,9 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     ret = load_elf(buf, PROM_ADDR - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0) {
-	fprintf(stderr, "qemu: could not load prom '%s'\n",
-		buf);
-	exit(1);
+        fprintf(stderr, "qemu: could not load prom '%s'\n",
+                buf);
+        exit(1);
     }
 
     kernel_size = 0;
@@ -398,13 +398,13 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
         /* XXX: put correct offset */
         kernel_size = load_elf(kernel_filename, 0, NULL, NULL, NULL);
         if (kernel_size < 0)
-	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
-	if (kernel_size < 0)
-	    kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+            kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        if (kernel_size < 0)
+            kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-	    exit(1);
+            exit(1);
         }
 
         /* load initrd */
@@ -417,14 +417,14 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
             }
         }
         if (initrd_size > 0) {
-	    for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
-		if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
-		    == 0x48647253) { // HdrS
-		    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
-		    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20, initrd_size);
-		    break;
-		}
-	    }
+            for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
+                if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
+                    == 0x48647253) { // HdrS
+                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
+                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20, initrd_size);
+                    break;
+                }
+            }
         }
     }
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL);
@@ -446,7 +446,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
             nd_table[i].model = "ne2k_pci";
-	pci_nic_init(pci_bus, &nd_table[i], -1);
+        pci_nic_init(pci_bus, &nd_table[i], -1);
     }
 
     irq = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, 32);

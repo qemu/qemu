@@ -81,7 +81,7 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_SBCFG_BA16    0x00000004 /* Slave supports 16 byte bursts */
 #define IOMMU_SBCFG_BA8     0x00000002 /* Slave supports 8 byte bursts */
 #define IOMMU_SBCFG_BYPASS  0x00000001 /* Bypass IOMMU, treat all addresses
-       	                                  produced by this device as pure
+                                          produced by this device as pure
                                           physical. */
 #define IOMMU_SBCFG_MASK    0x00010003
 
@@ -98,7 +98,7 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
-#define PAGE_MASK	(PAGE_SIZE - 1)
+#define PAGE_MASK       (PAGE_SIZE - 1)
 
 typedef struct IOMMUState {
     target_phys_addr_t addr;
@@ -114,9 +114,9 @@ static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
     saddr = (addr - s->addr) >> 2;
     switch (saddr) {
     default:
-	DPRINTF("read reg[%d] = %x\n", (int)saddr, s->regs[saddr]);
-	return s->regs[saddr];
-	break;
+        DPRINTF("read reg[%d] = %x\n", (int)saddr, s->regs[saddr]);
+        return s->regs[saddr];
+        break;
     }
     return 0;
 }
@@ -130,61 +130,61 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
     DPRINTF("write reg[%d] = %x\n", (int)saddr, val);
     switch (saddr) {
     case IOMMU_CTRL:
-	switch (val & IOMMU_CTRL_RNGE) {
-	case IOMMU_RNGE_16MB:
-	    s->iostart = 0xffffffffff000000ULL;
-	    break;
-	case IOMMU_RNGE_32MB:
-	    s->iostart = 0xfffffffffe000000ULL;
-	    break;
-	case IOMMU_RNGE_64MB:
-	    s->iostart = 0xfffffffffc000000ULL;
-	    break;
-	case IOMMU_RNGE_128MB:
-	    s->iostart = 0xfffffffff8000000ULL;
-	    break;
-	case IOMMU_RNGE_256MB:
-	    s->iostart = 0xfffffffff0000000ULL;
-	    break;
-	case IOMMU_RNGE_512MB:
-	    s->iostart = 0xffffffffe0000000ULL;
-	    break;
-	case IOMMU_RNGE_1GB:
-	    s->iostart = 0xffffffffc0000000ULL;
-	    break;
-	default:
-	case IOMMU_RNGE_2GB:
-	    s->iostart = 0xffffffff80000000ULL;
-	    break;
-	}
-	DPRINTF("iostart = " TARGET_FMT_plx "\n", s->iostart);
-	s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | IOMMU_VERSION);
-	break;
+        switch (val & IOMMU_CTRL_RNGE) {
+        case IOMMU_RNGE_16MB:
+            s->iostart = 0xffffffffff000000ULL;
+            break;
+        case IOMMU_RNGE_32MB:
+            s->iostart = 0xfffffffffe000000ULL;
+            break;
+        case IOMMU_RNGE_64MB:
+            s->iostart = 0xfffffffffc000000ULL;
+            break;
+        case IOMMU_RNGE_128MB:
+            s->iostart = 0xfffffffff8000000ULL;
+            break;
+        case IOMMU_RNGE_256MB:
+            s->iostart = 0xfffffffff0000000ULL;
+            break;
+        case IOMMU_RNGE_512MB:
+            s->iostart = 0xffffffffe0000000ULL;
+            break;
+        case IOMMU_RNGE_1GB:
+            s->iostart = 0xffffffffc0000000ULL;
+            break;
+        default:
+        case IOMMU_RNGE_2GB:
+            s->iostart = 0xffffffff80000000ULL;
+            break;
+        }
+        DPRINTF("iostart = " TARGET_FMT_plx "\n", s->iostart);
+        s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | IOMMU_VERSION);
+        break;
     case IOMMU_BASE:
-	s->regs[saddr] = val & IOMMU_BASE_MASK;
-	break;
+        s->regs[saddr] = val & IOMMU_BASE_MASK;
+        break;
     case IOMMU_TLBFLUSH:
-	DPRINTF("tlb flush %x\n", val);
-	s->regs[saddr] = val & IOMMU_TLBFLUSH_MASK;
-	break;
+        DPRINTF("tlb flush %x\n", val);
+        s->regs[saddr] = val & IOMMU_TLBFLUSH_MASK;
+        break;
     case IOMMU_PGFLUSH:
-	DPRINTF("page flush %x\n", val);
-	s->regs[saddr] = val & IOMMU_PGFLUSH_MASK;
-	break;
+        DPRINTF("page flush %x\n", val);
+        s->regs[saddr] = val & IOMMU_PGFLUSH_MASK;
+        break;
     case IOMMU_SBCFG0:
     case IOMMU_SBCFG1:
     case IOMMU_SBCFG2:
     case IOMMU_SBCFG3:
-	s->regs[saddr] = val & IOMMU_SBCFG_MASK;
-	break;
+        s->regs[saddr] = val & IOMMU_SBCFG_MASK;
+        break;
     case IOMMU_ARBEN:
         // XXX implement SBus probing: fault when reading unmapped
         // addresses, fault cause and address stored to MMU/IOMMU
-	s->regs[saddr] = (val & IOMMU_ARBEN_MASK) | IOMMU_MID;
-	break;
+        s->regs[saddr] = (val & IOMMU_ARBEN_MASK) | IOMMU_MID;
+        break;
     default:
-	s->regs[saddr] = val;
-	break;
+        s->regs[saddr] = val;
+        break;
     }
 }
 
@@ -283,7 +283,7 @@ static void iommu_save(QEMUFile *f, void *opaque)
     int i;
 
     for (i = 0; i < IOMMU_NREGS; i++)
-	qemu_put_be32s(f, &s->regs[i]);
+        qemu_put_be32s(f, &s->regs[i]);
     qemu_put_be64s(f, &s->iostart);
 }
 

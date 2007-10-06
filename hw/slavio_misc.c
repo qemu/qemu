@@ -76,9 +76,9 @@ void slavio_set_power_fail(void *opaque, int power_failing)
 
     MISC_DPRINTF("Power fail: %d, config: %d\n", power_failing, s->config);
     if (power_failing && (s->config & 0x8)) {
-	s->aux2 |= 0x4;
+        s->aux2 |= 0x4;
     } else {
-	s->aux2 &= ~0x4;
+        s->aux2 &= ~0x4;
     }
     slavio_misc_update_irq(s);
 }
@@ -89,44 +89,44 @@ static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32
 
     switch (addr & 0xfff0000) {
     case 0x1800000:
-	MISC_DPRINTF("Write config %2.2x\n", val & 0xff);
-	s->config = val & 0xff;
-	slavio_misc_update_irq(s);
-	break;
+        MISC_DPRINTF("Write config %2.2x\n", val & 0xff);
+        s->config = val & 0xff;
+        slavio_misc_update_irq(s);
+        break;
     case 0x1900000:
-	MISC_DPRINTF("Write aux1 %2.2x\n", val & 0xff);
-	s->aux1 = val & 0xff;
-	break;
+        MISC_DPRINTF("Write aux1 %2.2x\n", val & 0xff);
+        s->aux1 = val & 0xff;
+        break;
     case 0x1910000:
-	val &= 0x3;
-	MISC_DPRINTF("Write aux2 %2.2x\n", val);
-	val |= s->aux2 & 0x4;
-	if (val & 0x2) // Clear Power Fail int
-	    val &= 0x1;
-	s->aux2 = val;
-	if (val & 1)
-	    qemu_system_shutdown_request();
-	slavio_misc_update_irq(s);
-	break;
+        val &= 0x3;
+        MISC_DPRINTF("Write aux2 %2.2x\n", val);
+        val |= s->aux2 & 0x4;
+        if (val & 0x2) // Clear Power Fail int
+            val &= 0x1;
+        s->aux2 = val;
+        if (val & 1)
+            qemu_system_shutdown_request();
+        slavio_misc_update_irq(s);
+        break;
     case 0x1a00000:
-	MISC_DPRINTF("Write diag %2.2x\n", val & 0xff);
-	s->diag = val & 0xff;
-	break;
+        MISC_DPRINTF("Write diag %2.2x\n", val & 0xff);
+        s->diag = val & 0xff;
+        break;
     case 0x1b00000:
-	MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
-	s->mctrl = val & 0xff;
-	break;
+        MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
+        s->mctrl = val & 0xff;
+        break;
     case 0x1f00000:
-	MISC_DPRINTF("Write system control %2.2x\n", val & 0xff);
-	if (val & 1) {
-	    s->sysctrl = 0x2;
-	    qemu_system_reset_request();
-	}
-	break;
+        MISC_DPRINTF("Write system control %2.2x\n", val & 0xff);
+        if (val & 1) {
+            s->sysctrl = 0x2;
+            qemu_system_reset_request();
+        }
+        break;
     case 0xa000000:
-	MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
+        MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
-	break;
+        break;
     }
 }
 
@@ -137,32 +137,32 @@ static uint32_t slavio_misc_mem_readb(void *opaque, target_phys_addr_t addr)
 
     switch (addr & 0xfff0000) {
     case 0x1800000:
-	ret = s->config;
-	MISC_DPRINTF("Read config %2.2x\n", ret);
-	break;
+        ret = s->config;
+        MISC_DPRINTF("Read config %2.2x\n", ret);
+        break;
     case 0x1900000:
-	ret = s->aux1;
-	MISC_DPRINTF("Read aux1 %2.2x\n", ret);
-	break;
+        ret = s->aux1;
+        MISC_DPRINTF("Read aux1 %2.2x\n", ret);
+        break;
     case 0x1910000:
-	ret = s->aux2;
-	MISC_DPRINTF("Read aux2 %2.2x\n", ret);
-	break;
+        ret = s->aux2;
+        MISC_DPRINTF("Read aux2 %2.2x\n", ret);
+        break;
     case 0x1a00000:
-	ret = s->diag;
-	MISC_DPRINTF("Read diag %2.2x\n", ret);
-	break;
+        ret = s->diag;
+        MISC_DPRINTF("Read diag %2.2x\n", ret);
+        break;
     case 0x1b00000:
-	ret = s->mctrl;
-	MISC_DPRINTF("Read modem control %2.2x\n", ret);
-	break;
+        ret = s->mctrl;
+        MISC_DPRINTF("Read modem control %2.2x\n", ret);
+        break;
     case 0x1f00000:
-	MISC_DPRINTF("Read system control %2.2x\n", ret);
-	ret = s->sysctrl;
-	break;
+        MISC_DPRINTF("Read system control %2.2x\n", ret);
+        ret = s->sysctrl;
+        break;
     case 0xa000000:
-	MISC_DPRINTF("Read power management %2.2x\n", ret);
-	break;
+        MISC_DPRINTF("Read power management %2.2x\n", ret);
+        break;
     }
     return ret;
 }

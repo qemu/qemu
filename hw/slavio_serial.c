@@ -139,7 +139,7 @@ static uint32_t get_queue(void *opaque)
     int val;
 
     if (q->count == 0) {
-	return 0;
+        return 0;
     } else {
         val = q->data[q->rptr];
         if (++q->rptr == SERIO_QUEUE_SIZE)
@@ -148,17 +148,17 @@ static uint32_t get_queue(void *opaque)
     }
     SER_DPRINTF("channel %c get 0x%02x\n", CHN_C(s), val);
     if (q->count > 0)
-	serial_receive_byte(s, 0);
+        serial_receive_byte(s, 0);
     return val;
 }
 
 static int slavio_serial_update_irq_chn(ChannelState *s)
 {
     if ((s->wregs[1] & 1) && // interrupts enabled
-	(((s->wregs[1] & 2) && s->txint == 1) || // tx ints enabled, pending
-	 ((((s->wregs[1] & 0x18) == 8) || ((s->wregs[1] & 0x18) == 0x10)) &&
-	  s->rxint == 1) || // rx ints enabled, pending
-	 ((s->wregs[15] & 0x80) && (s->rregs[0] & 0x80)))) { // break int e&p
+        (((s->wregs[1] & 2) && s->txint == 1) || // tx ints enabled, pending
+         ((((s->wregs[1] & 0x18) == 8) || ((s->wregs[1] & 0x18) == 0x10)) &&
+          s->rxint == 1) || // rx ints enabled, pending
+         ((s->wregs[15] & 0x80) && (s->rregs[0] & 0x80)))) { // break int e&p
         return 1;
     }
     return 0;
@@ -181,8 +181,8 @@ static void slavio_serial_reset_chn(ChannelState *s)
 
     s->reg = 0;
     for (i = 0; i < SERIAL_SIZE; i++) {
-	s->rregs[i] = 0;
-	s->wregs[i] = 0;
+        s->rregs[i] = 0;
+        s->wregs[i] = 0;
     }
     s->wregs[4] = 4;
     s->wregs[9] = 0xc0;
@@ -367,82 +367,82 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
     s = &serial->chn[channel];
     switch (saddr) {
     case 0:
-	SER_DPRINTF("Write channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, val & 0xff);
-	newreg = 0;
-	switch (s->reg) {
-	case 0:
-	    newreg = val & 7;
-	    val &= 0x38;
-	    switch (val) {
-	    case 8:
-		newreg |= 0x8;
-		break;
-	    case 0x28:
+        SER_DPRINTF("Write channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, val & 0xff);
+        newreg = 0;
+        switch (s->reg) {
+        case 0:
+            newreg = val & 7;
+            val &= 0x38;
+            switch (val) {
+            case 8:
+                newreg |= 0x8;
+                break;
+            case 0x28:
                 clr_txint(s);
-		break;
-	    case 0x38:
+                break;
+            case 0x38:
                 if (s->rxint_under_svc)
                     clr_rxint(s);
                 else if (s->txint_under_svc)
                     clr_txint(s);
-		break;
-	    default:
-		break;
-	    }
-	    break;
+                break;
+            default:
+                break;
+            }
+            break;
         case 1 ... 3:
         case 6 ... 8:
         case 10 ... 11:
         case 14 ... 15:
-	    s->wregs[s->reg] = val;
-	    break;
+            s->wregs[s->reg] = val;
+            break;
         case 4:
         case 5:
         case 12:
         case 13:
-	    s->wregs[s->reg] = val;
+            s->wregs[s->reg] = val;
             slavio_serial_update_parameters(s);
-	    break;
-	case 9:
-	    switch (val & 0xc0) {
-	    case 0:
-	    default:
-		break;
-	    case 0x40:
-		slavio_serial_reset_chn(&serial->chn[1]);
-		return;
-	    case 0x80:
-		slavio_serial_reset_chn(&serial->chn[0]);
-		return;
-	    case 0xc0:
-		slavio_serial_reset(serial);
-		return;
-	    }
-	    break;
-	default:
-	    break;
-	}
-	if (s->reg == 0)
-	    s->reg = newreg;
-	else
-	    s->reg = 0;
-	break;
+            break;
+        case 9:
+            switch (val & 0xc0) {
+            case 0:
+            default:
+                break;
+            case 0x40:
+                slavio_serial_reset_chn(&serial->chn[1]);
+                return;
+            case 0x80:
+                slavio_serial_reset_chn(&serial->chn[0]);
+                return;
+            case 0xc0:
+                slavio_serial_reset(serial);
+                return;
+            }
+            break;
+        default:
+            break;
+        }
+        if (s->reg == 0)
+            s->reg = newreg;
+        else
+            s->reg = 0;
+        break;
     case 1:
-	SER_DPRINTF("Write channel %c, ch %d\n", CHN_C(s), val);
+        SER_DPRINTF("Write channel %c, ch %d\n", CHN_C(s), val);
         s->tx = val;
-	if (s->wregs[5] & 8) { // tx enabled
-	    if (s->chr)
-		qemu_chr_write(s->chr, &s->tx, 1);
-	    else if (s->type == kbd) {
-		handle_kbd_command(s, val);
-	    }
-	}
+        if (s->wregs[5] & 8) { // tx enabled
+            if (s->chr)
+                qemu_chr_write(s->chr, &s->tx, 1);
+            else if (s->type == kbd) {
+                handle_kbd_command(s, val);
+            }
+        }
         s->rregs[0] |= 4; // Tx buffer empty
         s->rregs[1] |= 1; // All sent
         set_txint(s);
-	break;
+        break;
     default:
-	break;
+        break;
     }
 }
 
@@ -459,21 +459,21 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
     s = &serial->chn[channel];
     switch (saddr) {
     case 0:
-	SER_DPRINTF("Read channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, s->rregs[s->reg]);
-	ret = s->rregs[s->reg];
-	s->reg = 0;
-	return ret;
+        SER_DPRINTF("Read channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, s->rregs[s->reg]);
+        ret = s->rregs[s->reg];
+        s->reg = 0;
+        return ret;
     case 1:
-	s->rregs[0] &= ~1;
+        s->rregs[0] &= ~1;
         clr_rxint(s);
-	if (s->type == kbd || s->type == mouse)
-	    ret = get_queue(s);
-	else
-	    ret = s->rx;
-	SER_DPRINTF("Read channel %c, ch %d\n", CHN_C(s), ret);
-	return ret;
+        if (s->type == kbd || s->type == mouse)
+            ret = get_queue(s);
+        else
+            ret = s->rx;
+        SER_DPRINTF("Read channel %c, ch %d\n", CHN_C(s), ret);
+        return ret;
     default:
-	break;
+        break;
     }
     return 0;
 }
@@ -484,10 +484,10 @@ static int serial_can_receive(void *opaque)
     int ret;
 
     if (((s->wregs[3] & 1) == 0) // Rx not enabled
-	|| ((s->rregs[0] & 1) == 1)) // char already available
-	ret = 0;
+        || ((s->rregs[0] & 1) == 1)) // char already available
+        ret = 0;
     else
-	ret = 1;
+        ret = 1;
     //SER_DPRINTF("channel %c can receive %d\n", CHN_C(s), ret);
     return ret;
 }
@@ -584,7 +584,7 @@ static int slavio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
     ret = slavio_serial_load_chn(f, &s->chn[0], version_id);
     if (ret != 0)
-	return ret;
+        return ret;
     ret = slavio_serial_load_chn(f, &s->chn[1], version_id);
     return ret;
 
@@ -607,13 +607,13 @@ SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
     s->chn[1].chr = chr2;
 
     for (i = 0; i < 2; i++) {
-	s->chn[i].irq = irq;
-	s->chn[i].chn = 1 - i;
-	s->chn[i].type = ser;
-	if (s->chn[i].chr) {
-	    qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
+        s->chn[i].irq = irq;
+        s->chn[i].chn = 1 - i;
+        s->chn[i].type = ser;
+        if (s->chn[i].chr) {
+            qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
                                   serial_receive1, serial_event, &s->chn[i]);
-	}
+        }
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
@@ -698,21 +698,21 @@ static void handle_kbd_command(ChannelState *s, int val)
     switch (val) {
     case 1: // Reset, return type code
         clear_queue(s);
-	put_queue(s, 0xff);
-	put_queue(s, 4); // Type 4
-	put_queue(s, 0x7f);
-	break;
+        put_queue(s, 0xff);
+        put_queue(s, 4); // Type 4
+        put_queue(s, 0x7f);
+        break;
     case 0xe: // Set leds
         s->led_mode = 1;
         break;
     case 7: // Query layout
     case 0xf:
         clear_queue(s);
-	put_queue(s, 0xfe);
-	put_queue(s, 0); // XXX, layout?
-	break;
+        put_queue(s, 0xfe);
+        put_queue(s, 0); // XXX, layout?
+        break;
     default:
-	break;
+        break;
     }
 }
 
@@ -768,9 +768,9 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq)
     if (!s)
         return;
     for (i = 0; i < 2; i++) {
-	s->chn[i].irq = irq;
-	s->chn[i].chn = 1 - i;
-	s->chn[i].chr = NULL;
+        s->chn[i].irq = irq;
+        s->chn[i].chn = 1 - i;
+        s->chn[i].chr = NULL;
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];

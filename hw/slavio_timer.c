@@ -86,7 +86,7 @@ static void slavio_timer_irq(void *opaque)
     DPRINTF("callback: count %x%08x\n", s->counthigh, s->count);
     s->reached = 0x80000000;
     if (s->mode != 1)
-	qemu_irq_raise(s->irq);
+        qemu_irq_raise(s->irq);
 }
 
 static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -97,34 +97,34 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
     saddr = (addr & TIMER_MAXADDR) >> 2;
     switch (saddr) {
     case 0:
-	// read limit (system counter mode) or read most signifying
-	// part of counter (user mode)
-	if (s->mode != 1) {
-	    // clear irq
+        // read limit (system counter mode) or read most signifying
+        // part of counter (user mode)
+        if (s->mode != 1) {
+            // clear irq
             qemu_irq_lower(s->irq);
-	    s->reached = 0;
+            s->reached = 0;
             ret = s->limit & 0x7fffffff;
-	}
-	else {
-	    slavio_timer_get_out(s);
+        }
+        else {
+            slavio_timer_get_out(s);
             ret = s->counthigh & 0x7fffffff;
-	}
+        }
         break;
     case 1:
-	// read counter and reached bit (system mode) or read lsbits
-	// of counter (user mode)
-	slavio_timer_get_out(s);
-	if (s->mode != 1)
+        // read counter and reached bit (system mode) or read lsbits
+        // of counter (user mode)
+        slavio_timer_get_out(s);
+        if (s->mode != 1)
             ret = (s->count & 0x7fffffff) | s->reached;
-	else
+        else
             ret = s->count;
         break;
     case 3:
-	// read start/stop status
+        // read start/stop status
         ret = s->stopped;
         break;
     case 4:
-	// read user/system mode
+        // read user/system mode
         ret = s->slave_mode;
         break;
     default:
@@ -161,14 +161,14 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
         qemu_irq_lower(s->irq);
         // fall through
     case 2:
-	// set limit without resetting counter
+        // set limit without resetting counter
         s->limit = val & 0x7ffffe00ULL;
         if (!s->limit)
             s->limit = 0x7ffffe00ULL;
         ptimer_set_limit(s->timer, s->limit >> 9, reload);
-	break;
+        break;
     case 1:
-	// set user counter limit LSW, reset counter
+        // set user counter limit LSW, reset counter
         if (s->mode == 1) {
             qemu_irq_lower(s->irq);
             s->limit &= 0x7fffffff00000000ULL;
@@ -179,20 +179,20 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
         }
         break;
     case 3:
-	// start/stop user counter
-	if (s->mode == 1) {
-	    if (val & 1) {
+        // start/stop user counter
+        if (s->mode == 1) {
+            if (val & 1) {
                 ptimer_stop(s->timer);
-		s->stopped = 1;
-	    }
-	    else {
+                s->stopped = 1;
+            }
+            else {
                 ptimer_run(s->timer, 0);
-		s->stopped = 0;
-	    }
-	}
-	break;
+                s->stopped = 0;
+            }
+        }
+        break;
     case 4:
-	// bit 0: user (1) or system (0) counter mode
+        // bit 0: user (1) or system (0) counter mode
         {
             unsigned int i;
 
@@ -211,9 +211,9 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
             }
             s->slave_mode = val & ((1 << MAX_CPUS) - 1);
         }
-	break;
+        break;
     default:
-	break;
+        break;
     }
 }
 
@@ -294,7 +294,7 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
     ptimer_set_period(s->timer, 500ULL);
 
     slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
-						    slavio_timer_mem_write, s);
+                                                    slavio_timer_mem_write, s);
     if (mode < 2)
         cpu_register_physical_memory(addr, CPU_TIMER_SIZE, slavio_timer_io_memory);
     else
