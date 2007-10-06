@@ -1287,7 +1287,8 @@ int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
-void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode);
+void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
+                           qemu_irq *cpu_irqs);
 
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,

@@ -380,13 +380,10 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
-    for (i = 0; i < MAX_CPUS; i++) {
-        slavio_timer_init(hwdef->counter_base +
-                          (target_phys_addr_t)(i * TARGET_PAGE_SIZE),
-                           slavio_cpu_irq[i], 0);
-    }
-    slavio_timer_init(hwdef->counter_base + 0x10000ULL,
-                      slavio_irq[hwdef->clock1_irq], 2);
+
+    slavio_timer_init_all(hwdef->counter_base, slavio_irq[hwdef->clock1_irq],
+                          slavio_cpu_irq);
+
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq]);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device

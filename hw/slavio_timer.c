@@ -47,6 +47,8 @@ do { printf("TIMER: " fmt , ##args); } while (0)
  *
  */
 
+#define MAX_CPUS 16
+
 typedef struct SLAVIO_TIMERState {
     qemu_irq irq;
     ptimer_state *timer;
@@ -54,10 +56,13 @@ typedef struct SLAVIO_TIMERState {
     uint64_t limit;
     int stopped;
     int mode; // 0 = processor, 1 = user, 2 = system
+    struct SLAVIO_TIMERState *slave[MAX_CPUS];
+    uint32_t slave_mode;
 } SLAVIO_TIMERState;
 
 #define TIMER_MAXADDR 0x1f
 #define TIMER_SIZE (TIMER_MAXADDR + 1)
+#define CPU_TIMER_SIZE 0x10
 
 // Update count, set irq, update expire_time
 // Convert from ptimer countdown units
@@ -120,7 +125,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
         break;
     case 4:
 	// read user/system mode
-        ret = s->mode & 1;
+        ret = s->slave_mode;
         break;
     default:
         ret = 0;
@@ -141,10 +146,20 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
     saddr = (addr & TIMER_MAXADDR) >> 2;
     switch (saddr) {
     case 0:
-	// set limit, reset counter
+        if (s->mode == 1) {
+            // set user counter limit MSW, reset counter
+            qemu_irq_lower(s->irq);
+            s->limit &= 0xfffffe00ULL;
+            s->limit |= (uint64_t)val << 32;
+            if (!s->limit)
+                s->limit = 0x7ffffffffffffe00ULL;
+            ptimer_set_limit(s->timer, s->limit >> 9, 1);
+            break;
+        }
+        // set limit, reset counter
         reload = 1;
-	qemu_irq_lower(s->irq);
-	// fall through
+        qemu_irq_lower(s->irq);
+        // fall through
     case 2:
 	// set limit without resetting counter
         s->limit = val & 0x7ffffe00ULL;
@@ -152,6 +167,17 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
             s->limit = 0x7ffffe00ULL;
         ptimer_set_limit(s->timer, s->limit >> 9, reload);
 	break;
+    case 1:
+	// set user counter limit LSW, reset counter
+        if (s->mode == 1) {
+            qemu_irq_lower(s->irq);
+            s->limit &= 0x7fffffff00000000ULL;
+            s->limit |= val & 0xfffffe00ULL;
+            if (!s->limit)
+                s->limit = 0x7ffffffffffffe00ULL;
+            ptimer_set_limit(s->timer, s->limit >> 9, 1);
+        }
+        break;
     case 3:
 	// start/stop user counter
 	if (s->mode == 1) {
@@ -167,13 +193,24 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr, uint3
 	break;
     case 4:
 	// bit 0: user (1) or system (0) counter mode
-	if (s->mode == 0 || s->mode == 1)
-	    s->mode = val & 1;
-        if (s->mode == 1) {
-            qemu_irq_lower(s->irq);
-            s->limit = -1ULL;
+        {
+            unsigned int i;
+
+            for (i = 0; i < MAX_CPUS; i++) {
+                if (val & (1 << i)) {
+                    qemu_irq_lower(s->slave[i]->irq);
+                    s->slave[i]->limit = -1ULL;
+                    s->slave[i]->mode = 1;
+                } else {
+                    s->slave[i]->mode = 0;
+                }
+                ptimer_stop(s->slave[i]->timer);
+                ptimer_set_limit(s->slave[i]->timer, s->slave[i]->limit >> 9,
+                                 1);
+                ptimer_run(s->slave[i]->timer, 0);
+            }
+            s->slave_mode = val & ((1 << MAX_CPUS) - 1);
         }
-        ptimer_set_limit(s->timer, s->limit >> 9, 1);
 	break;
     default:
 	break;
@@ -240,7 +277,8 @@ static void slavio_timer_reset(void *opaque)
     qemu_irq_lower(s->irq);
 }
 
-void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode)
+static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
+                                            qemu_irq irq, int mode)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;
@@ -248,7 +286,7 @@ void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode)
 
     s = qemu_mallocz(sizeof(SLAVIO_TIMERState));
     if (!s)
-        return;
+        return s;
     s->irq = irq;
     s->mode = mode;
     bh = qemu_bh_new(slavio_timer_irq, s);
@@ -257,8 +295,29 @@ void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode)
 
     slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
 						    slavio_timer_mem_write, s);
-    cpu_register_physical_memory(addr, TIMER_SIZE, slavio_timer_io_memory);
+    if (mode < 2)
+        cpu_register_physical_memory(addr, CPU_TIMER_SIZE, slavio_timer_io_memory);
+    else
+        cpu_register_physical_memory(addr, TIMER_SIZE,
+                                     slavio_timer_io_memory);
     register_savevm("slavio_timer", addr, 2, slavio_timer_save, slavio_timer_load, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);
+
+    return s;
+}
+
+void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
+                           qemu_irq *cpu_irqs)
+{
+    SLAVIO_TIMERState *master;
+    unsigned int i;
+
+    master = slavio_timer_init(base + 0x10000ULL, master_irq, 2);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        master->slave[i] = slavio_timer_init(base + (target_phys_addr_t)
+                                             (i * TARGET_PAGE_SIZE),
+                                             cpu_irqs[i], 0);
+    }
 }
