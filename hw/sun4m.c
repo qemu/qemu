@@ -49,7 +49,7 @@
 #define KERNEL_LOAD_ADDR     0x00004000
 #define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
-#define PROM_SIZE_MAX        (256 * 1024)
+#define PROM_SIZE_MAX        (512 * 1024)
 #define PROM_PADDR           0xff0000000ULL
 #define PROM_VADDR           0xffd00000
 #define PROM_FILENAME	     "openbios-sparc32"
@@ -434,10 +434,12 @@ static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
         bios_name = PROM_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     ret = load_elf(buf, PROM_PADDR - PROM_VADDR, NULL, NULL, NULL);
-    if (ret < 0) {
-	fprintf(stderr, "qemu: could not load prom '%s'\n",
-		buf);
-	exit(1);
+    if (ret < 0 || ret > PROM_SIZE_MAX)
+        ret = load_image(buf, phys_ram_base + prom_offset);
+    if (ret < 0 || ret > PROM_SIZE_MAX) {
+        fprintf(stderr, "qemu: could not load prom '%s'\n",
+                buf);
+        exit(1);
     }
 
     kernel_size = 0;
