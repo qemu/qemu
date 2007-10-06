@@ -88,7 +88,7 @@ enum {
 #define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), ((b) - (a) + 1))
 
 #ifdef TARGET_SPARC64
-#define DFPREG(r) (((r & 1) << 6) | (r & 0x1e))
+#define DFPREG(r) (((r & 1) << 5) | (r & 0x1e))
 #else
 #define DFPREG(r) (r & 0x1e)
 #endif
@@ -425,6 +425,34 @@ static inline void gen_st_asi(int insn, int size)
     } else {
         asi = GET_FIELD(insn, 19, 26);
         gen_op_st_asi(asi, size);
+    }
+}
+
+static inline void gen_ldf_asi(int insn, int size)
+{
+    int asi, offset, rd;
+
+    rd = DFPREG(GET_FIELD(insn, 2, 6));
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_ldf_asi_reg(offset, size, rd);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_ldf_asi(asi, size, rd);
+    }
+}
+
+static inline void gen_stf_asi(int insn, int size)
+{
+    int asi, offset, rd;
+
+    rd = DFPREG(GET_FIELD(insn, 2, 6));
+    if (IS_IMM) {
+        offset = GET_FIELD(insn, 25, 31);
+        gen_op_stf_asi_reg(offset, size, rd);
+    } else {
+        asi = GET_FIELD(insn, 19, 26);
+        gen_op_stf_asi(asi, size, rd);
     }
 }
 
@@ -2044,9 +2072,11 @@ static void disas_sparc_insn(DisasContext * dc)
                                 break;
 #else
                             case 0x2: /* V9 wrccr */
+                                gen_op_xor_T1_T0();
                                 gen_op_wrccr();
                                 break;
                             case 0x3: /* V9 wrasi */
+                                gen_op_xor_T1_T0();
                                 gen_op_movl_env_T0(offsetof(CPUSPARCState, asi));
                                 break;
                             case 0x6: /* V9 wrfprs */
@@ -2067,6 +2097,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             case 0x13: /* Graphics Status */
                                 if (gen_trap_ifnofpu(dc))
                                     goto jmp_insn;
+                                gen_op_xor_T1_T0();
                                 gen_op_movtl_env_T0(offsetof(CPUSPARCState, gsr));
                                 break;
                             case 0x17: /* Tick compare */
@@ -2074,6 +2105,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 if (!supervisor(dc))
                                     goto illegal_insn;
 #endif
+                                gen_op_xor_T1_T0();
                                 gen_op_movtl_env_T0(offsetof(CPUSPARCState, tick_cmpr));
                                 gen_op_wrtick_cmpr();
                                 break;
@@ -2082,6 +2114,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 if (!supervisor(dc))
                                     goto illegal_insn;
 #endif
+                                gen_op_xor_T1_T0();
                                 gen_op_wrstick();
                                 break;
                             case 0x19: /* System tick compare */
@@ -2089,6 +2122,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 if (!supervisor(dc))
                                     goto illegal_insn;
 #endif
+                                gen_op_xor_T1_T0();
                                 gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
                                 gen_op_wrstick_cmpr();
                                 break;
@@ -3064,11 +3098,11 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_ld_asi(insn, 8, 0); // XXX
+                    gen_ldf_asi(insn, 4);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
-                    gen_op_check_align_T0_7();
-                    gen_ld_asi(insn, 8, 0); // XXX
+                    gen_op_check_align_T0_3();
+                    gen_ldf_asi(insn, 8);
                     goto skip_move;
                 case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
@@ -3240,11 +3274,13 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_st_asi(insn, 0); // XXX
+                    gen_op_load_fpr_FT0(rd);
+                    gen_stf_asi(insn, 4);
                     break;
                 case 0x37: /* V9 stdfa */
-                    gen_op_check_align_T0_7();
-                    gen_st_asi(insn, 0); // XXX
+                    gen_op_check_align_T0_3();
+                    gen_op_load_fpr_DT0(DFPREG(rd));
+                    gen_stf_asi(insn, 8);
                     break;
                 case 0x3c: /* V9 casa */
 #ifdef CONFIG_USER_ONLY

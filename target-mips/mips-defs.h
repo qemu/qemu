@@ -8,7 +8,7 @@
 #define TARGET_PAGE_BITS 12
 #define MIPS_TLB_MAX 128
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 #define TARGET_LONG_BITS 64
 #else
 #define TARGET_LONG_BITS 32

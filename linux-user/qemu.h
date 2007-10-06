@@ -160,14 +160,17 @@ void save_v86_state(CPUX86State *env);
 void handle_vm86_trap(CPUX86State *env, int trapno);
 void handle_vm86_fault(CPUX86State *env);
 int do_vm86(CPUX86State *env, long subfunction, target_ulong v86_addr);
+#elif defined(TARGET_SPARC64)
+void sparc64_set_context(CPUSPARCState *env);
+void sparc64_get_context(CPUSPARCState *env);
 #endif
 
 /* mmap.c */
 int target_mprotect(target_ulong start, target_ulong len, int prot);
-long target_mmap(target_ulong start, target_ulong len, int prot,
+target_long target_mmap(target_ulong start, target_ulong len, int prot,
                  int flags, int fd, target_ulong offset);
 int target_munmap(target_ulong start, target_ulong len);
-long target_mremap(target_ulong old_addr, target_ulong old_size,
+target_long target_mremap(target_ulong old_addr, target_ulong old_size,
                    target_ulong new_size, unsigned long flags,
                    target_ulong new_addr);
 int target_msync(target_ulong start, target_ulong len, int flags);

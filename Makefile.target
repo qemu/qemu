@@ -4,6 +4,9 @@ TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
 endif
+ifeq ($(TARGET_ARCH), mipsn32)
+TARGET_BASE_ARCH:=mips
+endif
 ifeq ($(TARGET_ARCH), mips64)
 TARGET_BASE_ARCH:=mips
 endif
@@ -50,6 +53,11 @@ endif
 ifeq ($(TARGET_ARCH),mips)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mipsel
+  endif
+endif
+ifeq ($(TARGET_ARCH),mipsn32)
+  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
+    TARGET_ARCH2=mipsn32el
   endif
 endif
 ifeq ($(TARGET_ARCH),mips64)
@@ -513,7 +521,7 @@ CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
 VL_OBJS+= shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-VL_OBJS+= sh_timer.o ptimer.o sh_serial.o
+VL_OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 VL_OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o

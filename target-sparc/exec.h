@@ -51,6 +51,8 @@ void cpu_loop_exit(void);
 void helper_flush(target_ulong addr);
 void helper_ld_asi(int asi, int size, int sign);
 void helper_st_asi(int asi, int size);
+void helper_ldf_asi(int asi, int size, int rd);
+void helper_stf_asi(int asi, int size, int rd);
 void helper_rett(void);
 void helper_ldfsr(void);
 void set_cwp(int new_cwp);

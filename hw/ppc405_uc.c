@@ -51,20 +51,22 @@ CPUState *ppc405_init (const unsigned char *cpu_model,
 
     /* init CPUs */
     env = cpu_init();
-    qemu_register_reset(&cpu_ppc_reset, env);
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     ppc_find_by_name(cpu_model, &def);
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC %s CPU definition\n",
                   cpu_model);
     }
     cpu_ppc_register(env, def);
+    cpu_ppc_reset(env);
     cpu_clk->cb = NULL; /* We don't care about CPU clock frequency changes */
     cpu_clk->opaque = env;
     /* Set time-base frequency to sysclk */
     tb_clk->cb = ppc_emb_timers_init(env, sysclk);
     tb_clk->opaque = env;
     ppc_dcr_init(env, NULL, NULL);
+    /* Register Qemu callbacks */
+    qemu_register_reset(&cpu_ppc_reset, env);
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     return env;
 }
@@ -3051,9 +3053,9 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     /* Universal interrupt controller */
     irqs = qemu_mallocz(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] =
-        ((qemu_irq *)env->irq_inputs)[PPC405_INPUT_INT];
+        ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] =
-        ((qemu_irq *)env->irq_inputs)[PPC405_INPUT_CINT];
+        ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
     pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
     *picp = pic;
     /* SDRAM controller */
@@ -3404,9 +3406,9 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     /* Universal interrupt controller */
     irqs = qemu_mallocz(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] =
-        ((qemu_irq *)env->irq_inputs)[PPC405_INPUT_INT];
+        ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] =
-        ((qemu_irq *)env->irq_inputs)[PPC405_INPUT_CINT];
+        ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
     pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
     *picp = pic;
     /* SDRAM controller */

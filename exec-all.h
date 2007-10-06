@@ -38,7 +38,7 @@
 #endif
 
 #ifndef always_inline
-#if __GNUC__ < 3
+#if (__GNUC__ < 3) || defined(__APPLE__)
 #define always_inline inline
 #else
 #define always_inline __attribute__ (( always_inline )) inline

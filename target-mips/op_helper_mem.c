@@ -124,7 +124,7 @@ uint32_t glue(do_swr, MEMSUFFIX) (uint32_t tmp)
     return tmp;
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 
 #ifdef TARGET_WORDS_BIGENDIAN
 #define GET_LMASK64(v) ((v) & 7)
@@ -298,4 +298,4 @@ uint64_t glue(do_sdr, MEMSUFFIX) (uint64_t tmp)
     return tmp;
 }
 
-#endif /* TARGET_MIPS64 */
+#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */

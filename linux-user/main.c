@@ -45,16 +45,12 @@ const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
 /* for recent libc, we add these dummy symbols which are not declared
    when generating a linked object (bug in ld ?) */
 #if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)) && !defined(CONFIG_STATIC)
-typedef void (*dummy_function_t)(void);
-static void dummy_function(void)
-{
-}
-dummy_function_t __preinit_array_start = dummy_function;
-dummy_function_t __preinit_array_end = dummy_function;
-dummy_function_t __init_array_start = dummy_function;
-dummy_function_t __init_array_end = dummy_function;
-dummy_function_t __fini_array_start = dummy_function;
-dummy_function_t __fini_array_end = dummy_function;
+long __preinit_array_start[0];
+long __preinit_array_end[0];
+long __init_array_start[0];
+long __init_array_end[0];
+long __fini_array_start[0];
+long __fini_array_end[0];
 #endif
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
@@ -638,6 +634,14 @@ void cpu_loop (CPUSPARCState *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+        case 0x16e:
+            flush_windows(env);
+            sparc64_get_context(env);
+            break;
+        case 0x16f:
+            flush_windows(env);
+            sparc64_set_context(env);
+            break;
 #endif
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
@@ -668,7 +672,6 @@ void cpu_loop (CPUSPARCState *env)
 #endif
 
 #ifdef TARGET_PPC
-
 static inline uint64_t cpu_ppc_get_tb (CPUState *env)
 {
     /* TO FIX */
@@ -685,31 +688,18 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     return cpu_ppc_get_tb(env) >> 32;
 }
 
-static void cpu_ppc_store_tb (CPUState *env, uint64_t value)
+uint32_t cpu_ppc_load_atbl (CPUState *env)
 {
-    /* TO FIX */
+    return cpu_ppc_get_tb(env) & 0xFFFFFFFF;
 }
 
-void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+uint32_t cpu_ppc_load_atbu (CPUState *env)
 {
-    cpu_ppc_store_tb(env, ((uint64_t)value << 32) | cpu_ppc_load_tbl(env));
+    return cpu_ppc_get_tb(env) >> 32;
 }
-
-void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
-{
-    cpu_ppc_store_tb(env, ((uint64_t)cpu_ppc_load_tbl(env) << 32) | value);
-}
-
-void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
-__attribute__ (( alias ("cpu_ppc_store_tbu") ));
 
 uint32_t cpu_ppc601_load_rtcu (CPUState *env)
 __attribute__ (( alias ("cpu_ppc_load_tbu") ));
-
-void cpu_ppc601_store_rtcl (CPUState *env, uint32_t value)
-{
-    cpu_ppc_store_tbl(env, value & 0x3FFFFF80);
-}
 
 uint32_t cpu_ppc601_load_rtcl (CPUState *env)
 {
@@ -1144,6 +1134,9 @@ void cpu_loop(CPUPPCState *env)
 #if 0
             printf("syscall returned 0x%08x (%d)\n", ret, ret);
 #endif
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
             break;
         default:
             cpu_abort(env, "Unknown exception 0x%d. Aborting\n", trapnr);
@@ -2117,7 +2110,7 @@ int main(int argc, char **argv)
                       "Unable to find PowerPC CPU definition\n");
         }
         cpu_ppc_register(env, def);
-
+        cpu_ppc_reset(env);
         for (i = 0; i < 32; i++) {
             if (i != 12 && i != 6 && i != 13)
                 env->msr[i] = (regs->msr >> i) & 1;
@@ -2165,7 +2158,11 @@ int main(int argc, char **argv)
 
         /* Choose and initialise CPU */
         if (cpu_model == NULL)
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+            cpu_model = "20Kc";
+#else
             cpu_model = "24Kf";
+#endif
         mips_find_by_name(cpu_model, &def);
         if (def == NULL)
             cpu_abort(env, "Unable to find MIPS CPU definition\n");

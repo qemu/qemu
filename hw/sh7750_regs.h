@@ -1241,48 +1241,6 @@
 #define SH7750_ICR_IRLM_RAW   0x0080	/*   IRL\ pins used as a four independent
 					   interrupt requests */
 
-/* Interrupt Priority Register A - IPRA (half) */
-#define SH7750_IPRA_REGOFS    0xD00004	/* offset */
-#define SH7750_IPRA           SH7750_P4_REG32(SH7750_IPRA_REGOFS)
-#define SH7750_IPRA_A7        SH7750_A7_REG32(SH7750_IPRA_REGOFS)
-
-#define SH7750_IPRA_TMU0      0xF000	/* TMU0 interrupt priority */
-#define SH7750_IPRA_TMU0_S    12
-#define SH7750_IPRA_TMU1      0x0F00	/* TMU1 interrupt priority */
-#define SH7750_IPRA_TMU1_S    8
-#define SH7750_IPRA_TMU2      0x00F0	/* TMU2 interrupt priority */
-#define SH7750_IPRA_TMU2_S    4
-#define SH7750_IPRA_RTC       0x000F	/* RTC interrupt priority */
-#define SH7750_IPRA_RTC_S     0
-
-/* Interrupt Priority Register B - IPRB (half) */
-#define SH7750_IPRB_REGOFS    0xD00008	/* offset */
-#define SH7750_IPRB           SH7750_P4_REG32(SH7750_IPRB_REGOFS)
-#define SH7750_IPRB_A7        SH7750_A7_REG32(SH7750_IPRB_REGOFS)
-
-#define SH7750_IPRB_WDT       0xF000	/* WDT interrupt priority */
-#define SH7750_IPRB_WDT_S     12
-#define SH7750_IPRB_REF       0x0F00	/* Memory Refresh unit interrupt
-					   priority */
-#define SH7750_IPRB_REF_S     8
-#define SH7750_IPRB_SCI1      0x00F0	/* SCI1 interrupt priority */
-#define SH7750_IPRB_SCI1_S    4
-
-/* Interrupt Priority Register ó - IPRó (half) */
-#define SH7750_IPRC_REGOFS    0xD00004	/* offset */
-#define SH7750_IPRC           SH7750_P4_REG32(SH7750_IPRC_REGOFS)
-#define SH7750_IPRC_A7        SH7750_A7_REG32(SH7750_IPRC_REGOFS)
-
-#define SH7750_IPRC_GPIO      0xF000	/* GPIO interrupt priority */
-#define SH7750_IPRC_GPIO_S    12
-#define SH7750_IPRC_DMAC      0x0F00	/* DMAC interrupt priority */
-#define SH7750_IPRC_DMAC_S    8
-#define SH7750_IPRC_SCIF      0x00F0	/* SCIF interrupt priority */
-#define SH7750_IPRC_SCIF_S    4
-#define SH7750_IPRC_HUDI      0x000F	/* H-UDI interrupt priority */
-#define SH7750_IPRC_HUDI_S    0
-
-
 /*
  * User Break Controller registers
  */

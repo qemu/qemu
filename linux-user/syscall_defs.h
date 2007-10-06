@@ -307,7 +307,9 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_NODEFER	0x40000000
 #define TARGET_SA_RESTART	0x10000000
 #define TARGET_SA_RESETHAND	0x80000000
+#if !defined(TARGET_MIPSN32) && !defined(TARGET_MIPS64)
 #define TARGET_SA_RESTORER	0x04000000	/* Only for o32 */
+#endif
 #else
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00000002 /* not supported yet */
@@ -447,8 +449,12 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #if defined(TARGET_MIPS)
 
 struct target_sigaction {
-	target_ulong	sa_flags;
+	uint32_t	sa_flags;
+#if defined(TARGET_MIPSN32)
+	uint32_t	_sa_handler;
+#else
 	target_ulong	_sa_handler;
+#endif
 	target_sigset_t	sa_mask;
 };
 
@@ -860,6 +866,8 @@ struct target_winsize {
 #define TARGET_MAP_EXECUTABLE	0x4000		/* mark it as an executable */
 #define TARGET_MAP_LOCKED	0x8000		/* pages are locked */
 #define TARGET_MAP_NORESERVE	0x0400		/* don't check for reservations */
+#define TARGET_MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
+#define TARGET_MAP_NONBLOCK	0x20000		/* do not block on IO */
 #else
 #define TARGET_MAP_ANONYMOUS	0x20		/* don't use a file */
 #define TARGET_MAP_GROWSDOWN	0x0100		/* stack-like segment */
@@ -872,6 +880,8 @@ struct target_winsize {
 #define TARGET_MAP_LOCKED	0x2000		/* pages are locked */
 #define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
 #endif
+#define TARGET_MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+#define TARGET_MAP_NONBLOCK	0x10000		/* do not block on IO */
 #endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM)
@@ -1184,6 +1194,116 @@ struct target_stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
+#elif defined(TARGET_MIPS64)
+
+/* The memory layout is the same as of struct stat64 of the 32-bit kernel.  */
+struct target_stat {
+	unsigned int		st_dev;
+	unsigned int		st_pad0[3]; /* Reserved for st_dev expansion */
+
+	target_ulong		st_ino;
+
+	unsigned int		st_mode;
+	unsigned int		st_nlink;
+
+	int			st_uid;
+	int			st_gid;
+
+	unsigned int		st_rdev;
+	unsigned int		st_pad1[3]; /* Reserved for st_rdev expansion */
+
+	target_ulong		st_size;
+
+	/*
+	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
+	 * but we don't have it under Linux.
+	 */
+	unsigned int		target_st_atime;
+	unsigned int		target_st_atime_nsec;
+
+	unsigned int		target_st_mtime;
+	unsigned int		target_st_mtime_nsec;
+
+	unsigned int		target_st_ctime;
+	unsigned int		target_st_ctime_nsec;
+
+	unsigned int		st_blksize;
+	unsigned int		st_pad2;
+
+	target_ulong		st_blocks;
+};
+
+#elif defined(TARGET_MIPSN32)
+
+struct target_stat {
+	unsigned	st_dev;
+	int		st_pad1[3];		/* Reserved for network id */
+	unsigned int	st_ino;
+	unsigned int	st_mode;
+	unsigned int	st_nlink;
+	int		st_uid;
+	int		st_gid;
+	unsigned 	st_rdev;
+	unsigned int	st_pad2[2];
+	unsigned int	st_size;
+	unsigned int	st_pad3;
+	/*
+	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
+	 * but we don't have it under Linux.
+	 */
+	unsigned int		target_st_atime;
+	unsigned int		target_st_atime_nsec;
+	unsigned int		target_st_mtime;
+	unsigned int		target_st_mtime_nsec;
+	unsigned int		target_st_ctime;
+	unsigned int		target_st_ctime_nsec;
+	unsigned int		st_blksize;
+	unsigned int		st_blocks;
+	unsigned int		st_pad4[14];
+};
+
+/*
+ * This matches struct stat64 in glibc2.1, hence the absolutely insane
+ * amounts of padding around dev_t's.  The memory layout is the same as of
+ * struct stat of the 64-bit kernel.
+ */
+
+struct target_stat64 {
+	unsigned int	st_dev;
+	unsigned int	st_pad0[3];	/* Reserved for st_dev expansion  */
+
+	target_ulong	st_ino;
+
+        unsigned int	st_mode;
+        unsigned int	st_nlink;
+
+	int		st_uid;
+	int		st_gid;
+
+	unsigned int	st_rdev;
+	unsigned int	st_pad1[3];	/* Reserved for st_rdev expansion  */
+
+	int		st_size;
+
+	/*
+	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
+	 * but we don't have it under Linux.
+	 */
+	int		target_st_atime;
+	unsigned int	target_st_atime_nsec;	/* Reserved for st_atime expansion  */
+
+	int		target_st_mtime;
+	unsigned int	target_st_mtime_nsec;	/* Reserved for st_mtime expansion  */
+
+	int		target_st_ctime;
+	unsigned int	target_st_ctime_nsec;	/* Reserved for st_ctime expansion  */
+
+	unsigned int	st_blksize;
+	unsigned int	st_pad2;
+
+	int		st_blocks;
+};
+
 #elif defined(TARGET_MIPS)
 
 struct target_stat {
@@ -1366,6 +1486,23 @@ typedef struct {
 } target_fsid_t;
 
 #ifdef TARGET_MIPS
+#ifdef TARGET_MIPSN32
+struct target_statfs {
+	int32_t			f_type;
+	int32_t			f_bsize;
+	int32_t			f_frsize;	/* Fragment size - unsupported */
+	int32_t			f_blocks;
+	int32_t			f_bfree;
+	int32_t			f_files;
+	int32_t			f_ffree;
+	int32_t			f_bavail;
+
+	/* Linux specials */
+	target_fsid_t		f_fsid;
+	int32_t			f_namelen;
+	int32_t			f_spare[6];
+};
+#else
 struct target_statfs {
 	target_long		f_type;
 	target_long		f_bsize;
@@ -1381,6 +1518,7 @@ struct target_statfs {
 	target_long		f_namelen;
 	target_long		f_spare[6];
 };
+#endif
 
 struct target_statfs64 {
 	uint32_t	f_type;

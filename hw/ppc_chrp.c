@@ -327,9 +327,6 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* init CPUs */
     env = cpu_init();
-    qemu_register_reset(&cpu_ppc_reset, env);
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-
     if (cpu_model == NULL)
         cpu_model = "default";
     ppc_find_by_name(cpu_model, &def);
@@ -338,9 +335,12 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
     }
     for (i = 0; i < smp_cpus; i++) {
         cpu_ppc_register(env, def);
+        cpu_ppc_reset(env);
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         env->osi_call = vga_osi_call;
+        qemu_register_reset(&cpu_ppc_reset, env);
+        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;
     }
 
@@ -349,7 +349,9 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* allocate and load BIOS */
     bios_offset = ram_size + vga_ram_size;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    if (bios_name == NULL)
+        bios_name = BIOS_FILENAME;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         cpu_abort(env, "qemu: could not load PowerPC bios '%s'\n", buf);
@@ -491,6 +493,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                 openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
                     ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_HRESET];
                 break;
+#if defined(TARGET_PPC64)
             case PPC_FLAGS_INPUT_970:
                 openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
                 openpic_irqs[i][OPENPIC_OUTPUT_INT] =
@@ -505,6 +508,7 @@ static void ppc_chrp_init (int ram_size, int vga_ram_size, int boot_device,
                 openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
                     ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_HRESET];
                 break;
+#endif /* defined(TARGET_PPC64) */
             default:
                 cpu_abort(env, "Bus model not supported on mac99 machine\n");
                 exit(1);

@@ -190,7 +190,9 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
     bios_offset = ram_size + vga_ram_size;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    if (bios_name == NULL)
+        bios_name = BIOS_FILENAME;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
     if ((bios_size > 0) && (bios_size <= 4 * MiB)) {
 	cpu_register_physical_memory(0x1fc00000,

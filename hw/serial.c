@@ -148,7 +148,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
     addr &= 7;
 #ifdef DEBUG_SERIAL
-    fprintf(stderr, "serial: write addr=0x%02x val=0x%02x\n", addr, val);
+    printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
 #endif
     switch(addr) {
     default:
@@ -267,7 +267,7 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
         break;
     }
 #ifdef DEBUG_SERIAL
-    fprintf(stderr, "serial: read addr=0x%02x val=0x%02x\n", addr, ret);
+    printf("serial: read addr=0x%02x val=0x%02x\n", addr, ret);
 #endif
     return ret;
 }

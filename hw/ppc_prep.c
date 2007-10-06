@@ -26,6 +26,9 @@
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
 
+/* SMP is not enabled, for now */
+#define MAX_CPUS 1
+
 #define BIOS_FILENAME "ppc_rom.bin"
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000
@@ -521,7 +524,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    CPUState *env;
+    CPUState *env, *envs[MAX_CPUS];
     char buf[1024];
     m48t59_t *nvram;
     int PPC_io_memory;
@@ -539,27 +542,31 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
-
     env = cpu_init();
-    qemu_register_reset(&cpu_ppc_reset, env);
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-
     if (cpu_model == NULL)
         cpu_model = "default";
     ppc_find_by_name(cpu_model, &def);
     if (def == NULL) {
         cpu_abort(env, "Unable to find PowerPC CPU definition\n");
     }
-    cpu_ppc_register(env, def);
-    /* Set time-base frequency to 100 Mhz */
-    cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+    for (i = 0; i < smp_cpus; i++) {
+        cpu_ppc_register(env, def);
+        cpu_ppc_reset(env);
+        /* Set time-base frequency to 100 Mhz */
+        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        qemu_register_reset(&cpu_ppc_reset, env);
+        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+        envs[i] = env;
+    }
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
 
     /* allocate and load BIOS */
     bios_offset = ram_size + vga_ram_size;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    if (bios_name == NULL)
+        bios_name = BIOS_FILENAME;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         cpu_abort(env, "qemu: could not load PPC PREP bios '%s'\n", buf);

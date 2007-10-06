@@ -110,7 +110,7 @@ static inline char *realpath(const char *path, char *resolved_path)
 #endif
 
 #ifndef always_inline
-#if __GNUC__ < 3
+#if (__GNUC__ < 3) || defined(__APPLE__)
 #define always_inline inline
 #else
 #define always_inline __attribute__ (( always_inline )) inline
@@ -129,6 +129,7 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 void hw_error(const char *fmt, ...);
 
 extern const char *bios_dir;
+extern const char *bios_name;
 
 extern int vm_running;
 extern const char *qemu_name;
@@ -1318,7 +1319,8 @@ int load_aout(const char *filename, uint8_t *addr);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
 
 /* slavio_timer.c */
-void slavio_timer_init(target_phys_addr_t addr, qemu_irq irq, int mode);
+void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
+                           qemu_irq *cpu_irqs);
 
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,

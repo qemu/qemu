@@ -82,20 +82,12 @@ typedef uint32_t ppc_gpr_t;
 #define ELF_MACHINE     EM_PPC
 #endif
 
-/* XXX: this should be tunable: PowerPC 601 & 64 bits PowerPC
- *                              have different cache line sizes
- */
-#define ICACHE_LINE_SIZE 32
-#define DCACHE_LINE_SIZE 32
-
 /*****************************************************************************/
 /* MMU model                                                                 */
 enum {
     POWERPC_MMU_UNKNOWN    = 0,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B,
-    /* Standard 64 bits PowerPC MMU                            */
-    POWERPC_MMU_64B,
     /* PowerPC 601 MMU                                         */
     POWERPC_MMU_601,
     /* PowerPC 6xx MMU with software TLB                       */
@@ -112,8 +104,10 @@ enum {
     POWERPC_MMU_BOOKE,
     /* BookE FSL MMU model                                     */
     POWERPC_MMU_BOOKE_FSL,
-    /* 64 bits "bridge" PowerPC MMU                            */
-    POWERPC_MMU_64BRIDGE,
+#if defined(TARGET_PPC64)
+    /* 64 bits PowerPC MMU                                     */
+    POWERPC_MMU_64B,
+#endif /* defined(TARGET_PPC64) */
 };
 
 /*****************************************************************************/
@@ -142,10 +136,12 @@ enum {
     POWERPC_EXCP_7x5,
     /* PowerPC 74xx exception model     */
     POWERPC_EXCP_74xx,
-    /* PowerPC 970 exception model      */
-    POWERPC_EXCP_970,
     /* BookE exception model            */
     POWERPC_EXCP_BOOKE,
+#if defined(TARGET_PPC64)
+    /* PowerPC 970 exception model      */
+    POWERPC_EXCP_970,
+#endif /* defined(TARGET_PPC64) */
 };
 
 /*****************************************************************************/
@@ -287,6 +283,7 @@ enum {
 
 #define PPC_INPUT(env) (env->bus_model)
 
+/*****************************************************************************/
 typedef struct ppc_def_t ppc_def_t;
 typedef struct opc_handler_t opc_handler_t;
 
@@ -306,6 +303,10 @@ struct ppc_spr_t {
 #if !defined(CONFIG_USER_ONLY)
     void (*oea_read)(void *opaque, int spr_num);
     void (*oea_write)(void *opaque, int spr_num);
+#if defined(TARGET_PPC64H)
+    void (*hea_read)(void *opaque, int spr_num);
+    void (*hea_write)(void *opaque, int spr_num);
+#endif
 #endif
     const unsigned char *name;
 };
@@ -511,6 +512,11 @@ struct CPUPPCState {
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
+    /* PowerPC 64 SLB area */
+    int slb_nr;
+
+    int dcache_line_size;
+    int icache_line_size;
 
     /* Those resources are used during exception processing */
     /* CPU model definition */
@@ -537,6 +543,7 @@ struct CPUPPCState {
     target_ulong excp_prefix;
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
+    target_ulong hreset_vector;
 #endif
 
     /* Those resources are used only during code translation */
@@ -599,15 +606,21 @@ void do_store_sdr1 (CPUPPCState *env, target_ulong value);
 #if defined(TARGET_PPC64)
 target_ulong ppc_load_asr (CPUPPCState *env);
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
-#endif
+target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
+void ppc_store_slb (CPUPPCState *env, int slb_nr, target_ulong rs);
+#endif /* defined(TARGET_PPC64) */
+#if 0 // Unused
 target_ulong do_load_sr (CPUPPCState *env, int srnum);
-void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif
-uint32_t ppc_load_xer (CPUPPCState *env);
-void ppc_store_xer (CPUPPCState *env, uint32_t value);
+void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
+#endif /* !defined(CONFIG_USER_ONLY) */
+target_ulong ppc_load_xer (CPUPPCState *env);
+void ppc_store_xer (CPUPPCState *env, target_ulong value);
 target_ulong do_load_msr (CPUPPCState *env);
-void do_store_msr (CPUPPCState *env, target_ulong value);
-void ppc_store_msr_32 (CPUPPCState *env, uint32_t value);
+int do_store_msr (CPUPPCState *env, target_ulong value);
+#if defined(TARGET_PPC64)
+int ppc_store_msr_32 (CPUPPCState *env, uint32_t value);
+#endif
 
 void do_compute_hflags (CPUPPCState *env);
 void cpu_ppc_reset (void *opaque);
@@ -625,6 +638,10 @@ uint32_t cpu_ppc_load_tbl (CPUPPCState *env);
 uint32_t cpu_ppc_load_tbu (CPUPPCState *env);
 void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
+uint32_t cpu_ppc_load_atbl (CPUPPCState *env);
+uint32_t cpu_ppc_load_atbu (CPUPPCState *env);
+void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
+void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 #if defined(TARGET_PPC64H)
@@ -645,6 +662,11 @@ void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
+void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
+#if defined(TARGET_PPC64)
+void ppc_slb_invalidate_all (CPUPPCState *env);
+void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0);
+#endif
 int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
@@ -798,8 +820,8 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_BOOKE_SPEFSCR (0x200)
 #define SPR_E500_BBEAR   (0x201)
 #define SPR_E500_BBTAR   (0x202)
-#define SPR_BOOKE_ATBL   (0x20E)
-#define SPR_BOOKE_ATBU   (0x20F)
+#define SPR_ATBL         (0x20E)
+#define SPR_ATBU         (0x20F)
 #define SPR_IBAT0U       (0x210)
 #define SPR_BOOKE_IVOR32 (0x210)
 #define SPR_IBAT0L       (0x211)
@@ -1024,7 +1046,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_440_DBDR     (0x3F3)
 #define SPR_LDSTDB       (0x3F4)
 #define SPR_40x_IAC1     (0x3F4)
-#define SPR_BOOKE_MMUCSR0 (0x3F4)
+#define SPR_MMUCSR0      (0x3F4)
 #define SPR_DABR         (0x3F5)
 #define DABR_MASK (~(target_ulong)0x7)
 #define SPR_E500_BUCSR   (0x3F5)
@@ -1032,10 +1054,11 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define SPR_601_HID5     (0x3F5)
 #define SPR_40x_DAC1     (0x3F6)
 #define SPR_MSSCR0       (0x3F6)
+#define SPR_970_HID5     (0x3F6)
 #define SPR_MSSSR0       (0x3F7)
 #define SPR_DABRX        (0x3F7)
 #define SPR_40x_DAC2     (0x3F7)
-#define SPR_BOOKE_MMUCFG (0x3F7)
+#define SPR_MMUCFG       (0x3F7)
 #define SPR_LDSTCR       (0x3F8)
 #define SPR_L2PMCR       (0x3F8)
 #define SPR_750_HID2     (0x3F8)
@@ -1106,25 +1129,18 @@ enum {
 };
 
 enum {
-    /* PowerPC 401/403 input pins */
-    PPC401_INPUT_RESET      = 0,
-    PPC401_INPUT_CINT       = 1,
-    PPC401_INPUT_INT        = 2,
-    PPC401_INPUT_BERR       = 3,
-    PPC401_INPUT_HALT       = 4,
+    /* PowerPC 40x input pins */
+    PPC40x_INPUT_RESET_CORE = 0,
+    PPC40x_INPUT_RESET_CHIP = 1,
+    PPC40x_INPUT_RESET_SYS  = 2,
+    PPC40x_INPUT_CINT       = 3,
+    PPC40x_INPUT_INT        = 4,
+    PPC40x_INPUT_HALT       = 5,
+    PPC40x_INPUT_DEBUG      = 6,
+    PPC40x_INPUT_NB,
 };
 
-enum {
-    /* PowerPC 405 input pins */
-    PPC405_INPUT_RESET_CORE = 0,
-    PPC405_INPUT_RESET_CHIP = 1,
-    PPC405_INPUT_RESET_SYS  = 2,
-    PPC405_INPUT_CINT       = 3,
-    PPC405_INPUT_INT        = 4,
-    PPC405_INPUT_HALT       = 5,
-    PPC405_INPUT_DEBUG      = 6,
-};
-
+#if defined(TARGET_PPC64)
 enum {
     /* PowerPC 620 (and probably others) input pins */
     PPC620_INPUT_HRESET     = 0,
@@ -1147,6 +1163,7 @@ enum {
     PPC970_INPUT_INT        = 5,
     PPC970_INPUT_THINT      = 6,
 };
+#endif
 
 /* Hardware exceptions definitions */
 enum {

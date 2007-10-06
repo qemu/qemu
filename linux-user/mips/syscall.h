@@ -3,10 +3,8 @@
    stack during a system call. */
 
 struct target_pt_regs {
-#if 1
 	/* Pad bytes for argument save space on the stack. */
 	target_ulong pad0[6];
-#endif
 
 	/* Saved main processor registers. */
 	target_ulong regs[32];

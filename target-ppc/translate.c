@@ -169,6 +169,7 @@ typedef struct DisasContext {
 #endif
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
+    int dcache_line_size;
 } DisasContext;
 
 struct opc_handler_t {
@@ -384,98 +385,108 @@ static inline target_ulong MASK (uint32_t start, uint32_t end)
 /* PowerPC Instructions types definitions                                    */
 enum {
     PPC_NONE          = 0x0000000000000000ULL,
-    /* integer operations instructions                  */
-    /* flow control instructions                        */
-    /* virtual memory instructions                      */
-    /* ld/st with reservation instructions              */
-    /* cache control instructions                       */
-    /* spr/msr access instructions                      */
+    /* PowerPC base instructions set                                         */
     PPC_INSNS_BASE    = 0x0000000000000001ULL,
+    /* integer operations instructions                                       */
 #define PPC_INTEGER PPC_INSNS_BASE
+    /* flow control instructions                                             */
 #define PPC_FLOW    PPC_INSNS_BASE
+    /* virtual memory instructions                                           */
 #define PPC_MEM     PPC_INSNS_BASE
+    /* ld/st with reservation instructions                                   */
 #define PPC_RES     PPC_INSNS_BASE
+    /* cache control instructions                                            */
 #define PPC_CACHE   PPC_INSNS_BASE
+    /* spr/msr access instructions                                           */
 #define PPC_MISC    PPC_INSNS_BASE
-    /* Optional floating point instructions             */
+    /* Optional floating point instructions                                  */
     PPC_FLOAT         = 0x0000000000000002ULL,
     PPC_FLOAT_FSQRT   = 0x0000000000000004ULL,
     PPC_FLOAT_FRES    = 0x0000000000000008ULL,
     PPC_FLOAT_FRSQRTE = 0x0000000000000010ULL,
     PPC_FLOAT_FSEL    = 0x0000000000000020ULL,
     PPC_FLOAT_STFIWX  = 0x0000000000000040ULL,
-    /* external control instructions                    */
+    /* external control instructions                                         */
     PPC_EXTERN        = 0x0000000000000080ULL,
-    /* segment register access instructions             */
+    /* segment register access instructions                                  */
     PPC_SEGMENT       = 0x0000000000000100ULL,
-    /* Optional cache control instruction               */
+    /* Optional cache control instruction                                    */
     PPC_CACHE_DCBA    = 0x0000000000000200ULL,
-    /* Optional memory control instructions             */
+    /* Optional memory control instructions                                  */
     PPC_MEM_TLBIA     = 0x0000000000000400ULL,
     PPC_MEM_TLBIE     = 0x0000000000000800ULL,
     PPC_MEM_TLBSYNC   = 0x0000000000001000ULL,
-    /* eieio & sync                                     */
+    /* eieio & sync                                                          */
     PPC_MEM_SYNC      = 0x0000000000002000ULL,
-    /* PowerPC 6xx TLB management instructions          */
+    /* PowerPC 6xx TLB management instructions                               */
     PPC_6xx_TLB       = 0x0000000000004000ULL,
-    /* Altivec support                                  */
+    /* Altivec support                                                       */
     PPC_ALTIVEC       = 0x0000000000008000ULL,
-    /* Time base mftb instruction                       */
+    /* Time base mftb instruction                                            */
     PPC_MFTB          = 0x0000000000010000ULL,
-    /* Embedded PowerPC dedicated instructions          */
+    /* Embedded PowerPC dedicated instructions                               */
     PPC_EMB_COMMON    = 0x0000000000020000ULL,
-    /* PowerPC 40x exception model                      */
+    /* PowerPC 40x exception model                                           */
     PPC_40x_EXCP      = 0x0000000000040000ULL,
-    /* PowerPC 40x TLB management instructions          */
+    /* PowerPC 40x TLB management instructions                               */
     PPC_40x_TLB       = 0x0000000000080000ULL,
-    /* PowerPC 405 Mac instructions                     */
+    /* PowerPC 405 Mac instructions                                          */
     PPC_405_MAC       = 0x0000000000100000ULL,
-    /* PowerPC 440 specific instructions                */
+    /* PowerPC 440 specific instructions                                     */
     PPC_440_SPEC      = 0x0000000000200000ULL,
-    /* Power-to-PowerPC bridge (601)                    */
+    /* Power-to-PowerPC bridge (601)                                         */
     PPC_POWER_BR      = 0x0000000000400000ULL,
-    /* PowerPC 602 specific */
+    /* PowerPC 602 specific                                                  */
     PPC_602_SPEC      = 0x0000000000800000ULL,
-    /* Deprecated instructions                          */
-    /* Original POWER instruction set                   */
+    /* Deprecated instructions                                               */
+    /* Original POWER instruction set                                        */
     PPC_POWER         = 0x0000000001000000ULL,
-    /* POWER2 instruction set extension                 */
+    /* POWER2 instruction set extension                                      */
     PPC_POWER2        = 0x0000000002000000ULL,
-    /* Power RTC support */
+    /* Power RTC support                                                     */
     PPC_POWER_RTC     = 0x0000000004000000ULL,
-    /* 64 bits PowerPC instructions                     */
-    /* 64 bits PowerPC instruction set                  */
+    /* 64 bits PowerPC instruction set                                       */
     PPC_64B           = 0x0000000008000000ULL,
-    /* 64 bits hypervisor extensions                    */
+    /* 64 bits hypervisor extensions                                         */
     PPC_64H           = 0x0000000010000000ULL,
-    /* 64 bits PowerPC "bridge" features                */
-    PPC_64_BRIDGE     = 0x0000000020000000ULL,
-    /* BookE (embedded) PowerPC specification           */
+    /* segment register access instructions for PowerPC 64 "bridge"          */
+    PPC_SEGMENT_64B   = 0x0000000020000000ULL,
+    /* BookE (embedded) PowerPC specification                                */
     PPC_BOOKE         = 0x0000000040000000ULL,
-    /* eieio                                            */
+    /* eieio                                                                 */
     PPC_MEM_EIEIO     = 0x0000000080000000ULL,
-    /* e500 vector instructions                         */
+    /* e500 vector instructions                                              */
     PPC_E500_VECTOR   = 0x0000000100000000ULL,
-    /* PowerPC 4xx dedicated instructions               */
+    /* PowerPC 4xx dedicated instructions                                    */
     PPC_4xx_COMMON    = 0x0000000200000000ULL,
-    /* PowerPC 2.03 specification extensions            */
+    /* PowerPC 2.03 specification extensions                                 */
     PPC_203           = 0x0000000400000000ULL,
-    /* PowerPC 2.03 SPE extension                       */
+    /* PowerPC 2.03 SPE extension                                            */
     PPC_SPE           = 0x0000000800000000ULL,
-    /* PowerPC 2.03 SPE floating-point extension        */
+    /* PowerPC 2.03 SPE floating-point extension                             */
     PPC_SPEFPU        = 0x0000001000000000ULL,
-    /* SLB management                                   */
+    /* SLB management                                                        */
     PPC_SLBI          = 0x0000002000000000ULL,
-    /* PowerPC 40x ibct instructions                    */
+    /* PowerPC 40x ibct instructions                                         */
     PPC_40x_ICBT      = 0x0000004000000000ULL,
-    /* PowerPC 74xx TLB management instructions         */
+    /* PowerPC 74xx TLB management instructions                              */
     PPC_74xx_TLB      = 0x0000008000000000ULL,
-    /* More BookE (embedded) instructions...            */
+    /* More BookE (embedded) instructions...                                 */
     PPC_BOOKE_EXT     = 0x0000010000000000ULL,
-    /* rfmci is not implemented in all BookE PowerPC    */
+    /* rfmci is not implemented in all BookE PowerPC                         */
     PPC_RFMCI         = 0x0000020000000000ULL,
-    /* user-mode DCR access, implemented in PowerPC 460 */
+    /* user-mode DCR access, implemented in PowerPC 460                      */
     PPC_DCRUX         = 0x0000040000000000ULL,
+    /* New floating-point extensions (PowerPC 2.0x)                          */
+    PPC_FLOAT_EXT     = 0x0000080000000000ULL,
+    /* New wait instruction (PowerPC 2.0x)                                   */
+    PPC_WAIT          = 0x0000100000000000ULL,
+    /* New 64 bits extensions (PowerPC 2.0x)                                 */
+    PPC_64BX          = 0x0000200000000000ULL,
+    /* dcbz instruction with fixed cache line size                           */
+    PPC_CACHE_DCBZ    = 0x0000400000000000ULL,
+    /* dcbz instruction with tunable cache line size                         */
+    PPC_CACHE_DCBZT   = 0x0000800000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1122,6 +1133,54 @@ GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER)
     } else if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_op_load_gpr_T0(rs);
         gen_set_Rc0(ctx);
+#if defined(TARGET_PPC64)
+    } else {
+        switch (rs) {
+        case 1:
+            /* Set process priority to low */
+            gen_op_store_pri(2);
+            break;
+        case 6:
+            /* Set process priority to medium-low */
+            gen_op_store_pri(3);
+            break;
+        case 2:
+            /* Set process priority to normal */
+            gen_op_store_pri(4);
+            break;
+#if !defined(CONFIG_USER_ONLY)
+        case 31:
+            if (ctx->supervisor > 0) {
+                /* Set process priority to very low */
+                gen_op_store_pri(1);
+            }
+            break;
+        case 5:
+            if (ctx->supervisor > 0) {
+                /* Set process priority to medium-hight */
+                gen_op_store_pri(5);
+            }
+            break;
+        case 3:
+            if (ctx->supervisor > 0) {
+                /* Set process priority to high */
+                gen_op_store_pri(6);
+            }
+            break;
+#if defined(TARGET_PPC64H)
+        case 7:
+            if (ctx->supervisor > 1) {
+                /* Set process priority to very high */
+                gen_op_store_pri(7);
+            }
+            break;
+#endif
+#endif
+        default:
+            /* nop */
+            break;
+        }
+#endif
     }
 }
 
@@ -1660,6 +1719,9 @@ GEN_FLOAT_AB(div, 0x12, 0x000007C0);
 /* fmul - fmuls */
 GEN_FLOAT_AC(mul, 0x19, 0x0000F800);
 
+/* fre */
+GEN_FLOAT_BS(re, 0x3F, 0x18, PPC_FLOAT_EXT);
+
 /* fres */
 GEN_FLOAT_BS(res, 0x3B, 0x18, PPC_FLOAT_FRES);
 
@@ -1726,6 +1788,15 @@ GEN_FLOAT_B(ctid, 0x0E, 0x19, PPC_64B);
 /* fctidz */
 GEN_FLOAT_B(ctidz, 0x0F, 0x19, PPC_64B);
 #endif
+
+/* frin */
+GEN_FLOAT_B(rin, 0x08, 0x0C, PPC_FLOAT_EXT);
+/* friz */
+GEN_FLOAT_B(riz, 0x08, 0x0D, PPC_FLOAT_EXT);
+/* frip */
+GEN_FLOAT_B(rip, 0x08, 0x0E, PPC_FLOAT_EXT);
+/* frim */
+GEN_FLOAT_B(rim, 0x08, 0x0F, PPC_FLOAT_EXT);
 
 /***                         Floating-Point compare                        ***/
 /* fcmpo */
@@ -1866,12 +1937,11 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 
 /***                           Addressing modes                            ***/
 /* Register indirect with immediate index : EA = (rA|0) + SIMM */
-static inline void gen_addr_imm_index (DisasContext *ctx, int maskl)
+static inline void gen_addr_imm_index (DisasContext *ctx, target_long maskl)
 {
     target_long simm = SIMM(ctx->opcode);
 
-    if (maskl)
-        simm &= ~0x03;
+    simm &= ~maskl;
     if (rA(ctx->opcode) == 0) {
         gen_set_T0(simm);
     } else {
@@ -1914,6 +1984,7 @@ static inline void gen_addr_register (DisasContext *ctx)
 #define op_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
 #if defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
+/* User mode only - 64 bits */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_raw,                                                   \
@@ -1932,6 +2003,7 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 #define gen_op_stb_le_64_raw gen_op_stb_64_raw
 #define gen_op_lbz_le_64_raw gen_op_lbz_64_raw
 #else
+/* User mode only - 32 bits */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_raw,                                                   \
@@ -1948,14 +2020,53 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 #define gen_op_lbz_le_raw gen_op_lbz_raw
 #else
 #if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64H)
+/* Full system - 64 bits with hypervisor mode */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_user,                                                  \
     &gen_op_l##width##_le_user,                                               \
-    &gen_op_l##width##_kernel,                                                \
-    &gen_op_l##width##_le_kernel,                                             \
     &gen_op_l##width##_64_user,                                               \
     &gen_op_l##width##_le_64_user,                                            \
+    &gen_op_l##width##_kernel,                                                \
+    &gen_op_l##width##_le_kernel,                                             \
+    &gen_op_l##width##_64_kernel,                                             \
+    &gen_op_l##width##_le_64_kernel,                                          \
+    &gen_op_l##width##_hypv,                                                  \
+    &gen_op_l##width##_le_hypv,                                               \
+    &gen_op_l##width##_64_hypv,                                               \
+    &gen_op_l##width##_le_64_hypv,                                            \
+};
+#define OP_ST_TABLE(width)                                                    \
+static GenOpFunc *gen_op_st##width[] = {                                      \
+    &gen_op_st##width##_user,                                                 \
+    &gen_op_st##width##_le_user,                                              \
+    &gen_op_st##width##_64_user,                                              \
+    &gen_op_st##width##_le_64_user,                                           \
+    &gen_op_st##width##_kernel,                                               \
+    &gen_op_st##width##_le_kernel,                                            \
+    &gen_op_st##width##_64_kernel,                                            \
+    &gen_op_st##width##_le_64_kernel,                                         \
+    &gen_op_st##width##_hypv,                                                 \
+    &gen_op_st##width##_le_hypv,                                              \
+    &gen_op_st##width##_64_hypv,                                              \
+    &gen_op_st##width##_le_64_hypv,                                           \
+};
+/* Byte access routine are endian safe */
+#define gen_op_stb_le_hypv      gen_op_stb_64_hypv
+#define gen_op_lbz_le_hypv      gen_op_lbz_64_hypv
+#define gen_op_stb_le_64_hypv   gen_op_stb_64_hypv
+#define gen_op_lbz_le_64_hypv   gen_op_lbz_64_hypv
+#else
+/* Full system - 64 bits */
+#define OP_LD_TABLE(width)                                                    \
+static GenOpFunc *gen_op_l##width[] = {                                       \
+    &gen_op_l##width##_user,                                                  \
+    &gen_op_l##width##_le_user,                                               \
+    &gen_op_l##width##_64_user,                                               \
+    &gen_op_l##width##_le_64_user,                                            \
+    &gen_op_l##width##_kernel,                                                \
+    &gen_op_l##width##_le_kernel,                                             \
     &gen_op_l##width##_64_kernel,                                             \
     &gen_op_l##width##_le_64_kernel,                                          \
 };
@@ -1963,19 +2074,21 @@ static GenOpFunc *gen_op_l##width[] = {                                       \
 static GenOpFunc *gen_op_st##width[] = {                                      \
     &gen_op_st##width##_user,                                                 \
     &gen_op_st##width##_le_user,                                              \
-    &gen_op_st##width##_kernel,                                               \
-    &gen_op_st##width##_le_kernel,                                            \
     &gen_op_st##width##_64_user,                                              \
     &gen_op_st##width##_le_64_user,                                           \
+    &gen_op_st##width##_kernel,                                               \
+    &gen_op_st##width##_le_kernel,                                            \
     &gen_op_st##width##_64_kernel,                                            \
     &gen_op_st##width##_le_64_kernel,                                         \
 };
+#endif
 /* Byte access routine are endian safe */
-#define gen_op_stb_le_64_user gen_op_stb_64_user
-#define gen_op_lbz_le_64_user gen_op_lbz_64_user
+#define gen_op_stb_le_64_user   gen_op_stb_64_user
+#define gen_op_lbz_le_64_user   gen_op_lbz_64_user
 #define gen_op_stb_le_64_kernel gen_op_stb_64_kernel
 #define gen_op_lbz_le_64_kernel gen_op_lbz_64_kernel
 #else
+/* Full system - 32 bits */
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_user,                                                  \
@@ -1992,8 +2105,8 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 };
 #endif
 /* Byte access routine are endian safe */
-#define gen_op_stb_le_user gen_op_stb_user
-#define gen_op_lbz_le_user gen_op_lbz_user
+#define gen_op_stb_le_user   gen_op_stb_user
+#define gen_op_lbz_le_user   gen_op_lbz_user
 #define gen_op_stb_le_kernel gen_op_stb_kernel
 #define gen_op_lbz_le_kernel gen_op_lbz_kernel
 #endif
@@ -2015,7 +2128,7 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
         return;                                                               \
     }                                                                         \
     if (type == PPC_64B)                                                      \
-        gen_addr_imm_index(ctx, 1);                                           \
+        gen_addr_imm_index(ctx, 0x03);                                        \
     else                                                                      \
         gen_addr_imm_index(ctx, 0);                                           \
     op_ldst(l##width);                                                        \
@@ -2080,7 +2193,7 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
             return;
         }
     }
-    gen_addr_imm_index(ctx, 1);
+    gen_addr_imm_index(ctx, 0x03);
     if (ctx->opcode & 0x02) {
         /* lwa (lwau is undefined) */
         op_ldst(lwa);
@@ -2091,6 +2204,38 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
     gen_op_store_T1_gpr(rD(ctx->opcode));
     if (Rc(ctx->opcode))
         gen_op_store_T0_gpr(rA(ctx->opcode));
+}
+/* lq */
+GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    int ra, rd;
+
+    /* Restore CPU state */
+    if (unlikely(ctx->supervisor == 0)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    ra = rA(ctx->opcode);
+    rd = rD(ctx->opcode);
+    if (unlikely((rd & 1) || rd == ra)) {
+        GEN_EXCP_INVAL(ctx);
+        return;
+    }
+    if (unlikely(ctx->mem_idx & 1)) {
+        /* Little-endian mode is not handled */
+        GEN_EXCP(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+        return;
+    }
+    gen_addr_imm_index(ctx, 0x0F);
+    op_ldst(ld);
+    gen_op_store_T1_gpr(rd);
+    gen_op_addi(8);
+    op_ldst(ld);
+    gen_op_store_T1_gpr(rd + 1);
+#endif
 }
 #endif
 
@@ -2111,7 +2256,7 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
         return;                                                               \
     }                                                                         \
     if (type == PPC_64B)                                                      \
-        gen_addr_imm_index(ctx, 1);                                           \
+        gen_addr_imm_index(ctx, 0x03);                                        \
     else                                                                      \
         gen_addr_imm_index(ctx, 0);                                           \
     gen_op_load_gpr_T1(rS(ctx->opcode));                                      \
@@ -2157,19 +2302,50 @@ GEN_STS(w, 0x04, PPC_INTEGER);
 OP_ST_TABLE(d);
 GEN_STUX(d, 0x15, 0x05, PPC_64B);
 GEN_STX(d, 0x15, 0x04, PPC_64B);
-GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000002, PPC_64B)
+GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
 {
-    if (Rc(ctx->opcode)) {
-        if (unlikely(rA(ctx->opcode) == 0)) {
+    int rs;
+
+    rs = rS(ctx->opcode);
+    if ((ctx->opcode & 0x3) == 0x2) {
+#if defined(CONFIG_USER_ONLY)
+        GEN_EXCP_PRIVOPC(ctx);
+#else
+        /* stq */
+        if (unlikely(ctx->supervisor == 0)) {
+            GEN_EXCP_PRIVOPC(ctx);
+            return;
+        }
+        if (unlikely(rs & 1)) {
             GEN_EXCP_INVAL(ctx);
             return;
         }
+        if (unlikely(ctx->mem_idx & 1)) {
+            /* Little-endian mode is not handled */
+            GEN_EXCP(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+            return;
+        }
+        gen_addr_imm_index(ctx, 0x03);
+        gen_op_load_gpr_T1(rs);
+        op_ldst(std);
+        gen_op_addi(8);
+        gen_op_load_gpr_T1(rs + 1);
+        op_ldst(std);
+#endif
+    } else {
+        /* std / stdu */
+        if (Rc(ctx->opcode)) {
+            if (unlikely(rA(ctx->opcode) == 0)) {
+                GEN_EXCP_INVAL(ctx);
+                return;
+            }
+        }
+        gen_addr_imm_index(ctx, 0x03);
+        gen_op_load_gpr_T1(rs);
+        op_ldst(std);
+        if (Rc(ctx->opcode))
+            gen_op_store_T0_gpr(rA(ctx->opcode));
     }
-    gen_addr_imm_index(ctx, 1);
-    gen_op_load_gpr_T1(rS(ctx->opcode));
-    op_ldst(std);
-    if (Rc(ctx->opcode))
-        gen_op_store_T0_gpr(rA(ctx->opcode));
 }
 #endif
 /***                Integer load and store with byte reverse               ***/
@@ -2188,51 +2364,61 @@ GEN_STX(wbr, 0x16, 0x14, PPC_INTEGER);
 
 /***                    Integer load and store multiple                    ***/
 #define op_ldstm(name, reg) (*gen_op_##name[ctx->mem_idx])(reg)
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc1 *gen_op_lmw[] = {
     &gen_op_lmw_raw,
     &gen_op_lmw_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lmw_64_raw,
     &gen_op_lmw_le_64_raw,
-};
-static GenOpFunc1 *gen_op_stmw[] = {
-    &gen_op_stmw_64_raw,
-    &gen_op_stmw_le_64_raw,
-};
-#else
-static GenOpFunc1 *gen_op_lmw[] = {
-    &gen_op_lmw_user,
-    &gen_op_lmw_le_user,
-    &gen_op_lmw_kernel,
-    &gen_op_lmw_le_kernel,
-    &gen_op_lmw_64_user,
-    &gen_op_lmw_le_64_user,
-    &gen_op_lmw_64_kernel,
-    &gen_op_lmw_le_64_kernel,
-};
-static GenOpFunc1 *gen_op_stmw[] = {
-    &gen_op_stmw_user,
-    &gen_op_stmw_le_user,
-    &gen_op_stmw_kernel,
-    &gen_op_stmw_le_kernel,
-    &gen_op_stmw_64_user,
-    &gen_op_stmw_le_64_user,
-    &gen_op_stmw_64_kernel,
-    &gen_op_stmw_le_64_kernel,
-};
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc1 *gen_op_lmw[] = {
-    &gen_op_lmw_raw,
-    &gen_op_lmw_le_raw,
 };
 static GenOpFunc1 *gen_op_stmw[] = {
     &gen_op_stmw_raw,
     &gen_op_stmw_le_raw,
+#if defined(TARGET_PPC64)
+    &gen_op_stmw_64_raw,
+    &gen_op_stmw_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+static GenOpFunc1 *gen_op_lmw[] = {
+    &gen_op_lmw_user,
+    &gen_op_lmw_le_user,
+    &gen_op_lmw_64_user,
+    &gen_op_lmw_le_64_user,
+    &gen_op_lmw_kernel,
+    &gen_op_lmw_le_kernel,
+    &gen_op_lmw_64_kernel,
+    &gen_op_lmw_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lmw_hypv,
+    &gen_op_lmw_le_hypv,
+    &gen_op_lmw_64_hypv,
+    &gen_op_lmw_le_64_hypv,
+#endif
+};
+static GenOpFunc1 *gen_op_stmw[] = {
+    &gen_op_stmw_user,
+    &gen_op_stmw_le_user,
+    &gen_op_stmw_64_user,
+    &gen_op_stmw_le_64_user,
+    &gen_op_stmw_kernel,
+    &gen_op_stmw_le_kernel,
+    &gen_op_stmw_64_kernel,
+    &gen_op_stmw_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_stmw_hypv,
+    &gen_op_stmw_le_hypv,
+    &gen_op_stmw_64_hypv,
+    &gen_op_stmw_le_64_hypv,
+#endif
+};
+#else
+/* Full system - 32 bits mode */
 static GenOpFunc1 *gen_op_lmw[] = {
     &gen_op_lmw_user,
     &gen_op_lmw_le_user,
@@ -2269,73 +2455,85 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 /***                    Integer load and store strings                     ***/
 #define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
 #define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_raw,
     &gen_op_lswi_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lswi_64_raw,
     &gen_op_lswi_le_64_raw,
+#endif
 };
 static GenOpFunc3 *gen_op_lswx[] = {
     &gen_op_lswx_raw,
     &gen_op_lswx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lswx_64_raw,
     &gen_op_lswx_le_64_raw,
+#endif
 };
 static GenOpFunc1 *gen_op_stsw[] = {
     &gen_op_stsw_raw,
     &gen_op_stsw_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_stsw_64_raw,
     &gen_op_stsw_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_user,
     &gen_op_lswi_le_user,
-    &gen_op_lswi_kernel,
-    &gen_op_lswi_le_kernel,
     &gen_op_lswi_64_user,
     &gen_op_lswi_le_64_user,
+    &gen_op_lswi_kernel,
+    &gen_op_lswi_le_kernel,
     &gen_op_lswi_64_kernel,
     &gen_op_lswi_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lswi_hypv,
+    &gen_op_lswi_le_hypv,
+    &gen_op_lswi_64_hypv,
+    &gen_op_lswi_le_64_hypv,
+#endif
 };
 static GenOpFunc3 *gen_op_lswx[] = {
     &gen_op_lswx_user,
     &gen_op_lswx_le_user,
-    &gen_op_lswx_kernel,
-    &gen_op_lswx_le_kernel,
     &gen_op_lswx_64_user,
     &gen_op_lswx_le_64_user,
+    &gen_op_lswx_kernel,
+    &gen_op_lswx_le_kernel,
     &gen_op_lswx_64_kernel,
     &gen_op_lswx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lswx_hypv,
+    &gen_op_lswx_le_hypv,
+    &gen_op_lswx_64_hypv,
+    &gen_op_lswx_le_64_hypv,
+#endif
 };
 static GenOpFunc1 *gen_op_stsw[] = {
     &gen_op_stsw_user,
     &gen_op_stsw_le_user,
-    &gen_op_stsw_kernel,
-    &gen_op_stsw_le_kernel,
     &gen_op_stsw_64_user,
     &gen_op_stsw_le_64_user,
+    &gen_op_stsw_kernel,
+    &gen_op_stsw_le_kernel,
     &gen_op_stsw_64_kernel,
     &gen_op_stsw_le_64_kernel,
-};
+#if defined(TARGET_PPC64H)
+    &gen_op_stsw_hypv,
+    &gen_op_stsw_le_hypv,
+    &gen_op_stsw_64_hypv,
+    &gen_op_stsw_le_64_hypv,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc1 *gen_op_lswi[] = {
-    &gen_op_lswi_raw,
-    &gen_op_lswi_le_raw,
-};
-static GenOpFunc3 *gen_op_lswx[] = {
-    &gen_op_lswx_raw,
-    &gen_op_lswx_le_raw,
-};
-static GenOpFunc1 *gen_op_stsw[] = {
-    &gen_op_stsw_raw,
-    &gen_op_stsw_le_raw,
 };
 #else
+/* Full system - 32 bits mode */
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_user,
     &gen_op_lswi_le_user,
@@ -2429,65 +2627,73 @@ GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_INTEGER)
 
 /***                        Memory synchronisation                         ***/
 /* eieio */
-GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FF0801, PPC_MEM_EIEIO)
+GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FFF801, PPC_MEM_EIEIO)
 {
 }
 
 /* isync */
-GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FF0801, PPC_MEM)
+GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM)
 {
     GEN_STOP(ctx);
 }
 
 #define op_lwarx() (*gen_op_lwarx[ctx->mem_idx])()
 #define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_raw,
     &gen_op_lwarx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_lwarx_64_raw,
     &gen_op_lwarx_le_64_raw,
+#endif
 };
 static GenOpFunc *gen_op_stwcx[] = {
     &gen_op_stwcx_raw,
     &gen_op_stwcx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_stwcx_64_raw,
     &gen_op_stwcx_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_user,
     &gen_op_lwarx_le_user,
-    &gen_op_lwarx_kernel,
-    &gen_op_lwarx_le_kernel,
     &gen_op_lwarx_64_user,
     &gen_op_lwarx_le_64_user,
+    &gen_op_lwarx_kernel,
+    &gen_op_lwarx_le_kernel,
     &gen_op_lwarx_64_kernel,
     &gen_op_lwarx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_lwarx_hypv,
+    &gen_op_lwarx_le_hypv,
+    &gen_op_lwarx_64_hypv,
+    &gen_op_lwarx_le_64_hypv,
+#endif
 };
 static GenOpFunc *gen_op_stwcx[] = {
     &gen_op_stwcx_user,
     &gen_op_stwcx_le_user,
-    &gen_op_stwcx_kernel,
-    &gen_op_stwcx_le_kernel,
     &gen_op_stwcx_64_user,
     &gen_op_stwcx_le_64_user,
+    &gen_op_stwcx_kernel,
+    &gen_op_stwcx_le_kernel,
     &gen_op_stwcx_64_kernel,
     &gen_op_stwcx_le_64_kernel,
-};
+#if defined(TARGET_PPC64H)
+    &gen_op_stwcx_hypv,
+    &gen_op_stwcx_le_hypv,
+    &gen_op_stwcx_64_hypv,
+    &gen_op_stwcx_le_64_hypv,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_lwarx[] = {
-    &gen_op_lwarx_raw,
-    &gen_op_lwarx_le_raw,
-};
-static GenOpFunc *gen_op_stwcx[] = {
-    &gen_op_stwcx_raw,
-    &gen_op_stwcx_le_raw,
 };
 #else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_user,
     &gen_op_lwarx_le_user,
@@ -2506,6 +2712,8 @@ static GenOpFunc *gen_op_stwcx[] = {
 /* lwarx */
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     op_lwarx();
     gen_op_store_T1_gpr(rD(ctx->opcode));
@@ -2514,6 +2722,8 @@ GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 /* stwcx. */
 GEN_HANDLER(stwcx_, 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     gen_op_load_gpr_T1(rS(ctx->opcode));
     op_stwcx();
@@ -2523,6 +2733,7 @@ GEN_HANDLER(stwcx_, 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 #define op_ldarx() (*gen_op_ldarx[ctx->mem_idx])()
 #define op_stdcx() (*gen_op_stdcx[ctx->mem_idx])()
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc *gen_op_ldarx[] = {
     &gen_op_ldarx_raw,
     &gen_op_ldarx_le_raw,
@@ -2536,31 +2747,46 @@ static GenOpFunc *gen_op_stdcx[] = {
     &gen_op_stdcx_le_64_raw,
 };
 #else
+/* Full system */
 static GenOpFunc *gen_op_ldarx[] = {
     &gen_op_ldarx_user,
     &gen_op_ldarx_le_user,
-    &gen_op_ldarx_kernel,
-    &gen_op_ldarx_le_kernel,
     &gen_op_ldarx_64_user,
     &gen_op_ldarx_le_64_user,
+    &gen_op_ldarx_kernel,
+    &gen_op_ldarx_le_kernel,
     &gen_op_ldarx_64_kernel,
     &gen_op_ldarx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_ldarx_hypv,
+    &gen_op_ldarx_le_hypv,
+    &gen_op_ldarx_64_hypv,
+    &gen_op_ldarx_le_64_hypv,
+#endif
 };
 static GenOpFunc *gen_op_stdcx[] = {
     &gen_op_stdcx_user,
     &gen_op_stdcx_le_user,
-    &gen_op_stdcx_kernel,
-    &gen_op_stdcx_le_kernel,
     &gen_op_stdcx_64_user,
     &gen_op_stdcx_le_64_user,
+    &gen_op_stdcx_kernel,
+    &gen_op_stdcx_le_kernel,
     &gen_op_stdcx_64_kernel,
     &gen_op_stdcx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_stdcx_hypv,
+    &gen_op_stdcx_le_hypv,
+    &gen_op_stdcx_64_hypv,
+    &gen_op_stdcx_le_64_hypv,
+#endif
 };
 #endif
 
 /* ldarx */
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     op_ldarx();
     gen_op_store_T1_gpr(rD(ctx->opcode));
@@ -2569,6 +2795,8 @@ GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 /* stdcx. */
 GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     gen_op_load_gpr_T1(rS(ctx->opcode));
     op_stdcx();
@@ -2576,13 +2804,21 @@ GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
-GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03CF0801, PPC_MEM_SYNC)
+GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC)
 {
+}
+
+/* wait */
+GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT)
+{
+    /* Stop translation, as the CPU is supposed to sleep from now */
+    gen_op_wait();
+    GEN_EXCP(ctx, EXCP_HLT, 1);
 }
 
 /***                         Floating-point load                           ***/
-#define GEN_LDF(width, opc)                                                   \
-GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                 \
+#define GEN_LDF(width, opc, type)                                             \
+GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, type)                      \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2593,8 +2829,8 @@ GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                 \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
 }
 
-#define GEN_LDUF(width, opc)                                                  \
-GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)              \
+#define GEN_LDUF(width, opc, type)                                            \
+GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2610,8 +2846,8 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)              \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_LDUXF(width, opc)                                                 \
-GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)             \
+#define GEN_LDUXF(width, opc, type)                                           \
+GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                  \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2627,8 +2863,8 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)             \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_LDXF(width, opc2, opc3)                                           \
-GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)             \
+#define GEN_LDXF(width, opc2, opc3, type)                                     \
+GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, type)                  \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2639,21 +2875,21 @@ GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)             \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
 }
 
-#define GEN_LDFS(width, op)                                                   \
+#define GEN_LDFS(width, op, type)                                             \
 OP_LD_TABLE(width);                                                           \
-GEN_LDF(width, op | 0x20);                                                    \
-GEN_LDUF(width, op | 0x21);                                                   \
-GEN_LDUXF(width, op | 0x01);                                                  \
-GEN_LDXF(width, 0x17, op | 0x00)
+GEN_LDF(width, op | 0x20, type);                                              \
+GEN_LDUF(width, op | 0x21, type);                                             \
+GEN_LDUXF(width, op | 0x01, type);                                            \
+GEN_LDXF(width, 0x17, op | 0x00, type)
 
 /* lfd lfdu lfdux lfdx */
-GEN_LDFS(fd, 0x12);
+GEN_LDFS(fd, 0x12, PPC_FLOAT);
 /* lfs lfsu lfsux lfsx */
-GEN_LDFS(fs, 0x10);
+GEN_LDFS(fs, 0x10, PPC_FLOAT);
 
 /***                         Floating-point store                          ***/
-#define GEN_STF(width, opc)                                                   \
-GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
+#define GEN_STF(width, opc, type)                                             \
+GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, type)                     \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2664,8 +2900,8 @@ GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
     op_ldst(st##width);                                                       \
 }
 
-#define GEN_STUF(width, opc)                                                  \
-GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
+#define GEN_STUF(width, opc, type)                                            \
+GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2681,8 +2917,8 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_STUXF(width, opc)                                                 \
-GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
+#define GEN_STUXF(width, opc, type)                                           \
+GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                 \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2698,8 +2934,8 @@ GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
 }
 
-#define GEN_STXF(width, opc2, opc3)                                           \
-GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)            \
+#define GEN_STXF(width, opc2, opc3, type)                                     \
+GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, type)                 \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
@@ -2710,30 +2946,22 @@ GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)            \
     op_ldst(st##width);                                                       \
 }
 
-#define GEN_STFS(width, op)                                                   \
+#define GEN_STFS(width, op, type)                                             \
 OP_ST_TABLE(width);                                                           \
-GEN_STF(width, op | 0x20);                                                    \
-GEN_STUF(width, op | 0x21);                                                   \
-GEN_STUXF(width, op | 0x01);                                                  \
-GEN_STXF(width, 0x17, op | 0x00)
+GEN_STF(width, op | 0x20, type);                                              \
+GEN_STUF(width, op | 0x21, type);                                             \
+GEN_STUXF(width, op | 0x01, type);                                            \
+GEN_STXF(width, 0x17, op | 0x00, type)
 
 /* stfd stfdu stfdux stfdx */
-GEN_STFS(fd, 0x16);
+GEN_STFS(fd, 0x16, PPC_FLOAT);
 /* stfs stfsu stfsux stfsx */
-GEN_STFS(fs, 0x14);
+GEN_STFS(fs, 0x14, PPC_FLOAT);
 
 /* Optional: */
 /* stfiwx */
-GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT_STFIWX)
-{
-    if (unlikely(!ctx->fpu_enabled)) {
-        GEN_EXCP_NO_FP(ctx);
-        return;
-    }
-    gen_addr_reg_index(ctx);
-    /* XXX: TODO: memcpy low order 32 bits of FRP(rs) into memory */
-    GEN_EXCP_INVAL(ctx);
-}
+OP_ST_TABLE(fiwx);
+GEN_STXF(fiwx, 0x17, 0x1E, PPC_FLOAT_STFIWX);
 
 /***                                Branch                                 ***/
 static inline void gen_goto_tb (DisasContext *ctx, int n, target_ulong dest)
@@ -2868,6 +3096,7 @@ static inline void gen_bcond (DisasContext *ctx, int type)
         case 6:
             if (type == BCOND_IM) {
                 gen_goto_tb(ctx, 0, target);
+                goto out;
             } else {
 #if defined(TARGET_PPC64)
                 if (ctx->sf_mode)
@@ -2876,8 +3105,9 @@ static inline void gen_bcond (DisasContext *ctx, int type)
 #endif
                     gen_op_b_T1();
                 gen_op_reset_T0();
+                goto no_test;
             }
-            goto no_test;
+            break;
         }
     } else {
         mask = 1 << (3 - (bi & 0x03));
@@ -2951,6 +3181,7 @@ static inline void gen_bcond (DisasContext *ctx, int type)
             gen_op_debug();
         gen_op_exit_tb();
     }
+ out:
     ctx->exception = POWERPC_EXCP_BRANCH;
 }
 
@@ -3036,6 +3267,23 @@ GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B)
         return;
     }
     gen_op_rfid();
+    GEN_SYNC(ctx);
+#endif
+}
+#endif
+
+#if defined(TARGET_PPC64H)
+GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64B)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    /* Restore CPU state */
+    if (unlikely(ctx->supervisor <= 1)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_hrfid();
     GEN_SYNC(ctx);
 #endif
 }
@@ -3157,6 +3405,11 @@ static inline void gen_op_mfspr (DisasContext *ctx)
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64H)
+    if (ctx->supervisor == 2)
+        read_cb = ctx->spr_cb[sprn].hea_read;
+    else
+#endif
     if (ctx->supervisor)
         read_cb = ctx->spr_cb[sprn].oea_read;
     else
@@ -3217,7 +3470,7 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 
 /* mtmsr */
 #if defined(TARGET_PPC64)
-GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_64B)
+GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -3226,12 +3479,21 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001FF801, PPC_64B)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_update_nip(ctx, ctx->nip);
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_store_msr();
-    /* Must stop the translation as machine state (may have) changed */
-    /* Note that mtmsr is not always defined as context-synchronizing */
-    GEN_STOP(ctx);
+    if (ctx->opcode & 0x00010000) {
+        /* Special form that does not need any synchronisation */
+        gen_op_update_riee();
+    } else {
+        /* XXX: we need to update nip before the store
+         *      if we enter power saving mode, we will exit the loop
+         *      directly from ppc_store_msr
+         */
+        gen_update_nip(ctx, ctx->nip);
+        gen_op_store_msr();
+        /* Must stop the translation as machine state (may have) changed */
+        /* Note that mtmsr is not always defined as context-synchronizing */
+        ctx->exception = POWERPC_EXCP_STOP;
+    }
 #endif
 }
 #endif
@@ -3245,17 +3507,26 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_update_nip(ctx, ctx->nip);
     gen_op_load_gpr_T0(rS(ctx->opcode));
+    if (ctx->opcode & 0x00010000) {
+        /* Special form that does not need any synchronisation */
+        gen_op_update_riee();
+    } else {
+        /* XXX: we need to update nip before the store
+         *      if we enter power saving mode, we will exit the loop
+         *      directly from ppc_store_msr
+         */
+        gen_update_nip(ctx, ctx->nip);
 #if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        gen_op_store_msr_32();
-    else
+        if (!ctx->sf_mode)
+            gen_op_store_msr_32();
+        else
 #endif
-        gen_op_store_msr();
-    /* Must stop the translation as machine state (may have) changed */
-    /* Note that mtmsrd is not always defined as context-synchronizing */
-    GEN_STOP(ctx);
+            gen_op_store_msr();
+        /* Must stop the translation as machine state (may have) changed */
+        /* Note that mtmsrd is not always defined as context-synchronizing */
+        ctx->exception = POWERPC_EXCP_STOP;
+    }
 #endif
 }
 
@@ -3266,6 +3537,11 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64H)
+    if (ctx->supervisor == 2)
+        write_cb = ctx->spr_cb[sprn].hea_write;
+    else
+#endif
     if (ctx->supervisor)
         write_cb = ctx->spr_cb[sprn].oea_write;
     else
@@ -3302,7 +3578,7 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
  * We just have to flush tb while invalidating instruction cache lines...
  */
 /* dcbf */
-GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE)
 {
     gen_addr_reg_index(ctx);
     op_ldst(lbz);
@@ -3334,95 +3610,232 @@ GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE)
 }
 
 /* dcbt */
-GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x02000001, PPC_CACHE)
 {
+    /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
      *      but does not generate any exception
      */
 }
 
 /* dcbtst */
-GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE)
 {
+    /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
      *      but does not generate any exception
      */
 }
 
 /* dcbz */
-#define op_dcbz() (*gen_op_dcbz[ctx->mem_idx])()
+#define op_dcbz(n) (*gen_op_dcbz[n][ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+/* User-mode only */
+static GenOpFunc *gen_op_dcbz[4][4] = {
+    {
+        &gen_op_dcbz_l32_raw,
+        &gen_op_dcbz_l32_raw,
 #if defined(TARGET_PPC64)
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_raw,
-    &gen_op_dcbz_raw,
-    &gen_op_dcbz_64_raw,
-    &gen_op_dcbz_64_raw,
-};
-#else
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_user,
-    &gen_op_dcbz_user,
-    &gen_op_dcbz_kernel,
-    &gen_op_dcbz_kernel,
-    &gen_op_dcbz_64_user,
-    &gen_op_dcbz_64_user,
-    &gen_op_dcbz_64_kernel,
-    &gen_op_dcbz_64_kernel,
-};
+        &gen_op_dcbz_l32_64_raw,
+        &gen_op_dcbz_l32_64_raw,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_raw,
-    &gen_op_dcbz_raw,
+    },
+    {
+        &gen_op_dcbz_l64_raw,
+        &gen_op_dcbz_l64_raw,
+#if defined(TARGET_PPC64)
+        &gen_op_dcbz_l64_64_raw,
+        &gen_op_dcbz_l64_64_raw,
+#endif
+    },
+    {
+        &gen_op_dcbz_l128_raw,
+        &gen_op_dcbz_l128_raw,
+#if defined(TARGET_PPC64)
+        &gen_op_dcbz_l128_64_raw,
+        &gen_op_dcbz_l128_64_raw,
+#endif
+    },
+    {
+        &gen_op_dcbz_raw,
+        &gen_op_dcbz_raw,
+#if defined(TARGET_PPC64)
+        &gen_op_dcbz_64_raw,
+        &gen_op_dcbz_64_raw,
+#endif
+    },
 };
 #else
-static GenOpFunc *gen_op_dcbz[] = {
-    &gen_op_dcbz_user,
-    &gen_op_dcbz_user,
-    &gen_op_dcbz_kernel,
-    &gen_op_dcbz_kernel,
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+static GenOpFunc *gen_op_dcbz[4][12] = {
+    {
+        &gen_op_dcbz_l32_user,
+        &gen_op_dcbz_l32_user,
+        &gen_op_dcbz_l32_64_user,
+        &gen_op_dcbz_l32_64_user,
+        &gen_op_dcbz_l32_kernel,
+        &gen_op_dcbz_l32_kernel,
+        &gen_op_dcbz_l32_64_kernel,
+        &gen_op_dcbz_l32_64_kernel,
+#if defined(TARGET_PPC64H)
+        &gen_op_dcbz_l32_hypv,
+        &gen_op_dcbz_l32_hypv,
+        &gen_op_dcbz_l32_64_hypv,
+        &gen_op_dcbz_l32_64_hypv,
+#endif
+    },
+    {
+        &gen_op_dcbz_l64_user,
+        &gen_op_dcbz_l64_user,
+        &gen_op_dcbz_l64_64_user,
+        &gen_op_dcbz_l64_64_user,
+        &gen_op_dcbz_l64_kernel,
+        &gen_op_dcbz_l64_kernel,
+        &gen_op_dcbz_l64_64_kernel,
+        &gen_op_dcbz_l64_64_kernel,
+#if defined(TARGET_PPC64H)
+        &gen_op_dcbz_l64_hypv,
+        &gen_op_dcbz_l64_hypv,
+        &gen_op_dcbz_l64_64_hypv,
+        &gen_op_dcbz_l64_64_hypv,
+#endif
+    },
+    {
+        &gen_op_dcbz_l128_user,
+        &gen_op_dcbz_l128_user,
+        &gen_op_dcbz_l128_64_user,
+        &gen_op_dcbz_l128_64_user,
+        &gen_op_dcbz_l128_kernel,
+        &gen_op_dcbz_l128_kernel,
+        &gen_op_dcbz_l128_64_kernel,
+        &gen_op_dcbz_l128_64_kernel,
+#if defined(TARGET_PPC64H)
+        &gen_op_dcbz_l128_hypv,
+        &gen_op_dcbz_l128_hypv,
+        &gen_op_dcbz_l128_64_hypv,
+        &gen_op_dcbz_l128_64_hypv,
+#endif
+    },
+    {
+        &gen_op_dcbz_user,
+        &gen_op_dcbz_user,
+        &gen_op_dcbz_64_user,
+        &gen_op_dcbz_64_user,
+        &gen_op_dcbz_kernel,
+        &gen_op_dcbz_kernel,
+        &gen_op_dcbz_64_kernel,
+        &gen_op_dcbz_64_kernel,
+#if defined(TARGET_PPC64H)
+        &gen_op_dcbz_hypv,
+        &gen_op_dcbz_hypv,
+        &gen_op_dcbz_64_hypv,
+        &gen_op_dcbz_64_hypv,
+#endif
+    },
+};
+#else
+/* Full system - 32 bits mode */
+static GenOpFunc *gen_op_dcbz[4][4] = {
+    {
+        &gen_op_dcbz_l32_user,
+        &gen_op_dcbz_l32_user,
+        &gen_op_dcbz_l32_kernel,
+        &gen_op_dcbz_l32_kernel,
+    },
+    {
+        &gen_op_dcbz_l64_user,
+        &gen_op_dcbz_l64_user,
+        &gen_op_dcbz_l64_kernel,
+        &gen_op_dcbz_l64_kernel,
+    },
+    {
+        &gen_op_dcbz_l128_user,
+        &gen_op_dcbz_l128_user,
+        &gen_op_dcbz_l128_kernel,
+        &gen_op_dcbz_l128_kernel,
+    },
+    {
+        &gen_op_dcbz_user,
+        &gen_op_dcbz_user,
+        &gen_op_dcbz_kernel,
+        &gen_op_dcbz_kernel,
+    },
 };
 #endif
 #endif
 
-GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE)
+static inline void handler_dcbz (DisasContext *ctx, int dcache_line_size)
+{
+    int n;
+
+    switch (dcache_line_size) {
+    case 32:
+        n = 0;
+        break;
+    case 64:
+        n = 1;
+        break;
+    case 128:
+        n = 2;
+        break;
+    default:
+        n = 3;
+        break;
+    }
+    op_dcbz(n);
+}
+
+GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ)
 {
     gen_addr_reg_index(ctx);
-    op_dcbz();
+    handler_dcbz(ctx, ctx->dcache_line_size);
+    gen_op_check_reservation();
+}
+
+GEN_HANDLER(dcbz_970, 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
+{
+    gen_addr_reg_index(ctx);
+    if (ctx->opcode & 0x00200000)
+        handler_dcbz(ctx, ctx->dcache_line_size);
+    else
+        handler_dcbz(ctx, -1);
     gen_op_check_reservation();
 }
 
 /* icbi */
 #define op_icbi() (*gen_op_icbi[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+/* User-mode only */
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_raw,
+    &gen_op_icbi_raw,
 #if defined(TARGET_PPC64)
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_icbi[] = {
-    &gen_op_icbi_raw,
-    &gen_op_icbi_raw,
     &gen_op_icbi_64_raw,
     &gen_op_icbi_64_raw,
-};
-#else
-static GenOpFunc *gen_op_icbi[] = {
-    &gen_op_icbi_user,
-    &gen_op_icbi_user,
-    &gen_op_icbi_kernel,
-    &gen_op_icbi_kernel,
-    &gen_op_icbi_64_user,
-    &gen_op_icbi_64_user,
-    &gen_op_icbi_64_kernel,
-    &gen_op_icbi_64_kernel,
-};
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_icbi[] = {
-    &gen_op_icbi_raw,
-    &gen_op_icbi_raw,
 };
 #else
+/* Full system - 64 bits mode */
+#if defined(TARGET_PPC64)
+static GenOpFunc *gen_op_icbi[] = {
+    &gen_op_icbi_user,
+    &gen_op_icbi_user,
+    &gen_op_icbi_64_user,
+    &gen_op_icbi_64_user,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_kernel,
+    &gen_op_icbi_64_kernel,
+    &gen_op_icbi_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_icbi_hypv,
+    &gen_op_icbi_hypv,
+    &gen_op_icbi_64_hypv,
+    &gen_op_icbi_64_hypv,
+#endif
+};
+#else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_icbi[] = {
     &gen_op_icbi_user,
     &gen_op_icbi_user,
@@ -3434,6 +3847,8 @@ static GenOpFunc *gen_op_icbi[] = {
 
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 {
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(ctx);
     op_icbi();
 }
@@ -3442,6 +3857,10 @@ GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 /* dcba */
 GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_DCBA)
 {
+    /* interpreted as no-op */
+    /* XXX: specification say this is treated as a store by the MMU
+     *      but does not generate any exception
+     */
 }
 
 /***                    Segment register manipulation                      ***/
@@ -3511,6 +3930,75 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
     gen_op_store_sr();
 #endif
 }
+
+#if defined(TARGET_PPC64)
+/* Specific implementation for PowerPC 64 "bridge" emulation using SLB */
+/* mfsr */
+GEN_HANDLER(mfsr_64b, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVREG(ctx);
+        return;
+    }
+    gen_op_set_T1(SR(ctx->opcode));
+    gen_op_load_slb();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
+#endif
+}
+
+/* mfsrin */
+GEN_HANDLER(mfsrin_64b, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT_64B)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVREG(ctx);
+        return;
+    }
+    gen_op_load_gpr_T1(rB(ctx->opcode));
+    gen_op_srli_T1(28);
+    gen_op_load_slb();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
+#endif
+}
+
+/* mtsr */
+GEN_HANDLER(mtsr_64b, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVREG(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rS(ctx->opcode));
+    gen_op_set_T1(SR(ctx->opcode));
+    gen_op_store_slb();
+#endif
+}
+
+/* mtsrin */
+GEN_HANDLER(mtsrin_64b, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT_64B)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVREG(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVREG(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rS(ctx->opcode));
+    gen_op_load_gpr_T1(rB(ctx->opcode));
+    gen_op_srli_T1(28);
+    gen_op_store_slb();
+#endif
+}
+#endif /* defined(TARGET_PPC64) */
 
 /***                      Lookaside buffer management                      ***/
 /* Optional & supervisor only: */
@@ -3604,53 +4092,61 @@ GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI)
 /* Optional: */
 #define op_eciwx() (*gen_op_eciwx[ctx->mem_idx])()
 #define op_ecowx() (*gen_op_ecowx[ctx->mem_idx])()
-#if defined(TARGET_PPC64)
 #if defined(CONFIG_USER_ONLY)
+/* User-mode only */
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_raw,
     &gen_op_eciwx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_eciwx_64_raw,
     &gen_op_eciwx_le_64_raw,
+#endif
 };
 static GenOpFunc *gen_op_ecowx[] = {
     &gen_op_ecowx_raw,
     &gen_op_ecowx_le_raw,
+#if defined(TARGET_PPC64)
     &gen_op_ecowx_64_raw,
     &gen_op_ecowx_le_64_raw,
+#endif
 };
 #else
+#if defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_user,
     &gen_op_eciwx_le_user,
-    &gen_op_eciwx_kernel,
-    &gen_op_eciwx_le_kernel,
     &gen_op_eciwx_64_user,
     &gen_op_eciwx_le_64_user,
+    &gen_op_eciwx_kernel,
+    &gen_op_eciwx_le_kernel,
     &gen_op_eciwx_64_kernel,
     &gen_op_eciwx_le_64_kernel,
+#if defined(TARGET_PPC64H)
+    &gen_op_eciwx_hypv,
+    &gen_op_eciwx_le_hypv,
+    &gen_op_eciwx_64_hypv,
+    &gen_op_eciwx_le_64_hypv,
+#endif
 };
 static GenOpFunc *gen_op_ecowx[] = {
     &gen_op_ecowx_user,
     &gen_op_ecowx_le_user,
-    &gen_op_ecowx_kernel,
-    &gen_op_ecowx_le_kernel,
     &gen_op_ecowx_64_user,
     &gen_op_ecowx_le_64_user,
+    &gen_op_ecowx_kernel,
+    &gen_op_ecowx_le_kernel,
     &gen_op_ecowx_64_kernel,
     &gen_op_ecowx_le_64_kernel,
-};
+#if defined(TARGET_PPC64H)
+    &gen_op_ecowx_hypv,
+    &gen_op_ecowx_le_hypv,
+    &gen_op_ecowx_64_hypv,
+    &gen_op_ecowx_le_64_hypv,
 #endif
-#else
-#if defined(CONFIG_USER_ONLY)
-static GenOpFunc *gen_op_eciwx[] = {
-    &gen_op_eciwx_raw,
-    &gen_op_eciwx_le_raw,
-};
-static GenOpFunc *gen_op_ecowx[] = {
-    &gen_op_ecowx_raw,
-    &gen_op_ecowx_le_raw,
 };
 #else
+/* Full system - 32 bits mode */
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_user,
     &gen_op_eciwx_le_user,
@@ -3789,7 +4285,7 @@ GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR)
 }
 
 /* As lscbx load from memory byte after byte, it's always endian safe */
-#define op_POWER_lscbx(start, ra, rb) \
+#define op_POWER_lscbx(start, ra, rb)                                         \
 (*gen_op_POWER_lscbx[ctx->mem_idx])(start, ra, rb)
 #if defined(CONFIG_USER_ONLY)
 static GenOpFunc3 *gen_op_POWER_lscbx[] = {
@@ -4117,7 +4613,7 @@ GEN_HANDLER(mfrom, 0x1F, 0x09, 0x08, 0x03E0F801, PPC_602_SPEC)
 
 /* 602 - 603 - G2 TLB management */
 /* tlbld */
-GEN_HANDLER(tlbld, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
+GEN_HANDLER(tlbld_6xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4132,7 +4628,7 @@ GEN_HANDLER(tlbld, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
 }
 
 /* tlbli */
-GEN_HANDLER(tlbli, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
+GEN_HANDLER(tlbli_6xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4143,6 +4639,37 @@ GEN_HANDLER(tlbli, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
     }
     gen_op_load_gpr_T0(rB(ctx->opcode));
     gen_op_6xx_tlbli();
+#endif
+}
+
+/* 74xx TLB management */
+/* tlbld */
+GEN_HANDLER(tlbld_74xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rB(ctx->opcode));
+    gen_op_74xx_tlbld();
+#endif
+}
+
+/* tlbli */
+GEN_HANDLER(tlbli_74xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_EXCP_PRIVOPC(ctx);
+#else
+    if (unlikely(!ctx->supervisor)) {
+        GEN_EXCP_PRIVOPC(ctx);
+        return;
+    }
+    gen_op_load_gpr_T0(rB(ctx->opcode));
+    gen_op_74xx_tlbli();
 #endif
 }
 
@@ -4820,10 +5347,9 @@ GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
         return;
     }
     gen_addr_reg_index(ctx);
+    gen_op_4xx_tlbsx();
     if (Rc(ctx->opcode))
-        gen_op_4xx_tlbsx_();
-    else
-        gen_op_4xx_tlbsx();
+        gen_op_4xx_tlbsx_check();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
@@ -4893,10 +5419,9 @@ GEN_HANDLER(tlbsx_440, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
         return;
     }
     gen_addr_reg_index(ctx);
+    gen_op_440_tlbsx();
     if (Rc(ctx->opcode))
-        gen_op_440_tlbsx_();
-    else
-        gen_op_440_tlbsx();
+        gen_op_4xx_tlbsx_check();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
@@ -4986,7 +5511,7 @@ GEN_HANDLER(mbar, 0x1F, 0x16, 0x13, 0x001FF801, PPC_BOOKE)
 }
 
 /* msync replaces sync on 440 */
-GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FF0801, PPC_BOOKE)
+GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE)
 {
     /* interpreted as no-op */
 }
@@ -5048,6 +5573,7 @@ static inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
 #define op_spe_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
 #if defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
+/* User-mode only - 64 bits mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_raw,                                                \
@@ -5063,6 +5589,7 @@ static GenOpFunc *gen_op_spe_st##name[] = {                                   \
     &gen_op_spe_st##name##_le_64_raw,                                         \
 };
 #else /* defined(TARGET_PPC64) */
+/* User-mode only - 32 bits mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_raw,                                                \
@@ -5075,15 +5602,48 @@ static GenOpFunc *gen_op_spe_st##name[] = {                                   \
 };
 #endif /* defined(TARGET_PPC64) */
 #else /* defined(CONFIG_USER_ONLY) */
-#if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64H)
+/* Full system with hypervisor mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_user,                                               \
     &gen_op_spe_l##name##_le_user,                                            \
-    &gen_op_spe_l##name##_kernel,                                             \
-    &gen_op_spe_l##name##_le_kernel,                                          \
     &gen_op_spe_l##name##_64_user,                                            \
     &gen_op_spe_l##name##_le_64_user,                                         \
+    &gen_op_spe_l##name##_kernel,                                             \
+    &gen_op_spe_l##name##_le_kernel,                                          \
+    &gen_op_spe_l##name##_64_kernel,                                          \
+    &gen_op_spe_l##name##_le_64_kernel,                                       \
+    &gen_op_spe_l##name##_hypv,                                               \
+    &gen_op_spe_l##name##_le_hypv,                                            \
+    &gen_op_spe_l##name##_64_hypv,                                            \
+    &gen_op_spe_l##name##_le_64_hypv,                                         \
+};
+#define OP_SPE_ST_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_st##name[] = {                                   \
+    &gen_op_spe_st##name##_user,                                              \
+    &gen_op_spe_st##name##_le_user,                                           \
+    &gen_op_spe_st##name##_64_user,                                           \
+    &gen_op_spe_st##name##_le_64_user,                                        \
+    &gen_op_spe_st##name##_kernel,                                            \
+    &gen_op_spe_st##name##_le_kernel,                                         \
+    &gen_op_spe_st##name##_64_kernel,                                         \
+    &gen_op_spe_st##name##_le_64_kernel,                                      \
+    &gen_op_spe_st##name##_hypv,                                              \
+    &gen_op_spe_st##name##_le_hypv,                                           \
+    &gen_op_spe_st##name##_64_hypv,                                           \
+    &gen_op_spe_st##name##_le_64_hypv,                                        \
+};
+#elif defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+#define OP_SPE_LD_TABLE(name)                                                 \
+static GenOpFunc *gen_op_spe_l##name[] = {                                    \
+    &gen_op_spe_l##name##_user,                                               \
+    &gen_op_spe_l##name##_le_user,                                            \
+    &gen_op_spe_l##name##_64_user,                                            \
+    &gen_op_spe_l##name##_le_64_user,                                         \
+    &gen_op_spe_l##name##_kernel,                                             \
+    &gen_op_spe_l##name##_le_kernel,                                          \
     &gen_op_spe_l##name##_64_kernel,                                          \
     &gen_op_spe_l##name##_le_64_kernel,                                       \
 };
@@ -5091,14 +5651,15 @@ static GenOpFunc *gen_op_spe_l##name[] = {                                    \
 static GenOpFunc *gen_op_spe_st##name[] = {                                   \
     &gen_op_spe_st##name##_user,                                              \
     &gen_op_spe_st##name##_le_user,                                           \
-    &gen_op_spe_st##name##_kernel,                                            \
-    &gen_op_spe_st##name##_le_kernel,                                         \
     &gen_op_spe_st##name##_64_user,                                           \
     &gen_op_spe_st##name##_le_64_user,                                        \
+    &gen_op_spe_st##name##_kernel,                                            \
+    &gen_op_spe_st##name##_le_kernel,                                         \
     &gen_op_spe_st##name##_64_kernel,                                         \
     &gen_op_spe_st##name##_le_64_kernel,                                      \
 };
 #else /* defined(TARGET_PPC64) */
+/* Full system - 32 bits mode */
 #define OP_SPE_LD_TABLE(name)                                                 \
 static GenOpFunc *gen_op_spe_l##name[] = {                                    \
     &gen_op_spe_l##name##_user,                                               \
@@ -5952,6 +6513,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     opc_handler_t **table, *handler;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
+    int supervisor;
     int j, lj = -1;
 
     pc_start = tb->pc;
@@ -5964,20 +6526,23 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
 #if defined(CONFIG_USER_ONLY)
-    ctx.mem_idx = msr_le;
-#if defined(TARGET_PPC64)
-    ctx.mem_idx |= msr_sf << 1;
-#endif
+    supervisor = 0;
 #else
-    ctx.supervisor = 1 - msr_pr;
-    ctx.mem_idx = ((1 - msr_pr) << 1) | msr_le;
-#if defined(TARGET_PPC64)
-    ctx.mem_idx |= msr_sf << 2;
+#if defined(TARGET_PPC64H)
+    if (msr_pr == 0 && msr_hv == 1)
+        supervisor = 2;
+    else
 #endif
+        supervisor = 1 - msr_pr;
+    ctx.supervisor = supervisor;
 #endif
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_sf;
+    ctx.mem_idx = (supervisor << 2) | (msr_sf << 1) | msr_le;
+#else
+    ctx.mem_idx = (supervisor << 1) | msr_le;
 #endif
+    ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
 #if defined(TARGET_PPCEMB)
     ctx.spe_enabled = msr_spe;

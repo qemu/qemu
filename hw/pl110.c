@@ -10,6 +10,7 @@
 #include "vl.h"
 
 #define PL110_CR_EN   0x001
+#define PL110_CR_BGR  0x100
 #define PL110_CR_BEBO 0x200
 #define PL110_CR_BEPO 0x400
 #define PL110_CR_PWR  0x800
@@ -114,6 +115,7 @@ static void pl110_update_display(void *opaque)
     int first, last = 0;
     int dirty, new_dirty;
     int i;
+    int bpp_offset;
 
     if (!pl110_enabled(s))
         return;
@@ -145,12 +147,17 @@ static void pl110_update_display(void *opaque)
         fprintf(stderr, "pl110: Bad color depth\n");
         exit(1);
     }
-    if (s->cr & PL110_CR_BEBO)
-      fn = fntable[s->bpp + 6];
-    else if (s->cr & PL110_CR_BEPO)
-      fn = fntable[s->bpp + 12];
+    if (s->cr & PL110_CR_BGR)
+        bpp_offset = 0;
     else
-      fn = fntable[s->bpp];
+        bpp_offset = 18;
+
+    if (s->cr & PL110_CR_BEBO)
+        fn = fntable[s->bpp + 6 + bpp_offset];
+    else if (s->cr & PL110_CR_BEPO)
+        fn = fntable[s->bpp + 12 + bpp_offset];
+    else
+        fn = fntable[s->bpp + bpp_offset];
 
     src_width = s->cols;
     switch (s->bpp) {

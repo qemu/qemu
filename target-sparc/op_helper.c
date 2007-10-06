@@ -862,7 +862,6 @@ void helper_st_asi(int asi, int size)
     case 0x19: // As if user secondary LE
     case 0x1c: // Bypass LE
     case 0x1d: // Bypass, non-cacheable LE
-    case 0x81: // Secondary
     case 0x88: // Primary LE
     case 0x89: // Secondary LE
         switch(size) {
@@ -950,6 +949,7 @@ void helper_st_asi(int asi, int size)
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic
     case 0x4a: // UPA config
+    case 0x81: // Secondary
     case 0x89: // Secondary LE
         // XXX
         return;
@@ -1126,6 +1126,95 @@ void helper_st_asi(int asi, int size)
     }
 }
 #endif /* CONFIG_USER_ONLY */
+
+void helper_ldf_asi(int asi, int size, int rd)
+{
+    target_ulong tmp_T0 = T0, tmp_T1 = T1;
+    unsigned int i;
+
+    switch (asi) {
+    case 0xf0: // Block load primary
+    case 0xf1: // Block load secondary
+    case 0xf8: // Block load primary LE
+    case 0xf9: // Block load secondary LE
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        if (T0 & 0x3f) {
+            raise_exception(TT_UNALIGNED);
+            return;
+        }
+        for (i = 0; i < 16; i++) {
+            helper_ld_asi(asi & 0x8f, 4, 0);
+            *(uint32_t *)&env->fpr[rd++] = T1;
+            T0 += 4;
+        }
+        T0 = tmp_T0;
+        T1 = tmp_T1;
+
+        return;
+    default:
+        break;
+    }
+
+    helper_ld_asi(asi, size, 0);
+    switch(size) {
+    default:
+    case 4:
+        *((uint32_t *)&FT0) = T1;
+        break;
+    case 8:
+        *((int64_t *)&DT0) = T1;
+        break;
+    }
+    T1 = tmp_T1;
+}
+
+void helper_stf_asi(int asi, int size, int rd)
+{
+    target_ulong tmp_T0 = T0, tmp_T1 = T1;
+    unsigned int i;
+
+    switch (asi) {
+    case 0xf0: // Block store primary
+    case 0xf1: // Block store secondary
+    case 0xf8: // Block store primary LE
+    case 0xf9: // Block store secondary LE
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        if (T0 & 0x3f) {
+            raise_exception(TT_UNALIGNED);
+            return;
+        }
+        for (i = 0; i < 16; i++) {
+            T1 = *(uint32_t *)&env->fpr[rd++];
+            helper_st_asi(asi & 0x8f, 4);
+            T0 += 4;
+        }
+        T0 = tmp_T0;
+        T1 = tmp_T1;
+
+        return;
+    default:
+        break;
+    }
+
+    switch(size) {
+    default:
+    case 4:
+        T1 = *((uint32_t *)&FT0);
+        break;
+    case 8:
+        T1 = *((int64_t *)&DT0);
+        break;
+    }
+    helper_st_asi(asi, size);
+    T1 = tmp_T1;
+}
+
 #endif /* TARGET_SPARC64 */
 
 #ifndef TARGET_SPARC64

@@ -124,24 +124,14 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     return cpu_ppc_get_tb(env) >> 32;
 }
 
-static void cpu_ppc_store_tb (CPUState *env, uint64_t value)
+uint32_t cpu_ppc_load_atbl (CPUState *env)
 {
-    /* TO FIX */
+    return cpu_ppc_get_tb(env) & 0xFFFFFFFF;
 }
 
-void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+uint32_t cpu_ppc_load_atbu (CPUState *env)
 {
-    cpu_ppc_store_tb(env, ((uint64_t)value << 32) | cpu_ppc_load_tbl(env));
-}
-
-void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
-{
-    cpu_ppc_store_tb(env, ((uint64_t)cpu_ppc_load_tbl(env) << 32) | value);
-}
-
-void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
-{
-    cpu_ppc_store_tbu( env, value );
+    return cpu_ppc_get_tb(env) >> 32;
 }
 
 uint32_t cpu_ppc601_load_rtcu (CPUState *env)
@@ -538,6 +528,9 @@ void cpu_loop(CPUPPCState *env)
 
             /* Return value */
             env->gpr[3] = ret;
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
             break;
         default:
             cpu_abort(env, "Unknown exception 0x%d. Aborting\n", trapnr);

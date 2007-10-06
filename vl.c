@@ -143,6 +143,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #define MAX_IOPORTS 65536
 
 const char *bios_dir = CONFIG_QEMU_SHAREDIR;
+const char *bios_name = NULL;
 char phys_ram_file[1024];
 void *ioport_opaque[MAX_IOPORTS];
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
@@ -988,8 +989,6 @@ void qemu_del_timer(QEMUTimer *ts)
         }
         pt = &t->next;
     }
-
-    qemu_rearm_alarm_timer(alarm_timer);
 }
 
 /* modify the current timer so that it will be fired when current_time
@@ -1181,7 +1180,7 @@ static void host_alarm_handler(int host_signum)
 
 static uint64_t qemu_next_deadline(void)
 {
-    int64_t nearest_delta_us = UINT64_MAX;
+    int64_t nearest_delta_us = INT64_MAX;
     int64_t vmdelta_us;
 
     if (active_timers[QEMU_TIMER_REALTIME])
@@ -7151,6 +7150,7 @@ enum {
     QEMU_OPTION_d,
     QEMU_OPTION_hdachs,
     QEMU_OPTION_L,
+    QEMU_OPTION_bios,
     QEMU_OPTION_no_code_copy,
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
@@ -7243,6 +7243,7 @@ const QEMUOption qemu_options[] = {
     { "d", HAS_ARG, QEMU_OPTION_d },
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
+    { "bios", HAS_ARG, QEMU_OPTION_bios },
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
@@ -7937,6 +7938,9 @@ int main(int argc, char **argv)
 #endif
             case QEMU_OPTION_L:
                 bios_dir = optarg;
+                break;
+            case QEMU_OPTION_bios:
+                bios_name = optarg;
                 break;
             case QEMU_OPTION_S:
                 autostart = 0;

@@ -296,7 +296,7 @@ void op_addr_add (void)
 /* For compatibility with 32-bit code, data reference in user mode
    with Status_UX = 0 should be casted to 32-bit and sign extended.
    See the MIPS64 PRA manual, section 4.10. */
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     if ((env->hflags & MIPS_HFLAG_UM) &&
         !(env->CP0_Status & (1 << CP0St_UX)))
         T0 = (int64_t)(int32_t)(T0 + T1);
@@ -379,7 +379,7 @@ void op_divu (void)
     RETURN();
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 /* Arithmetic */
 void op_dadd (void)
 {
@@ -448,7 +448,7 @@ void op_ddivu (void)
     RETURN();
 }
 #endif
-#endif /* TARGET_MIPS64 */
+#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 /* Logical */
 void op_and (void)
@@ -569,7 +569,7 @@ void op_clz (void)
     RETURN();
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */
@@ -770,7 +770,7 @@ void op_dclz (void)
     }
     RETURN();
 }
-#endif
+#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 /* 64 bits arithmetic */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -873,7 +873,7 @@ void op_msubu (void)
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_dmult (void)
 {
     CALL_FROM_TB4(muls64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
@@ -977,7 +977,7 @@ void op_save_btarget (void)
     RETURN();
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_save_btarget64 (void)
 {
     env->btarget = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
@@ -1804,7 +1804,7 @@ void op_mtc0_entryhi (void)
 
     /* 1k pages not implemented */
     val = T0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     val &= env->SEGMask;
 #endif
     old = env->CP0_EntryHi;
@@ -2031,7 +2031,7 @@ void op_mtc0_desave (void)
     RETURN();
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_dmfc0_yqmask (void)
 {
     T0 = env->CP0_YQMask;
@@ -2145,7 +2145,7 @@ void op_dmfc0_errorepc (void)
     T0 = env->CP0_ErrorEPC;
     RETURN();
 }
-#endif /* TARGET_MIPS64 */
+#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 /* MIPS MT functions */
 void op_mftgpr(void)
@@ -3059,7 +3059,7 @@ void op_save_pc (void)
     RETURN();
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_save_pc64 (void)
 {
     env->PC[env->current_tc] = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
@@ -3131,7 +3131,7 @@ void op_wsbh(void)
     RETURN();
 }
 
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_dext(void)
 {
     unsigned int pos = PARAM1;

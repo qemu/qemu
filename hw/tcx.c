@@ -84,39 +84,39 @@ static void update_palette_entries(TCXState *s, int start, int end)
 }
 
 static void tcx_draw_line32(TCXState *s1, uint8_t *d,
-			    const uint8_t *s, int width)
+                            const uint8_t *s, int width)
 {
     int x;
     uint8_t val;
     uint32_t *p = (uint32_t *)d;
 
     for(x = 0; x < width; x++) {
-	val = *s++;
+        val = *s++;
         *p++ = s1->palette[val];
     }
 }
 
 static void tcx_draw_line16(TCXState *s1, uint8_t *d,
-			    const uint8_t *s, int width)
+                            const uint8_t *s, int width)
 {
     int x;
     uint8_t val;
     uint16_t *p = (uint16_t *)d;
 
     for(x = 0; x < width; x++) {
-	val = *s++;
+        val = *s++;
         *p++ = s1->palette[val];
     }
 }
 
 static void tcx_draw_line8(TCXState *s1, uint8_t *d,
-			   const uint8_t *s, int width)
+                           const uint8_t *s, int width)
 {
     int x;
     uint8_t val;
 
     for(x = 0; x < width; x++) {
-	val = *s++;
+        val = *s++;
         *d++ = s1->palette[val];
     }
 }
@@ -183,7 +183,7 @@ static void tcx_update_display(void *opaque)
     void (*f)(TCXState *s1, uint8_t *dst, const uint8_t *src, int width);
 
     if (ts->ds->depth == 0)
-	return;
+        return;
     page = ts->vram_offset;
     y_start = -1;
     page_min = 0xffffffff;
@@ -195,55 +195,55 @@ static void tcx_update_display(void *opaque)
 
     switch (ts->ds->depth) {
     case 32:
-	f = tcx_draw_line32;
-	break;
+        f = tcx_draw_line32;
+        break;
     case 15:
     case 16:
-	f = tcx_draw_line16;
-	break;
+        f = tcx_draw_line16;
+        break;
     default:
     case 8:
-	f = tcx_draw_line8;
-	break;
+        f = tcx_draw_line8;
+        break;
     case 0:
-	return;
+        return;
     }
 
     for(y = 0; y < ts->height; y += 4, page += TARGET_PAGE_SIZE) {
-	if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG)) {
-	    if (y_start < 0)
+        if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG)) {
+            if (y_start < 0)
                 y_start = y;
             if (page < page_min)
                 page_min = page;
             if (page > page_max)
                 page_max = page;
-	    f(ts, d, s, ts->width);
-	    d += dd;
-	    s += ds;
-	    f(ts, d, s, ts->width);
-	    d += dd;
-	    s += ds;
-	    f(ts, d, s, ts->width);
-	    d += dd;
-	    s += ds;
-	    f(ts, d, s, ts->width);
-	    d += dd;
-	    s += ds;
-	} else {
+            f(ts, d, s, ts->width);
+            d += dd;
+            s += ds;
+            f(ts, d, s, ts->width);
+            d += dd;
+            s += ds;
+            f(ts, d, s, ts->width);
+            d += dd;
+            s += ds;
+            f(ts, d, s, ts->width);
+            d += dd;
+            s += ds;
+        } else {
             if (y_start >= 0) {
                 /* flush to display */
                 dpy_update(ts->ds, 0, y_start,
                            ts->width, y - y_start);
                 y_start = -1;
             }
-	    d += dd * 4;
-	    s += ds * 4;
-	}
+            d += dd * 4;
+            s += ds * 4;
+        }
     }
     if (y_start >= 0) {
-	/* flush to display */
-	dpy_update(ts->ds, 0, y_start,
-		   ts->width, y - y_start);
+        /* flush to display */
+        dpy_update(ts->ds, 0, y_start,
+                   ts->width, y - y_start);
     }
     /* reset modified pages */
     if (page_min <= page_max) {
@@ -334,7 +334,7 @@ static void tcx_invalidate_display(void *opaque)
     int i;
 
     for (i = 0; i < MAXX*MAXY; i += TARGET_PAGE_SIZE) {
-	cpu_physical_memory_set_dirty(s->vram_offset + i);
+        cpu_physical_memory_set_dirty(s->vram_offset + i);
     }
 }
 
@@ -424,32 +424,32 @@ static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     saddr = (addr & (TCX_DAC_NREGS - 1)) >> 2;
     switch (saddr) {
     case 0:
-	s->dac_index = val >> 24;
-	s->dac_state = 0;
-	break;
+        s->dac_index = val >> 24;
+        s->dac_state = 0;
+        break;
     case 1:
-	switch (s->dac_state) {
-	case 0:
-	    s->r[s->dac_index] = val >> 24;
+        switch (s->dac_state) {
+        case 0:
+            s->r[s->dac_index] = val >> 24;
             update_palette_entries(s, s->dac_index, s->dac_index + 1);
-	    s->dac_state++;
-	    break;
-	case 1:
-	    s->g[s->dac_index] = val >> 24;
+            s->dac_state++;
+            break;
+        case 1:
+            s->g[s->dac_index] = val >> 24;
             update_palette_entries(s, s->dac_index, s->dac_index + 1);
-	    s->dac_state++;
-	    break;
-	case 2:
-	    s->b[s->dac_index] = val >> 24;
+            s->dac_state++;
+            break;
+        case 2:
+            s->b[s->dac_index] = val >> 24;
             update_palette_entries(s, s->dac_index, s->dac_index + 1);
             s->dac_index = (s->dac_index + 1) & 255; // Index autoincrement
-	default:
-	    s->dac_state = 0;
-	    break;
-	}
-	break;
+        default:
+            s->dac_state = 0;
+            break;
+        }
+        break;
     default:
-	break;
+        break;
     }
     return;
 }

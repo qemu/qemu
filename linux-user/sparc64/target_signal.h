@@ -21,4 +21,16 @@ typedef struct target_sigaltstack {
 #define TARGET_MINSIGSTKSZ	4096
 #define TARGET_SIGSTKSZ		16384
 
+#ifndef UREG_I6
+#define UREG_I6        6
+#endif
+#ifndef UREG_FP
+#define UREG_FP        UREG_I6
+#endif
+
+static inline target_ulong get_sp_from_cpustate(CPUSPARCState *state)
+{
+    return state->regwptr[UREG_FP];
+}
+
 #endif /* TARGET_SIGNAL_H */

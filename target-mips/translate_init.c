@@ -201,7 +201,7 @@ static mips_def_t mips_defs[] =
                     (0x3fe << CP0SRSC4_SRS14) | (0x3fe << CP0SRSC4_SRS13),
         .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
     },
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     {
         .name = "R4000",
         .CP0_PRid = 0x00000400,
@@ -416,7 +416,7 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
     env->CP0_Status_rw_bitmask = def->CP0_Status_rw_bitmask;
     env->CP0_TCStatus_rw_bitmask = def->CP0_TCStatus_rw_bitmask;
     env->CP0_SRSCtl = def->CP0_SRSCtl;
-#ifdef TARGET_MIPS64
+#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     if (def->insn_flags & ISA_MIPS3)
     {
         env->hflags |= MIPS_HFLAG_64;

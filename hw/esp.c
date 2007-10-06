@@ -107,9 +107,9 @@ static int get_cmd(ESPState *s, uint8_t *buf)
     if (s->dma) {
         espdma_memory_read(s->dma_opaque, buf, dmalen);
     } else {
-	buf[0] = 0;
-	memcpy(&buf[1], s->ti_buf, dmalen);
-	dmalen++;
+        buf[0] = 0;
+        memcpy(&buf[1], s->ti_buf, dmalen);
+        dmalen++;
     }
 
     s->ti_size = 0;
@@ -124,11 +124,11 @@ static int get_cmd(ESPState *s, uint8_t *buf)
 
     if (target >= MAX_DISKS || !s->scsi_dev[target]) {
         // No such drive
-	s->rregs[4] = STAT_IN;
-	s->rregs[5] = INTR_DC;
-	s->rregs[6] = SEQ_0;
-	qemu_irq_raise(s->irq);
-	return 0;
+        s->rregs[4] = STAT_IN;
+        s->rregs[5] = INTR_DC;
+        s->rregs[6] = SEQ_0;
+        qemu_irq_raise(s->irq);
+        return 0;
     }
     s->current_dev = s->scsi_dev[target];
     return dmalen;
@@ -190,14 +190,14 @@ static void write_response(ESPState *s)
     s->ti_buf[1] = 0;
     if (s->dma) {
         espdma_memory_write(s->dma_opaque, s->ti_buf, 2);
-	s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
-	s->rregs[5] = INTR_BS | INTR_FC;
-	s->rregs[6] = SEQ_CD;
+        s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
+        s->rregs[5] = INTR_BS | INTR_FC;
+        s->rregs[6] = SEQ_CD;
     } else {
-	s->ti_size = 2;
-	s->ti_rptr = 0;
-	s->ti_wptr = 0;
-	s->rregs[7] = 2;
+        s->ti_size = 2;
+        s->ti_rptr = 0;
+        s->ti_wptr = 0;
+        s->rregs[7] = 2;
     }
     qemu_irq_raise(s->irq);
 }
@@ -359,9 +359,9 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
     switch (saddr) {
     case 2:
-	// FIFO
-	if (s->ti_size > 0) {
-	    s->ti_size--;
+        // FIFO
+        if (s->ti_size > 0) {
+            s->ti_size--;
             if ((s->rregs[4] & 6) == 0) {
                 /* Data in/out.  */
                 fprintf(stderr, "esp: PIO data read not implemented\n");
@@ -370,20 +370,20 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
                 s->rregs[2] = s->ti_buf[s->ti_rptr++];
             }
             qemu_irq_raise(s->irq);
-	}
-	if (s->ti_size == 0) {
+        }
+        if (s->ti_size == 0) {
             s->ti_rptr = 0;
             s->ti_wptr = 0;
         }
-	break;
+        break;
     case 5:
         // interrupt
         // Clear interrupt/error status bits
         s->rregs[4] &= ~(STAT_IN | STAT_GE | STAT_PE);
-	qemu_irq_lower(s->irq);
+        qemu_irq_lower(s->irq);
         break;
     default:
-	break;
+        break;
     }
     return s->rregs[saddr];
 }
@@ -401,7 +401,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->rregs[4] &= ~STAT_TC;
         break;
     case 2:
-	// FIFO
+        // FIFO
         if (s->do_cmd) {
             s->cmdbuf[s->cmdlen++] = val & 0xff;
         } else if ((s->rregs[4] & 6) == 0) {
@@ -413,73 +413,73 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             s->ti_size++;
             s->ti_buf[s->ti_wptr++] = val & 0xff;
         }
-	break;
+        break;
     case 3:
         s->rregs[saddr] = val;
-	// Command
-	if (val & 0x80) {
-	    s->dma = 1;
+        // Command
+        if (val & 0x80) {
+            s->dma = 1;
             /* Reload DMA counter.  */
             s->rregs[0] = s->wregs[0];
             s->rregs[1] = s->wregs[1];
-	} else {
-	    s->dma = 0;
-	}
-	switch(val & 0x7f) {
-	case 0:
-	    DPRINTF("NOP (%2.2x)\n", val);
-	    break;
-	case 1:
-	    DPRINTF("Flush FIFO (%2.2x)\n", val);
+        } else {
+            s->dma = 0;
+        }
+        switch(val & 0x7f) {
+        case 0:
+            DPRINTF("NOP (%2.2x)\n", val);
+            break;
+        case 1:
+            DPRINTF("Flush FIFO (%2.2x)\n", val);
             //s->ti_size = 0;
-	    s->rregs[5] = INTR_FC;
-	    s->rregs[6] = 0;
-	    break;
-	case 2:
-	    DPRINTF("Chip reset (%2.2x)\n", val);
-	    esp_reset(s);
-	    break;
-	case 3:
-	    DPRINTF("Bus reset (%2.2x)\n", val);
-	    s->rregs[5] = INTR_RST;
+            s->rregs[5] = INTR_FC;
+            s->rregs[6] = 0;
+            break;
+        case 2:
+            DPRINTF("Chip reset (%2.2x)\n", val);
+            esp_reset(s);
+            break;
+        case 3:
+            DPRINTF("Bus reset (%2.2x)\n", val);
+            s->rregs[5] = INTR_RST;
             if (!(s->wregs[8] & 0x40)) {
                 qemu_irq_raise(s->irq);
             }
-	    break;
-	case 0x10:
-	    handle_ti(s);
-	    break;
-	case 0x11:
-	    DPRINTF("Initiator Command Complete Sequence (%2.2x)\n", val);
-	    write_response(s);
-	    break;
-	case 0x12:
-	    DPRINTF("Message Accepted (%2.2x)\n", val);
-	    write_response(s);
-	    s->rregs[5] = INTR_DC;
-	    s->rregs[6] = 0;
-	    break;
-	case 0x1a:
-	    DPRINTF("Set ATN (%2.2x)\n", val);
-	    break;
-	case 0x42:
-	    DPRINTF("Set ATN (%2.2x)\n", val);
-	    handle_satn(s);
-	    break;
-	case 0x43:
-	    DPRINTF("Set ATN & stop (%2.2x)\n", val);
-	    handle_satn_stop(s);
-	    break;
+            break;
+        case 0x10:
+            handle_ti(s);
+            break;
+        case 0x11:
+            DPRINTF("Initiator Command Complete Sequence (%2.2x)\n", val);
+            write_response(s);
+            break;
+        case 0x12:
+            DPRINTF("Message Accepted (%2.2x)\n", val);
+            write_response(s);
+            s->rregs[5] = INTR_DC;
+            s->rregs[6] = 0;
+            break;
+        case 0x1a:
+            DPRINTF("Set ATN (%2.2x)\n", val);
+            break;
+        case 0x42:
+            DPRINTF("Set ATN (%2.2x)\n", val);
+            handle_satn(s);
+            break;
+        case 0x43:
+            DPRINTF("Set ATN & stop (%2.2x)\n", val);
+            handle_satn_stop(s);
+            break;
         case 0x44:
             DPRINTF("Enable selection (%2.2x)\n", val);
             break;
-	default:
-	    DPRINTF("Unhandled ESP command (%2.2x)\n", val);
-	    break;
-	}
-	break;
+        default:
+            DPRINTF("Unhandled ESP command (%2.2x)\n", val);
+            break;
+        }
+        break;
     case 4 ... 7:
-	break;
+        break;
     case 8:
         s->rregs[saddr] = val;
         break;
@@ -492,7 +492,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->rregs[saddr] = val;
         break;
     default:
-	break;
+        break;
     }
     s->wregs[saddr] = val;
 }

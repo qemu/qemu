@@ -4,17 +4,10 @@ Unsolved issues/bugs in the mips/mipsel backend
 General
 -------
 - [ls][dw][lr] report broken (aligned) BadVAddr
-- Missing per-CPU instruction decoding, currently all implemented
-  instructions are regarded as valid
-- Applications running on top of a emulated Linux segfault sometimes
-  when the Qemu FPU emulation is disabled, the tb misses a flush
-  in that case.
-- gdb breakpoints inside the emulated system work only due to a hack
-  which disassembles over the end of the current tb.
 
 MIPS64
 ------
-- Only lighly tested but apparently functional as of 2007-05-31.
+- Userland emulation (both n32 and n64) not functional.
 
 "Generic" 4Kc system emulation
 ------------------------------

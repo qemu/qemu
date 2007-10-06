@@ -1865,6 +1865,28 @@ void OPPROTO op_st_asi_reg()
     helper_st_asi(env->asi, PARAM2);
 }
 
+void OPPROTO op_ldf_asi_reg()
+{
+    T0 += PARAM1;
+    helper_ldf_asi(env->asi, PARAM2, PARAM3);
+}
+
+void OPPROTO op_stf_asi_reg()
+{
+    T0 += PARAM1;
+    helper_stf_asi(env->asi, PARAM2, PARAM3);
+}
+
+void OPPROTO op_ldf_asi()
+{
+    helper_ldf_asi(PARAM1, PARAM2, PARAM3);
+}
+
+void OPPROTO op_stf_asi()
+{
+    helper_stf_asi(PARAM1, PARAM2, PARAM3);
+}
+
 void OPPROTO op_ldstub_asi_reg()             /* XXX: should be atomically */
 {
     target_ulong tmp;

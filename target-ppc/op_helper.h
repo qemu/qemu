@@ -30,6 +30,7 @@ void glue(do_lmw_le, MEMSUFFIX) (int dst);
 void glue(do_stmw, MEMSUFFIX) (int src);
 void glue(do_stmw_le, MEMSUFFIX) (int src);
 void glue(do_icbi, MEMSUFFIX) (void);
+void glue(do_dcbz, MEMSUFFIX) (void);
 void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb);
 void glue(do_POWER2_lfq, MEMSUFFIX) (void);
 void glue(do_POWER2_lfq_le, MEMSUFFIX) (void);
@@ -46,6 +47,7 @@ void glue(do_lmw_le_64, MEMSUFFIX) (int dst);
 void glue(do_stmw_64, MEMSUFFIX) (int src);
 void glue(do_stmw_le_64, MEMSUFFIX) (int src);
 void glue(do_icbi_64, MEMSUFFIX) (void);
+void glue(do_dcbz_64, MEMSUFFIX) (void);
 #endif
 
 #else
@@ -57,6 +59,9 @@ void do_load_cr (void);
 void do_store_cr (uint32_t mask);
 void do_load_xer (void);
 void do_store_xer (void);
+#if defined(TARGET_PPC64)
+void do_store_pri (int prio);
+#endif
 void do_load_fpscr (void);
 void do_store_fpscr (uint32_t mask);
 target_ulong ppc_load_dump_spr (int sprn);
@@ -94,6 +99,7 @@ void do_popcntb_64 (void);
 
 /* Floating-point arithmetic helpers */
 void do_fsqrt (void);
+void do_fre (void);
 void do_fres (void);
 void do_frsqrte (void);
 void do_fsel (void);
@@ -110,6 +116,10 @@ void do_fcfid (void);
 void do_fctid (void);
 void do_fctidz (void);
 #endif
+void do_frin (void);
+void do_friz (void);
+void do_frip (void);
+void do_frim (void);
 void do_fcmpu (void);
 void do_fcmpo (void);
 
@@ -123,16 +133,11 @@ void do_rfi (void);
 #if defined(TARGET_PPC64)
 void do_rfid (void);
 #endif
-void do_tlbia (void);
-void do_tlbie (void);
-#if defined(TARGET_PPC64)
-void do_tlbie_64 (void);
+#if defined(TARGET_PPC64H)
+void do_hrfid (void);
 #endif
 void do_load_6xx_tlb (int is_code);
-#if defined(TARGET_PPC64)
-void do_slbia (void);
-void do_slbie (void);
-#endif
+void do_load_74xx_tlb (int is_code);
 #endif
 
 /* POWER / PowerPC 601 specific helpers */
@@ -159,8 +164,6 @@ void do_op_602_mfrom (void);
 /* PowerPC 440 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_440_tlbre (int word);
-void do_440_tlbsx (void);
-void do_440_tlbsx_ (void);
 void do_440_tlbwe (int word);
 #endif
 
@@ -176,8 +179,6 @@ void do_rfdi (void);
 void do_rfmci (void);
 void do_4xx_tlbre_lo (void);
 void do_4xx_tlbre_hi (void);
-void do_4xx_tlbsx (void);
-void do_4xx_tlbsx_ (void);
 void do_4xx_tlbwe_lo (void);
 void do_4xx_tlbwe_hi (void);
 #endif

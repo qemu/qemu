@@ -70,7 +70,7 @@ static CPUReadMemoryFunc *pci_apb_config_read[] = {
 };
 
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
-			       uint32_t val)
+                               uint32_t val)
 {
     //PCIBus *s = opaque;
 
@@ -80,14 +80,14 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
     case 0x18: // AFAR
     case 0x20: // Diagnostic
     case 0x28: // Target address space
-	// XXX
+        // XXX
     default:
-	break;
+        break;
     }
 }
 
 static uint32_t apb_config_readl (void *opaque,
-				  target_phys_addr_t addr)
+                                  target_phys_addr_t addr)
 {
     //PCIBus *s = opaque;
     uint32_t val;
@@ -98,10 +98,10 @@ static uint32_t apb_config_readl (void *opaque,
     case 0x18: // AFAR
     case 0x20: // Diagnostic
     case 0x28: // Target address space
-	// XXX
+        // XXX
     default:
-	val = 0;
-	break;
+        val = 0;
+        break;
     }
     return val;
 }
@@ -222,7 +222,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     pci_mem_config = cpu_register_io_memory(0, pci_apb_config_read,
                                             pci_apb_config_write, s);
     apb_config = cpu_register_io_memory(0, apb_config_read,
-					apb_config_write, s);
+                                        apb_config_write, s);
     pci_mem_data = cpu_register_io_memory(0, pci_apb_read,
                                           pci_apb_write, s);
     pci_ioport = cpu_register_io_memory(0, pci_apb_ioread,
