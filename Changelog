@@ -3,7 +3,7 @@
   - Monitor multiplexing to several I/O channels (Jason Wessel)
   - ds1225y nvram support (Herve Poussineau)
   - CPU model selection support (J. Mayer, Paul Brook, Herve Poussineau)
-  - Several Sparc fixes (Aurelien Jarno, Blue Swirl)
+  - Several Sparc fixes (Aurelien Jarno, Blue Swirl, Robert Reif)
   - MIPS 64-bit FPU support (Thiemo Seufer)
   - Xscale PDA emulation (Andrzei Zaborowski)
   - ColdFire system emulation (Paul Brook)
