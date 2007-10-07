@@ -1,0 +1,49 @@
+/*
+ * QEMU PowerPC 4xx emulation shared definitions
+ *
+ * Copyright (c) 2007 Jocelyn Mayer
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#if !defined(PPC_4XX_H)
+#define PPC_4XX_H
+
+/* PowerPC 4xx core initialization */
+CPUState *ppc4xx_init (const unsigned char *cpu_model,
+                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
+                       uint32_t sysclk);
+
+typedef struct ppc4xx_mmio_t ppc4xx_mmio_t;
+int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
+                          target_phys_addr_t offset, uint32_t len,
+                          CPUReadMemoryFunc **mem_read,
+                          CPUWriteMemoryFunc **mem_write, void *opaque);
+ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, target_phys_addr_t base);
+
+/* PowerPC 4xx universal interrupt controller */
+enum {
+    PPCUIC_OUTPUT_INT = 0,
+    PPCUIC_OUTPUT_CINT = 1,
+    PPCUIC_OUTPUT_NB,
+};
+qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
+                       uint32_t dcr_base, int has_ssr, int has_vr);
+
+#endif /* !defined(PPC_4XX_H) */

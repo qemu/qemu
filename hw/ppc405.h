@@ -25,6 +25,8 @@
 #if !defined(PPC_405_H)
 #define PPC_405_H
 
+#include "ppc4xx.h"
+
 /* Bootinfo as set-up by u-boot */
 typedef struct ppc4xx_bd_info_t ppc4xx_bd_info_t;
 struct ppc4xx_bd_info_t {
@@ -54,19 +56,9 @@ struct ppc4xx_bd_info_t {
 };
 
 /* PowerPC 405 core */
-CPUState *ppc405_init (const unsigned char *cpu_model,
-                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
-                       uint32_t sysclk);
 ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
                                 uint32_t flags);
 
-/* */
-typedef struct ppc4xx_mmio_t ppc4xx_mmio_t;
-int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
-                          target_phys_addr_t offset, uint32_t len,
-                          CPUReadMemoryFunc **mem_read,
-                          CPUWriteMemoryFunc **mem_write, void *opaque);
-ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, target_phys_addr_t base);
 /* PowerPC 4xx peripheral local bus arbitrer */
 void ppc4xx_plb_init (CPUState *env);
 /* PLB to OPB bridge */
@@ -74,14 +66,6 @@ void ppc4xx_pob_init (CPUState *env);
 /* OPB arbitrer */
 void ppc4xx_opba_init (CPUState *env, ppc4xx_mmio_t *mmio,
                        target_phys_addr_t offset);
-/* PowerPC 4xx universal interrupt controller */
-enum {
-    PPCUIC_OUTPUT_INT = 0,
-    PPCUIC_OUTPUT_CINT = 1,
-    PPCUIC_OUTPUT_NB,
-};
-qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
-                       uint32_t dcr_base, int has_ssr, int has_vr);
 /* SDRAM controller */
 void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
                         target_phys_addr_t *ram_bases,
