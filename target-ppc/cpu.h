@@ -347,40 +347,37 @@ union ppc_tlb_t {
 #define MSR_CM   31 /* Computation mode for BookE                     hflags */
 #define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
 #define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
-#define MSR_VR   25 /* altivec available                              hflags */
-#define MSR_SPE  25 /* SPE enable for BookE                           hflags */
+#define MSR_VR   25 /* altivec available                            x hflags */
+#define MSR_SPE  25 /* SPE enable for BookE                         x hflags */
 #define MSR_AP   23 /* Access privilege state on 602                  hflags */
 #define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
 #define MSR_KEY  19 /* key bit on 603e                                       */
-#define MSR_POW  18 /* Power management                                      */
-#define MSR_WE   18 /* Wait state enable on embedded PowerPC                 */
-#define MSR_TGPR 17 /* TGPR usage on 602/603                                 */
-#define MSR_TLB  17 /* TLB update on ?                                       */
-#define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC         */
+#define MSR_POW  18 /* Power management                             x        */
+#define MSR_WE   18 /* Wait state enable on embedded PowerPC        x        */
+#define MSR_TGPR 17 /* TGPR usage on 602/603                        x        */
+#define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC x       */
 #define MSR_ILE  16 /* Interrupt little-endian mode                          */
 #define MSR_EE   15 /* External interrupt enable                             */
 #define MSR_PR   14 /* Problem state                                  hflags */
 #define MSR_FP   13 /* Floating point available                       hflags */
 #define MSR_ME   12 /* Machine check interrupt enable                        */
 #define MSR_FE0  11 /* Floating point exception mode 0                hflags */
-#define MSR_SE   10 /* Single-step trace enable                       hflags */
-#define MSR_DWE  10 /* Debug wait enable on 405                              */
-#define MSR_UBLE 10 /* User BTB lock enable on e500                          */
-#define MSR_BE   9  /* Branch trace enable                            hflags */
-#define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC           */
+#define MSR_SE   10 /* Single-step trace enable                     x hflags */
+#define MSR_DWE  10 /* Debug wait enable on 405                     x        */
+#define MSR_UBLE 10 /* User BTB lock enable on e500                 x        */
+#define MSR_BE   9  /* Branch trace enable                          x hflags */
+#define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC  x        */
 #define MSR_FE1  8  /* Floating point exception mode 1                hflags */
 #define MSR_AL   7  /* AL bit on POWER                                       */
 #define MSR_IP   6  /* Interrupt prefix                                      */
 #define MSR_IR   5  /* Instruction relocate                                  */
-#define MSR_IS   5  /* Instruction address space on embedded PowerPC         */
 #define MSR_DR   4  /* Data relocate                                         */
-#define MSR_DS   4  /* Data address space on embedded PowerPC                */
-#define MSR_PE   3  /* Protection enable on 403                              */
-#define MSR_EP   3  /* Exception prefix on 601                               */
-#define MSR_PX   2  /* Protection exclusive on 403                           */
-#define MSR_PMM  2  /* Performance monitor mark on POWER                     */
-#define MSR_RI   1  /* Recoverable interrupt                                 */
-#define MSR_LE   0  /* Little-endian mode                             hflags */
+#define MSR_PE   3  /* Protection enable on 403                     x        */
+#define MSR_EP   3  /* Exception prefix on 601                      x        */
+#define MSR_PX   2  /* Protection exclusive on 403                  x        */
+#define MSR_PMM  2  /* Performance monitor mark on POWER            x        */
+#define MSR_RI   1  /* Recoverable interrupt                        1        */
+#define MSR_LE   0  /* Little-endian mode                           1 hflags */
 #define msr_sf   env->msr[MSR_SF]
 #define msr_isf  env->msr[MSR_ISF]
 #define msr_hv   env->msr[MSR_HV]
@@ -395,7 +392,6 @@ union ppc_tlb_t {
 #define msr_pow  env->msr[MSR_POW]
 #define msr_we   env->msr[MSR_WE]
 #define msr_tgpr env->msr[MSR_TGPR]
-#define msr_tlb  env->msr[MSR_TLB]
 #define msr_ce   env->msr[MSR_CE]
 #define msr_ile  env->msr[MSR_ILE]
 #define msr_ee   env->msr[MSR_EE]
@@ -412,15 +408,40 @@ union ppc_tlb_t {
 #define msr_al   env->msr[MSR_AL]
 #define msr_ip   env->msr[MSR_IP]
 #define msr_ir   env->msr[MSR_IR]
-#define msr_is   env->msr[MSR_IS]
 #define msr_dr   env->msr[MSR_DR]
-#define msr_ds   env->msr[MSR_DS]
 #define msr_pe   env->msr[MSR_PE]
 #define msr_ep   env->msr[MSR_EP]
 #define msr_px   env->msr[MSR_PX]
 #define msr_pmm  env->msr[MSR_PMM]
 #define msr_ri   env->msr[MSR_RI]
 #define msr_le   env->msr[MSR_LE]
+
+enum {
+    /* Beware that MSR bits are given using IBM standard (ie MSB is 0 !)     */
+    POWERPC_FLAG_NONE = 0x00000000,
+    /* Flag for MSR bit 25 signification (VRE/SPE)                           */
+    POWERPC_FLAG_SPE  = 0x00000001,
+    POWERPC_FLAG_VRE  = 0x00000002,
+    /* Flag for MSR bit 18 may not be needed...                              */
+    POWERPC_FLAG_POW  = 0x00000004,
+    POWERPC_FLAG_WE   = 0x00000008,
+    /* Flag for MSR bit 17 signification (TGPR/CE)                           */
+    POWERPC_FLAG_TGPR = 0x00000010,
+    POWERPC_FLAG_CE   = 0x00000020,
+    /* Flag for MSR bit 10 signification (SE/DWE/UBLE)                       */
+    POWERPC_FLAG_SE   = 0x00000040,
+    POWERPC_FLAG_DWE  = 0x00000080,
+    POWERPC_FLAG_UBLE = 0x00000100,
+    /* Flag for MSR bit 9 signification (BE/DE)                              */
+    POWERPC_FLAG_BE   = 0x00000200,
+    POWERPC_FLAG_DE   = 0x00000400,
+    /* Flag for MSR bit 3 signification (PE/EP)                              */
+    POWERPC_FLAG_PE   = 0x00000800,
+    POWERPC_FLAG_EP   = 0x00001000,
+    /* Flag for MSR but 2 signification (PX/PMM)                             */
+    POWERPC_FLAG_PX   = 0x00002000,
+    POWERPC_FLAG_PMM  = 0x00004000,
+};
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */

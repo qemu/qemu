@@ -1183,7 +1183,7 @@ int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             prot = (tlb->prot >> 4) & 0xF;
         /* Check the address space */
         if (access_type == ACCESS_CODE) {
-            if (msr_is != (tlb->attr & 1))
+            if (msr_ir != (tlb->attr & 1))
                 continue;
             ctx->prot = prot;
             if (prot & PAGE_EXEC) {
@@ -1192,7 +1192,7 @@ int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
             }
             ret = -3;
         } else {
-            if (msr_ds != (tlb->attr & 1))
+            if (msr_dr != (tlb->attr & 1))
                 continue;
             ctx->prot = prot;
             if ((!rw && prot & PAGE_READ) || (rw && (prot & PAGE_WRITE))) {
@@ -1964,7 +1964,7 @@ target_ulong do_load_msr (CPUPPCState *env)
         ((target_ulong)msr_sa   << MSR_SA)   |
         ((target_ulong)msr_key  << MSR_KEY)  |
         ((target_ulong)msr_pow  << MSR_POW)  | /* POW / WE */
-        ((target_ulong)msr_tlb  << MSR_TLB)  | /* TLB / TGPE / CE */
+        ((target_ulong)msr_tgpr << MSR_TGPR) | /* TGPR / CE */
         ((target_ulong)msr_ile  << MSR_ILE)  |
         ((target_ulong)msr_ee   << MSR_EE)   |
         ((target_ulong)msr_pr   << MSR_PR)   |
@@ -2000,18 +2000,10 @@ int do_store_msr (CPUPPCState *env, target_ulong value)
         fprintf(logfile, "%s: T0 %08lx\n", __func__, value);
     }
 #endif
-    switch (env->excp_model) {
-    case POWERPC_EXCP_602:
-    case POWERPC_EXCP_603:
-    case POWERPC_EXCP_603E:
-    case POWERPC_EXCP_G2:
-        if (((value >> MSR_TGPR) & 1) != msr_tgpr) {
-            /* Swap temporary saved registers with GPRs */
-            swap_gpr_tgpr(env);
-        }
-        break;
-    default:
-        break;
+    if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&
+                 ((value >> MSR_TGPR) & 1) != msr_tgpr)) {
+        /* Swap temporary saved registers with GPRs */
+        swap_gpr_tgpr(env);
     }
 #if defined (TARGET_PPC64)
     msr_sf   = (value >> MSR_SF)   & 1;
@@ -2024,7 +2016,7 @@ int do_store_msr (CPUPPCState *env, target_ulong value)
     msr_sa   = (value >> MSR_SA)   & 1;
     msr_key  = (value >> MSR_KEY)  & 1;
     msr_pow  = (value >> MSR_POW)  & 1; /* POW / WE */
-    msr_tlb  = (value >> MSR_TLB)  & 1; /* TLB / TGPR / CE */
+    msr_tgpr = (value >> MSR_TGPR) & 1; /* TGPR / CE */
     msr_ile  = (value >> MSR_ILE)  & 1;
     msr_ee   = (value >> MSR_EE)   & 1;
     msr_pr   = (value >> MSR_PR)   & 1;

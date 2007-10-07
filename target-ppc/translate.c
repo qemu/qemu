@@ -6514,6 +6514,7 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int supervisor;
+    int single_step, branch_step;
     int j, lj = -1;
 
     pc_start = tb->pc;
@@ -6545,9 +6546,20 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
 #if defined(TARGET_PPCEMB)
-    ctx.spe_enabled = msr_spe;
+    if (env->flags & POWERPC_FLAG_SPE)
+        ctx.spe_enabled = msr_spe;
+    else
+        ctx.spe_enabled = 0;
 #endif
-    ctx.singlestep_enabled = env->singlestep_enabled;
+    if ((env->flags & POWERPC_FLAG_SE) && msr_se)
+        single_step = 1;
+    else
+        single_step = 0;
+    if ((env->flags & POWERPC_FLAG_BE) && msr_be)
+        branch_step = 1;
+    else
+        branch_step = 0;
+    ctx.singlestep_enabled = env->singlestep_enabled || single_step == 1;;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
@@ -6642,30 +6654,24 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         handler->count++;
 #endif
         /* Check trace mode exceptions */
-#if 0 // XXX: buggy on embedded PowerPC
-        if (unlikely((msr_be && ctx.exception == POWERPC_EXCP_BRANCH) ||
-                     /* Check in single step trace mode
-                      * we need to stop except if:
-                      * - rfi, trap or syscall
-                      * - first instruction of an exception handler
-                      */
-                     (msr_se && (ctx.nip < 0x100 ||
-                                 ctx.nip > 0xF00 ||
-                                 (ctx.nip & 0xFC) != 0x04) &&
-#if defined(CONFIG_USER_ONLY)
-                      ctx.exception != POWERPC_EXCP_SYSCALL_USER &&
-#else
-                      ctx.exception != POWERPC_EXCP_SYSCALL &&
-#endif
-                      ctx.exception != POWERPC_EXCP_TRAP))) {
+        if (unlikely(branch_step != 0 &&
+                     ctx.exception == POWERPC_EXCP_BRANCH)) {
             GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
-        }
+        } else if (unlikely(single_step != 0 &&
+                            (ctx.nip <= 0x100 || ctx.nip > 0xF00 ||
+                             (ctx.nip & 0xFC) != 0x04) &&
+#if defined(CONFIG_USER_ONLY)
+                            ctx.exception != POWERPC_EXCP_SYSCALL_USER &&
+#else
+                            ctx.exception != POWERPC_EXCP_SYSCALL &&
 #endif
-        /* if we reach a page boundary or are single stepping, stop
-         * generation
-         */
-        if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
-                     (env->singlestep_enabled))) {
+                            ctx.exception != POWERPC_EXCP_TRAP)) {
+            GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
+        } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
+                            (env->singlestep_enabled))) {
+            /* if we reach a page boundary or are single stepping, stop
+             * generation
+             */
             break;
         }
 #if defined (DO_SINGLE_STEP)
