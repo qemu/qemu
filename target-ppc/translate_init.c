@@ -533,6 +533,7 @@ static void gen_spr_ne_601 (CPUPPCState *env)
 /* BATs 0-3 */
 static void gen_low_BATs (CPUPPCState *env)
 {
+#if !defined(CONFIG_USER_ONLY)
     spr_register(env, SPR_IBAT0U, "IBAT0U",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_ibat, &spr_write_ibatu,
@@ -598,11 +599,13 @@ static void gen_low_BATs (CPUPPCState *env)
                  &spr_read_dbat, &spr_write_dbatl,
                  0x00000000);
     env->nb_BATs += 4;
+#endif
 }
 
 /* BATs 4-7 */
 static void gen_high_BATs (CPUPPCState *env)
 {
+#if !defined(CONFIG_USER_ONLY)
     spr_register(env, SPR_IBAT4U, "IBAT4U",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_ibat_h, &spr_write_ibatu_h,
@@ -668,6 +671,7 @@ static void gen_high_BATs (CPUPPCState *env)
                  &spr_read_dbat_h, &spr_write_dbatl_h,
                  0x00000000);
     env->nb_BATs += 4;
+#endif
 }
 
 /* Generic PowerPC time base */
@@ -694,6 +698,7 @@ static void gen_tbl (CPUPPCState *env)
 /* Softare table search registers */
 static void gen_6xx_7xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
 {
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = nb_tlbs;
     env->nb_ways = nb_ways;
     env->id_tlbs = 1;
@@ -725,6 +730,7 @@ static void gen_6xx_7xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+#endif
 }
 
 /* SPR common to MPC755 and G2 */
@@ -1105,6 +1111,7 @@ static void gen_spr_601 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     spr_register(env, SPR_IBAT0U, "IBAT0U",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_601_ubat, &spr_write_601_ubatu,
@@ -1138,6 +1145,7 @@ static void gen_spr_601 (CPUPPCState *env)
                  &spr_read_601_ubat, &spr_write_601_ubatl,
                  0x00000000);
     env->nb_BATs = 4;
+#endif
 }
 
 static void gen_spr_74xx (CPUPPCState *env)
@@ -1238,6 +1246,7 @@ static void gen_l3_ctrl (CPUPPCState *env)
 
 static void gen_74xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
 {
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = nb_tlbs;
     env->nb_ways = nb_ways;
     env->id_tlbs = 1;
@@ -1256,6 +1265,7 @@ static void gen_74xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+#endif
 }
 
 /* PowerPC BookE SPR */
@@ -1512,6 +1522,7 @@ static void gen_spr_BookE (CPUPPCState *env)
 /* FSL storage control registers */
 static void gen_spr_BookE_FSL (CPUPPCState *env)
 {
+#if !defined(CONFIG_USER_ONLY)
     /* TLB assist registers */
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_MAS0, "MAS0",
@@ -1605,6 +1616,7 @@ static void gen_spr_BookE_FSL (CPUPPCState *env)
     default:
         break;
     }
+#endif
 }
 
 /* SPR specific to PowerPC 440 implementation */
@@ -2616,9 +2628,11 @@ static void init_proc_401x2 (CPUPPCState *env)
     gen_spr_401x2(env);
     gen_spr_compress(env);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2674,9 +2688,11 @@ static void init_proc_IOP480 (CPUPPCState *env)
     gen_spr_401x2(env);
     gen_spr_compress(env);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2744,9 +2760,11 @@ static void init_proc_403GCX (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2785,9 +2803,11 @@ static void init_proc_405 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2832,9 +2852,11 @@ static void init_proc_440EP (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2860,9 +2882,11 @@ static void init_proc_440GP (CPUPPCState *env)
     gen_spr_BookE(env);
     gen_spr_440(env);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2889,9 +2913,11 @@ static void init_proc_440x4 (CPUPPCState *env)
     gen_spr_BookE(env);
     gen_spr_440(env);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2935,9 +2961,11 @@ static void init_proc_440x5 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -2987,9 +3015,11 @@ static void init_proc_460 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -3042,9 +3072,11 @@ static void init_proc_460F (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -3097,9 +3129,11 @@ static void init_proc_e500 (CPUPPCState *env)
     gen_spr_BookE(env);
     /* Memory management */
     gen_spr_BookE_FSL(env);
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+#endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -3167,10 +3201,11 @@ static void init_proc_601 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 2;
     env->id_tlbs = 0;
-    env->id_tlbs = 0;
+#endif
     init_excp_601(env);
     env->dcache_line_size = 64;
     env->icache_line_size = 64;
@@ -4041,7 +4076,9 @@ static void init_proc_970 (CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->excp_prefix = 0xFFF00000;
 #endif
+#if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
+#endif
     init_excp_970(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
@@ -4112,7 +4149,9 @@ static void init_proc_970FX (CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->excp_prefix = 0xFFF00000;
 #endif
+#if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
+#endif
     init_excp_970(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
@@ -4183,7 +4222,9 @@ static void init_proc_970GX (CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->excp_prefix = 0xFFF00000;
 #endif
+#if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
+#endif
     init_excp_970(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
@@ -5729,11 +5770,11 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     env->excp_prefix = 0x00000000;
     env->ivor_mask = 0x00000000;
     env->ivpr_mask = 0x00000000;
-#endif
     /* Default MMU definitions */
     env->nb_BATs = 0;
     env->nb_tlb = 0;
     env->nb_ways = 0;
+#endif
     /* Register SPR common to all PowerPC implementations */
     gen_spr_generic(env);
     spr_register(env, SPR_PVR, "PVR",
@@ -5743,6 +5784,7 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
     /* PowerPC implementation specific initialisations (SPRs, timers, ...) */
     (*def->init_proc)(env);
     /* Allocate TLBs buffer when needed */
+#if !defined(CONFIG_USER_ONLY)
     if (env->nb_tlb != 0) {
         int nb_tlb = env->nb_tlb;
         if (env->id_tlbs != 0)
@@ -5751,7 +5793,6 @@ static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
         /* Pre-compute some useful values */
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
     }
-#if !defined(CONFIG_USER_ONLY)
     if (env->irq_inputs == NULL) {
         fprintf(stderr, "WARNING: no internal IRQ controller registered.\n"
                 " Attempt Qemu to crash very soon !\n");
@@ -6171,11 +6212,13 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
         printf("PowerPC %-12s : PVR %08x MSR %016" PRIx64 "\n"
                "    MMU model        : %s\n",
                def->name, def->pvr, def->msr_mask, mmu_model);
+#if !defined(CONFIG_USER_ONLY)
         if (env->tlb != NULL) {
             printf("                       %d %s TLB in %d ways\n",
                    env->nb_tlb, env->id_tlbs ? "splitted" : "merged",
                    env->nb_ways);
         }
+#endif
         printf("    Exceptions model : %s\n"
                "    Bus model        : %s\n",
                excp_model, bus_model);

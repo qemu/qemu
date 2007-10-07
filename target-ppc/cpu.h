@@ -495,9 +495,14 @@ struct CPUPPCState {
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 
-    /* MMU context */
+    /* MMU context - only relevant for full system emulation */
+#if !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64)
     /* Address space register */
     target_ulong asr;
+    /* PowerPC 64 SLB area */
+    int slb_nr;
+#endif
     /* segment registers */
     target_ulong sdr1;
     target_ulong sr[16];
@@ -505,24 +510,6 @@ struct CPUPPCState {
     int nb_BATs;
     target_ulong DBAT[2][8];
     target_ulong IBAT[2][8];
-
-    /* Other registers */
-    /* Special purpose registers */
-    target_ulong spr[1024];
-    /* Altivec registers */
-    ppc_avr_t avr[32];
-    uint32_t vscr;
-    /* SPE registers */
-    ppc_gpr_t spe_acc;
-    float_status spe_status;
-    uint32_t spe_fscr;
-
-    /* Internal devices resources */
-    /* Time base and decrementer */
-    ppc_tb_t *tb_env;
-    /* Device control registers */
-    ppc_dcr_t *dcr_env;
-
     /* PowerPC TLB registers (for 4xx and 60x software driven TLBs) */
     int nb_tlb;      /* Total number of TLB                                  */
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
@@ -533,8 +520,27 @@ struct CPUPPCState {
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
-    /* PowerPC 64 SLB area */
-    int slb_nr;
+#endif
+
+    /* Other registers */
+    /* Special purpose registers */
+    target_ulong spr[1024];
+    ppc_spr_t spr_cb[1024];
+    /* Altivec registers */
+    ppc_avr_t avr[32];
+    uint32_t vscr;
+#if defined(TARGET_PPCEMB)
+    /* SPE registers */
+    ppc_gpr_t spe_acc;
+    float_status spe_status;
+    uint32_t spe_fscr;
+#endif
+
+    /* Internal devices resources */
+    /* Time base and decrementer */
+    ppc_tb_t *tb_env;
+    /* Device control registers */
+    ppc_dcr_t *dcr_env;
 
     int dcache_line_size;
     int icache_line_size;
@@ -570,8 +576,7 @@ struct CPUPPCState {
     /* Those resources are used only during code translation */
     /* Next instruction pointer */
     target_ulong nip;
-    /* SPR translation callbacks */
-    ppc_spr_t spr_cb[1024];
+
     /* opcode handlers */
     opc_handler_t *opcodes[0x40];
 

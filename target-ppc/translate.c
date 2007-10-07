@@ -6448,9 +6448,11 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }
+#if !defined(CONFIG_USER_ONLY)
     cpu_fprintf(f, "SRR0 " REGX " SRR1 " REGX "         " FILL FILL FILL
                 "SDR1 " REGX "\n",
                 env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
+#endif
 
 #undef RGPL
 #undef RFPL
