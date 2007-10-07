@@ -626,8 +626,8 @@ static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
         tmp = ldl_phys(sr_base + 8);
 #if defined(DEBUG_SLB)
         if (loglevel != 0) {
-        fprintf(logfile, "%s: seg %d " PADDRX " %016" PRIx64 " %08" PRIx32 "\n",
-                __func__, n, sr_base, tmp64, tmp);
+            fprintf(logfile, "%s: seg %d " PADDRX " %016" PRIx64 " %08"
+                    PRIx32 "\n", __func__, n, sr_base, tmp64, tmp);
         }
 #endif
         if (tmp64 & 0x0000000008000000ULL) {
@@ -869,25 +869,25 @@ static int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 }
             }
 #if defined (DEBUG_MMU)
-                    if (loglevel != 0) {
-                        target_phys_addr_t curaddr;
-                        uint32_t a0, a1, a2, a3;
+            if (loglevel != 0) {
+                target_phys_addr_t curaddr;
+                uint32_t a0, a1, a2, a3;
+                fprintf(logfile,
+                        "Page table: " PADDRX " len " PADDRX "\n",
+                        sdr, mask + 0x80);
+                for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
+                     curaddr += 16) {
+                    a0 = ldl_phys(curaddr);
+                    a1 = ldl_phys(curaddr + 4);
+                    a2 = ldl_phys(curaddr + 8);
+                    a3 = ldl_phys(curaddr + 12);
+                    if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
                         fprintf(logfile,
-                                "Page table: " PADDRX " len " PADDRX "\n",
-                                sdr, mask + 0x80);
-                        for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
-                             curaddr += 16) {
-                            a0 = ldl_phys(curaddr);
-                            a1 = ldl_phys(curaddr + 4);
-                            a2 = ldl_phys(curaddr + 8);
-                            a3 = ldl_phys(curaddr + 12);
-                            if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                                fprintf(logfile,
-                                        PADDRX ": %08x %08x %08x %08x\n",
-                                        curaddr, a0, a1, a2, a3);
-                            }
-                        }
+                                PADDRX ": %08x %08x %08x %08x\n",
+                                curaddr, a0, a1, a2, a3);
                     }
+                }
+            }
 #endif
         } else {
 #if defined (DEBUG_MMU)
@@ -1714,7 +1714,6 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
     env->DBAT[1][nr] = value;
 }
 
-
 /*****************************************************************************/
 /* TLB management */
 void ppc_tlb_invalidate_all (CPUPPCState *env)
@@ -1842,7 +1841,6 @@ void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
     tlb_flush(env, 1);
 }
 #endif
-
 
 /*****************************************************************************/
 /* Special registers manipulation */

@@ -120,7 +120,6 @@
 #define REG 31
 #include "op_template.h"
 
-
 void OPPROTO op_print_mem_EA (void)
 {
     do_print_mem_EA(T0);
@@ -1425,7 +1424,6 @@ void OPPROTO op_andi_T1_64 (void)
     RETURN();
 }
 #endif
-
 
 /* count leading zero */
 void OPPROTO op_cntlzw (void)

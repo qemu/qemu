@@ -600,7 +600,7 @@ uint64_t cpu_ppc_load_purr (CPUState *env)
     uint64_t diff;
 
     diff = qemu_get_clock(vm_clock) - tb_env->purr_start;
-    
+
     return tb_env->purr_load + muldiv64(diff, tb_env->tb_freq, ticks_per_sec);
 }
 #endif /* defined(TARGET_PPC64H) */
@@ -631,10 +631,10 @@ static always_inline void cpu_ppc_hdecr_excp (CPUState *env)
 }
 
 static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
-                                 struct QEMUTimer *timer,
-                                 void (*raise_excp)(CPUState *),
-                                 uint32_t decr, uint32_t value,
-                                 int is_excp)
+                                  struct QEMUTimer *timer,
+                                  void (*raise_excp)(CPUState *),
+                                  uint32_t decr, uint32_t value,
+                                  int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t now, next;
@@ -1150,7 +1150,6 @@ int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
 
     return 0;
 }
-
 
 #if 0
 /*****************************************************************************/

@@ -6566,7 +6566,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         branch_step = 1;
     else
         branch_step = 0;
-    ctx.singlestep_enabled = env->singlestep_enabled || single_step == 1;;
+    ctx.singlestep_enabled = env->singlestep_enabled || single_step == 1;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;

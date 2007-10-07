@@ -482,7 +482,6 @@ static always_inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
     glue(stl, MEMSUFFIX)(EA, u.u);
 }
 
-
 PPC_STF_OP(fd_le, stfqr);
 PPC_STF_OP(fs_le, stfsr);
 PPC_STF_OP(fiwx_le, stfiwxr);
@@ -1078,7 +1077,6 @@ _PPC_SPE_LD_OP_64(name, op)
 #define PPC_SPE_LD_OP(name, op)                                               \
 _PPC_SPE_LD_OP(name, op)
 #endif
-
 
 #define _PPC_SPE_ST_OP(name, op)                                              \
 void OPPROTO glue(glue(op_spe_st, name), MEMSUFFIX) (void)                    \
