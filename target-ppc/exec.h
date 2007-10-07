@@ -54,9 +54,9 @@ register unsigned long T2 asm(AREG3);
 #define T2_64 T2
 #endif
 /* Provision for Altivec */
-#define T0_avr (env->t0_avr)
-#define T1_avr (env->t1_avr)
-#define T2_avr (env->t2_avr)
+#define AVR0 (env->avr0)
+#define AVR1 (env->avr1)
+#define AVR2 (env->avr2)
 
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)

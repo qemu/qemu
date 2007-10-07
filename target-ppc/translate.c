@@ -164,6 +164,7 @@ typedef struct DisasContext {
     int sf_mode;
 #endif
     int fpu_enabled;
+    int altivec_enabled;
 #if defined(TARGET_PPCEMB)
     int spe_enabled;
 #endif
@@ -234,6 +235,9 @@ GEN_EXCP(ctx, POWERPC_EXCP_FPU, 0)
 
 #define GEN_EXCP_NO_AP(ctx)                                                   \
 GEN_EXCP(ctx, POWERPC_EXCP_APU, 0)
+
+#define GEN_EXCP_NO_VR(ctx)                                                   \
+GEN_EXCP(ctx, POWERPC_EXCP_VPU, 0)
 
 /* Stop translation */
 static always_inline void GEN_STOP (DisasContext *ctx)
@@ -5530,6 +5534,161 @@ GEN_HANDLER(icbt_440, 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
      */
 }
 
+/***                      Altivec vector extension                         ***/
+/* Altivec registers moves */
+GEN32(gen_op_load_avr_A0, gen_op_load_avr_A0_avr);
+GEN32(gen_op_load_avr_A1, gen_op_load_avr_A1_avr);
+GEN32(gen_op_load_avr_A2, gen_op_load_avr_A2_avr);
+
+GEN32(gen_op_store_A0_avr, gen_op_store_A0_avr_avr);
+GEN32(gen_op_store_A1_avr, gen_op_store_A1_avr_avr);
+#if 0 // unused
+GEN32(gen_op_store_A2_avr, gen_op_store_A2_avr_avr);
+#endif
+
+#define op_vr_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64)
+/* User-mode only - 64 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_raw,                                                 \
+    &gen_op_vr_l##name##_le_raw,                                              \
+    &gen_op_vr_l##name##_64_raw,                                              \
+    &gen_op_vr_l##name##_le_64_raw,                                           \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_raw,                                                \
+    &gen_op_vr_st##name##_le_raw,                                             \
+    &gen_op_vr_st##name##_64_raw,                                             \
+    &gen_op_vr_st##name##_le_64_raw,                                          \
+};
+#else /* defined(TARGET_PPC64) */
+/* User-mode only - 32 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_raw,                                                 \
+    &gen_op_vr_l##name##_le_raw,                                              \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_raw,                                                \
+    &gen_op_vr_st##name##_le_raw,                                             \
+};
+#endif /* defined(TARGET_PPC64) */
+#else /* defined(CONFIG_USER_ONLY) */
+#if defined(TARGET_PPC64H)
+/* Full system with hypervisor mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_user,                                                \
+    &gen_op_vr_l##name##_le_user,                                             \
+    &gen_op_vr_l##name##_64_user,                                             \
+    &gen_op_vr_l##name##_le_64_user,                                          \
+    &gen_op_vr_l##name##_kernel,                                              \
+    &gen_op_vr_l##name##_le_kernel,                                           \
+    &gen_op_vr_l##name##_64_kernel,                                           \
+    &gen_op_vr_l##name##_le_64_kernel,                                        \
+    &gen_op_vr_l##name##_hypv,                                                \
+    &gen_op_vr_l##name##_le_hypv,                                             \
+    &gen_op_vr_l##name##_64_hypv,                                             \
+    &gen_op_vr_l##name##_le_64_hypv,                                          \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_user,                                               \
+    &gen_op_vr_st##name##_le_user,                                            \
+    &gen_op_vr_st##name##_64_user,                                            \
+    &gen_op_vr_st##name##_le_64_user,                                         \
+    &gen_op_vr_st##name##_kernel,                                             \
+    &gen_op_vr_st##name##_le_kernel,                                          \
+    &gen_op_vr_st##name##_64_kernel,                                          \
+    &gen_op_vr_st##name##_le_64_kernel,                                       \
+    &gen_op_vr_st##name##_hypv,                                               \
+    &gen_op_vr_st##name##_le_hypv,                                            \
+    &gen_op_vr_st##name##_64_hypv,                                            \
+    &gen_op_vr_st##name##_le_64_hypv,                                         \
+};
+#elif defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_user,                                                \
+    &gen_op_vr_l##name##_le_user,                                             \
+    &gen_op_vr_l##name##_64_user,                                             \
+    &gen_op_vr_l##name##_le_64_user,                                          \
+    &gen_op_vr_l##name##_kernel,                                              \
+    &gen_op_vr_l##name##_le_kernel,                                           \
+    &gen_op_vr_l##name##_64_kernel,                                           \
+    &gen_op_vr_l##name##_le_64_kernel,                                        \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_user,                                               \
+    &gen_op_vr_st##name##_le_user,                                            \
+    &gen_op_vr_st##name##_64_user,                                            \
+    &gen_op_vr_st##name##_le_64_user,                                         \
+    &gen_op_vr_st##name##_kernel,                                             \
+    &gen_op_vr_st##name##_le_kernel,                                          \
+    &gen_op_vr_st##name##_64_kernel,                                          \
+    &gen_op_vr_st##name##_le_64_kernel,                                       \
+};
+#else /* defined(TARGET_PPC64) */
+/* Full system - 32 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_user,                                                \
+    &gen_op_vr_l##name##_le_user,                                             \
+    &gen_op_vr_l##name##_kernel,                                              \
+    &gen_op_vr_l##name##_le_kernel,                                           \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_user,                                               \
+    &gen_op_vr_st##name##_le_user,                                            \
+    &gen_op_vr_st##name##_kernel,                                             \
+    &gen_op_vr_st##name##_le_kernel,                                          \
+};
+#endif /* defined(TARGET_PPC64) */
+#endif /* defined(CONFIG_USER_ONLY) */
+
+#define GEN_VR_LDX(name, opc2, opc3)                                          \
+GEN_HANDLER(l##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)               \
+{                                                                             \
+    if (unlikely(!ctx->altivec_enabled)) {                                    \
+        GEN_EXCP_NO_VR(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_reg_index(ctx);                                                  \
+    op_vr_ldst(vr_l##name);                                                   \
+    gen_op_store_A0_avr(rD(ctx->opcode));                                     \
+}
+
+#define GEN_VR_STX(name, opc2, opc3)                                          \
+GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)              \
+{                                                                             \
+    if (unlikely(!ctx->altivec_enabled)) {                                    \
+        GEN_EXCP_NO_VR(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_reg_index(ctx);                                                  \
+    gen_op_load_avr_A0(rS(ctx->opcode));                                      \
+    op_vr_ldst(vr_st##name);                                                  \
+}
+
+OP_VR_LD_TABLE(vx);
+GEN_VR_LDX(vx, 0x07, 0x03);
+/* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
+#define gen_op_vr_lvxl gen_op_vr_lvx
+GEN_VR_LDX(vxl, 0x07, 0x0B);
+
+OP_VR_ST_TABLE(vx);
+GEN_VR_STX(vx, 0x07, 0x07);
+/* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
+#define gen_op_vr_stvxl gen_op_vr_stvx
+GEN_VR_STX(vxl, 0x07, 0x0F);
+
 #if defined(TARGET_PPCEMB)
 /***                           SPE extension                               ***/
 
@@ -6553,11 +6712,15 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
 #if defined(TARGET_PPCEMB)
-    if (env->flags & POWERPC_FLAG_SPE)
+    if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
         ctx.spe_enabled = msr_spe;
     else
         ctx.spe_enabled = 0;
 #endif
+    if ((env->flags & POWERPC_FLAG_VRE) && msr_vr)
+        ctx.altivec_enabled = msr_vr;
+    else
+        ctx.altivec_enabled = 0;
     if ((env->flags & POWERPC_FLAG_SE) && msr_se)
         single_step = 1;
     else

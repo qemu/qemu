@@ -292,7 +292,7 @@ typedef struct CPUPPCState CPUPPCState;
 typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
-typedef struct ppc_avr_t ppc_avr_t;
+typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
 
 /* SPR access micro-ops generations callbacks */
@@ -311,8 +311,11 @@ struct ppc_spr_t {
 };
 
 /* Altivec registers (128 bits) */
-struct ppc_avr_t {
-    uint32_t u[4];
+union ppc_avr_t {
+    uint8_t u8[16];
+    uint16_t u16[8];
+    uint32_t u32[4];
+    uint64_t u64[2];
 };
 
 /* Software TLB cache */
@@ -454,7 +457,7 @@ struct CPUPPCState {
      */
     ppc_gpr_t t0, t1, t2;
 #endif
-    ppc_avr_t t0_avr, t1_avr, t2_avr;
+    ppc_avr_t avr0, avr1, avr2;
 
     /* general purpose registers */
     ppc_gpr_t gpr[32];
