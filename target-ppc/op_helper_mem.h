@@ -19,14 +19,15 @@
  */
 
 /* Multiple word / string load and store */
-static inline target_ulong glue(ld32r, MEMSUFFIX) (target_ulong EA)
+static always_inline target_ulong glue(ld32r, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
     return ((tmp & 0xFF000000UL) >> 24) | ((tmp & 0x00FF0000UL) >> 8) |
         ((tmp & 0x0000FF00UL) << 8) | ((tmp & 0x000000FFUL) << 24);
 }
 
-static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, target_ulong data)
+static always_inline void glue(st32r, MEMSUFFIX) (target_ulong EA,
+                                                  target_ulong data)
 {
     uint32_t tmp =
         ((data & 0xFF000000UL) >> 24) | ((data & 0x00FF0000UL) >> 8) |
@@ -399,7 +400,7 @@ void glue(do_POWER2_lfq, MEMSUFFIX) (void)
     FT1 = glue(ldfq, MEMSUFFIX)((uint32_t)(T0 + 4));
 }
 
-static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
+static always_inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
 {
     union {
         double d;
@@ -431,7 +432,7 @@ void glue(do_POWER2_stfq, MEMSUFFIX) (void)
     glue(stfq, MEMSUFFIX)((uint32_t)(T0 + 4), FT1);
 }
 
-static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;

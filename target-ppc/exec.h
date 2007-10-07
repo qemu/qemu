@@ -68,23 +68,23 @@ register unsigned long T2 asm(AREG3);
 # define RETURN() __asm__ __volatile__("" : : : "memory");
 #endif
 
-static inline target_ulong rotl8 (target_ulong i, int n)
+static always_inline target_ulong rotl8 (target_ulong i, int n)
 {
     return (((uint8_t)i << n) | ((uint8_t)i >> (8 - n)));
 }
 
-static inline target_ulong rotl16 (target_ulong i, int n)
+static always_inline target_ulong rotl16 (target_ulong i, int n)
 {
     return (((uint16_t)i << n) | ((uint16_t)i >> (16 - n)));
 }
 
-static inline target_ulong rotl32 (target_ulong i, int n)
+static always_inline target_ulong rotl32 (target_ulong i, int n)
 {
     return (((uint32_t)i << n) | ((uint32_t)i >> (32 - n)));
 }
 
 #if defined(TARGET_PPC64)
-static inline target_ulong rotl64 (target_ulong i, int n)
+static always_inline target_ulong rotl64 (target_ulong i, int n)
 {
     return (((uint64_t)i << n) | ((uint64_t)i >> (64 - n)));
 }
@@ -103,18 +103,18 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong vaddr,
 void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
                        target_ulong pte0, target_ulong pte1);
 
-static inline void env_to_regs (void)
+static always_inline void env_to_regs (void)
 {
 }
 
-static inline void regs_to_env (void)
+static always_inline void regs_to_env (void)
 {
 }
 
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
-static inline int cpu_halted (CPUState *env)
+static always_inline int cpu_halted (CPUState *env)
 {
     if (!env->halted)
         return 0;

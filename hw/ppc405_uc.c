@@ -463,7 +463,7 @@ static uint32_t sdram_bcr (target_phys_addr_t ram_base,
     return bcr;
 }
 
-static inline target_phys_addr_t sdram_base (uint32_t bcr)
+static always_inline target_phys_addr_t sdram_base (uint32_t bcr)
 {
     return bcr & 0xFF800000;
 }

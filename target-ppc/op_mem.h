@@ -18,19 +18,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-static inline uint16_t glue(ld16r, MEMSUFFIX) (target_ulong EA)
+static always_inline uint16_t glue(ld16r, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp = glue(lduw, MEMSUFFIX)(EA);
     return ((tmp & 0xFF00) >> 8) | ((tmp & 0x00FF) << 8);
 }
 
-static inline int32_t glue(ld16rs, MEMSUFFIX) (target_ulong EA)
+static always_inline int32_t glue(ld16rs, MEMSUFFIX) (target_ulong EA)
 {
     int16_t tmp = glue(lduw, MEMSUFFIX)(EA);
     return (int16_t)((tmp & 0xFF00) >> 8) | ((tmp & 0x00FF) << 8);
 }
 
-static inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
+static always_inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
     return ((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
@@ -38,7 +38,7 @@ static inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
 }
 
 #if defined(TARGET_PPC64) || defined(TARGET_PPCEMB)
-static inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t tmp = glue(ldq, MEMSUFFIX)(EA);
     return ((tmp & 0xFF00000000000000ULL) >> 56) |
@@ -53,12 +53,12 @@ static inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
 #endif
 
 #if defined(TARGET_PPC64)
-static inline int64_t glue(ldsl, MEMSUFFIX) (target_ulong EA)
+static always_inline int64_t glue(ldsl, MEMSUFFIX) (target_ulong EA)
 {
     return (int32_t)glue(ldl, MEMSUFFIX)(EA);
 }
 
-static inline int64_t glue(ld32rs, MEMSUFFIX) (target_ulong EA)
+static always_inline int64_t glue(ld32rs, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
     return (int32_t)((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
@@ -66,13 +66,15 @@ static inline int64_t glue(ld32rs, MEMSUFFIX) (target_ulong EA)
 }
 #endif
 
-static inline void glue(st16r, MEMSUFFIX) (target_ulong EA, uint16_t data)
+static always_inline void glue(st16r, MEMSUFFIX) (target_ulong EA,
+                                                  uint16_t data)
 {
     uint16_t tmp = ((data & 0xFF00) >> 8) | ((data & 0x00FF) << 8);
     glue(stw, MEMSUFFIX)(EA, tmp);
 }
 
-static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, uint32_t data)
+static always_inline void glue(st32r, MEMSUFFIX) (target_ulong EA,
+                                                  uint32_t data)
 {
     uint32_t tmp = ((data & 0xFF000000) >> 24) | ((data & 0x00FF0000) >> 8) |
         ((data & 0x0000FF00) << 8) | ((data & 0x000000FF) << 24);
@@ -80,7 +82,8 @@ static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, uint32_t data)
 }
 
 #if defined(TARGET_PPC64) || defined(TARGET_PPCEMB)
-static inline void glue(st64r, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(st64r, MEMSUFFIX) (target_ulong EA,
+                                                  uint64_t data)
 {
     uint64_t tmp = ((data & 0xFF00000000000000ULL) >> 56) |
         ((data & 0x00FF000000000000ULL) >> 40) |
@@ -403,12 +406,12 @@ void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
 }
 #endif
 
-static inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
 {
     glue(stfl, MEMSUFFIX)(EA, float64_to_float32(d, &env->fp_status));
 }
 
-static inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -429,7 +432,7 @@ PPC_STF_OP_64(fs, stfs);
 PPC_STF_OP_64(fiwx, stfiwx);
 #endif
 
-static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -448,7 +451,7 @@ static inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
     glue(stfq, MEMSUFFIX)(EA, u.d);
 }
 
-static inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         float f;
@@ -463,7 +466,7 @@ static inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
     glue(stfl, MEMSUFFIX)(EA, u.f);
 }
 
-static inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -506,7 +509,7 @@ void OPPROTO glue(glue(glue(op_l, name), _64), MEMSUFFIX) (void)              \
 }
 #endif
 
-static inline double glue(ldfs, MEMSUFFIX) (target_ulong EA)
+static always_inline double glue(ldfs, MEMSUFFIX) (target_ulong EA)
 {
     return float32_to_float64(glue(ldfl, MEMSUFFIX)(EA), &env->fp_status);
 }
@@ -518,7 +521,7 @@ PPC_LDF_OP_64(fd, ldfq);
 PPC_LDF_OP_64(fs, ldfs);
 #endif
 
-static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
+static always_inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
 {
     union {
         double d;
@@ -538,7 +541,7 @@ static inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
     return u.d;
 }
 
-static inline double glue(ldfsr, MEMSUFFIX) (target_ulong EA)
+static always_inline double glue(ldfsr, MEMSUFFIX) (target_ulong EA)
 {
     union {
         float f;
@@ -1105,7 +1108,7 @@ PPC_SPE_ST_OP(dd, stq);
 PPC_SPE_LD_OP(dd_le, ld64r);
 PPC_SPE_ST_OP(dd_le, st64r);
 #endif
-static inline uint64_t glue(spe_ldw, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_ldw, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(ldl, MEMSUFFIX)(EA) << 32;
@@ -1113,13 +1116,14 @@ static inline uint64_t glue(spe_ldw, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(dw, spe_ldw);
-static inline void glue(spe_stdw, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(spe_stdw, MEMSUFFIX) (target_ulong EA,
+                                                     uint64_t data)
 {
     glue(stl, MEMSUFFIX)(EA, data >> 32);
     glue(stl, MEMSUFFIX)(EA + 4, data);
 }
 PPC_SPE_ST_OP(dw, spe_stdw);
-static inline uint64_t glue(spe_ldw_le, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_ldw_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(ld32r, MEMSUFFIX)(EA) << 32;
@@ -1127,14 +1131,14 @@ static inline uint64_t glue(spe_ldw_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(dw_le, spe_ldw_le);
-static inline void glue(spe_stdw_le, MEMSUFFIX) (target_ulong EA,
-                                                 uint64_t data)
+static always_inline void glue(spe_stdw_le, MEMSUFFIX) (target_ulong EA,
+                                                        uint64_t data)
 {
     glue(st32r, MEMSUFFIX)(EA, data >> 32);
     glue(st32r, MEMSUFFIX)(EA + 4, data);
 }
 PPC_SPE_ST_OP(dw_le, spe_stdw_le);
-static inline uint64_t glue(spe_ldh, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_ldh, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(lduw, MEMSUFFIX)(EA) << 48;
@@ -1144,7 +1148,8 @@ static inline uint64_t glue(spe_ldh, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(dh, spe_ldh);
-static inline void glue(spe_stdh, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(spe_stdh, MEMSUFFIX) (target_ulong EA,
+                                                     uint64_t data)
 {
     glue(stw, MEMSUFFIX)(EA, data >> 48);
     glue(stw, MEMSUFFIX)(EA + 2, data >> 32);
@@ -1152,7 +1157,7 @@ static inline void glue(spe_stdh, MEMSUFFIX) (target_ulong EA, uint64_t data)
     glue(stw, MEMSUFFIX)(EA + 6, data);
 }
 PPC_SPE_ST_OP(dh, spe_stdh);
-static inline uint64_t glue(spe_ldh_le, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_ldh_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(ld16r, MEMSUFFIX)(EA) << 48;
@@ -1162,8 +1167,8 @@ static inline uint64_t glue(spe_ldh_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(dh_le, spe_ldh_le);
-static inline void glue(spe_stdh_le, MEMSUFFIX) (target_ulong EA,
-                                                 uint64_t data)
+static always_inline void glue(spe_stdh_le, MEMSUFFIX) (target_ulong EA,
+                                                        uint64_t data)
 {
     glue(st16r, MEMSUFFIX)(EA, data >> 48);
     glue(st16r, MEMSUFFIX)(EA + 2, data >> 32);
@@ -1171,7 +1176,7 @@ static inline void glue(spe_stdh_le, MEMSUFFIX) (target_ulong EA,
     glue(st16r, MEMSUFFIX)(EA + 6, data);
 }
 PPC_SPE_ST_OP(dh_le, spe_stdh_le);
-static inline uint64_t glue(spe_lwhe, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhe, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(lduw, MEMSUFFIX)(EA) << 48;
@@ -1179,13 +1184,14 @@ static inline uint64_t glue(spe_lwhe, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whe, spe_lwhe);
-static inline void glue(spe_stwhe, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(spe_stwhe, MEMSUFFIX) (target_ulong EA,
+                                                      uint64_t data)
 {
     glue(stw, MEMSUFFIX)(EA, data >> 48);
     glue(stw, MEMSUFFIX)(EA + 2, data >> 16);
 }
 PPC_SPE_ST_OP(whe, spe_stwhe);
-static inline uint64_t glue(spe_lwhe_le, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhe_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(ld16r, MEMSUFFIX)(EA) << 48;
@@ -1193,14 +1199,14 @@ static inline uint64_t glue(spe_lwhe_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whe_le, spe_lwhe_le);
-static inline void glue(spe_stwhe_le, MEMSUFFIX) (target_ulong EA,
-                                                  uint64_t data)
+static always_inline void glue(spe_stwhe_le, MEMSUFFIX) (target_ulong EA,
+                                                         uint64_t data)
 {
     glue(st16r, MEMSUFFIX)(EA, data >> 48);
     glue(st16r, MEMSUFFIX)(EA + 2, data >> 16);
 }
 PPC_SPE_ST_OP(whe_le, spe_stwhe_le);
-static inline uint64_t glue(spe_lwhou, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhou, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(lduw, MEMSUFFIX)(EA) << 32;
@@ -1208,7 +1214,7 @@ static inline uint64_t glue(spe_lwhou, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whou, spe_lwhou);
-static inline uint64_t glue(spe_lwhos, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhos, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = ((uint64_t)((int32_t)glue(ldsw, MEMSUFFIX)(EA))) << 32;
@@ -1216,13 +1222,14 @@ static inline uint64_t glue(spe_lwhos, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whos, spe_lwhos);
-static inline void glue(spe_stwho, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(spe_stwho, MEMSUFFIX) (target_ulong EA,
+                                                      uint64_t data)
 {
     glue(stw, MEMSUFFIX)(EA, data >> 32);
     glue(stw, MEMSUFFIX)(EA + 2, data);
 }
 PPC_SPE_ST_OP(who, spe_stwho);
-static inline uint64_t glue(spe_lwhou_le, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhou_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = (uint64_t)glue(ld16r, MEMSUFFIX)(EA) << 32;
@@ -1230,7 +1237,7 @@ static inline uint64_t glue(spe_lwhou_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whou_le, spe_lwhou_le);
-static inline uint64_t glue(spe_lwhos_le, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhos_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     ret = ((uint64_t)((int32_t)glue(ld16rs, MEMSUFFIX)(EA))) << 32;
@@ -1238,55 +1245,57 @@ static inline uint64_t glue(spe_lwhos_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whos_le, spe_lwhos_le);
-static inline void glue(spe_stwho_le, MEMSUFFIX) (target_ulong EA,
-                                                  uint64_t data)
+static always_inline void glue(spe_stwho_le, MEMSUFFIX) (target_ulong EA,
+                                                         uint64_t data)
 {
     glue(st16r, MEMSUFFIX)(EA, data >> 32);
     glue(st16r, MEMSUFFIX)(EA + 2, data);
 }
 PPC_SPE_ST_OP(who_le, spe_stwho_le);
 #if !defined(TARGET_PPC64)
-static inline void glue(spe_stwwo, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(spe_stwwo, MEMSUFFIX) (target_ulong EA,
+                                                      uint64_t data)
 {
     glue(stl, MEMSUFFIX)(EA, data);
 }
 PPC_SPE_ST_OP(wwo, spe_stwwo);
-static inline void glue(spe_stwwo_le, MEMSUFFIX) (target_ulong EA,
-                                                  uint64_t data)
+static always_inline void glue(spe_stwwo_le, MEMSUFFIX) (target_ulong EA,
+                                                         uint64_t data)
 {
     glue(st32r, MEMSUFFIX)(EA, data);
 }
 PPC_SPE_ST_OP(wwo_le, spe_stwwo_le);
 #endif
-static inline uint64_t glue(spe_lh, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lh, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp;
     tmp = glue(lduw, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 48) | ((uint64_t)tmp << 16);
 }
 PPC_SPE_LD_OP(h, spe_lh);
-static inline uint64_t glue(spe_lh_le, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lh_le, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp;
     tmp = glue(ld16r, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 48) | ((uint64_t)tmp << 16);
 }
 PPC_SPE_LD_OP(h_le, spe_lh_le);
-static inline uint64_t glue(spe_lwwsplat, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwwsplat, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp;
     tmp = glue(ldl, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 32) | (uint64_t)tmp;
 }
 PPC_SPE_LD_OP(wwsplat, spe_lwwsplat);
-static inline uint64_t glue(spe_lwwsplat_le, MEMSUFFIX) (target_ulong EA)
+static always_inline
+uint64_t glue(spe_lwwsplat_le, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp;
     tmp = glue(ld32r, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 32) | (uint64_t)tmp;
 }
 PPC_SPE_LD_OP(wwsplat_le, spe_lwwsplat_le);
-static inline uint64_t glue(spe_lwhsplat, MEMSUFFIX) (target_ulong EA)
+static always_inline uint64_t glue(spe_lwhsplat, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     uint16_t tmp;
@@ -1297,7 +1306,8 @@ static inline uint64_t glue(spe_lwhsplat, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whsplat, spe_lwhsplat);
-static inline uint64_t glue(spe_lwhsplat_le, MEMSUFFIX) (target_ulong EA)
+static always_inline
+uint64_t glue(spe_lwhsplat_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     uint16_t tmp;

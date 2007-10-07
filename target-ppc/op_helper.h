@@ -277,7 +277,7 @@ void do_evfsctuiz (void);
 
 /* Inlined helpers: used in micro-operation as well as helpers */
 /* Generic fixed-point helpers */
-static inline int _do_cntlzw (uint32_t val)
+static always_inline int _do_cntlzw (uint32_t val)
 {
     int cnt = 0;
     if (!(val & 0xFFFF0000UL)) {
@@ -306,7 +306,7 @@ static inline int _do_cntlzw (uint32_t val)
     return cnt;
 }
 
-static inline int _do_cntlzd (uint64_t val)
+static always_inline int _do_cntlzd (uint64_t val)
 {
     int cnt = 0;
 #if HOST_LONG_BITS == 64
@@ -350,19 +350,19 @@ static inline int _do_cntlzd (uint64_t val)
 #if defined(TARGET_PPCEMB)
 /* SPE extension */
 /* Single precision floating-point helpers */
-static inline uint32_t _do_efsabs (uint32_t val)
+static always_inline uint32_t _do_efsabs (uint32_t val)
 {
     return val & ~0x80000000;
 }
-static inline uint32_t _do_efsnabs (uint32_t val)
+static always_inline uint32_t _do_efsnabs (uint32_t val)
 {
     return val | 0x80000000;
 }
-static inline uint32_t _do_efsneg (uint32_t val)
+static always_inline uint32_t _do_efsneg (uint32_t val)
 {
     return val ^ 0x80000000;
 }
-static inline uint32_t _do_efsadd (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_efsadd (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -373,7 +373,7 @@ static inline uint32_t _do_efsadd (uint32_t op1, uint32_t op2)
     u1.f = float32_add(u1.f, u2.f, &env->spe_status);
     return u1.u;
 }
-static inline uint32_t _do_efssub (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_efssub (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -384,7 +384,7 @@ static inline uint32_t _do_efssub (uint32_t op1, uint32_t op2)
     u1.f = float32_sub(u1.f, u2.f, &env->spe_status);
     return u1.u;
 }
-static inline uint32_t _do_efsmul (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_efsmul (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -395,7 +395,7 @@ static inline uint32_t _do_efsmul (uint32_t op1, uint32_t op2)
     u1.f = float32_mul(u1.f, u2.f, &env->spe_status);
     return u1.u;
 }
-static inline uint32_t _do_efsdiv (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_efsdiv (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -407,7 +407,7 @@ static inline uint32_t _do_efsdiv (uint32_t op1, uint32_t op2)
     return u1.u;
 }
 
-static inline int _do_efststlt (uint32_t op1, uint32_t op2)
+static always_inline int _do_efststlt (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -417,7 +417,7 @@ static inline int _do_efststlt (uint32_t op1, uint32_t op2)
     u2.u = op2;
     return float32_lt(u1.f, u2.f, &env->spe_status) ? 1 : 0;
 }
-static inline int _do_efststgt (uint32_t op1, uint32_t op2)
+static always_inline int _do_efststgt (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -427,7 +427,7 @@ static inline int _do_efststgt (uint32_t op1, uint32_t op2)
     u2.u = op2;
     return float32_le(u1.f, u2.f, &env->spe_status) ? 0 : 1;
 }
-static inline int _do_efststeq (uint32_t op1, uint32_t op2)
+static always_inline int _do_efststeq (uint32_t op1, uint32_t op2)
 {
     union {
         uint32_t u;
@@ -438,7 +438,7 @@ static inline int _do_efststeq (uint32_t op1, uint32_t op2)
     return float32_eq(u1.f, u2.f, &env->spe_status) ? 1 : 0;
 }
 /* Double precision floating-point helpers */
-static inline int _do_efdtstlt (uint64_t op1, uint64_t op2)
+static always_inline int _do_efdtstlt (uint64_t op1, uint64_t op2)
 {
     union {
         uint64_t u;
@@ -448,7 +448,7 @@ static inline int _do_efdtstlt (uint64_t op1, uint64_t op2)
     u2.u = op2;
     return float64_lt(u1.f, u2.f, &env->spe_status) ? 1 : 0;
 }
-static inline int _do_efdtstgt (uint64_t op1, uint64_t op2)
+static always_inline int _do_efdtstgt (uint64_t op1, uint64_t op2)
 {
     union {
         uint64_t u;
@@ -458,7 +458,7 @@ static inline int _do_efdtstgt (uint64_t op1, uint64_t op2)
     u2.u = op2;
     return float64_le(u1.f, u2.f, &env->spe_status) ? 0 : 1;
 }
-static inline int _do_efdtsteq (uint64_t op1, uint64_t op2)
+static always_inline int _do_efdtsteq (uint64_t op1, uint64_t op2)
 {
     union {
         uint64_t u;

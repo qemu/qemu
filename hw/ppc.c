@@ -424,7 +424,8 @@ struct ppc_tb_t {
     void *opaque;
 };
 
-static inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env, int64_t tb_offset)
+static always_inline uint64_t cpu_ppc_get_tb (ppc_tb_t *tb_env,
+                                              int64_t tb_offset)
 {
     /* TB time in tb periods */
     return muldiv64(qemu_get_clock(vm_clock) + tb_env->tb_offset,
@@ -446,7 +447,7 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
     return tb & 0xFFFFFFFF;
 }
 
-static inline uint32_t _cpu_ppc_load_tbu (CPUState *env)
+static always_inline uint32_t _cpu_ppc_load_tbu (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -466,8 +467,9 @@ uint32_t cpu_ppc_load_tbu (CPUState *env)
     return _cpu_ppc_load_tbu(env);
 }
 
-static inline void cpu_ppc_store_tb (ppc_tb_t *tb_env, int64_t *tb_offsetp,
-                                     uint64_t value)
+static always_inline void cpu_ppc_store_tb (ppc_tb_t *tb_env,
+                                            int64_t *tb_offsetp,
+                                            uint64_t value)
 {
     *tb_offsetp = muldiv64(value, ticks_per_sec, tb_env->tb_freq)
         - qemu_get_clock(vm_clock);
@@ -489,7 +491,7 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
     cpu_ppc_store_tb(tb_env, &tb_env->tb_offset, tb | (uint64_t)value);
 }
 
-static inline void _cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+static always_inline void _cpu_ppc_store_tbu (CPUState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -556,7 +558,8 @@ void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
                      ((uint64_t)value << 32) | tb);
 }
 
-static inline uint32_t _cpu_ppc_load_decr (CPUState *env, uint64_t *next)
+static always_inline uint32_t _cpu_ppc_load_decr (CPUState *env,
+                                                  uint64_t *next)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint32_t decr;
@@ -605,7 +608,7 @@ uint64_t cpu_ppc_load_purr (CPUState *env)
 /* When decrementer expires,
  * all we need to do is generate or queue a CPU exception
  */
-static inline void cpu_ppc_decr_excp (CPUState *env)
+static always_inline void cpu_ppc_decr_excp (CPUState *env)
 {
     /* Raise it */
 #ifdef PPC_DEBUG_TB
@@ -616,7 +619,7 @@ static inline void cpu_ppc_decr_excp (CPUState *env)
     ppc_set_irq(env, PPC_INTERRUPT_DECR, 1);
 }
 
-static inline void cpu_ppc_hdecr_excp (CPUState *env)
+static always_inline void cpu_ppc_hdecr_excp (CPUState *env)
 {
     /* Raise it */
 #ifdef PPC_DEBUG_TB
@@ -657,9 +660,8 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
         (*raise_excp)(env);
 }
 
-
-static inline void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
-                                        uint32_t value, int is_excp)
+static always_inline void _cpu_ppc_store_decr (CPUState *env, uint32_t decr,
+                                               uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -678,8 +680,8 @@ static void cpu_ppc_decr_cb (void *opaque)
 }
 
 #if defined(TARGET_PPC64H)
-static inline void _cpu_ppc_store_hdecr (CPUState *env, uint32_t hdecr,
-                                        uint32_t value, int is_excp)
+static always_inline void _cpu_ppc_store_hdecr (CPUState *env, uint32_t hdecr,
+                                                uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
