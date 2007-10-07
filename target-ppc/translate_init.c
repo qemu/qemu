@@ -4024,6 +4024,12 @@ static void init_proc_7455 (CPUPPCState *env)
 #define POWERPC_BFDM_970     (bfd_mach_ppc64)
 #define POWERPC_FLAG_970     (POWERPC_FLAG_VRE)
 
+#if defined(CONFIG_USER_ONLY)
+#define POWERPC970_HID5_INIT 0x00000080
+#else
+#define POWERPC970_HID5_INIT 0x00000000
+#endif
+
 static void init_proc_970 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -4050,12 +4056,7 @@ static void init_proc_970 (CPUPPCState *env)
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-#if defined(CONFIG_USER_ONLY)
-                 0x00000080
-#else
-                 0x00000000
-#endif
-                 );
+                 POWERPC970_HID5_INIT);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
@@ -4123,12 +4124,7 @@ static void init_proc_970FX (CPUPPCState *env)
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-#if defined(CONFIG_USER_ONLY)
-                 0x00000080
-#else
-                 0x00000000
-#endif
-                 );
+                 POWERPC970_HID5_INIT);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
@@ -4196,12 +4192,7 @@ static void init_proc_970GX (CPUPPCState *env)
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-#if defined(CONFIG_USER_ONLY)
-                 0x00000080
-#else
-                 0x00000000
-#endif
-                 );
+                 POWERPC970_HID5_INIT);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);

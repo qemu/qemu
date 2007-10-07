@@ -3297,16 +3297,17 @@ GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64B)
 #endif
 
 /* sc */
+#if defined(CONFIG_USER_ONLY)
+#define POWERPC_SYSCALL POWERPC_EXCP_SYSCALL_USER
+#else
+#define POWERPC_SYSCALL POWERPC_EXCP_SYSCALL
+#endif
 GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFF01D, PPC_FLOW)
 {
     uint32_t lev;
 
     lev = (ctx->opcode >> 5) & 0x7F;
-#if defined(CONFIG_USER_ONLY)
-    GEN_EXCP(ctx, POWERPC_EXCP_SYSCALL_USER, lev);
-#else
-    GEN_EXCP(ctx, POWERPC_EXCP_SYSCALL, lev);
-#endif
+    GEN_EXCP(ctx, POWERPC_SYSCALL, lev);
 }
 
 /***                                Trap                                   ***/
@@ -6830,11 +6831,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         } else if (unlikely(single_step != 0 &&
                             (ctx.nip <= 0x100 || ctx.nip > 0xF00 ||
                              (ctx.nip & 0xFC) != 0x04) &&
-#if defined(CONFIG_USER_ONLY)
-                            ctx.exception != POWERPC_EXCP_SYSCALL_USER &&
-#else
-                            ctx.exception != POWERPC_EXCP_SYSCALL &&
-#endif
+                            ctx.exception != POWERPC_SYSCALL &&
                             ctx.exception != POWERPC_EXCP_TRAP)) {
             GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
