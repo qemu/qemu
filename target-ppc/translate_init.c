@@ -2322,7 +2322,7 @@ static void init_excp_601 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_RUNM]     = 0x00002000;
     env->excp_prefix = 0xFFF00000;
     /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
+    env->hreset_vector = 0x00000100UL;
 #endif
 }
 

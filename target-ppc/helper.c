@@ -1996,16 +1996,17 @@ int do_store_msr (CPUPPCState *env, target_ulong value)
         tlb_flush(env, 1);
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
     }
-#if 0
-    if (loglevel != 0) {
-        fprintf(logfile, "%s: T0 %08lx\n", __func__, value);
-    }
-#endif
+#if !defined (CONFIG_USER_ONLY)
     if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&
                  ((value >> MSR_TGPR) & 1) != msr_tgpr)) {
         /* Swap temporary saved registers with GPRs */
         swap_gpr_tgpr(env);
     }
+    if (unlikely((value >> MSR_EP) & 1) != msr_ep) {
+        /* Change the exception prefix on PowerPC 601 */
+        env->excp_prefix = ((value >> MSR_EP) & 1) * 0xFFF00000;
+    }
+#endif
 #if defined (TARGET_PPC64)
     msr_sf   = (value >> MSR_SF)   & 1;
     msr_isf  = (value >> MSR_ISF)  & 1;
@@ -2899,7 +2900,7 @@ void cpu_ppc_reset (void *opaque)
 #endif
     msr_ap = 0; /* TO BE CHECKED */
     msr_sa = 0; /* TO BE CHECKED */
-    msr_ip = 0; /* TO BE CHECKED */
+    msr_ep = 1;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
