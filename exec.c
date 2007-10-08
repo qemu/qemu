@@ -2066,6 +2066,8 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 #endif
 #ifdef TARGET_SPARC
     do_unassigned_access(addr, 0, 0, 0);
+#elif TARGET_CRIS
+    do_unassigned_access(addr, 0, 0, 0);
 #endif
     return 0;
 }
@@ -2076,6 +2078,8 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
     printf("Unassigned mem write " TARGET_FMT_lx " = 0x%x\n", addr, val);
 #endif
 #ifdef TARGET_SPARC
+    do_unassigned_access(addr, 1, 0, 0);
+#elif TARGET_CRIS
     do_unassigned_access(addr, 1, 0, 0);
 #endif
 }

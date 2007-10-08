@@ -210,6 +210,10 @@ static inline TranslationBlock *tb_find_fast(void)
     flags = env->ps;
     cs_base = 0;
     pc = env->pc;
+#elif defined(TARGET_CRIS)
+    flags = 0;
+    cs_base = 0;
+    pc = env->pc;
 #else
 #error unsupported CPU
 #endif
@@ -284,6 +288,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_PPC)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
+#elif defined(TARGET_CRIS)
     /* XXXXX */
 #else
 #error unsupported target CPU
@@ -335,6 +340,8 @@ int cpu_exec(CPUState *env1)
 		    do_interrupt(env);
 #elif defined(TARGET_ALPHA)
                     do_interrupt(env);
+#elif defined(TARGET_CRIS)
+                    do_interrupt(env);
 #elif defined(TARGET_M68K)
                     do_interrupt(0);
 #endif
@@ -385,7 +392,7 @@ int cpu_exec(CPUState *env1)
                         cpu_loop_exit();
                     }
 #if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
-    defined(TARGET_PPC) || defined(TARGET_ALPHA)
+    defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HALT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_HALT;
                         env->halted = 1;
@@ -517,6 +524,11 @@ int cpu_exec(CPUState *env1)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
                     }
+#elif defined(TARGET_CRIS)
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                        do_interrupt(env);
+			env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                    }
 #elif defined(TARGET_M68K)
                     if (interrupt_request & CPU_INTERRUPT_HARD
                         && ((env->sr & SR_I) >> SR_I_SHIFT)
@@ -575,6 +587,8 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_SH4)
 		    cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_ALPHA)
+                    cpu_dump_state(env, logfile, fprintf, 0);
+#elif defined(TARGET_CRIS)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #else
 #error unsupported target CPU
@@ -769,6 +783,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_ALPHA)
+#elif defined(TARGET_CRIS)
     /* XXXXX */
 #else
 #error unsupported target CPU
@@ -1200,6 +1215,51 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     /* never comes here */
     return 1;
 }
+#elif defined (TARGET_CRIS)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
+{
+    TranslationBlock *tb;
+    int ret;
+
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
+        return 1;
+    }
+
+    /* see if it is an MMU fault */
+    ret = cpu_cris_handle_mmu_fault(env, address, is_write, 1, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+#if 0
+        printf("PF exception: NIP=0x%08x error=0x%x %p\n",
+               env->nip, env->error_code, tb);
+#endif
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
+    /* never comes here */
+    return 1;
+}
+
 #else
 #error unsupported target CPU
 #endif

@@ -617,6 +617,8 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     is_user = ((env->ps >> 3) & 3);
 #elif defined (TARGET_M68K)
     is_user = ((env->sr & SR_S) == 0);
+#elif defined (TARGET_CRIS)
+    is_user = (0);
 #else
 #error unimplemented CPU
 #endif

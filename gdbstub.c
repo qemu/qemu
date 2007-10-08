@@ -728,6 +728,66 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
   for (i = 0; i < 8; i++) LOAD(env->gregs[i]);
   for (i = 0; i < 8; i++) LOAD(env->gregs[i + 16]);
 }
+#elif defined (TARGET_CRIS)
+
+static int cris_save_32 (unsigned char *d, uint32_t value)
+{
+	*d++ = (value);
+	*d++ = (value >>= 8);
+	*d++ = (value >>= 8);
+	*d++ = (value >>= 8);
+	return 4;
+}
+static int cris_save_16 (unsigned char *d, uint32_t value)
+{
+	*d++ = (value);
+	*d++ = (value >>= 8);
+	return 2;
+}
+static int cris_save_8 (unsigned char *d, uint32_t value)
+{
+	*d++ = (value);
+	return 1;
+}
+
+/* FIXME: this will bug on archs not supporting unaligned word accesses.  */
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+  uint8_t *ptr = mem_buf;
+  uint8_t srs;
+  int i;
+
+  for (i = 0; i < 16; i++)
+	  ptr += cris_save_32 (ptr, env->regs[i]);
+
+  srs = env->pregs[SR_SRS];
+
+  ptr += cris_save_8 (ptr, env->pregs[0]);
+  ptr += cris_save_8 (ptr, env->pregs[1]);
+  ptr += cris_save_32 (ptr, env->pregs[2]);
+  ptr += cris_save_8 (ptr, srs);
+  ptr += cris_save_16 (ptr, env->pregs[4]);
+
+  for (i = 5; i < 16; i++)
+	  ptr += cris_save_32 (ptr, env->pregs[i]);
+
+  ptr += cris_save_32 (ptr, env->pc);
+
+  for (i = 0; i < 16; i++)
+	  ptr += cris_save_32 (ptr, env->sregs[srs][i]);
+
+  return ((uint8_t *)ptr - mem_buf);
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+  uint32_t *ptr = (uint32_t *)mem_buf;
+  int i;
+
+#define LOAD(x) (x)=*ptr++;
+  for (i = 0; i < 16; i++) LOAD(env->regs[i]);
+  LOAD (env->pc);
+}
 #else
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
@@ -745,7 +805,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
     const char *p;
     int ch, reg_size, type;
     char buf[4096];
-    uint8_t mem_buf[2000];
+    uint8_t mem_buf[4096];
     uint32_t *registers;
     target_ulong addr, len;
 
@@ -776,6 +836,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
             env->PC[env->current_tc] = addr;
+#elif defined (TARGET_CRIS)
+            env->pc = addr;
 #endif
         }
 #ifdef CONFIG_USER_ONLY
@@ -800,6 +862,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
             env->PC[env->current_tc] = addr;
+#elif defined (TARGET_CRIS)
+            env->pc = addr;
 #endif
         }
         cpu_single_step(env, 1);
