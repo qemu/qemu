@@ -354,8 +354,7 @@ union ppc_tlb_t {
 #define MSR_AP   23 /* Access privilege state on 602                  hflags */
 #define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
 #define MSR_KEY  19 /* key bit on 603e                                       */
-#define MSR_POW  18 /* Power management                             x        */
-#define MSR_WE   18 /* Wait state enable on embedded PowerPC        x        */
+#define MSR_POW  18 /* Power management                                      */
 #define MSR_TGPR 17 /* TGPR usage on 602/603                        x        */
 #define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC x       */
 #define MSR_ILE  16 /* Interrupt little-endian mode                          */
@@ -371,11 +370,10 @@ union ppc_tlb_t {
 #define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC  x        */
 #define MSR_FE1  8  /* Floating point exception mode 1                hflags */
 #define MSR_AL   7  /* AL bit on POWER                                       */
-#define MSR_IP   6  /* Interrupt prefix                                      */
+#define MSR_EP   3  /* Exception prefix on 601                               */
 #define MSR_IR   5  /* Instruction relocate                                  */
 #define MSR_DR   4  /* Data relocate                                         */
-#define MSR_PE   3  /* Protection enable on 403                     x        */
-#define MSR_EP   3  /* Exception prefix on 601                      x        */
+#define MSR_PE   3  /* Protection enable on 403                              */
 #define MSR_PX   2  /* Protection exclusive on 403                  x        */
 #define MSR_PMM  2  /* Performance monitor mark on POWER            x        */
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
@@ -392,7 +390,6 @@ union ppc_tlb_t {
 #define msr_sa   env->msr[MSR_SA]
 #define msr_key  env->msr[MSR_KEY]
 #define msr_pow  env->msr[MSR_POW]
-#define msr_we   env->msr[MSR_WE]
 #define msr_tgpr env->msr[MSR_TGPR]
 #define msr_ce   env->msr[MSR_CE]
 #define msr_ile  env->msr[MSR_ILE]
@@ -408,7 +405,6 @@ union ppc_tlb_t {
 #define msr_de   env->msr[MSR_DE]
 #define msr_fe1  env->msr[MSR_FE1]
 #define msr_al   env->msr[MSR_AL]
-#define msr_ip   env->msr[MSR_IP]
 #define msr_ir   env->msr[MSR_IR]
 #define msr_dr   env->msr[MSR_DR]
 #define msr_pe   env->msr[MSR_PE]
@@ -419,30 +415,23 @@ union ppc_tlb_t {
 #define msr_le   env->msr[MSR_LE]
 
 enum {
-    /* Beware that MSR bits are given using IBM standard (ie MSB is 0 !)     */
     POWERPC_FLAG_NONE = 0x00000000,
     /* Flag for MSR bit 25 signification (VRE/SPE)                           */
     POWERPC_FLAG_SPE  = 0x00000001,
     POWERPC_FLAG_VRE  = 0x00000002,
-    /* Flag for MSR bit 18 may not be needed...                              */
-    POWERPC_FLAG_POW  = 0x00000004,
-    POWERPC_FLAG_WE   = 0x00000008,
     /* Flag for MSR bit 17 signification (TGPR/CE)                           */
-    POWERPC_FLAG_TGPR = 0x00000010,
-    POWERPC_FLAG_CE   = 0x00000020,
+    POWERPC_FLAG_TGPR = 0x00000004,
+    POWERPC_FLAG_CE   = 0x00000008,
     /* Flag for MSR bit 10 signification (SE/DWE/UBLE)                       */
-    POWERPC_FLAG_SE   = 0x00000040,
-    POWERPC_FLAG_DWE  = 0x00000080,
-    POWERPC_FLAG_UBLE = 0x00000100,
+    POWERPC_FLAG_SE   = 0x00000010,
+    POWERPC_FLAG_DWE  = 0x00000020,
+    POWERPC_FLAG_UBLE = 0x00000040,
     /* Flag for MSR bit 9 signification (BE/DE)                              */
-    POWERPC_FLAG_BE   = 0x00000200,
-    POWERPC_FLAG_DE   = 0x00000400,
-    /* Flag for MSR bit 3 signification (PE/EP)                              */
-    POWERPC_FLAG_PE   = 0x00000800,
-    POWERPC_FLAG_EP   = 0x00001000,
+    POWERPC_FLAG_BE   = 0x00000080,
+    POWERPC_FLAG_DE   = 0x00000100,
     /* Flag for MSR but 2 signification (PX/PMM)                             */
-    POWERPC_FLAG_PX   = 0x00002000,
-    POWERPC_FLAG_PMM  = 0x00004000,
+    POWERPC_FLAG_PX   = 0x00000200,
+    POWERPC_FLAG_PMM  = 0x00000400,
 };
 
 /*****************************************************************************/
