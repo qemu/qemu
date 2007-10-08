@@ -205,6 +205,9 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #elif defined(TARGET_ALPHA)
     disasm_info.mach = bfd_mach_alpha;
     print_insn = print_insn_alpha;
+#elif defined(TARGET_CRIS)
+    disasm_info.mach = bfd_mach_cris_v32;
+    print_insn = print_insn_crisv32;
 #else
     fprintf(out, "0x" TARGET_FMT_lx
 	    ": Asm output not supported on this arch\n", code);
