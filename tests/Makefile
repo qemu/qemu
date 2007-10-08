@@ -98,6 +98,11 @@ test2:
            ../$${arch}-linux-user/qemu-$${arch} $${arch}/ls -l linux-test.c ; \
         done
 
+
+# testsuite for the CRIS port.
+test-cris:
+	$(MAKE) -C cris check
+
 clean:
 	rm -f *~ *.o test-i386.out test-i386.ref \
            test-x86_64.log test-x86_64.ref qruncom $(TESTS)

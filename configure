@@ -53,6 +53,9 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
+  cris)
+    cpu="cris"
+  ;;
   s390*)
     cpu="s390"
   ;;
@@ -497,11 +500,11 @@ fi
 if test -z "$target_list" ; then
 # these targets are portable
     if [ "$softmmu" = "yes" ] ; then
-        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc64-softmmu ppcemb-softmmu m68k-softmmu sh4-softmmu"
+        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc64-softmmu ppcemb-softmmu m68k-softmmu sh4-softmmu cris-softmmu"
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
-        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user ppc64-linux-user sh4-linux-user $target_list"
+        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user ppc64-linux-user sh4-linux-user cris-linux-user $target_list"
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
@@ -782,6 +785,9 @@ elif test "$cpu" = "mips" ; then
 elif test "$cpu" = "mips64" ; then
   echo "ARCH=mips64" >> $config_mak
   echo "#define HOST_MIPS64 1" >> $config_h
+elif test "$cpu" = "cris" ; then
+  echo "ARCH=cris" >> $config_mak
+  echo "#define HOST_CRIS 1" >> $config_h
 elif test "$cpu" = "s390" ; then
   echo "ARCH=s390" >> $config_mak
   echo "#define HOST_S390 1" >> $config_h
@@ -1053,6 +1059,12 @@ elif test "$target_cpu" = "mips64" -o "$target_cpu" = "mips64el" ; then
   echo "#define TARGET_ARCH \"mips64\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
   echo "#define TARGET_MIPS64 1" >> $config_h
+elif test "$target_cpu" = "cris" ; then
+  echo "TARGET_ARCH=cris" >> $config_mak
+  echo "#define TARGET_ARCH \"cris\"" >> $config_h
+  echo "#define TARGET_CRIS 1" >> $config_h
+  echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
+  echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
 elif test "$target_cpu" = "sh4" -o "$target_cpu" = "sh4eb" ; then
   echo "TARGET_ARCH=sh4" >> $config_mak
   echo "#define TARGET_ARCH \"sh4\"" >> $config_h
@@ -1135,8 +1147,9 @@ done # for target in $targets
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
-    DIRS="tests"
+    DIRS="tests tests/cris"
     FILES="Makefile tests/Makefile"
+    FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     for dir in $DIRS ; do
             mkdir -p $dir
     done

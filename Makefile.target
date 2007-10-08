@@ -324,6 +324,15 @@ ifeq ($(TARGET_BASE_ARCH), alpha)
 LIBOBJS+= op_helper.o helper.o alpha_palcode.o
 endif
 
+ifeq ($(TARGET_BASE_ARCH), cris)
+LIBOBJS+= op_helper.o helper.o
+LIBOBJS+= cris-dis.o
+
+ifndef CONFIG_USER_ONLY
+LIBOBJS+= mmu.o
+endif
+endif
+
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
@@ -460,6 +469,12 @@ VL_OBJS+= jazz_led.o
 VL_OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 VL_OBJS+= piix_pci.o smbus_eeprom.o parallel.o mixeng.o cirrus_vga.o $(SOUND_HW) $(AUDIODRV)
 CPPFLAGS += -DHAS_AUDIO
+endif
+ifeq ($(TARGET_BASE_ARCH), cris)
+VL_OBJS+= etraxfs.o
+VL_OBJS+= ptimer.o
+VL_OBJS+= etraxfs_timer.o
+VL_OBJS+= etraxfs_ser.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
