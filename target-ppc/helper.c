@@ -2911,7 +2911,8 @@ void cpu_ppc_reset (void *opaque)
     msr_pr = 1;
 #else
     env->nip = env->hreset_vector | env->excp_prefix;
-    ppc_tlb_invalidate_all(env);
+    if (env->mmu_model != POWERPC_MMU_REAL_4xx)
+        ppc_tlb_invalidate_all(env);
 #endif
     do_compute_hflags(env);
     env->reserve = -1;

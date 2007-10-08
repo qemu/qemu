@@ -2729,7 +2729,6 @@ static void init_proc_IOP480 (CPUPPCState *env)
 /* PowerPC 403                                                               */
 #define POWERPC_INSNS_403    (POWERPC_INSNS_EMB |                             \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
 #define POWERPC_MSRM_403     (0x000000000007D00DULL)
 #define POWERPC_MMU_403      (POWERPC_MMU_REAL_4xx)
