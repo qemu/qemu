@@ -74,7 +74,7 @@
 //#define DEBUG
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
-    || defined(TARGET_M68K) || defined(TARGET_SH4)
+    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS)
 /* 16 bit uid wrappers emulation */
 #define USE_UID16
 #endif
@@ -2286,6 +2286,10 @@ int do_fork(CPUState *env, unsigned int flags, target_ulong newsp)
             for (i = 7; i < 30; i++)
                 new_env->ir[i] = 0;
         }
+#elif defined(TARGET_CRIS)
+	if (!newsp)
+	  newsp = env->regs[14];
+	new_env->regs[14] = newsp;
 #else
 #error unsupported target CPU
 #endif
@@ -3502,7 +3506,7 @@ target_long do_syscall(void *cpu_env, int num, target_long arg1,
 #endif
 #ifdef TARGET_NR_mmap
     case TARGET_NR_mmap:
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_M68K)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_CRIS)
         {
             target_ulong *v;
             target_ulong v1, v2, v3, v4, v5, v6;

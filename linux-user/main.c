@@ -1601,6 +1601,61 @@ void cpu_loop (CPUState *env)
 }
 #endif
 
+#ifdef TARGET_CRIS
+void cpu_loop (CPUState *env)
+{
+    int trapnr, ret;
+    target_siginfo_t info;
+    
+    while (1) {
+        trapnr = cpu_cris_exec (env);
+        switch (trapnr) {
+        case 0xaa:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->debug1;
+                queue_signal(info.si_signo, &info);
+            }
+            break;
+        case EXCP_BREAK:
+            ret = do_syscall(env, 
+                             env->regs[9], 
+                             env->regs[10], 
+                             env->regs[11], 
+                             env->regs[12], 
+                             env->regs[13], 
+                             env->pregs[7], 
+                             env->pregs[11]);
+            env->regs[10] = ret;
+            env->pc += 2;
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
+            break;
+        default:
+            printf ("Unhandled trap: 0x%x\n", trapnr);
+            cpu_dump_state(env, stderr, fprintf, 0);
+            exit (1);
+        }
+        process_pending_signals (env);
+    }
+}
+#endif
+
 #ifdef TARGET_M68K
 
 void cpu_loop(CPUM68KState *env)
@@ -2194,6 +2249,26 @@ int main(int argc, char **argv)
         env->ir[30] = regs->usp;
         env->pc = regs->pc;
         env->unique = regs->unique;
+    }
+#elif defined(TARGET_CRIS)
+    {
+	    env->regs[0] = regs->r0;
+	    env->regs[1] = regs->r1;
+	    env->regs[2] = regs->r2;
+	    env->regs[3] = regs->r3;
+	    env->regs[4] = regs->r4;
+	    env->regs[5] = regs->r5;
+	    env->regs[6] = regs->r6;
+	    env->regs[7] = regs->r7;
+	    env->regs[8] = regs->r8;
+	    env->regs[9] = regs->r9;
+	    env->regs[10] = regs->r10;
+	    env->regs[11] = regs->r11;
+	    env->regs[12] = regs->r12;
+	    env->regs[13] = regs->r13;
+	    env->regs[14] = info->start_stack;
+	    env->regs[15] = regs->acr;	    
+	    env->pc = regs->erp;
     }
 #else
 #error unsupported target CPU

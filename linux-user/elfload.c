@@ -334,6 +334,26 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif
 
+#ifdef TARGET_CRIS
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_CRIS )
+
+#define ELF_CLASS ELFCLASS32
+#define ELF_DATA  ELFDATA2LSB
+#define ELF_ARCH  EM_CRIS
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+  regs->erp = infop->entry;
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE        8192
+
+#endif
+
 #ifdef TARGET_M68K
 
 #define ELF_START_MMAP 0x80000000
