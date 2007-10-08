@@ -12,6 +12,7 @@
   - Preliminary Alpha guest support (J. Mayer)
   - Read-only support for Parallels disk images (Alex Beregszaszi)
   - SVM (x86 virtualization) support (Alexander Graf)
+  - CRIS emulation (Edgar E. Iglesias)
 
 version 0.9.0:
 
