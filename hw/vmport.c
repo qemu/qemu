@@ -52,7 +52,7 @@ static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
 {
     VMPortState *s = opaque;
     unsigned char command;
-    target_ulong eax;
+    uint32_t eax;
 
     eax = s->env->regs[R_EAX];
     if (eax != VMPORT_MAGIC)
