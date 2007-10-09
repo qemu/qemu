@@ -146,12 +146,12 @@ void do_drotrv (void)
 
 /* 64 bits arithmetic for 32 bits hosts */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
-static inline uint64_t get_HILO (void)
+static always_inline uint64_t get_HILO (void)
 {
     return (env->HI[0][env->current_tc] << 32) | (uint32_t)env->LO[0][env->current_tc];
 }
 
-static inline void set_HILO (uint64_t HILO)
+static always_inline void set_HILO (uint64_t HILO)
 {
     env->LO[0][env->current_tc] = (int32_t)HILO;
     env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
@@ -673,7 +673,7 @@ void do_ctc1 (int reg)
         do_raise_exception(EXCP_FPE);
 }
 
-inline char ieee_ex_to_mips(char xcpt)
+static always_inline char ieee_ex_to_mips(char xcpt)
 {
     return (xcpt & float_flag_inexact) >> 5 |
            (xcpt & float_flag_underflow) >> 3 |
@@ -682,7 +682,7 @@ inline char ieee_ex_to_mips(char xcpt)
            (xcpt & float_flag_invalid) << 4;
 }
 
-inline char mips_ex_to_ieee(char xcpt)
+static always_inline char mips_ex_to_ieee(char xcpt)
 {
     return (xcpt & FP_INEXACT) << 5 |
            (xcpt & FP_UNDERFLOW) << 3 |
@@ -691,7 +691,7 @@ inline char mips_ex_to_ieee(char xcpt)
            (xcpt & FP_INVALID) >> 4;
 }
 
-inline void update_fcr31(void)
+static always_inline void update_fcr31(void)
 {
     int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->fpu->fp_status));
 

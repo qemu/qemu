@@ -812,13 +812,13 @@ void op_msubu (void)
 
 #else /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
-static inline uint64_t get_HILO (void)
+static always_inline uint64_t get_HILO (void)
 {
     return ((uint64_t)env->HI[0][env->current_tc] << 32) |
             ((uint64_t)(uint32_t)env->LO[0][env->current_tc]);
 }
 
-static inline void set_HILO (uint64_t HILO)
+static always_inline void set_HILO (uint64_t HILO)
 {
     env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
     env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);

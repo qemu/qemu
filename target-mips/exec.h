@@ -205,15 +205,15 @@ FOP_PROTO(le)
 FOP_PROTO(ngt)
 #undef FOP_PROTO
 
-static inline void env_to_regs(void)
+static always_inline void env_to_regs(void)
 {
 }
 
-static inline void regs_to_env(void)
+static always_inline void regs_to_env(void)
 {
 }
 
-static inline int cpu_halted(CPUState *env)
+static always_inline int cpu_halted(CPUState *env)
 {
     if (!env->halted)
         return 0;
@@ -225,7 +225,7 @@ static inline int cpu_halted(CPUState *env)
     return EXCP_HALTED;
 }
 
-static inline void compute_hflags(CPUState *env)
+static always_inline void compute_hflags(CPUState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_64 | MIPS_HFLAG_CP0 | MIPS_HFLAG_F64 |
                      MIPS_HFLAG_FPU | MIPS_HFLAG_UM);
