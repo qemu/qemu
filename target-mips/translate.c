@@ -889,7 +889,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LDL:
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(ldl);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "ldl";
         break;
     case OPC_SDL:
@@ -900,7 +900,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LDR:
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(ldr);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "ldr";
         break;
     case OPC_SDR:
@@ -952,7 +952,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LWL:
 	GEN_LOAD_REG_TN(T1, rt);
         op_ldst(lwl);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "lwl";
         break;
     case OPC_SWL:
@@ -963,7 +963,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LWR:
 	GEN_LOAD_REG_TN(T1, rt);
         op_ldst(lwr);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "lwr";
         break;
     case OPC_SWR:

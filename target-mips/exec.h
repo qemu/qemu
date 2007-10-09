@@ -100,36 +100,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
 void dump_sc (void);
-void do_lwl_raw (uint32_t);
-void do_lwr_raw (uint32_t);
-uint32_t do_swl_raw (uint32_t);
-uint32_t do_swr_raw (uint32_t);
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-void do_ldl_raw (uint64_t);
-void do_ldr_raw (uint64_t);
-uint64_t do_sdl_raw (uint64_t);
-uint64_t do_sdr_raw (uint64_t);
-#endif
-#if !defined(CONFIG_USER_ONLY)
-void do_lwl_user (uint32_t);
-void do_lwl_kernel (uint32_t);
-void do_lwr_user (uint32_t);
-void do_lwr_kernel (uint32_t);
-uint32_t do_swl_user (uint32_t);
-uint32_t do_swl_kernel (uint32_t);
-uint32_t do_swr_user (uint32_t);
-uint32_t do_swr_kernel (uint32_t);
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-void do_ldl_user (uint64_t);
-void do_ldl_kernel (uint64_t);
-void do_ldr_user (uint64_t);
-void do_ldr_kernel (uint64_t);
-uint64_t do_sdl_user (uint64_t);
-uint64_t do_sdl_kernel (uint64_t);
-uint64_t do_sdr_user (uint64_t);
-uint64_t do_sdr_kernel (uint64_t);
-#endif
-#endif
 void do_pmon (int function);
 
 void dump_sc (void);

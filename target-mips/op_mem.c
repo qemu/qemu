@@ -75,34 +75,92 @@ void glue(op_sw, MEMSUFFIX) (void)
 
 /* "half" load and stores.  We must do the memory access inline,
    or fault handling won't work.  */
-/* XXX: This is broken, CP0_BADVADDR has the wrong (aligned) value. */
+
+#ifdef TARGET_WORDS_BIGENDIAN
+#define GET_LMASK(v) ((v) & 3)
+#define GET_OFFSET(addr, offset) (addr + (offset))
+#else
+#define GET_LMASK(v) (((v) & 3) ^ 3)
+#define GET_OFFSET(addr, offset) (addr - (offset))
+#endif
+
 void glue(op_lwl, MEMSUFFIX) (void)
 {
-    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
-    CALL_FROM_TB1(glue(do_lwl, MEMSUFFIX), tmp);
+    target_ulong tmp;
+
+    tmp = glue(ldub, MEMSUFFIX)(T0);
+    T1 = (int32_t)((T1 & 0x00FFFFFF) | (tmp << 24));
+
+    if (GET_LMASK(T0) <= 2) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 1));
+        T1 = (T1 & 0xFF00FFFF) | (tmp << 16);
+    }
+
+    if (GET_LMASK(T0) <= 1) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 2));
+        T1 = (T1 & 0xFFFF00FF) | (tmp << 8);
+    }
+
+    if (GET_LMASK(T0) == 0) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 3));
+        T1 = (T1 & 0xFFFFFF00) | tmp;
+    }
     RETURN();
 }
 
 void glue(op_lwr, MEMSUFFIX) (void)
 {
-    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
-    CALL_FROM_TB1(glue(do_lwr, MEMSUFFIX), tmp);
+    target_ulong tmp;
+
+    tmp = glue(ldub, MEMSUFFIX)(T0);
+    T1 = (T1 & 0xFFFFFF00) | tmp;
+
+    if (GET_LMASK(T0) >= 1) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -1));
+        T1 = (T1 & 0xFFFF00FF) | (tmp << 8);
+    }
+
+    if (GET_LMASK(T0) >= 2) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -2));
+        T1 = (T1 & 0xFF00FFFF) | (tmp << 16);
+    }
+
+    if (GET_LMASK(T0) == 3) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -3));
+        T1 = (T1 & 0x00FFFFFF) | (tmp << 24);
+    }
     RETURN();
 }
 
 void glue(op_swl, MEMSUFFIX) (void)
 {
-    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
-    tmp = CALL_FROM_TB1(glue(do_swl, MEMSUFFIX), tmp);
-    glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
+    glue(stb, MEMSUFFIX)(T0, (uint8_t)(T1 >> 24));
+
+    if (GET_LMASK(T0) <= 2)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 1), (uint8_t)(T1 >> 16));
+
+    if (GET_LMASK(T0) <= 1)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 2), (uint8_t)(T1 >> 8));
+
+    if (GET_LMASK(T0) == 0)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 3), (uint8_t)T1);
+
     RETURN();
 }
 
 void glue(op_swr, MEMSUFFIX) (void)
 {
-    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
-    tmp = CALL_FROM_TB1(glue(do_swr, MEMSUFFIX), tmp);
-    glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
+    glue(stb, MEMSUFFIX)(T0, (uint8_t)T1);
+
+    if (GET_LMASK(T0) >= 1)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -1), (uint8_t)(T1 >> 8));
+
+    if (GET_LMASK(T0) >= 2)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -2), (uint8_t)(T1 >> 16));
+
+    if (GET_LMASK(T0) == 3)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -3), (uint8_t)(T1 >> 24));
+
     RETURN();
 }
 
@@ -145,33 +203,156 @@ void glue(op_sd, MEMSUFFIX) (void)
 
 /* "half" load and stores.  We must do the memory access inline,
    or fault handling won't work.  */
+
+#ifdef TARGET_WORDS_BIGENDIAN
+#define GET_LMASK64(v) ((v) & 7)
+#else
+#define GET_LMASK64(v) (((v) & 7) ^ 7)
+#endif
+
 void glue(op_ldl, MEMSUFFIX) (void)
 {
-    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
-    CALL_FROM_TB1(glue(do_ldl, MEMSUFFIX), tmp);
+    uint64_t tmp;
+
+    tmp = glue(ldub, MEMSUFFIX)(T0);
+    T1 = (T1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
+
+    if (GET_LMASK64(T0) <= 6) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 1));
+        T1 = (T1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
+    }
+
+    if (GET_LMASK64(T0) <= 5) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 2));
+        T1 = (T1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
+    }
+
+    if (GET_LMASK64(T0) <= 4) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 3));
+        T1 = (T1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
+    }
+
+    if (GET_LMASK64(T0) <= 3) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 4));
+        T1 = (T1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
+    }
+
+    if (GET_LMASK64(T0) <= 2) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 5));
+        T1 = (T1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
+    }
+
+    if (GET_LMASK64(T0) <= 1) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 6));
+        T1 = (T1 & 0xFFFFFFFFFFFF00FFULL) | (tmp << 8);
+    }
+
+    if (GET_LMASK64(T0) == 0) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 7));
+        T1 = (T1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
+    }
+
     RETURN();
 }
 
 void glue(op_ldr, MEMSUFFIX) (void)
 {
-    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
-    CALL_FROM_TB1(glue(do_ldr, MEMSUFFIX), tmp);
+    uint64_t tmp;
+
+    tmp = glue(ldub, MEMSUFFIX)(T0);
+    T1 = (T1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
+
+    if (GET_LMASK64(T0) >= 1) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -1));
+        T1 = (T1 & 0xFFFFFFFFFFFF00FFULL) | (tmp  << 8);
+    }
+
+    if (GET_LMASK64(T0) >= 2) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -2));
+        T1 = (T1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
+    }
+
+    if (GET_LMASK64(T0) >= 3) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -3));
+        T1 = (T1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
+    }
+
+    if (GET_LMASK64(T0) >= 4) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -4));
+        T1 = (T1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
+    }
+
+    if (GET_LMASK64(T0) >= 5) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -5));
+        T1 = (T1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
+    }
+
+    if (GET_LMASK64(T0) >= 6) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -6));
+        T1 = (T1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
+    }
+
+    if (GET_LMASK64(T0) == 7) {
+        tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -7));
+        T1 = (T1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
+    }
+
     RETURN();
 }
 
 void glue(op_sdl, MEMSUFFIX) (void)
 {
-    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
-    tmp = CALL_FROM_TB1(glue(do_sdl, MEMSUFFIX), tmp);
-    glue(stq, MEMSUFFIX)(T0 & ~7, tmp);
+    glue(stb, MEMSUFFIX)(T0, (uint8_t)(T1 >> 56));
+
+    if (GET_LMASK64(T0) <= 6)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 1), (uint8_t)(T1 >> 48));
+
+    if (GET_LMASK64(T0) <= 5)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 2), (uint8_t)(T1 >> 40));
+
+    if (GET_LMASK64(T0) <= 4)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 3), (uint8_t)(T1 >> 32));
+
+    if (GET_LMASK64(T0) <= 3)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 4), (uint8_t)(T1 >> 24));
+
+    if (GET_LMASK64(T0) <= 2)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 5), (uint8_t)(T1 >> 16));
+
+    if (GET_LMASK64(T0) <= 1)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 6), (uint8_t)(T1 >> 8));
+
+    if (GET_LMASK64(T0) <= 0)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 7), (uint8_t)T1);
+
     RETURN();
 }
 
 void glue(op_sdr, MEMSUFFIX) (void)
 {
-    target_long tmp = glue(ldq, MEMSUFFIX)(T0 & ~7);
-    tmp = CALL_FROM_TB1(glue(do_sdr, MEMSUFFIX), tmp);
-    glue(stq, MEMSUFFIX)(T0 & ~7, tmp);
+    glue(stb, MEMSUFFIX)(T0, (uint8_t)T1);
+
+    if (GET_LMASK64(T0) >= 1)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -1), (uint8_t)(T1 >> 8));
+
+    if (GET_LMASK64(T0) >= 2)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -2), (uint8_t)(T1 >> 16));
+
+    if (GET_LMASK64(T0) >= 3)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -3), (uint8_t)(T1 >> 24));
+
+    if (GET_LMASK64(T0) >= 4)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -4), (uint8_t)(T1 >> 32));
+
+    if (GET_LMASK64(T0) >= 5)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -5), (uint8_t)(T1 >> 40));
+
+    if (GET_LMASK64(T0) >= 6)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -6), (uint8_t)(T1 >> 48));
+
+    if (GET_LMASK64(T0) == 7)
+        glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -7), (uint8_t)(T1 >> 56));
+
     RETURN();
 }
 

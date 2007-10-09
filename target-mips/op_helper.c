@@ -62,18 +62,6 @@ void do_raise_exception_direct (uint32_t exception)
     do_raise_exception_direct_err (exception, 0);
 }
 
-#define MEMSUFFIX _raw
-#include "op_helper_mem.c"
-#undef MEMSUFFIX
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_helper_mem.c"
-#undef MEMSUFFIX
-#define MEMSUFFIX _kernel
-#include "op_helper_mem.c"
-#undef MEMSUFFIX
-#endif
-
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */
