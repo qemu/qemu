@@ -145,6 +145,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
+#define __NR_sys_getpriority __NR_getpriority
 #define __NR_sys_linkat __NR_linkat
 #define __NR_sys_mkdirat __NR_mkdirat
 #define __NR_sys_mknodat __NR_mknodat
@@ -187,6 +188,7 @@ _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
 _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 #endif
+_syscall2(int, sys_getpriority, int, which, int, who);
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 #if defined(TARGET_NR_linkat) && defined(__NR_linkat)
@@ -3607,7 +3609,10 @@ target_long do_syscall(void *cpu_env, int num, target_long arg1,
         break;
 #endif
     case TARGET_NR_getpriority:
-        ret = get_errno(getpriority(arg1, arg2));
+        /* libc does special remapping of the return value of
+         * sys_getpriority() so it's just easiest to call
+         * sys_getpriority() directly rather than through libc. */
+        ret = sys_getpriority(arg1, arg2);
         break;
     case TARGET_NR_setpriority:
         ret = get_errno(setpriority(arg1, arg2, arg3));
