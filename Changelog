@@ -13,6 +13,7 @@
   - Read-only support for Parallels disk images (Alex Beregszaszi)
   - SVM (x86 virtualization) support (Alexander Graf)
   - CRIS emulation (Edgar E. Iglesias)
+  - SPARC32PLUS execution support (Blue Swirl)
 
 version 0.9.0:
 

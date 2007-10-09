@@ -564,6 +564,7 @@ void cpu_loop (CPUSPARCState *env)
         case 0x88:
         case 0x90:
 #else
+        case 0x110:
         case 0x16d:
 #endif
             ret = do_syscall (env, env->gregs[1],

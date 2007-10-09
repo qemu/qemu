@@ -254,6 +254,10 @@ LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
 OBJS+= flatload.o
 endif
+ifdef TARGET_HAS_ELFLOAD32
+OBJS+= elfload32.o
+elfload32.o: elfload.c
+endif
 
 ifeq ($(TARGET_ARCH), i386)
 OBJS+= vm86.o
