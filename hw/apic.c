@@ -484,6 +484,25 @@ int apic_get_interrupt(CPUState *env)
     return intno;
 }
 
+int apic_accept_pic_intr(CPUState *env)
+{
+    APICState *s = env->apic_state;
+    uint32_t lvt0;
+
+    if (!s)
+        return -1;
+
+    lvt0 = s->lvt[APIC_LVT_LINT0];
+
+    if (s->id == 0 &&
+        ((s->apicbase & MSR_IA32_APICBASE_ENABLE) == 0 ||
+         ((lvt0 & APIC_LVT_MASKED) == 0 &&
+          ((lvt0 >> 8) & 0x7) == APIC_DM_EXTINT)))
+        return 1;
+
+    return 0;
+}
+
 static uint32_t apic_get_current_count(APICState *s)
 {
     int64_t d;
@@ -790,6 +809,13 @@ static void apic_reset(void *opaque)
 {
     APICState *s = opaque;
     apic_init_ipi(s);
+
+    /*
+     * LINT0 delivery mode is set to ExtInt at initialization time
+     * typically by BIOS, so PIC interrupt can be delivered to the
+     * processor when local APIC is enabled.
+     */
+    s->lvt[APIC_LVT_LINT0] = 0x700;
 }
 
 static CPUReadMemoryFunc *apic_mem_read[3] = {
@@ -820,6 +846,13 @@ int apic_init(CPUState *env)
     s->cpu_env = env;
     s->apicbase = 0xfee00000 |
         (s->id ? 0 : MSR_IA32_APICBASE_BSP) | MSR_IA32_APICBASE_ENABLE;
+
+    /*
+     * LINT0 delivery mode is set to ExtInt at initialization time
+     * typically by BIOS, so PIC interrupt can be delivered to the
+     * processor when local APIC is enabled.
+     */
+    s->lvt[APIC_LVT_LINT0] = 0x700;
 
     /* XXX: mapping more APICs at the same memory location */
     if (apic_io_memory == 0) {
