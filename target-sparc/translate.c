@@ -2027,10 +2027,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_movl_T0_reg(rd);
                         break;
                     case 0x22: /* taddcctv */
+                        save_state(dc);
                         gen_op_tadd_T1_T0_ccTV();
                         gen_movl_T0_reg(rd);
                         break;
                     case 0x23: /* tsubcctv */
+                        save_state(dc);
                         gen_op_tsub_T1_T0_ccTV();
                         gen_movl_T0_reg(rd);
                         break;
