@@ -3134,7 +3134,7 @@ static void ar7_serial_init(CPUState * env)
      */
     unsigned index;
     if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("vc:800x600");
+        serial_hds[1] = qemu_chr_open("vc:80Cx24C");
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     for (index = 0; index < 2; index++) {

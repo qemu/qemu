@@ -7665,7 +7665,7 @@ int main(int argc, char **argv)
     translation = BIOS_ATA_TRANSLATION_AUTO;
     pstrcpy(monitor_device, sizeof(monitor_device), "vc:800x600");
 
-    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc:640x480");
+    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc:80Cx24C");
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i][0] = '\0';
     serial_device_index = 0;
