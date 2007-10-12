@@ -741,14 +741,6 @@ int qemu_register_machine(QEMUMachine *m);
 
 typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 
-#if defined(TARGET_PPC)
-void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-#endif
-
-#if defined(TARGET_MIPS)
-void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-#endif
-
 #include "hw/irq.h"
 
 /* ISA bus */

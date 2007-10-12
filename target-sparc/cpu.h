@@ -315,6 +315,7 @@ void cpu_check_irqs(CPUSPARCState *env);
 #define cpu_exec cpu_sparc_exec
 #define cpu_gen_code cpu_sparc_gen_code
 #define cpu_signal_handler cpu_sparc_signal_handler
+#define cpu_list sparc_cpu_list
 
 #include "cpu-all.h"
 

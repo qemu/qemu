@@ -482,6 +482,7 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
 #define cpu_exec cpu_mips_exec
 #define cpu_gen_code cpu_mips_gen_code
 #define cpu_signal_handler cpu_mips_signal_handler
+#define cpu_list mips_cpu_list
 
 #include "cpu-all.h"
 

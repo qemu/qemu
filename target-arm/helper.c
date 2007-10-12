@@ -126,13 +126,13 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { 0, NULL}
 };
 
-void arm_cpu_list(void)
+void arm_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     int i;
 
-    printf ("Available CPUs:\n");
+    (*cpu_fprintf)(f, "Available CPUs:\n");
     for (i = 0; arm_cpu_names[i].name; i++) {
-        printf("  %s\n", arm_cpu_names[i].name);
+        (*cpu_fprintf)(f, "  %s\n", arm_cpu_names[i].name);
     }
 }
 

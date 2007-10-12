@@ -7690,14 +7690,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 if (*optarg == '?') {
-#if defined(TARGET_PPC)
-                    ppc_cpu_list(stdout, &fprintf);
-#elif defined(TARGET_ARM)
-                    arm_cpu_list();
-#elif defined(TARGET_MIPS)
-                    mips_cpu_list(stdout, &fprintf);
-#elif defined(TARGET_SPARC)
-                    sparc_cpu_list(stdout, &fprintf);
+/* XXX: implement xxx_cpu_list for targets that still miss it */
+#if defined(cpu_list)
+                    cpu_list(stdout, &fprintf);
 #endif
                     exit(0);
                 } else {

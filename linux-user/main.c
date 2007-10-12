@@ -1945,14 +1945,9 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "cpu")) {
             cpu_model = argv[optind++];
             if (strcmp(cpu_model, "?") == 0) {
-#if defined(TARGET_PPC)
-                ppc_cpu_list(stdout, &fprintf);
-#elif defined(TARGET_ARM)
-                arm_cpu_list();
-#elif defined(TARGET_MIPS)
-                mips_cpu_list(stdout, &fprintf);
-#elif defined(TARGET_SPARC)
-                sparc_cpu_list(stdout, &fprintf);
+/* XXX: implement xxx_cpu_list for targets that still miss it */
+#if defined(cpu_list)
+                    cpu_list(stdout, &fprintf);
 #endif
                 _exit(1);
             }
