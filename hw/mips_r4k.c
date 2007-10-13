@@ -64,9 +64,10 @@ static CPUReadMemoryFunc *mips_qemu_read[] = {
 
 static int mips_qemu_iomemtype = 0;
 
-void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
-		  const char *kernel_cmdline,
-		  const char *initrd_filename)
+static void load_kernel (CPUState *env, int ram_size,
+                         const char *kernel_filename,
+                         const char *kernel_cmdline,
+                         const char *initrd_filename)
 {
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
