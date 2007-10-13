@@ -3,7 +3,32 @@ Unsolved issues/bugs in the mips/mipsel backend
 
 General
 -------
-- [ls][dw][lr] report broken (aligned) BadVAddr
+- Unimplemented ASEs:
+  - MIPS16
+  - MDMX
+  - SmartMIPS
+  - DSP r1
+  - DSP r2
+- MT ASE only partially implemented and not functional
+- Shadow register support only partially implemented,
+  lacks set switching on interrupt/exception.
+- 34K ITC not implemented.
+- A general lack of documentation, especially for technical internals.
+  Existing documentation is x86-centric.
+- Reverse endianness bit not implemented
+- The TLB emulation is very inefficient:
+  Qemu's softmmu implements a x86-style MMU, with separate entries
+  for read/write/execute, a TLB index which is just a modulo of the
+  virtual address, and a set of TLBs for each user/kernel/supervisor
+  MMU mode.
+  MIPS has a single entry for read/write/execute and only one MMU mode.
+  But it is fully associative with randomized entry indices, and uses
+  up to 256 ASID tags as additional matching criterion (which roughly
+  equates to 256 MMU modes). It also has a global flag which causes
+  entries to match regardless of ASID.
+  To cope with these differences, Qemu currently flushes the TLB at
+  each ASID change. Using the MMU modes to implement ASIDs hinges on
+  implementing the global bit efficiently.
 
 MIPS64
 ------
