@@ -131,18 +131,14 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         }
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-/*
-   XXX: Assuming :
-   - PABITS = 36 (correct for MIPS64R1)
-*/
-    } else if (address < 0x3FFFFFFFFFFFFFFFULL) {
+    } else if (address < 0x4000000000000000ULL) {
         /* xuseg */
 	if (UX && address < (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
 	} else {
 	    ret = TLBRET_BADADDR;
         }
-    } else if (address < 0x7FFFFFFFFFFFFFFFULL) {
+    } else if (address < 0x8000000000000000ULL) {
         /* xsseg */
 	if ((supervisor_mode || kernel_mode) &&
 	    SX && address < (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
@@ -150,16 +146,17 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 	} else {
 	    ret = TLBRET_BADADDR;
         }
-    } else if (address < 0xBFFFFFFFFFFFFFFFULL) {
+    } else if (address < 0xC000000000000000ULL) {
         /* xkphys */
+        /* XXX: Assumes PABITS = 36 (correct for MIPS64R1) */
         if (kernel_mode && KX &&
-            (address & 0x07FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL) {
-            *physical = address & 0X0000000FFFFFFFFFULL;
+            (address & 0x07FFFFFFFFFFFFFFULL) < 0x0000000FFFFFFFFFULL) {
+            *physical = address & 0x0000000FFFFFFFFFULL;
             *prot = PAGE_READ | PAGE_WRITE;
 	} else {
 	    ret = TLBRET_BADADDR;
 	}
-    } else if (address < 0xFFFFFFFF7FFFFFFFULL) {
+    } else if (address < 0xFFFFFFFF80000000ULL) {
         /* xkseg */
 	if (kernel_mode && KX &&
 	    address < (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
@@ -185,7 +182,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             ret = TLBRET_BADADDR;
         }
     } else if (address < (int32_t)0xE0000000UL) {
-        /* sseg */
+        /* sseg (kseg2) */
         if (supervisor_mode || kernel_mode) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         } else {
