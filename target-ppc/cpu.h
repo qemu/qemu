@@ -1150,6 +1150,9 @@ enum {
     PPC6xx_INPUT_MCP        = 3,
     PPC6xx_INPUT_SMI        = 4,
     PPC6xx_INPUT_INT        = 5,
+    PPC6xx_INPUT_TBEN       = 6,
+    PPC6xx_INPUT_WAKEUP     = 7,
+    PPC6xx_INPUT_NB,
 };
 
 enum {
@@ -1161,6 +1164,7 @@ enum {
     PPCBookE_INPUT_SMI        = 4,
     PPCBookE_INPUT_INT        = 5,
     PPCBookE_INPUT_CINT       = 6,
+    PPCBookE_INPUT_NB,
 };
 
 enum {
@@ -1177,18 +1181,6 @@ enum {
 
 #if defined(TARGET_PPC64)
 enum {
-    /* PowerPC 620 (and probably others) input pins */
-    PPC620_INPUT_HRESET     = 0,
-    PPC620_INPUT_SRESET     = 1,
-    PPC620_INPUT_CKSTP      = 2,
-    PPC620_INPUT_TBEN       = 3,
-    PPC620_INPUT_WAKEUP     = 4,
-    PPC620_INPUT_MCP        = 5,
-    PPC620_INPUT_SMI        = 6,
-    PPC620_INPUT_INT        = 7,
-};
-
-enum {
     /* PowerPC 970 input pins */
     PPC970_INPUT_HRESET     = 0,
     PPC970_INPUT_SRESET     = 1,
@@ -1204,21 +1196,22 @@ enum {
 enum {
     /* External hardware exception sources */
     PPC_INTERRUPT_RESET     = 0,  /* Reset exception                      */
-    PPC_INTERRUPT_MCK       = 1,  /* Machine check exception              */
-    PPC_INTERRUPT_EXT       = 2,  /* External interrupt                   */
-    PPC_INTERRUPT_SMI       = 3,  /* System management interrupt          */
-    PPC_INTERRUPT_CEXT      = 4,  /* Critical external interrupt          */
-    PPC_INTERRUPT_DEBUG     = 5,  /* External debug exception             */
-    PPC_INTERRUPT_THERM     = 6,  /* Thermal exception                    */
+    PPC_INTERRUPT_WAKEUP,         /* Wakeup exception                     */
+    PPC_INTERRUPT_MCK,            /* Machine check exception              */
+    PPC_INTERRUPT_EXT,            /* External interrupt                   */
+    PPC_INTERRUPT_SMI,            /* System management interrupt          */
+    PPC_INTERRUPT_CEXT,           /* Critical external interrupt          */
+    PPC_INTERRUPT_DEBUG,          /* External debug exception             */
+    PPC_INTERRUPT_THERM,          /* Thermal exception                    */
     /* Internal hardware exception sources */
-    PPC_INTERRUPT_DECR      = 7,  /* Decrementer exception                */
-    PPC_INTERRUPT_HDECR     = 8,  /* Hypervisor decrementer exception     */
-    PPC_INTERRUPT_PIT       = 9,  /* Programmable inteval timer interrupt */
-    PPC_INTERRUPT_FIT       = 10, /* Fixed interval timer interrupt       */
-    PPC_INTERRUPT_WDT       = 11, /* Watchdog timer interrupt             */
-    PPC_INTERRUPT_CDOORBELL = 12, /* Critical doorbell interrupt          */
-    PPC_INTERRUPT_DOORBELL  = 13, /* Doorbell interrupt                   */
-    PPC_INTERRUPT_PERFM     = 14, /* Performance monitor interrupt        */
+    PPC_INTERRUPT_DECR,           /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR,          /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT,            /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT,            /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT,            /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_CDOORBELL,      /* Critical doorbell interrupt          */
+    PPC_INTERRUPT_DOORBELL,       /* Doorbell interrupt                   */
+    PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
 };
 
 /*****************************************************************************/
