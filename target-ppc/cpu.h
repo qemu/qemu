@@ -596,6 +596,7 @@ struct mmu_ctx_t {
     target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
+    int nx;                        /* Non-execute area          */
 };
 
 /*****************************************************************************/
