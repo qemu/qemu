@@ -136,13 +136,13 @@ const argtype *thunk_convert(void *dst, const void *src,
     case TYPE_ULONGLONG:
         *(uint64_t *)dst = tswap64(*(uint64_t *)src);
         break;
-#if HOST_LONG_BITS == 32 && TARGET_LONG_BITS == 32
+#if HOST_LONG_BITS == 32 && TARGET_ABI_BITS == 32
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_PTRVOID:
         *(uint32_t *)dst = tswap32(*(uint32_t *)src);
         break;
-#elif HOST_LONG_BITS == 64 && TARGET_LONG_BITS == 32
+#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 32
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_PTRVOID:

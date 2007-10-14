@@ -1,13 +1,23 @@
 #ifndef QEMU_H
 #define QEMU_H
 
-#include "thunk.h"
-
 #include <signal.h>
 #include <string.h>
-#include "syscall_defs.h"
 
 #include "cpu.h"
+
+#ifdef TARGET_ABI32
+typedef uint32_t abi_ulong;
+typedef int32_t abi_long;
+#define TARGET_ABI_BITS 32
+#else
+typedef target_ulong abi_ulong;
+typedef target_long abi_long;
+#define TARGET_ABI_BITS TARGET_LONG_BITS
+#endif
+
+#include "thunk.h"
+#include "syscall_defs.h"
 #include "syscall.h"
 #include "target_signal.h"
 #include "gdbstub.h"
@@ -17,20 +27,20 @@
  * task_struct fields in the kernel
  */
 struct image_info {
-	target_ulong	load_addr;
-	target_ulong	start_code;
-	target_ulong	end_code;
-        target_ulong    start_data;
-	target_ulong	end_data;
-	target_ulong	start_brk;
-	target_ulong	brk;
-	target_ulong	start_mmap;
-	target_ulong	mmap;
-	target_ulong	rss;
-	target_ulong	start_stack;
-	target_ulong	entry;
-        target_ulong    code_offset;
-        target_ulong    data_offset;
+        abi_ulong       load_addr;
+        abi_ulong       start_code;
+        abi_ulong       end_code;
+        abi_ulong       start_data;
+        abi_ulong       end_data;
+        abi_ulong       start_brk;
+        abi_ulong       brk;
+        abi_ulong       start_mmap;
+        abi_ulong       mmap;
+        abi_ulong       rss;
+        abi_ulong       start_stack;
+        abi_ulong       entry;
+        abi_ulong       code_offset;
+        abi_ulong       data_offset;
         char            **host_argv;
 	int		personality;
 };
@@ -67,7 +77,7 @@ typedef struct TaskState {
     int swi_errno;
 #endif
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
-    target_ulong target_v86;
+    abi_ulong target_v86;
     struct vm86_saved_state vm86_saved_regs;
     struct target_vm86plus_struct vm86plus;
     uint32_t v86flags;
@@ -105,7 +115,7 @@ extern const char *qemu_uname_release;
 struct linux_binprm {
         char buf[128];
         void *page[MAX_ARG_PAGES];
-        target_ulong p;
+        abi_ulong p;
 	int fd;
         int e_uid, e_gid;
         int argc, envc;
@@ -115,8 +125,8 @@ struct linux_binprm {
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
-target_ulong loader_build_argptr(int envc, int argc, target_ulong sp,
-                                 target_ulong stringp, int push_ptr);
+abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
+                              abi_ulong stringp, int push_ptr);
 int loader_exec(const char * filename, char ** argv, char ** envp,
              struct target_pt_regs * regs, struct image_info *infop);
 
@@ -130,14 +140,14 @@ int load_elf_binary_multi(struct linux_binprm *bprm,
                           struct image_info *info);
 #endif
 
-void memcpy_to_target(target_ulong dest, const void *src,
+void memcpy_to_target(abi_ulong dest, const void *src,
                       unsigned long len);
-void target_set_brk(target_ulong new_brk);
-target_long do_brk(target_ulong new_brk);
+void target_set_brk(abi_ulong new_brk);
+abi_long do_brk(abi_ulong new_brk);
 void syscall_init(void);
-target_long do_syscall(void *cpu_env, int num, target_long arg1,
-                       target_long arg2, target_long arg3, target_long arg4,
-                       target_long arg5, target_long arg6);
+abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
+                    abi_long arg2, abi_long arg3, abi_long arg4,
+                    abi_long arg5, abi_long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern CPUState *global_env;
 void cpu_loop(CPUState *env);
@@ -157,28 +167,28 @@ long do_sigreturn(CPUState *env);
 long do_rt_sigreturn(CPUState *env);
 int do_sigaltstack(const struct target_sigaltstack *uss,
                    struct target_sigaltstack *uoss,
-                   target_ulong sp);
+                   abi_ulong sp);
 
 #ifdef TARGET_I386
 /* vm86.c */
 void save_v86_state(CPUX86State *env);
 void handle_vm86_trap(CPUX86State *env, int trapno);
 void handle_vm86_fault(CPUX86State *env);
-int do_vm86(CPUX86State *env, long subfunction, target_ulong v86_addr);
+int do_vm86(CPUX86State *env, long subfunction, abi_ulong v86_addr);
 #elif defined(TARGET_SPARC64)
 void sparc64_set_context(CPUSPARCState *env);
 void sparc64_get_context(CPUSPARCState *env);
 #endif
 
 /* mmap.c */
-int target_mprotect(target_ulong start, target_ulong len, int prot);
-target_long target_mmap(target_ulong start, target_ulong len, int prot,
-                 int flags, int fd, target_ulong offset);
-int target_munmap(target_ulong start, target_ulong len);
-target_long target_mremap(target_ulong old_addr, target_ulong old_size,
-                   target_ulong new_size, unsigned long flags,
-                   target_ulong new_addr);
-int target_msync(target_ulong start, target_ulong len, int flags);
+int target_mprotect(abi_ulong start, abi_ulong len, int prot);
+abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
+                     int flags, int fd, abi_ulong offset);
+int target_munmap(abi_ulong start, abi_ulong len);
+abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
+                       abi_ulong new_size, unsigned long flags,
+                       abi_ulong new_addr);
+int target_msync(abi_ulong start, abi_ulong len, int flags);
 
 /* user access */
 
@@ -260,7 +270,7 @@ int target_msync(target_ulong start, target_ulong len, int flags);
 
 /* Lock an area of guest memory into the host.  If copy is true then the
    host area will have the same contents as the guest.  */
-static inline void *lock_user(target_ulong guest_addr, long len, int copy)
+static inline void *lock_user(abi_ulong guest_addr, long len, int copy)
 {
 #ifdef DEBUG_REMAP
     void *addr;
@@ -277,8 +287,8 @@ static inline void *lock_user(target_ulong guest_addr, long len, int copy)
 
 /* Unlock an area of guest memory.  The first LEN bytes must be flushed back
    to guest memory.  */
-static inline void unlock_user(void *host_addr, target_ulong guest_addr,
-                                long len)
+static inline void unlock_user(void *host_addr, abi_ulong guest_addr,
+                               long len)
 {
 #ifdef DEBUG_REMAP
     if (host_addr == g2h(guest_addr))
@@ -290,13 +300,13 @@ static inline void unlock_user(void *host_addr, target_ulong guest_addr,
 }
 
 /* Return the length of a string in target memory.  */
-static inline int target_strlen(target_ulong ptr)
+static inline int target_strlen(abi_ulong ptr)
 {
   return strlen(g2h(ptr));
 }
 
 /* Like lock_user but for null terminated strings.  */
-static inline void *lock_user_string(target_ulong guest_addr)
+static inline void *lock_user_string(abi_ulong guest_addr)
 {
     long len;
     len = target_strlen(guest_addr) + 1;
@@ -317,7 +327,7 @@ static inline void *lock_user_string(target_ulong guest_addr)
 #define tput32(addr, val) stl(addr, val)
 #define tget64(addr) ldq(addr)
 #define tput64(addr, val) stq(addr, val)
-#if TARGET_LONG_BITS == 64
+#if TARGET_ABI_BITS == 64
 #define tgetl(addr) ldq(addr)
 #define tputl(addr, val) stq(addr, val)
 #else

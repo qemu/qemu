@@ -168,7 +168,7 @@ static void set_idt(int n, unsigned int dpl)
 void cpu_loop(CPUX86State *env)
 {
     int trapnr;
-    target_ulong pc;
+    abi_ulong pc;
     target_siginfo_t info;
 
     for(;;) {
@@ -305,11 +305,11 @@ void cpu_loop(CPUX86State *env)
 #ifdef TARGET_ARM
 
 /* XXX: find a better solution */
-extern void tb_invalidate_page_range(target_ulong start, target_ulong end);
+extern void tb_invalidate_page_range(abi_ulong start, abi_ulong end);
 
-static void arm_cache_flush(target_ulong start, target_ulong last)
+static void arm_cache_flush(abi_ulong start, abi_ulong last)
 {
-    target_ulong addr, last1;
+    abi_ulong addr, last1;
 
     if (last < start)
         return;
@@ -474,7 +474,7 @@ static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
 static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 {
     unsigned int i;
-    target_ulong sp_ptr;
+    abi_ulong sp_ptr;
 
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
@@ -483,7 +483,7 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 #endif
     for(i = 0; i < 16; i++) {
         tputl(sp_ptr, env->regbase[get_reg_index(env, cwp1, 8 + i)]);
-        sp_ptr += sizeof(target_ulong);
+        sp_ptr += sizeof(abi_ulong);
     }
 }
 
@@ -505,7 +505,7 @@ static void save_window(CPUSPARCState *env)
 static void restore_window(CPUSPARCState *env)
 {
     unsigned int new_wim, i, cwp1;
-    target_ulong sp_ptr;
+    abi_ulong sp_ptr;
 
     new_wim = ((env->wim << 1) | (env->wim >> (NWINDOWS - 1))) &
         ((1LL << NWINDOWS) - 1);
@@ -519,7 +519,7 @@ static void restore_window(CPUSPARCState *env)
 #endif
     for(i = 0; i < 16; i++) {
         env->regbase[get_reg_index(env, cwp1, 8 + i)] = tgetl(sp_ptr);
-        sp_ptr += sizeof(target_ulong);
+        sp_ptr += sizeof(abi_ulong);
     }
     env->wim = new_wim;
 #ifdef TARGET_SPARC64
@@ -572,14 +572,14 @@ void cpu_loop (CPUSPARCState *env)
                               env->regwptr[2], env->regwptr[3],
                               env->regwptr[4], env->regwptr[5]);
             if ((unsigned int)ret >= (unsigned int)(-515)) {
-#ifdef TARGET_SPARC64
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
                 env->xcc |= PSR_CARRY;
 #else
                 env->psr |= PSR_CARRY;
 #endif
                 ret = -ret;
             } else {
-#ifdef TARGET_SPARC64
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
                 env->xcc &= ~PSR_CARRY;
 #else
                 env->psr &= ~PSR_CARRY;
@@ -591,6 +591,9 @@ void cpu_loop (CPUSPARCState *env)
             env->npc = env->npc + 4;
             break;
         case 0x83: /* flush windows */
+#ifdef TARGET_ABI32
+        case 0x103:
+#endif
             flush_windows(env);
             /* next instruction */
             env->pc = env->npc;
@@ -1489,8 +1492,8 @@ void cpu_loop(CPUMIPSState *env)
                 ret = -ENOSYS;
             } else {
                 int nb_args;
-                target_ulong sp_reg;
-                target_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
+                abi_ulong sp_reg;
+                abi_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
 
                 nb_args = mips_syscall_args[syscall_num];
                 sp_reg = env->gpr[29][env->current_tc];
@@ -2239,7 +2242,7 @@ int main(int argc, char **argv)
         int i;
 
         for(i = 0; i < 28; i++) {
-            env->ir[i] = ((target_ulong *)regs)[i];
+            env->ir[i] = ((abi_ulong *)regs)[i];
         }
         env->ipr[IPR_USP] = regs->usp;
         env->ir[30] = regs->usp;

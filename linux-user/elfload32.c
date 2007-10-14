@@ -1,4 +1,4 @@
-#define OVERRIDE_ELF_CLASS ELFCLASS32
+#define TARGET_ABI32
 #define load_elf_binary load_elf_binary32
 #define do_init_thread do_init_thread32
 

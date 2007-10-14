@@ -63,13 +63,13 @@
 #define UNLOADED_LIB 0x7ff000ff		/* Placeholder for unused library */
 
 struct lib_info {
-    target_ulong start_code;	/* Start of text segment */
-    target_ulong start_data;	/* Start of data segment */
-    target_ulong end_data;      /* Start of bss section */
-    target_ulong start_brk;	/* End of data segment */
-    target_ulong text_len;	/* Length of text segment */
-    target_ulong entry;		/* Start address for this module */
-    target_ulong build_date;	/* When this one was compiled */
+    abi_ulong start_code;       /* Start of text segment */
+    abi_ulong start_data;       /* Start of data segment */
+    abi_ulong end_data;         /* Start of bss section */
+    abi_ulong start_brk;        /* End of data segment */
+    abi_ulong text_len;	        /* Length of text segment */
+    abi_ulong entry;	        /* Start address for this module */
+    abi_ulong build_date;       /* When this one was compiled */
     short loaded;		/* Has this library been loaded? */
 };
 
@@ -89,7 +89,7 @@ struct linux_binprm;
  */
 
 /* Push a block of strings onto the guest stack.  */
-static target_ulong copy_strings(target_ulong p, int n, char **s)
+static abi_ulong copy_strings(abi_ulong p, int n, char **s)
 {
     int len;
 
@@ -102,8 +102,8 @@ static target_ulong copy_strings(target_ulong p, int n, char **s)
     return p;
 }
 
-int target_pread(int fd, target_ulong ptr, target_ulong len,
-                 target_ulong offset)
+int target_pread(int fd, abi_ulong ptr, abi_ulong len,
+                 abi_ulong offset)
 {
     void *buf;
     int ret;
@@ -262,15 +262,15 @@ out:
 
 /****************************************************************************/
 
-static target_ulong
-calc_reloc(target_ulong r, struct lib_info *p, int curid, int internalp)
+static abi_ulong
+calc_reloc(abi_ulong r, struct lib_info *p, int curid, int internalp)
 {
-    target_ulong addr;
+    abi_ulong addr;
     int id;
-    target_ulong start_brk;
-    target_ulong start_data;
-    target_ulong text_len;
-    target_ulong start_code;
+    abi_ulong start_brk;
+    abi_ulong start_data;
+    abi_ulong text_len;
+    abi_ulong start_code;
 
 #ifdef CONFIG_BINFMT_SHARED_FLAT
 #error needs checking
@@ -381,19 +381,19 @@ void old_reloc(struct lib_info *libinfo, uint32_t rl)
 /****************************************************************************/
 
 static int load_flat_file(struct linux_binprm * bprm,
-		struct lib_info *libinfo, int id, target_ulong *extra_stack)
+		struct lib_info *libinfo, int id, abi_ulong *extra_stack)
 {
     struct flat_hdr * hdr;
-    target_ulong textpos = 0, datapos = 0, result;
-    target_ulong realdatastart = 0;
-    target_ulong text_len, data_len, bss_len, stack_len, flags;
-    target_ulong memp = 0; /* for finding the brk area */
-    target_ulong extra;
-    target_ulong reloc = 0, rp;
+    abi_ulong textpos = 0, datapos = 0, result;
+    abi_ulong realdatastart = 0;
+    abi_ulong text_len, data_len, bss_len, stack_len, flags;
+    abi_ulong memp = 0; /* for finding the brk area */
+    abi_ulong extra;
+    abi_ulong reloc = 0, rp;
     int i, rev, relocs = 0;
-    target_ulong fpos;
-    target_ulong start_code, end_code;
-    target_ulong indx_len;
+    abi_ulong fpos;
+    abi_ulong start_code, end_code;
+    abi_ulong indx_len;
 
     hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
 
@@ -440,14 +440,14 @@ static int load_flat_file(struct linux_binprm * bprm,
     /*
      * calculate the extra space we need to map in
      */
-    extra = relocs * sizeof(target_ulong);
+    extra = relocs * sizeof(abi_ulong);
     if (extra < bss_len + stack_len)
         extra = bss_len + stack_len;
 
     /* Add space for library base pointers.  Make sure this does not
        misalign the  doesn't misalign the data segment.  */
-    indx_len = MAX_SHARED_LIBS * sizeof(target_ulong);
-    indx_len = (indx_len + 15) & ~(target_ulong)15;
+    indx_len = MAX_SHARED_LIBS * sizeof(abi_ulong);
+    indx_len = (indx_len + 15) & ~(abi_ulong)15;
 
     /*
      * there are a couple of cases here,  the separate code/data
@@ -485,12 +485,12 @@ static int load_flat_file(struct linux_binprm * bprm,
 #ifdef CONFIG_BINFMT_ZFLAT
         if (flags & FLAT_FLAG_GZDATA) {
             result = decompress_exec(bprm, fpos, (char *) datapos,
-                                     data_len + (relocs * sizeof(target_ulong)))
+                                     data_len + (relocs * sizeof(abi_ulong)))
         } else
 #endif
         {
             result = target_pread(bprm->fd, datapos,
-                                  data_len + (relocs * sizeof(target_ulong)),
+                                  data_len + (relocs * sizeof(abi_ulong)),
                                   fpos);
         }
         if (result < 0) {
@@ -544,7 +544,7 @@ static int load_flat_file(struct linux_binprm * bprm,
                                   text_len, 0);
             if (result >= 0) {
                 result = target_pread(bprm->fd, datapos,
-                    data_len + (relocs * sizeof(target_ulong)),
+                    data_len + (relocs * sizeof(abi_ulong)),
                     ntohl(hdr->data_start));
             }
         }
@@ -597,7 +597,7 @@ static int load_flat_file(struct linux_binprm * bprm,
     if (flags & FLAT_FLAG_GOTPIC) {
         rp = datapos;
         while (1) {
-            target_ulong addr;
+            abi_ulong addr;
             addr = tgetl(rp);
             if (addr == -1)
                 break;
@@ -607,7 +607,7 @@ static int load_flat_file(struct linux_binprm * bprm,
                     return -ENOEXEC;
                 tputl(rp, addr);
             }
-            rp += sizeof(target_ulong);
+            rp += sizeof(abi_ulong);
         }
     }
 
@@ -624,12 +624,12 @@ static int load_flat_file(struct linux_binprm * bprm,
      */
     if (rev > OLD_FLAT_VERSION) {
         for (i = 0; i < relocs; i++) {
-            target_ulong addr, relval;
+            abi_ulong addr, relval;
 
             /* Get the address of the pointer to be
                relocated (of course, the address has to be
                relocated first).  */
-            relval = tgetl(reloc + i * sizeof (target_ulong));
+            relval = tgetl(reloc + i * sizeof (abi_ulong));
             addr = flat_get_relocate_addr(relval);
             rp = calc_reloc(addr, libinfo, id, 1);
             if (rp == RELOC_FAILED)
@@ -657,8 +657,8 @@ static int load_flat_file(struct linux_binprm * bprm,
         }
     } else {
         for (i = 0; i < relocs; i++) {
-            target_ulong relval;
-            relval = tgetl(reloc + i * sizeof (target_ulong));
+            abi_ulong relval;
+            relval = tgetl(reloc + i * sizeof (abi_ulong));
             old_reloc(&libinfo[0], relval);
         }
     }
@@ -712,10 +712,10 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                     struct image_info * info)
 {
     struct lib_info libinfo[MAX_SHARED_LIBS];
-    target_ulong p = bprm->p;
-    target_ulong stack_len;
-    target_ulong start_addr;
-    target_ulong sp;
+    abi_ulong p = bprm->p;
+    abi_ulong stack_len;
+    abi_ulong start_addr;
+    abi_ulong sp;
     int res;
     int i, j;
 
@@ -740,7 +740,7 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     /* Update data segment pointers for all libraries */
     for (i=0; i<MAX_SHARED_LIBS; i++) {
         if (libinfo[i].loaded) {
-            target_ulong p;
+            abi_ulong p;
             p = libinfo[i].start_data;
             for (j=0; j<MAX_SHARED_LIBS; j++) {
                 p -= 4;
@@ -758,12 +758,12 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     p = copy_strings(p, bprm->envc, bprm->envp);
     p = copy_strings(p, bprm->argc, bprm->argv);
     /* Align stack.  */
-    sp = p & ~(target_ulong)(sizeof(target_ulong) - 1);
+    sp = p & ~(abi_ulong)(sizeof(abi_ulong) - 1);
     /* Enforce final stack alignment of 16 bytes.  This is sufficient
        for all current targets, and excess alignment is harmless.  */
     stack_len = bprm->envc + bprm->argc + 2;
     stack_len += 3;	/* argc, arvg, argp */
-    stack_len *= sizeof(target_ulong);
+    stack_len *= sizeof(abi_ulong);
     if ((sp + stack_len) & 15)
         sp -= 16 - ((sp + stack_len) & 15);
     sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p, 1);

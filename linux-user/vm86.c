@@ -381,7 +381,7 @@ void handle_vm86_fault(CPUX86State *env)
     }
 }
 
-int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
+int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
 {
     TaskState *ts = env->opaque;
     struct target_vm86plus_struct * target_v86;

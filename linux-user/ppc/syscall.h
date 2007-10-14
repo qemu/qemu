@@ -44,7 +44,7 @@ struct target_pt_regs {
 
 /* ioctls */
 struct target_revectored_struct {
-	target_ulong __map[8];			/* 256 bits */
+	abi_ulong __map[8];			/* 256 bits */
 };
 
 /*

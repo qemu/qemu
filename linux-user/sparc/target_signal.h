@@ -6,9 +6,9 @@
 /* this struct defines a stack used during syscall handling */
 
 typedef struct target_sigaltstack {
-	target_ulong ss_sp;
-	target_long ss_flags;
-	target_ulong ss_size;
+	abi_ulong ss_sp;
+	abi_long ss_flags;
+	abi_ulong ss_size;
 } target_stack_t;
 
 
@@ -28,7 +28,7 @@ typedef struct target_sigaltstack {
 #define UREG_FP        UREG_I6
 #endif
 
-static inline target_ulong get_sp_from_cpustate(CPUSPARCState *state)
+static inline abi_ulong get_sp_from_cpustate(CPUSPARCState *state)
 {
     return state->regwptr[UREG_FP];
 }
