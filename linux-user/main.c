@@ -2142,7 +2142,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "Unable to find Sparc CPU definition\n");
             exit(1);
         }
-        cpu_sparc_register(env, def);
+        cpu_sparc_register(env, def, 0);
 	env->pc = regs->pc;
 	env->npc = regs->npc;
         env->y = regs->y;

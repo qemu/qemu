@@ -327,7 +327,7 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
 
     for(i = 0; i < smp_cpus; i++) {
         env = cpu_init();
-        cpu_sparc_register(env, def);
+        cpu_sparc_register(env, def, i);
         envs[i] = env;
         if (i == 0) {
             qemu_register_reset(main_cpu_reset, env);

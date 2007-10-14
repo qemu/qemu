@@ -212,6 +212,8 @@ typedef struct CPUSPARCState {
     uint64_t dtlb_tte[64];
 #else
     uint32_t mmuregs[16];
+    uint64_t mxccdata[4];
+    uint64_t mxccregs[8];
 #endif
     /* temporary float registers */
     float32 ft0, ft1;
@@ -268,7 +270,8 @@ int cpu_sparc_close(CPUSPARCState *s);
 int sparc_find_by_name (const unsigned char *name, const sparc_def_t **def);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
-int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def);
+int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def,
+                        unsigned int cpu);
 
 #define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
                       (env->psref? PSR_EF : 0) |                        \

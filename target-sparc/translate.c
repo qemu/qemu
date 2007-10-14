@@ -3618,12 +3618,13 @@ void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     }
 }
 
-int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def)
+int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def, unsigned int cpu)
 {
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
 #if !defined(TARGET_SPARC64)
     env->mmuregs[0] |= def->mmu_version;
+    env->mxccregs[7] = ((cpu + 8) & 0xf) << 24;
 #endif
     return 0;
 }
