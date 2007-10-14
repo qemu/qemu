@@ -1023,6 +1023,11 @@ void OPPROTO op_sra(void)
 
 #define MEMSUFFIX _kernel
 #include "op_mem.h"
+
+#ifdef TARGET_SPARC64
+#define MEMSUFFIX _hypv
+#include "op_mem.h"
+#endif
 #endif
 
 void OPPROTO op_ldfsr(void)

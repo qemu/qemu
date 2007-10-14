@@ -361,16 +361,23 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 #endif
 #define gen_op_ldst(name)        gen_op_##name##_raw()
 #else
-#define supervisor(dc) (dc->mem_idx == 1)
+#define supervisor(dc) (dc->mem_idx >= 1)
 #ifdef TARGET_SPARC64
 #define hypervisor(dc) (dc->mem_idx == 2)
-#endif
-#define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
+#define OP_LD_TABLE(width)                                              \
+    static GenOpFunc * const gen_op_##width[] = {                       \
+        &gen_op_##width##_user,                                         \
+        &gen_op_##width##_kernel,                                       \
+        &gen_op_##width##_hypv,                                         \
+    };
+#else
 #define OP_LD_TABLE(width)                                              \
     static GenOpFunc * const gen_op_##width[] = {                       \
         &gen_op_##width##_user,                                         \
         &gen_op_##width##_kernel,                                       \
     };
+#endif
+#define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
 #endif
 
 #ifndef CONFIG_USER_ONLY
@@ -3378,17 +3385,8 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     dc->pc = pc_start;
     last_pc = dc->pc;
     dc->npc = (target_ulong) tb->cs_base;
-#if defined(CONFIG_USER_ONLY)
-    dc->mem_idx = 0;
-    dc->fpu_enabled = 1;
-#else
-    dc->mem_idx = ((env->psrs) != 0);
-#ifdef TARGET_SPARC64
-    dc->fpu_enabled = (((env->pstate & PS_PEF) != 0) && ((env->fprs & FPRS_FEF) != 0));
-#else
-    dc->fpu_enabled = ((env->psref) != 0);
-#endif
-#endif
+    dc->mem_idx = cpu_mmu_index(env);
+    dc->fpu_enabled = cpu_fpu_enabled(env);
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
@@ -3522,6 +3520,7 @@ void cpu_reset(CPUSPARCState *env)
     env->psrps = 1;
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
+    env->hpstate = HS_PRIV;
     env->pc = 0x1fff0000000ULL;
 #else
     env->pc = 0;

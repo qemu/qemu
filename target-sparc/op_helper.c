@@ -789,7 +789,8 @@ void helper_ld_asi(int asi, int size, int sign)
 {
     uint64_t ret = 0;
 
-    if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
+    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
+        || (asi >= 0x30 && asi < 0x80) && !(env->hpstate & HS_PRIV))
         raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
@@ -800,20 +801,38 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x88: // Primary LE
     case 0x8a: // Primary no-fault LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            switch(size) {
-            case 1:
-                ret = ldub_kernel(T0);
-                break;
-            case 2:
-                ret = lduw_kernel(T0 & ~1);
-                break;
-            case 4:
-                ret = ldl_kernel(T0 & ~3);
-                break;
-            default:
-            case 8:
-                ret = ldq_kernel(T0 & ~7);
-                break;
+            if (env->hpstate & HS_PRIV) {
+                switch(size) {
+                case 1:
+                    ret = ldub_hypv(T0);
+                    break;
+                case 2:
+                    ret = lduw_hypv(T0 & ~1);
+                    break;
+                case 4:
+                    ret = ldl_hypv(T0 & ~3);
+                    break;
+                default:
+                case 8:
+                    ret = ldq_hypv(T0 & ~7);
+                    break;
+                }
+            } else {
+                switch(size) {
+                case 1:
+                    ret = ldub_kernel(T0);
+                    break;
+                case 2:
+                    ret = lduw_kernel(T0 & ~1);
+                    break;
+                case 4:
+                    ret = ldl_kernel(T0 & ~3);
+                    break;
+                default:
+                case 8:
+                    ret = ldq_kernel(T0 & ~7);
+                    break;
+                }
             }
         } else {
             switch(size) {
@@ -987,7 +1006,8 @@ void helper_ld_asi(int asi, int size, int sign)
 
 void helper_st_asi(int asi, int size)
 {
-    if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
+    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
+        || (asi >= 0x30 && asi < 0x80) && !(env->hpstate & HS_PRIV))
         raise_exception(TT_PRIV_ACT);
 
     /* Convert to little endian */
@@ -1022,20 +1042,38 @@ void helper_st_asi(int asi, int size)
     case 0x80: // Primary
     case 0x88: // Primary LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            switch(size) {
-            case 1:
-                stb_kernel(T0, T1);
-                break;
-            case 2:
-                stw_kernel(T0 & ~1, T1);
-                break;
-            case 4:
-                stl_kernel(T0 & ~3, T1);
-                break;
-            case 8:
-            default:
-                stq_kernel(T0 & ~7, T1);
-                break;
+            if (env->hpstate & HS_PRIV) {
+                switch(size) {
+                case 1:
+                    stb_hypv(T0, T1);
+                    break;
+                case 2:
+                    stw_hypv(T0 & ~1, T1);
+                    break;
+                case 4:
+                    stl_hypv(T0 & ~3, T1);
+                    break;
+                case 8:
+                default:
+                    stq_hypv(T0 & ~7, T1);
+                    break;
+                }
+            } else {
+                switch(size) {
+                case 1:
+                    stb_kernel(T0, T1);
+                    break;
+                case 2:
+                    stw_kernel(T0 & ~1, T1);
+                    break;
+                case 4:
+                    stl_kernel(T0 & ~3, T1);
+                    break;
+                case 8:
+                default:
+                    stq_kernel(T0 & ~7, T1);
+                    break;
+                }
             }
         } else {
             switch(size) {
