@@ -500,11 +500,11 @@ fi
 if test -z "$target_list" ; then
 # these targets are portable
     if [ "$softmmu" = "yes" ] ; then
-        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc64-softmmu ppcemb-softmmu m68k-softmmu sh4-softmmu cris-softmmu"
+        target_list="i386-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc-softmmu ppcemb-softmmu ppc64-softmmu m68k-softmmu sh4-softmmu cris-softmmu"
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
-        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user ppc64-linux-user sh4-linux-user cris-linux-user $target_list"
+        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user sh4-linux-user ppc-linux-user ppc64-linux-user x86_64-linux-user cris-linux-user $target_list"
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
@@ -934,8 +934,9 @@ target_bigendian="no"
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
 [ "$target_cpu" = "sparc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc" ] && target_bigendian=yes
-[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppcemb" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc64h" ] && target_bigendian=yes
 [ "$target_cpu" = "mips" ] && target_bigendian=yes
 [ "$target_cpu" = "mipsn32" ] && target_bigendian=yes
 [ "$target_cpu" = "mips64" ] && target_bigendian=yes
@@ -1029,16 +1030,22 @@ elif test "$target_cpu" = "ppc" ; then
   echo "TARGET_ARCH=ppc" >> $config_mak
   echo "#define TARGET_ARCH \"ppc\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
-elif test "$target_cpu" = "ppc64" ; then
-  echo "TARGET_ARCH=ppc64" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
-  echo "#define TARGET_PPC 1" >> $config_h
-  echo "#define TARGET_PPC64 1" >> $config_h
 elif test "$target_cpu" = "ppcemb" ; then
   echo "TARGET_ARCH=ppcemb" >> $config_mak
   echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPCEMB 1" >> $config_h
+elif test "$target_cpu" = "ppc64" ; then
+  echo "TARGET_ARCH=ppc64" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+  echo "#define TARGET_PPC64 1" >> $config_h
+elif test "$target_cpu" = "ppc64h" ; then
+  echo "TARGET_ARCH=ppc64h" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64h\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+  echo "#define TARGET_PPC64 1" >> $config_h
+  echo "#define TARGET_PPC64H 1" >> $config_h
 elif test "$target_cpu" = "x86_64" ; then
   echo "TARGET_ARCH=x86_64" >> $config_mak
   echo "#define TARGET_ARCH \"x86_64\"" >> $config_h

@@ -13,6 +13,9 @@ endif
 ifeq ($(TARGET_ARCH), ppc64)
 TARGET_BASE_ARCH:=ppc
 endif
+ifeq ($(TARGET_ARCH), ppc64h)
+TARGET_BASE_ARCH:=ppc
+endif
 ifeq ($(TARGET_ARCH), ppcemb)
 TARGET_BASE_ARCH:=ppc
 endif
