@@ -31,6 +31,11 @@
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_helper_mem.h"
+#if defined(TARGET_PPC64H)
+#define MEMSUFFIX _hypv
+#include "op_helper.h"
+#include "op_helper_mem.h"
+#endif
 #endif
 
 //#define DEBUG_OP

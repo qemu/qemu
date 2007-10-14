@@ -1919,6 +1919,11 @@ void OPPROTO op_fneg (void)
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_mem.h"
+#if defined(TARGET_PPC64H)
+#define MEMSUFFIX _hypv
+#include "op_helper.h"
+#include "op_mem.h"
+#endif
 #endif
 
 /* Special op to check and maybe clear reservation */
