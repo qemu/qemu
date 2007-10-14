@@ -111,11 +111,12 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 
 int cris_mmu_translate(struct cris_mmu_result_t *res,
 		       CPUState *env, uint32_t vaddr,
-		       int rw, int is_user)
+		       int rw, int mmu_idx)
 {
 	uint32_t phy = vaddr;
 	int seg;
 	int miss = 0;
+        int is_user = mmu_idx == MMU_USER_IDX;
 
 	if (!cris_mmu_enabled(env->sregs[SFR_RW_GC_CFG])) {
 		res->phy = vaddr;

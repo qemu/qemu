@@ -42,7 +42,7 @@ void do_raise_exception(void)
 #define SHIFT 3
 #include "softmmu_template.h"
 
-void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
+void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
@@ -53,7 +53,7 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, is_user, 1);
+    ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (ret) {
 	if (retaddr) {
 	    /* now we have a real cpu fault */

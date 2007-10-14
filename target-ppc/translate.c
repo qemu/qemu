@@ -6693,15 +6693,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
-#if defined(CONFIG_USER_ONLY)
-    supervisor = 0;
-#else
-#if defined(TARGET_PPC64H)
-    if (msr_pr == 0 && msr_hv == 1)
-        supervisor = 2;
-    else
-#endif
-        supervisor = 1 - msr_pr;
+    supervisor = env->mmu_idx;
+#if !defined(CONFIG_USER_ONLY)
     ctx.supervisor = supervisor;
 #endif
 #if defined(TARGET_PPC64)

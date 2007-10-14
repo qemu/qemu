@@ -17,4 +17,4 @@ struct cris_mmu_result_t
 
 int cris_mmu_translate(struct cris_mmu_result_t *res,
 		       CPUState *env, uint32_t vaddr,
-		       int rw, int is_user);
+		       int rw, int mmu_idx);

@@ -35,7 +35,7 @@ void do_interrupt (CPUState *env)
 }
 
 int cpu_cris_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-                             int is_user, int is_softmmu)
+                             int mmu_idx, int is_softmmu)
 {
     env->exception_index = 0xaa;
     env->debug1 = address;
@@ -52,7 +52,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 #else /* !CONFIG_USER_ONLY */
 
 int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
+                               int mmu_idx, int is_softmmu)
 {
 	struct cris_mmu_result_t res;
 	int prot, miss;
@@ -61,7 +61,7 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	address &= TARGET_PAGE_MASK;
 	prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 //	printf ("%s pc=%x %x w=%d smmu=%d\n", __func__, env->pc, address, rw, is_softmmu);
-	miss = cris_mmu_translate(&res, env, address, rw, is_user);
+	miss = cris_mmu_translate(&res, env, address, rw, mmu_idx);
 	if (miss)
 	{
 		/* handle the miss.  */
@@ -73,7 +73,7 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 		phy = res.phy;
 	}
 //	printf ("a=%x phy=%x\n", address, phy);
-	return tlb_set_page(env, address, phy, prot, is_user, is_softmmu);
+	return tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
 }
 
 

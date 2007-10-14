@@ -49,7 +49,7 @@ void cpu_unlock(void)
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
+                               int mmu_idx, int is_softmmu)
 {
     if (rw & 2)
         env->exception_index = TT_TFAULT;
@@ -100,15 +100,16 @@ static const int perm_table[2][8] = {
 
 int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                           int *access_index, target_ulong address, int rw,
-                          int is_user)
+                          int mmu_idx)
 {
     int access_perms = 0;
     target_phys_addr_t pde_ptr;
     uint32_t pde;
     target_ulong virt_addr;
-    int error_code = 0, is_dirty;
+    int error_code = 0, is_dirty, is_user;
     unsigned long page_offset;
 
+    is_user = mmu_idx == MMU_USER_IDX;
     virt_addr = address & TARGET_PAGE_MASK;
 
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
@@ -216,13 +217,13 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 
 /* Perform address translation */
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu)
+                              int mmu_idx, int is_softmmu)
 {
     target_phys_addr_t paddr;
     target_ulong vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
-    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
+    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, mmu_idx);
     if (error_code == 0) {
         vaddr = address & TARGET_PAGE_MASK;
         paddr &= TARGET_PAGE_MASK;
@@ -230,7 +231,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         printf("Translate at " TARGET_FMT_lx " -> " TARGET_FMT_plx ", vaddr "
                TARGET_FMT_lx "\n", address, paddr, vaddr);
 #endif
-        ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
+        ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
         return ret;
     }
 
@@ -246,7 +247,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         // switching to normal mode.
         vaddr = address & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
+        ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
         return ret;
     } else {
         if (rw & 2)
@@ -484,8 +485,10 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
 
 int get_physical_address(CPUState *env, target_phys_addr_t *physical, int *prot,
                           int *access_index, target_ulong address, int rw,
-                          int is_user)
+                          int mmu_idx)
 {
+    int is_user = mmu_idx == MMU_USER_IDX;
+
     if (rw == 2)
         return get_physical_address_code(env, physical, prot, access_index, address, rw, is_user);
     else
@@ -494,20 +497,20 @@ int get_physical_address(CPUState *env, target_phys_addr_t *physical, int *prot,
 
 /* Perform address translation */
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu)
+                              int mmu_idx, int is_softmmu)
 {
     target_ulong virt_addr, vaddr;
     target_phys_addr_t paddr;
     int error_code = 0, prot, ret = 0, access_index;
 
-    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
+    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, mmu_idx);
     if (error_code == 0) {
         virt_addr = address & TARGET_PAGE_MASK;
         vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
 #ifdef DEBUG_MMU
         printf("Translate at 0x%" PRIx64 " -> 0x%" PRIx64 ", vaddr 0x%" PRIx64 "\n", address, paddr, vaddr);
 #endif
-        ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
+        ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
         return ret;
     }
     // XXX

@@ -63,7 +63,7 @@ static inline void env_to_regs(void)
 }
 
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-			     int is_user, int is_softmmu);
+			     int mmu_idx, int is_softmmu);
 
 int find_itlb_entry(CPUState * env, target_ulong address,
 		    int use_asid, int update);

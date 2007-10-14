@@ -3689,7 +3689,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 #else
 extern int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot,
                                  int *access_index, target_ulong address, int rw,
-                                 int is_user);
+                                 int mmu_idx);
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {

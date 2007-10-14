@@ -74,6 +74,8 @@
 /* Internal flags for the implementation.  */
 #define F_DELAYSLOT 1
 
+#define NB_MMU_MODES 2
+
 typedef struct CPUCRISState {
 	uint32_t debug1;
 	uint32_t debug2;
@@ -228,6 +230,16 @@ void register_cris_insns (CPUCRISState *env);
 #define cpu_exec cpu_cris_exec
 #define cpu_gen_code cpu_cris_gen_code
 #define cpu_signal_handler cpu_cris_signal_handler
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+/* CRIS FIXME: I guess we want to validate supervisor mode acceses here.  */
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return 0;
+}
 
 #include "cpu-all.h"
 

@@ -48,7 +48,7 @@
 #endif
 
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
-                                                        int is_user,
+                                                        int mmu_idx,
                                                         void *retaddr);
 static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
                                               target_ulong tlb_addr)
@@ -76,7 +76,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
 
 /* handle all cases except unaligned access which span two pages */
 DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
-                                                         int is_user)
+                                                         int mmu_idx)
 {
     DATA_TYPE res;
     int index;
@@ -88,9 +88,9 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
     /* XXX: could done more in memory macro in a non portable way */
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
-    tlb_addr = env->tlb_table[is_user][index].ADDR_READ;
+    tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = addr + env->tlb_table[is_user][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
@@ -101,16 +101,16 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
         do_unaligned_access:
             retaddr = GETPC();
 #ifdef ALIGNED_ONLY
-            do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
+            do_unaligned_access(addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
             res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr,
-                                                         is_user, retaddr);
+                                                         mmu_idx, retaddr);
         } else {
             /* unaligned/aligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
                 retaddr = GETPC();
-                do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
+                do_unaligned_access(addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
             }
 #endif
             res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(long)physaddr);
@@ -120,9 +120,9 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
         retaddr = GETPC();
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
-            do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
+            do_unaligned_access(addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
-        tlb_fill(addr, READ_ACCESS_TYPE, is_user, retaddr);
+        tlb_fill(addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         goto redo;
     }
     return res;
@@ -130,7 +130,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
 /* handle all unaligned cases */
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
-                                                        int is_user,
+                                                        int mmu_idx,
                                                         void *retaddr)
 {
     DATA_TYPE res, res1, res2;
@@ -140,9 +140,9 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
-    tlb_addr = env->tlb_table[is_user][index].ADDR_READ;
+    tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = addr + env->tlb_table[is_user][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
@@ -154,9 +154,9 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             addr1 = addr & ~(DATA_SIZE - 1);
             addr2 = addr1 + DATA_SIZE;
             res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr1,
-                                                          is_user, retaddr);
+                                                          mmu_idx, retaddr);
             res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr2,
-                                                          is_user, retaddr);
+                                                          mmu_idx, retaddr);
             shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
             res = (res1 << shift) | (res2 >> ((DATA_SIZE * 8) - shift));
@@ -170,7 +170,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
         }
     } else {
         /* the page is not in the TLB : fill it */
-        tlb_fill(addr, READ_ACCESS_TYPE, is_user, retaddr);
+        tlb_fill(addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         goto redo;
     }
     return res;
@@ -180,7 +180,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
 static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    DATA_TYPE val,
-                                                   int is_user,
+                                                   int mmu_idx,
                                                    void *retaddr);
 
 static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
@@ -211,7 +211,7 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
 
 void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                     DATA_TYPE val,
-                                                    int is_user)
+                                                    int mmu_idx)
 {
     target_phys_addr_t physaddr;
     target_ulong tlb_addr;
@@ -220,9 +220,9 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
-    tlb_addr = env->tlb_table[is_user][index].addr_write;
+    tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = addr + env->tlb_table[is_user][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
@@ -233,16 +233,16 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
         do_unaligned_access:
             retaddr = GETPC();
 #ifdef ALIGNED_ONLY
-            do_unaligned_access(addr, 1, is_user, retaddr);
+            do_unaligned_access(addr, 1, mmu_idx, retaddr);
 #endif
             glue(glue(slow_st, SUFFIX), MMUSUFFIX)(addr, val,
-                                                   is_user, retaddr);
+                                                   mmu_idx, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
                 retaddr = GETPC();
-                do_unaligned_access(addr, 1, is_user, retaddr);
+                do_unaligned_access(addr, 1, mmu_idx, retaddr);
             }
 #endif
             glue(glue(st, SUFFIX), _raw)((uint8_t *)(long)physaddr, val);
@@ -252,9 +252,9 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
         retaddr = GETPC();
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
-            do_unaligned_access(addr, 1, is_user, retaddr);
+            do_unaligned_access(addr, 1, mmu_idx, retaddr);
 #endif
-        tlb_fill(addr, 1, is_user, retaddr);
+        tlb_fill(addr, 1, mmu_idx, retaddr);
         goto redo;
     }
 }
@@ -262,7 +262,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
 /* handles all unaligned cases */
 static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    DATA_TYPE val,
-                                                   int is_user,
+                                                   int mmu_idx,
                                                    void *retaddr)
 {
     target_phys_addr_t physaddr;
@@ -271,9 +271,9 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
-    tlb_addr = env->tlb_table[is_user][index].addr_write;
+    tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = addr + env->tlb_table[is_user][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
@@ -285,10 +285,10 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
             for(i = 0;i < DATA_SIZE; i++) {
 #ifdef TARGET_WORDS_BIGENDIAN
                 glue(slow_stb, MMUSUFFIX)(addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)),
-                                          is_user, retaddr);
+                                          mmu_idx, retaddr);
 #else
                 glue(slow_stb, MMUSUFFIX)(addr + i, val >> (i * 8),
-                                          is_user, retaddr);
+                                          mmu_idx, retaddr);
 #endif
             }
         } else {
@@ -297,7 +297,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
         }
     } else {
         /* the page is not in the TLB : fill it */
-        tlb_fill(addr, 1, is_user, retaddr);
+        tlb_fill(addr, 1, mmu_idx, retaddr);
         goto redo;
     }
 }

@@ -884,8 +884,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_x86_handle_mmu_fault(env, address, is_write,
-                                   ((env->hflags & HF_CPL_MASK) == 3), 0);
+    ret = cpu_x86_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -934,7 +933,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         return 1;
     }
     /* see if it is an MMU fault */
-    ret = cpu_arm_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_arm_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -970,7 +969,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         return 1;
     }
     /* see if it is an MMU fault */
-    ret = cpu_sparc_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_sparc_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -1007,7 +1006,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_ppc_handle_mmu_fault(env, address, is_write, msr_pr, 0);
+    ret = cpu_ppc_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -1056,7 +1055,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         return 1;
     }
     /* see if it is an MMU fault */
-    ret = cpu_m68k_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_m68k_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -1096,7 +1095,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_mips_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_mips_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -1146,7 +1145,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_sh4_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_sh4_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -1191,7 +1190,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_alpha_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_alpha_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
@@ -1235,7 +1234,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_cris_handle_mmu_fault(env, address, is_write, 1, 0);
+    ret = cpu_cris_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)

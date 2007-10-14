@@ -28,7 +28,7 @@
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                                int is_user, int is_softmmu)
+                                int mmu_idx, int is_softmmu)
 {
     if (rw == 2)
         env->exception_index = EXCP_ITB_MISS;
@@ -57,7 +57,7 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 }
 
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                                int is_user, int is_softmmu)
+                                int mmu_idx, int is_softmmu)
 {
     uint32_t opc;
 

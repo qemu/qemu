@@ -39,7 +39,7 @@
 
 #if defined(CONFIG_USER_ONLY)
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu)
+                              int mmu_idx, int is_softmmu)
 {
     int exception, error_code;
 
@@ -1349,7 +1349,7 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 
 /* Perform address translation */
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu)
+                              int mmu_idx, int is_softmmu)
 {
     mmu_ctx_t ctx;
     int access_type;
@@ -1370,7 +1370,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     if (ret == 0) {
         ret = tlb_set_page(env, address & TARGET_PAGE_MASK,
                            ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
-                           is_user, is_softmmu);
+                           mmu_idx, is_softmmu);
     } else if (ret < 0) {
 #if defined (DEBUG_MMU)
         if (loglevel != 0)
@@ -2083,7 +2083,12 @@ void do_compute_hflags (CPUPPCState *env)
     env->hflags |= msr_cm << MSR_CM;
     env->hflags |= (uint64_t)msr_sf << MSR_SF;
     env->hflags |= (uint64_t)msr_hv << MSR_HV;
+    /* Precompute MMU index */
+    if (msr_pr == 0 && msr_hv == 1)
+        env->mmu_idx = 2;
+    else
 #endif
+        env->mmu_idx = 1 - msr_pr;
 }
 
 /*****************************************************************************/

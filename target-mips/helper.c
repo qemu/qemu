@@ -229,7 +229,7 @@ void cpu_mips_init_mmu (CPUState *env)
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
+                               int mmu_idx, int is_softmmu)
 {
     target_ulong physical;
     int prot;
@@ -241,8 +241,8 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if 0
         cpu_dump_state(env, logfile, fprintf, 0);
 #endif
-        fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d is_user %d smmu %d\n",
-                __func__, env->PC[env->current_tc], address, rw, is_user, is_softmmu);
+        fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d smmu %d\n",
+                __func__, env->PC[env->current_tc], address, rw, mmu_idx, is_softmmu);
     }
 
     rw &= 1;
@@ -265,7 +265,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     if (ret == TLBRET_MATCH) {
        ret = tlb_set_page(env, address & TARGET_PAGE_MASK,
                           physical & TARGET_PAGE_MASK, prot,
-                          is_user, is_softmmu);
+                          mmu_idx, is_softmmu);
     } else if (ret < 0) {
     do_fault:
         switch (ret) {

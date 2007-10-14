@@ -434,6 +434,12 @@ enum {
     POWERPC_FLAG_PMM  = 0x00000400,
 };
 
+#if defined(TARGET_PPC64H)
+#define NB_MMU_MODES 3
+#else
+#define NB_MMU_MODES 2
+#endif
+
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
 struct CPUPPCState {
@@ -575,6 +581,7 @@ struct CPUPPCState {
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
     target_ulong hflags; /* hflags is a MSR & HFLAGS_MASK */
+    int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
 
     /* Power management */
     int power_mode;
@@ -698,6 +705,18 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _user
+#define MMU_MODE1_SUFFIX _kernel
+#if defined(TARGET_PPC64H)
+#define MMU_MODE2_SUFFIX _hypv
+#endif
+#define MMU_USER_IDX 0
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return env->mmu_idx;
+}
 
 #include "cpu-all.h"
 

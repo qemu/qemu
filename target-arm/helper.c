@@ -169,7 +169,7 @@ void do_interrupt (CPUState *env)
 }
 
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu)
+                              int mmu_idx, int is_softmmu)
 {
     if (rw == 2) {
         env->exception_index = EXCP_PREFETCH_ABORT;
@@ -547,18 +547,19 @@ do_fault:
 }
 
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
-                              int access_type, int is_user, int is_softmmu)
+                              int access_type, int mmu_idx, int is_softmmu)
 {
     uint32_t phys_addr;
     int prot;
-    int ret;
+    int ret, is_user;
 
+    is_user = mmu_idx == MMU_USER_IDX;
     ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot);
     if (ret == 0) {
         /* Map a single [sub]page.  */
         phys_addr &= ~(uint32_t)0x3ff;
         address &= ~(uint32_t)0x3ff;
-        return tlb_set_page (env, address, phys_addr, prot, is_user,
+        return tlb_set_page (env, address, phys_addr, prot, mmu_idx,
                              is_softmmu);
     }
 

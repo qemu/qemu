@@ -36,7 +36,7 @@ void do_interrupt (CPUState *env)
 }
 
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-			     int is_user, int is_softmmu)
+			     int mmu_idx, int is_softmmu)
 {
     env->tea = address;
     switch (rw) {
@@ -372,15 +372,15 @@ int get_physical_address(CPUState * env, target_ulong * physical,
 }
 
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-			     int is_user, int is_softmmu)
+			     int mmu_idx, int is_softmmu)
 {
     target_ulong physical, page_offset, page_size;
     int prot, ret, access_type;
 
     /* XXXXX */
 #if 0
-    fprintf(stderr, "%s pc %08x ad %08x rw %d is_user %d smmu %d\n",
-	    __func__, env->pc, address, rw, is_user, is_softmmu);
+    fprintf(stderr, "%s pc %08x ad %08x rw %d mmu_idx %d smmu %d\n",
+	    __func__, env->pc, address, rw, mmu_idx, is_softmmu);
 #endif
 
     access_type = ACCESS_INT;
@@ -426,7 +426,7 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     address = (address & TARGET_PAGE_MASK) + page_offset;
     physical = (physical & TARGET_PAGE_MASK) + page_offset;
 
-    return tlb_set_page(env, address, physical, prot, is_user, is_softmmu);
+    return tlb_set_page(env, address, physical, prot, mmu_idx, is_softmmu);
 }
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)

@@ -53,6 +53,8 @@
 #define EXCP_RTE            0x100
 #define EXCP_HALT_INSN      0x101
 
+#define NB_MMU_MODES 2
+
 typedef struct CPUM68KState {
     uint32_t dregs[8];
     uint32_t aregs[8];
@@ -222,6 +224,15 @@ void register_m68k_insns (CPUM68KState *env);
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code
 #define cpu_signal_handler cpu_m68k_signal_handler
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return (env->sr & SR_S) == 0 ? 1 : 0;
+}
 
 #include "cpu-all.h"
 

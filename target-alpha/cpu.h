@@ -256,6 +256,8 @@ struct pal_handler_t {
     void (*call_pal)(CPUAlphaState *env, uint32_t palcode);
 };
 
+#define NB_MMU_MODES 4
+
 struct CPUAlphaState {
     uint64_t ir[31];
     float64  fir[31];
@@ -301,6 +303,17 @@ struct CPUAlphaState {
 #define cpu_exec cpu_alpha_exec
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _executive
+#define MMU_MODE2_SUFFIX _supervisor
+#define MMU_MODE3_SUFFIX _user
+#define MMU_USER_IDX 3
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return (env->ps >> 3) & 3;
+}
 
 #include "cpu-all.h"
 
