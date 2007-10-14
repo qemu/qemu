@@ -190,16 +190,16 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_ld##width[] = {                                      \
     &gen_op_ld##width##_kernel,                                               \
-    &gen_op_ld##width##_user, /* executive */                                 \
-    &gen_op_ld##width##_data, /* supervisor */                                \
-    &gen_op_ld##width##_data, /* user */                                      \
+    &gen_op_ld##width##_executive,                                            \
+    &gen_op_ld##width##_supervisor,                                           \
+    &gen_op_ld##width##_user,                                                 \
 }
 #define OP_ST_TABLE(width)                                                    \
 static GenOpFunc *gen_op_st##width[] = {                                      \
     &gen_op_st##width##_kernel,                                               \
-    &gen_op_st##width##_user, /* executive */                                 \
-    &gen_op_st##width##_data, /* supervisor */                                \
-    &gen_op_st##width##_data, /* user */                                      \
+    &gen_op_st##width##_executive,                                            \
+    &gen_op_st##width##_supervisor,                                           \
+    &gen_op_st##width##_user,                                                 \
 }
 #endif
 
