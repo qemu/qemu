@@ -811,12 +811,14 @@ static int get_page_bits (CPUState *env)
 
 static int get_pte (uint64_t *pfnp, int *zbitsp, int *protp,
                     uint64_t ptebase, int page_bits, uint64_t level,
-                    int is_user, int rw)
+                    int mmu_idx, int rw)
 {
     uint64_t pteaddr, pte, pfn;
     uint8_t gh;
-    int ure, uwe, kre, kwe, foE, foR, foW, v, ret, ar;
+    int ure, uwe, kre, kwe, foE, foR, foW, v, ret, ar, is_user;
 
+    /* XXX: TOFIX */
+    is_user = mmu_idx == MMU_USER_IDX;
     pteaddr = (ptebase << page_bits) + (8 * level);
     pte = ldq_raw(pteaddr);
     /* Decode all interresting PTE fields */
@@ -871,7 +873,7 @@ static int get_pte (uint64_t *pfnp, int *zbitsp, int *protp,
 
 static int paddr_from_pte (uint64_t *paddr, int *zbitsp, int *prot,
                            uint64_t ptebase, int page_bits,
-                           uint64_t vaddr, int is_user, int rw)
+                           uint64_t vaddr, int mmu_idx, int rw)
 {
     uint64_t pfn, page_mask, lvl_mask, level1, level2, level3;
     int lvl_bits, ret;
@@ -909,7 +911,7 @@ static int paddr_from_pte (uint64_t *paddr, int *zbitsp, int *prot,
         break;
     }
     /* Level 3 PTE */
-    ret = get_pte(&pfn, zbitsp, prot, pfn, page_bits, level3, is_user, rw);
+    ret = get_pte(&pfn, zbitsp, prot, pfn, page_bits, level3, mmu_idx, rw);
     if (ret & 0x1) {
         /* Translation not valid */
         ret = 1;
@@ -943,7 +945,7 @@ static int paddr_from_pte (uint64_t *paddr, int *zbitsp, int *prot,
 
 static int virtual_to_physical (CPUState *env, uint64_t *physp,
                                 int *zbitsp, int *protp,
-                                uint64_t virtual, int is_user, int rw)
+                                uint64_t virtual, int mmu_idx, int rw)
 {
     uint64_t sva, ptebase;
     int seg, page_bits, ret;
@@ -961,16 +963,16 @@ static int virtual_to_physical (CPUState *env, uint64_t *physp,
     case 0:
         /* seg1: 3 levels of PTE */
         ret = paddr_from_pte(physp, zbitsp, protp, ptebase, page_bits,
-                             virtual, is_user, rw);
+                             virtual, mmu_idx, rw);
         break;
     case 1:
         /* seg1: 2 levels of PTE */
         ret = paddr_from_pte(physp, zbitsp, protp, ptebase, page_bits,
-                             virtual, is_user, rw);
+                             virtual, mmu_idx, rw);
         break;
     case 2:
         /* kernel segment */
-        if (is_user) {
+        if (mmu_idx != 0) {
             ret = 2;
         } else {
             *physp = virtual;
@@ -979,7 +981,7 @@ static int virtual_to_physical (CPUState *env, uint64_t *physp,
     case 3:
         /* seg1: TB mapped */
         ret = paddr_from_pte(physp, zbitsp, protp, ptebase, page_bits,
-                             virtual, is_user, rw);
+                             virtual, mmu_idx, rw);
         break;
     default:
         ret = 1;
@@ -991,7 +993,7 @@ static int virtual_to_physical (CPUState *env, uint64_t *physp,
 
 /* XXX: code provision */
 int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
-                              int is_user, int is_softmmu)
+                              int mmu_idx, int is_softmmu)
 {
     uint64_t physical, page_size, end;
     int prot, zbits, ret;
@@ -1000,7 +1002,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
         ret = 2;
     } else {
         ret = virtual_to_physical(env, &physical, &zbits, &prot,
-                                  address, is_user, rw);
+                                  address, mmu_idx, rw);
     }
     switch (ret) {
     case 0:
@@ -1009,7 +1011,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
         address &= ~(page_size - 1);
         for (end = physical + page_size; physical < end; physical += 0x1000) {
             ret = tlb_set_page(env, address, physical, prot,
-                               is_user, is_softmmu);
+                               mmu_idx, is_softmmu);
             address += 0x1000;
         }
         break;

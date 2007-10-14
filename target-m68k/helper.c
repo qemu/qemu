@@ -301,7 +301,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
+                               int mmu_idx, int is_softmmu)
 {
     env->exception_index = EXCP_ACCESS;
     env->mmu.ar = address;
@@ -311,13 +311,13 @@ int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #else
 
 int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
+                               int mmu_idx, int is_softmmu)
 {
     int prot;
 
     address &= TARGET_PAGE_MASK;
     prot = PAGE_READ | PAGE_WRITE;
-    return tlb_set_page(env, address, address, prot, is_user, is_softmmu);
+    return tlb_set_page(env, address, address, prot, mmu_idx, is_softmmu);
 }
 
 /* Notify CPU of a pending interrupt.  Prioritization and vectoring should

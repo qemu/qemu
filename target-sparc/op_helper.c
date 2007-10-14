@@ -1522,7 +1522,7 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
+void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     int ret;
@@ -1534,7 +1534,7 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
 
-    ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, is_user, 1);
+    ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault */

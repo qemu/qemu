@@ -7394,6 +7394,8 @@ void register_machines(void)
 #elif defined(TARGET_M68K)
     qemu_register_machine(&mcf5208evb_machine);
     qemu_register_machine(&an5206_machine);
+#elif defined(TARGET_CRIS)
+    qemu_register_machine(&bareetraxfs_machine);
 #else
 #error unsupported CPU
 #endif
@@ -7735,14 +7737,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 if (*optarg == '?') {
-#if defined(TARGET_PPC)
-                    ppc_cpu_list(stdout, &fprintf);
-#elif defined(TARGET_ARM)
-                    arm_cpu_list();
-#elif defined(TARGET_MIPS)
-                    mips_cpu_list(stdout, &fprintf);
-#elif defined(TARGET_SPARC)
-                    sparc_cpu_list(stdout, &fprintf);
+/* XXX: implement xxx_cpu_list for targets that still miss it */
+#if defined(cpu_list)
+                    cpu_list(stdout, &fprintf);
 #else
                     printf("Target ignores cpu selection\n");
 #endif

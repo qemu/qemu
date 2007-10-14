@@ -200,6 +200,10 @@ enum bfd_architecture
 #define bfd_mach_m32r          0  /* backwards compatibility */
   bfd_arch_mn10200,    /* Matsushita MN10200 */
   bfd_arch_mn10300,    /* Matsushita MN10300 */
+  bfd_arch_cris,       /* Axis CRIS */
+#define bfd_mach_cris_v0_v10   255
+#define bfd_mach_cris_v32      32
+#define bfd_mach_cris_v10_v32  1032
   bfd_arch_last
   };
 #define bfd_mach_s390_31 31
@@ -382,6 +386,7 @@ extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ppc		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_alpha             PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_s390		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_crisv32           PARAMS ((bfd_vma, disassemble_info*));
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */

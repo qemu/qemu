@@ -751,14 +751,6 @@ int qemu_register_machine(QEMUMachine *m);
 
 typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 
-#if defined(TARGET_PPC)
-void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-#endif
-
-#if defined(TARGET_MIPS)
-void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-#endif
-
 #include "hw/irq.h"
 
 /* ISA bus */
@@ -1166,6 +1158,7 @@ void irq_info(void);
 typedef struct IOAPICState IOAPICState;
 
 int apic_init(CPUState *env);
+int apic_accept_pic_intr(CPUState *env);
 int apic_get_interrupt(CPUState *env);
 IOAPICState *ioapic_init(void);
 void ioapic_set_irq(void *opaque, int vector, int level);
@@ -1199,6 +1192,9 @@ extern int acpi_enabled;
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 void acpi_bios_init(void);
+
+/* Axis ETRAX.  */
+extern QEMUMachine bareetraxfs_machine;
 
 /* pc.c */
 extern QEMUMachine pc_machine;

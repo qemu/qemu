@@ -88,8 +88,6 @@ enum {
     POWERPC_MMU_UNKNOWN    = 0,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B,
-    /* PowerPC 601 MMU                                         */
-    POWERPC_MMU_601,
     /* PowerPC 6xx MMU with software TLB                       */
     POWERPC_MMU_SOFT_6xx,
     /* PowerPC 74xx MMU with software TLB                      */
@@ -225,7 +223,6 @@ enum {
     POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
 };
 
-
 /* Exceptions error codes                                                    */
 enum {
     /* Exception subtypes for POWERPC_EXCP_ALIGN                             */
@@ -293,7 +290,7 @@ typedef struct CPUPPCState CPUPPCState;
 typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
-typedef struct ppc_avr_t ppc_avr_t;
+typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
 
 /* SPR access micro-ops generations callbacks */
@@ -312,8 +309,11 @@ struct ppc_spr_t {
 };
 
 /* Altivec registers (128 bits) */
-struct ppc_avr_t {
-    uint32_t u[4];
+union ppc_avr_t {
+    uint8_t u8[16];
+    uint16_t u16[8];
+    uint32_t u32[4];
+    uint64_t u64[2];
 };
 
 /* Software TLB cache */
@@ -347,40 +347,35 @@ union ppc_tlb_t {
 #define MSR_CM   31 /* Computation mode for BookE                     hflags */
 #define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
 #define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
-#define MSR_VR   25 /* altivec available                              hflags */
-#define MSR_SPE  25 /* SPE enable for BookE                           hflags */
+#define MSR_VR   25 /* altivec available                            x hflags */
+#define MSR_SPE  25 /* SPE enable for BookE                         x hflags */
 #define MSR_AP   23 /* Access privilege state on 602                  hflags */
 #define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
 #define MSR_KEY  19 /* key bit on 603e                                       */
 #define MSR_POW  18 /* Power management                                      */
-#define MSR_WE   18 /* Wait state enable on embedded PowerPC                 */
-#define MSR_TGPR 17 /* TGPR usage on 602/603                                 */
-#define MSR_TLB  17 /* TLB update on ?                                       */
-#define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC         */
+#define MSR_TGPR 17 /* TGPR usage on 602/603                        x        */
+#define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC x       */
 #define MSR_ILE  16 /* Interrupt little-endian mode                          */
 #define MSR_EE   15 /* External interrupt enable                             */
 #define MSR_PR   14 /* Problem state                                  hflags */
 #define MSR_FP   13 /* Floating point available                       hflags */
 #define MSR_ME   12 /* Machine check interrupt enable                        */
 #define MSR_FE0  11 /* Floating point exception mode 0                hflags */
-#define MSR_SE   10 /* Single-step trace enable                       hflags */
-#define MSR_DWE  10 /* Debug wait enable on 405                              */
-#define MSR_UBLE 10 /* User BTB lock enable on e500                          */
-#define MSR_BE   9  /* Branch trace enable                            hflags */
-#define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC           */
+#define MSR_SE   10 /* Single-step trace enable                     x hflags */
+#define MSR_DWE  10 /* Debug wait enable on 405                     x        */
+#define MSR_UBLE 10 /* User BTB lock enable on e500                 x        */
+#define MSR_BE   9  /* Branch trace enable                          x hflags */
+#define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC  x        */
 #define MSR_FE1  8  /* Floating point exception mode 1                hflags */
 #define MSR_AL   7  /* AL bit on POWER                                       */
-#define MSR_IP   6  /* Interrupt prefix                                      */
-#define MSR_IR   5  /* Instruction relocate                                  */
-#define MSR_IS   5  /* Instruction address space on embedded PowerPC         */
-#define MSR_DR   4  /* Data relocate                                         */
-#define MSR_DS   4  /* Data address space on embedded PowerPC                */
-#define MSR_PE   3  /* Protection enable on 403                              */
 #define MSR_EP   3  /* Exception prefix on 601                               */
-#define MSR_PX   2  /* Protection exclusive on 403                           */
-#define MSR_PMM  2  /* Performance monitor mark on POWER                     */
-#define MSR_RI   1  /* Recoverable interrupt                                 */
-#define MSR_LE   0  /* Little-endian mode                             hflags */
+#define MSR_IR   5  /* Instruction relocate                                  */
+#define MSR_DR   4  /* Data relocate                                         */
+#define MSR_PE   3  /* Protection enable on 403                              */
+#define MSR_PX   2  /* Protection exclusive on 403                  x        */
+#define MSR_PMM  2  /* Performance monitor mark on POWER            x        */
+#define MSR_RI   1  /* Recoverable interrupt                        1        */
+#define MSR_LE   0  /* Little-endian mode                           1 hflags */
 #define msr_sf   env->msr[MSR_SF]
 #define msr_isf  env->msr[MSR_ISF]
 #define msr_hv   env->msr[MSR_HV]
@@ -393,9 +388,7 @@ union ppc_tlb_t {
 #define msr_sa   env->msr[MSR_SA]
 #define msr_key  env->msr[MSR_KEY]
 #define msr_pow  env->msr[MSR_POW]
-#define msr_we   env->msr[MSR_WE]
 #define msr_tgpr env->msr[MSR_TGPR]
-#define msr_tlb  env->msr[MSR_TLB]
 #define msr_ce   env->msr[MSR_CE]
 #define msr_ile  env->msr[MSR_ILE]
 #define msr_ee   env->msr[MSR_EE]
@@ -410,17 +403,40 @@ union ppc_tlb_t {
 #define msr_de   env->msr[MSR_DE]
 #define msr_fe1  env->msr[MSR_FE1]
 #define msr_al   env->msr[MSR_AL]
-#define msr_ip   env->msr[MSR_IP]
 #define msr_ir   env->msr[MSR_IR]
-#define msr_is   env->msr[MSR_IS]
 #define msr_dr   env->msr[MSR_DR]
-#define msr_ds   env->msr[MSR_DS]
 #define msr_pe   env->msr[MSR_PE]
 #define msr_ep   env->msr[MSR_EP]
 #define msr_px   env->msr[MSR_PX]
 #define msr_pmm  env->msr[MSR_PMM]
 #define msr_ri   env->msr[MSR_RI]
 #define msr_le   env->msr[MSR_LE]
+
+enum {
+    POWERPC_FLAG_NONE = 0x00000000,
+    /* Flag for MSR bit 25 signification (VRE/SPE)                           */
+    POWERPC_FLAG_SPE  = 0x00000001,
+    POWERPC_FLAG_VRE  = 0x00000002,
+    /* Flag for MSR bit 17 signification (TGPR/CE)                           */
+    POWERPC_FLAG_TGPR = 0x00000004,
+    POWERPC_FLAG_CE   = 0x00000008,
+    /* Flag for MSR bit 10 signification (SE/DWE/UBLE)                       */
+    POWERPC_FLAG_SE   = 0x00000010,
+    POWERPC_FLAG_DWE  = 0x00000020,
+    POWERPC_FLAG_UBLE = 0x00000040,
+    /* Flag for MSR bit 9 signification (BE/DE)                              */
+    POWERPC_FLAG_BE   = 0x00000080,
+    POWERPC_FLAG_DE   = 0x00000100,
+    /* Flag for MSR but 2 signification (PX/PMM)                             */
+    POWERPC_FLAG_PX   = 0x00000200,
+    POWERPC_FLAG_PMM  = 0x00000400,
+};
+
+#if defined(TARGET_PPC64H)
+#define NB_MMU_MODES 3
+#else
+#define NB_MMU_MODES 2
+#endif
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
@@ -434,7 +450,7 @@ struct CPUPPCState {
      */
     ppc_gpr_t t0, t1, t2;
 #endif
-    ppc_avr_t t0_avr, t1_avr, t2_avr;
+    ppc_avr_t avr0, avr1, avr2;
 
     /* general purpose registers */
     ppc_gpr_t gpr[32];
@@ -474,9 +490,14 @@ struct CPUPPCState {
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 
-    /* MMU context */
+    /* MMU context - only relevant for full system emulation */
+#if !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64)
     /* Address space register */
     target_ulong asr;
+    /* PowerPC 64 SLB area */
+    int slb_nr;
+#endif
     /* segment registers */
     target_ulong sdr1;
     target_ulong sr[16];
@@ -484,24 +505,6 @@ struct CPUPPCState {
     int nb_BATs;
     target_ulong DBAT[2][8];
     target_ulong IBAT[2][8];
-
-    /* Other registers */
-    /* Special purpose registers */
-    target_ulong spr[1024];
-    /* Altivec registers */
-    ppc_avr_t avr[32];
-    uint32_t vscr;
-    /* SPE registers */
-    ppc_gpr_t spe_acc;
-    float_status spe_status;
-    uint32_t spe_fscr;
-
-    /* Internal devices resources */
-    /* Time base and decrementer */
-    ppc_tb_t *tb_env;
-    /* Device control registers */
-    ppc_dcr_t *dcr_env;
-
     /* PowerPC TLB registers (for 4xx and 60x software driven TLBs) */
     int nb_tlb;      /* Total number of TLB                                  */
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
@@ -512,8 +515,27 @@ struct CPUPPCState {
     ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
-    /* PowerPC 64 SLB area */
-    int slb_nr;
+#endif
+
+    /* Other registers */
+    /* Special purpose registers */
+    target_ulong spr[1024];
+    ppc_spr_t spr_cb[1024];
+    /* Altivec registers */
+    ppc_avr_t avr[32];
+    uint32_t vscr;
+#if defined(TARGET_PPCEMB)
+    /* SPE registers */
+    ppc_gpr_t spe_acc;
+    float_status spe_status;
+    uint32_t spe_fscr;
+#endif
+
+    /* Internal devices resources */
+    /* Time base and decrementer */
+    ppc_tb_t *tb_env;
+    /* Device control registers */
+    ppc_dcr_t *dcr_env;
 
     int dcache_line_size;
     int icache_line_size;
@@ -549,8 +571,7 @@ struct CPUPPCState {
     /* Those resources are used only during code translation */
     /* Next instruction pointer */
     target_ulong nip;
-    /* SPR translation callbacks */
-    ppc_spr_t spr_cb[1024];
+
     /* opcode handlers */
     opc_handler_t *opcodes[0x40];
 
@@ -558,6 +579,7 @@ struct CPUPPCState {
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
     target_ulong hflags; /* hflags is a MSR & HFLAGS_MASK */
+    int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
 
     /* Power management */
     int power_mode;
@@ -574,6 +596,7 @@ struct mmu_ctx_t {
     target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
+    int nx;                        /* Non-execute area          */
 };
 
 /*****************************************************************************/
@@ -680,6 +703,19 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define cpu_exec cpu_ppc_exec
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
+#define cpu_list ppc_cpu_list
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _user
+#define MMU_MODE1_SUFFIX _kernel
+#if defined(TARGET_PPC64H)
+#define MMU_MODE2_SUFFIX _hypv
+#endif
+#define MMU_USER_IDX 0
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return env->mmu_idx;
+}
 
 #include "cpu-all.h"
 
@@ -1115,6 +1151,9 @@ enum {
     PPC6xx_INPUT_MCP        = 3,
     PPC6xx_INPUT_SMI        = 4,
     PPC6xx_INPUT_INT        = 5,
+    PPC6xx_INPUT_TBEN       = 6,
+    PPC6xx_INPUT_WAKEUP     = 7,
+    PPC6xx_INPUT_NB,
 };
 
 enum {
@@ -1126,6 +1165,7 @@ enum {
     PPCBookE_INPUT_SMI        = 4,
     PPCBookE_INPUT_INT        = 5,
     PPCBookE_INPUT_CINT       = 6,
+    PPCBookE_INPUT_NB,
 };
 
 enum {
@@ -1142,18 +1182,6 @@ enum {
 
 #if defined(TARGET_PPC64)
 enum {
-    /* PowerPC 620 (and probably others) input pins */
-    PPC620_INPUT_HRESET     = 0,
-    PPC620_INPUT_SRESET     = 1,
-    PPC620_INPUT_CKSTP      = 2,
-    PPC620_INPUT_TBEN       = 3,
-    PPC620_INPUT_WAKEUP     = 4,
-    PPC620_INPUT_MCP        = 5,
-    PPC620_INPUT_SMI        = 6,
-    PPC620_INPUT_INT        = 7,
-};
-
-enum {
     /* PowerPC 970 input pins */
     PPC970_INPUT_HRESET     = 0,
     PPC970_INPUT_SRESET     = 1,
@@ -1169,21 +1197,22 @@ enum {
 enum {
     /* External hardware exception sources */
     PPC_INTERRUPT_RESET     = 0,  /* Reset exception                      */
-    PPC_INTERRUPT_MCK       = 1,  /* Machine check exception              */
-    PPC_INTERRUPT_EXT       = 2,  /* External interrupt                   */
-    PPC_INTERRUPT_SMI       = 3,  /* System management interrupt          */
-    PPC_INTERRUPT_CEXT      = 4,  /* Critical external interrupt          */
-    PPC_INTERRUPT_DEBUG     = 5,  /* External debug exception             */
-    PPC_INTERRUPT_THERM     = 6,  /* Thermal exception                    */
+    PPC_INTERRUPT_WAKEUP,         /* Wakeup exception                     */
+    PPC_INTERRUPT_MCK,            /* Machine check exception              */
+    PPC_INTERRUPT_EXT,            /* External interrupt                   */
+    PPC_INTERRUPT_SMI,            /* System management interrupt          */
+    PPC_INTERRUPT_CEXT,           /* Critical external interrupt          */
+    PPC_INTERRUPT_DEBUG,          /* External debug exception             */
+    PPC_INTERRUPT_THERM,          /* Thermal exception                    */
     /* Internal hardware exception sources */
-    PPC_INTERRUPT_DECR      = 7,  /* Decrementer exception                */
-    PPC_INTERRUPT_HDECR     = 8,  /* Hypervisor decrementer exception     */
-    PPC_INTERRUPT_PIT       = 9,  /* Programmable inteval timer interrupt */
-    PPC_INTERRUPT_FIT       = 10, /* Fixed interval timer interrupt       */
-    PPC_INTERRUPT_WDT       = 11, /* Watchdog timer interrupt             */
-    PPC_INTERRUPT_CDOORBELL = 12, /* Critical doorbell interrupt          */
-    PPC_INTERRUPT_DOORBELL  = 13, /* Doorbell interrupt                   */
-    PPC_INTERRUPT_PERFM     = 14, /* Performance monitor interrupt        */
+    PPC_INTERRUPT_DECR,           /* Decrementer exception                */
+    PPC_INTERRUPT_HDECR,          /* Hypervisor decrementer exception     */
+    PPC_INTERRUPT_PIT,            /* Programmable inteval timer interrupt */
+    PPC_INTERRUPT_FIT,            /* Fixed interval timer interrupt       */
+    PPC_INTERRUPT_WDT,            /* Watchdog timer interrupt             */
+    PPC_INTERRUPT_CDOORBELL,      /* Critical doorbell interrupt          */
+    PPC_INTERRUPT_DOORBELL,       /* Doorbell interrupt                   */
+    PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
 };
 
 /*****************************************************************************/

@@ -196,7 +196,7 @@ void do_vfp_get_fpscr(void)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
+void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
@@ -207,7 +207,7 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    ret = cpu_arm_handle_mmu_fault(env, addr, is_write, is_user, 1);
+    ret = cpu_arm_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (__builtin_expect(ret, 0)) {
         if (retaddr) {
             /* now we have a real cpu fault */

@@ -53,7 +53,7 @@ static uint32_t *gen_opparam_ptr;
 
 #include "gen-op.h"
 
-static inline void gen_set_T0 (target_ulong val)
+static always_inline void gen_set_T0 (target_ulong val)
 {
 #if defined(TARGET_PPC64)
     if (val >> 32)
@@ -63,7 +63,7 @@ static inline void gen_set_T0 (target_ulong val)
         gen_op_set_T0(val);
 }
 
-static inline void gen_set_T1 (target_ulong val)
+static always_inline void gen_set_T1 (target_ulong val)
 {
 #if defined(TARGET_PPC64)
     if (val >> 32)
@@ -78,7 +78,7 @@ static GenOpFunc *NAME ## _table [8] = {                                      \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
 NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
 };                                                                            \
-static inline void func(int n)                                                \
+static always_inline void func (int n)                                        \
 {                                                                             \
     NAME ## _table[n]();                                                      \
 }
@@ -90,7 +90,7 @@ NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
 NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
 NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
 };                                                                            \
-static inline void func(int n)                                                \
+static always_inline void func (int n)                                        \
 {                                                                             \
     NAME ## _table[n]();                                                      \
 }
@@ -106,7 +106,7 @@ NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
 NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
 NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
 };                                                                            \
-static inline void func(int n)                                                \
+static always_inline void func (int n)                                        \
 {                                                                             \
     NAME ## _table[n]();                                                      \
 }
@@ -121,7 +121,7 @@ GEN8(gen_op_store_T1_crf, gen_op_store_T1_crf_crf);
 GEN8(gen_op_load_fpscr_T0, gen_op_load_fpscr_T0_fpscr);
 GEN8(gen_op_store_T0_fpscr, gen_op_store_T0_fpscr_fpscr);
 GEN8(gen_op_clear_fpscr, gen_op_clear_fpscr_fpscr);
-static inline void gen_op_store_T0_fpscri (int n, uint8_t param)
+static always_inline void gen_op_store_T0_fpscri (int n, uint8_t param)
 {
     gen_op_set_T0(param);
     gen_op_store_T0_fpscr(n);
@@ -164,6 +164,7 @@ typedef struct DisasContext {
     int sf_mode;
 #endif
     int fpu_enabled;
+    int altivec_enabled;
 #if defined(TARGET_PPCEMB)
     int spe_enabled;
 #endif
@@ -187,7 +188,7 @@ struct opc_handler_t {
 #endif
 };
 
-static inline void gen_set_Rc0 (DisasContext *ctx)
+static always_inline void gen_set_Rc0 (DisasContext *ctx)
 {
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode)
@@ -198,7 +199,7 @@ static inline void gen_set_Rc0 (DisasContext *ctx)
     gen_op_set_Rc0();
 }
 
-static inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
+static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
 {
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode)
@@ -235,15 +236,18 @@ GEN_EXCP(ctx, POWERPC_EXCP_FPU, 0)
 #define GEN_EXCP_NO_AP(ctx)                                                   \
 GEN_EXCP(ctx, POWERPC_EXCP_APU, 0)
 
+#define GEN_EXCP_NO_VR(ctx)                                                   \
+GEN_EXCP(ctx, POWERPC_EXCP_VPU, 0)
+
 /* Stop translation */
-static inline void GEN_STOP (DisasContext *ctx)
+static always_inline void GEN_STOP (DisasContext *ctx)
 {
     gen_update_nip(ctx, ctx->nip);
     ctx->exception = POWERPC_EXCP_STOP;
 }
 
 /* No need to update nip here, as execution flow will change */
-static inline void GEN_SYNC (DisasContext *ctx)
+static always_inline void GEN_SYNC (DisasContext *ctx)
 {
     ctx->exception = POWERPC_EXCP_SYNC;
 }
@@ -267,13 +271,13 @@ typedef struct opcode_t {
 /*****************************************************************************/
 /***                           Instruction decoding                        ***/
 #define EXTRACT_HELPER(name, shift, nb)                                       \
-static inline uint32_t name (uint32_t opcode)                                 \
+static always_inline uint32_t name (uint32_t opcode)                          \
 {                                                                             \
     return (opcode >> (shift)) & ((1 << (nb)) - 1);                           \
 }
 
 #define EXTRACT_SHELPER(name, shift, nb)                                      \
-static inline int32_t name (uint32_t opcode)                                  \
+static always_inline int32_t name (uint32_t opcode)                           \
 {                                                                             \
     return (int16_t)((opcode >> (shift)) & ((1 << (nb)) - 1));                \
 }
@@ -304,7 +308,7 @@ EXTRACT_HELPER(crbA, 16, 5);
 EXTRACT_HELPER(crbB, 11, 5);
 /* SPR / TBL */
 EXTRACT_HELPER(_SPR, 11, 10);
-static inline uint32_t SPR (uint32_t opcode)
+static always_inline uint32_t SPR (uint32_t opcode)
 {
     uint32_t sprn = _SPR(opcode);
 
@@ -336,12 +340,12 @@ EXTRACT_HELPER(FPIMM, 20, 4);
 /* Displacement */
 EXTRACT_SHELPER(d, 0, 16);
 /* Immediate address */
-static inline target_ulong LI (uint32_t opcode)
+static always_inline target_ulong LI (uint32_t opcode)
 {
     return (opcode >> 0) & 0x03FFFFFC;
 }
 
-static inline uint32_t BD (uint32_t opcode)
+static always_inline uint32_t BD (uint32_t opcode)
 {
     return (opcode >> 0) & 0xFFFC;
 }
@@ -354,7 +358,7 @@ EXTRACT_HELPER(AA, 1, 1);
 EXTRACT_HELPER(LK, 0, 1);
 
 /* Create a mask between <start> and <end> bits */
-static inline target_ulong MASK (uint32_t start, uint32_t end)
+static always_inline target_ulong MASK (uint32_t start, uint32_t end)
 {
     target_ulong ret;
 
@@ -694,7 +698,7 @@ __GEN_INT_ARITH1_O_64(name##o, opc1, opc2, opc3 | 0x10, type)
 #endif
 
 /* add    add.    addo    addo.    */
-static inline void gen_op_addo (void)
+static always_inline void gen_op_addo (void)
 {
     gen_op_move_T2_T0();
     gen_op_add();
@@ -702,7 +706,7 @@ static inline void gen_op_addo (void)
 }
 #if defined(TARGET_PPC64)
 #define gen_op_add_64 gen_op_add
-static inline void gen_op_addo_64 (void)
+static always_inline void gen_op_addo_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_add();
@@ -711,13 +715,13 @@ static inline void gen_op_addo_64 (void)
 #endif
 GEN_INT_ARITH2_64 (add,    0x1F, 0x0A, 0x08, PPC_INTEGER);
 /* addc   addc.   addco   addco.   */
-static inline void gen_op_addc (void)
+static always_inline void gen_op_addc (void)
 {
     gen_op_move_T2_T0();
     gen_op_add();
     gen_op_check_addc();
 }
-static inline void gen_op_addco (void)
+static always_inline void gen_op_addco (void)
 {
     gen_op_move_T2_T0();
     gen_op_add();
@@ -725,13 +729,13 @@ static inline void gen_op_addco (void)
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
-static inline void gen_op_addc_64 (void)
+static always_inline void gen_op_addc_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_add();
     gen_op_check_addc_64();
 }
-static inline void gen_op_addco_64 (void)
+static always_inline void gen_op_addco_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_add();
@@ -741,14 +745,14 @@ static inline void gen_op_addco_64 (void)
 #endif
 GEN_INT_ARITH2_64 (addc,   0x1F, 0x0A, 0x00, PPC_INTEGER);
 /* adde   adde.   addeo   addeo.   */
-static inline void gen_op_addeo (void)
+static always_inline void gen_op_addeo (void)
 {
     gen_op_move_T2_T0();
     gen_op_adde();
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
-static inline void gen_op_addeo_64 (void)
+static always_inline void gen_op_addeo_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_adde_64();
@@ -757,13 +761,13 @@ static inline void gen_op_addeo_64 (void)
 #endif
 GEN_INT_ARITH2_64 (adde,   0x1F, 0x0A, 0x04, PPC_INTEGER);
 /* addme  addme.  addmeo  addmeo.  */
-static inline void gen_op_addme (void)
+static always_inline void gen_op_addme (void)
 {
     gen_op_move_T1_T0();
     gen_op_add_me();
 }
 #if defined(TARGET_PPC64)
-static inline void gen_op_addme_64 (void)
+static always_inline void gen_op_addme_64 (void)
 {
     gen_op_move_T1_T0();
     gen_op_add_me_64();
@@ -771,13 +775,13 @@ static inline void gen_op_addme_64 (void)
 #endif
 GEN_INT_ARITH1_64 (addme,  0x1F, 0x0A, 0x07, PPC_INTEGER);
 /* addze  addze.  addzeo  addzeo.  */
-static inline void gen_op_addze (void)
+static always_inline void gen_op_addze (void)
 {
     gen_op_move_T2_T0();
     gen_op_add_ze();
     gen_op_check_addc();
 }
-static inline void gen_op_addzeo (void)
+static always_inline void gen_op_addzeo (void)
 {
     gen_op_move_T2_T0();
     gen_op_add_ze();
@@ -785,13 +789,13 @@ static inline void gen_op_addzeo (void)
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
-static inline void gen_op_addze_64 (void)
+static always_inline void gen_op_addze_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_add_ze();
     gen_op_check_addc_64();
 }
-static inline void gen_op_addzeo_64 (void)
+static always_inline void gen_op_addzeo_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_add_ze();
@@ -813,7 +817,7 @@ GEN_INT_ARITH2 (mullw,  0x1F, 0x0B, 0x07, PPC_INTEGER);
 /* neg    neg.    nego    nego.    */
 GEN_INT_ARITH1_64 (neg,    0x1F, 0x08, 0x03, PPC_INTEGER);
 /* subf   subf.   subfo   subfo.   */
-static inline void gen_op_subfo (void)
+static always_inline void gen_op_subfo (void)
 {
     gen_op_move_T2_T0();
     gen_op_subf();
@@ -821,7 +825,7 @@ static inline void gen_op_subfo (void)
 }
 #if defined(TARGET_PPC64)
 #define gen_op_subf_64 gen_op_subf
-static inline void gen_op_subfo_64 (void)
+static always_inline void gen_op_subfo_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_subf();
@@ -830,12 +834,12 @@ static inline void gen_op_subfo_64 (void)
 #endif
 GEN_INT_ARITH2_64 (subf,   0x1F, 0x08, 0x01, PPC_INTEGER);
 /* subfc  subfc.  subfco  subfco.  */
-static inline void gen_op_subfc (void)
+static always_inline void gen_op_subfc (void)
 {
     gen_op_subf();
     gen_op_check_subfc();
 }
-static inline void gen_op_subfco (void)
+static always_inline void gen_op_subfco (void)
 {
     gen_op_move_T2_T0();
     gen_op_subf();
@@ -843,12 +847,12 @@ static inline void gen_op_subfco (void)
     gen_op_check_subfo();
 }
 #if defined(TARGET_PPC64)
-static inline void gen_op_subfc_64 (void)
+static always_inline void gen_op_subfc_64 (void)
 {
     gen_op_subf();
     gen_op_check_subfc_64();
 }
-static inline void gen_op_subfco_64 (void)
+static always_inline void gen_op_subfco_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_subf();
@@ -858,7 +862,7 @@ static inline void gen_op_subfco_64 (void)
 #endif
 GEN_INT_ARITH2_64 (subfc,  0x1F, 0x08, 0x00, PPC_INTEGER);
 /* subfe  subfe.  subfeo  subfeo.  */
-static inline void gen_op_subfeo (void)
+static always_inline void gen_op_subfeo (void)
 {
     gen_op_move_T2_T0();
     gen_op_subfe();
@@ -866,7 +870,7 @@ static inline void gen_op_subfeo (void)
 }
 #if defined(TARGET_PPC64)
 #define gen_op_subfe_64 gen_op_subfe
-static inline void gen_op_subfeo_64 (void)
+static always_inline void gen_op_subfeo_64 (void)
 {
     gen_op_move_T2_T0();
     gen_op_subfe_64();
@@ -1407,7 +1411,7 @@ GEN_HANDLER(name##3, opc1, opc2 | 0x11, 0xFF, 0x00000000, PPC_64B)            \
     gen_##name(ctx, 1, 1);                                                    \
 }
 
-static inline void gen_andi_T0_64 (DisasContext *ctx, uint64_t mask)
+static always_inline void gen_andi_T0_64 (DisasContext *ctx, uint64_t mask)
 {
     if (mask >> 32)
         gen_op_andi_T0_64(mask >> 32, mask & 0xFFFFFFFF);
@@ -1415,7 +1419,7 @@ static inline void gen_andi_T0_64 (DisasContext *ctx, uint64_t mask)
         gen_op_andi_T0(mask);
 }
 
-static inline void gen_andi_T1_64 (DisasContext *ctx, uint64_t mask)
+static always_inline void gen_andi_T1_64 (DisasContext *ctx, uint64_t mask)
 {
     if (mask >> 32)
         gen_op_andi_T1_64(mask >> 32, mask & 0xFFFFFFFF);
@@ -1423,8 +1427,8 @@ static inline void gen_andi_T1_64 (DisasContext *ctx, uint64_t mask)
         gen_op_andi_T1(mask);
 }
 
-static inline void gen_rldinm (DisasContext *ctx, uint32_t mb, uint32_t me,
-                               uint32_t sh)
+static always_inline void gen_rldinm (DisasContext *ctx, uint32_t mb,
+                                      uint32_t me, uint32_t sh)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
     if (likely(sh == 0)) {
@@ -1453,7 +1457,7 @@ static inline void gen_rldinm (DisasContext *ctx, uint32_t mb, uint32_t me,
         gen_set_Rc0(ctx);
 }
 /* rldicl - rldicl. */
-static inline void gen_rldicl (DisasContext *ctx, int mbn, int shn)
+static always_inline void gen_rldicl (DisasContext *ctx, int mbn, int shn)
 {
     uint32_t sh, mb;
 
@@ -1463,7 +1467,7 @@ static inline void gen_rldicl (DisasContext *ctx, int mbn, int shn)
 }
 GEN_PPC64_R4(rldicl, 0x1E, 0x00);
 /* rldicr - rldicr. */
-static inline void gen_rldicr (DisasContext *ctx, int men, int shn)
+static always_inline void gen_rldicr (DisasContext *ctx, int men, int shn)
 {
     uint32_t sh, me;
 
@@ -1473,7 +1477,7 @@ static inline void gen_rldicr (DisasContext *ctx, int men, int shn)
 }
 GEN_PPC64_R4(rldicr, 0x1E, 0x02);
 /* rldic - rldic. */
-static inline void gen_rldic (DisasContext *ctx, int mbn, int shn)
+static always_inline void gen_rldic (DisasContext *ctx, int mbn, int shn)
 {
     uint32_t sh, mb;
 
@@ -1483,7 +1487,8 @@ static inline void gen_rldic (DisasContext *ctx, int mbn, int shn)
 }
 GEN_PPC64_R4(rldic, 0x1E, 0x04);
 
-static inline void gen_rldnm (DisasContext *ctx, uint32_t mb, uint32_t me)
+static always_inline void gen_rldnm (DisasContext *ctx, uint32_t mb,
+                                     uint32_t me)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rB(ctx->opcode));
@@ -1497,7 +1502,7 @@ static inline void gen_rldnm (DisasContext *ctx, uint32_t mb, uint32_t me)
 }
 
 /* rldcl - rldcl. */
-static inline void gen_rldcl (DisasContext *ctx, int mbn)
+static always_inline void gen_rldcl (DisasContext *ctx, int mbn)
 {
     uint32_t mb;
 
@@ -1506,7 +1511,7 @@ static inline void gen_rldcl (DisasContext *ctx, int mbn)
 }
 GEN_PPC64_R2(rldcl, 0x1E, 0x08);
 /* rldcr - rldcr. */
-static inline void gen_rldcr (DisasContext *ctx, int men)
+static always_inline void gen_rldcr (DisasContext *ctx, int men)
 {
     uint32_t me;
 
@@ -1515,7 +1520,7 @@ static inline void gen_rldcr (DisasContext *ctx, int men)
 }
 GEN_PPC64_R2(rldcr, 0x1E, 0x09);
 /* rldimi - rldimi. */
-static inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
+static always_inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
 {
     uint64_t mask;
     uint32_t sh, mb;
@@ -1583,7 +1588,7 @@ __GEN_LOGICAL2(sld, 0x1B, 0x00, PPC_64B);
 /* srad & srad. */
 __GEN_LOGICAL2(srad, 0x1A, 0x18, PPC_64B);
 /* sradi & sradi. */
-static inline void gen_sradi (DisasContext *ctx, int n)
+static always_inline void gen_sradi (DisasContext *ctx, int n)
 {
     uint64_t mask;
     int sh, mb, me;
@@ -1937,7 +1942,8 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 
 /***                           Addressing modes                            ***/
 /* Register indirect with immediate index : EA = (rA|0) + SIMM */
-static inline void gen_addr_imm_index (DisasContext *ctx, target_long maskl)
+static always_inline void gen_addr_imm_index (DisasContext *ctx,
+                                              target_long maskl)
 {
     target_long simm = SIMM(ctx->opcode);
 
@@ -1954,7 +1960,7 @@ static inline void gen_addr_imm_index (DisasContext *ctx, target_long maskl)
 #endif
 }
 
-static inline void gen_addr_reg_index (DisasContext *ctx)
+static always_inline void gen_addr_reg_index (DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
         gen_op_load_gpr_T0(rB(ctx->opcode));
@@ -1968,7 +1974,7 @@ static inline void gen_addr_reg_index (DisasContext *ctx)
 #endif
 }
 
-static inline void gen_addr_register (DisasContext *ctx)
+static always_inline void gen_addr_register (DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
         gen_op_reset_T0();
@@ -2964,7 +2970,8 @@ OP_ST_TABLE(fiwx);
 GEN_STXF(fiwx, 0x17, 0x1E, PPC_FLOAT_STFIWX);
 
 /***                                Branch                                 ***/
-static inline void gen_goto_tb (DisasContext *ctx, int n, target_ulong dest)
+static always_inline void gen_goto_tb (DisasContext *ctx, int n,
+                                       target_ulong dest)
 {
     TranslationBlock *tb;
     tb = ctx->tb;
@@ -2999,7 +3006,7 @@ static inline void gen_goto_tb (DisasContext *ctx, int n, target_ulong dest)
     }
 }
 
-static inline void gen_setlr (DisasContext *ctx, target_ulong nip)
+static always_inline void gen_setlr (DisasContext *ctx, target_ulong nip)
 {
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode != 0 && (nip >> 32))
@@ -3039,7 +3046,7 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 #define BCOND_LR  1
 #define BCOND_CTR 2
 
-static inline void gen_bcond (DisasContext *ctx, int type)
+static always_inline void gen_bcond (DisasContext *ctx, int type)
 {
     target_ulong target = 0;
     target_ulong li;
@@ -3290,16 +3297,17 @@ GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64B)
 #endif
 
 /* sc */
+#if defined(CONFIG_USER_ONLY)
+#define POWERPC_SYSCALL POWERPC_EXCP_SYSCALL_USER
+#else
+#define POWERPC_SYSCALL POWERPC_EXCP_SYSCALL
+#endif
 GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFF01D, PPC_FLOW)
 {
     uint32_t lev;
 
     lev = (ctx->opcode >> 5) & 0x7F;
-#if defined(CONFIG_USER_ONLY)
-    GEN_EXCP(ctx, POWERPC_EXCP_SYSCALL_USER, lev);
-#else
-    GEN_EXCP(ctx, POWERPC_EXCP_SYSCALL, lev);
-#endif
+    GEN_EXCP(ctx, POWERPC_SYSCALL, lev);
 }
 
 /***                                Trap                                   ***/
@@ -3399,7 +3407,7 @@ static void spr_noaccess (void *opaque, int sprn)
 #endif
 
 /* mfspr */
-static inline void gen_op_mfspr (DisasContext *ctx)
+static always_inline void gen_op_mfspr (DisasContext *ctx)
 {
     void (*read_cb)(void *opaque, int sprn);
     uint32_t sprn = SPR(ctx->opcode);
@@ -3765,7 +3773,8 @@ static GenOpFunc *gen_op_dcbz[4][4] = {
 #endif
 #endif
 
-static inline void handler_dcbz (DisasContext *ctx, int dcache_line_size)
+static always_inline void handler_dcbz (DisasContext *ctx,
+                                        int dcache_line_size)
 {
     int n;
 
@@ -4913,8 +4922,9 @@ GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_BOOKE_EXT)
 }
 
 /* All 405 MAC instructions are translated here */
-static inline void gen_405_mulladd_insn (DisasContext *ctx, int opc2, int opc3,
-                                         int ra, int rb, int rt, int Rc)
+static always_inline void gen_405_mulladd_insn (DisasContext *ctx,
+                                                int opc2, int opc3,
+                                                int ra, int rb, int rt, int Rc)
 {
     gen_op_load_gpr_T0(ra);
     gen_op_load_gpr_T1(rb);
@@ -5525,6 +5535,161 @@ GEN_HANDLER(icbt_440, 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
      */
 }
 
+/***                      Altivec vector extension                         ***/
+/* Altivec registers moves */
+GEN32(gen_op_load_avr_A0, gen_op_load_avr_A0_avr);
+GEN32(gen_op_load_avr_A1, gen_op_load_avr_A1_avr);
+GEN32(gen_op_load_avr_A2, gen_op_load_avr_A2_avr);
+
+GEN32(gen_op_store_A0_avr, gen_op_store_A0_avr_avr);
+GEN32(gen_op_store_A1_avr, gen_op_store_A1_avr_avr);
+#if 0 // unused
+GEN32(gen_op_store_A2_avr, gen_op_store_A2_avr_avr);
+#endif
+
+#define op_vr_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+#if defined(TARGET_PPC64)
+/* User-mode only - 64 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_raw,                                                 \
+    &gen_op_vr_l##name##_le_raw,                                              \
+    &gen_op_vr_l##name##_64_raw,                                              \
+    &gen_op_vr_l##name##_le_64_raw,                                           \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_raw,                                                \
+    &gen_op_vr_st##name##_le_raw,                                             \
+    &gen_op_vr_st##name##_64_raw,                                             \
+    &gen_op_vr_st##name##_le_64_raw,                                          \
+};
+#else /* defined(TARGET_PPC64) */
+/* User-mode only - 32 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_raw,                                                 \
+    &gen_op_vr_l##name##_le_raw,                                              \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_raw,                                                \
+    &gen_op_vr_st##name##_le_raw,                                             \
+};
+#endif /* defined(TARGET_PPC64) */
+#else /* defined(CONFIG_USER_ONLY) */
+#if defined(TARGET_PPC64H)
+/* Full system with hypervisor mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_user,                                                \
+    &gen_op_vr_l##name##_le_user,                                             \
+    &gen_op_vr_l##name##_64_user,                                             \
+    &gen_op_vr_l##name##_le_64_user,                                          \
+    &gen_op_vr_l##name##_kernel,                                              \
+    &gen_op_vr_l##name##_le_kernel,                                           \
+    &gen_op_vr_l##name##_64_kernel,                                           \
+    &gen_op_vr_l##name##_le_64_kernel,                                        \
+    &gen_op_vr_l##name##_hypv,                                                \
+    &gen_op_vr_l##name##_le_hypv,                                             \
+    &gen_op_vr_l##name##_64_hypv,                                             \
+    &gen_op_vr_l##name##_le_64_hypv,                                          \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_user,                                               \
+    &gen_op_vr_st##name##_le_user,                                            \
+    &gen_op_vr_st##name##_64_user,                                            \
+    &gen_op_vr_st##name##_le_64_user,                                         \
+    &gen_op_vr_st##name##_kernel,                                             \
+    &gen_op_vr_st##name##_le_kernel,                                          \
+    &gen_op_vr_st##name##_64_kernel,                                          \
+    &gen_op_vr_st##name##_le_64_kernel,                                       \
+    &gen_op_vr_st##name##_hypv,                                               \
+    &gen_op_vr_st##name##_le_hypv,                                            \
+    &gen_op_vr_st##name##_64_hypv,                                            \
+    &gen_op_vr_st##name##_le_64_hypv,                                         \
+};
+#elif defined(TARGET_PPC64)
+/* Full system - 64 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_user,                                                \
+    &gen_op_vr_l##name##_le_user,                                             \
+    &gen_op_vr_l##name##_64_user,                                             \
+    &gen_op_vr_l##name##_le_64_user,                                          \
+    &gen_op_vr_l##name##_kernel,                                              \
+    &gen_op_vr_l##name##_le_kernel,                                           \
+    &gen_op_vr_l##name##_64_kernel,                                           \
+    &gen_op_vr_l##name##_le_64_kernel,                                        \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_user,                                               \
+    &gen_op_vr_st##name##_le_user,                                            \
+    &gen_op_vr_st##name##_64_user,                                            \
+    &gen_op_vr_st##name##_le_64_user,                                         \
+    &gen_op_vr_st##name##_kernel,                                             \
+    &gen_op_vr_st##name##_le_kernel,                                          \
+    &gen_op_vr_st##name##_64_kernel,                                          \
+    &gen_op_vr_st##name##_le_64_kernel,                                       \
+};
+#else /* defined(TARGET_PPC64) */
+/* Full system - 32 bits mode */
+#define OP_VR_LD_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_l##name[] = {                                     \
+    &gen_op_vr_l##name##_user,                                                \
+    &gen_op_vr_l##name##_le_user,                                             \
+    &gen_op_vr_l##name##_kernel,                                              \
+    &gen_op_vr_l##name##_le_kernel,                                           \
+};
+#define OP_VR_ST_TABLE(name)                                                  \
+static GenOpFunc *gen_op_vr_st##name[] = {                                    \
+    &gen_op_vr_st##name##_user,                                               \
+    &gen_op_vr_st##name##_le_user,                                            \
+    &gen_op_vr_st##name##_kernel,                                             \
+    &gen_op_vr_st##name##_le_kernel,                                          \
+};
+#endif /* defined(TARGET_PPC64) */
+#endif /* defined(CONFIG_USER_ONLY) */
+
+#define GEN_VR_LDX(name, opc2, opc3)                                          \
+GEN_HANDLER(l##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)               \
+{                                                                             \
+    if (unlikely(!ctx->altivec_enabled)) {                                    \
+        GEN_EXCP_NO_VR(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_reg_index(ctx);                                                  \
+    op_vr_ldst(vr_l##name);                                                   \
+    gen_op_store_A0_avr(rD(ctx->opcode));                                     \
+}
+
+#define GEN_VR_STX(name, opc2, opc3)                                          \
+GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)              \
+{                                                                             \
+    if (unlikely(!ctx->altivec_enabled)) {                                    \
+        GEN_EXCP_NO_VR(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    gen_addr_reg_index(ctx);                                                  \
+    gen_op_load_avr_A0(rS(ctx->opcode));                                      \
+    op_vr_ldst(vr_st##name);                                                  \
+}
+
+OP_VR_LD_TABLE(vx);
+GEN_VR_LDX(vx, 0x07, 0x03);
+/* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
+#define gen_op_vr_lvxl gen_op_vr_lvx
+GEN_VR_LDX(vxl, 0x07, 0x0B);
+
+OP_VR_ST_TABLE(vx);
+GEN_VR_STX(vx, 0x07, 0x07);
+/* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
+#define gen_op_vr_stvxl gen_op_vr_stvx
+GEN_VR_STX(vxl, 0x07, 0x0F);
+
 #if defined(TARGET_PPCEMB)
 /***                           SPE extension                               ***/
 
@@ -5551,13 +5716,13 @@ GEN_HANDLER(name0##_##name1, 0x04, opc2, opc3, inval, type)                   \
 }
 
 /* Handler for undefined SPE opcodes */
-static inline void gen_speundef (DisasContext *ctx)
+static always_inline void gen_speundef (DisasContext *ctx)
 {
     GEN_EXCP_INVAL(ctx);
 }
 
 /* SPE load and stores */
-static inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
+static always_inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
 {
     target_long simm = rB(ctx->opcode);
 
@@ -5678,7 +5843,7 @@ static GenOpFunc *gen_op_spe_st##name[] = {                                   \
 #endif /* defined(CONFIG_USER_ONLY) */
 
 #define GEN_SPE_LD(name, sh)                                                  \
-static inline void gen_evl##name (DisasContext *ctx)                          \
+static always_inline void gen_evl##name (DisasContext *ctx)                   \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5690,7 +5855,7 @@ static inline void gen_evl##name (DisasContext *ctx)                          \
 }
 
 #define GEN_SPE_LDX(name)                                                     \
-static inline void gen_evl##name##x (DisasContext *ctx)                       \
+static always_inline void gen_evl##name##x (DisasContext *ctx)                \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5707,7 +5872,7 @@ GEN_SPE_LD(name, sh);                                                         \
 GEN_SPE_LDX(name)
 
 #define GEN_SPE_ST(name, sh)                                                  \
-static inline void gen_evst##name (DisasContext *ctx)                         \
+static always_inline void gen_evst##name (DisasContext *ctx)                  \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5719,7 +5884,7 @@ static inline void gen_evst##name (DisasContext *ctx)                         \
 }
 
 #define GEN_SPE_STX(name)                                                     \
-static inline void gen_evst##name##x (DisasContext *ctx)                      \
+static always_inline void gen_evst##name##x (DisasContext *ctx)               \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5741,7 +5906,7 @@ GEN_SPEOP_ST(name, sh)
 
 /* SPE arithmetic and logic */
 #define GEN_SPEOP_ARITH2(name)                                                \
-static inline void gen_##name (DisasContext *ctx)                             \
+static always_inline void gen_##name (DisasContext *ctx)                      \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5754,7 +5919,7 @@ static inline void gen_##name (DisasContext *ctx)                             \
 }
 
 #define GEN_SPEOP_ARITH1(name)                                                \
-static inline void gen_##name (DisasContext *ctx)                             \
+static always_inline void gen_##name (DisasContext *ctx)                      \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5766,7 +5931,7 @@ static inline void gen_##name (DisasContext *ctx)                             \
 }
 
 #define GEN_SPEOP_COMP(name)                                                  \
-static inline void gen_##name (DisasContext *ctx)                             \
+static always_inline void gen_##name (DisasContext *ctx)                      \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5806,7 +5971,7 @@ GEN_SPEOP_ARITH1(evextsh);
 GEN_SPEOP_ARITH1(evrndw);
 GEN_SPEOP_ARITH1(evcntlzw);
 GEN_SPEOP_ARITH1(evcntlsw);
-static inline void gen_brinc (DisasContext *ctx)
+static always_inline void gen_brinc (DisasContext *ctx)
 {
     /* Note: brinc is usable even if SPE is disabled */
     gen_op_load_gpr64_T0(rA(ctx->opcode));
@@ -5816,7 +5981,7 @@ static inline void gen_brinc (DisasContext *ctx)
 }
 
 #define GEN_SPEOP_ARITH_IMM2(name)                                            \
-static inline void gen_##name##i (DisasContext *ctx)                          \
+static always_inline void gen_##name##i (DisasContext *ctx)                   \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5829,7 +5994,7 @@ static inline void gen_##name##i (DisasContext *ctx)                          \
 }
 
 #define GEN_SPEOP_LOGIC_IMM2(name)                                            \
-static inline void gen_##name##i (DisasContext *ctx)                          \
+static always_inline void gen_##name##i (DisasContext *ctx)                   \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
         GEN_EXCP_NO_AP(ctx);                                                  \
@@ -5852,7 +6017,7 @@ GEN_SPEOP_LOGIC_IMM2(evsrws);
 #define gen_evsrwiu gen_evsrwui
 GEN_SPEOP_LOGIC_IMM2(evrlw);
 
-static inline void gen_evsplati (DisasContext *ctx)
+static always_inline void gen_evsplati (DisasContext *ctx)
 {
     int32_t imm = (int32_t)(rA(ctx->opcode) << 27) >> 27;
 
@@ -5860,7 +6025,7 @@ static inline void gen_evsplati (DisasContext *ctx)
     gen_op_store_T0_gpr64(rD(ctx->opcode));
 }
 
-static inline void gen_evsplatfi (DisasContext *ctx)
+static always_inline void gen_evsplatfi (DisasContext *ctx)
 {
     uint32_t imm = rA(ctx->opcode) << 27;
 
@@ -5901,7 +6066,7 @@ GEN_SPE(evcmpgtu,       evcmpgts,      0x18, 0x08, 0x00600000, PPC_SPE); ////
 GEN_SPE(evcmpltu,       evcmplts,      0x19, 0x08, 0x00600000, PPC_SPE); ////
 GEN_SPE(evcmpeq,        speundef,      0x1A, 0x08, 0x00600000, PPC_SPE); ////
 
-static inline void gen_evsel (DisasContext *ctx)
+static always_inline void gen_evsel (DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
         GEN_EXCP_NO_AP(ctx);
@@ -5991,13 +6156,13 @@ GEN_SPEOP_ST(who, 2);
 #endif
 #endif
 #define _GEN_OP_SPE_STWWE(suffix)                                             \
-static inline void gen_op_spe_stwwe_##suffix (void)                           \
+static always_inline void gen_op_spe_stwwe_##suffix (void)                    \
 {                                                                             \
     gen_op_srli32_T1_64();                                                    \
     gen_op_spe_stwwo_##suffix();                                              \
 }
 #define _GEN_OP_SPE_STWWE_LE(suffix)                                          \
-static inline void gen_op_spe_stwwe_le_##suffix (void)                        \
+static always_inline void gen_op_spe_stwwe_le_##suffix (void)                 \
 {                                                                             \
     gen_op_srli32_T1_64();                                                    \
     gen_op_spe_stwwo_le_##suffix();                                           \
@@ -6006,12 +6171,12 @@ static inline void gen_op_spe_stwwe_le_##suffix (void)                        \
 #define GEN_OP_SPE_STWWE(suffix)                                              \
 _GEN_OP_SPE_STWWE(suffix);                                                    \
 _GEN_OP_SPE_STWWE_LE(suffix);                                                 \
-static inline void gen_op_spe_stwwe_64_##suffix (void)                        \
+static always_inline void gen_op_spe_stwwe_64_##suffix (void)                 \
 {                                                                             \
     gen_op_srli32_T1_64();                                                    \
     gen_op_spe_stwwo_64_##suffix();                                           \
 }                                                                             \
-static inline void gen_op_spe_stwwe_le_64_##suffix (void)                     \
+static always_inline void gen_op_spe_stwwe_le_64_##suffix (void)              \
 {                                                                             \
     gen_op_srli32_T1_64();                                                    \
     gen_op_spe_stwwo_le_64_##suffix();                                        \
@@ -6031,21 +6196,21 @@ GEN_SPEOP_ST(wwe, 2);
 GEN_SPEOP_ST(wwo, 2);
 
 #define GEN_SPE_LDSPLAT(name, op, suffix)                                     \
-static inline void gen_op_spe_l##name##_##suffix (void)                       \
+static always_inline void gen_op_spe_l##name##_##suffix (void)                \
 {                                                                             \
     gen_op_##op##_##suffix();                                                 \
     gen_op_splatw_T1_64();                                                    \
 }
 
 #define GEN_OP_SPE_LHE(suffix)                                                \
-static inline void gen_op_spe_lhe_##suffix (void)                             \
+static always_inline void gen_op_spe_lhe_##suffix (void)                      \
 {                                                                             \
     gen_op_spe_lh_##suffix();                                                 \
     gen_op_sli16_T1_64();                                                     \
 }
 
 #define GEN_OP_SPE_LHX(suffix)                                                \
-static inline void gen_op_spe_lhx_##suffix (void)                             \
+static always_inline void gen_op_spe_lhx_##suffix (void)                      \
 {                                                                             \
     gen_op_spe_lh_##suffix();                                                 \
     gen_op_extsh_T1_64();                                                     \
@@ -6221,7 +6386,7 @@ GEN_SPE(speundef,       evmwsmfan,     0x0D, 0x17, 0x00000000, PPC_SPE);
 
 /***                      SPE floating-point extension                     ***/
 #define GEN_SPEFPUOP_CONV(name)                                               \
-static inline void gen_##name (DisasContext *ctx)                             \
+static always_inline void gen_##name (DisasContext *ctx)                      \
 {                                                                             \
     gen_op_load_gpr64_T0(rB(ctx->opcode));                                    \
     gen_op_##name();                                                          \
@@ -6376,7 +6541,7 @@ GEN_OPCODE_MARK(end);
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */
-static inline uint32_t load_xer (CPUState *env)
+static always_inline uint32_t load_xer (CPUState *env)
 {
     return (xer_so << XER_SO) |
         (xer_ov << XER_OV) |
@@ -6448,9 +6613,11 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }
+#if !defined(CONFIG_USER_ONLY)
     cpu_fprintf(f, "SRR0 " REGX " SRR1 " REGX "         " FILL FILL FILL
                 "SDR1 " REGX "\n",
                 env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
+#endif
 
 #undef RGPL
 #undef RFPL
@@ -6505,15 +6672,16 @@ void cpu_dump_statistics (CPUState *env, FILE*f,
 }
 
 /*****************************************************************************/
-static inline int gen_intermediate_code_internal (CPUState *env,
-                                                  TranslationBlock *tb,
-                                                  int search_pc)
+static always_inline int gen_intermediate_code_internal (CPUState *env,
+                                                         TranslationBlock *tb,
+                                                         int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int supervisor;
+    int single_step, branch_step;
     int j, lj = -1;
 
     pc_start = tb->pc;
@@ -6525,15 +6693,8 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
-#if defined(CONFIG_USER_ONLY)
-    supervisor = 0;
-#else
-#if defined(TARGET_PPC64H)
-    if (msr_pr == 0 && msr_hv == 1)
-        supervisor = 2;
-    else
-#endif
-        supervisor = 1 - msr_pr;
+    supervisor = env->mmu_idx;
+#if !defined(CONFIG_USER_ONLY)
     ctx.supervisor = supervisor;
 #endif
 #if defined(TARGET_PPC64)
@@ -6545,9 +6706,24 @@ static inline int gen_intermediate_code_internal (CPUState *env,
     ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
 #if defined(TARGET_PPCEMB)
-    ctx.spe_enabled = msr_spe;
+    if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
+        ctx.spe_enabled = msr_spe;
+    else
+        ctx.spe_enabled = 0;
 #endif
-    ctx.singlestep_enabled = env->singlestep_enabled;
+    if ((env->flags & POWERPC_FLAG_VRE) && msr_vr)
+        ctx.altivec_enabled = msr_vr;
+    else
+        ctx.altivec_enabled = 0;
+    if ((env->flags & POWERPC_FLAG_SE) && msr_se)
+        single_step = 1;
+    else
+        single_step = 0;
+    if ((env->flags & POWERPC_FLAG_BE) && msr_be)
+        branch_step = 1;
+    else
+        branch_step = 0;
+    ctx.singlestep_enabled = env->singlestep_enabled || single_step == 1;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
@@ -6642,30 +6818,20 @@ static inline int gen_intermediate_code_internal (CPUState *env,
         handler->count++;
 #endif
         /* Check trace mode exceptions */
-#if 0 // XXX: buggy on embedded PowerPC
-        if (unlikely((msr_be && ctx.exception == POWERPC_EXCP_BRANCH) ||
-                     /* Check in single step trace mode
-                      * we need to stop except if:
-                      * - rfi, trap or syscall
-                      * - first instruction of an exception handler
-                      */
-                     (msr_se && (ctx.nip < 0x100 ||
-                                 ctx.nip > 0xF00 ||
-                                 (ctx.nip & 0xFC) != 0x04) &&
-#if defined(CONFIG_USER_ONLY)
-                      ctx.exception != POWERPC_EXCP_SYSCALL_USER &&
-#else
-                      ctx.exception != POWERPC_EXCP_SYSCALL &&
-#endif
-                      ctx.exception != POWERPC_EXCP_TRAP))) {
+        if (unlikely(branch_step != 0 &&
+                     ctx.exception == POWERPC_EXCP_BRANCH)) {
             GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
-        }
-#endif
-        /* if we reach a page boundary or are single stepping, stop
-         * generation
-         */
-        if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
-                     (env->singlestep_enabled))) {
+        } else if (unlikely(single_step != 0 &&
+                            (ctx.nip <= 0x100 || ctx.nip > 0xF00 ||
+                             (ctx.nip & 0xFC) != 0x04) &&
+                            ctx.exception != POWERPC_SYSCALL &&
+                            ctx.exception != POWERPC_EXCP_TRAP)) {
+            GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
+        } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
+                            (env->singlestep_enabled))) {
+            /* if we reach a page boundary or are single stepping, stop
+             * generation
+             */
             break;
         }
 #if defined (DO_SINGLE_STEP)

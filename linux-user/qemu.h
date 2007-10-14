@@ -17,18 +17,18 @@
  * task_struct fields in the kernel
  */
 struct image_info {
-        target_ulong    load_addr;
-	unsigned long	start_code;
-	unsigned long	end_code;
-        unsigned long   start_data;
-	unsigned long	end_data;
-	unsigned long	start_brk;
-	unsigned long	brk;
-	unsigned long	start_mmap;
-	unsigned long	mmap;
-	unsigned long	rss;
-	unsigned long	start_stack;
-	unsigned long	entry;
+	target_ulong	load_addr;
+	target_ulong	start_code;
+	target_ulong	end_code;
+        target_ulong    start_data;
+	target_ulong	end_data;
+	target_ulong	start_brk;
+	target_ulong	brk;
+	target_ulong	start_mmap;
+	target_ulong	mmap;
+	target_ulong	rss;
+	target_ulong	start_stack;
+	target_ulong	entry;
         target_ulong    code_offset;
         target_ulong    data_offset;
         char            **host_argv;
@@ -105,7 +105,7 @@ extern const char *qemu_uname_release;
 struct linux_binprm {
         char buf[128];
         void *page[MAX_ARG_PAGES];
-        unsigned long p;
+        target_ulong p;
 	int fd;
         int e_uid, e_gid;
         int argc, envc;
@@ -124,6 +124,11 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                     struct image_info * info);
 int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                     struct image_info * info);
+#ifdef TARGET_HAS_ELFLOAD32
+int load_elf_binary_multi(struct linux_binprm *bprm,
+                          struct target_pt_regs *regs,
+                          struct image_info *info);
+#endif
 
 void memcpy_to_target(target_ulong dest, const void *src,
                       unsigned long len);

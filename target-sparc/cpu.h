@@ -166,6 +166,8 @@
 
 typedef struct sparc_def_t sparc_def_t;
 
+#define NB_MMU_MODES 2
+
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
@@ -315,6 +317,16 @@ void cpu_check_irqs(CPUSPARCState *env);
 #define cpu_exec cpu_sparc_exec
 #define cpu_gen_code cpu_sparc_gen_code
 #define cpu_signal_handler cpu_sparc_signal_handler
+#define cpu_list sparc_cpu_list
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return env->psrs == 0 ? 1 : 0;
+}
 
 #include "cpu-all.h"
 

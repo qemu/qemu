@@ -300,36 +300,41 @@ EXCP  ?  Altivec, ...
    needed registers.
 
 PowerPC 7441:
-INSN  KO Altivec missing + TLB load insns missing
+INSN  KO Altivec missing
 SPR   OK
 MSR   OK
 IRQ   OK
-MMU   KO not implemented
+MMU   OK
 EXCP  ?  Altivec, ...
+Linux does not have the code to handle TLB miss on this CPU
+
 
 PowerPC 7450/7451:
-INSN  KO Altivec missing + TLB load insns missing
+INSN  KO Altivec missing
 SPR   OK
 MSR   OK
 IRQ   OK
-MMU   KO not implemented
+MMU   OK
 EXCP  ?  Altivec, ...
+Linux does not have the code to handle TLB miss on this CPU
 
 PowerPC 7445/7447:
-INSN  KO Altivec missing + TLB load insns missing
+INSN  KO Altivec missing
 SPR   OK
 MSR   OK
 IRQ   OK
-MMU   KO not implemented
+MMU   OK
 EXCP  ?  Altivec, ...
+Linux does not have the code to handle TLB miss on this CPU
 
 PowerPC 7455/7457:
-INSN  KO Altivec missing + TLB load insns missing
+INSN  KO Altivec missing
 SPR   OK
 MSR   OK
 IRQ   OK
-MMU   KO not implemented
+MMU   OK
 EXCP  ?  Altivec, ...
+Linux does not have the code to handle TLB miss on this CPU
 
 64 bits PowerPC
 PowerPC 620: (disabled)
@@ -340,21 +345,41 @@ IRQ   KO
 MMU   KO
 EXCP  KO
 
-PowerPC 970: (disabled)
+PowerPC 970:
 INSN  KO Altivec missing and more
 SPR   KO
 MSR   ?
 IRQ   OK
-MMU   KO partially implemented
-EXCP  KO
+MMU   OK
+EXCP  KO partially implemented
+Should be able to boot but there is no hw platform currently emulated.
 
-PowerPC 970FX: (disabled)
+PowerPC 970FX:
 INSN  KO Altivec missing and more
 SPR   KO
 MSR   ?
 IRQ   OK
-MMU   KO partially implemented
-EXCP  KO
+MMU   OK
+EXCP  KO partially implemented
+Should be able to boot but there is no hw platform currently emulated.
+
+PowerPC 970GX:
+INSN  KO Altivec missing and more
+SPR   KO
+MSR   ?
+IRQ   OK
+MMU   OK
+EXCP  KO partially implemented
+Should be able to boot but there is no hw platform currently emulated.
+
+PowerPC Cell:
+INSN  KO Altivec missing and more
+SPR   KO
+MSR   ?
+IRQ   ?
+MMU   ?
+EXCP  ? partially implemented
+As the core is mostly a 970, should be able to boot. SPE are not implemented.
 
 PowerPC 630: (disabled: lack of detailed specifications)
 INSN  KO
@@ -465,12 +490,17 @@ EXCP  KO
 PowerPC microcontrollers emulation status
 
 Implemementation should be sufficient to boot Linux:
+(there seem to be problems with uboot freezing at some point)
 - PowerPC 405CR
 - PowerPC 405EP
 
 TODO:
 - More PowerPC 40x microcontrollers emulation
-- PowerQUICC microcontrollers emulation
+- PowerPC 440 microcontrollers emulation
+- e200 microcontrollers emulation
+- e300 microcontrollers emulation
+- e500 microcontrollers emulation
+- e600 microcontrollers emulation
 
 ===============================================================================
 PowerPC based platforms emulation status

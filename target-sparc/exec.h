@@ -115,7 +115,7 @@ static inline void regs_to_env(void)
 }
 
 int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu);
+                               int mmu_idx, int is_softmmu);
 
 static inline int cpu_halted(CPUState *env) {
     if (!env->halted)

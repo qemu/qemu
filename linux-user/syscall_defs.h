@@ -49,7 +49,7 @@
 #define TARGET_IOC_TYPEBITS	8
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
-    || defined(TARGET_M68K) || defined(TARGET_ALPHA)
+    || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -289,7 +289,7 @@ struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined (TARGET_SH4) || defined(TARGET_M68K) || defined(TARGET_ALPHA)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined (TARGET_SH4) || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS)
 
 #if defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP    8u
@@ -884,7 +884,7 @@ struct target_winsize {
 #define TARGET_MAP_NONBLOCK	0x10000		/* do not block on IO */
 #endif
 
-#if defined(TARGET_I386) || defined(TARGET_ARM)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_CRIS)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;

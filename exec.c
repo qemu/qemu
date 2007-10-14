@@ -1609,7 +1609,7 @@ static inline void tlb_set_dirty(CPUState *env,
    conflicting with the host address space). */
 int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
                       target_phys_addr_t paddr, int prot,
-                      int is_user, int is_softmmu)
+                      int mmu_idx, int is_softmmu)
 {
     PhysPageDesc *p;
     unsigned long pd;
@@ -1627,8 +1627,8 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
         pd = p->phys_offset;
     }
 #if defined(DEBUG_TLB)
-    printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d smmu=%d pd=0x%08lx\n",
-           vaddr, (int)paddr, prot, is_user, is_softmmu, pd);
+    printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x idx=%d smmu=%d pd=0x%08lx\n",
+           vaddr, (int)paddr, prot, mmu_idx, is_softmmu, pd);
 #endif
 
     ret = 0;
@@ -1665,7 +1665,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
 
         index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         addend -= vaddr;
-        te = &env->tlb_table[is_user][index];
+        te = &env->tlb_table[mmu_idx][index];
         te->addend = addend;
         if (prot & PAGE_READ) {
             te->addr_read = address;
@@ -1791,7 +1791,7 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 
 int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
                       target_phys_addr_t paddr, int prot,
-                      int is_user, int is_softmmu)
+                      int mmu_idx, int is_softmmu)
 {
     return 0;
 }
@@ -2104,6 +2104,8 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 #endif
 #ifdef TARGET_SPARC
     do_unassigned_access(addr, 0, 0, 0);
+#elif TARGET_CRIS
+    do_unassigned_access(addr, 0, 0, 0);
 #endif
     return 0;
 }
@@ -2117,6 +2119,8 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
     //~ vm_stop(0);
 #endif
 #ifdef TARGET_SPARC
+    do_unassigned_access(addr, 1, 0, 0);
+#elif TARGET_CRIS
     do_unassigned_access(addr, 1, 0, 0);
 #endif
 }

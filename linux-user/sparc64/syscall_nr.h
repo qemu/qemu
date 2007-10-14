@@ -29,11 +29,11 @@
 #define TARGET_NR_sigaltstack	 28 /* Common					   */
 #define TARGET_NR_pause               29 /* Is sigblock(0)->sigpause() in SunOS         */
 #define TARGET_NR_utime               30 /* Implemented via utimes() under SunOS        */
-/* #define TARGET_NR_lchown32         31    Linux sparc32 specific                      */
-/* #define TARGET_NR_fchown32         32    Linux sparc32 specific                      */
+#define TARGET_NR_lchown32            31 /* Linux sparc32 specific                      */
+#define TARGET_NR_fchown32            32 /* Linux sparc32 specific                      */
 #define TARGET_NR_access              33 /* Common                                      */
 #define TARGET_NR_nice                34 /* Implemented via get/setpriority() in SunOS  */
-/* #define TARGET_NR_chown32          35    Linux sparc32 specific                      */
+#define TARGET_NR_chown32             35 /*  Linux sparc32 specific                     */
 #define TARGET_NR_sync                36 /* Common                                      */
 #define TARGET_NR_kill                37 /* Common                                      */
 #define TARGET_NR_stat                38 /* Common                                      */
@@ -42,7 +42,7 @@
 #define TARGET_NR_dup                 41 /* Common                                      */
 #define TARGET_NR_pipe                42 /* Common                                      */
 #define TARGET_NR_times               43 /* Implemented via getrusage() in SunOS        */
-/* #define TARGET_NR_getuid32         44    Linux sparc32 specific                      */
+#define TARGET_NR_getuid32            44 /* Linux sparc32 specific                      */
 #define TARGET_NR_umount2             45 /* Linux Specific                              */
 #define TARGET_NR_setgid              46 /* Implemented via setregid() in SunOS         */
 #define TARGET_NR_getgid              47 /* Common                                      */
@@ -51,48 +51,48 @@
 #define TARGET_NR_getegid             50 /* SunOS calls getgid()                        */
 #define TARGET_NR_acct                51 /* Common                                      */
 #define TARGET_NR_memory_ordering	 52 /* Linux Specific				   */
-/* #define TARGET_NR_getgid32         53    Linux sparc32 specific                      */
+#define TARGET_NR_getgid32            53 /* Linux sparc32 specific                      */
 #define TARGET_NR_ioctl               54 /* Common                                      */
 #define TARGET_NR_reboot              55 /* Common                                      */
-/* #define TARGET_NR_mmap2		 56    Linux sparc32 Specific                      */
+#define TARGET_NR_mmap2		      56 /* Linux sparc32 Specific                      */
 #define TARGET_NR_symlink             57 /* Common                                      */
 #define TARGET_NR_readlink            58 /* Common                                      */
 #define TARGET_NR_execve              59 /* Common                                      */
 #define TARGET_NR_umask               60 /* Common                                      */
 #define TARGET_NR_chroot              61 /* Common                                      */
 #define TARGET_NR_fstat               62 /* Common                                      */
-/* #define TARGET_NR_fstat64          63    Linux sparc32 Specific                      */
+#define TARGET_NR_fstat64             63 /* Linux sparc32 Specific                      */
 #define TARGET_NR_getpagesize         64 /* Common                                      */
 #define TARGET_NR_msync               65 /* Common in newer 1.3.x revs...               */
 #define TARGET_NR_vfork               66 /* Common                                      */
 #define TARGET_NR_pread64             67 /* Linux Specific                              */
 #define TARGET_NR_pwrite64            68 /* Linux Specific                              */
-/* #define TARGET_NR_geteuid32        69    Linux sparc32, sbrk under SunOS             */
-/* #define TARGET_NR_getegid32        70    Linux sparc32, sstk under SunOS             */
+#define TARGET_NR_geteuid32           69 /* Linux sparc32, sbrk under SunOS             */
+#define TARGET_NR_getegid32           70 /* Linux sparc32, sstk under SunOS             */
 #define TARGET_NR_mmap                71 /* Common                                      */
-/* #define TARGET_NR_setreuid32       72    Linux sparc32, vadvise under SunOS          */
+#define TARGET_NR_setreuid32          72 /* Linux sparc32, vadvise under SunOS          */
 #define TARGET_NR_munmap              73 /* Common                                      */
 #define TARGET_NR_mprotect            74 /* Common                                      */
 #define TARGET_NR_madvise             75 /* Common                                      */
 #define TARGET_NR_vhangup             76 /* Common                                      */
-/* #define TARGET_NR_truncate64       77    Linux sparc32 Specific			   */
+#define TARGET_NR_truncate64          77 /* Linux sparc32 Specific			*/
 #define TARGET_NR_mincore             78 /* Common                                      */
 #define TARGET_NR_getgroups           79 /* Common                                      */
 #define TARGET_NR_setgroups           80 /* Common                                      */
 #define TARGET_NR_getpgrp             81 /* Common                                      */
-/* #define TARGET_NR_setgroups32      82    Linux sparc32, setpgrp under SunOS          */
+#define TARGET_NR_setgroups32         82 /* Linux sparc32, setpgrp under SunOS          */
 #define TARGET_NR_setitimer           83 /* Common                                      */
-/* #define TARGET_NR_ftruncate64      84    Linux sparc32 Specific			   */
+#define TARGET_NR_ftruncate64         84 /* Linux sparc32 Specific                      */
 #define TARGET_NR_swapon              85 /* Common                                      */
 #define TARGET_NR_getitimer           86 /* Common                                      */
-/* #define TARGET_NR_setuid32         87    Linux sparc32, gethostname under SunOS      */
+#define TARGET_NR_setuid32            87 /* Linux sparc32, gethostname under SunOS      */
 #define TARGET_NR_sethostname         88 /* Common                                      */
-/* #define TARGET_NR_setgid32         89    Linux sparc32, getdtablesize under SunOS    */
+#define TARGET_NR_setgid32            89 /* Linux sparc32, getdtablesize under SunOS    */
 #define TARGET_NR_dup2                90 /* Common                                      */
-/* #define TARGET_NR_setfsuid32       91    Linux sparc32, getdopt under SunOS          */
+#define TARGET_NR_setfsuid32          91 /* Linux sparc32, getdopt under SunOS          */
 #define TARGET_NR_fcntl               92 /* Common                                      */
 #define TARGET_NR_select              93 /* Common                                      */
-/* #define TARGET_NR_setfsgid32       94    Linux sparc32, setdopt under SunOS          */
+#define TARGET_NR_setfsgid32          94 /* Linux sparc32, setdopt under SunOS          */
 #define TARGET_NR_fsync               95 /* Common                                      */
 #define TARGET_NR_setpriority         96 /* Common                                      */
 #define TARGET_NR_socket              97 /* Common                                      */
@@ -110,10 +110,10 @@
 #define TARGET_NR_getresuid          109 /* Linux Specific, sigblock under SunOS	   */
 #define TARGET_NR_setresgid          110 /* Linux Specific, sigsetmask under SunOS	   */
 #define TARGET_NR_getresgid          111 /* Linux Specific, sigpause under SunOS	   */
-/* #define TARGET_NR_setregid32       75    Linux sparc32, sigstack under SunOS         */
+/* #define TARGET_NR_setregid32          75  Linux sparc32, sigstack under SunOS         */
 #define TARGET_NR_recvmsg            113 /* Common                                      */
 #define TARGET_NR_sendmsg            114 /* Common                                      */
-/* #define TARGET_NR_getgroups32     115    Linux sparc32, vtrace under SunOS           */
+#define TARGET_NR_getgroups32        115 /* Linux sparc32, vtrace under SunOS           */
 #define TARGET_NR_gettimeofday       116 /* Common                                      */
 #define TARGET_NR_getrusage          117 /* Common                                      */
 #define TARGET_NR_getsockopt         118 /* Common                                      */
@@ -130,14 +130,14 @@
 #define TARGET_NR_truncate           129 /* Common                                      */
 #define TARGET_NR_ftruncate          130 /* Common                                      */
 #define TARGET_NR_flock              131 /* Common                                      */
-/* #define TARGET_NR_lstat64		132    Linux sparc32 Specific                      */
+#define TARGET_NR_lstat64	     132 /* Linux sparc32 Specific                      */
 #define TARGET_NR_sendto             133 /* Common                                      */
 #define TARGET_NR_shutdown           134 /* Common                                      */
 #define TARGET_NR_socketpair         135 /* Common                                      */
 #define TARGET_NR_mkdir              136 /* Common                                      */
 #define TARGET_NR_rmdir              137 /* Common                                      */
 #define TARGET_NR_utimes             138 /* SunOS Specific                              */
-/* #define TARGET_NR_stat64		139    Linux sparc32 Specific			   */
+#define TARGET_NR_stat64	     139 /* Linux sparc32 Specific			   */
 #define TARGET_NR_sendfile64         140 /* adjtime under SunOS                         */
 #define TARGET_NR_getpeername        141 /* Common                                      */
 #define TARGET_NR_futex              142 /* gethostid under SunOS                       */
@@ -153,7 +153,7 @@
 /* #define TARGET_NR_putmsg          152    SunOS Specific                              */
 #define TARGET_NR_poll               153 /* Common                                      */
 #define TARGET_NR_getdents64		154 /* Linux specific				   */
-/* #define TARGET_NR_fcntl64         155    Linux sparc32 Specific                      */
+#define TARGET_NR_fcntl64            155 /* Linux sparc32 Specific                      */
 /* #define TARGET_NR_getdirentries   156    SunOS Specific                              */
 #define TARGET_NR_statfs             157 /* Common                                      */
 #define TARGET_NR_fstatfs            158 /* Common                                      */
@@ -229,9 +229,7 @@
 #define TARGET_NR_setfsuid           228 /* Linux Specific                              */
 #define TARGET_NR_setfsgid           229 /* Linux Specific                              */
 #define TARGET_NR__newselect         230 /* Linux Specific                              */
-#ifdef __KERNEL__
-#define TARGET_NR_time		231 /* Linux sparc32                               */
-#endif
+#define TARGET_NR_time               231 /* Linux sparc32                               */
 /* #define TARGET_NR_oldstat         232    Linux Specific                              */
 #define TARGET_NR_stime              233 /* Linux Specific                              */
 #define TARGET_NR_statfs64           234 /* Linux Specific                              */

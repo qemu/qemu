@@ -68,9 +68,10 @@ static CPUReadMemoryFunc *mips_qemu_read[] = {
 
 static int mips_qemu_iomemtype = 0;
 
-void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
-                      const char *kernel_cmdline,
-                      const char *initrd_filename)
+static void load_kernel (CPUState *env, int ram_size,
+                         const char *kernel_filename,
+                         const char *kernel_cmdline,
+                         const char *initrd_filename)
 {
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
@@ -138,8 +139,8 @@ static void main_cpu_reset(void *opaque)
     cpu_mips_register(env, NULL);
 
     if (env->kernel_filename)
-        mips_load_kernel (env, env->ram_size, env->kernel_filename,
-                          env->kernel_cmdline, env->initrd_filename);
+        load_kernel (env, env->ram_size, env->kernel_filename,
+                     env->kernel_cmdline, env->initrd_filename);
 }
 
 static void mips_init (int ram_size, int vga_ram_size, int boot_device,
@@ -204,8 +205,8 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     if (kernel_filename) {
-        mips_load_kernel (env, ram_size, kernel_filename, kernel_cmdline,
-                          initrd_filename);
+        load_kernel (env, ram_size, kernel_filename, kernel_cmdline,
+                     initrd_filename);
 	env->ram_size = ram_size;
 	env->kernel_filename = kernel_filename;
 	env->kernel_cmdline = kernel_cmdline;

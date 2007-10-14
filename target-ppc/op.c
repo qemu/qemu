@@ -120,7 +120,6 @@
 #define REG 31
 #include "op_template.h"
 
-
 void OPPROTO op_print_mem_EA (void)
 {
     do_print_mem_EA(T0);
@@ -1426,7 +1425,6 @@ void OPPROTO op_andi_T1_64 (void)
 }
 #endif
 
-
 /* count leading zero */
 void OPPROTO op_cntlzw (void)
 {
@@ -1921,6 +1919,11 @@ void OPPROTO op_fneg (void)
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_mem.h"
+#if defined(TARGET_PPC64H)
+#define MEMSUFFIX _hypv
+#include "op_helper.h"
+#include "op_mem.h"
+#endif
 #endif
 
 /* Special op to check and maybe clear reservation */

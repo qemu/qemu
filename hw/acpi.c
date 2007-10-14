@@ -400,7 +400,7 @@ static void pm_io_space_update(PIIX4PMState *s)
 
     if (s->dev.config[0x80] & 1) {
         pm_io_base = le32_to_cpu(*(uint32_t *)(s->dev.config + 0x40));
-        pm_io_base &= 0xfffe;
+        pm_io_base &= 0xffc0;
 
         /* XXX: need to improve memory and ioport allocation */
 #if defined(DEBUG)
@@ -474,6 +474,8 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
     pci_conf[0x01] = 0x80;
     pci_conf[0x02] = 0x13;
     pci_conf[0x03] = 0x71;
+    pci_conf[0x06] = 0x80;
+    pci_conf[0x07] = 0x02;
     pci_conf[0x08] = 0x00; // revision number
     pci_conf[0x09] = 0x00;
     pci_conf[0x0a] = 0x80; // other bridge device

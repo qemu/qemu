@@ -534,7 +534,7 @@ void OPPROTO op_tadd_T1_T0_ccTV(void)
          ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
         raise_exception(TT_TOVF);
 #else
-    if ((src1 & 0x03) || (T1 & 0x03))
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
         raise_exception(TT_TOVF);
 #endif
 

@@ -140,18 +140,14 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         }
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-/*
-   XXX: Assuming :
-   - PABITS = 36 (correct for MIPS64R1)
-*/
-    } else if (address < 0x3FFFFFFFFFFFFFFFULL) {
+    } else if (address < 0x4000000000000000ULL) {
         /* xuseg */
         if (UX && address < (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         } else {
             ret = TLBRET_BADADDR;
         }
-    } else if (address < 0x7FFFFFFFFFFFFFFFULL) {
+    } else if (address < 0x8000000000000000ULL) {
         /* xsseg */
         if ((supervisor_mode || kernel_mode) &&
             SX && address < (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
@@ -159,19 +155,20 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         } else {
             ret = TLBRET_BADADDR;
         }
-    } else if (address < 0xBFFFFFFFFFFFFFFFULL) {
+    } else if (address < 0xC000000000000000ULL) {
         /* xkphys */
+        /* XXX: Assumes PABITS = 36 (correct for MIPS64R1) */
         if (kernel_mode && KX &&
-            (address & 0x07FFFFFFFFFFFFFFULL) < 0X0000000FFFFFFFFFULL) {
-            *physical = address & 0X0000000FFFFFFFFFULL;
+            (address & 0x07FFFFFFFFFFFFFFULL) < 0x0000000FFFFFFFFFULL) {
+            *physical = address & 0x0000000FFFFFFFFFULL;
             *prot = PAGE_READ;
             if (rw) {
                 *prot |= PAGE_WRITE;
             }
-        } else {
-            ret = TLBRET_BADADDR;
-        }
-    } else if (address < 0xFFFFFFFF7FFFFFFFULL) {
+	} else {
+	    ret = TLBRET_BADADDR;
+	}
+    } else if (address < 0xFFFFFFFF80000000ULL) {
         /* xkseg */
         if (kernel_mode && KX &&
             address < (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
@@ -203,7 +200,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             ret = TLBRET_BADADDR;
         }
     } else if (address < (int32_t)0xE0000000UL) {
-        /* sseg */
+        /* sseg (kseg2) */
         if (supervisor_mode || kernel_mode) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         } else {
@@ -250,7 +247,7 @@ void cpu_mips_init_mmu (CPUState *env)
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int is_user, int is_softmmu)
+                               int mmu_idx, int is_softmmu)
 {
     target_ulong physical;
     int prot;
@@ -262,8 +259,8 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if 0
         cpu_dump_state(env, logfile, fprintf, 0);
 #endif
-        fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d is_user %d smmu %d\n",
-                __func__, env->PC[env->current_tc], address, rw, is_user, is_softmmu);
+        fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d smmu %d\n",
+                __func__, env->PC[env->current_tc], address, rw, mmu_idx, is_softmmu);
     }
 
     rw &= 1;
@@ -286,7 +283,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     if (ret == TLBRET_MATCH) {
        ret = tlb_set_page(env, address & TARGET_PAGE_MASK,
                           physical & TARGET_PAGE_MASK, prot,
-                          is_user, is_softmmu);
+                          mmu_idx, is_softmmu);
     } else if (ret < 0) {
     do_fault:
         switch (ret) {

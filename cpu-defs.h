@@ -112,15 +112,6 @@ typedef struct CPUTLBEntry {
     target_phys_addr_t addend;
 } CPUTLBEntry;
 
-/* Alpha has 4 different running levels */
-#if defined(TARGET_ALPHA)
-#define NB_MMU_MODES 4
-#elif defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
-#define NB_MMU_MODES 3
-#else
-#define NB_MMU_MODES 2
-#endif
-
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
     /* soft mmu support */                                              \

@@ -140,11 +140,15 @@ void OPPROTO op_tb_flush (void)
 #define MEMSUFFIX _raw
 #include "op_mem.h"
 #if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_mem.h"
 #define MEMSUFFIX _kernel
 #include "op_mem.h"
-/* Those are used for supervisor, executive and pal modes */
+#define MEMSUFFIX _executive
+#include "op_mem.h"
+#define MEMSUFFIX _supervisor
+#include "op_mem.h"
+#define MEMSUFFIX _user
+#include "op_mem.h"
+/* This is used for pal modes */
 #define MEMSUFFIX _data
 #include "op_mem.h"
 #endif

@@ -31,6 +31,11 @@
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_helper_mem.h"
+#if defined(TARGET_PPC64H)
+#define MEMSUFFIX _hypv
+#include "op_helper.h"
+#include "op_helper_mem.h"
+#endif
 #endif
 
 //#define DEBUG_OP
@@ -601,7 +606,7 @@ void do_srad (void)
 }
 #endif
 
-static inline int popcnt (uint32_t val)
+static always_inline int popcnt (uint32_t val)
 {
     int i;
 
@@ -707,7 +712,7 @@ void do_fctidz (void)
 
 #endif
 
-static inline void do_fri (int rounding_mode)
+static always_inline void do_fri (int rounding_mode)
 {
     int curmode;
 
@@ -1430,12 +1435,12 @@ static uint8_t hbrev[16] = {
     0x1, 0x9, 0x5, 0xD, 0x3, 0xB, 0x7, 0xF,
 };
 
-static inline uint8_t byte_reverse (uint8_t val)
+static always_inline uint8_t byte_reverse (uint8_t val)
 {
     return hbrev[val >> 4] | (hbrev[val & 0xF] << 4);
 }
 
-static inline uint32_t word_reverse (uint32_t val)
+static always_inline uint32_t word_reverse (uint32_t val)
 {
     return byte_reverse(val >> 24) | (byte_reverse(val >> 16) << 8) |
         (byte_reverse(val >> 8) << 16) | (byte_reverse(val) << 24);
@@ -1468,7 +1473,7 @@ void do_ev##name (void)                                                       \
 }
 
 /* Fixed-point vector arithmetic */
-static inline uint32_t _do_eabs (uint32_t val)
+static always_inline uint32_t _do_eabs (uint32_t val)
 {
     if (val != 0x80000000)
         val &= ~0x80000000;
@@ -1476,12 +1481,12 @@ static inline uint32_t _do_eabs (uint32_t val)
     return val;
 }
 
-static inline uint32_t _do_eaddw (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_eaddw (uint32_t op1, uint32_t op2)
 {
     return op1 + op2;
 }
 
-static inline int _do_ecntlsw (uint32_t val)
+static always_inline int _do_ecntlsw (uint32_t val)
 {
     if (val & 0x80000000)
         return _do_cntlzw(~val);
@@ -1489,12 +1494,12 @@ static inline int _do_ecntlsw (uint32_t val)
         return _do_cntlzw(val);
 }
 
-static inline int _do_ecntlzw (uint32_t val)
+static always_inline int _do_ecntlzw (uint32_t val)
 {
     return _do_cntlzw(val);
 }
 
-static inline uint32_t _do_eneg (uint32_t val)
+static always_inline uint32_t _do_eneg (uint32_t val)
 {
     if (val != 0x80000000)
         val ^= 0x80000000;
@@ -1502,35 +1507,35 @@ static inline uint32_t _do_eneg (uint32_t val)
     return val;
 }
 
-static inline uint32_t _do_erlw (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_erlw (uint32_t op1, uint32_t op2)
 {
     return rotl32(op1, op2);
 }
 
-static inline uint32_t _do_erndw (uint32_t val)
+static always_inline uint32_t _do_erndw (uint32_t val)
 {
     return (val + 0x000080000000) & 0xFFFF0000;
 }
 
-static inline uint32_t _do_eslw (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_eslw (uint32_t op1, uint32_t op2)
 {
     /* No error here: 6 bits are used */
     return op1 << (op2 & 0x3F);
 }
 
-static inline int32_t _do_esrws (int32_t op1, uint32_t op2)
+static always_inline int32_t _do_esrws (int32_t op1, uint32_t op2)
 {
     /* No error here: 6 bits are used */
     return op1 >> (op2 & 0x3F);
 }
 
-static inline uint32_t _do_esrwu (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_esrwu (uint32_t op1, uint32_t op2)
 {
     /* No error here: 6 bits are used */
     return op1 >> (op2 & 0x3F);
 }
 
-static inline uint32_t _do_esubfw (uint32_t op1, uint32_t op2)
+static always_inline uint32_t _do_esubfw (uint32_t op1, uint32_t op2)
 {
     return op2 - op1;
 }
@@ -1559,7 +1564,7 @@ DO_SPE_OP2(srwu);
 DO_SPE_OP2(subfw);
 
 /* evsel is a little bit more complicated... */
-static inline uint32_t _do_esel (uint32_t op1, uint32_t op2, int n)
+static always_inline uint32_t _do_esel (uint32_t op1, uint32_t op2, int n)
 {
     if (n)
         return op1;
@@ -1582,31 +1587,31 @@ void do_ev##name (void)                                                       \
                          _do_e##name(T0_64, T1_64));                          \
 }
 
-static inline uint32_t _do_evcmp_merge (int t0, int t1)
+static always_inline uint32_t _do_evcmp_merge (int t0, int t1)
 {
     return (t0 << 3) | (t1 << 2) | ((t0 | t1) << 1) | (t0 & t1);
 }
-static inline int _do_ecmpeq (uint32_t op1, uint32_t op2)
+static always_inline int _do_ecmpeq (uint32_t op1, uint32_t op2)
 {
     return op1 == op2 ? 1 : 0;
 }
 
-static inline int _do_ecmpgts (int32_t op1, int32_t op2)
+static always_inline int _do_ecmpgts (int32_t op1, int32_t op2)
 {
     return op1 > op2 ? 1 : 0;
 }
 
-static inline int _do_ecmpgtu (uint32_t op1, uint32_t op2)
+static always_inline int _do_ecmpgtu (uint32_t op1, uint32_t op2)
 {
     return op1 > op2 ? 1 : 0;
 }
 
-static inline int _do_ecmplts (int32_t op1, int32_t op2)
+static always_inline int _do_ecmplts (int32_t op1, int32_t op2)
 {
     return op1 < op2 ? 1 : 0;
 }
 
-static inline int _do_ecmpltu (uint32_t op1, uint32_t op2)
+static always_inline int _do_ecmpltu (uint32_t op1, uint32_t op2)
 {
     return op1 < op2 ? 1 : 0;
 }
@@ -1623,7 +1628,7 @@ DO_SPE_CMP(cmplts);
 DO_SPE_CMP(cmpltu);
 
 /* Single precision floating-point conversions from/to integer */
-static inline uint32_t _do_efscfsi (int32_t val)
+static always_inline uint32_t _do_efscfsi (int32_t val)
 {
     union {
         uint32_t u;
@@ -1635,7 +1640,7 @@ static inline uint32_t _do_efscfsi (int32_t val)
     return u.u;
 }
 
-static inline uint32_t _do_efscfui (uint32_t val)
+static always_inline uint32_t _do_efscfui (uint32_t val)
 {
     union {
         uint32_t u;
@@ -1647,7 +1652,7 @@ static inline uint32_t _do_efscfui (uint32_t val)
     return u.u;
 }
 
-static inline int32_t _do_efsctsi (uint32_t val)
+static always_inline int32_t _do_efsctsi (uint32_t val)
 {
     union {
         int32_t u;
@@ -1662,7 +1667,7 @@ static inline int32_t _do_efsctsi (uint32_t val)
     return float32_to_int32(u.f, &env->spe_status);
 }
 
-static inline uint32_t _do_efsctui (uint32_t val)
+static always_inline uint32_t _do_efsctui (uint32_t val)
 {
     union {
         int32_t u;
@@ -1677,7 +1682,7 @@ static inline uint32_t _do_efsctui (uint32_t val)
     return float32_to_uint32(u.f, &env->spe_status);
 }
 
-static inline int32_t _do_efsctsiz (uint32_t val)
+static always_inline int32_t _do_efsctsiz (uint32_t val)
 {
     union {
         int32_t u;
@@ -1692,7 +1697,7 @@ static inline int32_t _do_efsctsiz (uint32_t val)
     return float32_to_int32_round_to_zero(u.f, &env->spe_status);
 }
 
-static inline uint32_t _do_efsctuiz (uint32_t val)
+static always_inline uint32_t _do_efsctuiz (uint32_t val)
 {
     union {
         int32_t u;
@@ -1738,7 +1743,7 @@ void do_efsctuiz (void)
 }
 
 /* Single precision floating-point conversion to/from fractional */
-static inline uint32_t _do_efscfsf (uint32_t val)
+static always_inline uint32_t _do_efscfsf (uint32_t val)
 {
     union {
         uint32_t u;
@@ -1753,7 +1758,7 @@ static inline uint32_t _do_efscfsf (uint32_t val)
     return u.u;
 }
 
-static inline uint32_t _do_efscfuf (uint32_t val)
+static always_inline uint32_t _do_efscfuf (uint32_t val)
 {
     union {
         uint32_t u;
@@ -1768,7 +1773,7 @@ static inline uint32_t _do_efscfuf (uint32_t val)
     return u.u;
 }
 
-static inline int32_t _do_efsctsf (uint32_t val)
+static always_inline int32_t _do_efsctsf (uint32_t val)
 {
     union {
         int32_t u;
@@ -1786,7 +1791,7 @@ static inline int32_t _do_efsctsf (uint32_t val)
     return float32_to_int32(u.f, &env->spe_status);
 }
 
-static inline uint32_t _do_efsctuf (uint32_t val)
+static always_inline uint32_t _do_efsctuf (uint32_t val)
 {
     union {
         int32_t u;
@@ -1804,7 +1809,7 @@ static inline uint32_t _do_efsctuf (uint32_t val)
     return float32_to_uint32(u.f, &env->spe_status);
 }
 
-static inline int32_t _do_efsctsfz (uint32_t val)
+static always_inline int32_t _do_efsctsfz (uint32_t val)
 {
     union {
         int32_t u;
@@ -1822,7 +1827,7 @@ static inline int32_t _do_efsctsfz (uint32_t val)
     return float32_to_int32_round_to_zero(u.f, &env->spe_status);
 }
 
-static inline uint32_t _do_efsctufz (uint32_t val)
+static always_inline uint32_t _do_efsctufz (uint32_t val)
 {
     union {
         int32_t u;
@@ -1871,19 +1876,19 @@ void do_efsctufz (void)
 }
 
 /* Double precision floating point helpers */
-static inline int _do_efdcmplt (uint64_t op1, uint64_t op2)
+static always_inline int _do_efdcmplt (uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return _do_efdtstlt(op1, op2);
 }
 
-static inline int _do_efdcmpgt (uint64_t op1, uint64_t op2)
+static always_inline int _do_efdcmpgt (uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return _do_efdtstgt(op1, op2);
 }
 
-static inline int _do_efdcmpeq (uint64_t op1, uint64_t op2)
+static always_inline int _do_efdcmpeq (uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return _do_efdtsteq(op1, op2);
@@ -1905,7 +1910,7 @@ void do_efdcmpeq (void)
 }
 
 /* Double precision floating-point conversion to/from integer */
-static inline uint64_t _do_efdcfsi (int64_t val)
+static always_inline uint64_t _do_efdcfsi (int64_t val)
 {
     union {
         uint64_t u;
@@ -1917,7 +1922,7 @@ static inline uint64_t _do_efdcfsi (int64_t val)
     return u.u;
 }
 
-static inline uint64_t _do_efdcfui (uint64_t val)
+static always_inline uint64_t _do_efdcfui (uint64_t val)
 {
     union {
         uint64_t u;
@@ -1929,7 +1934,7 @@ static inline uint64_t _do_efdcfui (uint64_t val)
     return u.u;
 }
 
-static inline int64_t _do_efdctsi (uint64_t val)
+static always_inline int64_t _do_efdctsi (uint64_t val)
 {
     union {
         int64_t u;
@@ -1944,7 +1949,7 @@ static inline int64_t _do_efdctsi (uint64_t val)
     return float64_to_int64(u.f, &env->spe_status);
 }
 
-static inline uint64_t _do_efdctui (uint64_t val)
+static always_inline uint64_t _do_efdctui (uint64_t val)
 {
     union {
         int64_t u;
@@ -1959,7 +1964,7 @@ static inline uint64_t _do_efdctui (uint64_t val)
     return float64_to_uint64(u.f, &env->spe_status);
 }
 
-static inline int64_t _do_efdctsiz (uint64_t val)
+static always_inline int64_t _do_efdctsiz (uint64_t val)
 {
     union {
         int64_t u;
@@ -1974,7 +1979,7 @@ static inline int64_t _do_efdctsiz (uint64_t val)
     return float64_to_int64_round_to_zero(u.f, &env->spe_status);
 }
 
-static inline uint64_t _do_efdctuiz (uint64_t val)
+static always_inline uint64_t _do_efdctuiz (uint64_t val)
 {
     union {
         int64_t u;
@@ -2020,7 +2025,7 @@ void do_efdctuiz (void)
 }
 
 /* Double precision floating-point conversion to/from fractional */
-static inline uint64_t _do_efdcfsf (int64_t val)
+static always_inline uint64_t _do_efdcfsf (int64_t val)
 {
     union {
         uint64_t u;
@@ -2035,7 +2040,7 @@ static inline uint64_t _do_efdcfsf (int64_t val)
     return u.u;
 }
 
-static inline uint64_t _do_efdcfuf (uint64_t val)
+static always_inline uint64_t _do_efdcfuf (uint64_t val)
 {
     union {
         uint64_t u;
@@ -2050,7 +2055,7 @@ static inline uint64_t _do_efdcfuf (uint64_t val)
     return u.u;
 }
 
-static inline int64_t _do_efdctsf (uint64_t val)
+static always_inline int64_t _do_efdctsf (uint64_t val)
 {
     union {
         int64_t u;
@@ -2068,7 +2073,7 @@ static inline int64_t _do_efdctsf (uint64_t val)
     return float64_to_int32(u.f, &env->spe_status);
 }
 
-static inline uint64_t _do_efdctuf (uint64_t val)
+static always_inline uint64_t _do_efdctuf (uint64_t val)
 {
     union {
         int64_t u;
@@ -2086,7 +2091,7 @@ static inline uint64_t _do_efdctuf (uint64_t val)
     return float64_to_uint32(u.f, &env->spe_status);
 }
 
-static inline int64_t _do_efdctsfz (uint64_t val)
+static always_inline int64_t _do_efdctsfz (uint64_t val)
 {
     union {
         int64_t u;
@@ -2104,7 +2109,7 @@ static inline int64_t _do_efdctsfz (uint64_t val)
     return float64_to_int32_round_to_zero(u.f, &env->spe_status);
 }
 
-static inline uint64_t _do_efdctufz (uint64_t val)
+static always_inline uint64_t _do_efdctufz (uint64_t val)
 {
     union {
         int64_t u;
@@ -2153,7 +2158,7 @@ void do_efdctufz (void)
 }
 
 /* Floating point conversion between single and double precision */
-static inline uint32_t _do_efscfd (uint64_t val)
+static always_inline uint32_t _do_efscfd (uint64_t val)
 {
     union {
         uint64_t u;
@@ -2170,7 +2175,7 @@ static inline uint32_t _do_efscfd (uint64_t val)
     return u2.u;
 }
 
-static inline uint64_t _do_efdcfs (uint32_t val)
+static always_inline uint64_t _do_efdcfs (uint32_t val)
 {
     union {
         uint64_t u;
@@ -2214,19 +2219,19 @@ DO_SPE_OP2(fsmul);
 DO_SPE_OP2(fsdiv);
 
 /* Single-precision floating-point comparisons */
-static inline int _do_efscmplt (uint32_t op1, uint32_t op2)
+static always_inline int _do_efscmplt (uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return _do_efststlt(op1, op2);
 }
 
-static inline int _do_efscmpgt (uint32_t op1, uint32_t op2)
+static always_inline int _do_efscmpgt (uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return _do_efststgt(op1, op2);
 }
 
-static inline int _do_efscmpeq (uint32_t op1, uint32_t op2)
+static always_inline int _do_efscmpeq (uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return _do_efststeq(op1, op2);
@@ -2307,7 +2312,7 @@ DO_SPE_OP1(fsctuf);
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
+void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
@@ -2318,7 +2323,7 @@ void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, is_user, 1);
+    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */

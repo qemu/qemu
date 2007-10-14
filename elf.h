@@ -1130,6 +1130,7 @@ typedef struct elf64_note {
 #define elf_note	elf32_note
 #define elf_shdr	elf32_shdr
 #define elf_sym		elf32_sym
+#define elf_addr_t	Elf32_Off
 
 #ifdef ELF_USES_RELOCA
 # define ELF_RELOC      Elf32_Rela
@@ -1144,6 +1145,7 @@ typedef struct elf64_note {
 #define elf_note	elf64_note
 #define elf_shdr	elf64_shdr
 #define elf_sym		elf64_sym
+#define elf_addr_t	Elf64_Off
 
 #ifdef ELF_USES_RELOCA
 # define ELF_RELOC      Elf64_Rela

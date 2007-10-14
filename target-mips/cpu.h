@@ -107,6 +107,8 @@ struct CPUMIPSFPUContext {
 #define FP_UNIMPLEMENTED  32
 };
 
+#define NB_MMU_MODES 2
+
 typedef struct CPUMIPSMVPContext CPUMIPSMVPContext;
 struct CPUMIPSMVPContext {
     int32_t CP0_MVPControl;
@@ -485,6 +487,16 @@ int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
 #define cpu_exec cpu_mips_exec
 #define cpu_gen_code cpu_mips_gen_code
 #define cpu_signal_handler cpu_mips_signal_handler
+#define cpu_list mips_cpu_list
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM ? 1 : 0;
+}
 
 #include "cpu-all.h"
 

@@ -437,7 +437,7 @@ NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,  \
 NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,  \
 NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,  \
 };                                               \
-static inline void func(int n)                   \
+static always_inline void func(int n)            \
 {                                                \
     NAME ## _table[n]();                         \
 }
@@ -471,7 +471,7 @@ NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,  \
 NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,  \
 NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,  \
 };                                               \
-static inline void func(int n)                   \
+static always_inline void func(int n)            \
 {                                                \
     NAME ## _table[n]();                         \
 }
@@ -522,7 +522,7 @@ static GenOpFunc1 * gen_op_cmp ## type ## _ ## fmt ## _table[16] = {    \
     gen_op_cmp ## type ## _ ## fmt ## _le,                              \
     gen_op_cmp ## type ## _ ## fmt ## _ngt,                             \
 };                                                                      \
-static inline void gen_cmp ## type ## _ ## fmt(int n, long cc)          \
+static always_inline void gen_cmp ## type ## _ ## fmt(int n, long cc)   \
 {                                                                       \
     gen_op_cmp ## type ## _ ## fmt ## _table[n](cc);                    \
 }
@@ -637,7 +637,7 @@ do {                                                                          \
     glue(gen_op_store_fpr_, FTn)(Fn);                                         \
 } while (0)
 
-static inline void gen_save_pc(target_ulong pc)
+static always_inline void gen_save_pc(target_ulong pc)
 {
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     if (pc == (int32_t)pc) {
@@ -650,7 +650,7 @@ static inline void gen_save_pc(target_ulong pc)
 #endif
 }
 
-static inline void gen_save_btarget(target_ulong btarget)
+static always_inline void gen_save_btarget(target_ulong btarget)
 {
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     if (btarget == (int32_t)btarget) {
@@ -663,7 +663,7 @@ static inline void gen_save_btarget(target_ulong btarget)
 #endif
 }
 
-static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
+static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 {
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
@@ -695,7 +695,7 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
     }
 }
 
-static inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
+static always_inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
 {
     ctx->saved_hflags = ctx->hflags;
     switch (ctx->hflags & MIPS_HFLAG_BMASK) {
@@ -713,7 +713,7 @@ static inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
     }
 }
 
-static inline void generate_exception_err (DisasContext *ctx, int excp, int err)
+static always_inline void generate_exception_err (DisasContext *ctx, int excp, int err)
 {
 #if 0
     if (excp == EXCP_CpU) {
@@ -740,24 +740,24 @@ static inline void generate_exception_err (DisasContext *ctx, int excp, int err)
     ctx->bstate = BS_EXCP;
 }
 
-static inline void generate_exception (DisasContext *ctx, int excp)
+static always_inline void generate_exception (DisasContext *ctx, int excp)
 {
     generate_exception_err (ctx, excp, 0);
 }
 
-static inline void check_cp0_enabled(DisasContext *ctx)
+static always_inline void check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0)))
         generate_exception_err(ctx, EXCP_CpU, 1);
 }
 
-static inline void check_cp1_enabled(DisasContext *ctx)
+static always_inline void check_cp1_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_FPU)))
         generate_exception_err(ctx, EXCP_CpU, 1);
 }
 
-static inline void check_cp1_64bitmode(DisasContext *ctx)
+static always_inline void check_cp1_64bitmode(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_F64)))
         generate_exception(ctx, EXCP_RI);
@@ -782,7 +782,7 @@ void check_cp1_registers(DisasContext *ctx, int regs)
 
 /* This code generates a "reserved instruction" exception if the
    CPU does not support the instruction set corresponding to flags. */
-static inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
+static always_inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
 {
     if (unlikely(!(env->insn_flags & flags)))
         generate_exception(ctx, EXCP_RI);
@@ -790,7 +790,7 @@ static inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
 
 /* This code generates a "reserved instruction" exception if the
    CPU is not MIPS MT capable. */
-static inline void check_mips_mt(CPUState *env, DisasContext *ctx)
+static always_inline void check_mips_mt(CPUState *env, DisasContext *ctx)
 {
     if (unlikely(!(env->CP0_Config3 & (1 << CP0C3_MT))))
         generate_exception(ctx, EXCP_RI);
@@ -798,7 +798,7 @@ static inline void check_mips_mt(CPUState *env, DisasContext *ctx)
 
 /* This code generates a "reserved instruction" exception if 64-bit
    instructions are not enabled. */
-static inline void check_mips_64(DisasContext *ctx)
+static always_inline void check_mips_64(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_64)))
         generate_exception(ctx, EXCP_RI);
@@ -903,7 +903,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LDL:
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(ldl);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "ldl";
         break;
     case OPC_SDL:
@@ -914,7 +914,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LDR:
         GEN_LOAD_REG_TN(T1, rt);
         op_ldst(ldr);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "ldr";
         break;
     case OPC_SDR:
@@ -966,7 +966,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LWL:
 	GEN_LOAD_REG_TN(T1, rt);
         op_ldst(lwl);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "lwl";
         break;
     case OPC_SWL:
@@ -977,7 +977,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_LWR:
 	GEN_LOAD_REG_TN(T1, rt);
         op_ldst(lwr);
-        GEN_STORE_TN_REG(rt, T0);
+        GEN_STORE_TN_REG(rt, T1);
         opn = "lwr";
         break;
     case OPC_SWR:
@@ -1648,7 +1648,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
     ctx->bstate = BS_STOP;
 }
 
-static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static always_inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     TranslationBlock *tb;
     tb = ctx->tb;
@@ -6491,7 +6491,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     }
 }
 
-static inline int
+static always_inline int
 gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                 int search_pc)
 {

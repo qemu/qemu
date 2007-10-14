@@ -53,6 +53,9 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
+  cris)
+    cpu="cris"
+  ;;
   s390*)
     cpu="s390"
   ;;
@@ -497,11 +500,11 @@ fi
 if test -z "$target_list" ; then
 # these targets are portable
     if [ "$softmmu" = "yes" ] ; then
-        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc64-softmmu ppcemb-softmmu m68k-softmmu sh4-softmmu"
+        target_list="i386-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc-softmmu ppcemb-softmmu ppc64-softmmu m68k-softmmu sh4-softmmu cris-softmmu"
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
-        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user ppc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user ppc64-linux-user sh4-linux-user $target_list"
+        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user sh4-linux-user ppc-linux-user ppc64-linux-user x86_64-linux-user cris-linux-user $target_list"
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
@@ -540,6 +543,10 @@ if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "mips64" -o "$cpu" = "
     bigendian="yes"
 fi
 
+fi
+
+if test "$cpu" = "mipsel"; then
+    cpu="mips"
 fi
 
 # host long bits test
@@ -782,6 +789,9 @@ elif test "$cpu" = "mips" ; then
 elif test "$cpu" = "mips64" ; then
   echo "ARCH=mips64" >> $config_mak
   echo "#define HOST_MIPS64 1" >> $config_h
+elif test "$cpu" = "cris" ; then
+  echo "ARCH=cris" >> $config_mak
+  echo "#define HOST_CRIS 1" >> $config_h
 elif test "$cpu" = "s390" ; then
   echo "ARCH=s390" >> $config_mak
   echo "#define HOST_S390 1" >> $config_h
@@ -928,8 +938,9 @@ target_bigendian="no"
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
 [ "$target_cpu" = "sparc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc" ] && target_bigendian=yes
-[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppcemb" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc64h" ] && target_bigendian=yes
 [ "$target_cpu" = "mips" ] && target_bigendian=yes
 [ "$target_cpu" = "mipsn32" ] && target_bigendian=yes
 [ "$target_cpu" = "mips64" ] && target_bigendian=yes
@@ -993,6 +1004,7 @@ echo "include ../config-host.mak" >> $config_mak
 echo "#include \"../config-host.h\"" >> $config_h
 
 bflt="no"
+elfload32="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_cpu/g"`
 echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix1\"" >> $config_h
 
@@ -1017,20 +1029,27 @@ elif test "$target_cpu" = "sparc64" ; then
   echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
   echo "#define TARGET_SPARC 1" >> $config_h
   echo "#define TARGET_SPARC64 1" >> $config_h
+  elfload32="yes"
 elif test "$target_cpu" = "ppc" ; then
   echo "TARGET_ARCH=ppc" >> $config_mak
   echo "#define TARGET_ARCH \"ppc\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
-elif test "$target_cpu" = "ppc64" ; then
-  echo "TARGET_ARCH=ppc64" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
-  echo "#define TARGET_PPC 1" >> $config_h
-  echo "#define TARGET_PPC64 1" >> $config_h
 elif test "$target_cpu" = "ppcemb" ; then
   echo "TARGET_ARCH=ppcemb" >> $config_mak
   echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPCEMB 1" >> $config_h
+elif test "$target_cpu" = "ppc64" ; then
+  echo "TARGET_ARCH=ppc64" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+  echo "#define TARGET_PPC64 1" >> $config_h
+elif test "$target_cpu" = "ppc64h" ; then
+  echo "TARGET_ARCH=ppc64h" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64h\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+  echo "#define TARGET_PPC64 1" >> $config_h
+  echo "#define TARGET_PPC64H 1" >> $config_h
 elif test "$target_cpu" = "x86_64" ; then
   echo "TARGET_ARCH=x86_64" >> $config_mak
   echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
@@ -1053,6 +1072,12 @@ elif test "$target_cpu" = "mips64" -o "$target_cpu" = "mips64el" ; then
   echo "#define TARGET_ARCH \"mips64\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
   echo "#define TARGET_MIPS64 1" >> $config_h
+elif test "$target_cpu" = "cris" ; then
+  echo "TARGET_ARCH=cris" >> $config_mak
+  echo "#define TARGET_ARCH \"cris\"" >> $config_h
+  echo "#define TARGET_CRIS 1" >> $config_h
+  echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
+  echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
 elif test "$target_cpu" = "sh4" -o "$target_cpu" = "sh4eb" ; then
   echo "TARGET_ARCH=sh4" >> $config_mak
   echo "#define TARGET_ARCH \"sh4\"" >> $config_h
@@ -1100,6 +1125,11 @@ if test "$target_user_only" = "yes" -a "$bflt" = "yes"; then
   echo "TARGET_HAS_BFLT=yes" >> $config_mak
   echo "#define TARGET_HAS_BFLT 1" >> $config_h
 fi
+# 32 bit ELF loader in addition to native 64 bit loader?
+if test "$target_user_only" = "yes" -a "$elfload32" = "yes"; then
+  echo "TARGET_HAS_ELFLOAD32=yes" >> $config_mak
+  echo "#define TARGET_HAS_ELFLOAD32 1" >> $config_h
+fi
 # sdl defines
 
 if test "$target_user_only" = "no"; then
@@ -1135,8 +1165,9 @@ done # for target in $targets
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
-    DIRS="tests"
+    DIRS="tests tests/cris"
     FILES="Makefile tests/Makefile"
+    FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     for dir in $DIRS ; do
             mkdir -p $dir
     done

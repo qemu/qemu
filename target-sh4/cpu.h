@@ -77,6 +77,8 @@ typedef struct tlb_t {
 #define UTLB_SIZE 64
 #define ITLB_SIZE 4
 
+#define NB_MMU_MODES 2
+
 typedef struct CPUSH4State {
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
@@ -133,6 +135,15 @@ int cpu_sh4_signal_handler(int host_signum, void *pinfo,
 #define cpu_exec cpu_sh4_exec
 #define cpu_gen_code cpu_sh4_gen_code
 #define cpu_signal_handler cpu_sh4_signal_handler
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return (env->sr & SR_MD) == 0 ? 1 : 0;
+}
 
 #include "cpu-all.h"
 

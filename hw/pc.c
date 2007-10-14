@@ -93,6 +93,9 @@ int cpu_get_pic_interrupt(CPUState *env)
         return intno;
     }
     /* read the irq from the PIC */
+    if (!apic_accept_pic_intr(env))
+        return -1;
+
     intno = pic_read_irq(isa_pic);
     return intno;
 }
@@ -100,10 +103,8 @@ int cpu_get_pic_interrupt(CPUState *env)
 static void pic_irq_request(void *opaque, int irq, int level)
 {
     CPUState *env = opaque;
-    if (level)
+    if (level && apic_accept_pic_intr(env))
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
-    else
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
 /* PC cmos mappings */

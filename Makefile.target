@@ -13,6 +13,9 @@ endif
 ifeq ($(TARGET_ARCH), ppc64)
 TARGET_BASE_ARCH:=ppc
 endif
+ifeq ($(TARGET_ARCH), ppc64h)
+TARGET_BASE_ARCH:=ppc
+endif
 ifeq ($(TARGET_ARCH), ppcemb)
 TARGET_BASE_ARCH:=ppc
 endif
@@ -214,6 +217,9 @@ endif
 
 ifeq ($(ARCH),mips)
 OP_CFLAGS += -G 0 -fomit-frame-pointer -fno-delayed-branch
+# At least one crosscompiler needs -Wa,-O0:
+# mipsel-linux-gnu-gcc (GCC) 4.1.3 20070514 (prerelease) (Debian 4.1.2-7)
+OP_CFLAGS += -Wa,-O0
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
@@ -276,6 +282,10 @@ OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
 LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
 OBJS+= flatload.o
+endif
+ifdef TARGET_HAS_ELFLOAD32
+OBJS+= elfload32.o
+elfload32.o: elfload.c
 endif
 
 ifeq ($(TARGET_ARCH), i386)
@@ -348,6 +358,15 @@ endif
 
 ifeq ($(TARGET_BASE_ARCH), alpha)
 LIBOBJS+= op_helper.o helper.o alpha_palcode.o
+endif
+
+ifeq ($(TARGET_BASE_ARCH), cris)
+LIBOBJS+= op_helper.o helper.o
+LIBOBJS+= cris-dis.o
+
+ifndef CONFIG_USER_ONLY
+LIBOBJS+= mmu.o
+endif
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -476,7 +495,9 @@ ifeq ($(TARGET_BASE_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o pflash_cfi02.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o
-VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o ppc405_uc.o ppc405_boards.o
+VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
+# PowerPC 4xx boards
+VL_OBJS+= ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
@@ -495,6 +516,12 @@ VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
 #~ VL_OBJS += serial_16550a.o
 CPPFLAGS += -DHAS_AUDIO
+endif
+ifeq ($(TARGET_BASE_ARCH), cris)
+VL_OBJS+= etraxfs.o
+VL_OBJS+= ptimer.o
+VL_OBJS+= etraxfs_timer.o
+VL_OBJS+= etraxfs_ser.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

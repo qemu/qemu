@@ -432,6 +432,8 @@ typedef union {
 #define CPU_NB_REGS 8
 #endif
 
+#define NB_MMU_MODES 2
+
 typedef struct CPUX86State {
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     /* temporaries if we cannot store them in host registers */
@@ -687,6 +689,15 @@ static inline int cpu_get_time_fast(void)
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_USER_IDX 1
+static inline int cpu_mmu_index (CPUState *env)
+{
+    return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
+}
 
 #include "cpu-all.h"
 

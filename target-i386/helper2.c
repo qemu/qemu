@@ -573,7 +573,7 @@ void cpu_x86_flush_tlb(CPUX86State *env, target_ulong addr)
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
-                             int is_write, int is_user, int is_softmmu)
+                             int is_write, int mmu_idx, int is_softmmu)
 {
     /* user mode only emulation */
     is_write &= 1;
@@ -600,14 +600,15 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
    2  = soft MMU activation required for this block
 */
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
-                             int is_write1, int is_user, int is_softmmu)
+                             int is_write1, int mmu_idx, int is_softmmu)
 {
     uint64_t ptep, pte;
     uint32_t pdpe_addr, pde_addr, pte_addr;
-    int error_code, is_dirty, prot, page_size, ret, is_write;
+    int error_code, is_dirty, prot, page_size, ret, is_write, is_user;
     unsigned long paddr, page_offset;
     target_ulong vaddr, virt_addr;
 
+    is_user = mmu_idx == MMU_USER_IDX;
 #if defined(DEBUG_MMU)
     printf("MMU fault: addr=" TARGET_FMT_lx " w=%d u=%d eip=" TARGET_FMT_lx "\n",
            addr, is_write1, is_user, env->eip);
@@ -864,7 +865,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     vaddr = virt_addr + page_offset;
 
-    ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
+    ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
     return ret;
  do_fault_protect:
     error_code = PG_ERROR_P_MASK;
