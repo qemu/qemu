@@ -601,6 +601,16 @@ static always_inline int find_pte (CPUState *env, mmu_ctx_t *ctx,
 }
 
 #if defined(TARGET_PPC64)
+static inline int slb_is_valid (uint64_t slb64)
+{
+    return slb64 & 0x0000000008000000ULL ? 1 : 0;
+}
+
+static inline void slb_invalidate (uint64_t *slb64)
+{
+    *slb64 &= ~0x0000000008000000ULL;
+}
+
 static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
                        target_ulong *vsid, target_ulong *page_mask, int *attr)
 {
@@ -609,7 +619,6 @@ static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
     uint64_t tmp64;
     uint32_t tmp;
     int n, ret;
-    int slb_nr;
 
     ret = -5;
     sr_base = env->spr[SPR_ASR];
@@ -620,8 +629,7 @@ static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
     }
 #endif
     mask = 0x0000000000000000ULL; /* Avoid gcc warning */
-    slb_nr = env->slb_nr;
-    for (n = 0; n < slb_nr; n++) {
+    for (n = 0; n < env->slb_nr; n++) {
         tmp64 = ldq_phys(sr_base);
         tmp = ldl_phys(sr_base + 8);
 #if defined(DEBUG_SLB)
@@ -630,7 +638,7 @@ static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
                     PRIx32 "\n", __func__, n, sr_base, tmp64, tmp);
         }
 #endif
-        if (tmp64 & 0x0000000008000000ULL) {
+        if (slb_is_valid(tmp64)) {
             /* SLB entry is valid */
             switch (tmp64 & 0x0000000006000000ULL) {
             case 0x0000000000000000ULL:
@@ -651,7 +659,7 @@ static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
                 *vsid = ((tmp64 << 24) | (tmp >> 8)) & 0x0003FFFFFFFFFFFFULL;
                 *page_mask = ~mask;
                 *attr = tmp & 0xFF;
-                ret = 0;
+                ret = n;
                 break;
             }
         }
@@ -659,6 +667,56 @@ static int slb_lookup (CPUPPCState *env, target_ulong eaddr,
     }
 
     return ret;
+}
+
+void ppc_slb_invalidate_all (CPUPPCState *env)
+{
+    target_phys_addr_t sr_base;
+    uint64_t tmp64;
+    int n, do_invalidate;
+
+    do_invalidate = 0;
+    sr_base = env->spr[SPR_ASR];
+    for (n = 0; n < env->slb_nr; n++) {
+        tmp64 = ldq_phys(sr_base);
+        if (slb_is_valid(tmp64)) {
+            slb_invalidate(&tmp64);
+            stq_phys(sr_base, tmp64);
+            /* XXX: given the fact that segment size is 256 MB or 1TB,
+             *      and we still don't have a tlb_flush_mask(env, n, mask)
+             *      in Qemu, we just invalidate all TLBs
+             */
+            do_invalidate = 1;
+        }
+        sr_base += 12;
+    }
+    if (do_invalidate)
+        tlb_flush(env, 1);
+}
+
+void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
+{
+    target_phys_addr_t sr_base;
+    target_ulong vsid, page_mask;
+    uint64_t tmp64;
+    int attr;
+    int n;
+
+    n = slb_lookup(env, T0, &vsid, &page_mask, &attr);
+    if (n >= 0) {
+        sr_base = env->spr[SPR_ASR];
+        sr_base += 12 * n;
+        tmp64 = ldq_phys(sr_base);
+        if (slb_is_valid(tmp64)) {
+            slb_invalidate(&tmp64);
+            stq_phys(sr_base, tmp64);
+            /* XXX: given the fact that segment size is 256 MB or 1TB,
+             *      and we still don't have a tlb_flush_mask(env, n, mask)
+             *      in Qemu, we just invalidate all TLBs
+             */
+            tlb_flush(env, 1);
+        }
+    }
 }
 
 target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr)
@@ -1827,20 +1885,6 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
     ppc_tlb_invalidate_all(env);
 #endif
 }
-
-#if defined(TARGET_PPC64)
-void ppc_slb_invalidate_all (CPUPPCState *env)
-{
-    /* XXX: TODO */
-    tlb_flush(env, 1);
-}
-
-void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
-{
-    /* XXX: TODO */
-    tlb_flush(env, 1);
-}
-#endif
 
 /*****************************************************************************/
 /* Special registers manipulation */
