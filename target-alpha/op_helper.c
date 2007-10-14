@@ -27,13 +27,19 @@
 #include "op_helper_mem.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_helper_mem.h"
-
 #define MEMSUFFIX _kernel
 #include "op_helper_mem.h"
 
-/* Those are used for supervisor and executive modes */
+#define MEMSUFFIX _executive
+#include "op_helper_mem.h"
+
+#define MEMSUFFIX _supervisor
+#include "op_helper_mem.h"
+
+#define MEMSUFFIX _user
+#include "op_helper_mem.h"
+
+/* This is used for pal modes */
 #define MEMSUFFIX _data
 #include "op_helper_mem.h"
 #endif
