@@ -1280,7 +1280,6 @@ static int check_physical (CPUState *env, mmu_ctx_t *ctx,
     case POWERPC_MMU_32B:
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
-    case POWERPC_MMU_601:
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_REAL_4xx:
     case POWERPC_MMU_BOOKE:
@@ -1365,10 +1364,6 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             ret = mmu40x_get_physical_address(env, ctx, eaddr,
                                               rw, access_type);
             break;
-        case POWERPC_MMU_601:
-            /* XXX: TODO */
-            cpu_abort(env, "601 MMU model not implemented\n");
-            return -1;
         case POWERPC_MMU_BOOKE:
             ret = mmubooke_get_physical_address(env, ctx, eaddr,
                                                 rw, access_type);
@@ -1462,10 +1457,6 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->exception_index = POWERPC_EXCP_ISI;
                     env->error_code = 0x40000000;
                     break;
-                case POWERPC_MMU_601:
-                    /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
-                    return -1;
                 case POWERPC_MMU_BOOKE:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
@@ -1562,10 +1553,6 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     else
                         env->spr[SPR_DSISR] = 0x40000000;
                     break;
-                case POWERPC_MMU_601:
-                    /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
-                    return -1;
                 case POWERPC_MMU_BOOKE:
                     /* XXX: TODO */
                     cpu_abort(env, "MMU model not implemented\n");
@@ -1796,10 +1783,6 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
         /* XXX: TODO */
         cpu_abort(env, "MMU model not implemented\n");
         break;
-    case POWERPC_MMU_601:
-        /* XXX: TODO */
-        cpu_abort(env, "MMU model not implemented\n");
-        break;
     case POWERPC_MMU_32B:
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
@@ -1836,10 +1819,6 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
         cpu_abort(env, "MMU model not implemented\n");
         break;
     case POWERPC_MMU_BOOKE_FSL:
-        /* XXX: TODO */
-        cpu_abort(env, "MMU model not implemented\n");
-        break;
-    case POWERPC_MMU_601:
         /* XXX: TODO */
         cpu_abort(env, "MMU model not implemented\n");
         break;

@@ -88,8 +88,6 @@ enum {
     POWERPC_MMU_UNKNOWN    = 0,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B,
-    /* PowerPC 601 MMU                                         */
-    POWERPC_MMU_601,
     /* PowerPC 6xx MMU with software TLB                       */
     POWERPC_MMU_SOFT_6xx,
     /* PowerPC 74xx MMU with software TLB                      */

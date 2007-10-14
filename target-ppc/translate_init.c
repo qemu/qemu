@@ -3196,7 +3196,7 @@ static void init_proc_e500 (CPUPPCState *env)
 #define POWERPC_INSNS_601    (POWERPC_INSNS_6xx | PPC_CACHE_DCBZ |            \
                               PPC_SEGMENT | PPC_EXTERN | PPC_POWER_BR)
 #define POWERPC_MSRM_601     (0x000000000000FD70ULL)
-//#define POWERPC_MMU_601      (POWERPC_MMU_601)
+#define POWERPC_MMU_601      (POWERPC_MMU_32B)
 //#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
 #define POWERPC_INPUT_601    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_601     (bfd_mach_ppc_601)
@@ -6231,9 +6231,6 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
         switch (env->mmu_model) {
         case POWERPC_MMU_32B:
             mmu_model = "PowerPC 32";
-            break;
-        case POWERPC_MMU_601:
-            mmu_model = "PowerPC 601";
             break;
         case POWERPC_MMU_SOFT_6xx:
             mmu_model = "PowerPC 6xx/7xx with software driven TLBs";
