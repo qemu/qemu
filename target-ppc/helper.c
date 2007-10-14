@@ -2156,10 +2156,18 @@ static always_inline void powerpc_excp (CPUState *env,
         goto store_next;
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
         if (msr_me == 0) {
-            /* Machine check exception is not enabled */
-            /* XXX: we may just stop the processor here, to allow debugging */
-            excp = POWERPC_EXCP_RESET;
-            goto excp_reset;
+            /* Machine check exception is not enabled.
+             * Enter checkstop state.
+             */
+            if (loglevel != 0) {
+                fprintf(logfile, "Machine check while not allowed. "
+                        "Entering checkstop state\n");
+            } else {
+                fprintf(stderr, "Machine check while not allowed. "
+                        "Entering checkstop state\n");
+            }
+            env->halted = 1;
+            env->interrupt_request |= CPU_INTERRUPT_EXITTB;
         }
         msr_ri = 0;
         msr_me = 0;
@@ -2413,7 +2421,6 @@ static always_inline void powerpc_excp (CPUState *env,
 #if defined(TARGET_PPC64H)
         msr_hv = 1;
 #endif
-    excp_reset:
         goto store_next;
 #if defined(TARGET_PPC64)
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */

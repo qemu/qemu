@@ -103,6 +103,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
         case PPC6xx_INPUT_CKSTP_IN:
             /* Level sensitive - active low */
             /* XXX: TODO: relay the signal to CKSTP_OUT pin */
+            /* XXX: Note that the only way to restart the CPU is to reset it */
             if (level) {
 #if defined(PPC_DEBUG_IRQ)
                 if (loglevel & CPU_LOG_INT) {
@@ -110,13 +111,6 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
                 }
 #endif
                 env->halted = 1;
-            } else {
-#if defined(PPC_DEBUG_IRQ)
-                if (loglevel & CPU_LOG_INT) {
-                    fprintf(logfile, "%s: restart the CPU\n", __func__);
-                }
-#endif
-                env->halted = 0;
             }
             break;
         case PPC6xx_INPUT_HRESET:
