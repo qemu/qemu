@@ -618,7 +618,7 @@ void helper_st_asi(int asi, int size)
                 stl_phys((target_phys_addr_t)(T0 & ~3)
                            | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
                 stl_phys((target_phys_addr_t)((T0 + 4) & ~3)
-                           | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
+                           | ((target_phys_addr_t)(asi & 0xf) << 32), T2);
                 break;
             }
         }
