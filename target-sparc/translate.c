@@ -346,13 +346,6 @@ GEN32(gen_op_load_fpr_DT1, gen_op_load_fpr_DT1_fprf);
 GEN32(gen_op_store_DT0_fpr, gen_op_store_DT0_fpr_fprf);
 GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 
-#ifdef ALIGN_7_BUGS_FIXED
-#else
-#ifndef CONFIG_USER_ONLY
-#define gen_op_check_align_T0_7()
-#endif
-#endif
-
 /* moves */
 #ifdef CONFIG_USER_ONLY
 #define supervisor(dc) 0
@@ -2941,9 +2934,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 (xop > 0x2c && xop <= 0x33) || xop == 0x1f || xop == 0x3d) {
                 switch (xop) {
                 case 0x0:       /* load word */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
 #ifndef TARGET_SPARC64
                     gen_op_ldst(ld);
 #else
@@ -2954,15 +2945,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_ldst(ldub);
                     break;
                 case 0x2:       /* load unsigned halfword */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
-#endif
                     gen_op_ldst(lduh);
                     break;
                 case 0x3:       /* load double word */
-                    gen_op_check_align_T0_7();
                     if (rd & 1)
                         goto illegal_insn;
+                    gen_op_check_align_T0_7();
                     gen_op_ldst(ldd);
                     gen_movl_T0_reg(rd + 1);
                     break;
@@ -2970,18 +2959,14 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_ldst(ldsb);
                     break;
                 case 0xa:       /* load signed halfword */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
-#endif
                     gen_op_ldst(ldsh);
                     break;
                 case 0xd:       /* ldstub -- XXX: should be atomically */
                     gen_op_ldst(ldstub);
                     break;
                 case 0x0f:      /* swap register with memory. Also atomically */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_movl_reg_T1(rd);
                     gen_op_ldst(swap);
                     break;
@@ -2992,9 +2977,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#elif CONFIG_USER_ONLY
-                    gen_op_check_align_T0_3();
 #endif
+                    gen_op_check_align_T0_3();
                     gen_ld_asi(insn, 4, 0);
                     break;
                 case 0x11:      /* load unsigned byte alternate */
@@ -3012,9 +2996,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#elif CONFIG_USER_ONLY
-                    gen_op_check_align_T0_1();
 #endif
+                    gen_op_check_align_T0_1();
                     gen_ld_asi(insn, 2, 0);
                     break;
                 case 0x13:      /* load double word alternate */
@@ -3045,9 +3028,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#elif CONFIG_USER_ONLY
-                    gen_op_check_align_T0_1();
 #endif
+                    gen_op_check_align_T0_1();
                     gen_ld_asi(insn, 2, 1);
                     break;
                 case 0x1d:      /* ldstuba -- XXX: should be atomically */
@@ -3065,9 +3047,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     if (!supervisor(dc))
                         goto priv_insn;
-#elif CONFIG_USER_ONLY
-                    gen_op_check_align_T0_3();
 #endif
+                    gen_op_check_align_T0_3();
                     gen_movl_reg_T1(rd);
                     gen_swap_asi(insn);
                     break;
@@ -3081,9 +3062,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 #ifdef TARGET_SPARC64
                 case 0x08: /* V9 ldsw */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_op_ldst(ldsw);
                     break;
                 case 0x0b: /* V9 ldx */
@@ -3091,9 +3070,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_ldst(ldx);
                     break;
                 case 0x18: /* V9 ldswa */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_ld_asi(insn, 4, 1);
                     break;
                 case 0x1b: /* V9 ldxa */
@@ -3103,9 +3080,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x2d: /* V9 prefetch, no effect */
                     goto skip_move;
                 case 0x30: /* V9 ldfa */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_ldf_asi(insn, 4);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
@@ -3129,16 +3104,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto jmp_insn;
                 switch (xop) {
                 case 0x20:      /* load fpreg */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_op_ldst(ldf);
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x21:      /* load fsr */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_op_ldst(ldf);
                     gen_op_ldfsr();
                     break;
@@ -3157,18 +3128,14 @@ static void disas_sparc_insn(DisasContext * dc)
                 gen_movl_reg_T1(rd);
                 switch (xop) {
                 case 0x4:
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_op_ldst(st);
                     break;
                 case 0x5:
                     gen_op_ldst(stb);
                     break;
                 case 0x6:
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
-#endif
                     gen_op_ldst(sth);
                     break;
                 case 0x7:
@@ -3187,9 +3154,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_st_asi(insn, 4);
                     break;
                 case 0x15:
@@ -3208,9 +3173,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_1();
-#endif
                     gen_st_asi(insn, 2);
                     break;
                 case 0x17:
@@ -3246,9 +3209,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto jmp_insn;
                 switch (xop) {
                 case 0x24:
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_op_load_fpr_FT0(rd);
                     gen_op_ldst(stf);
                     break;
@@ -3279,9 +3240,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 switch (xop) {
 #ifdef TARGET_SPARC64
                 case 0x34: /* V9 stfa */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     gen_op_load_fpr_FT0(rd);
                     gen_stf_asi(insn, 4);
                     break;
@@ -3291,9 +3250,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_stf_asi(insn, 8);
                     break;
                 case 0x3c: /* V9 casa */
-#ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
-#endif
                     flush_T2(dc);
                     gen_movl_reg_T2(rd);
                     gen_cas_asi(insn);
