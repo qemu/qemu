@@ -173,6 +173,7 @@ static void *load_at(int fd, int offset, int size)
 
 #define SZ		32
 #define elf_word        uint32_t
+#define elf_sword        int32_t
 #define bswapSZs	bswap32s
 #include "elf_ops.h"
 
@@ -182,6 +183,7 @@ static void *load_at(int fd, int offset, int size)
 #undef elf_sym
 #undef elf_note
 #undef elf_word
+#undef elf_sword
 #undef bswapSZs
 #undef SZ
 #define elfhdr		elf64_hdr
@@ -190,6 +192,7 @@ static void *load_at(int fd, int offset, int size)
 #define elf_shdr	elf64_shdr
 #define elf_sym		elf64_sym
 #define elf_word        uint64_t
+#define elf_sword        int64_t
 #define bswapSZs	bswap64s
 #define SZ		64
 #include "elf_ops.h"

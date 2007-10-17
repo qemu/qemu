@@ -159,7 +159,7 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
         goto fail;
 
     if (pentry)
-   	*pentry = (uint64_t)ehdr.e_entry;
+   	*pentry = (uint64_t)(elf_sword)ehdr.e_entry;
 
     glue(load_symbols, SZ)(&ehdr, fd, must_swab);
 
@@ -206,9 +206,9 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
     }
     qemu_free(phdr);
     if (lowaddr)
-        *lowaddr = (uint64_t)low;
+        *lowaddr = (uint64_t)(elf_sword)low;
     if (highaddr)
-        *highaddr = (uint64_t)high;
+        *highaddr = (uint64_t)(elf_sword)high;
     return total_size;
  fail:
     qemu_free(data);
