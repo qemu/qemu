@@ -47,3 +47,9 @@ MALTA system emulation
 - We fake firmware support instead of doing the real thing
 - Real firmware falls over when trying to init RAM, presumably due
   to lacking system controller emulation.
+
+mipssim system emulation
+------------------------
+- The mipsnet.c has a glitch: Booting from NFS root works up until
+  starting /sbin/init, then it Linux hangs with "NFS server not
+  responding".
