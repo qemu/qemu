@@ -2037,7 +2037,7 @@ The MIPS Malta prototype board "malta"
 @item
 An ACER Pica "pica61"
 @item
-MIPS MIPSsim emulator pseudo board "mipssim"
+MIPS emulator pseudo board "mipssim"
 @end itemize
 
 The generic emulation is supported by Debian 'Etch' and is able to
@@ -2085,7 +2085,9 @@ PC Keyboard
 IDE controller
 @end itemize
 
-The MIPSsim emulation supports:
+The mipssim pseudo board emulation provides an environment similiar
+to what the proprietary MIPS emulator uses for running Linux.
+It supports:
 
 @itemize @minus
 @item
