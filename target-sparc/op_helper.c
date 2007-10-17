@@ -170,6 +170,7 @@ static void dump_mxcc(CPUState *env)
 void helper_ld_asi(int asi, int size, int sign)
 {
     uint32_t ret = 0;
+    uint64_t tmp;
 #ifdef DEBUG_MXCC
     uint32_t last_T0 = T0;
 #endif
@@ -244,8 +245,9 @@ void helper_ld_asi(int asi, int size, int sign)
             ret = ldl_code(T0 & ~3);
             break;
         case 8:
-            ret = ldl_code(T0 & ~3);
-            T0 = ldl_code((T0 + 4) & ~3);
+            tmp = ldq_code(T0 & ~7);
+            ret = tmp >> 32;
+            T0 = tmp & 0xffffffff;
             break;
         }
         break;
@@ -262,8 +264,9 @@ void helper_ld_asi(int asi, int size, int sign)
             ret = ldl_user(T0 & ~3);
             break;
         case 8:
-            ret = ldl_user(T0 & ~3);
-            T0 = ldl_user((T0 + 4) & ~3);
+            tmp = ldq_user(T0 & ~7);
+            ret = tmp >> 32;
+            T0 = tmp & 0xffffffff;
             break;
         }
         break;
@@ -280,8 +283,9 @@ void helper_ld_asi(int asi, int size, int sign)
             ret = ldl_kernel(T0 & ~3);
             break;
         case 8:
-            ret = ldl_kernel(T0 & ~3);
-            T0 = ldl_kernel((T0 + 4) & ~3);
+            tmp = ldq_kernel(T0 & ~7);
+            ret = tmp >> 32;
+            T0 = tmp & 0xffffffff;
             break;
         }
         break;
@@ -303,8 +307,9 @@ void helper_ld_asi(int asi, int size, int sign)
             ret = ldl_phys(T0 & ~3);
             break;
         case 8:
-            ret = ldl_phys(T0 & ~3);
-            T0 = ldl_phys((T0 + 4) & ~3);
+            tmp = ldq_phys(T0 & ~7);
+            ret = tmp >> 32;
+            T0 = tmp & 0xffffffff;
             break;
         }
         break;
@@ -325,10 +330,10 @@ void helper_ld_asi(int asi, int size, int sign)
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
             break;
         case 8:
-            ret = ldl_phys((target_phys_addr_t)(T0 & ~3)
+            tmp = ldq_phys((target_phys_addr_t)(T0 & ~7)
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
-            T0 = ldl_phys((target_phys_addr_t)((T0 + 4) & ~3)
-                           | ((target_phys_addr_t)(asi & 0xf) << 32));
+            ret = tmp >> 32;
+            T0 = tmp & 0xffffffff;
             break;
         }
         break;
@@ -515,8 +520,7 @@ void helper_st_asi(int asi, int size)
             stl_user(T0 & ~3, T1);
             break;
         case 8:
-            stl_user(T0 & ~3, T1);
-            stl_user((T0 + 4) & ~3, T2);
+            stq_user(T0 & ~7, ((uint64_t)T1 << 32) | T2);
             break;
         }
         break;
@@ -533,8 +537,7 @@ void helper_st_asi(int asi, int size)
             stl_kernel(T0 & ~3, T1);
             break;
         case 8:
-            stl_kernel(T0 & ~3, T1);
-            stl_kernel((T0 + 4) & ~3, T2);
+            stq_kernel(T0 & ~7, ((uint64_t)T1 << 32) | T2);
             break;
         }
         break;
@@ -591,8 +594,7 @@ void helper_st_asi(int asi, int size)
                 stl_phys(T0 & ~3, T1);
                 break;
             case 8:
-                stl_phys(T0 & ~3, T1);
-                stl_phys((T0 + 4) & ~3, T2);
+                stq_phys(T0 & ~7, ((uint64_t)T1 << 32) | T2);
                 break;
             }
         }
@@ -615,10 +617,9 @@ void helper_st_asi(int asi, int size)
                            | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
                 break;
             case 8:
-                stl_phys((target_phys_addr_t)(T0 & ~3)
-                           | ((target_phys_addr_t)(asi & 0xf) << 32), T1);
-                stl_phys((target_phys_addr_t)((T0 + 4) & ~3)
-                           | ((target_phys_addr_t)(asi & 0xf) << 32), T2);
+                stq_phys((target_phys_addr_t)(T0 & ~7)
+                           | ((target_phys_addr_t)(asi & 0xf) << 32),
+                         ((uint64_t)T1 << 32) | T2);
                 break;
             }
         }

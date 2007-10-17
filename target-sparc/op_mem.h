@@ -36,8 +36,9 @@ SPARC_ST_OP(sth, stw);
 
 void OPPROTO glue(op_std, MEMSUFFIX)(void)
 {
-    glue(stl, MEMSUFFIX)(ADDR(T0), T1);
-    glue(stl, MEMSUFFIX)((ADDR(T0 + 4)), T2);
+    uint64_t tmp = ((uint64_t)T1 << 32) | (uint64_t)(T2 & 0xffffffff);
+
+    glue(stq, MEMSUFFIX)(ADDR(T0), tmp);
 }
 
 void OPPROTO glue(op_ldstub, MEMSUFFIX)(void)
@@ -55,8 +56,11 @@ void OPPROTO glue(op_swap, MEMSUFFIX)(void)
 
 void OPPROTO glue(op_ldd, MEMSUFFIX)(void)
 {
-    T1 = glue(ldl, MEMSUFFIX)(ADDR(T0));
-    T0 = glue(ldl, MEMSUFFIX)((ADDR(T0 + 4)));
+    uint64_t tmp;
+
+    tmp = glue(ldq, MEMSUFFIX)(ADDR(T0));
+    T1 = tmp >> 32;
+    T0 = tmp & 0xffffffff;
 }
 
 /***                         Floating-point store                          ***/
