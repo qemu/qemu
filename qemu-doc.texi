@@ -2036,6 +2036,8 @@ A generic ISA PC-like machine "mips"
 The MIPS Malta prototype board "malta"
 @item
 An ACER Pica "pica61"
+@item
+MIPS MIPSsim emulator pseudo board "mipssim"
 @end itemize
 
 The generic emulation is supported by Debian 'Etch' and is able to
@@ -2044,7 +2046,7 @@ emulated:
 
 @itemize @minus
 @item
-MIPS 24Kf CPU
+A range of MIPS CPUs, default is the 24Kf
 @item
 PC style serial port
 @item
@@ -2081,6 +2083,17 @@ PC-style IRQ and DMA controllers
 PC Keyboard
 @item
 IDE controller
+@end itemize
+
+The MIPSsim emulation supports:
+
+@itemize @minus
+@item
+A range of MIPS CPUs, default is the 24Kf
+@item
+PC style serial port
+@item
+MIPSnet network emulation
 @end itemize
 
 @node ARM System emulator
