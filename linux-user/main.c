@@ -1008,7 +1008,7 @@ void cpu_loop(CPUPPCState *env)
                       "Aborting\n");
             break;
 #endif /* defined(TARGET_PPCEMB) */
-#if defined(TARGET_PPC64) /* PowerPC 64 */
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32) /* PowerPC 64 */
         case POWERPC_EXCP_DSEG:     /* Data segment exception                */
             cpu_abort(env, "Data segment exception while in user mode. "
                       "Aborting\n");
@@ -1017,19 +1017,21 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64) */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+#endif /* defined(TARGET_PPC64) && !defined(TARGET_ABI32) */
+#if defined(TARGET_PPC64H) && !defined(TARGET_ABI32)
+        /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDECR:    /* Hypervisor decrementer exception      */
             cpu_abort(env, "Hypervisor decrementer interrupt "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) */
+#endif /* defined(TARGET_PPC64H) && !defined(TARGET_ABI32) */
         case POWERPC_EXCP_TRACE:    /* Trace exception                       */
             /* Nothing to do:
              * we use this exception to emulate step-by-step execution mode.
              */
             break;
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
+#if defined(TARGET_PPC64H) && !defined(TARGET_ABI32)
+        /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDSI:     /* Hypervisor data storage exception     */
             cpu_abort(env, "Hypervisor data storage exception "
                       "while in user mode. Aborting\n");
@@ -1046,7 +1048,7 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Hypervisor instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) */
+#endif /* defined(TARGET_PPC64H) && !defined(TARGET_ABI32) */
         case POWERPC_EXCP_VPU:      /* Vector unavailable exception          */
             EXCP_DUMP(env, "No Altivec instructions allowed\n");
             info.si_signo = TARGET_SIGILL;
@@ -2170,8 +2172,10 @@ int main(int argc, char **argv)
             if (i != 12 && i != 6 && i != 13)
                 env->msr[i] = (regs->msr >> i) & 1;
         }
-#if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
         msr_sf = 1;
+#else
+        msr_sf = 0;
 #endif
         env->nip = regs->nip;
         for(i = 0; i < 32; i++) {

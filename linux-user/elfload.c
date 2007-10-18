@@ -269,7 +269,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_START_MMAP 0x80000000
 
-#ifdef TARGET_PPC64
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
 
 #define elf_check_arch(x) ( (x) == EM_PPC64 )
 
@@ -325,13 +325,13 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 {
     abi_ulong pos = infop->start_stack;
     abi_ulong tmp;
-#ifdef TARGET_PPC64
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
     abi_ulong entry, toc;
 #endif
 
     _regs->msr = 1 << MSR_PR; /* Set user mode */
     _regs->gpr[1] = infop->start_stack;
-#ifdef TARGET_PPC64
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
     entry = ldq_raw(infop->entry) + infop->load_addr;
     toc = ldq_raw(infop->entry + 8) + infop->load_addr;
     _regs->gpr[2] = toc;
