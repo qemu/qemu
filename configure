@@ -1048,6 +1048,7 @@ elif test "$target_cpu" = "ppcemb" ; then
 elif test "$target_cpu" = "ppc64" ; then
   echo "TARGET_ARCH=ppc64" >> $config_mak
   echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+  echo "TARGET_ABI_DIR=ppc" >> $config_mak
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPC64 1" >> $config_h
 elif test "$target_cpu" = "ppc64abi32" ; then
@@ -1060,6 +1061,7 @@ elif test "$target_cpu" = "ppc64abi32" ; then
 elif test "$target_cpu" = "ppc64h" ; then
   echo "TARGET_ARCH=ppc64h" >> $config_mak
   echo "#define TARGET_ARCH \"ppc64h\"" >> $config_h
+  echo "TARGET_ABI_DIR=ppc" >> $config_mak
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPC64 1" >> $config_h
   echo "#define TARGET_PPC64H 1" >> $config_h

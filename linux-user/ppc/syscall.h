@@ -51,4 +51,8 @@ struct target_revectored_struct {
  * flags masks
  */
 
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+#define UNAME_MACHINE "ppc64"
+#else
 #define UNAME_MACHINE "ppc"
+#endif

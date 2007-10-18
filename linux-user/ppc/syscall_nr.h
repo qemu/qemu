@@ -193,19 +193,23 @@
 #define TARGET_NR_vfork                  189
 #define TARGET_NR_ugetrlimit             190     /* SuS compliant getrlimit */
 #define TARGET_NR_readahead              191
+#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
 #define TARGET_NR_mmap2                  192
 #define TARGET_NR_truncate64             193
 #define TARGET_NR_ftruncate64            194
 #define TARGET_NR_stat64                 195
 #define TARGET_NR_lstat64                196
 #define TARGET_NR_fstat64                197
+#endif
 #define TARGET_NR_pciconfig_read         198
 #define TARGET_NR_pciconfig_write        199
 #define TARGET_NR_pciconfig_iobase       200
 #define TARGET_NR_multiplexer            201
 #define TARGET_NR_getdents64             202
 #define TARGET_NR_pivot_root             203
+#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
 #define TARGET_NR_fcntl64                204
+#endif
 #define TARGET_NR_madvise                205
 #define TARGET_NR_mincore                206
 #define TARGET_NR_gettid                 207
@@ -227,7 +231,9 @@
 #define TARGET_NR_sched_getaffinity      223
 /* 224 currently unused */
 #define TARGET_NR_tuxcall                225
+#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
 #define TARGET_NR_sendfile64             226
+#endif
 #define TARGET_NR_io_setup               227
 #define TARGET_NR_io_destroy             228
 #define TARGET_NR_io_getevents           229
@@ -255,7 +261,9 @@
 #define TARGET_NR_utimes                 251
 #define TARGET_NR_statfs64               252
 #define TARGET_NR_fstatfs64              253
+#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
 #define TARGET_NR_fadvise64_64           254
+#endif
 #define TARGET_NR_rtas		255
 #define TARGET_NR_sys_debug_setcontext 256
 /* Number 257 is reserved for vserver */
@@ -292,7 +300,11 @@
 #define TARGET_NR_mknodat		288
 #define TARGET_NR_fchownat		289
 #define TARGET_NR_futimesat		290
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+#define TARGET_NR_newfstatat		291
+#else
 #define TARGET_NR_fstatat64		291
+#endif
 #define TARGET_NR_unlinkat		292
 #define TARGET_NR_renameat		293
 #define TARGET_NR_linkat		294
