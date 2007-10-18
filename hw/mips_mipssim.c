@@ -82,7 +82,7 @@ mips_mipssim_init (int ram_size, int vga_ram_size, int boot_device,
     char buf[1024];
     unsigned long bios_offset;
     CPUState *env;
-    int ret;
+    int bios_size;
     mips_def_t *def;
 
     /* Init CPUs. */
@@ -103,25 +103,24 @@ mips_mipssim_init (int ram_size, int vga_ram_size, int boot_device,
     /* Allocate RAM. */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
 
-    /* Map the BIOS / boot exception handler. */
-    bios_offset = ram_size + vga_ram_size;
-
     /* Load a BIOS / boot exception handler image. */
+    bios_offset = ram_size + vga_ram_size;
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    if ((ret < 0 || ret > BIOS_SIZE) && !kernel_filename) {
+    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
         fprintf(stderr,
                 "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
                 buf);
         exit(1);
     } else {
-        /* We have a boot vector start address. */
-        env->PC[env->current_tc] = (target_long)0xbfc00000;
+        /* Map the BIOS / boot exception handler. */
         cpu_register_physical_memory(0x1fc00000LL,
-                                     ret, bios_offset | IO_MEM_ROM);
+                                     bios_size, bios_offset | IO_MEM_ROM);
+        /* We have a boot vector start address. */
+        env->PC[env->current_tc] = (target_long)(int32_t)0xbfc00000;
     }
 
     if (kernel_filename) {
