@@ -2005,7 +2005,7 @@ static uint32_t mdio_phy_read(unsigned index)
 
 static void mdio_phy_write(unsigned index, uint32_t val)
 {
-    unsigned write = (val & MDIO_USERACCESS_WRITE) >> 30;
+    unsigned writeflag = (val & MDIO_USERACCESS_WRITE) >> 30;
     unsigned regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
     unsigned phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
     uint32_t mdio_control = reg_read(av.mdio, MDIO_CONTROL);
@@ -2013,8 +2013,8 @@ static void mdio_phy_write(unsigned index, uint32_t val)
     assert(phyaddr < 32);
     TRACE(MDIO,
           logout
-          ("mdio[USERACCESS%u] = 0x%08x, write = %u, reg = %u, phy = %u\n",
-           index, val, write, regaddr, phyaddr));
+          ("mdio[USERACCESS%u] = 0x%08x, writeflag = %u, reg = %u, phy = %u\n",
+           index, val, writeflag, regaddr, phyaddr));
     if (val & MDIO_USERACCESS_GO) {
         val &= (MDIO_USERACCESS_WRITE | MDIO_USERACCESS_REGADR |
                 MDIO_USERACCESS_PHYADR | MDIO_USERACCESS_DATA);
@@ -2022,7 +2022,7 @@ static void mdio_phy_write(unsigned index, uint32_t val)
             /* MDIO state machine is not enabled. */
             val = 0;
         } else if (phyaddr == ar7.phyaddr) {
-            if (write) {
+            if (writeflag) {
                 phy_write(regaddr, val & MDIO_USERACCESS_DATA);
             } else {
                 val = phy_read(regaddr);
