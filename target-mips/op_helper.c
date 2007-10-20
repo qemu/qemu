@@ -591,6 +591,14 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+                          int unused)
+{
+    if (is_exec)
+        do_raise_exception(EXCP_IBE);
+    else
+        do_raise_exception(EXCP_DBE);
+}
 #endif
 
 /* Complex FPU operations which may need stack space. */
