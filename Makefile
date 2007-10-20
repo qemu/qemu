@@ -67,7 +67,9 @@ endif
 
 install: all $(if $(BUILD_DOCS),install-doc)
 	mkdir -p "$(DESTDIR)$(bindir)"
+ifneq ($(TOOLS),)
 	$(INSTALL) -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
+endif
 	mkdir -p "$(DESTDIR)$(datadir)"
 	for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 		video.x openbios-sparc32 pxe-ne2k_pci.bin \
