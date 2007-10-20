@@ -1174,7 +1174,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
     ULARGE_INTEGER available, total, total_free;
-    DISK_GEOMETRY dg;
+    DISK_GEOMETRY_EX dg;
     DWORD count;
     BOOL status;
 
@@ -1190,11 +1190,10 @@ static int64_t raw_getlength(BlockDriverState *bs)
         l.QuadPart = total.QuadPart;
         break;
     case FTYPE_HARDDISK:
-        status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+        status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
                                  NULL, 0, &dg, sizeof(dg), &count, NULL);
-        if (status != FALSE) {
-            l.QuadPart = dg.Cylinders.QuadPart * dg.TracksPerCylinder
-                * dg.SectorsPerTrack * dg.BytesPerSector;
+        if (status != 0) {
+            l = dg.DiskSize;
         }
         break;
     default:
