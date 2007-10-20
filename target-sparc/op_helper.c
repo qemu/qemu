@@ -806,7 +806,7 @@ void helper_ld_asi(int asi, int size, int sign)
     uint64_t ret = 0;
 
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (asi >= 0x30 && asi < 0x80) && !(env->hpstate & HS_PRIV))
+        || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
@@ -1023,7 +1023,7 @@ void helper_ld_asi(int asi, int size, int sign)
 void helper_st_asi(int asi, int size)
 {
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (asi >= 0x30 && asi < 0x80) && !(env->hpstate & HS_PRIV))
+        || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
     /* Convert to little endian */
