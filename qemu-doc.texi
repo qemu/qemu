@@ -242,7 +242,8 @@ Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
 
 @item -smp n
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
-CPUs are supported.
+CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
+to 4.
 
 @item -audio-help
 
@@ -1942,6 +1943,8 @@ More information is available at
 
 Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
 or SparcStation 10 (sun4m architecture). The emulation is somewhat complete.
+SMP up to 16 CPUs is supported, but Linux limits the number of usable CPUs
+to 4.
 
 QEMU emulates the following sun4m peripherals:
 
@@ -1965,7 +1968,8 @@ Floppy drive
 CS4231 sound device (only on SS-5, not working yet)
 @end itemize
 
-The number of peripherals is fixed in the architecture.
+The number of peripherals is fixed in the architecture.  Maximum memory size
+depends on the machine type, for SS-5 it is 256MB and for SS-10 2047MB.
 
 Since version 0.8.2, QEMU uses OpenBIOS
 @url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
@@ -2381,6 +2385,12 @@ configurations), and arm-uclinux bFLT format binaries.
 coldfire uClinux bFLT format binaries.
 
 The binary format is detected automatically.
+
+@command{qemu-sparc32plus} can execute Sparc32 and SPARC32PLUS binaries
+(Sparc64 CPU, 32 bit ABI).
+
+@command{qemu-sparc64} can execute some Sparc64 (Sparc64 CPU, 64 bit ABI) and
+SPARC32PLUS binaries (Sparc64 CPU, 32 bit ABI).
 
 @node Mac OS X/Darwin User space emulator
 @section Mac OS X/Darwin User space emulator
