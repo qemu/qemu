@@ -1711,6 +1711,9 @@ void OPPROTO op_fcmped_fcc3(void)
 /* Integer to float conversion.  */
 #ifdef USE_INT_TO_FLOAT_HELPERS
 F_HELPER(ito);
+#ifdef TARGET_SPARC64
+F_HELPER(xto);
+#endif
 #else
 F_OP(ito, s)
 {

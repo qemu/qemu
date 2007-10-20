@@ -69,6 +69,21 @@ void do_fitod(void)
 {
     DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
 }
+#ifdef TARGET_SPARC64
+void do_fxtos(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
+    check_ieee_exceptions();
+}
+
+void do_fxtod(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
 #endif
 
 void do_fabss(void)
