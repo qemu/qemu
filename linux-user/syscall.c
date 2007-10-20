@@ -167,6 +167,8 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #ifdef __NR_gettid
 _syscall0(int, gettid)
 #else
+/* This is a replacement for the host gettid() and must return a host
+   errno. */
 static int gettid(void) {
     return -ENOSYS;
 }
@@ -389,6 +391,7 @@ void target_set_brk(abi_ulong new_brk)
     target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
 }
 
+/* do_brk() must return target values and target errnos. */
 abi_long do_brk(abi_ulong new_brk)
 {
     abi_ulong brk_page;
@@ -398,7 +401,7 @@ abi_long do_brk(abi_ulong new_brk)
     if (!new_brk)
         return target_brk;
     if (new_brk < target_original_brk)
-        return -ENOMEM;
+        return -TARGET_ENOMEM;
 
     brk_page = HOST_PAGE_ALIGN(target_brk);
 
@@ -532,6 +535,7 @@ static inline void host_to_target_timeval(abi_ulong target_addr,
 }
 
 
+/* do_select() must return target values and target errnos. */
 static abi_long do_select(int n,
                           abi_ulong rfd_p, abi_ulong wfd_p,
                           abi_ulong efd_p, abi_ulong target_tv)
@@ -706,6 +710,7 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
     msgh->msg_controllen = tswapl(space);
 }
 
+/* do_setsockopt() Must return target values and target errnos. */
 static abi_long do_setsockopt(int sockfd, int level, int optname,
                               abi_ulong optval, socklen_t optlen)
 {
@@ -716,7 +721,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
     case SOL_TCP:
         /* TCP options all take an 'int' value.  */
         if (optlen < sizeof(uint32_t))
-            return -EINVAL;
+            return -TARGET_EINVAL;
 
         val = tget32(optval);
         ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
@@ -814,7 +819,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             goto unimplemented;
         }
 	if (optlen < sizeof(uint32_t))
-	return -EINVAL;
+	return -TARGET_EINVAL;
 
 	val = tget32(optval);
 	ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname, &val, sizeof(val)));
@@ -822,11 +827,12 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
     default:
     unimplemented:
         gemu_log("Unsupported setsockopt level=%d optname=%d \n", level, optname);
-        ret = -ENOSYS;
+        ret = -TARGET_ENOSYS;
     }
     return ret;
 }
 
+/* do_getsockopt() Must return target values and target errnos. */
 static abi_long do_getsockopt(int sockfd, int level, int optname,
                               abi_ulong optval, abi_ulong optlen)
 {
@@ -853,7 +859,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
     int_case:
         len = tget32(optlen);
         if (len < 0)
-            return -EINVAL;
+            return -TARGET_EINVAL;
         lv = sizeof(int);
         ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
         if (ret < 0)
@@ -886,7 +892,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         case IP_MULTICAST_LOOP:
             len = tget32(optlen);
             if (len < 0)
-                return -EINVAL;
+                return -TARGET_EINVAL;
             lv = sizeof(int);
             ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
             if (ret < 0)
@@ -910,7 +916,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
     unimplemented:
         gemu_log("getsockopt level=%d optname=%d not yet supported\n",
                  level, optname);
-        ret = -ENOSYS;
+        ret = -TARGET_ENOSYS;
         break;
     }
     return ret;
@@ -947,6 +953,7 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     unlock_user (target_vec, target_addr, 0);
 }
 
+/* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
 #if defined(TARGET_MIPS)
@@ -974,6 +981,7 @@ static abi_long do_socket(int domain, int type, int protocol)
     return get_errno(socket(domain, type, protocol));
 }
 
+/* do_bind() Must return target values and target errnos. */
 static abi_long do_bind(int sockfd, abi_ulong target_addr,
                         socklen_t addrlen)
 {
@@ -983,6 +991,7 @@ static abi_long do_bind(int sockfd, abi_ulong target_addr,
     return get_errno(bind(sockfd, addr, addrlen));
 }
 
+/* do_connect() Must return target values and target errnos. */
 static abi_long do_connect(int sockfd, abi_ulong target_addr,
                            socklen_t addrlen)
 {
@@ -992,6 +1001,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
     return get_errno(connect(sockfd, addr, addrlen));
 }
 
+/* do_sendrecvmsg() Must return target values and target errnos. */
 static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
                                int flags, int send)
 {
@@ -1035,6 +1045,7 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
     return ret;
 }
 
+/* do_accept() Must return target values and target errnos. */
 static abi_long do_accept(int fd, abi_ulong target_addr,
                           abi_ulong target_addrlen)
 {
@@ -1050,6 +1061,7 @@ static abi_long do_accept(int fd, abi_ulong target_addr,
     return ret;
 }
 
+/* do_getpeername() Must return target values and target errnos. */
 static abi_long do_getpeername(int fd, abi_ulong target_addr,
                                abi_ulong target_addrlen)
 {
@@ -1065,6 +1077,7 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
     return ret;
 }
 
+/* do_getsockname() Must return target values and target errnos. */
 static abi_long do_getsockname(int fd, abi_ulong target_addr,
                                abi_ulong target_addrlen)
 {
@@ -1080,6 +1093,7 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
     return ret;
 }
 
+/* do_socketpair() Must return target values and target errnos. */
 static abi_long do_socketpair(int domain, int type, int protocol,
                               abi_ulong target_tab)
 {
@@ -1094,6 +1108,7 @@ static abi_long do_socketpair(int domain, int type, int protocol,
     return ret;
 }
 
+/* do_sendto() Must return target values and target errnos. */
 static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
                           abi_ulong target_addr, socklen_t addrlen)
 {
@@ -1113,6 +1128,7 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     return ret;
 }
 
+/* do_recvfrom() Must return target values and target errnos. */
 static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
                             abi_ulong target_addr,
                             abi_ulong target_addrlen)
@@ -1144,6 +1160,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
 }
 
 #ifdef TARGET_NR_socketcall
+/* do_socketcall() Must return target values and target errnos. */
 static abi_long do_socketcall(int num, abi_ulong vptr)
 {
     abi_long ret;
@@ -1301,7 +1318,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         break;
     default:
         gemu_log("Unsupported socketcall: %d\n", num);
-        ret = -ENOSYS;
+        ret = -TARGET_ENOSYS;
         break;
     }
     return ret;
@@ -1639,6 +1656,7 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
 }
 
 /* ??? This only works with linear mappings.  */
+/* do_ipc() must return target values and target errnos. */
 static abi_long do_ipc(unsigned int call, int first,
                        int second, int third,
                        abi_long ptr, abi_long fifth)
@@ -1667,7 +1685,7 @@ static abi_long do_ipc(unsigned int call, int first,
 
     case IPCOP_semtimedop:
         gemu_log("Unsupported ipc call: %d (version %d)\n", call, version);
-        ret = -ENOSYS;
+        ret = -TARGET_ENOSYS;
         break;
 
 	case IPCOP_msgget:
@@ -1723,7 +1741,7 @@ static abi_long do_ipc(unsigned int call, int first,
 	    }
 	}
 	if (put_user(raddr, (abi_ulong *)third))
-            return -EFAULT;
+            return -TARGET_EFAULT;
         ret = 0;
 	break;
     case IPCOP_shmdt:
@@ -1757,7 +1775,7 @@ static abi_long do_ipc(unsigned int call, int first,
     default:
     unimplemented:
 	gemu_log("Unsupported ipc call: %d (version %d)\n", call, version);
-	ret = -ENOSYS;
+	ret = -TARGET_ENOSYS;
 	break;
     }
     return ret;
@@ -1803,6 +1821,7 @@ IOCTLEntry ioctl_entries[] = {
 };
 
 /* ??? Implement proper locking for ioctls.  */
+/* do_ioctl() Must return target values and target errnos. */
 static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
 {
     const IOCTLEntry *ie;
@@ -1816,7 +1835,7 @@ static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
     for(;;) {
         if (ie->target_cmd == 0) {
             gemu_log("Unsupported ioctl: cmd=0x%04lx\n", (long)cmd);
-            return -ENOSYS;
+            return -TARGET_ENOSYS;
         }
         if (ie->target_cmd == cmd)
             break;
@@ -1871,7 +1890,7 @@ static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
     default:
         gemu_log("Unsupported ioctl type: cmd=0x%04lx type=%d\n",
                  (long)cmd, arg_type[0]);
-        ret = -ENOSYS;
+        ret = -TARGET_ENOSYS;
         break;
     }
     return ret;
@@ -2106,6 +2125,7 @@ static int read_ldt(abi_ulong ptr, unsigned long bytecount)
 }
 
 /* XXX: add locking support */
+/* write_ldt() returns host errnos */
 static int write_ldt(CPUX86State *env,
                      abi_ulong ptr, unsigned long bytecount, int oldmode)
 {
@@ -2188,6 +2208,8 @@ install:
 }
 
 /* specific and weird i386 syscalls */
+/* do_modify_ldt() returns host errnos (it is inconsistent with the
+   other do_*() functions which return target errnos). */
 int do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr, unsigned long bytecount)
 {
     int ret = -ENOSYS;
@@ -2220,6 +2242,8 @@ static int clone_func(void *arg)
     return 0;
 }
 
+/* do_fork() Must return host values and target errnos (unlike most
+   do_*() functions). */
 int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
 {
     int ret;
@@ -2547,6 +2571,9 @@ static inline void host_to_target_timespec(abi_ulong target_addr,
     unlock_user_struct(target_ts, target_addr, 1);
 }
 
+/* do_syscall() should always have a single exit point at the end so
+   that actions, such as logging of syscall results, can be performed.
+   All errnos that do_syscall() returns must be -TARGET_<errcode>. */
 abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6)
@@ -2590,12 +2617,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_openat) && defined(__NR_openat)
     case TARGET_NR_openat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-            ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+            ret = -TARGET_EFAULT;
         else
             ret = get_errno(sys_openat(arg1,
                                        path(p),
@@ -2644,16 +2672,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_linkat) && defined(__NR_linkat)
     case TARGET_NR_linkat:
         if (!arg2 || !arg4) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
-	}
+        }
         {
             void * p2 = NULL;
             p  = lock_user_string(arg2);
             p2 = lock_user_string(arg4);
             if (!access_ok(VERIFY_READ, p, 1)
                 || !access_ok(VERIFY_READ, p2, 1))
-                ret = -EFAULT;
+                /* Don't "goto fail" so that cleanup can happen. */
+                ret = -TARGET_EFAULT;
             else
                 ret = get_errno(sys_linkat(arg1, p, arg3, p2, arg5));
             if (p2)
@@ -2671,12 +2700,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
     case TARGET_NR_unlinkat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-            ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+            ret = -TARGET_EFAULT;
         else
             ret = get_errno(sys_unlinkat(arg1, p, arg3));
         if (p)
@@ -2762,12 +2792,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
     case TARGET_NR_mknodat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-            ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+            ret = -TARGET_EFAULT;
         else
             ret = get_errno(sys_mknodat(arg1, p, arg3, arg4));
         if (p)
@@ -2894,12 +2925,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
     case TARGET_NR_faccessat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-    	    ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+    	    ret = -TARGET_EFAULT;
         else
             ret = get_errno(sys_faccessat(arg1, p, arg3, arg4));
         if (p)
@@ -2935,8 +2967,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_renameat) && defined(__NR_renameat)
     case TARGET_NR_renameat:
         if (!arg2 || !arg4) {
-            ret = -EFAULT;
-	    goto fail;
+            ret = -TARGET_EFAULT;
+            goto fail;
         }
         {
             void *p2 = NULL;
@@ -2944,7 +2976,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             p2 = lock_user_string(arg4);
             if (!access_ok(VERIFY_READ, p, 1)
                 || !access_ok(VERIFY_READ, p2, 1))
-                ret = -EFAULT;
+                /* Don't "goto fail" so that cleanup can happen. */
+                ret = -TARGET_EFAULT;
             else
                 ret = get_errno(sys_renameat(arg1, p, arg3, p2));
             if (p2)
@@ -2962,12 +2995,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
     case TARGET_NR_mkdirat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-            ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+            ret = -TARGET_EFAULT;
         else
             ret = get_errno(sys_mkdirat(arg1, p, arg3));
         if (p)
@@ -3202,7 +3236,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     how = SIG_SETMASK;
                     break;
                 default:
-                    ret = -EINVAL;
+                    ret = -TARGET_EINVAL;
                     goto fail;
                 }
                 p = lock_user(arg2, sizeof(target_sigset_t), 1);
@@ -3239,7 +3273,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     how = SIG_SETMASK;
                     break;
                 default:
-                    ret = -EINVAL;
+                    ret = -TARGET_EINVAL;
                     goto fail;
                 }
                 p = lock_user(arg2, sizeof(target_sigset_t), 1);
@@ -3434,16 +3468,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
     case TARGET_NR_symlinkat:
         if (!arg1 || !arg3) {
-            ret = -EFAULT;
-	    goto fail;
-	}
+            ret = -TARGET_EFAULT;
+            goto fail;
+        }
         {
             void *p2 = NULL;
             p  = lock_user_string(arg1);
             p2 = lock_user_string(arg3);
             if (!access_ok(VERIFY_READ, p, 1)
                 || !access_ok(VERIFY_READ, p2, 1))
-                ret = -EFAULT;
+                /* Don't "goto fail" so that cleanup can happen. */
+                ret = -TARGET_EFAULT;
             else
                 ret = get_errno(sys_symlinkat(p, arg2, p2));
             if (p2)
@@ -3470,16 +3505,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
     case TARGET_NR_readlinkat:
         if (!arg2 || !arg3) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
-	}
+        }
         {
             void *p2 = NULL;
             p  = lock_user_string(arg2);
             p2 = lock_user(arg3, arg4, 0);
             if (!access_ok(VERIFY_READ, p, 1)
                 || !access_ok(VERIFY_READ, p2, 1))
-        	ret = -EFAULT;
+                /* Don't "goto fail" so that cleanup can happen. */
+        	ret = -TARGET_EFAULT;
             else
                 ret = get_errno(sys_readlinkat(arg1, path(p), p2, arg4));
             if (p2)
@@ -3596,12 +3632,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
     case TARGET_NR_fchmodat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-            ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+            ret = -TARGET_EFAULT;
         else
             ret = get_errno(sys_fchmodat(arg1, p, arg3, arg4));
         if (p)
@@ -4055,8 +4092,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             abi_long count = arg3;
 
 	    dirp = malloc(count);
-	    if (!dirp)
-                return -ENOMEM;
+	    if (!dirp) {
+                ret = -TARGET_EFAULT;
+                goto fail;
+            }
 
             ret = get_errno(sys_getdents(arg1, dirp, count));
             if (!is_error(ret)) {
@@ -4213,9 +4252,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR__sysctl:
-        /* We don't implement this, but ENODIR is always a safe
+        /* We don't implement this, but ENOTDIR is always a safe
            return value. */
-        return -ENOTDIR;
+        ret = -TARGET_ENOTDIR;
+        break;
     case TARGET_NR_sched_setparam:
         {
             struct sched_param *target_schp;
@@ -4514,12 +4554,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
     case TARGET_NR_fchownat:
         if (!arg2) {
-            ret = -EFAULT;
+            ret = -TARGET_EFAULT;
             goto fail;
         }
         p = lock_user_string(arg2);
         if (!access_ok(VERIFY_READ, p, 1))
-            ret = -EFAULT;
+            /* Don't "goto fail" so that cleanup can happen. */
+            ret = -TARGET_EFAULT;
 	else
             ret = get_errno(sys_fchownat(arg1, p, low2highuid(arg3), low2highgid(arg4), arg5));
         if (p)
@@ -4958,7 +4999,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             else {
                 p = lock_user_string(arg2);
                 if (!access_ok(VERIFY_READ, p, 1))
-                    ret = -EFAULT;
+                    /* Don't "goto fail" so that cleanup can happen. */
+                    ret = -TARGET_EFAULT;
                 else
                     ret = get_errno(sys_utimensat(arg1, path(p), ts, arg4));
                 if (p)
@@ -4974,7 +5016,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname) || defined(TARGET_NR_set_robust_list)
     unimplemented_nowarn:
 #endif
-        ret = -ENOSYS;
+        ret = -TARGET_ENOSYS;
         break;
     }
  fail:

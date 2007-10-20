@@ -438,6 +438,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     }
 }
 
+/* do_sigaltstack() returns target values and errnos. */
 int do_sigaltstack(const struct target_sigaltstack *uss,
                    struct target_sigaltstack *uoss,
                    abi_ulong sp)
@@ -457,18 +458,18 @@ int do_sigaltstack(const struct target_sigaltstack *uss,
     {
 	struct target_sigaltstack ss;
 
-	ret = -EFAULT;
+	ret = -TARGET_EFAULT;
 	if (!access_ok(VERIFY_READ, uss, sizeof(*uss))
 	    || __get_user(ss.ss_sp, &uss->ss_sp)
 	    || __get_user(ss.ss_size, &uss->ss_size)
 	    || __get_user(ss.ss_flags, &uss->ss_flags))
             goto out;
 
-	ret = -EPERM;
+	ret = -TARGET_EPERM;
 	if (on_sig_stack(sp))
             goto out;
 
-	ret = -EINVAL;
+	ret = -TARGET_EINVAL;
 	if (ss.ss_flags != TARGET_SS_DISABLE
             && ss.ss_flags != TARGET_SS_ONSTACK
             && ss.ss_flags != 0)
@@ -478,7 +479,7 @@ int do_sigaltstack(const struct target_sigaltstack *uss,
             ss.ss_size = 0;
             ss.ss_sp = 0;
 	} else {
-            ret = -ENOMEM;
+            ret = -TARGET_ENOMEM;
             if (ss.ss_size < MINSIGSTKSZ)
                 goto out;
 	}
@@ -488,7 +489,7 @@ int do_sigaltstack(const struct target_sigaltstack *uss,
     }
 
     if (uoss) {
-        ret = -EFAULT;
+        ret = -TARGET_EFAULT;
         if (!access_ok(VERIFY_WRITE, uoss, sizeof(oss)))
             goto out;
         memcpy(uoss, &oss, sizeof(oss));
@@ -499,12 +500,14 @@ out:
     return ret;
 }
 
+/* do_sigaction() return host values and errnos */
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact)
 {
     struct emulated_sigaction *k;
     struct sigaction act1;
     int host_sig;
+    int ret = 0;
 
     if (sig < 1 || sig > TARGET_NSIG || sig == SIGKILL || sig == SIGSTOP)
         return -EINVAL;
@@ -546,10 +549,10 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             } else {
                 act1.sa_sigaction = host_signal_handler;
             }
-            sigaction(host_sig, &act1, NULL);
+            ret = sigaction(host_sig, &act1, NULL);
         }
     }
-    return 0;
+    return ret;
 }
 
 #ifndef offsetof
