@@ -543,9 +543,9 @@ void op_clo (void)
         T0 = 32;
     } else {
         for (n = 0; n < 32; n++) {
-            if (!(T0 & (1 << 31)))
+            if (!(((int32_t)T0) & (1 << 31)))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -562,7 +562,7 @@ void op_clz (void)
         for (n = 0; n < 32; n++) {
             if (T0 & (1 << 31))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -747,7 +747,7 @@ void op_dclo (void)
         for (n = 0; n < 64; n++) {
             if (!(T0 & (1ULL << 63)))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -764,7 +764,7 @@ void op_dclz (void)
         for (n = 0; n < 64; n++) {
             if (T0 & (1ULL << 63))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
