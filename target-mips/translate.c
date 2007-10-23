@@ -749,6 +749,12 @@ static always_inline void check_cp1_64bitmode(DisasContext *ctx)
         generate_exception(ctx, EXCP_RI);
 }
 
+static always_inline void check_cp1_3d(CPUState *env, DisasContext *ctx)
+{
+    if (unlikely(!(env->fpu->fcr0 & (1 << FCR0_3D))))
+        generate_exception(ctx, EXCP_RI);
+}
+
 /*
  * Verify if floating point register is valid; an operation is not defined
  * if bit 0 of any register specification is set and the FR bit in the
@@ -6328,9 +6334,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_cp1(ctx, op1, rt, rd);
                 break;
 #endif
-            case OPC_BC1:
             case OPC_BC1ANY2:
             case OPC_BC1ANY4:
+                check_cp1_3d(env, ctx);
+                /* fall through */
+            case OPC_BC1:
                 gen_compute_branch1(env, ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
                 return;
