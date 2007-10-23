@@ -43,7 +43,8 @@ void muls64(int64_t *phigh, int64_t *plow, int64_t a, int64_t b)
     ph = (a >> 32) * (b >> 32);
 
     ph += (int64_t)pm1 >> 32;
-    pm1 = (uint64_t)((uint32_t)pm1) + pm2 + (pl >> 32);
+    ph += (int64_t)pm2 >> 32;
+    pm1 = (uint64_t)((uint32_t)pm1) + (uint64_t)((uint32_t)pm2) + (pl >> 32);
 
     *phigh = ph + ((int64_t)pm1 >> 32);
     *plow = (pm1 << 32) + (uint32_t)pl;
@@ -67,7 +68,8 @@ void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b)
     ph = (a >> 32) * (b >> 32);
 
     ph += pm1 >> 32;
-    pm1 = (uint64_t)((uint32_t)pm1) + pm2 + (pl >> 32);
+    ph += pm2 >> 32;
+    pm1 = (uint64_t)((uint32_t)pm1) + (uint64_t)((uint32_t)pm2) + (pl >> 32);
 
     *phigh = ph + (pm1 >> 32);
     *plow = (pm1 << 32) + (uint32_t)pl;
