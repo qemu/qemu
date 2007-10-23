@@ -199,7 +199,7 @@ static mips_def_t mips_defs[] =
         .CP0_SRSConf4_rw_bitmask = 0x3fffffff,
         .CP0_SRSConf4 = (0x3fe << CP0SRSC4_SRS15) |
                     (0x3fe << CP0SRSC4_SRS14) | (0x3fe << CP0SRSC4_SRS13),
-        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP | ASE_MT,
     },
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
     {
