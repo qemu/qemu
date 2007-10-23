@@ -1481,7 +1481,14 @@ void op_mfc0_desave (void)
 
 void op_mtc0_index (void)
 {
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 % env->tlb->nb_tlb);
+    int num = 1;
+    unsigned int tmp = env->tlb->nb_tlb;
+
+    do {
+        tmp >>= 1;
+        num <<= 1;
+    } while (tmp);
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (num - 1));
     RETURN();
 }
 
