@@ -2328,7 +2328,7 @@ void op_ctc1 (void)
 
 void op_mfc1 (void)
 {
-    T0 = WT0;
+    T0 = (int32_t)WT0;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2356,7 +2356,7 @@ void op_dmtc1 (void)
 
 void op_mfhc1 (void)
 {
-    T0 = WTH0;
+    T0 = (int32_t)WTH0;
     DEBUG_FPU_STATE();
     RETURN();
 }
