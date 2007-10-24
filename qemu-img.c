@@ -269,9 +269,9 @@ static int img_create(int argc, char **argv)
         case 'e':
             flags |= BLOCK_FLAG_ENCRYPT;
             break;
-		case '6':
+        case '6':
             flags |= BLOCK_FLAG_COMPAT6;
-			break;
+            break;
         }
     }
     if (optind >= argc)
@@ -471,7 +471,7 @@ static int img_convert(int argc, char **argv)
         error("Compression not supported for this file format");
     if (flags & BLOCK_FLAG_ENCRYPT && drv != &bdrv_qcow && drv != &bdrv_qcow2)
         error("Encryption not supported for this file format");
-    if (flags & BLOCK_FLAG_COMPRESS && drv != &bdrv_vmdk)
+    if (flags & BLOCK_FLAG_COMPAT6 && drv != &bdrv_vmdk)
         error("Alternative compatibility level not supported for this file format");
     if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
         error("Compression and encryption not supported at the same time");
