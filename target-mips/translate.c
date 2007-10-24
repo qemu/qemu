@@ -5400,7 +5400,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "cvt.d.l";
         break;
     case FOP(38, 20):
-    case FOP(38, 21):
         check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
