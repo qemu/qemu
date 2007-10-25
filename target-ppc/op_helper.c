@@ -331,7 +331,8 @@ void do_mulldo (void)
     uint64_t tl;
 
     muls64(&tl, &th, T0, T1);
-    if (likely(th == 0)) {
+    /* If th != 0 && th != -1, then we had an overflow */
+    if (likely((th + 1) <= 1)) {
         xer_ov = 0;
     } else {
         xer_ov = 1;
