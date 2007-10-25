@@ -79,8 +79,6 @@ void do_sraw (void);
 #if defined(TARGET_PPC64)
 void do_adde_64 (void);
 void do_addmeo_64 (void);
-void do_imul64 (uint64_t *tl, uint64_t *th);
-void do_mul64 (uint64_t *tl, uint64_t *th);
 void do_divdo (void);
 void do_divduo (void);
 void do_mulldo (void);

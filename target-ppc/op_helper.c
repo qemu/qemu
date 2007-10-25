@@ -199,79 +199,6 @@ void ppc_store_dump_spr (int sprn, target_ulong val)
 
 /*****************************************************************************/
 /* Fixed point operations helpers */
-#if defined(TARGET_PPC64)
-static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
-{
-    *plow += a;
-    /* carry test */
-    if (*plow < a)
-        (*phigh)++;
-    *phigh += b;
-}
-
-static void neg128 (uint64_t *plow, uint64_t *phigh)
-{
-    *plow = ~*plow;
-    *phigh = ~*phigh;
-    add128(plow, phigh, 1, 0);
-}
-
-static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
-{
-    uint32_t a0, a1, b0, b1;
-    uint64_t v;
-
-    a0 = a;
-    a1 = a >> 32;
-
-    b0 = b;
-    b1 = b >> 32;
-
-    v = (uint64_t)a0 * (uint64_t)b0;
-    *plow = v;
-    *phigh = 0;
-
-    v = (uint64_t)a0 * (uint64_t)b1;
-    add128(plow, phigh, v << 32, v >> 32);
-
-    v = (uint64_t)a1 * (uint64_t)b0;
-    add128(plow, phigh, v << 32, v >> 32);
-
-    v = (uint64_t)a1 * (uint64_t)b1;
-    *phigh += v;
-#if defined(DEBUG_MULDIV)
-    printf("mul: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
-           a, b, *phigh, *plow);
-#endif
-}
-
-void do_mul64 (uint64_t *plow, uint64_t *phigh)
-{
-    mul64(plow, phigh, T0, T1);
-}
-
-static void imul64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
-{
-    int sa, sb;
-
-    sa = (a < 0);
-    if (sa)
-        a = -a;
-    sb = (b < 0);
-    if (sb)
-        b = -b;
-    mul64(plow, phigh, a, b);
-    if (sa ^ sb) {
-        neg128(plow, phigh);
-    }
-}
-
-void do_imul64 (uint64_t *plow, uint64_t *phigh)
-{
-    imul64(plow, phigh, T0, T1);
-}
-#endif
-
 void do_adde (void)
 {
     T2 = T0;
@@ -403,7 +330,7 @@ void do_mulldo (void)
     int64_t th;
     uint64_t tl;
 
-    do_imul64(&tl, &th);
+    muls64(&tl, &th, T0, T1);
     if (likely(th == 0)) {
         xer_ov = 0;
     } else {

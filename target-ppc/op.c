@@ -980,7 +980,7 @@ void OPPROTO op_mulhd (void)
 {
     uint64_t tl, th;
 
-    do_imul64(&tl, &th);
+    muls64(&tl, &th, T0, T1);
     T0 = th;
     RETURN();
 }
@@ -998,7 +998,7 @@ void OPPROTO op_mulhdu (void)
 {
     uint64_t tl, th;
 
-    do_mul64(&tl, &th);
+    mulu64(&tl, &th, T0, T1);
     T0 = th;
     RETURN();
 }
