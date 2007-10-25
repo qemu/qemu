@@ -1415,7 +1415,7 @@ static target_long monitor_get_msr (struct MonitorDef *md, int val)
     CPUState *env = mon_get_cpu();
     if (!env)
         return 0;
-    return do_load_msr(env);
+    return env->msr;
 }
 
 static target_long monitor_get_xer (struct MonitorDef *md, int val)

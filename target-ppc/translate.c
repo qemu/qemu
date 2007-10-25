@@ -6538,18 +6538,10 @@ GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPEFPU); //
 GEN_OPCODE_MARK(end);
 
 #include "translate_init.c"
+#include "helper_regs.h"
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */
-static always_inline uint32_t load_xer (CPUState *env)
-{
-    return (xer_so << XER_SO) |
-        (xer_ov << XER_OV) |
-        (xer_ca << XER_CA) |
-        (xer_bc << XER_BC) |
-        (xer_cmp << XER_CMP);
-}
-
 void cpu_dump_state (CPUState *env, FILE *f,
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                      int flags)
@@ -6566,8 +6558,8 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
     int i;
 
-    cpu_fprintf(f, "NIP " ADDRX " LR " ADDRX " CTR " ADDRX "\n",
-                env->nip, env->lr, env->ctr);
+    cpu_fprintf(f, "NIP " ADDRX " LR " ADDRX " CTR " ADDRX " idx %d\n",
+                env->nip, env->lr, env->ctr, env->mmu_idx);
     cpu_fprintf(f, "MSR " REGX FILL " XER %08x      "
 #if !defined(NO_TIMER_DUMP)
                 "TB %08x %08x "
@@ -6576,7 +6568,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
 #endif
 #endif
                 "\n",
-                do_load_msr(env), load_xer(env)
+                env->msr, hreg_load_xer(env)
 #if !defined(NO_TIMER_DUMP)
                 , cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
 #if !defined(CONFIG_USER_ONLY)
@@ -6753,7 +6745,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "----------------\n");
             fprintf(logfile, "nip=" ADDRX " super=%d ir=%d\n",
-                    ctx.nip, 1 - msr_pr, msr_ir);
+                    ctx.nip, supervisor, (int)msr_ir);
         }
 #endif
         ctx.opcode = ldl_code(ctx.nip);
@@ -6787,12 +6779,12 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                 fprintf(logfile, "invalid/unsupported opcode: "
                         "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                         opc1(ctx.opcode), opc2(ctx.opcode),
-                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
+                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             } else {
                 printf("invalid/unsupported opcode: "
                        "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
                        opc1(ctx.opcode), opc2(ctx.opcode),
-                       opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
+                       opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             }
         } else {
             if (unlikely((ctx.opcode & handler->inval) != 0)) {

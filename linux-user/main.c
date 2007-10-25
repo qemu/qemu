@@ -2168,14 +2168,13 @@ int main(int argc, char **argv)
         }
         cpu_ppc_register(env, def);
         cpu_ppc_reset(env);
-        for (i = 0; i < 32; i++) {
-            if (i != 12 && i != 6 && i != 13)
-                env->msr[i] = (regs->msr >> i) & 1;
-        }
-#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
-        msr_sf = 1;
+        env->msr = regs->msr & ~((1 << 6) | (1 << 12) | (1 << 13));
+#if defined(TARGET_PPC64)
+#if defined(TARGET_ABI32)
+        env->msr &= ~((target_ulong)1 << MSR_SF);
 #else
-        msr_sf = 0;
+        env->msr |= (target_ulong)1 << MSR_SF;
+#endif
 #endif
         env->nip = regs->nip;
         for(i = 0; i < 32; i++) {

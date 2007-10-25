@@ -300,7 +300,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
     registers[96] = tswapl(env->nip);
-    registers[97] = tswapl(do_load_msr(env));
+    registers[97] = tswapl(env->msr);
     tmp = 0;
     for (i = 0; i < 8; i++)
         tmp |= env->crf[i] << (32 - ((i + 1) * 4));
@@ -329,7 +329,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
     env->nip = tswapl(registers[96]);
-    do_store_msr(env, tswapl(registers[97]));
+    ppc_store_msr(env, tswapl(registers[97]));
     registers[98] = tswapl(registers[98]);
     for (i = 0; i < 8; i++)
         env->crf[i] = (registers[98] >> (32 - ((i + 1) * 4))) & 0xF;

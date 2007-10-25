@@ -118,7 +118,7 @@ static always_inline int cpu_halted (CPUState *env)
 {
     if (!env->halted)
         return 0;
-    if (env->msr[MSR_EE] && (env->interrupt_request & CPU_INTERRUPT_HARD)) {
+    if (msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD)) {
         env->halted = 0;
         return 0;
     }
