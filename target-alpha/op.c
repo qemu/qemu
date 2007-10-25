@@ -295,7 +295,7 @@ void OPPROTO op_mullv (void)
 
 void OPPROTO op_mulq (void)
 {
-    T0 *= T1;
+    T0 = (int64_t)T0 * (int64_t)T1;
     RETURN();
 }
 
@@ -307,7 +307,10 @@ void OPPROTO op_mulqv (void)
 
 void OPPROTO op_umulh (void)
 {
-    helper_umulh();
+    uint64_t tl, th;
+
+    mulu64(&tl, &th, T0, T1);
+    T0 = th;
     RETURN();
 }
 
