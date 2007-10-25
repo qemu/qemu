@@ -82,7 +82,7 @@ static always_inline void hreg_compute_hflags (CPUPPCState *env)
 
 static always_inline int hreg_store_msr (CPUPPCState *env, target_ulong value)
 {
-    int enter_pm, excp;
+    int excp;
 
     excp = 0;
     value &= env->msr_mask;
@@ -106,30 +106,9 @@ static always_inline int hreg_store_msr (CPUPPCState *env, target_ulong value)
 #endif
     env->msr = value;
     hreg_compute_hflags(env);
-    enter_pm = 0;
 #if !defined (CONFIG_USER_ONLY)
     if (unlikely(msr_pow == 1)) {
-        switch (env->excp_model) {
-        case POWERPC_EXCP_603:
-        case POWERPC_EXCP_603E:
-        case POWERPC_EXCP_G2:
-            /* Don't handle SLEEP mode: we should disable all clocks...
-             * No dynamic power-management.
-             */
-            if ((env->spr[SPR_HID0] & 0x00C00000) != 0)
-                enter_pm = 1;
-            break;
-        case POWERPC_EXCP_604:
-            enter_pm = 1;
-            break;
-        case POWERPC_EXCP_7x0:
-            if ((env->spr[SPR_HID0] & 0x00E00000) != 0)
-                enter_pm = 1;
-            break;
-        default:
-            break;
-        }
-        if (enter_pm) {
+        if ((*env->check_pow)(env)) {
             env->halted = 1;
             excp = EXCP_HALTED;
         }
