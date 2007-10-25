@@ -5542,110 +5542,74 @@ static ppc_def_t ppc_defs[] = {
     POWERPC_DEF("7448v2.0",    CPU_POWERPC_7448_v20,    0xFFFFFFFF, 7400),
     /* PowerPC 7448 v2.1 (G4)                                                */
     POWERPC_DEF("7448v2.1",    CPU_POWERPC_7448_v21,    0xFFFFFFFF, 7400),
-#if defined (TODO)
     /* PowerPC 7450 (G4)                                                     */
     POWERPC_DEF("7450",        CPU_POWERPC_7450,        0xFFFFFFFF, 7450),
     /* Code name for PowerPC 7450                                            */
     POWERPC_DEF("Vger",        CPU_POWERPC_7450,        0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7450 v1.0 (G4)                                                */
     POWERPC_DEF("7450v1.0",    CPU_POWERPC_7450_v10,    0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7450 v1.1 (G4)                                                */
     POWERPC_DEF("7450v1.1",    CPU_POWERPC_7450_v11,    0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7450 v1.2 (G4)                                                */
     POWERPC_DEF("7450v1.2",    CPU_POWERPC_7450_v12,    0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7450 v2.0 (G4)                                                */
     POWERPC_DEF("7450v2.0",    CPU_POWERPC_7450_v20,    0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7450 v2.1 (G4)                                                */
     POWERPC_DEF("7450v2.1",    CPU_POWERPC_7450_v21,    0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7441 (G4)                                                     */
     POWERPC_DEF("7441",        CPU_POWERPC_74x1,        0xFFFFFFFF, 7440),
     /* PowerPC 7451 (G4)                                                     */
     POWERPC_DEF("7451",        CPU_POWERPC_74x1,        0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7441g (G4)                                                    */
     POWERPC_DEF("7441g",       CPU_POWERPC_74x1G,       0xFFFFFFFF, 7440),
     /* PowerPC 7451g (G4)                                                    */
     POWERPC_DEF("7451g",       CPU_POWERPC_74x1G,       0xFFFFFFFF, 7450),
-#endif
-#if defined (TODO)
     /* PowerPC 7445 (G4)                                                     */
     POWERPC_DEF("7445",        CPU_POWERPC_74x5,        0xFFFFFFFF, 7445),
     /* PowerPC 7455 (G4)                                                     */
     POWERPC_DEF("7455",        CPU_POWERPC_74x5,        0xFFFFFFFF, 7455),
     /* Code name for PowerPC 7445/7455                                       */
     POWERPC_DEF("Apollo6",     CPU_POWERPC_74x5,        0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7445 v1.0 (G4)                                                */
     POWERPC_DEF("7445v1.0",    CPU_POWERPC_74x5_v10,    0xFFFFFFFF, 7445),
     /* PowerPC 7455 v1.0 (G4)                                                */
     POWERPC_DEF("7455v1.0",    CPU_POWERPC_74x5_v10,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7445 v2.1 (G4)                                                */
     POWERPC_DEF("7445v2.1",    CPU_POWERPC_74x5_v21,    0xFFFFFFFF, 7445),
     /* PowerPC 7455 v2.1 (G4)                                                */
     POWERPC_DEF("7455v2.1",    CPU_POWERPC_74x5_v21,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7445 v3.2 (G4)                                                */
     POWERPC_DEF("7445v3.2",    CPU_POWERPC_74x5_v32,    0xFFFFFFFF, 7445),
     /* PowerPC 7455 v3.2 (G4)                                                */
     POWERPC_DEF("7455v3.2",    CPU_POWERPC_74x5_v32,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7445 v3.3 (G4)                                                */
     POWERPC_DEF("7445v3.3",    CPU_POWERPC_74x5_v33,    0xFFFFFFFF, 7445),
     /* PowerPC 7455 v3.3 (G4)                                                */
     POWERPC_DEF("7455v3.3",    CPU_POWERPC_74x5_v33,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7445 v3.4 (G4)                                                */
     POWERPC_DEF("7445v3.4",    CPU_POWERPC_74x5_v34,    0xFFFFFFFF, 7445),
     /* PowerPC 7455 v3.4 (G4)                                                */
     POWERPC_DEF("7455v3.4",    CPU_POWERPC_74x5_v34,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7447 (G4)                                                     */
     POWERPC_DEF("7447",        CPU_POWERPC_74x7,        0xFFFFFFFF, 7445),
     /* PowerPC 7457 (G4)                                                     */
     POWERPC_DEF("7457",        CPU_POWERPC_74x7,        0xFFFFFFFF, 7455),
     /* Code name for PowerPC 7447/7457                                       */
     POWERPC_DEF("Apollo7",     CPU_POWERPC_74x7,        0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7447 v1.0 (G4)                                                */
     POWERPC_DEF("7447v1.0",    CPU_POWERPC_74x7_v10,    0xFFFFFFFF, 7445),
     /* PowerPC 7457 v1.0 (G4)                                                */
     POWERPC_DEF("7457v1.0",    CPU_POWERPC_74x7_v10,    0xFFFFFFFF, 7455),
     /* Code name for PowerPC 7447A/7457A                                     */
     POWERPC_DEF("Apollo7PM",   CPU_POWERPC_74x7_v10,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7447 v1.1 (G4)                                                */
     POWERPC_DEF("7447v1.1",    CPU_POWERPC_74x7_v11,    0xFFFFFFFF, 7445),
     /* PowerPC 7457 v1.1 (G4)                                                */
     POWERPC_DEF("7457v1.1",    CPU_POWERPC_74x7_v11,    0xFFFFFFFF, 7455),
-#endif
-#if defined (TODO)
     /* PowerPC 7447 v1.2 (G4)                                                */
     POWERPC_DEF("7447v1.2",    CPU_POWERPC_74x7_v12,    0xFFFFFFFF, 7445),
     /* PowerPC 7457 v1.2 (G4)                                                */
     POWERPC_DEF("7457v1.2",    CPU_POWERPC_74x7_v12,    0xFFFFFFFF, 7455),
-#endif
     /* 64 bits PowerPC                                                       */
 #if defined (TARGET_PPC64)
 #if defined (TODO)
