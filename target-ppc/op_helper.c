@@ -19,6 +19,7 @@
  */
 #include "exec.h"
 
+#include "helper_regs.h"
 #include "op_helper.h"
 
 #define MEMSUFFIX _raw
@@ -96,24 +97,6 @@ void do_store_cr (uint32_t mask)
         if (mask & (1 << sh))
             env->crf[i] = (T0 >> (sh * 4)) & 0xFUL;
     }
-}
-
-void do_load_xer (void)
-{
-    T0 = (xer_so << XER_SO) |
-        (xer_ov << XER_OV) |
-        (xer_ca << XER_CA) |
-        (xer_bc << XER_BC) |
-        (xer_cmp << XER_CMP);
-}
-
-void do_store_xer (void)
-{
-    xer_so = (T0 >> XER_SO) & 0x01;
-    xer_ov = (T0 >> XER_OV) & 0x01;
-    xer_ca = (T0 >> XER_CA) & 0x01;
-    xer_cmp = (T0 >> XER_CMP) & 0xFF;
-    xer_bc = (T0 >> XER_BC) & 0x7F;
 }
 
 #if defined(TARGET_PPC64)
@@ -216,79 +199,6 @@ void ppc_store_dump_spr (int sprn, target_ulong val)
 
 /*****************************************************************************/
 /* Fixed point operations helpers */
-#if defined(TARGET_PPC64)
-static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
-{
-    *plow += a;
-    /* carry test */
-    if (*plow < a)
-        (*phigh)++;
-    *phigh += b;
-}
-
-static void neg128 (uint64_t *plow, uint64_t *phigh)
-{
-    *plow = ~*plow;
-    *phigh = ~*phigh;
-    add128(plow, phigh, 1, 0);
-}
-
-static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
-{
-    uint32_t a0, a1, b0, b1;
-    uint64_t v;
-
-    a0 = a;
-    a1 = a >> 32;
-
-    b0 = b;
-    b1 = b >> 32;
-
-    v = (uint64_t)a0 * (uint64_t)b0;
-    *plow = v;
-    *phigh = 0;
-
-    v = (uint64_t)a0 * (uint64_t)b1;
-    add128(plow, phigh, v << 32, v >> 32);
-
-    v = (uint64_t)a1 * (uint64_t)b0;
-    add128(plow, phigh, v << 32, v >> 32);
-
-    v = (uint64_t)a1 * (uint64_t)b1;
-    *phigh += v;
-#if defined(DEBUG_MULDIV)
-    printf("mul: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
-           a, b, *phigh, *plow);
-#endif
-}
-
-void do_mul64 (uint64_t *plow, uint64_t *phigh)
-{
-    mul64(plow, phigh, T0, T1);
-}
-
-static void imul64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
-{
-    int sa, sb;
-
-    sa = (a < 0);
-    if (sa)
-        a = -a;
-    sb = (b < 0);
-    if (sb)
-        b = -b;
-    mul64(plow, phigh, a, b);
-    if (sa ^ sb) {
-        neg128(plow, phigh);
-    }
-}
-
-void do_imul64 (uint64_t *plow, uint64_t *phigh)
-{
-    imul64(plow, phigh, T0, T1);
-}
-#endif
-
 void do_adde (void)
 {
     T2 = T0;
@@ -420,8 +330,9 @@ void do_mulldo (void)
     int64_t th;
     uint64_t tl;
 
-    do_imul64(&tl, &th);
-    if (likely(th == 0)) {
+    muls64(&tl, &th, T0, T1);
+    /* If th != 0 && th != -1, then we had an overflow */
+    if (likely((th + 1) <= 1)) {
         xer_ov = 0;
     } else {
         xer_ov = 1;
@@ -970,56 +881,63 @@ void do_fcmpo (void)
 
 #if !defined (CONFIG_USER_ONLY)
 void cpu_dump_rfi (target_ulong RA, target_ulong msr);
-void do_rfi (void)
+
+void do_store_msr (void)
+{
+    T0 = hreg_store_msr(env, T0);
+    if (T0 != 0) {
+        env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        do_raise_exception(T0);
+    }
+}
+
+static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
+                                    target_ulong msrm, int keep_msrh)
 {
 #if defined(TARGET_PPC64)
-    if (env->spr[SPR_SRR1] & (1ULL << MSR_SF)) {
-        env->nip = (uint64_t)(env->spr[SPR_SRR0] & ~0x00000003);
-        do_store_msr(env, (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+    if (msr & (1ULL << MSR_SF)) {
+        nip = (uint64_t)nip;
+        msr &= (uint64_t)msrm;
     } else {
-        env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
-        ppc_store_msr_32(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+        nip = (uint32_t)nip;
+        msr = (uint32_t)(msr & msrm);
+        if (keep_msrh)
+            msr |= env->msr & ~((uint64_t)0xFFFFFFFF);
     }
 #else
-    env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
-    do_store_msr(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
+    nip = (uint32_t)nip;
+    msr &= (uint32_t)msrm;
 #endif
+    /* XXX: beware: this is false if VLE is supported */
+    env->nip = nip & ~((target_ulong)0x00000003);
+    hreg_store_msr(env, msr);
 #if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
+    cpu_dump_rfi(env->nip, env->msr);
 #endif
+    /* No need to raise an exception here,
+     * as rfi is always the last insn of a TB
+     */
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+}
+
+void do_rfi (void)
+{
+    __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+             ~((target_ulong)0xFFFF0000), 1);
 }
 
 #if defined(TARGET_PPC64)
 void do_rfid (void)
 {
-    if (env->spr[SPR_SRR1] & (1ULL << MSR_SF)) {
-        env->nip = (uint64_t)(env->spr[SPR_SRR0] & ~0x00000003);
-        do_store_msr(env, (uint64_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
-    } else {
-        env->nip = (uint32_t)(env->spr[SPR_SRR0] & ~0x00000003);
-        do_store_msr(env, (uint32_t)(env->spr[SPR_SRR1] & ~0xFFFF0000UL));
-    }
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+             ~((target_ulong)0xFFFF0000), 0);
 }
 #endif
 #if defined(TARGET_PPC64H)
 void do_hrfid (void)
 {
-    if (env->spr[SPR_HSRR1] & (1ULL << MSR_SF)) {
-        env->nip = (uint64_t)(env->spr[SPR_HSRR0] & ~0x00000003);
-        do_store_msr(env, (uint64_t)(env->spr[SPR_HSRR1] & ~0xFFFF0000UL));
-    } else {
-        env->nip = (uint32_t)(env->spr[SPR_HSRR0] & ~0x00000003);
-        do_store_msr(env, (uint32_t)(env->spr[SPR_HSRR1] & ~0xFFFF0000UL));
-    }
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
+             ~((target_ulong)0xFFFF0000), 0);
 }
 #endif
 #endif
@@ -1214,13 +1132,7 @@ void do_POWER_rac (void)
 
 void do_POWER_rfsvc (void)
 {
-    env->nip = env->lr & ~0x00000003UL;
-    T0 = env->ctr & 0x0000FFFFUL;
-    do_store_msr(env, T0);
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
 }
 
 /* PowerPC 601 BAT management helper */
@@ -1332,63 +1244,26 @@ void do_store_dcr (void)
 #if !defined(CONFIG_USER_ONLY)
 void do_40x_rfci (void)
 {
-    env->nip = env->spr[SPR_40x_SRR2];
-    do_store_msr(env, env->spr[SPR_40x_SRR3] & ~0xFFFF0000);
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
+             ~((target_ulong)0xFFFF0000), 0);
 }
 
 void do_rfci (void)
 {
-#if defined(TARGET_PPC64)
-    if (env->spr[SPR_BOOKE_CSRR1] & (1 << MSR_CM)) {
-        env->nip = (uint64_t)env->spr[SPR_BOOKE_CSRR0];
-    } else
-#endif
-    {
-        env->nip = (uint32_t)env->spr[SPR_BOOKE_CSRR0];
-    }
-    do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_CSRR1] & ~0x3FFF0000);
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
+             ~((target_ulong)0x3FFF0000), 0);
 }
 
 void do_rfdi (void)
 {
-#if defined(TARGET_PPC64)
-    if (env->spr[SPR_BOOKE_DSRR1] & (1 << MSR_CM)) {
-        env->nip = (uint64_t)env->spr[SPR_BOOKE_DSRR0];
-    } else
-#endif
-    {
-        env->nip = (uint32_t)env->spr[SPR_BOOKE_DSRR0];
-    }
-    do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_DSRR1] & ~0x3FFF0000);
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
+             ~((target_ulong)0x3FFF0000), 0);
 }
 
 void do_rfmci (void)
 {
-#if defined(TARGET_PPC64)
-    if (env->spr[SPR_BOOKE_MCSRR1] & (1 << MSR_CM)) {
-        env->nip = (uint64_t)env->spr[SPR_BOOKE_MCSRR0];
-    } else
-#endif
-    {
-        env->nip = (uint32_t)env->spr[SPR_BOOKE_MCSRR0];
-    }
-    do_store_msr(env, (uint32_t)env->spr[SPR_BOOKE_MCSRR1] & ~0x3FFF0000);
-#if defined (DEBUG_OP)
-    cpu_dump_rfi(env->nip, do_load_msr(env));
-#endif
-    env->interrupt_request = CPU_INTERRUPT_EXITTB;
+    __do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
+             ~((target_ulong)0x3FFF0000), 0);
 }
 
 void do_load_403_pb (int num)

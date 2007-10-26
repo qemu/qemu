@@ -368,7 +368,7 @@ union ppc_tlb_t {
 #define MSR_DE   9  /* Debug interrupts enable on embedded PowerPC  x        */
 #define MSR_FE1  8  /* Floating point exception mode 1                hflags */
 #define MSR_AL   7  /* AL bit on POWER                                       */
-#define MSR_EP   3  /* Exception prefix on 601                               */
+#define MSR_EP   6  /* Exception prefix on 601                               */
 #define MSR_IR   5  /* Instruction relocate                                  */
 #define MSR_DR   4  /* Data relocate                                         */
 #define MSR_PE   3  /* Protection enable on 403                              */
@@ -376,41 +376,42 @@ union ppc_tlb_t {
 #define MSR_PMM  2  /* Performance monitor mark on POWER            x        */
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
-#define msr_sf   env->msr[MSR_SF]
-#define msr_isf  env->msr[MSR_ISF]
-#define msr_hv   env->msr[MSR_HV]
-#define msr_cm   env->msr[MSR_CM]
-#define msr_icm  env->msr[MSR_ICM]
-#define msr_ucle env->msr[MSR_UCLE]
-#define msr_vr   env->msr[MSR_VR]
-#define msr_spe  env->msr[MSR_SPE]
-#define msr_ap   env->msr[MSR_AP]
-#define msr_sa   env->msr[MSR_SA]
-#define msr_key  env->msr[MSR_KEY]
-#define msr_pow  env->msr[MSR_POW]
-#define msr_tgpr env->msr[MSR_TGPR]
-#define msr_ce   env->msr[MSR_CE]
-#define msr_ile  env->msr[MSR_ILE]
-#define msr_ee   env->msr[MSR_EE]
-#define msr_pr   env->msr[MSR_PR]
-#define msr_fp   env->msr[MSR_FP]
-#define msr_me   env->msr[MSR_ME]
-#define msr_fe0  env->msr[MSR_FE0]
-#define msr_se   env->msr[MSR_SE]
-#define msr_dwe  env->msr[MSR_DWE]
-#define msr_uble env->msr[MSR_UBLE]
-#define msr_be   env->msr[MSR_BE]
-#define msr_de   env->msr[MSR_DE]
-#define msr_fe1  env->msr[MSR_FE1]
-#define msr_al   env->msr[MSR_AL]
-#define msr_ir   env->msr[MSR_IR]
-#define msr_dr   env->msr[MSR_DR]
-#define msr_pe   env->msr[MSR_PE]
-#define msr_ep   env->msr[MSR_EP]
-#define msr_px   env->msr[MSR_PX]
-#define msr_pmm  env->msr[MSR_PMM]
-#define msr_ri   env->msr[MSR_RI]
-#define msr_le   env->msr[MSR_LE]
+
+#define msr_sf   ((env->msr >> MSR_SF)   & 1)
+#define msr_isf  ((env->msr >> MSR_ISF)  & 1)
+#define msr_hv   ((env->msr >> MSR_HV)   & 1)
+#define msr_cm   ((env->msr >> MSR_CM)   & 1)
+#define msr_icm  ((env->msr >> MSR_ICM)  & 1)
+#define msr_ucle ((env->msr >> MSR_UCLE) & 1)
+#define msr_vr   ((env->msr >> MSR_VR)   & 1)
+#define msr_spe  ((env->msr >> MSR_SE)   & 1)
+#define msr_ap   ((env->msr >> MSR_AP)   & 1)
+#define msr_sa   ((env->msr >> MSR_SA)   & 1)
+#define msr_key  ((env->msr >> MSR_KEY)  & 1)
+#define msr_pow  ((env->msr >> MSR_POW)  & 1)
+#define msr_tgpr ((env->msr >> MSR_TGPR) & 1)
+#define msr_ce   ((env->msr >> MSR_CE)   & 1)
+#define msr_ile  ((env->msr >> MSR_ILE)  & 1)
+#define msr_ee   ((env->msr >> MSR_EE)   & 1)
+#define msr_pr   ((env->msr >> MSR_PR)   & 1)
+#define msr_fp   ((env->msr >> MSR_FP)   & 1)
+#define msr_me   ((env->msr >> MSR_ME)   & 1)
+#define msr_fe0  ((env->msr >> MSR_FE0)  & 1)
+#define msr_se   ((env->msr >> MSR_SE)   & 1)
+#define msr_dwe  ((env->msr >> MSR_DWE)  & 1)
+#define msr_uble ((env->msr >> MSR_UBLE) & 1)
+#define msr_be   ((env->msr >> MSR_BE)   & 1)
+#define msr_de   ((env->msr >> MSR_DE)   & 1)
+#define msr_fe1  ((env->msr >> MSR_FE1)  & 1)
+#define msr_al   ((env->msr >> MSR_AL)   & 1)
+#define msr_ep   ((env->msr >> MSR_EP)   & 1)
+#define msr_ir   ((env->msr >> MSR_IR)   & 1)
+#define msr_dr   ((env->msr >> MSR_DR)   & 1)
+#define msr_pe   ((env->msr >> MSR_PE)   & 1)
+#define msr_px   ((env->msr >> MSR_PX)   & 1)
+#define msr_pmm  ((env->msr >> MSR_PMM)  & 1)
+#define msr_ri   ((env->msr >> MSR_RI)   & 1)
+#define msr_le   ((env->msr >> MSR_LE)   & 1)
 
 enum {
     POWERPC_FLAG_NONE = 0x00000000,
@@ -468,7 +469,7 @@ struct CPUPPCState {
 
     /* Those ones are used in supervisor mode only */
     /* machine state register */
-    uint8_t msr[64];
+    target_ulong msr;
     /* temporary general purpose registers */
     ppc_gpr_t tgpr[4]; /* Used to speed-up TLB assist handlers */
 
@@ -583,6 +584,7 @@ struct CPUPPCState {
 
     /* Power management */
     int power_mode;
+    int (*check_pow)(CPUPPCState *env);
 
     /* temporary hack to handle OSI calls (only used if non NULL) */
     int (*osi_call)(struct CPUPPCState *env);
@@ -639,13 +641,8 @@ void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 target_ulong ppc_load_xer (CPUPPCState *env);
 void ppc_store_xer (CPUPPCState *env, target_ulong value);
-target_ulong do_load_msr (CPUPPCState *env);
-int do_store_msr (CPUPPCState *env, target_ulong value);
-#if defined(TARGET_PPC64)
-int ppc_store_msr_32 (CPUPPCState *env, uint32_t value);
-#endif
+void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
-void do_compute_hflags (CPUPPCState *env);
 void cpu_ppc_reset (void *opaque);
 CPUPPCState *cpu_ppc_init (void);
 void cpu_ppc_close(CPUPPCState *env);

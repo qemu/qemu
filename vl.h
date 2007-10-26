@@ -1088,6 +1088,9 @@ void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
 
 void pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
 
+/* mipsnet.c */
+void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);
+
 /* vmmouse.c */
 void *vmmouse_init(void *m);
 
@@ -1222,11 +1225,14 @@ extern QEMUMachine mips_machine;
 /* mips_malta.c */
 extern QEMUMachine mips_malta_machine;
 
-/* mips_int.c */
-extern void cpu_mips_irq_init_cpu(CPUState *env);
-
 /* mips_pica61.c */
 extern QEMUMachine mips_pica61_machine;
+
+/* mips_mipssim.c */
+extern QEMUMachine mips_mipssim_machine;
+
+/* mips_int.c */
+extern void cpu_mips_irq_init_cpu(CPUState *env);
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);

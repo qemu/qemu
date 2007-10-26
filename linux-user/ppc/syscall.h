@@ -44,11 +44,15 @@ struct target_pt_regs {
 
 /* ioctls */
 struct target_revectored_struct {
-	target_ulong __map[8];			/* 256 bits */
+	abi_ulong __map[8];			/* 256 bits */
 };
 
 /*
  * flags masks
  */
 
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+#define UNAME_MACHINE "ppc64"
+#else
 #define UNAME_MACHINE "ppc"
+#endif

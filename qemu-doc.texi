@@ -242,7 +242,8 @@ Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
 
 @item -smp n
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
-CPUs are supported.
+CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
+to 4.
 
 @item -audio-help
 
@@ -1944,6 +1945,8 @@ More information is available at
 
 Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
 or SparcStation 10 (sun4m architecture). The emulation is somewhat complete.
+SMP up to 16 CPUs is supported, but Linux limits the number of usable CPUs
+to 4.
 
 QEMU emulates the following sun4m peripherals:
 
@@ -1967,7 +1970,8 @@ Floppy drive
 CS4231 sound device (only on SS-5, not working yet)
 @end itemize
 
-The number of peripherals is fixed in the architecture.
+The number of peripherals is fixed in the architecture.  Maximum memory size
+depends on the machine type, for SS-5 it is 256MB and for SS-10 2047MB.
 
 Since version 0.8.2, QEMU uses OpenBIOS
 @url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
@@ -2038,6 +2042,8 @@ A generic ISA PC-like machine "mips"
 The MIPS Malta prototype board "malta"
 @item
 An ACER Pica "pica61"
+@item
+MIPS emulator pseudo board "mipssim"
 @end itemize
 
 The generic emulation is supported by Debian 'Etch' and is able to
@@ -2046,7 +2052,7 @@ emulated:
 
 @itemize @minus
 @item
-MIPS 24Kf CPU
+A range of MIPS CPUs, default is the 24Kf
 @item
 PC style serial port
 @item
@@ -2083,6 +2089,19 @@ PC-style IRQ and DMA controllers
 PC Keyboard
 @item
 IDE controller
+@end itemize
+
+The mipssim pseudo board emulation provides an environment similiar
+to what the proprietary MIPS emulator uses for running Linux.
+It supports:
+
+@itemize @minus
+@item
+A range of MIPS CPUs, default is the 24Kf
+@item
+PC style serial port
+@item
+MIPSnet network emulation
 @end itemize
 
 @node ARM System emulator
@@ -2368,6 +2387,12 @@ configurations), and arm-uclinux bFLT format binaries.
 coldfire uClinux bFLT format binaries.
 
 The binary format is detected automatically.
+
+@command{qemu-sparc32plus} can execute Sparc32 and SPARC32PLUS binaries
+(Sparc64 CPU, 32 bit ABI).
+
+@command{qemu-sparc64} can execute some Sparc64 (Sparc64 CPU, 64 bit ABI) and
+SPARC32PLUS binaries (Sparc64 CPU, 32 bit ABI).
 
 @node Mac OS X/Darwin User space emulator
 @section Mac OS X/Darwin User space emulator

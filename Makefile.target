@@ -31,7 +31,10 @@ CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
 endif
 ifdef CONFIG_LINUX_USER
 VPATH+=:$(SRC_PATH)/linux-user
-CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
+ifndef TARGET_ABI_DIR
+  TARGET_ABI_DIR=$(TARGET_ARCH)
+endif
+CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 endif
 BASE_CFLAGS=
 BASE_LDFLAGS=
@@ -66,6 +69,11 @@ endif
 ifeq ($(TARGET_ARCH),mips64)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mips64el
+  endif
+endif
+ifeq ($(TARGET_ARCH),sparc64)
+  ifeq ($(TARGET_ABI_DIR),sparc)
+    TARGET_ARCH2=sparc32plus
   endif
 endif
 QEMU_USER=qemu-$(TARGET_ARCH2)
@@ -501,7 +509,7 @@ VL_OBJS+= ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
-VL_OBJS+= mips_r4k.o mips_malta.o mips_pica61.o
+VL_OBJS+= mips_r4k.o mips_malta.o mips_pica61.o mips_mipssim.o
 VL_OBJS+= mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o
 VL_OBJS+= jazz_led.o
 VL_OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
@@ -515,6 +523,7 @@ VL_OBJS += pflash_amd.o
 VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
 #~ VL_OBJS += serial_16550a.o
+VL_OBJS+= mipsnet.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)

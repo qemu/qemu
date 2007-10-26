@@ -31,7 +31,7 @@ struct target_pt_regs {
 
 struct target_modify_ldt_ldt_s {
     unsigned int  entry_number;
-    target_ulong base_addr;
+    abi_ulong base_addr;
     unsigned int limit;
     unsigned int flags;
 };
@@ -79,22 +79,22 @@ struct target_vm86_regs {
 /*
  * normal regs, with special meaning for the segment descriptors..
  */
-	target_long ebx;
-	target_long ecx;
-	target_long edx;
-	target_long esi;
-	target_long edi;
-	target_long ebp;
-	target_long eax;
-	target_long __null_ds;
-	target_long __null_es;
-	target_long __null_fs;
-	target_long __null_gs;
-	target_long orig_eax;
-	target_long eip;
+	abi_long ebx;
+	abi_long ecx;
+	abi_long edx;
+	abi_long esi;
+	abi_long edi;
+	abi_long ebp;
+	abi_long eax;
+	abi_long __null_ds;
+	abi_long __null_es;
+	abi_long __null_fs;
+	abi_long __null_gs;
+	abi_long orig_eax;
+	abi_long eip;
 	unsigned short cs, __csh;
-	target_long eflags;
-	target_long esp;
+	abi_long eflags;
+	abi_long esp;
 	unsigned short ss, __ssh;
 /*
  * these are specific to v86 mode:
@@ -106,14 +106,14 @@ struct target_vm86_regs {
 };
 
 struct target_revectored_struct {
-	target_ulong __map[8];			/* 256 bits */
+	abi_ulong __map[8];			/* 256 bits */
 };
 
 struct target_vm86_struct {
 	struct target_vm86_regs regs;
-	target_ulong flags;
-	target_ulong screen_bitmap;
-	target_ulong cpu_type;
+	abi_ulong flags;
+	abi_ulong screen_bitmap;
+	abi_ulong cpu_type;
 	struct target_revectored_struct int_revectored;
 	struct target_revectored_struct int21_revectored;
 };
@@ -124,7 +124,7 @@ struct target_vm86_struct {
 #define TARGET_VM86_SCREEN_BITMAP	0x0001
 
 struct target_vm86plus_info_struct {
-        target_ulong flags;
+        abi_ulong flags;
 #define TARGET_force_return_for_pic (1 << 0)
 #define TARGET_vm86dbg_active       (1 << 1)  /* for debugger */
 #define TARGET_vm86dbg_TFpendig     (1 << 2)  /* for debugger */
@@ -134,9 +134,9 @@ struct target_vm86plus_info_struct {
 
 struct target_vm86plus_struct {
 	struct target_vm86_regs regs;
-	target_ulong flags;
-	target_ulong screen_bitmap;
-	target_ulong cpu_type;
+	abi_ulong flags;
+	abi_ulong screen_bitmap;
+	abi_ulong cpu_type;
 	struct target_revectored_struct int_revectored;
 	struct target_revectored_struct int21_revectored;
 	struct target_vm86plus_info_struct vm86plus;

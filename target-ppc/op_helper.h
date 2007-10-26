@@ -57,8 +57,6 @@ void do_print_mem_EA (target_ulong EA);
 /* Registers load and stores */
 void do_load_cr (void);
 void do_store_cr (uint32_t mask);
-void do_load_xer (void);
-void do_store_xer (void);
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
 #endif
@@ -81,8 +79,6 @@ void do_sraw (void);
 #if defined(TARGET_PPC64)
 void do_adde_64 (void);
 void do_addmeo_64 (void);
-void do_imul64 (uint64_t *tl, uint64_t *th);
-void do_mul64 (uint64_t *tl, uint64_t *th);
 void do_divdo (void);
 void do_divduo (void);
 void do_mulldo (void);
@@ -129,6 +125,7 @@ void do_tw (int flags);
 void do_td (int flags);
 #endif
 #if !defined(CONFIG_USER_ONLY)
+void do_store_msr (void);
 void do_rfi (void);
 #if defined(TARGET_PPC64)
 void do_rfid (void);

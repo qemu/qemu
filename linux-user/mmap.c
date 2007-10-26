@@ -30,9 +30,9 @@
 //#define DEBUG_MMAP
 
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
-int target_mprotect(target_ulong start, target_ulong len, int prot)
+int target_mprotect(abi_ulong start, abi_ulong len, int prot)
 {
-    target_ulong end, host_start, host_end, addr;
+    abi_ulong end, host_start, host_end, addr;
     int prot1, ret;
 
 #ifdef DEBUG_MMAP
@@ -96,11 +96,11 @@ int target_mprotect(target_ulong start, target_ulong len, int prot)
 }
 
 /* map an incomplete host page */
-static int mmap_frag(target_ulong real_start,
-                     target_ulong start, target_ulong end,
-                     int prot, int flags, int fd, target_ulong offset)
+static int mmap_frag(abi_ulong real_start,
+                     abi_ulong start, abi_ulong end,
+                     int prot, int flags, int fd, abi_ulong offset)
 {
-    target_ulong real_end, addr;
+    abi_ulong real_end, addr;
     void *host_start;
     int prot1, prot_new;
 
@@ -152,17 +152,17 @@ static int mmap_frag(target_ulong real_start,
 }
 
 /* NOTE: all the constants are the HOST ones */
-target_long target_mmap(target_ulong start, target_ulong len, int prot,
-                 int flags, int fd, target_ulong offset)
+abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
+                     int flags, int fd, abi_ulong offset)
 {
-    target_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
+    abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
     unsigned long host_start;
 #if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__) || \
         defined(__ia64) || defined(__mips__)
-    static target_ulong last_start = 0x40000000;
+    static abi_ulong last_start = 0x40000000;
 #elif defined(__CYGWIN__)
     /* Cygwin doesn't have a whole lot of address space.  */
-    static target_ulong last_start = 0x18000000;
+    static abi_ulong last_start = 0x18000000;
 #endif
 
 #ifdef DEBUG_MMAP
@@ -228,7 +228,7 @@ target_long target_mmap(target_ulong start, target_ulong len, int prot,
              * TARGET_PAGE_SIZE, see exec.c. qemu_real_host_page_size is the
              * hosts real page size.
              */
-            target_ulong host_end;
+            abi_ulong host_end;
             unsigned long host_aligned_start;
             void *p;
 
@@ -356,9 +356,9 @@ target_long target_mmap(target_ulong start, target_ulong len, int prot,
     return start;
 }
 
-int target_munmap(target_ulong start, target_ulong len)
+int target_munmap(abi_ulong start, abi_ulong len)
 {
-    target_ulong end, real_start, real_end, addr;
+    abi_ulong end, real_start, real_end, addr;
     int prot, ret;
 
 #ifdef DEBUG_MMAP
@@ -410,9 +410,9 @@ int target_munmap(target_ulong start, target_ulong len)
 
 /* XXX: currently, we only handle MAP_ANONYMOUS and not MAP_FIXED
    blocks which have been allocated starting on a host page */
-target_long target_mremap(target_ulong old_addr, target_ulong old_size,
-                   target_ulong new_size, unsigned long flags,
-                   target_ulong new_addr)
+abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
+                       abi_ulong new_size, unsigned long flags,
+                       abi_ulong new_addr)
 {
     int prot;
     unsigned long host_addr;
@@ -428,9 +428,9 @@ target_long target_mremap(target_ulong old_addr, target_ulong old_size,
     return new_addr;
 }
 
-int target_msync(target_ulong start, target_ulong len, int flags)
+int target_msync(abi_ulong start, abi_ulong len, int flags)
 {
-    target_ulong end;
+    abi_ulong end;
 
     if (start & ~TARGET_PAGE_MASK)
         return -EINVAL;

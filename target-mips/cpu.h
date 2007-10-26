@@ -482,6 +482,9 @@ int mips_find_by_name (const unsigned char *name, mips_def_t **def);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
 
+void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
+                          int unused);
+
 #define CPUState CPUMIPSState
 #define cpu_init cpu_mips_init
 #define cpu_exec cpu_mips_exec

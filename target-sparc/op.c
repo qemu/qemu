@@ -1023,6 +1023,11 @@ void OPPROTO op_sra(void)
 
 #define MEMSUFFIX _kernel
 #include "op_mem.h"
+
+#ifdef TARGET_SPARC64
+#define MEMSUFFIX _hypv
+#include "op_mem.h"
+#endif
 #endif
 
 void OPPROTO op_ldfsr(void)
@@ -1706,6 +1711,9 @@ void OPPROTO op_fcmped_fcc3(void)
 /* Integer to float conversion.  */
 #ifdef USE_INT_TO_FLOAT_HELPERS
 F_HELPER(ito);
+#ifdef TARGET_SPARC64
+F_HELPER(xto);
+#endif
 #else
 F_OP(ito, s)
 {

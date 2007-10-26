@@ -27,8 +27,8 @@
 #include <errno.h>
 #include <sys/ucontext.h>
 
-#include "target_signal.h"
 #include "qemu.h"
+#include "target_signal.h"
 
 //#define DEBUG_SIGNAL
 
@@ -135,12 +135,12 @@ static void host_to_target_sigset_internal(target_sigset_t *d,
         if (sigmask & (1 << i))
             target_sigmask |= 1 << (host_to_target_signal(i + 1) - 1);
     }
-#if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
+#if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 32
     d->sig[0] = target_sigmask;
     for(i = 1;i < TARGET_NSIG_WORDS; i++) {
         d->sig[i] = ((unsigned long *)s)[i];
     }
-#elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
+#elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
     d->sig[0] = target_sigmask;
     d->sig[1] = sigmask >> 32;
 #else
@@ -162,7 +162,7 @@ void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
 {
     int i;
     unsigned long sigmask;
-    target_ulong target_sigmask;
+    abi_ulong target_sigmask;
 
     target_sigmask = s->sig[0];
     sigmask = 0;
@@ -170,16 +170,16 @@ void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
         if (target_sigmask & (1 << i))
             sigmask |= 1 << (target_to_host_signal(i + 1) - 1);
     }
-#if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
+#if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 32
     ((unsigned long *)d)[0] = sigmask;
     for(i = 1;i < TARGET_NSIG_WORDS; i++) {
         ((unsigned long *)d)[i] = s->sig[i];
     }
-#elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
+#elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
     ((unsigned long *)d)[0] = sigmask | ((unsigned long)(s->sig[1]) << 32);
 #else
 #warning target_to_host_sigset
-#endif /* TARGET_LONG_BITS */
+#endif /* TARGET_ABI_BITS */
 }
 
 void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
@@ -192,7 +192,7 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
     target_to_host_sigset_internal(d, &s1);
 }
 
-void host_to_target_old_sigset(target_ulong *old_sigset,
+void host_to_target_old_sigset(abi_ulong *old_sigset,
                                const sigset_t *sigset)
 {
     target_sigset_t d;
@@ -201,7 +201,7 @@ void host_to_target_old_sigset(target_ulong *old_sigset,
 }
 
 void target_to_host_old_sigset(sigset_t *sigset,
-                               const target_ulong *old_sigset)
+                               const abi_ulong *old_sigset)
 {
     target_sigset_t d;
     int i;
@@ -234,7 +234,7 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
         tinfo->_sifields._rt._uid = info->si_uid;
         /* XXX: potential problem if 64 bit */
         tinfo->_sifields._rt._sigval.sival_ptr =
-            (target_ulong)info->si_value.sival_ptr;
+            (abi_ulong)info->si_value.sival_ptr;
     }
 }
 
@@ -356,7 +356,7 @@ int queue_signal(int sig, target_siginfo_t *info)
 {
     struct emulated_sigaction *k;
     struct sigqueue *q, **pq;
-    target_ulong handler;
+    abi_ulong handler;
 
 #if defined(DEBUG_SIGNAL)
     fprintf(stderr, "queue_signal: sig=%d\n",
@@ -439,9 +439,10 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     }
 }
 
+/* do_sigaltstack() returns target values and errnos. */
 int do_sigaltstack(const struct target_sigaltstack *uss,
                    struct target_sigaltstack *uoss,
-                   target_ulong sp)
+                   abi_ulong sp)
 {
     int ret;
     struct target_sigaltstack oss;
@@ -458,18 +459,18 @@ int do_sigaltstack(const struct target_sigaltstack *uss,
     {
 	struct target_sigaltstack ss;
 
-	ret = -EFAULT;
+	ret = -TARGET_EFAULT;
 	if (!access_ok(VERIFY_READ, uss, sizeof(*uss))
 	    || __get_user(ss.ss_sp, &uss->ss_sp)
 	    || __get_user(ss.ss_size, &uss->ss_size)
 	    || __get_user(ss.ss_flags, &uss->ss_flags))
             goto out;
 
-	ret = -EPERM;
+	ret = -TARGET_EPERM;
 	if (on_sig_stack(sp))
             goto out;
 
-	ret = -EINVAL;
+	ret = -TARGET_EINVAL;
 	if (ss.ss_flags != TARGET_SS_DISABLE
             && ss.ss_flags != TARGET_SS_ONSTACK
             && ss.ss_flags != 0)
@@ -479,7 +480,7 @@ int do_sigaltstack(const struct target_sigaltstack *uss,
             ss.ss_size = 0;
             ss.ss_sp = 0;
 	} else {
-            ret = -ENOMEM;
+            ret = -TARGET_ENOMEM;
             if (ss.ss_size < MINSIGSTKSZ)
                 goto out;
 	}
@@ -489,7 +490,7 @@ int do_sigaltstack(const struct target_sigaltstack *uss,
     }
 
     if (uoss) {
-        ret = -EFAULT;
+        ret = -TARGET_EFAULT;
         if (!access_ok(VERIFY_WRITE, uoss, sizeof(oss)))
             goto out;
         memcpy(uoss, &oss, sizeof(oss));
@@ -500,12 +501,14 @@ out:
     return ret;
 }
 
+/* do_sigaction() return host values and errnos */
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact)
 {
     struct emulated_sigaction *k;
     struct sigaction act1;
     int host_sig;
+    int ret = 0;
 
     if (sig < 1 || sig > TARGET_NSIG || sig == SIGKILL || sig == SIGSTOP)
         return -EINVAL;
@@ -547,10 +550,10 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             } else {
                 act1.sa_sigaction = host_signal_handler;
             }
-            sigaction(host_sig, &act1, NULL);
+            ret = sigaction(host_sig, &act1, NULL);
         }
     }
-    return 0;
+    return ret;
 }
 
 static inline int copy_siginfo_to_user(target_siginfo_t *tinfo,
@@ -576,29 +579,29 @@ struct target_fpxreg {
 };
 
 struct target_xmmreg {
-	target_ulong element[4];
+	abi_ulong element[4];
 };
 
 struct target_fpstate {
 	/* Regular FPU environment */
-	target_ulong 	cw;
-	target_ulong	sw;
-	target_ulong	tag;
-	target_ulong	ipoff;
-	target_ulong	cssel;
-	target_ulong	dataoff;
-	target_ulong	datasel;
+        abi_ulong       cw;
+        abi_ulong       sw;
+        abi_ulong       tag;
+        abi_ulong       ipoff;
+        abi_ulong       cssel;
+        abi_ulong       dataoff;
+        abi_ulong       datasel;
 	struct target_fpreg	_st[8];
 	uint16_t	status;
 	uint16_t	magic;		/* 0xffff = regular FPU data only */
 
 	/* FXSR FPU environment */
-	target_ulong	_fxsr_env[6];	/* FXSR FPU env is ignored */
-	target_ulong	mxcsr;
-	target_ulong	reserved;
+        abi_ulong       _fxsr_env[6];   /* FXSR FPU env is ignored */
+        abi_ulong       mxcsr;
+        abi_ulong       reserved;
 	struct target_fpxreg	_fxsr_st[8];	/* FXSR FPU reg data is ignored */
 	struct target_xmmreg	_xmm[8];
-	target_ulong	padding[56];
+        abi_ulong       padding[56];
 };
 
 #define X86_FXSR_MAGIC		0x0000
@@ -608,29 +611,29 @@ struct target_sigcontext {
 	uint16_t fs, __fsh;
 	uint16_t es, __esh;
 	uint16_t ds, __dsh;
-	target_ulong edi;
-	target_ulong esi;
-	target_ulong ebp;
-	target_ulong esp;
-	target_ulong ebx;
-	target_ulong edx;
-	target_ulong ecx;
-	target_ulong eax;
-	target_ulong trapno;
-	target_ulong err;
-	target_ulong eip;
+        abi_ulong edi;
+        abi_ulong esi;
+        abi_ulong ebp;
+        abi_ulong esp;
+        abi_ulong ebx;
+        abi_ulong edx;
+        abi_ulong ecx;
+        abi_ulong eax;
+        abi_ulong trapno;
+        abi_ulong err;
+        abi_ulong eip;
 	uint16_t cs, __csh;
-	target_ulong eflags;
-	target_ulong esp_at_signal;
+        abi_ulong eflags;
+        abi_ulong esp_at_signal;
 	uint16_t ss, __ssh;
-        target_ulong fpstate; /* pointer */
-	target_ulong oldmask;
-	target_ulong cr2;
+        abi_ulong fpstate; /* pointer */
+        abi_ulong oldmask;
+        abi_ulong cr2;
 };
 
 struct target_ucontext {
-        target_ulong	  tuc_flags;
-	target_ulong      tuc_link;
+        abi_ulong         tuc_flags;
+        abi_ulong         tuc_link;
 	target_stack_t	  tuc_stack;
 	struct target_sigcontext tuc_mcontext;
 	target_sigset_t	  tuc_sigmask;	/* mask last for extensibility */
@@ -638,20 +641,20 @@ struct target_ucontext {
 
 struct sigframe
 {
-    target_ulong pretcode;
+    abi_ulong pretcode;
     int sig;
     struct target_sigcontext sc;
     struct target_fpstate fpstate;
-    target_ulong extramask[TARGET_NSIG_WORDS-1];
+    abi_ulong extramask[TARGET_NSIG_WORDS-1];
     char retcode[8];
 };
 
 struct rt_sigframe
 {
-    target_ulong pretcode;
+    abi_ulong pretcode;
     int sig;
-    target_ulong pinfo;
-    target_ulong puc;
+    abi_ulong pinfo;
+    abi_ulong puc;
     struct target_siginfo info;
     struct target_ucontext uc;
     struct target_fpstate fpstate;
@@ -810,8 +813,8 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 		    	   ? current->exec_domain->signal_invmap[sig]
 			   : */sig),
 			  &frame->sig);
-	err |= __put_user((target_ulong)&frame->info, &frame->pinfo);
-	err |= __put_user((target_ulong)&frame->uc, &frame->puc);
+	err |= __put_user((abi_ulong)&frame->info, &frame->pinfo);
+	err |= __put_user((abi_ulong)&frame->uc, &frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, info);
 	if (err)
 		goto give_sigsegv;
@@ -974,32 +977,32 @@ badframe:
 #elif defined(TARGET_ARM)
 
 struct target_sigcontext {
-	target_ulong trap_no;
-	target_ulong error_code;
-	target_ulong oldmask;
-	target_ulong arm_r0;
-	target_ulong arm_r1;
-	target_ulong arm_r2;
-	target_ulong arm_r3;
-	target_ulong arm_r4;
-	target_ulong arm_r5;
-	target_ulong arm_r6;
-	target_ulong arm_r7;
-	target_ulong arm_r8;
-	target_ulong arm_r9;
-	target_ulong arm_r10;
-	target_ulong arm_fp;
-	target_ulong arm_ip;
-	target_ulong arm_sp;
-	target_ulong arm_lr;
-	target_ulong arm_pc;
-	target_ulong arm_cpsr;
-	target_ulong fault_address;
+	abi_ulong trap_no;
+	abi_ulong error_code;
+	abi_ulong oldmask;
+	abi_ulong arm_r0;
+	abi_ulong arm_r1;
+	abi_ulong arm_r2;
+	abi_ulong arm_r3;
+	abi_ulong arm_r4;
+	abi_ulong arm_r5;
+	abi_ulong arm_r6;
+	abi_ulong arm_r7;
+	abi_ulong arm_r8;
+	abi_ulong arm_r9;
+	abi_ulong arm_r10;
+	abi_ulong arm_fp;
+	abi_ulong arm_ip;
+	abi_ulong arm_sp;
+	abi_ulong arm_lr;
+	abi_ulong arm_pc;
+	abi_ulong arm_cpsr;
+	abi_ulong fault_address;
 };
 
 struct target_ucontext {
-    target_ulong tuc_flags;
-    target_ulong tuc_link;
+    abi_ulong tuc_flags;
+    abi_ulong tuc_link;
     target_stack_t tuc_stack;
     struct target_sigcontext tuc_mcontext;
     target_sigset_t  tuc_sigmask;	/* mask last for extensibility */
@@ -1008,8 +1011,8 @@ struct target_ucontext {
 struct sigframe
 {
     struct target_sigcontext sc;
-    target_ulong extramask[TARGET_NSIG_WORDS-1];
-    target_ulong retcode;
+    abi_ulong extramask[TARGET_NSIG_WORDS-1];
+    abi_ulong retcode;
 };
 
 struct rt_sigframe
@@ -1018,7 +1021,7 @@ struct rt_sigframe
     void *puc;
     struct target_siginfo info;
     struct target_ucontext uc;
-    target_ulong retcode;
+    abi_ulong retcode;
 };
 
 #define TARGET_CONFIG_CPU_32 1
@@ -1036,7 +1039,7 @@ struct rt_sigframe
 #define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (TARGET_NR_sigreturn))
 #define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (TARGET_NR_rt_sigreturn))
 
-static const target_ulong retcodes[4] = {
+static const abi_ulong retcodes[4] = {
 	SWI_SYS_SIGRETURN,	SWI_THUMB_SIGRETURN,
 	SWI_SYS_RT_SIGRETURN,	SWI_THUMB_RT_SIGRETURN
 };
@@ -1102,14 +1105,14 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, int framesize)
 
 static int
 setup_return(CPUState *env, struct emulated_sigaction *ka,
-	     target_ulong *rc, void *frame, int usig)
+	     abi_ulong *rc, void *frame, int usig)
 {
-	target_ulong handler = (target_ulong)ka->sa._sa_handler;
-	target_ulong retcode;
+	abi_ulong handler = (abi_ulong)ka->sa._sa_handler;
+	abi_ulong retcode;
 	int thumb = 0;
 #if defined(TARGET_CONFIG_CPU_32)
 #if 0
-	target_ulong cpsr = env->cpsr;
+	abi_ulong cpsr = env->cpsr;
 
 	/*
 	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.
@@ -1135,7 +1138,7 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 #endif /* TARGET_CONFIG_CPU_32 */
 
 	if (ka->sa.sa_flags & TARGET_SA_RESTORER) {
-		retcode = (target_ulong)ka->sa.sa_restorer;
+		retcode = (abi_ulong)ka->sa.sa_restorer;
 	} else {
 		unsigned int idx = thumb;
 
@@ -1145,10 +1148,10 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 		if (__put_user(retcodes[idx], rc))
 			return 1;
 #if 0
-		flush_icache_range((target_ulong)rc,
-				   (target_ulong)(rc + 1));
+		flush_icache_range((abi_ulong)rc,
+				   (abi_ulong)(rc + 1));
 #endif
-		retcode = ((target_ulong)rc) + thumb;
+		retcode = ((abi_ulong)rc) + thumb;
 	}
 
 	env->regs[0] = usig;
@@ -1194,8 +1197,8 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
             return /* 1 */;
 
-	__put_user_error(&frame->info, (target_ulong *)&frame->pinfo, err);
-	__put_user_error(&frame->uc, (target_ulong *)&frame->puc, err);
+	__put_user_error(&frame->info, (abi_ulong *)&frame->pinfo, err);
+	__put_user_error(&frame->uc, (abi_ulong *)&frame->puc, err);
 	err |= copy_siginfo_to_user(&frame->info, info);
 
 	/* Clear all the bits of the ucontext we don't use.  */
@@ -1226,8 +1229,8 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 		 * arguments for the signal handler.
 		 *   -- Peter Maydell <pmaydell@chiark.greenend.org.uk> 2000-12-06
 		 */
-            env->regs[1] = (target_ulong)frame->pinfo;
-            env->regs[2] = (target_ulong)frame->puc;
+            env->regs[1] = (abi_ulong)frame->pinfo;
+            env->regs[2] = (abi_ulong)frame->puc;
 	}
 
         //	return err;
@@ -1357,48 +1360,48 @@ badframe:
 
 /* This is what SunOS does, so shall I. */
 struct target_sigcontext {
-        target_ulong sigc_onstack;      /* state to restore */
+        abi_ulong sigc_onstack;      /* state to restore */
 
-        target_ulong sigc_mask;         /* sigmask to restore */
-        target_ulong sigc_sp;           /* stack pointer */
-        target_ulong sigc_pc;           /* program counter */
-        target_ulong sigc_npc;          /* next program counter */
-        target_ulong sigc_psr;          /* for condition codes etc */
-        target_ulong sigc_g1;           /* User uses these two registers */
-        target_ulong sigc_o0;           /* within the trampoline code. */
+        abi_ulong sigc_mask;         /* sigmask to restore */
+        abi_ulong sigc_sp;           /* stack pointer */
+        abi_ulong sigc_pc;           /* program counter */
+        abi_ulong sigc_npc;          /* next program counter */
+        abi_ulong sigc_psr;          /* for condition codes etc */
+        abi_ulong sigc_g1;           /* User uses these two registers */
+        abi_ulong sigc_o0;           /* within the trampoline code. */
 
         /* Now comes information regarding the users window set
          * at the time of the signal.
          */
-        target_ulong sigc_oswins;       /* outstanding windows */
+        abi_ulong sigc_oswins;       /* outstanding windows */
 
         /* stack ptrs for each regwin buf */
         char *sigc_spbuf[__SUNOS_MAXWIN];
 
         /* Windows to restore after signal */
         struct {
-                target_ulong locals[8];
-                target_ulong ins[8];
+                abi_ulong locals[8];
+                abi_ulong ins[8];
         } sigc_wbuf[__SUNOS_MAXWIN];
 };
 /* A Sparc stack frame */
 struct sparc_stackf {
-        target_ulong locals[8];
-        target_ulong ins[6];
+        abi_ulong locals[8];
+        abi_ulong ins[6];
         struct sparc_stackf *fp;
-        target_ulong callers_pc;
+        abi_ulong callers_pc;
         char *structptr;
-        target_ulong xargs[6];
-        target_ulong xxargs[1];
+        abi_ulong xargs[6];
+        abi_ulong xxargs[1];
 };
 
 typedef struct {
         struct {
-                target_ulong psr;
-                target_ulong pc;
-                target_ulong npc;
-                target_ulong y;
-                target_ulong u_regs[16]; /* globals and ins */
+                abi_ulong psr;
+                abi_ulong pc;
+                abi_ulong npc;
+                abi_ulong y;
+                abi_ulong u_regs[16]; /* globals and ins */
         }               si_regs;
         int             si_mask;
 } __siginfo_t;
@@ -1418,15 +1421,15 @@ struct target_signal_frame {
 	struct sparc_stackf	ss;
 	__siginfo_t		info;
 	qemu_siginfo_fpu_t 	*fpu_save;
-	target_ulong		insns[2] __attribute__ ((aligned (8)));
-	target_ulong		extramask[TARGET_NSIG_WORDS - 1];
-	target_ulong		extra_size; /* Should be 0 */
+	abi_ulong		insns[2] __attribute__ ((aligned (8)));
+	abi_ulong		extramask[TARGET_NSIG_WORDS - 1];
+	abi_ulong		extra_size; /* Should be 0 */
 	qemu_siginfo_fpu_t	fpu_state;
 };
 struct target_rt_signal_frame {
 	struct sparc_stackf	ss;
 	siginfo_t		info;
-	target_ulong		regs[20];
+	abi_ulong		regs[20];
 	sigset_t		mask;
 	qemu_siginfo_fpu_t 	*fpu_save;
 	unsigned int		insns[2];
@@ -1465,7 +1468,7 @@ static inline void *get_sigframe(struct emulated_sigaction *sa, CPUState *env, u
 }
 
 static int
-setup___siginfo(__siginfo_t *si, CPUState *env, target_ulong mask)
+setup___siginfo(__siginfo_t *si, CPUState *env, abi_ulong mask)
 {
 	int err = 0, i;
 
@@ -1631,7 +1634,7 @@ long do_sigreturn(CPUState *env)
         uint32_t up_psr, pc, npc;
         target_sigset_t set;
         sigset_t host_set;
-        target_ulong fpu_save;
+        abi_ulong fpu_save;
         int err, i;
 
         sf = (struct target_signal_frame *)g2h(env->regwptr[UREG_FP]);
@@ -1673,7 +1676,7 @@ long do_sigreturn(CPUState *env)
 		err |= __get_user(env->regwptr[i + UREG_I0], &sf->info.si_regs.u_regs[i+8]);
 	}
 
-        err |= __get_user(fpu_save, (target_ulong *)&sf->fpu_save);
+        err |= __get_user(fpu_save, (abi_ulong *)&sf->fpu_save);
 
         //if (fpu_save)
         //        err |= restore_fpu_state(env, fpu_save);
@@ -1726,11 +1729,11 @@ long do_rt_sigreturn(CPUState *env)
 #define MC_O7 18
 #define MC_NGREG 19
 
-typedef target_ulong target_mc_greg_t;
+typedef abi_ulong target_mc_greg_t;
 typedef target_mc_greg_t target_mc_gregset_t[MC_NGREG];
 
 struct target_mc_fq {
-    target_ulong *mcfq_addr;
+    abi_ulong *mcfq_addr;
     uint32_t mcfq_insn;
 };
 
@@ -1740,9 +1743,9 @@ struct target_mc_fpu {
         uint64_t dregs[32];
         //uint128_t qregs[16];
     } mcfpu_fregs;
-    target_ulong mcfpu_fsr;
-    target_ulong mcfpu_fprs;
-    target_ulong mcfpu_gsr;
+    abi_ulong mcfpu_fsr;
+    abi_ulong mcfpu_fprs;
+    abi_ulong mcfpu_gsr;
     struct target_mc_fq *mcfpu_fq;
     unsigned char mcfpu_qcnt;
     unsigned char mcfpu_qentsz;
@@ -1759,15 +1762,15 @@ typedef struct {
 
 struct target_ucontext {
     struct target_ucontext *uc_link;
-    target_ulong uc_flags;
+    abi_ulong uc_flags;
     target_sigset_t uc_sigmask;
     target_mcontext_t uc_mcontext;
 };
 
 /* A V9 register window */
 struct target_reg_window {
-    target_ulong locals[8];
-    target_ulong ins[8];
+    abi_ulong locals[8];
+    abi_ulong ins[8];
 };
 
 #define TARGET_STACK_BIAS 2047
@@ -1778,12 +1781,12 @@ void sparc64_set_context(CPUSPARCState *env)
     struct target_ucontext *ucp = (struct target_ucontext *)
         env->regwptr[UREG_I0];
     target_mc_gregset_t *grp;
-    target_ulong pc, npc, tstate;
-    target_ulong fp, i7;
+    abi_ulong pc, npc, tstate;
+    abi_ulong fp, i7;
     unsigned char fenab;
     int err;
     unsigned int i;
-    target_ulong *src, *dst;
+    abi_ulong *src, *dst;
 
     grp  = &ucp->uc_mcontext.mc_gregs;
     err  = get_user(pc, &((*grp)[MC_PC]));
@@ -1800,7 +1803,7 @@ void sparc64_set_context(CPUSPARCState *env)
         } else {
             src = &ucp->uc_sigmask;
             dst = &target_set;
-            for (i = 0; i < sizeof(target_sigset_t) / sizeof(target_ulong);
+            for (i = 0; i < sizeof(target_sigset_t) / sizeof(abi_ulong);
                  i++, dst++, src++)
                 err |= get_user(dst, src);
             if (err)
@@ -1863,10 +1866,10 @@ void sparc64_get_context(CPUSPARCState *env)
         env->regwptr[UREG_I0];
     target_mc_gregset_t *grp;
     target_mcontext_t *mcp;
-    target_ulong fp, i7;
+    abi_ulong fp, i7;
     int err;
     unsigned int i;
-    target_ulong *src, *dst;
+    abi_ulong *src, *dst;
     target_sigset_t target_set;
     sigset_t set;
 
@@ -1883,11 +1886,11 @@ void sparc64_get_context(CPUSPARCState *env)
     host_to_target_sigset_internal(&target_set, &set);
     if (TARGET_NSIG_WORDS == 1)
         err |= put_user(target_set.sig[0],
-                        (target_ulong *)&ucp->uc_sigmask);
+                        (abi_ulong *)&ucp->uc_sigmask);
     else {
         src = &target_set;
         dst = &ucp->uc_sigmask;
-        for (i = 0; i < sizeof(target_sigset_t) / sizeof(target_ulong);
+        for (i = 0; i < sizeof(target_sigset_t) / sizeof(abi_ulong);
              i++, dst++, src++)
             err |= put_user(src, dst);
         if (err)
@@ -2351,7 +2354,7 @@ long do_rt_sigreturn(CPUState *env)
 void process_pending_signals(void *cpu_env)
 {
     int sig;
-    target_ulong handler;
+    abi_ulong handler;
     sigset_t set, old_set;
     target_sigset_t target_old_set;
     struct emulated_sigaction *k;

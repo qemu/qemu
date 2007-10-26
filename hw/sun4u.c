@@ -358,7 +358,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
         exit(1);
     }
     env = cpu_init();
-    cpu_sparc_register(env, def);
+    cpu_sparc_register(env, def, 0);
     bh = qemu_bh_new(tick_irq, env);
     env->tick = ptimer_init(bh);
     ptimer_set_period(env->tick, 1ULL);

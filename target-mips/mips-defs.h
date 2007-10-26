@@ -32,6 +32,8 @@
 #define		ASE_MDMX	0x00004000
 #define		ASE_DSP		0x00008000
 #define		ASE_DSPR2	0x00010000
+#define		ASE_MT		0x00020000
+#define		ASE_SMARTMIPS	0x00040000
 
 /* Chip specific instructions.   */
 /* Currently void */

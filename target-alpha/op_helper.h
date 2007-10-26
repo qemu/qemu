@@ -34,7 +34,6 @@ void helper_subqv (void);
 void helper_sublv (void);
 void helper_mullv (void);
 void helper_mulqv (void);
-void helper_umulh (void);
 void helper_ctpop (void);
 void helper_ctlz (void);
 void helper_cttz (void);

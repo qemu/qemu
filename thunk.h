@@ -98,7 +98,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
         if (is_host) {
             return HOST_LONG_SIZE;
         } else {
-            return TARGET_LONG_SIZE;
+            return TARGET_ABI_BITS / 8;
         }
         break;
     case TYPE_ARRAY:
@@ -135,7 +135,7 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
         if (is_host) {
             return HOST_LONG_SIZE;
         } else {
-            return TARGET_LONG_SIZE;
+            return TARGET_ABI_BITS / 8;
         }
         break;
     case TYPE_ARRAY:

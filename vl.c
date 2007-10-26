@@ -117,6 +117,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "exec-all.h"
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
+#define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
 #ifdef __sun__
 #define SMBD_COMMAND "/usr/sfw/sbin/smbd"
 #else
@@ -3789,6 +3790,7 @@ void net_slirp_smb(const char *exported_dir)
 typedef struct TAPState {
     VLANClientState *vc;
     int fd;
+    char down_script[1024];
 } TAPState;
 
 static void tap_receive(void *opaque, const uint8_t *buf, int size)
@@ -4024,27 +4026,13 @@ static int tap_open(char *ifname, int ifname_size)
 }
 #endif
 
-static int net_tap_init(VLANState *vlan, const char *ifname1,
-                        const char *setup_script)
+static int launch_script(const char *setup_script, const char *ifname, int fd)
 {
-    TAPState *s;
-    int pid, status, fd;
+    int pid, status;
     char *args[3];
     char **parg;
-    char ifname[128];
 
-    if (ifname1 != NULL)
-        pstrcpy(ifname, sizeof(ifname), ifname1);
-    else
-        ifname[0] = '\0';
-    TFR(fd = tap_open(ifname, sizeof(ifname)));
-    if (fd < 0)
-        return -1;
-
-    if (!setup_script || !strcmp(setup_script, "no"))
-        setup_script = "";
-    if (setup_script[0] != '\0') {
-        /* try to launch network init script */
+        /* try to launch network script */
         pid = fork();
         if (pid >= 0) {
             if (pid == 0) {
@@ -4058,7 +4046,7 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
 
                 parg = args;
                 *parg++ = (char *)setup_script;
-                *parg++ = ifname;
+                *parg++ = (char *)ifname;
                 *parg++ = NULL;
                 execv(setup_script, args);
                 _exit(1);
@@ -4071,12 +4059,37 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
                 return -1;
             }
         }
+    return 0;
+}
+
+static int net_tap_init(VLANState *vlan, const char *ifname1,
+                        const char *setup_script, const char *down_script)
+{
+    TAPState *s;
+    int fd;
+    char ifname[128];
+
+    if (ifname1 != NULL)
+        pstrcpy(ifname, sizeof(ifname), ifname1);
+    else
+        ifname[0] = '\0';
+    TFR(fd = tap_open(ifname, sizeof(ifname)));
+    if (fd < 0)
+        return -1;
+
+    if (!setup_script || !strcmp(setup_script, "no"))
+        setup_script = "";
+    if (setup_script[0] != '\0') {
+	if (launch_script(setup_script, ifname, fd))
+	    return -1;
     }
     s = net_tap_fd_init(vlan, fd);
     if (!s)
         return -1;
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s setup_script=%s", ifname, setup_script);
+    if (down_script && strcmp(down_script, "no"))
+        snprintf(s->down_script, sizeof(s->down_script), "%s", down_script);
     return 0;
 }
 
@@ -4620,7 +4633,7 @@ static int net_client_init(const char *str)
 #else
     if (!strcmp(device, "tap")) {
         char ifname[64];
-        char setup_script[1024];
+        char setup_script[1024], down_script[1024];
         int fd;
         vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
@@ -4635,7 +4648,10 @@ static int net_client_init(const char *str)
             if (get_param_value(setup_script, sizeof(setup_script), "script", p) == 0) {
                 pstrcpy(setup_script, sizeof(setup_script), DEFAULT_NETWORK_SCRIPT);
             }
-            ret = net_tap_init(vlan, ifname, setup_script);
+            if (get_param_value(down_script, sizeof(down_script), "downscript", p) == 0) {
+                pstrcpy(down_script, sizeof(down_script), DEFAULT_NETWORK_DOWN_SCRIPT);
+            }
+            ret = net_tap_init(vlan, ifname, setup_script, down_script);
         }
     } else
 #endif
@@ -7022,10 +7038,11 @@ static void help(int exitcode)
            "-net tap[,vlan=n],ifname=name\n"
            "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-           "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file]\n"
-           "                connect the host TAP network interface to VLAN 'n' and use\n"
-           "                the network script 'file' (default=%s);\n"
-           "                use 'script=no' to disable script execution;\n"
+           "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
+           "                connect the host TAP network interface to VLAN 'n' and use the\n"
+           "                network scripts 'file' (default=%s)\n"
+           "                and 'dfile' (default=%s);\n"
+           "                use '[down]script=no' to disable script execution;\n"
            "                use 'fd=h' to connect to an already opened TAP interface\n"
 #endif
            "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
@@ -7098,6 +7115,7 @@ static void help(int exitcode)
            DEFAULT_RAM_SIZE,
 #ifndef _WIN32
            DEFAULT_NETWORK_SCRIPT,
+           DEFAULT_NETWORK_DOWN_SCRIPT,
 #endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
@@ -7369,6 +7387,7 @@ void register_machines(void)
     qemu_register_mips_machines();
     qemu_register_machine(&mips_malta_machine);
     qemu_register_machine(&mips_pica61_machine);
+    qemu_register_machine(&mips_mipssim_machine);
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
     qemu_register_machine(&sun4u_machine);
@@ -8512,5 +8531,23 @@ int main(int argc, char **argv)
 
     main_loop();
     quit_timers();
+
+#if !defined(_WIN32)
+    /* close network clients */
+    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
+        VLANClientState *vc;
+
+        for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
+            if (vc->fd_read == tap_receive) {
+                char ifname[64];
+                TAPState *s = vc->opaque;
+
+                if (sscanf(vc->info_str, "tap: ifname=%63s ", ifname) == 1 &&
+                    s->down_script[0])
+                    launch_script(s->down_script, ifname, s->fd);
+            }
+        }
+    }
+#endif
     return 0;
 }

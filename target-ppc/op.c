@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "exec.h"
+#include "helper_regs.h"
 #include "op_helper.h"
 
 #define REG 0
@@ -284,13 +285,13 @@ void OPPROTO op_store_xer_bc (void)
 
 void OPPROTO op_load_xer (void)
 {
-    do_load_xer();
+    T0 = hreg_load_xer(env);
     RETURN();
 }
 
 void OPPROTO op_store_xer (void)
 {
-    do_store_xer();
+    hreg_store_xer(env, T0);
     RETURN();
 }
 
@@ -358,36 +359,35 @@ void OPPROTO op_store_asr (void)
 
 void OPPROTO op_load_msr (void)
 {
-    T0 = do_load_msr(env);
+    T0 = env->msr;
     RETURN();
 }
 
 void OPPROTO op_store_msr (void)
 {
-    if (do_store_msr(env, T0)) {
-        env->halted = 1;
-        do_raise_exception(EXCP_HLT);
-    }
-    RETURN();
-}
-
-void OPPROTO op_update_riee (void)
-{
-    msr_ri = (T0 >> MSR_RI) & 1;
-    msr_ee = (T0 >> MSR_EE) & 1;
+    do_store_msr();
     RETURN();
 }
 
 #if defined (TARGET_PPC64)
 void OPPROTO op_store_msr_32 (void)
 {
-    if (ppc_store_msr_32(env, T0)) {
-        env->halted = 1;
-        do_raise_exception(EXCP_HLT);
-    }
+    T0 = (env->msr & ~0xFFFFFFFFULL) | (T0 & 0xFFFFFFFF);
+    do_store_msr();
     RETURN();
 }
 #endif
+
+void OPPROTO op_update_riee (void)
+{
+    /* We don't call do_store_msr here as we won't trigger
+     * any special case nor change hflags
+     */
+    T0 &= (1 << MSR_RI) | (1 << MSR_EE);
+    env->msr &= ~(1 << MSR_RI) | (1 << MSR_EE);
+    env->msr |= T0;
+    RETURN();
+}
 #endif
 
 /* SPR */
@@ -980,7 +980,7 @@ void OPPROTO op_mulhd (void)
 {
     uint64_t tl, th;
 
-    do_imul64(&tl, &th);
+    muls64(&tl, &th, T0, T1);
     T0 = th;
     RETURN();
 }
@@ -998,7 +998,7 @@ void OPPROTO op_mulhdu (void)
 {
     uint64_t tl, th;
 
-    do_mul64(&tl, &th);
+    mulu64(&tl, &th, T0, T1);
     T0 = th;
     RETURN();
 }
@@ -2517,7 +2517,12 @@ void OPPROTO op_rfmci (void)
 
 void OPPROTO op_wrte (void)
 {
-    msr_ee = T0 >> 16;
+    /* We don't call do_store_msr here as we won't trigger
+     * any special case nor change hflags
+     */
+    T0 &= 1 << MSR_EE;
+    env->msr &= ~(1 << MSR_EE);
+    env->msr |= T0;
     RETURN();
 }
 

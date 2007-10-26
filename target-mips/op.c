@@ -543,9 +543,9 @@ void op_clo (void)
         T0 = 32;
     } else {
         for (n = 0; n < 32; n++) {
-            if (!(T0 & (1 << 31)))
+            if (!(((int32_t)T0) & (1 << 31)))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -562,7 +562,7 @@ void op_clz (void)
         for (n = 0; n < 32; n++) {
             if (T0 & (1 << 31))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -747,7 +747,7 @@ void op_dclo (void)
         for (n = 0; n < 64; n++) {
             if (!(T0 & (1ULL << 63)))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -764,7 +764,7 @@ void op_dclz (void)
         for (n = 0; n < 64; n++) {
             if (T0 & (1ULL << 63))
                 break;
-            T0 = T0 << 1;
+            T0 <<= 1;
         }
         T0 = n;
     }
@@ -1481,7 +1481,14 @@ void op_mfc0_desave (void)
 
 void op_mtc0_index (void)
 {
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 % env->tlb->nb_tlb);
+    int num = 1;
+    unsigned int tmp = env->tlb->nb_tlb;
+
+    do {
+        tmp >>= 1;
+        num <<= 1;
+    } while (tmp);
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (num - 1));
     RETURN();
 }
 
@@ -2321,7 +2328,7 @@ void op_ctc1 (void)
 
 void op_mfc1 (void)
 {
-    T0 = WT0;
+    T0 = (int32_t)WT0;
     DEBUG_FPU_STATE();
     RETURN();
 }
@@ -2349,7 +2356,7 @@ void op_dmtc1 (void)
 
 void op_mfhc1 (void)
 {
-    T0 = WTH0;
+    T0 = (int32_t)WTH0;
     DEBUG_FPU_STATE();
     RETURN();
 }

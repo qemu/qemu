@@ -172,7 +172,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
-    target_long stack = infop->start_stack;
+    abi_long stack = infop->start_stack;
     memset(regs, 0, sizeof(*regs));
     regs->ARM_cpsr = 0x10;
     if (infop->entry & 1)
@@ -214,7 +214,11 @@ enum
 
 #define ELF_START_MMAP 0x80000000
 
+#ifndef TARGET_ABI32
 #define elf_check_arch(x) ( (x) == EM_SPARCV9 || (x) == EM_SPARC32PLUS )
+#else
+#define elf_check_arch(x) ( (x) == EM_SPARC32PLUS || (x) == EM_SPARC )
+#endif
 
 #define ELF_CLASS   ELFCLASS64
 #define ELF_DATA    ELFDATA2MSB
@@ -224,14 +228,20 @@ enum
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
+#ifndef TARGET_ABI32
     regs->tstate = 0;
+#endif
     regs->pc = infop->entry;
     regs->npc = regs->pc + 4;
     regs->y = 0;
+#ifdef TARGET_ABI32
+    regs->u_regs[14] = infop->start_stack - 16 * 4;
+#else
     if (personality(infop->personality) == PER_LINUX32)
         regs->u_regs[14] = infop->start_stack - 16 * 4;
     else
         regs->u_regs[14] = infop->start_stack - 16 * 8 - STACK_BIAS;
+#endif
 }
 
 #else
@@ -259,7 +269,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_START_MMAP 0x80000000
 
-#ifdef TARGET_PPC64
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
 
 #define elf_check_arch(x) ( (x) == EM_PPC64 )
 
@@ -313,15 +323,15 @@ do {                                                                    \
 
 static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
 {
-    target_ulong pos = infop->start_stack;
-    target_ulong tmp;
-#ifdef TARGET_PPC64
-    target_ulong entry, toc;
+    abi_ulong pos = infop->start_stack;
+    abi_ulong tmp;
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+    abi_ulong entry, toc;
 #endif
 
     _regs->msr = 1 << MSR_PR; /* Set user mode */
     _regs->gpr[1] = infop->start_stack;
-#ifdef TARGET_PPC64
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
     entry = ldq_raw(infop->entry) + infop->load_addr;
     toc = ldq_raw(infop->entry + 8) + infop->load_addr;
     _regs->gpr[2] = toc;
@@ -333,9 +343,9 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
      * execution of PPC BSD programs.
      */
     _regs->gpr[3] = tgetl(pos);
-    pos += sizeof(target_ulong);
+    pos += sizeof(abi_ulong);
     _regs->gpr[4] = pos;
-    for (tmp = 1; tmp != 0; pos += sizeof(target_ulong))
+    for (tmp = 1; tmp != 0; pos += sizeof(abi_ulong))
         tmp = ldl(pos);
     _regs->gpr[5] = pos;
 }
@@ -475,9 +485,9 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define ELF_HWCAP 0
 #endif
 
-#ifdef OVERRIDE_ELF_CLASS
+#ifdef TARGET_ABI32
 #undef ELF_CLASS
-#define ELF_CLASS OVERRIDE_ELF_CLASS
+#define ELF_CLASS ELFCLASS32
 #undef bswaptls
 #define bswaptls(ptr) bswap32s(ptr)
 #endif
@@ -588,8 +598,8 @@ static void bswap_sym(struct elf_sym *sym)
  * to be put directly into the top of new user memory.
  *
  */
-static target_ulong copy_elf_strings(int argc,char ** argv, void **page,
-                                     target_ulong p)
+static abi_ulong copy_elf_strings(int argc,char ** argv, void **page,
+                                  abi_ulong p)
 {
     char *tmp, *tmp1, *pag = NULL;
     int len, offset = 0;
@@ -638,10 +648,10 @@ static target_ulong copy_elf_strings(int argc,char ** argv, void **page,
     return p;
 }
 
-static target_ulong setup_arg_pages(target_ulong p, struct linux_binprm *bprm,
-                                    struct image_info *info)
+static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
+                                 struct image_info *info)
 {
-    target_ulong stack_base, size, error;
+    abi_ulong stack_base, size, error;
     int i;
 
     /* Create enough stack to hold everything.  If we don't use
@@ -677,7 +687,7 @@ static target_ulong setup_arg_pages(target_ulong p, struct linux_binprm *bprm,
     return p;
 }
 
-static void set_brk(target_ulong start, target_ulong end)
+static void set_brk(abi_ulong start, abi_ulong end)
 {
 	/* page-align the start and end addresses... */
         start = HOST_PAGE_ALIGN(start);
@@ -696,9 +706,9 @@ static void set_brk(target_ulong start, target_ulong end)
 /* We need to explicitly zero any fractional pages after the data
    section (i.e. bss).  This would contain the junk from the file that
    should not be in memory. */
-static void padzero(target_ulong elf_bss, target_ulong last_bss)
+static void padzero(abi_ulong elf_bss, abi_ulong last_bss)
 {
-        target_ulong nbyte;
+        abi_ulong nbyte;
 
 	if (elf_bss >= last_bss)
 		return;
@@ -709,7 +719,7 @@ static void padzero(target_ulong elf_bss, target_ulong last_bss)
            patch target_mmap(), but it is more complicated as the file
            size must be known */
         if (qemu_real_host_page_size < qemu_host_page_size) {
-            target_ulong end_addr, end_addr1;
+            abi_ulong end_addr, end_addr1;
             end_addr1 = (elf_bss + qemu_real_host_page_size - 1) &
                 ~(qemu_real_host_page_size - 1);
             end_addr = HOST_PAGE_ALIGN(elf_bss);
@@ -731,16 +741,16 @@ static void padzero(target_ulong elf_bss, target_ulong last_bss)
 }
 
 
-static target_ulong create_elf_tables(target_ulong p, int argc, int envc,
-                                      struct elfhdr * exec,
-                                      target_ulong load_addr,
-                                      target_ulong load_bias,
-                                      target_ulong interp_load_addr, int ibcs,
-                                      struct image_info *info)
+static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
+                                   struct elfhdr * exec,
+                                   abi_ulong load_addr,
+                                   abi_ulong load_bias,
+                                   abi_ulong interp_load_addr, int ibcs,
+                                   struct image_info *info)
 {
-        target_ulong sp;
+        abi_ulong sp;
         int size;
-        target_ulong u_platform;
+        abi_ulong u_platform;
         const char *k_platform;
         const int n = sizeof(elf_addr_t);
 
@@ -756,7 +766,7 @@ static target_ulong create_elf_tables(target_ulong p, int argc, int envc,
 	/*
 	 * Force 16 byte _final_ alignment here for generality.
 	 */
-        sp = sp &~ (target_ulong)15;
+        sp = sp &~ (abi_ulong)15;
         size = (DLINFO_ITEMS + 1) * 2;
         if (k_platform)
           size += 2;
@@ -786,18 +796,18 @@ static target_ulong create_elf_tables(target_ulong p, int argc, int envc,
         NEW_AUX_ENT (AT_NULL, 0);
 
         /* There must be exactly DLINFO_ITEMS entries here.  */
-        NEW_AUX_ENT(AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
-        NEW_AUX_ENT(AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
-        NEW_AUX_ENT(AT_PHNUM, (target_ulong)(exec->e_phnum));
-        NEW_AUX_ENT(AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
-        NEW_AUX_ENT(AT_BASE, (target_ulong)(interp_load_addr));
-        NEW_AUX_ENT(AT_FLAGS, (target_ulong)0);
+        NEW_AUX_ENT(AT_PHDR, (abi_ulong)(load_addr + exec->e_phoff));
+        NEW_AUX_ENT(AT_PHENT, (abi_ulong)(sizeof (struct elf_phdr)));
+        NEW_AUX_ENT(AT_PHNUM, (abi_ulong)(exec->e_phnum));
+        NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(TARGET_PAGE_SIZE));
+        NEW_AUX_ENT(AT_BASE, (abi_ulong)(interp_load_addr));
+        NEW_AUX_ENT(AT_FLAGS, (abi_ulong)0);
         NEW_AUX_ENT(AT_ENTRY, load_bias + exec->e_entry);
-        NEW_AUX_ENT(AT_UID, (target_ulong) getuid());
-        NEW_AUX_ENT(AT_EUID, (target_ulong) geteuid());
-        NEW_AUX_ENT(AT_GID, (target_ulong) getgid());
-        NEW_AUX_ENT(AT_EGID, (target_ulong) getegid());
-        NEW_AUX_ENT(AT_HWCAP, (target_ulong) ELF_HWCAP);
+        NEW_AUX_ENT(AT_UID, (abi_ulong) getuid());
+        NEW_AUX_ENT(AT_EUID, (abi_ulong) geteuid());
+        NEW_AUX_ENT(AT_GID, (abi_ulong) getgid());
+        NEW_AUX_ENT(AT_EGID, (abi_ulong) getegid());
+        NEW_AUX_ENT(AT_HWCAP, (abi_ulong) ELF_HWCAP);
         if (k_platform)
             NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO
@@ -814,17 +824,17 @@ static target_ulong create_elf_tables(target_ulong p, int argc, int envc,
 }
 
 
-static target_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
-                                    int interpreter_fd,
-                                    target_ulong *interp_load_addr)
+static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
+                                 int interpreter_fd,
+                                 abi_ulong *interp_load_addr)
 {
 	struct elf_phdr *elf_phdata  =  NULL;
 	struct elf_phdr *eppnt;
-	target_ulong load_addr = 0;
+	abi_ulong load_addr = 0;
 	int load_addr_set = 0;
 	int retval;
-	target_ulong last_bss, elf_bss;
-	target_ulong error;
+	abi_ulong last_bss, elf_bss;
+	abi_ulong error;
 	int i;
 
 	elf_bss = 0;
@@ -838,20 +848,20 @@ static target_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	if ((interp_elf_ex->e_type != ET_EXEC &&
              interp_elf_ex->e_type != ET_DYN) ||
 	   !elf_check_arch(interp_elf_ex->e_machine)) {
-		return ~((target_ulong)0UL);
+		return ~((abi_ulong)0UL);
 	}
 
 
 	/* Now read in all of the header information */
 
 	if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > TARGET_PAGE_SIZE)
-	    return ~(target_ulong)0UL;
+	    return ~(abi_ulong)0UL;
 
 	elf_phdata =  (struct elf_phdr *)
 		malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
 
 	if (!elf_phdata)
-	  return ~((target_ulong)0UL);
+	  return ~((abi_ulong)0UL);
 
 	/*
 	 * If the size of this structure has changed, then punt, since
@@ -859,7 +869,7 @@ static target_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	 */
 	if (interp_elf_ex->e_phentsize != sizeof(struct elf_phdr)) {
 	    free(elf_phdata);
-	    return ~((target_ulong)0UL);
+	    return ~((abi_ulong)0UL);
         }
 
 	retval = lseek(interpreter_fd, interp_elf_ex->e_phoff, SEEK_SET);
@@ -900,8 +910,8 @@ static target_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	  if (eppnt->p_type == PT_LOAD) {
 	    int elf_type = MAP_PRIVATE | MAP_DENYWRITE;
 	    int elf_prot = 0;
-	    target_ulong vaddr = 0;
-	    target_ulong k;
+	    abi_ulong vaddr = 0;
+	    abi_ulong k;
 
 	    if (eppnt->p_flags & PF_R) elf_prot =  PROT_READ;
 	    if (eppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
@@ -921,7 +931,7 @@ static target_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	      /* Real error */
 	      close(interpreter_fd);
 	      free(elf_phdata);
-	      return ~((target_ulong)0UL);
+	      return ~((abi_ulong)0UL);
 	    }
 
 	    if (!load_addr_set && interp_elf_ex->e_type == ET_DYN) {
@@ -966,7 +976,7 @@ static target_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	free(elf_phdata);
 
 	*interp_load_addr = load_addr;
-	return ((target_ulong) interp_elf_ex->e_entry) + load_addr;
+	return ((abi_ulong) interp_elf_ex->e_entry) + load_addr;
 }
 
 /* Best attempt to load symbols from this ELF object. */
@@ -1054,22 +1064,22 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     struct elfhdr interp_elf_ex;
     struct exec interp_ex;
     int interpreter_fd = -1; /* avoid warning */
-    target_ulong load_addr, load_bias;
+    abi_ulong load_addr, load_bias;
     int load_addr_set = 0;
     unsigned int interpreter_type = INTERPRETER_NONE;
     unsigned char ibcs2_interpreter;
     int i;
-    target_ulong mapped_addr;
+    abi_ulong mapped_addr;
     struct elf_phdr * elf_ppnt;
     struct elf_phdr *elf_phdata;
-    target_ulong elf_bss, k, elf_brk;
+    abi_ulong elf_bss, k, elf_brk;
     int retval;
     char * elf_interpreter;
-    target_ulong elf_entry, interp_load_addr = 0;
+    abi_ulong elf_entry, interp_load_addr = 0;
     int status;
-    target_ulong start_code, end_code, start_data, end_data;
-    target_ulong reloc_func_desc = 0;
-    target_ulong elf_stack;
+    abi_ulong start_code, end_code, start_data, end_data;
+    abi_ulong reloc_func_desc = 0;
+    abi_ulong elf_stack;
     char passed_fileno[6];
 
     ibcs2_interpreter = 0;
@@ -1125,9 +1135,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     elf_brk = 0;
 
 
-    elf_stack = ~((target_ulong)0UL);
+    elf_stack = ~((abi_ulong)0UL);
     elf_interpreter = NULL;
-    start_code = ~((target_ulong)0UL);
+    start_code = ~((abi_ulong)0UL);
     end_code = 0;
     start_data = 0;
     end_data = 0;
@@ -1263,9 +1273,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     /* OK, This is the point of no return */
     info->end_data = 0;
     info->end_code = 0;
-    info->start_mmap = (target_ulong)ELF_START_MMAP;
+    info->start_mmap = (abi_ulong)ELF_START_MMAP;
     info->mmap = 0;
-    elf_entry = (target_ulong) elf_ex.e_entry;
+    elf_entry = (abi_ulong) elf_ex.e_entry;
 
     /* Do this so that we can load the interpreter, if need be.  We will
        change some of these later */
@@ -1282,7 +1292,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     for(i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum; i++, elf_ppnt++) {
         int elf_prot = 0;
         int elf_flags = 0;
-        target_ulong error;
+        abi_ulong error;
 
 	if (elf_ppnt->p_type != PT_LOAD)
             continue;
@@ -1374,7 +1384,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 	close(interpreter_fd);
 	free(elf_interpreter);
 
-	if (elf_entry == ~((target_ulong)0UL)) {
+	if (elf_entry == ~((abi_ulong)0UL)) {
 	    printf("Unable to load interpreter\n");
 	    free(elf_phdata);
 	    exit(-1);

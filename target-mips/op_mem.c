@@ -89,7 +89,7 @@ void glue(op_lwl, MEMSUFFIX) (void)
     target_ulong tmp;
 
     tmp = glue(ldub, MEMSUFFIX)(T0);
-    T1 = (int32_t)((T1 & 0x00FFFFFF) | (tmp << 24));
+    T1 = (T1 & 0x00FFFFFF) | (tmp << 24);
 
     if (GET_LMASK(T0) <= 2) {
         tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 1));
@@ -105,6 +105,7 @@ void glue(op_lwl, MEMSUFFIX) (void)
         tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, 3));
         T1 = (T1 & 0xFFFFFF00) | tmp;
     }
+    T1 = (int32_t)T1;
     RETURN();
 }
 
@@ -129,6 +130,7 @@ void glue(op_lwr, MEMSUFFIX) (void)
         tmp = glue(ldub, MEMSUFFIX)(GET_OFFSET(T0, -3));
         T1 = (T1 & 0x00FFFFFF) | (tmp << 24);
     }
+    T1 = (int32_t)T1;
     RETURN();
 }
 

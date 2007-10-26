@@ -4,18 +4,18 @@
 
 struct target_pt_regs {
 	/* Pad bytes for argument save space on the stack. */
-	target_ulong pad0[6];
+	abi_ulong pad0[6];
 
 	/* Saved main processor registers. */
-	target_ulong regs[32];
+	abi_ulong regs[32];
 
 	/* Saved special registers. */
-	target_ulong cp0_status;
-	target_ulong lo;
-	target_ulong hi;
-	target_ulong cp0_badvaddr;
-	target_ulong cp0_cause;
-	target_ulong cp0_epc;
+	abi_ulong cp0_status;
+	abi_ulong lo;
+	abi_ulong hi;
+	abi_ulong cp0_badvaddr;
+	abi_ulong cp0_cause;
+	abi_ulong cp0_epc;
 };
 
 /* Target errno definitions taken from asm-mips/errno.h */

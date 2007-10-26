@@ -86,8 +86,8 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  OK
-=> Linux 2.4 boots (at least 1 proprietary firmware).
-
+Remarks: Linux 2.4 boots (at least 1 proprietary firmware).
+         uboot seems to freeze at boot time.
 To be checked: 405D2 405D4 405EZ 405LP Npe4GS3 STB03 STB04 STB25
                x2vp4 x2vp7 x2vp20 x2vp50
 
@@ -203,8 +203,8 @@ MSR   OK
 IRQ   OK
 MMU   ?
 EXCP  ? at least timer and external interrupt are OK
-Remarks: Linux crashes when entering user-mode. But it seems it does not
-         know about this CPU. As this CPU is close to 603e, it should be OK.
+Remarks: Linux 2.4 crashes when entering user-mode.
+         Linux 2.6.22 boots on this CPU but does not recognize it.
 
 PowerPC 603: (603)
 INSN  OK
@@ -214,6 +214,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 boots and properly recognizes the CPU
+         Linux 2.6.22 idem.
 
 PowerPC 603e: (603e11)
 INSN  OK
@@ -223,6 +224,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 boots and properly recognizes the CPU
+         Linux 2.6.22 idem.
 
 PowerPC G2:
 INSN  OK
@@ -232,6 +234,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 boots, recognizes the CPU as a 82xx.
+         Linux 2.6.22 idem.
 
 PowerPC G2le:
 INSN  OK
@@ -241,6 +244,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 does not boots. Same symptoms as 602.
+         Linux 2.6.22 boots and properly recognizes the CPU.
 
 PowerPC 604:
 INSN  OK
@@ -250,6 +254,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 boots and properly recognizes the CPU.
+         Linux 2.6.22 idem.
 
 PowerPC 7x0:
 INSN  OK
@@ -259,6 +264,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 boots and properly recognizes the CPU.
+         Linux 2.6.22 idem.
 
 PowerPC 750fx:
 INSN  OK
@@ -268,6 +274,7 @@ IRQ   OK
 MMU   OK
 EXCP  OK
 Remarks: Linux 2.4 boots but does not properly recognizes the CPU.
+         Linux 2.6.22 boots and properly recognizes the CPU.
 
 PowerPC 7x5:
 INSN  ?
@@ -276,7 +283,8 @@ MSR   ?
 IRQ   OK
 MMU   ?
 EXCP  OK
-=> Linux 2.4 does not boot.
+Remarks: Linux 2.4 does not boot.
+         Linux 2.6.22 idem.
 
 PowerPC 7400:
 INSN  KO Altivec missing
@@ -285,7 +293,8 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  ?  Altivec, ...
-=> Linux 2.4 boots and properly recognize the CPU.
+Remarks: Linux 2.4 boots and properly recognize the CPU.
+         Linux 2.6.22 idem.
 
 PowerPC 7410:
 INSN  KO Altivec missing
@@ -294,9 +303,10 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  ?  Altivec, ...
-=> Linux 2.4 boots and properly recognize the CPU.
-   Note that UM says tlbld & tlbli are implemented bus this may be a mistake
-   as TLB load are managed by the hardware and it does not implement the
+Remarks: Linux 2.4 boots and properly recognize the CPU.
+         Linux 2.6.22 idem.
+   Note that UM says tlbld & tlbli are implemented but this may be a mistake
+   as TLB loads are managed by the hardware and the CPU does not implement the
    needed registers.
 
 PowerPC 7441:
@@ -306,8 +316,8 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  ?  Altivec, ...
-Linux does not have the code to handle TLB miss on this CPU
-
+Remarks: Linux does not have the code to handle TLB miss on this CPU
+         Linux 2.6.22 idem.
 
 PowerPC 7450/7451:
 INSN  KO Altivec missing
@@ -316,7 +326,8 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  ?  Altivec, ...
-Linux does not have the code to handle TLB miss on this CPU
+Remarks: Linux does not have the code to handle TLB miss on this CPU
+         Linux 2.6.22 idem.
 
 PowerPC 7445/7447:
 INSN  KO Altivec missing
@@ -325,7 +336,8 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  ?  Altivec, ...
-Linux does not have the code to handle TLB miss on this CPU
+Remarks: Linux does not have the code to handle TLB miss on this CPU
+         Linux 2.6.22 idem.
 
 PowerPC 7455/7457:
 INSN  KO Altivec missing
@@ -334,7 +346,8 @@ MSR   OK
 IRQ   OK
 MMU   OK
 EXCP  ?  Altivec, ...
-Linux does not have the code to handle TLB miss on this CPU
+Remarks: Linux does not have the code to handle TLB miss on this CPU
+         Linux 2.6.22 idem.
 
 64 bits PowerPC
 PowerPC 620: (disabled)
@@ -344,6 +357,7 @@ MSR   ?
 IRQ   KO
 MMU   KO
 EXCP  KO
+Remarks: not much documentation for this implementation...
 
 PowerPC 970:
 INSN  KO Altivec missing and more
@@ -352,7 +366,7 @@ MSR   ?
 IRQ   OK
 MMU   OK
 EXCP  KO partially implemented
-Should be able to boot but there is no hw platform currently emulated.
+Remarks: Should be able to boot but there is no hw platform currently emulated.
 
 PowerPC 970FX:
 INSN  KO Altivec missing and more
@@ -361,7 +375,7 @@ MSR   ?
 IRQ   OK
 MMU   OK
 EXCP  KO partially implemented
-Should be able to boot but there is no hw platform currently emulated.
+Remarks: Should be able to boot but there is no hw platform currently emulated.
 
 PowerPC 970GX:
 INSN  KO Altivec missing and more
@@ -370,7 +384,7 @@ MSR   ?
 IRQ   OK
 MMU   OK
 EXCP  KO partially implemented
-Should be able to boot but there is no hw platform currently emulated.
+Remarks: Should be able to boot but there is no hw platform currently emulated.
 
 PowerPC Cell:
 INSN  KO Altivec missing and more
@@ -379,7 +393,8 @@ MSR   ?
 IRQ   ?
 MMU   ?
 EXCP  ? partially implemented
-As the core is mostly a 970, should be able to boot. SPE are not implemented.
+Remarks: As the core is mostly a 970, should be able to boot.
+         SPE are not implemented.
 
 PowerPC 630: (disabled: lack of detailed specifications)
 INSN  KO
@@ -495,7 +510,10 @@ Implemementation should be sufficient to boot Linux:
 - PowerPC 405EP
 
 TODO:
-- More PowerPC 40x microcontrollers emulation
+- PowerPC 401 microcontrollers emulation
+- PowerPC 403 microcontrollers emulation
+- more PowerPC 405 microcontrollers emulation
+- Fixes / more features for implemented PowerPC 405 microcontrollers emulation
 - PowerPC 440 microcontrollers emulation
 - e200 microcontrollers emulation
 - e300 microcontrollers emulation
@@ -530,6 +548,8 @@ PowerPC based platforms emulation status
   Need to provide a flash image ready to boot for reproductible tests.
 
 TODO:
+- URGENT: fix PreP and heathrow platforms
+- PowerPC 64 reference platform
 - MCA based RS/6000 emulation
 - CHRP emulation (not PowerMac)
 - PPAR emulation
@@ -537,4 +557,3 @@ TODO:
 - misc PowerPC reference boards emulation
 
 ===============================================================================
-(to be completed)

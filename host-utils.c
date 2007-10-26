@@ -1,6 +1,7 @@
 /*
  * Utility compute operations used by translated code.
  *
+ * Copyright (c) 2003 Fabrice Bellard
  * Copyright (c) 2007 Aurelien Jarno
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,52 +25,88 @@
 
 #include "vl.h"
 
-/* Signed 64x64 -> 128 multiplication */
-
-void muls64(int64_t *phigh, int64_t *plow, int64_t a, int64_t b)
+/* Long integer helpers */
+static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 {
-#if defined(__x86_64__)
-    __asm__ ("imul %0\n\t"
-             : "=d" (*phigh), "=a" (*plow)
-             : "a" (a), "0" (b)
-             );
-#else
-    int64_t ph;
-    uint64_t pm1, pm2, pl;
-
-    pl = (uint64_t)((uint32_t)a) * (uint64_t)((uint32_t)b);
-    pm1 = (a >> 32) * (uint32_t)b;
-    pm2 = (uint32_t)a * (b >> 32);
-    ph = (a >> 32) * (b >> 32);
-
-    ph += (int64_t)pm1 >> 32;
-    pm1 = (uint64_t)((uint32_t)pm1) + pm2 + (pl >> 32);
-
-    *phigh = ph + ((int64_t)pm1 >> 32);
-    *plow = (pm1 << 32) + (uint32_t)pl;
-#endif
+    *plow += a;
+    /* carry test */
+    if (*plow < a)
+        (*phigh)++;
+    *phigh += b;
 }
 
+static void neg128 (uint64_t *plow, uint64_t *phigh)
+{
+    *plow = ~*plow;
+    *phigh = ~*phigh;
+    add128(plow, phigh, 1, 0);
+}
+
+static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
+{
+    uint32_t a0, a1, b0, b1;
+    uint64_t v;
+
+    a0 = a;
+    a1 = a >> 32;
+
+    b0 = b;
+    b1 = b >> 32;
+
+    v = (uint64_t)a0 * (uint64_t)b0;
+    *plow = v;
+    *phigh = 0;
+
+    v = (uint64_t)a0 * (uint64_t)b1;
+    add128(plow, phigh, v << 32, v >> 32);
+
+    v = (uint64_t)a1 * (uint64_t)b0;
+    add128(plow, phigh, v << 32, v >> 32);
+
+    v = (uint64_t)a1 * (uint64_t)b1;
+    *phigh += v;
+}
+
+
 /* Unsigned 64x64 -> 128 multiplication */
-void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b)
+void mulu64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 {
 #if defined(__x86_64__)
     __asm__ ("mul %0\n\t"
              : "=d" (*phigh), "=a" (*plow)
-             : "a" (a), "0" (b)
-            );
+             : "a" (a), "0" (b));
 #else
-    uint64_t ph, pm1, pm2, pl;
+    mul64(plow, phigh, a, b);
+#endif
+#if defined(DEBUG_MULDIV)
+    printf("mulu64: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
+           a, b, *phigh, *plow);
+#endif
+}
 
-    pl = (uint64_t)((uint32_t)a) * (uint64_t)((uint32_t)b);
-    pm1 = (a >> 32) * (uint32_t)b;
-    pm2 = (uint32_t)a * (b >> 32);
-    ph = (a >> 32) * (b >> 32);
+/* Signed 64x64 -> 128 multiplication */
+void muls64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
+{
+#if defined(__x86_64__)
+    __asm__ ("imul %0\n\t"
+             : "=d" (*phigh), "=a" (*plow)
+             : "a" (a), "0" (b));
+#else
+    int sa, sb;
 
-    ph += pm1 >> 32;
-    pm1 = (uint64_t)((uint32_t)pm1) + pm2 + (pl >> 32);
-
-    *phigh = ph + (pm1 >> 32);
-    *plow = (pm1 << 32) + (uint32_t)pl;
+    sa = (a < 0);
+    if (sa)
+        a = -a;
+    sb = (b < 0);
+    if (sb)
+        b = -b;
+    mul64(plow, phigh, a, b);
+    if (sa ^ sb) {
+        neg128(plow, phigh);
+    }
+#endif
+#if defined(DEBUG_MULDIV)
+    printf("muls64: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
+           a, b, *phigh, *plow);
 #endif
 }

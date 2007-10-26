@@ -105,13 +105,13 @@ struct target_sockaddr {
 };
 
 struct target_timeval {
-    target_long tv_sec;
-    target_long tv_usec;
+    abi_long tv_sec;
+    abi_long tv_usec;
 };
 
 struct target_timespec {
-    target_long tv_sec;
-    target_long tv_nsec;
+    abi_long tv_sec;
+    abi_long tv_nsec;
 };
 
 struct target_itimerval {
@@ -119,7 +119,7 @@ struct target_itimerval {
     struct target_timeval it_value;
 };
 
-typedef target_long target_clock_t;
+typedef abi_long target_clock_t;
 
 #define TARGET_HZ 100
 
@@ -131,33 +131,33 @@ struct target_tms {
 };
 
 struct target_utimbuf {
-    target_long actime;
-    target_long modtime;
+    abi_long actime;
+    abi_long modtime;
 };
 
 struct target_sel_arg_struct {
-    target_long n;
-    target_long inp, outp, exp;
-    target_long tvp;
+    abi_long n;
+    abi_long inp, outp, exp;
+    abi_long tvp;
 };
 
 struct target_iovec {
-    target_long iov_base;   /* Starting address */
-    target_long iov_len;   /* Number of bytes */
+    abi_long iov_base;   /* Starting address */
+    abi_long iov_len;   /* Number of bytes */
 };
 
 struct target_msghdr {
-    target_long	 msg_name;	/* Socket name			*/
-    int		 msg_namelen;	/* Length of name		*/
-    target_long	 msg_iov;	/* Data blocks			*/
-    target_long	 msg_iovlen;	/* Number of blocks		*/
-    target_long  msg_control;	/* Per protocol magic (eg BSD file descriptor passing) */
-    target_long	 msg_controllen;	/* Length of cmsg list */
+    abi_long	 msg_name;	 /* Socket name			*/
+    int		 msg_namelen;	 /* Length of name		*/
+    abi_long	 msg_iov;	 /* Data blocks			*/
+    abi_long	 msg_iovlen;	 /* Number of blocks		*/
+    abi_long     msg_control;	 /* Per protocol magic (eg BSD file descriptor passing) */
+    abi_long	 msg_controllen; /* Length of cmsg list */
     unsigned int msg_flags;
 };
 
 struct target_cmsghdr {
-    target_long  cmsg_len;
+    abi_long     cmsg_len;
     int          cmsg_level;
     int          cmsg_type;
 };
@@ -167,8 +167,8 @@ struct target_cmsghdr {
 #define TARGET_CMSG_FIRSTHDR(mhdr) \
   ((size_t) tswapl((mhdr)->msg_controllen) >= sizeof (struct target_cmsghdr) \
    ? (struct target_cmsghdr *) tswapl((mhdr)->msg_control) : (struct target_cmsghdr *) NULL)
-#define TARGET_CMSG_ALIGN(len) (((len) + sizeof (target_long) - 1) \
-                               & (size_t) ~(sizeof (target_long) - 1))
+#define TARGET_CMSG_ALIGN(len) (((len) + sizeof (abi_long) - 1) \
+                               & (size_t) ~(sizeof (abi_long) - 1))
 #define TARGET_CMSG_SPACE(len) (TARGET_CMSG_ALIGN (len) \
                                + TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)))
 #define TARGET_CMSG_LEN(len)   (TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)) + (len))
@@ -191,20 +191,20 @@ __target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cms
 struct  target_rusage {
         struct target_timeval ru_utime;        /* user time used */
         struct target_timeval ru_stime;        /* system time used */
-        target_long    ru_maxrss;              /* maximum resident set size */
-        target_long    ru_ixrss;               /* integral shared memory size */
-        target_long    ru_idrss;               /* integral unshared data size */
-        target_long    ru_isrss;               /* integral unshared stack size */
-        target_long    ru_minflt;              /* page reclaims */
-        target_long    ru_majflt;              /* page faults */
-        target_long    ru_nswap;               /* swaps */
-        target_long    ru_inblock;             /* block input operations */
-        target_long    ru_oublock;             /* block output operations */
-        target_long    ru_msgsnd;              /* messages sent */
-        target_long    ru_msgrcv;              /* messages received */
-        target_long    ru_nsignals;            /* signals received */
-        target_long    ru_nvcsw;               /* voluntary context switches */
-        target_long    ru_nivcsw;              /* involuntary " */
+        abi_long    ru_maxrss;                 /* maximum resident set size */
+        abi_long    ru_ixrss;                  /* integral shared memory size */
+        abi_long    ru_idrss;                  /* integral unshared data size */
+        abi_long    ru_isrss;                  /* integral unshared stack size */
+        abi_long    ru_minflt;                 /* page reclaims */
+        abi_long    ru_majflt;                 /* page faults */
+        abi_long    ru_nswap;                  /* swaps */
+        abi_long    ru_inblock;                /* block input operations */
+        abi_long    ru_oublock;                /* block output operations */
+        abi_long    ru_msgsnd;                 /* messages sent */
+        abi_long    ru_msgrcv;                 /* messages received */
+        abi_long    ru_nsignals;               /* signals received */
+        abi_long    ru_nvcsw;                  /* voluntary context switches */
+        abi_long    ru_nivcsw;                 /* involuntary " */
 };
 
 typedef struct {
@@ -225,8 +225,8 @@ struct kernel_statfs {
 };
 
 struct target_dirent {
-	target_long	d_ino;
-	target_long	d_off;
+	abi_long	d_ino;
+	abi_long	d_off;
 	unsigned short	d_reclen;
 	char		d_name[256]; /* We must not include limits.h! */
 };
@@ -241,20 +241,20 @@ struct target_dirent64 {
 
 
 /* mostly generic signal stuff */
-#define TARGET_SIG_DFL	((target_long)0)	/* default signal handling */
-#define TARGET_SIG_IGN	((target_long)1)	/* ignore signal */
-#define TARGET_SIG_ERR	((target_long)-1)	/* error return from signal */
+#define TARGET_SIG_DFL	((abi_long)0)	/* default signal handling */
+#define TARGET_SIG_IGN	((abi_long)1)	/* ignore signal */
+#define TARGET_SIG_ERR	((abi_long)-1)	/* error return from signal */
 
 #ifdef TARGET_MIPS
 #define TARGET_NSIG	   128
 #else
 #define TARGET_NSIG	   64
 #endif
-#define TARGET_NSIG_BPW	   TARGET_LONG_BITS
+#define TARGET_NSIG_BPW	   TARGET_ABI_BITS
 #define TARGET_NSIG_WORDS  (TARGET_NSIG / TARGET_NSIG_BPW)
 
 typedef struct {
-    target_ulong sig[TARGET_NSIG_WORDS];
+    abi_ulong sig[TARGET_NSIG_WORDS];
 } target_sigset_t;
 
 #ifdef BSWAP_NEEDED
@@ -271,7 +271,7 @@ static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
 }
 #endif
 
-static inline void target_siginitset(target_sigset_t *d, target_ulong set)
+static inline void target_siginitset(target_sigset_t *d, abi_ulong set)
 {
     int i;
     d->sig[0] = set;
@@ -281,10 +281,10 @@ static inline void target_siginitset(target_sigset_t *d, target_ulong set)
 
 void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
 void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
-void host_to_target_old_sigset(target_ulong *old_sigset,
+void host_to_target_old_sigset(abi_ulong *old_sigset,
                                const sigset_t *sigset);
 void target_to_host_old_sigset(sigset_t *sigset,
-                               const target_ulong *old_sigset);
+                               const abi_ulong *old_sigset);
 struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);
@@ -453,40 +453,40 @@ struct target_sigaction {
 #if defined(TARGET_MIPSN32)
 	uint32_t	_sa_handler;
 #else
-	target_ulong	_sa_handler;
+	abi_ulong	_sa_handler;
 #endif
 	target_sigset_t	sa_mask;
 };
 
 #else
 struct target_old_sigaction {
-        target_ulong _sa_handler;
-        target_ulong sa_mask;
-        target_ulong sa_flags;
-        target_ulong sa_restorer;
+        abi_ulong _sa_handler;
+        abi_ulong sa_mask;
+        abi_ulong sa_flags;
+        abi_ulong sa_restorer;
 };
 
 struct target_sigaction {
-        target_ulong _sa_handler;
-        target_ulong sa_flags;
-        target_ulong sa_restorer;
+        abi_ulong _sa_handler;
+        abi_ulong sa_flags;
+        abi_ulong sa_restorer;
         target_sigset_t sa_mask;
 };
 #endif
 
 typedef union target_sigval {
 	int sival_int;
-        target_ulong sival_ptr;
+        abi_ulong sival_ptr;
 } target_sigval_t;
 #if 0
 #if defined (TARGET_SPARC)
 typedef struct {
 	struct {
-		target_ulong psr;
-		target_ulong pc;
-		target_ulong npc;
-		target_ulong y;
-		target_ulong u_regs[16]; /* globals and ins */
+		abi_ulong psr;
+		abi_ulong pc;
+		abi_ulong npc;
+		abi_ulong y;
+		abi_ulong u_regs[16]; /* globals and ins */
 	}		si_regs;
 	int		si_mask;
 } __siginfo_t;
@@ -544,7 +544,7 @@ typedef struct target_siginfo {
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 		struct {
-			target_ulong _addr; /* faulting insn/memory ref. */
+			abi_ulong _addr; /* faulting insn/memory ref. */
 		} _sigfault;
 
 		/* SIGPOLL */
@@ -614,8 +614,8 @@ typedef struct target_siginfo {
 #endif /* defined(TARGET_I386) || defined(TARGET_ARM) */
 
 struct target_rlimit {
-        target_ulong   rlim_cur;
-        target_ulong   rlim_max;
+        abi_ulong   rlim_cur;
+        abi_ulong   rlim_max;
 };
 
 struct target_pollfd {
@@ -888,24 +888,24 @@ struct target_winsize {
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
-	target_ulong st_ino;
+	abi_ulong st_ino;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
 	unsigned short st_gid;
 	unsigned short st_rdev;
 	unsigned short __pad2;
-	target_ulong  st_size;
-	target_ulong  st_blksize;
-	target_ulong  st_blocks;
-	target_ulong  target_st_atime;
-	target_ulong  __unused1;
-	target_ulong  target_st_mtime;
-	target_ulong  __unused2;
-	target_ulong  target_st_ctime;
-	target_ulong  __unused3;
-	target_ulong  __unused4;
-	target_ulong  __unused5;
+	abi_ulong  st_size;
+	abi_ulong  st_blksize;
+	abi_ulong  st_blocks;
+	abi_ulong  target_st_atime;
+	abi_ulong  __unused1;
+	abi_ulong  target_st_mtime;
+	abi_ulong  __unused2;
+	abi_ulong  target_st_ctime;
+	abi_ulong  __unused3;
+	abi_ulong  __unused4;
+	abi_ulong  __unused5;
 };
 
 /* This matches struct stat64 in glibc2.1, hence the absolutely
@@ -916,31 +916,31 @@ struct target_stat64 {
 	unsigned char	__pad0[10];
 
 #define TARGET_STAT64_HAS_BROKEN_ST_INO	1
-	target_ulong	__st_ino;
+	abi_ulong	__st_ino;
 
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
-	target_ulong	st_uid;
-	target_ulong	st_gid;
+	abi_ulong	st_uid;
+	abi_ulong	st_gid;
 
 	unsigned short	st_rdev;
 	unsigned char	__pad3[10];
 
 	long long	st_size;
-	target_ulong	st_blksize;
+	abi_ulong	st_blksize;
 
-	target_ulong	st_blocks;	/* Number 512-byte blocks allocated. */
-	target_ulong	__pad4;		/* future possible st_blocks high bits */
+	abi_ulong	st_blocks;	/* Number 512-byte blocks allocated. */
+	abi_ulong	__pad4;		/* future possible st_blocks high bits */
 
-	target_ulong	target_st_atime;
-	target_ulong	__pad5;
+	abi_ulong	target_st_atime;
+	abi_ulong	__pad5;
 
-	target_ulong	target_st_mtime;
-	target_ulong	__pad6;
+	abi_ulong	target_st_mtime;
+	abi_ulong	__pad6;
 
-	target_ulong	target_st_ctime;
-	target_ulong	__pad7;		/* will be high 32 bits of ctime someday */
+	abi_ulong	target_st_ctime;
+	abi_ulong	__pad7;		/* will be high 32 bits of ctime someday */
 
 	unsigned long long	st_ino;
 } __attribute__((packed));
@@ -949,50 +949,50 @@ struct target_stat64 {
 struct target_eabi_stat64 {
         unsigned long long st_dev;
         unsigned int    __pad1;
-        target_ulong    __st_ino;
+        abi_ulong    __st_ino;
         unsigned int    st_mode;
         unsigned int    st_nlink;
 
-        target_ulong    st_uid;
-        target_ulong    st_gid;
+        abi_ulong    st_uid;
+        abi_ulong    st_gid;
 
         unsigned long long st_rdev;
         unsigned int    __pad2[2];
 
         long long       st_size;
-        target_ulong    st_blksize;
+        abi_ulong    st_blksize;
         unsigned int    __pad3;
         unsigned long long st_blocks;
 
-        target_ulong    target_st_atime;
-        target_ulong    target_st_atime_nsec;
+        abi_ulong    target_st_atime;
+        abi_ulong    target_st_atime_nsec;
 
-        target_ulong    target_st_mtime;
-        target_ulong    target_st_mtime_nsec;
+        abi_ulong    target_st_mtime;
+        abi_ulong    target_st_mtime_nsec;
 
-        target_ulong    target_st_ctime;
-        target_ulong    target_st_ctime_nsec;
+        abi_ulong    target_st_ctime;
+        abi_ulong    target_st_ctime_nsec;
 
         unsigned long long st_ino;
 } __attribute__ ((packed));
 #endif
 
-#elif defined(TARGET_SPARC64)
+#elif defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
 struct target_stat {
 	unsigned int	st_dev;
-	target_ulong	st_ino;
+	abi_ulong	st_ino;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 	unsigned int	st_uid;
 	unsigned int	st_gid;
 	unsigned int	st_rdev;
-	target_long	st_size;
-	target_long	target_st_atime;
-	target_long	target_st_mtime;
-	target_long	target_st_ctime;
-	target_long	st_blksize;
-	target_long	st_blocks;
-	target_ulong	__unused4[2];
+	abi_long	st_size;
+	abi_long	target_st_atime;
+	abi_long	target_st_mtime;
+	abi_long	target_st_ctime;
+	abi_long	st_blksize;
+	abi_long	st_blocks;
+	abi_ulong	__unused4[2];
 };
 
 struct target_stat64 {
@@ -1016,38 +1016,38 @@ struct target_stat64 {
 	unsigned char	__pad4[4];
 	unsigned int	st_blocks;
 
-	target_ulong	target_st_atime;
-	target_ulong	__unused1;
+	abi_ulong	target_st_atime;
+	abi_ulong	__unused1;
 
-	target_ulong	target_st_mtime;
-	target_ulong	__unused2;
+	abi_ulong	target_st_mtime;
+	abi_ulong	__unused2;
 
-	target_ulong	target_st_ctime;
-	target_ulong	__unused3;
+	abi_ulong	target_st_ctime;
+	abi_ulong	__unused3;
 
-	target_ulong	__unused4[3];
+	abi_ulong	__unused4[3];
 };
 
 #elif defined(TARGET_SPARC)
 
 struct target_stat {
 	unsigned short	st_dev;
-	target_ulong	st_ino;
+	abi_ulong	st_ino;
 	unsigned short	st_mode;
 	short		st_nlink;
 	unsigned short	st_uid;
 	unsigned short	st_gid;
 	unsigned short	st_rdev;
-	target_long	st_size;
-	target_long	target_st_atime;
-	target_ulong	__unused1;
-	target_long	target_st_mtime;
-	target_ulong	__unused2;
-	target_long	target_st_ctime;
-	target_ulong	__unused3;
-	target_long	st_blksize;
-	target_long	st_blocks;
-	target_ulong	__unused4[2];
+	abi_long	st_size;
+	abi_long	target_st_atime;
+	abi_ulong	__unused1;
+	abi_long	target_st_mtime;
+	abi_ulong	__unused2;
+	abi_long	target_st_ctime;
+	abi_ulong	__unused3;
+	abi_long	st_blksize;
+	abi_long	st_blocks;
+	abi_ulong	__unused4[2];
 };
 
 struct target_stat64 {
@@ -1090,23 +1090,23 @@ struct target_stat64 {
 
 struct target_stat {
 	unsigned short st_dev;
-	target_ulong st_ino;
+	abi_ulong st_ino;
 	unsigned int st_mode;
 	unsigned short st_nlink;
 	unsigned int st_uid;
 	unsigned int st_gid;
 	unsigned short st_rdev;
-	target_ulong  st_size;
-	target_ulong  st_blksize;
-	target_ulong  st_blocks;
-	target_ulong  target_st_atime;
-	target_ulong  __unused1;
-	target_ulong  target_st_mtime;
-	target_ulong  __unused2;
-	target_ulong  target_st_ctime;
-	target_ulong  __unused3;
-	target_ulong  __unused4;
-	target_ulong  __unused5;
+	abi_ulong  st_size;
+	abi_ulong  st_blksize;
+	abi_ulong  st_blocks;
+	abi_ulong  target_st_atime;
+	abi_ulong  __unused1;
+	abi_ulong  target_st_mtime;
+	abi_ulong  __unused2;
+	abi_ulong  target_st_ctime;
+	abi_ulong  __unused3;
+	abi_ulong  __unused4;
+	abi_ulong  __unused5;
 };
 
 struct target_stat64 {
@@ -1119,17 +1119,17 @@ struct target_stat64 {
 	unsigned long long st_rdev;
 	long long pad0;
 	long long st_size;
-	target_ulong	st_blksize;
-	target_ulong	pad1;
+	abi_ulong	st_blksize;
+	abi_ulong	pad1;
 	long long	st_blocks;	/* Number 512-byte blocks allocated. */
-	target_ulong	target_st_atime;
-        target_ulong    target_st_atime_nsec;
-	target_ulong	target_st_mtime;
-        target_ulong    target_st_mtime_nsec;
-	target_ulong	target_st_ctime;
-        target_ulong    target_st_ctime_nsec;
-        target_ulong    __unused4;
-        target_ulong    __unused5;
+	abi_ulong	target_st_atime;
+        abi_ulong    target_st_atime_nsec;
+	abi_ulong	target_st_mtime;
+        abi_ulong    target_st_mtime_nsec;
+	abi_ulong	target_st_ctime;
+        abi_ulong    target_st_ctime_nsec;
+        abi_ulong    __unused4;
+        abi_ulong    __unused5;
 };
 
 #elif defined(TARGET_M68K)
@@ -1137,24 +1137,24 @@ struct target_stat64 {
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
-	target_ulong st_ino;
+	abi_ulong st_ino;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
 	unsigned short st_gid;
 	unsigned short st_rdev;
 	unsigned short __pad2;
-	target_ulong  st_size;
-	target_ulong  st_blksize;
-	target_ulong  st_blocks;
-	target_ulong  target_st_atime;
-	target_ulong  __unused1;
-	target_ulong  target_st_mtime;
-	target_ulong  __unused2;
-	target_ulong  target_st_ctime;
-	target_ulong  __unused3;
-	target_ulong  __unused4;
-	target_ulong  __unused5;
+	abi_ulong  st_size;
+	abi_ulong  st_blksize;
+	abi_ulong  st_blocks;
+	abi_ulong  target_st_atime;
+	abi_ulong  __unused1;
+	abi_ulong  target_st_mtime;
+	abi_ulong  __unused2;
+	abi_ulong  target_st_ctime;
+	abi_ulong  __unused3;
+	abi_ulong  __unused4;
+	abi_ulong  __unused5;
 };
 
 /* This matches struct stat64 in glibc2.1, hence the absolutely
@@ -1165,31 +1165,31 @@ struct target_stat64 {
 	unsigned char	__pad1[2];
 
 #define TARGET_STAT64_HAS_BROKEN_ST_INO	1
-	target_ulong	__st_ino;
+	abi_ulong	__st_ino;
 
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
-	target_ulong	st_uid;
-	target_ulong	st_gid;
+	abi_ulong	st_uid;
+	abi_ulong	st_gid;
 
 	unsigned long long	st_rdev;
 	unsigned char	__pad3[2];
 
 	long long	st_size;
-	target_ulong	st_blksize;
+	abi_ulong	st_blksize;
 
-	target_ulong	__pad4;		/* future possible st_blocks high bits */
-	target_ulong	st_blocks;	/* Number 512-byte blocks allocated. */
+	abi_ulong	__pad4;		/* future possible st_blocks high bits */
+	abi_ulong	st_blocks;	/* Number 512-byte blocks allocated. */
 
-	target_ulong	target_st_atime;
-	target_ulong	target_st_atime_nsec;
+	abi_ulong	target_st_atime;
+	abi_ulong	target_st_atime_nsec;
 
-	target_ulong	target_st_mtime;
-	target_ulong	target_st_mtime_nsec;
+	abi_ulong	target_st_mtime;
+	abi_ulong	target_st_mtime_nsec;
 
-	target_ulong	target_st_ctime;
-	target_ulong	target_st_ctime_nsec;
+	abi_ulong	target_st_ctime;
+	abi_ulong	target_st_ctime_nsec;
 
 	unsigned long long	st_ino;
 } __attribute__((packed));
@@ -1201,7 +1201,7 @@ struct target_stat {
 	unsigned int		st_dev;
 	unsigned int		st_pad0[3]; /* Reserved for st_dev expansion */
 
-	target_ulong		st_ino;
+	abi_ulong		st_ino;
 
 	unsigned int		st_mode;
 	unsigned int		st_nlink;
@@ -1212,7 +1212,7 @@ struct target_stat {
 	unsigned int		st_rdev;
 	unsigned int		st_pad1[3]; /* Reserved for st_rdev expansion */
 
-	target_ulong		st_size;
+	abi_ulong		st_size;
 
 	/*
 	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
@@ -1230,7 +1230,7 @@ struct target_stat {
 	unsigned int		st_blksize;
 	unsigned int		st_pad2;
 
-	target_ulong		st_blocks;
+	abi_ulong		st_blocks;
 };
 
 #elif defined(TARGET_MIPSN32)
@@ -1308,29 +1308,29 @@ struct target_stat64 {
 
 struct target_stat {
 	unsigned	st_dev;
-	target_long	st_pad1[3];		/* Reserved for network id */
-	target_ulong	st_ino;
+	abi_long	st_pad1[3];		/* Reserved for network id */
+	abi_ulong	st_ino;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 	int		st_uid;
 	int		st_gid;
 	unsigned 	st_rdev;
-	target_long	st_pad2[2];
-	target_long	st_size;
-	target_long	st_pad3;
+	abi_long	st_pad2[2];
+	abi_long	st_size;
+	abi_long	st_pad3;
 	/*
 	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
 	 * but we don't have it under Linux.
 	 */
-	target_long		target_st_atime;
-	target_long		target_st_atime_nsec;
-	target_long		target_st_mtime;
-	target_long		target_st_mtime_nsec;
-	target_long		target_st_ctime;
-	target_long		target_st_ctime_nsec;
-	target_long		st_blksize;
-	target_long		st_blocks;
-	target_long		st_pad4[14];
+	abi_long		target_st_atime;
+	abi_long		target_st_atime_nsec;
+	abi_long		target_st_mtime;
+	abi_long		target_st_mtime_nsec;
+	abi_long		target_st_ctime;
+	abi_long		target_st_ctime_nsec;
+	abi_long		st_blksize;
+	abi_long		st_blocks;
+	abi_long		st_pad4[14];
 };
 
 /*
@@ -1340,8 +1340,8 @@ struct target_stat {
  */
 
 struct target_stat64 {
-	target_ulong	st_dev;
-	target_ulong	st_pad0[3];	/* Reserved for st_dev expansion  */
+	abi_ulong	st_dev;
+	abi_ulong	st_pad0[3];	/* Reserved for st_dev expansion  */
 
 	uint64_t	st_ino;
 
@@ -1351,8 +1351,8 @@ struct target_stat64 {
 	int		st_uid;
 	int		st_gid;
 
-	target_ulong	st_rdev;
-	target_ulong	st_pad1[3];	/* Reserved for st_rdev expansion  */
+	abi_ulong	st_rdev;
+	abi_ulong	st_pad1[3];	/* Reserved for st_rdev expansion  */
 
 	int64_t 	st_size;
 
@@ -1360,17 +1360,17 @@ struct target_stat64 {
 	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
 	 * but we don't have it under Linux.
 	 */
-	target_long	target_st_atime;
-	target_ulong	target_st_atime_nsec;	/* Reserved for st_atime expansion  */
+	abi_long	target_st_atime;
+	abi_ulong	target_st_atime_nsec;	/* Reserved for st_atime expansion  */
 
-	target_long	target_st_mtime;
-	target_ulong	target_st_mtime_nsec;	/* Reserved for st_mtime expansion  */
+	abi_long	target_st_mtime;
+	abi_ulong	target_st_mtime_nsec;	/* Reserved for st_mtime expansion  */
 
-	target_long	target_st_ctime;
-	target_ulong	target_st_ctime_nsec;	/* Reserved for st_ctime expansion  */
+	abi_long	target_st_ctime;
+	abi_ulong	target_st_ctime_nsec;	/* Reserved for st_ctime expansion  */
 
-	target_ulong	st_blksize;
-	target_ulong	st_pad2;
+	abi_ulong	st_blksize;
+	abi_ulong	st_pad2;
 
 	int64_t  	st_blocks;
 };
@@ -1385,10 +1385,10 @@ struct target_stat {
        unsigned int    st_uid;
        unsigned int    st_gid;
        unsigned int    st_rdev;
-       target_long     st_size;
-       target_ulong    target_st_atime;
-       target_ulong    target_st_mtime;
-       target_ulong    target_st_ctime;
+       abi_long     st_size;
+       abi_ulong    target_st_atime;
+       abi_ulong    target_st_mtime;
+       abi_ulong    target_st_ctime;
        unsigned int    st_blksize;
        unsigned int    st_blocks;
        unsigned int    st_flags;
@@ -1396,11 +1396,11 @@ struct target_stat {
 };
 
 struct target_stat64 {
-       target_ulong    st_dev;
-       target_ulong    st_ino;
-       target_ulong    st_rdev;
-       target_long     st_size;
-       target_ulong    st_blocks;
+       abi_ulong    st_dev;
+       abi_ulong    st_ino;
+       abi_ulong    st_rdev;
+       abi_long     st_size;
+       abi_ulong    st_blocks;
 
        unsigned int    st_mode;
        unsigned int    st_uid;
@@ -1409,36 +1409,36 @@ struct target_stat64 {
        unsigned int    st_nlink;
        unsigned int    __pad0;
 
-       target_ulong    target_st_atime;
-       target_ulong    target_st_atime_nsec;
-       target_ulong    target_st_mtime;
-       target_ulong    target_st_mtime_nsec;
-       target_ulong    target_st_ctime;
-       target_ulong    target_st_ctime_nsec;
-       target_long     __unused[3];
+       abi_ulong    target_st_atime;
+       abi_ulong    target_st_atime_nsec;
+       abi_ulong    target_st_mtime;
+       abi_ulong    target_st_mtime_nsec;
+       abi_ulong    target_st_ctime;
+       abi_ulong    target_st_ctime_nsec;
+       abi_long     __unused[3];
 };
 
 #elif defined(TARGET_SH4)
 
 struct target_stat {
-	target_ulong  st_dev;
-	target_ulong  st_ino;
+	abi_ulong  st_dev;
+	abi_ulong  st_ino;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
 	unsigned short st_gid;
-	target_ulong  st_rdev;
-	target_ulong  st_size;
-	target_ulong  st_blksize;
-	target_ulong  st_blocks;
-	target_ulong  target_st_atime;
-	target_ulong  target_st_atime_nsec;
-	target_ulong  target_st_mtime;
-	target_ulong  target_st_mtime_nsec;
-	target_ulong  target_st_ctime;
-	target_ulong  target_st_ctime_nsec;
-	target_ulong  __unused4;
-	target_ulong  __unused5;
+	abi_ulong  st_rdev;
+	abi_ulong  st_size;
+	abi_ulong  st_blksize;
+	abi_ulong  st_blocks;
+	abi_ulong  target_st_atime;
+	abi_ulong  target_st_atime_nsec;
+	abi_ulong  target_st_mtime;
+	abi_ulong  target_st_mtime_nsec;
+	abi_ulong  target_st_ctime;
+	abi_ulong  target_st_ctime_nsec;
+	abi_ulong  __unused4;
+	abi_ulong  __unused5;
 };
 
 /* This matches struct stat64 in glibc2.1, hence the absolutely
@@ -1449,30 +1449,30 @@ struct target_stat64 {
 	unsigned char	__pad0[4];
 
 #define TARGET_STAT64_HAS_BROKEN_ST_INO	1
-	target_ulong	__st_ino;
+	abi_ulong	__st_ino;
 
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
-	target_ulong	st_uid;
-	target_ulong	st_gid;
+	abi_ulong	st_uid;
+	abi_ulong	st_gid;
 
 	unsigned long long	st_rdev;
 	unsigned char	__pad3[4];
 
 	long long	st_size;
-	target_ulong	st_blksize;
+	abi_ulong	st_blksize;
 
 	unsigned long long	st_blocks;	/* Number 512-byte blocks allocated. */
 
-	target_ulong	target_st_atime;
-	target_ulong	target_st_atime_nsec;
+	abi_ulong	target_st_atime;
+	abi_ulong	target_st_atime_nsec;
 
-	target_ulong	target_st_mtime;
-	target_ulong	target_st_mtime_nsec;
+	abi_ulong	target_st_mtime;
+	abi_ulong	target_st_mtime_nsec;
 
-	target_ulong	target_st_ctime;
-	target_ulong	target_st_ctime_nsec;
+	abi_ulong	target_st_ctime;
+	abi_ulong	target_st_ctime_nsec;
 
 	unsigned long long	st_ino;
 };
@@ -1504,19 +1504,19 @@ struct target_statfs {
 };
 #else
 struct target_statfs {
-	target_long		f_type;
-	target_long		f_bsize;
-	target_long		f_frsize;	/* Fragment size - unsupported */
-	target_long		f_blocks;
-	target_long		f_bfree;
-	target_long		f_files;
-	target_long		f_ffree;
-	target_long		f_bavail;
+	abi_long		f_type;
+	abi_long		f_bsize;
+	abi_long		f_frsize;	/* Fragment size - unsupported */
+	abi_long		f_blocks;
+	abi_long		f_bfree;
+	abi_long		f_files;
+	abi_long		f_ffree;
+	abi_long		f_bavail;
 
 	/* Linux specials */
 	target_fsid_t		f_fsid;
-	target_long		f_namelen;
-	target_long		f_spare[6];
+	abi_long		f_namelen;
+	abi_long		f_spare[6];
 };
 #endif
 
@@ -1688,8 +1688,8 @@ struct target_statfs64 {
 struct target_flock {
 	short l_type;
 	short l_whence;
-	target_ulong l_start;
-	target_ulong l_len;
+	abi_ulong l_start;
+	abi_ulong l_len;
 	int l_pid;
 };
 
@@ -1856,20 +1856,20 @@ struct target_eabi_flock64 {
 #define TARGET_VFAT_IOCTL_READDIR_SHORT   TARGET_IORU('r', 2)
 
 struct target_sysinfo {
-    target_long uptime;             /* Seconds since boot */
-    target_ulong loads[3];          /* 1, 5, and 15 minute load averages */
-    target_ulong totalram;          /* Total usable main memory size */
-    target_ulong freeram;           /* Available memory size */
-    target_ulong sharedram;         /* Amount of shared memory */
-    target_ulong bufferram;         /* Memory used by buffers */
-    target_ulong totalswap;         /* Total swap space size */
-    target_ulong freeswap;          /* swap space still available */
+    abi_long uptime;                /* Seconds since boot */
+    abi_ulong loads[3];             /* 1, 5, and 15 minute load averages */
+    abi_ulong totalram;             /* Total usable main memory size */
+    abi_ulong freeram;              /* Available memory size */
+    abi_ulong sharedram;            /* Amount of shared memory */
+    abi_ulong bufferram;            /* Memory used by buffers */
+    abi_ulong totalswap;            /* Total swap space size */
+    abi_ulong freeswap;             /* swap space still available */
     unsigned short procs;           /* Number of current processes */
     unsigned short pad;             /* explicit padding for m68k */
-    target_ulong totalhigh;         /* Total high memory size */
-    target_ulong freehigh;          /* Available high memory size */
+    abi_ulong totalhigh;            /* Total high memory size */
+    abi_ulong freehigh;             /* Available high memory size */
     unsigned int mem_unit;          /* Memory unit size in bytes */
-    char _f[20-2*sizeof(target_long)-sizeof(int)]; /* Padding: libc5 uses this.. */
+    char _f[20-2*sizeof(abi_long)-sizeof(int)]; /* Padding: libc5 uses this.. */
 };
 
 #include "socket.h"

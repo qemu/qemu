@@ -788,14 +788,6 @@ static always_inline void check_insn(CPUState *env, DisasContext *ctx, int flags
         generate_exception(ctx, EXCP_RI);
 }
 
-/* This code generates a "reserved instruction" exception if the
-   CPU is not MIPS MT capable. */
-static always_inline void check_mips_mt(CPUState *env, DisasContext *ctx)
-{
-    if (unlikely(!(env->CP0_Config3 & (1 << CP0C3_MT))))
-        generate_exception(ctx, EXCP_RI);
-}
-
 /* This code generates a "reserved instruction" exception if 64-bit
    instructions are not enabled. */
 static always_inline void check_mips_64(DisasContext *ctx)
@@ -1979,17 +1971,17 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_mvpcontrol();
             rn = "MVPControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_mvpconf0();
             rn = "MVPConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_mvpconf1();
             rn = "MVPConf1";
             break;
@@ -2004,37 +1996,37 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpecontrol();
             rn = "VPEControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeconf0();
             rn = "VPEConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeconf1();
             rn = "VPEConf1";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_yqmask();
             rn = "YQMask";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeschedule();
             rn = "VPESchedule";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeschefback();
             rn = "VPEScheFBack";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeopt();
             rn = "VPEOpt";
             break;
@@ -2049,37 +2041,37 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcstatus();
             rn = "TCStatus";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcbind();
             rn = "TCBind";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcrestart();
             rn = "TCRestart";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tchalt();
             rn = "TCHalt";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tccontext();
             rn = "TCContext";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcschedule();
             rn = "TCSchedule";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcschefback();
             rn = "TCScheFBack";
             break;
@@ -2547,17 +2539,17 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_mvpcontrol();
             rn = "MVPControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             /* ignored */
             rn = "MVPConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             /* ignored */
             rn = "MVPConf1";
             break;
@@ -2572,37 +2564,37 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpecontrol();
             rn = "VPEControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeconf0();
             rn = "VPEConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeconf1();
             rn = "VPEConf1";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_yqmask();
             rn = "YQMask";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeschedule();
             rn = "VPESchedule";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeschefback();
             rn = "VPEScheFBack";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeopt();
             rn = "VPEOpt";
             break;
@@ -2617,37 +2609,37 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcstatus();
             rn = "TCStatus";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcbind();
             rn = "TCBind";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcrestart();
             rn = "TCRestart";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tchalt();
             rn = "TCHalt";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tccontext();
             rn = "TCContext";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcschedule();
             rn = "TCSchedule";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcschefback();
             rn = "TCScheFBack";
             break;
@@ -3147,17 +3139,17 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_mvpcontrol();
             rn = "MVPControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_mvpconf0();
             rn = "MVPConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_mvpconf1();
             rn = "MVPConf1";
             break;
@@ -3172,37 +3164,37 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpecontrol();
             rn = "VPEControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeconf0();
             rn = "VPEConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeconf1();
             rn = "VPEConf1";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_yqmask();
             rn = "YQMask";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_vpeschedule();
             rn = "VPESchedule";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_vpeschefback();
             rn = "VPEScheFBack";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_vpeopt();
             rn = "VPEOpt";
             break;
@@ -3217,37 +3209,37 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcstatus();
             rn = "TCStatus";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mfc0_tcbind();
             rn = "TCBind";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_tcrestart();
             rn = "TCRestart";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_tchalt();
             rn = "TCHalt";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_tccontext();
             rn = "TCContext";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_tcschedule();
             rn = "TCSchedule";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_dmfc0_tcschefback();
             rn = "TCScheFBack";
             break;
@@ -3704,17 +3696,17 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Index";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_mvpcontrol();
             rn = "MVPControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             /* ignored */
             rn = "MVPConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             /* ignored */
             rn = "MVPConf1";
             break;
@@ -3729,37 +3721,37 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Random";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpecontrol();
             rn = "VPEControl";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeconf0();
             rn = "VPEConf0";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeconf1();
             rn = "VPEConf1";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_yqmask();
             rn = "YQMask";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeschedule();
             rn = "VPESchedule";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeschefback();
             rn = "VPEScheFBack";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_vpeopt();
             rn = "VPEOpt";
             break;
@@ -3774,37 +3766,37 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "EntryLo0";
             break;
         case 1:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcstatus();
             rn = "TCStatus";
             break;
         case 2:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcbind();
             rn = "TCBind";
             break;
         case 3:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcrestart();
             rn = "TCRestart";
             break;
         case 4:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tchalt();
             rn = "TCHalt";
             break;
         case 5:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tccontext();
             rn = "TCContext";
             break;
         case 6:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcschedule();
             rn = "TCSchedule";
             break;
         case 7:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             gen_op_mtc0_tcschefback();
             rn = "TCScheFBack";
             break;
@@ -4644,7 +4636,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
 #endif
     case OPC_MFTR:
-        check_mips_mt(env, ctx);
+        check_insn(env, ctx, ASE_MT);
         if (rd == 0) {
             /* Treat as NOP. */
             return;
@@ -4655,7 +4647,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         opn = "mftr";
         break;
     case OPC_MTTR:
-        check_mips_mt(env, ctx);
+        check_insn(env, ctx, ASE_MT);
         GEN_LOAD_REG_TN(T0, rt);
         gen_mttr(env, ctx, rd, (ctx->opcode >> 5) & 1,
                  ctx->opcode & 0x7, (ctx->opcode >> 4) & 1);
@@ -5422,7 +5414,6 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "cvt.d.l";
         break;
     case FOP(38, 20):
-    case FOP(38, 21):
         check_cp1_64bitmode(ctx);
         GEN_LOAD_FREG_FTN(WT0, fs);
         GEN_LOAD_FREG_FTN(WTH0, fs);
@@ -5901,7 +5892,6 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 
 /* MDMX extension to MIPS64 */
-/* MIPS-3D extension to MIPS64 */
 
 #endif
 
@@ -6141,13 +6131,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             GEN_STORE_TN_REG(rt, T0);
             break;
         case OPC_FORK:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             GEN_LOAD_REG_TN(T0, rt);
             GEN_LOAD_REG_TN(T1, rs);
             gen_op_fork();
             break;
         case OPC_YIELD:
-            check_mips_mt(env, ctx);
+            check_insn(env, ctx, ASE_MT);
             GEN_LOAD_REG_TN(T0, rs);
             gen_op_yield();
             GEN_STORE_TN_REG(rd, T0);
@@ -6227,19 +6217,19 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             op2 = MASK_MFMC0(ctx->opcode);
             switch (op2) {
             case OPC_DMT:
-                check_mips_mt(env, ctx);
+                check_insn(env, ctx, ASE_MT);
                 gen_op_dmt();
                 break;
             case OPC_EMT:
-                check_mips_mt(env, ctx);
+                check_insn(env, ctx, ASE_MT);
                 gen_op_emt();
                 break;
             case OPC_DVPE:
-                check_mips_mt(env, ctx);
+                check_insn(env, ctx, ASE_MT);
                 gen_op_dvpe();
                 break;
             case OPC_EVPE:
-                check_mips_mt(env, ctx);
+                check_insn(env, ctx, ASE_MT);
                 gen_op_evpe();
                 break;
             case OPC_DI:
@@ -6342,9 +6332,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_cp1(ctx, op1, rt, rd);
                 break;
 #endif
-            case OPC_BC1:
             case OPC_BC1ANY2:
             case OPC_BC1ANY4:
+                check_insn(env, ctx, ASE_MIPS3D);
+                /* fall through */
+            case OPC_BC1:
                 gen_compute_branch1(env, ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
                 return;

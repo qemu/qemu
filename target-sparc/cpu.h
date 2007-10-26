@@ -98,6 +98,8 @@
 #define PS_AG    (1<<0)
 
 #define FPRS_FEF (1<<2)
+
+#define HS_PRIV  (1<<2)
 #endif
 
 /* Fcc */
@@ -166,7 +168,11 @@
 
 typedef struct sparc_def_t sparc_def_t;
 
+#if !defined(TARGET_SPARC64)
 #define NB_MMU_MODES 2
+#else
+#define NB_MMU_MODES 3
+#endif
 
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
@@ -212,6 +218,8 @@ typedef struct CPUSPARCState {
     uint64_t dtlb_tte[64];
 #else
     uint32_t mmuregs[16];
+    uint64_t mxccdata[4];
+    uint64_t mxccregs[8];
 #endif
     /* temporary float registers */
     float32 ft0, ft1;
@@ -268,7 +276,8 @@ int cpu_sparc_close(CPUSPARCState *s);
 int sparc_find_by_name (const unsigned char *name, const sparc_def_t **def);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
-int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def);
+int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def,
+                        unsigned int cpu);
 
 #define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
                       (env->psref? PSR_EF : 0) |                        \
@@ -320,12 +329,37 @@ void cpu_check_irqs(CPUSPARCState *env);
 #define cpu_list sparc_cpu_list
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _user
-#define MMU_USER_IDX 1
+#define MMU_MODE0_SUFFIX _user
+#define MMU_MODE1_SUFFIX _kernel
+#ifdef TARGET_SPARC64
+#define MMU_MODE2_SUFFIX _hypv
+#endif
+#define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUState *env)
 {
-    return env->psrs == 0 ? 1 : 0;
+#if defined(CONFIG_USER_ONLY)
+    return 0;
+#elif !defined(TARGET_SPARC64)
+    return env->psrs;
+#else
+    if (!env->psrs)
+        return 0;
+    else if ((env->hpstate & HS_PRIV) == 0)
+        return 1;
+    else
+        return 2;
+#endif
+}
+
+static inline int cpu_fpu_enabled(CPUState *env)
+{
+#if defined(CONFIG_USER_ONLY)
+    return 1;
+#elif !defined(TARGET_SPARC64)
+    return env->psref;
+#else
+    return ((env->pstate & PS_PEF) != 0) && ((env->fprs & FPRS_FEF) != 0);
+#endif
 }
 
 #include "cpu-all.h"

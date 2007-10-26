@@ -199,9 +199,10 @@ FPU and MMU.
 
 @item Full SPARC V8 emulation, including privileged
 instructions, FPU and MMU. SPARC V9 emulation includes most privileged
-instructions, FPU and I/D MMU, but misses most VIS instructions.
+and VIS instructions, FPU and I/D MMU. Alignment is fully enforced.
 
-@item Can run most 32-bit SPARC Linux binaries and some handcrafted 64-bit SPARC Linux binaries.
+@item Can run most 32-bit SPARC Linux binaries, SPARC32PLUS Linux binaries and
+some 64-bit SPARC Linux binaries.
 
 @end itemize
 
@@ -212,10 +213,7 @@ Current QEMU limitations:
 @item IPC syscalls are missing.
 
 @item 128-bit floating point operations are not supported, though none of the
-real CPUs implement them either. FCMPE[SD] are not correctly
-implemented.  Floating point exception support is untested.
-
-@item Alignment is not enforced at all.
+real CPUs implement them either.  Floating point exception support is untested.
 
 @item Atomic instructions are not correctly implemented.
 

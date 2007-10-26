@@ -199,30 +199,14 @@ void helper_mullv (void)
 
 void helper_mulqv ()
 {
-    uint64_t res, tmp0, tmp1;
+    uint64_t tl, th;
 
-    res = (T0 >> 32) * (T1 >> 32);
-    tmp0 = ((T0 & 0xFFFFFFFF) * (T1 >> 32)) +
-        ((T0 >> 32) * (T1 & 0xFFFFFFFF));
-    tmp1 = (T0 & 0xFFFFFFFF) * (T1 & 0xFFFFFFFF);
-    tmp0 += tmp1 >> 32;
-    res += tmp0 >> 32;
-    T0 *= T1;
-    if (unlikely(res != 0)) {
+    muls64(&tl, &th, T0, T1);
+    /* If th != 0 && th != -1, then we had an overflow */
+    if (unlikely((th + 1) > 1)) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
-}
-
-void helper_umulh (void)
-{
-    uint64_t tmp0, tmp1;
-
-    tmp0 = ((T0 & 0xFFFFFFFF) * (T1 >> 32)) +
-        ((T0 >> 32) * (T1 & 0xFFFFFFFF));
-    tmp1 = (T0 & 0xFFFFFFFF) * (T1 & 0xFFFFFFFF);
-    tmp0 += tmp1 >> 32;
-    T0 = (T0 >> 32) * (T0 >> 32);
-    T0 += tmp0 >> 32;
+    T0 = tl;
 }
 
 void helper_ctpop (void)

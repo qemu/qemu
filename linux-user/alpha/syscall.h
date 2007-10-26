@@ -2,40 +2,40 @@
 #define __USER_DS	(1)
 
 struct target_pt_regs {
-	target_ulong r0;
-	target_ulong r1;
-	target_ulong r2;
-	target_ulong r3;
-	target_ulong r4;
-	target_ulong r5;
-	target_ulong r6;
-	target_ulong r7;
-	target_ulong r8;
-	target_ulong r19;
-	target_ulong r20;
-	target_ulong r21;
-	target_ulong r22;
-	target_ulong r23;
-	target_ulong r24;
-	target_ulong r25;
-	target_ulong r26;
-	target_ulong r27;
-	target_ulong r28;
-	target_ulong hae;
+	abi_ulong r0;
+	abi_ulong r1;
+	abi_ulong r2;
+	abi_ulong r3;
+	abi_ulong r4;
+	abi_ulong r5;
+	abi_ulong r6;
+	abi_ulong r7;
+	abi_ulong r8;
+	abi_ulong r19;
+	abi_ulong r20;
+	abi_ulong r21;
+	abi_ulong r22;
+	abi_ulong r23;
+	abi_ulong r24;
+	abi_ulong r25;
+	abi_ulong r26;
+	abi_ulong r27;
+	abi_ulong r28;
+	abi_ulong hae;
 /* JRP - These are the values provided to a0-a2 by PALcode */
-	target_ulong trap_a0;
-	target_ulong trap_a1;
-	target_ulong trap_a2;
+	abi_ulong trap_a0;
+	abi_ulong trap_a1;
+	abi_ulong trap_a2;
 /* These are saved by PAL-code: */
-	target_ulong ps;
-	target_ulong pc;
-	target_ulong gp;
-	target_ulong r16;
-	target_ulong r17;
-	target_ulong r18;
+	abi_ulong ps;
+	abi_ulong pc;
+	abi_ulong gp;
+	abi_ulong r16;
+	abi_ulong r17;
+	abi_ulong r18;
 /* Those is needed by qemu to temporary store the user stack pointer */
-        target_ulong usp;
-        target_ulong unique;
+        abi_ulong usp;
+        abi_ulong unique;
 };
 
 #define UNAME_MACHINE "alpha"

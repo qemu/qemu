@@ -13,7 +13,7 @@
 #define NGROUPS 32
 
 /* ??? This should really be somewhere else.  */
-void memcpy_to_target(target_ulong dest, const void *src,
+void memcpy_to_target(abi_ulong dest, const void *src,
                       unsigned long len)
 {
     void *host_ptr;
@@ -109,12 +109,12 @@ static int prepare_binprm(struct linux_binprm *bprm)
 }
 
 /* Construct the envp and argv tables on the target stack.  */
-target_ulong loader_build_argptr(int envc, int argc, target_ulong sp,
-                                 target_ulong stringp, int push_ptr)
+abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
+                              abi_ulong stringp, int push_ptr)
 {
-    int n = sizeof(target_ulong);
-    target_ulong envp;
-    target_ulong argv;
+    int n = sizeof(abi_ulong);
+    abi_ulong envp;
+    abi_ulong argv;
 
     sp -= (envc + 1) * n;
     envp = sp;
