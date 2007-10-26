@@ -824,12 +824,8 @@ static void tnetw1130_receive(void *opaque, const uint8_t * buf, int size)
 {
 }
 
-static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
+static void tnetw1130_pci_config(uint8_t *pci_conf)
 {
-    uint8_t *pci_conf = d->dev.config;
-    tnetw1130_t *s = &d->tnetw1130;
-
-    /* TI TNETW1130 */
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
     PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
     /* ethernet network controller */
@@ -839,7 +835,7 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
                   //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
     PCI_CONFIG_32(0x28, 0x00001c02);
-    PCI_CONFIG_32(0x28, 0x9067104c);
+    PCI_CONFIG_32(0x2c, 0x9067104c);
     /* Address registers are set by pci_register_io_region. */
     /* Capabilities Pointer, CLOFS */
     PCI_CONFIG_32(0x34, 0x00000040);
@@ -851,6 +847,14 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
     /* Power Management Control and Status */
     //~ PCI_CONFIG_32(0x44, 0x00000000);
     /* 0x48...0xff reserved, returns 0 */
+}
+
+static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
+{
+    tnetw1130_t *s = &d->tnetw1130;
+
+    /* TI TNETW1130 */
+    tnetw1130_pci_config(d->dev.config);
 
     /* Handler for memory-mapped I/O */
     s->io_memory[0] =
@@ -911,27 +915,7 @@ void vlynq_tnetw1130_init(void)
 #endif
     TRACE(TNETW, logout("\n"));
     /* TI TNETW1130 */
-    PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
-    PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
-    /* ethernet network controller */
-    PCI_CONFIG_32(PCI_REVISION_ID, 0x02800000);
-    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
-                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
-    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
-                  //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
-    PCI_CONFIG_32(0x28, 0x00001c02);
-    PCI_CONFIG_32(0x2c, 0x9067104c);
-    /* Address registers are set by pci_register_io_region. */
-    /* Capabilities Pointer, CLOFS */
-    PCI_CONFIG_32(0x34, 0x00000040);
-    /* 0x38 reserved, returns 0 */
-    /* MNGNT = 11, MXLAT = 52, IPIN = 0 */
-    PCI_CONFIG_32(0x3c, 0x00000100);
-    /* Power Management Capabilities */
-    PCI_CONFIG_32(0x40, 0x7e020001);
-    /* Power Management Control and Status */
-    //~ PCI_CONFIG_32(0x44, 0x00000000);
-    /* 0x48...0xff reserved, returns 0 */
+    tnetw1130_pci_config(pci_conf);
 
     /* Handler for memory-mapped I/O */
     s->io_memory[0] =
@@ -947,6 +931,9 @@ void vlynq_tnetw1130_init(void)
                            PCI_ADDRESS_SPACE_MEM, tnetw1130_mem_map);
 
     memcpy(s->mem1 + 0x0001f000, pci_conf, 64);
+
+    /* eCPU is halted. */
+    reg_write16(s->mem0, TNETW1130_ECPU_CTRL, 1);
 
     //~ tnetw1130_mem_map(&d->dev, 0, 0x04000000, 0x22000, 0);  /* 0xf0000000 */
     //~ tnetw1130_mem_map(&d->dev, 1, 0x04022000, 0x40000, 0);  /* 0xc0000000 */
