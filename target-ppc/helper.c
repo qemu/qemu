@@ -2002,6 +2002,12 @@ static always_inline void powerpc_excp (CPUState *env,
 {
     target_ulong msr, new_msr, vector;
     int srr0, srr1, asrr0, asrr1;
+#if defined(TARGET_PPC64H)
+    int lpes0, lpes1, lev;
+
+    lpes0 = (env->spr[SPR_LPCR] >> 1) & 1;
+    lpes1 = (env->spr[SPR_LPCR] >> 2) & 1;
+#endif
 
     if (loglevel & CPU_LOG_INT) {
         fprintf(logfile, "Raise exception at 0x" ADDRX " => 0x%08x (%02x)\n",
@@ -2201,6 +2207,7 @@ static always_inline void powerpc_excp (CPUState *env,
         }
         new_msr &= ~((target_ulong)1 << MSR_RI);
 #if defined(TARGET_PPC64H)
+        lev = env->error_code;
         if (lev == 1 || (lpes0 == 0 && lpes1 == 0))
             new_msr |= (target_ulong)1 << MSR_HV;
 #endif
@@ -2322,7 +2329,7 @@ static always_inline void powerpc_excp (CPUState *env,
 #if defined(TARGET_PPC64H)
     case POWERPC_EXCP_HDECR:     /* Hypervisor decrementer exception         */
         srr0 = SPR_HSRR0;
-        srr1 = SPR_HSSR1;
+        srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)1 << MSR_HV;
         goto store_next;
 #endif
@@ -2336,22 +2343,22 @@ static always_inline void powerpc_excp (CPUState *env,
 #if defined(TARGET_PPC64H)
     case POWERPC_EXCP_HDSI:      /* Hypervisor data storage exception        */
         srr0 = SPR_HSRR0;
-        srr1 = SPR_HSSR1;
+        srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)1 << MSR_HV;
         goto store_next;
     case POWERPC_EXCP_HISI:      /* Hypervisor instruction storage exception */
         srr0 = SPR_HSRR0;
-        srr1 = SPR_HSSR1;
+        srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)1 << MSR_HV;
         goto store_next;
     case POWERPC_EXCP_HDSEG:     /* Hypervisor data segment exception        */
         srr0 = SPR_HSRR0;
-        srr1 = SPR_HSSR1;
+        srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)1 << MSR_HV;
         goto store_next;
     case POWERPC_EXCP_HISEG:     /* Hypervisor instruction segment exception */
         srr0 = SPR_HSRR0;
-        srr1 = SPR_HSSR1;
+        srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)1 << MSR_HV;
         goto store_next;
 #endif /* defined(TARGET_PPC64H) */
@@ -2633,6 +2640,10 @@ void do_interrupt (CPUState *env)
 
 void ppc_hw_interrupt (CPUPPCState *env)
 {
+#if defined(TARGET_PPC64H)
+    int hdice;
+#endif
+
 #if 0
     if (loglevel & CPU_LOG_INT) {
         fprintf(logfile, "%s: %p pending %08x req %08x me %d ee %d\n",
@@ -2661,7 +2672,8 @@ void ppc_hw_interrupt (CPUPPCState *env)
     }
 #endif
 #if defined(TARGET_PPC64H)
-    if ((msr_ee != 0 || msr_hv == 0 || msr_pr != 0) & hdice != 0) {
+    hdice = env->spr[SPR_LPCR] & 1;
+    if ((msr_ee != 0 || msr_hv == 0 || msr_pr != 0) && hdice != 0) {
         /* Hypervisor decrementer exception */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
