@@ -3618,13 +3618,10 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
 }
 
 /***                         Cache management                              ***/
-/* For now, all those will be implemented as nop:
- * this is valid, regarding the PowerPC specs...
- * We just have to flush tb while invalidating instruction cache lines...
- */
 /* dcbf */
 GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE)
 {
+    /* XXX: specification says this is treated as a load by the MMU */
     gen_addr_reg_index(ctx);
     op_ldst(lbz);
 }
@@ -3641,7 +3638,7 @@ GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE)
     }
     gen_addr_reg_index(ctx);
     /* XXX: specification says this should be treated as a store by the MMU */
-    //op_ldst(lbz);
+    op_ldst(lbz);
     op_ldst(stb);
 #endif
 }
