@@ -96,7 +96,7 @@ ip_output(so, m0)
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
-	if ((u_int16_t)ip->ip_len <= if_mtu) {
+	if ((u_int16_t)ip->ip_len <= IF_MTU) {
 		ip->ip_len = htons((u_int16_t)ip->ip_len);
 		ip->ip_off = htons((u_int16_t)ip->ip_off);
 		ip->ip_sum = 0;
@@ -116,7 +116,7 @@ ip_output(so, m0)
 		goto bad;
 	}
 
-	len = (if_mtu - hlen) &~ 7;       /* ip databytes per packet */
+	len = (IF_MTU - hlen) &~ 7;       /* ip databytes per packet */
 	if (len < 8) {
 		error = -1;
 		goto bad;
@@ -140,7 +140,7 @@ ip_output(so, m0)
 	    STAT(ipstat.ips_odropped++);
 	    goto sendorfree;
 	  }
-	  m->m_data += if_maxlinkhdr;
+	  m->m_data += IF_MAXLINKHDR;
 	  mhip = mtod(m, struct ip *);
 	  *mhip = *ip;
 

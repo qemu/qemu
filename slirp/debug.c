@@ -92,9 +92,9 @@ ttystats(ttyp)
 
 	lprint(" \r\n");
 
-	if (if_comp & IF_COMPRESS)
+	if (IF_COMP & IF_COMPRESS)
 	   strcpy(buff, "on");
-	else if (if_comp & IF_NOCOMPRESS)
+	else if (IF_COMP & IF_NOCOMPRESS)
 	   strcpy(buff, "off");
 	else
 	   strcpy(buff, "off (for now)");

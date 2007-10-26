@@ -46,7 +46,7 @@ struct icmpstat icmpstat;
 char icmp_ping_msg[] = "This is a psuedo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
 
 /* list of actions for icmp_error() on RX of an icmp message */
-static int icmp_flush[19] = {
+static const int icmp_flush[19] = {
 /*  ECHO REPLY (0)  */   0,
 		         1,
 		         1,

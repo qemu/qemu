@@ -34,7 +34,7 @@ struct tftp_session {
     int timestamp;
 };
 
-struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+static struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
 
 const char *tftp_prefix;
 
@@ -143,7 +143,7 @@ static int tftp_send_oack(struct tftp_session *spt,
 
     memset(m->m_data, 0, m->m_size);
 
-    m->m_data += if_maxlinkhdr;
+    m->m_data += IF_MAXLINKHDR;
     tp = (void *)m->m_data;
     m->m_data += sizeof(struct udpiphdr);
 
@@ -183,7 +183,7 @@ static int tftp_send_error(struct tftp_session *spt,
 
   memset(m->m_data, 0, m->m_size);
 
-  m->m_data += if_maxlinkhdr;
+  m->m_data += IF_MAXLINKHDR;
   tp = (void *)m->m_data;
   m->m_data += sizeof(struct udpiphdr);
 
@@ -230,7 +230,7 @@ static int tftp_send_data(struct tftp_session *spt,
 
   memset(m->m_data, 0, m->m_size);
 
-  m->m_data += if_maxlinkhdr;
+  m->m_data += IF_MAXLINKHDR;
   tp = (void *)m->m_data;
   m->m_data += sizeof(struct udpiphdr);
 

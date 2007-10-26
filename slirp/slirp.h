@@ -280,6 +280,9 @@ extern int do_echo;
 
 #define DEFAULT_BAUD 115200
 
+#define SO_OPTIONS DO_KEEPALIVE
+#define TCP_MAXIDLE (TCPTV_KEEPCNT * TCPTV_KEEPINTVL)
+
 /* cksum.c */
 int cksum(struct mbuf *m, int len);
 
@@ -290,10 +293,6 @@ void if_output _P((struct socket *, struct mbuf *));
 /* ip_input.c */
 void ip_init _P((void));
 void ip_input _P((struct mbuf *));
-struct ip * ip_reass _P((register struct ipasfrag *, register struct ipq *));
-void ip_freef _P((struct ipq *));
-void ip_enq _P((register struct ipasfrag *, register struct ipasfrag *));
-void ip_deq _P((register struct ipasfrag *));
 void ip_slowtimo _P((void));
 void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
 
@@ -301,10 +300,7 @@ void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
 int ip_output _P((struct socket *, struct mbuf *));
 
 /* tcp_input.c */
-int tcp_reass _P((register struct tcpcb *, register struct tcpiphdr *, struct mbuf *));
 void tcp_input _P((register struct mbuf *, int, struct socket *));
-void tcp_dooptions _P((struct tcpcb *, u_char *, int, struct tcpiphdr *));
-void tcp_xmit_timer _P((register struct tcpcb *, int));
 int tcp_mss _P((register struct tcpcb *, u_int));
 
 /* tcp_output.c */
@@ -317,7 +313,6 @@ void tcp_template _P((struct tcpcb *));
 void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
 struct tcpcb * tcp_newtcpcb _P((struct socket *));
 struct tcpcb * tcp_close _P((register struct tcpcb *));
-void tcp_drain _P((void));
 void tcp_sockclosed _P((struct tcpcb *));
 int tcp_fconnect _P((struct socket *));
 void tcp_connect _P((struct socket *));

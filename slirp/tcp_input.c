@@ -47,7 +47,7 @@
 
 struct socket tcb;
 
-int	tcprexmtthresh = 3;
+#define	TCPREXMTTHRESH 3
 struct	socket *tcp_last_so = &tcb;
 
 tcp_seq tcp_iss;                /* tcp initial send seq # */
@@ -112,12 +112,13 @@ tcp_seq tcp_iss;                /* tcp initial send seq # */
 	} \
 }
 #endif
+static void tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt,
+                          struct tcpiphdr *ti);
+static void tcp_xmit_timer(register struct tcpcb *tp, int rtt);
 
-int
-tcp_reass(tp, ti, m)
-	register struct tcpcb *tp;
-	register struct tcpiphdr *ti;
-	struct mbuf *m;
+static int
+tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
+          struct mbuf *m)
 {
 	register struct tcpiphdr *q;
 	struct socket *so = tp->t_socket;
@@ -402,8 +403,8 @@ findso:
 	    goto dropwithreset;
 	  }
 
-	  sbreserve(&so->so_snd, tcp_sndspace);
-	  sbreserve(&so->so_rcv, tcp_rcvspace);
+	  sbreserve(&so->so_snd, TCP_SNDSPACE);
+	  sbreserve(&so->so_rcv, TCP_RCVSPACE);
 
 	  /*		tcp_last_so = so; */  /* XXX ? */
 	  /*		tp = sototcpcb(so);    */
@@ -448,10 +449,10 @@ findso:
 	 * Reset idle time and keep-alive timer.
 	 */
 	tp->t_idle = 0;
-	if (so_options)
-	   tp->t_timer[TCPT_KEEP] = tcp_keepintvl;
+	if (SO_OPTIONS)
+	   tp->t_timer[TCPT_KEEP] = TCPTV_KEEPINTVL;
 	else
-	   tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+	   tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_IDLE;
 
 	/*
 	 * Process options if not in LISTEN state,
@@ -1102,7 +1103,7 @@ trimthenstep6:
 				if (tp->t_timer[TCPT_REXMT] == 0 ||
 				    ti->ti_ack != tp->snd_una)
 					tp->t_dupacks = 0;
-				else if (++tp->t_dupacks == tcprexmtthresh) {
+				else if (++tp->t_dupacks == TCPREXMTTHRESH) {
 					tcp_seq onxt = tp->snd_nxt;
 					u_int win =
 					    min(tp->snd_wnd, tp->snd_cwnd) / 2 /
@@ -1121,7 +1122,7 @@ trimthenstep6:
 					if (SEQ_GT(onxt, tp->snd_nxt))
 						tp->snd_nxt = onxt;
 					goto drop;
-				} else if (tp->t_dupacks > tcprexmtthresh) {
+				} else if (tp->t_dupacks > TCPREXMTTHRESH) {
 					tp->snd_cwnd += tp->t_maxseg;
 					(void) tcp_output(tp);
 					goto drop;
@@ -1135,7 +1136,7 @@ trimthenstep6:
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (tp->t_dupacks > tcprexmtthresh &&
+		if (tp->t_dupacks > TCPREXMTTHRESH &&
 		    tp->snd_cwnd > tp->snd_ssthresh)
 			tp->snd_cwnd = tp->snd_ssthresh;
 		tp->t_dupacks = 0;
@@ -1227,7 +1228,7 @@ trimthenstep6:
 				 */
 				if (so->so_state & SS_FCANTRCVMORE) {
 					soisfdisconnected(so);
-					tp->t_timer[TCPT_2MSL] = tcp_maxidle;
+					tp->t_timer[TCPT_2MSL] = TCP_MAXIDLE;
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}
@@ -1490,12 +1491,8 @@ drop:
 /*	int *ts_present;
  *	u_int32_t *ts_val, *ts_ecr;
  */
-void
-tcp_dooptions(tp, cp, cnt, ti)
-	struct tcpcb *tp;
-	u_char *cp;
-	int cnt;
-	struct tcpiphdr *ti;
+static void
+tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 {
 	u_int16_t mss;
 	int opt, optlen;
@@ -1605,10 +1602,8 @@ tcp_pulloutofband(so, ti, m)
  * and update averages and current timeout.
  */
 
-void
-tcp_xmit_timer(tp, rtt)
-	register struct tcpcb *tp;
-	int rtt;
+static void
+tcp_xmit_timer(register struct tcpcb *tp, int rtt)
 {
 	register short delta;
 
@@ -1707,7 +1702,7 @@ tcp_mss(tp, offer)
 	DEBUG_ARG("tp = %lx", (long)tp);
 	DEBUG_ARG("offer = %d", offer);
 
-	mss = min(if_mtu, if_mru) - sizeof(struct tcpiphdr);
+	mss = min(IF_MTU, IF_MRU) - sizeof(struct tcpiphdr);
 	if (offer)
 		mss = min(mss, offer);
 	mss = max(mss, 32);
@@ -1716,8 +1711,12 @@ tcp_mss(tp, offer)
 
 	tp->snd_cwnd = mss;
 
-	sbreserve(&so->so_snd, tcp_sndspace+((tcp_sndspace%mss)?(mss-(tcp_sndspace%mss)):0));
-	sbreserve(&so->so_rcv, tcp_rcvspace+((tcp_rcvspace%mss)?(mss-(tcp_rcvspace%mss)):0));
+	sbreserve(&so->so_snd, TCP_SNDSPACE + ((TCP_SNDSPACE % mss) ?
+                                               (mss - (TCP_SNDSPACE % mss)) :
+                                               0));
+	sbreserve(&so->so_rcv, TCP_RCVSPACE + ((TCP_RCVSPACE % mss) ?
+                                               (mss - (TCP_RCVSPACE % mss)) :
+                                               0));
 
 	DEBUG_MISC((dfd, " returning mss = %d\n", mss));
 

@@ -12,7 +12,7 @@ struct in_addr special_addr;
 /* virtual address alias for host */
 struct in_addr alias_addr;
 
-const uint8_t special_ethaddr[6] = {
+static const uint8_t special_ethaddr[6] = {
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
 };
 
@@ -130,7 +130,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 #endif
 
 #ifdef _WIN32
-void slirp_cleanup(void)
+static void slirp_cleanup(void)
 {
     WSACleanup();
 }

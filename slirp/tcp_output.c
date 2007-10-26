@@ -48,14 +48,14 @@
  * Since this is only used in "stats socket", we give meaning
  * names instead of the REAL names
  */
-char *tcpstates[] = {
+const char * const tcpstates[] = {
 /*	"CLOSED",       "LISTEN",       "SYN_SENT",     "SYN_RCVD", */
 	"REDIRECT",	"LISTEN",	"SYN_SENT",     "SYN_RCVD",
 	"ESTABLISHED",  "CLOSE_WAIT",   "FIN_WAIT_1",   "CLOSING",
 	"LAST_ACK",     "FIN_WAIT_2",   "TIME_WAIT",
 };
 
-u_char  tcp_outflags[TCP_NSTATES] = {
+static const u_char  tcp_outflags[TCP_NSTATES] = {
 	TH_RST|TH_ACK, 0,      TH_SYN,        TH_SYN|TH_ACK,
 	TH_ACK,        TH_ACK, TH_FIN|TH_ACK, TH_FIN|TH_ACK,
 	TH_FIN|TH_ACK, TH_ACK, TH_ACK,
@@ -354,7 +354,7 @@ send:
 			error = 1;
 			goto out;
 		}
-		m->m_data += if_maxlinkhdr;
+		m->m_data += IF_MAXLINKHDR;
 		m->m_len = hdrlen;
 
 		/*
@@ -396,7 +396,7 @@ send:
 			error = 1;
 			goto out;
 		}
-		m->m_data += if_maxlinkhdr;
+		m->m_data += IF_MAXLINKHDR;
 		m->m_len = hdrlen;
 	}
 
@@ -536,7 +536,7 @@ send:
 
 	((struct ip *)ti)->ip_len = m->m_len;
 
-	((struct ip *)ti)->ip_ttl = ip_defttl;
+	((struct ip *)ti)->ip_ttl = IPDEFTTL;
 	((struct ip *)ti)->ip_tos = so->so_iptos;
 
 /* #if BSD >= 43 */

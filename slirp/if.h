@@ -13,12 +13,25 @@
 #define IF_AUTOCOMP	0x04	/* Autodetect (default) */
 #define IF_NOCIDCOMP	0x08	/* CID compression */
 
-/* Needed for FreeBSD */
-#undef if_mtu
-extern int	if_mtu;
-extern int	if_mru;	/* MTU and MRU */
-extern int	if_comp;	/* Flags for compression */
-extern int	if_maxlinkhdr;
+#define IF_MTU 1500
+#define IF_MRU 1500
+#define	IF_COMP IF_AUTOCOMP	/* Flags for compression */
+
+#if 0
+/*
+ * Set if_maxlinkhdr to 48 because it's 40 bytes for TCP/IP,
+ * and 8 bytes for PPP, but need to have it on an 8byte boundary
+ */
+#ifdef USE_PPP
+#define IF_MAXLINKHDR 48
+#else
+#define IF_MAXLINKHDR 40
+#endif
+#else
+        /* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
+#define IF_MAXLINKHDR (2 + 14 + 40)
+#endif
+
 extern int	if_queued;	/* Number of packets queued so far */
 extern int	if_thresh;	/* Number of packets queued before we start sending
 				 * (to prevent allocing too many mbufs) */

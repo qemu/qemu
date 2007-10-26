@@ -312,6 +312,4 @@ extern struct	ipstat	ipstat;
 extern struct	ipq	ipq;			/* ip reass. queue */
 extern u_int16_t	ip_id;				/* ip packet ctr, for ids */
 
-extern int	ip_defttl;			/* default IP ttl */
-
 #endif
