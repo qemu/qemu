@@ -33,8 +33,6 @@
 #endif
 
 extern int	if_queued;	/* Number of packets queued so far */
-extern int	if_thresh;	/* Number of packets queued before we start sending
-				 * (to prevent allocing too many mbufs) */
 
 extern	struct mbuf if_fastq;                  /* fast queue (for interactive data) */
 extern	struct mbuf if_batchq;                 /* queue for non-interactive data */

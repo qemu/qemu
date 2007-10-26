@@ -42,8 +42,8 @@ struct icmpstat icmpstat;
 #endif
 
 /* The message sent when emulating PING */
-/* Be nice and tell them it's just a psuedo-ping packet */
-char icmp_ping_msg[] = "This is a psuedo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
+/* Be nice and tell them it's just a pseudo-ping packet */
+const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
 
 /* list of actions for icmp_error() on RX of an icmp message */
 static const int icmp_flush[19] = {

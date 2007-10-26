@@ -8,8 +8,6 @@
 #include <slirp.h>
 
 int     if_queued = 0;                  /* Number of packets queued so far */
-int     if_thresh = 10;                 /* Number of packets queued before we start sending
-					 * (to prevent allocing too many mbufs) */
 
 struct  mbuf if_fastq;                  /* fast queue (for interactive data) */
 struct  mbuf if_batchq;                 /* queue for non-interactive data */

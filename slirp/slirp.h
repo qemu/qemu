@@ -264,8 +264,6 @@ void if_start _P((struct ttys *));
 
 void lprint _P((const char *, ...));
 
-extern int do_echo;
-
 #if SIZEOF_CHAR_P == 4
 # define insque_32 insque
 # define remque_32 remque

@@ -46,6 +46,10 @@
 
 u_int16_t ip_id;
 
+/* Number of packets queued before we start sending
+ * (to prevent allocing too many mbufs) */
+#define IF_THRESH 10
+
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
@@ -87,7 +91,7 @@ ip_output(so, m0)
 	 *      the packet or packet fragments
 	 */
 	/* XXX Hmmm... */
-/*	if (if_queued > if_thresh && towrite <= 0) {
+/*	if (if_queued > IF_THRESH && towrite <= 0) {
  *		error = ENOBUFS;
  *		goto bad;
  *	}
