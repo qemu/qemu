@@ -252,8 +252,8 @@ void glue(do_icbi, MEMSUFFIX) (void)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-    tmp = glue(ldl, MEMSUFFIX)((uint32_t)T0);
     T0 &= ~(env->icache_line_size - 1);
+    tmp = glue(ldl, MEMSUFFIX)((uint32_t)T0);
     tb_invalidate_page_range((uint32_t)T0,
                              (uint32_t)(T0 + env->icache_line_size));
 }
@@ -267,8 +267,8 @@ void glue(do_icbi_64, MEMSUFFIX) (void)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-    tmp = glue(ldq, MEMSUFFIX)((uint64_t)T0);
     T0 &= ~(env->icache_line_size - 1);
+    tmp = glue(ldq, MEMSUFFIX)((uint64_t)T0);
     tb_invalidate_page_range((uint64_t)T0,
                              (uint64_t)(T0 + env->icache_line_size));
 }
