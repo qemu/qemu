@@ -735,7 +735,8 @@ void ppc_slb_invalidate_all (CPUPPCState *env)
 
     do_invalidate = 0;
     sr_base = env->spr[SPR_ASR];
-    for (n = 0; n < env->slb_nr; n++) {
+    /* XXX: Warning: slbia never invalidates the first segment */
+    for (n = 1; n < env->slb_nr; n++) {
         tmp64 = ldq_phys(sr_base);
         if (slb_is_valid(tmp64)) {
             slb_invalidate(&tmp64);
