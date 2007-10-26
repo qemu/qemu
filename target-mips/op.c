@@ -876,13 +876,13 @@ void op_msubu (void)
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_dmult (void)
 {
-    CALL_FROM_TB4(muls64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
+    CALL_FROM_TB4(muls64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
     RETURN();
 }
 
 void op_dmultu (void)
 {
-    CALL_FROM_TB4(mulu64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
+    CALL_FROM_TB4(mulu64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
     RETURN();
 }
 #endif

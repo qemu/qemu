@@ -3724,7 +3724,7 @@ void helper_mulq_EAX_T0(void)
 {
     uint64_t r0, r1;
 
-    mulu64(&r1, &r0, EAX, T0);
+    mulu64(&r0, &r1, EAX, T0);
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
@@ -3735,7 +3735,7 @@ void helper_imulq_EAX_T0(void)
 {
     uint64_t r0, r1;
 
-    muls64(&r1, &r0, EAX, T0);
+    muls64(&r0, &r1, EAX, T0);
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
@@ -3746,7 +3746,7 @@ void helper_imulq_T0_T1(void)
 {
     uint64_t r0, r1;
 
-    muls64(&r1, &r0, T0, T1);
+    muls64(&r0, &r1, T0, T1);
     T0 = r0;
     CC_DST = r0;
     CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
