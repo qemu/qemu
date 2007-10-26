@@ -45,7 +45,9 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
+#ifdef LOG_ENABLED
 struct udpstat udpstat;
+#endif
 
 struct socket udb;
 
@@ -86,7 +88,7 @@ udp_input(m, iphlen)
 	DEBUG_ARG("m = %lx", (long)m);
 	DEBUG_ARG("iphlen = %d", iphlen);
 
-	udpstat.udps_ipackets++;
+	STAT(udpstat.udps_ipackets++);
 
 	/*
 	 * Strip IP options, if any; should skip this,
@@ -113,7 +115,7 @@ udp_input(m, iphlen)
 
 	if (ip->ip_len != len) {
 		if (len > ip->ip_len) {
-			udpstat.udps_badlen++;
+			STAT(udpstat.udps_badlen++);
 			goto bad;
 		}
 		m_adj(m, len - ip->ip_len);
@@ -140,7 +142,7 @@ udp_input(m, iphlen)
 	   * if (uh->uh_sum) {
 	   */
 	  if(cksum(m, len + sizeof(struct ip))) {
-	    udpstat.udps_badsum++;
+	    STAT(udpstat.udps_badsum++);
 	    goto bad;
 	  }
 	}
@@ -181,7 +183,7 @@ udp_input(m, iphlen)
 		if (tmp == &udb) {
 		  so = NULL;
 		} else {
-		  udpstat.udpps_pcbcachemiss++;
+		  STAT(udpstat.udpps_pcbcachemiss++);
 		  udp_last_so = so;
 		}
 	}
@@ -299,7 +301,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	((struct ip *)ui)->ip_ttl = ip_defttl;
 	((struct ip *)ui)->ip_tos = iptos;
 
-	udpstat.udps_opackets++;
+	STAT(udpstat.udps_opackets++);
 
 	error = ip_output(so, m);
 

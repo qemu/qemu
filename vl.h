@@ -439,6 +439,9 @@ typedef struct NICInfo {
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
 
+/* SLIRP */
+void do_info_slirp(void);
+
 /* timers */
 
 typedef struct QEMUClock QEMUClock;

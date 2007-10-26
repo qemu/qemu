@@ -72,6 +72,7 @@ struct udpiphdr {
 #define ui_ulen         ui_u.uh_ulen
 #define ui_sum          ui_u.uh_sum
 
+#ifdef LOG_ENABLED
 struct udpstat {
 	                                /* input statistics: */
 	        u_long  udps_ipackets;          /* total input packets */
@@ -85,6 +86,7 @@ struct udpstat {
 	                                /* output statistics: */
 	        u_long  udps_opackets;          /* total output packets */
 };
+#endif
 
 /*
  * Names for UDP sysctl objects
@@ -92,7 +94,10 @@ struct udpstat {
 #define UDPCTL_CHECKSUM         1       /* checksum UDP packets */
 #define UDPCTL_MAXID            2
 
+#ifdef LOG_ENABLED
 extern struct udpstat udpstat;
+#endif
+
 extern struct socket udb;
 struct mbuf;
 

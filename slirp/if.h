@@ -29,6 +29,7 @@ extern	struct mbuf *next_m;
 
 #define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
 
+#ifdef LOG_ENABLED
 /* Interface statistics */
 struct slirp_ifstats {
 	u_int out_pkts;		/* Output packets */
@@ -46,5 +47,6 @@ struct slirp_ifstats {
 
 	u_int in_mbad;		/* Bad incoming packets */
 };
+#endif
 
 #endif

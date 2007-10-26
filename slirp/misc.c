@@ -603,6 +603,16 @@ relay(s)
 }
 #endif
 
+#ifdef CONFIG_QEMU
+void lprint(const char *format, ...)
+{
+    va_list args;
+
+    va_start(args, format);
+    term_vprintf(format, args);
+    va_end(args);
+}
+#else
 int (*lprint_print) _P((void *, const char *, va_list));
 char *lprint_ptr, *lprint_ptr2, **lprint_arg;
 
@@ -754,6 +764,7 @@ add_emu(buff)
 
 	lprint("Adding emulation for %s to port %d/%d\r\n", buff1, emup->lport, emup->fport);
 }
+#endif
 
 #ifdef BAD_SPRINTF
 

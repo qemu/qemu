@@ -37,14 +37,4 @@ extern int slirp_debug;
 #endif
 
 void debug_init _P((char *, int));
-//void ttystats _P((struct ttys *));
-void allttystats _P((void));
-void ipstats _P((void));
-void vjstats _P((void));
-void tcpstats _P((void));
-void udpstats _P((void));
-void icmpstats _P((void));
-void mbufstats _P((void));
-void sockstats _P((void));
-void slirp_exit _P((int));
 

@@ -79,8 +79,8 @@ tcp_seq tcp_iss;                /* tcp initial send seq # */
                        tp->t_flags |= TF_DELACK; \
                (tp)->rcv_nxt += (ti)->ti_len; \
                flags = (ti)->ti_flags & TH_FIN; \
-               tcpstat.tcps_rcvpack++;\
-               tcpstat.tcps_rcvbyte += (ti)->ti_len;\
+               STAT(tcpstat.tcps_rcvpack++);         \
+               STAT(tcpstat.tcps_rcvbyte += (ti)->ti_len);   \
                if (so->so_emu) { \
 		       if (tcp_emu((so),(m))) sbappend((so), (m)); \
 	       } else \
@@ -99,8 +99,8 @@ tcp_seq tcp_iss;                /* tcp initial send seq # */
 		tp->t_flags |= TF_DELACK; \
 		(tp)->rcv_nxt += (ti)->ti_len; \
 		flags = (ti)->ti_flags & TH_FIN; \
-		tcpstat.tcps_rcvpack++;\
-		tcpstat.tcps_rcvbyte += (ti)->ti_len;\
+		STAT(tcpstat.tcps_rcvpack++);        \
+		STAT(tcpstat.tcps_rcvbyte += (ti)->ti_len);  \
 		if (so->so_emu) { \
 			if (tcp_emu((so),(m))) sbappend(so, (m)); \
 		} else \
@@ -150,8 +150,8 @@ tcp_reass(tp, ti, m)
 		i = q->ti_seq + q->ti_len - ti->ti_seq;
 		if (i > 0) {
 			if (i >= ti->ti_len) {
-				tcpstat.tcps_rcvduppack++;
-				tcpstat.tcps_rcvdupbyte += ti->ti_len;
+				STAT(tcpstat.tcps_rcvduppack++);
+				STAT(tcpstat.tcps_rcvdupbyte += ti->ti_len);
 				m_freem(m);
 				/*
 				 * Try to present any queued data
@@ -167,8 +167,8 @@ tcp_reass(tp, ti, m)
 		}
 		q = (struct tcpiphdr *)(q->ti_next);
 	}
-	tcpstat.tcps_rcvoopack++;
-	tcpstat.tcps_rcvoobyte += ti->ti_len;
+	STAT(tcpstat.tcps_rcvoopack++);
+	STAT(tcpstat.tcps_rcvoobyte += ti->ti_len);
 	REASS_MBUF(ti) = (mbufp_32) m;		/* XXX */
 
 	/*
@@ -275,7 +275,7 @@ tcp_input(m, iphlen, inso)
 	}
 
 
-	tcpstat.tcps_rcvtotal++;
+	STAT(tcpstat.tcps_rcvtotal++);
 	/*
 	 * Get IP and TCP header together in first mbuf.
 	 * Note: IP leaves IP header in first mbuf.
@@ -308,7 +308,7 @@ tcp_input(m, iphlen, inso)
 	 * ti->ti_sum = cksum(m, len);
 	 * if (ti->ti_sum) { */
 	if(cksum(m, len)) {
-	  tcpstat.tcps_rcvbadsum++;
+	  STAT(tcpstat.tcps_rcvbadsum++);
 	  goto drop;
 	}
 
@@ -318,7 +318,7 @@ tcp_input(m, iphlen, inso)
 	 */
 	off = ti->ti_off << 2;
 	if (off < sizeof (struct tcphdr) || off > tlen) {
-	  tcpstat.tcps_rcvbadoff++;
+	  STAT(tcpstat.tcps_rcvbadoff++);
 	  goto drop;
 	}
 	tlen -= off;
@@ -375,7 +375,7 @@ findso:
 			       ti->ti_dst, ti->ti_dport);
 		if (so)
 			tcp_last_so = so;
-		++tcpstat.tcps_socachemiss;
+		STAT(tcpstat.tcps_socachemiss++);
 	}
 
 	/*
@@ -503,7 +503,7 @@ findso:
 				/*
 				 * this is a pure ack for outstanding data.
 				 */
-				++tcpstat.tcps_predack;
+				STAT(tcpstat.tcps_predack++);
 /*				if (ts_present)
  *					tcp_xmit_timer(tp, tcp_now-ts_ecr+1);
  *				else
@@ -511,8 +511,8 @@ findso:
 					    SEQ_GT(ti->ti_ack, tp->t_rtseq))
 					tcp_xmit_timer(tp, tp->t_rtt);
 				acked = ti->ti_ack - tp->snd_una;
-				tcpstat.tcps_rcvackpack++;
-				tcpstat.tcps_rcvackbyte += acked;
+				STAT(tcpstat.tcps_rcvackpack++);
+				STAT(tcpstat.tcps_rcvackbyte += acked);
 				sbdrop(&so->so_snd, acked);
 				tp->snd_una = ti->ti_ack;
 				m_freem(m);
@@ -556,10 +556,10 @@ findso:
 			 * with nothing on the reassembly queue and
 			 * we have enough buffer space to take it.
 			 */
-			++tcpstat.tcps_preddat;
+			STAT(tcpstat.tcps_preddat++);
 			tp->rcv_nxt += ti->ti_len;
-			tcpstat.tcps_rcvpack++;
-			tcpstat.tcps_rcvbyte += ti->ti_len;
+			STAT(tcpstat.tcps_rcvpack++);
+			STAT(tcpstat.tcps_rcvbyte += ti->ti_len);
 			/*
 			 * Add data to socket buffer.
 			 */
@@ -726,7 +726,7 @@ findso:
 	  tp->t_flags |= TF_ACKNOW;
 	  tp->t_state = TCPS_SYN_RECEIVED;
 	  tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
-	  tcpstat.tcps_accepts++;
+	  STAT(tcpstat.tcps_accepts++);
 	  goto trimthenstep6;
 	} /* case TCPS_LISTEN */
 
@@ -767,7 +767,7 @@ findso:
 		tcp_rcvseqinit(tp);
 		tp->t_flags |= TF_ACKNOW;
 		if (tiflags & TH_ACK && SEQ_GT(tp->snd_una, tp->iss)) {
-			tcpstat.tcps_connects++;
+			STAT(tcpstat.tcps_connects++);
 			soisfconnected(so);
 			tp->t_state = TCPS_ESTABLISHED;
 
@@ -801,8 +801,8 @@ trimthenstep6:
 			m_adj(m, -todrop);
 			ti->ti_len = tp->rcv_wnd;
 			tiflags &= ~TH_FIN;
-			tcpstat.tcps_rcvpackafterwin++;
-			tcpstat.tcps_rcvbyteafterwin += todrop;
+			STAT(tcpstat.tcps_rcvpackafterwin++);
+			STAT(tcpstat.tcps_rcvbyteafterwin += todrop);
 		}
 		tp->snd_wl1 = ti->ti_seq - 1;
 		tp->rcv_up = ti->ti_seq;
@@ -873,11 +873,11 @@ trimthenstep6:
 			 */
 			tp->t_flags |= TF_ACKNOW;
 			todrop = ti->ti_len;
-			tcpstat.tcps_rcvduppack++;
-			tcpstat.tcps_rcvdupbyte += todrop;
+			STAT(tcpstat.tcps_rcvduppack++);
+			STAT(tcpstat.tcps_rcvdupbyte += todrop);
 		} else {
-			tcpstat.tcps_rcvpartduppack++;
-			tcpstat.tcps_rcvpartdupbyte += todrop;
+			STAT(tcpstat.tcps_rcvpartduppack++);
+			STAT(tcpstat.tcps_rcvpartdupbyte += todrop);
 		}
 		m_adj(m, todrop);
 		ti->ti_seq += todrop;
@@ -896,7 +896,7 @@ trimthenstep6:
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && ti->ti_len) {
 		tp = tcp_close(tp);
-		tcpstat.tcps_rcvafterclose++;
+		STAT(tcpstat.tcps_rcvafterclose++);
 		goto dropwithreset;
 	}
 
@@ -906,9 +906,9 @@ trimthenstep6:
 	 */
 	todrop = (ti->ti_seq+ti->ti_len) - (tp->rcv_nxt+tp->rcv_wnd);
 	if (todrop > 0) {
-		tcpstat.tcps_rcvpackafterwin++;
+		STAT(tcpstat.tcps_rcvpackafterwin++);
 		if (todrop >= ti->ti_len) {
-			tcpstat.tcps_rcvbyteafterwin += ti->ti_len;
+			STAT(tcpstat.tcps_rcvbyteafterwin += ti->ti_len);
 			/*
 			 * If a new connection request is received
 			 * while in TIME_WAIT, drop the old connection
@@ -931,11 +931,11 @@ trimthenstep6:
 			 */
 			if (tp->rcv_wnd == 0 && ti->ti_seq == tp->rcv_nxt) {
 				tp->t_flags |= TF_ACKNOW;
-				tcpstat.tcps_rcvwinprobe++;
+				STAT(tcpstat.tcps_rcvwinprobe++);
 			} else
 				goto dropafterack;
 		} else
-			tcpstat.tcps_rcvbyteafterwin += todrop;
+			STAT(tcpstat.tcps_rcvbyteafterwin += todrop);
 		m_adj(m, -todrop);
 		ti->ti_len -= todrop;
 		tiflags &= ~(TH_PUSH|TH_FIN);
@@ -976,7 +976,7 @@ trimthenstep6:
 /*		so->so_error = ECONNRESET; */
 	close:
 		tp->t_state = TCPS_CLOSED;
-		tcpstat.tcps_drops++;
+		STAT(tcpstat.tcps_drops++);
 		tp = tcp_close(tp);
 		goto drop;
 
@@ -1015,7 +1015,7 @@ trimthenstep6:
 		if (SEQ_GT(tp->snd_una, ti->ti_ack) ||
 		    SEQ_GT(ti->ti_ack, tp->snd_max))
 			goto dropwithreset;
-		tcpstat.tcps_connects++;
+		STAT(tcpstat.tcps_connects++);
 		tp->t_state = TCPS_ESTABLISHED;
 		/*
 		 * The sent SYN is ack'ed with our sequence number +1
@@ -1072,7 +1072,7 @@ trimthenstep6:
 
 		if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
-			  tcpstat.tcps_rcvdupack++;
+			  STAT(tcpstat.tcps_rcvdupack++);
 			  DEBUG_MISC((dfd," dup ack  m = %lx  so = %lx \n",
 				      (long )m, (long )so));
 				/*
@@ -1140,12 +1140,12 @@ trimthenstep6:
 			tp->snd_cwnd = tp->snd_ssthresh;
 		tp->t_dupacks = 0;
 		if (SEQ_GT(ti->ti_ack, tp->snd_max)) {
-			tcpstat.tcps_rcvacktoomuch++;
+			STAT(tcpstat.tcps_rcvacktoomuch++);
 			goto dropafterack;
 		}
 		acked = ti->ti_ack - tp->snd_una;
-		tcpstat.tcps_rcvackpack++;
-		tcpstat.tcps_rcvackbyte += acked;
+		STAT(tcpstat.tcps_rcvackpack++);
+		STAT(tcpstat.tcps_rcvackbyte += acked);
 
 		/*
 		 * If we have a timestamp reply, update smoothed
@@ -1284,7 +1284,7 @@ step6:
 		/* keep track of pure window updates */
 		if (ti->ti_len == 0 &&
 		    tp->snd_wl2 == ti->ti_ack && tiwin > tp->snd_wnd)
-			tcpstat.tcps_rcvwinupd++;
+			STAT(tcpstat.tcps_rcvwinupd++);
 		tp->snd_wnd = tiwin;
 		tp->snd_wl1 = ti->ti_seq;
 		tp->snd_wl2 = ti->ti_ack;
@@ -1616,7 +1616,7 @@ tcp_xmit_timer(tp, rtt)
 	DEBUG_ARG("tp = %lx", (long)tp);
 	DEBUG_ARG("rtt = %d", rtt);
 
-	tcpstat.tcps_rttupdated++;
+	STAT(tcpstat.tcps_rttupdated++);
 	if (tp->t_srtt != 0) {
 		/*
 		 * srtt is stored as fixed point with 3 bits after the

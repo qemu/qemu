@@ -3782,6 +3782,10 @@ void net_slirp_smb(const char *exported_dir)
 }
 
 #endif /* !defined(_WIN32) */
+void do_info_slirp(void)
+{
+    slirp_stats();
+}
 
 #endif /* CONFIG_SLIRP */
 

@@ -80,7 +80,7 @@ ip_output(so, m0)
 	ip->ip_off &= IP_DF;
 	ip->ip_id = htons(ip_id++);
 	ip->ip_hl = hlen >> 2;
-	ipstat.ips_localout++;
+	STAT(ipstat.ips_localout++);
 
 	/*
 	 * Verify that we have any chance at all of being able to queue
@@ -112,7 +112,7 @@ ip_output(so, m0)
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = -1;
-		ipstat.ips_cantfrag++;
+		STAT(ipstat.ips_cantfrag++);
 		goto bad;
 	}
 
@@ -137,7 +137,7 @@ ip_output(so, m0)
 	  m = m_get();
 	  if (m == 0) {
 	    error = -1;
-	    ipstat.ips_odropped++;
+	    STAT(ipstat.ips_odropped++);
 	    goto sendorfree;
 	  }
 	  m->m_data += if_maxlinkhdr;
@@ -170,7 +170,7 @@ ip_output(so, m0)
 	  mhip->ip_sum = cksum(m, mhlen);
 	  *mnext = m;
 	  mnext = &m->m_nextpkt;
-	  ipstat.ips_ofragments++;
+	  STAT(ipstat.ips_ofragments++);
 	}
 	/*
 	 * Update first fragment by trimming what's been copied out
@@ -193,7 +193,7 @@ sendorfree:
 	}
 
 	if (error == 0)
-		ipstat.ips_fragmented++;
+		STAT(ipstat.ips_fragmented++);
     }
 
 done:

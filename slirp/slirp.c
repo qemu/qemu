@@ -93,7 +93,9 @@ static int get_dns_addr(struct in_addr *pdns_addr)
     if (!f)
         return -1;
 
+#ifdef DEBUG
     lprint("IP address of your DNS(s): ");
+#endif
     while (fgets(buff, 512, f) != NULL) {
         if (sscanf(buff, "nameserver%*[ \t]%256s", buff2) == 1) {
             if (!inet_aton(buff2, &tmp_addr))
@@ -103,13 +105,20 @@ static int get_dns_addr(struct in_addr *pdns_addr)
             /* If it's the first one, set it to dns_addr */
             if (!found)
                 *pdns_addr = tmp_addr;
+#ifdef DEBUG
             else
                 lprint(", ");
+#endif
             if (++found > 3) {
+#ifdef DEBUG
                 lprint("(more)");
+#endif
                 break;
-            } else
+            }
+#ifdef DEBUG
+            else
                 lprint("%s", inet_ntoa(tmp_addr));
+#endif
         }
     }
     fclose(f);

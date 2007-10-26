@@ -3,7 +3,16 @@
 
 #define CONFIG_QEMU
 
-#define DEBUG 1
+//#define DEBUG 1
+
+// Uncomment the following line to enable SLIRP statistics printing in Qemu
+//#define LOG_ENABLED
+
+#ifdef LOG_ENABLED
+#define STAT(expr) expr
+#else
+#define STAT(expr) do { } while(0)
+#endif
 
 #ifndef CONFIG_QEMU
 #include "version.h"
