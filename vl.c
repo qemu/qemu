@@ -8478,12 +8478,12 @@ int main(int argc, char **argv)
     main_loop();
     quit_timers();
 
+#if !defined(_WIN32)
     /* close network clients */
     for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
         VLANClientState *vc;
 
-        for(vc = vlan->first_client; vc != NULL; vc = vc->next)
-#if !defined(_WIN32)
+        for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
             if (vc->fd_read == tap_receive) {
                 char ifname[64];
                 TAPState *s = vc->opaque;
@@ -8492,7 +8492,8 @@ int main(int argc, char **argv)
                     s->down_script[0])
                     launch_script(s->down_script, ifname, s->fd);
             }
-#endif
     }
+    }
+#endif
     return 0;
 }
