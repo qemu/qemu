@@ -257,6 +257,12 @@ static void gen_##name (DisasContext *ctx);                                   \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type);                              \
 static void gen_##name (DisasContext *ctx)
 
+#define GEN_HANDLER2(name, onam, opc1, opc2, opc3, inval, type)               \
+static void gen_##name (DisasContext *ctx);                                   \
+GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type);                       \
+static void gen_##name (DisasContext *ctx)
+
+
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
 #if HOST_LONG_BITS == 64 /* Explicitely align to 64 bits */
@@ -523,6 +529,20 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
     },                                                                        \
     .oname = stringify(name),                                                 \
 }
+#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+OPCODES_SECTION opcode_t opc_##name = {                                       \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .pad  = { 0, },                                                           \
+    .handler = {                                                              \
+        .inval   = invl,                                                      \
+        .type = _typ,                                                         \
+        .handler = &gen_##name,                                               \
+        .oname = onam,                                                        \
+    },                                                                        \
+    .oname = onam,                                                            \
+}
 #else
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
 OPCODES_SECTION opcode_t opc_##name = {                                       \
@@ -536,6 +556,19 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = stringify(name),                                                 \
+}
+#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+OPCODES_SECTION opcode_t opc_##name = {                                       \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .pad  = { 0, },                                                           \
+    .handler = {                                                              \
+        .inval   = invl,                                                      \
+        .type = _typ,                                                         \
+        .handler = &gen_##name,                                               \
+    },                                                                        \
+    .oname = onam,                                                            \
 }
 #endif
 
@@ -918,7 +951,7 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
 /* addic. */
-GEN_HANDLER(addic_, 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
+GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     target_long simm = SIMM(ctx->opcode);
 
@@ -1087,7 +1120,7 @@ GEN_LOGICAL2(and, 0x00, PPC_INTEGER);
 /* andc & andc. */
 GEN_LOGICAL2(andc, 0x01, PPC_INTEGER);
 /* andi. */
-GEN_HANDLER(andi_, 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
+GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_andi_T0(UIMM(ctx->opcode));
@@ -1095,7 +1128,7 @@ GEN_HANDLER(andi_, 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     gen_set_Rc0(ctx);
 }
 /* andis. */
-GEN_HANDLER(andis_, 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
+GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_andi_T0(UIMM(ctx->opcode) << 16);
@@ -1385,28 +1418,32 @@ GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
 #if defined(TARGET_PPC64)
 #define GEN_PPC64_R2(name, opc1, opc2)                                        \
-GEN_HANDLER(name##0, opc1, opc2, 0xFF, 0x00000000, PPC_64B)                   \
+GEN_HANDLER2(name##0, stringify(name), opc1, opc2, 0xFF, 0x00000000, PPC_64B) \
 {                                                                             \
     gen_##name(ctx, 0);                                                       \
 }                                                                             \
-GEN_HANDLER(name##1, opc1, opc2 | 0x10, 0xFF, 0x00000000, PPC_64B)            \
+GEN_HANDLER2(name##1, stringify(name), opc1, opc2 | 0x10, 0xFF, 0x00000000,   \
+             PPC_64B)                                                         \
 {                                                                             \
     gen_##name(ctx, 1);                                                       \
 }
 #define GEN_PPC64_R4(name, opc1, opc2)                                        \
-GEN_HANDLER(name##0, opc1, opc2, 0xFF, 0x00000000, PPC_64B)                   \
+GEN_HANDLER2(name##0, stringify(name), opc1, opc2, 0xFF, 0x00000000, PPC_64B) \
 {                                                                             \
     gen_##name(ctx, 0, 0);                                                    \
 }                                                                             \
-GEN_HANDLER(name##1, opc1, opc2 | 0x01, 0xFF, 0x00000000, PPC_64B)            \
+GEN_HANDLER2(name##1, stringify(name), opc1, opc2 | 0x01, 0xFF, 0x00000000,   \
+             PPC_64B)                                                         \
 {                                                                             \
     gen_##name(ctx, 0, 1);                                                    \
 }                                                                             \
-GEN_HANDLER(name##2, opc1, opc2 | 0x10, 0xFF, 0x00000000, PPC_64B)            \
+GEN_HANDLER2(name##2, stringify(name), opc1, opc2 | 0x10, 0xFF, 0x00000000,   \
+             PPC_64B)                                                         \
 {                                                                             \
     gen_##name(ctx, 1, 0);                                                    \
 }                                                                             \
-GEN_HANDLER(name##3, opc1, opc2 | 0x11, 0xFF, 0x00000000, PPC_64B)            \
+GEN_HANDLER2(name##3, stringify(name), opc1, opc2 | 0x11, 0xFF, 0x00000000,   \
+             PPC_64B)                                                         \
 {                                                                             \
     gen_##name(ctx, 1, 1);                                                    \
 }
@@ -1606,11 +1643,11 @@ static always_inline void gen_sradi (DisasContext *ctx, int n)
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx);
 }
-GEN_HANDLER(sradi0, 0x1F, 0x1A, 0x19, 0x00000000, PPC_64B)
+GEN_HANDLER2(sradi0, "sradi", 0x1F, 0x1A, 0x19, 0x00000000, PPC_64B)
 {
     gen_sradi(ctx, 0);
 }
-GEN_HANDLER(sradi1, 0x1F, 0x1B, 0x19, 0x00000000, PPC_64B)
+GEN_HANDLER2(sradi1, "sradi", 0x1F, 0x1B, 0x19, 0x00000000, PPC_64B)
 {
     gen_sradi(ctx, 1);
 }
@@ -2726,7 +2763,7 @@ GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 }
 
 /* stwcx. */
-GEN_HANDLER(stwcx_, 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
+GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
@@ -2799,7 +2836,7 @@ GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 }
 
 /* stdcx. */
-GEN_HANDLER(stdcx_, 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
+GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
@@ -3802,7 +3839,7 @@ GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ)
     gen_op_check_reservation();
 }
 
-GEN_HANDLER(dcbz_970, 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
+GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
 {
     gen_addr_reg_index(ctx);
     if (ctx->opcode & 0x00200000)
@@ -3943,7 +3980,7 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
 #if defined(TARGET_PPC64)
 /* Specific implementation for PowerPC 64 "bridge" emulation using SLB */
 /* mfsr */
-GEN_HANDLER(mfsr_64b, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B)
+GEN_HANDLER2(mfsr_64b, "mfsr", 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -3959,7 +3996,8 @@ GEN_HANDLER(mfsr_64b, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B)
 }
 
 /* mfsrin */
-GEN_HANDLER(mfsrin_64b, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT_64B)
+GEN_HANDLER2(mfsrin_64b, "mfsrin", 0x1F, 0x13, 0x14, 0x001F0001,
+             PPC_SEGMENT_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -3976,7 +4014,7 @@ GEN_HANDLER(mfsrin_64b, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT_64B)
 }
 
 /* mtsr */
-GEN_HANDLER(mtsr_64b, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B)
+GEN_HANDLER2(mtsr_64b, "mtsr", 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -3992,7 +4030,8 @@ GEN_HANDLER(mtsr_64b, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B)
 }
 
 /* mtsrin */
-GEN_HANDLER(mtsrin_64b, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT_64B)
+GEN_HANDLER2(mtsrin_64b, "mtsrin", 0x1F, 0x12, 0x07, 0x001F0001,
+             PPC_SEGMENT_64B)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -4215,6 +4254,7 @@ GEN_HANDLER(clcs, 0x1F, 0x10, 0x13, 0x0000F800, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
     gen_op_POWER_clcs();
+    /* Rc=1 sets CR0 to an undefined state */
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
 
@@ -4622,7 +4662,7 @@ GEN_HANDLER(mfrom, 0x1F, 0x09, 0x08, 0x03E0F801, PPC_602_SPEC)
 
 /* 602 - 603 - G2 TLB management */
 /* tlbld */
-GEN_HANDLER(tlbld_6xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
+GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4637,7 +4677,7 @@ GEN_HANDLER(tlbld_6xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
 }
 
 /* tlbli */
-GEN_HANDLER(tlbli_6xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
+GEN_HANDLER2(tlbli_6xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4653,7 +4693,7 @@ GEN_HANDLER(tlbli_6xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
 
 /* 74xx TLB management */
 /* tlbld */
-GEN_HANDLER(tlbld_74xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
+GEN_HANDLER2(tlbld_74xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4668,7 +4708,7 @@ GEN_HANDLER(tlbld_74xx, 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
 }
 
 /* tlbli */
-GEN_HANDLER(tlbli_74xx, 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
+GEN_HANDLER2(tlbli_74xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5217,7 +5257,7 @@ GEN_HANDLER(dcread, 0x1F, 0x06, 0x0F, 0x00000001, PPC_4xx_COMMON)
 }
 
 /* icbt */
-GEN_HANDLER(icbt_40x, 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT)
+GEN_HANDLER2(icbt_40x, "icbt", 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT)
 {
     /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
@@ -5254,7 +5294,7 @@ GEN_HANDLER(icread, 0x1F, 0x06, 0x1F, 0x03E00001, PPC_4xx_COMMON)
 }
 
 /* rfci (supervisor only) */
-GEN_HANDLER(rfci_40x, 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP)
+GEN_HANDLER2(rfci_40x, "rfci", 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5319,7 +5359,7 @@ GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI)
 
 /* TLB management - PowerPC 405 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB)
+GEN_HANDLER2(tlbre_40x, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5347,7 +5387,7 @@ GEN_HANDLER(tlbre_40x, 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
+GEN_HANDLER2(tlbsx_40x, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5365,7 +5405,7 @@ GEN_HANDLER(tlbsx_40x, 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
 }
 
 /* tlbwe */
-GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB)
+GEN_HANDLER2(tlbwe_40x, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5394,7 +5434,7 @@ GEN_HANDLER(tlbwe_40x, 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB)
 
 /* TLB management - PowerPC 440 implementation */
 /* tlbre */
-GEN_HANDLER(tlbre_440, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
+GEN_HANDLER2(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5419,7 +5459,7 @@ GEN_HANDLER(tlbre_440, 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
 }
 
 /* tlbsx - tlbsx. */
-GEN_HANDLER(tlbsx_440, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
+GEN_HANDLER2(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5437,7 +5477,7 @@ GEN_HANDLER(tlbsx_440, 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
 }
 
 /* tlbwe */
-GEN_HANDLER(tlbwe_440, 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
+GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5527,7 +5567,7 @@ GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE)
 }
 
 /* icbt */
-GEN_HANDLER(icbt_440, 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
+GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
 {
     /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
@@ -6079,19 +6119,19 @@ static always_inline void gen_evsel (DisasContext *ctx)
     gen_op_store_T0_gpr64(rD(ctx->opcode));
 }
 
-GEN_HANDLER(evsel0, 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE)
+GEN_HANDLER2(evsel0, "evsel", 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE)
 {
     gen_evsel(ctx);
 }
-GEN_HANDLER(evsel1, 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE)
+GEN_HANDLER2(evsel1, "evsel", 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE)
 {
     gen_evsel(ctx);
 }
-GEN_HANDLER(evsel2, 0x04, 0x1e, 0x09, 0x00000000, PPC_SPE)
+GEN_HANDLER2(evsel2, "evsel", 0x04, 0x1e, 0x09, 0x00000000, PPC_SPE)
 {
     gen_evsel(ctx);
 }
-GEN_HANDLER(evsel3, 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE)
+GEN_HANDLER2(evsel3, "evsel", 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE)
 {
     gen_evsel(ctx);
 }
