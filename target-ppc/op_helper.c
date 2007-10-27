@@ -974,8 +974,8 @@ void do_fmul (void)
                  float64_is_signaling_nan(FT1))) {
         /* sNaN multiplication */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely((ifinf(FT0) && iszero(FT1)) ||
-                        (inzero(FT0) && isinfinity(FT1)))) {
+    } else if (unlikely((isinfinity(FT0) && iszero(FT1)) ||
+                        (iszero(FT0) && isinfinity(FT1)))) {
         /* Multiplication of zero by infinity */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
     } else {
