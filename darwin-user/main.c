@@ -224,11 +224,6 @@ void cpu_loop(CPUPPCState *env)
             case POWERPC_EXCP_FP:
                 EXCP_DUMP(env, "Floating point program exception\n");
                 /* Set FX */
-                env->fpscr[7] |= 0x8;
-                /* Finally, update FEX */
-                if ((((env->fpscr[7] & 0x3) << 3) | (env->fpscr[6] >> 1)) &
-                    ((env->fpscr[1] << 1) | (env->fpscr[0] >> 3)))
-                    env->fpscr[7] |= 0x4;
                 info.si_signo = SIGFPE;
                 info.si_errno = 0;
                 switch (env->error_code & 0xF) {
@@ -248,7 +243,7 @@ void cpu_loop(CPUPPCState *env)
                 case POWERPC_EXCP_FP_VXSOFT:
                     info.si_code = FPE_FLTINV;
                     break;
-                case POWERPC_EXCP_FP_VXNAN:
+                case POWERPC_EXCP_FP_VXSNAN:
                 case POWERPC_EXCP_FP_VXISI:
                 case POWERPC_EXCP_FP_VXIDI:
                 case POWERPC_EXCP_FP_VXIMZ:

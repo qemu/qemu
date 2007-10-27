@@ -2130,6 +2130,8 @@ static always_inline void powerpc_excp (CPUState *env,
                     fprintf(logfile, "Ignore floating point exception\n");
                 }
 #endif
+                env->exception_index = POWERPC_EXCP_NONE;
+                env->error_code = 0;
                 return;
             }
             new_msr &= ~((target_ulong)1 << MSR_RI);
@@ -2138,12 +2140,6 @@ static always_inline void powerpc_excp (CPUState *env,
                 new_msr |= (target_ulong)1 << MSR_HV;
 #endif
             msr |= 0x00100000;
-            /* Set FX */
-            env->fpscr[7] |= 0x8;
-            /* Finally, update FEX */
-            if ((((env->fpscr[7] & 0x3) << 3) | (env->fpscr[6] >> 1)) &
-                ((env->fpscr[1] << 1) | (env->fpscr[0] >> 3)))
-                env->fpscr[7] |= 0x4;
             if (msr_fe0 != msr_fe1) {
                 msr |= 0x00010000;
                 goto store_current;
@@ -2199,8 +2195,11 @@ static always_inline void powerpc_excp (CPUState *env,
         /* XXX: To be removed */
         if (env->gpr[3] == 0x113724fa && env->gpr[4] == 0x77810f9b &&
             env->osi_call) {
-            if (env->osi_call(env) != 0)
+            if (env->osi_call(env) != 0) {
+                env->exception_index = POWERPC_EXCP_NONE;
+                env->error_code = 0;
                 return;
+            }
         }
         if (loglevel & CPU_LOG_INT) {
             dump_syscall(env);

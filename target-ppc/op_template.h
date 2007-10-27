@@ -165,39 +165,6 @@ void OPPROTO glue(op_store_T1_crf_crf, REG) (void)
     RETURN();
 }
 
-/* Floating point condition and status register moves */
-void OPPROTO glue(op_load_fpscr_T0_fpscr, REG) (void)
-{
-    T0 = env->fpscr[REG];
-    RETURN();
-}
-
-#if REG == 0
-void OPPROTO glue(op_store_T0_fpscr_fpscr, REG) (void)
-{
-    env->fpscr[REG] = (env->fpscr[REG] & 0x9) | (T0 & ~0x9);
-    RETURN();
-}
-
-void OPPROTO glue(op_clear_fpscr_fpscr, REG) (void)
-{
-    env->fpscr[REG] = (env->fpscr[REG] & 0x9);
-    RETURN();
-}
-#else
-void OPPROTO glue(op_store_T0_fpscr_fpscr, REG) (void)
-{
-    env->fpscr[REG] = T0;
-    RETURN();
-}
-
-void OPPROTO glue(op_clear_fpscr_fpscr, REG) (void)
-{
-    env->fpscr[REG] = 0x0;
-    RETURN();
-}
-#endif
-
 #endif /* REG <= 7 */
 
 /* floating point registers moves */

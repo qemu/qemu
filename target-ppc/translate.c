@@ -32,6 +32,7 @@
 //#define PPC_DEBUG_DISAS
 //#define DEBUG_MEMORY_ACCESSES
 //#define DO_PPC_STATISTICS
+//#define OPTIMIZE_FPRF_UPDATE
 
 /*****************************************************************************/
 /* Code translation helpers                                                  */
@@ -50,6 +51,10 @@ enum {
 
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
+#if defined(OPTIMIZE_FPRF_UPDATE)
+static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
+static uint16_t **gen_fprf_ptr;
+#endif
 
 #include "gen-op.h"
 
@@ -116,16 +121,6 @@ GEN8(gen_op_load_crf_T0, gen_op_load_crf_T0_crf);
 GEN8(gen_op_load_crf_T1, gen_op_load_crf_T1_crf);
 GEN8(gen_op_store_T0_crf, gen_op_store_T0_crf_crf);
 GEN8(gen_op_store_T1_crf, gen_op_store_T1_crf_crf);
-
-/* Floating point condition and status register moves */
-GEN8(gen_op_load_fpscr_T0, gen_op_load_fpscr_T0_fpscr);
-GEN8(gen_op_store_T0_fpscr, gen_op_store_T0_fpscr_fpscr);
-GEN8(gen_op_clear_fpscr, gen_op_clear_fpscr_fpscr);
-static always_inline void gen_op_store_T0_fpscri (int n, uint8_t param)
-{
-    gen_op_set_T0(param);
-    gen_op_store_T0_fpscr(n);
-}
 
 /* General purpose registers moves */
 GEN32(gen_op_load_gpr_T0, gen_op_load_gpr_T0_gpr);
@@ -197,6 +192,44 @@ static always_inline void gen_set_Rc0 (DisasContext *ctx)
 #endif
         gen_op_cmpi(0);
     gen_op_set_Rc0();
+}
+
+static always_inline void gen_reset_fpstatus (void)
+{
+#ifdef CONFIG_SOFTFLOAT
+    gen_op_reset_fpstatus();
+#endif
+}
+
+static always_inline void gen_compute_fprf (int set_fprf, int set_rc)
+{
+    if (set_fprf != 0) {
+        /* This case might be optimized later */
+#if defined(OPTIMIZE_FPRF_UPDATE)
+        *gen_fprf_ptr++ = gen_opc_ptr;
+#endif
+        gen_op_compute_fprf(1);
+        if (unlikely(set_rc))
+            gen_op_store_T0_crf(1);
+        gen_op_float_check_status();
+    } else if (unlikely(set_rc)) {
+        /* We always need to compute fpcc */
+        gen_op_compute_fprf(0);
+        gen_op_store_T0_crf(1);
+        if (set_fprf)
+            gen_op_float_check_status();
+    }
+}
+
+static always_inline void gen_optimize_fprf (void)
+{
+#if defined(OPTIMIZE_FPRF_UPDATE)
+    uint16_t **ptr;
+
+    for (ptr = gen_fprf_buf; ptr != (gen_fprf_ptr - 1); ptr++)
+        *ptr = INDEX_op_nop1;
+    gen_fprf_ptr = gen_fprf_buf;
+#endif
 }
 
 static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
@@ -497,6 +530,8 @@ enum {
     PPC_CACHE_DCBZ    = 0x0000400000000000ULL,
     /* dcbz instruction with tunable cache line size                         */
     PPC_CACHE_DCBZT   = 0x0000800000000000ULL,
+    /* frsqrtes extension                                                    */
+    PPC_FLOAT_FRSQRTES = 0x0001000000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1656,124 +1691,127 @@ __GEN_LOGICAL2(srd, 0x1B, 0x10, PPC_64B);
 #endif
 
 /***                       Floating-Point arithmetic                       ***/
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, type)                     \
+#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
 GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type)                        \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rC(ctx->opcode));                                     \
     gen_op_load_fpr_FT2(rB(ctx->opcode));                                     \
+    gen_reset_fpstatus();                                                     \
     gen_op_f##op();                                                           \
     if (isfloat) {                                                            \
         gen_op_frsp();                                                        \
     }                                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
-    if (unlikely(Rc(ctx->opcode) != 0))                                       \
-        gen_op_set_Rc1();                                                     \
+    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 
-#define GEN_FLOAT_ACB(name, op2, type)                                        \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, type);                               \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, type);
+#define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
+_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type);                     \
+_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type);
 
-#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat)                     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
+#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
+GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)                             \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rB(ctx->opcode));                                     \
+    gen_reset_fpstatus();                                                     \
     gen_op_f##op();                                                           \
     if (isfloat) {                                                            \
         gen_op_frsp();                                                        \
     }                                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
-    if (unlikely(Rc(ctx->opcode) != 0))                                       \
-        gen_op_set_Rc1();                                                     \
+    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
 }
-#define GEN_FLOAT_AB(name, op2, inval)                                        \
-_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0);                               \
-_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1);
+#define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
+_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
+_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
 
-#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat)                     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
+#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
+GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)                             \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rC(ctx->opcode));                                     \
+    gen_reset_fpstatus();                                                     \
     gen_op_f##op();                                                           \
     if (isfloat) {                                                            \
         gen_op_frsp();                                                        \
     }                                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
-    if (unlikely(Rc(ctx->opcode) != 0))                                       \
-        gen_op_set_Rc1();                                                     \
+    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
 }
-#define GEN_FLOAT_AC(name, op2, inval)                                        \
-_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0);                               \
-_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1);
+#define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
+_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
+_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
 
-#define GEN_FLOAT_B(name, op2, op3, type)                                     \
+#define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
 GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type)                        \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rB(ctx->opcode));                                     \
+    gen_reset_fpstatus();                                                     \
     gen_op_f##name();                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
-    if (unlikely(Rc(ctx->opcode) != 0))                                       \
-        gen_op_set_Rc1();                                                     \
+    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 
-#define GEN_FLOAT_BS(name, op1, op2, type)                                    \
+#define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
 GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type)                        \
 {                                                                             \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rB(ctx->opcode));                                     \
+    gen_reset_fpstatus();                                                     \
     gen_op_f##name();                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
-    if (unlikely(Rc(ctx->opcode) != 0))                                       \
-        gen_op_set_Rc1();                                                     \
+    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 
 /* fadd - fadds */
-GEN_FLOAT_AB(add, 0x15, 0x000007C0);
+GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT);
 /* fdiv - fdivs */
-GEN_FLOAT_AB(div, 0x12, 0x000007C0);
+GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT);
 /* fmul - fmuls */
-GEN_FLOAT_AC(mul, 0x19, 0x0000F800);
+GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT);
 
 /* fre */
-GEN_FLOAT_BS(re, 0x3F, 0x18, PPC_FLOAT_EXT);
+GEN_FLOAT_BS(re, 0x3F, 0x18, 1, PPC_FLOAT_EXT);
 
 /* fres */
-GEN_FLOAT_BS(res, 0x3B, 0x18, PPC_FLOAT_FRES);
+GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES);
 
 /* frsqrte */
-GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, PPC_FLOAT_FRSQRTE);
+GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE);
+
+/* frsqrtes */
+static always_inline void gen_op_frsqrtes (void)
+{
+    gen_op_frsqrte();
+    gen_op_frsp();
+}
+GEN_FLOAT_BS(rsqrtes, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTES);
 
 /* fsel */
-_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, PPC_FLOAT_FSEL);
+_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL);
 /* fsub - fsubs */
-GEN_FLOAT_AB(sub, 0x14, 0x000007C0);
+GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT);
 /* Optional: */
 /* fsqrt */
 GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
@@ -1782,12 +1820,11 @@ GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
+    gen_reset_fpstatus();
     gen_op_fsqrt();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    gen_compute_fprf(1, Rc(ctx->opcode) != 0);
 }
 
 GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
@@ -1796,49 +1833,48 @@ GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
+    gen_reset_fpstatus();
     gen_op_fsqrt();
     gen_op_frsp();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    gen_compute_fprf(1, Rc(ctx->opcode) != 0);
 }
 
 /***                     Floating-Point multiply-and-add                   ***/
 /* fmadd - fmadds */
-GEN_FLOAT_ACB(madd, 0x1D, PPC_FLOAT);
+GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT);
 /* fmsub - fmsubs */
-GEN_FLOAT_ACB(msub, 0x1C, PPC_FLOAT);
+GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT);
 /* fnmadd - fnmadds */
-GEN_FLOAT_ACB(nmadd, 0x1F, PPC_FLOAT);
+GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT);
 /* fnmsub - fnmsubs */
-GEN_FLOAT_ACB(nmsub, 0x1E, PPC_FLOAT);
+GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT);
 
 /***                     Floating-Point round & convert                    ***/
 /* fctiw */
-GEN_FLOAT_B(ctiw, 0x0E, 0x00, PPC_FLOAT);
+GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT);
 /* fctiwz */
-GEN_FLOAT_B(ctiwz, 0x0F, 0x00, PPC_FLOAT);
+GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT);
 /* frsp */
-GEN_FLOAT_B(rsp, 0x0C, 0x00, PPC_FLOAT);
+GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
 #if defined(TARGET_PPC64)
 /* fcfid */
-GEN_FLOAT_B(cfid, 0x0E, 0x1A, PPC_64B);
+GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B);
 /* fctid */
-GEN_FLOAT_B(ctid, 0x0E, 0x19, PPC_64B);
+GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B);
 /* fctidz */
-GEN_FLOAT_B(ctidz, 0x0F, 0x19, PPC_64B);
+GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC_64B);
 #endif
 
 /* frin */
-GEN_FLOAT_B(rin, 0x08, 0x0C, PPC_FLOAT_EXT);
+GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT);
 /* friz */
-GEN_FLOAT_B(riz, 0x08, 0x0D, PPC_FLOAT_EXT);
+GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT);
 /* frip */
-GEN_FLOAT_B(rip, 0x08, 0x0E, PPC_FLOAT_EXT);
+GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT);
 /* frim */
-GEN_FLOAT_B(rim, 0x08, 0x0F, PPC_FLOAT_EXT);
+GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
 
 /***                         Floating-Point compare                        ***/
 /* fcmpo */
@@ -1848,11 +1884,12 @@ GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rA(ctx->opcode));
     gen_op_load_fpr_FT1(rB(ctx->opcode));
+    gen_reset_fpstatus();
     gen_op_fcmpo();
     gen_op_store_T0_crf(crfD(ctx->opcode));
+    gen_op_float_check_status();
 }
 
 /* fcmpu */
@@ -1862,47 +1899,54 @@ GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rA(ctx->opcode));
     gen_op_load_fpr_FT1(rB(ctx->opcode));
+    gen_reset_fpstatus();
     gen_op_fcmpu();
     gen_op_store_T0_crf(crfD(ctx->opcode));
+    gen_op_float_check_status();
 }
 
 /***                         Floating-point move                           ***/
 /* fabs */
-GEN_FLOAT_B(abs, 0x08, 0x08, PPC_FLOAT);
+/* XXX: beware that fabs never checks for NaNs nor update FPSCR */
+GEN_FLOAT_B(abs, 0x08, 0x08, 0, PPC_FLOAT);
 
 /* fmr  - fmr. */
+/* XXX: beware that fmr never checks for NaNs nor update FPSCR */
 GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT)
 {
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
     gen_op_store_FT0_fpr(rD(ctx->opcode));
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    gen_compute_fprf(0, Rc(ctx->opcode) != 0);
 }
 
 /* fnabs */
-GEN_FLOAT_B(nabs, 0x08, 0x04, PPC_FLOAT);
+/* XXX: beware that fnabs never checks for NaNs nor update FPSCR */
+GEN_FLOAT_B(nabs, 0x08, 0x04, 0, PPC_FLOAT);
 /* fneg */
-GEN_FLOAT_B(neg, 0x08, 0x01, PPC_FLOAT);
+/* XXX: beware that fneg never checks for NaNs nor update FPSCR */
+GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT);
 
 /***                  Floating-Point status & ctrl register                ***/
 /* mcrfs */
 GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT)
 {
+    int bfa;
+
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_load_fpscr_T0(crfS(ctx->opcode));
+    gen_optimize_fprf();
+    bfa = 4 * (7 - crfS(ctx->opcode));
+    gen_op_load_fpscr_T0(bfa);
     gen_op_store_T0_crf(crfD(ctx->opcode));
-    gen_op_clear_fpscr(crfS(ctx->opcode));
+    gen_op_fpscr_resetbit(~(0xF << bfa));
 }
 
 /* mffs */
@@ -1912,10 +1956,11 @@ GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_load_fpscr();
+    gen_optimize_fprf();
+    gen_reset_fpstatus();
+    gen_op_load_fpscr_FT0();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    gen_compute_fprf(0, Rc(ctx->opcode) != 0);
 }
 
 /* mtfsb0 */
@@ -1927,12 +1972,15 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    crb = crbD(ctx->opcode) >> 2;
-    gen_op_load_fpscr_T0(crb);
-    gen_op_andi_T0(~(1 << (crbD(ctx->opcode) & 0x03)));
-    gen_op_store_T0_fpscr(crb);
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    crb = 32 - (crbD(ctx->opcode) >> 2);
+    gen_optimize_fprf();
+    gen_reset_fpstatus();
+    if (likely(crb != 30 && crb != 29))
+        gen_op_fpscr_resetbit(~(1 << crb));
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_op_load_fpcc();
+        gen_op_set_Rc0();
+    }
 }
 
 /* mtfsb1 */
@@ -1944,12 +1992,18 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    crb = crbD(ctx->opcode) >> 2;
-    gen_op_load_fpscr_T0(crb);
-    gen_op_ori(1 << (crbD(ctx->opcode) & 0x03));
-    gen_op_store_T0_fpscr(crb);
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    crb = 32 - (crbD(ctx->opcode) >> 2);
+    gen_optimize_fprf();
+    gen_reset_fpstatus();
+    /* XXX: we pretend we can only do IEEE floating-point computations */
+    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI))
+        gen_op_fpscr_setbit(crb);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_op_load_fpcc();
+        gen_op_set_Rc0();
+    }
+    /* We can raise a differed exception */
+    gen_op_float_check_status();
 }
 
 /* mtfsf */
@@ -1959,22 +2013,39 @@ GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
+    gen_optimize_fprf();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
+    gen_reset_fpstatus();
     gen_op_store_fpscr(FM(ctx->opcode));
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_op_load_fpcc();
+        gen_op_set_Rc0();
+    }
+    /* We can raise a differed exception */
+    gen_op_float_check_status();
 }
 
 /* mtfsfi */
 GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 {
+    int bf, sh;
+
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    gen_op_store_T0_fpscri(crbD(ctx->opcode) >> 2, FPIMM(ctx->opcode));
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_op_set_Rc1();
+    bf = crbD(ctx->opcode) >> 2;
+    sh = 7 - bf;
+    gen_optimize_fprf();
+    gen_op_set_FT0(FPIMM(ctx->opcode) << (4 * sh));
+    gen_reset_fpstatus();
+    gen_op_store_fpscr(1 << sh);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_op_load_fpcc();
+        gen_op_set_Rc0();
+    }
+    /* We can raise a differed exception */
+    gen_op_float_check_status();
 }
 
 /***                           Addressing modes                            ***/
@@ -6717,6 +6788,9 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
+#if defined(OPTIMIZE_FPRF_UPDATE)
+    gen_fprf_ptr = gen_fprf_buf;
+#endif
     nb_gen_labels = 0;
     ctx.nip = pc_start;
     ctx.tb = tb;

@@ -135,13 +135,6 @@ void OPPROTO op_set_Rc0 (void)
     RETURN();
 }
 
-/* Set Rc1 (for floating point arithmetic) */
-void OPPROTO op_set_Rc1 (void)
-{
-    env->crf[1] = env->fpscr[7];
-    RETURN();
-}
-
 /* Constants load */
 void OPPROTO op_reset_T0 (void)
 {
@@ -552,21 +545,108 @@ void OPPROTO op_store_dbatl (void)
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* FPSCR */
-void OPPROTO op_load_fpscr (void)
+#ifdef CONFIG_SOFTFLOAT
+void OPPROTO op_reset_fpstatus (void)
 {
-    do_load_fpscr();
+    env->fp_status.float_exception_flags = 0;
+    RETURN();
+}
+#endif
+
+void OPPROTO op_compute_fprf (void)
+{
+    do_compute_fprf(PARAM1);
+    RETURN();
+}
+
+#ifdef CONFIG_SOFTFLOAT
+void OPPROTO op_float_check_status (void)
+{
+    do_float_check_status();
+    RETURN();
+}
+#else
+void OPPROTO op_float_check_status (void)
+{
+    if (env->exception_index == POWERPC_EXCP_PROGRAM &&
+        (env->error_code & POWERPC_EXCP_FP)) {
+        /* Differred floating-point exception after target FPR update */
+        if (msr_fe0 != 0 || msr_fe1 != 0)
+            do_raise_exception_err(env->exception_index, env->error_code);
+    }
+    RETURN();
+}
+#endif
+
+#if defined(WORDS_BIGENDIAN)
+#define WORD0 0
+#define WORD1 1
+#else
+#define WORD0 1
+#define WORD1 0
+#endif
+void OPPROTO op_load_fpscr_FT0 (void)
+{
+    /* The 32 MSB of the target fpr are undefined.
+     * They'll be zero...
+     */
+    union {
+        float64 d;
+        struct {
+            uint32_t u[2];
+        } s;
+    } u;
+
+    u.s.u[WORD0] = 0;
+    u.s.u[WORD1] = env->fpscr;
+    FT0 = u.d;
+    RETURN();
+}
+
+void OPPROTO op_set_FT0 (void)
+{
+    union {
+        float64 d;
+        struct {
+            uint32_t u[2];
+        } s;
+    } u;
+
+    u.s.u[WORD0] = 0;
+    u.s.u[WORD1] = PARAM1;
+    FT0 = u.d;
+    RETURN();
+}
+#undef WORD0
+#undef WORD1
+
+void OPPROTO op_load_fpscr_T0 (void)
+{
+    T0 = (env->fpscr >> PARAM1) & 0xF;
+    RETURN();
+}
+
+void OPPROTO op_load_fpcc (void)
+{
+    T0 = fpscr_fpcc;
+    RETURN();
+}
+
+void OPPROTO op_fpscr_resetbit (void)
+{
+    env->fpscr &= PARAM1;
+    RETURN();
+}
+
+void OPPROTO op_fpscr_setbit (void)
+{
+    do_fpscr_setbit(PARAM1);
     RETURN();
 }
 
 void OPPROTO op_store_fpscr (void)
 {
     do_store_fpscr(PARAM1);
-    RETURN();
-}
-
-void OPPROTO op_reset_scrfx (void)
-{
-    env->fpscr[7] &= ~0x8;
     RETURN();
 }
 
@@ -1702,28 +1782,44 @@ void OPPROTO op_srli_T1_64 (void)
 /* fadd - fadd. */
 void OPPROTO op_fadd (void)
 {
+#if USE_PRECISE_EMULATION
+    do_fadd();
+#else
     FT0 = float64_add(FT0, FT1, &env->fp_status);
+#endif
     RETURN();
 }
 
 /* fsub - fsub. */
 void OPPROTO op_fsub (void)
 {
+#if USE_PRECISE_EMULATION
+    do_fsub();
+#else
     FT0 = float64_sub(FT0, FT1, &env->fp_status);
+#endif
     RETURN();
 }
 
 /* fmul - fmul. */
 void OPPROTO op_fmul (void)
 {
+#if USE_PRECISE_EMULATION
+    do_fmul();
+#else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
+#endif
     RETURN();
 }
 
 /* fdiv - fdiv. */
 void OPPROTO op_fdiv (void)
 {
+#if USE_PRECISE_EMULATION
+    do_fdiv();
+#else
     FT0 = float64_div(FT0, FT1, &env->fp_status);
+#endif
     RETURN();
 }
 
@@ -1805,7 +1901,11 @@ void OPPROTO op_fnmsub (void)
 /* frsp - frsp. */
 void OPPROTO op_frsp (void)
 {
+#if USE_PRECISE_EMULATION
+    do_frsp();
+#else
     FT0 = float64_to_float32(FT0, &env->fp_status);
+#endif
     RETURN();
 }
 

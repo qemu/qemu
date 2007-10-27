@@ -60,7 +60,7 @@ void do_store_cr (uint32_t mask);
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
 #endif
-void do_load_fpscr (void);
+void do_fpscr_setbit (int bit);
 void do_store_fpscr (uint32_t mask);
 target_ulong ppc_load_dump_spr (int sprn);
 void ppc_store_dump_spr (int sprn, target_ulong val);
@@ -94,6 +94,16 @@ void do_popcntb_64 (void);
 #endif
 
 /* Floating-point arithmetic helpers */
+void do_compute_fprf (int set_class);
+#ifdef CONFIG_SOFTFLOAT
+void do_float_check_status (void);
+#endif
+#if USE_PRECISE_EMULATION
+void do_fadd (void);
+void do_fsub (void);
+void do_fmul (void);
+void do_fdiv (void);
+#endif
 void do_fsqrt (void);
 void do_fre (void);
 void do_fres (void);
@@ -105,6 +115,9 @@ void do_fmsub (void);
 #endif
 void do_fnmadd (void);
 void do_fnmsub (void);
+#if USE_PRECISE_EMULATION
+void do_frsp (void);
+#endif
 void do_fctiw (void);
 void do_fctiwz (void);
 #if defined(TARGET_PPC64)

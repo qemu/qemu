@@ -239,7 +239,7 @@ enum {
     POWERPC_EXCP_FP_UX         = 0x02,  /* FP underflow                      */
     POWERPC_EXCP_FP_ZX         = 0x03,  /* FP divide by zero                 */
     POWERPC_EXCP_FP_XX         = 0x04,  /* FP inexact                        */
-    POWERPC_EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op                */
+    POWERPC_EXCP_FP_VXSNAN     = 0x05,  /* FP invalid SNaN op                */
     POWERPC_EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite subtraction   */
     POWERPC_EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide        */
     POWERPC_EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide            */
@@ -433,14 +433,84 @@ enum {
     POWERPC_FLAG_PMM  = 0x00000400,
 };
 
+/*****************************************************************************/
+/* Floating point status and control register                                */
+#define FPSCR_FX     31 /* Floating-point exception summary                  */
+#define FPSCR_FEX    30 /* Floating-point enabled exception summary          */
+#define FPSCR_VX     29 /* Floating-point invalid operation exception summ.  */
+#define FPSCR_OX     28 /* Floating-point overflow exception                 */
+#define FPSCR_UX     27 /* Floating-point underflow exception                */
+#define FPSCR_ZX     26 /* Floating-point zero divide exception              */
+#define FPSCR_XX     25 /* Floating-point inexact exception                  */
+#define FPSCR_VXSNAN 24 /* Floating-point invalid operation exception (sNan) */
+#define FPSCR_VXISI  23 /* Floating-point invalid operation exception (inf)  */
+#define FPSCR_VXIDI  22 /* Floating-point invalid operation exception (inf)  */
+#define FPSCR_VXZDZ  21 /* Floating-point invalid operation exception (zero) */
+#define FPSCR_VXIMZ  20 /* Floating-point invalid operation exception (inf)  */
+#define FPSCR_VXVC   19 /* Floating-point invalid operation exception (comp) */
+#define FPSCR_FR     18 /* Floating-point fraction rounded                   */
+#define FPSCR_FI     17 /* Floating-point fraction inexact                   */
+#define FPSCR_C      16 /* Floating-point result class descriptor            */
+#define FPSCR_FL     15 /* Floating-point less than or negative              */
+#define FPSCR_FG     14 /* Floating-point greater than or negative           */
+#define FPSCR_FE     13 /* Floating-point equal or zero                      */
+#define FPSCR_FU     12 /* Floating-point unordered or NaN                   */
+#define FPSCR_FPCC   12 /* Floating-point condition code                     */
+#define FPSCR_FPRF   12 /* Floating-point result flags                       */
+#define FPSCR_VXSOFT 10 /* Floating-point invalid operation exception (soft) */
+#define FPSCR_VXSQRT 9  /* Floating-point invalid operation exception (sqrt) */
+#define FPSCR_VXCVI  8  /* Floating-point invalid operation exception (int)  */
+#define FPSCR_VE     7  /* Floating-point invalid operation exception enable */
+#define FPSCR_OE     6  /* Floating-point overflow exception enable          */
+#define FPSCR_UE     5  /* Floating-point undeflow exception enable          */
+#define FPSCR_ZE     4  /* Floating-point zero divide exception enable       */
+#define FPSCR_XE     3  /* Floating-point inexact exception enable           */
+#define FPSCR_NI     2  /* Floating-point non-IEEE mode                      */
+#define FPSCR_RN1    1
+#define FPSCR_RN     0  /* Floating-point rounding control                   */
+#define fpscr_fex    (((env->fpscr) >> FPSCR_FEX)    & 0x1)
+#define fpscr_vx     (((env->fpscr) >> FPSCR_VX)     & 0x1)
+#define fpscr_ox     (((env->fpscr) >> FPSCR_OX)     & 0x1)
+#define fpscr_ux     (((env->fpscr) >> FPSCR_UX)     & 0x1)
+#define fpscr_zx     (((env->fpscr) >> FPSCR_ZX)     & 0x1)
+#define fpscr_xx     (((env->fpscr) >> FPSCR_XX)     & 0x1)
+#define fpscr_vxsnan (((env->fpscr) >> FPSCR_VXSNAN) & 0x1)
+#define fpscr_vxisi  (((env->fpscr) >> FPSCR_VXISI)  & 0x1)
+#define fpscr_vxidi  (((env->fpscr) >> FPSCR_VXIDI)  & 0x1)
+#define fpscr_vxzdz  (((env->fpscr) >> FPSCR_VXZDZ)  & 0x1)
+#define fpscr_vximz  (((env->fpscr) >> FPSCR_VXIMZ)  & 0x1)
+#define fpscr_vxvc   (((env->fpscr) >> FPSCR_VXVC)   & 0x1)
+#define fpscr_fpcc   (((env->fpscr) >> FPSCR_FPCC)   & 0xF)
+#define fpscr_vxsoft (((env->fpscr) >> FPSCR_VXSOFT) & 0x1)
+#define fpscr_vxsqrt (((env->fpscr) >> FPSCR_VXSQRT) & 0x1)
+#define fpscr_vxcvi  (((env->fpscr) >> FPSCR_VXCVI)  & 0x1)
+#define fpscr_ve     (((env->fpscr) >> FPSCR_VE)     & 0x1)
+#define fpscr_oe     (((env->fpscr) >> FPSCR_OE)     & 0x1)
+#define fpscr_ue     (((env->fpscr) >> FPSCR_UE)     & 0x1)
+#define fpscr_ze     (((env->fpscr) >> FPSCR_ZE)     & 0x1)
+#define fpscr_xe     (((env->fpscr) >> FPSCR_XE)     & 0x1)
+#define fpscr_ni     (((env->fpscr) >> FPSCR_NI)     & 0x1)
+#define fpscr_rn     (((env->fpscr) >> FPSCR_RN)     & 0x3)
+/* Invalid operation exception summary */
+#define fpscr_ix ((env->fpscr) & ((1 << FPSCR_VXSNAN) | (1 << FPSCR_VXISI)  | \
+                                  (1 << FPSCR_VXIDI)  | (1 << FPSCR_VXZDZ)  | \
+                                  (1 << FPSCR_VXIMZ)  | (1 << FPSCR_VXVC)   | \
+                                  (1 << FPSCR_VXSOFT) | (1 << FPSCR_VXSQRT) | \
+                                  (1 << FPSCR_VXCVI)))
+/* exception summary */
+#define fpscr_ex  (((env->fpscr) >> FPSCR_XX) & 0x1F)
+/* enabled exception summary */
+#define fpscr_eex (((env->fpscr) >> FPSCR_XX) & ((env->fpscr) >> FPSCR_XE) &  \
+                   0x1F)
+
+/*****************************************************************************/
+/* The whole PowerPC CPU context */
 #if defined(TARGET_PPC64H)
 #define NB_MMU_MODES 3
 #else
 #define NB_MMU_MODES 2
 #endif
 
-/*****************************************************************************/
-/* The whole PowerPC CPU context */
 struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
@@ -482,7 +552,7 @@ struct CPUPPCState {
     /* floating point registers */
     float64 fpr[32];
     /* floating point status and control register */
-    uint8_t fpscr[8];
+    uint32_t fpscr;
 
     CPU_COMMON
 
