@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "exec.h"
+#include "host-utils.h"
 
 #ifndef CALL_FROM_TB0
 #define CALL_FROM_TB0(func) func()
@@ -537,35 +538,13 @@ void op_rotrv (void)
 
 void op_clo (void)
 {
-    int n;
-
-    if (T0 == ~((target_ulong)0)) {
-        T0 = 32;
-    } else {
-        for (n = 0; n < 32; n++) {
-            if (!(((int32_t)T0) & (1 << 31)))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clo32(T0);
     RETURN();
 }
 
 void op_clz (void)
 {
-    int n;
-
-    if (T0 == 0) {
-        T0 = 32;
-    } else {
-        for (n = 0; n < 32; n++) {
-            if (T0 & (1 << 31))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clz32(T0);
     RETURN();
 }
 
@@ -642,6 +621,18 @@ void op_dsrlv (void)
 void op_drotrv (void)
 {
     CALL_FROM_TB0(do_drotrv);
+    RETURN();
+}
+
+void op_dclo (void)
+{
+    CALL_FROM_TB0(do_dclo);
+    RETURN();
+}
+
+void op_dclz (void)
+{
+    CALL_FROM_TB0(do_dclz);
     RETURN();
 }
 
@@ -735,41 +726,19 @@ void op_drotrv (void)
        T0 = T1;
     RETURN();
 }
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 void op_dclo (void)
 {
-    int n;
-
-    if (T0 == ~((target_ulong)0)) {
-        T0 = 64;
-    } else {
-        for (n = 0; n < 64; n++) {
-            if (!(T0 & (1ULL << 63)))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clo64(T0);
     RETURN();
 }
 
 void op_dclz (void)
 {
-    int n;
-
-    if (T0 == 0) {
-        T0 = 64;
-    } else {
-        for (n = 0; n < 64; n++) {
-            if (T0 & (1ULL << 63))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clz64(T0);
     RETURN();
 }
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 #endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 /* 64 bits arithmetic */

@@ -70,6 +70,8 @@ void do_dsllv (void);
 void do_dsrav (void);
 void do_dsrlv (void);
 void do_drotrv (void);
+void do_dclo (void);
+void do_dclz (void);
 #endif
 #endif
 

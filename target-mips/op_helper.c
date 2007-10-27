@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include "exec.h"
 
+#include "host-utils.h"
+
 #define GETPC() (__builtin_return_address(0))
 
 /*****************************************************************************/
@@ -141,6 +143,17 @@ void do_drotrv (void)
     } else
        T0 = T1;
 }
+
+void do_dclo (void)
+{
+    T0 = clo64(T0);
+}
+
+void do_dclz (void)
+{
+    T0 = clz64(T0);
+}
+
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 #endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
