@@ -2168,7 +2168,6 @@ int main(int argc, char **argv)
         }
         cpu_ppc_register(env, def);
         cpu_ppc_reset(env);
-        env->msr = regs->msr & ~((1 << 6) | (1 << 12) | (1 << 13));
 #if defined(TARGET_PPC64)
 #if defined(TARGET_ABI32)
         env->msr &= ~((target_ulong)1 << MSR_SF);
