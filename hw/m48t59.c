@@ -199,8 +199,9 @@ static void set_up_watchdog (m48t59_t *NVRAM, uint8_t value)
 }
 
 /* Direct access to NVRAM */
-void m48t59_write (m48t59_t *NVRAM, uint32_t addr, uint32_t val)
+void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 {
+    m48t59_t *NVRAM = opaque;
     struct tm tm;
     int tmp;
 
@@ -357,8 +358,9 @@ void m48t59_write (m48t59_t *NVRAM, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t m48t59_read (m48t59_t *NVRAM, uint32_t addr)
+uint32_t m48t59_read (void *opaque, uint32_t addr)
 {
+    m48t59_t *NVRAM = opaque;
     struct tm tm;
     uint32_t retval = 0xFF;
 
@@ -451,13 +453,17 @@ uint32_t m48t59_read (m48t59_t *NVRAM, uint32_t addr)
     return retval;
 }
 
-void m48t59_set_addr (m48t59_t *NVRAM, uint32_t addr)
+void m48t59_set_addr (void *opaque, uint32_t addr)
 {
+    m48t59_t *NVRAM = opaque;
+
     NVRAM->addr = addr;
 }
 
-void m48t59_toggle_lock (m48t59_t *NVRAM, int lock)
+void m48t59_toggle_lock (void *opaque, int lock)
 {
+    m48t59_t *NVRAM = opaque;
+
     NVRAM->lock ^= 1 << lock;
 }
 
