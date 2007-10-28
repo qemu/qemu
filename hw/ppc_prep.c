@@ -527,7 +527,8 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
 {
     CPUState *env, *envs[MAX_CPUS];
     char buf[1024];
-    m48t59_t *nvram;
+    nvram_t nvram;
+    m48t59_t *m48t59;
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;
     unsigned long bios_offset;
@@ -678,13 +679,16 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
 
-    nvram = m48t59_init(i8259[8], 0, 0x0074, NVRAM_SIZE, 59);
-    if (nvram == NULL)
+    m48t59 = m48t59_init(i8259[8], 0, 0x0074, NVRAM_SIZE, 59);
+    if (m48t59 == NULL)
         return;
-    sysctrl->nvram = nvram;
+    sysctrl->nvram = m48t59;
 
     /* Initialise NVRAM */
-    PPC_NVRAM_set_params(nvram, NVRAM_SIZE, "PREP", ram_size, boot_device,
+    nvram.opaque = m48t59;
+    nvram.read_fn = &m48t59_read;
+    nvram.write_fn = &m48t59_write;
+    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "PREP", ram_size, boot_device,
                          kernel_base, kernel_size,
                          kernel_cmdline,
                          initrd_base, initrd_size,
