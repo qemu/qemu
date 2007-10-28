@@ -2787,6 +2787,282 @@ static void omap_clkm_init(target_phys_addr_t mpu_base,
     cpu_register_physical_memory(s->clkm.dsp_base, 0x1000, iomemtype[1]);
 }
 
+/* MPU I/O */
+struct omap_mpuio_s {
+    target_phys_addr_t base;
+    qemu_irq irq;
+    qemu_irq kbd_irq;
+    qemu_irq *in;
+    qemu_irq handler[16];
+    qemu_irq wakeup;
+
+    uint16_t inputs;
+    uint16_t outputs;
+    uint16_t dir;
+    uint16_t edge;
+    uint16_t mask;
+    uint16_t ints;
+
+    uint16_t debounce;
+    uint16_t latch;
+    uint8_t event;
+
+    uint8_t buttons[5];
+    uint8_t row_latch;
+    uint8_t cols;
+    int kbd_mask;
+    int clk;
+};
+
+static void omap_mpuio_set(void *opaque, int line, int level)
+{
+    struct omap_mpuio_s *s = (struct omap_mpuio_s *) opaque;
+    uint16_t prev = s->inputs;
+
+    if (level)
+        s->inputs |= 1 << line;
+    else
+        s->inputs &= ~(1 << line);
+
+    if (((1 << line) & s->dir & ~s->mask) && s->clk) {
+        if ((s->edge & s->inputs & ~prev) | (~s->edge & ~s->inputs & prev)) {
+            s->ints |= 1 << line;
+            qemu_irq_raise(s->irq);
+            /* TODO: wakeup */
+        }
+        if ((s->event & (1 << 0)) &&		/* SET_GPIO_EVENT_MODE */
+                (s->event >> 1) == line)	/* PIN_SELECT */
+            s->latch = s->inputs;
+    }
+}
+
+static void omap_mpuio_kbd_update(struct omap_mpuio_s *s)
+{
+    int i;
+    uint8_t *row, rows = 0, cols = ~s->cols;
+
+    for (row = s->buttons + 4, i = 1 << 5; i; row --, i >>= 1)
+        if (*row & cols)
+            s->row_latch |= i;
+
+    if (rows && ~s->kbd_mask && s->clk)
+        qemu_irq_raise(s->kbd_irq);
+    s->row_latch = rows ^ 0x1f;
+}
+
+static uint32_t omap_mpuio_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mpuio_s *s = (struct omap_mpuio_s *) opaque;
+    int offset = addr - s->base;
+    uint16_t ret;
+
+    switch (offset) {
+    case 0x00:	/* INPUT_LATCH */
+        return s->inputs;
+
+    case 0x04:	/* OUTPUT_REG */
+        return s->outputs;
+
+    case 0x08:	/* IO_CNTL */
+        return s->dir;
+
+    case 0x10:	/* KBR_LATCH */
+        return s->row_latch;
+
+    case 0x14:	/* KBC_REG */
+        return s->cols;
+
+    case 0x18:	/* GPIO_EVENT_MODE_REG */
+        return s->event;
+
+    case 0x1c:	/* GPIO_INT_EDGE_REG */
+        return s->edge;
+
+    case 0x20:	/* KBD_INT */
+        return (s->row_latch != 0x1f) && !s->kbd_mask;
+
+    case 0x24:	/* GPIO_INT */
+        ret = s->ints;
+        s->ints &= ~s->mask;
+        return ret;
+
+    case 0x28:	/* KBD_MASKIT */
+        return s->kbd_mask;
+
+    case 0x2c:	/* GPIO_MASKIT */
+        return s->mask;
+
+    case 0x30:	/* GPIO_DEBOUNCING_REG */
+        return s->debounce;
+
+    case 0x34:	/* GPIO_LATCH_REG */
+        return s->latch;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_mpuio_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mpuio_s *s = (struct omap_mpuio_s *) opaque;
+    int offset = addr - s->base;
+    uint16_t diff;
+    int ln;
+
+    switch (offset) {
+    case 0x04:	/* OUTPUT_REG */
+        diff = s->outputs ^ (value & ~s->dir);
+        s->outputs = value;
+	value &= ~s->dir;
+        while ((ln = ffs(diff))) {
+            ln --;
+            if (s->handler[ln])
+                qemu_set_irq(s->handler[ln], (value >> ln) & 1);
+            diff &= ~(1 << ln);
+        }
+        break;
+
+    case 0x08:	/* IO_CNTL */
+        diff = s->outputs & (s->dir ^ value);
+        s->dir = value;
+
+        value = s->outputs & ~s->dir;
+        while ((ln = ffs(diff))) {
+            ln --;
+            if (s->handler[ln])
+                qemu_set_irq(s->handler[ln], (value >> ln) & 1);
+            diff &= ~(1 << ln);
+        }
+        break;
+
+    case 0x14:	/* KBC_REG */
+        s->cols = value;
+        omap_mpuio_kbd_update(s);
+        break;
+
+    case 0x18:	/* GPIO_EVENT_MODE_REG */
+        s->event = value & 0x1f;
+        break;
+
+    case 0x1c:	/* GPIO_INT_EDGE_REG */
+        s->edge = value;
+        break;
+
+    case 0x28:	/* KBD_MASKIT */
+        s->kbd_mask = value & 1;
+        omap_mpuio_kbd_update(s);
+        break;
+
+    case 0x2c:	/* GPIO_MASKIT */
+        s->mask = value;
+        break;
+
+    case 0x30:	/* GPIO_DEBOUNCING_REG */
+        s->debounce = value & 0x1ff;
+        break;
+
+    case 0x00:	/* INPUT_LATCH */
+    case 0x10:	/* KBR_LATCH */
+    case 0x20:	/* KBD_INT */
+    case 0x24:	/* GPIO_INT */
+    case 0x34:	/* GPIO_LATCH_REG */
+        OMAP_RO_REG(addr);
+        return;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_mpuio_readfn[] = {
+    omap_badwidth_read16,
+    omap_mpuio_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_mpuio_writefn[] = {
+    omap_badwidth_write16,
+    omap_mpuio_write,
+    omap_badwidth_write16,
+};
+
+void omap_mpuio_reset(struct omap_mpuio_s *s)
+{
+    s->inputs = 0;
+    s->outputs = 0;
+    s->dir = ~0;
+    s->event = 0;
+    s->edge = 0;
+    s->kbd_mask = 0;
+    s->mask = 0;
+    s->debounce = 0;
+    s->latch = 0;
+    s->ints = 0;
+    s->row_latch = 0x1f;
+}
+
+static void omap_mpuio_onoff(void *opaque, int line, int on)
+{
+    struct omap_mpuio_s *s = (struct omap_mpuio_s *) opaque;
+
+    s->clk = on;
+    if (on)
+        omap_mpuio_kbd_update(s);
+}
+
+struct omap_mpuio_s *omap_mpuio_init(target_phys_addr_t base,
+                qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
+                omap_clk clk)
+{
+    int iomemtype;
+    struct omap_mpuio_s *s = (struct omap_mpuio_s *)
+            qemu_mallocz(sizeof(struct omap_mpuio_s));
+
+    s->base = base;
+    s->irq = gpio_int;
+    s->kbd_irq = kbd_int;
+    s->wakeup = wakeup;
+    s->in = qemu_allocate_irqs(omap_mpuio_set, s, 16);
+    omap_mpuio_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_mpuio_readfn,
+                    omap_mpuio_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    omap_clk_adduser(clk, qemu_allocate_irqs(omap_mpuio_onoff, s, 1)[0]);
+
+    return s;
+}
+
+qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s)
+{
+    return s->in;
+}
+
+void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler)
+{
+    if (line >= 16 || line < 0)
+        cpu_abort(cpu_single_env, "%s: No GPIO line %i\n", __FUNCTION__, line);
+    s->handler[line] = handler;
+}
+
+void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
+{
+    if (row >= 5 || row < 0)
+        cpu_abort(cpu_single_env, "%s: No key %i-%i\n",
+                        __FUNCTION__, col, row);
+
+    if (down)
+        s->buttons[row] = 1 << col;
+    else
+        s->buttons[row] = ~(1 << col);
+
+    omap_mpuio_kbd_update(s);
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -2814,6 +3090,7 @@ static void omap_mpu_reset(void *opaque)
     omap_uart_reset(mpu->uart2);
     omap_uart_reset(mpu->uart3);
     omap_mmc_reset(mpu->mmc);
+    omap_mpuio_reset(mpu->mpuio);
     cpu_reset(mpu->env);
 }
 
@@ -2821,7 +3098,8 @@ static void omap_mpu_wakeup(void *opaque, int irq, int req)
 {
     struct omap_mpu_state_s *mpu = (struct omap_mpu_state_s *) opaque;
 
-    cpu_interrupt(mpu->env, CPU_INTERRUPT_EXITTB);
+    if (mpu->env->halted)
+        cpu_interrupt(mpu->env, CPU_INTERRUPT_EXITTB);
 }
 
 struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
@@ -2838,6 +3116,8 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->sram_size = OMAP15XX_SRAM_SIZE;
 
     cpu_arm_set_model(s->env, core ?: "ti925t");
+
+    s->wakeup = qemu_allocate_irqs(omap_mpu_wakeup, s, 1)[0];
 
     /* Clocks */
     omap_clk_init(s);
@@ -2922,8 +3202,11 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->mmc = omap_mmc_init(0xfffb7800, s->irq[1][OMAP_INT_OQN],
                     &s->drq[OMAP_DMA_MMC_TX], omap_findclk(s, "mmc_ck"));
 
+    s->mpuio = omap_mpuio_init(0xfffb5000,
+                    s->irq[1][OMAP_INT_KEYBOARD], s->irq[1][OMAP_INT_MPUIO],
+                    s->wakeup, omap_findclk(s, "clk32-kHz"));
+
     qemu_register_reset(omap_mpu_reset, s);
-    s->wakeup = qemu_allocate_irqs(omap_mpu_wakeup, s, 1)[0];
 
     return s;
 }

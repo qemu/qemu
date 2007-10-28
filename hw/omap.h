@@ -450,6 +450,14 @@ struct omap_uart_s;
 struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk, CharDriverState *chr);
 
+struct omap_mpuio_s;
+struct omap_mpuio_s *omap_mpuio_init(target_phys_addr_t base,
+                qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
+                omap_clk clk);
+qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
+void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler);
+void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);
+
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
@@ -563,6 +571,8 @@ struct omap_mpu_state_s {
         uint16_t dsp_idlect2;
         uint16_t dsp_rstct2;
     } clkm;
+
+    struct omap_mpuio_s *mpuio;
 } *omap310_mpu_init(unsigned long sdram_size,
                 DisplayState *ds, const char *core);
 
