@@ -102,3 +102,100 @@ static always_inline int clo64(uint64_t val)
 {
     return clz64(~val);
 }
+
+static always_inline int ctz32 (uint32_t val)
+{
+    int cnt;
+
+    cnt = 0;
+    if (!(val & 0x0000FFFFUL)) {
+         cnt += 16;
+        val >>= 16;
+     }
+    if (!(val & 0x000000FFUL)) {
+         cnt += 8;
+        val >>= 8;
+     }
+    if (!(val & 0x0000000FUL)) {
+         cnt += 4;
+        val >>= 4;
+     }
+    if (!(val & 0x00000003UL)) {
+         cnt += 2;
+        val >>= 2;
+     }
+    if (!(val & 0x00000001UL)) {
+         cnt++;
+        val >>= 1;
+     }
+    if (!(val & 0x00000001UL)) {
+         cnt++;
+     }
+
+     return cnt;
+ }
+ 
+static always_inline int cto32 (uint32_t val)
+ {
+    return ctz32(~val);
+}
+
+static always_inline int ctz64 (uint64_t val)
+{
+    int cnt;
+
+    cnt = 0;
+    if (!((uint32_t)val)) {
+        cnt += 32;
+        val >>= 32;
+    }
+
+    return cnt + ctz32(val);
+}
+
+static always_inline int cto64 (uint64_t val)
+{
+    return ctz64(~val);
+}
+
+static always_inline int ctpop8 (uint8_t val)
+{
+    val = (val & 0x55) + ((val >> 1) & 0x55);
+    val = (val & 0x33) + ((val >> 2) & 0x33);
+    val = (val & 0x0f) + ((val >> 4) & 0x0f);
+
+    return val;
+}
+
+static always_inline int ctpop16 (uint16_t val)
+{
+    val = (val & 0x5555) + ((val >> 1) & 0x5555);
+    val = (val & 0x3333) + ((val >> 2) & 0x3333);
+    val = (val & 0x0f0f) + ((val >> 4) & 0x0f0f);
+    val = (val & 0x00ff) + ((val >> 8) & 0x00ff);
+
+    return val;
+}
+
+static always_inline int ctpop32 (uint32_t val)
+{
+    val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
+    val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
+    val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
+    val = (val & 0x00ff00ff) + ((val >>  8) & 0x00ff00ff);
+    val = (val & 0x0000ffff) + ((val >> 16) & 0x0000ffff);
+
+    return val;
+}
+
+static always_inline int ctpop64 (uint64_t val)
+{
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) & 0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) & 0x0f0f0f0f0f0f0f0fULL);
+    val = (val & 0x00ff00ff00ff00ffULL) + ((val >>  8) & 0x00ff00ff00ff00ffULL);
+    val = (val & 0x0000ffff0000ffffULL) + ((val >> 16) & 0x0000ffff0000ffffULL);
+    val = (val & 0x00000000ffffffffULL) + ((val >> 32) & 0x00000000ffffffffULL);
+
+    return val;
+ }
