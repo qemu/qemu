@@ -474,7 +474,7 @@ void do_popcntb_64 (void)
 
 /*****************************************************************************/
 /* Floating point operations helpers */
-static inline int fpisneg (float64 f)
+static always_inline int fpisneg (float64 f)
 {
     union {
         float64 f;
@@ -486,7 +486,7 @@ static inline int fpisneg (float64 f)
     return u.u >> 63 != 0;
 }
 
-static inline int isden (float f)
+static always_inline int isden (float f)
 {
     union {
         float64 f;
@@ -498,7 +498,7 @@ static inline int isden (float f)
     return ((u.u >> 52) & 0x7FF) == 0;
 }
 
-static inline int iszero (float64 f)
+static always_inline int iszero (float64 f)
 {
     union {
         float64 f;
@@ -510,7 +510,7 @@ static inline int iszero (float64 f)
     return (u.u & ~0x8000000000000000ULL) == 0;
 }
 
-static inline int isinfinity (float64 f)
+static always_inline int isinfinity (float64 f)
 {
     union {
         float64 f;
@@ -661,7 +661,6 @@ static always_inline void float_zero_divide_excp (void)
         float64 f;
         uint64_t u;
     } u0, u1;
-    
 
     env->fpscr |= 1 << FPSCR_ZX;
     env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
@@ -2825,12 +2824,12 @@ void do_load_74xx_tlb (int is_code)
                      way, is_code, CMP, RPN);
 }
 
-static target_ulong booke_tlb_to_page_size (int size)
+static always_inline target_ulong booke_tlb_to_page_size (int size)
 {
     return 1024 << (2 * size);
 }
 
-static int booke_page_size_to_tlb (target_ulong page_size)
+static always_inline int booke_page_size_to_tlb (target_ulong page_size)
 {
     int size;
 

@@ -295,7 +295,6 @@ static void gen_##name (DisasContext *ctx);                                   \
 GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type);                       \
 static void gen_##name (DisasContext *ctx)
 
-
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
 #if HOST_LONG_BITS == 64 /* Explicitely align to 64 bits */
@@ -3503,7 +3502,7 @@ GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC)
 #endif
 }
 
-#if 0
+#if 1
 #define SPR_NOACCESS ((void *)(-1))
 #else
 static void spr_noaccess (void *opaque, int sprn)
