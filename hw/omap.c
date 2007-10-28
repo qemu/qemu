@@ -2841,12 +2841,11 @@ static void omap_mpuio_kbd_update(struct omap_mpuio_s *s)
     int i;
     uint8_t *row, rows = 0, cols = ~s->cols;
 
-    for (row = s->buttons + 4, i = 1 << 5; i; row --, i >>= 1)
+    for (row = s->buttons + 4, i = 1 << 4; i; row --, i >>= 1)
         if (*row & cols)
-            s->row_latch |= i;
+            rows |= i;
 
-    if (rows && ~s->kbd_mask && s->clk)
-        qemu_irq_raise(s->kbd_irq);
+    qemu_set_irq(s->kbd_irq, rows && ~s->kbd_mask && s->clk);
     s->row_latch = rows ^ 0x1f;
 }
 
@@ -3002,6 +3001,7 @@ void omap_mpuio_reset(struct omap_mpuio_s *s)
     s->latch = 0;
     s->ints = 0;
     s->row_latch = 0x1f;
+    s->clk = 1;
 }
 
 static void omap_mpuio_onoff(void *opaque, int line, int on)
@@ -3056,9 +3056,9 @@ void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
                         __FUNCTION__, col, row);
 
     if (down)
-        s->buttons[row] = 1 << col;
+        s->buttons[row] |= 1 << col;
     else
-        s->buttons[row] = ~(1 << col);
+        s->buttons[row] &= ~(1 << col);
 
     omap_mpuio_kbd_update(s);
 }

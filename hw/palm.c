@@ -61,6 +61,35 @@ static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
 }
 
+static struct {
+    int row;
+    int column;
+} palmte_keymap[0x80] = {
+    [0 ... 0x7f] = { -1, -1 },
+    [0x3b] = { 0, 0 },	/* F1	-> Calendar */
+    [0x3c] = { 1, 0 },	/* F2	-> Contacts */
+    [0x3d] = { 2, 0 },	/* F3	-> Tasks List */
+    [0x3e] = { 3, 0 },	/* F4	-> Note Pad */
+    [0x01] = { 4, 0 },	/* Esc	-> Power */
+    [0x4b] = { 0, 1 },	/* 	   Left */
+    [0x50] = { 1, 1 },	/* 	   Down */
+    [0x48] = { 2, 1 },	/*	   Up */
+    [0x4d] = { 3, 1 },	/*	   Right */
+    [0x4c] = { 4, 1 },	/* 	   Centre */
+    [0x39] = { 4, 1 },	/* Spc	-> Centre */
+};
+
+static void palmte_button_event(void *opaque, int keycode)
+{
+    struct omap_mpu_state_s *cpu = (struct omap_mpu_state_s *) opaque;
+
+    if (palmte_keymap[keycode & 0x7f].row != -1)
+        omap_mpuio_key(cpu->mpuio,
+                        palmte_keymap[keycode & 0x7f].row,
+                        palmte_keymap[keycode & 0x7f].column,
+                        !(keycode & 0x80));
+}
+
 static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
                 DisplayState *ds, const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
@@ -100,6 +129,8 @@ static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(OMAP_CS3_BASE, OMAP_CS3_SIZE, io);
 
     palmte_microwire_setup(cpu);
+
+    qemu_add_kbd_event_handler(palmte_button_event, cpu);
 
     /* Setup initial (reset) machine state */
     if (nb_option_roms) {
