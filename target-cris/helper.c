@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "mmu.h"
 #include "exec-all.h"
+#include "host-utils.h"
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -134,8 +135,7 @@ void do_interrupt(CPUState *env)
 					return;
 				}
 
-				irqnum = 31 -
-					__builtin_clz(env->pending_interrupts);
+				irqnum = 31 - clz32(env->pending_interrupts);
 				irqnum += 0x30;
 				ebp = env->pregs[SR_EBP];
 				isr = ldl_code(ebp + irqnum * 4);
