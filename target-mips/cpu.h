@@ -107,7 +107,7 @@ struct CPUMIPSFPUContext {
 #define FP_UNIMPLEMENTED  32
 };
 
-#define NB_MMU_MODES 2
+#define NB_MMU_MODES 3
 
 typedef struct CPUMIPSMVPContext CPUMIPSMVPContext;
 struct CPUMIPSMVPContext {
@@ -285,8 +285,7 @@ struct CPUMIPSState {
 #define CP0St_KX    7
 #define CP0St_SX    6
 #define CP0St_UX    5
-#define CP0St_UM    4
-#define CP0St_R0    3
+#define CP0St_KSU   3
 #define CP0St_ERL   2
 #define CP0St_EXL   1
 #define CP0St_IE    0
@@ -418,9 +417,14 @@ struct CPUMIPSState {
     /* TMASK defines different execution modes */
 #define MIPS_HFLAG_TMASK  0x00FF
 #define MIPS_HFLAG_MODE   0x0007 /* execution modes                    */
-#define MIPS_HFLAG_UM     0x0001 /* user mode                          */
-#define MIPS_HFLAG_DM     0x0002 /* Debug mode                         */
-#define MIPS_HFLAG_SM     0x0004 /* Supervisor mode                    */
+    /* The KSU flags must be the lowest bits in hflags. The flag order
+       must be the same as defined for CP0 Status. This allows to use
+       the bits as the value of mmu_idx. */
+#define MIPS_HFLAG_KSU    0x0003 /* kernel/supervisor/user mode mask   */
+#define MIPS_HFLAG_UM       0x0002 /* user mode flag */
+#define MIPS_HFLAG_SM       0x0001 /* supervisor mode flag */
+#define MIPS_HFLAG_KM       0x0000 /* kernel mode flag */
+#define MIPS_HFLAG_DM     0x0004 /* Debug mode                         */
 #define MIPS_HFLAG_64     0x0008 /* 64-bit instructions enabled        */
 #define MIPS_HFLAG_CP0    0x0010 /* CP0 enabled                        */
 #define MIPS_HFLAG_FPU    0x0020 /* FPU enabled                        */
@@ -489,13 +493,15 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 #define cpu_signal_handler cpu_mips_signal_handler
 #define cpu_list mips_cpu_list
 
-/* MMU modes definitions */
+/* MMU modes definitions. We carefully match the indices with our
+   hflags layout. */
 #define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _user
-#define MMU_USER_IDX 1
+#define MMU_MODE1_SUFFIX _super
+#define MMU_MODE2_SUFFIX _user
+#define MMU_USER_IDX 2
 static inline int cpu_mmu_index (CPUState *env)
 {
-    return (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM ? 1 : 0;
+    return env->hflags & MIPS_HFLAG_KSU;
 }
 
 #include "cpu-all.h"

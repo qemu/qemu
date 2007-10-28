@@ -315,8 +315,12 @@ void do_mtc0_status_debug(uint32_t old, uint32_t val)
             old, old & env->CP0_Cause & CP0Ca_IP_mask,
             val, val & env->CP0_Cause & CP0Ca_IP_mask,
             env->CP0_Cause);
-    (env->hflags & MIPS_HFLAG_UM) ? fputs(", UM\n", logfile)
-                                  : fputs("\n", logfile);
+    switch (env->hflags & MIPS_HFLAG_KSU) {
+    case MIPS_HFLAG_UM: fputs(", UM\n", logfile); break;
+    case MIPS_HFLAG_SM: fputs(", SM\n", logfile); break;
+    case MIPS_HFLAG_KM: fputs("\n", logfile); break;
+    default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+    }
 }
 
 void do_mtc0_status_irqraise_debug(void)
@@ -518,10 +522,12 @@ void debug_post_eret (void)
         fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
     if (env->hflags & MIPS_HFLAG_DM)
         fprintf(logfile, " DEPC " TARGET_FMT_lx, env->CP0_DEPC);
-    if (env->hflags & MIPS_HFLAG_UM)
-        fputs(", UM\n", logfile);
-    else
-        fputs("\n", logfile);
+    switch (env->hflags & MIPS_HFLAG_KSU) {
+    case MIPS_HFLAG_UM: fputs(", UM\n", logfile); break;
+    case MIPS_HFLAG_SM: fputs(", SM\n", logfile); break;
+    case MIPS_HFLAG_KM: fputs("\n", logfile); break;
+    default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+    }
 }
 
 void do_pmon (int function)

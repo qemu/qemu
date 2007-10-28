@@ -230,24 +230,20 @@ static always_inline int cpu_halted(CPUState *env)
 static always_inline void compute_hflags(CPUState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_64 | MIPS_HFLAG_CP0 | MIPS_HFLAG_F64 |
-                     MIPS_HFLAG_FPU | MIPS_HFLAG_UM);
+                     MIPS_HFLAG_FPU | MIPS_HFLAG_KSU);
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM)) {
-        if (env->CP0_Status & (1 << CP0St_UM))
-            env->hflags |= MIPS_HFLAG_UM;
-        if (env->CP0_Status & (1 << CP0St_R0))
-            env->hflags |= MIPS_HFLAG_SM;
+        env->hflags |= (env->CP0_Status >> CP0St_KSU) & MIPS_HFLAG_KSU;
     }
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-    if (!(env->hflags & MIPS_HFLAG_UM) ||
+    if (((env->hflags & MIPS_HFLAG_KSU) != MIPS_HFLAG_UM) ||
         (env->CP0_Status & (1 << CP0St_PX)) ||
         (env->CP0_Status & (1 << CP0St_UX)))
         env->hflags |= MIPS_HFLAG_64;
 #endif
     if ((env->CP0_Status & (1 << CP0St_CU0)) ||
-        (!(env->hflags & MIPS_HFLAG_UM) &&
-         !(env->hflags & MIPS_HFLAG_SM)))
+        !(env->hflags & MIPS_HFLAG_KSU))
         env->hflags |= MIPS_HFLAG_CP0;
     if (env->CP0_Status & (1 << CP0St_CU1))
         env->hflags |= MIPS_HFLAG_FPU;

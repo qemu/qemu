@@ -286,6 +286,10 @@ void op_store_LO (void)
 #include "op_mem.c"
 #undef MEMSUFFIX
 
+#define MEMSUFFIX _super
+#include "op_mem.c"
+#undef MEMSUFFIX
+
 #define MEMSUFFIX _kernel
 #include "op_mem.c"
 #undef MEMSUFFIX
@@ -298,7 +302,7 @@ void op_addr_add (void)
    with Status_UX = 0 should be casted to 32-bit and sign extended.
    See the MIPS64 PRA manual, section 4.10. */
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-    if ((env->hflags & MIPS_HFLAG_UM) &&
+    if (((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
         !(env->CP0_Status & (1 << CP0St_UX)))
         T0 = (int64_t)(int32_t)(T0 + T1);
     else
@@ -1269,7 +1273,7 @@ void op_mftc0_status(void)
     T0 = env->CP0_Status & ~0xf1000018;
     T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
     T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
-    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_R0);
+    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
     RETURN();
 }
 
@@ -1833,7 +1837,7 @@ void op_mttc0_status(void)
     env->CP0_Status = T0 & ~0xf1000018;
     tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (T0 & (0xf << CP0St_CU0));
     tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((T0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
-    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_R0)) << (CP0TCSt_TKSU - CP0St_R0));
+    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
     env->CP0_TCStatus[other_tc] = tcstatus;
     RETURN();
 }

@@ -374,7 +374,7 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
-    regs->cp0_status = CP0St_UM;
+    regs->cp0_status = 2 << CP0St_KSU;
     regs->cp0_epc = infop->entry;
     regs->regs[29] = infop->start_stack;
 }
