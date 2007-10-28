@@ -27,14 +27,13 @@
 
 #include "cpu-defs.h"
 
-
 #include <setjmp.h>
 
 #include "softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
-#define ELF_MACHINE	EM_ALPHA
+#define ELF_MACHINE     EM_ALPHA
 
 #define ICACHE_LINE_SIZE 32
 #define DCACHE_LINE_SIZE 32

@@ -294,7 +294,7 @@ void helper_cttz (void)
     T0 = n;
 }
 
-static inline uint64_t byte_zap (uint64_t op, uint8_t mskb)
+static always_inline uint64_t byte_zap (uint64_t op, uint8_t mskb)
 {
     uint64_t mask;
 
@@ -609,7 +609,7 @@ void helper_ftoit (void)
     FT0 = p.d;
 }
 
-static int vaxf_is_valid (float ff)
+static always_inline int vaxf_is_valid (float ff)
 {
     union {
         float f;
@@ -628,7 +628,7 @@ static int vaxf_is_valid (float ff)
     return 1;
 }
 
-static float vaxf_to_ieee32 (float ff)
+static always_inline float vaxf_to_ieee32 (float ff)
 {
     union {
         float f;
@@ -648,7 +648,7 @@ static float vaxf_to_ieee32 (float ff)
     return p.f;
 }
 
-static float ieee32_to_vaxf (float fi)
+static always_inline float ieee32_to_vaxf (float fi)
 {
     union {
         float f;
@@ -751,7 +751,7 @@ void helper_itoff (void)
     /* XXX: TODO */
 }
 
-static int vaxg_is_valid (double ff)
+static always_inline int vaxg_is_valid (double ff)
 {
     union {
         double f;
@@ -770,7 +770,7 @@ static int vaxg_is_valid (double ff)
     return 1;
 }
 
-static double vaxg_to_ieee64 (double fg)
+static always_inline double vaxg_to_ieee64 (double fg)
 {
     union {
         double f;
@@ -790,7 +790,7 @@ static double vaxg_to_ieee64 (double fg)
     return p.f;
 }
 
-static double ieee64_to_vaxg (double fi)
+static always_inline double ieee64_to_vaxg (double fi)
 {
     union {
         double f;
@@ -1044,7 +1044,7 @@ void helper_cvtlq (void)
     FT0 = q.d;
 }
 
-static inline void __helper_cvtql (int s, int v)
+static always_inline void __helper_cvtql (int s, int v)
 {
     union {
         double d;

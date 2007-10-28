@@ -59,7 +59,7 @@ static uint32_t *gen_opparam_ptr;
 
 #include "gen-op.h"
 
-static inline void gen_op_nop (void)
+static always_inline void gen_op_nop (void)
 {
 #if defined(GENERATE_NOP)
     gen_op_no_op();
@@ -77,7 +77,7 @@ NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
 NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
 NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
 };                                                                            \
-static inline void func(int n)                                                \
+static always_inline void func (int n)                                        \
 {                                                                             \
     NAME ## _table[n]();                                                      \
 }
@@ -99,7 +99,7 @@ GEN32(gen_op_store_T1_ir, gen_op_store_T1_ir);
 GEN32(gen_op_store_T2_ir, gen_op_store_T2_ir);
 GEN32(gen_op_cmov_ir, gen_op_cmov_ir);
 
-static inline void gen_load_ir (DisasContext *ctx, int irn, int Tn)
+static always_inline void gen_load_ir (DisasContext *ctx, int irn, int Tn)
 {
     switch (Tn) {
     case 0:
@@ -114,7 +114,7 @@ static inline void gen_load_ir (DisasContext *ctx, int irn, int Tn)
     }
 }
 
-static inline void gen_store_ir (DisasContext *ctx, int irn, int Tn)
+static always_inline void gen_store_ir (DisasContext *ctx, int irn, int Tn)
 {
     switch (Tn) {
     case 0:
@@ -146,7 +146,7 @@ GEN32(gen_op_store_FT1_fir, gen_op_store_FT1_fir);
 GEN32(gen_op_store_FT2_fir, gen_op_store_FT2_fir);
 GEN32(gen_op_cmov_fir, gen_op_cmov_fir);
 
-static inline void gen_load_fir (DisasContext *ctx, int firn, int Tn)
+static always_inline void gen_load_fir (DisasContext *ctx, int firn, int Tn)
 {
     switch (Tn) {
     case 0:
@@ -161,7 +161,7 @@ static inline void gen_load_fir (DisasContext *ctx, int firn, int Tn)
     }
 }
 
-static inline void gen_store_fir (DisasContext *ctx, int firn, int Tn)
+static always_inline void gen_store_fir (DisasContext *ctx, int firn, int Tn)
 {
     switch (Tn) {
     case 0:
@@ -205,14 +205,14 @@ static GenOpFunc *gen_op_st##width[] = {                                      \
 
 #define GEN_LD(width)                                                         \
 OP_LD_TABLE(width);                                                           \
-static void gen_ld##width (DisasContext *ctx)                                 \
+static always_inline void gen_ld##width (DisasContext *ctx)                   \
 {                                                                             \
     (*gen_op_ld##width[ctx->mem_idx])();                                      \
 }
 
 #define GEN_ST(width)                                                         \
 OP_ST_TABLE(width);                                                           \
-static void gen_st##width (DisasContext *ctx)                                 \
+static always_inline void gen_st##width (DisasContext *ctx)                   \
 {                                                                             \
     (*gen_op_st##width[ctx->mem_idx])();                                      \
 }
@@ -244,28 +244,28 @@ GEN_LD(t);
 GEN_ST(t);
 
 #if defined(__i386__) || defined(__x86_64__)
-static inline void gen_op_set_s16_T0 (int16_t imm)
+static always_inline void gen_op_set_s16_T0 (int16_t imm)
 {
     gen_op_set_s32_T0((int32_t)imm);
 }
 
-static inline void gen_op_set_s16_T1 (int16_t imm)
+static always_inline void gen_op_set_s16_T1 (int16_t imm)
 {
     gen_op_set_s32_T1((int32_t)imm);
 }
 
-static inline void gen_op_set_u16_T0 (uint16_t imm)
+static always_inline void gen_op_set_u16_T0 (uint16_t imm)
 {
     gen_op_set_s32_T0((uint32_t)imm);
 }
 
-static inline void gen_op_set_u16_T1 (uint16_t imm)
+static always_inline void gen_op_set_u16_T1 (uint16_t imm)
 {
     gen_op_set_s32_T1((uint32_t)imm);
 }
 #endif
 
-static inline void gen_set_sT0 (DisasContext *ctx, int64_t imm)
+static always_inline void gen_set_sT0 (DisasContext *ctx, int64_t imm)
 {
     int32_t imm32;
     int16_t imm16;
@@ -291,7 +291,7 @@ static inline void gen_set_sT0 (DisasContext *ctx, int64_t imm)
     }
 }
 
-static inline void gen_set_sT1 (DisasContext *ctx, int64_t imm)
+static always_inline void gen_set_sT1 (DisasContext *ctx, int64_t imm)
 {
     int32_t imm32;
     int16_t imm16;
@@ -317,7 +317,7 @@ static inline void gen_set_sT1 (DisasContext *ctx, int64_t imm)
     }
 }
 
-static inline void gen_set_uT0 (DisasContext *ctx, uint64_t imm)
+static always_inline void gen_set_uT0 (DisasContext *ctx, uint64_t imm)
 {
     if (!(imm >> 32)) {
         if ((!imm >> 16)) {
@@ -337,7 +337,7 @@ static inline void gen_set_uT0 (DisasContext *ctx, uint64_t imm)
     }
 }
 
-static inline void gen_set_uT1 (DisasContext *ctx, uint64_t imm)
+static always_inline void gen_set_uT1 (DisasContext *ctx, uint64_t imm)
 {
     if (!(imm >> 32)) {
         if ((!imm >> 16)) {
@@ -357,7 +357,7 @@ static inline void gen_set_uT1 (DisasContext *ctx, uint64_t imm)
     }
 }
 
-static inline void gen_update_pc (DisasContext *ctx)
+static always_inline void gen_update_pc (DisasContext *ctx)
 {
     if (!(ctx->pc >> 32)) {
         gen_op_update_pc32(ctx->pc);
@@ -370,7 +370,7 @@ static inline void gen_update_pc (DisasContext *ctx)
     }
 }
 
-static inline void _gen_op_bcond (DisasContext *ctx)
+static always_inline void _gen_op_bcond (DisasContext *ctx)
 {
 #if 0 // Qemu does not know how to do this...
     gen_op_bcond(ctx->pc);
@@ -379,20 +379,22 @@ static inline void _gen_op_bcond (DisasContext *ctx)
 #endif
 }
 
-static inline void gen_excp (DisasContext *ctx, int exception, int error_code)
+static always_inline void gen_excp (DisasContext *ctx,
+                                    int exception, int error_code)
 {
     gen_update_pc(ctx);
     gen_op_excp(exception, error_code);
 }
 
-static inline void gen_invalid (DisasContext *ctx)
+static always_inline void gen_invalid (DisasContext *ctx)
 {
     gen_excp(ctx, EXCP_OPCDEC, 0);
 }
 
-static void gen_load_mem (DisasContext *ctx,
-                          void (*gen_load_op)(DisasContext *ctx),
-                          int ra, int rb, int32_t disp16, int clear)
+static always_inline void gen_load_mem (DisasContext *ctx,
+                                        void (*gen_load_op)(DisasContext *ctx),
+                                        int ra, int rb, int32_t disp16,
+                                        int clear)
 {
     if (ra == 31 && disp16 == 0) {
         /* UNOP */
@@ -410,9 +412,10 @@ static void gen_load_mem (DisasContext *ctx,
     }
 }
 
-static void gen_store_mem (DisasContext *ctx,
-                           void (*gen_store_op)(DisasContext *ctx),
-                           int ra, int rb, int32_t disp16, int clear)
+static always_inline void gen_store_mem (DisasContext *ctx,
+                                         void (*gen_store_op)(DisasContext *ctx),
+                                         int ra, int rb, int32_t disp16,
+                                         int clear)
 {
     gen_load_ir(ctx, rb, 0);
     if (disp16 != 0) {
@@ -425,9 +428,9 @@ static void gen_store_mem (DisasContext *ctx,
     (*gen_store_op)(ctx);
 }
 
-static void gen_load_fmem (DisasContext *ctx,
-                           void (*gen_load_fop)(DisasContext *ctx),
-                          int ra, int rb, int32_t disp16)
+static always_inline void gen_load_fmem (DisasContext *ctx,
+                                         void (*gen_load_fop)(DisasContext *ctx),
+                                         int ra, int rb, int32_t disp16)
 {
     gen_load_ir(ctx, rb, 0);
     if (disp16 != 0) {
@@ -438,9 +441,9 @@ static void gen_load_fmem (DisasContext *ctx,
     gen_store_fir(ctx, ra, 1);
 }
 
-static void gen_store_fmem (DisasContext *ctx,
-                            void (*gen_store_fop)(DisasContext *ctx),
-                            int ra, int rb, int32_t disp16)
+static always_inline void gen_store_fmem (DisasContext *ctx,
+                                          void (*gen_store_fop)(DisasContext *ctx),
+                                          int ra, int rb, int32_t disp16)
 {
     gen_load_ir(ctx, rb, 0);
     if (disp16 != 0) {
@@ -451,8 +454,9 @@ static void gen_store_fmem (DisasContext *ctx,
     (*gen_store_fop)(ctx);
 }
 
-static void gen_bcond (DisasContext *ctx, void (*gen_test_op)(void),
-                       int ra, int32_t disp16)
+static always_inline void gen_bcond (DisasContext *ctx,
+                                     void (*gen_test_op)(void),
+                                     int ra, int32_t disp16)
 {
     if (disp16 != 0) {
         gen_set_uT0(ctx, ctx->pc);
@@ -466,8 +470,9 @@ static void gen_bcond (DisasContext *ctx, void (*gen_test_op)(void),
     _gen_op_bcond(ctx);
 }
 
-static void gen_fbcond (DisasContext *ctx, void (*gen_test_op)(void),
-                        int ra, int32_t disp16)
+static always_inline void gen_fbcond (DisasContext *ctx,
+                                      void (*gen_test_op)(void),
+                                      int ra, int32_t disp16)
 {
     if (disp16 != 0) {
         gen_set_uT0(ctx, ctx->pc);
@@ -481,8 +486,9 @@ static void gen_fbcond (DisasContext *ctx, void (*gen_test_op)(void),
     _gen_op_bcond(ctx);
 }
 
-static void gen_arith2 (DisasContext *ctx, void (*gen_arith_op)(void),
-                        int rb, int rc, int islit, int8_t lit)
+static always_inline void gen_arith2 (DisasContext *ctx,
+                                      void (*gen_arith_op)(void),
+                                      int rb, int rc, int islit, int8_t lit)
 {
     if (islit)
         gen_set_sT0(ctx, lit);
@@ -492,8 +498,10 @@ static void gen_arith2 (DisasContext *ctx, void (*gen_arith_op)(void),
     gen_store_ir(ctx, rc, 0);
 }
 
-static void gen_arith3 (DisasContext *ctx, void (*gen_arith_op)(void),
-                        int ra, int rb, int rc, int islit, int8_t lit)
+static always_inline void gen_arith3 (DisasContext *ctx,
+                                      void (*gen_arith_op)(void),
+                                      int ra, int rb, int rc,
+                                      int islit, int8_t lit)
 {
     gen_load_ir(ctx, ra, 0);
     if (islit)
@@ -504,8 +512,10 @@ static void gen_arith3 (DisasContext *ctx, void (*gen_arith_op)(void),
     gen_store_ir(ctx, rc, 0);
 }
 
-static void gen_cmov (DisasContext *ctx, void (*gen_test_op)(void),
-                      int ra, int rb, int rc, int islit, int8_t lit)
+static always_inline void gen_cmov (DisasContext *ctx,
+                                    void (*gen_test_op)(void),
+                                    int ra, int rb, int rc,
+                                    int islit, int8_t lit)
 {
     gen_load_ir(ctx, ra, 1);
     if (islit)
@@ -516,16 +526,18 @@ static void gen_cmov (DisasContext *ctx, void (*gen_test_op)(void),
     gen_op_cmov_ir(rc);
 }
 
-static void gen_farith2 (DisasContext *ctx, void (*gen_arith_fop)(void),
-                         int rb, int rc)
+static always_inline void gen_farith2 (DisasContext *ctx,
+                                       void (*gen_arith_fop)(void),
+                                       int rb, int rc)
 {
     gen_load_fir(ctx, rb, 0);
     (*gen_arith_fop)();
     gen_store_fir(ctx, rc, 0);
 }
 
-static void gen_farith3 (DisasContext *ctx, void (*gen_arith_fop)(void),
-                         int ra, int rb, int rc)
+static always_inline void gen_farith3 (DisasContext *ctx,
+                                       void (*gen_arith_fop)(void),
+                                       int ra, int rb, int rc)
 {
     gen_load_fir(ctx, ra, 0);
     gen_load_fir(ctx, rb, 1);
@@ -533,8 +545,9 @@ static void gen_farith3 (DisasContext *ctx, void (*gen_arith_fop)(void),
     gen_store_fir(ctx, rc, 0);
 }
 
-static void gen_fcmov (DisasContext *ctx, void (*gen_test_fop)(void),
-                       int ra, int rb, int rc)
+static always_inline void gen_fcmov (DisasContext *ctx,
+                                     void (*gen_test_fop)(void),
+                                     int ra, int rb, int rc)
 {
     gen_load_fir(ctx, ra, 0);
     gen_load_fir(ctx, rb, 1);
@@ -542,77 +555,79 @@ static void gen_fcmov (DisasContext *ctx, void (*gen_test_fop)(void),
     gen_op_cmov_fir(rc);
 }
 
-static void gen_fti (DisasContext *ctx, void (*gen_move_fop)(void),
-                     int ra, int rc)
+static always_inline void gen_fti (DisasContext *ctx,
+                                   void (*gen_move_fop)(void),
+                                   int ra, int rc)
 {
     gen_load_fir(ctx, rc, 0);
     (*gen_move_fop)();
     gen_store_ir(ctx, ra, 0);
 }
 
-static void gen_itf (DisasContext *ctx, void (*gen_move_fop)(void),
-                     int ra, int rc)
+static always_inline void gen_itf (DisasContext *ctx,
+                                   void (*gen_move_fop)(void),
+                                   int ra, int rc)
 {
     gen_load_ir(ctx, ra, 0);
     (*gen_move_fop)();
     gen_store_fir(ctx, rc, 0);
 }
 
-static void gen_s4addl (void)
+static always_inline void gen_s4addl (void)
 {
     gen_op_s4();
     gen_op_addl();
 }
 
-static void gen_s4subl (void)
+static always_inline void gen_s4subl (void)
 {
     gen_op_s4();
     gen_op_subl();
 }
 
-static void gen_s8addl (void)
+static always_inline void gen_s8addl (void)
 {
     gen_op_s8();
     gen_op_addl();
 }
 
-static void gen_s8subl (void)
+static always_inline void gen_s8subl (void)
 {
     gen_op_s8();
     gen_op_subl();
 }
 
-static void gen_s4addq (void)
+static always_inline void gen_s4addq (void)
 {
     gen_op_s4();
     gen_op_addq();
 }
 
-static void gen_s4subq (void)
+static always_inline void gen_s4subq (void)
 {
     gen_op_s4();
     gen_op_subq();
 }
 
-static void gen_s8addq (void)
+static always_inline void gen_s8addq (void)
 {
     gen_op_s8();
     gen_op_addq();
 }
 
-static void gen_s8subq (void)
+static always_inline void gen_s8subq (void)
 {
     gen_op_s8();
     gen_op_subq();
 }
 
-static void gen_amask (void)
+static always_inline void gen_amask (void)
 {
     gen_op_load_amask();
     gen_op_bic();
 }
 
-static int translate_one (DisasContext *ctx, uint32_t insn)
+static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
@@ -1958,8 +1973,9 @@ static int translate_one (DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
-                                    int search_pc)
+static always_inline int gen_intermediate_code_internal (CPUState *env,
+                                                         TranslationBlock *tb,
+                                                         int search_pc)
 {
 #if defined ALPHA_DEBUG_DISAS
     static int insn_count;

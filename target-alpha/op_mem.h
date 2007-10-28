@@ -26,21 +26,22 @@ void helper_print_mem_EA (target_ulong EA);
 #define print_mem_EA(EA) do { } while (0)
 #endif
 
-static inline uint32_t glue(ldl_l, MEMSUFFIX) (target_ulong EA)
+static always_inline uint32_t glue(ldl_l, MEMSUFFIX) (target_ulong EA)
 {
     env->lock = EA;
 
     return glue(ldl, MEMSUFFIX)(EA);
 }
 
-static inline uint32_t glue(ldq_l, MEMSUFFIX) (target_ulong EA)
+static always_inline uint32_t glue(ldq_l, MEMSUFFIX) (target_ulong EA)
 {
     env->lock = EA;
 
     return glue(ldq, MEMSUFFIX)(EA);
 }
 
-static inline void glue(stl_c, MEMSUFFIX) (target_ulong EA, uint32_t data)
+static always_inline void glue(stl_c, MEMSUFFIX) (target_ulong EA,
+                                                  uint32_t data)
 {
     if (EA == env->lock) {
         glue(stl, MEMSUFFIX)(EA, data);
@@ -51,7 +52,8 @@ static inline void glue(stl_c, MEMSUFFIX) (target_ulong EA, uint32_t data)
     env->lock = -1;
 }
 
-static inline void glue(stq_c, MEMSUFFIX) (target_ulong EA, uint64_t data)
+static always_inline void glue(stq_c, MEMSUFFIX) (target_ulong EA,
+                                                  uint64_t data)
 {
     if (EA == env->lock) {
         glue(stq, MEMSUFFIX)(EA, data);
