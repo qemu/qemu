@@ -158,7 +158,8 @@ static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
 
     qemu_add_kbd_event_handler(palmte_button_event, cpu);
 
-    omap_mmc_handlers(cpu->mmc, 0,
+    omap_mmc_handlers(cpu->mmc,
+                    omap_gpio_in_get(cpu->gpio)[PALMTE_MMC_WP_GPIO],
                     qemu_allocate_irqs(palmte_mmc_cover, cpu, 1)[0]);
 
     /* Setup initial (reset) machine state */
