@@ -75,6 +75,10 @@ void do_nego (void);
 void do_subfe (void);
 void do_subfmeo (void);
 void do_subfzeo (void);
+void do_cntlzw (void);
+#if defined(TARGET_PPC64)
+void do_cntlzd (void);
+#endif
 void do_sraw (void);
 #if defined(TARGET_PPC64)
 void do_adde_64 (void);
@@ -284,78 +288,6 @@ void do_evfsctui (void);
 void do_evfsctsiz (void);
 void do_evfsctuiz (void);
 #endif /* defined(TARGET_PPCEMB) */
-
-/* Inlined helpers: used in micro-operation as well as helpers */
-/* Generic fixed-point helpers */
-static always_inline int _do_cntlzw (uint32_t val)
-{
-    int cnt = 0;
-    if (!(val & 0xFFFF0000UL)) {
-        cnt += 16;
-        val <<= 16;
-    }
-    if (!(val & 0xFF000000UL)) {
-        cnt += 8;
-        val <<= 8;
-    }
-    if (!(val & 0xF0000000UL)) {
-        cnt += 4;
-        val <<= 4;
-    }
-    if (!(val & 0xC0000000UL)) {
-        cnt += 2;
-        val <<= 2;
-    }
-    if (!(val & 0x80000000UL)) {
-        cnt++;
-        val <<= 1;
-    }
-    if (!(val & 0x80000000UL)) {
-        cnt++;
-    }
-    return cnt;
-}
-
-static always_inline int _do_cntlzd (uint64_t val)
-{
-    int cnt = 0;
-#if HOST_LONG_BITS == 64
-    if (!(val & 0xFFFFFFFF00000000ULL)) {
-        cnt += 32;
-        val <<= 32;
-    }
-    if (!(val & 0xFFFF000000000000ULL)) {
-        cnt += 16;
-        val <<= 16;
-    }
-    if (!(val & 0xFF00000000000000ULL)) {
-        cnt += 8;
-        val <<= 8;
-    }
-    if (!(val & 0xF000000000000000ULL)) {
-        cnt += 4;
-        val <<= 4;
-    }
-    if (!(val & 0xC000000000000000ULL)) {
-        cnt += 2;
-        val <<= 2;
-    }
-    if (!(val & 0x8000000000000000ULL)) {
-        cnt++;
-        val <<= 1;
-    }
-    if (!(val & 0x8000000000000000ULL)) {
-        cnt++;
-    }
-#else
-    /* Make it easier on 32 bits host machines */
-    if (!(val >> 32))
-        cnt = _do_cntlzw(val) + 32;
-    else
-        cnt = _do_cntlzw(val >> 32);
-#endif
-    return cnt;
-}
 
 #if defined(TARGET_PPCEMB)
 /* SPE extension */

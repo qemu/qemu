@@ -19,6 +19,7 @@
  */
 
 #include "exec.h"
+#include "host-utils.h"
 #include "softfloat.h"
 
 #include "op_helper.h"
@@ -211,87 +212,17 @@ void helper_mulqv ()
 
 void helper_ctpop (void)
 {
-    int n;
-
-    for (n = 0; T0 != 0; n++)
-        T0 = T0 ^ (T0 - 1);
-    T0 = n;
+    T0 = ctpop64(T0);
 }
 
 void helper_ctlz (void)
 {
-    uint32_t op32;
-    int n;
-
-    n = 0;
-    if (!(T0 & 0xFFFFFFFF00000000ULL)) {
-        n += 32;
-        T0 <<= 32;
-    }
-    /* Make it easier for 32 bits hosts */
-    op32 = T0 >> 32;
-    if (!(op32 & 0xFFFF0000UL)) {
-        n += 16;
-        op32 <<= 16;
-    }
-    if (!(op32 & 0xFF000000UL)) {
-        n += 8;
-        op32 <<= 8;
-    }
-    if (!(op32 & 0xF0000000UL)) {
-        n += 4;
-        op32 <<= 4;
-    }
-    if (!(op32 & 0xC0000000UL)) {
-        n += 2;
-        op32 <<= 2;
-    }
-    if (!(op32 & 0x80000000UL)) {
-        n++;
-        op32 <<= 1;
-    }
-    if (!(op32 & 0x80000000UL)) {
-        n++;
-    }
-    T0 = n;
+    T0 = clz64(T0);
 }
 
 void helper_cttz (void)
 {
-    uint32_t op32;
-    int n;
-
-    n = 0;
-    if (!(T0 & 0x00000000FFFFFFFFULL)) {
-        n += 32;
-        T0 >>= 32;
-    }
-    /* Make it easier for 32 bits hosts */
-    op32 = T0;
-    if (!(op32 & 0x0000FFFFUL)) {
-        n += 16;
-        op32 >>= 16;
-    }
-    if (!(op32 & 0x000000FFUL)) {
-        n += 8;
-        op32 >>= 8;
-    }
-    if (!(op32 & 0x0000000FUL)) {
-        n += 4;
-        op32 >>= 4;
-    }
-    if (!(op32 & 0x00000003UL)) {
-        n += 2;
-        op32 >>= 2;
-    }
-    if (!(op32 & 0x00000001UL)) {
-        n++;
-        op32 >>= 1;
-    }
-    if (!(op32 & 0x00000001UL)) {
-        n++;
-    }
-    T0 = n;
+    T0 = ctz64(T0);
 }
 
 static always_inline uint64_t byte_zap (uint64_t op, uint8_t mskb)

@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "exec.h"
+#include "host-utils.h"
 
 #include "helper_regs.h"
 #include "op_helper.h"
@@ -381,6 +382,18 @@ void do_subfzeo_64 (void)
 }
 #endif
 
+void do_cntlzw (void)
+{
+    T0 = clz32(T0);
+}
+
+#if defined(TARGET_PPC64)
+void do_cntlzd (void)
+{
+    T0 = clz64(T0);
+}
+#endif
+
 /* shift right arithmetic helper */
 void do_sraw (void)
 {
@@ -438,16 +451,6 @@ void do_srad (void)
 }
 #endif
 
-static always_inline int popcnt (uint32_t val)
-{
-    int i;
-
-    for (i = 0; val != 0;)
-        val = val ^ (val - 1);
-
-    return i;
-}
-
 void do_popcntb (void)
 {
     uint32_t ret;
@@ -455,7 +458,7 @@ void do_popcntb (void)
 
     ret = 0;
     for (i = 0; i < 32; i += 8)
-        ret |= popcnt((T0 >> i) & 0xFF) << i;
+        ret |= ctpop8((T0 >> i) & 0xFF) << i;
     T0 = ret;
 }
 
@@ -467,7 +470,7 @@ void do_popcntb_64 (void)
 
     ret = 0;
     for (i = 0; i < 64; i += 8)
-        ret |= popcnt((T0 >> i) & 0xFF) << i;
+        ret |= ctpop8((T0 >> i) & 0xFF) << i;
     T0 = ret;
 }
 #endif
@@ -1924,14 +1927,14 @@ static always_inline uint32_t _do_eaddw (uint32_t op1, uint32_t op2)
 static always_inline int _do_ecntlsw (uint32_t val)
 {
     if (val & 0x80000000)
-        return _do_cntlzw(~val);
+        return clz32(~val);
     else
-        return _do_cntlzw(val);
+        return clz32(val);
 }
 
 static always_inline int _do_ecntlzw (uint32_t val)
 {
-    return _do_cntlzw(val);
+    return clz32(val);
 }
 
 static always_inline uint32_t _do_eneg (uint32_t val)

@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "exec.h"
+#include "host-utils.h"
 #include "helper_regs.h"
 #include "op_helper.h"
 
@@ -1508,14 +1509,14 @@ void OPPROTO op_andi_T1_64 (void)
 /* count leading zero */
 void OPPROTO op_cntlzw (void)
 {
-    T0 = _do_cntlzw(T0);
+    do_cntlzw();
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_cntlzd (void)
 {
-    T0 = _do_cntlzd(T0);
+    do_cntlzd();
     RETURN();
 }
 #endif
