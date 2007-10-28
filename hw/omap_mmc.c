@@ -25,6 +25,7 @@ struct omap_mmc_s {
     target_phys_addr_t base;
     qemu_irq irq;
     qemu_irq *dma;
+    qemu_irq handler[2];
     omap_clk clk;
     SDState *card;
     uint16_t last_cmd;
@@ -506,6 +507,22 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->transfer = 0;
 }
 
+static void omap_mmc_ro_cb(void *opaque, int level)
+{
+    struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
+
+    if (s->handler[0])
+        qemu_set_irq(s->handler[0], level);
+}
+
+static void omap_mmc_cover_cb(void *opaque, int level)
+{
+    struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
+
+    if (s->handler[1])
+        qemu_set_irq(s->handler[1], level);
+}
+
 struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk)
 {
@@ -525,7 +542,13 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
     /* Instantiate the storage */
     s->card = sd_init(sd_bdrv);
 
+    sd_set_cb(s->card, s, omap_mmc_ro_cb, omap_mmc_cover_cb);
+
     return s;
 }
 
-/* TODO: insertion and read-only handlers */
+void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover)
+{
+    s->handler[0] = ro;
+    s->handler[1] = cover;
+}

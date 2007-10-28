@@ -57,6 +57,24 @@ static CPUWriteMemoryFunc *static_writefn[] = {
 };
 
 /* Palm Tunsgten|E support */
+
+/* Shared GPIOs */
+#define PALMTE_USBDETECT_GPIO	0
+#define PALMTE_USB_OR_DC_GPIO	1
+#define PALMTE_TSC_GPIO		4
+#define PALMTE_PINTDAV_GPIO	6
+#define PALMTE_MMC_WP_GPIO	8
+#define PALMTE_MMC_POWER_GPIO	9
+#define PALMTE_HDQ_GPIO		11
+#define PALMTE_HEADPHONES_GPIO	14
+#define PALMTE_SPEAKER_GPIO	15
+/* MPU private GPIOs */
+#define PALMTE_DC_GPIO		2
+#define PALMTE_MMC_SWITCH_GPIO	4
+#define PALMTE_MMC1_GPIO	6
+#define PALMTE_MMC2_GPIO	7
+#define PALMTE_MMC3_GPIO	11
+
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
 }
@@ -88,6 +106,14 @@ static void palmte_button_event(void *opaque, int keycode)
                         palmte_keymap[keycode & 0x7f].row,
                         palmte_keymap[keycode & 0x7f].column,
                         !(keycode & 0x80));
+}
+
+static void palmte_mmc_cover(void *opaque, int line, int level)
+{
+    struct omap_mpu_state_s *cpu = (struct omap_mpu_state_s *) opaque;
+
+    qemu_set_irq(omap_mpuio_in_get(cpu->mpuio)[PALMTE_MMC_SWITCH_GPIO],
+                    !level);
 }
 
 static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
@@ -131,6 +157,9 @@ static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
     palmte_microwire_setup(cpu);
 
     qemu_add_kbd_event_handler(palmte_button_event, cpu);
+
+    omap_mmc_handlers(cpu->mmc, 0,
+                    qemu_allocate_irqs(palmte_mmc_cover, cpu, 1)[0]);
 
     /* Setup initial (reset) machine state */
     if (nb_option_roms) {

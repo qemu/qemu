@@ -2882,7 +2882,9 @@ static uint32_t omap_mpuio_read(void *opaque, target_phys_addr_t addr)
 
     case 0x24:	/* GPIO_INT */
         ret = s->ints;
-        s->ints &= ~s->mask;
+        s->ints &= s->mask;
+        if (ret)
+            qemu_irq_lower(s->irq);
         return ret;
 
     case 0x28:	/* KBD_MASKIT */

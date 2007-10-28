@@ -470,6 +470,7 @@ struct omap_mmc_s;
 struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk);
 void omap_mmc_reset(struct omap_mmc_s *s);
+void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
 
 # define cpu_is_omap310(cpu)		(cpu->mpu_model == omap310)
 # define cpu_is_omap1510(cpu)		(cpu->mpu_model == omap1510)
