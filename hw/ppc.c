@@ -131,13 +131,17 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
         case PPC6xx_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
-#if 0 // XXX: TOFIX
 #if defined(PPC_DEBUG_IRQ)
                 if (loglevel & CPU_LOG_INT) {
                     fprintf(logfile, "%s: reset the CPU\n", __func__);
                 }
 #endif
-                cpu_reset(env);
+                env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+                /* XXX: TOFIX */
+#if 0
+                cpu_ppc_reset(env);
+#else
+                qemu_system_reset_request();
 #endif
             }
             break;
