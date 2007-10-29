@@ -3184,16 +3184,17 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
+/* *Some* sources say the memory region is 32-bit.  */
 static CPUReadMemoryFunc *omap_gpio_readfn[] = {
+    omap_badwidth_read16,
     omap_gpio_read,
-    omap_badwidth_read32,
-    omap_badwidth_read32,
+    omap_badwidth_read16,
 };
 
 static CPUWriteMemoryFunc *omap_gpio_writefn[] = {
+    omap_badwidth_write16,
     omap_gpio_write,
-    omap_badwidth_write32,
-    omap_badwidth_write32,
+    omap_badwidth_write16,
 };
 
 void omap_gpio_reset(struct omap_gpio_s *s)
@@ -3551,7 +3552,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     s->irq[1][OMAP_INT_KEYBOARD], s->irq[1][OMAP_INT_MPUIO],
                     s->wakeup, omap_findclk(s, "clk32-kHz"));
 
-    s->gpio = omap_gpio_init(0xfffcf000, s->irq[0][OMAP_INT_GPIO_BANK1],
+    s->gpio = omap_gpio_init(0xfffce000, s->irq[0][OMAP_INT_GPIO_BANK1],
                     omap_findclk(s, "mpuper_ck"));
 
     s->microwire = omap_uwire_init(0xfffb3000, &s->irq[1][OMAP_INT_uWireTX],

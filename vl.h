@@ -1663,6 +1663,9 @@ void qemu_get_ptimer(QEMUFile *f, ptimer_state *s);
 
 #include "hw/omap.h"
 
+/* tsc210x.c */
+struct uwire_slave_s *tsc2102_init(qemu_irq pint);
+
 /* mcf_uart.c */
 uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr);
 void mcf_uart_write(void *opaque, target_phys_addr_t addr, uint32_t val);

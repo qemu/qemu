@@ -76,8 +76,21 @@ static CPUWriteMemoryFunc *static_writefn[] = {
 #define PALMTE_MMC2_GPIO	7
 #define PALMTE_MMC3_GPIO	11
 
+static void palmte_pintdav(void *opaque, int line, int level)
+{
+    struct omap_mpu_state_s *cpu = (struct omap_mpu_state_s *) opaque;
+
+    qemu_set_irq(omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO],
+                    !level);
+}
+
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
+    omap_uwire_attach(
+                    cpu->microwire,
+                    tsc2102_init(
+                            qemu_allocate_irqs(palmte_pintdav, cpu, 1)[0]),
+                    0);
 }
 
 static struct {
