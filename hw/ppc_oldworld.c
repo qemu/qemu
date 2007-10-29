@@ -135,6 +135,13 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
         register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;
     }
+    if (env->nip < 0xFFF80000) {
+        /* Special test for PowerPC 601:
+         * the boot vector is at 0xFFF00100, then we need a 1MB BIOS.
+         * But the NVRAM is located at 0xFFF04000...
+         */
+        cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
+    }
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
@@ -150,6 +157,10 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
         exit(1);
     }
     bios_size = (bios_size + 0xfff) & ~0xfff;
+    if (bios_size > 0x00080000) {
+        /* As the NVRAM is located at 0xFFF04000, we cannot use 1 MB BIOSes */
+        cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
+    }
     cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
 

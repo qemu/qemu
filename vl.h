@@ -197,7 +197,9 @@ extern unsigned int nb_prom_envs;
 
 /* XXX: make it dynamic */
 #define MAX_BIOS_SIZE (4 * 1024 * 1024)
-#if defined (TARGET_PPC) || defined (TARGET_SPARC64)
+#if defined (TARGET_PPC)
+#define BIOS_SIZE (1024 * 1024)
+#elif defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
 #define BIOS_SIZE (4 * 1024 * 1024)

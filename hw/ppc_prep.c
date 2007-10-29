@@ -574,6 +574,9 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
         cpu_abort(env, "qemu: could not load PPC PREP bios '%s'\n", buf);
         exit(1);
     }
+    if (env->nip < 0xFFF80000 && bios_size < 0x00100000) {
+        cpu_abort(env, "PowerPC 601 / 620 / 970 need a 1MB BIOS\n");
+    }
     bios_size = (bios_size + 0xfff) & ~0xfff;
     cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
