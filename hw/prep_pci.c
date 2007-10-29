@@ -117,7 +117,6 @@ static CPUReadMemoryFunc *PPC_PCIIO_read[] = {
     &PPC_PCIIO_readl,
 };
 
-/* Don't know if this matches real hardware, but it agrees with OHW.  */
 static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return (irq_num + (pci_dev->devfn >> 3)) & 1;
@@ -125,7 +124,7 @@ static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void prep_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    qemu_set_irq(pic[irq_num ? 11 : 9], level);
+    qemu_set_irq(pic[(irq_num & 1) ? 11 : 9] , level);
 }
 
 PCIBus *pci_prep_init(qemu_irq *pic)
