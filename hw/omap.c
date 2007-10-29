@@ -3101,7 +3101,6 @@ static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
     int offset = addr - s->base;
-    uint16_t ret;
 
     switch (offset) {
     case 0x00:	/* DATA_INPUT */
@@ -3238,6 +3237,175 @@ void omap_gpio_out_set(struct omap_gpio_s *s, int line, qemu_irq handler)
     s->handler[line] = handler;
 }
 
+/* MicroWire Interface */
+struct omap_uwire_s {
+    target_phys_addr_t base;
+    qemu_irq txirq;
+    qemu_irq rxirq;
+    qemu_irq txdrq;
+
+    uint16_t txbuf;
+    uint16_t rxbuf;
+    uint16_t control;
+    uint16_t setup[5];
+
+    struct uwire_slave_s *chip[4];
+};
+
+static void omap_uwire_transfer_start(struct omap_uwire_s *s)
+{
+    int chipselect = (s->control >> 10) & 3;		/* INDEX */
+    struct uwire_slave_s *slave = s->chip[chipselect];
+
+    if ((s->control >> 5) & 0x1f) {			/* NB_BITS_WR */
+        if (s->control & (1 << 12))			/* CS_CMD */
+            if (slave && slave->send)
+                slave->send(slave->opaque,
+                                s->txbuf >> (16 - ((s->control >> 5) & 0x1f)));
+        s->control &= ~(1 << 14);			/* CSRB */
+        /* TODO: depending on s->setup[4] bits [1:0] assert an IRQ or
+         * a DRQ.  When is the level IRQ supposed to be reset?  */
+    }
+
+    if ((s->control >> 0) & 0x1f) {			/* NB_BITS_RD */
+        if (s->control & (1 << 12))			/* CS_CMD */
+            if (slave && slave->receive)
+                s->rxbuf = slave->receive(slave->opaque);
+        s->control |= 1 << 15;				/* RDRB */
+        /* TODO: depending on s->setup[4] bits [1:0] assert an IRQ or
+         * a DRQ.  When is the level IRQ supposed to be reset?  */
+    }
+}
+
+static uint32_t omap_uwire_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_uwire_s *s = (struct omap_uwire_s *) opaque;
+    int offset = addr - s->base;
+
+    switch (offset) {
+    case 0x00:	/* RDR */
+        s->control &= ~(1 << 15);			/* RDRB */
+        return s->rxbuf;
+
+    case 0x04:	/* CSR */
+        return s->control;
+
+    case 0x08:	/* SR1 */
+        return s->setup[0];
+    case 0x0c:	/* SR2 */
+        return s->setup[1];
+    case 0x10:	/* SR3 */
+        return s->setup[2];
+    case 0x14:	/* SR4 */
+        return s->setup[3];
+    case 0x18:	/* SR5 */
+        return s->setup[4];
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_uwire_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_uwire_s *s = (struct omap_uwire_s *) opaque;
+    int offset = addr - s->base;
+
+    switch (offset) {
+    case 0x00:	/* TDR */
+        s->txbuf = value;				/* TD */
+        s->control |= 1 << 14;				/* CSRB */
+        if ((s->setup[4] & (1 << 2)) &&			/* AUTO_TX_EN */
+                        ((s->setup[4] & (1 << 3)) ||	/* CS_TOGGLE_TX_EN */
+                         (s->control & (1 << 12))))	/* CS_CMD */
+            omap_uwire_transfer_start(s);
+        break;
+
+    case 0x04:	/* CSR */
+        s->control = value & 0x1fff;
+        if (value & (1 << 13))				/* START */
+            omap_uwire_transfer_start(s);
+        break;
+
+    case 0x08:	/* SR1 */
+        s->setup[0] = value & 0x003f;
+        break;
+
+    case 0x0c:	/* SR2 */
+        s->setup[1] = value & 0x0fc0;
+        break;
+
+    case 0x10:	/* SR3 */
+        s->setup[2] = value & 0x0003;
+        break;
+
+    case 0x14:	/* SR4 */
+        s->setup[3] = value & 0x0001;
+        break;
+
+    case 0x18:	/* SR5 */
+        s->setup[4] = value & 0x000f;
+        break;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_uwire_readfn[] = {
+    omap_badwidth_read16,
+    omap_uwire_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_uwire_writefn[] = {
+    omap_badwidth_write16,
+    omap_uwire_write,
+    omap_badwidth_write16,
+};
+
+void omap_uwire_reset(struct omap_uwire_s *s)
+{
+    s->control= 0;
+    s->setup[0] = 0;
+    s->setup[1] = 0;
+    s->setup[2] = 0;
+    s->setup[3] = 0;
+    s->setup[4] = 0;
+}
+
+struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
+                qemu_irq *irq, qemu_irq dma, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_uwire_s *s = (struct omap_uwire_s *)
+            qemu_mallocz(sizeof(struct omap_uwire_s));
+
+    s->base = base;
+    s->txirq = irq[0];
+    s->rxirq = irq[1];
+    s->txdrq = dma;
+    omap_uwire_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_uwire_readfn,
+                    omap_uwire_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    return s;
+}
+
+void omap_uwire_attach(struct omap_uwire_s *s,
+                struct uwire_slave_s *slave, int chipselect)
+{
+    if (chipselect < 0 || chipselect > 3)
+        cpu_abort(cpu_single_env, "%s: Bad chipselect %i\n", __FUNCTION__,
+                        chipselect);
+
+    s->chip[chipselect] = slave;
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -3261,12 +3429,13 @@ static void omap_mpu_reset(void *opaque)
     omap_dpll_reset(&mpu->dpll[0]);
     omap_dpll_reset(&mpu->dpll[1]);
     omap_dpll_reset(&mpu->dpll[2]);
-    omap_uart_reset(mpu->uart1);
-    omap_uart_reset(mpu->uart2);
-    omap_uart_reset(mpu->uart3);
+    omap_uart_reset(mpu->uart[0]);
+    omap_uart_reset(mpu->uart[1]);
+    omap_uart_reset(mpu->uart[2]);
     omap_mmc_reset(mpu->mmc);
     omap_mpuio_reset(mpu->mpuio);
     omap_gpio_reset(mpu->gpio);
+    omap_uwire_reset(mpu->microwire);
     cpu_reset(mpu->env);
 }
 
@@ -3361,13 +3530,13 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
 
     omap_tcmi_init(0xfffecc00, s);
 
-    s->uart1 = omap_uart_init(0xfffb0000, s->irq[1][OMAP_INT_UART1],
+    s->uart[0] = omap_uart_init(0xfffb0000, s->irq[1][OMAP_INT_UART1],
                     omap_findclk(s, "uart1_ck"),
                     serial_hds[0]);
-    s->uart2 = omap_uart_init(0xfffb0800, s->irq[1][OMAP_INT_UART2],
+    s->uart[1] = omap_uart_init(0xfffb0800, s->irq[1][OMAP_INT_UART2],
                     omap_findclk(s, "uart2_ck"),
                     serial_hds[0] ? serial_hds[1] : 0);
-    s->uart3 = omap_uart_init(0xe1019800, s->irq[0][OMAP_INT_UART3],
+    s->uart[2] = omap_uart_init(0xe1019800, s->irq[0][OMAP_INT_UART3],
                     omap_findclk(s, "uart3_ck"),
                     serial_hds[0] && serial_hds[1] ? serial_hds[2] : 0);
 
@@ -3382,8 +3551,11 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     s->irq[1][OMAP_INT_KEYBOARD], s->irq[1][OMAP_INT_MPUIO],
                     s->wakeup, omap_findclk(s, "clk32-kHz"));
 
-    s->gpio = omap_gpio_init(0xfffcf000, s->irq[1][OMAP_INT_KEYBOARD],
+    s->gpio = omap_gpio_init(0xfffcf000, s->irq[0][OMAP_INT_GPIO_BANK1],
                     omap_findclk(s, "mpuper_ck"));
+
+    s->microwire = omap_uwire_init(0xfffb3000, &s->irq[1][OMAP_INT_uWireTX],
+                    s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
 
     qemu_register_reset(omap_mpu_reset, s);
 

@@ -464,6 +464,17 @@ struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
 qemu_irq *omap_gpio_in_get(struct omap_gpio_s *s);
 void omap_gpio_out_set(struct omap_gpio_s *s, int line, qemu_irq handler);
 
+struct uwire_slave_s {
+    uint16_t (*receive)(void *opaque);
+    void (*send)(void *opaque, uint16_t data);
+    void *opaque;
+};
+struct omap_uwire_s;
+struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
+                qemu_irq *irq, qemu_irq dma, omap_clk clk);
+void omap_uwire_attach(struct omap_uwire_s *s,
+                struct uwire_slave_s *slave, int chipselect);
+
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
@@ -510,15 +521,18 @@ struct omap_mpu_state_s {
     unsigned long sram_size;
 
     /* MPUI-TIPB peripherals */
-    struct omap_uart_s *uart3;
+    struct omap_uart_s *uart[3];
+
+    struct omap_gpio_s *gpio;
 
     /* MPU public TIPB peripherals */
     struct omap_32khz_timer_s *os_timer;
 
-    struct omap_uart_s *uart1;
-    struct omap_uart_s *uart2;
-
     struct omap_mmc_s *mmc;
+
+    struct omap_mpuio_s *mpuio;
+
+    struct omap_uwire_s *microwire;
 
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
@@ -578,9 +592,6 @@ struct omap_mpu_state_s {
         uint16_t dsp_idlect2;
         uint16_t dsp_rstct2;
     } clkm;
-
-    struct omap_mpuio_s *mpuio;
-    struct omap_gpio_s *gpio;
 } *omap310_mpu_init(unsigned long sdram_size,
                 DisplayState *ds, const char *core);
 

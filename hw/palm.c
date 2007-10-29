@@ -37,7 +37,8 @@ static uint32_t static_readw(void *opaque, target_phys_addr_t offset) {
 }
 
 static void static_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value) {
+                uint32_t value)
+{
 #ifdef SPY
     printf("%s: value %08lx written at " PA_FMT "\n",
                     __FUNCTION__, value, offset);
