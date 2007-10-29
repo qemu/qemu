@@ -472,9 +472,6 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBS:
         cause = 3;
-        goto set_EPC;
-    case EXCP_THREAD:
-        cause = 25;
         if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
             int R = env->CP0_BadVAddr >> 62;
@@ -488,6 +485,9 @@ void do_interrupt (CPUState *env)
 #endif
                 offset = 0x000;
         }
+        goto set_EPC;
+    case EXCP_THREAD:
+        cause = 25;
     set_EPC:
         if (!(env->CP0_Status & (1 << CP0St_EXL))) {
             if (env->hflags & MIPS_HFLAG_BMASK) {
