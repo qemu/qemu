@@ -76,20 +76,13 @@ static CPUWriteMemoryFunc *static_writefn[] = {
 #define PALMTE_MMC2_GPIO	7
 #define PALMTE_MMC3_GPIO	11
 
-static void palmte_pintdav(void *opaque, int line, int level)
-{
-    struct omap_mpu_state_s *cpu = (struct omap_mpu_state_s *) opaque;
-
-    qemu_set_irq(omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO],
-                    !level);
-}
-
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
+    qemu_irq p_int = omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO];
+
     omap_uwire_attach(
                     cpu->microwire,
-                    tsc2102_init(
-                            qemu_allocate_irqs(palmte_pintdav, cpu, 1)[0]),
+                    tsc2102_init(qemu_irq_invert(p_int)),
                     0);
 }
 
@@ -120,14 +113,6 @@ static void palmte_button_event(void *opaque, int keycode)
                         palmte_keymap[keycode & 0x7f].row,
                         palmte_keymap[keycode & 0x7f].column,
                         !(keycode & 0x80));
-}
-
-static void palmte_mmc_cover(void *opaque, int line, int level)
-{
-    struct omap_mpu_state_s *cpu = (struct omap_mpu_state_s *) opaque;
-
-    qemu_set_irq(omap_mpuio_in_get(cpu->mpuio)[PALMTE_MMC_SWITCH_GPIO],
-                    !level);
 }
 
 static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
@@ -174,7 +159,8 @@ static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
 
     omap_mmc_handlers(cpu->mmc,
                     omap_gpio_in_get(cpu->gpio)[PALMTE_MMC_WP_GPIO],
-                    qemu_allocate_irqs(palmte_mmc_cover, cpu, 1)[0]);
+                    qemu_irq_invert(omap_mpuio_in_get(cpu->mpuio)
+                            [PALMTE_MMC_SWITCH_GPIO]));
 
     /* Setup initial (reset) machine state */
     if (nb_option_roms) {
