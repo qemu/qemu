@@ -1971,7 +1971,7 @@ void op_mtc0_depc (void)
 
 void op_mtc0_performance0 (void)
 {
-    env->CP0_Performance0 = T0; /* XXX */
+    env->CP0_Performance0 = T0 & 0x000007ff;
     RETURN();
 }
 
