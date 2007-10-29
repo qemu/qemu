@@ -252,6 +252,7 @@ static CPUReadMemoryFunc *PPC_XCSR_read[] = {
 
 /* Fake super-io ports for PREP platform (Intel 82378ZB) */
 typedef struct sysctrl_t {
+    qemu_irq reset_irq;
     m48t59_t *nvram;
     uint8_t state;
     uint8_t syscontrol;
@@ -293,7 +294,9 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         /* Special port 92 */
         /* Check soft reset asked */
         if (val & 0x01) {
-            //            cpu_interrupt(first_cpu, PPC_INTERRUPT_RESET);
+            qemu_irq_raise(sysctrl->reset_irq);
+        } else {
+            qemu_irq_lower(sysctrl->reset_irq);
         }
         /* Check LE mode */
         if (val & 0x02) {
@@ -660,6 +663,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
     register_ioport_write(0x61, 1, 1, speaker_ioport_write, NULL);
     /* Register fake IO ports for PREP */
+    sysctrl->reset_irq = first_cpu->irq_inputs[PPC6xx_INPUT_HRESET];
     register_ioport_read(0x398, 2, 1, &PREP_io_read, sysctrl);
     register_ioport_write(0x398, 2, 1, &PREP_io_write, sysctrl);
     /* System control ports */
