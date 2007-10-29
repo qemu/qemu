@@ -23,7 +23,11 @@
 #include "exec.h"
 
 #define MMUSUFFIX _mmu
-#define GETPC() (__builtin_return_address(0))
+#ifdef __s390__
+# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
+#else
+# define GETPC() (__builtin_return_address(0))
+#endif
 
 #define SHIFT 0
 #include "softmmu_template.h"

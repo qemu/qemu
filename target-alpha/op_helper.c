@@ -1076,7 +1076,11 @@ void helper_mtpr (int iprn)
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)
 
-#define GETPC() (__builtin_return_address(0))
+#ifdef __s390__
+# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
+#else
+# define GETPC() (__builtin_return_address(0))
+#endif
 
 /* XXX: the two following helpers are pure hacks.
  *      Hopefully, we emulate the PALcode, then we should never see
