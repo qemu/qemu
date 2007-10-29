@@ -139,7 +139,6 @@ static struct {
 
 #if 0
 #define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
-#define PHY_BASE                              (KSEG1ADDR(0x1E000000))
 #endif
 
 #define OHIO_ADSLSS_BASE0       KERNEL_ADDR(0x01000000)
@@ -207,6 +206,7 @@ Physical memory map
 #define AVALANCHE_PHY_BASE              0x1e000000      /* ??? */
 #define AVALANCHE_PHY1_BASE             0x1e100000      /* ??? */
 #define AVALANCHE_PHY2_BASE             0x1e200000      /* ??? */
+#define AVALANCHE_DISPLAY_BASE          0x1f000000      /* ??? */
 
 typedef struct {
     uint32_t next;
@@ -478,6 +478,41 @@ static void reg_set(uint8_t * reg, uint32_t addr, uint32_t value)
 {
     assert(!(addr & 3));
     *(uint32_t *) (&reg[addr]) |= cpu_to_le32(value);
+}
+
+/*****************************************************************************
+ *
+ * Malta display emulation.
+ * AR7 based routers don't include an ASCII display, but AVM code
+ * thinks there is a Malta like display. So we emulate it here.
+ *
+ ****************************************************************************/
+
+typedef struct {
+    uint32_t leds;
+    CharDriverState *display;
+    char display_text[9];
+} MaltaFPGAState;
+
+static MaltaFPGAState malta_display;
+
+/* Malta FPGA */
+static void malta_fpga_update_display(void *opaque)
+{
+    char leds_text[9];
+    int i;
+    MaltaFPGAState *s = opaque;
+
+    for (i = 7 ; i >= 0 ; i--) {
+        if (s->leds & (1 << i))
+            leds_text[i] = '#';
+        else
+            leds_text[i] = ' ';
+    }
+    leds_text[8] = '\0';
+
+    qemu_chr_printf(s->display, "\e[3;2H\e[0;32m%-8.8s", leds_text);
+    qemu_chr_printf(s->display, "\e[8;2H\e[0;31m%-8.8s\r\n\n\e[0;37m", s->display_text);
 }
 
 /*****************************************************************************
@@ -2995,6 +3030,33 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         logflag = 0;
         ar7_cpmac_write(1, addr - AVALANCHE_CPMAC1_BASE, val);
+    } else if (addr >= AVALANCHE_DISPLAY_BASE + 0x408 && addr < AVALANCHE_DISPLAY_BASE + 0x453) {
+        uint32_t display_address = addr - AVALANCHE_DISPLAY_BASE;
+        switch (display_address) {
+          /* LEDBAR Register */
+          case 0x00408:
+              malta_display.leds = val & 0xff;
+              break;
+          /* ASCIIWORD Register */
+          case 0x00410:
+              snprintf(malta_display.display_text, 9, "%08X", val);
+              malta_fpga_update_display(&malta_display);
+              break;
+          /* ASCIIPOS0 to ASCIIPOS7 Registers */
+          case 0x00418:
+          case 0x00420:
+          case 0x00428:
+          case 0x00430:
+          case 0x00438:
+          case 0x00440:
+          case 0x00448:
+          case 0x00450:
+              malta_display.display_text[(display_address - 0x00418) >> 3] = (char) val;
+              malta_fpga_update_display(&malta_display);
+              break;
+          default:
+              MISSING();
+        }
     } else {
         //~ name = "???";
         logflag = 0;
@@ -3342,6 +3404,17 @@ static void ar7_display_init(CPUState *env, const char *devname)
                         "\e[12;1HPress 'r' to toggle the reset button");
         ar7_gpio_display();
     }
+
+    malta_display.display = qemu_chr_open("vc:320x200");
+    qemu_chr_printf(malta_display.display, "\e[HMalta LEDBAR\r\n");
+    qemu_chr_printf(malta_display.display, "+--------+\r\n");
+    qemu_chr_printf(malta_display.display, "+        +\r\n");
+    qemu_chr_printf(malta_display.display, "+--------+\r\n");
+    qemu_chr_printf(malta_display.display, "\n");
+    qemu_chr_printf(malta_display.display, "Malta ASCII\r\n");
+    qemu_chr_printf(malta_display.display, "+--------+\r\n");
+    qemu_chr_printf(malta_display.display, "+        +\r\n");
+    qemu_chr_printf(malta_display.display, "+--------+\r\n");
 }
 
 static int ar7_load(QEMUFile * f, void *opaque, int version_id)
