@@ -522,7 +522,7 @@ static always_inline int isinfinity (float64 f)
 
     u.f = f;
 
-    return ((u.u >> 52) & 0x3FF) == 0x3FF &&
+    return ((u.u >> 52) & 0x7FF) == 0x7FF &&
         (u.u & 0x000FFFFFFFFFFFFFULL) == 0;
 }
 
@@ -681,7 +681,7 @@ static always_inline void float_zero_divide_excp (void)
         u0.f = FT0;
         u1.f = FT1;
         u0.u = ((u0.u ^ u1.u) & 0x8000000000000000ULL);
-        u0.u |= 0x3FFULL << 52;
+        u0.u |= 0x7FFULL << 52;
         FT0 = u0.f;
     }
 }
