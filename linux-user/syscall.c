@@ -978,6 +978,8 @@ static abi_long do_socket(int domain, int type, int protocol)
         break;
     }
 #endif
+    if (domain == PF_NETLINK)
+        return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
     return get_errno(socket(domain, type, protocol));
 }
 
