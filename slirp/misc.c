@@ -601,6 +601,8 @@ relay(s)
 #endif
 
 #ifdef CONFIG_QEMU
+extern void term_vprintf(const char *fmt, va_list ap);
+
 void lprint(const char *format, ...)
 {
     va_list args;
