@@ -225,8 +225,56 @@ static int put_packet(GDBState *s, char *buf)
 
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
-    uint32_t *registers = (uint32_t *)mem_buf;
     int i, fpus;
+    uint32_t *registers = (uint32_t *)mem_buf;
+
+#ifdef TARGET_X86_64
+    /* This corresponds with amd64_register_info[] in gdb/amd64-tdep.c */
+    uint64_t *registers64 = (uint64_t *)mem_buf;
+
+    if (env->hflags & HF_CS64_MASK) {
+        registers64[0] = tswap64(env->regs[R_EAX]);
+        registers64[1] = tswap64(env->regs[R_EBX]);
+        registers64[2] = tswap64(env->regs[R_ECX]);
+        registers64[3] = tswap64(env->regs[R_EDX]);
+        registers64[4] = tswap64(env->regs[R_ESI]);
+        registers64[5] = tswap64(env->regs[R_EDI]);
+        registers64[6] = tswap64(env->regs[R_EBP]);
+        registers64[7] = tswap64(env->regs[R_ESP]);
+        for(i = 8; i < 16; i++) {
+            registers64[i] = tswap64(env->regs[i]);
+        }
+        registers64[16] = tswap64(env->eip);
+
+        registers = (uint32_t *)&registers64[17];
+        registers[0] = tswap32(env->eflags);
+        registers[1] = tswap32(env->segs[R_CS].selector);
+        registers[2] = tswap32(env->segs[R_SS].selector);
+        registers[3] = tswap32(env->segs[R_DS].selector);
+        registers[4] = tswap32(env->segs[R_ES].selector);
+        registers[5] = tswap32(env->segs[R_FS].selector);
+        registers[6] = tswap32(env->segs[R_GS].selector);
+        /* XXX: convert floats */
+        for(i = 0; i < 8; i++) {
+            memcpy(mem_buf + 16 * 8 + 7 * 4 + i * 10, &env->fpregs[i], 10);
+        }
+        registers[27] = tswap32(env->fpuc); /* fctrl */
+        fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+        registers[28] = tswap32(fpus); /* fstat */
+        registers[29] = 0; /* ftag */
+        registers[30] = 0; /* fiseg */
+        registers[31] = 0; /* fioff */
+        registers[32] = 0; /* foseg */
+        registers[33] = 0; /* fooff */
+        registers[34] = 0; /* fop */
+        for(i = 0; i < 16; i++) {
+            memcpy(mem_buf + 16 * 8 + 35 * 4 + i * 16, &env->xmm_regs[i], 16);
+        }
+        registers[99] = tswap32(env->mxcsr);
+
+        return 8 * 17 + 4 * 7 + 10 * 8 + 4 * 8 + 16 * 16 + 4;
+    }
+#endif
 
     for(i = 0; i < 8; i++) {
         registers[i] = env->regs[i];
