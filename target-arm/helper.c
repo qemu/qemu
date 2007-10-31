@@ -704,6 +704,7 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
         break;
     case 3: /* MMU Domain access control / MPU write buffer control.  */
         env->cp15.c3 = val;
+        tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
         break;
     case 4: /* Reserved.  */
         goto bad_reg;
@@ -814,8 +815,6 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 13: /* Process ID.  */
         switch (op2) {
         case 0:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
             /* Unlike real hardware the qemu TLB uses virtual addresses,
                not modified virtual addresses, so this causes a TLB flush.
              */
