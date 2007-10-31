@@ -152,8 +152,25 @@ static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd)
     rtc_set_memory(s, info_ofs + 8, sectors);
 }
 
+/* convert boot_device letter to something recognizable by the bios */
+static int boot_device2nibble(char boot_device)
+{
+    switch(boot_device) {
+    case 'a':
+    case 'b':
+        return 0x01; /* floppy boot */
+    case 'c':
+        return 0x02; /* hard drive boot */
+    case 'd':
+        return 0x03; /* CD-ROM boot */
+    case 'n':
+        return 0x04; /* Network boot */
+    }
+    return 0;
+}
+
 /* hd_table must contain 4 block drivers */
-static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table)
+static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **hd_table)
 {
     RTCState *s = rtc_state;
     int val;
@@ -184,24 +201,12 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
 
-    switch(boot_device) {
-    case 'a':
-    case 'b':
-        rtc_set_memory(s, 0x3d, 0x01); /* floppy boot */
-        if (!fd_bootchk)
-            rtc_set_memory(s, 0x38, 0x01); /* disable signature check */
-        break;
-    default:
-    case 'c':
-        rtc_set_memory(s, 0x3d, 0x02); /* hard drive boot */
-        break;
-    case 'd':
-        rtc_set_memory(s, 0x3d, 0x03); /* CD-ROM boot */
-        break;
-    case 'n':
-        rtc_set_memory(s, 0x3d, 0x04); /* Network boot */
-        break;
-    }
+    /* set boot devices, and disable floppy signature check if requested */
+    rtc_set_memory(s, 0x3d,
+            boot_device2nibble(boot_device[1]) << 4 |
+            boot_device2nibble(boot_device[0]) );
+    rtc_set_memory(s, 0x38,
+            boot_device2nibble(boot_device[2]) << 4 | (fd_bootchk ?  0x0 : 0x1));
 
     /* floppy type */
 
@@ -663,7 +668,7 @@ static void pc_init_ne2k_isa(NICInfo *nd, qemu_irq *pic)
 }
 
 /* PC hardware initialisation */
-static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
+static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename,
@@ -940,7 +945,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 #endif
 }
 
-static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,
+static void pc_init_pci(int ram_size, int vga_ram_size, const char *boot_device,
                         DisplayState *ds, const char **fd_filename,
                         int snapshot,
                         const char *kernel_filename,
@@ -954,7 +959,7 @@ static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,
              initrd_filename, 1);
 }
 
-static void pc_init_isa(int ram_size, int vga_ram_size, int boot_device,
+static void pc_init_isa(int ram_size, int vga_ram_size, const char *boot_device,
                         DisplayState *ds, const char **fd_filename,
                         int snapshot,
                         const char *kernel_filename,

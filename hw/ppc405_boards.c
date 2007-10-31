@@ -171,9 +171,9 @@ static void ref405ep_fpga_init (uint32_t base)
     }
 }
 
-static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
-                           DisplayState *ds, const char **fd_filename,
-                           int snapshot,
+static void ref405ep_init (int ram_size, int vga_ram_size,
+                           const char *boot_device, DisplayState *ds,
+                           const char **fd_filename, int snapshot,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
                            const char *initrd_filename,
@@ -191,6 +191,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors, len;
+    int ppc_boot_device = boot_device[0];
 
     /* XXX: fix this */
     ram_bases[0] = 0x00000000;
@@ -322,7 +323,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size, int boot_device,
         }
         env->gpr[4] = initrd_base;
         env->gpr[5] = initrd_size;
-        boot_device = 'm';
+        ppc_boot_device = 'm';
         if (kernel_cmdline != NULL) {
             len = strlen(kernel_cmdline);
             bdloc -= ((len + 255) & ~255);
@@ -496,9 +497,9 @@ static void taihu_cpld_init (uint32_t base)
     }
 }
 
-static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
-                             DisplayState *ds, const char **fd_filename,
-                             int snapshot,
+static void taihu_405ep_init(int ram_size, int vga_ram_size,
+                             const char *boot_device, DisplayState *ds,
+                             const char **fd_filename, int snapshot,
                              const char *kernel_filename,
                              const char *kernel_cmdline,
                              const char *initrd_filename,
@@ -513,6 +514,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors;
+    int ppc_boot_device = boot_device[0];
 
     /* RAM is soldered to the board so the size cannot be changed */
     ram_bases[0] = 0x00000000;
@@ -615,7 +617,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size, int boot_device,
             initrd_base = 0;
             initrd_size = 0;
         }
-        boot_device = 'm';
+        ppc_boot_device = 'm';
     } else {
         kernel_base = 0;
         kernel_size = 0;

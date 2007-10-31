@@ -331,7 +331,7 @@ static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 static fdctrl_t *floppy_controller;
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
+static void sun4u_init(int ram_size, int vga_ram_size, const char *boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
              const char *kernel_filename, const char *kernel_cmdline,
              const char *initrd_filename, const char *cpu_model)
@@ -456,7 +456,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
     floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd_table);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
-    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", ram_size, boot_device,
+    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", ram_size, boot_device[0],
                          KERNEL_LOAD_ADDR, kernel_size,
                          kernel_cmdline,
                          INITRD_LOAD_ADDR, initrd_size,

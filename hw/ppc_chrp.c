@@ -48,9 +48,9 @@ static CPUReadMemoryFunc *unin_read[] = {
 };
 
 /* PowerPC Mac99 hardware initialisation */
-static void ppc_core99_init (int ram_size, int vga_ram_size, int boot_device,
-                             DisplayState *ds, const char **fd_filename,
-                             int snapshot,
+static void ppc_core99_init (int ram_size, int vga_ram_size,
+                             const char *boot_device, DisplayState *ds,
+                             const char **fd_filename, int snapshot,
                              const char *kernel_filename,
                              const char *kernel_cmdline,
                              const char *initrd_filename,
@@ -75,6 +75,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size, int boot_device,
     qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index;
     int ide_mem_index[2];
+    int ppc_boot_device = boot_device[0];
 
     linux_boot = (kernel_filename != NULL);
 
@@ -171,7 +172,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_base = 0;
             initrd_size = 0;
         }
-        boot_device = 'm';
+        ppc_boot_device = 'm';
     } else {
         kernel_base = 0;
         kernel_size = 0;
@@ -285,8 +286,8 @@ static void ppc_core99_init (int ram_size, int vga_ram_size, int boot_device,
     nvram.read_fn = &m48t59_read;
     nvram.write_fn = &m48t59_write;
 #endif
-    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "MAC99", ram_size, boot_device,
-                         kernel_base, kernel_size,
+    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "MAC99", ram_size,
+                         ppc_boot_device, kernel_base, kernel_size,
                          kernel_cmdline,
                          initrd_base, initrd_size,
                          /* XXX: need an option to load a NVRAM image */

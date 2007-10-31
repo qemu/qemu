@@ -92,9 +92,9 @@ static int vga_osi_call (CPUState *env)
     return 1; /* osi_call handled */
 }
 
-static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
-                               DisplayState *ds, const char **fd_filename,
-                               int snapshot,
+static void ppc_heathrow_init (int ram_size, int vga_ram_size,
+                               const char *boot_device, DisplayState *ds,
+                               const char **fd_filename, int snapshot,
                                const char *kernel_filename,
                                const char *kernel_cmdline,
                                const char *initrd_filename,
@@ -114,6 +114,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
+    int ppc_boot_device = boot_device[0];
 
     linux_boot = (kernel_filename != NULL);
 
@@ -208,7 +209,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_base = 0;
             initrd_size = 0;
         }
-        boot_device = 'm';
+        ppc_boot_device = 'm';
     } else {
         kernel_base = 0;
         kernel_size = 0;
@@ -289,8 +290,8 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size, int boot_device,
     nvram.opaque = m48t59;
     nvram.read_fn = &m48t59_read;
     nvram.write_fn = &m48t59_write;
-    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "HEATHROW", ram_size, boot_device,
-                         kernel_base, kernel_size,
+    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "HEATHROW", ram_size,
+                         ppc_boot_device, kernel_base, kernel_size,
                          kernel_cmdline,
                          initrd_base, initrd_size,
                          /* XXX: need an option to load a NVRAM image */

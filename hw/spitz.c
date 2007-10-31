@@ -1228,8 +1228,9 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
     sl_bootparam_write(SL_PXA_PARAM_BASE - PXA2XX_SDRAM_BASE);
 }
 
-static void spitz_init(int ram_size, int vga_ram_size, int boot_device,
-                DisplayState *ds, const char **fd_filename, int snapshot,
+static void spitz_init(int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -1237,8 +1238,9 @@ static void spitz_init(int ram_size, int vga_ram_size, int boot_device,
                 kernel_cmdline, initrd_filename, cpu_model, spitz, 0x2c9);
 }
 
-static void borzoi_init(int ram_size, int vga_ram_size, int boot_device,
-                DisplayState *ds, const char **fd_filename, int snapshot,
+static void borzoi_init(int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -1246,8 +1248,9 @@ static void borzoi_init(int ram_size, int vga_ram_size, int boot_device,
                 kernel_cmdline, initrd_filename, cpu_model, borzoi, 0x33f);
 }
 
-static void akita_init(int ram_size, int vga_ram_size, int boot_device,
-                DisplayState *ds, const char **fd_filename, int snapshot,
+static void akita_init(int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -1255,8 +1258,9 @@ static void akita_init(int ram_size, int vga_ram_size, int boot_device,
                 kernel_cmdline, initrd_filename, cpu_model, akita, 0x2e8);
 }
 
-static void terrier_init(int ram_size, int vga_ram_size, int boot_device,
-                DisplayState *ds, const char **fd_filename, int snapshot,
+static void terrier_init(int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {

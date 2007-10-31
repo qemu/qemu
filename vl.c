@@ -162,7 +162,12 @@ static DisplayState display_state;
 int nographic;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
-int boot_device = 'c';
+#if defined(TARGET_I386)
+#define MAX_BOOT_DEVICES 3
+#else
+#define MAX_BOOT_DEVICES 1
+#endif
+static char boot_device[MAX_BOOT_DEVICES + 1];
 int ram_size;
 int pit_min_timer_count = 0;
 int nb_nics;
@@ -7810,14 +7815,19 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_boot:
-                boot_device = optarg[0];
-                if (boot_device != 'a' &&
+                if (strlen(optarg) > MAX_BOOT_DEVICES) {
+                    fprintf(stderr, "qemu: too many boot devices\n");
+                    exit(1);
+                }
+                strncpy(boot_device, optarg, MAX_BOOT_DEVICES);
 #if defined(TARGET_SPARC) || defined(TARGET_I386)
-		    // Network boot
-		    boot_device != 'n' &&
+#define BOOTCHARS "acdn"
+#else
+#define BOOTCHARS "acd"
 #endif
-                    boot_device != 'c' && boot_device != 'd') {
-                    fprintf(stderr, "qemu: invalid boot device '%c'\n", boot_device);
+                if (strlen(boot_device) != strspn(boot_device, BOOTCHARS)) {
+                    fprintf(stderr, "qemu: invalid boot device "
+                                    "sequence '%s'\n", boot_device);
                     exit(1);
                 }
                 break;
@@ -8168,20 +8178,22 @@ int main(int argc, char **argv)
     linux_boot = (kernel_filename != NULL);
 
     if (!linux_boot &&
-        boot_device != 'n' &&
+        (!strchr(boot_device, 'n')) &&
         hd_filename[0] == '\0' &&
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
         help(1);
 
     /* boot to floppy or the default cd if no hard disk defined yet */
-    if (hd_filename[0] == '\0' && boot_device == 'c') {
-        if (fd_filename[0] != '\0')
-            boot_device = 'a';
+    if (!boot_device[0]) {
+        if (hd_filename[0] != '\0')
+            boot_device[0] = 'c';
+        else if (fd_filename[0] != '\0')
+            boot_device[0] = 'a';
         else
-            boot_device = 'd';
+            boot_device[0] = 'd';
+        boot_device[1] = 0;
     }
-
     setvbuf(stdout, NULL, _IOLBF, 0);
 
     init_timers();
@@ -8220,7 +8232,7 @@ int main(int argc, char **argv)
     }
 
 #ifdef TARGET_I386
-    if (boot_device == 'n') {
+    if (strchr(boot_device, 'n')) {
 	for (i = 0; i < nb_nics; i++) {
 	    const char *model = nd_table[i].model;
 	    char buf[1024];
