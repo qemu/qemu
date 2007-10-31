@@ -159,11 +159,13 @@ void OPPROTO glue(op_store_T0_crf_crf, REG) (void)
     RETURN();
 }
 
+#if 0 // Unused
 void OPPROTO glue(op_store_T1_crf_crf, REG) (void)
 {
     env->crf[REG] = T1;
     RETURN();
 }
+#endif
 
 #endif /* REG <= 7 */
 

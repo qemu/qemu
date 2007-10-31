@@ -651,25 +651,6 @@ void OPPROTO op_store_fpscr (void)
     RETURN();
 }
 
-/* crf operations */
-void OPPROTO op_getbit_T0 (void)
-{
-    T0 = (T0 >> PARAM1) & 1;
-    RETURN();
-}
-
-void OPPROTO op_getbit_T1 (void)
-{
-    T1 = (T1 >> PARAM1) & 1;
-    RETURN();
-}
-
-void OPPROTO op_setcrfbit (void)
-{
-    T1 = (T1 & (uint32_t)PARAM1) | (T0 << PARAM2);
-    RETURN();
-}
-
 /* Branch */
 #define EIP env->nip
 
@@ -1734,6 +1715,12 @@ void OPPROTO op_sl_T0_T1 (void)
 void OPPROTO op_sli_T0 (void)
 {
     T0 = T0 << PARAM1;
+    RETURN();
+}
+
+void OPPROTO op_sli_T1 (void)
+{
+    T1 = T1 << PARAM1;
     RETURN();
 }
 

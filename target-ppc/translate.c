@@ -120,7 +120,9 @@ static always_inline void func (int n)                                        \
 GEN8(gen_op_load_crf_T0, gen_op_load_crf_T0_crf);
 GEN8(gen_op_load_crf_T1, gen_op_load_crf_T1_crf);
 GEN8(gen_op_store_T0_crf, gen_op_store_T0_crf_crf);
+#if 0 // Unused
 GEN8(gen_op_store_T1_crf, gen_op_store_T1_crf_crf);
+#endif
 
 /* General purpose registers moves */
 GEN32(gen_op_load_gpr_T0, gen_op_load_gpr_T0_gpr);
@@ -3318,15 +3320,27 @@ GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW)
 #define GEN_CRLOGIC(op, opc)                                                  \
 GEN_HANDLER(cr##op, 0x13, 0x01, opc, 0x00000001, PPC_INTEGER)                 \
 {                                                                             \
+    uint8_t bitmask;                                                          \
+    int sh;                                                                   \
     gen_op_load_crf_T0(crbA(ctx->opcode) >> 2);                               \
-    gen_op_getbit_T0(3 - (crbA(ctx->opcode) & 0x03));                         \
+    sh = (crbD(ctx->opcode) & 0x03) - (crbA(ctx->opcode) & 0x03);             \
+    if (sh > 0)                                                               \
+        gen_op_srli_T0(sh);                                                   \
+    else if (sh < 0)                                                          \
+        gen_op_sli_T0(-sh);                                                   \
     gen_op_load_crf_T1(crbB(ctx->opcode) >> 2);                               \
-    gen_op_getbit_T1(3 - (crbB(ctx->opcode) & 0x03));                         \
+    sh = (crbD(ctx->opcode) & 0x03) - (crbB(ctx->opcode) & 0x03);             \
+    if (sh > 0)                                                               \
+        gen_op_srli_T1(sh);                                                   \
+    else if (sh < 0)                                                          \
+        gen_op_sli_T1(-sh);                                                   \
     gen_op_##op();                                                            \
+    bitmask = 1 << (3 - (crbD(ctx->opcode) & 0x03));                          \
+    gen_op_andi_T0(bitmask);                                                  \
     gen_op_load_crf_T1(crbD(ctx->opcode) >> 2);                               \
-    gen_op_setcrfbit(~(1 << (3 - (crbD(ctx->opcode) & 0x03))),                \
-                     3 - (crbD(ctx->opcode) & 0x03));                         \
-    gen_op_store_T1_crf(crbD(ctx->opcode) >> 2);                              \
+    gen_op_andi_T1(~bitmask);                                                 \
+    gen_op_or();                                                              \
+    gen_op_store_T0_crf(crbD(ctx->opcode) >> 2);                              \
 }
 
 /* crand */
