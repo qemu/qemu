@@ -1806,7 +1806,10 @@ static int protocol_client_auth(VncState *vs, char *data, size_t len)
        switch (vs->auth) {
        case VNC_AUTH_NONE:
            VNC_DEBUG("Accept auth none\n");
-           vnc_write_u32(vs, 0); /* Accept auth completion */
+           if (vs->minor >= 8) {
+               vnc_write_u32(vs, 0); /* Accept auth completion */
+               vnc_flush(vs);
+           }
            vnc_read_when(vs, protocol_client_init, 1);
            break;
 
