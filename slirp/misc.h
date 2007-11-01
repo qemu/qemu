@@ -63,7 +63,9 @@ struct emu_t {
 	struct emu_t *next;
 };
 
+#ifndef CONFIG_QEMU
 extern struct emu_t *tcpemu;
+#endif
 
 extern int x_port, x_server, x_display;
 

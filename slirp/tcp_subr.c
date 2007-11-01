@@ -559,7 +559,10 @@ static const struct tos_t tcptos[] = {
 	  {0, 0, 0, 0}
 };
 
-static struct emu_t *tcpemu = 0;
+#ifdef CONFIG_QEMU
+static
+#endif
+struct emu_t *tcpemu = 0;
 
 /*
  * Return TOS according to the above table
