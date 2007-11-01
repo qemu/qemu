@@ -1,5 +1,5 @@
 /*
- * QEMU PowerPC CHRP (currently NewWorld PowerMac) hardware System Emulator
+ * QEMU OldWorld PowerMac (currently ~G3 B&W) hardware System Emulator
  *
  * Copyright (c) 2004-2007 Fabrice Bellard
  * Copyright (c) 2007 Jocelyn Mayer
@@ -25,56 +25,95 @@
 #include "vl.h"
 #include "ppc_mac.h"
 
-/* UniN device */
-static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+/* temporary frame buffer OSI calls for the video.x driver. The right
+   solution is to modify the driver to use VGA PCI I/Os */
+/* XXX: to be removed. This is no way related to emulation */
+static int vga_osi_call (CPUState *env)
 {
+    static int vga_vbl_enabled;
+    int linesize;
+
+    //    printf("osi_call R5=%d\n", env->gpr[5]);
+
+    /* same handler as PearPC, coming from the original MOL video
+       driver. */
+    switch(env->gpr[5]) {
+    case 4:
+        break;
+    case 28: /* set_vmode */
+        if (env->gpr[6] != 1 || env->gpr[7] != 0)
+            env->gpr[3] = 1;
+        else
+            env->gpr[3] = 0;
+        break;
+    case 29: /* get_vmode_info */
+        if (env->gpr[6] != 0) {
+            if (env->gpr[6] != 1 || env->gpr[7] != 0) {
+                env->gpr[3] = 1;
+                break;
+            }
+        }
+        env->gpr[3] = 0;
+        env->gpr[4] = (1 << 16) | 1; /* num_vmodes, cur_vmode */
+        env->gpr[5] = (1 << 16) | 0; /* num_depths, cur_depth_mode */
+        env->gpr[6] = (graphic_width << 16) | graphic_height; /* w, h */
+        env->gpr[7] = 85 << 16; /* refresh rate */
+        env->gpr[8] = (graphic_depth + 7) & ~7; /* depth (round to byte) */
+        linesize = ((graphic_depth + 7) >> 3) * graphic_width;
+        linesize = (linesize + 3) & ~3;
+        env->gpr[9] = (linesize << 16) | 0; /* row_bytes, offset */
+        break;
+    case 31: /* set_video power */
+        env->gpr[3] = 0;
+        break;
+    case 39: /* video_ctrl */
+        if (env->gpr[6] == 0 || env->gpr[6] == 1)
+            vga_vbl_enabled = env->gpr[6];
+        env->gpr[3] = 0;
+        break;
+    case 47:
+        break;
+    case 59: /* set_color */
+        /* R6 = index, R7 = RGB */
+        env->gpr[3] = 0;
+        break;
+    case 64: /* get color */
+        /* R6 = index */
+        env->gpr[3] = 0;
+        break;
+    case 116: /* set hwcursor */
+        /* R6 = x, R7 = y, R8 = visible, R9 = data */
+        break;
+    default:
+        fprintf(stderr, "unsupported OSI call R5=" REGX "\n", env->gpr[5]);
+        break;
+    }
+
+    return 1; /* osi_call handled */
 }
 
-static uint32_t unin_readl (void *opaque, target_phys_addr_t addr)
-{
-    return 0;
-}
-
-static CPUWriteMemoryFunc *unin_write[] = {
-    &unin_writel,
-    &unin_writel,
-    &unin_writel,
-};
-
-static CPUReadMemoryFunc *unin_read[] = {
-    &unin_readl,
-    &unin_readl,
-    &unin_readl,
-};
-
-/* PowerPC Mac99 hardware initialisation */
-static void ppc_core99_init (int ram_size, int vga_ram_size,
-                             const char *boot_device, DisplayState *ds,
-                             const char **fd_filename, int snapshot,
-                             const char *kernel_filename,
-                             const char *kernel_cmdline,
-                             const char *initrd_filename,
-                             const char *cpu_model)
+static void ppc_heathrow_init (int ram_size, int vga_ram_size,
+                               const char *boot_device, DisplayState *ds,
+                               const char **fd_filename, int snapshot,
+                               const char *kernel_filename,
+                               const char *kernel_cmdline,
+                               const char *initrd_filename,
+                               const char *cpu_model)
 {
     CPUState *env, *envs[MAX_CPUS];
     char buf[1024];
-    qemu_irq *pic, **openpic_irqs;
-    int unin_memory;
+    qemu_irq *pic, **heathrow_irqs;
+    nvram_t nvram;
+    m48t59_t *m48t59;
     int linux_boot, i;
     unsigned long bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     ppc_def_t *def;
     PCIBus *pci_bus;
-    nvram_t nvram;
-#if 0
     MacIONVRAMState *nvr;
-    int nvram_mem_index;
-#endif
-    m48t59_t *m48t59;
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
-    int pic_mem_index, dbdma_mem_index, cuda_mem_index;
-    int ide_mem_index[2];
+    int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
     int ppc_boot_device = boot_device[0];
 
     linux_boot = (kernel_filename != NULL);
@@ -92,9 +131,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
         cpu_ppc_reset(env);
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
-#if 0
         env->osi_call = vga_osi_call;
-#endif
         qemu_register_reset(&cpu_ppc_reset, env);
         register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;
@@ -104,7 +141,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
          * the boot vector is at 0xFFF00100, then we need a 1MB BIOS.
          * But the NVRAM is located at 0xFFF04000...
          */
-        cpu_abort(env, "Mac99 hardware can not handle 1 MB BIOS\n");
+        cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
     }
 
     /* allocate RAM */
@@ -123,7 +160,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     bios_size = (bios_size + 0xfff) & ~0xfff;
     if (bios_size > 0x00080000) {
         /* As the NVRAM is located at 0xFFF04000, we cannot use 1 MB BIOSes */
-        cpu_abort(env, "Mac99 hardware can not handle 1 MB BIOS\n");
+        cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
     }
     cpu_register_physical_memory((uint32_t)(-bios_size),
                                  bios_size, bios_offset | IO_MEM_ROM);
@@ -181,60 +218,35 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     }
 
     isa_mem_base = 0x80000000;
+    
+    /* Register 2 MB of ISA IO space */
+    isa_mmio_init(0xfe000000, 0x00200000);
 
-    /* Register 8 MB of ISA IO space */
-    isa_mmio_init(0xf2000000, 0x00800000);
-
-    /* UniN init */
-    unin_memory = cpu_register_io_memory(0, unin_read, unin_write, NULL);
-    cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
-
-    openpic_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
-    openpic_irqs[0] =
-        qemu_mallocz(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+    /* XXX: we register only 1 output pin for heathrow PIC */
+    heathrow_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
+    heathrow_irqs[0] =
+        qemu_mallocz(smp_cpus * sizeof(qemu_irq) * 1);
+    /* Connect the heathrow PIC outputs to the 6xx bus */
     for (i = 0; i < smp_cpus; i++) {
-        /* Mac99 IRQ connection between OpenPIC outputs pins
-         * and PowerPC input pins
-         */
         switch (PPC_INPUT(env)) {
         case PPC_FLAGS_INPUT_6xx:
-            openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
-            openpic_irqs[i][OPENPIC_OUTPUT_INT] =
+            heathrow_irqs[i] = heathrow_irqs[0] + (i * 1);
+            heathrow_irqs[i][0] =
                 ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
-            openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
-            openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_MCP];
-            /* Not connected ? */
-            openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL;
-            /* Check this */
-            openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_HRESET];
             break;
-#if defined(TARGET_PPC64)
-        case PPC_FLAGS_INPUT_970:
-            openpic_irqs[i] = openpic_irqs[0] + (i * OPENPIC_OUTPUT_NB);
-            openpic_irqs[i][OPENPIC_OUTPUT_INT] =
-                ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_INT];
-            openpic_irqs[i][OPENPIC_OUTPUT_CINT] =
-                ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_INT];
-            openpic_irqs[i][OPENPIC_OUTPUT_MCK] =
-                ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_MCP];
-            /* Not connected ? */
-            openpic_irqs[i][OPENPIC_OUTPUT_DEBUG] = NULL;
-            /* Check this */
-            openpic_irqs[i][OPENPIC_OUTPUT_RESET] =
-                ((qemu_irq *)env->irq_inputs)[PPC970_INPUT_HRESET];
-            break;
-#endif /* defined(TARGET_PPC64) */
         default:
-            cpu_abort(env, "Bus model not supported on mac99 machine\n");
+            cpu_abort(env, "Bus model not supported on OldWorld Mac machine\n");
             exit(1);
         }
     }
-    pic = openpic_init(NULL, &pic_mem_index, smp_cpus, openpic_irqs, NULL);
-    pci_bus = pci_pmac_init(pic);
+
     /* init basic PC hardware */
+    if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
+        cpu_abort(env, "Only 6xx bus is supported on heathrow machine\n");
+        exit(1);
+    }
+    pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
+    pci_bus = pci_grackle_init(0xfec00000, pic);
     pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
                  ram_size, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
@@ -244,27 +256,28 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
 
     /* XXX: use Mac Serial port */
     serial_init(0x3f8, dummy_irq[4], serial_hds[0]);
+    
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
             nd_table[i].model = "ne2k_pci";
         pci_nic_init(pci_bus, &nd_table[i], -1);
     }
-#if 1
-    ide_mem_index[0] = pmac_ide_init(&bs_table[0], pic[0x13]);
-    ide_mem_index[1] = pmac_ide_init(&bs_table[2], pic[0x14]);
-#else
-    pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
-#endif
-    /* cuda also initialize ADB */
-    cuda_init(&cuda_mem_index, pic[0x19]);
     
+    pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
+
+    /* cuda also initialize ADB */
+    cuda_init(&cuda_mem_index, pic[0x12]);
+
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
+    
+    nvr = macio_nvram_init(&nvram_mem_index);
+    pmac_format_nvram_partition(nvr, 0x2000);
 
     dbdma_init(&dbdma_mem_index);
-
-    macio_init(pci_bus, 0x0022, 0, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, -1, 2, ide_mem_index);
+    
+    macio_init(pci_bus, 0x0017, 1, pic_mem_index, dbdma_mem_index,
+               cuda_mem_index, nvram_mem_index, 0, NULL);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
@@ -272,21 +285,12 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
         graphic_depth = 15;
-#if 0 /* XXX: this is ugly but needed for now, or OHW won't boot */
-    /* The NewWorld NVRAM is not located in the MacIO device */
-    nvr = macio_nvram_init(&nvram_mem_index);
-    pmac_format_nvram_partition(nvr, 0x2000);
-    cpu_register_physical_memory(0xFFF04000, 0x20000, nvram_mem_index);
-    nvram.opaque = nvr;
-    nvram.read_fn = &macio_nvram_read;
-    nvram.write_fn = &macio_nvram_write;
-#else
+
     m48t59 = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
     nvram.opaque = m48t59;
     nvram.read_fn = &m48t59_read;
     nvram.write_fn = &m48t59_write;
-#endif
-    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "MAC99", ram_size,
+    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "HEATHROW", ram_size,
                          ppc_boot_device, kernel_base, kernel_size,
                          kernel_cmdline,
                          initrd_base, initrd_size,
@@ -297,10 +301,10 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
 
     /* Special port to get debug messages from Open-Firmware */
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
- }
+}
 
-QEMUMachine core99_machine = {
-    "mac99",
-    "Mac99 based PowerMAC",
-    ppc_core99_init,
+QEMUMachine heathrow_machine = {
+    "g3bw",
+    "Heathrow based PowerMAC",
+    ppc_heathrow_init,
 };

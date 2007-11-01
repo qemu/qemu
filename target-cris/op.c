@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "exec.h"
+#include "host-utils.h"
 
 #define REGNAME r0
 #define REG (env->regs[0])
@@ -1003,10 +1004,7 @@ void OPPROTO op_bound_T0_T1 (void)
 
 void OPPROTO op_lz_T0_T1 (void)
 {
-	if (T1 == 0)
-		T0 = 32;
-	else
-		T0 = __builtin_clz(T1);
+	T0 = clz32(T1);
 	RETURN();
 }
 

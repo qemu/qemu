@@ -13,12 +13,16 @@
 #include <sys/filio.h>
 #endif
 
-void
+static void sofcantrcvmore(struct socket *so);
+static void sofcantsendmore(struct socket *so);
+
+#if 0
+static void
 so_init()
 {
 	/* Nothing yet */
 }
-
+#endif
 
 struct socket *
 solookup(head, laddr, lport, faddr, fport)
@@ -421,7 +425,7 @@ sorecvfrom(so)
 	  int len, n;
 
 	  if (!(m = m_get())) return;
-	  m->m_data += if_maxlinkhdr;
+	  m->m_data += IF_MAXLINKHDR;
 
 	  /*
 	   * XXX Shouldn't FIONREAD packets destined for port 53,
@@ -604,12 +608,13 @@ solisten(port, laddr, lport, flags)
 	return so;
 }
 
+#if 0
 /*
  * Data is available in so_rcv
  * Just write() the data to the socket
  * XXX not yet...
  */
-void
+static void
 sorwakeup(so)
 	struct socket *so;
 {
@@ -622,12 +627,13 @@ sorwakeup(so)
  * We have room for a read() if we want to
  * For now, don't read, it'll be done in the main loop
  */
-void
+static void
 sowwakeup(so)
 	struct socket *so;
 {
 	/* Nothing, yet */
 }
+#endif
 
 /*
  * Various session state calls
@@ -652,9 +658,8 @@ soisfconnected(so)
 	so->so_state |= SS_ISFCONNECTED; /* Clobber other states */
 }
 
-void
-sofcantrcvmore(so)
-	struct  socket *so;
+static void
+sofcantrcvmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
 		shutdown(so->s,0);
@@ -669,9 +674,8 @@ sofcantrcvmore(so)
 	   so->so_state |= SS_FCANTRCVMORE;
 }
 
-void
-sofcantsendmore(so)
-	struct socket *so;
+static void
+sofcantsendmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
             shutdown(so->s,1);           /* send FIN to fhost */

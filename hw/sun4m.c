@@ -158,7 +158,7 @@ static void nvram_finish_partition (m48t59_t *nvram, uint32_t start,
 extern int nographic;
 
 static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
-                       int boot_device, uint32_t RAM_size,
+                       const char *boot_device, uint32_t RAM_size,
                        uint32_t kernel_size,
                        int width, int height, int depth,
                        int machine_id)
@@ -175,7 +175,7 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
     m48t59_write(nvram, 0x2E, 0);
     m48t59_write(nvram, 0x2F, nographic & 0xff);
     nvram_set_lword(nvram,  0x30, RAM_size);
-    m48t59_write(nvram, 0x34, boot_device & 0xff);
+    m48t59_write(nvram, 0x34, boot_device[0] & 0xff);
     nvram_set_lword(nvram,  0x38, KERNEL_LOAD_ADDR);
     nvram_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
@@ -408,7 +408,8 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     return nvram;
 }
 
-static void sun4m_load_kernel(long vram_size, int RAM_size, int boot_device,
+static void sun4m_load_kernel(long vram_size, int RAM_size,
+                              const char *boot_device,
                               const char *kernel_filename,
                               const char *kernel_cmdline,
                               const char *initrd_filename,
@@ -548,7 +549,7 @@ static const struct hwdef hwdefs[] = {
     },
 };
 
-static void sun4m_common_init(int RAM_size, int boot_device, DisplayState *ds,
+static void sun4m_common_init(int RAM_size, const char *boot_device, DisplayState *ds,
                               const char *kernel_filename, const char *kernel_cmdline,
                               const char *initrd_filename, const char *cpu_model,
                               unsigned int machine, int max_ram)
@@ -569,7 +570,7 @@ static void sun4m_common_init(int RAM_size, int boot_device, DisplayState *ds,
 }
 
 /* SPARCstation 5 hardware initialisation */
-static void ss5_init(int RAM_size, int vga_ram_size, int boot_device,
+static void ss5_init(int RAM_size, int vga_ram_size, const char *boot_device,
                        DisplayState *ds, const char **fd_filename, int snapshot,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -582,7 +583,7 @@ static void ss5_init(int RAM_size, int vga_ram_size, int boot_device,
 }
 
 /* SPARCstation 10 hardware initialisation */
-static void ss10_init(int RAM_size, int vga_ram_size, int boot_device,
+static void ss10_init(int RAM_size, int vga_ram_size, const char *boot_device,
                             DisplayState *ds, const char **fd_filename, int snapshot,
                             const char *kernel_filename, const char *kernel_cmdline,
                             const char *initrd_filename, const char *cpu_model)

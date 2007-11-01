@@ -23,7 +23,7 @@ static="no"
 cross_prefix=""
 cc="gcc"
 gcc3_search="yes"
-gcc3_list="gcc-3.4 gcc34 gcc-3.3.6 gcc-3.3 gcc33 gcc-3.2 gcc32"
+gcc3_list="gcc-3.4.6 gcc-3.4 gcc34 gcc-3.3.6 gcc-3.3 gcc33 gcc-3.2 gcc32"
 host_cc="gcc"
 ar="ar"
 make="make"
@@ -312,7 +312,7 @@ done
 if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
     AIOLIBS=
 else
-    AIOLIBS="-lrt"
+    AIOLIBS="-lpthread -lrt"
 fi
 
 # default flags for all hosts
@@ -377,6 +377,7 @@ echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
+echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --enable-adlib           enable Adlib emulation"

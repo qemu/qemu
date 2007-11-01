@@ -25,6 +25,8 @@
 
 #include "vl.h"
 
+//#define DEBUG_MULDIV
+
 /* Long integer helpers */
 static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 {

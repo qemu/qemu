@@ -284,7 +284,10 @@ static void vnc_dpy_resize(DisplayState *ds, int w, int h)
 	exit(1);
     }
 
-    ds->depth = vs->depth * 8;
+    if (ds->depth != vs->depth * 8) {
+        ds->depth = vs->depth * 8;
+        console_color_init(ds);
+    }
     size_changed = ds->width != w || ds->height != h;
     ds->width = w;
     ds->height = h;
@@ -907,6 +910,12 @@ static void reset_keys(VncState *vs)
     }
 }
 
+static void press_key(VncState *vs, int keysym)
+{
+    kbd_put_keycode(keysym2scancode(vs->kbd_layout, keysym) & 0x7f);
+    kbd_put_keycode(keysym2scancode(vs->kbd_layout, keysym) | 0x80);
+}
+
 static void do_key_event(VncState *vs, int down, uint32_t sym)
 {
     int keycode;
@@ -934,6 +943,28 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
             return;
         }
         break;
+    case 0x45:			/* NumLock */
+        if (!down)
+            vs->modifiers_state[keycode] ^= 1;
+        break;
+    }
+
+    if (keycode_is_keypad(vs->kbd_layout, keycode)) {
+        /* If the numlock state needs to change then simulate an additional
+           keypress before sending this one.  This will happen if the user
+           toggles numlock away from the VNC window.
+        */
+        if (keysym_is_numlock(vs->kbd_layout, sym & 0xFFFF)) {
+            if (!vs->modifiers_state[0x45]) {
+                vs->modifiers_state[0x45] = 1;
+                press_key(vs, 0xff7f);
+            }
+        } else {
+            if (vs->modifiers_state[0x45]) {
+                vs->modifiers_state[0x45] = 0;
+                press_key(vs, 0xff7f);
+            }
+        }
     }
 
     if (is_graphic_console()) {
@@ -991,7 +1022,7 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
 
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
-    if (sym >= 'A' && sym <= 'Z')
+    if (sym >= 'A' && sym <= 'Z' && is_graphic_console())
 	sym = sym - 'A' + 'a';
     do_key_event(vs, down, sym);
 }
@@ -1775,7 +1806,10 @@ static int protocol_client_auth(VncState *vs, char *data, size_t len)
        switch (vs->auth) {
        case VNC_AUTH_NONE:
            VNC_DEBUG("Accept auth none\n");
-           vnc_write_u32(vs, 0); /* Accept auth completion */
+           if (vs->minor >= 8) {
+               vnc_write_u32(vs, 0); /* Accept auth completion */
+               vnc_flush(vs);
+           }
            vnc_read_when(vs, protocol_client_init, 1);
            break;
 

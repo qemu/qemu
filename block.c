@@ -24,6 +24,8 @@
 #include "vl.h"
 #include "block_int.h"
 
+#include <sys/param.h>          /* PATH_MAX */
+
 #ifdef _BSD
 #include <sys/types.h>
 #include <sys/stat.h>

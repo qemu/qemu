@@ -151,8 +151,9 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
    peripherans and expansion busses.  For now we emulate a subset of the
    PB peripherals and just change the board ID.  */
 
-static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
-                     DisplayState *ds, const char **fd_filename, int snapshot,
+static void versatile_init(int ram_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
+                     const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model,
                      int board_id)
@@ -266,7 +267,7 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
                     initrd_filename, board_id, 0x0);
 }
 
-static void vpb_init(int ram_size, int vga_ram_size, int boot_device,
+static void vpb_init(int ram_size, int vga_ram_size, const char *boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -277,7 +278,7 @@ static void vpb_init(int ram_size, int vga_ram_size, int boot_device,
                    initrd_filename, cpu_model, 0x183);
 }
 
-static void vab_init(int ram_size, int vga_ram_size, int boot_device,
+static void vab_init(int ram_size, int vga_ram_size, const char *boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)

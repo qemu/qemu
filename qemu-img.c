@@ -23,6 +23,7 @@
  */
 #include "vl.h"
 #include "block_int.h"
+#include <assert.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -101,7 +102,7 @@ void help(void)
            "Command syntax:\n"
            "  create [-e] [-6] [-b base_image] [-f fmt] filename [size]\n"
            "  commit [-f fmt] filename\n"
-           "  convert [-c] [-e] [-6] [-f fmt] filename [-O output_fmt] output_filename\n"
+           "  convert [-c] [-e] [-6] [-f fmt] filename [filename2 [...]] [-O output_fmt] output_filename\n"
            "  info [-f fmt] filename\n"
            "\n"
            "Command parameters:\n"
@@ -418,11 +419,11 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 
 static int img_convert(int argc, char **argv)
 {
-    int c, ret, n, n1, flags, cluster_size, cluster_sectors;
-    const char *filename, *fmt, *out_fmt, *out_filename;
+    int c, ret, n, n1, bs_n, bs_i, flags, cluster_size, cluster_sectors;
+    const char *fmt, *out_fmt, *out_filename;
     BlockDriver *drv;
-    BlockDriverState *bs, *out_bs;
-    int64_t total_sectors, nb_sectors, sector_num;
+    BlockDriverState **bs, *out_bs;
+    int64_t total_sectors, nb_sectors, sector_num, bs_offset, bs_sectors;
     uint8_t buf[IO_BUF_SIZE];
     const uint8_t *buf1;
     BlockDriverInfo bdi;
@@ -455,14 +456,24 @@ static int img_convert(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc)
-        help();
-    filename = argv[optind++];
-    if (optind >= argc)
-        help();
-    out_filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt);
+    bs_n = argc - optind - 1;
+    if (bs_n < 1) help();
+
+    out_filename = argv[argc - 1];
+        
+    bs = calloc(bs_n, sizeof(BlockDriverState *));
+    if (!bs)
+        error("Out of memory");
+
+    total_sectors = 0;
+    for (bs_i = 0; bs_i < bs_n; bs_i++) {
+        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt);
+        if (!bs[bs_i])
+            error("Could not open '%s'", argv[optind + bs_i]);
+        bdrv_get_geometry(bs[bs_i], &bs_sectors);
+        total_sectors += bs_sectors;
+    }
 
     drv = bdrv_find_format(out_fmt);
     if (!drv)
@@ -475,7 +486,7 @@ static int img_convert(int argc, char **argv)
         error("Alternative compatibility level not supported for this file format");
     if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
         error("Compression and encryption not supported at the same time");
-    bdrv_get_geometry(bs, &total_sectors);
+
     ret = bdrv_create(drv, out_filename, total_sectors, NULL, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
@@ -487,7 +498,11 @@ static int img_convert(int argc, char **argv)
 
     out_bs = bdrv_new_open(out_filename, out_fmt);
 
-    if (flags && BLOCK_FLAG_COMPRESS) {
+    bs_i = 0;
+    bs_offset = 0;
+    bdrv_get_geometry(bs[0], &bs_sectors);
+
+    if (flags & BLOCK_FLAG_COMPRESS) {
         if (bdrv_get_info(out_bs, &bdi) < 0)
             error("could not get block driver info");
         cluster_size = bdi.cluster_size;
@@ -496,6 +511,10 @@ static int img_convert(int argc, char **argv)
         cluster_sectors = cluster_size >> 9;
         sector_num = 0;
         for(;;) {
+            int64_t bs_num;
+            int remainder;
+            uint8_t *buf2;
+
             nb_sectors = total_sectors - sector_num;
             if (nb_sectors <= 0)
                 break;
@@ -503,8 +522,37 @@ static int img_convert(int argc, char **argv)
                 n = cluster_sectors;
             else
                 n = nb_sectors;
-            if (bdrv_read(bs, sector_num, buf, n) < 0)
-                error("error while reading");
+
+            bs_num = sector_num - bs_offset;
+            assert (bs_num >= 0);
+            remainder = n;
+            buf2 = buf;
+            while (remainder > 0) {
+                int nlow;
+                while (bs_num == bs_sectors) {
+                    bs_i++;
+                    assert (bs_i < bs_n);
+                    bs_offset += bs_sectors;
+                    bdrv_get_geometry(bs[bs_i], &bs_sectors);
+                    bs_num = 0;
+                    /* printf("changing part: sector_num=%lld, "
+                       "bs_i=%d, bs_offset=%lld, bs_sectors=%lld\n",
+                       sector_num, bs_i, bs_offset, bs_sectors); */
+                }
+                assert (bs_num < bs_sectors);
+
+                nlow = (remainder > bs_sectors - bs_num) ? bs_sectors - bs_num : remainder;
+
+                if (bdrv_read(bs[bs_i], bs_num, buf2, nlow) < 0) 
+                    error("error while reading");
+
+                buf2 += nlow * 512;
+                bs_num += nlow;
+
+                remainder -= nlow;
+            }
+            assert (remainder == 0);
+
             if (n < cluster_sectors)
                 memset(buf + n * 512, 0, cluster_size - n * 512);
             if (is_not_zero(buf, cluster_size)) {
@@ -527,7 +575,21 @@ static int img_convert(int argc, char **argv)
                 n = (IO_BUF_SIZE / 512);
             else
                 n = nb_sectors;
-            if (bdrv_read(bs, sector_num, buf, n) < 0)
+
+            while (sector_num - bs_offset >= bs_sectors) {
+                bs_i ++;
+                assert (bs_i < bs_n);
+                bs_offset += bs_sectors;
+                bdrv_get_geometry(bs[bs_i], &bs_sectors);
+                /* printf("changing part: sector_num=%lld, bs_i=%d, "
+                  "bs_offset=%lld, bs_sectors=%lld\n",
+                   sector_num, bs_i, bs_offset, bs_sectors); */
+            }
+
+            if (n > bs_offset + bs_sectors - sector_num)
+                n = bs_offset + bs_sectors - sector_num;
+
+            if (bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n) < 0) 
                 error("error while reading");
             /* NOTE: at the same time we convert, we do not write zero
                sectors to have a chance to compress the image. Ideally, we
@@ -545,7 +607,9 @@ static int img_convert(int argc, char **argv)
         }
     }
     bdrv_delete(out_bs);
-    bdrv_delete(bs);
+    for (bs_i = 0; bs_i < bs_n; bs_i++)
+        bdrv_delete(bs[bs_i]);
+    free(bs);
     return 0;
 }
 

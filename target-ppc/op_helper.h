@@ -60,7 +60,7 @@ void do_store_cr (uint32_t mask);
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
 #endif
-void do_load_fpscr (void);
+void do_fpscr_setbit (int bit);
 void do_store_fpscr (uint32_t mask);
 target_ulong ppc_load_dump_spr (int sprn);
 void ppc_store_dump_spr (int sprn, target_ulong val);
@@ -75,6 +75,10 @@ void do_nego (void);
 void do_subfe (void);
 void do_subfmeo (void);
 void do_subfzeo (void);
+void do_cntlzw (void);
+#if defined(TARGET_PPC64)
+void do_cntlzd (void);
+#endif
 void do_sraw (void);
 #if defined(TARGET_PPC64)
 void do_adde_64 (void);
@@ -94,6 +98,16 @@ void do_popcntb_64 (void);
 #endif
 
 /* Floating-point arithmetic helpers */
+void do_compute_fprf (int set_class);
+#ifdef CONFIG_SOFTFLOAT
+void do_float_check_status (void);
+#endif
+#if USE_PRECISE_EMULATION
+void do_fadd (void);
+void do_fsub (void);
+void do_fmul (void);
+void do_fdiv (void);
+#endif
 void do_fsqrt (void);
 void do_fre (void);
 void do_fres (void);
@@ -105,6 +119,9 @@ void do_fmsub (void);
 #endif
 void do_fnmadd (void);
 void do_fnmsub (void);
+#if USE_PRECISE_EMULATION
+void do_frsp (void);
+#endif
 void do_fctiw (void);
 void do_fctiwz (void);
 #if defined(TARGET_PPC64)
@@ -271,78 +288,6 @@ void do_evfsctui (void);
 void do_evfsctsiz (void);
 void do_evfsctuiz (void);
 #endif /* defined(TARGET_PPCEMB) */
-
-/* Inlined helpers: used in micro-operation as well as helpers */
-/* Generic fixed-point helpers */
-static always_inline int _do_cntlzw (uint32_t val)
-{
-    int cnt = 0;
-    if (!(val & 0xFFFF0000UL)) {
-        cnt += 16;
-        val <<= 16;
-    }
-    if (!(val & 0xFF000000UL)) {
-        cnt += 8;
-        val <<= 8;
-    }
-    if (!(val & 0xF0000000UL)) {
-        cnt += 4;
-        val <<= 4;
-    }
-    if (!(val & 0xC0000000UL)) {
-        cnt += 2;
-        val <<= 2;
-    }
-    if (!(val & 0x80000000UL)) {
-        cnt++;
-        val <<= 1;
-    }
-    if (!(val & 0x80000000UL)) {
-        cnt++;
-    }
-    return cnt;
-}
-
-static always_inline int _do_cntlzd (uint64_t val)
-{
-    int cnt = 0;
-#if HOST_LONG_BITS == 64
-    if (!(val & 0xFFFFFFFF00000000ULL)) {
-        cnt += 32;
-        val <<= 32;
-    }
-    if (!(val & 0xFFFF000000000000ULL)) {
-        cnt += 16;
-        val <<= 16;
-    }
-    if (!(val & 0xFF00000000000000ULL)) {
-        cnt += 8;
-        val <<= 8;
-    }
-    if (!(val & 0xF000000000000000ULL)) {
-        cnt += 4;
-        val <<= 4;
-    }
-    if (!(val & 0xC000000000000000ULL)) {
-        cnt += 2;
-        val <<= 2;
-    }
-    if (!(val & 0x8000000000000000ULL)) {
-        cnt++;
-        val <<= 1;
-    }
-    if (!(val & 0x8000000000000000ULL)) {
-        cnt++;
-    }
-#else
-    /* Make it easier on 32 bits host machines */
-    if (!(val >> 32))
-        cnt = _do_cntlzw(val) + 32;
-    else
-        cnt = _do_cntlzw(val >> 32);
-#endif
-    return cnt;
-}
 
 #if defined(TARGET_PPCEMB)
 /* SPE extension */

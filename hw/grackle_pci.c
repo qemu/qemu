@@ -1,7 +1,8 @@
 /*
- * QEMU Grackle (heathrow PPC) PCI host
+ * QEMU Grackle PCI host (heathrow OldWorld PowerMac)
  *
- * Copyright (c) 2006 Fabrice Bellard
+ * Copyright (c) 2006-2007 Fabrice Bellard
+ * Copyright (c) 2007 Jocelyn Mayer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +24,7 @@
  */
 
 #include "vl.h"
+#include "ppc_mac.h"
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
@@ -82,7 +84,7 @@ static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pci_grackle_set_irq(qemu_irq *pic, int irq_num, int level)
 {
-    qemu_set_irq(pic[irq_num + 8], level);
+    qemu_set_irq(pic[irq_num + 0x15], level);
 }
 
 PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
@@ -93,7 +95,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
 
     s = qemu_mallocz(sizeof(GrackleState));
     s->bus = pci_register_bus(pci_grackle_set_irq, pci_grackle_map_irq,
-                              pic, 0, 0);
+                              pic, 0, 4);
 
     pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read,
                                             pci_grackle_config_write, s);

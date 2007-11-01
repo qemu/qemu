@@ -411,17 +411,26 @@ static always_inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
     glue(stfl, MEMSUFFIX)(EA, float64_to_float32(d, &env->fp_status));
 }
 
+#if defined(WORDS_BIGENDIAN)
+#define WORD0 0
+#define WORD1 1
+#else
+#define WORD0 1
+#define WORD1 0
+#endif
 static always_inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
-        uint64_t u;
+        uint32_t u[2];
     } u;
 
     /* Store the low order 32 bits without any conversion */
     u.d = d;
-    glue(stl, MEMSUFFIX)(EA, u.u);
+    glue(stl, MEMSUFFIX)(EA, u.u[WORD0]);
 }
+#undef WORD0
+#undef WORD1
 
 PPC_STF_OP(fd, stfq);
 PPC_STF_OP(fs, stfs);

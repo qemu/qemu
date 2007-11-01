@@ -7,12 +7,7 @@
 
 #include <slirp.h>
 
-int if_mtu, if_mru;
-int if_comp;
-int if_maxlinkhdr;
 int     if_queued = 0;                  /* Number of packets queued so far */
-int     if_thresh = 10;                 /* Number of packets queued before we start sending
-					 * (to prevent allocing too many mbufs) */
 
 struct  mbuf if_fastq;                  /* fast queue (for interactive data) */
 struct  mbuf if_batchq;                 /* queue for non-interactive data */
@@ -41,23 +36,6 @@ ifs_remque(ifm)
 void
 if_init()
 {
-#if 0
-	/*
-	 * Set if_maxlinkhdr to 48 because it's 40 bytes for TCP/IP,
-	 * and 8 bytes for PPP, but need to have it on an 8byte boundary
-	 */
-#ifdef USE_PPP
-	if_maxlinkhdr = 48;
-#else
-	if_maxlinkhdr = 40;
-#endif
-#else
-        /* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
-        if_maxlinkhdr = 2 + 14 + 40;
-#endif
-	if_mtu = 1500;
-	if_mru = 1500;
-	if_comp = IF_AUTOCOMP;
 	if_fastq.ifq_next = if_fastq.ifq_prev = &if_fastq;
 	if_batchq.ifq_next = if_batchq.ifq_prev = &if_batchq;
         //	sl_compress_init(&comp_s);

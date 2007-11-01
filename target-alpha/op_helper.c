@@ -19,6 +19,7 @@
  */
 
 #include "exec.h"
+#include "host-utils.h"
 #include "softfloat.h"
 
 #include "op_helper.h"
@@ -211,90 +212,20 @@ void helper_mulqv ()
 
 void helper_ctpop (void)
 {
-    int n;
-
-    for (n = 0; T0 != 0; n++)
-        T0 = T0 ^ (T0 - 1);
-    T0 = n;
+    T0 = ctpop64(T0);
 }
 
 void helper_ctlz (void)
 {
-    uint32_t op32;
-    int n;
-
-    n = 0;
-    if (!(T0 & 0xFFFFFFFF00000000ULL)) {
-        n += 32;
-        T0 <<= 32;
-    }
-    /* Make it easier for 32 bits hosts */
-    op32 = T0 >> 32;
-    if (!(op32 & 0xFFFF0000UL)) {
-        n += 16;
-        op32 <<= 16;
-    }
-    if (!(op32 & 0xFF000000UL)) {
-        n += 8;
-        op32 <<= 8;
-    }
-    if (!(op32 & 0xF0000000UL)) {
-        n += 4;
-        op32 <<= 4;
-    }
-    if (!(op32 & 0xC0000000UL)) {
-        n += 2;
-        op32 <<= 2;
-    }
-    if (!(op32 & 0x80000000UL)) {
-        n++;
-        op32 <<= 1;
-    }
-    if (!(op32 & 0x80000000UL)) {
-        n++;
-    }
-    T0 = n;
+    T0 = clz64(T0);
 }
 
 void helper_cttz (void)
 {
-    uint32_t op32;
-    int n;
-
-    n = 0;
-    if (!(T0 & 0x00000000FFFFFFFFULL)) {
-        n += 32;
-        T0 >>= 32;
-    }
-    /* Make it easier for 32 bits hosts */
-    op32 = T0;
-    if (!(op32 & 0x0000FFFFUL)) {
-        n += 16;
-        op32 >>= 16;
-    }
-    if (!(op32 & 0x000000FFUL)) {
-        n += 8;
-        op32 >>= 8;
-    }
-    if (!(op32 & 0x0000000FUL)) {
-        n += 4;
-        op32 >>= 4;
-    }
-    if (!(op32 & 0x00000003UL)) {
-        n += 2;
-        op32 >>= 2;
-    }
-    if (!(op32 & 0x00000001UL)) {
-        n++;
-        op32 >>= 1;
-    }
-    if (!(op32 & 0x00000001UL)) {
-        n++;
-    }
-    T0 = n;
+    T0 = ctz64(T0);
 }
 
-static inline uint64_t byte_zap (uint64_t op, uint8_t mskb)
+static always_inline uint64_t byte_zap (uint64_t op, uint8_t mskb)
 {
     uint64_t mask;
 
@@ -609,7 +540,7 @@ void helper_ftoit (void)
     FT0 = p.d;
 }
 
-static int vaxf_is_valid (float ff)
+static always_inline int vaxf_is_valid (float ff)
 {
     union {
         float f;
@@ -628,7 +559,7 @@ static int vaxf_is_valid (float ff)
     return 1;
 }
 
-static float vaxf_to_ieee32 (float ff)
+static always_inline float vaxf_to_ieee32 (float ff)
 {
     union {
         float f;
@@ -648,7 +579,7 @@ static float vaxf_to_ieee32 (float ff)
     return p.f;
 }
 
-static float ieee32_to_vaxf (float fi)
+static always_inline float ieee32_to_vaxf (float fi)
 {
     union {
         float f;
@@ -751,7 +682,7 @@ void helper_itoff (void)
     /* XXX: TODO */
 }
 
-static int vaxg_is_valid (double ff)
+static always_inline int vaxg_is_valid (double ff)
 {
     union {
         double f;
@@ -770,7 +701,7 @@ static int vaxg_is_valid (double ff)
     return 1;
 }
 
-static double vaxg_to_ieee64 (double fg)
+static always_inline double vaxg_to_ieee64 (double fg)
 {
     union {
         double f;
@@ -790,7 +721,7 @@ static double vaxg_to_ieee64 (double fg)
     return p.f;
 }
 
-static double ieee64_to_vaxg (double fi)
+static always_inline double ieee64_to_vaxg (double fi)
 {
     union {
         double f;
@@ -1044,7 +975,7 @@ void helper_cvtlq (void)
     FT0 = q.d;
 }
 
-static inline void __helper_cvtql (int s, int v)
+static always_inline void __helper_cvtql (int s, int v)
 {
     union {
         double d;
@@ -1145,7 +1076,11 @@ void helper_mtpr (int iprn)
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)
 
-#define GETPC() (__builtin_return_address(0))
+#ifdef __s390__
+# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
+#else
+# define GETPC() (__builtin_return_address(0))
+#endif
 
 /* XXX: the two following helpers are pure hacks.
  *      Hopefully, we emulate the PALcode, then we should never see

@@ -42,7 +42,6 @@ extern char *username;
 extern char *socket_path;
 extern int towrite_max;
 extern int ppp_exit;
-extern int so_options;
 extern int tcp_keepintvl;
 extern uint8_t client_ethaddr[6];
 

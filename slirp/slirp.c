@@ -12,7 +12,7 @@ struct in_addr special_addr;
 /* virtual address alias for host */
 struct in_addr alias_addr;
 
-const uint8_t special_ethaddr[6] = {
+static const uint8_t special_ethaddr[6] = {
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
 };
 
@@ -93,7 +93,9 @@ static int get_dns_addr(struct in_addr *pdns_addr)
     if (!f)
         return -1;
 
+#ifdef DEBUG
     lprint("IP address of your DNS(s): ");
+#endif
     while (fgets(buff, 512, f) != NULL) {
         if (sscanf(buff, "nameserver%*[ \t]%256s", buff2) == 1) {
             if (!inet_aton(buff2, &tmp_addr))
@@ -103,13 +105,20 @@ static int get_dns_addr(struct in_addr *pdns_addr)
             /* If it's the first one, set it to dns_addr */
             if (!found)
                 *pdns_addr = tmp_addr;
+#ifdef DEBUG
             else
                 lprint(", ");
+#endif
             if (++found > 3) {
+#ifdef DEBUG
                 lprint("(more)");
+#endif
                 break;
-            } else
+            }
+#ifdef DEBUG
+            else
                 lprint("%s", inet_ntoa(tmp_addr));
+#endif
         }
     }
     fclose(f);
@@ -121,7 +130,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 #endif
 
 #ifdef _WIN32
-void slirp_cleanup(void)
+static void slirp_cleanup(void)
 {
     WSACleanup();
 }

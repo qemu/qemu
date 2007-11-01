@@ -231,6 +231,19 @@ static name2keysym_t name2keysym[]={
 {"Home", 0xff50},      /* XK_Home */
 {"End", 0xff57},       /* XK_End */
 {"Scroll_Lock", 0xff14}, /* XK_Scroll_Lock */
+{"KP_Home", 0xff95},
+{"KP_Left", 0xff96},
+{"KP_Up", 0xff97},
+{"KP_Right", 0xff98},
+{"KP_Down", 0xff99},
+{"KP_Prior", 0xff9a},
+{"KP_Page_Up", 0xff9a},
+{"KP_Next", 0xff9b},
+{"KP_Page_Down", 0xff9b},
+{"KP_End", 0xff9c},
+{"KP_Begin", 0xff9d},
+{"KP_Insert", 0xff9e},
+{"KP_Delete", 0xff9f},
 {"F1", 0xffbe},        /* XK_F1 */
 {"F2", 0xffbf},        /* XK_F2 */
 {"F3", 0xffc0},        /* XK_F3 */
@@ -258,6 +271,7 @@ static name2keysym_t name2keysym[]={
 {"KP_8", 0xffb8},      /* XK_KP_8 */
 {"KP_9", 0xffb9},      /* XK_KP_9 */
 {"KP_Add", 0xffab},    /* XK_KP_Add */
+{"KP_Separator", 0xffac},/* XK_KP_Separator */
 {"KP_Decimal", 0xffae},  /* XK_KP_Decimal */
 {"KP_Divide", 0xffaf},   /* XK_KP_Divide */
 {"KP_Enter", 0xff8d},    /* XK_KP_Enter */

@@ -21,27 +21,20 @@ struct	mbuf *mbutl;
 char	*mclrefcnt;
 int mbuf_alloced = 0;
 struct mbuf m_freelist, m_usedlist;
-int mbuf_thresh = 30;
+#define MBUF_THRESH 30
 int mbuf_max = 0;
-int msize;
+
+/*
+ * Find a nice value for msize
+ * XXX if_maxlinkhdr already in mtu
+ */
+#define MSIZE (IF_MTU + IF_MAXLINKHDR + sizeof(struct m_hdr ) + 6)
 
 void
 m_init()
 {
 	m_freelist.m_next = m_freelist.m_prev = &m_freelist;
 	m_usedlist.m_next = m_usedlist.m_prev = &m_usedlist;
-	msize_init();
-}
-
-void
-msize_init()
-{
-	/*
-	 * Find a nice value for msize
-	 * XXX if_maxlinkhdr already in mtu
-	 */
-	msize = (if_mtu>if_mru?if_mtu:if_mru) +
-			if_maxlinkhdr + sizeof(struct m_hdr ) + 6;
 }
 
 /*
@@ -61,10 +54,10 @@ m_get()
 	DEBUG_CALL("m_get");
 
 	if (m_freelist.m_next == &m_freelist) {
-		m = (struct mbuf *)malloc(msize);
+		m = (struct mbuf *)malloc(MSIZE);
 		if (m == NULL) goto end_error;
 		mbuf_alloced++;
-		if (mbuf_alloced > mbuf_thresh)
+		if (mbuf_alloced > MBUF_THRESH)
 			flags = M_DOFREE;
 		if (mbuf_alloced > mbuf_max)
 			mbuf_max = mbuf_alloced;
@@ -78,7 +71,7 @@ m_get()
 	m->m_flags = (flags | M_USEDLIST);
 
 	/* Initialise it */
-	m->m_size = msize - sizeof(struct m_hdr);
+	m->m_size = MSIZE - sizeof(struct m_hdr);
 	m->m_data = m->m_dat;
 	m->m_len = 0;
 	m->m_nextpkt = 0;

@@ -329,7 +329,6 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
     abi_ulong entry, toc;
 #endif
 
-    _regs->msr = 1 << MSR_PR; /* Set user mode */
     _regs->gpr[1] = infop->start_stack;
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
     entry = ldq_raw(infop->entry) + infop->load_addr;
@@ -375,7 +374,7 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
-    regs->cp0_status = CP0St_UM;
+    regs->cp0_status = 2 << CP0St_KSU;
     regs->cp0_epc = infop->entry;
     regs->regs[29] = infop->start_stack;
 }

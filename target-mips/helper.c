@@ -391,7 +391,7 @@ void do_interrupt (CPUState *env)
         }
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM | MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
-        env->hflags &= ~(MIPS_HFLAG_SM | MIPS_HFLAG_UM);
+        env->hflags &= ~(MIPS_HFLAG_KSU);
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
@@ -417,7 +417,7 @@ void do_interrupt (CPUState *env)
         }
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
         env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
-        env->hflags &= ~(MIPS_HFLAG_SM | MIPS_HFLAG_UM);
+        env->hflags &= ~(MIPS_HFLAG_KSU);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->PC[env->current_tc] = (int32_t)0xBFC00000;
@@ -490,9 +490,6 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBS:
         cause = 3;
-        goto set_EPC;
-    case EXCP_THREAD:
-        cause = 25;
         if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
             int R = env->CP0_BadVAddr >> 62;
@@ -506,6 +503,9 @@ void do_interrupt (CPUState *env)
 #endif
                 offset = 0x000;
         }
+        goto set_EPC;
+    case EXCP_THREAD:
+        cause = 25;
     set_EPC:
         if (!(env->CP0_Status & (1 << CP0St_EXL))) {
             if (env->hflags & MIPS_HFLAG_BMASK) {
@@ -519,7 +519,7 @@ void do_interrupt (CPUState *env)
             }
             env->CP0_Status |= (1 << CP0St_EXL);
             env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
-            env->hflags &= ~(MIPS_HFLAG_SM | MIPS_HFLAG_UM);
+            env->hflags &= ~(MIPS_HFLAG_KSU);
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {

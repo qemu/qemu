@@ -829,12 +829,6 @@ void cpu_loop(CPUPPCState *env)
             switch (env->error_code & ~0xF) {
             case POWERPC_EXCP_FP:
                 EXCP_DUMP(env, "Floating point program exception\n");
-                /* Set FX */
-                env->fpscr[7] |= 0x8;
-                /* Finally, update FEX */
-                if ((((env->fpscr[7] & 0x3) << 3) | (env->fpscr[6] >> 1)) &
-                    ((env->fpscr[1] << 1) | (env->fpscr[0] >> 3)))
-                    env->fpscr[7] |= 0x4;
                 info.si_signo = TARGET_SIGFPE;
                 info.si_errno = 0;
                 switch (env->error_code & 0xF) {
@@ -854,7 +848,7 @@ void cpu_loop(CPUPPCState *env)
                 case POWERPC_EXCP_FP_VXSOFT:
                     info.si_code = TARGET_FPE_FLTINV;
                     break;
-                case POWERPC_EXCP_FP_VXNAN:
+                case POWERPC_EXCP_FP_VXSNAN:
                 case POWERPC_EXCP_FP_VXISI:
                 case POWERPC_EXCP_FP_VXIDI:
                 case POWERPC_EXCP_FP_VXIMZ:
@@ -1988,6 +1982,10 @@ int main(int argc, char **argv)
     env = cpu_init();
     global_env = env;
 
+    if(getenv("QEMU_STRACE") ){
+      do_strace=1;
+    }
+
     wrk = environ;
     while (*(wrk++))
         environ_count++;
@@ -2170,7 +2168,6 @@ int main(int argc, char **argv)
         }
         cpu_ppc_register(env, def);
         cpu_ppc_reset(env);
-        env->msr = regs->msr & ~((1 << 6) | (1 << 12) | (1 << 13));
 #if defined(TARGET_PPC64)
 #if defined(TARGET_ABI32)
         env->msr &= ~((target_ulong)1 << MSR_SF);

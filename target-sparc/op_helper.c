@@ -1,4 +1,5 @@
 #include "exec.h"
+#include "host-utils.h"
 
 //#define DEBUG_PCALL
 //#define DEBUG_MMU
@@ -1469,12 +1470,7 @@ void do_rdpsr()
 
 void do_popc()
 {
-    T0 = (T1 & 0x5555555555555555ULL) + ((T1 >> 1) & 0x5555555555555555ULL);
-    T0 = (T0 & 0x3333333333333333ULL) + ((T0 >> 2) & 0x3333333333333333ULL);
-    T0 = (T0 & 0x0f0f0f0f0f0f0f0fULL) + ((T0 >> 4) & 0x0f0f0f0f0f0f0f0fULL);
-    T0 = (T0 & 0x00ff00ff00ff00ffULL) + ((T0 >> 8) & 0x00ff00ff00ff00ffULL);
-    T0 = (T0 & 0x0000ffff0000ffffULL) + ((T0 >> 16) & 0x0000ffff0000ffffULL);
-    T0 = (T0 & 0x00000000ffffffffULL) + ((T0 >> 32) & 0x00000000ffffffffULL);
+    T0 = ctpop64(T1);
 }
 
 static inline uint64_t *get_gregset(uint64_t pstate)
@@ -1684,7 +1680,11 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
-#define GETPC() (__builtin_return_address(0))
+#ifdef __s390__
+# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
+#else
+# define GETPC() (__builtin_return_address(0))
+#endif
 
 #define SHIFT 0
 #include "softmmu_template.h"

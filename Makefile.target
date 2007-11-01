@@ -24,7 +24,7 @@ TARGET_BASE_ARCH:=sparc
 endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
-CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH)
+CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MP
 ifdef CONFIG_DARWIN_USER
 VPATH+=:$(SRC_PATH)/darwin-user
 CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
@@ -39,7 +39,6 @@ endif
 BASE_CFLAGS=
 BASE_LDFLAGS=
 #CFLAGS+=-Werror
-BASE_CFLAGS += -MMD -MP
 BASE_LDFLAGS += -g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
@@ -137,8 +136,6 @@ OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
 OP_CFLAGS+=$(call cc-option, -fno-section-anchors, "")
-
-OP_CFLAGS += -MMD -MP
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
@@ -285,7 +282,7 @@ main.o: BASE_CFLAGS+=-p
 endif
 
 ifdef CONFIG_LINUX_USER
-OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
+OBJS= main.o syscall.o strace.o mmap.o signal.o path.o osdep.o thunk.o \
       elfload.o linuxload.o
 LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
@@ -500,13 +497,20 @@ VL_OBJS+= usb-uhci.o smbus_eeprom.o vmmouse.o vmport.o vmware_vga.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
-VL_OBJS+= ppc.o ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
-VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o pflash_cfi02.o
-VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o
-VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
-# PowerPC 4xx boards
-VL_OBJS+= ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+# shared objects
+VL_OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o $(AUDIODRV)
+# PREP target
+VL_OBJS+= pckbd.o ps2.o serial.o i8259.o i8254.o fdc.o m48t59.o mc146818rtc.o
+VL_OBJS+= prep_pci.o ppc_prep.o
+# Mac shared devices
+VL_OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
+# OldWorld PowerMac
+VL_OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
+# NewWorld PowerMac
+VL_OBJS+= unin_pci.o ppc_chrp.o
+# PowerPC 4xx boards
+VL_OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
 VL_OBJS+= mips_r4k.o mips_malta.o mips_pica61.o mips_mipssim.o
@@ -551,8 +555,8 @@ VL_OBJS+= arm_gic.o realview.o arm_sysctl.o
 VL_OBJS+= arm-semi.o
 VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o max111x.o max7310.o
-VL_OBJS+= spitz.o ads7846.o ide.o serial.o nand.o $(AUDIODRV) wm8750.o
-VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o palm.o ecc.o
+VL_OBJS+= spitz.o ads7846.o ide.o serial.o nand.o ecc.o $(AUDIODRV) wm8750.o
+VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o palm.o tsc210x.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
@@ -700,7 +704,7 @@ signal.o: signal.c
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o fpu/*.o
+	rm -f *.o *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o fpu/*.o
 	rm -f *.d */*.d
 
 install: all
@@ -712,11 +716,11 @@ ifneq ($(wildcard .depend),)
 include .depend
 endif
 
--include *.d
--include */*.d
-
 ifeq (1, 0)
 audio.o sdlaudio.o dsoundaudio.o ossaudio.o wavaudio.o noaudio.o \
 fmodaudio.o alsaaudio.o mixeng.o sb16.o es1370.o gus.o adlib.o: \
 CFLAGS := $(CFLAGS) -Wall -Wshadow -Werror -W -Wsign-compare
 endif
+
+# Include automatically generated dependency files
+-include $(wildcard *.d */*.d)

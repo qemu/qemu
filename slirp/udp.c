@@ -45,18 +45,23 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
+#ifdef LOG_ENABLED
 struct udpstat udpstat;
+#endif
 
 struct socket udb;
+
+static u_int8_t udp_tos(struct socket *so);
+static void udp_emu(struct socket *so, struct mbuf *m);
 
 /*
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.
  */
 #ifndef	COMPAT_42
-int	udpcksum = 1;
+#define UDPCKSUM 1
 #else
-int	udpcksum = 0;		/* XXX */
+#define UDPCKSUM 0 /* XXX */
 #endif
 
 struct	socket *udp_last_so = &udb;
@@ -86,7 +91,7 @@ udp_input(m, iphlen)
 	DEBUG_ARG("m = %lx", (long)m);
 	DEBUG_ARG("iphlen = %d", iphlen);
 
-	udpstat.udps_ipackets++;
+	STAT(udpstat.udps_ipackets++);
 
 	/*
 	 * Strip IP options, if any; should skip this,
@@ -113,7 +118,7 @@ udp_input(m, iphlen)
 
 	if (ip->ip_len != len) {
 		if (len > ip->ip_len) {
-			udpstat.udps_badlen++;
+			STAT(udpstat.udps_badlen++);
 			goto bad;
 		}
 		m_adj(m, len - ip->ip_len);
@@ -130,7 +135,7 @@ udp_input(m, iphlen)
 	/*
 	 * Checksum extended UDP header and data.
 	 */
-	if (udpcksum && uh->uh_sum) {
+	if (UDPCKSUM && uh->uh_sum) {
 	  ((struct ipovly *)ip)->ih_next = 0;
 	  ((struct ipovly *)ip)->ih_prev = 0;
 	  ((struct ipovly *)ip)->ih_x1 = 0;
@@ -140,7 +145,7 @@ udp_input(m, iphlen)
 	   * if (uh->uh_sum) {
 	   */
 	  if(cksum(m, len + sizeof(struct ip))) {
-	    udpstat.udps_badsum++;
+	    STAT(udpstat.udps_badsum++);
 	    goto bad;
 	  }
 	}
@@ -181,7 +186,7 @@ udp_input(m, iphlen)
 		if (tmp == &udb) {
 		  so = NULL;
 		} else {
-		  udpstat.udpps_pcbcachemiss++;
+		  STAT(udpstat.udpps_pcbcachemiss++);
 		  udp_last_so = so;
 		}
 	}
@@ -290,16 +295,16 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	 * Stuff checksum and output datagram.
 	 */
 	ui->ui_sum = 0;
-	if (udpcksum) {
+	if (UDPCKSUM) {
 	    if ((ui->ui_sum = cksum(m, /* sizeof (struct udpiphdr) + */ m->m_len)) == 0)
 		ui->ui_sum = 0xffff;
 	}
 	((struct ip *)ui)->ip_len = m->m_len;
 
-	((struct ip *)ui)->ip_ttl = ip_defttl;
+	((struct ip *)ui)->ip_ttl = IPDEFTTL;
 	((struct ip *)ui)->ip_tos = iptos;
 
-	udpstat.udps_opackets++;
+	STAT(udpstat.udps_opackets++);
 
 	error = ip_output(so, m);
 
@@ -367,7 +372,7 @@ udp_detach(so)
 	sofree(so);
 }
 
-struct tos_t udptos[] = {
+static const struct tos_t udptos[] = {
 	{0, 53, IPTOS_LOWDELAY, 0},			/* DNS */
 	{517, 517, IPTOS_LOWDELAY, EMU_TALK},	/* talk */
 	{518, 518, IPTOS_LOWDELAY, EMU_NTALK},	/* ntalk */
@@ -375,9 +380,8 @@ struct tos_t udptos[] = {
 	{0, 0, 0, 0}
 };
 
-u_int8_t
-udp_tos(so)
-	struct socket *so;
+static u_int8_t
+udp_tos(struct socket *so)
 {
 	int i = 0;
 
@@ -400,10 +404,8 @@ udp_tos(so)
 /*
  * Here, talk/ytalk/ntalk requests must be emulated
  */
-void
-udp_emu(so, m)
-	struct socket *so;
-	struct mbuf *m;
+static void
+udp_emu(struct socket *so, struct mbuf *m)
 {
 	struct sockaddr_in addr;
         int addrlen = sizeof(addr);

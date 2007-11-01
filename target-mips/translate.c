@@ -804,13 +804,15 @@ static always_inline void check_mips_64(DisasContext *ctx)
 #define op_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
-    &gen_op_l##width##_user,                                                  \
     &gen_op_l##width##_kernel,                                                \
+    &gen_op_l##width##_super,                                                 \
+    &gen_op_l##width##_user,                                                  \
 }
 #define OP_ST_TABLE(width)                                                    \
 static GenOpFunc *gen_op_s##width[] = {                                       \
-    &gen_op_s##width##_user,                                                  \
     &gen_op_s##width##_kernel,                                                \
+    &gen_op_s##width##_super,                                                 \
+    &gen_op_s##width##_user,                                                  \
 }
 #endif
 
@@ -6508,9 +6510,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     restore_cpu_state(env, &ctx);
 #if defined(CONFIG_USER_ONLY)
-    ctx.mem_idx = 0;
+    ctx.mem_idx = MIPS_HFLAG_UM;
 #else
-    ctx.mem_idx = !((ctx.hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM);
+    ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
 #endif
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
@@ -6521,7 +6523,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
 #ifdef MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile, "\ntb %p super %d cond %04x\n",
+        fprintf(logfile, "\ntb %p idx %d hflags %04x\n",
                 tb, ctx.mem_idx, ctx.hflags);
 #endif
     while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {

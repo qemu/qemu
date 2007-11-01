@@ -20,6 +20,7 @@ extern char *strerror _P((int));
 
 /* Carry over one item from main.c so that the tty's restored.
  * Only done when the tty being used is /dev/tty --RedWolf */
+#ifndef CONFIG_QEMU
 extern struct termios slirp_tty_settings;
 extern int slirp_tty_restore;
 
@@ -70,7 +71,9 @@ dump_packet(dat, n)
 	}
 }
 #endif
+#endif
 
+#ifdef LOG_ENABLED
 #if 0
 /*
  * Statistic routines
@@ -80,7 +83,7 @@ dump_packet(dat, n)
  * the link as well.
  */
 
-void
+static void
 ttystats(ttyp)
 	struct ttys *ttyp;
 {
@@ -89,9 +92,9 @@ ttystats(ttyp)
 
 	lprint(" \r\n");
 
-	if (if_comp & IF_COMPRESS)
+	if (IF_COMP & IF_COMPRESS)
 	   strcpy(buff, "on");
-	else if (if_comp & IF_NOCOMPRESS)
+	else if (IF_COMP & IF_NOCOMPRESS)
 	   strcpy(buff, "off");
 	else
 	   strcpy(buff, "off (for now)");
@@ -119,8 +122,8 @@ ttystats(ttyp)
 	lprint("  %6d bad input packets\r\n", is->in_mbad);
 }
 
-void
-allttystats()
+static void
+allttystats(void)
 {
 	struct ttys *ttyp;
 
@@ -129,8 +132,8 @@ allttystats()
 }
 #endif
 
-void
-ipstats()
+static void
+ipstats(void)
 {
 	lprint(" \r\n");
 
@@ -153,9 +156,9 @@ ipstats()
 	lprint("  %6d total packets delivered\r\n", ipstat.ips_delivered);
 }
 
-#if 0
-void
-vjstats()
+#ifndef CONFIG_QEMU
+static void
+vjstats(void)
 {
 	lprint(" \r\n");
 
@@ -172,8 +175,8 @@ vjstats()
 }
 #endif
 
-void
-tcpstats()
+static void
+tcpstats(void)
 {
 	lprint(" \r\n");
 
@@ -240,8 +243,8 @@ tcpstats()
 
 }
 
-void
-udpstats()
+static void
+udpstats(void)
 {
         lprint(" \r\n");
 
@@ -254,8 +257,8 @@ udpstats()
 	lprint("  %6d datagrams sent\r\n", udpstat.udps_opackets);
 }
 
-void
-icmpstats()
+static void
+icmpstats(void)
 {
 	lprint(" \r\n");
 	lprint("ICMP stats:\r\n");
@@ -267,8 +270,8 @@ icmpstats()
 	lprint("  %6d ICMP packets sent in reply\r\n", icmpstat.icps_reflect);
 }
 
-void
-mbufstats()
+static void
+mbufstats(void)
 {
 	struct mbuf *m;
 	int i;
@@ -291,8 +294,8 @@ mbufstats()
         lprint("  %6d mbufs queued as packets\r\n\r\n", if_queued);
 }
 
-void
-sockstats()
+static void
+sockstats(void)
 {
 	char buff[256];
 	int n;
@@ -331,8 +334,9 @@ sockstats()
 				so->so_rcv.sb_cc, so->so_snd.sb_cc);
 	}
 }
+#endif
 
-#if 0
+#ifndef CONFIG_QEMU
 void
 slirp_exit(exit_status)
 	int exit_status;
@@ -374,3 +378,18 @@ slirp_exit(exit_status)
 	exit(exit_status);
 }
 #endif
+
+void
+slirp_stats(void)
+{
+#ifdef LOG_ENABLED
+    ipstats();
+    tcpstats();
+    udpstats();
+    icmpstats();
+    mbufstats();
+    sockstats();
+#else
+    lprint("SLIRP statistics code not compiled.\n");
+#endif
+}

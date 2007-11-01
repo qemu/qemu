@@ -122,7 +122,7 @@ typedef struct CPUTLBEntry {
                                    written */                           \
     target_ulong mem_write_vaddr; /* target virtual addr at which the   \
                                      memory was written */              \
-    /* 0 = kernel, 1 = user */                                          \
+    /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
                                                                         \

@@ -4,7 +4,7 @@
  * Copyright (c) 2006 Openedhand Ltd.
  * Written by Andrzej Zaborowski <balrog@zabor.org>
  *
- * This code is licenced under the GPL.
+ * This code is licenced under the GNU GPL v2.
  */
 #ifndef PXA_H
 # define PXA_H			"pxa.h"

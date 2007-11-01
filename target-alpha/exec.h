@@ -64,11 +64,11 @@ register uint64_t T2 asm(AREG3);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-static inline void env_to_regs(void)
+static always_inline void env_to_regs(void)
 {
 }
 
-static inline void regs_to_env(void)
+static always_inline void regs_to_env(void)
 {
 }
 
@@ -79,7 +79,7 @@ int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 
 void do_interrupt (CPUState *env);
 
-static inline int cpu_halted(CPUState *env) {
+static always_inline int cpu_halted(CPUState *env) {
     if (!env->halted)
         return 0;
     if (env->interrupt_request & CPU_INTERRUPT_HARD) {

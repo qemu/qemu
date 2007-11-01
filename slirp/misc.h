@@ -12,12 +12,12 @@ struct ex_list {
 	int ex_pty;			/* Do we want a pty? */
 	int ex_addr;			/* The last byte of the address */
 	int ex_fport;                   /* Port to telnet to */
-	char *ex_exec;                  /* Command line of what to exec */
+	const char *ex_exec;            /* Command line of what to exec */
 	struct ex_list *ex_next;
 };
 
 extern struct ex_list *exec_list;
-extern u_int curtime, time_fasttimo, last_slowtimo, detach_time, detach_wait;
+extern u_int curtime, time_fasttimo, last_slowtimo;
 
 extern int (*lprint_print) _P((void *, const char *, va_list));
 extern char *lprint_ptr, *lprint_ptr2, **lprint_arg;
@@ -74,7 +74,7 @@ inline  void slirp_insque  _P((void *, void *));
 inline  void slirp_remque  _P((void *));
 int add_exec _P((struct ex_list **, int, char *, int, int));
 int slirp_openpty _P((int *, int *));
-int fork_exec _P((struct socket *, char *, int));
+int fork_exec(struct socket *so, const char *ex, int do_pty);
 void snooze_hup _P((int));
 void snooze _P((void));
 void relay _P((int));

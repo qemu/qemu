@@ -68,6 +68,7 @@ struct endp_data {
 typedef struct USBHostDevice {
     USBDevice dev;
     int fd;
+    int pipe_fds[2];
     USBPacket *packet;
     struct endp_data endp_table[MAX_ENDPOINTS];
     int configuration;
@@ -78,8 +79,6 @@ typedef struct USBHostDevice {
 
 typedef struct PendingURB {
     struct usbdevfs_urb *urb;
-    USBHostDevice *dev;
-    QEMUBH *bh;
     int status;
     struct PendingURB *next;
 } PendingURB;
@@ -91,8 +90,6 @@ static int add_pending_urb(struct usbdevfs_urb *urb)
     PendingURB *purb = qemu_mallocz(sizeof(PendingURB));
     if (purb) {
         purb->urb = urb;
-        purb->dev = NULL;
-        purb->bh = NULL;
         purb->status = 0;
         purb->next = pending_urbs;
         pending_urbs = purb;
@@ -341,16 +338,21 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
 }
 
 #ifdef USE_ASYNCIO
-static void usb_linux_bh_cb(void *opaque)
+static void urb_completion_pipe_read(void *opaque)
 {
-    PendingURB *pending_urb = (PendingURB *)opaque;
-    USBHostDevice *s = pending_urb->dev;
-    struct usbdevfs_urb *purb = NULL;
+    USBHostDevice *s = opaque;
     USBPacket *p = s->packet;
-    int ret;
+    PendingURB *pending_urb = NULL;
+    struct usbdevfs_urb *purb = NULL;
+    int len, ret;
 
-    /* FIXME: handle purb->status */
-    qemu_free(pending_urb->bh);
+    len = read(s->pipe_fds[0], &pending_urb, sizeof(pending_urb));
+    if (len != sizeof(pending_urb)) {
+        printf("urb_completion: error reading pending_urb, len=%d\n", len);
+        return;
+    }
+
+    /* FIXME: handle pending_urb->status */
     del_pending_urb(pending_urb->urb);
 
     if (!p) {
@@ -360,14 +362,14 @@ static void usb_linux_bh_cb(void *opaque)
 
     ret = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &purb);
     if (ret < 0) {
-        printf("usb_linux_bh_cb: REAPURBNDELAY ioctl=%d errno=%d\n",
+        printf("urb_completion: REAPURBNDELAY ioctl=%d errno=%d\n",
                ret, errno);
         return;
     }
 
 #ifdef DEBUG_ISOCH
     if (purb == pending_urb->urb) {
-        printf("usb_linux_bh_cb: urb mismatch reaped=%p pending=%p\n",
+        printf("urb_completion: urb mismatch reaped=%p pending=%p\n",
                purb, urb);
     }
 #endif
@@ -391,12 +393,8 @@ static void isoch_done(int signum, siginfo_t *info, void *context)
 
     purb = get_pending_urb(urb);
     if (purb) {
-        purb->bh = qemu_bh_new(usb_linux_bh_cb, purb);
-        if (purb->bh) {
-            purb->dev = s;
-            purb->status = info->si_errno;
-            qemu_bh_schedule(purb->bh);
-        }
+        purb->status = info->si_errno;
+        write(s->pipe_fds[1], &purb, sizeof(purb));
     }
 }
 #endif
@@ -627,7 +625,7 @@ USBDevice *usb_host_device_open(const char *devname)
     /* read the device description */
     dev->descr_len = read(fd, dev->descr, sizeof(dev->descr));
     if (dev->descr_len <= 0) {
-        perror("usb_host_update_interfaces: reading device data failed");
+        perror("usb_host_device_open: reading device data failed");
         goto fail;
     }
 
@@ -650,7 +648,7 @@ USBDevice *usb_host_device_open(const char *devname)
 
     ret = ioctl(fd, USBDEVFS_CONNECTINFO, &ci);
     if (ret < 0) {
-        perror("USBDEVFS_CONNECTINFO");
+        perror("usb_host_device_open: USBDEVFS_CONNECTINFO");
         goto fail;
     }
 
@@ -688,8 +686,17 @@ USBDevice *usb_host_device_open(const char *devname)
     sigact.sa_restorer = 0;
     ret = sigaction(SIG_ISOCOMPLETE, &sigact, NULL);
     if (ret < 0) {
-        printf("sigaction SIG_ISOCOMPLETE=%d errno=%d\n", ret, errno);
+        perror("usb_host_device_open: sigaction failed");
+        goto fail;
     }
+
+    if (pipe(dev->pipe_fds) < 0) {
+        perror("usb_host_device_open: pipe creation failed");
+        goto fail;
+    }
+    fcntl(dev->pipe_fds[0], F_SETFL, O_NONBLOCK | O_ASYNC);
+    fcntl(dev->pipe_fds[1], F_SETFL, O_NONBLOCK);
+    qemu_set_fd_handler(dev->pipe_fds[0], urb_completion_pipe_read, NULL, dev);
 #endif
     dev->urbs_ready = 0;
     return (USBDevice *)dev;

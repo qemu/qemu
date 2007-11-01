@@ -272,6 +272,7 @@ struct ipoption {
 	int8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
+#ifdef LOG_ENABLED
 /*
  * Structure attached to inpcb.ip_moptions and
  * passed to ip_output when IP multicast options are in use.
@@ -306,8 +307,9 @@ struct	ipstat {
 };
 
 extern struct	ipstat	ipstat;
+#endif
+
 extern struct	ipq	ipq;			/* ip reass. queue */
 extern u_int16_t	ip_id;				/* ip packet ctr, for ids */
-extern int	ip_defttl;			/* default IP ttl */
 
 #endif

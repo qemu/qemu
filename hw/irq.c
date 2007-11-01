@@ -55,3 +55,14 @@ qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
     return s;
 }
 
+static void qemu_notirq(void *opaque, int line, int level)
+{
+    struct IRQState *irq = opaque;
+
+    irq->handler(irq->opaque, irq->n, !level);
+}
+
+qemu_irq qemu_irq_invert(qemu_irq irq)
+{
+    return qemu_allocate_irqs(qemu_notirq, irq, 1)[0];
+}

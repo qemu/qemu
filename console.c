@@ -509,7 +509,7 @@ static void text_console_resize(TextConsole *s)
             c++;
         }
     }
-    free(s->cells);
+    qemu_free(s->cells);
     s->cells = cells;
 }
 
@@ -1167,11 +1167,21 @@ int is_graphic_console(void)
     return active_console->console_type == GRAPHIC_CONSOLE;
 }
 
+void console_color_init(DisplayState *ds)
+{
+    int i, j;
+    for (j = 0; j < 2; j++) {
+        for (i = 0; i < 8; i++) {
+            color_table[j][i] = col_expand(ds, 
+                   vga_get_color(ds, color_table_rgb[j][i]));
+        }
+    }
+}
+
 CharDriverState *text_console_init(DisplayState *ds, const char *p)
 {
     CharDriverState *chr;
     TextConsole *s;
-    int i,j;
     unsigned width;
     unsigned height;
     static int color_inited;
@@ -1195,12 +1205,7 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
 
     if (!color_inited) {
         color_inited = 1;
-        for(j = 0; j < 2; j++) {
-            for(i = 0; i < 8; i++) {
-                color_table[j][i] = col_expand(s->ds,
-                        vga_get_color(s->ds, color_table_rgb[j][i]));
-            }
-        }
+        console_color_init(s->ds);
     }
     s->y_displayed = 0;
     s->y_base = 0;

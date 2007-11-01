@@ -1,7 +1,8 @@
 /*
- * QEMU CUDA support
+ * QEMU PowerMac CUDA device support
  *
- * Copyright (c) 2004 Fabrice Bellard
+ * Copyright (c) 2004-2007 Fabrice Bellard
+ * Copyright (c) 2007 Jocelyn Mayer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "ppc_mac.h"
 
 /* XXX: implement all timer modes */
 
@@ -634,10 +636,9 @@ static CPUReadMemoryFunc *cuda_read[] = {
     &cuda_readl,
 };
 
-int cuda_init(qemu_irq irq)
+void cuda_init (int *cuda_mem_index, qemu_irq irq)
 {
     CUDAState *s = &cuda_state;
-    int cuda_mem_index;
 
     s->irq = irq;
 
@@ -653,6 +654,5 @@ int cuda_init(qemu_irq irq)
     set_counter(s, &s->timers[1], 0xffff);
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
-    cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
-    return cuda_mem_index;
+    *cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
 }

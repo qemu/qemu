@@ -201,7 +201,9 @@ extern unsigned int nb_prom_envs;
 
 /* XXX: make it dynamic */
 #define MAX_BIOS_SIZE (4 * 1024 * 1024)
-#if defined (TARGET_PPC) || defined (TARGET_SPARC64)
+#if defined (TARGET_PPC)
+#define BIOS_SIZE (1024 * 1024)
+#elif defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
 #define MAX_FLASH_SIZE (16 * MiB)
@@ -380,6 +382,7 @@ void vga_hw_screen_dump(const char *filename);
 int is_graphic_console(void);
 CharDriverState *text_console_init(DisplayState *ds, const char *p);
 void console_select(unsigned int index);
+void console_color_init(DisplayState *ds);
 
 /* serial ports */
 
@@ -446,6 +449,9 @@ typedef struct NICInfo {
 
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
+
+/* SLIRP */
+void do_info_slirp(void);
 
 /* timers */
 
@@ -733,7 +739,7 @@ void path_combine(char *dest, int dest_size,
 #ifndef QEMU_TOOL
 
 typedef void QEMUMachineInitFunc(int ram_size, int vga_ram_size,
-                                 int boot_device,
+                                 const char *boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
              const char *kernel_filename, const char *kernel_cmdline,
              const char *initrd_filename, const char *cpu_model);
@@ -866,12 +872,6 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
 /* prep_pci.c */
 PCIBus *pci_prep_init(qemu_irq *pic);
 
-/* grackle_pci.c */
-PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic);
-
-/* unin_pci.c */
-PCIBus *pci_pmac_init(qemu_irq *pic);
-
 /* apb_pci.c */
 PCIBus *pci_apb_init(target_phys_addr_t special_base, target_phys_addr_t mem_base,
                      qemu_irq *pic);
@@ -898,9 +898,6 @@ enum {
 };
 qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
                         qemu_irq **irqs, qemu_irq irq_out);
-
-/* heathrow_pic.c */
-qemu_irq *heathrow_pic_init(int *pmem_index);
 
 /* gt64xxx.c */
 PCIBus *pci_gt64120_init(qemu_irq *pic);
@@ -1011,7 +1008,6 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
                         qemu_irq *pic);
 void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
                         qemu_irq *pic);
-int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq);
 
 /* cdrom.c */
 int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track);
@@ -1271,12 +1267,12 @@ clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq);
 void ppc40x_core_reset (CPUState *env);
 void ppc40x_chip_reset (CPUState *env);
 void ppc40x_system_reset (CPUState *env);
-#endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 extern CPUWriteMemoryFunc *PPC_io_write[];
 extern CPUReadMemoryFunc *PPC_io_read[];
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
+#endif
 
 /* sun4m.c */
 extern QEMUMachine ss5_machine, ss10_machine;
@@ -1356,20 +1352,28 @@ void cs_init(target_phys_addr_t base, int irq, void *intctl);
 extern QEMUMachine sun4u_machine;
 
 /* NVRAM helpers */
+typedef uint32_t (*nvram_read_t)(void *private, uint32_t addr);
+typedef void (*nvram_write_t)(void *private, uint32_t addr, uint32_t val);
+typedef struct nvram_t {
+    void *opaque;
+    nvram_read_t read_fn;
+    nvram_write_t write_fn;
+} nvram_t;
+
 #include "hw/m48t59.h"
 
-void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value);
-uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr);
-void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value);
-uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr);
-void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value);
-uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr);
-void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
+void NVRAM_set_byte (nvram_t *nvram, uint32_t addr, uint8_t value);
+uint8_t NVRAM_get_byte (nvram_t *nvram, uint32_t addr);
+void NVRAM_set_word (nvram_t *nvram, uint32_t addr, uint16_t value);
+uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr);
+void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value);
+uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr);
+void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
                        const unsigned char *str, uint32_t max);
-int NVRAM_get_string (m48t59_t *nvram, uint8_t *dst, uint16_t addr, int max);
-void NVRAM_set_crc (m48t59_t *nvram, uint32_t addr,
+int NVRAM_get_string (nvram_t *nvram, uint8_t *dst, uint16_t addr, int max);
+void NVRAM_set_crc (nvram_t *nvram, uint32_t addr,
                     uint32_t start, uint32_t count);
-int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
+int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
                           const unsigned char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,
@@ -1417,10 +1421,7 @@ ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
 void adb_kbd_init(ADBBusState *bus);
 void adb_mouse_init(ADBBusState *bus);
 
-/* cuda.c */
-
 extern ADBBusState adb_bus;
-int cuda_init(qemu_irq irq);
 
 #include "hw/usb.h"
 
@@ -1694,6 +1695,9 @@ void qemu_get_ptimer(QEMUFile *f, ptimer_state *s);
 #include "hw/pxa.h"
 
 #include "hw/omap.h"
+
+/* tsc210x.c */
+struct uwire_slave_s *tsc2102_init(qemu_irq pint);
 
 /* mcf_uart.c */
 uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr);

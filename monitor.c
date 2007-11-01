@@ -1367,6 +1367,10 @@ static const term_cmd_t info_cmds[] = {
     { "cpustats", "", do_info_cpu_stats,
       "", "show CPU statistics", },
 #endif
+#if defined(CONFIG_SLIRP)
+    { "slirp", "", do_info_slirp,
+      "", "show SLIRP statistics", },
+#endif
     { NULL, NULL, },
 };
 

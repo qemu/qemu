@@ -7,6 +7,8 @@
 
 #include <slirp.h>
 
+static void sbappendsb(struct sbuf *sb, struct mbuf *m);
+
 /* Done as a macro in socket.h */
 /* int
  * sbspace(struct sockbuff *sb)
@@ -133,10 +135,8 @@ sbappend(so, m)
  * Copy the data from m into sb
  * The caller is responsible to make sure there's enough room
  */
-void
-sbappendsb(sb, m)
-	 struct sbuf *sb;
-	 struct mbuf *m;
+static void
+sbappendsb(struct sbuf *sb, struct mbuf *m)
 {
 	int len, n,  nn;
 

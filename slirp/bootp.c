@@ -149,7 +149,7 @@ static void bootp_reply(struct bootp_t *bp)
 
     if ((m = m_get()) == NULL)
         return;
-    m->m_data += if_maxlinkhdr;
+    m->m_data += IF_MAXLINKHDR;
     rbp = (struct bootp_t *)m->m_data;
     m->m_data += sizeof(struct udpiphdr);
     memset(rbp, 0, sizeof(struct bootp_t));

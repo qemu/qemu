@@ -1,9 +1,9 @@
 #include "vl.h"
 
-#define DEBUG_MIPSNET_SEND
-#define DEBUG_MIPSNET_RECEIVE
+//#define DEBUG_MIPSNET_SEND
+//#define DEBUG_MIPSNET_RECEIVE
 //#define DEBUG_MIPSNET_DATA
-#define DEBUG_MIPSNET_IRQ
+//#define DEBUG_MIPSNET_IRQ
 
 /* MIPSnet register offsets */
 

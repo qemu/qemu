@@ -143,7 +143,8 @@ static void main_cpu_reset(void *opaque)
                      env->kernel_cmdline, env->initrd_filename);
 }
 
-static void mips_init (int ram_size, int vga_ram_size, int boot_device,
+static
+void mips_init (int ram_size, int vga_ram_size, const char *boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -259,7 +260,8 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     ds1225y_init(0x9000, "nvram");
 }
 
-static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
+static
+void mips_r4k_init (int ram_size, int vga_ram_size, const char *boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -271,7 +273,8 @@ static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
         kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 }
 
-static void mipsel_r4k_init (int ram_size, int vga_ram_size, int boot_device,
+static
+void mipsel_r4k_init (int ram_size, int vga_ram_size, const char *boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)

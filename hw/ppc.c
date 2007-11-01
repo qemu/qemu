@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
-#include "m48t59.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -132,13 +131,17 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
         case PPC6xx_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
-#if 0 // XXX: TOFIX
 #if defined(PPC_DEBUG_IRQ)
                 if (loglevel & CPU_LOG_INT) {
                     fprintf(logfile, "%s: reset the CPU\n", __func__);
                 }
 #endif
-                cpu_reset(env);
+                env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+                /* XXX: TOFIX */
+#if 0
+                cpu_ppc_reset(env);
+#else
+                qemu_system_reset_request();
 #endif
             }
             break;
@@ -1240,63 +1243,75 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
 
 /*****************************************************************************/
 /* NVRAM helpers */
-void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value)
+static inline uint32_t nvram_read (nvram_t *nvram, uint32_t addr)
 {
-    m48t59_write(nvram, addr, value);
+    return (*nvram->read_fn)(nvram->opaque, addr);;
 }
 
-uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr)
+static inline void nvram_write (nvram_t *nvram, uint32_t addr, uint32_t val)
 {
-    return m48t59_read(nvram, addr);
+    (*nvram->write_fn)(nvram->opaque, addr, val);
 }
 
-void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
+void NVRAM_set_byte (nvram_t *nvram, uint32_t addr, uint8_t value)
 {
-    m48t59_write(nvram, addr, value >> 8);
-    m48t59_write(nvram, addr + 1, value & 0xFF);
+    nvram_write(nvram, addr, value);
 }
 
-uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr)
+uint8_t NVRAM_get_byte (nvram_t *nvram, uint32_t addr)
+{
+    return nvram_read(nvram, addr);
+}
+
+void NVRAM_set_word (nvram_t *nvram, uint32_t addr, uint16_t value)
+{
+    nvram_write(nvram, addr, value >> 8);
+    nvram_write(nvram, addr + 1, value & 0xFF);
+}
+
+uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
 {
     uint16_t tmp;
 
-    tmp = m48t59_read(nvram, addr) << 8;
-    tmp |= m48t59_read(nvram, addr + 1);
+    tmp = nvram_read(nvram, addr) << 8;
+    tmp |= nvram_read(nvram, addr + 1);
+
     return tmp;
 }
 
-void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
+void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value)
 {
-    m48t59_write(nvram, addr, value >> 24);
-    m48t59_write(nvram, addr + 1, (value >> 16) & 0xFF);
-    m48t59_write(nvram, addr + 2, (value >> 8) & 0xFF);
-    m48t59_write(nvram, addr + 3, value & 0xFF);
+    nvram_write(nvram, addr, value >> 24);
+    nvram_write(nvram, addr + 1, (value >> 16) & 0xFF);
+    nvram_write(nvram, addr + 2, (value >> 8) & 0xFF);
+    nvram_write(nvram, addr + 3, value & 0xFF);
 }
 
-uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr)
+uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr)
 {
     uint32_t tmp;
 
-    tmp = m48t59_read(nvram, addr) << 24;
-    tmp |= m48t59_read(nvram, addr + 1) << 16;
-    tmp |= m48t59_read(nvram, addr + 2) << 8;
-    tmp |= m48t59_read(nvram, addr + 3);
+    tmp = nvram_read(nvram, addr) << 24;
+    tmp |= nvram_read(nvram, addr + 1) << 16;
+    tmp |= nvram_read(nvram, addr + 2) << 8;
+    tmp |= nvram_read(nvram, addr + 3);
 
     return tmp;
 }
 
-void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
+void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
                        const unsigned char *str, uint32_t max)
 {
     int i;
 
     for (i = 0; i < max && str[i] != '\0'; i++) {
-        m48t59_write(nvram, addr + i, str[i]);
+        nvram_write(nvram, addr + i, str[i]);
     }
-    m48t59_write(nvram, addr + max - 1, '\0');
+    nvram_write(nvram, addr + i, str[i]);
+    nvram_write(nvram, addr + max - 1, '\0');
 }
 
-int NVRAM_get_string (m48t59_t *nvram, uint8_t *dst, uint16_t addr, int max)
+int NVRAM_get_string (nvram_t *nvram, uint8_t *dst, uint16_t addr, int max)
 {
     int i;
 
@@ -1325,7 +1340,7 @@ static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
     return tmp;
 }
 
-uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
+uint16_t NVRAM_compute_crc (nvram_t *nvram, uint32_t start, uint32_t count)
 {
     uint32_t i;
     uint16_t crc = 0xFFFF;
@@ -1345,7 +1360,7 @@ uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
 
 #define CMDLINE_ADDR 0x017ff000
 
-int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
+int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
                           const unsigned char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,
@@ -1382,7 +1397,7 @@ int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_word(nvram,   0x56, height);
     NVRAM_set_word(nvram,   0x58, depth);
     crc = NVRAM_compute_crc(nvram, 0x00, 0xF8);
-    NVRAM_set_word(nvram,  0xFC, crc);
+    NVRAM_set_word(nvram,   0xFC, crc);
 
     return 0;
 }

@@ -42,8 +42,6 @@ typedef	u_int32_t	tcp_seq;
 #define      PR_SLOWHZ       2               /* 2 slow timeouts per second (approx) */
 #define      PR_FASTHZ       5               /* 5 fast timeouts per second (not important) */
 
-extern int tcp_rcvspace;
-extern int tcp_sndspace;
 extern struct socket *tcp_last_so;
 
 #define TCP_SNDSPACE 8192
@@ -172,6 +170,6 @@ struct tcphdr {
 
 extern tcp_seq tcp_iss;                /* tcp initial send seq # */
 
-extern char *tcpstates[];
+extern const char * const tcpstates[];
 
 #endif

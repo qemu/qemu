@@ -46,6 +46,10 @@
 
 u_int16_t ip_id;
 
+/* Number of packets queued before we start sending
+ * (to prevent allocing too many mbufs) */
+#define IF_THRESH 10
+
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
@@ -80,14 +84,14 @@ ip_output(so, m0)
 	ip->ip_off &= IP_DF;
 	ip->ip_id = htons(ip_id++);
 	ip->ip_hl = hlen >> 2;
-	ipstat.ips_localout++;
+	STAT(ipstat.ips_localout++);
 
 	/*
 	 * Verify that we have any chance at all of being able to queue
 	 *      the packet or packet fragments
 	 */
 	/* XXX Hmmm... */
-/*	if (if_queued > if_thresh && towrite <= 0) {
+/*	if (if_queued > IF_THRESH && towrite <= 0) {
  *		error = ENOBUFS;
  *		goto bad;
  *	}
@@ -96,7 +100,7 @@ ip_output(so, m0)
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
-	if ((u_int16_t)ip->ip_len <= if_mtu) {
+	if ((u_int16_t)ip->ip_len <= IF_MTU) {
 		ip->ip_len = htons((u_int16_t)ip->ip_len);
 		ip->ip_off = htons((u_int16_t)ip->ip_off);
 		ip->ip_sum = 0;
@@ -112,11 +116,11 @@ ip_output(so, m0)
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = -1;
-		ipstat.ips_cantfrag++;
+		STAT(ipstat.ips_cantfrag++);
 		goto bad;
 	}
 
-	len = (if_mtu - hlen) &~ 7;       /* ip databytes per packet */
+	len = (IF_MTU - hlen) &~ 7;       /* ip databytes per packet */
 	if (len < 8) {
 		error = -1;
 		goto bad;
@@ -137,10 +141,10 @@ ip_output(so, m0)
 	  m = m_get();
 	  if (m == 0) {
 	    error = -1;
-	    ipstat.ips_odropped++;
+	    STAT(ipstat.ips_odropped++);
 	    goto sendorfree;
 	  }
-	  m->m_data += if_maxlinkhdr;
+	  m->m_data += IF_MAXLINKHDR;
 	  mhip = mtod(m, struct ip *);
 	  *mhip = *ip;
 
@@ -170,7 +174,7 @@ ip_output(so, m0)
 	  mhip->ip_sum = cksum(m, mhlen);
 	  *mnext = m;
 	  mnext = &m->m_nextpkt;
-	  ipstat.ips_ofragments++;
+	  STAT(ipstat.ips_ofragments++);
 	}
 	/*
 	 * Update first fragment by trimming what's been copied out
@@ -193,7 +197,7 @@ sendorfree:
 	}
 
 	if (error == 0)
-		ipstat.ips_fragmented++;
+		STAT(ipstat.ips_fragmented++);
     }
 
 done:

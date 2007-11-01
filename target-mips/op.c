@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "exec.h"
+#include "host-utils.h"
 
 #ifndef CALL_FROM_TB0
 #define CALL_FROM_TB0(func) func()
@@ -285,6 +286,10 @@ void op_store_LO (void)
 #include "op_mem.c"
 #undef MEMSUFFIX
 
+#define MEMSUFFIX _super
+#include "op_mem.c"
+#undef MEMSUFFIX
+
 #define MEMSUFFIX _kernel
 #include "op_mem.c"
 #undef MEMSUFFIX
@@ -297,7 +302,7 @@ void op_addr_add (void)
    with Status_UX = 0 should be casted to 32-bit and sign extended.
    See the MIPS64 PRA manual, section 4.10. */
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
-    if ((env->hflags & MIPS_HFLAG_UM) &&
+    if (((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
         !(env->CP0_Status & (1 << CP0St_UX)))
         T0 = (int64_t)(int32_t)(T0 + T1);
     else
@@ -537,35 +542,13 @@ void op_rotrv (void)
 
 void op_clo (void)
 {
-    int n;
-
-    if (T0 == ~((target_ulong)0)) {
-        T0 = 32;
-    } else {
-        for (n = 0; n < 32; n++) {
-            if (!(((int32_t)T0) & (1 << 31)))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clo32(T0);
     RETURN();
 }
 
 void op_clz (void)
 {
-    int n;
-
-    if (T0 == 0) {
-        T0 = 32;
-    } else {
-        for (n = 0; n < 32; n++) {
-            if (T0 & (1 << 31))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clz32(T0);
     RETURN();
 }
 
@@ -642,6 +625,18 @@ void op_dsrlv (void)
 void op_drotrv (void)
 {
     CALL_FROM_TB0(do_drotrv);
+    RETURN();
+}
+
+void op_dclo (void)
+{
+    CALL_FROM_TB0(do_dclo);
+    RETURN();
+}
+
+void op_dclz (void)
+{
+    CALL_FROM_TB0(do_dclz);
     RETURN();
 }
 
@@ -735,41 +730,19 @@ void op_drotrv (void)
        T0 = T1;
     RETURN();
 }
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 void op_dclo (void)
 {
-    int n;
-
-    if (T0 == ~((target_ulong)0)) {
-        T0 = 64;
-    } else {
-        for (n = 0; n < 64; n++) {
-            if (!(T0 & (1ULL << 63)))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clo64(T0);
     RETURN();
 }
 
 void op_dclz (void)
 {
-    int n;
-
-    if (T0 == 0) {
-        T0 = 64;
-    } else {
-        for (n = 0; n < 64; n++) {
-            if (T0 & (1ULL << 63))
-                break;
-            T0 <<= 1;
-        }
-        T0 = n;
-    }
+    T0 = clz64(T0);
     RETURN();
 }
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 #endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
 
 /* 64 bits arithmetic */
@@ -876,13 +849,13 @@ void op_msubu (void)
 #if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
 void op_dmult (void)
 {
-    CALL_FROM_TB4(muls64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
+    CALL_FROM_TB4(muls64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
     RETURN();
 }
 
 void op_dmultu (void)
 {
-    CALL_FROM_TB4(mulu64, &(env->HI[0][env->current_tc]), &(env->LO[0][env->current_tc]), T0, T1);
+    CALL_FROM_TB4(mulu64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
     RETURN();
 }
 #endif
@@ -1300,7 +1273,7 @@ void op_mftc0_status(void)
     T0 = env->CP0_Status & ~0xf1000018;
     T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
     T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
-    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_R0);
+    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
     RETURN();
 }
 
@@ -1864,7 +1837,7 @@ void op_mttc0_status(void)
     env->CP0_Status = T0 & ~0xf1000018;
     tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (T0 & (0xf << CP0St_CU0));
     tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((T0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
-    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_R0)) << (CP0TCSt_TKSU - CP0St_R0));
+    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
     env->CP0_TCStatus[other_tc] = tcstatus;
     RETURN();
 }
@@ -1998,7 +1971,7 @@ void op_mtc0_depc (void)
 
 void op_mtc0_performance0 (void)
 {
-    env->CP0_Performance0 = T0; /* XXX */
+    env->CP0_Performance0 = T0 & 0x000007ff;
     RETURN();
 }
 

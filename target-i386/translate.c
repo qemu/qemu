@@ -6011,7 +6011,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_INVD))
+            if (gen_svm_check_intercept(s, pc_start, (b & 2) ? SVM_EXIT_INVD : SVM_EXIT_WBINVD))
                 break;
             /* nothing to do */
         }

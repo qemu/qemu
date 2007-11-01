@@ -37,7 +37,8 @@ static uint32_t static_readw(void *opaque, target_phys_addr_t offset) {
 }
 
 static void static_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value) {
+                uint32_t value)
+{
 #ifdef SPY
     printf("%s: value %08lx written at " PA_FMT "\n",
                     __FUNCTION__, value, offset);
@@ -57,12 +58,66 @@ static CPUWriteMemoryFunc *static_writefn[] = {
 };
 
 /* Palm Tunsgten|E support */
+
+/* Shared GPIOs */
+#define PALMTE_USBDETECT_GPIO	0
+#define PALMTE_USB_OR_DC_GPIO	1
+#define PALMTE_TSC_GPIO		4
+#define PALMTE_PINTDAV_GPIO	6
+#define PALMTE_MMC_WP_GPIO	8
+#define PALMTE_MMC_POWER_GPIO	9
+#define PALMTE_HDQ_GPIO		11
+#define PALMTE_HEADPHONES_GPIO	14
+#define PALMTE_SPEAKER_GPIO	15
+/* MPU private GPIOs */
+#define PALMTE_DC_GPIO		2
+#define PALMTE_MMC_SWITCH_GPIO	4
+#define PALMTE_MMC1_GPIO	6
+#define PALMTE_MMC2_GPIO	7
+#define PALMTE_MMC3_GPIO	11
+
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
+    qemu_irq p_int = omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO];
+
+    omap_uwire_attach(
+                    cpu->microwire,
+                    tsc2102_init(qemu_irq_invert(p_int)),
+                    0);
 }
 
-static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
-                DisplayState *ds, const char **fd_filename, int snapshot,
+static struct {
+    int row;
+    int column;
+} palmte_keymap[0x80] = {
+    [0 ... 0x7f] = { -1, -1 },
+    [0x3b] = { 0, 0 },	/* F1	-> Calendar */
+    [0x3c] = { 1, 0 },	/* F2	-> Contacts */
+    [0x3d] = { 2, 0 },	/* F3	-> Tasks List */
+    [0x3e] = { 3, 0 },	/* F4	-> Note Pad */
+    [0x01] = { 4, 0 },	/* Esc	-> Power */
+    [0x4b] = { 0, 1 },	/* 	   Left */
+    [0x50] = { 1, 1 },	/* 	   Down */
+    [0x48] = { 2, 1 },	/*	   Up */
+    [0x4d] = { 3, 1 },	/*	   Right */
+    [0x4c] = { 4, 1 },	/* 	   Centre */
+    [0x39] = { 4, 1 },	/* Spc	-> Centre */
+};
+
+static void palmte_button_event(void *opaque, int keycode)
+{
+    struct omap_mpu_state_s *cpu = (struct omap_mpu_state_s *) opaque;
+
+    if (palmte_keymap[keycode & 0x7f].row != -1)
+        omap_mpuio_key(cpu->mpuio,
+                        palmte_keymap[keycode & 0x7f].row,
+                        palmte_keymap[keycode & 0x7f].column,
+                        !(keycode & 0x80));
+}
+
+static void palmte_init(int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -100,6 +155,13 @@ static void palmte_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(OMAP_CS3_BASE, OMAP_CS3_SIZE, io);
 
     palmte_microwire_setup(cpu);
+
+    qemu_add_kbd_event_handler(palmte_button_event, cpu);
+
+    omap_mmc_handlers(cpu->mmc,
+                    omap_gpio_in_get(cpu->gpio)[PALMTE_MMC_WP_GPIO],
+                    qemu_irq_invert(omap_mpuio_in_get(cpu->mpuio)
+                            [PALMTE_MMC_SWITCH_GPIO]));
 
     /* Setup initial (reset) machine state */
     if (nb_option_roms) {

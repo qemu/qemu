@@ -1,7 +1,8 @@
 /*
- * Heathrow PIC support (standard PowerMac PIC)
+ * Heathrow PIC support (OldWorld PowerMac)
  *
- * Copyright (c) 2005 Fabrice Bellard
+ * Copyright (c) 2005-2007 Fabrice Bellard
+ * Copyright (c) 2007 Jocelyn Mayer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "ppc_mac.h"
 
 //#define DEBUG
 
@@ -34,6 +36,7 @@ typedef struct HeathrowPIC {
 
 typedef struct HeathrowPICS {
     HeathrowPIC pics[2];
+    qemu_irq *irqs;
 } HeathrowPICS;
 
 static inline int check_irq(HeathrowPIC *pic)
@@ -45,9 +48,9 @@ static inline int check_irq(HeathrowPIC *pic)
 static void heathrow_pic_update(HeathrowPICS *s)
 {
     if (check_irq(&s->pics[0]) || check_irq(&s->pics[1])) {
-        cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+        qemu_irq_raise(s->irqs[0]);
     } else {
-        cpu_reset_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+        qemu_irq_lower(s->irqs[0]);
     }
 }
 
@@ -57,12 +60,13 @@ static void pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     HeathrowPIC *pic;
     unsigned int n;
 
+#ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
-#ifdef DEBUG
-    printf("pic_writel: %08x: %08x\n",
-           addr, value);
 #endif
     n = ((addr & 0xfff) - 0x10) >> 4;
+#ifdef DEBUG
+    printf("pic_writel: " PADDRX " %u: %08x\n", addr, n, value);
+#endif
     if (n >= 2)
         return;
     pic = &s->pics[n];
@@ -110,10 +114,11 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
         }
     }
 #ifdef DEBUG
-    printf("pic_readl: %08x: %08x\n",
-           addr, value);
+    printf("pic_readl: " PADDRX " %u: %08x\n", addr, n, value);
 #endif
+#ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
+#endif
     return value;
 }
 
@@ -156,13 +161,17 @@ static void heathrow_pic_set_irq(void *opaque, int num, int level)
     heathrow_pic_update(s);
 }
 
-qemu_irq *heathrow_pic_init(int *pmem_index)
+qemu_irq *heathrow_pic_init(int *pmem_index,
+                            int nb_cpus, qemu_irq **irqs)
 {
     HeathrowPICS *s;
 
     s = qemu_mallocz(sizeof(HeathrowPICS));
     s->pics[0].level_triggered = 0;
     s->pics[1].level_triggered = 0x1ff00000;
+    /* only 1 CPU */
+    s->irqs = irqs[0];
     *pmem_index = cpu_register_io_memory(0, pic_read, pic_write, s);
+
     return qemu_allocate_irqs(heathrow_pic_set_irq, s, 64);
 }
