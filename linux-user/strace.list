@@ -1,0 +1,1515 @@
+#ifdef TARGET_NR_accept
+{ TARGET_NR_accept, "accept" , "%s(%d,%#x,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_access
+{ TARGET_NR_access, "access" , "%s(\"%s\",%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_acct
+{ TARGET_NR_acct, "acct" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_add_key
+{ TARGET_NR_add_key, "add_key" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_adjtimex
+{ TARGET_NR_adjtimex, "adjtimex" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_afs_syscall
+{ TARGET_NR_afs_syscall, "afs_syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_alarm
+{ TARGET_NR_alarm, "alarm" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_aplib
+{ TARGET_NR_aplib, "aplib" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_arch_prctl
+{ TARGET_NR_arch_prctl, "arch_prctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_arm_fadvise64_64
+{ TARGET_NR_arm_fadvise64_64, "arm_fadvise64_64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_bdflush
+{ TARGET_NR_bdflush, "bdflush" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_bind
+{ TARGET_NR_bind, "bind" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_break
+{ TARGET_NR_break, "break" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_brk
+{ TARGET_NR_brk, "brk" , NULL, NULL, print_syscall_ret_addr },
+#endif
+#ifdef TARGET_NR_cachectl
+{ TARGET_NR_cachectl, "cachectl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_cacheflush
+{ TARGET_NR_cacheflush, "cacheflush" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_capget
+{ TARGET_NR_capget, "capget" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_capset
+{ TARGET_NR_capset, "capset" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_chdir
+{ TARGET_NR_chdir, "chdir" , "%s(\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_chmod
+{ TARGET_NR_chmod, "chmod" , "%s(\"%s\",%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_chown
+{ TARGET_NR_chown, "chown" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_chown32
+{ TARGET_NR_chown32, "chown32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_chroot
+{ TARGET_NR_chroot, "chroot" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_clock_getres
+{ TARGET_NR_clock_getres, "clock_getres" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_clock_gettime
+{ TARGET_NR_clock_gettime, "clock_gettime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_clock_nanosleep
+{ TARGET_NR_clock_nanosleep, "clock_nanosleep" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_clock_settime
+{ TARGET_NR_clock_settime, "clock_settime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_clone
+{ TARGET_NR_clone, "clone" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_close
+{ TARGET_NR_close, "close" , "%s(%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_connect
+{ TARGET_NR_connect, "connect" , "%s(%d,%#x,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_creat
+{ TARGET_NR_creat, "creat" , "%s(\"%s\",%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_create_module
+{ TARGET_NR_create_module, "create_module" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_delete_module
+{ TARGET_NR_delete_module, "delete_module" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_dipc
+{ TARGET_NR_dipc, "dipc" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_dup
+{ TARGET_NR_dup, "dup" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_dup2
+{ TARGET_NR_dup2, "dup2" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_epoll_create
+{ TARGET_NR_epoll_create, "epoll_create" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_epoll_ctl
+{ TARGET_NR_epoll_ctl, "epoll_ctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_epoll_ctl_old
+{ TARGET_NR_epoll_ctl_old, "epoll_ctl_old" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_epoll_wait
+{ TARGET_NR_epoll_wait, "epoll_wait" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_epoll_wait_old
+{ TARGET_NR_epoll_wait_old, "epoll_wait_old" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_execv
+{ TARGET_NR_execv, "execv" , "%s(\"%s\",%ld,%ld,%ld,%ld,%ld)\n", NULL, NULL },
+#endif
+#ifdef TARGET_NR_execve
+{ TARGET_NR_execve, "execve" , NULL, print_execve, NULL },
+#endif
+#ifdef TARGET_NR_exec_with_loader
+{ TARGET_NR_exec_with_loader, "exec_with_loader" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_exit
+{ TARGET_NR_exit, "exit" , "%s(%d)\n", NULL, NULL },
+#endif
+#ifdef TARGET_NR__exit
+{ TARGET_NR__exit, "_exit" , "%s(%d)\n", NULL, NULL },
+#endif
+#ifdef TARGET_NR_exit_group
+{ TARGET_NR_exit_group, "exit_group" , "%s(%d)\n", NULL, NULL },
+#endif
+#ifdef TARGET_NR_faccessat
+{ TARGET_NR_faccessat, "faccessat" , "%s(%d,\"%s\",%#o,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fadvise64
+{ TARGET_NR_fadvise64, "fadvise64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fadvise64_64
+{ TARGET_NR_fadvise64_64, "fadvise64_64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fchdir
+{ TARGET_NR_fchdir, "fchdir" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fchmod
+{ TARGET_NR_fchmod, "fchmod" , "%s(%d,%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fchmodat
+{ TARGET_NR_fchmodat, "fchmodat" , "%s(%d,\"%s\",%#o,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fchown
+{ TARGET_NR_fchown, "fchown" , "%s(\"%s\",%d,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fchown32
+{ TARGET_NR_fchown32, "fchown32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fchownat
+{ TARGET_NR_fchownat, "fchownat" , "%s(%d,\"%s\",%d,%d,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fcntl
+{ TARGET_NR_fcntl, "fcntl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fcntl64
+{ TARGET_NR_fcntl64, "fcntl64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fdatasync
+{ TARGET_NR_fdatasync, "fdatasync" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fgetxattr
+{ TARGET_NR_fgetxattr, "fgetxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_flistxattr
+{ TARGET_NR_flistxattr, "flistxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_flock
+{ TARGET_NR_flock, "flock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fork
+{ TARGET_NR_fork, "fork" , "%s()", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fremovexattr
+{ TARGET_NR_fremovexattr, "fremovexattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fsetxattr
+{ TARGET_NR_fsetxattr, "fsetxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fstat
+{ TARGET_NR_fstat, "fstat" , "%s(%d,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fstat64
+{ TARGET_NR_fstat64, "fstat64" , "%s(%d,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fstatfs
+{ TARGET_NR_fstatfs, "fstatfs" , "%s(%d,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fstatfs64
+{ TARGET_NR_fstatfs64, "fstatfs64" , "%s(%d,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_fsync
+{ TARGET_NR_fsync, "fsync" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ftime
+{ TARGET_NR_ftime, "ftime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ftruncate
+{ TARGET_NR_ftruncate, "ftruncate" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ftruncate64
+{ TARGET_NR_ftruncate64, "ftruncate64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_futex
+{ TARGET_NR_futex, "futex" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_futimesat
+{ TARGET_NR_futimesat, "futimesat" , "%s(%d,\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_getcwd
+{ TARGET_NR_getcwd, "getcwd" , "%s(%p,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_getdents
+{ TARGET_NR_getdents, "getdents" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getdents64
+{ TARGET_NR_getdents64, "getdents64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getdomainname
+{ TARGET_NR_getdomainname, "getdomainname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getdtablesize
+{ TARGET_NR_getdtablesize, "getdtablesize" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getegid
+{ TARGET_NR_getegid, "getegid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getegid32
+{ TARGET_NR_getegid32, "getegid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_geteuid
+{ TARGET_NR_geteuid, "geteuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_geteuid32
+{ TARGET_NR_geteuid32, "geteuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getgid
+{ TARGET_NR_getgid, "getgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getgid32
+{ TARGET_NR_getgid32, "getgid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getgroups
+{ TARGET_NR_getgroups, "getgroups" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getgroups32
+{ TARGET_NR_getgroups32, "getgroups32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_gethostname
+{ TARGET_NR_gethostname, "gethostname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getitimer
+{ TARGET_NR_getitimer, "getitimer" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_get_kernel_syms
+{ TARGET_NR_get_kernel_syms, "get_kernel_syms" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_get_mempolicy
+{ TARGET_NR_get_mempolicy, "get_mempolicy" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpagesize
+{ TARGET_NR_getpagesize, "getpagesize" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpeername
+{ TARGET_NR_getpeername, "getpeername" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpgid
+{ TARGET_NR_getpgid, "getpgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpgrp
+{ TARGET_NR_getpgrp, "getpgrp" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpid
+{ TARGET_NR_getpid, "getpid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpmsg
+{ TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getppid
+{ TARGET_NR_getppid, "getppid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getpriority
+{ TARGET_NR_getpriority, "getpriority", "%s(%#x,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_getresgid
+{ TARGET_NR_getresgid, "getresgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getresgid32
+{ TARGET_NR_getresgid32, "getresgid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getresuid
+{ TARGET_NR_getresuid, "getresuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getresuid32
+{ TARGET_NR_getresuid32, "getresuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getrlimit
+{ TARGET_NR_getrlimit, "getrlimit" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_get_robust_list
+{ TARGET_NR_get_robust_list, "get_robust_list" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getrusage
+{ TARGET_NR_getrusage, "getrusage" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getsid
+{ TARGET_NR_getsid, "getsid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getsockname
+{ TARGET_NR_getsockname, "getsockname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getsockopt
+{ TARGET_NR_getsockopt, "getsockopt" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_get_thread_area
+{ TARGET_NR_get_thread_area, "get_thread_area" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_gettid
+{ TARGET_NR_gettid, "gettid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_gettimeofday
+{ TARGET_NR_gettimeofday, "gettimeofday" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getuid
+{ TARGET_NR_getuid, "getuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getuid32
+{ TARGET_NR_getuid32, "getuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getxattr
+{ TARGET_NR_getxattr, "getxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getxgid
+{ TARGET_NR_getxgid, "getxgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getxpid
+{ TARGET_NR_getxpid, "getxpid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_getxuid
+{ TARGET_NR_getxuid, "getxuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_gtty
+{ TARGET_NR_gtty, "gtty" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_idle
+{ TARGET_NR_idle, "idle" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_init_module
+{ TARGET_NR_init_module, "init_module" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_inotify_add_watch
+{ TARGET_NR_inotify_add_watch, "inotify_add_watch" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_inotify_init
+{ TARGET_NR_inotify_init, "inotify_init" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_inotify_rm_watch
+{ TARGET_NR_inotify_rm_watch, "inotify_rm_watch" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_io_cancel
+{ TARGET_NR_io_cancel, "io_cancel" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ioctl
+{ TARGET_NR_ioctl, "ioctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_io_destroy
+{ TARGET_NR_io_destroy, "io_destroy" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_io_getevents
+{ TARGET_NR_io_getevents, "io_getevents" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ioperm
+{ TARGET_NR_ioperm, "ioperm" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_iopl
+{ TARGET_NR_iopl, "iopl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ioprio_get
+{ TARGET_NR_ioprio_get, "ioprio_get" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ioprio_set
+{ TARGET_NR_ioprio_set, "ioprio_set" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_io_setup
+{ TARGET_NR_io_setup, "io_setup" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_io_submit
+{ TARGET_NR_io_submit, "io_submit" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ipc
+{ TARGET_NR_ipc, "ipc" , NULL, print_ipc, NULL },
+#endif
+#ifdef TARGET_NR_kexec_load
+{ TARGET_NR_kexec_load, "kexec_load" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_keyctl
+{ TARGET_NR_keyctl, "keyctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_kill
+{ TARGET_NR_kill, "kill" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lchown
+{ TARGET_NR_lchown, "lchown" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lchown32
+{ TARGET_NR_lchown32, "lchown32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lgetxattr
+{ TARGET_NR_lgetxattr, "lgetxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_link
+{ TARGET_NR_link, "link" , "%s(\"%s\",\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_linkat
+{ TARGET_NR_linkat, "linkat" , "%s(%d,\"%s\",%d,\"%s\",%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_Linux
+{ TARGET_NR_Linux, "Linux" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_listen
+{ TARGET_NR_listen, "listen" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_listxattr
+{ TARGET_NR_listxattr, "listxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_llistxattr
+{ TARGET_NR_llistxattr, "llistxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR__llseek
+{ TARGET_NR__llseek, "_llseek" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lock
+{ TARGET_NR_lock, "lock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lookup_dcookie
+{ TARGET_NR_lookup_dcookie, "lookup_dcookie" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lremovexattr
+{ TARGET_NR_lremovexattr, "lremovexattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lseek
+{ TARGET_NR_lseek, "lseek" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lsetxattr
+{ TARGET_NR_lsetxattr, "lsetxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_lstat
+{ TARGET_NR_lstat, "lstat" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_lstat64
+{ TARGET_NR_lstat64, "lstat64" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_madvise
+{ TARGET_NR_madvise, "madvise" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_madvise1
+{ TARGET_NR_madvise1, "madvise1" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mbind
+{ TARGET_NR_mbind, "mbind" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_memory_ordering
+{ TARGET_NR_memory_ordering, "memory_ordering" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_migrate_pages
+{ TARGET_NR_migrate_pages, "migrate_pages" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mincore
+{ TARGET_NR_mincore, "mincore" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mkdir
+{ TARGET_NR_mkdir, "mkdir" , "%s(\"%s\",%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_mkdirat
+{ TARGET_NR_mkdirat, "mkdirat" , "%s(%d,\"%s\",%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_mknod
+{ TARGET_NR_mknod, "mknod" , "%s(\"%s\",%#o,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_mknodat
+{ TARGET_NR_mknodat, "mknodat" , "%s(%d,\"%s\",%#o,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_mlock
+{ TARGET_NR_mlock, "mlock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mlockall
+{ TARGET_NR_mlockall, "mlockall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mmap
+{ TARGET_NR_mmap, "mmap" , NULL, NULL, print_syscall_ret_addr },
+#endif
+#ifdef TARGET_NR_mmap2
+{ TARGET_NR_mmap2, "mmap2" , NULL, NULL, print_syscall_ret_addr },
+#endif
+#ifdef TARGET_NR_modify_ldt
+{ TARGET_NR_modify_ldt, "modify_ldt" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mount
+{ TARGET_NR_mount, "mount" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_move_pages
+{ TARGET_NR_move_pages, "move_pages" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mprotect
+{ TARGET_NR_mprotect, "mprotect" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mpx
+{ TARGET_NR_mpx, "mpx" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mq_getsetattr
+{ TARGET_NR_mq_getsetattr, "mq_getsetattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mq_notify
+{ TARGET_NR_mq_notify, "mq_notify" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mq_open
+{ TARGET_NR_mq_open, "mq_open" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mq_timedreceive
+{ TARGET_NR_mq_timedreceive, "mq_timedreceive" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mq_timedsend
+{ TARGET_NR_mq_timedsend, "mq_timedsend" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mq_unlink
+{ TARGET_NR_mq_unlink, "mq_unlink" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_mremap
+{ TARGET_NR_mremap, "mremap" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_msgctl
+{ TARGET_NR_msgctl, "msgctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_msgget
+{ TARGET_NR_msgget, "msgget" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_msgrcv
+{ TARGET_NR_msgrcv, "msgrcv" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_msgsnd
+{ TARGET_NR_msgsnd, "msgsnd" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_msync
+{ TARGET_NR_msync, "msync" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_multiplexer
+{ TARGET_NR_multiplexer, "multiplexer" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_munlock
+{ TARGET_NR_munlock, "munlock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_munlockall
+{ TARGET_NR_munlockall, "munlockall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_munmap
+{ TARGET_NR_munmap, "munmap" , "%s(%p,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_nanosleep
+{ TARGET_NR_nanosleep, "nanosleep" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_fstatat64
+{ TARGET_NR_fstatat64, "fstatat64" , "%s(%d,\"%s\",%p,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_newfstatat
+{ TARGET_NR_newfstatat, "newfstatat" , "%s(%d,\"%s\",%p,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR__newselect
+{ TARGET_NR__newselect, "_newselect" , NULL, print_newselect, print_syscall_ret_newselect },
+#endif
+#ifdef TARGET_NR_nfsservctl
+{ TARGET_NR_nfsservctl, "nfsservctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_nice
+{ TARGET_NR_nice, "nice" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_old_adjtimex
+{ TARGET_NR_old_adjtimex, "old_adjtimex" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_oldfstat
+{ TARGET_NR_oldfstat, "oldfstat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_oldlstat
+{ TARGET_NR_oldlstat, "oldlstat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_oldolduname
+{ TARGET_NR_oldolduname, "oldolduname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_oldstat
+{ TARGET_NR_oldstat, "oldstat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_oldumount
+{ TARGET_NR_oldumount, "oldumount" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_olduname
+{ TARGET_NR_olduname, "olduname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_open
+{ TARGET_NR_open, "open" , "%s(\"%s\",%#x,%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_openat
+{ TARGET_NR_openat, "openat" , "%s(%d,\"%s\",%#x,%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_adjtime
+{ TARGET_NR_osf_adjtime, "osf_adjtime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_afs_syscall
+{ TARGET_NR_osf_afs_syscall, "osf_afs_syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_alt_plock
+{ TARGET_NR_osf_alt_plock, "osf_alt_plock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_alt_setsid
+{ TARGET_NR_osf_alt_setsid, "osf_alt_setsid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_alt_sigpending
+{ TARGET_NR_osf_alt_sigpending, "osf_alt_sigpending" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_asynch_daemon
+{ TARGET_NR_osf_asynch_daemon, "osf_asynch_daemon" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_audcntl
+{ TARGET_NR_osf_audcntl, "osf_audcntl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_audgen
+{ TARGET_NR_osf_audgen, "osf_audgen" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_chflags
+{ TARGET_NR_osf_chflags, "osf_chflags" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_execve
+{ TARGET_NR_osf_execve, "osf_execve" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_exportfs
+{ TARGET_NR_osf_exportfs, "osf_exportfs" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_fchflags
+{ TARGET_NR_osf_fchflags, "osf_fchflags" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_fdatasync
+{ TARGET_NR_osf_fdatasync, "osf_fdatasync" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_fpathconf
+{ TARGET_NR_osf_fpathconf, "osf_fpathconf" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_fstatfs
+{ TARGET_NR_osf_fstatfs, "osf_fstatfs" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_fuser
+{ TARGET_NR_osf_fuser, "osf_fuser" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getaddressconf
+{ TARGET_NR_osf_getaddressconf, "osf_getaddressconf" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getdirentries
+{ TARGET_NR_osf_getdirentries, "osf_getdirentries" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getdomainname
+{ TARGET_NR_osf_getdomainname, "osf_getdomainname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getfh
+{ TARGET_NR_osf_getfh, "osf_getfh" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getfsstat
+{ TARGET_NR_osf_getfsstat, "osf_getfsstat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_gethostid
+{ TARGET_NR_osf_gethostid, "osf_gethostid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getitimer
+{ TARGET_NR_osf_getitimer, "osf_getitimer" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getlogin
+{ TARGET_NR_osf_getlogin, "osf_getlogin" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getmnt
+{ TARGET_NR_osf_getmnt, "osf_getmnt" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getrusage
+{ TARGET_NR_osf_getrusage, "osf_getrusage" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_getsysinfo
+{ TARGET_NR_osf_getsysinfo, "osf_getsysinfo" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_gettimeofday
+{ TARGET_NR_osf_gettimeofday, "osf_gettimeofday" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_kloadcall
+{ TARGET_NR_osf_kloadcall, "osf_kloadcall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_kmodcall
+{ TARGET_NR_osf_kmodcall, "osf_kmodcall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_memcntl
+{ TARGET_NR_osf_memcntl, "osf_memcntl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_mincore
+{ TARGET_NR_osf_mincore, "osf_mincore" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_mount
+{ TARGET_NR_osf_mount, "osf_mount" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_mremap
+{ TARGET_NR_osf_mremap, "osf_mremap" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_msfs_syscall
+{ TARGET_NR_osf_msfs_syscall, "osf_msfs_syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_msleep
+{ TARGET_NR_osf_msleep, "osf_msleep" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_mvalid
+{ TARGET_NR_osf_mvalid, "osf_mvalid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_mwakeup
+{ TARGET_NR_osf_mwakeup, "osf_mwakeup" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_naccept
+{ TARGET_NR_osf_naccept, "osf_naccept" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_nfssvc
+{ TARGET_NR_osf_nfssvc, "osf_nfssvc" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_ngetpeername
+{ TARGET_NR_osf_ngetpeername, "osf_ngetpeername" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_ngetsockname
+{ TARGET_NR_osf_ngetsockname, "osf_ngetsockname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_nrecvfrom
+{ TARGET_NR_osf_nrecvfrom, "osf_nrecvfrom" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_nrecvmsg
+{ TARGET_NR_osf_nrecvmsg, "osf_nrecvmsg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_nsendmsg
+{ TARGET_NR_osf_nsendmsg, "osf_nsendmsg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_ntp_adjtime
+{ TARGET_NR_osf_ntp_adjtime, "osf_ntp_adjtime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_ntp_gettime
+{ TARGET_NR_osf_ntp_gettime, "osf_ntp_gettime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_creat
+{ TARGET_NR_osf_old_creat, "osf_old_creat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_fstat
+{ TARGET_NR_osf_old_fstat, "osf_old_fstat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_getpgrp
+{ TARGET_NR_osf_old_getpgrp, "osf_old_getpgrp" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_killpg
+{ TARGET_NR_osf_old_killpg, "osf_old_killpg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_lstat
+{ TARGET_NR_osf_old_lstat, "osf_old_lstat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_open
+{ TARGET_NR_osf_old_open, "osf_old_open" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_oldquota
+{ TARGET_NR_osf_oldquota, "osf_oldquota" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_sigaction
+{ TARGET_NR_osf_old_sigaction, "osf_old_sigaction" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_sigblock
+{ TARGET_NR_osf_old_sigblock, "osf_old_sigblock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_sigreturn
+{ TARGET_NR_osf_old_sigreturn, "osf_old_sigreturn" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_sigsetmask
+{ TARGET_NR_osf_old_sigsetmask, "osf_old_sigsetmask" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_sigvec
+{ TARGET_NR_osf_old_sigvec, "osf_old_sigvec" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_stat
+{ TARGET_NR_osf_old_stat, "osf_old_stat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_vadvise
+{ TARGET_NR_osf_old_vadvise, "osf_old_vadvise" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_vtrace
+{ TARGET_NR_osf_old_vtrace, "osf_old_vtrace" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_old_wait
+{ TARGET_NR_osf_old_wait, "osf_old_wait" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_pathconf
+{ TARGET_NR_osf_pathconf, "osf_pathconf" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_pid_block
+{ TARGET_NR_osf_pid_block, "osf_pid_block" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_pid_unblock
+{ TARGET_NR_osf_pid_unblock, "osf_pid_unblock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_plock
+{ TARGET_NR_osf_plock, "osf_plock" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_priocntlset
+{ TARGET_NR_osf_priocntlset, "osf_priocntlset" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_profil
+{ TARGET_NR_osf_profil, "osf_profil" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_proplist_syscall
+{ TARGET_NR_osf_proplist_syscall, "osf_proplist_syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_reboot
+{ TARGET_NR_osf_reboot, "osf_reboot" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_revoke
+{ TARGET_NR_osf_revoke, "osf_revoke" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sbrk
+{ TARGET_NR_osf_sbrk, "osf_sbrk" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_security
+{ TARGET_NR_osf_security, "osf_security" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_select
+{ TARGET_NR_osf_select, "osf_select" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sethostid
+{ TARGET_NR_osf_sethostid, "osf_sethostid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_setitimer
+{ TARGET_NR_osf_setitimer, "osf_setitimer" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_setlogin
+{ TARGET_NR_osf_setlogin, "osf_setlogin" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_set_program_attributes
+{ TARGET_NR_osf_set_program_attributes, "osf_set_program_attributes" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_set_speculative
+{ TARGET_NR_osf_set_speculative, "osf_set_speculative" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_setsysinfo
+{ TARGET_NR_osf_setsysinfo, "osf_setsysinfo" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_settimeofday
+{ TARGET_NR_osf_settimeofday, "osf_settimeofday" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_shmat
+{ TARGET_NR_osf_shmat, "osf_shmat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_signal
+{ TARGET_NR_osf_signal, "osf_signal" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sigprocmask
+{ TARGET_NR_osf_sigprocmask, "osf_sigprocmask" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sigsendset
+{ TARGET_NR_osf_sigsendset, "osf_sigsendset" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sigstack
+{ TARGET_NR_osf_sigstack, "osf_sigstack" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sigwaitprim
+{ TARGET_NR_osf_sigwaitprim, "osf_sigwaitprim" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sstk
+{ TARGET_NR_osf_sstk, "osf_sstk" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_statfs
+{ TARGET_NR_osf_statfs, "osf_statfs" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_subsys_info
+{ TARGET_NR_osf_subsys_info, "osf_subsys_info" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_swapctl
+{ TARGET_NR_osf_swapctl, "osf_swapctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_swapon
+{ TARGET_NR_osf_swapon, "osf_swapon" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_syscall
+{ TARGET_NR_osf_syscall, "osf_syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_sysinfo
+{ TARGET_NR_osf_sysinfo, "osf_sysinfo" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_table
+{ TARGET_NR_osf_table, "osf_table" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_uadmin
+{ TARGET_NR_osf_uadmin, "osf_uadmin" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_usleep_thread
+{ TARGET_NR_osf_usleep_thread, "osf_usleep_thread" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_uswitch
+{ TARGET_NR_osf_uswitch, "osf_uswitch" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_utc_adjtime
+{ TARGET_NR_osf_utc_adjtime, "osf_utc_adjtime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_utc_gettime
+{ TARGET_NR_osf_utc_gettime, "osf_utc_gettime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_utimes
+{ TARGET_NR_osf_utimes, "osf_utimes" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_utsname
+{ TARGET_NR_osf_utsname, "osf_utsname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_wait4
+{ TARGET_NR_osf_wait4, "osf_wait4" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_osf_waitid
+{ TARGET_NR_osf_waitid, "osf_waitid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pause
+{ TARGET_NR_pause, "pause" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pciconfig_iobase
+{ TARGET_NR_pciconfig_iobase, "pciconfig_iobase" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pciconfig_read
+{ TARGET_NR_pciconfig_read, "pciconfig_read" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pciconfig_write
+{ TARGET_NR_pciconfig_write, "pciconfig_write" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_perfctr
+{ TARGET_NR_perfctr, "perfctr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_personality
+{ TARGET_NR_personality, "personality" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pipe
+{ TARGET_NR_pipe, "pipe" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pivot_root
+{ TARGET_NR_pivot_root, "pivot_root" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_poll
+{ TARGET_NR_poll, "poll" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ppoll
+{ TARGET_NR_ppoll, "ppoll" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_prctl
+{ TARGET_NR_prctl, "prctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pread
+{ TARGET_NR_pread, "pread" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pread64
+{ TARGET_NR_pread64, "pread64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_prof
+{ TARGET_NR_prof, "prof" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_profil
+{ TARGET_NR_profil, "profil" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pselect6
+{ TARGET_NR_pselect6, "pselect6" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ptrace
+{ TARGET_NR_ptrace, "ptrace" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_putpmsg
+{ TARGET_NR_putpmsg, "putpmsg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pwrite
+{ TARGET_NR_pwrite, "pwrite" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_pwrite64
+{ TARGET_NR_pwrite64, "pwrite64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_query_module
+{ TARGET_NR_query_module, "query_module" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_quotactl
+{ TARGET_NR_quotactl, "quotactl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_read
+{ TARGET_NR_read, "read" , "%s(%d,%#x,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_readahead
+{ TARGET_NR_readahead, "readahead" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_readdir
+{ TARGET_NR_readdir, "readdir" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_readlink
+{ TARGET_NR_readlink, "readlink" , "%s(\"%s\",%p,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_readlinkat
+{ TARGET_NR_readlinkat, "readlinkat" , "%s(%d,\"%s\",%p,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_readv
+{ TARGET_NR_readv, "readv" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_reboot
+{ TARGET_NR_reboot, "reboot" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_recv
+{ TARGET_NR_recv, "recv" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_recvfrom
+{ TARGET_NR_recvfrom, "recvfrom" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_recvmsg
+{ TARGET_NR_recvmsg, "recvmsg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_remap_file_pages
+{ TARGET_NR_remap_file_pages, "remap_file_pages" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_removexattr
+{ TARGET_NR_removexattr, "removexattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rename
+{ TARGET_NR_rename, "rename" , "%s(\"%s\",\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_renameat
+{ TARGET_NR_renameat, "renameat" , "%s(%d,\"%s\",%d,\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_request_key
+{ TARGET_NR_request_key, "request_key" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_reserved221
+{ TARGET_NR_reserved221, "reserved221" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_reserved82
+{ TARGET_NR_reserved82, "reserved82" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_restart_syscall
+{ TARGET_NR_restart_syscall, "restart_syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rmdir
+{ TARGET_NR_rmdir, "rmdir" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigaction
+{ TARGET_NR_rt_sigaction, "rt_sigaction" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigpending
+{ TARGET_NR_rt_sigpending, "rt_sigpending" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigprocmask
+{ TARGET_NR_rt_sigprocmask, "rt_sigprocmask" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigqueueinfo
+{ TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigreturn
+{ TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigsuspend
+{ TARGET_NR_rt_sigsuspend, "rt_sigsuspend" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_rt_sigtimedwait
+{ TARGET_NR_rt_sigtimedwait, "rt_sigtimedwait" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_getaffinity
+{ TARGET_NR_sched_getaffinity, "sched_getaffinity" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_get_affinity
+{ TARGET_NR_sched_get_affinity, "sched_get_affinity" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_getparam
+{ TARGET_NR_sched_getparam, "sched_getparam" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_get_priority_max
+{ TARGET_NR_sched_get_priority_max, "sched_get_priority_max" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_get_priority_min
+{ TARGET_NR_sched_get_priority_min, "sched_get_priority_min" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_getscheduler
+{ TARGET_NR_sched_getscheduler, "sched_getscheduler" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_rr_get_interval
+{ TARGET_NR_sched_rr_get_interval, "sched_rr_get_interval" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_setaffinity
+{ TARGET_NR_sched_setaffinity, "sched_setaffinity" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_set_affinity
+{ TARGET_NR_sched_set_affinity, "sched_set_affinity" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_setparam
+{ TARGET_NR_sched_setparam, "sched_setparam" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_setscheduler
+{ TARGET_NR_sched_setscheduler, "sched_setscheduler" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_yield
+{ TARGET_NR_sched_yield, "sched_yield" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_security
+{ TARGET_NR_security, "security" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_select
+{ TARGET_NR_select, "select" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_semctl
+{ TARGET_NR_semctl, "semctl" , NULL, print_semctl, NULL },
+#endif
+#ifdef TARGET_NR_semget
+{ TARGET_NR_semget, "semget" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_semop
+{ TARGET_NR_semop, "semop" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_semtimedop
+{ TARGET_NR_semtimedop, "semtimedop" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_send
+{ TARGET_NR_send, "send" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sendfile
+{ TARGET_NR_sendfile, "sendfile" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sendfile64
+{ TARGET_NR_sendfile64, "sendfile64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sendmsg
+{ TARGET_NR_sendmsg, "sendmsg" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sendto
+{ TARGET_NR_sendto, "sendto" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setdomainname
+{ TARGET_NR_setdomainname, "setdomainname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setfsgid
+{ TARGET_NR_setfsgid, "setfsgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setfsgid32
+{ TARGET_NR_setfsgid32, "setfsgid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setfsuid
+{ TARGET_NR_setfsuid, "setfsuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setfsuid32
+{ TARGET_NR_setfsuid32, "setfsuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setgid
+{ TARGET_NR_setgid, "setgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setgid32
+{ TARGET_NR_setgid32, "setgid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setgroups
+{ TARGET_NR_setgroups, "setgroups" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setgroups32
+{ TARGET_NR_setgroups32, "setgroups32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sethae
+{ TARGET_NR_sethae, "sethae" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sethostname
+{ TARGET_NR_sethostname, "sethostname" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setitimer
+{ TARGET_NR_setitimer, "setitimer" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_set_mempolicy
+{ TARGET_NR_set_mempolicy, "set_mempolicy" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setpgid
+{ TARGET_NR_setpgid, "setpgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setpgrp
+{ TARGET_NR_setpgrp, "setpgrp" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setpriority
+{ TARGET_NR_setpriority, "setpriority" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setregid
+{ TARGET_NR_setregid, "setregid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setregid32
+{ TARGET_NR_setregid32, "setregid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setresgid
+{ TARGET_NR_setresgid, "setresgid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setresgid32
+{ TARGET_NR_setresgid32, "setresgid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setresuid
+{ TARGET_NR_setresuid, "setresuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setresuid32
+{ TARGET_NR_setresuid32, "setresuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setreuid
+{ TARGET_NR_setreuid, "setreuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setreuid32
+{ TARGET_NR_setreuid32, "setreuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setrlimit
+{ TARGET_NR_setrlimit, "setrlimit" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_set_robust_list
+{ TARGET_NR_set_robust_list, "set_robust_list" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setsid
+{ TARGET_NR_setsid, "setsid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setsockopt
+{ TARGET_NR_setsockopt, "setsockopt" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_set_thread_area
+{ TARGET_NR_set_thread_area, "set_thread_area" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_set_tid_address
+{ TARGET_NR_set_tid_address, "set_tid_address" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_settimeofday
+{ TARGET_NR_settimeofday, "settimeofday" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setuid
+{ TARGET_NR_setuid, "setuid" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setuid32
+{ TARGET_NR_setuid32, "setuid32" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_setxattr
+{ TARGET_NR_setxattr, "setxattr" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sgetmask
+{ TARGET_NR_sgetmask, "sgetmask" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_shmat
+{ TARGET_NR_shmat, "shmat" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_shmctl
+{ TARGET_NR_shmctl, "shmctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_shmdt
+{ TARGET_NR_shmdt, "shmdt" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_shmget
+{ TARGET_NR_shmget, "shmget" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_shutdown
+{ TARGET_NR_shutdown, "shutdown" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sigaction
+{ TARGET_NR_sigaction, "sigaction" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sigaltstack
+{ TARGET_NR_sigaltstack, "sigaltstack" , "%s(%p,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_signal
+{ TARGET_NR_signal, "signal" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sigpending
+{ TARGET_NR_sigpending, "sigpending" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sigprocmask
+{ TARGET_NR_sigprocmask, "sigprocmask" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sigreturn
+{ TARGET_NR_sigreturn, "sigreturn" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sigsuspend
+{ TARGET_NR_sigsuspend, "sigsuspend" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_socket
+{ TARGET_NR_socket, "socket" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_socketcall
+{ TARGET_NR_socketcall, "socketcall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_socketpair
+{ TARGET_NR_socketpair, "socketpair" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_splice
+{ TARGET_NR_splice, "splice" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ssetmask
+{ TARGET_NR_ssetmask, "ssetmask" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_stat
+{ TARGET_NR_stat, "stat" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_stat64
+{ TARGET_NR_stat64, "stat64" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_statfs
+{ TARGET_NR_statfs, "statfs" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_statfs64
+{ TARGET_NR_statfs64, "statfs64" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_stime
+{ TARGET_NR_stime, "stime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_streams1
+{ TARGET_NR_streams1, "streams1" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_streams2
+{ TARGET_NR_streams2, "streams2" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_stty
+{ TARGET_NR_stty, "stty" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_swapcontext
+{ TARGET_NR_swapcontext, "swapcontext" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_swapoff
+{ TARGET_NR_swapoff, "swapoff" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_swapon
+{ TARGET_NR_swapon, "swapon" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_symlink
+{ TARGET_NR_symlink, "symlink" , "%s(\"%s\",\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_symlinkat
+{ TARGET_NR_symlinkat, "symlinkat" , "%s(\"%s\",%d,\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_sync
+{ TARGET_NR_sync, "sync" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sync_file_range
+{ TARGET_NR_sync_file_range, "sync_file_range" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_syscall
+{ TARGET_NR_syscall, "syscall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR__sysctl
+{ TARGET_NR__sysctl, "_sysctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sys_epoll_create
+{ TARGET_NR_sys_epoll_create, "sys_epoll_create" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sys_epoll_ctl
+{ TARGET_NR_sys_epoll_ctl, "sys_epoll_ctl" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sys_epoll_wait
+{ TARGET_NR_sys_epoll_wait, "sys_epoll_wait" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sysfs
+{ TARGET_NR_sysfs, "sysfs" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sysinfo
+{ TARGET_NR_sysinfo, "sysinfo" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sys_kexec_load
+{ TARGET_NR_sys_kexec_load, "sys_kexec_load" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_syslog
+{ TARGET_NR_syslog, "syslog" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sysmips
+{ TARGET_NR_sysmips, "sysmips" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_sys_setaltroot
+{ TARGET_NR_sys_setaltroot, "sys_setaltroot" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_tee
+{ TARGET_NR_tee, "tee" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_tgkill
+{ TARGET_NR_tgkill, "tgkill" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_time
+{ TARGET_NR_time, "time" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timer_create
+{ TARGET_NR_timer_create, "timer_create" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timer_delete
+{ TARGET_NR_timer_delete, "timer_delete" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timer_getoverrun
+{ TARGET_NR_timer_getoverrun, "timer_getoverrun" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timer_gettime
+{ TARGET_NR_timer_gettime, "timer_gettime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_timer_settime
+{ TARGET_NR_timer_settime, "timer_settime" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_times
+{ TARGET_NR_times, "times" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_tkill
+{ TARGET_NR_tkill, "tkill" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_truncate
+{ TARGET_NR_truncate, "truncate" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_truncate64
+{ TARGET_NR_truncate64, "truncate64" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_tuxcall
+{ TARGET_NR_tuxcall, "tuxcall" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ugetrlimit
+{ TARGET_NR_ugetrlimit, "ugetrlimit" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ulimit
+{ TARGET_NR_ulimit, "ulimit" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_umask
+{ TARGET_NR_umask, "umask" , "%s(%#o)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_umount
+{ TARGET_NR_umount, "umount" , "%s(\"%s\",\"%s\",\"%s\",%#x,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_umount2
+{ TARGET_NR_umount2, "umount2" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_uname
+{ TARGET_NR_uname, "uname" , "%s(%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_unlink
+{ TARGET_NR_unlink, "unlink" , "%s(\"%s\")", NULL, NULL },
+#endif
+#ifdef TARGET_NR_unlinkat
+{ TARGET_NR_unlinkat, "unlinkat" , "%s(%d,\"%s\",%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_unshare
+{ TARGET_NR_unshare, "unshare" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_unused109
+{ TARGET_NR_unused109, "unused109" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_unused150
+{ TARGET_NR_unused150, "unused150" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_unused18
+{ TARGET_NR_unused18, "unused18" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_unused28
+{ TARGET_NR_unused28, "unused28" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_unused59
+{ TARGET_NR_unused59, "unused59" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_unused84
+{ TARGET_NR_unused84, "unused84" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_uselib
+{ TARGET_NR_uselib, "uselib" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_ustat
+{ TARGET_NR_ustat, "ustat" , "%s(%#x,%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_utime
+{ TARGET_NR_utime, "utime" , "%s(\"%s\",%p)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_utimes
+{ TARGET_NR_utimes, "utimes" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_utrap_install
+{ TARGET_NR_utrap_install, "utrap_install" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_vfork
+{ TARGET_NR_vfork, "vfork" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_vhangup
+{ TARGET_NR_vhangup, "vhangup" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_vm86
+{ TARGET_NR_vm86, "vm86" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_vm86old
+{ TARGET_NR_vm86old, "vm86old" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_vmsplice
+{ TARGET_NR_vmsplice, "vmsplice" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_vserver
+{ TARGET_NR_vserver, "vserver" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_wait4
+{ TARGET_NR_wait4, "wait4" , NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_waitid
+{ TARGET_NR_waitid, "waitid" , "%s(%#x,%d,%p,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_waitpid
+{ TARGET_NR_waitpid, "waitpid" , "%s(%d,%p,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_write
+{ TARGET_NR_write, "write" , "%s(%d,%#x,%d)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_writev
+{ TARGET_NR_writev, "writev" , "%s(%d,%p,%#x)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_utimensat
+{ TARGET_NR_utimensat, "utimensat", "%s(%d,\"%s\",%p,%#x)", NULL, NULL },
+#endif
