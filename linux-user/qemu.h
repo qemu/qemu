@@ -153,9 +153,17 @@ extern CPUState *global_env;
 void cpu_loop(CPUState *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
+char *target_strerror(int err);
 
 extern int loglevel;
 extern FILE *logfile;
+
+/* strace.c */
+void print_syscall(int num,
+                   target_long arg1, target_long arg2, target_long arg3,
+                   target_long arg4, target_long arg5, target_long arg6);
+void print_syscall_ret(int num, target_long arg1);
+extern int do_strace;
 
 /* signal.c */
 void process_pending_signals(void *cpu_env);

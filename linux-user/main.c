@@ -1980,6 +1980,10 @@ int main(int argc, char **argv)
     env = cpu_init();
     global_env = env;
 
+    if(getenv("QEMU_STRACE") ){
+      do_strace=1;
+    }
+
     wrk = environ;
     while (*(wrk++))
         environ_count++;

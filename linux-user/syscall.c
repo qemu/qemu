@@ -251,11 +251,18 @@ extern int setresgid(gid_t, gid_t, gid_t);
 extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
+#define ERRNO_TABLE_SIZE 1200
+
+/* target_to_host_errno_table[] is initialized from
+ * host_to_target_errno_table[] in syscall_init(). */
+static uint16_t target_to_host_errno_table[ERRNO_TABLE_SIZE] = {
+};
+
 /*
  * This list is the union of errno values overridden in asm-<arch>/errno.h
  * minus the errnos that are not actually generic to all archs.
  */
-static uint16_t host_to_target_errno_table[1200] = {
+static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
     [EIDRM]		= TARGET_EIDRM,
     [ECHRNG]		= TARGET_ECHRNG,
     [EL2NSYNC]		= TARGET_EL2NSYNC,
@@ -361,12 +368,19 @@ static uint16_t host_to_target_errno_table[1200] = {
 #ifdef ENOTRECOVERABLE
     [ENOTRECOVERABLE]	= TARGET_ENOTRECOVERABLE,
 #endif
-	};
+};
 
 static inline int host_to_target_errno(int err)
 {
     if(host_to_target_errno_table[err])
         return host_to_target_errno_table[err];
+    return err;
+}
+
+static inline int target_to_host_errno(int err)
+{
+    if (target_to_host_errno_table[err])
+        return target_to_host_errno_table[err];
     return err;
 }
 
@@ -381,6 +395,11 @@ static inline abi_long get_errno(abi_long ret)
 static inline int is_error(abi_long ret)
 {
     return (abi_ulong)ret >= (abi_ulong)(-4096);
+}
+
+char *target_strerror(int err)
+{
+    return strerror(target_to_host_errno(err));
 }
 
 static abi_ulong target_brk;
@@ -2465,6 +2484,7 @@ void syscall_init(void)
     IOCTLEntry *ie;
     const argtype *arg_type;
     int size;
+    int i;
 
 #define STRUCT(name, list...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
 #define STRUCT_SPECIAL(name) thunk_register_struct_direct(STRUCT_ ## name, #name, &struct_ ## name ## _def);
@@ -2490,6 +2510,12 @@ void syscall_init(void)
                               ~(TARGET_IOC_SIZEMASK << TARGET_IOC_SIZESHIFT)) |
                 (size << TARGET_IOC_SIZESHIFT);
         }
+
+        /* Build target_to_host_errno_table[] table from
+         * host_to_target_errno_table[]. */
+        for (i=0; i < ERRNO_TABLE_SIZE; i++)
+                target_to_host_errno_table[host_to_target_errno_table[i]] = i;
+
         /* automatic consistency check if same arch */
 #if defined(__i386__) && defined(TARGET_I386)
         if (ie->target_cmd != ie->host_cmd) {
@@ -2588,6 +2614,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef DEBUG
     gemu_log("syscall %d", num);
 #endif
+    if(do_strace)
+        print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+
     switch(num) {
     case TARGET_NR_exit:
 #ifdef HAVE_GPROF
@@ -5025,5 +5054,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef DEBUG
     gemu_log(" = %ld\n", ret);
 #endif
+    if(do_strace)
+        print_syscall_ret(num, ret);
     return ret;
 }

@@ -259,7 +259,7 @@ main.o: BASE_CFLAGS+=-p
 endif
 
 ifdef CONFIG_LINUX_USER
-OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
+OBJS= main.o syscall.o strace.o mmap.o signal.o path.o osdep.o thunk.o \
       elfload.o linuxload.o
 LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
