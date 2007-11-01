@@ -14,6 +14,8 @@
   - SVM (x86 virtualization) support (Alexander Graf)
   - CRIS emulation (Edgar E. Iglesias)
   - SPARC32PLUS execution support (Blue Swirl)
+  - MIPS mipssim pequdo machine (Thiemo Seufer)
+  - Strace for Linux userland emulation (Stuart Anderson, Thayne Harbaugh)
 
 version 0.9.0:
 
