@@ -1,5 +1,8 @@
 TODO list for AR7 / QEMU
 
+2007-10-30
+cmos rtc register a is constant when emulating mips in mips.
+
 2006-08-29
 * Wanted: network emulation for more chipsets:
 	Intel 8255xER PCI (eepro100),
