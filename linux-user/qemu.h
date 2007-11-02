@@ -203,7 +203,8 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
 
-#define access_ok(type,addr,size) (1)
+#define access_ok(type,addr,size) \
+    (page_check_range((target_ulong)addr,size,(type==VERIFY_READ)?PAGE_READ:PAGE_WRITE)==0)
 
 /* NOTE get_user and put_user use host addresses.  */
 #define __put_user(x,ptr)\

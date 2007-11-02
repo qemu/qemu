@@ -1875,6 +1875,33 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
     spin_unlock(&tb_lock);
 }
 
+int page_check_range(target_ulong start, target_ulong len, int flags)
+{
+    PageDesc *p;
+    target_ulong end;
+    target_ulong addr;
+
+    end = TARGET_PAGE_ALIGN(start+len); /* must do before we loose bits in the next step */
+    start = start & TARGET_PAGE_MASK;
+
+    if( end < start )
+        /* we've wrapped around */
+        return -1;
+    for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
+        p = page_find(addr >> TARGET_PAGE_BITS);
+        if( !p )
+            return -1;
+        if( !(p->flags & PAGE_VALID) )
+            return -1;
+
+        if (!(p->flags & PAGE_READ) && (flags & PAGE_READ) )
+            return -1;
+        if (!(p->flags & PAGE_WRITE) && (flags & PAGE_WRITE) )
+            return -1;
+    }
+    return 0;
+}
+
 /* called from signal handler: invalidate the code and unprotect the
    page. Return TRUE if the fault was succesfully handled. */
 int page_unprotect(target_ulong address, unsigned long pc, void *puc)
