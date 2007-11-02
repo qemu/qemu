@@ -37,7 +37,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
 
 #ifdef DEBUG_MMAP
     printf("mprotect: start=0x" TARGET_FMT_lx
-	   "len=0x" TARGET_FMT_lx " prot=%c%c%c\n", start, len,
+           "len=0x" TARGET_FMT_lx " prot=%c%c%c\n", start, len,
            prot & PROT_READ ? 'r' : '-',
            prot & PROT_WRITE ? 'w' : '-',
            prot & PROT_EXEC ? 'x' : '-');
@@ -100,7 +100,7 @@ static int mmap_frag(abi_ulong real_start,
                      abi_ulong start, abi_ulong end,
                      int prot, int flags, int fd, abi_ulong offset)
 {
-    abi_ulong real_end, ret, addr;
+    abi_ulong real_end, addr;
     void *host_start;
     int prot1, prot_new;
 
@@ -116,10 +116,10 @@ static int mmap_frag(abi_ulong real_start,
 
     if (prot1 == 0) {
         /* no page was there, so we allocate one */
-        ret = (long)mmap(host_start, qemu_host_page_size, prot,
-                         flags | MAP_ANONYMOUS, -1, 0);
-        if (ret == -1)
-            return ret;
+        void *p = mmap(host_start, qemu_host_page_size, prot,
+                       flags | MAP_ANONYMOUS, -1, 0);
+        if (p == MAP_FAILED)
+            return -1;
         prot1 = prot;
     }
     prot1 &= PAGE_BITS;
@@ -168,7 +168,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
 #ifdef DEBUG_MMAP
     {
         printf("mmap: start=0x" TARGET_FMT_lx
-	       " len=0x" TARGET_FMT_lx " prot=%c%c%c flags=",
+               " len=0x" TARGET_FMT_lx " prot=%c%c%c flags=",
                start, len,
                prot & PROT_READ ? 'r' : '-',
                prot & PROT_WRITE ? 'w' : '-',
@@ -230,16 +230,16 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
              */
             abi_ulong host_end;
             unsigned long host_aligned_start;
+            void *p;
 
             host_len = HOST_PAGE_ALIGN(host_len + qemu_host_page_size
                                        - qemu_real_host_page_size);
-            host_start = (unsigned long) mmap(real_start ?
-					      g2h(real_start) : NULL,
-					      host_len, prot, flags,
-					      fd, host_offset);
-            if (host_start == -1)
+            p = mmap(real_start ? g2h(real_start) : NULL,
+                     host_len, prot, flags, fd, host_offset);
+            if (p == MAP_FAILED)
                 return -1;
 
+            host_start = (unsigned long)p;
             host_end = host_start + host_len;
 
             /* Find start and end, aligned to the targets pagesize with-in the
@@ -260,11 +260,12 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             goto the_end1;
         } else {
             /* if not fixed, no need to do anything */
-            host_start = (long)mmap(real_start ? g2h(real_start) : NULL,
+            void *p = mmap(real_start ? g2h(real_start) : NULL,
                                     host_len, prot, flags, fd, host_offset);
-            if (host_start == -1)
+            if (p == MAP_FAILED)
                 return -1;
             /* update start so that it points to the file position at 'offset' */
+            host_start = (unsigned long)p;
             if (!(flags & MAP_ANONYMOUS))
                 host_start += offset - host_offset;
             start = h2g(host_start);
@@ -333,14 +334,15 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
 
     /* map the middle (easier) */
     if (real_start < real_end) {
+        void *p;
         unsigned long offset1;
-	if (flags & MAP_ANONYMOUS)
-	  offset1 = 0;
-	else
-	  offset1 = offset + real_start - start;
-        ret = (long)mmap(g2h(real_start), real_end - real_start,
-                         prot, flags, fd, offset1);
-        if (ret == -1)
+        if (flags & MAP_ANONYMOUS)
+          offset1 = 0;
+        else
+          offset1 = offset + real_start - start;
+        p = mmap(g2h(real_start), real_end - real_start,
+                 prot, flags, fd, offset1);
+        if (p == MAP_FAILED)
             return -1;
     }
  the_end1:

@@ -32,6 +32,7 @@
 //#define DEBUG_MMU
 
 #ifdef USE_CODE_COPY
+#include <unistd.h>
 #include <asm/ldt.h>
 #include <linux/unistd.h>
 #include <linux/version.h>
