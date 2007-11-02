@@ -2146,10 +2146,9 @@ static always_inline void powerpc_excp (CPUState *env,
                 new_msr |= (target_ulong)1 << MSR_HV;
 #endif
             msr |= 0x00100000;
-            if (msr_fe0 != msr_fe1) {
-                msr |= 0x00010000;
-                goto store_current;
-            }
+            if (msr_fe0 == msr_fe1)
+                goto store_next;
+            msr |= 0x00010000;
             break;
         case POWERPC_EXCP_INVAL:
 #if defined (DEBUG_EXCEPTIONS)
@@ -2187,7 +2186,7 @@ static always_inline void powerpc_excp (CPUState *env,
                       env->error_code);
             break;
         }
-        goto store_next;
+        goto store_current;
     case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
         new_msr &= ~((target_ulong)1 << MSR_RI);
 #if defined(TARGET_PPC64H)
