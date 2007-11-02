@@ -3550,11 +3550,17 @@ static always_inline void gen_op_mfspr (DisasContext *ctx)
             gen_op_store_T0_gpr(rD(ctx->opcode));
         } else {
             /* Privilege exception */
-            if (loglevel != 0) {
-                fprintf(logfile, "Trying to read privileged spr %d %03x\n",
-                        sprn, sprn);
+            /* This is a hack to avoid warnings when running Linux:
+             * this OS breaks the PowerPC virtualisation model,
+             * allowing userland application to read the PVR
+             */
+            if (sprn != SPR_PVR) {
+                if (loglevel != 0) {
+                    fprintf(logfile, "Trying to read privileged spr %d %03x\n",
+                            sprn, sprn);
+                }
+                printf("Trying to read privileged spr %d %03x\n", sprn, sprn);
             }
-            printf("Trying to read privileged spr %d %03x\n", sprn, sprn);
             GEN_EXCP_PRIVREG(ctx);
         }
     } else {
