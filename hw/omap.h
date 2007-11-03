@@ -475,11 +475,6 @@ struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
 void omap_uwire_attach(struct omap_uwire_s *s,
                 struct uwire_slave_s *slave, int chipselect);
 
-struct omap_i2c_s;
-struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
-                qemu_irq irq, qemu_irq *dma, omap_clk clk);
-i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
-
 struct omap_rtc_s;
 struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
                 qemu_irq *irq, omap_clk clk);
@@ -497,6 +492,13 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk);
 void omap_mmc_reset(struct omap_mmc_s *s);
 void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
+
+/* omap_i2c.c */
+struct omap_i2c_s;
+struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
+                qemu_irq irq, qemu_irq *dma, omap_clk clk);
+void omap_i2c_reset(struct omap_i2c_s *s);
+i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
 
 # define cpu_is_omap310(cpu)		(cpu->mpu_model == omap310)
 # define cpu_is_omap1510(cpu)		(cpu->mpu_model == omap1510)
@@ -560,6 +562,8 @@ struct omap_mpu_state_s {
     } pwt;
 
     struct omap_i2c_s *i2c;
+
+    struct omap_rtc_s *rtc;
 
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
