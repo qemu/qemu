@@ -51,8 +51,7 @@ int i2c_bus_busy(i2c_bus *bus)
     return bus->current_dev != NULL;
 }
 
-/* Returns nonzero if the bus is already busy, or is the address is not
-   valid.  */
+/* Returns non-zero if the address is not valid.  */
 /* TODO: Make this handle multiple masters.  */
 int i2c_start_transfer(i2c_bus *bus, int address, int recv)
 {

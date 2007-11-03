@@ -475,6 +475,11 @@ struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
 void omap_uwire_attach(struct omap_uwire_s *s,
                 struct uwire_slave_s *slave, int chipselect);
 
+struct omap_i2c_s;
+struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
+                qemu_irq irq, qemu_irq *dma, omap_clk clk);
+i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
+
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
@@ -549,6 +554,8 @@ struct omap_mpu_state_s {
         uint8_t gcr;
         omap_clk clk;
     } pwt;
+
+    struct omap_i2c_s *i2c;
 
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
