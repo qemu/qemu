@@ -785,7 +785,7 @@ void cpu_loop(CPUPPCState *env)
             break;
         case POWERPC_EXCP_ISI:      /* Instruction storage exception         */
             EXCP_DUMP(env, "Invalid instruction fetch: 0x\n" ADDRX "\n",
-                      env->spr[SPR_DAR]);
+                      env->spr[SPR_SRR0]);
             /* XXX: check this */
             switch (env->error_code & 0xFF000000) {
             case 0x40000000:
