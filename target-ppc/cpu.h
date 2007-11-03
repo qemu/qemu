@@ -102,6 +102,8 @@ enum {
     POWERPC_MMU_BOOKE,
     /* BookE FSL MMU model                                     */
     POWERPC_MMU_BOOKE_FSL,
+    /* PowerPC 601 MMU model (specific BATs format)            */
+    POWERPC_MMU_601,
 #if defined(TARGET_PPC64)
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B,

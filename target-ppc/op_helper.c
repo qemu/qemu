@@ -1682,15 +1682,18 @@ void do_POWER_mulo (void)
 #if !defined (CONFIG_USER_ONLY)
 void do_POWER_rac (void)
 {
-#if 0
     mmu_ctx_t ctx;
+    int nb_BATs;
 
     /* We don't have to generate many instances of this instruction,
      * as rac is supervisor only.
      */
-    if (get_physical_address(env, &ctx, T0, 0, ACCESS_INT, 1) == 0)
+    /* XXX: FIX THIS: Pretend we have no BAT */
+    nb_BATs = env->nb_BATs;
+    env->nb_BATs = 0;
+    if (get_physical_address(env, &ctx, T0, 0, ACCESS_INT) == 0)
         T0 = ctx.raddr;
-#endif
+    env->nb_BATs = nb_BATs;
 }
 
 void do_POWER_rfsvc (void)
