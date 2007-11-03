@@ -480,6 +480,10 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
                 qemu_irq irq, qemu_irq *dma, omap_clk clk);
 i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
 
+struct omap_rtc_s;
+struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
+                qemu_irq *irq, omap_clk clk);
+
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);

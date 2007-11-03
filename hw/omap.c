@@ -4018,6 +4018,432 @@ i2c_bus *omap_i2c_bus(struct omap_i2c_s *s)
     return s->bus;
 }
 
+/* Real-time Clock module */
+struct omap_rtc_s {
+    target_phys_addr_t base;
+    qemu_irq irq;
+    qemu_irq alarm;
+    QEMUTimer *clk;
+
+    uint8_t interrupts;
+    uint8_t status;
+    int16_t comp_reg;
+    int running;
+    int pm_am;
+    int auto_comp;
+    int round;
+    struct tm *(*convert)(const time_t *timep, struct tm *result);
+    struct tm alarm_tm;
+    time_t alarm_ti;
+
+    struct tm current_tm;
+    time_t ti;
+    uint64_t tick;
+};
+
+static void omap_rtc_interrupts_update(struct omap_rtc_s *s)
+{
+    qemu_set_irq(s->alarm, (s->status >> 6) & 1);
+}
+
+static void omap_rtc_alarm_update(struct omap_rtc_s *s)
+{
+    s->alarm_ti = mktime(&s->alarm_tm);
+    if (s->alarm_ti == -1)
+        printf("%s: conversion failed\n", __FUNCTION__);
+}
+
+static inline uint8_t omap_rtc_bcd(int num)
+{
+    return ((num / 10) << 4) | (num % 10);
+}
+
+static inline int omap_rtc_bin(uint8_t num)
+{
+    return (num & 15) + 10 * (num >> 4);
+}
+
+static uint32_t omap_rtc_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_rtc_s *s = (struct omap_rtc_s *) opaque;
+    int offset = addr - s->base;
+    uint8_t i;
+
+    switch (offset) {
+    case 0x00:	/* SECONDS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_sec);
+
+    case 0x04:	/* MINUTES_REG */
+        return omap_rtc_bcd(s->current_tm.tm_min);
+
+    case 0x08:	/* HOURS_REG */
+        if (s->pm_am)
+            return ((s->current_tm.tm_hour > 11) << 7) |
+                    omap_rtc_bcd(((s->current_tm.tm_hour - 1) % 12) + 1);
+        else
+            return omap_rtc_bcd(s->current_tm.tm_hour);
+
+    case 0x0c:	/* DAYS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_mday);
+
+    case 0x10:	/* MONTHS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_mon + 1);
+
+    case 0x14:	/* YEARS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_year % 100);
+
+    case 0x18:	/* WEEK_REG */
+        return s->current_tm.tm_wday;
+
+    case 0x20:	/* ALARM_SECONDS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_sec);
+
+    case 0x24:	/* ALARM_MINUTES_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_min);
+
+    case 0x28:	/* ALARM_HOURS_REG */
+        if (s->pm_am)
+            return ((s->alarm_tm.tm_hour > 11) << 7) |
+                    omap_rtc_bcd(((s->alarm_tm.tm_hour - 1) % 12) + 1);
+        else
+            return omap_rtc_bcd(s->alarm_tm.tm_hour);
+
+    case 0x2c:	/* ALARM_DAYS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_mday);
+
+    case 0x30:	/* ALARM_MONTHS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_mon + 1);
+
+    case 0x34:	/* ALARM_YEARS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_year % 100);
+
+    case 0x40:	/* RTC_CTRL_REG */
+        return (s->pm_am << 3) | (s->auto_comp << 2) |
+                (s->round << 1) | s->running;
+
+    case 0x44:	/* RTC_STATUS_REG */
+        i = s->status;
+        s->status &= ~0x3d;
+        return i;
+
+    case 0x48:	/* RTC_INTERRUPTS_REG */
+        return s->interrupts;
+
+    case 0x4c:	/* RTC_COMP_LSB_REG */
+        return ((uint16_t) s->comp_reg) & 0xff;
+
+    case 0x50:	/* RTC_COMP_MSB_REG */
+        return ((uint16_t) s->comp_reg) >> 8;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_rtc_s *s = (struct omap_rtc_s *) opaque;
+    int offset = addr - s->base;
+    struct tm new_tm;
+    time_t ti[2];
+
+    switch (offset) {
+    case 0x00:	/* SECONDS_REG */
+#if ALMDEBUG
+        printf("RTC SEC_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_sec;
+        s->ti += omap_rtc_bin(value);
+        return;
+
+    case 0x04:	/* MINUTES_REG */
+#if ALMDEBUG
+        printf("RTC MIN_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_min * 60;
+        s->ti += omap_rtc_bin(value) * 60;
+        return;
+
+    case 0x08:	/* HOURS_REG */
+#if ALMDEBUG
+        printf("RTC HRS_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_hour * 3600;
+        if (s->pm_am) {
+            s->ti += (omap_rtc_bin(value & 0x3f) & 12) * 3600;
+            s->ti += ((value >> 7) & 1) * 43200;
+        } else
+            s->ti += omap_rtc_bin(value & 0x3f) * 3600;
+        return;
+
+    case 0x0c:	/* DAYS_REG */
+#if ALMDEBUG
+        printf("RTC DAY_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_mday * 86400;
+        s->ti += omap_rtc_bin(value) * 86400;
+        return;
+
+    case 0x10:	/* MONTHS_REG */
+#if ALMDEBUG
+        printf("RTC MTH_REG <-- %02x\n", value);
+#endif
+        memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
+        new_tm.tm_mon = omap_rtc_bin(value);
+        ti[0] = mktime(&s->current_tm);
+        ti[1] = mktime(&new_tm);
+
+        if (ti[0] != -1 && ti[1] != -1) {
+            s->ti -= ti[0];
+            s->ti += ti[1];
+        } else {
+            /* A less accurate version */
+            s->ti -= s->current_tm.tm_mon * 2592000;
+            s->ti += omap_rtc_bin(value) * 2592000;
+        }
+        return;
+
+    case 0x14:	/* YEARS_REG */
+#if ALMDEBUG
+        printf("RTC YRS_REG <-- %02x\n", value);
+#endif
+        memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
+        new_tm.tm_year += omap_rtc_bin(value) - (new_tm.tm_year % 100);
+        ti[0] = mktime(&s->current_tm);
+        ti[1] = mktime(&new_tm);
+
+        if (ti[0] != -1 && ti[1] != -1) {
+            s->ti -= ti[0];
+            s->ti += ti[1];
+        } else {
+            /* A less accurate version */
+            s->ti -= (s->current_tm.tm_year % 100) * 31536000;
+            s->ti += omap_rtc_bin(value) * 31536000;
+        }
+        return;
+
+    case 0x18:	/* WEEK_REG */
+        return;	/* Ignored */
+
+    case 0x20:	/* ALARM_SECONDS_REG */
+#if ALMDEBUG
+        printf("ALM SEC_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_sec = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x24:	/* ALARM_MINUTES_REG */
+#if ALMDEBUG
+        printf("ALM MIN_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_min = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x28:	/* ALARM_HOURS_REG */
+#if ALMDEBUG
+        printf("ALM HRS_REG <-- %02x\n", value);
+#endif
+        if (s->pm_am)
+            s->alarm_tm.tm_hour =
+                    ((omap_rtc_bin(value & 0x3f)) % 12) +
+                    ((value >> 7) & 1) * 12;
+        else
+            s->alarm_tm.tm_hour = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x2c:	/* ALARM_DAYS_REG */
+#if ALMDEBUG
+        printf("ALM DAY_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_mday = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x30:	/* ALARM_MONTHS_REG */
+#if ALMDEBUG
+        printf("ALM MON_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_mon = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x34:	/* ALARM_YEARS_REG */
+#if ALMDEBUG
+        printf("ALM YRS_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_year = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x40:	/* RTC_CTRL_REG */
+#if ALMDEBUG
+        printf("RTC CONTROL <-- %02x\n", value);
+#endif
+        s->pm_am = (value >> 3) & 1;
+        s->auto_comp = (value >> 2) & 1;
+        s->round = (value >> 1) & 1;
+        s->running = value & 1;
+        s->status &= 0xfd;
+        s->status |= s->running << 1;
+        return;
+
+    case 0x44:	/* RTC_STATUS_REG */
+#if ALMDEBUG
+        printf("RTC STATUSL <-- %02x\n", value);
+#endif
+        s->status &= ~((value & 0xc0) ^ 0x80);
+        omap_rtc_interrupts_update(s);
+        return;
+
+    case 0x48:	/* RTC_INTERRUPTS_REG */
+#if ALMDEBUG
+        printf("RTC INTRS <-- %02x\n", value);
+#endif
+        s->interrupts = value;
+        return;
+
+    case 0x4c:	/* RTC_COMP_LSB_REG */
+#if ALMDEBUG
+        printf("RTC COMPLSB <-- %02x\n", value);
+#endif
+        s->comp_reg &= 0xff00;
+        s->comp_reg |= 0x00ff & value;
+        return;
+
+    case 0x50:	/* RTC_COMP_MSB_REG */
+#if ALMDEBUG
+        printf("RTC COMPMSB <-- %02x\n", value);
+#endif
+        s->comp_reg &= 0x00ff;
+        s->comp_reg |= 0xff00 & (value << 8);
+        return;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_rtc_readfn[] = {
+    omap_rtc_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_rtc_writefn[] = {
+    omap_rtc_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+static void omap_rtc_tick(void *opaque)
+{
+    struct omap_rtc_s *s = opaque;
+
+    if (s->round) {
+        /* Round to nearest full minute.  */
+        if (s->current_tm.tm_sec < 30)
+            s->ti -= s->current_tm.tm_sec;
+        else
+            s->ti += 60 - s->current_tm.tm_sec;
+
+        s->round = 0;
+    }
+
+    localtime_r(&s->ti, &s->current_tm);
+
+    if ((s->interrupts & 0x08) && s->ti == s->alarm_ti) {
+        s->status |= 0x40;
+        omap_rtc_interrupts_update(s);
+    }
+
+    if (s->interrupts & 0x04)
+        switch (s->interrupts & 3) {
+        case 0:
+            s->status |= 0x04;
+            qemu_irq_raise(s->irq);
+            break;
+        case 1:
+            if (s->current_tm.tm_sec)
+                break;
+            s->status |= 0x08;
+            qemu_irq_raise(s->irq);
+            break;
+        case 2:
+            if (s->current_tm.tm_sec || s->current_tm.tm_min)
+                break;
+            s->status |= 0x10;
+            qemu_irq_raise(s->irq);
+            break;
+        case 3:
+            if (s->current_tm.tm_sec ||
+                            s->current_tm.tm_min || s->current_tm.tm_hour)
+                break;
+            s->status |= 0x20;
+            qemu_irq_raise(s->irq);
+            break;
+        }
+
+    /* Move on */
+    if (s->running)
+        s->ti ++;
+    s->tick += 1000;
+
+    /*
+     * Every full hour add a rough approximation of the compensation
+     * register to the 32kHz Timer (which drives the RTC) value. 
+     */
+    if (s->auto_comp && !s->current_tm.tm_sec && !s->current_tm.tm_min)
+        s->tick += s->comp_reg * 1000 / 32768;
+
+    qemu_mod_timer(s->clk, s->tick);
+}
+
+void omap_rtc_reset(struct omap_rtc_s *s)
+{
+    s->interrupts = 0;
+    s->comp_reg = 0;
+    s->running = 0;
+    s->pm_am = 0;
+    s->auto_comp = 0;
+    s->round = 0;
+    s->tick = qemu_get_clock(rt_clock);
+    memset(&s->alarm_tm, 0, sizeof(s->alarm_tm));
+    s->alarm_tm.tm_mday = 0x01;
+    s->status = 1 << 7;
+    time(&s->ti);
+    s->ti = mktime(s->convert(&s->ti, &s->current_tm));
+
+    omap_rtc_alarm_update(s);
+    omap_rtc_tick(s);
+}
+
+struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
+                qemu_irq *irq, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_rtc_s *s = (struct omap_rtc_s *)
+            qemu_mallocz(sizeof(struct omap_rtc_s));
+
+    s->base = base;
+    s->irq = irq[0];
+    s->alarm = irq[1];
+    s->clk = qemu_new_timer(rt_clock, omap_rtc_tick, s);
+    s->convert = rtc_utc ? gmtime_r : localtime_r;
+
+    omap_rtc_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_rtc_readfn,
+                    omap_rtc_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    return s;
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -4051,6 +4477,7 @@ static void omap_mpu_reset(void *opaque)
     omap_pwl_reset(mpu);
     omap_pwt_reset(mpu);
     omap_i2c_reset(mpu->i2c);
+    omap_rtc_reset(mpu->rtc);
     cpu_reset(mpu->env);
 }
 
@@ -4178,6 +4605,8 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->i2c = omap_i2c_init(0xfffb3800, s->irq[1][OMAP_INT_I2C],
                     &s->drq[OMAP_DMA_I2C_RX], omap_findclk(s, "mpuper_ck"));
 
+    s->rtc = omap_rtc_init(0xfffb4800, &s->irq[1][OMAP_INT_RTC_TIMER],
+                    omap_findclk(s, "clk32-kHz"));
     qemu_register_reset(omap_mpu_reset, s);
 
     return s;
