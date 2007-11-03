@@ -542,6 +542,14 @@ struct omap_mpu_state_s {
         int clk;
     } pwl;
 
+    struct {
+        target_phys_addr_t base;
+        uint8_t frc;
+        uint8_t vrc;
+        uint8_t gcr;
+        omap_clk clk;
+    } pwt;
+
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
 

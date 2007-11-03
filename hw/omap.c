@@ -3509,6 +3509,100 @@ static void omap_pwl_init(target_phys_addr_t base, struct omap_mpu_state_s *s,
     omap_clk_adduser(clk, qemu_allocate_irqs(omap_pwl_clk_update, s, 1)[0]);
 }
 
+/* Pulse-Width Tone module */
+static uint32_t omap_pwt_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr - s->pwt.base;
+
+    switch (offset) {
+    case 0x00:	/* FRC */
+        return s->pwt.frc;
+    case 0x04:	/* VCR */
+        return s->pwt.vrc;
+    case 0x08:	/* GCR */
+        return s->pwt.gcr;
+    }
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_pwt_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr - s->pwt.base;
+
+    switch (offset) {
+    case 0x00:	/* FRC */
+        s->pwt.frc = value & 0x3f;
+        break;
+    case 0x04:	/* VRC */
+        if ((value ^ s->pwt.vrc) & 1) {
+            if (value & 1)
+                printf("%s: %iHz buzz on\n", __FUNCTION__, (int)
+                                /* 1.5 MHz from a 12-MHz or 13-MHz PWT_CLK */
+                                ((omap_clk_getrate(s->pwt.clk) >> 3) /
+                                 /* Pre-multiplexer divider */
+                                 ((s->pwt.gcr & 2) ? 1 : 154) /
+                                 /* Octave multiplexer */
+                                 (2 << (value & 3)) *
+                                 /* 101/107 divider */
+                                 ((value & (1 << 2)) ? 101 : 107) *
+                                 /*  49/55 divider */
+                                 ((value & (1 << 3)) ?  49 : 55) *
+                                 /*  50/63 divider */
+                                 ((value & (1 << 4)) ?  50 : 63) *
+                                 /*  80/127 divider */
+                                 ((value & (1 << 5)) ?  80 : 127) /
+                                 (107 * 55 * 63 * 127)));
+            else
+                printf("%s: silence!\n", __FUNCTION__);
+        }
+        s->pwt.vrc = value & 0x7f;
+        break;
+    case 0x08:	/* GCR */
+        s->pwt.gcr = value & 3;
+        break;
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_pwt_readfn[] = {
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+    omap_pwt_read,
+};
+
+static CPUWriteMemoryFunc *omap_pwt_writefn[] = {
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+    omap_pwt_write,
+};
+
+void omap_pwt_reset(struct omap_mpu_state_s *s)
+{
+    s->pwt.frc = 0;
+    s->pwt.vrc = 0;
+    s->pwt.gcr = 0;
+}
+
+static void omap_pwt_init(target_phys_addr_t base, struct omap_mpu_state_s *s,
+                omap_clk clk)
+{
+    int iomemtype;
+
+    s->pwt.base = base;
+    s->pwt.clk = clk;
+    omap_pwt_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_pwt_readfn,
+                    omap_pwt_writefn, s);
+    cpu_register_physical_memory(s->pwt.base, 0x800, iomemtype);
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -3662,6 +3756,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
 
     omap_pwl_init(0xfffb5800, s, omap_findclk(s, "clk32-kHz"));
+    omap_pwt_init(0xfffb6000, s, omap_findclk(s, "xtal_osc_12m"));
 
     qemu_register_reset(omap_mpu_reset, s);
 
