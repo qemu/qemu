@@ -22,6 +22,18 @@
 #include "arm_pic.h"
 
 /* Should signal the TCMI */
+uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr)
+{
+    OMAP_8B_REG(addr);
+    return 0;
+}
+
+void omap_badwidth_write8(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    OMAP_8B_REG(addr);
+}
+
 uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr)
 {
     OMAP_16B_REG(addr);
@@ -3140,9 +3152,8 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
         return;
 
     case 0x04:	/* DATA_OUTPUT */
-        diff = s->outputs ^ (value & ~s->dir);
+        diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
-	value &= ~s->dir;
         while ((ln = ffs(diff))) {
             ln --;
             if (s->handler[ln])
@@ -3369,7 +3380,7 @@ static CPUWriteMemoryFunc *omap_uwire_writefn[] = {
 
 void omap_uwire_reset(struct omap_uwire_s *s)
 {
-    s->control= 0;
+    s->control = 0;
     s->setup[0] = 0;
     s->setup[1] = 0;
     s->setup[2] = 0;
@@ -3407,6 +3418,97 @@ void omap_uwire_attach(struct omap_uwire_s *s,
     s->chip[chipselect] = slave;
 }
 
+/* Pseudonoise Pulse-Width Light Modulator */
+void omap_pwl_update(struct omap_mpu_state_s *s)
+{
+    int output = (s->pwl.clk && s->pwl.enable) ? s->pwl.level : 0;
+
+    if (output != s->pwl.output) {
+        s->pwl.output = output;
+        printf("%s: Backlight now at %i/256\n", __FUNCTION__, output);
+    }
+}
+
+static uint32_t omap_pwl_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr - s->pwl.base;
+
+    switch (offset) {
+    case 0x00:	/* PWL_LEVEL */
+        return s->pwl.level;
+    case 0x04:	/* PWL_CTRL */
+        return s->pwl.enable;
+    }
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_pwl_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr - s->pwl.base;
+
+    switch (offset) {
+    case 0x00:	/* PWL_LEVEL */
+        s->pwl.level = value;
+        omap_pwl_update(s);
+        break;
+    case 0x04:	/* PWL_CTRL */
+        s->pwl.enable = value & 1;
+        omap_pwl_update(s);
+        break;
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_pwl_readfn[] = {
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+    omap_pwl_read,
+};
+
+static CPUWriteMemoryFunc *omap_pwl_writefn[] = {
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+    omap_pwl_write,
+};
+
+void omap_pwl_reset(struct omap_mpu_state_s *s)
+{
+    s->pwl.output = 0;
+    s->pwl.level = 0;
+    s->pwl.enable = 0;
+    s->pwl.clk = 1;
+    omap_pwl_update(s);
+}
+
+static void omap_pwl_clk_update(void *opaque, int line, int on)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    s->pwl.clk = on;
+    omap_pwl_update(s);
+}
+
+static void omap_pwl_init(target_phys_addr_t base, struct omap_mpu_state_s *s,
+                omap_clk clk)
+{
+    int iomemtype;
+
+    s->pwl.base = base;
+    omap_pwl_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_pwl_readfn,
+                    omap_pwl_writefn, s);
+    cpu_register_physical_memory(s->pwl.base, 0x800, iomemtype);
+
+    omap_clk_adduser(clk, qemu_allocate_irqs(omap_pwl_clk_update, s, 1)[0]);
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -3437,6 +3539,7 @@ static void omap_mpu_reset(void *opaque)
     omap_mpuio_reset(mpu->mpuio);
     omap_gpio_reset(mpu->gpio);
     omap_uwire_reset(mpu->microwire);
+    omap_pwl_reset(mpu);
     cpu_reset(mpu->env);
 }
 
@@ -3553,10 +3656,12 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     s->wakeup, omap_findclk(s, "clk32-kHz"));
 
     s->gpio = omap_gpio_init(0xfffce000, s->irq[0][OMAP_INT_GPIO_BANK1],
-                    omap_findclk(s, "mpuper_ck"));
+                    omap_findclk(s, "arm_gpio_ck"));
 
     s->microwire = omap_uwire_init(0xfffb3000, &s->irq[1][OMAP_INT_uWireTX],
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
+
+    omap_pwl_init(0xfffb5800, s, omap_findclk(s, "clk32-kHz"));
 
     qemu_register_reset(omap_mpu_reset, s);
 

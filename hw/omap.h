@@ -534,6 +534,14 @@ struct omap_mpu_state_s {
 
     struct omap_uwire_s *microwire;
 
+    struct {
+        target_phys_addr_t base;
+        uint8_t output;
+        uint8_t level;
+        uint8_t enable;
+        int clk;
+    } pwl;
+
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
 
@@ -614,6 +622,9 @@ void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
         printf("%s: Bad register " OMAP_FMT_plx "\n", __FUNCTION__, paddr)
 # define OMAP_RO_REG(paddr)		\
         printf("%s: Read-only register " OMAP_FMT_plx "\n",	\
+                        __FUNCTION__, paddr)
+# define OMAP_8B_REG(paddr)		\
+        printf("%s: 8-bit register " OMAP_FMT_plx "\n",	\
                         __FUNCTION__, paddr)
 # define OMAP_16B_REG(paddr)		\
         printf("%s: 16-bit register " OMAP_FMT_plx "\n",	\
