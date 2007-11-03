@@ -241,7 +241,7 @@ static void spr_read_dbat (void *opaque, int sprn)
 
 static void spr_read_dbat_h (void *opaque, int sprn)
 {
-    gen_op_load_dbat(sprn & 1, (sprn - SPR_DBAT4U) / 2);
+    gen_op_load_dbat(sprn & 1, ((sprn - SPR_DBAT4U) / 2) + 4);
 }
 
 static void spr_write_dbatu (void *opaque, int sprn)
@@ -251,7 +251,7 @@ static void spr_write_dbatu (void *opaque, int sprn)
 
 static void spr_write_dbatu_h (void *opaque, int sprn)
 {
-    gen_op_store_dbatu((sprn - SPR_DBAT4U) / 2);
+    gen_op_store_dbatu(((sprn - SPR_DBAT4U) / 2) + 4);
 }
 
 static void spr_write_dbatl (void *opaque, int sprn)
@@ -261,7 +261,7 @@ static void spr_write_dbatl (void *opaque, int sprn)
 
 static void spr_write_dbatl_h (void *opaque, int sprn)
 {
-    gen_op_store_dbatl((sprn - SPR_DBAT4L) / 2);
+    gen_op_store_dbatl(((sprn - SPR_DBAT4L) / 2) + 4);
 }
 
 /* SDR1 */
