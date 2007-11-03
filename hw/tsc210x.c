@@ -1,5 +1,5 @@
 /*
- * TI TSC2102 (touchscreen/sensors/audio controller) controller.
+ * TI TSC2102 (touchscreen/sensors/audio controller) emulator.
  *
  * Copyright (c) 2006 Andrzej Zaborowski  <balrog@zabor.org>
  *
@@ -171,7 +171,7 @@ static void tsc210x_reset(struct tsc210x_state_s *s)
     s->filter_data[0x12] = 0x7d83;
     s->filter_data[0x13] = 0x84ee;
 
-    qemu_set_irq(s->pint, s->irq);
+    qemu_set_irq(s->pint, !s->irq);
 }
 
 static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
@@ -572,7 +572,7 @@ static void tsc210x_pin_update(struct tsc210x_state_s *s)
 
     if (pin_state != s->irq) {
         s->irq = pin_state;
-        qemu_set_irq(s->pint, s->irq);
+        qemu_set_irq(s->pint, !s->irq);
     }
 
     switch (s->nextfunction) {
@@ -810,7 +810,7 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be16s(f, &s->filter_data[i]);
 
     s->busy = qemu_timer_pending(s->timer);
-    qemu_set_irq(s->pint, s->irq);
+    qemu_set_irq(s->pint, !s->irq);
 
     return 0;
 }
