@@ -106,7 +106,8 @@ print_timeval(target_ulong tv_addr)
             return;
 
 	tv = lock_user(tv_addr, sizeof(*tv), 1);
-        gemu_log("{%d,%d}", tv->tv_sec, tv->tv_usec);
+        gemu_log("{" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "}",
+        	 tv->tv_sec, tv->tv_usec);
         unlock_user(tv, tv_addr, 0);
     } else
         gemu_log("NULL");
@@ -220,12 +221,15 @@ if( ret == -1 ) {
     }
 }
 
+#if 0 /* currently unused */
 static void
 print_syscall_ret_raw(struct syscallname *name, target_long ret)
 {
         gemu_log(" = " TARGET_FMT_lx "\n", ret);
 }
+#endif
 
+#ifdef TARGET_NR__newselect
 static void
 print_syscall_ret_newselect(struct syscallname *name, target_long ret)
 {
@@ -239,6 +243,7 @@ print_syscall_ret_newselect(struct syscallname *name, target_long ret)
     print_timeval(newselect_arg5);
     gemu_log(")\n");
 }
+#endif
 
 /*
  * An array of all of the syscalls we know about
