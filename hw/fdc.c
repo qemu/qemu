@@ -1213,8 +1213,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
             len = fdctrl->data_len - fdctrl->data_pos;
             if (len > FD_SECTOR_LEN)
                 len = FD_SECTOR_LEN;
-            bdrv_read(cur_drv->bs, fd_sector(cur_drv),
-                      fdctrl->fifo, len);
+            bdrv_read(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1);
         }
     }
     retval = fdctrl->fifo[pos];
@@ -1321,8 +1320,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
         fdctrl->fifo[fdctrl->data_pos++] = value;
         if (fdctrl->data_pos % FD_SECTOR_LEN == (FD_SECTOR_LEN - 1) ||
             fdctrl->data_pos == fdctrl->data_len) {
-            bdrv_write(cur_drv->bs, fd_sector(cur_drv),
-                       fdctrl->fifo, FD_SECTOR_LEN);
+            bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1);
         }
         /* Switch from transfer mode to status mode
          * then from status mode to command mode
