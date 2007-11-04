@@ -179,7 +179,7 @@ typedef struct fd_format_t {
     const unsigned char *str;
 } fd_format_t;
 
-static fd_format_t fd_formats[] = {
+static const fd_format_t fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
     { FDRIVE_DRV_144, FDRIVE_DISK_144, 18, 80, 1, "1.44 MB 3\"1/2", },
@@ -229,7 +229,7 @@ static fd_format_t fd_formats[] = {
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate (fdrive_t *drv)
 {
-    fd_format_t *parse;
+    const fd_format_t *parse;
     int64_t nb_sectors, size;
     int i, first_match, match;
     int nb_heads, max_track, last_sect, ro;
