@@ -31,7 +31,7 @@ struct macio_state_t {
     int pic_mem_index;
     int dbdma_mem_index;
     int cuda_mem_index;
-    int nvram_mem_index;
+    void *nvram;
     int nb_ide;
     int ide_mem_index[4];
 };
@@ -68,14 +68,12 @@ static void macio_map (PCIDevice *pci_dev, int region_num,
                                          macio_state->ide_mem_index[i]);
         }
     }
-    if (macio_state->nvram_mem_index >= 0) {
-        cpu_register_physical_memory(addr + 0x60000, 0x20000,
-                                     macio_state->nvram_mem_index);
-    }
+    if (macio_state->nvram != NULL)
+        macio_nvram_map(macio_state->nvram, addr + 0x60000);
 }
 
 void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
-                 int dbdma_mem_index, int cuda_mem_index, int nvram_mem_index,
+                 int dbdma_mem_index, int cuda_mem_index, void *nvram,
                  int nb_ide, int *ide_mem_index)
 {
     PCIDevice *d;
@@ -90,7 +88,7 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
     macio_state->pic_mem_index = pic_mem_index;
     macio_state->dbdma_mem_index = dbdma_mem_index;
     macio_state->cuda_mem_index = cuda_mem_index;
-    macio_state->nvram_mem_index = nvram_mem_index;
+    macio_state->nvram = nvram;
     if (nb_ide > 4)
         nb_ide = 4;
     macio_state->nb_ide = nb_ide;

@@ -26,6 +26,9 @@
 #include "ppc_mac.h"
 
 struct MacIONVRAMState {
+    target_phys_addr_t mem_base;
+    target_phys_addr_t size;
+    int mem_index;
     uint8_t data[0x2000];
 };
 
@@ -58,6 +61,8 @@ static void macio_nvram_writeb (void *opaque,
                                 target_phys_addr_t addr, uint32_t value)
 {
     MacIONVRAMState *s = opaque;
+
+    addr -= s->mem_base;
     addr = (addr >> 4) & 0x1fff;
     s->data[addr] = value;
     //    printf("macio_nvram_writeb %04x = %02x\n", addr, value);
@@ -68,6 +73,7 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     MacIONVRAMState *s = opaque;
     uint32_t value;
 
+    addr -= s->mem_base;
     addr = (addr >> 4) & 0x1fff;
     value = s->data[addr];
     //    printf("macio_nvram_readb %04x = %02x\n", addr, value);
@@ -87,15 +93,27 @@ static CPUReadMemoryFunc *nvram_read[] = {
     &macio_nvram_readb,
 };
 
-MacIONVRAMState *macio_nvram_init (int *mem_index)
+MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size)
 {
     MacIONVRAMState *s;
+
     s = qemu_mallocz(sizeof(MacIONVRAMState));
     if (!s)
         return NULL;
-    *mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+    s->size = size;
+    s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+    *mem_index = s->mem_index;
 
     return s;
+}
+
+void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
+{
+    MacIONVRAMState *s;
+
+    s = opaque;
+    s->mem_base = mem_base;
+    cpu_register_physical_memory(mem_base, s->size, s->mem_index);
 }
 
 static uint8_t nvram_chksum (const uint8_t *buf, int n)

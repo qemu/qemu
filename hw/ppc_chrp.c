@@ -264,7 +264,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     dbdma_init(&dbdma_mem_index);
 
     macio_init(pci_bus, 0x0022, 0, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, -1, 2, ide_mem_index);
+               cuda_mem_index, NULL, 2, ide_mem_index);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
@@ -274,9 +274,9 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
         graphic_depth = 15;
 #if 0 /* XXX: this is ugly but needed for now, or OHW won't boot */
     /* The NewWorld NVRAM is not located in the MacIO device */
-    nvr = macio_nvram_init(&nvram_mem_index);
+    nvr = macio_nvram_init(&nvram_mem_index, 0x2000);
     pmac_format_nvram_partition(nvr, 0x2000);
-    cpu_register_physical_memory(0xFFF04000, 0x20000, nvram_mem_index);
+    macio_nvram_map(nvr, 0xFFF04000);
     nvram.opaque = nvr;
     nvram.read_fn = &macio_nvram_read;
     nvram.write_fn = &macio_nvram_write;
