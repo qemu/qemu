@@ -646,14 +646,23 @@ void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
 # define OMAP_RO_REG(paddr)		\
         printf("%s: Read-only register " OMAP_FMT_plx "\n",	\
                         __FUNCTION__, paddr)
-# define OMAP_8B_REG(paddr)		\
+
+# define TCMI_VERBOSE			1
+
+# ifdef TCMI_VERBOSE
+#  define OMAP_8B_REG(paddr)		\
         printf("%s: 8-bit register " OMAP_FMT_plx "\n",	\
                         __FUNCTION__, paddr)
-# define OMAP_16B_REG(paddr)		\
+#  define OMAP_16B_REG(paddr)		\
         printf("%s: 16-bit register " OMAP_FMT_plx "\n",	\
                         __FUNCTION__, paddr)
-# define OMAP_32B_REG(paddr)		\
+#  define OMAP_32B_REG(paddr)		\
         printf("%s: 32-bit register " OMAP_FMT_plx "\n",	\
                         __FUNCTION__, paddr)
+# else
+#  define OMAP_8B_REG(paddr)
+#  define OMAP_16B_REG(paddr)
+#  define OMAP_32B_REG(paddr)
+# endif
 
 #endif /* hw_omap_h */

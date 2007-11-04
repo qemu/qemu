@@ -742,4 +742,8 @@ void omap_clk_init(struct omap_mpu_state_s *mpu)
             j->multiplier = j->multiplier ?: 1;
             j ++;
         }
+    for (j = mpu->clks; count --; j ++) {
+        omap_clk_update(j);
+        omap_clk_rate_update(j);
+    }
 }
