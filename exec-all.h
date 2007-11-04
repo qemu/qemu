@@ -91,9 +91,6 @@ void optimize_flags_init(void);
 extern FILE *logfile;
 extern int loglevel;
 
-void muls64(int64_t *phigh, int64_t *plow, int64_t a, int64_t b);
-void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b);
-
 int gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
 int gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
 void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);

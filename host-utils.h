@@ -23,6 +23,28 @@
  * THE SOFTWARE.
  */
 
+#if defined(__x86_64__)
+#define __HAVE_FAST_MULU64__
+static always_inline void mulu64 (uint64_t *plow, uint64_t *phigh,
+                                  uint64_t a, uint64_t b)
+{
+    __asm__ ("mul %0\n\t"
+             : "=d" (*phigh), "=a" (*plow)
+             : "a" (a), "0" (b));
+}
+#define __HAVE_FAST_MULS64__
+static always_inline void muls64 (uint64_t *plow, uint64_t *phigh,
+                                  int64_t a, int64_t b)
+{
+    __asm__ ("imul %0\n\t"
+             : "=d" (*phigh), "=a" (*plow)
+             : "a" (a), "0" (b));
+}
+#else
+void muls64(int64_t *phigh, int64_t *plow, int64_t a, int64_t b);
+void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b);
+#endif
+
 /* Note that some of those functions may end up calling libgcc functions,
    depending on the host machine. It is up to the target emulation to
    cope with that. */
@@ -68,34 +90,13 @@ static always_inline int clz64(uint64_t val)
 {
     int cnt = 0;
 
-    if (!(val & 0xFFFFFFFF00000000ULL)) {
+    if (!(val >> 32)) {
         cnt += 32;
-        val <<= 32;
+    } else {
+        val >>= 32;
     }
-    if (!(val & 0xFFFF000000000000ULL)) {
-        cnt += 16;
-        val <<= 16;
-    }
-    if (!(val & 0xFF00000000000000ULL)) {
-        cnt += 8;
-        val <<= 8;
-    }
-    if (!(val & 0xF000000000000000ULL)) {
-        cnt += 4;
-        val <<= 4;
-    }
-    if (!(val & 0xC000000000000000ULL)) {
-        cnt += 2;
-        val <<= 2;
-    }
-    if (!(val & 0x8000000000000000ULL)) {
-        cnt++;
-        val <<= 1;
-    }
-    if (!(val & 0x8000000000000000ULL)) {
-        cnt++;
-    }
-    return cnt;
+
+    return cnt + clz32(val);
 }
 
 static always_inline int clo64(uint64_t val)
