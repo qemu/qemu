@@ -32,7 +32,11 @@
 struct tsc210x_state_s {
     qemu_irq pint;
     QEMUTimer *timer;
+    QEMUSoundCard card;
     struct uwire_slave_s chip;
+    struct i2s_codec_s codec;
+    uint8_t in_fifo[16384];
+    uint8_t out_fifo[16384];
 
     int x, y;
     int pressure;
@@ -63,6 +67,13 @@ struct tsc210x_state_s {
     uint16_t dac_power;
     int64_t powerdown;
     uint16_t filter_data[0x14];
+
+    const char *name;
+    SWVoiceIn *adc_voice[1];
+    SWVoiceOut *dac_voice[1];
+    int i2s_rx_rate;
+    int i2s_tx_rate;
+    AudioState *audio;
 };
 
 static const int resolution[4] = { 12, 8, 10, 12 };
@@ -171,7 +182,142 @@ static void tsc210x_reset(struct tsc210x_state_s *s)
     s->filter_data[0x12] = 0x7d83;
     s->filter_data[0x13] = 0x84ee;
 
+    s->i2s_tx_rate = 0;
+    s->i2s_rx_rate = 0;
+
     qemu_set_irq(s->pint, !s->irq);
+}
+
+struct tsc210x_rate_info_s {
+    int rate;
+    int dsor;
+    int fsref;
+};
+
+/*  { rate,  dsor,  fsref } */
+static const struct tsc210x_rate_info_s tsc2101_rates[] = {
+    /* Fsref / 6.0 */
+    { 7350,	7,	1 },
+    { 8000,	7,	0 },
+    /* Fsref / 5.5 */
+    { 8018,	6,	1 },
+    { 8727,	6,	0 },
+    /* Fsref / 5.0 */
+    { 8820,	5,	1 },
+    { 9600,	5,	0 },
+    /* Fsref / 4.0 */
+    { 11025,	4,	1 },
+    { 12000,	4,	0 },
+    /* Fsref / 3.0 */
+    { 14700,	3,	1 },
+    { 16000,	3,	0 },
+    /* Fsref / 2.0 */
+    { 22050,	2,	1 },
+    { 24000,	2,	0 },
+    /* Fsref / 1.5 */
+    { 29400,	1,	1 },
+    { 32000,	1,	0 },
+    /* Fsref */
+    { 44100,	0,	1 },
+    { 48000,	0,	0 },
+
+    { 0,	0, 	0 },
+};
+
+/*  { rate,   dsor, fsref }	*/
+static const struct tsc210x_rate_info_s tsc2102_rates[] = {
+    /* Fsref / 6.0 */
+    { 7350,	63,	1 },
+    { 8000,	63,	0 },
+    /* Fsref / 6.0 */
+    { 7350,	54,	1 },
+    { 8000,	54,	0 },
+    /* Fsref / 5.0 */
+    { 8820,	45,	1 },
+    { 9600,	45,	0 },
+    /* Fsref / 4.0 */
+    { 11025,	36,	1 },
+    { 12000,	36,	0 },
+    /* Fsref / 3.0 */
+    { 14700,	27,	1 },
+    { 16000,	27,	0 },
+    /* Fsref / 2.0 */
+    { 22050,	18,	1 },
+    { 24000,	18,	0 },
+    /* Fsref / 1.5 */
+    { 29400,	9,	1 },
+    { 32000,	9,	0 },
+    /* Fsref */
+    { 44100,	0,	1 },
+    { 48000,	0,	0 },
+
+    { 0,	0, 	0 },
+};
+
+static inline void tsc210x_out_flush(struct tsc210x_state_s *s, int len)
+{
+    uint8_t *data = s->codec.out.fifo + s->codec.out.start;
+    uint8_t *end = data + len;
+
+    while (data < end)
+        data += AUD_write(s->dac_voice[0], data, end - data) ?: (end - data);
+
+    s->codec.out.len -= len;
+    if (s->codec.out.len)
+        memmove(s->codec.out.fifo, end, s->codec.out.len);
+    s->codec.out.start = 0;
+}
+
+static void tsc210x_audio_out_cb(struct tsc210x_state_s *s, int free_b)
+{
+    if (s->codec.out.len >= free_b) {
+        tsc210x_out_flush(s, free_b);
+        return;
+    }
+
+    s->codec.out.size = MIN(free_b, 16384);
+    qemu_irq_raise(s->codec.tx_start);
+}
+
+static void tsc2102_audio_set_format(struct tsc210x_state_s *s)
+{
+    int enable;
+    const struct tsc210x_rate_info_s *rate;
+    audsettings_t fmt;
+
+    if (s->dac_voice[0]) {
+        tsc210x_out_flush(s, s->codec.out.len);
+        s->codec.out.size = 0;
+        AUD_set_active_out(s->dac_voice[0], 0);
+        AUD_close_out(&s->card, s->dac_voice[0]);
+        s->dac_voice[0] = 0;
+    }
+
+    enable =
+            (~s->dac_power & (1 << 15)) &&			/* PWDNC */
+            (~s->dac_power & (1 << 10));			/* DAPWDN */
+    if (!enable)
+        return;
+
+    for (rate = tsc2102_rates; rate->rate; rate ++)
+        if (rate->dsor == (s->audio_ctrl1 & 0x3f) &&		/* DACFS */
+                        rate->fsref == ((s->audio_ctrl3 >> 13) & 1))/* REFFS */
+            break;
+    if (!rate->rate) {
+        printf("%s: unknown sampling rate configured\n", __FUNCTION__);
+        return;
+    }
+
+    /* Force our own sampling rate even in slave DAC mode */
+    fmt.endianness = 0;
+    fmt.nchannels = 2;
+    fmt.freq = rate->rate;
+    fmt.fmt = AUD_FMT_S16;
+
+    s->dac_voice[0] = AUD_open_out(&s->card, s->dac_voice[0],
+                    "tsc2102.sink", s, (void *) tsc210x_audio_out_cb, &fmt);
+    if (s->dac_voice[0])
+        AUD_set_active_out(s->dac_voice[0], 1);
 }
 
 static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
@@ -437,6 +583,8 @@ static void tsc2102_audio_register_write(
             fprintf(stderr, "tsc2102_audio_register_write: "
                             "wrong value written into Audio 1\n");
 #endif
+        if (s->audio)
+            tsc2102_audio_set_format(s);
         return;
 
     case 0x01:
@@ -479,6 +627,8 @@ static void tsc2102_audio_register_write(
             fprintf(stderr, "tsc2102_audio_register_write: "
                             "wrong value written into Power\n");
 #endif
+        if (s->audio)
+            tsc2102_audio_set_format(s);
         return;
 
     case 0x06:	/* Audio Control 3 */
@@ -489,6 +639,8 @@ static void tsc2102_audio_register_write(
             fprintf(stderr, "tsc2102_audio_register_write: "
                             "wrong value written into Audio 3\n");
 #endif
+        if (s->audio)
+            tsc2102_audio_set_format(s);
         return;
 
     case 0x07:	/* LCH_BASS_BOOST_N0 */
@@ -718,6 +870,20 @@ static void tsc210x_touchscreen_event(void *opaque,
         tsc210x_pin_update(s);
 }
 
+static void tsc210x_i2s_swallow(struct tsc210x_state_s *s)
+{
+    if (s->dac_voice[0])
+        tsc210x_out_flush(s, s->codec.out.len);
+    else
+        s->codec.out.len = 0;
+}
+
+static void tsc210x_i2s_set_rate(struct tsc210x_state_s *s, int in, int out)
+{
+    s->i2s_tx_rate = out;
+    s->i2s_rx_rate = in;
+}
+
 static void tsc210x_save(QEMUFile *f, void *opaque)
 {
     struct tsc210x_state_s *s = (struct tsc210x_state_s *) opaque;
@@ -817,7 +983,7 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
 
 static int tsc2102_iid = 0;
 
-struct uwire_slave_s *tsc2102_init(qemu_irq pint)
+struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio)
 {
     struct tsc210x_state_s *s;
 
@@ -830,19 +996,37 @@ struct uwire_slave_s *tsc2102_init(qemu_irq pint)
     s->precision = s->nextprecision = 0;
     s->timer = qemu_new_timer(vm_clock, tsc210x_timer_tick, s);
     s->pint = pint;
+    s->name = "tsc2102";
+    s->audio = audio;
 
     s->chip.opaque = s;
     s->chip.send = (void *) tsc210x_write;
     s->chip.receive = (void *) tsc210x_read;
+
+    s->codec.opaque = s;
+    s->codec.tx_swallow = (void *) tsc210x_i2s_swallow;
+    s->codec.set_rate = (void *) tsc210x_i2s_set_rate;
+    s->codec.in.fifo = s->in_fifo;
+    s->codec.out.fifo = s->out_fifo;
 
     tsc210x_reset(s);
 
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1,
                     "QEMU TSC2102-driven Touchscreen");
 
+    if (s->audio)
+        AUD_register_card(s->audio, s->name, &s->card);
+
     qemu_register_reset((void *) tsc210x_reset, s);
-    register_savevm("tsc2102", tsc2102_iid ++, 0,
+    register_savevm(s->name, tsc2102_iid ++, 0,
                     tsc210x_save, tsc210x_load, s);
 
     return &s->chip;
+}
+
+struct i2s_codec_s *tsc210x_codec(struct uwire_slave_s *chip)
+{
+    struct tsc210x_state_s *s = (struct tsc210x_state_s *) chip->opaque;
+
+    return &s->codec;
 }

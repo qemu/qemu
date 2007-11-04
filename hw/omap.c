@@ -254,7 +254,7 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* ITR */
-        s->irqs &= value;
+        s->irqs &= value | 1;
         omap_inth_sir_update(s);
         omap_inth_update(s);
         return;
@@ -992,7 +992,7 @@ static void omap_dma_clk_update(void *opaque, int line, int on)
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
 
     if (on) {
-        s->delay = ticks_per_sec >> 5;
+        s->delay = ticks_per_sec >> 7;
         if (s->run_count)
             qemu_mod_timer(s->tm, qemu_get_clock(vm_clock) + s->delay);
     } else {
@@ -1325,8 +1325,10 @@ static void omap_wd_timer_write(void *opaque, target_phys_addr_t addr,
         s->mode |= (value >> 15) & 1;
         if (s->last_wr == 0xf5) {
             if ((value & 0xff) == 0xa0) {
-                s->mode = 0;
-                omap_clk_put(s->timer.clk);
+                if (s->mode) {
+                    s->mode = 0;
+                    omap_clk_put(s->timer.clk);
+                }
             } else {
                 /* XXX: on T|E hardware somehow this has no effect,
                  * on Zire 71 it works as specified.  */
@@ -2217,23 +2219,23 @@ static uint32_t omap_tcmi_read(void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
     switch (offset) {
-    case 0xfffecc00:	/* IMIF_PRIO */
-    case 0xfffecc04:	/* EMIFS_PRIO */
-    case 0xfffecc08:	/* EMIFF_PRIO */
-    case 0xfffecc0c:	/* EMIFS_CONFIG */
-    case 0xfffecc10:	/* EMIFS_CS0_CONFIG */
-    case 0xfffecc14:	/* EMIFS_CS1_CONFIG */
-    case 0xfffecc18:	/* EMIFS_CS2_CONFIG */
-    case 0xfffecc1c:	/* EMIFS_CS3_CONFIG */
-    case 0xfffecc24:	/* EMIFF_MRS */
-    case 0xfffecc28:	/* TIMEOUT1 */
-    case 0xfffecc2c:	/* TIMEOUT2 */
-    case 0xfffecc30:	/* TIMEOUT3 */
-    case 0xfffecc3c:	/* EMIFF_SDRAM_CONFIG_2 */
-    case 0xfffecc40:	/* EMIFS_CFG_DYN_WAIT */
+    case 0x00:	/* IMIF_PRIO */
+    case 0x04:	/* EMIFS_PRIO */
+    case 0x08:	/* EMIFF_PRIO */
+    case 0x0c:	/* EMIFS_CONFIG */
+    case 0x10:	/* EMIFS_CS0_CONFIG */
+    case 0x14:	/* EMIFS_CS1_CONFIG */
+    case 0x18:	/* EMIFS_CS2_CONFIG */
+    case 0x1c:	/* EMIFS_CS3_CONFIG */
+    case 0x24:	/* EMIFF_MRS */
+    case 0x28:	/* TIMEOUT1 */
+    case 0x2c:	/* TIMEOUT2 */
+    case 0x30:	/* TIMEOUT3 */
+    case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
+    case 0x40:	/* EMIFS_CFG_DYN_WAIT */
         return s->tcmi_regs[offset >> 2];
 
-    case 0xfffecc20:	/* EMIFF_SDRAM_CONFIG */
+    case 0x20:	/* EMIFF_SDRAM_CONFIG */
         ret = s->tcmi_regs[offset >> 2];
         s->tcmi_regs[offset >> 2] &= ~1; /* XXX: Clear SLRF on SDRAM access */
         /* XXX: We can try using the VGA_DIRTY flag for this */
@@ -2251,23 +2253,23 @@ static void omap_tcmi_write(void *opaque, target_phys_addr_t addr,
     int offset = addr - s->tcmi_base;
 
     switch (offset) {
-    case 0xfffecc00:	/* IMIF_PRIO */
-    case 0xfffecc04:	/* EMIFS_PRIO */
-    case 0xfffecc08:	/* EMIFF_PRIO */
-    case 0xfffecc10:	/* EMIFS_CS0_CONFIG */
-    case 0xfffecc14:	/* EMIFS_CS1_CONFIG */
-    case 0xfffecc18:	/* EMIFS_CS2_CONFIG */
-    case 0xfffecc1c:	/* EMIFS_CS3_CONFIG */
-    case 0xfffecc20:	/* EMIFF_SDRAM_CONFIG */
-    case 0xfffecc24:	/* EMIFF_MRS */
-    case 0xfffecc28:	/* TIMEOUT1 */
-    case 0xfffecc2c:	/* TIMEOUT2 */
-    case 0xfffecc30:	/* TIMEOUT3 */
-    case 0xfffecc3c:	/* EMIFF_SDRAM_CONFIG_2 */
-    case 0xfffecc40:	/* EMIFS_CFG_DYN_WAIT */
+    case 0x00:	/* IMIF_PRIO */
+    case 0x04:	/* EMIFS_PRIO */
+    case 0x08:	/* EMIFF_PRIO */
+    case 0x10:	/* EMIFS_CS0_CONFIG */
+    case 0x14:	/* EMIFS_CS1_CONFIG */
+    case 0x18:	/* EMIFS_CS2_CONFIG */
+    case 0x1c:	/* EMIFS_CS3_CONFIG */
+    case 0x20:	/* EMIFF_SDRAM_CONFIG */
+    case 0x24:	/* EMIFF_MRS */
+    case 0x28:	/* TIMEOUT1 */
+    case 0x2c:	/* TIMEOUT2 */
+    case 0x30:	/* TIMEOUT3 */
+    case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
+    case 0x40:	/* EMIFS_CFG_DYN_WAIT */
         s->tcmi_regs[offset >> 2] = value;
         break;
-    case 0xfffecc0c:	/* EMIFS_CONFIG */
+    case 0x0c:	/* EMIFS_CONFIG */
         s->tcmi_regs[offset >> 2] = (value & 0xf) | (1 << 4);
         break;
 
@@ -2441,7 +2443,7 @@ static uint32_t omap_clkm_read(void *opaque, target_phys_addr_t addr)
         return s->clkm.arm_rstct2;
 
     case 0x18:	/* ARM_SYSST */
-        return (s->clkm.clocking_scheme < 11) | s->clkm.cold_start;
+        return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start;
 
     case 0x1c:	/* ARM_CKOUT1 */
         return s->clkm.arm_ckout1;
@@ -2720,7 +2722,7 @@ static uint32_t omap_clkdsp_read(void *opaque, target_phys_addr_t addr)
         return s->clkm.dsp_rstct2;
 
     case 0x18:	/* DSP_SYSST */
-        return (s->clkm.clocking_scheme < 11) | s->clkm.cold_start |
+        return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start |
                 (s->env->halted << 6);	/* Quite useless... */
     }
 
@@ -2796,9 +2798,9 @@ static void omap_clkm_reset(struct omap_mpu_state_s *s)
     s->clkm.clocking_scheme = 0;
     omap_clkm_ckctl_update(s, ~0, 0x3000);
     s->clkm.arm_ckctl = 0x3000;
-    omap_clkm_idlect1_update(s, s->clkm.arm_idlect1 & 0x0400, 0x0400);
+    omap_clkm_idlect1_update(s, s->clkm.arm_idlect1 ^ 0x0400, 0x0400);
     s->clkm.arm_idlect1 = 0x0400;
-    omap_clkm_idlect2_update(s, s->clkm.arm_idlect2 & 0x0100, 0x0100);
+    omap_clkm_idlect2_update(s, s->clkm.arm_idlect2 ^ 0x0100, 0x0100);
     s->clkm.arm_idlect2 = 0x0100;
     s->clkm.arm_ewupct = 0x003f;
     s->clkm.arm_rstct1 = 0x0000;
@@ -2822,8 +2824,11 @@ static void omap_clkm_init(target_phys_addr_t mpu_base,
 
     s->clkm.mpu_base = mpu_base;
     s->clkm.dsp_base = dsp_base;
-    s->clkm.cold_start = 0x3a;
+    s->clkm.arm_idlect1 = 0x03ff;
+    s->clkm.arm_idlect2 = 0x0100;
+    s->clkm.dsp_idlect1 = 0x0002;
     omap_clkm_reset(s);
+    s->clkm.cold_start = 0x3a;
 
     cpu_register_physical_memory(s->clkm.mpu_base, 0x100, iomemtype[0]);
     cpu_register_physical_memory(s->clkm.dsp_base, 0x1000, iomemtype[1]);
@@ -2956,9 +2961,8 @@ static void omap_mpuio_write(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x04:	/* OUTPUT_REG */
-        diff = s->outputs ^ (value & ~s->dir);
+        diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
-	value &= ~s->dir;
         while ((ln = ffs(diff))) {
             ln --;
             if (s->handler[ln])
@@ -3120,6 +3124,7 @@ struct omap_gpio_s {
     uint16_t edge;
     uint16_t mask;
     uint16_t ints;
+    uint16_t pins;
 };
 
 static void omap_gpio_set(void *opaque, int line, int level)
@@ -3146,7 +3151,7 @@ static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
 
     switch (offset) {
     case 0x00:	/* DATA_INPUT */
-        return s->inputs;
+        return s->inputs & s->pins;
 
     case 0x04:	/* DATA_OUTPUT */
         return s->outputs;
@@ -3162,6 +3167,10 @@ static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
 
     case 0x14:	/* INTERRUPT_STATUS */
         return s->ints;
+
+    case 0x18:	/* PIN_CONTROL (not in OMAP310) */
+        OMAP_BAD_REG(addr);
+        return s->pins;
     }
 
     OMAP_BAD_REG(addr);
@@ -3219,6 +3228,11 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
             qemu_irq_lower(s->irq);
         break;
 
+    case 0x18:	/* PIN_CONTROL (not in OMAP310 TRM) */
+        OMAP_BAD_REG(addr);
+        s->pins = value;
+        break;
+
     default:
         OMAP_BAD_REG(addr);
         return;
@@ -3246,6 +3260,7 @@ void omap_gpio_reset(struct omap_gpio_s *s)
     s->edge = ~0;
     s->mask = ~0;
     s->ints = 0;
+    s->pins = ~0;
 }
 
 struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
@@ -4058,6 +4073,458 @@ struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
     return s;
 }
 
+/* Multi-channel Buffered Serial Port interfaces */
+struct omap_mcbsp_s {
+    target_phys_addr_t base;
+    qemu_irq txirq;
+    qemu_irq rxirq;
+    qemu_irq txdrq;
+    qemu_irq rxdrq;
+
+    uint16_t spcr[2];
+    uint16_t rcr[2];
+    uint16_t xcr[2];
+    uint16_t srgr[2];
+    uint16_t mcr[2];
+    uint16_t pcr;
+    uint16_t rcer[8];
+    uint16_t xcer[8];
+    int tx_rate;
+    int rx_rate;
+    int tx_req;
+
+    struct i2s_codec_s *codec;
+};
+
+static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
+{
+    int irq;
+
+    switch ((s->spcr[0] >> 4) & 3) {			/* RINTM */
+    case 0:
+        irq = (s->spcr[0] >> 1) & 1;			/* RRDY */
+        break;
+    case 3:
+        irq = (s->spcr[0] >> 3) & 1;			/* RSYNCERR */
+        break;
+    default:
+        irq = 0;
+        break;
+    }
+
+    qemu_set_irq(s->rxirq, irq);
+
+    switch ((s->spcr[1] >> 4) & 3) {			/* XINTM */
+    case 0:
+        irq = (s->spcr[1] >> 1) & 1;			/* XRDY */
+        break;
+    case 3:
+        irq = (s->spcr[1] >> 3) & 1;			/* XSYNCERR */
+        break;
+    default:
+        irq = 0;
+        break;
+    }
+
+    qemu_set_irq(s->txirq, irq);
+}
+
+static void omap_mcbsp_req_update(struct omap_mcbsp_s *s)
+{
+    int prev = s->tx_req;
+
+    s->tx_req = (s->tx_rate ||
+                    (s->spcr[0] & (1 << 12))) &&	/* CLKSTP */
+            (s->spcr[1] & (1 << 6)) &&			/* GRST */
+            (s->spcr[1] & (1 << 0));			/* XRST */
+
+    if (!s->tx_req && prev) {
+        s->spcr[1] &= ~(1 << 1);			/* XRDY */
+        qemu_irq_lower(s->txdrq);
+        omap_mcbsp_intr_update(s);
+
+        if (s->codec)
+            s->codec->tx_swallow(s->codec->opaque);
+    } else if (s->codec && s->tx_req && !prev) {
+        s->spcr[1] |= 1 << 1;				/* XRDY */
+        qemu_irq_raise(s->txdrq);
+        omap_mcbsp_intr_update(s);
+    }
+}
+
+static void omap_mcbsp_rate_update(struct omap_mcbsp_s *s)
+{
+    int rx_clk = 0, tx_clk = 0;
+    int cpu_rate = 1500000;	/* XXX */
+    if (!s->codec)
+        return;
+
+    if (s->spcr[1] & (1 << 6)) {			/* GRST */
+        if (s->spcr[0] & (1 << 0))			/* RRST */
+            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
+                            (s->pcr & (1 << 8)))	/* CLKRM */
+                if (~s->pcr & (1 << 7))			/* SCLKME */
+                    rx_clk = cpu_rate /
+                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+        if (s->spcr[1] & (1 << 0))			/* XRST */
+            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
+                            (s->pcr & (1 << 9)))	/* CLKXM */
+                if (~s->pcr & (1 << 7))			/* SCLKME */
+                    tx_clk = cpu_rate /
+                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+    }
+
+    s->codec->set_rate(s->codec->opaque, rx_clk, tx_clk);
+}
+
+static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
+{
+    if (!(s->spcr[0] & 1)) {				/* RRST */
+        if (s->codec)
+            s->codec->in.len = 0;
+        return;
+    }
+
+    if ((s->spcr[0] >> 1) & 1)				/* RRDY */
+        s->spcr[0] |= 1 << 2;				/* RFULL */
+    s->spcr[0] |= 1 << 1;				/* RRDY */
+    qemu_irq_raise(s->rxdrq);
+    omap_mcbsp_intr_update(s);
+}
+
+static void omap_mcbsp_rx_stop(struct omap_mcbsp_s *s)
+{
+    s->spcr[0] &= ~(1 << 1);				/* RRDY */
+    qemu_irq_lower(s->rxdrq);
+    omap_mcbsp_intr_update(s);
+}
+
+static void omap_mcbsp_tx_start(struct omap_mcbsp_s *s)
+{
+    if (s->tx_rate)
+        return;
+    s->tx_rate = 1;
+    omap_mcbsp_req_update(s);
+}
+
+static void omap_mcbsp_tx_stop(struct omap_mcbsp_s *s)
+{
+    s->tx_rate = 0;
+    omap_mcbsp_req_update(s);
+}
+
+static uint32_t omap_mcbsp_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+    uint16_t ret;
+
+    switch (offset) {
+    case 0x00:	/* DRR2 */
+        if (((s->rcr[0] >> 5) & 7) < 3)			/* RWDLEN1 */
+            return 0x0000;
+        /* Fall through.  */
+    case 0x02:	/* DRR1 */
+        if (!s->codec)
+            return 0x0000;
+        if (s->codec->in.len < 2) {
+            printf("%s: Rx FIFO underrun\n", __FUNCTION__);
+            omap_mcbsp_rx_stop(s);
+        } else {
+            s->codec->in.len -= 2;
+            ret = s->codec->in.fifo[s->codec->in.start ++] << 8;
+            ret |= s->codec->in.fifo[s->codec->in.start ++];
+            if (!s->codec->in.len)
+                omap_mcbsp_rx_stop(s);
+            return ret;
+        }
+        return 0x0000;
+
+    case 0x04:	/* DXR2 */
+    case 0x06:	/* DXR1 */
+        return 0x0000;
+
+    case 0x08:	/* SPCR2 */
+        return s->spcr[1];
+    case 0x0a:	/* SPCR1 */
+        return s->spcr[0];
+    case 0x0c:	/* RCR2 */
+        return s->rcr[1];
+    case 0x0e:	/* RCR1 */
+        return s->rcr[0];
+    case 0x10:	/* XCR2 */
+        return s->xcr[1];
+    case 0x12:	/* XCR1 */
+        return s->xcr[0];
+    case 0x14:	/* SRGR2 */
+        return s->srgr[1];
+    case 0x16:	/* SRGR1 */
+        return s->srgr[0];
+    case 0x18:	/* MCR2 */
+        return s->mcr[1];
+    case 0x1a:	/* MCR1 */
+        return s->mcr[0];
+    case 0x1c:	/* RCERA */
+        return s->rcer[0];
+    case 0x1e:	/* RCERB */
+        return s->rcer[1];
+    case 0x20:	/* XCERA */
+        return s->xcer[0];
+    case 0x22:	/* XCERB */
+        return s->xcer[1];
+    case 0x24:	/* PCR0 */
+        return s->pcr;
+    case 0x26:	/* RCERC */
+        return s->rcer[2];
+    case 0x28:	/* RCERD */
+        return s->rcer[3];
+    case 0x2a:	/* XCERC */
+        return s->xcer[2];
+    case 0x2c:	/* XCERD */
+        return s->xcer[3];
+    case 0x2e:	/* RCERE */
+        return s->rcer[4];
+    case 0x30:	/* RCERF */
+        return s->rcer[5];
+    case 0x32:	/* XCERE */
+        return s->xcer[4];
+    case 0x34:	/* XCERF */
+        return s->xcer[5];
+    case 0x36:	/* RCERG */
+        return s->rcer[6];
+    case 0x38:	/* RCERH */
+        return s->rcer[7];
+    case 0x3a:	/* XCERG */
+        return s->xcer[6];
+    case 0x3c:	/* XCERH */
+        return s->xcer[7];
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* DRR2 */
+    case 0x02:	/* DRR1 */
+        OMAP_RO_REG(addr);
+        return;
+
+    case 0x04:	/* DXR2 */
+        if (((s->xcr[0] >> 5) & 7) < 3)			/* XWDLEN1 */
+            return;
+        /* Fall through.  */
+    case 0x06:	/* DXR1 */
+        if (!s->codec)
+            return;
+        if (s->tx_req) {
+            if (s->codec->out.len > s->codec->out.size - 2) {
+                printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+                omap_mcbsp_tx_stop(s);
+            } else {
+                s->codec->out.fifo[s->codec->out.len ++] = (value >> 8) & 0xff;
+                s->codec->out.fifo[s->codec->out.len ++] = (value >> 0) & 0xff;
+                if (s->codec->out.len >= s->codec->out.size)
+                    omap_mcbsp_tx_stop(s);
+            }
+        } else
+            printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+        return;
+
+    case 0x08:	/* SPCR2 */
+        s->spcr[1] &= 0x0002;
+        s->spcr[1] |= 0x03f9 & value;
+        s->spcr[1] |= 0x0004 & (value << 2);		/* XEMPTY := XRST */
+        if (~value & 1) {				/* XRST */
+            s->spcr[1] &= ~6;
+            qemu_irq_lower(s->rxdrq);
+            if (s->codec)
+                s->codec->out.len = 0;
+        }
+        if (s->codec)
+            omap_mcbsp_rate_update(s);
+        omap_mcbsp_req_update(s);
+        return;
+    case 0x0a:	/* SPCR1 */
+        s->spcr[0] &= 0x0006;
+        s->spcr[0] |= 0xf8f9 & value;
+        if (value & (1 << 15))				/* DLB */
+            printf("%s: Digital Loopback mode enable attempt\n", __FUNCTION__);
+        if (~value & 1) {				/* RRST */
+            s->spcr[0] &= ~6;
+            qemu_irq_lower(s->txdrq);
+            if (s->codec)
+                s->codec->in.len = 0;
+        }
+        if (s->codec)
+            omap_mcbsp_rate_update(s);
+        omap_mcbsp_req_update(s);
+        return;
+
+    case 0x0c:	/* RCR2 */
+        s->rcr[1] = value & 0xffff;
+        return;
+    case 0x0e:	/* RCR1 */
+        s->rcr[0] = value & 0x7fe0;
+        return;
+    case 0x10:	/* XCR2 */
+        s->xcr[1] = value & 0xffff;
+        return;
+    case 0x12:	/* XCR1 */
+        s->xcr[0] = value & 0x7fe0;
+        return;
+    case 0x14:	/* SRGR2 */
+        s->srgr[1] = value & 0xffff;
+        omap_mcbsp_rate_update(s);
+        return;
+    case 0x16:	/* SRGR1 */
+        s->srgr[0] = value & 0xffff;
+        omap_mcbsp_rate_update(s);
+        return;
+    case 0x18:	/* MCR2 */
+        s->mcr[1] = value & 0x03e3;
+        if (value & 3)					/* XMCM */
+            printf("%s: Tx channel selection mode enable attempt\n",
+                            __FUNCTION__);
+        return;
+    case 0x1a:	/* MCR1 */
+        s->mcr[0] = value & 0x03e1;
+        if (value & 1)					/* RMCM */
+            printf("%s: Rx channel selection mode enable attempt\n",
+                            __FUNCTION__);
+        return;
+    case 0x1c:	/* RCERA */
+        s->rcer[0] = value & 0xffff;
+        return;
+    case 0x1e:	/* RCERB */
+        s->rcer[1] = value & 0xffff;
+        return;
+    case 0x20:	/* XCERA */
+        s->xcer[0] = value & 0xffff;
+        return;
+    case 0x22:	/* XCERB */
+        s->xcer[1] = value & 0xffff;
+        return;
+    case 0x24:	/* PCR0 */
+        s->pcr = value & 0x7faf;
+        return;
+    case 0x26:	/* RCERC */
+        s->rcer[2] = value & 0xffff;
+        return;
+    case 0x28:	/* RCERD */
+        s->rcer[3] = value & 0xffff;
+        return;
+    case 0x2a:	/* XCERC */
+        s->xcer[2] = value & 0xffff;
+        return;
+    case 0x2c:	/* XCERD */
+        s->xcer[3] = value & 0xffff;
+        return;
+    case 0x2e:	/* RCERE */
+        s->rcer[4] = value & 0xffff;
+        return;
+    case 0x30:	/* RCERF */
+        s->rcer[5] = value & 0xffff;
+        return;
+    case 0x32:	/* XCERE */
+        s->xcer[4] = value & 0xffff;
+        return;
+    case 0x34:	/* XCERF */
+        s->xcer[5] = value & 0xffff;
+        return;
+    case 0x36:	/* RCERG */
+        s->rcer[6] = value & 0xffff;
+        return;
+    case 0x38:	/* RCERH */
+        s->rcer[7] = value & 0xffff;
+        return;
+    case 0x3a:	/* XCERG */
+        s->xcer[6] = value & 0xffff;
+        return;
+    case 0x3c:	/* XCERH */
+        s->xcer[7] = value & 0xffff;
+        return;
+    }
+
+    OMAP_BAD_REG(addr);
+}
+
+static CPUReadMemoryFunc *omap_mcbsp_readfn[] = {
+    omap_badwidth_read16,
+    omap_mcbsp_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_mcbsp_writefn[] = {
+    omap_badwidth_write16,
+    omap_mcbsp_write,
+    omap_badwidth_write16,
+};
+
+static void omap_mcbsp_reset(struct omap_mcbsp_s *s)
+{
+    memset(&s->spcr, 0, sizeof(s->spcr));
+    memset(&s->rcr, 0, sizeof(s->rcr));
+    memset(&s->xcr, 0, sizeof(s->xcr));
+    s->srgr[0] = 0x0001;
+    s->srgr[1] = 0x2000;
+    memset(&s->mcr, 0, sizeof(s->mcr));
+    memset(&s->pcr, 0, sizeof(s->pcr));
+    memset(&s->rcer, 0, sizeof(s->rcer));
+    memset(&s->xcer, 0, sizeof(s->xcer));
+    s->tx_req = 0;
+    s->tx_rate = 0;
+    s->rx_rate = 0;
+}
+
+struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
+                qemu_irq *irq, qemu_irq *dma, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *)
+            qemu_mallocz(sizeof(struct omap_mcbsp_s));
+
+    s->base = base;
+    s->txirq = irq[0];
+    s->rxirq = irq[1];
+    s->txdrq = dma[0];
+    s->rxdrq = dma[1];
+    omap_mcbsp_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_mcbsp_readfn,
+                    omap_mcbsp_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    return s;
+}
+
+void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+
+    omap_mcbsp_rx_start(s);
+}
+
+void omap_mcbsp_i2s_start(void *opaque, int line, int level)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+
+    omap_mcbsp_tx_start(s);
+}
+
+void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
+{
+    s->codec = slave;
+    slave->rx_swallow = qemu_allocate_irqs(omap_mcbsp_i2s_swallow, s, 1)[0];
+    slave->tx_start = qemu_allocate_irqs(omap_mcbsp_i2s_start, s, 1)[0];
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -4092,6 +4559,9 @@ static void omap_mpu_reset(void *opaque)
     omap_pwt_reset(mpu);
     omap_i2c_reset(mpu->i2c);
     omap_rtc_reset(mpu->rtc);
+    omap_mcbsp_reset(mpu->mcbsp1);
+    omap_mcbsp_reset(mpu->mcbsp2);
+    omap_mcbsp_reset(mpu->mcbsp3);
     cpu_reset(mpu->env);
 }
 
@@ -4254,8 +4724,8 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->microwire = omap_uwire_init(0xfffb3000, &s->irq[1][OMAP_INT_uWireTX],
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
 
-    omap_pwl_init(0xfffb5800, s, omap_findclk(s, "clk32-kHz"));
-    omap_pwt_init(0xfffb6000, s, omap_findclk(s, "xtal_osc_12m"));
+    omap_pwl_init(0xfffb5800, s, omap_findclk(s, "armxor_ck"));
+    omap_pwt_init(0xfffb6000, s, omap_findclk(s, "armxor_ck"));
 
     s->i2c = omap_i2c_init(0xfffb3800, s->irq[1][OMAP_INT_I2C],
                     &s->drq[OMAP_DMA_I2C_RX], omap_findclk(s, "mpuper_ck"));
@@ -4263,14 +4733,18 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->rtc = omap_rtc_init(0xfffb4800, &s->irq[1][OMAP_INT_RTC_TIMER],
                     omap_findclk(s, "clk32-kHz"));
 
+    s->mcbsp1 = omap_mcbsp_init(0xfffb1800, &s->irq[1][OMAP_INT_McBSP1TX],
+                    &s->drq[OMAP_DMA_MCBSP1_TX], omap_findclk(s, "dspxor_ck"));
+    s->mcbsp2 = omap_mcbsp_init(0xfffb1000, &s->irq[0][OMAP_INT_310_McBSP2_TX],
+                    &s->drq[OMAP_DMA_MCBSP2_TX], omap_findclk(s, "mpuper_ck"));
+    s->mcbsp3 = omap_mcbsp_init(0xfffb7000, &s->irq[1][OMAP_INT_McBSP3TX],
+                    &s->drq[OMAP_DMA_MCBSP3_TX], omap_findclk(s, "dspxor_ck"));
+
     /* Register mappings not currenlty implemented:
-     * McBSP2 Comm	fffb1000 - fffb17ff
-     * McBSP1 Audio	fffb1800 - fffb1fff (not mapped on OMAP310)
      * MCSI2 Comm	fffb2000 - fffb27ff (not mapped on OMAP310)
      * MCSI1 Bluetooth	fffb2800 - fffb2fff (not mapped on OMAP310)
      * USB W2FC		fffb4000 - fffb47ff
      * Camera Interface	fffb6800 - fffb6fff
-     * McBSP3		fffb7000 - fffb77ff (not mapped on OMAP310)
      * USB Host		fffba000 - fffba7ff
      * FAC		fffba800 - fffbafff
      * HDQ/1-Wire	fffbc000 - fffbc7ff

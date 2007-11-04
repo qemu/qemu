@@ -307,6 +307,12 @@ static struct clk lbfree_ck = {
     .flags	= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310,
 };
 
+static struct clk hsab_ck = {
+    .name	= "hsab_ck",
+    .parent	= &tc_ck,
+    .flags	= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310,
+};
+
 static struct clk rhea1_ck = {
     .name	= "rhea1_ck",
     .parent	= &tc_ck,
@@ -359,7 +365,7 @@ static struct clk uart2_ck = {
 static struct clk uart3_1510 = {
     .name	= "uart3_ck",
     /* Direct from ULPD, no real parent */
-    .parent	= &armper_ck,/* either armper_ck or dpll4 */
+    .parent	= &armper_ck,	/* either armper_ck or dpll4 */
     .rate	= 12000000,
     .flags	= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 | ALWAYS_ENABLED,
 };
@@ -395,11 +401,12 @@ static struct clk usb_hhc_ck16xx = {
     .flags	= CLOCK_IN_OMAP16XX,
 };
 
-static struct clk usb_dc_ck = {
-    .name	= "usb_dc_ck",
-    /* Direct from ULPD, no parent */
+static struct clk usb_w2fc_mclk = {
+    .name	= "usb_w2fc_mclk",
+    .alias	= "usb_w2fc_ck",
+    .parent	= &ck_48m,
     .rate	= 48000000,
-    .flags	= CLOCK_IN_OMAP16XX,
+    .flags	= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
 };
 
 static struct clk mclk_1510 = {
@@ -539,6 +546,7 @@ static struct clk *onchip_clks[] = {
     &api_ck,
     &lb_ck,
     &lbfree_ck,
+    &hsab_ck,
     &rhea1_ck,
     &rhea2_ck,
     &lcd_ck_16xx,
@@ -551,7 +559,6 @@ static struct clk *onchip_clks[] = {
     &uart3_16xx,
     &usb_clk0,
     &usb_hhc_ck1510, &usb_hhc_ck16xx,
-    &usb_dc_ck,
     &mclk_1510,  &mclk_16xx, &mclk_310,
     &bclk_1510,  &bclk_16xx, &bclk_310,
     &mmc1_ck,
@@ -560,6 +567,7 @@ static struct clk *onchip_clks[] = {
     &cam_exclk,
     &cam_lclk,
     &clk32k,
+    &usb_w2fc_mclk,
     /* Virtual clocks */
     &i2c_fck,
     &i2c_ick,

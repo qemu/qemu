@@ -78,11 +78,18 @@ static CPUWriteMemoryFunc *static_writefn[] = {
 
 static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
-    omap_uwire_attach(
-                    cpu->microwire,
-                    tsc2102_init(
-			    omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO]),
-                    0);
+    struct uwire_slave_s *tsc;
+    AudioState *audio = 0;
+
+#ifdef HAS_AUDIO
+    audio = AUD_init();
+#endif
+
+    tsc = tsc2102_init(omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO],
+                    audio);
+
+    omap_uwire_attach(cpu->microwire, tsc, 0);
+    omap_mcbsp_i2s_attach(cpu->mcbsp1, tsc210x_codec(tsc));
 }
 
 static struct {
