@@ -115,22 +115,6 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     d->config[0x0b] = 0x06; // class_base = PCI_bridge
     d->config[0x0e] = 0x00; // header_type
 
-    d->config[0x18] = 0x00;  // primary_bus
-    d->config[0x19] = 0x01;  // secondary_bus
-    d->config[0x1a] = 0x00;  // subordinate_bus
-    d->config[0x1c] = 0x00;
-    d->config[0x1d] = 0x00;
-
-    d->config[0x20] = 0x00; // memory_base
-    d->config[0x21] = 0x00;
-    d->config[0x22] = 0x01; // memory_limit
-    d->config[0x23] = 0x00;
-
-    d->config[0x24] = 0x00; // prefetchable_memory_base
-    d->config[0x25] = 0x00;
-    d->config[0x26] = 0x00; // prefetchable_memory_limit
-    d->config[0x27] = 0x00;
-
 #if 0
     /* PCI2PCI bridge same values as PearPC - check this */
     d->config[0x00] = 0x11; // vendor_id
