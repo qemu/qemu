@@ -395,6 +395,8 @@ struct fdctrl_t {
     uint8_t lock;
     /* Power down config (also with status regB access mode */
     uint8_t pwrd;
+    /* Sun4m quirks? */
+    int sun;
     /* Floppy drives */
     fdrive_t drives[2];
 };
@@ -405,12 +407,14 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     uint32_t retval;
 
     switch (reg & 0x07) {
-#ifdef TARGET_SPARC
     case 0x00:
-	// Identify to Linux as S82078B
-	retval = fdctrl_read_statusB(fdctrl);
+        if (fdctrl->sun) {
+            // Identify to Linux as S82078B
+            retval = fdctrl_read_statusB(fdctrl);
+        } else {
+            retval = (uint32_t)(-1);
+        }
 	break;
-#endif
     case 0x01:
 	retval = fdctrl_read_statusB(fdctrl);
 	break;
@@ -598,6 +602,7 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
     fdctrl->config = 0x60; /* Implicit seek, polling & FIFO enabled */
+    fdctrl->sun = 0;
     if (fdctrl->dma_chann != -1) {
         fdctrl->dma_en = 1;
         DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
@@ -631,6 +636,17 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     return fdctrl;
 }
 
+fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
+                             BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+
+    fdctrl = fdctrl_init(irq, 0, 1, io_base, fds);
+    fdctrl->sun = 1;
+
+    return fdctrl;
+}
+
 /* XXX: may change if moved to bdrv */
 int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num)
 {
@@ -647,14 +663,12 @@ static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
 {
-#ifdef TARGET_SPARC
     // Sparc mutation
-    if (!fdctrl->dma_en) {
+    if (fdctrl->sun && !fdctrl->dma_en) {
 	fdctrl->state &= ~FD_CTRL_BUSY;
 	fdctrl->int_status = status;
 	return;
     }
-#endif
     if (~(fdctrl->state & FD_CTRL_INTR)) {
         qemu_set_irq(fdctrl->irq, 1);
         fdctrl->state |= FD_CTRL_INTR;

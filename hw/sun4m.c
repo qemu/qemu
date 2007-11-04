@@ -389,7 +389,8 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
-    fdctrl_init(slavio_irq[hwdef->fd_irq], 0, 1, hwdef->fd_base, fd_table);
+
+    sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd_table);
 
     main_esp = esp_init(bs_table, hwdef->esp_base, espdma, *espdma_irq,
                         esp_reset);
