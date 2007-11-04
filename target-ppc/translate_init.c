@@ -314,6 +314,15 @@ static void spr_write_601_rtcl (void *opaque, int sprn)
 {
     gen_op_store_601_rtcl();
 }
+
+static void spr_write_hid0_601 (void *opaque, int sprn)
+{
+    DisasContext *ctx = opaque;
+
+    gen_op_store_hid0_601();
+    /* Must stop the translation as endianness may have changed */
+    GEN_STOP(ctx);
+}
 #endif
 
 /* Unified bats */
@@ -3259,7 +3268,7 @@ static void init_proc_601 (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_hid0_601,
                  0x80010080);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",

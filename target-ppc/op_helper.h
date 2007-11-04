@@ -155,7 +155,6 @@ void do_load_74xx_tlb (int is_code);
 #endif
 
 /* POWER / PowerPC 601 specific helpers */
-void do_store_601_batu (int nr);
 void do_POWER_abso (void);
 void do_POWER_clcs (void);
 void do_POWER_div (void);
@@ -168,6 +167,7 @@ void do_POWER_mulo (void);
 #if !defined(CONFIG_USER_ONLY)
 void do_POWER_rac (void);
 void do_POWER_rfsvc (void);
+void do_store_hid0_601 (void);
 #endif
 
 /* PowerPC 602 specific helper */

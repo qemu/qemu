@@ -6801,7 +6801,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     opc_handler_t **table, *handler;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
-    int supervisor;
+    int supervisor, little_endian;
     int single_step, branch_step;
     int j, lj = -1;
 
@@ -6821,11 +6821,12 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
 #if !defined(CONFIG_USER_ONLY)
     ctx.supervisor = supervisor;
 #endif
+    little_endian = env->hflags & (1 << MSR_LE) ? 1 : 0;
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_sf;
-    ctx.mem_idx = (supervisor << 2) | (msr_sf << 1) | msr_le;
+    ctx.mem_idx = (supervisor << 2) | (msr_sf << 1) | little_endian;
 #else
-    ctx.mem_idx = (supervisor << 1) | msr_le;
+    ctx.mem_idx = (supervisor << 1) | little_endian;
 #endif
     ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
@@ -6880,18 +6881,16 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                     ctx.nip, supervisor, (int)msr_ir);
         }
 #endif
-        ctx.opcode = ldl_code(ctx.nip);
-        if (msr_le) {
-            ctx.opcode = ((ctx.opcode & 0xFF000000) >> 24) |
-                ((ctx.opcode & 0x00FF0000) >> 8) |
-                ((ctx.opcode & 0x0000FF00) << 8) |
-                ((ctx.opcode & 0x000000FF) << 24);
+        if (unlikely(little_endian)) {
+            ctx.opcode = bswap32(ldl_code(ctx.nip));
+        } else {
+            ctx.opcode = ldl_code(ctx.nip);
         }
 #if defined PPC_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
-                    opc3(ctx.opcode), msr_le ? "little" : "big");
+                    opc3(ctx.opcode), little_endian ? "little" : "big");
         }
 #endif
         ctx.nip += 4;
@@ -6986,7 +6985,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         int flags;
         flags = env->bfd_mach;
-        flags |= msr_le << 16;
+        flags |= little_endian << 16;
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.nip - pc_start, flags);
         fprintf(logfile, "\n");

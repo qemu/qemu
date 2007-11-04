@@ -58,6 +58,17 @@ static always_inline void hreg_swap_gpr_tgpr (CPUPPCState *env)
     env->tgpr[3] = tmp;
 }
 
+static always_inline void hreg_compute_mem_idx (CPUPPCState *env)
+{
+#if defined (TARGET_PPC64H)
+    /* Precompute MMU index */
+    if (msr_pr == 0 && msr_hv != 0)
+        env->mmu_idx = 2;
+    else
+#endif
+        env->mmu_idx = 1 - msr_pr;
+}
+
 static always_inline void hreg_compute_hflags (CPUPPCState *env)
 {
     target_ulong hflags_mask;
@@ -70,14 +81,12 @@ static always_inline void hreg_compute_hflags (CPUPPCState *env)
     hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF);
 #if defined (TARGET_PPC64H)
     hflags_mask |= 1ULL << MSR_HV;
-    /* Precompute MMU index */
-    if (msr_pr == 0 && msr_hv != 0)
-        env->mmu_idx = 2;
-    else
 #endif
 #endif
-        env->mmu_idx = 1 - msr_pr;
+    hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;
+    /* Merge with hflags coming from other registers */
+    env->hflags |= env->hflags_nmsr;
 }
 
 static always_inline int hreg_store_msr (CPUPPCState *env, target_ulong value)

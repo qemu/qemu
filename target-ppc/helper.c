@@ -482,10 +482,12 @@ static always_inline void bat_601_size_prot (CPUState *env,target_ulong *blp,
     int key, pp, valid, prot;
 
     bl = (*BATl & 0x0000003F) << 17;
+#if defined (DEBUG_BATS)
     if (loglevel != 0) {
         fprintf(logfile, "b %02x ==> bl %08x msk %08x\n",
                 *BATl & 0x0000003F, bl, ~bl);
     }
+#endif
     prot = 0;
     valid = (*BATl >> 6) & 1;
     if (valid) {
@@ -1836,6 +1838,76 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
     env->DBAT[1][nr] = value;
 }
 
+void do_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
+{
+    target_ulong mask;
+    int do_inval;
+
+    dump_store_bat(env, 'I', 0, nr, value);
+    if (env->IBAT[0][nr] != value) {
+        do_inval = 0;
+        mask = (env->IBAT[1][nr] << 17) & 0x0FFE0000UL;
+        if (env->IBAT[1][nr] & 0x40) {
+            /* Invalidate BAT only if it is valid */
+#if !defined(FLUSH_ALL_TLBS)
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+        /* When storing valid upper BAT, mask BEPI and BRPN
+         * and invalidate all TLBs covered by this BAT
+         */
+        env->IBAT[0][nr] = (value & 0x00001FFFUL) |
+            (value & ~0x0001FFFFUL & ~mask);
+        env->DBAT[0][nr] = env->IBAT[0][nr];
+        if (env->IBAT[1][nr] & 0x40) {
+#if !defined(FLUSH_ALL_TLBS)
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+#if defined(FLUSH_ALL_TLBS)
+        if (do_inval)
+            tlb_flush(env, 1);
+#endif
+    }
+}
+
+void do_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value)
+{
+    target_ulong mask;
+    int do_inval;
+
+    dump_store_bat(env, 'I', 1, nr, value);
+    if (env->IBAT[1][nr] != value) {
+        do_inval = 0;
+        if (env->IBAT[1][nr] & 0x40) {
+#if !defined(FLUSH_ALL_TLBS)
+            mask = (env->IBAT[1][nr] << 17) & 0x0FFE0000UL;
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+        if (value & 0x40) {
+#if !defined(FLUSH_ALL_TLBS)
+            mask = (value << 17) & 0x0FFE0000UL;
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+        env->IBAT[1][nr] = value;
+        env->DBAT[1][nr] = value;
+#if defined(FLUSH_ALL_TLBS)
+        if (do_inval)
+            tlb_flush(env, 1);
+#endif
+    }
+}
+
 /*****************************************************************************/
 /* TLB management */
 void ppc_tlb_invalidate_all (CPUPPCState *env)
@@ -2684,6 +2756,7 @@ static always_inline void powerpc_excp (CPUState *env,
      *      any special case that could occur. Just store MSR and update hflags
      */
     env->msr = new_msr;
+    env->hflags_nmsr = 0x00000000;
     hreg_compute_hflags(env);
     env->nip = vector;
     /* Reset exception state */

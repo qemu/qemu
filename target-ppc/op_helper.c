@@ -1701,12 +1701,23 @@ void do_POWER_rfsvc (void)
     __do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
 }
 
-/* PowerPC 601 BAT management helper */
-void do_store_601_batu (int nr)
+void do_store_hid0_601 (void)
 {
-    do_store_ibatu(env, nr, (uint32_t)T0);
-    env->DBAT[0][nr] = env->IBAT[0][nr];
-    env->DBAT[1][nr] = env->IBAT[1][nr];
+    uint32_t hid0;
+
+    hid0 = env->spr[SPR_HID0];
+    if ((T0 ^ hid0) & 0x00000008) {
+        /* Change current endianness */
+        env->hflags &= ~(1 << MSR_LE);
+        env->hflags_nmsr &= ~(1 << MSR_LE);
+        env->hflags_nmsr |= (1 << MSR_LE) & (((T0 >> 3) & 1) << MSR_LE);
+        env->hflags |= env->hflags_nmsr;
+        if (loglevel != 0) {
+            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
+                    __func__, T0 & 0x8 ? 'l' : 'b', env->hflags);
+        }
+    }
+    env->spr[SPR_HID0] = T0;
 }
 #endif
 
