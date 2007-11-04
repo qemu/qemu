@@ -269,7 +269,7 @@ static uint32_t omap_mmc_read(void *opaque, target_phys_addr_t offset)
 {
     uint16_t i;
     struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
-    offset -= s->base;
+    offset &= OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* MMC_CMD */
@@ -351,7 +351,7 @@ static void omap_mmc_write(void *opaque, target_phys_addr_t offset,
 {
     int i;
     struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
-    offset -= s->base;
+    offset &= OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* MMC_CMD */

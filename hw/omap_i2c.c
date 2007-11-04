@@ -194,7 +194,7 @@ void omap_i2c_reset(struct omap_i2c_s *s)
 static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_i2c_s *s = (struct omap_i2c_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t ret;
 
     switch (offset) {
@@ -286,7 +286,7 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_i2c_s *s = (struct omap_i2c_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
     int nack;
 
     switch (offset) {
