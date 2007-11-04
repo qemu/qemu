@@ -44,10 +44,13 @@ typedef struct MiscState {
     qemu_irq irq;
     uint8_t config;
     uint8_t aux1, aux2;
-    uint8_t diag, mctrl, sysctrl;
+    uint8_t diag, mctrl;
+    uint32_t sysctrl;
 } MiscState;
 
 #define MISC_SIZE 1
+#define SYSCTRL_MAXADDR 3
+#define SYSCTRL_SIZE (SYSCTRL_MAXADDR + 1)
 
 static void slavio_misc_update_irq(void *opaque)
 {
@@ -83,7 +86,8 @@ void slavio_set_power_fail(void *opaque, int power_failing)
     slavio_misc_update_irq(s);
 }
 
-static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                   uint32_t val)
 {
     MiscState *s = opaque;
 
@@ -115,13 +119,6 @@ static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32
     case 0x1b00000:
         MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
         s->mctrl = val & 0xff;
-        break;
-    case 0x1f00000:
-        MISC_DPRINTF("Write system control %2.2x\n", val & 0xff);
-        if (val & 1) {
-            s->sysctrl = 0x2;
-            qemu_system_reset_request();
-        }
         break;
     case 0xa000000:
         MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
@@ -156,10 +153,6 @@ static uint32_t slavio_misc_mem_readb(void *opaque, target_phys_addr_t addr)
         ret = s->mctrl;
         MISC_DPRINTF("Read modem control %2.2x\n", ret);
         break;
-    case 0x1f00000:
-        MISC_DPRINTF("Read system control %2.2x\n", ret);
-        ret = s->sysctrl;
-        break;
     case 0xa000000:
         MISC_DPRINTF("Read power management %2.2x\n", ret);
         break;
@@ -179,10 +172,62 @@ static CPUWriteMemoryFunc *slavio_misc_mem_write[3] = {
     slavio_misc_mem_writeb,
 };
 
+static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
+{
+    MiscState *s = opaque;
+    uint32_t ret = 0, saddr;
+
+    saddr = addr & SYSCTRL_MAXADDR;
+    switch (saddr) {
+    case 0:
+        ret = s->sysctrl;
+        break;
+    default:
+        break;
+    }
+    MISC_DPRINTF("Read system control reg 0x" TARGET_FMT_plx " = %x\n", addr,
+                 ret);
+    return ret;
+}
+
+static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
+                                      uint32_t val)
+{
+    MiscState *s = opaque;
+    uint32_t saddr;
+
+    saddr = addr & SYSCTRL_MAXADDR;
+    MISC_DPRINTF("Write system control reg 0x" TARGET_FMT_plx " =  %x\n", addr,
+                 val);
+    switch (saddr) {
+    case 0:
+        if (val & 1) {
+            s->sysctrl = 0x2;
+            qemu_system_reset_request();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static CPUReadMemoryFunc *slavio_sysctrl_mem_read[3] = {
+    slavio_sysctrl_mem_readl,
+    slavio_sysctrl_mem_readl,
+    slavio_sysctrl_mem_readl,
+};
+
+static CPUWriteMemoryFunc *slavio_sysctrl_mem_write[3] = {
+    slavio_sysctrl_mem_writel,
+    slavio_sysctrl_mem_writel,
+    slavio_sysctrl_mem_writel,
+};
+
 static void slavio_misc_save(QEMUFile *f, void *opaque)
 {
     MiscState *s = opaque;
     int tmp;
+    uint8_t tmp8;
 
     tmp = 0;
     qemu_put_be32s(f, &tmp); /* ignored, was IRQ.  */
@@ -191,13 +236,15 @@ static void slavio_misc_save(QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->aux2);
     qemu_put_8s(f, &s->diag);
     qemu_put_8s(f, &s->mctrl);
-    qemu_put_8s(f, &s->sysctrl);
+    tmp8 = s->sysctrl & 0xff;
+    qemu_put_8s(f, &tmp8);
 }
 
 static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
 {
     MiscState *s = opaque;
     int tmp;
+    uint8_t tmp8;
 
     if (version_id != 1)
         return -EINVAL;
@@ -208,7 +255,8 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->aux2);
     qemu_get_8s(f, &s->diag);
     qemu_get_8s(f, &s->mctrl);
-    qemu_get_8s(f, &s->sysctrl);
+    qemu_get_8s(f, &tmp8);
+    s->sysctrl = (uint32_t)tmp8;
     return 0;
 }
 
@@ -222,7 +270,9 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
     if (!s)
         return NULL;
 
-    slavio_misc_io_memory = cpu_register_io_memory(0, slavio_misc_mem_read, slavio_misc_mem_write, s);
+    /* 8 bit registers */
+    slavio_misc_io_memory = cpu_register_io_memory(0, slavio_misc_mem_read,
+                                                   slavio_misc_mem_write, s);
     // Slavio control
     cpu_register_physical_memory(base + 0x1800000, MISC_SIZE,
                                  slavio_misc_io_memory);
@@ -238,15 +288,21 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
     // Modem control
     cpu_register_physical_memory(base + 0x1b00000, MISC_SIZE,
                                  slavio_misc_io_memory);
-    // System control
-    cpu_register_physical_memory(base + 0x1f00000, MISC_SIZE,
-                                 slavio_misc_io_memory);
     // Power management
     cpu_register_physical_memory(power_base, MISC_SIZE, slavio_misc_io_memory);
 
+    /* 32 bit registers */
+    slavio_misc_io_memory = cpu_register_io_memory(0, slavio_sysctrl_mem_read,
+                                                   slavio_sysctrl_mem_write,
+                                                   s);
+    // System control
+    cpu_register_physical_memory(base + 0x1f00000, SYSCTRL_SIZE,
+                                 slavio_misc_io_memory);
+
     s->irq = irq;
 
-    register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load, s);
+    register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load,
+                    s);
     qemu_register_reset(slavio_misc_reset, s);
     slavio_misc_reset(s);
     return s;
