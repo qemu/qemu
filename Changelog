@@ -5,7 +5,7 @@
   - CPU model selection support (J. Mayer, Paul Brook, Herve Poussineau)
   - Several Sparc fixes (Aurelien Jarno, Blue Swirl, Robert Reif)
   - MIPS 64-bit FPU support (Thiemo Seufer)
-  - Xscale PDA emulation (Andrzei Zaborowski)
+  - Xscale PDA emulation (Andrzej Zaborowski)
   - ColdFire system emulation (Paul Brook)
   - Improved SH4 support (Magnus Damm)
   - MIPS64 support (Aurelien Jarno, Thiemo Seufer)
@@ -16,6 +16,7 @@
   - SPARC32PLUS execution support (Blue Swirl)
   - MIPS mipssim pequdo machine (Thiemo Seufer)
   - Strace for Linux userland emulation (Stuart Anderson, Thayne Harbaugh)
+  - OMAP310 MPU emulation plus Palm T|E machine (Andrzej Zaborowski)
 
 version 0.9.0:
 

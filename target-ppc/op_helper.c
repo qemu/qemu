@@ -1682,15 +1682,18 @@ void do_POWER_mulo (void)
 #if !defined (CONFIG_USER_ONLY)
 void do_POWER_rac (void)
 {
-#if 0
     mmu_ctx_t ctx;
+    int nb_BATs;
 
     /* We don't have to generate many instances of this instruction,
      * as rac is supervisor only.
      */
-    if (get_physical_address(env, &ctx, T0, 0, ACCESS_INT, 1) == 0)
+    /* XXX: FIX THIS: Pretend we have no BAT */
+    nb_BATs = env->nb_BATs;
+    env->nb_BATs = 0;
+    if (get_physical_address(env, &ctx, T0, 0, ACCESS_INT) == 0)
         T0 = ctx.raddr;
-#endif
+    env->nb_BATs = nb_BATs;
 }
 
 void do_POWER_rfsvc (void)
@@ -1698,12 +1701,23 @@ void do_POWER_rfsvc (void)
     __do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
 }
 
-/* PowerPC 601 BAT management helper */
-void do_store_601_batu (int nr)
+void do_store_hid0_601 (void)
 {
-    do_store_ibatu(env, nr, (uint32_t)T0);
-    env->DBAT[0][nr] = env->IBAT[0][nr];
-    env->DBAT[1][nr] = env->IBAT[1][nr];
+    uint32_t hid0;
+
+    hid0 = env->spr[SPR_HID0];
+    if ((T0 ^ hid0) & 0x00000008) {
+        /* Change current endianness */
+        env->hflags &= ~(1 << MSR_LE);
+        env->hflags_nmsr &= ~(1 << MSR_LE);
+        env->hflags_nmsr |= (1 << MSR_LE) & (((T0 >> 3) & 1) << MSR_LE);
+        env->hflags |= env->hflags_nmsr;
+        if (loglevel != 0) {
+            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
+                    __func__, T0 & 0x8 ? 'l' : 'b', env->hflags);
+        }
+    }
+    env->spr[SPR_HID0] = T0;
 }
 #endif
 

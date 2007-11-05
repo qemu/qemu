@@ -271,13 +271,13 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
     
-    nvr = macio_nvram_init(&nvram_mem_index);
+    nvr = macio_nvram_init(&nvram_mem_index, 0x2000);
     pmac_format_nvram_partition(nvr, 0x2000);
 
     dbdma_init(&dbdma_mem_index);
     
     macio_init(pci_bus, 0x0017, 1, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, nvram_mem_index, 0, NULL);
+               cuda_mem_index, nvr, 0, NULL);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);

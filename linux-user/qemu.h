@@ -9,10 +9,16 @@
 #ifdef TARGET_ABI32
 typedef uint32_t abi_ulong;
 typedef int32_t abi_long;
+#define TARGET_ABI_FMT_lx "%08x"
+#define TARGET_ABI_FMT_ld "%d"
+#define TARGET_ABI_FMT_lu "%u"
 #define TARGET_ABI_BITS 32
 #else
 typedef target_ulong abi_ulong;
 typedef target_long abi_long;
+#define TARGET_ABI_FMT_lx TARGET_FMT_lx
+#define TARGET_ABI_FMT_ld TARGET_FMT_ld
+#define TARGET_ABI_FMT_lu TARGET_FMT_lu
 #define TARGET_ABI_BITS TARGET_LONG_BITS
 #endif
 
@@ -203,24 +209,25 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
 
-#define access_ok(type,addr,size) (1)
+#define access_ok(type,addr,size) \
+    (page_check_range((target_ulong)addr,size,(type==VERIFY_READ)?PAGE_READ:PAGE_WRITE)==0)
 
-/* NOTE get_user and put_user use host addresses.  */
-#define __put_user(x,ptr)\
+/* NOTE __get_user and __put_user use host pointers and don't check access. */
+#define __put_user(x, hptr)\
 ({\
-    int size = sizeof(*ptr);\
+    int size = sizeof(*hptr);\
     switch(size) {\
     case 1:\
-        *(uint8_t *)(ptr) = (typeof(*ptr))(x);\
+        *(uint8_t *)(hptr) = (typeof(*hptr))(x);\
         break;\
     case 2:\
-        *(uint16_t *)(ptr) = tswap16((typeof(*ptr))(x));\
+        *(uint16_t *)(hptr) = tswap16((typeof(*hptr))(x));\
         break;\
     case 4:\
-        *(uint32_t *)(ptr) = tswap32((typeof(*ptr))(x));\
+        *(uint32_t *)(hptr) = tswap32((typeof(*hptr))(x));\
         break;\
     case 8:\
-        *(uint64_t *)(ptr) = tswap64((typeof(*ptr))(x));\
+        *(uint64_t *)(hptr) = tswap64((typeof(*hptr))(x));\
         break;\
     default:\
         abort();\
@@ -228,21 +235,21 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
     0;\
 })
 
-#define __get_user(x, ptr) \
+#define __get_user(x, hptr) \
 ({\
-    int size = sizeof(*ptr);\
+    int size = sizeof(*hptr);\
     switch(size) {\
     case 1:\
-        x = (typeof(*ptr))*(uint8_t *)(ptr);\
+        x = (typeof(*hptr))*(uint8_t *)(hptr);\
         break;\
     case 2:\
-        x = (typeof(*ptr))tswap16(*(uint16_t *)(ptr));\
+        x = (typeof(*hptr))tswap16(*(uint16_t *)(hptr));\
         break;\
     case 4:\
-        x = (typeof(*ptr))tswap32(*(uint32_t *)(ptr));\
+        x = (typeof(*hptr))tswap32(*(uint32_t *)(hptr));\
         break;\
     case 8:\
-        x = (typeof(*ptr))tswap64(*(uint64_t *)(ptr));\
+        x = (typeof(*hptr))tswap64(*(uint64_t *)(hptr));\
         break;\
     default:\
         abort();\

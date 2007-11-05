@@ -312,7 +312,8 @@ done
 if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
     AIOLIBS=
 else
-    AIOLIBS="-lpthread -lrt"
+    # Some Linux architectures (e.g. s390) don't imply -lpthread automatically.
+    AIOLIBS="-lrt -lpthread"
 fi
 
 # default flags for all hosts

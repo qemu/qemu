@@ -448,12 +448,67 @@ static always_inline int ppc6xx_tlb_check (CPUState *env, mmu_ctx_t *ctx,
 }
 
 /* Perform BAT hit & translation */
+static always_inline void bat_size_prot (CPUState *env, target_ulong *blp,
+                                         int *validp, int *protp,
+                                         target_ulong *BATu, target_ulong *BATl)
+{
+    target_ulong bl;
+    int pp, valid, prot;
+
+    bl = (*BATu & 0x00001FFC) << 15;
+    valid = 0;
+    prot = 0;
+    if (((msr_pr == 0) && (*BATu & 0x00000002)) ||
+        ((msr_pr != 0) && (*BATu & 0x00000001))) {
+        valid = 1;
+        pp = *BATl & 0x00000003;
+        if (pp != 0) {
+            prot = PAGE_READ | PAGE_EXEC;
+            if (pp == 0x2)
+                prot |= PAGE_WRITE;
+        }
+    }
+    *blp = bl;
+    *validp = valid;
+    *protp = prot;
+}
+
+static always_inline void bat_601_size_prot (CPUState *env,target_ulong *blp,
+                                             int *validp, int *protp,
+                                             target_ulong *BATu,
+                                             target_ulong *BATl)
+{
+    target_ulong bl;
+    int key, pp, valid, prot;
+
+    bl = (*BATl & 0x0000003F) << 17;
+#if defined (DEBUG_BATS)
+    if (loglevel != 0) {
+        fprintf(logfile, "b %02x ==> bl %08x msk %08x\n",
+                *BATl & 0x0000003F, bl, ~bl);
+    }
+#endif
+    prot = 0;
+    valid = (*BATl >> 6) & 1;
+    if (valid) {
+        pp = *BATu & 0x00000003;
+        if (msr_pr == 0)
+            key = (*BATu >> 3) & 1;
+        else
+            key = (*BATu >> 2) & 1;
+        prot = pp_check(key, pp, 0);
+    }
+    *blp = bl;
+    *validp = valid;
+    *protp = prot;
+}
+
 static always_inline int get_bat (CPUState *env, mmu_ctx_t *ctx,
                                   target_ulong virtual, int rw, int type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong base, BEPIl, BEPIu, bl;
-    int i, pp, pr;
+    int i, valid, prot;
     int ret = -1;
 
 #if defined (DEBUG_BATS)
@@ -462,7 +517,6 @@ static always_inline int get_bat (CPUState *env, mmu_ctx_t *ctx,
                 type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
 #endif
-    pr = msr_pr;
     switch (type) {
     case ACCESS_CODE:
         BATlt = env->IBAT[1];
@@ -480,12 +534,16 @@ static always_inline int get_bat (CPUState *env, mmu_ctx_t *ctx,
     }
 #endif
     base = virtual & 0xFFFC0000;
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
         BATl = &BATlt[i];
         BEPIu = *BATu & 0xF0000000;
         BEPIl = *BATu & 0x0FFE0000;
-        bl = (*BATu & 0x00001FFC) << 15;
+        if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
+            bat_601_size_prot(env, &bl, &valid, &prot, BATu, BATl);
+        } else {
+            bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
+        }
 #if defined (DEBUG_BATS)
         if (loglevel != 0) {
             fprintf(logfile, "%s: %cBAT%d v 0x" ADDRX " BATu 0x" ADDRX
@@ -497,20 +555,13 @@ static always_inline int get_bat (CPUState *env, mmu_ctx_t *ctx,
         if ((virtual & 0xF0000000) == BEPIu &&
             ((virtual & 0x0FFE0000) & ~bl) == BEPIl) {
             /* BAT matches */
-            if (((pr == 0) && (*BATu & 0x00000002)) ||
-                ((pr != 0) && (*BATu & 0x00000001))) {
+            if (valid != 0) {
                 /* Get physical address */
                 ctx->raddr = (*BATl & 0xF0000000) |
                     ((virtual & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
                     (virtual & 0x0001F000);
                 /* Compute access rights */
-                pp = *BATl & 0x00000003;
-                ctx->prot = 0;
-                if (pp != 0) {
-                    ctx->prot = PAGE_READ | PAGE_EXEC;
-                    if (pp == 0x2)
-                        ctx->prot |= PAGE_WRITE;
-                }
+                ctx->prot = prot;
                 ret = check_prot(ctx->prot, rw, type);
 #if defined (DEBUG_BATS)
                 if (ret == 0 && loglevel != 0) {
@@ -1303,6 +1354,7 @@ static always_inline int check_physical (CPUState *env, mmu_ctx_t *ctx,
     ret = 0;
     switch (env->mmu_model) {
     case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
     case POWERPC_MMU_SOFT_4xx:
@@ -1354,7 +1406,7 @@ static always_inline int check_physical (CPUState *env, mmu_ctx_t *ctx,
 }
 
 int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
-                          int rw, int access_type, int check_BATs)
+                          int rw, int access_type)
 {
     int ret;
 
@@ -1371,15 +1423,15 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         ret = -1;
         switch (env->mmu_model) {
         case POWERPC_MMU_32B:
+        case POWERPC_MMU_601:
         case POWERPC_MMU_SOFT_6xx:
         case POWERPC_MMU_SOFT_74xx:
-            /* Try to find a BAT */
-            if (check_BATs)
-                ret = get_bat(env, ctx, eaddr, rw, access_type);
-            /* No break here */
 #if defined(TARGET_PPC64)
         case POWERPC_MMU_64B:
 #endif
+            /* Try to find a BAT */
+            if (env->nb_BATs != 0)
+                ret = get_bat(env, ctx, eaddr, rw, access_type);
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */
                 ret = get_segment(env, ctx, eaddr, rw, access_type);
@@ -1420,7 +1472,7 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     mmu_ctx_t ctx;
 
-    if (unlikely(get_physical_address(env, &ctx, addr, 0, ACCESS_INT, 1) != 0))
+    if (unlikely(get_physical_address(env, &ctx, addr, 0, ACCESS_INT) != 0))
         return -1;
 
     return ctx.raddr & TARGET_PAGE_MASK;
@@ -1445,7 +1497,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         access_type = ACCESS_INT;
         //        access_type = env->access_type;
     }
-    ret = get_physical_address(env, &ctx, address, rw, access_type, 1);
+    ret = get_physical_address(env, &ctx, address, rw, access_type);
     if (ret == 0) {
         ret = tlb_set_page_exec(env, address & TARGET_PAGE_MASK,
                                 ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
@@ -1477,6 +1529,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
                 case POWERPC_MMU_32B:
+                case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
                 case POWERPC_MMU_64B:
 #endif
@@ -1568,6 +1621,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                         env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
                 case POWERPC_MMU_32B:
+                case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
                 case POWERPC_MMU_64B:
 #endif
@@ -1785,6 +1839,76 @@ void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
     env->DBAT[1][nr] = value;
 }
 
+void do_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
+{
+    target_ulong mask;
+    int do_inval;
+
+    dump_store_bat(env, 'I', 0, nr, value);
+    if (env->IBAT[0][nr] != value) {
+        do_inval = 0;
+        mask = (env->IBAT[1][nr] << 17) & 0x0FFE0000UL;
+        if (env->IBAT[1][nr] & 0x40) {
+            /* Invalidate BAT only if it is valid */
+#if !defined(FLUSH_ALL_TLBS)
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+        /* When storing valid upper BAT, mask BEPI and BRPN
+         * and invalidate all TLBs covered by this BAT
+         */
+        env->IBAT[0][nr] = (value & 0x00001FFFUL) |
+            (value & ~0x0001FFFFUL & ~mask);
+        env->DBAT[0][nr] = env->IBAT[0][nr];
+        if (env->IBAT[1][nr] & 0x40) {
+#if !defined(FLUSH_ALL_TLBS)
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+#if defined(FLUSH_ALL_TLBS)
+        if (do_inval)
+            tlb_flush(env, 1);
+#endif
+    }
+}
+
+void do_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value)
+{
+    target_ulong mask;
+    int do_inval;
+
+    dump_store_bat(env, 'I', 1, nr, value);
+    if (env->IBAT[1][nr] != value) {
+        do_inval = 0;
+        if (env->IBAT[1][nr] & 0x40) {
+#if !defined(FLUSH_ALL_TLBS)
+            mask = (env->IBAT[1][nr] << 17) & 0x0FFE0000UL;
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+        if (value & 0x40) {
+#if !defined(FLUSH_ALL_TLBS)
+            mask = (value << 17) & 0x0FFE0000UL;
+            do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#else
+            do_inval = 1;
+#endif
+        }
+        env->IBAT[1][nr] = value;
+        env->DBAT[1][nr] = value;
+#if defined(FLUSH_ALL_TLBS)
+        if (do_inval)
+            tlb_flush(env, 1);
+#endif
+    }
+}
+
 /*****************************************************************************/
 /* TLB management */
 void ppc_tlb_invalidate_all (CPUPPCState *env)
@@ -1810,6 +1934,7 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
         cpu_abort(env, "MMU model not implemented\n");
         break;
     case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
 #endif /* defined(TARGET_PPC64) */
@@ -1849,6 +1974,7 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
         cpu_abort(env, "MMU model not implemented\n");
         break;
     case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
         /* tlbie invalidate TLBs for all segments */
         addr &= ~((target_ulong)-1 << 28);
         /* XXX: this case should be optimized,
@@ -2147,10 +2273,9 @@ static always_inline void powerpc_excp (CPUState *env,
                 new_msr |= (target_ulong)1 << MSR_HV;
 #endif
             msr |= 0x00100000;
-            if (msr_fe0 != msr_fe1) {
-                msr |= 0x00010000;
-                goto store_current;
-            }
+            if (msr_fe0 == msr_fe1)
+                goto store_next;
+            msr |= 0x00010000;
             break;
         case POWERPC_EXCP_INVAL:
 #if defined (DEBUG_EXCEPTIONS)
@@ -2188,7 +2313,7 @@ static always_inline void powerpc_excp (CPUState *env,
                       env->error_code);
             break;
         }
-        goto store_next;
+        goto store_current;
     case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
         new_msr &= ~((target_ulong)1 << MSR_RI);
 #if defined(TARGET_PPC64H)
@@ -2632,6 +2757,7 @@ static always_inline void powerpc_excp (CPUState *env,
      *      any special case that could occur. Just store MSR and update hflags
      */
     env->msr = new_msr;
+    env->hflags_nmsr = 0x00000000;
     hreg_compute_hflags(env);
     env->nip = vector;
     /* Reset exception state */

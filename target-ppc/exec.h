@@ -98,7 +98,7 @@ void do_raise_exception_err (uint32_t exception, int error_code);
 void do_raise_exception (uint32_t exception);
 
 int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong vaddr,
-                          int rw, int access_type, int check_BATs);
+                          int rw, int access_type);
 
 void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
                        target_ulong pte0, target_ulong pte1);

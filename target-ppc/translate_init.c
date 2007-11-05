@@ -241,7 +241,7 @@ static void spr_read_dbat (void *opaque, int sprn)
 
 static void spr_read_dbat_h (void *opaque, int sprn)
 {
-    gen_op_load_dbat(sprn & 1, (sprn - SPR_DBAT4U) / 2);
+    gen_op_load_dbat(sprn & 1, ((sprn - SPR_DBAT4U) / 2) + 4);
 }
 
 static void spr_write_dbatu (void *opaque, int sprn)
@@ -251,7 +251,7 @@ static void spr_write_dbatu (void *opaque, int sprn)
 
 static void spr_write_dbatu_h (void *opaque, int sprn)
 {
-    gen_op_store_dbatu((sprn - SPR_DBAT4U) / 2);
+    gen_op_store_dbatu(((sprn - SPR_DBAT4U) / 2) + 4);
 }
 
 static void spr_write_dbatl (void *opaque, int sprn)
@@ -261,7 +261,7 @@ static void spr_write_dbatl (void *opaque, int sprn)
 
 static void spr_write_dbatl_h (void *opaque, int sprn)
 {
-    gen_op_store_dbatl((sprn - SPR_DBAT4L) / 2);
+    gen_op_store_dbatl(((sprn - SPR_DBAT4L) / 2) + 4);
 }
 
 /* SDR1 */
@@ -313,6 +313,15 @@ static void spr_write_601_rtcu (void *opaque, int sprn)
 static void spr_write_601_rtcl (void *opaque, int sprn)
 {
     gen_op_store_601_rtcl();
+}
+
+static void spr_write_hid0_601 (void *opaque, int sprn)
+{
+    DisasContext *ctx = opaque;
+
+    gen_op_store_hid0_601();
+    /* Must stop the translation as endianness may have changed */
+    GEN_STOP(ctx);
 }
 #endif
 
@@ -2246,9 +2255,9 @@ static void init_excp_4xx_real (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00001010;
     env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001020;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
-    env->excp_prefix = 0x00000000;
-    env->ivor_mask = 0x0000FFF0;
-    env->ivpr_mask = 0xFFFF0000;
+    env->excp_prefix = 0x00000000UL;
+    env->ivor_mask = 0x0000FFF0UL;
+    env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2271,9 +2280,9 @@ static void init_excp_4xx_softmmu (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00001100;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
-    env->excp_prefix = 0x00000000;
-    env->ivor_mask = 0x0000FFF0;
-    env->ivpr_mask = 0xFFFF0000;
+    env->excp_prefix = 0x00000000UL;
+    env->ivor_mask = 0x0000FFF0UL;
+    env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2298,9 +2307,9 @@ static void init_excp_BookE (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00000000;
-    env->excp_prefix = 0x00000000;
-    env->ivor_mask = 0x0000FFE0;
-    env->ivpr_mask = 0xFFFF0000;
+    env->excp_prefix = 0x00000000UL;
+    env->ivor_mask = 0x0000FFE0UL;
+    env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2321,7 +2330,7 @@ static void init_excp_601 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IO]       = 0x00000A00;
     env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
     env->excp_vectors[POWERPC_EXCP_RUNM]     = 0x00002000;
-    env->excp_prefix = 0xFFF00000;
+    env->excp_prefix = 0xFFF00000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0x00000100UL;
 #endif
@@ -2349,7 +2358,7 @@ static void init_excp_602 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001500;
     env->excp_vectors[POWERPC_EXCP_EMUL]     = 0x00001600;
-    env->excp_prefix = 0xFFF00000;
+    env->excp_prefix = 0xFFF00000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2374,6 +2383,7 @@ static void init_excp_603 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2399,6 +2409,7 @@ static void init_excp_G2 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2421,6 +2432,7 @@ static void init_excp_604 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2433,7 +2445,9 @@ static void init_excp_620 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
     env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
     env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_DSEG]     = 0x00000380;
     env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_ISEG]     = 0x00000480;
     env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
     env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
     env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
@@ -2445,8 +2459,9 @@ static void init_excp_620 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_prefix = 0xFFF00000UL;
     /* Hardware reset vector */
-    env->hreset_vector = 0x0000000000000100ULL; /* ? */
+    env->hreset_vector = 0x0000000000000100ULL;
 #endif
 }
 #endif /* defined(TARGET_PPC64) */
@@ -2468,6 +2483,7 @@ static void init_excp_7x0 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2491,6 +2507,7 @@ static void init_excp_750FX (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2517,6 +2534,7 @@ static void init_excp_7x5 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2542,6 +2560,7 @@ static void init_excp_7400 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2569,6 +2588,7 @@ static void init_excp_7450 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
+    env->excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2600,6 +2620,7 @@ static void init_excp_970 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
+    env->excp_prefix   = 0x00000000FFF00000ULL;
     /* Hardware reset vector */
     env->hreset_vector = 0x0000000000000100ULL;
 #endif
@@ -3232,7 +3253,7 @@ static void init_proc_e500 (CPUPPCState *env)
 #define POWERPC_INSNS_601    (POWERPC_INSNS_6xx | PPC_CACHE_DCBZ |            \
                               PPC_SEGMENT | PPC_EXTERN | PPC_POWER_BR)
 #define POWERPC_MSRM_601     (0x000000000000FD70ULL)
-#define POWERPC_MMU_601      (POWERPC_MMU_32B)
+//#define POWERPC_MMU_601      (POWERPC_MMU_601)
 //#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
 #define POWERPC_INPUT_601    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_601     (bfd_mach_ppc_601)
@@ -3247,8 +3268,8 @@ static void init_proc_601 (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+                 &spr_read_generic, &spr_write_hid0_601,
+                 0x80010080);
     /* XXX : not implemented */
     spr_register(env, SPR_HID1, "HID1",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3278,7 +3299,8 @@ static void init_proc_601 (CPUPPCState *env)
     init_excp_601(env);
     env->dcache_line_size = 64;
     env->icache_line_size = 64;
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppc6xx_irq_init(env);
 }
 
 /* PowerPC 602                                                               */
@@ -4183,9 +4205,6 @@ static void init_proc_970 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0xFFF00000); /* XXX: This is a hack */
 #if !defined(CONFIG_USER_ONLY)
-    env->excp_prefix = 0xFFF00000;
-#endif
-#if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
     init_excp_970(env);
@@ -4259,9 +4278,6 @@ static void init_proc_970FX (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFF00000); /* XXX: This is a hack */
-#if !defined(CONFIG_USER_ONLY)
-    env->excp_prefix = 0xFFF00000;
-#endif
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
@@ -4337,9 +4353,6 @@ static void init_proc_970GX (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0xFFF00000); /* XXX: This is a hack */
 #if !defined(CONFIG_USER_ONLY)
-    env->excp_prefix = 0xFFF00000;
-#endif
-#if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
     init_excp_970(env);
@@ -4414,9 +4427,6 @@ static void init_proc_970MP (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0xFFF00000); /* XXX: This is a hack */
 #if !defined(CONFIG_USER_ONLY)
-    env->excp_prefix = 0xFFF00000;
-#endif
-#if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
     init_excp_970(env);
@@ -4432,7 +4442,7 @@ static void init_proc_970MP (CPUPPCState *env)
 #define POWERPC_MSRM_620     (0x800000000005FF73ULL)
 #define POWERPC_MMU_620      (POWERPC_MMU_64B)
 #define POWERPC_EXCP_620     (POWERPC_EXCP_970)
-#define POWERPC_INPUT_620    (PPC_FLAGS_INPUT_970)
+#define POWERPC_INPUT_620    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_620     (bfd_mach_ppc64)
 #define POWERPC_FLAG_620     (POWERPC_FLAG_SE | POWERPC_FLAG_BE)
 #define check_pow_620        check_pow_nocheck /* Check this */
@@ -4456,7 +4466,8 @@ static void init_proc_620 (CPUPPCState *env)
     init_excp_620(env);
     env->dcache_line_size = 64;
     env->icache_line_size = 64;
-    /* XXX: TODO: initialize internal interrupt controller */
+    /* Allocate hardware IRQ controller */
+    ppc6xx_irq_init(env);
 }
 #endif /* defined (TARGET_PPC64) */
 
@@ -5771,10 +5782,8 @@ static ppc_def_t ppc_defs[] = {
     POWERPC_DEF("7457v1.2",    CPU_POWERPC_74x7_v12,    0xFFFFFFFF, 7455),
     /* 64 bits PowerPC                                                       */
 #if defined (TARGET_PPC64)
-#if defined (TODO)
     /* PowerPC 620                                                           */
     POWERPC_DEF("620",         CPU_POWERPC_620,         0xFFFFFFFF, 620),
-#endif
 #if defined (TODO)
     /* PowerPC 630 (POWER3)                                                  */
     POWERPC_DEF("630",         CPU_POWERPC_630,         0xFFFFFFFF, 630),

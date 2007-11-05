@@ -2190,30 +2190,27 @@ void OPPROTO op_store_601_rtcu (void)
     RETURN();
 }
 
+void OPPROTO op_store_hid0_601 (void)
+{
+    do_store_hid0_601();
+    RETURN();
+}
+
 void OPPROTO op_load_601_bat (void)
 {
     T0 = env->IBAT[PARAM1][PARAM2];
     RETURN();
 }
-#endif /* !defined(CONFIG_USER_ONLY) */
 
-/* 601 unified BATs store.
- * To avoid using specific MMU code for 601, we store BATs in
- * IBAT and DBAT simultaneously, then emulate unified BATs.
- */
-#if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_store_601_batl (void)
 {
-    int nr = PARAM1;
-
-    env->IBAT[1][nr] = T0;
-    env->DBAT[1][nr] = T0;
+    do_store_ibatl_601(env, PARAM1, T0);
     RETURN();
 }
 
 void OPPROTO op_store_601_batu (void)
 {
-    do_store_601_batu(PARAM1);
+    do_store_ibatu_601(env, PARAM1, T0);
     RETURN();
 }
 #endif /* !defined(CONFIG_USER_ONLY) */

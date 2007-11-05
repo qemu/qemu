@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "exec.h"
+#include "host-utils.h"
 
 #include "op_helper.h"
 

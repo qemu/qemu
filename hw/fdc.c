@@ -106,7 +106,7 @@ static void fd_init (fdrive_t *drv, BlockDriverState *bs)
 }
 
 static int _fd_sector (uint8_t head, uint8_t track,
-                        uint8_t sect, uint8_t last_sect)
+                       uint8_t sect, uint8_t last_sect)
 {
     return (((track * 2) + head) * last_sect) + sect - 1;
 }
@@ -124,7 +124,7 @@ static int fd_seek (fdrive_t *drv, uint8_t head, uint8_t track, uint8_t sect,
     int ret;
 
     if (track > drv->max_track ||
-	(head != 0 && (drv->flags & FDISK_DBL_SIDES) == 0)) {
+        (head != 0 && (drv->flags & FDISK_DBL_SIDES) == 0)) {
         FLOPPY_DPRINTF("try to read %d %02x %02x (max=%d %d %02x %02x)\n",
                        head, track, sect, 1,
                        (drv->flags & FDISK_DBL_SIDES) == 0 ? 0 : 1,
@@ -149,8 +149,8 @@ static int fd_seek (fdrive_t *drv, uint8_t head, uint8_t track, uint8_t sect,
         }
 #endif
         drv->head = head;
-	if (drv->track != track)
-	    ret = 1;
+        if (drv->track != track)
+            ret = 1;
         drv->track = track;
         drv->sect = sect;
     }
@@ -179,7 +179,7 @@ typedef struct fd_format_t {
     const unsigned char *str;
 } fd_format_t;
 
-static fd_format_t fd_formats[] = {
+static const fd_format_t fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
     { FDRIVE_DRV_144, FDRIVE_DISK_144, 18, 80, 1, "1.44 MB 3\"1/2", },
@@ -229,65 +229,65 @@ static fd_format_t fd_formats[] = {
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate (fdrive_t *drv)
 {
-    fd_format_t *parse;
+    const fd_format_t *parse;
     int64_t nb_sectors, size;
     int i, first_match, match;
     int nb_heads, max_track, last_sect, ro;
 
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
-	ro = bdrv_is_read_only(drv->bs);
-	bdrv_get_geometry_hint(drv->bs, &nb_heads, &max_track, &last_sect);
-	if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
-	    FLOPPY_DPRINTF("User defined disk (%d %d %d)",
+        ro = bdrv_is_read_only(drv->bs);
+        bdrv_get_geometry_hint(drv->bs, &nb_heads, &max_track, &last_sect);
+        if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
+            FLOPPY_DPRINTF("User defined disk (%d %d %d)",
                            nb_heads - 1, max_track, last_sect);
-	} else {
-	    bdrv_get_geometry(drv->bs, &nb_sectors);
-	    match = -1;
-	    first_match = -1;
-	    for (i = 0;; i++) {
-		parse = &fd_formats[i];
-		if (parse->drive == FDRIVE_DRV_NONE)
-		    break;
-		if (drv->drive == parse->drive ||
-		    drv->drive == FDRIVE_DRV_NONE) {
-		    size = (parse->max_head + 1) * parse->max_track *
-			parse->last_sect;
-		    if (nb_sectors == size) {
-			match = i;
-			break;
-		    }
-		    if (first_match == -1)
-			first_match = i;
-		}
-	    }
-	    if (match == -1) {
-		if (first_match == -1)
-		    match = 1;
-		else
-		    match = first_match;
-		parse = &fd_formats[match];
-	    }
-	    nb_heads = parse->max_head + 1;
-	    max_track = parse->max_track;
-	    last_sect = parse->last_sect;
-	    drv->drive = parse->drive;
-	    FLOPPY_DPRINTF("%s floppy disk (%d h %d t %d s) %s\n", parse->str,
+        } else {
+            bdrv_get_geometry(drv->bs, &nb_sectors);
+            match = -1;
+            first_match = -1;
+            for (i = 0;; i++) {
+                parse = &fd_formats[i];
+                if (parse->drive == FDRIVE_DRV_NONE)
+                    break;
+                if (drv->drive == parse->drive ||
+                    drv->drive == FDRIVE_DRV_NONE) {
+                    size = (parse->max_head + 1) * parse->max_track *
+                        parse->last_sect;
+                    if (nb_sectors == size) {
+                        match = i;
+                        break;
+                    }
+                    if (first_match == -1)
+                        first_match = i;
+                }
+            }
+            if (match == -1) {
+                if (first_match == -1)
+                    match = 1;
+                else
+                    match = first_match;
+                parse = &fd_formats[match];
+            }
+            nb_heads = parse->max_head + 1;
+            max_track = parse->max_track;
+            last_sect = parse->last_sect;
+            drv->drive = parse->drive;
+            FLOPPY_DPRINTF("%s floppy disk (%d h %d t %d s) %s\n", parse->str,
                            nb_heads, max_track, last_sect, ro ? "ro" : "rw");
-	}
-	    if (nb_heads == 1) {
-		drv->flags &= ~FDISK_DBL_SIDES;
-	    } else {
-		drv->flags |= FDISK_DBL_SIDES;
-	    }
-	    drv->max_track = max_track;
-	    drv->last_sect = last_sect;
-	drv->ro = ro;
+        }
+        if (nb_heads == 1) {
+            drv->flags &= ~FDISK_DBL_SIDES;
+        } else {
+            drv->flags |= FDISK_DBL_SIDES;
+        }
+        drv->max_track = max_track;
+        drv->last_sect = last_sect;
+        drv->ro = ro;
     } else {
-	FLOPPY_DPRINTF("No disk in drive\n");
+        FLOPPY_DPRINTF("No disk in drive\n");
         drv->last_sect = 0;
-	drv->max_track = 0;
-	drv->flags &= ~FDISK_DBL_SIDES;
+        drv->max_track = 0;
+        drv->flags &= ~FDISK_DBL_SIDES;
     }
 }
 
@@ -395,6 +395,8 @@ struct fdctrl_t {
     uint8_t lock;
     /* Power down config (also with status regB access mode */
     uint8_t pwrd;
+    /* Sun4m quirks? */
+    int sun4m;
     /* Floppy drives */
     fdrive_t drives[2];
 };
@@ -405,33 +407,35 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     uint32_t retval;
 
     switch (reg & 0x07) {
-#ifdef TARGET_SPARC
     case 0x00:
-	// Identify to Linux as S82078B
-	retval = fdctrl_read_statusB(fdctrl);
-	break;
-#endif
+        if (fdctrl->sun4m) {
+            // Identify to Linux as S82078B
+            retval = fdctrl_read_statusB(fdctrl);
+        } else {
+            retval = (uint32_t)(-1);
+        }
+        break;
     case 0x01:
-	retval = fdctrl_read_statusB(fdctrl);
-	break;
+        retval = fdctrl_read_statusB(fdctrl);
+        break;
     case 0x02:
-	retval = fdctrl_read_dor(fdctrl);
-	break;
+        retval = fdctrl_read_dor(fdctrl);
+        break;
     case 0x03:
         retval = fdctrl_read_tape(fdctrl);
-	break;
+        break;
     case 0x04:
         retval = fdctrl_read_main_status(fdctrl);
-	break;
+        break;
     case 0x05:
         retval = fdctrl_read_data(fdctrl);
-	break;
+        break;
     case 0x07:
         retval = fdctrl_read_dir(fdctrl);
-	break;
+        break;
     default:
-	retval = (uint32_t)(-1);
-	break;
+        retval = (uint32_t)(-1);
+        break;
     }
     FLOPPY_DPRINTF("read reg%d: 0x%02x\n", reg & 7, retval);
 
@@ -446,19 +450,19 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 
     switch (reg & 0x07) {
     case 0x02:
-	fdctrl_write_dor(fdctrl, value);
-	break;
+        fdctrl_write_dor(fdctrl, value);
+        break;
     case 0x03:
         fdctrl_write_tape(fdctrl, value);
-	break;
+        break;
     case 0x04:
         fdctrl_write_rate(fdctrl, value);
-	break;
+        break;
     case 0x05:
         fdctrl_write_data(fdctrl, value);
-	break;
+        break;
     default:
-	break;
+        break;
     }
 }
 
@@ -598,6 +602,7 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
     fdctrl->config = 0x60; /* Implicit seek, polling & FIFO enabled */
+    fdctrl->sun4m = 0;
     if (fdctrl->dma_chann != -1) {
         fdctrl->dma_en = 1;
         DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
@@ -610,7 +615,8 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl_reset(fdctrl, 0);
     fdctrl->state = FD_CTRL_ACTIVE;
     if (mem_mapped) {
-        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write, fdctrl);
+        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write,
+                                        fdctrl);
         cpu_register_physical_memory(io_base, 0x08, io_mem);
     } else {
         register_ioport_read((uint32_t)io_base + 0x01, 5, 1, &fdctrl_read,
@@ -631,6 +637,17 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     return fdctrl;
 }
 
+fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
+                             BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+
+    fdctrl = fdctrl_init(irq, 0, 1, io_base, fds);
+    fdctrl->sun4m = 1;
+
+    return fdctrl;
+}
+
 /* XXX: may change if moved to bdrv */
 int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num)
 {
@@ -647,14 +664,12 @@ static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
 {
-#ifdef TARGET_SPARC
     // Sparc mutation
-    if (!fdctrl->dma_en) {
-	fdctrl->state &= ~FD_CTRL_BUSY;
-	fdctrl->int_status = status;
-	return;
+    if (fdctrl->sun4m && !fdctrl->dma_en) {
+        fdctrl->state &= ~FD_CTRL_BUSY;
+        fdctrl->int_status = status;
+        return;
     }
-#endif
     if (~(fdctrl->state & FD_CTRL_INTR)) {
         qemu_set_irq(fdctrl->irq, 1);
         fdctrl->state |= FD_CTRL_INTR;
@@ -713,9 +728,9 @@ static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
 
     /* Drive motors state indicators */
     if (drv0(fdctrl)->drflags & FDRIVE_MOTOR_ON)
-	retval |= 1 << 5;
+        retval |= 1 << 5;
     if (drv1(fdctrl)->drflags & FDRIVE_MOTOR_ON)
-	retval |= 1 << 4;
+        retval |= 1 << 4;
     /* DMA enable */
     retval |= fdctrl->dma_en << 3;
     /* Reset indicator */
@@ -822,9 +837,9 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 {
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
-            FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
-            return;
-        }
+        FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
+        return;
+    }
     FLOPPY_DPRINTF("select rate register set to 0x%02x\n", value);
     /* Reset: autoclear */
     if (value & 0x80) {
@@ -842,6 +857,7 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 static int fdctrl_media_changed(fdrive_t *drv)
 {
     int ret;
+
     if (!drv->bs)
         return 0;
     ret = bdrv_media_changed(drv->bs);
@@ -857,7 +873,7 @@ static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
     uint32_t retval = 0;
 
     if (fdctrl_media_changed(drv0(fdctrl)) ||
-	fdctrl_media_changed(drv1(fdctrl)))
+        fdctrl_media_changed(drv1(fdctrl)))
         retval |= 0x80;
     if (retval != 0)
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
@@ -904,7 +920,7 @@ static void fdctrl_unimplemented (fdctrl_t *fdctrl)
 
 /* Callback for transfer end (stop or abort) */
 static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
-				  uint8_t status1, uint8_t status2)
+                                  uint8_t status1, uint8_t status2)
 {
     fdrive_t *cur_drv;
 
@@ -986,12 +1002,12 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     if (fdctrl->fifo[5] == 00) {
         fdctrl->data_len = fdctrl->fifo[8];
     } else {
-	int tmp;
+        int tmp;
         fdctrl->data_len = 128 << (fdctrl->fifo[5] > 7 ? 7 : fdctrl->fifo[5]);
         tmp = (cur_drv->last_sect - ks + 1);
         if (fdctrl->fifo[0] & 0x80)
             tmp += cur_drv->last_sect;
-	fdctrl->data_len *= tmp;
+        fdctrl->data_len *= tmp;
     }
     fdctrl->eot = fdctrl->fifo[6];
     if (fdctrl->dma_en) {
@@ -1000,9 +1016,9 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
         dma_mode = DMA_get_channel_mode(fdctrl->dma_chann);
         dma_mode = (dma_mode >> 2) & 3;
         FLOPPY_DPRINTF("dma_mode=%d direction=%d (%d - %d)\n",
-		       dma_mode, direction,
+                       dma_mode, direction,
                        (128 << fdctrl->fifo[5]) *
-		       (cur_drv->last_sect - ks + 1), fdctrl->data_len);
+                       (cur_drv->last_sect - ks + 1), fdctrl->data_len);
         if (((direction == FD_DIR_SCANE || direction == FD_DIR_SCANL ||
               direction == FD_DIR_SCANH) && dma_mode == 0) ||
             (direction == FD_DIR_WRITE && dma_mode == 2) ||
@@ -1016,7 +1032,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
             DMA_schedule(fdctrl->dma_chann);
             return;
         } else {
-	    FLOPPY_ERROR("dma_mode=%d direction=%d\n", dma_mode, direction);
+            FLOPPY_ERROR("dma_mode=%d direction=%d\n", dma_mode, direction);
         }
     }
     FLOPPY_DPRINTF("start non-DMA transfer\n");
@@ -1056,11 +1072,11 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
     if (dma_len > fdctrl->data_len)
         dma_len = fdctrl->data_len;
     if (cur_drv->bs == NULL) {
-	if (fdctrl->data_dir == FD_DIR_WRITE)
-	    fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
-	else
-	    fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
-	len = 0;
+        if (fdctrl->data_dir == FD_DIR_WRITE)
+            fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
+        else
+            fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
+        len = 0;
         goto transfer_error;
     }
     rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
@@ -1074,45 +1090,39 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                        cur_drv->track, cur_drv->sect, fd_sector(cur_drv),
                        fd_sector(cur_drv) * 512);
         if (fdctrl->data_dir != FD_DIR_WRITE ||
-	    len < FD_SECTOR_LEN || rel_pos != 0) {
+            len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
             if (bdrv_read(cur_drv->bs, fd_sector(cur_drv),
-			  fdctrl->fifo, 1) < 0) {
+                          fdctrl->fifo, 1) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
                 memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
             }
         }
-	switch (fdctrl->data_dir) {
-	case FD_DIR_READ:
-	    /* READ commands */
+        switch (fdctrl->data_dir) {
+        case FD_DIR_READ:
+            /* READ commands */
             DMA_write_memory (nchan, fdctrl->fifo + rel_pos,
                               fdctrl->data_pos, len);
-/* 	    cpu_physical_memory_write(addr + fdctrl->data_pos, */
-/* 				      fdctrl->fifo + rel_pos, len); */
-	    break;
-	case FD_DIR_WRITE:
+            break;
+        case FD_DIR_WRITE:
             /* WRITE commands */
             DMA_read_memory (nchan, fdctrl->fifo + rel_pos,
                              fdctrl->data_pos, len);
-/*             cpu_physical_memory_read(addr + fdctrl->data_pos, */
-/* 				     fdctrl->fifo + rel_pos, len); */
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
-			   fdctrl->fifo, 1) < 0) {
+                           fdctrl->fifo, 1) < 0) {
                 FLOPPY_ERROR("writting sector %d\n", fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
                 goto transfer_error;
             }
-	    break;
-	default:
-	    /* SCAN commands */
+            break;
+        default:
+            /* SCAN commands */
             {
-		uint8_t tmpbuf[FD_SECTOR_LEN];
+                uint8_t tmpbuf[FD_SECTOR_LEN];
                 int ret;
                 DMA_read_memory (nchan, tmpbuf, fdctrl->data_pos, len);
-/*                 cpu_physical_memory_read(addr + fdctrl->data_pos, */
-/*                                          tmpbuf, len); */
                 ret = memcmp(tmpbuf, fdctrl->fifo + rel_pos, len);
                 if (ret == 0) {
                     status2 = 0x08;
@@ -1124,47 +1134,47 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                     goto end_transfer;
                 }
             }
-	    break;
+            break;
         }
-	fdctrl->data_pos += len;
-	rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
+        fdctrl->data_pos += len;
+        rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
         if (rel_pos == 0) {
             /* Seek to next sector */
-	    FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d) (%d)\n",
-			   cur_drv->head, cur_drv->track, cur_drv->sect,
-			   fd_sector(cur_drv),
-			   fdctrl->data_pos - len);
+            FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d) (%d)\n",
+                           cur_drv->head, cur_drv->track, cur_drv->sect,
+                           fd_sector(cur_drv),
+                           fdctrl->data_pos - len);
             /* XXX: cur_drv->sect >= cur_drv->last_sect should be an
                error in fact */
             if (cur_drv->sect >= cur_drv->last_sect ||
                 cur_drv->sect == fdctrl->eot) {
-		cur_drv->sect = 1;
-		if (FD_MULTI_TRACK(fdctrl->data_state)) {
-		    if (cur_drv->head == 0 &&
-			(cur_drv->flags & FDISK_DBL_SIDES) != 0) {
+                cur_drv->sect = 1;
+                if (FD_MULTI_TRACK(fdctrl->data_state)) {
+                    if (cur_drv->head == 0 &&
+                        (cur_drv->flags & FDISK_DBL_SIDES) != 0) {
                         cur_drv->head = 1;
                     } else {
                         cur_drv->head = 0;
-			cur_drv->track++;
-			if ((cur_drv->flags & FDISK_DBL_SIDES) == 0)
-			    break;
+                        cur_drv->track++;
+                        if ((cur_drv->flags & FDISK_DBL_SIDES) == 0)
+                            break;
                     }
                 } else {
                     cur_drv->track++;
                     break;
                 }
-		FLOPPY_DPRINTF("seek to next track (%d %02x %02x => %d)\n",
-			       cur_drv->head, cur_drv->track,
-			       cur_drv->sect, fd_sector(cur_drv));
+                FLOPPY_DPRINTF("seek to next track (%d %02x %02x => %d)\n",
+                               cur_drv->head, cur_drv->track,
+                               cur_drv->sect, fd_sector(cur_drv));
             } else {
                 cur_drv->sect++;
             }
         }
     }
-end_transfer:
+ end_transfer:
     len = fdctrl->data_pos - start_pos;
     FLOPPY_DPRINTF("end transfer %d %d %d\n",
-		   fdctrl->data_pos, len, fdctrl->data_len);
+                   fdctrl->data_pos, len, fdctrl->data_len);
     if (fdctrl->data_dir == FD_DIR_SCANE ||
         fdctrl->data_dir == FD_DIR_SCANL ||
         fdctrl->data_dir == FD_DIR_SCANH)
@@ -1174,7 +1184,7 @@ end_transfer:
     fdctrl->data_len -= len;
     //    if (fdctrl->data_len == 0)
     fdctrl_stop_transfer(fdctrl, status0, status1, status2);
-transfer_error:
+ transfer_error:
 
     return len;
 }
@@ -1199,8 +1209,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
             len = fdctrl->data_len - fdctrl->data_pos;
             if (len > FD_SECTOR_LEN)
                 len = FD_SECTOR_LEN;
-            bdrv_read(cur_drv->bs, fd_sector(cur_drv),
-                      fdctrl->fifo, len);
+            bdrv_read(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1);
         }
     }
     retval = fdctrl->fifo[pos];
@@ -1271,18 +1280,18 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
         FLOPPY_ERROR("formatting sector %d\n", fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
     } else {
-	if (cur_drv->sect == cur_drv->last_sect) {
-	    fdctrl->data_state &= ~FD_STATE_FORMAT;
-	    /* Last sector done */
-	    if (FD_DID_SEEK(fdctrl->data_state))
-		fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
-	    else
-		fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
-	} else {
-	    /* More to do */
-	    fdctrl->data_pos = 0;
-	    fdctrl->data_len = 4;
-	}
+        if (cur_drv->sect == cur_drv->last_sect) {
+            fdctrl->data_state &= ~FD_STATE_FORMAT;
+            /* Last sector done */
+            if (FD_DID_SEEK(fdctrl->data_state))
+                fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
+            else
+                fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+        } else {
+            /* More to do */
+            fdctrl->data_pos = 0;
+            fdctrl->data_len = 4;
+        }
     }
 }
 
@@ -1307,8 +1316,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
         fdctrl->fifo[fdctrl->data_pos++] = value;
         if (fdctrl->data_pos % FD_SECTOR_LEN == (FD_SECTOR_LEN - 1) ||
             fdctrl->data_pos == fdctrl->data_len) {
-            bdrv_write(cur_drv->bs, fd_sector(cur_drv),
-                       fdctrl->fifo, FD_SECTOR_LEN);
+            bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1);
         }
         /* Switch from transfer mode to status mode
          * then from status mode to command mode
@@ -1411,8 +1419,8 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
 #endif
             fdctrl->fifo[1] = cur_drv->track;
             fdctrl_set_fifo(fdctrl, 2, 0);
-	    fdctrl_reset_irq(fdctrl);
-	    fdctrl->int_status = 0xC0;
+            fdctrl_reset_irq(fdctrl);
+            fdctrl->int_status = 0xC0;
             return;
         case 0x0E:
             /* DUMPREG */
@@ -1427,7 +1435,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[5] = (fdctrl->timer1 << 1) | fdctrl->dma_en;
             fdctrl->fifo[6] = cur_drv->last_sect;
             fdctrl->fifo[7] = (fdctrl->lock << 7) |
-                    (cur_drv->perpendicular << 2);
+                (cur_drv->perpendicular << 2);
             fdctrl->fifo[8] = fdctrl->config;
             fdctrl->fifo[9] = fdctrl->precomp_trk;
             fdctrl_set_fifo(fdctrl, 10, 0);
@@ -1495,7 +1503,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[7] = fdctrl->timer1;
             fdctrl->fifo[8] = cur_drv->last_sect;
             fdctrl->fifo[9] = (fdctrl->lock << 7) |
-                    (cur_drv->perpendicular << 2);
+                (cur_drv->perpendicular << 2);
             fdctrl->fifo[10] = fdctrl->config;
             fdctrl->fifo[11] = fdctrl->precomp_trk;
             fdctrl->fifo[12] = fdctrl->pwrd;
@@ -1572,25 +1580,25 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             return;
         }
     }
-enqueue:
+ enqueue:
     FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
     fdctrl->fifo[fdctrl->data_pos] = value;
     if (++fdctrl->data_pos == fdctrl->data_len) {
         /* We now have all parameters
          * and will be able to treat the command
          */
-	if (fdctrl->data_state & FD_STATE_FORMAT) {
-	    fdctrl_format_sector(fdctrl);
-	    return;
-	}
-        switch (fdctrl->fifo[0] & 0x1F) {
-        case 0x06:
-        {
-            /* READ variants */
-            FLOPPY_DPRINTF("treat READ command\n");
-            fdctrl_start_transfer(fdctrl, FD_DIR_READ);
+        if (fdctrl->data_state & FD_STATE_FORMAT) {
+            fdctrl_format_sector(fdctrl);
             return;
         }
+        switch (fdctrl->fifo[0] & 0x1F) {
+        case 0x06:
+            {
+                /* READ variants */
+                FLOPPY_DPRINTF("treat READ command\n");
+                fdctrl_start_transfer(fdctrl, FD_DIR_READ);
+                return;
+            }
         case 0x0C:
             /* READ_DELETED variants */
 //            FLOPPY_DPRINTF("treat READ_DELETED command\n");
@@ -1645,7 +1653,7 @@ enqueue:
             FLOPPY_DPRINTF("treat SPECIFY command\n");
             fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
             fdctrl->timer1 = fdctrl->fifo[2] >> 1;
-	    fdctrl->dma_en = 1 - (fdctrl->fifo[2] & 1) ;
+            fdctrl->dma_en = 1 - (fdctrl->fifo[2] & 1) ;
             /* No result back */
             fdctrl_reset_fifo(fdctrl);
             break;
@@ -1653,7 +1661,7 @@ enqueue:
             /* SENSE_DRIVE_STATUS */
             FLOPPY_DPRINTF("treat SENSE_DRIVE_STATUS command\n");
             fdctrl->cur_drv = fdctrl->fifo[1] & 1;
-	    cur_drv = get_cur_drv(fdctrl);
+            cur_drv = get_cur_drv(fdctrl);
             cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
             /* 1 Byte status back */
             fdctrl->fifo[0] = (cur_drv->ro << 6) |
@@ -1667,23 +1675,23 @@ enqueue:
             /* RECALIBRATE */
             FLOPPY_DPRINTF("treat RECALIBRATE command\n");
             fdctrl->cur_drv = fdctrl->fifo[1] & 1;
-	    cur_drv = get_cur_drv(fdctrl);
+            cur_drv = get_cur_drv(fdctrl);
             fd_recalibrate(cur_drv);
-	    fdctrl_reset_fifo(fdctrl);
+            fdctrl_reset_fifo(fdctrl);
             /* Raise Interrupt */
-	    fdctrl_raise_irq(fdctrl, 0x20);
+            fdctrl_raise_irq(fdctrl, 0x20);
             break;
         case 0x0F:
             /* SEEK */
             FLOPPY_DPRINTF("treat SEEK command\n");
             fdctrl->cur_drv = fdctrl->fifo[1] & 1;
-	    cur_drv = get_cur_drv(fdctrl);
-	    fd_start(cur_drv);
+            cur_drv = get_cur_drv(fdctrl);
+            fd_start(cur_drv);
             if (fdctrl->fifo[2] <= cur_drv->track)
                 cur_drv->dir = 1;
             else
                 cur_drv->dir = 0;
-	    fdctrl_reset_fifo(fdctrl);
+            fdctrl_reset_fifo(fdctrl);
             if (fdctrl->fifo[2] > cur_drv->max_track) {
                 fdctrl_raise_irq(fdctrl, 0x60);
             } else {
@@ -1728,7 +1736,7 @@ enqueue:
             fdctrl_start_transfer(fdctrl, FD_DIR_READ);
             break;
         case 0x4A:
-                /* READ_ID */
+            /* READ_ID */
             FLOPPY_DPRINTF("treat READ_ID command\n");
             /* XXX: should set main status register to busy */
             cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
@@ -1754,30 +1762,30 @@ enqueue:
             break;
         case 0x4D:
             /* FORMAT_TRACK */
-	    FLOPPY_DPRINTF("treat FORMAT_TRACK command\n");
-	    fdctrl->cur_drv = fdctrl->fifo[1] & 1;
-	    cur_drv = get_cur_drv(fdctrl);
-	    fdctrl->data_state |= FD_STATE_FORMAT;
-	    if (fdctrl->fifo[0] & 0x80)
-		fdctrl->data_state |= FD_STATE_MULTI;
-	    else
-		fdctrl->data_state &= ~FD_STATE_MULTI;
-	    fdctrl->data_state &= ~FD_STATE_SEEK;
-	    cur_drv->bps =
-		fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
+            FLOPPY_DPRINTF("treat FORMAT_TRACK command\n");
+            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            cur_drv = get_cur_drv(fdctrl);
+            fdctrl->data_state |= FD_STATE_FORMAT;
+            if (fdctrl->fifo[0] & 0x80)
+                fdctrl->data_state |= FD_STATE_MULTI;
+            else
+                fdctrl->data_state &= ~FD_STATE_MULTI;
+            fdctrl->data_state &= ~FD_STATE_SEEK;
+            cur_drv->bps =
+                fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
 #if 0
-	    cur_drv->last_sect =
-		cur_drv->flags & FDISK_DBL_SIDES ? fdctrl->fifo[3] :
-		fdctrl->fifo[3] / 2;
+            cur_drv->last_sect =
+                cur_drv->flags & FDISK_DBL_SIDES ? fdctrl->fifo[3] :
+                fdctrl->fifo[3] / 2;
 #else
-	    cur_drv->last_sect = fdctrl->fifo[3];
+            cur_drv->last_sect = fdctrl->fifo[3];
 #endif
-	    /* TODO: implement format using DMA expected by the Bochs BIOS
-	     * and Linux fdformat (read 3 bytes per sector via DMA and fill
-	     * the sector with the specified fill byte
-	     */
-	    fdctrl->data_state &= ~FD_STATE_FORMAT;
-	    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+            /* TODO: implement format using DMA expected by the Bochs BIOS
+             * and Linux fdformat (read 3 bytes per sector via DMA and fill
+             * the sector with the specified fill byte
+             */
+            fdctrl->data_state &= ~FD_STATE_FORMAT;
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
             break;
         case 0x8E:
             /* DRIVE_SPECIFICATION_COMMAND */
@@ -1803,16 +1811,16 @@ enqueue:
             /* RELATIVE_SEEK_OUT */
             FLOPPY_DPRINTF("treat RELATIVE_SEEK_OUT command\n");
             fdctrl->cur_drv = fdctrl->fifo[1] & 1;
-	    cur_drv = get_cur_drv(fdctrl);
-	    fd_start(cur_drv);
-                cur_drv->dir = 0;
+            cur_drv = get_cur_drv(fdctrl);
+            fd_start(cur_drv);
+            cur_drv->dir = 0;
             if (fdctrl->fifo[2] + cur_drv->track >= cur_drv->max_track) {
-		cur_drv->track = cur_drv->max_track - 1;
+                cur_drv->track = cur_drv->max_track - 1;
             } else {
                 cur_drv->track += fdctrl->fifo[2];
             }
-	    fdctrl_reset_fifo(fdctrl);
-	    fdctrl_raise_irq(fdctrl, 0x20);
+            fdctrl_reset_fifo(fdctrl);
+            fdctrl_raise_irq(fdctrl, 0x20);
             break;
         case 0xCD:
             /* FORMAT_AND_WRITE */
@@ -1821,20 +1829,20 @@ enqueue:
             fdctrl_unimplemented(fdctrl);
             break;
         case 0xCF:
-                /* RELATIVE_SEEK_IN */
+            /* RELATIVE_SEEK_IN */
             FLOPPY_DPRINTF("treat RELATIVE_SEEK_IN command\n");
             fdctrl->cur_drv = fdctrl->fifo[1] & 1;
-	    cur_drv = get_cur_drv(fdctrl);
-	    fd_start(cur_drv);
-                cur_drv->dir = 1;
+            cur_drv = get_cur_drv(fdctrl);
+            fd_start(cur_drv);
+            cur_drv->dir = 1;
             if (fdctrl->fifo[2] > cur_drv->track) {
-		cur_drv->track = 0;
+                cur_drv->track = 0;
             } else {
                 cur_drv->track -= fdctrl->fifo[2];
             }
-	    fdctrl_reset_fifo(fdctrl);
-	    /* Raise Interrupt */
-	    fdctrl_raise_irq(fdctrl, 0x20);
+            fdctrl_reset_fifo(fdctrl);
+            /* Raise Interrupt */
+            fdctrl_raise_irq(fdctrl, 0x20);
             break;
         }
     }
@@ -1844,6 +1852,7 @@ static void fdctrl_result_timer(void *opaque)
 {
     fdctrl_t *fdctrl = opaque;
     fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
     /* Pretend we are spinning.
      * This is needed for Coherent, which uses READ ID to check for
      * sector interleaving.

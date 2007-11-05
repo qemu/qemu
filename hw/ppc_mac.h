@@ -43,7 +43,7 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq);
 
 /* MacIO */
 void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
-                 int dbdma_mem_index, int cuda_mem_index, int nvram_mem_index,
+                 int dbdma_mem_index, int cuda_mem_index, void *nvram,
                  int nb_ide, int *ide_mem_index);
 
 /* NewWorld PowerMac IDE */
@@ -62,7 +62,8 @@ PCIBus *pci_pmac_init(qemu_irq *pic);
 /* Mac NVRAM */
 typedef struct MacIONVRAMState MacIONVRAMState;
 
-MacIONVRAMState *macio_nvram_init (int *mem_index);
+MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size);
+void macio_nvram_map (void *opaque, target_phys_addr_t mem_base);
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 uint32_t macio_nvram_read (void *opaque, uint32_t addr);
 void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val);

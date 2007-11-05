@@ -3550,20 +3550,28 @@ static always_inline void gen_op_mfspr (DisasContext *ctx)
             gen_op_store_T0_gpr(rD(ctx->opcode));
         } else {
             /* Privilege exception */
-            if (loglevel != 0) {
-                fprintf(logfile, "Trying to read privileged spr %d %03x\n",
-                        sprn, sprn);
+            /* This is a hack to avoid warnings when running Linux:
+             * this OS breaks the PowerPC virtualisation model,
+             * allowing userland application to read the PVR
+             */
+            if (sprn != SPR_PVR) {
+                if (loglevel != 0) {
+                    fprintf(logfile, "Trying to read privileged spr %d %03x at"
+                            ADDRX "\n", sprn, sprn, ctx->nip);
+                }
+                printf("Trying to read privileged spr %d %03x at " ADDRX "\n",
+                       sprn, sprn, ctx->nip);
             }
-            printf("Trying to read privileged spr %d %03x\n", sprn, sprn);
             GEN_EXCP_PRIVREG(ctx);
         }
     } else {
         /* Not defined */
         if (loglevel != 0) {
-            fprintf(logfile, "Trying to read invalid spr %d %03x\n",
-                    sprn, sprn);
+            fprintf(logfile, "Trying to read invalid spr %d %03x at "
+                    ADDRX "\n", sprn, sprn, ctx->nip);
         }
-        printf("Trying to read invalid spr %d %03x\n", sprn, sprn);
+        printf("Trying to read invalid spr %d %03x at " ADDRX "\n",
+               sprn, sprn, ctx->nip);
         GEN_EXCP(ctx, POWERPC_EXCP_PROGRAM,
                  POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_SPR);
     }
@@ -3683,19 +3691,21 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         } else {
             /* Privilege exception */
             if (loglevel != 0) {
-                fprintf(logfile, "Trying to write privileged spr %d %03x\n",
-                        sprn, sprn);
+                fprintf(logfile, "Trying to write privileged spr %d %03x at "
+                        ADDRX "\n", sprn, sprn, ctx->nip);
             }
-            printf("Trying to write privileged spr %d %03x\n", sprn, sprn);
+            printf("Trying to write privileged spr %d %03x at " ADDRX "\n",
+                   sprn, sprn, ctx->nip);
             GEN_EXCP_PRIVREG(ctx);
         }
     } else {
         /* Not defined */
         if (loglevel != 0) {
-            fprintf(logfile, "Trying to write invalid spr %d %03x\n",
-                    sprn, sprn);
+            fprintf(logfile, "Trying to write invalid spr %d %03x at "
+                    ADDRX "\n", sprn, sprn, ctx->nip);
         }
-        printf("Trying to write invalid spr %d %03x\n", sprn, sprn);
+        printf("Trying to write invalid spr %d %03x at " ADDRX "\n",
+               sprn, sprn, ctx->nip);
         GEN_EXCP(ctx, POWERPC_EXCP_PROGRAM,
                  POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_SPR);
     }
@@ -6679,24 +6689,23 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
     int i;
 
-    cpu_fprintf(f, "NIP " ADDRX " LR " ADDRX " CTR " ADDRX " idx %d\n",
-                env->nip, env->lr, env->ctr, env->mmu_idx);
-    cpu_fprintf(f, "MSR " REGX FILL " XER %08x      "
+    cpu_fprintf(f, "NIP " ADDRX "   LR " ADDRX " CTR " ADDRX " XER %08x\n",
+                env->nip, env->lr, env->ctr, hreg_load_xer(env));
+    cpu_fprintf(f, "MSR " REGX FILL " HID0 " REGX FILL "  HF " REGX FILL
+                " idx %d\n",
+                env->msr, env->hflags, env->spr[SPR_HID0], env->mmu_idx);
 #if !defined(NO_TIMER_DUMP)
-                "TB %08x %08x "
+    cpu_fprintf(f, "TB %08x %08x "
 #if !defined(CONFIG_USER_ONLY)
                 "DECR %08x"
 #endif
-#endif
                 "\n",
-                env->msr, hreg_load_xer(env)
-#if !defined(NO_TIMER_DUMP)
-                , cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
+                cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
 #if !defined(CONFIG_USER_ONLY)
                 , cpu_ppc_load_decr(env)
 #endif
-#endif
                 );
+#endif
     for (i = 0; i < 32; i++) {
         if ((i & (RGPL - 1)) == 0)
             cpu_fprintf(f, "GPR%02d", i);
@@ -6727,8 +6736,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
             cpu_fprintf(f, "\n");
     }
 #if !defined(CONFIG_USER_ONLY)
-    cpu_fprintf(f, "SRR0 " REGX " SRR1 " REGX "         " FILL FILL FILL
-                "SDR1 " REGX "\n",
+    cpu_fprintf(f, "SRR0 " REGX " SRR1 " REGX " SDR1 " REGX "\n",
                 env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
 #endif
 
@@ -6793,7 +6801,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     opc_handler_t **table, *handler;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
-    int supervisor;
+    int supervisor, little_endian;
     int single_step, branch_step;
     int j, lj = -1;
 
@@ -6813,11 +6821,12 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
 #if !defined(CONFIG_USER_ONLY)
     ctx.supervisor = supervisor;
 #endif
+    little_endian = env->hflags & (1 << MSR_LE) ? 1 : 0;
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_sf;
-    ctx.mem_idx = (supervisor << 2) | (msr_sf << 1) | msr_le;
+    ctx.mem_idx = (supervisor << 2) | (msr_sf << 1) | little_endian;
 #else
-    ctx.mem_idx = (supervisor << 1) | msr_le;
+    ctx.mem_idx = (supervisor << 1) | little_endian;
 #endif
     ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
@@ -6872,18 +6881,16 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                     ctx.nip, supervisor, (int)msr_ir);
         }
 #endif
-        ctx.opcode = ldl_code(ctx.nip);
-        if (msr_le) {
-            ctx.opcode = ((ctx.opcode & 0xFF000000) >> 24) |
-                ((ctx.opcode & 0x00FF0000) >> 8) |
-                ((ctx.opcode & 0x0000FF00) << 8) |
-                ((ctx.opcode & 0x000000FF) << 24);
+        if (unlikely(little_endian)) {
+            ctx.opcode = bswap32(ldl_code(ctx.nip));
+        } else {
+            ctx.opcode = ldl_code(ctx.nip);
         }
 #if defined PPC_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
-                    opc3(ctx.opcode), msr_le ? "little" : "big");
+                    opc3(ctx.opcode), little_endian ? "little" : "big");
         }
 #endif
         ctx.nip += 4;
@@ -6978,7 +6985,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         int flags;
         flags = env->bfd_mach;
-        flags |= msr_le << 16;
+        flags |= little_endian << 16;
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.nip - pc_start, flags);
         fprintf(logfile, "\n");

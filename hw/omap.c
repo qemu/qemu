@@ -22,28 +22,56 @@
 #include "arm_pic.h"
 
 /* Should signal the TCMI */
+uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr)
+{
+    uint8_t ret;
+
+    OMAP_8B_REG(addr);
+    cpu_physical_memory_read(addr, (void *) &ret, 1);
+    return ret;
+}
+
+void omap_badwidth_write8(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    uint8_t val8 = value;
+
+    OMAP_8B_REG(addr);
+    cpu_physical_memory_write(addr, (void *) &val8, 1);
+}
+
 uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr)
 {
+    uint16_t ret;
+
     OMAP_16B_REG(addr);
-    return 0;
+    cpu_physical_memory_read(addr, (void *) &ret, 2);
+    return ret;
 }
 
 void omap_badwidth_write16(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
+    uint16_t val16 = value;
+
     OMAP_16B_REG(addr);
+    cpu_physical_memory_write(addr, (void *) &val16, 2);
 }
 
 uint32_t omap_badwidth_read32(void *opaque, target_phys_addr_t addr)
 {
+    uint32_t ret;
+
     OMAP_32B_REG(addr);
-    return 0;
+    cpu_physical_memory_read(addr, (void *) &ret, 4);
+    return ret;
 }
 
 void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     OMAP_32B_REG(addr);
+    cpu_physical_memory_write(addr, (void *) &value, 4);
 }
 
 /* Interrupt Handlers */
@@ -226,7 +254,7 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* ITR */
-        s->irqs &= value;
+        s->irqs &= value | 1;
         omap_inth_sir_update(s);
         omap_inth_update(s);
         return;
@@ -772,7 +800,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
 
     case 0x0a:	/* SYS_DMA_CSSA_U_CH0 */
         s->ch[ch].addr[0] &= 0x0000ffff;
-        s->ch[ch].addr[0] |= value << 16;
+        s->ch[ch].addr[0] |= (uint32_t) value << 16;
         break;
 
     case 0x0c:	/* SYS_DMA_CDSA_L_CH0 */
@@ -782,7 +810,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
 
     case 0x0e:	/* SYS_DMA_CDSA_U_CH0 */
         s->ch[ch].addr[1] &= 0x0000ffff;
-        s->ch[ch].addr[1] |= value << 16;
+        s->ch[ch].addr[1] |= (uint32_t) value << 16;
         break;
 
     case 0x10:	/* SYS_DMA_CEN_CH0 */
@@ -964,7 +992,7 @@ static void omap_dma_clk_update(void *opaque, int line, int on)
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
 
     if (on) {
-        s->delay = ticks_per_sec >> 5;
+        s->delay = ticks_per_sec >> 7;
         if (s->run_count)
             qemu_mod_timer(s->tm, qemu_get_clock(vm_clock) + s->delay);
     } else {
@@ -1018,37 +1046,37 @@ struct omap_dma_s *omap_dma_init(target_phys_addr_t base,
 }
 
 /* DMA ports */
-int omap_validate_emiff_addr(struct omap_mpu_state_s *s,
+static int omap_validate_emiff_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
     return addr >= OMAP_EMIFF_BASE && addr < OMAP_EMIFF_BASE + s->sdram_size;
 }
 
-int omap_validate_emifs_addr(struct omap_mpu_state_s *s,
+static int omap_validate_emifs_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
     return addr >= OMAP_EMIFS_BASE && addr < OMAP_EMIFF_BASE;
 }
 
-int omap_validate_imif_addr(struct omap_mpu_state_s *s,
+static int omap_validate_imif_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
     return addr >= OMAP_IMIF_BASE && addr < OMAP_IMIF_BASE + s->sram_size;
 }
 
-int omap_validate_tipb_addr(struct omap_mpu_state_s *s,
+static int omap_validate_tipb_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
     return addr >= 0xfffb0000 && addr < 0xffff0000;
 }
 
-int omap_validate_local_addr(struct omap_mpu_state_s *s,
+static int omap_validate_local_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
     return addr >= OMAP_LOCALBUS_BASE && addr < OMAP_LOCALBUS_BASE + 0x1000000;
 }
 
-int omap_validate_tipb_mpui_addr(struct omap_mpu_state_s *s,
+static int omap_validate_tipb_mpui_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
     return addr >= 0xe1010000 && addr < 0xe1020004;
@@ -1095,9 +1123,23 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
 
     if (timer->enable && timer->st && timer->rate) {
         timer->val = timer->reset_val;	/* Should skip this on clk enable */
-        expires = timer->time + muldiv64(timer->val << (timer->ptv + 1),
+        expires = muldiv64(timer->val << (timer->ptv + 1),
                         ticks_per_sec, timer->rate);
-        qemu_mod_timer(timer->timer, expires);
+
+        /* If timer expiry would be sooner than in about 1 ms and
+         * auto-reload isn't set, then fire immediately.  This is a hack
+         * to make systems like PalmOS run in acceptable time.  PalmOS
+         * sets the interval to a very low value and polls the status bit
+         * in a busy loop when it wants to sleep just a couple of CPU
+         * ticks.  */
+        if (expires > (ticks_per_sec >> 10) || timer->ar)
+            qemu_mod_timer(timer->timer, timer->time + expires);
+        else {
+            timer->val = 0;
+            timer->st = 0;
+            if (timer->it_ena)
+                qemu_irq_raise(timer->irq);
+        }
     } else
         qemu_del_timer(timer->timer);
 }
@@ -1283,8 +1325,10 @@ static void omap_wd_timer_write(void *opaque, target_phys_addr_t addr,
         s->mode |= (value >> 15) & 1;
         if (s->last_wr == 0xf5) {
             if ((value & 0xff) == 0xa0) {
-                s->mode = 0;
-                omap_clk_put(s->timer.clk);
+                if (s->mode) {
+                    s->mode = 0;
+                    omap_clk_put(s->timer.clk);
+                }
             } else {
                 /* XXX: on T|E hardware somehow this has no effect,
                  * on Zire 71 it works as specified.  */
@@ -1359,7 +1403,7 @@ struct omap_32khz_timer_s {
 static uint32_t omap_os_timer_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_32khz_timer_s *s = (struct omap_32khz_timer_s *) opaque;
-    int offset = addr - s->timer.base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* TVR */
@@ -1382,7 +1426,7 @@ static void omap_os_timer_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_32khz_timer_s *s = (struct omap_32khz_timer_s *) opaque;
-    int offset = addr - s->timer.base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* TVR */
@@ -2175,23 +2219,23 @@ static uint32_t omap_tcmi_read(void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
     switch (offset) {
-    case 0xfffecc00:	/* IMIF_PRIO */
-    case 0xfffecc04:	/* EMIFS_PRIO */
-    case 0xfffecc08:	/* EMIFF_PRIO */
-    case 0xfffecc0c:	/* EMIFS_CONFIG */
-    case 0xfffecc10:	/* EMIFS_CS0_CONFIG */
-    case 0xfffecc14:	/* EMIFS_CS1_CONFIG */
-    case 0xfffecc18:	/* EMIFS_CS2_CONFIG */
-    case 0xfffecc1c:	/* EMIFS_CS3_CONFIG */
-    case 0xfffecc24:	/* EMIFF_MRS */
-    case 0xfffecc28:	/* TIMEOUT1 */
-    case 0xfffecc2c:	/* TIMEOUT2 */
-    case 0xfffecc30:	/* TIMEOUT3 */
-    case 0xfffecc3c:	/* EMIFF_SDRAM_CONFIG_2 */
-    case 0xfffecc40:	/* EMIFS_CFG_DYN_WAIT */
+    case 0x00:	/* IMIF_PRIO */
+    case 0x04:	/* EMIFS_PRIO */
+    case 0x08:	/* EMIFF_PRIO */
+    case 0x0c:	/* EMIFS_CONFIG */
+    case 0x10:	/* EMIFS_CS0_CONFIG */
+    case 0x14:	/* EMIFS_CS1_CONFIG */
+    case 0x18:	/* EMIFS_CS2_CONFIG */
+    case 0x1c:	/* EMIFS_CS3_CONFIG */
+    case 0x24:	/* EMIFF_MRS */
+    case 0x28:	/* TIMEOUT1 */
+    case 0x2c:	/* TIMEOUT2 */
+    case 0x30:	/* TIMEOUT3 */
+    case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
+    case 0x40:	/* EMIFS_CFG_DYN_WAIT */
         return s->tcmi_regs[offset >> 2];
 
-    case 0xfffecc20:	/* EMIFF_SDRAM_CONFIG */
+    case 0x20:	/* EMIFF_SDRAM_CONFIG */
         ret = s->tcmi_regs[offset >> 2];
         s->tcmi_regs[offset >> 2] &= ~1; /* XXX: Clear SLRF on SDRAM access */
         /* XXX: We can try using the VGA_DIRTY flag for this */
@@ -2209,23 +2253,23 @@ static void omap_tcmi_write(void *opaque, target_phys_addr_t addr,
     int offset = addr - s->tcmi_base;
 
     switch (offset) {
-    case 0xfffecc00:	/* IMIF_PRIO */
-    case 0xfffecc04:	/* EMIFS_PRIO */
-    case 0xfffecc08:	/* EMIFF_PRIO */
-    case 0xfffecc10:	/* EMIFS_CS0_CONFIG */
-    case 0xfffecc14:	/* EMIFS_CS1_CONFIG */
-    case 0xfffecc18:	/* EMIFS_CS2_CONFIG */
-    case 0xfffecc1c:	/* EMIFS_CS3_CONFIG */
-    case 0xfffecc20:	/* EMIFF_SDRAM_CONFIG */
-    case 0xfffecc24:	/* EMIFF_MRS */
-    case 0xfffecc28:	/* TIMEOUT1 */
-    case 0xfffecc2c:	/* TIMEOUT2 */
-    case 0xfffecc30:	/* TIMEOUT3 */
-    case 0xfffecc3c:	/* EMIFF_SDRAM_CONFIG_2 */
-    case 0xfffecc40:	/* EMIFS_CFG_DYN_WAIT */
+    case 0x00:	/* IMIF_PRIO */
+    case 0x04:	/* EMIFS_PRIO */
+    case 0x08:	/* EMIFF_PRIO */
+    case 0x10:	/* EMIFS_CS0_CONFIG */
+    case 0x14:	/* EMIFS_CS1_CONFIG */
+    case 0x18:	/* EMIFS_CS2_CONFIG */
+    case 0x1c:	/* EMIFS_CS3_CONFIG */
+    case 0x20:	/* EMIFF_SDRAM_CONFIG */
+    case 0x24:	/* EMIFF_MRS */
+    case 0x28:	/* TIMEOUT1 */
+    case 0x2c:	/* TIMEOUT2 */
+    case 0x30:	/* TIMEOUT3 */
+    case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
+    case 0x40:	/* EMIFS_CFG_DYN_WAIT */
         s->tcmi_regs[offset >> 2] = value;
         break;
-    case 0xfffecc0c:	/* EMIFS_CONFIG */
+    case 0x0c:	/* EMIFS_CONFIG */
         s->tcmi_regs[offset >> 2] = (value & 0xf) | (1 << 4);
         break;
 
@@ -2399,7 +2443,7 @@ static uint32_t omap_clkm_read(void *opaque, target_phys_addr_t addr)
         return s->clkm.arm_rstct2;
 
     case 0x18:	/* ARM_SYSST */
-        return (s->clkm.clocking_scheme < 11) | s->clkm.cold_start;
+        return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start;
 
     case 0x1c:	/* ARM_CKOUT1 */
         return s->clkm.arm_ckout1;
@@ -2678,7 +2722,7 @@ static uint32_t omap_clkdsp_read(void *opaque, target_phys_addr_t addr)
         return s->clkm.dsp_rstct2;
 
     case 0x18:	/* DSP_SYSST */
-        return (s->clkm.clocking_scheme < 11) | s->clkm.cold_start |
+        return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start |
                 (s->env->halted << 6);	/* Quite useless... */
     }
 
@@ -2754,9 +2798,9 @@ static void omap_clkm_reset(struct omap_mpu_state_s *s)
     s->clkm.clocking_scheme = 0;
     omap_clkm_ckctl_update(s, ~0, 0x3000);
     s->clkm.arm_ckctl = 0x3000;
-    omap_clkm_idlect1_update(s, s->clkm.arm_idlect1 & 0x0400, 0x0400);
+    omap_clkm_idlect1_update(s, s->clkm.arm_idlect1 ^ 0x0400, 0x0400);
     s->clkm.arm_idlect1 = 0x0400;
-    omap_clkm_idlect2_update(s, s->clkm.arm_idlect2 & 0x0100, 0x0100);
+    omap_clkm_idlect2_update(s, s->clkm.arm_idlect2 ^ 0x0100, 0x0100);
     s->clkm.arm_idlect2 = 0x0100;
     s->clkm.arm_ewupct = 0x003f;
     s->clkm.arm_rstct1 = 0x0000;
@@ -2780,8 +2824,11 @@ static void omap_clkm_init(target_phys_addr_t mpu_base,
 
     s->clkm.mpu_base = mpu_base;
     s->clkm.dsp_base = dsp_base;
-    s->clkm.cold_start = 0x3a;
+    s->clkm.arm_idlect1 = 0x03ff;
+    s->clkm.arm_idlect2 = 0x0100;
+    s->clkm.dsp_idlect1 = 0x0002;
     omap_clkm_reset(s);
+    s->clkm.cold_start = 0x3a;
 
     cpu_register_physical_memory(s->clkm.mpu_base, 0x100, iomemtype[0]);
     cpu_register_physical_memory(s->clkm.dsp_base, 0x1000, iomemtype[1]);
@@ -2852,7 +2899,7 @@ static void omap_mpuio_kbd_update(struct omap_mpuio_s *s)
 static uint32_t omap_mpuio_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpuio_s *s = (struct omap_mpuio_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t ret;
 
     switch (offset) {
@@ -2908,15 +2955,14 @@ static void omap_mpuio_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpuio_s *s = (struct omap_mpuio_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
 
     switch (offset) {
     case 0x04:	/* OUTPUT_REG */
-        diff = s->outputs ^ (value & ~s->dir);
+        diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
-	value &= ~s->dir;
         while ((ln = ffs(diff))) {
             ln --;
             if (s->handler[ln])
@@ -3078,6 +3124,7 @@ struct omap_gpio_s {
     uint16_t edge;
     uint16_t mask;
     uint16_t ints;
+    uint16_t pins;
 };
 
 static void omap_gpio_set(void *opaque, int line, int level)
@@ -3100,11 +3147,11 @@ static void omap_gpio_set(void *opaque, int line, int level)
 static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* DATA_INPUT */
-        return s->inputs;
+        return s->inputs & s->pins;
 
     case 0x04:	/* DATA_OUTPUT */
         return s->outputs;
@@ -3120,6 +3167,10 @@ static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
 
     case 0x14:	/* INTERRUPT_STATUS */
         return s->ints;
+
+    case 0x18:	/* PIN_CONTROL (not in OMAP310) */
+        OMAP_BAD_REG(addr);
+        return s->pins;
     }
 
     OMAP_BAD_REG(addr);
@@ -3130,7 +3181,7 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
 
@@ -3140,9 +3191,8 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
         return;
 
     case 0x04:	/* DATA_OUTPUT */
-        diff = s->outputs ^ (value & ~s->dir);
+        diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
-	value &= ~s->dir;
         while ((ln = ffs(diff))) {
             ln --;
             if (s->handler[ln])
@@ -3178,6 +3228,11 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
             qemu_irq_lower(s->irq);
         break;
 
+    case 0x18:	/* PIN_CONTROL (not in OMAP310 TRM) */
+        OMAP_BAD_REG(addr);
+        s->pins = value;
+        break;
+
     default:
         OMAP_BAD_REG(addr);
         return;
@@ -3205,6 +3260,7 @@ void omap_gpio_reset(struct omap_gpio_s *s)
     s->edge = ~0;
     s->mask = ~0;
     s->ints = 0;
+    s->pins = ~0;
 }
 
 struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
@@ -3281,7 +3337,7 @@ static void omap_uwire_transfer_start(struct omap_uwire_s *s)
 static uint32_t omap_uwire_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_uwire_s *s = (struct omap_uwire_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* RDR */
@@ -3311,16 +3367,17 @@ static void omap_uwire_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_uwire_s *s = (struct omap_uwire_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
     case 0x00:	/* TDR */
         s->txbuf = value;				/* TD */
-        s->control |= 1 << 14;				/* CSRB */
         if ((s->setup[4] & (1 << 2)) &&			/* AUTO_TX_EN */
                         ((s->setup[4] & (1 << 3)) ||	/* CS_TOGGLE_TX_EN */
-                         (s->control & (1 << 12))))	/* CS_CMD */
+                         (s->control & (1 << 12)))) {	/* CS_CMD */
+            s->control |= 1 << 14;			/* CSRB */
             omap_uwire_transfer_start(s);
+        }
         break;
 
     case 0x04:	/* CSR */
@@ -3369,7 +3426,7 @@ static CPUWriteMemoryFunc *omap_uwire_writefn[] = {
 
 void omap_uwire_reset(struct omap_uwire_s *s)
 {
-    s->control= 0;
+    s->control = 0;
     s->setup[0] = 0;
     s->setup[1] = 0;
     s->setup[2] = 0;
@@ -3407,6 +3464,1067 @@ void omap_uwire_attach(struct omap_uwire_s *s,
     s->chip[chipselect] = slave;
 }
 
+/* Pseudonoise Pulse-Width Light Modulator */
+void omap_pwl_update(struct omap_mpu_state_s *s)
+{
+    int output = (s->pwl.clk && s->pwl.enable) ? s->pwl.level : 0;
+
+    if (output != s->pwl.output) {
+        s->pwl.output = output;
+        printf("%s: Backlight now at %i/256\n", __FUNCTION__, output);
+    }
+}
+
+static uint32_t omap_pwl_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* PWL_LEVEL */
+        return s->pwl.level;
+    case 0x04:	/* PWL_CTRL */
+        return s->pwl.enable;
+    }
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_pwl_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* PWL_LEVEL */
+        s->pwl.level = value;
+        omap_pwl_update(s);
+        break;
+    case 0x04:	/* PWL_CTRL */
+        s->pwl.enable = value & 1;
+        omap_pwl_update(s);
+        break;
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_pwl_readfn[] = {
+    omap_pwl_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_pwl_writefn[] = {
+    omap_pwl_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+void omap_pwl_reset(struct omap_mpu_state_s *s)
+{
+    s->pwl.output = 0;
+    s->pwl.level = 0;
+    s->pwl.enable = 0;
+    s->pwl.clk = 1;
+    omap_pwl_update(s);
+}
+
+static void omap_pwl_clk_update(void *opaque, int line, int on)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    s->pwl.clk = on;
+    omap_pwl_update(s);
+}
+
+static void omap_pwl_init(target_phys_addr_t base, struct omap_mpu_state_s *s,
+                omap_clk clk)
+{
+    int iomemtype;
+
+    omap_pwl_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_pwl_readfn,
+                    omap_pwl_writefn, s);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
+
+    omap_clk_adduser(clk, qemu_allocate_irqs(omap_pwl_clk_update, s, 1)[0]);
+}
+
+/* Pulse-Width Tone module */
+static uint32_t omap_pwt_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* FRC */
+        return s->pwt.frc;
+    case 0x04:	/* VCR */
+        return s->pwt.vrc;
+    case 0x08:	/* GCR */
+        return s->pwt.gcr;
+    }
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_pwt_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* FRC */
+        s->pwt.frc = value & 0x3f;
+        break;
+    case 0x04:	/* VRC */
+        if ((value ^ s->pwt.vrc) & 1) {
+            if (value & 1)
+                printf("%s: %iHz buzz on\n", __FUNCTION__, (int)
+                                /* 1.5 MHz from a 12-MHz or 13-MHz PWT_CLK */
+                                ((omap_clk_getrate(s->pwt.clk) >> 3) /
+                                 /* Pre-multiplexer divider */
+                                 ((s->pwt.gcr & 2) ? 1 : 154) /
+                                 /* Octave multiplexer */
+                                 (2 << (value & 3)) *
+                                 /* 101/107 divider */
+                                 ((value & (1 << 2)) ? 101 : 107) *
+                                 /*  49/55 divider */
+                                 ((value & (1 << 3)) ?  49 : 55) *
+                                 /*  50/63 divider */
+                                 ((value & (1 << 4)) ?  50 : 63) *
+                                 /*  80/127 divider */
+                                 ((value & (1 << 5)) ?  80 : 127) /
+                                 (107 * 55 * 63 * 127)));
+            else
+                printf("%s: silence!\n", __FUNCTION__);
+        }
+        s->pwt.vrc = value & 0x7f;
+        break;
+    case 0x08:	/* GCR */
+        s->pwt.gcr = value & 3;
+        break;
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_pwt_readfn[] = {
+    omap_pwt_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_pwt_writefn[] = {
+    omap_pwt_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+void omap_pwt_reset(struct omap_mpu_state_s *s)
+{
+    s->pwt.frc = 0;
+    s->pwt.vrc = 0;
+    s->pwt.gcr = 0;
+}
+
+static void omap_pwt_init(target_phys_addr_t base, struct omap_mpu_state_s *s,
+                omap_clk clk)
+{
+    int iomemtype;
+
+    s->pwt.clk = clk;
+    omap_pwt_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_pwt_readfn,
+                    omap_pwt_writefn, s);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
+}
+
+/* Real-time Clock module */
+struct omap_rtc_s {
+    target_phys_addr_t base;
+    qemu_irq irq;
+    qemu_irq alarm;
+    QEMUTimer *clk;
+
+    uint8_t interrupts;
+    uint8_t status;
+    int16_t comp_reg;
+    int running;
+    int pm_am;
+    int auto_comp;
+    int round;
+    struct tm *(*convert)(const time_t *timep, struct tm *result);
+    struct tm alarm_tm;
+    time_t alarm_ti;
+
+    struct tm current_tm;
+    time_t ti;
+    uint64_t tick;
+};
+
+static void omap_rtc_interrupts_update(struct omap_rtc_s *s)
+{
+    qemu_set_irq(s->alarm, (s->status >> 6) & 1);
+}
+
+static void omap_rtc_alarm_update(struct omap_rtc_s *s)
+{
+    s->alarm_ti = mktime(&s->alarm_tm);
+    if (s->alarm_ti == -1)
+        printf("%s: conversion failed\n", __FUNCTION__);
+}
+
+static inline uint8_t omap_rtc_bcd(int num)
+{
+    return ((num / 10) << 4) | (num % 10);
+}
+
+static inline int omap_rtc_bin(uint8_t num)
+{
+    return (num & 15) + 10 * (num >> 4);
+}
+
+static uint32_t omap_rtc_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_rtc_s *s = (struct omap_rtc_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+    uint8_t i;
+
+    switch (offset) {
+    case 0x00:	/* SECONDS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_sec);
+
+    case 0x04:	/* MINUTES_REG */
+        return omap_rtc_bcd(s->current_tm.tm_min);
+
+    case 0x08:	/* HOURS_REG */
+        if (s->pm_am)
+            return ((s->current_tm.tm_hour > 11) << 7) |
+                    omap_rtc_bcd(((s->current_tm.tm_hour - 1) % 12) + 1);
+        else
+            return omap_rtc_bcd(s->current_tm.tm_hour);
+
+    case 0x0c:	/* DAYS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_mday);
+
+    case 0x10:	/* MONTHS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_mon + 1);
+
+    case 0x14:	/* YEARS_REG */
+        return omap_rtc_bcd(s->current_tm.tm_year % 100);
+
+    case 0x18:	/* WEEK_REG */
+        return s->current_tm.tm_wday;
+
+    case 0x20:	/* ALARM_SECONDS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_sec);
+
+    case 0x24:	/* ALARM_MINUTES_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_min);
+
+    case 0x28:	/* ALARM_HOURS_REG */
+        if (s->pm_am)
+            return ((s->alarm_tm.tm_hour > 11) << 7) |
+                    omap_rtc_bcd(((s->alarm_tm.tm_hour - 1) % 12) + 1);
+        else
+            return omap_rtc_bcd(s->alarm_tm.tm_hour);
+
+    case 0x2c:	/* ALARM_DAYS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_mday);
+
+    case 0x30:	/* ALARM_MONTHS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_mon + 1);
+
+    case 0x34:	/* ALARM_YEARS_REG */
+        return omap_rtc_bcd(s->alarm_tm.tm_year % 100);
+
+    case 0x40:	/* RTC_CTRL_REG */
+        return (s->pm_am << 3) | (s->auto_comp << 2) |
+                (s->round << 1) | s->running;
+
+    case 0x44:	/* RTC_STATUS_REG */
+        i = s->status;
+        s->status &= ~0x3d;
+        return i;
+
+    case 0x48:	/* RTC_INTERRUPTS_REG */
+        return s->interrupts;
+
+    case 0x4c:	/* RTC_COMP_LSB_REG */
+        return ((uint16_t) s->comp_reg) & 0xff;
+
+    case 0x50:	/* RTC_COMP_MSB_REG */
+        return ((uint16_t) s->comp_reg) >> 8;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_rtc_s *s = (struct omap_rtc_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+    struct tm new_tm;
+    time_t ti[2];
+
+    switch (offset) {
+    case 0x00:	/* SECONDS_REG */
+#if ALMDEBUG
+        printf("RTC SEC_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_sec;
+        s->ti += omap_rtc_bin(value);
+        return;
+
+    case 0x04:	/* MINUTES_REG */
+#if ALMDEBUG
+        printf("RTC MIN_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_min * 60;
+        s->ti += omap_rtc_bin(value) * 60;
+        return;
+
+    case 0x08:	/* HOURS_REG */
+#if ALMDEBUG
+        printf("RTC HRS_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_hour * 3600;
+        if (s->pm_am) {
+            s->ti += (omap_rtc_bin(value & 0x3f) & 12) * 3600;
+            s->ti += ((value >> 7) & 1) * 43200;
+        } else
+            s->ti += omap_rtc_bin(value & 0x3f) * 3600;
+        return;
+
+    case 0x0c:	/* DAYS_REG */
+#if ALMDEBUG
+        printf("RTC DAY_REG <-- %02x\n", value);
+#endif
+        s->ti -= s->current_tm.tm_mday * 86400;
+        s->ti += omap_rtc_bin(value) * 86400;
+        return;
+
+    case 0x10:	/* MONTHS_REG */
+#if ALMDEBUG
+        printf("RTC MTH_REG <-- %02x\n", value);
+#endif
+        memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
+        new_tm.tm_mon = omap_rtc_bin(value);
+        ti[0] = mktime(&s->current_tm);
+        ti[1] = mktime(&new_tm);
+
+        if (ti[0] != -1 && ti[1] != -1) {
+            s->ti -= ti[0];
+            s->ti += ti[1];
+        } else {
+            /* A less accurate version */
+            s->ti -= s->current_tm.tm_mon * 2592000;
+            s->ti += omap_rtc_bin(value) * 2592000;
+        }
+        return;
+
+    case 0x14:	/* YEARS_REG */
+#if ALMDEBUG
+        printf("RTC YRS_REG <-- %02x\n", value);
+#endif
+        memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
+        new_tm.tm_year += omap_rtc_bin(value) - (new_tm.tm_year % 100);
+        ti[0] = mktime(&s->current_tm);
+        ti[1] = mktime(&new_tm);
+
+        if (ti[0] != -1 && ti[1] != -1) {
+            s->ti -= ti[0];
+            s->ti += ti[1];
+        } else {
+            /* A less accurate version */
+            s->ti -= (s->current_tm.tm_year % 100) * 31536000;
+            s->ti += omap_rtc_bin(value) * 31536000;
+        }
+        return;
+
+    case 0x18:	/* WEEK_REG */
+        return;	/* Ignored */
+
+    case 0x20:	/* ALARM_SECONDS_REG */
+#if ALMDEBUG
+        printf("ALM SEC_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_sec = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x24:	/* ALARM_MINUTES_REG */
+#if ALMDEBUG
+        printf("ALM MIN_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_min = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x28:	/* ALARM_HOURS_REG */
+#if ALMDEBUG
+        printf("ALM HRS_REG <-- %02x\n", value);
+#endif
+        if (s->pm_am)
+            s->alarm_tm.tm_hour =
+                    ((omap_rtc_bin(value & 0x3f)) % 12) +
+                    ((value >> 7) & 1) * 12;
+        else
+            s->alarm_tm.tm_hour = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x2c:	/* ALARM_DAYS_REG */
+#if ALMDEBUG
+        printf("ALM DAY_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_mday = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x30:	/* ALARM_MONTHS_REG */
+#if ALMDEBUG
+        printf("ALM MON_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_mon = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x34:	/* ALARM_YEARS_REG */
+#if ALMDEBUG
+        printf("ALM YRS_REG <-- %02x\n", value);
+#endif
+        s->alarm_tm.tm_year = omap_rtc_bin(value);
+        omap_rtc_alarm_update(s);
+        return;
+
+    case 0x40:	/* RTC_CTRL_REG */
+#if ALMDEBUG
+        printf("RTC CONTROL <-- %02x\n", value);
+#endif
+        s->pm_am = (value >> 3) & 1;
+        s->auto_comp = (value >> 2) & 1;
+        s->round = (value >> 1) & 1;
+        s->running = value & 1;
+        s->status &= 0xfd;
+        s->status |= s->running << 1;
+        return;
+
+    case 0x44:	/* RTC_STATUS_REG */
+#if ALMDEBUG
+        printf("RTC STATUSL <-- %02x\n", value);
+#endif
+        s->status &= ~((value & 0xc0) ^ 0x80);
+        omap_rtc_interrupts_update(s);
+        return;
+
+    case 0x48:	/* RTC_INTERRUPTS_REG */
+#if ALMDEBUG
+        printf("RTC INTRS <-- %02x\n", value);
+#endif
+        s->interrupts = value;
+        return;
+
+    case 0x4c:	/* RTC_COMP_LSB_REG */
+#if ALMDEBUG
+        printf("RTC COMPLSB <-- %02x\n", value);
+#endif
+        s->comp_reg &= 0xff00;
+        s->comp_reg |= 0x00ff & value;
+        return;
+
+    case 0x50:	/* RTC_COMP_MSB_REG */
+#if ALMDEBUG
+        printf("RTC COMPMSB <-- %02x\n", value);
+#endif
+        s->comp_reg &= 0x00ff;
+        s->comp_reg |= 0xff00 & (value << 8);
+        return;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_rtc_readfn[] = {
+    omap_rtc_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_rtc_writefn[] = {
+    omap_rtc_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+static void omap_rtc_tick(void *opaque)
+{
+    struct omap_rtc_s *s = opaque;
+
+    if (s->round) {
+        /* Round to nearest full minute.  */
+        if (s->current_tm.tm_sec < 30)
+            s->ti -= s->current_tm.tm_sec;
+        else
+            s->ti += 60 - s->current_tm.tm_sec;
+
+        s->round = 0;
+    }
+
+    localtime_r(&s->ti, &s->current_tm);
+
+    if ((s->interrupts & 0x08) && s->ti == s->alarm_ti) {
+        s->status |= 0x40;
+        omap_rtc_interrupts_update(s);
+    }
+
+    if (s->interrupts & 0x04)
+        switch (s->interrupts & 3) {
+        case 0:
+            s->status |= 0x04;
+            qemu_irq_raise(s->irq);
+            break;
+        case 1:
+            if (s->current_tm.tm_sec)
+                break;
+            s->status |= 0x08;
+            qemu_irq_raise(s->irq);
+            break;
+        case 2:
+            if (s->current_tm.tm_sec || s->current_tm.tm_min)
+                break;
+            s->status |= 0x10;
+            qemu_irq_raise(s->irq);
+            break;
+        case 3:
+            if (s->current_tm.tm_sec ||
+                            s->current_tm.tm_min || s->current_tm.tm_hour)
+                break;
+            s->status |= 0x20;
+            qemu_irq_raise(s->irq);
+            break;
+        }
+
+    /* Move on */
+    if (s->running)
+        s->ti ++;
+    s->tick += 1000;
+
+    /*
+     * Every full hour add a rough approximation of the compensation
+     * register to the 32kHz Timer (which drives the RTC) value. 
+     */
+    if (s->auto_comp && !s->current_tm.tm_sec && !s->current_tm.tm_min)
+        s->tick += s->comp_reg * 1000 / 32768;
+
+    qemu_mod_timer(s->clk, s->tick);
+}
+
+void omap_rtc_reset(struct omap_rtc_s *s)
+{
+    s->interrupts = 0;
+    s->comp_reg = 0;
+    s->running = 0;
+    s->pm_am = 0;
+    s->auto_comp = 0;
+    s->round = 0;
+    s->tick = qemu_get_clock(rt_clock);
+    memset(&s->alarm_tm, 0, sizeof(s->alarm_tm));
+    s->alarm_tm.tm_mday = 0x01;
+    s->status = 1 << 7;
+    time(&s->ti);
+    s->ti = mktime(s->convert(&s->ti, &s->current_tm));
+
+    omap_rtc_alarm_update(s);
+    omap_rtc_tick(s);
+}
+
+struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
+                qemu_irq *irq, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_rtc_s *s = (struct omap_rtc_s *)
+            qemu_mallocz(sizeof(struct omap_rtc_s));
+
+    s->base = base;
+    s->irq = irq[0];
+    s->alarm = irq[1];
+    s->clk = qemu_new_timer(rt_clock, omap_rtc_tick, s);
+    s->convert = rtc_utc ? gmtime_r : localtime_r;
+
+    omap_rtc_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_rtc_readfn,
+                    omap_rtc_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    return s;
+}
+
+/* Multi-channel Buffered Serial Port interfaces */
+struct omap_mcbsp_s {
+    target_phys_addr_t base;
+    qemu_irq txirq;
+    qemu_irq rxirq;
+    qemu_irq txdrq;
+    qemu_irq rxdrq;
+
+    uint16_t spcr[2];
+    uint16_t rcr[2];
+    uint16_t xcr[2];
+    uint16_t srgr[2];
+    uint16_t mcr[2];
+    uint16_t pcr;
+    uint16_t rcer[8];
+    uint16_t xcer[8];
+    int tx_rate;
+    int rx_rate;
+    int tx_req;
+
+    struct i2s_codec_s *codec;
+};
+
+static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
+{
+    int irq;
+
+    switch ((s->spcr[0] >> 4) & 3) {			/* RINTM */
+    case 0:
+        irq = (s->spcr[0] >> 1) & 1;			/* RRDY */
+        break;
+    case 3:
+        irq = (s->spcr[0] >> 3) & 1;			/* RSYNCERR */
+        break;
+    default:
+        irq = 0;
+        break;
+    }
+
+    qemu_set_irq(s->rxirq, irq);
+
+    switch ((s->spcr[1] >> 4) & 3) {			/* XINTM */
+    case 0:
+        irq = (s->spcr[1] >> 1) & 1;			/* XRDY */
+        break;
+    case 3:
+        irq = (s->spcr[1] >> 3) & 1;			/* XSYNCERR */
+        break;
+    default:
+        irq = 0;
+        break;
+    }
+
+    qemu_set_irq(s->txirq, irq);
+}
+
+static void omap_mcbsp_req_update(struct omap_mcbsp_s *s)
+{
+    int prev = s->tx_req;
+
+    s->tx_req = (s->tx_rate ||
+                    (s->spcr[0] & (1 << 12))) &&	/* CLKSTP */
+            (s->spcr[1] & (1 << 6)) &&			/* GRST */
+            (s->spcr[1] & (1 << 0));			/* XRST */
+
+    if (!s->tx_req && prev) {
+        s->spcr[1] &= ~(1 << 1);			/* XRDY */
+        qemu_irq_lower(s->txdrq);
+        omap_mcbsp_intr_update(s);
+
+        if (s->codec)
+            s->codec->tx_swallow(s->codec->opaque);
+    } else if (s->codec && s->tx_req && !prev) {
+        s->spcr[1] |= 1 << 1;				/* XRDY */
+        qemu_irq_raise(s->txdrq);
+        omap_mcbsp_intr_update(s);
+    }
+}
+
+static void omap_mcbsp_rate_update(struct omap_mcbsp_s *s)
+{
+    int rx_clk = 0, tx_clk = 0;
+    int cpu_rate = 1500000;	/* XXX */
+    if (!s->codec)
+        return;
+
+    if (s->spcr[1] & (1 << 6)) {			/* GRST */
+        if (s->spcr[0] & (1 << 0))			/* RRST */
+            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
+                            (s->pcr & (1 << 8)))	/* CLKRM */
+                if (~s->pcr & (1 << 7))			/* SCLKME */
+                    rx_clk = cpu_rate /
+                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+        if (s->spcr[1] & (1 << 0))			/* XRST */
+            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
+                            (s->pcr & (1 << 9)))	/* CLKXM */
+                if (~s->pcr & (1 << 7))			/* SCLKME */
+                    tx_clk = cpu_rate /
+                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+    }
+
+    s->codec->set_rate(s->codec->opaque, rx_clk, tx_clk);
+}
+
+static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
+{
+    if (!(s->spcr[0] & 1)) {				/* RRST */
+        if (s->codec)
+            s->codec->in.len = 0;
+        return;
+    }
+
+    if ((s->spcr[0] >> 1) & 1)				/* RRDY */
+        s->spcr[0] |= 1 << 2;				/* RFULL */
+    s->spcr[0] |= 1 << 1;				/* RRDY */
+    qemu_irq_raise(s->rxdrq);
+    omap_mcbsp_intr_update(s);
+}
+
+static void omap_mcbsp_rx_stop(struct omap_mcbsp_s *s)
+{
+    s->spcr[0] &= ~(1 << 1);				/* RRDY */
+    qemu_irq_lower(s->rxdrq);
+    omap_mcbsp_intr_update(s);
+}
+
+static void omap_mcbsp_tx_start(struct omap_mcbsp_s *s)
+{
+    if (s->tx_rate)
+        return;
+    s->tx_rate = 1;
+    omap_mcbsp_req_update(s);
+}
+
+static void omap_mcbsp_tx_stop(struct omap_mcbsp_s *s)
+{
+    s->tx_rate = 0;
+    omap_mcbsp_req_update(s);
+}
+
+static uint32_t omap_mcbsp_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+    uint16_t ret;
+
+    switch (offset) {
+    case 0x00:	/* DRR2 */
+        if (((s->rcr[0] >> 5) & 7) < 3)			/* RWDLEN1 */
+            return 0x0000;
+        /* Fall through.  */
+    case 0x02:	/* DRR1 */
+        if (!s->codec)
+            return 0x0000;
+        if (s->codec->in.len < 2) {
+            printf("%s: Rx FIFO underrun\n", __FUNCTION__);
+            omap_mcbsp_rx_stop(s);
+        } else {
+            s->codec->in.len -= 2;
+            ret = s->codec->in.fifo[s->codec->in.start ++] << 8;
+            ret |= s->codec->in.fifo[s->codec->in.start ++];
+            if (!s->codec->in.len)
+                omap_mcbsp_rx_stop(s);
+            return ret;
+        }
+        return 0x0000;
+
+    case 0x04:	/* DXR2 */
+    case 0x06:	/* DXR1 */
+        return 0x0000;
+
+    case 0x08:	/* SPCR2 */
+        return s->spcr[1];
+    case 0x0a:	/* SPCR1 */
+        return s->spcr[0];
+    case 0x0c:	/* RCR2 */
+        return s->rcr[1];
+    case 0x0e:	/* RCR1 */
+        return s->rcr[0];
+    case 0x10:	/* XCR2 */
+        return s->xcr[1];
+    case 0x12:	/* XCR1 */
+        return s->xcr[0];
+    case 0x14:	/* SRGR2 */
+        return s->srgr[1];
+    case 0x16:	/* SRGR1 */
+        return s->srgr[0];
+    case 0x18:	/* MCR2 */
+        return s->mcr[1];
+    case 0x1a:	/* MCR1 */
+        return s->mcr[0];
+    case 0x1c:	/* RCERA */
+        return s->rcer[0];
+    case 0x1e:	/* RCERB */
+        return s->rcer[1];
+    case 0x20:	/* XCERA */
+        return s->xcer[0];
+    case 0x22:	/* XCERB */
+        return s->xcer[1];
+    case 0x24:	/* PCR0 */
+        return s->pcr;
+    case 0x26:	/* RCERC */
+        return s->rcer[2];
+    case 0x28:	/* RCERD */
+        return s->rcer[3];
+    case 0x2a:	/* XCERC */
+        return s->xcer[2];
+    case 0x2c:	/* XCERD */
+        return s->xcer[3];
+    case 0x2e:	/* RCERE */
+        return s->rcer[4];
+    case 0x30:	/* RCERF */
+        return s->rcer[5];
+    case 0x32:	/* XCERE */
+        return s->xcer[4];
+    case 0x34:	/* XCERF */
+        return s->xcer[5];
+    case 0x36:	/* RCERG */
+        return s->rcer[6];
+    case 0x38:	/* RCERH */
+        return s->rcer[7];
+    case 0x3a:	/* XCERG */
+        return s->xcer[6];
+    case 0x3c:	/* XCERH */
+        return s->xcer[7];
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* DRR2 */
+    case 0x02:	/* DRR1 */
+        OMAP_RO_REG(addr);
+        return;
+
+    case 0x04:	/* DXR2 */
+        if (((s->xcr[0] >> 5) & 7) < 3)			/* XWDLEN1 */
+            return;
+        /* Fall through.  */
+    case 0x06:	/* DXR1 */
+        if (!s->codec)
+            return;
+        if (s->tx_req) {
+            if (s->codec->out.len > s->codec->out.size - 2) {
+                printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+                omap_mcbsp_tx_stop(s);
+            } else {
+                s->codec->out.fifo[s->codec->out.len ++] = (value >> 8) & 0xff;
+                s->codec->out.fifo[s->codec->out.len ++] = (value >> 0) & 0xff;
+                if (s->codec->out.len >= s->codec->out.size)
+                    omap_mcbsp_tx_stop(s);
+            }
+        } else
+            printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+        return;
+
+    case 0x08:	/* SPCR2 */
+        s->spcr[1] &= 0x0002;
+        s->spcr[1] |= 0x03f9 & value;
+        s->spcr[1] |= 0x0004 & (value << 2);		/* XEMPTY := XRST */
+        if (~value & 1) {				/* XRST */
+            s->spcr[1] &= ~6;
+            qemu_irq_lower(s->rxdrq);
+            if (s->codec)
+                s->codec->out.len = 0;
+        }
+        if (s->codec)
+            omap_mcbsp_rate_update(s);
+        omap_mcbsp_req_update(s);
+        return;
+    case 0x0a:	/* SPCR1 */
+        s->spcr[0] &= 0x0006;
+        s->spcr[0] |= 0xf8f9 & value;
+        if (value & (1 << 15))				/* DLB */
+            printf("%s: Digital Loopback mode enable attempt\n", __FUNCTION__);
+        if (~value & 1) {				/* RRST */
+            s->spcr[0] &= ~6;
+            qemu_irq_lower(s->txdrq);
+            if (s->codec)
+                s->codec->in.len = 0;
+        }
+        if (s->codec)
+            omap_mcbsp_rate_update(s);
+        omap_mcbsp_req_update(s);
+        return;
+
+    case 0x0c:	/* RCR2 */
+        s->rcr[1] = value & 0xffff;
+        return;
+    case 0x0e:	/* RCR1 */
+        s->rcr[0] = value & 0x7fe0;
+        return;
+    case 0x10:	/* XCR2 */
+        s->xcr[1] = value & 0xffff;
+        return;
+    case 0x12:	/* XCR1 */
+        s->xcr[0] = value & 0x7fe0;
+        return;
+    case 0x14:	/* SRGR2 */
+        s->srgr[1] = value & 0xffff;
+        omap_mcbsp_rate_update(s);
+        return;
+    case 0x16:	/* SRGR1 */
+        s->srgr[0] = value & 0xffff;
+        omap_mcbsp_rate_update(s);
+        return;
+    case 0x18:	/* MCR2 */
+        s->mcr[1] = value & 0x03e3;
+        if (value & 3)					/* XMCM */
+            printf("%s: Tx channel selection mode enable attempt\n",
+                            __FUNCTION__);
+        return;
+    case 0x1a:	/* MCR1 */
+        s->mcr[0] = value & 0x03e1;
+        if (value & 1)					/* RMCM */
+            printf("%s: Rx channel selection mode enable attempt\n",
+                            __FUNCTION__);
+        return;
+    case 0x1c:	/* RCERA */
+        s->rcer[0] = value & 0xffff;
+        return;
+    case 0x1e:	/* RCERB */
+        s->rcer[1] = value & 0xffff;
+        return;
+    case 0x20:	/* XCERA */
+        s->xcer[0] = value & 0xffff;
+        return;
+    case 0x22:	/* XCERB */
+        s->xcer[1] = value & 0xffff;
+        return;
+    case 0x24:	/* PCR0 */
+        s->pcr = value & 0x7faf;
+        return;
+    case 0x26:	/* RCERC */
+        s->rcer[2] = value & 0xffff;
+        return;
+    case 0x28:	/* RCERD */
+        s->rcer[3] = value & 0xffff;
+        return;
+    case 0x2a:	/* XCERC */
+        s->xcer[2] = value & 0xffff;
+        return;
+    case 0x2c:	/* XCERD */
+        s->xcer[3] = value & 0xffff;
+        return;
+    case 0x2e:	/* RCERE */
+        s->rcer[4] = value & 0xffff;
+        return;
+    case 0x30:	/* RCERF */
+        s->rcer[5] = value & 0xffff;
+        return;
+    case 0x32:	/* XCERE */
+        s->xcer[4] = value & 0xffff;
+        return;
+    case 0x34:	/* XCERF */
+        s->xcer[5] = value & 0xffff;
+        return;
+    case 0x36:	/* RCERG */
+        s->rcer[6] = value & 0xffff;
+        return;
+    case 0x38:	/* RCERH */
+        s->rcer[7] = value & 0xffff;
+        return;
+    case 0x3a:	/* XCERG */
+        s->xcer[6] = value & 0xffff;
+        return;
+    case 0x3c:	/* XCERH */
+        s->xcer[7] = value & 0xffff;
+        return;
+    }
+
+    OMAP_BAD_REG(addr);
+}
+
+static CPUReadMemoryFunc *omap_mcbsp_readfn[] = {
+    omap_badwidth_read16,
+    omap_mcbsp_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_mcbsp_writefn[] = {
+    omap_badwidth_write16,
+    omap_mcbsp_write,
+    omap_badwidth_write16,
+};
+
+static void omap_mcbsp_reset(struct omap_mcbsp_s *s)
+{
+    memset(&s->spcr, 0, sizeof(s->spcr));
+    memset(&s->rcr, 0, sizeof(s->rcr));
+    memset(&s->xcr, 0, sizeof(s->xcr));
+    s->srgr[0] = 0x0001;
+    s->srgr[1] = 0x2000;
+    memset(&s->mcr, 0, sizeof(s->mcr));
+    memset(&s->pcr, 0, sizeof(s->pcr));
+    memset(&s->rcer, 0, sizeof(s->rcer));
+    memset(&s->xcer, 0, sizeof(s->xcer));
+    s->tx_req = 0;
+    s->tx_rate = 0;
+    s->rx_rate = 0;
+}
+
+struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
+                qemu_irq *irq, qemu_irq *dma, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *)
+            qemu_mallocz(sizeof(struct omap_mcbsp_s));
+
+    s->base = base;
+    s->txirq = irq[0];
+    s->rxirq = irq[1];
+    s->txdrq = dma[0];
+    s->rxdrq = dma[1];
+    omap_mcbsp_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_mcbsp_readfn,
+                    omap_mcbsp_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    return s;
+}
+
+void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+
+    omap_mcbsp_rx_start(s);
+}
+
+void omap_mcbsp_i2s_start(void *opaque, int line, int level)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+
+    omap_mcbsp_tx_start(s);
+}
+
+void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
+{
+    s->codec = slave;
+    slave->rx_swallow = qemu_allocate_irqs(omap_mcbsp_i2s_swallow, s, 1)[0];
+    slave->tx_start = qemu_allocate_irqs(omap_mcbsp_i2s_start, s, 1)[0];
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -3437,7 +4555,55 @@ static void omap_mpu_reset(void *opaque)
     omap_mpuio_reset(mpu->mpuio);
     omap_gpio_reset(mpu->gpio);
     omap_uwire_reset(mpu->microwire);
+    omap_pwl_reset(mpu);
+    omap_pwt_reset(mpu);
+    omap_i2c_reset(mpu->i2c);
+    omap_rtc_reset(mpu->rtc);
+    omap_mcbsp_reset(mpu->mcbsp1);
+    omap_mcbsp_reset(mpu->mcbsp2);
+    omap_mcbsp_reset(mpu->mcbsp3);
     cpu_reset(mpu->env);
+}
+
+static const struct omap_map_s {
+    target_phys_addr_t phys_dsp;
+    target_phys_addr_t phys_mpu;
+    uint32_t size;
+    const char *name;
+} omap15xx_dsp_mm[] = {
+    /* Strobe 0 */
+    { 0xe1010000, 0xfffb0000, 0x800, "UART1 BT" },		/* CS0 */
+    { 0xe1010800, 0xfffb0800, 0x800, "UART2 COM" },		/* CS1 */
+    { 0xe1011800, 0xfffb1800, 0x800, "McBSP1 audio" },		/* CS3 */
+    { 0xe1012000, 0xfffb2000, 0x800, "MCSI2 communication" },	/* CS4 */
+    { 0xe1012800, 0xfffb2800, 0x800, "MCSI1 BT u-Law" },	/* CS5 */
+    { 0xe1013000, 0xfffb3000, 0x800, "uWire" },			/* CS6 */
+    { 0xe1013800, 0xfffb3800, 0x800, "I^2C" },			/* CS7 */
+    { 0xe1014000, 0xfffb4000, 0x800, "USB W2FC" },		/* CS8 */
+    { 0xe1014800, 0xfffb4800, 0x800, "RTC" },			/* CS9 */
+    { 0xe1015000, 0xfffb5000, 0x800, "MPUIO" },			/* CS10 */
+    { 0xe1015800, 0xfffb5800, 0x800, "PWL" },			/* CS11 */
+    { 0xe1016000, 0xfffb6000, 0x800, "PWT" },			/* CS12 */
+    { 0xe1017000, 0xfffb7000, 0x800, "McBSP3" },		/* CS14 */
+    { 0xe1017800, 0xfffb7800, 0x800, "MMC" },			/* CS15 */
+    { 0xe1019000, 0xfffb9000, 0x800, "32-kHz timer" },		/* CS18 */
+    { 0xe1019800, 0xfffb9800, 0x800, "UART3" },			/* CS19 */
+    { 0xe101c800, 0xfffbc800, 0x800, "TIPB switches" },		/* CS25 */
+    /* Strobe 1 */
+    { 0xe101e000, 0xfffce000, 0x800, "GPIOs" },			/* CS28 */
+
+    { 0 }
+};
+
+static void omap_setup_dsp_mapping(const struct omap_map_s *map)
+{
+    int io;
+
+    for (; map->phys_dsp; map ++) {
+        io = cpu_get_physical_page_desc(map->phys_mpu);
+
+        cpu_register_physical_memory(map->phys_dsp, map->size, io);
+    }
 }
 
 static void omap_mpu_wakeup(void *opaque, int irq, int req)
@@ -3553,10 +4719,45 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     s->wakeup, omap_findclk(s, "clk32-kHz"));
 
     s->gpio = omap_gpio_init(0xfffce000, s->irq[0][OMAP_INT_GPIO_BANK1],
-                    omap_findclk(s, "mpuper_ck"));
+                    omap_findclk(s, "arm_gpio_ck"));
 
     s->microwire = omap_uwire_init(0xfffb3000, &s->irq[1][OMAP_INT_uWireTX],
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
+
+    omap_pwl_init(0xfffb5800, s, omap_findclk(s, "armxor_ck"));
+    omap_pwt_init(0xfffb6000, s, omap_findclk(s, "armxor_ck"));
+
+    s->i2c = omap_i2c_init(0xfffb3800, s->irq[1][OMAP_INT_I2C],
+                    &s->drq[OMAP_DMA_I2C_RX], omap_findclk(s, "mpuper_ck"));
+
+    s->rtc = omap_rtc_init(0xfffb4800, &s->irq[1][OMAP_INT_RTC_TIMER],
+                    omap_findclk(s, "clk32-kHz"));
+
+    s->mcbsp1 = omap_mcbsp_init(0xfffb1800, &s->irq[1][OMAP_INT_McBSP1TX],
+                    &s->drq[OMAP_DMA_MCBSP1_TX], omap_findclk(s, "dspxor_ck"));
+    s->mcbsp2 = omap_mcbsp_init(0xfffb1000, &s->irq[0][OMAP_INT_310_McBSP2_TX],
+                    &s->drq[OMAP_DMA_MCBSP2_TX], omap_findclk(s, "mpuper_ck"));
+    s->mcbsp3 = omap_mcbsp_init(0xfffb7000, &s->irq[1][OMAP_INT_McBSP3TX],
+                    &s->drq[OMAP_DMA_MCBSP3_TX], omap_findclk(s, "dspxor_ck"));
+
+    /* Register mappings not currenlty implemented:
+     * MCSI2 Comm	fffb2000 - fffb27ff (not mapped on OMAP310)
+     * MCSI1 Bluetooth	fffb2800 - fffb2fff (not mapped on OMAP310)
+     * USB W2FC		fffb4000 - fffb47ff
+     * Camera Interface	fffb6800 - fffb6fff
+     * USB Host		fffba000 - fffba7ff
+     * FAC		fffba800 - fffbafff
+     * HDQ/1-Wire	fffbc000 - fffbc7ff
+     * TIPB switches	fffbc800 - fffbcfff
+     * LED1		fffbd000 - fffbd7ff
+     * LED2		fffbd800 - fffbdfff
+     * Mailbox		fffcf000 - fffcf7ff
+     * Local bus IF	fffec100 - fffec1ff
+     * Local bus MMU	fffec200 - fffec2ff
+     * DSP MMU		fffed200 - fffed2ff
+     */
+
+    omap_setup_dsp_mapping(omap15xx_dsp_mm);
 
     qemu_register_reset(omap_mpu_reset, s);
 

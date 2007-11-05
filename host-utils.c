@@ -23,11 +23,13 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "exec.h"
+#include "host-utils.h"
 
 //#define DEBUG_MULDIV
 
 /* Long integer helpers */
+#if !defined(__x86_64__)
 static void add128 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 {
     *plow += a;
@@ -69,17 +71,10 @@ static void mul64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
     *phigh += v;
 }
 
-
 /* Unsigned 64x64 -> 128 multiplication */
 void mulu64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 {
-#if defined(__x86_64__)
-    __asm__ ("mul %0\n\t"
-             : "=d" (*phigh), "=a" (*plow)
-             : "a" (a), "0" (b));
-#else
     mul64(plow, phigh, a, b);
-#endif
 #if defined(DEBUG_MULDIV)
     printf("mulu64: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
            a, b, *phigh, *plow);
@@ -89,11 +84,6 @@ void mulu64 (uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
 /* Signed 64x64 -> 128 multiplication */
 void muls64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
 {
-#if defined(__x86_64__)
-    __asm__ ("imul %0\n\t"
-             : "=d" (*phigh), "=a" (*plow)
-             : "a" (a), "0" (b));
-#else
     int sa, sb;
 
     sa = (a < 0);
@@ -106,9 +96,9 @@ void muls64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
     if (sa ^ sb) {
         neg128(plow, phigh);
     }
-#endif
 #if defined(DEBUG_MULDIV)
     printf("muls64: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
            a, b, *phigh, *plow);
 #endif
 }
+#endif /* !defined(__x86_64__) */

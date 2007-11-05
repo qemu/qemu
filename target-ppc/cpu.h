@@ -102,6 +102,8 @@ enum {
     POWERPC_MMU_BOOKE,
     /* BookE FSL MMU model                                     */
     POWERPC_MMU_BOOKE_FSL,
+    /* PowerPC 601 MMU model (specific BATs format)            */
+    POWERPC_MMU_601,
 #if defined(TARGET_PPC64)
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B,
@@ -649,7 +651,8 @@ struct CPUPPCState {
     /* Those resources are used only in Qemu core */
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
-    target_ulong hflags; /* hflags is a MSR & HFLAGS_MASK */
+    target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
+    target_ulong hflags_nmsr; /* specific hflags, not comming from MSR */
     int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
 
     /* Power management */
@@ -696,6 +699,8 @@ target_ulong do_load_dbatu (CPUPPCState *env, int nr);
 target_ulong do_load_dbatl (CPUPPCState *env, int nr);
 void do_store_dbatu (CPUPPCState *env, int nr, target_ulong value);
 void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value);
+void do_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value);
+void do_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value);
 target_ulong do_load_sdr1 (CPUPPCState *env);
 void do_store_sdr1 (CPUPPCState *env, target_ulong value);
 #if defined(TARGET_PPC64)
