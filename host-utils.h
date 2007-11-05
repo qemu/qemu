@@ -41,7 +41,7 @@ static always_inline void muls64 (uint64_t *plow, uint64_t *phigh,
              : "a" (a), "0" (b));
 }
 #else
-void muls64(int64_t *phigh, int64_t *plow, int64_t a, int64_t b);
+void muls64(uint64_t *phigh, uint64_t *plow, int64_t a, int64_t b);
 void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b);
 #endif
 
