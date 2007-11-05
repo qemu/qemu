@@ -23,7 +23,8 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "exec.h"
+#include "host-utils.h"
 
 //#define DEBUG_MULDIV
 
