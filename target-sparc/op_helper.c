@@ -493,8 +493,8 @@ void helper_st_asi(int asi, int size)
             oldreg = env->mmuregs[reg];
             switch(reg) {
             case 0:
-                env->mmuregs[reg] &= ~(MMU_E | MMU_NF | MMU_BM);
-                env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF | MMU_BM);
+                env->mmuregs[reg] &= ~(MMU_E | MMU_NF | env->mmu_bm);
+                env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF | env->mmu_bm);
                 // Mappings generated during no-fault mode or MMU
                 // disabled mode are invalid in normal mode
                 if (oldreg != env->mmuregs[reg])

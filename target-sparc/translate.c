@@ -59,6 +59,7 @@ struct sparc_def_t {
     target_ulong iu_version;
     uint32_t fpu_version;
     uint32_t mmu_version;
+    uint32_t mmu_bm;
 };
 
 static uint16_t *gen_opc_ptr;
@@ -3482,7 +3483,7 @@ void cpu_reset(CPUSPARCState *env)
 #else
     env->pc = 0;
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);
-    env->mmuregs[0] |= MMU_BM;
+    env->mmuregs[0] |= env->mmu_bm;
 #endif
     env->npc = env->pc + 4;
 #endif
@@ -3496,7 +3497,6 @@ CPUSPARCState *cpu_sparc_init(void)
     if (!env)
         return NULL;
     cpu_exec_init(env);
-    cpu_reset(env);
     return (env);
 }
 
@@ -3515,30 +3515,35 @@ static const sparc_def_t sparc_defs[] = {
         .iu_version = 0x04 << 24, /* Impl 0, ver 4 */
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
+        .mmu_bm = 0x00004000,
     },
     {
         .name = "Fujitsu MB86907",
         .iu_version = 0x05 << 24, /* Impl 0, ver 5 */
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x05 << 24, /* Impl 0, ver 5 */
+        .mmu_bm = 0x00004000,
     },
     {
         .name = "TI MicroSparc I",
         .iu_version = 0x41000000,
         .fpu_version = 4 << 17,
         .mmu_version = 0x41000000,
+        .mmu_bm = 0x00004000,
     },
     {
         .name = "TI SuperSparc II",
         .iu_version = 0x40000000,
         .fpu_version = 0 << 17,
         .mmu_version = 0x04000000,
+        .mmu_bm = 0x00002000,
     },
     {
         .name = "Ross RT620",
         .iu_version = 0x1e000000,
         .fpu_version = 1 << 17,
         .mmu_version = 0x17000000,
+        .mmu_bm = 0x00004000,
     },
 #endif
 };
@@ -3579,9 +3584,11 @@ int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def, unsigned int
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
 #if !defined(TARGET_SPARC64)
+    env->mmu_bm = def->mmu_bm;
     env->mmuregs[0] |= def->mmu_version;
     env->mxccregs[7] = ((cpu + 8) & 0xf) << 24;
 #endif
+    cpu_reset(env);
     return 0;
 }
 

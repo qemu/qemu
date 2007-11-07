@@ -114,7 +114,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
         // Boot mode: instruction fetches are taken from PROM
-        if (rw == 2 && (env->mmuregs[0] & MMU_BM)) {
+        if (rw == 2 && (env->mmuregs[0] & env->mmu_bm)) {
             *physical = 0xff0000000ULL | (address & 0x3ffffULL);
             *prot = PAGE_READ | PAGE_EXEC;
             return 0;
