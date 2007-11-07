@@ -166,6 +166,7 @@ void main_loop_wait(int timeout);
 extern int ram_size;
 extern int bios_size;
 extern int rtc_utc;
+extern int rtc_start_date;
 extern int cirrus_vga_enabled;
 extern int vmsvga_enabled;
 extern int graphic_width;

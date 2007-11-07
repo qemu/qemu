@@ -268,6 +268,11 @@ Set the real time clock to local time (the default is to UTC
 time). This option is needed to have correct date in MS-DOS or
 Windows.
 
+@item -startdate date
+Set the initial date of the real time clock. Valid format for
+@var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
+@code{2006-06-17}. The default value is @code{now}.
+
 @item -pidfile file
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
