@@ -72,8 +72,8 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #ifdef QEMU_TOOL
 
-/* we use QEMU_TOOL in the command line tools which do not depend on
-   the target CPU type */
+/* we use QEMU_TOOL on code which does not depend on the target CPU
+   type */
 #include "config-host.h"
 #include <setjmp.h>
 #include "osdep.h"
@@ -81,7 +81,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #else
 
-#include "audio/audio.h"
 #include "cpu.h"
 
 #endif /* !defined(QEMU_TOOL) */
@@ -116,6 +115,8 @@ static inline char *realpath(const char *path, char *resolved_path)
 #define always_inline __attribute__ (( always_inline )) inline
 #endif
 #endif
+
+#include "audio/audio.h"
 
 /* cutils.c */
 void pstrcpy(char *buf, int buf_size, const char *str);
@@ -359,6 +360,38 @@ void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 
 typedef struct DisplayState DisplayState;
 typedef struct TextConsole TextConsole;
+
+struct DisplayState {
+    uint8_t *data;
+    int linesize;
+    int depth;
+    int bgr; /* BGR color order instead of RGB. Only valid for depth == 32 */
+    int width;
+    int height;
+    void *opaque;
+    struct QEMUTimer *gui_timer;
+
+    void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
+    void (*dpy_resize)(struct DisplayState *s, int w, int h);
+    void (*dpy_refresh)(struct DisplayState *s);
+    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y,
+                     int dst_x, int dst_y, int w, int h);
+    void (*dpy_fill)(struct DisplayState *s, int x, int y,
+                     int w, int h, uint32_t c);
+    void (*mouse_set)(int x, int y, int on);
+    void (*cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
+                          uint8_t *image, uint8_t *mask);
+};
+
+static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
+{
+    s->dpy_update(s, x, y, w, h);
+}
+
+static inline void dpy_resize(DisplayState *s, int w, int h)
+{
+    s->dpy_resize(s, w, h);
+}
 
 typedef void (*vga_hw_update_ptr)(void *);
 typedef void (*vga_hw_invalidate_ptr)(void *);
@@ -729,6 +762,31 @@ void path_combine(char *dest, int dest_size,
                   const char *base_path,
                   const char *filename);
 
+
+/* monitor.c */
+void monitor_init(CharDriverState *hd, int show_banner);
+void term_puts(const char *str);
+void term_vprintf(const char *fmt, va_list ap);
+void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+void term_print_filename(const char *filename);
+void term_flush(void);
+void term_print_help(void);
+void monitor_readline(const char *prompt, int is_password,
+                      char *buf, int buf_size);
+
+/* readline.c */
+typedef void ReadLineFunc(void *opaque, const char *str);
+
+extern int completion_index;
+void add_completion(const char *str);
+void readline_handle_byte(int ch);
+void readline_find_completion(const char *cmdline);
+const char *readline_get_history(unsigned int index);
+void readline_start(const char *prompt, int is_password,
+                    ReadLineFunc *readline_func, void *opaque);
+
+void kqemu_record_dump(void);
+
 #ifndef QEMU_TOOL
 
 typedef void QEMUMachineInitFunc(int ram_size, int vga_ram_size,
@@ -915,38 +973,6 @@ extern struct soundhw soundhw[];
 #else
 #define VGA_RAM_SIZE (9 * 1024 * 1024)
 #endif
-
-struct DisplayState {
-    uint8_t *data;
-    int linesize;
-    int depth;
-    int bgr; /* BGR color order instead of RGB. Only valid for depth == 32 */
-    int width;
-    int height;
-    void *opaque;
-    QEMUTimer *gui_timer;
-
-    void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
-    void (*dpy_resize)(struct DisplayState *s, int w, int h);
-    void (*dpy_refresh)(struct DisplayState *s);
-    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y,
-                     int dst_x, int dst_y, int w, int h);
-    void (*dpy_fill)(struct DisplayState *s, int x, int y,
-                     int w, int h, uint32_t c);
-    void (*mouse_set)(int x, int y, int on);
-    void (*cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
-                          uint8_t *image, uint8_t *mask);
-};
-
-static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
-{
-    s->dpy_update(s, x, y, w, h);
-}
-
-static inline void dpy_resize(DisplayState *s, int w, int h)
-{
-    s->dpy_resize(s, w, h);
-}
 
 int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
                  unsigned long vga_ram_offset, int vga_ram_size);
@@ -1696,29 +1722,4 @@ extern QEMUMachine mcf5208evb_machine;
 #include "gdbstub.h"
 
 #endif /* defined(QEMU_TOOL) */
-
-/* monitor.c */
-void monitor_init(CharDriverState *hd, int show_banner);
-void term_puts(const char *str);
-void term_vprintf(const char *fmt, va_list ap);
-void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-void term_print_filename(const char *filename);
-void term_flush(void);
-void term_print_help(void);
-void monitor_readline(const char *prompt, int is_password,
-                      char *buf, int buf_size);
-
-/* readline.c */
-typedef void ReadLineFunc(void *opaque, const char *str);
-
-extern int completion_index;
-void add_completion(const char *str);
-void readline_handle_byte(int ch);
-void readline_find_completion(const char *cmdline);
-const char *readline_get_history(unsigned int index);
-void readline_start(const char *prompt, int is_password,
-                    ReadLineFunc *readline_func, void *opaque);
-
-void kqemu_record_dump(void);
-
 #endif /* VL_H */
