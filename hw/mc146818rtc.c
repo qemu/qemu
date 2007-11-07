@@ -393,11 +393,16 @@ void rtc_set_date_from_host(RTCState *s)
     int val;
 
     /* set the CMOS date */
-    time(&ti);
-    if (rtc_utc)
+    if (rtc_start_date == -1) {
+        time(&ti);
+        if (rtc_utc)
+            tm = gmtime(&ti);
+        else
+            tm = localtime(&ti);
+    } else {
+        ti = rtc_start_date;
         tm = gmtime(&ti);
-    else
-        tm = localtime(&ti);
+    }
     rtc_set_date(s, tm);
 
     val = to_bcd(s, (tm->tm_year / 100) + 19);

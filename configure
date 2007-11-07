@@ -912,6 +912,29 @@ echo "TARGET_DIRS=$target_list" >> $config_mak
 if [ "$build_docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_mak
 fi
+if test "$static" = "yes"; then
+  sdl1=$sdl_static
+else
+  sdl1=$sdl
+fi
+if test "$sdl1" = "yes" ; then
+  echo "#define CONFIG_SDL 1" >> $config_h
+  echo "CONFIG_SDL=yes" >> $config_mak
+  if test "$target_softmmu" = "no" -o "$static" = "yes"; then
+    echo "SDL_LIBS=$sdl_static_libs" >> $config_mak
+  else
+    echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
+  fi
+  if [ "${aa}" = "yes" ] ; then
+    echo "SDL_CFLAGS=`$sdl_config --cflags` `aalib-config --cflags`" >> $config_mak
+  else
+    echo "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
+  fi
+fi
+if test "$cocoa" = "yes" ; then
+    echo "#define CONFIG_COCOA 1" >> $config_h
+    echo "CONFIG_COCOA=yes" >> $config_mak
+fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
@@ -988,9 +1011,6 @@ mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" ; then
   mkdir -p $target_dir/nwfpe
-fi
-if test "$target_user_only" = "no" ; then
-  mkdir -p $target_dir/slirp
 fi
 
 #
@@ -1151,34 +1171,6 @@ if test "$target_user_only" = "yes" -a "$elfload32" = "yes"; then
   echo "TARGET_HAS_ELFLOAD32=yes" >> $config_mak
   echo "#define TARGET_HAS_ELFLOAD32 1" >> $config_h
 fi
-# sdl defines
-
-if test "$target_user_only" = "no"; then
-    if test "$target_softmmu" = "no" -o "$static" = "yes"; then
-        sdl1=$sdl_static
-    else
-        sdl1=$sdl
-    fi
-    if test "$sdl1" = "yes" ; then
-        echo "#define CONFIG_SDL 1" >> $config_h
-        echo "CONFIG_SDL=yes" >> $config_mak
-        if test "$target_softmmu" = "no" -o "$static" = "yes"; then
-            echo "SDL_LIBS=$sdl_static_libs" >> $config_mak
-        else
-            echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
-        fi
-        if [ "${aa}" = "yes" ] ; then
-            echo "SDL_CFLAGS=`$sdl_config --cflags` `aalib-config --cflags`" >> $config_mak
-        else
-            echo "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
-        fi
-    fi
-fi
-
-if test "$cocoa" = "yes" ; then
-    echo "#define CONFIG_COCOA 1" >> $config_h
-    echo "CONFIG_COCOA=yes" >> $config_mak
-fi
 
 test -f ${config_h}~ && cmp -s $config_h ${config_h}~ && mv ${config_h}~ $config_h
 
@@ -1186,7 +1178,7 @@ done # for target in $targets
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
-    DIRS="tests tests/cris"
+    DIRS="tests tests/cris slirp audio"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     for dir in $DIRS ; do

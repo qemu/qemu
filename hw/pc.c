@@ -482,7 +482,9 @@ static void load_linux(const char *kernel_filename,
     }
 
     /* kernel protocol version */
+#if 0
     fprintf(stderr, "header magic: %#x\n", ldl_p(header+0x202));
+#endif
     if (ldl_p(header+0x202) == 0x53726448)
 	protocol = lduw_p(header+0x206);
     else
@@ -505,6 +507,7 @@ static void load_linux(const char *kernel_filename,
 	prot_addr    = phys_ram_base + 0x100000;
     }
 
+#if 0
     fprintf(stderr,
 	    "qemu: real_addr     = %#zx\n"
 	    "qemu: cmdline_addr  = %#zx\n"
@@ -512,6 +515,7 @@ static void load_linux(const char *kernel_filename,
 	    real_addr-phys_ram_base,
 	    cmdline_addr-phys_ram_base,
 	    prot_addr-phys_ram_base);
+#endif
 
     /* highest address for loading the initrd */
     if (protocol >= 0x203)

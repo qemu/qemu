@@ -147,7 +147,6 @@
 /* MMU */
 #define MMU_E     (1<<0)
 #define MMU_NF    (1<<1)
-#define MMU_BM    (1<<14)
 
 #define PTE_ENTRYTYPE_MASK 3
 #define PTE_ACCESS_MASK    0x1c
@@ -200,6 +199,7 @@ typedef struct CPUSPARCState {
     int interrupt_index;
     int interrupt_request;
     int halted;
+    uint32_t mmu_bm;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[NWINDOWS * 16 + 8];
 

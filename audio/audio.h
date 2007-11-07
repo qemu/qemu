@@ -24,7 +24,7 @@
 #ifndef QEMU_AUDIO_H
 #define QEMU_AUDIO_H
 
-#include "config.h"
+#include "config-host.h"
 #include "sys-queue.h"
 
 typedef void (*audio_callback_fn_t) (void *opaque, int avail);

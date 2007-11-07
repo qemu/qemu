@@ -701,6 +701,8 @@ int load_object(const char *filename)
     uint32_t *n_strtab;
     EXE_SYM *sym;
     EXE_RELOC *rel;
+    const char *p;
+    int aux_size, j;
 
     fd = open(filename, O_RDONLY
 #ifdef _WIN32
@@ -727,7 +729,6 @@ int load_object(const char *filename)
     sdata = malloc(sizeof(void *) * fhdr.f_nscns);
     memset(sdata, 0, sizeof(void *) * fhdr.f_nscns);
 
-    const char *p;
     for(i = 0;i < fhdr.f_nscns; i++) {
         sec = &shdr[i];
         if (!strstart(sec->s_name,  ".bss", &p))
@@ -771,7 +772,6 @@ int load_object(const char *filename)
 	/* set coff symbol */
 	symtab = malloc(sizeof(struct coff_sym) * nb_syms);
 
-	int aux_size, j;
 	for (i = 0, ext_sym = coff_symtab, sym = symtab; i < nb_syms; i++, ext_sym++, sym++) {
 		memset(sym, 0, sizeof(*sym));
 		sym->st_syment = ext_sym;
