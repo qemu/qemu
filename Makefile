@@ -130,6 +130,10 @@ html: qemu-doc.html qemu-tech.html
 VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
 
+#~ qemu-setup.exe: all $(SRC_PATH)/qemu.nsi
+qemu-setup.exe: $(SRC_PATH)/qemu.nsi
+	makensis -NOCD -DSRC_PATH="$(SRC_PATH)" -V2 $(SRC_PATH)/qemu.nsi
+
 # tar release (use 'make -k tar' on a checkouted tree)
 tar:
 	rm -rf /tmp/$(FILE)
