@@ -2523,7 +2523,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-           gen_op_mtc0_index();
+            gen_op_mtc0_index();
             rn = "Index";
             break;
         case 1:
