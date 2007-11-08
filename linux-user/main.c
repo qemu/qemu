@@ -28,11 +28,6 @@
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
-#ifdef __APPLE__
-#include <crt_externs.h>
-# define environ  (*_NSGetEnviron())
-#endif
-
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
