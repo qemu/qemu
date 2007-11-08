@@ -56,6 +56,9 @@ static struct pathelem *add_dir_maybe(struct pathelem *path)
 {
     DIR *dir;
 
+    printf("%s(%s)\n", __FUNCTION__, path->pathnam
+  e);
+
     if ((dir = opendir(path->pathname)) != NULL) {
 	struct dirent *dirent;
 
@@ -82,7 +85,7 @@ static struct pathelem *add_entry(struct pathelem *root, const char *name)
     return root;
 }
 
-/* This needs to be done after tree is stabalized (ie. no more reallocs!). */
+/* This needs to be done after tree is stabilized (ie. no more reallocs!). */
 static void set_parents(struct pathelem *child, struct pathelem *parent)
 {
     unsigned int i;
@@ -121,6 +124,8 @@ follow_path(const struct pathelem *cursor, const char *name)
 void init_paths(const char *prefix)
 {
     char pref_buf[PATH_MAX];
+
+    printf("%s(%s)\n", __FUNCTION__, prefix);
 
     if (prefix[0] == '\0' ||
         !strcmp(prefix, "/"))
