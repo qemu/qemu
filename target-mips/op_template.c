@@ -82,7 +82,7 @@ SET_RESET(T2, _T2)
 
 #undef SET_RESET
 
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
 #define SET64(treg, tregname)                               \
     void glue(op_set64, tregname)(void)                     \
     {                                                       \

@@ -1939,7 +1939,7 @@ void sparc64_get_context(CPUSPARCState *env)
     force_sig(SIGSEGV);
 }
 #endif
-#elif defined(TARGET_MIPS64)
+#elif defined(TARGET_ABI_MIPSN64)
 
 # warning signal handling not implemented
 
@@ -1968,7 +1968,7 @@ long do_rt_sigreturn(CPUState *env)
     return -ENOSYS;
 }
 
-#elif defined(TARGET_MIPSN32)
+#elif defined(TARGET_ABI_MIPSN32)
 
 # warning signal handling not implemented
 
@@ -1997,7 +1997,7 @@ long do_rt_sigreturn(CPUState *env)
     return -ENOSYS;
 }
 
-#elif defined(TARGET_MIPS)
+#elif defined(TARGET_ABI_MIPSO32)
 
 struct target_sigcontext {
     uint32_t   sc_regmask;     /* Unused */

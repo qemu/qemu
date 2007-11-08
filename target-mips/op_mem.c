@@ -190,7 +190,7 @@ void glue(op_sc, MEMSUFFIX) (void)
     RETURN();
 }
 
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
 void glue(op_ld, MEMSUFFIX) (void)
 {
     T0 = glue(ldq, MEMSUFFIX)(T0);
@@ -381,7 +381,7 @@ void glue(op_scd, MEMSUFFIX) (void)
     }
     RETURN();
 }
-#endif /* TARGET_MIPSN32 || TARGET_MIPS64 */
+#endif /* TARGET_MIPS64 */
 
 void glue(op_lwc1, MEMSUFFIX) (void)
 {

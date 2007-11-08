@@ -307,8 +307,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_NODEFER	0x40000000
 #define TARGET_SA_RESTART	0x10000000
 #define TARGET_SA_RESETHAND	0x80000000
-#if !defined(TARGET_MIPSN32) && !defined(TARGET_MIPS64)
-#define TARGET_SA_RESTORER	0x04000000	/* Only for o32 */
+#if !defined(TARGET_ABI_MIPSN32) && !defined(TARGET_ABI_MIPSN64)
+#define TARGET_SA_RESTORER	0x04000000	/* Only for O32 */
 #endif
 #else
 #define TARGET_SA_NOCLDSTOP	0x00000001
@@ -450,7 +450,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
 struct target_sigaction {
 	uint32_t	sa_flags;
-#if defined(TARGET_MIPSN32)
+#if defined(TARGET_ABI_MIPSN32)
 	uint32_t	_sa_handler;
 #else
 	abi_ulong	_sa_handler;
@@ -1194,7 +1194,7 @@ struct target_stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
-#elif defined(TARGET_MIPS64)
+#elif defined(TARGET_ABI_MIPSN64)
 
 /* The memory layout is the same as of struct stat64 of the 32-bit kernel.  */
 struct target_stat {
@@ -1233,7 +1233,7 @@ struct target_stat {
 	abi_ulong		st_blocks;
 };
 
-#elif defined(TARGET_MIPSN32)
+#elif defined(TARGET_ABI_MIPSN32)
 
 struct target_stat {
 	unsigned	st_dev;
@@ -1304,7 +1304,7 @@ struct target_stat64 {
 	int		st_blocks;
 };
 
-#elif defined(TARGET_MIPS)
+#elif defined(TARGET_ABI_MIPSO32)
 
 struct target_stat {
 	unsigned	st_dev;
@@ -1486,7 +1486,7 @@ typedef struct {
 } target_fsid_t;
 
 #ifdef TARGET_MIPS
-#ifdef TARGET_MIPSN32
+#ifdef TARGET_ABI_MIPSN32
 struct target_statfs {
 	int32_t			f_type;
 	int32_t			f_bsize;

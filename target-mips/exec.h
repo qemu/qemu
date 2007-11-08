@@ -56,7 +56,7 @@ register target_ulong T2 asm(AREG3);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_dsll (void);
 void do_dsll32 (void);
@@ -86,7 +86,7 @@ void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
 #endif
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
 void do_ddiv (void);
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_ddivu (void);
@@ -236,7 +236,7 @@ static always_inline void compute_hflags(CPUState *env)
         !(env->hflags & MIPS_HFLAG_DM)) {
         env->hflags |= (env->CP0_Status >> CP0St_KSU) & MIPS_HFLAG_KSU;
     }
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
     if (((env->hflags & MIPS_HFLAG_KSU) != MIPS_HFLAG_UM) ||
         (env->CP0_Status & (1 << CP0St_PX)) ||
         (env->CP0_Status & (1 << CP0St_UX)))

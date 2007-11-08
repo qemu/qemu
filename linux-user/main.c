@@ -2225,7 +2225,7 @@ int main(int argc, char **argv)
 
         /* Choose and initialise CPU */
         if (cpu_model == NULL)
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
             cpu_model = "20Kc";
 #else
             cpu_model = "24Kf";
