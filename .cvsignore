@@ -24,3 +24,4 @@ qemu-img
 *.toc
 *.tp
 *.vr
+*.d
