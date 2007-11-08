@@ -4889,9 +4889,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 goto illegal_op;
             }
         }
-#ifdef USE_CODE_COPY
-        s->tb->cflags |= CF_TB_FP_USED;
-#endif
         break;
         /************************/
         /* string ops */

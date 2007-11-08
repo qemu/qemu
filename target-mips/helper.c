@@ -82,7 +82,7 @@ int r4k_map_address (CPUState *env, target_ulong *physical, int *prot,
         target_ulong mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
         target_ulong tag = address & ~mask;
         target_ulong VPN = tlb->VPN & ~mask;
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
         tag &= env->SEGMask;
 #endif
 
@@ -114,7 +114,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     int user_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM;
     int supervisor_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_SM;
     int kernel_mode = !user_mode && !supervisor_mode;
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
     int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
     int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
     int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
@@ -139,7 +139,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         } else {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         }
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
     } else if (address < 0x4000000000000000ULL) {
         /* xuseg */
         if (UX && address < (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
@@ -323,7 +323,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                            ((address >> 9) &   0x007ffff0);
         env->CP0_EntryHi =
             (env->CP0_EntryHi & 0xFF) | (address & (TARGET_PAGE_MASK << 1));
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
         env->CP0_EntryHi &= env->SEGMask;
         env->CP0_XContext = (env->CP0_XContext & ((~0ULL) << (env->SEGBITS - 7))) |
                             ((address & 0xC00000000000ULL) >> (env->SEGBITS - 9)) |
@@ -443,7 +443,7 @@ void do_interrupt (CPUState *env)
     case EXCP_TLBL:
         cause = 2;
         if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
             int R = env->CP0_BadVAddr >> 62;
             int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
             int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
@@ -491,7 +491,7 @@ void do_interrupt (CPUState *env)
     case EXCP_TLBS:
         cause = 3;
         if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
             int R = env->CP0_BadVAddr >> 62;
             int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
             int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
@@ -577,7 +577,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
     if (tlb->V0) {
         addr = tlb->VPN & ~mask;
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
             addr |= 0x3FFFFF0000000000ULL;
         }
@@ -591,7 +591,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
     }
     if (tlb->V1) {
         addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
             addr |= 0x3FFFFF0000000000ULL;
         }

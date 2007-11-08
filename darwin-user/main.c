@@ -757,9 +757,6 @@ void usage(void)
            "-s size      set the stack size in bytes (default=%ld)\n"
            "\n"
            "debug options:\n"
-#ifdef USE_CODE_COPY
-           "-no-code-copy   disable code copy acceleration\n"
-#endif
            "-d options   activate log (logfile='%s')\n"
            "-g wait for gdb on port 1234\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
@@ -845,11 +842,6 @@ int main(int argc, char **argv)
         if (!strcmp(r, "g")) {
             use_gdbstub = 1;
         } else
-#ifdef USE_CODE_COPY
-        if (!strcmp(r, "no-code-copy")) {
-            code_copy_enabled = 0;
-        } else
-#endif
         {
             usage();
         }

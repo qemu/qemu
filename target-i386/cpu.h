@@ -46,10 +46,6 @@
 
 #include "softfloat.h"
 
-#if defined(__i386__) && !defined(CONFIG_SOFTMMU) && !defined(__APPLE__)
-#define USE_CODE_COPY
-#endif
-
 #define R_EAX 0
 #define R_ECX 1
 #define R_EDX 2
@@ -274,23 +270,56 @@
 #define CPUID_CMOV (1 << 15)
 #define CPUID_PAT  (1 << 16)
 #define CPUID_PSE36   (1 << 17)
+#define CPUID_PN   (1 << 18)
 #define CPUID_CLFLUSH (1 << 19)
-/* ... */
+#define CPUID_DTS (1 << 21)
+#define CPUID_ACPI (1 << 22)
 #define CPUID_MMX  (1 << 23)
 #define CPUID_FXSR (1 << 24)
 #define CPUID_SSE  (1 << 25)
 #define CPUID_SSE2 (1 << 26)
+#define CPUID_SS (1 << 27)
+#define CPUID_HT (1 << 28)
+#define CPUID_TM (1 << 29)
+#define CPUID_IA64 (1 << 30)
+#define CPUID_PBE (1 << 31)
 
 #define CPUID_EXT_SSE3     (1 << 0)
 #define CPUID_EXT_MONITOR  (1 << 3)
+#define CPUID_EXT_DSCPL    (1 << 4)
+#define CPUID_EXT_VMX      (1 << 5)
+#define CPUID_EXT_SMX      (1 << 6)
+#define CPUID_EXT_EST      (1 << 7)
+#define CPUID_EXT_TM2      (1 << 8)
+#define CPUID_EXT_SSSE3    (1 << 9)
+#define CPUID_EXT_CID      (1 << 10)
 #define CPUID_EXT_CX16     (1 << 13)
+#define CPUID_EXT_XTPR     (1 << 14)
+#define CPUID_EXT_DCA      (1 << 17)
+#define CPUID_EXT_POPCNT   (1 << 22)
 
 #define CPUID_EXT2_SYSCALL (1 << 11)
+#define CPUID_EXT2_MP      (1 << 19)
 #define CPUID_EXT2_NX      (1 << 20)
+#define CPUID_EXT2_MMXEXT  (1 << 22)
 #define CPUID_EXT2_FFXSR   (1 << 25)
+#define CPUID_EXT2_PDPE1GB (1 << 26)
+#define CPUID_EXT2_RDTSCP  (1 << 27)
 #define CPUID_EXT2_LM      (1 << 29)
+#define CPUID_EXT2_3DNOWEXT (1 << 30)
+#define CPUID_EXT2_3DNOW   (1 << 31)
 
+#define CPUID_EXT3_LAHF_LM (1 << 0)
+#define CPUID_EXT3_CMP_LEG (1 << 1)
 #define CPUID_EXT3_SVM     (1 << 2)
+#define CPUID_EXT3_EXTAPIC (1 << 3)
+#define CPUID_EXT3_CR8LEG  (1 << 4)
+#define CPUID_EXT3_ABM     (1 << 5)
+#define CPUID_EXT3_SSE4A   (1 << 6)
+#define CPUID_EXT3_MISALIGNSSE (1 << 7)
+#define CPUID_EXT3_3DNOWPREFETCH (1 << 8)
+#define CPUID_EXT3_OSVW    (1 << 9)
+#define CPUID_EXT3_IBS     (1 << 10)
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
@@ -519,13 +548,6 @@ typedef struct CPUX86State {
 
     uint64_t pat;
 
-    /* temporary data for USE_CODE_COPY mode */
-#ifdef USE_CODE_COPY
-    uint32_t tmp0;
-    uint32_t saved_esp;
-    int native_fp_regs; /* if true, the FPU state is in the native CPU regs */
-#endif
-
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
@@ -566,6 +588,9 @@ typedef struct CPUX86State {
 CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
+int x86_find_cpu_by_name (const unsigned char *name);
+void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
+                                                 ...));
 int cpu_get_pic_interrupt(CPUX86State *s);
 /* MSDOS compatibility mode FPU exception support */
 void cpu_set_ferr(CPUX86State *s);
@@ -689,6 +714,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
+#define cpu_list x86_cpu_list
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

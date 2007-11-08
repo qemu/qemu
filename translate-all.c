@@ -144,35 +144,27 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
     uint8_t *gen_code_buf;
     int gen_code_size;
 
-#ifdef USE_CODE_COPY
-    if (code_copy_enabled &&
-        cpu_gen_code_copy(env, tb, max_code_size, &gen_code_size) == 0) {
-        /* nothing more to do */
-    } else
-#endif
-    {
-        if (gen_intermediate_code(env, tb) < 0)
-            return -1;
-
-        /* generate machine code */
-        tb->tb_next_offset[0] = 0xffff;
-        tb->tb_next_offset[1] = 0xffff;
-        gen_code_buf = tb->tc_ptr;
+    if (gen_intermediate_code(env, tb) < 0)
+        return -1;
+    
+    /* generate machine code */
+    tb->tb_next_offset[0] = 0xffff;
+    tb->tb_next_offset[1] = 0xffff;
+    gen_code_buf = tb->tc_ptr;
 #ifdef USE_DIRECT_JUMP
-        /* the following two entries are optional (only used for string ops) */
-        tb->tb_jmp_offset[2] = 0xffff;
-        tb->tb_jmp_offset[3] = 0xffff;
+    /* the following two entries are optional (only used for string ops) */
+    tb->tb_jmp_offset[2] = 0xffff;
+    tb->tb_jmp_offset[3] = 0xffff;
 #endif
-        dyngen_labels(gen_labels, nb_gen_labels, gen_code_buf, gen_opc_buf);
-
-        gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
+    dyngen_labels(gen_labels, nb_gen_labels, gen_code_buf, gen_opc_buf);
+    
+    gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
 #ifdef USE_DIRECT_JUMP
-                                    tb->tb_jmp_offset,
+                                tb->tb_jmp_offset,
 #else
-                                    NULL,
+                                NULL,
 #endif
-                                    gen_opc_buf, gen_opparam_buf, gen_labels);
-    }
+                                gen_opc_buf, gen_opparam_buf, gen_labels);
     *gen_code_size_ptr = gen_code_size;
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_OUT_ASM) {
@@ -195,11 +187,6 @@ int cpu_restore_state(TranslationBlock *tb,
     unsigned long tc_ptr;
     uint16_t *opc_ptr;
 
-#ifdef USE_CODE_COPY
-    if (tb->cflags & CF_CODE_COPY) {
-        return cpu_restore_state_copy(tb, env, searched_pc, puc);
-    }
-#endif
     if (gen_intermediate_code_pc(env, tb) < 0)
         return -1;
 

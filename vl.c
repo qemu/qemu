@@ -1222,9 +1222,6 @@ static void enable_sigio_timer(int fd)
     /* timer signal */
     sigfillset(&act.sa_mask);
     act.sa_flags = 0;
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-    act.sa_flags |= SA_ONSTACK;
-#endif
     act.sa_handler = host_alarm_handler;
 
     sigaction(SIGIO, &act, NULL);
@@ -1322,9 +1319,6 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
 
     sigfillset(&act.sa_mask);
     act.sa_flags = 0;
-#if defined(TARGET_I386) && defined(USE_CODE_COPY)
-    act.sa_flags |= SA_ONSTACK;
-#endif
     act.sa_handler = host_alarm_handler;
 
     sigaction(SIGALRM, &act, NULL);
@@ -1399,9 +1393,6 @@ static int unix_start_timer(struct qemu_alarm_timer *t)
     /* timer signal */
     sigfillset(&act.sa_mask);
     act.sa_flags = 0;
-#if defined(TARGET_I386) && defined(USE_CODE_COPY)
-    act.sa_flags |= SA_ONSTACK;
-#endif
     act.sa_handler = host_alarm_handler;
 
     sigaction(SIGALRM, &act, NULL);
@@ -7093,9 +7084,6 @@ static void help(int exitcode)
            "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
 #endif
-#ifdef USE_CODE_COPY
-           "-no-code-copy   disable code copy acceleration\n"
-#endif
 #ifdef TARGET_I386
            "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
            "                (default is CL-GD5446 PCI VGA)\n"
@@ -7323,15 +7311,6 @@ const QEMUOption qemu_options[] = {
     { "startdate", HAS_ARG, QEMU_OPTION_startdate },
     { NULL },
 };
-
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-
-/* this stack is only used during signal handling */
-#define SIGNAL_STACK_SIZE 32768
-
-static uint8_t *signal_stack;
-
-#endif
 
 /* password input */
 

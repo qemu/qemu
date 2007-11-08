@@ -28,11 +28,6 @@
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
-#ifdef __APPLE__
-#include <crt_externs.h>
-# define environ  (*_NSGetEnviron())
-#endif
-
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
@@ -45,12 +40,20 @@ const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
 /* for recent libc, we add these dummy symbols which are not declared
    when generating a linked object (bug in ld ?) */
 #if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)) && !defined(CONFIG_STATIC)
-long __preinit_array_start[0];
-long __preinit_array_end[0];
-long __init_array_start[0];
-long __init_array_end[0];
-long __fini_array_start[0];
-long __fini_array_end[0];
+asm(".globl __preinit_array_start\n"
+    ".globl __preinit_array_end\n"
+    ".globl __init_array_start\n"
+    ".globl __init_array_end\n"
+    ".globl __fini_array_start\n"
+    ".globl __fini_array_end\n"
+    ".section \".rodata\"\n"
+    "__preinit_array_start:\n"
+    "__preinit_array_end:\n"
+    "__init_array_start:\n"
+    "__init_array_end:\n"
+    "__fini_array_start:\n"
+    "__fini_array_end:\n"
+    ".long 0\n");
 #endif
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
@@ -1852,9 +1855,6 @@ void usage(void)
            "-drop-ld-preload  drop LD_PRELOAD for target process\n"
            "\n"
            "debug options:\n"
-#ifdef USE_CODE_COPY
-           "-no-code-copy   disable code copy acceleration\n"
-#endif
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
@@ -1955,11 +1955,6 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "drop-ld-preload")) {
             drop_ld_preload = 1;
         } else
-#ifdef USE_CODE_COPY
-        if (!strcmp(r, "no-code-copy")) {
-            code_copy_enabled = 0;
-        } else
-#endif
         {
             usage();
         }
@@ -1976,6 +1971,23 @@ int main(int argc, char **argv)
 
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
+
+#if defined(TARGET_I386)
+    /* must be done before cpu_init() for x86 XXX: suppress this hack
+       by adding a new parameter to cpu_init and by suppressing
+       cpu_xxx_register() */
+    if (cpu_model == NULL) {
+#ifdef TARGET_X86_64
+        cpu_model = "qemu64";
+#else
+        cpu_model = "qemu32";
+#endif
+    }
+    if (x86_find_cpu_by_name(cpu_model)) {
+        fprintf(stderr, "Unable to find x86 CPU definition\n");
+        exit(1);
+    }
+#endif
 
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
@@ -2215,7 +2227,7 @@ int main(int argc, char **argv)
 
         /* Choose and initialise CPU */
         if (cpu_model == NULL)
-#if defined(TARGET_MIPSN32) || defined(TARGET_MIPS64)
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
             cpu_model = "20Kc";
 #else
             cpu_model = "24Kf";

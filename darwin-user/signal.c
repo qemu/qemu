@@ -198,11 +198,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 
     /* the CPU emulator uses some host signals to detect exceptions,
        we we forward to it some signals */
-    if (host_signum == SIGSEGV || host_signum == SIGBUS
-#if defined(TARGET_I386) && defined(USE_CODE_COPY)
-        || host_signum == SIGFPE
-#endif
-        ) {
+    if (host_signum == SIGSEGV || host_signum == SIGBUS) {
         if (cpu_signal_handler(host_signum, (void*)info, puc))
             return;
     }

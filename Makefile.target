@@ -325,9 +325,6 @@ CPPFLAGS+=-I$(SRC_PATH)/fpu
 
 ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=helper.o helper2.o
-ifeq ($(ARCH), i386)
-LIBOBJS+=translate-copy.o
-endif
 ifdef CONFIG_SCU2
 LIBOBJS += scu2.o
 endif

@@ -32,21 +32,66 @@
 
 //#define DEBUG_MMU
 
-#ifdef USE_CODE_COPY
-#include <unistd.h>
-#include <asm/ldt.h>
-#include <linux/unistd.h>
-#include <linux/version.h>
+static struct x86_def_t *x86_cpu_def;
+typedef struct x86_def_t x86_def_t;
+static int cpu_x86_register (CPUX86State *env, const x86_def_t *def);
 
-int modify_ldt(int func, void *ptr, unsigned long bytecount)
+static void add_flagname_to_bitmaps(char *flagname, uint32_t *features, 
+                                    uint32_t *ext_features, 
+                                    uint32_t *ext2_features, 
+                                    uint32_t *ext3_features)
 {
-	return syscall(__NR_modify_ldt, func, ptr, bytecount);
-}
+    int i;
+    /* feature flags taken from "Intel Processor Identification and the CPUID
+     * Instruction" and AMD's "CPUID Specification". In cases of disagreement 
+     * about feature names, the Linux name is used. */
+    const char *feature_name[] = {
+        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+        "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
+        "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
+        "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
+    };
+    const char *ext_feature_name[] = {
+       "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
+       "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
+       NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    };
+    const char *ext2_feature_name[] = {
+       "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+       "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mttr", "pge", "mca", "cmov",
+       "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
+       "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
+    };
+    const char *ext3_feature_name[] = {
+       "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
+       "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
-#define modify_ldt_ldt_s user_desc
-#endif
-#endif /* USE_CODE_COPY */
+    for ( i = 0 ; i < 32 ; i++ ) 
+        if (feature_name[i] && !strcmp (flagname, feature_name[i])) {
+            *features |= 1 << i;
+            return;
+        }
+    for ( i = 0 ; i < 32 ; i++ ) 
+        if (ext_feature_name[i] && !strcmp (flagname, ext_feature_name[i])) {
+            *ext_features |= 1 << i;
+            return;
+        }
+    for ( i = 0 ; i < 32 ; i++ ) 
+        if (ext2_feature_name[i] && !strcmp (flagname, ext2_feature_name[i])) {
+            *ext2_features |= 1 << i;
+            return;
+        }
+    for ( i = 0 ; i < 32 ; i++ ) 
+        if (ext3_features[i] && !strcmp (flagname, ext3_feature_name[i])) {
+            *ext3_features |= 1 << i;
+            return;
+        }
+    fprintf(stderr, "CPU feature %s not found\n", flagname);
+}
 
 CPUX86State *cpu_x86_init(void)
 {
@@ -63,90 +108,219 @@ CPUX86State *cpu_x86_init(void)
         inited = 1;
         optimize_flags_init();
     }
-#ifdef USE_CODE_COPY
-    /* testing code for code copy case */
-    {
-        struct modify_ldt_ldt_s ldt;
-
-        ldt.entry_number = 1;
-        ldt.base_addr = (unsigned long)env;
-        ldt.limit = (sizeof(CPUState) + 0xfff) >> 12;
-        ldt.seg_32bit = 1;
-        ldt.contents = MODIFY_LDT_CONTENTS_DATA;
-        ldt.read_exec_only = 0;
-        ldt.limit_in_pages = 1;
-        ldt.seg_not_present = 0;
-        ldt.useable = 1;
-        modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
-
-        asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
-    }
-#endif
-    {
-        int family, model, stepping;
-#ifdef TARGET_X86_64
-        env->cpuid_vendor1 = 0x68747541; /* "Auth" */
-        env->cpuid_vendor2 = 0x69746e65; /* "enti" */
-        env->cpuid_vendor3 = 0x444d4163; /* "cAMD" */
-        family = 6;
-        model = 2;
-        stepping = 3;
-#else
-        env->cpuid_vendor1 = 0x756e6547; /* "Genu" */
-        env->cpuid_vendor2 = 0x49656e69; /* "ineI" */
-        env->cpuid_vendor3 = 0x6c65746e; /* "ntel" */
-#if 0
-        /* pentium 75-200 */
-        family = 5;
-        model = 2;
-        stepping = 11;
-#else
-        /* pentium pro */
-        family = 6;
-        model = 3;
-        stepping = 3;
-#endif
-#endif
-        env->cpuid_level = 2;
-        env->cpuid_version = (family << 8) | (model << 4) | stepping;
-        env->cpuid_features = (CPUID_FP87 | CPUID_DE | CPUID_PSE |
-                               CPUID_TSC | CPUID_MSR | CPUID_MCE |
-                               CPUID_CX8 | CPUID_PGE | CPUID_CMOV |
-                               CPUID_PAT);
-        env->pat = 0x0007040600070406ULL;
-        env->cpuid_ext3_features = CPUID_EXT3_SVM;
-        env->cpuid_ext_features = CPUID_EXT_SSE3;
-        env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
-        env->cpuid_features |= CPUID_APIC;
-        env->cpuid_xlevel = 0x8000000e;
-        {
-            const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
-            int c, len, i;
-            len = strlen(model_id);
-            for(i = 0; i < 48; i++) {
-                if (i >= len)
-                    c = '\0';
-                else
-                    c = model_id[i];
-                env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
-            }
-        }
-#ifdef TARGET_X86_64
-        /* currently not enabled for std i386 because not fully tested */
-        env->cpuid_ext2_features = (env->cpuid_features & 0x0183F3FF);
-        env->cpuid_ext2_features |= CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX;
-
-        /* these features are needed for Win64 and aren't fully implemented */
-        env->cpuid_features |= CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA;
-        /* this feature is needed for Solaris and isn't fully implemented */
-        env->cpuid_features |= CPUID_PSE36;
-#endif
-    }
+    cpu_x86_register(env, x86_cpu_def);
     cpu_reset(env);
 #ifdef USE_KQEMU
     kqemu_init(env);
 #endif
     return env;
+}
+
+struct x86_def_t {
+    const char *name;
+    uint32_t vendor1, vendor2, vendor3;
+    int family;
+    int model;
+    int stepping;
+    uint32_t features, ext_features, ext2_features, ext3_features;
+    uint32_t xlevel;
+};
+
+#define PPRO_FEATURES (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | \
+          CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
+          CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
+          CPUID_PAE | CPUID_SEP | CPUID_APIC)
+static x86_def_t x86_defs[] = {
+#ifdef TARGET_X86_64
+    {
+        .name = "qemu64",
+        .vendor1 = 0x68747541, /* "Auth" */
+        .vendor2 = 0x69746e65, /* "enti" */
+        .vendor3 = 0x444d4163, /* "cAMD" */
+        .family = 6,
+        .model = 2,
+        .stepping = 3,
+        .features = PPRO_FEATURES | 
+        /* these features are needed for Win64 and aren't fully implemented */
+            CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
+        /* this feature is needed for Solaris and isn't fully implemented */
+            CPUID_PSE36,
+        .ext_features = CPUID_EXT_SSE3,
+        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
+            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
+        .ext3_features = CPUID_EXT3_SVM,
+        .xlevel = 0x80000008,
+    },
+#endif
+    {
+        .name = "qemu32",
+        .family = 6,
+        .model = 3,
+        .stepping = 3,
+        .features = PPRO_FEATURES,
+        .ext_features = CPUID_EXT_SSE3,
+        .xlevel = 0,
+    },
+    {
+        .name = "486",
+        .family = 4,
+        .model = 0,
+        .stepping = 0,
+        .features = 0x0000000B,
+        .xlevel = 0,
+    },
+    {
+        .name = "pentium",
+        .family = 5,
+        .model = 4,
+        .stepping = 3,
+        .features = 0x008001BF,
+        .xlevel = 0,
+    },
+    {
+        .name = "pentium2",
+        .family = 6,
+        .model = 5,
+        .stepping = 2,
+        .features = 0x0183F9FF,
+        .xlevel = 0,
+    },
+    {
+        .name = "pentium3",
+        .family = 6,
+        .model = 7,
+        .stepping = 3,
+        .features = 0x0383F9FF,
+        .xlevel = 0,
+    },
+};
+
+int x86_find_cpu_by_name(const unsigned char *cpu_model)
+{
+    int ret;
+    unsigned int i;
+
+    char *s = strdup(cpu_model);
+    char *featurestr, *name = strtok(s, ",");
+    uint32_t plus_features = 0, plus_ext_features = 0, plus_ext2_features = 0, plus_ext3_features = 0;
+    uint32_t minus_features = 0, minus_ext_features = 0, minus_ext2_features = 0, minus_ext3_features = 0;
+    int family = -1, model = -1, stepping = -1;
+
+    ret = -1;
+    x86_cpu_def = NULL;
+    for (i = 0; i < sizeof(x86_defs) / sizeof(x86_def_t); i++) {
+        if (strcmp(name, x86_defs[i].name) == 0) {
+            x86_cpu_def = &x86_defs[i];
+            ret = 0;
+            break;
+        }
+    }
+    if (!x86_cpu_def)
+        goto error;
+
+    featurestr = strtok(NULL, ",");
+
+    while (featurestr) {
+        char *val;
+        if (featurestr[0] == '+') {
+            add_flagname_to_bitmaps(featurestr + 1, &plus_features, &plus_ext_features, &plus_ext2_features, &plus_ext3_features);
+        } else if (featurestr[0] == '-') {
+            add_flagname_to_bitmaps(featurestr + 1, &minus_features, &minus_ext_features, &minus_ext2_features, &minus_ext3_features);
+        } else if ((val = strchr(featurestr, '='))) {
+            *val = 0; val++;
+            if (!strcmp(featurestr, "family")) {
+                char *err;
+                family = strtol(val, &err, 10);
+                if (!*val || *err || family < 0) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    x86_cpu_def = 0;
+                    goto error;
+                }
+                x86_cpu_def->family = family;
+            } else if (!strcmp(featurestr, "model")) {
+                char *err;
+                model = strtol(val, &err, 10);
+                if (!*val || *err || model < 0 || model > 0xf) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    x86_cpu_def = 0;
+                    goto error;
+                }
+                x86_cpu_def->model = model;
+            } else if (!strcmp(featurestr, "stepping")) {
+                char *err;
+                stepping = strtol(val, &err, 10);
+                if (!*val || *err || stepping < 0 || stepping > 0xf) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    x86_cpu_def = 0;
+                    goto error;
+                }
+                x86_cpu_def->stepping = stepping;
+            } else {
+                fprintf(stderr, "unregnized feature %s\n", featurestr);
+                x86_cpu_def = 0;
+                goto error;
+            }
+        } else {
+            fprintf(stderr, "feature string `%s' not in format (+feature|-feature|feature=xyz)\n", featurestr);
+            x86_cpu_def = 0;
+            goto error;
+        }
+        featurestr = strtok(NULL, ",");
+    }
+    x86_cpu_def->features |= plus_features;
+    x86_cpu_def->ext_features |= plus_ext_features;
+    x86_cpu_def->ext2_features |= plus_ext2_features;
+    x86_cpu_def->ext3_features |= plus_ext3_features;
+    x86_cpu_def->features &= ~minus_features;
+    x86_cpu_def->ext_features &= ~minus_ext_features;
+    x86_cpu_def->ext2_features &= ~minus_ext2_features;
+    x86_cpu_def->ext3_features &= ~minus_ext3_features;
+
+error:
+    free(s);
+    return ret;
+}
+
+void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+{
+    unsigned int i;
+
+    for (i = 0; i < sizeof(x86_defs) / sizeof(x86_def_t); i++)
+        (*cpu_fprintf)(f, "x86 %16s\n", x86_defs[i].name);
+}
+
+int cpu_x86_register (CPUX86State *env, const x86_def_t *def)
+{
+    if (def->vendor1) {
+        env->cpuid_vendor1 = def->vendor1;
+        env->cpuid_vendor2 = def->vendor2;
+        env->cpuid_vendor3 = def->vendor3;
+    } else {
+        env->cpuid_vendor1 = 0x756e6547; /* "Genu" */
+        env->cpuid_vendor2 = 0x49656e69; /* "ineI" */
+        env->cpuid_vendor3 = 0x6c65746e; /* "ntel" */
+    }
+    env->cpuid_level = 2;
+    env->cpuid_version = (def->family << 8) | (def->model << 4) | def->stepping;
+    env->cpuid_features = def->features;
+    env->pat = 0x0007040600070406ULL;
+    env->cpuid_ext_features = def->ext_features;
+    env->cpuid_ext2_features = def->ext2_features;
+    env->cpuid_xlevel = def->xlevel;
+    env->cpuid_ext3_features = def->ext3_features;
+    {
+        const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
+        int c, len, i;
+        len = strlen(model_id);
+        for(i = 0; i < 48; i++) {
+            if (i >= len)
+                c = '\0';
+            else
+                c = model_id[i];
+            env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
+        }
+    }
+    return 0;
 }
 
 /* NOTE: must be called outside the CPU execute loop */
@@ -186,7 +360,7 @@ void cpu_reset(CPUX86State *env)
     cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffff, 0);
 
     env->eip = 0xfff0;
-    env->regs[R_EDX] = 0x600; /* indicate P6 processor */
+    env->regs[R_EDX] = env->cpuid_version;
 
     env->eflags = 0x2;
 
@@ -978,73 +1152,3 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return paddr;
 }
 #endif /* !CONFIG_USER_ONLY */
-
-#if defined(USE_CODE_COPY)
-struct fpstate {
-    uint16_t fpuc;
-    uint16_t dummy1;
-    uint16_t fpus;
-    uint16_t dummy2;
-    uint16_t fptag;
-    uint16_t dummy3;
-
-    uint32_t fpip;
-    uint32_t fpcs;
-    uint32_t fpoo;
-    uint32_t fpos;
-    uint8_t fpregs1[8 * 10];
-};
-
-void restore_native_fp_state(CPUState *env)
-{
-    int fptag, i, j;
-    struct fpstate fp1, *fp = &fp1;
-
-    fp->fpuc = env->fpuc;
-    fp->fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    fptag = 0;
-    for (i=7; i>=0; i--) {
-	fptag <<= 2;
-	if (env->fptags[i]) {
-            fptag |= 3;
-        } else {
-            /* the FPU automatically computes it */
-        }
-    }
-    fp->fptag = fptag;
-    j = env->fpstt;
-    for(i = 0;i < 8; i++) {
-        memcpy(&fp->fpregs1[i * 10], &env->fpregs[j].d, 10);
-        j = (j + 1) & 7;
-    }
-    asm volatile ("frstor %0" : "=m" (*fp));
-    env->native_fp_regs = 1;
-}
-
-void save_native_fp_state(CPUState *env)
-{
-    int fptag, i, j;
-    uint16_t fpuc;
-    struct fpstate fp1, *fp = &fp1;
-
-    asm volatile ("fsave %0" : : "m" (*fp));
-    env->fpuc = fp->fpuc;
-    env->fpstt = (fp->fpus >> 11) & 7;
-    env->fpus = fp->fpus & ~0x3800;
-    fptag = fp->fptag;
-    for(i = 0;i < 8; i++) {
-        env->fptags[i] = ((fptag & 3) == 3);
-        fptag >>= 2;
-    }
-    j = env->fpstt;
-    for(i = 0;i < 8; i++) {
-        memcpy(&env->fpregs[j].d, &fp->fpregs1[i * 10], 10);
-        j = (j + 1) & 7;
-    }
-    /* we must restore the default rounding state */
-    /* XXX: we do not restore the exception state */
-    fpuc = 0x037f | (env->fpuc & (3 << 10));
-    asm volatile("fldcw %0" : : "m" (fpuc));
-    env->native_fp_regs = 0;
-}
-#endif

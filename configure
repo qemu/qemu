@@ -1103,16 +1103,18 @@ elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
   echo "TARGET_ARCH=mips" >> $config_mak
   echo "#define TARGET_ARCH \"mips\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
+  echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
 elif test "$target_cpu" = "mipsn32" -o "$target_cpu" = "mipsn32el" ; then
   echo "TARGET_ARCH=mipsn32" >> $config_mak
   echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
-  echo "#define TARGET_MIPSN32 1" >> $config_h
+  echo "#define TARGET_ABI_MIPSN32 1" >> $config_h
 elif test "$target_cpu" = "mips64" -o "$target_cpu" = "mips64el" ; then
   echo "TARGET_ARCH=mips64" >> $config_mak
   echo "#define TARGET_ARCH \"mips64\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
   echo "#define TARGET_MIPS64 1" >> $config_h
+  echo "#define TARGET_ABI_MIPSN64 1" >> $config_h
 elif test "$target_cpu" = "cris" ; then
   echo "TARGET_ARCH=cris" >> $config_mak
   echo "#define TARGET_ARCH \"cris\"" >> $config_h
