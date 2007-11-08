@@ -944,11 +944,6 @@ void tb_link_phys(TranslationBlock *tb,
     tb->jmp_first = (TranslationBlock *)((long)tb | 2);
     tb->jmp_next[0] = NULL;
     tb->jmp_next[1] = NULL;
-#ifdef USE_CODE_COPY
-    tb->cflags &= ~CF_FP_USED;
-    if (tb->cflags & CF_TB_FP_USED)
-        tb->cflags |= CF_FP_USED;
-#endif
 
     /* init original jump addresses */
     if (tb->tb_next_offset[0] != 0xffff)

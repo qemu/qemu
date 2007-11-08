@@ -1855,9 +1855,6 @@ void usage(void)
            "-drop-ld-preload  drop LD_PRELOAD for target process\n"
            "\n"
            "debug options:\n"
-#ifdef USE_CODE_COPY
-           "-no-code-copy   disable code copy acceleration\n"
-#endif
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
@@ -1956,11 +1953,6 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "drop-ld-preload")) {
             drop_ld_preload = 1;
         } else
-#ifdef USE_CODE_COPY
-        if (!strcmp(r, "no-code-copy")) {
-            code_copy_enabled = 0;
-        } else
-#endif
         {
             usage();
         }

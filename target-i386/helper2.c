@@ -31,22 +31,6 @@
 
 //#define DEBUG_MMU
 
-#ifdef USE_CODE_COPY
-#include <unistd.h>
-#include <asm/ldt.h>
-#include <linux/unistd.h>
-#include <linux/version.h>
-
-int modify_ldt(int func, void *ptr, unsigned long bytecount)
-{
-	return syscall(__NR_modify_ldt, func, ptr, bytecount);
-}
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
-#define modify_ldt_ldt_s user_desc
-#endif
-#endif /* USE_CODE_COPY */
-
 static struct x86_def_t *x86_cpu_def;
 typedef struct x86_def_t x86_def_t;
 static int cpu_x86_register (CPUX86State *env, const x86_def_t *def);
@@ -123,25 +107,6 @@ CPUX86State *cpu_x86_init(void)
         inited = 1;
         optimize_flags_init();
     }
-#ifdef USE_CODE_COPY
-    /* testing code for code copy case */
-    {
-        struct modify_ldt_ldt_s ldt;
-
-        ldt.entry_number = 1;
-        ldt.base_addr = (unsigned long)env;
-        ldt.limit = (sizeof(CPUState) + 0xfff) >> 12;
-        ldt.seg_32bit = 1;
-        ldt.contents = MODIFY_LDT_CONTENTS_DATA;
-        ldt.read_exec_only = 0;
-        ldt.limit_in_pages = 1;
-        ldt.seg_not_present = 0;
-        ldt.useable = 1;
-        modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
-
-        asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
-    }
-#endif
     cpu_x86_register(env, x86_cpu_def);
     cpu_reset(env);
 #ifdef USE_KQEMU
@@ -1186,73 +1151,3 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return paddr;
 }
 #endif /* !CONFIG_USER_ONLY */
-
-#if defined(USE_CODE_COPY)
-struct fpstate {
-    uint16_t fpuc;
-    uint16_t dummy1;
-    uint16_t fpus;
-    uint16_t dummy2;
-    uint16_t fptag;
-    uint16_t dummy3;
-
-    uint32_t fpip;
-    uint32_t fpcs;
-    uint32_t fpoo;
-    uint32_t fpos;
-    uint8_t fpregs1[8 * 10];
-};
-
-void restore_native_fp_state(CPUState *env)
-{
-    int fptag, i, j;
-    struct fpstate fp1, *fp = &fp1;
-
-    fp->fpuc = env->fpuc;
-    fp->fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    fptag = 0;
-    for (i=7; i>=0; i--) {
-	fptag <<= 2;
-	if (env->fptags[i]) {
-            fptag |= 3;
-        } else {
-            /* the FPU automatically computes it */
-        }
-    }
-    fp->fptag = fptag;
-    j = env->fpstt;
-    for(i = 0;i < 8; i++) {
-        memcpy(&fp->fpregs1[i * 10], &env->fpregs[j].d, 10);
-        j = (j + 1) & 7;
-    }
-    asm volatile ("frstor %0" : "=m" (*fp));
-    env->native_fp_regs = 1;
-}
-
-void save_native_fp_state(CPUState *env)
-{
-    int fptag, i, j;
-    uint16_t fpuc;
-    struct fpstate fp1, *fp = &fp1;
-
-    asm volatile ("fsave %0" : : "m" (*fp));
-    env->fpuc = fp->fpuc;
-    env->fpstt = (fp->fpus >> 11) & 7;
-    env->fpus = fp->fpus & ~0x3800;
-    fptag = fp->fptag;
-    for(i = 0;i < 8; i++) {
-        env->fptags[i] = ((fptag & 3) == 3);
-        fptag >>= 2;
-    }
-    j = env->fpstt;
-    for(i = 0;i < 8; i++) {
-        memcpy(&env->fpregs[j].d, &fp->fpregs1[i * 10], 10);
-        j = (j + 1) & 7;
-    }
-    /* we must restore the default rounding state */
-    /* XXX: we do not restore the exception state */
-    fpuc = 0x037f | (env->fpuc & (3 << 10));
-    asm volatile("fldcw %0" : : "m" (fpuc));
-    env->native_fp_regs = 0;
-}
-#endif

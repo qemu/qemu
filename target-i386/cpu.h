@@ -46,10 +46,6 @@
 
 #include "softfloat.h"
 
-#if defined(__i386__) && !defined(CONFIG_SOFTMMU) && !defined(__APPLE__)
-#define USE_CODE_COPY
-#endif
-
 #define R_EAX 0
 #define R_ECX 1
 #define R_EDX 2
@@ -551,13 +547,6 @@ typedef struct CPUX86State {
 #endif
 
     uint64_t pat;
-
-    /* temporary data for USE_CODE_COPY mode */
-#ifdef USE_CODE_COPY
-    uint32_t tmp0;
-    uint32_t saved_esp;
-    int native_fp_regs; /* if true, the FPU state is in the native CPU regs */
-#endif
 
     /* exception/interrupt handling */
     jmp_buf jmp_env;
