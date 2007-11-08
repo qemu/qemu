@@ -676,7 +676,7 @@ static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename,
-                     int pci_enabled)
+                     int pci_enabled, const char *cpu_model)
 {
     char buf[1024];
     int ret, linux_boot, i;
@@ -692,6 +692,18 @@ static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
+    if (cpu_model == NULL) {
+#ifdef TARGET_X86_64
+        cpu_model = "qemu64";
+#else
+        cpu_model = "qemu32";
+#endif
+    }
+    
+    if (x86_find_cpu_by_name(cpu_model)) {
+        fprintf(stderr, "Unable to find x86 CPU definition\n");
+        exit(1);
+    }
     for(i = 0; i < smp_cpus; i++) {
         env = cpu_init();
         if (i != 0)
@@ -960,7 +972,7 @@ static void pc_init_pci(int ram_size, int vga_ram_size, const char *boot_device,
     pc_init1(ram_size, vga_ram_size, boot_device,
              ds, fd_filename, snapshot,
              kernel_filename, kernel_cmdline,
-             initrd_filename, 1);
+             initrd_filename, 1, cpu_model);
 }
 
 static void pc_init_isa(int ram_size, int vga_ram_size, const char *boot_device,
@@ -974,7 +986,7 @@ static void pc_init_isa(int ram_size, int vga_ram_size, const char *boot_device,
     pc_init1(ram_size, vga_ram_size, boot_device,
              ds, fd_filename, snapshot,
              kernel_filename, kernel_cmdline,
-             initrd_filename, 0);
+             initrd_filename, 0, cpu_model);
 }
 
 QEMUMachine pc_machine = {
