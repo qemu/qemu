@@ -59,6 +59,13 @@ typedef struct {
 
 static PITState *pit;
 
+static struct _loaderparams {
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+} loaderparams;
+
 /* Malta FPGA */
 static void malta_fpga_update_display(void *opaque)
 {
@@ -534,8 +541,8 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a1, low(ENVP_ADDR) */
     stl_raw(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
     stl_raw(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));         /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_raw(p++, 0x3c070000 | (env->ram_size >> 16));              /* lui a3, high(env->ram_size) */
-    stl_raw(p++, 0x34e70000 | (env->ram_size & 0xffff));           /* ori a3, a3, low(env->ram_size) */
+    stl_raw(p++, 0x3c070000 | (loaderparams.ram_size >> 16));     /* lui a3, high(ram_size) */
+    stl_raw(p++, 0x34e70000 | (loaderparams.ram_size & 0xffff));  /* ori a3, a3, low(ram_size) */
 
     /* Load BAR registers as done by YAMON */
     stl_raw(p++, 0x3c09b400);                                      /* lui t1, 0xb400 */
@@ -675,48 +682,48 @@ static int64_t load_kernel (CPUState *env)
     long initrd_size;
     ram_addr_t initrd_offset;
 
-    if (load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND,
+    if (load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                  &kernel_entry, &kernel_low, &kernel_high) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                env->kernel_filename);
+                loaderparams.kernel_filename);
         exit(1);
     }
 
     /* load initrd */
     initrd_size = 0;
     initrd_offset = 0;
-    if (env->initrd_filename) {
-        initrd_size = get_image_size (env->initrd_filename);
+    if (loaderparams.initrd_filename) {
+        initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
             initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
-            if (initrd_offset + initrd_size > env->ram_size) {
+            if (initrd_offset + initrd_size > ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
-                        env->initrd_filename);
+                        loaderparams.initrd_filename);
                 exit(1);
             }
-            initrd_size = load_image(env->initrd_filename,
+            initrd_size = load_image(loaderparams.initrd_filename,
                                      phys_ram_base + initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    env->initrd_filename);
+                    loaderparams.initrd_filename);
             exit(1);
         }
     }
 
     /* Store command line.  */
-    prom_set(index++, env->kernel_filename);
+    prom_set(index++, loaderparams.kernel_filename);
     if (initrd_size > 0)
         prom_set(index++, "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
                  PHYS_TO_VIRT(initrd_offset), initrd_size,
-                 env->kernel_cmdline);
+                 loaderparams.kernel_cmdline);
     else
-        prom_set(index++, env->kernel_cmdline);
+        prom_set(index++, loaderparams.kernel_cmdline);
 
     /* Setup minimum environment variables */
     prom_set(index++, "memsize");
-    prom_set(index++, "%i", env->ram_size);
+    prom_set(index++, "%i", loaderparams.ram_size);
     prom_set(index++, "modetty0");
     prom_set(index++, "38400n8r");
     prom_set(index++, NULL);
@@ -733,7 +740,7 @@ static void main_cpu_reset(void *opaque)
     /* The bootload does not need to be rewritten as it is located in a
        read only location. The kernel location and the arguments table
        location does not change. */
-    if (env->kernel_filename) {
+    if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         load_kernel (env);
     }
@@ -818,10 +825,10 @@ void mips_malta_init (int ram_size, int vga_ram_size, const char *boot_device,
     /* If a kernel image has been specified, write a small bootloader
        to the flash location. */
     if (kernel_filename) {
-        env->ram_size = ram_size;
-        env->kernel_filename = kernel_filename;
-        env->kernel_cmdline = kernel_cmdline;
-        env->initrd_filename = initrd_filename;
+        loaderparams.ram_size = ram_size;
+        loaderparams.kernel_filename = kernel_filename;
+        loaderparams.kernel_cmdline = kernel_cmdline;
+        loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel(env);
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         write_bootloader(env, bios_offset, kernel_entry);

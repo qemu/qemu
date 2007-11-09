@@ -456,11 +456,6 @@ struct CPUMIPSState {
 
     CPU_COMMON
 
-    int ram_size;
-    const char *kernel_filename;
-    const char *kernel_cmdline;
-    const char *initrd_filename;
-
     mips_def_t *cpu_model;
 #ifndef CONFIG_USER_ONLY
     void *irq[8];
