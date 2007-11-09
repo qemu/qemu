@@ -22,55 +22,55 @@
 void glue(op_lb, MEMSUFFIX) (void)
 {
     T0 = glue(ldsb, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lbu, MEMSUFFIX) (void)
 {
     T0 = glue(ldub, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sb, MEMSUFFIX) (void)
 {
     glue(stb, MEMSUFFIX)(T0, T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lh, MEMSUFFIX) (void)
 {
     T0 = glue(ldsw, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lhu, MEMSUFFIX) (void)
 {
     T0 = glue(lduw, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sh, MEMSUFFIX) (void)
 {
     glue(stw, MEMSUFFIX)(T0, T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lw, MEMSUFFIX) (void)
 {
     T0 = glue(ldl, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lwu, MEMSUFFIX) (void)
 {
     T0 = (uint32_t)glue(ldl, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sw, MEMSUFFIX) (void)
 {
     glue(stl, MEMSUFFIX)(T0, T1);
-    RETURN();
+    FORCE_RET();
 }
 
 /* "half" load and stores.  We must do the memory access inline,
@@ -106,7 +106,7 @@ void glue(op_lwl, MEMSUFFIX) (void)
         T1 = (T1 & 0xFFFFFF00) | tmp;
     }
     T1 = (int32_t)T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lwr, MEMSUFFIX) (void)
@@ -131,7 +131,7 @@ void glue(op_lwr, MEMSUFFIX) (void)
         T1 = (T1 & 0x00FFFFFF) | (tmp << 24);
     }
     T1 = (int32_t)T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_swl, MEMSUFFIX) (void)
@@ -147,7 +147,7 @@ void glue(op_swl, MEMSUFFIX) (void)
     if (GET_LMASK(T0) == 0)
         glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 3), (uint8_t)T1);
 
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_swr, MEMSUFFIX) (void)
@@ -163,7 +163,7 @@ void glue(op_swr, MEMSUFFIX) (void)
     if (GET_LMASK(T0) == 3)
         glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -3), (uint8_t)(T1 >> 24));
 
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_ll, MEMSUFFIX) (void)
@@ -171,7 +171,7 @@ void glue(op_ll, MEMSUFFIX) (void)
     T1 = T0;
     T0 = glue(ldl, MEMSUFFIX)(T0);
     env->CP0_LLAddr = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sc, MEMSUFFIX) (void)
@@ -187,20 +187,20 @@ void glue(op_sc, MEMSUFFIX) (void)
     } else {
         T0 = 0;
     }
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
 void glue(op_ld, MEMSUFFIX) (void)
 {
     T0 = glue(ldq, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sd, MEMSUFFIX) (void)
 {
     glue(stq, MEMSUFFIX)(T0, T1);
-    RETURN();
+    FORCE_RET();
 }
 
 /* "half" load and stores.  We must do the memory access inline,
@@ -254,7 +254,7 @@ void glue(op_ldl, MEMSUFFIX) (void)
         T1 = (T1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
     }
 
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_ldr, MEMSUFFIX) (void)
@@ -299,7 +299,7 @@ void glue(op_ldr, MEMSUFFIX) (void)
         T1 = (T1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
     }
 
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sdl, MEMSUFFIX) (void)
@@ -327,7 +327,7 @@ void glue(op_sdl, MEMSUFFIX) (void)
     if (GET_LMASK64(T0) <= 0)
         glue(stb, MEMSUFFIX)(GET_OFFSET(T0, 7), (uint8_t)T1);
 
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_sdr, MEMSUFFIX) (void)
@@ -355,7 +355,7 @@ void glue(op_sdr, MEMSUFFIX) (void)
     if (GET_LMASK64(T0) == 7)
         glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -7), (uint8_t)(T1 >> 56));
 
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_lld, MEMSUFFIX) (void)
@@ -363,7 +363,7 @@ void glue(op_lld, MEMSUFFIX) (void)
     T1 = T0;
     T0 = glue(ldq, MEMSUFFIX)(T0);
     env->CP0_LLAddr = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_scd, MEMSUFFIX) (void)
@@ -379,37 +379,37 @@ void glue(op_scd, MEMSUFFIX) (void)
     } else {
         T0 = 0;
     }
-    RETURN();
+    FORCE_RET();
 }
 #endif /* TARGET_MIPS64 */
 
 void glue(op_lwc1, MEMSUFFIX) (void)
 {
     WT0 = glue(ldl, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 void glue(op_swc1, MEMSUFFIX) (void)
 {
     glue(stl, MEMSUFFIX)(T0, WT0);
-    RETURN();
+    FORCE_RET();
 }
 void glue(op_ldc1, MEMSUFFIX) (void)
 {
     DT0 = glue(ldq, MEMSUFFIX)(T0);
-    RETURN();
+    FORCE_RET();
 }
 void glue(op_sdc1, MEMSUFFIX) (void)
 {
     glue(stq, MEMSUFFIX)(T0, DT0);
-    RETURN();
+    FORCE_RET();
 }
 void glue(op_luxc1, MEMSUFFIX) (void)
 {
     DT0 = glue(ldq, MEMSUFFIX)(T0 & ~0x7);
-    RETURN();
+    FORCE_RET();
 }
 void glue(op_suxc1, MEMSUFFIX) (void)
 {
     glue(stq, MEMSUFFIX)(T0 & ~0x7, DT0);
-    RETURN();
+    FORCE_RET();
 }
