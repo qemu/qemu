@@ -56,8 +56,7 @@ static struct pathelem *add_dir_maybe(struct pathelem *path)
 {
     DIR *dir;
 
-    printf("%s(%s)\n", __FUNCTION__, path->pathnam
-  e);
+    printf("%s(%s)\n", __FUNCTION__, path->pathname);
 
     if ((dir = opendir(path->pathname)) != NULL) {
 	struct dirent *dirent;
