@@ -8116,7 +8116,7 @@ int main(int argc, char **argv)
                         }
                         tm.tm_year -= 1900;
                         tm.tm_mon--;
-                        rtc_start_date = timegm(&tm);
+                        rtc_start_date = mktimegm(&tm);
                         if (rtc_start_date == -1) {
                         date_fail:
                             fprintf(stderr, "Invalid date format. Valid format are:\n"
