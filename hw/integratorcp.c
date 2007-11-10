@@ -99,7 +99,7 @@ static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
         return 0;
     default:
         cpu_abort (cpu_single_env,
-            "integratorcm_read: Unimplemented offset 0x%x\n", offset);
+            "integratorcm_read: Unimplemented offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -207,7 +207,7 @@ static void integratorcm_write(void *opaque, target_phys_addr_t offset,
         break;
     default:
         cpu_abort (cpu_single_env,
-            "integratorcm_write: Unimplemented offset 0x%x\n", offset);
+            "integratorcm_write: Unimplemented offset 0x%x\n", (int)offset);
         break;
     }
 }
@@ -414,7 +414,8 @@ static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
     case 3: /* CP_DECODE */
         return 0x11;
     default:
-        cpu_abort (cpu_single_env, "icp_control_read: Bad offset %x\n", offset);
+        cpu_abort (cpu_single_env, "icp_control_read: Bad offset %x\n",
+                   (int)offset);
         return 0;
     }
 }
@@ -431,7 +432,8 @@ static void icp_control_write(void *opaque, target_phys_addr_t offset,
         /* Nothing interesting implemented yet.  */
         break;
     default:
-        cpu_abort (cpu_single_env, "icp_control_write: Bad offset %x\n", offset);
+        cpu_abort (cpu_single_env, "icp_control_write: Bad offset %x\n",
+                   (int)offset);
     }
 }
 static CPUReadMemoryFunc *icp_control_readfn[] = {
