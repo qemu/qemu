@@ -723,7 +723,6 @@ void cpu_ppc_reset (void *opaque);
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 const ppc_def_t *cpu_ppc_find_by_name (const unsigned char *name);
-const ppc_def_t *cpu_ppc_find_by_pvr (uint32_t pvr);
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
