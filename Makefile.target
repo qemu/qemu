@@ -508,7 +508,7 @@ VL_OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 VL_OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
-VL_OBJS+= m68k-semi.o
+VL_OBJS+= m68k-semi.o dummy_m68k.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o

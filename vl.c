@@ -7400,6 +7400,7 @@ void register_machines(void)
 #elif defined(TARGET_M68K)
     qemu_register_machine(&mcf5208evb_machine);
     qemu_register_machine(&an5206_machine);
+    qemu_register_machine(&dummy_m68k_machine);
 #elif defined(TARGET_CRIS)
     qemu_register_machine(&bareetraxfs_machine);
 #else

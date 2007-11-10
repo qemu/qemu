@@ -1719,6 +1719,9 @@ extern QEMUMachine an5206_machine;
 /* mcf5208.c */
 extern QEMUMachine mcf5208evb_machine;
 
+/* dummy_m68k.c */
+extern QEMUMachine dummy_m68k_machine;
+
 #include "gdbstub.h"
 
 #endif /* defined(QEMU_TOOL) */
