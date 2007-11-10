@@ -54,6 +54,8 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
 } DisasContext;
 
+typedef struct sparc_def_t sparc_def_t;
+
 struct sparc_def_t {
     const unsigned char *name;
     target_ulong iu_version;
@@ -61,6 +63,8 @@ struct sparc_def_t {
     uint32_t mmu_version;
     uint32_t mmu_bm;
 };
+
+static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name);
 
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
@@ -3489,15 +3493,36 @@ void cpu_reset(CPUSPARCState *env)
 #endif
 }
 
-CPUSPARCState *cpu_sparc_init(void)
+CPUSPARCState *cpu_sparc_init(const char *cpu_model)
 {
     CPUSPARCState *env;
+    const sparc_def_t *def;
+
+    def = cpu_sparc_find_by_name(cpu_model);
+    if (!def)
+        return NULL;
 
     env = qemu_mallocz(sizeof(CPUSPARCState));
     if (!env)
         return NULL;
     cpu_exec_init(env);
-    return (env);
+    env->version = def->iu_version;
+    env->fsr = def->fpu_version;
+#if !defined(TARGET_SPARC64)
+    env->mmu_bm = def->mmu_bm;
+    env->mmuregs[0] |= def->mmu_version;
+    cpu_sparc_set_id(env, 0);
+#endif
+    cpu_reset(env);
+    
+    return env;
+}
+
+void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu)
+{
+#if !defined(TARGET_SPARC64)
+    env->mxccregs[7] = ((cpu + 8) & 0xf) << 24;
+#endif
 }
 
 static const sparc_def_t sparc_defs[] = {
@@ -3744,22 +3769,16 @@ static const sparc_def_t sparc_defs[] = {
 #endif
 };
 
-int sparc_find_by_name(const unsigned char *name, const sparc_def_t **def)
+static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name)
 {
-    int ret;
     unsigned int i;
 
-    ret = -1;
-    *def = NULL;
     for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
         if (strcasecmp(name, sparc_defs[i].name) == 0) {
-            *def = &sparc_defs[i];
-            ret = 0;
-            break;
+            return &sparc_defs[i];
         }
     }
-
-    return ret;
+    return NULL;
 }
 
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
@@ -3773,19 +3792,6 @@ void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
                        sparc_defs[i].fpu_version,
                        sparc_defs[i].mmu_version);
     }
-}
-
-int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def, unsigned int cpu)
-{
-    env->version = def->iu_version;
-    env->fsr = def->fpu_version;
-#if !defined(TARGET_SPARC64)
-    env->mmu_bm = def->mmu_bm;
-    env->mmuregs[0] |= def->mmu_version;
-    env->mxccregs[7] = ((cpu + 8) & 0xf) << 24;
-#endif
-    cpu_reset(env);
-    return 0;
 }
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')

@@ -4620,14 +4620,19 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             qemu_mallocz(sizeof(struct omap_mpu_state_s));
     ram_addr_t imif_base, emiff_base;
+    
+    if (!core)
+        core = "ti925t";
 
     /* Core */
     s->mpu_model = omap310;
-    s->env = cpu_init();
+    s->env = cpu_init(core);
+    if (!s->env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     s->sdram_size = sdram_size;
     s->sram_size = OMAP15XX_SRAM_SIZE;
-
-    cpu_arm_set_model(s->env, core ?: "ti925t");
 
     s->wakeup = qemu_allocate_irqs(omap_mpu_wakeup, s, 1)[0];
 

@@ -5,6 +5,8 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+static uint32_t cpu_arm_find_by_name(const char *name);
+
 static inline void set_feature(CPUARMState *env, int feature)
 {
     env->features |= 1u << feature;
@@ -89,14 +91,19 @@ void cpu_reset(CPUARMState *env)
     tlb_flush(env, 1);
 }
 
-CPUARMState *cpu_arm_init(void)
+CPUARMState *cpu_arm_init(const char *cpu_model)
 {
     CPUARMState *env;
+    uint32_t id;
 
+    id = cpu_arm_find_by_name(cpu_model);
+    if (id == 0)
+        return NULL;
     env = qemu_mallocz(sizeof(CPUARMState));
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    env->cp15.c0_cpuid = id;
     cpu_reset(env);
     return env;
 }
@@ -136,24 +143,20 @@ void arm_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     }
 }
 
-void cpu_arm_set_model(CPUARMState *env, const char *name)
+/* return 0 if not found */
+static uint32_t cpu_arm_find_by_name(const char *name)
 {
     int i;
     uint32_t id;
 
     id = 0;
-    i = 0;
     for (i = 0; arm_cpu_names[i].name; i++) {
         if (strcmp(name, arm_cpu_names[i].name) == 0) {
             id = arm_cpu_names[i].id;
             break;
         }
     }
-    if (!id) {
-        cpu_abort(env, "Unknown CPU '%s'", name);
-        return;
-    }
-    cpu_reset_model_id(env, id);
+    return id;
 }
 
 void cpu_arm_close(CPUARMState *env)

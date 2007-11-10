@@ -313,21 +313,19 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     CPUState *env, *envs[MAX_CPUS];
     unsigned int i;
     void *iommu, *espdma, *ledma, *main_esp, *nvram;
-    const sparc_def_t *def;
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
 
     /* init CPUs */
-    sparc_find_by_name(cpu_model, &def);
-    if (def == NULL) {
-        fprintf(stderr, "Unable to find Sparc CPU definition\n");
-        exit(1);
-    }
 
     for(i = 0; i < smp_cpus; i++) {
-        env = cpu_init();
-        cpu_sparc_register(env, def, i);
+        env = cpu_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to find Sparc CPU definition\n");
+            exit(1);
+        }
+        cpu_sparc_set_id(env, i);
         envs[i] = env;
         if (i == 0) {
             qemu_register_reset(main_cpu_reset, env);

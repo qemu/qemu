@@ -396,7 +396,7 @@ enum {
     IR_ZERO = 31,
 };
 
-CPUAlphaState * cpu_alpha_init (void);
+CPUAlphaState * cpu_alpha_init (const char *cpu_model);
 int cpu_alpha_exec(CPUAlphaState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero

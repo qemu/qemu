@@ -35,7 +35,14 @@ static void r2d_init(int ram_size, int vga_ram_size, const char *boot_device,
     CPUState *env;
     struct SH7750State *s;
 
-    env = cpu_init();
+    if (!cpu_model)
+        cpu_model = "any";
+
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
 
     /* Allocate memory space */
     cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, 0);

@@ -165,8 +165,6 @@
 /* 2 <= NWINDOWS <= 32. In QEMU it must also be a power of two. */
 #define NWINDOWS  8
 
-typedef struct sparc_def_t sparc_def_t;
-
 #if !defined(TARGET_SPARC64)
 #define NB_MMU_MODES 2
 #else
@@ -270,14 +268,12 @@ typedef struct CPUSPARCState {
     } while (0)
 #endif
 
-CPUSPARCState *cpu_sparc_init(void);
+CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 int cpu_sparc_exec(CPUSPARCState *s);
 int cpu_sparc_close(CPUSPARCState *s);
-int sparc_find_by_name (const unsigned char *name, const sparc_def_t **def);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
-int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def,
-                        unsigned int cpu);
+void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 
 #define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
                       (env->psref? PSR_EF : 0) |                        \

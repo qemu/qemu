@@ -53,7 +53,6 @@
    Define a major version 1, minor version 0. */
 #define MIPS_FCR0 ((0 << FCR0_S) | (0x1 << FCR0_PRID) | (0x10 << FCR0_REV))
 
-
 struct mips_def_t {
     const unsigned char *name;
     int32_t CP0_PRid;
@@ -300,21 +299,16 @@ static mips_def_t mips_defs[] =
 #endif
 };
 
-int mips_find_by_name (const unsigned char *name, mips_def_t **def)
+static const mips_def_t *cpu_mips_find_by_name (const unsigned char *name)
 {
-    int i, ret;
+    int i;
 
-    ret = -1;
-    *def = NULL;
     for (i = 0; i < sizeof(mips_defs) / sizeof(mips_defs[0]); i++) {
         if (strcasecmp(name, mips_defs[i].name) == 0) {
-            *def = &mips_defs[i];
-            ret = 0;
-            break;
+            return &mips_defs[i];
         }
     }
-
-    return ret;
+    return NULL;
 }
 
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
@@ -328,19 +322,19 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 }
 
 #ifndef CONFIG_USER_ONLY
-static void no_mmu_init (CPUMIPSState *env, mips_def_t *def)
+static void no_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1;
     env->tlb->map_address = &no_mmu_map_address;
 }
 
-static void fixed_mmu_init (CPUMIPSState *env, mips_def_t *def)
+static void fixed_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1;
     env->tlb->map_address = &fixed_mmu_map_address;
 }
 
-static void r4k_mmu_init (CPUMIPSState *env, mips_def_t *def)
+static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
     env->tlb->map_address = &r4k_map_address;
@@ -350,7 +344,7 @@ static void r4k_mmu_init (CPUMIPSState *env, mips_def_t *def)
     env->tlb->do_tlbr = r4k_do_tlbr;
 }
 
-static void mmu_init (CPUMIPSState *env, mips_def_t *def)
+static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb = qemu_mallocz(sizeof(CPUMIPSTLBContext));
 
@@ -376,7 +370,7 @@ static void mmu_init (CPUMIPSState *env, mips_def_t *def)
 }
 #endif /* CONFIG_USER_ONLY */
 
-static void fpu_init (CPUMIPSState *env, mips_def_t *def)
+static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->fpu = qemu_mallocz(sizeof(CPUMIPSFPUContext));
 
@@ -389,7 +383,7 @@ static void fpu_init (CPUMIPSState *env, mips_def_t *def)
 #endif
 }
 
-static void mvp_init (CPUMIPSState *env, mips_def_t *def)
+static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->mvp = qemu_mallocz(sizeof(CPUMIPSMVPContext));
 
@@ -415,13 +409,8 @@ static void mvp_init (CPUMIPSState *env, mips_def_t *def)
                              (0x1 << CP0MVPC1_PCP1);
 }
 
-int cpu_mips_register (CPUMIPSState *env, mips_def_t *def)
+static int cpu_mips_register (CPUMIPSState *env, const mips_def_t *def)
 {
-    if (!def)
-        def = env->cpu_model;
-    if (!def)
-        cpu_abort(env, "Unable to find MIPS CPU definition\n");
-    env->cpu_model = def;
     env->CP0_PRid = def->CP0_PRid;
     env->CP0_Config0 = def->CP0_Config0;
 #ifdef TARGET_WORDS_BIGENDIAN

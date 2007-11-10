@@ -94,7 +94,6 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-    cpu_mips_register(env, NULL);
 
     if (loaderparams.kernel_filename)
         load_kernel (env);
@@ -120,10 +119,11 @@ mips_mipssim_init (int ram_size, int vga_ram_size, const char *boot_device,
         cpu_model = "24Kf";
 #endif
     }
-    if (mips_find_by_name(cpu_model, &def) != 0)
-        def = NULL;
-    env = cpu_init();
-    cpu_mips_register(env, def);
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 

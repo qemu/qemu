@@ -735,7 +735,6 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-    cpu_mips_register(env, NULL);
 
     /* The bootload does not need to be rewritten as it is located in a
        read only location. The kernel location and the arguments table
@@ -761,7 +760,6 @@ void mips_malta_init (int ram_size, int vga_ram_size, const char *boot_device,
     /* fdctrl_t *floppy_controller; */
     MaltaFPGAState *malta_fpga;
     int ret;
-    mips_def_t *def;
     qemu_irq *i8259;
     int piix4_devfn;
     uint8_t *eeprom_buf;
@@ -776,10 +774,11 @@ void mips_malta_init (int ram_size, int vga_ram_size, const char *boot_device,
         cpu_model = "24Kf";
 #endif
     }
-    if (mips_find_by_name(cpu_model, &def) != 0)
-        def = NULL;
-    env = cpu_init();
-    cpu_mips_register(env, def);
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 

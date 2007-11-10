@@ -473,10 +473,13 @@ static void integratorcp_init(int ram_size, int vga_ram_size,
     qemu_irq *pic;
     qemu_irq *cpu_pic;
 
-    env = cpu_init();
     if (!cpu_model)
         cpu_model = "arm926";
-    cpu_arm_set_model(env, cpu_model);
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     bios_offset = ram_size + vga_ram_size;
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM shoud repeat to fill physical memory space.  */

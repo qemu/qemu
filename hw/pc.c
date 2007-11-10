@@ -700,12 +700,12 @@ static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
 #endif
     }
     
-    if (x86_find_cpu_by_name(cpu_model)) {
-        fprintf(stderr, "Unable to find x86 CPU definition\n");
-        exit(1);
-    }
     for(i = 0; i < smp_cpus; i++) {
-        env = cpu_init();
+        env = cpu_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to find x86 CPU definition\n");
+            exit(1);
+        }
         if (i != 0)
             env->hflags |= HF_HALTED_MASK;
         if (smp_cpus > 1) {

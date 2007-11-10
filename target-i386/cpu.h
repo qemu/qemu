@@ -585,10 +585,9 @@ typedef struct CPUX86State {
     struct APICState *apic_state;
 } CPUX86State;
 
-CPUX86State *cpu_x86_init(void);
+CPUX86State *cpu_x86_init(const char *cpu_model);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
-int x86_find_cpu_by_name (const unsigned char *name);
 void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
 int cpu_get_pic_interrupt(CPUX86State *s);

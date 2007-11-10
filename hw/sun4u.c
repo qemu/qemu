@@ -343,7 +343,6 @@ static void sun4u_init(int ram_size, int vga_ram_size, const char *boot_device,
     unsigned int i;
     long prom_offset, initrd_size, kernel_size;
     PCIBus *pci_bus;
-    const sparc_def_t *def;
     QEMUBH *bh;
     qemu_irq *irq;
 
@@ -352,13 +351,11 @@ static void sun4u_init(int ram_size, int vga_ram_size, const char *boot_device,
     /* init CPUs */
     if (cpu_model == NULL)
         cpu_model = "TI UltraSparc II";
-    sparc_find_by_name(cpu_model, &def);
-    if (def == NULL) {
+    env = cpu_init(cpu_model);
+    if (!env) {
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
         exit(1);
     }
-    env = cpu_init();
-    cpu_sparc_register(env, def, 0);
     bh = qemu_bh_new(tick_irq, env);
     env->tick = ptimer_init(bh);
     ptimer_set_period(env->tick, 1ULL);

@@ -675,7 +675,7 @@ struct mmu_ctx_t {
 };
 
 /*****************************************************************************/
-CPUPPCState *cpu_ppc_init (void);
+CPUPPCState *cpu_ppc_init (const char *cpu_model);
 int cpu_ppc_exec (CPUPPCState *s);
 void cpu_ppc_close (CPUPPCState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
@@ -719,13 +719,12 @@ void ppc_store_xer (CPUPPCState *env, target_ulong value);
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void cpu_ppc_reset (void *opaque);
-CPUPPCState *cpu_ppc_init (void);
-void cpu_ppc_close(CPUPPCState *env);
 
-int ppc_find_by_name (const unsigned char *name, ppc_def_t **def);
-int ppc_find_by_pvr (uint32_t apvr, ppc_def_t **def);
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def);
+
+const ppc_def_t *cpu_ppc_find_by_name (const unsigned char *name);
+const ppc_def_t *cpu_ppc_find_by_pvr (uint32_t pvr);
+int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS

@@ -70,9 +70,12 @@ static void shix_init(int ram_size, int vga_ram_size, const char *boot_device,
     int ret;
     CPUState *env;
     struct SH7750State *s;
+    
+    if (!cpu_model)
+        cpu_model = "any";
 
     printf("Initializing CPU\n");
-    env = cpu_init();
+    env = cpu_init(cpu_model);
 
     /* Allocate memory space */
     printf("Allocating ROM\n");

@@ -3279,38 +3279,6 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_reset(CPUM68KState *env)
-{
-    memset(env, 0, offsetof(CPUM68KState, breakpoints));
-#if !defined (CONFIG_USER_ONLY)
-    env->sr = 0x2700;
-#endif
-    m68k_switch_sp(env);
-    /* ??? FP regs should be initialized to NaN.  */
-    env->cc_op = CC_OP_FLAGS;
-    /* TODO: We should set PC from the interrupt vector.  */
-    env->pc = 0;
-    tlb_flush(env, 1);
-}
-
-CPUM68KState *cpu_m68k_init(void)
-{
-    CPUM68KState *env;
-
-    env = malloc(sizeof(CPUM68KState));
-    if (!env)
-        return NULL;
-    cpu_exec_init(env);
-
-    cpu_reset(env);
-    return env;
-}
-
-void cpu_m68k_close(CPUM68KState *env)
-{
-    free(env);
-}
-
 void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)

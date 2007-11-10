@@ -141,7 +141,7 @@ void cpu_sh4_reset(CPUSH4State * env)
     env->mmucr = 0;
 }
 
-CPUSH4State *cpu_sh4_init(void)
+CPUSH4State *cpu_sh4_init(const char *cpu_model)
 {
     CPUSH4State *env;
 

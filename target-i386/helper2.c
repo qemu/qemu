@@ -31,9 +31,7 @@
 
 //#define DEBUG_MMU
 
-static struct x86_def_t *x86_cpu_def;
-typedef struct x86_def_t x86_def_t;
-static int cpu_x86_register (CPUX86State *env, const x86_def_t *def);
+static int cpu_x86_register (CPUX86State *env, const char *cpu_model);
 
 static void add_flagname_to_bitmaps(char *flagname, uint32_t *features, 
                                     uint32_t *ext_features, 
@@ -92,7 +90,7 @@ static void add_flagname_to_bitmaps(char *flagname, uint32_t *features,
     fprintf(stderr, "CPU feature %s not found\n", flagname);
 }
 
-CPUX86State *cpu_x86_init(void)
+CPUX86State *cpu_x86_init(const char *cpu_model)
 {
     CPUX86State *env;
     static int inited;
@@ -107,7 +105,10 @@ CPUX86State *cpu_x86_init(void)
         inited = 1;
         optimize_flags_init();
     }
-    cpu_x86_register(env, x86_cpu_def);
+    if (cpu_x86_register(env, cpu_model) < 0) {
+        cpu_x86_close(env);
+        return NULL;
+    }
     cpu_reset(env);
 #ifdef USE_KQEMU
     kqemu_init(env);
@@ -115,7 +116,7 @@ CPUX86State *cpu_x86_init(void)
     return env;
 }
 
-struct x86_def_t {
+typedef struct x86_def_t {
     const char *name;
     uint32_t vendor1, vendor2, vendor3;
     int family;
@@ -123,7 +124,7 @@ struct x86_def_t {
     int stepping;
     uint32_t features, ext_features, ext2_features, ext3_features;
     uint32_t xlevel;
-};
+} x86_def_t;
 
 #define PPRO_FEATURES (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | \
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
@@ -194,10 +195,10 @@ static x86_def_t x86_defs[] = {
     },
 };
 
-int x86_find_cpu_by_name(const unsigned char *cpu_model)
+static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 {
-    int ret;
     unsigned int i;
+    x86_def_t *def;
 
     char *s = strdup(cpu_model);
     char *featurestr, *name = strtok(s, ",");
@@ -205,17 +206,16 @@ int x86_find_cpu_by_name(const unsigned char *cpu_model)
     uint32_t minus_features = 0, minus_ext_features = 0, minus_ext2_features = 0, minus_ext3_features = 0;
     int family = -1, model = -1, stepping = -1;
 
-    ret = -1;
-    x86_cpu_def = NULL;
+    def = NULL;
     for (i = 0; i < sizeof(x86_defs) / sizeof(x86_def_t); i++) {
         if (strcmp(name, x86_defs[i].name) == 0) {
-            x86_cpu_def = &x86_defs[i];
-            ret = 0;
+            def = &x86_defs[i];
             break;
         }
     }
-    if (!x86_cpu_def)
+    if (!def)
         goto error;
+    memcpy(x86_cpu_def, def, sizeof(*def));
 
     featurestr = strtok(NULL, ",");
 
@@ -274,10 +274,12 @@ int x86_find_cpu_by_name(const unsigned char *cpu_model)
     x86_cpu_def->ext_features &= ~minus_ext_features;
     x86_cpu_def->ext2_features &= ~minus_ext2_features;
     x86_cpu_def->ext3_features &= ~minus_ext3_features;
+    free(s);
+    return 0;
 
 error:
     free(s);
-    return ret;
+    return -1;
 }
 
 void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
@@ -288,8 +290,12 @@ void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
         (*cpu_fprintf)(f, "x86 %16s\n", x86_defs[i].name);
 }
 
-int cpu_x86_register (CPUX86State *env, const x86_def_t *def)
+static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
 {
+    x86_def_t def1, *def = &def1;
+
+    if (cpu_x86_find_by_name(def, cpu_model) < 0)
+        return -1;
     if (def->vendor1) {
         env->cpuid_vendor1 = def->vendor1;
         env->cpuid_vendor2 = def->vendor2;

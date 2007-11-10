@@ -56,14 +56,13 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
                              const char *initrd_filename,
                              const char *cpu_model)
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *env = NULL, *envs[MAX_CPUS];
     char buf[1024];
     qemu_irq *pic, **openpic_irqs;
     int unin_memory;
     int linux_boot, i;
     unsigned long bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
-    ppc_def_t *def;
     PCIBus *pci_bus;
     nvram_t nvram;
 #if 0
@@ -80,16 +79,14 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
-    env = cpu_init();
     if (cpu_model == NULL)
         cpu_model = "default";
-    ppc_find_by_name(cpu_model, &def);
-    if (def == NULL) {
-        cpu_abort(env, "Unable to find PowerPC CPU definition\n");
-    }
     for (i = 0; i < smp_cpus; i++) {
-        cpu_ppc_register(env, def);
-        cpu_ppc_reset(env);
+        env = cpu_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to find PowerPC CPU definition\n");
+            exit(1);
+        }
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
 #if 0
