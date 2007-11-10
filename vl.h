@@ -787,6 +787,22 @@ void readline_start(const char *prompt, int is_password,
 
 void kqemu_record_dump(void);
 
+/* sdl.c */
+void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
+
+/* cocoa.m */
+void cocoa_display_init(DisplayState *ds, int full_screen);
+
+/* vnc.c */
+void vnc_display_init(DisplayState *ds);
+void vnc_display_close(DisplayState *ds);
+int vnc_display_open(DisplayState *ds, const char *display);
+int vnc_display_password(DisplayState *ds, const char *password);
+void do_info_vnc(void);
+
+/* x_keymap.c */
+extern uint8_t _translate_keycode(const int key);
+
 #ifndef QEMU_TOOL
 
 typedef void QEMUMachineInitFunc(int ram_size, int vga_ram_size,
@@ -993,22 +1009,6 @@ void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
 /* vmware_vga.c */
 void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
                      unsigned long vga_ram_offset, int vga_ram_size);
-
-/* sdl.c */
-void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
-
-/* cocoa.m */
-void cocoa_display_init(DisplayState *ds, int full_screen);
-
-/* vnc.c */
-void vnc_display_init(DisplayState *ds);
-void vnc_display_close(DisplayState *ds);
-int vnc_display_open(DisplayState *ds, const char *display);
-int vnc_display_password(DisplayState *ds, const char *password);
-void do_info_vnc(void);
-
-/* x_keymap.c */
-extern uint8_t _translate_keycode(const int key);
 
 /* ide.c */
 #define MAX_DISKS 4
