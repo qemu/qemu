@@ -24,6 +24,8 @@
 #ifndef BLOCK_INT_H
 #define BLOCK_INT_H
 
+#include "block.h"
+
 #define BLOCK_FLAG_ENCRYPT	1
 #define BLOCK_FLAG_COMPRESS	2
 #define BLOCK_FLAG_COMPAT6	4
@@ -132,5 +134,7 @@ void get_tmp_filename(char *filename, int size);
 void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
                    void *opaque);
 void qemu_aio_release(void *p);
+
+BlockDriverState *bdrv_first;
 
 #endif /* BLOCK_INT_H */

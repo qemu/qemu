@@ -21,15 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifdef QEMU_IMG
+#include "qemu-common.h"
+#else
 #include "vl.h"
+#endif
 #include "block_int.h"
 #include <assert.h>
 #ifndef _WIN32
 #include <aio.h>
-
-#ifndef QEMU_TOOL
-#include "exec-all.h"
-#endif
 
 #ifdef CONFIG_COCOA
 #include <paths.h>
@@ -59,8 +59,9 @@
 
 //#define DEBUG_FLOPPY
 
-#define DEBUG_BLOCK
-#if defined(DEBUG_BLOCK) && !defined(QEMU_TOOL)
+//#define DEBUG_BLOCK
+#if defined(DEBUG_BLOCK) && !defined(QEMU_IMG)
+#include "exec-all.h"
 #define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
     { fprintf(logfile, formatCstr, ##args); fflush(logfile); } } while (0)
 #else
@@ -242,7 +243,7 @@ static int aio_initialized = 0;
 
 static void aio_signal_handler(int signum)
 {
-#ifndef QEMU_TOOL
+#ifndef QEMU_IMG
     CPUState *env = cpu_single_env;
     if (env) {
         /* stop the currently executing cpu because a timer occured */
@@ -352,7 +353,7 @@ void qemu_aio_wait(void)
     sigset_t set;
     int nb_sigs;
 
-#ifndef QEMU_TOOL
+#ifndef QEMU_IMG
     if (qemu_bh_poll())
         return;
 #endif
@@ -693,7 +694,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 }
 
-#if defined(__linux__) && !defined(QEMU_TOOL)
+#if defined(__linux__) && !defined(QEMU_IMG)
 
 /* Note: we do not have a reliable method to detect if the floppy is
    present. The current method is to try to open the floppy at every
@@ -976,7 +977,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     } else {
         create_flags = OPEN_EXISTING;
     }
-#ifdef QEMU_TOOL
+#ifdef QEMU_IMG
     overlapped = FILE_ATTRIBUTE_NORMAL;
 #else
     overlapped = FILE_FLAG_OVERLAPPED;
@@ -1039,7 +1040,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 }
 
 #if 0
-#ifndef QEMU_TOOL
+#ifndef QEMU_IMG
 static void raw_aio_cb(void *opaque)
 {
     RawAIOCB *acb = opaque;
@@ -1078,7 +1079,7 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     acb->ov.OffsetHigh = offset >> 32;
     acb->ov.hEvent = acb->hEvent;
     acb->count = nb_sectors * 512;
-#ifndef QEMU_TOOL
+#ifndef QEMU_IMG
     qemu_add_wait_object(acb->ov.hEvent, raw_aio_cb, acb);
 #endif
     return acb;
@@ -1100,7 +1101,7 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
         qemu_aio_release(acb);
         return NULL;
     }
-#ifdef QEMU_TOOL
+#ifdef QEMU_IMG
     qemu_aio_release(acb);
 #endif
     return (BlockDriverAIOCB *)acb;
@@ -1122,7 +1123,7 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
         qemu_aio_release(acb);
         return NULL;
     }
-#ifdef QEMU_TOOL
+#ifdef QEMU_IMG
     qemu_aio_release(acb);
 #endif
     return (BlockDriverAIOCB *)acb;
@@ -1130,7 +1131,7 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
 
 static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
 {
-#ifndef QEMU_TOOL
+#ifndef QEMU_IMG
     RawAIOCB *acb = (RawAIOCB *)blockacb;
     BlockDriverState *bs = acb->common.bs;
     BDRVRawState *s = bs->opaque;
@@ -1238,7 +1239,7 @@ void qemu_aio_wait_start(void)
 
 void qemu_aio_wait(void)
 {
-#ifndef QEMU_TOOL
+#ifndef QEMU_IMG
     qemu_bh_poll();
 #endif
 }
@@ -1344,7 +1345,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     }
     create_flags = OPEN_EXISTING;
 
-#ifdef QEMU_TOOL
+#ifdef QEMU_IMG
     overlapped = FILE_ATTRIBUTE_NORMAL;
 #else
     overlapped = FILE_FLAG_OVERLAPPED;

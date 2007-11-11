@@ -24,7 +24,7 @@ TARGET_BASE_ARCH:=sparc
 endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
-CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MP
+CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MP -DNEED_CPU_H
 ifdef CONFIG_DARWIN_USER
 VPATH+=:$(SRC_PATH)/darwin-user
 CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
@@ -398,7 +398,7 @@ endif
 # must use static linking to avoid leaving stuff in virtual address space
 VL_OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o
 # XXX: suppress QEMU_TOOL tests
-VL_OBJS+=block.o block-raw.o
+VL_OBJS+=block-raw.o
 VL_OBJS+=irq.o
 
 ifdef CONFIG_ALSA
