@@ -81,14 +81,18 @@ print_fdset(int n, target_ulong target_fds_addr)
 
     gemu_log("[");
     if( target_fds_addr ) {
-        target_long *target_fds;
+        abi_long *target_fds;
 
-        if (!access_ok(VERIFY_READ, target_fds_addr, sizeof(*target_fds)*(n / TARGET_LONG_BITS + 1)))
+        target_fds = lock_user(VERIFY_READ,
+                               target_fds_addr,
+                               sizeof(*target_fds)*(n / TARGET_ABI_BITS + 1),
+                               1);
+
+        if (!target_fds)
             return;
 
-        target_fds = lock_user(target_fds_addr, sizeof(*target_fds)*(n / TARGET_LONG_BITS + 1), 1);
         for (i=n; i>=0; i--) {
-            if ((tswapl(target_fds[i / TARGET_LONG_BITS]) >> (i & (TARGET_LONG_BITS - 1))) & 1)
+            if ((tswapl(target_fds[i / TARGET_ABI_BITS]) >> (i & (TARGET_ABI_BITS - 1))) & 1)
                 gemu_log("%d,", i );
             }
         unlock_user(target_fds, target_fds_addr, 0);
@@ -102,10 +106,9 @@ print_timeval(target_ulong tv_addr)
     if( tv_addr ) {
         struct target_timeval *tv;
 
-	if (!access_ok(VERIFY_READ, tv_addr, sizeof(*tv)))
+        tv = lock_user(VERIFY_READ, tv_addr, sizeof(*tv), 1);
+        if (!tv)
             return;
-
-	tv = lock_user(tv_addr, sizeof(*tv), 1);
         gemu_log("{" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "}",
         	 tv->tv_sec, tv->tv_usec);
         unlock_user(tv, tv_addr, 0);
@@ -165,27 +168,25 @@ print_execve(struct syscallname *name,
     target_ulong arg_ptr_addr;
     char *s;
 
-    if (!access_ok(VERIFY_READ, arg1, 1))
+    if (!(s = lock_user_string(arg1)))
         return;
-
-    s = lock_user_string(arg1);
     gemu_log("%s(\"%s\",{", name->name, s);
     unlock_user(s, arg1, 0);
 
     for (arg_ptr_addr = arg2; ; arg_ptr_addr += sizeof(target_ulong)) {
         target_ulong *arg_ptr, arg_addr, s_addr;
 
-        if (!access_ok(VERIFY_READ, arg_ptr_addr, sizeof(target_ulong)))
+	arg_ptr = lock_user(VERIFY_READ, arg_ptr_addr, sizeof(target_ulong), 1);
+        if (!arg_ptr)
             return;
-
-	arg_ptr = lock_user(arg_ptr_addr, sizeof(target_ulong), 1);
 	arg_addr = tswapl(*arg_ptr);
 	unlock_user(arg_ptr, arg_ptr_addr, 0);
         if (!arg_addr)
             break;
-        s = lock_user_string(arg_addr);
-        gemu_log("\"%s\",", s);
-        unlock_user(s, s_addr, 0);
+        if ((s = lock_user_string(arg_addr))) {
+            gemu_log("\"%s\",", s);
+            unlock_user(s, s_addr, 0);
+        }
     }
 
     gemu_log("NULL})");

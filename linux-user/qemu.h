@@ -146,8 +146,8 @@ int load_elf_binary_multi(struct linux_binprm *bprm,
                           struct image_info *info);
 #endif
 
-void memcpy_to_target(abi_ulong dest, const void *src,
-                      unsigned long len);
+abi_long memcpy_to_target(abi_ulong dest, const void *src,
+                          unsigned long len);
 void target_set_brk(abi_ulong new_brk);
 abi_long do_brk(abi_ulong new_brk);
 void syscall_init(void);
@@ -179,9 +179,7 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 long do_sigreturn(CPUState *env);
 long do_rt_sigreturn(CPUState *env);
-int do_sigaltstack(const struct target_sigaltstack *uss,
-                   struct target_sigaltstack *uoss,
-                   abi_ulong sp);
+abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 
 #ifdef TARGET_I386
 /* vm86.c */
@@ -207,12 +205,15 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 /* user access */
 
 #define VERIFY_READ 0
-#define VERIFY_WRITE 1
+#define VERIFY_WRITE 1 /* implies read access */
 
 #define access_ok(type,addr,size) \
     (page_check_range((target_ulong)addr,size,(type==VERIFY_READ)?PAGE_READ:PAGE_WRITE)==0)
 
 /* NOTE __get_user and __put_user use host pointers and don't check access. */
+/* These are usually used to access struct data members once the
+ * struct has been locked - usually with lock_user_struct().
+ */
 #define __put_user(x, hptr)\
 ({\
     int size = sizeof(*hptr);\
@@ -257,25 +258,43 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
     0;\
 })
 
-#define put_user(x,ptr)\
-({\
-    int __ret;\
-    if (access_ok(VERIFY_WRITE, ptr, sizeof(*ptr)))\
-        __ret = __put_user(x, ptr);\
-    else\
-        __ret = -EFAULT;\
-    __ret;\
+/* put_user()/get_user() take a guest address and check access */
+/* These are usually used to access an atomic data type, such as an int,
+ * that has been passed by address.  These internally perform locking
+ * and unlocking on the data type.
+ */
+#define put_user(x, gaddr, target_type)					\
+({									\
+    abi_ulong __gaddr = (gaddr);					\
+    target_type *__hptr;						\
+    abi_long __ret;							\
+    if ((__hptr = lock_user(VERIFY_WRITE, __gaddr, sizeof(target_type), 0))) { \
+        __ret = __put_user((x), __hptr);				\
+        unlock_user(__hptr, __gaddr, sizeof(target_type));		\
+    } else								\
+        __ret = -TARGET_EFAULT;						\
+    __ret;								\
 })
 
-#define get_user(x,ptr)\
-({\
-    int __ret;\
-    if (access_ok(VERIFY_READ, ptr, sizeof(*ptr)))\
-        __ret = __get_user(x, ptr);\
-    else\
-        __ret = -EFAULT;\
-    __ret;\
+#define get_user(x, gaddr, target_type)					\
+({									\
+    abi_ulong __gaddr = (gaddr);					\
+    target_type *__hptr;						\
+    abi_long __ret;							\
+    if ((__hptr = lock_user(VERIFY_READ, __gaddr, sizeof(target_type), 1))) { \
+        __ret = __get_user((x), __hptr);				\
+        unlock_user(__hptr, __gaddr, 0);				\
+    } else								\
+        __ret = -TARGET_EFAULT;						\
+    __ret;								\
 })
+
+/* copy_from_user() and copy_to_user() are usually used to copy data
+ * buffers between the target and host.  These internally perform
+ * locking/unlocking of the memory.
+ */
+abi_long copy_from_user(void *hptr, abi_ulong gaddr, size_t len);
+abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len);
 
 /* Functions for accessing guest memory.  The tget and tput functions
    read/write single values, byteswapping as neccessary.  The lock_user
@@ -285,53 +304,61 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 
 /* Lock an area of guest memory into the host.  If copy is true then the
    host area will have the same contents as the guest.  */
-static inline void *lock_user(abi_ulong guest_addr, long len, int copy)
+static inline void *lock_user(int type, abi_ulong guest_addr, long len, int copy)
 {
+    if (!access_ok(type, guest_addr, len))
+        return NULL;
 #ifdef DEBUG_REMAP
-    void *addr;
-    addr = malloc(len);
-    if (copy)
-        memcpy(addr, g2h(guest_addr), len);
-    else
-        memset(addr, 0, len);
-    return addr;
+    {
+        void *addr;
+        addr = malloc(len);
+        if (copy)
+            memcpy(addr, g2h(guest_addr), len);
+        else
+            memset(addr, 0, len);
+        return addr;
+    }
 #else
     return g2h(guest_addr);
 #endif
 }
 
-/* Unlock an area of guest memory.  The first LEN bytes must be flushed back
-   to guest memory.  */
-static inline void unlock_user(void *host_addr, abi_ulong guest_addr,
+/* Unlock an area of guest memory.  The first LEN bytes must be
+   flushed back to guest memory. host_ptr = NULL is explicitely
+   allowed and does nothing. */
+static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
                                long len)
 {
+
 #ifdef DEBUG_REMAP
-    if (host_addr == g2h(guest_addr))
+    if (!host_ptr)
+        return;
+    if (host_ptr == g2h(guest_addr))
         return;
     if (len > 0)
-        memcpy(g2h(guest_addr), host_addr, len);
-    free(host_addr);
+        memcpy(g2h(guest_ptr), host_ptr, len);
+    free(host_ptr);
 #endif
 }
 
-/* Return the length of a string in target memory.  */
-static inline int target_strlen(abi_ulong ptr)
-{
-  return strlen(g2h(ptr));
-}
+/* Return the length of a string in target memory or -TARGET_EFAULT if
+   access error. */
+abi_long target_strlen(abi_ulong gaddr);
 
 /* Like lock_user but for null terminated strings.  */
 static inline void *lock_user_string(abi_ulong guest_addr)
 {
-    long len;
-    len = target_strlen(guest_addr) + 1;
-    return lock_user(guest_addr, len, 1);
+    abi_long len;
+    len = target_strlen(guest_addr);
+    if (len < 0)
+        return NULL;
+    return lock_user(VERIFY_READ, guest_addr, (long)(len + 1), 1);
 }
 
 /* Helper macros for locking/ulocking a target struct.  */
-#define lock_user_struct(host_ptr, guest_addr, copy) \
-    host_ptr = lock_user(guest_addr, sizeof(*host_ptr), copy)
-#define unlock_user_struct(host_ptr, guest_addr, copy) \
+#define lock_user_struct(type, host_ptr, guest_addr, copy)	\
+    (host_ptr = lock_user(type, guest_addr, sizeof(*host_ptr), copy))
+#define unlock_user_struct(host_ptr, guest_addr, copy)		\
     unlock_user(host_ptr, guest_addr, (copy) ? sizeof(*host_ptr) : 0)
 
 #define tget8(addr) ldub(addr)

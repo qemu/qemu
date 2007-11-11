@@ -64,7 +64,9 @@ void save_v86_state(CPUX86State *env)
     TaskState *ts = env->opaque;
     struct target_vm86plus_struct * target_v86;
 
-    lock_user_struct(target_v86, ts->target_v86, 0);
+    if (!lock_user_struct(VERIFY_WRITE, target_v86, ts->target_v86, 0))
+        /* FIXME - should return an error */
+        return;
     /* put the VM86 registers in the userspace register structure */
     target_v86->regs.eax = tswap32(env->regs[R_EAX]);
     target_v86->regs.ebx = tswap32(env->regs[R_EBX]);
@@ -424,7 +426,8 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
     ts->vm86_saved_regs.gs = env->segs[R_GS].selector;
 
     ts->target_v86 = vm86_addr;
-    lock_user_struct(target_v86, vm86_addr, 1);
+    if (!lock_user_struct(VERIFY_READ, target_v86, vm86_addr, 1))
+        return -EFAULT;
     /* build vm86 CPU state */
     ts->v86flags = tswap32(target_v86->regs.eflags);
     env->eflags = (env->eflags & ~SAFE_MASK) |

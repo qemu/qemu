@@ -13,14 +13,17 @@
 #define NGROUPS 32
 
 /* ??? This should really be somewhere else.  */
-void memcpy_to_target(abi_ulong dest, const void *src,
-                      unsigned long len)
+abi_long memcpy_to_target(abi_ulong dest, const void *src,
+                          unsigned long len)
 {
     void *host_ptr;
 
-    host_ptr = lock_user(dest, len, 0);
+    host_ptr = lock_user(VERIFY_WRITE, dest, len, 0);
+    if (!host_ptr)
+        return -TARGET_EFAULT;
     memcpy(host_ptr, src, len);
     unlock_user(host_ptr, dest, 1);
+    return 0;
 }
 
 static int in_group_p(gid_t g)

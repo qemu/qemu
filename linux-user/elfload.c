@@ -677,7 +677,7 @@ static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
     for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
 	if (bprm->page[i]) {
 	    info->rss++;
-
+            /* FIXME - check return value of memcpy_to_target() for failure */
 	    memcpy_to_target(stack_base, bprm->page[i], TARGET_PAGE_SIZE);
 	    free(bprm->page[i]);
 	}
@@ -760,6 +760,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
             size_t len = strlen(k_platform) + 1;
             sp -= (len + n - 1) & ~(n - 1);
             u_platform = sp;
+            /* FIXME - check return value of memcpy_to_target() for failure */
             memcpy_to_target(sp, k_platform, len);
         }
 	/*

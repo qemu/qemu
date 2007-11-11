@@ -107,7 +107,9 @@ static void translate_stat(CPUState *env, target_ulong addr, struct stat *s)
 {
     struct m68k_gdb_stat *p;
 
-    p = lock_user(addr, sizeof(struct m68k_gdb_stat), 0);
+    if (!(p = lock_user(VERIFY_WRITE, addr, sizeof(struct m68k_gdb_stat), 0)))
+        /* FIXME - should this return an error code? */
+        return;
     p->gdb_st_dev = cpu_to_be32(s->st_dev);
     p->gdb_st_ino = cpu_to_be32(s->st_ino);
     p->gdb_st_mode = cpu_to_be32(s->st_mode);
@@ -168,9 +170,13 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                            ARG(2), ARG(3));
             return;
         } else {
-            p = lock_user_string(ARG(0));
-            result = open(p, translate_openflags(ARG(2)), ARG(3));
-            unlock_user(p, ARG(0), 0);
+            if (!(p = lock_user_string(ARG(0)))) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = open(p, translate_openflags(ARG(2)), ARG(3));
+                unlock_user(p, ARG(0), 0);
+            }
         }
         break;
     case HOSTED_CLOSE:
@@ -196,9 +202,13 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                            ARG(0), ARG(1), len);
             return;
         } else {
-            p = lock_user(ARG(1), len, 0);
-            result = read(ARG(0), p, len);
-            unlock_user(p, ARG(1), len);
+            if (!(p = lock_user(VERIFY_WRITE, ARG(1), len, 0))) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = read(ARG(0), p, len);
+                unlock_user(p, ARG(1), len);
+            }
         }
         break;
     case HOSTED_WRITE:
@@ -208,9 +218,13 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                            ARG(0), ARG(1), len);
             return;
         } else {
-            p = lock_user(ARG(1), len, 1);
-            result = write(ARG(0), p, len);
-            unlock_user(p, ARG(0), 0);
+            if (!(p = lock_user(VERIFY_READ, ARG(1), len, 1))) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = write(ARG(0), p, len);
+                unlock_user(p, ARG(0), 0);
+            }
         }
         break;
     case HOSTED_LSEEK:
@@ -237,7 +251,12 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         } else {
             p = lock_user_string(ARG(0));
             q = lock_user_string(ARG(2));
-            result = rename(p, q);
+            if (!p || !q) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = rename(p, q);
+            }
             unlock_user(p, ARG(0), 0);
             unlock_user(q, ARG(2), 0);
         }
@@ -248,9 +267,13 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                            ARG(0), (int)ARG(1));
             return;
         } else {
-            p = lock_user_string(ARG(0));
-            result = unlink(p);
-            unlock_user(p, ARG(0), 0);
+            if (!(p = lock_user_string(ARG(0)))) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = unlink(p);
+                unlock_user(p, ARG(0), 0);
+            }
         }
         break;
     case HOSTED_STAT:
@@ -260,9 +283,13 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             return;
         } else {
             struct stat s;
-            p = lock_user_string(ARG(0));
-            result = stat(p, &s);
-            unlock_user(p, ARG(0), 0);
+            if (!(p = lock_user_string(ARG(0)))) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = stat(p, &s);
+                unlock_user(p, ARG(0), 0);
+            }
             if (result == 0) {
                 translate_stat(env, ARG(2), &s);
             }
@@ -291,10 +318,15 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             struct gdb_timeval *p;
             result = qemu_gettimeofday(&tv);
             if (result != 0) {
-                p = lock_user(ARG(0), sizeof(struct gdb_timeval), 0);
-                p->tv_sec = cpu_to_be32(tv.tv_sec);
-                p->tv_usec = cpu_to_be64(tv.tv_usec);
-                unlock_user(p, ARG(0), sizeof(struct gdb_timeval));
+                if (!(p = lock_user(VERIFY_WRITE,
+                                    ARG(0), sizeof(struct gdb_timeval), 0))) {
+                    /* FIXME - check error code? */
+                    result = -1;
+                } else {
+                    p->tv_sec = cpu_to_be32(tv.tv_sec);
+                    p->tv_usec = cpu_to_be64(tv.tv_usec);
+                    unlock_user(p, ARG(0), sizeof(struct gdb_timeval));
+                }
             }
         }
         break;
@@ -312,9 +344,13 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                            ARG(0), (int)ARG(1));
             return;
         } else {
-            p = lock_user_string(ARG(0));
-            result = system(p);
-            unlock_user(p, ARG(0), 0);
+            if (!(p = lock_user_string(ARG(0)))) {
+                /* FIXME - check error code? */
+                result = -1;
+            } else {
+                result = system(p);
+                unlock_user(p, ARG(0), 0);
+            }
         }
         break;
     case HOSTED_INIT_SIM:

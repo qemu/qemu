@@ -260,7 +260,7 @@ endif
 
 ifdef CONFIG_LINUX_USER
 OBJS= main.o syscall.o strace.o mmap.o signal.o path.o osdep.o thunk.o \
-      elfload.o linuxload.o
+      elfload.o linuxload.o uaccess.o
 LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
 OBJS+= flatload.o
