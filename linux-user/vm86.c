@@ -39,22 +39,27 @@ static inline int is_revectored(int nr, struct target_revectored_struct *bitmap)
     return (((uint8_t *)bitmap)[nr >> 3] >> (nr & 7)) & 1;
 }
 
-static inline void vm_putw(uint8_t *segptr, unsigned int reg16, unsigned int val)
+static inline void vm_putw(uint32_t segptr, unsigned int reg16, unsigned int val)
 {
     stw(segptr + (reg16 & 0xffff), val);
 }
 
-static inline void vm_putl(uint8_t *segptr, unsigned int reg16, unsigned int val)
+static inline void vm_putl(uint32_t segptr, unsigned int reg16, unsigned int val)
 {
     stl(segptr + (reg16 & 0xffff), val);
 }
 
-static inline unsigned int vm_getw(uint8_t *segptr, unsigned int reg16)
+static inline unsigned int vm_getb(uint32_t segptr, unsigned int reg16)
+{
+    return ldub(segptr + (reg16 & 0xffff));
+}
+
+static inline unsigned int vm_getw(uint32_t segptr, unsigned int reg16)
 {
     return lduw(segptr + (reg16 & 0xffff));
 }
 
-static inline unsigned int vm_getl(uint8_t *segptr, unsigned int reg16)
+static inline unsigned int vm_getl(uint32_t segptr, unsigned int reg16)
 {
     return ldl(segptr + (reg16 & 0xffff));
 }
@@ -196,8 +201,7 @@ static inline unsigned int get_vflags(CPUX86State *env)
 static void do_int(CPUX86State *env, int intno)
 {
     TaskState *ts = env->opaque;
-    uint32_t *int_ptr, segoffs;
-    uint8_t *ssp;
+    uint32_t int_addr, segoffs, ssp;
     unsigned int sp;
 
     if (env->segs[R_CS].selector == TARGET_BIOSSEG)
@@ -207,8 +211,8 @@ static void do_int(CPUX86State *env, int intno)
     if (intno == 0x21 && is_revectored((env->regs[R_EAX] >> 8) & 0xff,
                                        &ts->vm86plus.int21_revectored))
         goto cannot_handle;
-    int_ptr = (uint32_t *)(intno << 2);
-    segoffs = tswap32(*int_ptr);
+    int_addr = (intno << 2);
+    segoffs = ldl(int_addr);
     if ((segoffs >> 16) == TARGET_BIOSSEG)
         goto cannot_handle;
 #if defined(DEBUG_VM86)
@@ -216,7 +220,7 @@ static void do_int(CPUX86State *env, int intno)
             intno, segoffs >> 16, segoffs & 0xffff);
 #endif
     /* save old state */
-    ssp = (uint8_t *)(env->segs[R_SS].selector << 4);
+    ssp = env->segs[R_SS].selector << 4;
     sp = env->regs[R_ESP] & 0xffff;
     vm_putw(ssp, sp - 2, get_vflags(env));
     vm_putw(ssp, sp - 4, env->segs[R_CS].selector);
@@ -259,26 +263,25 @@ void handle_vm86_trap(CPUX86State *env, int trapno)
 void handle_vm86_fault(CPUX86State *env)
 {
     TaskState *ts = env->opaque;
-    uint8_t *csp, *pc, *ssp;
+    uint32_t csp, ssp;
     unsigned int ip, sp, newflags, newip, newcs, opcode, intno;
     int data32, pref_done;
 
-    csp = (uint8_t *)(env->segs[R_CS].selector << 4);
+    csp = env->segs[R_CS].selector << 4;
     ip = env->eip & 0xffff;
-    pc = csp + ip;
 
-    ssp = (uint8_t *)(env->segs[R_SS].selector << 4);
+    ssp = env->segs[R_SS].selector << 4;
     sp = env->regs[R_ESP] & 0xffff;
 
 #if defined(DEBUG_VM86)
-    fprintf(logfile, "VM86 exception %04x:%08x %02x %02x\n",
-            env->segs[R_CS].selector, env->eip, pc[0], pc[1]);
+    fprintf(logfile, "VM86 exception %04x:%08x\n",
+            env->segs[R_CS].selector, env->eip);
 #endif
 
     data32 = 0;
     pref_done = 0;
     do {
-        opcode = csp[ip];
+        opcode = vm_getb(csp, ip);
         ADD16(ip, 1);
         switch (opcode) {
         case 0x66:      /* 32-bit data */     data32=1; break;
@@ -328,7 +331,7 @@ void handle_vm86_fault(CPUX86State *env)
         VM86_FAULT_RETURN;
 
     case 0xcd: /* int */
-        intno = csp[ip];
+        intno = vm_getb(csp, ip);
         ADD16(ip, 1);
         env->eip = ip;
         if (ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_active) {
