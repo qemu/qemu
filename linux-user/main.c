@@ -1856,7 +1856,8 @@ void usage(void)
            "\n"
            "debug options:\n"
            "-d options   activate log (logfile=%s)\n"
-           "-p pagesize  set the host page size to 'pagesize'\n",
+           "-p pagesize  set the host page size to 'pagesize'\n"
+           "-strace      log system calls\n",
            TARGET_ARCH,
            interp_prefix,
            x86_stack_size,
@@ -1952,6 +1953,8 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(r, "drop-ld-preload")) {
             drop_ld_preload = 1;
+        } else if (!strcmp(r, "strace")) {
+            do_strace = 1;
         } else
         {
             usage();
@@ -2008,8 +2011,8 @@ int main(int argc, char **argv)
     }
     global_env = env;
 
-    if(getenv("QEMU_STRACE") ){
-      do_strace=1;
+    if (getenv("QEMU_STRACE")) {
+        do_strace = 1;
     }
 
     wrk = environ;
