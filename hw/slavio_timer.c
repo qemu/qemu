@@ -125,7 +125,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
         // of counter (user mode)
         slavio_timer_get_out(s);
         if (slavio_timer_is_user(s)) // read user timer LSW
-            ret = s->count & 0xffffffe00;
+            ret = s->count & 0xfffffe00;
         else // read limit
             ret = (s->count & 0x7ffffe00) | s->reached;
         break;
