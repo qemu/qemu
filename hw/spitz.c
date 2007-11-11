@@ -12,7 +12,11 @@
 #define spitz_printf(format, ...)	\
     fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
 #undef REG_FMT
+#if TARGET_PHYS_ADDR_BITS == 32
+#define REG_FMT			"0x%02x"
+#else
 #define REG_FMT			"0x%02lx"
+#endif
 
 /* Spitz Flash */
 #define FLASH_BASE		0x0c000000

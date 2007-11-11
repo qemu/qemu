@@ -203,7 +203,7 @@ struct pxa2xx_i2s_s {
 };
 
 # define PA_FMT			"0x%08lx"
-# define REG_FMT		"0x%lx"
+# define REG_FMT		"0x" TARGET_FMT_plx
 
 struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, DisplayState *ds,
                 const char *revision);
