@@ -191,6 +191,12 @@ void OPPROTO op_move_T2_T0 (void)
     RETURN();
 }
 
+void OPPROTO op_moven_T2_T0 (void)
+{
+    T2 = ~T0;
+    RETURN();
+}
+
 /* Generate exceptions */
 void OPPROTO op_raise_exception_err (void)
 {
@@ -847,26 +853,18 @@ void OPPROTO op_add (void)
 
 void OPPROTO op_check_addo (void)
 {
-    if (likely(!(((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
-                 ((uint32_t)T2 ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
+              ((uint32_t)T2 ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_check_addo_64 (void)
 {
-    if (likely(!(((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
-                 ((uint64_t)T2 ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
+              ((uint64_t)T2 ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     RETURN();
 }
 #endif
@@ -922,6 +920,8 @@ void OPPROTO op_add_me (void)
     T0 += xer_ca + (-1);
     if (likely((uint32_t)T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 
@@ -931,6 +931,8 @@ void OPPROTO op_add_me_64 (void)
     T0 += xer_ca + (-1);
     if (likely((uint64_t)T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 #endif
@@ -1142,32 +1144,6 @@ void OPPROTO op_subf (void)
     RETURN();
 }
 
-void OPPROTO op_check_subfo (void)
-{
-    if (likely(!(((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
-                 ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_check_subfo_64 (void)
-{
-    if (likely(!(((uint64_t)(~T2) ^ (uint64_t)T1 ^ UINT64_MAX) &
-                 ((uint64_t)(~T2) ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
-    RETURN();
-}
-#endif
-
 /* subtract from carrying */
 void OPPROTO op_check_subfc (void)
 {
@@ -1235,8 +1211,10 @@ void OPPROTO op_subfic_64 (void)
 void OPPROTO op_subfme (void)
 {
     T0 = ~T0 + xer_ca - 1;
-    if (likely((uint32_t)T0 != (uint32_t)-1))
+    if (likely((uint32_t)T0 != UINT32_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 
@@ -1244,8 +1222,10 @@ void OPPROTO op_subfme (void)
 void OPPROTO op_subfme_64 (void)
 {
     T0 = ~T0 + xer_ca - 1;
-    if (likely((uint64_t)T0 != (uint64_t)-1))
+    if (likely((uint64_t)T0 != UINT64_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 #endif
@@ -2525,12 +2505,6 @@ void OPPROTO op_405_mullhw (void)
 void OPPROTO op_405_mullhwu (void)
 {
     T0 = ((uint16_t)T0) * ((uint16_t)T1);
-    RETURN();
-}
-
-void OPPROTO op_405_check_ov (void)
-{
-    do_405_check_ov();
     RETURN();
 }
 

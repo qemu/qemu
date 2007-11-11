@@ -182,7 +182,6 @@ void do_440_tlbwe (int word);
 #endif
 
 /* PowerPC 4xx specific helpers */
-void do_405_check_ov (void);
 void do_405_check_sat (void);
 void do_load_dcr (void);
 void do_store_dcr (void);

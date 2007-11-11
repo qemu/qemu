@@ -151,15 +151,12 @@ void do_addmeo (void)
 {
     T1 = T0;
     T0 += xer_ca + (-1);
-    if (likely(!((uint32_t)T1 &
-                 ((uint32_t)T1 ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint32_t)T1 & ((uint32_t)T1 ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     if (likely(T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 
 #if defined(TARGET_PPC64)
@@ -167,15 +164,12 @@ void do_addmeo_64 (void)
 {
     T1 = T0;
     T0 += xer_ca + (-1);
-    if (likely(!((uint64_t)T1 &
-                 ((uint64_t)T1 ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint64_t)T1 & ((uint64_t)T1 ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     if (likely(T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 #endif
 
@@ -316,15 +310,12 @@ void do_subfmeo (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    if (likely(!((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0) &
-                 (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     if (likely((uint32_t)T1 != UINT32_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 
 #if defined(TARGET_PPC64)
@@ -332,15 +323,12 @@ void do_subfmeo_64 (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    if (likely(!((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0) &
-                 (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     if (likely((uint64_t)T1 != UINT64_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 #endif
 
@@ -348,13 +336,9 @@ void do_subfzeo (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    if (likely(!(((uint32_t)~T1 ^ UINT32_MAX) &
-                 ((uint32_t)(~T1) ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint32_t)~T1 ^ UINT32_MAX) &
+              ((uint32_t)(~T1) ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     if (likely((uint32_t)T0 >= (uint32_t)~T1)) {
         xer_ca = 0;
     } else {
@@ -367,13 +351,9 @@ void do_subfzeo_64 (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    if (likely(!(((uint64_t)~T1 ^ UINT64_MAX) &
-                 ((uint64_t)(~T1) ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint64_t)~T1 ^  UINT64_MAX) &
+              ((uint64_t)(~T1) ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     if (likely((uint64_t)T0 >= (uint64_t)~T1)) {
         xer_ca = 0;
     } else {
@@ -1755,17 +1735,6 @@ void do_op_602_mfrom (void)
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
-void do_405_check_ov (void)
-{
-    if (likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||
-               !(((uint32_t)T0 ^ (uint32_t)T2) >> 31))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
-}
-
 void do_405_check_sat (void)
 {
     if (!likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||

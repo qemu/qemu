@@ -888,17 +888,17 @@ GEN_INT_ARITH1_64 (neg,    0x1F, 0x08, 0x03, PPC_INTEGER);
 /* subf   subf.   subfo   subfo.   */
 static always_inline void gen_op_subfo (void)
 {
-    gen_op_move_T2_T0();
+    gen_op_moven_T2_T0();
     gen_op_subf();
-    gen_op_check_subfo();
+    gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 #define gen_op_subf_64 gen_op_subf
 static always_inline void gen_op_subfo_64 (void)
 {
-    gen_op_move_T2_T0();
+    gen_op_moven_T2_T0();
     gen_op_subf();
-    gen_op_check_subfo_64();
+    gen_op_check_addo_64();
 }
 #endif
 GEN_INT_ARITH2_64 (subf,   0x1F, 0x08, 0x01, PPC_INTEGER);
@@ -910,10 +910,10 @@ static always_inline void gen_op_subfc (void)
 }
 static always_inline void gen_op_subfco (void)
 {
-    gen_op_move_T2_T0();
+    gen_op_moven_T2_T0();
     gen_op_subf();
     gen_op_check_subfc();
-    gen_op_check_subfo();
+    gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_subfc_64 (void)
@@ -923,27 +923,27 @@ static always_inline void gen_op_subfc_64 (void)
 }
 static always_inline void gen_op_subfco_64 (void)
 {
-    gen_op_move_T2_T0();
+    gen_op_moven_T2_T0();
     gen_op_subf();
     gen_op_check_subfc_64();
-    gen_op_check_subfo_64();
+    gen_op_check_addo_64();
 }
 #endif
 GEN_INT_ARITH2_64 (subfc,  0x1F, 0x08, 0x00, PPC_INTEGER);
 /* subfe  subfe.  subfeo  subfeo.  */
 static always_inline void gen_op_subfeo (void)
 {
-    gen_op_move_T2_T0();
+    gen_op_moven_T2_T0();
     gen_op_subfe();
-    gen_op_check_subfo();
+    gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 #define gen_op_subfe_64 gen_op_subfe
 static always_inline void gen_op_subfeo_64 (void)
 {
-    gen_op_move_T2_T0();
+    gen_op_moven_T2_T0();
     gen_op_subfe_64();
-    gen_op_check_subfo_64();
+    gen_op_check_addo_64();
 }
 #endif
 GEN_INT_ARITH2_64 (subfe,  0x1F, 0x08, 0x04, PPC_INTEGER);
@@ -5116,7 +5116,7 @@ static always_inline void gen_405_mulladd_insn (DisasContext *ctx,
     if (opc3 & 0x10) {
         /* Check overflow */
         if (opc3 & 0x01)
-            gen_op_405_check_ov();
+            gen_op_check_addo();
         else
             gen_op_405_check_ovu();
     }
