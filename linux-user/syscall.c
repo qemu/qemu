@@ -4360,8 +4360,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     if (reclen > len)
                         break;
                     de->d_reclen = tswap16(reclen);
-                    tswap64s(&de->d_ino);
-                    tswap64s(&de->d_off);
+                    tswap64s((uint64_t *)&de->d_ino);
+                    tswap64s((uint64_t *)&de->d_off);
                     de = (struct dirent64 *)((char *)de + reclen);
                     len -= reclen;
                 }
