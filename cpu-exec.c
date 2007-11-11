@@ -758,7 +758,7 @@ void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32)
     saved_env = env;
     env = s;
 
-    helper_fsave((target_ulong)ptr, data32);
+    helper_fsave((target_ulong)(unsigned long)ptr, data32);
 
     env = saved_env;
 }
@@ -770,7 +770,7 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
     saved_env = env;
     env = s;
 
-    helper_frstor((target_ulong)ptr, data32);
+    helper_frstor((target_ulong)(unsigned long)ptr, data32);
 
     env = saved_env;
 }

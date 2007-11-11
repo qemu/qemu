@@ -6287,7 +6287,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
 #else
 
-#warning No CPU save/restore functions
+//#warning No CPU save/restore functions
 
 #endif
 
