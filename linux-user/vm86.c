@@ -395,7 +395,7 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
     case TARGET_VM86_GET_IRQ_BITS:
     case TARGET_VM86_GET_AND_RESET_IRQ:
         gemu_log("qemu: unsupported vm86 subfunction (%ld)\n", subfunction);
-        ret = -EINVAL;
+        ret = -TARGET_EINVAL;
         goto out;
     case TARGET_VM86_PLUS_INSTALL_CHECK:
         /* NOTE: on old vm86 stuff this will return the error
@@ -427,7 +427,7 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
 
     ts->target_v86 = vm86_addr;
     if (!lock_user_struct(VERIFY_READ, target_v86, vm86_addr, 1))
-        return -EFAULT;
+        return -TARGET_EFAULT;
     /* build vm86 CPU state */
     ts->v86flags = tswap32(target_v86->regs.eflags);
     env->eflags = (env->eflags & ~SAFE_MASK) |
