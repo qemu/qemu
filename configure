@@ -213,12 +213,11 @@ else
     source_path_used="yes"
 fi
 
-# generate compile errors on warnings for development builds
-if grep cvs $source_path/VERSION > /dev/null 2>&1 ; then
-werror="yes";
-else
 werror="no"
-fi
+# generate compile errors on warnings for development builds
+#if grep cvs $source_path/VERSION > /dev/null 2>&1 ; then
+#werror="yes";
+#fi
 
 for opt do
   optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
