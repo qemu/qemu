@@ -166,9 +166,9 @@ extern FILE *logfile;
 
 /* strace.c */
 void print_syscall(int num,
-                   target_long arg1, target_long arg2, target_long arg3,
-                   target_long arg4, target_long arg5, target_long arg6);
-void print_syscall_ret(int num, target_long arg1);
+                   abi_long arg1, abi_long arg2, abi_long arg3,
+                   abi_long arg4, abi_long arg5, abi_long arg6);
+void print_syscall_ret(int num, abi_long arg1);
 extern int do_strace;
 
 /* signal.c */
