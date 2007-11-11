@@ -573,7 +573,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     if (cpu_model & (SH_CPU_SH7750R | SH_CPU_SH7751 | SH_CPU_SH7751R)) {
         sh_intc_register_sources(&s->intc, 
 				 _INTC_ARRAY(vectors_tmu34),
-				 _INTC_ARRAY(NULL));
+				 NULL, 0);
         tmu012_init(0x1e100000, 0, s->periph_freq);
     }
 
@@ -586,7 +586,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     if (cpu_model & (SH_CPU_SH7750S | SH_CPU_SH7750R | SH_CPU_SH7751_ALL)) {
         sh_intc_register_sources(&s->intc, 
 				 _INTC_ARRAY(vectors_irlm),
-				 _INTC_ARRAY(NULL));
+				 NULL, 0);
     }
 
     return s;
