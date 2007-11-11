@@ -497,8 +497,8 @@ static void integratorcp_init(int ram_size, int vga_ram_size,
     icp_pic_init(0xca000000, pic[26], NULL);
     icp_pit_init(0x13000000, pic, 5);
     pl031_init(0x15000000, pic[8]);
-    pl011_init(0x16000000, pic[1], serial_hds[0]);
-    pl011_init(0x17000000, pic[2], serial_hds[1]);
+    pl011_init(0x16000000, pic[1], serial_hds[0], PL011_ARM);
+    pl011_init(0x17000000, pic[2], serial_hds[1], PL011_ARM);
     icp_control_init(0xcb000000);
     pl050_init(0x18000000, pic[3], 0);
     pl050_init(0x19000000, pic[4], 1);

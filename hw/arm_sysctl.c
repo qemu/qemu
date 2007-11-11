@@ -1,7 +1,7 @@
 /*
  * Status and system control registers for ARM RealView/Versatile boards.
  *
- * Copyright (c) 2006 CodeSourcery.
+ * Copyright (c) 2006-2007 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GPL.
@@ -200,6 +200,9 @@ void arm_sysctl_init(uint32_t base, uint32_t sys_id)
         return;
     s->base = base;
     s->sys_id = sys_id;
+    /* The MPcore bootloader uses these flags to start secondary CPUs.
+       We don't use a bootloader, so do this here.  */
+    s->flags = 3;
     iomemtype = cpu_register_io_memory(0, arm_sysctl_readfn,
                                        arm_sysctl_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);

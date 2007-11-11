@@ -1,7 +1,7 @@
 /*
  * ARM kernel loader.
  *
- * Copyright (c) 2006 CodeSourcery.
+ * Copyright (c) 2006-2007 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GPL.
@@ -24,6 +24,22 @@ static uint32_t bootloader[] = {
   0  /* Kernel entry point.  Set by integratorcp_init.  */
 };
 
+/* Entry point for secondary CPUs.  Enable interrupt controller and
+   Issue WFI until start address is written to system controller.  */
+static uint32_t smpboot[] = {
+  0xe3a00201, /* mov     r0, #0x10000000 */
+  0xe3800601, /* orr     r0, r0, #0x001000000 */
+  0xe3a01001, /* mov     r1, #1 */
+  0xe5801100, /* str     r1, [r0, #0x100] */
+  0xe3a00201, /* mov     r0, #0x10000000 */
+  0xe3800030, /* orr     r0, #0x30 */
+  0xe320f003, /* wfi */
+  0xe5901000, /* ldr     r1, [r0] */
+  0xe3110003, /* tst     r1, #3 */
+  0x1afffffb, /* bne     <wfi> */
+  0xe12fff11  /* bx      r1 */
+};
+
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -33,6 +49,8 @@ static void main_cpu_reset(void *opaque)
         arm_load_kernel(env, env->ram_size, env->kernel_filename,
                         env->kernel_cmdline, env->initrd_filename,
                         env->board_id, env->loader_start);
+
+    /* TODO:  Reset secondary CPUs.  */
 }
 
 static void set_kernel_args(uint32_t ram_size, int initrd_size,
@@ -211,6 +229,8 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++)
             stl_raw(phys_ram_base + (n * 4), bootloader[n]);
+        for (n = 0; n < sizeof(smpboot) / 4; n++)
+            stl_raw(phys_ram_base + ram_size + (n * 4), smpboot[n]);
         if (old_param)
             set_kernel_args_old(ram_size, initrd_size,
                                 kernel_cmdline, loader_start);

@@ -297,7 +297,7 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
                     ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
             s->env->cp15.c1_sys = 0;
             s->env->cp15.c1_coproc = 0;
-            s->env->cp15.c2_base = 0;
+            s->env->cp15.c2_base0 = 0;
             s->env->cp15.c3 = 0;
             s->pm_regs[PSSR >> 2] |= 0x8;	/* Set STS */
             s->pm_regs[RCSR >> 2] |= 0x8;	/* Set GPR */
@@ -2031,7 +2031,8 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    register_savevm("cpu", 0, 0, cpu_save, cpu_load, s->env);
+    register_savevm("cpu", 0, ARM_CPU_SAVE_VERSION, cpu_save, cpu_load,
+                    s->env);
 
     /* SDRAM & Internal Memory Storage */
     cpu_register_physical_memory(PXA2XX_SDRAM_BASE,
@@ -2145,7 +2146,8 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    register_savevm("cpu", 0, 0, cpu_save, cpu_load, s->env);
+    register_savevm("cpu", 0, ARM_CPU_SAVE_VERSION, cpu_save, cpu_load,
+                    s->env);
 
     /* SDRAM & Internal Memory Storage */
     cpu_register_physical_memory(PXA2XX_SDRAM_BASE, sdram_size,

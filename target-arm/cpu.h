@@ -37,6 +37,18 @@
 #define EXCP_IRQ             5
 #define EXCP_FIQ             6
 #define EXCP_BKPT            7
+#define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
+
+#define ARMV7M_EXCP_RESET   1
+#define ARMV7M_EXCP_NMI     2
+#define ARMV7M_EXCP_HARD    3
+#define ARMV7M_EXCP_MEM     4
+#define ARMV7M_EXCP_BUS     5
+#define ARMV7M_EXCP_USAGE   6
+#define ARMV7M_EXCP_SVC     11
+#define ARMV7M_EXCP_DEBUG   12
+#define ARMV7M_EXCP_PENDSV  14
+#define ARMV7M_EXCP_SYSTICK 15
 
 typedef void ARMWriteCPFunc(void *opaque, int cp_info,
                             int srcreg, int operand, uint32_t value);
@@ -76,17 +88,22 @@ typedef struct CPUARMState {
     uint32_t VF; /* V is the bit 31. All other bits are undefined */
     uint32_t NZF; /* N is bit 31. Z is computed from NZF */
     uint32_t QF; /* 0 or 1 */
-
-    int thumb; /* 0 = arm mode, 1 = thumb mode */
+    uint32_t GE; /* cpsr[19:16] */
+    int thumb; /* cprs[5]. 0 = arm mode, 1 = thumb mode. */
+    uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
 
     /* System control coprocessor (cp15) */
     struct {
         uint32_t c0_cpuid;
         uint32_t c0_cachetype;
+        uint32_t c0_c1[8]; /* Feature registers.  */
+        uint32_t c0_c2[8]; /* Instruction set registers.  */
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
-        uint32_t c2_base; /* MMU translation table base.  */
+        uint32_t c2_base0; /* MMU translation table base 0.  */
+        uint32_t c2_base1; /* MMU translation table base 1.  */
+        uint32_t c2_mask; /* MMU translation table base mask.  */
         uint32_t c2_data; /* MPU data cachable bits.  */
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
         uint32_t c3; /* MMU domain access control register
@@ -100,12 +117,26 @@ typedef struct CPUARMState {
         uint32_t c9_data;
         uint32_t c13_fcse; /* FCSE PID.  */
         uint32_t c13_context; /* Context ID.  */
+        uint32_t c13_tls1; /* User RW Thread register.  */
+        uint32_t c13_tls2; /* User RO Thread register.  */
+        uint32_t c13_tls3; /* Privileged Thread register.  */
         uint32_t c15_cpar; /* XScale Coprocessor Access Register */
         uint32_t c15_ticonfig; /* TI925T configuration byte.  */
         uint32_t c15_i_max; /* Maximum D-cache dirty line index.  */
         uint32_t c15_i_min; /* Minimum D-cache dirty line index.  */
         uint32_t c15_threadid; /* TI debugger thread-ID.  */
     } cp15;
+
+    struct {
+        uint32_t other_sp;
+        uint32_t vecbase;
+        uint32_t basepri;
+        uint32_t control;
+        int current_sp;
+        int exception;
+        int pending_exception;
+        void *nvic;
+    } v7m;
 
     /* Coprocessor IO used by peripherals */
     struct {
@@ -117,6 +148,10 @@ typedef struct CPUARMState {
     /* Internal CPU feature flags.  */
     uint32_t features;
 
+    /* Callback for vectored interrupt controller.  */
+    int (*get_irq_vector)(struct CPUARMState *);
+    void *irq_opaque;
+
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
@@ -126,7 +161,7 @@ typedef struct CPUARMState {
 
     /* VFP coprocessor state.  */
     struct {
-        float64 regs[16];
+        float64 regs[32];
 
         uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
@@ -136,9 +171,16 @@ typedef struct CPUARMState {
         /* Temporary variables if we don't have spare fp regs.  */
         float32 tmp0s, tmp1s;
         float64 tmp0d, tmp1d;
+        /* scratch space when Tn are not sufficient.  */
+        uint32_t scratch[8];
 
         float_status fp_status;
     } vfp;
+#if defined(CONFIG_USER_ONLY)
+    struct mmon_state *mmon_entry;
+#else
+    uint32_t mmon_addr;
+#endif
 
     /* iwMMXt coprocessor state.  */
     struct {
@@ -169,12 +211,16 @@ int cpu_arm_exec(CPUARMState *s);
 void cpu_arm_close(CPUARMState *s);
 void do_interrupt(CPUARMState *);
 void switch_mode(CPUARMState *, int);
+uint32_t do_arm_semihosting(CPUARMState *env);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+
+void cpu_lock(void);
+void cpu_unlock(void);
 
 #define CPSR_M (0x1f)
 #define CPSR_T (1 << 5)
@@ -183,13 +229,24 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
 #define CPSR_A (1 << 8)
 #define CPSR_E (1 << 9)
 #define CPSR_IT_2_7 (0xfc00)
-/* Bits 20-23 reserved.  */
+#define CPSR_GE (0xf << 16)
+#define CPSR_RESERVED (0xf << 20)
 #define CPSR_J (1 << 24)
 #define CPSR_IT_0_1 (3 << 25)
 #define CPSR_Q (1 << 27)
-#define CPSR_NZCV (0xf << 28)
+#define CPSR_V (1 << 28)
+#define CPSR_C (1 << 29)
+#define CPSR_Z (1 << 30)
+#define CPSR_N (1 << 31)
+#define CPSR_NZCV (CPSR_N | CPSR_Z | CPSR_C | CPSR_V)
 
-#define CACHED_CPSR_BITS (CPSR_T | CPSR_Q | CPSR_NZCV)
+#define CPSR_IT (CPSR_IT_0_1 | CPSR_IT_2_7)
+#define CACHED_CPSR_BITS (CPSR_T | CPSR_GE | CPSR_IT | CPSR_Q | CPSR_NZCV)
+/* Bits writable in user mode.  */
+#define CPSR_USER (CPSR_NZCV | CPSR_Q | CPSR_GE)
+/* Execution state bits.  MRS read as zero, MSR writes ignored.  */
+#define CPSR_EXEC (CPSR_T | CPSR_IT | CPSR_J)
+
 /* Return the current CPSR value.  */
 static inline uint32_t cpsr_read(CPUARMState *env)
 {
@@ -197,7 +254,21 @@ static inline uint32_t cpsr_read(CPUARMState *env)
     ZF = (env->NZF == 0);
     return env->uncached_cpsr | (env->NZF & 0x80000000) | (ZF << 30) |
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
-        | (env->thumb << 5);
+        | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
+        | ((env->condexec_bits & 0xfc) << 8)
+        | (env->GE << 16);
+}
+
+/* Return the current xPSR value.  */
+static inline uint32_t xpsr_read(CPUARMState *env)
+{
+    int ZF;
+    ZF = (env->NZF == 0);
+    return (env->NZF & 0x80000000) | (ZF << 30)
+        | (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
+        | (env->thumb << 24) | ((env->condexec_bits & 3) << 25)
+        | ((env->condexec_bits & 0xfc) << 8)
+        | env->v7m.exception;
 }
 
 /* Set the CPSR.  Note that some bits of mask must be all-set or all-clear.  */
@@ -213,12 +284,49 @@ static inline void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
         env->QF = ((val & CPSR_Q) != 0);
     if (mask & CPSR_T)
         env->thumb = ((val & CPSR_T) != 0);
+    if (mask & CPSR_IT_0_1) {
+        env->condexec_bits &= ~3;
+        env->condexec_bits |= (val >> 25) & 3;
+    }
+    if (mask & CPSR_IT_2_7) {
+        env->condexec_bits &= 3;
+        env->condexec_bits |= (val >> 8) & 0xfc;
+    }
+    if (mask & CPSR_GE) {
+        env->GE = (val >> 16) & 0xf;
+    }
 
     if ((env->uncached_cpsr ^ val) & mask & CPSR_M) {
         switch_mode(env, val & CPSR_M);
     }
     mask &= ~CACHED_CPSR_BITS;
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
+}
+
+/* Set the xPSR.  Note that some bits of mask must be all-set or all-clear.  */
+static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
+{
+    /* NOTE: N = 1 and Z = 1 cannot be stored currently */
+    if (mask & CPSR_NZCV) {
+        env->NZF = (val & 0xc0000000) ^ 0x40000000;
+        env->CF = (val >> 29) & 1;
+        env->VF = (val << 3) & 0x80000000;
+    }
+    if (mask & CPSR_Q)
+        env->QF = ((val & CPSR_Q) != 0);
+    if (mask & (1 << 24))
+        env->thumb = ((val & (1 << 24)) != 0);
+    if (mask & CPSR_IT_0_1) {
+        env->condexec_bits &= ~3;
+        env->condexec_bits |= (val >> 25) & 3;
+    }
+    if (mask & CPSR_IT_2_7) {
+        env->condexec_bits &= 3;
+        env->condexec_bits |= (val >> 8) & 0xfc;
+    }
+    if (mask & 0x1ff) {
+        env->v7m.exception = val & 0x1ff;
+    }
 }
 
 enum arm_cpu_mode {
@@ -234,6 +342,8 @@ enum arm_cpu_mode {
 /* VFP system registers.  */
 #define ARM_VFP_FPSID   0
 #define ARM_VFP_FPSCR   1
+#define ARM_VFP_MVFR1   6
+#define ARM_VFP_MVFR0   7
 #define ARM_VFP_FPEXC   8
 #define ARM_VFP_FPINST  9
 #define ARM_VFP_FPINST2 10
@@ -253,7 +363,15 @@ enum arm_features {
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
+    ARM_FEATURE_V6,
+    ARM_FEATURE_V6K,
+    ARM_FEATURE_V7,
+    ARM_FEATURE_THUMB2,
     ARM_FEATURE_MPU,    /* Only has Memory Protection Unit, not full MMU.  */
+    ARM_FEATURE_VFP3,
+    ARM_FEATURE_NEON,
+    ARM_FEATURE_DIV,
+    ARM_FEATURE_M, /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP  /* OMAP specific CP15 ops handling.  */
 };
 
@@ -264,27 +382,44 @@ static inline int arm_feature(CPUARMState *env, int feature)
 
 void arm_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
+/* Interface between CPU and Interrupt controller.  */
+void armv7m_nvic_set_pending(void *opaque, int irq);
+int armv7m_nvic_acknowledge_irq(void *opaque);
+void armv7m_nvic_complete_irq(void *opaque, int irq);
+
 void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
                        ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,
                        void *opaque);
 
-#define ARM_CPUID_ARM1026   0x4106a262
-#define ARM_CPUID_ARM926    0x41069265
-#define ARM_CPUID_ARM946    0x41059461
-#define ARM_CPUID_TI915T    0x54029152
-#define ARM_CPUID_TI925T    0x54029252
-#define ARM_CPUID_PXA250    0x69052100
-#define ARM_CPUID_PXA255    0x69052d00
-#define ARM_CPUID_PXA260    0x69052903
-#define ARM_CPUID_PXA261    0x69052d05
-#define ARM_CPUID_PXA262    0x69052d06
-#define ARM_CPUID_PXA270    0x69054110
-#define ARM_CPUID_PXA270_A0 0x69054110
-#define ARM_CPUID_PXA270_A1 0x69054111
-#define ARM_CPUID_PXA270_B0 0x69054112
-#define ARM_CPUID_PXA270_B1 0x69054113
-#define ARM_CPUID_PXA270_C0 0x69054114
-#define ARM_CPUID_PXA270_C5 0x69054117
+/* Does the core conform to the the "MicroController" profile. e.g. Cortex-M3.
+   Note the M in older cores (eg. ARM7TDMI) stands for Multiply. These are
+   conventional cores (ie. Application or Realtime profile).  */
+
+#define IS_M(env) arm_feature(env, ARM_FEATURE_M)
+#define ARM_CPUID(env) (env->cp15.c0_cpuid)
+
+#define ARM_CPUID_ARM1026     0x4106a262
+#define ARM_CPUID_ARM926      0x41069265
+#define ARM_CPUID_ARM946      0x41059461
+#define ARM_CPUID_TI915T      0x54029152
+#define ARM_CPUID_TI925T      0x54029252
+#define ARM_CPUID_PXA250      0x69052100
+#define ARM_CPUID_PXA255      0x69052d00
+#define ARM_CPUID_PXA260      0x69052903
+#define ARM_CPUID_PXA261      0x69052d05
+#define ARM_CPUID_PXA262      0x69052d06
+#define ARM_CPUID_PXA270      0x69054110
+#define ARM_CPUID_PXA270_A0   0x69054110
+#define ARM_CPUID_PXA270_A1   0x69054111
+#define ARM_CPUID_PXA270_B0   0x69054112
+#define ARM_CPUID_PXA270_B1   0x69054113
+#define ARM_CPUID_PXA270_C0   0x69054114
+#define ARM_CPUID_PXA270_C5   0x69054117
+#define ARM_CPUID_ARM1136     0x4117b363
+#define ARM_CPUID_ARM11MPCORE 0x410fb022
+#define ARM_CPUID_CORTEXA8    0x410fc080
+#define ARM_CPUID_CORTEXM3    0x410fc231
+#define ARM_CPUID_ANY         0xffffffff
 
 #if defined(CONFIG_USER_ONLY)
 #define TARGET_PAGE_BITS 12
@@ -301,6 +436,8 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
+
+#define ARM_CPU_SAVE_VERSION 1
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

@@ -6126,7 +6126,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c1_sys);
     qemu_put_be32(f, env->cp15.c1_coproc);
     qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
-    qemu_put_be32(f, env->cp15.c2_base);
+    qemu_put_be32(f, env->cp15.c2_base0);
+    qemu_put_be32(f, env->cp15.c2_base1);
+    qemu_put_be32(f, env->cp15.c2_mask);
     qemu_put_be32(f, env->cp15.c2_data);
     qemu_put_be32(f, env->cp15.c2_insn);
     qemu_put_be32(f, env->cp15.c3);
@@ -6141,6 +6143,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c9_data);
     qemu_put_be32(f, env->cp15.c13_fcse);
     qemu_put_be32(f, env->cp15.c13_context);
+    qemu_put_be32(f, env->cp15.c13_tls1);
+    qemu_put_be32(f, env->cp15.c13_tls2);
+    qemu_put_be32(f, env->cp15.c13_tls3);
     qemu_put_be32(f, env->cp15.c15_cpar);
 
     qemu_put_be32(f, env->features);
@@ -6159,6 +6164,15 @@ void cpu_save(QEMUFile *f, void *opaque)
         /* TODO: Should use proper FPSCR access functions.  */
         qemu_put_be32(f, env->vfp.vec_len);
         qemu_put_be32(f, env->vfp.vec_stride);
+
+        if (arm_feature(env, ARM_FEATURE_VFP3)) {
+            for (i = 16;  i < 32; i++) {
+                CPU_DoubleU u;
+                u.d = env->vfp.regs[i];
+                qemu_put_be32(f, u.l.upper);
+                qemu_put_be32(f, u.l.lower);
+            }
+        }
     }
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
@@ -6169,6 +6183,15 @@ void cpu_save(QEMUFile *f, void *opaque)
             qemu_put_be32(f, env->iwmmxt.cregs[i]);
         }
     }
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        qemu_put_be32(f, env->v7m.other_sp);
+        qemu_put_be32(f, env->v7m.vecbase);
+        qemu_put_be32(f, env->v7m.basepri);
+        qemu_put_be32(f, env->v7m.control);
+        qemu_put_be32(f, env->v7m.current_sp);
+        qemu_put_be32(f, env->v7m.exception);
+    }
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
@@ -6176,7 +6199,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     CPUARMState *env = (CPUARMState *)opaque;
     int i;
 
-    if (version_id != 0)
+    if (version_id != ARM_CPU_SAVE_VERSION)
         return -EINVAL;
 
     for (i = 0; i < 16; i++) {
@@ -6198,7 +6221,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c1_sys = qemu_get_be32(f);
     env->cp15.c1_coproc = qemu_get_be32(f);
     env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
-    env->cp15.c2_base = qemu_get_be32(f);
+    env->cp15.c2_base0 = qemu_get_be32(f);
+    env->cp15.c2_base1 = qemu_get_be32(f);
+    env->cp15.c2_mask = qemu_get_be32(f);
     env->cp15.c2_data = qemu_get_be32(f);
     env->cp15.c2_insn = qemu_get_be32(f);
     env->cp15.c3 = qemu_get_be32(f);
@@ -6213,6 +6238,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c9_data = qemu_get_be32(f);
     env->cp15.c13_fcse = qemu_get_be32(f);
     env->cp15.c13_context = qemu_get_be32(f);
+    env->cp15.c13_tls1 = qemu_get_be32(f);
+    env->cp15.c13_tls2 = qemu_get_be32(f);
+    env->cp15.c13_tls3 = qemu_get_be32(f);
     env->cp15.c15_cpar = qemu_get_be32(f);
 
     env->features = qemu_get_be32(f);
@@ -6231,6 +6259,15 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         /* TODO: Should use proper FPSCR access functions.  */
         env->vfp.vec_len = qemu_get_be32(f);
         env->vfp.vec_stride = qemu_get_be32(f);
+
+        if (arm_feature(env, ARM_FEATURE_VFP3)) {
+            for (i = 0;  i < 16; i++) {
+                CPU_DoubleU u;
+                u.l.upper = qemu_get_be32(f);
+                u.l.lower = qemu_get_be32(f);
+                env->vfp.regs[i] = u.d;
+            }
+        }
     }
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
@@ -6240,6 +6277,15 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         for (i = 0; i < 16; i++) {
             env->iwmmxt.cregs[i] = qemu_get_be32(f);
         }
+    }
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        env->v7m.other_sp = qemu_get_be32(f);
+        env->v7m.vecbase = qemu_get_be32(f);
+        env->v7m.basepri = qemu_get_be32(f);
+        env->v7m.control = qemu_get_be32(f);
+        env->v7m.current_sp = qemu_get_be32(f);
+        env->v7m.exception = qemu_get_be32(f);
     }
 
     return 0;
@@ -7392,6 +7438,8 @@ void register_machines(void)
     qemu_register_machine(&borzoipda_machine);
     qemu_register_machine(&terrierpda_machine);
     qemu_register_machine(&palmte_machine);
+    qemu_register_machine(&lm3s811evb_machine);
+    qemu_register_machine(&lm3s6965evb_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
     qemu_register_machine(&r2d_machine);

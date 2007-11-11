@@ -1482,6 +1482,14 @@ extern QEMUMachine terrierpda_machine;
 /* palm.c */
 extern QEMUMachine palmte_machine;
 
+/* armv7m.c */
+qemu_irq *armv7m_init(int flash_size, int sram_size,
+                      const char *kernel_filename, const char *cpu_model);
+
+/* stellaris.c */
+extern QEMUMachine lm3s811evb_machine;
+extern QEMUMachine lm3s6965evb_machine;
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
@@ -1502,10 +1510,23 @@ void pl031_init(uint32_t base, qemu_irq irq);
 void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq, int);
 
 /* pl011.c */
-void pl011_init(uint32_t base, qemu_irq irq, CharDriverState *chr);
+enum pl011_type {
+    PL011_ARM,
+    PL011_LUMINARY
+};
+
+void pl011_init(uint32_t base, qemu_irq irq, CharDriverState *chr,
+                enum pl011_type type);
+
+/* pl022.c */
+void pl022_init(uint32_t base, qemu_irq irq, int (*xfer_cb)(void *, int),
+                void *opaque);
 
 /* pl050.c */
 void pl050_init(uint32_t base, qemu_irq irq, int is_mouse);
+
+/* pl061.c */
+qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out);
 
 /* pl080.c */
 void *pl080_init(uint32_t base, qemu_irq irq, int nchannels);
@@ -1524,14 +1545,27 @@ void icp_pit_init(uint32_t base, qemu_irq *pic, int irq);
 /* arm_sysctl.c */
 void arm_sysctl_init(uint32_t base, uint32_t sys_id);
 
-/* arm_gic.c */
-qemu_irq *arm_gic_init(uint32_t base, qemu_irq parent_irq);
+/* realview_gic.c */
+qemu_irq *realview_gic_init(uint32_t base, qemu_irq parent_irq);
+
+/* mpcore.c */
+extern qemu_irq *mpcore_irq_init(qemu_irq *cpu_irq);
 
 /* arm_boot.c */
 
 void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      const char *kernel_cmdline, const char *initrd_filename,
                      int board_id, target_phys_addr_t loader_start);
+
+/* armv7m_nvic.c */
+qemu_irq *armv7m_nvic_init(CPUState *env);
+
+/* ssd0303.c */
+void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address);
+
+/* ssd0323.c */
+int ssd0323_xfer_ssi(void *opaque, int data);
+void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p);
 
 /* sh7750.c */
 struct SH7750State;

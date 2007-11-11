@@ -2,7 +2,7 @@
  *  ARM micro operations
  *
  *  Copyright (c) 2003 Fabrice Bellard
- *  Copyright (c) 2005 CodeSourcery, LLC
+ *  Copyright (c) 2005-2007 CodeSourcery, LLC
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -99,11 +99,6 @@ void OPPROTO op_movl_T0_0(void)
 void OPPROTO op_movl_T0_im(void)
 {
     T0 = PARAM1;
-}
-
-void OPPROTO op_movl_T0_T1(void)
-{
-    T0 = T1;
 }
 
 void OPPROTO op_movl_T1_im(void)
@@ -236,6 +231,11 @@ void OPPROTO op_bicl_T0_T1(void)
     T0 &= ~T1;
 }
 
+void OPPROTO op_notl_T0(void)
+{
+    T0 = ~T0;
+}
+
 void OPPROTO op_notl_T1(void)
 {
     T1 = ~T1;
@@ -351,6 +351,19 @@ void OPPROTO op_test_le(void)
     FORCE_RET();
 }
 
+void OPPROTO op_test_T0(void)
+{
+    if (T0)
+        GOTO_LABEL_PARAM(1);
+    FORCE_RET();
+}
+void OPPROTO op_testn_T0(void)
+{
+    if (!T0)
+        GOTO_LABEL_PARAM(1);
+    FORCE_RET();
+}
+
 void OPPROTO op_goto_tb0(void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
@@ -368,7 +381,8 @@ void OPPROTO op_exit_tb(void)
 
 void OPPROTO op_movl_T0_cpsr(void)
 {
-    T0 = cpsr_read(env);
+    /* Execution state bits always read as zero.  */
+    T0 = cpsr_read(env) & ~CPSR_EXEC;
     FORCE_RET();
 }
 
@@ -438,6 +452,28 @@ void OPPROTO op_addq_lo_T0_T1(void)
     T0 = res;
 }
 
+/* Dual 16-bit accumulate.  */
+void OPPROTO op_addq_T0_T1_dual(void)
+{
+  uint64_t res;
+  res = ((uint64_t)(env->regs[PARAM2]) << 32) | (env->regs[PARAM1]);
+  res += (int32_t)T0;
+  res += (int32_t)T1;
+  env->regs[PARAM1] = (uint32_t)res;
+  env->regs[PARAM2] = res >> 32;
+}
+
+/* Dual 16-bit subtract accumulate.  */
+void OPPROTO op_subq_T0_T1_dual(void)
+{
+  uint64_t res;
+  res = ((uint64_t)(env->regs[PARAM2]) << 32) | (env->regs[PARAM1]);
+  res += (int32_t)T0;
+  res -= (int32_t)T1;
+  env->regs[PARAM1] = (uint32_t)res;
+  env->regs[PARAM2] = res >> 32;
+}
+
 void OPPROTO op_logicq_cc(void)
 {
     env->NZF = (T1 & 0x80000000) | ((T0 | T1) != 0);
@@ -455,7 +491,20 @@ void OPPROTO op_logicq_cc(void)
 #include "op_mem.h"
 #endif
 
+void OPPROTO op_clrex(void)
+{
+    cpu_lock();
+    helper_clrex(env);
+    cpu_unlock();
+}
+
 /* shifts */
+
+/* Used by NEON.  */
+void OPPROTO op_shll_T0_im(void)
+{
+    T1 = T1 << PARAM1;
+}
 
 /* T1 based */
 
@@ -813,8 +862,39 @@ void OPPROTO op_double_T1_saturate(void)
   FORCE_RET();
 }
 
-/* thumb shift by immediate */
-void OPPROTO op_shll_T0_im_thumb(void)
+/* Unsigned saturating arithmetic for NEON.  */
+void OPPROTO op_addl_T0_T1_usaturate(void)
+{
+  uint32_t res;
+
+  res = T0 + T1;
+  if (res < T0) {
+      env->QF = 1;
+      T0 = 0xffffffff;
+  } else {
+      T0 = res;
+  }
+
+  FORCE_RET();
+}
+
+void OPPROTO op_subl_T0_T1_usaturate(void)
+{
+  uint32_t res;
+
+  res = T0 - T1;
+  if (res > T0) {
+      env->QF = 1;
+      T0 = 0;
+  } else {
+      T0 = res;
+  }
+
+  FORCE_RET();
+}
+
+/* Thumb shift by immediate */
+void OPPROTO op_shll_T0_im_thumb_cc(void)
 {
     int shift;
     shift = PARAM1;
@@ -826,7 +906,13 @@ void OPPROTO op_shll_T0_im_thumb(void)
     FORCE_RET();
 }
 
-void OPPROTO op_shrl_T0_im_thumb(void)
+void OPPROTO op_shll_T0_im_thumb(void)
+{
+    T0 = T0 << PARAM1;
+    FORCE_RET();
+}
+
+void OPPROTO op_shrl_T0_im_thumb_cc(void)
 {
     int shift;
 
@@ -842,7 +928,20 @@ void OPPROTO op_shrl_T0_im_thumb(void)
     FORCE_RET();
 }
 
-void OPPROTO op_sarl_T0_im_thumb(void)
+void OPPROTO op_shrl_T0_im_thumb(void)
+{
+    int shift;
+
+    shift = PARAM1;
+    if (shift == 0) {
+	T0 = 0;
+    } else {
+	T0 = T0 >> shift;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_sarl_T0_im_thumb_cc(void)
 {
     int shift;
 
@@ -855,6 +954,19 @@ void OPPROTO op_sarl_T0_im_thumb(void)
 	T0 = ((int32_t)T0) >> shift;
     }
     env->NZF = T0;
+    FORCE_RET();
+}
+
+void OPPROTO op_sarl_T0_im_thumb(void)
+{
+    int shift;
+
+    shift = PARAM1;
+    if (shift == 0) {
+	env->CF = T0 & 1;
+    } else {
+	T0 = ((int32_t)T0) >> shift;
+    }
     FORCE_RET();
 }
 
@@ -888,6 +1000,12 @@ void OPPROTO op_wfi(void)
 void OPPROTO op_bkpt(void)
 {
     env->exception_index = EXCP_BKPT;
+    cpu_loop_exit();
+}
+
+void OPPROTO op_exception_exit(void)
+{
+    env->exception_index = EXCP_EXCEPTION_EXIT;
     cpu_loop_exit();
 }
 
@@ -982,6 +1100,28 @@ static inline uint32_t vfp_stoi(float32 s)
     return v.i;
 }
 
+static inline float64 vfp_itod(uint64_t i)
+{
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+
+    v.i = i;
+    return v.d;
+}
+
+static inline uint64_t vfp_dtoi(float64 d)
+{
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+
+    v.d = d;
+    return v.i;
+}
+
 /* Integer to float conversion.  */
 VFP_OP(uito, s)
 {
@@ -1055,6 +1195,32 @@ VFP_OP(fcvts, d)
 {
     FT0s = float64_to_float32(FT0d, &env->vfp.fp_status);
 }
+
+/* VFP3 fixed point conversion.  */
+#define VFP_CONV_FIX(name, p, ftype, itype, sign) \
+VFP_OP(name##to, p) \
+{ \
+    ftype tmp; \
+    tmp = sign##int32_to_##ftype ((itype)vfp_##p##toi(FT0##p), \
+                                  &env->vfp.fp_status); \
+    FT0##p = ftype##_scalbn(tmp, PARAM1, &env->vfp.fp_status); \
+} \
+VFP_OP(to##name, p) \
+{ \
+    ftype tmp; \
+    tmp = ftype##_scalbn(FT0##p, PARAM1, &env->vfp.fp_status); \
+    FT0##p = vfp_ito##p((itype)ftype##_to_##sign##int32_round_to_zero(tmp, \
+            &env->vfp.fp_status)); \
+}
+
+VFP_CONV_FIX(sh, d, float64, int16, )
+VFP_CONV_FIX(sl, d, float64, int32, )
+VFP_CONV_FIX(uh, d, float64, uint16, u)
+VFP_CONV_FIX(ul, d, float64, uint32, u)
+VFP_CONV_FIX(sh, s, float32, int16, )
+VFP_CONV_FIX(sl, s, float32, int32, )
+VFP_CONV_FIX(uh, s, float32, uint16, u)
+VFP_CONV_FIX(ul, s, float32, uint32, u)
 
 /* Get and Put values from registers.  */
 VFP_OP(getreg_F0, d)
@@ -1142,6 +1308,20 @@ void OPPROTO op_vfp_mdrr(void)
     FT0d = u.d;
 }
 
+/* Load immediate.  PARAM1 is the 32 most significant bits of the value.  */
+void OPPROTO op_vfp_fconstd(void)
+{
+    CPU_DoubleU u;
+    u.l.upper = PARAM1;
+    u.l.lower = 0;
+    FT0d = u.d;
+}
+
+void OPPROTO op_vfp_fconsts(void)
+{
+    FT0s = vfp_itos(PARAM1);
+}
+
 /* Copy the most significant bit of T0 to all bits of T1.  */
 void OPPROTO op_signbit_T1_T0(void)
 {
@@ -1204,15 +1384,540 @@ void OPPROTO op_movl_user_T0(void)
     FORCE_RET();
 }
 
-void OPPROTO op_movl_T2_T0(void)
+void OPPROTO op_movl_T0_T1(void)
 {
-    T2 = T0;
+    T0 = T1;
 }
 
 void OPPROTO op_movl_T0_T2(void)
 {
     T0 = T2;
 }
+
+void OPPROTO op_movl_T1_T0(void)
+{
+    T1 = T0;
+}
+
+void OPPROTO op_movl_T1_T2(void)
+{
+    T1 = T2;
+}
+
+void OPPROTO op_movl_T2_T0(void)
+{
+    T2 = T0;
+}
+
+/* ARMv6 Media instructions.  */
+
+/* Note that signed overflow is undefined in C.  The following routines are
+   careful to use unsigned types where modulo arithmetic is required.
+   Failure to do so _will_ break on newer gcc.  */
+
+/* Signed saturating arithmetic.  */
+
+/* Perform 16-bit signed satruating addition.  */
+static inline uint16_t add16_sat(uint16_t a, uint16_t b)
+{
+    uint16_t res;
+
+    res = a + b;
+    if (((res ^ a) & 0x8000) && !((a ^ b) & 0x8000)) {
+        if (a & 0x8000)
+            res = 0x8000;
+        else
+            res = 0x7fff;
+    }
+    return res;
+}
+
+/* Perform 8-bit signed satruating addition.  */
+static inline uint8_t add8_sat(uint8_t a, uint8_t b)
+{
+    uint8_t res;
+
+    res = a + b;
+    if (((res ^ a) & 0x80) && !((a ^ b) & 0x80)) {
+        if (a & 0x80)
+            res = 0x80;
+        else
+            res = 0x7f;
+    }
+    return res;
+}
+
+/* Perform 16-bit signed satruating subtraction.  */
+static inline uint16_t sub16_sat(uint16_t a, uint16_t b)
+{
+    uint16_t res;
+
+    res = a - b;
+    if (((res ^ a) & 0x8000) && ((a ^ b) & 0x8000)) {
+        if (a & 0x8000)
+            res = 0x8000;
+        else
+            res = 0x7fff;
+    }
+    return res;
+}
+
+/* Perform 8-bit signed satruating subtraction.  */
+static inline uint8_t sub8_sat(uint8_t a, uint8_t b)
+{
+    uint8_t res;
+
+    res = a - b;
+    if (((res ^ a) & 0x80) && ((a ^ b) & 0x80)) {
+        if (a & 0x80)
+            res = 0x80;
+        else
+            res = 0x7f;
+    }
+    return res;
+}
+
+#define ADD16(a, b, n) RESULT(add16_sat(a, b), n, 16);
+#define SUB16(a, b, n) RESULT(sub16_sat(a, b), n, 16);
+#define ADD8(a, b, n)  RESULT(add8_sat(a, b), n, 8);
+#define SUB8(a, b, n)  RESULT(sub8_sat(a, b), n, 8);
+#define PFX q
+
+#include "op_addsub.h"
+
+/* Unsigned saturating arithmetic.  */
+static inline uint16_t add16_usat(uint16_t a, uint8_t b)
+{
+    uint16_t res;
+    res = a + b;
+    if (res < a)
+        res = 0xffff;
+    return res;
+}
+
+static inline uint16_t sub16_usat(uint16_t a, uint8_t b)
+{
+    if (a < b)
+        return a - b;
+    else
+        return 0;
+}
+
+static inline uint8_t add8_usat(uint8_t a, uint8_t b)
+{
+    uint8_t res;
+    res = a + b;
+    if (res < a)
+        res = 0xff;
+    return res;
+}
+
+static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
+{
+    if (a < b)
+        return a - b;
+    else
+        return 0;
+}
+
+#define ADD16(a, b, n) RESULT(add16_usat(a, b), n, 16);
+#define SUB16(a, b, n) RESULT(sub16_usat(a, b), n, 16);
+#define ADD8(a, b, n)  RESULT(add8_usat(a, b), n, 8);
+#define SUB8(a, b, n)  RESULT(sub8_usat(a, b), n, 8);
+#define PFX uq
+
+#include "op_addsub.h"
+
+/* Signed modulo arithmetic.  */
+#define SARITH16(a, b, n, op) do { \
+    int32_t sum; \
+    sum = (int16_t)((uint16_t)(a) op (uint16_t)(b)); \
+    RESULT(sum, n, 16); \
+    if (sum >= 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define SARITH8(a, b, n, op) do { \
+    int32_t sum; \
+    sum = (int8_t)((uint8_t)(a) op (uint8_t)(b)); \
+    RESULT(sum, n, 8); \
+    if (sum >= 0) \
+        ge |= 1 << n; \
+    } while(0)
+
+
+#define ADD16(a, b, n) SARITH16(a, b, n, +)
+#define SUB16(a, b, n) SARITH16(a, b, n, -)
+#define ADD8(a, b, n)  SARITH8(a, b, n, +)
+#define SUB8(a, b, n)  SARITH8(a, b, n, -)
+#define PFX s
+#define ARITH_GE
+
+#include "op_addsub.h"
+
+/* Unsigned modulo arithmetic.  */
+#define ADD16(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint16_t)(a) + (uint32_t)(uint16_t)(b); \
+    RESULT(sum, n, 16); \
+    if ((sum >> 16) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define ADD8(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint8_t)(a) + (uint32_t)(uint8_t)(b); \
+    RESULT(sum, n, 8); \
+    if ((sum >> 8) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define SUB16(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint16_t)(a) - (uint32_t)(uint16_t)(b); \
+    RESULT(sum, n, 16); \
+    if ((sum >> 16) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define SUB8(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint8_t)(a) - (uint32_t)(uint8_t)(b); \
+    RESULT(sum, n, 8); \
+    if ((sum >> 8) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define PFX u
+#define ARITH_GE
+
+#include "op_addsub.h"
+
+/* Halved signed arithmetic.  */
+#define ADD16(a, b, n) \
+  RESULT(((int32_t)(int16_t)(a) + (int32_t)(int16_t)(b)) >> 1, n, 16)
+#define SUB16(a, b, n) \
+  RESULT(((int32_t)(int16_t)(a) - (int32_t)(int16_t)(b)) >> 1, n, 16)
+#define ADD8(a, b, n) \
+  RESULT(((int32_t)(int8_t)(a) + (int32_t)(int8_t)(b)) >> 1, n, 8)
+#define SUB8(a, b, n) \
+  RESULT(((int32_t)(int8_t)(a) - (int32_t)(int8_t)(b)) >> 1, n, 8)
+#define PFX sh
+
+#include "op_addsub.h"
+
+/* Halved unsigned arithmetic.  */
+#define ADD16(a, b, n) \
+  RESULT(((uint32_t)(uint16_t)(a) + (uint32_t)(uint16_t)(b)) >> 1, n, 16)
+#define SUB16(a, b, n) \
+  RESULT(((uint32_t)(uint16_t)(a) - (uint32_t)(uint16_t)(b)) >> 1, n, 16)
+#define ADD8(a, b, n) \
+  RESULT(((uint32_t)(uint8_t)(a) + (uint32_t)(uint8_t)(b)) >> 1, n, 8)
+#define SUB8(a, b, n) \
+  RESULT(((uint32_t)(uint8_t)(a) - (uint32_t)(uint8_t)(b)) >> 1, n, 8)
+#define PFX uh
+
+#include "op_addsub.h"
+
+void OPPROTO op_pkhtb_T0_T1(void)
+{
+    T0 = (T0 & 0xffff0000) | (T1 & 0xffff);
+}
+
+void OPPROTO op_pkhbt_T0_T1(void)
+{
+    T0 = (T0 & 0xffff) | (T1 & 0xffff0000);
+}
+void OPPROTO op_rev_T0(void)
+{
+    T0 =  ((T0 & 0xff000000) >> 24)
+        | ((T0 & 0x00ff0000) >> 8)
+        | ((T0 & 0x0000ff00) << 8)
+        | ((T0 & 0x000000ff) << 24);
+}
+
+void OPPROTO op_revh_T0(void)
+{
+    T0 = (T0 >> 16) | (T0 << 16);
+}
+
+void OPPROTO op_rev16_T0(void)
+{
+    T0 =  ((T0 & 0xff000000) >> 8)
+        | ((T0 & 0x00ff0000) << 8)
+        | ((T0 & 0x0000ff00) >> 8)
+        | ((T0 & 0x000000ff) << 8);
+}
+
+void OPPROTO op_revsh_T0(void)
+{
+    T0 = (int16_t)(  ((T0 & 0x0000ff00) >> 8)
+                   | ((T0 & 0x000000ff) << 8));
+}
+
+void OPPROTO op_rbit_T0(void)
+{
+    T0 =  ((T0 & 0xff000000) >> 24)
+        | ((T0 & 0x00ff0000) >> 8)
+        | ((T0 & 0x0000ff00) << 8)
+        | ((T0 & 0x000000ff) << 24);
+    T0 =  ((T0 & 0xf0f0f0f0) >> 4)
+        | ((T0 & 0x0f0f0f0f) << 4);
+    T0 =  ((T0 & 0x88888888) >> 3)
+        | ((T0 & 0x44444444) >> 1)
+        | ((T0 & 0x22222222) << 1)
+        | ((T0 & 0x11111111) << 3);
+}
+
+/* Swap low and high halfwords.  */
+void OPPROTO op_swap_half_T1(void)
+{
+    T1 = (T1 >> 16) | (T1 << 16);
+    FORCE_RET();
+}
+
+/* Dual 16-bit signed multiply.  */
+void OPPROTO op_mul_dual_T0_T1(void)
+{
+    int32_t low;
+    int32_t high;
+    low = (int32_t)(int16_t)T0 * (int32_t)(int16_t)T1;
+    high = (((int32_t)T0) >> 16) * (((int32_t)T1) >> 16);
+    T0 = low;
+    T1 = high;
+}
+
+void OPPROTO op_sel_T0_T1(void)
+{
+    uint32_t mask;
+    uint32_t flags;
+
+    flags = env->GE;
+    mask = 0;
+    if (flags & 1)
+        mask |= 0xff;
+    if (flags & 2)
+        mask |= 0xff00;
+    if (flags & 4)
+        mask |= 0xff0000;
+    if (flags & 8)
+        mask |= 0xff000000;
+    T0 = (T0 & mask) | (T1 & ~mask);
+    FORCE_RET();
+}
+
+void OPPROTO op_roundqd_T0_T1(void)
+{
+    T0 = T1 + ((uint32_t)T0 >> 31);
+}
+
+/* Signed saturation.  */
+static inline uint32_t do_ssat(int32_t val, int shift)
+{
+    int32_t top;
+    uint32_t mask;
+
+    shift = PARAM1;
+    top = val >> shift;
+    mask = (1u << shift) - 1;
+    if (top > 0) {
+        env->QF = 1;
+        return mask;
+    } else if (top < -1) {
+        env->QF = 1;
+        return ~mask;
+    }
+    return val;
+}
+
+/* Unsigned saturation.  */
+static inline uint32_t do_usat(int32_t val, int shift)
+{
+    uint32_t max;
+
+    shift = PARAM1;
+    max = (1u << shift) - 1;
+    if (val < 0) {
+        env->QF = 1;
+        return 0;
+    } else if (val > max) {
+        env->QF = 1;
+        return max;
+    }
+    return val;
+}
+
+/* Signed saturate.  */
+void OPPROTO op_ssat_T1(void)
+{
+    T0 = do_ssat(T0, PARAM1);
+    FORCE_RET();
+}
+
+/* Dual halfword signed saturate.  */
+void OPPROTO op_ssat16_T1(void)
+{
+    uint32_t res;
+
+    res = (uint16_t)do_ssat((int16_t)T0, PARAM1);
+    res |= do_ssat(((int32_t)T0) >> 16, PARAM1) << 16;
+    T0 = res;
+    FORCE_RET();
+}
+
+/* Unsigned saturate.  */
+void OPPROTO op_usat_T1(void)
+{
+    T0 = do_usat(T0, PARAM1);
+    FORCE_RET();
+}
+
+/* Dual halfword unsigned saturate.  */
+void OPPROTO op_usat16_T1(void)
+{
+    uint32_t res;
+
+    res = (uint16_t)do_usat((int16_t)T0, PARAM1);
+    res |= do_usat(((int32_t)T0) >> 16, PARAM1) << 16;
+    T0 = res;
+    FORCE_RET();
+}
+
+/* Dual 16-bit add.  */
+void OPPROTO op_add16_T1_T2(void)
+{
+    uint32_t mask;
+    mask = (T0 & T1) & 0x8000;
+    T0 ^= ~0x8000;
+    T1 ^= ~0x8000;
+    T0 = (T0 + T1) ^ mask;
+}
+
+static inline uint8_t do_usad(uint8_t a, uint8_t b)
+{
+    if (a > b)
+        return a - b;
+    else
+        return b - a;
+}
+
+/* Unsigned sum of absolute byte differences.  */
+void OPPROTO op_usad8_T0_T1(void)
+{
+    uint32_t sum;
+    sum = do_usad(T0, T1);
+    sum += do_usad(T0 >> 8, T1 >> 8);
+    sum += do_usad(T0 >> 16, T1 >>16);
+    sum += do_usad(T0 >> 24, T1 >> 24);
+    T0 = sum;
+}
+
+/* Thumb-2 instructions.  */
+
+/* Insert T1 into T0.  Result goes in T1.  */
+void OPPROTO op_bfi_T1_T0(void)
+{
+    int shift = PARAM1;
+    uint32_t mask = PARAM2;
+    uint32_t bits;
+
+    bits = (T1 << shift) & mask;
+    T1 = (T0 & ~mask) | bits;
+}
+
+/* Unsigned bitfield extract.  */
+void OPPROTO op_ubfx_T1(void)
+{
+    uint32_t shift = PARAM1;
+    uint32_t mask = PARAM2;
+
+    T1 >>= shift;
+    T1 &= mask;
+}
+
+/* Signed bitfield extract.  */
+void OPPROTO op_sbfx_T1(void)
+{
+    uint32_t shift = PARAM1;
+    uint32_t width = PARAM2;
+    int32_t val;
+
+    val = T1 << (32 - (shift + width));
+    T1 = val >> (32 - width);
+}
+
+void OPPROTO op_movtop_T0_im(void)
+{
+    T0 = (T0 & 0xffff) | PARAM1;
+}
+
+/* Used by table branch instructions.  */
+void OPPROTO op_jmp_T0_im(void)
+{
+    env->regs[15] = PARAM1 + (T0 << 1);
+}
+
+void OPPROTO op_set_condexec(void)
+{
+    env->condexec_bits = PARAM1;
+}
+
+void OPPROTO op_sdivl_T0_T1(void)
+{
+  int32_t num;
+  int32_t den;
+  num = T0;
+  den = T1;
+  if (den == 0)
+    T0 = 0;
+  else
+    T0 = num / den;
+  FORCE_RET();
+}
+
+void OPPROTO op_udivl_T0_T1(void)
+{
+  uint32_t num;
+  uint32_t den;
+  num = T0;
+  den = T1;
+  if (den == 0)
+    T0 = 0;
+  else
+    T0 = num / den;
+  FORCE_RET();
+}
+
+void OPPROTO op_movl_T1_r13_banked(void)
+{
+    T1 = helper_get_r13_banked(env, PARAM1);
+}
+
+void OPPROTO op_movl_r13_T1_banked(void)
+{
+    helper_set_r13_banked(env, PARAM1, T1);
+}
+
+void OPPROTO op_v7m_mrs_T0(void)
+{
+    T0 = helper_v7m_mrs(env, PARAM1);
+}
+
+void OPPROTO op_v7m_msr_T0(void)
+{
+    helper_v7m_msr(env, PARAM1, T0);
+}
+
+void OPPROTO op_movl_T0_sp(void)
+{
+    if (PARAM1 == env->v7m.current_sp)
+        T0 = env->regs[13];
+    else
+        T0 = env->v7m.other_sp;
+    FORCE_RET();
+}
+
+#include "op_neon.h"
 
 /* iwMMXt support */
 #include "op_iwmmxt.c"

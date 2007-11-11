@@ -5377,3 +5377,78 @@ int float ## s ## _compare_quiet( float ## s a, float ## s b STATUS_PARAM )  \
 
 COMPARE(32, 0xff)
 COMPARE(64, 0x7ff)
+
+/* Multiply A by 2 raised to the power N.  */
+float32 float32_scalbn( float32 a, int n STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp;
+    bits32 aSig;
+
+    aSig = extractFloat32Frac( a );
+    aExp = extractFloat32Exp( a );
+    aSign = extractFloat32Sign( a );
+
+    if ( aExp == 0xFF ) {
+        return a;
+    }
+    aExp += n;
+    return roundAndPackFloat32( aSign, aExp, aSig STATUS_VAR );
+}
+
+float64 float64_scalbn( float64 a, int n STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp;
+    bits64 aSig;
+
+    aSig = extractFloat64Frac( a );
+    aExp = extractFloat64Exp( a );
+    aSign = extractFloat64Sign( a );
+
+    if ( aExp == 0x7FF ) {
+        return a;
+    }
+    aExp += n;
+    return roundAndPackFloat64( aSign, aExp, aSig STATUS_VAR );
+}
+
+#ifdef FLOATX80
+floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp;
+    bits64 aSig;
+
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+
+    if ( aExp == 0x7FF ) {
+        return a;
+    }
+    aExp += n;
+    return roundAndPackFloatx80( STATUS(floatx80_rounding_precision),
+                                 aSign, aExp, aSig, 0 STATUS_VAR );
+}
+#endif
+
+#ifdef FLOAT128
+float128 float128_scalbn( float128 a, int n STATUS_PARAM )
+{
+    flag aSign;
+    int32 aExp;
+    bits64 aSig0, aSig1;
+
+    aSig1 = extractFloat128Frac1( a );
+    aSig0 = extractFloat128Frac0( a );
+    aExp = extractFloat128Exp( a );
+    aSign = extractFloat128Sign( a );
+    if ( aExp == 0x7FFF ) {
+        return a;
+    }
+    aExp += n;
+    return roundAndPackFloat128( aSign, aExp, aSig0, aSig1, 0 STATUS_VAR );
+
+}
+#endif
