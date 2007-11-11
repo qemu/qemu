@@ -2043,17 +2043,17 @@ int main(int argc, char **argv)
     if (loglevel) {
         page_dump(logfile);
 
-        fprintf(logfile, "start_brk   0x" TARGET_FMT_lx "\n", info->start_brk);
-        fprintf(logfile, "end_code    0x" TARGET_FMT_lx "\n", info->end_code);
-        fprintf(logfile, "start_code  0x" TARGET_FMT_lx "\n",
+        fprintf(logfile, "start_brk   0x" TARGET_ABI_FMT_lx "\n", info->start_brk);
+        fprintf(logfile, "end_code    0x" TARGET_ABI_FMT_lx "\n", info->end_code);
+        fprintf(logfile, "start_code  0x" TARGET_ABI_FMT_lx "\n",
                 info->start_code);
-        fprintf(logfile, "start_data  0x" TARGET_FMT_lx "\n",
+        fprintf(logfile, "start_data  0x" TARGET_ABI_FMT_lx "\n",
                 info->start_data);
-        fprintf(logfile, "end_data    0x" TARGET_FMT_lx "\n", info->end_data);
-        fprintf(logfile, "start_stack 0x" TARGET_FMT_lx "\n",
+        fprintf(logfile, "end_data    0x" TARGET_ABI_FMT_lx "\n", info->end_data);
+        fprintf(logfile, "start_stack 0x" TARGET_ABI_FMT_lx "\n",
                 info->start_stack);
-        fprintf(logfile, "brk         0x" TARGET_FMT_lx "\n", info->brk);
-        fprintf(logfile, "entry       0x" TARGET_FMT_lx "\n", info->entry);
+        fprintf(logfile, "brk         0x" TARGET_ABI_FMT_lx "\n", info->brk);
+        fprintf(logfile, "entry       0x" TARGET_ABI_FMT_lx "\n", info->entry);
     }
 
     target_set_brk(info->brk);
