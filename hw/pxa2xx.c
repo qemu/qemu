@@ -25,22 +25,34 @@ static struct {
     { 0, 0 }
 };
 
-static struct {
+typedef struct PXASSPDef {
     target_phys_addr_t io_base;
     int irqn;
-} pxa250_ssp[] = {
+} PXASSPDef;
+
+#if 0
+static PXASSPDef pxa250_ssp[] = {
     { 0x41000000, PXA2XX_PIC_SSP },
     { 0, 0 }
-}, pxa255_ssp[] = {
+};
+#endif
+
+static PXASSPDef pxa255_ssp[] = {
     { 0x41000000, PXA2XX_PIC_SSP },
     { 0x41400000, PXA25X_PIC_NSSP },
     { 0, 0 }
-}, pxa26x_ssp[] = {
+};
+
+#if 0
+static PXASSPDef pxa26x_ssp[] = {
     { 0x41000000, PXA2XX_PIC_SSP },
     { 0x41400000, PXA25X_PIC_NSSP },
     { 0x41500000, PXA26X_PIC_ASSP },
     { 0, 0 }
-}, pxa27x_ssp[] = {
+};
+#endif
+
+static PXASSPDef pxa27x_ssp[] = {
     { 0x41000000, PXA2XX_PIC_SSP },
     { 0x41700000, PXA27X_PIC_SSP2 },
     { 0x41900000, PXA2XX_PIC_SSP3 },
