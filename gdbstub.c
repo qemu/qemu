@@ -1052,7 +1052,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             TaskState *ts = env->opaque;
 
             sprintf(buf,
-                    "Text=" TARGET_FMT_lx ";Data=" TARGET_FMT_lx ";Bss=" TARGET_FMT_lx,
+                    "Text=" TARGET_ABI_FMT_lx ";Data=" TARGET_ABI_FMT_lx
+                    ";Bss=" TARGET_ABI_FMT_lx,
                     ts->info->code_offset,
                     ts->info->data_offset,
                     ts->info->data_offset);
