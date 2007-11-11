@@ -224,7 +224,7 @@ print_syscall_ret_addr(struct syscallname *name, abi_long ret)
 if( ret == -1 ) {
         gemu_log(" = -1 errno=%d (%s)\n", errno, target_strerror(errno));
     } else {
-        gemu_log(" = " TARGET_ABI_FMT_lx "\n", ret);
+        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
     }
 }
 
@@ -232,7 +232,7 @@ if( ret == -1 ) {
 static void
 print_syscall_ret_raw(struct syscallname *name, abi_long ret)
 {
-        gemu_log(" = " TARGET_ABI_FMT_lx "\n", ret);
+        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
 }
 #endif
 
@@ -240,7 +240,7 @@ print_syscall_ret_raw(struct syscallname *name, abi_long ret)
 static void
 print_syscall_ret_newselect(struct syscallname *name, abi_long ret)
 {
-    gemu_log(" = " TARGET_ABI_FMT_lx " (", ret);
+    gemu_log(" = 0x" TARGET_ABI_FMT_lx " (", ret);
     print_fdset(newselect_arg1,newselect_arg2);
     gemu_log(",");
     print_fdset(newselect_arg1,newselect_arg3);
