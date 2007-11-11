@@ -419,12 +419,12 @@ static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 
 static inline CPU86_LDouble helper_fldt(target_ulong ptr)
 {
-    return *(CPU86_LDouble *)ptr;
+    return *(CPU86_LDouble *)(unsigned long)ptr;
 }
 
 static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 {
-    *(CPU86_LDouble *)ptr = f;
+    *(CPU86_LDouble *)(unsigned long)ptr = f;
 }
 
 #else
