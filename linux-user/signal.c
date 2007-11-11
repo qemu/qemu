@@ -143,7 +143,7 @@ static void host_to_target_sigset_internal(target_sigset_t *d,
     d->sig[0] = target_sigmask;
     d->sig[1] = sigmask >> 32;
 #else
-#warning host_to_target_sigset
+    /* XXX: do it */
 #endif
 }
 
@@ -177,7 +177,7 @@ void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
 #elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
     ((unsigned long *)d)[0] = sigmask | ((unsigned long)(s->sig[1]) << 32);
 #else
-#warning target_to_host_sigset
+    /* XXX: do it */
 #endif /* TARGET_ABI_BITS */
 }
 
@@ -233,7 +233,7 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
         tinfo->_sifields._rt._uid = info->si_uid;
         /* XXX: potential problem if 64 bit */
         tinfo->_sifields._rt._sigval.sival_ptr =
-            (abi_ulong)info->si_value.sival_ptr;
+            (abi_ulong)(unsigned long)info->si_value.sival_ptr;
     }
 }
 
@@ -276,7 +276,7 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
     info->si_pid = tswap32(tinfo->_sifields._rt._pid);
     info->si_uid = tswap32(tinfo->_sifields._rt._uid);
     info->si_value.sival_ptr =
-        (void *)tswapl(tinfo->_sifields._rt._sigval.sival_ptr);
+            (void *)(long)tswapl(tinfo->_sifields._rt._sigval.sival_ptr);
 }
 
 void signal_init(void)
@@ -562,7 +562,7 @@ static inline int copy_siginfo_to_user(target_siginfo_t *tinfo,
     return 0;
 }
 
-#ifdef TARGET_I386
+#if defined(TARGET_I386) && TARGET_ABI_BITS == 32
 
 /* from the Linux kernel */
 
@@ -773,11 +773,7 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		/* This is popl %eax ; movl $,%eax ; int $0x80 */
                 val16 = 0xb858;
 		err |= __put_user(val16, (uint16_t *)(frame->retcode+0));
-#if defined(TARGET_X86_64)
-#warning "Fix this !"
-#else
 		err |= __put_user(TARGET_NR_sigreturn, (int *)(frame->retcode+2));
-#endif
                 val16 = 0x80cd;
 		err |= __put_user(val16, (uint16_t *)(frame->retcode+6));
 	}
@@ -1486,9 +1482,10 @@ struct target_rt_signal_frame {
 #define UREG_FP        UREG_I6
 #define UREG_SP        UREG_O6
 
-static inline void *get_sigframe(struct emulated_sigaction *sa, CPUState *env, unsigned long framesize)
+static inline abi_ulong get_sigframe(struct emulated_sigaction *sa, 
+                                     CPUState *env, unsigned long framesize)
 {
-	unsigned long sp;
+	abi_ulong sp;
 
 	sp = env->regwptr[UREG_FP];
 
@@ -1498,7 +1495,7 @@ static inline void *get_sigframe(struct emulated_sigaction *sa, CPUState *env, u
                 && !((target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size) & 7))
                 sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
 	}
-	return g2h(sp - framesize);
+	return sp - framesize;
 }
 
 static int
@@ -1543,6 +1540,7 @@ setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 static void setup_frame(int sig, struct emulated_sigaction *ka,
 			target_sigset_t *set, CPUState *env)
 {
+        abi_ulong sf_addr;
 	struct target_signal_frame *sf;
 	int sigframe_size, err, i;
 
@@ -1550,10 +1548,13 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	//synchronize_user_stack();
 
         sigframe_size = NF_ALIGNEDSZ;
+	sf_addr = get_sigframe(ka, env, sigframe_size);
 
-	sf = (struct target_signal_frame *)
-		get_sigframe(ka, env, sigframe_size);
-
+        sf = lock_user(VERIFY_WRITE, sf_addr, 
+                       sizeof(struct target_signal_frame), 0);
+        if (!sf)
+		goto sigsegv;
+                
 	//fprintf(stderr, "sf: %x pc %x fp %x sp %x\n", sf, env->pc, env->regwptr[UREG_FP], env->regwptr[UREG_SP]);
 #if 0
 	if (invalid_frame_pointer(sf, sigframe_size))
@@ -1581,20 +1582,24 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		goto sigsegv;
 
 	/* 3. signal handler back-trampoline and parameters */
-	env->regwptr[UREG_FP] = h2g(sf);
+	env->regwptr[UREG_FP] = sf_addr;
 	env->regwptr[UREG_I0] = sig;
-	env->regwptr[UREG_I1] = h2g(&sf->info);
-	env->regwptr[UREG_I2] = h2g(&sf->info);
+	env->regwptr[UREG_I1] = sf_addr + 
+                offsetof(struct target_signal_frame, info);
+	env->regwptr[UREG_I2] = sf_addr + 
+                offsetof(struct target_signal_frame, info);
 
 	/* 4. signal handler */
-	env->pc = (unsigned long) ka->sa._sa_handler;
+	env->pc = ka->sa._sa_handler;
 	env->npc = (env->pc + 4);
 	/* 5. return to kernel instructions */
 	if (ka->sa.sa_restorer)
-		env->regwptr[UREG_I7] = (unsigned long)ka->sa.sa_restorer;
+		env->regwptr[UREG_I7] = ka->sa.sa_restorer;
 	else {
                 uint32_t val32;
-		env->regwptr[UREG_I7] = h2g(&(sf->insns[0]) - 2);
+
+		env->regwptr[UREG_I7] = sf_addr + 
+                        offsetof(struct target_signal_frame, insns) - 2 * 4;
 
 		/* mov __NR_sigreturn, %g1 */
                 val32 = 0x821020d8;
@@ -1610,12 +1615,15 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		//flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
                 //		tb_flush(env);
 	}
+        unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
 	return;
-
-        //sigill_and_return:
+#if 0
+sigill_and_return:
 	force_sig(TARGET_SIGILL);
+#endif
 sigsegv:
 	//fprintf(stderr, "force_sig\n");
+        unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
 	force_sig(TARGET_SIGSEGV);
 }
 static inline int
@@ -1744,7 +1752,7 @@ long do_rt_sigreturn(CPUState *env)
     return -ENOSYS;
 }
 
-#ifdef TARGET_SPARC64
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
 #define MC_TSTATE 0
 #define MC_PC 1
 #define MC_NPC 2
@@ -1815,16 +1823,18 @@ struct target_reg_window {
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 void sparc64_set_context(CPUSPARCState *env)
 {
-    struct target_ucontext *ucp = (struct target_ucontext *)
-        env->regwptr[UREG_I0];
+    abi_ulong ucp_addr;
+    struct target_ucontext *ucp;
     target_mc_gregset_t *grp;
     abi_ulong pc, npc, tstate;
-    abi_ulong fp, i7;
+    abi_ulong fp, i7, w_addr;
     unsigned char fenab;
     int err;
     unsigned int i;
-    abi_ulong *src, *dst;
 
+    ucp_addr = env->regwptr[UREG_I0];
+    if (!lock_user_struct(VERIFY_READ, ucp, ucp_addr, 1))
+        goto do_sigsegv;
     grp  = &ucp->uc_mcontext.mc_gregs;
     err  = __get_user(pc, &((*grp)[MC_PC]));
     err |= __get_user(npc, &((*grp)[MC_NPC]));
@@ -1838,11 +1848,12 @@ void sparc64_set_context(CPUSPARCState *env)
             if (__get_user(target_set.sig[0], &ucp->uc_sigmask.sig[0]))
                 goto do_sigsegv;
         } else {
-            src = &ucp->uc_sigmask;
-            dst = &target_set;
+            abi_ulong *src, *dst;
+            src = ucp->uc_sigmask.sig;
+            dst = target_set.sig;
             for (i = 0; i < sizeof(target_sigset_t) / sizeof(abi_ulong);
                  i++, dst++, src++)
-                err |= __get_user(dst, src);
+                err |= __get_user(*dst, src);
             if (err)
                 goto do_sigsegv;
         }
@@ -1874,42 +1885,53 @@ void sparc64_set_context(CPUSPARCState *env)
 
     err |= __get_user(fp, &(ucp->uc_mcontext.mc_fp));
     err |= __get_user(i7, &(ucp->uc_mcontext.mc_i7));
-    err |= __put_user(fp,
-                      (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[6])));
-    err |= __put_user(i7,
-                      (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[7])));
 
+    w_addr = TARGET_STACK_BIAS+env->regwptr[UREG_I6];
+    if (put_user(fp, w_addr + offsetof(struct target_reg_window, ins[6]), 
+                 abi_ulong) != 0)
+        goto do_sigsegv;
+    if (put_user(i7, w_addr + offsetof(struct target_reg_window, ins[7]), 
+                 abi_ulong) != 0)
+        goto do_sigsegv;
     err |= __get_user(fenab, &(ucp->uc_mcontext.mc_fpregs.mcfpu_enab));
     err |= __get_user(env->fprs, &(ucp->uc_mcontext.mc_fpregs.mcfpu_fprs));
-    src = &(ucp->uc_mcontext.mc_fpregs.mcfpu_fregs);
-    dst = &env->fpr;
-    for (i = 0; i < 64; i++, dst++, src++)
-        err |= __get_user(dst, src);
+    {
+        uint32_t *src, *dst;
+        src = ucp->uc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
+        dst = env->fpr;
+        /* XXX: check that the CPU storage is the same as user context */
+        for (i = 0; i < 64; i++, dst++, src++)
+            err |= __get_user(*dst, src);
+    }
     err |= __get_user(env->fsr,
                       &(ucp->uc_mcontext.mc_fpregs.mcfpu_fsr));
     err |= __get_user(env->gsr,
                       &(ucp->uc_mcontext.mc_fpregs.mcfpu_gsr));
     if (err)
         goto do_sigsegv;
-
+    unlock_user_struct(ucp, ucp_addr, 0);
     return;
  do_sigsegv:
+    unlock_user_struct(ucp, ucp_addr, 0);
     force_sig(SIGSEGV);
 }
 
 void sparc64_get_context(CPUSPARCState *env)
 {
-    struct target_ucontext *ucp = (struct target_ucontext *)
-        env->regwptr[UREG_I0];
+    abi_ulong ucp_addr;
+    struct target_ucontext *ucp;
     target_mc_gregset_t *grp;
     target_mcontext_t *mcp;
-    abi_ulong fp, i7;
+    abi_ulong fp, i7, w_addr;
     int err;
     unsigned int i;
-    abi_ulong *src, *dst;
     target_sigset_t target_set;
     sigset_t set;
 
+    ucp_addr = env->regwptr[UREG_I0];
+    if (!lock_user_struct(VERIFY_WRITE, ucp, ucp_addr, 0))
+        goto do_sigsegv;
+    
     mcp = &ucp->uc_mcontext;
     grp = &mcp->mc_gregs;
 
@@ -1921,20 +1943,22 @@ void sparc64_get_context(CPUSPARCState *env)
 
     sigprocmask(0, NULL, &set);
     host_to_target_sigset_internal(&target_set, &set);
-    if (TARGET_NSIG_WORDS == 1)
+    if (TARGET_NSIG_WORDS == 1) {
         err |= __put_user(target_set.sig[0],
                           (abi_ulong *)&ucp->uc_sigmask);
-    else {
-        src = &target_set;
-        dst = &ucp->uc_sigmask;
+    } else {
+        abi_ulong *src, *dst;
+        src = target_set.sig;
+        dst = ucp->uc_sigmask.sig;
         for (i = 0; i < sizeof(target_sigset_t) / sizeof(abi_ulong);
              i++, dst++, src++)
-            err |= __put_user(src, dst);
+            err |= __put_user(*src, dst);
         if (err)
             goto do_sigsegv;
     }
 
-    err |= __put_user(env->tstate, &((*grp)[MC_TSTATE]));
+    /* XXX: tstate must be saved properly */
+    //    err |= __put_user(env->tstate, &((*grp)[MC_TSTATE]));
     err |= __put_user(env->pc, &((*grp)[MC_PC]));
     err |= __put_user(env->npc, &((*grp)[MC_NPC]));
     err |= __put_user(env->y, &((*grp)[MC_Y]));
@@ -1954,26 +1978,35 @@ void sparc64_get_context(CPUSPARCState *env)
     err |= __put_user(env->regwptr[UREG_I6], &((*grp)[MC_O6]));
     err |= __put_user(env->regwptr[UREG_I7], &((*grp)[MC_O7]));
 
-    err |= __get_user(fp,
-                      (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[6])));
-    err |= __get_user(i7,
-                      (&(((struct target_reg_window *)(TARGET_STACK_BIAS+env->regwptr[UREG_I6]))->ins[7])));
+    w_addr = TARGET_STACK_BIAS+env->regwptr[UREG_I6];
+    fp = i7 = 0;
+    if (get_user(fp, w_addr + offsetof(struct target_reg_window, ins[6]), 
+                 abi_ulong) != 0)
+        goto do_sigsegv;
+    if (get_user(i7, w_addr + offsetof(struct target_reg_window, ins[7]), 
+                 abi_ulong) != 0)
+        goto do_sigsegv;
     err |= __put_user(fp, &(mcp->mc_fp));
     err |= __put_user(i7, &(mcp->mc_i7));
 
-    src = &env->fpr;
-    dst = &(ucp->uc_mcontext.mc_fpregs.mcfpu_fregs);
-    for (i = 0; i < 64; i++, dst++, src++)
-        err |= __put_user(src, dst);
+    {
+        uint32_t *src, *dst;
+        src = env->fpr;
+        dst = ucp->uc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
+        /* XXX: check that the CPU storage is the same as user context */
+        for (i = 0; i < 64; i++, dst++, src++)
+            err |= __put_user(*src, dst);
+    }
     err |= __put_user(env->fsr, &(mcp->mc_fpregs.mcfpu_fsr));
     err |= __put_user(env->gsr, &(mcp->mc_fpregs.mcfpu_gsr));
     err |= __put_user(env->fprs, &(mcp->mc_fpregs.mcfpu_fprs));
 
     if (err)
         goto do_sigsegv;
-
+    unlock_user_struct(ucp, ucp_addr, 1);
     return;
  do_sigsegv:
+    unlock_user_struct(ucp, ucp_addr, 1);
     force_sig(SIGSEGV);
 }
 #endif
