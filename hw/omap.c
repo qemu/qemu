@@ -833,7 +833,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         return 1;
 
     default:
-        OMAP_BAD_REG((unsigned long) reg);
+        OMAP_BAD_REG((target_phys_addr_t) reg);
     }
     return 0;
 }
