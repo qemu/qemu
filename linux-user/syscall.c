@@ -2319,7 +2319,7 @@ static abi_long write_ldt(CPUX86State *env,
         if (!ldt_table)
             return -TARGET_ENOMEM;
         memset(ldt_table, 0, TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
-        env->ldt.base = h2g(ldt_table);
+        env->ldt.base = h2g((unsigned long)ldt_table);
         env->ldt.limit = 0xffff;
     }
 
@@ -4268,7 +4268,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_getdents:
 #if TARGET_ABI_BITS != 32
         goto unimplemented;
-#warning not supported
 #elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
         {
             struct target_dirent *target_dirp;
