@@ -1512,14 +1512,16 @@ void do_td (int flags)
 /* PowerPC 601 specific instructions (POWER bridge) */
 void do_POWER_abso (void)
 {
-    if ((uint32_t)T0 == INT32_MIN) {
+    if ((int32_t)T0 == INT32_MIN) {
         T0 = INT32_MAX;
         xer_ov = 1;
-        xer_so = 1;
-    } else {
+    } else if ((int32_t)T0 < 0) {
         T0 = -T0;
         xer_ov = 0;
+    } else {
+        xer_ov = 0;
     }
+    xer_so |= xer_ov;
 }
 
 void do_POWER_clcs (void)
@@ -1896,8 +1898,8 @@ void do_ev##name (void)                                                       \
 /* Fixed-point vector arithmetic */
 static always_inline uint32_t _do_eabs (uint32_t val)
 {
-    if (val != 0x80000000)
-        val &= ~0x80000000;
+    if ((val & 0x80000000) && val != 0x80000000)
+        val -= val;
 
     return val;
 }
@@ -1923,7 +1925,7 @@ static always_inline int _do_ecntlzw (uint32_t val)
 static always_inline uint32_t _do_eneg (uint32_t val)
 {
     if (val != 0x80000000)
-        val ^= 0x80000000;
+        val -= val;
 
     return val;
 }

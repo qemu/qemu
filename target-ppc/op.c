@@ -2199,9 +2199,9 @@ void OPPROTO op_store_601_batu (void)
 /* XXX: those micro-ops need tests ! */
 void OPPROTO op_POWER_abs (void)
 {
-    if (T0 == INT32_MIN)
+    if ((int32_t)T0 == INT32_MIN)
         T0 = INT32_MAX;
-    else if (T0 < 0)
+    else if ((int32_t)T0 < 0)
         T0 = -T0;
     RETURN();
 }
