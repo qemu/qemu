@@ -669,12 +669,22 @@ static inline abi_long host_to_target_sockaddr(abi_ulong target_addr,
 }
 
 /* ??? Should this also swap msgh->name?  */
-static inline void target_to_host_cmsg(struct msghdr *msgh,
-                                       struct target_msghdr *target_msgh)
+static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
+                                           struct target_msghdr *target_msgh)
 {
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
-    struct target_cmsghdr *target_cmsg = TARGET_CMSG_FIRSTHDR(target_msgh);
+    abi_long msg_controllen;
+    abi_ulong target_cmsg_addr;
+    struct target_cmsghdr *target_cmsg;
     socklen_t space = 0;
+    
+    msg_controllen = tswapl(target_msgh->msg_controllen);
+    if (msg_controllen < sizeof (struct target_cmsghdr)) 
+        goto the_end;
+    target_cmsg_addr = tswapl(target_msgh->msg_control);
+    target_cmsg = lock_user(VERIFY_READ, target_cmsg_addr, msg_controllen, 1);
+    if (!target_cmsg)
+        return -TARGET_EFAULT;
 
     while (cmsg && target_cmsg) {
         void *data = CMSG_DATA(cmsg);
@@ -709,17 +719,29 @@ static inline void target_to_host_cmsg(struct msghdr *msgh,
         cmsg = CMSG_NXTHDR(msgh, cmsg);
         target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
     }
-
+    unlock_user(target_cmsg, target_cmsg_addr, 0);
+ the_end:
     msgh->msg_controllen = space;
+    return 0;
 }
 
 /* ??? Should this also swap msgh->name?  */
-static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
-                                       struct msghdr *msgh)
+static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
+                                           struct msghdr *msgh)
 {
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
-    struct target_cmsghdr *target_cmsg = TARGET_CMSG_FIRSTHDR(target_msgh);
+    abi_long msg_controllen;
+    abi_ulong target_cmsg_addr;
+    struct target_cmsghdr *target_cmsg;
     socklen_t space = 0;
+
+    msg_controllen = tswapl(target_msgh->msg_controllen);
+    if (msg_controllen < sizeof (struct target_cmsghdr)) 
+        goto the_end;
+    target_cmsg_addr = tswapl(target_msgh->msg_control);
+    target_cmsg = lock_user(VERIFY_WRITE, target_cmsg_addr, msg_controllen, 0);
+    if (!target_cmsg)
+        return -TARGET_EFAULT;
 
     while (cmsg && target_cmsg) {
         void *data = CMSG_DATA(cmsg);
@@ -728,7 +750,7 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
         int len = cmsg->cmsg_len - CMSG_ALIGN(sizeof (struct cmsghdr));
 
         space += TARGET_CMSG_SPACE(len);
-        if (space > tswapl(target_msgh->msg_controllen)) {
+        if (space > msg_controllen) {
             space -= TARGET_CMSG_SPACE(len);
             gemu_log("Target cmsg overflow\n");
             break;
@@ -753,8 +775,10 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
         cmsg = CMSG_NXTHDR(msgh, cmsg);
         target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
     }
-
-    msgh->msg_controllen = tswapl(space);
+    unlock_user(target_cmsg, target_cmsg_addr, space);
+ the_end:
+    target_msgh->msg_controllen = tswapl(space);
+    return 0;
 }
 
 /* do_setsockopt() Must return target values and target errnos. */
@@ -1109,12 +1133,13 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
     msg.msg_iov = vec;
 
     if (send) {
-        target_to_host_cmsg(&msg, msgp);
-        ret = get_errno(sendmsg(fd, &msg, flags));
+        ret = target_to_host_cmsg(&msg, msgp);
+        if (ret == 0)
+            ret = get_errno(sendmsg(fd, &msg, flags));
     } else {
         ret = get_errno(recvmsg(fd, &msg, flags));
         if (!is_error(ret))
-            host_to_target_cmsg(msgp, &msg);
+            ret = host_to_target_cmsg(msgp, &msg);
     }
     unlock_iovec(vec, target_vec, count, !send);
     unlock_user_struct(msgp, target_msg, send ? 0 : 1);
@@ -1409,8 +1434,8 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
 #define N_SHM_REGIONS	32
 
 static struct shm_region {
-    uint32_t	start;
-    uint32_t	size;
+    abi_ulong	start;
+    abi_ulong	size;
 } shm_regions[N_SHM_REGIONS];
 
 struct target_ipc_perm
@@ -1776,7 +1801,6 @@ static abi_long do_ipc(unsigned int call, int first,
 {
     int version;
     abi_long ret = 0;
-    unsigned long raddr;
     struct shmid_ds shm_info;
     int i;
 
@@ -1831,32 +1855,38 @@ static abi_long do_ipc(unsigned int call, int first,
 		break;
 
     case IPCOP_shmat:
-	/* SHM_* flags are the same on all linux platforms */
-	ret = get_errno((long) shmat(first, (void *) ptr, second));
-        if (is_error(ret))
-            break;
-        raddr = ret;
-	/* find out the length of the shared memory segment */
-
-        ret = get_errno(shmctl(first, IPC_STAT, &shm_info));
-        if (is_error(ret)) {
-            /* can't get length, bail out */
-            shmdt((void *) raddr);
-	    break;
-	}
-	page_set_flags(raddr, raddr + shm_info.shm_segsz,
-		       PAGE_VALID | PAGE_READ |
-		       ((second & SHM_RDONLY)? 0: PAGE_WRITE));
-	for (i = 0; i < N_SHM_REGIONS; ++i) {
-	    if (shm_regions[i].start == 0) {
-		shm_regions[i].start = raddr;
-		shm_regions[i].size = shm_info.shm_segsz;
+        {
+            abi_ulong raddr;
+            void *host_addr;
+            /* SHM_* flags are the same on all linux platforms */
+            host_addr = shmat(first, (void *)g2h(ptr), second);
+            if (host_addr == (void *)-1) {
+                ret = get_errno((long)host_addr);
                 break;
-	    }
-	}
-        if (put_user(raddr, third, abi_ulong))
-            return -TARGET_EFAULT;
-        ret = 0;
+            }
+            raddr = h2g((unsigned long)host_addr);
+            /* find out the length of the shared memory segment */
+            
+            ret = get_errno(shmctl(first, IPC_STAT, &shm_info));
+            if (is_error(ret)) {
+                /* can't get length, bail out */
+                shmdt(host_addr);
+                break;
+            }
+            page_set_flags(raddr, raddr + shm_info.shm_segsz,
+                           PAGE_VALID | PAGE_READ |
+                           ((second & SHM_RDONLY)? 0: PAGE_WRITE));
+            for (i = 0; i < N_SHM_REGIONS; ++i) {
+                if (shm_regions[i].start == 0) {
+                    shm_regions[i].start = raddr;
+                    shm_regions[i].size = shm_info.shm_segsz;
+                    break;
+                }
+            }
+            if (put_user(raddr, third, abi_ulong))
+                return -TARGET_EFAULT;
+            ret = 0;
+        }
 	break;
     case IPCOP_shmdt:
 	for (i = 0; i < N_SHM_REGIONS; ++i) {
@@ -1866,7 +1896,7 @@ static abi_long do_ipc(unsigned int call, int first,
 		break;
 	    }
 	}
-	ret = get_errno(shmdt((void *) ptr));
+	ret = get_errno(shmdt((void *)g2h(ptr)));
 	break;
 
     case IPCOP_shmget:
