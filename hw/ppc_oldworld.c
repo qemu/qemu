@@ -113,6 +113,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
+    int ide_mem_index[2];
     int ppc_boot_device;
 
     linux_boot = (kernel_filename != NULL);
@@ -213,18 +214,21 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
         initrd_base = 0;
         initrd_size = 0;
         ppc_boot_device = '\0';
-        for (i = 0; i < boot_device[i] != '\0'; i++) {
-            ppc_boot_device = boot_device[i];
+        for (i = 0; boot_device[i] != '\0'; i++) {
             /* TOFIX: for now, the second IDE channel is not properly
-             *        emulated. The Mac floppy disk are not emulated.
+             *        used by OHW. The Mac floppy disk are not emulated.
              *        For now, OHW cannot boot from the network.
              */
 #if 0
-            if (ppc_boot_device >= 'a' && ppc_boot_device <= 'f')
+            if (boot_device[i] >= 'a' && boot_device[i] <= 'f') {
+                ppc_boot_device = boot_device[i];
                 break;
+            }
 #else
-            if (ppc_boot_device >= 'c' && ppc_boot_device <= 'd')
+            if (boot_device[i] >= 'c' && boot_device[i] <= 'd') {
+                ppc_boot_device = boot_device[i];
                 break;
+            }
 #endif
         }
         if (ppc_boot_device == '\0') {
@@ -278,8 +282,12 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
             nd_table[i].model = "ne2k_pci";
         pci_nic_init(pci_bus, &nd_table[i], -1);
     }
-    
+
+    /* First IDE channel is a CMD646 on the PCI bus */
     pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
+    /* Second IDE channel is a MAC IDE on the MacIO bus */
+    ide_mem_index[0] = -1;
+    ide_mem_index[1] = pmac_ide_init(&bs_table[2], pic[0x0D]);
 
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x12]);
@@ -293,7 +301,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     dbdma_init(&dbdma_mem_index);
 
     macio_init(pci_bus, 0x0017, 1, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, nvr, 0, NULL);
+               cuda_mem_index, nvr, 2, ide_mem_index);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);

@@ -529,7 +529,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *env = NULL, *envs[MAX_CPUS];
     char buf[1024];
     nvram_t nvram;
     m48t59_t *m48t59;
@@ -614,10 +614,11 @@ static void ppc_prep_init (int ram_size, int vga_ram_size,
         initrd_size = 0;
         ppc_boot_device = '\0';
         /* For now, OHW cannot boot from the network. */
-        for (i = 0; i < boot_device[i] != '\0'; i++) {
-            ppc_boot_device = boot_device[i];
-            if (ppc_boot_device >= 'a' && ppc_boot_device <= 'f')
+        for (i = 0; boot_device[i] != '\0'; i++) {
+            if (boot_device[i] >= 'a' && boot_device[i] <= 'f') {
+                ppc_boot_device = boot_device[i];
                 break;
+            }
         }
         if (ppc_boot_device == '\0') {
             fprintf(stderr, "No valid boot device for Mac99 machine\n");

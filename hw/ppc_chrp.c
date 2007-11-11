@@ -179,10 +179,11 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
         /* We consider that NewWorld PowerMac never have any floppy drive
          * For now, OHW cannot boot from the network.
          */
-        for (i = 0; i < boot_device[i] != '\0'; i++) {
-            ppc_boot_device = boot_device[i];
-            if (ppc_boot_device >= 'c' && ppc_boot_device <= 'f')
+        for (i = 0; boot_device[i] != '\0'; i++) {
+            if (boot_device[i] >= 'c' && boot_device[i] <= 'f') {
+                ppc_boot_device = boot_device[i];
                 break;
+            }
         }
         if (ppc_boot_device == '\0') {
             fprintf(stderr, "No valid boot device for Mac99 machine\n");
