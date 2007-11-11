@@ -670,8 +670,8 @@ CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper);
 /* the following helpers are only usable in user mode simulation as
    they can trigger unexpected exceptions */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
-void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32);
-void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32);
+void cpu_x86_fsave(CPUX86State *s, target_ulong ptr, int data32);
+void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
