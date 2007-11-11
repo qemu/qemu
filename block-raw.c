@@ -25,6 +25,7 @@
 #include "qemu-common.h"
 #else
 #include "vl.h"
+#include "exec-all.h"
 #endif
 #include "block_int.h"
 #include <assert.h>
@@ -61,7 +62,6 @@
 
 //#define DEBUG_BLOCK
 #if defined(DEBUG_BLOCK) && !defined(QEMU_IMG)
-#include "exec-all.h"
 #define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
     { fprintf(logfile, formatCstr, ##args); fflush(logfile); } } while (0)
 #else
