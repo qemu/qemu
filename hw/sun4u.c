@@ -67,23 +67,23 @@ void DMA_register_channel (int nchan,
 }
 
 /* NVRAM helpers */
-void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value)
+static void nvram_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value)
 {
     m48t59_write(nvram, addr, value);
 }
 
-uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr)
+static uint8_t nvram_get_byte (m48t59_t *nvram, uint32_t addr)
 {
     return m48t59_read(nvram, addr);
 }
 
-void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
+static void nvram_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
 {
-    m48t59_write(nvram, addr, value >> 8);
-    m48t59_write(nvram, addr + 1, value & 0xFF);
+    m48t59_write(nvram, addr++, (value >> 8) & 0xff);
+    m48t59_write(nvram, addr++, value & 0xff);
 }
 
-uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr)
+static uint16_t nvram_get_word (m48t59_t *nvram, uint32_t addr)
 {
     uint16_t tmp;
 
@@ -93,30 +93,18 @@ uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
+static void nvram_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
 {
-    m48t59_write(nvram, addr, value >> 24);
-    m48t59_write(nvram, addr + 1, (value >> 16) & 0xFF);
-    m48t59_write(nvram, addr + 2, (value >> 8) & 0xFF);
-    m48t59_write(nvram, addr + 3, value & 0xFF);
+    m48t59_write(nvram, addr++, value >> 24);
+    m48t59_write(nvram, addr++, (value >> 16) & 0xff);
+    m48t59_write(nvram, addr++, (value >> 8) & 0xff);
+    m48t59_write(nvram, addr++, value & 0xff);
 }
 
-uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr)
-{
-    uint32_t tmp;
-
-    tmp = m48t59_read(nvram, addr) << 24;
-    tmp |= m48t59_read(nvram, addr + 1) << 16;
-    tmp |= m48t59_read(nvram, addr + 2) << 8;
-    tmp |= m48t59_read(nvram, addr + 3);
-
-    return tmp;
-}
-
-void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
+static void nvram_set_string (m48t59_t *nvram, uint32_t addr,
                        const unsigned char *str, uint32_t max)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < max && str[i] != '\0'; i++) {
         m48t59_write(nvram, addr + i, str[i]);
@@ -124,21 +112,7 @@ void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
     m48t59_write(nvram, addr + max - 1, '\0');
 }
 
-int NVRAM_get_string (m48t59_t *nvram, uint8_t *dst, uint16_t addr, int max)
-{
-    int i;
-
-    memset(dst, 0, max);
-    for (i = 0; i < max; i++) {
-        dst[i] = NVRAM_get_byte(nvram, addr + i);
-        if (dst[i] == '\0')
-            break;
-    }
-
-    return i;
-}
-
-static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
+static uint16_t nvram_crc_update (uint16_t prev, uint16_t value)
 {
     uint16_t tmp;
     uint16_t pd, pd1, pd2;
@@ -153,7 +127,8 @@ static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
     return tmp;
 }
 
-uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
+static uint16_t nvram_compute_crc (m48t59_t *nvram, uint32_t start,
+                                   uint32_t count)
 {
     uint32_t i;
     uint16_t crc = 0xFFFF;
@@ -162,10 +137,10 @@ uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
     odd = count & 1;
     count &= ~1;
     for (i = 0; i != count; i++) {
-        crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
+        crc = nvram_crc_update(crc, nvram_get_word(nvram, start + i));
     }
     if (odd) {
-        crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
+        crc = nvram_crc_update(crc, nvram_get_byte(nvram, start + i) << 8);
     }
 
     return crc;
@@ -177,7 +152,7 @@ static uint32_t nvram_set_var (m48t59_t *nvram, uint32_t addr,
     uint32_t len;
 
     len = strlen(str) + 1;
-    NVRAM_set_string(nvram, addr, str, len);
+    nvram_set_string(nvram, addr, str, len);
 
     return addr + len;
 }
@@ -215,39 +190,39 @@ int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     uint32_t start, end;
 
     /* Set parameters for Open Hack'Ware BIOS */
-    NVRAM_set_string(nvram, 0x00, "QEMU_BIOS", 16);
-    NVRAM_set_lword(nvram,  0x10, 0x00000002); /* structure v2 */
-    NVRAM_set_word(nvram,   0x14, NVRAM_size);
-    NVRAM_set_string(nvram, 0x20, arch, 16);
-    NVRAM_set_byte(nvram,   0x2f, nographic & 0xff);
-    NVRAM_set_lword(nvram,  0x30, RAM_size);
-    NVRAM_set_byte(nvram,   0x34, boot_device);
-    NVRAM_set_lword(nvram,  0x38, kernel_image);
-    NVRAM_set_lword(nvram,  0x3C, kernel_size);
+    nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
+    nvram_set_lword(nvram,  0x10, 0x00000002); /* structure v2 */
+    nvram_set_word(nvram,   0x14, NVRAM_size);
+    nvram_set_string(nvram, 0x20, arch, 16);
+    nvram_set_byte(nvram,   0x2f, nographic & 0xff);
+    nvram_set_lword(nvram,  0x30, RAM_size);
+    nvram_set_byte(nvram,   0x34, boot_device);
+    nvram_set_lword(nvram,  0x38, kernel_image);
+    nvram_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
         /* XXX: put the cmdline in NVRAM too ? */
         strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
-        NVRAM_set_lword(nvram,  0x40, CMDLINE_ADDR);
-        NVRAM_set_lword(nvram,  0x44, strlen(cmdline));
+        nvram_set_lword(nvram,  0x40, CMDLINE_ADDR);
+        nvram_set_lword(nvram,  0x44, strlen(cmdline));
     } else {
-        NVRAM_set_lword(nvram,  0x40, 0);
-        NVRAM_set_lword(nvram,  0x44, 0);
+        nvram_set_lword(nvram,  0x40, 0);
+        nvram_set_lword(nvram,  0x44, 0);
     }
-    NVRAM_set_lword(nvram,  0x48, initrd_image);
-    NVRAM_set_lword(nvram,  0x4C, initrd_size);
-    NVRAM_set_lword(nvram,  0x50, NVRAM_image);
+    nvram_set_lword(nvram,  0x48, initrd_image);
+    nvram_set_lword(nvram,  0x4C, initrd_size);
+    nvram_set_lword(nvram,  0x50, NVRAM_image);
 
-    NVRAM_set_word(nvram,   0x54, width);
-    NVRAM_set_word(nvram,   0x56, height);
-    NVRAM_set_word(nvram,   0x58, depth);
-    crc = NVRAM_compute_crc(nvram, 0x00, 0xF8);
-    NVRAM_set_word(nvram,  0xFC, crc);
+    nvram_set_word(nvram,   0x54, width);
+    nvram_set_word(nvram,   0x56, height);
+    nvram_set_word(nvram,   0x58, depth);
+    crc = nvram_compute_crc(nvram, 0x00, 0xF8);
+    nvram_set_word(nvram,  0xFC, crc);
 
     // OpenBIOS nvram variables
     // Variable partition
     start = 256;
     m48t59_write(nvram, start, 0x70);
-    NVRAM_set_string(nvram, start + 4, "system", 12);
+    nvram_set_string(nvram, start + 4, "system", 12);
 
     end = start + 16;
     for (i = 0; i < nb_prom_envs; i++)
@@ -260,7 +235,7 @@ int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     // free partition
     start = end;
     m48t59_write(nvram, start, 0x7f);
-    NVRAM_set_string(nvram, start + 4, "free", 12);
+    nvram_set_string(nvram, start + 4, "free", 12);
 
     end = 0x1fd0;
     nvram_finish_partition(nvram, start, end);
