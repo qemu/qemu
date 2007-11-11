@@ -129,7 +129,7 @@ void do_m68k_simcall(CPUM68KState *env, int nr)
         {
             int32_t ret;
 
-            ret = do_brk((void *)ARG(0));
+            ret = do_brk((abi_ulong)ARG(0));
             if (ret == -ENOMEM)
                 ret = -1;
             check_err(env, ret);
