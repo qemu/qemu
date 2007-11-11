@@ -327,6 +327,8 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 			lprint("Error: openpty failed: %s\n", strerror(errno));
 			return 0;
 		}
+#else
+                return 0;
 #endif
 	} else {
 		addr.sin_family = AF_INET;
