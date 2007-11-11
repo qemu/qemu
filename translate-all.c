@@ -241,7 +241,7 @@ int cpu_restore_state(TranslationBlock *tb,
         if (npc == 1) {
             /* dynamic NPC: already stored */
         } else if (npc == 2) {
-            target_ulong t2 = (target_ulong)puc;
+            target_ulong t2 = (target_ulong)(unsigned long)puc;
             /* jump PC: use T2 and the jump targets of the translation */
             if (t2)
                 env->npc = gen_opc_jump_pc[0];
