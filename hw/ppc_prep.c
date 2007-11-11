@@ -521,7 +521,8 @@ CPUReadMemoryFunc *PPC_prep_io_read[] = {
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init (int ram_size, int vga_ram_size, const char *boot_device,
+static void ppc_prep_init (int ram_size, int vga_ram_size,
+                           const char *boot_device,
                            DisplayState *ds, const char **fd_filename,
                            int snapshot, const char *kernel_filename,
                            const char *kernel_cmdline,
@@ -538,7 +539,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, const char *boot_devi
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     qemu_irq *i8259;
-    int ppc_boot_device = boot_device[0];
+    int ppc_boot_device;
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
     if (sysctrl == NULL)
@@ -611,6 +612,17 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, const char *boot_devi
         kernel_size = 0;
         initrd_base = 0;
         initrd_size = 0;
+        ppc_boot_device = '\0';
+        /* For now, OHW cannot boot from the network. */
+        for (i = 0; i < boot_device[i] != '\0'; i++) {
+            ppc_boot_device = boot_device[i];
+            if (ppc_boot_device >= 'a' && ppc_boot_device <= 'f')
+                break;
+        }
+        if (ppc_boot_device == '\0') {
+            fprintf(stderr, "No valid boot device for Mac99 machine\n");
+            exit(1);
+        }
     }
 
     isa_mem_base = 0xc0000000;

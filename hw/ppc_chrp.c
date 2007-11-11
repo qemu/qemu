@@ -74,7 +74,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index;
     int ide_mem_index[2];
-    int ppc_boot_device = boot_device[0];
+    int ppc_boot_device;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -175,6 +175,19 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
         kernel_size = 0;
         initrd_base = 0;
         initrd_size = 0;
+        ppc_boot_device = '\0';
+        /* We consider that NewWorld PowerMac never have any floppy drive
+         * For now, OHW cannot boot from the network.
+         */
+        for (i = 0; i < boot_device[i] != '\0'; i++) {
+            ppc_boot_device = boot_device[i];
+            if (ppc_boot_device >= 'c' && ppc_boot_device <= 'f')
+                break;
+        }
+        if (ppc_boot_device == '\0') {
+            fprintf(stderr, "No valid boot device for Mac99 machine\n");
+            exit(1);
+        }
     }
 
     isa_mem_base = 0x80000000;

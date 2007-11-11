@@ -113,7 +113,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
-    int ppc_boot_device = boot_device[0];
+    int ppc_boot_device;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -212,6 +212,25 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
         kernel_size = 0;
         initrd_base = 0;
         initrd_size = 0;
+        ppc_boot_device = '\0';
+        for (i = 0; i < boot_device[i] != '\0'; i++) {
+            ppc_boot_device = boot_device[i];
+            /* TOFIX: for now, the second IDE channel is not properly
+             *        emulated. The Mac floppy disk are not emulated.
+             *        For now, OHW cannot boot from the network.
+             */
+#if 0
+            if (ppc_boot_device >= 'a' && ppc_boot_device <= 'f')
+                break;
+#else
+            if (ppc_boot_device >= 'c' && ppc_boot_device <= 'd')
+                break;
+#endif
+        }
+        if (ppc_boot_device == '\0') {
+            fprintf(stderr, "No valid boot device for Mac99 machine\n");
+            exit(1);
+        }
     }
 
     isa_mem_base = 0x80000000;
@@ -272,7 +291,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     pmac_format_nvram_partition(nvr, 0x2000);
 
     dbdma_init(&dbdma_mem_index);
-    
+
     macio_init(pci_bus, 0x0017, 1, pic_mem_index, dbdma_mem_index,
                cuda_mem_index, nvr, 0, NULL);
 

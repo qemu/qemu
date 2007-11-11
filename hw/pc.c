@@ -173,6 +173,7 @@ static int boot_device2nibble(char boot_device)
 static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **hd_table)
 {
     RTCState *s = rtc_state;
+    int nbds, bds[3] = { 0, };
     int val;
     int fd0, fd1, nb;
     int i;
@@ -202,11 +203,22 @@ static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **
     rtc_set_memory(s, 0x35, val >> 8);
 
     /* set boot devices, and disable floppy signature check if requested */
-    rtc_set_memory(s, 0x3d,
-            boot_device2nibble(boot_device[1]) << 4 |
-            boot_device2nibble(boot_device[0]) );
-    rtc_set_memory(s, 0x38,
-            boot_device2nibble(boot_device[2]) << 4 | (fd_bootchk ?  0x0 : 0x1));
+#define PC_MAX_BOOT_DEVICES 3
+    nbds = strlen(boot_device);
+    if (nbds > PC_MAX_BOOT_DEVICES) {
+        fprintf(stderr, "Too many boot devices for PC\n");
+        exit(1);
+    }
+    for (i = 0; i < nbds; i++) {
+        bds[i] = boot_device2nibble(boot_device[i]);
+        if (bds[i] == 0) {
+            fprintf(stderr, "Invalid boot device for PC: '%c'\n",
+                    boot_device[i]);
+            exit(1);
+        }
+    }
+    rtc_set_memory(s, 0x3d, (bds[1] << 4) | bds[0]);
+    rtc_set_memory(s, 0x38, (bds[2] << 4) | (fd_bootchk ?  0x0 : 0x1));
 
     /* floppy type */
 

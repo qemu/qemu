@@ -162,12 +162,6 @@ static DisplayState display_state;
 int nographic;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
-#if defined(TARGET_I386)
-#define MAX_BOOT_DEVICES 3
-#else
-#define MAX_BOOT_DEVICES 1
-#endif
-static char boot_device[MAX_BOOT_DEVICES + 1];
 int ram_size;
 int pit_min_timer_count = 0;
 int nb_nics;
@@ -7587,14 +7581,16 @@ int main(int argc, char **argv)
     int use_gdbstub;
     const char *gdbstub_port;
 #endif
+    uint32_t boot_devices_bitmap = 0;
     int i, cdrom_index, pflash_index;
-    int snapshot, linux_boot;
+    int snapshot, linux_boot, net_boot;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *pflash_filename[MAX_PFLASH];
     const char *sd_filename;
     const char *mtd_filename;
     const char *kernel_filename, *kernel_cmdline;
+    const char *boot_devices = "";
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
     char net_clients[MAX_NET_CLIENTS][256];
@@ -7846,20 +7842,34 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_boot:
-                if (strlen(optarg) > MAX_BOOT_DEVICES) {
-                    fprintf(stderr, "qemu: too many boot devices\n");
-                    exit(1);
-                }
-                strncpy(boot_device, optarg, MAX_BOOT_DEVICES);
-#if defined(TARGET_SPARC) || defined(TARGET_I386)
-#define BOOTCHARS "acdn"
-#else
-#define BOOTCHARS "acd"
-#endif
-                if (strlen(boot_device) != strspn(boot_device, BOOTCHARS)) {
-                    fprintf(stderr, "qemu: invalid boot device "
-                                    "sequence '%s'\n", boot_device);
-                    exit(1);
+                boot_devices = optarg;
+                /* We just do some generic consistency checks */
+                {
+                    /* Could easily be extended to 64 devices if needed */
+                    const unsigned char *p;
+                    
+                    boot_devices_bitmap = 0;
+                    for (p = boot_devices; *p != '\0'; p++) {
+                        /* Allowed boot devices are:
+                         * a b     : floppy disk drives
+                         * c ... f : IDE disk drives
+                         * g ... m : machine implementation dependant drives
+                         * n ... p : network devices
+                         * It's up to each machine implementation to check
+                         * if the given boot devices match the actual hardware
+                         * implementation and firmware features.
+                         */
+                        if (*p < 'a' || *p > 'q') {
+                            fprintf(stderr, "Invalid boot device '%c'\n", *p);
+                            exit(1);
+                        }
+                        if (boot_devices_bitmap & (1 << (*p - 'a'))) {
+                            fprintf(stderr,
+                                    "Boot device '%c' was given twice\n",*p);
+                            exit(1);
+                        }
+                        boot_devices_bitmap |= 1 << (*p - 'a');
+                    }
                 }
                 break;
             case QEMU_OPTION_fda:
@@ -8243,23 +8253,23 @@ int main(int argc, char **argv)
         kqemu_allowed = 0;
 #endif
     linux_boot = (kernel_filename != NULL);
-
-    if (!linux_boot &&
-        (!strchr(boot_device, 'n')) &&
+    net_boot = (boot_devices_bitmap >> ('n' - 'a')) && 0xF;
+    
+    /* XXX: this should not be: some embedded targets just have flash */
+    if (!linux_boot && net_boot == 0 &&
         hd_filename[0] == '\0' &&
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
         help(1);
 
     /* boot to floppy or the default cd if no hard disk defined yet */
-    if (!boot_device[0]) {
+    if (!boot_devices[0]) {
         if (hd_filename[0] != '\0')
-            boot_device[0] = 'c';
+            boot_devices = "c";
         else if (fd_filename[0] != '\0')
-            boot_device[0] = 'a';
+            boot_devices = "a";
         else
-            boot_device[0] = 'd';
-        boot_device[1] = 0;
+            boot_devices = "d";
     }
     setvbuf(stdout, NULL, _IOLBF, 0);
 
@@ -8299,20 +8309,28 @@ int main(int argc, char **argv)
     }
 
 #ifdef TARGET_I386
-    if (strchr(boot_device, 'n')) {
-	for (i = 0; i < nb_nics; i++) {
+    /* XXX: this should be moved in the PC machine instanciation code */
+    if (net_boot != 0) {
+        int netroms = 0;
+	for (i = 0; i < nb_nics && i < 4; i++) {
 	    const char *model = nd_table[i].model;
 	    char buf[1024];
-	    if (model == NULL)
-		model = "ne2k_pci";
-	    snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
-	    if (get_image_size(buf) > 0) {
-		option_rom[nb_option_roms] = strdup(buf);
-		nb_option_roms++;
-		break;
-	    }
+            if (net_boot & (1 << i)) {
+                if (model == NULL)
+                    model = "ne2k_pci";
+                snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
+                if (get_image_size(buf) > 0) {
+                    if (nb_option_roms >= MAX_OPTION_ROMS) {
+                        fprintf(stderr, "Too many option ROMs\n");
+                        exit(1);
+                    }
+                    option_rom[nb_option_roms] = strdup(buf);
+                    nb_option_roms++;
+                    netroms++;
+                }
+            }
 	}
-	if (i == nb_nics) {
+	if (netroms == 0) {
 	    fprintf(stderr, "No valid PXE rom found for network device\n");
 	    exit(1);
 	}
@@ -8492,7 +8510,7 @@ int main(int argc, char **argv)
         }
     }
 
-    machine->init(ram_size, vga_ram_size, boot_device,
+    machine->init(ram_size, vga_ram_size, boot_devices,
                   ds, fd_filename, snapshot,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
