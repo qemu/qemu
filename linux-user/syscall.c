@@ -2229,7 +2229,7 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
 /* NOTE: there is really one LDT for all the threads */
 uint8_t *ldt_table;
 
-static int read_ldt(abi_ulong ptr, unsigned long bytecount)
+static abi_long read_ldt(abi_ulong ptr, unsigned long bytecount)
 {
     int size;
     void *p;
@@ -2241,7 +2241,7 @@ static int read_ldt(abi_ulong ptr, unsigned long bytecount)
         size = bytecount;
     p = lock_user(VERIFY_WRITE, ptr, size, 0);
     if (!p)
-        return -EFAULT;
+        return -TARGET_EFAULT;
     /* ??? Should this by byteswapped?  */
     memcpy(p, ldt_table, size);
     unlock_user(p, ptr, size);
@@ -2249,9 +2249,8 @@ static int read_ldt(abi_ulong ptr, unsigned long bytecount)
 }
 
 /* XXX: add locking support */
-/* write_ldt() returns host errnos */
-static int write_ldt(CPUX86State *env,
-                     abi_ulong ptr, unsigned long bytecount, int oldmode)
+static abi_long write_ldt(CPUX86State *env,
+                          abi_ulong ptr, unsigned long bytecount, int oldmode)
 {
     struct target_modify_ldt_ldt_s ldt_info;
     struct target_modify_ldt_ldt_s *target_ldt_info;
@@ -2260,9 +2259,9 @@ static int write_ldt(CPUX86State *env,
     uint32_t *lp, entry_1, entry_2;
 
     if (bytecount != sizeof(ldt_info))
-        return -EINVAL;
+        return -TARGET_EINVAL;
     if (!lock_user_struct(VERIFY_READ, target_ldt_info, ptr, 1))
-        return -EFAULT;
+        return -TARGET_EFAULT;
     ldt_info.entry_number = tswap32(target_ldt_info->entry_number);
     ldt_info.base_addr = tswapl(target_ldt_info->base_addr);
     ldt_info.limit = tswap32(target_ldt_info->limit);
@@ -2270,7 +2269,7 @@ static int write_ldt(CPUX86State *env,
     unlock_user_struct(target_ldt_info, ptr, 0);
 
     if (ldt_info.entry_number >= TARGET_LDT_ENTRIES)
-        return -EINVAL;
+        return -TARGET_EINVAL;
     seg_32bit = ldt_info.flags & 1;
     contents = (ldt_info.flags >> 1) & 3;
     read_exec_only = (ldt_info.flags >> 3) & 1;
@@ -2280,15 +2279,15 @@ static int write_ldt(CPUX86State *env,
 
     if (contents == 3) {
         if (oldmode)
-            return -EINVAL;
+            return -TARGET_EINVAL;
         if (seg_not_present == 0)
-            return -EINVAL;
+            return -TARGET_EINVAL;
     }
     /* allocate the LDT */
     if (!ldt_table) {
         ldt_table = malloc(TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
         if (!ldt_table)
-            return -ENOMEM;
+            return -TARGET_ENOMEM;
         memset(ldt_table, 0, TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
         env->ldt.base = h2g(ldt_table);
         env->ldt.limit = 0xffff;
@@ -2333,11 +2332,10 @@ install:
 }
 
 /* specific and weird i386 syscalls */
-/* do_modify_ldt() returns host errnos (it is inconsistent with the
-   other do_*() functions which return target errnos). */
-int do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr, unsigned long bytecount)
+abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr, 
+                       unsigned long bytecount)
 {
-    int ret = -ENOSYS;
+    abi_long ret;
 
     switch (func) {
     case 0:
@@ -2348,6 +2346,9 @@ int do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr, unsigned long bytec
         break;
     case 0x11:
         ret = write_ldt(env, ptr, bytecount, 0);
+        break;
+    default:
+        ret = -TARGET_ENOSYS;
         break;
     }
     return ret;
@@ -4174,7 +4175,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_I386
     case TARGET_NR_modify_ldt:
-        ret = get_errno(do_modify_ldt(cpu_env, arg1, arg2, arg3));
+        ret = do_modify_ldt(cpu_env, arg1, arg2, arg3);
         break;
 #if !defined(TARGET_X86_64)
     case TARGET_NR_vm86old:
