@@ -213,6 +213,13 @@ else
     source_path_used="yes"
 fi
 
+# generate compile errors on warnings for development builds
+if grep cvs $source_path/VERSION > /dev/null 2>&1 ; then
+werror="yes";
+else
+werror="no"
+fi
+
 for opt do
   optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
   case "$opt" in
@@ -306,6 +313,10 @@ for opt do
         *)     echo "undefined SPARC architecture. Exiting";exit 1;;
       esac
   ;;
+  --enable-werror) werror="yes"
+  ;;
+  --disable-werror) werror="no"
+  ;;
   esac
 done
 
@@ -319,6 +330,9 @@ fi
 # default flags for all hosts
 CFLAGS="$CFLAGS -Wall -O2 -g -fno-strict-aliasing"
 LDFLAGS="$LDFLAGS -g"
+if test "$werror" = "yes" ; then
+CFLAGS="$CFLAGS -Werror"
+fi
 
 #
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
@@ -378,6 +392,7 @@ echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
+echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
@@ -684,6 +699,7 @@ echo "target list       $target_list"
 echo "gprof enabled     $gprof"
 echo "profiler          $profiler"
 echo "static build      $static"
+echo "-Werror enabled   $werror"
 if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
