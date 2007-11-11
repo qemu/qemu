@@ -1949,10 +1949,10 @@ More information is available at
 @node Sparc32 System emulator
 @section Sparc32 System emulator
 
-Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
-or SparcStation 10 (sun4m architecture). The emulation is somewhat complete.
-SMP up to 16 CPUs is supported, but Linux limits the number of usable CPUs
-to 4.
+Use the executable @file{qemu-system-sparc} to simulate a SPARCstation
+5, SPARCstation 10, or SPARCserver 600MP (sun4m architecture). The
+emulation is somewhat complete.  SMP up to 16 CPUs is supported, but
+Linux limits the number of usable CPUs to 4.
 
 QEMU emulates the following sun4m peripherals:
 
@@ -1971,13 +1971,14 @@ and power/reset logic
 @item
 ESP SCSI controller with hard disk and CD-ROM support
 @item
-Floppy drive
+Floppy drive (not on SS-600MP)
 @item
 CS4231 sound device (only on SS-5, not working yet)
 @end itemize
 
-The number of peripherals is fixed in the architecture.  Maximum memory size
-depends on the machine type, for SS-5 it is 256MB and for SS-10 2047MB.
+The number of peripherals is fixed in the architecture.  Maximum
+memory size depends on the machine type, for SS-5 it is 256MB and for
+SS-10 and SS-600MP 2047MB.
 
 Since version 0.8.2, QEMU uses OpenBIOS
 @url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable

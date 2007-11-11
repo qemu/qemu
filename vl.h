@@ -1048,7 +1048,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 #endif
 
 /* sun4m.c */
-extern QEMUMachine ss5_machine, ss10_machine;
+extern QEMUMachine ss5_machine, ss10_machine, ss600mp_machine;
 
 /* iommu.c */
 void *iommu_init(target_phys_addr_t addr);

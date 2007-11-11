@@ -388,7 +388,8 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
 
-    sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd_table);
+    if (hwdef->fd_base != (target_phys_addr_t)-1)
+        sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd_table);
 
     main_esp = esp_init(bs_table, hwdef->esp_base, espdma, *espdma_irq,
                         esp_reset);
@@ -546,6 +547,39 @@ static const struct hwdef hwdefs[] = {
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
     },
+    /* SS-600MP */
+    {
+        .iommu_base   = 0xfe0000000ULL,
+        .tcx_base     = 0xe20000000ULL,
+        .cs_base      = -1,
+        .slavio_base  = 0xff0000000ULL,
+        .ms_kb_base   = 0xff1000000ULL,
+        .serial_base  = 0xff1100000ULL,
+        .nvram_base   = 0xff1200000ULL,
+        .fd_base      = -1,
+        .counter_base = 0xff1300000ULL,
+        .intctl_base  = 0xff1400000ULL,
+        .dma_base     = 0xef0081000ULL,
+        .esp_base     = 0xef0080000ULL,
+        .le_base      = 0xef0060000ULL,
+        .power_base   = 0xefa000000ULL,
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = -1,
+        .machine_id = 0x71,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+    },
 };
 
 static void sun4m_common_init(int RAM_size, const char *boot_device, DisplayState *ds,
@@ -594,6 +628,19 @@ static void ss10_init(int RAM_size, int vga_ram_size, const char *boot_device,
                       1, 0xffffffff); // XXX actually first 62GB ok
 }
 
+/* SPARCserver 600MP hardware initialisation */
+static void ss600mp_init(int RAM_size, int vga_ram_size, const char *boot_device,
+                         DisplayState *ds, const char **fd_filename, int snapshot,
+                         const char *kernel_filename, const char *kernel_cmdline,
+                         const char *initrd_filename, const char *cpu_model)
+{
+    if (cpu_model == NULL)
+        cpu_model = "TI SuperSparc II";
+    sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
+                      kernel_cmdline, initrd_filename, cpu_model,
+                      2, 0xffffffff); // XXX actually first 62GB ok
+}
+
 QEMUMachine ss5_machine = {
     "SS-5",
     "Sun4m platform, SPARCstation 5",
@@ -604,4 +651,10 @@ QEMUMachine ss10_machine = {
     "SS-10",
     "Sun4m platform, SPARCstation 10",
     ss10_init,
+};
+
+QEMUMachine ss600mp_machine = {
+    "SS-600MP",
+    "Sun4m platform, SPARCserver 600MP",
+    ss600mp_init,
 };
