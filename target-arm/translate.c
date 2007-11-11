@@ -2478,7 +2478,6 @@ static inline void gen_mulxy(int x, int y)
 /* Return the mask of PSR bits set by a MSR instruction.  */
 static uint32_t msr_mask(CPUState *env, DisasContext *s, int flags, int spsr) {
     uint32_t mask;
-    uint32_t reserved;
 
     mask = 0;
     if (flags & (1 << 0))
@@ -2493,12 +2492,12 @@ static uint32_t msr_mask(CPUState *env, DisasContext *s, int flags, int spsr) {
     /* Mask out undefined bits.  */
     mask &= ~CPSR_RESERVED;
     if (!arm_feature(env, ARM_FEATURE_V6))
-        reserved &= ~(CPSR_E | CPSR_GE);
+        mask &= ~(CPSR_E | CPSR_GE);
     if (!arm_feature(env, ARM_FEATURE_THUMB2))
-        reserved &= ~CPSR_IT;
+        mask &= ~CPSR_IT;
     /* Mask out execution state bits.  */
     if (!spsr)
-        reserved &= ~CPSR_EXEC;
+        mask &= ~CPSR_EXEC;
     /* Mask out privileged bits.  */
     if (IS_USER(s))
         mask &= CPSR_USER;
