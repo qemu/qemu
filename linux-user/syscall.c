@@ -2478,7 +2478,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl.l_len = tswapl(target_fl->l_len);
         fl.l_pid = tswapl(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
-        ret = fcntl(fd, cmd, &fl);
+        ret = get_errno(fcntl(fd, cmd, &fl));
         if (ret == 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fl, arg, 0))
                 return -TARGET_EFAULT;
@@ -2501,7 +2501,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl.l_len = tswapl(target_fl->l_len);
         fl.l_pid = tswapl(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
-        ret = fcntl(fd, cmd, &fl);
+        ret = get_errno(fcntl(fd, cmd, &fl));
         break;
 
     case TARGET_F_GETLK64:
@@ -2513,7 +2513,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl64.l_len = tswapl(target_fl64->l_len);
         fl64.l_pid = tswap16(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
-        ret = fcntl(fd, cmd >> 1, &fl64);
+        ret = get_errno(fcntl(fd, cmd >> 1, &fl64));
         if (ret == 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fl64, arg, 0))
                 return -TARGET_EFAULT;
@@ -2524,7 +2524,7 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             target_fl64->l_pid = tswapl(fl64.l_pid);
             unlock_user_struct(target_fl64, arg, 1);
         }
-		break;
+        break;
     case TARGET_F_SETLK64:
     case TARGET_F_SETLKW64:
         if (!lock_user_struct(VERIFY_READ, target_fl64, arg, 1))
@@ -2535,20 +2535,22 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         fl64.l_len = tswapl(target_fl64->l_len);
         fl64.l_pid = tswap16(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
-        ret = fcntl(fd, cmd >> 1, &fl64);
+        ret = get_errno(fcntl(fd, cmd >> 1, &fl64));
         break;
 
     case F_GETFL:
-        ret = fcntl(fd, cmd, arg);
-        ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
+        ret = get_errno(fcntl(fd, cmd, arg));
+        if (ret >= 0) {
+            ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
+        }
         break;
 
     case F_SETFL:
-        ret = fcntl(fd, cmd, target_to_host_bitmask(arg, fcntl_flags_tbl));
+        ret = get_errno(fcntl(fd, cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
         break;
 
     default:
-        ret = fcntl(fd, cmd, arg);
+        ret = get_errno(fcntl(fd, cmd, arg));
         break;
     }
     return ret;
@@ -3209,7 +3211,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_ioctl(arg1, arg2, arg3);
         break;
     case TARGET_NR_fcntl:
-        ret = get_errno(do_fcntl(arg1, arg2, arg3));
+        ret = do_fcntl(arg1, arg2, arg3);
         break;
 #ifdef TARGET_NR_mpx
     case TARGET_NR_mpx:
@@ -4988,10 +4990,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         case TARGET_F_GETLK64:
 #ifdef TARGET_ARM
             if (((CPUARMState *)cpu_env)->eabi) {
-                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) {
-                    ret = -TARGET_EFAULT;
-                    goto fail;
-                }
+                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) 
+                    goto efault;
                 fl.l_type = tswap16(target_efl->l_type);
                 fl.l_whence = tswap16(target_efl->l_whence);
                 fl.l_start = tswap64(target_efl->l_start);
@@ -5001,10 +5001,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             } else
 #endif
             {
-                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) {
-                    ret = -TARGET_EFAULT;
-                    goto fail;
-                }
+                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) 
+                    goto efault;
                 fl.l_type = tswap16(target_fl->l_type);
                 fl.l_whence = tswap16(target_fl->l_whence);
                 fl.l_start = tswap64(target_fl->l_start);
@@ -5016,10 +5014,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 	    if (ret == 0) {
 #ifdef TARGET_ARM
                 if (((CPUARMState *)cpu_env)->eabi) {
-                    if (!lock_user_struct(VERIFY_WRITE, target_efl, arg3, 0)) {
-                        ret = -TARGET_EFAULT;
-                        goto fail;
-                    }
+                    if (!lock_user_struct(VERIFY_WRITE, target_efl, arg3, 0)) 
+                        goto efault;
                     target_efl->l_type = tswap16(fl.l_type);
                     target_efl->l_whence = tswap16(fl.l_whence);
                     target_efl->l_start = tswap64(fl.l_start);
@@ -5029,10 +5025,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 } else
 #endif
                 {
-                    if (!lock_user_struct(VERIFY_WRITE, target_fl, arg3, 0)) {
-                        ret = -TARGET_EFAULT;
-                        goto fail;
-                    }
+                    if (!lock_user_struct(VERIFY_WRITE, target_fl, arg3, 0)) 
+                        goto efault;
                     target_fl->l_type = tswap16(fl.l_type);
                     target_fl->l_whence = tswap16(fl.l_whence);
                     target_fl->l_start = tswap64(fl.l_start);
@@ -5047,10 +5041,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         case TARGET_F_SETLKW64:
 #ifdef TARGET_ARM
             if (((CPUARMState *)cpu_env)->eabi) {
-                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) {
-                    ret = -TARGET_EFAULT;
-                    goto fail;
-                }
+                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) 
+                    goto efault;
                 fl.l_type = tswap16(target_efl->l_type);
                 fl.l_whence = tswap16(target_efl->l_whence);
                 fl.l_start = tswap64(target_efl->l_start);
@@ -5060,10 +5052,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             } else
 #endif
             {
-                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) {
-                    ret = -TARGET_EFAULT;
-                    goto fail;
-                }
+                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) 
+                    goto efault;
                 fl.l_type = tswap16(target_fl->l_type);
                 fl.l_whence = tswap16(target_fl->l_whence);
                 fl.l_start = tswap64(target_fl->l_start);
@@ -5074,7 +5064,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(fcntl(arg1, cmd, &fl));
 	    break;
         default:
-            ret = get_errno(do_fcntl(arg1, cmd, arg3));
+            ret = do_fcntl(arg1, cmd, arg3);
             break;
         }
 	break;
