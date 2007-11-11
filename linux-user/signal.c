@@ -670,6 +670,7 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 		 CPUX86State *env, unsigned long mask)
 {
 	int err = 0;
+        uint16_t magic;
 
 	/* already locked in setup_frame() */
 	err |= __put_user(env->segs[R_GS].selector, (unsigned int *)&sc->gs);
@@ -694,7 +695,8 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 
         cpu_x86_fsave(env, (void *)fpstate, 1);
         fpstate->status = fpstate->sw;
-        err |= __put_user(0xffff, &fpstate->magic);
+        magic = 0xffff;
+        err |= __put_user(magic, &fpstate->magic);
         err |= __put_user(fpstate, &sc->fpstate);
 
 	/* non-iBCS2 extensions.. */
@@ -766,15 +768,18 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	if (ka->sa.sa_flags & TARGET_SA_RESTORER) {
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
 	} else {
+                uint16_t val16;
 		err |= __put_user(frame->retcode, &frame->pretcode);
 		/* This is popl %eax ; movl $,%eax ; int $0x80 */
-		err |= __put_user(0xb858, (short *)(frame->retcode+0));
+                val16 = 0xb858;
+		err |= __put_user(val16, (uint16_t *)(frame->retcode+0));
 #if defined(TARGET_X86_64)
 #warning "Fix this !"
 #else
 		err |= __put_user(TARGET_NR_sigreturn, (int *)(frame->retcode+2));
 #endif
-		err |= __put_user(0x80cd, (short *)(frame->retcode+6));
+                val16 = 0x80cd;
+		err |= __put_user(val16, (uint16_t *)(frame->retcode+6));
 	}
 
 	if (err)
@@ -848,11 +853,14 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 	if (ka->sa.sa_flags & TARGET_SA_RESTORER) {
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
 	} else {
+                uint16_t val16;
+                
 		err |= __put_user(frame->retcode, &frame->pretcode);
 		/* This is movl $,%eax ; int $0x80 */
-		err |= __put_user(0xb8, (char *)(frame->retcode+0));
+                err |= __put_user(0xb8, (char *)(frame->retcode+0));
 		err |= __put_user(TARGET_NR_rt_sigreturn, (int *)(frame->retcode+1));
-		err |= __put_user(0x80cd, (short *)(frame->retcode+5));
+                val16 = 0x80cd;
+                err |= __put_user(val16, (uint16_t *)(frame->retcode+5));
 	}
 
 	if (err)
@@ -1234,7 +1242,7 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
         __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
         __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
         __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
-        err |= copy_to_user(&frame->uc.tuc_stack, &stack, sizeof(stack));
+        memcpy(&frame->uc.tuc_stack, &stack, sizeof(stack));
 
 	err |= setup_sigcontext(&frame->uc.tuc_mcontext, /*&frame->fpstate,*/
 				env, set->sig[0]);
@@ -1585,13 +1593,16 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	if (ka->sa.sa_restorer)
 		env->regwptr[UREG_I7] = (unsigned long)ka->sa.sa_restorer;
 	else {
+                uint32_t val32;
 		env->regwptr[UREG_I7] = h2g(&(sf->insns[0]) - 2);
 
 		/* mov __NR_sigreturn, %g1 */
-		err |= __put_user(0x821020d8, &sf->insns[0]);
+                val32 = 0x821020d8;
+		err |= __put_user(val32, &sf->insns[0]);
 
 		/* t 0x10 */
-		err |= __put_user(0x91d02010, &sf->insns[1]);
+                val32 = 0x91d02010;
+		err |= __put_user(val32, &sf->insns[1]);
 		if (err)
 			goto sigsegv;
 
