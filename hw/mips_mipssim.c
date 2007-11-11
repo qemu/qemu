@@ -109,7 +109,6 @@ mips_mipssim_init (int ram_size, int vga_ram_size, const char *boot_device,
     unsigned long bios_offset;
     CPUState *env;
     int bios_size;
-    mips_def_t *def;
 
     /* Init CPUs. */
     if (cpu_model == NULL) {
