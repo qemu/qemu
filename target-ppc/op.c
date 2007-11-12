@@ -959,9 +959,9 @@ void OPPROTO op_add_ze (void)
 /* divide word */
 void OPPROTO op_divw (void)
 {
-    if (unlikely(((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) ||
+    if (unlikely(((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
                  (int32_t)T1 == 0)) {
-        T0 = (int32_t)((-1) * ((uint32_t)T0 >> 31));
+        T0 = (int32_t)(UINT32_MAX * ((uint32_t)T0 >> 31));
     } else {
         T0 = (int32_t)T0 / (int32_t)T1;
     }
@@ -971,9 +971,9 @@ void OPPROTO op_divw (void)
 #if defined(TARGET_PPC64)
 void OPPROTO op_divd (void)
 {
-    if (unlikely(((int64_t)T0 == INT64_MIN && (int64_t)T1 == -1) ||
+    if (unlikely(((int64_t)T0 == INT64_MIN && (int64_t)T1 == (int64_t)-1LL) ||
                  (int64_t)T1 == 0)) {
-        T0 = (int64_t)((-1ULL) * ((uint64_t)T0 >> 63));
+        T0 = (int64_t)(UINT64_MAX * ((uint64_t)T0 >> 63));
     } else {
         T0 = (int64_t)T0 / (int64_t)T1;
     }
@@ -2006,7 +2006,7 @@ void OPPROTO op_check_reservation (void)
 void OPPROTO op_check_reservation_64 (void)
 {
     if ((uint64_t)env->reserve == (uint64_t)(T0 & ~0x00000003))
-        env->reserve = -1;
+        env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 #endif
@@ -2344,7 +2344,7 @@ void OPPROTO op_POWER_sleq (void)
 
 void OPPROTO op_POWER_sllq (void)
 {
-    uint32_t msk = -1;
+    uint32_t msk = UINT32_MAX;
 
     msk = msk << (T1 & 0x1FUL);
     if (T1 & 0x20UL)
@@ -2357,7 +2357,7 @@ void OPPROTO op_POWER_sllq (void)
 
 void OPPROTO op_POWER_slq (void)
 {
-    uint32_t msk = -1, tmp;
+    uint32_t msk = UINT32_MAX, tmp;
 
     msk = msk << (T1 & 0x1FUL);
     if (T1 & 0x20UL)
@@ -2373,7 +2373,7 @@ void OPPROTO op_POWER_sraq (void)
 {
     env->spr[SPR_MQ] = rotl32(T0, 32 - (T1 & 0x1FUL));
     if (T1 & 0x20UL)
-        T0 = -1L;
+        T0 = UINT32_MAX;
     else
         T0 = (int32_t)T0 >> T1;
     RETURN();
@@ -2529,7 +2529,7 @@ void OPPROTO op_405_check_satu (void)
 {
     if (unlikely(T0 < T2)) {
         /* Saturate result */
-        T0 = -1;
+        T0 = UINT32_MAX;
     }
     RETURN();
 }
@@ -2602,7 +2602,7 @@ void OPPROTO op_4xx_tlbsx_check (void)
     int tmp;
 
     tmp = xer_so;
-    if (T0 != -1)
+    if ((int)T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;
     RETURN();

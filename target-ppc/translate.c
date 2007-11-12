@@ -404,15 +404,15 @@ static always_inline target_ulong MASK (uint32_t start, uint32_t end)
 
 #if defined(TARGET_PPC64)
     if (likely(start == 0)) {
-        ret = (uint64_t)(-1ULL) << (63 - end);
+        ret = UINT64_MAX << (63 - end);
     } else if (likely(end == 63)) {
-        ret = (uint64_t)(-1ULL) >> start;
+        ret = UINT64_MAX >> start;
     }
 #else
     if (likely(start == 0)) {
-        ret = (uint32_t)(-1ULL) << (31  - end);
+        ret = UINT32_MAX << (31  - end);
     } else if (likely(end == 31)) {
-        ret = (uint32_t)(-1ULL) >> start;
+        ret = UINT32_MAX >> start;
     }
 #endif
     else {
@@ -3517,7 +3517,7 @@ GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC)
 }
 
 #if 1
-#define SPR_NOACCESS ((void *)(-1))
+#define SPR_NOACCESS ((void *)(-1UL))
 #else
 static void spr_noaccess (void *opaque, int sprn)
 {

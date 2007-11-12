@@ -175,29 +175,29 @@ void do_addmeo_64 (void)
 
 void do_divwo (void)
 {
-    if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) ||
+    if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
                  (int32_t)T1 == 0))) {
         xer_ov = 0;
         T0 = (int32_t)T0 / (int32_t)T1;
     } else {
         xer_ov = 1;
-        xer_so = 1;
-        T0 = (-1) * ((uint32_t)T0 >> 31);
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
     }
+    xer_so |= xer_ov;
 }
 
 #if defined(TARGET_PPC64)
 void do_divdo (void)
 {
-    if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == -1ULL) ||
+    if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == (int64_t)-1LL) ||
                  (int64_t)T1 == 0))) {
         xer_ov = 0;
         T0 = (int64_t)T0 / (int64_t)T1;
     } else {
         xer_ov = 1;
-        xer_so = 1;
-        T0 = (-1ULL) * ((uint64_t)T0 >> 63);
+        T0 = UINT64_MAX * ((uint64_t)T0 >> 63);
     }
+    xer_so |= xer_ov;
 }
 #endif
 
@@ -247,14 +247,14 @@ void do_mulldo (void)
     uint64_t tl;
 
     muls64(&tl, &th, T0, T1);
+    T0 = (int64_t)tl;
     /* If th != 0 && th != -1, then we had an overflow */
-    if (likely((th + 1) <= 1)) {
+    if (likely((uint64_t)(th + 1) <= 1)) {
         xer_ov = 0;
     } else {
         xer_ov = 1;
-        xer_so = 1;
     }
-    T0 = (int64_t)tl;
+    xer_so |= xer_ov;
 }
 #endif
 
@@ -392,7 +392,7 @@ void do_sraw (void)
             xer_ca = 0;
         }
     } else {
-        ret = (-1) * ((uint32_t)T0 >> 31);
+        ret = UINT32_MAX * ((uint32_t)T0 >> 31);
         if (likely(ret >= 0 || ((uint32_t)T0 & ~0x80000000UL) == 0)) {
             xer_ca = 0;
         } else {
@@ -420,7 +420,7 @@ void do_srad (void)
             xer_ca = 0;
         }
     } else {
-        ret = (-1) * ((uint64_t)T0 >> 63);
+        ret = UINT64_MAX * ((uint64_t)T0 >> 63);
         if (likely(ret >= 0 || ((uint64_t)T0 & ~0x8000000000000000ULL) == 0)) {
             xer_ca = 0;
         } else {
@@ -609,7 +609,7 @@ static always_inline void fload_invalid_op_excp (int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            FT0 = (uint64_t)-1;
+            FT0 = UINT64_MAX;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
@@ -620,7 +620,7 @@ static always_inline void fload_invalid_op_excp (int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            FT0 = (uint64_t)-1;
+            FT0 = UINT64_MAX;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
@@ -1555,8 +1555,9 @@ void do_POWER_div (void)
 {
     uint64_t tmp;
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
@@ -1569,29 +1570,30 @@ void do_POWER_divo (void)
 {
     int64_t tmp;
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
         xer_ov = 1;
-        xer_so = 1;
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
         env->spr[SPR_MQ] = tmp % T1;
         tmp /= (int32_t)T1;
         if (tmp > (int64_t)INT32_MAX || tmp < (int64_t)INT32_MIN) {
             xer_ov = 1;
-            xer_so = 1;
         } else {
             xer_ov = 0;
         }
         T0 = tmp;
     }
+    xer_so |= xer_ov;
 }
 
 void do_POWER_divs (void)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
     } else {
         env->spr[SPR_MQ] = T0 % T1;
@@ -1601,16 +1603,17 @@ void do_POWER_divs (void)
 
 void do_POWER_divso (void)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
         xer_ov = 1;
-        xer_so = 1;
     } else {
         T0 = (int32_t)T0 / (int32_t)T1;
         env->spr[SPR_MQ] = (int32_t)T0 % (int32_t)T1;
         xer_ov = 0;
     }
+    xer_so |= xer_ov;
 }
 
 void do_POWER_dozo (void)
@@ -1636,10 +1639,10 @@ void do_POWER_maskg (void)
     uint32_t ret;
 
     if ((uint32_t)T0 == (uint32_t)(T1 + 1)) {
-        ret = -1;
+        ret = UINT32_MAX;
     } else {
-        ret = (((uint32_t)(-1)) >> ((uint32_t)T0)) ^
-            (((uint32_t)(-1) >> ((uint32_t)T1)) >> 1);
+        ret = (UINT32_MAX >> ((uint32_t)T0)) ^
+            ((UINT32_MAX >> ((uint32_t)T1)) >> 1);
         if ((uint32_t)T0 > (uint32_t)T1)
             ret = ~ret;
     }
@@ -1874,7 +1877,7 @@ void do_brinc (void)
 {
     uint32_t a, b, d, mask;
 
-    mask = (uint32_t)(-1UL) >> MASKBITS;
+    mask = UINT32_MAX >> MASKBITS;
     b = T1_64 & mask;
     a = T0_64 & mask;
     d = word_reverse(1 + word_reverse(a | ~mask));

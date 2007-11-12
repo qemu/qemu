@@ -199,7 +199,7 @@ static always_inline int _pte_check (mmu_ctx_t *ctx, int is_64b,
             pp = pte1 & 0x00000003;
         }
         if (ptem == ctx->ptem) {
-            if (ctx->raddr != (target_ulong)-1) {
+            if (ctx->raddr != (target_phys_addr_t)-1ULL) {
                 /* all matches should have equal RPN, WIMG & PP */
                 if ((ctx->raddr & mmask) != (pte1 & mmask)) {
                     if (loglevel != 0)
@@ -900,7 +900,7 @@ static always_inline target_phys_addr_t get_pgaddr (target_phys_addr_t sdr1,
                                                     target_phys_addr_t hash,
                                                     target_phys_addr_t mask)
 {
-    return (sdr1 & ((target_ulong)(-1ULL) << sdr_sh)) | (hash & mask);
+    return (sdr1 & ((target_phys_addr_t)(-1ULL) << sdr_sh)) | (hash & mask);
 }
 
 static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
@@ -1011,7 +1011,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 ctx->ptem = (vsid << 7) | (pgidx >> 10);
             }
             /* Initialize real address with an invalid value */
-            ctx->raddr = (target_ulong)-1;
+            ctx->raddr = (target_phys_addr_t)-1ULL;
             if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx ||
                          env->mmu_model == POWERPC_MMU_SOFT_74xx)) {
                 /* Software TLB search */
@@ -1223,7 +1223,7 @@ int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     int i, ret, zsel, zpr, pr;
 
     ret = -1;
-    raddr = -1;
+    raddr = (target_phys_addr_t)-1ULL;
     pr = msr_pr;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
@@ -1306,7 +1306,7 @@ int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     int i, prot, ret;
 
     ret = -1;
-    raddr = -1;
+    raddr = (target_phys_addr_t)-1ULL;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
         if (ppcemb_tlb_check(env, tlb, &raddr, address,
@@ -1975,7 +1975,7 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
         /* tlbie invalidate TLBs for all segments */
-        addr &= ~((target_ulong)-1 << 28);
+        addr &= ~((target_ulong)-1ULL << 28);
         /* XXX: this case should be optimized,
          * giving a mask to tlb_flush_page
          */
@@ -2730,7 +2730,7 @@ static always_inline void powerpc_excp (CPUState *env,
         new_msr &= ~((target_ulong)1 << MSR_LE);
     /* Jump to handler */
     vector = env->excp_vectors[excp];
-    if (vector == (target_ulong)-1) {
+    if (vector == (target_ulong)-1ULL) {
         cpu_abort(env, "Raised an exception without defined vector %d\n",
                   excp);
     }
@@ -2961,7 +2961,7 @@ void cpu_ppc_reset (void *opaque)
 #endif
     env->msr = msr;
     hreg_compute_hflags(env);
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
     env->pending_interrupts = 0;
     env->exception_index = POWERPC_EXCP_NONE;
