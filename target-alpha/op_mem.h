@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define DEBUG_MEM_ACCESSES
+//#define DEBUG_MEM_ACCESSES
 #if defined (DEBUG_MEM_ACCESSES)
 void helper_print_mem_EA (target_ulong EA);
 #define print_mem_EA(EA) do { helper_print_mem_EA(EA); } while (0)
