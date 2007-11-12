@@ -678,7 +678,7 @@ void OPPROTO glue(op_stwcx, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -695,7 +695,7 @@ void OPPROTO glue(op_stwcx_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -711,7 +711,7 @@ void OPPROTO glue(op_stdcx, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -727,7 +727,7 @@ void OPPROTO glue(op_stdcx_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 #endif
@@ -744,7 +744,7 @@ void OPPROTO glue(op_stwcx_le, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -761,7 +761,7 @@ void OPPROTO glue(op_stwcx_le_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -777,7 +777,7 @@ void OPPROTO glue(op_stdcx_le, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -793,7 +793,7 @@ void OPPROTO glue(op_stdcx_le_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 #endif

@@ -1998,7 +1998,7 @@ void OPPROTO op_fneg (void)
 void OPPROTO op_check_reservation (void)
 {
     if ((uint32_t)env->reserve == (uint32_t)(T0 & ~0x00000003))
-        env->reserve = -1;
+        env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
