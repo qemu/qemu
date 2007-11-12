@@ -2720,7 +2720,6 @@ void OPPROTO op_store_booke_tsr (void)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension */
 void OPPROTO op_splatw_T1_64 (void)
 {
@@ -3439,4 +3438,3 @@ void OPPROTO op_efdtsteq (void)
     T0 = _do_efdtsteq(T0_64, T1_64);
     RETURN();
 }
-#endif /* defined(TARGET_PPCEMB) */

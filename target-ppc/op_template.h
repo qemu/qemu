@@ -58,23 +58,23 @@ void OPPROTO glue(op_store_T2_gpr_gpr, REG) (void)
 #endif
 
 /* General purpose registers containing vector operands moves */
-#if defined(TARGET_PPCEMB)
+#if TARGET_GPR_BITS < 64
 void OPPROTO glue(op_load_gpr64_T0_gpr, REG) (void)
 {
-    T0_64 = env->gpr[REG];
+    T0_64 = (uint64_t)env->gpr[REG] | ((uint64_t)env->gprh[REG] << 32);
     RETURN();
 }
 
 void OPPROTO glue(op_load_gpr64_T1_gpr, REG) (void)
 {
-    T1_64 = env->gpr[REG];
+    T1_64 = (uint64_t)env->gpr[REG] | ((uint64_t)env->gprh[REG] << 32);
     RETURN();
 }
 
 #if 0 // unused
 void OPPROTO glue(op_load_gpr64_T2_gpr, REG) (void)
 {
-    T2_64 = env->gpr[REG];
+    T2_64 = (uint64_t)env->gpr[REG] | ((uint64_t)env->gprh[REG] << 32);
     RETURN();
 }
 #endif
@@ -82,12 +82,14 @@ void OPPROTO glue(op_load_gpr64_T2_gpr, REG) (void)
 void OPPROTO glue(op_store_T0_gpr64_gpr, REG) (void)
 {
     env->gpr[REG] = T0_64;
+    env->gprh[REG] = T0_64 >> 32;
     RETURN();
 }
 
 void OPPROTO glue(op_store_T1_gpr64_gpr, REG) (void)
 {
     env->gpr[REG] = T1_64;
+    env->gprh[REG] = T1_64 >> 32;
     RETURN();
 }
 
@@ -95,10 +97,11 @@ void OPPROTO glue(op_store_T1_gpr64_gpr, REG) (void)
 void OPPROTO glue(op_store_T2_gpr64_gpr, REG) (void)
 {
     env->gpr[REG] = T2_64;
+    env->gprh[REG] = T2_64 >> 32;
     RETURN();
 }
 #endif
-#endif /* defined(TARGET_PPCEMB) */
+#endif /* TARGET_GPR_BITS < 64 */
 
 /* Altivec registers moves */
 void OPPROTO glue(op_load_avr_A0_avr, REG) (void)

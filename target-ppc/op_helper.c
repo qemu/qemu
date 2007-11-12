@@ -1853,7 +1853,6 @@ void do_440_dlmzb (void)
     T0 = i;
 }
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension helpers */
 /* Use a table to make this quicker */
 static uint8_t hbrev[16] = {
@@ -1872,16 +1871,16 @@ static always_inline uint32_t word_reverse (uint32_t val)
         (byte_reverse(val >> 8) << 16) | (byte_reverse(val) << 24);
 }
 
-#define MASKBITS 16 // Random value - to be fixed
+#define MASKBITS 16 // Random value - to be fixed (implementation dependant)
 void do_brinc (void)
 {
     uint32_t a, b, d, mask;
 
-    mask = UINT32_MAX >> MASKBITS;
-    b = T1_64 & mask;
-    a = T0_64 & mask;
-    d = word_reverse(1 + word_reverse(a | ~mask));
-    T0_64 = (T0_64 & ~mask) | (d & mask);
+    mask = UINT32_MAX >> (32 - MASKBITS);
+    a = T0 & mask;
+    b = T1 & mask;
+    d = word_reverse(1 + word_reverse(a | ~b));
+    T0 = (T0 & ~mask) | (d & b);
 }
 
 #define DO_SPE_OP2(name)                                                      \
@@ -2713,7 +2712,6 @@ DO_SPE_OP1(fsctuiz);
 DO_SPE_OP1(fsctsf);
 /* evfsctuf */
 DO_SPE_OP1(fsctuf);
-#endif /* defined(TARGET_PPCEMB) */
 
 /*****************************************************************************/
 /* Softmmu support */

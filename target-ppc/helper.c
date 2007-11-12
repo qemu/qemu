@@ -2395,7 +2395,6 @@ static always_inline void powerpc_excp (CPUState *env,
         /* XXX: TODO */
         cpu_abort(env, "Debug exception is not implemented yet !\n");
         goto store_next;
-#if defined(TARGET_PPCEMB)
     case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
         new_msr &= ~((target_ulong)1 << MSR_RI); /* XXX: check this */
         goto store_current;
@@ -2433,7 +2432,6 @@ static always_inline void powerpc_excp (CPUState *env,
         cpu_abort(env, "Embedded doorbell critical interrupt "
                   "is not implemented yet !\n");
         goto store_next;
-#endif /* defined(TARGET_PPCEMB) */
     case POWERPC_EXCP_RESET:     /* System reset exception                   */
         new_msr &= ~((target_ulong)1 << MSR_RI);
 #if defined(TARGET_PPC64H)
@@ -2833,26 +2831,11 @@ void ppc_hw_interrupt (CPUPPCState *env)
             powerpc_excp(env, env->excp_model, POWERPC_EXCP_WDT);
             return;
         }
-#if defined(TARGET_PPCEMB)
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_CDOORBELL)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_CDOORBELL);
             powerpc_excp(env, env->excp_model, POWERPC_EXCP_DOORCI);
             return;
         }
-#endif
-#if defined(TARGET_PPCEMB)
-        /* External interrupt */
-        if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
-            /* Taking an external interrupt does not clear the external
-             * interrupt status
-             */
-#if 0
-            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EXT);
-#endif
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_EXTERNAL);
-            return;
-        }
-#endif
         /* Fixed interval timer on embedded PowerPC */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_FIT)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_FIT);
@@ -2871,7 +2854,6 @@ void ppc_hw_interrupt (CPUPPCState *env)
             powerpc_excp(env, env->excp_model, POWERPC_EXCP_DECR);
             return;
         }
-#if !defined(TARGET_PPCEMB)
         /* External interrupt */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
             /* Taking an external interrupt does not clear the external
@@ -2883,14 +2865,11 @@ void ppc_hw_interrupt (CPUPPCState *env)
             powerpc_excp(env, env->excp_model, POWERPC_EXCP_EXTERNAL);
             return;
         }
-#endif
-#if defined(TARGET_PPCEMB)
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
             powerpc_excp(env, env->excp_model, POWERPC_EXCP_DOORI);
             return;
         }
-#endif
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_PERFM)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PERFM);
             powerpc_excp(env, env->excp_model, POWERPC_EXCP_PERFM);

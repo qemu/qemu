@@ -205,7 +205,6 @@ void do_load_403_pb (int num);
 void do_store_403_pb (int num);
 #endif
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension helpers */
 void do_brinc (void);
 /* Fixed-point vector helpers */
@@ -286,9 +285,7 @@ void do_evfsctsi (void);
 void do_evfsctui (void);
 void do_evfsctsiz (void);
 void do_evfsctuiz (void);
-#endif /* defined(TARGET_PPCEMB) */
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension */
 /* Single precision floating-point helpers */
 static always_inline uint32_t _do_efsabs (uint32_t val)
@@ -409,5 +406,4 @@ static always_inline int _do_efdtsteq (uint64_t op1, uint64_t op2)
     u2.u = op2;
     return float64_eq(u1.f, u2.f, &env->spe_status) ? 1 : 0;
 }
-#endif /* defined(TARGET_PPCEMB) */
 #endif

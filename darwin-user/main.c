@@ -357,7 +357,6 @@ void cpu_loop(CPUPPCState *env)
         case POWERPC_EXCP_DEBUG:    /* Debug interrupt                       */
             gdb_handlesig (env, SIGTRAP);
             break;
-#if defined(TARGET_PPCEMB)
         case POWERPC_EXCP_SPEU:     /* SPE/embedded floating-point unavail.  */
             EXCP_DUMP(env, "No SPE/floating-point instruction allowed\n");
             info.si_signo = SIGILL;
@@ -383,7 +382,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Doorbell critical interrupt while in user mode. "
                       "Aborting\n");
             break;
-#endif /* defined(TARGET_PPCEMB) */
         case POWERPC_EXCP_RESET:    /* System reset exception                */
             cpu_abort(env, "Reset interrupt while in user mode. "
                       "Aborting\n");

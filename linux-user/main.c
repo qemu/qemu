@@ -976,7 +976,6 @@ void cpu_loop(CPUPPCState *env)
                   }
             }
             break;
-#if defined(TARGET_PPCEMB)
         case POWERPC_EXCP_SPEU:     /* SPE/embedded floating-point unavail.  */
             EXCP_DUMP(env, "No SPE/floating-point instruction allowed\n");
             info.si_signo = TARGET_SIGILL;
@@ -1006,7 +1005,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Reset interrupt while in user mode. "
                       "Aborting\n");
             break;
-#endif /* defined(TARGET_PPCEMB) */
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32) /* PowerPC 64 */
         case POWERPC_EXCP_DSEG:     /* Data segment exception                */
             cpu_abort(env, "Data segment exception while in user mode. "

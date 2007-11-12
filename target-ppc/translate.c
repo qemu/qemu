@@ -162,9 +162,7 @@ typedef struct DisasContext {
 #endif
     int fpu_enabled;
     int altivec_enabled;
-#if defined(TARGET_PPCEMB)
     int spe_enabled;
-#endif
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     int dcache_line_size;
@@ -5821,10 +5819,11 @@ GEN_VR_STX(vx, 0x07, 0x07);
 #define gen_op_vr_stvxl gen_op_vr_stvx
 GEN_VR_STX(vxl, 0x07, 0x0F);
 
-#if defined(TARGET_PPCEMB)
 /***                           SPE extension                               ***/
 
 /* Register moves */
+#if TARGET_GPR_BITS < 64
+
 GEN32(gen_op_load_gpr64_T0, gen_op_load_gpr64_T0_gpr);
 GEN32(gen_op_load_gpr64_T1, gen_op_load_gpr64_T1_gpr);
 #if 0 // unused
@@ -5836,6 +5835,23 @@ GEN32(gen_op_store_T1_gpr64, gen_op_store_T1_gpr64_gpr);
 #if 0 // unused
 GEN32(gen_op_store_T2_gpr64, gen_op_store_T2_gpr64_gpr);
 #endif
+
+#else /* TARGET_GPR_BITS < 64 */
+
+/* No specific load/store functions: GPRs are already 64 bits */
+#define gen_op_load_gpr64_T0 gen_op_load_gpr_T0
+#define gen_op_load_gpr64_T1 gen_op_load_gpr_T1
+#if 0 // unused
+#define gen_op_load_gpr64_T2 gen_op_load_gpr_T2
+#endif
+
+#define gen_op_store_T0_gpr64 gen_op_store_T0_gpr
+#define gen_op_store_T1_gpr64 gen_op_store_T1_gpr
+#if 0 // unused
+#define gen_op_store_T2_gpr64 gen_op_store_T2_gpr
+#endif
+
+#endif /* TARGET_GPR_BITS < 64 */
 
 #define GEN_SPE(name0, name1, opc2, opc3, inval, type)                        \
 GEN_HANDLER(name0##_##name1, 0x04, opc2, opc3, inval, type)                   \
@@ -6105,10 +6121,10 @@ GEN_SPEOP_ARITH1(evcntlsw);
 static always_inline void gen_brinc (DisasContext *ctx)
 {
     /* Note: brinc is usable even if SPE is disabled */
-    gen_op_load_gpr64_T0(rA(ctx->opcode));
-    gen_op_load_gpr64_T1(rB(ctx->opcode));
+    gen_op_load_gpr_T0(rA(ctx->opcode));
+    gen_op_load_gpr_T1(rB(ctx->opcode));
     gen_op_brinc();
-    gen_op_store_T0_gpr64(rD(ctx->opcode));
+    gen_op_store_T0_gpr(rD(ctx->opcode));
 }
 
 #define GEN_SPEOP_ARITH_IMM2(name)                                            \
@@ -6242,6 +6258,12 @@ GEN_HANDLER2(evsel3, "evsel", 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE)
 #define gen_op_spe_stdd_le_raw gen_op_std_le_raw
 #define gen_op_spe_stdd_le_64_raw gen_op_std_le_64_raw
 #else /* defined(CONFIG_USER_ONLY) */
+#if defined(TARGET_PPC64H)
+#define gen_op_spe_ldd_hypv gen_op_ld_hypv
+#define gen_op_spe_ldd_64_hypv gen_op_ld_64_hypv
+#define gen_op_spe_ldd_le_hypv gen_op_ld_hypv
+#define gen_op_spe_ldd_le_64_hypv gen_op_ld_64_hypv
+#endif
 #define gen_op_spe_ldd_kernel gen_op_ld_kernel
 #define gen_op_spe_ldd_64_kernel gen_op_ld_64_kernel
 #define gen_op_spe_ldd_le_kernel gen_op_ld_kernel
@@ -6250,6 +6272,12 @@ GEN_HANDLER2(evsel3, "evsel", 0x04, 0x1f, 0x09, 0x00000000, PPC_SPE)
 #define gen_op_spe_ldd_64_user gen_op_ld_64_user
 #define gen_op_spe_ldd_le_user gen_op_ld_le_user
 #define gen_op_spe_ldd_le_64_user gen_op_ld_le_64_user
+#if defined(TARGET_PPC64H)
+#define gen_op_spe_stdd_hypv gen_op_std_hypv
+#define gen_op_spe_stdd_64_hypv gen_op_std_64_hypv
+#define gen_op_spe_stdd_le_hypv gen_op_std_hypv
+#define gen_op_spe_stdd_le_64_hypv gen_op_std_64_hypv
+#endif
 #define gen_op_spe_stdd_kernel gen_op_std_kernel
 #define gen_op_spe_stdd_64_kernel gen_op_std_64_kernel
 #define gen_op_spe_stdd_le_kernel gen_op_std_kernel
@@ -6284,6 +6312,12 @@ GEN_SPEOP_ST(who, 2);
 #define gen_op_spe_stwwo_le_kernel gen_op_stw_le_kernel
 #define gen_op_spe_stwwo_64_kernel gen_op_stw_64_kernel
 #define gen_op_spe_stwwo_le_64_kernel gen_op_stw_le_64_kernel
+#if defined(TARGET_PPC64H)
+#define gen_op_spe_stwwo_hypv gen_op_stw_hypv
+#define gen_op_spe_stwwo_le_hypv gen_op_stw_le_hypv
+#define gen_op_spe_stwwo_64_hypv gen_op_stw_64_hypv
+#define gen_op_spe_stwwo_le_64_hypv gen_op_stw_le_64_hypv
+#endif
 #endif
 #endif
 #define _GEN_OP_SPE_STWWE(suffix)                                             \
@@ -6320,6 +6354,9 @@ _GEN_OP_SPE_STWWE_LE(suffix)
 #if defined(CONFIG_USER_ONLY)
 GEN_OP_SPE_STWWE(raw);
 #else /* defined(CONFIG_USER_ONLY) */
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_STWWE(hypv);
+#endif
 GEN_OP_SPE_STWWE(kernel);
 GEN_OP_SPE_STWWE(user);
 #endif /* defined(CONFIG_USER_ONLY) */
@@ -6371,45 +6408,105 @@ GEN_OP_SPE_LHX(le_64_raw);
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_raw);
 #endif
 #else
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHE(hypv);
+#endif
 GEN_OP_SPE_LHE(kernel);
 GEN_OP_SPE_LHE(user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, hypv);
+#endif
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, kernel);
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, user);
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHE(le_hypv);
+#endif
 GEN_OP_SPE_LHE(le_kernel);
 GEN_OP_SPE_LHE(le_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_kernel);
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, hypv);
+#endif
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, kernel);
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_kernel);
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_user);
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHX(hypv);
+#endif
 GEN_OP_SPE_LHX(kernel);
 GEN_OP_SPE_LHX(user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, hypv);
+#endif
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, kernel);
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, user);
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHX(le_hypv);
+#endif
 GEN_OP_SPE_LHX(le_kernel);
 GEN_OP_SPE_LHX(le_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_kernel);
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_user);
 #if defined(TARGET_PPC64)
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHE(64_hypv);
+#endif
 GEN_OP_SPE_LHE(64_kernel);
 GEN_OP_SPE_LHE(64_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, 64_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, 64_kernel);
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, 64_user);
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHE(le_64_hypv);
+#endif
 GEN_OP_SPE_LHE(le_64_kernel);
 GEN_OP_SPE_LHE(le_64_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_64_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_64_kernel);
 GEN_SPE_LDSPLAT(hhesplat, spe_lhe, le_64_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, 64_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, 64_kernel);
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, 64_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_64_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_64_kernel);
 GEN_SPE_LDSPLAT(hhousplat, spe_lh, le_64_user);
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHX(64_hypv);
+#endif
 GEN_OP_SPE_LHX(64_kernel);
 GEN_OP_SPE_LHX(64_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, 64_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, 64_kernel);
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, 64_user);
+#if defined(TARGET_PPC64H)
+GEN_OP_SPE_LHX(le_64_hypv);
+#endif
 GEN_OP_SPE_LHX(le_64_kernel);
 GEN_OP_SPE_LHX(le_64_user);
+#if defined(TARGET_PPC64H)
+GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_hypv);
+#endif
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_kernel);
 GEN_SPE_LDSPLAT(hhossplat, spe_lhx, le_64_user);
 #endif
@@ -6663,7 +6760,6 @@ GEN_SPE(efdctuiz,       speundef,      0x1C, 0x0B, 0x00180000, PPC_SPEFPU); //
 GEN_SPE(efdctsiz,       speundef,      0x1D, 0x0B, 0x00180000, PPC_SPEFPU); //
 GEN_SPE(efdtstgt,       efdtstlt,      0x1E, 0x0B, 0x00600000, PPC_SPEFPU); //
 GEN_SPE(efdtsteq,       speundef,      0x1F, 0x0B, 0x00600000, PPC_SPEFPU); //
-#endif
 
 /* End opcode list */
 GEN_OPCODE_MARK(end);
@@ -6830,12 +6926,10 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
 #endif
     ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
-#if defined(TARGET_PPCEMB)
     if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
         ctx.spe_enabled = msr_spe;
     else
         ctx.spe_enabled = 0;
-#endif
     if ((env->flags & POWERPC_FLAG_VRE) && msr_vr)
         ctx.altivec_enabled = msr_vr;
     else
