@@ -5822,7 +5822,7 @@ GEN_VR_STX(vxl, 0x07, 0x0F);
 /***                           SPE extension                               ***/
 
 /* Register moves */
-#if TARGET_GPR_BITS < 64
+#if !defined(TARGET_PPC64)
 
 GEN32(gen_op_load_gpr64_T0, gen_op_load_gpr64_T0_gpr);
 GEN32(gen_op_load_gpr64_T1, gen_op_load_gpr64_T1_gpr);
@@ -5836,7 +5836,7 @@ GEN32(gen_op_store_T1_gpr64, gen_op_store_T1_gpr64_gpr);
 GEN32(gen_op_store_T2_gpr64, gen_op_store_T2_gpr64_gpr);
 #endif
 
-#else /* TARGET_GPR_BITS < 64 */
+#else /* !defined(TARGET_PPC64) */
 
 /* No specific load/store functions: GPRs are already 64 bits */
 #define gen_op_load_gpr64_T0 gen_op_load_gpr_T0
@@ -5851,7 +5851,7 @@ GEN32(gen_op_store_T2_gpr64, gen_op_store_T2_gpr64_gpr);
 #define gen_op_store_T2_gpr64 gen_op_store_T2_gpr
 #endif
 
-#endif /* TARGET_GPR_BITS < 64 */
+#endif /* !defined(TARGET_PPC64) */
 
 #define GEN_SPE(name0, name1, opc2, opc3, inval, type)                        \
 GEN_HANDLER(name0##_##name1, 0x04, opc2, opc3, inval, type)                   \

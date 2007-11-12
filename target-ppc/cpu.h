@@ -530,7 +530,7 @@ struct CPUPPCState {
 
     /* general purpose registers */
     ppc_gpr_t gpr[32];
-#if TARGET_GPR_BITS < 64
+#if !defined(TARGET_PPC64)
     /* Storage for GPR MSB, used by the SPE extension */
     ppc_gpr_t gprh[32];
 #endif

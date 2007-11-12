@@ -58,7 +58,7 @@ void OPPROTO glue(op_store_T2_gpr_gpr, REG) (void)
 #endif
 
 /* General purpose registers containing vector operands moves */
-#if TARGET_GPR_BITS < 64
+#if !defined(TARGET_PPC64)
 void OPPROTO glue(op_load_gpr64_T0_gpr, REG) (void)
 {
     T0_64 = (uint64_t)env->gpr[REG] | ((uint64_t)env->gprh[REG] << 32);
@@ -101,7 +101,7 @@ void OPPROTO glue(op_store_T2_gpr64_gpr, REG) (void)
     RETURN();
 }
 #endif
-#endif /* TARGET_GPR_BITS < 64 */
+#endif /* !defined(TARGET_PPC64) */
 
 /* Altivec registers moves */
 void OPPROTO glue(op_load_avr_A0_avr, REG) (void)
