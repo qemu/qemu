@@ -1,5 +1,5 @@
 /*
- * TI ADS7846 chip emulation.
+ * TI ADS7846 / TSC2046 chip emulation.
  *
  * Copyright (c) 2006 Openedhand Ltd.
  * Written by Andrzej Zaborowski <balrog@zabor.org>
