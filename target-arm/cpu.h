@@ -248,16 +248,9 @@ void cpu_unlock(void);
 #define CPSR_EXEC (CPSR_T | CPSR_IT | CPSR_J)
 
 /* Return the current CPSR value.  */
-static inline uint32_t cpsr_read(CPUARMState *env)
-{
-    int ZF;
-    ZF = (env->NZF == 0);
-    return env->uncached_cpsr | (env->NZF & 0x80000000) | (ZF << 30) |
-        (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
-        | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
-        | ((env->condexec_bits & 0xfc) << 8)
-        | (env->GE << 16);
-}
+uint32_t cpsr_read(CPUARMState *env);
+/* Set the CPSR.  Note that some bits of mask must be all-set or all-clear.  */
+void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask);
 
 /* Return the current xPSR value.  */
 static inline uint32_t xpsr_read(CPUARMState *env)
@@ -269,38 +262,6 @@ static inline uint32_t xpsr_read(CPUARMState *env)
         | (env->thumb << 24) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
         | env->v7m.exception;
-}
-
-/* Set the CPSR.  Note that some bits of mask must be all-set or all-clear.  */
-static inline void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
-{
-    /* NOTE: N = 1 and Z = 1 cannot be stored currently */
-    if (mask & CPSR_NZCV) {
-        env->NZF = (val & 0xc0000000) ^ 0x40000000;
-        env->CF = (val >> 29) & 1;
-        env->VF = (val << 3) & 0x80000000;
-    }
-    if (mask & CPSR_Q)
-        env->QF = ((val & CPSR_Q) != 0);
-    if (mask & CPSR_T)
-        env->thumb = ((val & CPSR_T) != 0);
-    if (mask & CPSR_IT_0_1) {
-        env->condexec_bits &= ~3;
-        env->condexec_bits |= (val >> 25) & 3;
-    }
-    if (mask & CPSR_IT_2_7) {
-        env->condexec_bits &= 3;
-        env->condexec_bits |= (val >> 8) & 0xfc;
-    }
-    if (mask & CPSR_GE) {
-        env->GE = (val >> 16) & 0xf;
-    }
-
-    if ((env->uncached_cpsr ^ val) & mask & CPSR_M) {
-        switch_mode(env, val & CPSR_M);
-    }
-    mask &= ~CACHED_CPSR_BITS;
-    env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
 }
 
 /* Set the xPSR.  Note that some bits of mask must be all-set or all-clear.  */
