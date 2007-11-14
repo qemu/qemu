@@ -520,11 +520,11 @@ struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
      */
-#if TARGET_GPR_BITS > HOST_LONG_BITS
+#if (HOST_LONG_BITS == 32)
     /* temporary fixed-point registers
-     * used to emulate 64 bits target on 32 bits hosts
+     * used to emulate 64 bits registers on 32 bits hosts
      */
-    ppc_gpr_t t0, t1, t2;
+    uint64_t t0, t1, t2;
 #endif
     ppc_avr_t avr0, avr1, avr2;
 
