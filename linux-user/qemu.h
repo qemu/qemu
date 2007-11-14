@@ -207,8 +207,11 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1 /* implies read access */
 
-#define access_ok(type,addr,size) \
-    (page_check_range((target_ulong)addr,size,(type==VERIFY_READ)?PAGE_READ:PAGE_WRITE)==0)
+static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
+{
+    return page_check_range((target_ulong)addr, size,
+                            (type == VERIFY_READ) ? PAGE_READ : (PAGE_READ | PAGE_WRITE)) == 0;
+}
 
 /* NOTE __get_user and __put_user use host pointers and don't check access. */
 /* These are usually used to access struct data members once the

@@ -2773,7 +2773,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_NR_read:
-        page_unprotect_range(arg2, arg3);
         if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
             goto efault;
         ret = get_errno(read(arg1, p, arg3));
@@ -4537,7 +4536,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_pread
     case TARGET_NR_pread:
-        page_unprotect_range(arg2, arg3);
         if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
             goto efault;
         ret = get_errno(pread(arg1, p, arg3, arg4));
