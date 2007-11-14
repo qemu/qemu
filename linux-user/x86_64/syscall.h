@@ -91,3 +91,8 @@ struct target_msqid64_ds {
 };
 
 #define UNAME_MACHINE "x86_64"
+
+#define TARGET_ARCH_SET_GS 0x1001
+#define TARGET_ARCH_SET_FS 0x1002
+#define TARGET_ARCH_GET_FS 0x1003
+#define TARGET_ARCH_GET_GS 0x1004

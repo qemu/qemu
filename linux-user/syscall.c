@@ -2521,6 +2521,41 @@ abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
     return 0;
 }
 
+#ifndef TARGET_ABI32
+abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
+{
+    abi_long ret;
+    abi_ulong val;
+    int idx;
+    
+    switch(code) {
+    case TARGET_ARCH_SET_GS:
+    case TARGET_ARCH_SET_FS:
+        if (code == TARGET_ARCH_SET_GS)
+            idx = R_GS;
+        else
+            idx = R_FS;
+        cpu_x86_load_seg(env, idx, 0);
+        env->segs[idx].base = addr;
+        break;
+    case TARGET_ARCH_GET_GS:
+    case TARGET_ARCH_GET_FS:
+        if (code == TARGET_ARCH_GET_GS)
+            idx = R_GS;
+        else
+            idx = R_FS;
+        val = env->segs[idx].base;
+        if (put_user(val, addr, abi_ulong))
+            return -TARGET_EFAULT;
+        break;
+    default:
+        ret = -TARGET_EINVAL;
+        break;
+    }
+    return 0;
+}
+#endif
+
 #endif /* defined(TARGET_I386) */
 
 /* this stack is the equivalent of the kernel stack associated with a
@@ -2797,7 +2832,7 @@ void syscall_init(void)
                 target_to_host_errno_table[host_to_target_errno_table[i]] = i;
 
         /* automatic consistency check if same arch */
-#if defined(__i386__) && defined(TARGET_I386)
+#if defined(__i386__) && defined(TARGET_I386) && defined(TARGET_ABI32)
         if (ie->target_cmd != ie->host_cmd) {
             fprintf(stderr, "ERROR: ioctl: target=0x%x host=0x%x\n",
                     ie->target_cmd, ie->host_cmd);
@@ -3861,7 +3896,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_mmap
     case TARGET_NR_mmap:
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_CRIS)
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_CRIS)
         {
             abi_ulong *v;
             abi_ulong v1, v2, v3, v4, v5, v6;
@@ -4183,42 +4218,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
                 if (!lock_user_struct(VERIFY_WRITE, target_st, arg2, 0))
                     goto efault;
-#if defined(TARGET_MIPS) || (defined(TARGET_SPARC64) && !defined(TARGET_ABI32))
-                target_st->st_dev = tswap32(st.st_dev);
-#else
-                target_st->st_dev = tswap16(st.st_dev);
-#endif
-                target_st->st_ino = tswapl(st.st_ino);
-#if defined(TARGET_PPC) || defined(TARGET_MIPS)
-                target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
-                target_st->st_uid = tswap32(st.st_uid);
-                target_st->st_gid = tswap32(st.st_gid);
-#elif defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
-                target_st->st_mode = tswap32(st.st_mode);
-                target_st->st_uid = tswap32(st.st_uid);
-                target_st->st_gid = tswap32(st.st_gid);
-#else
-                target_st->st_mode = tswap16(st.st_mode);
-                target_st->st_uid = tswap16(st.st_uid);
-                target_st->st_gid = tswap16(st.st_gid);
-#endif
-#if defined(TARGET_MIPS)
-		/* If this is the same on PPC, then just merge w/ the above ifdef */
-                target_st->st_nlink = tswapl(st.st_nlink);
-                target_st->st_rdev = tswapl(st.st_rdev);
-#elif defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
-                target_st->st_nlink = tswap32(st.st_nlink);
-                target_st->st_rdev = tswap32(st.st_rdev);
-#else
-                target_st->st_nlink = tswap16(st.st_nlink);
-                target_st->st_rdev = tswap16(st.st_rdev);
-#endif
-                target_st->st_size = tswapl(st.st_size);
-                target_st->st_blksize = tswapl(st.st_blksize);
-                target_st->st_blocks = tswapl(st.st_blocks);
-                target_st->target_st_atime = tswapl(st.st_atime);
-                target_st->target_st_mtime = tswapl(st.st_mtime);
-                target_st->target_st_ctime = tswapl(st.st_ctime);
+                __put_user(st.st_dev, &target_st->st_dev);
+                __put_user(st.st_ino, &target_st->st_ino);
+                __put_user(st.st_mode, &target_st->st_mode);
+                __put_user(st.st_uid, &target_st->st_uid);
+                __put_user(st.st_gid, &target_st->st_gid);
+                __put_user(st.st_nlink, &target_st->st_nlink);
+                __put_user(st.st_rdev, &target_st->st_rdev);
+                __put_user(st.st_size, &target_st->st_size);
+                __put_user(st.st_blksize, &target_st->st_blksize);
+                __put_user(st.st_blocks, &target_st->st_blocks);
+                __put_user(st.st_atime, &target_st->target_st_atime);
+                __put_user(st.st_mtime, &target_st->target_st_mtime);
+                __put_user(st.st_ctime, &target_st->target_st_ctime);
                 unlock_user_struct(target_st, arg2, 1);
             }
         }
@@ -4671,6 +4683,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 break;
             }
         break;
+#ifdef TARGET_NR_arch_prctl
+    case TARGET_NR_arch_prctl:
+#if defined(TARGET_I386) && !defined(TARGET_ABI32)
+        ret = do_arch_prctl(cpu_env, arg1, arg2);
+        break;
+#else
+        goto unimplemented;
+#endif
+#endif
 #ifdef TARGET_NR_pread
     case TARGET_NR_pread:
         if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))

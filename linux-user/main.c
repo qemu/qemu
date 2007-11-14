@@ -147,8 +147,31 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
     p[1] = tswapl(e2);
 }
 
+#if TARGET_X86_64
+uint64_t idt_table[512];
+
+static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
+                       uint64_t addr, unsigned int sel)
+{
+    unsigned int e1, e2;
+    uint32_t *p;
+    e1 = (addr & 0xffff) | (sel << 16);
+    e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
+    p = ptr;
+    p[0] = tswapl(e1);
+    p[1] = tswapl(e2);
+    p[2] = addr >> 32;
+}
+/* only dpl matters as we do only user space emulation */
+static void set_idt(int n, unsigned int dpl)
+{
+    set_gate64(idt_table + n * 2, 0, dpl, 0, 0);
+}
+#else
+uint64_t idt_table[256];
+
 static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
-                     unsigned long addr, unsigned int sel)
+                     uint32_t addr, unsigned int sel)
 {
     unsigned int e1, e2;
     uint32_t *p;
@@ -159,13 +182,12 @@ static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
     p[1] = tswapl(e2);
 }
 
-uint64_t idt_table[256];
-
 /* only dpl matters as we do only user space emulation */
 static void set_idt(int n, unsigned int dpl)
 {
     set_gate(idt_table + n, 0, dpl, 0, 0);
 }
+#endif
 
 void cpu_loop(CPUX86State *env)
 {
@@ -177,7 +199,7 @@ void cpu_loop(CPUX86State *env)
         trapnr = cpu_x86_exec(env);
         switch(trapnr) {
         case 0x80:
-            /* linux syscall */
+            /* linux syscall from int $0x80 */
             env->regs[R_EAX] = do_syscall(env,
                                           env->regs[R_EAX],
                                           env->regs[R_EBX],
@@ -187,6 +209,20 @@ void cpu_loop(CPUX86State *env)
                                           env->regs[R_EDI],
                                           env->regs[R_EBP]);
             break;
+#ifndef TARGET_ABI32
+        case EXCP_SYSCALL:
+            /* linux syscall from syscall intruction */
+            env->regs[R_EAX] = do_syscall(env,
+                                          env->regs[R_EAX],
+                                          env->regs[R_EDI],
+                                          env->regs[R_ESI],
+                                          env->regs[R_EDX],
+                                          env->regs[10],
+                                          env->regs[8],
+                                          env->regs[9]);
+            env->eip = env->exception_next_eip;
+            break;
+#endif
         case EXCP0B_NOSEG:
         case EXCP0C_STACK:
             info.si_signo = SIGBUS;
@@ -196,6 +232,7 @@ void cpu_loop(CPUX86State *env)
             queue_signal(info.si_signo, &info);
             break;
         case EXCP0D_GPF:
+            /* XXX: potential problem if ABI32 */
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_fault(env);
@@ -2075,12 +2112,18 @@ int main(int argc, char **argv)
         env->cr[4] |= CR4_OSFXSR_MASK;
         env->hflags |= HF_OSFXSR_MASK;
     }
+#ifndef TARGET_ABI32
+    /* enable 64 bit mode */
+    env->cr[4] |= CR4_PAE_MASK;
+    env->efer |= MSR_EFER_LMA;
+    env->hflags |= HF_LMA_MASK;
+#endif
 
     /* flags setup : we activate the IRQs by default as in user mode */
     env->eflags |= IF_MASK;
 
     /* linux register setup */
-#if defined(TARGET_X86_64)
+#ifndef TARGET_ABI32
     env->regs[R_EAX] = regs->rax;
     env->regs[R_EBX] = regs->rbx;
     env->regs[R_ECX] = regs->rcx;
@@ -2131,24 +2174,38 @@ int main(int argc, char **argv)
     {
         uint64_t *gdt_table;
         gdt_table = qemu_mallocz(sizeof(uint64_t) * TARGET_GDT_ENTRIES);
-        env->gdt.base = h2g(gdt_table);
+        env->gdt.base = h2g((unsigned long)gdt_table);
         env->gdt.limit = sizeof(uint64_t) * TARGET_GDT_ENTRIES - 1;
+#ifdef TARGET_ABI32
         write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
                  DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
                  (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+#else
+        /* 64 bit code segment */
+        write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 DESC_L_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+#endif
         write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
                  DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
                  (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
     }
     cpu_x86_load_seg(env, R_CS, __USER_CS);
+    cpu_x86_load_seg(env, R_SS, __USER_DS);
+#ifdef TARGET_ABI32
     cpu_x86_load_seg(env, R_DS, __USER_DS);
     cpu_x86_load_seg(env, R_ES, __USER_DS);
-    cpu_x86_load_seg(env, R_SS, __USER_DS);
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
-
     /* This hack makes Wine work... */
     env->segs[R_FS].selector = 0;
+#else
+    cpu_x86_load_seg(env, R_DS, 0);
+    cpu_x86_load_seg(env, R_ES, 0);
+    cpu_x86_load_seg(env, R_FS, 0);
+    cpu_x86_load_seg(env, R_GS, 0);
+#endif
 #elif defined(TARGET_ARM)
     {
         int i;

@@ -340,6 +340,9 @@
 #define EXCP11_ALGN	17
 #define EXCP12_MCHK	18
 
+#define EXCP_SYSCALL    0x100 /* only happens in user only emulation
+                                 for syscall instruction */
+
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_EFLAGS,  /* all cc are explicitely computed, CC_SRC = flags */
