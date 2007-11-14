@@ -1606,16 +1606,14 @@ GEN_PPC64_R2(rldcr, 0x1E, 0x09);
 static always_inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
 {
     uint64_t mask;
-    uint32_t sh, mb;
+    uint32_t sh, mb, me;
 
     sh = SH(ctx->opcode) | (shn << 5);
     mb = MB(ctx->opcode) | (mbn << 5);
+    me = 63 - sh;
     if (likely(sh == 0)) {
         if (likely(mb == 0)) {
             gen_op_load_gpr_T0(rS(ctx->opcode));
-            goto do_store;
-        } else if (likely(mb == 63)) {
-            gen_op_load_gpr_T0(rA(ctx->opcode));
             goto do_store;
         }
         gen_op_load_gpr_T0(rS(ctx->opcode));
@@ -1626,7 +1624,7 @@ static always_inline void gen_rldimi (DisasContext *ctx, int mbn, int shn)
     gen_op_load_gpr_T1(rA(ctx->opcode));
     gen_op_rotli64_T0(sh);
  do_mask:
-    mask = MASK(mb, 63 - sh);
+    mask = MASK(mb, me);
     gen_andi_T0_64(ctx, mask);
     gen_andi_T1_64(ctx, ~mask);
     gen_op_or();
