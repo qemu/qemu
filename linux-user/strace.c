@@ -271,7 +271,7 @@ print_syscall(int num,
               abi_long arg4, abi_long arg5, abi_long arg6)
 {
     int i;
-    char *format="%s(%ld,%ld,%ld,%ld,%ld,%ld)";
+    char *format="%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")";
 
     gemu_log("%d ", getpid() );
 
@@ -280,6 +280,8 @@ print_syscall(int num,
             if( scnames[i].call != NULL ) {
                 scnames[i].call(&scnames[i],arg1,arg2,arg3,arg4,arg5,arg6);
             } else {
+                /* XXX: this format system is broken because it uses
+                   host types and host pointers for strings */
                 if( scnames[i].format != NULL )
                     format = scnames[i].format;
                 gemu_log(format,scnames[i].name, arg1,arg2,arg3,arg4,arg5,arg6);
