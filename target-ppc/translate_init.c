@@ -2651,7 +2651,8 @@ static int check_pow_hid0 (CPUPPCState *env)
 /* PowerPC implementations definitions                                       */
 
 /* PowerPC 40x instruction set                                               */
-#define POWERPC_INSNS_EMB    (PPC_INSNS_BASE | PPC_CACHE_DCBZ | PPC_EMB_COMMON)
+#define POWERPC_INSNS_EMB    (PPC_INSNS_BASE | PPC_EMB_COMMON |               \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ)
 
 /* PowerPC 401                                                               */
 #define POWERPC_INSNS_401    (POWERPC_INSNS_EMB |                             \
@@ -3176,7 +3177,7 @@ static void init_proc_460F (CPUPPCState *env)
                               PPC_CACHE_DCBA |                                \
                               PPC_FLOAT | PPC_FLOAT_FSQRT |                   \
                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \
-                              PPC_FLOAT_FSEL | PPC_FLOAT_STFIW |              \
+                              PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX |             \
                               PPC_BOOKE)
 #define POWERPC_MSRM_BookE   (0x000000000006D630ULL)
 #define POWERPC_MMU_BookE    (POWERPC_MMU_BOOKE)
@@ -3233,8 +3234,9 @@ static void init_proc_e500 (CPUPPCState *env)
 
 /* Non-embedded PowerPC                                                      */
 /* Base instructions set for all 6xx/7xx/74xx/970 PowerPC                    */
-#define POWERPC_INSNS_6xx    (PPC_INSNS_BASE | PPC_FLOAT | PPC_MEM_SYNC |     \
-                              PPC_MEM_EIEIO | PPC_MEM_TLBIE)
+#define POWERPC_INSNS_6xx    (PPC_INSNS_BASE | PPC_FLOAT |                    \
+                              PPC_CACHE | PPC_CACHE_ICBI |                    \
+                              PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE)
 /* Instructions common to all 6xx/7xx/74xx/970 PowerPC except 601 & 602      */
 #define POWERPC_INSNS_WORKS  (POWERPC_INSNS_6xx | PPC_FLOAT_FSQRT |           \
                               PPC_FLOAT_FRES | PPC_FLOAT_FRSQRTE |            \

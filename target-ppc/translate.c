@@ -426,111 +426,123 @@ static always_inline target_ulong MASK (uint32_t start, uint32_t end)
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */
 enum {
-    PPC_NONE          = 0x0000000000000000ULL,
+    PPC_NONE           = 0x0000000000000000ULL,
     /* PowerPC base instructions set                                         */
-    PPC_INSNS_BASE    = 0x0000000000000001ULL,
-    /* integer operations instructions                                       */
+    PPC_INSNS_BASE     = 0x0000000000000001ULL,
+    /*   integer operations instructions                                     */
 #define PPC_INTEGER PPC_INSNS_BASE
-    /* flow control instructions                                             */
+    /*   flow control instructions                                           */
 #define PPC_FLOW    PPC_INSNS_BASE
-    /* virtual memory instructions                                           */
+    /*   virtual memory instructions                                         */
 #define PPC_MEM     PPC_INSNS_BASE
-    /* ld/st with reservation instructions                                   */
+    /*   ld/st with reservation instructions                                 */
 #define PPC_RES     PPC_INSNS_BASE
-    /* cache control instructions                                            */
-#define PPC_CACHE   PPC_INSNS_BASE
-    /* spr/msr access instructions                                           */
+    /*   spr/msr access instructions                                         */
 #define PPC_MISC    PPC_INSNS_BASE
-    /* Optional floating point instructions                                  */
-    PPC_FLOAT         = 0x0000000000000002ULL,
-    PPC_FLOAT_FSQRT   = 0x0000000000000004ULL,
-    PPC_FLOAT_FRES    = 0x0000000000000008ULL,
-    PPC_FLOAT_FRSQRTE = 0x0000000000000010ULL,
-    PPC_FLOAT_FSEL    = 0x0000000000000020ULL,
-    PPC_FLOAT_STFIWX  = 0x0000000000000040ULL,
-    /* external control instructions                                         */
-    PPC_EXTERN        = 0x0000000000000080ULL,
-    /* segment register access instructions                                  */
-    PPC_SEGMENT       = 0x0000000000000100ULL,
-    /* Optional cache control instruction                                    */
-    PPC_CACHE_DCBA    = 0x0000000000000200ULL,
-    /* Optional memory control instructions                                  */
-    PPC_MEM_TLBIA     = 0x0000000000000400ULL,
-    PPC_MEM_TLBIE     = 0x0000000000000800ULL,
-    PPC_MEM_TLBSYNC   = 0x0000000000001000ULL,
-    /* eieio & sync                                                          */
-    PPC_MEM_SYNC      = 0x0000000000002000ULL,
-    /* PowerPC 6xx TLB management instructions                               */
-    PPC_6xx_TLB       = 0x0000000000004000ULL,
-    /* Altivec support                                                       */
-    PPC_ALTIVEC       = 0x0000000000008000ULL,
-    /* Time base mftb instruction                                            */
-    PPC_MFTB          = 0x0000000000010000ULL,
-    /* Embedded PowerPC dedicated instructions                               */
-    PPC_EMB_COMMON    = 0x0000000000020000ULL,
-    /* PowerPC 40x exception model                                           */
-    PPC_40x_EXCP      = 0x0000000000040000ULL,
-    /* PowerPC 40x TLB management instructions                               */
-    PPC_40x_TLB       = 0x0000000000080000ULL,
-    /* PowerPC 405 Mac instructions                                          */
-    PPC_405_MAC       = 0x0000000000100000ULL,
-    /* PowerPC 440 specific instructions                                     */
-    PPC_440_SPEC      = 0x0000000000200000ULL,
-    /* Power-to-PowerPC bridge (601)                                         */
-    PPC_POWER_BR      = 0x0000000000400000ULL,
-    /* PowerPC 602 specific                                                  */
-    PPC_602_SPEC      = 0x0000000000800000ULL,
-    /* Deprecated instructions                                               */
-    /* Original POWER instruction set                                        */
-    PPC_POWER         = 0x0000000001000000ULL,
-    /* POWER2 instruction set extension                                      */
-    PPC_POWER2        = 0x0000000002000000ULL,
-    /* Power RTC support                                                     */
-    PPC_POWER_RTC     = 0x0000000004000000ULL,
+    /* Deprecated instruction sets                                           */
+    /*   Original POWER instruction set                                      */
+    PPC_POWER          = 0x0000000000000001ULL,
+    /*   POWER2 instruction set extension                                    */
+    PPC_POWER2         = 0x0000000000000002ULL,
+    /*   Power RTC support                                                   */
+    PPC_POWER_RTC      = 0x0000000000000004ULL,
+    /*   Power-to-PowerPC bridge (601)                                       */
+    PPC_POWER_BR       = 0x0000000000000008ULL,
     /* 64 bits PowerPC instruction set                                       */
-    PPC_64B           = 0x0000000008000000ULL,
-    /* 64 bits hypervisor extensions                                         */
-    PPC_64H           = 0x0000000010000000ULL,
-    /* segment register access instructions for PowerPC 64 "bridge"          */
-    PPC_SEGMENT_64B   = 0x0000000020000000ULL,
-    /* BookE (embedded) PowerPC specification                                */
-    PPC_BOOKE         = 0x0000000040000000ULL,
-    /* eieio                                                                 */
-    PPC_MEM_EIEIO     = 0x0000000080000000ULL,
-    /* e500 vector instructions                                              */
-    PPC_E500_VECTOR   = 0x0000000100000000ULL,
-    /* PowerPC 4xx dedicated instructions                                    */
-    PPC_4xx_COMMON    = 0x0000000200000000ULL,
-    /* PowerPC 2.03 specification extensions                                 */
-    PPC_203           = 0x0000000400000000ULL,
-    /* PowerPC 2.03 SPE extension                                            */
-    PPC_SPE           = 0x0000000800000000ULL,
-    /* PowerPC 2.03 SPE floating-point extension                             */
-    PPC_SPEFPU        = 0x0000001000000000ULL,
-    /* SLB management                                                        */
-    PPC_SLBI          = 0x0000002000000000ULL,
-    /* PowerPC 40x ibct instructions                                         */
-    PPC_40x_ICBT      = 0x0000004000000000ULL,
-    /* PowerPC 74xx TLB management instructions                              */
-    PPC_74xx_TLB      = 0x0000008000000000ULL,
-    /* More BookE (embedded) instructions...                                 */
-    PPC_BOOKE_EXT     = 0x0000010000000000ULL,
-    /* rfmci is not implemented in all BookE PowerPC                         */
-    PPC_RFMCI         = 0x0000020000000000ULL,
-    /* user-mode DCR access, implemented in PowerPC 460                      */
-    PPC_DCRUX         = 0x0000040000000000ULL,
+    PPC_64B            = 0x0000000000000010ULL,
+    /*   New 64 bits extensions (PowerPC 2.0x)                               */
+    PPC_64BX           = 0x0000000000000020ULL,
+    /*   64 bits hypervisor extensions                                       */
+    PPC_64H            = 0x0000000000000040ULL,
+    /*   New wait instruction (PowerPC 2.0x)                                 */
+    PPC_WAIT           = 0x0000000000000080ULL,
+    /*   Time base mftb instruction                                          */
+    PPC_MFTB           = 0x0000000000000100ULL,
+
+    /* Fixed-point unit extensions                                           */
+    /*   PowerPC 602 specific                                                */
+    PPC_602_SPEC       = 0x0000000000000200ULL,
+    /*   PowerPC 2.03 specification extensions                               */
+    PPC_203            = 0x0000000000000400ULL,
+
+    /* Floating-point unit extensions                                        */
+    /*   Optional floating point instructions                                */
+    PPC_FLOAT          = 0x0000000000010000ULL,
     /* New floating-point extensions (PowerPC 2.0x)                          */
-    PPC_FLOAT_EXT     = 0x0000080000000000ULL,
-    /* New wait instruction (PowerPC 2.0x)                                   */
-    PPC_WAIT          = 0x0000100000000000ULL,
-    /* New 64 bits extensions (PowerPC 2.0x)                                 */
-    PPC_64BX          = 0x0000200000000000ULL,
-    /* dcbz instruction with fixed cache line size                           */
-    PPC_CACHE_DCBZ    = 0x0000400000000000ULL,
-    /* dcbz instruction with tunable cache line size                         */
-    PPC_CACHE_DCBZT   = 0x0000800000000000ULL,
-    /* frsqrtes extension                                                    */
-    PPC_FLOAT_FRSQRTES = 0x0001000000000000ULL,
+    PPC_FLOAT_EXT      = 0x0000000000020000ULL,
+    PPC_FLOAT_FSQRT    = 0x0000000000040000ULL,
+    PPC_FLOAT_FRES     = 0x0000000000080000ULL,
+    PPC_FLOAT_FRSQRTE  = 0x0000000000100000ULL,
+    PPC_FLOAT_FRSQRTES = 0x0000000000200000ULL,
+    PPC_FLOAT_FSEL     = 0x0000000000400000ULL,
+    PPC_FLOAT_STFIWX   = 0x0000000000800000ULL,
+
+    /* Vector/SIMD extensions                                                */
+    /*   Altivec support                                                     */
+    PPC_ALTIVEC        = 0x0000000001000000ULL,
+    /*   e500 vector instructions                                            */
+    PPC_E500_VECTOR    = 0x0000000002000000ULL,
+    /*   PowerPC 2.03 SPE extension                                          */
+    PPC_SPE            = 0x0000000004000000ULL,
+    /*   PowerPC 2.03 SPE floating-point extension                           */
+    PPC_SPEFPU         = 0x0000000008000000ULL,
+
+    /* Optional memory control instructions                                  */
+    PPC_MEM_TLBIA      = 0x0000000010000000ULL,
+    PPC_MEM_TLBIE      = 0x0000000020000000ULL,
+    PPC_MEM_TLBSYNC    = 0x0000000040000000ULL,
+    /*   sync instruction                                                    */
+    PPC_MEM_SYNC       = 0x0000000080000000ULL,
+    /*   eieio instruction                                                   */
+    PPC_MEM_EIEIO      = 0x0000000100000000ULL,
+
+    /* Cache control instructions                                            */
+    PPC_CACHE          = 0x0000001000000000ULL,
+    /*   icbi instruction                                                    */
+    PPC_CACHE_ICBI     = 0x0000002000000000ULL,
+    /*   dcbz instruction with fixed cache line size                         */
+    PPC_CACHE_DCBZ     = 0x0000004000000000ULL,
+    /*   dcbz instruction with tunable cache line size                       */
+    PPC_CACHE_DCBZT    = 0x0000008000000000ULL,
+    /*   dcba instruction                                                    */
+    PPC_CACHE_DCBA     = 0x0000010000000000ULL,
+
+    /* MMU related extensions                                                */
+    /*   external control instructions                                       */
+    PPC_EXTERN         = 0x0000100000000000ULL,
+    /*   segment register access instructions                                */
+    PPC_SEGMENT        = 0x0000200000000000ULL,
+    /*   PowerPC 6xx TLB management instructions                             */
+    PPC_6xx_TLB        = 0x0000400000000000ULL,
+    /* PowerPC 74xx TLB management instructions                              */
+    PPC_74xx_TLB       = 0x0000800000000000ULL,
+    /*   PowerPC 40x TLB management instructions                             */
+    PPC_40x_TLB        = 0x0001000000000000ULL,
+    /*   segment register access instructions for PowerPC 64 "bridge"        */
+    PPC_SEGMENT_64B    = 0x0002000000000000ULL,
+    /*   SLB management                                                      */
+    PPC_SLBI           = 0x0004000000000000ULL,
+
+    /* Embedded PowerPC dedicated instructions                               */
+    PPC_EMB_COMMON     = 0x0010000000000000ULL,
+    /* PowerPC 40x exception model                                           */
+    PPC_40x_EXCP       = 0x0020000000000000ULL,
+    /* PowerPC 405 Mac instructions                                          */
+    PPC_405_MAC        = 0x0040000000000000ULL,
+    /* PowerPC 440 specific instructions                                     */
+    PPC_440_SPEC       = 0x0080000000000000ULL,
+    /* BookE (embedded) PowerPC specification                                */
+    PPC_BOOKE          = 0x0100000000000000ULL,
+    /* More BookE (embedded) instructions...                                 */
+    PPC_BOOKE_EXT      = 0x0200000000000000ULL,
+    /* PowerPC 4xx dedicated instructions                                    */
+    PPC_4xx_COMMON     = 0x0400000000000000ULL,
+    /* PowerPC 40x ibct instructions                                         */
+    PPC_40x_ICBT       = 0x0800000000000000ULL,
+    /* rfmci is not implemented in all BookE PowerPC                         */
+    PPC_RFMCI          = 0x1000000000000000ULL,
+    /* user-mode DCR access, implemented in PowerPC 460                      */
+    PPC_DCRUX          = 0x2000000000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1805,7 +1817,7 @@ static always_inline void gen_op_frsqrtes (void)
     gen_op_frsqrte();
     gen_op_frsp();
 }
-GEN_FLOAT_BS(rsqrtes, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTES);
+GEN_FLOAT_BS(rsqrtes, 0x3B, 0x1A, 1, PPC_FLOAT_FRSQRTES);
 
 /* fsel */
 _GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL);
@@ -3980,7 +3992,7 @@ static GenOpFunc *gen_op_icbi[] = {
 #endif
 #endif
 
-GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
+GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
