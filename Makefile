@@ -3,7 +3,7 @@
 include config-host.mak
 
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
-	speed test test2 html dvi info
+	speed test html dvi info
 
 BASE_CFLAGS=
 BASE_LDFLAGS=
@@ -176,7 +176,7 @@ endif
         done
 
 # various test targets
-test speed test2: all
+test speed: all
 	$(MAKE) -C tests $@
 
 TAGS:
