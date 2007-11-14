@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "m48t59.h"
+#include "firmware_abi.h"
+
 //#define DEBUG_IRQ
 
 /*
@@ -102,131 +105,87 @@ void DMA_register_channel (int nchan,
 {
 }
 
-static void nvram_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
-{
-    m48t59_write(nvram, addr++, (value >> 8) & 0xff);
-    m48t59_write(nvram, addr++, value & 0xff);
-}
-
-static void nvram_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
-{
-    m48t59_write(nvram, addr++, value >> 24);
-    m48t59_write(nvram, addr++, (value >> 16) & 0xff);
-    m48t59_write(nvram, addr++, (value >> 8) & 0xff);
-    m48t59_write(nvram, addr++, value & 0xff);
-}
-
-static void nvram_set_string (m48t59_t *nvram, uint32_t addr,
-                       const unsigned char *str, uint32_t max)
-{
-    unsigned int i;
-
-    for (i = 0; i < max && str[i] != '\0'; i++) {
-        m48t59_write(nvram, addr + i, str[i]);
-    }
-    m48t59_write(nvram, addr + max - 1, '\0');
-}
-
-static uint32_t nvram_set_var (m48t59_t *nvram, uint32_t addr,
-                                const unsigned char *str)
-{
-    uint32_t len;
-
-    len = strlen(str) + 1;
-    nvram_set_string(nvram, addr, str, len);
-
-    return addr + len;
-}
-
-static void nvram_finish_partition (m48t59_t *nvram, uint32_t start,
-                                    uint32_t end)
-{
-    unsigned int i, sum;
-
-    // Length divided by 16
-    m48t59_write(nvram, start + 2, ((end - start) >> 12) & 0xff);
-    m48t59_write(nvram, start + 3, ((end - start) >> 4) & 0xff);
-    // Checksum
-    sum = m48t59_read(nvram, start);
-    for (i = 0; i < 14; i++) {
-        sum += m48t59_read(nvram, start + 2 + i);
-        sum = (sum + ((sum & 0xff00) >> 8)) & 0xff;
-    }
-    m48t59_write(nvram, start + 1, sum & 0xff);
-}
-
 extern int nographic;
 
 static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
-                       const char *boot_device, uint32_t RAM_size,
+                       const char *boot_devices, uint32_t RAM_size,
                        uint32_t kernel_size,
                        int width, int height, int depth,
                        int machine_id)
 {
-    unsigned char tmp = 0;
-    unsigned int i, j;
+    unsigned int i;
     uint32_t start, end;
+    uint8_t image[0x1ff0];
+    ohwcfg_v3_t *header = (ohwcfg_v3_t *)&image;
+    struct sparc_arch_cfg *sparc_header;
+    struct OpenBIOS_nvpart_v1 *part_header;
+
+    memset(image, '\0', sizeof(image));
 
     // Try to match PPC NVRAM
-    nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
-    nvram_set_lword(nvram,  0x10, 0x00000001); /* structure v1 */
-    // NVRAM_size, arch not applicable
-    m48t59_write(nvram, 0x2D, smp_cpus & 0xff);
-    m48t59_write(nvram, 0x2E, 0);
-    m48t59_write(nvram, 0x2F, nographic & 0xff);
-    nvram_set_lword(nvram,  0x30, RAM_size);
-    m48t59_write(nvram, 0x34, boot_device[0] & 0xff);
-    nvram_set_lword(nvram,  0x38, KERNEL_LOAD_ADDR);
-    nvram_set_lword(nvram,  0x3C, kernel_size);
+    strcpy(header->struct_ident, "QEMU_BIOS");
+    header->struct_version = cpu_to_be32(3); /* structure v3 */
+
+    header->nvram_size = cpu_to_be16(0x2000);
+    header->nvram_arch_ptr = cpu_to_be16(sizeof(ohwcfg_v3_t));
+    header->nvram_arch_size = cpu_to_be16(sizeof(struct sparc_arch_cfg));
+    strcpy(header->arch, "sun4m");
+    header->nb_cpus = smp_cpus & 0xff;
+    header->RAM0_base = 0;
+    header->RAM0_size = cpu_to_be64((uint64_t)RAM_size);
+    strcpy(header->boot_devices, boot_devices);
+    header->nboot_devices = strlen(boot_devices) & 0xff;
+    header->kernel_image = cpu_to_be64((uint64_t)KERNEL_LOAD_ADDR);
+    header->kernel_size = cpu_to_be64((uint64_t)kernel_size);
     if (cmdline) {
         strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
-        nvram_set_lword(nvram,  0x40, CMDLINE_ADDR);
-        nvram_set_lword(nvram,  0x44, strlen(cmdline));
+        header->cmdline = cpu_to_be64((uint64_t)CMDLINE_ADDR);
+        header->cmdline_size = cpu_to_be64((uint64_t)strlen(cmdline));
     }
-    // initrd_image, initrd_size passed differently
-    nvram_set_word(nvram,   0x54, width);
-    nvram_set_word(nvram,   0x56, height);
-    nvram_set_word(nvram,   0x58, depth);
+    // XXX add initrd_image, initrd_size
+    header->width = cpu_to_be16(width);
+    header->height = cpu_to_be16(height);
+    header->depth = cpu_to_be16(depth);
+    if (nographic)
+        header->graphic_flags = cpu_to_be16(OHW_GF_NOGRAPHICS);
+
+    header->crc = cpu_to_be16(OHW_compute_crc(header, 0x00, 0xF8));
+
+    // Architecture specific header
+    start = sizeof(ohwcfg_v3_t);
+    sparc_header = (struct sparc_arch_cfg *)&image[start];
+    sparc_header->valid = 0;
+    start += sizeof(struct sparc_arch_cfg);
 
     // OpenBIOS nvram variables
     // Variable partition
-    start = 252;
-    m48t59_write(nvram, start, 0x70);
-    nvram_set_string(nvram, start + 4, "system", 12);
+    part_header = (struct OpenBIOS_nvpart_v1 *)&image[start];
+    part_header->signature = OPENBIOS_PART_SYSTEM;
+    strcpy(part_header->name, "system");
 
-    end = start + 16;
+    end = start + sizeof(struct OpenBIOS_nvpart_v1);
     for (i = 0; i < nb_prom_envs; i++)
-        end = nvram_set_var(nvram, end, prom_envs[i]);
+        end = OpenBIOS_set_var(image, end, prom_envs[i]);
 
-    m48t59_write(nvram, end++ , 0);
+    // End marker
+    image[end++] = '\0';
+
     end = start + ((end - start + 15) & ~15);
-    nvram_finish_partition(nvram, start, end);
+    OpenBIOS_finish_partition(part_header, end - start);
 
     // free partition
     start = end;
-    m48t59_write(nvram, start, 0x7f);
-    nvram_set_string(nvram, start + 4, "free", 12);
+    part_header = (struct OpenBIOS_nvpart_v1 *)&image[start];
+    part_header->signature = OPENBIOS_PART_FREE;
+    strcpy(part_header->name, "free");
 
     end = 0x1fd0;
-    nvram_finish_partition(nvram, start, end);
+    OpenBIOS_finish_partition(part_header, end - start);
 
-    // Sun4m specific use
-    start = i = 0x1fd8;
-    m48t59_write(nvram, i++, 0x01);
-    m48t59_write(nvram, i++, machine_id);
-    j = 0;
-    m48t59_write(nvram, i++, macaddr[j++]);
-    m48t59_write(nvram, i++, macaddr[j++]);
-    m48t59_write(nvram, i++, macaddr[j++]);
-    m48t59_write(nvram, i++, macaddr[j++]);
-    m48t59_write(nvram, i++, macaddr[j++]);
-    m48t59_write(nvram, i, macaddr[j]);
+    Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, machine_id);
 
-    /* Calculate checksum */
-    for (i = start; i < start + 15; i++) {
-        tmp ^= m48t59_read(nvram, i);
-    }
-    m48t59_write(nvram, start + 15, tmp);
+    for (i = 0; i < sizeof(image); i++)
+        m48t59_write(nvram, i, image[i]);
 }
 
 static void *slavio_intctl;
