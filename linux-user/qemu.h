@@ -20,6 +20,10 @@ typedef target_long abi_long;
 #define TARGET_ABI_FMT_ld TARGET_FMT_ld
 #define TARGET_ABI_FMT_lu TARGET_FMT_lu
 #define TARGET_ABI_BITS TARGET_LONG_BITS
+/* for consistency, define ABI32 too */
+#if TARGET_ABI_BITS == 32
+#define TARGET_ABI32 1
+#endif
 #endif
 
 #include "thunk.h"
