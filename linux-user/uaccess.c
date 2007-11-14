@@ -37,15 +37,40 @@ abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len)
     return ret;
 }
 
-
-/* Return the length of a string in target memory.  */
-/* FIXME - this doesn't check access_ok() - it's rather complicated to
- * do it correctly because we need to check the bytes in a page and then
- * skip to the next page and check the bytes there until we find the
- * terminator.  There should be a general function to do this that
- * can look for any byte terminator in a buffer - not strlen().
- */
-abi_long target_strlen(abi_ulong gaddr)
+/* XXX: use host strnlen if available ? */
+static int qemu_strnlen(const char *s, int max_len)
 {
-    return strlen(g2h(gaddr));
+    int i;
+    for(i = 0; i < max_len; i++) {
+        if (s[i] == '\0')
+            break;
+    }
+    return i;
+}
+
+/* Return the length of a string in target memory or -TARGET_EFAULT if
+   access error  */
+abi_long target_strlen(abi_ulong guest_addr1)
+{
+    uint8_t *ptr;
+    abi_ulong guest_addr;
+    int max_len, len;
+
+    guest_addr = guest_addr1;
+    for(;;) {
+        max_len = TARGET_PAGE_SIZE - (guest_addr & ~TARGET_PAGE_MASK);
+        ptr = lock_user(VERIFY_READ, guest_addr, max_len, 1);
+        if (!ptr)
+            return -TARGET_EFAULT;
+        len = qemu_strnlen(ptr, max_len);
+        unlock_user(ptr, guest_addr, 0);
+        guest_addr += len;
+        /* we don't allow wrapping or integer overflow */
+        if (guest_addr == 0 || 
+            (guest_addr - guest_addr1) > 0x7fffffff)
+            return -TARGET_EFAULT;
+        if (len != max_len)
+            break;
+    }
+    return guest_addr - guest_addr1;
 }
