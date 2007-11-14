@@ -159,7 +159,6 @@ static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
     p[1] = tswapl(e2);
 }
 
-uint64_t gdt_table[6];
 uint64_t idt_table[256];
 
 /* only dpl matters as we do only user space emulation */
@@ -2129,14 +2128,18 @@ int main(int argc, char **argv)
     set_idt(0x80, 3);
 
     /* linux segment setup */
-    env->gdt.base = h2g(gdt_table);
-    env->gdt.limit = sizeof(gdt_table) - 1;
-    write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
-             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
-             (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
-    write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
-             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
-             (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
+    {
+        uint64_t *gdt_table;
+        gdt_table = qemu_mallocz(sizeof(uint64_t) * TARGET_GDT_ENTRIES);
+        env->gdt.base = h2g(gdt_table);
+        env->gdt.limit = sizeof(uint64_t) * TARGET_GDT_ENTRIES - 1;
+        write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+        write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
+    }
     cpu_x86_load_seg(env, R_CS, __USER_CS);
     cpu_x86_load_seg(env, R_DS, __USER_DS);
     cpu_x86_load_seg(env, R_ES, __USER_DS);
