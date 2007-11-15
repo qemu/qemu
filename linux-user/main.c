@@ -153,14 +153,14 @@ uint64_t idt_table[512];
 static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
                        uint64_t addr, unsigned int sel)
 {
-    unsigned int e1, e2;
-    uint32_t *p;
+    uint32_t *p, e1, e2;
     e1 = (addr & 0xffff) | (sel << 16);
     e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
     p = ptr;
-    p[0] = tswapl(e1);
-    p[1] = tswapl(e2);
-    p[2] = addr >> 32;
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
+    p[2] = tswap32(addr >> 32);
+    p[3] = 0;
 }
 /* only dpl matters as we do only user space emulation */
 static void set_idt(int n, unsigned int dpl)
@@ -173,13 +173,12 @@ uint64_t idt_table[256];
 static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
                      uint32_t addr, unsigned int sel)
 {
-    unsigned int e1, e2;
-    uint32_t *p;
+    uint32_t *p, e1, e2;
     e1 = (addr & 0xffff) | (sel << 16);
     e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
     p = ptr;
-    p[0] = tswapl(e1);
-    p[1] = tswapl(e2);
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
 }
 
 /* only dpl matters as we do only user space emulation */
@@ -2113,9 +2112,13 @@ int main(int argc, char **argv)
         env->hflags |= HF_OSFXSR_MASK;
     }
 #ifndef TARGET_ABI32
-    /* enable 64 bit mode */
+    /* enable 64 bit mode if possible */
+    if (!(env->cpuid_ext2_features & CPUID_EXT2_LM)) {
+        fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
+        exit(1);
+    }
     env->cr[4] |= CR4_PAE_MASK;
-    env->efer |= MSR_EFER_LMA;
+    env->efer |= MSR_EFER_LMA | MSR_EFER_LME;
     env->hflags |= HF_LMA_MASK;
 #endif
 
