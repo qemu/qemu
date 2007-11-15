@@ -2032,7 +2032,11 @@ int main(int argc, char **argv)
         cpu_model = "24Kf";
 #endif
 #elif defined(TARGET_PPC)
+#ifdef TARGET_PPC64
+        cpu_model = "970";
+#else
         cpu_model = "750";
+#endif
 #else
         cpu_model = "any";
 #endif
