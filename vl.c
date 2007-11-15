@@ -8458,6 +8458,8 @@ int main(int argc, char **argv)
         sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
         cocoa_display_init(ds, full_screen);
+#else
+        dumb_display_init(ds);
 #endif
     }
 
