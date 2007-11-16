@@ -100,8 +100,6 @@ typedef struct CPUM68KState {
     uint32_t rambar0;
     uint32_t cacr;
 
-    uint32_t features;
-
     /* ??? remove this.  */
     uint32_t t1;
 
@@ -118,9 +116,11 @@ typedef struct CPUM68KState {
     uint32_t qregs[MAX_QREGS];
 
     CPU_COMMON
+
+    uint32_t features;
 } CPUM68KState;
 
-CPUM68KState *cpu_m68k_init(void);
+CPUM68KState *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
 void cpu_m68k_close(CPUM68KState *s);
 void do_interrupt(int is_hw);
@@ -173,10 +173,6 @@ enum {
 #define MACSR_Z     0x004
 #define MACSR_V     0x002
 #define MACSR_EV    0x001
-
-typedef struct m68k_def_t m68k_def_t;
-
-int cpu_m68k_set_model(CPUM68KState *env, const char * name);
 
 void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector);
 void m68k_set_macsr(CPUM68KState *env, uint32_t val);

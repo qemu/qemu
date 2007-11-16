@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -32,6 +33,8 @@ enum m68k_cpuid {
     M68K_CPUID_CFV4E,
     M68K_CPUID_ANY,
 };
+
+typedef struct m68k_def_t m68k_def_t;
 
 struct m68k_def_t {
     const char * name;
@@ -51,7 +54,7 @@ static void m68k_set_feature(CPUM68KState *env, int feature)
     env->features |= (1u << feature);
 }
 
-int cpu_m68k_set_model(CPUM68KState *env, const char * name)
+static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
 {
     m68k_def_t *def;
 
@@ -60,7 +63,7 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
             break;
     }
     if (!def->name)
-        return 1;
+        return -1;
 
     switch (def->id) {
     case M68K_CPUID_M5206:
@@ -98,8 +101,43 @@ int cpu_m68k_set_model(CPUM68KState *env, const char * name)
     }
 
     register_m68k_insns(env);
+}
 
-    return 0;
+void cpu_reset(CPUM68KState *env)
+{
+    memset(env, 0, offsetof(CPUM68KState, breakpoints));
+#if !defined (CONFIG_USER_ONLY)
+    env->sr = 0x2700;
+#endif
+    m68k_switch_sp(env);
+    /* ??? FP regs should be initialized to NaN.  */
+    env->cc_op = CC_OP_FLAGS;
+    /* TODO: We should set PC from the interrupt vector.  */
+    env->pc = 0;
+    tlb_flush(env, 1);
+}
+
+CPUM68KState *cpu_m68k_init(const char *cpu_model)
+{
+    CPUM68KState *env;
+
+    env = malloc(sizeof(CPUM68KState));
+    if (!env)
+        return NULL;
+    cpu_exec_init(env);
+
+    if (cpu_m68k_set_model(env, cpu_model) < 0) {
+        cpu_m68k_close(env);
+        return NULL;
+    }
+        
+    cpu_reset(env);
+    return env;
+}
+
+void cpu_m68k_close(CPUM68KState *env)
+{
+    qemu_free(env);
 }
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)

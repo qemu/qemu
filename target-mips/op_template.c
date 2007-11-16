@@ -22,44 +22,44 @@
 void glue(op_load_gpr_T0_gpr, REG) (void)
 {
     T0 = env->gpr[REG][env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_store_T0_gpr_gpr, REG) (void)
 {
     env->gpr[REG][env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_load_gpr_T1_gpr, REG) (void)
 {
     T1 = env->gpr[REG][env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_store_T1_gpr_gpr, REG) (void)
 {
     env->gpr[REG][env->current_tc] = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_load_gpr_T2_gpr, REG) (void)
 {
     T2 = env->gpr[REG][env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 
 void glue(op_load_srsgpr_T0_gpr, REG) (void)
 {
     T0 = env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf];
-    RETURN();
+    FORCE_RET();
 }
 
 void glue(op_store_T0_srsgpr_gpr, REG) (void)
 {
     env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf] = T0;
-    RETURN();
+    FORCE_RET();
 }
 #endif
 
@@ -68,12 +68,12 @@ void glue(op_store_T0_srsgpr_gpr, REG) (void)
     void glue(op_set, tregname)(void)    \
     {                                    \
         treg = (int32_t)PARAM1;          \
-        RETURN();                        \
+        FORCE_RET();                     \
     }                                    \
     void glue(op_reset, tregname)(void)  \
     {                                    \
         treg = 0;                        \
-        RETURN();                        \
+        FORCE_RET();                     \
     }                                    \
 
 SET_RESET(T0, _T0)
@@ -87,7 +87,7 @@ SET_RESET(T2, _T2)
     void glue(op_set64, tregname)(void)                     \
     {                                                       \
         treg = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2; \
-        RETURN();                                           \
+        FORCE_RET();                                        \
     }
 
 SET64(T0, _T0)

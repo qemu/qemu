@@ -42,6 +42,13 @@
 
 #define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
+static struct _loaderparams {
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+} loaderparams;
+
 static void load_kernel (CPUState *env)
 {
     int64_t entry, kernel_low, kernel_high;
@@ -49,7 +56,7 @@ static void load_kernel (CPUState *env)
     long initrd_size;
     ram_addr_t initrd_offset;
 
-    kernel_size = load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND,
+    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                            &entry, &kernel_low, &kernel_high);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
@@ -57,29 +64,29 @@ static void load_kernel (CPUState *env)
         env->PC[env->current_tc] = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                env->kernel_filename);
+                loaderparams.kernel_filename);
         exit(1);
     }
 
     /* load initrd */
     initrd_size = 0;
     initrd_offset = 0;
-    if (env->initrd_filename) {
-        initrd_size = get_image_size (env->initrd_filename);
+    if (loaderparams.initrd_filename) {
+        initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
             initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
-            if (initrd_offset + initrd_size > env->ram_size) {
+            if (initrd_offset + initrd_size > loaderparams.ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
-                        env->initrd_filename);
+                        loaderparams.initrd_filename);
                 exit(1);
             }
-            initrd_size = load_image(env->initrd_filename,
+            initrd_size = load_image(loaderparams.initrd_filename,
                                      phys_ram_base + initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    env->initrd_filename);
+                    loaderparams.initrd_filename);
             exit(1);
         }
     }
@@ -89,9 +96,8 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-    cpu_mips_register(env, NULL);
 
-    if (env->kernel_filename)
+    if (loaderparams.kernel_filename)
         load_kernel (env);
 }
 
@@ -115,10 +121,11 @@ mips_mipssim_init (int ram_size, int vga_ram_size, const char *boot_device,
         cpu_model = "24Kf";
 #endif
     }
-    if (mips_find_by_name(cpu_model, &def) != 0)
-        def = NULL;
-    env = cpu_init();
-    cpu_mips_register(env, def);
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
@@ -146,10 +153,10 @@ mips_mipssim_init (int ram_size, int vga_ram_size, const char *boot_device,
     }
 
     if (kernel_filename) {
-        env->ram_size = ram_size;
-        env->kernel_filename = kernel_filename;
-        env->kernel_cmdline = kernel_cmdline;
-        env->initrd_filename = initrd_filename;
+        loaderparams.ram_size = ram_size;
+        loaderparams.kernel_filename = kernel_filename;
+        loaderparams.kernel_cmdline = kernel_cmdline;
+        loaderparams.initrd_filename = initrd_filename;
         load_kernel(env);
     }
 

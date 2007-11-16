@@ -25,14 +25,14 @@
     void glue(glue(op_load_fpr_,tregname), FREG) (void)  \
     {                                                    \
         treg = env->fpu->fpr[FREG].fs[FP_ENDIAN_IDX];    \
-        RETURN();                                        \
+        FORCE_RET();                                     \
     }
 
 #define OP_WSTORE_FREG(treg, tregname, FREG)             \
     void glue(glue(op_store_fpr_,tregname), FREG) (void) \
     {                                                    \
         env->fpu->fpr[FREG].fs[FP_ENDIAN_IDX] = treg;    \
-        RETURN();                                        \
+        FORCE_RET();                                     \
     }
 
 /* WT0 = FREG.w: op_load_fpr_WT0_fprFREG */
@@ -54,7 +54,7 @@ OP_WSTORE_FREG(WT2, WT2_fpr, FREG)
         else                                             \
             treg = (uint64_t)(env->fpu->fpr[FREG | 1].fs[FP_ENDIAN_IDX]) << 32 | \
                    env->fpu->fpr[FREG & ~1].fs[FP_ENDIAN_IDX]; \
-        RETURN();                                        \
+        FORCE_RET();                                     \
     }
 
 #define OP_DSTORE_FREG(treg, tregname, FREG)             \
@@ -66,7 +66,7 @@ OP_WSTORE_FREG(WT2, WT2_fpr, FREG)
             env->fpu->fpr[FREG | 1].fs[FP_ENDIAN_IDX] = treg >> 32; \
             env->fpu->fpr[FREG & ~1].fs[FP_ENDIAN_IDX] = treg;      \
         }                                                \
-        RETURN();                                        \
+        FORCE_RET();                                     \
     }
 
 OP_DLOAD_FREG(DT0, DT0_fpr, FREG)
@@ -82,14 +82,14 @@ OP_DSTORE_FREG(DT2, DT2_fpr, FREG)
     void glue(glue(op_load_fpr_,tregname), FREG) (void)  \
     {                                                    \
         treg = env->fpu->fpr[FREG].fs[!FP_ENDIAN_IDX];   \
-        RETURN();                                        \
+        FORCE_RET();                                     \
     }
 
 #define OP_PSSTORE_FREG(treg, tregname, FREG)            \
     void glue(glue(op_store_fpr_,tregname), FREG) (void) \
     {                                                    \
         env->fpu->fpr[FREG].fs[!FP_ENDIAN_IDX] = treg;   \
-        RETURN();                                        \
+        FORCE_RET();                                     \
     }
 
 OP_PSLOAD_FREG(WTH0, WTH0_fpr, FREG)
@@ -109,12 +109,12 @@ OP_PSSTORE_FREG(WTH2, WTH2_fpr, FREG)
     void glue(op_set, tregname)(void)    \
     {                                    \
         treg = PARAM1;                   \
-        RETURN();                        \
+        FORCE_RET();                     \
     }                                    \
     void glue(op_reset, tregname)(void)  \
     {                                    \
         treg = 0;                        \
-        RETURN();                        \
+        FORCE_RET();                     \
     }
 
 SET_RESET(WT0, _WT0)

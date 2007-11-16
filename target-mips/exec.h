@@ -43,12 +43,6 @@ register target_ulong T2 asm(AREG3);
 #define WTH2 (env->fpu->ft2.w[!FP_ENDIAN_IDX])
 #endif
 
-#if defined (DEBUG_OP)
-# define RETURN() __asm__ __volatile__("nop" : : : "memory");
-#else
-# define RETURN() __asm__ __volatile__("" : : : "memory");
-#endif
-
 #include "cpu.h"
 #include "exec-all.h"
 

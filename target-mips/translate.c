@@ -6739,13 +6739,21 @@ void cpu_dump_state (CPUState *env, FILE *f,
 #endif
 }
 
-CPUMIPSState *cpu_mips_init (void)
+#include "translate_init.c"
+
+CPUMIPSState *cpu_mips_init (const char *cpu_model)
 {
     CPUMIPSState *env;
+    const mips_def_t *def;
 
+    def = cpu_mips_find_by_name(cpu_model);
+    if (!def)
+        return NULL;
     env = qemu_mallocz(sizeof(CPUMIPSState));
     if (!env)
         return NULL;
+    env->cpu_model = def;
+
     cpu_exec_init(env);
     cpu_reset(env);
     return env;
@@ -6796,6 +6804,5 @@ void cpu_reset (CPUMIPSState *env)
 #else
     env->hflags = MIPS_HFLAG_CP0;
 #endif
+    cpu_mips_register(env, env->cpu_model);
 }
-
-#include "translate_init.c"

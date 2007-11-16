@@ -459,12 +459,7 @@ struct CPUMIPSState {
 
     CPU_COMMON
 
-    int ram_size;
-    const char *kernel_filename;
-    const char *kernel_cmdline;
-    const char *initrd_filename;
-
-    mips_def_t *cpu_model;
+    const mips_def_t *cpu_model;
 #ifndef CONFIG_USER_ONLY
     void *irq[8];
 #endif
@@ -482,9 +477,7 @@ void r4k_do_tlbwi (void);
 void r4k_do_tlbwr (void);
 void r4k_do_tlbp (void);
 void r4k_do_tlbr (void);
-int mips_find_by_name (const unsigned char *name, mips_def_t **def);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-int cpu_mips_register (CPUMIPSState *env, mips_def_t *def);
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int unused);
@@ -568,7 +561,7 @@ enum {
 };
 
 int cpu_mips_exec(CPUMIPSState *s);
-CPUMIPSState *cpu_mips_init(void);
+CPUMIPSState *cpu_mips_init(const char *cpu_model);
 uint32_t cpu_mips_get_clock (void);
 int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 

@@ -2095,7 +2095,7 @@ int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
-CPUAlphaState * cpu_alpha_init (void)
+CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 {
     CPUAlphaState *env;
     uint64_t hwpcb;
@@ -2133,3 +2133,4 @@ CPUAlphaState * cpu_alpha_init (void)
 
     return env;
 }
+

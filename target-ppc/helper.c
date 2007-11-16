@@ -2971,20 +2971,26 @@ void cpu_ppc_reset (void *opaque)
     tlb_flush(env, 1);
 }
 
-CPUPPCState *cpu_ppc_init (void)
+CPUPPCState *cpu_ppc_init (const char *cpu_model)
 {
     CPUPPCState *env;
+    const ppc_def_t *def;
+
+    def = cpu_ppc_find_by_name(cpu_model);
+    if (!def)
+        return NULL;
 
     env = qemu_mallocz(sizeof(CPUPPCState));
     if (!env)
         return NULL;
     cpu_exec_init(env);
-
+    cpu_ppc_register_internal(env, def);
+    cpu_ppc_reset(env);
     return env;
 }
 
 void cpu_ppc_close (CPUPPCState *env)
 {
     /* Should also remove all opcode tables... */
-    free(env);
+    qemu_free(env);
 }

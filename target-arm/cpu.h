@@ -164,7 +164,7 @@ typedef struct CPUARMState {
     target_phys_addr_t loader_start;
 } CPUARMState;
 
-CPUARMState *cpu_arm_init(void);
+CPUARMState *cpu_arm_init(const char *cpu_model);
 int cpu_arm_exec(CPUARMState *s);
 void cpu_arm_close(CPUARMState *s);
 void do_interrupt(CPUARMState *);
@@ -263,7 +263,6 @@ static inline int arm_feature(CPUARMState *env, int feature)
 }
 
 void arm_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
-void cpu_arm_set_model(CPUARMState *env, const char *name);
 
 void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
                        ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,

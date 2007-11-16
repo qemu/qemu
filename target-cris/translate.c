@@ -2489,7 +2489,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
 }
 
-CPUCRISState *cpu_cris_init (void)
+CPUCRISState *cpu_cris_init (const char *cpu_model)
 {
 	CPUCRISState *env;
 

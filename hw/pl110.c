@@ -326,7 +326,7 @@ static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
     case 12: /* LCDLPCURR */
         return s->lpbase;
     default:
-        cpu_abort (cpu_single_env, "pl110_read: Bad offset %x\n", offset);
+        cpu_abort (cpu_single_env, "pl110_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -393,7 +393,7 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
         pl110_update(s);
         break;
     default:
-        cpu_abort (cpu_single_env, "pl110_write: Bad offset %x\n", offset);
+        cpu_abort (cpu_single_env, "pl110_write: Bad offset %x\n", (int)offset);
     }
 }
 

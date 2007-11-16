@@ -222,9 +222,12 @@ endif
 
 ifeq ($(ARCH),mips)
 OP_CFLAGS += -G 0 -fomit-frame-pointer -fno-delayed-branch
-# At least one crosscompiler needs -Wa,-O0:
+# At least one crosscompiler needs -Wa,-O0 or -Wa,-g:
 # mipsel-linux-gnu-gcc (GCC) 4.1.3 20070514 (prerelease) (Debian 4.1.2-7)
 OP_CFLAGS += -Wa,-O0
+# At least one compiler needs -Wa,-g:
+# gcc-3.4 (GCC) 3.4.6 (Debian 3.4.6-5) on mips
+OP_CFLAGS += -Wa,-g
 ifeq ($(WORDS_BIGENDIAN),yes)
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 else
@@ -545,7 +548,7 @@ VL_OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 VL_OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
-VL_OBJS+= m68k-semi.o
+VL_OBJS+= m68k-semi.o dummy_m68k.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o

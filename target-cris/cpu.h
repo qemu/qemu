@@ -147,7 +147,7 @@ typedef struct CPUCRISState {
 	CPU_COMMON
 } CPUCRISState;
 
-CPUCRISState *cpu_cris_init(void);
+CPUCRISState *cpu_cris_init(const char *cpu_model);
 int cpu_cris_exec(CPUCRISState *s);
 void cpu_cris_close(CPUCRISState *s);
 void do_interrupt(CPUCRISState *env);
@@ -200,10 +200,6 @@ enum {
 
 #define CRIS_SSP    0
 #define CRIS_USP    1
-
-typedef struct cris_def_t cris_def_t;
-
-int cpu_cris_set_model(CPUCRISState *env, const char * name);
 
 void cris_set_irq_level(CPUCRISState *env, int level, uint8_t vector);
 void cris_set_macsr(CPUCRISState *env, uint32_t val);

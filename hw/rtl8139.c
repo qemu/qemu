@@ -1464,7 +1464,7 @@ static void rtl8139_BasicModeCtrl_write(RTL8139State *s, uint32_t val)
     DEBUG_PRINT(("RTL8139: BasicModeCtrl register write(w) val=0x%04x\n", val));
 
     /* mask unwriteable bits */
-    uint32 mask = 0x4cff;
+    uint32_t mask = 0x4cff;
 
     if (1 || !rtl8139_config_writeable(s))
     {

@@ -55,6 +55,8 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
 } DisasContext;
 
+typedef struct sparc_def_t sparc_def_t;
+
 struct sparc_def_t {
     const unsigned char *name;
     target_ulong iu_version;
@@ -62,6 +64,8 @@ struct sparc_def_t {
     uint32_t mmu_version;
     uint32_t mmu_bm;
 };
+
+static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name);
 
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
@@ -3490,27 +3494,153 @@ void cpu_reset(CPUSPARCState *env)
 #endif
 }
 
-CPUSPARCState *cpu_sparc_init(void)
+CPUSPARCState *cpu_sparc_init(const char *cpu_model)
 {
     CPUSPARCState *env;
+    const sparc_def_t *def;
+
+    def = cpu_sparc_find_by_name(cpu_model);
+    if (!def)
+        return NULL;
 
     env = qemu_mallocz(sizeof(CPUSPARCState));
     if (!env)
         return NULL;
     cpu_exec_init(env);
-    return (env);
+    env->version = def->iu_version;
+    env->fsr = def->fpu_version;
+#if !defined(TARGET_SPARC64)
+    env->mmu_bm = def->mmu_bm;
+    env->mmuregs[0] |= def->mmu_version;
+    cpu_sparc_set_id(env, 0);
+#endif
+    cpu_reset(env);
+    
+    return env;
+}
+
+void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu)
+{
+#if !defined(TARGET_SPARC64)
+    env->mxccregs[7] = ((cpu + 8) & 0xf) << 24;
+#endif
 }
 
 static const sparc_def_t sparc_defs[] = {
 #ifdef TARGET_SPARC64
     {
+        .name = "Fujitsu Sparc64",
+        .iu_version = ((0x04ULL << 48) | (0x02ULL << 32) | (0ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Fujitsu Sparc64 III",
+        .iu_version = ((0x04ULL << 48) | (0x03ULL << 32) | (0ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Fujitsu Sparc64 IV",
+        .iu_version = ((0x04ULL << 48) | (0x04ULL << 32) | (0ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Fujitsu Sparc64 V",
+        .iu_version = ((0x04ULL << 48) | (0x05ULL << 32) | (0x51ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "TI UltraSparc I",
+        .iu_version = ((0x17ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
         .name = "TI UltraSparc II",
-        .iu_version = ((0x17ULL << 48) | (0x11ULL << 32) | (0 << 24)
+        .iu_version = ((0x17ULL << 48) | (0x11ULL << 32) | (0x20ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "TI UltraSparc IIi",
+        .iu_version = ((0x17ULL << 48) | (0x12ULL << 32) | (0x91ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "TI UltraSparc IIe",
+        .iu_version = ((0x17ULL << 48) | (0x13ULL << 32) | (0x14ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Sun UltraSparc III",
+        .iu_version = ((0x3eULL << 48) | (0x14ULL << 32) | (0x34ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Sun UltraSparc III Cu",
+        .iu_version = ((0x3eULL << 48) | (0x15ULL << 32) | (0x41ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Sun UltraSparc IIIi",
+        .iu_version = ((0x3eULL << 48) | (0x16ULL << 32) | (0x34ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Sun UltraSparc IV",
+        .iu_version = ((0x3eULL << 48) | (0x18ULL << 32) | (0x31ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Sun UltraSparc IV+",
+        .iu_version = ((0x3eULL << 48) | (0x19ULL << 32) | (0x22ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "Sun UltraSparc IIIi+",
+        .iu_version = ((0x3eULL << 48) | (0x22ULL << 32) | (0ULL << 24)
+                       | (MAXTL << 8) | (NWINDOWS - 1)),
+        .fpu_version = 0x00000000,
+        .mmu_version = 0,
+    },
+    {
+        .name = "NEC UltraSparc I",
+        .iu_version = ((0x22ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
     },
 #else
+    {
+        .name = "Fujitsu MB86900",
+        .iu_version = 0x00 << 24, /* Impl 0, ver 0 */
+        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .mmu_version = 0x00 << 24, /* Impl 0, ver 0 */
+        .mmu_bm = 0x00004000,
+    },
     {
         .name = "Fujitsu MB86904",
         .iu_version = 0x04 << 24, /* Impl 0, ver 4 */
@@ -3526,10 +3656,24 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_bm = 0x00004000,
     },
     {
-        .name = "TI MicroSparc I",
-        .iu_version = 0x41000000,
-        .fpu_version = 4 << 17,
-        .mmu_version = 0x41000000,
+        .name = "LSI L64811",
+        .iu_version = 0x10 << 24, /* Impl 1, ver 0 */
+        .fpu_version = 1 << 17, /* FPU version 1 (LSI L64814) */
+        .mmu_version = 0x10 << 24,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "Cypress CY7C601",
+        .iu_version = 0x11 << 24, /* Impl 1, ver 1 */
+        .fpu_version = 3 << 17, /* FPU version 3 (Cypress CY7C602) */
+        .mmu_version = 0x10 << 24,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "Cypress CY7C611",
+        .iu_version = 0x13 << 24, /* Impl 1, ver 3 */
+        .fpu_version = 3 << 17, /* FPU version 3 (Cypress CY7C602) */
+        .mmu_version = 0x10 << 24,
         .mmu_bm = 0x00004000,
     },
     {
@@ -3540,31 +3684,102 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_bm = 0x00002000,
     },
     {
-        .name = "Ross RT620",
+        .name = "TI MicroSparc I",
+        .iu_version = 0x41000000,
+        .fpu_version = 4 << 17,
+        .mmu_version = 0x41000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "TI MicroSparc II",
+        .iu_version = 0x42000000,
+        .fpu_version = 4 << 17,
+        .mmu_version = 0x02000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "TI MicroSparc IIep",
+        .iu_version = 0x42000000,
+        .fpu_version = 4 << 17,
+        .mmu_version = 0x04000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "TI SuperSparc 51",
+        .iu_version = 0x43000000,
+        .fpu_version = 0 << 17,
+        .mmu_version = 0x04000000,
+        .mmu_bm = 0x00002000,
+    },
+    {
+        .name = "TI SuperSparc 61",
+        .iu_version = 0x44000000,
+        .fpu_version = 0 << 17,
+        .mmu_version = 0x04000000,
+        .mmu_bm = 0x00002000,
+    },
+    {
+        .name = "Ross RT625",
         .iu_version = 0x1e000000,
         .fpu_version = 1 << 17,
-        .mmu_version = 0x17000000,
+        .mmu_version = 0x1e000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "Ross RT620",
+        .iu_version = 0x1f000000,
+        .fpu_version = 1 << 17,
+        .mmu_version = 0x1f000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "BIT B5010",
+        .iu_version = 0x20000000,
+        .fpu_version = 0 << 17, /* B5010/B5110/B5120/B5210 */
+        .mmu_version = 0x20000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "Matsushita MN10501",
+        .iu_version = 0x50000000,
+        .fpu_version = 0 << 17,
+        .mmu_version = 0x50000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "Weitek W8601",
+        .iu_version = 0x90 << 24, /* Impl 9, ver 0 */
+        .fpu_version = 3 << 17, /* FPU version 3 (Weitek WTL3170/2) */
+        .mmu_version = 0x10 << 24,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "LEON2",
+        .iu_version = 0xf2000000,
+        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .mmu_version = 0xf2000000,
+        .mmu_bm = 0x00004000,
+    },
+    {
+        .name = "LEON3",
+        .iu_version = 0xf3000000,
+        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
+        .mmu_version = 0xf3000000,
         .mmu_bm = 0x00004000,
     },
 #endif
 };
 
-int sparc_find_by_name(const unsigned char *name, const sparc_def_t **def)
+static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name)
 {
-    int ret;
     unsigned int i;
 
-    ret = -1;
-    *def = NULL;
     for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
         if (strcasecmp(name, sparc_defs[i].name) == 0) {
-            *def = &sparc_defs[i];
-            ret = 0;
-            break;
+            return &sparc_defs[i];
         }
     }
-
-    return ret;
+    return NULL;
 }
 
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
@@ -3578,19 +3793,6 @@ void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
                        sparc_defs[i].fpu_version,
                        sparc_defs[i].mmu_version);
     }
-}
-
-int cpu_sparc_register (CPUSPARCState *env, const sparc_def_t *def, unsigned int cpu)
-{
-    env->version = def->iu_version;
-    env->fsr = def->fpu_version;
-#if !defined(TARGET_SPARC64)
-    env->mmu_bm = def->mmu_bm;
-    env->mmuregs[0] |= def->mmu_version;
-    env->mxccregs[7] = ((cpu + 8) & 0xf) << 24;
-#endif
-    cpu_reset(env);
-    return 0;
 }
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')

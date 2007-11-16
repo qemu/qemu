@@ -137,6 +137,13 @@ static struct {
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 //~ #define MASK(hi, lo) (((~(~0 << (hi))) & (~0 << (lo))) | (1 << (hi)))
 
+static struct _loaderparams {
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+} loaderparams;
+
 #if 0
 #define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
 #endif
@@ -3522,19 +3529,19 @@ static int64_t load_kernel (CPUState *env)
     uint64_t kernel_low, kernel_high;
     ram_addr_t ram_offset = 0;
     int kernel_size;
-    kernel_size = load_elf(env->kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr, &kernel_low, &kernel_high);
+    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr, &kernel_low, &kernel_high);
     if (kernel_size < 0) {
-        kernel_size = load_image(env->kernel_filename, phys_ram_base + ram_offset);
+        kernel_size = load_image(loaderparams.kernel_filename, phys_ram_base + ram_offset);
         kernel_addr = K1(KERNEL_LOAD_ADDR);
     }
-    if (kernel_size > 0 && kernel_size < env->ram_size) {
+    if (kernel_size > 0 && kernel_size < loaderparams.ram_size) {
         fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx"
                 " and size %d bytes\n",
-                env->kernel_filename, (unsigned long)kernel_addr, kernel_size);
+                loaderparams.kernel_filename, (unsigned long)kernel_addr, kernel_size);
         env->PC[env->current_tc] = kernel_addr;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                env->kernel_filename);
+                loaderparams.kernel_filename);
         exit(1);
     }
 
@@ -3544,20 +3551,20 @@ static int64_t load_kernel (CPUState *env)
     env->gpr[6][env->current_tc] = K1(INITRD_LOAD_ADDR);
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->gpr[29][env->current_tc] = env->PC[env->current_tc] + env->ram_size - 0x1000;
+    env->gpr[29][env->current_tc] = env->PC[env->current_tc] + loaderparams.ram_size - 0x1000;
 
     /* TODO: use code from Malta for command line setup. */
-    if (env->kernel_cmdline && *env->kernel_cmdline) {
+    if (loaderparams.kernel_cmdline && *loaderparams.kernel_cmdline) {
         /* Load kernel parameters (argv, envp) from file. */
         uint8_t *address = phys_ram_base + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
         int argc;
         uint8_t **argv;
         uint8_t **arg0;
-        target_ulong size = load_image(env->kernel_cmdline, address);
+        target_ulong size = load_image(loaderparams.kernel_cmdline, address);
         target_ulong i;
         if (size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load kernel parameters '%s'\n",
-                    env->kernel_cmdline);
+                    loaderparams.kernel_cmdline);
             exit(1);
         }
         /* Replace all linefeeds by null bytes. */
@@ -3627,14 +3634,13 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-    cpu_mips_register(env, NULL);
     ar7_mips_init(env);
     /* AR7 is MIPS32 release 1. */
     env->CP0_Config0 &= ~(7 << CP0C0_AR);
     /* AR7 has no FPU. */
     env->CP0_Config1 &= ~(1 << CP0C1_FP);
 
-    if (env->kernel_filename) {
+    if (loaderparams.kernel_filename) {
         load_kernel(env);
     }
 }
@@ -3667,19 +3673,15 @@ static void mips_ar7_common_init (int ram_size,
 #endif
         cpu_model = "4KEcR1";
     }
-    if (mips_find_by_name(cpu_model, &def) != 0) {
-        def = NULL;
-    }
-    env = cpu_init();
-    cpu_mips_register(env, def);
+    env = cpu_init(cpu_model);
     ar7_mips_init(env);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
-    env->ram_size = ram_size;
-    env->kernel_filename = kernel_filename;
-    env->kernel_cmdline = kernel_cmdline;
-    env->initrd_filename = initrd_filename;
+    loaderparams.ram_size = ram_size;
+    loaderparams.kernel_filename = kernel_filename;
+    loaderparams.kernel_cmdline = kernel_cmdline;
+    loaderparams.initrd_filename = initrd_filename;
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);

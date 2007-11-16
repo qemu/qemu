@@ -785,6 +785,7 @@ int main(int argc, char **argv)
     int optind;
     short use_gdbstub = 0;
     const char *r;
+    const char *cpu_model;
 
     if (argc <= 1)
         usage();
@@ -855,7 +856,15 @@ int main(int argc, char **argv)
 
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
-    env = cpu_init();
+#if defined(TARGET_I386)
+    cpu_model = "qemu32";
+#elif defined(TARGET_PPC)
+    cpu_model = "750";
+#else
+#error unsupported CPU
+#endif
+    
+    env = cpu_init(cpu_model);
 
     printf("Starting %s with qemu\n----------------\n", filename);
 

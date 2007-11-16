@@ -37,17 +37,14 @@ CPUState *ppc4xx_init (const unsigned char *cpu_model,
                        uint32_t sysclk)
 {
     CPUState *env;
-    ppc_def_t *def;
 
     /* init CPUs */
-    env = cpu_init();
-    ppc_find_by_name(cpu_model, &def);
-    if (def == NULL) {
-        cpu_abort(env, "Unable to find PowerPC %s CPU definition\n",
-                  cpu_model);
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find PowerPC %s CPU definition\n",
+                cpu_model);
+        exit(1);
     }
-    cpu_ppc_register(env, def);
-    cpu_ppc_reset(env);
     cpu_clk->cb = NULL; /* We don't care about CPU clock frequency changes */
     cpu_clk->opaque = env;
     /* Set time-base frequency to sysclk */

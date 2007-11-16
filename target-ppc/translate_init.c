@@ -5931,7 +5931,7 @@ static ppc_def_t ppc_defs[] = {
 
 /*****************************************************************************/
 /* Generic CPU instanciation routine                                         */
-static void init_ppc_proc (CPUPPCState *env, ppc_def_t *def)
+static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
 {
 #if !defined(CONFIG_USER_ONLY)
     int i;
@@ -6276,7 +6276,7 @@ static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
 }
 
 /*****************************************************************************/
-static int create_ppc_opcodes (CPUPPCState *env, ppc_def_t *def)
+static int create_ppc_opcodes (CPUPPCState *env, const ppc_def_t *def)
 {
     opcode_t *opc, *start, *end;
 
@@ -6351,7 +6351,7 @@ static void dump_ppc_insns (CPUPPCState *env)
 }
 #endif
 
-int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
+int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 {
     env->msr_mask = def->msr_mask;
     env->mmu_model = def->mmu_model;
@@ -6514,41 +6514,31 @@ int cpu_ppc_register (CPUPPCState *env, ppc_def_t *def)
     return 0;
 }
 
-int ppc_find_by_name (const unsigned char *name, ppc_def_t **def)
+const ppc_def_t *cpu_ppc_find_by_name (const unsigned char *name)
 {
-    int i, max, ret;
+    int i, max;
 
-    ret = -1;
-    *def = NULL;
     max = sizeof(ppc_defs) / sizeof(ppc_def_t);
     for (i = 0; i < max; i++) {
         if (strcasecmp(name, ppc_defs[i].name) == 0) {
-            *def = &ppc_defs[i];
-            ret = 0;
-            break;
+            return &ppc_defs[i];
         }
     }
-
-    return ret;
+    return NULL;
 }
 
-int ppc_find_by_pvr (uint32_t pvr, ppc_def_t **def)
+const ppc_def_t *cpu_ppc_find_by_pvr (uint32_t pvr)
 {
-    int i, max, ret;
+    int i, max;
 
-    ret = -1;
-    *def = NULL;
     max = sizeof(ppc_defs) / sizeof(ppc_def_t);
     for (i = 0; i < max; i++) {
         if ((pvr & ppc_defs[i].pvr_mask) ==
             (ppc_defs[i].pvr & ppc_defs[i].pvr_mask)) {
-            *def = &ppc_defs[i];
-            ret = 0;
-            break;
+            return &ppc_defs[i];
         }
     }
-
-    return ret;
+    return NULL;
 }
 
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))

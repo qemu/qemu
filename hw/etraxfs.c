@@ -121,7 +121,7 @@ void bareetraxfs_init (int ram_size, int vga_ram_size, const char *boot_device,
     if (cpu_model == NULL) {
         cpu_model = "crisv32";
     }
-    env = cpu_init();
+    env = cpu_init(cpu_model);
 /*    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env); */
     qemu_register_reset(main_cpu_reset, env);
     irqs = qemu_allocate_irqs(dummy_cpu_set_irq, env, 32);

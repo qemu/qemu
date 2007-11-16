@@ -37,10 +37,10 @@ static void an5206_init(int ram_size, int vga_ram_size, const char *boot_device,
     uint64_t elf_entry;
     target_ulong entry;
 
-    env = cpu_init();
     if (!cpu_model)
         cpu_model = "m5206";
-    if (cpu_m68k_set_model(env, cpu_model)) {
+    env = cpu_init(cpu_model);
+    if (!env) {
         cpu_abort(env, "Unable to find m68k CPU definition\n");
     }
 

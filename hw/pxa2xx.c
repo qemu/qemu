@@ -2023,9 +2023,14 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
         fprintf(stderr, "Machine requires a PXA27x processor.\n");
         exit(1);
     }
-
-    s->env = cpu_init();
-    cpu_arm_set_model(s->env, revision ?: "pxa270");
+    if (!revision)
+        revision = "pxa270";
+    
+    s->env = cpu_init(revision);
+    if (!s->env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     register_savevm("cpu", 0, 0, cpu_save, cpu_load, s->env);
 
     /* SDRAM & Internal Memory Storage */
@@ -2132,10 +2137,14 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     struct pxa2xx_state_s *s;
     struct pxa2xx_ssp_s *ssp;
     int iomemtype, i;
+
     s = (struct pxa2xx_state_s *) qemu_mallocz(sizeof(struct pxa2xx_state_s));
 
-    s->env = cpu_init();
-    cpu_arm_set_model(s->env, "pxa255");
+    s->env = cpu_init("pxa255");
+    if (!s->env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     register_savevm("cpu", 0, 0, cpu_save, cpu_load, s->env);
 
     /* SDRAM & Internal Memory Storage */

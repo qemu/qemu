@@ -250,31 +250,31 @@
 void op_dup_T0 (void)
 {
     T2 = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_load_HI (void)
 {
     T0 = env->HI[PARAM1][env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_store_HI (void)
 {
     env->HI[PARAM1][env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_load_LO (void)
 {
     T0 = env->LO[PARAM1][env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_store_LO (void)
 {
     env->LO[PARAM1][env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 /* Load and store */
@@ -308,14 +308,14 @@ void op_addr_add (void)
     else
 #endif
         T0 += T1;
-    RETURN();
+    FORCE_RET();
 }
 
 /* Arithmetic */
 void op_add (void)
 {
     T0 = (int32_t)((int32_t)T0 + (int32_t)T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_addo (void)
@@ -329,13 +329,13 @@ void op_addo (void)
         CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
     T0 = (int32_t)T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_sub (void)
 {
     T0 = (int32_t)((int32_t)T0 - (int32_t)T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_subo (void)
@@ -349,20 +349,20 @@ void op_subo (void)
         CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
     T0 = (int32_t)T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mul (void)
 {
     T0 = (int32_t)((int32_t)T0 * (int32_t)T1);
-    RETURN();
+    FORCE_RET();
 }
 
 #if HOST_LONG_BITS < 64
 void op_div (void)
 {
     CALL_FROM_TB0(do_div);
-    RETURN();
+    FORCE_RET();
 }
 #else
 void op_div (void)
@@ -371,7 +371,7 @@ void op_div (void)
         env->LO[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
         env->HI[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
     }
-    RETURN();
+    FORCE_RET();
 }
 #endif
 
@@ -381,7 +381,7 @@ void op_divu (void)
         env->LO[0][env->current_tc] = (int32_t)((uint32_t)T0 / (uint32_t)T1);
         env->HI[0][env->current_tc] = (int32_t)((uint32_t)T0 % (uint32_t)T1);
     }
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
@@ -389,7 +389,7 @@ void op_divu (void)
 void op_dadd (void)
 {
     T0 += T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_daddo (void)
@@ -402,13 +402,13 @@ void op_daddo (void)
         /* operands of same sign, result different sign */
         CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsub (void)
 {
     T0 -= T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsubo (void)
@@ -421,27 +421,27 @@ void op_dsubo (void)
         /* operands of different sign, first operand and result different sign */
         CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmul (void)
 {
     T0 = (int64_t)T0 * (int64_t)T1;
-    RETURN();
+    FORCE_RET();
 }
 
 /* Those might call libgcc functions.  */
 void op_ddiv (void)
 {
     do_ddiv();
-    RETURN();
+    FORCE_RET();
 }
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void op_ddivu (void)
 {
     do_ddivu();
-    RETURN();
+    FORCE_RET();
 }
 #else
 void op_ddivu (void)
@@ -450,7 +450,7 @@ void op_ddivu (void)
         env->LO[0][env->current_tc] = T0 / T1;
         env->HI[0][env->current_tc] = T0 % T1;
     }
-    RETURN();
+    FORCE_RET();
 }
 #endif
 #endif /* TARGET_MIPS64 */
@@ -459,43 +459,43 @@ void op_ddivu (void)
 void op_and (void)
 {
     T0 &= T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_nor (void)
 {
     T0 = ~(T0 | T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_or (void)
 {
     T0 |= T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_xor (void)
 {
     T0 ^= T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_sll (void)
 {
     T0 = (int32_t)((uint32_t)T0 << T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_sra (void)
 {
     T0 = (int32_t)((int32_t)T0 >> T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_srl (void)
 {
     T0 = (int32_t)((uint32_t)T0 >> T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_rotr (void)
@@ -506,25 +506,25 @@ void op_rotr (void)
        tmp = (int32_t)((uint32_t)T0 << (0x20 - T1));
        T0 = (int32_t)((uint32_t)T0 >> T1) | tmp;
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_sllv (void)
 {
     T0 = (int32_t)((uint32_t)T1 << ((uint32_t)T0 & 0x1F));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_srav (void)
 {
     T0 = (int32_t)((int32_t)T1 >> (T0 & 0x1F));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_srlv (void)
 {
     T0 = (int32_t)((uint32_t)T1 >> (T0 & 0x1F));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_rotrv (void)
@@ -537,19 +537,19 @@ void op_rotrv (void)
        T0 = (int32_t)((uint32_t)T1 >> T0) | tmp;
     } else
        T0 = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_clo (void)
 {
     T0 = clo32(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_clz (void)
 {
     T0 = clz32(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
@@ -559,85 +559,85 @@ void op_clz (void)
 void op_dsll (void)
 {
     CALL_FROM_TB0(do_dsll);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsll32 (void)
 {
     CALL_FROM_TB0(do_dsll32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsra (void)
 {
     CALL_FROM_TB0(do_dsra);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsra32 (void)
 {
     CALL_FROM_TB0(do_dsra32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrl (void)
 {
     CALL_FROM_TB0(do_dsrl);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrl32 (void)
 {
     CALL_FROM_TB0(do_dsrl32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_drotr (void)
 {
     CALL_FROM_TB0(do_drotr);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_drotr32 (void)
 {
     CALL_FROM_TB0(do_drotr32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsllv (void)
 {
     CALL_FROM_TB0(do_dsllv);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrav (void)
 {
     CALL_FROM_TB0(do_dsrav);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrlv (void)
 {
     CALL_FROM_TB0(do_dsrlv);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_drotrv (void)
 {
     CALL_FROM_TB0(do_drotrv);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dclo (void)
 {
     CALL_FROM_TB0(do_dclo);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dclz (void)
 {
     CALL_FROM_TB0(do_dclz);
-    RETURN();
+    FORCE_RET();
 }
 
 #else /* TARGET_LONG_BITS > HOST_LONG_BITS */
@@ -645,37 +645,37 @@ void op_dclz (void)
 void op_dsll (void)
 {
     T0 = T0 << T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsll32 (void)
 {
     T0 = T0 << (T1 + 32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsra (void)
 {
     T0 = (int64_t)T0 >> T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsra32 (void)
 {
     T0 = (int64_t)T0 >> (T1 + 32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrl (void)
 {
     T0 = T0 >> T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrl32 (void)
 {
     T0 = T0 >> (T1 + 32);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_drotr (void)
@@ -686,7 +686,7 @@ void op_drotr (void)
        tmp = T0 << (0x40 - T1);
        T0 = (T0 >> T1) | tmp;
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_drotr32 (void)
@@ -697,25 +697,25 @@ void op_drotr32 (void)
        tmp = T0 << (0x40 - (32 + T1));
        T0 = (T0 >> (32 + T1)) | tmp;
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsllv (void)
 {
     T0 = T1 << (T0 & 0x3F);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrav (void)
 {
     T0 = (int64_t)T1 >> (T0 & 0x3F);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsrlv (void)
 {
     T0 = T1 >> (T0 & 0x3F);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_drotrv (void)
@@ -728,19 +728,19 @@ void op_drotrv (void)
        T0 = (T1 >> T0) | tmp;
     } else
        T0 = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dclo (void)
 {
     T0 = clo64(T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dclz (void)
 {
     T0 = clz64(T0);
-    RETURN();
+    FORCE_RET();
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 #endif /* TARGET_MIPS64 */
@@ -750,37 +750,37 @@ void op_dclz (void)
 void op_mult (void)
 {
     CALL_FROM_TB0(do_mult);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_multu (void)
 {
     CALL_FROM_TB0(do_multu);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_madd (void)
 {
     CALL_FROM_TB0(do_madd);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_maddu (void)
 {
     CALL_FROM_TB0(do_maddu);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_msub (void)
 {
     CALL_FROM_TB0(do_msub);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_msubu (void)
 {
     CALL_FROM_TB0(do_msubu);
-    RETURN();
+    FORCE_RET();
 }
 
 #else /* TARGET_LONG_BITS > HOST_LONG_BITS */
@@ -800,13 +800,13 @@ static always_inline void set_HILO (uint64_t HILO)
 void op_mult (void)
 {
     set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_multu (void)
 {
     set_HILO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_madd (void)
@@ -815,7 +815,7 @@ void op_madd (void)
 
     tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     set_HILO((int64_t)get_HILO() + tmp);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_maddu (void)
@@ -824,7 +824,7 @@ void op_maddu (void)
 
     tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
     set_HILO(get_HILO() + tmp);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_msub (void)
@@ -833,7 +833,7 @@ void op_msub (void)
 
     tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     set_HILO((int64_t)get_HILO() - tmp);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_msubu (void)
@@ -842,7 +842,7 @@ void op_msubu (void)
 
     tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
     set_HILO(get_HILO() - tmp);
-    RETURN();
+    FORCE_RET();
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
@@ -850,13 +850,13 @@ void op_msubu (void)
 void op_dmult (void)
 {
     CALL_FROM_TB4(muls64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmultu (void)
 {
     CALL_FROM_TB4(mulu64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
-    RETURN();
+    FORCE_RET();
 }
 #endif
 
@@ -865,28 +865,28 @@ void op_movn (void)
 {
     if (T1 != 0)
         env->gpr[PARAM1][env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_movz (void)
 {
     if (T1 == 0)
         env->gpr[PARAM1][env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_movf (void)
 {
     if (!(env->fpu->fcr31 & PARAM1))
         T0 = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_movt (void)
 {
     if (env->fpu->fcr31 & PARAM1)
         T0 = T1;
-    RETURN();
+    FORCE_RET();
 }
 
 /* Tests */
@@ -898,7 +898,7 @@ void glue(op_, name) (void) \
     } else {                \
         T0 = 0;             \
     }                       \
-    RETURN();               \
+    FORCE_RET();            \
 }
 
 OP_COND(eq, T0 == T1);
@@ -916,45 +916,45 @@ OP_COND(ltz, (target_long)T0 < 0);
 void OPPROTO op_goto_tb0(void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
-    RETURN();
+    FORCE_RET();
 }
 
 void OPPROTO op_goto_tb1(void)
 {
     GOTO_TB(op_goto_tb1, PARAM1, 1);
-    RETURN();
+    FORCE_RET();
 }
 
 /* Branch to register */
 void op_save_breg_target (void)
 {
     env->btarget = T2;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_restore_breg_target (void)
 {
     T2 = env->btarget;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_breg (void)
 {
     env->PC[env->current_tc] = T2;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_save_btarget (void)
 {
     env->btarget = PARAM1;
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
 void op_save_btarget64 (void)
 {
     env->btarget = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
-    RETURN();
+    FORCE_RET();
 }
 #endif
 
@@ -962,111 +962,111 @@ void op_save_btarget64 (void)
 void op_set_bcond (void)
 {
     T2 = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_save_bcond (void)
 {
     env->bcond = T2;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_restore_bcond (void)
 {
     T2 = env->bcond;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_jnz_T2 (void)
 {
     if (T2)
         GOTO_LABEL_PARAM(1);
-    RETURN();
+    FORCE_RET();
 }
 
 /* CP0 functions */
 void op_mfc0_index (void)
 {
     T0 = env->CP0_Index;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_mvpcontrol (void)
 {
     T0 = env->mvp->CP0_MVPControl;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_mvpconf0 (void)
 {
     T0 = env->mvp->CP0_MVPConf0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_mvpconf1 (void)
 {
     T0 = env->mvp->CP0_MVPConf1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_random (void)
 {
     CALL_FROM_TB0(do_mfc0_random);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_vpecontrol (void)
 {
     T0 = env->CP0_VPEControl;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_vpeconf0 (void)
 {
     T0 = env->CP0_VPEConf0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_vpeconf1 (void)
 {
     T0 = env->CP0_VPEConf1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_yqmask (void)
 {
     T0 = env->CP0_YQMask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_vpeschedule (void)
 {
     T0 = env->CP0_VPESchedule;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_vpeschefback (void)
 {
     T0 = env->CP0_VPEScheFBack;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_vpeopt (void)
 {
     T0 = env->CP0_VPEOpt;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_entrylo0 (void)
 {
     T0 = (int32_t)env->CP0_EntryLo0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tcstatus (void)
 {
     T0 = env->CP0_TCStatus[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tcstatus(void)
@@ -1074,13 +1074,13 @@ void op_mftc0_tcstatus(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->CP0_TCStatus[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tcbind (void)
 {
     T0 = env->CP0_TCBind[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tcbind(void)
@@ -1088,13 +1088,13 @@ void op_mftc0_tcbind(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->CP0_TCBind[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tcrestart (void)
 {
     T0 = env->PC[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tcrestart(void)
@@ -1102,13 +1102,13 @@ void op_mftc0_tcrestart(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->PC[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tchalt (void)
 {
     T0 = env->CP0_TCHalt[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tchalt(void)
@@ -1116,13 +1116,13 @@ void op_mftc0_tchalt(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->CP0_TCHalt[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tccontext (void)
 {
     T0 = env->CP0_TCContext[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tccontext(void)
@@ -1130,13 +1130,13 @@ void op_mftc0_tccontext(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->CP0_TCContext[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tcschedule (void)
 {
     T0 = env->CP0_TCSchedule[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tcschedule(void)
@@ -1144,13 +1144,13 @@ void op_mftc0_tcschedule(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->CP0_TCSchedule[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_tcschefback (void)
 {
     T0 = env->CP0_TCScheFBack[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_tcschefback(void)
@@ -1158,91 +1158,91 @@ void op_mftc0_tcschefback(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->CP0_TCScheFBack[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_entrylo1 (void)
 {
     T0 = (int32_t)env->CP0_EntryLo1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_context (void)
 {
     T0 = (int32_t)env->CP0_Context;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_pagemask (void)
 {
     T0 = env->CP0_PageMask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_pagegrain (void)
 {
     T0 = env->CP0_PageGrain;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_wired (void)
 {
     T0 = env->CP0_Wired;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsconf0 (void)
 {
     T0 = env->CP0_SRSConf0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsconf1 (void)
 {
     T0 = env->CP0_SRSConf1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsconf2 (void)
 {
     T0 = env->CP0_SRSConf2;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsconf3 (void)
 {
     T0 = env->CP0_SRSConf3;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsconf4 (void)
 {
     T0 = env->CP0_SRSConf4;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_hwrena (void)
 {
     T0 = env->CP0_HWREna;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_badvaddr (void)
 {
     T0 = (int32_t)env->CP0_BadVAddr;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_count (void)
 {
     CALL_FROM_TB0(do_mfc0_count);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_entryhi (void)
 {
     T0 = (int32_t)env->CP0_EntryHi;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_entryhi(void)
@@ -1250,19 +1250,19 @@ void op_mftc0_entryhi(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_compare (void)
 {
     T0 = env->CP0_Compare;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_status (void)
 {
     T0 = env->CP0_Status;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_status(void)
@@ -1274,115 +1274,115 @@ void op_mftc0_status(void)
     T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
     T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
     T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_intctl (void)
 {
     T0 = env->CP0_IntCtl;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsctl (void)
 {
     T0 = env->CP0_SRSCtl;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_srsmap (void)
 {
     T0 = env->CP0_SRSMap;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_cause (void)
 {
     T0 = env->CP0_Cause;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_epc (void)
 {
     T0 = (int32_t)env->CP0_EPC;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_prid (void)
 {
     T0 = env->CP0_PRid;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_ebase (void)
 {
     T0 = env->CP0_EBase;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_config0 (void)
 {
     T0 = env->CP0_Config0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_config1 (void)
 {
     T0 = env->CP0_Config1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_config2 (void)
 {
     T0 = env->CP0_Config2;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_config3 (void)
 {
     T0 = env->CP0_Config3;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_config6 (void)
 {
     T0 = env->CP0_Config6;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_config7 (void)
 {
     T0 = env->CP0_Config7;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_lladdr (void)
 {
     T0 = (int32_t)env->CP0_LLAddr >> 4;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_watchlo (void)
 {
     T0 = (int32_t)env->CP0_WatchLo[PARAM1];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_watchhi (void)
 {
     T0 = env->CP0_WatchHi[PARAM1];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_xcontext (void)
 {
     T0 = (int32_t)env->CP0_XContext;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_framemask (void)
 {
     T0 = env->CP0_Framemask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_debug (void)
@@ -1390,7 +1390,7 @@ void op_mfc0_debug (void)
     T0 = env->CP0_Debug;
     if (env->hflags & MIPS_HFLAG_DM)
         T0 |= 1 << CP0DB_DM;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftc0_debug(void)
@@ -1401,55 +1401,55 @@ void op_mftc0_debug(void)
     T0 = (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
          (env->CP0_Debug_tcstatus[other_tc] &
           ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_depc (void)
 {
     T0 = (int32_t)env->CP0_DEPC;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_performance0 (void)
 {
     T0 = env->CP0_Performance0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_taglo (void)
 {
     T0 = env->CP0_TagLo;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_datalo (void)
 {
     T0 = env->CP0_DataLo;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_taghi (void)
 {
     T0 = env->CP0_TagHi;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_datahi (void)
 {
     T0 = env->CP0_DataHi;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_errorepc (void)
 {
     T0 = (int32_t)env->CP0_ErrorEPC;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc0_desave (void)
 {
     T0 = env->CP0_DESAVE;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_index (void)
@@ -1462,7 +1462,7 @@ void op_mtc0_index (void)
         num <<= 1;
     } while (tmp);
     env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (num - 1));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_mvpcontrol (void)
@@ -1480,7 +1480,7 @@ void op_mtc0_mvpcontrol (void)
     // TODO: Enable/disable shared TLB, enable/disable VPEs.
 
     env->mvp->CP0_MVPControl = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_vpecontrol (void)
@@ -1498,7 +1498,7 @@ void op_mtc0_vpecontrol (void)
     // TODO: Enable/disable TCs.
 
     env->CP0_VPEControl = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_vpeconf0 (void)
@@ -1516,7 +1516,7 @@ void op_mtc0_vpeconf0 (void)
     // TODO: TC exclusive handling due to ERL/EXL.
 
     env->CP0_VPEConf0 = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_vpeconf1 (void)
@@ -1535,32 +1535,32 @@ void op_mtc0_vpeconf1 (void)
     // TODO: Handle FPU (CP1) binding.
 
     env->CP0_VPEConf1 = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_yqmask (void)
 {
     /* Yield qualifier inputs not implemented. */
     env->CP0_YQMask = 0x00000000;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_vpeschedule (void)
 {
     env->CP0_VPESchedule = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_vpeschefback (void)
 {
     env->CP0_VPEScheFBack = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_vpeopt (void)
 {
     env->CP0_VPEOpt = T0 & 0x0000ffff;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_entrylo0 (void)
@@ -1568,7 +1568,7 @@ void op_mtc0_entrylo0 (void)
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tcstatus (void)
@@ -1581,7 +1581,7 @@ void op_mtc0_tcstatus (void)
     // TODO: Sync with CP0_Status.
 
     env->CP0_TCStatus[env->current_tc] = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tcstatus (void)
@@ -1591,7 +1591,7 @@ void op_mttc0_tcstatus (void)
     // TODO: Sync with CP0_Status.
 
     env->CP0_TCStatus[other_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tcbind (void)
@@ -1603,7 +1603,7 @@ void op_mtc0_tcbind (void)
         mask |= (1 << CP0TCBd_CurVPE);
     newval = (env->CP0_TCBind[env->current_tc] & ~mask) | (T0 & mask);
     env->CP0_TCBind[env->current_tc] = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tcbind (void)
@@ -1616,7 +1616,7 @@ void op_mttc0_tcbind (void)
         mask |= (1 << CP0TCBd_CurVPE);
     newval = (env->CP0_TCBind[other_tc] & ~mask) | (T0 & mask);
     env->CP0_TCBind[other_tc] = newval;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tcrestart (void)
@@ -1625,7 +1625,7 @@ void op_mtc0_tcrestart (void)
     env->CP0_TCStatus[env->current_tc] &= ~(1 << CP0TCSt_TDS);
     env->CP0_LLAddr = 0ULL;
     /* MIPS16 not implemented. */
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tcrestart (void)
@@ -1636,7 +1636,7 @@ void op_mttc0_tcrestart (void)
     env->CP0_TCStatus[other_tc] &= ~(1 << CP0TCSt_TDS);
     env->CP0_LLAddr = 0ULL;
     /* MIPS16 not implemented. */
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tchalt (void)
@@ -1645,7 +1645,7 @@ void op_mtc0_tchalt (void)
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tchalt (void)
@@ -1655,13 +1655,13 @@ void op_mttc0_tchalt (void)
     // TODO: Halt TC / Restart (if allocated+active) TC.
 
     env->CP0_TCHalt[other_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tccontext (void)
 {
     env->CP0_TCContext[env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tccontext (void)
@@ -1669,13 +1669,13 @@ void op_mttc0_tccontext (void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     env->CP0_TCContext[other_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tcschedule (void)
 {
     env->CP0_TCSchedule[env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tcschedule (void)
@@ -1683,13 +1683,13 @@ void op_mttc0_tcschedule (void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     env->CP0_TCSchedule[other_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_tcschefback (void)
 {
     env->CP0_TCScheFBack[env->current_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_tcschefback (void)
@@ -1697,7 +1697,7 @@ void op_mttc0_tcschefback (void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     env->CP0_TCScheFBack[other_tc] = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_entrylo1 (void)
@@ -1705,20 +1705,20 @@ void op_mtc0_entrylo1 (void)
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_context (void)
 {
     env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (T0 & ~0x007FFFFF);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_pagemask (void)
 {
     /* 1k pages not implemented */
     env->CP0_PageMask = T0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_pagegrain (void)
@@ -1727,55 +1727,55 @@ void op_mtc0_pagegrain (void)
     /* Large physaddr not implemented */
     /* 1k pages not implemented */
     env->CP0_PageGrain = 0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_wired (void)
 {
     env->CP0_Wired = T0 % env->tlb->nb_tlb;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsconf0 (void)
 {
     env->CP0_SRSConf0 |= T0 & env->CP0_SRSConf0_rw_bitmask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsconf1 (void)
 {
     env->CP0_SRSConf1 |= T0 & env->CP0_SRSConf1_rw_bitmask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsconf2 (void)
 {
     env->CP0_SRSConf2 |= T0 & env->CP0_SRSConf2_rw_bitmask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsconf3 (void)
 {
     env->CP0_SRSConf3 |= T0 & env->CP0_SRSConf3_rw_bitmask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsconf4 (void)
 {
     env->CP0_SRSConf4 |= T0 & env->CP0_SRSConf4_rw_bitmask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_hwrena (void)
 {
     env->CP0_HWREna = T0 & 0x0000000F;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_count (void)
 {
     CALL_FROM_TB2(cpu_mips_store_count, env, T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_entryhi (void)
@@ -1796,7 +1796,7 @@ void op_mtc0_entryhi (void)
     /* If the ASID changes, flush qemu's TLB.  */
     if ((old & 0xFF) != (val & 0xFF))
         CALL_FROM_TB2(cpu_mips_tlb_flush, env, 1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_entryhi(void)
@@ -1805,13 +1805,13 @@ void op_mttc0_entryhi(void)
 
     env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (T0 & ~0xff);
     env->CP0_TCStatus[other_tc] = (env->CP0_TCStatus[other_tc] & ~0xff) | (T0 & 0xff);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_compare (void)
 {
     CALL_FROM_TB2(cpu_mips_store_compare, env, T0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_status (void)
@@ -1826,7 +1826,7 @@ void op_mtc0_status (void)
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB2(do_mtc0_status_debug, old, val);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_status(void)
@@ -1839,27 +1839,27 @@ void op_mttc0_status(void)
     tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((T0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
     tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
     env->CP0_TCStatus[other_tc] = tcstatus;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_intctl (void)
 {
     /* vectored interrupts not implemented, no performance counters. */
     env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (T0 & 0x000002e0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsctl (void)
 {
     uint32_t mask = (0xf << CP0SRSCtl_ESS) | (0xf << CP0SRSCtl_PSS);
     env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (T0 & mask);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_srsmap (void)
 {
     env->CP0_SRSMap = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_cause (void)
@@ -1884,13 +1884,13 @@ void op_mtc0_cause (void)
     if (T0 & CP0Ca_IP_mask) {
         CALL_FROM_TB1(cpu_mips_update_irq, env);
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_epc (void)
 {
     env->CP0_EPC = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_ebase (void)
@@ -1898,20 +1898,20 @@ void op_mtc0_ebase (void)
     /* vectored interrupts not implemented */
     /* Multi-CPU not implemented */
     env->CP0_EBase = 0x80000000 | (T0 & 0x3FFFF000);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_config0 (void)
 {
     env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000007);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_config2 (void)
 {
     /* tertiary/secondary caches not implemented */
     env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_watchlo (void)
@@ -1919,27 +1919,27 @@ void op_mtc0_watchlo (void)
     /* Watch exceptions for instructions, data loads, data stores
        not implemented. */
     env->CP0_WatchLo[PARAM1] = (T0 & ~0x7);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_watchhi (void)
 {
     env->CP0_WatchHi[PARAM1] = (T0 & 0x40FF0FF8);
     env->CP0_WatchHi[PARAM1] &= ~(env->CP0_WatchHi[PARAM1] & T0 & 0x7);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_xcontext (void)
 {
     target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
     env->CP0_XContext = (env->CP0_XContext & mask) | (T0 & ~mask);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_framemask (void)
 {
     env->CP0_Framemask = T0; /* XXX */
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_debug (void)
@@ -1949,7 +1949,7 @@ void op_mtc0_debug (void)
         env->hflags |= MIPS_HFLAG_DM;
     else
         env->hflags &= ~MIPS_HFLAG_DM;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttc0_debug(void)
@@ -1960,170 +1960,170 @@ void op_mttc0_debug(void)
     env->CP0_Debug_tcstatus[other_tc] = T0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
     env->CP0_Debug = (env->CP0_Debug & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
                      (T0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_depc (void)
 {
     env->CP0_DEPC = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_performance0 (void)
 {
     env->CP0_Performance0 = T0 & 0x000007ff;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_taglo (void)
 {
     env->CP0_TagLo = T0 & 0xFFFFFCF6;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_datalo (void)
 {
     env->CP0_DataLo = T0; /* XXX */
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_taghi (void)
 {
     env->CP0_TagHi = T0; /* XXX */
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_datahi (void)
 {
     env->CP0_DataHi = T0; /* XXX */
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_errorepc (void)
 {
     env->CP0_ErrorEPC = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc0_desave (void)
 {
     env->CP0_DESAVE = T0;
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
 void op_dmfc0_yqmask (void)
 {
     T0 = env->CP0_YQMask;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_vpeschedule (void)
 {
     T0 = env->CP0_VPESchedule;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_vpeschefback (void)
 {
     T0 = env->CP0_VPEScheFBack;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_entrylo0 (void)
 {
     T0 = env->CP0_EntryLo0;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_tcrestart (void)
 {
     T0 = env->PC[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_tchalt (void)
 {
     T0 = env->CP0_TCHalt[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_tccontext (void)
 {
     T0 = env->CP0_TCContext[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_tcschedule (void)
 {
     T0 = env->CP0_TCSchedule[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_tcschefback (void)
 {
     T0 = env->CP0_TCScheFBack[env->current_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_entrylo1 (void)
 {
     T0 = env->CP0_EntryLo1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_context (void)
 {
     T0 = env->CP0_Context;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_badvaddr (void)
 {
     T0 = env->CP0_BadVAddr;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_entryhi (void)
 {
     T0 = env->CP0_EntryHi;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_epc (void)
 {
     T0 = env->CP0_EPC;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_lladdr (void)
 {
     T0 = env->CP0_LLAddr >> 4;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_watchlo (void)
 {
     T0 = env->CP0_WatchLo[PARAM1];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_xcontext (void)
 {
     T0 = env->CP0_XContext;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_depc (void)
 {
     T0 = env->CP0_DEPC;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc0_errorepc (void)
 {
     T0 = env->CP0_ErrorEPC;
-    RETURN();
+    FORCE_RET();
 }
 #endif /* TARGET_MIPS64 */
 
@@ -2133,7 +2133,7 @@ void op_mftgpr(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->gpr[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftlo(void)
@@ -2141,7 +2141,7 @@ void op_mftlo(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->LO[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfthi(void)
@@ -2149,7 +2149,7 @@ void op_mfthi(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->HI[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftacx(void)
@@ -2157,7 +2157,7 @@ void op_mftacx(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->ACX[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mftdsp(void)
@@ -2165,7 +2165,7 @@ void op_mftdsp(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->DSPControl[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttgpr(void)
@@ -2173,7 +2173,7 @@ void op_mttgpr(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->gpr[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttlo(void)
@@ -2181,7 +2181,7 @@ void op_mttlo(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->LO[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtthi(void)
@@ -2189,7 +2189,7 @@ void op_mtthi(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->HI[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttacx(void)
@@ -2197,7 +2197,7 @@ void op_mttacx(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->ACX[PARAM1][other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mttdsp(void)
@@ -2205,7 +2205,7 @@ void op_mttdsp(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = env->DSPControl[other_tc];
-    RETURN();
+    FORCE_RET();
 }
 
 
@@ -2214,7 +2214,7 @@ void op_dmt(void)
     // TODO
     T0 = 0;
     // rt = T0
-    RETURN();
+    FORCE_RET();
 }
 
 void op_emt(void)
@@ -2222,7 +2222,7 @@ void op_emt(void)
     // TODO
     T0 = 0;
     // rt = T0
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dvpe(void)
@@ -2230,7 +2230,7 @@ void op_dvpe(void)
     // TODO
     T0 = 0;
     // rt = T0
-    RETURN();
+    FORCE_RET();
 }
 
 void op_evpe(void)
@@ -2238,7 +2238,7 @@ void op_evpe(void)
     // TODO
     T0 = 0;
     // rt = T0
-    RETURN();
+    FORCE_RET();
 }
 
 void op_fork(void)
@@ -2246,7 +2246,7 @@ void op_fork(void)
     // T0 = rt, T1 = rs
     T0 = 0;
     // TODO: store to TC register
-    RETURN();
+    FORCE_RET();
 }
 
 void op_yield(void)
@@ -2275,7 +2275,7 @@ void op_yield(void)
         CALL_FROM_TB1(do_raise_exception, EXCP_THREAD);
     }
     T0 = env->CP0_YQMask;
-    RETURN();
+    FORCE_RET();
 }
 
 /* CP1 functions */
@@ -2289,56 +2289,56 @@ void op_cfc1 (void)
 {
     CALL_FROM_TB1(do_cfc1, PARAM1);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_ctc1 (void)
 {
     CALL_FROM_TB1(do_ctc1, PARAM1);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfc1 (void)
 {
     T0 = (int32_t)WT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mtc1 (void)
 {
     WT0 = T0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmfc1 (void)
 {
     T0 = DT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dmtc1 (void)
 {
     DT0 = T0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mfhc1 (void)
 {
     T0 = (int32_t)WTH0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_mthc1 (void)
 {
     WTH0 = T0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 /* Float support.
@@ -2352,117 +2352,117 @@ FLOAT_OP(cvtd, s)
 {
     CALL_FROM_TB0(do_float_cvtd_s);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtd, w)
 {
     CALL_FROM_TB0(do_float_cvtd_w);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtd, l)
 {
     CALL_FROM_TB0(do_float_cvtd_l);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtl, d)
 {
     CALL_FROM_TB0(do_float_cvtl_d);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtl, s)
 {
     CALL_FROM_TB0(do_float_cvtl_s);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtps, s)
 {
     WT2 = WT0;
     WTH2 = WT1;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtps, pw)
 {
     CALL_FROM_TB0(do_float_cvtps_pw);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtpw, ps)
 {
     CALL_FROM_TB0(do_float_cvtpw_ps);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvts, d)
 {
     CALL_FROM_TB0(do_float_cvts_d);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvts, w)
 {
     CALL_FROM_TB0(do_float_cvts_w);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvts, l)
 {
     CALL_FROM_TB0(do_float_cvts_l);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvts, pl)
 {
     CALL_FROM_TB0(do_float_cvts_pl);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvts, pu)
 {
     CALL_FROM_TB0(do_float_cvts_pu);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtw, s)
 {
     CALL_FROM_TB0(do_float_cvtw_s);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(cvtw, d)
 {
     CALL_FROM_TB0(do_float_cvtw_d);
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 FLOAT_OP(pll, ps)
 {
     DT2 = ((uint64_t)WT0 << 32) | WT1;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(plu, ps)
 {
     DT2 = ((uint64_t)WT0 << 32) | WTH1;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(pul, ps)
 {
     DT2 = ((uint64_t)WTH0 << 32) | WT1;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(puu, ps)
 {
     DT2 = ((uint64_t)WTH0 << 32) | WTH1;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 #define FLOAT_ROUNDOP(op, ttype, stype)                    \
@@ -2470,7 +2470,7 @@ FLOAT_OP(op ## ttype, stype)                               \
 {                                                          \
     CALL_FROM_TB0(do_float_ ## op ## ttype ## _ ## stype); \
     DEBUG_FPU_STATE();                                     \
-    RETURN();                                              \
+    FORCE_RET();                                           \
 }
 
 FLOAT_ROUNDOP(round, l, d)
@@ -2499,14 +2499,14 @@ FLOAT_OP(movf, d)
     if (!(env->fpu->fcr31 & PARAM1))
         DT2 = DT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movf, s)
 {
     if (!(env->fpu->fcr31 & PARAM1))
         WT2 = WT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movf, ps)
 {
@@ -2515,21 +2515,21 @@ FLOAT_OP(movf, ps)
         WTH2 = WTH0;
     }
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movt, d)
 {
     if (env->fpu->fcr31 & PARAM1)
         DT2 = DT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movt, s)
 {
     if (env->fpu->fcr31 & PARAM1)
         WT2 = WT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movt, ps)
 {
@@ -2538,21 +2538,21 @@ FLOAT_OP(movt, ps)
         WTH2 = WTH0;
     }
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movz, d)
 {
     if (!T0)
         DT2 = DT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movz, s)
 {
     if (!T0)
         WT2 = WT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movz, ps)
 {
@@ -2561,21 +2561,21 @@ FLOAT_OP(movz, ps)
         WTH2 = WTH0;
     }
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movn, d)
 {
     if (T0)
         DT2 = DT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movn, s)
 {
     if (T0)
         WT2 = WT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(movn, ps)
 {
@@ -2584,28 +2584,28 @@ FLOAT_OP(movn, ps)
         WTH2 = WTH0;
     }
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 /* operations calling helpers, for s, d and ps */
-#define FLOAT_HOP(name) \
+#define FLOAT_HOP(name)   \
 FLOAT_OP(name, d)         \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _d);  \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _s);  \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _ps); \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }
 FLOAT_HOP(add)
 FLOAT_HOP(sub)
@@ -2623,13 +2623,13 @@ FLOAT_OP(name, d)         \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _d);  \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _s);  \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }
 FLOAT_HOP(rsqrt)
 FLOAT_HOP(recip)
@@ -2641,7 +2641,7 @@ FLOAT_OP(name, ps)        \
 {                         \
     CALL_FROM_TB0(do_float_ ## name ## _ps); \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }
 FLOAT_HOP(addr)
 FLOAT_HOP(mulr)
@@ -2654,14 +2654,14 @@ FLOAT_OP(name1 ## name2, d)        \
     FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
     FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
     DEBUG_FPU_STATE();             \
-    RETURN();                      \
+    FORCE_RET();                   \
 }                                  \
 FLOAT_OP(name1 ## name2, s)        \
 {                                  \
     FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
     DEBUG_FPU_STATE();             \
-    RETURN();                      \
+    FORCE_RET();                   \
 }                                  \
 FLOAT_OP(name1 ## name2, ps)       \
 {                                  \
@@ -2670,7 +2670,7 @@ FLOAT_OP(name1 ## name2, ps)       \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
     FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
     DEBUG_FPU_STATE();             \
-    RETURN();                      \
+    FORCE_RET();                   \
 }
 FLOAT_TERNOP(mul, add)
 FLOAT_TERNOP(mul, sub)
@@ -2684,7 +2684,7 @@ FLOAT_OP(n ## name1 ## name2, d)    \
     FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
     FDT2 ^= 1ULL << 63;             \
     DEBUG_FPU_STATE();              \
-    RETURN();                       \
+    FORCE_RET();                    \
 }                                   \
 FLOAT_OP(n ## name1 ## name2, s)    \
 {                                   \
@@ -2692,7 +2692,7 @@ FLOAT_OP(n ## name1 ## name2, s)    \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
     FST2 ^= 1 << 31;                \
     DEBUG_FPU_STATE();              \
-    RETURN();                       \
+    FORCE_RET();                    \
 }                                   \
 FLOAT_OP(n ## name1 ## name2, ps)   \
 {                                   \
@@ -2703,7 +2703,7 @@ FLOAT_OP(n ## name1 ## name2, ps)   \
     FST2 ^= 1 << 31;                \
     FSTH2 ^= 1 << 31;               \
     DEBUG_FPU_STATE();              \
-    RETURN();                       \
+    FORCE_RET();                    \
 }
 FLOAT_NTERNOP(mul, add)
 FLOAT_NTERNOP(mul, sub)
@@ -2713,15 +2713,15 @@ FLOAT_NTERNOP(mul, sub)
 #define FLOAT_UNOP(name)  \
 FLOAT_OP(name, d)         \
 {                         \
-    FDT2 = float64_ ## name(FDT0, &env->fpu->fp_status);   \
+    FDT2 = float64_ ## name(FDT0, &env->fpu->fp_status); \
     DEBUG_FPU_STATE();    \
-    RETURN();                      \
+    FORCE_RET();          \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
-    FST2 = float32_ ## name(FST0, &env->fpu->fp_status);   \
+    FST2 = float32_ ## name(FST0, &env->fpu->fp_status); \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }
 FLOAT_UNOP(sqrt)
 #undef FLOAT_UNOP
@@ -2732,20 +2732,20 @@ FLOAT_OP(name, d)         \
 {                         \
     FDT2 = float64_ ## name(FDT0);   \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }                         \
 FLOAT_OP(name, s)         \
 {                         \
     FST2 = float32_ ## name(FST0);   \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }                         \
 FLOAT_OP(name, ps)        \
 {                         \
     FST2 = float32_ ## name(FST0);   \
     FSTH2 = float32_ ## name(FSTH0); \
     DEBUG_FPU_STATE();    \
-    RETURN();             \
+    FORCE_RET();          \
 }
 FLOAT_UNOP(abs)
 FLOAT_UNOP(chs)
@@ -2755,20 +2755,20 @@ FLOAT_OP(mov, d)
 {
     FDT2 = FDT0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(mov, s)
 {
     FST2 = FST0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(mov, ps)
 {
     FST2 = FST0;
     FSTH2 = FSTH0;
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 FLOAT_OP(alnv, ps)
 {
@@ -2790,14 +2790,14 @@ FLOAT_OP(alnv, ps)
         break;
     }
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 #ifdef CONFIG_SOFTFLOAT
 #define clear_invalid() do {                                \
     int flags = get_float_exception_flags(&env->fpu->fp_status); \
     flags &= ~float_flag_invalid;                           \
-    set_float_exception_flags(flags, &env->fpu->fp_status);      \
+    set_float_exception_flags(flags, &env->fpu->fp_status); \
 } while(0)
 #else
 #define clear_invalid() do { } while(0)
@@ -2810,13 +2810,13 @@ void OPPROTO op_cmp ## _ ## fmt ## _ ## op(void)       \
 {                                                      \
     CALL_FROM_TB1(do_cmp ## _ ## fmt ## _ ## op, PARAM1); \
     DEBUG_FPU_STATE();                                 \
-    RETURN();                                          \
+    FORCE_RET();                                       \
 }                                                      \
 void OPPROTO op_cmpabs ## _ ## fmt ## _ ## op(void)    \
 {                                                      \
     CALL_FROM_TB1(do_cmpabs ## _ ## fmt ## _ ## op, PARAM1); \
     DEBUG_FPU_STATE();                                 \
-    RETURN();                                          \
+    FORCE_RET();                                       \
 }
 #define CMP_OPS(op)   \
 CMP_OP(d, op)         \
@@ -2846,62 +2846,62 @@ void op_bc1f (void)
 {
     T0 = !!(~GET_FP_COND(env->fpu) & (0x1 << PARAM1));
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 void op_bc1any2f (void)
 {
     T0 = !!(~GET_FP_COND(env->fpu) & (0x3 << PARAM1));
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 void op_bc1any4f (void)
 {
     T0 = !!(~GET_FP_COND(env->fpu) & (0xf << PARAM1));
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_bc1t (void)
 {
     T0 = !!(GET_FP_COND(env->fpu) & (0x1 << PARAM1));
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 void op_bc1any2t (void)
 {
     T0 = !!(GET_FP_COND(env->fpu) & (0x3 << PARAM1));
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 void op_bc1any4t (void)
 {
     T0 = !!(GET_FP_COND(env->fpu) & (0xf << PARAM1));
     DEBUG_FPU_STATE();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_tlbwi (void)
 {
     CALL_FROM_TB0(env->tlb->do_tlbwi);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_tlbwr (void)
 {
     CALL_FROM_TB0(env->tlb->do_tlbwr);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_tlbp (void)
 {
     CALL_FROM_TB0(env->tlb->do_tlbp);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_tlbr (void)
 {
     CALL_FROM_TB0(env->tlb->do_tlbr);
-    RETURN();
+    FORCE_RET();
 }
 
 /* Specials */
@@ -2915,7 +2915,7 @@ void op_tls_value (void)
 void op_pmon (void)
 {
     CALL_FROM_TB1(do_pmon, PARAM1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_di (void)
@@ -2923,7 +2923,7 @@ void op_di (void)
     T0 = env->CP0_Status;
     env->CP0_Status = T0 & ~(1 << CP0St_IE);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_ei (void)
@@ -2931,7 +2931,7 @@ void op_ei (void)
     T0 = env->CP0_Status;
     env->CP0_Status = T0 | (1 << CP0St_IE);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_trap (void)
@@ -2939,19 +2939,19 @@ void op_trap (void)
     if (T0) {
         CALL_FROM_TB1(do_raise_exception, EXCP_TRAP);
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_debug (void)
 {
     CALL_FROM_TB1(do_raise_exception, EXCP_DEBUG);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_set_lladdr (void)
 {
     env->CP0_LLAddr = T2;
-    RETURN();
+    FORCE_RET();
 }
 
 void debug_pre_eret (void);
@@ -2971,7 +2971,7 @@ void op_eret (void)
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_deret (void)
@@ -2984,7 +2984,7 @@ void op_deret (void)
     if (loglevel & CPU_LOG_EXEC)
         CALL_FROM_TB0(debug_post_eret);
     env->CP0_LLAddr = 1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_rdhwr_cpunum(void)
@@ -2994,7 +2994,7 @@ void op_rdhwr_cpunum(void)
         T0 = env->CP0_EBase & 0x3ff;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_rdhwr_synci_step(void)
@@ -3004,7 +3004,7 @@ void op_rdhwr_synci_step(void)
         T0 = env->SYNCI_Step;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_rdhwr_cc(void)
@@ -3014,7 +3014,7 @@ void op_rdhwr_cc(void)
         T0 = env->CP0_Count;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_rdhwr_ccres(void)
@@ -3024,26 +3024,26 @@ void op_rdhwr_ccres(void)
         T0 = env->CCRes;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_save_state (void)
 {
     env->hflags = PARAM1;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_save_pc (void)
 {
     env->PC[env->current_tc] = PARAM1;
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
 void op_save_pc64 (void)
 {
     env->PC[env->current_tc] = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
-    RETURN();
+    FORCE_RET();
 }
 #endif
 
@@ -3057,32 +3057,32 @@ void op_interrupt_restart (void)
         env->CP0_Cause &= ~(0x1f << CP0Ca_EC);
         CALL_FROM_TB1(do_raise_exception, EXCP_EXT_INTERRUPT);
     }
-    RETURN();
+    FORCE_RET();
 }
 
 void op_raise_exception (void)
 {
     CALL_FROM_TB1(do_raise_exception, PARAM1);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_raise_exception_err (void)
 {
     CALL_FROM_TB2(do_raise_exception_err, PARAM1, PARAM2);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_exit_tb (void)
 {
     EXIT_TB();
-    RETURN();
+    FORCE_RET();
 }
 
 void op_wait (void)
 {
     env->halted = 1;
     CALL_FROM_TB1(do_raise_exception, EXCP_HLT);
-    RETURN();
+    FORCE_RET();
 }
 
 /* Bitfield operations. */
@@ -3092,7 +3092,7 @@ void op_ext(void)
     unsigned int size = PARAM2;
 
     T0 = ((uint32_t)T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_ins(void)
@@ -3102,13 +3102,13 @@ void op_ins(void)
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
     T0 = (T0 & ~mask) | (((uint32_t)T1 << pos) & mask);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_wsbh(void)
 {
     T0 = ((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF);
-    RETURN();
+    FORCE_RET();
 }
 
 #if defined(TARGET_MIPS64)
@@ -3118,7 +3118,7 @@ void op_dext(void)
     unsigned int size = PARAM2;
 
     T0 = (T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dins(void)
@@ -3128,30 +3128,30 @@ void op_dins(void)
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
     T0 = (T0 & ~mask) | ((T1 << pos) & mask);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dsbh(void)
 {
     T0 = ((T1 << 8) & ~0x00FF00FF00FF00FFULL) | ((T1 >> 8) & 0x00FF00FF00FF00FFULL);
-    RETURN();
+    FORCE_RET();
 }
 
 void op_dshd(void)
 {
     T0 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
-    RETURN();
+    FORCE_RET();
 }
 #endif
 
 void op_seb(void)
 {
     T0 = ((T1 & 0xFF) ^ 0x80) - 0x80;
-    RETURN();
+    FORCE_RET();
 }
 
 void op_seh(void)
 {
     T0 = ((T1 & 0xFFFF) ^ 0x8000) - 0x8000;
-    RETURN();
+    FORCE_RET();
 }

@@ -7404,6 +7404,7 @@ void register_machines(void)
 #elif defined(TARGET_M68K)
     qemu_register_machine(&mcf5208evb_machine);
     qemu_register_machine(&an5206_machine);
+    qemu_register_machine(&dummy_m68k_machine);
 #elif defined(TARGET_CRIS)
     qemu_register_machine(&bareetraxfs_machine);
 #else
@@ -8164,7 +8165,7 @@ int main(int argc, char **argv)
                         }
                         tm.tm_year -= 1900;
                         tm.tm_mon--;
-                        rtc_start_date = timegm(&tm);
+                        rtc_start_date = mktimegm(&tm);
                         if (rtc_start_date == -1) {
                         date_fail:
                             fprintf(stderr, "Invalid date format. Valid format are:\n"

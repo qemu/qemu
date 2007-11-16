@@ -40,6 +40,13 @@ static int bigendian;
 
 /*i8254 PIT is attached to the IRQ0 at PIC i8259 */
 
+static struct _loaderparams {
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+} loaderparams;
+
 static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
 			      uint32_t val)
 {
@@ -68,16 +75,13 @@ static CPUReadMemoryFunc *mips_qemu_read[] = {
 
 static int mips_qemu_iomemtype = 0;
 
-static void load_kernel (CPUState *env, int ram_size,
-                         const char *kernel_filename,
-                         const char *kernel_cmdline,
-                         const char *initrd_filename)
+static void load_kernel (CPUState *env)
 {
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
     ram_addr_t initrd_offset;
 
-    kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND,
+    kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                            &entry, &kernel_low, &kernel_high);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
@@ -85,7 +89,7 @@ static void load_kernel (CPUState *env, int ram_size,
         env->PC[env->current_tc] = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                kernel_filename);
+                loaderparams.kernel_filename);
         exit(1);
     }
 
@@ -95,22 +99,22 @@ static void load_kernel (CPUState *env, int ram_size,
     /* load initrd */
     initrd_size = 0;
     initrd_offset = 0;
-    if (initrd_filename) {
-        initrd_size = get_image_size (initrd_filename);
+    if (loaderparams.initrd_filename) {
+        initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
             initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
             if (initrd_offset + initrd_size > ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
-                        initrd_filename);
+                        loaderparams.initrd_filename);
                 exit(1);
             }
-            initrd_size = load_image(initrd_filename,
+            initrd_size = load_image(loaderparams.initrd_filename,
                                      phys_ram_base + initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    initrd_filename);
+                    loaderparams.initrd_filename);
             exit(1);
         }
     }
@@ -122,10 +126,12 @@ static void load_kernel (CPUState *env, int ram_size,
                       "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
                       PHYS_TO_VIRT((uint32_t)initrd_offset),
                       initrd_size);
-        strcpy (phys_ram_base + (16 << 20) - 256 + ret, kernel_cmdline);
+        strcpy (phys_ram_base + (16 << 20) - 256 + ret,
+                loaderparams.kernel_cmdline);
     }
     else {
-        strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+        strcpy (phys_ram_base + (16 << 20) - 256,
+                loaderparams.kernel_cmdline);
     }
 
     *(int32_t *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
@@ -136,11 +142,9 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-    cpu_mips_register(env, NULL);
 
-    if (env->kernel_filename)
-        load_kernel (env, env->ram_size, env->kernel_filename,
-                     env->kernel_cmdline, env->initrd_filename);
+    if (loaderparams.kernel_filename)
+        load_kernel (env);
 }
 
 static
@@ -166,15 +170,15 @@ void mips_init (int ram_size, int vga_ram_size, const char *boot_device,
         cpu_model = "24Kf";
 #endif
     }
-    if (mips_find_by_name(cpu_model, &def) != 0)
-        def = NULL;
-    env = cpu_init();
-
+    env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
     env->bigendian = bigendian;
     fprintf(stderr, "%s: setting %s endian mode\n",
             __func__, bigendian ? "big" : "little");
 
-    cpu_mips_register(env, def);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
@@ -206,12 +210,11 @@ void mips_init (int ram_size, int vga_ram_size, const char *boot_device,
     }
 
     if (kernel_filename) {
-        load_kernel (env, ram_size, kernel_filename, kernel_cmdline,
-                     initrd_filename);
-	env->ram_size = ram_size;
-	env->kernel_filename = kernel_filename;
-	env->kernel_cmdline = kernel_cmdline;
-	env->initrd_filename = initrd_filename;
+        loaderparams.ram_size = ram_size;
+        loaderparams.kernel_filename = kernel_filename;
+        loaderparams.kernel_cmdline = kernel_cmdline;
+        loaderparams.initrd_filename = initrd_filename;
+        load_kernel (env);
     }
 
     /* Init CPU internal devices */

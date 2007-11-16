@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 
     //    cpu_set_log(CPU_LOG_TB_IN_ASM | CPU_LOG_TB_OUT_ASM | CPU_LOG_EXEC);
 
-    env = cpu_init();
+    env = cpu_init("qemu32");
 
     /* disable code copy to simplify debugging */
     code_copy_enabled = 0;
