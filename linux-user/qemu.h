@@ -226,7 +226,7 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
     int size = sizeof(*hptr);\
     switch(size) {\
     case 1:\
-        *(uint8_t *)(hptr) = (typeof(*hptr))(x);\
+        *(uint8_t *)(hptr) = (uint8_t)(typeof(*hptr))(x);\
         break;\
     case 2:\
         *(uint16_t *)(hptr) = tswap16((typeof(*hptr))(x));\
@@ -260,6 +260,8 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
         x = (typeof(*hptr))tswap64(*(uint64_t *)(hptr));\
         break;\
     default:\
+        /* avoid warning */\
+        x = 0;\
         abort();\
     }\
     0;\
@@ -291,10 +293,35 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
     if ((__hptr = lock_user(VERIFY_READ, __gaddr, sizeof(target_type), 1))) { \
         __ret = __get_user((x), __hptr);				\
         unlock_user(__hptr, __gaddr, 0);				\
-    } else								\
+    } else {								\
+        /* avoid warning */						\
+        (x) = 0;							\
         __ret = -TARGET_EFAULT;						\
+    }									\
     __ret;								\
 })
+
+#define put_user_ual(x, gaddr) put_user((x), (gaddr), abi_ulong)
+#define put_user_sal(x, gaddr) put_user((x), (gaddr), abi_long)
+#define put_user_u64(x, gaddr) put_user((x), (gaddr), uint64_t)
+#define put_user_s64(x, gaddr) put_user((x), (gaddr), int64_t)
+#define put_user_u32(x, gaddr) put_user((x), (gaddr), uint32_t)
+#define put_user_s32(x, gaddr) put_user((x), (gaddr), int32_t)
+#define put_user_u16(x, gaddr) put_user((x), (gaddr), uint16_t)
+#define put_user_s16(x, gaddr) put_user((x), (gaddr), int16_t)
+#define put_user_u8(x, gaddr)  put_user((x), (gaddr), uint8_t)
+#define put_user_s8(x, gaddr)  put_user((x), (gaddr), int8_t)
+
+#define get_user_ual(x, gaddr) get_user((x), (gaddr), abi_ulong)
+#define get_user_sal(x, gaddr) get_user((x), (gaddr), abi_long)
+#define get_user_u64(x, gaddr) get_user((x), (gaddr), uint64_t)
+#define get_user_s64(x, gaddr) get_user((x), (gaddr), int64_t)
+#define get_user_u32(x, gaddr) get_user((x), (gaddr), uint32_t)
+#define get_user_s32(x, gaddr) get_user((x), (gaddr), int32_t)
+#define get_user_u16(x, gaddr) get_user((x), (gaddr), uint16_t)
+#define get_user_s16(x, gaddr) get_user((x), (gaddr), int16_t)
+#define get_user_u8(x, gaddr)  get_user((x), (gaddr), uint8_t)
+#define get_user_s8(x, gaddr)  get_user((x), (gaddr), int8_t)
 
 /* copy_from_user() and copy_to_user() are usually used to copy data
  * buffers between the target and host.  These internally perform
@@ -367,21 +394,5 @@ static inline void *lock_user_string(abi_ulong guest_addr)
     (host_ptr = lock_user(type, guest_addr, sizeof(*host_ptr), copy))
 #define unlock_user_struct(host_ptr, guest_addr, copy)		\
     unlock_user(host_ptr, guest_addr, (copy) ? sizeof(*host_ptr) : 0)
-
-#define tget8(addr) ldub(addr)
-#define tput8(addr, val) stb(addr, val)
-#define tget16(addr) lduw(addr)
-#define tput16(addr, val) stw(addr, val)
-#define tget32(addr) ldl(addr)
-#define tput32(addr, val) stl(addr, val)
-#define tget64(addr) ldq(addr)
-#define tput64(addr, val) stq(addr, val)
-#if TARGET_ABI_BITS == 64
-#define tgetl(addr) ldq(addr)
-#define tputl(addr, val) stq(addr, val)
-#else
-#define tgetl(addr) ldl(addr)
-#define tputl(addr, val) stl(addr, val)
-#endif
 
 #endif /* QEMU_H */

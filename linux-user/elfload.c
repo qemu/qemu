@@ -179,8 +179,9 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
       regs->ARM_cpsr |= CPSR_T;
     regs->ARM_pc = infop->entry & 0xfffffffe;
     regs->ARM_sp = infop->start_stack;
-    regs->ARM_r2 = tgetl(stack + 8); /* envp */
-    regs->ARM_r1 = tgetl(stack + 4); /* envp */
+    /* FIXME - what to for failure of get_user()? */
+    get_user_ual(regs->ARM_r2, stack + 8); /* envp */
+    get_user_ual(regs->ARM_r1, stack + 4); /* envp */
     /* XXX: it seems that r0 is zeroed after ! */
     regs->ARM_r0 = 0;
     /* For uClinux PIC binaries.  */
@@ -341,7 +342,8 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
      * but this is what the ABI wants and is needed to allow
      * execution of PPC BSD programs.
      */
-    _regs->gpr[3] = tgetl(pos);
+    /* FIXME - what to for failure of get_user()? */
+    get_user_ual(_regs->gpr[3], pos);
     pos += sizeof(abi_ulong);
     _regs->gpr[4] = pos;
     for (tmp = 1; tmp != 0; pos += sizeof(abi_ulong))
@@ -733,7 +735,8 @@ static void padzero(abi_ulong elf_bss, abi_ulong last_bss)
         if (nbyte) {
 	    nbyte = qemu_host_page_size - nbyte;
 	    do {
-		tput8(elf_bss, 0);
+                /* FIXME - what to do if put_user() fails? */
+		put_user_u8(0, elf_bss);
                 elf_bss++;
 	    } while (--nbyte);
         }
@@ -782,17 +785,11 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         /* This is correct because Linux defines
          * elf_addr_t as Elf32_Off / Elf64_Off
          */
-#if ELF_CLASS == ELFCLASS32
-#define NEW_AUX_ENT(id, val) do { \
-            sp -= n; tput32(sp, val); \
-            sp -= n; tput32(sp, id); \
+#define NEW_AUX_ENT(id, val) do {		\
+            sp -= n; put_user_ual(val, sp);	\
+            sp -= n; put_user_ual(id, sp);	\
           } while(0)
-#else
-#define NEW_AUX_ENT(id, val) do { \
-            sp -= n; tput64(sp, val); \
-            sp -= n; tput64(sp, id); \
-          } while(0)
-#endif
+
         NEW_AUX_ENT (AT_NULL, 0);
 
         /* There must be exactly DLINFO_ITEMS entries here.  */

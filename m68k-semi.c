@@ -142,15 +142,23 @@ static void m68k_semi_cb(CPUState *env, target_ulong ret, target_ulong err)
     if (m68k_semi_is_fseek) {
         /* FIXME: We've already lost the high bits of the fseek
            return value.  */
-        tput32(args, 0);
+        /* FIXME - handle put_user() failure */
+        put_user_u32(0, args);
         args += 4;
         m68k_semi_is_fseek = 0;
     }
-    tput32(args, ret);
-    tput32(args + 4, errno);
+    /* FIXME - handle put_user() failure */
+    put_user_u32(ret, args);
+    put_user_u32(errno, args + 4);
 }
 
-#define ARG(x) tget32(args + (x) * 4)
+#define ARG(n)					\
+({						\
+    target_ulong __arg;				\
+    /* FIXME - handle get_user() failure */	\
+    get_user_ual(__arg, args + (n) * 4);	\
+    __arg;					\
+})
 #define PARG(x) ((unsigned long)ARG(x))
 void do_m68k_semihosting(CPUM68KState *env, int nr)
 {
@@ -237,9 +245,10 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                                ARG(0), off, ARG(3));
             } else {
                 off = lseek(ARG(0), off, ARG(3));
-                tput32(args, off >> 32);
-                tput32(args + 4, off);
-                tput32(args + 8, errno);
+                /* FIXME - handle put_user() failure */
+                put_user_u32(off >> 32, args);
+                put_user_u32(off, args + 4);
+                put_user_u32(errno, args + 8);
             }
             return;
         }
@@ -390,6 +399,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         cpu_abort(env, "Unsupported semihosting syscall %d\n", nr);
         result = 0;
     }
-    tput32(args, result);
-    tput32(args + 4, errno);
+    /* FIXME - handle put_user() failure */
+    put_user_u32(result, args);
+    put_user_u32(errno, args + 4);
 }

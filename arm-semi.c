@@ -165,8 +165,14 @@ static void arm_semi_flen_cb(CPUState *env, target_ulong ret, target_ulong err)
 #endif
 }
 
-#define ARG(n) tget32(args + (n) * 4)
-#define SET_ARG(n, val) tput32(args + (n) * 4,val)
+#define ARG(n)					\
+({						\
+    target_ulong __arg;				\
+    /* FIXME - handle get_user() failure */	\
+    get_user_ual(__arg, args + (n) * 4);	\
+    __arg;					\
+})
+#define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
 uint32_t do_arm_semihosting(CPUState *env)
 {
     target_ulong args;
@@ -213,7 +219,11 @@ uint32_t do_arm_semihosting(CPUState *env)
         }
     case SYS_WRITEC:
         {
-          char c = tget8(args);
+          char c;
+
+          if (get_user_u8(c, args))
+              /* FIXME - should this error code be -TARGET_EFAULT ? */
+              return (uint32_t)-1;
           /* Write to debug console.  stderr is near enough.  */
           if (use_gdb_syscalls()) {
                 gdb_do_syscall(arm_semi_cb, "write,2,%x,1", args);

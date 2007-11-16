@@ -380,7 +380,8 @@ void cpu_loop(CPUARMState *env)
 
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
-                opcode = tget32(env->regs[15]);
+                /* FIXME - what to do if get_user() fails? */
+                get_user_u32(opcode, env->regs[15]);
 
                 if (EmulateAll(opcode, &ts->fpa, env) == 0) {
                     info.si_signo = SIGILL;
@@ -401,20 +402,24 @@ void cpu_loop(CPUARMState *env)
                 /* system call */
                 if (trapnr == EXCP_BKPT) {
                     if (env->thumb) {
-                        insn = tget16(env->regs[15]);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u16(insn, env->regs[15]);
                         n = insn & 0xff;
                         env->regs[15] += 2;
                     } else {
-                        insn = tget32(env->regs[15]);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u32(insn, env->regs[15]);
                         n = (insn & 0xf) | ((insn >> 4) & 0xff0);
                         env->regs[15] += 4;
                     }
                 } else {
                     if (env->thumb) {
-                        insn = tget16(env->regs[15] - 2);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u16(insn, env->regs[15] - 2);
                         n = insn & 0xff;
                     } else {
-                        insn = tget32(env->regs[15] - 4);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u32(insn, env->regs[15] - 4);
                         n = insn & 0xffffff;
                     }
                 }
@@ -520,7 +525,8 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
-        tputl(sp_ptr, env->regbase[get_reg_index(env, cwp1, 8 + i)]);
+        /* FIXME - what to do if put_user() fails? */
+        put_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
     }
 }
@@ -556,7 +562,8 @@ static void restore_window(CPUSPARCState *env)
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
-        env->regbase[get_reg_index(env, cwp1, 8 + i)] = tgetl(sp_ptr);
+        /* FIXME - what to do if get_user() fails? */
+        get_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
     }
     env->wim = new_wim;
@@ -1533,10 +1540,11 @@ void cpu_loop(CPUMIPSState *env)
                 sp_reg = env->gpr[29][env->current_tc];
                 switch (nb_args) {
                 /* these arguments are taken from the stack */
-                case 8: arg8 = tgetl(sp_reg + 28);
-                case 7: arg7 = tgetl(sp_reg + 24);
-                case 6: arg6 = tgetl(sp_reg + 20);
-                case 5: arg5 = tgetl(sp_reg + 16);
+                /* FIXME - what to do if get_user() fails? */
+                case 8: get_user_ual(arg8, sp_reg + 28);
+                case 7: get_user_ual(arg7, sp_reg + 24);
+                case 6: get_user_ual(arg6, sp_reg + 20);
+                case 5: get_user_ual(arg5, sp_reg + 16);
                 default:
                     break;
                 }

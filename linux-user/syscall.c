@@ -783,7 +783,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
 
 /* do_setsockopt() Must return target values and target errnos. */
 static abi_long do_setsockopt(int sockfd, int level, int optname,
-                              abi_ulong optval, socklen_t optlen)
+                              abi_ulong optval_addr, socklen_t optlen)
 {
     abi_long ret;
     int val;
@@ -794,7 +794,8 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         if (optlen < sizeof(uint32_t))
             return -TARGET_EINVAL;
 
-        val = tget32(optval);
+        if (get_user_u32(val, optval_addr))
+            return -TARGET_EFAULT;
         ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
         break;
     case SOL_IP:
@@ -816,9 +817,11 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         case IP_MULTICAST_LOOP:
             val = 0;
             if (optlen >= sizeof(uint32_t)) {
-                val = tget32(optval);
+                if (get_user_u32(val, optval_addr))
+                    return -TARGET_EFAULT;
             } else if (optlen >= 1) {
-                val = tget8(optval);
+                if (get_user_u8(val, optval_addr))
+                    return -TARGET_EFAULT;
             }
             ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
             break;
@@ -890,9 +893,10 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             goto unimplemented;
         }
 	if (optlen < sizeof(uint32_t))
-	return -TARGET_EINVAL;
+            return -TARGET_EINVAL;
 
-	val = tget32(optval);
+	if (get_user_u32(val, optval_addr))
+            return -TARGET_EFAULT;
 	ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname, &val, sizeof(val)));
         break;
     default:
@@ -905,7 +909,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 
 /* do_getsockopt() Must return target values and target errnos. */
 static abi_long do_getsockopt(int sockfd, int level, int optname,
-                              abi_ulong optval, abi_ulong optlen)
+                              abi_ulong optval_addr, abi_ulong optlen)
 {
     abi_long ret;
     int len, lv, val;
@@ -928,7 +932,8 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
     case SOL_TCP:
         /* TCP options all take an 'int' value.  */
     int_case:
-        len = tget32(optlen);
+        if (get_user_u32(len, optlen))
+            return -TARGET_EFAULT;
         if (len < 0)
             return -TARGET_EINVAL;
         lv = sizeof(int);
@@ -938,11 +943,15 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         val = tswap32(val);
         if (len > lv)
             len = lv;
-        if (len == 4)
-            tput32(optval, val);
-        else
-            tput8(optval, val);
-        tput32(optlen, len);
+        if (len == 4) {
+            if (put_user_u32(val, optval_addr))
+                return -TARGET_EFAULT;
+        } else {
+            if (put_user_u8(val, optval_addr))
+                return -TARGET_EFAULT;
+	}
+        if (put_user_u32(len, optlen))
+            return -TARGET_EFAULT;
         break;
     case SOL_IP:
         switch(optname) {
@@ -961,7 +970,8 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
 #endif
         case IP_MULTICAST_TTL:
         case IP_MULTICAST_LOOP:
-            len = tget32(optlen);
+            if (get_user_u32(len, optlen))
+                return -TARGET_EFAULT;
             if (len < 0)
                 return -TARGET_EINVAL;
             lv = sizeof(int);
@@ -970,13 +980,15 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
                 return ret;
             if (len < sizeof(int) && len > 0 && val >= 0 && val < 255) {
                 len = 1;
-                tput32(optlen, len);
-                tput8(optval, val);
+                if (put_user_u32(len, optlen)
+                    || put_user_u8(val, optval_addr))
+                    return -TARGET_EFAULT;
             } else {
                 if (len > sizeof(int))
                     len = sizeof(int);
-                tput32(optlen, len);
-                tput32(optval, val);
+                if (put_user_u32(len, optlen)
+                    || put_user_u32(val, optval_addr))
+                    return -TARGET_EFAULT;
             }
             break;
         default:
@@ -1148,63 +1160,82 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
 
 /* do_accept() Must return target values and target errnos. */
 static abi_long do_accept(int fd, abi_ulong target_addr,
-                          abi_ulong target_addrlen)
+                          abi_ulong target_addrlen_addr)
 {
-    socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(addrlen);
+    socklen_t addrlen;
+    void *addr;
     abi_long ret;
+
+    if (get_user_u32(addrlen, target_addrlen_addr))
+        return -TARGET_EFAULT;
+
+    addr = alloca(addrlen);
 
     ret = get_errno(accept(fd, addr, &addrlen));
     if (!is_error(ret)) {
         host_to_target_sockaddr(target_addr, addr, addrlen);
-        tput32(target_addrlen, addrlen);
+        if (put_user_u32(addrlen, target_addrlen_addr))
+            ret = -TARGET_EFAULT;
     }
     return ret;
 }
 
 /* do_getpeername() Must return target values and target errnos. */
 static abi_long do_getpeername(int fd, abi_ulong target_addr,
-                               abi_ulong target_addrlen)
+                               abi_ulong target_addrlen_addr)
 {
-    socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(addrlen);
+    socklen_t addrlen;
+    void *addr;
     abi_long ret;
+
+    if (get_user_u32(addrlen, target_addrlen_addr))
+        return -TARGET_EFAULT;
+
+    addr = alloca(addrlen);
 
     ret = get_errno(getpeername(fd, addr, &addrlen));
     if (!is_error(ret)) {
         host_to_target_sockaddr(target_addr, addr, addrlen);
-        tput32(target_addrlen, addrlen);
+        if (put_user_u32(addrlen, target_addrlen_addr))
+            ret = -TARGET_EFAULT;
     }
     return ret;
 }
 
 /* do_getsockname() Must return target values and target errnos. */
 static abi_long do_getsockname(int fd, abi_ulong target_addr,
-                               abi_ulong target_addrlen)
+                               abi_ulong target_addrlen_addr)
 {
-    socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(addrlen);
+    socklen_t addrlen;
+    void *addr;
     abi_long ret;
+
+    if (get_user_u32(addrlen, target_addrlen_addr))
+        return -TARGET_EFAULT;
+
+    addr = alloca(addrlen);
 
     ret = get_errno(getsockname(fd, addr, &addrlen));
     if (!is_error(ret)) {
         host_to_target_sockaddr(target_addr, addr, addrlen);
-        tput32(target_addrlen, addrlen);
+        if (put_user_u32(addrlen, target_addrlen_addr))
+            ret = -TARGET_EFAULT;
     }
     return ret;
 }
 
 /* do_socketpair() Must return target values and target errnos. */
 static abi_long do_socketpair(int domain, int type, int protocol,
-                              abi_ulong target_tab)
+                              abi_ulong target_tab_addr)
 {
     int tab[2];
     abi_long ret;
 
     ret = get_errno(socketpair(domain, type, protocol, tab));
     if (!is_error(ret)) {
-        tput32(target_tab, tab[0]);
-        tput32(target_tab + 4, tab[1]);
+        if (put_user_s32(tab[0], target_tab_addr)
+            || put_user_s32(tab[1], target_tab_addr + sizeof(tab[0])))
+            ret = -TARGET_EFAULT;
     }
     return ret;
 }
@@ -1245,7 +1276,10 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
     if (!host_msg)
         return -TARGET_EFAULT;
     if (target_addr) {
-        addrlen = tget32(target_addrlen);
+        if (get_user_u32(addrlen, target_addrlen)) {
+            ret = -TARGET_EFAULT;
+            goto fail;
+        }
         addr = alloca(addrlen);
         ret = get_errno(recvfrom(fd, host_msg, len, flags, addr, &addrlen));
     } else {
@@ -1255,10 +1289,14 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
     if (!is_error(ret)) {
         if (target_addr) {
             host_to_target_sockaddr(target_addr, addr, addrlen);
-            tput32(target_addrlen, addrlen);
+            if (put_user_u32(addrlen, target_addrlen)) {
+                ret = -TARGET_EFAULT;
+                goto fail;
+            }
         }
         unlock_user(host_msg, msg, len);
     } else {
+fail:
         unlock_user(host_msg, msg, 0);
     }
     return ret;
@@ -1274,112 +1312,187 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
     switch(num) {
     case SOCKOP_socket:
 	{
-            int domain = tgetl(vptr);
-            int type = tgetl(vptr + n);
-            int protocol = tgetl(vptr + 2 * n);
+            int domain, type, protocol;
+
+            if (get_user_s32(domain, vptr)
+                || get_user_s32(type, vptr + n)
+                || get_user_s32(protocol, vptr + 2 * n))
+                return -TARGET_EFAULT;
+
             ret = do_socket(domain, type, protocol);
 	}
         break;
     case SOCKOP_bind:
 	{
-            int sockfd = tgetl(vptr);
-            abi_ulong target_addr = tgetl(vptr + n);
-            socklen_t addrlen = tgetl(vptr + 2 * n);
+            int sockfd;
+            abi_ulong target_addr;
+            socklen_t addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(target_addr, vptr + n)
+                || get_user_u32(addrlen, vptr + 2 * n))
+                return -TARGET_EFAULT;
+
             ret = do_bind(sockfd, target_addr, addrlen);
         }
         break;
     case SOCKOP_connect:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong target_addr = tgetl(vptr + n);
-            socklen_t addrlen = tgetl(vptr + 2 * n);
+            int sockfd;
+            abi_ulong target_addr;
+            socklen_t addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(target_addr, vptr + n)
+                || get_user_u32(addrlen, vptr + 2 * n))
+                return -TARGET_EFAULT;
+
             ret = do_connect(sockfd, target_addr, addrlen);
         }
         break;
     case SOCKOP_listen:
         {
-            int sockfd = tgetl(vptr);
-            int backlog = tgetl(vptr + n);
+            int sockfd, backlog;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_s32(backlog, vptr + n))
+                return -TARGET_EFAULT;
+
             ret = get_errno(listen(sockfd, backlog));
         }
         break;
     case SOCKOP_accept:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong target_addr = tgetl(vptr + n);
-            abi_ulong target_addrlen = tgetl(vptr + 2 * n);
+            int sockfd;
+            abi_ulong target_addr, target_addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(target_addr, vptr + n)
+                || get_user_u32(target_addrlen, vptr + 2 * n))
+                return -TARGET_EFAULT;
+
             ret = do_accept(sockfd, target_addr, target_addrlen);
         }
         break;
     case SOCKOP_getsockname:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong target_addr = tgetl(vptr + n);
-            abi_ulong target_addrlen = tgetl(vptr + 2 * n);
+            int sockfd;
+            abi_ulong target_addr, target_addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(target_addr, vptr + n)
+                || get_user_u32(target_addrlen, vptr + 2 * n))
+                return -TARGET_EFAULT;
+
             ret = do_getsockname(sockfd, target_addr, target_addrlen);
         }
         break;
     case SOCKOP_getpeername:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong target_addr = tgetl(vptr + n);
-            abi_ulong target_addrlen = tgetl(vptr + 2 * n);
+            int sockfd;
+            abi_ulong target_addr, target_addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(target_addr, vptr + n)
+                || get_user_u32(target_addrlen, vptr + 2 * n))
+                return -TARGET_EFAULT;
+
             ret = do_getpeername(sockfd, target_addr, target_addrlen);
         }
         break;
     case SOCKOP_socketpair:
         {
-            int domain = tgetl(vptr);
-            int type = tgetl(vptr + n);
-            int protocol = tgetl(vptr + 2 * n);
-            abi_ulong tab = tgetl(vptr + 3 * n);
+            int domain, type, protocol;
+            abi_ulong tab;
+
+            if (get_user_s32(domain, vptr)
+                || get_user_s32(type, vptr + n)
+                || get_user_s32(protocol, vptr + 2 * n)
+                || get_user_ual(tab, vptr + 3 * n))
+                return -TARGET_EFAULT;
+
             ret = do_socketpair(domain, type, protocol, tab);
         }
         break;
     case SOCKOP_send:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong msg = tgetl(vptr + n);
-            size_t len = tgetl(vptr + 2 * n);
-            int flags = tgetl(vptr + 3 * n);
+            int sockfd;
+            abi_ulong msg;
+            size_t len;
+            int flags;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(msg, vptr + n)
+                || get_user_ual(len, vptr + 2 * n)
+                || get_user_s32(flags, vptr + 3 * n))
+                return -TARGET_EFAULT;
+
             ret = do_sendto(sockfd, msg, len, flags, 0, 0);
         }
         break;
     case SOCKOP_recv:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong msg = tgetl(vptr + n);
-            size_t len = tgetl(vptr + 2 * n);
-            int flags = tgetl(vptr + 3 * n);
+            int sockfd;
+            abi_ulong msg;
+            size_t len;
+            int flags;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(msg, vptr + n)
+                || get_user_ual(len, vptr + 2 * n)
+                || get_user_s32(flags, vptr + 3 * n))
+                return -TARGET_EFAULT;
+
             ret = do_recvfrom(sockfd, msg, len, flags, 0, 0);
         }
         break;
     case SOCKOP_sendto:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong msg = tgetl(vptr + n);
-            size_t len = tgetl(vptr + 2 * n);
-            int flags = tgetl(vptr + 3 * n);
-            abi_ulong addr = tgetl(vptr + 4 * n);
-            socklen_t addrlen = tgetl(vptr + 5 * n);
+            int sockfd;
+            abi_ulong msg;
+            size_t len;
+            int flags;
+            abi_ulong addr;
+            socklen_t addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(msg, vptr + n)
+                || get_user_ual(len, vptr + 2 * n)
+                || get_user_s32(flags, vptr + 3 * n)
+                || get_user_ual(addr, vptr + 4 * n)
+                || get_user_u32(addrlen, vptr + 5 * n))
+                return -TARGET_EFAULT;
+
             ret = do_sendto(sockfd, msg, len, flags, addr, addrlen);
         }
         break;
     case SOCKOP_recvfrom:
         {
-            int sockfd = tgetl(vptr);
-            abi_ulong msg = tgetl(vptr + n);
-            size_t len = tgetl(vptr + 2 * n);
-            int flags = tgetl(vptr + 3 * n);
-            abi_ulong addr = tgetl(vptr + 4 * n);
-            abi_ulong addrlen = tgetl(vptr + 5 * n);
+            int sockfd;
+            abi_ulong msg;
+            size_t len;
+            int flags;
+            abi_ulong addr;
+            socklen_t addrlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_ual(msg, vptr + n)
+                || get_user_ual(len, vptr + 2 * n)
+                || get_user_s32(flags, vptr + 3 * n)
+                || get_user_ual(addr, vptr + 4 * n)
+                || get_user_u32(addrlen, vptr + 5 * n))
+                return -TARGET_EFAULT;
+
             ret = do_recvfrom(sockfd, msg, len, flags, addr, addrlen);
         }
         break;
     case SOCKOP_shutdown:
         {
-            int sockfd = tgetl(vptr);
-            int how = tgetl(vptr + n);
+            int sockfd, how;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_s32(how, vptr + n))
+                return -TARGET_EFAULT;
 
             ret = get_errno(shutdown(sockfd, how));
         }
@@ -1391,9 +1504,10 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
             abi_ulong target_msg;
             int flags;
 
-            fd = tgetl(vptr);
-            target_msg = tgetl(vptr + n);
-            flags = tgetl(vptr + 2 * n);
+            if (get_user_s32(fd, vptr)
+                || get_user_ual(target_msg, vptr + n)
+                || get_user_s32(flags, vptr + 2 * n))
+                return -TARGET_EFAULT;
 
             ret = do_sendrecvmsg(fd, target_msg, flags,
                                  (num == SOCKOP_sendmsg));
@@ -1401,24 +1515,38 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         break;
     case SOCKOP_setsockopt:
         {
-            int sockfd = tgetl(vptr);
-            int level = tgetl(vptr + n);
-            int optname = tgetl(vptr + 2 * n);
-            abi_ulong optval = tgetl(vptr + 3 * n);
-            socklen_t optlen = tgetl(vptr + 4 * n);
+            int sockfd;
+            int level;
+            int optname;
+            abi_ulong optval;
+            socklen_t optlen;
+
+            if (get_user_s32(sockfd, vptr)
+                || get_user_s32(level, vptr + n)
+                || get_user_s32(optname, vptr + 2 * n)
+                || get_user_ual(optval, vptr + 3 * n)
+                || get_user_u32(optlen, vptr + 4 * n))
+                return -TARGET_EFAULT;
 
             ret = do_setsockopt(sockfd, level, optname, optval, optlen);
         }
         break;
     case SOCKOP_getsockopt:
         {
-            int sockfd = tgetl(vptr);
-            int level = tgetl(vptr + n);
-            int optname = tgetl(vptr + 2 * n);
-            abi_ulong optval = tgetl(vptr + 3 * n);
-            abi_ulong poptlen = tgetl(vptr + 4 * n);
+            int sockfd;
+            int level;
+            int optname;
+            abi_ulong optval;
+            socklen_t optlen;
 
-            ret = do_getsockopt(sockfd, level, optname, optval, poptlen);
+            if (get_user_s32(sockfd, vptr)
+                || get_user_s32(level, vptr + n)
+                || get_user_s32(optname, vptr + 2 * n)
+                || get_user_ual(optval, vptr + 3 * n)
+                || get_user_u32(optlen, vptr + 4 * n))
+                return -TARGET_EFAULT;
+
+            ret = do_getsockopt(sockfd, level, optname, optval, optlen);
         }
         break;
     default:
@@ -1883,7 +2011,7 @@ static abi_long do_ipc(unsigned int call, int first,
                     break;
                 }
             }
-            if (put_user(raddr, third, abi_ulong))
+            if (put_user_ual(raddr, third))
                 return -TARGET_EFAULT;
             ret = 0;
         }
@@ -2957,10 +3085,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg2, 0);
         break;
     case TARGET_NR_open:
-        if (!(p = lock_user_string(arg1))) {
-            return -TARGET_EFAULT;
-            goto fail;
-        }
+        if (!(p = lock_user_string(arg1)))
+            goto efault;
         ret = get_errno(open(path(p),
                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
                              arg3));
@@ -2991,8 +3117,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             int status;
             ret = get_errno(waitpid(arg1, &status, arg3));
-            if (!is_error(ret) && arg2)
-                tput32(arg2, status);
+            if (!is_error(ret) && arg2
+                && put_user_s32(status, arg2))
+                goto efault;
         }
         break;
 #endif
@@ -3059,56 +3186,71 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             argc = 0;
             guest_argp = arg2;
-            for (gp = guest_argp; tgetl(gp); gp++)
+            for (gp = guest_argp; ; gp++) {
+                if (get_user_ual(guest_argp, gp))
+                    goto efault;
+                if (!guest_argp)
+                    break;
                 argc++;
+            }
             envc = 0;
             guest_envp = arg3;
-            for (gp = guest_envp; tgetl(gp); gp++)
+            for (gp = guest_envp; ; gp++) {
+                if (get_user_ual(guest_envp, gp))
+                    goto efault;
+                if (!guest_envp)
+                    break;
                 envc++;
+            }
 
             argp = alloca((argc + 1) * sizeof(void *));
             envp = alloca((envc + 1) * sizeof(void *));
 
             for (gp = guest_argp, q = argp; ;
                   gp += sizeof(abi_ulong), q++) {
-                addr = tgetl(gp);
+                if (get_user_ual(addr, gp))
+                    goto execve_efault;
                 if (!addr)
                     break;
-                if (!(*q = lock_user_string(addr))) {
-                    ret = -TARGET_EFAULT;
-                    goto execve_fail;
-                }
+                if (!(*q = lock_user_string(addr)))
+                    goto execve_efault;
             }
             *q = NULL;
 
             for (gp = guest_envp, q = envp; ;
                   gp += sizeof(abi_ulong), q++) {
-                addr = tgetl(gp);
+                if (get_user_ual(addr, gp))
+                    goto execve_efault;
                 if (!addr)
                     break;
-                if (!(*q = lock_user_string(addr))) {
-                    ret = -TARGET_EFAULT;
-                    goto execve_fail;
-                }
+                if (!(*q = lock_user_string(addr)))
+                    goto execve_efault;
             }
             *q = NULL;
 
-            if (!(p = lock_user_string(arg1))) {
-                ret = -TARGET_EFAULT;
-                goto execve_fail;
-            }
+            if (!(p = lock_user_string(arg1)))
+                goto execve_efault;
             ret = get_errno(execve(p, argp, envp));
             unlock_user(p, arg1, 0);
 
-        execve_fail:
+            goto execve_end;
+
+        execve_efault:
+            ret = -TARGET_EFAULT;
+
+        execve_end:
             for (gp = guest_argp, q = argp; *q;
                   gp += sizeof(abi_ulong), q++) {
-                addr = tgetl(gp);
+                if (get_user_ual(addr, gp)
+                    || !addr)
+                    break;
                 unlock_user(*q, addr, 0);
             }
             for (gp = guest_envp, q = envp; *q;
                   gp += sizeof(abi_ulong), q++) {
-                addr = tgetl(gp);
+                if (get_user_ual(addr, gp)
+                    || !addr)
+                    break;
                 unlock_user(*q, addr, 0);
             }
         }
@@ -3124,8 +3266,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             time_t host_time;
             ret = get_errno(time(&host_time));
-            if (!is_error(ret) && arg1)
-                tputl(arg1, host_time);
+            if (!is_error(ret)
+                && arg1
+                && put_user_sal(host_time, arg1))
+                goto efault;
         }
         break;
 #endif
@@ -3199,7 +3343,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_stime:
         {
             time_t host_time;
-            host_time = tgetl(arg1);
+            if (get_user_sal(host_time, arg1))
+                goto efault;
             ret = get_errno(stime(&host_time));
         }
         break;
@@ -3358,8 +3503,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 		env->gpr[3][env->current_tc] = host_pipe[1];
 		ret = host_pipe[0];
 #else
-                tput32(arg1, host_pipe[0]);
-                tput32(arg1 + 4, host_pipe[1]);
+                if (put_user_s32(host_pipe[0], arg1)
+                    || put_user_s32(host_pipe[1], arg1 + sizeof(host_pipe[0])))
+                    goto efault;
 #endif
             }
         }
@@ -4267,11 +4413,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 rusage_ptr = NULL;
             ret = get_errno(wait4(arg1, &status, arg3, rusage_ptr));
             if (!is_error(ret)) {
-                if (status_ptr)
-                    tputl(status_ptr, status);
-                if (target_rusage) {
-                    host_to_target_rusage(target_rusage, &rusage);
+                if (status_ptr) {
+                    if (put_user_s32(status, status_ptr))
+                        goto efault;
                 }
+                if (target_rusage)
+                    host_to_target_rusage(target_rusage, &rusage);
             }
         }
         break;
@@ -4404,11 +4551,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
 #if defined (__x86_64__)
             ret = get_errno(lseek(arg1, ((uint64_t )arg2 << 32) | arg3, arg5));
-            tput64(arg4, ret);
+            if (put_user_s64(ret, arg4))
+                goto efault;
 #else
             int64_t res;
             ret = get_errno(_llseek(arg1, arg2, arg3, &res, arg5));
-            tput64(arg4, res);
+            if (put_user_s64(res, arg4))
+                goto efault;
 #endif
         }
         break;
@@ -4674,8 +4823,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 {
                     int deathsig;
                     ret = get_errno(prctl(arg1, &deathsig, arg3, arg4, arg5));
-                    if (!is_error(ret) && arg2)
-                        tput32(arg2, deathsig);
+                    if (!is_error(ret) && arg2
+                        && put_user_ual(deathsig, arg2))
+                        goto efault;
                 }
                 break;
             default:
@@ -4932,9 +5082,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                tput16(arg1, tswap16(high2lowuid(ruid)));
-                tput16(arg2, tswap16(high2lowuid(euid)));
-                tput16(arg3, tswap16(high2lowuid(suid)));
+                if (put_user_u16(high2lowuid(ruid), arg1)
+                    || put_user_u16(high2lowuid(euid), arg2)
+                    || put_user_u16(high2lowuid(suid), arg3))
+                    goto efault;
             }
         }
         break;
@@ -4952,9 +5103,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                tput16(arg1, tswap16(high2lowgid(rgid)));
-                tput16(arg2, tswap16(high2lowgid(egid)));
-                tput16(arg3, tswap16(high2lowgid(sgid)));
+                if (put_user_u16(high2lowgid(rgid), arg1)
+                    || put_user_u16(high2lowgid(egid), arg2)
+                    || put_user_u16(high2lowgid(sgid), arg3))
+                    goto efault;
             }
         }
         break;
@@ -5077,9 +5229,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                tput32(arg1, tswap32(ruid));
-                tput32(arg2, tswap32(euid));
-                tput32(arg3, tswap32(suid));
+                if (put_user_u32(ruid, arg1)
+                    || put_user_u32(euid, arg2)
+                    || put_user_u32(suid, arg3))
+                    goto efault;
             }
         }
         break;
@@ -5095,9 +5248,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                tput32(arg1, tswap32(rgid));
-                tput32(arg2, tswap32(egid));
-                tput32(arg3, tswap32(sgid));
+                if (put_user_u32(rgid, arg1)
+                    || put_user_u32(egid, arg2)
+                    || put_user_u32(sgid, arg3))
+                    goto efault;
             }
         }
         break;
