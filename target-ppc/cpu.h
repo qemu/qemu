@@ -305,10 +305,8 @@ struct ppc_spr_t {
 #if !defined(CONFIG_USER_ONLY)
     void (*oea_read)(void *opaque, int spr_num);
     void (*oea_write)(void *opaque, int spr_num);
-#if defined(TARGET_PPC64H)
     void (*hea_read)(void *opaque, int spr_num);
     void (*hea_write)(void *opaque, int spr_num);
-#endif
 #endif
     const unsigned char *name;
 };
@@ -510,11 +508,7 @@ enum {
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
-#if defined(TARGET_PPC64H)
 #define NB_MMU_MODES 3
-#else
-#define NB_MMU_MODES 2
-#endif
 
 struct CPUPPCState {
     /* First are the most commonly used resources
@@ -783,9 +777,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _user
 #define MMU_MODE1_SUFFIX _kernel
-#if defined(TARGET_PPC64H)
 #define MMU_MODE2_SUFFIX _hypv
-#endif
 #define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUState *env)
 {

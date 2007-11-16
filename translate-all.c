@@ -264,7 +264,8 @@ int cpu_restore_state(TranslationBlock *tb,
 #else
 #define CASE3(op)\
         case INDEX_op_ ## op ## _user:\
-        case INDEX_op_ ## op ## _kernel
+        case INDEX_op_ ## op ## _kernel:\
+        case INDEX_op_ ## op ## _hypv
 #endif
 
         CASE3(stfd):

@@ -146,8 +146,6 @@ void do_store_msr (void);
 void do_rfi (void);
 #if defined(TARGET_PPC64)
 void do_rfid (void);
-#endif
-#if defined(TARGET_PPC64H)
 void do_hrfid (void);
 #endif
 void do_load_6xx_tlb (int is_code);

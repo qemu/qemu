@@ -33,11 +33,9 @@
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_helper_mem.h"
-#if defined(TARGET_PPC64H)
 #define MEMSUFFIX _hypv
 #include "op_helper.h"
 #include "op_helper_mem.h"
-#endif
 #endif
 
 //#define DEBUG_OP
@@ -1475,8 +1473,7 @@ void do_rfid (void)
     __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
              ~((target_ulong)0xFFFF0000), 0);
 }
-#endif
-#if defined(TARGET_PPC64H)
+
 void do_hrfid (void)
 {
     __do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
