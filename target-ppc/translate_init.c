@@ -2648,11 +2648,11 @@ static int check_pow_hid0 (CPUPPCState *env)
 /* PowerPC implementations definitions                                       */
 
 /* PowerPC 40x instruction set                                               */
-#define POWERPC_INSNS_EMB    (PPC_INSNS_BASE | PPC_EMB_COMMON |               \
+#define POWERPC_INSNS_EMB    (PPC_INSNS_BASE | PPC_WRTEE |                    \
                               PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ)
 
 /* PowerPC 401                                                               */
-#define POWERPC_INSNS_401    (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_401    (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
 #define POWERPC_MSRM_401     (0x00000000000FD201ULL)
@@ -2676,7 +2676,7 @@ static void init_proc_401 (CPUPPCState *env)
 }
 
 /* PowerPC 401x2                                                             */
-#define POWERPC_INSNS_401x2  (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_401x2  (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_CACHE_DCBA | PPC_MFTB |                     \
@@ -2709,7 +2709,7 @@ static void init_proc_401x2 (CPUPPCState *env)
 }
 
 /* PowerPC 401x3                                                             */
-#define POWERPC_INSNS_401x3  (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_401x3  (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_CACHE_DCBA | PPC_MFTB |                     \
@@ -2738,7 +2738,7 @@ static void init_proc_401x3 (CPUPPCState *env)
 }
 
 /* IOP480                                                                    */
-#define POWERPC_INSNS_IOP480 (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_IOP480 (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_CACHE_DCBA |                                \
@@ -2771,7 +2771,7 @@ static void init_proc_IOP480 (CPUPPCState *env)
 }
 
 /* PowerPC 403                                                               */
-#define POWERPC_INSNS_403    (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_403    (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
 #define POWERPC_MSRM_403     (0x000000000007D00DULL)
@@ -2800,7 +2800,7 @@ static void init_proc_403 (CPUPPCState *env)
 }
 
 /* PowerPC 403 GCX                                                           */
-#define POWERPC_INSNS_403GCX (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_403GCX (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
@@ -2844,7 +2844,8 @@ static void init_proc_403GCX (CPUPPCState *env)
 }
 
 /* PowerPC 405                                                               */
-#define POWERPC_INSNS_405    (POWERPC_INSNS_EMB | PPC_MFTB |                  \
+#define POWERPC_INSNS_405    (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
+                              PPC_MFTB |                                      \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_CACHE_DCBA | \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT |  \
@@ -2889,7 +2890,7 @@ static void init_proc_405 (CPUPPCState *env)
 }
 
 /* PowerPC 440 EP                                                            */
-#define POWERPC_INSNS_440EP  (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_440EP  (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC | PPC_RFMCI)
@@ -2939,10 +2940,11 @@ static void init_proc_440EP (CPUPPCState *env)
 }
 
 /* PowerPC 440 GP                                                            */
-#define POWERPC_INSNS_440GP  (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_440GP  (POWERPC_INSNS_EMB | PPC_STRING |                \
+                              PPC_DCR | PPC_DCRX |                            \
                               PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
-                              PPC_BOOKE | PPC_BOOKE_EXT | PPC_4xx_COMMON |    \
-                              PPC_405_MAC | PPC_440_SPEC)
+                              PPC_BOOKE | PPC_MFAPIDI | PPC_TLBIVA |          \
+                              PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
 #define POWERPC_MSRM_440GP   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440GP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440GP   (POWERPC_EXCP_BOOKE)
@@ -2971,7 +2973,7 @@ static void init_proc_440GP (CPUPPCState *env)
 }
 
 /* PowerPC 440x4                                                             */
-#define POWERPC_INSNS_440x4  (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_440x4  (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
@@ -3004,7 +3006,7 @@ static void init_proc_440x4 (CPUPPCState *env)
 }
 
 /* PowerPC 440x5                                                             */
-#define POWERPC_INSNS_440x5  (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_440x5  (POWERPC_INSNS_EMB | PPC_STRING | PPC_DCR |      \
                               PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC | PPC_RFMCI)
@@ -3054,10 +3056,11 @@ static void init_proc_440x5 (CPUPPCState *env)
 }
 
 /* PowerPC 460 (guessed)                                                     */
-#define POWERPC_INSNS_460    (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_460    (POWERPC_INSNS_EMB | PPC_STRING |                \
+                              PPC_DCR | PPC_DCRX  | PPC_DCRUX |               \
                               PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
-                              PPC_BOOKE | PPC_BOOKE_EXT | PPC_4xx_COMMON |    \
-                              PPC_405_MAC | PPC_440_SPEC | PPC_DCRUX)
+                              PPC_BOOKE | PPC_MFAPIDI | PPC_TLBIVA |          \
+                              PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
 #define POWERPC_MSRM_460     (0x000000000006FF30ULL)
 #define POWERPC_MMU_460      (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460     (POWERPC_EXCP_BOOKE)
@@ -3110,13 +3113,14 @@ static void init_proc_460 (CPUPPCState *env)
 }
 
 /* PowerPC 460F (guessed)                                                    */
-#define POWERPC_INSNS_460F   (POWERPC_INSNS_EMB |                             \
+#define POWERPC_INSNS_460F   (POWERPC_INSNS_EMB | PPC_STRING |                \
+                              PPC_DCR | PPC_DCRX | PPC_DCRUX |                \
                               PPC_CACHE_DCBA | PPC_MEM_TLBSYNC |              \
                               PPC_FLOAT | PPC_FLOAT_FSQRT | PPC_FLOAT_FRES |  \
                               PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |            \
                               PPC_FLOAT_STFIWX |                              \
-                              PPC_BOOKE | PPC_BOOKE_EXT | PPC_4xx_COMMON |    \
-                              PPC_405_MAC | PPC_440_SPEC | PPC_DCRUX)
+                              PPC_BOOKE | PPC_MFAPIDI | PPC_TLBIVA |          \
+                              PPC_4xx_COMMON | PPC_405_MAC | PPC_440_SPEC)
 #define POWERPC_MSRM_460     (0x000000000006FF30ULL)
 #define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
@@ -3231,7 +3235,7 @@ static void init_proc_e500 (CPUPPCState *env)
 
 /* Non-embedded PowerPC                                                      */
 /* Base instructions set for all 6xx/7xx/74xx/970 PowerPC                    */
-#define POWERPC_INSNS_6xx    (PPC_INSNS_BASE | PPC_FLOAT |                    \
+#define POWERPC_INSNS_6xx    (PPC_INSNS_BASE | PPC_STRING | PPC_FLOAT |       \
                               PPC_CACHE | PPC_CACHE_ICBI |                    \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE)
 /* Instructions common to all 6xx/7xx/74xx/970 PowerPC except 601 & 602      */

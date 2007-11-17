@@ -462,8 +462,12 @@ enum {
     /* Fixed-point unit extensions                                           */
     /*   PowerPC 602 specific                                                */
     PPC_602_SPEC       = 0x0000000000000400ULL,
-    /*   PowerPC 2.03 specification extensions                               */
-    PPC_203            = 0x0000000000000800ULL,
+    /*   isel instruction                                                    */
+    PPC_ISEL           = 0x0000000000000800ULL,
+    /*   popcntb instruction                                                 */
+    PPC_POPCNTB        = 0x0000000000001000ULL,
+    /*   string load / store                                                 */
+    PPC_STRING         = 0x0000000000002000ULL,
 
     /* Floating-point unit extensions                                        */
     /*   Optional floating point instructions                                */
@@ -480,12 +484,10 @@ enum {
     /* Vector/SIMD extensions                                                */
     /*   Altivec support                                                     */
     PPC_ALTIVEC        = 0x0000000001000000ULL,
-    /*   e500 vector instructions                                            */
-    PPC_E500_VECTOR    = 0x0000000002000000ULL,
     /*   PowerPC 2.03 SPE extension                                          */
-    PPC_SPE            = 0x0000000004000000ULL,
+    PPC_SPE            = 0x0000000002000000ULL,
     /*   PowerPC 2.03 SPE floating-point extension                           */
-    PPC_SPEFPU         = 0x0000000008000000ULL,
+    PPC_SPEFPU         = 0x0000000004000000ULL,
 
     /* Optional memory control instructions                                  */
     PPC_MEM_TLBIA      = 0x0000000010000000ULL,
@@ -497,52 +499,64 @@ enum {
     PPC_MEM_EIEIO      = 0x0000000100000000ULL,
 
     /* Cache control instructions                                            */
-    PPC_CACHE          = 0x0000001000000000ULL,
+    PPC_CACHE          = 0x00000002000000000ULL,
     /*   icbi instruction                                                    */
-    PPC_CACHE_ICBI     = 0x0000002000000000ULL,
+    PPC_CACHE_ICBI     = 0x0000000400000000ULL,
     /*   dcbz instruction with fixed cache line size                         */
-    PPC_CACHE_DCBZ     = 0x0000004000000000ULL,
+    PPC_CACHE_DCBZ     = 0x0000000800000000ULL,
     /*   dcbz instruction with tunable cache line size                       */
-    PPC_CACHE_DCBZT    = 0x0000008000000000ULL,
+    PPC_CACHE_DCBZT    = 0x0000001000000000ULL,
     /*   dcba instruction                                                    */
-    PPC_CACHE_DCBA     = 0x0000010000000000ULL,
+    PPC_CACHE_DCBA     = 0x0000002000000000ULL,
+    /*   Freescale cache locking instructions                                */
+    PPC_CACHE_LOCK     = 0x0000004000000000ULL,
 
     /* MMU related extensions                                                */
     /*   external control instructions                                       */
-    PPC_EXTERN         = 0x0000100000000000ULL,
+    PPC_EXTERN         = 0x0000010000000000ULL,
     /*   segment register access instructions                                */
-    PPC_SEGMENT        = 0x0000200000000000ULL,
+    PPC_SEGMENT        = 0x0000020000000000ULL,
     /*   PowerPC 6xx TLB management instructions                             */
-    PPC_6xx_TLB        = 0x0000400000000000ULL,
+    PPC_6xx_TLB        = 0x0000040000000000ULL,
     /* PowerPC 74xx TLB management instructions                              */
-    PPC_74xx_TLB       = 0x0000800000000000ULL,
+    PPC_74xx_TLB       = 0x0000080000000000ULL,
     /*   PowerPC 40x TLB management instructions                             */
-    PPC_40x_TLB        = 0x0001000000000000ULL,
+    PPC_40x_TLB        = 0x0000100000000000ULL,
     /*   segment register access instructions for PowerPC 64 "bridge"        */
-    PPC_SEGMENT_64B    = 0x0002000000000000ULL,
+    PPC_SEGMENT_64B    = 0x0000200000000000ULL,
     /*   SLB management                                                      */
-    PPC_SLBI           = 0x0004000000000000ULL,
+    PPC_SLBI           = 0x0000400000000000ULL,
 
     /* Embedded PowerPC dedicated instructions                               */
-    PPC_EMB_COMMON     = 0x0010000000000000ULL,
+    PPC_WRTEE          = 0x0001000000000000ULL,
     /* PowerPC 40x exception model                                           */
-    PPC_40x_EXCP       = 0x0020000000000000ULL,
+    PPC_40x_EXCP       = 0x0002000000000000ULL,
     /* PowerPC 405 Mac instructions                                          */
-    PPC_405_MAC        = 0x0040000000000000ULL,
+    PPC_405_MAC        = 0x0004000000000000ULL,
     /* PowerPC 440 specific instructions                                     */
-    PPC_440_SPEC       = 0x0080000000000000ULL,
+    PPC_440_SPEC       = 0x0008000000000000ULL,
     /* BookE (embedded) PowerPC specification                                */
-    PPC_BOOKE          = 0x0100000000000000ULL,
-    /* More BookE (embedded) instructions...                                 */
-    PPC_BOOKE_EXT      = 0x0200000000000000ULL,
+    PPC_BOOKE          = 0x0010000000000000ULL,
+    /* mfapidi instruction                                                   */
+    PPC_MFAPIDI        = 0x0020000000000000ULL,
+    /* tlbiva instruction                                                    */
+    PPC_TLBIVA         = 0x0040000000000000ULL,
+    /* tlbivax instruction                                                   */
+    PPC_TLBIVAX        = 0x0080000000000000ULL,
     /* PowerPC 4xx dedicated instructions                                    */
-    PPC_4xx_COMMON     = 0x0400000000000000ULL,
+    PPC_4xx_COMMON     = 0x0100000000000000ULL,
     /* PowerPC 40x ibct instructions                                         */
-    PPC_40x_ICBT       = 0x0800000000000000ULL,
+    PPC_40x_ICBT       = 0x0200000000000000ULL,
     /* rfmci is not implemented in all BookE PowerPC                         */
-    PPC_RFMCI          = 0x1000000000000000ULL,
+    PPC_RFMCI          = 0x0400000000000000ULL,
+    /* rfdi instruction                                                      */
+    PPC_RFDI           = 0x0800000000000000ULL,
+    /* DCR accesses                                                          */
+    PPC_DCR            = 0x1000000000000000ULL,
+    /* DCR extended accesse                                                  */
+    PPC_DCRX           = 0x2000000000000000ULL,
     /* user-mode DCR access, implemented in PowerPC 460                      */
-    PPC_DCRUX          = 0x2000000000000000ULL,
+    PPC_DCRUX          = 0x4000000000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1119,7 +1133,7 @@ GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER)
 }
 
 /* isel (PowerPC 2.03 specification) */
-GEN_HANDLER(isel, 0x1F, 0x0F, 0x00, 0x00000001, PPC_203)
+GEN_HANDLER(isel, 0x1F, 0x0F, 0x00, 0x00000001, PPC_ISEL)
 {
     uint32_t bi = rC(ctx->opcode);
     uint32_t mask;
@@ -1342,7 +1356,7 @@ GEN_HANDLER(xoris, 0x1B, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 }
 
 /* popcntb : PowerPC 2.03 specification */
-GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_203)
+GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_POPCNTB)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
 #if defined(TARGET_PPC64)
@@ -2457,7 +2471,7 @@ static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
  * In an other hand, IBM says this is valid, but rA won't be loaded.
  * For now, I'll follow the spec...
  */
-GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_INTEGER)
+GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING)
 {
     int nb = NB(ctx->opcode);
     int start = rD(ctx->opcode);
@@ -2482,7 +2496,7 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_INTEGER)
 }
 
 /* lswx */
-GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_INTEGER)
+GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING)
 {
     int ra = rA(ctx->opcode);
     int rb = rB(ctx->opcode);
@@ -2498,7 +2512,7 @@ GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_INTEGER)
 }
 
 /* stswi */
-GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_INTEGER)
+GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING)
 {
     int nb = NB(ctx->opcode);
 
@@ -2512,7 +2526,7 @@ GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_INTEGER)
 }
 
 /* stswx */
-GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_INTEGER)
+GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
@@ -4520,14 +4534,14 @@ GEN_HANDLER(stfqx, 0x1F, 0x17, 0x1C, 0x00000001, PPC_POWER2)
 
 /* BookE specific instructions */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_BOOKE_EXT)
+GEN_HANDLER(mfapidi, 0x1F, 0x13, 0x08, 0x0000F801, PPC_MFAPIDI)
 {
     /* XXX: TODO */
     GEN_EXCP_INVAL(ctx);
 }
 
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_BOOKE_EXT)
+GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_TLBIVA)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -4723,7 +4737,7 @@ GEN_MAC_HANDLER(mullhw, 0x08, 0x0D);
 GEN_MAC_HANDLER(mullhwu, 0x08, 0x0C);
 
 /* mfdcr */
-GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_EMB_COMMON)
+GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_DCR)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -4741,7 +4755,7 @@ GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_EMB_COMMON)
 }
 
 /* mtdcr */
-GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_EMB_COMMON)
+GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_DCR)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -4760,7 +4774,7 @@ GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_EMB_COMMON)
 
 /* mfdcrx */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_BOOKE_EXT)
+GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_DCRX)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -4778,7 +4792,7 @@ GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_BOOKE_EXT)
 
 /* mtdcrx */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_BOOKE_EXT)
+GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_DCRX)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
@@ -4912,7 +4926,7 @@ GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE)
 
 /* BookE specific */
 /* XXX: not implemented on 440 ? */
-GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_BOOKE_EXT)
+GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_RFDI)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5088,7 +5102,7 @@ GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
 }
 
 /* wrtee */
-GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_EMB_COMMON)
+GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5107,7 +5121,7 @@ GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_EMB_COMMON)
 }
 
 /* wrteei */
-GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_EMB_COMMON)
+GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
@@ -5943,7 +5957,7 @@ GEN_SPEOP_COMP(efststlt);
 GEN_SPEOP_COMP(efststeq);
 
 /* Opcodes definitions */
-GEN_SPE(efsadd,         efssub,        0x00, 0x0A, 0x00000000, PPC_SPEFPU); //
+GEN_SPE(efsadd,         efssub,        0x00, 0x0B, 0x00000000, PPC_SPEFPU); //
 GEN_SPE(efsabs,         efsnabs,       0x02, 0x0B, 0x0000F800, PPC_SPEFPU); //
 GEN_SPE(efsneg,         speundef,      0x03, 0x0B, 0x0000F800, PPC_SPEFPU); //
 GEN_SPE(efsmul,         efsdiv,        0x04, 0x0B, 0x00000000, PPC_SPEFPU); //
