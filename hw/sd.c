@@ -371,8 +371,8 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
 
     sd->bdrv = bdrv;
 
-    if (s->wp_groups)
-        qemu_free(s->wp_groups);
+    if (sd->wp_groups)
+        qemu_free(sd->wp_groups);
     sd->wp_switch = bdrv_is_read_only(bdrv);
     sd->wp_groups = (int *) qemu_mallocz(sizeof(int) * sect);
     memset(sd->wp_groups, 0, sizeof(int) * sect);
@@ -390,7 +390,7 @@ static void sd_cardchange(void *opaque)
     qemu_set_irq(sd->inserted_cb, bdrv_is_inserted(sd->bdrv));
     if (bdrv_is_inserted(sd->bdrv)) {
         sd_reset(sd, sd->bdrv);
-        qemu_set_irq(s->readonly_cb, sd->wp_switch);
+        qemu_set_irq(sd->readonly_cb, sd->wp_switch);
     }
 }
 
