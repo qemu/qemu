@@ -2013,9 +2013,10 @@ static struct pxa2xx_fir_s *pxa2xx_fir_init(target_phys_addr_t base,
     return s;
 }
 
-void pxa2xx_reset(int line, int level, void *opaque)
+static void pxa2xx_reset(void *opaque, int line, int level)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
+
     if (level && (s->pm_regs[PCFR >> 2] & 0x10)) {	/* GPR_EN */
         cpu_reset(s->env);
         /* TODO: reset peripherals */
@@ -2045,6 +2046,8 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     }
     register_savevm("cpu", 0, ARM_CPU_SAVE_VERSION, cpu_save, cpu_load,
                     s->env);
+
+    s->reset = qemu_allocate_irqs(pxa2xx_reset, s, 1)[0];
 
     /* SDRAM & Internal Memory Storage */
     cpu_register_physical_memory(PXA2XX_SDRAM_BASE,
@@ -2139,7 +2142,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
 
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
-    pxa2xx_gpio_handler_set(s->gpio, 1, pxa2xx_reset, s);
+    pxa2xx_gpio_out_set(s->gpio, 1, s->reset);
     return s;
 }
 
@@ -2160,6 +2163,8 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     }
     register_savevm("cpu", 0, ARM_CPU_SAVE_VERSION, cpu_save, cpu_load,
                     s->env);
+
+    s->reset = qemu_allocate_irqs(pxa2xx_reset, s, 1)[0];
 
     /* SDRAM & Internal Memory Storage */
     cpu_register_physical_memory(PXA2XX_SDRAM_BASE, sdram_size,
@@ -2253,6 +2258,6 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
 
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
-    pxa2xx_gpio_handler_set(s->gpio, 1, pxa2xx_reset, s);
+    pxa2xx_gpio_out_set(s->gpio, 1, s->reset);
     return s;
 }

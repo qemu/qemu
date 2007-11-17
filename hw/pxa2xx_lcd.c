@@ -62,8 +62,7 @@ struct pxa2xx_lcdc_s {
         uint32_t command;
     } dma_ch[7];
 
-    void (*vsync_cb)(void *opaque);
-    void *opaque;
+    qemu_irq vsync_cb;
     int orientation;
 };
 
@@ -865,8 +864,7 @@ static void pxa2xx_update_display(void *opaque)
         dpy_update(s->ds, 0, miny, s->xres, maxy);
     pxa2xx_lcdc_int_update(s);
 
-    if (s->vsync_cb)
-        s->vsync_cb(s->opaque);
+    qemu_irq_raise(s->vsync_cb);
 }
 
 static void pxa2xx_invalidate_display(void *opaque)
@@ -1042,8 +1040,7 @@ struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
     return s;
 }
 
-void pxa2xx_lcd_vsync_cb(struct pxa2xx_lcdc_s *s,
-                void (*cb)(void *opaque), void *opaque) {
-    s->vsync_cb = cb;
-    s->opaque = opaque;
+void pxa2xx_lcd_vsync_notifier(struct pxa2xx_lcdc_s *s, qemu_irq handler)
+{
+    s->vsync_cb = handler;
 }

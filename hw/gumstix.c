@@ -10,13 +10,6 @@
 
 #include "vl.h"
 
-static void connex_smc_irq(void *opaque, int line, int level)
-{
-    /* Interrupt line of NIC is connected to GPIO line 36 */
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    pxa2xx_gpio_set(cpu->gpio, 36, level);
-}
-
 /* Board init. */
 enum gumstix_model_e { connex };
 
@@ -52,8 +45,9 @@ static void gumstix_common_init(int ram_size, int vga_ram_size,
 
     cpu->env->regs[15] = 0x00000000;
 
-    qemu_irq *irq = qemu_allocate_irqs(connex_smc_irq, cpu, 1);
-    smc91c111_init(&nd_table[0], 0x04000300, *irq);
+    /* Interrupt line of NIC is connected to GPIO line 36 */
+    smc91c111_init(&nd_table[0], 0x04000300,
+                    pxa2xx_gpio_in_get(cpu->gpio)[36]);
 }
 
 static void connex_init(int ram_size, int vga_ram_size,

@@ -72,11 +72,10 @@ void pxa27x_timer_init(target_phys_addr_t base, qemu_irq *irqs, qemu_irq irq4);
 struct pxa2xx_gpio_info_s;
 struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
                 CPUState *env, qemu_irq *pic, int lines);
-void pxa2xx_gpio_set(struct pxa2xx_gpio_info_s *s, int line, int level);
-void pxa2xx_gpio_handler_set(struct pxa2xx_gpio_info_s *s, int line,
-                gpio_handler_t handler, void *opaque);
-void pxa2xx_gpio_read_notifier(struct pxa2xx_gpio_info_s *s,
-                void (*handler)(void *opaque), void *opaque);
+qemu_irq *pxa2xx_gpio_in_get(struct pxa2xx_gpio_info_s *s);
+void pxa2xx_gpio_out_set(struct pxa2xx_gpio_info_s *s,
+                int line, qemu_irq handler);
+void pxa2xx_gpio_read_notifier(struct pxa2xx_gpio_info_s *s, qemu_irq handler);
 
 /* pxa2xx_dma.c */
 struct pxa2xx_dma_state_s;
@@ -90,8 +89,7 @@ void pxa2xx_dma_request(struct pxa2xx_dma_state_s *s, int req_num, int on);
 struct pxa2xx_lcdc_s;
 struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base,
                 qemu_irq irq, DisplayState *ds);
-void pxa2xx_lcd_vsync_cb(struct pxa2xx_lcdc_s *s,
-                void (*cb)(void *opaque), void *opaque);
+void pxa2xx_lcd_vsync_notifier(struct pxa2xx_lcdc_s *s, qemu_irq handler);
 void pxa2xx_lcdc_oritentation(void *opaque, int angle);
 
 /* pxa2xx_mmci.c */
@@ -126,6 +124,7 @@ struct pxa2xx_fir_s;
 struct pxa2xx_state_s {
     CPUState *env;
     qemu_irq *pic;
+    qemu_irq reset;
     struct pxa2xx_dma_state_s *dma;
     struct pxa2xx_gpio_info_s *gpio;
     struct pxa2xx_lcdc_s *lcd;
@@ -208,7 +207,5 @@ struct pxa2xx_i2s_s {
 struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, DisplayState *ds,
                 const char *revision);
 struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size, DisplayState *ds);
-
-void pxa2xx_reset(int line, int level, void *opaque);
 
 #endif	/* PXA_H */
