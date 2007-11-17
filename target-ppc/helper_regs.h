@@ -60,7 +60,7 @@ static always_inline void hreg_swap_gpr_tgpr (CPUPPCState *env)
 
 static always_inline void hreg_compute_mem_idx (CPUPPCState *env)
 {
-#if defined (TARGET_PPC64H)
+#if defined (TARGET_PPC64)
     /* Precompute MMU index */
     if (msr_pr == 0 && msr_hv != 0)
         env->mmu_idx = 2;
@@ -78,10 +78,7 @@ static always_inline void hreg_compute_hflags (CPUPPCState *env)
         (1 << MSR_PR) | (1 << MSR_FP) | (1 << MSR_SE) | (1 << MSR_BE) |
         (1 << MSR_LE);
 #if defined (TARGET_PPC64)
-    hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF);
-#if defined (TARGET_PPC64H)
-    hflags_mask |= 1ULL << MSR_HV;
-#endif
+    hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | (1ULL << MSR_HV);
 #endif
     hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;

@@ -180,20 +180,14 @@ enum {
     /* Vectors 38 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
-#if defined(TARGET_PPC64) /* PowerPC 64 */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
     POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
-#endif /* defined(TARGET_PPC64) */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
     POWERPC_EXCP_HDECR    = 67, /* Hypervisor decrementer exception          */
-#endif /* defined(TARGET_PPC64H) */
     POWERPC_EXCP_TRACE    = 68, /* Trace exception                           */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
     POWERPC_EXCP_HDSI     = 69, /* Hypervisor data storage exception         */
     POWERPC_EXCP_HISI     = 70, /* Hypervisor instruction storage exception  */
     POWERPC_EXCP_HDSEG    = 71, /* Hypervisor data segment exception         */
     POWERPC_EXCP_HISEG    = 72, /* Hypervisor instruction segment exception  */
-#endif /* defined(TARGET_PPC64H) */
     POWERPC_EXCP_VPU      = 73, /* Vector unavailable exception              */
     /* 40x specific exceptions                                               */
     POWERPC_EXCP_PIT      = 74, /* Programmable interval timer interrupt     */
@@ -736,12 +730,10 @@ void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
-#if defined(TARGET_PPC64H)
 uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
 void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value);
 uint64_t cpu_ppc_load_purr (CPUPPCState *env);
 void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value);
-#endif
 uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
 #if !defined(CONFIG_USER_ONLY)

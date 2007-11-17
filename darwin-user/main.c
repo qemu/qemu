@@ -386,7 +386,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Reset interrupt while in user mode. "
                       "Aborting\n");
             break;
-#if defined(TARGET_PPC64) /* PowerPC 64 */
         case POWERPC_EXCP_DSEG:     /* Data segment exception                */
             cpu_abort(env, "Data segment exception while in user mode. "
                       "Aborting\n");
@@ -395,19 +394,15 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64) */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDECR:    /* Hypervisor decrementer exception      */
             cpu_abort(env, "Hypervisor decrementer interrupt "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) */
         case POWERPC_EXCP_TRACE:    /* Trace exception                       */
             /* Nothing to do:
              * we use this exception to emulate step-by-step execution mode.
              */
             break;
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDSI:     /* Hypervisor data storage exception     */
             cpu_abort(env, "Hypervisor data storage exception "
                       "while in user mode. Aborting\n");
@@ -424,7 +419,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Hypervisor instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) */
         case POWERPC_EXCP_VPU:      /* Vector unavailable exception          */
             EXCP_DUMP(env, "No Altivec instructions allowed\n");
             info.si_signo = SIGILL;
