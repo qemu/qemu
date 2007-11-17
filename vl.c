@@ -8256,20 +8256,20 @@ int main(int argc, char **argv)
 #endif
     linux_boot = (kernel_filename != NULL);
     net_boot = (boot_devices_bitmap >> ('n' - 'a')) && 0xF;
-    
+
     /* XXX: this should not be: some embedded targets just have flash */
     if (!linux_boot && net_boot == 0 &&
-        hd_filename[0] == '\0' &&
-        (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
-        fd_filename[0] == '\0' &&
-        pflash_filename[0] == '\0')
+        hd_filename[0] == NULL &&
+        (cdrom_index >= 0 && hd_filename[cdrom_index] == NULL) &&
+        fd_filename[0] == NULL &&
+        pflash_filename[0] == NULL)
         help(1);
 
     /* boot to floppy or the default cd if no hard disk defined yet */
     if (!boot_devices[0]) {
-        if (hd_filename[0] != '\0')
+        if (hd_filename[0] != NULL)
             boot_devices = "c";
-        else if (fd_filename[0] != '\0')
+        else if (fd_filename[0] != NULL)
             boot_devices = "a";
         else
             boot_devices = "d";
