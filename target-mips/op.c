@@ -2682,7 +2682,7 @@ FLOAT_OP(n ## name1 ## name2, d)    \
 {                                   \
     FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
     FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
-    FDT2 ^= 1ULL << 63;             \
+    FDT2 = float64_chs(FDT2);       \
     DEBUG_FPU_STATE();              \
     FORCE_RET();                    \
 }                                   \
@@ -2690,7 +2690,7 @@ FLOAT_OP(n ## name1 ## name2, s)    \
 {                                   \
     FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
-    FST2 ^= 1 << 31;                \
+    FST2 = float32_chs(FST2);       \
     DEBUG_FPU_STATE();              \
     FORCE_RET();                    \
 }                                   \
@@ -2700,8 +2700,8 @@ FLOAT_OP(n ## name1 ## name2, ps)   \
     FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
     FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
     FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
-    FST2 ^= 1 << 31;                \
-    FSTH2 ^= 1 << 31;               \
+    FST2 = float32_chs(FST2);       \
+    FSTH2 = float32_chs(FSTH2);     \
     DEBUG_FPU_STATE();              \
     FORCE_RET();                    \
 }
