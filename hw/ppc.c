@@ -172,7 +172,8 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
 
 void ppc6xx_irq_init (CPUState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env, 6);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env,
+                                                  PPC6xx_INPUT_NB);
 }
 
 #if defined(TARGET_PPC64)
@@ -295,7 +296,8 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
 
 void ppc970_irq_init (CPUState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env, 7);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env,
+                                                  PPC970_INPUT_NB);
 }
 #endif /* defined(TARGET_PPC64) */
 

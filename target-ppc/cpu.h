@@ -1249,6 +1249,7 @@ enum {
     PPC970_INPUT_MCP        = 4,
     PPC970_INPUT_INT        = 5,
     PPC970_INPUT_THINT      = 6,
+    PPC970_INPUT_NB,
 };
 #endif
 
