@@ -1254,6 +1254,9 @@ extern QEMUMachine spitzpda_machine;
 extern QEMUMachine borzoipda_machine;
 extern QEMUMachine terrierpda_machine;
 
+/* gumstix.c */
+extern QEMUMachine connex_machine;
+
 /* palm.c */
 extern QEMUMachine palmte_machine;
 

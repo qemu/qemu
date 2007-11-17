@@ -7435,6 +7435,7 @@ void register_machines(void)
     qemu_register_machine(&palmte_machine);
     qemu_register_machine(&lm3s811evb_machine);
     qemu_register_machine(&lm3s6965evb_machine);
+    qemu_register_machine(&connex_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
     qemu_register_machine(&r2d_machine);
@@ -8260,7 +8261,8 @@ int main(int argc, char **argv)
     if (!linux_boot && net_boot == 0 &&
         hd_filename[0] == '\0' &&
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
-        fd_filename[0] == '\0')
+        fd_filename[0] == '\0' &&
+        pflash_filename[0] == '\0')
         help(1);
 
     /* boot to floppy or the default cd if no hard disk defined yet */
