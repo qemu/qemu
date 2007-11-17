@@ -35,10 +35,9 @@ struct ppc_def_t {
     uint32_t pvr;
     uint64_t insns_flags;
     uint64_t msr_mask;
-    uint8_t mmu_model;
-    uint8_t excp_model;
-    uint8_t bus_model;
-    uint8_t pad;
+    powerpc_mmu_t   mmu_model;
+    powerpc_excp_t  excp_model;
+    powerpc_input_t bus_model;
     uint32_t flags;
     int bfd_mach;
     void (*init_proc)(CPUPPCState *env);

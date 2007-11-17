@@ -89,7 +89,8 @@ typedef uint32_t ppc_gpr_t;
 
 /*****************************************************************************/
 /* MMU model                                                                 */
-enum {
+typedef enum powerpc_mmu_t powerpc_mmu_t;
+enum powerpc_mmu_t {
     POWERPC_MMU_UNKNOWN    = 0,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B,
@@ -117,7 +118,8 @@ enum {
 
 /*****************************************************************************/
 /* Exception model                                                           */
-enum {
+typedef enum powerpc_excp_t powerpc_excp_t;
+enum powerpc_excp_t {
     POWERPC_EXCP_UNKNOWN   = 0,
     /* Standard PowerPC exception model */
     POWERPC_EXCP_STD,
@@ -263,7 +265,8 @@ enum {
 
 /*****************************************************************************/
 /* Input pins model                                                          */
-enum {
+typedef enum powerpc_input_t powerpc_input_t;
+enum powerpc_input_t {
     PPC_FLAGS_INPUT_UNKNOWN = 0,
     /* PowerPC 6xx bus                  */
     PPC_FLAGS_INPUT_6xx,
@@ -609,10 +612,9 @@ struct CPUPPCState {
     /* Those resources are used during exception processing */
     /* CPU model definition */
     target_ulong msr_mask;
-    uint8_t mmu_model;
-    uint8_t excp_model;
-    uint8_t bus_model;
-    uint8_t pad;
+    powerpc_mmu_t mmu_model;
+    powerpc_excp_t excp_model;
+    powerpc_input_t bus_model;
     int bfd_mach;
     uint32_t flags;
 
