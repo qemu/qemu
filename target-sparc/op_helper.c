@@ -446,13 +446,11 @@ void helper_st_asi(int asi, int size)
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
             break;
         case 0x01c00e00: /* MXCC error register  */
+            // writing a 1 bit clears the error
             if (size == 8)
-                env->mxccregs[6] = ((uint64_t)T1 << 32) | T2;
+                env->mxccregs[6] &= ~(((uint64_t)T1 << 32) | T2);
             else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
-            if (env->mxccregs[6] == 0xffffffffffffffffULL) {
-                // this is probably a reset
-            }
             break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8)
