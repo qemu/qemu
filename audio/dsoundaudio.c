@@ -26,7 +26,8 @@
  * SEAL 1.07 by Carlos 'pel' Hasan was used as documentation
  */
 
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #define AUDIO_CAP "dsound"
 #include "audio_int.h"

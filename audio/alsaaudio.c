@@ -22,7 +22,8 @@
  * THE SOFTWARE.
  */
 #include <alsa/asoundlib.h>
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #define AUDIO_CAP "alsa"
 #include "audio_int.h"
