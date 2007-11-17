@@ -23,6 +23,8 @@
 #include "config.h"
 #include <inttypes.h>
 
+//#define PPC_EMULATE_32BITS_HYPV
+
 #if defined (TARGET_PPC64)
 /* PowerPC 64 definitions */
 typedef uint64_t ppc_gpr_t;
@@ -343,9 +345,10 @@ union ppc_tlb_t {
 /* Machine state register bits definition                                    */
 #define MSR_SF   63 /* Sixty-four-bit mode                            hflags */
 #define MSR_ISF  61 /* Sixty-four-bit interrupt mode on 630                  */
-#define MSR_HV   60 /* hypervisor state                               hflags */
+#define MSR_SHV  60 /* hypervisor state                               hflags */
 #define MSR_CM   31 /* Computation mode for BookE                     hflags */
 #define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
+#define MSR_THV  29 /* hypervisor state for 32 bits PowerPC           hflags */
 #define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
 #define MSR_VR   25 /* altivec available                            x hflags */
 #define MSR_SPE  25 /* SPE enable for BookE                         x hflags */
@@ -379,9 +382,10 @@ union ppc_tlb_t {
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
 #define msr_isf  ((env->msr >> MSR_ISF)  & 1)
-#define msr_hv   ((env->msr >> MSR_HV)   & 1)
+#define msr_shv  ((env->msr >> MSR_SHV)  & 1)
 #define msr_cm   ((env->msr >> MSR_CM)   & 1)
 #define msr_icm  ((env->msr >> MSR_ICM)  & 1)
+#define msr_thv  ((env->msr >> MSR_THV)  & 1)
 #define msr_ucle ((env->msr >> MSR_UCLE) & 1)
 #define msr_vr   ((env->msr >> MSR_VR)   & 1)
 #define msr_spe  ((env->msr >> MSR_SE)   & 1)
@@ -412,6 +416,20 @@ union ppc_tlb_t {
 #define msr_pmm  ((env->msr >> MSR_PMM)  & 1)
 #define msr_ri   ((env->msr >> MSR_RI)   & 1)
 #define msr_le   ((env->msr >> MSR_LE)   & 1)
+/* Hypervisor bit is more specific */
+#if defined(TARGET_PPC64)
+#define MSR_HVB (1ULL << MSR_SHV)
+#define msr_hv  msr_shv
+#else
+#if defined(PPC_EMULATE_32BITS_HYPV)
+#define MSR_HVB (1ULL << MSR_THV)
+#define msr_hv  msr_thv
+#define 
+#else
+#define MSR_HVB (0ULL)
+#define msr_hv  (0)
+#endif
+#endif
 
 enum {
     POWERPC_FLAG_NONE = 0x00000000,
@@ -428,7 +446,7 @@ enum {
     /* Flag for MSR bit 9 signification (BE/DE)                              */
     POWERPC_FLAG_BE   = 0x00000080,
     POWERPC_FLAG_DE   = 0x00000100,
-    /* Flag for MSR but 2 signification (PX/PMM)                             */
+    /* Flag for MSR bit 2 signification (PX/PMM)                             */
     POWERPC_FLAG_PX   = 0x00000200,
     POWERPC_FLAG_PMM  = 0x00000400,
 };
