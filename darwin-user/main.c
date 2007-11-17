@@ -834,6 +834,15 @@ int main(int argc, char **argv)
         } else
         if (!strcmp(r, "g")) {
             use_gdbstub = 1;
+        } else if (!strcmp(r, "cpu")) {
+            cpu_model = argv[optind++];
+            if (strcmp(cpu_model, "?") == 0) {
+/* XXX: implement xxx_cpu_list for targets that still miss it */
+#if defined(cpu_list)
+                    cpu_list(stdout, &fprintf);
+#endif
+                _exit(1);
+            }
         } else
         {
             usage();
@@ -846,16 +855,26 @@ int main(int argc, char **argv)
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
 
-    /* NOTE: we need to init the CPU at this stage to get
-       qemu_host_page_size */
+    if (cpu_model == NULL) {
 #if defined(TARGET_I386)
-    cpu_model = "qemu32";
+#ifdef TARGET_X86_64
+        cpu_model = "qemu64";
+#else
+        cpu_model = "qemu32";
+#endif
 #elif defined(TARGET_PPC)
-    cpu_model = "750";
+#ifdef TARGET_PPC64
+        cpu_model = "970";
+#else
+        cpu_model = "750";
+#endif
 #else
 #error unsupported CPU
 #endif
+    }
     
+    /* NOTE: we need to init the CPU at this stage to get
+       qemu_host_page_size */
     env = cpu_init(cpu_model);
 
     printf("Starting %s with qemu\n----------------\n", filename);
@@ -997,6 +1016,14 @@ int main(int argc, char **argv)
 #elif defined(TARGET_PPC)
     {
         int i;
+
+#if defined(TARGET_PPC64)
+#if defined(TARGET_ABI32)
+        env->msr &= ~((target_ulong)1 << MSR_SF);
+#else
+        env->msr |= (target_ulong)1 << MSR_SF;
+#endif
+#endif
         env->nip = regs->nip;
         for(i = 0; i < 32; i++) {
             env->gpr[i] = regs->gpr[i];
