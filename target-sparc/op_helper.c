@@ -207,6 +207,14 @@ void helper_ld_asi(int asi, int size, int sign)
             else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
             break;
+        case 0x01c00c00: /* Module reset register */
+            if (size == 8) {
+                ret = env->mxccregs[5] >> 32;
+                T0 = env->mxccregs[5];
+                // should we do something here?
+            } else
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
+            break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8) {
                 ret = env->mxccregs[7];
