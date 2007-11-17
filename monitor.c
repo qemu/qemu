@@ -21,7 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw/hw.h"
+#include "hw/usb.h"
+#include "hw/pcmcia.h"
+#include "hw/pc.h"
+#include "hw/pci.h"
+#include "gdbstub.h"
+#include "net.h"
+#include "qemu-char.h"
+#include "sysemu.h"
+#include "console.h"
+#include "block.h"
+#include "audio/audio.h"
 #include "disas.h"
 #include <dirent.h>
 

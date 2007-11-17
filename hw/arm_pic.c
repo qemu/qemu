@@ -7,8 +7,8 @@
  * This code is licenced under the LGPL
  */
 
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "arm-misc.h"
 
 /* Stub functions for hardware that doesn't exist.  */
 void pic_info(void)

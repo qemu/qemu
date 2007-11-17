@@ -8,7 +8,13 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
+#include "net.h"
+#include "flash.h"
+#include "sysemu.h"
+#include "devices.h"
+#include "boards.h"
 
 /* Board init. */
 enum gumstix_model_e { connex };

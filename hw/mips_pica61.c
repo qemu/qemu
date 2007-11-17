@@ -22,7 +22,13 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "isa.h"
+#include "pc.h"
+#include "fdc.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"

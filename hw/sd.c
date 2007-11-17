@@ -29,6 +29,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hw.h"
+#include "block.h"
 #include "sd.h"
 
 //#define DEBUG_SD 1

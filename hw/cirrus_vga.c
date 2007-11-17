@@ -26,7 +26,10 @@
  * Reference: Finn Thogersons' VGADOC4b
  *   available at http://home.worldonline.dk/~finth/
  */
-#include "vl.h"
+#include "hw.h"
+#include "pc.h"
+#include "pci.h"
+#include "console.h"
 #include "vga_int.h"
 
 /*

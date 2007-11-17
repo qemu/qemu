@@ -36,7 +36,10 @@
  * It does not implement multiple sectors erase
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "flash.h"
+#include "qemu-timer.h"
+#include "block.h"
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG

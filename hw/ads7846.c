@@ -7,7 +7,9 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include <vl.h>
+#include "hw.h"
+#include "devices.h"
+#include "console.h"
 
 struct ads7846_state_s {
     qemu_irq interrupt;

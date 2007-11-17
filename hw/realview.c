@@ -7,8 +7,14 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "arm-misc.h"
+#include "primecell.h"
+#include "devices.h"
+#include "pci.h"
+#include "net.h"
+#include "sysemu.h"
+#include "boards.h"
 
 /* Board init.  */
 

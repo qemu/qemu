@@ -37,7 +37,9 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "vl.h"
+#include "qemu-common.h"
+#include "console.h"
+#include "sysemu.h"
 
 NSWindow *window = NULL;
 NSQuickDrawView *qd_view = NULL;

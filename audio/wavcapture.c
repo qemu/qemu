@@ -1,4 +1,6 @@
-#include "vl.h"
+#include "hw/hw.h"
+#include "console.h"
+#include "audio.h"
 
 typedef struct {
     QEMUFile *f;

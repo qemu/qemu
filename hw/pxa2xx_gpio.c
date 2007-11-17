@@ -7,7 +7,8 @@
  * This code is licensed under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
 
 #define PXA2XX_GPIO_BANKS	4
 

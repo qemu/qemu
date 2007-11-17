@@ -37,7 +37,10 @@
  * It does not implement much more ...
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "flash.h"
+#include "block.h"
+#include "qemu-timer.h"
 
 #define PFLASH_BUG(fmt, args...) \
 do { \

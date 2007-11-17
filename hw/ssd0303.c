@@ -10,7 +10,9 @@
 /* The controller can support a variety of different displays, but we only
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
-#include "vl.h"
+#include "hw.h"
+#include "i2c.h"
+#include "console.h"
 
 //#define DEBUG_SSD0303 1
 

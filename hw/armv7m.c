@@ -7,7 +7,9 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "arm-misc.h"
+#include "sysemu.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 

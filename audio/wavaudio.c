@@ -21,7 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw/hw.h"
+#include "qemu-timer.h"
+#include "audio.h"
 
 #define AUDIO_CAP "wav"
 #include "audio_int.h"

@@ -7,7 +7,9 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "primecell.h"
+#include "ps2.h"
 
 typedef struct {
     void *dev;

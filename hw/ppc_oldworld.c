@@ -22,8 +22,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc.h"
 #include "ppc_mac.h"
+#include "nvram.h"
+#include "pc.h"
+#include "sysemu.h"
+#include "net.h"
+#include "isa.h"
+#include "pci.h"
+#include "boards.h"
 
 /* temporary frame buffer OSI calls for the video.x driver. The right
    solution is to modify the driver to use VGA PCI I/Os */

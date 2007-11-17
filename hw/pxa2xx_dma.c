@@ -8,7 +8,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
 
 struct pxa2xx_dma_channel_s {
     target_phys_addr_t descr;

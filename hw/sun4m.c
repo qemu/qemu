@@ -21,8 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
-#include "m48t59.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "sun4m.h"
+#include "nvram.h"
+#include "sparc32_dma.h"
+#include "fdc.h"
+#include "sysemu.h"
+#include "net.h"
+#include "boards.h"
 #include "firmware_abi.h"
 
 //#define DEBUG_IRQ

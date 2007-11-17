@@ -33,7 +33,9 @@
 #include "qemu.h"
 #define SEMIHOSTING_HEAP_SIZE (128 * 1024 * 1024)
 #else
-#include "vl.h"
+#include "qemu-common.h"
+#include "sysemu.h"
+#include "gdbstub.h"
 #include "softmmu-semi.h"
 #endif
 

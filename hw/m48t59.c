@@ -21,8 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
-#include "m48t59.h"
+#include "hw.h"
+#include "nvram.h"
+#include "isa.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
 
 //#define DEBUG_NVRAM
 

@@ -8,7 +8,9 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "sh.h"
+#include "qemu-timer.h"
 
 //#define DEBUG_TIMER
 

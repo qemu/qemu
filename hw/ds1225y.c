@@ -22,7 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "nvram.h"
 
 typedef enum
 {

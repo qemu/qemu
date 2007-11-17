@@ -21,7 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "pc.h"
+#include "fdc.h"
+#include "pci.h"
+#include "block.h"
+#include "sysemu.h"
+#include "audio/audio.h"
+#include "net.h"
+#include "smbus.h"
+#include "boards.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS

@@ -6,7 +6,10 @@
  * This code is licenced under the GPL
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "mcf.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000

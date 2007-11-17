@@ -25,7 +25,9 @@ do { printf("scsi-disk: " fmt , ##args); } while (0)
 #define BADF(fmt, args...) \
 do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 
-#include "vl.h"
+#include "qemu-common.h"
+#include "block.h"
+#include "scsi-disk.h"
 
 #define SENSE_NO_SENSE        0
 #define SENSE_NOT_READY       2

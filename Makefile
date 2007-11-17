@@ -1,5 +1,7 @@
 # Makefile for QEMU.
 
+VPATH=$(SRC_PATH):$(SRC_PATH)/hw
+
 include config-host.mak
 
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
@@ -47,8 +49,14 @@ BLOCK_OBJS+=block-qcow2.o block-parallels.o
 # CPUs and machines.
 
 OBJS=$(BLOCK_OBJS)
-OBJS+=readline.o console.o 
+OBJS+=readline.o console.o
 OBJS+=block.o
+
+OBJS+=irq.o
+OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
+OBJS+=ssd0303.o ssd0323.o ads7846.o 
+OBJS+=scsi-disk.o cdrom.o
+OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
 
 ifdef CONFIG_WIN32
 OBJS+=tap-win32.o

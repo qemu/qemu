@@ -18,7 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-#include "vl.h"
+#include "hw.h"
+#include "omap.h"
 #include "sd.h"
 
 struct omap_mmc_s {
@@ -507,6 +508,7 @@ void omap_mmc_reset(struct omap_mmc_s *host)
 }
 
 struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
+                BlockDriverState *bd,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk)
 {
     int iomemtype;
@@ -523,7 +525,7 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
     cpu_register_physical_memory(s->base, 0x800, iomemtype);
 
     /* Instantiate the storage */
-    s->card = sd_init(sd_bdrv);
+    s->card = sd_init(bd);
 
     return s;
 }

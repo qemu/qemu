@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "sun4m.h"
+#include "console.h"
+
 //#define DEBUG_IRQ_COUNT
 //#define DEBUG_IRQ
 

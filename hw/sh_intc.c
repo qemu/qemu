@@ -10,7 +10,8 @@
 
 #include <assert.h>
 #include "sh_intc.h"
-#include "vl.h"
+#include "hw.h"
+#include "sh.h"
 
 //#define DEBUG_INTC
 

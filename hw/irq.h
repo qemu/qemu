@@ -1,8 +1,11 @@
+#ifndef QEMU_IRQ_H
+#define QEMU_IRQ_H
+
 /* Generic IRQ/GPIO pin infrastructure.  */
 
+/* FIXME: Rmove one of these.  */
 typedef void (*qemu_irq_handler)(void *opaque, int n, int level);
-
-typedef struct IRQState *qemu_irq;
+typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 
 void qemu_set_irq(qemu_irq irq, int level);
 
@@ -21,3 +24,5 @@ qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n);
 
 /* Returns a new IRQ with opposite polarity.  */
 qemu_irq qemu_irq_invert(qemu_irq irq);
+
+#endif

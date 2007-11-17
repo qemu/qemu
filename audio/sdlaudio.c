@@ -23,7 +23,8 @@
  */
 #include <SDL.h>
 #include <SDL_thread.h>
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #ifndef _WIN32
 #ifdef __sun__

@@ -32,7 +32,9 @@
  * Serial interrupts, as implemented in Raven chipset are not supported yet.
  *
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc_mac.h"
+#include "pci.h"
 
 //#define DEBUG_OPENPIC
 

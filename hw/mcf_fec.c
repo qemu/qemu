@@ -5,7 +5,9 @@
  *
  * This code is licenced under the GPL
  */
-#include "vl.h"
+#include "hw.h"
+#include "net.h"
+#include "mcf.h"
 /* For crc32 */
 #include <zlib.h>
 

@@ -7,8 +7,12 @@
  * This code is licensed under the GPLv2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "console.h"
+#include "pxa.h"
 #include "pixel_ops.h"
+/* FIXME: For graphic_rotate. Should probably be done in common code.  */
+#include "sysemu.h"
 
 typedef void (*drawfn)(uint32_t *, uint8_t *, const uint8_t *, int, int);
 

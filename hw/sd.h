@@ -29,8 +29,6 @@
 #ifndef __hw_sd_h
 #define __hw_sd_h		1
 
-#include <vl.h>
-
 #define OUT_OF_RANGE		(1 << 31)
 #define ADDRESS_ERROR		(1 << 30)
 #define BLOCK_LEN_ERROR		(1 << 29)

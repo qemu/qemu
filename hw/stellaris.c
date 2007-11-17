@@ -7,8 +7,14 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "arm-misc.h"
+#include "primecell.h"
+#include "devices.h"
+#include "qemu-timer.h"
+#include "i2c.h"
+#include "sysemu.h"
+#include "boards.h"
 
 typedef const struct {
     const char *name;

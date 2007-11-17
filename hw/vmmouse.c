@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "console.h"
+#include "ps2.h"
+#include "pc.h"
 
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE

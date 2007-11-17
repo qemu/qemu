@@ -21,7 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "qemu-common.h"
+
 static const uint8_t x_keycode_to_pc_keycode[115] = {
    0xc7,      /*  97  Home   */
    0xc8,      /*  98  Up     */

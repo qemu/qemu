@@ -24,7 +24,9 @@
  */
 #include <stdio.h>
 #include <assert.h>
-#include "vl.h"
+#include "hw.h"
+#include "sh.h"
+#include "sysemu.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "sh_intc.h"

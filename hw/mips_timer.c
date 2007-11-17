@@ -1,4 +1,6 @@
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "qemu-timer.h"
 
 void cpu_mips_irqctrl_init (void)
 {

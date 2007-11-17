@@ -513,6 +513,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
 /* omap_mmc.c */
 struct omap_mmc_s;
 struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
+                BlockDriverState *bd,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk);
 void omap_mmc_reset(struct omap_mmc_s *s);
 void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
@@ -787,5 +788,11 @@ inline static int debug_register_io_memory(int io_index,
 }
 #  define cpu_register_io_memory	debug_register_io_memory
 # endif
+
+/* Not really omap specific, but is the only thing that uses the
+   uwire interface.  */
+/* tsc210x.c */
+struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio);
+struct i2s_codec_s *tsc210x_codec(struct uwire_slave_s *chip);
 
 #endif /* hw_omap_h */

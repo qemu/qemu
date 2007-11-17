@@ -22,8 +22,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc.h"
 #include "ppc_mac.h"
+#include "nvram.h"
+#include "pc.h"
+#include "pci.h"
+#include "net.h"
+#include "sysemu.h"
+#include "boards.h"
 
 /* UniN device */
 static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)

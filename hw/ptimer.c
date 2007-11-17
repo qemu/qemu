@@ -5,7 +5,8 @@
  *
  * This code is licenced under the GNU LGPL.
  */
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
 
 
 struct ptimer_state

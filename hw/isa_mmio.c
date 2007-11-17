@@ -22,7 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "isa.h"
 
 static void isa_mmio_writeb (void *opaque, target_phys_addr_t addr,
                                   uint32_t val)

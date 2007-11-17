@@ -7,7 +7,8 @@
  * This code is licensed under the GNU GPLv2.
  */
 
-#include <vl.h>
+#include "hw.h"
+#include "i2c.h"
 
 struct max111x_s {
     qemu_irq interrupt;

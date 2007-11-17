@@ -10,7 +10,9 @@
 /* ??? Need to check if the {read,write}[wl] routines work properly on
    big-endian targets.  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pci.h"
+#include "scsi-disk.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG

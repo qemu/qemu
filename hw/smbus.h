@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-typedef struct SMBusDevice SMBusDevice;
+#include "i2c.h"
 
 struct SMBusDevice {
     /* The SMBus protocol is implemented on top of I2C.  */

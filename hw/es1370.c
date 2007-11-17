@@ -26,7 +26,10 @@
 /* #define VERBOSE_ES1370 */
 #define SILENT_ES1370
 
-#include "vl.h"
+#include "hw.h"
+#include "audiodev.h"
+#include "audio/audio.h"
+#include "pci.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC

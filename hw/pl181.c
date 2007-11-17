@@ -7,7 +7,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "primecell.h"
 #include "sd.h"
 
 //#define DEBUG_PL181 1

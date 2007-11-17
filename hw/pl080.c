@@ -7,7 +7,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "primecell.h"
 
 #define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1

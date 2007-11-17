@@ -2,7 +2,6 @@
 #define BLOCK_H
 
 /* block.c */
-typedef struct BlockDriverState BlockDriverState;
 typedef struct BlockDriver BlockDriver;
 
 extern BlockDriver bdrv_raw;

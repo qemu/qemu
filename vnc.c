@@ -23,8 +23,11 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "qemu-common.h"
+#include "console.h"
+#include "sysemu.h"
 #include "qemu_socket.h"
+#include "qemu-timer.h"
 
 #define VNC_REFRESH_INTERVAL (1000 / 30)
 

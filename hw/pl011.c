@@ -7,7 +7,9 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "qemu-char.h"
+#include "primecell.h"
 
 typedef struct {
     uint32_t base;

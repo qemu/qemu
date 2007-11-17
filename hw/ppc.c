@@ -21,7 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
+#include "nvram.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB

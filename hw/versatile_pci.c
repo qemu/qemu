@@ -7,7 +7,9 @@
  * This code is licenced under the LGPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pci.h"
+#include "primecell.h"
 
 static inline uint32_t vpb_pci_config_addr(target_phys_addr_t addr)
 {

@@ -21,10 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifdef QEMU_IMG
 #include "qemu-common.h"
-#else
-#include "vl.h"
+#ifndef QEMU_IMG
+#include "qemu-timer.h"
 #include "exec-all.h"
 #endif
 #include "block_int.h"

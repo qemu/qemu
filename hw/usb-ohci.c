@@ -27,7 +27,10 @@
  *  o BIOS work to boot from USB storage
 */
 
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "usb.h"
+#include "pci.h"
 
 //#define DEBUG_OHCI
 /* Dump packet contents.  */

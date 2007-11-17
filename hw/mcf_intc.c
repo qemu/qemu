@@ -5,7 +5,8 @@
  *
  * This code is licenced under the GPL
  */
-#include "vl.h"
+#include "hw.h"
+#include "mcf.h"
 
 typedef struct {
     uint64_t ipr;

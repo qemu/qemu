@@ -7,7 +7,9 @@
  * This code is licenced under the GNU LGPL
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "primecell.h"
+#include "console.h"
 
 #define PL110_CR_EN   0x001
 #define PL110_CR_BGR  0x100

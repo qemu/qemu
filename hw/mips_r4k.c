@@ -7,7 +7,13 @@
  * All peripherial devices are attached to this "bus" with
  * the standard PC ISA addresses.
 */
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "pc.h"
+#include "isa.h"
+#include "net.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"

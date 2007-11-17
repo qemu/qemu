@@ -30,7 +30,8 @@
 #else
 #include <sys/soundcard.h>
 #endif
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #define AUDIO_CAP "oss"
 #include "audio_int.h"

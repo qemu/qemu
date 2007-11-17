@@ -23,7 +23,8 @@
  */
 #include <stdio.h>
 #include <sys/time.h>
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
 
 void etrax_ack_irq(CPUState *env, uint32_t mask);
 

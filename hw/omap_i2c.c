@@ -18,7 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-#include "vl.h"
+#include "hw.h"
+#include "i2c.h"
+#include "omap.h"
 
 struct omap_i2c_s {
     target_phys_addr_t base;

@@ -73,7 +73,6 @@ typedef struct CaptureState {
     LIST_ENTRY (CaptureState) entries;
 } CaptureState;
 
-typedef struct AudioState AudioState;
 typedef struct SWVoiceOut SWVoiceOut;
 typedef struct CaptureVoiceOut CaptureVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;

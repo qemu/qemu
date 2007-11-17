@@ -22,7 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "pci.h"
+#include "pc.h"
 
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"

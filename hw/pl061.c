@@ -8,7 +8,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "primecell.h"
 
 //#define DEBUG_PL061 1
 

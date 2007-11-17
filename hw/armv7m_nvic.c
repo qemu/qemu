@@ -10,8 +10,9 @@
  * NVIC.  Much of that is also implemented here.
  */
 
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "arm-misc.h"
 
 #define GIC_NIRQ 64
 #define NCPU 1

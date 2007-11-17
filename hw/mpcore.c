@@ -7,7 +7,9 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "primecell.h"
 
 #define MPCORE_PRIV_BASE  0x10100000
 #define NCPU 4

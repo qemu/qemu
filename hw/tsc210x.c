@@ -19,7 +19,11 @@
  * MA 02111-1307 USA
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "audio/audio.h"
+#include "qemu-timer.h"
+#include "console.h"
+#include "omap.h"
 
 #define TSC_DATA_REGISTERS_PAGE		0x0
 #define TSC_CONTROL_REGISTERS_PAGE	0x1

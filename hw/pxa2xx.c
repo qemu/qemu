@@ -7,7 +7,13 @@
  * This code is licenced under the GPL.
  */
 
-# include "vl.h"
+#include "hw.h"
+#include "pxa.h"
+#include "sysemu.h"
+#include "pc.h"
+#include "i2c.h"
+#include "qemu-timer.h"
+#include "qemu-char.h"
 
 static struct {
     target_phys_addr_t io_base;
@@ -2064,7 +2070,8 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
 
-    s->mmc = pxa2xx_mmci_init(0x41100000, s->pic[PXA2XX_PIC_MMC], s->dma);
+    s->mmc = pxa2xx_mmci_init(0x41100000, sd_bdrv, s->pic[PXA2XX_PIC_MMC],
+                              s->dma);
 
     for (i = 0; pxa270_serial[i].io_base; i ++)
         if (serial_hds[i])
@@ -2180,7 +2187,8 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
 
     s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 85);
 
-    s->mmc = pxa2xx_mmci_init(0x41100000, s->pic[PXA2XX_PIC_MMC], s->dma);
+    s->mmc = pxa2xx_mmci_init(0x41100000, sd_bdrv, s->pic[PXA2XX_PIC_MMC],
+                              s->dma);
 
     for (i = 0; pxa255_serial[i].io_base; i ++)
         if (serial_hds[i])

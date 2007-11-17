@@ -7,7 +7,19 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
+#include "arm-misc.h"
+#include "sysemu.h"
+#include "pcmcia.h"
+#include "i2c.h"
+#include "flash.h"
+#include "qemu-timer.h"
+#include "devices.h"
+#include "console.h"
+#include "block.h"
+#include "audio/audio.h"
+#include "boards.h"
 
 #define spitz_printf(format, ...)	\
     fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)

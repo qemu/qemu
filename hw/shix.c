@@ -27,7 +27,10 @@
 
    More information in target-sh4/README.sh4
 */
-#include "vl.h"
+#include "hw.h"
+#include "sh.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000

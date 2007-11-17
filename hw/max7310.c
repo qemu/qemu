@@ -7,7 +7,8 @@
  * This file is licensed under GNU GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "i2c.h"
 
 struct max7310_s {
     i2c_slave i2c;
@@ -182,7 +183,7 @@ static void max7310_gpio_set(void *opaque, int line, int level)
 {
     struct max7310_s *s = (struct max7310_s *) opaque;
     if (line >= sizeof(s->handler) / sizeof(*s->handler) || line  < 0)
-        cpu_abort(cpu_single_env, "bad GPIO line");
+        hw_error("bad GPIO line");
 
     if (level)
         s->level |= s->direction & (1 << line);
@@ -220,7 +221,7 @@ void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
 {
     struct max7310_s *s = (struct max7310_s *) i2c;
     if (line >= sizeof(s->handler) / sizeof(*s->handler) || line  < 0)
-        cpu_abort(cpu_single_env, "bad GPIO line");
+        hw_error("bad GPIO line");
 
     s->handler[line] = handler;
 }

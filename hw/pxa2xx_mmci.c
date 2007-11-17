@@ -7,7 +7,8 @@
  * This code is licensed under the GPLv2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
 #include "sd.h"
 
 struct pxa2xx_mmci_s {
@@ -522,7 +523,7 @@ static int pxa2xx_mmci_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
-                qemu_irq irq, void *dma)
+                BlockDriverState *bd, qemu_irq irq, void *dma)
 {
     int iomemtype;
     struct pxa2xx_mmci_s *s;
@@ -537,7 +538,7 @@ struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
     /* Instantiate the actual storage */
-    s->card = sd_init(sd_bdrv);
+    s->card = sd_init(bd);
 
     register_savevm("pxa2xx_mmci", 0, 0,
                     pxa2xx_mmci_save, pxa2xx_mmci_load, s);

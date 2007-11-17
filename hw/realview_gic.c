@@ -7,8 +7,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "arm-misc.h"
 
 #define GIC_NIRQ 96
 #define NCPU 1

@@ -22,7 +22,8 @@
  * THE SOFTWARE.
  */
 #include <assert.h>
-#include "vl.h"
+#include "hw.h"
+#include "audiodev.h"
 
 #define ADLIB_KILL_TIMERS 1
 

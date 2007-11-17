@@ -16,7 +16,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "vl.h"
+#include "hw.h"
+#include "pc.h"
+#include "pci.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
+#include "i2c.h"
+#include "smbus.h"
 
 //#define DEBUG
 

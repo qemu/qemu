@@ -21,7 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "qemu-common.h"
+#include "console.h"
 
 #define TERM_CMD_BUF_SIZE 4095
 #define TERM_MAX_CMDS 64

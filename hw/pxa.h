@@ -95,7 +95,7 @@ void pxa2xx_lcdc_oritentation(void *opaque, int angle);
 /* pxa2xx_mmci.c */
 struct pxa2xx_mmci_s;
 struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
-                qemu_irq irq, void *dma);
+                BlockDriverState *bd, qemu_irq irq, void *dma);
 void pxa2xx_mmci_handlers(struct pxa2xx_mmci_s *s, qemu_irq readonly,
                 qemu_irq coverswitch);
 
@@ -206,5 +206,9 @@ struct pxa2xx_i2s_s {
 struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, DisplayState *ds,
                 const char *revision);
 struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size, DisplayState *ds);
+
+/* usb-ohci.c */
+void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
+                       qemu_irq irq);
 
 #endif	/* PXA_H */

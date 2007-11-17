@@ -33,10 +33,8 @@
 #include <sys/statvfs.h>
 #endif
 
-#include "cpu.h"
-#if defined(USE_KQEMU)
-#include "vl.h"
-#endif
+#include "qemu-common.h"
+#include "sysemu.h"
 
 #ifdef _WIN32
 #include <windows.h>

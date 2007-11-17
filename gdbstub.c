@@ -29,7 +29,10 @@
 
 #include "qemu.h"
 #else
-#include "vl.h"
+#include "qemu-common.h"
+#include "qemu-char.h"
+#include "sysemu.h"
+#include "gdbstub.h"
 #endif
 
 #include "qemu_socket.h"
