@@ -1357,7 +1357,7 @@ static always_inline int check_physical (CPUState *env, mmu_ctx_t *ctx,
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
     case POWERPC_MMU_SOFT_4xx:
-    case POWERPC_MMU_REAL_4xx:
+    case POWERPC_MMU_REAL:
     case POWERPC_MMU_BOOKE:
         ctx->prot |= PAGE_WRITE;
         break;
@@ -1391,6 +1391,10 @@ static always_inline int check_physical (CPUState *env, mmu_ctx_t *ctx,
                 ctx->prot |= PAGE_WRITE;
             }
         }
+        break;
+    case POWERPC_MMU_MPC8xx:
+        /* XXX: TODO */
+        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
@@ -1445,12 +1449,16 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             ret = mmubooke_get_physical_address(env, ctx, eaddr,
                                                 rw, access_type);
             break;
+        case POWERPC_MMU_MPC8xx:
+            /* XXX: TODO */
+            cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+            break;
         case POWERPC_MMU_BOOKE_FSL:
             /* XXX: TODO */
             cpu_abort(env, "BookE FSL MMU model not implemented\n");
             return -1;
-        case POWERPC_MMU_REAL_4xx:
-            cpu_abort(env, "PowerPC 401 does not do any translation\n");
+        case POWERPC_MMU_REAL:
+            cpu_abort(env, "PowerPC in real mode do not do any translation\n");
             return -1;
         default:
             cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1537,15 +1545,19 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     break;
                 case POWERPC_MMU_BOOKE:
                     /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
+                    cpu_abort(env, "BookE MMU model is not implemented\n");
                     return -1;
                 case POWERPC_MMU_BOOKE_FSL:
                     /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
+                    cpu_abort(env, "BookE FSL MMU model is not implemented\n");
                     return -1;
-                case POWERPC_MMU_REAL_4xx:
-                    cpu_abort(env, "PowerPC 401 should never raise any MMU "
-                              "exceptions\n");
+                case POWERPC_MMU_MPC8xx:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+                    break;
+                case POWERPC_MMU_REAL:
+                    cpu_abort(env, "PowerPC in real mode should never raise "
+                              "any MMU exceptions\n");
                     return -1;
                 default:
                     cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1632,17 +1644,21 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     else
                         env->spr[SPR_DSISR] = 0x40000000;
                     break;
+                case POWERPC_MMU_MPC8xx:
+                    /* XXX: TODO */
+                    cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+                    break;
                 case POWERPC_MMU_BOOKE:
                     /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
+                    cpu_abort(env, "BookE MMU model is not implemented\n");
                     return -1;
                 case POWERPC_MMU_BOOKE_FSL:
                     /* XXX: TODO */
-                    cpu_abort(env, "MMU model not implemented\n");
+                    cpu_abort(env, "BookE FSL MMU model is not implemented\n");
                     return -1;
-                case POWERPC_MMU_REAL_4xx:
-                    cpu_abort(env, "PowerPC 401 should never raise any MMU "
-                              "exceptions\n");
+                case POWERPC_MMU_REAL:
+                    cpu_abort(env, "PowerPC in real mode should never raise "
+                              "any MMU exceptions\n");
                     return -1;
                 default:
                     cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1921,16 +1937,20 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
     case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_all(env);
         break;
-    case POWERPC_MMU_REAL_4xx:
+    case POWERPC_MMU_REAL:
         cpu_abort(env, "No TLB for PowerPC 4xx in real mode\n");
+        break;
+    case POWERPC_MMU_MPC8xx:
+        /* XXX: TODO */
+        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
         /* XXX: TODO */
-        cpu_abort(env, "MMU model not implemented\n");
+        cpu_abort(env, "BookE MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
-        cpu_abort(env, "MMU model not implemented\n");
+        cpu_abort(env, "BookE MMU model is not implemented\n");
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -1961,16 +1981,20 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_virt(env, addr, env->spr[SPR_40x_PID]);
         break;
-    case POWERPC_MMU_REAL_4xx:
+    case POWERPC_MMU_REAL:
         cpu_abort(env, "No TLB for PowerPC 4xx in real mode\n");
+        break;
+    case POWERPC_MMU_MPC8xx:
+        /* XXX: TODO */
+        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
         /* XXX: TODO */
-        cpu_abort(env, "MMU model not implemented\n");
+        cpu_abort(env, "BookE MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
-        cpu_abort(env, "MMU model not implemented\n");
+        cpu_abort(env, "BookE FSL MMU model is not implemented\n");
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -2613,6 +2637,10 @@ static always_inline void powerpc_excp (CPUState *env,
         cpu_abort(env, "Floating point assist exception "
                   "is not implemented yet !\n");
         goto store_next;
+    case POWERPC_EXCP_DABR:      /* Data address breakpoint                  */
+        /* XXX: TODO */
+        cpu_abort(env, "DABR exception is not implemented yet !\n");
+        goto store_next;
     case POWERPC_EXCP_IABR:      /* Instruction address breakpoint           */
         /* XXX: TODO */
         cpu_abort(env, "IABR exception is not implemented yet !\n");
@@ -2647,6 +2675,16 @@ static always_inline void powerpc_excp (CPUState *env,
         /* XXX: TODO */
         cpu_abort(env,
                   "970 maintenance exception is not implemented yet !\n");
+        goto store_next;
+    case POWERPC_EXCP_MEXTBR:    /* Maskable external breakpoint             */
+        /* XXX: TODO */
+        cpu_abort(env, "Maskable external exception "
+                  "is not implemented yet !\n");
+        goto store_next;
+    case POWERPC_EXCP_NMEXTBR:   /* Non maskable external breakpoint         */
+        /* XXX: TODO */
+        cpu_abort(env, "Non maskable external exception "
+                  "is not implemented yet !\n");
         goto store_next;
     default:
     excp_invalid:
@@ -2899,7 +2937,7 @@ void cpu_ppc_reset (void *opaque)
     msr |= (target_ulong)1 << MSR_PR;
 #else
     env->nip = env->hreset_vector | env->excp_prefix;
-    if (env->mmu_model != POWERPC_MMU_REAL_4xx)
+    if (env->mmu_model != POWERPC_MMU_REAL)
         ppc_tlb_invalidate_all(env);
 #endif
     env->msr = msr;

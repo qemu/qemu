@@ -2656,7 +2656,7 @@ static int check_pow_hid0 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
 #define POWERPC_MSRM_401     (0x00000000000FD201ULL)
-#define POWERPC_MMU_401      (POWERPC_MMU_REAL_4xx)
+#define POWERPC_MMU_401      (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_401     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401    (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_401     (bfd_mach_ppc_403)
@@ -2775,7 +2775,7 @@ static void init_proc_IOP480 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_4xx_COMMON | PPC_40x_EXCP | PPC_40x_ICBT)
 #define POWERPC_MSRM_403     (0x000000000007D00DULL)
-#define POWERPC_MMU_403      (POWERPC_MMU_REAL_4xx)
+#define POWERPC_MMU_403      (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_403     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_403    (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_403     (bfd_mach_ppc_403)
@@ -6639,14 +6639,20 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
             mmu_model = "PowerPC 4xx with software driven TLBs "
                 "and zones protections";
             break;
-        case POWERPC_MMU_REAL_4xx:
-            mmu_model = "PowerPC 4xx real mode only";
+        case POWERPC_MMU_REAL:
+            mmu_model = "PowerPC real mode only";
+            break;
+        case POWERPC_MMU_MPC8xx:
+            mmu_model = "PowerPC MPC8xx";
             break;
         case POWERPC_MMU_BOOKE:
             mmu_model = "PowerPC BookE";
             break;
         case POWERPC_MMU_BOOKE_FSL:
             mmu_model = "PowerPC BookE FSL";
+            break;
+        case POWERPC_MMU_601:
+            mmu_model = "PowerPC 601";
             break;
 #if defined (TARGET_PPC64)
         case POWERPC_MMU_64B:
@@ -6712,6 +6718,9 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
             break;
         case PPC_FLAGS_INPUT_401:
             bus_model = "PowerPC 401/403";
+            break;
+        case PPC_FLAGS_INPUT_RCPU:
+            bus_model = "RCPU / MPC8xx";
             break;
 #if defined (TARGET_PPC64)
         case PPC_FLAGS_INPUT_970:

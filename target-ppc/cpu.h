@@ -104,8 +104,10 @@ enum powerpc_mmu_t {
     POWERPC_MMU_SOFT_4xx,
     /* PowerPC 4xx MMU with software TLB and zones protections */
     POWERPC_MMU_SOFT_4xx_Z,
-    /* PowerPC 4xx MMU in real mode only                       */
-    POWERPC_MMU_REAL_4xx,
+    /* PowerPC MMU in real mode only                           */
+    POWERPC_MMU_REAL,
+    /* Freescale MPC8xx MMU model                              */
+    POWERPC_MMU_MPC8xx,
     /* BookE MMU model                                         */
     POWERPC_MMU_BOOKE,
     /* BookE FSL MMU model                                     */
@@ -171,8 +173,8 @@ enum {
     POWERPC_EXCP_DECR     = 10, /* Decrementer exception                     */
     POWERPC_EXCP_FIT      = 11, /* Fixed-interval timer interrupt            */
     POWERPC_EXCP_WDT      = 12, /* Watchdog timer interrupt                  */
-    POWERPC_EXCP_DTLB     = 13, /* Data TLB error                            */
-    POWERPC_EXCP_ITLB     = 14, /* Instruction TLB error                     */
+    POWERPC_EXCP_DTLB     = 13, /* Data TLB miss                             */
+    POWERPC_EXCP_ITLB     = 14, /* Instruction TLB miss                      */
     POWERPC_EXCP_DEBUG    = 15, /* Debug interrupt                           */
     /* Vectors 16 to 31 are reserved                                         */
     POWERPC_EXCP_SPEU     = 32, /* SPE/embedded floating-point unavailable   */
@@ -201,21 +203,27 @@ enum {
     /* 602 specific exceptions                                               */
     POWERPC_EXCP_EMUL     = 77, /* Emulation trap exception                  */
     /* 602/603 specific exceptions                                           */
-    POWERPC_EXCP_IFTLB    = 78, /* Instruction fetch TLB error               */
+    POWERPC_EXCP_IFTLB    = 78, /* Instruction fetch TLB miss                */
     POWERPC_EXCP_DLTLB    = 79, /* Data load TLB miss                        */
     POWERPC_EXCP_DSTLB    = 80, /* Data store TLB miss                       */
     /* Exceptions available on most PowerPC                                  */
     POWERPC_EXCP_FPA      = 81, /* Floating-point assist exception           */
-    POWERPC_EXCP_IABR     = 82, /* Instruction address breakpoint            */
-    POWERPC_EXCP_SMI      = 83, /* System management interrupt               */
-    POWERPC_EXCP_PERFM    = 84, /* Embedded performance monitor interrupt    */
+    POWERPC_EXCP_DABR     = 82, /* Data address breakpoint                   */
+    POWERPC_EXCP_IABR     = 83, /* Instruction address breakpoint            */
+    POWERPC_EXCP_SMI      = 84, /* System management interrupt               */
+    POWERPC_EXCP_PERFM    = 85, /* Embedded performance monitor interrupt    */
     /* 7xx/74xx specific exceptions                                          */
-    POWERPC_EXCP_THERM    = 85, /* Thermal interrupt                         */
+    POWERPC_EXCP_THERM    = 86, /* Thermal interrupt                         */
     /* 74xx specific exceptions                                              */
-    POWERPC_EXCP_VPUA     = 86, /* Vector assist exception                   */
+    POWERPC_EXCP_VPUA     = 87, /* Vector assist exception                   */
     /* 970FX specific exceptions                                             */
-    POWERPC_EXCP_SOFTP    = 87, /* Soft patch exception                      */
-    POWERPC_EXCP_MAINT    = 88, /* Maintenance exception                     */
+    POWERPC_EXCP_SOFTP    = 88, /* Soft patch exception                      */
+    POWERPC_EXCP_MAINT    = 89, /* Maintenance exception                     */
+    /* Freescale embeded cores specific exceptions                           */
+    POWERPC_EXCP_MEXTBR   = 90, /* Maskable external breakpoint              */
+    POWERPC_EXCP_NMEXTBR  = 91, /* Non maskable external breakpoint          */
+    POWERPC_EXCP_ITLBE    = 92, /* Instruction TLB error                     */
+    POWERPC_EXCP_DTLBE    = 93, /* Data TLB error                            */
     /* EOL                                                                   */
     POWERPC_EXCP_NB       = 96,
     /* Qemu exceptions: used internally during code translation              */
@@ -280,6 +288,8 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_970,
     /* PowerPC 401 bus                  */
     PPC_FLAGS_INPUT_401,
+    /* Freescale RCPU bus               */
+    PPC_FLAGS_INPUT_RCPU,
 };
 
 #define PPC_INPUT(env) (env->bus_model)
@@ -1257,6 +1267,22 @@ enum {
     PPC40x_INPUT_HALT       = 5,
     PPC40x_INPUT_DEBUG      = 6,
     PPC40x_INPUT_NB,
+};
+
+enum {
+    /* RCPU input pins */
+    PPCRCPU_INPUT_PORESET   = 0,
+    PPCRCPU_INPUT_HRESET    = 1,
+    PPCRCPU_INPUT_SRESET    = 2,
+    PPCRCPU_INPUT_IRQ0      = 3,
+    PPCRCPU_INPUT_IRQ1      = 4,
+    PPCRCPU_INPUT_IRQ2      = 5,
+    PPCRCPU_INPUT_IRQ3      = 6,
+    PPCRCPU_INPUT_IRQ4      = 7,
+    PPCRCPU_INPUT_IRQ5      = 8,
+    PPCRCPU_INPUT_IRQ6      = 9,
+    PPCRCPU_INPUT_IRQ7      = 10,
+    PPCRCPU_INPUT_NB,
 };
 
 #if defined(TARGET_PPC64)
