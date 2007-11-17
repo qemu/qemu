@@ -316,6 +316,8 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
+  *) echo "ERROR: unknown option $opt"; show_help="yes"
+  ;;
   esac
 done
 
