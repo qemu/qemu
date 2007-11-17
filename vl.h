@@ -1051,7 +1051,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 extern QEMUMachine ss5_machine, ss10_machine, ss600mp_machine;
 
 /* iommu.c */
-void *iommu_init(target_phys_addr_t addr);
+void *iommu_init(target_phys_addr_t addr, uint32_t version);
 void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                                  uint8_t *buf, int len, int is_write);
 static inline void sparc_iommu_memory_read(void *opaque,
