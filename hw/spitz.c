@@ -1069,18 +1069,6 @@ static void spitz_lcd_hsync_handler(void *opaque, int line, int level)
     spitz_hsync ^= 1;
 }
 
-static void spitz_mmc_coverswitch_change(void *opaque, int in)
-{
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_DETECT], in);
-}
-
-static void spitz_mmc_writeprotect_change(void *opaque, int wp)
-{
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_WP], wp);
-}
-
 static void spitz_gpio_setup(struct pxa2xx_state_s *cpu, int slots)
 {
     qemu_irq lcd_hsync;
@@ -1096,8 +1084,9 @@ static void spitz_gpio_setup(struct pxa2xx_state_s *cpu, int slots)
     pxa2xx_lcd_vsync_notifier(cpu->lcd, lcd_hsync);
 
     /* MMC/SD host */
-    pxa2xx_mmci_handlers(cpu->mmc, cpu, spitz_mmc_writeprotect_change,
-                    spitz_mmc_coverswitch_change);
+    pxa2xx_mmci_handlers(cpu->mmc,
+                    pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_WP],
+                    pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_DETECT]);
 
     /* Battery lock always closed */
     qemu_irq_raise(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_BAT_COVER]);

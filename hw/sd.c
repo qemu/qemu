@@ -90,9 +90,8 @@ struct SDState {
     uint32_t data_start;
     uint32_t data_offset;
     uint8_t data[512];
-    void (*readonly_cb)(void *, int);
-    void (*inserted_cb)(void *, int);
-    void *opaque;
+    qemu_irq readonly_cb;
+    qemu_irq inserted_cb;
     BlockDriverState *bdrv;
 };
 
@@ -372,6 +371,8 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
 
     sd->bdrv = bdrv;
 
+    if (s->wp_groups)
+        qemu_free(s->wp_groups);
     sd->wp_switch = bdrv_is_read_only(bdrv);
     sd->wp_groups = (int *) qemu_mallocz(sizeof(int) * sect);
     memset(sd->wp_groups, 0, sizeof(int) * sect);
@@ -386,12 +387,10 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
 static void sd_cardchange(void *opaque)
 {
     SDState *sd = opaque;
-    if (sd->inserted_cb)
-        sd->inserted_cb(sd->opaque, bdrv_is_inserted(sd->bdrv));
+    qemu_set_irq(sd->inserted_cb, bdrv_is_inserted(sd->bdrv));
     if (bdrv_is_inserted(sd->bdrv)) {
         sd_reset(sd, sd->bdrv);
-        if (sd->readonly_cb)
-            sd->readonly_cb(sd->opaque, sd->wp_switch);
+        qemu_set_irq(s->readonly_cb, sd->wp_switch);
     }
 }
 
@@ -401,21 +400,16 @@ SDState *sd_init(BlockDriverState *bs)
 
     sd = (SDState *) qemu_mallocz(sizeof(SDState));
     sd_reset(sd, bs);
+    bdrv_set_change_cb(sd->bdrv, sd_cardchange, sd);
     return sd;
 }
 
-void sd_set_cb(SDState *sd, void *opaque,
-                void (*readonly_cb)(void *, int),
-                void (*inserted_cb)(void *, int))
+void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
 {
-    sd->opaque = opaque;
-    sd->readonly_cb = readonly_cb;
-    sd->inserted_cb = inserted_cb;
-    if (sd->readonly_cb)
-        sd->readonly_cb(sd->opaque, bdrv_is_read_only(sd->bdrv));
-    if (sd->inserted_cb)
-        sd->inserted_cb(sd->opaque, bdrv_is_inserted(sd->bdrv));
-    bdrv_set_change_cb(sd->bdrv, sd_cardchange, sd);
+    sd->readonly_cb = readonly;
+    sd->inserted_cb = insert;
+    qemu_set_irq(readonly, bdrv_is_read_only(sd->bdrv));
+    qemu_set_irq(insert, bdrv_is_inserted(sd->bdrv));
 }
 
 static void sd_erase(SDState *sd)
