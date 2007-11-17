@@ -45,7 +45,7 @@ struct ppc_def_t {
     uint32_t flags;
     int bfd_mach;
     void (*init_proc)(CPUPPCState *env);
-    int (*check_pow)(CPUPPCState *env);
+    int  (*check_pow)(CPUPPCState *env);
 };
 
 /* For user-mode emulation, we don't emulate any IRQ controller */
@@ -3836,7 +3836,6 @@ static void init_proc_G2LE (CPUPPCState *env)
 #define POWERPC_FLAG_e200    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |            \
                               POWERPC_FLAG_UBLE | POWERPC_FLAG_DE)
 #define check_pow_e200       check_pow_hid0
-
 
 __attribute__ (( unused ))
 static void init_proc_e200 (CPUPPCState *env)
@@ -8007,6 +8006,10 @@ static int register_direct_insn (opc_handler_t **ppc_opcodes,
     if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
         printf("*** ERROR: opcode %02x already assigned in main "
                "opcode table\n", idx);
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
+        printf("           Registered handler '%s' - new handler '%s'\n",
+               ppc_opcodes[idx]->oname, handler->oname);
+#endif
         return -1;
     }
 
@@ -8027,6 +8030,10 @@ static int register_ind_in_table (opc_handler_t **table,
         if (!is_indirect_opcode(table[idx1])) {
             printf("*** ERROR: idx %02x already assigned to a direct "
                    "opcode\n", idx1);
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
+            printf("           Registered handler '%s' - new handler '%s'\n",
+                   ind_table(table[idx1])[idx2]->oname, handler->oname);
+#endif
             return -1;
         }
     }
@@ -8034,6 +8041,10 @@ static int register_ind_in_table (opc_handler_t **table,
         insert_in_table(ind_table(table[idx1]), idx2, handler) < 0) {
         printf("*** ERROR: opcode %02x already assigned in "
                "opcode table %02x\n", idx2, idx1);
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
+        printf("           Registered handler '%s' - new handler '%s'\n",
+               ind_table(table[idx1])[idx2]->oname, handler->oname);
+#endif
         return -1;
     }
 
@@ -8156,6 +8167,7 @@ static int create_ppc_opcodes (CPUPPCState *env, const ppc_def_t *def)
 static void dump_ppc_insns (CPUPPCState *env)
 {
     opc_handler_t **table, *handler;
+    const unsigned char *p, *q;
     uint8_t opc1, opc2, opc3;
 
     printf("Instructions set:\n");
@@ -8176,9 +8188,35 @@ static void dump_ppc_insns (CPUPPCState *env)
                     for (opc3 = 0; opc3 < 0x20; opc3++) {
                         handler = table[opc3];
                         if (handler->handler != &gen_invalid) {
-                            printf("INSN: %02x %02x %02x (%02d %04d) : %s\n",
-                                   opc1, opc2, opc3, opc1, (opc3 << 5) | opc2,
-                                   handler->oname);
+                            /* Special hack to properly dump SPE insns */
+                            p = strchr(handler->oname, '_');
+                            if (p == NULL) {
+                                printf("INSN: %02x %02x %02x (%02d %04d) : "
+                                       "%s\n",
+                                       opc1, opc2, opc3, opc1,
+                                       (opc3 << 5) | opc2,
+                                       handler->oname);
+                            } else {
+                                q = "speundef";
+                                if ((p - handler->oname) != strlen(q) ||
+                                    memcmp(handler->oname, q, strlen(q)) != 0) {
+                                    /* First instruction */
+                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
+                                           "%.*s\n",
+                                           opc1, opc2 << 1, opc3, opc1,
+                                           (opc3 << 6) | (opc2 << 1),
+                                           (int)(p - handler->oname),
+                                           handler->oname);
+                                }
+                                if (strcmp(p + 1, q) != 0) {
+                                    /* Second instruction */
+                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
+                                           "%s\n",
+                                           opc1, (opc2 << 1) | 1, opc3, opc1,
+                                           (opc3 << 6) | (opc2 << 1) | 1,
+                                           p + 1);
+                                }
+                            }
                         }
                     }
                 } else {
@@ -8393,7 +8431,7 @@ static const ppc_def_t *ppc_find_by_pvr (uint32_t pvr)
             match = clz32(pvr_rev ^ (ppc_defs[i].pvr & 0xFFFF));
             /* We check '>=' instead of '>' because the PPC_defs table
              * is ordered by increasing revision.
-             * Then, we will match the higher revision compatible 
+             * Then, we will match the higher revision compatible
              * with the requested PVR
              */
             if (match >= best_match) {

@@ -434,7 +434,6 @@ union ppc_tlb_t {
 #if defined(PPC_EMULATE_32BITS_HYPV)
 #define MSR_HVB (1ULL << MSR_THV)
 #define msr_hv  msr_thv
-#define 
 #else
 #define MSR_HVB (0ULL)
 #define msr_hv  (0)
