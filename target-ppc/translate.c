@@ -441,29 +441,29 @@ enum {
 #define PPC_MISC    PPC_INSNS_BASE
     /* Deprecated instruction sets                                           */
     /*   Original POWER instruction set                                      */
-    PPC_POWER          = 0x0000000000000001ULL,
+    PPC_POWER          = 0x0000000000000002ULL,
     /*   POWER2 instruction set extension                                    */
-    PPC_POWER2         = 0x0000000000000002ULL,
+    PPC_POWER2         = 0x0000000000000004ULL,
     /*   Power RTC support                                                   */
-    PPC_POWER_RTC      = 0x0000000000000004ULL,
+    PPC_POWER_RTC      = 0x0000000000000008ULL,
     /*   Power-to-PowerPC bridge (601)                                       */
-    PPC_POWER_BR       = 0x0000000000000008ULL,
+    PPC_POWER_BR       = 0x0000000000000010ULL,
     /* 64 bits PowerPC instruction set                                       */
-    PPC_64B            = 0x0000000000000010ULL,
+    PPC_64B            = 0x0000000000000020ULL,
     /*   New 64 bits extensions (PowerPC 2.0x)                               */
-    PPC_64BX           = 0x0000000000000020ULL,
+    PPC_64BX           = 0x0000000000000040ULL,
     /*   64 bits hypervisor extensions                                       */
-    PPC_64H            = 0x0000000000000040ULL,
+    PPC_64H            = 0x0000000000000080ULL,
     /*   New wait instruction (PowerPC 2.0x)                                 */
-    PPC_WAIT           = 0x0000000000000080ULL,
+    PPC_WAIT           = 0x0000000000000100ULL,
     /*   Time base mftb instruction                                          */
-    PPC_MFTB           = 0x0000000000000100ULL,
+    PPC_MFTB           = 0x0000000000000200ULL,
 
     /* Fixed-point unit extensions                                           */
     /*   PowerPC 602 specific                                                */
-    PPC_602_SPEC       = 0x0000000000000200ULL,
+    PPC_602_SPEC       = 0x0000000000000400ULL,
     /*   PowerPC 2.03 specification extensions                               */
-    PPC_203            = 0x0000000000000400ULL,
+    PPC_203            = 0x0000000000000800ULL,
 
     /* Floating-point unit extensions                                        */
     /*   Optional floating point instructions                                */
