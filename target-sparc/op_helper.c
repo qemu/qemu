@@ -271,7 +271,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_code(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -290,7 +290,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_user(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -309,7 +309,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_kernel(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -333,7 +333,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_phys(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -357,7 +357,7 @@ void helper_ld_asi(int asi, int size, int sign)
             tmp = ldq_phys((target_phys_addr_t)(T0 & ~7)
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
