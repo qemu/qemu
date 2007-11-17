@@ -154,6 +154,11 @@ static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
                         __FUNCTION__, offset);
         return s->gpsr[bank];	/* Return last written value.  */
 
+    case GPCR:		/* GPIO Pin-Output Clear registers */
+        printf("%s: Read from a write-only register " REG_FMT "\n",
+                        __FUNCTION__, offset);
+        return 31337;		/* Specified as unpredictable in the docs.  */
+
     case GRER:		/* GPIO Rising-Edge Detect Enable registers */
         return s->rising[bank];
 

@@ -549,5 +549,5 @@ struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
 void pxa2xx_mmci_handlers(struct pxa2xx_mmci_s *s, qemu_irq readonly,
                 qemu_irq coverswitch)
 {
-    sd_set_cb(s->card, read, coverswitch);
+    sd_set_cb(s->card, readonly, coverswitch);
 }

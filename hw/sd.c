@@ -377,7 +377,6 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
         qemu_free(sd->wp_groups);
     sd->wp_switch = bdrv_is_read_only(bdrv);
     sd->wp_groups = (int *) qemu_mallocz(sizeof(int) * sect);
-    memset(sd->wp_groups, 0, sizeof(int) * sect);
     memset(sd->function_group, 0, sizeof(int) * 6);
     sd->erase_start = 0;
     sd->erase_end = 0;

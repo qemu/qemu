@@ -348,8 +348,10 @@ static void pxa2xx_dma_write(void *opaque,
 
         if (value & DCSR_NODESCFETCH) {
             /* No-descriptor-fetch mode */
-            if (value & DCSR_RUN)
+            if (value & DCSR_RUN) {
+                s->chan[channel].state &= ~DCSR_STOPINTR;
                 pxa2xx_dma_run(s);
+            }
         } else {
             /* Descriptor-fetch mode */
             if (value & DCSR_RUN) {
