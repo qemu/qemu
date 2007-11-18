@@ -185,7 +185,6 @@ static void palmte_gpio_setup(struct omap_mpu_state_s *cpu)
 
 static void palmte_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {

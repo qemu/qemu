@@ -159,7 +159,6 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
 
 static void versatile_init(int ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
-                     const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model,
                      int board_id)
@@ -276,24 +275,24 @@ static void versatile_init(int ram_size, int vga_ram_size,
                     initrd_filename, board_id, 0x0);
 }
 
-static void vpb_init(int ram_size, int vga_ram_size, const char *boot_device,
-                     DisplayState *ds, const char **fd_filename, int snapshot,
+static void vpb_init(int ram_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    versatile_init(ram_size, vga_ram_size, boot_device,
-                   ds, fd_filename, snapshot,
+    versatile_init(ram_size, vga_ram_size,
+                   boot_device, ds,
                    kernel_filename, kernel_cmdline,
                    initrd_filename, cpu_model, 0x183);
 }
 
-static void vab_init(int ram_size, int vga_ram_size, const char *boot_device,
-                     DisplayState *ds, const char **fd_filename, int snapshot,
+static void vab_init(int ram_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    versatile_init(ram_size, vga_ram_size, boot_device,
-                   ds, fd_filename, snapshot,
+    versatile_init(ram_size, vga_ram_size,
+                   boot_device, ds,
                    kernel_filename, kernel_cmdline,
                    initrd_filename, cpu_model, 0x25e);
 }

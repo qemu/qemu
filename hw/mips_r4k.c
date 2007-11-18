@@ -143,8 +143,8 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void mips_r4k_init (int ram_size, int vga_ram_size, const char *boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+void mips_r4k_init (int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {

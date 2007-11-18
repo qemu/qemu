@@ -8529,8 +8529,7 @@ int main(int argc, char **argv)
         }
     }
 
-    machine->init(ram_size, vga_ram_size, boot_devices,
-                  ds, fd_filename, snapshot,
+    machine->init(ram_size, vga_ram_size, boot_devices, ds,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
     /* init USB devices */

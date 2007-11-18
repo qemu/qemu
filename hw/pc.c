@@ -693,8 +693,8 @@ static void pc_init_ne2k_isa(NICInfo *nd, qemu_irq *pic)
 }
 
 /* PC hardware initialisation */
-static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
-                     DisplayState *ds, const char **fd_filename, int snapshot,
+static void pc_init1(int ram_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename,
                      int pci_enabled, const char *cpu_model)
@@ -982,30 +982,26 @@ static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
 #endif
 }
 
-static void pc_init_pci(int ram_size, int vga_ram_size, const char *boot_device,
-                        DisplayState *ds, const char **fd_filename,
-                        int snapshot,
+static void pc_init_pci(int ram_size, int vga_ram_size,
+                        const char *boot_device, DisplayState *ds,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
-    pc_init1(ram_size, vga_ram_size, boot_device,
-             ds, fd_filename, snapshot,
+    pc_init1(ram_size, vga_ram_size, boot_device, ds,
              kernel_filename, kernel_cmdline,
              initrd_filename, 1, cpu_model);
 }
 
-static void pc_init_isa(int ram_size, int vga_ram_size, const char *boot_device,
-                        DisplayState *ds, const char **fd_filename,
-                        int snapshot,
+static void pc_init_isa(int ram_size, int vga_ram_size,
+                        const char *boot_device, DisplayState *ds,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
-    pc_init1(ram_size, vga_ram_size, boot_device,
-             ds, fd_filename, snapshot,
+    pc_init1(ram_size, vga_ram_size, boot_device, ds,
              kernel_filename, kernel_cmdline,
              initrd_filename, 0, cpu_model);
 }

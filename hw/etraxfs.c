@@ -109,8 +109,8 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 }
 
 static
-void bareetraxfs_init (int ram_size, int vga_ram_size, const char *boot_device,
-                       DisplayState *ds, const char **fd_filename, int snapshot,
+void bareetraxfs_init (int ram_size, int vga_ram_size,
+                       const char *boot_device, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
