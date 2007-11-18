@@ -353,6 +353,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
             pfl->counter--;
             break;
+        default:
+            goto error_flash;
         }
         return;
     case 3: /* Confirm mode */
@@ -361,11 +363,14 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             if (cmd == 0xd0) {
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-                break;
             } else {
                 DPRINTF("%s: unknown command for \"write block\"\n", __func__);
                 PFLASH_BUG("Write block confirm");
+                goto reset_flash;
             }
+            break;
+        default:
+            goto error_flash;
         }
         return;
     default:

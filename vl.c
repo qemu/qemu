@@ -8269,7 +8269,7 @@ int main(int argc, char **argv)
         kqemu_allowed = 0;
 #endif
     linux_boot = (kernel_filename != NULL);
-    net_boot = (boot_devices_bitmap >> ('n' - 'a')) && 0xF;
+    net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
 
     /* XXX: this should not be: some embedded targets just have flash */
     if (!linux_boot && net_boot == 0 &&
