@@ -908,7 +908,7 @@ static void pci_gt64120_set_irq(qemu_irq *pic, int irq_num, int level)
 }
 
 
-void gt64120_reset(void *opaque)
+static void gt64120_reset(void *opaque)
 {
     GT64120State *s = opaque;
 

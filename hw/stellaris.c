@@ -521,7 +521,7 @@ static CPUWriteMemoryFunc *ssys_writefn[] = {
    ssys_write
 };
 
-void ssys_reset(void *opaque)
+static void ssys_reset(void *opaque)
 {
     ssys_state *s = (ssys_state *)opaque;
 

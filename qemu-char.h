@@ -46,6 +46,7 @@ struct CharDriverState {
 };
 
 CharDriverState *qemu_chr_open(const char *filename);
+void qemu_chr_close(CharDriverState *chr);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
 void qemu_chr_send_event(CharDriverState *s, int event);

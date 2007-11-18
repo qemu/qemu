@@ -124,7 +124,7 @@ void path_combine(char *dest, int dest_size,
 }
 
 
-void bdrv_register(BlockDriver *bdrv)
+static void bdrv_register(BlockDriver *bdrv)
 {
     if (!bdrv->bdrv_aio_read) {
         /* add AIO emulation layer */

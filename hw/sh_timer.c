@@ -52,7 +52,7 @@ static void sh_timer_update(sh_timer_state *s)
 #endif
 }
 
-uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
+static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
 {
     sh_timer_state *s = (sh_timer_state *)opaque;
 

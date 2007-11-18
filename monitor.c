@@ -261,7 +261,7 @@ static void do_info_block(void)
 }
 
 /* get the current CPU defined by the user */
-int mon_set_cpu(int cpu_index)
+static int mon_set_cpu(int cpu_index)
 {
     CPUState *env;
 
@@ -274,7 +274,7 @@ int mon_set_cpu(int cpu_index)
     return -1;
 }
 
-CPUState *mon_get_cpu(void)
+static CPUState *mon_get_cpu(void)
 {
     if (!mon_cpu) {
         mon_set_cpu(0);

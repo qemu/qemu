@@ -882,7 +882,7 @@ static void pxa2xx_screen_dump(void *opaque, const char *filename)
     /* TODO */
 }
 
-void pxa2xx_lcdc_orientation(void *opaque, int angle)
+static void pxa2xx_lcdc_orientation(void *opaque, int angle)
 {
     struct pxa2xx_lcdc_s *s = (struct pxa2xx_lcdc_s *) opaque;
 

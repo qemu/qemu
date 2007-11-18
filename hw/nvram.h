@@ -37,5 +37,6 @@ void m48t59_toggle_lock (void *private, int lock);
 m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
                        uint32_t io_base, uint16_t size,
                        int type);
+void m48t59_set_addr (void *opaque, uint32_t addr);
 
 #endif /* !NVRAM_H */

@@ -238,7 +238,7 @@ static char *audio_alloc_prefix (const char *s)
     return r;
 }
 
-const char *audio_audfmt_to_string (audfmt_e fmt)
+static const char *audio_audfmt_to_string (audfmt_e fmt)
 {
     switch (fmt) {
     case AUD_FMT_U8:
@@ -264,7 +264,8 @@ const char *audio_audfmt_to_string (audfmt_e fmt)
     return "S16";
 }
 
-audfmt_e audio_string_to_audfmt (const char *s, audfmt_e defval, int *defaultp)
+static audfmt_e audio_string_to_audfmt (const char *s, audfmt_e defval,
+                                        int *defaultp)
 {
     if (!strcasecmp (s, "u8")) {
         *defaultp = 0;

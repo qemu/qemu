@@ -907,10 +907,10 @@ static const char *usb_class_str(uint8_t class)
     return p->class_name;
 }
 
-void usb_info_device(int bus_num, int addr, int class_id,
-                     int vendor_id, int product_id,
-                     const char *product_name,
-                     int speed)
+static void usb_info_device(int bus_num, int addr, int class_id,
+                            int vendor_id, int product_id,
+                            const char *product_name,
+                            int speed)
 {
     const char *class_str, *speed_str;
 

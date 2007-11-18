@@ -8,7 +8,7 @@
  */
 
 #include "hw.h"
-#include "arm-misc.h"
+#include "primecell.h"
 
 #define GIC_NIRQ 96
 #define NCPU 1

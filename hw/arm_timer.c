@@ -8,8 +8,8 @@
  */
 
 #include "hw.h"
-#include "arm-misc.h"
 #include "qemu-timer.h"
+#include "primecell.h"
 
 /* Common timer implementation.  */
 
@@ -43,7 +43,7 @@ static void arm_timer_update(arm_timer_state *s)
     }
 }
 
-uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
+static uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
 {
     arm_timer_state *s = (arm_timer_state *)opaque;
 

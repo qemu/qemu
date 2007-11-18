@@ -290,7 +290,7 @@ static uint32_t kbd_read_data(void *opaque, uint32_t addr)
     return ps2_read_data(s->kbd);
 }
 
-void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
+static void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
     KBDState *s = opaque;
 
@@ -385,7 +385,7 @@ void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base)
 }
 
 /* Memory mapped interface */
-uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     KBDState *s = opaque;
 
@@ -399,7 +399,7 @@ uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
     }
 }
 
-void kbd_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void kbd_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     KBDState *s = opaque;
 

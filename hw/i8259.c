@@ -178,7 +178,7 @@ void pic_update_irq(PicState2 *s)
 int64_t irq_time[16];
 #endif
 
-void i8259_set_irq(void *opaque, int irq, int level)
+static void i8259_set_irq(void *opaque, int irq, int level)
 {
     PicState2 *s = opaque;
 

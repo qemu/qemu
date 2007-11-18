@@ -138,9 +138,9 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     return -1;
 }
 
-int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
-                       int must_swab, uint64_t *pentry,
-                       uint64_t *lowaddr, uint64_t *highaddr)
+static int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
+                              int must_swab, uint64_t *pentry,
+                              uint64_t *lowaddr, uint64_t *highaddr)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;

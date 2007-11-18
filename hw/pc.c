@@ -317,7 +317,7 @@ static uint32_t ioport92_read(void *opaque, uint32_t addr)
 /***********************************************************/
 /* Bochs BIOS debug ports */
 
-void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
+static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 {
     static const char shutdown_str[8] = "Shutdown";
     static int shutdown_index = 0;
@@ -361,7 +361,7 @@ void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-void bochs_bios_init(void)
+static void bochs_bios_init(void)
 {
     register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
@@ -431,8 +431,8 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
 }
 
-int load_kernel(const char *filename, uint8_t *addr,
-                uint8_t *real_addr)
+static int load_kernel(const char *filename, uint8_t *addr,
+                       uint8_t *real_addr)
 {
     int fd, size;
     int setup_sects;

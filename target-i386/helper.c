@@ -1235,7 +1235,7 @@ void do_interrupt(int intno, int is_int, int error_code,
  * needed. It should only be called, if this is not an interrupt.
  * Returns the new exception number.
  */
-int check_exception(int intno, int *error_code)
+static int check_exception(int intno, int *error_code)
 {
     char first_contributory = env->old_exception == 0 ||
                               (env->old_exception >= 10 &&
@@ -3051,7 +3051,7 @@ void helper_fstt_ST0_A0(void)
     helper_fstt(ST0, A0);
 }
 
-void fpu_set_exception(int mask)
+static void fpu_set_exception(int mask)
 {
     env->fpus |= mask;
     if (env->fpus & (~env->fpuc & FPUC_EM))

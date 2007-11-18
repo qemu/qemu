@@ -3041,7 +3041,7 @@ static CPUWriteMemoryFunc *omap_mpuio_writefn[] = {
     omap_badwidth_write16,
 };
 
-void omap_mpuio_reset(struct omap_mpuio_s *s)
+static void omap_mpuio_reset(struct omap_mpuio_s *s)
 {
     s->inputs = 0;
     s->outputs = 0;
@@ -3257,7 +3257,7 @@ static CPUWriteMemoryFunc *omap_gpio_writefn[] = {
     omap_badwidth_write16,
 };
 
-void omap_gpio_reset(struct omap_gpio_s *s)
+static void omap_gpio_reset(struct omap_gpio_s *s)
 {
     s->inputs = 0;
     s->outputs = ~0;
@@ -3429,7 +3429,7 @@ static CPUWriteMemoryFunc *omap_uwire_writefn[] = {
     omap_badwidth_write16,
 };
 
-void omap_uwire_reset(struct omap_uwire_s *s)
+static void omap_uwire_reset(struct omap_uwire_s *s)
 {
     s->control = 0;
     s->setup[0] = 0;
@@ -3470,7 +3470,7 @@ void omap_uwire_attach(struct omap_uwire_s *s,
 }
 
 /* Pseudonoise Pulse-Width Light Modulator */
-void omap_pwl_update(struct omap_mpu_state_s *s)
+static void omap_pwl_update(struct omap_mpu_state_s *s)
 {
     int output = (s->pwl.clk && s->pwl.enable) ? s->pwl.level : 0;
 
@@ -3528,7 +3528,7 @@ static CPUWriteMemoryFunc *omap_pwl_writefn[] = {
     omap_badwidth_write8,
 };
 
-void omap_pwl_reset(struct omap_mpu_state_s *s)
+static void omap_pwl_reset(struct omap_mpu_state_s *s)
 {
     s->pwl.output = 0;
     s->pwl.level = 0;
@@ -3632,7 +3632,7 @@ static CPUWriteMemoryFunc *omap_pwt_writefn[] = {
     omap_badwidth_write8,
 };
 
-void omap_pwt_reset(struct omap_mpu_state_s *s)
+static void omap_pwt_reset(struct omap_mpu_state_s *s)
 {
     s->pwt.frc = 0;
     s->pwt.vrc = 0;
@@ -4037,7 +4037,7 @@ static void omap_rtc_tick(void *opaque)
     qemu_mod_timer(s->clk, s->tick);
 }
 
-void omap_rtc_reset(struct omap_rtc_s *s)
+static void omap_rtc_reset(struct omap_rtc_s *s)
 {
     s->interrupts = 0;
     s->comp_reg = 0;
@@ -4509,14 +4509,14 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
     return s;
 }
 
-void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
+static void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
 {
     struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
 
     omap_mcbsp_rx_start(s);
 }
 
-void omap_mcbsp_i2s_start(void *opaque, int line, int level)
+static void omap_mcbsp_i2s_start(void *opaque, int line, int level)
 {
     struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
 

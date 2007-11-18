@@ -398,7 +398,7 @@ static CPUWriteMemoryFunc *malta_fpga_write[] = {
    malta_fpga_writel
 };
 
-void malta_fpga_reset(void *opaque)
+static void malta_fpga_reset(void *opaque)
 {
     MaltaFPGAState *s = opaque;
 
@@ -415,7 +415,7 @@ void malta_fpga_reset(void *opaque)
     malta_fpga_update_display(s);
 }
 
-MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
+static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
 {
     MaltaFPGAState *s;
     CharDriverState *uart_chr;

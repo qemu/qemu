@@ -308,8 +308,8 @@ static int sd_req_crc_validate(struct sd_request_s *req)
     return sd_crc7(buffer, 5) != req->crc;	/* TODO */
 }
 
-void sd_response_r1_make(SDState *sd,
-                         uint8_t *response, uint32_t last_status)
+static void sd_response_r1_make(SDState *sd,
+                                uint8_t *response, uint32_t last_status)
 {
     uint32_t mask = CARD_STATUS_B ^ ILLEGAL_COMMAND;
     uint32_t status;
@@ -323,7 +323,7 @@ void sd_response_r1_make(SDState *sd,
     response[3] = (status >> 0) & 0xff;
 }
 
-void sd_response_r3_make(SDState *sd, uint8_t *response)
+static void sd_response_r3_make(SDState *sd, uint8_t *response)
 {
     response[0] = (sd->ocr >> 24) & 0xff;
     response[1] = (sd->ocr >> 16) & 0xff;
@@ -331,7 +331,7 @@ void sd_response_r3_make(SDState *sd, uint8_t *response)
     response[3] = (sd->ocr >> 0) & 0xff;
 }
 
-void sd_response_r6_make(SDState *sd, uint8_t *response)
+static void sd_response_r6_make(SDState *sd, uint8_t *response)
 {
     uint16_t arg;
     uint16_t status;

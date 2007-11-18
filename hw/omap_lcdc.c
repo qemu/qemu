@@ -114,7 +114,7 @@ static draw_line_func *draw_line_table2[33] = {
     [32]	= draw_line16_32,
 };
 
-void omap_update_display(void *opaque)
+static void omap_update_display(void *opaque)
 {
     struct omap_lcd_panel_s *omap_lcd = (struct omap_lcd_panel_s *) opaque;
     draw_line_func *draw_line;
@@ -289,7 +289,7 @@ static int ppm_save(const char *filename, uint8_t *data,
     return 0;
 }
 
-void omap_screen_dump(void *opaque, const char *filename) {
+static void omap_screen_dump(void *opaque, const char *filename) {
     struct omap_lcd_panel_s *omap_lcd = opaque;
     omap_update_display(opaque);
     if (omap_lcd && omap_lcd->state->data)
@@ -298,12 +298,12 @@ void omap_screen_dump(void *opaque, const char *filename) {
                 omap_lcd->state->linesize);
 }
 
-void omap_invalidate_display(void *opaque) {
+static void omap_invalidate_display(void *opaque) {
     struct omap_lcd_panel_s *omap_lcd = opaque;
     omap_lcd->invalidate = 1;
 }
 
-void omap_lcd_update(struct omap_lcd_panel_s *s) {
+static void omap_lcd_update(struct omap_lcd_panel_s *s) {
     if (!s->enable) {
         s->dma->current_frame = -1;
         s->sync_error = 0;
