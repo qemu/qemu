@@ -1897,43 +1897,49 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
             goto fail;
         gen_op_ext(lsb, msb + 1);
         break;
+#if defined(TARGET_MIPS64)
     case OPC_DEXTM:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_ext(lsb, msb + 1 + 32);
+        gen_op_dext(lsb, msb + 1 + 32);
         break;
     case OPC_DEXTU:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_ext(lsb + 32, msb + 1);
+        gen_op_dext(lsb + 32, msb + 1);
         break;
     case OPC_DEXT:
-        gen_op_ext(lsb, msb + 1);
+        if (lsb + msb > 63)
+            goto fail;
+        gen_op_dext(lsb, msb + 1);
         break;
+#endif
     case OPC_INS:
         if (lsb > msb)
             goto fail;
         GEN_LOAD_REG_TN(T0, rt);
         gen_op_ins(lsb, msb - lsb + 1);
         break;
+#if defined(TARGET_MIPS64)
     case OPC_DINSM:
         if (lsb > msb)
             goto fail;
         GEN_LOAD_REG_TN(T0, rt);
-        gen_op_ins(lsb, msb - lsb + 1 + 32);
+        gen_op_dins(lsb, msb - lsb + 1 + 32);
         break;
     case OPC_DINSU:
         if (lsb > msb)
             goto fail;
         GEN_LOAD_REG_TN(T0, rt);
-        gen_op_ins(lsb + 32, msb - lsb + 1);
+        gen_op_dins(lsb + 32, msb - lsb + 1);
         break;
     case OPC_DINS:
         if (lsb > msb)
             goto fail;
         GEN_LOAD_REG_TN(T0, rt);
-        gen_op_ins(lsb, msb - lsb + 1);
+        gen_op_dins(lsb, msb - lsb + 1);
         break;
+#endif
     default:
 fail:
         MIPS_INVAL("bitops");
@@ -6156,6 +6162,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 break;
             }
             GEN_STORE_TN_REG(rd, T0);
+            break;
 #endif
         default:            /* Invalid */
             MIPS_INVAL("special3");

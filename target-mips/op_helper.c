@@ -106,8 +106,8 @@ void do_drotr (void)
     target_ulong tmp;
 
     if (T1) {
-       tmp = T0 << (0x40 - T1);
-       T0 = (T0 >> T1) | tmp;
+        tmp = T0 << (0x40 - T1);
+        T0 = (T0 >> T1) | tmp;
     }
 }
 
@@ -115,10 +115,8 @@ void do_drotr32 (void)
 {
     target_ulong tmp;
 
-    if (T1) {
-       tmp = T0 << (0x40 - (32 + T1));
-       T0 = (T0 >> (32 + T1)) | tmp;
-    }
+    tmp = T0 << (0x40 - (32 + T1));
+    T0 = (T0 >> (32 + T1)) | tmp;
 }
 
 void do_dsllv (void)
@@ -142,10 +140,10 @@ void do_drotrv (void)
 
     T0 &= 0x3F;
     if (T0) {
-       tmp = T1 << (0x40 - T0);
-       T0 = (T1 >> T0) | tmp;
+        tmp = T1 << (0x40 - T0);
+        T0 = (T1 >> T0) | tmp;
     } else
-       T0 = T1;
+        T0 = T1;
 }
 
 void do_dclo (void)
