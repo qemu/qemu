@@ -58,7 +58,6 @@ static void gumstix_common_init(int ram_size, int vga_ram_size,
 
 static void connex_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
