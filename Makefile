@@ -1,11 +1,11 @@
 # Makefile for QEMU.
 
-VPATH=$(SRC_PATH):$(SRC_PATH)/hw
-
 include config-host.mak
 
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
 	speed test html dvi info
+
+VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
 BASE_CFLAGS=
 BASE_LDFLAGS=
