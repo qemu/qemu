@@ -16,6 +16,18 @@
 #include "sysemu.h"
 #include "boards.h"
 
+#define GPIO_A 0
+#define GPIO_B 1
+#define GPIO_C 2
+#define GPIO_D 3
+#define GPIO_E 4
+#define GPIO_F 5
+#define GPIO_G 6
+
+#define BP_OLED_I2C  0x01
+#define BP_OLED_SSI  0x02
+#define BP_GAMEPAD   0x04
+
 typedef const struct {
     const char *name;
     uint32_t did0;
@@ -25,7 +37,7 @@ typedef const struct {
     uint32_t dc2;
     uint32_t dc3;
     uint32_t dc4;
-    enum {OLED_I2C, OLED_SSI} oled;
+    uint32_t peripherals;
 } stellaris_board_info;
 
 /* General purpose timer module.  */
@@ -991,7 +1003,7 @@ static stellaris_board_info stellaris_boards[] = {
     0x01071013,
     0x3f0f01ff,
     0x0000001f,
-    OLED_I2C
+    BP_OLED_I2C
   },
   { "LM3S6965EVB",
     0x10010002,
@@ -1001,7 +1013,7 @@ static stellaris_board_info stellaris_boards[] = {
     0x030f5317,
     0x0f0f87ff,
     0x5000007f,
-    OLED_SSI
+    BP_OLED_SSI | BP_GAMEPAD
   }
 };
 
@@ -1052,7 +1064,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     if (board->dc2 & (1 << 12)) {
         i2c = i2c_init_bus();
         stellaris_i2c_init(0x40020000, pic[8], i2c);
-        if (board->oled == OLED_I2C) {
+        if (board->peripherals & BP_OLED_I2C) {
             ssd0303_init(ds, i2c, 0x3d);
         }
     }
@@ -1064,14 +1076,26 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         }
     }
     if (board->dc2 & (1 << 4)) {
-        if (board->oled == OLED_SSI) {
+        if (board->peripherals & BP_OLED_SSI) {
             void * oled;
             /* FIXME: Implement chip select for OLED/MMC.  */
-            oled = ssd0323_init(ds, &gpio_out[2][7]);
+            oled = ssd0323_init(ds, &gpio_out[GPIO_C][7]);
             pl022_init(0x40008000, pic[7], ssd0323_xfer_ssi, oled);
         } else {
             pl022_init(0x40008000, pic[7], NULL, NULL);
         }
+    }
+    if (board->peripherals & BP_GAMEPAD) {
+        qemu_irq gpad_irq[5];
+        static const int gpad_keycode[5] = { 0xc8, 0xd0, 0xcb, 0xcd, 0x1d };
+
+        gpad_irq[0] = qemu_irq_invert(gpio_in[GPIO_E][0]); /* up */
+        gpad_irq[1] = qemu_irq_invert(gpio_in[GPIO_E][1]); /* down */
+        gpad_irq[2] = qemu_irq_invert(gpio_in[GPIO_E][2]); /* left */
+        gpad_irq[3] = qemu_irq_invert(gpio_in[GPIO_E][3]); /* right */
+        gpad_irq[4] = qemu_irq_invert(gpio_in[GPIO_F][1]); /* select */
+
+        stellaris_gamepad_init(5, gpad_irq, gpad_keycode);
     }
 }
 

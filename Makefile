@@ -54,7 +54,7 @@ OBJS+=block.o
 
 OBJS+=irq.o
 OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
-OBJS+=ssd0303.o ssd0323.o ads7846.o 
+OBJS+=ssd0303.o ssd0323.o ads7846.o stellaris_input.o
 OBJS+=scsi-disk.o cdrom.o
 OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
 
