@@ -108,7 +108,7 @@ OP(movf64)
 
 OP(zerof64)
 {
-    set_opf64(PARAM1, 0);
+    set_opf64(PARAM1, float64_zero);
     FORCE_RET();
 }
 

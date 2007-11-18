@@ -255,7 +255,7 @@ float64 helper_sub_cmpf64(CPUM68KState *env, float64 src0, float64 src1)
         /* +/-inf compares equal against itself, but sub returns nan.  */
         if (!float64_is_nan(src0)
             && !float64_is_nan(src1)) {
-            res = 0;
+            res = float64_zero;
             if (float64_lt_quiet(src0, res, &env->fp_status))
                 res = float64_chs(res);
         }

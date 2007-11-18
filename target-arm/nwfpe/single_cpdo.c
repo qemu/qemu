@@ -38,7 +38,7 @@ float32 float32_pol(float32 rFn,float32 rFm);
 unsigned int SingleCPDO(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();
-   float32 rFm, rFn = 0;
+   float32 rFm, rFn = float32_zero;
    unsigned int Fd, Fm, Fn, nRc = 1;
 
    Fm = getFm(opcode);
@@ -128,13 +128,11 @@ unsigned int SingleCPDO(const unsigned int opcode)
       break;
 
       case MNF_CODE:
-         rFm ^= 0x80000000;
-         fpa11->fpreg[Fd].fSingle = rFm;
+         fpa11->fpreg[Fd].fSingle = float32_chs(rFm);
       break;
 
       case ABS_CODE:
-         rFm &= 0x7fffffff;
-         fpa11->fpreg[Fd].fSingle = rFm;
+         fpa11->fpreg[Fd].fSingle = float32_abs(rFm);
       break;
 
       case RND_CODE:
