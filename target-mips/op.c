@@ -683,8 +683,8 @@ void op_drotr (void)
     target_ulong tmp;
 
     if (T1) {
-       tmp = T0 << (0x40 - T1);
-       T0 = (T0 >> T1) | tmp;
+        tmp = T0 << (0x40 - T1);
+        T0 = (T0 >> T1) | tmp;
     }
     FORCE_RET();
 }
@@ -693,10 +693,8 @@ void op_drotr32 (void)
 {
     target_ulong tmp;
 
-    if (T1) {
-       tmp = T0 << (0x40 - (32 + T1));
-       T0 = (T0 >> (32 + T1)) | tmp;
-    }
+    tmp = T0 << (0x40 - (32 + T1));
+    T0 = (T0 >> (32 + T1)) | tmp;
     FORCE_RET();
 }
 
@@ -724,10 +722,10 @@ void op_drotrv (void)
 
     T0 &= 0x3F;
     if (T0) {
-       tmp = T1 << (0x40 - T0);
-       T0 = (T1 >> T0) | tmp;
+        tmp = T1 << (0x40 - T0);
+        T0 = (T1 >> T0) | tmp;
     } else
-       T0 = T1;
+        T0 = T1;
     FORCE_RET();
 }
 
@@ -3091,7 +3089,7 @@ void op_ext(void)
     unsigned int pos = PARAM1;
     unsigned int size = PARAM2;
 
-    T0 = ((uint32_t)T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0);
+    T0 = (int32_t)((T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
     FORCE_RET();
 }
 
@@ -3101,13 +3099,13 @@ void op_ins(void)
     unsigned int size = PARAM2;
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
-    T0 = (T0 & ~mask) | (((uint32_t)T1 << pos) & mask);
+    T0 = (int32_t)((T0 & ~mask) | ((T1 << pos) & mask));
     FORCE_RET();
 }
 
 void op_wsbh(void)
 {
-    T0 = ((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF);
+    T0 = (int32_t)(((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF));
     FORCE_RET();
 }
 
@@ -3117,7 +3115,7 @@ void op_dext(void)
     unsigned int pos = PARAM1;
     unsigned int size = PARAM2;
 
-    T0 = (T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0);
+    T0 = (T1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
     FORCE_RET();
 }
 
@@ -3125,7 +3123,7 @@ void op_dins(void)
 {
     unsigned int pos = PARAM1;
     unsigned int size = PARAM2;
-    target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
+    target_ulong mask = ((size < 64) ? ((1ULL << size) - 1) : ~0ULL) << pos;
 
     T0 = (T0 & ~mask) | ((T1 << pos) & mask);
     FORCE_RET();
@@ -3139,7 +3137,8 @@ void op_dsbh(void)
 
 void op_dshd(void)
 {
-    T0 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
+    T1 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
+    T0 = (T1 << 32) | (T1 >> 32);
     FORCE_RET();
 }
 #endif

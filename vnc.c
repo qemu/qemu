@@ -812,9 +812,9 @@ static uint32_t read_u32(uint8_t *data, size_t offset)
 }
 
 #if CONFIG_VNC_TLS
-ssize_t vnc_tls_push(gnutls_transport_ptr_t transport,
-		     const void *data,
-		     size_t len) {
+static ssize_t vnc_tls_push(gnutls_transport_ptr_t transport,
+                            const void *data,
+                            size_t len) {
     struct VncState *vs = (struct VncState *)transport;
     int ret;
 
@@ -829,9 +829,9 @@ ssize_t vnc_tls_push(gnutls_transport_ptr_t transport,
 }
 
 
-ssize_t vnc_tls_pull(gnutls_transport_ptr_t transport,
-		     void *data,
-		     size_t len) {
+static ssize_t vnc_tls_pull(gnutls_transport_ptr_t transport,
+                            void *data,
+                            size_t len) {
     struct VncState *vs = (struct VncState *)transport;
     int ret;
 

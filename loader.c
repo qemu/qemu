@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "disas.h"
+#include "sysemu.h"
 #include "uboot_image.h"
 
 /* return the size or -1 if error */

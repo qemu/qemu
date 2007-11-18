@@ -30,6 +30,7 @@
 #include "block.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
+#include "ppc_mac.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE

@@ -232,7 +232,7 @@ enum {
 
 int do_swap;
 
-void __attribute__((noreturn)) __attribute__((format (printf, 1, 2))) error(const char *fmt, ...)
+static void __attribute__((noreturn)) __attribute__((format (printf, 1, 2))) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -243,7 +243,7 @@ void __attribute__((noreturn)) __attribute__((format (printf, 1, 2))) error(cons
     exit(1);
 }
 
-void *load_data(int fd, long offset, unsigned int size)
+static void *load_data(int fd, long offset, unsigned int size)
 {
     char *data;
 

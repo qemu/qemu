@@ -662,6 +662,9 @@ struct omap_mpu_state_s {
 #  error TARGET_PHYS_ADDR_BITS undefined
 # endif
 
+uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr);
+void omap_badwidth_write8(void *opaque, target_phys_addr_t addr,
+                uint32_t value);
 uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr);
 void omap_badwidth_write16(void *opaque, target_phys_addr_t addr,
                 uint32_t value);

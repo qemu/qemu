@@ -60,13 +60,12 @@ static always_inline void hreg_swap_gpr_tgpr (CPUPPCState *env)
 
 static always_inline void hreg_compute_mem_idx (CPUPPCState *env)
 {
-#if defined (TARGET_PPC64)
     /* Precompute MMU index */
-    if (msr_pr == 0 && msr_hv != 0)
+    if (msr_pr == 0 && msr_hv != 0) {
         env->mmu_idx = 2;
-    else
-#endif
+    } else {
         env->mmu_idx = 1 - msr_pr;
+    }
 }
 
 static always_inline void hreg_compute_hflags (CPUPPCState *env)
@@ -77,22 +76,26 @@ static always_inline void hreg_compute_hflags (CPUPPCState *env)
     hflags_mask = (1 << MSR_VR) | (1 << MSR_AP) | (1 << MSR_SA) |
         (1 << MSR_PR) | (1 << MSR_FP) | (1 << MSR_SE) | (1 << MSR_BE) |
         (1 << MSR_LE);
-#if defined (TARGET_PPC64)
-    hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | (1ULL << MSR_HV);
-#endif
+    hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | MSR_HVB;
     hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;
     /* Merge with hflags coming from other registers */
     env->hflags |= env->hflags_nmsr;
 }
 
-static always_inline int hreg_store_msr (CPUPPCState *env, target_ulong value)
+static always_inline int hreg_store_msr (CPUPPCState *env, target_ulong value,
+                                         int alter_hv)
 {
     int excp;
 
     excp = 0;
     value &= env->msr_mask;
 #if !defined (CONFIG_USER_ONLY)
+    if (!alter_hv) {
+        /* mtmsr cannot alter the hypervisor state */
+        value &= ~MSR_HVB;
+        value |= env->msr & MSR_HVB;
+    }
     if (((value >> MSR_IR) & 1) != msr_ir ||
         ((value >> MSR_DR) & 1) != msr_dr) {
         /* Flush all tlb when changing translation mode */

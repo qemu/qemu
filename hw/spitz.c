@@ -1234,7 +1234,6 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
 
 static void spitz_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -1244,7 +1243,6 @@ static void spitz_init(int ram_size, int vga_ram_size,
 
 static void borzoi_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -1254,7 +1252,6 @@ static void borzoi_init(int ram_size, int vga_ram_size,
 
 static void akita_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -1264,7 +1261,6 @@ static void akita_init(int ram_size, int vga_ram_size,
 
 static void terrier_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {

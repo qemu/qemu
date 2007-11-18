@@ -175,7 +175,7 @@ static inline int array_roll(array_t* array,int index_to,int index_from,int coun
     return 0;
 }
 
-inline int array_remove_slice(array_t* array,int index, int count)
+static inline int array_remove_slice(array_t* array,int index, int count)
 {
     assert(index >=0);
     assert(count > 0);
@@ -186,13 +186,13 @@ inline int array_remove_slice(array_t* array,int index, int count)
     return 0;
 }
 
-int array_remove(array_t* array,int index)
+static int array_remove(array_t* array,int index)
 {
     return array_remove_slice(array, index, 1);
 }
 
 /* return the index for a given member */
-int array_index(array_t* array, void* pointer)
+static int array_index(array_t* array, void* pointer)
 {
     size_t offset = (char*)pointer - array->pointer;
     assert(offset >= 0);

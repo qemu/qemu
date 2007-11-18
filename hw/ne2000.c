@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "pci.h"
+#include "pc.h"
 #include "net.h"
 
 /* debug NE2000 card */

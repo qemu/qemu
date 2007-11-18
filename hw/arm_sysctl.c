@@ -8,7 +8,7 @@
  */
 
 #include "hw.h"
-#include "arm-misc.h"
+#include "primecell.h"
 #include "sysemu.h"
 
 #define LOCK_VALUE 0xa05f

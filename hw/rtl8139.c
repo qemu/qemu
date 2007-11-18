@@ -497,7 +497,7 @@ typedef struct RTL8139State {
 
 } RTL8139State;
 
-void prom9346_decode_command(EEprom9346 *eeprom, uint8_t command)
+static void prom9346_decode_command(EEprom9346 *eeprom, uint8_t command)
 {
     DEBUG_PRINT(("RTL8139: eeprom command 0x%02x\n", command));
 
@@ -543,7 +543,7 @@ void prom9346_decode_command(EEprom9346 *eeprom, uint8_t command)
     }
 }
 
-void prom9346_shift_clock(EEprom9346 *eeprom)
+static void prom9346_shift_clock(EEprom9346 *eeprom)
 {
     int bit = eeprom->eedi?1:0;
 
@@ -635,7 +635,7 @@ void prom9346_shift_clock(EEprom9346 *eeprom)
     }
 }
 
-int prom9346_get_wire(RTL8139State *s)
+static int prom9346_get_wire(RTL8139State *s)
 {
     EEprom9346 *eeprom = &s->eeprom;
     if (!eeprom->eecs)
@@ -644,7 +644,8 @@ int prom9346_get_wire(RTL8139State *s)
     return eeprom->eedo;
 }
 
-void prom9346_set_wire(RTL8139State *s, int eecs, int eesk, int eedi)
+/* FIXME: This should be merged into/replaced by eeprom93xx.c.  */
+static void prom9346_set_wire(RTL8139State *s, int eecs, int eesk, int eedi)
 {
     EEprom9346 *eeprom = &s->eeprom;
     uint8_t old_eecs = eeprom->eecs;
@@ -1448,7 +1449,7 @@ static uint32_t rtl8139_IntrMitigate_read(RTL8139State *s)
     return ret;
 }
 
-int rtl8139_config_writeable(RTL8139State *s)
+static int rtl8139_config_writeable(RTL8139State *s)
 {
     if (s->Cfg9346 & Cfg9346_Unlock)
     {

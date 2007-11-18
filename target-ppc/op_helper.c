@@ -1425,7 +1425,7 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr);
 
 void do_store_msr (void)
 {
-    T0 = hreg_store_msr(env, T0);
+    T0 = hreg_store_msr(env, T0, 0);
     if (T0 != 0) {
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
         do_raise_exception(T0);
@@ -1451,7 +1451,7 @@ static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
 #endif
     /* XXX: beware: this is false if VLE is supported */
     env->nip = nip & ~((target_ulong)0x00000003);
-    hreg_store_msr(env, msr);
+    hreg_store_msr(env, msr, 1);
 #if defined (DEBUG_OP)
     cpu_dump_rfi(env->nip, env->msr);
 #endif

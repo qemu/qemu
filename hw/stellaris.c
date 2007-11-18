@@ -521,7 +521,7 @@ static CPUWriteMemoryFunc *ssys_writefn[] = {
    ssys_write
 };
 
-void ssys_reset(void *opaque)
+static void ssys_reset(void *opaque)
 {
     ssys_state *s = (ssys_state *)opaque;
 
@@ -1078,7 +1078,6 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
 static void lm3s811evb_init(int ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
-                     const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
@@ -1087,7 +1086,6 @@ static void lm3s811evb_init(int ram_size, int vga_ram_size,
 
 static void lm3s6965evb_init(int ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
-                     const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {

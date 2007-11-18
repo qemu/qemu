@@ -216,7 +216,7 @@ static CPUWriteMemoryFunc *pl190_writefn[] = {
    pl190_write
 };
 
-void pl190_reset(pl190_state *s)
+static void pl190_reset(pl190_state *s)
 {
   int i;
 

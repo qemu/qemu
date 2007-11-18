@@ -252,14 +252,14 @@ static void sh_serial_event(void *opaque, int event)
         sh_serial_receive_break(s);
 }
 
-uint32_t sh_serial_read (void *opaque, target_phys_addr_t addr)
+static uint32_t sh_serial_read (void *opaque, target_phys_addr_t addr)
 {
     sh_serial_state *s = opaque;
     return sh_serial_ioport_read(s, addr - s->base);
 }
 
-void sh_serial_write (void *opaque,
-		      target_phys_addr_t addr, uint32_t value)
+static void sh_serial_write (void *opaque,
+                             target_phys_addr_t addr, uint32_t value)
 {
     sh_serial_state *s = opaque;
     sh_serial_ioport_write(s, addr - s->base, value);

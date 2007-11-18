@@ -1838,29 +1838,6 @@ static char close_char;
 static char separator_char;
 static char scale_char;
 
-/* Here for backwards compatibility.  When gdb stops using
-   print_insn_i386_att and print_insn_i386_intel these functions can
-   disappear, and print_insn_i386 be merged into print_insn.  */
-int
-print_insn_i386_att (pc, info)
-     bfd_vma pc;
-     disassemble_info *info;
-{
-  intel_syntax = 0;
-
-  return print_insn (pc, info);
-}
-
-int
-print_insn_i386_intel (pc, info)
-     bfd_vma pc;
-     disassemble_info *info;
-{
-  intel_syntax = 1;
-
-  return print_insn (pc, info);
-}
-
 int
 print_insn_i386 (pc, info)
      bfd_vma pc;

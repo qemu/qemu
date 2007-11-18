@@ -82,7 +82,7 @@ void qemu_vfree(void *ptr)
 #include <sys/mman.h>
 #include <fcntl.h>
 
-void *kqemu_vmalloc(size_t size)
+static void *kqemu_vmalloc(size_t size)
 {
     static int phys_ram_fd = -1;
     static int phys_ram_size = 0;
@@ -164,7 +164,7 @@ void *kqemu_vmalloc(size_t size)
     return ptr;
 }
 
-void kqemu_vfree(void *ptr)
+static void kqemu_vfree(void *ptr)
 {
     /* may be useful some day, but currently we do not need to free */
 }

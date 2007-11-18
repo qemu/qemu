@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "console.h"
 
 static const uint8_t x_keycode_to_pc_keycode[115] = {
    0xc7,      /*  97  Home   */

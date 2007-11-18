@@ -573,10 +573,10 @@ static void sun4m_common_init(int RAM_size, const char *boot_device, DisplayStat
 }
 
 /* SPARCstation 5 hardware initialisation */
-static void ss5_init(int RAM_size, int vga_ram_size, const char *boot_device,
-                       DisplayState *ds, const char **fd_filename, int snapshot,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+static void ss5_init(int RAM_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
 {
     if (cpu_model == NULL)
         cpu_model = "Fujitsu MB86904";
@@ -586,10 +586,10 @@ static void ss5_init(int RAM_size, int vga_ram_size, const char *boot_device,
 }
 
 /* SPARCstation 10 hardware initialisation */
-static void ss10_init(int RAM_size, int vga_ram_size, const char *boot_device,
-                            DisplayState *ds, const char **fd_filename, int snapshot,
-                            const char *kernel_filename, const char *kernel_cmdline,
-                            const char *initrd_filename, const char *cpu_model)
+static void ss10_init(int RAM_size, int vga_ram_size,
+                      const char *boot_device, DisplayState *ds,
+                      const char *kernel_filename, const char *kernel_cmdline,
+                      const char *initrd_filename, const char *cpu_model)
 {
     if (cpu_model == NULL)
         cpu_model = "TI SuperSparc II";
@@ -599,8 +599,8 @@ static void ss10_init(int RAM_size, int vga_ram_size, const char *boot_device,
 }
 
 /* SPARCserver 600MP hardware initialisation */
-static void ss600mp_init(int RAM_size, int vga_ram_size, const char *boot_device,
-                         DisplayState *ds, const char **fd_filename, int snapshot,
+static void ss600mp_init(int RAM_size, int vga_ram_size,
+                         const char *boot_device, DisplayState *ds,
                          const char *kernel_filename, const char *kernel_cmdline,
                          const char *initrd_filename, const char *cpu_model)
 {

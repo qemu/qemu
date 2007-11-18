@@ -317,7 +317,7 @@ static uint32_t ioport92_read(void *opaque, uint32_t addr)
 /***********************************************************/
 /* Bochs BIOS debug ports */
 
-void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
+static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 {
     static const char shutdown_str[8] = "Shutdown";
     static int shutdown_index = 0;
@@ -361,7 +361,7 @@ void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-void bochs_bios_init(void)
+static void bochs_bios_init(void)
 {
     register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
@@ -431,8 +431,8 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
 }
 
-int load_kernel(const char *filename, uint8_t *addr,
-                uint8_t *real_addr)
+static int load_kernel(const char *filename, uint8_t *addr,
+                       uint8_t *real_addr)
 {
     int fd, size;
     int setup_sects;
@@ -693,8 +693,8 @@ static void pc_init_ne2k_isa(NICInfo *nd, qemu_irq *pic)
 }
 
 /* PC hardware initialisation */
-static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
-                     DisplayState *ds, const char **fd_filename, int snapshot,
+static void pc_init1(int ram_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename,
                      int pci_enabled, const char *cpu_model)
@@ -982,30 +982,26 @@ static void pc_init1(int ram_size, int vga_ram_size, const char *boot_device,
 #endif
 }
 
-static void pc_init_pci(int ram_size, int vga_ram_size, const char *boot_device,
-                        DisplayState *ds, const char **fd_filename,
-                        int snapshot,
+static void pc_init_pci(int ram_size, int vga_ram_size,
+                        const char *boot_device, DisplayState *ds,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
-    pc_init1(ram_size, vga_ram_size, boot_device,
-             ds, fd_filename, snapshot,
+    pc_init1(ram_size, vga_ram_size, boot_device, ds,
              kernel_filename, kernel_cmdline,
              initrd_filename, 1, cpu_model);
 }
 
-static void pc_init_isa(int ram_size, int vga_ram_size, const char *boot_device,
-                        DisplayState *ds, const char **fd_filename,
-                        int snapshot,
+static void pc_init_isa(int ram_size, int vga_ram_size,
+                        const char *boot_device, DisplayState *ds,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
                         const char *cpu_model)
 {
-    pc_init1(ram_size, vga_ram_size, boot_device,
-             ds, fd_filename, snapshot,
+    pc_init1(ram_size, vga_ram_size, boot_device, ds,
              kernel_filename, kernel_cmdline,
              initrd_filename, 0, cpu_model);
 }

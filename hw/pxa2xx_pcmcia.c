@@ -9,6 +9,7 @@
 
 #include "hw.h"
 #include "pcmcia.h"
+#include "pxa.h"
 
 struct pxa2xx_pcmcia_s {
     struct pcmcia_socket_s slot;

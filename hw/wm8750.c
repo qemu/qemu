@@ -124,7 +124,7 @@ static const struct wm_rate_s wm_rate_table[] = {
     {  192, 88200,  128, 88200 },	/* SR: 11111 */
 };
 
-void wm8750_set_format(struct wm8750_s *s)
+static void wm8750_set_format(struct wm8750_s *s)
 {
     int i;
     audsettings_t in_fmt;
@@ -194,7 +194,7 @@ void wm8750_set_format(struct wm8750_s *s)
         AUD_set_active_out(*s->out[0], 1);
 }
 
-void inline wm8750_mask_update(struct wm8750_s *s)
+static void inline wm8750_mask_update(struct wm8750_s *s)
 {
 #define R_ONLY	0x0000ffff
 #define L_ONLY	0xffff0000
@@ -596,7 +596,7 @@ i2c_slave *wm8750_init(i2c_bus *bus, AudioState *audio)
     return &s->i2c;
 }
 
-void wm8750_fini(i2c_slave *i2c)
+static void wm8750_fini(i2c_slave *i2c)
 {
     struct wm8750_s *s = (struct wm8750_s *) i2c;
     wm8750_reset(&s->i2c);

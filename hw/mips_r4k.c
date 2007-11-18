@@ -150,10 +150,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void mips_init (int ram_size, int vga_ram_size, const char *boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
+void mips_init (int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char *kernel_filename, const char *kernel_cmdline,
+                const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
     unsigned long bios_offset;
@@ -266,14 +266,13 @@ void mips_init (int ram_size, int vga_ram_size, const char *boot_device,
 
 static
 void mips_r4k_init (int ram_size, int vga_ram_size, const char *boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
     /* Run MIPS system in big endian mode. */
     bigendian = 1;
-    mips_init(ram_size, vga_ram_size,
-        boot_device, ds, fd_filename, snapshot,
+    mips_init(ram_size, vga_ram_size, boot_device, ds,
         kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 }
 
@@ -285,8 +284,7 @@ void mipsel_r4k_init (int ram_size, int vga_ram_size, const char *boot_device,
 {
     /* Run MIPS system in little endian mode. */
     bigendian = 0;
-    mips_init(ram_size, vga_ram_size,
-        boot_device, ds, fd_filename, snapshot,
+    mips_init(ram_size, vga_ram_size, boot_device, ds,
         kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 }
 
