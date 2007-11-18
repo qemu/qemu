@@ -140,14 +140,14 @@ endif
 endif
 
 ifeq ($(ARCH),x86_64)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+  ifneq ($(CONFIG_SOLARIS),yes)
+    BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+  endif
 endif
 
 ifeq ($(ARCH),ppc)
 CPPFLAGS+= -D__powerpc__
-ifdef CONFIG_LINUX_USER
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
 endif
 
 ifeq ($(ARCH),s390)
@@ -548,6 +548,13 @@ VL_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
 
 ifeq ($(ARCH),sparc64)
+  VL_LDFLAGS+=-m64
+  ifneq ($(CONFIG_SOLARIS),yes)
+    VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+  endif
+endif
+
+ifeq ($(ARCH),x86_64)
   VL_LDFLAGS+=-m64
   ifneq ($(CONFIG_SOLARIS),yes)
     VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
