@@ -1,4 +1,5 @@
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
 #include "cpu.h"
 
 /* Raise IRQ to CPU if necessary. It must be called every time the active

@@ -13,14 +13,17 @@
 #define NGROUPS 32
 
 /* ??? This should really be somewhere else.  */
-void memcpy_to_target(abi_ulong dest, const void *src,
-                      unsigned long len)
+abi_long memcpy_to_target(abi_ulong dest, const void *src,
+                          unsigned long len)
 {
     void *host_ptr;
 
-    host_ptr = lock_user(dest, len, 0);
+    host_ptr = lock_user(VERIFY_WRITE, dest, len, 0);
+    if (!host_ptr)
+        return -TARGET_EFAULT;
     memcpy(host_ptr, src, len);
     unlock_user(host_ptr, dest, 1);
+    return 0;
 }
 
 static int in_group_p(gid_t g)
@@ -121,21 +124,32 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     sp -= (argc + 1) * n;
     argv = sp;
     if (push_ptr) {
-        sp -= n; tputl(sp, envp);
-        sp -= n; tputl(sp, argv);
+        /* FIXME - handle put_user() failures */
+        sp -= n;
+        put_user_ual(envp, sp);
+        sp -= n;
+        put_user_ual(argv, sp);
     }
-    sp -= n; tputl(sp, argc);
+    sp -= n;
+    /* FIXME - handle put_user() failures */
+    put_user_ual(argc, sp);
 
     while (argc-- > 0) {
-        tputl(argv, stringp); argv += n;
+        /* FIXME - handle put_user() failures */
+        put_user_ual(stringp, argv);
+        argv += n;
         stringp += target_strlen(stringp) + 1;
     }
-    tputl(argv, 0);
+    /* FIXME - handle put_user() failures */
+    put_user_ual(0, argv);
     while (envc-- > 0) {
-        tputl(envp, stringp); envp += n;
+        /* FIXME - handle put_user() failures */
+        put_user_ual(stringp, envp);
+        envp += n;
         stringp += target_strlen(stringp) + 1;
     }
-    tputl(envp, 0);
+    /* FIXME - handle put_user() failures */
+    put_user_ual(0, envp);
 
     return sp;
 }

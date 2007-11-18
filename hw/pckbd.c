@@ -21,7 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "isa.h"
+#include "pc.h"
+#include "ps2.h"
+#include "sysemu.h"
 
 /* debug PC keyboard */
 //#define DEBUG_KBD

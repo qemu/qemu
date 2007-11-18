@@ -282,7 +282,9 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* XXX: not efficient, but simple */
-            for(i = 0;i < DATA_SIZE; i++) {
+            /* Note: relies on the fact that tlb_fill() does not remove the
+             * previous page from the TLB cache.  */
+            for(i = DATA_SIZE - 1; i >= 0; i--) {
 #ifdef TARGET_WORDS_BIGENDIAN
                 glue(slow_stb, MMUSUFFIX)(addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)),
                                           mmu_idx, retaddr);

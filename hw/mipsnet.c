@@ -1,4 +1,7 @@
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "net.h"
+#include "isa.h"
 
 //#define DEBUG_MIPSNET_SEND
 //#define DEBUG_MIPSNET_RECEIVE

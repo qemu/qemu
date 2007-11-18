@@ -213,6 +213,12 @@ else
     source_path_used="yes"
 fi
 
+werror="no"
+# generate compile errors on warnings for development builds
+#if grep cvs $source_path/VERSION > /dev/null 2>&1 ; then
+#werror="yes";
+#fi
+
 for opt do
   optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
   case "$opt" in
@@ -306,6 +312,12 @@ for opt do
         *)     echo "undefined SPARC architecture. Exiting";exit 1;;
       esac
   ;;
+  --enable-werror) werror="yes"
+  ;;
+  --disable-werror) werror="no"
+  ;;
+  *) echo "ERROR: unknown option $opt"; show_help="yes"
+  ;;
   esac
 done
 
@@ -319,6 +331,9 @@ fi
 # default flags for all hosts
 CFLAGS="$CFLAGS -Wall -Wshadow -O2 -g -fno-strict-aliasing"
 LDFLAGS="$LDFLAGS -g"
+if test "$werror" = "yes" ; then
+CFLAGS="$CFLAGS -Werror"
+fi
 
 #
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
@@ -378,6 +393,7 @@ echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
+echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
@@ -506,7 +522,7 @@ if test -z "$target_list" ; then
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
-        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user sparc64-linux-user sparc32plus-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user sh4-linux-user ppc-linux-user ppcemb-linux-user ppc64-linux-user ppc64abi32-linux-user x86_64-linux-user cris-linux-user $target_list"
+        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user sparc64-linux-user sparc32plus-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user sh4-linux-user ppc-linux-user ppc64-linux-user ppc64abi32-linux-user x86_64-linux-user cris-linux-user $target_list"
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
@@ -688,6 +704,7 @@ echo "target list       $target_list"
 echo "gprof enabled     $gprof"
 echo "profiler          $profiler"
 echo "static build      $static"
+echo "-Werror enabled   $werror"
 if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
@@ -967,7 +984,6 @@ target_bigendian="no"
 [ "$target_cpu" = "ppcemb" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc64abi32" ] && target_bigendian=yes
-[ "$target_cpu" = "ppc64h" ] && target_bigendian=yes
 [ "$target_cpu" = "mips" ] && target_bigendian=yes
 [ "$target_cpu" = "mipsn32" ] && target_bigendian=yes
 [ "$target_cpu" = "mips64" ] && target_bigendian=yes
@@ -1073,24 +1089,17 @@ elif test "$target_cpu" = "ppcemb" ; then
   echo "#define TARGET_PPCEMB 1" >> $config_h
 elif test "$target_cpu" = "ppc64" ; then
   echo "TARGET_ARCH=ppc64" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
   echo "TARGET_ABI_DIR=ppc" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPC64 1" >> $config_h
 elif test "$target_cpu" = "ppc64abi32" ; then
   echo "TARGET_ARCH=ppc64" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
   echo "TARGET_ABI_DIR=ppc" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPC64 1" >> $config_h
   echo "#define TARGET_ABI32 1" >> $config_h
-elif test "$target_cpu" = "ppc64h" ; then
-  echo "TARGET_ARCH=ppc64h" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64h\"" >> $config_h
-  echo "TARGET_ABI_DIR=ppc" >> $config_mak
-  echo "#define TARGET_PPC 1" >> $config_h
-  echo "#define TARGET_PPC64 1" >> $config_h
-  echo "#define TARGET_PPC64H 1" >> $config_h
 elif test "$target_cpu" = "x86_64" ; then
   echo "TARGET_ARCH=x86_64" >> $config_mak
   echo "#define TARGET_ARCH \"x86_64\"" >> $config_h

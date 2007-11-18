@@ -22,7 +22,10 @@
  * THE SOFTWARE.
  */
 #include <assert.h>     /* assert */
-#include "vl.h"
+#include "hw.h"
+#include "qemu-char.h"
+#include "isa.h"
+#include "pc.h"
 
 #define SERIAL_VERSION 2
 

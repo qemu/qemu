@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#include "vl.h"
+#include "hw.h"
 
 #define RW_TR_DMA_EN 0xb0026004
 #define RW_DOUT 0xb002601c

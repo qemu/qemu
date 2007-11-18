@@ -147,9 +147,35 @@ const argtype *thunk_convert(void *dst, const void *src,
     case TYPE_ULONG:
     case TYPE_PTRVOID:
         if (to_host) {
-            *(uint64_t *)dst = tswap32(*(uint32_t *)src);
+            if (type == TYPE_LONG) {
+                /* sign extension */
+                *(uint64_t *)dst = (int32_t)tswap32(*(uint32_t *)src);
+            } else {
+                *(uint64_t *)dst = tswap32(*(uint32_t *)src);
+            }
         } else {
             *(uint32_t *)dst = tswap32(*(uint64_t *)src & 0xffffffff);
+        }
+        break;
+#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 64
+    case TYPE_LONG:
+    case TYPE_ULONG:
+    case TYPE_PTRVOID:
+        *(uint64_t *)dst = tswap64(*(uint64_t *)src);
+        break;
+#elif HOST_LONG_BITS == 32 && TARGET_ABI_BITS == 64
+    case TYPE_LONG:
+    case TYPE_ULONG:
+    case TYPE_PTRVOID:
+        if (to_host) {
+            *(uint32_t *)dst = tswap64(*(uint64_t *)src);
+        } else {
+            if (type == TYPE_LONG) {
+                /* sign extension */
+                *(uint64_t *)dst = tswap64(*(int32_t *)src);
+            } else {
+                *(uint64_t *)dst = tswap64(*(uint32_t *)src);
+            }
         }
         break;
 #else

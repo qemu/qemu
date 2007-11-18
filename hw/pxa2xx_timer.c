@@ -7,7 +7,10 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
+#include "pxa.h"
 
 #define OSMR0	0x00
 #define OSMR1	0x04

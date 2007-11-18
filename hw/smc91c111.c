@@ -7,7 +7,9 @@
  * This code is licenced under the GPL
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "net.h"
+#include "devices.h"
 /* For crc32 */
 #include <zlib.h>
 

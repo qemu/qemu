@@ -35,7 +35,9 @@
  */
 
 #include <assert.h>             /* assert */
-#include "vl.h"
+#include "hw.h"
+#include "net.h"
+#include "pci.h"
 #include "eeprom93xx.h"
 
 /*****************************************************************************

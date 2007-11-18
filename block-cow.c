@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #ifndef _WIN32
-#include "vl.h"
+#include "qemu-common.h"
 #include "block_int.h"
 #include <sys/mman.h>
 

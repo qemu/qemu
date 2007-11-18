@@ -25,7 +25,11 @@
  * The controller is used in Sun4m systems in a slightly different
  * way. There are changes in DOR register and DMA is not available.
  */
-#include "vl.h"
+#include "hw.h"
+#include "fdc.h"
+#include "block.h"
+#include "qemu-timer.h"
+#include "isa.h"
 
 /********************************************************/
 /* debug Floppy devices */

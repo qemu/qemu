@@ -22,7 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pc.h"
+#include "isa.h"
+#include "audio/audio.h"
+#include "qemu-timer.h"
 
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000

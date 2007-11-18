@@ -37,9 +37,14 @@
  * It does not implement multiple sectors erase
  */
 
-#include "vl.h"
-#include "exec-all.h"
+#include <stdio.h>      /* fprintf */
+
+#include "hw.h"
+#include "block.h"
+#include "flash.h"
 #include "pflash.h"     /* pflash_amd_register */
+#include "qemu-timer.h"
+#include "exec-all.h"
 
 //~ #define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
@@ -50,9 +55,6 @@
 #else
 #define DPRINTF(fmt, args...) do { } while (0)
 #endif
-
-#define KiB 1024
-#define MiB (KiB * KiB)
 
 typedef enum {
   unknown_mode,

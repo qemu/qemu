@@ -1895,10 +1895,19 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
         if( !(p->flags & PAGE_VALID) )
             return -1;
 
-        if (!(p->flags & PAGE_READ) && (flags & PAGE_READ) )
+        if ((flags & PAGE_READ) && !(p->flags & PAGE_READ))
             return -1;
-        if (!(p->flags & PAGE_WRITE) && (flags & PAGE_WRITE) )
-            return -1;
+        if (flags & PAGE_WRITE) {
+            if (!(p->flags & PAGE_WRITE_ORG))
+                return -1;
+            /* unprotect the page if it was put read-only because it
+               contains translated code */
+            if (!(p->flags & PAGE_WRITE)) {
+                if (!page_unprotect(addr, 0, NULL))
+                    return -1;
+            }
+            return 0;
+        }
     }
     return 0;
 }
@@ -1941,21 +1950,6 @@ int page_unprotect(target_ulong address, unsigned long pc, void *puc)
         }
     }
     return 0;
-}
-
-/* call this function when system calls directly modify a memory area */
-/* ??? This should be redundant now we have lock_user.  */
-void page_unprotect_range(target_ulong data, target_ulong data_size)
-{
-    target_ulong start, end, addr;
-
-    start = data;
-    end = start + data_size;
-    start &= TARGET_PAGE_MASK;
-    end = TARGET_PAGE_ALIGN(end);
-    for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        page_unprotect(addr, 0, NULL);
-    }
 }
 
 static inline void tlb_set_dirty(CPUState *env,
@@ -2551,13 +2545,19 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         if (is_write) {
             if (!(flags & PAGE_WRITE))
                 return;
-            p = lock_user(addr, len, 0);
+            /* XXX: this code should not depend on lock_user */
+            if (!(p = lock_user(VERIFY_WRITE, addr, len, 0)))
+                /* FIXME - should this return an error rather than just fail? */
+                return;
             memcpy(p, buf, len);
             unlock_user(p, addr, len);
         } else {
             if (!(flags & PAGE_READ))
                 return;
-            p = lock_user(addr, len, 1);
+            /* XXX: this code should not depend on lock_user */
+            if (!(p = lock_user(VERIFY_READ, addr, len, 1)))
+                /* FIXME - should this return an error rather than just fail? */
+                return;
             memcpy(buf, p, len);
             unlock_user(p, addr, 0);
         }

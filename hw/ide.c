@@ -22,7 +22,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "pc.h"
+#include "pci.h"
+#include "scsi-disk.h"
+#include "pcmcia.h"
+#include "block.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE

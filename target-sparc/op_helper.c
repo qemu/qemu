@@ -207,6 +207,14 @@ void helper_ld_asi(int asi, int size, int sign)
             else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
             break;
+        case 0x01c00c00: /* Module reset register */
+            if (size == 8) {
+                ret = env->mxccregs[5] >> 32;
+                T0 = env->mxccregs[5];
+                // should we do something here?
+            } else
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
+            break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8) {
                 ret = env->mxccregs[7];
@@ -263,7 +271,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_code(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -282,7 +290,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_user(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -301,7 +309,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_kernel(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -325,7 +333,7 @@ void helper_ld_asi(int asi, int size, int sign)
         case 8:
             tmp = ldq_phys(T0 & ~7);
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -349,7 +357,7 @@ void helper_ld_asi(int asi, int size, int sign)
             tmp = ldq_phys((target_phys_addr_t)(T0 & ~7)
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
             ret = tmp >> 32;
-            T0 = tmp & 0xffffffff;
+            T0 = tmp;
             break;
         }
         break;
@@ -433,18 +441,16 @@ void helper_st_asi(int asi, int size)
             break;
         case 0x01c00a04: /* MXCC control register */
             if (size == 4)
-                env->mxccregs[3] = (env->mxccregs[0xa] & 0xffffffff00000000) | T1;
+                env->mxccregs[3] = (env->mxccregs[0xa] & 0xffffffff00000000ULL) | T1;
             else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
             break;
         case 0x01c00e00: /* MXCC error register  */
+            // writing a 1 bit clears the error
             if (size == 8)
-                env->mxccregs[6] = ((uint64_t)T1 << 32) | T2;
+                env->mxccregs[6] &= ~(((uint64_t)T1 << 32) | T2);
             else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
-            if (env->mxccregs[6] == 0xffffffffffffffffULL) {
-                // this is probably a reset
-            }
             break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8)
@@ -1798,27 +1804,3 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 }
 #endif
 
-#ifdef TARGET_SPARC64
-void do_tick_set_count(void *opaque, uint64_t count)
-{
-#if !defined(CONFIG_USER_ONLY)
-    ptimer_set_count(opaque, -count);
-#endif
-}
-
-uint64_t do_tick_get_count(void *opaque)
-{
-#if !defined(CONFIG_USER_ONLY)
-    return -ptimer_get_count(opaque);
-#else
-    return 0;
-#endif
-}
-
-void do_tick_set_limit(void *opaque, uint64_t limit)
-{
-#if !defined(CONFIG_USER_ONLY)
-    ptimer_set_limit(opaque, -limit, 0);
-#endif
-}
-#endif

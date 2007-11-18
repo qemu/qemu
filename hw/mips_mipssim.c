@@ -24,7 +24,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "pc.h"
+#include "isa.h"
+#include "net.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #define BIOS_SIZE (4 * MiB)
 
@@ -111,7 +117,6 @@ mips_mipssim_init (int ram_size, int vga_ram_size, const char *boot_device,
     unsigned long bios_offset;
     CPUState *env;
     int bios_size;
-    mips_def_t *def;
 
     /* Init CPUs. */
     if (cpu_model == NULL) {

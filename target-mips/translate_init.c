@@ -129,6 +129,23 @@ static mips_def_t mips_defs[] =
         .insn_flags = CPU_MIPS32R2 | ASE_MIPS16,
     },
     {
+        .name = "4KEm",
+        .CP0_PRid = 0x00019100,
+        /* Config1 implemented, MIPS32R2, fixed mapping MMU,
+           no virtual icache, uncached coherency. */
+        .CP0_Config0 = (1 << CP0C0_M) | (0x1 << CP0C0_AR) |
+                    (0x3 << CP0C0_MT) | (0x2 << CP0C0_K0),
+        .CP0_Config1 = MIPS_CONFIG1 |
+		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1258FF17,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16,
+    },
+    {
         .name = "24Kc",
         .CP0_PRid = 0x00019300,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR),
@@ -141,7 +158,7 @@ static mips_def_t mips_defs[] =
         .CCRes = 2,
         /* No DSP implemented. */
         .CP0_Status_rw_bitmask = 0x1278FF1F,
-        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16,
     },
     {
         .name = "24Kf",
@@ -158,7 +175,7 @@ static mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x3678FF1F,
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
-        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16,
     },
     {
         .name = "34Kf",

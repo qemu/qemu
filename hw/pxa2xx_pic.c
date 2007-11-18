@@ -8,7 +8,8 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
 
 #define ICIP	0x00	/* Interrupt Controller IRQ Pending register */
 #define ICMR	0x04	/* Interrupt Controller Mask register */

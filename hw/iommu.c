@@ -21,7 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "sun4m.h"
 
 /* debug iommu */
 //#define DEBUG_IOMMU
@@ -37,7 +38,6 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_CTRL          (0x0000 >> 2)
 #define IOMMU_CTRL_IMPL     0xf0000000 /* Implementation */
 #define IOMMU_CTRL_VERS     0x0f000000 /* Version */
-#define IOMMU_VERSION       0x04000000
 #define IOMMU_CTRL_RNGE     0x0000001c /* Mapping RANGE */
 #define IOMMU_RNGE_16MB     0x00000000 /* 0xff000000 -> 0xffffffff */
 #define IOMMU_RNGE_32MB     0x00000004 /* 0xfe000000 -> 0xffffffff */
@@ -104,6 +104,7 @@ typedef struct IOMMUState {
     target_phys_addr_t addr;
     uint32_t regs[IOMMU_NREGS];
     target_phys_addr_t iostart;
+    uint32_t version;
 } IOMMUState;
 
 static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
@@ -158,7 +159,7 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
             break;
         }
         DPRINTF("iostart = " TARGET_FMT_plx "\n", s->iostart);
-        s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | IOMMU_VERSION);
+        s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | s->version);
         break;
     case IOMMU_BASE:
         s->regs[saddr] = val & IOMMU_BASE_MASK;
@@ -308,10 +309,11 @@ static void iommu_reset(void *opaque)
 
     memset(s->regs, 0, IOMMU_NREGS * 4);
     s->iostart = 0;
-    s->regs[IOMMU_CTRL] = IOMMU_VERSION;
+    s->regs[IOMMU_CTRL] = s->version;
+    s->regs[IOMMU_ARBEN] = IOMMU_MID;
 }
 
-void *iommu_init(target_phys_addr_t addr)
+void *iommu_init(target_phys_addr_t addr, uint32_t version)
 {
     IOMMUState *s;
     int iommu_io_memory;
@@ -321,12 +323,14 @@ void *iommu_init(target_phys_addr_t addr)
         return NULL;
 
     s->addr = addr;
+    s->version = version;
 
     iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read, iommu_mem_write, s);
     cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
 
     register_savevm("iommu", addr, 2, iommu_save, iommu_load, s);
     qemu_register_reset(iommu_reset, s);
+    iommu_reset(s);
     return s;
 }
 

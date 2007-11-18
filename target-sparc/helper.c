@@ -604,3 +604,34 @@ void memcpy32(target_ulong *dst, const target_ulong *src)
     dst[6] = src[6];
     dst[7] = src[7];
 }
+
+#ifdef TARGET_SPARC64
+#if !defined(CONFIG_USER_ONLY)
+#include "qemu-common.h"
+#include "hw/irq.h"
+#include "qemu-timer.h"
+#endif
+
+void do_tick_set_count(void *opaque, uint64_t count)
+{
+#if !defined(CONFIG_USER_ONLY)
+    ptimer_set_count(opaque, -count);
+#endif
+}
+
+uint64_t do_tick_get_count(void *opaque)
+{
+#if !defined(CONFIG_USER_ONLY)
+    return -ptimer_get_count(opaque);
+#else
+    return 0;
+#endif
+}
+
+void do_tick_set_limit(void *opaque, uint64_t limit)
+{
+#if !defined(CONFIG_USER_ONLY)
+    ptimer_set_limit(opaque, -limit, 0);
+#endif
+}
+#endif

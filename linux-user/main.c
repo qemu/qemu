@@ -147,26 +147,46 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
     p[1] = tswapl(e2);
 }
 
-static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
-                     unsigned long addr, unsigned int sel)
+#if TARGET_X86_64
+uint64_t idt_table[512];
+
+static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
+                       uint64_t addr, unsigned int sel)
 {
-    unsigned int e1, e2;
-    uint32_t *p;
+    uint32_t *p, e1, e2;
     e1 = (addr & 0xffff) | (sel << 16);
     e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
     p = ptr;
-    p[0] = tswapl(e1);
-    p[1] = tswapl(e2);
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
+    p[2] = tswap32(addr >> 32);
+    p[3] = 0;
 }
-
-uint64_t gdt_table[6];
+/* only dpl matters as we do only user space emulation */
+static void set_idt(int n, unsigned int dpl)
+{
+    set_gate64(idt_table + n * 2, 0, dpl, 0, 0);
+}
+#else
 uint64_t idt_table[256];
+
+static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
+                     uint32_t addr, unsigned int sel)
+{
+    uint32_t *p, e1, e2;
+    e1 = (addr & 0xffff) | (sel << 16);
+    e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
+    p = ptr;
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
+}
 
 /* only dpl matters as we do only user space emulation */
 static void set_idt(int n, unsigned int dpl)
 {
     set_gate(idt_table + n, 0, dpl, 0, 0);
 }
+#endif
 
 void cpu_loop(CPUX86State *env)
 {
@@ -178,7 +198,7 @@ void cpu_loop(CPUX86State *env)
         trapnr = cpu_x86_exec(env);
         switch(trapnr) {
         case 0x80:
-            /* linux syscall */
+            /* linux syscall from int $0x80 */
             env->regs[R_EAX] = do_syscall(env,
                                           env->regs[R_EAX],
                                           env->regs[R_EBX],
@@ -188,6 +208,20 @@ void cpu_loop(CPUX86State *env)
                                           env->regs[R_EDI],
                                           env->regs[R_EBP]);
             break;
+#ifndef TARGET_ABI32
+        case EXCP_SYSCALL:
+            /* linux syscall from syscall intruction */
+            env->regs[R_EAX] = do_syscall(env,
+                                          env->regs[R_EAX],
+                                          env->regs[R_EDI],
+                                          env->regs[R_ESI],
+                                          env->regs[R_EDX],
+                                          env->regs[10],
+                                          env->regs[8],
+                                          env->regs[9]);
+            env->eip = env->exception_next_eip;
+            break;
+#endif
         case EXCP0B_NOSEG:
         case EXCP0C_STACK:
             info.si_signo = SIGBUS;
@@ -197,6 +231,7 @@ void cpu_loop(CPUX86State *env)
             queue_signal(info.si_signo, &info);
             break;
         case EXCP0D_GPF:
+            /* XXX: potential problem if ABI32 */
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_fault(env);
@@ -345,7 +380,8 @@ void cpu_loop(CPUARMState *env)
 
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
-                opcode = tget32(env->regs[15]);
+                /* FIXME - what to do if get_user() fails? */
+                get_user_u32(opcode, env->regs[15]);
 
                 if (EmulateAll(opcode, &ts->fpa, env) == 0) {
                     info.si_signo = SIGILL;
@@ -366,20 +402,24 @@ void cpu_loop(CPUARMState *env)
                 /* system call */
                 if (trapnr == EXCP_BKPT) {
                     if (env->thumb) {
-                        insn = tget16(env->regs[15]);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u16(insn, env->regs[15]);
                         n = insn & 0xff;
                         env->regs[15] += 2;
                     } else {
-                        insn = tget32(env->regs[15]);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u32(insn, env->regs[15]);
                         n = (insn & 0xf) | ((insn >> 4) & 0xff0);
                         env->regs[15] += 4;
                     }
                 } else {
                     if (env->thumb) {
-                        insn = tget16(env->regs[15] - 2);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u16(insn, env->regs[15] - 2);
                         n = insn & 0xff;
                     } else {
-                        insn = tget32(env->regs[15] - 4);
+                        /* FIXME - what to do if get_user() fails? */
+                        get_user_u32(insn, env->regs[15] - 4);
                         n = insn & 0xffffff;
                     }
                 }
@@ -485,7 +525,8 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
-        tputl(sp_ptr, env->regbase[get_reg_index(env, cwp1, 8 + i)]);
+        /* FIXME - what to do if put_user() fails? */
+        put_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
     }
 }
@@ -521,7 +562,8 @@ static void restore_window(CPUSPARCState *env)
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
-        env->regbase[get_reg_index(env, cwp1, 8 + i)] = tgetl(sp_ptr);
+        /* FIXME - what to do if get_user() fails? */
+        get_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
     }
     env->wim = new_wim;
@@ -641,6 +683,7 @@ void cpu_loop (CPUSPARCState *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+#ifndef TARGET_ABI32
         case 0x16e:
             flush_windows(env);
             sparc64_get_context(env);
@@ -649,6 +692,7 @@ void cpu_loop (CPUSPARCState *env)
             flush_windows(env);
             sparc64_set_context(env);
             break;
+#endif
 #endif
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
@@ -974,7 +1018,6 @@ void cpu_loop(CPUPPCState *env)
                   }
             }
             break;
-#if defined(TARGET_PPCEMB)
         case POWERPC_EXCP_SPEU:     /* SPE/embedded floating-point unavail.  */
             EXCP_DUMP(env, "No SPE/floating-point instruction allowed\n");
             info.si_signo = TARGET_SIGILL;
@@ -1004,8 +1047,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Reset interrupt while in user mode. "
                       "Aborting\n");
             break;
-#endif /* defined(TARGET_PPCEMB) */
-#if defined(TARGET_PPC64) && !defined(TARGET_ABI32) /* PowerPC 64 */
         case POWERPC_EXCP_DSEG:     /* Data segment exception                */
             cpu_abort(env, "Data segment exception while in user mode. "
                       "Aborting\n");
@@ -1014,20 +1055,16 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64) && !defined(TARGET_ABI32) */
-#if defined(TARGET_PPC64H) && !defined(TARGET_ABI32)
         /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDECR:    /* Hypervisor decrementer exception      */
             cpu_abort(env, "Hypervisor decrementer interrupt "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) && !defined(TARGET_ABI32) */
         case POWERPC_EXCP_TRACE:    /* Trace exception                       */
             /* Nothing to do:
              * we use this exception to emulate step-by-step execution mode.
              */
             break;
-#if defined(TARGET_PPC64H) && !defined(TARGET_ABI32)
         /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDSI:     /* Hypervisor data storage exception     */
             cpu_abort(env, "Hypervisor data storage exception "
@@ -1045,7 +1082,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Hypervisor instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) && !defined(TARGET_ABI32) */
         case POWERPC_EXCP_VPU:      /* Vector unavailable exception          */
             EXCP_DUMP(env, "No Altivec instructions allowed\n");
             info.si_signo = TARGET_SIGILL;
@@ -1498,10 +1534,11 @@ void cpu_loop(CPUMIPSState *env)
                 sp_reg = env->gpr[29][env->current_tc];
                 switch (nb_args) {
                 /* these arguments are taken from the stack */
-                case 8: arg8 = tgetl(sp_reg + 28);
-                case 7: arg7 = tgetl(sp_reg + 24);
-                case 6: arg6 = tgetl(sp_reg + 20);
-                case 5: arg5 = tgetl(sp_reg + 16);
+                /* FIXME - what to do if get_user() fails? */
+                case 8: get_user_ual(arg8, sp_reg + 28);
+                case 7: get_user_ual(arg7, sp_reg + 24);
+                case 6: get_user_ual(arg6, sp_reg + 20);
+                case 5: get_user_ual(arg5, sp_reg + 16);
                 default:
                     break;
                 }
@@ -1856,7 +1893,8 @@ void usage(void)
            "\n"
            "debug options:\n"
            "-d options   activate log (logfile=%s)\n"
-           "-p pagesize  set the host page size to 'pagesize'\n",
+           "-p pagesize  set the host page size to 'pagesize'\n"
+           "-strace      log system calls\n",
            TARGET_ARCH,
            interp_prefix,
            x86_stack_size,
@@ -1954,6 +1992,8 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(r, "drop-ld-preload")) {
             drop_ld_preload = 1;
+        } else if (!strcmp(r, "strace")) {
+            do_strace = 1;
         } else
         {
             usage();
@@ -1996,7 +2036,11 @@ int main(int argc, char **argv)
         cpu_model = "24Kf";
 #endif
 #elif defined(TARGET_PPC)
+#ifdef TARGET_PPC64
+        cpu_model = "970";
+#else
         cpu_model = "750";
+#endif
 #else
         cpu_model = "any";
 #endif
@@ -2010,8 +2054,8 @@ int main(int argc, char **argv)
     }
     global_env = env;
 
-    if(getenv("QEMU_STRACE") ){
-      do_strace=1;
+    if (getenv("QEMU_STRACE")) {
+        do_strace = 1;
     }
 
     wrk = environ;
@@ -2042,17 +2086,17 @@ int main(int argc, char **argv)
     if (loglevel) {
         page_dump(logfile);
 
-        fprintf(logfile, "start_brk   0x" TARGET_FMT_lx "\n", info->start_brk);
-        fprintf(logfile, "end_code    0x" TARGET_FMT_lx "\n", info->end_code);
-        fprintf(logfile, "start_code  0x" TARGET_FMT_lx "\n",
+        fprintf(logfile, "start_brk   0x" TARGET_ABI_FMT_lx "\n", info->start_brk);
+        fprintf(logfile, "end_code    0x" TARGET_ABI_FMT_lx "\n", info->end_code);
+        fprintf(logfile, "start_code  0x" TARGET_ABI_FMT_lx "\n",
                 info->start_code);
-        fprintf(logfile, "start_data  0x" TARGET_FMT_lx "\n",
+        fprintf(logfile, "start_data  0x" TARGET_ABI_FMT_lx "\n",
                 info->start_data);
-        fprintf(logfile, "end_data    0x" TARGET_FMT_lx "\n", info->end_data);
-        fprintf(logfile, "start_stack 0x" TARGET_FMT_lx "\n",
+        fprintf(logfile, "end_data    0x" TARGET_ABI_FMT_lx "\n", info->end_data);
+        fprintf(logfile, "start_stack 0x" TARGET_ABI_FMT_lx "\n",
                 info->start_stack);
-        fprintf(logfile, "brk         0x" TARGET_FMT_lx "\n", info->brk);
-        fprintf(logfile, "entry       0x" TARGET_FMT_lx "\n", info->entry);
+        fprintf(logfile, "brk         0x" TARGET_ABI_FMT_lx "\n", info->brk);
+        fprintf(logfile, "entry       0x" TARGET_ABI_FMT_lx "\n", info->entry);
     }
 
     target_set_brk(info->brk);
@@ -2075,12 +2119,22 @@ int main(int argc, char **argv)
         env->cr[4] |= CR4_OSFXSR_MASK;
         env->hflags |= HF_OSFXSR_MASK;
     }
+#ifndef TARGET_ABI32
+    /* enable 64 bit mode if possible */
+    if (!(env->cpuid_ext2_features & CPUID_EXT2_LM)) {
+        fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
+        exit(1);
+    }
+    env->cr[4] |= CR4_PAE_MASK;
+    env->efer |= MSR_EFER_LMA | MSR_EFER_LME;
+    env->hflags |= HF_LMA_MASK;
+#endif
 
     /* flags setup : we activate the IRQs by default as in user mode */
     env->eflags |= IF_MASK;
 
     /* linux register setup */
-#if defined(TARGET_X86_64)
+#ifndef TARGET_ABI32
     env->regs[R_EAX] = regs->rax;
     env->regs[R_EBX] = regs->rbx;
     env->regs[R_ECX] = regs->rcx;
@@ -2128,23 +2182,41 @@ int main(int argc, char **argv)
     set_idt(0x80, 3);
 
     /* linux segment setup */
-    env->gdt.base = h2g(gdt_table);
-    env->gdt.limit = sizeof(gdt_table) - 1;
-    write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
-             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
-             (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
-    write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
-             DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
-             (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
+    {
+        uint64_t *gdt_table;
+        gdt_table = qemu_mallocz(sizeof(uint64_t) * TARGET_GDT_ENTRIES);
+        env->gdt.base = h2g((unsigned long)gdt_table);
+        env->gdt.limit = sizeof(uint64_t) * TARGET_GDT_ENTRIES - 1;
+#ifdef TARGET_ABI32
+        write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+#else
+        /* 64 bit code segment */
+        write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 DESC_L_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+#endif
+        write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
+    }
     cpu_x86_load_seg(env, R_CS, __USER_CS);
+    cpu_x86_load_seg(env, R_SS, __USER_DS);
+#ifdef TARGET_ABI32
     cpu_x86_load_seg(env, R_DS, __USER_DS);
     cpu_x86_load_seg(env, R_ES, __USER_DS);
-    cpu_x86_load_seg(env, R_SS, __USER_DS);
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
-
     /* This hack makes Wine work... */
     env->segs[R_FS].selector = 0;
+#else
+    cpu_x86_load_seg(env, R_DS, 0);
+    cpu_x86_load_seg(env, R_ES, 0);
+    cpu_x86_load_seg(env, R_FS, 0);
+    cpu_x86_load_seg(env, R_GS, 0);
+#endif
 #elif defined(TARGET_ARM)
     {
         int i;

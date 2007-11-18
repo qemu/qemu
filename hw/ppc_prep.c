@@ -21,7 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "nvram.h"
+#include "pc.h"
+#include "fdc.h"
+#include "net.h"
+#include "sysemu.h"
+#include "isa.h"
+#include "pci.h"
+#include "ppc.h"
+#include "boards.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
@@ -521,14 +530,15 @@ CPUReadMemoryFunc *PPC_prep_io_read[] = {
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init (int ram_size, int vga_ram_size, const char *boot_device,
+static void ppc_prep_init (int ram_size, int vga_ram_size,
+                           const char *boot_device,
                            DisplayState *ds, const char **fd_filename,
                            int snapshot, const char *kernel_filename,
                            const char *kernel_cmdline,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    CPUState *env, *envs[MAX_CPUS];
+    CPUState *env = NULL, *envs[MAX_CPUS];
     char buf[1024];
     nvram_t nvram;
     m48t59_t *m48t59;
@@ -538,7 +548,7 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, const char *boot_devi
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     qemu_irq *i8259;
-    int ppc_boot_device = boot_device[0];
+    int ppc_boot_device;
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
     if (sysctrl == NULL)
@@ -611,6 +621,18 @@ static void ppc_prep_init (int ram_size, int vga_ram_size, const char *boot_devi
         kernel_size = 0;
         initrd_base = 0;
         initrd_size = 0;
+        ppc_boot_device = '\0';
+        /* For now, OHW cannot boot from the network. */
+        for (i = 0; boot_device[i] != '\0'; i++) {
+            if (boot_device[i] >= 'a' && boot_device[i] <= 'f') {
+                ppc_boot_device = boot_device[i];
+                break;
+            }
+        }
+        if (ppc_boot_device == '\0') {
+            fprintf(stderr, "No valid boot device for Mac99 machine\n");
+            exit(1);
+        }
     }
 
     isa_mem_base = 0xc0000000;

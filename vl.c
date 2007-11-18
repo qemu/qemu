@@ -21,7 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw/hw.h"
+#include "hw/boards.h"
+#include "hw/usb.h"
+#include "hw/pcmcia.h"
+#include "hw/pc.h"
+#include "hw/fdc.h"
+#include "hw/audiodev.h"
+#include "hw/isa.h"
+#include "net.h"
+#include "console.h"
+#include "sysemu.h"
+#include "gdbstub.h"
+#include "qemu-timer.h"
+#include "qemu-char.h"
+#include "block.h"
+#include "audio/audio.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -127,6 +142,12 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
+#if defined(TARGET_MIPS)
+# define MAX_FLASH_SIZE (16 * MiB)
+#else
+# define MAX_FLASH_SIZE (0 * 1024)
+#endif
+
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
 
 #ifdef TARGET_PPC
@@ -162,12 +183,6 @@ static DisplayState display_state;
 int nographic;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
-#if defined(TARGET_I386)
-#define MAX_BOOT_DEVICES 3
-#else
-#define MAX_BOOT_DEVICES 1
-#endif
-static char boot_device[MAX_BOOT_DEVICES + 1];
 int ram_size;
 int pit_min_timer_count = 0;
 int nb_nics;
@@ -6126,7 +6141,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c1_sys);
     qemu_put_be32(f, env->cp15.c1_coproc);
     qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
-    qemu_put_be32(f, env->cp15.c2_base);
+    qemu_put_be32(f, env->cp15.c2_base0);
+    qemu_put_be32(f, env->cp15.c2_base1);
+    qemu_put_be32(f, env->cp15.c2_mask);
     qemu_put_be32(f, env->cp15.c2_data);
     qemu_put_be32(f, env->cp15.c2_insn);
     qemu_put_be32(f, env->cp15.c3);
@@ -6141,6 +6158,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c9_data);
     qemu_put_be32(f, env->cp15.c13_fcse);
     qemu_put_be32(f, env->cp15.c13_context);
+    qemu_put_be32(f, env->cp15.c13_tls1);
+    qemu_put_be32(f, env->cp15.c13_tls2);
+    qemu_put_be32(f, env->cp15.c13_tls3);
     qemu_put_be32(f, env->cp15.c15_cpar);
 
     qemu_put_be32(f, env->features);
@@ -6159,6 +6179,15 @@ void cpu_save(QEMUFile *f, void *opaque)
         /* TODO: Should use proper FPSCR access functions.  */
         qemu_put_be32(f, env->vfp.vec_len);
         qemu_put_be32(f, env->vfp.vec_stride);
+
+        if (arm_feature(env, ARM_FEATURE_VFP3)) {
+            for (i = 16;  i < 32; i++) {
+                CPU_DoubleU u;
+                u.d = env->vfp.regs[i];
+                qemu_put_be32(f, u.l.upper);
+                qemu_put_be32(f, u.l.lower);
+            }
+        }
     }
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
@@ -6169,6 +6198,15 @@ void cpu_save(QEMUFile *f, void *opaque)
             qemu_put_be32(f, env->iwmmxt.cregs[i]);
         }
     }
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        qemu_put_be32(f, env->v7m.other_sp);
+        qemu_put_be32(f, env->v7m.vecbase);
+        qemu_put_be32(f, env->v7m.basepri);
+        qemu_put_be32(f, env->v7m.control);
+        qemu_put_be32(f, env->v7m.current_sp);
+        qemu_put_be32(f, env->v7m.exception);
+    }
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
@@ -6176,7 +6214,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     CPUARMState *env = (CPUARMState *)opaque;
     int i;
 
-    if (version_id != 0)
+    if (version_id != ARM_CPU_SAVE_VERSION)
         return -EINVAL;
 
     for (i = 0; i < 16; i++) {
@@ -6198,7 +6236,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c1_sys = qemu_get_be32(f);
     env->cp15.c1_coproc = qemu_get_be32(f);
     env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
-    env->cp15.c2_base = qemu_get_be32(f);
+    env->cp15.c2_base0 = qemu_get_be32(f);
+    env->cp15.c2_base1 = qemu_get_be32(f);
+    env->cp15.c2_mask = qemu_get_be32(f);
     env->cp15.c2_data = qemu_get_be32(f);
     env->cp15.c2_insn = qemu_get_be32(f);
     env->cp15.c3 = qemu_get_be32(f);
@@ -6213,6 +6253,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c9_data = qemu_get_be32(f);
     env->cp15.c13_fcse = qemu_get_be32(f);
     env->cp15.c13_context = qemu_get_be32(f);
+    env->cp15.c13_tls1 = qemu_get_be32(f);
+    env->cp15.c13_tls2 = qemu_get_be32(f);
+    env->cp15.c13_tls3 = qemu_get_be32(f);
     env->cp15.c15_cpar = qemu_get_be32(f);
 
     env->features = qemu_get_be32(f);
@@ -6231,6 +6274,15 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         /* TODO: Should use proper FPSCR access functions.  */
         env->vfp.vec_len = qemu_get_be32(f);
         env->vfp.vec_stride = qemu_get_be32(f);
+
+        if (arm_feature(env, ARM_FEATURE_VFP3)) {
+            for (i = 0;  i < 16; i++) {
+                CPU_DoubleU u;
+                u.l.upper = qemu_get_be32(f);
+                u.l.lower = qemu_get_be32(f);
+                env->vfp.regs[i] = u.d;
+            }
+        }
     }
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
@@ -6242,12 +6294,21 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        env->v7m.other_sp = qemu_get_be32(f);
+        env->v7m.vecbase = qemu_get_be32(f);
+        env->v7m.basepri = qemu_get_be32(f);
+        env->v7m.control = qemu_get_be32(f);
+        env->v7m.current_sp = qemu_get_be32(f);
+        env->v7m.exception = qemu_get_be32(f);
+    }
+
     return 0;
 }
 
 #else
 
-#warning No CPU save/restore functions
+//#warning No CPU save/restore functions
 
 #endif
 
@@ -7385,6 +7446,7 @@ void register_machines(void)
 #else
     qemu_register_machine(&ss5_machine);
     qemu_register_machine(&ss10_machine);
+    qemu_register_machine(&ss600mp_machine);
 #endif
 #elif defined(TARGET_ARM)
     qemu_register_machine(&integratorcp_machine);
@@ -7396,6 +7458,9 @@ void register_machines(void)
     qemu_register_machine(&borzoipda_machine);
     qemu_register_machine(&terrierpda_machine);
     qemu_register_machine(&palmte_machine);
+    qemu_register_machine(&lm3s811evb_machine);
+    qemu_register_machine(&lm3s6965evb_machine);
+    qemu_register_machine(&connex_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
     qemu_register_machine(&r2d_machine);
@@ -7579,14 +7644,16 @@ int main(int argc, char **argv)
     int use_gdbstub;
     const char *gdbstub_port;
 #endif
+    uint32_t boot_devices_bitmap = 0;
     int i, cdrom_index, pflash_index;
-    int snapshot, linux_boot;
+    int snapshot, linux_boot, net_boot;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *pflash_filename[MAX_PFLASH];
     const char *sd_filename;
     const char *mtd_filename;
     const char *kernel_filename, *kernel_cmdline;
+    const char *boot_devices = "";
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
     char net_clients[MAX_NET_CLIENTS][256];
@@ -7847,20 +7914,34 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_boot:
-                if (strlen(optarg) > MAX_BOOT_DEVICES) {
-                    fprintf(stderr, "qemu: too many boot devices\n");
-                    exit(1);
-                }
-                strncpy(boot_device, optarg, MAX_BOOT_DEVICES);
-#if defined(TARGET_SPARC) || defined(TARGET_I386)
-#define BOOTCHARS "acdn"
-#else
-#define BOOTCHARS "acd"
-#endif
-                if (strlen(boot_device) != strspn(boot_device, BOOTCHARS)) {
-                    fprintf(stderr, "qemu: invalid boot device "
-                                    "sequence '%s'\n", boot_device);
-                    exit(1);
+                boot_devices = optarg;
+                /* We just do some generic consistency checks */
+                {
+                    /* Could easily be extended to 64 devices if needed */
+                    const unsigned char *p;
+                    
+                    boot_devices_bitmap = 0;
+                    for (p = boot_devices; *p != '\0'; p++) {
+                        /* Allowed boot devices are:
+                         * a b     : floppy disk drives
+                         * c ... f : IDE disk drives
+                         * g ... m : machine implementation dependant drives
+                         * n ... p : network devices
+                         * It's up to each machine implementation to check
+                         * if the given boot devices match the actual hardware
+                         * implementation and firmware features.
+                         */
+                        if (*p < 'a' || *p > 'q') {
+                            fprintf(stderr, "Invalid boot device '%c'\n", *p);
+                            exit(1);
+                        }
+                        if (boot_devices_bitmap & (1 << (*p - 'a'))) {
+                            fprintf(stderr,
+                                    "Boot device '%c' was given twice\n",*p);
+                            exit(1);
+                        }
+                        boot_devices_bitmap |= 1 << (*p - 'a');
+                    }
                 }
                 break;
             case QEMU_OPTION_fda:
@@ -8244,25 +8325,24 @@ int main(int argc, char **argv)
         kqemu_allowed = 0;
 #endif
     linux_boot = (kernel_filename != NULL);
+    net_boot = (boot_devices_bitmap >> ('n' - 'a')) && 0xF;
 
-#if 0
-    if (!linux_boot &&
-        (!strchr(boot_device, 'n')) &&
-        hd_filename[0] == '\0' &&
-        (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
-        fd_filename[0] == '\0')
+    /* XXX: this should not be: some embedded targets just have flash */
+    if (!linux_boot && net_boot == 0 &&
+        hd_filename[0] == NULL &&
+        (cdrom_index >= 0 && hd_filename[cdrom_index] == NULL) &&
+        fd_filename[0] == NULL &&
+        pflash_filename[0] == NULL)
         help(1);
-#endif
 
     /* boot to floppy or the default cd if no hard disk defined yet */
-    if (!boot_device[0]) {
-        if (hd_filename[0] != '\0')
-            boot_device[0] = 'c';
-        else if (fd_filename[0] != '\0')
-            boot_device[0] = 'a';
+    if (!boot_devices[0]) {
+        if (hd_filename[0] != NULL)
+            boot_devices = "c";
+        else if (fd_filename[0] != NULL)
+            boot_devices = "a";
         else
-            boot_device[0] = 'd';
-        boot_device[1] = 0;
+            boot_devices = "d";
     }
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);
@@ -8303,20 +8383,28 @@ int main(int argc, char **argv)
     }
 
 #ifdef TARGET_I386
-    if (strchr(boot_device, 'n')) {
-	for (i = 0; i < nb_nics; i++) {
+    /* XXX: this should be moved in the PC machine instanciation code */
+    if (net_boot != 0) {
+        int netroms = 0;
+	for (i = 0; i < nb_nics && i < 4; i++) {
 	    const char *model = nd_table[i].model;
 	    char buf[1024];
-	    if (model == NULL)
-		model = "ne2k_pci";
-	    snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
-	    if (get_image_size(buf) > 0) {
-		option_rom[nb_option_roms] = strdup(buf);
-		nb_option_roms++;
-		break;
-	    }
+            if (net_boot & (1 << i)) {
+                if (model == NULL)
+                    model = "ne2k_pci";
+                snprintf(buf, sizeof(buf), "%s/pxe-%s.bin", bios_dir, model);
+                if (get_image_size(buf) > 0) {
+                    if (nb_option_roms >= MAX_OPTION_ROMS) {
+                        fprintf(stderr, "Too many option ROMs\n");
+                        exit(1);
+                    }
+                    option_rom[nb_option_roms] = strdup(buf);
+                    nb_option_roms++;
+                    netroms++;
+                }
+            }
 	}
-	if (i == nb_nics) {
+	if (netroms == 0) {
 	    fprintf(stderr, "No valid PXE rom found for network device\n");
 	    exit(1);
 	}
@@ -8443,6 +8531,8 @@ int main(int argc, char **argv)
         sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
         cocoa_display_init(ds, full_screen);
+#else
+        dumb_display_init(ds);
 #endif
     }
 
@@ -8496,7 +8586,7 @@ int main(int argc, char **argv)
         }
     }
 
-    machine->init(ram_size, vga_ram_size, boot_device,
+    machine->init(ram_size, vga_ram_size, boot_devices,
                   ds, fd_filename, snapshot,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 

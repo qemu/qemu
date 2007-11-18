@@ -21,7 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "audiodev.h"
+#include "audio/audio.h"
+#include "isa.h"
+#include "qemu-timer.h"
 
 #define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
 

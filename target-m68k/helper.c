@@ -101,6 +101,7 @@ static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
     }
 
     register_m68k_insns(env);
+    return 0;
 }
 
 void cpu_reset(CPUM68KState *env)

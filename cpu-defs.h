@@ -20,6 +20,10 @@
 #ifndef CPU_DEFS_H
 #define CPU_DEFS_H
 
+#ifndef NEED_CPU_H
+#error cpu.h included from common code
+#endif
+
 #include "config.h"
 #include <setjmp.h>
 #include <inttypes.h>

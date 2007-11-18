@@ -178,6 +178,7 @@ static inline TranslationBlock *tb_find_fast(void)
         flags |= (1 << 6);
     if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30))
         flags |= (1 << 7);
+    flags |= (env->condexec_bits << 8);
     cs_base = 0;
     pc = env->regs[15];
 #elif defined(TARGET_SPARC)
@@ -516,8 +517,18 @@ int cpu_exec(CPUState *env1)
                         env->exception_index = EXCP_FIQ;
                         do_interrupt(env);
                     }
+                    /* ARMv7-M interrupt return works by loading a magic value
+                       into the PC.  On real hardware the load causes the
+                       return to occur.  The qemu implementation performs the
+                       jump normally, then does the exception return when the
+                       CPU tries to execute code at the magic address.
+                       This will cause the magic PC value to be pushed to
+                       the stack if an interrupt occured at the wrong time.
+                       We avoid this by disabling interrupts when
+                       pc contains a magic address.  */
                     if (interrupt_request & CPU_INTERRUPT_HARD
-                        && !(env->uncached_cpsr & CPSR_I)) {
+                        && ((IS_M(env) && env->regs[15] < 0xfffffff0)
+                            || !(env->uncached_cpsr & CPSR_I))) {
                         env->exception_index = EXCP_IRQ;
                         do_interrupt(env);
                     }
@@ -745,26 +756,26 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
     env = saved_env;
 }
 
-void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32)
+void cpu_x86_fsave(CPUX86State *s, target_ulong ptr, int data32)
 {
     CPUX86State *saved_env;
 
     saved_env = env;
     env = s;
 
-    helper_fsave((target_ulong)ptr, data32);
+    helper_fsave(ptr, data32);
 
     env = saved_env;
 }
 
-void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
+void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32)
 {
     CPUX86State *saved_env;
 
     saved_env = env;
     env = s;
 
-    helper_frstor((target_ulong)ptr, data32);
+    helper_frstor(ptr, data32);
 
     env = saved_env;
 }

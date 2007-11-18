@@ -33,7 +33,9 @@
 
 #define ARM_ANGEL_HEAP_SIZE (128 * 1024 * 1024)
 #else
-#include "vl.h"
+#include "qemu-common.h"
+#include "sysemu.h"
+#include "gdbstub.h"
 #endif
 
 #define SYS_OPEN        0x01
@@ -165,8 +167,14 @@ static void arm_semi_flen_cb(CPUState *env, target_ulong ret, target_ulong err)
 #endif
 }
 
-#define ARG(n) tget32(args + (n) * 4)
-#define SET_ARG(n, val) tput32(args + (n) * 4,val)
+#define ARG(n)					\
+({						\
+    target_ulong __arg;				\
+    /* FIXME - handle get_user() failure */	\
+    get_user_ual(__arg, args + (n) * 4);	\
+    __arg;					\
+})
+#define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
 uint32_t do_arm_semihosting(CPUState *env)
 {
     target_ulong args;
@@ -184,9 +192,11 @@ uint32_t do_arm_semihosting(CPUState *env)
     args = env->regs[1];
     switch (nr) {
     case SYS_OPEN:
-        s = lock_user_string(ARG(0));
+        if (!(s = lock_user_string(ARG(0))))
+            /* FIXME - should this error code be -TARGET_EFAULT ? */
+            return (uint32_t)-1;
         if (ARG(1) >= 12)
-          return (uint32_t)-1;
+            return (uint32_t)-1;
         if (strcmp(s, ":tt") == 0) {
             if (ARG(1) < 4)
                 return STDIN_FILENO;
@@ -211,7 +221,11 @@ uint32_t do_arm_semihosting(CPUState *env)
         }
     case SYS_WRITEC:
         {
-          char c = tget8(args);
+          char c;
+
+          if (get_user_u8(c, args))
+              /* FIXME - should this error code be -TARGET_EFAULT ? */
+              return (uint32_t)-1;
           /* Write to debug console.  stderr is near enough.  */
           if (use_gdb_syscalls()) {
                 gdb_do_syscall(arm_semi_cb, "write,2,%x,1", args);
@@ -221,7 +235,9 @@ uint32_t do_arm_semihosting(CPUState *env)
           }
         }
     case SYS_WRITE0:
-        s = lock_user_string(args);
+        if (!(s = lock_user_string(args)))
+            /* FIXME - should this error code be -TARGET_EFAULT ? */
+            return (uint32_t)-1;
         len = strlen(s);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "write,2,%x,%x\n", args, len);
@@ -238,7 +254,9 @@ uint32_t do_arm_semihosting(CPUState *env)
             gdb_do_syscall(arm_semi_cb, "write,%x,%x,%x", ARG(0), ARG(1), len);
             return env->regs[0];
         } else {
-            s = lock_user(ARG(1), len, 1);
+            if (!(s = lock_user(VERIFY_READ, ARG(1), len, 1)))
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
             ret = set_swi_errno(ts, write(ARG(0), s, len));
             unlock_user(s, ARG(1), 0);
             if (ret == (uint32_t)-1)
@@ -252,7 +270,9 @@ uint32_t do_arm_semihosting(CPUState *env)
             gdb_do_syscall(arm_semi_cb, "read,%x,%x,%x", ARG(0), ARG(1), len);
             return env->regs[0];
         } else {
-            s = lock_user(ARG(1), len, 0);
+            if (!(s = lock_user(VERIFY_WRITE, ARG(1), len, 0)))
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
             do
               ret = set_swi_errno(ts, read(ARG(0), s, len));
             while (ret == -1 && errno == EINTR);
@@ -301,7 +321,9 @@ uint32_t do_arm_semihosting(CPUState *env)
             gdb_do_syscall(arm_semi_cb, "unlink,%s", ARG(0), (int)ARG(1)+1);
             ret = env->regs[0];
         } else {
-            s = lock_user_string(ARG(0));
+            if (!(s = lock_user_string(ARG(0))))
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
             ret =  set_swi_errno(ts, remove(s));
             unlock_user(s, ARG(0), 0);
         }
@@ -315,9 +337,15 @@ uint32_t do_arm_semihosting(CPUState *env)
             char *s2;
             s = lock_user_string(ARG(0));
             s2 = lock_user_string(ARG(2));
-            ret = set_swi_errno(ts, rename(s, s2));
-            unlock_user(s2, ARG(2), 0);
-            unlock_user(s, ARG(0), 0);
+            if (!s || !s2)
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                ret = (uint32_t)-1;
+            else
+                ret = set_swi_errno(ts, rename(s, s2));
+            if (s2)
+                unlock_user(s2, ARG(2), 0);
+            if (s)
+                unlock_user(s, ARG(0), 0);
             return ret;
         }
     case SYS_CLOCK:
@@ -329,7 +357,9 @@ uint32_t do_arm_semihosting(CPUState *env)
             gdb_do_syscall(arm_semi_cb, "system,%s", ARG(0), (int)ARG(1)+1);
             return env->regs[0];
         } else {
-            s = lock_user_string(ARG(0));
+            if (!(s = lock_user_string(ARG(0))))
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
             ret = set_swi_errno(ts, system(s));
             unlock_user(s, ARG(0), 0);
         }
@@ -346,7 +376,11 @@ uint32_t do_arm_semihosting(CPUState *env)
             char **arg = ts->info->host_argv;
             int len = ARG(1);
             /* lock the buffer on the ARM side */
-            char *cmdline_buffer = (char*)lock_user(ARG(0), len, 0);
+            char *cmdline_buffer = (char*)lock_user(VERIFY_WRITE, ARG(0), len, 0);
+
+            if (!cmdline_buffer)
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
 
             s = cmdline_buffer;
             while (*arg && len > 2) {
@@ -402,7 +436,9 @@ uint32_t do_arm_semihosting(CPUState *env)
                 ts->heap_limit = limit;
             }
 
-            ptr = lock_user(ARG(0), 16, 0);
+            if (!(ptr = lock_user(VERIFY_WRITE, ARG(0), 16, 0)))
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);
             ptr[2] = tswap32(ts->stack_base);
@@ -410,7 +446,9 @@ uint32_t do_arm_semihosting(CPUState *env)
             unlock_user(ptr, ARG(0), 16);
 #else
             limit = ram_size;
-            ptr = lock_user(ARG(0), 16, 0);
+            if (!(ptr = lock_user(VERIFY_WRITE, ARG(0), 16, 0)))
+                /* FIXME - should this error code be -TARGET_EFAULT ? */
+                return (uint32_t)-1;
             /* TODO: Make this use the limit of the loaded application.  */
             ptr[0] = tswap32(limit / 2);
             ptr[1] = tswap32(limit);

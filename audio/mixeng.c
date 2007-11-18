@@ -22,7 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #define AUDIO_CAP "mixeng"
 #include "audio_int.h"

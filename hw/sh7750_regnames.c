@@ -1,4 +1,5 @@
-#include "vl.h"
+#include "hw.h"
+#include "sh.h"
 #include "sh7750_regs.h"
 
 #define REGNAME(r) {r, #r},

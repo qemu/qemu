@@ -22,7 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "pci.h"
+#include "pc.h"
 
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
@@ -1120,6 +1123,11 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
 {
     GT64120State *s;
     PCIDevice *d;
+
+    (void)&pci_host_data_writeb; /* avoid warning */
+    (void)&pci_host_data_writew; /* avoid warning */
+    (void)&pci_host_data_readb; /* avoid warning */
+    (void)&pci_host_data_readw; /* avoid warning */
 
     s = qemu_mallocz(sizeof(GT64120State));
     s->pci = qemu_mallocz(sizeof(GT64120PCIState));

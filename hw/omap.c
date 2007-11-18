@@ -18,8 +18,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "arm-misc.h"
+#include "omap.h"
+#include "sysemu.h"
+#include "qemu-timer.h"
+/* We use pc-style serial ports.  */
+#include "pc.h"
 
 /* Should signal the TCMI */
 uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr)
@@ -833,7 +838,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         return 1;
 
     default:
-        OMAP_BAD_REG((unsigned long) reg);
+        OMAP_BAD_REG((target_phys_addr_t) reg);
     }
     return 0;
 }
@@ -4716,7 +4721,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     omap_dpll_init(&s->dpll[1], 0xfffed000, omap_findclk(s, "dpll2"));
     omap_dpll_init(&s->dpll[2], 0xfffed100, omap_findclk(s, "dpll3"));
 
-    s->mmc = omap_mmc_init(0xfffb7800, s->irq[1][OMAP_INT_OQN],
+    s->mmc = omap_mmc_init(0xfffb7800, sd_bdrv, s->irq[1][OMAP_INT_OQN],
                     &s->drq[OMAP_DMA_MMC_TX], omap_findclk(s, "mmc_ck"));
 
     s->mpuio = omap_mpuio_init(0xfffb5000,

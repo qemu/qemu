@@ -22,7 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "i2c.h"
+#include "smbus.h"
 
 //#define DEBUG
 

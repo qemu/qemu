@@ -38,6 +38,7 @@
  */
 
 #include <assert.h>
+#include "hw.h"
 #include "eeprom93xx.h"
 
 /* Debug EEPROM emulation. */

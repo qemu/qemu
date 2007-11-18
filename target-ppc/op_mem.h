@@ -37,7 +37,6 @@ static always_inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
         ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
 }
 
-#if defined(TARGET_PPC64) || defined(TARGET_PPCEMB)
 static always_inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t tmp = glue(ldq, MEMSUFFIX)(EA);
@@ -50,7 +49,6 @@ static always_inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
         ((tmp & 0x000000000000FF00ULL) << 40) |
         ((tmp & 0x00000000000000FFULL) << 54);
 }
-#endif
 
 #if defined(TARGET_PPC64)
 static always_inline int64_t glue(ldsl, MEMSUFFIX) (target_ulong EA)
@@ -81,7 +79,6 @@ static always_inline void glue(st32r, MEMSUFFIX) (target_ulong EA,
     glue(stl, MEMSUFFIX)(EA, tmp);
 }
 
-#if defined(TARGET_PPC64) || defined(TARGET_PPCEMB)
 static always_inline void glue(st64r, MEMSUFFIX) (target_ulong EA,
                                                   uint64_t data)
 {
@@ -95,7 +92,6 @@ static always_inline void glue(st64r, MEMSUFFIX) (target_ulong EA,
         ((data & 0x00000000000000FFULL) << 56);
     glue(stq, MEMSUFFIX)(EA, tmp);
 }
-#endif
 
 /***                             Integer load                              ***/
 #define PPC_LD_OP(name, op)                                                   \
@@ -678,7 +674,7 @@ void OPPROTO glue(op_stwcx, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -695,7 +691,7 @@ void OPPROTO glue(op_stwcx_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -711,7 +707,7 @@ void OPPROTO glue(op_stdcx, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -727,7 +723,7 @@ void OPPROTO glue(op_stdcx_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 #endif
@@ -744,7 +740,7 @@ void OPPROTO glue(op_stwcx_le, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -761,7 +757,7 @@ void OPPROTO glue(op_stwcx_le_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -777,7 +773,7 @@ void OPPROTO glue(op_stdcx_le, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -793,7 +789,7 @@ void OPPROTO glue(op_stdcx_le_64, MEMSUFFIX) (void)
             env->crf[0] = xer_so | 0x02;
         }
     }
-    env->reserve = -1;
+    env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 #endif
@@ -1123,7 +1119,6 @@ void OPPROTO glue(op_vr_stvx_le_64, MEMSUFFIX) (void)
 #undef VR_DWORD0
 #undef VR_DWORD1
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension */
 #define _PPC_SPE_LD_OP(name, op)                                              \
 void OPPROTO glue(glue(op_spe_l, name), MEMSUFFIX) (void)                     \
@@ -1385,6 +1380,5 @@ uint64_t glue(spe_lwhsplat_le, MEMSUFFIX) (target_ulong EA)
     return ret;
 }
 PPC_SPE_LD_OP(whsplat_le, spe_lwhsplat_le);
-#endif /* defined(TARGET_PPCEMB) */
 
 #undef MEMSUFFIX

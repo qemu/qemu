@@ -191,6 +191,12 @@ void OPPROTO op_move_T2_T0 (void)
     RETURN();
 }
 
+void OPPROTO op_moven_T2_T0 (void)
+{
+    T2 = ~T0;
+    RETURN();
+}
+
 /* Generate exceptions */
 void OPPROTO op_raise_exception_err (void)
 {
@@ -847,26 +853,18 @@ void OPPROTO op_add (void)
 
 void OPPROTO op_check_addo (void)
 {
-    if (likely(!(((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
-                 ((uint32_t)T2 ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
+              ((uint32_t)T2 ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_check_addo_64 (void)
 {
-    if (likely(!(((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
-                 ((uint64_t)T2 ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
+              ((uint64_t)T2 ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     RETURN();
 }
 #endif
@@ -922,6 +920,8 @@ void OPPROTO op_add_me (void)
     T0 += xer_ca + (-1);
     if (likely((uint32_t)T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 
@@ -931,6 +931,8 @@ void OPPROTO op_add_me_64 (void)
     T0 += xer_ca + (-1);
     if (likely((uint64_t)T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 #endif
@@ -957,9 +959,9 @@ void OPPROTO op_add_ze (void)
 /* divide word */
 void OPPROTO op_divw (void)
 {
-    if (unlikely(((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) ||
+    if (unlikely(((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
                  (int32_t)T1 == 0)) {
-        T0 = (int32_t)((-1) * ((uint32_t)T0 >> 31));
+        T0 = (int32_t)(UINT32_MAX * ((uint32_t)T0 >> 31));
     } else {
         T0 = (int32_t)T0 / (int32_t)T1;
     }
@@ -969,9 +971,9 @@ void OPPROTO op_divw (void)
 #if defined(TARGET_PPC64)
 void OPPROTO op_divd (void)
 {
-    if (unlikely(((int64_t)T0 == INT64_MIN && (int64_t)T1 == -1) ||
+    if (unlikely(((int64_t)T0 == INT64_MIN && (int64_t)T1 == (int64_t)-1LL) ||
                  (int64_t)T1 == 0)) {
-        T0 = (int64_t)((-1ULL) * ((uint64_t)T0 >> 63));
+        T0 = (int64_t)(UINT64_MAX * ((uint64_t)T0 >> 63));
     } else {
         T0 = (int64_t)T0 / (int64_t)T1;
     }
@@ -1142,32 +1144,6 @@ void OPPROTO op_subf (void)
     RETURN();
 }
 
-void OPPROTO op_check_subfo (void)
-{
-    if (likely(!(((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
-                 ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_check_subfo_64 (void)
-{
-    if (likely(!(((uint64_t)(~T2) ^ (uint64_t)T1 ^ UINT64_MAX) &
-                 ((uint64_t)(~T2) ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
-    RETURN();
-}
-#endif
-
 /* subtract from carrying */
 void OPPROTO op_check_subfc (void)
 {
@@ -1235,8 +1211,10 @@ void OPPROTO op_subfic_64 (void)
 void OPPROTO op_subfme (void)
 {
     T0 = ~T0 + xer_ca - 1;
-    if (likely((uint32_t)T0 != (uint32_t)-1))
+    if (likely((uint32_t)T0 != UINT32_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 
@@ -1244,8 +1222,10 @@ void OPPROTO op_subfme (void)
 void OPPROTO op_subfme_64 (void)
 {
     T0 = ~T0 + xer_ca - 1;
-    if (likely((uint64_t)T0 != (uint64_t)-1))
+    if (likely((uint64_t)T0 != UINT64_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
     RETURN();
 }
 #endif
@@ -2007,18 +1987,16 @@ void OPPROTO op_fneg (void)
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_mem.h"
-#if defined(TARGET_PPC64H)
 #define MEMSUFFIX _hypv
 #include "op_helper.h"
 #include "op_mem.h"
-#endif
 #endif
 
 /* Special op to check and maybe clear reservation */
 void OPPROTO op_check_reservation (void)
 {
     if ((uint32_t)env->reserve == (uint32_t)(T0 & ~0x00000003))
-        env->reserve = -1;
+        env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 
@@ -2026,7 +2004,7 @@ void OPPROTO op_check_reservation (void)
 void OPPROTO op_check_reservation_64 (void)
 {
     if ((uint64_t)env->reserve == (uint64_t)(T0 & ~0x00000003))
-        env->reserve = -1;
+        env->reserve = (target_ulong)-1ULL;
     RETURN();
 }
 #endif
@@ -2051,9 +2029,7 @@ void OPPROTO op_rfid (void)
     do_rfid();
     RETURN();
 }
-#endif
 
-#if defined(TARGET_PPC64H)
 void OPPROTO op_hrfid (void)
 {
     do_hrfid();
@@ -2219,9 +2195,9 @@ void OPPROTO op_store_601_batu (void)
 /* XXX: those micro-ops need tests ! */
 void OPPROTO op_POWER_abs (void)
 {
-    if (T0 == INT32_MIN)
+    if ((int32_t)T0 == INT32_MIN)
         T0 = INT32_MAX;
-    else if (T0 < 0)
+    else if ((int32_t)T0 < 0)
         T0 = -T0;
     RETURN();
 }
@@ -2364,7 +2340,7 @@ void OPPROTO op_POWER_sleq (void)
 
 void OPPROTO op_POWER_sllq (void)
 {
-    uint32_t msk = -1;
+    uint32_t msk = UINT32_MAX;
 
     msk = msk << (T1 & 0x1FUL);
     if (T1 & 0x20UL)
@@ -2377,7 +2353,7 @@ void OPPROTO op_POWER_sllq (void)
 
 void OPPROTO op_POWER_slq (void)
 {
-    uint32_t msk = -1, tmp;
+    uint32_t msk = UINT32_MAX, tmp;
 
     msk = msk << (T1 & 0x1FUL);
     if (T1 & 0x20UL)
@@ -2393,7 +2369,7 @@ void OPPROTO op_POWER_sraq (void)
 {
     env->spr[SPR_MQ] = rotl32(T0, 32 - (T1 & 0x1FUL));
     if (T1 & 0x20UL)
-        T0 = -1L;
+        T0 = UINT32_MAX;
     else
         T0 = (int32_t)T0 >> T1;
     RETURN();
@@ -2528,12 +2504,6 @@ void OPPROTO op_405_mullhwu (void)
     RETURN();
 }
 
-void OPPROTO op_405_check_ov (void)
-{
-    do_405_check_ov();
-    RETURN();
-}
-
 void OPPROTO op_405_check_sat (void)
 {
     do_405_check_sat();
@@ -2555,7 +2525,7 @@ void OPPROTO op_405_check_satu (void)
 {
     if (unlikely(T0 < T2)) {
         /* Saturate result */
-        T0 = -1;
+        T0 = UINT32_MAX;
     }
     RETURN();
 }
@@ -2628,7 +2598,7 @@ void OPPROTO op_4xx_tlbsx_check (void)
     int tmp;
 
     tmp = xer_so;
-    if (T0 != -1)
+    if ((int)T0 != -1)
         tmp |= 0x02;
     env->crf[0] = tmp;
     RETURN();
@@ -2746,7 +2716,6 @@ void OPPROTO op_store_booke_tsr (void)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension */
 void OPPROTO op_splatw_T1_64 (void)
 {
@@ -3465,4 +3434,3 @@ void OPPROTO op_efdtsteq (void)
     T0 = _do_efdtsteq(T0_64, T1_64);
     RETURN();
 }
-#endif /* defined(TARGET_PPCEMB) */

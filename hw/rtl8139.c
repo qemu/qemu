@@ -43,7 +43,10 @@
  *                                  Added rx/tx buffer reset when enabling rx/tx operation
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pci.h"
+#include "qemu-timer.h"
+#include "net.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1

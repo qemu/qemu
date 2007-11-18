@@ -164,9 +164,6 @@ struct target_cmsghdr {
 
 #define TARGET_CMSG_DATA(cmsg) ((unsigned char *) ((struct target_cmsghdr *) (cmsg) + 1))
 #define TARGET_CMSG_NXTHDR(mhdr, cmsg) __target_cmsg_nxthdr (mhdr, cmsg)
-#define TARGET_CMSG_FIRSTHDR(mhdr) \
-  ((size_t) tswapl((mhdr)->msg_controllen) >= sizeof (struct target_cmsghdr) \
-   ? (struct target_cmsghdr *) tswapl((mhdr)->msg_control) : (struct target_cmsghdr *) NULL)
 #define TARGET_CMSG_ALIGN(len) (((len) + sizeof (abi_long) - 1) \
                                & (size_t) ~(sizeof (abi_long) - 1))
 #define TARGET_CMSG_SPACE(len) (TARGET_CMSG_ALIGN (len) \
@@ -884,7 +881,7 @@ struct target_winsize {
 #define TARGET_MAP_NONBLOCK	0x10000		/* do not block on IO */
 #endif
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_CRIS)
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) || defined(TARGET_CRIS)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
@@ -1477,6 +1474,30 @@ struct target_stat64 {
 	unsigned long long	st_ino;
 };
 
+#elif defined(TARGET_I386) && !defined(TARGET_ABI32)
+struct target_stat {
+	abi_ulong	st_dev;
+	abi_ulong	st_ino;
+	abi_ulong	st_nlink;
+
+	unsigned int	st_mode;
+	unsigned int	st_uid;
+	unsigned int	st_gid;
+	unsigned int	__pad0;
+	abi_ulong	st_rdev;
+	abi_long	st_size;
+	abi_long	st_blksize;
+    	abi_long	st_blocks;	/* Number 512-byte blocks allocated. */
+
+	abi_ulong	target_st_atime;
+	abi_ulong 	target_st_atime_nsec; 
+	abi_ulong	target_st_mtime;
+	abi_ulong	target_st_mtime_nsec;
+	abi_ulong	target_st_ctime;
+	abi_ulong       target_st_ctime_nsec;
+
+  	abi_long	__unused[3];
+};
 #else
 #error unsupported CPU
 #endif

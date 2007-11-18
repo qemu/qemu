@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "pc.h"
+#include "isa.h"
+#include "qemu-timer.h"
 
 //#define DEBUG_PIT
 

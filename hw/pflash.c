@@ -18,6 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "hw.h"
+#include "block.h"
 #include "pflash.h"
 
 pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,

@@ -34,6 +34,7 @@ struct target_pt_regs {
 /* The size of each LDT entry. */
 #define TARGET_LDT_ENTRY_SIZE	8
 
+#define TARGET_GDT_ENTRIES 16
 #define TARGET_GDT_ENTRY_TLS_ENTRIES 3
 #define TARGET_GDT_ENTRY_TLS_MIN 12
 #define TARGET_GDT_ENTRY_TLS_MAX 14
@@ -90,3 +91,8 @@ struct target_msqid64_ds {
 };
 
 #define UNAME_MACHINE "x86_64"
+
+#define TARGET_ARCH_SET_GS 0x1001
+#define TARGET_ARCH_SET_FS 0x1002
+#define TARGET_ARCH_GET_FS 0x1003
+#define TARGET_ARCH_GET_GS 0x1004

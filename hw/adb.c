@@ -21,7 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc_mac.h"
+#include "console.h"
 
 /* ADB commands */
 #define ADB_BUSRESET		0x00

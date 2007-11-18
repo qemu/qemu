@@ -9,7 +9,13 @@
 */
 
 #include <assert.h>             /* assert */
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "pc.h"
+#include "isa.h"
+#include "net.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
@@ -17,11 +23,7 @@
 #define BIOS_FILENAME "mipsel_bios.bin"
 #endif
 
-#ifdef TARGET_MIPS64
-#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)
-#else
-#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffU)
-#endif
+#define PHYS_TO_VIRT(x) ((x) | ~(target_ulong)0x7fffffff)
 
 #define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
@@ -159,7 +161,6 @@ void mips_init (int ram_size, int vga_ram_size, const char *boot_device,
     CPUState *env;
     RTCState *rtc_state;
     int i;
-    mips_def_t *def;
     qemu_irq *i8259;
 
     /* init CPUs */

@@ -21,8 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc.h"
 #include "ppc405.h"
+#include "nvram.h"
+#include "flash.h"
+#include "sysemu.h"
+#include "block.h"
+#include "boards.h"
 
 extern int loglevel;
 extern FILE *logfile;

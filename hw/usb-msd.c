@@ -7,7 +7,10 @@
  * This code is licenced under the LGPL.
  */
 
-#include "vl.h"
+#include "qemu-common.h"
+#include "usb.h"
+#include "block.h"
+#include "scsi-disk.h"
 
 //#define DEBUG_MSD
 

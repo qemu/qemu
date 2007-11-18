@@ -21,8 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc.h"
 #include "ppc405.h"
+#include "pc.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
 
 extern int loglevel;
 extern FILE *logfile;

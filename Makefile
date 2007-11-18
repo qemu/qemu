@@ -7,8 +7,10 @@ config-host.mak:
 	@echo "Please call configure before running make!"
 endif
 
+VPATH=$(SRC_PATH):$(SRC_PATH)/hw
+
 .PHONY: all clean distclean dvi info install install-doc tar tarbin \
-	speed test test2 html dvi info
+	speed test html dvi info
 
 BASE_CFLAGS=
 BASE_LDFLAGS=
@@ -18,7 +20,6 @@ BASE_LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
 
 CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
-CPPFLAGS += -DQEMU_TOOL
 LIBS=
 ifdef CONFIG_STATIC
 BASE_LDFLAGS += -static
@@ -38,15 +39,29 @@ subdir-%: dyngen$(EXESUF) libqemu_common.a
 
 recurse-all: $(patsubst %,subdir-%, $(TARGET_DIRS))
 
+#######################################################################
+# BLOCK_OBJS is code used by both qemu system emulation and qemu-img
+
+BLOCK_OBJS=cutils.o
+BLOCK_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
+BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
+BLOCK_OBJS+=block-qcow2.o block-parallels.o
+
 ######################################################################
-# libqemu_common.a: target indepedent part of system emulation. The
+# libqemu_common.a: Target indepedent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS+=cutils.o readline.o console.o 
-#OBJS+=block.o block-raw.o
-OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o block-dmg.o block-bochs.o block-vpc.o block-vvfat.o block-qcow2.o block-parallels.o
+OBJS=$(BLOCK_OBJS)
+OBJS+=readline.o console.o
+OBJS+=block.o
+
+OBJS+=irq.o
+OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
+OBJS+=ssd0303.o ssd0323.o ads7846.o 
+OBJS+=scsi-disk.o cdrom.o
+OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
 
 ifdef CONFIG_WIN32
 OBJS+=tap-win32.o
@@ -110,8 +125,11 @@ libqemu_common.a: $(OBJS)
 
 ######################################################################
 
-qemu-img$(EXESUF): qemu-img.o block.o block-raw.o libqemu_common.a
+qemu-img$(EXESUF): qemu-img.o qemu-img-block.o qemu-img-block-raw.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^ -lz $(LIBS)
+
+qemu-img-%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DQEMU_IMG $(BASE_CFLAGS) -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
@@ -171,7 +189,7 @@ endif
         done
 
 # various test targets
-test speed test2: all
+test speed: all
 	$(MAKE) -C tests $@
 
 TAGS:

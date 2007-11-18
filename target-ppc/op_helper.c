@@ -33,11 +33,9 @@
 #define MEMSUFFIX _kernel
 #include "op_helper.h"
 #include "op_helper_mem.h"
-#if defined(TARGET_PPC64H)
 #define MEMSUFFIX _hypv
 #include "op_helper.h"
 #include "op_helper_mem.h"
-#endif
 #endif
 
 //#define DEBUG_OP
@@ -151,15 +149,12 @@ void do_addmeo (void)
 {
     T1 = T0;
     T0 += xer_ca + (-1);
-    if (likely(!((uint32_t)T1 &
-                 ((uint32_t)T1 ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint32_t)T1 & ((uint32_t)T1 ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     if (likely(T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 
 #if defined(TARGET_PPC64)
@@ -167,43 +162,40 @@ void do_addmeo_64 (void)
 {
     T1 = T0;
     T0 += xer_ca + (-1);
-    if (likely(!((uint64_t)T1 &
-                 ((uint64_t)T1 ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint64_t)T1 & ((uint64_t)T1 ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     if (likely(T1 != 0))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 #endif
 
 void do_divwo (void)
 {
-    if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) ||
+    if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
                  (int32_t)T1 == 0))) {
         xer_ov = 0;
         T0 = (int32_t)T0 / (int32_t)T1;
     } else {
         xer_ov = 1;
-        xer_so = 1;
-        T0 = (-1) * ((uint32_t)T0 >> 31);
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
     }
+    xer_so |= xer_ov;
 }
 
 #if defined(TARGET_PPC64)
 void do_divdo (void)
 {
-    if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == -1ULL) ||
+    if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == (int64_t)-1LL) ||
                  (int64_t)T1 == 0))) {
         xer_ov = 0;
         T0 = (int64_t)T0 / (int64_t)T1;
     } else {
         xer_ov = 1;
-        xer_so = 1;
-        T0 = (-1ULL) * ((uint64_t)T0 >> 63);
+        T0 = UINT64_MAX * ((uint64_t)T0 >> 63);
     }
+    xer_so |= xer_ov;
 }
 #endif
 
@@ -253,14 +245,14 @@ void do_mulldo (void)
     uint64_t tl;
 
     muls64(&tl, &th, T0, T1);
+    T0 = (int64_t)tl;
     /* If th != 0 && th != -1, then we had an overflow */
-    if (likely((th + 1) <= 1)) {
+    if (likely((uint64_t)(th + 1) <= 1)) {
         xer_ov = 0;
     } else {
         xer_ov = 1;
-        xer_so = 1;
     }
-    T0 = (int64_t)tl;
+    xer_so |= xer_ov;
 }
 #endif
 
@@ -316,15 +308,12 @@ void do_subfmeo (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    if (likely(!((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0) &
-                 (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     if (likely((uint32_t)T1 != UINT32_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 
 #if defined(TARGET_PPC64)
@@ -332,15 +321,12 @@ void do_subfmeo_64 (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    if (likely(!((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0) &
-                 (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = ((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     if (likely((uint64_t)T1 != UINT64_MAX))
         xer_ca = 1;
+    else
+        xer_ca = 0;
 }
 #endif
 
@@ -348,13 +334,9 @@ void do_subfzeo (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    if (likely(!(((uint32_t)~T1 ^ UINT32_MAX) &
-                 ((uint32_t)(~T1) ^ (uint32_t)T0) & (1UL << 31)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint32_t)~T1 ^ UINT32_MAX) &
+              ((uint32_t)(~T1) ^ (uint32_t)T0)) >> 31;
+    xer_so |= xer_ov;
     if (likely((uint32_t)T0 >= (uint32_t)~T1)) {
         xer_ca = 0;
     } else {
@@ -367,13 +349,9 @@ void do_subfzeo_64 (void)
 {
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    if (likely(!(((uint64_t)~T1 ^ UINT64_MAX) &
-                 ((uint64_t)(~T1) ^ (uint64_t)T0) & (1ULL << 63)))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
+    xer_ov = (((uint64_t)~T1 ^  UINT64_MAX) &
+              ((uint64_t)(~T1) ^ (uint64_t)T0)) >> 63;
+    xer_so |= xer_ov;
     if (likely((uint64_t)T0 >= (uint64_t)~T1)) {
         xer_ca = 0;
     } else {
@@ -412,7 +390,7 @@ void do_sraw (void)
             xer_ca = 0;
         }
     } else {
-        ret = (-1) * ((uint32_t)T0 >> 31);
+        ret = UINT32_MAX * ((uint32_t)T0 >> 31);
         if (likely(ret >= 0 || ((uint32_t)T0 & ~0x80000000UL) == 0)) {
             xer_ca = 0;
         } else {
@@ -440,7 +418,7 @@ void do_srad (void)
             xer_ca = 0;
         }
     } else {
-        ret = (-1) * ((uint64_t)T0 >> 63);
+        ret = UINT64_MAX * ((uint64_t)T0 >> 63);
         if (likely(ret >= 0 || ((uint64_t)T0 & ~0x8000000000000000ULL) == 0)) {
             xer_ca = 0;
         } else {
@@ -629,7 +607,7 @@ static always_inline void fload_invalid_op_excp (int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            FT0 = (uint64_t)-1;
+            FT0 = UINT64_MAX;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
@@ -640,7 +618,7 @@ static always_inline void fload_invalid_op_excp (int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            FT0 = (uint64_t)-1;
+            FT0 = UINT64_MAX;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
@@ -1495,8 +1473,7 @@ void do_rfid (void)
     __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
              ~((target_ulong)0xFFFF0000), 0);
 }
-#endif
-#if defined(TARGET_PPC64H)
+
 void do_hrfid (void)
 {
     __do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
@@ -1532,14 +1509,16 @@ void do_td (int flags)
 /* PowerPC 601 specific instructions (POWER bridge) */
 void do_POWER_abso (void)
 {
-    if ((uint32_t)T0 == INT32_MIN) {
+    if ((int32_t)T0 == INT32_MIN) {
         T0 = INT32_MAX;
         xer_ov = 1;
-        xer_so = 1;
-    } else {
+    } else if ((int32_t)T0 < 0) {
         T0 = -T0;
         xer_ov = 0;
+    } else {
+        xer_ov = 0;
     }
+    xer_so |= xer_ov;
 }
 
 void do_POWER_clcs (void)
@@ -1573,8 +1552,9 @@ void do_POWER_div (void)
 {
     uint64_t tmp;
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
@@ -1587,29 +1567,30 @@ void do_POWER_divo (void)
 {
     int64_t tmp;
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
         xer_ov = 1;
-        xer_so = 1;
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
         env->spr[SPR_MQ] = tmp % T1;
         tmp /= (int32_t)T1;
         if (tmp > (int64_t)INT32_MAX || tmp < (int64_t)INT32_MIN) {
             xer_ov = 1;
-            xer_so = 1;
         } else {
             xer_ov = 0;
         }
         T0 = tmp;
     }
+    xer_so |= xer_ov;
 }
 
 void do_POWER_divs (void)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
     } else {
         env->spr[SPR_MQ] = T0 % T1;
@@ -1619,16 +1600,17 @@ void do_POWER_divs (void)
 
 void do_POWER_divso (void)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == -1) || (int32_t)T1 == 0) {
-        T0 = (long)((-1) * (T0 >> 31));
+    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
+        (int32_t)T1 == 0) {
+        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
         xer_ov = 1;
-        xer_so = 1;
     } else {
         T0 = (int32_t)T0 / (int32_t)T1;
         env->spr[SPR_MQ] = (int32_t)T0 % (int32_t)T1;
         xer_ov = 0;
     }
+    xer_so |= xer_ov;
 }
 
 void do_POWER_dozo (void)
@@ -1654,10 +1636,10 @@ void do_POWER_maskg (void)
     uint32_t ret;
 
     if ((uint32_t)T0 == (uint32_t)(T1 + 1)) {
-        ret = -1;
+        ret = UINT32_MAX;
     } else {
-        ret = (((uint32_t)(-1)) >> ((uint32_t)T0)) ^
-            (((uint32_t)(-1) >> ((uint32_t)T1)) >> 1);
+        ret = (UINT32_MAX >> ((uint32_t)T0)) ^
+            ((UINT32_MAX >> ((uint32_t)T1)) >> 1);
         if ((uint32_t)T0 > (uint32_t)T1)
             ret = ~ret;
     }
@@ -1755,17 +1737,6 @@ void do_op_602_mfrom (void)
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
-void do_405_check_ov (void)
-{
-    if (likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||
-               !(((uint32_t)T0 ^ (uint32_t)T2) >> 31))) {
-        xer_ov = 0;
-    } else {
-        xer_ov = 1;
-        xer_so = 1;
-    }
-}
-
 void do_405_check_sat (void)
 {
     if (!likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||
@@ -1879,7 +1850,6 @@ void do_440_dlmzb (void)
     T0 = i;
 }
 
-#if defined(TARGET_PPCEMB)
 /* SPE extension helpers */
 /* Use a table to make this quicker */
 static uint8_t hbrev[16] = {
@@ -1898,16 +1868,16 @@ static always_inline uint32_t word_reverse (uint32_t val)
         (byte_reverse(val >> 8) << 16) | (byte_reverse(val) << 24);
 }
 
-#define MASKBITS 16 // Random value - to be fixed
+#define MASKBITS 16 // Random value - to be fixed (implementation dependant)
 void do_brinc (void)
 {
     uint32_t a, b, d, mask;
 
-    mask = (uint32_t)(-1UL) >> MASKBITS;
-    b = T1_64 & mask;
-    a = T0_64 & mask;
-    d = word_reverse(1 + word_reverse(a | ~mask));
-    T0_64 = (T0_64 & ~mask) | (d & mask);
+    mask = UINT32_MAX >> (32 - MASKBITS);
+    a = T0 & mask;
+    b = T1 & mask;
+    d = word_reverse(1 + word_reverse(a | ~b));
+    T0 = (T0 & ~mask) | (d & b);
 }
 
 #define DO_SPE_OP2(name)                                                      \
@@ -1927,8 +1897,8 @@ void do_ev##name (void)                                                       \
 /* Fixed-point vector arithmetic */
 static always_inline uint32_t _do_eabs (uint32_t val)
 {
-    if (val != 0x80000000)
-        val &= ~0x80000000;
+    if ((val & 0x80000000) && val != 0x80000000)
+        val -= val;
 
     return val;
 }
@@ -1954,7 +1924,7 @@ static always_inline int _do_ecntlzw (uint32_t val)
 static always_inline uint32_t _do_eneg (uint32_t val)
 {
     if (val != 0x80000000)
-        val ^= 0x80000000;
+        val -= val;
 
     return val;
 }
@@ -2739,7 +2709,6 @@ DO_SPE_OP1(fsctuiz);
 DO_SPE_OP1(fsctsf);
 /* evfsctuf */
 DO_SPE_OP1(fsctuf);
-#endif /* defined(TARGET_PPCEMB) */
 
 /*****************************************************************************/
 /* Softmmu support */
@@ -2772,7 +2741,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
-    target_phys_addr_t pc;
+    unsigned long pc;
     int ret;
 
     /* XXX: hack to restore env in all cases, even if not called from
@@ -2783,7 +2752,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
-            pc = (target_phys_addr_t)(unsigned long)retaddr;
+            pc = (unsigned long)retaddr;
             tb = tb_find_pc(pc);
             if (likely(tb)) {
                 /* the PC is inside the translated code. It means that we have

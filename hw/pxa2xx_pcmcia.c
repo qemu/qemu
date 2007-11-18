@@ -7,7 +7,8 @@
  * This code is licensed under the GPLv2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pcmcia.h"
 
 struct pxa2xx_pcmcia_s {
     struct pcmcia_socket_s slot;

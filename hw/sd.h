@@ -29,8 +29,6 @@
 #ifndef __hw_sd_h
 #define __hw_sd_h		1
 
-#include <vl.h>
-
 #define OUT_OF_RANGE		(1 << 31)
 #define ADDRESS_ERROR		(1 << 30)
 #define BLOCK_LEN_ERROR		(1 << 29)
@@ -74,9 +72,7 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
                   uint8_t *response);
 void sd_write_data(SDState *sd, uint8_t value);
 uint8_t sd_read_data(SDState *sd);
-void sd_set_cb(SDState *sd, void *opaque,
-               void (*readonly_cb)(void *, int),
-               void (*inserted_cb)(void *, int));
+void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert);
 int sd_data_ready(SDState *sd);
 
 #endif	/* __hw_sd_h */

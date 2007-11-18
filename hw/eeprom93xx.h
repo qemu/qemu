@@ -20,8 +20,6 @@
 #ifndef EEPROM93XX_H
 #define EEPROM93XX_H
 
-#include "vl.h"
-
 typedef struct _eeprom_t eeprom_t;
 
 /* Create a new EEPROM with (nwords * 2) bytes. */

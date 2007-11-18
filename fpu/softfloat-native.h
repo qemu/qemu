@@ -224,6 +224,11 @@ INLINE float32 float32_chs(float32 a)
     return -a;
 }
 
+INLINE float32 float32_scalbn(float32 a, int n)
+{
+    return scalbnf(a, n);
+}
+
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
@@ -311,6 +316,11 @@ INLINE float64 float64_chs(float64 a)
     return -a;
 }
 
+INLINE float64 float64_scalbn(float64 a, int n)
+{
+    return scalbn(a, n);
+}
+
 #ifdef FLOATX80
 
 /*----------------------------------------------------------------------------
@@ -391,4 +401,10 @@ INLINE floatx80 floatx80_chs(floatx80 a)
 {
     return -a;
 }
+
+INLINE floatx80 floatx80_scalbn(floatx80 a, int n)
+{
+    return scalbnl(a, n);
+}
+
 #endif

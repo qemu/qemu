@@ -5,7 +5,9 @@
  *
  * This code is licenced under the GPL
  */
-#include "vl.h"
+#include "hw.h"
+#include "mcf.h"
+#include "qemu-char.h"
 
 typedef struct {
     uint8_t mr[2];

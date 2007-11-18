@@ -37,7 +37,9 @@
 
 #include <assert.h>
 #include <stddef.h>             /* offsetof */
-#include "vl.h"
+#include "hw.h"
+#include "pci.h"
+#include "net.h"
 #include "eeprom93xx.h"
 
 /* Common declarations for all PCI devices. */

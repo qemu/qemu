@@ -21,7 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "sun4m.h"
+#include "qemu-char.h"
+#include "console.h"
+
 /* debug serial */
 //#define DEBUG_SERIAL
 

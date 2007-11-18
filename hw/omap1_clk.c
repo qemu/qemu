@@ -20,7 +20,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-#include "vl.h"
+#include "hw.h"
+#include "omap.h"
 
 struct clk {
     const char *name;

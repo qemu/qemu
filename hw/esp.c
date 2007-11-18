@@ -21,7 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "block.h"
+#include "scsi-disk.h"
+#include "sun4m.h"
+/* FIXME: Only needed for MAX_DISKS, which is probably wrong.  */
+#include "sysemu.h"
 
 /* debug ESP card */
 //#define DEBUG_ESP

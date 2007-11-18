@@ -23,7 +23,9 @@
  */
 #include <time.h>
 #include <sys/time.h>
-#include "vl.h"
+#include "hw.h"
+#include "sysemu.h"
+#include "boards.h"
 
 extern FILE *logfile;
 

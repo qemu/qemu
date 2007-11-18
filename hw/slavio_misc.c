@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "sun4m.h"
+#include "sysemu.h"
+
 /* debug misc */
 //#define DEBUG_MISC
 
@@ -46,11 +49,14 @@ typedef struct MiscState {
     uint8_t aux1, aux2;
     uint8_t diag, mctrl;
     uint32_t sysctrl;
+    uint16_t leds;
 } MiscState;
 
 #define MISC_SIZE 1
 #define SYSCTRL_MAXADDR 3
 #define SYSCTRL_SIZE (SYSCTRL_MAXADDR + 1)
+#define LED_MAXADDR 2
+#define LED_SIZE (LED_MAXADDR + 1)
 
 static void slavio_misc_update_irq(void *opaque)
 {
@@ -223,6 +229,54 @@ static CPUWriteMemoryFunc *slavio_sysctrl_mem_write[3] = {
     slavio_sysctrl_mem_writel,
 };
 
+static uint32_t slavio_led_mem_reads(void *opaque, target_phys_addr_t addr)
+{
+    MiscState *s = opaque;
+    uint32_t ret = 0, saddr;
+
+    saddr = addr & LED_MAXADDR;
+    switch (saddr) {
+    case 0:
+        ret = s->leds;
+        break;
+    default:
+        break;
+    }
+    MISC_DPRINTF("Read diagnostic LED reg 0x" TARGET_FMT_plx " = %x\n", addr,
+                 ret);
+    return ret;
+}
+
+static void slavio_led_mem_writes(void *opaque, target_phys_addr_t addr,
+                                  uint32_t val)
+{
+    MiscState *s = opaque;
+    uint32_t saddr;
+
+    saddr = addr & LED_MAXADDR;
+    MISC_DPRINTF("Write diagnostic LED reg 0x" TARGET_FMT_plx " =  %x\n", addr,
+                 val);
+    switch (saddr) {
+    case 0:
+        s->sysctrl = val;
+        break;
+    default:
+        break;
+    }
+}
+
+static CPUReadMemoryFunc *slavio_led_mem_read[3] = {
+    slavio_led_mem_reads,
+    slavio_led_mem_reads,
+    slavio_led_mem_reads,
+};
+
+static CPUWriteMemoryFunc *slavio_led_mem_write[3] = {
+    slavio_led_mem_writes,
+    slavio_led_mem_writes,
+    slavio_led_mem_writes,
+};
+
 static void slavio_misc_save(QEMUFile *f, void *opaque)
 {
     MiscState *s = opaque;
@@ -290,6 +344,13 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
                                  slavio_misc_io_memory);
     // Power management
     cpu_register_physical_memory(power_base, MISC_SIZE, slavio_misc_io_memory);
+
+    /* 16 bit registers */
+    slavio_misc_io_memory = cpu_register_io_memory(0, slavio_led_mem_read,
+                                                   slavio_led_mem_write, s);
+    /* ss600mp diag LEDs */
+    cpu_register_physical_memory(base + 0x1600000, MISC_SIZE,
+                                 slavio_misc_io_memory);
 
     /* 32 bit registers */
     slavio_misc_io_memory = cpu_register_io_memory(0, slavio_sysctrl_mem_read,

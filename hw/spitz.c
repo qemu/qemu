@@ -7,12 +7,28 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
+#include "arm-misc.h"
+#include "sysemu.h"
+#include "pcmcia.h"
+#include "i2c.h"
+#include "flash.h"
+#include "qemu-timer.h"
+#include "devices.h"
+#include "console.h"
+#include "block.h"
+#include "audio/audio.h"
+#include "boards.h"
 
 #define spitz_printf(format, ...)	\
     fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
 #undef REG_FMT
+#if TARGET_PHYS_ADDR_BITS == 32
+#define REG_FMT			"0x%02x"
+#else
 #define REG_FMT			"0x%02lx"
+#endif
 
 /* Spitz Flash */
 #define FLASH_BASE		0x0c000000
@@ -213,7 +229,9 @@ static const int spitz_gpiomap[5] = {
 static int spitz_gpio_invert[5] = { 0, 0, 0, 0, 0, };
 
 struct spitz_keyboard_s {
-    struct pxa2xx_state_s *cpu;
+    qemu_irq sense[SPITZ_KEY_SENSE_NUM];
+    qemu_irq *strobe;
+    qemu_irq gpiomap[5];
     int keymap[0x80];
     uint16_t keyrow[SPITZ_KEY_SENSE_NUM];
     uint16_t strobe_state;
@@ -236,28 +254,23 @@ static void spitz_keyboard_sense_update(struct spitz_keyboard_s *s)
         if (strobe) {
             sense |= 1 << i;
             if (!(s->sense_state & (1 << i)))
-                pxa2xx_gpio_set(s->cpu->gpio, spitz_gpio_key_sense[i], 1);
+                qemu_irq_raise(s->sense[i]);
         } else if (s->sense_state & (1 << i))
-            pxa2xx_gpio_set(s->cpu->gpio, spitz_gpio_key_sense[i], 0);
+            qemu_irq_lower(s->sense[i]);
     }
 
     s->sense_state = sense;
 }
 
-static void spitz_keyboard_strobe(int line, int level,
-                struct spitz_keyboard_s *s)
+static void spitz_keyboard_strobe(void *opaque, int line, int level)
 {
-    int i;
-    for (i = 0; i < SPITZ_KEY_STROBE_NUM; i ++)
-        if (spitz_gpio_key_strobe[i] == line) {
-            if (level)
-                s->strobe_state |= 1 << i;
-            else
-                s->strobe_state &= ~(1 << i);
+    struct spitz_keyboard_s *s = (struct spitz_keyboard_s *) opaque;
 
-            spitz_keyboard_sense_update(s);
-            break;
-        }
+    if (level)
+        s->strobe_state |= 1 << line;
+    else
+        s->strobe_state &= ~(1 << line);
+    spitz_keyboard_sense_update(s);
 }
 
 static void spitz_keyboard_keydown(struct spitz_keyboard_s *s, int keycode)
@@ -268,8 +281,7 @@ static void spitz_keyboard_keydown(struct spitz_keyboard_s *s, int keycode)
 
     /* Handle the additional keys */
     if ((spitz_keycode >> 4) == SPITZ_KEY_SENSE_NUM) {
-        pxa2xx_gpio_set(s->cpu->gpio, spitz_gpiomap[spitz_keycode & 0xf],
-                        (keycode < 0x80) ^
+        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80) ^
                         spitz_gpio_invert[spitz_keycode & 0xf]);
         return;
     }
@@ -482,7 +494,6 @@ static void spitz_keyboard_register(struct pxa2xx_state_s *cpu)
     s = (struct spitz_keyboard_s *)
             qemu_mallocz(sizeof(struct spitz_keyboard_s));
     memset(s, 0, sizeof(struct spitz_keyboard_s));
-    s->cpu = cpu;
 
     for (i = 0; i < 0x80; i ++)
         s->keymap[i] = -1;
@@ -491,9 +502,16 @@ static void spitz_keyboard_register(struct pxa2xx_state_s *cpu)
             if (spitz_keymap[i][j] != -1)
                 s->keymap[spitz_keymap[i][j]] = (i << 4) | j;
 
+    for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
+        s->sense[i] = pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpio_key_sense[i]];
+
+    for (i = 0; i < 5; i ++)
+        s->gpiomap[i] = pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpiomap[i]];
+
+    s->strobe = qemu_allocate_irqs(spitz_keyboard_strobe, s,
+                    SPITZ_KEY_STROBE_NUM);
     for (i = 0; i < SPITZ_KEY_STROBE_NUM; i ++)
-        pxa2xx_gpio_handler_set(cpu->gpio, spitz_gpio_key_strobe[i],
-                        (gpio_handler_t) spitz_keyboard_strobe, s);
+        pxa2xx_gpio_out_set(cpu->gpio, spitz_gpio_key_strobe[i], s->strobe[i]);
 
     spitz_keyboard_pre_map(s);
     qemu_add_kbd_event_handler((QEMUPutKBDEvent *) spitz_keyboard_handler, s);
@@ -506,15 +524,13 @@ static void spitz_keyboard_register(struct pxa2xx_state_s *cpu)
 
 struct scoop_info_s {
     target_phys_addr_t target_base;
+    qemu_irq handler[16];
+    qemu_irq *in;
     uint16_t status;
     uint16_t power;
     uint32_t gpio_level;
     uint32_t gpio_dir;
     uint32_t prev_level;
-    struct {
-        gpio_handler_t fn;
-        void *opaque;
-    } handler[16];
 
     uint16_t mcr;
     uint16_t cdr;
@@ -544,9 +560,7 @@ static inline void scoop_gpio_handler_update(struct scoop_info_s *s) {
 
     for (diff = s->prev_level ^ level; diff; diff ^= 1 << bit) {
         bit = ffs(diff) - 1;
-        if (s->handler[bit].fn)
-            s->handler[bit].fn(bit, (level >> bit) & 1,
-                            s->handler[bit].opaque);
+        qemu_set_irq(s->handler[bit], (level >> bit) & 1);
     }
 
     s->prev_level = level;
@@ -644,12 +658,9 @@ CPUWriteMemoryFunc *scoop_writefn[] = {
     scoop_writeb,
 };
 
-static inline void scoop_gpio_set(struct scoop_info_s *s, int line, int level)
+static void scoop_gpio_set(void *opaque, int line, int level)
 {
-    if (line >= 16) {
-        spitz_printf("No GPIO pin %i\n", line);
-        return;
-    }
+    struct scoop_info_s *s = (struct scoop_info_s *) s;
 
     if (level)
         s->gpio_level |= (1 << line);
@@ -657,15 +668,19 @@ static inline void scoop_gpio_set(struct scoop_info_s *s, int line, int level)
         s->gpio_level &= ~(1 << line);
 }
 
-static inline void scoop_gpio_handler_set(struct scoop_info_s *s, int line,
-                gpio_handler_t handler, void *opaque) {
+static inline qemu_irq *scoop_gpio_in_get(struct scoop_info_s *s)
+{
+    return s->in;
+}
+
+static inline void scoop_gpio_out_set(struct scoop_info_s *s, int line,
+                qemu_irq handler) {
     if (line >= 16) {
         spitz_printf("No GPIO pin %i\n", line);
         return;
     }
 
-    s->handler[line].fn = handler;
-    s->handler[line].opaque = opaque;
+    s->handler[line] = handler;
 }
 
 static void scoop_save(QEMUFile *f, void *opaque)
@@ -719,6 +734,7 @@ static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
     s[0].status = 0x02;
     s[1].status = 0x02;
 
+    s[0].in = qemu_allocate_irqs(scoop_gpio_set, &s[0], 16);
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, &s[0]);
     cpu_register_physical_memory(s[0].target_base, 0x1000, iomemtype);
@@ -727,6 +743,7 @@ static struct scoop_info_s *spitz_scoop_init(struct pxa2xx_state_s *cpu,
     if (count < 2)
         return s;
 
+    s[1].in = qemu_allocate_irqs(scoop_gpio_set, &s[1], 16);
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, &s[1]);
     cpu_register_physical_memory(s[1].target_base, 0x1000, iomemtype);
@@ -756,7 +773,7 @@ static void spitz_bl_update(struct pxa2xx_state_s *s)
         spitz_printf("LCD Backlight now off\n");
 }
 
-static void spitz_bl_bit5(int line, int level, void *opaque)
+static inline void spitz_bl_bit5(void *opaque, int line, int level)
 {
     int prev = bl_intensity;
 
@@ -769,7 +786,7 @@ static void spitz_bl_bit5(int line, int level, void *opaque)
         spitz_bl_update((struct pxa2xx_state_s *) opaque);
 }
 
-static void spitz_bl_power(int line, int level, void *opaque)
+static inline void spitz_bl_power(void *opaque, int line, int level)
 {
     bl_power = !!level;
     spitz_bl_update((struct pxa2xx_state_s *) opaque);
@@ -837,14 +854,19 @@ static void corgi_ssp_write(void *opaque, uint32_t value)
         max111x_write(max1111, value);
 }
 
-static void corgi_ssp_gpio_cs(int line, int level, struct pxa2xx_state_s *s)
+static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
 {
-    if (line == SPITZ_GPIO_LCDCON_CS)
+    switch (line) {
+    case 0:
         lcd_en = !level;
-    else if (line == SPITZ_GPIO_ADS7846_CS)
+        break;
+    case 1:
         ads_en = !level;
-    else if (line == SPITZ_GPIO_MAX1111_CS)
+        break;
+    case 2:
         max_en = !level;
+        break;
+    }
 }
 
 #define MAX1111_BATT_VOLT	1
@@ -855,7 +877,7 @@ static void corgi_ssp_gpio_cs(int line, int level, struct pxa2xx_state_s *s)
 #define SPITZ_BATTERY_VOLT	0xd0	/* About 4.0V */
 #define SPITZ_CHARGEON_ACIN	0x80	/* About 5.0V */
 
-static void spitz_adc_temp_on(int line, int level, void *opaque)
+static void spitz_adc_temp_on(void *opaque, int line, int level)
 {
     if (!max1111)
         return;
@@ -864,12 +886,6 @@ static void spitz_adc_temp_on(int line, int level, void *opaque)
         max111x_set_input(max1111, MAX1111_BATT_TEMP, SPITZ_BATTERY_TEMP);
     else
         max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
-}
-
-static void spitz_pendown_set(void *opaque, int line, int level)
-{
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_TP_INT, level);
 }
 
 static void spitz_ssp_save(QEMUFile *f, void *opaque)
@@ -894,9 +910,11 @@ static int spitz_ssp_load(QEMUFile *f, void *opaque, int version_id)
 
 static void spitz_ssp_attach(struct pxa2xx_state_s *cpu)
 {
+    qemu_irq *chipselects;
+
     lcd_en = ads_en = max_en = 0;
 
-    ads7846 = ads7846_init(qemu_allocate_irqs(spitz_pendown_set, cpu, 1)[0]);
+    ads7846 = ads7846_init(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_TP_INT]);
 
     max1111 = max1111_init(0);
     max111x_set_input(max1111, MAX1111_BATT_VOLT, SPITZ_BATTERY_VOLT);
@@ -906,12 +924,10 @@ static void spitz_ssp_attach(struct pxa2xx_state_s *cpu)
     pxa2xx_ssp_attach(cpu->ssp[CORGI_SSP_PORT - 1], corgi_ssp_read,
                     corgi_ssp_write, cpu);
 
-    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_LCDCON_CS,
-                    (gpio_handler_t) corgi_ssp_gpio_cs, cpu);
-    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_ADS7846_CS,
-                    (gpio_handler_t) corgi_ssp_gpio_cs, cpu);
-    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_MAX1111_CS,
-                    (gpio_handler_t) corgi_ssp_gpio_cs, cpu);
+    chipselects = qemu_allocate_irqs(corgi_ssp_gpio_cs, cpu, 3);
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_LCDCON_CS,  chipselects[0]);
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_ADS7846_CS, chipselects[1]);
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_MAX1111_CS, chipselects[2]);
 
     bl_intensity = 0x20;
     bl_power = 0;
@@ -941,7 +957,7 @@ static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
 #define SPITZ_GPIO_WM	5
 
 #ifdef HAS_AUDIO
-static void spitz_wm8750_addr(int line, int level, void *opaque)
+static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
     i2c_slave *wm = (i2c_slave *) opaque;
     if (level)
@@ -966,8 +982,9 @@ static void spitz_i2c_setup(struct pxa2xx_state_s *cpu)
     /* Attach a WM8750 to the bus */
     wm = wm8750_init(bus, audio);
 
-    spitz_wm8750_addr(0, 0, wm);
-    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_WM, spitz_wm8750_addr, wm);
+    spitz_wm8750_addr(wm, 0, 0);
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_WM,
+                    qemu_allocate_irqs(spitz_wm8750_addr, wm, 1)[0]);
     /* .. and to the sound interface.  */
     cpu->i2s->opaque = wm;
     cpu->i2s->codec_out = wm8750_dac_dat;
@@ -985,24 +1002,31 @@ static void spitz_akita_i2c_setup(struct pxa2xx_state_s *cpu)
 
 /* Other peripherals */
 
-static void spitz_charge_switch(int line, int level, void *opaque)
+static void spitz_out_switch(void *opaque, int line, int level)
 {
-    spitz_printf("Charging %s.\n", level ? "off" : "on");
-}
-
-static void spitz_discharge_switch(int line, int level, void *opaque)
-{
-    spitz_printf("Discharging %s.\n", level ? "on" : "off");
-}
-
-static void spitz_greenled_switch(int line, int level, void *opaque)
-{
-    spitz_printf("Green LED %s.\n", level ? "on" : "off");
-}
-
-static void spitz_orangeled_switch(int line, int level, void *opaque)
-{
-    spitz_printf("Orange LED %s.\n", level ? "on" : "off");
+    switch (line) {
+    case 0:
+        spitz_printf("Charging %s.\n", level ? "off" : "on");
+        break;
+    case 1:
+        spitz_printf("Discharging %s.\n", level ? "on" : "off");
+        break;
+    case 2:
+        spitz_printf("Green LED %s.\n", level ? "on" : "off");
+        break;
+    case 3:
+        spitz_printf("Orange LED %s.\n", level ? "on" : "off");
+        break;
+    case 4:
+        spitz_bl_bit5(opaque, line, level);
+        break;
+    case 5:
+        spitz_bl_power(opaque, line, level);
+        break;
+    case 6:
+        spitz_adc_temp_on(opaque, line, level);
+        break;
+    }
 }
 
 #define SPITZ_SCP_LED_GREEN		1
@@ -1023,24 +1047,19 @@ static void spitz_orangeled_switch(int line, int level, void *opaque)
 static void spitz_scoop_gpio_setup(struct pxa2xx_state_s *cpu,
                 struct scoop_info_s *scp, int num)
 {
-    scoop_gpio_handler_set(&scp[0], SPITZ_SCP_CHRG_ON,
-                    spitz_charge_switch, cpu);
-    scoop_gpio_handler_set(&scp[0], SPITZ_SCP_JK_B,
-                    spitz_discharge_switch, cpu);
-    scoop_gpio_handler_set(&scp[0], SPITZ_SCP_LED_GREEN,
-                    spitz_greenled_switch, cpu);
-    scoop_gpio_handler_set(&scp[0], SPITZ_SCP_LED_ORANGE,
-                    spitz_orangeled_switch, cpu);
+    qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, cpu, 8);
+
+    scoop_gpio_out_set(&scp[0], SPITZ_SCP_CHRG_ON, outsignals[0]);
+    scoop_gpio_out_set(&scp[0], SPITZ_SCP_JK_B, outsignals[1]);
+    scoop_gpio_out_set(&scp[0], SPITZ_SCP_LED_GREEN, outsignals[2]);
+    scoop_gpio_out_set(&scp[0], SPITZ_SCP_LED_ORANGE, outsignals[3]);
 
     if (num >= 2) {
-        scoop_gpio_handler_set(&scp[1], SPITZ_SCP2_BACKLIGHT_CONT,
-                        spitz_bl_bit5, cpu);
-        scoop_gpio_handler_set(&scp[1], SPITZ_SCP2_BACKLIGHT_ON,
-                        spitz_bl_power, cpu);
+        scoop_gpio_out_set(&scp[1], SPITZ_SCP2_BACKLIGHT_CONT, outsignals[4]);
+        scoop_gpio_out_set(&scp[1], SPITZ_SCP2_BACKLIGHT_ON, outsignals[5]);
     }
 
-    scoop_gpio_handler_set(&scp[0], SPITZ_SCP_ADC_TEMP_ON,
-                    spitz_adc_temp_on, cpu);
+    scoop_gpio_out_set(&scp[0], SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
 }
 
 #define SPITZ_GPIO_HSYNC		22
@@ -1053,40 +1072,18 @@ static void spitz_scoop_gpio_setup(struct pxa2xx_state_s *cpu,
 #define SPITZ_GPIO_CF2_IRQ		106
 #define SPITZ_GPIO_CF2_CD		93
 
-int spitz_hsync;
+static int spitz_hsync;
 
-static void spitz_lcd_hsync_handler(void *opaque)
+static void spitz_lcd_hsync_handler(void *opaque, int line, int level)
 {
     struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_HSYNC, spitz_hsync);
+    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_HSYNC], spitz_hsync);
     spitz_hsync ^= 1;
-}
-
-static void spitz_mmc_coverswitch_change(void *opaque, int in)
-{
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_SD_DETECT, in);
-}
-
-static void spitz_mmc_writeprotect_change(void *opaque, int wp)
-{
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_SD_WP, wp);
-}
-
-static void spitz_pcmcia_cb(void *opaque, int line, int level)
-{
-    struct pxa2xx_state_s *cpu = (struct pxa2xx_state_s *) opaque;
-    static const int gpio_map[] = {
-        SPITZ_GPIO_CF1_IRQ, SPITZ_GPIO_CF1_CD,
-        SPITZ_GPIO_CF2_IRQ, SPITZ_GPIO_CF2_CD,
-    };
-    pxa2xx_gpio_set(cpu->gpio, gpio_map[line], level);
 }
 
 static void spitz_gpio_setup(struct pxa2xx_state_s *cpu, int slots)
 {
-    qemu_irq *pcmcia_cb;
+    qemu_irq lcd_hsync;
     /*
      * Bad hack: We toggle the LCD hsync GPIO on every GPIO status
      * read to satisfy broken guests that poll-wait for hsync.
@@ -1094,25 +1091,30 @@ static void spitz_gpio_setup(struct pxa2xx_state_s *cpu, int slots)
      * wouldn't guarantee that a guest ever exits the loop.
      */
     spitz_hsync = 0;
-    pxa2xx_gpio_read_notifier(cpu->gpio, spitz_lcd_hsync_handler, cpu);
-    pxa2xx_lcd_vsync_cb(cpu->lcd, spitz_lcd_hsync_handler, cpu);
+    lcd_hsync = qemu_allocate_irqs(spitz_lcd_hsync_handler, cpu, 1)[0];
+    pxa2xx_gpio_read_notifier(cpu->gpio, lcd_hsync);
+    pxa2xx_lcd_vsync_notifier(cpu->lcd, lcd_hsync);
 
     /* MMC/SD host */
-    pxa2xx_mmci_handlers(cpu->mmc, cpu, spitz_mmc_writeprotect_change,
-                    spitz_mmc_coverswitch_change);
+    pxa2xx_mmci_handlers(cpu->mmc,
+                    pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_WP],
+                    pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_DETECT]);
 
     /* Battery lock always closed */
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_BAT_COVER, 1);
+    qemu_irq_raise(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_BAT_COVER]);
 
     /* Handle reset */
-    pxa2xx_gpio_handler_set(cpu->gpio, SPITZ_GPIO_ON_RESET, pxa2xx_reset, cpu);
+    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_ON_RESET, cpu->reset);
 
     /* PCMCIA signals: card's IRQ and Card-Detect */
-    pcmcia_cb = qemu_allocate_irqs(spitz_pcmcia_cb, cpu, slots * 2);
     if (slots >= 1)
-        pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0], pcmcia_cb[0], pcmcia_cb[1]);
+        pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0],
+                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF1_IRQ],
+                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF1_CD]);
     if (slots >= 2)
-        pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[1], pcmcia_cb[2], pcmcia_cb[3]);
+        pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[1],
+                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF2_IRQ],
+                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF2_CD]);
 
     /* Initialise the screen rotation related signals */
     spitz_gpio_invert[3] = 0;	/* Always open */
@@ -1121,8 +1123,10 @@ static void spitz_gpio_setup(struct pxa2xx_state_s *cpu, int slots)
     } else {			/* Portrait mode */
         spitz_gpio_invert[4] = 1;
     }
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_SWA, spitz_gpio_invert[3]);
-    pxa2xx_gpio_set(cpu->gpio, SPITZ_GPIO_SWB, spitz_gpio_invert[4]);
+    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SWA],
+                    spitz_gpio_invert[3]);
+    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SWB],
+                    spitz_gpio_invert[4]);
 }
 
 /* Write the bootloader parameters memory area.  */

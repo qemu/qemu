@@ -36,7 +36,10 @@
  * It does not implement multiple sectors erase
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "flash.h"
+#include "qemu-timer.h"
+#include "block.h"
 #include "exec-all.h"
 #include "pflash.h"     /* pflash_cfi02_register */
 

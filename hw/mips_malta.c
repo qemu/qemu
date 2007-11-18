@@ -22,7 +22,18 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "fdc.h"        /* fdctrl_t */
+#include "pc.h"
+#include "net.h"
+#include "boards.h"
+#include "smbus.h"
+#include "mips.h"
+#include "pci.h"
+#include "qemu-char.h"
+#include "sysemu.h"
+#include "audio/audio.h"
+#include "boards.h"
 #include "pflash.h"
 
 #define BIOS_SIZE (16 * MiB)

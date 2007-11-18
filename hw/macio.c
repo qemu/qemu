@@ -22,8 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
 #include "ppc_mac.h"
+#include "pci.h"
 
 typedef struct macio_state_t macio_state_t;
 struct macio_state_t {

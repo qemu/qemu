@@ -27,7 +27,10 @@
  *  o BIOS work to boot from USB storage
 */
 
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "usb.h"
+#include "pci.h"
 
 //#define DEBUG_OHCI
 /* Dump packet contents.  */
@@ -739,7 +742,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
                     OHCI_CC_NOERROR);
         OHCI_SET_BM(iso_td.offset[relative_frame_number], TD_PSW_SIZE, 0);
     } else {
-        if (ret > len) {
+        if (ret > (ssize_t) len) {
             printf("usb-ohci: DataOverrun %d > %zu\n", ret, len);
             OHCI_SET_BM(iso_td.offset[relative_frame_number], TD_PSW_CC,
                         OHCI_CC_DATAOVERRUN);
@@ -865,7 +868,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     dprintf(" TD @ 0x%.8x %u bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
             addr, len, str, flag_r, td.cbp, td.be);
 
-    if (len >= 0 && dir != OHCI_TD_DIR_IN) {
+    if (len > 0 && dir != OHCI_TD_DIR_IN) {
         dprintf("  data:");
         for (i = 0; i < len; i++)
             printf(" %.2x", ohci->usb_buf[i]);
@@ -1062,7 +1065,8 @@ static void ohci_process_lists(OHCIState *ohci, int completion)
 {
     if ((ohci->ctl & OHCI_CTL_CLE) && (ohci->status & OHCI_STATUS_CLF)) {
         if (ohci->ctrl_cur && ohci->ctrl_cur != ohci->ctrl_head)
-          dprintf("usb-ohci: head %x, cur %x\n", ohci->ctrl_head, ohci->ctrl_cur);
+          dprintf("usb-ohci: head %x, cur %x\n",
+                          ohci->ctrl_head, ohci->ctrl_cur);
         if (!ohci_service_ed_list(ohci, ohci->ctrl_head, completion)) {
             ohci->ctrl_cur = 0;
             ohci->status &= ~OHCI_STATUS_CLF;

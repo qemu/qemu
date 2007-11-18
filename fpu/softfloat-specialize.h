@@ -30,6 +30,12 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
+#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#define SNAN_BIT_IS_ONE		1
+#else
+#define SNAN_BIT_IS_ONE		0
+#endif
+
 /*----------------------------------------------------------------------------
 | Underflow tininess-detection mode, statically initialized to default value.
 | (The declaration in `softfloat.h' must match the `int8' type here.)
@@ -45,9 +51,7 @@ int8 float_detect_tininess = float_tininess_after_rounding;
 
 void float_raise( int8 flags STATUS_PARAM )
 {
-
     STATUS(float_exception_flags) |= flags;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -61,20 +65,20 @@ typedef struct {
 /*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
-#define float32_default_nan 0xFF800000
+#if SNAN_BIT_IS_ONE
+#define float32_default_nan 0x7FBFFFFF
 #else
 #define float32_default_nan 0xFFC00000
 #endif
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the single-precision floating-point value `a' is a NaN;
-| otherwise returns 0.
+| Returns 1 if the single-precision floating-point value `a' is a quiet
+| NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 int float32_is_nan( float32 a )
 {
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if SNAN_BIT_IS_ONE
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
 #else
     return ( 0xFF800000 <= (bits32) ( a<<1 ) );
@@ -88,7 +92,7 @@ int float32_is_nan( float32 a )
 
 int float32_is_signaling_nan( float32 a )
 {
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if SNAN_BIT_IS_ONE
     return ( 0xFF800000 <= (bits32) ( a<<1 ) );
 #else
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
@@ -110,7 +114,6 @@ static commonNaNT float32ToCommonNaN( float32 a STATUS_PARAM )
     z.low = 0;
     z.high = ( (bits64) a )<<41;
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -120,9 +123,7 @@ static commonNaNT float32ToCommonNaN( float32 a STATUS_PARAM )
 
 static float32 commonNaNToFloat32( commonNaNT a )
 {
-
     return ( ( (bits32) a.sign )<<31 ) | 0x7FC00000 | ( a.high>>41 );
-
 }
 
 /*----------------------------------------------------------------------------
@@ -139,7 +140,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     aIsSignalingNaN = float32_is_signaling_nan( a );
     bIsNaN = float32_is_nan( b );
     bIsSignalingNaN = float32_is_signaling_nan( b );
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if SNAN_BIT_IS_ONE
     a &= ~0x00400000;
     b &= ~0x00400000;
 #else
@@ -161,26 +162,25 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     else {
         return b;
     }
-
 }
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated double-precision NaN.
 *----------------------------------------------------------------------------*/
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
-#define float64_default_nan LIT64( 0xFFF0000000000000 )
+#if SNAN_BIT_IS_ONE
+#define float64_default_nan LIT64( 0x7FF7FFFFFFFFFFFF )
 #else
 #define float64_default_nan LIT64( 0xFFF8000000000000 )
 #endif
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the double-precision floating-point value `a' is a NaN;
-| otherwise returns 0.
+| Returns 1 if the double-precision floating-point value `a' is a quiet
+| NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 int float64_is_nan( float64 a )
 {
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if SNAN_BIT_IS_ONE
     return
            ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
         && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
@@ -196,7 +196,7 @@ int float64_is_nan( float64 a )
 
 int float64_is_signaling_nan( float64 a )
 {
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if SNAN_BIT_IS_ONE
     return ( LIT64( 0xFFF0000000000000 ) <= (bits64) ( a<<1 ) );
 #else
     return
@@ -220,7 +220,6 @@ static commonNaNT float64ToCommonNaN( float64 a STATUS_PARAM)
     z.low = 0;
     z.high = a<<12;
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -230,12 +229,10 @@ static commonNaNT float64ToCommonNaN( float64 a STATUS_PARAM)
 
 static float64 commonNaNToFloat64( commonNaNT a )
 {
-
     return
           ( ( (bits64) a.sign )<<63 )
         | LIT64( 0x7FF8000000000000 )
         | ( a.high>>12 );
-
 }
 
 /*----------------------------------------------------------------------------
@@ -252,7 +249,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     aIsSignalingNaN = float64_is_signaling_nan( a );
     bIsNaN = float64_is_nan( b );
     bIsSignalingNaN = float64_is_signaling_nan( b );
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if SNAN_BIT_IS_ONE
     a &= ~LIT64( 0x0008000000000000 );
     b &= ~LIT64( 0x0008000000000000 );
 #else
@@ -274,7 +271,6 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     else {
         return b;
     }
-
 }
 
 #ifdef FLOATX80
@@ -284,19 +280,32 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 | `high' and `low' values hold the most- and least-significant bits,
 | respectively.
 *----------------------------------------------------------------------------*/
+#if SNAN_BIT_IS_ONE
+#define floatx80_default_nan_high 0x7FFF
+#define floatx80_default_nan_low  LIT64( 0xBFFFFFFFFFFFFFFF )
+#else
 #define floatx80_default_nan_high 0xFFFF
 #define floatx80_default_nan_low  LIT64( 0xC000000000000000 )
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
-| NaN; otherwise returns 0.
+| quiet NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 int floatx80_is_nan( floatx80 a )
 {
+#if SNAN_BIT_IS_ONE
+    bits64 aLow;
 
+    aLow = a.low & ~ LIT64( 0x4000000000000000 );
+    return
+           ( ( a.high & 0x7FFF ) == 0x7FFF )
+        && (bits64) ( aLow<<1 )
+        && ( a.low == aLow );
+#else
     return ( ( a.high & 0x7FFF ) == 0x7FFF ) && (bits64) ( a.low<<1 );
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -306,6 +315,9 @@ int floatx80_is_nan( floatx80 a )
 
 int floatx80_is_signaling_nan( floatx80 a )
 {
+#if SNAN_BIT_IS_ONE
+    return ( ( a.high & 0x7FFF ) == 0x7FFF ) && (bits64) ( a.low<<1 );
+#else
     bits64 aLow;
 
     aLow = a.low & ~ LIT64( 0x4000000000000000 );
@@ -313,7 +325,7 @@ int floatx80_is_signaling_nan( floatx80 a )
            ( ( a.high & 0x7FFF ) == 0x7FFF )
         && (bits64) ( aLow<<1 )
         && ( a.low == aLow );
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -331,7 +343,6 @@ static commonNaNT floatx80ToCommonNaN( floatx80 a STATUS_PARAM)
     z.low = 0;
     z.high = a.low<<1;
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -346,7 +357,6 @@ static floatx80 commonNaNToFloatx80( commonNaNT a )
     z.low = LIT64( 0xC000000000000000 ) | ( a.high>>1 );
     z.high = ( ( (bits16) a.sign )<<15 ) | 0x7FFF;
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -363,8 +373,13 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
     aIsSignalingNaN = floatx80_is_signaling_nan( a );
     bIsNaN = floatx80_is_nan( b );
     bIsSignalingNaN = floatx80_is_signaling_nan( b );
+#if SNAN_BIT_IS_ONE
+    a.low &= ~LIT64( 0xC000000000000000 );
+    b.low &= ~LIT64( 0xC000000000000000 );
+#else
     a.low |= LIT64( 0xC000000000000000 );
     b.low |= LIT64( 0xC000000000000000 );
+#endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
     if ( aIsSignalingNaN ) {
         if ( bIsSignalingNaN ) goto returnLargerSignificand;
@@ -380,7 +395,6 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
     else {
         return b;
     }
-
 }
 
 #endif
@@ -391,21 +405,30 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 | The pattern for a default generated quadruple-precision NaN.  The `high' and
 | `low' values hold the most- and least-significant bits, respectively.
 *----------------------------------------------------------------------------*/
+#if SNAN_BIT_IS_ONE
+#define float128_default_nan_high LIT64( 0x7FFF7FFFFFFFFFFF )
+#define float128_default_nan_low  LIT64( 0xFFFFFFFFFFFFFFFF )
+#else
 #define float128_default_nan_high LIT64( 0xFFFF800000000000 )
 #define float128_default_nan_low  LIT64( 0x0000000000000000 )
+#endif
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the quadruple-precision floating-point value `a' is a NaN;
-| otherwise returns 0.
+| Returns 1 if the quadruple-precision floating-point value `a' is a quiet
+| NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 int float128_is_nan( float128 a )
 {
-
+#if SNAN_BIT_IS_ONE
+    return
+           ( ( ( a.high>>47 ) & 0xFFFF ) == 0xFFFE )
+        && ( a.low || ( a.high & LIT64( 0x00007FFFFFFFFFFF ) ) );
+#else
     return
            ( LIT64( 0xFFFE000000000000 ) <= (bits64) ( a.high<<1 ) )
         && ( a.low || ( a.high & LIT64( 0x0000FFFFFFFFFFFF ) ) );
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -415,11 +438,15 @@ int float128_is_nan( float128 a )
 
 int float128_is_signaling_nan( float128 a )
 {
-
+#if SNAN_BIT_IS_ONE
+    return
+           ( LIT64( 0xFFFE000000000000 ) <= (bits64) ( a.high<<1 ) )
+        && ( a.low || ( a.high & LIT64( 0x0000FFFFFFFFFFFF ) ) );
+#else
     return
            ( ( ( a.high>>47 ) & 0xFFFF ) == 0xFFFE )
         && ( a.low || ( a.high & LIT64( 0x00007FFFFFFFFFFF ) ) );
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -436,7 +463,6 @@ static commonNaNT float128ToCommonNaN( float128 a STATUS_PARAM)
     z.sign = a.high>>63;
     shortShift128Left( a.high, a.low, 16, &z.high, &z.low );
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -451,7 +477,6 @@ static float128 commonNaNToFloat128( commonNaNT a )
     shift128Right( a.high, a.low, 16, &z.high, &z.low );
     z.high |= ( ( (bits64) a.sign )<<63 ) | LIT64( 0x7FFF800000000000 );
     return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -468,8 +493,13 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
     aIsSignalingNaN = float128_is_signaling_nan( a );
     bIsNaN = float128_is_nan( b );
     bIsSignalingNaN = float128_is_signaling_nan( b );
+#if SNAN_BIT_IS_ONE
+    a.high &= ~LIT64( 0x0000800000000000 );
+    b.high &= ~LIT64( 0x0000800000000000 );
+#else
     a.high |= LIT64( 0x0000800000000000 );
     b.high |= LIT64( 0x0000800000000000 );
+#endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
     if ( aIsSignalingNaN ) {
         if ( bIsSignalingNaN ) goto returnLargerSignificand;
@@ -485,8 +515,6 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
     else {
         return b;
     }
-
 }
 
 #endif
-

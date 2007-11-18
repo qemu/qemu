@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "qemu-common.h"
 #include "block_int.h"
 #include <assert.h>
 
@@ -64,20 +64,7 @@ char *qemu_strdup(const char *str)
     return ptr;
 }
 
-void term_printf(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
-    va_end(ap);
-}
-
-void term_print_filename(const char *filename)
-{
-    term_printf(filename);
-}
-
-void __attribute__((noreturn)) error(const char *fmt, ...)
+static void __attribute__((noreturn)) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -93,7 +80,7 @@ static void format_print(void *opaque, const char *name)
     printf(" %s", name);
 }
 
-void help(void)
+static void help(void)
 {
     printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2007 Fabrice Bellard\n"
            "usage: qemu-img command [command options]\n"
@@ -175,7 +162,7 @@ static void term_init(void)
     atexit(term_exit);
 }
 
-int read_password(char *buf, int buf_size)
+static int read_password(char *buf, int buf_size)
 {
     uint8_t ch;
     int i, ret;

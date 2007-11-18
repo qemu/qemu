@@ -26,7 +26,8 @@
 #include <string.h>             /* strerror */
 #include <pthread.h>            /* pthread_X */
 
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #define AUDIO_CAP "coreaudio"
 #include "audio_int.h"

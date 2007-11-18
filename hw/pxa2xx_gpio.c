@@ -7,7 +7,8 @@
  * This code is licensed under the GPL.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pxa.h"
 
 #define PXA2XX_GPIO_BANKS	4
 
@@ -16,6 +17,7 @@ struct pxa2xx_gpio_info_s {
     qemu_irq *pic;
     int lines;
     CPUState *cpu_env;
+    qemu_irq *in;
 
     /* XXX: GNU C vectors are more suitable */
     uint32_t ilevel[PXA2XX_GPIO_BANKS];
@@ -28,13 +30,8 @@ struct pxa2xx_gpio_info_s {
     uint32_t gafr[PXA2XX_GPIO_BANKS * 2];
 
     uint32_t prev_level[PXA2XX_GPIO_BANKS];
-    struct {
-        gpio_handler_t fn;
-        void *opaque;
-    } handler[PXA2XX_GPIO_BANKS * 32];
-
-    void (*read_notify)(void *opaque);
-    void *opaque;
+    qemu_irq handler[PXA2XX_GPIO_BANKS * 32];
+    qemu_irq read_notify;
 };
 
 static struct {
@@ -86,12 +83,13 @@ static void pxa2xx_gpio_irq_update(struct pxa2xx_gpio_info_s *s)
 }
 
 /* Bitmap of pins used as standby and sleep wake-up sources.  */
-const int pxa2xx_gpio_wake[PXA2XX_GPIO_BANKS] = {
+static const int pxa2xx_gpio_wake[PXA2XX_GPIO_BANKS] = {
     0x8003fe1b, 0x002001fc, 0xec080000, 0x0012007f,
 };
 
-void pxa2xx_gpio_set(struct pxa2xx_gpio_info_s *s, int line, int level)
+static void pxa2xx_gpio_set(void *opaque, int line, int level)
 {
+    struct pxa2xx_gpio_info_s *s = (struct pxa2xx_gpio_info_s *) opaque;
     int bank;
     uint32_t mask;
 
@@ -130,9 +128,7 @@ static void pxa2xx_gpio_handler_update(struct pxa2xx_gpio_info_s *s) {
         for (diff = s->prev_level[i] ^ level; diff; diff ^= 1 << bit) {
             bit = ffs(diff) - 1;
             line = bit + 32 * i;
-            if (s->handler[line].fn)
-                s->handler[line].fn(line, (level >> bit) & 1,
-                                s->handler[line].opaque);
+            qemu_set_irq(s->handler[line], (level >> bit) & 1);
         }
 
         s->prev_level[i] = level;
@@ -158,6 +154,11 @@ static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
                         __FUNCTION__, offset);
         return s->gpsr[bank];	/* Return last written value.  */
 
+    case GPCR:		/* GPIO Pin-Output Clear registers */
+        printf("%s: Read from a write-only register " REG_FMT "\n",
+                        __FUNCTION__, offset);
+        return 31337;		/* Specified as unpredictable in the docs.  */
+
     case GRER:		/* GPIO Rising-Edge Detect Enable registers */
         return s->rising[bank];
 
@@ -173,8 +174,7 @@ static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
     case GPLR:		/* GPIO Pin-Level registers */
         ret = (s->olevel[bank] & s->dir[bank]) |
                 (s->ilevel[bank] & ~s->dir[bank]);
-        if (s->read_notify)
-            s->read_notify(s->opaque);
+        qemu_irq_raise(s->read_notify);
         return ret;
 
     case GEDR:		/* GPIO Edge Detect Status registers */
@@ -312,6 +312,7 @@ struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
     s->pic = pic;
     s->lines = lines;
     s->cpu_env = env;
+    s->in = qemu_allocate_irqs(pxa2xx_gpio_set, s, lines);
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_gpio_readfn,
                     pxa2xx_gpio_writefn, s);
@@ -323,23 +324,27 @@ struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
     return s;
 }
 
-void pxa2xx_gpio_handler_set(struct pxa2xx_gpio_info_s *s, int line,
-                gpio_handler_t handler, void *opaque) {
+qemu_irq *pxa2xx_gpio_in_get(struct pxa2xx_gpio_info_s *s)
+{
+    return s->in;
+}
+
+void pxa2xx_gpio_out_set(struct pxa2xx_gpio_info_s *s,
+                int line, qemu_irq handler)
+{
     if (line >= s->lines) {
         printf("%s: No GPIO pin %i\n", __FUNCTION__, line);
         return;
     }
 
-    s->handler[line].fn = handler;
-    s->handler[line].opaque = opaque;
+    s->handler[line] = handler;
 }
 
 /*
  * Registers a callback to notify on GPLR reads.  This normally
  * shouldn't be needed but it is used for the hack on Spitz machines.
  */
-void pxa2xx_gpio_read_notifier(struct pxa2xx_gpio_info_s *s,
-                void (*handler)(void *opaque), void *opaque) {
+void pxa2xx_gpio_read_notifier(struct pxa2xx_gpio_info_s *s, qemu_irq handler)
+{
     s->read_notify = handler;
-    s->opaque = opaque;
 }

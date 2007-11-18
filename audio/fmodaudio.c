@@ -23,7 +23,8 @@
  */
 #include <fmod.h>
 #include <fmod_errors.h>
-#include "vl.h"
+#include "qemu-common.h"
+#include "audio.h"
 
 #define AUDIO_CAP "fmod"
 #include "audio_int.h"

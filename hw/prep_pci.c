@@ -22,7 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pci.h"
+
 typedef uint32_t pci_addr_t;
 #include "pci_host.h"
 

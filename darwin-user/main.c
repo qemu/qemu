@@ -357,7 +357,6 @@ void cpu_loop(CPUPPCState *env)
         case POWERPC_EXCP_DEBUG:    /* Debug interrupt                       */
             gdb_handlesig (env, SIGTRAP);
             break;
-#if defined(TARGET_PPCEMB)
         case POWERPC_EXCP_SPEU:     /* SPE/embedded floating-point unavail.  */
             EXCP_DUMP(env, "No SPE/floating-point instruction allowed\n");
             info.si_signo = SIGILL;
@@ -383,12 +382,10 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Doorbell critical interrupt while in user mode. "
                       "Aborting\n");
             break;
-#endif /* defined(TARGET_PPCEMB) */
         case POWERPC_EXCP_RESET:    /* System reset exception                */
             cpu_abort(env, "Reset interrupt while in user mode. "
                       "Aborting\n");
             break;
-#if defined(TARGET_PPC64) /* PowerPC 64 */
         case POWERPC_EXCP_DSEG:     /* Data segment exception                */
             cpu_abort(env, "Data segment exception while in user mode. "
                       "Aborting\n");
@@ -397,19 +394,15 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64) */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDECR:    /* Hypervisor decrementer exception      */
             cpu_abort(env, "Hypervisor decrementer interrupt "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) */
         case POWERPC_EXCP_TRACE:    /* Trace exception                       */
             /* Nothing to do:
              * we use this exception to emulate step-by-step execution mode.
              */
             break;
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
         case POWERPC_EXCP_HDSI:     /* Hypervisor data storage exception     */
             cpu_abort(env, "Hypervisor data storage exception "
                       "while in user mode. Aborting\n");
@@ -426,7 +419,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Hypervisor instruction segment exception "
                       "while in user mode. Aborting\n");
             break;
-#endif /* defined(TARGET_PPC64H) */
         case POWERPC_EXCP_VPU:      /* Vector unavailable exception          */
             EXCP_DUMP(env, "No Altivec instructions allowed\n");
             info.si_signo = SIGILL;
@@ -842,6 +834,15 @@ int main(int argc, char **argv)
         } else
         if (!strcmp(r, "g")) {
             use_gdbstub = 1;
+        } else if (!strcmp(r, "cpu")) {
+            cpu_model = argv[optind++];
+            if (strcmp(cpu_model, "?") == 0) {
+/* XXX: implement xxx_cpu_list for targets that still miss it */
+#if defined(cpu_list)
+                    cpu_list(stdout, &fprintf);
+#endif
+                _exit(1);
+            }
         } else
         {
             usage();
@@ -854,16 +855,26 @@ int main(int argc, char **argv)
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
 
-    /* NOTE: we need to init the CPU at this stage to get
-       qemu_host_page_size */
+    if (cpu_model == NULL) {
 #if defined(TARGET_I386)
-    cpu_model = "qemu32";
+#ifdef TARGET_X86_64
+        cpu_model = "qemu64";
+#else
+        cpu_model = "qemu32";
+#endif
 #elif defined(TARGET_PPC)
-    cpu_model = "750";
+#ifdef TARGET_PPC64
+        cpu_model = "970";
+#else
+        cpu_model = "750";
+#endif
 #else
 #error unsupported CPU
 #endif
+    }
     
+    /* NOTE: we need to init the CPU at this stage to get
+       qemu_host_page_size */
     env = cpu_init(cpu_model);
 
     printf("Starting %s with qemu\n----------------\n", filename);
@@ -1005,6 +1016,14 @@ int main(int argc, char **argv)
 #elif defined(TARGET_PPC)
     {
         int i;
+
+#if defined(TARGET_PPC64)
+#if defined(TARGET_ABI32)
+        env->msr &= ~((target_ulong)1 << MSR_SF);
+#else
+        env->msr |= (target_ulong)1 << MSR_SF;
+#endif
+#endif
         env->nip = regs->nip;
         for(i = 0; i < 32; i++) {
             env->gpr[i] = regs->gpr[i];

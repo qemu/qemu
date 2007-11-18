@@ -21,7 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
+#include "pc.h"
+#include "isa.h"
 
 //#define DEBUG_CMOS
 

@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "sun4m.h"
+#include "console.h"
+
 //#define DEBUG_IRQ_COUNT
 //#define DEBUG_IRQ
 
@@ -65,6 +68,12 @@ typedef struct SLAVIO_INTCTLState {
 #define INTCTLM_MAXADDR 0x13
 #define INTCTLM_SIZE (INTCTLM_MAXADDR + 1)
 #define INTCTLM_MASK 0x1f
+#define MASTER_IRQ_MASK ~0x4fb2007f
+#define MASTER_DISABLE 0x80000000
+#define CPU_IRQ_MASK 0xfffe0000
+#define CPU_IRQ_INT15_IN 0x0004000
+#define CPU_IRQ_INT15_MASK 0x80000000
+
 static void slavio_check_interrupts(void *opaque);
 
 // per-cpu interrupt controller
@@ -100,15 +109,15 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
     DPRINTF("write cpu %d reg 0x" TARGET_FMT_plx " = %x\n", cpu, addr, val);
     switch (saddr) {
     case 1: // clear pending softints
-        if (val & 0x4000)
-            val |= 80000000;
-        val &= 0xfffe0000;
+        if (val & CPU_IRQ_INT15_IN)
+            val |= CPU_IRQ_INT15_MASK;
+        val &= CPU_IRQ_MASK;
         s->intreg_pending[cpu] &= ~val;
         slavio_check_interrupts(s);
         DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
         break;
     case 2: // set softint
-        val &= 0xfffe0000;
+        val &= CPU_IRQ_MASK;
         s->intreg_pending[cpu] |= val;
         slavio_check_interrupts(s);
         DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
@@ -139,7 +148,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
     saddr = (addr & INTCTLM_MAXADDR) >> 2;
     switch (saddr) {
     case 0:
-        ret = s->intregm_pending & 0x7fffffff;
+        ret = s->intregm_pending & ~MASTER_DISABLE;
         break;
     case 1:
         ret = s->intregm_disabled;
@@ -166,14 +175,14 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     switch (saddr) {
     case 2: // clear (enable)
         // Force clear unused bits
-        val &= ~0x4fb2007f;
+        val &= MASTER_IRQ_MASK;
         s->intregm_disabled &= ~val;
         DPRINTF("Enabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
         slavio_check_interrupts(s);
         break;
     case 3: // set (disable, clear pending)
         // Force clear unused bits
-        val &= ~0x4fb2007f;
+        val &= MASTER_IRQ_MASK;
         s->intregm_disabled |= val;
         s->intregm_pending &= ~val;
         slavio_check_interrupts(s);
@@ -241,14 +250,14 @@ static void slavio_check_interrupts(void *opaque)
     DPRINTF("pending %x disabled %x\n", pending, s->intregm_disabled);
     for (i = 0; i < MAX_CPUS; i++) {
         pil_pending = 0;
-        if (pending && !(s->intregm_disabled & 0x80000000) &&
+        if (pending && !(s->intregm_disabled & MASTER_DISABLE) &&
             (i == s->target_cpu)) {
             for (j = 0; j < 32; j++) {
                 if (pending & (1 << j))
                     pil_pending |= 1 << s->intbit_to_level[j];
             }
         }
-        pil_pending |= (s->intreg_pending[i] >> 16) & 0xfffe;
+        pil_pending |= (s->intreg_pending[i] & CPU_IRQ_MASK) >> 16;
 
         for (j = 0; j < MAX_PILS; j++) {
             if (pil_pending & (1 << j)) {
@@ -343,7 +352,7 @@ static void slavio_intctl_reset(void *opaque)
     for (i = 0; i < MAX_CPUS; i++) {
         s->intreg_pending[i] = 0;
     }
-    s->intregm_disabled = ~0xffb2007f;
+    s->intregm_disabled = ~MASTER_IRQ_MASK;
     s->intregm_pending = 0;
     s->target_cpu = 0;
     slavio_check_interrupts(s);

@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "qemu-common.h"
+#ifndef QEMU_IMG
+#include "console.h"
+#endif
 #include "block_int.h"
 
 #include <sys/param.h>          /* PATH_MAX */
@@ -55,7 +58,7 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 
-static BlockDriverState *bdrv_first;
+BlockDriverState *bdrv_first;
 static BlockDriver *first_drv;
 
 int path_is_absolute(const char *path)
@@ -861,6 +864,7 @@ void bdrv_flush(BlockDriverState *bs)
         bdrv_flush(bs->backing_hd);
 }
 
+#ifndef QEMU_IMG
 void bdrv_info(void)
 {
     BlockDriverState *bs;
@@ -900,6 +904,7 @@ void bdrv_info(void)
         term_printf("\n");
     }
 }
+#endif
 
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
@@ -1104,7 +1109,7 @@ void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 /**************************************************************/
 /* async block device emulation */
 
-#ifdef QEMU_TOOL
+#ifdef QEMU_IMG
 static BlockDriverAIOCB *bdrv_aio_read_em(BlockDriverState *bs,
         int64_t sector_num, uint8_t *buf, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
@@ -1174,7 +1179,7 @@ static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
     qemu_bh_cancel(acb->bh);
     qemu_aio_release(acb);
 }
-#endif /* !QEMU_TOOL */
+#endif /* !QEMU_IMG */
 
 /**************************************************************/
 /* sync block device emulation */

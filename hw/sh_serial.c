@@ -24,7 +24,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "sh.h"
+#include "qemu-char.h"
 #include <assert.h>
 
 //#define DEBUG_SERIAL

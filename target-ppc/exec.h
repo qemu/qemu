@@ -42,8 +42,8 @@ register unsigned long T0 asm(AREG1);
 register unsigned long T1 asm(AREG2);
 register unsigned long T2 asm(AREG3);
 #endif
-/* We may, sometime, need 64 bits registers on 32 bits target */
-#if TARGET_GPR_BITS > HOST_LONG_BITS
+/* We may, sometime, need 64 bits registers on 32 bits targets */
+#if (HOST_LONG_BITS == 32)
 /* no registers can be used */
 #define T0_64 (env->t0)
 #define T1_64 (env->t1)

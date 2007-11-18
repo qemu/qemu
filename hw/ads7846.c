@@ -1,5 +1,5 @@
 /*
- * TI ADS7846 chip emulation.
+ * TI ADS7846 / TSC2046 chip emulation.
  *
  * Copyright (c) 2006 Openedhand Ltd.
  * Written by Andrzej Zaborowski <balrog@zabor.org>
@@ -7,7 +7,9 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include <vl.h>
+#include "hw.h"
+#include "devices.h"
+#include "console.h"
 
 struct ads7846_state_s {
     qemu_irq interrupt;

@@ -22,7 +22,13 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "mips.h"
+#include "isa.h"
+#include "pc.h"
+#include "fdc.h"
+#include "sysemu.h"
+#include "boards.h"
 
 #define BIOS_SIZE (4 * MiB)
 
@@ -66,7 +72,6 @@ void mips_pica61_init (int ram_size, int vga_ram_size, const char *boot_device,
     int bios_size;
     CPUState *env;
     int i;
-    mips_def_t *def;
     int available_ram;
     qemu_irq *i8259;
 

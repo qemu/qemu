@@ -35,7 +35,10 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "pci.h"
+#include "net.h"
+#include "qemu-timer.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO
@@ -2008,6 +2011,7 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 /* SPARC32 interface */
 
 #if defined (TARGET_SPARC) && !defined(TARGET_SPARC64) // Avoid compile failure
+#include "sun4m.h"
 
 static void parent_lance_reset(void *opaque, int irq, int level)
 {

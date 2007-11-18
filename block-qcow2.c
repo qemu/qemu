@@ -23,7 +23,7 @@
  */
 
 #include <stddef.h>     /* offsetof */
-#include "vl.h"
+#include "qemu-common.h"
 #include "block_int.h"
 #include <zlib.h>
 #include "aes.h"

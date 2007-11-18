@@ -77,10 +77,12 @@ For system emulation, the following hardware targets are supported:
 @item Sun4m (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
 @item Malta board (32-bit MIPS processor)
-@item ARM Integrator/CP (ARM926E, 1026E or 946E processor)
-@item ARM Versatile baseboard (ARM926E)
-@item ARM RealView Emulation baseboard (ARM926EJ-S)
+@item ARM Integrator/CP (ARM)
+@item ARM Versatile baseboard (ARM)
+@item ARM RealView Emulation baseboard (ARM)
 @item Spitz, Akita, Borzoi and Terrier PDAs (PXA270 processor)
+@item Luminary Micro LM3S811EVB (ARM Cortex-M3)
+@item Luminary Micro LM3S6965EVB (ARM Cortex-M3)
 @item Freescale MCF5208EVB (ColdFire V2).
 @item Arnewsh MCF5206 evaluation board (ColdFire V2).
 @item Palm Tungsten|E PDA (OMAP310 processor)
@@ -943,7 +945,7 @@ Change the medium for a removable disk device to point to @var{filename}. eg
 (qemu) change cdrom /path/to/some.iso
 @end example
 
-@item change vnc @var{display,options}
+@item change vnc @var{display},@var{options}
 Change the configuration of the VNC server. The valid syntax for @var{display}
 and @var{options} are described at @ref{sec_invocation}. eg
 
@@ -964,24 +966,24 @@ Password: ********
 
 @end table
 
-@item screendump filename
+@item screendump @var{filename}
 Save screen into PPM image @var{filename}.
 
-@item mouse_move dx dy [dz]
+@item mouse_move @var{dx} @var{dy} [@var{dz}]
 Move the active mouse to the specified coordinates @var{dx} @var{dy}
 with optional scroll axis @var{dz}.
 
-@item mouse_button val
+@item mouse_button @var{val}
 Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
 
-@item mouse_set index
+@item mouse_set @var{index}
 Set which mouse device receives events at given @var{index}, index
 can be obtained with
 @example
 info mice
 @end example
 
-@item wavcapture filename [frequency [bits [channels]]]
+@item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
 Capture audio into @var{filename}. Using sample rate @var{frequency}
 bits per sample @var{bits} and number of channels @var{channels}.
 
@@ -992,7 +994,7 @@ Defaults:
 @item Number of channels = 2 - Stereo
 @end itemize
 
-@item stopcapture index
+@item stopcapture @var{index}
 Stop capture with a given @var{index}, index can be obtained with
 @example
 info capture
@@ -1001,17 +1003,17 @@ info capture
 @item log item1[,...]
 Activate logging of the specified items to @file{/tmp/qemu.log}.
 
-@item savevm [tag|id]
+@item savevm [@var{tag}|@var{id}]
 Create a snapshot of the whole virtual machine. If @var{tag} is
 provided, it is used as human readable identifier. If there is already
 a snapshot with the same tag or ID, it is replaced. More info at
 @ref{vm_snapshots}.
 
-@item loadvm tag|id
+@item loadvm @var{tag}|@var{id}
 Set the whole virtual machine to the snapshot identified by the tag
 @var{tag} or the unique snapshot ID @var{id}.
 
-@item delvm tag|id
+@item delvm @var{tag}|@var{id}
 Delete the snapshot identified by @var{tag} or @var{id}.
 
 @item stop
@@ -1023,10 +1025,10 @@ Resume emulation.
 @item gdbserver [port]
 Start gdbserver session (default port=1234)
 
-@item x/fmt addr
+@item x/fmt @var{addr}
 Virtual memory dump starting at @var{addr}.
 
-@item xp /fmt addr
+@item xp /fmt @var{addr}
 Physical memory dump starting at @var{addr}.
 
 @var{fmt} is a format which tells the command how to format the
@@ -1949,10 +1951,10 @@ More information is available at
 @node Sparc32 System emulator
 @section Sparc32 System emulator
 
-Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
-or SparcStation 10 (sun4m architecture). The emulation is somewhat complete.
-SMP up to 16 CPUs is supported, but Linux limits the number of usable CPUs
-to 4.
+Use the executable @file{qemu-system-sparc} to simulate a SPARCstation
+5, SPARCstation 10, or SPARCserver 600MP (sun4m architecture). The
+emulation is somewhat complete.  SMP up to 16 CPUs is supported, but
+Linux limits the number of usable CPUs to 4.
 
 QEMU emulates the following sun4m peripherals:
 
@@ -1971,13 +1973,14 @@ and power/reset logic
 @item
 ESP SCSI controller with hard disk and CD-ROM support
 @item
-Floppy drive
+Floppy drive (not on SS-600MP)
 @item
 CS4231 sound device (only on SS-5, not working yet)
 @end itemize
 
-The number of peripherals is fixed in the architecture.  Maximum memory size
-depends on the machine type, for SS-5 it is 256MB and for SS-10 2047MB.
+The number of peripherals is fixed in the architecture.  Maximum
+memory size depends on the machine type, for SS-5 it is 256MB and for
+SS-10 and SS-600MP 2047MB.
 
 Since version 0.8.2, QEMU uses OpenBIOS
 @url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
@@ -2119,7 +2122,7 @@ devices:
 
 @itemize @minus
 @item
-ARM926E, ARM1026E or ARM946E CPU
+ARM926E, ARM1026E, ARM946E, ARM1136 or Cortex-A8 CPU
 @item
 Two PL011 UARTs
 @item
@@ -2136,7 +2139,7 @@ The ARM Versatile baseboard is emulated with the following devices:
 
 @itemize @minus
 @item
-ARM926E CPU
+ARM926E, ARM1136 or Cortex-A8 CPU
 @item
 PL190 Vectored Interrupt Controller
 @item
@@ -2165,7 +2168,7 @@ The ARM RealView Emulation baseboard is emulated with the following devices:
 
 @itemize @minus
 @item
-ARM926E CPU
+ARM926E, ARM1136, ARM11MPCORE(x4) or Cortex-A8 CPU
 @item
 ARM AMBA Generic/Distributed Interrupt Controller
 @item
@@ -2237,6 +2240,34 @@ GPIO-connected matrix keypad
 Secure Digital card connected to OMAP MMC/SD host
 @item
 Three on-chip UARTs
+@end itemize
+
+The Luminary Micro Stellaris LM3S811EVB emulation includes the following
+devices:
+
+@itemize @minus
+@item
+Cortex-M3 CPU core.
+@item
+64k Flash and 8k SRAM.
+@item
+Timers, UARTs, ADC and I@math{^2}C interface.
+@item
+OSRAM Pictiva 96x16 OLED with SSD0303 controller on I@math{^2}C bus.
+@end itemize
+
+The Luminary Micro Stellaris LM3S6965EVB emulation includes the following
+devices:
+
+@itemize @minus
+@item
+Cortex-M3 CPU core.
+@item
+256k Flash and 64k SRAM.
+@item
+Timers, UARTs, ADC, I@math{^2}C and SSI interfaces.
+@item
+OSRAM Pictiva 128x64 OLED with SSD0323 controller connected via SSI.
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More

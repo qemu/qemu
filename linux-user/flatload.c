@@ -108,7 +108,7 @@ int target_pread(int fd, abi_ulong ptr, abi_ulong len,
     void *buf;
     int ret;
 
-    buf = lock_user(ptr, len, 0);
+    buf = lock_user(VERIFY_WRITE, ptr, len, 0);
     ret = pread(fd, buf, len, offset);
     unlock_user(buf, ptr, len);
     return ret;
@@ -598,14 +598,16 @@ static int load_flat_file(struct linux_binprm * bprm,
         rp = datapos;
         while (1) {
             abi_ulong addr;
-            addr = tgetl(rp);
+            if (get_user_ual(addr, rp))
+                return -EFAULT;
             if (addr == -1)
                 break;
             if (addr) {
                 addr = calc_reloc(addr, libinfo, id, 0);
                 if (addr == RELOC_FAILED)
                     return -ENOEXEC;
-                tputl(rp, addr);
+                if (put_user_ual(addr, rp))
+                    return -EFAULT;
             }
             rp += sizeof(abi_ulong);
         }
@@ -629,14 +631,16 @@ static int load_flat_file(struct linux_binprm * bprm,
             /* Get the address of the pointer to be
                relocated (of course, the address has to be
                relocated first).  */
-            relval = tgetl(reloc + i * sizeof (abi_ulong));
+            if (get_user_ual(relval, reloc + i * sizeof(abi_ulong)))
+                return -EFAULT;
             addr = flat_get_relocate_addr(relval);
             rp = calc_reloc(addr, libinfo, id, 1);
             if (rp == RELOC_FAILED)
                 return -ENOEXEC;
 
             /* Get the pointer's value.  */
-            addr = tgetl(rp);
+            if (get_user_ual(addr, rp))
+                return -EFAULT;
             if (addr != 0) {
                 /*
                  * Do the relocation.  PIC relocs in the data section are
@@ -652,13 +656,15 @@ static int load_flat_file(struct linux_binprm * bprm,
                     return -ENOEXEC;
 
                 /* Write back the relocated pointer.  */
-                tputl(rp, addr);
+                if (put_user_ual(addr, rp))
+                    return -EFAULT;
             }
         }
     } else {
         for (i = 0; i < relocs; i++) {
             abi_ulong relval;
-            relval = tgetl(reloc + i * sizeof (abi_ulong));
+            if (get_user_ual(relval, reloc + i * sizeof(abi_ulong)))
+                return -EFAULT;
             old_reloc(&libinfo[0], relval);
         }
     }
@@ -744,9 +750,12 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             p = libinfo[i].start_data;
             for (j=0; j<MAX_SHARED_LIBS; j++) {
                 p -= 4;
-                tput32(p, libinfo[j].loaded
-                          ? libinfo[j].start_data
-                          : UNLOADED_LIB);
+                /* FIXME - handle put_user() failures */
+                if (put_user_ual(libinfo[j].loaded
+                                 ? libinfo[j].start_data
+                                 : UNLOADED_LIB,
+                                 p))
+                    return -EFAULT;
             }
         }
     }
@@ -779,7 +788,9 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     for (i = MAX_SHARED_LIBS-1; i>0; i--) {
             if (libinfo[i].loaded) {
                     /* Push previos first to call address */
-                    --sp;	put_user(start_addr, sp);
+                    --sp;
+                    if (put_user_ual(start_addr, sp))
+                        return -EFAULT;
                     start_addr = libinfo[i].entry;
             }
     }

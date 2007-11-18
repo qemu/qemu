@@ -8,7 +8,8 @@
  * This code is licensed under the GNU GPL v2.
  */
 
-#include "vl.h"
+#include "hw.h"
+#include "flash.h"
 
 /*
  * Pre-calculated 256-way 1 byte column parity.  Table borrowed from Linux.

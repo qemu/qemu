@@ -7,8 +7,14 @@
  * This code is licenced under the GPL.
  */
 
-#include "vl.h"
-#include "arm_pic.h"
+#include "hw.h"
+#include "arm-misc.h"
+#include "primecell.h"
+#include "devices.h"
+#include "pci.h"
+#include "net.h"
+#include "sysemu.h"
+#include "boards.h"
 
 /* Board init.  */
 
@@ -25,13 +31,32 @@ static void realview_init(int ram_size, int vga_ram_size,
     NICInfo *nd;
     int n;
     int done_smc = 0;
+    qemu_irq cpu_irq[4];
+    int ncpu;
 
     if (!cpu_model)
         cpu_model = "arm926";
-    env = cpu_init(cpu_model);
-    if (!env) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+    /* FIXME: obey smp_cpus.  */
+    if (strcmp(cpu_model, "arm11mpcore") == 0) {
+        ncpu = 4;
+    } else {
+        ncpu = 1;
+    }
+
+    for (n = 0; n < ncpu; n++) {
+        env = cpu_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to find CPU definition\n");
+            exit(1);
+        }
+        pic = arm_pic_init_cpu(env);
+        cpu_irq[n] = pic[ARM_PIC_CPU_IRQ];
+        if (n > 0) {
+            /* Set entry point for secondary CPUs.  This assumes we're using
+               the init code from arm_boot.c.  Real hardware resets all CPUs
+               the same.  */
+            env->regs[15] = 0x80000000;
+        }
     }
 
     /* ??? RAM shoud repeat to fill physical memory space.  */
@@ -39,18 +64,23 @@ static void realview_init(int ram_size, int vga_ram_size,
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
 
     arm_sysctl_init(0x10000000, 0xc1400400);
-    pic = arm_pic_init_cpu(env);
-    /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
-       is nIRQ (there are inconsistencies).  However Linux 2.6.17 expects
-       GIC1 to be nIRQ and ignores all the others, so do that for now.  */
-    pic = arm_gic_init(0x10040000, pic[ARM_PIC_CPU_IRQ]);
+
+    if (ncpu == 1) {
+        /* ??? The documentation says GIC1 is nFIQ and either GIC2 or GIC3
+           is nIRQ (there are inconsistencies).  However Linux 2.6.17 expects
+           GIC1 to be nIRQ and ignores all the others, so do that for now.  */
+        pic = realview_gic_init(0x10040000, cpu_irq[0]);
+    } else {
+        pic = mpcore_irq_init(cpu_irq);
+    }
+
     pl050_init(0x10006000, pic[20], 0);
     pl050_init(0x10007000, pic[21], 1);
 
-    pl011_init(0x10009000, pic[12], serial_hds[0]);
-    pl011_init(0x1000a000, pic[13], serial_hds[1]);
-    pl011_init(0x1000b000, pic[14], serial_hds[2]);
-    pl011_init(0x1000c000, pic[15], serial_hds[3]);
+    pl011_init(0x10009000, pic[12], serial_hds[0], PL011_ARM);
+    pl011_init(0x1000a000, pic[13], serial_hds[1], PL011_ARM);
+    pl011_init(0x1000b000, pic[14], serial_hds[2], PL011_ARM);
+    pl011_init(0x1000c000, pic[15], serial_hds[3], PL011_ARM);
 
     /* DMA controller is optional, apparently.  */
     pl080_init(0x10030000, pic[24], 2);
@@ -114,10 +144,10 @@ static void realview_init(int ram_size, int vga_ram_size,
     /*  0x10019000 PCI controller config.  */
     /*  0x10020000 CLCD.  */
     /* 0x10030000 DMA Controller.  */
-    /* 0x10040000 GIC1 (FIQ1).  */
-    /* 0x10050000 GIC2 (IRQ1).  */
-    /*  0x10060000 GIC3 (FIQ2).  */
-    /*  0x10070000 GIC4 (IRQ2).  */
+    /* 0x10040000 GIC1.  */
+    /* 0x10050000 GIC2.  */
+    /* 0x10060000 GIC3.  */
+    /* 0x10070000 GIC4.  */
     /*  0x10080000 SMC.  */
     /*  0x40000000 NOR flash.  */
     /*  0x44000000 DoC flash.  */
@@ -137,8 +167,14 @@ static void realview_init(int ram_size, int vga_ram_size,
     /* 0x68000000 PCI mem 1.  */
     /* 0x6c000000 PCI mem 2.  */
 
-    arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
+    arm_load_kernel(first_cpu, ram_size, kernel_filename, kernel_cmdline,
                     initrd_filename, 0x33b, 0x0);
+
+    /* ??? Hack to map an additional page of ram for the secondary CPU
+       startup code.  I guess this works on real hardware because the
+       BootROM happens to be in ROM/flash or in memory that isn't clobbered
+       until after Linux boots the secondary CPUs.  */
+    cpu_register_physical_memory(0x80000000, 0x1000, IO_MEM_RAM + ram_size);
 }
 
 QEMUMachine realview_machine = {

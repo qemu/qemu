@@ -18,7 +18,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-#include "vl.h"
+#include "hw.h"
+#include "audio/audio.h"
+#include "sysemu.h"
+#include "console.h"
+#include "omap.h"
+#include "boards.h"
+#include "arm-misc.h"
 
 static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
 {

@@ -20,6 +20,8 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
+#include "fpu/softfloat.h"
+
 #if defined(__arm__) || defined(__sparc__) || defined(__mips__)
 #define WORDS_ALIGNED
 #endif
@@ -690,7 +692,6 @@ extern unsigned long qemu_host_page_mask;
 void page_dump(FILE *f);
 int page_get_flags(target_ulong address);
 void page_set_flags(target_ulong start, target_ulong end, int flags);
-void page_unprotect_range(target_ulong data, target_ulong data_size);
 int page_check_range(target_ulong start, target_ulong len, int flags);
 
 CPUState *cpu_copy(CPUState *env);

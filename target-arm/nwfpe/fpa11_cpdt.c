@@ -34,7 +34,8 @@ void loadSingle(const unsigned int Fn,const unsigned int *pMem)
    target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    fpa11->fType[Fn] = typeSingle;
-   fpa11->fpreg[Fn].fSingle = tget32(addr);
+   /* FIXME - handle failure of get_user() */
+   get_user_u32(fpa11->fpreg[Fn].fSingle, addr);
 }
 
 static inline
@@ -46,11 +47,13 @@ void loadDouble(const unsigned int Fn,const unsigned int *pMem)
    p = (unsigned int*)&fpa11->fpreg[Fn].fDouble;
    fpa11->fType[Fn] = typeDouble;
 #ifdef WORDS_BIGENDIAN
-   p[0] = tget32(addr); /* sign & exponent */
-   p[1] = tget32(addr + 4);
+   /* FIXME - handle failure of get_user() */
+   get_user_u32(p[0], addr); /* sign & exponent */
+   get_user_u32(p[1], addr + 4);
 #else
-   p[0] = tget32(addr + 4);
-   p[1] = tget32(addr); /* sign & exponent */
+   /* FIXME - handle failure of get_user() */
+   get_user_u32(p[0], addr + 4);
+   get_user_u32(p[1], addr); /* sign & exponent */
 #endif
 }
 
@@ -62,9 +65,10 @@ void loadExtended(const unsigned int Fn,const unsigned int *pMem)
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fExtended;
    fpa11->fType[Fn] = typeExtended;
-   p[0] = tget32(addr);  /* sign & exponent */
-   p[1] = tget32(addr + 8);  /* ls bits */
-   p[2] = tget32(addr + 4);  /* ms bits */
+   /* FIXME - handle failure of get_user() */
+   get_user_u32(p[0], addr);  /* sign & exponent */
+   get_user_u32(p[1], addr + 8);  /* ls bits */
+   get_user_u32(p[2], addr + 4);  /* ms bits */
 }
 
 static inline
@@ -76,7 +80,8 @@ void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
    unsigned long x;
 
    p = (unsigned int*)&(fpa11->fpreg[Fn]);
-   x = tget32(addr);
+   /* FIXME - handle failure of get_user() */
+   get_user_u32(x, addr);
    fpa11->fType[Fn] = (x >> 14) & 0x00000003;
 
    switch (fpa11->fType[Fn])
@@ -84,16 +89,18 @@ void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
       case typeSingle:
       case typeDouble:
       {
-         p[0] = tget32(addr + 8);  /* Single */
-         p[1] = tget32(addr + 4);  /* double msw */
+         /* FIXME - handle failure of get_user() */
+         get_user_u32(p[0], addr + 8);  /* Single */
+         get_user_u32(p[1], addr + 4);  /* double msw */
          p[2] = 0;        /* empty */
       }
       break;
 
       case typeExtended:
       {
-         p[1] = tget32(addr + 8);
-         p[2] = tget32(addr + 4);  /* msw */
+         /* FIXME - handle failure of get_user() */
+         get_user_u32(p[1], addr + 8);
+         get_user_u32(p[2], addr + 4);  /* msw */
          p[0] = (x & 0x80003fff);
       }
       break;
@@ -121,7 +128,8 @@ void storeSingle(const unsigned int Fn,unsigned int *pMem)
       default: val = fpa11->fpreg[Fn].fSingle;
    }
 
-   tput32(addr, p[0]);
+   /* FIXME - handle put_user() failures */
+   put_user_u32(p[0], addr);
 }
 
 static inline
@@ -144,12 +152,13 @@ void storeDouble(const unsigned int Fn,unsigned int *pMem)
 
       default: val = fpa11->fpreg[Fn].fDouble;
    }
+   /* FIXME - handle put_user() failures */
 #ifdef WORDS_BIGENDIAN
-   tput32(addr, p[0]);	/* msw */
-   tput32(addr + 4, p[1]);	/* lsw */
+   put_user_u32(p[0], addr);	/* msw */
+   put_user_u32(p[1], addr + 4);	/* lsw */
 #else
-   tput32(addr, p[1]);	/* msw */
-   tput32(addr + 4, p[0]);	/* lsw */
+   put_user_u32(p[1], addr);	/* msw */
+   put_user_u32(p[0], addr + 4);	/* lsw */
 #endif
 }
 
@@ -174,9 +183,10 @@ void storeExtended(const unsigned int Fn,unsigned int *pMem)
       default: val = fpa11->fpreg[Fn].fExtended;
    }
 
-   tput32(addr, p[0]); /* sign & exp */
-   tput32(addr + 8, p[1]);
-   tput32(addr + 4, p[2]); /* msw */
+   /* FIXME - handle put_user() failures */
+   put_user_u32(p[0], addr); /* sign & exp */
+   put_user_u32(p[1], addr + 8);
+   put_user_u32(p[2], addr + 4); /* msw */
 }
 
 static inline
@@ -194,17 +204,17 @@ void storeMultiple(const unsigned int Fn,unsigned int *pMem)
       case typeSingle:
       case typeDouble:
       {
-	 tput32(addr + 8, p[0]); /* single */
-	 tput32(addr + 4, p[1]); /* double msw */
-	 tput32(addr, nType << 14);
+         put_user_u32(p[0], addr + 8); /* single */
+	 put_user_u32(p[1], addr + 4); /* double msw */
+	 put_user_u32(nType << 14, addr);
       }
       break;
 
       case typeExtended:
       {
-	 tput32(addr + 4, p[2]); /* msw */
-	 tput32(addr + 8, p[1]);
-	 tput32(addr, (p[0] & 0x80003fff) | (nType << 14));
+         put_user_u32(p[2], addr + 4); /* msw */
+	 put_user_u32(p[1], addr + 8);
+	 put_user_u32((p[0] & 0x80003fff) | (nType << 14), addr);
       }
       break;
    }

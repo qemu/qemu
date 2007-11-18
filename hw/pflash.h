@@ -212,12 +212,20 @@ typedef enum {
 
 /* QEMU interface */
 
-#include "vl.h"         /* BlockDriverState, target_ulong */
+#include "cpu-all.h"            /* ram_addr_t */
+#include "cpu-defs.h"           /* target_phys_addr_t, target_ulong */
+#include "qemu-common.h"        /* BlockDriverState */
+#include "hw/flash.h"           /* pflash_t */
 
 /* NOR flash devices */
 //~ typedef struct pflash_t pflash_t;
 
 /* Special interfaces used by pflash_register. */
+
+target_phys_addr_t *x1;
+ram_addr_t *x2;
+BlockDriverState *x3;
+uint32_t *x4;
 
 pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
                                  BlockDriverState *bs,

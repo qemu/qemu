@@ -5,7 +5,10 @@
  *
  * This code is licenced under the GPL
  */
-#include "vl.h"
+#include "hw.h"
+#include "mcf.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
 
 /* General purpose timer module.  */
 typedef struct {

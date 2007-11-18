@@ -971,6 +971,14 @@ static void do_interrupt64(int intno, int is_int, int error_code,
 }
 #endif
 
+#if defined(CONFIG_USER_ONLY)
+void helper_syscall(int next_eip_addend)
+{
+    env->exception_index = EXCP_SYSCALL;
+    env->exception_next_eip = env->eip + next_eip_addend;
+    cpu_loop_exit();
+}
+#else
 void helper_syscall(int next_eip_addend)
 {
     int selector;
@@ -1024,6 +1032,7 @@ void helper_syscall(int next_eip_addend)
         env->eip = (uint32_t)env->star;
     }
 }
+#endif
 
 void helper_sysret(int dflag)
 {
@@ -1143,18 +1152,23 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 {
     SegmentCache *dt;
     target_ulong ptr;
-    int dpl, cpl;
+    int dpl, cpl, shift;
     uint32_t e2;
 
     dt = &env->idt;
-    ptr = dt->base + (intno * 8);
+    if (env->hflags & HF_LMA_MASK) {
+        shift = 4;
+    } else {
+        shift = 3;
+    }
+    ptr = dt->base + (intno << shift);
     e2 = ldl_kernel(ptr + 4);
 
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
     /* check privledge if software int */
     if (is_int && dpl < cpl)
-        raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
+        raise_exception_err(EXCP0D_GPF, (intno << shift) + 2);
 
     /* Since we emulate only user space, we cannot do more than
        exiting the emulation with the suitable exception and error

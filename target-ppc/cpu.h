@@ -24,46 +24,51 @@
 #include <inttypes.h>
 
 #if defined (TARGET_PPC64)
+/* PowerPC 64 definitions */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
 #define TARGET_LONG_BITS 64
 #define REGX "%016" PRIx64
 #define TARGET_PAGE_BITS 12
-#elif defined(TARGET_PPCEMB)
-/* BookE have 36 bits physical address space */
-#define TARGET_PHYS_ADDR_BITS 64
-/* GPR are 64 bits: used by vector extension */
-typedef uint64_t ppc_gpr_t;
-#define TARGET_GPR_BITS  64
-#define TARGET_LONG_BITS 32
-#define REGX "%016" PRIx64
-#if defined(CONFIG_USER_ONLY)
-/* It looks like a lot of Linux programs assume page size
- * is 4kB long. This is evil, but we have to deal with it...
- */
-#define TARGET_PAGE_BITS 12
-#else
-/* Pages can be 1 kB small */
-#define TARGET_PAGE_BITS 10
-#endif
-#else
+
+#else /* defined (TARGET_PPC64) */
+/* PowerPC 32 definitions */
 #if (HOST_LONG_BITS >= 64)
 /* When using 64 bits temporary registers,
  * we can use 64 bits GPR with no extra cost
- * It's even an optimization as it will prevent
+ * It's even an optimization as this will prevent
  * the compiler to do unuseful masking in the micro-ops.
  */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
 #define REGX "%08" PRIx64
-#else
+#else /* (HOST_LONG_BITS >= 64) */
 typedef uint32_t ppc_gpr_t;
 #define TARGET_GPR_BITS  32
 #define REGX "%08" PRIx32
-#endif
+#endif /* (HOST_LONG_BITS >= 64) */
+
 #define TARGET_LONG_BITS 32
+
+#if defined(TARGET_PPCEMB)
+/* Specific definitions for PowerPC embedded */
+/* BookE have 36 bits physical address space */
+#define TARGET_PHYS_ADDR_BITS 64
+#if defined(CONFIG_USER_ONLY)
+/* It looks like a lot of Linux programs assume page size
+ * is 4kB long. This is evil, but we have to deal with it...
+ */
 #define TARGET_PAGE_BITS 12
-#endif
+#else /* defined(CONFIG_USER_ONLY) */
+/* Pages can be 1 kB small */
+#define TARGET_PAGE_BITS 10
+#endif /* defined(CONFIG_USER_ONLY) */
+#else /* defined(TARGET_PPCEMB) */
+/* "standard" PowerPC 32 definitions */
+#define TARGET_PAGE_BITS 12
+#endif /* defined(TARGET_PPCEMB) */
+
+#endif /* defined (TARGET_PPC64) */
 
 #include "cpu-defs.h"
 
@@ -84,7 +89,8 @@ typedef uint32_t ppc_gpr_t;
 
 /*****************************************************************************/
 /* MMU model                                                                 */
-enum {
+typedef enum powerpc_mmu_t powerpc_mmu_t;
+enum powerpc_mmu_t {
     POWERPC_MMU_UNKNOWN    = 0,
     /* Standard 32 bits PowerPC MMU                            */
     POWERPC_MMU_32B,
@@ -112,7 +118,8 @@ enum {
 
 /*****************************************************************************/
 /* Exception model                                                           */
-enum {
+typedef enum powerpc_excp_t powerpc_excp_t;
+enum powerpc_excp_t {
     POWERPC_EXCP_UNKNOWN   = 0,
     /* Standard PowerPC exception model */
     POWERPC_EXCP_STD,
@@ -166,31 +173,23 @@ enum {
     POWERPC_EXCP_ITLB     = 14, /* Instruction TLB error                     */
     POWERPC_EXCP_DEBUG    = 15, /* Debug interrupt                           */
     /* Vectors 16 to 31 are reserved                                         */
-#if defined(TARGET_PPCEMB)
     POWERPC_EXCP_SPEU     = 32, /* SPE/embedded floating-point unavailable   */
     POWERPC_EXCP_EFPDI    = 33, /* Embedded floating-point data interrupt    */
     POWERPC_EXCP_EFPRI    = 34, /* Embedded floating-point round interrupt   */
     POWERPC_EXCP_EPERFM   = 35, /* Embedded performance monitor interrupt    */
     POWERPC_EXCP_DOORI    = 36, /* Embedded doorbell interrupt               */
     POWERPC_EXCP_DOORCI   = 37, /* Embedded doorbell critical interrupt      */
-#endif /* defined(TARGET_PPCEMB) */
     /* Vectors 38 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
-#if defined(TARGET_PPC64) /* PowerPC 64 */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
     POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
-#endif /* defined(TARGET_PPC64) */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
     POWERPC_EXCP_HDECR    = 67, /* Hypervisor decrementer exception          */
-#endif /* defined(TARGET_PPC64H) */
     POWERPC_EXCP_TRACE    = 68, /* Trace exception                           */
-#if defined(TARGET_PPC64H) /* PowerPC 64 with hypervisor mode support */
     POWERPC_EXCP_HDSI     = 69, /* Hypervisor data storage exception         */
     POWERPC_EXCP_HISI     = 70, /* Hypervisor instruction storage exception  */
     POWERPC_EXCP_HDSEG    = 71, /* Hypervisor data segment exception         */
     POWERPC_EXCP_HISEG    = 72, /* Hypervisor instruction segment exception  */
-#endif /* defined(TARGET_PPC64H) */
     POWERPC_EXCP_VPU      = 73, /* Vector unavailable exception              */
     /* 40x specific exceptions                                               */
     POWERPC_EXCP_PIT      = 74, /* Programmable interval timer interrupt     */
@@ -266,7 +265,8 @@ enum {
 
 /*****************************************************************************/
 /* Input pins model                                                          */
-enum {
+typedef enum powerpc_input_t powerpc_input_t;
+enum powerpc_input_t {
     PPC_FLAGS_INPUT_UNKNOWN = 0,
     /* PowerPC 6xx bus                  */
     PPC_FLAGS_INPUT_6xx,
@@ -302,10 +302,8 @@ struct ppc_spr_t {
 #if !defined(CONFIG_USER_ONLY)
     void (*oea_read)(void *opaque, int spr_num);
     void (*oea_write)(void *opaque, int spr_num);
-#if defined(TARGET_PPC64H)
     void (*hea_read)(void *opaque, int spr_num);
     void (*hea_write)(void *opaque, int spr_num);
-#endif
 #endif
     const unsigned char *name;
 };
@@ -507,26 +505,26 @@ enum {
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
-#if defined(TARGET_PPC64H)
 #define NB_MMU_MODES 3
-#else
-#define NB_MMU_MODES 2
-#endif
 
 struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
      */
-#if TARGET_GPR_BITS > HOST_LONG_BITS
+#if (HOST_LONG_BITS == 32)
     /* temporary fixed-point registers
-     * used to emulate 64 bits target on 32 bits hosts
+     * used to emulate 64 bits registers on 32 bits hosts
      */
-    ppc_gpr_t t0, t1, t2;
+    uint64_t t0, t1, t2;
 #endif
     ppc_avr_t avr0, avr1, avr2;
 
     /* general purpose registers */
     ppc_gpr_t gpr[32];
+#if !defined(TARGET_PPC64)
+    /* Storage for GPR MSB, used by the SPE extension */
+    ppc_gpr_t gprh[32];
+#endif
     /* LR */
     target_ulong lr;
     /* CTR */
@@ -597,12 +595,10 @@ struct CPUPPCState {
     /* Altivec registers */
     ppc_avr_t avr[32];
     uint32_t vscr;
-#if defined(TARGET_PPCEMB)
     /* SPE registers */
     ppc_gpr_t spe_acc;
     float_status spe_status;
     uint32_t spe_fscr;
-#endif
 
     /* Internal devices resources */
     /* Time base and decrementer */
@@ -616,10 +612,9 @@ struct CPUPPCState {
     /* Those resources are used during exception processing */
     /* CPU model definition */
     target_ulong msr_mask;
-    uint8_t mmu_model;
-    uint8_t excp_model;
-    uint8_t bus_model;
-    uint8_t pad;
+    powerpc_mmu_t mmu_model;
+    powerpc_excp_t excp_model;
+    powerpc_input_t bus_model;
     int bfd_mach;
     uint32_t flags;
 
@@ -723,7 +718,6 @@ void cpu_ppc_reset (void *opaque);
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 const ppc_def_t *cpu_ppc_find_by_name (const unsigned char *name);
-const ppc_def_t *cpu_ppc_find_by_pvr (uint32_t pvr);
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
@@ -738,12 +732,10 @@ void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_decr (CPUPPCState *env);
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
-#if defined(TARGET_PPC64H)
 uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
 void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value);
 uint64_t cpu_ppc_load_purr (CPUPPCState *env);
 void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value);
-#endif
 uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
 #if !defined(CONFIG_USER_ONLY)
@@ -779,9 +771,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _user
 #define MMU_MODE1_SUFFIX _kernel
-#if defined(TARGET_PPC64H)
 #define MMU_MODE2_SUFFIX _hypv
-#endif
 #define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUState *env)
 {
@@ -1261,6 +1251,7 @@ enum {
     PPC970_INPUT_MCP        = 4,
     PPC970_INPUT_INT        = 5,
     PPC970_INPUT_THINT      = 6,
+    PPC970_INPUT_NB,
 };
 #endif
 

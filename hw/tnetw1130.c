@@ -20,7 +20,9 @@
  */
 
 #include <assert.h>             /* assert */
-#include "vl.h"
+#include "hw.h"
+#include "net.h"
+#include "pci.h"
 #include "tnetw1130.h"
 
 /*****************************************************************************

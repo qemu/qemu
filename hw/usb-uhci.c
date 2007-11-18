@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "usb.h"
+#include "pci.h"
+#include "qemu-timer.h"
 
 //#define DEBUG
 //#define DEBUG_PACKET
@@ -148,6 +151,7 @@ static void uhci_reset(UHCIState *s)
     }
 }
 
+#if 0
 static void uhci_save(QEMUFile *f, void *opaque)
 {
     UHCIState *s = opaque;
@@ -199,6 +203,7 @@ static int uhci_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
+#endif
 
 static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {

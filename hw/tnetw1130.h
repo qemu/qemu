@@ -20,7 +20,7 @@
 #if !defined(HW_TNETW1130_H)
 #define HW_TNETW1130_H
 
-#include "vl.h"
+#include "qemu-common.h"
 
 void vlynq_tnetw1130_init(void);
 

@@ -703,8 +703,8 @@ union float64u {
     uint64_t l;
 };
 
-union float64u q_nan = { .l = 0xFFF8000000000000 };
-union float64u s_nan = { .l = 0xFFF0000000000000 };
+union float64u q_nan = { .l = 0xFFF8000000000000LL };
+union float64u s_nan = { .l = 0xFFF0000000000000LL };
 
 void test_fops(double a, double b)
 {
@@ -819,7 +819,9 @@ void test_fcvt(double a)
     /* test all roundings */
     asm volatile ("fstcw %0" : "=m" (fpuc));
     for(i=0;i<4;i++) {
-        asm volatile ("fldcw %0" : : "m" ((fpuc & ~0x0c00) | (i << 10)));
+        uint16_t val16;
+        val16 = (fpuc & ~0x0c00) | (i << 10);
+        asm volatile ("fldcw %0" : : "m" (val16));
         asm volatile ("fist %0" : "=m" (wa) : "t" (a));
         asm volatile ("fistl %0" : "=m" (ia) : "t" (a));
         asm volatile ("fistpll %0" : "=m" (lla) : "t" (a) : "st");
@@ -976,8 +978,8 @@ void test_floats(void)
     test_fcvt(1.0/0.0);
     test_fcvt(q_nan.d);
     test_fconst();
-    test_fbcd(1234567890123456);
-    test_fbcd(-123451234567890);
+    test_fbcd(1234567890123456.0);
+    test_fbcd(-123451234567890.0);
     test_fenv();
     if (TEST_CMOV) {
         test_fcmov();
@@ -1151,12 +1153,12 @@ void test_xchg(void)
         long i, eflags;
 
         for(i = 0; i < 2; i++) {
-            op0 = 0x123456789abcd;
+            op0 = 0x123456789abcdLL;
             if (i == 0)
-                op1 = 0xfbca765423456;
+                op1 = 0xfbca765423456LL;
             else
                 op1 = op0;
-            op2 = 0x6532432432434;
+            op2 = 0x6532432432434LL;
             asm("cmpxchg8b %1\n"
                 "pushf\n"
                 "pop %2\n"
@@ -1172,11 +1174,15 @@ void test_xchg(void)
 /**********************************************/
 /* segmentation tests */
 
+#include <sys/syscall.h>
+#include <unistd.h>
 #include <asm/ldt.h>
-#include <linux/unistd.h>
 #include <linux/version.h>
 
-_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+static inline int modify_ldt(int func, void * ptr, unsigned long bytecount)
+{
+    return syscall(__NR_modify_ldt, func, ptr, bytecount);
+}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
 #define modify_ldt_ldt_s user_desc
@@ -1505,13 +1511,10 @@ static inline void pushw(struct vm86_regs *r, int val)
     *(uint16_t *)seg_to_linear(r->ss, r->esp) = val;
 }
 
-#undef __syscall_return
-#define __syscall_return(type, res) \
-do { \
-	return (type) (res); \
-} while (0)
-
-_syscall2(int, vm86, int, func, struct vm86plus_struct *, v86)
+static inline int vm86(int func, struct vm86plus_struct *v86)
+{
+    return syscall(__NR_vm86, func, v86);
+}
 
 extern char vm86_code_start;
 extern char vm86_code_end;

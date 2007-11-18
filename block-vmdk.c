@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "vl.h"
+#include "qemu-common.h"
 #include "block_int.h"
 
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')

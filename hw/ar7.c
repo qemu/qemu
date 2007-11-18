@@ -50,11 +50,20 @@
 
 #include <assert.h>
 #include <stddef.h>             /* offsetof */
+#include <stdio.h>              /* fprintf */
 
 #include <zlib.h>               /* crc32 */
 #include <netinet/in.h>         /* htonl */
 
-#include "vl.h"
+#include "hw.h"
+#include "boards.h"
+#include "mips.h"
+#include "net.h"
+#include "pci.h"
+
+#include "sysemu.h"             /* serial_hds */
+#include "qemu-timer.h"         /* vm_clock */
+
 #include "disas.h"              /* lookup_symbol */
 #include "exec-all.h"           /* logfile */
 

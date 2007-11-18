@@ -21,7 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "vl.h"
+#include "hw.h"
+#include "ppc.h"
+#include "qemu-timer.h"
+#include "sysemu.h"
+#include "nvram.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -172,7 +176,8 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
 
 void ppc6xx_irq_init (CPUState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env, 6);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env,
+                                                  PPC6xx_INPUT_NB);
 }
 
 #if defined(TARGET_PPC64)
@@ -295,7 +300,8 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
 
 void ppc970_irq_init (CPUState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env, 7);
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env,
+                                                  PPC970_INPUT_NB);
 }
 #endif /* defined(TARGET_PPC64) */
 
@@ -428,13 +434,11 @@ struct ppc_tb_t {
     uint64_t decr_next;    /* Tick for next decr interrupt    */
     uint32_t decr_freq;    /* decrementer frequency           */
     struct QEMUTimer *decr_timer;
-#if defined(TARGET_PPC64H)
     /* Hypervisor decrementer management */
     uint64_t hdecr_next;    /* Tick for next hdecr interrupt  */
     struct QEMUTimer *hdecr_timer;
     uint64_t purr_load;
     uint64_t purr_start;
-#endif
     void *opaque;
 };
 
@@ -643,7 +647,6 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
     return _cpu_ppc_load_decr(env, &tb_env->decr_next);
 }
 
-#if defined(TARGET_PPC64H)
 uint32_t cpu_ppc_load_hdecr (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
@@ -660,7 +663,6 @@ uint64_t cpu_ppc_load_purr (CPUState *env)
 
     return tb_env->purr_load + muldiv64(diff, tb_env->tb_freq, ticks_per_sec);
 }
-#endif /* defined(TARGET_PPC64H) */
 
 /* When decrementer expires,
  * all we need to do is generate or queue a CPU exception
@@ -736,14 +738,15 @@ static void cpu_ppc_decr_cb (void *opaque)
     _cpu_ppc_store_decr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
-#if defined(TARGET_PPC64H)
 static always_inline void _cpu_ppc_store_hdecr (CPUState *env, uint32_t hdecr,
                                                 uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
-    __cpu_ppc_store_decr(env, &tb_env->hdecr_next, tb_env->hdecr_timer,
-                         &cpu_ppc_hdecr_excp, hdecr, value, is_excp);
+    if (tb_env->hdecr_timer != NULL) {
+        __cpu_ppc_store_decr(env, &tb_env->hdecr_next, tb_env->hdecr_timer,
+                             &cpu_ppc_hdecr_excp, hdecr, value, is_excp);
+    }
 }
 
 void cpu_ppc_store_hdecr (CPUState *env, uint32_t value)
@@ -763,7 +766,6 @@ void cpu_ppc_store_purr (CPUState *env, uint64_t value)
     tb_env->purr_load = value;
     tb_env->purr_start = qemu_get_clock(vm_clock);
 }
-#endif /* defined(TARGET_PPC64H) */
 
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 {
@@ -777,10 +779,8 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
      * it's not ready to handle it...
      */
     _cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
-#if defined(TARGET_PPC64H)
     _cpu_ppc_store_hdecr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
     cpu_ppc_store_purr(env, 0x0000000000000000ULL);
-#endif /* defined(TARGET_PPC64H) */
 }
 
 /* Set up (once) timebase frequency (in Hz) */
@@ -794,9 +794,13 @@ clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
     env->tb_env = tb_env;
     /* Create new timer */
     tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
-#if defined(TARGET_PPC64H)
-    tb_env->hdecr_timer = qemu_new_timer(vm_clock, &cpu_ppc_hdecr_cb, env);
-#endif /* defined(TARGET_PPC64H) */
+    if (0) {
+        /* XXX: find a suitable condition to enable the hypervisor decrementer
+         */
+        tb_env->hdecr_timer = qemu_new_timer(vm_clock, &cpu_ppc_hdecr_cb, env);
+    } else {
+        tb_env->hdecr_timer = NULL;
+    }
     cpu_ppc_set_tb_clk(env, freq);
 
     return &cpu_ppc_set_tb_clk;
