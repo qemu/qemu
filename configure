@@ -356,6 +356,9 @@ case $cpu in
                ARCH_LDFLAGS="${SP_LDFLAGS}"
            fi
            ;;
+    s390)
+           ARCH_CFLAGS="-march=z900"
+           ;;
 esac
 
 if [ "$solaris" = "yes" -a  "$cpu" = "x86_64" ] ; then
