@@ -109,7 +109,7 @@ sdl.o: sdl.c keymaps.c sdl_keysym.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
 
 audio/sdlaudio.o: audio/sdlaudio.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) $(BASE_CFLAGS) -c -o $@ $<
