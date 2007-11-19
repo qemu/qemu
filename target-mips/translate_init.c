@@ -101,6 +101,23 @@ static mips_def_t mips_defs[] =
         .insn_flags = CPU_MIPS32 | ASE_MIPS16,
     },
     {
+        .name = "4Km",
+        .CP0_PRid = 0x00018300,
+        /* Config1 implemented, fixed mapping MMU,
+           no virtual icache, uncached coherency. */
+        .CP0_Config0 = (1 << CP0C0_M) |
+                    (0x3 << CP0C0_MT) | (0x2 << CP0C0_K0),
+        .CP0_Config1 = MIPS_CONFIG1 |
+		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1258FF17,
+        .insn_flags = CPU_MIPS32 | ASE_MIPS16,
+    },
+    {
         .name = "4KEcR1",
         .CP0_PRid = 0x00018400,
         .CP0_Config0 = MIPS_CONFIG0,
@@ -112,6 +129,23 @@ static mips_def_t mips_defs[] =
         .SYNCI_Step = 32,
         .CCRes = 2,
         .CP0_Status_rw_bitmask = 0x1278FF17,
+        .insn_flags = CPU_MIPS32 | ASE_MIPS16,
+    },
+    {
+        .name = "4KEmR1",
+        .CP0_PRid = 0x00018500,
+        /* Config1 implemented, fixed mapping MMU,
+           no virtual icache, uncached coherency. */
+        .CP0_Config0 = (1 << CP0C0_M) |
+                    (0x3 << CP0C0_MT) | (0x2 << CP0C0_K0),
+        .CP0_Config1 = MIPS_CONFIG1 |
+		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1258FF17,
         .insn_flags = CPU_MIPS32 | ASE_MIPS16,
     },
     {
