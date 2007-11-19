@@ -3000,7 +3000,8 @@ static int check_pow_hid0 (CPUPPCState *env)
 #define POWERPC_EXCP_401     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401    (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_401     (bfd_mach_ppc_403)
-#define POWERPC_FLAG_401     (POWERPC_FLAG_CE | POWERPC_FLAG_DE)
+#define POWERPC_FLAG_401     (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_401        check_pow_nocheck
 
 static void init_proc_401 (CPUPPCState *env)
@@ -3026,7 +3027,8 @@ static void init_proc_401 (CPUPPCState *env)
 #define POWERPC_EXCP_401x2   (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401x2  (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_401x2   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_401x2   (POWERPC_FLAG_CE | POWERPC_FLAG_DE)
+#define POWERPC_FLAG_401x2   (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_401x2      check_pow_nocheck
 
 static void init_proc_401x2 (CPUPPCState *env)
@@ -3059,7 +3061,8 @@ static void init_proc_401x2 (CPUPPCState *env)
 #define POWERPC_EXCP_401x3   (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_401x3  (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_401x3   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_401x3   (POWERPC_FLAG_CE | POWERPC_FLAG_DE)
+#define POWERPC_FLAG_401x3   (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_401x3      check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3088,7 +3091,8 @@ static void init_proc_401x3 (CPUPPCState *env)
 #define POWERPC_EXCP_IOP480  (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_IOP480 (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_IOP480  (bfd_mach_ppc_403)
-#define POWERPC_FLAG_IOP480  (POWERPC_FLAG_CE | POWERPC_FLAG_DE)
+#define POWERPC_FLAG_IOP480  (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_IOP480     check_pow_nocheck
 
 static void init_proc_IOP480 (CPUPPCState *env)
@@ -3119,7 +3123,8 @@ static void init_proc_IOP480 (CPUPPCState *env)
 #define POWERPC_EXCP_403     (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_403    (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_403     (bfd_mach_ppc_403)
-#define POWERPC_FLAG_403     (POWERPC_FLAG_CE | POWERPC_FLAG_PX)
+#define POWERPC_FLAG_403     (POWERPC_FLAG_CE | POWERPC_FLAG_PX |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_403        check_pow_nocheck
 
 static void init_proc_403 (CPUPPCState *env)
@@ -3149,7 +3154,8 @@ static void init_proc_403 (CPUPPCState *env)
 #define POWERPC_EXCP_403GCX  (POWERPC_EXCP_40x)
 #define POWERPC_INPUT_403GCX (PPC_FLAGS_INPUT_401)
 #define POWERPC_BFDM_403GCX  (bfd_mach_ppc_403)
-#define POWERPC_FLAG_403GCX  (POWERPC_FLAG_CE | POWERPC_FLAG_PX)
+#define POWERPC_FLAG_403GCX  (POWERPC_FLAG_CE | POWERPC_FLAG_PX |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_403GCX     check_pow_nocheck
 
 static void init_proc_403GCX (CPUPPCState *env)
@@ -3196,7 +3202,7 @@ static void init_proc_403GCX (CPUPPCState *env)
 #define POWERPC_INPUT_405    (PPC_FLAGS_INPUT_405)
 #define POWERPC_BFDM_405     (bfd_mach_ppc_403)
 #define POWERPC_FLAG_405     (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_405        check_pow_nocheck
 
 static void init_proc_405 (CPUPPCState *env)
@@ -3240,7 +3246,7 @@ static void init_proc_405 (CPUPPCState *env)
 #define POWERPC_INPUT_440EP  (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_440EP   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440EP   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_440EP      check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3318,7 +3324,7 @@ static void init_proc_440EP (CPUPPCState *env)
 #define POWERPC_INPUT_440GP  (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_440GP   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440GP   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_440GP      check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3377,7 +3383,7 @@ static void init_proc_440GP (CPUPPCState *env)
 #define POWERPC_INPUT_440x4  (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_440x4   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440x4   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_440x4      check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3436,7 +3442,7 @@ static void init_proc_440x4 (CPUPPCState *env)
 #define POWERPC_INPUT_440x5  (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_440x5   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440x5   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |           \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_440x5      check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3514,7 +3520,7 @@ static void init_proc_440x5 (CPUPPCState *env)
 #define POWERPC_INPUT_460    (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_460     (bfd_mach_ppc_403)
 #define POWERPC_FLAG_460     (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_460        check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3600,7 +3606,7 @@ static void init_proc_460 (CPUPPCState *env)
 #define POWERPC_INPUT_460F   (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_460F    (bfd_mach_ppc_403)
 #define POWERPC_FLAG_460F    (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE)
+                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_460F       check_pow_nocheck
 
 __attribute__ (( unused ))
@@ -3681,7 +3687,8 @@ static void init_proc_460F (CPUPPCState *env)
 #define POWERPC_EXCP_MPC5xx  (POWERPC_EXCP_603)
 #define POWERPC_INPUT_MPC5xx (PPC_FLAGS_INPUT_RCPU)
 #define POWERPC_BFDM_MPC5xx  (bfd_mach_ppc_505)
-#define POWERPC_FLAG_MPC5xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE)
+#define POWERPC_FLAG_MPC5xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_MPC5xx     check_pow_none
 
 __attribute__ (( unused ))
@@ -3706,7 +3713,8 @@ static void init_proc_MPC5xx (CPUPPCState *env)
 #define POWERPC_EXCP_MPC8xx  (POWERPC_EXCP_603)
 #define POWERPC_INPUT_MPC8xx (PPC_FLAGS_INPUT_RCPU)
 #define POWERPC_BFDM_MPC8xx  (bfd_mach_ppc_860)
-#define POWERPC_FLAG_MPC8xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE)
+#define POWERPC_FLAG_MPC8xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_MPC8xx     check_pow_none
 
 __attribute__ (( unused ))
@@ -3731,7 +3739,7 @@ static void init_proc_MPC8xx (CPUPPCState *env)
 #define POWERPC_INPUT_G2     (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_G2      (bfd_mach_ppc_ec603e)
 #define POWERPC_FLAG_G2      (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_G2         check_pow_hid0
 
 static void init_proc_G2 (CPUPPCState *env)
@@ -3776,7 +3784,7 @@ static void init_proc_G2 (CPUPPCState *env)
 #define POWERPC_INPUT_G2LE   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_G2LE    (bfd_mach_ppc_ec603e)
 #define POWERPC_FLAG_G2LE    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_G2LE       check_pow_hid0
 
 static void init_proc_G2LE (CPUPPCState *env)
@@ -3834,7 +3842,8 @@ static void init_proc_G2LE (CPUPPCState *env)
 #define POWERPC_INPUT_e200   (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_e200    (bfd_mach_ppc_860)
 #define POWERPC_FLAG_e200    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |            \
-                              POWERPC_FLAG_UBLE | POWERPC_FLAG_DE)
+                              POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |           \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_e200       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -3947,7 +3956,7 @@ static void init_proc_e200 (CPUPPCState *env)
 #define POWERPC_INPUT_e300   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_e300    (bfd_mach_ppc_603)
 #define POWERPC_FLAG_e300    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_e300       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -3990,7 +3999,8 @@ static void init_proc_e300 (CPUPPCState *env)
 #define POWERPC_INPUT_e500   (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_e500    (bfd_mach_ppc_860)
 #define POWERPC_FLAG_e500    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |            \
-                              POWERPC_FLAG_UBLE | POWERPC_FLAG_DE)
+                              POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |           \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_e500       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -4125,7 +4135,7 @@ static void init_proc_e500 (CPUPPCState *env)
 //#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
 #define POWERPC_INPUT_601    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_601     (bfd_mach_ppc_601)
-#define POWERPC_FLAG_601     (POWERPC_FLAG_SE)
+#define POWERPC_FLAG_601     (POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK)
 #define check_pow_601        check_pow_none
 
 static void init_proc_601 (CPUPPCState *env)
@@ -4183,7 +4193,7 @@ static void init_proc_601 (CPUPPCState *env)
 #define POWERPC_INPUT_602    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_602     (bfd_mach_ppc_602)
 #define POWERPC_FLAG_602     (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_602        check_pow_hid0
 
 static void init_proc_602 (CPUPPCState *env)
@@ -4221,7 +4231,7 @@ static void init_proc_602 (CPUPPCState *env)
 #define POWERPC_INPUT_603    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_603     (bfd_mach_ppc_603)
 #define POWERPC_FLAG_603     (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_603        check_pow_hid0
 
 static void init_proc_603 (CPUPPCState *env)
@@ -4259,7 +4269,7 @@ static void init_proc_603 (CPUPPCState *env)
 #define POWERPC_INPUT_603E   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_603E    (bfd_mach_ppc_ec603e)
 #define POWERPC_FLAG_603E    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_603E       check_pow_hid0
 
 static void init_proc_603E (CPUPPCState *env)
@@ -4302,7 +4312,7 @@ static void init_proc_603E (CPUPPCState *env)
 #define POWERPC_INPUT_604    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_604     (bfd_mach_ppc_604)
 #define POWERPC_FLAG_604     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 #define check_pow_604        check_pow_nocheck
 
 static void init_proc_604 (CPUPPCState *env)
@@ -4339,7 +4349,7 @@ static void init_proc_604 (CPUPPCState *env)
 #define POWERPC_INPUT_7x0    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7x0     (bfd_mach_ppc_750)
 #define POWERPC_FLAG_7x0     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 #define check_pow_7x0        check_pow_hid0
 
 static void init_proc_7x0 (CPUPPCState *env)
@@ -4378,7 +4388,7 @@ static void init_proc_7x0 (CPUPPCState *env)
 #define POWERPC_INPUT_750fx  (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_750fx   (bfd_mach_ppc_750)
 #define POWERPC_FLAG_750fx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 #define check_pow_750fx      check_pow_hid0
 
 static void init_proc_750fx (CPUPPCState *env)
@@ -4424,7 +4434,7 @@ static void init_proc_750fx (CPUPPCState *env)
 #define POWERPC_INPUT_7x5    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7x5     (bfd_mach_ppc_750)
 #define POWERPC_FLAG_7x5     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 #define check_pow_7x5        check_pow_hid0
 
 static void init_proc_7x5 (CPUPPCState *env)
@@ -4485,7 +4495,8 @@ static void init_proc_7x5 (CPUPPCState *env)
 #define POWERPC_INPUT_7400   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7400    (bfd_mach_ppc_7400)
 #define POWERPC_FLAG_7400    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_7400       check_pow_hid0
 
 static void init_proc_7400 (CPUPPCState *env)
@@ -4517,7 +4528,8 @@ static void init_proc_7400 (CPUPPCState *env)
 #define POWERPC_INPUT_7410   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7410    (bfd_mach_ppc_7400)
 #define POWERPC_FLAG_7410    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_7410       check_pow_hid0
 
 static void init_proc_7410 (CPUPPCState *env)
@@ -4561,7 +4573,8 @@ static void init_proc_7410 (CPUPPCState *env)
 #define POWERPC_INPUT_7440   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7440    (bfd_mach_ppc_7400)
 #define POWERPC_FLAG_7440    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_7440       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -4632,7 +4645,8 @@ static void init_proc_7440 (CPUPPCState *env)
 #define POWERPC_INPUT_7450   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7450    (bfd_mach_ppc_7400)
 #define POWERPC_FLAG_7450    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_7450       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -4705,7 +4719,8 @@ static void init_proc_7450 (CPUPPCState *env)
 #define POWERPC_INPUT_7445   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7445    (bfd_mach_ppc_7400)
 #define POWERPC_FLAG_7445    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_7445       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -4810,7 +4825,8 @@ static void init_proc_7445 (CPUPPCState *env)
 #define POWERPC_INPUT_7455   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_7455    (bfd_mach_ppc_7400)
 #define POWERPC_FLAG_7455    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_7455       check_pow_hid0
 
 __attribute__ (( unused ))
@@ -4922,7 +4938,8 @@ static void init_proc_7455 (CPUPPCState *env)
 #define POWERPC_INPUT_970    (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970     (bfd_mach_ppc64)
 #define POWERPC_FLAG_970     (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 
 #if defined(CONFIG_USER_ONLY)
 #define POWERPC970_HID5_INIT 0x00000080
@@ -5002,7 +5019,8 @@ static void init_proc_970 (CPUPPCState *env)
 #define POWERPC_INPUT_970FX  (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970FX   (bfd_mach_ppc64)
 #define POWERPC_FLAG_970FX   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 
 static int check_pow_970FX (CPUPPCState *env)
 {
@@ -5076,7 +5094,8 @@ static void init_proc_970FX (CPUPPCState *env)
 #define POWERPC_INPUT_970GX  (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970GX   (bfd_mach_ppc64)
 #define POWERPC_FLAG_970GX   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 
 static int check_pow_970GX (CPUPPCState *env)
 {
@@ -5150,7 +5169,8 @@ static void init_proc_970GX (CPUPPCState *env)
 #define POWERPC_INPUT_970MP  (PPC_FLAGS_INPUT_970)
 #define POWERPC_BFDM_970MP   (bfd_mach_ppc64)
 #define POWERPC_FLAG_970MP   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM)
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
 
 static int check_pow_970MP (CPUPPCState *env)
 {
@@ -5222,7 +5242,8 @@ static void init_proc_970MP (CPUPPCState *env)
 #define POWERPC_EXCP_620     (POWERPC_EXCP_970)
 #define POWERPC_INPUT_620    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_620     (bfd_mach_ppc64)
-#define POWERPC_FLAG_620     (POWERPC_FLAG_SE | POWERPC_FLAG_BE)
+#define POWERPC_FLAG_620     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |            \
+                              POWERPC_FLAG_BUS_CLK)
 #define check_pow_620        check_pow_nocheck /* Check this */
 
 __attribute__ (( unused ))
@@ -7883,6 +7904,11 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
                 "Should not define POWERPC_FLAG_PX nor POWERPC_FLAG_PMM\n");
         exit(1);
     }
+    if ((env->flags & (POWERPC_FLAG_RTC_CLK | POWERPC_FLAG_BUS_CLK)) == 0) {
+        fprintf(stderr, "PowerPC flags inconsistency\n"
+                "Should define the time-base and decrementer clock source\n");
+        exit(1);
+    }
     /* Allocate TLBs buffer when needed */
 #if !defined(CONFIG_USER_ONLY)
     if (env->nb_tlb != 0) {
@@ -8399,6 +8425,8 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
             printf("                        performance monitor mark\n");
         if (env->flags == POWERPC_FLAG_NONE)
             printf("                        none\n");
+        printf("    Time-base/decrementer clock source: %s\n",
+               env->flags & POWERPC_FLAG_RTC_CLK ? "RTC clock" : "bus clock");
     }
     dump_ppc_insns(env);
     dump_ppc_sprs(env);

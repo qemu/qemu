@@ -441,23 +441,27 @@ union ppc_tlb_t {
 #endif
 
 enum {
-    POWERPC_FLAG_NONE = 0x00000000,
+    POWERPC_FLAG_NONE     = 0x00000000,
     /* Flag for MSR bit 25 signification (VRE/SPE)                           */
-    POWERPC_FLAG_SPE  = 0x00000001,
-    POWERPC_FLAG_VRE  = 0x00000002,
+    POWERPC_FLAG_SPE      = 0x00000001,
+    POWERPC_FLAG_VRE      = 0x00000002,
     /* Flag for MSR bit 17 signification (TGPR/CE)                           */
-    POWERPC_FLAG_TGPR = 0x00000004,
-    POWERPC_FLAG_CE   = 0x00000008,
+    POWERPC_FLAG_TGPR     = 0x00000004,
+    POWERPC_FLAG_CE       = 0x00000008,
     /* Flag for MSR bit 10 signification (SE/DWE/UBLE)                       */
-    POWERPC_FLAG_SE   = 0x00000010,
-    POWERPC_FLAG_DWE  = 0x00000020,
-    POWERPC_FLAG_UBLE = 0x00000040,
+    POWERPC_FLAG_SE       = 0x00000010,
+    POWERPC_FLAG_DWE      = 0x00000020,
+    POWERPC_FLAG_UBLE     = 0x00000040,
     /* Flag for MSR bit 9 signification (BE/DE)                              */
-    POWERPC_FLAG_BE   = 0x00000080,
-    POWERPC_FLAG_DE   = 0x00000100,
+    POWERPC_FLAG_BE       = 0x00000080,
+    POWERPC_FLAG_DE       = 0x00000100,
     /* Flag for MSR bit 2 signification (PX/PMM)                             */
-    POWERPC_FLAG_PX   = 0x00000200,
-    POWERPC_FLAG_PMM  = 0x00000400,
+    POWERPC_FLAG_PX       = 0x00000200,
+    POWERPC_FLAG_PMM      = 0x00000400,
+    /* Flag for special features                                             */
+    /* Decrementer clock: RTC clock (POWER, 601) or bus clock                */
+    POWERPC_FLAG_RTC_CLK  = 0x00010000,
+    POWERPC_FLAG_BUS_CLK  = 0x00020000,
 };
 
 /*****************************************************************************/
