@@ -443,7 +443,7 @@ static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
     case 0x160: /* LDOARST */
         return s->ldoarst;
     default:
-        cpu_abort(cpu_single_env, "gptm_read: Bad offset 0x%x\n", (int)offset);
+        cpu_abort(cpu_single_env, "ssys_read: Bad offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -516,7 +516,7 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
         s->ldoarst = value;
         break;
     default:
-        cpu_abort(cpu_single_env, "gptm_write: Bad offset 0x%x\n", (int)offset);
+        cpu_abort(cpu_single_env, "ssys_write: Bad offset 0x%x\n", (int)offset);
     }
     ssys_update(s);
 }
