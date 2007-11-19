@@ -491,6 +491,11 @@ struct i2s_codec_s {
     qemu_irq rx_swallow;
     qemu_irq tx_start;
 
+    int tx_rate;
+    int cts;
+    int rx_rate;
+    int rts;
+
     struct i2s_fifo_s {
         uint8_t *fifo;
         int len;

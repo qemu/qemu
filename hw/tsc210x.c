@@ -283,24 +283,13 @@ static void tsc210x_audio_out_cb(struct tsc210x_state_s *s, int free_b)
     qemu_irq_raise(s->codec.tx_start);
 }
 
-static void tsc2102_audio_set_format(struct tsc210x_state_s *s)
+static void tsc2102_audio_rate_update(struct tsc210x_state_s *s)
 {
-    int enable;
     const struct tsc210x_rate_info_s *rate;
-    audsettings_t fmt;
 
-    if (s->dac_voice[0]) {
-        tsc210x_out_flush(s, s->codec.out.len);
-        s->codec.out.size = 0;
-        AUD_set_active_out(s->dac_voice[0], 0);
-        AUD_close_out(&s->card, s->dac_voice[0]);
-        s->dac_voice[0] = 0;
-    }
-
-    enable =
-            (~s->dac_power & (1 << 15)) &&			/* PWDNC */
-            (~s->dac_power & (1 << 10));			/* DAPWDN */
-    if (!enable)
+    s->codec.tx_rate = 0;
+    s->codec.rx_rate = 0;
+    if (s->dac_power & (1 << 15))				/* PWDNC */
         return;
 
     for (rate = tsc2102_rates; rate->rate; rate ++)
@@ -312,16 +301,41 @@ static void tsc2102_audio_set_format(struct tsc210x_state_s *s)
         return;
     }
 
+    s->codec.tx_rate = rate->rate;
+}
+
+static void tsc2102_audio_output_update(struct tsc210x_state_s *s)
+{
+    int enable;
+    audsettings_t fmt;
+
+    if (s->dac_voice[0]) {
+        tsc210x_out_flush(s, s->codec.out.len);
+        s->codec.out.size = 0;
+        AUD_set_active_out(s->dac_voice[0], 0);
+        AUD_close_out(&s->card, s->dac_voice[0]);
+        s->dac_voice[0] = 0;
+    }
+    s->codec.cts = 0;
+
+    enable =
+            (~s->dac_power & (1 << 15)) &&			/* PWDNC */
+            (~s->dac_power & (1 << 10));			/* DAPWDN */
+    if (!enable || !s->codec.tx_rate)
+        return;
+
     /* Force our own sampling rate even in slave DAC mode */
     fmt.endianness = 0;
     fmt.nchannels = 2;
-    fmt.freq = rate->rate;
+    fmt.freq = s->codec.tx_rate;
     fmt.fmt = AUD_FMT_S16;
 
     s->dac_voice[0] = AUD_open_out(&s->card, s->dac_voice[0],
                     "tsc2102.sink", s, (void *) tsc210x_audio_out_cb, &fmt);
-    if (s->dac_voice[0])
+    if (s->dac_voice[0]) {
+        s->codec.cts = 1;
         AUD_set_active_out(s->dac_voice[0], 1);
+    }
 }
 
 static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
@@ -587,8 +601,9 @@ static void tsc2102_audio_register_write(
             fprintf(stderr, "tsc2102_audio_register_write: "
                             "wrong value written into Audio 1\n");
 #endif
+        tsc2102_audio_rate_update(s);
         if (s->audio)
-            tsc2102_audio_set_format(s);
+            tsc2102_audio_output_update(s);
         return;
 
     case 0x01:
@@ -631,8 +646,9 @@ static void tsc2102_audio_register_write(
             fprintf(stderr, "tsc2102_audio_register_write: "
                             "wrong value written into Power\n");
 #endif
+        tsc2102_audio_rate_update(s);
         if (s->audio)
-            tsc2102_audio_set_format(s);
+            tsc2102_audio_output_update(s);
         return;
 
     case 0x06:	/* Audio Control 3 */
@@ -644,7 +660,7 @@ static void tsc2102_audio_register_write(
                             "wrong value written into Audio 3\n");
 #endif
         if (s->audio)
-            tsc2102_audio_set_format(s);
+            tsc2102_audio_output_update(s);
         return;
 
     case 0x07:	/* LCH_BASS_BOOST_N0 */
