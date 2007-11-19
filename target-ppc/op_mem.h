@@ -414,7 +414,7 @@ static always_inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
 #define WORD0 1
 #define WORD1 0
 #endif
-static always_inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiw, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -430,11 +430,11 @@ static always_inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
 
 PPC_STF_OP(fd, stfq);
 PPC_STF_OP(fs, stfs);
-PPC_STF_OP(fiwx, stfiwx);
+PPC_STF_OP(fiw, stfiw);
 #if defined(TARGET_PPC64)
 PPC_STF_OP_64(fd, stfq);
 PPC_STF_OP_64(fs, stfs);
-PPC_STF_OP_64(fiwx, stfiwx);
+PPC_STF_OP_64(fiw, stfiw);
 #endif
 
 static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
@@ -471,7 +471,7 @@ static always_inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
     glue(stfl, MEMSUFFIX)(EA, u.f);
 }
 
-static always_inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiwr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -489,11 +489,11 @@ static always_inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
 
 PPC_STF_OP(fd_le, stfqr);
 PPC_STF_OP(fs_le, stfsr);
-PPC_STF_OP(fiwx_le, stfiwxr);
+PPC_STF_OP(fiw_le, stfiwr);
 #if defined(TARGET_PPC64)
 PPC_STF_OP_64(fd_le, stfqr);
 PPC_STF_OP_64(fs_le, stfsr);
-PPC_STF_OP_64(fiwx_le, stfiwxr);
+PPC_STF_OP_64(fiw_le, stfiwr);
 #endif
 
 /***                         Floating-point load                           ***/
