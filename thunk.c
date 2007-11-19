@@ -31,6 +31,8 @@
 /* XXX: make it dynamic */
 StructEntry struct_entries[MAX_STRUCTS];
 
+static const argtype *thunk_type_next_ptr(const argtype *type_ptr);
+
 static inline const argtype *thunk_type_next(const argtype *type_ptr)
 {
     int type;
@@ -47,14 +49,19 @@ static inline const argtype *thunk_type_next(const argtype *type_ptr)
     case TYPE_PTRVOID:
         return type_ptr;
     case TYPE_PTR:
-        return thunk_type_next(type_ptr);
+        return thunk_type_next_ptr(type_ptr);
     case TYPE_ARRAY:
-        return thunk_type_next(type_ptr + 1);
+        return thunk_type_next_ptr(type_ptr + 1);
     case TYPE_STRUCT:
         return type_ptr + 1;
     default:
         return NULL;
     }
+}
+
+static const argtype *thunk_type_next_ptr(const argtype *type_ptr)
+{
+    return thunk_type_next(type_ptr);
 }
 
 void thunk_register_struct(int id, const char *name, const argtype *types)
@@ -267,3 +274,15 @@ unsigned int host_to_target_bitmask(unsigned int alpha_mask,
     }
     return(x86_mask);
 }
+
+#ifndef NO_THUNK_TYPE_SIZE
+int thunk_type_size_array(const argtype *type_ptr, int is_host)
+{
+    return thunk_type_size(type_ptr, is_host);
+}
+
+int thunk_type_align_array(const argtype *type_ptr, int is_host)
+{
+    return thunk_type_align(type_ptr, is_host);
+}
+#endif /* ndef NO_THUNK_TYPE_SIZE */
