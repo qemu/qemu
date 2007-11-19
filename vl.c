@@ -3385,6 +3385,7 @@ void qemu_chr_close(CharDriverState *chr)
 /***********************************************************/
 /* network device redirectors */
 
+__attribute__ (( unused ))
 static void hex_dump(FILE *f, const uint8_t *buf, int size)
 {
     int len, i, j, c;
