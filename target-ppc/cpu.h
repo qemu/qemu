@@ -93,30 +93,33 @@ typedef uint32_t ppc_gpr_t;
 /* MMU model                                                                 */
 typedef enum powerpc_mmu_t powerpc_mmu_t;
 enum powerpc_mmu_t {
-    POWERPC_MMU_UNKNOWN    = 0,
+    POWERPC_MMU_UNKNOWN    = 0x00000000,
     /* Standard 32 bits PowerPC MMU                            */
-    POWERPC_MMU_32B,
+    POWERPC_MMU_32B        = 0x00000001,
     /* PowerPC 6xx MMU with software TLB                       */
-    POWERPC_MMU_SOFT_6xx,
+    POWERPC_MMU_SOFT_6xx   = 0x00000002,
     /* PowerPC 74xx MMU with software TLB                      */
-    POWERPC_MMU_SOFT_74xx,
+    POWERPC_MMU_SOFT_74xx  = 0x00000003,
     /* PowerPC 4xx MMU with software TLB                       */
-    POWERPC_MMU_SOFT_4xx,
+    POWERPC_MMU_SOFT_4xx   = 0x00000004,
     /* PowerPC 4xx MMU with software TLB and zones protections */
-    POWERPC_MMU_SOFT_4xx_Z,
+    POWERPC_MMU_SOFT_4xx_Z = 0x00000005,
     /* PowerPC MMU in real mode only                           */
-    POWERPC_MMU_REAL,
+    POWERPC_MMU_REAL       = 0x00000006,
     /* Freescale MPC8xx MMU model                              */
-    POWERPC_MMU_MPC8xx,
+    POWERPC_MMU_MPC8xx     = 0x00000007,
     /* BookE MMU model                                         */
-    POWERPC_MMU_BOOKE,
+    POWERPC_MMU_BOOKE      = 0x00000008,
     /* BookE FSL MMU model                                     */
-    POWERPC_MMU_BOOKE_FSL,
+    POWERPC_MMU_BOOKE_FSL  = 0x00000009,
     /* PowerPC 601 MMU model (specific BATs format)            */
-    POWERPC_MMU_601,
+    POWERPC_MMU_601        = 0x0000000A,
 #if defined(TARGET_PPC64)
+#define POWERPC_MMU_64       0x00010000
     /* 64 bits PowerPC MMU                                     */
-    POWERPC_MMU_64B,
+    POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
+    /* 620 variant (no segment exceptions)                     */
+    POWERPC_MMU_620        = POWERPC_MMU_64 | 0x00000002,
 #endif /* defined(TARGET_PPC64) */
 };
 

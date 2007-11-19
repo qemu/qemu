@@ -5237,13 +5237,13 @@ static void init_proc_970MP (CPUPPCState *env)
 /* PowerPC 620                                                               */
 #define POWERPC_INSNS_620    (POWERPC_INSNS_WORKS | PPC_FLOAT_FSQRT |         \
                               PPC_64B | PPC_SLBI)
-#define POWERPC_MSRM_620     (0x800000000005FF73ULL)
-#define POWERPC_MMU_620      (POWERPC_MMU_64B)
+#define POWERPC_MSRM_620     (0x800000000005FF77ULL)
+//#define POWERPC_MMU_620      (POWERPC_MMU_620)
 #define POWERPC_EXCP_620     (POWERPC_EXCP_970)
 #define POWERPC_INPUT_620    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_620     (bfd_mach_ppc64)
 #define POWERPC_FLAG_620     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |            \
-                              POWERPC_FLAG_BUS_CLK)
+                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 #define check_pow_620        check_pow_nocheck /* Check this */
 
 __attribute__ (( unused ))
@@ -8312,6 +8312,9 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 #if defined (TARGET_PPC64)
         case POWERPC_MMU_64B:
             mmu_model = "PowerPC 64";
+            break;
+        case POWERPC_MMU_620:
+            mmu_model = "PowerPC 620";
             break;
 #endif
         default:
