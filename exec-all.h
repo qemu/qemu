@@ -21,36 +21,6 @@
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
 
-#ifndef glue
-#define xglue(x, y) x ## y
-#define glue(x, y) xglue(x, y)
-#define stringify(s)	tostring(s)
-#define tostring(s)	#s
-#endif
-
-#ifndef likely
-#if __GNUC__ < 3
-#define __builtin_expect(x, n) (x)
-#endif
-
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x)   __builtin_expect(!!(x), 0)
-#endif
-
-#ifndef always_inline
-#if (__GNUC__ < 3) || defined(__APPLE__)
-#define always_inline inline
-#else
-#define always_inline __attribute__ (( always_inline )) inline
-#endif
-#endif
-
-#ifdef __i386__
-#define REGPARM(n) __attribute((regparm(n)))
-#else
-#define REGPARM(n)
-#endif
-
 /* is_jmp field values */
 #define DISAS_NEXT    0 /* next instruction can be analyzed */
 #define DISAS_JUMP    1 /* only pc was modified dynamically */

@@ -1,12 +1,12 @@
 #ifndef GEMU_H
 #define GEMU_H
 
-#include "thunk.h"
-
 #include <signal.h>
 #include <string.h>
 
 #include "cpu.h"
+
+#include "thunk.h"
 
 #include "gdbstub.h"
 

@@ -24,6 +24,7 @@
 #include <inttypes.h>
 
 #include "config.h"
+#include "osdep.h"
 
 enum {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
