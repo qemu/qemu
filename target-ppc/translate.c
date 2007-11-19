@@ -499,7 +499,7 @@ enum {
     PPC_MEM_EIEIO      = 0x0000000100000000ULL,
 
     /* Cache control instructions                                            */
-    PPC_CACHE          = 0x00000002000000000ULL,
+    PPC_CACHE          = 0x0000000200000000ULL,
     /*   icbi instruction                                                    */
     PPC_CACHE_ICBI     = 0x0000000400000000ULL,
     /*   dcbz instruction with fixed cache line size                         */
