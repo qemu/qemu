@@ -508,6 +508,9 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
                 qemu_irq *irq, qemu_irq *dma, omap_clk clk);
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave);
 
+struct omap_lpg_s;
+struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk);
+
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
@@ -597,6 +600,8 @@ struct omap_mpu_state_s {
     struct omap_rtc_s *rtc;
 
     struct omap_mcbsp_s *mcbsp2;
+
+    struct omap_lpg_s *led[2];
 
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];

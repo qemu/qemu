@@ -4626,6 +4626,184 @@ void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
     slave->tx_start = qemu_allocate_irqs(omap_mcbsp_i2s_start, s, 1)[0];
 }
 
+/* LED Pulse Generators */
+struct omap_lpg_s {
+    target_phys_addr_t base;
+    QEMUTimer *tm;
+
+    uint8_t control;
+    uint8_t power;
+    int64_t on;
+    int64_t period;
+    int clk;
+    int cycle;
+};
+
+static void omap_lpg_tick(void *opaque)
+{
+    struct omap_lpg_s *s = opaque;
+
+    if (s->cycle)
+        qemu_mod_timer(s->tm, qemu_get_clock(rt_clock) + s->period - s->on);
+    else
+        qemu_mod_timer(s->tm, qemu_get_clock(rt_clock) + s->on);
+
+    s->cycle = !s->cycle;
+    printf("%s: LED is %s\n", __FUNCTION__, s->cycle ? "on" : "off");
+}
+
+static void omap_lpg_update(struct omap_lpg_s *s)
+{
+    int64_t on, period = 1, ticks = 1000;
+    static const int per[8] = { 1, 2, 4, 8, 12, 16, 20, 24 };
+
+    if (~s->control & (1 << 6))					/* LPGRES */
+        on = 0;
+    else if (s->control & (1 << 7))				/* PERM_ON */
+        on = period;
+    else {
+        period = muldiv64(ticks, per[s->control & 7],		/* PERCTRL */
+                        256 / 32);
+        on = (s->clk && s->power) ? muldiv64(ticks,
+                        per[(s->control >> 3) & 7], 256) : 0;	/* ONCTRL */
+    }
+
+    qemu_del_timer(s->tm);
+    if (on == period && s->on < s->period)
+        printf("%s: LED is on\n", __FUNCTION__);
+    else if (on == 0 && s->on)
+        printf("%s: LED is off\n", __FUNCTION__);
+    else if (on && (on != s->on || period != s->period)) {
+        s->cycle = 0;
+        s->on = on;
+        s->period = period;
+        omap_lpg_tick(s);
+        return;
+    }
+
+    s->on = on;
+    s->period = period;
+}
+
+static void omap_lpg_reset(struct omap_lpg_s *s)
+{
+    s->control = 0x00;
+    s->power = 0x00;
+    s->clk = 1;
+    omap_lpg_update(s);
+}
+
+static uint32_t omap_lpg_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* LCR */
+        return s->control;
+
+    case 0x04:	/* PMR */
+        return s->power;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_lpg_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* LCR */
+        if (~value & (1 << 6))					/* LPGRES */
+            omap_lpg_reset(s);
+        s->control = value & 0xff;
+        omap_lpg_update(s);
+        return;
+
+    case 0x04:	/* PMR */
+        s->power = value & 0x01;
+        omap_lpg_update(s);
+        return;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_lpg_readfn[] = {
+    omap_lpg_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_lpg_writefn[] = {
+    omap_lpg_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+static void omap_lpg_clk_update(void *opaque, int line, int on)
+{
+    struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
+
+    s->clk = on;
+    omap_lpg_update(s);
+}
+
+struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_lpg_s *s = (struct omap_lpg_s *)
+            qemu_mallocz(sizeof(struct omap_lpg_s));
+
+    s->base = base;
+    s->tm = qemu_new_timer(rt_clock, omap_lpg_tick, s);
+
+    omap_lpg_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_lpg_readfn,
+                    omap_lpg_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    omap_clk_adduser(clk, qemu_allocate_irqs(omap_lpg_clk_update, s, 1)[0]);
+
+    return s;
+}
+
+/* MPUI Peripheral Bridge configuration */
+static uint32_t omap_mpui_io_read(void *opaque, target_phys_addr_t addr)
+{
+    if (addr == OMAP_MPUI_BASE)	/* CMR */
+        return 0xfe4d;
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static CPUReadMemoryFunc *omap_mpui_io_readfn[] = {
+    omap_badwidth_read16,
+    omap_mpui_io_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_mpui_io_writefn[] = {
+    omap_badwidth_write16,
+    omap_badwidth_write16,
+    omap_badwidth_write16,
+};
+
+static void omap_setup_mpui_io(struct omap_mpu_state_s *mpu)
+{
+    int iomemtype = cpu_register_io_memory(0, omap_mpui_io_readfn,
+                    omap_mpui_io_writefn, mpu);
+    cpu_register_physical_memory(OMAP_MPUI_BASE, 0x7fff, iomemtype);
+}
+
 /* General chip reset */
 static void omap_mpu_reset(void *opaque)
 {
@@ -4663,6 +4841,8 @@ static void omap_mpu_reset(void *opaque)
     omap_mcbsp_reset(mpu->mcbsp1);
     omap_mcbsp_reset(mpu->mcbsp2);
     omap_mcbsp_reset(mpu->mcbsp3);
+    omap_lpg_reset(mpu->led[0]);
+    omap_lpg_reset(mpu->led[1]);
     cpu_reset(mpu->env);
 }
 
@@ -4846,6 +5026,9 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->mcbsp3 = omap_mcbsp_init(0xfffb7000, &s->irq[1][OMAP_INT_McBSP3TX],
                     &s->drq[OMAP_DMA_MCBSP3_TX], omap_findclk(s, "dspxor_ck"));
 
+    s->led[0] = omap_lpg_init(0xfffbd000, omap_findclk(s, "clk32-kHz"));
+    s->led[1] = omap_lpg_init(0xfffbd800, omap_findclk(s, "clk32-kHz"));
+
     /* Register mappings not currenlty implemented:
      * MCSI2 Comm	fffb2000 - fffb27ff (not mapped on OMAP310)
      * MCSI1 Bluetooth	fffb2800 - fffb2fff (not mapped on OMAP310)
@@ -4855,8 +5038,6 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
      * FAC		fffba800 - fffbafff
      * HDQ/1-Wire	fffbc000 - fffbc7ff
      * TIPB switches	fffbc800 - fffbcfff
-     * LED1		fffbd000 - fffbd7ff
-     * LED2		fffbd800 - fffbdfff
      * Mailbox		fffcf000 - fffcf7ff
      * Local bus IF	fffec100 - fffec1ff
      * Local bus MMU	fffec200 - fffec2ff
@@ -4864,6 +5045,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
      */
 
     omap_setup_dsp_mapping(omap15xx_dsp_mm);
+    omap_setup_mpui_io(s);
 
     qemu_register_reset(omap_mpu_reset, s);
 
