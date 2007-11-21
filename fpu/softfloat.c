@@ -5391,7 +5391,7 @@ INLINE int float ## s ## _compare_internal( float ## s a, float ## s b,      \
     aSign = extractFloat ## s ## Sign( a );                                  \
     bSign = extractFloat ## s ## Sign( b );                                  \
     av = float ## s ## _val(a);                                              \
-    bv = float ## s ## _val(a);                                              \
+    bv = float ## s ## _val(b);                                              \
     if ( aSign != bSign ) {                                                  \
         if ( (bits ## s) ( ( av | bv )<<1 ) == 0 ) {                         \
             /* zero case */                                                  \
