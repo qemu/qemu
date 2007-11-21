@@ -3780,8 +3780,8 @@ static void mips_ar7_common_init (int ram_size,
     ar7_init(env);
 }
 
-static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void mips_ar7_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3790,8 +3790,8 @@ static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void ar7_amd_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3800,8 +3800,8 @@ static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void mips_tnetd7200_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void mips_tnetd7200_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3811,8 +3811,8 @@ static void mips_tnetd7200_init(int ram_size, int vga_ram_size, int boot_device,
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
-static void mips_tnetd7300_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void mips_tnetd7300_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3823,8 +3823,8 @@ static void mips_tnetd7300_init(int ram_size, int vga_ram_size, int boot_device,
 
 #if defined(TARGET_WORDS_BIGENDIAN)
 
-static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void zyxel_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3841,8 +3841,8 @@ static void zyxel_init(int ram_size, int vga_ram_size, int boot_device,
 
 #else
 
-static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void fbox4_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3857,8 +3857,8 @@ static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void fbox8_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3873,8 +3873,8 @@ static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void sinus_basic_3_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void sinus_basic_3_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3889,8 +3889,8 @@ static void sinus_basic_3_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void sinus_basic_se_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void sinus_basic_se_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3905,8 +3905,8 @@ static void sinus_basic_se_init(int ram_size, int vga_ram_size, int boot_device,
                           cpu_model);
 }
 
-static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void sinus_se_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3923,8 +3923,8 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
     ar7.phyaddr = 0;
 }
 
-static void speedport_init(int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void speedport_init(int ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
