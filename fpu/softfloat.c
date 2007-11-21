@@ -3012,7 +3012,7 @@ int float64_eq( float64 a, float64 b STATUS_PARAM )
         return 0;
     }
     av = float64_val(a);
-    bv = float64_val(a);
+    bv = float64_val(b);
     return ( av == bv ) || ( (bits64) ( ( av | bv )<<1 ) == 0 );
 
 }
@@ -3038,7 +3038,7 @@ int float64_le( float64 a, float64 b STATUS_PARAM )
     aSign = extractFloat64Sign( a );
     bSign = extractFloat64Sign( b );
     av = float64_val(a);
-    bv = float64_val(a);
+    bv = float64_val(b);
     if ( aSign != bSign ) return aSign || ( (bits64) ( ( av | bv )<<1 ) == 0 );
     return ( av == bv ) || ( aSign ^ ( av < bv ) );
 
@@ -3064,7 +3064,7 @@ int float64_lt( float64 a, float64 b STATUS_PARAM )
     aSign = extractFloat64Sign( a );
     bSign = extractFloat64Sign( b );
     av = float64_val(a);
-    bv = float64_val(a);
+    bv = float64_val(b);
     if ( aSign != bSign ) return aSign && ( (bits64) ( ( av | bv )<<1 ) != 0 );
     return ( av != bv ) && ( aSign ^ ( av < bv ) );
 
@@ -3088,7 +3088,7 @@ int float64_eq_signaling( float64 a, float64 b STATUS_PARAM )
         return 0;
     }
     av = float64_val(a);
-    bv = float64_val(a);
+    bv = float64_val(b);
     return ( av == bv ) || ( (bits64) ( ( av | bv )<<1 ) == 0 );
 
 }
@@ -3116,7 +3116,7 @@ int float64_le_quiet( float64 a, float64 b STATUS_PARAM )
     aSign = extractFloat64Sign( a );
     bSign = extractFloat64Sign( b );
     av = float64_val(a);
-    bv = float64_val(a);
+    bv = float64_val(b);
     if ( aSign != bSign ) return aSign || ( (bits64) ( ( av | bv )<<1 ) == 0 );
     return ( av == bv ) || ( aSign ^ ( av < bv ) );
 
@@ -3145,7 +3145,7 @@ int float64_lt_quiet( float64 a, float64 b STATUS_PARAM )
     aSign = extractFloat64Sign( a );
     bSign = extractFloat64Sign( b );
     av = float64_val(a);
-    bv = float64_val(a);
+    bv = float64_val(b);
     if ( aSign != bSign ) return aSign && ( (bits64) ( ( av | bv )<<1 ) != 0 );
     return ( av != bv ) && ( aSign ^ ( av < bv ) );
 
