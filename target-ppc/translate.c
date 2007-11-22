@@ -2455,12 +2455,37 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 /***                    Integer load and store strings                     ***/
 #define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
 #define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
+/* string load & stores are by definition endian-safe */
+#define gen_op_lswi_le_raw       gen_op_lswi_raw
+#define gen_op_lswi_le_user      gen_op_lswi_user
+#define gen_op_lswi_le_kernel    gen_op_lswi_kernel
+#define gen_op_lswi_le_hypv      gen_op_lswi_hypv
+#define gen_op_lswi_le_64_raw    gen_op_lswi_raw
+#define gen_op_lswi_le_64_user   gen_op_lswi_user
+#define gen_op_lswi_le_64_kernel gen_op_lswi_kernel
+#define gen_op_lswi_le_64_hypv   gen_op_lswi_hypv
 static GenOpFunc1 *gen_op_lswi[NB_MEM_FUNCS] = {
     GEN_MEM_FUNCS(lswi),
 };
+#define gen_op_lswx_le_raw       gen_op_lswx_raw
+#define gen_op_lswx_le_user      gen_op_lswx_user
+#define gen_op_lswx_le_kernel    gen_op_lswx_kernel
+#define gen_op_lswx_le_hypv      gen_op_lswx_hypv
+#define gen_op_lswx_le_64_raw    gen_op_lswx_raw
+#define gen_op_lswx_le_64_user   gen_op_lswx_user
+#define gen_op_lswx_le_64_kernel gen_op_lswx_kernel
+#define gen_op_lswx_le_64_hypv   gen_op_lswx_hypv
 static GenOpFunc3 *gen_op_lswx[NB_MEM_FUNCS] = {
     GEN_MEM_FUNCS(lswx),
 };
+#define gen_op_stsw_le_raw       gen_op_stsw_raw
+#define gen_op_stsw_le_user      gen_op_stsw_user
+#define gen_op_stsw_le_kernel    gen_op_stsw_kernel
+#define gen_op_stsw_le_hypv      gen_op_stsw_hypv
+#define gen_op_stsw_le_64_raw    gen_op_stsw_raw
+#define gen_op_stsw_le_64_user   gen_op_stsw_user
+#define gen_op_stsw_le_64_kernel gen_op_stsw_kernel
+#define gen_op_stsw_le_64_hypv   gen_op_stsw_hypv
 static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
     GEN_MEM_FUNCS(stsw),
 };

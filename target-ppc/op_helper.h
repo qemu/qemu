@@ -22,9 +22,7 @@
 
 /* Memory load/store helpers */
 void glue(do_lsw, MEMSUFFIX) (int dst);
-void glue(do_lsw_le, MEMSUFFIX) (int dst);
 void glue(do_stsw, MEMSUFFIX) (int src);
-void glue(do_stsw_le, MEMSUFFIX) (int src);
 void glue(do_lmw, MEMSUFFIX) (int dst);
 void glue(do_lmw_le, MEMSUFFIX) (int dst);
 void glue(do_stmw, MEMSUFFIX) (int src);
@@ -39,9 +37,7 @@ void glue(do_POWER2_stfq_le, MEMSUFFIX) (void);
 
 #if defined(TARGET_PPC64)
 void glue(do_lsw_64, MEMSUFFIX) (int dst);
-void glue(do_lsw_le_64, MEMSUFFIX) (int dst);
 void glue(do_stsw_64, MEMSUFFIX) (int src);
-void glue(do_stsw_le_64, MEMSUFFIX) (int src);
 void glue(do_lmw_64, MEMSUFFIX) (int dst);
 void glue(do_lmw_le_64, MEMSUFFIX) (int dst);
 void glue(do_stmw_64, MEMSUFFIX) (int src);
