@@ -18,80 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-static always_inline uint16_t glue(ld16r, MEMSUFFIX) (target_ulong EA)
-{
-    uint16_t tmp = glue(lduw, MEMSUFFIX)(EA);
-    return ((tmp & 0xFF00) >> 8) | ((tmp & 0x00FF) << 8);
-}
-
-static always_inline int32_t glue(ld16rs, MEMSUFFIX) (target_ulong EA)
-{
-    int16_t tmp = glue(lduw, MEMSUFFIX)(EA);
-    return (int16_t)((tmp & 0xFF00) >> 8) | ((tmp & 0x00FF) << 8);
-}
-
-static always_inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
-{
-    uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
-    return ((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
-        ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
-}
-
-static always_inline uint64_t glue(ld64r, MEMSUFFIX) (target_ulong EA)
-{
-    uint64_t tmp = glue(ldq, MEMSUFFIX)(EA);
-    return ((tmp & 0xFF00000000000000ULL) >> 56) |
-        ((tmp & 0x00FF000000000000ULL) >> 40) |
-        ((tmp & 0x0000FF0000000000ULL) >> 24) |
-        ((tmp & 0x000000FF00000000ULL) >> 8) |
-        ((tmp & 0x00000000FF000000ULL) << 8) |
-        ((tmp & 0x0000000000FF0000ULL) << 24) |
-        ((tmp & 0x000000000000FF00ULL) << 40) |
-        ((tmp & 0x00000000000000FFULL) << 54);
-}
-
-#if defined(TARGET_PPC64)
-static always_inline int64_t glue(ldsl, MEMSUFFIX) (target_ulong EA)
-{
-    return (int32_t)glue(ldl, MEMSUFFIX)(EA);
-}
-
-static always_inline int64_t glue(ld32rs, MEMSUFFIX) (target_ulong EA)
-{
-    uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
-    return (int32_t)((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
-        ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
-}
-#endif
-
-static always_inline void glue(st16r, MEMSUFFIX) (target_ulong EA,
-                                                  uint16_t data)
-{
-    uint16_t tmp = ((data & 0xFF00) >> 8) | ((data & 0x00FF) << 8);
-    glue(stw, MEMSUFFIX)(EA, tmp);
-}
-
-static always_inline void glue(st32r, MEMSUFFIX) (target_ulong EA,
-                                                  uint32_t data)
-{
-    uint32_t tmp = ((data & 0xFF000000) >> 24) | ((data & 0x00FF0000) >> 8) |
-        ((data & 0x0000FF00) << 8) | ((data & 0x000000FF) << 24);
-    glue(stl, MEMSUFFIX)(EA, tmp);
-}
-
-static always_inline void glue(st64r, MEMSUFFIX) (target_ulong EA,
-                                                  uint64_t data)
-{
-    uint64_t tmp = ((data & 0xFF00000000000000ULL) >> 56) |
-        ((data & 0x00FF000000000000ULL) >> 40) |
-        ((data & 0x0000FF0000000000ULL) >> 24) |
-        ((data & 0x000000FF00000000ULL) >> 8) |
-        ((data & 0x00000000FF000000ULL) << 8) |
-        ((data & 0x0000000000FF0000ULL) << 24) |
-        ((data & 0x000000000000FF00ULL) << 40) |
-        ((data & 0x00000000000000FFULL) << 56);
-    glue(stq, MEMSUFFIX)(EA, tmp);
-}
+#include "op_mem_access.h"
 
 /***                             Integer load                              ***/
 #define PPC_LD_OP(name, op)                                                   \
@@ -126,76 +53,76 @@ void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
 }
 #endif
 
-PPC_LD_OP(bz, ldub);
-PPC_LD_OP(ha, ldsw);
-PPC_LD_OP(hz, lduw);
-PPC_LD_OP(wz, ldl);
+PPC_LD_OP(bz, ldu8);
+PPC_LD_OP(ha, lds16);
+PPC_LD_OP(hz, ldu16);
+PPC_LD_OP(wz, ldu32);
 #if defined(TARGET_PPC64)
-PPC_LD_OP(d, ldq);
-PPC_LD_OP(wa, ldsl);
-PPC_LD_OP_64(d, ldq);
-PPC_LD_OP_64(wa, ldsl);
-PPC_LD_OP_64(bz, ldub);
-PPC_LD_OP_64(ha, ldsw);
-PPC_LD_OP_64(hz, lduw);
-PPC_LD_OP_64(wz, ldl);
+PPC_LD_OP(wa, lds32);
+PPC_LD_OP(d, ldu64);
+PPC_LD_OP_64(bz, ldu8);
+PPC_LD_OP_64(ha, lds16);
+PPC_LD_OP_64(hz, ldu16);
+PPC_LD_OP_64(wz, ldu32);
+PPC_LD_OP_64(wa, lds32);
+PPC_LD_OP_64(d, ldu64);
 #endif
 
-PPC_LD_OP(ha_le, ld16rs);
-PPC_LD_OP(hz_le, ld16r);
-PPC_LD_OP(wz_le, ld32r);
+PPC_LD_OP(ha_le, lds16r);
+PPC_LD_OP(hz_le, ldu16r);
+PPC_LD_OP(wz_le, ldu32r);
 #if defined(TARGET_PPC64)
-PPC_LD_OP(d_le, ld64r);
-PPC_LD_OP(wa_le, ld32rs);
-PPC_LD_OP_64(d_le, ld64r);
-PPC_LD_OP_64(wa_le, ld32rs);
-PPC_LD_OP_64(ha_le, ld16rs);
-PPC_LD_OP_64(hz_le, ld16r);
-PPC_LD_OP_64(wz_le, ld32r);
+PPC_LD_OP(wa_le, lds32r);
+PPC_LD_OP(d_le, ldu64r);
+PPC_LD_OP_64(ha_le, lds16r);
+PPC_LD_OP_64(hz_le, ldu16r);
+PPC_LD_OP_64(wz_le, ldu32r);
+PPC_LD_OP_64(wa_le, lds32r);
+PPC_LD_OP_64(d_le, ldu64r);
 #endif
 
 /***                              Integer store                            ***/
-PPC_ST_OP(b, stb);
-PPC_ST_OP(h, stw);
-PPC_ST_OP(w, stl);
+PPC_ST_OP(b, st8);
+PPC_ST_OP(h, st16);
+PPC_ST_OP(w, st32);
 #if defined(TARGET_PPC64)
-PPC_ST_OP(d, stq);
-PPC_ST_OP_64(d, stq);
-PPC_ST_OP_64(b, stb);
-PPC_ST_OP_64(h, stw);
-PPC_ST_OP_64(w, stl);
+PPC_ST_OP(d, st64);
+PPC_ST_OP_64(b, st8);
+PPC_ST_OP_64(h, st16);
+PPC_ST_OP_64(w, st32);
+PPC_ST_OP_64(d, st64);
 #endif
 
 PPC_ST_OP(h_le, st16r);
 PPC_ST_OP(w_le, st32r);
 #if defined(TARGET_PPC64)
 PPC_ST_OP(d_le, st64r);
-PPC_ST_OP_64(d_le, st64r);
 PPC_ST_OP_64(h_le, st16r);
 PPC_ST_OP_64(w_le, st32r);
+PPC_ST_OP_64(d_le, st64r);
 #endif
 
 /***                Integer load and store with byte reverse               ***/
-PPC_LD_OP(hbr, ld16r);
-PPC_LD_OP(wbr, ld32r);
+PPC_LD_OP(hbr, ldu16r);
+PPC_LD_OP(wbr, ldu32r);
 PPC_ST_OP(hbr, st16r);
 PPC_ST_OP(wbr, st32r);
 #if defined(TARGET_PPC64)
-PPC_LD_OP_64(hbr, ld16r);
-PPC_LD_OP_64(wbr, ld32r);
+PPC_LD_OP_64(hbr, ldu16r);
+PPC_LD_OP_64(wbr, ldu32r);
 PPC_ST_OP_64(hbr, st16r);
 PPC_ST_OP_64(wbr, st32r);
 #endif
 
-PPC_LD_OP(hbr_le, lduw);
-PPC_LD_OP(wbr_le, ldl);
-PPC_ST_OP(hbr_le, stw);
-PPC_ST_OP(wbr_le, stl);
+PPC_LD_OP(hbr_le, ldu16);
+PPC_LD_OP(wbr_le, ldu32);
+PPC_ST_OP(hbr_le, st16);
+PPC_ST_OP(wbr_le, st32);
 #if defined(TARGET_PPC64)
-PPC_LD_OP_64(hbr_le, lduw);
-PPC_LD_OP_64(wbr_le, ldl);
-PPC_ST_OP_64(hbr_le, stw);
-PPC_ST_OP_64(wbr_le, stl);
+PPC_LD_OP_64(hbr_le, ldu16);
+PPC_LD_OP_64(wbr_le, ldu32);
+PPC_ST_OP_64(hbr_le, st16);
+PPC_ST_OP_64(wbr_le, st32);
 #endif
 
 /***                    Integer load and store multiple                    ***/
@@ -270,20 +197,6 @@ void OPPROTO glue(op_lswi_64, MEMSUFFIX) (void)
 }
 #endif
 
-void OPPROTO glue(op_lswi_le, MEMSUFFIX) (void)
-{
-    glue(do_lsw_le, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_lswi_le_64, MEMSUFFIX) (void)
-{
-    glue(do_lsw_le_64, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-#endif
-
 /* PPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
  * In an other hand, IBM says this is valid, but rA won't be loaded.
@@ -323,40 +236,6 @@ void OPPROTO glue(op_lswx_64, MEMSUFFIX) (void)
 }
 #endif
 
-void OPPROTO glue(op_lswx_le, MEMSUFFIX) (void)
-{
-    /* Note: T1 comes from xer_bc then no cast is needed */
-    if (likely(T1 != 0)) {
-        if (unlikely((PARAM1 < PARAM2 && (PARAM1 + T1) > PARAM2) ||
-                     (PARAM1 < PARAM3 && (PARAM1 + T1) > PARAM3))) {
-            do_raise_exception_err(POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL |
-                                   POWERPC_EXCP_INVAL_LSWX);
-        } else {
-            glue(do_lsw_le, MEMSUFFIX)(PARAM1);
-        }
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_lswx_le_64, MEMSUFFIX) (void)
-{
-    /* Note: T1 comes from xer_bc then no cast is needed */
-    if (likely(T1 != 0)) {
-        if (unlikely((PARAM1 < PARAM2 && (PARAM1 + T1) > PARAM2) ||
-                     (PARAM1 < PARAM3 && (PARAM1 + T1) > PARAM3))) {
-            do_raise_exception_err(POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL |
-                                   POWERPC_EXCP_INVAL_LSWX);
-        } else {
-            glue(do_lsw_le_64, MEMSUFFIX)(PARAM1);
-        }
-    }
-    RETURN();
-}
-#endif
-
 void OPPROTO glue(op_stsw, MEMSUFFIX) (void)
 {
     glue(do_stsw, MEMSUFFIX)(PARAM1);
@@ -367,20 +246,6 @@ void OPPROTO glue(op_stsw, MEMSUFFIX) (void)
 void OPPROTO glue(op_stsw_64, MEMSUFFIX) (void)
 {
     glue(do_stsw_64, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-#endif
-
-void OPPROTO glue(op_stsw_le, MEMSUFFIX) (void)
-{
-    glue(do_stsw_le, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_stsw_le_64, MEMSUFFIX) (void)
-{
-    glue(do_stsw_le_64, MEMSUFFIX)(PARAM1);
     RETURN();
 }
 #endif
@@ -414,7 +279,7 @@ static always_inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
 #define WORD0 1
 #define WORD1 0
 #endif
-static always_inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiw, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -423,18 +288,18 @@ static always_inline void glue(stfiwx, MEMSUFFIX) (target_ulong EA, double d)
 
     /* Store the low order 32 bits without any conversion */
     u.d = d;
-    glue(stl, MEMSUFFIX)(EA, u.u[WORD0]);
+    glue(st32, MEMSUFFIX)(EA, u.u[WORD0]);
 }
 #undef WORD0
 #undef WORD1
 
 PPC_STF_OP(fd, stfq);
 PPC_STF_OP(fs, stfs);
-PPC_STF_OP(fiwx, stfiwx);
+PPC_STF_OP(fiw, stfiw);
 #if defined(TARGET_PPC64)
 PPC_STF_OP_64(fd, stfq);
 PPC_STF_OP_64(fs, stfs);
-PPC_STF_OP_64(fiwx, stfiwx);
+PPC_STF_OP_64(fiw, stfiw);
 #endif
 
 static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
@@ -445,14 +310,7 @@ static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
     } u;
 
     u.d = d;
-    u.u = ((u.u & 0xFF00000000000000ULL) >> 56) |
-        ((u.u & 0x00FF000000000000ULL) >> 40) |
-        ((u.u & 0x0000FF0000000000ULL) >> 24) |
-        ((u.u & 0x000000FF00000000ULL) >> 8) |
-        ((u.u & 0x00000000FF000000ULL) << 8) |
-        ((u.u & 0x0000000000FF0000ULL) << 24) |
-        ((u.u & 0x000000000000FF00ULL) << 40) |
-        ((u.u & 0x00000000000000FFULL) << 56);
+    u.u = bswap64(u.u);
     glue(stfq, MEMSUFFIX)(EA, u.d);
 }
 
@@ -464,14 +322,11 @@ static always_inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
     } u;
 
     u.f = float64_to_float32(d, &env->fp_status);
-    u.u = ((u.u & 0xFF000000UL) >> 24) |
-        ((u.u & 0x00FF0000ULL) >> 8) |
-        ((u.u & 0x0000FF00UL) << 8) |
-        ((u.u & 0x000000FFULL) << 24);
+    u.u = bswap32(u.u);
     glue(stfl, MEMSUFFIX)(EA, u.f);
 }
 
-static always_inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiwr, MEMSUFFIX) (target_ulong EA, double d)
 {
     union {
         double d;
@@ -480,20 +335,17 @@ static always_inline void glue(stfiwxr, MEMSUFFIX) (target_ulong EA, double d)
 
     /* Store the low order 32 bits without any conversion */
     u.d = d;
-    u.u = ((u.u & 0xFF000000UL) >> 24) |
-        ((u.u & 0x00FF0000ULL) >> 8) |
-        ((u.u & 0x0000FF00UL) << 8) |
-        ((u.u & 0x000000FFULL) << 24);
-    glue(stl, MEMSUFFIX)(EA, u.u);
+    u.u = bswap32(u.u);
+    glue(st32, MEMSUFFIX)(EA, u.u);
 }
 
 PPC_STF_OP(fd_le, stfqr);
 PPC_STF_OP(fs_le, stfsr);
-PPC_STF_OP(fiwx_le, stfiwxr);
+PPC_STF_OP(fiw_le, stfiwr);
 #if defined(TARGET_PPC64)
 PPC_STF_OP_64(fd_le, stfqr);
 PPC_STF_OP_64(fs_le, stfsr);
-PPC_STF_OP_64(fiwx_le, stfiwxr);
+PPC_STF_OP_64(fiw_le, stfiwr);
 #endif
 
 /***                         Floating-point load                           ***/
@@ -533,14 +385,7 @@ static always_inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
     } u;
 
     u.d = glue(ldfq, MEMSUFFIX)(EA);
-    u.u = ((u.u & 0xFF00000000000000ULL) >> 56) |
-        ((u.u & 0x00FF000000000000ULL) >> 40) |
-        ((u.u & 0x0000FF0000000000ULL) >> 24) |
-        ((u.u & 0x000000FF00000000ULL) >> 8) |
-        ((u.u & 0x00000000FF000000ULL) << 8) |
-        ((u.u & 0x0000000000FF0000ULL) << 24) |
-        ((u.u & 0x000000000000FF00ULL) << 40) |
-        ((u.u & 0x00000000000000FFULL) << 56);
+    u.u = bswap64(u.u);
 
     return u.d;
 }
@@ -553,10 +398,7 @@ static always_inline double glue(ldfsr, MEMSUFFIX) (target_ulong EA)
     } u;
 
     u.f = glue(ldfl, MEMSUFFIX)(EA);
-    u.u = ((u.u & 0xFF000000UL) >> 24) |
-        ((u.u & 0x00FF0000ULL) >> 8) |
-        ((u.u & 0x0000FF00UL) << 8) |
-        ((u.u & 0x000000FFULL) << 24);
+    u.u = bswap32(u.u);
 
     return float32_to_float64(u.f, &env->fp_status);
 }
@@ -574,7 +416,7 @@ void OPPROTO glue(op_lwarx, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ldl, MEMSUFFIX)((uint32_t)T0);
+        T1 = glue(ldu32, MEMSUFFIX)((uint32_t)T0);
         env->reserve = (uint32_t)T0;
     }
     RETURN();
@@ -586,7 +428,7 @@ void OPPROTO glue(op_lwarx_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ldl, MEMSUFFIX)((uint64_t)T0);
+        T1 = glue(ldu32, MEMSUFFIX)((uint64_t)T0);
         env->reserve = (uint64_t)T0;
     }
     RETURN();
@@ -597,7 +439,7 @@ void OPPROTO glue(op_ldarx, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ldq, MEMSUFFIX)((uint32_t)T0);
+        T1 = glue(ldu64, MEMSUFFIX)((uint32_t)T0);
         env->reserve = (uint32_t)T0;
     }
     RETURN();
@@ -608,7 +450,7 @@ void OPPROTO glue(op_ldarx_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ldq, MEMSUFFIX)((uint64_t)T0);
+        T1 = glue(ldu64, MEMSUFFIX)((uint64_t)T0);
         env->reserve = (uint64_t)T0;
     }
     RETURN();
@@ -620,7 +462,7 @@ void OPPROTO glue(op_lwarx_le, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
+        T1 = glue(ldu32r, MEMSUFFIX)((uint32_t)T0);
         env->reserve = (uint32_t)T0;
     }
     RETURN();
@@ -632,7 +474,7 @@ void OPPROTO glue(op_lwarx_le_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
+        T1 = glue(ldu32r, MEMSUFFIX)((uint64_t)T0);
         env->reserve = (uint64_t)T0;
     }
     RETURN();
@@ -643,7 +485,7 @@ void OPPROTO glue(op_ldarx_le, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ld64r, MEMSUFFIX)((uint32_t)T0);
+        T1 = glue(ldu64r, MEMSUFFIX)((uint32_t)T0);
         env->reserve = (uint32_t)T0;
     }
     RETURN();
@@ -654,7 +496,7 @@ void OPPROTO glue(op_ldarx_le_64, MEMSUFFIX) (void)
     if (unlikely(T0 & 0x03)) {
         do_raise_exception(POWERPC_EXCP_ALIGN);
     } else {
-        T1 = glue(ld64r, MEMSUFFIX)((uint64_t)T0);
+        T1 = glue(ldu64r, MEMSUFFIX)((uint64_t)T0);
         env->reserve = (uint64_t)T0;
     }
     RETURN();
@@ -670,7 +512,7 @@ void OPPROTO glue(op_stwcx, MEMSUFFIX) (void)
         if (unlikely(env->reserve != (uint32_t)T0)) {
             env->crf[0] = xer_so;
         } else {
-            glue(stl, MEMSUFFIX)((uint32_t)T0, T1);
+            glue(st32, MEMSUFFIX)((uint32_t)T0, T1);
             env->crf[0] = xer_so | 0x02;
         }
     }
@@ -687,7 +529,7 @@ void OPPROTO glue(op_stwcx_64, MEMSUFFIX) (void)
         if (unlikely(env->reserve != (uint64_t)T0)) {
             env->crf[0] = xer_so;
         } else {
-            glue(stl, MEMSUFFIX)((uint64_t)T0, T1);
+            glue(st32, MEMSUFFIX)((uint64_t)T0, T1);
             env->crf[0] = xer_so | 0x02;
         }
     }
@@ -703,7 +545,7 @@ void OPPROTO glue(op_stdcx, MEMSUFFIX) (void)
         if (unlikely(env->reserve != (uint32_t)T0)) {
             env->crf[0] = xer_so;
         } else {
-            glue(stq, MEMSUFFIX)((uint32_t)T0, T1);
+            glue(st64, MEMSUFFIX)((uint32_t)T0, T1);
             env->crf[0] = xer_so | 0x02;
         }
     }
@@ -719,7 +561,7 @@ void OPPROTO glue(op_stdcx_64, MEMSUFFIX) (void)
         if (unlikely(env->reserve != (uint64_t)T0)) {
             env->crf[0] = xer_so;
         } else {
-            glue(stq, MEMSUFFIX)((uint64_t)T0, T1);
+            glue(st64, MEMSUFFIX)((uint64_t)T0, T1);
             env->crf[0] = xer_so | 0x02;
         }
     }
@@ -796,72 +638,75 @@ void OPPROTO glue(op_stdcx_le_64, MEMSUFFIX) (void)
 
 void OPPROTO glue(op_dcbz_l32, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
+    T0 &= ~((uint32_t)31);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
     RETURN();
 }
 
 void OPPROTO glue(op_dcbz_l64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x20UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x24UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x28UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x2CUL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x30UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x34UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x38UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x3CUL), 0);
+    T0 &= ~((uint32_t)63);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x20UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x24UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x28UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x2CUL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x30UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x34UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x38UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x3CUL), 0);
     RETURN();
 }
 
 void OPPROTO glue(op_dcbz_l128, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x20UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x24UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x28UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x2CUL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x30UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x34UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x38UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x3CUL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x40UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x44UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x48UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x4CUL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x50UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x54UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x58UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x5CUL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x60UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x64UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x68UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x6CUL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x70UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x74UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x78UL), 0);
-    glue(stl, MEMSUFFIX)((uint32_t)(T0 + 0x7CUL), 0);
+    T0 &= ~((uint32_t)127);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x00), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x04), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x08), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x0C), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x10), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x14), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x18), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x1C), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x20UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x24UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x28UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x2CUL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x30UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x34UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x38UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x3CUL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x40UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x44UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x48UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x4CUL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x50UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x54UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x58UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x5CUL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x60UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x64UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x68UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x6CUL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x70UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x74UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x78UL), 0);
+    glue(st32, MEMSUFFIX)((uint32_t)(T0 + 0x7CUL), 0);
     RETURN();
 }
 
@@ -874,72 +719,75 @@ void OPPROTO glue(op_dcbz, MEMSUFFIX) (void)
 #if defined(TARGET_PPC64)
 void OPPROTO glue(op_dcbz_l32_64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
+    T0 &= ~((uint64_t)31);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
     RETURN();
 }
 
 void OPPROTO glue(op_dcbz_l64_64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x20UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x24UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x28UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x2CUL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x30UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x34UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x38UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x3CUL), 0);
+    T0 &= ~((uint64_t)63);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x20UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x24UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x28UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x2CUL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x30UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x34UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x38UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x3CUL), 0);
     RETURN();
 }
 
 void OPPROTO glue(op_dcbz_l128_64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x20UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x24UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x28UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x2CUL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x30UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x34UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x38UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x3CUL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x40UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x44UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x48UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x4CUL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x50UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x54UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x58UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x5CUL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x60UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x64UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x68UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x6CUL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x70UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x74UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x78UL), 0);
-    glue(stl, MEMSUFFIX)((uint64_t)(T0 + 0x7CUL), 0);
+    T0 &= ~((uint64_t)127);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x00), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x04), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x08), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x0C), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x10), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x14), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x18), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x1C), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x20UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x24UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x28UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x2CUL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x30UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x34UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x38UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x3CUL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x40UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x44UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x48UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x4CUL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x50UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x54UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x58UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x5CUL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x60UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x64UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x68UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x6CUL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x70UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x74UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x78UL), 0);
+    glue(st32, MEMSUFFIX)((uint64_t)(T0 + 0x7CUL), 0);
     RETURN();
 }
 
@@ -968,42 +816,42 @@ void OPPROTO glue(op_icbi_64, MEMSUFFIX) (void)
 /* External access */
 void OPPROTO glue(op_eciwx, MEMSUFFIX) (void)
 {
-    T1 = glue(ldl, MEMSUFFIX)((uint32_t)T0);
+    T1 = glue(ldu32, MEMSUFFIX)((uint32_t)T0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO glue(op_eciwx_64, MEMSUFFIX) (void)
 {
-    T1 = glue(ldl, MEMSUFFIX)((uint64_t)T0);
+    T1 = glue(ldu32, MEMSUFFIX)((uint64_t)T0);
     RETURN();
 }
 #endif
 
 void OPPROTO glue(op_ecowx, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint32_t)T0, T1);
+    glue(st32, MEMSUFFIX)((uint32_t)T0, T1);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO glue(op_ecowx_64, MEMSUFFIX) (void)
 {
-    glue(stl, MEMSUFFIX)((uint64_t)T0, T1);
+    glue(st32, MEMSUFFIX)((uint64_t)T0, T1);
     RETURN();
 }
 #endif
 
 void OPPROTO glue(op_eciwx_le, MEMSUFFIX) (void)
 {
-    T1 = glue(ld32r, MEMSUFFIX)((uint32_t)T0);
+    T1 = glue(ldu32r, MEMSUFFIX)((uint32_t)T0);
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO glue(op_eciwx_le_64, MEMSUFFIX) (void)
 {
-    T1 = glue(ld32r, MEMSUFFIX)((uint64_t)T0);
+    T1 = glue(ldu32r, MEMSUFFIX)((uint64_t)T0);
     RETURN();
 }
 #endif
@@ -1069,51 +917,51 @@ void OPPROTO glue(op_POWER2_stfq_le, MEMSUFFIX) (void)
 #endif
 void OPPROTO glue(op_vr_lvx, MEMSUFFIX) (void)
 {
-    AVR0.u64[VR_DWORD0] = glue(ldq, MEMSUFFIX)((uint32_t)T0);
-    AVR0.u64[VR_DWORD1] = glue(ldq, MEMSUFFIX)((uint32_t)T0 + 8);
+    AVR0.u64[VR_DWORD0] = glue(ldu64, MEMSUFFIX)((uint32_t)T0);
+    AVR0.u64[VR_DWORD1] = glue(ldu64, MEMSUFFIX)((uint32_t)T0 + 8);
 }
 
 void OPPROTO glue(op_vr_lvx_le, MEMSUFFIX) (void)
 {
-    AVR0.u64[VR_DWORD1] = glue(ldq, MEMSUFFIX)((uint32_t)T0);
-    AVR0.u64[VR_DWORD0] = glue(ldq, MEMSUFFIX)((uint32_t)T0 + 8);
+    AVR0.u64[VR_DWORD1] = glue(ldu64r, MEMSUFFIX)((uint32_t)T0);
+    AVR0.u64[VR_DWORD0] = glue(ldu64r, MEMSUFFIX)((uint32_t)T0 + 8);
 }
 
 void OPPROTO glue(op_vr_stvx, MEMSUFFIX) (void)
 {
-    glue(stq, MEMSUFFIX)((uint32_t)T0, AVR0.u64[VR_DWORD0]);
-    glue(stq, MEMSUFFIX)((uint32_t)T0 + 8, AVR0.u64[VR_DWORD1]);
+    glue(st64, MEMSUFFIX)((uint32_t)T0, AVR0.u64[VR_DWORD0]);
+    glue(st64, MEMSUFFIX)((uint32_t)T0 + 8, AVR0.u64[VR_DWORD1]);
 }
 
 void OPPROTO glue(op_vr_stvx_le, MEMSUFFIX) (void)
 {
-    glue(stq, MEMSUFFIX)((uint32_t)T0, AVR0.u64[VR_DWORD1]);
-    glue(stq, MEMSUFFIX)((uint32_t)T0 + 8, AVR0.u64[VR_DWORD0]);
+    glue(st64r, MEMSUFFIX)((uint32_t)T0, AVR0.u64[VR_DWORD1]);
+    glue(st64r, MEMSUFFIX)((uint32_t)T0 + 8, AVR0.u64[VR_DWORD0]);
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO glue(op_vr_lvx_64, MEMSUFFIX) (void)
 {
-    AVR0.u64[VR_DWORD0] = glue(ldq, MEMSUFFIX)((uint64_t)T0);
-    AVR0.u64[VR_DWORD1] = glue(ldq, MEMSUFFIX)((uint64_t)T0 + 8);
+    AVR0.u64[VR_DWORD0] = glue(ldu64, MEMSUFFIX)((uint64_t)T0);
+    AVR0.u64[VR_DWORD1] = glue(ldu64, MEMSUFFIX)((uint64_t)T0 + 8);
 }
 
 void OPPROTO glue(op_vr_lvx_le_64, MEMSUFFIX) (void)
 {
-    AVR0.u64[VR_DWORD1] = glue(ldq, MEMSUFFIX)((uint64_t)T0);
-    AVR0.u64[VR_DWORD0] = glue(ldq, MEMSUFFIX)((uint64_t)T0 + 8);
+    AVR0.u64[VR_DWORD1] = glue(ldu64r, MEMSUFFIX)((uint64_t)T0);
+    AVR0.u64[VR_DWORD0] = glue(ldu64r, MEMSUFFIX)((uint64_t)T0 + 8);
 }
 
 void OPPROTO glue(op_vr_stvx_64, MEMSUFFIX) (void)
 {
-    glue(stq, MEMSUFFIX)((uint64_t)T0, AVR0.u64[VR_DWORD0]);
-    glue(stq, MEMSUFFIX)((uint64_t)T0 + 8, AVR0.u64[VR_DWORD1]);
+    glue(st64, MEMSUFFIX)((uint64_t)T0, AVR0.u64[VR_DWORD0]);
+    glue(st64, MEMSUFFIX)((uint64_t)T0 + 8, AVR0.u64[VR_DWORD1]);
 }
 
 void OPPROTO glue(op_vr_stvx_le_64, MEMSUFFIX) (void)
 {
-    glue(stq, MEMSUFFIX)((uint64_t)T0, AVR0.u64[VR_DWORD1]);
-    glue(stq, MEMSUFFIX)((uint64_t)T0 + 8, AVR0.u64[VR_DWORD0]);
+    glue(st64r, MEMSUFFIX)((uint64_t)T0, AVR0.u64[VR_DWORD1]);
+    glue(st64r, MEMSUFFIX)((uint64_t)T0 + 8, AVR0.u64[VR_DWORD0]);
 }
 #endif
 #undef VR_DWORD0
@@ -1165,31 +1013,31 @@ _PPC_SPE_ST_OP(name, op)
 #endif
 
 #if !defined(TARGET_PPC64)
-PPC_SPE_LD_OP(dd, ldq);
-PPC_SPE_ST_OP(dd, stq);
-PPC_SPE_LD_OP(dd_le, ld64r);
+PPC_SPE_LD_OP(dd, ldu64);
+PPC_SPE_ST_OP(dd, st64);
+PPC_SPE_LD_OP(dd_le, ldu64r);
 PPC_SPE_ST_OP(dd_le, st64r);
 #endif
 static always_inline uint64_t glue(spe_ldw, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(ldl, MEMSUFFIX)(EA) << 32;
-    ret |= (uint64_t)glue(ldl, MEMSUFFIX)(EA + 4);
+    ret = (uint64_t)glue(ldu32, MEMSUFFIX)(EA) << 32;
+    ret |= (uint64_t)glue(ldu32, MEMSUFFIX)(EA + 4);
     return ret;
 }
 PPC_SPE_LD_OP(dw, spe_ldw);
 static always_inline void glue(spe_stdw, MEMSUFFIX) (target_ulong EA,
                                                      uint64_t data)
 {
-    glue(stl, MEMSUFFIX)(EA, data >> 32);
-    glue(stl, MEMSUFFIX)(EA + 4, data);
+    glue(st32, MEMSUFFIX)(EA, data >> 32);
+    glue(st32, MEMSUFFIX)(EA + 4, data);
 }
 PPC_SPE_ST_OP(dw, spe_stdw);
 static always_inline uint64_t glue(spe_ldw_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(ld32r, MEMSUFFIX)(EA) << 32;
-    ret |= (uint64_t)glue(ld32r, MEMSUFFIX)(EA + 4);
+    ret = (uint64_t)glue(ldu32r, MEMSUFFIX)(EA) << 32;
+    ret |= (uint64_t)glue(ldu32r, MEMSUFFIX)(EA + 4);
     return ret;
 }
 PPC_SPE_LD_OP(dw_le, spe_ldw_le);
@@ -1203,29 +1051,29 @@ PPC_SPE_ST_OP(dw_le, spe_stdw_le);
 static always_inline uint64_t glue(spe_ldh, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(lduw, MEMSUFFIX)(EA) << 48;
-    ret |= (uint64_t)glue(lduw, MEMSUFFIX)(EA + 2) << 32;
-    ret |= (uint64_t)glue(lduw, MEMSUFFIX)(EA + 4) << 16;
-    ret |= (uint64_t)glue(lduw, MEMSUFFIX)(EA + 6);
+    ret = (uint64_t)glue(ldu16, MEMSUFFIX)(EA) << 48;
+    ret |= (uint64_t)glue(ldu16, MEMSUFFIX)(EA + 2) << 32;
+    ret |= (uint64_t)glue(ldu16, MEMSUFFIX)(EA + 4) << 16;
+    ret |= (uint64_t)glue(ldu16, MEMSUFFIX)(EA + 6);
     return ret;
 }
 PPC_SPE_LD_OP(dh, spe_ldh);
 static always_inline void glue(spe_stdh, MEMSUFFIX) (target_ulong EA,
                                                      uint64_t data)
 {
-    glue(stw, MEMSUFFIX)(EA, data >> 48);
-    glue(stw, MEMSUFFIX)(EA + 2, data >> 32);
-    glue(stw, MEMSUFFIX)(EA + 4, data >> 16);
-    glue(stw, MEMSUFFIX)(EA + 6, data);
+    glue(st16, MEMSUFFIX)(EA, data >> 48);
+    glue(st16, MEMSUFFIX)(EA + 2, data >> 32);
+    glue(st16, MEMSUFFIX)(EA + 4, data >> 16);
+    glue(st16, MEMSUFFIX)(EA + 6, data);
 }
 PPC_SPE_ST_OP(dh, spe_stdh);
 static always_inline uint64_t glue(spe_ldh_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(ld16r, MEMSUFFIX)(EA) << 48;
-    ret |= (uint64_t)glue(ld16r, MEMSUFFIX)(EA + 2) << 32;
-    ret |= (uint64_t)glue(ld16r, MEMSUFFIX)(EA + 4) << 16;
-    ret |= (uint64_t)glue(ld16r, MEMSUFFIX)(EA + 6);
+    ret = (uint64_t)glue(ldu16r, MEMSUFFIX)(EA) << 48;
+    ret |= (uint64_t)glue(ldu16r, MEMSUFFIX)(EA + 2) << 32;
+    ret |= (uint64_t)glue(ldu16r, MEMSUFFIX)(EA + 4) << 16;
+    ret |= (uint64_t)glue(ldu16r, MEMSUFFIX)(EA + 6);
     return ret;
 }
 PPC_SPE_LD_OP(dh_le, spe_ldh_le);
@@ -1241,23 +1089,23 @@ PPC_SPE_ST_OP(dh_le, spe_stdh_le);
 static always_inline uint64_t glue(spe_lwhe, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(lduw, MEMSUFFIX)(EA) << 48;
-    ret |= (uint64_t)glue(lduw, MEMSUFFIX)(EA + 2) << 16;
+    ret = (uint64_t)glue(ldu16, MEMSUFFIX)(EA) << 48;
+    ret |= (uint64_t)glue(ldu16, MEMSUFFIX)(EA + 2) << 16;
     return ret;
 }
 PPC_SPE_LD_OP(whe, spe_lwhe);
 static always_inline void glue(spe_stwhe, MEMSUFFIX) (target_ulong EA,
                                                       uint64_t data)
 {
-    glue(stw, MEMSUFFIX)(EA, data >> 48);
-    glue(stw, MEMSUFFIX)(EA + 2, data >> 16);
+    glue(st16, MEMSUFFIX)(EA, data >> 48);
+    glue(st16, MEMSUFFIX)(EA + 2, data >> 16);
 }
 PPC_SPE_ST_OP(whe, spe_stwhe);
 static always_inline uint64_t glue(spe_lwhe_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(ld16r, MEMSUFFIX)(EA) << 48;
-    ret |= (uint64_t)glue(ld16r, MEMSUFFIX)(EA + 2) << 16;
+    ret = (uint64_t)glue(ldu16r, MEMSUFFIX)(EA) << 48;
+    ret |= (uint64_t)glue(ldu16r, MEMSUFFIX)(EA + 2) << 16;
     return ret;
 }
 PPC_SPE_LD_OP(whe_le, spe_lwhe_le);
@@ -1271,39 +1119,39 @@ PPC_SPE_ST_OP(whe_le, spe_stwhe_le);
 static always_inline uint64_t glue(spe_lwhou, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(lduw, MEMSUFFIX)(EA) << 32;
-    ret |= (uint64_t)glue(lduw, MEMSUFFIX)(EA + 2);
+    ret = (uint64_t)glue(ldu16, MEMSUFFIX)(EA) << 32;
+    ret |= (uint64_t)glue(ldu16, MEMSUFFIX)(EA + 2);
     return ret;
 }
 PPC_SPE_LD_OP(whou, spe_lwhou);
 static always_inline uint64_t glue(spe_lwhos, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = ((uint64_t)((int32_t)glue(ldsw, MEMSUFFIX)(EA))) << 32;
-    ret |= (uint64_t)((int32_t)glue(ldsw, MEMSUFFIX)(EA + 2));
+    ret = ((uint64_t)((int32_t)glue(lds16, MEMSUFFIX)(EA))) << 32;
+    ret |= (uint64_t)((int32_t)glue(lds16, MEMSUFFIX)(EA + 2));
     return ret;
 }
 PPC_SPE_LD_OP(whos, spe_lwhos);
 static always_inline void glue(spe_stwho, MEMSUFFIX) (target_ulong EA,
                                                       uint64_t data)
 {
-    glue(stw, MEMSUFFIX)(EA, data >> 32);
-    glue(stw, MEMSUFFIX)(EA + 2, data);
+    glue(st16, MEMSUFFIX)(EA, data >> 32);
+    glue(st16, MEMSUFFIX)(EA + 2, data);
 }
 PPC_SPE_ST_OP(who, spe_stwho);
 static always_inline uint64_t glue(spe_lwhou_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = (uint64_t)glue(ld16r, MEMSUFFIX)(EA) << 32;
-    ret |= (uint64_t)glue(ld16r, MEMSUFFIX)(EA + 2);
+    ret = (uint64_t)glue(ldu16r, MEMSUFFIX)(EA) << 32;
+    ret |= (uint64_t)glue(ldu16r, MEMSUFFIX)(EA + 2);
     return ret;
 }
 PPC_SPE_LD_OP(whou_le, spe_lwhou_le);
 static always_inline uint64_t glue(spe_lwhos_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
-    ret = ((uint64_t)((int32_t)glue(ld16rs, MEMSUFFIX)(EA))) << 32;
-    ret |= (uint64_t)((int32_t)glue(ld16rs, MEMSUFFIX)(EA + 2));
+    ret = ((uint64_t)((int32_t)glue(lds16r, MEMSUFFIX)(EA))) << 32;
+    ret |= (uint64_t)((int32_t)glue(lds16r, MEMSUFFIX)(EA + 2));
     return ret;
 }
 PPC_SPE_LD_OP(whos_le, spe_lwhos_le);
@@ -1318,7 +1166,7 @@ PPC_SPE_ST_OP(who_le, spe_stwho_le);
 static always_inline void glue(spe_stwwo, MEMSUFFIX) (target_ulong EA,
                                                       uint64_t data)
 {
-    glue(stl, MEMSUFFIX)(EA, data);
+    glue(st32, MEMSUFFIX)(EA, data);
 }
 PPC_SPE_ST_OP(wwo, spe_stwwo);
 static always_inline void glue(spe_stwwo_le, MEMSUFFIX) (target_ulong EA,
@@ -1331,21 +1179,21 @@ PPC_SPE_ST_OP(wwo_le, spe_stwwo_le);
 static always_inline uint64_t glue(spe_lh, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp;
-    tmp = glue(lduw, MEMSUFFIX)(EA);
+    tmp = glue(ldu16, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 48) | ((uint64_t)tmp << 16);
 }
 PPC_SPE_LD_OP(h, spe_lh);
 static always_inline uint64_t glue(spe_lh_le, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp;
-    tmp = glue(ld16r, MEMSUFFIX)(EA);
+    tmp = glue(ldu16r, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 48) | ((uint64_t)tmp << 16);
 }
 PPC_SPE_LD_OP(h_le, spe_lh_le);
 static always_inline uint64_t glue(spe_lwwsplat, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp;
-    tmp = glue(ldl, MEMSUFFIX)(EA);
+    tmp = glue(ldu32, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 32) | (uint64_t)tmp;
 }
 PPC_SPE_LD_OP(wwsplat, spe_lwwsplat);
@@ -1353,7 +1201,7 @@ static always_inline
 uint64_t glue(spe_lwwsplat_le, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp;
-    tmp = glue(ld32r, MEMSUFFIX)(EA);
+    tmp = glue(ldu32r, MEMSUFFIX)(EA);
     return ((uint64_t)tmp << 32) | (uint64_t)tmp;
 }
 PPC_SPE_LD_OP(wwsplat_le, spe_lwwsplat_le);
@@ -1361,9 +1209,9 @@ static always_inline uint64_t glue(spe_lwhsplat, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     uint16_t tmp;
-    tmp = glue(lduw, MEMSUFFIX)(EA);
+    tmp = glue(ldu16, MEMSUFFIX)(EA);
     ret = ((uint64_t)tmp << 48) | ((uint64_t)tmp << 32);
-    tmp = glue(lduw, MEMSUFFIX)(EA + 2);
+    tmp = glue(ldu16, MEMSUFFIX)(EA + 2);
     ret |= ((uint64_t)tmp << 16) | (uint64_t)tmp;
     return ret;
 }
@@ -1373,9 +1221,9 @@ uint64_t glue(spe_lwhsplat_le, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
     uint16_t tmp;
-    tmp = glue(ld16r, MEMSUFFIX)(EA);
+    tmp = glue(ldu16r, MEMSUFFIX)(EA);
     ret = ((uint64_t)tmp << 48) | ((uint64_t)tmp << 32);
-    tmp = glue(ld16r, MEMSUFFIX)(EA + 2);
+    tmp = glue(ldu16r, MEMSUFFIX)(EA + 2);
     ret |= ((uint64_t)tmp << 16) | (uint64_t)tmp;
     return ret;
 }

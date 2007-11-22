@@ -16,4 +16,7 @@ uint32_t ads7846_read(void *opaque);
 void ads7846_write(void *opaque, uint32_t value);
 struct ads7846_state_s *ads7846_init(qemu_irq penirq);
 
+/* stellaris_input.c */
+void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode);
+
 #endif

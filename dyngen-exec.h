@@ -38,7 +38,7 @@ typedef unsigned int uint32_t;
 // Linux/Sparc64 defines uint64_t
 #if !(defined (__sparc_v9__) && defined(__linux__))
 /* XXX may be done for all 64 bits targets ? */
-#if defined (__x86_64__) || defined(__ia64)
+#if defined (__x86_64__) || defined(__ia64) || defined(__s390x__)
 typedef unsigned long uint64_t;
 #else
 typedef unsigned long long uint64_t;
@@ -55,7 +55,7 @@ typedef signed short int16_t;
 typedef signed int int32_t;
 // Linux/Sparc64 defines int64_t
 #if !(defined (__sparc_v9__) && defined(__linux__))
-#if defined (__x86_64__) || defined(__ia64)
+#if defined (__x86_64__) || defined(__ia64) || defined(__s390x__)
 typedef signed long int64_t;
 #else
 typedef signed long long int64_t;
@@ -205,7 +205,7 @@ extern int printf(const char *, ...);
 #define stringify(s)	tostring(s)
 #define tostring(s)	#s
 
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__s390__)
 /* the symbols are considered non exported so a br immediate is generated */
 #define __hidden __attribute__((visibility("hidden")))
 #else
@@ -234,6 +234,13 @@ extern int __op_param3 __hidden;
 #define PARAM1 PARAMN(1)
 #define PARAM2 PARAMN(2)
 #define PARAM3 PARAMN(3)
+#elif defined(__s390__)
+extern int __op_param1 __hidden;
+extern int __op_param2 __hidden;
+extern int __op_param3 __hidden;
+#define PARAM1 ({ int _r; asm("bras %0,8; .long " ASM_NAME(__op_param1) "; l %0,0(%0)" : "=r"(_r) : ); _r; })
+#define PARAM2 ({ int _r; asm("bras %0,8; .long " ASM_NAME(__op_param2) "; l %0,0(%0)" : "=r"(_r) : ); _r; })
+#define PARAM3 ({ int _r; asm("bras %0,8; .long " ASM_NAME(__op_param3) "; l %0,0(%0)" : "=r"(_r) : ); _r; })
 #else
 #if defined(__APPLE__)
 static int __op_param1, __op_param2, __op_param3;
@@ -264,7 +271,7 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
 #elif defined(__s390__)
 #define EXIT_TB() asm volatile ("br %r14")
-#define GOTO_LABEL_PARAM(n) asm volatile ("bras %r7,8; .long " ASM_NAME(__op_gen_label) #n "; l %r7, 0(%r7); br %r7")
+#define GOTO_LABEL_PARAM(n) asm volatile ("larl %r7,12; l %r7,0(%r7); br %r7; .long " ASM_NAME(__op_gen_label) #n)
 #elif defined(__alpha__)
 #define EXIT_TB() asm volatile ("ret")
 #elif defined(__ia64__)

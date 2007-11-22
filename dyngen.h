@@ -45,7 +45,7 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 
 #define MIN_CACHE_LINE_SIZE 8 /* conservative value */
 
-static void inline flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
     unsigned long p;
 
@@ -68,7 +68,7 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
     asm ("imb");
 }
 #elif defined(__sparc__)
-static void inline flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
 	unsigned long p;
 

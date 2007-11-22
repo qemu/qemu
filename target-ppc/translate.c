@@ -499,7 +499,7 @@ enum {
     PPC_MEM_EIEIO      = 0x0000000100000000ULL,
 
     /* Cache control instructions                                            */
-    PPC_CACHE          = 0x00000002000000000ULL,
+    PPC_CACHE          = 0x0000000200000000ULL,
     /*   icbi instruction                                                    */
     PPC_CACHE_ICBI     = 0x0000000400000000ULL,
     /*   dcbz instruction with fixed cache line size                         */
@@ -2455,12 +2455,37 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 /***                    Integer load and store strings                     ***/
 #define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
 #define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
+/* string load & stores are by definition endian-safe */
+#define gen_op_lswi_le_raw       gen_op_lswi_raw
+#define gen_op_lswi_le_user      gen_op_lswi_user
+#define gen_op_lswi_le_kernel    gen_op_lswi_kernel
+#define gen_op_lswi_le_hypv      gen_op_lswi_hypv
+#define gen_op_lswi_le_64_raw    gen_op_lswi_raw
+#define gen_op_lswi_le_64_user   gen_op_lswi_user
+#define gen_op_lswi_le_64_kernel gen_op_lswi_kernel
+#define gen_op_lswi_le_64_hypv   gen_op_lswi_hypv
 static GenOpFunc1 *gen_op_lswi[NB_MEM_FUNCS] = {
     GEN_MEM_FUNCS(lswi),
 };
+#define gen_op_lswx_le_raw       gen_op_lswx_raw
+#define gen_op_lswx_le_user      gen_op_lswx_user
+#define gen_op_lswx_le_kernel    gen_op_lswx_kernel
+#define gen_op_lswx_le_hypv      gen_op_lswx_hypv
+#define gen_op_lswx_le_64_raw    gen_op_lswx_raw
+#define gen_op_lswx_le_64_user   gen_op_lswx_user
+#define gen_op_lswx_le_64_kernel gen_op_lswx_kernel
+#define gen_op_lswx_le_64_hypv   gen_op_lswx_hypv
 static GenOpFunc3 *gen_op_lswx[NB_MEM_FUNCS] = {
     GEN_MEM_FUNCS(lswx),
 };
+#define gen_op_stsw_le_raw       gen_op_stsw_raw
+#define gen_op_stsw_le_user      gen_op_stsw_user
+#define gen_op_stsw_le_kernel    gen_op_stsw_kernel
+#define gen_op_stsw_le_hypv      gen_op_stsw_hypv
+#define gen_op_stsw_le_64_raw    gen_op_stsw_raw
+#define gen_op_stsw_le_64_user   gen_op_stsw_user
+#define gen_op_stsw_le_64_kernel gen_op_stsw_kernel
+#define gen_op_stsw_le_64_hypv   gen_op_stsw_hypv
 static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
     GEN_MEM_FUNCS(stsw),
 };
@@ -2764,8 +2789,8 @@ GEN_STFS(fs, 0x14, PPC_FLOAT);
 
 /* Optional: */
 /* stfiwx */
-OP_ST_TABLE(fiwx);
-GEN_STXF(fiwx, 0x17, 0x1E, PPC_FLOAT_STFIWX);
+OP_ST_TABLE(fiw);
+GEN_STXF(fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX);
 
 /***                                Branch                                 ***/
 static always_inline void gen_goto_tb (DisasContext *ctx, int n,
@@ -3088,7 +3113,7 @@ GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B)
 #endif
 }
 
-GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64B)
+GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H)
 {
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);

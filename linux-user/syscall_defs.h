@@ -1088,8 +1088,13 @@ struct target_stat64 {
 struct target_stat {
 	unsigned short st_dev;
 	abi_ulong st_ino;
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+	unsigned short st_nlink;
+	unsigned int st_mode;
+#else
 	unsigned int st_mode;
 	unsigned short st_nlink;
+#endif
 	unsigned int st_uid;
 	unsigned int st_gid;
 	unsigned short st_rdev;
@@ -1104,6 +1109,9 @@ struct target_stat {
 	abi_ulong  __unused3;
 	abi_ulong  __unused4;
 	abi_ulong  __unused5;
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+	abi_ulong  __unused6;
+#endif
 };
 
 struct target_stat64 {
@@ -1554,6 +1562,34 @@ struct target_statfs64 {
 	target_fsid_t	f_fsid;
 	uint32_t	f_namelen;
 	uint32_t	f_spare[6];
+};
+#elif defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+struct target_statfs {
+	abi_long f_type;
+	abi_long f_bsize;
+	abi_long f_blocks;
+	abi_long f_bfree;
+	abi_long f_bavail;
+	abi_long f_files;
+	abi_long f_ffree;
+	target_fsid_t f_fsid;
+	abi_long f_namelen;
+	abi_long f_frsize;
+	abi_long f_spare[5];
+};
+
+struct target_statfs64 {
+	abi_long f_type;
+	abi_long f_bsize;
+	abi_long f_blocks;
+	abi_long f_bfree;
+	abi_long f_bavail;
+	abi_long f_files;
+	abi_long f_ffree;
+	target_fsid_t f_fsid;
+	abi_long f_namelen;
+	abi_long f_frsize;
+	abi_long f_spare[5];
 };
 #else
 struct target_statfs {

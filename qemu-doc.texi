@@ -199,7 +199,7 @@ Linux should boot and give you a prompt.
 
 @example
 @c man begin SYNOPSIS
-usage: qemu [options] [disk_image]
+usage: qemu [options] [@var{disk_image}]
 @c man end
 @end example
 
@@ -208,22 +208,22 @@ usage: qemu [options] [disk_image]
 
 General options:
 @table @option
-@item -M machine
-Select the emulated machine (@code{-M ?} for list)
+@item -M @var{machine}
+Select the emulated @var{machine} (@code{-M ?} for list)
 
-@item -fda file
-@item -fdb file
+@item -fda @var{file}
+@item -fdb @var{file}
 Use @var{file} as floppy disk 0/1 image (@pxref{disk_images}). You can
 use the host floppy by using @file{/dev/fd0} as filename (@pxref{host_drives}).
 
-@item -hda file
-@item -hdb file
-@item -hdc file
-@item -hdd file
+@item -hda @var{file}
+@item -hdb @var{file}
+@item -hdc @var{file}
+@item -hdd @var{file}
 Use @var{file} as hard disk 0, 1, 2 or 3 image (@pxref{disk_images}).
 
-@item -cdrom file
-Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
+@item -cdrom @var{file}
+Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and
 @option{-cdrom} at the same time). You can use the host CD-ROM by
 using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 
@@ -240,10 +240,10 @@ the write back by pressing @key{C-a s} (@pxref{disk_images}).
 Disable boot signature checking for floppy disks in Bochs BIOS. It may
 be needed to boot from old floppy disks.
 
-@item -m megs
-Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
+@item -m @var{megs}
+Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.
 
-@item -smp n
+@item -smp @var{n}
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
 CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
 to 4.
@@ -253,7 +253,7 @@ to 4.
 Will show the audio subsystem help: list of drivers, tunable
 parameters.
 
-@item -soundhw card1,card2,... or -soundhw all
+@item -soundhw @var{card1}[,@var{card2},...] or -soundhw all
 
 Enable audio and selected sound hardware. Use ? to print all
 available sound hardware.
@@ -270,12 +270,12 @@ Set the real time clock to local time (the default is to UTC
 time). This option is needed to have correct date in MS-DOS or
 Windows.
 
-@item -startdate date
+@item -startdate @var{date}
 Set the initial date of the real time clock. Valid format for
 @var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
 @code{2006-06-17}. The default value is @code{now}.
 
-@item -pidfile file
+@item -pidfile @var{file}
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
 
@@ -290,13 +290,14 @@ Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
 
-@item -option-rom file
-Load the contents of file as an option ROM.  This option is useful to load
-things like EtherBoot.
+@item -option-rom @var{file}
+Load the contents of @var{file} as an option ROM.
+This option is useful to load things like EtherBoot.
 
-@item -name string
-Sets the name of the guest.  This name will be display in the SDL window
-caption.  The name will also be used for the VNC server.
+@item -name @var{name}
+Sets the @var{name} of the guest.
+This name will be display in the SDL window caption.
+The @var{name} will also be used for the VNC server.
 
 @end table
 
@@ -320,7 +321,7 @@ workspace more convenient.
 @item -full-screen
 Start in full screen.
 
-@item -vnc display[,option[,option[,...]]]
+@item -vnc @var{display}[,@var{option}[,@var{option}[,...]]]
 
 Normally, QEMU uses SDL to display the VGA output.  With this option,
 you can have QEMU listen on VNC display @var{display} and redirect the VGA
@@ -332,18 +333,18 @@ syntax for the @var{display} is
 
 @table @code
 
-@item @var{interface:d}
+@item @var{interface}:@var{d}
 
 TCP connections will only be allowed from @var{interface} on display @var{d}.
 By convention the TCP port is 5900+@var{d}. Optionally, @var{interface} can
 be omitted in which case the server will bind to all interfaces.
 
-@item @var{unix:path}
+@item @var{unix}:@var{path}
 
 Connections will be allowed over UNIX domain sockets where @var{path} is the
 location of a unix socket to listen for connections on.
 
-@item @var{none}
+@item none
 
 VNC is initialized by not started. The monitor @code{change} command can be used
 to later start the VNC server.
@@ -355,31 +356,31 @@ separated by commas. Valid options are
 
 @table @code
 
-@item @var{password}
+@item password
 
 Require that password based authentication is used for client connections.
 The password must be set separately using the @code{change} command in the
 @ref{pcsys_monitor}
 
-@item @var{tls}
+@item tls
 
 Require that client use TLS when communicating with the VNC server. This
 uses anonymous TLS credentials so is susceptible to a man-in-the-middle
 attack. It is recommended that this option be combined with either the
 @var{x509} or @var{x509verify} options.
 
-@item @var{x509=/path/to/certificate/dir}
+@item x509=@var{/path/to/certificate/dir}
 
-Valid if @var{tls} is specified. Require that x509 credentials are used
+Valid if @option{tls} is specified. Require that x509 credentials are used
 for negotiating the TLS session. The server will send its x509 certificate
 to the client. It is recommended that a password be set on the VNC server
 to provide authentication of the client when this is used. The path following
 this option specifies where the x509 certificates are to be loaded from.
 See the @ref{vnc_security} section for details on generating certificates.
 
-@item @var{x509verify=/path/to/certificate/dir}
+@item x509verify=@var{/path/to/certificate/dir}
 
-Valid if @var{tls} is specified. Require that x509 credentials are used
+Valid if @option{tls} is specified. Require that x509 credentials are used
 for negotiating the TLS session. The server will send its x509 certificate
 to the client, and request that the client send its own x509 certificate.
 The server will validate the client's certificate against the CA certificate,
@@ -392,7 +393,7 @@ certificates.
 
 @end table
 
-@item -k language
+@item -k @var{language}
 
 Use keyboard layout @var{language} (for example @code{fr} for
 French). This option is only needed where it is not easy to get raw PC
@@ -417,7 +418,7 @@ USB options:
 @item -usb
 Enable the USB driver (will be the default soon)
 
-@item -usbdevice devname
+@item -usbdevice @var{devname}
 Add the USB device @var{devname}. @xref{usb_devices}.
 @end table
 
@@ -425,7 +426,7 @@ Network options:
 
 @table @option
 
-@item -net nic[,vlan=n][,macaddr=addr][,model=type]
+@item -net nic[,vlan=@var{n}][,macaddr=@var{addr}][,model=@var{type}]
 Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
 = 0 is the default). The NIC is an ne2k_pci by default on the PC
 target. Optionally, the MAC address can be changed. If no
@@ -438,17 +439,17 @@ Valid values for @var{type} are
 Not all devices are supported on all targets.  Use -net nic,model=?
 for a list of available devices for your target.
 
-@item -net user[,vlan=n][,hostname=name]
+@item -net user[,vlan=@var{n}][,hostname=@var{name}]
 Use the user mode network stack which requires no administrator
 privilege to run.  @option{hostname=name} can be used to specify the client
 hostname reported by the builtin DHCP server.
 
-@item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
+@item -net tap[,vlan=@var{n}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}]
 Connect the host TAP network interface @var{name} to VLAN @var{n} and
 use the network script @var{file} to configure it. The default
 network script is @file{/etc/qemu-ifup}. Use @option{script=no} to
 disable script execution. If @var{name} is not
-provided, the OS automatically provides one.  @option{fd=h} can be
+provided, the OS automatically provides one. @option{fd}=@var{h} can be
 used to specify the handle of an already opened host TAP interface. Example:
 
 @example
@@ -462,13 +463,13 @@ qemu linux.img -net nic,vlan=0 -net tap,vlan=0,ifname=tap0 \
 @end example
 
 
-@item -net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]
+@item -net socket[,vlan=@var{n}][,fd=@var{h}][,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
 
 Connect the VLAN @var{n} to a remote VLAN in another QEMU virtual
 machine using a TCP socket connection. If @option{listen} is
 specified, QEMU waits for incoming connections on @var{port}
 (@var{host} is optional). @option{connect} is used to connect to
-another QEMU instance using the @option{listen} option. @option{fd=h}
+another QEMU instance using the @option{listen} option. @option{fd}=@var{h}
 specifies an already opened TCP socket.
 
 Example:
@@ -482,7 +483,7 @@ qemu linux.img -net nic,macaddr=52:54:00:12:34:57 \
                -net socket,connect=127.0.0.1:1234
 @end example
 
-@item -net socket[,vlan=n][,fd=h][,mcast=maddr:port]
+@item -net socket[,vlan=@var{n}][,fd=@var{h}][,mcast=@var{maddr}:@var{port}]
 
 Create a VLAN @var{n} shared with another QEMU virtual
 machines using a UDP multicast socket, effectively making a bus for
@@ -527,14 +528,14 @@ Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which
 is activated if no @option{-net} options are provided.
 
-@item -tftp dir
+@item -tftp @var{dir}
 When using the user mode network stack, activate a built-in TFTP
 server. The files in @var{dir} will be exposed as the root of a TFTP server.
 The TFTP client on the guest must be configured in binary mode (use the command
 @code{bin} of the Unix TFTP client). The host IP address on the guest is as
 usual 10.0.2.2.
 
-@item -bootp file
+@item -bootp @var{file}
 When using the user mode network stack, broadcast @var{file} as the BOOTP
 filename.  In conjunction with @option{-tftp}, this can be used to network boot
 a guest from a local directory.
@@ -544,9 +545,9 @@ Example (using pxelinux):
 qemu -hda linux.img -boot n -tftp /path/to/tftp/files -bootp /pxelinux.0
 @end example
 
-@item -smb dir
+@item -smb @var{dir}
 When using the user mode network stack, activate a built-in SMB
-server so that Windows OSes can access to the host files in @file{dir}
+server so that Windows OSes can access to the host files in @file{@var{dir}}
 transparently.
 
 In the guest Windows OS, the line:
@@ -556,13 +557,13 @@ In the guest Windows OS, the line:
 must be added in the file @file{C:\WINDOWS\LMHOSTS} (for windows 9x/Me)
 or @file{C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS} (Windows NT/2000).
 
-Then @file{dir} can be accessed in @file{\\smbserver\qemu}.
+Then @file{@var{dir}} can be accessed in @file{\\smbserver\qemu}.
 
 Note that a SAMBA server must be installed on the host OS in
 @file{/usr/sbin/smbd}. QEMU was tested successfully with smbd version
 2.2.7a from the Red Hat 9 and version 3.0.10-1.fc3 from Fedora Core 3.
 
-@item -redir [tcp|udp]:host-port:[guest-host]:guest-port
+@item -redir [tcp|udp]:@var{host-port}:[@var{guest-host}]:@var{guest-port}
 
 When using the user mode network stack, redirect incoming TCP or UDP
 connections to the host port @var{host-port} to the guest
@@ -600,13 +601,13 @@ for easier testing of various kernels.
 
 @table @option
 
-@item -kernel bzImage
+@item -kernel @var{bzImage}
 Use @var{bzImage} as kernel image.
 
-@item -append cmdline
+@item -append @var{cmdline}
 Use @var{cmdline} as kernel command line
 
-@item -initrd file
+@item -initrd @var{file}
 Use @var{file} as initial ram disk.
 
 @end table
@@ -614,7 +615,7 @@ Use @var{file} as initial ram disk.
 Debug/Expert options:
 @table @option
 
-@item -serial dev
+@item -serial @var{dev}
 Redirect the virtual serial port to host character device
 @var{dev}. The default device is @code{vc} in graphical mode and
 @code{stdio} in non graphical mode.
@@ -644,19 +645,22 @@ void device
 @item /dev/XXX
 [Linux only] Use host tty, e.g. @file{/dev/ttyS0}. The host serial port
 parameters are set according to the emulated ones.
-@item /dev/parportN
+@item /dev/parport@var{N}
 [Linux only, parallel port only] Use host parallel port
 @var{N}. Currently SPP and EPP parallel port features can be used.
-@item file:filename
-Write output to filename. No character can be read.
+@item file:@var{filename}
+Write output to @var{filename}. No character can be read.
 @item stdio
 [Unix only] standard input/output
-@item pipe:filename
+@item pipe:@var{filename}
 name pipe @var{filename}
-@item COMn
+@item COM@var{n}
 [Windows only] Use host serial port @var{n}
-@item udp:[remote_host]:remote_port[@@[src_ip]:src_port]
-This implements UDP Net Console.  When @var{remote_host} or @var{src_ip} are not specified they default to @code{0.0.0.0}.  When not using a specified @var{src_port} a random port is automatically chosen.
+@item udp:[@var{remote_host}]:@var{remote_port}[@@[@var{src_ip}]:@var{src_port}]
+This implements UDP Net Console.
+When @var{remote_host} or @var{src_ip} are not specified
+they default to @code{0.0.0.0}.
+When not using a specified @var{src_port} a random port is automatically chosen.
 
 If you just want a simple readonly console you can use @code{netcat} or
 @code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
@@ -682,7 +686,7 @@ localhost 5555
 @end table
 
 
-@item tcp:[host]:port[,server][,nowait][,nodelay]
+@item tcp:[@var{host}]:@var{port}[,@var{server}][,nowait][,nodelay]
 The TCP Net Console has two modes of operation.  It can send the serial
 I/O to a location or wait for a connection from a location.  By default
 the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
@@ -701,7 +705,7 @@ connect to the corresponding character device.
 -serial tcp:192.168.0.100:4444,server,nowait
 @end table
 
-@item telnet:host:port[,server][,nowait][,nodelay]
+@item telnet:@var{host}:@var{port}[,server][,nowait][,nodelay]
 The telnet protocol is used instead of raw tcp sockets.  The options
 work the same as if you had specified @code{-serial tcp}.  The
 difference is that the port acts like a telnet server or client using
@@ -710,12 +714,12 @@ MAGIC_SYSRQ sequence if you use a telnet that supports sending the break
 sequence.  Typically in unix telnet you do it with Control-] and then
 type "send break" followed by pressing the enter key.
 
-@item unix:path[,server][,nowait]
+@item unix:@var{path}[,server][,nowait]
 A unix domain socket is used instead of a tcp socket.  The option works the
 same as if you had specified @code{-serial tcp} except the unix domain socket
 @var{path} is used for connections.
 
-@item mon:dev_string
+@item mon:@var{dev_string}
 This is a special option to allow the monitor to be multiplexed onto
 another serial port.  The monitor is accessed with key sequence of
 @key{Control-a} and then pressing @key{c}. See monitor access
@@ -729,7 +733,7 @@ listening on port 4444 would be:
 
 @end table
 
-@item -parallel dev
+@item -parallel @var{dev}
 Redirect the virtual parallel port to host device @var{dev} (same
 devices as the serial port). On Linux hosts, @file{/dev/parportN} can
 be used to use hardware devices connected on the corresponding host
@@ -740,7 +744,7 @@ ports.
 
 Use @code{-parallel none} to disable all parallel ports.
 
-@item -monitor dev
+@item -monitor @var{dev}
 Redirect the monitor to host device @var{dev} (same devices as the
 serial port).
 The default device is @code{vc} in graphical mode and @code{stdio} in
@@ -761,14 +765,14 @@ character to Control-t.
 
 @item -s
 Wait gdb connection to port 1234 (@pxref{gdb_usage}).
-@item -p port
+@item -p @var{port}
 Change gdb connection port.  @var{port} can be either a decimal number
 to specify a TCP port, or a host device (same devices as the serial port).
 @item -S
 Do not start CPU at startup (you must type 'c' in the monitor).
 @item -d
 Output log in /tmp/qemu.log
-@item -hdachs c,h,s,[,t]
+@item -hdachs @var{c},@var{h},@var{s},[,@var{t}]
 Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
 @var{h} <= 16, 1 <= @var{s} <= 63) and optionally force the BIOS
 translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
@@ -879,7 +883,7 @@ emulator. You can use it to:
 
 @item
 Remove or insert removable media images
-(such as CD-ROM or floppies)
+(such as CD-ROM or floppies).
 
 @item
 Freeze/unfreeze the Virtual Machine (VM) and save or restore its state
@@ -895,14 +899,14 @@ The following commands are available:
 
 @table @option
 
-@item help or ? [cmd]
+@item help or ? [@var{cmd}]
 Show the help for all commands or just for command @var{cmd}.
 
 @item commit
-Commit changes to the disk images (if -snapshot is used)
+Commit changes to the disk images (if -snapshot is used).
 
-@item info subcommand
-show various information about the system state
+@item info @var{subcommand}
+Show various information about the system state.
 
 @table @option
 @item info network
@@ -930,12 +934,12 @@ show which guest mouse is receiving events
 @item q or quit
 Quit the emulator.
 
-@item eject [-f] device
+@item eject [-f] @var{device}
 Eject a removable medium (use -f to force it).
 
-@item change device setting
+@item change @var{device} @var{setting}
 
-Change the configuration of a device
+Change the configuration of a device.
 
 @table @option
 @item change @var{diskdevice} @var{filename}
@@ -1000,7 +1004,7 @@ Stop capture with a given @var{index}, index can be obtained with
 info capture
 @end example
 
-@item log item1[,...]
+@item log @var{item1}[,...]
 Activate logging of the specified items to @file{/tmp/qemu.log}.
 
 @item savevm [@var{tag}|@var{id}]
@@ -1022,13 +1026,13 @@ Stop emulation.
 @item c or cont
 Resume emulation.
 
-@item gdbserver [port]
-Start gdbserver session (default port=1234)
+@item gdbserver [@var{port}]
+Start gdbserver session (default @var{port}=1234)
 
 @item x/fmt @var{addr}
 Virtual memory dump starting at @var{addr}.
 
-@item xp /fmt @var{addr}
+@item xp /@var{fmt} @var{addr}
 Physical memory dump starting at @var{addr}.
 
 @var{fmt} is a format which tells the command how to format the
@@ -1084,12 +1088,12 @@ Dump 80 16 bit values at the start of the video memory.
 @end smallexample
 @end itemize
 
-@item p or print/fmt expr
+@item p or print/@var{fmt} @var{expr}
 
 Print expression value. Only the @var{format} part of @var{fmt} is
 used.
 
-@item sendkey keys
+@item sendkey @var{keys}
 
 Send @var{keys} to the emulator. Use @code{-} to press several keys
 simultaneously. Example:
@@ -1104,12 +1108,12 @@ intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
 
 Reset the system.
 
-@item usb_add devname
+@item usb_add @var{devname}
 
 Add the USB device @var{devname}.  For details of available devices see
 @ref{usb_devices}
 
-@item usb_del devname
+@item usb_del @var{devname}
 
 Remove the USB device @var{devname} from the QEMU virtual USB
 hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
@@ -1263,7 +1267,7 @@ Currently there is no specific code to handle removable media, so it
 is better to use the @code{change} or @code{eject} monitor commands to
 change or eject media.
 @item Hard disks
-Hard disks can be used with the syntax: @file{\\.\PhysicalDriveN}
+Hard disks can be used with the syntax: @file{\\.\PhysicalDrive@var{N}}
 where @var{N} is the drive number (0 is the first hard disk).
 @file{/dev/hda} is supported as an alias to
 the first hard disk drive @file{\\.\PhysicalDrive0}.
@@ -1460,12 +1464,12 @@ Virtual Mouse.  This will override the PS/2 mouse emulation when activated.
 Pointer device that uses absolute coordinates (like a touchscreen).
 This means qemu is able to report the mouse position without having
 to grab the mouse.  Also overrides the PS/2 mouse emulation when activated.
-@item @code{disk:file}
+@item @code{disk:@var{file}}
 Mass storage device based on @var{file} (@pxref{disk_images})
-@item @code{host:bus.addr}
+@item @code{host:@var{bus.addr}}
 Pass through the host device identified by @var{bus.addr}
 (Linux only)
-@item @code{host:vendor_id:product_id}
+@item @code{host:@var{vendor_id:product_id}}
 Pass through the host device identified by @var{vendor_id:product_id}
 (Linux only)
 @item @code{wacom-tablet}

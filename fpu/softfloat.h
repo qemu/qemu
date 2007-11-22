@@ -111,8 +111,31 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point types.
 *----------------------------------------------------------------------------*/
+/* Use structures for soft-float types.  This prevents accidentally mixing
+   them with native int/float types.  A sufficiently clever compiler and
+   sane ABI should be able to see though these structs.  However
+   x86/gcc 3.x seems to struggle a bit, so leave them disabled by default.  */
+//#define USE_SOFTFLOAT_STRUCT_TYPES
+#ifdef USE_SOFTFLOAT_STRUCT_TYPES
+typedef struct {
+    uint32_t v;
+} float32;
+/* The cast ensures an error if the wrong type is passed.  */
+#define float32_val(x) (((float32)(x)).v)
+#define make_float32(x) __extension__ ({ float32 f32_val = {x}; f32_val; })
+typedef struct {
+    uint64_t v;
+} float64;
+#define float64_val(x) (((float64)(x)).v)
+#define make_float64(x) __extension__ ({ float64 f64_val = {x}; f64_val; })
+#else
 typedef uint32_t float32;
 typedef uint64_t float64;
+#define float32_val(x) (x)
+#define float64_val(x) (x)
+#define make_float32(x) (x)
+#define make_float64(x) (x)
+#endif
 #ifdef FLOATX80
 typedef struct {
     uint64_t low;
@@ -248,13 +271,15 @@ float32 float32_scalbn( float32, int STATUS_PARAM );
 
 INLINE float32 float32_abs(float32 a)
 {
-    return a & 0x7fffffff;
+    return make_float32(float32_val(a) & 0x7fffffff);
 }
 
 INLINE float32 float32_chs(float32 a)
 {
-    return a ^ 0x80000000;
+    return make_float32(float32_val(a) ^ 0x80000000);
 }
+
+#define float32_zero make_float32(0)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
@@ -300,13 +325,15 @@ float64 float64_scalbn( float64, int STATUS_PARAM );
 
 INLINE float64 float64_abs(float64 a)
 {
-    return a & 0x7fffffffffffffffLL;
+    return make_float64(float64_val(a) & 0x7fffffffffffffffLL);
 }
 
 INLINE float64 float64_chs(float64 a)
 {
-    return a ^ 0x8000000000000000LL;
+    return make_float64(float64_val(a) ^ 0x8000000000000000LL);
 }
+
+#define float64_zero make_float64(0)
 
 #ifdef FLOATX80
 

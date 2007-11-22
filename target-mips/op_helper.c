@@ -648,10 +648,10 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 
 /* Complex FPU operations which may need stack space. */
 
-#define FLOAT_ONE32 (0x3f8 << 20)
-#define FLOAT_ONE64 (0x3ffULL << 52)
-#define FLOAT_TWO32 (1 << 30)
-#define FLOAT_TWO64 (1ULL << 62)
+#define FLOAT_ONE32 make_float32(0x3f8 << 20)
+#define FLOAT_ONE64 make_float64(0x3ffULL << 52)
+#define FLOAT_TWO32 make_float32(1 << 30)
+#define FLOAT_TWO64 make_float64(1ULL << 62)
 #define FLOAT_QNAN32 0x7fbfffff
 #define FLOAT_QNAN64 0x7ff7ffffffffffffULL
 #define FLOAT_SNAN32 0x7fffffff

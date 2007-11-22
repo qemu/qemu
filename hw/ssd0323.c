@@ -30,6 +30,12 @@ do { fprintf(stderr, "ssd0323: error: " fmt , ##args);} while (0)
 /* Scaling factor for pixels.  */
 #define MAGNIFY 4
 
+#define REMAP_SWAP_COLUMN 0x01
+#define REMAP_SWAP_NYBBLE 0x02
+#define REMAP_VERTICAL    0x04
+#define REMAP_SWAP_COM    0x10
+#define REMAP_SPLIT_COM   0x40
+
 enum ssd0323_mode
 {
     SSD0323_CMD,
@@ -49,6 +55,7 @@ typedef struct {
     int col_start;
     int col_end;
     int redraw;
+    int remap;
     enum ssd0323_mode mode;
     uint8_t framebuffer[128 * 80 / 2];
 } ssd0323_state;
@@ -60,13 +67,24 @@ int ssd0323_xfer_ssi(void *opaque, int data)
     case SSD0323_DATA:
         DPRINTF("data 0x%02x\n", data);
         s->framebuffer[s->col + s->row * 64] = data;
-        s->col++;
-        if (s->col > s->col_end) {
+        if (s->remap & REMAP_VERTICAL) {
             s->row++;
-            s->col = s->col_start;
-        }
-        if (s->row > s->row_end) {
-            s->row = s->row_start;
+            if (s->row > s->row_end) {
+                s->row = s->row_start;
+                s->col++;
+            }
+            if (s->col > s->col_end) {
+                s->col = s->col_start;
+            }
+        } else {
+            s->col++;
+            if (s->col > s->col_end) {
+                s->row++;
+                s->col = s->col_start;
+            }
+            if (s->row > s->row_end) {
+                s->row = s->row_start;
+            }
         }
         s->redraw = 1;
         break;
@@ -82,12 +100,12 @@ int ssd0323_xfer_ssi(void *opaque, int data)
 #define DATA(x) if (s->cmd_len <= (x)) return 0
         case 0x15: /* Set column.  */
             DATA(2);
-            s->col_start = s->cmd_data[0] % 64;
+            s->col = s->col_start = s->cmd_data[0] % 64;
             s->col_end = s->cmd_data[1] % 64;
             break;
         case 0x75: /* Set row.  */
             DATA(2);
-            s->row_start = s->cmd_data[0] % 80;
+            s->row = s->row_start = s->cmd_data[0] % 80;
             s->row_end = s->cmd_data[1] % 80;
             break;
         case 0x81: /* Set contrast */
@@ -99,6 +117,7 @@ int ssd0323_xfer_ssi(void *opaque, int data)
         case 0xa0: /* Set remapping.  */
             /* FIXME: Implement this.  */
             DATA(1);
+            s->remap = s->cmd_data[0];
             break;
         case 0xa1: /* Set display start line.  */
         case 0xa2: /* Set display offset.  */
@@ -207,6 +226,7 @@ static void ssd0323_update_display(void *opaque)
             }
             p += dest_width;
         }
+        /* TODO: Implement row/column remapping.  */
         dest = s->ds->data;
         for (y = 0; y < 64; y++) {
             line = y;

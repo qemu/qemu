@@ -84,7 +84,7 @@ static void add_flagname_to_bitmaps(char *flagname, uint32_t *features,
             return;
         }
     for ( i = 0 ; i < 32 ; i++ ) 
-        if (ext3_features[i] && !strcmp (flagname, ext3_feature_name[i])) {
+        if (ext3_feature_name[i] && !strcmp (flagname, ext3_feature_name[i])) {
             *ext3_features |= 1 << i;
             return;
         }

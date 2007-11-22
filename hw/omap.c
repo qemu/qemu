@@ -997,7 +997,8 @@ static void omap_dma_clk_update(void *opaque, int line, int on)
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
 
     if (on) {
-        s->delay = ticks_per_sec >> 7;
+        /* TODO: make a clever calculation */
+        s->delay = ticks_per_sec >> 8;
         if (s->run_count)
             qemu_mod_timer(s->tm, qemu_get_clock(vm_clock) + s->delay);
     } else {
@@ -4097,8 +4098,11 @@ struct omap_mcbsp_s {
     int tx_rate;
     int rx_rate;
     int tx_req;
+    int rx_req;
 
     struct i2s_codec_s *codec;
+    QEMUTimer *source_timer;
+    QEMUTimer *sink_timer;
 };
 
 static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
@@ -4134,62 +4138,8 @@ static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
     qemu_set_irq(s->txirq, irq);
 }
 
-static void omap_mcbsp_req_update(struct omap_mcbsp_s *s)
+static void omap_mcbsp_rx_newdata(struct omap_mcbsp_s *s)
 {
-    int prev = s->tx_req;
-
-    s->tx_req = (s->tx_rate ||
-                    (s->spcr[0] & (1 << 12))) &&	/* CLKSTP */
-            (s->spcr[1] & (1 << 6)) &&			/* GRST */
-            (s->spcr[1] & (1 << 0));			/* XRST */
-
-    if (!s->tx_req && prev) {
-        s->spcr[1] &= ~(1 << 1);			/* XRDY */
-        qemu_irq_lower(s->txdrq);
-        omap_mcbsp_intr_update(s);
-
-        if (s->codec)
-            s->codec->tx_swallow(s->codec->opaque);
-    } else if (s->codec && s->tx_req && !prev) {
-        s->spcr[1] |= 1 << 1;				/* XRDY */
-        qemu_irq_raise(s->txdrq);
-        omap_mcbsp_intr_update(s);
-    }
-}
-
-static void omap_mcbsp_rate_update(struct omap_mcbsp_s *s)
-{
-    int rx_clk = 0, tx_clk = 0;
-    int cpu_rate = 1500000;	/* XXX */
-    if (!s->codec)
-        return;
-
-    if (s->spcr[1] & (1 << 6)) {			/* GRST */
-        if (s->spcr[0] & (1 << 0))			/* RRST */
-            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
-                            (s->pcr & (1 << 8)))	/* CLKRM */
-                if (~s->pcr & (1 << 7))			/* SCLKME */
-                    rx_clk = cpu_rate /
-                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
-        if (s->spcr[1] & (1 << 0))			/* XRST */
-            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
-                            (s->pcr & (1 << 9)))	/* CLKXM */
-                if (~s->pcr & (1 << 7))			/* SCLKME */
-                    tx_clk = cpu_rate /
-                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
-    }
-
-    s->codec->set_rate(s->codec->opaque, rx_clk, tx_clk);
-}
-
-static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
-{
-    if (!(s->spcr[0] & 1)) {				/* RRST */
-        if (s->codec)
-            s->codec->in.len = 0;
-        return;
-    }
-
     if ((s->spcr[0] >> 1) & 1)				/* RRDY */
         s->spcr[0] |= 1 << 2;				/* RFULL */
     s->spcr[0] |= 1 << 1;				/* RRDY */
@@ -4197,25 +4147,140 @@ static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
     omap_mcbsp_intr_update(s);
 }
 
+static void omap_mcbsp_source_tick(void *opaque)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    static const int bps[8] = { 0, 1, 1, 2, 2, 2, -255, -255 };
+
+    if (!s->rx_rate)
+        return;
+    if (s->rx_req)
+        printf("%s: Rx FIFO overrun\n", __FUNCTION__);
+
+    s->rx_req = s->rx_rate << bps[(s->rcr[0] >> 5) & 7];
+
+    omap_mcbsp_rx_newdata(s);
+    qemu_mod_timer(s->source_timer, qemu_get_clock(vm_clock) + ticks_per_sec);
+}
+
+static void omap_mcbsp_rx_start(struct omap_mcbsp_s *s)
+{
+    if (!s->codec || !s->codec->rts)
+        omap_mcbsp_source_tick(s);
+    else if (s->codec->in.len) {
+        s->rx_req = s->codec->in.len;
+        omap_mcbsp_rx_newdata(s);
+    }
+}
+
 static void omap_mcbsp_rx_stop(struct omap_mcbsp_s *s)
+{
+    qemu_del_timer(s->source_timer);
+}
+
+static void omap_mcbsp_rx_done(struct omap_mcbsp_s *s)
 {
     s->spcr[0] &= ~(1 << 1);				/* RRDY */
     qemu_irq_lower(s->rxdrq);
     omap_mcbsp_intr_update(s);
 }
 
+static void omap_mcbsp_tx_newdata(struct omap_mcbsp_s *s)
+{
+    s->spcr[1] |= 1 << 1;				/* XRDY */
+    qemu_irq_raise(s->txdrq);
+    omap_mcbsp_intr_update(s);
+}
+
+static void omap_mcbsp_sink_tick(void *opaque)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    static const int bps[8] = { 0, 1, 1, 2, 2, 2, -255, -255 };
+
+    if (!s->tx_rate)
+        return;
+    if (s->tx_req)
+        printf("%s: Tx FIFO underrun\n", __FUNCTION__);
+
+    s->tx_req = s->tx_rate << bps[(s->xcr[0] >> 5) & 7];
+
+    omap_mcbsp_tx_newdata(s);
+    qemu_mod_timer(s->sink_timer, qemu_get_clock(vm_clock) + ticks_per_sec);
+}
+
 static void omap_mcbsp_tx_start(struct omap_mcbsp_s *s)
 {
-    if (s->tx_rate)
-        return;
-    s->tx_rate = 1;
-    omap_mcbsp_req_update(s);
+    if (!s->codec || !s->codec->cts)
+        omap_mcbsp_sink_tick(s);
+    else if (s->codec->out.size) {
+        s->tx_req = s->codec->out.size;
+        omap_mcbsp_tx_newdata(s);
+    }
+}
+
+static void omap_mcbsp_tx_done(struct omap_mcbsp_s *s)
+{
+    s->spcr[1] &= ~(1 << 1);				/* XRDY */
+    qemu_irq_lower(s->txdrq);
+    omap_mcbsp_intr_update(s);
+    if (s->codec && s->codec->cts)
+        s->codec->tx_swallow(s->codec->opaque);
 }
 
 static void omap_mcbsp_tx_stop(struct omap_mcbsp_s *s)
 {
-    s->tx_rate = 0;
-    omap_mcbsp_req_update(s);
+    s->tx_req = 0;
+    omap_mcbsp_tx_done(s);
+    qemu_del_timer(s->sink_timer);
+}
+
+static void omap_mcbsp_req_update(struct omap_mcbsp_s *s)
+{
+    int prev_rx_rate, prev_tx_rate;
+    int rx_rate = 0, tx_rate = 0;
+    int cpu_rate = 1500000;	/* XXX */
+
+    /* TODO: check CLKSTP bit */
+    if (s->spcr[1] & (1 << 6)) {			/* GRST */
+        if (s->spcr[0] & (1 << 0)) {			/* RRST */
+            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
+                            (s->pcr & (1 << 8))) {	/* CLKRM */
+                if (~s->pcr & (1 << 7))			/* SCLKME */
+                    rx_rate = cpu_rate /
+                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+            } else
+                if (s->codec)
+                    rx_rate = s->codec->rx_rate;
+        }
+
+        if (s->spcr[1] & (1 << 0)) {			/* XRST */
+            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
+                            (s->pcr & (1 << 9))) {	/* CLKXM */
+                if (~s->pcr & (1 << 7))			/* SCLKME */
+                    tx_rate = cpu_rate /
+                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+            } else
+                if (s->codec)
+                    tx_rate = s->codec->tx_rate;
+        }
+    }
+    prev_tx_rate = s->tx_rate;
+    prev_rx_rate = s->rx_rate;
+    s->tx_rate = tx_rate;
+    s->rx_rate = rx_rate;
+
+    if (s->codec)
+        s->codec->set_rate(s->codec->opaque, rx_rate, tx_rate);
+
+    if (!prev_tx_rate && tx_rate)
+        omap_mcbsp_tx_start(s);
+    else if (s->tx_rate && !tx_rate)
+        omap_mcbsp_tx_stop(s);
+
+    if (!prev_rx_rate && rx_rate)
+        omap_mcbsp_rx_start(s);
+    else if (prev_tx_rate && !tx_rate)
+        omap_mcbsp_rx_stop(s);
 }
 
 static uint32_t omap_mcbsp_read(void *opaque, target_phys_addr_t addr)
@@ -4230,17 +4295,19 @@ static uint32_t omap_mcbsp_read(void *opaque, target_phys_addr_t addr)
             return 0x0000;
         /* Fall through.  */
     case 0x02:	/* DRR1 */
-        if (!s->codec)
-            return 0x0000;
-        if (s->codec->in.len < 2) {
+        if (s->rx_req < 2) {
             printf("%s: Rx FIFO underrun\n", __FUNCTION__);
-            omap_mcbsp_rx_stop(s);
+            omap_mcbsp_rx_done(s);
         } else {
-            s->codec->in.len -= 2;
-            ret = s->codec->in.fifo[s->codec->in.start ++] << 8;
-            ret |= s->codec->in.fifo[s->codec->in.start ++];
-            if (!s->codec->in.len)
-                omap_mcbsp_rx_stop(s);
+            s->tx_req -= 2;
+            if (s->codec && s->codec->in.len >= 2) {
+                ret = s->codec->in.fifo[s->codec->in.start ++] << 8;
+                ret |= s->codec->in.fifo[s->codec->in.start ++];
+                s->codec->in.len -= 2;
+            } else
+                ret = 0x0000;
+            if (!s->tx_req)
+                omap_mcbsp_rx_done(s);
             return ret;
         }
         return 0x0000;
@@ -4309,7 +4376,7 @@ static uint32_t omap_mcbsp_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
+static void omap_mcbsp_writeh(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
@@ -4326,18 +4393,14 @@ static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
             return;
         /* Fall through.  */
     case 0x06:	/* DXR1 */
-        if (!s->codec)
-            return;
-        if (s->tx_req) {
-            if (s->codec->out.len > s->codec->out.size - 2) {
-                printf("%s: Tx FIFO overrun\n", __FUNCTION__);
-                omap_mcbsp_tx_stop(s);
-            } else {
+        if (s->tx_req > 1) {
+            s->tx_req -= 2;
+            if (s->codec && s->codec->cts) {
                 s->codec->out.fifo[s->codec->out.len ++] = (value >> 8) & 0xff;
                 s->codec->out.fifo[s->codec->out.len ++] = (value >> 0) & 0xff;
-                if (s->codec->out.len >= s->codec->out.size)
-                    omap_mcbsp_tx_stop(s);
             }
+            if (s->tx_req < 2)
+                omap_mcbsp_tx_done(s);
         } else
             printf("%s: Tx FIFO overrun\n", __FUNCTION__);
         return;
@@ -4346,14 +4409,8 @@ static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
         s->spcr[1] &= 0x0002;
         s->spcr[1] |= 0x03f9 & value;
         s->spcr[1] |= 0x0004 & (value << 2);		/* XEMPTY := XRST */
-        if (~value & 1) {				/* XRST */
+        if (~value & 1)					/* XRST */
             s->spcr[1] &= ~6;
-            qemu_irq_lower(s->rxdrq);
-            if (s->codec)
-                s->codec->out.len = 0;
-        }
-        if (s->codec)
-            omap_mcbsp_rate_update(s);
         omap_mcbsp_req_update(s);
         return;
     case 0x0a:	/* SPCR1 */
@@ -4363,12 +4420,9 @@ static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
             printf("%s: Digital Loopback mode enable attempt\n", __FUNCTION__);
         if (~value & 1) {				/* RRST */
             s->spcr[0] &= ~6;
-            qemu_irq_lower(s->txdrq);
-            if (s->codec)
-                s->codec->in.len = 0;
+            s->rx_req = 0;
+            omap_mcbsp_rx_done(s);
         }
-        if (s->codec)
-            omap_mcbsp_rate_update(s);
         omap_mcbsp_req_update(s);
         return;
 
@@ -4386,11 +4440,11 @@ static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
         return;
     case 0x14:	/* SRGR2 */
         s->srgr[1] = value & 0xffff;
-        omap_mcbsp_rate_update(s);
+        omap_mcbsp_req_update(s);
         return;
     case 0x16:	/* SRGR1 */
         s->srgr[0] = value & 0xffff;
-        omap_mcbsp_rate_update(s);
+        omap_mcbsp_req_update(s);
         return;
     case 0x18:	/* MCR2 */
         s->mcr[1] = value & 0x03e3;
@@ -4460,6 +4514,37 @@ static void omap_mcbsp_write(void *opaque, target_phys_addr_t addr,
     OMAP_BAD_REG(addr);
 }
 
+static void omap_mcbsp_writew(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    if (offset == 0x04) {				/* DXR */
+        if (((s->xcr[0] >> 5) & 7) < 3)			/* XWDLEN1 */
+            return;
+        if (s->tx_req > 3) {
+            s->tx_req -= 4;
+            if (s->codec && s->codec->cts) {
+                s->codec->out.fifo[s->codec->out.len ++] =
+                        (value >> 24) & 0xff;
+                s->codec->out.fifo[s->codec->out.len ++] =
+                        (value >> 16) & 0xff;
+                s->codec->out.fifo[s->codec->out.len ++] =
+                        (value >> 8) & 0xff;
+                s->codec->out.fifo[s->codec->out.len ++] =
+                        (value >> 0) & 0xff;
+            }
+            if (s->tx_req < 4)
+                omap_mcbsp_tx_done(s);
+        } else
+            printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+        return;
+    }
+
+    omap_badwidth_write16(opaque, addr, value);
+}
+
 static CPUReadMemoryFunc *omap_mcbsp_readfn[] = {
     omap_badwidth_read16,
     omap_mcbsp_read,
@@ -4468,8 +4553,8 @@ static CPUReadMemoryFunc *omap_mcbsp_readfn[] = {
 
 static CPUWriteMemoryFunc *omap_mcbsp_writefn[] = {
     omap_badwidth_write16,
-    omap_mcbsp_write,
-    omap_badwidth_write16,
+    omap_mcbsp_writeh,
+    omap_mcbsp_writew,
 };
 
 static void omap_mcbsp_reset(struct omap_mcbsp_s *s)
@@ -4484,8 +4569,11 @@ static void omap_mcbsp_reset(struct omap_mcbsp_s *s)
     memset(&s->rcer, 0, sizeof(s->rcer));
     memset(&s->xcer, 0, sizeof(s->xcer));
     s->tx_req = 0;
+    s->rx_req = 0;
     s->tx_rate = 0;
     s->rx_rate = 0;
+    qemu_del_timer(s->source_timer);
+    qemu_del_timer(s->sink_timer);
 }
 
 struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
@@ -4500,6 +4588,8 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
     s->rxirq = irq[1];
     s->txdrq = dma[0];
     s->rxdrq = dma[1];
+    s->sink_timer = qemu_new_timer(vm_clock, omap_mcbsp_sink_tick, s);
+    s->source_timer = qemu_new_timer(vm_clock, omap_mcbsp_source_tick, s);
     omap_mcbsp_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_mcbsp_readfn,
@@ -4513,14 +4603,20 @@ static void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
 {
     struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
 
-    omap_mcbsp_rx_start(s);
+    if (s->rx_rate) {
+        s->rx_req = s->codec->in.len;
+        omap_mcbsp_rx_newdata(s);
+    }
 }
 
 static void omap_mcbsp_i2s_start(void *opaque, int line, int level)
 {
     struct omap_mcbsp_s *s = (struct omap_mcbsp_s *) opaque;
 
-    omap_mcbsp_tx_start(s);
+    if (s->tx_rate) {
+        s->tx_req = s->codec->out.size;
+        omap_mcbsp_tx_newdata(s);
+    }
 }
 
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
@@ -4528,6 +4624,184 @@ void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
     s->codec = slave;
     slave->rx_swallow = qemu_allocate_irqs(omap_mcbsp_i2s_swallow, s, 1)[0];
     slave->tx_start = qemu_allocate_irqs(omap_mcbsp_i2s_start, s, 1)[0];
+}
+
+/* LED Pulse Generators */
+struct omap_lpg_s {
+    target_phys_addr_t base;
+    QEMUTimer *tm;
+
+    uint8_t control;
+    uint8_t power;
+    int64_t on;
+    int64_t period;
+    int clk;
+    int cycle;
+};
+
+static void omap_lpg_tick(void *opaque)
+{
+    struct omap_lpg_s *s = opaque;
+
+    if (s->cycle)
+        qemu_mod_timer(s->tm, qemu_get_clock(rt_clock) + s->period - s->on);
+    else
+        qemu_mod_timer(s->tm, qemu_get_clock(rt_clock) + s->on);
+
+    s->cycle = !s->cycle;
+    printf("%s: LED is %s\n", __FUNCTION__, s->cycle ? "on" : "off");
+}
+
+static void omap_lpg_update(struct omap_lpg_s *s)
+{
+    int64_t on, period = 1, ticks = 1000;
+    static const int per[8] = { 1, 2, 4, 8, 12, 16, 20, 24 };
+
+    if (~s->control & (1 << 6))					/* LPGRES */
+        on = 0;
+    else if (s->control & (1 << 7))				/* PERM_ON */
+        on = period;
+    else {
+        period = muldiv64(ticks, per[s->control & 7],		/* PERCTRL */
+                        256 / 32);
+        on = (s->clk && s->power) ? muldiv64(ticks,
+                        per[(s->control >> 3) & 7], 256) : 0;	/* ONCTRL */
+    }
+
+    qemu_del_timer(s->tm);
+    if (on == period && s->on < s->period)
+        printf("%s: LED is on\n", __FUNCTION__);
+    else if (on == 0 && s->on)
+        printf("%s: LED is off\n", __FUNCTION__);
+    else if (on && (on != s->on || period != s->period)) {
+        s->cycle = 0;
+        s->on = on;
+        s->period = period;
+        omap_lpg_tick(s);
+        return;
+    }
+
+    s->on = on;
+    s->period = period;
+}
+
+static void omap_lpg_reset(struct omap_lpg_s *s)
+{
+    s->control = 0x00;
+    s->power = 0x00;
+    s->clk = 1;
+    omap_lpg_update(s);
+}
+
+static uint32_t omap_lpg_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* LCR */
+        return s->control;
+
+    case 0x04:	/* PMR */
+        return s->power;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_lpg_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x00:	/* LCR */
+        if (~value & (1 << 6))					/* LPGRES */
+            omap_lpg_reset(s);
+        s->control = value & 0xff;
+        omap_lpg_update(s);
+        return;
+
+    case 0x04:	/* PMR */
+        s->power = value & 0x01;
+        omap_lpg_update(s);
+        return;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_lpg_readfn[] = {
+    omap_lpg_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_lpg_writefn[] = {
+    omap_lpg_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+static void omap_lpg_clk_update(void *opaque, int line, int on)
+{
+    struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
+
+    s->clk = on;
+    omap_lpg_update(s);
+}
+
+struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
+{
+    int iomemtype;
+    struct omap_lpg_s *s = (struct omap_lpg_s *)
+            qemu_mallocz(sizeof(struct omap_lpg_s));
+
+    s->base = base;
+    s->tm = qemu_new_timer(rt_clock, omap_lpg_tick, s);
+
+    omap_lpg_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_lpg_readfn,
+                    omap_lpg_writefn, s);
+    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    omap_clk_adduser(clk, qemu_allocate_irqs(omap_lpg_clk_update, s, 1)[0]);
+
+    return s;
+}
+
+/* MPUI Peripheral Bridge configuration */
+static uint32_t omap_mpui_io_read(void *opaque, target_phys_addr_t addr)
+{
+    if (addr == OMAP_MPUI_BASE)	/* CMR */
+        return 0xfe4d;
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static CPUReadMemoryFunc *omap_mpui_io_readfn[] = {
+    omap_badwidth_read16,
+    omap_mpui_io_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_mpui_io_writefn[] = {
+    omap_badwidth_write16,
+    omap_badwidth_write16,
+    omap_badwidth_write16,
+};
+
+static void omap_setup_mpui_io(struct omap_mpu_state_s *mpu)
+{
+    int iomemtype = cpu_register_io_memory(0, omap_mpui_io_readfn,
+                    omap_mpui_io_writefn, mpu);
+    cpu_register_physical_memory(OMAP_MPUI_BASE, 0x7fff, iomemtype);
 }
 
 /* General chip reset */
@@ -4567,6 +4841,8 @@ static void omap_mpu_reset(void *opaque)
     omap_mcbsp_reset(mpu->mcbsp1);
     omap_mcbsp_reset(mpu->mcbsp2);
     omap_mcbsp_reset(mpu->mcbsp3);
+    omap_lpg_reset(mpu->led[0]);
+    omap_lpg_reset(mpu->led[1]);
     cpu_reset(mpu->env);
 }
 
@@ -4750,6 +5026,9 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->mcbsp3 = omap_mcbsp_init(0xfffb7000, &s->irq[1][OMAP_INT_McBSP3TX],
                     &s->drq[OMAP_DMA_MCBSP3_TX], omap_findclk(s, "dspxor_ck"));
 
+    s->led[0] = omap_lpg_init(0xfffbd000, omap_findclk(s, "clk32-kHz"));
+    s->led[1] = omap_lpg_init(0xfffbd800, omap_findclk(s, "clk32-kHz"));
+
     /* Register mappings not currenlty implemented:
      * MCSI2 Comm	fffb2000 - fffb27ff (not mapped on OMAP310)
      * MCSI1 Bluetooth	fffb2800 - fffb2fff (not mapped on OMAP310)
@@ -4759,8 +5038,6 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
      * FAC		fffba800 - fffbafff
      * HDQ/1-Wire	fffbc000 - fffbc7ff
      * TIPB switches	fffbc800 - fffbcfff
-     * LED1		fffbd000 - fffbd7ff
-     * LED2		fffbd800 - fffbdfff
      * Mailbox		fffcf000 - fffcf7ff
      * Local bus IF	fffec100 - fffec1ff
      * Local bus MMU	fffec200 - fffec2ff
@@ -4768,6 +5045,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
      */
 
     omap_setup_dsp_mapping(omap15xx_dsp_mm);
+    omap_setup_mpui_io(s);
 
     qemu_register_reset(omap_mpu_reset, s);
 

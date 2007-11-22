@@ -564,8 +564,13 @@ static void ppc_prep_init (int ram_size, int vga_ram_size,
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
         }
-        /* Set time-base frequency to 100 Mhz */
-        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        if (env->flags & POWERPC_FLAG_RTC_CLK) {
+            /* POWER / PowerPC 601 RTC clock frequency is 7.8125 MHz */
+            cpu_ppc_tb_init(env, 7812500UL);
+        } else {
+            /* Set time-base frequency to 100 Mhz */
+            cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        }
         qemu_register_reset(&cpu_ppc_reset, env);
         register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;

@@ -38,7 +38,7 @@ float64 float64_pol(float64 rFn,float64 rFm);
 unsigned int DoubleCPDO(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();
-   float64 rFm, rFn = 0;
+   float64 rFm, rFn = float64_zero;
    unsigned int Fd, Fm, Fn, nRc = 1;
 
    //printk("DoubleCPDO(0x%08x)\n",opcode);

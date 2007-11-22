@@ -1495,8 +1495,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         p = (void *)(p_end - 2);
         if (p == p_start)
             error("empty code for %s", name);
-        if (get16((uint16_t *)p) != 0x07fe && get16((uint16_t *)p) != 0x07f4)
-            error("br %%r14 expected at the end of %s", name);
+        if ((get16((uint16_t *)p) & 0xfff0) != 0x07f0)
+            error("br expected at the end of %s", name);
         copy_size = p - p_start;
     }
 #elif defined(HOST_ALPHA)
@@ -2141,6 +2141,19 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         case R_390_8:
                             fprintf(outfile, "    *(uint8_t *)(gen_code_ptr + %d) = %s + %d;\n",
                                     reloc_offset, relname, addend);
+                            break;
+                        case R_390_PC32DBL:
+                            if (ELF32_ST_TYPE(symtab[ELFW(R_SYM)(rel->r_info)].st_info) == STT_SECTION) {
+                                fprintf(outfile,
+                                        "    *(uint32_t *)(gen_code_ptr + %d) += "
+                                        "((long)&%s - (long)gen_code_ptr) >> 1;\n",
+                                        reloc_offset, name);
+                            }
+                            else
+                                fprintf(outfile,
+                                        "    *(uint32_t *)(gen_code_ptr + %d) = "
+                                        "(%s + %d - ((uint32_t)gen_code_ptr + %d)) >> 1;\n",
+                                        reloc_offset, relname, addend, reloc_offset);
                             break;
                         default:
                             error("unsupported s390 relocation (%d)", type);

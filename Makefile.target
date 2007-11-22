@@ -160,14 +160,14 @@ endif
 endif
 
 ifeq ($(ARCH),x86_64)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+  ifneq ($(CONFIG_SOLARIS),yes)
+    BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+  endif
 endif
 
 ifeq ($(ARCH),ppc)
 CPPFLAGS+= -D__powerpc__
-ifdef CONFIG_LINUX_USER
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
 endif
 
 ifeq ($(ARCH),s390)
@@ -460,6 +460,7 @@ VL_OBJS += eeprom93xx.o
 
 # PCI network cards
 VL_OBJS += dp8381x.o
+VL_OBJS += e100.o
 VL_OBJS += eepro100.o
 VL_OBJS += ne2000.o
 VL_OBJS += pcnet.o
@@ -594,6 +595,13 @@ VL_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
 
 ifeq ($(ARCH),sparc64)
+  VL_LDFLAGS+=-m64
+  ifneq ($(CONFIG_SOLARIS),yes)
+    VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+  endif
+endif
+
+ifeq ($(ARCH),x86_64)
   VL_LDFLAGS+=-m64
   ifneq ($(CONFIG_SOLARIS),yes)
     VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld

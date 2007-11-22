@@ -35,6 +35,9 @@ case $machine in
   mips*)
     ret='\tjr.*ra'
     ;;
+  s390*)
+    ret='\tbr.*'
+    ;;
   *)
     echo "Unknown machine `uname -m`"
     ;;

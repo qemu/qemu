@@ -1613,7 +1613,7 @@ void cpu_loop (CPUState *env)
                              env->gregs[6],
                              env->gregs[7],
                              env->gregs[0],
-                             0);
+                             env->gregs[1]);
             env->gregs[0] = ret;
             env->pc += 2;
             break;

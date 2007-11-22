@@ -196,8 +196,8 @@ void helper_ld_asi(int asi, int size, int sign)
         switch (T0) {
         case 0x01c00a00: /* MXCC control register */
             if (size == 8) {
-                ret = env->mxccregs[3];
-                T0 = env->mxccregs[3] >> 32;
+                ret = env->mxccregs[3] >> 32;
+                T0 = env->mxccregs[3];
             } else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
             break;
@@ -217,8 +217,8 @@ void helper_ld_asi(int asi, int size, int sign)
             break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8) {
-                ret = env->mxccregs[7];
-                T0 = env->mxccregs[7] >> 32;
+                ret = env->mxccregs[7] >> 32;
+                T0 = env->mxccregs[7];
             } else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", T0, size);
             break;

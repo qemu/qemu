@@ -356,11 +356,15 @@ case $cpu in
                ARCH_LDFLAGS="${SP_LDFLAGS}"
            fi
            ;;
+    s390)
+           ARCH_CFLAGS="-march=z900"
+           ;;
 esac
 
 if [ "$solaris" = "yes" -a  "$cpu" = "x86_64" ] ; then
     CFLAGS="${CFLAGS} -m64"
     OS_CFLAGS="${OS_CFLAGS} -m64"
+    OS_LDFLAGS="${OS_LDFLAGS} -m64"
 fi
 
 if [ "$solaris" = "yes" -a  "$cpu" = "i386" ] ; then
@@ -600,7 +604,7 @@ cat > $TMPC << EOF
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-        if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
+        if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
             _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
             if test "$_sdlversion" -lt 121 ; then
                 sdl_too_old=yes
@@ -619,7 +623,7 @@ EOF
                     sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
                 fi
 
-                if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
+                if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
                     sdl_static=yes
                 fi
             fi # static link

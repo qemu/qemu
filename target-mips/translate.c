@@ -1254,6 +1254,12 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         return;
     }
     GEN_LOAD_REG_TN(T0, rs);
+    /* Specialcase the conventional move operation. */
+    if (rt == 0 && (opc == OPC_ADDU || opc == OPC_DADDU
+                    || opc == OPC_SUBU || opc == OPC_DSUBU)) {
+        GEN_STORE_TN_REG(rd, T0);
+        return;
+    }
     GEN_LOAD_REG_TN(T1, rt);
     switch (opc) {
     case OPC_ADD:

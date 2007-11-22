@@ -706,7 +706,7 @@ static always_inline int find_pte (CPUState *env, mmu_ctx_t *ctx,
                                    int h, int rw, int type)
 {
 #if defined(TARGET_PPC64)
-    if (env->mmu_model == POWERPC_MMU_64B)
+    if (env->mmu_model & POWERPC_MMU_64)
         return find_pte64(ctx, h, rw, type);
 #endif
 
@@ -916,7 +916,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
 
     pr = msr_pr;
 #if defined(TARGET_PPC64)
-    if (env->mmu_model == POWERPC_MMU_64B) {
+    if (env->mmu_model & POWERPC_MMU_64) {
 #if defined (DEBUG_MMU)
         if (loglevel != 0) {
             fprintf(logfile, "Check SLBs\n");
@@ -973,7 +973,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
             sdr = env->sdr1;
             pgidx = (eaddr & page_mask) >> TARGET_PAGE_BITS;
 #if defined(TARGET_PPC64)
-            if (env->mmu_model == POWERPC_MMU_64B) {
+            if (env->mmu_model & POWERPC_MMU_64) {
                 htab_mask = 0x0FFFFFFF >> (28 - (sdr & 0x1F));
                 /* XXX: this is false for 1 TB segments */
                 hash = ((vsid ^ pgidx) << vsid_sh) & vsid_mask;
@@ -1002,7 +1002,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
 #endif
             ctx->pg_addr[1] = get_pgaddr(sdr, sdr_sh, hash, mask);
 #if defined(TARGET_PPC64)
-            if (env->mmu_model == POWERPC_MMU_64B) {
+            if (env->mmu_model & POWERPC_MMU_64) {
                 /* Only 5 bits of the page index are used in the AVPN */
                 ctx->ptem = (vsid << 12) | ((pgidx >> 4) & 0x0F80);
             } else
@@ -1363,6 +1363,7 @@ static always_inline int check_physical (CPUState *env, mmu_ctx_t *ctx,
         ctx->prot |= PAGE_WRITE;
         break;
 #if defined(TARGET_PPC64)
+    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
         /* Real address are 60 bits long */
         ctx->raddr &= 0x0FFFFFFFFFFFFFFFULL;
@@ -1431,6 +1432,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         case POWERPC_MMU_SOFT_6xx:
         case POWERPC_MMU_SOFT_74xx:
 #if defined(TARGET_PPC64)
+        case POWERPC_MMU_620:
         case POWERPC_MMU_64B:
 #endif
             /* Try to find a BAT */
@@ -1539,6 +1541,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 case POWERPC_MMU_32B:
                 case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
+                case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
 #endif
                     env->exception_index = POWERPC_EXCP_ISI;
@@ -1584,8 +1587,14 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if defined(TARGET_PPC64)
             case -5:
                 /* No match in segment table */
-                env->exception_index = POWERPC_EXCP_ISEG;
-                env->error_code = 0;
+                if (env->mmu_model == POWERPC_MMU_620) {
+                    env->exception_index = POWERPC_EXCP_ISI;
+                    /* XXX: this might be incorrect */
+                    env->error_code = 0x40000000;
+                } else {
+                    env->exception_index = POWERPC_EXCP_ISEG;
+                    env->error_code = 0;
+                }
                 break;
 #endif
             }
@@ -1635,6 +1644,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 case POWERPC_MMU_32B:
                 case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
+                case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
 #endif
                     env->exception_index = POWERPC_EXCP_DSI;
@@ -1717,9 +1727,20 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if defined(TARGET_PPC64)
             case -5:
                 /* No match in segment table */
-                env->exception_index = POWERPC_EXCP_DSEG;
-                env->error_code = 0;
-                env->spr[SPR_DAR] = address;
+                if (env->mmu_model == POWERPC_MMU_620) {
+                    env->exception_index = POWERPC_EXCP_DSI;
+                    env->error_code = 0;
+                    env->spr[SPR_DAR] = address;
+                    /* XXX: this might be incorrect */
+                    if (rw == 1)
+                        env->spr[SPR_DSISR] = 0x42000000;
+                    else
+                        env->spr[SPR_DSISR] = 0x40000000;
+                } else {
+                    env->exception_index = POWERPC_EXCP_DSEG;
+                    env->error_code = 0;
+                    env->spr[SPR_DAR] = address;
+                }
                 break;
 #endif
             }
@@ -1956,6 +1977,7 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
+    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
 #endif /* defined(TARGET_PPC64) */
         tlb_flush(env, 1);
@@ -2022,6 +2044,7 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
         tlb_flush_page(env, addr | (0xF << 28));
         break;
 #if defined(TARGET_PPC64)
+    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,
