@@ -2169,8 +2169,9 @@ static always_inline void dump_syscall (CPUState *env)
 {
     fprintf(logfile, "syscall r0=0x" REGX " r3=0x" REGX " r4=0x" REGX
             " r5=0x" REGX " r6=0x" REGX " nip=0x" ADDRX "\n",
-            env->gpr[0], env->gpr[3], env->gpr[4],
-            env->gpr[5], env->gpr[6], env->nip);
+            (target_ulong)env->gpr[0], (target_ulong)env->gpr[3],
+            (target_ulong)env->gpr[4], (target_ulong)env->gpr[5],
+            (target_ulong)env->gpr[6], env->nip);
 }
 
 /* Note that this function should be greatly optimized

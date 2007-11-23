@@ -93,7 +93,8 @@ static int vga_osi_call (CPUState *env)
         /* R6 = x, R7 = y, R8 = visible, R9 = data */
         break;
     default:
-        fprintf(stderr, "unsupported OSI call R5=" REGX "\n", env->gpr[5]);
+        fprintf(stderr, "unsupported OSI call R5=" REGX "\n",
+                (target_ulong)env->gpr[5]);
         break;
     }
 

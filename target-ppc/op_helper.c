@@ -2920,7 +2920,8 @@ void do_4xx_tlbwe_hi (void)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__,
+                (target_ulong)T0, (target_ulong)T1);
     }
 #endif
     T0 &= 0x3F;
@@ -2989,7 +2990,8 @@ void do_4xx_tlbwe_lo (void)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__,
+                (targt_ulong)T0, (target_ulong)T1);
     }
 #endif
     T0 &= 0x3F;
@@ -3023,7 +3025,7 @@ void do_440_tlbwe (int word)
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
         fprintf(logfile, "%s word %d T0 " REGX " T1 " REGX "\n",
-                __func__, word, T0, T1);
+                __func__, word, (target_ulong)T0, (target_ulong)T1);
     }
 #endif
     do_flush_tlbs = 0;
