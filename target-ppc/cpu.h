@@ -30,6 +30,7 @@
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
 #define TARGET_LONG_BITS 64
+#define REGX "%016" PRIx64
 #define TARGET_PAGE_BITS 12
 
 #else /* defined (TARGET_PPC64) */
@@ -42,9 +43,11 @@ typedef uint64_t ppc_gpr_t;
  */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
+#define REGX "%08" PRIx64
 #else /* (HOST_LONG_BITS >= 64) */
 typedef uint32_t ppc_gpr_t;
 #define TARGET_GPR_BITS  32
+#define REGX "%08" PRIx32
 #endif /* (HOST_LONG_BITS >= 64) */
 
 #define TARGET_LONG_BITS 32
@@ -68,10 +71,6 @@ typedef uint32_t ppc_gpr_t;
 #endif /* defined(TARGET_PPCEMB) */
 
 #endif /* defined (TARGET_PPC64) */
-
-/* A ppc_gpr_t should not be printed directly as the high bits may be
-   garbage.  It should always be cast to a target_ulong first.  */
-#define REGX TARGET_FMT_lx
 
 #include "cpu-defs.h"
 
