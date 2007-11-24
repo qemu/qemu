@@ -638,7 +638,7 @@ static void gic_reset(gic_state *s)
         s->cpu_enabled[i] = 0;
 #endif
     }
-    for (i = 0; i < 15; i++) {
+    for (i = 0; i < 16; i++) {
         GIC_SET_ENABLED(i);
         GIC_SET_TRIGGER(i);
     }

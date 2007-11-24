@@ -42,10 +42,6 @@ typedef const struct {
 
 /* General purpose timer module.  */
 
-/* Multiplication factor to convert from GPTM timer ticks to qemu timer
-   ticks.  */
-static int stellaris_clock_scale;
-
 typedef struct gptm_state {
     uint32_t config;
     uint32_t mode[2];
@@ -90,7 +86,7 @@ static void gptm_reload(gptm_state *s, int n, int reset)
         /* 32-bit CountDown.  */
         uint32_t count;
         count = s->load[0] | (s->load[1] << 16);
-        tick += (int64_t)count * stellaris_clock_scale;
+        tick += (int64_t)count * system_clock_scale;
     } else if (s->config == 1) {
         /* 32-bit RTC.  1Hz tick.  */
         tick += ticks_per_sec;
@@ -480,7 +476,7 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
             s->int_status |= (1 << 6);
         }
         s->rcc = value;
-        stellaris_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
+        system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
         break;
     case 0x100: /* RCGC0 */
         s->rcgc[0] = value;
