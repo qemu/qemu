@@ -30,6 +30,7 @@ extern int loglevel;
 extern FILE *logfile;
 
 //#define DEBUG_MMIO
+//#define DEBUG_UNASSIGNED
 #define DEBUG_UIC
 
 /*****************************************************************************/
@@ -136,8 +137,8 @@ static void mmio_writelen (ppc4xx_mmio_t *mmio,
 
     idx = MMIO_IDX(addr - mmio->base);
 #if defined(DEBUG_MMIO)
-    printf("%s: mmio %p len %d addr " PADDRX " idx %d value %08x\n", __func__,
-           mmio, len, addr, idx, value);
+    printf("%s: mmio %p len %d addr " PADDRX " idx %d value %08" PRIx32 "\n",
+           __func__, mmio, len, addr, idx, value);
 #endif
     mem_write = mmio->mem_write[idx];
     (*mem_write[len])(mmio->opaque[idx], addr - mmio->base, value);
@@ -156,7 +157,7 @@ static void mmio_writeb (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #if defined(DEBUG_MMIO)
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     mmio_writelen(opaque, addr, value, 0);
 }
@@ -174,7 +175,7 @@ static void mmio_writew (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #if defined(DEBUG_MMIO)
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     mmio_writelen(opaque, addr, value, 1);
 }
@@ -192,7 +193,7 @@ static void mmio_writel (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #if defined(DEBUG_MMIO)
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     mmio_writelen(opaque, addr, value, 2);
 }
@@ -214,7 +215,7 @@ int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
                           CPUReadMemoryFunc **mem_read,
                           CPUWriteMemoryFunc **mem_write, void *opaque)
 {
-    uint32_t end;
+    target_phys_addr_t end;
     int idx, eidx;
 
     if ((offset + len) > TARGET_PAGE_SIZE)
@@ -223,8 +224,8 @@ int ppc4xx_mmio_register (CPUState *env, ppc4xx_mmio_t *mmio,
     end = offset + len - 1;
     eidx = MMIO_IDX(end);
 #if defined(DEBUG_MMIO)
-    printf("%s: offset %08x len %08x %08x %d %d\n", __func__, offset, len,
-           end, idx, eidx);
+    printf("%s: offset " PADDRX " len %08" PRIx32 " " PADDRX " %d %d\n",
+           __func__, offset, len, end, idx, eidx);
 #endif
     for (; idx <= eidx; idx++) {
         mmio->mem_read[idx] = mem_read;
@@ -245,8 +246,8 @@ ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, target_phys_addr_t base)
         mmio->base = base;
         mmio_memory = cpu_register_io_memory(0, mmio_read, mmio_write, mmio);
 #if defined(DEBUG_MMIO)
-        printf("%s: %p base %08x len %08x %d\n", __func__,
-               mmio, base, TARGET_PAGE_SIZE, mmio_memory);
+        printf("%s: base " PADDRX " len %08x %d\n", __func__,
+               base, TARGET_PAGE_SIZE, mmio_memory);
 #endif
         cpu_register_physical_memory(base, TARGET_PAGE_SIZE, mmio_memory);
         ppc4xx_mmio_register(env, mmio, 0, TARGET_PAGE_SIZE,
@@ -297,9 +298,10 @@ static void ppcuic_trigger_irq (ppcuic_t *uic)
     cr = uic->uicsr & uic->uicer & uic->uiccr;
 #ifdef DEBUG_UIC
     if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: uicsr %08x uicer %08x uiccr %08x\n"
-                "   %08x ir %08x cr %08x\n", __func__,
-                uic->uicsr, uic->uicer, uic->uiccr,
+        fprintf(logfile, "%s: uicsr %08" PRIx32 " uicer %08" PRIx32
+                " uiccr %08" PRIx32 "\n"
+                "   %08" PRIx32 " ir %08" PRIx32 " cr %08" PRIx32 "\n",
+                __func__, uic->uicsr, uic->uicer, uic->uiccr,
                 uic->uicsr & uic->uicer, ir, cr);
     }
 #endif
@@ -342,8 +344,8 @@ static void ppcuic_trigger_irq (ppcuic_t *uic)
         }
 #ifdef DEBUG_UIC
         if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "Raise UIC critical interrupt - vector %08x\n",
-                    uic->uicvr);
+            fprintf(logfile, "Raise UIC critical interrupt - "
+                    "vector %08" PRIx32 "\n", uic->uicvr);
         }
 #endif
     } else {
@@ -366,8 +368,9 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
     mask = 1 << irq_num;
 #ifdef DEBUG_UIC
     if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: irq %d level %d uicsr %08x mask %08x => %08x "
-                "%08x\n", __func__, irq_num, level,
+        fprintf(logfile, "%s: irq %d level %d uicsr %08" PRIx32
+                " mask %08" PRIx32 " => %08" PRIx32 " %08" PRIx32 "\n",
+                __func__, irq_num, level,
                 uic->uicsr, mask, uic->uicsr & mask, level << irq_num);
     }
 #endif
@@ -392,8 +395,8 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
     }
 #ifdef DEBUG_UIC
     if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: irq %d level %d sr %08x => %08x\n", __func__,
-                irq_num, level, uic->uicsr, sr);
+        fprintf(logfile, "%s: irq %d level %d sr %" PRIx32 " => "
+                "%08" PRIx32 "\n", __func__, irq_num, level, uic->uicsr, sr);
     }
 #endif
     if (sr != uic->uicsr)
