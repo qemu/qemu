@@ -67,12 +67,16 @@ struct sd_request_s {
 
 typedef struct SDState SDState;
 
-SDState *sd_init(BlockDriverState *bs);
+SDState *sd_init(BlockDriverState *bs, int is_spi);
 int sd_do_command(SDState *sd, struct sd_request_s *req,
                   uint8_t *response);
 void sd_write_data(SDState *sd, uint8_t value);
 uint8_t sd_read_data(SDState *sd);
 void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert);
 int sd_data_ready(SDState *sd);
+
+/* ssi-sd.c */
+int ssi_sd_xfer(void *opaque, int val);
+void *ssi_sd_init(BlockDriverState *bs);
 
 #endif	/* __hw_sd_h */

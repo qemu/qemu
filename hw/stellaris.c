@@ -14,6 +14,7 @@
 #include "qemu-timer.h"
 #include "i2c.h"
 #include "net.h"
+#include "sd.h"
 #include "sysemu.h"
 #include "boards.h"
 
@@ -1000,6 +1001,51 @@ static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
     return qi[0];
 }
 
+/* Some boards have both an OLED controller and SD card connected to
+   the same SSI port, with the SD card chip select connected to a
+   GPIO pin.  Technically the OLED chip select is connected to the SSI
+   Fss pin.  We do not bother emulating that as both devices should
+   never be selected simultaneously, and our OLED controller ignores stray
+   0xff commands that occur when deselecting the SD card.  */
+
+typedef struct {
+    ssi_xfer_cb xfer_cb[2];
+    void *opaque[2];
+    qemu_irq irq;
+    int current_dev;
+} stellaris_ssi_bus_state;
+
+static void stellaris_ssi_bus_select(void *opaque, int irq, int level)
+{
+    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
+
+    s->current_dev = level;
+}
+
+static int stellaris_ssi_bus_xfer(void *opaque, int val)
+{
+    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
+
+    return s->xfer_cb[s->current_dev](s->opaque[s->current_dev], val);
+}
+
+static void *stellaris_ssi_bus_init(qemu_irq *irqp,
+                                    ssi_xfer_cb cb0, void *opaque0,
+                                    ssi_xfer_cb cb1, void *opaque1)
+{
+    qemu_irq *qi;
+    stellaris_ssi_bus_state *s;
+
+    s = (stellaris_ssi_bus_state *)qemu_mallocz(sizeof(stellaris_ssi_bus_state));
+    s->xfer_cb[0] = cb0;
+    s->opaque[0] = opaque0;
+    s->xfer_cb[1] = cb1;
+    s->opaque[1] = opaque1;
+    qi = qemu_allocate_irqs(stellaris_ssi_bus_select, s, 1);
+    *irqp = *qi;
+    return s;
+}
+
 /* Board init.  */
 static stellaris_board_info stellaris_boards[] = {
   { "LM3S811EVB",
@@ -1085,9 +1131,19 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     if (board->dc2 & (1 << 4)) {
         if (board->peripherals & BP_OLED_SSI) {
             void * oled;
-            /* FIXME: Implement chip select for OLED/MMC.  */
+            void * sd;
+            void *ssi_bus;
+
             oled = ssd0323_init(ds, &gpio_out[GPIO_C][7]);
-            pl022_init(0x40008000, pic[7], ssd0323_xfer_ssi, oled);
+            sd = ssi_sd_init(sd_bdrv);
+
+            ssi_bus = stellaris_ssi_bus_init(&gpio_out[GPIO_D][0],
+                                             ssi_sd_xfer, sd,
+                                             ssd0323_xfer_ssi, oled);
+
+            pl022_init(0x40008000, pic[7], stellaris_ssi_bus_xfer, ssi_bus);
+            /* Make sure the select pin is high.  */
+            qemu_irq_raise(gpio_out[GPIO_D][0]);
         } else {
             pl022_init(0x40008000, pic[7], NULL, NULL);
         }

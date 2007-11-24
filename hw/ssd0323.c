@@ -157,6 +157,9 @@ int ssd0323_xfer_ssi(void *opaque, int data)
         case 0xe3: /* NOP.  */
             DATA(0);
             break;
+        case 0xff: /* Nasty hack because we don't handle chip selects
+                      properly.  */
+            break;
         default:
             BADF("Unknown command: 0x%x\n", data);
         }

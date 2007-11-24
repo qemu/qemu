@@ -458,7 +458,7 @@ void pl181_init(uint32_t base, BlockDriverState *bd,
                                        pl181_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     s->base = base;
-    s->card = sd_init(bd);
+    s->card = sd_init(bd, 0);
     s->irq[0] = irq0;
     s->irq[1] = irq1;
     qemu_register_reset(pl181_reset, s);
