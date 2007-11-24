@@ -14,7 +14,9 @@
 #include "qemu-timer.h"
 #include "arm-misc.h"
 
-#define GIC_NIRQ 64
+/* 32 internal lines (16 used for system exceptions) plus 64 external
+   interrupt lines.  */
+#define GIC_NIRQ 96
 #define NCPU 1
 #define NVIC 1
 
