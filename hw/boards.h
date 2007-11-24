@@ -78,6 +78,7 @@ extern QEMUMachine palmte_machine;
 
 /* gumstix.c */
 extern QEMUMachine connex_machine;
+extern QEMUMachine verdex_machine;
 
 /* stellaris.c */
 extern QEMUMachine lm3s811evb_machine;
