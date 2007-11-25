@@ -222,6 +222,9 @@ typedef struct CPUSPARCState {
     /* temporary float registers */
     float32 ft0, ft1;
     float64 dt0, dt1;
+#if defined(CONFIG_USER_ONLY)
+    float128 qt0, qt1;
+#endif
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4

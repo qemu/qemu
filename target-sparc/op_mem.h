@@ -85,6 +85,28 @@ void OPPROTO glue(op_lddf, MEMSUFFIX) (void)
     DT0 = glue(ldfq, MEMSUFFIX)(ADDR(T0));
 }
 
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO glue(op_ldqf, MEMSUFFIX) (void)
+{
+    // XXX add 128 bit load
+    CPU_QuadU u;
+
+    u.ll.upper = glue(ldq, MEMSUFFIX)(ADDR(T0));
+    u.ll.lower = glue(ldq, MEMSUFFIX)(ADDR(T0 + 8));
+    QT0 = u.q;
+}
+
+void OPPROTO glue(op_stqf, MEMSUFFIX) (void)
+{
+    // XXX add 128 bit store
+    CPU_QuadU u;
+
+    u.q = QT0;
+    glue(stq, MEMSUFFIX)(ADDR(T0), u.ll.upper);
+    glue(stq, MEMSUFFIX)(ADDR(T0 + 8), u.ll.lower);
+}
+#endif
+
 #ifdef TARGET_SPARC64
 void OPPROTO glue(op_lduw, MEMSUFFIX)(void)
 {

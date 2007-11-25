@@ -212,8 +212,7 @@ Current QEMU limitations:
 
 @item IPC syscalls are missing.
 
-@item 128-bit floating point operations are not supported, though none of the
-real CPUs implement them either.  Floating point exception support is untested.
+@item Floating point exception support is buggy.
 
 @item Atomic instructions are not correctly implemented.
 

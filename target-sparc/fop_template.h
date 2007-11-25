@@ -77,5 +77,52 @@ void OPPROTO glue(op_store_DT1_fpr_fpr, REGNAME)(void)
     *p = u.l.upper;
 }
 
+#if defined(CONFIG_USER_ONLY)
+/* quad floating point registers moves */
+void OPPROTO glue(op_load_fpr_QT0_fpr, REGNAME)(void)
+{
+    CPU_QuadU u;
+    uint32_t *p = (uint32_t *)&REG;
+    u.l.lowest = *(p + 3);
+    u.l.lower = *(p + 2);
+    u.l.upper = *(p + 1);
+    u.l.upmost = *p;
+    QT0 = u.q;
+}
+
+void OPPROTO glue(op_store_QT0_fpr_fpr, REGNAME)(void)
+{
+    CPU_QuadU u;
+    uint32_t *p = (uint32_t *)&REG;
+    u.q = QT0;
+    *(p + 3) = u.l.lowest;
+    *(p + 2) = u.l.lower;
+    *(p + 1) = u.l.upper;
+    *p = u.l.upmost;
+}
+
+void OPPROTO glue(op_load_fpr_QT1_fpr, REGNAME)(void)
+{
+    CPU_QuadU u;
+    uint32_t *p = (uint32_t *)&REG;
+    u.l.lowest = *(p + 3);
+    u.l.lower = *(p + 2);
+    u.l.upper = *(p + 1);
+    u.l.upmost = *p;
+    QT1 = u.q;
+}
+
+void OPPROTO glue(op_store_QT1_fpr_fpr, REGNAME)(void)
+{
+    CPU_QuadU u;
+    uint32_t *p = (uint32_t *)&REG;
+    u.q = QT1;
+    *(p + 3) = u.l.lowest;
+    *(p + 2) = u.l.lower;
+    *(p + 1) = u.l.upper;
+    *p = u.l.upmost;
+}
+#endif
+
 #undef REG
 #undef REGNAME

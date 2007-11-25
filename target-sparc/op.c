@@ -1581,6 +1581,27 @@ void OPPROTO op_clear_ieee_excp_and_FTT(void)
 
 #define F_OP(name, p) void OPPROTO op_f##name##p(void)
 
+#if defined(CONFIG_USER_ONLY)
+#define F_BINOP(name)                                           \
+    F_OP(name, s)                                               \
+    {                                                           \
+        set_float_exception_flags(0, &env->fp_status);          \
+        FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
+        check_ieee_exceptions();                                \
+    }                                                           \
+    F_OP(name, d)                                               \
+    {                                                           \
+        set_float_exception_flags(0, &env->fp_status);          \
+        DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
+        check_ieee_exceptions();                                \
+    }                                                           \
+    F_OP(name, q)                                               \
+    {                                                           \
+        set_float_exception_flags(0, &env->fp_status);          \
+        QT0 = float128_ ## name (QT0, QT1, &env->fp_status);    \
+        check_ieee_exceptions();                                \
+    }
+#else
 #define F_BINOP(name)                                           \
     F_OP(name, s)                                               \
     {                                                           \
@@ -1594,6 +1615,7 @@ void OPPROTO op_clear_ieee_excp_and_FTT(void)
         DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
         check_ieee_exceptions();                                \
     }
+#endif
 
 F_BINOP(add);
 F_BINOP(sub);
@@ -1610,6 +1632,32 @@ void OPPROTO op_fsmuld(void)
     check_ieee_exceptions();
 }
 
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO op_fdmulq(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    QT0 = float128_mul(float64_to_float128(DT0, &env->fp_status),
+                       float64_to_float128(DT1, &env->fp_status),
+                       &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
+
+#if defined(CONFIG_USER_ONLY)
+#define F_HELPER(name)    \
+    F_OP(name, s)         \
+    {                     \
+        do_f##name##s();  \
+    }                     \
+    F_OP(name, d)         \
+    {                     \
+        do_f##name##d();  \
+    }                     \
+    F_OP(name, q)         \
+    {                     \
+        do_f##name##q();  \
+    }
+#else
 #define F_HELPER(name)    \
     F_OP(name, s)         \
     {                     \
@@ -1619,6 +1667,7 @@ void OPPROTO op_fsmuld(void)
     {                     \
         do_f##name##d();  \
     }
+#endif
 
 F_HELPER(sqrt);
 
@@ -1645,6 +1694,18 @@ F_OP(abs, d)
 {
     do_fabsd();
 }
+
+#if defined(CONFIG_USER_ONLY)
+F_OP(neg, q)
+{
+    QT0 = float128_chs(QT1);
+}
+
+F_OP(abs, q)
+{
+    do_fabsd();
+}
+#endif
 
 void OPPROTO op_fcmps_fcc1(void)
 {
@@ -1706,6 +1767,38 @@ void OPPROTO op_fcmped_fcc3(void)
     do_fcmped_fcc3();
 }
 
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO op_fcmpq_fcc1(void)
+{
+    do_fcmpq_fcc1();
+}
+
+void OPPROTO op_fcmpq_fcc2(void)
+{
+    do_fcmpq_fcc2();
+}
+
+void OPPROTO op_fcmpq_fcc3(void)
+{
+    do_fcmpq_fcc3();
+}
+
+void OPPROTO op_fcmpeq_fcc1(void)
+{
+    do_fcmpeq_fcc1();
+}
+
+void OPPROTO op_fcmpeq_fcc2(void)
+{
+    do_fcmpeq_fcc2();
+}
+
+void OPPROTO op_fcmpeq_fcc3(void)
+{
+    do_fcmpeq_fcc3();
+}
+#endif
+
 #endif
 
 /* Integer to float conversion.  */
@@ -1729,6 +1822,15 @@ F_OP(ito, d)
     check_ieee_exceptions();
 }
 
+#if defined(CONFIG_USER_ONLY)
+F_OP(ito, q)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    QT0 = int32_to_float128(*((int32_t *)&FT1), &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
+
 #ifdef TARGET_SPARC64
 F_OP(xto, s)
 {
@@ -1743,6 +1845,14 @@ F_OP(xto, d)
     DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
     check_ieee_exceptions();
 }
+#if defined(CONFIG_USER_ONLY)
+F_OP(xto, q)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    QT0 = int64_to_float128(*((int64_t *)&DT1), &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
 #endif
 #endif
 #undef F_HELPER
@@ -1762,6 +1872,36 @@ void OPPROTO op_fstod(void)
     check_ieee_exceptions();
 }
 
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO op_fqtos(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    FT0 = float128_to_float32(QT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+
+void OPPROTO op_fstoq(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    QT0 = float32_to_float128(FT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+
+void OPPROTO op_fqtod(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    DT0 = float128_to_float64(QT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+
+void OPPROTO op_fdtoq(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    QT0 = float64_to_float128(DT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
+
 /* Float to integer conversion.  */
 void OPPROTO op_fstoi(void)
 {
@@ -1776,6 +1916,15 @@ void OPPROTO op_fdtoi(void)
     *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
     check_ieee_exceptions();
 }
+
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO op_fqtoi(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    *((int32_t *)&FT0) = float128_to_int32_round_to_zero(QT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
 
 #ifdef TARGET_SPARC64
 void OPPROTO op_fstox(void)
@@ -1792,6 +1941,15 @@ void OPPROTO op_fdtox(void)
     check_ieee_exceptions();
 }
 
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO op_fqtox(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    *((int64_t *)&DT0) = float128_to_int64_round_to_zero(QT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
+
 void OPPROTO op_fmovs_cc(void)
 {
     if (T2)
@@ -1803,6 +1961,14 @@ void OPPROTO op_fmovd_cc(void)
     if (T2)
         DT0 = DT1;
 }
+
+#if defined(CONFIG_USER_ONLY)
+void OPPROTO op_fmovq_cc(void)
+{
+    if (T2)
+        QT0 = QT1;
+}
+#endif
 
 void OPPROTO op_mov_cc(void)
 {
