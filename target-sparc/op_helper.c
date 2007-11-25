@@ -248,11 +248,15 @@ void helper_ld_asi(int asi, int size, int sign)
         break;
     case 4: /* read MMU regs */
         {
-            int reg = (T0 >> 8) & 0xf;
+            int reg = (T0 >> 8) & 0x1f;
 
             ret = env->mmuregs[reg];
             if (reg == 3) /* Fault status cleared on read */
-                env->mmuregs[reg] = 0;
+                env->mmuregs[3] = 0;
+            else if (reg == 0x13) /* Fault status read */
+                ret = env->mmuregs[3];
+            else if (reg == 0x14) /* Fault address read */
+                ret = env->mmuregs[4];
             DPRINTF_MMU("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
         }
         break;
@@ -493,17 +497,18 @@ void helper_st_asi(int asi, int size)
         }
     case 4: /* write MMU regs */
         {
-            int reg = (T0 >> 8) & 0xf;
+            int reg = (T0 >> 8) & 0x1f;
             uint32_t oldreg;
 
             oldreg = env->mmuregs[reg];
             switch(reg) {
             case 0:
-                env->mmuregs[reg] &= ~(MMU_E | MMU_NF | env->mmu_bm);
-                env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF | env->mmu_bm);
+                env->mmuregs[reg] = (env->mmuregs[reg] & 0xff000000) |
+                                    (T1 & 0x00ffffff);
                 // Mappings generated during no-fault mode or MMU
                 // disabled mode are invalid in normal mode
-                if (oldreg != env->mmuregs[reg])
+                if ((oldreg & (MMU_E | MMU_NF | env->mmu_bm)) !=
+                    (env->mmuregs[reg] & (MMU_E | MMU_NF | env->mmu_bm)))
                     tlb_flush(env, 1);
                 break;
             case 2:
@@ -516,6 +521,12 @@ void helper_st_asi(int asi, int size)
                 break;
             case 3:
             case 4:
+                break;
+            case 0x13:
+                env->mmuregs[3] = T1;
+                break;
+            case 0x14:
+                env->mmuregs[4] = T1;
                 break;
             default:
                 env->mmuregs[reg] = T1;

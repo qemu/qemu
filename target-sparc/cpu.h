@@ -215,7 +215,7 @@ typedef struct CPUSPARCState {
     uint64_t dtlb_tag[64];
     uint64_t dtlb_tte[64];
 #else
-    uint32_t mmuregs[16];
+    uint32_t mmuregs[32];
     uint64_t mxccdata[4];
     uint64_t mxccregs[8];
 #endif
