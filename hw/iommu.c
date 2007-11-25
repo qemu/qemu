@@ -311,6 +311,7 @@ static void iommu_reset(void *opaque)
     s->iostart = 0;
     s->regs[IOMMU_CTRL] = s->version;
     s->regs[IOMMU_ARBEN] = IOMMU_MID;
+    s->regs[IOMMU_AFSR] = 0x00800000;
 }
 
 void *iommu_init(target_phys_addr_t addr, uint32_t version)
