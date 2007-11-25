@@ -7488,6 +7488,7 @@ static void register_machines(void)
     qemu_register_machine(&lm3s6965evb_machine);
     qemu_register_machine(&connex_machine);
     qemu_register_machine(&verdex_machine);
+    qemu_register_machine(&mainstone2_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
     qemu_register_machine(&r2d_machine);

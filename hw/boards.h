@@ -93,4 +93,7 @@ extern QEMUMachine mcf5208evb_machine;
 /* dummy_m68k.c */
 extern QEMUMachine dummy_m68k_machine;
 
+/* mainstone.c */
+extern QEMUMachine mainstone2_machine;
+
 #endif
