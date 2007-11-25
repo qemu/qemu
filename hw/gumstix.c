@@ -39,9 +39,10 @@
 #include "devices.h"
 #include "boards.h"
 
+static const int sector_len = 128 * 1024;
+
 static void connex_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
-                const char **fd_filename, int snapshot,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -64,8 +65,9 @@ static void connex_init(int ram_size, int vga_ram_size,
         exit(1);
     }
 
-    if (!pflash_register(0x00000000, connex_ram + PXA2XX_INTERNAL_SIZE,
-            pflash_table[0], 128 * 1024, 128, 2, 0, 0, 0, 0)) {
+    if (!pflash_register(0x00000000, qemu_ram_alloc(connex_rom),
+            pflash_table[0], sector_len, connex_rom / sector_len,
+            2, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
     }
@@ -93,7 +95,7 @@ static void verdex_init(int ram_size, int vga_ram_size,
         exit(1);
     }
 
-    cpu = pxa270_init(verdex_ram, ds, "pxa270-c0");
+    cpu = pxa270_init(verdex_ram, ds, cpu_model ?: "pxa270-c0");
 
     if (pflash_table[0] == NULL) {
         fprintf(stderr, "A flash image must be given with the "
@@ -101,8 +103,9 @@ static void verdex_init(int ram_size, int vga_ram_size,
         exit(1);
     }
 
-    if (!pflash_register(0x00000000, verdex_ram + PXA2XX_INTERNAL_SIZE,
-            pflash_table[0], 128 * 1024, 256, 2, 0, 0, 0, 0)) {
+    if (!pflash_register(0x00000000, qemu_ram_alloc(verdex_rom),
+            pflash_table[0], sector_len, verdex_rom / sector_len,
+            2, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
     }
