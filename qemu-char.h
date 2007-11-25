@@ -40,6 +40,7 @@ struct CharDriverState {
     void *handler_opaque;
     void (*chr_send_event)(struct CharDriverState *chr, int event);
     void (*chr_close)(struct CharDriverState *chr);
+    void (*chr_accept_input)(struct CharDriverState *chr);
     void *opaque;
     int focus;
     QEMUBH *bh;
@@ -59,6 +60,7 @@ int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
 void qemu_chr_reset(CharDriverState *s);
 int qemu_chr_can_read(CharDriverState *s);
 void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
+void qemu_chr_accept_input(CharDriverState *s);
 
 /* async I/O support */
 
