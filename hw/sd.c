@@ -397,7 +397,7 @@ static void sd_cardchange(void *opaque)
 }
 
 /* We do not model the chip select pin, so allow the board to select
-   whether card should be in SSI ot MMC/SD mode.  It is also up to the
+   whether card should be in SSI or MMC/SD mode.  It is also up to the
    board to ensure that ssi transfers only occur when the chip select
    is asserted.  */
 SDState *sd_init(BlockDriverState *bs, int is_spi)

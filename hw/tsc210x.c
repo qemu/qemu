@@ -130,9 +130,10 @@ static const uint16_t mode_regs[16] = {
 #define Y_TRANSFORM(value)		\
     ((150 + ((int) (value) * (3037 - 150) / 32768)) << 4)
 #define Z1_TRANSFORM(s)			\
-    ((400 - (s)->x + ((s)->pressure << 9)) << 4)
+    ((400 - ((s)->x >> 7) + ((s)->pressure << 10)) << 4)
 #define Z2_TRANSFORM(s)			\
-    ((4000 + (s)->y - ((s)->pressure << 10)) << 4)
+    ((4000 + ((s)->y >> 7) - ((s)->pressure << 10)) << 4)
+
 #define BAT1_VAL			0x8660
 #define BAT2_VAL			0x0000
 #define AUX1_VAL			0x35c0
@@ -367,7 +368,8 @@ static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
 
     case 0x05:	/* BAT1 */
         s->dav &= 0xffbf;
-        return TSC_CUT_RESOLUTION(BAT1_VAL, s->precision);
+        return TSC_CUT_RESOLUTION(BAT1_VAL, s->precision) +
+                (s->noise & 6);
 
     case 0x06:	/* BAT2 */
         s->dav &= 0xffdf;
@@ -383,11 +385,13 @@ static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
 
     case 0x09:	/* TEMP1 */
         s->dav &= 0xfffb;
-        return TSC_CUT_RESOLUTION(TEMP1_VAL, s->precision);
+        return TSC_CUT_RESOLUTION(TEMP1_VAL, s->precision) -
+                (s->noise & 5);
 
     case 0x0a:	/* TEMP2 */
         s->dav &= 0xfffd;
-        return TSC_CUT_RESOLUTION(TEMP2_VAL, s->precision);
+        return TSC_CUT_RESOLUTION(TEMP2_VAL, s->precision) ^
+                (s->noise & 3);
 
     case 0x0b:	/* DAC */
         s->dav &= 0xfffe;
