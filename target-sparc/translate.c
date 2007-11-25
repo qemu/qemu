@@ -440,11 +440,10 @@ static inline void gen_st_asi(int insn, int size)
     }
 }
 
-static inline void gen_ldf_asi(int insn, int size)
+static inline void gen_ldf_asi(int insn, int size, int rd)
 {
-    int asi, offset, rd;
+    int asi, offset;
 
-    rd = DFPREG(GET_FIELD(insn, 2, 6));
     if (IS_IMM) {
         offset = GET_FIELD(insn, 25, 31);
         gen_op_ldf_asi_reg(offset, size, rd);
@@ -454,11 +453,10 @@ static inline void gen_ldf_asi(int insn, int size)
     }
 }
 
-static inline void gen_stf_asi(int insn, int size)
+static inline void gen_stf_asi(int insn, int size, int rd)
 {
-    int asi, offset, rd;
+    int asi, offset;
 
-    rd = DFPREG(GET_FIELD(insn, 2, 6));
     if (IS_IMM) {
         offset = GET_FIELD(insn, 25, 31);
         gen_op_stf_asi_reg(offset, size, rd);
@@ -1571,7 +1569,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_op_load_fpr_DT0(DFPREG(rs1));
                         gen_op_load_fpr_DT1(DFPREG(rs2));
                         gen_op_fmuld();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x4b: /* fmulq */
 #if defined(CONFIG_USER_ONLY)
@@ -1692,7 +1690,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_op_store_FT0_fpr(rd);
                         break;
                     case 0xd2:
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         gen_op_fdtoi();
                         gen_op_store_FT0_fpr(rd);
                         break;
@@ -1812,14 +1810,14 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 } else if ((xop & 0x11f) == 0x006) { // V9 fmovdr
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    gen_op_load_fpr_DT0(rd);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rd));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     flush_T2(dc);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
                     gen_cond_reg(cond);
                     gen_op_fmovs_cc();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 } else if ((xop & 0x11f) == 0x007) { // V9 fmovqr
 #if defined(CONFIG_USER_ONLY)
@@ -1851,12 +1849,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x002: /* V9 fmovdcc %fcc0 */
                         cond = GET_FIELD_SP(insn, 14, 17);
-                        gen_op_load_fpr_DT0(rd);
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT0(DFPREG(rd));
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         flush_T2(dc);
                         gen_fcond[0][cond]();
                         gen_op_fmovd_cc();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x003: /* V9 fmovqcc %fcc0 */
 #if defined(CONFIG_USER_ONLY)
@@ -1882,12 +1880,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x042: /* V9 fmovdcc %fcc1 */
                         cond = GET_FIELD_SP(insn, 14, 17);
-                        gen_op_load_fpr_DT0(rd);
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT0(DFPREG(rd));
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         flush_T2(dc);
                         gen_fcond[1][cond]();
                         gen_op_fmovd_cc();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x043: /* V9 fmovqcc %fcc1 */
 #if defined(CONFIG_USER_ONLY)
@@ -1913,12 +1911,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x082: /* V9 fmovdcc %fcc2 */
                         cond = GET_FIELD_SP(insn, 14, 17);
-                        gen_op_load_fpr_DT0(rd);
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT0(DFPREG(rd));
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         flush_T2(dc);
                         gen_fcond[2][cond]();
                         gen_op_fmovd_cc();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x083: /* V9 fmovqcc %fcc2 */
 #if defined(CONFIG_USER_ONLY)
@@ -1944,12 +1942,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x0c2: /* V9 fmovdcc %fcc3 */
                         cond = GET_FIELD_SP(insn, 14, 17);
-                        gen_op_load_fpr_DT0(rd);
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT0(DFPREG(rd));
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         flush_T2(dc);
                         gen_fcond[3][cond]();
                         gen_op_fmovd_cc();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x0c3: /* V9 fmovqcc %fcc3 */
 #if defined(CONFIG_USER_ONLY)
@@ -1975,12 +1973,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x102: /* V9 fmovdcc %icc */
                         cond = GET_FIELD_SP(insn, 14, 17);
-                        gen_op_load_fpr_DT0(rd);
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT0(DFPREG(rd));
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         flush_T2(dc);
                         gen_cond[0][cond]();
                         gen_op_fmovd_cc();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x103: /* V9 fmovqcc %icc */
 #if defined(CONFIG_USER_ONLY)
@@ -2006,12 +2004,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x182: /* V9 fmovdcc %xcc */
                         cond = GET_FIELD_SP(insn, 14, 17);
-                        gen_op_load_fpr_DT0(rd);
-                        gen_op_load_fpr_DT1(rs2);
+                        gen_op_load_fpr_DT0(DFPREG(rd));
+                        gen_op_load_fpr_DT1(DFPREG(rs2));
                         flush_T2(dc);
                         gen_cond[1][cond]();
                         gen_op_fmovd_cc();
-                        gen_op_store_DT0_fpr(rd);
+                        gen_op_store_DT0_fpr(DFPREG(rd));
                         break;
                     case 0x183: /* V9 fmovqcc %xcc */
 #if defined(CONFIG_USER_ONLY)
@@ -2668,94 +2666,94 @@ static void disas_sparc_insn(DisasContext * dc)
                     // XXX
                     goto illegal_insn;
                 case 0x020: /* VIS I fcmple16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmple16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x022: /* VIS I fcmpne16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmpne16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x024: /* VIS I fcmple32 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmple32();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x026: /* VIS I fcmpne32 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmpne32();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x028: /* VIS I fcmpgt16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmpgt16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x02a: /* VIS I fcmpeq16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmpeq16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x02c: /* VIS I fcmpgt32 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmpgt32();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x02e: /* VIS I fcmpeq32 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fcmpeq32();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x031: /* VIS I fmul8x16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmul8x16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x033: /* VIS I fmul8x16au */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmul8x16au();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x035: /* VIS I fmul8x16al */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmul8x16al();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x036: /* VIS I fmul8sux16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmul8sux16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x037: /* VIS I fmul8ulx16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmul8ulx16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x038: /* VIS I fmuld8sux16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmuld8sux16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x039: /* VIS I fmuld8ulx16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fmuld8ulx16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x03a: /* VIS I fpack32 */
                 case 0x03b: /* VIS I fpack16 */
@@ -2764,31 +2762,31 @@ static void disas_sparc_insn(DisasContext * dc)
                     // XXX
                     goto illegal_insn;
                 case 0x048: /* VIS I faligndata */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_faligndata();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x04b: /* VIS I fpmerge */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fpmerge();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x04c: /* VIS II bshuffle */
                     // XXX
                     goto illegal_insn;
                 case 0x04d: /* VIS I fexpand */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fexpand();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x050: /* VIS I fpadd16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fpadd16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x051: /* VIS I fpadd16s */
                     gen_op_load_fpr_FT0(rs1);
@@ -2797,10 +2795,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x052: /* VIS I fpadd32 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fpadd32();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x053: /* VIS I fpadd32s */
                     gen_op_load_fpr_FT0(rs1);
@@ -2809,10 +2807,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x054: /* VIS I fpsub16 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fpsub16();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x055: /* VIS I fpsub16s */
                     gen_op_load_fpr_FT0(rs1);
@@ -2821,10 +2819,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x056: /* VIS I fpsub32 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fpadd32();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x057: /* VIS I fpsub32s */
                     gen_op_load_fpr_FT0(rs1);
@@ -2834,17 +2832,17 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x060: /* VIS I fzero */
                     gen_op_movl_DT0_0();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x061: /* VIS I fzeros */
                     gen_op_movl_FT0_0();
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x062: /* VIS I fnor */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fnor();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x063: /* VIS I fnors */
                     gen_op_load_fpr_FT0(rs1);
@@ -2853,10 +2851,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x064: /* VIS I fandnot2 */
-                    gen_op_load_fpr_DT1(rs1);
-                    gen_op_load_fpr_DT0(rs2);
+                    gen_op_load_fpr_DT1(DFPREG(rs1));
+                    gen_op_load_fpr_DT0(DFPREG(rs2));
                     gen_op_fandnot();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x065: /* VIS I fandnot2s */
                     gen_op_load_fpr_FT1(rs1);
@@ -2865,9 +2863,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x066: /* VIS I fnot2 */
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fnot();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x067: /* VIS I fnot2s */
                     gen_op_load_fpr_FT1(rs2);
@@ -2875,10 +2873,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x068: /* VIS I fandnot1 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fandnot();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x069: /* VIS I fandnot1s */
                     gen_op_load_fpr_FT0(rs1);
@@ -2887,9 +2885,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x06a: /* VIS I fnot1 */
-                    gen_op_load_fpr_DT1(rs1);
+                    gen_op_load_fpr_DT1(DFPREG(rs1));
                     gen_op_fnot();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x06b: /* VIS I fnot1s */
                     gen_op_load_fpr_FT1(rs1);
@@ -2897,10 +2895,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x06c: /* VIS I fxor */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fxor();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x06d: /* VIS I fxors */
                     gen_op_load_fpr_FT0(rs1);
@@ -2909,10 +2907,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x06e: /* VIS I fnand */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fnand();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x06f: /* VIS I fnands */
                     gen_op_load_fpr_FT0(rs1);
@@ -2921,10 +2919,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x070: /* VIS I fand */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fand();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x071: /* VIS I fands */
                     gen_op_load_fpr_FT0(rs1);
@@ -2933,10 +2931,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x072: /* VIS I fxnor */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fxnor();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x073: /* VIS I fxnors */
                     gen_op_load_fpr_FT0(rs1);
@@ -2945,18 +2943,18 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x074: /* VIS I fsrc1 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x075: /* VIS I fsrc1s */
                     gen_op_load_fpr_FT0(rs1);
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x076: /* VIS I fornot2 */
-                    gen_op_load_fpr_DT1(rs1);
-                    gen_op_load_fpr_DT0(rs2);
+                    gen_op_load_fpr_DT1(DFPREG(rs1));
+                    gen_op_load_fpr_DT0(DFPREG(rs2));
                     gen_op_fornot();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x077: /* VIS I fornot2s */
                     gen_op_load_fpr_FT1(rs1);
@@ -2965,18 +2963,18 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x078: /* VIS I fsrc2 */
-                    gen_op_load_fpr_DT0(rs2);
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_load_fpr_DT0(DFPREG(rs2));
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x079: /* VIS I fsrc2s */
                     gen_op_load_fpr_FT0(rs2);
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x07a: /* VIS I fornot1 */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_fornot();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x07b: /* VIS I fornot1s */
                     gen_op_load_fpr_FT0(rs1);
@@ -2985,10 +2983,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_store_FT0_fpr(rd);
                     break;
                 case 0x07c: /* VIS I for */
-                    gen_op_load_fpr_DT0(rs1);
-                    gen_op_load_fpr_DT1(rs2);
+                    gen_op_load_fpr_DT0(DFPREG(rs1));
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_for();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x07d: /* VIS I fors */
                     gen_op_load_fpr_FT0(rs1);
@@ -2998,7 +2996,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x07e: /* VIS I fone */
                     gen_op_movl_DT0_1();
-                    gen_op_store_DT0_fpr(rd);
+                    gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 case 0x07f: /* VIS I fones */
                     gen_op_movl_FT0_1();
@@ -3339,18 +3337,18 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto skip_move;
                 case 0x30: /* V9 ldfa */
                     gen_op_check_align_T0_3();
-                    gen_ldf_asi(insn, 4);
+                    gen_ldf_asi(insn, 4, rd);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
                     gen_op_check_align_T0_3();
-                    gen_ldf_asi(insn, 8);
+                    gen_ldf_asi(insn, 8, DFPREG(rd));
                     goto skip_move;
                 case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
                 case 0x32: /* V9 ldqfa */
 #if defined(CONFIG_USER_ONLY)
                     gen_op_check_align_T0_3();
-                    gen_ldf_asi(insn, 16);
+                    gen_ldf_asi(insn, 16, QFPREG(rd));
                     goto skip_move;
 #else
                     goto nfpu_insn;
@@ -3528,13 +3526,13 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x34: /* V9 stfa */
                     gen_op_check_align_T0_3();
                     gen_op_load_fpr_FT0(rd);
-                    gen_stf_asi(insn, 4);
+                    gen_stf_asi(insn, 4, rd);
                     break;
                 case 0x36: /* V9 stqfa */
 #if defined(CONFIG_USER_ONLY)
                     gen_op_check_align_T0_7();
                     gen_op_load_fpr_QT0(QFPREG(rd));
-                    gen_stf_asi(insn, 16);
+                    gen_stf_asi(insn, 16, QFPREG(rd));
                     break;
 #else
                     goto nfpu_insn;
@@ -3542,7 +3540,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x37: /* V9 stdfa */
                     gen_op_check_align_T0_3();
                     gen_op_load_fpr_DT0(DFPREG(rd));
-                    gen_stf_asi(insn, 8);
+                    gen_stf_asi(insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */
                     gen_op_check_align_T0_3();
