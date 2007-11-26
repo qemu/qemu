@@ -24,6 +24,7 @@
 
 #include "hw.h"
 #include "pc.h"
+#include "fdc.h"
 #include "net.h"
 #include "boards.h"
 #include "smbus.h"
@@ -767,7 +768,7 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     PCIBus *pci_bus;
     CPUState *env;
     RTCState *rtc_state;
-    /* fdctrl_t *floppy_controller; */
+    fdctrl_t *floppy_controller;
     MaltaFPGAState *malta_fpga;
     int ret;
     qemu_irq *i8259;
@@ -882,9 +883,7 @@ void mips_malta_init (int ram_size, int vga_ram_size,
         serial_init(0x2f8, i8259[3], serial_hds[1]);
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
-    /* XXX: The floppy controller does not work correctly, something is
-       probably wrong.
-    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table); */
+    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
 
     /* Sound card */
 #ifdef HAS_AUDIO
