@@ -8328,12 +8328,14 @@ int main(int argc, char **argv)
     net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
 
     /* XXX: this should not be: some embedded targets just have flash */
+#if !defined(TARGET_MIPS)
     if (!linux_boot && net_boot == 0 &&
         hd_filename[0] == NULL &&
         (cdrom_index >= 0 && hd_filename[cdrom_index] == NULL) &&
         fd_filename[0] == NULL &&
         pflash_filename[0] == NULL)
         help(1);
+#endif
 
     /* boot to floppy or the default cd if no hard disk defined yet */
     if (!boot_devices[0]) {
