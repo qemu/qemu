@@ -40,7 +40,7 @@ extern FILE *logfile;
 #define DEBUG_GPT
 #define DEBUG_MAL
 #define DEBUG_CLOCKS
-//#define DEBUG_UNASSIGNED
+//#define DEBUG_CLOCKS_LL
 
 ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
                                 uint32_t flags)
@@ -298,7 +298,7 @@ static void opba_writeb (void *opaque,
     ppc4xx_opba_t *opba;
 
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     opba = opaque;
     switch (addr - opba->base) {
@@ -330,7 +330,7 @@ static void opba_writew (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     opba_writeb(opaque, addr, value >> 8);
     opba_writeb(opaque, addr + 1, value);
@@ -353,7 +353,7 @@ static void opba_writel (void *opaque,
                          target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_OPBA
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     opba_writeb(opaque, addr, value >> 24);
     opba_writeb(opaque, addr + 1, value >> 16);
@@ -389,7 +389,7 @@ void ppc4xx_opba_init (CPUState *env, ppc4xx_mmio_t *mmio,
     if (opba != NULL) {
         opba->base = offset;
 #ifdef DEBUG_OPBA
-        printf("%s: offset=" PADDRX "\n", __func__, offset);
+        printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
         ppc4xx_mmio_register(env, mmio, offset, 0x002,
                              opba_read, opba_write, opba);
@@ -429,6 +429,10 @@ enum {
     SDRAM0_CFGDATA = 0x011,
 };
 
+/* XXX: TOFIX: some patches have made this code become inconsistent:
+ *      there are type inconsistencies, mixing target_phys_addr_t, target_ulong
+ *      and uint32_t
+ */
 static uint32_t sdram_bcr (target_phys_addr_t ram_base,
                            target_phys_addr_t ram_size)
 {
@@ -457,8 +461,7 @@ static uint32_t sdram_bcr (target_phys_addr_t ram_base,
         bcr = 0x000C0000;
         break;
     default:
-        printf("%s: invalid RAM size " TARGET_FMT_plx "\n",
-               __func__, ram_size);
+        printf("%s: invalid RAM size " PADDRX "\n", __func__, ram_size);
         return 0x00000000;
     }
     bcr |= ram_base & 0xFF800000;
@@ -491,7 +494,7 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     if (*bcrp & 0x00000001) {
         /* Unmap RAM */
 #ifdef DEBUG_SDRAM
-        printf("%s: unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
+        printf("%s: unmap RAM area " PADDRX " " ADDRX "\n",
                __func__, sdram_base(*bcrp), sdram_size(*bcrp));
 #endif
         cpu_register_physical_memory(sdram_base(*bcrp), sdram_size(*bcrp),
@@ -500,7 +503,7 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
     *bcrp = bcr & 0xFFDEE001;
     if (enabled && (bcr & 0x00000001)) {
 #ifdef DEBUG_SDRAM
-        printf("%s: Map RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
+        printf("%s: Map RAM area " PADDRX " " ADDRX "\n",
                __func__, sdram_base(bcr), sdram_size(bcr));
 #endif
         cpu_register_physical_memory(sdram_base(bcr), sdram_size(bcr),
@@ -529,7 +532,7 @@ static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
 
     for (i = 0; i < sdram->nbanks; i++) {
 #ifdef DEBUG_SDRAM
-        printf("%s: Unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
+        printf("%s: Unmap RAM area " PADDRX " " ADDRX "\n",
                __func__, sdram_base(sdram->bcr[i]), sdram_size(sdram->bcr[i]));
 #endif
         cpu_register_physical_memory(sdram_base(sdram->bcr[i]),
@@ -1110,7 +1113,7 @@ static void ppc405_gpio_writeb (void *opaque,
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
 }
 
@@ -1133,7 +1136,7 @@ static void ppc405_gpio_writew (void *opaque,
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
 }
 
@@ -1156,7 +1159,7 @@ static void ppc405_gpio_writel (void *opaque,
 
     gpio = opaque;
 #ifdef DEBUG_GPIO
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
 }
 
@@ -1190,7 +1193,7 @@ void ppc405_gpio_init (CPUState *env, ppc4xx_mmio_t *mmio,
         ppc405_gpio_reset(gpio);
         qemu_register_reset(&ppc405_gpio_reset, gpio);
 #ifdef DEBUG_GPIO
-        printf("%s: offset=" PADDRX "\n", __func__, offset);
+        printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
         ppc4xx_mmio_register(env, mmio, offset, 0x038,
                              ppc405_gpio_read, ppc405_gpio_write, gpio);
@@ -1218,7 +1221,7 @@ void ppc405_serial_init (CPUState *env, ppc4xx_mmio_t *mmio,
     void *serial;
 
 #ifdef DEBUG_SERIAL
-    printf("%s: offset=" PADDRX "\n", __func__, offset);
+    printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
     serial = serial_mm_init(offset, 0, irq, chr, 0);
     ppc4xx_mmio_register(env, mmio, offset, 0x008,
@@ -1248,7 +1251,9 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
                                  uint32_t dsarc, uint32_t dsacntl)
 {
 #ifdef DEBUG_OCM
-    printf("OCM update ISA %08x %08x (%08x %08x) DSA %08x %08x (%08x %08x)\n",
+    printf("OCM update ISA %08" PRIx32 " %08" PRIx32 " (%08" PRIx32
+           " %08" PRIx32 ") DSA %08" PRIx32 " %08" PRIx32
+           " (%08" PRIx32 " %08" PRIx32 ")\n",
            isarc, isacntl, dsarc, dsacntl,
            ocm->isarc, ocm->isacntl, ocm->dsarc, ocm->dsacntl);
 #endif
@@ -1256,14 +1261,14 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
         (ocm->isacntl & 0x80000000) != (isacntl & 0x80000000)) {
         if (ocm->isacntl & 0x80000000) {
             /* Unmap previously assigned memory region */
-            printf("OCM unmap ISA %08x\n", ocm->isarc);
+            printf("OCM unmap ISA %08" PRIx32 "\n", ocm->isarc);
             cpu_register_physical_memory(ocm->isarc, 0x04000000,
                                          IO_MEM_UNASSIGNED);
         }
         if (isacntl & 0x80000000) {
             /* Map new instruction memory region */
 #ifdef DEBUG_OCM
-            printf("OCM map ISA %08x\n", isarc);
+            printf("OCM map ISA %08" PRIx32 "\n", isarc);
 #endif
             cpu_register_physical_memory(isarc, 0x04000000,
                                          ocm->offset | IO_MEM_RAM);
@@ -1276,7 +1281,7 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
             if (!(isacntl & 0x80000000) || ocm->dsarc != isarc) {
                 /* Unmap previously assigned memory region */
 #ifdef DEBUG_OCM
-                printf("OCM unmap DSA %08x\n", ocm->dsarc);
+                printf("OCM unmap DSA %08" PRIx32 "\n", ocm->dsarc);
 #endif
                 cpu_register_physical_memory(ocm->dsarc, 0x04000000,
                                              IO_MEM_UNASSIGNED);
@@ -1287,7 +1292,7 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
             if (!(isacntl & 0x80000000) || dsarc != isarc) {
                 /* Map new data memory region */
 #ifdef DEBUG_OCM
-                printf("OCM map DSA %08x\n", dsarc);
+                printf("OCM map DSA %08" PRIx32 "\n", dsarc);
 #endif
                 cpu_register_physical_memory(dsarc, 0x04000000,
                                              ocm->offset | IO_MEM_RAM);
@@ -1475,7 +1480,7 @@ static uint32_t ppc4xx_i2c_readb (void *opaque, target_phys_addr_t addr)
         break;
     }
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " %02x\n", __func__, addr, ret);
+    printf("%s: addr " PADDRX " %02" PRIx32 "\n", __func__, addr, ret);
 #endif
 
     return ret;
@@ -1487,7 +1492,7 @@ static void ppc4xx_i2c_writeb (void *opaque,
     ppc4xx_i2c_t *i2c;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     i2c = opaque;
     switch (addr - i2c->base) {
@@ -1557,7 +1562,7 @@ static void ppc4xx_i2c_writew (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     ppc4xx_i2c_writeb(opaque, addr, value >> 8);
     ppc4xx_i2c_writeb(opaque, addr + 1, value);
@@ -1582,7 +1587,7 @@ static void ppc4xx_i2c_writel (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     ppc4xx_i2c_writeb(opaque, addr, value >> 24);
     ppc4xx_i2c_writeb(opaque, addr + 1, value >> 16);
@@ -1629,7 +1634,7 @@ void ppc405_i2c_init (CPUState *env, ppc4xx_mmio_t *mmio,
         i2c->irq = irq;
         ppc4xx_i2c_reset(i2c);
 #ifdef DEBUG_I2C
-        printf("%s: offset=" PADDRX "\n", __func__, offset);
+        printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
         ppc4xx_mmio_register(env, mmio, offset, 0x011,
                              i2c_read, i2c_write, i2c);
@@ -1668,7 +1673,7 @@ static void ppc4xx_gpt_writeb (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     /* XXX: generate a bus fault */
 }
@@ -1686,7 +1691,7 @@ static void ppc4xx_gpt_writew (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     /* XXX: generate a bus fault */
 }
@@ -1805,7 +1810,7 @@ static void ppc4xx_gpt_writel (void *opaque,
     int idx;
 
 #ifdef DEBUG_I2C
-    printf("%s: addr " PADDRX " val %08x\n", __func__, addr, value);
+    printf("%s: addr " PADDRX " val %08" PRIx32 "\n", __func__, addr, value);
 #endif
     gpt = opaque;
     switch (addr - gpt->base) {
@@ -1913,7 +1918,7 @@ void ppc4xx_gpt_init (CPUState *env, ppc4xx_mmio_t *mmio,
         gpt->timer = qemu_new_timer(vm_clock, &ppc4xx_gpt_cb, gpt);
         ppc4xx_gpt_reset(gpt);
 #ifdef DEBUG_GPT
-        printf("%s: offset=" PADDRX "\n", __func__, offset);
+        printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
         ppc4xx_mmio_register(env, mmio, offset, 0x0D4,
                              gpt_read, gpt_write, gpt);
@@ -2656,9 +2661,13 @@ static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
     VCO_out = 0;
     if ((cpc->pllmr[1] & 0x80000000) && !(cpc->pllmr[1] & 0x40000000)) {
         M = (((cpc->pllmr[1] >> 20) - 1) & 0xF) + 1; /* FBMUL */
-        //        printf("FBMUL %01x %d\n", (cpc->pllmr[1] >> 20) & 0xF, M);
+#ifdef DEBUG_CLOCKS_LL
+        printf("FBMUL %01" PRIx32 " %d\n", (cpc->pllmr[1] >> 20) & 0xF, M);
+#endif
         D = 8 - ((cpc->pllmr[1] >> 16) & 0x7); /* FWDA */
-        //        printf("FWDA %01x %d\n", (cpc->pllmr[1] >> 16) & 0x7, D);
+#ifdef DEBUG_CLOCKS_LL
+        printf("FWDA %01" PRIx32 " %d\n", (cpc->pllmr[1] >> 16) & 0x7, D);
+#endif
         VCO_out = cpc->sysclk * M * D;
         if (VCO_out < 500000000UL || VCO_out > 1000000000UL) {
             /* Error - unlock the PLL */
@@ -2683,53 +2692,53 @@ static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
     }
     /* Now, compute all other clocks */
     D = ((cpc->pllmr[0] >> 20) & 0x3) + 1; /* CCDV */
-#ifdef DEBUG_CLOCKS
-    //    printf("CCDV %01x %d\n", (cpc->pllmr[0] >> 20) & 0x3, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("CCDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 20) & 0x3, D);
 #endif
     CPU_clk = PLL_out / D;
     D = ((cpc->pllmr[0] >> 16) & 0x3) + 1; /* CBDV */
-#ifdef DEBUG_CLOCKS
-    //    printf("CBDV %01x %d\n", (cpc->pllmr[0] >> 16) & 0x3, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("CBDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 16) & 0x3, D);
 #endif
     PLB_clk = CPU_clk / D;
     D = ((cpc->pllmr[0] >> 12) & 0x3) + 1; /* OPDV */
-#ifdef DEBUG_CLOCKS
-    //    printf("OPDV %01x %d\n", (cpc->pllmr[0] >> 12) & 0x3, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("OPDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 12) & 0x3, D);
 #endif
     OPB_clk = PLB_clk / D;
     D = ((cpc->pllmr[0] >> 8) & 0x3) + 2; /* EPDV */
-#ifdef DEBUG_CLOCKS
-    //    printf("EPDV %01x %d\n", (cpc->pllmr[0] >> 8) & 0x3, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("EPDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 8) & 0x3, D);
 #endif
     EBC_clk = PLB_clk / D;
     D = ((cpc->pllmr[0] >> 4) & 0x3) + 1; /* MPDV */
-#ifdef DEBUG_CLOCKS
-    //    printf("MPDV %01x %d\n", (cpc->pllmr[0] >> 4) & 0x3, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("MPDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 4) & 0x3, D);
 #endif
     MAL_clk = PLB_clk / D;
     D = (cpc->pllmr[0] & 0x3) + 1; /* PPDV */
-#ifdef DEBUG_CLOCKS
-    //    printf("PPDV %01x %d\n", cpc->pllmr[0] & 0x3, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("PPDV %01" PRIx32 " %d\n", cpc->pllmr[0] & 0x3, D);
 #endif
     PCI_clk = PLB_clk / D;
     D = ((cpc->ucr - 1) & 0x7F) + 1; /* U0DIV */
-#ifdef DEBUG_CLOCKS
-    //    printf("U0DIV %01x %d\n", cpc->ucr & 0x7F, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("U0DIV %01" PRIx32 " %d\n", cpc->ucr & 0x7F, D);
 #endif
     UART0_clk = PLL_out / D;
     D = (((cpc->ucr >> 8) - 1) & 0x7F) + 1; /* U1DIV */
-#ifdef DEBUG_CLOCKS
-    //    printf("U1DIV %01x %d\n", (cpc->ucr >> 8) & 0x7F, D);
+#ifdef DEBUG_CLOCKS_LL
+    printf("U1DIV %01" PRIx32 " %d\n", (cpc->ucr >> 8) & 0x7F, D);
 #endif
     UART1_clk = PLL_out / D;
 #ifdef DEBUG_CLOCKS
-    printf("Setup PPC405EP clocks - sysclk %d VCO %" PRIu64
+    printf("Setup PPC405EP clocks - sysclk %" PRIu32 " VCO %" PRIu64
            " PLL out %" PRIu64 " Hz\n", cpc->sysclk, VCO_out, PLL_out);
-    printf("CPU %d PLB %d OPB %d EBC %d MAL %d PCI %d UART0 %d UART1 %d\n",
+    printf("CPU %" PRIu32 " PLB %" PRIu32 " OPB %" PRIu32 " EBC %" PRIu32
+           " MAL %" PRIu32 " PCI %" PRIu32 " UART0 %" PRIu32
+           " UART1 %" PRIu32 "\n",
            CPU_clk, PLB_clk, OPB_clk, EBC_clk, MAL_clk, PCI_clk,
            UART0_clk, UART1_clk);
-    printf("CB %p opaque %p\n", cpc->clk_setup[PPC405EP_CPU_CLK].cb,
-           cpc->clk_setup[PPC405EP_CPU_CLK].opaque);
 #endif
     /* Setup CPU clocks */
     clk_setup(&cpc->clk_setup[PPC405EP_CPU_CLK], CPU_clk);

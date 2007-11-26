@@ -4809,7 +4809,6 @@ static void omap_mpu_reset(void *opaque)
 {
     struct omap_mpu_state_s *mpu = (struct omap_mpu_state_s *) opaque;
 
-    omap_clkm_reset(mpu);
     omap_inth_reset(mpu->ih[0]);
     omap_inth_reset(mpu->ih[1]);
     omap_dma_reset(mpu->dma);
@@ -4843,6 +4842,7 @@ static void omap_mpu_reset(void *opaque)
     omap_mcbsp_reset(mpu->mcbsp3);
     omap_lpg_reset(mpu->led[0]);
     omap_lpg_reset(mpu->led[1]);
+    omap_clkm_reset(mpu);
     cpu_reset(mpu->env);
 }
 

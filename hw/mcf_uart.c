@@ -88,6 +88,7 @@ uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr)
             if (s->fifo_len == 0)
                 s->sr &= ~MCF_UART_RxRDY;
             mcf_uart_update(s);
+            qemu_chr_accept_input(s->chr);
             return val;
         }
     case 0x10:

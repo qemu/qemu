@@ -7,6 +7,29 @@
  *
  * This code is licensed under the GNU GPL v2.
  */
+ 
+/* 
+ * Example usage:
+ * 
+ * connex:
+ * =======
+ * create image:
+ * # dd of=flash bs=1k count=16k if=/dev/zero
+ * # dd of=flash bs=1k conv=notrunc if=u-boot.bin
+ * # dd of=flash bs=1k conv=notrunc seek=256 if=rootfs.arm_nofpu.jffs2
+ * start it:
+ * # qemu-system-arm -M connex -pflash flash -monitor null -nographic
+ *
+ * verdex:
+ * =======
+ * create image:
+ * # dd of=flash bs=1k count=32k if=/dev/zero
+ * # dd of=flash bs=1k conv=notrunc if=u-boot.bin
+ * # dd of=flash bs=1k conv=notrunc seek=256 if=rootfs.arm_nofpu.jffs2
+ * # dd of=flash bs=1k conv=notrunc seek=31744 if=uImage
+ * start it:
+ * # qemu-system-arm -M verdex -pflash flash -monitor null -nographic -m 289
+ */
 
 #include "hw.h"
 #include "pxa.h"
@@ -16,26 +39,25 @@
 #include "devices.h"
 #include "boards.h"
 
-/* Board init. */
-enum gumstix_model_e { connex };
+static const int sector_len = 128 * 1024;
 
-static void gumstix_common_init(int ram_size, int vga_ram_size,
-                DisplayState *ds, const char *kernel_filename,
-                const char *kernel_cmdline, const char *initrd_filename,
-                const char *cpu_model, enum gumstix_model_e model)
+static void connex_init(int ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char *kernel_filename, const char *kernel_cmdline,
+                const char *initrd_filename, const char *cpu_model)
 {
     struct pxa2xx_state_s *cpu;
 
-    uint32_t gumstix_rom = 0x02000000;
-    uint32_t gumstix_ram = 0x08000000;
+    uint32_t connex_rom = 0x01000000;
+    uint32_t connex_ram = 0x04000000;
 
-    if (ram_size < (gumstix_ram + gumstix_rom + PXA2XX_INTERNAL_SIZE)) {
+    if (ram_size < (connex_ram + connex_rom + PXA2XX_INTERNAL_SIZE)) {
         fprintf(stderr, "This platform requires %i bytes of memory\n",
-                gumstix_ram + gumstix_rom + PXA2XX_INTERNAL_SIZE);
+                connex_ram + connex_rom + PXA2XX_INTERNAL_SIZE);
         exit(1);
     }
 
-    cpu = pxa255_init(gumstix_ram, ds);
+    cpu = pxa255_init(connex_ram, ds);
 
     if (pflash_table[0] == NULL) {
         fprintf(stderr, "A flash image must be given with the "
@@ -43,9 +65,10 @@ static void gumstix_common_init(int ram_size, int vga_ram_size,
         exit(1);
     }
 
-    if (!pflash_cfi01_register(0x00000000, gumstix_ram + PXA2XX_INTERNAL_SIZE,
-            pflash_table[0], 128 * 1024, 128, 2, 0, 0, 0, 0)) {
-        fprintf(stderr, "qemu: Error register flash memory.\n");
+    if (!pflash_cfi01_register(0x00000000, qemu_ram_alloc(connex_rom),
+            pflash_table[0], sector_len, connex_rom / sector_len,
+            2, 0, 0, 0, 0)) {
+        fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
     }
 
@@ -56,17 +79,52 @@ static void gumstix_common_init(int ram_size, int vga_ram_size,
                     pxa2xx_gpio_in_get(cpu->gpio)[36]);
 }
 
-static void connex_init(int ram_size, int vga_ram_size,
+static void verdex_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    gumstix_common_init(ram_size, vga_ram_size, ds, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, connex);
+    struct pxa2xx_state_s *cpu;
+
+    uint32_t verdex_rom = 0x02000000;
+    uint32_t verdex_ram = 0x10000000;
+
+    if (ram_size < (verdex_ram + verdex_rom + PXA2XX_INTERNAL_SIZE)) {
+        fprintf(stderr, "This platform requires %i bytes of memory\n",
+                verdex_ram + verdex_rom + PXA2XX_INTERNAL_SIZE);
+        exit(1);
+    }
+
+    cpu = pxa270_init(verdex_ram, ds, cpu_model ?: "pxa270-c0");
+
+    if (pflash_table[0] == NULL) {
+        fprintf(stderr, "A flash image must be given with the "
+                "'pflash' parameter\n");
+        exit(1);
+    }
+
+    if (!pflash_register(0x00000000, qemu_ram_alloc(verdex_rom),
+            pflash_table[0], sector_len, verdex_rom / sector_len,
+            2, 0, 0, 0, 0)) {
+        fprintf(stderr, "qemu: Error registering flash memory.\n");
+        exit(1);
+    }
+
+    cpu->env->regs[15] = 0x00000000;
+
+    /* Interrupt line of NIC is connected to GPIO line 99 */
+    smc91c111_init(&nd_table[0], 0x04000300,
+                    pxa2xx_gpio_in_get(cpu->gpio)[99]);
 }
 
 QEMUMachine connex_machine = {
     "connex",
     "Gumstix Connex (PXA255)",
     connex_init,
+};
+
+QEMUMachine verdex_machine = {
+    "verdex",
+    "Gumstix Verdex (PXA270)",
+    verdex_init,
 };

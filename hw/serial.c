@@ -229,6 +229,7 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
             ret = s->rbr;
             s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
             serial_update_irq(s);
+            qemu_chr_accept_input(s->chr);
         }
         break;
     case 1:

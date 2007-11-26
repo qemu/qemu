@@ -113,7 +113,7 @@ static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
 static void _PPC_intack_write (void *opaque,
                                target_phys_addr_t addr, uint32_t value)
 {
-    //    printf("%s: 0x%08x => 0x%08x\n", __func__, addr, value);
+//    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
 }
 
 static always_inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
@@ -122,7 +122,7 @@ static always_inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
 
     if (addr == 0xBFFFFFF0)
         retval = pic_intack_read(isa_pic);
-    //   printf("%s: 0x%08x <= %d\n", __func__, addr, retval);
+//   printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
 
     return retval;
 }
@@ -192,7 +192,7 @@ static struct {
 static void PPC_XCSR_writeb (void *opaque,
                              target_phys_addr_t addr, uint32_t value)
 {
-    printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
+    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
 }
 
 static void PPC_XCSR_writew (void *opaque,
@@ -201,7 +201,7 @@ static void PPC_XCSR_writew (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
+    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
 }
 
 static void PPC_XCSR_writel (void *opaque,
@@ -210,14 +210,14 @@ static void PPC_XCSR_writel (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
+    printf("%s: 0x" PADDRX " => 0x%08" PRIx32 "\n", __func__, addr, value);
 }
 
 static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x%08lx <= %d\n", __func__, (long)addr, retval);
+    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
 
     return retval;
 }
@@ -226,7 +226,7 @@ static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x%08lx <= %d\n", __func__, (long)addr, retval);
+    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
 #ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap16(retval);
 #endif
@@ -238,7 +238,7 @@ static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    printf("%s: 0x%08lx <= %d\n", __func__, (long)addr, retval);
+    printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
 #ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap32(retval);
 #endif
@@ -280,7 +280,8 @@ static void PREP_io_write (void *opaque, uint32_t addr, uint32_t val)
 {
     sysctrl_t *sysctrl = opaque;
 
-    PPC_IO_DPRINTF("0x%08lx => 0x%08x\n", (long)addr - PPC_IO_BASE, val);
+    PPC_IO_DPRINTF("0x%08" PRIx32 " => 0x%02" PRIx32 "\n", addr - PPC_IO_BASE,
+                   val);
     sysctrl->fake_io[addr - 0x0398] = val;
 }
 
@@ -288,7 +289,7 @@ static uint32_t PREP_io_read (void *opaque, uint32_t addr)
 {
     sysctrl_t *sysctrl = opaque;
 
-    PPC_IO_DPRINTF("0x%08lx <= 0x%08x\n", (long)addr - PPC_IO_BASE,
+    PPC_IO_DPRINTF("0x%08" PRIx32 " <= 0x%02" PRIx32 "\n", addr - PPC_IO_BASE,
                    sysctrl->fake_io[addr - 0x0398]);
     return sysctrl->fake_io[addr - 0x0398];
 }
@@ -297,7 +298,8 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
     sysctrl_t *sysctrl = opaque;
 
-    PPC_IO_DPRINTF("0x%08lx => 0x%08x\n", (long)addr - PPC_IO_BASE, val);
+    PPC_IO_DPRINTF("0x%08" PRIx32 " => 0x%02" PRIx32 "\n",
+                   addr - PPC_IO_BASE, val);
     switch (addr) {
     case 0x0092:
         /* Special port 92 */
@@ -353,8 +355,8 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         sysctrl->contiguous_map = val & 0x01;
         break;
     default:
-        printf("ERROR: unaffected IO port write: %04lx => %02x\n",
-               (long)addr, val);
+        printf("ERROR: unaffected IO port write: %04" PRIx32
+               " => %02" PRIx32"\n", addr, val);
         break;
     }
 }
@@ -416,10 +418,11 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
         retval = sysctrl->contiguous_map;
         break;
     default:
-        printf("ERROR: unaffected IO port: %04lx read\n", (long)addr);
+        printf("ERROR: unaffected IO port: %04" PRIx32 " read\n", addr);
         break;
     }
-    PPC_IO_DPRINTF("0x%08lx <= 0x%08x\n", (long)addr - PPC_IO_BASE, retval);
+    PPC_IO_DPRINTF("0x%08" PRIx32 " <= 0x%02" PRIx32 "\n",
+                   addr - PPC_IO_BASE, retval);
 
     return retval;
 }
@@ -468,7 +471,7 @@ static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    PPC_IO_DPRINTF("0x%08lx => 0x%08x\n", (long)addr, value);
+    PPC_IO_DPRINTF("0x" PADDRX " => 0x%08" PRIx32 "\n", addr, value);
     cpu_outw(NULL, addr, value);
 }
 
@@ -482,7 +485,7 @@ static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap16(ret);
 #endif
-    PPC_IO_DPRINTF("0x%08lx <= 0x%08x\n", (long)addr, ret);
+    PPC_IO_DPRINTF("0x" PADDRX " <= 0x%08" PRIx32 "\n", addr, ret);
 
     return ret;
 }
@@ -496,7 +499,7 @@ static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    PPC_IO_DPRINTF("0x%08lx => 0x%08x\n", (long)addr, value);
+    PPC_IO_DPRINTF("0x" PADDRX " => 0x%08" PRIx32 "\n", addr, value);
     cpu_outl(NULL, addr, value);
 }
 
@@ -510,7 +513,7 @@ static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap32(ret);
 #endif
-    PPC_IO_DPRINTF("0x%08lx <= 0x%08x\n", (long)addr, ret);
+    PPC_IO_DPRINTF("0x" PADDRX " <= 0x%08" PRIx32 "\n", addr, ret);
 
     return ret;
 }

@@ -3265,7 +3265,7 @@ static always_inline void gen_op_mfspr (DisasContext *ctx)
              */
             if (sprn != SPR_PVR) {
                 if (loglevel != 0) {
-                    fprintf(logfile, "Trying to read privileged spr %d %03x at"
+                    fprintf(logfile, "Trying to read privileged spr %d %03x at "
                             ADDRX "\n", sprn, sprn, ctx->nip);
                 }
                 printf("Trying to read privileged spr %d %03x at " ADDRX "\n",
@@ -3741,8 +3741,6 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA)
     GEN_EXCP_PRIVOPC(ctx);
 #else
     if (unlikely(!ctx->supervisor)) {
-        if (loglevel != 0)
-            fprintf(logfile, "%s: ! supervisor\n", __func__);
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
@@ -3795,8 +3793,6 @@ GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI)
     GEN_EXCP_PRIVOPC(ctx);
 #else
     if (unlikely(!ctx->supervisor)) {
-        if (loglevel != 0)
-            fprintf(logfile, "%s: ! supervisor\n", __func__);
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
@@ -6060,23 +6056,15 @@ void cpu_dump_state (CPUState *env, FILE *f,
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                      int flags)
 {
-#if defined(TARGET_PPC64) || 1
-#define FILL ""
 #define RGPL  4
 #define RFPL  4
-#else
-#define FILL "        "
-#define RGPL  8
-#define RFPL  4
-#endif
 
     int i;
 
     cpu_fprintf(f, "NIP " ADDRX "   LR " ADDRX " CTR " ADDRX " XER %08x\n",
                 env->nip, env->lr, env->ctr, hreg_load_xer(env));
-    cpu_fprintf(f, "MSR " REGX FILL " HID0 " REGX FILL "  HF " REGX FILL
-                " idx %d\n",
-                env->msr, env->hflags, env->spr[SPR_HID0], env->mmu_idx);
+    cpu_fprintf(f, "MSR " ADDRX " HID0 " ADDRX "  HF " ADDRX " idx %d\n",
+                env->msr, env->spr[SPR_HID0], env->hflags, env->mmu_idx);
 #if !defined(NO_TIMER_DUMP)
     cpu_fprintf(f, "TB %08x %08x "
 #if !defined(CONFIG_USER_ONLY)
@@ -6092,7 +6080,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & (RGPL - 1)) == 0)
             cpu_fprintf(f, "GPR%02d", i);
-        cpu_fprintf(f, " " REGX, (target_ulong)env->gpr[i]);
+        cpu_fprintf(f, " " REGX, ppc_dump_gpr(env, i));
         if ((i & (RGPL - 1)) == (RGPL - 1))
             cpu_fprintf(f, "\n");
     }
@@ -6110,7 +6098,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
             a = 'E';
         cpu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
     }
-    cpu_fprintf(f, " ]             " FILL "RES " REGX "\n", env->reserve);
+    cpu_fprintf(f, " ]             RES " ADDRX "\n", env->reserve);
     for (i = 0; i < 32; i++) {
         if ((i & (RFPL - 1)) == 0)
             cpu_fprintf(f, "FPR%02d", i);
@@ -6119,13 +6107,12 @@ void cpu_dump_state (CPUState *env, FILE *f,
             cpu_fprintf(f, "\n");
     }
 #if !defined(CONFIG_USER_ONLY)
-    cpu_fprintf(f, "SRR0 " REGX " SRR1 " REGX " SDR1 " REGX "\n",
+    cpu_fprintf(f, "SRR0 " ADDRX " SRR1 " ADDRX " SDR1 " ADDRX "\n",
                 env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
 #endif
 
 #undef RGPL
 #undef RFPL
-#undef FILL
 }
 
 void cpu_dump_statistics (CPUState *env, FILE*f,
@@ -6289,12 +6276,12 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         if (unlikely(handler->handler == &gen_invalid)) {
             if (loglevel != 0) {
                 fprintf(logfile, "invalid/unsupported opcode: "
-                        "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
+                        "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
                         opc1(ctx.opcode), opc2(ctx.opcode),
                         opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             } else {
                 printf("invalid/unsupported opcode: "
-                       "%02x - %02x - %02x (%08x) 0x" ADDRX " %d\n",
+                       "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
                        opc1(ctx.opcode), opc2(ctx.opcode),
                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             }
@@ -6302,13 +6289,13 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
                 if (loglevel != 0) {
                     fprintf(logfile, "invalid bits: %08x for opcode: "
-                            "%02x - %02x - %02x (%08x) 0x" ADDRX "\n",
+                            "%02x - %02x - %02x (%08x) " ADDRX "\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),
                             opc2(ctx.opcode), opc3(ctx.opcode),
                             ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
-                           "%02x - %02x - %02x (%08x) 0x" ADDRX "\n",
+                           "%02x - %02x - %02x (%08x) " ADDRX "\n",
                            ctx.opcode & handler->inval, opc1(ctx.opcode),
                            opc2(ctx.opcode), opc3(ctx.opcode),
                            ctx.opcode, ctx.nip - 4);

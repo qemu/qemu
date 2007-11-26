@@ -27,7 +27,11 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
                      int board_id, target_phys_addr_t loader_start);
 
 /* armv7m_nvic.c */
+int system_clock_scale;
 qemu_irq *armv7m_nvic_init(CPUState *env);
+
+/* stellaris_enent.c */
+void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq);
 
 #endif /* !ARM_MISC_H */
 

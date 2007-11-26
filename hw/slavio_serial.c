@@ -475,6 +475,8 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
         else
             ret = s->rx;
         SER_DPRINTF("Read channel %c, ch %d\n", CHN_C(s), ret);
+        if (s->chr)
+            qemu_chr_accept_input(s->chr);
         return ret;
     default:
         break;

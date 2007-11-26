@@ -538,7 +538,7 @@ struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
     /* Instantiate the actual storage */
-    s->card = sd_init(bd);
+    s->card = sd_init(bd, 0);
 
     register_savevm("pxa2xx_mmci", 0, 0,
                     pxa2xx_mmci_save, pxa2xx_mmci_load, s);

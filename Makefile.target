@@ -533,15 +533,15 @@ endif
 ifeq ($(TARGET_BASE_ARCH), arm)
 VL_OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
 VL_OBJS+= arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
-VL_OBJS+= versatile_pci.o sd.o ptimer.o
+VL_OBJS+= versatile_pci.o ptimer.o
 VL_OBJS+= realview_gic.o realview.o arm_sysctl.o mpcore.o
-VL_OBJS+= armv7m.o armv7m_nvic.o stellaris.o pl022.o
+VL_OBJS+= armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
 VL_OBJS+= pl061.o
 VL_OBJS+= arm-semi.o
 VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o
 VL_OBJS+= pflash_cfi01.o gumstix.o
-VL_OBJS+= spitz.o ide.o serial.o nand.o ecc.o
+VL_OBJS+= spitz.o ide.o serial.o nand.o ecc.o mainstone.o
 VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o omap_i2c.o
 VL_OBJS+= palm.o tsc210x.o
 CPPFLAGS += -DHAS_AUDIO

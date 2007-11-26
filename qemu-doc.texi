@@ -2015,7 +2015,7 @@ qemu-system-sparc -prom-env 'auto-boot?=false' \
  -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
 @end example
 
-@item -M [SS-5|SS-10]
+@item -M [SS-5|SS-10|SS-600MP]
 
 Set the emulated machine type. Default is SS-5.
 

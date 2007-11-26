@@ -137,6 +137,36 @@ typedef union {
     uint64_t ll;
 } CPU_DoubleU;
 
+#ifdef TARGET_SPARC
+typedef union {
+    float128 q;
+#if defined(WORDS_BIGENDIAN) \
+    || (defined(__arm__) && !defined(__VFP_FP__) && !defined(CONFIG_SOFTFLOAT))
+    struct {
+        uint32_t upmost;
+        uint32_t upper;
+        uint32_t lower;
+        uint32_t lowest;
+    } l;
+    struct {
+        uint64_t upper;
+        uint64_t lower;
+    } ll;
+#else
+    struct {
+        uint32_t lowest;
+        uint32_t lower;
+        uint32_t upper;
+        uint32_t upmost;
+    } l;
+    struct {
+        uint64_t lower;
+        uint64_t upper;
+    } ll;
+#endif
+} CPU_QuadU;
+#endif
+
 /* CPU memory access without any memory or io remapping */
 
 /*

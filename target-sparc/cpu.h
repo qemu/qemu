@@ -215,13 +215,16 @@ typedef struct CPUSPARCState {
     uint64_t dtlb_tag[64];
     uint64_t dtlb_tte[64];
 #else
-    uint32_t mmuregs[16];
+    uint32_t mmuregs[32];
     uint64_t mxccdata[4];
     uint64_t mxccregs[8];
 #endif
     /* temporary float registers */
     float32 ft0, ft1;
     float64 dt0, dt1;
+#if defined(CONFIG_USER_ONLY)
+    float128 qt0, qt1;
+#endif
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4

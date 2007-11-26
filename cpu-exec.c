@@ -237,6 +237,11 @@ static inline TranslationBlock *tb_find_fast(void)
     return tb;
 }
 
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+#define BREAK_CHAIN tmp_T0 = 0
+#else
+#define BREAK_CHAIN T0 = 0
+#endif
 
 /* main execution loop */
 
@@ -410,11 +415,7 @@ int cpu_exec(CPUState *env1)
                         svm_check_intercept(SVM_EXIT_SMI);
                         env->interrupt_request &= ~CPU_INTERRUPT_SMI;
                         do_smm_enter();
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                        tmp_T0 = 0;
-#else
-                        T0 = 0;
-#endif
+                        BREAK_CHAIN;
                     } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
                         (env->eflags & IF_MASK || env->hflags & HF_HIF_MASK) &&
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
@@ -428,11 +429,7 @@ int cpu_exec(CPUState *env1)
                         do_interrupt(intno, 0, 0, 0, 1);
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                        tmp_T0 = 0;
-#else
-                        T0 = 0;
-#endif
+                        BREAK_CHAIN;
 #if !defined(CONFIG_USER_ONLY)
                     } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
                         (env->eflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
@@ -446,11 +443,7 @@ int cpu_exec(CPUState *env1)
 	                 do_interrupt(intno, 0, 0, -1, 1);
                          stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
                                   ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                         tmp_T0 = 0;
-#else
-                         T0 = 0;
-#endif
+                        BREAK_CHAIN;
 #endif
                     }
 #elif defined(TARGET_PPC)
@@ -463,11 +456,7 @@ int cpu_exec(CPUState *env1)
                         ppc_hw_interrupt(env);
                         if (env->pending_interrupts == 0)
                             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                        tmp_T0 = 0;
-#else
-                        T0 = 0;
-#endif
+                        BREAK_CHAIN;
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -480,11 +469,7 @@ int cpu_exec(CPUState *env1)
                         env->exception_index = EXCP_EXT_INTERRUPT;
                         env->error_code = 0;
                         do_interrupt(env);
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                        tmp_T0 = 0;
-#else
-                        T0 = 0;
-#endif
+                        BREAK_CHAIN;
                     }
 #elif defined(TARGET_SPARC)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -501,11 +486,7 @@ int cpu_exec(CPUState *env1)
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
                             cpu_check_irqs(env);
 #endif
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                            tmp_T0 = 0;
-#else
-                            T0 = 0;
-#endif
+                        BREAK_CHAIN;
 			}
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
@@ -516,6 +497,7 @@ int cpu_exec(CPUState *env1)
                         && !(env->uncached_cpsr & CPSR_F)) {
                         env->exception_index = EXCP_FIQ;
                         do_interrupt(env);
+                        BREAK_CHAIN;
                     }
                     /* ARMv7-M interrupt return works by loading a magic value
                        into the PC.  On real hardware the load causes the
@@ -531,17 +513,20 @@ int cpu_exec(CPUState *env1)
                             || !(env->uncached_cpsr & CPSR_I))) {
                         env->exception_index = EXCP_IRQ;
                         do_interrupt(env);
+                        BREAK_CHAIN;
                     }
 #elif defined(TARGET_SH4)
 		    /* XXXXX */
 #elif defined(TARGET_ALPHA)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
+                        BREAK_CHAIN;
                     }
 #elif defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
 			env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                        BREAK_CHAIN;
                     }
 #elif defined(TARGET_M68K)
                     if (interrupt_request & CPU_INTERRUPT_HARD
@@ -554,6 +539,7 @@ int cpu_exec(CPUState *env1)
                            first signalled.  */
                         env->exception_index = env->pending_vector;
                         do_interrupt(1);
+                        BREAK_CHAIN;
                     }
 #endif
                    /* Don't use the cached interupt_request value,
@@ -562,11 +548,7 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                        tmp_T0 = 0;
-#else
-                        T0 = 0;
-#endif
+                        BREAK_CHAIN;
                     }
                     if (interrupt_request & CPU_INTERRUPT_EXIT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXIT;

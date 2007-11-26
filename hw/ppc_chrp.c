@@ -255,7 +255,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
                  ram_size, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
-    
+
     /* XXX: suppress that */
     dummy_irq = i8259_init(NULL);
 
@@ -274,7 +274,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
 #endif
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x19]);
-    
+
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
@@ -314,7 +314,7 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
 
     /* Special port to get debug messages from Open-Firmware */
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
- }
+}
 
 QEMUMachine core99_machine = {
     "mac99",

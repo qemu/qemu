@@ -415,6 +415,8 @@ int float128_lt( float128, float128 STATUS_PARAM );
 int float128_eq_signaling( float128, float128 STATUS_PARAM );
 int float128_le_quiet( float128, float128 STATUS_PARAM );
 int float128_lt_quiet( float128, float128 STATUS_PARAM );
+int float128_compare( float128, float128 STATUS_PARAM );
+int float128_compare_quiet( float128, float128 STATUS_PARAM );
 int float128_is_nan( float128 );
 int float128_is_signaling_nan( float128 );
 float128 float128_scalbn( float128, int STATUS_PARAM );

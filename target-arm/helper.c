@@ -603,6 +603,15 @@ void do_interrupt_v7m(CPUARMState *env)
         armv7m_nvic_set_pending(env->v7m.nvic, ARMV7M_EXCP_MEM);
         return;
     case EXCP_BKPT:
+        if (semihosting_enabled) {
+            int nr;
+            nr = lduw_code(env->regs[15]) & 0xff;
+            if (nr == 0xab) {
+                env->regs[15] += 2;
+                env->regs[0] = do_arm_semihosting(env);
+                return;
+            }
+        }
         armv7m_nvic_set_pending(env->v7m.nvic, ARMV7M_EXCP_DEBUG);
         return;
     case EXCP_IRQ:
@@ -688,7 +697,7 @@ void do_interrupt(CPUARMState *env)
         break;
     case EXCP_BKPT:
         /* See if this is a semihosting syscall.  */
-        if (env->thumb) {
+        if (env->thumb && semihosting_enabled) {
             mask = lduw_code(env->regs[15]) & 0xff;
             if (mask == 0xab
                   && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {

@@ -37,10 +37,12 @@ register struct CPUPPCState *env asm(AREG0);
 #define T0 (env->t0)
 #define T1 (env->t1)
 #define T2 (env->t2)
+#define TDX "%016" PRIx64
 #else
 register unsigned long T0 asm(AREG1);
 register unsigned long T1 asm(AREG2);
 register unsigned long T2 asm(AREG3);
+#define TDX "%016lx"
 #endif
 /* We may, sometime, need 64 bits registers on 32 bits targets */
 #if (HOST_LONG_BITS == 32)

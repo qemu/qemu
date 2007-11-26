@@ -41,7 +41,7 @@ static int vga_osi_call (CPUState *env)
     static int vga_vbl_enabled;
     int linesize;
 
-    //    printf("osi_call R5=%d\n", env->gpr[5]);
+    //    printf("osi_call R5=" REGX "\n", ppc_dump_gpr(env, 5));
 
     /* same handler as PearPC, coming from the original MOL video
        driver. */
@@ -93,7 +93,8 @@ static int vga_osi_call (CPUState *env)
         /* R6 = x, R7 = y, R8 = visible, R9 = data */
         break;
     default:
-        fprintf(stderr, "unsupported OSI call R5=" REGX "\n", env->gpr[5]);
+        fprintf(stderr, "unsupported OSI call R5=" REGX "\n",
+                ppc_dump_gpr(env, 5));
         break;
     }
 
@@ -245,7 +246,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     }
 
     isa_mem_base = 0x80000000;
-    
+
     /* Register 2 MB of ISA IO space */
     isa_mmio_init(0xfe000000, 0x00200000);
 
@@ -277,13 +278,13 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
                  ram_size, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
-    
+
     /* XXX: suppress that */
     dummy_irq = i8259_init(NULL);
 
     /* XXX: use Mac Serial port */
     serial_init(0x3f8, dummy_irq[4], serial_hds[0]);
-    
+
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
             nd_table[i].model = "ne2k_pci";
@@ -301,7 +302,7 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
 
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
-    
+
     nvr = macio_nvram_init(&nvram_mem_index, 0x2000);
     pmac_format_nvram_partition(nvr, 0x2000);
 

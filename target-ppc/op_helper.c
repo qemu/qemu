@@ -2783,9 +2783,9 @@ void do_load_6xx_tlb (int is_code)
     way = (env->spr[SPR_SRR1] >> 17) & 1;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: EPN %08lx %08lx PTE0 %08lx PTE1 %08lx way %d\n",
-                __func__, (unsigned long)T0, (unsigned long)EPN,
-                (unsigned long)CMP, (unsigned long)RPN, way);
+        fprintf(logfile, "%s: EPN " TDX " " ADDRX " PTE0 " ADDRX
+                " PTE1 " ADDRX " way %d\n",
+                __func__, T0, EPN, CMP, RPN, way);
     }
 #endif
     /* Store this TLB */
@@ -2804,9 +2804,9 @@ void do_load_74xx_tlb (int is_code)
     way = env->spr[SPR_TLBMISS] & 0x3;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: EPN %08lx %08lx PTE0 %08lx PTE1 %08lx way %d\n",
-                __func__, (unsigned long)T0, (unsigned long)EPN,
-                (unsigned long)CMP, (unsigned long)RPN, way);
+        fprintf(logfile, "%s: EPN " TDX " " ADDRX " PTE0 " ADDRX
+                " PTE1 " ADDRX " way %d\n",
+                __func__, T0, EPN, CMP, RPN, way);
     }
 #endif
     /* Store this TLB */
@@ -2920,7 +2920,7 @@ void do_4xx_tlbwe_hi (void)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+        fprintf(logfile, "%s T0 " TDX " T1 " TDX "\n", __func__, T0, T1);
     }
 #endif
     T0 &= 0x3F;
@@ -2991,7 +2991,7 @@ void do_4xx_tlbwe_lo (void)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s T0 " REGX " T1 " REGX "\n", __func__, T0, T1);
+        fprintf(logfile, "%s T0 " TDX " T1 " TDX "\n", __func__, T0, T1);
     }
 #endif
     T0 &= 0x3F;
@@ -3024,7 +3024,7 @@ void do_440_tlbwe (int word)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s word %d T0 " REGX " T1 " REGX "\n",
+        fprintf(logfile, "%s word %d T0 " TDX " T1 " TDX "\n",
                 __func__, word, T0, T1);
     }
 #endif

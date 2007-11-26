@@ -97,6 +97,13 @@ void do_fabsd(void)
 {
     DT0 = float64_abs(DT1);
 }
+
+#if defined(CONFIG_USER_ONLY)
+void do_fabsq(void)
+{
+    QT0 = float128_abs(QT1);
+}
+#endif
 #endif
 
 void do_fsqrts(void)
@@ -112,6 +119,15 @@ void do_fsqrtd(void)
     DT0 = float64_sqrt(DT1, &env->fp_status);
     check_ieee_exceptions();
 }
+
+#if defined(CONFIG_USER_ONLY)
+void do_fsqrtq(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    QT0 = float128_sqrt(QT1, &env->fp_status);
+    check_ieee_exceptions();
+}
+#endif
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, TRAP)                      \
     void glue(do_, name) (void)                                         \
@@ -148,6 +164,11 @@ GEN_FCMP(fcmpd, float64, DT0, DT1, 0, 0);
 GEN_FCMP(fcmpes, float32, FT0, FT1, 0, 1);
 GEN_FCMP(fcmped, float64, DT0, DT1, 0, 1);
 
+#ifdef CONFIG_USER_ONLY
+GEN_FCMP(fcmpq, float128, QT0, QT1, 0, 0);
+GEN_FCMP(fcmpeq, float128, QT0, QT1, 0, 1);
+#endif
+
 #ifdef TARGET_SPARC64
 GEN_FCMP(fcmps_fcc1, float32, FT0, FT1, 22, 0);
 GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22, 0);
@@ -166,6 +187,14 @@ GEN_FCMP(fcmped_fcc2, float64, DT0, DT1, 24, 1);
 
 GEN_FCMP(fcmpes_fcc3, float32, FT0, FT1, 26, 1);
 GEN_FCMP(fcmped_fcc3, float64, DT0, DT1, 26, 1);
+#ifdef CONFIG_USER_ONLY
+GEN_FCMP(fcmpq_fcc1, float128, QT0, QT1, 22, 0);
+GEN_FCMP(fcmpq_fcc2, float128, QT0, QT1, 24, 0);
+GEN_FCMP(fcmpq_fcc3, float128, QT0, QT1, 26, 0);
+GEN_FCMP(fcmpeq_fcc1, float128, QT0, QT1, 22, 1);
+GEN_FCMP(fcmpeq_fcc2, float128, QT0, QT1, 24, 1);
+GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
+#endif
 #endif
 
 #ifndef TARGET_SPARC64
@@ -248,11 +277,15 @@ void helper_ld_asi(int asi, int size, int sign)
         break;
     case 4: /* read MMU regs */
         {
-            int reg = (T0 >> 8) & 0xf;
+            int reg = (T0 >> 8) & 0x1f;
 
             ret = env->mmuregs[reg];
             if (reg == 3) /* Fault status cleared on read */
-                env->mmuregs[reg] = 0;
+                env->mmuregs[3] = 0;
+            else if (reg == 0x13) /* Fault status read */
+                ret = env->mmuregs[3];
+            else if (reg == 0x14) /* Fault address read */
+                ret = env->mmuregs[4];
             DPRINTF_MMU("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
         }
         break;
@@ -493,17 +526,18 @@ void helper_st_asi(int asi, int size)
         }
     case 4: /* write MMU regs */
         {
-            int reg = (T0 >> 8) & 0xf;
+            int reg = (T0 >> 8) & 0x1f;
             uint32_t oldreg;
 
             oldreg = env->mmuregs[reg];
             switch(reg) {
             case 0:
-                env->mmuregs[reg] &= ~(MMU_E | MMU_NF | env->mmu_bm);
-                env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF | env->mmu_bm);
+                env->mmuregs[reg] = (env->mmuregs[reg] & 0xff000000) |
+                                    (T1 & 0x00ffffff);
                 // Mappings generated during no-fault mode or MMU
                 // disabled mode are invalid in normal mode
-                if (oldreg != env->mmuregs[reg])
+                if ((oldreg & (MMU_E | MMU_NF | env->mmu_bm)) !=
+                    (env->mmuregs[reg] & (MMU_E | MMU_NF | env->mmu_bm)))
                     tlb_flush(env, 1);
                 break;
             case 2:
@@ -516,6 +550,12 @@ void helper_st_asi(int asi, int size)
                 break;
             case 3:
             case 4:
+                break;
+            case 0x13:
+                env->mmuregs[3] = T1;
+                break;
+            case 0x14:
+                env->mmuregs[4] = T1;
                 break;
             default:
                 env->mmuregs[reg] = T1;
@@ -1363,6 +1403,11 @@ void helper_ldf_asi(int asi, int size, int rd)
     case 8:
         *((int64_t *)&DT0) = T1;
         break;
+#if defined(CONFIG_USER_ONLY)
+    case 16:
+        // XXX
+        break;
+#endif
     }
     T1 = tmp_T1;
 }
@@ -1406,6 +1451,11 @@ void helper_stf_asi(int asi, int size, int rd)
     case 8:
         T1 = *((int64_t *)&DT0);
         break;
+#if defined(CONFIG_USER_ONLY)
+    case 16:
+        // XXX
+        break;
+#endif
     }
     helper_st_asi(asi, size);
     T1 = tmp_T1;

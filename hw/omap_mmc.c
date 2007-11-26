@@ -525,7 +525,7 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
     cpu_register_physical_memory(s->base, 0x800, iomemtype);
 
     /* Instantiate the storage */
-    s->card = sd_init(bd);
+    s->card = sd_init(bd, 0);
 
     return s;
 }

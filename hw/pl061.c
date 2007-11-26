@@ -48,6 +48,7 @@ typedef struct {
     uint8_t slr;
     uint8_t den;
     uint8_t cr;
+    uint8_t float_high;
     qemu_irq irq;
     qemu_irq out[8];
 } pl061_state;
@@ -56,18 +57,22 @@ static void pl061_update(pl061_state *s)
 {
     uint8_t changed;
     uint8_t mask;
+    uint8_t out;
     int i;
 
-    changed = s->old_data ^ s->data;
+    /* Outputs float high.  */
+    /* FIXME: This is board dependent.  */
+    out = (s->data & s->dir) | ~s->dir;
+    changed = s->old_data ^ out;
     if (!changed)
         return;
 
-    s->old_data = s->data;
+    s->old_data = out;
     for (i = 0; i < 8; i++) {
         mask = 1 << i;
-        if ((changed & mask & s->dir) && s->out) {
-            DPRINTF("Set output %d = %d\n", i, (s->data & mask) != 0);
-            qemu_set_irq(s->out[i], (s->data & mask) != 0);
+        if ((changed & mask) && s->out) {
+            DPRINTF("Set output %d = %d\n", i, (out & mask) != 0);
+            qemu_set_irq(s->out[i], (out & mask) != 0);
         }
     }
 

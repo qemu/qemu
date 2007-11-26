@@ -48,8 +48,8 @@ static void ppc_set_irq (CPUState *env, int n_IRQ, int level)
     }
 #if defined(PPC_DEBUG_IRQ)
     if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: %p n_IRQ %d level %d => pending %08x req %08x\n",
-                __func__, env, n_IRQ, level,
+        fprintf(logfile, "%s: %p n_IRQ %d level %d => pending %08" PRIx32
+                "req %08x\n", __func__, env, n_IRQ, level,
                 env->pending_interrupts, env->interrupt_request);
     }
 #endif
@@ -457,7 +457,7 @@ uint32_t cpu_ppc_load_tbl (CPUState *env)
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
 #if defined(PPC_DEBUG_TB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
+        fprintf(logfile, "%s: tb %016" PRIx64 "\n", __func__, tb);
     }
 #endif
 
@@ -472,7 +472,7 @@ static always_inline uint32_t _cpu_ppc_load_tbu (CPUState *env)
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
 #if defined(PPC_DEBUG_TB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
+        fprintf(logfile, "%s: tb %016" PRIx64 "\n", __func__, tb);
     }
 #endif
 
@@ -491,8 +491,8 @@ static always_inline void cpu_ppc_store_tb (ppc_tb_t *tb_env, uint64_t vmclk,
     *tb_offsetp = value - muldiv64(vmclk, tb_env->tb_freq, ticks_per_sec);
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s: tb=0x%016lx offset=%08lx\n", __func__, value,
-                *tb_offsetp);
+        fprintf(logfile, "%s: tb %016" PRIx64 " offset %08" PRIx64 "\n",
+                __func__, value, *tb_offsetp);
     }
 #endif
 }
@@ -532,7 +532,7 @@ uint32_t cpu_ppc_load_atbl (CPUState *env)
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
 #if defined(PPC_DEBUG_TB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
+        fprintf(logfile, "%s: tb %016" PRIx64 "\n", __func__, tb);
     }
 #endif
 
@@ -547,7 +547,7 @@ uint32_t cpu_ppc_load_atbu (CPUState *env)
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
 #if defined(PPC_DEBUG_TB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: tb=0x%016lx\n", __func__, tb);
+        fprintf(logfile, "%s: tb %016" PRIx64 "\n", __func__, tb);
     }
 #endif
 
@@ -602,7 +602,7 @@ static void cpu_ppc_tb_start (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb, atb, vmclk;
-    
+
     /* If the time base is not frozen, do nothing */
     if (tb_env->tb_freq == 0) {
         vmclk = qemu_get_clock(vm_clock);
@@ -633,7 +633,7 @@ static always_inline uint32_t _cpu_ppc_load_decr (CPUState *env,
         decr = -muldiv64(-diff, tb_env->decr_freq, ticks_per_sec);
 #if defined(PPC_DEBUG_TB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: 0x%08x\n", __func__, decr);
+        fprintf(logfile, "%s: %08" PRIx32 "\n", __func__, decr);
     }
 #endif
 
@@ -700,7 +700,8 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
 
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s: 0x%08x => 0x%08x\n", __func__, decr, value);
+        fprintf(logfile, "%s: %08" PRIx32 " => %08" PRIx32 "\n", __func__,
+                decr, value);
     }
 #endif
     now = qemu_get_clock(vm_clock);
@@ -910,7 +911,7 @@ static void start_stop_pit (CPUState *env, ppc_tb_t *tb_env, int is_excp)
     } else {
 #ifdef PPC_DEBUG_TB
         if (loglevel != 0) {
-            fprintf(logfile, "%s: start PIT 0x" REGX "\n",
+            fprintf(logfile, "%s: start PIT %016" PRIx64 "\n",
                     __func__, ppcemb_timer->pit_reload);
         }
 #endif
@@ -1032,7 +1033,7 @@ void store_40x_pit (CPUState *env, target_ulong val)
     ppcemb_timer = tb_env->opaque;
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s %p %p\n", __func__, tb_env, ppcemb_timer);
+        fprintf(logfile, "%s val" ADDRX "\n", __func__, val);
     }
 #endif
     ppcemb_timer->pit_reload = val;
@@ -1048,7 +1049,7 @@ void store_booke_tsr (CPUState *env, target_ulong val)
 {
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s: val=" ADDRX "\n", __func__, val);
+        fprintf(logfile, "%s: val " ADDRX "\n", __func__, val);
     }
 #endif
     env->spr[SPR_40x_TSR] &= ~(val & 0xFC000000);
@@ -1063,7 +1064,7 @@ void store_booke_tcr (CPUState *env, target_ulong val)
     tb_env = env->tb_env;
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s: val=" ADDRX "\n", __func__, val);
+        fprintf(logfile, "%s: val " ADDRX "\n", __func__, val);
     }
 #endif
     env->spr[SPR_40x_TCR] = val & 0xFFC00000;
@@ -1078,7 +1079,8 @@ static void ppc_emb_set_tb_clk (void *opaque, uint32_t freq)
 
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s set new frequency to %u\n", __func__, freq);
+        fprintf(logfile, "%s set new frequency to %" PRIu32 "\n", __func__,
+                freq);
     }
 #endif
     tb_env->tb_freq = freq;
@@ -1102,8 +1104,7 @@ clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
     tb_env->opaque = ppcemb_timer;
 #ifdef PPC_DEBUG_TB
     if (loglevel != 0) {
-        fprintf(logfile, "%s %p %p %p\n", __func__, tb_env, ppcemb_timer,
-                &ppc_emb_set_tb_clk);
+        fprintf(logfile, "%s freq %" PRIu32 "\n", __func__, freq);
     }
 #endif
     if (ppcemb_timer != NULL) {
@@ -1239,7 +1240,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
         fflush(stdout);
         break;
     case 2:
-        printf("Set loglevel to %04x\n", val);
+        printf("Set loglevel to %04" PRIx32 "\n", val);
         cpu_set_log(val | 0x100);
         break;
     }

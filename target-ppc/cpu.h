@@ -30,7 +30,6 @@
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
 #define TARGET_LONG_BITS 64
-#define REGX "%016" PRIx64
 #define TARGET_PAGE_BITS 12
 
 #else /* defined (TARGET_PPC64) */
@@ -43,11 +42,9 @@ typedef uint64_t ppc_gpr_t;
  */
 typedef uint64_t ppc_gpr_t;
 #define TARGET_GPR_BITS  64
-#define REGX "%08" PRIx64
 #else /* (HOST_LONG_BITS >= 64) */
 typedef uint32_t ppc_gpr_t;
 #define TARGET_GPR_BITS  32
-#define REGX "%08" PRIx32
 #endif /* (HOST_LONG_BITS >= 64) */
 
 #define TARGET_LONG_BITS 32
@@ -74,6 +71,7 @@ typedef uint32_t ppc_gpr_t;
 
 #include "cpu-defs.h"
 
+#define REGX "%016" PRIx64
 #define ADDRX TARGET_FMT_lx
 #define PADDRX TARGET_FMT_plx
 
@@ -791,6 +789,24 @@ void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0);
 int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
+
+static always_inline uint64_t ppc_dump_gpr (CPUPPCState *env, int gprn)
+{
+    uint64_t gprv;
+
+    gprv = env->gpr[gprn];
+#if !defined(TARGET_PPC64)
+    if (env->flags & POWERPC_FLAG_SPE) {
+        /* If the CPU implements the SPE extension, we have to get the
+         * high bits of the GPR from the gprh storage area
+         */
+        gprv &= 0xFFFFFFFFULL;
+        gprv |= (uint64_t)env->gprh[gprn] << 32;
+    }
+#endif
+
+    return gprv;
+}
 
 /* Device control registers */
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);

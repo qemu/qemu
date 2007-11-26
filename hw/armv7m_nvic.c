@@ -14,7 +14,9 @@
 #include "qemu-timer.h"
 #include "arm-misc.h"
 
-#define GIC_NIRQ 64
+/* 32 internal lines (16 used for system exceptions) plus 64 external
+   interrupt lines.  */
+#define GIC_NIRQ 96
 #define NCPU 1
 #define NVIC 1
 
@@ -48,14 +50,15 @@ typedef struct {
 #define SYSTICK_CLKSOURCE (1 << 2)
 #define SYSTICK_COUNTFLAG (1 << 16)
 
-/* Conversion factor from qemu timer to SysTick frequencies.
-   QEMU uses a base of 1GHz, so these give 20MHz and 1MHz for core and
-   reference frequencies.  */
+/* Multiplication factor to convert from system clock ticks to qemu timer
+   ticks.  */
+int system_clock_scale;
 
+/* Conversion factor from qemu timer to SysTick frequencies.  */
 static inline int64_t systick_scale(nvic_state *s)
 {
     if (s->systick.control & SYSTICK_CLKSOURCE)
-        return 50;
+        return system_clock_scale;
     else
         return 1000;
 }
