@@ -589,6 +589,8 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
       pci_e100_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "i82551") == 0) {
       pci_i82551_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "i82557a") == 0) {
+      pci_i82557a_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "i82557b") == 0) {
       pci_i82557b_init(bus, nd, devfn);
     //~ } else if (strcmp(nd->model, "i82559") == 0) {
