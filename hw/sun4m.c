@@ -60,7 +60,6 @@
 #define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
 #define PROM_SIZE_MAX        (512 * 1024)
-#define PROM_PADDR           0xff0000000ULL
 #define PROM_VADDR           0xffd00000
 #define PROM_FILENAME        "openbios-sparc32"
 
@@ -81,6 +80,8 @@ struct hwdef {
     int machine_id; // For NVRAM
     uint32_t iommu_version;
     uint32_t intbit_to_level[32];
+    uint64_t max_mem;
+    const char * const default_cpu_model;
 };
 
 /* TSC handling */
@@ -273,8 +274,59 @@ static void secondary_cpu_reset(void *opaque)
     env->halted = 1;
 }
 
-static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
-                           DisplayState *ds, const char *cpu_model)
+static unsigned long sun4m_load_kernel(const char *kernel_filename,
+                                       const char *kernel_cmdline,
+                                       const char *initrd_filename)
+{
+    int linux_boot;
+    unsigned int i;
+    long initrd_size, kernel_size;
+
+    linux_boot = (kernel_filename != NULL);
+
+    kernel_size = 0;
+    if (linux_boot) {
+        kernel_size = load_elf(kernel_filename, -0xf0000000ULL, NULL, NULL,
+                               NULL);
+        if (kernel_size < 0)
+            kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        if (kernel_size < 0)
+            kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    kernel_filename);
+            exit(1);
+        }
+
+        /* load initrd */
+        initrd_size = 0;
+        if (initrd_filename) {
+            initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
+            if (initrd_size < 0) {
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+                        initrd_filename);
+                exit(1);
+            }
+        }
+        if (initrd_size > 0) {
+            for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
+                if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
+                    == 0x48647253) { // HdrS
+                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
+                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20, initrd_size);
+                    break;
+                }
+            }
+        }
+    }
+    return kernel_size;
+}
+
+static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
+                          const char *boot_device,
+                          DisplayState *ds, const char *kernel_filename,
+                          const char *kernel_cmdline,
+                          const char *initrd_filename, const char *cpu_model)
 
 {
     CPUState *env, *envs[MAX_CPUS];
@@ -283,8 +335,13 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     qemu_irq *cpu_irqs[MAX_CPUS], *slavio_irq, *slavio_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
+    unsigned long prom_offset, kernel_size;
+    int ret;
+    char buf[1024];
 
     /* init CPUs */
+    if (!cpu_model)
+        cpu_model = hwdef->default_cpu_model;
 
     for(i = 0; i < smp_cpus; i++) {
         env = cpu_init(cpu_model);
@@ -302,14 +359,42 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
         }
         register_savevm("cpu", i, 3, cpu_save, cpu_load, env);
         cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
+        env->prom_addr = hwdef->slavio_base;
     }
 
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
+
     /* allocate RAM */
+    if ((uint64_t)RAM_size > hwdef->max_mem) {
+        fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
+                (unsigned int)RAM_size / (1024 * 1024),
+                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
+        exit(1);
+    }
     cpu_register_physical_memory(0, RAM_size, 0);
 
+    /* load boot prom */
+    prom_offset = RAM_size + hwdef->vram_size;
+    cpu_register_physical_memory(hwdef->slavio_base,
+                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
+                                 TARGET_PAGE_MASK,
+                                 prom_offset | IO_MEM_ROM);
+
+    if (bios_name == NULL)
+        bios_name = PROM_FILENAME;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
+    ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
+    if (ret < 0 || ret > PROM_SIZE_MAX)
+        ret = load_image(buf, phys_ram_base + prom_offset);
+    if (ret < 0 || ret > PROM_SIZE_MAX) {
+        fprintf(stderr, "qemu: could not load prom '%s'\n",
+                buf);
+        exit(1);
+    }
+
+    /* set up devices */
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version);
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000ULL,
@@ -372,79 +457,12 @@ static void *sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     if (hwdef->cs_base != (target_phys_addr_t)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
 
-    return nvram;
-}
+    kernel_size = sun4m_load_kernel(kernel_filename, kernel_cmdline,
+                                    initrd_filename);
 
-static void sun4m_load_kernel(long vram_size, int RAM_size,
-                              const char *boot_device,
-                              const char *kernel_filename,
-                              const char *kernel_cmdline,
-                              const char *initrd_filename,
-                              int machine_id,
-                              void *nvram)
-{
-    int ret, linux_boot;
-    char buf[1024];
-    unsigned int i;
-    long prom_offset, initrd_size, kernel_size;
-
-    linux_boot = (kernel_filename != NULL);
-
-    prom_offset = RAM_size + vram_size;
-    cpu_register_physical_memory(PROM_PADDR,
-                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK,
-                                 prom_offset | IO_MEM_ROM);
-
-    if (bios_name == NULL)
-        bios_name = PROM_FILENAME;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    ret = load_elf(buf, PROM_PADDR - PROM_VADDR, NULL, NULL, NULL);
-    if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image(buf, phys_ram_base + prom_offset);
-    if (ret < 0 || ret > PROM_SIZE_MAX) {
-        fprintf(stderr, "qemu: could not load prom '%s'\n",
-                buf);
-        exit(1);
-    }
-
-    kernel_size = 0;
-    if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, -0xf0000000ULL, NULL, NULL,
-                               NULL);
-        if (kernel_size < 0)
-            kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
-        if (kernel_size < 0)
-            kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
-        if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
-            exit(1);
-        }
-
-        /* load initrd */
-        initrd_size = 0;
-        if (initrd_filename) {
-            initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
-            if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                        initrd_filename);
-                exit(1);
-            }
-        }
-        if (initrd_size > 0) {
-            for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
-                if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
-                    == 0x48647253) { // HdrS
-                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
-                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20, initrd_size);
-                    break;
-                }
-            }
-        }
-    }
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
-               graphic_height, graphic_depth, machine_id);
+               graphic_height, graphic_depth, hwdef->machine_id);
 }
 
 static const struct hwdef hwdefs[] = {
@@ -481,6 +499,8 @@ static const struct hwdef hwdefs[] = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
+        .max_mem = 0x10000000,
+        .default_cpu_model = "Fujitsu MB86904",
     },
     /* SS-10 */
     {
@@ -515,6 +535,8 @@ static const struct hwdef hwdefs[] = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
+        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .default_cpu_model = "TI SuperSparc II",
     },
     /* SS-600MP */
     {
@@ -549,28 +571,10 @@ static const struct hwdef hwdefs[] = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
+        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .default_cpu_model = "TI SuperSparc II",
     },
 };
-
-static void sun4m_common_init(int RAM_size, const char *boot_device, DisplayState *ds,
-                              const char *kernel_filename, const char *kernel_cmdline,
-                              const char *initrd_filename, const char *cpu_model,
-                              unsigned int machine, int max_ram)
-{
-    void *nvram;
-
-    if ((unsigned int)RAM_size > (unsigned int)max_ram) {
-        fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)RAM_size / (1024 * 1024),
-                (unsigned int)max_ram / (1024 * 1024));
-        exit(1);
-    }
-    nvram = sun4m_hw_init(&hwdefs[machine], RAM_size, ds, cpu_model);
-
-    sun4m_load_kernel(hwdefs[machine].vram_size, RAM_size, boot_device,
-                      kernel_filename, kernel_cmdline, initrd_filename,
-                      hwdefs[machine].machine_id, nvram);
-}
 
 /* SPARCstation 5 hardware initialisation */
 static void ss5_init(int RAM_size, int vga_ram_size,
@@ -578,11 +582,8 @@ static void ss5_init(int RAM_size, int vga_ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    if (cpu_model == NULL)
-        cpu_model = "Fujitsu MB86904";
-    sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
-                      kernel_cmdline, initrd_filename, cpu_model,
-                      0, 0x10000000);
+    sun4m_hw_init(&hwdefs[0], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
 }
 
 /* SPARCstation 10 hardware initialisation */
@@ -591,11 +592,8 @@ static void ss10_init(int RAM_size, int vga_ram_size,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
 {
-    if (cpu_model == NULL)
-        cpu_model = "TI SuperSparc II";
-    sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
-                      kernel_cmdline, initrd_filename, cpu_model,
-                      1, 0xffffffff); // XXX actually first 62GB ok
+    sun4m_hw_init(&hwdefs[1], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
 }
 
 /* SPARCserver 600MP hardware initialisation */
@@ -604,11 +602,8 @@ static void ss600mp_init(int RAM_size, int vga_ram_size,
                          const char *kernel_filename, const char *kernel_cmdline,
                          const char *initrd_filename, const char *cpu_model)
 {
-    if (cpu_model == NULL)
-        cpu_model = "TI SuperSparc II";
-    sun4m_common_init(RAM_size, boot_device, ds, kernel_filename,
-                      kernel_cmdline, initrd_filename, cpu_model,
-                      2, 0xffffffff); // XXX actually first 62GB ok
+    sun4m_hw_init(&hwdefs[2], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
 }
 
 QEMUMachine ss5_machine = {
