@@ -103,7 +103,7 @@ static void verdex_init(int ram_size, int vga_ram_size,
         exit(1);
     }
 
-    if (!pflash_register(0x00000000, qemu_ram_alloc(verdex_rom),
+    if (!pflash_cfi01_register(0x00000000, qemu_ram_alloc(verdex_rom),
             pflash_table[0], sector_len, verdex_rom / sector_len,
             2, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
