@@ -137,7 +137,7 @@ enum
 {
     OP_READ,
     OP_WRITE,
-} OPERTAION_DIRECTION;
+} OPERATION_DIRECTION;
 
 /* The SCB accepts the following controls for the Tx and Rx units: */
 enum
