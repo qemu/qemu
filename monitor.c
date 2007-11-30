@@ -2583,6 +2583,8 @@ void monitor_init(CharDriverState *hd, int show_banner)
     hide_banner = !show_banner;
 
     qemu_chr_add_handlers(hd, term_can_read, term_read, term_event, NULL);
+
+    readline_start("", 0, monitor_handle_command1, NULL);
 }
 
 /* XXX: use threads ? */
