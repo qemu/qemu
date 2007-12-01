@@ -50,6 +50,7 @@ typedef struct MiscState {
     uint8_t diag, mctrl;
     uint32_t sysctrl;
     uint16_t leds;
+    target_phys_addr_t power_base;
 } MiscState;
 
 #define MISC_SIZE 1
@@ -66,7 +67,6 @@ typedef struct MiscState {
 #define MISC_DIAG 0x01a00000
 #define MISC_MDM  0x01b00000
 #define MISC_SYS  0x01f00000
-#define MISC_PWR  0x0a000000
 
 #define AUX2_PWROFF    0x01
 #define AUX2_PWRINTCLR 0x02
@@ -145,9 +145,11 @@ static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr,
         MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
         s->mctrl = val & 0xff;
         break;
-    case MISC_PWR:
-        MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+    default:
+        if (addr == s->power_base) {
+            MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
+            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+        }
         break;
     }
 }
@@ -178,8 +180,10 @@ static uint32_t slavio_misc_mem_readb(void *opaque, target_phys_addr_t addr)
         ret = s->mctrl;
         MISC_DPRINTF("Read modem control %2.2x\n", ret);
         break;
-    case MISC_PWR:
-        MISC_DPRINTF("Read power management %2.2x\n", ret);
+    default:
+        if (addr == s->power_base) {
+            MISC_DPRINTF("Read power management %2.2x\n", ret);
+        }
         break;
     }
     return ret;
@@ -363,6 +367,7 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
                                  slavio_misc_io_memory);
     // Power management
     cpu_register_physical_memory(power_base, MISC_SIZE, slavio_misc_io_memory);
+    s->power_base = power_base;
 
     /* 16 bit registers */
     slavio_misc_io_memory = cpu_register_io_memory(0, slavio_led_mem_read,
