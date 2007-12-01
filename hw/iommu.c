@@ -96,7 +96,7 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_MID           0x00000008
 
 /* The format of an iopte in the page tables */
-#define IOPTE_PAGE          0x07ffff00 /* Physical page number (PA[30:12]) */
+#define IOPTE_PAGE          0xffffff00 /* Physical page number (PA[35:12]) */
 #define IOPTE_CACHE         0x00000080 /* Cached (in vme IOCACHE or
                                           Viking/MXCC) */
 #define IOPTE_WRITE         0x00000004 /* Writeable */
