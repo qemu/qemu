@@ -61,12 +61,16 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 
 #define IOMMU_AFSR          (0x1000 >> 2)
 #define IOMMU_AFSR_ERR      0x80000000 /* LE, TO, or BE asserted */
-#define IOMMU_AFSR_LE       0x40000000 /* SBUS reports error after transaction */
-#define IOMMU_AFSR_TO       0x20000000 /* Write access took more than 12.8 us. */
-#define IOMMU_AFSR_BE       0x10000000 /* Write access received error acknowledge */
+#define IOMMU_AFSR_LE       0x40000000 /* SBUS reports error after
+                                          transaction */
+#define IOMMU_AFSR_TO       0x20000000 /* Write access took more than
+                                          12.8 us. */
+#define IOMMU_AFSR_BE       0x10000000 /* Write access received error
+                                          acknowledge */
 #define IOMMU_AFSR_SIZE     0x0e000000 /* Size of transaction causing error */
 #define IOMMU_AFSR_S        0x01000000 /* Sparc was in supervisor mode */
-#define IOMMU_AFSR_RESV     0x00f00000 /* Reserved, forced to 0x8 by hardware */
+#define IOMMU_AFSR_RESV     0x00800000 /* Reserved, forced to 0x8 by
+                                          hardware */
 #define IOMMU_AFSR_ME       0x00080000 /* Multiple errors occurred */
 #define IOMMU_AFSR_RD       0x00040000 /* A read operation was in progress */
 #define IOMMU_AFSR_FAV      0x00020000 /* IOMMU afar has valid contents */
@@ -77,7 +81,8 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_SBCFG1        (0x1014 >> 2) /* SBUS configration per-slot */
 #define IOMMU_SBCFG2        (0x1018 >> 2) /* SBUS configration per-slot */
 #define IOMMU_SBCFG3        (0x101c >> 2) /* SBUS configration per-slot */
-#define IOMMU_SBCFG_SAB30   0x00010000 /* Phys-address bit 30 when bypass enabled */
+#define IOMMU_SBCFG_SAB30   0x00010000 /* Phys-address bit 30 when
+                                          bypass enabled */
 #define IOMMU_SBCFG_BA16    0x00000004 /* Slave supports 16 byte bursts */
 #define IOMMU_SBCFG_BA8     0x00000002 /* Slave supports 8 byte bursts */
 #define IOMMU_SBCFG_BYPASS  0x00000001 /* Bypass IOMMU, treat all addresses
@@ -91,7 +96,8 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 
 /* The format of an iopte in the page tables */
 #define IOPTE_PAGE          0x07ffff00 /* Physical page number (PA[30:12]) */
-#define IOPTE_CACHE         0x00000080 /* Cached (in vme IOCACHE or Viking/MXCC) */
+#define IOPTE_CACHE         0x00000080 /* Cached (in vme IOCACHE or
+                                          Viking/MXCC) */
 #define IOPTE_WRITE         0x00000004 /* Writeable */
 #define IOPTE_VALID         0x00000002 /* IOPTE is valid */
 #define IOPTE_WAZ           0x00000001 /* Write as zeros */
@@ -122,7 +128,8 @@ static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void iommu_mem_writew(void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
 {
     IOMMUState *s = opaque;
     target_phys_addr_t saddr;
@@ -235,10 +242,11 @@ static target_phys_addr_t iommu_translate_pa(IOMMUState *s,
     return pa;
 }
 
-static void iommu_bad_addr(IOMMUState *s, target_phys_addr_t addr, int is_write)
+static void iommu_bad_addr(IOMMUState *s, target_phys_addr_t addr,
+                           int is_write)
 {
     DPRINTF("bad addr " TARGET_FMT_plx "\n", addr);
-    s->regs[IOMMU_AFSR] = IOMMU_AFSR_ERR | IOMMU_AFSR_LE | (8 << 20) |
+    s->regs[IOMMU_AFSR] = IOMMU_AFSR_ERR | IOMMU_AFSR_LE | IOMMU_AFSR_RESV |
         IOMMU_AFSR_FAV;
     if (!is_write)
         s->regs[IOMMU_AFSR] |= IOMMU_AFSR_RD;
@@ -311,7 +319,7 @@ static void iommu_reset(void *opaque)
     s->iostart = 0;
     s->regs[IOMMU_CTRL] = s->version;
     s->regs[IOMMU_ARBEN] = IOMMU_MID;
-    s->regs[IOMMU_AFSR] = 0x00800000;
+    s->regs[IOMMU_AFSR] = IOMMU_AFSR_RESV;
 }
 
 void *iommu_init(target_phys_addr_t addr, uint32_t version)
@@ -326,7 +334,8 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version)
     s->addr = addr;
     s->version = version;
 
-    iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read, iommu_mem_write, s);
+    iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read,
+                                             iommu_mem_write, s);
     cpu_register_physical_memory(addr, IOMMU_NREGS * 4, iommu_io_memory);
 
     register_savevm("iommu", addr, 2, iommu_save, iommu_load, s);
@@ -334,4 +343,3 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version)
     iommu_reset(s);
     return s;
 }
-
