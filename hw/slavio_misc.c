@@ -56,7 +56,7 @@ typedef struct MiscState {
 #define MISC_SIZE 1
 #define SYSCTRL_MAXADDR 3
 #define SYSCTRL_SIZE (SYSCTRL_MAXADDR + 1)
-#define LED_MAXADDR 2
+#define LED_MAXADDR 1
 #define LED_SIZE (LED_MAXADDR + 1)
 
 #define MISC_MASK 0x0fff0000
@@ -281,7 +281,7 @@ static void slavio_led_mem_writes(void *opaque, target_phys_addr_t addr,
                  val);
     switch (saddr) {
     case 0:
-        s->sysctrl = val;
+        s->leds = val;
         break;
     default:
         break;
