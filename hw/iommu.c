@@ -74,6 +74,7 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_AFSR_ME       0x00080000 /* Multiple errors occurred */
 #define IOMMU_AFSR_RD       0x00040000 /* A read operation was in progress */
 #define IOMMU_AFSR_FAV      0x00020000 /* IOMMU afar has valid contents */
+#define IOMMU_AFSR_MASK     0xff0fffff
 
 #define IOMMU_AFAR          (0x1004 >> 2)
 
@@ -178,6 +179,9 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr,
     case IOMMU_PGFLUSH:
         DPRINTF("page flush %x\n", val);
         s->regs[saddr] = val & IOMMU_PGFLUSH_MASK;
+        break;
+    case IOMMU_AFSR:
+        s->regs[saddr] = (val & IOMMU_AFSR_MASK) | IOMMU_AFSR_RESV;
         break;
     case IOMMU_SBCFG0:
     case IOMMU_SBCFG1:
