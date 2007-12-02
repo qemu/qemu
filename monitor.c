@@ -255,6 +255,11 @@ static void do_info_block(void)
     bdrv_info();
 }
 
+static void do_info_blockstats(void)
+{
+    bdrv_info_stats();
+}
+
 /* get the current CPU defined by the user */
 static int mon_set_cpu(int cpu_index)
 {
@@ -1327,6 +1332,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the network state" },
     { "block", "", do_info_block,
       "", "show the block devices" },
+    { "blockstats", "", do_info_blockstats,
+      "", "show block device statistics" },
     { "registers", "", do_info_registers,
       "", "show the cpu registers" },
     { "cpus", "", do_info_cpus,

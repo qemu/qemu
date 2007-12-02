@@ -47,6 +47,7 @@ typedef struct QEMUSnapshotInfo {
 
 #ifndef QEMU_IMG
 void bdrv_info(void);
+void bdrv_info_stats(void);
 #endif
 
 void bdrv_init(void);
