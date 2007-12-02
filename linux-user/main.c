@@ -1617,6 +1617,9 @@ void cpu_loop (CPUState *env)
             env->gregs[0] = ret;
             env->pc += 2;
             break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
         case EXCP_DEBUG:
             {
                 int sig;
@@ -1631,6 +1634,15 @@ void cpu_loop (CPUState *env)
                   }
             }
             break;
+	case 0xa0:
+	case 0xc0:
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            info.si_code = TARGET_SEGV_MAPERR;
+            info._sifields._sigfault._addr = env->tea;
+            queue_signal(info.si_signo, &info);
+	    break;
+
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);

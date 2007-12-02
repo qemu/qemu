@@ -40,15 +40,15 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 			     int mmu_idx, int is_softmmu)
 {
     env->tea = address;
+    env->exception_index = 0;
     switch (rw) {
     case 0:
+	env->tea = address;
         env->exception_index = 0x0a0;
         break;
     case 1:
+	env->tea = address;
         env->exception_index = 0x0c0;
-        break;
-    case 2:
-        env->exception_index = 0x0a0;
         break;
     }
     return 1;
