@@ -171,6 +171,7 @@ static void versatile_init(int ram_size, int vga_ram_size,
     NICInfo *nd;
     int n;
     int done_smc = 0;
+    int index;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -206,11 +207,16 @@ static void versatile_init(int ram_size, int vga_ram_size,
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
+    if (drive_get_max_bus(IF_SCSI) > 0) {
+        fprintf(stderr, "qemu: too many SCSI bus\n");
+        exit(1);
+    }
     scsi_hba = lsi_scsi_init(pci_bus, -1);
-    for (n = 0; n < MAX_DISKS; n++) {
-        if (bs_table[n]) {
-            lsi_scsi_attach(scsi_hba, bs_table[n], n);
-        }
+    for (n = 0; n < LSI_MAX_DEVS; n++) {
+        index = drive_get_index(IF_SCSI, 0, n);
+        if (index == -1)
+            continue;
+        lsi_scsi_attach(scsi_hba, drives_table[index].bdrv, n);
     }
 
     pl011_init(0x101f1000, pic[12], serial_hds[0], PL011_ARM);
@@ -226,7 +232,13 @@ static void versatile_init(int ram_size, int vga_ram_size,
        that includes hardware cursor support from the PL111.  */
     pl110_init(ds, 0x10120000, pic[16], 1);
 
-    pl181_init(0x10005000, sd_bdrv, sic[22], sic[1]);
+    index = drive_get_index(IF_SD, 0, 0);
+    if (index == -1) {
+        fprintf(stderr, "qemu: missing SecureDigital card\n");
+        exit(1);
+    }
+
+    pl181_init(0x10005000, drives_table[index].bdrv, sic[22], sic[1]);
 #if 0
     /* Disabled because there's no way of specifying a block device.  */
     pl181_init(0x1000b000, NULL, sic, 23, 2);

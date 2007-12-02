@@ -50,14 +50,11 @@ do { printf("ESP: " fmt , ##args); } while (0)
 #define ESP_REGS 16
 #define ESP_SIZE (ESP_REGS * 4)
 #define TI_BUFSZ 32
-/* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
-#define ESP_MAX_DEVS      7
 
 typedef struct ESPState ESPState;
 
 struct ESPState {
     qemu_irq irq;
-    BlockDriverState **bd;
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
     int32_t ti_size;
@@ -65,7 +62,7 @@ struct ESPState {
     uint8_t ti_buf[TI_BUFSZ];
     int sense;
     int dma;
-    SCSIDevice *scsi_dev[MAX_DISKS];
+    SCSIDevice *scsi_dev[ESP_MAX_DEVS];
     SCSIDevice *current_dev;
     uint8_t cmdbuf[TI_BUFSZ];
     int cmdlen;
@@ -172,7 +169,7 @@ static int get_cmd(ESPState *s, uint8_t *buf)
         s->async_len = 0;
     }
 
-    if (target >= MAX_DISKS || !s->scsi_dev[target]) {
+    if (target >= ESP_MAX_DEVS || !s->scsi_dev[target]) {
         // No such drive
         s->rregs[ESP_RSTAT] = STAT_IN;
         s->rregs[ESP_RINTR] = INTR_DC;
@@ -621,7 +618,7 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
     s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
 }
 
-void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
+void *esp_init(target_phys_addr_t espaddr,
                void *dma_opaque, qemu_irq irq, qemu_irq *reset)
 {
     ESPState *s;
@@ -631,7 +628,6 @@ void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
     if (!s)
         return NULL;
 
-    s->bd = bd;
     s->irq = irq;
     s->dma_opaque = dma_opaque;
 

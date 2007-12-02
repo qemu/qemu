@@ -44,6 +44,9 @@
 
 #define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
+#define MAX_IDE_BUS 2
+#define MAX_FD 2
+
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -72,6 +75,8 @@ void mips_pica61_init (int ram_size, int vga_ram_size,
     int i;
     int available_ram;
     qemu_irq *i8259;
+    int index;
+    BlockDriverState *fd[MAX_FD];
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -141,9 +146,20 @@ void mips_pica61_init (int ram_size, int vga_ram_size,
     i8042_mm_init(i8259[6], i8259[7], 0x80005060, 0);
 
     /* IDE controller */
-    for(i = 0; i < 2; i++)
+
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+
+    for(i = 0; i < MAX_IDE_BUS; i++) {
+        int hd0, hd1;
+        hd0 = drive_get_index(IF_IDE, i, 0);
+        hd1 = drive_get_index(IF_IDE, i, 1);
         isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
-                     bs_table[2 * i], bs_table[2 * i + 1]);
+                     hd0 == -1 ? NULL : drives_table[hd0].bdrv,
+                     hd1 == -1 ? NULL : drives_table[hd1].bdrv);
+    }
 
     /* Network controller */
     /* FIXME: missing NS SONIC DP83932 */
@@ -152,7 +168,14 @@ void mips_pica61_init (int ram_size, int vga_ram_size,
     /* FIXME: missing NCR 53C94 */
 
     /* ISA devices (floppy, serial, parallel) */
-    fdctrl_init(i8259[1], 1, 1, 0x80003000, fd_table);
+
+    for (i = 0; i < MAX_FD; i++) {
+        index = drive_get_index(IF_FLOPPY, 0, i);
+        if (index == -1)
+            continue;
+        fd[i] = drives_table[index].bdrv;
+    }
+    fdctrl_init(i8259[1], 1, 1, 0x80003000, fd);
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
             serial_mm_init(serial_base[i], 0, i8259[serial_irq[i]], serial_hds[i], 1);

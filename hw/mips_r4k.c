@@ -25,6 +25,8 @@
 
 #define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
+#define MAX_IDE_BUS 2
+
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -155,6 +157,8 @@ void mips_r4k_init (int ram_size, int vga_ram_size,
     RTCState *rtc_state;
     int i;
     qemu_irq *i8259;
+    int index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -245,9 +249,23 @@ void mips_r4k_init (int ram_size, int vga_ram_size,
         }
     }
 
-    for(i = 0; i < 2; i++)
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+
+    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
+        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        if (index != -1)
+            hd[i] = drives_table[index].bdrv;
+        else
+            hd[i] = NULL;
+    }
+
+    for(i = 0; i < MAX_IDE_BUS; i++)
         isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
-                     bs_table[2 * i], bs_table[2 * i + 1]);
+                     hd[MAX_IDE_DEVS * i],
+		     hd[MAX_IDE_DEVS * i + 1]);
 
     i8042_init(i8259[1], i8259[12], 0x60);
     ds1225y_init(0x9000, "nvram");

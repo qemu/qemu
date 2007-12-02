@@ -215,16 +215,11 @@ static void do_commit(const char *device)
     int i, all_devices;
 
     all_devices = !strcmp(device, "all");
-    for (i = 0; i < MAX_DISKS; i++) {
-        if (bs_table[i]) {
+    for (i = 0; i < nb_drives; i++) {
             if (all_devices ||
-                !strcmp(bdrv_get_device_name(bs_table[i]), device))
-                bdrv_commit(bs_table[i]);
-        }
+                !strcmp(bdrv_get_device_name(drives_table[i].bdrv), device))
+                bdrv_commit(drives_table[i].bdrv);
     }
-    if (mtd_bdrv)
-        if (all_devices || !strcmp(bdrv_get_device_name(mtd_bdrv), device))
-            bdrv_commit(mtd_bdrv);
 }
 
 static void do_info(const char *item)

@@ -1133,9 +1133,11 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
             void * oled;
             void * sd;
             void *ssi_bus;
+            int index;
 
             oled = ssd0323_init(ds, &gpio_out[GPIO_C][7]);
-            sd = ssi_sd_init(sd_bdrv);
+            index = drive_get_index(IF_SD, 0, 0);
+            sd = ssi_sd_init(drives_table[index].bdrv);
 
             ssi_bus = stellaris_ssi_bus_init(&gpio_out[GPIO_D][0],
                                              ssi_sd_xfer, sd,

@@ -163,12 +163,10 @@ const char *bios_name = NULL;
 void *ioport_opaque[MAX_IOPORTS];
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
-/* Note: bs_table[MAX_DISKS] is a dummy block driver if none available
+/* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
-BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
-BlockDriverState *pflash_table[MAX_PFLASH];
-BlockDriverState *sd_bdrv;
-BlockDriverState *mtd_bdrv;
+DriveInfo drives_table[MAX_DRIVES+1];
+int nb_drives;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
@@ -232,6 +230,8 @@ int alt_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
+int nb_drives_opt;
+char drives_opt[MAX_DRIVES][1024];
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
@@ -1758,12 +1758,9 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 's':
             {
                 int i;
-                for (i = 0; i < MAX_DISKS; i++) {
-                    if (bs_table[i])
-                        bdrv_commit(bs_table[i]);
+                for (i = 0; i < nb_drives; i++) {
+                        bdrv_commit(drives_table[i].bdrv);
                 }
-                if (mtd_bdrv)
-                    bdrv_commit(mtd_bdrv);
             }
             break;
         case 'b':
@@ -4554,38 +4551,51 @@ static int net_socket_mcast_init(VLANState *vlan, const char *host_str)
 
 }
 
+static const char *get_word(char *buf, int buf_size, const char *p)
+{
+    char *q;
+    int substring;
+
+    substring = 0;
+    q = buf;
+    while (*p != '\0') {
+        if (*p == '\\') {
+            p++;
+            if (*p == '\0')
+                break;
+        } else if (*p == '\"') {
+            substring = !substring;
+            p++;
+            continue;
+        } else if (!substring && (*p == ',' || *p == '='))
+            break;
+        if (q && (q - buf) < buf_size - 1)
+            *q++ = *p;
+        p++;
+    }
+    if (q)
+        *q = '\0';
+
+    return p;
+}
+
 static int get_param_value(char *buf, int buf_size,
                            const char *tag, const char *str)
 {
     const char *p;
-    char *q;
     char option[128];
 
     p = str;
     for(;;) {
-        q = option;
-        while (*p != '\0' && *p != '=') {
-            if ((q - option) < sizeof(option) - 1)
-                *q++ = *p;
-            p++;
-        }
-        *q = '\0';
+        p = get_word(option, sizeof(option), p);
         if (*p != '=')
             break;
         p++;
         if (!strcmp(tag, option)) {
-            q = buf;
-            while (*p != '\0' && *p != ',') {
-                if ((q - buf) < buf_size - 1)
-                    *q++ = *p;
-                p++;
-            }
-            *q = '\0';
-            return q - buf;
+            (void)get_word(buf, buf_size, p);
+            return strlen(buf);
         } else {
-            while (*p != '\0' && *p != ',') {
-                p++;
-            }
+            p = get_word(NULL, 0, p);
         }
         if (*p != ',')
             break;
@@ -4593,6 +4603,32 @@ static int get_param_value(char *buf, int buf_size,
     }
     return 0;
 }
+
+static int check_params(char *buf, int buf_size,
+                        char **params, const char *str)
+{
+    const char *p;
+    int i;
+
+    p = str;
+    for(;;) {
+        p = get_word(buf, buf_size, p);
+        if (*p != '=')
+            return -1;
+        p++;
+        for(i = 0; params[i] != NULL; i++)
+            if (!strcmp(params[i], buf))
+                break;
+        if (params[i] == NULL)
+            return -1;
+        p = get_word(NULL, 0, p);
+        if (*p != ',')
+            break;
+        p++;
+    }
+    return 0;
+}
+
 
 static int net_client_init(const char *str)
 {
@@ -4742,6 +4778,323 @@ void do_info_network(void)
         for(vc = vlan->first_client; vc != NULL; vc = vc->next)
             term_printf("  %s\n", vc->info_str);
     }
+}
+
+#define HD_ALIAS "file=\"%s\",index=%d,media=disk"
+#ifdef TARGET_PPC
+#define CDROM_ALIAS "index=1,media=cdrom"
+#else
+#define CDROM_ALIAS "index=2,media=cdrom"
+#endif
+#define FD_ALIAS "index=%d,if=floppy"
+#define PFLASH_ALIAS "file=\"%s\",if=pflash"
+#define MTD_ALIAS "file=\"%s\",if=mtd"
+#define SD_ALIAS "file=\"%s\",if=sd"
+
+static int drive_add(const char *fmt, ...)
+{
+    va_list ap;
+
+    if (nb_drives_opt >= MAX_DRIVES) {
+        fprintf(stderr, "qemu: too many drives\n");
+        exit(1);
+    }
+
+    va_start(ap, fmt);
+    vsnprintf(drives_opt[nb_drives_opt], sizeof(drives_opt[0]), fmt, ap);
+    va_end(ap);
+
+    return nb_drives_opt++;
+}
+
+int drive_get_index(BlockInterfaceType interface, int bus, int unit)
+{
+    int index;
+
+    /* seek interface, bus and unit */
+
+    for (index = 0; index < nb_drives; index++)
+        if (drives_table[index].interface == interface &&
+	    drives_table[index].bus == bus &&
+	    drives_table[index].unit == unit)
+        return index;
+
+    return -1;
+}
+
+int drive_get_max_bus(BlockInterfaceType interface)
+{
+    int max_bus;
+    int index;
+
+    max_bus = -1;
+    for (index = 0; index < nb_drives; index++) {
+        if(drives_table[index].interface == interface &&
+           drives_table[index].bus > max_bus)
+            max_bus = drives_table[index].bus;
+    }
+    return max_bus;
+}
+
+static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
+{
+    char buf[128];
+    char file[1024];
+    BlockInterfaceType interface;
+    enum { MEDIA_DISK, MEDIA_CDROM } media;
+    int bus_id, unit_id;
+    int cyls, heads, secs, translation;
+    BlockDriverState *bdrv;
+    int max_devs;
+    int index;
+    char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
+                       "secs", "trans", "media", "snapshot", "file", NULL };
+
+    if (check_params(buf, sizeof(buf), params, str) < 0) {
+         fprintf(stderr, "qemu: unknowm parameter '%s' in '%s'\n",
+                         buf, str);
+         return -1;
+    }
+
+    file[0] = 0;
+    cyls = heads = secs = 0;
+    bus_id = 0;
+    unit_id = -1;
+    translation = BIOS_ATA_TRANSLATION_AUTO;
+    index = -1;
+
+    if (!strcmp(machine->name, "realview") ||
+        !strcmp(machine->name, "SS-5") ||
+        !strcmp(machine->name, "SS-10") ||
+        !strcmp(machine->name, "SS-600MP") ||
+        !strcmp(machine->name, "versatilepb") ||
+        !strcmp(machine->name, "versatileab")) {
+        interface = IF_SCSI;
+        max_devs = MAX_SCSI_DEVS;
+    } else {
+        interface = IF_IDE;
+        max_devs = MAX_IDE_DEVS;
+    }
+    media = MEDIA_DISK;
+
+    /* extract parameters */
+
+    if (get_param_value(buf, sizeof(buf), "bus", str)) {
+        bus_id = strtol(buf, NULL, 0);
+	if (bus_id < 0) {
+	    fprintf(stderr, "qemu: '%s' invalid bus id\n", str);
+	    return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "unit", str)) {
+        unit_id = strtol(buf, NULL, 0);
+	if (unit_id < 0) {
+	    fprintf(stderr, "qemu: '%s' invalid unit id\n", str);
+	    return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "if", str)) {
+        if (!strcmp(buf, "ide")) {
+	    interface = IF_IDE;
+            max_devs = MAX_IDE_DEVS;
+        } else if (!strcmp(buf, "scsi")) {
+	    interface = IF_SCSI;
+            max_devs = MAX_SCSI_DEVS;
+        } else if (!strcmp(buf, "floppy")) {
+	    interface = IF_FLOPPY;
+            max_devs = 0;
+        } else if (!strcmp(buf, "pflash")) {
+	    interface = IF_PFLASH;
+            max_devs = 0;
+	} else if (!strcmp(buf, "mtd")) {
+	    interface = IF_MTD;
+            max_devs = 0;
+	} else if (!strcmp(buf, "sd")) {
+	    interface = IF_SD;
+            max_devs = 0;
+	} else {
+            fprintf(stderr, "qemu: '%s' unsupported bus type '%s'\n", str, buf);
+            return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "index", str)) {
+        index = strtol(buf, NULL, 0);
+	if (index < 0) {
+	    fprintf(stderr, "qemu: '%s' invalid index\n", str);
+	    return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "cyls", str)) {
+        cyls = strtol(buf, NULL, 0);
+    }
+
+    if (get_param_value(buf, sizeof(buf), "heads", str)) {
+        heads = strtol(buf, NULL, 0);
+    }
+
+    if (get_param_value(buf, sizeof(buf), "secs", str)) {
+        secs = strtol(buf, NULL, 0);
+    }
+
+    if (cyls || heads || secs) {
+        if (cyls < 1 || cyls > 16383) {
+            fprintf(stderr, "qemu: '%s' invalid physical cyls number\n", str);
+	    return -1;
+	}
+        if (heads < 1 || heads > 16) {
+            fprintf(stderr, "qemu: '%s' invalid physical heads number\n", str);
+	    return -1;
+	}
+        if (secs < 1 || secs > 63) {
+            fprintf(stderr, "qemu: '%s' invalid physical secs number\n", str);
+	    return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "trans", str)) {
+        if (!cyls) {
+            fprintf(stderr,
+                    "qemu: '%s' trans must be used with cyls,heads and secs\n",
+                    str);
+            return -1;
+        }
+        if (!strcmp(buf, "none"))
+            translation = BIOS_ATA_TRANSLATION_NONE;
+        else if (!strcmp(buf, "lba"))
+            translation = BIOS_ATA_TRANSLATION_LBA;
+        else if (!strcmp(buf, "auto"))
+            translation = BIOS_ATA_TRANSLATION_AUTO;
+	else {
+            fprintf(stderr, "qemu: '%s' invalid translation type\n", str);
+	    return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "media", str)) {
+        if (!strcmp(buf, "disk")) {
+	    media = MEDIA_DISK;
+	} else if (!strcmp(buf, "cdrom")) {
+            if (cyls || secs || heads) {
+                fprintf(stderr,
+                        "qemu: '%s' invalid physical CHS format\n", str);
+	        return -1;
+            }
+	    media = MEDIA_CDROM;
+	} else {
+	    fprintf(stderr, "qemu: '%s' invalid media\n", str);
+	    return -1;
+	}
+    }
+
+    if (get_param_value(buf, sizeof(buf), "snapshot", str)) {
+        if (!strcmp(buf, "on"))
+	    snapshot = 1;
+        else if (!strcmp(buf, "off"))
+	    snapshot = 0;
+	else {
+	    fprintf(stderr, "qemu: '%s' invalid snapshot option\n", str);
+	    return -1;
+	}
+    }
+
+    get_param_value(file, sizeof(file), "file", str);
+
+    /* compute bus and unit according index */
+
+    if (index != -1) {
+        if (bus_id != 0 || unit_id != -1) {
+            fprintf(stderr,
+                    "qemu: '%s' index cannot be used with bus and unit\n", str);
+            return -1;
+        }
+        if (max_devs == 0)
+        {
+            unit_id = index;
+            bus_id = 0;
+        } else {
+            unit_id = index % max_devs;
+            bus_id = index / max_devs;
+        }
+    }
+
+    /* if user doesn't specify a unit_id,
+     * try to find the first free
+     */
+
+    if (unit_id == -1) {
+       unit_id = 0;
+       while (drive_get_index(interface, bus_id, unit_id) != -1) {
+           unit_id++;
+           if (max_devs && unit_id >= max_devs) {
+               unit_id -= max_devs;
+               bus_id++;
+           }
+       }
+    }
+
+    /* check unit id */
+
+    if (max_devs && unit_id >= max_devs) {
+        fprintf(stderr, "qemu: '%s' unit %d too big (max is %d)\n",
+                        str, unit_id, max_devs - 1);
+        return -1;
+    }
+
+    /*
+     * ignore multiple definitions
+     */
+
+    if (drive_get_index(interface, bus_id, unit_id) != -1)
+        return 0;
+
+    /* init */
+
+    snprintf(buf, sizeof(buf), "drive%d", nb_drives);
+    bdrv = bdrv_new(buf);
+    drives_table[nb_drives].bdrv = bdrv;
+    drives_table[nb_drives].interface = interface;
+    drives_table[nb_drives].bus = bus_id;
+    drives_table[nb_drives].unit = unit_id;
+    nb_drives++;
+
+    switch(interface) {
+    case IF_IDE:
+    case IF_SCSI:
+        switch(media) {
+	case MEDIA_DISK:
+            if (cyls != 0) {
+                bdrv_set_geometry_hint(bdrv, cyls, heads, secs);
+                bdrv_set_translation_hint(bdrv, translation);
+            }
+	    break;
+	case MEDIA_CDROM:
+            bdrv_set_type_hint(bdrv, BDRV_TYPE_CDROM);
+	    break;
+	}
+        break;
+    case IF_SD:
+        /* FIXME: This isn't really a floppy, but it's a reasonable
+           approximation.  */
+    case IF_FLOPPY:
+        bdrv_set_type_hint(bdrv, BDRV_TYPE_FLOPPY);
+        break;
+    case IF_PFLASH:
+    case IF_MTD:
+        break;
+    }
+    if (!file[0])
+        return 0;
+    if (bdrv_open(bdrv, file, snapshot ? BDRV_O_SNAPSHOT : 0) < 0 ||
+        qemu_key_check(bdrv, file)) {
+        fprintf(stderr, "qemu: could not open disk image %s\n",
+                        file);
+        return -1;
+    }
+    return 0;
 }
 
 /***********************************************************/
@@ -5526,8 +5879,8 @@ static BlockDriverState *get_bs_snapshots(void)
 
     if (bs_snapshots)
         return bs_snapshots;
-    for(i = 0; i <= MAX_DISKS; i++) {
-        bs = bs_table[i];
+    for(i = 0; i <= nb_drives; i++) {
+        bs = drives_table[i].bdrv;
         if (bdrv_can_snapshot(bs))
             goto ok;
     }
@@ -5635,8 +5988,8 @@ void do_savevm(const char *name)
 
     /* create the snapshots */
 
-    for(i = 0; i < MAX_DISKS; i++) {
-        bs1 = bs_table[i];
+    for(i = 0; i < nb_drives; i++) {
+        bs1 = drives_table[i].bdrv;
         if (bdrv_has_snapshot(bs1)) {
             if (must_delete) {
                 ret = bdrv_snapshot_delete(bs1, old_sn->id_str);
@@ -5678,8 +6031,8 @@ void do_loadvm(const char *name)
     saved_vm_running = vm_running;
     vm_stop(0);
 
-    for(i = 0; i <= MAX_DISKS; i++) {
-        bs1 = bs_table[i];
+    for(i = 0; i <= nb_drives; i++) {
+        bs1 = drives_table[i].bdrv;
         if (bdrv_has_snapshot(bs1)) {
             ret = bdrv_snapshot_goto(bs1, name);
             if (ret < 0) {
@@ -5739,8 +6092,8 @@ void do_delvm(const char *name)
         return;
     }
 
-    for(i = 0; i <= MAX_DISKS; i++) {
-        bs1 = bs_table[i];
+    for(i = 0; i <= nb_drives; i++) {
+        bs1 = drives_table[i].bdrv;
         if (bdrv_has_snapshot(bs1)) {
             ret = bdrv_snapshot_delete(bs1, name);
             if (ret < 0) {
@@ -5768,8 +6121,8 @@ void do_info_snapshots(void)
         return;
     }
     term_printf("Snapshot devices:");
-    for(i = 0; i <= MAX_DISKS; i++) {
-        bs1 = bs_table[i];
+    for(i = 0; i <= nb_drives; i++) {
+        bs1 = drives_table[i].bdrv;
         if (bdrv_has_snapshot(bs1)) {
             if (bs == bs1)
                 term_printf(" %s", bdrv_get_device_name(bs1));
@@ -6519,15 +6872,14 @@ static void ram_save(QEMUFile *f, void *opaque)
             /* find if the memory block is available on a virtual
                block device */
             sector_num = -1;
-            for(j = 0; j < MAX_DISKS; j++) {
-                if (bs_table[j]) {
-                    sector_num = bdrv_hash_find(bs_table[j],
-                                                phys_ram_base + i, BDRV_HASH_BLOCK_SIZE);
-                    if (sector_num >= 0)
-                        break;
-                }
+            for(j = 0; j < nb_drives; j++) {
+                sector_num = bdrv_hash_find(drives_table[j].bdrv,
+                                            phys_ram_base + i,
+					    BDRV_HASH_BLOCK_SIZE);
+                if (sector_num >= 0)
+                    break;
             }
-            if (j == MAX_DISKS)
+            if (j == nb_drives)
                 goto normal_compress;
             buf[0] = 1;
             buf[1] = j;
@@ -6578,11 +6930,12 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             ram_decompress_buf(s, buf + 1, 9);
             bs_index = buf[1];
             sector_num = be64_to_cpupu((const uint64_t *)(buf + 2));
-            if (bs_index >= MAX_DISKS || bs_table[bs_index] == NULL) {
+            if (bs_index >= nb_drives) {
                 fprintf(stderr, "Invalid block device index %d\n", bs_index);
                 goto error;
             }
-            if (bdrv_read(bs_table[bs_index], sector_num, phys_ram_base + i,
+            if (bdrv_read(drives_table[bs_index].bdrv, sector_num,
+	                  phys_ram_base + i,
                           BDRV_HASH_BLOCK_SIZE / 512) < 0) {
                 fprintf(stderr, "Error while reading sector %d:%" PRId64 "\n",
                         bs_index, sector_num);
@@ -7079,6 +7432,9 @@ static void help(int exitcode)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
+	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][index=i]\n"
+           "       [,cyls=c,heads=h,secs=s[,trans=t]][snapshot=on|off]\n"
+	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"
            "-pflash file    use 'file' as a parallel flash image\n"
@@ -7224,6 +7580,7 @@ enum {
     QEMU_OPTION_hdb,
     QEMU_OPTION_hdc,
     QEMU_OPTION_hdd,
+    QEMU_OPTION_drive,
     QEMU_OPTION_cdrom,
     QEMU_OPTION_mtdblock,
     QEMU_OPTION_sd,
@@ -7313,6 +7670,7 @@ const QEMUOption qemu_options[] = {
     { "hdb", HAS_ARG, QEMU_OPTION_hdb },
     { "hdc", HAS_ARG, QEMU_OPTION_hdc },
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
+    { "drive", HAS_ARG, QEMU_OPTION_drive },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
     { "mtdblock", HAS_ARG, QEMU_OPTION_mtdblock },
     { "sd", HAS_ARG, QEMU_OPTION_sd },
@@ -7425,16 +7783,9 @@ int qemu_key_check(BlockDriverState *bs, const char *name)
 
 static BlockDriverState *get_bdrv(int index)
 {
-    BlockDriverState *bs;
-
-    if (index < 4) {
-        bs = bs_table[index];
-    } else if (index < 6) {
-        bs = fd_table[index - 4];
-    } else {
-        bs = NULL;
-    }
-    return bs;
+    if (index > nb_drives)
+        return NULL;
+    return drives_table[index].bdrv;
 }
 
 static void read_passwords(void)
@@ -7637,19 +7988,16 @@ int main(int argc, char **argv)
     const char *gdbstub_port;
 #endif
     uint32_t boot_devices_bitmap = 0;
-    int i, cdrom_index, pflash_index;
+    int i;
     int snapshot, linux_boot, net_boot;
     const char *initrd_filename;
-    const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
-    const char *pflash_filename[MAX_PFLASH];
-    const char *sd_filename;
-    const char *mtd_filename;
     const char *kernel_filename, *kernel_cmdline;
     const char *boot_devices = "";
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
     char net_clients[MAX_NET_CLIENTS][256];
     int nb_net_clients;
+    int hda_index;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd;
@@ -7702,15 +8050,6 @@ int main(int argc, char **argv)
     machine = first_machine;
     cpu_model = NULL;
     initrd_filename = NULL;
-    for(i = 0; i < MAX_FD; i++)
-        fd_filename[i] = NULL;
-    for(i = 0; i < MAX_DISKS; i++)
-        hd_filename[i] = NULL;
-    for(i = 0; i < MAX_PFLASH; i++)
-        pflash_filename[i] = NULL;
-    pflash_index = 0;
-    sd_filename = NULL;
-    mtd_filename = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
@@ -7721,11 +8060,6 @@ int main(int argc, char **argv)
     nographic = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
-#ifdef TARGET_PPC
-    cdrom_index = 1;
-#else
-    cdrom_index = 2;
-#endif
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
     pstrcpy(monitor_device, sizeof(monitor_device), "vc");
@@ -7743,6 +8077,9 @@ int main(int argc, char **argv)
     usb_devices_index = 0;
 
     nb_net_clients = 0;
+    nb_drives = 0;
+    nb_drives_opt = 0;
+    hda_index = -1;
 
     nb_nics = 0;
     /* default mac address of the first network interface */
@@ -7753,7 +8090,7 @@ int main(int argc, char **argv)
             break;
         r = argv[optind];
         if (r[0] != '-') {
-            hd_filename[0] = argv[optind++];
+	    hda_index = drive_add(HD_ALIAS, argv[optind++], 0);
         } else {
             const QEMUOption *popt;
 
@@ -7813,29 +8150,33 @@ int main(int argc, char **argv)
                 initrd_filename = optarg;
                 break;
             case QEMU_OPTION_hda:
+                if (cyls == 0)
+                    hda_index = drive_add(HD_ALIAS, optarg, 0);
+                else
+                    hda_index = drive_add(HD_ALIAS
+			     ",cyls=%d,heads=%d,secs=%d%s",
+                             optarg, 0, cyls, heads, secs,
+                             translation == BIOS_ATA_TRANSLATION_LBA ?
+                                 ",trans=lba" :
+                             translation == BIOS_ATA_TRANSLATION_NONE ?
+                                 ",trans=none" : "");
+                 break;
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
-                {
-                    int hd_index;
-                    hd_index = popt->index - QEMU_OPTION_hda;
-                    hd_filename[hd_index] = optarg;
-                    if (hd_index == cdrom_index)
-                        cdrom_index = -1;
-                }
+		drive_add(HD_ALIAS, optarg, popt->index - QEMU_OPTION_hda);
                 break;
+            case QEMU_OPTION_drive:
+                drive_add("%s", optarg);
+	        break;
             case QEMU_OPTION_mtdblock:
-                mtd_filename = optarg;
+	        drive_add(MTD_ALIAS, optarg);
                 break;
             case QEMU_OPTION_sd:
-                sd_filename = optarg;
+                drive_add(SD_ALIAS, optarg);
                 break;
             case QEMU_OPTION_pflash:
-                if (pflash_index >= MAX_PFLASH) {
-                    fprintf(stderr, "qemu: too many parallel flash images\n");
-                    exit(1);
-                }
-                pflash_filename[pflash_index++] = optarg;
+	        drive_add(PFLASH_ALIAS, optarg);
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -7874,6 +8215,17 @@ int main(int argc, char **argv)
                         fprintf(stderr, "qemu: invalid physical CHS format\n");
                         exit(1);
                     }
+		    if (hda_index != -1)
+		        snprintf(drives_opt[hda_index] +
+			         strlen(drives_opt[hda_index]),
+			         sizeof(drives_opt[0]) -
+				 strlen(drives_opt[hda_index]),
+		                 ",cyls=%d,heads=%d,secs=%d%s",
+			         cyls, heads, secs,
+			         translation == BIOS_ATA_TRANSLATION_LBA ?
+			     	    ",trans=lba" :
+			         translation == BIOS_ATA_TRANSLATION_NONE ?
+			             ",trans=none" : "");
                 }
                 break;
             case QEMU_OPTION_nographic:
@@ -7892,9 +8244,7 @@ int main(int argc, char **argv)
                 kernel_cmdline = optarg;
                 break;
             case QEMU_OPTION_cdrom:
-                if (cdrom_index >= 0) {
-                    hd_filename[cdrom_index] = optarg;
-                }
+		drive_add("file=\"%s\"," CDROM_ALIAS, optarg);
                 break;
             case QEMU_OPTION_boot:
                 boot_devices = optarg;
@@ -7928,10 +8278,9 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_fda:
-                fd_filename[0] = optarg;
-                break;
             case QEMU_OPTION_fdb:
-                fd_filename[1] = optarg;
+		drive_add("file=\"%s\"," FD_ALIAS, optarg,
+		          popt->index - QEMU_OPTION_fda);
                 break;
 #ifdef TARGET_I386
             case QEMU_OPTION_no_fd_bootchk:
@@ -8312,20 +8661,12 @@ int main(int argc, char **argv)
 
     /* XXX: this should not be: some embedded targets just have flash */
     if (!linux_boot && net_boot == 0 &&
-        hd_filename[0] == NULL &&
-        (cdrom_index >= 0 && hd_filename[cdrom_index] == NULL) &&
-        fd_filename[0] == NULL &&
-        pflash_filename[0] == NULL)
+        nb_drives_opt == 0)
         help(1);
 
     /* boot to floppy or the default cd if no hard disk defined yet */
     if (!boot_devices[0]) {
-        if (hd_filename[0] != NULL)
-            boot_devices = "c";
-        else if (fd_filename[0] != NULL)
-            boot_devices = "a";
-        else
-            boot_devices = "d";
+        boot_devices = "cad";
     }
     setvbuf(stdout, NULL, _IOLBF, 0);
 
@@ -8402,97 +8743,23 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    /* we always create the cdrom drive, even if no disk is there */
     bdrv_init();
-    if (cdrom_index >= 0) {
-        bs_table[cdrom_index] = bdrv_new("cdrom");
-        bdrv_set_type_hint(bs_table[cdrom_index], BDRV_TYPE_CDROM);
-    }
+
+    /* we always create the cdrom drive, even if no disk is there */
+
+    if (nb_drives_opt < MAX_DRIVES)
+        drive_add(CDROM_ALIAS);
+
+    /* we always create at least on floppy */
+
+    if (nb_drives_opt < MAX_DRIVES)
+        drive_add(FD_ALIAS, 0);
 
     /* open the virtual block devices */
-    for(i = 0; i < MAX_DISKS; i++) {
-        if (hd_filename[i]) {
-            if (!bs_table[i]) {
-                char buf[64];
-                snprintf(buf, sizeof(buf), "hd%c", i + 'a');
-                bs_table[i] = bdrv_new(buf);
-            }
-            if (bdrv_open(bs_table[i], hd_filename[i], snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
-                fprintf(stderr, "qemu: could not open hard disk image '%s'\n",
-                        hd_filename[i]);
-                exit(1);
-            }
-            if (i == 0 && cyls != 0) {
-                bdrv_set_geometry_hint(bs_table[i], cyls, heads, secs);
-                bdrv_set_translation_hint(bs_table[i], translation);
-            }
-        }
-    }
 
-    /* we always create at least one floppy disk */
-    fd_table[0] = bdrv_new("fda");
-    bdrv_set_type_hint(fd_table[0], BDRV_TYPE_FLOPPY);
-
-    for(i = 0; i < MAX_FD; i++) {
-        if (fd_filename[i]) {
-            if (!fd_table[i]) {
-                char buf[64];
-                snprintf(buf, sizeof(buf), "fd%c", i + 'a');
-                fd_table[i] = bdrv_new(buf);
-                bdrv_set_type_hint(fd_table[i], BDRV_TYPE_FLOPPY);
-            }
-            if (fd_filename[i][0] != '\0') {
-                if (bdrv_open(fd_table[i], fd_filename[i],
-                              snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
-                    fprintf(stderr, "qemu: could not open floppy disk image '%s'\n",
-                            fd_filename[i]);
-                    exit(1);
-                }
-            }
-        }
-    }
-
-    /* Open the virtual parallel flash block devices */
-    for(i = 0; i < MAX_PFLASH; i++) {
-        if (pflash_filename[i]) {
-            if (!pflash_table[i]) {
-                char buf[64];
-                snprintf(buf, sizeof(buf), "fl%c", i + 'a');
-                pflash_table[i] = bdrv_new(buf);
-            }
-            if (bdrv_open(pflash_table[i], pflash_filename[i],
-                          snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
-                fprintf(stderr, "qemu: could not open flash image '%s'\n",
-                        pflash_filename[i]);
-                exit(1);
-            }
-        }
-    }
-
-    sd_bdrv = bdrv_new ("sd");
-    /* FIXME: This isn't really a floppy, but it's a reasonable
-       approximation.  */
-    bdrv_set_type_hint(sd_bdrv, BDRV_TYPE_FLOPPY);
-    if (sd_filename) {
-        if (bdrv_open(sd_bdrv, sd_filename,
-                      snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
-            fprintf(stderr, "qemu: could not open SD card image %s\n",
-                    sd_filename);
-        } else
-            qemu_key_check(sd_bdrv, sd_filename);
-    }
-
-    if (mtd_filename) {
-        mtd_bdrv = bdrv_new ("mtd");
-        if (bdrv_open(mtd_bdrv, mtd_filename,
-                      snapshot ? BDRV_O_SNAPSHOT : 0) < 0 ||
-            qemu_key_check(mtd_bdrv, mtd_filename)) {
-            fprintf(stderr, "qemu: could not open Flash image %s\n",
-                    mtd_filename);
-            bdrv_delete(mtd_bdrv);
-            mtd_bdrv = 0;
-        }
-    }
+    for(i = 0; i < nb_drives_opt; i++)
+        if (drive_init(drives_opt[i], snapshot, machine) == -1)
+	    exit(1);
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
     register_savevm("ram", 0, 2, ram_save, ram_load, NULL);

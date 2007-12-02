@@ -47,6 +47,7 @@ static void connex_init(int ram_size, int vga_ram_size,
                 const char *initrd_filename, const char *cpu_model)
 {
     struct pxa2xx_state_s *cpu;
+    int index;
 
     uint32_t connex_rom = 0x01000000;
     uint32_t connex_ram = 0x04000000;
@@ -59,14 +60,15 @@ static void connex_init(int ram_size, int vga_ram_size,
 
     cpu = pxa255_init(connex_ram, ds);
 
-    if (pflash_table[0] == NULL) {
+    index = drive_get_index(IF_PFLASH, 0, 0);
+    if (index == -1) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
         exit(1);
     }
 
     if (!pflash_register(0x00000000, qemu_ram_alloc(connex_rom),
-            pflash_table[0], sector_len, connex_rom / sector_len,
+            drives_table[index].bdrv, sector_len, connex_rom / sector_len,
             2, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
@@ -85,6 +87,7 @@ static void verdex_init(int ram_size, int vga_ram_size,
                 const char *initrd_filename, const char *cpu_model)
 {
     struct pxa2xx_state_s *cpu;
+    int index;
 
     uint32_t verdex_rom = 0x02000000;
     uint32_t verdex_ram = 0x10000000;
@@ -97,14 +100,15 @@ static void verdex_init(int ram_size, int vga_ram_size,
 
     cpu = pxa270_init(verdex_ram, ds, cpu_model ?: "pxa270-c0");
 
-    if (pflash_table[0] == NULL) {
+    index = drive_get_index(IF_PFLASH, 0, 0);
+    if (index == -1) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
         exit(1);
     }
 
     if (!pflash_register(0x00000000, qemu_ram_alloc(verdex_rom),
-            pflash_table[0], sector_len, verdex_rom / sector_len,
+            drives_table[index].bdrv, sector_len, verdex_rom / sector_len,
             2, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);

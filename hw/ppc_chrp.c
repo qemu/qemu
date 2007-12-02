@@ -32,6 +32,8 @@
 #include "sysemu.h"
 #include "boards.h"
 
+#define MAX_IDE_BUS 2
+
 /* UniN device */
 static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
@@ -81,6 +83,8 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
     int pic_mem_index, dbdma_mem_index, cuda_mem_index;
     int ide_mem_index[2];
     int ppc_boot_device;
+    int index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
 
     linux_boot = (kernel_filename != NULL);
 
@@ -266,11 +270,22 @@ static void ppc_core99_init (int ram_size, int vga_ram_size,
             nd_table[i].model = "ne2k_pci";
         pci_nic_init(pci_bus, &nd_table[i], -1);
     }
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
+        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        if (index != -1)
+            hd[i] = drives_table[index].bdrv;
+        else
+            hd[i] = NULL;
+    }
 #if 1
-    ide_mem_index[0] = pmac_ide_init(&bs_table[0], pic[0x13]);
-    ide_mem_index[1] = pmac_ide_init(&bs_table[2], pic[0x14]);
+    ide_mem_index[0] = pmac_ide_init(&hd[0], pic[0x13]);
+    ide_mem_index[1] = pmac_ide_init(&hd[2], pic[0x14]);
 #else
-    pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
+    pci_cmd646_ide_init(pci_bus, &hd[0], 0);
 #endif
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x19]);

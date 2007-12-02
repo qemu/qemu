@@ -478,6 +478,7 @@ static void integratorcp_init(int ram_size, int vga_ram_size,
     uint32_t bios_offset;
     qemu_irq *pic;
     qemu_irq *cpu_pic;
+    int sd;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -506,7 +507,12 @@ static void integratorcp_init(int ram_size, int vga_ram_size,
     icp_control_init(0xcb000000);
     pl050_init(0x18000000, pic[3], 0);
     pl050_init(0x19000000, pic[4], 1);
-    pl181_init(0x1c000000, sd_bdrv, pic[23], pic[24]);
+    sd = drive_get_index(IF_SD, 0, 0);
+    if (sd == -1) {
+        fprintf(stderr, "qemu: missing SecureDigital card\n");
+        exit(1);
+    }
+    pl181_init(0x1c000000, drives_table[sd].bdrv, pic[23], pic[24]);
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "smc91c111") == 0) {

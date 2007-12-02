@@ -338,6 +338,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     unsigned long prom_offset, kernel_size;
     int ret;
     char buf[1024];
+    BlockDriverState *fd[MAX_FD];
+    int index;
 
     /* init CPUs */
     if (!cpu_model)
@@ -440,16 +442,29 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
 
-    if (hwdef->fd_base != (target_phys_addr_t)-1)
-        sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd_table);
+    if (hwdef->fd_base != (target_phys_addr_t)-1) {
+        /* there is zero or one floppy drive */
+        fd[1] = fd[0] = NULL;
+        index = drive_get_index(IF_FLOPPY, 0, 0);
+        if (index != -1)
+            fd[0] = drives_table[index].bdrv;
 
-    main_esp = esp_init(bs_table, hwdef->esp_base, espdma, *espdma_irq,
+        sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd);
+    }
+
+    if (drive_get_max_bus(IF_SCSI) > 0) {
+        fprintf(stderr, "qemu: too many SCSI bus\n");
+        exit(1);
+    }
+
+    main_esp = esp_init(hwdef->esp_base, espdma, *espdma_irq,
                         esp_reset);
 
-    for (i = 0; i < MAX_DISKS; i++) {
-        if (bs_table[i]) {
-            esp_scsi_attach(main_esp, bs_table[i], i);
-        }
+    for (i = 0; i < ESP_MAX_DEVS; i++) {
+        index = drive_get_index(IF_SCSI, 0, i);
+        if (index == -1)
+            continue;
+        esp_scsi_attach(main_esp, drives_table[index].bdrv, i);
     }
 
     slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->power_base,

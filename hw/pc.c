@@ -42,6 +42,8 @@
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
 #define ACPI_DATA_SIZE       0x10000
 
+#define MAX_IDE_BUS 2
+
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
@@ -381,8 +383,10 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
 {
     uint8_t bootsect[512], *p;
     int i;
+    int hda;
 
-    if (bs_table[0] == NULL) {
+    hda = drive_get_index(IF_IDE, 0, 0);
+    if (hda == -1) {
 	fprintf(stderr, "A disk image must be given for 'hda' when booting "
 		"a Linux kernel\n");
 	exit(1);
@@ -391,7 +395,7 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     memset(bootsect, 0, sizeof(bootsect));
 
     /* Copy the MSDOS partition table if possible */
-    bdrv_read(bs_table[0], 0, bootsect, 1);
+    bdrv_read(drives_table[hda].bdrv, 0, bootsect, 1);
 
     /* Make sure we have a partition signature */
     bootsect[510] = 0x55;
@@ -428,7 +432,7 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     *p++ = segs[1];		/* CS */
     *p++ = segs[1] >> 8;
 
-    bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
+    bdrv_set_boot_sector(drives_table[hda].bdrv, bootsect, sizeof(bootsect));
 }
 
 static int load_kernel(const char *filename, uint8_t *addr,
@@ -709,6 +713,9 @@ static void pc_init1(int ram_size, int vga_ram_size,
     NICInfo *nd;
     qemu_irq *cpu_irq;
     qemu_irq *i8259;
+    int index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    BlockDriverState *fd[MAX_FD];
 
     linux_boot = (kernel_filename != NULL);
 
@@ -926,12 +933,25 @@ static void pc_init1(int ram_size, int vga_ram_size,
         }
     }
 
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+
+    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
+        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+	if (index != -1)
+	    hd[i] = drives_table[index].bdrv;
+	else
+	    hd[i] = NULL;
+    }
+
     if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, bs_table, piix3_devfn + 1, i8259);
+        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1, i8259);
     } else {
-        for(i = 0; i < 2; i++) {
+        for(i = 0; i < MAX_IDE_BUS; i++) {
             isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
-                         bs_table[2 * i], bs_table[2 * i + 1]);
+	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
         }
     }
 
@@ -941,9 +961,16 @@ static void pc_init1(int ram_size, int vga_ram_size,
     audio_init(pci_enabled ? pci_bus : NULL, i8259);
 #endif
 
-    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
+    for(i = 0; i < MAX_FD; i++) {
+        index = drive_get_index(IF_FLOPPY, 0, i);
+	if (index != -1)
+	    fd[i] = drives_table[index].bdrv;
+	else
+	    fd[i] = NULL;
+    }
+    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 
-    cmos_init(ram_size, boot_device, bs_table);
+    cmos_init(ram_size, boot_device, hd);
 
     if (pci_enabled && usb_enabled) {
         usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
@@ -963,23 +990,24 @@ static void pc_init1(int ram_size, int vga_ram_size,
     if (i440fx_state) {
         i440fx_init_memory_mappings(i440fx_state);
     }
-#if 0
-    /* ??? Need to figure out some way for the user to
-       specify SCSI devices.  */
-    if (pci_enabled) {
-        void *scsi;
-        BlockDriverState *bdrv;
 
-        scsi = lsi_scsi_init(pci_bus, -1);
-        bdrv = bdrv_new("scsidisk");
-        bdrv_open(bdrv, "scsi_disk.img", 0);
-        lsi_scsi_attach(scsi, bdrv, -1);
-        bdrv = bdrv_new("scsicd");
-        bdrv_open(bdrv, "scsi_cd.iso", 0);
-        bdrv_set_type_hint(bdrv, BDRV_TYPE_CDROM);
-        lsi_scsi_attach(scsi, bdrv, -1);
+    if (pci_enabled) {
+	int max_bus;
+        int bus, unit;
+        void *scsi;
+
+        max_bus = drive_get_max_bus(IF_SCSI);
+
+	for (bus = 0; bus <= max_bus; bus++) {
+            scsi = lsi_scsi_init(pci_bus, -1);
+            for (unit = 0; unit < LSI_MAX_DEVS; unit++) {
+	        index = drive_get_index(IF_SCSI, bus, unit);
+		if (index == -1)
+		    continue;
+		lsi_scsi_attach(scsi, drives_table[index].bdrv, unit);
+	    }
+        }
     }
-#endif
 }
 
 static void pc_init_pci(int ram_size, int vga_ram_size,
