@@ -419,7 +419,7 @@ void OPPROTO op_subv_T0_T1(void)
 
 void OPPROTO op_trapa(void)
 {
-    env->tra = PARAM1 * 2;
+    env->tra = PARAM1 << 2;
     env->exception_index = 0x160;
     do_raise_exception();
     RETURN();

@@ -511,7 +511,10 @@ int cpu_exec(CPUState *env1)
                         BREAK_CHAIN;
                     }
 #elif defined(TARGET_SH4)
-		    /* XXXXX */
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                        do_interrupt(env);
+                        BREAK_CHAIN;
+                    }
 #elif defined(TARGET_ALPHA)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);

@@ -121,6 +121,7 @@ typedef struct CPUSH4State {
     int exception_index;
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
+    void *intc_handle;
 } CPUSH4State;
 
 CPUSH4State *cpu_sh4_init(const char *cpu_model);
