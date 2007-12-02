@@ -3187,18 +3187,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             argc = 0;
             guest_argp = arg2;
             for (gp = guest_argp; ; gp++) {
-                if (get_user_ual(guest_argp, gp))
+                if (get_user_ual(addr, gp))
                     goto efault;
-                if (!guest_argp)
+                if (!addr)
                     break;
                 argc++;
             }
             envc = 0;
             guest_envp = arg3;
             for (gp = guest_envp; ; gp++) {
-                if (get_user_ual(guest_envp, gp))
+                if (get_user_ual(addr, gp))
                     goto efault;
-                if (!guest_envp)
+                if (!addr)
                     break;
                 envc++;
             }
