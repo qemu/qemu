@@ -57,10 +57,20 @@ typedef struct DisasContext {
     uint32_t fpscr;
     uint16_t opcode;
     uint32_t flags;
+    int bstate;
     int memidx;
     uint32_t delayed_pc;
     int singlestep_enabled;
 } DisasContext;
+
+enum {
+    BS_NONE     = 0, /* We go out of the TB without reaching a branch or an
+                      * exception condition
+                      */
+    BS_STOP     = 1, /* We want to stop translation for any reason */
+    BS_BRANCH   = 2, /* We reached a branch condition     */
+    BS_EXCP     = 3, /* We reached an exception condition */
+};
 
 #ifdef CONFIG_USER_ONLY
 
@@ -176,15 +186,6 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
     gen_op_exit_tb();
 }
 
-/* Jump to pc after an exception */
-static void gen_jump_exception(DisasContext * ctx)
-{
-    gen_op_movl_imm_T0(0);
-    if (ctx->singlestep_enabled)
-	gen_op_debug();
-    gen_op_exit_tb();
-}
-
 static void gen_jump(DisasContext * ctx)
 {
     if (ctx->delayed_pc == (uint32_t) - 1) {
@@ -220,7 +221,7 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
 
     l1 = gen_new_label();
     gen_op_jdelayed(l1);
-    gen_goto_tb(ctx, 1, ctx->pc);
+    gen_goto_tb(ctx, 1, ctx->pc + 2);
     gen_set_label(l1);
     gen_jump(ctx);
 }
@@ -248,10 +249,10 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
 
 #define CHECK_NOT_DELAY_SLOT \
   if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) \
-  {gen_op_raise_slot_illegal_instruction (); ctx->flags |= BRANCH_EXCEPTION; \
+  {gen_op_raise_slot_illegal_instruction (); ctx->bstate = BS_EXCP; \
    return;}
 
-void decode_opc(DisasContext * ctx)
+void _decode_opc(DisasContext * ctx)
 {
 #if 0
     fprintf(stderr, "Translating opcode 0x%04x\n", ctx->opcode);
@@ -290,11 +291,11 @@ void decode_opc(DisasContext * ctx)
 	return;
     case 0xfbfb:		/* frchg */
 	gen_op_frchg();
-	ctx->flags |= MODE_CHANGE;
+	ctx->bstate = BS_STOP;
 	return;
     case 0xf3fb:		/* fschg */
 	gen_op_fschg();
-	ctx->flags |= MODE_CHANGE;
+	ctx->bstate = BS_STOP;
 	return;
     case 0x0009:		/* nop */
 	return;
@@ -805,7 +806,7 @@ void decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
 	    gen_conditional_jump(ctx, ctx->pc + 2,
 				 ctx->pc + 4 + B7_0s * 2);
-	ctx->flags |= BRANCH_CONDITIONAL;
+	ctx->bstate = BS_BRANCH;
 	return;
     case 0x8f00:		/* bf/s label */
 	CHECK_NOT_DELAY_SLOT
@@ -816,7 +817,7 @@ void decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
 	    gen_conditional_jump(ctx, ctx->pc + 4 + B7_0s * 2,
 				 ctx->pc + 2);
-	ctx->flags |= BRANCH_CONDITIONAL;
+	ctx->bstate = BS_BRANCH;
 	return;
     case 0x8d00:		/* bt/s label */
 	CHECK_NOT_DELAY_SLOT
@@ -908,7 +909,7 @@ void decode_opc(DisasContext * ctx)
     case 0xc300:		/* trapa #imm */
 	CHECK_NOT_DELAY_SLOT gen_op_movl_imm_PC(ctx->pc);
 	gen_op_trapa(B7_0);
-	ctx->flags |= BRANCH;
+	ctx->bstate = BS_BRANCH;
 	return;
     case 0xc800:		/* tst #imm,R0 */
 	gen_op_tst_imm_rN(B7_0, REG(0));
@@ -1012,8 +1013,8 @@ void decode_opc(DisasContext * ctx)
     gen_op_movl_rN_T1 (REG(B11_8));				\
     gen_op_stl_T0_T1 (ctx);					\
     return;
-	LDST(sr, 0x400e, 0x4007, ldc, 0x0002, 0x4003, stc, ctx->flags |=
-	     MODE_CHANGE;)
+	LDST(sr, 0x400e, 0x4007, ldc, 0x0002, 0x4003, stc, ctx->bstate =
+	     BS_STOP;)
 	LDST(gbr, 0x401e, 0x4017, ldc, 0x0012, 0x4013, stc,)
 	LDST(vbr, 0x402e, 0x4027, ldc, 0x0022, 0x4023, stc,)
 	LDST(ssr, 0x403e, 0x4037, ldc, 0x0032, 0x4033, stc,)
@@ -1023,8 +1024,8 @@ void decode_opc(DisasContext * ctx)
 	LDST(macl, 0x401a, 0x4016, lds, 0x001a, 0x4012, sts,)
 	LDST(pr, 0x402a, 0x4026, lds, 0x002a, 0x4022, sts,)
 	LDST(fpul, 0x405a, 0x4056, lds, 0x005a, 0x4052, sts,)
-	LDST(fpscr, 0x406a, 0x4066, lds, 0x006a, 0x4062, sts, ctx->flags |=
-	     MODE_CHANGE;)
+	LDST(fpscr, 0x406a, 0x4066, lds, 0x006a, 0x4062, sts, ctx->bstate =
+	     BS_STOP;)
     case 0x00c3:		/* movca.l R0,@Rm */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_movl_rN_T1(REG(B11_8));
@@ -1141,7 +1142,28 @@ void decode_opc(DisasContext * ctx)
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
 	    ctx->opcode, ctx->pc);
     gen_op_raise_illegal_instruction();
-    ctx->flags |= BRANCH_EXCEPTION;
+    ctx->bstate = BS_EXCP;
+}
+
+void decode_opc(DisasContext * ctx)
+{
+    uint32_t old_flags = ctx->flags;
+
+    _decode_opc(ctx);
+
+    if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
+        if (ctx->flags & DELAY_SLOT_CLEARME) {
+            gen_op_store_flags(0);
+        }
+        ctx->flags = 0;
+        ctx->bstate = BS_BRANCH;
+        if (old_flags & DELAY_SLOT_CONDITIONAL) {
+	    gen_delayed_conditional_jump(ctx);
+        } else if (old_flags & DELAY_SLOT) {
+            gen_jump(ctx);
+	}
+
+    }
 }
 
 static inline int
@@ -1151,7 +1173,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     DisasContext ctx;
     target_ulong pc_start;
     static uint16_t *gen_opc_end;
-    uint32_t old_flags;
     int i, ii;
 
     pc_start = tb->pc;
@@ -1159,14 +1180,14 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
     ctx.pc = pc_start;
-    ctx.flags = env->flags;
-    old_flags = 0;
+    ctx.flags = (uint32_t)tb->flags;
+    ctx.bstate = BS_NONE;
     ctx.sr = env->sr;
     ctx.fpscr = env->fpscr;
     ctx.memidx = (env->sr & SR_MD) ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
        so assume it is a dynamic branch.  */
-    ctx.delayed_pc = -1;
+    ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
     nb_gen_labels = 0;
@@ -1180,18 +1201,14 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 #endif
 
     ii = -1;
-    while ((old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) == 0 &&
-	   (ctx.flags & (BRANCH | BRANCH_CONDITIONAL | MODE_CHANGE |
-			 BRANCH_EXCEPTION)) == 0 &&
-	   gen_opc_ptr < gen_opc_end && ctx.sr == env->sr) {
-	old_flags = ctx.flags;
+    while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {
 	if (env->nb_breakpoints > 0) {
 	    for (i = 0; i < env->nb_breakpoints; i++) {
 		if (ctx.pc == env->breakpoints[i]) {
 		    /* We have hit a breakpoint - make sure PC is up-to-date */
 		    gen_op_movl_imm_PC(ctx.pc);
 		    gen_op_debug();
-		    ctx.flags |= BRANCH_EXCEPTION;
+		    ctx.bstate = BS_EXCP;
 		    break;
 		}
 	    }
@@ -1204,6 +1221,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
                     gen_opc_instr_start[ii++] = 0;
             }
             gen_opc_pc[ii] = ctx.pc;
+            gen_opc_hflags[ii] = ctx.flags;
             gen_opc_instr_start[ii] = 1;
         }
 #if 0
@@ -1221,21 +1239,30 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 	break;
 #endif
     }
-
-    if (old_flags & DELAY_SLOT_CONDITIONAL) {
-	gen_delayed_conditional_jump(&ctx);
-    } else if (old_flags & DELAY_SLOT) {
-	gen_op_clr_delay_slot();
-	gen_jump(&ctx);
-    } else if (ctx.flags & BRANCH_EXCEPTION) {
-        gen_jump_exception(&ctx);
-    } else if ((ctx.flags & (BRANCH | BRANCH_CONDITIONAL)) == 0) {
-        gen_goto_tb(&ctx, 0, ctx.pc);
-    }
-
     if (env->singlestep_enabled) {
-	gen_op_debug();
+        gen_op_debug();
+    } else {
+	switch (ctx.bstate) {
+        case BS_STOP:
+            /* gen_op_interrupt_restart(); */
+            /* fall through */
+        case BS_NONE:
+            if (ctx.flags) {
+                gen_op_store_flags(ctx.flags | DELAY_SLOT_CLEARME);
+	    }
+            gen_goto_tb(&ctx, 0, ctx.pc);
+            break;
+        case BS_EXCP:
+            /* gen_op_interrupt_restart(); */
+            gen_op_movl_imm_T0(0);
+            gen_op_exit_tb();
+            break;
+        case BS_BRANCH:
+        default:
+            break;
+	}
     }
+
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         i = gen_opc_ptr - gen_opc_buf;

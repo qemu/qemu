@@ -202,8 +202,8 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_SH4)
-    flags = env->sr & (SR_MD | SR_RB);
-    cs_base = 0;         /* XXXXX */
+    flags = env->flags;
+    cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_ALPHA)
     flags = env->ps;
