@@ -24,6 +24,7 @@
 #include <assert.h>
 #include "hw.h"
 #include "audiodev.h"
+#include "audio/audio.h"
 
 #define ADLIB_KILL_TIMERS 1
 
