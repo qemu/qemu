@@ -172,8 +172,9 @@ void mips_pica61_init (int ram_size, int vga_ram_size,
     for (i = 0; i < MAX_FD; i++) {
         index = drive_get_index(IF_FLOPPY, 0, i);
         if (index == -1)
-            continue;
-        fd[i] = drives_table[index].bdrv;
+            fd[i] = NULL;
+        else
+            fd[i] = drives_table[index].bdrv;
     }
     fdctrl_init(i8259[1], 1, 1, 0x80003000, fd);
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
