@@ -36,6 +36,10 @@
 #include "disas.h"
 #include <dirent.h>
 
+#ifdef CONFIG_PROFILER
+#include "qemu-timer.h" /* for ticks_per_sec */
+#endif
+
 //#define DEBUG
 //#define DEBUG_COMPLETION
 
