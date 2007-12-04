@@ -189,7 +189,7 @@ static uint16_t sd_crc16(void *message, size_t width)
 
 static void sd_set_ocr(SDState *sd)
 {
-    sd->ocr = 0x80fffff0;
+    sd->ocr = 0x80ffff80;
 }
 
 static void sd_set_scr(SDState *sd)
