@@ -4901,7 +4901,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             qemu_mallocz(sizeof(struct omap_mpu_state_s));
     ram_addr_t imif_base, emiff_base;
-    int index;
+    int sdindex;
     
     if (!core)
         core = "ti925t";
@@ -4998,14 +4998,14 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     omap_dpll_init(&s->dpll[1], 0xfffed000, omap_findclk(s, "dpll2"));
     omap_dpll_init(&s->dpll[2], 0xfffed100, omap_findclk(s, "dpll3"));
 
-    index = drive_get_index(IF_SD, 0, 0);
-    if (index == -1) {
+    sdindex = drive_get_index(IF_SD, 0, 0);
+    if (sdindex == -1) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = omap_mmc_init(0xfffb7800, drives_table[index].bdrv,
-                    s->irq[1][OMAP_INT_OQN],
-                    &s->drq[OMAP_DMA_MMC_TX], omap_findclk(s, "mmc_ck"));
+    s->mmc = omap_mmc_init(0xfffb7800, drives_table[sdindex].bdrv,
+                    s->irq[1][OMAP_INT_OQN], &s->drq[OMAP_DMA_MMC_TX],
+                    omap_findclk(s, "mmc_ck"));
 
     s->mpuio = omap_mpuio_init(0xfffb5000,
                     s->irq[1][OMAP_INT_KEYBOARD], s->irq[1][OMAP_INT_MPUIO],

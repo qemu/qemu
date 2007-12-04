@@ -4793,7 +4793,7 @@ void do_info_network(void)
 #define FD_ALIAS "index=%d,if=floppy"
 #define PFLASH_ALIAS "file=\"%s\",if=pflash"
 #define MTD_ALIAS "file=\"%s\",if=mtd"
-#define SD_ALIAS "file=\"%s\",if=sd"
+#define SD_ALIAS "index=0,if=sd"
 
 static int drive_add(const char *fmt, ...)
 {
@@ -8179,7 +8179,7 @@ int main(int argc, char **argv)
 	        drive_add(MTD_ALIAS, optarg);
                 break;
             case QEMU_OPTION_sd:
-                drive_add(SD_ALIAS, optarg);
+                drive_add("file=\"%s\"," SD_ALIAS, optarg);
                 break;
             case QEMU_OPTION_pflash:
 	        drive_add(PFLASH_ALIAS, optarg);
@@ -8756,10 +8756,15 @@ int main(int argc, char **argv)
     if (nb_drives_opt < MAX_DRIVES)
         drive_add(CDROM_ALIAS);
 
-    /* we always create at least on floppy */
+    /* we always create at least one floppy */
 
     if (nb_drives_opt < MAX_DRIVES)
         drive_add(FD_ALIAS, 0);
+
+    /* we always create one sd slot, even if no card is in it */
+
+    if (nb_drives_opt < MAX_DRIVES)
+        drive_add(SD_ALIAS);
 
     /* open the virtual block devices */
 
