@@ -41,7 +41,8 @@ void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
                                 CharDriverState *chr1, CharDriverState *chr2);
-void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq);
+void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
+                               int disabled);
 
 /* slavio_misc.c */
 void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
