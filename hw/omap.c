@@ -80,71 +80,68 @@ void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
 }
 
 /* Interrupt Handlers */
-struct omap_intr_handler_s {
-    qemu_irq *pins;
-    qemu_irq *parent_pic;
-    target_phys_addr_t base;
-
-    /* state */
+struct omap_intr_handler_bank_s {
     uint32_t irqs;
+    uint32_t inputs;
     uint32_t mask;
-    uint32_t sens_edge;
     uint32_t fiq;
-    int priority[32];
-    uint32_t new_irq_agr;
-    uint32_t new_fiq_agr;
-    int sir_irq;
-    int sir_fiq;
-    int stats[32];
+    uint32_t sens_edge;
+    unsigned char priority[32];
 };
 
-static void omap_inth_update(struct omap_intr_handler_s *s)
+struct omap_intr_handler_s {
+    qemu_irq *pins;
+    qemu_irq parent_intr[2];
+    target_phys_addr_t base;
+    unsigned char nbanks;
+
+    /* state */
+    uint32_t new_agr[2];
+    int sir_intr[2];
+    struct omap_intr_handler_bank_s banks[];
+};
+
+static void omap_inth_sir_update(struct omap_intr_handler_s *s, int is_fiq)
 {
-    uint32_t irq = s->irqs & ~s->mask & ~s->fiq;
-    uint32_t fiq = s->irqs & ~s->mask & s->fiq;
+    int i, j, sir_intr, p_intr, p, f;
+    uint32_t level;
+    sir_intr = 0;
+    p_intr = 255;
 
-    if (s->new_irq_agr || !irq) {
-       qemu_set_irq(s->parent_pic[ARM_PIC_CPU_IRQ], irq);
-       if (irq)
-           s->new_irq_agr = 0;
+    /* Find the interrupt line with the highest dynamic priority.
+     * Note: 0 denotes the hightest priority.
+     * If all interrupts have the same priority, the default order is IRQ_N,
+     * IRQ_N-1,...,IRQ_0. */
+    for (j = 0; j < s->nbanks; ++j) {
+        level = s->banks[j].irqs & ~s->banks[j].mask &
+                (is_fiq ? s->banks[j].fiq : ~s->banks[j].fiq);
+        for (f = ffs(level), i = f - 1, level >>= f - 1; f; i += f,
+                        level >>= f) {
+            p = s->banks[j].priority[i];
+            if (p <= p_intr) {
+                p_intr = p;
+                sir_intr = 32 * j + i;
+            }
+            f = ffs(level >> 1);
+        }
     }
-
-    if (s->new_fiq_agr || !irq) {
-        qemu_set_irq(s->parent_pic[ARM_PIC_CPU_FIQ], fiq);
-        if (fiq)
-            s->new_fiq_agr = 0;
-    }
+    s->sir_intr[is_fiq] = sir_intr;
 }
 
-static void omap_inth_sir_update(struct omap_intr_handler_s *s)
+static inline void omap_inth_update(struct omap_intr_handler_s *s, int is_fiq)
 {
-    int i, intr_irq, intr_fiq, p_irq, p_fiq, p, f;
-    uint32_t level = s->irqs & ~s->mask;
+    int i;
+    uint32_t has_intr = 0;
 
-    intr_irq = 0;
-    intr_fiq = 0;
-    p_irq = -1;
-    p_fiq = -1;
-    /* Find the interrupt line with the highest dynamic priority */
-    for (f = ffs(level), i = f - 1, level >>= f - 1; f; i += f, level >>= f) {
-        p = s->priority[i];
-        if (s->fiq & (1 << i)) {
-            if (p > p_fiq) {
-                p_fiq = p;
-                intr_fiq = i;
-            }
-        } else {
-            if (p > p_irq) {
-                p_irq = p;
-                intr_irq = i;
-            }
-        }
+    for (i = 0; i < s->nbanks; ++i)
+        has_intr |= s->banks[i].irqs & ~s->banks[i].mask &
+                (is_fiq ? s->banks[i].fiq : ~s->banks[i].fiq);
 
-        f = ffs(level >> 1);
+    if (s->new_agr[is_fiq] && has_intr) {
+        s->new_agr[is_fiq] = 0;
+        omap_inth_sir_update(s, is_fiq);
+        qemu_set_irq(s->parent_intr[is_fiq], 1);
     }
-
-    s->sir_irq = intr_irq;
-    s->sir_fiq = intr_fiq;
 }
 
 #define INT_FALLING_EDGE	0
@@ -155,19 +152,24 @@ static void omap_set_intr(void *opaque, int irq, int req)
     struct omap_intr_handler_s *ih = (struct omap_intr_handler_s *) opaque;
     uint32_t rise;
 
+    struct omap_intr_handler_bank_s *bank = &ih->banks[irq >> 5];
+    int n = irq & 31;
+
     if (req) {
-        rise = ~ih->irqs & (1 << irq);
-        ih->irqs |= rise;
-        ih->stats[irq] += !!rise;
+        rise = ~bank->irqs & (1 << n);
+        if (~bank->sens_edge & (1 << n))
+            rise &= ~bank->inputs & (1 << n);
+
+        bank->inputs |= (1 << n);
+        if (rise) {
+            bank->irqs |= rise;
+            omap_inth_update(ih, 0);
+            omap_inth_update(ih, 1);
+        }
     } else {
-        rise = ih->sens_edge & ih->irqs & (1 << irq);
-        ih->irqs &= ~rise;
-    }
-
-    if (rise & ~ih->mask) {
-        omap_inth_sir_update(ih);
-
-        omap_inth_update(ih);
+        rise = bank->sens_edge & bank->irqs & (1 << n);
+        bank->irqs &= ~rise;
+        bank->inputs &= ~(1 << n);
     }
 }
 
@@ -175,33 +177,32 @@ static uint32_t omap_inth_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int i, offset = addr - s->base;
+    int bank_no = offset >> 8;
+    int line_no;
+    struct omap_intr_handler_bank_s *bank = &s->banks[bank_no];
+    offset &= 0xff;
 
     switch (offset) {
     case 0x00:	/* ITR */
-        return s->irqs;
+        return bank->irqs;
 
     case 0x04:	/* MIR */
-        return s->mask;
+        return bank->mask;
 
     case 0x10:	/* SIR_IRQ_CODE */
-        i = s->sir_irq;
-        if (((s->sens_edge >> i) & 1) == INT_FALLING_EDGE && i) {
-            s->irqs &= ~(1 << i);
-            omap_inth_sir_update(s);
-            omap_inth_update(s);
-        }
-        return i;
-
-    case 0x14:	/* SIR_FIQ_CODE */
-        i = s->sir_fiq;
-        if (((s->sens_edge >> i) & 1) == INT_FALLING_EDGE && i) {
-            s->irqs &= ~(1 << i);
-            omap_inth_sir_update(s);
-            omap_inth_update(s);
-        }
+    case 0x14:  /* SIR_FIQ_CODE */
+        if (bank_no != 0)
+            break;
+        line_no = s->sir_intr[(offset - 0x10) >> 2];
+        bank = &s->banks[line_no >> 5];
+        i = line_no & 31;
+        if (((bank->sens_edge >> i) & 1) == INT_FALLING_EDGE)
+            bank->irqs &= ~(1 << i);
         return i;
 
     case 0x18:	/* CONTROL_REG */
+        if (bank_no != 0)
+            break;
         return 0;
 
     case 0x1c:	/* ILR0 */
@@ -237,17 +238,15 @@ static uint32_t omap_inth_read(void *opaque, target_phys_addr_t addr)
     case 0x94:	/* ILR30 */
     case 0x98:	/* ILR31 */
         i = (offset - 0x1c) >> 2;
-        return (s->priority[i] << 2) |
-                (((s->sens_edge >> i) & 1) << 1) |
-                ((s->fiq >> i) & 1);
+        return (bank->priority[i] << 2) |
+                (((bank->sens_edge >> i) & 1) << 1) |
+                ((bank->fiq >> i) & 1);
 
     case 0x9c:	/* ISR */
         return 0x00000000;
 
-    default:
-        OMAP_BAD_REG(addr);
-        break;
     }
+    OMAP_BAD_REG(addr);
     return 0;
 }
 
@@ -256,18 +255,21 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int i, offset = addr - s->base;
+    int bank_no = offset >> 8;
+    struct omap_intr_handler_bank_s *bank = &s->banks[bank_no];
+    offset &= 0xff;
 
     switch (offset) {
     case 0x00:	/* ITR */
-        s->irqs &= value | 1;
-        omap_inth_sir_update(s);
-        omap_inth_update(s);
+        /* Important: ignore the clearing if the IRQ is level-triggered and
+           the input bit is 1 */
+        bank->irqs &= value | (bank->inputs & bank->sens_edge);
         return;
 
     case 0x04:	/* MIR */
-        s->mask = value;
-        omap_inth_sir_update(s);
-        omap_inth_update(s);
+        bank->mask = value;
+        omap_inth_update(s, 0);
+        omap_inth_update(s, 1);
         return;
 
     case 0x10:	/* SIR_IRQ_CODE */
@@ -276,11 +278,18 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x18:	/* CONTROL_REG */
-        if (value & 2)
-            s->new_fiq_agr = ~0;
-        if (value & 1)
-            s->new_irq_agr = ~0;
-        omap_inth_update(s);
+        if (bank_no != 0)
+            break;
+        if (value & 2) {
+            qemu_set_irq(s->parent_intr[1], 0);
+            s->new_agr[1] = ~0;
+            omap_inth_update(s, 1);
+        }
+        if (value & 1) {
+            qemu_set_irq(s->parent_intr[0], 0);
+            s->new_agr[0] = ~0;
+            omap_inth_update(s, 0);
+        }
         return;
 
     case 0x1c:	/* ILR0 */
@@ -316,24 +325,22 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
     case 0x94:	/* ILR30 */
     case 0x98:	/* ILR31 */
         i = (offset - 0x1c) >> 2;
-        s->priority[i] = (value >> 2) & 0x1f;
-        s->sens_edge &= ~(1 << i);
-        s->sens_edge |= ((value >> 1) & 1) << i;
-        s->fiq &= ~(1 << i);
-        s->fiq |= (value & 1) << i;
+        bank->priority[i] = (value >> 2) & 0x1f;
+        bank->sens_edge &= ~(1 << i);
+        bank->sens_edge |= ((value >> 1) & 1) << i;
+        bank->fiq &= ~(1 << i);
+        bank->fiq |= (value & 1) << i;
         return;
 
     case 0x9c:	/* ISR */
         for (i = 0; i < 32; i ++)
             if (value & (1 << i)) {
-                omap_set_intr(s, i, 1);
+                omap_set_intr(s, 32 * bank_no + i, 1);
                 return;
             }
         return;
-
-    default:
-        OMAP_BAD_REG(addr);
     }
+    OMAP_BAD_REG(addr);
 }
 
 static CPUReadMemoryFunc *omap_inth_readfn[] = {
@@ -348,31 +355,43 @@ static CPUWriteMemoryFunc *omap_inth_writefn[] = {
     omap_inth_write,
 };
 
-static void omap_inth_reset(struct omap_intr_handler_s *s)
+void omap_inth_reset(struct omap_intr_handler_s *s)
 {
-    s->irqs = 0x00000000;
-    s->mask = 0xffffffff;
-    s->sens_edge = 0x00000000;
-    s->fiq = 0x00000000;
-    memset(s->priority, 0, sizeof(s->priority));
-    s->new_irq_agr = ~0;
-    s->new_fiq_agr = ~0;
-    s->sir_irq = 0;
-    s->sir_fiq = 0;
+    int i;
 
-    omap_inth_update(s);
+    for (i = 0; i < s->nbanks; ++i){
+        s->banks[i].irqs = 0x00000000;
+        s->banks[i].mask = 0xffffffff;
+        s->banks[i].sens_edge = 0x00000000;
+        s->banks[i].fiq = 0x00000000;
+        s->banks[i].inputs = 0x00000000;
+        memset(s->banks[i].priority, 0, sizeof(s->banks[i].priority));
+    }
+
+    s->new_agr[0] = ~0;
+    s->new_agr[1] = ~0;
+    s->sir_intr[0] = 0;
+    s->sir_intr[1] = 0;
+
+    qemu_set_irq(s->parent_intr[0], 0);
+    qemu_set_irq(s->parent_intr[1], 0);
 }
 
 struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
-                unsigned long size, qemu_irq parent[2], omap_clk clk)
+                unsigned long size, unsigned char nbanks,
+                qemu_irq parent_irq, qemu_irq parent_fiq, omap_clk clk)
 {
     int iomemtype;
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
-            qemu_mallocz(sizeof(struct omap_intr_handler_s));
+            qemu_mallocz(sizeof(struct omap_intr_handler_s) +
+                            sizeof(struct omap_intr_handler_bank_s) * nbanks);
 
-    s->parent_pic = parent;
+    s->parent_intr[0] = parent_irq;
+    s->parent_intr[1] = parent_fiq;
     s->base = base;
-    s->pins = qemu_allocate_irqs(omap_set_intr, s, 32);
+    s->nbanks = nbanks;
+    s->pins = qemu_allocate_irqs(omap_set_intr, s, nbanks * 32);
+
     omap_inth_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_inth_readfn,
@@ -1144,7 +1163,8 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
             timer->val = 0;
             timer->st = 0;
             if (timer->it_ena)
-                qemu_irq_raise(timer->irq);
+                /* Edge-triggered irq */
+                qemu_irq_pulse(timer->irq);
         }
     } else
         qemu_del_timer(timer->timer);
@@ -1161,7 +1181,8 @@ static void omap_timer_tick(void *opaque)
     }
 
     if (timer->it_ena)
-        qemu_irq_raise(timer->irq);
+        /* Edge-triggered irq */
+        qemu_irq_pulse(timer->irq);
     omap_timer_update(timer);
 }
 
@@ -3678,6 +3699,7 @@ struct omap_rtc_s {
 
 static void omap_rtc_interrupts_update(struct omap_rtc_s *s)
 {
+    /* s->alarm is level-triggered */
     qemu_set_irq(s->alarm, (s->status >> 6) & 1);
 }
 
@@ -4000,26 +4022,26 @@ static void omap_rtc_tick(void *opaque)
         switch (s->interrupts & 3) {
         case 0:
             s->status |= 0x04;
-            qemu_irq_raise(s->irq);
+            qemu_irq_pulse(s->irq);
             break;
         case 1:
             if (s->current_tm.tm_sec)
                 break;
             s->status |= 0x08;
-            qemu_irq_raise(s->irq);
+            qemu_irq_pulse(s->irq);
             break;
         case 2:
             if (s->current_tm.tm_sec || s->current_tm.tm_min)
                 break;
             s->status |= 0x10;
-            qemu_irq_raise(s->irq);
+            qemu_irq_pulse(s->irq);
             break;
         case 3:
             if (s->current_tm.tm_sec ||
                             s->current_tm.tm_min || s->current_tm.tm_hour)
                 break;
             s->status |= 0x20;
-            qemu_irq_raise(s->irq);
+            qemu_irq_pulse(s->irq);
             break;
         }
 
@@ -4121,7 +4143,8 @@ static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
         break;
     }
 
-    qemu_set_irq(s->rxirq, irq);
+    if (irq)
+        qemu_irq_pulse(s->rxirq);
 
     switch ((s->spcr[1] >> 4) & 3) {			/* XINTM */
     case 0:
@@ -4135,7 +4158,8 @@ static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
         break;
     }
 
-    qemu_set_irq(s->txirq, irq);
+    if (irq)
+        qemu_irq_pulse(s->txirq);
 }
 
 static void omap_mcbsp_rx_newdata(struct omap_mcbsp_s *s)
@@ -4901,8 +4925,9 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             qemu_mallocz(sizeof(struct omap_mpu_state_s));
     ram_addr_t imif_base, emiff_base;
+    qemu_irq *cpu_irq;
     int sdindex;
-    
+
     if (!core)
         core = "ti925t";
 
@@ -4929,11 +4954,12 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
 
     omap_clkm_init(0xfffece00, 0xe1008000, s);
 
-    s->ih[0] = omap_inth_init(0xfffecb00, 0x100,
-                    arm_pic_init_cpu(s->env),
+    cpu_irq = arm_pic_init_cpu(s->env);
+    s->ih[0] = omap_inth_init(0xfffecb00, 0x100, 1,
+                    cpu_irq[ARM_PIC_CPU_IRQ], cpu_irq[ARM_PIC_CPU_FIQ],
                     omap_findclk(s, "arminth_ck"));
-    s->ih[1] = omap_inth_init(0xfffe0000, 0x800,
-                    &s->ih[0]->pins[OMAP_INT_15XX_IH2_IRQ],
+    s->ih[1] = omap_inth_init(0xfffe0000, 0x800, 1,
+                    s->ih[0]->pins[OMAP_INT_15XX_IH2_IRQ], NULL,
                     omap_findclk(s, "arminth_ck"));
     s->irq[0] = s->ih[0]->pins;
     s->irq[1] = s->ih[1]->pins;
