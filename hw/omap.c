@@ -198,7 +198,7 @@ static uint32_t omap_inth_read(void *opaque, target_phys_addr_t addr)
         i = line_no & 31;
         if (((bank->sens_edge >> i) & 1) == INT_FALLING_EDGE)
             bank->irqs &= ~(1 << i);
-        return i;
+        return line_no;
 
     case 0x18:	/* CONTROL_REG */
         if (bank_no != 0)
