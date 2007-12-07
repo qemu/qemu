@@ -38,7 +38,7 @@ extern FILE *logfile;
 
 static PITState *pit; /* PIT i8254 */
 
-/*i8254 PIT is attached to the IRQ0 at PIC i8259 */
+/* i8254 PIT is attached to the IRQ0 at PIC i8259 */
 
 static struct _loaderparams {
     int ram_size;
@@ -268,7 +268,6 @@ void mips_r4k_init (int ram_size, int vga_ram_size,
 		     hd[MAX_IDE_DEVS * i + 1]);
 
     i8042_init(i8259[1], i8259[12], 0x60);
-    ds1225y_init(0x9000, "nvram");
 }
 
 QEMUMachine mips_machine = {
