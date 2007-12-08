@@ -4,10 +4,14 @@
 
 /* serial.c */
 
+SerialState *serial_16550_init(int base, qemu_irq irq, CharDriverState *chr);
 SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr);
 SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, CharDriverState *chr,
                              int ioregister);
+void serial_frequency(SerialState *s, uint32_t frequency);
+uint32_t serial_read(void *opaque, uint32_t addr);
+void serial_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr);
 void serial_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value);
 uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr);
