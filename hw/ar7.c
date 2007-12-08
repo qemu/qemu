@@ -3567,8 +3567,8 @@ static int64_t load_kernel (CPUState *env)
         /* Load kernel parameters (argv, envp) from file. */
         uint8_t *address = phys_ram_base + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
         int argc;
-        uint8_t **argv;
-        uint8_t **arg0;
+        uint32_t *argv;
+        uint32_t *arg0;
         target_ulong size = load_image(loaderparams.kernel_cmdline, address);
         target_ulong i;
         if (size == (target_ulong) -1) {
@@ -3586,17 +3586,17 @@ static int64_t load_kernel (CPUState *env)
         /* Build argv and envp vectors (behind data). */
         argc = 0;
         i = ((i + 3) & ~3);
-        argv = (uint8_t **)(address + i);
+        argv = (uint32_t *)(address + i);
         env->gpr[5][env->current_tc] = K1(INITRD_LOAD_ADDR + i);
         arg0 = argv;
-        *argv = (uint8_t *)K1(INITRD_LOAD_ADDR);
+        *argv = (uint32_t)K1(INITRD_LOAD_ADDR);
         for (i = 0; i < size;) {
             uint8_t c = address[i++];
             if (c == '\0') {
-                *++argv = (uint8_t *)K1(INITRD_LOAD_ADDR + i);
+                *++argv = (uint32_t)K1(INITRD_LOAD_ADDR + i);
                 if (address[i] == '\0' && argc == 0) {
                   argc = argv - arg0;
-                  *argv = (uint8_t *)0;
+                  *argv = 0;
                   env->gpr[4][env->current_tc] = argc;
                   env->gpr[6][env->current_tc] = env->gpr[5][env->current_tc] + 4 * (argc + 1);
                 }
