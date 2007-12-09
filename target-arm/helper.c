@@ -182,6 +182,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    env->cpu_model_str = cpu_model;
     env->cp15.c0_cpuid = id;
     cpu_reset(env);
     return env;

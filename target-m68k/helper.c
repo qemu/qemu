@@ -126,11 +126,13 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
         return NULL;
     cpu_exec_init(env);
 
+    env->cpu_model_str = cpu_model;
+
     if (cpu_m68k_set_model(env, cpu_model) < 0) {
         cpu_m68k_close(env);
         return NULL;
     }
-        
+
     cpu_reset(env);
     return env;
 }

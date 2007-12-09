@@ -6786,6 +6786,7 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     env->cpu_model = def;
 
     cpu_exec_init(env);
+    env->cpu_model_str = cpu_model;
     cpu_reset(env);
     return env;
 }

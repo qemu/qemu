@@ -99,6 +99,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    env->cpu_model_str = cpu_model;
 
     /* init various static tables */
     if (!inited) {
