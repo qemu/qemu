@@ -57,6 +57,7 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 
 static uint32_t isa_page_descs[384 / 4];
 static uint8_t smm_enabled;
+static int pci_irq_levels[4];
 
 static void update_pam(PCIDevice *d, uint32_t start, uint32_t end, int r)
 {
@@ -139,22 +140,32 @@ static void i440fx_write_config(PCIDevice *d,
 static void i440fx_save(QEMUFile* f, void *opaque)
 {
     PCIDevice *d = opaque;
+    int i;
+
     pci_device_save(d, f);
     qemu_put_8s(f, &smm_enabled);
+
+    for (i = 0; i < 4; i++)
+        qemu_put_be32(f, pci_irq_levels[i]);
 }
 
 static int i440fx_load(QEMUFile* f, void *opaque, int version_id)
 {
     PCIDevice *d = opaque;
-    int ret;
+    int ret, i;
 
-    if (version_id != 1)
+    if (version_id > 2)
         return -EINVAL;
     ret = pci_device_load(d, f);
     if (ret < 0)
         return ret;
     i440fx_update_memory_mappings(d);
     qemu_get_8s(f, &smm_enabled);
+
+    if (version_id >= 2)
+        for (i = 0; i < 4; i++)
+            pci_irq_levels[i] = qemu_get_be32(f);
+
     return 0;
 }
 
@@ -192,7 +203,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
 
     d->config[0x72] = 0x02; /* SMRAM */
 
-    register_savevm("I440FX", 0, 1, i440fx_save, i440fx_load, d);
+    register_savevm("I440FX", 0, 2, i440fx_save, i440fx_load, d);
     *pi440fx_state = d;
     return b;
 }
@@ -204,8 +215,6 @@ PCIDevice *piix4_dev;
 
 /* just used for simpler irq handling. */
 #define PCI_IRQ_WORDS   ((PCI_DEVICES_MAX + 31) / 32)
-
-static int pci_irq_levels[4];
 
 static void piix3_set_irq(qemu_irq *pic, int irq_num, int level)
 {
