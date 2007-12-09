@@ -4262,7 +4262,8 @@ int svm_check_intercept_param(uint32_t type, uint64_t param)
             uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.iopm_base_pa));
             uint16_t port = (uint16_t) (param >> 16);
 
-            if(ldub_phys(addr + port / 8) & (1 << (port % 8)))
+            uint16_t mask = (1 << ((param >> 4) & 7)) - 1;
+            if(lduw_phys(addr + port / 8) & (mask << (port & 7)))
                 vmexit(type, param);
         }
         break;
