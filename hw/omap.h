@@ -336,19 +336,32 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
 # define OMAP_INT_243X_HS_USB_DMA	93
 # define OMAP_INT_243X_CARKIT		94
 
+enum omap_dma_model {
+    omap_dma_3_1 = 0,
+    omap_dma_3_2
+};
+
 struct omap_dma_s;
-struct omap_dma_s *omap_dma_init(target_phys_addr_t base,
-                qemu_irq pic[], struct omap_mpu_state_s *mpu, omap_clk clk);
+struct omap_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
+                qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
+                enum omap_dma_model model);
 
 enum omap_dma_port {
     emiff = 0,
     emifs,
-    imif,
+    imif,	/* omap16xx: ocp_t1 */
     tipb,
-    local,
+    local,	/* omap16xx: ocp_t2 */
     tipb_mpui,
     omap_dma_port_last,
 };
+
+typedef enum {
+    constant = 0,
+    post_incremented,
+    single_index,
+    double_index,
+} omap_dma_addressing_t;
 
 struct omap_dma_lcd_channel_s {
     enum omap_dma_port src;
@@ -356,6 +369,35 @@ struct omap_dma_lcd_channel_s {
     target_phys_addr_t src_f1_bottom;
     target_phys_addr_t src_f2_top;
     target_phys_addr_t src_f2_bottom;
+
+    /* Used in OMAP DMA 3.2 gigacell */
+    unsigned char brust_f1;
+    unsigned char pack_f1;
+    unsigned char data_type_f1;
+    unsigned char brust_f2;
+    unsigned char pack_f2;
+    unsigned char data_type_f2;
+    unsigned char end_prog;
+    unsigned char repeat;
+    unsigned char auto_init;
+    unsigned char priority;
+    unsigned char fs;
+    unsigned char running;
+    unsigned char bs;
+    unsigned char omap_3_1_compatible_disable;
+    unsigned char dst;
+    unsigned char lch_type;
+    int16_t element_index_f1;
+    int16_t element_index_f2;
+    int32_t frame_index_f1;
+    int32_t frame_index_f2;
+    uint16_t elements_f1;
+    uint16_t frames_f1;
+    uint16_t elements_f2;
+    uint16_t frames_f2;
+    omap_dma_addressing_t mode_f1;
+    omap_dma_addressing_t mode_f2;
+
     /* Destination port is fixed.  */
     int interrupts;
     int condition;
