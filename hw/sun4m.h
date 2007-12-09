@@ -72,4 +72,7 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len);
 void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
                 qemu_irq irq, qemu_irq *reset);
 
+/* eccmemctl.c */
+void *ecc_init(target_phys_addr_t base, uint32_t version);
+
 #endif

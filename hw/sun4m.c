@@ -72,6 +72,8 @@ struct hwdef {
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, cs_base, power_base;
+    target_phys_addr_t ecc_base;
+    uint32_t ecc_version;
     long vram_size, nvram_size;
     // IRQ numbers are not PIL ones, but master interrupt controller register
     // bit numbers
@@ -479,6 +481,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, hwdef->machine_id);
+
+    if (hwdef->ecc_base != (target_phys_addr_t)-1)
+        ecc_init(hwdef->ecc_base, hwdef->ecc_version);
 }
 
 static const struct hwdef hwdefs[] = {
@@ -498,6 +503,7 @@ static const struct hwdef hwdefs[] = {
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
         .power_base   = 0x7a000000,
+        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -534,6 +540,8 @@ static const struct hwdef hwdefs[] = {
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
         .power_base   = 0xefa000000ULL,
+        .ecc_base     = 0xf00000000ULL,
+        .ecc_version  = 0x10000000, // version 0, implementation 1
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -570,6 +578,8 @@ static const struct hwdef hwdefs[] = {
         .esp_base     = 0xef0080000ULL,
         .le_base      = 0xef0060000ULL,
         .power_base   = 0xefa000000ULL,
+        .ecc_base     = 0xf00000000ULL,
+        .ecc_version  = 0x00000000, // version 0, implementation 0
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
