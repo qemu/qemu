@@ -76,6 +76,10 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
     }
 
     mst_irq = mst_irq_init(cpu, MST_FPGA_PHYS, PXA2XX_PIC_GPIO_0);
+
+    /* MMC/SD host */
+    pxa2xx_mmci_handlers(cpu->mmc, mst_irq[MMC_IRQ], mst_irq[MMC_IRQ]);
+
     smc91c111_init(&nd_table[0], MST_ETH_PHYS, mst_irq[ETHERNET_IRQ]);
 
     arm_load_kernel(cpu->env, mainstone_ram, kernel_filename, kernel_cmdline,
