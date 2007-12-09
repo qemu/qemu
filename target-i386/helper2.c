@@ -256,7 +256,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                 }
                 x86_cpu_def->stepping = stepping;
             } else {
-                fprintf(stderr, "unregnized feature %s\n", featurestr);
+                fprintf(stderr, "unrecognized feature %s\n", featurestr);
                 x86_cpu_def = 0;
                 goto error;
             }
