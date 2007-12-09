@@ -550,30 +550,34 @@ static inline abi_long host_to_target_rusage(abi_ulong target_addr,
     return 0;
 }
 
-static inline abi_long target_to_host_timeval(struct timeval *tv,
-                                              abi_ulong target_addr)
+static inline abi_long copy_from_user_timeval(struct timeval *tv,
+                                              abi_ulong target_tv_addr)
 {
     struct target_timeval *target_tv;
 
-    if (!lock_user_struct(VERIFY_READ, target_tv, target_addr, 1))
+    if (!lock_user_struct(VERIFY_READ, target_tv, target_tv_addr, 1))
         return -TARGET_EFAULT;
-    tv->tv_sec = tswapl(target_tv->tv_sec);
-    tv->tv_usec = tswapl(target_tv->tv_usec);
-    unlock_user_struct(target_tv, target_addr, 0);
+
+    __get_user(tv->tv_sec, &target_tv->tv_sec);
+    __get_user(tv->tv_usec, &target_tv->tv_usec);
+
+    unlock_user_struct(target_tv, target_tv_addr, 0);
 
     return 0;
 }
 
-static inline abi_long host_to_target_timeval(abi_ulong target_addr,
-                                              const struct timeval *tv)
+static inline abi_long copy_to_user_timeval(abi_ulong target_tv_addr,
+                                            const struct timeval *tv)
 {
     struct target_timeval *target_tv;
 
-    if (!lock_user_struct(VERIFY_WRITE, target_tv, target_addr, 0))
+    if (!lock_user_struct(VERIFY_WRITE, target_tv, target_tv_addr, 0))
         return -TARGET_EFAULT;
-    target_tv->tv_sec = tswapl(tv->tv_sec);
-    target_tv->tv_usec = tswapl(tv->tv_usec);
-    unlock_user_struct(target_tv, target_addr, 1);
+
+    __put_user(tv->tv_sec, &target_tv->tv_sec);
+    __put_user(tv->tv_usec, &target_tv->tv_usec);
+
+    unlock_user_struct(target_tv, target_tv_addr, 1);
 
     return 0;
 }
@@ -612,7 +616,8 @@ static abi_long do_select(int n,
     }
 
     if (target_tv_addr) {
-        target_to_host_timeval(&tv, target_tv_addr);
+        if (copy_from_user_timeval(&tv, target_tv_addr))
+            return -TARGET_EFAULT;
         tv_ptr = &tv;
     } else {
         tv_ptr = NULL;
@@ -628,8 +633,8 @@ static abi_long do_select(int n,
         if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
             return -TARGET_EFAULT;
 
-        if (target_tv_addr)
-            host_to_target_timeval(target_tv_addr, &tv);
+        if (target_tv_addr && copy_to_user_timeval(target_tv_addr, &tv))
+            return -TARGET_EFAULT;
     }
 
     return ret;
@@ -3390,9 +3395,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct timeval *tvp, tv[2];
             if (arg2) {
-                target_to_host_timeval(&tv[0], arg2);
-                target_to_host_timeval(&tv[1],
-                    arg2 + sizeof (struct target_timeval));
+                if (copy_from_user_timeval(&tv[0], arg2)
+                    || copy_from_user_timeval(&tv[1],
+                                              arg2 + sizeof(struct target_timeval)))
+                    goto efault;
                 tvp = tv;
             } else {
                 tvp = NULL;
@@ -3931,14 +3937,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct timeval tv;
             ret = get_errno(gettimeofday(&tv, NULL));
             if (!is_error(ret)) {
-                host_to_target_timeval(arg1, &tv);
+                if (copy_to_user_timeval(arg1, &tv))
+                    goto efault;
             }
         }
         break;
     case TARGET_NR_settimeofday:
         {
             struct timeval tv;
-            target_to_host_timeval(&tv, arg1);
+            if (copy_from_user_timeval(&tv, arg1))
+                goto efault;
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
@@ -4313,19 +4321,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             if (arg2) {
                 pvalue = &value;
-                target_to_host_timeval(&pvalue->it_interval,
-                                       arg2);
-                target_to_host_timeval(&pvalue->it_value,
-                                       arg2 + sizeof(struct target_timeval));
+                if (copy_from_user_timeval(&pvalue->it_interval, arg2)
+                    || copy_from_user_timeval(&pvalue->it_value,
+                                              arg2 + sizeof(struct target_timeval)))
+                    goto efault;
             } else {
                 pvalue = NULL;
             }
             ret = get_errno(setitimer(arg1, pvalue, &ovalue));
             if (!is_error(ret) && arg3) {
-                host_to_target_timeval(arg3,
-                                       &ovalue.it_interval);
-                host_to_target_timeval(arg3 + sizeof(struct target_timeval),
-                                       &ovalue.it_value);
+                if (copy_to_user_timeval(arg3,
+                                         &ovalue.it_interval)
+                    || copy_to_user_timeval(arg3 + sizeof(struct target_timeval),
+                                            &ovalue.it_value))
+                    goto efault;
             }
         }
         break;
@@ -4335,10 +4344,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             ret = get_errno(getitimer(arg1, &value));
             if (!is_error(ret) && arg2) {
-                host_to_target_timeval(arg2,
-                                       &value.it_interval);
-                host_to_target_timeval(arg2 + sizeof(struct target_timeval),
-                                       &value.it_value);
+                if (copy_to_user_timeval(arg2,
+                                         &value.it_interval)
+                    || copy_to_user_timeval(arg2 + sizeof(struct target_timeval),
+                                            &value.it_value))
+                    goto efault;
             }
         }
         break;
