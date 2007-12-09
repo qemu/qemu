@@ -5658,6 +5658,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_jmp_im(pc_start - s->cs_base);
         gen_op_rdtsc();
         break;
+    case 0x133: /* rdpmc */
+        gen_jmp_im(pc_start - s->cs_base);
+        gen_op_rdpmc();
+        break;
     case 0x134: /* sysenter */
         if (CODE64(s))
             goto illegal_op;

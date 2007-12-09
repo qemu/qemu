@@ -2743,6 +2743,18 @@ void helper_rdtsc(void)
     EDX = (uint32_t)(val >> 32);
 }
 
+void helper_rdpmc(void)
+{
+    if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
+        raise_exception(EXCP0D_GPF);
+    }
+
+    if (!svm_check_intercept_param(SVM_EXIT_RDPMC, 0)) {
+        /* currently unimplemented */
+        raise_exception_err(EXCP06_ILLOP, 0);
+    }
+}
+
 #if defined(CONFIG_USER_ONLY)
 void helper_wrmsr(void)
 {
