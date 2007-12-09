@@ -3190,7 +3190,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             argc = 0;
             guest_argp = arg2;
-            for (gp = guest_argp; ; gp++) {
+            for (gp = guest_argp; ; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3199,7 +3199,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             envc = 0;
             guest_envp = arg3;
-            for (gp = guest_envp; ; gp++) {
+            for (gp = guest_envp; ; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
