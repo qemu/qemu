@@ -32,6 +32,7 @@ static void realview_init(int ram_size, int vga_ram_size,
     int done_smc = 0;
     qemu_irq cpu_irq[4];
     int ncpu;
+    int index;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -89,7 +90,12 @@ static void realview_init(int ram_size, int vga_ram_size,
 
     pl110_init(ds, 0x10020000, pic[23], 1);
 
-    pl181_init(0x10005000, sd_bdrv, pic[17], pic[18]);
+    index = drive_get_index(IF_SD, 0, 0);
+    if (index == -1) {
+        fprintf(stderr, "qemu: missing SecureDigital card\n");
+        exit(1);
+    }
+    pl181_init(0x10005000, drives_table[index].bdrv, pic[17], pic[18]);
 
     pl031_init(0x10017000, pic[10]);
 
@@ -97,11 +103,16 @@ static void realview_init(int ram_size, int vga_ram_size,
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);
     }
+    if (drive_get_max_bus(IF_SCSI) > 0) {
+        fprintf(stderr, "qemu: too many SCSI bus\n");
+        exit(1);
+    }
     scsi_hba = lsi_scsi_init(pci_bus, -1);
-    for (n = 0; n < MAX_DISKS; n++) {
-        if (bs_table[n]) {
-            lsi_scsi_attach(scsi_hba, bs_table[n], n);
-        }
+    for (n = 0; n < LSI_MAX_DEVS; n++) {
+        index = drive_get_index(IF_SCSI, 0, n);
+        if (index == -1)
+            continue;
+        lsi_scsi_attach(scsi_hba, drives_table[index].bdrv, n);
     }
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];

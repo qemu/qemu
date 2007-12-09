@@ -138,3 +138,9 @@ void helper_mtpr (int iprn);
 void helper_ld_phys_to_virt (void);
 void helper_st_phys_to_virt (void);
 void helper_tb_flush (void);
+
+#if defined(HOST_SPARC) || defined(HOST_SPARC64)
+void helper_reset_FT0 (void);
+void helper_reset_FT1 (void);
+void helper_reset_FT2 (void);
+#endif

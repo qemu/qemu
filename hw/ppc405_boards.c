@@ -197,6 +197,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size,
     int linux_boot;
     int fl_idx, fl_sectors, len;
     int ppc_boot_device = boot_device[0];
+    int index;
 
     /* XXX: fix this */
     ram_bases[0] = 0x00000000;
@@ -223,17 +224,18 @@ static void ref405ep_init (int ram_size, int vga_ram_size,
     bios_offset = sram_offset + sram_size;
     fl_idx = 0;
 #ifdef USE_FLASH_BIOS
-    if (pflash_table[fl_idx] != NULL) {
-        bios_size = bdrv_getlength(pflash_table[fl_idx]);
+    index = drive_get_index(IF_PFLASH, 0, fl_idx);
+    if (index != -1) {
+        bios_size = bdrv_getlength(drives_table[index].bdrv);
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
-               bdrv_get_device_name(pflash_table[fl_idx]), fl_sectors);
+               bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
-                        pflash_table[fl_idx], 65536, fl_sectors, 2,
+                        drives_table[index].bdrv, 65536, fl_sectors, 2,
                         0x0001, 0x22DA, 0x0000, 0x0000);
         fl_idx++;
     } else
@@ -519,6 +521,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
     int linux_boot;
     int fl_idx, fl_sectors;
     int ppc_boot_device = boot_device[0];
+    int index;
 
     /* RAM is soldered to the board so the size cannot be changed */
     ram_bases[0] = 0x00000000;
@@ -536,8 +539,9 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
 #endif
     fl_idx = 0;
 #if defined(USE_FLASH_BIOS)
-    if (pflash_table[fl_idx] != NULL) {
-        bios_size = bdrv_getlength(pflash_table[fl_idx]);
+    index = drive_get_index(IF_PFLASH, 0, fl_idx);
+    if (index != -1) {
+        bios_size = bdrv_getlength(drives_table[index].bdrv);
         /* XXX: should check that size is 2MB */
         //        bios_size = 2 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
@@ -545,10 +549,10 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
-               bdrv_get_device_name(pflash_table[fl_idx]), fl_sectors);
+               bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
-                        pflash_table[fl_idx], 65536, fl_sectors, 4,
+                        drives_table[index].bdrv, 65536, fl_sectors, 4,
                         0x0001, 0x22DA, 0x0000, 0x0000);
         fl_idx++;
     } else
@@ -571,8 +575,9 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
     }
     bios_offset += bios_size;
     /* Register Linux flash */
-    if (pflash_table[fl_idx] != NULL) {
-        bios_size = bdrv_getlength(pflash_table[fl_idx]);
+    index = drive_get_index(IF_PFLASH, 0, fl_idx);
+    if (index != -1) {
+        bios_size = bdrv_getlength(drives_table[index].bdrv);
         /* XXX: should check that size is 32MB */
         bios_size = 32 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
@@ -580,9 +585,9 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s'\n",
                fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
-               bdrv_get_device_name(pflash_table[fl_idx]));
+               bdrv_get_device_name(drives_table[index].bdrv));
 #endif
-        pflash_cfi02_register(0xfc000000, bios_offset, pflash_table[fl_idx],
+        pflash_cfi02_register(0xfc000000, bios_offset, drives_table[index].bdrv,
                         65536, fl_sectors, 4,
                         0x0001, 0x22DA, 0x0000, 0x0000);
         fl_idx++;

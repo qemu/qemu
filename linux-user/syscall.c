@@ -3030,6 +3030,7 @@ static inline abi_long target_to_host_timespec(struct timespec *host_ts,
     host_ts->tv_sec = tswapl(target_ts->tv_sec);
     host_ts->tv_nsec = tswapl(target_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 0);
+    return 0;
 }
 
 static inline abi_long host_to_target_timespec(abi_ulong target_addr,
@@ -3042,6 +3043,7 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     target_ts->tv_sec = tswapl(host_ts->tv_sec);
     target_ts->tv_nsec = tswapl(host_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 1);
+    return 0;
 }
 
 /* do_syscall() should always have a single exit point at the end so
@@ -3187,18 +3189,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             argc = 0;
             guest_argp = arg2;
             for (gp = guest_argp; ; gp++) {
-                if (get_user_ual(guest_argp, gp))
+                if (get_user_ual(addr, gp))
                     goto efault;
-                if (!guest_argp)
+                if (!addr)
                     break;
                 argc++;
             }
             envc = 0;
             guest_envp = arg3;
             for (gp = guest_envp; ; gp++) {
-                if (get_user_ual(guest_envp, gp))
+                if (get_user_ual(addr, gp))
                     goto efault;
-                if (!guest_envp)
+                if (!addr)
                     break;
                 envc++;
             }

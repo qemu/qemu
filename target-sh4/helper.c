@@ -27,6 +27,7 @@
 
 #include "cpu.h"
 #include "exec-all.h"
+#include "hw/sh_intc.h"
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -39,15 +40,15 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 			     int mmu_idx, int is_softmmu)
 {
     env->tea = address;
+    env->exception_index = 0;
     switch (rw) {
     case 0:
+	env->tea = address;
         env->exception_index = 0x0a0;
         break;
     case 1:
+	env->tea = address;
         env->exception_index = 0x0c0;
-        break;
-    case 2:
-        env->exception_index = 0x0a0;
         break;
     }
     return 1;
@@ -74,6 +75,31 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 
 void do_interrupt(CPUState * env)
 {
+    int do_irq = env->interrupt_request & CPU_INTERRUPT_HARD;
+    int do_exp, irq_vector = env->exception_index;
+
+    /* prioritize exceptions over interrupts */
+
+    do_exp = env->exception_index != -1;
+    do_irq = do_irq && (env->exception_index == -1);
+
+    if (env->sr & SR_BL) {
+        if (do_exp && env->exception_index != 0x1e0) {
+            env->exception_index = 0x000; /* masked exception -> reset */
+        }
+        if (do_irq) {
+            return; /* masked */
+        }
+    }
+
+    if (do_irq) {
+        irq_vector = sh_intc_get_pending_vector(env->intc_handle,
+						(env->sr >> 4) & 0xf);
+        if (irq_vector == -1) {
+            return; /* masked */
+	}
+    }
+
     if (loglevel & CPU_LOG_INT) {
 	const char *expname;
 	switch (env->exception_index) {
@@ -117,32 +143,47 @@ void do_interrupt(CPUState * env)
 	    expname = "trapa";
 	    break;
 	default:
-	    expname = "???";
-	    break;
+            expname = do_irq ? "interrupt" : "???";
+            break;
 	}
 	fprintf(logfile, "exception 0x%03x [%s] raised\n",
-		env->exception_index, expname);
+		irq_vector, expname);
 	cpu_dump_state(env, logfile, fprintf, 0);
     }
 
     env->ssr = env->sr;
-    env->spc = env->spc;
+    env->spc = env->pc;
     env->sgr = env->gregs[15];
     env->sr |= SR_BL | SR_MD | SR_RB;
 
-    env->expevt = env->exception_index & 0x7ff;
-    switch (env->exception_index) {
-    case 0x040:
-    case 0x060:
-    case 0x080:
-	env->pc = env->vbr + 0x400;
-	break;
-    case 0x140:
-	env->pc = 0xa0000000;
-	break;
-    default:
-	env->pc = env->vbr + 0x100;
-	break;
+    if (do_exp) {
+        env->expevt = env->exception_index;
+        switch (env->exception_index) {
+        case 0x000:
+        case 0x020:
+        case 0x140:
+            env->sr &= ~SR_FD;
+            env->sr |= 0xf << 4; /* IMASK */
+            env->pc = 0xa0000000;
+            break;
+        case 0x040:
+        case 0x060:
+            env->pc = env->vbr + 0x400;
+            break;
+        case 0x160:
+            env->spc += 2; /* special case for TRAPA */
+            /* fall through */
+        default:
+            env->pc = env->vbr + 0x100;
+            break;
+        }
+        return;
+    }
+
+    if (do_irq) {
+        env->intevt = irq_vector;
+        env->pc = env->vbr + 0x600;
+        return;
     }
 }
 

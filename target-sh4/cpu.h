@@ -46,16 +46,16 @@
 #define FPSCR_SZ (1 << 20)
 #define FPSCR_PR (1 << 19)
 #define FPSCR_DN (1 << 18)
-
-#define DELAY_SLOT             (1 << 0) /* Must be the same as SR_T.  */
-/* This flag is set if the next insn is a delay slot for a conditional jump.
-   The dynamic value of the DELAY_SLOT determines whether the jup is taken. */
+#define DELAY_SLOT             (1 << 0)
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
-/* Those are used in contexts only */
-#define BRANCH                 (1 << 2)
-#define BRANCH_CONDITIONAL     (1 << 3)
-#define MODE_CHANGE            (1 << 4)	/* Potential MD|RB change */
-#define BRANCH_EXCEPTION       (1 << 5)	/* Branch after exception */
+#define DELAY_SLOT_TRUE        (1 << 2)
+#define DELAY_SLOT_CLEARME     (1 << 3)
+/* The dynamic value of the DELAY_SLOT_TRUE flag determines whether the jump
+ * after the delay slot should be taken or not. It is calculated from SR_T.
+ *
+ * It is unclear if it is permitted to modify the SR_T flag in a delay slot.
+ * The use of DELAY_SLOT_TRUE flag makes us accept such SR_T modification.
+ */
 
 /* XXXXX The structure could be made more compact */
 typedef struct tlb_t {
@@ -121,6 +121,7 @@ typedef struct CPUSH4State {
     int exception_index;
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
+    void *intc_handle;
 } CPUSH4State;
 
 CPUSH4State *cpu_sh4_init(const char *cpu_model);

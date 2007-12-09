@@ -57,7 +57,8 @@ void omap_clk_reparent(omap_clk clk, omap_clk parent);
 /* omap.c */
 struct omap_intr_handler_s;
 struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
-                unsigned long size, qemu_irq parent[2], omap_clk clk);
+                unsigned long size, unsigned char nbanks,
+                qemu_irq parent_irq, qemu_irq parent_fiq, omap_clk clk);
 
 /*
  * Common IRQ numbers for level 1 interrupt handler

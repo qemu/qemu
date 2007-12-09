@@ -541,9 +541,10 @@ VL_OBJS+= arm-semi.o
 VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o
 VL_OBJS+= pflash_cfi01.o gumstix.o
-VL_OBJS+= spitz.o ide.o serial.o nand.o ecc.o mainstone.o
+VL_OBJS+= spitz.o ide.o serial.o nand.o ecc.o
 VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o omap_i2c.o
 VL_OBJS+= palm.o tsc210x.o
+VL_OBJS+= mst_fpga.o mainstone.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)

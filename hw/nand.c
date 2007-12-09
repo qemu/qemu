@@ -444,14 +444,20 @@ struct nand_flash_s *nand_init(int manf_id, int chip_id)
 {
     int pagesize;
     struct nand_flash_s *s;
+    int index;
 
     if (nand_flash_ids[chip_id].size == 0) {
         cpu_abort(cpu_single_env, "%s: Unsupported NAND chip ID.\n",
                         __FUNCTION__);
     }
+    index = drive_get_index(IF_MTD, 0, 0);
+    if (index == -1) {
+        cpu_abort(cpu_single_env, "%s: missing MTD device\n",
+                        __FUNCTION__);
+    }
 
     s = (struct nand_flash_s *) qemu_mallocz(sizeof(struct nand_flash_s));
-    s->bdrv = mtd_bdrv;
+    s->bdrv = drives_table[index].bdrv;
     s->manf_id = manf_id;
     s->chip_id = chip_id;
     s->size = nand_flash_ids[s->chip_id].size << 20;

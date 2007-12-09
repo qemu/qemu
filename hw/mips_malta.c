@@ -56,8 +56,9 @@
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
-#define KiB     1024
-#define MiB     (KiB * KiB)
+#define MAX_IDE_BUS 2
+
+extern FILE *logfile;
 
 //~ #define DEBUG
 
@@ -801,6 +802,9 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     uint8_t *eeprom_buf;
     i2c_bus *smbus;
     int i;
+    int index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    BlockDriverState *fd[MAX_FD];
 
     if (ram_size > 256 * MiB) {
         /* Larger RAM is not supported (collision with GT64120 memory). */
@@ -897,8 +901,22 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     pci_bus = pci_gt64120_init(i8259);
 
     /* Southbridge */
+
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+
+    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
+        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        if (index != -1)
+            hd[i] = drives_table[index].bdrv;
+        else
+            hd[i] = NULL;
+    }
+
     piix4_devfn = piix4_init(pci_bus, 80);
-    pci_piix4_ide_init(pci_bus, bs_table, piix4_devfn + 1, i8259);
+    pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1, i8259);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100);
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
@@ -923,7 +941,14 @@ void mips_malta_init (int ram_size, int vga_ram_size,
         serial_init(0x2f8, i8259[3], serial_hds[1]);
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
-    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
+    for(i = 0; i < MAX_FD; i++) {
+        index = drive_get_index(IF_FLOPPY, 0, i);
+       if (index != -1)
+           fd[i] = drives_table[index].bdrv;
+       else
+           fd[i] = NULL;
+    }
+    floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 
     /* Sound card */
 #ifdef HAS_AUDIO

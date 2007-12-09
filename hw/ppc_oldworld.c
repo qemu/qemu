@@ -33,6 +33,8 @@
 #include "pci.h"
 #include "boards.h"
 
+#define MAX_IDE_BUS 2
+
 /* temporary frame buffer OSI calls for the video.x driver. The right
    solution is to modify the driver to use VGA PCI I/Os */
 /* XXX: to be removed. This is no way related to emulation */
@@ -123,6 +125,8 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
     int ide_mem_index[2];
     int ppc_boot_device;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    int index;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -292,10 +296,37 @@ static void ppc_heathrow_init (int ram_size, int vga_ram_size,
     }
 
     /* First IDE channel is a CMD646 on the PCI bus */
-    pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
+
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+    index = drive_get_index(IF_IDE, 0, 0);
+    if (index == -1)
+        hd[0] = NULL;
+    else
+        hd[0] =  drives_table[index].bdrv;
+    index = drive_get_index(IF_IDE, 0, 1);
+    if (index == -1)
+        hd[1] = NULL;
+    else
+        hd[1] =  drives_table[index].bdrv;
+    hd[3] = hd[2] = NULL;
+    pci_cmd646_ide_init(pci_bus, hd, 0);
+
     /* Second IDE channel is a MAC IDE on the MacIO bus */
+    index = drive_get_index(IF_IDE, 1, 0);
+    if (index == -1)
+        hd[0] = NULL;
+    else
+        hd[0] =  drives_table[index].bdrv;
+    index = drive_get_index(IF_IDE, 1, 1);
+    if (index == -1)
+        hd[1] = NULL;
+    else
+        hd[1] =  drives_table[index].bdrv;
     ide_mem_index[0] = -1;
-    ide_mem_index[1] = pmac_ide_init(&bs_table[2], pic[0x0D]);
+    ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D]);
 
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x12]);

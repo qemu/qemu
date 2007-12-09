@@ -19,6 +19,12 @@ static inline void qemu_irq_lower(qemu_irq irq)
     qemu_set_irq(irq, 0);
 }
 
+static inline void qemu_irq_pulse(qemu_irq irq)
+{
+    qemu_set_irq(irq, 1);
+    qemu_set_irq(irq, 0);
+}
+
 /* Returns an array of N IRQs.  */
 qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n);
 

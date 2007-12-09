@@ -523,8 +523,11 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
             return ret;
         else if (ret != len)
             return -EINVAL;
-        else
+        else {
+	    bs->rd_bytes += (unsigned) len;
+	    bs->rd_ops ++;
             return 0;
+	}
     } else {
         return drv->bdrv_read(bs, sector_num, buf, nb_sectors);
     }
@@ -555,8 +558,11 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
             return ret;
         else if (ret != len)
             return -EIO;
-        else
+        else {
+	    bs->wr_bytes += (unsigned) len;
+	    bs->wr_ops ++;
             return 0;
+	}
     } else {
         return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
     }
@@ -904,6 +910,24 @@ void bdrv_info(void)
         term_printf("\n");
     }
 }
+
+/* The "info blockstats" command. */
+void bdrv_info_stats (void)
+{
+    BlockDriverState *bs;
+
+    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+	term_printf ("%s:"
+		     " rd_bytes=%" PRIu64
+		     " wr_bytes=%" PRIu64
+		     " rd_operations=%" PRIu64
+		     " wr_operations=%" PRIu64
+		     "\n",
+		     bs->device_name,
+		     bs->rd_bytes, bs->wr_bytes,
+		     bs->rd_ops, bs->wr_ops);
+    }
+}
 #endif
 
 void bdrv_get_backing_filename(BlockDriverState *bs,
@@ -1066,6 +1090,7 @@ BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
                                 BlockDriverCompletionFunc *cb, void *opaque)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriverAIOCB *ret;
 
     if (!drv)
         return NULL;
@@ -1078,7 +1103,15 @@ BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
         buf += 512;
     }
 
-    return drv->bdrv_aio_read(bs, sector_num, buf, nb_sectors, cb, opaque);
+    ret = drv->bdrv_aio_read(bs, sector_num, buf, nb_sectors, cb, opaque);
+
+    if (ret) {
+	/* Update stats even though technically transfer has not happened. */
+	bs->rd_bytes += (unsigned) nb_sectors * SECTOR_SIZE;
+	bs->rd_ops ++;
+    }
+
+    return ret;
 }
 
 BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
@@ -1086,6 +1119,7 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
                                  BlockDriverCompletionFunc *cb, void *opaque)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriverAIOCB *ret;
 
     if (!drv)
         return NULL;
@@ -1095,7 +1129,15 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
         memcpy(bs->boot_sector_data, buf, 512);
     }
 
-    return drv->bdrv_aio_write(bs, sector_num, buf, nb_sectors, cb, opaque);
+    ret = drv->bdrv_aio_write(bs, sector_num, buf, nb_sectors, cb, opaque);
+
+    if (ret) {
+	/* Update stats even though technically transfer has not happened. */
+	bs->wr_bytes += (unsigned) nb_sectors * SECTOR_SIZE;
+	bs->wr_ops ++;
+    }
+
+    return ret;
 }
 
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)

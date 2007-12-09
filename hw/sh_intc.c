@@ -14,9 +14,90 @@
 #include "sh.h"
 
 //#define DEBUG_INTC
+//#define DEBUG_INTC_SOURCES
 
 #define INTC_A7(x) ((x) & 0x1fffffff)
 #define INTC_ARRAY(x) (sizeof(x) / sizeof(x[0]))
+
+void sh_intc_toggle_source(struct intc_source *source,
+			   int enable_adj, int assert_adj)
+{
+    int enable_changed = 0;
+    int pending_changed = 0;
+    int old_pending;
+
+    if ((source->enable_count == source->enable_max) && (enable_adj == -1))
+        enable_changed = -1;
+
+    source->enable_count += enable_adj;
+
+    if (source->enable_count == source->enable_max)
+        enable_changed = 1;
+
+    source->asserted += assert_adj;
+
+    old_pending = source->pending;
+    source->pending = source->asserted &&
+      (source->enable_count == source->enable_max);
+
+    if (old_pending != source->pending)
+        pending_changed = 1;
+
+    if (pending_changed) {
+        if (source->pending) {
+            source->parent->pending++;
+	    if (source->parent->pending == 1)
+                cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+	}
+	else {
+            source->parent->pending--;
+	    if (source->parent->pending == 0)
+                cpu_reset_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+	}
+    }
+
+  if (enable_changed || assert_adj || pending_changed) {
+#ifdef DEBUG_INTC_SOURCES
+            printf("sh_intc: (%d/%d/%d/%d) interrupt source 0x%x %s%s%s\n",
+		   source->parent->pending,
+		   source->asserted,
+		   source->enable_count,
+		   source->enable_max,
+		   source->vect,
+		   source->asserted ? "asserted " :
+		   assert_adj ? "deasserted" : "",
+		   enable_changed == 1 ? "enabled " :
+		   enable_changed == -1 ? "disabled " : "",
+		   source->pending ? "pending" : "");
+#endif
+  }
+}
+
+int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
+{
+    unsigned int i;
+
+    /* slow: use a linked lists of pending sources instead */
+    /* wrong: take interrupt priority into account (one list per priority) */
+
+    if (imask == 0x0f) {
+        return -1; /* FIXME, update code to include priority per source */
+    }
+
+    for (i = 0; i < desc->nr_sources; i++) {
+        struct intc_source *source = desc->sources + i;
+
+	if (source->pending) {
+#ifdef DEBUG_INTC_SOURCES
+            printf("sh_intc: (%d) returning interrupt source 0x%x\n",
+		   desc->pending, source->vect);
+#endif
+            return source->vect;
+	}
+    }
+
+    assert(0);
+}
 
 #define INTC_MODE_NONE       0
 #define INTC_MODE_DUAL_SET   1
@@ -94,42 +175,24 @@ static void sh_intc_locate(struct intc_desc *desc,
     assert(0);
 }
 
-static void sh_intc_toggle(struct intc_desc *desc, intc_enum id,
-			   int enable, int is_group)
+static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
+				int enable, int is_group)
 {
     struct intc_source *source = desc->sources + id;
-    int old = source->enable_count;
 
     if (!id)
 	return;
 
     if (!source->next_enum_id && (!source->enable_max || !source->vect)) {
-#ifdef DEBUG_INTC
+#ifdef DEBUG_INTC_SOURCES
         printf("sh_intc: reserved interrupt source %d modified\n", id);
 #endif
 	return;
     }
 
-    if (source->vect) {
-        if (enable)
-            source->enable_count++;
-	else 
-            source->enable_count--;
+    if (source->vect)
+        sh_intc_toggle_source(source, enable ? 1 : -1, 0);
 
-        if (source->enable_count == source->enable_max) {
-#ifdef DEBUG_INTC
-            printf("sh_intc: enabling interrupt source %d -> 0x%04x\n",
-		   id, source->vect);
-#endif
-	}
-
-        if (old == source->enable_max) {
-#ifdef DEBUG_INTC
-            printf("sh_intc: disabling interrupt source %d -> 0x%04x\n",
-		   id, source->vect);
-#endif
-	}
-    }
 #ifdef DEBUG_INTC
     else {
         printf("setting interrupt group %d to %d\n", id, !!enable);
@@ -137,7 +200,7 @@ static void sh_intc_toggle(struct intc_desc *desc, intc_enum id,
 #endif
 
     if ((is_group || !source->vect) && source->next_enum_id) {
-        sh_intc_toggle(desc, source->next_enum_id, enable, 1);
+        sh_intc_toggle_mask(desc, source->next_enum_id, enable, 1);
     }
 
 #ifdef DEBUG_INTC
@@ -200,7 +263,7 @@ static void sh_intc_write(void *opaque, target_phys_addr_t offset,
 	printf("k = %d, first = %d, enum = %d, mask = 0x%08x\n", 
 	       k, first, enum_ids[k], (unsigned int)mask);
 #endif
-        sh_intc_toggle(desc, enum_ids[k], value & mask, 0);
+        sh_intc_toggle_mask(desc, enum_ids[k], value & mask, 0);
     }
 
     *valuep = value;
@@ -309,7 +372,7 @@ void sh_intc_register_sources(struct intc_desc *desc,
 	if (s)
 	    s->vect = vect->vect;
 
-#ifdef DEBUG_INTC
+#ifdef DEBUG_INTC_SOURCES
 	printf("sh_intc: registered source %d -> 0x%04x (%d/%d)\n",
 	       vect->enum_id, s->vect, s->enable_count, s->enable_max);
 #endif
@@ -330,7 +393,7 @@ void sh_intc_register_sources(struct intc_desc *desc,
 		s->next_enum_id = gr->enum_ids[k];
 	    }
 
-#ifdef DEBUG_INTC
+#ifdef DEBUG_INTC_SOURCES
 	    printf("sh_intc: registered group %d (%d/%d)\n",
 		   gr->enum_id, s->enable_count, s->enable_max);
 #endif
@@ -347,6 +410,7 @@ int sh_intc_init(struct intc_desc *desc,
 {
     unsigned int i;
 
+    desc->pending = 0;
     desc->nr_sources = nr_sources;
     desc->mask_regs = mask_regs;
     desc->nr_mask_regs = nr_mask_regs;
@@ -359,6 +423,11 @@ int sh_intc_init(struct intc_desc *desc,
         return -1;
 
     memset(desc->sources, 0, i);
+    for (i = 0; i < desc->nr_sources; i++) {
+        struct intc_source *source = desc->sources + i;
+
+        source->parent = desc;
+    }
  
     desc->iomemtype = cpu_register_io_memory(0, sh_intc_readfn,
 					     sh_intc_writefn, desc);

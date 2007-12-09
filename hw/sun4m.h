@@ -41,7 +41,8 @@ void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
                                 CharDriverState *chr1, CharDriverState *chr2);
-void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq);
+void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
+                               int disabled);
 
 /* slavio_misc.c */
 void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
@@ -49,8 +50,9 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
 void slavio_set_power_fail(void *opaque, int power_failing);
 
 /* esp.c */
+#define ESP_MAX_DEVS 7
 void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
-void *esp_init(BlockDriverState **bd, target_phys_addr_t espaddr,
+void *esp_init(target_phys_addr_t espaddr,
                void *dma_opaque, qemu_irq irq, qemu_irq *reset);
 
 /* cs4231.c */

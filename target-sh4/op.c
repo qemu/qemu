@@ -19,16 +19,6 @@
  */
 #include "exec.h"
 
-static inline void set_flag(uint32_t flag)
-{
-    env->flags |= flag;
-}
-
-static inline void clr_flag(uint32_t flag)
-{
-    env->flags &= ~flag;
-}
-
 static inline void set_t(void)
 {
     env->sr |= SR_T;
@@ -110,28 +100,37 @@ void OPPROTO op_not_T0(void)
 void OPPROTO op_bf_s(void)
 {
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT_CONDITIONAL | ((~env->sr) & SR_T));
+    if (!(env->sr & SR_T)) {
+        env->flags |= DELAY_SLOT_TRUE;
+    }
     RETURN();
 }
 
 void OPPROTO op_bt_s(void)
 {
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT_CONDITIONAL | (env->sr & SR_T));
+    if (env->sr & SR_T) {
+        env->flags |= DELAY_SLOT_TRUE;
+    }
+    RETURN();
+}
+
+void OPPROTO op_store_flags(void)
+{
+    env->flags &= DELAY_SLOT_TRUE;
+    env->flags |= PARAM1;
     RETURN();
 }
 
 void OPPROTO op_bra(void)
 {
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
 void OPPROTO op_braf_T0(void)
 {
     env->delayed_pc = PARAM1 + T0;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
@@ -139,7 +138,6 @@ void OPPROTO op_bsr(void)
 {
     env->pr = PARAM1;
     env->delayed_pc = PARAM2;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
@@ -147,7 +145,6 @@ void OPPROTO op_bsrf_T0(void)
 {
     env->pr = PARAM1;
     env->delayed_pc = PARAM1 + T0;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
@@ -155,26 +152,12 @@ void OPPROTO op_jsr_T0(void)
 {
     env->pr = PARAM1;
     env->delayed_pc = T0;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
 void OPPROTO op_rts(void)
 {
     env->delayed_pc = env->pr;
-    set_flag(DELAY_SLOT);
-    RETURN();
-}
-
-void OPPROTO op_clr_delay_slot(void)
-{
-    clr_flag(DELAY_SLOT);
-    RETURN();
-}
-
-void OPPROTO op_clr_delay_slot_conditional(void)
-{
-    clr_flag(DELAY_SLOT_CONDITIONAL);
     RETURN();
 }
 
@@ -242,7 +225,6 @@ void OPPROTO op_rte(void)
 {
     env->sr = env->ssr;
     env->delayed_pc = env->spc;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
@@ -437,7 +419,7 @@ void OPPROTO op_subv_T0_T1(void)
 
 void OPPROTO op_trapa(void)
 {
-    env->tra = PARAM1 * 2;
+    env->tra = PARAM1 << 2;
     env->exception_index = 0x160;
     do_raise_exception();
     RETURN();
@@ -458,7 +440,6 @@ void OPPROTO op_cmp_pz_T0(void)
 void OPPROTO op_jmp_T0(void)
 {
     env->delayed_pc = T0;
-    set_flag(DELAY_SLOT);
     RETURN();
 }
 
@@ -993,11 +974,10 @@ void OPPROTO op_jT(void)
 
 void OPPROTO op_jdelayed(void)
 {
-    uint32_t flags;
-    flags = env->flags;
-    env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
-    if (flags & DELAY_SLOT)
-	GOTO_LABEL_PARAM(1);
+    if (env->flags & DELAY_SLOT_TRUE) {
+        env->flags &= ~DELAY_SLOT_TRUE;
+        GOTO_LABEL_PARAM(1);
+    }
     RETURN();
 }
 

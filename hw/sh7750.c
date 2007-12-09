@@ -551,6 +551,8 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 			     _INTC_ARRAY(vectors),
 			     _INTC_ARRAY(groups));
 
+    cpu->intc_handle = &s->intc;
+
     sh_serial_init(0x1fe00000, 0, s->periph_freq, serial_hds[0]);
     sh_serial_init(0x1fe80000, SH_SERIAL_FEAT_SCIF,
 		   s->periph_freq, serial_hds[1]);

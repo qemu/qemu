@@ -116,15 +116,26 @@ extern unsigned int nb_prom_envs;
 #define BIOS_SIZE (4 * 1024 * 1024)
 #endif
 
-#define MAX_DISKS 4
+typedef enum {
+    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD
+} BlockInterfaceType;
 
-extern BlockDriverState *bs_table[MAX_DISKS + 1];
-extern BlockDriverState *sd_bdrv;
-extern BlockDriverState *mtd_bdrv;
+typedef struct DriveInfo {
+    BlockDriverState *bdrv;
+    BlockInterfaceType interface;
+    int bus;
+    int unit;
+} DriveInfo;
 
-/* NOR flash devices */
-#define MAX_PFLASH 4
-extern BlockDriverState *pflash_table[MAX_PFLASH];
+#define MAX_IDE_DEVS	2
+#define MAX_SCSI_DEVS	7
+#define MAX_DRIVES 32
+
+int nb_drives;
+DriveInfo drives_table[MAX_DRIVES+1];
+
+extern int drive_get_index(BlockInterfaceType interface, int bus, int unit);
+extern int drive_get_max_bus(BlockInterfaceType interface);
 
 /* serial ports */
 

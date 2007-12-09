@@ -71,13 +71,14 @@ void do_fcmpes(void);
 void do_fcmped(void);
 #if defined(CONFIG_USER_ONLY)
 void do_fitoq(void);
-void do_fabsq(void);
 void do_fsqrtq(void);
 void do_fcmpq(void);
 void do_fcmpeq(void);
 #endif
 #ifdef TARGET_SPARC64
 void do_fabsd(void);
+void do_fxtos(void);
+void do_fxtod(void);
 void do_fcmps_fcc1(void);
 void do_fcmpd_fcc1(void);
 void do_fcmps_fcc2(void);
@@ -91,6 +92,8 @@ void do_fcmped_fcc2(void);
 void do_fcmpes_fcc3(void);
 void do_fcmped_fcc3(void);
 #if defined(CONFIG_USER_ONLY)
+void do_fabsq(void);
+void do_fxtoq(void);
 void do_fcmpq_fcc1(void);
 void do_fcmpq_fcc2(void);
 void do_fcmpq_fcc3(void);

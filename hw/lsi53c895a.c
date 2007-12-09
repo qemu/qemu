@@ -151,9 +151,6 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ##args);} while (0)
 #define PHASE_MI          7
 #define PHASE_MASK        7
 
-/* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
-#define LSI_MAX_DEVS      7
-
 /* Maximum length of MSG IN data.  */
 #define LSI_MAX_MSGIN_LEN 8
 

@@ -26,11 +26,19 @@ void OPPROTO glue(op_reset_T, REG) (void)
     RETURN();
 }
 
+#if !defined(HOST_SPARC) && !defined(HOST_SPARC64)
 void OPPROTO glue(op_reset_FT, REG) (void)
 {
     glue(FT, REG) = 0;
     RETURN();
 }
+#else
+void OPPROTO glue(op_reset_FT, REG) (void)
+{
+    glue(helper_reset_FT, REG)();
+    RETURN();
+}
+#endif
 
 /* XXX: This can be great on most RISC machines */
 #if !defined(__i386__) && !defined(__x86_64__)

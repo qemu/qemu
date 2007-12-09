@@ -43,6 +43,7 @@
 #define VGA_BASE             (APB_MEM_BASE + 0x400000ULL)
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
+#define MAX_IDE_BUS          2
 
 /* TSC handling */
 
@@ -240,6 +241,9 @@ static void sun4u_init(int ram_size, int vga_ram_size,
     PCIBus *pci_bus;
     QEMUBH *bh;
     qemu_irq *irq;
+    int index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    BlockDriverState *fd[MAX_FD];
 
     linux_boot = (kernel_filename != NULL);
 
@@ -342,11 +346,30 @@ static void sun4u_init(int ram_size, int vga_ram_size,
     }
 
     irq = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, 32);
-    // XXX pci_cmd646_ide_init(pci_bus, bs_table, 1);
-    pci_piix3_ide_init(pci_bus, bs_table, -1, irq);
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
+        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+       if (index != -1)
+           hd[i] = drives_table[index].bdrv;
+       else
+           hd[i] = NULL;
+    }
+
+    // XXX pci_cmd646_ide_init(pci_bus, hd, 1);
+    pci_piix3_ide_init(pci_bus, hd, -1, irq);
     /* FIXME: wire up interrupts.  */
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
-    floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd_table);
+    for(i = 0; i < MAX_FD; i++) {
+        index = drive_get_index(IF_FLOPPY, 0, i);
+       if (index != -1)
+           fd[i] = drives_table[index].bdrv;
+       else
+           fd[i] = NULL;
+    }
+    floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
     sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", ram_size, boot_devices,
                          KERNEL_LOAD_ADDR, kernel_size,

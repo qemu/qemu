@@ -1072,6 +1072,23 @@ void helper_mtpr (int iprn)
 }
 #endif
 
+#if defined(HOST_SPARC) || defined(HOST_SPARC64)
+void helper_reset_FT0 (void)
+{
+    FT0 = 0;
+}
+
+void helper_reset_FT1 (void)
+{
+    FT1 = 0;
+}
+
+void helper_reset_FT2 (void)
+{
+    FT2 = 0;
+}
+#endif
+
 /*****************************************************************************/
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)

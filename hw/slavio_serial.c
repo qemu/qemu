@@ -100,6 +100,7 @@ typedef struct ChannelState {
     SERIOQueue queue;
     CharDriverState *chr;
     int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
+    int disabled;
 } ChannelState;
 
 struct SerialState {
@@ -193,7 +194,10 @@ static void slavio_serial_reset_chn(ChannelState *s)
     s->wregs[11] = 8;
     s->wregs[14] = 0x30;
     s->wregs[15] = 0xf8;
-    s->rregs[0] = 0x44;
+    if (s->disabled)
+        s->rregs[0] = 0x7c;
+    else
+        s->rregs[0] = 0x44;
     s->rregs[1] = 6;
 
     s->rx = s->tx = 0;
@@ -437,7 +441,7 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
         if (s->wregs[5] & 8) { // tx enabled
             if (s->chr)
                 qemu_chr_write(s->chr, &s->tx, 1);
-            else if (s->type == kbd) {
+            else if (s->type == kbd && !s->disabled) {
                 handle_kbd_command(s, val);
             }
         }
@@ -611,6 +615,8 @@ SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
 
     s->chn[0].chr = chr1;
     s->chn[1].chr = chr2;
+    s->chn[0].disabled = 0;
+    s->chn[1].disabled = 0;
 
     for (i = 0; i < 2; i++) {
         s->chn[i].irq = irq;
@@ -765,7 +771,8 @@ static void sunmouse_event(void *opaque,
     put_queue(s, 0);
 }
 
-void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq)
+void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
+                               int disabled)
 {
     int slavio_serial_io_memory, i;
     SerialState *s;
@@ -782,6 +789,8 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq)
     s->chn[1].otherchn = &s->chn[0];
     s->chn[0].type = mouse;
     s->chn[1].type = kbd;
+    s->chn[0].disabled = disabled;
+    s->chn[1].disabled = disabled;
 
     slavio_serial_io_memory = cpu_register_io_memory(0, slavio_serial_mem_read, slavio_serial_mem_write, s);
     cpu_register_physical_memory(base, SERIAL_SIZE, slavio_serial_io_memory);

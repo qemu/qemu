@@ -21,11 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include <assert.h>
 #include "hw.h"
 #include "audiodev.h"
+#include "audio/audio.h"
+
+//#define DEBUG
 
 #define ADLIB_KILL_TIMERS 1
+
+#ifdef DEBUG
+#include "qemu-timer.h"
+#endif
 
 #define dolog(...) AUD_log ("adlib", __VA_ARGS__)
 #ifdef DEBUG

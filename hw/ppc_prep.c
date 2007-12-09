@@ -38,6 +38,8 @@
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
 
+#define MAX_IDE_BUS 2
+
 #define BIOS_FILENAME "ppc_rom.bin"
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000
@@ -551,6 +553,9 @@ static void ppc_prep_init (int ram_size, int vga_ram_size,
     PCIBus *pci_bus;
     qemu_irq *i8259;
     int ppc_boot_device;
+    int index;
+    BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    BlockDriverState *fd[MAX_FD];
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
     if (sysctrl == NULL)
@@ -675,16 +680,37 @@ static void ppc_prep_init (int ram_size, int vga_ram_size,
         }
     }
 
-    for(i = 0; i < 2; i++) {
+    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
+        fprintf(stderr, "qemu: too many IDE bus\n");
+        exit(1);
+    }
+
+    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
+        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+        if (index != -1)
+            hd[i] = drives_table[index].bdrv;
+        else
+            hd[i] = NULL;
+    }
+
+    for(i = 0; i < MAX_IDE_BUS; i++) {
         isa_ide_init(ide_iobase[i], ide_iobase2[i], i8259[ide_irq[i]],
-                     bs_table[2 * i], bs_table[2 * i + 1]);
+                     hd[2 * i],
+		     hd[2 * i + 1]);
     }
     i8042_init(i8259[1], i8259[12], 0x60);
     DMA_init(1);
     //    AUD_init();
     //    SB16_init();
 
-    fdctrl_init(i8259[6], 2, 0, 0x3f0, fd_table);
+    for(i = 0; i < MAX_FD; i++) {
+        index = drive_get_index(IF_FLOPPY, 0, i);
+        if (index != -1)
+            fd[i] = drives_table[index].bdrv;
+        else
+            fd[i] = NULL;
+    }
+    fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 
     /* Register speaker port */
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);

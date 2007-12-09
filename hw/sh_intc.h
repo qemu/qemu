@@ -35,9 +35,11 @@ struct intc_source {
     unsigned short vect;
     intc_enum next_enum_id;
 
-    int asserted;
+    int asserted; /* emulates the interrupt signal line from device to intc */
     int enable_count;
     int enable_max;
+    int pending; /* emulates the result of signal and masking */
+    struct intc_desc *parent;
 };
 
 struct intc_desc {
@@ -49,9 +51,13 @@ struct intc_desc {
     int nr_prio_regs;
 
     int iomemtype;
+    int pending; /* number of interrupt sources that has pending set */
 };
 
+int sh_intc_get_pending_vector(struct intc_desc *desc, int imask);
 struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id);
+void sh_intc_toggle_source(struct intc_source *source,
+			   int enable_adj, int assert_adj);
 
 void sh_intc_register_sources(struct intc_desc *desc,
 			      struct intc_vect *vectors,

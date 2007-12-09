@@ -940,9 +940,14 @@ static void spitz_ssp_attach(struct pxa2xx_state_s *cpu)
 static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
 {
     struct pcmcia_card_s *md;
-    BlockDriverState *bs = bs_table[0];
+    int index;
+    BlockDriverState *bs;
 
-    if (bs && bdrv_is_inserted(bs) && !bdrv_is_removable(bs)) {
+    index = drive_get_index(IF_IDE, 0, 0);
+    if (index == -1)
+        return;
+    bs = drives_table[index].bdrv;
+    if (bdrv_is_inserted(bs) && !bdrv_is_removable(bs)) {
         md = dscm1xxxx_init(bs);
         pxa2xx_pcmcia_attach(cpu->pcmcia[1], md);
     }
