@@ -1361,7 +1361,7 @@ static void ide_atapi_cmd(IDEState *s)
 
                     buf[8] = 0x2a;
                     buf[9] = 0x12;
-                    buf[10] = 0x08;
+                    buf[10] = 0x00;
                     buf[11] = 0x00;
 
                     buf[12] = 0x70;
