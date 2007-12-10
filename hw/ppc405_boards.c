@@ -234,9 +234,9 @@ static void ref405ep_init (int ram_size, int vga_ram_size,
                fl_idx, bios_size, bios_offset, -bios_size,
                bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
 #endif
-        pflash_register((uint32_t)(-bios_size), bios_offset,
-                        drives_table[index].bdrv, 65536, fl_sectors, 2,
-                        0x0001, 0x22DA, 0x0000, 0x0000);
+        pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
+                              drives_table[index].bdrv, 65536, fl_sectors, 2,
+                              0x0001, 0x22DA, 0x0000, 0x0000);
         fl_idx++;
     } else
 #endif
@@ -551,9 +551,9 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
                fl_idx, bios_size, bios_offset, -bios_size,
                bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
 #endif
-        pflash_register((uint32_t)(-bios_size), bios_offset,
-                        drives_table[index].bdrv, 65536, fl_sectors, 4,
-                        0x0001, 0x22DA, 0x0000, 0x0000);
+        pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
+                              drives_table[index].bdrv, 65536, fl_sectors, 4,
+                              0x0001, 0x22DA, 0x0000, 0x0000);
         fl_idx++;
     } else
 #endif
@@ -587,9 +587,9 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
                fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
                bdrv_get_device_name(drives_table[index].bdrv));
 #endif
-        pflash_register(0xfc000000, bios_offset, drives_table[index].bdrv,
-                        65536, fl_sectors, 4,
-                        0x0001, 0x22DA, 0x0000, 0x0000);
+        pflash_cfi02_register(0xfc000000, bios_offset,
+                              drives_table[index].bdrv, 65536, fl_sectors, 4,
+                              0x0001, 0x22DA, 0x0000, 0x0000);
         fl_idx++;
     }
     /* Register CLPD & LCD display */

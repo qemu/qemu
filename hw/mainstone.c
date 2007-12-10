@@ -55,7 +55,8 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
                 "'pflash' parameter\n");
         exit(1);
     }
-    if (!pflash_register(MST_FLASH_0, mainstone_ram + PXA2XX_INTERNAL_SIZE,
+    if (!pflash_cfi01_register(MST_FLASH_0,
+                         mainstone_ram + PXA2XX_INTERNAL_SIZE,
                          drives_table[index].bdrv,
                          256 * 1024, 128, 4, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
@@ -68,7 +69,8 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
                 "'pflash' parameter\n");
         exit(1);
     }
-    if (!pflash_register(MST_FLASH_1, mainstone_ram + PXA2XX_INTERNAL_SIZE,
+    if (!pflash_cfi01_register(MST_FLASH_1,
+                         mainstone_ram + PXA2XX_INTERNAL_SIZE,
                          drives_table[index].bdrv,
                          256 * 1024, 128, 4, 0, 0, 0, 0)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");

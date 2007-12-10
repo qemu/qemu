@@ -1,11 +1,19 @@
 /* NOR flash devices */
 typedef struct pflash_t pflash_t;
 
-pflash_t *pflash_register (target_phys_addr_t base, ram_addr_t off,
-                           BlockDriverState *bs,
-                           uint32_t sector_len, int nb_blocs, int width,
-                           uint16_t id0, uint16_t id1,
-                           uint16_t id2, uint16_t id3);
+/* pflash_cfi01.c */
+pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
+                                BlockDriverState *bs,
+                                uint32_t sector_len, int nb_blocs, int width,
+                                uint16_t id0, uint16_t id1,
+                                uint16_t id2, uint16_t id3);
+
+/* pflash_cfi02.c */
+pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
+                                BlockDriverState *bs,
+                                uint32_t sector_len, int nb_blocs, int width,
+                                uint16_t id0, uint16_t id1,
+                                uint16_t id2, uint16_t id3);
 
 /* nand.c */
 struct nand_flash_s;
@@ -37,4 +45,3 @@ uint8_t ecc_digest(struct ecc_state_s *s, uint8_t sample);
 void ecc_reset(struct ecc_state_s *s);
 void ecc_put(QEMUFile *f, struct ecc_state_s *s);
 void ecc_get(QEMUFile *f, struct ecc_state_s *s);
-
