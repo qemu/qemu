@@ -149,9 +149,9 @@ static void usb_msd_copy_data(MSDState *s)
     s->data_len -= len;
     if (s->scsi_len == 0) {
         if (s->mode == USB_MSDM_DATAIN) {
-            scsi_read_data(s->scsi_dev, s->tag);
+            s->scsi_dev->read_data(s->scsi_dev, s->tag);
         } else if (s->mode == USB_MSDM_DATAOUT) {
-            scsi_write_data(s->scsi_dev, s->tag);
+            s->scsi_dev->write_data(s->scsi_dev, s->tag);
         }
     }
 }
@@ -204,7 +204,7 @@ static void usb_msd_command_complete(void *opaque, int reason, uint32_t tag,
         return;
     }
     s->scsi_len = arg;
-    s->scsi_buf = scsi_get_buf(s->scsi_dev, tag);
+    s->scsi_buf = s->scsi_dev->get_buf(s->scsi_dev, tag);
     if (p) {
         usb_msd_copy_data(s);
         if (s->usb_len == 0) {
@@ -342,7 +342,7 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
 static void usb_msd_cancel_io(USBPacket *p, void *opaque)
 {
     MSDState *s = opaque;
-    scsi_cancel_io(s->scsi_dev, s->tag);
+    s->scsi_dev->cancel_io(s->scsi_dev, s->tag);
     s->packet = NULL;
     s->scsi_len = 0;
 }
@@ -390,14 +390,14 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             DPRINTF("Command tag 0x%x flags %08x len %d data %d\n",
                     s->tag, cbw.flags, cbw.cmd_len, s->data_len);
             s->residue = 0;
-            scsi_send_command(s->scsi_dev, s->tag, cbw.cmd, 0);
+            s->scsi_dev->send_command(s->scsi_dev, s->tag, cbw.cmd, 0);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */
             if (s->residue == 0) {
                 if (s->mode == USB_MSDM_DATAIN) {
-                    scsi_read_data(s->scsi_dev, s->tag);
+                    s->scsi_dev->read_data(s->scsi_dev, s->tag);
                 } else if (s->mode == USB_MSDM_DATAOUT) {
-                    scsi_write_data(s->scsi_dev, s->tag);
+                    s->scsi_dev->write_data(s->scsi_dev, s->tag);
                 }
             }
             ret = len;
@@ -508,7 +508,7 @@ static void usb_msd_handle_destroy(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
 
-    scsi_disk_destroy(s->scsi_dev);
+    s->scsi_dev->destroy(s->scsi_dev);
     bdrv_delete(s->bs);
     qemu_free(s);
 }

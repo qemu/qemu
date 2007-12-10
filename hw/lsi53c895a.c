@@ -187,6 +187,7 @@ typedef struct {
     /* The tag is a combination of the device ID and the SCSI tag.  */
     uint32_t current_tag;
     uint32_t current_dma_len;
+    int command_complete;
     uint8_t *dma_buf;
     lsi_queue *queue;
     int queue_len;
@@ -465,7 +466,8 @@ static void lsi_do_dma(LSIState *s, int out)
     s->dbc -= count;
 
     if (s->dma_buf == NULL) {
-        s->dma_buf = scsi_get_buf(s->current_dev, s->current_tag);
+        s->dma_buf = s->current_dev->get_buf(s->current_dev,
+                                             s->current_tag);
     }
 
     /* ??? Set SFBR to first data byte.  */
@@ -479,10 +481,10 @@ static void lsi_do_dma(LSIState *s, int out)
         s->dma_buf = NULL;
         if (out) {
             /* Write the data.  */
-            scsi_write_data(s->current_dev, s->current_tag);
+            s->current_dev->write_data(s->current_dev, s->current_tag);
         } else {
             /* Request any remaining data.  */
-            scsi_read_data(s->current_dev, s->current_tag);
+            s->current_dev->read_data(s->current_dev, s->current_tag);
         }
     } else {
         s->dma_buf += count;
@@ -596,6 +598,7 @@ static void lsi_command_complete(void *opaque, int reason, uint32_t tag,
     if (reason == SCSI_REASON_DONE) {
         DPRINTF("Command complete sense=%d\n", (int)arg);
         s->sense = arg;
+        s->command_complete = 2;
         if (s->waiting && s->dbc != 0) {
             /* Raise phase mismatch for short transfers.  */
             lsi_bad_phase(s, out, PHASE_ST);
@@ -612,6 +615,7 @@ static void lsi_command_complete(void *opaque, int reason, uint32_t tag,
     }
     DPRINTF("Data ready tag=0x%x len=%d\n", tag, arg);
     s->current_dma_len = arg;
+    s->command_complete = 1;
     if (!s->waiting)
         return;
     if (s->waiting == 1 || s->dbc == 0) {
@@ -631,21 +635,30 @@ static void lsi_do_command(LSIState *s)
         s->dbc = 16;
     cpu_physical_memory_read(s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
-    n = scsi_send_command(s->current_dev, s->current_tag, buf, s->current_lun);
+    s->command_complete = 0;
+    n = s->current_dev->send_command(s->current_dev, s->current_tag, buf,
+                                     s->current_lun);
     if (n > 0) {
         lsi_set_phase(s, PHASE_DI);
-        scsi_read_data(s->current_dev, s->current_tag);
+        s->current_dev->read_data(s->current_dev, s->current_tag);
     } else if (n < 0) {
         lsi_set_phase(s, PHASE_DO);
-        scsi_write_data(s->current_dev, s->current_tag);
+        s->current_dev->write_data(s->current_dev, s->current_tag);
     }
-    if (n && s->current_dma_len == 0) {
-        /* Command did not complete immediately so disconnect.  */
-        lsi_add_msg_byte(s, 2); /* SAVE DATA POINTER */
-        lsi_add_msg_byte(s, 4); /* DISCONNECT */
-        lsi_set_phase(s, PHASE_MI);
-        s->msg_action = 1;
-        lsi_queue_command(s);
+
+    if (!s->command_complete) {
+        if (n) {
+            /* Command did not complete immediately so disconnect.  */
+            lsi_add_msg_byte(s, 2); /* SAVE DATA POINTER */
+            lsi_add_msg_byte(s, 4); /* DISCONNECT */
+            /* wait data */
+            lsi_set_phase(s, PHASE_MI);
+            s->msg_action = 1;
+            lsi_queue_command(s);
+        } else {
+            /* wait command complete */
+            lsi_set_phase(s, PHASE_DI);
+        }
     }
 }
 
@@ -1822,7 +1835,7 @@ void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id)
     }
     if (s->scsi_dev[id]) {
         DPRINTF("Destroying device %d\n", id);
-        scsi_disk_destroy(s->scsi_dev[id]);
+        s->scsi_dev[id]->destroy(s->scsi_dev[id]);
     }
     DPRINTF("Attaching block device %d\n", id);
     s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
