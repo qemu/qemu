@@ -3576,8 +3576,8 @@ static void omap_mpuio_kbd_update(struct omap_mpuio_s *s)
         if (*row & cols)
             rows |= i;
 
-    qemu_set_irq(s->kbd_irq, rows && ~s->kbd_mask && s->clk);
-    s->row_latch = rows ^ 0x1f;
+    qemu_set_irq(s->kbd_irq, rows && !s->kbd_mask && s->clk);
+    s->row_latch = ~rows;
 }
 
 static uint32_t omap_mpuio_read(void *opaque, target_phys_addr_t addr)
@@ -3609,7 +3609,7 @@ static uint32_t omap_mpuio_read(void *opaque, target_phys_addr_t addr)
         return s->edge;
 
     case 0x20:	/* KBD_INT */
-        return (s->row_latch != 0x1f) && !s->kbd_mask;
+        return (~s->row_latch & 0x1f) && !s->kbd_mask;
 
     case 0x24:	/* GPIO_INT */
         ret = s->ints;
