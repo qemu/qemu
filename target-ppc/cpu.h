@@ -28,7 +28,6 @@
 #if defined (TARGET_PPC64)
 /* PowerPC 64 definitions */
 typedef uint64_t ppc_gpr_t;
-#define TARGET_GPR_BITS  64
 #define TARGET_LONG_BITS 64
 #define TARGET_PAGE_BITS 12
 
@@ -41,10 +40,8 @@ typedef uint64_t ppc_gpr_t;
  * the compiler to do unuseful masking in the micro-ops.
  */
 typedef uint64_t ppc_gpr_t;
-#define TARGET_GPR_BITS  64
 #else /* (HOST_LONG_BITS >= 64) */
 typedef uint32_t ppc_gpr_t;
-#define TARGET_GPR_BITS  32
 #endif /* (HOST_LONG_BITS >= 64) */
 
 #define TARGET_LONG_BITS 32
