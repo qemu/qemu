@@ -52,7 +52,7 @@ extern QEMUMachine shix_machine;
 extern QEMUMachine r2d_machine;
 
 /* sun4m.c */
-extern QEMUMachine ss5_machine, ss10_machine, ss600mp_machine;
+extern QEMUMachine ss5_machine, ss10_machine, ss600mp_machine, ss20_machine;
 
 /* sun4u.c */
 extern QEMUMachine sun4u_machine;
