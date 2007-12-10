@@ -89,6 +89,7 @@ typedef struct {
     int rptr, wptr, count;
 } SERIOQueue;
 
+#define SERIAL_REGS 16
 typedef struct ChannelState {
     qemu_irq irq;
     int reg;
@@ -96,7 +97,7 @@ typedef struct ChannelState {
     chn_id_t chn; // this channel, A (base+4) or B (base+0)
     chn_type_t type;
     struct ChannelState *otherchn;
-    uint8_t rx, tx, wregs[16], rregs[16];
+    uint8_t rx, tx, wregs[SERIAL_REGS], rregs[SERIAL_REGS];
     SERIOQueue queue;
     CharDriverState *chr;
     int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
@@ -109,6 +110,107 @@ struct SerialState {
 
 #define SERIAL_MAXADDR 7
 #define SERIAL_SIZE (SERIAL_MAXADDR + 1)
+#define SERIAL_CTRL 0
+#define SERIAL_DATA 1
+
+#define W_CMD     0
+#define CMD_PTR_MASK   0x07
+#define CMD_CMD_MASK   0x38
+#define CMD_HI         0x08
+#define CMD_CLR_TXINT  0x28
+#define CMD_CLR_IUS    0x38
+#define W_INTR    1
+#define INTR_INTALL    0x01
+#define INTR_TXINT     0x02
+#define INTR_RXMODEMSK 0x18
+#define INTR_RXINT1ST  0x08
+#define INTR_RXINTALL  0x10
+#define W_IVEC    2
+#define W_RXCTRL  3
+#define RXCTRL_RXEN    0x01
+#define W_TXCTRL1 4
+#define TXCTRL1_PAREN  0x01
+#define TXCTRL1_PAREV  0x02
+#define TXCTRL1_1STOP  0x04
+#define TXCTRL1_1HSTOP 0x08
+#define TXCTRL1_2STOP  0x0c
+#define TXCTRL1_STPMSK 0x0c
+#define TXCTRL1_CLK1X  0x00
+#define TXCTRL1_CLK16X 0x40
+#define TXCTRL1_CLK32X 0x80
+#define TXCTRL1_CLK64X 0xc0
+#define TXCTRL1_CLKMSK 0xc0
+#define W_TXCTRL2 5
+#define TXCTRL2_TXEN   0x08
+#define TXCTRL2_BITMSK 0x60
+#define TXCTRL2_5BITS  0x00
+#define TXCTRL2_7BITS  0x20
+#define TXCTRL2_6BITS  0x40
+#define TXCTRL2_8BITS  0x60
+#define W_SYNC1   6
+#define W_SYNC2   7
+#define W_TXBUF   8
+#define W_MINTR   9
+#define MINTR_STATUSHI 0x10
+#define MINTR_RST_MASK 0xc0
+#define MINTR_RST_B    0x40
+#define MINTR_RST_A    0x80
+#define MINTR_RST_ALL  0xc0
+#define W_MISC1  10
+#define W_CLOCK  11
+#define CLOCK_TRXC     0x08
+#define W_BRGLO  12
+#define W_BRGHI  13
+#define W_MISC2  14
+#define MISC2_PLLDIS   0x30
+#define W_EXTINT 15
+#define EXTINT_DCD     0x08
+#define EXTINT_SYNCINT 0x10
+#define EXTINT_CTSINT  0x20
+#define EXTINT_TXUNDRN 0x40
+#define EXTINT_BRKINT  0x80
+
+#define R_STATUS  0
+#define STATUS_RXAV    0x01
+#define STATUS_ZERO    0x02
+#define STATUS_TXEMPTY 0x04
+#define STATUS_DCD     0x08
+#define STATUS_SYNC    0x10
+#define STATUS_CTS     0x20
+#define STATUS_TXUNDRN 0x40
+#define STATUS_BRK     0x80
+#define R_SPEC    1
+#define SPEC_ALLSENT   0x01
+#define SPEC_BITS8     0x06
+#define R_IVEC    2
+#define IVEC_TXINTB    0x00
+#define IVEC_LONOINT   0x06
+#define IVEC_LORXINTA  0x0c
+#define IVEC_LORXINTB  0x04
+#define IVEC_LOTXINTA  0x08
+#define IVEC_HINOINT   0x60
+#define IVEC_HIRXINTA  0x30
+#define IVEC_HIRXINTB  0x20
+#define IVEC_HITXINTA  0x10
+#define R_INTR    3
+#define INTR_EXTINTB   0x01
+#define INTR_TXINTB    0x02
+#define INTR_RXINTB    0x04
+#define INTR_EXTINTA   0x08
+#define INTR_TXINTA    0x10
+#define INTR_RXINTA    0x20
+#define R_IPEN    4
+#define R_TXCTRL1 5
+#define R_TXCTRL2 6
+#define R_BC      7
+#define R_RXBUF   8
+#define R_RXCTRL  9
+#define R_MISC   10
+#define R_MISC1  11
+#define R_BRGLO  12
+#define R_BRGHI  13
+#define R_MISC1I 14
+#define R_EXTINT 15
 
 static void handle_kbd_command(ChannelState *s, int val);
 static int serial_can_receive(void *opaque);
@@ -159,11 +261,14 @@ static uint32_t get_queue(void *opaque)
 
 static int slavio_serial_update_irq_chn(ChannelState *s)
 {
-    if ((s->wregs[1] & 1) && // interrupts enabled
-        (((s->wregs[1] & 2) && s->txint == 1) || // tx ints enabled, pending
-         ((((s->wregs[1] & 0x18) == 8) || ((s->wregs[1] & 0x18) == 0x10)) &&
+    if ((s->wregs[W_INTR] & INTR_INTALL) && // interrupts enabled
+        (((s->wregs[W_INTR] & INTR_TXINT) && s->txint == 1) ||
+         // tx ints enabled, pending
+         ((((s->wregs[W_INTR] & INTR_RXMODEMSK) == INTR_RXINT1ST) ||
+           ((s->wregs[W_INTR] & INTR_RXMODEMSK) == INTR_RXINTALL)) &&
           s->rxint == 1) || // rx ints enabled, pending
-         ((s->wregs[15] & 0x80) && (s->rregs[0] & 0x80)))) { // break int e&p
+         ((s->wregs[W_EXTINT] & EXTINT_BRKINT) &&
+          (s->rregs[R_STATUS] & STATUS_BRK)))) { // break int e&p
         return 1;
     }
     return 0;
@@ -189,16 +294,18 @@ static void slavio_serial_reset_chn(ChannelState *s)
         s->rregs[i] = 0;
         s->wregs[i] = 0;
     }
-    s->wregs[4] = 4;
-    s->wregs[9] = 0xc0;
-    s->wregs[11] = 8;
-    s->wregs[14] = 0x30;
-    s->wregs[15] = 0xf8;
+    s->wregs[W_TXCTRL1] = TXCTRL1_1STOP; // 1X divisor, 1 stop bit, no parity
+    s->wregs[W_MINTR] = MINTR_RST_ALL;
+    s->wregs[W_CLOCK] = CLOCK_TRXC; // Synch mode tx clock = TRxC
+    s->wregs[W_MISC2] = MISC2_PLLDIS; // PLL disabled
+    s->wregs[W_EXTINT] = EXTINT_DCD | EXTINT_SYNCINT | EXTINT_CTSINT |
+        EXTINT_TXUNDRN | EXTINT_BRKINT; // Enable most interrupts
     if (s->disabled)
-        s->rregs[0] = 0x7c;
+        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_DCD | STATUS_SYNC |
+            STATUS_CTS | STATUS_TXUNDRN;
     else
-        s->rregs[0] = 0x44;
-    s->rregs[1] = 6;
+        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
+    s->rregs[R_SPEC] = SPEC_BITS8;
 
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
@@ -219,17 +326,17 @@ static inline void clr_rxint(ChannelState *s)
     s->rxint = 0;
     s->rxint_under_svc = 0;
     if (s->chn == chn_a) {
-        if (s->wregs[9] & 0x10)
-            s->otherchn->rregs[2] = 0x60;
+        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+            s->otherchn->rregs[R_IVEC] = IVEC_HINOINT;
         else
-            s->otherchn->rregs[2] = 0x06;
-        s->rregs[3] &= ~0x20;
+            s->otherchn->rregs[R_IVEC] = IVEC_LONOINT;
+        s->rregs[R_INTR] &= ~INTR_RXINTA;
     } else {
-        if (s->wregs[9] & 0x10)
-            s->rregs[2] = 0x60;
+        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+            s->rregs[R_IVEC] = IVEC_HINOINT;
         else
-            s->rregs[2] = 0x06;
-        s->otherchn->rregs[3] &= ~4;
+            s->rregs[R_IVEC] = IVEC_LONOINT;
+        s->otherchn->rregs[R_INTR] &= ~INTR_RXINTB;
     }
     if (s->txint)
         set_txint(s);
@@ -242,21 +349,21 @@ static inline void set_rxint(ChannelState *s)
     if (!s->txint_under_svc) {
         s->rxint_under_svc = 1;
         if (s->chn == chn_a) {
-            if (s->wregs[9] & 0x10)
-                s->otherchn->rregs[2] = 0x30;
+            if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+                s->otherchn->rregs[R_IVEC] = IVEC_HIRXINTA;
             else
-                s->otherchn->rregs[2] = 0x0c;
+                s->otherchn->rregs[R_IVEC] = IVEC_LORXINTA;
         } else {
-            if (s->wregs[9] & 0x10)
-                s->rregs[2] = 0x20;
+            if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+                s->rregs[R_IVEC] = IVEC_HIRXINTB;
             else
-                s->rregs[2] = 0x04;
+                s->rregs[R_IVEC] = IVEC_LORXINTB;
         }
     }
     if (s->chn == chn_a)
-        s->rregs[3] |= 0x20;
+        s->rregs[R_INTR] |= INTR_RXINTA;
     else
-        s->otherchn->rregs[3] |= 4;
+        s->otherchn->rregs[R_INTR] |= INTR_RXINTB;
     slavio_serial_update_irq(s);
 }
 
@@ -265,17 +372,17 @@ static inline void clr_txint(ChannelState *s)
     s->txint = 0;
     s->txint_under_svc = 0;
     if (s->chn == chn_a) {
-        if (s->wregs[9] & 0x10)
-            s->otherchn->rregs[2] = 0x60;
+        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+            s->otherchn->rregs[R_IVEC] = IVEC_HINOINT;
         else
-            s->otherchn->rregs[2] = 0x06;
-        s->rregs[3] &= ~0x10;
+            s->otherchn->rregs[R_IVEC] = IVEC_LONOINT;
+        s->rregs[R_INTR] &= ~INTR_TXINTA;
     } else {
-        if (s->wregs[9] & 0x10)
-            s->rregs[2] = 0x60;
+        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+            s->rregs[R_IVEC] = IVEC_HINOINT;
         else
-            s->rregs[2] = 0x06;
-        s->otherchn->rregs[3] &= ~2;
+            s->rregs[R_IVEC] = IVEC_LONOINT;
+        s->otherchn->rregs[R_INTR] &= ~INTR_TXINTB;
     }
     if (s->rxint)
         set_rxint(s);
@@ -288,18 +395,18 @@ static inline void set_txint(ChannelState *s)
     if (!s->rxint_under_svc) {
         s->txint_under_svc = 1;
         if (s->chn == chn_a) {
-            if (s->wregs[9] & 0x10)
-                s->otherchn->rregs[2] = 0x10;
+            if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+                s->otherchn->rregs[R_IVEC] = IVEC_HITXINTA;
             else
-                s->otherchn->rregs[2] = 0x08;
+                s->otherchn->rregs[R_IVEC] = IVEC_LOTXINTA;
         } else {
-            s->rregs[2] = 0;
+            s->rregs[R_IVEC] = IVEC_TXINTB;
         }
     }
     if (s->chn == chn_a)
-        s->rregs[3] |= 0x10;
+        s->rregs[R_INTR] |= INTR_TXINTA;
     else
-        s->otherchn->rregs[3] |= 2;
+        s->otherchn->rregs[R_INTR] |= INTR_TXINTB;
     slavio_serial_update_irq(s);
 }
 
@@ -311,45 +418,45 @@ static void slavio_serial_update_parameters(ChannelState *s)
     if (!s->chr || s->type != ser)
         return;
 
-    if (s->wregs[4] & 1) {
-        if (s->wregs[4] & 2)
+    if (s->wregs[W_TXCTRL1] & TXCTRL1_PAREN) {
+        if (s->wregs[W_TXCTRL1] & TXCTRL1_PAREV)
             parity = 'E';
         else
             parity = 'O';
     } else {
         parity = 'N';
     }
-    if ((s->wregs[4] & 0x0c) == 0x0c)
+    if ((s->wregs[W_TXCTRL1] & TXCTRL1_STPMSK) == TXCTRL1_2STOP)
         stop_bits = 2;
     else
         stop_bits = 1;
-    switch (s->wregs[5] & 0x60) {
-    case 0x00:
+    switch (s->wregs[W_TXCTRL2] & TXCTRL2_BITMSK) {
+    case TXCTRL2_5BITS:
         data_bits = 5;
         break;
-    case 0x20:
+    case TXCTRL2_7BITS:
         data_bits = 7;
         break;
-    case 0x40:
+    case TXCTRL2_6BITS:
         data_bits = 6;
         break;
     default:
-    case 0x60:
+    case TXCTRL2_8BITS:
         data_bits = 8;
         break;
     }
-    speed = 2457600 / ((s->wregs[12] | (s->wregs[13] << 8)) + 2);
-    switch (s->wregs[4] & 0xc0) {
-    case 0x00:
+    speed = 2457600 / ((s->wregs[W_BRGLO] | (s->wregs[W_BRGHI] << 8)) + 2);
+    switch (s->wregs[W_TXCTRL1] & TXCTRL1_CLKMSK) {
+    case TXCTRL1_CLK1X:
         break;
-    case 0x40:
+    case TXCTRL1_CLK16X:
         speed /= 16;
         break;
-    case 0x80:
+    case TXCTRL1_CLK32X:
         speed /= 32;
         break;
     default:
-    case 0xc0:
+    case TXCTRL1_CLK64X:
         speed /= 64;
         break;
     }
@@ -362,7 +469,8 @@ static void slavio_serial_update_parameters(ChannelState *s)
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
-static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                     uint32_t val)
 {
     SerialState *serial = opaque;
     ChannelState *s;
@@ -374,21 +482,22 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
     channel = (addr & SERIAL_MAXADDR) >> 2;
     s = &serial->chn[channel];
     switch (saddr) {
-    case 0:
-        SER_DPRINTF("Write channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, val & 0xff);
+    case SERIAL_CTRL:
+        SER_DPRINTF("Write channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg,
+                    val & 0xff);
         newreg = 0;
         switch (s->reg) {
-        case 0:
-            newreg = val & 7;
-            val &= 0x38;
+        case W_CMD:
+            newreg = val & CMD_PTR_MASK;
+            val &= CMD_CMD_MASK;
             switch (val) {
-            case 8:
-                newreg |= 0x8;
+            case CMD_HI:
+                newreg |= CMD_HI;
                 break;
-            case 0x28:
+            case CMD_CLR_TXINT:
                 clr_txint(s);
                 break;
-            case 0x38:
+            case CMD_CLR_IUS:
                 if (s->rxint_under_svc)
                     clr_rxint(s);
                 else if (s->txint_under_svc)
@@ -398,31 +507,31 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
                 break;
             }
             break;
-        case 1 ... 3:
-        case 6 ... 8:
-        case 10 ... 11:
-        case 14 ... 15:
+        case W_INTR ... W_RXCTRL:
+        case W_SYNC1 ... W_TXBUF:
+        case W_MISC1 ... W_CLOCK:
+        case W_MISC2 ... W_EXTINT:
             s->wregs[s->reg] = val;
             break;
-        case 4:
-        case 5:
-        case 12:
-        case 13:
+        case W_TXCTRL1:
+        case W_TXCTRL2:
+        case W_BRGLO:
+        case W_BRGHI:
             s->wregs[s->reg] = val;
             slavio_serial_update_parameters(s);
             break;
-        case 9:
-            switch (val & 0xc0) {
+        case W_MINTR:
+            switch (val & MINTR_RST_MASK) {
             case 0:
             default:
                 break;
-            case 0x40:
+            case MINTR_RST_B:
                 slavio_serial_reset_chn(&serial->chn[1]);
                 return;
-            case 0x80:
+            case MINTR_RST_A:
                 slavio_serial_reset_chn(&serial->chn[0]);
                 return;
-            case 0xc0:
+            case MINTR_RST_ALL:
                 slavio_serial_reset(serial);
                 return;
             }
@@ -435,18 +544,18 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
         else
             s->reg = 0;
         break;
-    case 1:
+    case SERIAL_DATA:
         SER_DPRINTF("Write channel %c, ch %d\n", CHN_C(s), val);
         s->tx = val;
-        if (s->wregs[5] & 8) { // tx enabled
+        if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { // tx enabled
             if (s->chr)
                 qemu_chr_write(s->chr, &s->tx, 1);
             else if (s->type == kbd && !s->disabled) {
                 handle_kbd_command(s, val);
             }
         }
-        s->rregs[0] |= 4; // Tx buffer empty
-        s->rregs[1] |= 1; // All sent
+        s->rregs[R_STATUS] |= STATUS_TXEMPTY; // Tx buffer empty
+        s->rregs[R_SPEC] |= SPEC_ALLSENT; // All sent
         set_txint(s);
         break;
     default:
@@ -466,13 +575,14 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
     channel = (addr & SERIAL_MAXADDR) >> 2;
     s = &serial->chn[channel];
     switch (saddr) {
-    case 0:
-        SER_DPRINTF("Read channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg, s->rregs[s->reg]);
+    case SERIAL_CTRL:
+        SER_DPRINTF("Read channel %c, reg[%d] = %2.2x\n", CHN_C(s), s->reg,
+                    s->rregs[s->reg]);
         ret = s->rregs[s->reg];
         s->reg = 0;
         return ret;
-    case 1:
-        s->rregs[0] &= ~1;
+    case SERIAL_DATA:
+        s->rregs[R_STATUS] &= ~STATUS_RXAV;
         clr_rxint(s);
         if (s->type == kbd || s->type == mouse)
             ret = get_queue(s);
@@ -493,26 +603,26 @@ static int serial_can_receive(void *opaque)
     ChannelState *s = opaque;
     int ret;
 
-    if (((s->wregs[3] & 1) == 0) // Rx not enabled
-        || ((s->rregs[0] & 1) == 1)) // char already available
+    if (((s->wregs[W_RXCTRL] & RXCTRL_RXEN) == 0) // Rx not enabled
+        || ((s->rregs[R_STATUS] & STATUS_RXAV) == STATUS_RXAV))
+        // char already available
         ret = 0;
     else
         ret = 1;
-    //SER_DPRINTF("channel %c can receive %d\n", CHN_C(s), ret);
     return ret;
 }
 
 static void serial_receive_byte(ChannelState *s, int ch)
 {
     SER_DPRINTF("channel %c put ch %d\n", CHN_C(s), ch);
-    s->rregs[0] |= 1;
+    s->rregs[R_STATUS] |= STATUS_RXAV;
     s->rx = ch;
     set_rxint(s);
 }
 
 static void serial_receive_break(ChannelState *s)
 {
-    s->rregs[0] |= 0x80;
+    s->rregs[R_STATUS] |= STATUS_BRK;
     slavio_serial_update_irq(s);
 }
 
@@ -553,8 +663,8 @@ static void slavio_serial_save_chn(QEMUFile *f, ChannelState *s)
     qemu_put_be32s(f, &s->txint_under_svc);
     qemu_put_8s(f, &s->rx);
     qemu_put_8s(f, &s->tx);
-    qemu_put_buffer(f, s->wregs, 16);
-    qemu_put_buffer(f, s->rregs, 16);
+    qemu_put_buffer(f, s->wregs, SERIAL_REGS);
+    qemu_put_buffer(f, s->rregs, SERIAL_REGS);
 }
 
 static void slavio_serial_save(QEMUFile *f, void *opaque)
@@ -582,8 +692,8 @@ static int slavio_serial_load_chn(QEMUFile *f, ChannelState *s, int version_id)
     }
     qemu_get_8s(f, &s->rx);
     qemu_get_8s(f, &s->tx);
-    qemu_get_buffer(f, s->wregs, 16);
-    qemu_get_buffer(f, s->rregs, 16);
+    qemu_get_buffer(f, s->wregs, SERIAL_REGS);
+    qemu_get_buffer(f, s->rregs, SERIAL_REGS);
     return 0;
 }
 
@@ -610,7 +720,9 @@ SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
     if (!s)
         return NULL;
 
-    slavio_serial_io_memory = cpu_register_io_memory(0, slavio_serial_mem_read, slavio_serial_mem_write, s);
+    slavio_serial_io_memory = cpu_register_io_memory(0, slavio_serial_mem_read,
+                                                     slavio_serial_mem_write,
+                                                     s);
     cpu_register_physical_memory(base, SERIAL_SIZE, slavio_serial_io_memory);
 
     s->chn[0].chr = chr1;
@@ -629,7 +741,8 @@ SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
-    register_savevm("slavio_serial", base, 2, slavio_serial_save, slavio_serial_load, s);
+    register_savevm("slavio_serial", base, 2, slavio_serial_save,
+                    slavio_serial_load, s);
     qemu_register_reset(slavio_serial_reset, s);
     slavio_serial_reset(s);
     return s;
@@ -662,7 +775,8 @@ static void sunkbd_event(void *opaque, int ch)
     ChannelState *s = opaque;
     int release = ch & 0x80;
 
-    KBD_DPRINTF("Untranslated keycode %2.2x (%s)\n", ch, release? "release" : "press");
+    KBD_DPRINTF("Untranslated keycode %2.2x (%s)\n", ch, release? "release" :
+                "press");
     switch (ch) {
     case 58: // Caps lock press
         s->caps_lock_mode ^= 1;
@@ -792,12 +906,16 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
     s->chn[0].disabled = disabled;
     s->chn[1].disabled = disabled;
 
-    slavio_serial_io_memory = cpu_register_io_memory(0, slavio_serial_mem_read, slavio_serial_mem_write, s);
+    slavio_serial_io_memory = cpu_register_io_memory(0, slavio_serial_mem_read,
+                                                     slavio_serial_mem_write,
+                                                     s);
     cpu_register_physical_memory(base, SERIAL_SIZE, slavio_serial_io_memory);
 
-    qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0, "QEMU Sun Mouse");
+    qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0,
+                                 "QEMU Sun Mouse");
     qemu_add_kbd_event_handler(sunkbd_event, &s->chn[1]);
-    register_savevm("slavio_serial_mouse", base, 2, slavio_serial_save, slavio_serial_load, s);
+    register_savevm("slavio_serial_mouse", base, 2, slavio_serial_save,
+                    slavio_serial_load, s);
     qemu_register_reset(slavio_serial_reset, s);
     slavio_serial_reset(s);
 }
