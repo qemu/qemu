@@ -56,7 +56,7 @@
 #endif
 
 /* threshold to flush the translated code buffer */
-#define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - CODE_GEN_MAX_SIZE)
+#define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - code_gen_max_block_size())
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
@@ -622,7 +622,7 @@ static void tb_gen_code(CPUState *env,
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
-    cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+    cpu_gen_code(env, tb, &code_gen_size);
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
     /* check next page if needed */

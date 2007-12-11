@@ -132,14 +132,27 @@ static void dyngen_labels(long *gen_labels, int nb_gen_labels,
     }
 }
 
+unsigned long code_gen_max_block_size(void)
+{
+    static unsigned long max;
+
+    if (max == 0) {
+#define DEF(s, n, copy_size) max = copy_size > max? copy_size : max;
+#include "opc.h"
+#undef DEF
+        max *= OPC_MAX_SIZE;
+    }
+
+    return max;
+}
+
 /* return non zero if the very first instruction is invalid so that
    the virtual CPU can trigger an exception.
 
    '*gen_code_size_ptr' contains the size of the generated code (host
    code).
 */
-int cpu_gen_code(CPUState *env, TranslationBlock *tb,
-                 int max_code_size, int *gen_code_size_ptr)
+int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 {
     uint8_t *gen_code_buf;
     int gen_code_size;
