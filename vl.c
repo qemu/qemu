@@ -8721,7 +8721,7 @@ int main(int argc, char **argv)
     }
 
 #ifdef TARGET_I386
-    /* XXX: this should be moved in the PC machine instanciation code */
+    /* XXX: this should be moved in the PC machine instantiation code */
     if (net_boot != 0) {
         int netroms = 0;
 	for (i = 0; i < nb_nics && i < 4; i++) {
