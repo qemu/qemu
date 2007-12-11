@@ -227,6 +227,76 @@ Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and
 @option{-cdrom} at the same time). You can use the host CD-ROM by
 using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 
+@item -drive @var{option}[,@var{option}[,@var{option}[,...]]]
+
+Define a new drive. Valid options are:
+
+@table @code
+@item file=@var{file}
+This option defines which disk image (@pxref{disk_images}) to use with
+this drive.
+@item if=@var{interface}
+This option defines on which type on interface the drive is connected.
+Available types are: ide, scsi, sd, mtd, floppy, pflash.
+@item bus=@var{bus},unit=@var{unit}
+These options define where is connected the drive by defining the bus number and
+the unit id.
+@item index=@var{index}
+This option defines where is connected the drive by using an index in the list
+of available connectors of a given interface type.
+@item media=@var{media}
+This option defines the type of the media: disk or cdrom.
+@item cyls=@var{c},heads=@var{h},secs=@var{s}[,trans=@var{t}]
+These options have the same definition as they have in @option{-hdachs}.
+@item snapshot=@var{snapshot}
+@var{snapshot} is "on" or "off" and allows to enable snapshot for given drive (see @option{-snapshot}).
+@end table
+
+Instead of @option{-cdrom} you can use:
+@example
+qemu -drive file=file,index=2,media=cdrom
+@end example
+
+Instead of @option{-hda}, @option{-hdb}, @option{-hdc}, @option{-hdd}, you can
+use:
+@example
+qemu -drive file=file,index=0,media=disk
+qemu -drive file=file,index=1,media=disk
+qemu -drive file=file,index=2,media=disk
+qemu -drive file=file,index=3,media=disk
+@end example
+
+You can connect a CDROM to the slave of ide0:
+@example
+qemu -drive file=file,if=ide,index=1,media=cdrom
+@end example
+
+If you don't specify the "file=" argument, you define an empty drive:
+@example
+qemu -drive if=ide,index=1,media=cdrom
+@end example
+
+You can connect a SCSI disk with unit ID 6 on the bus #0:
+@example
+qemu -drive file=file,if=scsi,bus=0,unit=6
+@end example
+
+Instead of @option{-fda}, @option{-fdb}, you can use:
+@example
+qemu -drive file=file,index=0,if=floppy
+qemu -drive file=file,index=1,if=floppy
+@end example
+
+By default, @var{interface} is "ide" and @var{index} is automatically
+incremented:
+@example
+qemu -drive file=a -drive file=b"
+@end example
+is interpreted like:
+@example
+qemu -hda a -hdb b
+@end example
+
 @item -boot [a|c|d|n]
 Boot on floppy (a), hard disk (c), CD-ROM (d), or Etherboot (n). Hard disk boot
 is the default.
