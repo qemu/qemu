@@ -1244,12 +1244,14 @@ void OPPROTO op_exception(void)
 {
     env->exception_index = PARAM1;
     cpu_loop_exit();
+    FORCE_RET();
 }
 
 void OPPROTO op_trap_T0(void)
 {
     env->exception_index = TT_TRAP + (T0 & 0x7f);
     cpu_loop_exit();
+    FORCE_RET();
 }
 
 void OPPROTO op_trapcc_T0(void)
