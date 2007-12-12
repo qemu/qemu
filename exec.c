@@ -209,6 +209,27 @@ static void page_init(void)
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
     l1_phys_map = qemu_vmalloc(L1_SIZE * sizeof(void *));
     memset(l1_phys_map, 0, L1_SIZE * sizeof(void *));
+
+#if !defined(_WIN32) && defined(CONFIG_USER_ONLY)
+    {
+        long long startaddr, endaddr;
+        FILE *f;
+        int n;
+
+        f = fopen("/proc/self/maps", "r");
+        if (f) {
+            do {
+                n = fscanf (f, "%llx-%llx %*[^\n]\n", &startaddr, &endaddr);
+                if (n == 2) {
+                    page_set_flags(TARGET_PAGE_ALIGN(startaddr),
+                                   TARGET_PAGE_ALIGN(endaddr),
+                                   PAGE_RESERVED); 
+                }
+            } while (!feof(f));
+            fclose(f);
+        }
+    }
+#endif
 }
 
 static inline PageDesc *page_find_alloc(unsigned int index)

@@ -716,6 +716,7 @@ extern unsigned long qemu_host_page_mask;
 /* original state of the write flag (used when tracking self-modifying
    code */
 #define PAGE_WRITE_ORG 0x0010
+#define PAGE_RESERVED  0x0020
 
 void page_dump(FILE *f);
 int page_get_flags(target_ulong address);
