@@ -199,6 +199,7 @@ void helper_sysexit(void);
 void helper_syscall(int next_eip_addend);
 void helper_sysret(int dflag);
 void helper_rdtsc(void);
+void helper_rdpmc(void);
 void helper_rdmsr(void);
 void helper_wrmsr(void);
 void helper_lsl(void);

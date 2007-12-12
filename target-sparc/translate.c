@@ -3793,6 +3793,7 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    env->cpu_model_str = cpu_model;
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
 #if !defined(TARGET_SPARC64)

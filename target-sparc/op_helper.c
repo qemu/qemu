@@ -411,6 +411,9 @@ void helper_ld_asi(int asi, int size, int sign)
             break;
         }
         break;
+    case 0x39: /* data cache diagnostic register */
+        ret = 0;
+        break;
     case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 0, 0, 1);
@@ -703,9 +706,13 @@ void helper_st_asi(int asi, int size)
             }
         }
         return;
-    case 0x31: /* Ross RT620 I-cache flush */
+    case 0x30: /* store buffer tags */
+    case 0x31: /* store buffer data or Ross RT620 I-cache flush */
+    case 0x32: /* store buffer control */
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
+    case 0x38: /* breakpoint diagnostics */
+    case 0x4c: /* breakpoint action */
         break;
     case 9: /* Supervisor code access, XXX */
     case 0x21 ... 0x2d: /* MMU passthrough, unassigned */

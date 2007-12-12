@@ -42,6 +42,7 @@ struct PCIBus {
     PCIBus *next;
     /* The bus IRQ state is the logical OR of the connected devices.
        Keep a count of the number of devices with raised IRQs.  */
+    int nirq;
     int irq_count[];
 };
 
@@ -52,16 +53,51 @@ target_phys_addr_t pci_mem_base;
 static int pci_irq_index;
 static PCIBus *first_bus;
 
+static void pcibus_save(QEMUFile *f, void *opaque)
+{
+    PCIBus *bus = (PCIBus *)opaque;
+    int i;
+
+    qemu_put_be32(f, bus->nirq);
+    for (i = 0; i < bus->nirq; i++)
+        qemu_put_be32(f, bus->irq_count[i]);
+}
+
+static int  pcibus_load(QEMUFile *f, void *opaque, int version_id)
+{
+    PCIBus *bus = (PCIBus *)opaque;
+    int i, nirq;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    nirq = qemu_get_be32(f);
+    if (bus->nirq != nirq) {
+        fprintf(stderr, "pcibus_load: nirq mismatch: src=%d dst=%d\n",
+                nirq, bus->nirq);
+        return -EINVAL;
+    }
+
+    for (i = 0; i < nirq; i++)
+        bus->irq_count[i] = qemu_get_be32(f);
+
+    return 0;
+}
+
 PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq)
 {
     PCIBus *bus;
+    static int nbus = 0;
+
     bus = qemu_mallocz(sizeof(PCIBus) + (nirq * sizeof(int)));
     bus->set_irq = set_irq;
     bus->map_irq = map_irq;
     bus->irq_opaque = pic;
     bus->devfn_min = devfn_min;
+    bus->nirq = nirq;
     first_bus = bus;
+    register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
     return bus;
 }
 
@@ -83,20 +119,31 @@ int pci_bus_num(PCIBus *s)
 
 void pci_device_save(PCIDevice *s, QEMUFile *f)
 {
-    qemu_put_be32(f, 1); /* PCI device version */
+    int i;
+
+    qemu_put_be32(f, 2); /* PCI device version */
     /* todo: endianess */
     qemu_put_buffer(f, s->config, 256);
+    for (i = 0; i < 4; i++)
+        qemu_put_be32(f, s->irq_state[i]);
 }
 
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
     uint32_t version_id;
+    int i;
+
     version_id = qemu_get_be32(f);
-    if (version_id != 1)
+    if (version_id > 2)
         return -EINVAL;
     /* todo: endianess */
     qemu_get_buffer(f, s->config, 256);
     pci_update_mappings(s);
+
+    if (version_id >= 2)
+        for (i = 0; i < 4; i ++)
+            s->irq_state[i] = qemu_get_be32(f);
+
     return 0;
 }
 

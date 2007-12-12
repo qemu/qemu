@@ -443,50 +443,66 @@ abi_long do_brk(abi_ulong new_brk)
     }
 }
 
-static inline fd_set *target_to_host_fds(fd_set *fds,
-                                         abi_long *target_fds, int n)
+static inline abi_long copy_from_user_fdset(fd_set *fds,
+                                            abi_ulong target_fds_addr,
+                                            int n)
 {
-#if !defined(BSWAP_NEEDED) && !defined(WORDS_BIGENDIAN)
-    return (fd_set *)target_fds;
-#else
-    int i, b;
-    if (target_fds) {
-        FD_ZERO(fds);
-        for(i = 0;i < n; i++) {
-            b = (tswapl(target_fds[i / TARGET_ABI_BITS]) >>
-                 (i & (TARGET_ABI_BITS - 1))) & 1;
-            if (b)
-                FD_SET(i, fds);
+    int i, nw, j, k;
+    abi_ulong b, *target_fds;
+
+    nw = (n + TARGET_ABI_BITS - 1) / TARGET_ABI_BITS;
+    if (!(target_fds = lock_user(VERIFY_READ,
+                                 target_fds_addr,
+                                 sizeof(abi_ulong) * nw,
+                                 1)))
+        return -TARGET_EFAULT;
+
+    FD_ZERO(fds);
+    k = 0;
+    for (i = 0; i < nw; i++) {
+        /* grab the abi_ulong */
+        __get_user(b, &target_fds[i]);
+        for (j = 0; j < TARGET_ABI_BITS; j++) {
+            /* check the bit inside the abi_ulong */
+            if ((b >> j) & 1)
+                FD_SET(k, fds);
+            k++;
         }
-        return fds;
-    } else {
-        return NULL;
     }
-#endif
+
+    unlock_user(target_fds, target_fds_addr, 0);
+
+    return 0;
 }
 
-static inline void host_to_target_fds(abi_long *target_fds,
-                                      fd_set *fds, int n)
+static inline abi_long copy_to_user_fdset(abi_ulong target_fds_addr,
+                                          const fd_set *fds,
+                                          int n)
 {
-#if !defined(BSWAP_NEEDED) && !defined(WORDS_BIGENDIAN)
-    /* nothing to do */
-#else
     int i, nw, j, k;
     abi_long v;
+    abi_ulong *target_fds;
 
-    if (target_fds) {
-        nw = (n + TARGET_ABI_BITS - 1) / TARGET_ABI_BITS;
-        k = 0;
-        for(i = 0;i < nw; i++) {
-            v = 0;
-            for(j = 0; j < TARGET_ABI_BITS; j++) {
-                v |= ((FD_ISSET(k, fds) != 0) << j);
-                k++;
-            }
-            target_fds[i] = tswapl(v);
+    nw = (n + TARGET_ABI_BITS - 1) / TARGET_ABI_BITS;
+    if (!(target_fds = lock_user(VERIFY_WRITE,
+                                 target_fds_addr,
+                                 sizeof(abi_ulong) * nw,
+                                 0)))
+        return -TARGET_EFAULT;
+
+    k = 0;
+    for (i = 0; i < nw; i++) {
+        v = 0;
+        for (j = 0; j < TARGET_ABI_BITS; j++) {
+            v |= ((FD_ISSET(k, fds) != 0) << j);
+            k++;
         }
+        __put_user(v, &target_fds[i]);
     }
-#endif
+
+    unlock_user(target_fds, target_fds_addr, sizeof(abi_ulong) * nw);
+
+    return 0;
 }
 
 #if defined(__alpha__)
@@ -534,30 +550,34 @@ static inline abi_long host_to_target_rusage(abi_ulong target_addr,
     return 0;
 }
 
-static inline abi_long target_to_host_timeval(struct timeval *tv,
-                                              abi_ulong target_addr)
+static inline abi_long copy_from_user_timeval(struct timeval *tv,
+                                              abi_ulong target_tv_addr)
 {
     struct target_timeval *target_tv;
 
-    if (!lock_user_struct(VERIFY_READ, target_tv, target_addr, 1))
+    if (!lock_user_struct(VERIFY_READ, target_tv, target_tv_addr, 1))
         return -TARGET_EFAULT;
-    tv->tv_sec = tswapl(target_tv->tv_sec);
-    tv->tv_usec = tswapl(target_tv->tv_usec);
-    unlock_user_struct(target_tv, target_addr, 0);
+
+    __get_user(tv->tv_sec, &target_tv->tv_sec);
+    __get_user(tv->tv_usec, &target_tv->tv_usec);
+
+    unlock_user_struct(target_tv, target_tv_addr, 0);
 
     return 0;
 }
 
-static inline abi_long host_to_target_timeval(abi_ulong target_addr,
-                                              const struct timeval *tv)
+static inline abi_long copy_to_user_timeval(abi_ulong target_tv_addr,
+                                            const struct timeval *tv)
 {
     struct target_timeval *target_tv;
 
-    if (!lock_user_struct(VERIFY_WRITE, target_tv, target_addr, 0))
+    if (!lock_user_struct(VERIFY_WRITE, target_tv, target_tv_addr, 0))
         return -TARGET_EFAULT;
-    target_tv->tv_sec = tswapl(tv->tv_sec);
-    target_tv->tv_usec = tswapl(tv->tv_usec);
-    unlock_user_struct(target_tv, target_addr, 1);
+
+    __put_user(tv->tv_sec, &target_tv->tv_sec);
+    __put_user(tv->tv_usec, &target_tv->tv_usec);
+
+    unlock_user_struct(target_tv, target_tv_addr, 1);
 
     return 0;
 }
@@ -565,73 +585,57 @@ static inline abi_long host_to_target_timeval(abi_ulong target_addr,
 
 /* do_select() must return target values and target errnos. */
 static abi_long do_select(int n,
-                          abi_ulong rfd_p, abi_ulong wfd_p,
-                          abi_ulong efd_p, abi_ulong target_tv)
+                          abi_ulong rfd_addr, abi_ulong wfd_addr,
+                          abi_ulong efd_addr, abi_ulong target_tv_addr)
 {
     fd_set rfds, wfds, efds;
     fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
-    abi_long *target_rfds, *target_wfds, *target_efds;
     struct timeval tv, *tv_ptr;
     abi_long ret;
-    int ok;
 
-    if (rfd_p) {
-        target_rfds = lock_user(VERIFY_WRITE, rfd_p, sizeof(abi_long) * n, 1);
-        if (!target_rfds) {
-            ret = -TARGET_EFAULT;
-            goto end;
-        }
-        rfds_ptr = target_to_host_fds(&rfds, target_rfds, n);
+    if (rfd_addr) {
+        if (copy_from_user_fdset(&rfds, rfd_addr, n))
+            return -TARGET_EFAULT;
+        rfds_ptr = &rfds;
     } else {
-        target_rfds = NULL;
         rfds_ptr = NULL;
     }
-    if (wfd_p) {
-        target_wfds = lock_user(VERIFY_WRITE, wfd_p, sizeof(abi_long) * n, 1);
-        if (!target_wfds) {
-            ret = -TARGET_EFAULT;
-            goto end;
-        }
-        wfds_ptr = target_to_host_fds(&wfds, target_wfds, n);
+    if (wfd_addr) {
+        if (copy_from_user_fdset(&wfds, wfd_addr, n))
+            return -TARGET_EFAULT;
+        wfds_ptr = &wfds;
     } else {
-        target_wfds = NULL;
         wfds_ptr = NULL;
     }
-    if (efd_p) {
-        target_efds = lock_user(VERIFY_WRITE, efd_p, sizeof(abi_long) * n, 1);
-        if (!target_efds) {
-            ret = -TARGET_EFAULT;
-            goto end;
-        }
-        efds_ptr = target_to_host_fds(&efds, target_efds, n);
+    if (efd_addr) {
+        if (copy_from_user_fdset(&efds, efd_addr, n))
+            return -TARGET_EFAULT;
+        efds_ptr = &efds;
     } else {
-        target_efds = NULL;
         efds_ptr = NULL;
     }
 
-    if (target_tv) {
-        target_to_host_timeval(&tv, target_tv);
+    if (target_tv_addr) {
+        if (copy_from_user_timeval(&tv, target_tv_addr))
+            return -TARGET_EFAULT;
         tv_ptr = &tv;
     } else {
         tv_ptr = NULL;
     }
+
     ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, tv_ptr));
-    ok = !is_error(ret);
 
-    if (ok) {
-        host_to_target_fds(target_rfds, rfds_ptr, n);
-        host_to_target_fds(target_wfds, wfds_ptr, n);
-        host_to_target_fds(target_efds, efds_ptr, n);
+    if (!is_error(ret)) {
+        if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
+            return -TARGET_EFAULT;
+        if (wfd_addr && copy_to_user_fdset(wfd_addr, &wfds, n))
+            return -TARGET_EFAULT;
+        if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
+            return -TARGET_EFAULT;
 
-        if (target_tv) {
-            host_to_target_timeval(target_tv, &tv);
-        }
+        if (target_tv_addr && copy_to_user_timeval(target_tv_addr, &tv))
+            return -TARGET_EFAULT;
     }
-
-end:
-    unlock_user(target_rfds, rfd_p, ok ? sizeof(abi_long) * n : 0);
-    unlock_user(target_wfds, wfd_p, ok ? sizeof(abi_long) * n : 0);
-    unlock_user(target_efds, efd_p, ok ? sizeof(abi_long) * n : 0);
 
     return ret;
 }
@@ -3188,7 +3192,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             argc = 0;
             guest_argp = arg2;
-            for (gp = guest_argp; ; gp++) {
+            for (gp = guest_argp; ; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3197,7 +3201,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             envc = 0;
             guest_envp = arg3;
-            for (gp = guest_envp; ; gp++) {
+            for (gp = guest_envp; ; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3393,9 +3397,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct timeval *tvp, tv[2];
             if (arg2) {
-                target_to_host_timeval(&tv[0], arg2);
-                target_to_host_timeval(&tv[1],
-                    arg2 + sizeof (struct target_timeval));
+                if (copy_from_user_timeval(&tv[0], arg2)
+                    || copy_from_user_timeval(&tv[1],
+                                              arg2 + sizeof(struct target_timeval)))
+                    goto efault;
                 tvp = tv;
             } else {
                 tvp = NULL;
@@ -3934,14 +3939,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct timeval tv;
             ret = get_errno(gettimeofday(&tv, NULL));
             if (!is_error(ret)) {
-                host_to_target_timeval(arg1, &tv);
+                if (copy_to_user_timeval(arg1, &tv))
+                    goto efault;
             }
         }
         break;
     case TARGET_NR_settimeofday:
         {
             struct timeval tv;
-            target_to_host_timeval(&tv, arg1);
+            if (copy_from_user_timeval(&tv, arg1))
+                goto efault;
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
@@ -4316,19 +4323,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             if (arg2) {
                 pvalue = &value;
-                target_to_host_timeval(&pvalue->it_interval,
-                                       arg2);
-                target_to_host_timeval(&pvalue->it_value,
-                                       arg2 + sizeof(struct target_timeval));
+                if (copy_from_user_timeval(&pvalue->it_interval, arg2)
+                    || copy_from_user_timeval(&pvalue->it_value,
+                                              arg2 + sizeof(struct target_timeval)))
+                    goto efault;
             } else {
                 pvalue = NULL;
             }
             ret = get_errno(setitimer(arg1, pvalue, &ovalue));
             if (!is_error(ret) && arg3) {
-                host_to_target_timeval(arg3,
-                                       &ovalue.it_interval);
-                host_to_target_timeval(arg3 + sizeof(struct target_timeval),
-                                       &ovalue.it_value);
+                if (copy_to_user_timeval(arg3,
+                                         &ovalue.it_interval)
+                    || copy_to_user_timeval(arg3 + sizeof(struct target_timeval),
+                                            &ovalue.it_value))
+                    goto efault;
             }
         }
         break;
@@ -4338,10 +4346,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             ret = get_errno(getitimer(arg1, &value));
             if (!is_error(ret) && arg2) {
-                host_to_target_timeval(arg2,
-                                       &value.it_interval);
-                host_to_target_timeval(arg2 + sizeof(struct target_timeval),
-                                       &value.it_value);
+                if (copy_to_user_timeval(arg2,
+                                         &value.it_interval)
+                    || copy_to_user_timeval(arg2 + sizeof(struct target_timeval),
+                                            &value.it_value))
+                    goto efault;
             }
         }
         break;

@@ -109,12 +109,21 @@
 	#define TARGET_SO_LINGER       13
 	#define TARGET_SO_BSDCOMPAT    14
 	/* To add :#define TARGET_SO_REUSEPORT 15 */
+#if defined(TARGET_PPC)
+	#define TARGET_SO_RCVLOWAT     16
+	#define TARGET_SO_SNDLOWAT     17
+	#define TARGET_SO_RCVTIMEO     18
+	#define TARGET_SO_SNDTIMEO     19
+	#define TARGET_SO_PASSCRED     20
+	#define TARGET_SO_PEERCRED     21
+#else
 	#define TARGET_SO_PASSCRED     16
 	#define TARGET_SO_PEERCRED     17
 	#define TARGET_SO_RCVLOWAT     18
 	#define TARGET_SO_SNDLOWAT     19
 	#define TARGET_SO_RCVTIMEO     20
 	#define TARGET_SO_SNDTIMEO     21
+#endif
 
 	/* Security levels - as per NRL IPv6 - don't actually do anything */
 	#define TARGET_SO_SECURITY_AUTHENTICATION              22

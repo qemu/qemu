@@ -72,6 +72,8 @@ struct hwdef {
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, cs_base, power_base;
+    target_phys_addr_t ecc_base;
+    uint32_t ecc_version;
     long vram_size, nvram_size;
     // IRQ numbers are not PIL ones, but master interrupt controller register
     // bit numbers
@@ -479,6 +481,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, hwdef->machine_id);
+
+    if (hwdef->ecc_base != (target_phys_addr_t)-1)
+        ecc_init(hwdef->ecc_base, hwdef->ecc_version);
 }
 
 static const struct hwdef hwdefs[] = {
@@ -498,6 +503,7 @@ static const struct hwdef hwdefs[] = {
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
         .power_base   = 0x7a000000,
+        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -534,6 +540,8 @@ static const struct hwdef hwdefs[] = {
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
         .power_base   = 0xefa000000ULL,
+        .ecc_base     = 0xf00000000ULL,
+        .ecc_version  = 0x10000000, // version 0, implementation 1
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -570,6 +578,8 @@ static const struct hwdef hwdefs[] = {
         .esp_base     = 0xef0080000ULL,
         .le_base      = 0xef0060000ULL,
         .power_base   = 0xefa000000ULL,
+        .ecc_base     = 0xf00000000ULL,
+        .ecc_version  = 0x00000000, // version 0, implementation 0
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -583,6 +593,44 @@ static const struct hwdef hwdefs[] = {
         .cs_irq = -1,
         .machine_id = 0x71,
         .iommu_version = 0x01000000,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .default_cpu_model = "TI SuperSparc II",
+    },
+    /* SS-20 */
+    {
+        .iommu_base   = 0xfe0000000ULL,
+        .tcx_base     = 0xe20000000ULL,
+        .cs_base      = -1,
+        .slavio_base  = 0xff0000000ULL,
+        .ms_kb_base   = 0xff1000000ULL,
+        .serial_base  = 0xff1100000ULL,
+        .nvram_base   = 0xff1200000ULL,
+        .fd_base      = 0xff1700000ULL,
+        .counter_base = 0xff1300000ULL,
+        .intctl_base  = 0xff1400000ULL,
+        .dma_base     = 0xef0400000ULL,
+        .esp_base     = 0xef0800000ULL,
+        .le_base      = 0xef0c00000ULL,
+        .power_base   = 0xefa000000ULL,
+        .ecc_base     = 0xf00000000ULL,
+        .ecc_version  = 0x20000000, // version 0, implementation 2
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = -1,
+        .machine_id = 0x72,
+        .iommu_version = 0x13000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
@@ -622,6 +670,16 @@ static void ss600mp_init(int RAM_size, int vga_ram_size,
                   kernel_cmdline, initrd_filename, cpu_model);
 }
 
+/* SPARCstation 20 hardware initialisation */
+static void ss20_init(int RAM_size, int vga_ram_size,
+                      const char *boot_device, DisplayState *ds,
+                      const char *kernel_filename, const char *kernel_cmdline,
+                      const char *initrd_filename, const char *cpu_model)
+{
+    sun4m_hw_init(&hwdefs[3], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
+}
+
 QEMUMachine ss5_machine = {
     "SS-5",
     "Sun4m platform, SPARCstation 5",
@@ -639,3 +697,10 @@ QEMUMachine ss600mp_machine = {
     "Sun4m platform, SPARCserver 600MP",
     ss600mp_init,
 };
+
+QEMUMachine ss20_machine = {
+    "SS-20",
+    "Sun4m platform, SPARCstation 20",
+    ss20_init,
+};
+

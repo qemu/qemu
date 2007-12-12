@@ -3666,6 +3666,7 @@ static void mips_ar7_common_init (int ram_size,
 {
     char buf[1024];
     CPUState *env;
+    int drive_index;
     int flash_size;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
@@ -3719,8 +3720,9 @@ static void mips_ar7_common_init (int ram_size,
     flash_offset = qemu_ram_alloc(0);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
-    if (pflash_table[0] != NULL) {
-        flash_size = bdrv_getlength(pflash_table[0]);
+    drive_index = drive_get_index(IF_PFLASH, 0, 0);
+    if (drive_index != -1) {
+        flash_size = bdrv_getlength(drives_table[drive_index].bdrv);
     } else {
         flash_size = load_image(buf, phys_ram_base + flash_offset);
     }
@@ -3730,7 +3732,8 @@ static void mips_ar7_common_init (int ram_size,
         pflash_t *pf;
         flash_offset = qemu_ram_alloc(flash_size);
         pf = pflash_device_register(address, flash_offset,
-                                    pflash_table[0], flash_size, 2,
+                                    drives_table[drive_index].bdrv,
+                                    flash_size, 2,
                                     flash_manufacturer, flash_type);
     }
 

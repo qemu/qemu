@@ -100,6 +100,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    env->cpu_model_str = cpu_model;
 
     /* init various static tables */
     if (!inited) {
@@ -256,7 +257,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                 }
                 x86_cpu_def->stepping = stepping;
             } else {
-                fprintf(stderr, "unregnized feature %s\n", featurestr);
+                fprintf(stderr, "unrecognized feature %s\n", featurestr);
                 x86_cpu_def = 0;
                 goto error;
             }

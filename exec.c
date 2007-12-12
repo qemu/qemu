@@ -1318,9 +1318,7 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
 
 CPUState *cpu_copy(CPUState *env)
 {
-#if 0
-    /* XXX: broken, must be handled by each CPU */
-    CPUState *new_env = cpu_init();
+    CPUState *new_env = cpu_init(env->cpu_model_str);
     /* preserve chaining and index */
     CPUState *next_cpu = new_env->next_cpu;
     int cpu_index = new_env->cpu_index;
@@ -1328,9 +1326,6 @@ CPUState *cpu_copy(CPUState *env)
     new_env->next_cpu = next_cpu;
     new_env->cpu_index = cpu_index;
     return new_env;
-#else
-    return NULL;
-#endif
 }
 
 #if !defined(CONFIG_USER_ONLY)

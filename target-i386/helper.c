@@ -2743,6 +2743,18 @@ void helper_rdtsc(void)
     EDX = (uint32_t)(val >> 32);
 }
 
+void helper_rdpmc(void)
+{
+    if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
+        raise_exception(EXCP0D_GPF);
+    }
+
+    if (!svm_check_intercept_param(SVM_EXIT_RDPMC, 0)) {
+        /* currently unimplemented */
+        raise_exception_err(EXCP06_ILLOP, 0);
+    }
+}
+
 #if defined(CONFIG_USER_ONLY)
 void helper_wrmsr(void)
 {
@@ -4250,7 +4262,8 @@ int svm_check_intercept_param(uint32_t type, uint64_t param)
             uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.iopm_base_pa));
             uint16_t port = (uint16_t) (param >> 16);
 
-            if(ldub_phys(addr + port / 8) & (1 << (port % 8)))
+            uint16_t mask = (1 << ((param >> 4) & 7)) - 1;
+            if(lduw_phys(addr + port / 8) & (mask << (port & 7)))
                 vmexit(type, param);
         }
         break;

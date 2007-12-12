@@ -953,6 +953,11 @@ void OPPROTO op_rdtsc(void)
     helper_rdtsc();
 }
 
+void OPPROTO op_rdpmc(void)
+{
+    helper_rdpmc();
+}
+
 void OPPROTO op_cpuid(void)
 {
     helper_cpuid();

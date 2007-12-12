@@ -266,6 +266,7 @@ tarbin:
 	$(bindir)/qemu-system-arm \
 	$(bindir)/qemu-system-m68k \
 	$(bindir)/qemu-system-sh4 \
+	$(bindir)/qemu-system-sh4eb \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
         $(bindir)/qemu-armeb \
@@ -281,6 +282,7 @@ tarbin:
         $(bindir)/qemu-alpha \
         $(bindir)/qemu-m68k \
         $(bindir)/qemu-sh4 \
+        $(bindir)/qemu-sh4eb \
         $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \

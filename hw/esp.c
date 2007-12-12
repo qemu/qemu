@@ -165,7 +165,7 @@ static int get_cmd(ESPState *s, uint8_t *buf)
 
     if (s->current_dev) {
         /* Started a new command before the old one finished.  Cancel it.  */
-        scsi_cancel_io(s->current_dev, 0);
+        s->current_dev->cancel_io(s->current_dev, 0);
         s->async_len = 0;
     }
 
@@ -188,7 +188,7 @@ static void do_cmd(ESPState *s, uint8_t *buf)
 
     DPRINTF("do_cmd: busid 0x%x\n", buf[0]);
     lun = buf[0] & 7;
-    datalen = scsi_send_command(s->current_dev, 0, &buf[1], lun);
+    datalen = s->current_dev->send_command(s->current_dev, 0, &buf[1], lun);
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_IN | STAT_TC;
@@ -196,10 +196,10 @@ static void do_cmd(ESPState *s, uint8_t *buf)
         s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
-            scsi_read_data(s->current_dev, 0);
+            s->current_dev->read_data(s->current_dev, 0);
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
-            scsi_write_data(s->current_dev, 0);
+            s->current_dev->write_data(s->current_dev, 0);
         }
     }
     s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
@@ -298,9 +298,9 @@ static void esp_do_dma(ESPState *s)
     if (s->async_len == 0) {
         if (to_device) {
             // ti_size is negative
-            scsi_write_data(s->current_dev, 0);
+            s->current_dev->write_data(s->current_dev, 0);
         } else {
-            scsi_read_data(s->current_dev, 0);
+            s->current_dev->read_data(s->current_dev, 0);
             /* If there is still data to be read from the device then
                complete the DMA operation immeriately.  Otherwise defer
                until the scsi layer has completed.  */
@@ -335,7 +335,7 @@ static void esp_command_complete(void *opaque, int reason, uint32_t tag,
     } else {
         DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
         s->async_len = arg;
-        s->async_buf = scsi_get_buf(s->current_dev, 0);
+        s->async_buf = s->current_dev->get_buf(s->current_dev, 0);
         if (s->dma_left) {
             esp_do_dma(s);
         } else if (s->dma_counter != 0 && s->ti_size <= 0) {
@@ -611,7 +611,7 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
     }
     if (s->scsi_dev[id]) {
         DPRINTF("Destroying device %d\n", id);
-        scsi_disk_destroy(s->scsi_dev[id]);
+        s->scsi_dev[id]->destroy(s->scsi_dev[id]);
     }
     DPRINTF("Attaching block device %d\n", id);
     /* Command queueing is not implemented.  */

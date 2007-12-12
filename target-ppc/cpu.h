@@ -28,7 +28,6 @@
 #if defined (TARGET_PPC64)
 /* PowerPC 64 definitions */
 typedef uint64_t ppc_gpr_t;
-#define TARGET_GPR_BITS  64
 #define TARGET_LONG_BITS 64
 #define TARGET_PAGE_BITS 12
 
@@ -41,10 +40,8 @@ typedef uint64_t ppc_gpr_t;
  * the compiler to do unuseful masking in the micro-ops.
  */
 typedef uint64_t ppc_gpr_t;
-#define TARGET_GPR_BITS  64
 #else /* (HOST_LONG_BITS >= 64) */
 typedef uint32_t ppc_gpr_t;
-#define TARGET_GPR_BITS  32
 #endif /* (HOST_LONG_BITS >= 64) */
 
 #define TARGET_LONG_BITS 32
@@ -1235,7 +1232,7 @@ static inline int cpu_mmu_index (CPUState *env)
 #define SPR_40x_EVPR          (0x3D6)
 #define SPR_L3PM              (0x3D7)
 #define SPR_403_CDBCR         (0x3D7)
-#define SPR_L3OHCR            (0x3D8)
+#define SPR_L3ITCR0           (0x3D8)
 #define SPR_TCR               (0x3D8)
 #define SPR_40x_TSR           (0x3D8)
 #define SPR_IBR               (0x3DA)
@@ -1248,7 +1245,7 @@ static inline int cpu_mmu_index (CPUState *env)
 #define SPR_40x_SRR2          (0x3DE)
 #define SPR_SER               (0x3DF)
 #define SPR_40x_SRR3          (0x3DF)
-#define SPR_L3ITCR0           (0x3E8)
+#define SPR_L3OHCR            (0x3E8)
 #define SPR_L3ITCR1           (0x3E9)
 #define SPR_L3ITCR2           (0x3EA)
 #define SPR_L3ITCR3           (0x3EB)
@@ -1277,6 +1274,7 @@ static inline int cpu_mmu_index (CPUState *env)
 #define SPR_MSSCR0            (0x3F6)
 #define SPR_970_HID5          (0x3F6)
 #define SPR_MSSSR0            (0x3F7)
+#define SPR_MSSCR1            (0x3F7)
 #define SPR_DABRX             (0x3F7)
 #define SPR_40x_DAC2          (0x3F7)
 #define SPR_MMUCFG            (0x3F7)

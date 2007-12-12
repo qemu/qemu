@@ -1086,10 +1086,10 @@ struct target_stat64 {
 #elif defined(TARGET_PPC)
 
 struct target_stat {
-	unsigned short st_dev;
+	abi_ulong st_dev;
 	abi_ulong st_ino;
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
-	unsigned short st_nlink;
+	abi_ulong st_nlink;
 	unsigned int st_mode;
 #else
 	unsigned int st_mode;
@@ -1097,16 +1097,16 @@ struct target_stat {
 #endif
 	unsigned int st_uid;
 	unsigned int st_gid;
-	unsigned short st_rdev;
+	abi_ulong  st_rdev;
 	abi_ulong  st_size;
 	abi_ulong  st_blksize;
 	abi_ulong  st_blocks;
 	abi_ulong  target_st_atime;
-	abi_ulong  __unused1;
+	abi_ulong  target_st_atime_nsec;
 	abi_ulong  target_st_mtime;
-	abi_ulong  __unused2;
+	abi_ulong  target_st_mtime_nsec;
 	abi_ulong  target_st_ctime;
-	abi_ulong  __unused3;
+	abi_ulong  target_st_ctime_nsec;
 	abi_ulong  __unused4;
 	abi_ulong  __unused5;
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
@@ -1122,19 +1122,18 @@ struct target_stat64 {
 	unsigned int st_uid;
 	unsigned int st_gid;
 	unsigned long long st_rdev;
-	long long pad0;
-	long long st_size;
-	abi_ulong	st_blksize;
-	abi_ulong	pad1;
-	long long	st_blocks;	/* Number 512-byte blocks allocated. */
-	abi_ulong	target_st_atime;
-        abi_ulong    target_st_atime_nsec;
-	abi_ulong	target_st_mtime;
-        abi_ulong    target_st_mtime_nsec;
-	abi_ulong	target_st_ctime;
-        abi_ulong    target_st_ctime_nsec;
-        abi_ulong    __unused4;
-        abi_ulong    __unused5;
+	unsigned short pad0;
+	long long      st_size;
+	int	       st_blksize;
+	long long      st_blocks;	/* Number 512-byte blocks allocated. */
+	int	       target_st_atime;
+        unsigned int   target_st_atime_nsec;
+	int	       target_st_mtime;
+        unsigned int   target_st_mtime_nsec;
+	int            target_st_ctime;
+        unsigned int   target_st_ctime_nsec;
+        unsigned int   __unused4;
+        unsigned int   __unused5;
 };
 
 #elif defined(TARGET_M68K)
