@@ -33,23 +33,23 @@ typedef struct {
     uint32_t tcpr;
     int freq;
     int int_level;
+    int old_level;
     int feat;
     int enabled;
-    qemu_irq irq;
+    struct intc_source *irq;
 } sh_timer_state;
 
 /* Check all active timers, and schedule the next timer interrupt. */
 
 static void sh_timer_update(sh_timer_state *s)
 {
-#if 0 /* not yet */
-    /* Update interrupts.  */
-    if (s->int_level && (s->tcr & TIMER_TCR_UNIE)) {
-        qemu_irq_raise(s->irq);
-    } else {
-        qemu_irq_lower(s->irq);
-    }
-#endif
+    int new_level = s->int_level && (s->tcr & TIMER_TCR_UNIE);
+
+    if (new_level != s->old_level)
+      sh_intc_toggle_source(s->irq, 0, new_level ? 1 : -1);
+
+    s->old_level = s->int_level;
+    s->int_level = new_level;
 }
 
 static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
@@ -185,7 +185,7 @@ static void sh_timer_tick(void *opaque)
     sh_timer_update(s);
 }
 
-static void *sh_timer_init(uint32_t freq, int feat)
+static void *sh_timer_init(uint32_t freq, int feat, struct intc_source *irq)
 {
     sh_timer_state *s;
     QEMUBH *bh;
@@ -198,6 +198,7 @@ static void *sh_timer_init(uint32_t freq, int feat)
     s->tcpr = 0xdeadbeef;
     s->tcor = 0;
     s->enabled = 0;
+    s->irq = irq;
 
     bh = qemu_bh_new(sh_timer_tick, s);
     s->timer = ptimer_init(bh);
@@ -305,7 +306,9 @@ static CPUWriteMemoryFunc *tmu012_writefn[] = {
     tmu012_write
 };
 
-void tmu012_init(uint32_t base, int feat, uint32_t freq)
+void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
+		 struct intc_source *ch0_irq, struct intc_source *ch1_irq,
+		 struct intc_source *ch2_irq0, struct intc_source *ch2_irq1)
 {
     int iomemtype;
     tmu012_state *s;
@@ -314,10 +317,11 @@ void tmu012_init(uint32_t base, int feat, uint32_t freq)
     s = (tmu012_state *)qemu_mallocz(sizeof(tmu012_state));
     s->base = base;
     s->feat = feat;
-    s->timer[0] = sh_timer_init(freq, timer_feat);
-    s->timer[1] = sh_timer_init(freq, timer_feat);
+    s->timer[0] = sh_timer_init(freq, timer_feat, ch0_irq);
+    s->timer[1] = sh_timer_init(freq, timer_feat, ch1_irq);
     if (feat & TMU012_FEAT_3CHAN)
-        s->timer[2] = sh_timer_init(freq, timer_feat | TIMER_FEAT_CAPT);
+        s->timer[2] = sh_timer_init(freq, timer_feat | TIMER_FEAT_CAPT,
+				    ch2_irq0); /* ch2_irq1 not supported */
     iomemtype = cpu_register_io_memory(0, tmu012_readfn,
                                        tmu012_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
