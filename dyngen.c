@@ -1953,6 +1953,17 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
                     reloc_offset = rel->r_offset - start_offset;
+                    if (strstart(sym_name, "__op_jmp", &p)) {
+                        int n;
+                        n = strtol(p, NULL, 10);
+                        /* __op_jmp relocations are done at
+                           runtime to do translated block
+                           chaining: the offset of the instruction
+                           needs to be stored */
+                        fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
+                                n, reloc_offset);
+                        continue;
+                    }
                     switch(type) {
                     case R_X86_64_32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (uint32_t)%s + %d;\n",

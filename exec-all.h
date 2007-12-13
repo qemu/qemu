@@ -142,6 +142,9 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 #if defined(__i386__) && !defined(_WIN32)
 #define USE_DIRECT_JUMP
 #endif
+#if defined(__x86_64__)
+#define USE_DIRECT_JUMP
+#endif
 
 typedef struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
@@ -228,7 +231,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
 }
-#elif defined(__i386__)
+#elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
     /* patch the branch destination */
@@ -311,6 +314,18 @@ do {\
     asm volatile (".section .data\n"\
 		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
 		  ".long 1f\n"\
+		  ASM_PREVIOUS_SECTION \
+                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
+		  "1:\n");\
+} while (0)
+
+#elif defined(__x86_64__) && defined(USE_DIRECT_JUMP)
+
+#define GOTO_TB(opname, tbparam, n)\
+do {\
+    asm volatile (ASM_DATA_SECTION\
+		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
+		  ".quad 1f\n"\
 		  ASM_PREVIOUS_SECTION \
                   "jmp " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
