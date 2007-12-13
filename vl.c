@@ -109,7 +109,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #ifdef _WIN32
 #include <malloc.h>
 #include <sys/timeb.h>
-#include <windows.h>
+#include <mmsystem.h>
 #define getopt_long_only getopt_long
 #define memalign(align, size) malloc(size)
 #endif
