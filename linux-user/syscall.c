@@ -3179,6 +3179,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             goto efault;
         ret = get_errno(sys_unlinkat(arg1, p, arg3));
         unlock_user(p, arg2, 0);
+        break;
 #endif
     case TARGET_NR_execve:
         {

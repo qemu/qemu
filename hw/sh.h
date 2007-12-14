@@ -2,6 +2,8 @@
 #define QEMU_SH_H
 /* Definitions for SH board emulation.  */
 
+#include "sh_intc.h"
+
 /* sh7750.c */
 struct SH7750State;
 
@@ -25,7 +27,10 @@ int sh7750_register_io_device(struct SH7750State *s,
 #define TMU012_FEAT_TOCR   (1 << 0)
 #define TMU012_FEAT_3CHAN  (1 << 1)
 #define TMU012_FEAT_EXTCLK (1 << 2)
-void tmu012_init(uint32_t base, int feat, uint32_t freq);
+void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
+		 struct intc_source *ch0_irq, struct intc_source *ch1_irq,
+		 struct intc_source *ch2_irq0, struct intc_source *ch2_irq1);
+
 
 /* sh_serial.c */
 #define SH_SERIAL_FEAT_SCIF (1 << 0)

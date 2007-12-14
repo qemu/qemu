@@ -181,7 +181,7 @@ ifeq ($(ARCH),sparc)
     OP_CFLAGS+=-fno-omit-frame-pointer
   else
     BASE_CFLAGS+=-ffixed-g1 -ffixed-g6
-    HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
+    HELPER_CFLAGS=$(CFLAGS) -ffixed-i0
     # -static is used to avoid g1/g3 usage by the dynamic linker
     BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
   endif

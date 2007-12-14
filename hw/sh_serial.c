@@ -293,7 +293,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
 
     s->smr = 0;
     s->brr = 0xff;
-    s->scr = 0;
+    s->scr = 1 << 5; /* pretend that TX is enabled so early printk works */
     s->sptr = 0;
 
     if (feat & SH_SERIAL_FEAT_SCIF) {

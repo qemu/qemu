@@ -2044,6 +2044,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_signature(s);
             s->status = 0x00; /* NOTE: READY is _not_ set */
             s->error = 0x01;
+            ide_set_irq(s);
             break;
         case WIN_SRST:
             if (!s->is_cdrom)

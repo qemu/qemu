@@ -41,6 +41,52 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
+#define SAVE_GLOBALS()
+#define RESTORE_GLOBALS()
+
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+#include <features.h>
+#if defined(__GLIBC__) && ((__GLIBC__ < 2) || \
+                           ((__GLIBC__ == 2) && (__GLIBC_MINOR__ <= 90)))
+// Work around ugly bugs in glibc that mangle global register contents
+
+static volatile void *saved_env;
+static volatile unsigned long saved_t0, saved_i7;
+#undef SAVE_GLOBALS
+#define SAVE_GLOBALS() do {                                     \
+        saved_env = env;                                        \
+        saved_t0 = T0;                                          \
+        asm volatile ("st %%i7, [%0]" : : "r" (&saved_i7));     \
+    } while(0)
+
+#undef RESTORE_GLOBALS
+#define RESTORE_GLOBALS() do {                                  \
+        env = (void *)saved_env;                                \
+        T0 = saved_t0;                                          \
+        asm volatile ("ld [%0], %%i7" : : "r" (&saved_i7));     \
+    } while(0)
+
+static int sparc_setjmp(jmp_buf buf)
+{
+    int ret;
+
+    SAVE_GLOBALS();
+    ret = setjmp(buf);
+    RESTORE_GLOBALS();
+    return ret;
+}
+#undef setjmp
+#define setjmp(jmp_buf) sparc_setjmp(jmp_buf)
+
+static void sparc_longjmp(jmp_buf buf, int val)
+{
+    SAVE_GLOBALS();
+    longjmp(buf, val);
+}
+#define longjmp(jmp_buf, val) sparc_longjmp(jmp_buf, val)
+#endif
+#endif
+
 void cpu_loop_exit(void)
 {
     /* NOTE: the register at this point must be saved by hand because
@@ -134,7 +180,9 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     tb->tc_ptr = tc_ptr;
     tb->cs_base = cs_base;
     tb->flags = flags;
-    cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+    SAVE_GLOBALS();
+    cpu_gen_code(env, tb, &code_gen_size);
+    RESTORE_GLOBALS();
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
     /* check next page if needed */
@@ -233,11 +281,7 @@ static inline TranslationBlock *tb_find_fast(void)
     return tb;
 }
 
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-#define BREAK_CHAIN tmp_T0 = 0
-#else
 #define BREAK_CHAIN T0 = 0
-#endif
 
 /* main execution loop */
 
@@ -249,10 +293,6 @@ int cpu_exec(CPUState *env1)
 #if defined(reg_REGWPTR)
     uint32_t *saved_regwptr;
 #endif
-#endif
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-    int saved_i7;
-    target_ulong tmp_T0;
 #endif
     int ret, interrupt_request;
     void (*gen_func)(void);
@@ -268,10 +308,7 @@ int cpu_exec(CPUState *env1)
 #define SAVE_HOST_REGS 1
 #include "hostregs_helper.h"
     env = env1;
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-    /* we also save i7 because longjmp may not restore it */
-    asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
-#endif
+    SAVE_GLOBALS();
 
     env_to_regs();
 #if defined(TARGET_I386)
@@ -381,10 +418,7 @@ int cpu_exec(CPUState *env1)
 
             T0 = 0; /* force lookup of first TB */
             for(;;) {
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                /* g1 can be modified by some libc? functions */
-                tmp_T0 = T0;
-#endif
+                SAVE_GLOBALS();
                 interrupt_request = env->interrupt_request;
                 if (__builtin_expect(interrupt_request, 0)
 #if defined(TARGET_I386)
@@ -598,9 +632,7 @@ int cpu_exec(CPUState *env1)
                             lookup_symbol(tb->pc));
                 }
 #endif
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-                T0 = tmp_T0;
-#endif
+                RESTORE_GLOBALS();
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
                    jump. */
@@ -696,9 +728,7 @@ int cpu_exec(CPUState *env1)
 #endif
 
     /* restore global registers */
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-    asm volatile ("mov %0, %%i7" : : "r" (saved_i7));
-#endif
+    RESTORE_GLOBALS();
 #include "hostregs_helper.h"
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */

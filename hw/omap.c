@@ -4747,7 +4747,7 @@ struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
     s->irq = irq[0];
     s->alarm = irq[1];
     s->clk = qemu_new_timer(rt_clock, omap_rtc_tick, s);
-    s->convert = rtc_utc ? gmtime_r : localtime_r;
+    s->convert = qemu_time_r;
 
     omap_rtc_reset(s);
 

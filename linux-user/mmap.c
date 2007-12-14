@@ -162,7 +162,7 @@ static abi_ulong mmap_next_start = 0x40000000;
    'start'. If 'start' == 0, then a default start address is used.
    Return -1 if error.
 */
-/* XXX: should mark pages used by the host as reserved to be sure not
+/* page_init() marks pages used by the host as reserved to be sure not
    to use them. */
 static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 {
