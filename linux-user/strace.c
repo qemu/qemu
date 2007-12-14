@@ -13,8 +13,8 @@ int do_strace=0;
 
 struct syscallname {
     int nr;
-    char *name;
-    char *format;
+    const char *name;
+    const char *format;
     void (*call)(struct syscallname *,
                  abi_long, abi_long, abi_long,
                  abi_long, abi_long, abi_long);

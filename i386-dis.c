@@ -2432,7 +2432,7 @@ static const struct dis386 float_reg[][8] = {
   },
 };
 
-static char *fgrps[][8] = {
+static const char *fgrps[][8] = {
   /* d9_2  0 */
   {
     "fnop","(bad)","(bad)","(bad)","(bad)","(bad)","(bad)","(bad)",
