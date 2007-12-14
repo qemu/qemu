@@ -287,3 +287,18 @@ int qemu_gettimeofday(qemu_timeval *tp)
   return 0;
 }
 #endif /* _WIN32 */
+
+struct tm *qemu_time_r(const time_t *timep, struct tm *result)
+{
+    struct tm *t;
+#ifdef _WIN32
+    t = rtc_utc ? gmtime(timep) : localtime(timep);
+    if (t != 0) {
+        memcpy(result, t, sizeof(*result));
+        t = result;
+    }
+#else
+    t = rtc_utc ? gmtime_r(timep, result) : localtime_r(timep, result);
+#endif
+    return t;
+}

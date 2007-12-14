@@ -2,6 +2,7 @@
 #define QEMU_OSDEP_H
 
 #include <stdarg.h>
+#include <time.h>
 
 #ifndef glue
 #define xglue(x, y) x ## y
@@ -66,5 +67,7 @@ int qemu_gettimeofday(qemu_timeval *tp);
 typedef struct timeval qemu_timeval;
 #define qemu_gettimeofday(tp) gettimeofday(tp, NULL);
 #endif /* !_WIN32 */
+
+struct tm *qemu_time_r(const time_t *timep, struct tm *result);
 
 #endif

@@ -1184,6 +1184,7 @@ static CPUWriteMemoryFunc *pxa2xx_rtc_writefn[] = {
 static void pxa2xx_rtc_init(struct pxa2xx_state_s *s)
 {
     struct tm *tm;
+    struct tm tmbuffer;
     time_t ti;
     int wom;
 
@@ -1191,10 +1192,7 @@ static void pxa2xx_rtc_init(struct pxa2xx_state_s *s)
     s->rtsr = 0;
 
     time(&ti);
-    if (rtc_utc)
-        tm = gmtime(&ti);
-    else
-        tm = localtime(&ti);
+    tm = qemu_time_r(&ti, &tmbuffer);
     wom = ((tm->tm_mday - 1) / 7) + 1;
 
     s->last_rcnr = (uint32_t) ti;

@@ -197,6 +197,7 @@ void pl031_init(uint32_t base, qemu_irq irq)
     pl031_state *s;
     time_t ti;
     struct tm *tm;
+    struct tm tmbuffer;
 
     s = qemu_mallocz(sizeof(pl031_state));
     if (!s)
@@ -212,10 +213,7 @@ void pl031_init(uint32_t base, qemu_irq irq)
     s->irq  = irq;
     /* ??? We assume vm_clock is zero at this point.  */
     time(&ti);
-    if (rtc_utc)
-        tm = gmtime(&ti);
-    else
-        tm = localtime(&ti);
+    tm = qemu_time_r(&ti, &tmbuffer);
     s->tick_offset = mktime(tm);
 
     s->timer = qemu_new_timer(vm_clock, pl031_interrupt, s);

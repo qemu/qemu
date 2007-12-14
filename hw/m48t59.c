@@ -80,14 +80,7 @@ static void get_time (m48t59_t *NVRAM, struct tm *tm)
     time_t t;
 
     t = time(NULL) + NVRAM->time_offset;
-#ifdef _WIN32
-    memcpy(tm,localtime(&t),sizeof(*tm));
-#else
-    if (rtc_utc)
-        gmtime_r (&t, tm);
-    else
-        localtime_r (&t, tm) ;
-#endif
+    qemu_time_r(&t, tm);
 }
 
 static void set_time (m48t59_t *NVRAM, struct tm *tm)
@@ -149,14 +142,7 @@ static void alarm_cb (void *opaque)
 
 static void get_alarm (m48t59_t *NVRAM, struct tm *tm)
 {
-#ifdef _WIN32
-    memcpy(tm,localtime(&NVRAM->alarm),sizeof(*tm));
-#else
-    if (rtc_utc)
-        gmtime_r (&NVRAM->alarm, tm);
-    else
-        localtime_r (&NVRAM->alarm, tm);
-#endif
+    qemu_time_r(&NVRAM->alarm, tm);
 }
 
 static void set_alarm (m48t59_t *NVRAM, struct tm *tm)

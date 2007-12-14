@@ -394,19 +394,16 @@ static void rtc_set_date_from_host(RTCState *s)
 {
     time_t ti;
     struct tm *tm;
+    struct tm tmbuffer;
     int val;
 
     /* set the CMOS date */
     if (rtc_start_date == -1) {
         time(&ti);
-        if (rtc_utc)
-            tm = gmtime(&ti);
-        else
-            tm = localtime(&ti);
     } else {
         ti = rtc_start_date;
-        tm = gmtime(&ti);
     }
+    tm = qemu_time_r(&ti, &tmbuffer);
     rtc_set_date(s, tm);
 
     val = to_bcd(s, (tm->tm_year / 100) + 19);
