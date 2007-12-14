@@ -554,7 +554,7 @@ struct arphdr
 	unsigned char		ar_tip[4];		/* target IP address		*/
 };
 
-void arp_input(const uint8_t *pkt, int pkt_len)
+static void arp_input(const uint8_t *pkt, int pkt_len)
 {
     struct ethhdr *eh = (struct ethhdr *)pkt;
     struct arphdr *ah = (struct arphdr *)(pkt + ETH_HLEN);

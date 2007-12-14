@@ -321,7 +321,7 @@ static const uint16_t eepro100_mdi_mask[] = {
 };
 
 /* XXX: optimize */
-uint32_t lduw_le_phys(target_phys_addr_t addr)
+static uint32_t lduw_le_phys(target_phys_addr_t addr)
 {
     /* Load 16 bit (little endian) word from emulated hardware. */
     uint16_t val;
@@ -330,7 +330,7 @@ uint32_t lduw_le_phys(target_phys_addr_t addr)
 }
 
 /* XXX: optimize */
-uint32_t ldl_le_phys(target_phys_addr_t addr)
+static uint32_t ldl_le_phys(target_phys_addr_t addr)
 {
     /* Load 32 bit (little endian) word from emulated hardware. */
     uint32_t val;
@@ -339,14 +339,14 @@ uint32_t ldl_le_phys(target_phys_addr_t addr)
 }
 
 /* XXX: optimize */
-void stw_le_phys(target_phys_addr_t addr, uint16_t val)
+static void stw_le_phys(target_phys_addr_t addr, uint16_t val)
 {
     val = cpu_to_le16(val);
     cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
 }
 
 /* XXX: optimize */
-void stl_le_phys(target_phys_addr_t addr, uint32_t val)
+static void stl_le_phys(target_phys_addr_t addr, uint32_t val)
 {
     val = cpu_to_le32(val);
     cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));

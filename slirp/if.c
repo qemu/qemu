@@ -15,7 +15,7 @@ struct	mbuf *next_m;			/* Pointer to next mbuf to output */
 
 #define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
 
-void
+static void
 ifs_insque(ifm, ifmhead)
 	struct mbuf *ifm, *ifmhead;
 {
@@ -25,7 +25,7 @@ ifs_insque(ifm, ifmhead)
 	ifm->ifs_next->ifs_prev = ifm;
 }
 
-void
+static void
 ifs_remque(ifm)
 	struct mbuf *ifm;
 {
