@@ -398,7 +398,11 @@ endif
 # must use static linking to avoid leaving stuff in virtual address space
 VL_OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o
 # XXX: suppress QEMU_TOOL tests
-VL_OBJS+=block-raw.o
+ifdef CONFIG_WIN32
+VL_OBJS+=block-raw-win32.o
+else
+VL_OBJS+=block-raw-posix.o
+endif
 
 ifdef CONFIG_ALSA
 LIBS += -lasound

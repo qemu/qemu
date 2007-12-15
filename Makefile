@@ -119,9 +119,16 @@ libqemu_common.a: $(OBJS)
 	rm -f $@ 
 	$(AR) rcs $@ $(OBJS)
 
+QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
+ifdef CONFIG_WIN32
+QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-win32.o
+else
+QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-posix.o
+endif
+
 ######################################################################
 
-qemu-img$(EXESUF): qemu-img.o qemu-img-block.o qemu-img-block-raw.o $(BLOCK_OBJS)
+qemu-img$(EXESUF): qemu-img.o qemu-img-block.o $(QEMU_IMG_BLOCK_OBJS)
 	$(CC) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 qemu-img-%.o: %.c
