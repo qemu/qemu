@@ -235,7 +235,7 @@ char drives_opt[MAX_DRIVES][1024];
 
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
-static int event_pending;
+static int event_pending = 1;
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
@@ -3453,18 +3453,33 @@ static void hex_dump(FILE *f, const uint8_t *buf, int size)
 static int parse_macaddr(uint8_t *macaddr, const char *p)
 {
     int i;
-    for(i = 0; i < 6; i++) {
-        macaddr[i] = strtol(p, (char **)&p, 16);
-        if (i == 5) {
-            if (*p != '\0')
-                return -1;
-        } else {
-            if (*p != ':')
-                return -1;
-            p++;
+    char *last_char;
+    long int offset;
+
+    errno = 0;
+    offset = strtol(p, &last_char, 0);    
+    if (0 == errno && '\0' == *last_char &&
+            offset >= 0 && offset <= 0xFFFFFF) {
+        macaddr[3] = (offset & 0xFF0000) >> 16;
+        macaddr[4] = (offset & 0xFF00) >> 8;
+        macaddr[5] = offset & 0xFF;
+        return 0;
+    } else {
+        for(i = 0; i < 6; i++) {
+            macaddr[i] = strtol(p, (char **)&p, 16);
+            if (i == 5) {
+                if (*p != '\0')
+                    return -1;
+            } else {
+                if (*p != ':' && *p != '-')
+                    return -1;
+                p++;
+            }
         }
+        return 0;    
     }
-    return 0;
+
+    return -1;
 }
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
