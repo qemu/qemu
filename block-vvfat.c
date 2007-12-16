@@ -412,7 +412,7 @@ static void init_mbr(BDRVVVFATState* s)
 /* direntry functions */
 
 /* dest is assumed to hold 258 bytes, and pads with 0xffff up to next multiple of 26 */
-static inline int short2long_name(unsigned char* dest,const char* src)
+static inline int short2long_name(char* dest,const char* src)
 {
     int i;
     for(i=0;i<129 && src[i];i++) {

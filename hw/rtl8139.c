@@ -3119,7 +3119,7 @@ static uint32_t rtl8139_mmio_readl(void *opaque, target_phys_addr_t addr)
 static void rtl8139_save(QEMUFile* f,void* opaque)
 {
     RTL8139State* s=(RTL8139State*)opaque;
-    int i;
+    unsigned int i;
 
     pci_device_save(s->pci_dev, f);
 
@@ -3205,7 +3205,8 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
 static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
 {
     RTL8139State* s=(RTL8139State*)opaque;
-    int i, ret;
+    unsigned int i;
+    int ret;
 
     /* just 2 versions for now */
     if (version_id > 3)

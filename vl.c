@@ -2876,7 +2876,7 @@ static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 typedef struct {
     int fd;
     struct sockaddr_in daddr;
-    char buf[1024];
+    uint8_t buf[1024];
     int bufcnt;
     int bufptr;
     int max_size;
@@ -3034,7 +3034,7 @@ static int tcp_chr_read_poll(void *opaque)
 #define IAC_BREAK 243
 static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
                                       TCPCharDriver *s,
-                                      char *buf, int *size)
+                                      uint8_t *buf, int *size)
 {
     /* Handle any telnet client's basic IAC options to satisfy char by
      * char mode with no echo.  All IAC options will be removed from
@@ -8266,7 +8266,7 @@ int main(int argc, char **argv)
                 /* We just do some generic consistency checks */
                 {
                     /* Could easily be extended to 64 devices if needed */
-                    const unsigned char *p;
+                    const char *p;
                     
                     boot_devices_bitmap = 0;
                     for (p = boot_devices; *p != '\0'; p++) {

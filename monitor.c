@@ -76,7 +76,7 @@ static int hide_banner;
 static term_cmd_t term_cmds[];
 static term_cmd_t info_cmds[];
 
-static char term_outbuf[1024];
+static uint8_t term_outbuf[1024];
 static int term_outbuf_index;
 
 static void monitor_start_input(void);
@@ -97,7 +97,7 @@ void term_flush(void)
 /* flush at every end of line or if the buffer is full */
 void term_puts(const char *str)
 {
-    int c;
+    char c;
     for(;;) {
         c = *str++;
         if (c == '\0')

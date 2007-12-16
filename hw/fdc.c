@@ -180,7 +180,7 @@ typedef struct fd_format_t {
     uint8_t last_sect;
     uint8_t max_track;
     uint8_t max_head;
-    const unsigned char *str;
+    const char *str;
 } fd_format_t;
 
 static const fd_format_t fd_formats[] = {

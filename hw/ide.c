@@ -471,12 +471,12 @@ static void ide_identify(IDEState *s)
     put_le16(p + 5, 512); /* XXX: retired, remove ? */
     put_le16(p + 6, s->sectors);
     snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
-    padstr((uint8_t *)(p + 10), buf, 20); /* serial number */
+    padstr((char *)(p + 10), buf, 20); /* serial number */
     put_le16(p + 20, 3); /* XXX: retired, remove ? */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
-    padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
-    padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40); /* model */
+    padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
+    padstr((char *)(p + 27), "QEMU HARDDISK", 40); /* model */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
@@ -536,12 +536,12 @@ static void ide_atapi_identify(IDEState *s)
     /* Removable CDROM, 50us response, 12 byte packets */
     put_le16(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
     snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
-    padstr((uint8_t *)(p + 10), buf, 20); /* serial number */
+    padstr((char *)(p + 10), buf, 20); /* serial number */
     put_le16(p + 20, 3); /* buffer type */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
-    padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
-    padstr((uint8_t *)(p + 27), "QEMU CD-ROM", 40); /* model */
+    padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
+    padstr((char *)(p + 27), "QEMU CD-ROM", 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
 #ifdef USE_DMA_CDROM
     put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
@@ -591,10 +591,10 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 7, s->nb_sectors >> 16);	/* Sectors per card */
     put_le16(p + 8, s->nb_sectors);		/* Sectors per card */
     snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
-    padstr((uint8_t *)(p + 10), buf, 20);	/* Serial number in ASCII */
+    padstr((char *)(p + 10), buf, 20);	/* Serial number in ASCII */
     put_le16(p + 22, 0x0004);			/* ECC bytes */
-    padstr((uint8_t *) (p + 23), QEMU_VERSION, 8);	/* Firmware Revision */
-    padstr((uint8_t *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
+    padstr((char *) (p + 23), QEMU_VERSION, 8);	/* Firmware Revision */
+    padstr((char *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #else
