@@ -332,8 +332,6 @@ struct pxa2xx_keypad_s *pxa27x_keypad_init(target_phys_addr_t base,
 void pxa27x_register_keypad(struct pxa2xx_keypad_s *kp, struct keymap *map,
         int size)
 {
-    kp->map = (struct keymap *) qemu_mallocz(sizeof(struct keymap) * size);
-
     if(!map || size < 0x80) {
         fprintf(stderr, "%s - No PXA keypad map defined\n", __FUNCTION__);
         exit(-1);
