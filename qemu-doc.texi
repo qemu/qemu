@@ -2507,6 +2507,17 @@ Activate log (logfile=/tmp/qemu.log)
 Act as if the host page size was 'pagesize' bytes
 @end table
 
+Environment variables:
+
+@table @env
+@item QEMU_STRACE
+Print system calls and arguments similar to the 'strace' program
+(NOTE: the actual 'strace' program will not work because the user
+space emulator hasn't implemented ptrace).  At the moment this is
+incomplete.  All system calls that don't have a specific argument
+format are printed with information for six arguments.  Many
+flag-style arguments don't have decoders and will show up as numbers.
+
 @node Other binaries
 @subsection Other binaries
 

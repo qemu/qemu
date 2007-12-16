@@ -1906,7 +1906,12 @@ void usage(void)
            "debug options:\n"
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n"
-           "-strace      log system calls\n",
+           "-strace      log system calls\n"
+           "\n"
+           "environment variables:\n"
+           "QEMU_STRACE       Print system calls and arguments similar to the\n"
+           "                  'strace' program.  Enable by setting to any value.\n"
+           ,
            TARGET_ARCH,
            interp_prefix,
            x86_stack_size,
