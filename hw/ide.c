@@ -2509,8 +2509,8 @@ static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
 /* save per IDE drive data */
 static void ide_save(QEMUFile* f, IDEState *s)
 {
-    qemu_put_be32s(f, &s->mult_sectors);
-    qemu_put_be32s(f, &s->identify_set);
+    qemu_put_be32(f, s->mult_sectors);
+    qemu_put_be32(f, s->identify_set);
     if (s->identify_set) {
         qemu_put_buffer(f, (const uint8_t *)s->identify_data, 512);
     }
@@ -2537,8 +2537,8 @@ static void ide_save(QEMUFile* f, IDEState *s)
 /* load per IDE drive data */
 static void ide_load(QEMUFile* f, IDEState *s)
 {
-    qemu_get_be32s(f, &s->mult_sectors);
-    qemu_get_be32s(f, &s->identify_set);
+    s->mult_sectors=qemu_get_be32(f);
+    s->identify_set=qemu_get_be32(f);
     if (s->identify_set) {
         qemu_get_buffer(f, (uint8_t *)s->identify_data, 512);
     }

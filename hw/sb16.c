@@ -1257,29 +1257,29 @@ static void SB_save (QEMUFile *f, void *opaque)
 {
     SB16State *s = opaque;
 
-    qemu_put_be32s (f, &s->irq);
-    qemu_put_be32s (f, &s->dma);
-    qemu_put_be32s (f, &s->hdma);
-    qemu_put_be32s (f, &s->port);
-    qemu_put_be32s (f, &s->ver);
-    qemu_put_be32s (f, &s->in_index);
-    qemu_put_be32s (f, &s->out_data_len);
-    qemu_put_be32s (f, &s->fmt_stereo);
-    qemu_put_be32s (f, &s->fmt_signed);
-    qemu_put_be32s (f, &s->fmt_bits);
+    qemu_put_be32 (f, s->irq);
+    qemu_put_be32 (f, s->dma);
+    qemu_put_be32 (f, s->hdma);
+    qemu_put_be32 (f, s->port);
+    qemu_put_be32 (f, s->ver);
+    qemu_put_be32 (f, s->in_index);
+    qemu_put_be32 (f, s->out_data_len);
+    qemu_put_be32 (f, s->fmt_stereo);
+    qemu_put_be32 (f, s->fmt_signed);
+    qemu_put_be32 (f, s->fmt_bits);
     qemu_put_be32s (f, &s->fmt);
-    qemu_put_be32s (f, &s->dma_auto);
-    qemu_put_be32s (f, &s->block_size);
-    qemu_put_be32s (f, &s->fifo);
-    qemu_put_be32s (f, &s->freq);
-    qemu_put_be32s (f, &s->time_const);
-    qemu_put_be32s (f, &s->speaker);
-    qemu_put_be32s (f, &s->needed_bytes);
-    qemu_put_be32s (f, &s->cmd);
-    qemu_put_be32s (f, &s->use_hdma);
-    qemu_put_be32s (f, &s->highspeed);
-    qemu_put_be32s (f, &s->can_write);
-    qemu_put_be32s (f, &s->v2x6);
+    qemu_put_be32 (f, s->dma_auto);
+    qemu_put_be32 (f, s->block_size);
+    qemu_put_be32 (f, s->fifo);
+    qemu_put_be32 (f, s->freq);
+    qemu_put_be32 (f, s->time_const);
+    qemu_put_be32 (f, s->speaker);
+    qemu_put_be32 (f, s->needed_bytes);
+    qemu_put_be32 (f, s->cmd);
+    qemu_put_be32 (f, s->use_hdma);
+    qemu_put_be32 (f, s->highspeed);
+    qemu_put_be32 (f, s->can_write);
+    qemu_put_be32 (f, s->v2x6);
 
     qemu_put_8s (f, &s->csp_param);
     qemu_put_8s (f, &s->csp_value);
@@ -1288,21 +1288,21 @@ static void SB_save (QEMUFile *f, void *opaque)
     qemu_put_buffer (f, s->csp_regs, 256);
     qemu_put_8s (f, &s->csp_index);
     qemu_put_buffer (f, s->csp_reg83, 4);
-    qemu_put_be32s (f, &s->csp_reg83r);
-    qemu_put_be32s (f, &s->csp_reg83w);
+    qemu_put_be32 (f, s->csp_reg83r);
+    qemu_put_be32 (f, s->csp_reg83w);
 
     qemu_put_buffer (f, s->in2_data, sizeof (s->in2_data));
     qemu_put_buffer (f, s->out_data, sizeof (s->out_data));
     qemu_put_8s (f, &s->test_reg);
     qemu_put_8s (f, &s->last_read_byte);
 
-    qemu_put_be32s (f, &s->nzero);
-    qemu_put_be32s (f, &s->left_till_irq);
-    qemu_put_be32s (f, &s->dma_running);
-    qemu_put_be32s (f, &s->bytes_per_second);
-    qemu_put_be32s (f, &s->align);
+    qemu_put_be32 (f, s->nzero);
+    qemu_put_be32 (f, s->left_till_irq);
+    qemu_put_be32 (f, s->dma_running);
+    qemu_put_be32 (f, s->bytes_per_second);
+    qemu_put_be32 (f, s->align);
 
-    qemu_put_be32s (f, &s->mixer_nreg);
+    qemu_put_be32 (f, s->mixer_nreg);
     qemu_put_buffer (f, s->mixer_regs, 256);
 }
 
@@ -1314,29 +1314,29 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
 
-    qemu_get_be32s (f, &s->irq);
-    qemu_get_be32s (f, &s->dma);
-    qemu_get_be32s (f, &s->hdma);
-    qemu_get_be32s (f, &s->port);
-    qemu_get_be32s (f, &s->ver);
-    qemu_get_be32s (f, &s->in_index);
-    qemu_get_be32s (f, &s->out_data_len);
-    qemu_get_be32s (f, &s->fmt_stereo);
-    qemu_get_be32s (f, &s->fmt_signed);
-    qemu_get_be32s (f, &s->fmt_bits);
+    s->irq=qemu_get_be32 (f);
+    s->dma=qemu_get_be32 (f);
+    s->hdma=qemu_get_be32 (f);
+    s->port=qemu_get_be32 (f);
+    s->ver=qemu_get_be32 (f);
+    s->in_index=qemu_get_be32 (f);
+    s->out_data_len=qemu_get_be32 (f);
+    s->fmt_stereo=qemu_get_be32 (f);
+    s->fmt_signed=qemu_get_be32 (f);
+    s->fmt_bits=qemu_get_be32 (f);
     qemu_get_be32s (f, &s->fmt);
-    qemu_get_be32s (f, &s->dma_auto);
-    qemu_get_be32s (f, &s->block_size);
-    qemu_get_be32s (f, &s->fifo);
-    qemu_get_be32s (f, &s->freq);
-    qemu_get_be32s (f, &s->time_const);
-    qemu_get_be32s (f, &s->speaker);
-    qemu_get_be32s (f, &s->needed_bytes);
-    qemu_get_be32s (f, &s->cmd);
-    qemu_get_be32s (f, &s->use_hdma);
-    qemu_get_be32s (f, &s->highspeed);
-    qemu_get_be32s (f, &s->can_write);
-    qemu_get_be32s (f, &s->v2x6);
+    s->dma_auto=qemu_get_be32 (f);
+    s->block_size=qemu_get_be32 (f);
+    s->fifo=qemu_get_be32 (f);
+    s->freq=qemu_get_be32 (f);
+    s->time_const=qemu_get_be32 (f);
+    s->speaker=qemu_get_be32 (f);
+    s->needed_bytes=qemu_get_be32 (f);
+    s->cmd=qemu_get_be32 (f);
+    s->use_hdma=qemu_get_be32 (f);
+    s->highspeed=qemu_get_be32 (f);
+    s->can_write=qemu_get_be32 (f);
+    s->v2x6=qemu_get_be32 (f);
 
     qemu_get_8s (f, &s->csp_param);
     qemu_get_8s (f, &s->csp_value);
@@ -1345,21 +1345,21 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer (f, s->csp_regs, 256);
     qemu_get_8s (f, &s->csp_index);
     qemu_get_buffer (f, s->csp_reg83, 4);
-    qemu_get_be32s (f, &s->csp_reg83r);
-    qemu_get_be32s (f, &s->csp_reg83w);
+    s->csp_reg83r=qemu_get_be32 (f);
+    s->csp_reg83w=qemu_get_be32 (f);
 
     qemu_get_buffer (f, s->in2_data, sizeof (s->in2_data));
     qemu_get_buffer (f, s->out_data, sizeof (s->out_data));
     qemu_get_8s (f, &s->test_reg);
     qemu_get_8s (f, &s->last_read_byte);
 
-    qemu_get_be32s (f, &s->nzero);
-    qemu_get_be32s (f, &s->left_till_irq);
-    qemu_get_be32s (f, &s->dma_running);
-    qemu_get_be32s (f, &s->bytes_per_second);
-    qemu_get_be32s (f, &s->align);
+    s->nzero=qemu_get_be32 (f);
+    s->left_till_irq=qemu_get_be32 (f);
+    s->dma_running=qemu_get_be32 (f);
+    s->bytes_per_second=qemu_get_be32 (f);
+    s->align=qemu_get_be32 (f);
 
-    qemu_get_be32s (f, &s->mixer_nreg);
+    s->mixer_nreg=qemu_get_be32 (f);
     qemu_get_buffer (f, s->mixer_regs, 256);
 
     if (s->voice) {
