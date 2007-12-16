@@ -209,7 +209,7 @@ static int put_packet(GDBState *s, char *buf)
         *(p++) = tohex((csum) & 0xf);
 
         s->last_packet_len = p - s->last_packet;
-        put_buffer(s, s->last_packet, s->last_packet_len);
+        put_buffer(s, (uint8_t *)s->last_packet, s->last_packet_len);
 
 #ifdef CONFIG_USER_ONLY
         i = get_char(s);
@@ -1189,7 +1189,7 @@ static void gdb_read_byte(GDBState *s, int ch)
 #ifdef DEBUG_GDB
             printf("Got NACK, retransmitting\n");
 #endif
-            put_buffer(s, s->last_packet, s->last_packet_len);
+            put_buffer(s, (uint8_t *)s->last_packet, s->last_packet_len);
         }
 #ifdef DEBUG_GDB
         else if (ch == '+')

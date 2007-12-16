@@ -1610,7 +1610,7 @@ void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
-    qemu_chr_write(s, buf, strlen(buf));
+    qemu_chr_write(s, (uint8_t *)buf, strlen(buf));
     va_end(ap);
 }
 
@@ -1699,7 +1699,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                          (secs / 60) % 60,
                          secs % 60,
                          (int)((ti / 1000000) % 1000));
-                d->drv->chr_write(d->drv, buf1, strlen(buf1));
+                d->drv->chr_write(d->drv, (uint8_t *)buf1, strlen(buf1));
             }
         }
     }
@@ -1728,15 +1728,16 @@ static void mux_print_help(CharDriverState *chr)
         sprintf(cbuf,"\n\r");
         sprintf(ebuf,"C-%c", term_escape_char - 1 + 'a');
     } else {
-        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r", term_escape_char);
+        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
+            term_escape_char);
     }
-    chr->chr_write(chr, cbuf, strlen(cbuf));
+    chr->chr_write(chr, (uint8_t *)cbuf, strlen(cbuf));
     for (i = 0; mux_help[i] != NULL; i++) {
         for (j=0; mux_help[i][j] != '\0'; j++) {
             if (mux_help[i][j] == '%')
-                chr->chr_write(chr, ebuf, strlen(ebuf));
+                chr->chr_write(chr, (uint8_t *)ebuf, strlen(ebuf));
             else
-                chr->chr_write(chr, &mux_help[i][j], 1);
+                chr->chr_write(chr, (uint8_t *)&mux_help[i][j], 1);
         }
     }
 }
@@ -1755,7 +1756,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 'x':
             {
                  char *term =  "QEMU: Terminated\n\r";
-                 chr->chr_write(chr,term,strlen(term));
+                 chr->chr_write(chr,(uint8_t *)term,strlen(term));
                  exit(0);
                  break;
             }
@@ -5778,7 +5779,7 @@ static int qemu_savevm_state(QEMUFile *f)
         /* ID string */
         len = strlen(se->idstr);
         qemu_put_byte(f, len);
-        qemu_put_buffer(f, se->idstr, len);
+        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
 
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
@@ -5839,7 +5840,7 @@ static int qemu_loadvm_state(QEMUFile *f)
         if (qemu_ftell(f) >= end_pos)
             break;
         len = qemu_get_byte(f);
-        qemu_get_buffer(f, idstr, len);
+        qemu_get_buffer(f, (uint8_t *)idstr, len);
         idstr[len] = '\0';
         instance_id = qemu_get_be32(f);
         version_id = qemu_get_be32(f);
