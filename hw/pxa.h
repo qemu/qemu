@@ -13,6 +13,7 @@
 # define PXA2XX_PIC_SSP3	0
 # define PXA2XX_PIC_USBH2	2
 # define PXA2XX_PIC_USBH1	3
+# define PXA2XX_PIC_KEYPAD	4
 # define PXA2XX_PIC_PWRI2C	6
 # define PXA25X_PIC_HWUART	7
 # define PXA27X_PIC_OST_4_11	7
@@ -106,6 +107,17 @@ int pxa2xx_pcmcia_attach(void *opaque, struct pcmcia_card_s *card);
 int pxa2xx_pcmcia_dettach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
 
+/* pxa2xx_keypad.c */
+struct  keymap {
+    int column;
+    int row;
+};
+struct pxa2xx_keypad_s;
+struct pxa2xx_keypad_s *pxa27x_keypad_init(target_phys_addr_t base,
+                qemu_irq irq);
+void pxa27x_register_keypad(struct pxa2xx_keypad_s *kp, struct keymap *map,
+                int size);
+
 /* pxa2xx.c */
 struct pxa2xx_ssp_s;
 void pxa2xx_ssp_attach(struct pxa2xx_ssp_s *port,
@@ -133,6 +145,7 @@ struct pxa2xx_state_s {
     struct pxa2xx_pcmcia_s *pcmcia[2];
     struct pxa2xx_i2s_s *i2s;
     struct pxa2xx_fir_s *fir;
+    struct pxa2xx_keypad_s *kp;
 
     /* Power management */
     target_phys_addr_t pm_base;
