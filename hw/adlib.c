@@ -26,6 +26,7 @@
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"
+#include "isa.h"
 
 //#define DEBUG
 

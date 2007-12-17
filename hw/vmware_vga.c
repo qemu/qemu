@@ -1028,41 +1028,41 @@ static CPUWriteMemoryFunc *vmsvga_vram_write[] = {
 
 static void vmsvga_save(struct vmsvga_state_s *s, QEMUFile *f)
 {
-    qemu_put_be32s(f, &s->depth);
-    qemu_put_be32s(f, &s->enable);
-    qemu_put_be32s(f, &s->config);
-    qemu_put_be32s(f, &s->cursor.id);
-    qemu_put_be32s(f, &s->cursor.x);
-    qemu_put_be32s(f, &s->cursor.y);
-    qemu_put_be32s(f, &s->cursor.on);
-    qemu_put_be32s(f, &s->index);
+    qemu_put_be32(f, s->depth);
+    qemu_put_be32(f, s->enable);
+    qemu_put_be32(f, s->config);
+    qemu_put_be32(f, s->cursor.id);
+    qemu_put_be32(f, s->cursor.x);
+    qemu_put_be32(f, s->cursor.y);
+    qemu_put_be32(f, s->cursor.on);
+    qemu_put_be32(f, s->index);
     qemu_put_buffer(f, (uint8_t *) s->scratch, s->scratch_size * 4);
-    qemu_put_be32s(f, &s->new_width);
-    qemu_put_be32s(f, &s->new_height);
+    qemu_put_be32(f, s->new_width);
+    qemu_put_be32(f, s->new_height);
     qemu_put_be32s(f, &s->guest);
     qemu_put_be32s(f, &s->svgaid);
-    qemu_put_be32s(f, &s->syncing);
-    qemu_put_be32s(f, &s->fb_size);
+    qemu_put_be32(f, s->syncing);
+    qemu_put_be32(f, s->fb_size);
 }
 
 static int vmsvga_load(struct vmsvga_state_s *s, QEMUFile *f)
 {
     int depth;
-    qemu_get_be32s(f, &depth);
-    qemu_get_be32s(f, &s->enable);
-    qemu_get_be32s(f, &s->config);
-    qemu_get_be32s(f, &s->cursor.id);
-    qemu_get_be32s(f, &s->cursor.x);
-    qemu_get_be32s(f, &s->cursor.y);
-    qemu_get_be32s(f, &s->cursor.on);
-    qemu_get_be32s(f, &s->index);
+    depth=qemu_get_be32(f);
+    s->enable=qemu_get_be32(f);
+    s->config=qemu_get_be32(f);
+    s->cursor.id=qemu_get_be32(f);
+    s->cursor.x=qemu_get_be32(f);
+    s->cursor.y=qemu_get_be32(f);
+    s->cursor.on=qemu_get_be32(f);
+    s->index=qemu_get_be32(f);
     qemu_get_buffer(f, (uint8_t *) s->scratch, s->scratch_size * 4);
-    qemu_get_be32s(f, &s->new_width);
-    qemu_get_be32s(f, &s->new_height);
+    s->new_width=qemu_get_be32(f);
+    s->new_height=qemu_get_be32(f);
     qemu_get_be32s(f, &s->guest);
     qemu_get_be32s(f, &s->svgaid);
-    qemu_get_be32s(f, &s->syncing);
-    qemu_get_be32s(f, &s->fb_size);
+    s->syncing=qemu_get_be32(f);
+    s->fb_size=qemu_get_be32(f);
 
     if (s->enable && depth != s->depth) {
         printf("%s: need colour depth of %i bits to resume operation.\n",

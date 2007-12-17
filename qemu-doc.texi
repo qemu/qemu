@@ -76,7 +76,7 @@ For system emulation, the following hardware targets are supported:
 @item Mac99 PowerMac (PowerPC processor, in progress)
 @item Sun4m (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
-@item Malta board (32-bit MIPS processor)
+@item Malta board (32-bit and 64-bit MIPS processors)
 @item ARM Integrator/CP (ARM)
 @item ARM Versatile baseboard (ARM)
 @item ARM RealView Emulation baseboard (ARM)
@@ -88,7 +88,7 @@ For system emulation, the following hardware targets are supported:
 @item Palm Tungsten|E PDA (OMAP310 processor)
 @end itemize
 
-For user emulation, x86, PowerPC, ARM, MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
+For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
 
 @node Installation
 @chapter Installation
@@ -2115,8 +2115,10 @@ PC-compatible serial ports
 @node MIPS System emulator
 @section MIPS System emulator
 
-Use the executable @file{qemu-system-mips} to simulate a MIPS machine.
-Three different machine types are emulated:
+Four executables cover simulation of 32 and 64-bit MIPS systems in
+both endian options, @file{qemu-system-mips}, @file{qemu-system-mipsel}
+@file{qemu-system-mips64} and @file{qemu-system-mips64el}.
+Four different machine types are emulated:
 
 @itemize @minus
 @item
@@ -2124,7 +2126,7 @@ A generic ISA PC-like machine "mips"
 @item
 The MIPS Malta prototype board "malta"
 @item
-An ACER Pica "pica61"
+An ACER Pica "pica61". This machine needs the 64-bit emulator.
 @item
 MIPS emulator pseudo board "mipssim"
 @end itemize
@@ -2507,6 +2509,18 @@ Debug options:
 Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
+@end table
+
+Environment variables:
+
+@table @env
+@item QEMU_STRACE
+Print system calls and arguments similar to the 'strace' program
+(NOTE: the actual 'strace' program will not work because the user
+space emulator hasn't implemented ptrace).  At the moment this is
+incomplete.  All system calls that don't have a specific argument
+format are printed with information for six arguments.  Many
+flag-style arguments don't have decoders and will show up as numbers.
 @end table
 
 @node Other binaries

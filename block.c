@@ -719,7 +719,7 @@ int64_t bdrv_getlength(BlockDriverState *bs)
 }
 
 /* return 0 as number of sectors if no device present or error */
-void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr)
+void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
 {
     int64_t length;
     length = bdrv_getlength(bs);

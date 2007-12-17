@@ -18,6 +18,45 @@
 #include "sysemu.h"
 #include "flash.h"
 
+static struct keymap map[0xE0] = {
+    [0 ... 0xDF] = { -1, -1 },
+    [0x1e] = {0,0}, /* a */
+    [0x30] = {0,1}, /* b */
+    [0x2e] = {0,2}, /* c */
+    [0x20] = {0,3}, /* d */
+    [0x12] = {0,4}, /* e */
+    [0x21] = {0,5}, /* f */
+    [0x22] = {1,0}, /* g */
+    [0x23] = {1,1}, /* h */
+    [0x17] = {1,2}, /* i */
+    [0x24] = {1,3}, /* j */
+    [0x25] = {1,4}, /* k */
+    [0x26] = {1,5}, /* l */
+    [0x32] = {2,0}, /* m */
+    [0x31] = {2,1}, /* n */
+    [0x18] = {2,2}, /* o */
+    [0x19] = {2,3}, /* p */
+    [0x10] = {2,4}, /* q */
+    [0x13] = {2,5}, /* r */
+    [0x1f] = {3,0}, /* s */
+    [0x14] = {3,1}, /* t */
+    [0x16] = {3,2}, /* u */
+    [0x2f] = {3,3}, /* v */
+    [0x11] = {3,4}, /* w */
+    [0x2d] = {3,5}, /* x */
+    [0x15] = {4,2}, /* y */
+    [0x2c] = {4,3}, /* z */
+    [0xc7] = {5,0}, /* Home */
+    [0x2a] = {5,1}, /* shift */
+    [0x39] = {5,2}, /* space */
+    [0x39] = {5,3}, /* space */
+    [0x1c] = {5,5}, /*  enter */
+    [0xc8] = {6,0}, /* up */
+    [0xd0] = {6,1}, /* down */
+    [0xcb] = {6,2}, /* left */
+    [0xcd] = {6,3}, /* right */
+};
+
 enum mainstone_model_e { mainstone };
 
 static void mainstone_common_init(int ram_size, int vga_ram_size,
@@ -78,6 +117,10 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
     }
 
     mst_irq = mst_irq_init(cpu, MST_FPGA_PHYS, PXA2XX_PIC_GPIO_0);
+
+    /* setup keypad */
+    printf("map addr %p\n", &map);
+    pxa27x_register_keypad(cpu->kp, map, 0xe0);
 
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc, NULL, mst_irq[MMC_IRQ]);

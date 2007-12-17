@@ -63,7 +63,7 @@ typedef struct GDBState {
     char line_buf[4096];
     int line_buf_index;
     int line_csum;
-    char last_packet[4100];
+    uint8_t last_packet[4100];
     int last_packet_len;
 #ifdef CONFIG_USER_ONLY
     int fd;
@@ -188,7 +188,7 @@ static void hextomem(uint8_t *mem, const char *buf, int len)
 static int put_packet(GDBState *s, char *buf)
 {
     int len, csum, i;
-    char *p;
+    uint8_t *p;
 
 #ifdef DEBUG_GDB
     printf("reply='%s'\n", buf);
@@ -209,7 +209,7 @@ static int put_packet(GDBState *s, char *buf)
         *(p++) = tohex((csum) & 0xf);
 
         s->last_packet_len = p - s->last_packet;
-        put_buffer(s, s->last_packet, s->last_packet_len);
+        put_buffer(s, (uint8_t *)s->last_packet, s->last_packet_len);
 
 #ifdef CONFIG_USER_ONLY
         i = get_char(s);
@@ -1183,7 +1183,7 @@ static void gdb_read_byte(GDBState *s, int ch)
 {
     CPUState *env = s->env;
     int i, csum;
-    char reply[1];
+    uint8_t reply;
 
 #ifndef CONFIG_USER_ONLY
     if (s->last_packet_len) {
@@ -1193,7 +1193,7 @@ static void gdb_read_byte(GDBState *s, int ch)
 #ifdef DEBUG_GDB
             printf("Got NACK, retransmitting\n");
 #endif
-            put_buffer(s, s->last_packet, s->last_packet_len);
+            put_buffer(s, (uint8_t *)s->last_packet, s->last_packet_len);
         }
 #ifdef DEBUG_GDB
         else if (ch == '+')
@@ -1241,12 +1241,12 @@ static void gdb_read_byte(GDBState *s, int ch)
                 csum += s->line_buf[i];
             }
             if (s->line_csum != (csum & 0xff)) {
-                reply[0] = '-';
-                put_buffer(s, reply, 1);
+                reply = '-';
+                put_buffer(s, &reply, 1);
                 s->state = RS_IDLE;
             } else {
-                reply[0] = '+';
-                put_buffer(s, reply, 1);
+                reply = '+';
+                put_buffer(s, &reply, 1);
                 s->state = gdb_handle_packet(s, env, s->line_buf);
             }
             break;

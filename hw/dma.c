@@ -482,12 +482,12 @@ static void dma_save (QEMUFile *f, void *opaque)
     qemu_put_8s (f, &d->command);
     qemu_put_8s (f, &d->mask);
     qemu_put_8s (f, &d->flip_flop);
-    qemu_put_be32s (f, &d->dshift);
+    qemu_put_be32 (f, d->dshift);
 
     for (i = 0; i < 4; ++i) {
         struct dma_regs *r = &d->regs[i];
-        qemu_put_be32s (f, &r->now[0]);
-        qemu_put_be32s (f, &r->now[1]);
+        qemu_put_be32 (f, r->now[0]);
+        qemu_put_be32 (f, r->now[1]);
         qemu_put_be16s (f, &r->base[0]);
         qemu_put_be16s (f, &r->base[1]);
         qemu_put_8s (f, &r->mode);
@@ -510,12 +510,12 @@ static int dma_load (QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s (f, &d->command);
     qemu_get_8s (f, &d->mask);
     qemu_get_8s (f, &d->flip_flop);
-    qemu_get_be32s (f, &d->dshift);
+    d->dshift=qemu_get_be32 (f);
 
     for (i = 0; i < 4; ++i) {
         struct dma_regs *r = &d->regs[i];
-        qemu_get_be32s (f, &r->now[0]);
-        qemu_get_be32s (f, &r->now[1]);
+        r->now[0]=qemu_get_be32 (f);
+        r->now[1]=qemu_get_be32 (f);
         qemu_get_be16s (f, &r->base[0]);
         qemu_get_be16s (f, &r->base[1]);
         qemu_get_8s (f, &r->mode);

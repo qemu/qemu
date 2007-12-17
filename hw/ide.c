@@ -430,8 +430,7 @@ static void padstr(char *str, const char *src, int len)
             v = *src++;
         else
             v = ' ';
-        *(char *)((long)str ^ 1) = v;
-        str++;
+        str[i^1] = v;
     }
 }
 
@@ -471,12 +470,12 @@ static void ide_identify(IDEState *s)
     put_le16(p + 5, 512); /* XXX: retired, remove ? */
     put_le16(p + 6, s->sectors);
     snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
-    padstr((uint8_t *)(p + 10), buf, 20); /* serial number */
+    padstr((char *)(p + 10), buf, 20); /* serial number */
     put_le16(p + 20, 3); /* XXX: retired, remove ? */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
-    padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
-    padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40); /* model */
+    padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
+    padstr((char *)(p + 27), "QEMU HARDDISK", 40); /* model */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
@@ -536,12 +535,12 @@ static void ide_atapi_identify(IDEState *s)
     /* Removable CDROM, 50us response, 12 byte packets */
     put_le16(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
     snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
-    padstr((uint8_t *)(p + 10), buf, 20); /* serial number */
+    padstr((char *)(p + 10), buf, 20); /* serial number */
     put_le16(p + 20, 3); /* buffer type */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
-    padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
-    padstr((uint8_t *)(p + 27), "QEMU CD-ROM", 40); /* model */
+    padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
+    padstr((char *)(p + 27), "QEMU CD-ROM", 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
 #ifdef USE_DMA_CDROM
     put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
@@ -591,10 +590,10 @@ static void ide_cfata_identify(IDEState *s)
     put_le16(p + 7, s->nb_sectors >> 16);	/* Sectors per card */
     put_le16(p + 8, s->nb_sectors);		/* Sectors per card */
     snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
-    padstr((uint8_t *)(p + 10), buf, 20);	/* Serial number in ASCII */
+    padstr((char *)(p + 10), buf, 20);	/* Serial number in ASCII */
     put_le16(p + 22, 0x0004);			/* ECC bytes */
-    padstr((uint8_t *) (p + 23), QEMU_VERSION, 8);	/* Firmware Revision */
-    padstr((uint8_t *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
+    padstr((char *) (p + 23), QEMU_VERSION, 8);	/* Firmware Revision */
+    padstr((char *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #else
@@ -1465,12 +1464,12 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_SEEK:
         {
-            int lba;
-            int64_t total_sectors;
+            unsigned int lba;
+            uint64_t total_sectors;
 
             bdrv_get_geometry(s->bs, &total_sectors);
             total_sectors >>= 2;
-            if (total_sectors <= 0) {
+            if (total_sectors == 0) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY,
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -1516,11 +1515,11 @@ static void ide_atapi_cmd(IDEState *s)
     case GPCMD_READ_TOC_PMA_ATIP:
         {
             int format, msf, start_track, len;
-            int64_t total_sectors;
+            uint64_t total_sectors;
 
             bdrv_get_geometry(s->bs, &total_sectors);
             total_sectors >>= 2;
-            if (total_sectors <= 0) {
+            if (total_sectors == 0) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY,
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -1560,11 +1559,11 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_READ_CDVD_CAPACITY:
         {
-            int64_t total_sectors;
+            uint64_t total_sectors;
 
             bdrv_get_geometry(s->bs, &total_sectors);
             total_sectors >>= 2;
-            if (total_sectors <= 0) {
+            if (total_sectors == 0) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY,
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -1580,7 +1579,7 @@ static void ide_atapi_cmd(IDEState *s)
             int media = packet[1];
             int layer = packet[6];
             int format = packet[2];
-            int64_t total_sectors;
+            uint64_t total_sectors;
 
             if (media != 0 || layer != 0)
             {
@@ -1592,6 +1591,11 @@ static void ide_atapi_cmd(IDEState *s)
                 case 0:
                     bdrv_get_geometry(s->bs, &total_sectors);
                     total_sectors >>= 2;
+                    if (total_sectors == 0) {
+                        ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                                            ASC_MEDIUM_NOT_PRESENT);
+                        break;
+                    }
 
                     memset(buf, 0, 2052);
 
@@ -1636,7 +1640,7 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_GET_CONFIGURATION:
         {
-            int64_t total_sectors;
+            uint64_t total_sectors;
 
             /* only feature 0 is supported */
             if (packet[2] != 0 || packet[3] != 0) {
@@ -1721,7 +1725,7 @@ static void ide_cfata_metadata_write(IDEState *s)
 static void cdrom_change_cb(void *opaque)
 {
     IDEState *s = opaque;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
 
     /* XXX: send interrupt too */
     bdrv_get_geometry(s->bs, &nb_sectors);
@@ -2419,7 +2423,7 @@ static void ide_init2(IDEState *ide_state,
     IDEState *s;
     static int drive_serial = 1;
     int i, cylinders, heads, secs, translation, lba_detected = 0;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
 
     for(i = 0; i < 2; i++) {
         s = ide_state + i;
@@ -2511,8 +2515,8 @@ static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
 /* save per IDE drive data */
 static void ide_save(QEMUFile* f, IDEState *s)
 {
-    qemu_put_be32s(f, &s->mult_sectors);
-    qemu_put_be32s(f, &s->identify_set);
+    qemu_put_be32(f, s->mult_sectors);
+    qemu_put_be32(f, s->identify_set);
     if (s->identify_set) {
         qemu_put_buffer(f, (const uint8_t *)s->identify_data, 512);
     }
@@ -2539,8 +2543,8 @@ static void ide_save(QEMUFile* f, IDEState *s)
 /* load per IDE drive data */
 static void ide_load(QEMUFile* f, IDEState *s)
 {
-    qemu_get_be32s(f, &s->mult_sectors);
-    qemu_get_be32s(f, &s->identify_set);
+    s->mult_sectors=qemu_get_be32(f);
+    s->identify_set=qemu_get_be32(f);
     if (s->identify_set) {
         qemu_get_buffer(f, (uint8_t *)s->identify_data, 512);
     }

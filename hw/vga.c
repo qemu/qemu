@@ -1689,12 +1689,12 @@ static void vga_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, s->gr, 16);
     qemu_put_8s(f, &s->ar_index);
     qemu_put_buffer(f, s->ar, 21);
-    qemu_put_be32s(f, &s->ar_flip_flop);
+    qemu_put_be32(f, s->ar_flip_flop);
     qemu_put_8s(f, &s->cr_index);
     qemu_put_buffer(f, s->cr, 256);
     qemu_put_8s(f, &s->msr);
     qemu_put_8s(f, &s->fcr);
-    qemu_put_8s(f, &s->st00);
+    qemu_put_byte(f, s->st00);
     qemu_put_8s(f, &s->st01);
 
     qemu_put_8s(f, &s->dac_state);
@@ -1704,7 +1704,7 @@ static void vga_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, s->dac_cache, 3);
     qemu_put_buffer(f, s->palette, 768);
 
-    qemu_put_be32s(f, &s->bank_offset);
+    qemu_put_be32(f, s->bank_offset);
 #ifdef CONFIG_BOCHS_VBE
     qemu_put_byte(f, 1);
     qemu_put_be16s(f, &s->vbe_index);
@@ -1739,7 +1739,7 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer(f, s->gr, 16);
     qemu_get_8s(f, &s->ar_index);
     qemu_get_buffer(f, s->ar, 21);
-    qemu_get_be32s(f, &s->ar_flip_flop);
+    s->ar_flip_flop=qemu_get_be32(f);
     qemu_get_8s(f, &s->cr_index);
     qemu_get_buffer(f, s->cr, 256);
     qemu_get_8s(f, &s->msr);
@@ -1754,7 +1754,7 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer(f, s->dac_cache, 3);
     qemu_get_buffer(f, s->palette, 768);
 
-    qemu_get_be32s(f, &s->bank_offset);
+    s->bank_offset=qemu_get_be32(f);
     is_vbe = qemu_get_byte(f);
 #ifdef CONFIG_BOCHS_VBE
     if (!is_vbe)

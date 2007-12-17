@@ -412,7 +412,7 @@ static void init_mbr(BDRVVVFATState* s)
 /* direntry functions */
 
 /* dest is assumed to hold 258 bytes, and pads with 0xffff up to next multiple of 26 */
-static inline int short2long_name(unsigned char* dest,const char* src)
+static inline int short2long_name(char* dest,const char* src)
 {
     int i;
     for(i=0;i<129 && src[i];i++) {
@@ -565,7 +565,7 @@ static inline uint32_t fat_get(BDRVVVFATState* s,unsigned int cluster)
 	uint16_t* entry=array_get(&(s->fat),cluster);
 	return le16_to_cpu(*entry);
     } else {
-	const uint8_t* x=s->fat.pointer+cluster*3/2;
+	const uint8_t* x=(uint8_t*)(s->fat.pointer)+cluster*3/2;
 	return ((x[0]|(x[1]<<8))>>(cluster&1?4:0))&0x0fff;
     }
 }
@@ -626,7 +626,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 
     entry=array_get_next(&(s->directory));
     memset(entry->name,0x20,11);
-    strncpy(entry->name,filename,i);
+    strncpy((char*)entry->name,filename,i);
 
     if(j > 0)
 	for (i = 0; i < 3 && filename[j+1+i]; i++)
@@ -868,7 +868,7 @@ static int init_directories(BDRVVVFATState* s,
     {
 	direntry_t* entry=array_get_next(&(s->directory));
 	entry->attributes=0x28; /* archive | volume label */
-	snprintf(entry->name,11,"QEMU VVFAT");
+	snprintf((char*)entry->name,11,"QEMU VVFAT");
     }
 
     /* Now build FAT, and write back information into directory */
@@ -1187,7 +1187,7 @@ static inline int read_cluster(BDRVVVFATState *s,int cluster_num)
 		s->current_mapping = mapping;
 read_cluster_directory:
 		offset = s->cluster_size*(cluster_num-s->current_mapping->begin);
-		s->cluster = s->directory.pointer+offset
+		s->cluster = (unsigned char*)s->directory.pointer+offset
 			+ 0x20*s->current_mapping->info.dir.first_dir_index;
 		assert(((s->cluster-(unsigned char*)s->directory.pointer)%s->cluster_size)==0);
 		assert((char*)s->cluster+s->cluster_size <= s->directory.pointer+s->directory.next*s->directory.item_size);
@@ -1457,7 +1457,7 @@ static int parse_long_name(long_file_name* lfn,
     }
 
     if (pointer[0] & 0x40)
-	lfn->len = offset + strlen(lfn->name + offset);
+	lfn->len = offset + strlen((char*)lfn->name + offset);
 
     return 0;
 }
@@ -1496,7 +1496,7 @@ static int parse_short_name(BDRVVVFATState* s,
     } else
 	lfn->name[i + j + 1] = '\0';
 
-    lfn->len = strlen(lfn->name);
+    lfn->len = strlen((char*)lfn->name);
 
     return 0;
 }
@@ -1792,8 +1792,8 @@ DLOG(fprintf(stderr, "check direntry %d: \n", i); print_direntry(direntries + i)
 		    fprintf(stderr, "Error in short name (%d)\n", subret);
 		    goto fail;
 		}
-		if (subret > 0 || !strcmp(lfn.name, ".")
-			|| !strcmp(lfn.name, ".."))
+		if (subret > 0 || !strcmp((char*)lfn.name, ".")
+			|| !strcmp((char*)lfn.name, ".."))
 		    continue;
 	    }
 	    lfn.checksum = 0x100; /* cannot use long name twice */
@@ -1802,7 +1802,7 @@ DLOG(fprintf(stderr, "check direntry %d: \n", i); print_direntry(direntries + i)
 		fprintf(stderr, "Name too long: %s/%s\n", path, lfn.name);
 		goto fail;
 	    }
-	    strcpy(path2 + path_len + 1, lfn.name);
+	    strcpy(path2 + path_len + 1, (char*)lfn.name);
 
 	    if (is_directory(direntries + i)) {
 		if (begin_of_direntry(direntries + i) == 0) {
@@ -2234,7 +2234,7 @@ static int commit_one_file(BDRVVVFATState* s,
 	assert(size >= 0);
 
 	ret = vvfat_read(s->bs, cluster2sector(s, c),
-	    cluster, (rest_size + 0x1ff) / 0x200);
+	    (uint8_t*)cluster, (rest_size + 0x1ff) / 0x200);
 
 	if (ret < 0)
 	    return ret;

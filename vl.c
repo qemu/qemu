@@ -241,7 +241,7 @@ char drives_opt[MAX_DRIVES][1024];
 
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
-static int event_pending;
+static int event_pending = 1;
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
@@ -828,6 +828,7 @@ struct qemu_alarm_timer {
 };
 
 #define ALARM_FLAG_DYNTICKS  0x1
+#define ALARM_FLAG_MODIFIED  0x2
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
@@ -838,6 +839,11 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 {
     if (!alarm_has_dynticks(t))
         return;
+
+    if (!(t->flags & ALARM_FLAG_MODIFIED))
+        return;
+
+    t->flags &= ~(ALARM_FLAG_MODIFIED);
 
     t->rearm(t);
 }
@@ -1001,6 +1007,8 @@ void qemu_del_timer(QEMUTimer *ts)
 {
     QEMUTimer **pt, *t;
 
+    alarm_timer->flags |= ALARM_FLAG_MODIFIED;
+
     /* NOTE: this code must be signal safe because
        qemu_timer_expired() can be called from a signal. */
     pt = &active_timers[ts->clock->type];
@@ -1073,7 +1081,6 @@ static void qemu_run_timers(QEMUTimer **ptimer_head, int64_t current_time)
         /* run the callback (the timer list can be modified) */
         ts->cb(ts->opaque);
     }
-    qemu_rearm_alarm_timer(alarm_timer);
 }
 
 int64_t qemu_get_clock(QEMUClock *clock)
@@ -1125,9 +1132,9 @@ static void timer_save(QEMUFile *f, void *opaque)
     if (cpu_ticks_enabled) {
         hw_error("cannot save state if virtual timers are running");
     }
-    qemu_put_be64s(f, &cpu_ticks_offset);
-    qemu_put_be64s(f, &ticks_per_sec);
-    qemu_put_be64s(f, &cpu_clock_offset);
+    qemu_put_be64(f, cpu_ticks_offset);
+    qemu_put_be64(f, ticks_per_sec);
+    qemu_put_be64(f, cpu_clock_offset);
 }
 
 static int timer_load(QEMUFile *f, void *opaque, int version_id)
@@ -1137,10 +1144,10 @@ static int timer_load(QEMUFile *f, void *opaque, int version_id)
     if (cpu_ticks_enabled) {
         return -EINVAL;
     }
-    qemu_get_be64s(f, &cpu_ticks_offset);
-    qemu_get_be64s(f, &ticks_per_sec);
+    cpu_ticks_offset=qemu_get_be64(f);
+    ticks_per_sec=qemu_get_be64(f);
     if (version_id == 2) {
-        qemu_get_be64s(f, &cpu_clock_offset);
+        cpu_clock_offset=qemu_get_be64(f);
     }
     return 0;
 }
@@ -1192,13 +1199,16 @@ static void host_alarm_handler(int host_signum)
 #endif
         CPUState *env = next_cpu;
 
-        /* stop the currently executing cpu because a timer occured */
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+        if (env) {
+            alarm_timer->flags |= ALARM_FLAG_MODIFIED;
+            /* stop the currently executing cpu because a timer occured */
+            cpu_interrupt(env, CPU_INTERRUPT_EXIT);
 #ifdef USE_KQEMU
-        if (env->kqemu_enabled) {
-            kqemu_cpu_interrupt(env);
-        }
+            if (env->kqemu_enabled) {
+                kqemu_cpu_interrupt(env);
+            }
 #endif
+        }
         event_pending = 1;
     }
 }
@@ -1616,7 +1626,7 @@ void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
-    qemu_chr_write(s, buf, strlen(buf));
+    qemu_chr_write(s, (uint8_t *)buf, strlen(buf));
     va_end(ap);
 }
 
@@ -1705,7 +1715,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                          (secs / 60) % 60,
                          secs % 60,
                          (int)((ti / 1000000) % 1000));
-                d->drv->chr_write(d->drv, buf1, strlen(buf1));
+                d->drv->chr_write(d->drv, (uint8_t *)buf1, strlen(buf1));
             }
         }
     }
@@ -1734,15 +1744,16 @@ static void mux_print_help(CharDriverState *chr)
         sprintf(cbuf,"\n\r");
         sprintf(ebuf,"C-%c", term_escape_char - 1 + 'a');
     } else {
-        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r", term_escape_char);
+        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
+            term_escape_char);
     }
-    chr->chr_write(chr, cbuf, strlen(cbuf));
+    chr->chr_write(chr, (uint8_t *)cbuf, strlen(cbuf));
     for (i = 0; mux_help[i] != NULL; i++) {
         for (j=0; mux_help[i][j] != '\0'; j++) {
             if (mux_help[i][j] == '%')
-                chr->chr_write(chr, ebuf, strlen(ebuf));
+                chr->chr_write(chr, (uint8_t *)ebuf, strlen(ebuf));
             else
-                chr->chr_write(chr, &mux_help[i][j], 1);
+                chr->chr_write(chr, (uint8_t *)&mux_help[i][j], 1);
         }
     }
 }
@@ -1761,7 +1772,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
         case 'x':
             {
                  char *term =  "QEMU: Terminated\n\r";
-                 chr->chr_write(chr,term,strlen(term));
+                 chr->chr_write(chr,(uint8_t *)term,strlen(term));
                  exit(0);
                  break;
             }
@@ -2882,7 +2893,7 @@ static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 typedef struct {
     int fd;
     struct sockaddr_in daddr;
-    char buf[1024];
+    uint8_t buf[1024];
     int bufcnt;
     int bufptr;
     int max_size;
@@ -3040,7 +3051,7 @@ static int tcp_chr_read_poll(void *opaque)
 #define IAC_BREAK 243
 static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
                                       TCPCharDriver *s,
-                                      char *buf, int *size)
+                                      uint8_t *buf, int *size)
 {
     /* Handle any telnet client's basic IAC options to satisfy char by
      * char mode with no echo.  All IAC options will be removed from
@@ -3458,18 +3469,33 @@ static void hex_dump(FILE *f, const uint8_t *buf, int size)
 static int parse_macaddr(uint8_t *macaddr, const char *p)
 {
     int i;
-    for(i = 0; i < 6; i++) {
-        macaddr[i] = strtol(p, (char **)&p, 16);
-        if (i == 5) {
-            if (*p != '\0')
-                return -1;
-        } else {
-            if (*p != ':')
-                return -1;
-            p++;
+    char *last_char;
+    long int offset;
+
+    errno = 0;
+    offset = strtol(p, &last_char, 0);    
+    if (0 == errno && '\0' == *last_char &&
+            offset >= 0 && offset <= 0xFFFFFF) {
+        macaddr[3] = (offset & 0xFF0000) >> 16;
+        macaddr[4] = (offset & 0xFF00) >> 8;
+        macaddr[5] = offset & 0xFF;
+        return 0;
+    } else {
+        for(i = 0; i < 6; i++) {
+            macaddr[i] = strtol(p, (char **)&p, 16);
+            if (i == 5) {
+                if (*p != '\0')
+                    return -1;
+            } else {
+                if (*p != ':' && *p != '-')
+                    return -1;
+                p++;
+            }
         }
+        return 0;    
     }
-    return 0;
+
+    return -1;
 }
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
@@ -4403,7 +4429,8 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd,
 {
     int so_type=-1, optlen=sizeof(so_type);
 
-    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type, &optlen)< 0) {
+    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
+        (socklen_t *)&optlen)< 0) {
 	fprintf(stderr, "qemu: error: getsockopt(SO_TYPE) for fd=%d failed\n", fd);
 	return NULL;
     }
@@ -4817,14 +4844,14 @@ static int drive_add(const char *fmt, ...)
     return nb_drives_opt++;
 }
 
-int drive_get_index(BlockInterfaceType interface, int bus, int unit)
+int drive_get_index(BlockInterfaceType type, int bus, int unit)
 {
     int index;
 
     /* seek interface, bus and unit */
 
     for (index = 0; index < nb_drives; index++)
-        if (drives_table[index].interface == interface &&
+        if (drives_table[index].type == type &&
 	    drives_table[index].bus == bus &&
 	    drives_table[index].unit == unit)
         return index;
@@ -4832,14 +4859,14 @@ int drive_get_index(BlockInterfaceType interface, int bus, int unit)
     return -1;
 }
 
-int drive_get_max_bus(BlockInterfaceType interface)
+int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
     int index;
 
     max_bus = -1;
     for (index = 0; index < nb_drives; index++) {
-        if(drives_table[index].interface == interface &&
+        if(drives_table[index].type == type &&
            drives_table[index].bus > max_bus)
             max_bus = drives_table[index].bus;
     }
@@ -4852,7 +4879,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     char file[1024];
     char devname[128];
     const char *mediastr = "";
-    BlockInterfaceType interface;
+    BlockInterfaceType type;
     enum { MEDIA_DISK, MEDIA_CDROM } media;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
@@ -4881,11 +4908,11 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
         !strcmp(machine->name, "SS-600MP") ||
         !strcmp(machine->name, "versatilepb") ||
         !strcmp(machine->name, "versatileab")) {
-        interface = IF_SCSI;
+        type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
         strcpy(devname, "scsi");
     } else {
-        interface = IF_IDE;
+        type = IF_IDE;
         max_devs = MAX_IDE_DEVS;
         strcpy(devname, "ide");
     }
@@ -4912,22 +4939,22 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     if (get_param_value(buf, sizeof(buf), "if", str)) {
         strncpy(devname, buf, sizeof(devname));
         if (!strcmp(buf, "ide")) {
-	    interface = IF_IDE;
+	    type = IF_IDE;
             max_devs = MAX_IDE_DEVS;
         } else if (!strcmp(buf, "scsi")) {
-	    interface = IF_SCSI;
+	    type = IF_SCSI;
             max_devs = MAX_SCSI_DEVS;
         } else if (!strcmp(buf, "floppy")) {
-	    interface = IF_FLOPPY;
+	    type = IF_FLOPPY;
             max_devs = 0;
         } else if (!strcmp(buf, "pflash")) {
-	    interface = IF_PFLASH;
+	    type = IF_PFLASH;
             max_devs = 0;
 	} else if (!strcmp(buf, "mtd")) {
-	    interface = IF_MTD;
+	    type = IF_MTD;
             max_devs = 0;
 	} else if (!strcmp(buf, "sd")) {
-	    interface = IF_SD;
+	    type = IF_SD;
             max_devs = 0;
 	} else {
             fprintf(stderr, "qemu: '%s' unsupported bus type '%s'\n", str, buf);
@@ -5042,7 +5069,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
 
     if (unit_id == -1) {
        unit_id = 0;
-       while (drive_get_index(interface, bus_id, unit_id) != -1) {
+       while (drive_get_index(type, bus_id, unit_id) != -1) {
            unit_id++;
            if (max_devs && unit_id >= max_devs) {
                unit_id -= max_devs;
@@ -5063,23 +5090,23 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
      * ignore multiple definitions
      */
 
-    if (drive_get_index(interface, bus_id, unit_id) != -1)
+    if (drive_get_index(type, bus_id, unit_id) != -1)
         return 0;
 
     /* init */
 
-    if (interface == IF_IDE || interface == IF_SCSI)
+    if (type == IF_IDE || type == IF_SCSI)
         mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
     snprintf(buf, sizeof(buf), max_devs ? "%1$s%4$i%2$s%3$i" : "%s%s%i",
              devname, mediastr, unit_id, bus_id);
     bdrv = bdrv_new(buf);
     drives_table[nb_drives].bdrv = bdrv;
-    drives_table[nb_drives].interface = interface;
+    drives_table[nb_drives].type = type;
     drives_table[nb_drives].bus = bus_id;
     drives_table[nb_drives].unit = unit_id;
     nb_drives++;
 
-    switch(interface) {
+    switch(type) {
     case IF_IDE:
     case IF_SCSI:
         switch(media) {
@@ -5784,7 +5811,7 @@ static int qemu_savevm_state(QEMUFile *f)
         /* ID string */
         len = strlen(se->idstr);
         qemu_put_byte(f, len);
-        qemu_put_buffer(f, se->idstr, len);
+        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
 
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
@@ -5845,7 +5872,7 @@ static int qemu_loadvm_state(QEMUFile *f)
         if (qemu_ftell(f) >= end_pos)
             break;
         len = qemu_get_byte(f);
-        qemu_get_buffer(f, idstr, len);
+        qemu_get_buffer(f, (uint8_t *)idstr, len);
         idstr[len] = '\0';
         instance_id = qemu_get_be32(f);
         version_id = qemu_get_be32(f);
@@ -7352,6 +7379,8 @@ void main_loop_wait(int timeout)
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
                     qemu_get_clock(rt_clock));
 
+    qemu_rearm_alarm_timer(alarm_timer);
+
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
     qemu_bh_poll();
@@ -8321,7 +8350,7 @@ int main(int argc, char **argv)
                 /* We just do some generic consistency checks */
                 {
                     /* Could easily be extended to 64 devices if needed */
-                    const unsigned char *p;
+                    const char *p;
                     
                     boot_devices_bitmap = 0;
                     for (p = boot_devices; *p != '\0'; p++) {

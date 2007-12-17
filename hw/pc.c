@@ -552,7 +552,7 @@ static void load_linux(const char *kernel_filename,
 	initrd_max = ram_size-ACPI_DATA_SIZE-1;
 
     /* kernel command line */
-    pstrcpy(cmdline_addr, 4096, kernel_cmdline);
+    pstrcpy((char*)cmdline_addr, 4096, kernel_cmdline);
 
     if (protocol >= 0x202) {
 	stl_p(header+0x228, cmdline_addr-phys_ram_base);

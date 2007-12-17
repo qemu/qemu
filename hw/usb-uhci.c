@@ -508,7 +508,7 @@ static void uhci_async_complete_packet(USBPacket * packet, void *opaque);
           0 if TD successful
           1 if TD unsuccessful or inactive
 */
-static int uhci_handle_td(UHCIState *s, UHCI_TD *td, int *int_mask,
+static int uhci_handle_td(UHCIState *s, UHCI_TD *td, uint32_t *int_mask,
                           int completion)
 {
     uint8_t pid;
@@ -733,8 +733,8 @@ static void uhci_frame_timer(void *opaque)
 {
     UHCIState *s = opaque;
     int64_t expire_time;
-    uint32_t frame_addr, link, old_td_ctrl, val;
-    int int_mask, cnt, ret;
+    uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
+    int cnt, ret;
     UHCI_TD td;
     UHCI_QH qh;
     uint32_t old_async_qh;

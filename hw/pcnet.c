@@ -350,8 +350,8 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
     } else {
         s->phys_mem_read(s->dma_opaque, addr, (void *)tmd, sizeof(*tmd), 0);
         le32_to_cpus(&tmd->tbadr);
-        le16_to_cpus(&tmd->length);
-        le16_to_cpus(&tmd->status);
+        le16_to_cpus((uint16_t *)&tmd->length);
+        le16_to_cpus((uint16_t *)&tmd->status);
         le32_to_cpus(&tmd->misc);
         le32_to_cpus(&tmd->res);
         if (BCR_SWSTYLE(s) == 3) {
@@ -416,8 +416,8 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
     } else {
         s->phys_mem_read(s->dma_opaque, addr, (void *)rmd, sizeof(*rmd), 0);
         le32_to_cpus(&rmd->rbadr);
-        le16_to_cpus(&rmd->buf_length);
-        le16_to_cpus(&rmd->status);
+        le16_to_cpus((uint16_t *)&rmd->buf_length);
+        le16_to_cpus((uint16_t *)&rmd->status);
         le32_to_cpus(&rmd->msg_length);
         le32_to_cpus(&rmd->res);
         if (BCR_SWSTYLE(s) == 3) {
@@ -1843,9 +1843,9 @@ static void pcnet_save(QEMUFile *f, void *opaque)
     if (s->pci_dev)
         pci_device_save(s->pci_dev, f);
 
-    qemu_put_be32s(f, &s->rap);
-    qemu_put_be32s(f, &s->isr);
-    qemu_put_be32s(f, &s->lnkst);
+    qemu_put_be32(f, s->rap);
+    qemu_put_be32(f, s->isr);
+    qemu_put_be32(f, s->lnkst);
     qemu_put_be32s(f, &s->rdra);
     qemu_put_be32s(f, &s->tdra);
     qemu_put_buffer(f, s->prom, 16);
@@ -1854,10 +1854,10 @@ static void pcnet_save(QEMUFile *f, void *opaque)
     for (i = 0; i < 32; i++)
         qemu_put_be16s(f, &s->bcr[i]);
     qemu_put_be64s(f, &s->timer);
-    qemu_put_be32s(f, &s->xmit_pos);
-    qemu_put_be32s(f, &s->recv_pos);
+    qemu_put_be32(f, s->xmit_pos);
+    qemu_put_be32(f, s->recv_pos);
     qemu_put_buffer(f, s->buffer, 4096);
-    qemu_put_be32s(f, &s->tx_busy);
+    qemu_put_be32(f, s->tx_busy);
     qemu_put_timer(f, s->poll_timer);
 }
 
@@ -1875,9 +1875,9 @@ static int pcnet_load(QEMUFile *f, void *opaque, int version_id)
             return ret;
     }
 
-    qemu_get_be32s(f, &s->rap);
-    qemu_get_be32s(f, &s->isr);
-    qemu_get_be32s(f, &s->lnkst);
+    qemu_get_be32s(f, (uint32_t*)&s->rap);
+    qemu_get_be32s(f, (uint32_t*)&s->isr);
+    qemu_get_be32s(f, (uint32_t*)&s->lnkst);
     qemu_get_be32s(f, &s->rdra);
     qemu_get_be32s(f, &s->tdra);
     qemu_get_buffer(f, s->prom, 16);
@@ -1886,10 +1886,10 @@ static int pcnet_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 32; i++)
         qemu_get_be16s(f, &s->bcr[i]);
     qemu_get_be64s(f, &s->timer);
-    qemu_get_be32s(f, &s->xmit_pos);
-    qemu_get_be32s(f, &s->recv_pos);
+    qemu_get_be32s(f, (uint32_t*)&s->xmit_pos);
+    qemu_get_be32s(f, (uint32_t*)&s->recv_pos);
     qemu_get_buffer(f, s->buffer, 4096);
-    qemu_get_be32s(f, &s->tx_busy);
+    qemu_get_be32s(f, (uint32_t*)&s->tx_busy);
     qemu_get_timer(f, s->poll_timer);
 
     return 0;

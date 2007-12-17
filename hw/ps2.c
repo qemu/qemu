@@ -476,19 +476,19 @@ static void ps2_reset(void *opaque)
 
 static void ps2_common_save (QEMUFile *f, PS2State *s)
 {
-    qemu_put_be32s (f, &s->write_cmd);
-    qemu_put_be32s (f, &s->queue.rptr);
-    qemu_put_be32s (f, &s->queue.wptr);
-    qemu_put_be32s (f, &s->queue.count);
+    qemu_put_be32 (f, s->write_cmd);
+    qemu_put_be32 (f, s->queue.rptr);
+    qemu_put_be32 (f, s->queue.wptr);
+    qemu_put_be32 (f, s->queue.count);
     qemu_put_buffer (f, s->queue.data, sizeof (s->queue.data));
 }
 
 static void ps2_common_load (QEMUFile *f, PS2State *s)
 {
-    qemu_get_be32s (f, &s->write_cmd);
-    qemu_get_be32s (f, &s->queue.rptr);
-    qemu_get_be32s (f, &s->queue.wptr);
-    qemu_get_be32s (f, &s->queue.count);
+    s->write_cmd=qemu_get_be32 (f);
+    s->queue.rptr=qemu_get_be32 (f);
+    s->queue.wptr=qemu_get_be32 (f);
+    s->queue.count=qemu_get_be32 (f);
     qemu_get_buffer (f, s->queue.data, sizeof (s->queue.data));
 }
 
@@ -497,8 +497,8 @@ static void ps2_kbd_save(QEMUFile* f, void* opaque)
     PS2KbdState *s = (PS2KbdState*)opaque;
 
     ps2_common_save (f, &s->common);
-    qemu_put_be32s(f, &s->scan_enabled);
-    qemu_put_be32s(f, &s->translate);
+    qemu_put_be32(f, s->scan_enabled);
+    qemu_put_be32(f, s->translate);
 }
 
 static void ps2_mouse_save(QEMUFile* f, void* opaque)
@@ -512,9 +512,9 @@ static void ps2_mouse_save(QEMUFile* f, void* opaque)
     qemu_put_8s(f, &s->mouse_wrap);
     qemu_put_8s(f, &s->mouse_type);
     qemu_put_8s(f, &s->mouse_detect_state);
-    qemu_put_be32s(f, &s->mouse_dx);
-    qemu_put_be32s(f, &s->mouse_dy);
-    qemu_put_be32s(f, &s->mouse_dz);
+    qemu_put_be32(f, s->mouse_dx);
+    qemu_put_be32(f, s->mouse_dy);
+    qemu_put_be32(f, s->mouse_dz);
     qemu_put_8s(f, &s->mouse_buttons);
 }
 
@@ -526,8 +526,8 @@ static int ps2_kbd_load(QEMUFile* f, void* opaque, int version_id)
         return -EINVAL;
 
     ps2_common_load (f, &s->common);
-    qemu_get_be32s(f, &s->scan_enabled);
-    qemu_get_be32s(f, &s->translate);
+    s->scan_enabled=qemu_get_be32(f);
+    s->translate=qemu_get_be32(f);
     return 0;
 }
 
@@ -545,9 +545,9 @@ static int ps2_mouse_load(QEMUFile* f, void* opaque, int version_id)
     qemu_get_8s(f, &s->mouse_wrap);
     qemu_get_8s(f, &s->mouse_type);
     qemu_get_8s(f, &s->mouse_detect_state);
-    qemu_get_be32s(f, &s->mouse_dx);
-    qemu_get_be32s(f, &s->mouse_dy);
-    qemu_get_be32s(f, &s->mouse_dz);
+    s->mouse_dx=qemu_get_be32(f);
+    s->mouse_dy=qemu_get_be32(f);
+    s->mouse_dz=qemu_get_be32(f);
     qemu_get_8s(f, &s->mouse_buttons);
     return 0;
 }

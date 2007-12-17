@@ -2151,6 +2151,8 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
 
     s->i2s = pxa2xx_i2s_init(0x40400000, s->pic[PXA2XX_PIC_I2S], s->dma);
 
+    s->kp = pxa27x_keypad_init(0x41500000, s->pic[PXA2XX_PIC_KEYPAD]);
+
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
     pxa2xx_gpio_out_set(s->gpio, 1, s->reset);

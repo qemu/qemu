@@ -427,7 +427,11 @@ endif
 # must use static linking to avoid leaving stuff in virtual address space
 VL_OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o
 # XXX: suppress QEMU_TOOL tests
-VL_OBJS+=block-raw.o
+ifdef CONFIG_WIN32
+VL_OBJS+=block-raw-win32.o
+else
+VL_OBJS+=block-raw-posix.o
+endif
 
 ifdef CONFIG_ALSA
 LIBS += -lasound
@@ -539,7 +543,7 @@ VL_OBJS+= armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
 VL_OBJS+= pl061.o
 VL_OBJS+= arm-semi.o
 VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
-VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o
+VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 VL_OBJS+= pflash_cfi01.o gumstix.o
 VL_OBJS+= spitz.o ide.o serial.o nand.o ecc.o
 VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o omap_i2c.o

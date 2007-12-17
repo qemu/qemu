@@ -439,7 +439,7 @@ static void pm_save(QEMUFile* f,void *opaque)
     qemu_put_8s(f, &s->apmc);
     qemu_put_8s(f, &s->apms);
     qemu_put_timer(f, s->tmr_timer);
-    qemu_put_be64s(f, &s->tmr_overflow_time);
+    qemu_put_be64(f, s->tmr_overflow_time);
 }
 
 static int pm_load(QEMUFile* f,void* opaque,int version_id)
@@ -460,7 +460,7 @@ static int pm_load(QEMUFile* f,void* opaque,int version_id)
     qemu_get_8s(f, &s->apmc);
     qemu_get_8s(f, &s->apms);
     qemu_get_timer(f, s->tmr_timer);
-    qemu_get_be64s(f, &s->tmr_overflow_time);
+    s->tmr_overflow_time=qemu_get_be64(f);
 
     pm_io_space_update(s);
 

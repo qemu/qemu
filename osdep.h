@@ -58,6 +58,7 @@ int qemu_create_pidfile(const char *filename);
 
 #ifdef _WIN32
 int ffs(int i);
+
 typedef struct {
     long tv_sec;
     long tv_usec;

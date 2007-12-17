@@ -761,10 +761,10 @@ static void apic_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &s->icr[0]);
     qemu_put_be32s(f, &s->icr[1]);
     qemu_put_be32s(f, &s->divide_conf);
-    qemu_put_be32s(f, &s->count_shift);
+    qemu_put_be32(f, s->count_shift);
     qemu_put_be32s(f, &s->initial_count);
-    qemu_put_be64s(f, &s->initial_count_load_time);
-    qemu_put_be64s(f, &s->next_time);
+    qemu_put_be64(f, s->initial_count_load_time);
+    qemu_put_be64(f, s->next_time);
 
     qemu_put_timer(f, s->timer);
 }
@@ -797,10 +797,10 @@ static int apic_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->icr[0]);
     qemu_get_be32s(f, &s->icr[1]);
     qemu_get_be32s(f, &s->divide_conf);
-    qemu_get_be32s(f, &s->count_shift);
+    s->count_shift=qemu_get_be32(f);
     qemu_get_be32s(f, &s->initial_count);
-    qemu_get_be64s(f, &s->initial_count_load_time);
-    qemu_get_be64s(f, &s->next_time);
+    s->initial_count_load_time=qemu_get_be64(f);
+    s->next_time=qemu_get_be64(f);
 
     if (version_id >= 2)
         qemu_get_timer(f, s->timer);
