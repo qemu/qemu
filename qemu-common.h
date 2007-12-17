@@ -28,6 +28,7 @@
 #endif
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #define fsync _commit
 #define lseek _lseeki64
