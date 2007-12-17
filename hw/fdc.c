@@ -234,7 +234,7 @@ static const fd_format_t fd_formats[] = {
 static void fd_revalidate (fdrive_t *drv)
 {
     const fd_format_t *parse;
-    int64_t nb_sectors, size;
+    uint64_t nb_sectors, size;
     int i, first_match, match;
     int nb_heads, max_track, last_sect, ro;
 

@@ -284,7 +284,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                                  uint8_t *buf, int lun)
 {
     SCSIDeviceState *s = d->state;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
     uint32_t lba;
     uint32_t len;
     int cmdlen;
