@@ -61,6 +61,7 @@ typedef struct SLAVIO_TIMERState {
     struct SLAVIO_TIMERState *master;
     int slave_index;
     // system only
+    unsigned int num_slaves;
     struct SLAVIO_TIMERState *slave[MAX_CPUS];
     uint32_t slave_mode;
 } SLAVIO_TIMERState;
@@ -230,7 +231,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
         if (s->master == NULL) {
             unsigned int i;
 
-            for (i = 0; i < MAX_CPUS; i++) {
+            for (i = 0; i < s->num_slaves; i++) {
                 if (val & (1 << i)) {
                     qemu_irq_lower(s->slave[i]->irq);
                     s->slave[i]->limit = -1ULL;
@@ -244,7 +245,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                     ptimer_run(s->slave[i]->timer, 0);
                 }
             }
-            s->slave_mode = val & ((1 << MAX_CPUS) - 1);
+            s->slave_mode = val & ((1 << s->num_slaves) - 1);
         } else
             DPRINTF("not system timer\n");
         break;
@@ -352,12 +353,14 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
 }
 
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
-                           qemu_irq *cpu_irqs)
+                           qemu_irq *cpu_irqs, unsigned int num_cpus)
 {
     SLAVIO_TIMERState *master;
     unsigned int i;
 
     master = slavio_timer_init(base + SYS_TIMER_OFFSET, master_irq, NULL, 0);
+
+    master->num_slaves = num_cpus;
 
     for (i = 0; i < MAX_CPUS; i++) {
         master->slave[i] = slavio_timer_init(base + (target_phys_addr_t)

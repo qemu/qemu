@@ -436,7 +436,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
                         hwdef->nvram_size, 8);
 
     slavio_timer_init_all(hwdef->counter_base, slavio_irq[hwdef->clock1_irq],
-                          slavio_cpu_irq);
+                          slavio_cpu_irq, smp_cpus);
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq],
                               nographic);
