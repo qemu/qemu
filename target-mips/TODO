@@ -47,3 +47,5 @@ MALTA system emulation
 - We fake firmware support instead of doing the real thing
 - Real firmware falls over when trying to init RAM, presumably due
   to lacking system controller emulation.
+- Bonito system controller not implemented
+- MSC1 system controller not implemented
