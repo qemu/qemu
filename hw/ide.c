@@ -430,8 +430,7 @@ static void padstr(char *str, const char *src, int len)
             v = *src++;
         else
             v = ' ';
-        *(char *)((long)str ^ 1) = v;
-        str++;
+        str[i^1] = v;
     }
 }
 

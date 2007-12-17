@@ -350,8 +350,8 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
     } else {
         s->phys_mem_read(s->dma_opaque, addr, (void *)tmd, sizeof(*tmd), 0);
         le32_to_cpus(&tmd->tbadr);
-        le16_to_cpus(&tmd->length);
-        le16_to_cpus(&tmd->status);
+        le16_to_cpus((uint16_t *)&tmd->length);
+        le16_to_cpus((uint16_t *)&tmd->status);
         le32_to_cpus(&tmd->misc);
         le32_to_cpus(&tmd->res);
         if (BCR_SWSTYLE(s) == 3) {
@@ -416,8 +416,8 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
     } else {
         s->phys_mem_read(s->dma_opaque, addr, (void *)rmd, sizeof(*rmd), 0);
         le32_to_cpus(&rmd->rbadr);
-        le16_to_cpus(&rmd->buf_length);
-        le16_to_cpus(&rmd->status);
+        le16_to_cpus((uint16_t *)&rmd->buf_length);
+        le16_to_cpus((uint16_t *)&rmd->status);
         le32_to_cpus(&rmd->msg_length);
         le32_to_cpus(&rmd->res);
         if (BCR_SWSTYLE(s) == 3) {

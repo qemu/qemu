@@ -1824,7 +1824,7 @@ static int64_t expr_unary(void)
     case '$':
         {
             char buf[128], *q;
-            target_long reg;
+            target_long reg=0;
 
             pch++;
             q = buf;

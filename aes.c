@@ -30,7 +30,10 @@
 #include "qemu-common.h"
 #include "aes.h"
 
+#ifndef NDEBUG
 #define NDEBUG
+#endif
+
 #include <assert.h>
 
 typedef uint32_t u32;

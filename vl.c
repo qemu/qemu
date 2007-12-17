@@ -4423,7 +4423,8 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd,
 {
     int so_type=-1, optlen=sizeof(so_type);
 
-    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type, &optlen)< 0) {
+    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
+        (socklen_t *)&optlen)< 0) {
 	fprintf(stderr, "qemu: error: getsockopt(SO_TYPE) for fd=%d failed\n", fd);
 	return NULL;
     }
