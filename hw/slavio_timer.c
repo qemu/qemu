@@ -175,7 +175,6 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
 {
     SLAVIO_TIMERState *s = opaque;
     uint32_t saddr;
-    int reload = 0;
 
     DPRINTF("write " TARGET_FMT_plx " %08x\n", addr, val);
     saddr = (addr & TIMER_MAXADDR) >> 2;
@@ -191,9 +190,10 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             // set limit, reset counter
             qemu_irq_lower(s->irq);
             s->limit = val & TIMER_MAX_COUNT32;
-            if (!s->limit)
-                s->limit = TIMER_MAX_COUNT32;
-            ptimer_set_limit(s->timer, s->limit >> 9, 1);
+            if (s->limit == 0) /* free-run */
+                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
+            else
+                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
         }
         break;
     case TIMER_COUNTER:
@@ -209,9 +209,10 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
     case TIMER_COUNTER_NORST:
         // set limit without resetting counter
         s->limit = val & TIMER_MAX_COUNT32;
-        if (!s->limit)
-            s->limit = TIMER_MAX_COUNT32;
-        ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), reload);
+        if (s->limit == 0)	/* free-run */
+            ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
+        else
+            ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 0);
         break;
     case TIMER_STATUS:
         if (slavio_timer_is_user(s)) {
