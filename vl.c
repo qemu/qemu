@@ -4838,14 +4838,14 @@ static int drive_add(const char *fmt, ...)
     return nb_drives_opt++;
 }
 
-int drive_get_index(BlockInterfaceType interface, int bus, int unit)
+int drive_get_index(BlockInterfaceType type, int bus, int unit)
 {
     int index;
 
     /* seek interface, bus and unit */
 
     for (index = 0; index < nb_drives; index++)
-        if (drives_table[index].interface == interface &&
+        if (drives_table[index].type == type &&
 	    drives_table[index].bus == bus &&
 	    drives_table[index].unit == unit)
         return index;
@@ -4853,14 +4853,14 @@ int drive_get_index(BlockInterfaceType interface, int bus, int unit)
     return -1;
 }
 
-int drive_get_max_bus(BlockInterfaceType interface)
+int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
     int index;
 
     max_bus = -1;
     for (index = 0; index < nb_drives; index++) {
-        if(drives_table[index].interface == interface &&
+        if(drives_table[index].type == type &&
            drives_table[index].bus > max_bus)
             max_bus = drives_table[index].bus;
     }
@@ -4873,7 +4873,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     char file[1024];
     char devname[128];
     const char *mediastr = "";
-    BlockInterfaceType interface;
+    BlockInterfaceType type;
     enum { MEDIA_DISK, MEDIA_CDROM } media;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
@@ -4902,11 +4902,11 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
         !strcmp(machine->name, "SS-600MP") ||
         !strcmp(machine->name, "versatilepb") ||
         !strcmp(machine->name, "versatileab")) {
-        interface = IF_SCSI;
+        type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
         strcpy(devname, "scsi");
     } else {
-        interface = IF_IDE;
+        type = IF_IDE;
         max_devs = MAX_IDE_DEVS;
         strcpy(devname, "ide");
     }
@@ -4933,22 +4933,22 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     if (get_param_value(buf, sizeof(buf), "if", str)) {
         strncpy(devname, buf, sizeof(devname));
         if (!strcmp(buf, "ide")) {
-	    interface = IF_IDE;
+	    type = IF_IDE;
             max_devs = MAX_IDE_DEVS;
         } else if (!strcmp(buf, "scsi")) {
-	    interface = IF_SCSI;
+	    type = IF_SCSI;
             max_devs = MAX_SCSI_DEVS;
         } else if (!strcmp(buf, "floppy")) {
-	    interface = IF_FLOPPY;
+	    type = IF_FLOPPY;
             max_devs = 0;
         } else if (!strcmp(buf, "pflash")) {
-	    interface = IF_PFLASH;
+	    type = IF_PFLASH;
             max_devs = 0;
 	} else if (!strcmp(buf, "mtd")) {
-	    interface = IF_MTD;
+	    type = IF_MTD;
             max_devs = 0;
 	} else if (!strcmp(buf, "sd")) {
-	    interface = IF_SD;
+	    type = IF_SD;
             max_devs = 0;
 	} else {
             fprintf(stderr, "qemu: '%s' unsupported bus type '%s'\n", str, buf);
@@ -5063,7 +5063,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
 
     if (unit_id == -1) {
        unit_id = 0;
-       while (drive_get_index(interface, bus_id, unit_id) != -1) {
+       while (drive_get_index(type, bus_id, unit_id) != -1) {
            unit_id++;
            if (max_devs && unit_id >= max_devs) {
                unit_id -= max_devs;
@@ -5084,23 +5084,23 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
      * ignore multiple definitions
      */
 
-    if (drive_get_index(interface, bus_id, unit_id) != -1)
+    if (drive_get_index(type, bus_id, unit_id) != -1)
         return 0;
 
     /* init */
 
-    if (interface == IF_IDE || interface == IF_SCSI)
+    if (type == IF_IDE || type == IF_SCSI)
         mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
     snprintf(buf, sizeof(buf), max_devs ? "%1$s%4$i%2$s%3$i" : "%s%s%i",
              devname, mediastr, unit_id, bus_id);
     bdrv = bdrv_new(buf);
     drives_table[nb_drives].bdrv = bdrv;
-    drives_table[nb_drives].interface = interface;
+    drives_table[nb_drives].type = type;
     drives_table[nb_drives].bus = bus_id;
     drives_table[nb_drives].unit = unit_id;
     nb_drives++;
 
-    switch(interface) {
+    switch(type) {
     case IF_IDE:
     case IF_SCSI:
         switch(media) {
