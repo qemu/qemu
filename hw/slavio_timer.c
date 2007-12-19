@@ -311,13 +311,11 @@ static void slavio_timer_reset(void *opaque)
 {
     SLAVIO_TIMERState *s = opaque;
 
-    if (slavio_timer_is_user(s))
-        s->limit = TIMER_MAX_COUNT64;
-    else
-        s->limit = TIMER_MAX_COUNT32;
+    s->limit = 0;
     s->count = 0;
     s->reached = 0;
-    ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
+    s->slave_mode = 0;
+    ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
     ptimer_run(s->timer, 0);
     s->running = 1;
     qemu_irq_lower(s->irq);
