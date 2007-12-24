@@ -786,6 +786,11 @@ int bdrv_is_read_only(BlockDriverState *bs)
     return bs->read_only;
 }
 
+int bdrv_is_sg(BlockDriverState *bs)
+{
+    return bs->sg;
+}
+
 /* XXX: no longer used */
 void bdrv_set_change_cb(BlockDriverState *bs,
                         void (*change_cb)(void *opaque), void *opaque)
@@ -1393,4 +1398,15 @@ void bdrv_set_locked(BlockDriverState *bs, int locked)
     if (drv && drv->bdrv_set_locked) {
         drv->bdrv_set_locked(bs, locked);
     }
+}
+
+/* needed for generic scsi interface */
+
+int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (drv && drv->bdrv_ioctl)
+        return drv->bdrv_ioctl(bs, req, buf);
+    return -ENOTSUP;
 }

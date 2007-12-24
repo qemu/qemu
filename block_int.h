@@ -82,6 +82,9 @@ struct BlockDriver {
     int (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
     int (*bdrv_set_locked)(BlockDriverState *bs, int locked);
 
+    /* to control generic scsi devices */
+    int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
+
     BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;
 };
@@ -93,6 +96,7 @@ struct BlockDriverState {
     int removable; /* if true, the media can be removed */
     int locked;    /* if true, the media cannot temporarily be ejected */
     int encrypted; /* if true, the media is encrypted */
+    int sg;        /* if true, the device is a /dev/sg* */
     /* event callback when inserting/removing */
     void (*change_cb)(void *opaque);
     void *change_opaque;
