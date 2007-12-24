@@ -6724,10 +6724,10 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 
     if (!SIGN_EXT_P(env->PC[env->current_tc]))
         cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC[env->current_tc]);
-    if (!SIGN_EXT_P(env->HI[env->current_tc]))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[env->current_tc]);
-    if (!SIGN_EXT_P(env->LO[env->current_tc]))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[env->current_tc]);
+    if (!SIGN_EXT_P(env->HI[0][env->current_tc]))
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[0][env->current_tc]);
+    if (!SIGN_EXT_P(env->LO[0][env->current_tc]))
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[0][env->current_tc]);
     if (!SIGN_EXT_P(env->btarget))
         cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 
