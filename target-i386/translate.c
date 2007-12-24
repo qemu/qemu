@@ -3887,7 +3887,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0x1c7: /* cmpxchg8b */
         modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
-        if (mod == 3)
+        if ((mod == 3) || ((modrm & 0x38) != 0x8))
             goto illegal_op;
         gen_jmp_im(pc_start - s->cs_base);
         if (s->cc_op != CC_OP_DYNAMIC)
