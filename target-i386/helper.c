@@ -1751,6 +1751,12 @@ void helper_cpuid(void)
         ECX = 0;
         EDX = 0;
         break;
+    case 0x8000000A:
+        EAX = 0x00000001;
+        EBX = 0;
+        ECX = 0;
+        EDX = 0;
+        break;
     default:
         /* reserved values: zero */
         EAX = 0;

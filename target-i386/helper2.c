@@ -150,7 +150,7 @@ static x86_def_t x86_defs[] = {
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .ext3_features = CPUID_EXT3_SVM,
-        .xlevel = 0x80000008,
+        .xlevel = 0x8000000A,
     },
 #endif
     {
