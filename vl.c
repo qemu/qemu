@@ -5091,8 +5091,12 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
 
     if (type == IF_IDE || type == IF_SCSI)
         mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
-    snprintf(buf, sizeof(buf), max_devs ? "%1$s%4$i%2$s%3$i" : "%s%s%i",
-             devname, mediastr, unit_id, bus_id);
+    if (max_devs)
+        snprintf(buf, sizeof(buf), "%s%i%s%i",
+                 devname, bus_id, mediastr, unit_id);
+    else
+        snprintf(buf, sizeof(buf), "%s%s%i",
+                 devname, mediastr, unit_id);
     bdrv = bdrv_new(buf);
     drives_table[nb_drives].bdrv = bdrv;
     drives_table[nb_drives].type = type;
