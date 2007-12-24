@@ -119,6 +119,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 
 typedef struct x86_def_t {
     const char *name;
+    uint32_t level;
     uint32_t vendor1, vendor2, vendor3;
     int family;
     int model;
@@ -135,6 +136,7 @@ static x86_def_t x86_defs[] = {
 #ifdef TARGET_X86_64
     {
         .name = "qemu64",
+        .level = 2,
         .vendor1 = 0x68747541, /* "Auth" */
         .vendor2 = 0x69746e65, /* "enti" */
         .vendor3 = 0x444d4163, /* "cAMD" */
@@ -155,6 +157,7 @@ static x86_def_t x86_defs[] = {
 #endif
     {
         .name = "qemu32",
+        .level = 2,
         .family = 6,
         .model = 3,
         .stepping = 3,
@@ -164,6 +167,7 @@ static x86_def_t x86_defs[] = {
     },
     {
         .name = "486",
+        .level = 0,
         .family = 4,
         .model = 0,
         .stepping = 0,
@@ -172,6 +176,7 @@ static x86_def_t x86_defs[] = {
     },
     {
         .name = "pentium",
+        .level = 1,
         .family = 5,
         .model = 4,
         .stepping = 3,
@@ -180,6 +185,7 @@ static x86_def_t x86_defs[] = {
     },
     {
         .name = "pentium2",
+        .level = 2,
         .family = 6,
         .model = 5,
         .stepping = 2,
@@ -188,6 +194,7 @@ static x86_def_t x86_defs[] = {
     },
     {
         .name = "pentium3",
+        .level = 2,
         .family = 6,
         .model = 7,
         .stepping = 3,
@@ -306,7 +313,7 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         env->cpuid_vendor2 = 0x49656e69; /* "ineI" */
         env->cpuid_vendor3 = 0x6c65746e; /* "ntel" */
     }
-    env->cpuid_level = 2;
+    env->cpuid_level = def->level;
     env->cpuid_version = (def->family << 8) | (def->model << 4) | def->stepping;
     env->cpuid_features = def->features;
     env->pat = 0x0007040600070406ULL;
