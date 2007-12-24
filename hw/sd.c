@@ -96,6 +96,7 @@ struct SDState {
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
     BlockDriverState *bdrv;
+    uint8_t *buf;
 };
 
 static void sd_set_status(SDState *sd)
@@ -405,6 +406,7 @@ SDState *sd_init(BlockDriverState *bs, int is_spi)
     SDState *sd;
 
     sd = (SDState *) qemu_mallocz(sizeof(SDState));
+    sd->buf = qemu_memalign(512, 512);
     sd->spi = is_spi;
     sd_reset(sd, bs);
     bdrv_set_change_cb(sd->bdrv, sd_cardchange, sd);
@@ -1281,64 +1283,60 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
 }
 
 /* No real need for 64 bit addresses here */
-static void sd_blk_read(BlockDriverState *bdrv,
-                void *data, uint32_t addr, uint32_t len)
+static void sd_blk_read(SDState *sd, uint32_t addr, uint32_t len)
 {
-    uint8_t buf[512];
     uint32_t end = addr + len;
 
-    if (!bdrv || bdrv_read(bdrv, addr >> 9, buf, 1) == -1) {
+    if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
         printf("sd_blk_read: read error on host side\n");
         return;
     }
 
     if (end > (addr & ~511) + 512) {
-        memcpy(data, buf + (addr & 511), 512 - (addr & 511));
+        memcpy(sd->data, sd->buf + (addr & 511), 512 - (addr & 511));
 
-        if (bdrv_read(bdrv, end >> 9, buf, 1) == -1) {
+        if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_read: read error on host side\n");
             return;
         }
-        memcpy(data + 512 - (addr & 511), buf, end & 511);
+        memcpy(sd->data + 512 - (addr & 511), sd->buf, end & 511);
     } else
-        memcpy(data, buf + (addr & 511), len);
+        memcpy(sd->data, sd->buf + (addr & 511), len);
 }
 
-static void sd_blk_write(BlockDriverState *bdrv,
-                void *data, uint32_t addr, uint32_t len)
+static void sd_blk_write(SDState *sd, uint32_t addr, uint32_t len)
 {
-    uint8_t buf[512];
     uint32_t end = addr + len;
 
     if ((addr & 511) || len < 512)
-        if (!bdrv || bdrv_read(bdrv, addr >> 9, buf, 1) == -1) {
+        if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_write: read error on host side\n");
             return;
         }
 
     if (end > (addr & ~511) + 512) {
-        memcpy(buf + (addr & 511), data, 512 - (addr & 511));
-        if (bdrv_write(bdrv, addr >> 9, buf, 1) == -1) {
+        memcpy(sd->buf + (addr & 511), sd->data, 512 - (addr & 511));
+        if (bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_write: write error on host side\n");
             return;
         }
 
-        if (bdrv_read(bdrv, end >> 9, buf, 1) == -1) {
+        if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_write: read error on host side\n");
             return;
         }
-        memcpy(buf, data + 512 - (addr & 511), end & 511);
-        if (bdrv_write(bdrv, end >> 9, buf, 1) == -1)
+        memcpy(sd->buf, sd->data + 512 - (addr & 511), end & 511);
+        if (bdrv_write(sd->bdrv, end >> 9, sd->buf, 1) == -1)
             printf("sd_blk_write: write error on host side\n");
     } else {
-        memcpy(buf + (addr & 511), data, len);
-        if (!bdrv || bdrv_write(bdrv, addr >> 9, buf, 1) == -1)
+        memcpy(sd->buf + (addr & 511), sd->data, len);
+        if (!sd->bdrv || bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) == -1)
             printf("sd_blk_write: write error on host side\n");
     }
 }
 
-#define BLK_READ_BLOCK(a, len)	sd_blk_read(sd->bdrv, sd->data, a, len)
-#define BLK_WRITE_BLOCK(a, len)	sd_blk_write(sd->bdrv, sd->data, a, len)
+#define BLK_READ_BLOCK(a, len)	sd_blk_read(sd, a, len)
+#define BLK_WRITE_BLOCK(a, len)	sd_blk_write(sd, a, len)
 #define APP_READ_BLOCK(a, len)	memset(sd->data, 0xec, len)
 #define APP_WRITE_BLOCK(a, len)
 

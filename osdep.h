@@ -48,6 +48,7 @@ void *qemu_mallocz(size_t size);
 void qemu_free(void *ptr);
 char *qemu_strdup(const char *str);
 
+void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_vmalloc(size_t size);
 void qemu_vfree(void *ptr);
 

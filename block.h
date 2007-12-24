@@ -44,6 +44,7 @@ typedef struct QEMUSnapshotInfo {
                                      use a disk image format on top of
                                      it (default for
                                      bdrv_file_open()) */
+#define BDRV_O_DIRECT      0x0020
 
 #ifndef QEMU_IMG
 void bdrv_info(void);

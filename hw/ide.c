@@ -365,7 +365,7 @@ typedef struct IDEState {
     EndTransferFunc *end_transfer_func;
     uint8_t *data_ptr;
     uint8_t *data_end;
-    uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
+    uint8_t *io_buffer;
     QEMUTimer *sector_write_timer; /* only used for win2k install hack */
     uint32_t irq_count; /* counts IRQs when using win2k install hack */
     /* CF-ATA extended error */
@@ -2377,17 +2377,24 @@ struct partition {
 static int guess_disk_lchs(IDEState *s,
                            int *pcylinders, int *pheads, int *psectors)
 {
-    uint8_t buf[512];
+    uint8_t *buf;
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
 
+    buf = qemu_memalign(512, 512);
+    if (buf == NULL)
+        return -1;
     ret = bdrv_read(s->bs, 0, buf, 1);
-    if (ret < 0)
+    if (ret < 0) {
+        qemu_free(buf);
         return -1;
+    }
     /* test msdos magic */
-    if (buf[510] != 0x55 || buf[511] != 0xaa)
+    if (buf[510] != 0x55 || buf[511] != 0xaa) {
+        qemu_free(buf);
         return -1;
+    }
     for(i = 0; i < 4; i++) {
         p = ((struct partition *)(buf + 0x1be)) + i;
         nr_sects = le32_to_cpu(p->nr_sects);
@@ -2408,9 +2415,11 @@ static int guess_disk_lchs(IDEState *s,
             printf("guessed geometry: LCHS=%d %d %d\n",
                    cylinders, heads, sectors);
 #endif
+            qemu_free(buf);
             return 0;
         }
     }
+    qemu_free(buf);
     return -1;
 }
 
@@ -2425,6 +2434,7 @@ static void ide_init2(IDEState *ide_state,
 
     for(i = 0; i < 2; i++) {
         s = ide_state + i;
+        s->io_buffer = qemu_memalign(512, MAX_MULT_SECTORS*512 + 4);
         if (i == 0)
             s->bs = hd0;
         else

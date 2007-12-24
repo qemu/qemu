@@ -380,7 +380,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     /* Note: for compatibility, we open disk image files as RDWR, and
        RDONLY as fallback */
     if (!(flags & BDRV_O_FILE))
-        open_flags = BDRV_O_RDWR;
+        open_flags = BDRV_O_RDWR | (flags & BDRV_O_DIRECT);
     else
         open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
     ret = drv->bdrv_open(bs, filename, open_flags);

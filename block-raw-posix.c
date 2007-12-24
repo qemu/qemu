@@ -106,6 +106,10 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     }
     if (flags & BDRV_O_CREAT)
         open_flags |= O_CREAT | O_TRUNC;
+#ifdef O_DIRECT
+    if (flags & BDRV_O_DIRECT)
+        open_flags |= O_DIRECT;
+#endif
 
     s->type = FTYPE_FILE;
 
@@ -659,6 +663,10 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
+#ifdef O_DIRECT
+    if (flags & BDRV_O_DIRECT)
+        open_flags |= O_DIRECT;
+#endif
 
     s->type = FTYPE_FILE;
 #if defined(__linux__)
