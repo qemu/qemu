@@ -317,7 +317,7 @@ static mips_def_t mips_defs[] =
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
-        .CCRes = 2,
+        .CCRes = 1,
         .CP0_Status_rw_bitmask = 0x36FBFFFF,
 	/* The 20Kc has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_3D) | (1 << FCR0_PS) |
