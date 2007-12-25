@@ -392,6 +392,8 @@ void monitor_disas(CPUState *env,
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
     print_insn = print_insn_arm;
+#elif defined(TARGET_ALPHA)
+    print_insn = print_insn_alpha;
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
