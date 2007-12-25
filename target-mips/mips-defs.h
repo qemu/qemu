@@ -4,7 +4,7 @@
 /* If we want to use host float regs... */
 //#define USE_HOST_FLOAT_REGS
 
-/* real pages are variable size... */
+/* Real pages are variable size... */
 #define TARGET_PAGE_BITS 12
 #define MIPS_TLB_MAX 128
 
@@ -29,7 +29,7 @@
 #define		ISA_MIPS64	0x00000080
 #define		ISA_MIPS64R2	0x00000100
 
-/* MIPS ASE */
+/* MIPS ASEs. */
 #define		ASE_MIPS16	0x00001000
 #define		ASE_MIPS3D	0x00002000
 #define		ASE_MDMX	0x00004000
@@ -38,19 +38,23 @@
 #define		ASE_MT		0x00020000
 #define		ASE_SMARTMIPS	0x00040000
 
-/* Chip specific instructions.   */
-/* Currently void */
+/* Chip specific instructions. */
+#define		INSN_VR54XX	0x80000000
 
-/* MIPS CPU defines.  */
+/* MIPS CPU defines. */
 #define		CPU_MIPS1	(ISA_MIPS1)
 #define		CPU_MIPS2	(CPU_MIPS1 | ISA_MIPS2)
 #define		CPU_MIPS3	(CPU_MIPS2 | ISA_MIPS3)
 #define		CPU_MIPS4	(CPU_MIPS3 | ISA_MIPS4)
+#define		CPU_VR54XX	(CPU_MIPS4 | INSN_VR54XX)
+
 #define		CPU_MIPS5	(CPU_MIPS4 | ISA_MIPS5)
 
+/* MIPS Technologies "Release 1" */
 #define		CPU_MIPS32	(CPU_MIPS2 | ISA_MIPS32)
 #define		CPU_MIPS64	(CPU_MIPS5 | CPU_MIPS32 | ISA_MIPS64)
 
+/* MIPS Technologies "Release 2" */
 #define		CPU_MIPS32R2	(CPU_MIPS32 | ISA_MIPS32R2)
 #define		CPU_MIPS64R2	(CPU_MIPS64 | CPU_MIPS32R2 | ISA_MIPS64R2)
 

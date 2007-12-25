@@ -306,6 +306,22 @@ static mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_R4000,
     },
     {
+        .name = "VR5432",
+        .CP0_PRid = 0x00005400,
+        /* No L2 cache, icache size 8k, dcache size 8k, uncached coherency. */
+        .CP0_Config0 = (1 << 17) | (0x1 << 9) | (0x1 << 6) | (0x2 << CP0C0_K0),
+        .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
+        .SYNCI_Step = 16,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x3678FFFF,
+        /* The VR5432 has a full 64bit FPU but doesn't use the fcr0 bits. */
+        .CP1_fcr0 = (0x54 << FCR0_PRID) | (0x0 << FCR0_REV),
+        .SEGBITS = 40,
+        .PABITS = 32,
+        .insn_flags = CPU_VR54XX,
+        .mmu_type = MMU_TYPE_R4000,
+    },
+    {
         .name = "5Kc",
         .CP0_PRid = 0x00018100,
         .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
