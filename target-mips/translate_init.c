@@ -308,7 +308,7 @@ static mips_def_t mips_defs[] =
     {
         .name = "5Kc",
         .CP0_PRid = 0x00018100,
-        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) | (0x2 << CP0C0_AT) |
+        .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
                     (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (31 << CP0C1_MMU) |
 		    (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
@@ -327,7 +327,7 @@ static mips_def_t mips_defs[] =
     {
         .name = "5Kf",
         .CP0_PRid = 0x00018100,
-        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) | (0x2 << CP0C0_AT) |
+        .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
                     (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (31 << CP0C1_MMU) |
 		    (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
@@ -351,7 +351,7 @@ static mips_def_t mips_defs[] =
 	/* We emulate a later version of the 20Kc, earlier ones had a broken
            WAIT instruction. */
         .CP0_PRid = 0x000182a0,
-        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) | (0x2 << CP0C0_AT) |
+        .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
                     (MMU_TYPE_R4000 << CP0C0_MT) | (1 << CP0C0_VI),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (47 << CP0C1_MMU) |
 		    (2 << CP0C1_IS) | (4 << CP0C1_IL) | (3 << CP0C1_IA) |
