@@ -230,9 +230,16 @@ void do_div (void)
 void do_ddiv (void)
 {
     if (T1 != 0) {
-        lldiv_t res = lldiv((int64_t)T0, (int64_t)T1);
-        env->LO[0][env->current_tc] = res.quot;
-        env->HI[0][env->current_tc] = res.rem;
+        int64_t arg0 = (int64_t)T0;
+        int64_t arg1 = (int64_t)T1;
+        if (arg0 == ((int64_t)-1 << 63) && arg1 == (int64_t)-1) {
+            env->LO[0][env->current_tc] = arg0;
+            env->HI[0][env->current_tc] = 0;
+        } else {
+            lldiv_t res = lldiv(arg0, arg1);
+            env->LO[0][env->current_tc] = res.quot;
+            env->HI[0][env->current_tc] = res.rem;
+        }
     }
 }
 
