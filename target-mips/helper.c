@@ -148,10 +148,9 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         }
     } else if (address < 0xC000000000000000ULL) {
         /* xkphys */
-        /* XXX: Assumes PABITS = 36 (correct for MIPS64R1) */
         if (kernel_mode && KX &&
-            (address & 0x07FFFFFFFFFFFFFFULL) <= 0x0000000FFFFFFFFFULL) {
-            *physical = address & 0x0000000FFFFFFFFFULL;
+            (address & 0x07FFFFFFFFFFFFFFULL) <= env->PAMask) {
+            *physical = address & env->PAMask;
             *prot = PAGE_READ | PAGE_WRITE;
 	} else {
 	    ret = TLBRET_BADADDR;

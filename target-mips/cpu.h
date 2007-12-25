@@ -162,6 +162,8 @@ struct CPUMIPSState {
 
     uint32_t SEGBITS;
     target_ulong SEGMask;
+    uint32_t PABITS;
+    target_ulong PAMask;
 
     int32_t CP0_Index;
     /* CP0_MVP* are per MVP registers. */

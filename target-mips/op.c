@@ -1563,7 +1563,7 @@ void op_mtc0_vpeopt (void)
 
 void op_mtc0_entrylo0 (void)
 {
-    /* Large physaddr not implemented */
+    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
     FORCE_RET();
@@ -1700,7 +1700,7 @@ void op_mttc0_tcschefback (void)
 
 void op_mtc0_entrylo1 (void)
 {
-    /* Large physaddr not implemented */
+    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
     FORCE_RET();
@@ -1722,7 +1722,7 @@ void op_mtc0_pagemask (void)
 void op_mtc0_pagegrain (void)
 {
     /* SmartMIPS not implemented */
-    /* Large physaddr not implemented */
+    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_PageGrain = 0;
     FORCE_RET();
