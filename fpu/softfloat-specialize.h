@@ -65,7 +65,13 @@ typedef struct {
 /*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
-#if SNAN_BIT_IS_ONE
+#if defined(TARGET_SPARC)
+#define float32_default_nan make_float32(0x7FFFFFFF)
+#elif defined(TARGET_POWERPC)
+#define float32_default_nan make_float32(0x7FC00000)
+#elif defined(TARGET_HPPA)
+#define float32_default_nan make_float32(0x7FA00000)
+#elif SNAN_BIT_IS_ONE
 #define float32_default_nan make_float32(0x7FBFFFFF)
 #else
 #define float32_default_nan make_float32(0xFFC00000)
@@ -125,8 +131,12 @@ static commonNaNT float32ToCommonNaN( float32 a STATUS_PARAM )
 
 static float32 commonNaNToFloat32( commonNaNT a )
 {
-    return make_float32(
-        ( ( (bits32) a.sign )<<31 ) | 0x7FC00000 | ( a.high>>41 ) );
+    bits32 mantissa = a.high>>41;
+    if ( mantissa )
+        return make_float32(
+            ( ( (bits32) a.sign )<<31 ) | 0x7F800000 | ( a.high>>41 ) );
+    else
+        return float32_default_nan;
 }
 
 /*----------------------------------------------------------------------------
@@ -180,7 +190,13 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 /*----------------------------------------------------------------------------
 | The pattern for a default generated double-precision NaN.
 *----------------------------------------------------------------------------*/
-#if SNAN_BIT_IS_ONE
+#if defined(TARGET_SPARC)
+#define float64_default_nan make_float64(LIT64( 0x7FFFFFFFFFFFFFFF ))
+#elif defined(TARGET_POWERPC)
+#define float64_default_nan make_float64(LIT64( 0x7FF8000000000000 ))
+#elif defined(TARGET_HPPA)
+#define float64_default_nan make_float64(LIT64( 0x7FF4000000000000 ))
+#elif SNAN_BIT_IS_ONE
 #define float64_default_nan make_float64(LIT64( 0x7FF7FFFFFFFFFFFF ))
 #else
 #define float64_default_nan make_float64(LIT64( 0xFFF8000000000000 ))
@@ -244,10 +260,15 @@ static commonNaNT float64ToCommonNaN( float64 a STATUS_PARAM)
 
 static float64 commonNaNToFloat64( commonNaNT a )
 {
-    return make_float64(
-          ( ( (bits64) a.sign )<<63 )
-        | LIT64( 0x7FF8000000000000 )
-        | ( a.high>>12 ));
+    bits64 mantissa = a.high>>12;
+
+    if ( mantissa )
+        return make_float64(
+              ( ( (bits64) a.sign )<<63 )
+            | LIT64( 0x7FF0000000000000 )
+            | ( a.high>>12 ));
+    else
+        return float64_default_nan;
 }
 
 /*----------------------------------------------------------------------------
@@ -366,7 +387,7 @@ static commonNaNT floatx80ToCommonNaN( floatx80 a STATUS_PARAM)
     if ( floatx80_is_signaling_nan( a ) ) float_raise( float_flag_invalid STATUS_VAR);
     z.sign = a.high>>15;
     z.low = 0;
-    z.high = a.low<<1;
+    z.high = a.low;
     return z;
 }
 
@@ -379,7 +400,10 @@ static floatx80 commonNaNToFloatx80( commonNaNT a )
 {
     floatx80 z;
 
-    z.low = LIT64( 0xC000000000000000 ) | ( a.high>>1 );
+    if (a.high)
+        z.low = a.high;
+    else
+        z.low = floatx80_default_nan_low;
     z.high = ( ( (bits16) a.sign )<<15 ) | 0x7FFF;
     return z;
 }
@@ -500,7 +524,7 @@ static float128 commonNaNToFloat128( commonNaNT a )
     float128 z;
 
     shift128Right( a.high, a.low, 16, &z.high, &z.low );
-    z.high |= ( ( (bits64) a.sign )<<63 ) | LIT64( 0x7FFF800000000000 );
+    z.high |= ( ( (bits64) a.sign )<<63 ) | LIT64( 0x7FFF000000000000 );
     return z;
 }
 
