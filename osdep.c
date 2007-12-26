@@ -288,6 +288,7 @@ int qemu_gettimeofday(qemu_timeval *tp)
 }
 #endif /* _WIN32 */
 
+#if !defined(CONFIG_USER_ONLY)
 struct tm *qemu_time_r(const time_t *timep, struct tm *result)
 {
     struct tm *t;
@@ -302,3 +303,4 @@ struct tm *qemu_time_r(const time_t *timep, struct tm *result)
 #endif
     return t;
 }
+#endif
