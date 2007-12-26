@@ -523,40 +523,37 @@ enum {
     EXCP_SRESET,
     EXCP_DSS,
     EXCP_DINT,
+    EXCP_DDBL,
+    EXCP_DDBS,
     EXCP_NMI,
     EXCP_MCHECK,
-    EXCP_EXT_INTERRUPT,
+    EXCP_EXT_INTERRUPT, /* 8 */
     EXCP_DFWATCH,
-    EXCP_DIB, /* 8 */
+    EXCP_DIB,
     EXCP_IWATCH,
     EXCP_AdEL,
     EXCP_AdES,
     EXCP_TLBF,
     EXCP_IBE,
-    EXCP_DBp,
+    EXCP_DBp, /* 16 */
     EXCP_SYSCALL,
-    EXCP_BREAK, /* 16 */
+    EXCP_BREAK,
     EXCP_CpU,
     EXCP_RI,
     EXCP_OVERFLOW,
     EXCP_TRAP,
     EXCP_FPE,
-    EXCP_DDBS,
-    EXCP_DWATCH,
-    EXCP_LAE, /* 24 */
-    EXCP_SAE,
+    EXCP_DWATCH, /* 24 */
     EXCP_LTLBL,
     EXCP_TLBL,
     EXCP_TLBS,
     EXCP_DBE,
-    EXCP_DDBL,
     EXCP_THREAD,
-    EXCP_MTCP0         = 0x104, /* mtmsr instruction:               */
-                                /* may change privilege level       */
-    EXCP_BRANCH        = 0x108, /* branch instruction               */
-    EXCP_ERET          = 0x10C, /* return from interrupt            */
-    EXCP_SYSCALL_USER  = 0x110, /* System call in user mode only    */
-    EXCP_FLUSH         = 0x109,
+    EXCP_MDMX,
+    EXCP_C2E,
+    EXCP_CACHE, /* 32 */
+
+    EXCP_LAST = EXCP_CACHE,
 };
 
 int cpu_mips_exec(CPUMIPSState *s);
