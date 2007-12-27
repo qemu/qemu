@@ -305,7 +305,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
             STATUS_CTS | STATUS_TXUNDRN;
     else
         s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
-    s->rregs[R_SPEC] = SPEC_BITS8;
+    s->rregs[R_SPEC] = SPEC_BITS8 | SPEC_ALLSENT;
 
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
