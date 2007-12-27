@@ -868,10 +868,10 @@ static void set_multicast_list(EEPRO100State *s, uint16_t multicast_count)
 {
       uint16_t i;
       memset(&s->mult[0], 0, sizeof(s->mult));
-      TRACE(OTHER, logout("multicast list, %u entries\n", multicast_count));
-      for (i = 0; i < multicast_count; i++) {
+      TRACE(OTHER, logout("multicast list, multicast count = %u\n", multicast_count));
+      for (i = 0; i < multicast_count; i += 6) {
           uint8_t multicast_addr[6];
-          cpu_physical_memory_read(s->cb_address + 10 + 6 * i, multicast_addr, 6);
+          cpu_physical_memory_read(s->cb_address + 10 + i, multicast_addr, 6);
           TRACE(OTHER, logout("multicast entry %s\n", nic_dump(multicast_addr, 6)));
           unsigned mcast_idx = compute_mcast_idx(multicast_addr);
           assert(mcast_idx < 64);
