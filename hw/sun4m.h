@@ -36,7 +36,7 @@ void slavio_irq_info(void *opaque);
 
 /* slavio_timer.c */
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
-                           qemu_irq *cpu_irqs);
+                           qemu_irq *cpu_irqs, unsigned int num_cpus);
 
 /* slavio_serial.c */
 SerialState *slavio_serial_init(target_phys_addr_t base, qemu_irq irq,

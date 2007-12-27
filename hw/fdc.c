@@ -382,7 +382,7 @@ struct fdctrl_t {
     uint8_t cur_drv;
     uint8_t bootsel;
     /* Command FIFO */
-    uint8_t fifo[FD_SECTOR_LEN];
+    uint8_t *fifo;
     uint32_t data_pos;
     uint32_t data_len;
     uint8_t data_state;
@@ -598,6 +598,11 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl = qemu_mallocz(sizeof(fdctrl_t));
     if (!fdctrl)
         return NULL;
+    fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
+    if (fdctrl->fifo == NULL) {
+        qemu_free(fdctrl);
+        return NULL;
+    }
     fdctrl->result_timer = qemu_new_timer(vm_clock,
                                           fdctrl_result_timer, fdctrl);
 

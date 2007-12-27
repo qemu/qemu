@@ -61,6 +61,7 @@ typedef struct SLAVIO_TIMERState {
     struct SLAVIO_TIMERState *master;
     int slave_index;
     // system only
+    unsigned int num_slaves;
     struct SLAVIO_TIMERState *slave[MAX_CPUS];
     uint32_t slave_mode;
 } SLAVIO_TIMERState;
@@ -96,9 +97,14 @@ static int slavio_timer_is_user(SLAVIO_TIMERState *s)
 // Convert from ptimer countdown units
 static void slavio_timer_get_out(SLAVIO_TIMERState *s)
 {
-    uint64_t count;
+    uint64_t count, limit;
 
-    count = s->limit - PERIODS_TO_LIMIT(ptimer_get_count(s->timer));
+    if (s->limit == 0) /* free-run processor or system counter */
+        limit = TIMER_MAX_COUNT32;
+    else
+        limit = s->limit;
+
+    count = limit - PERIODS_TO_LIMIT(ptimer_get_count(s->timer));
     DPRINTF("get_out: limit %" PRIx64 " count %x%08x\n", s->limit,
             s->counthigh, s->count);
     s->count = count & TIMER_COUNT_MASK32;
@@ -174,7 +180,6 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
 {
     SLAVIO_TIMERState *s = opaque;
     uint32_t saddr;
-    int reload = 0;
 
     DPRINTF("write " TARGET_FMT_plx " %08x\n", addr, val);
     saddr = (addr & TIMER_MAXADDR) >> 2;
@@ -190,9 +195,10 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             // set limit, reset counter
             qemu_irq_lower(s->irq);
             s->limit = val & TIMER_MAX_COUNT32;
-            if (!s->limit)
-                s->limit = TIMER_MAX_COUNT32;
-            ptimer_set_limit(s->timer, s->limit >> 9, 1);
+            if (s->limit == 0) /* free-run */
+                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
+            else
+                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
         }
         break;
     case TIMER_COUNTER:
@@ -208,9 +214,10 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
     case TIMER_COUNTER_NORST:
         // set limit without resetting counter
         s->limit = val & TIMER_MAX_COUNT32;
-        if (!s->limit)
-            s->limit = TIMER_MAX_COUNT32;
-        ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), reload);
+        if (s->limit == 0)	/* free-run */
+            ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
+        else
+            ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 0);
         break;
     case TIMER_STATUS:
         if (slavio_timer_is_user(s)) {
@@ -230,7 +237,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
         if (s->master == NULL) {
             unsigned int i;
 
-            for (i = 0; i < MAX_CPUS; i++) {
+            for (i = 0; i < s->num_slaves; i++) {
                 if (val & (1 << i)) {
                     qemu_irq_lower(s->slave[i]->irq);
                     s->slave[i]->limit = -1ULL;
@@ -244,7 +251,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                     ptimer_run(s->slave[i]->timer, 0);
                 }
             }
-            s->slave_mode = val & ((1 << MAX_CPUS) - 1);
+            s->slave_mode = val & ((1 << s->num_slaves) - 1);
         } else
             DPRINTF("not system timer\n");
         break;
@@ -304,13 +311,11 @@ static void slavio_timer_reset(void *opaque)
 {
     SLAVIO_TIMERState *s = opaque;
 
-    if (slavio_timer_is_user(s))
-        s->limit = TIMER_MAX_COUNT64;
-    else
-        s->limit = TIMER_MAX_COUNT32;
+    s->limit = 0;
     s->count = 0;
     s->reached = 0;
-    ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
+    s->slave_mode = 0;
+    ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
     ptimer_run(s->timer, 0);
     s->running = 1;
     qemu_irq_lower(s->irq);
@@ -352,12 +357,14 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
 }
 
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
-                           qemu_irq *cpu_irqs)
+                           qemu_irq *cpu_irqs, unsigned int num_cpus)
 {
     SLAVIO_TIMERState *master;
     unsigned int i;
 
     master = slavio_timer_init(base + SYS_TIMER_OFFSET, master_irq, NULL, 0);
+
+    master->num_slaves = num_cpus;
 
     for (i = 0; i < MAX_CPUS; i++) {
         master->slave[i] = slavio_timer_init(base + (target_phys_addr_t)

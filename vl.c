@@ -4886,8 +4886,11 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     BlockDriverState *bdrv;
     int max_devs;
     int index;
+    int cache;
+    int bdrv_flags;
     char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
-                       "secs", "trans", "media", "snapshot", "file", NULL };
+                       "secs", "trans", "media", "snapshot", "file",
+                       "cache", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknowm parameter '%s' in '%s'\n",
@@ -4901,6 +4904,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     unit_id = -1;
     translation = BIOS_ATA_TRANSLATION_AUTO;
     index = -1;
+    cache = 1;
 
     if (!strcmp(machine->name, "realview") ||
         !strcmp(machine->name, "SS-5") ||
@@ -5043,6 +5047,17 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
 	}
     }
 
+    if (get_param_value(buf, sizeof(buf), "cache", str)) {
+        if (!strcmp(buf, "off"))
+            cache = 0;
+        else if (!strcmp(buf, "on"))
+            cache = 1;
+        else {
+           fprintf(stderr, "qemu: invalid cache option\n");
+           return -1;
+        }
+    }
+
     get_param_value(file, sizeof(file), "file", str);
 
     /* compute bus and unit according index */
@@ -5097,8 +5112,12 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
 
     if (type == IF_IDE || type == IF_SCSI)
         mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
-    snprintf(buf, sizeof(buf), max_devs ? "%1$s%4$i%2$s%3$i" : "%s%s%i",
-             devname, mediastr, unit_id, bus_id);
+    if (max_devs)
+        snprintf(buf, sizeof(buf), "%s%i%s%i",
+                 devname, bus_id, mediastr, unit_id);
+    else
+        snprintf(buf, sizeof(buf), "%s%s%i",
+                 devname, mediastr, unit_id);
     bdrv = bdrv_new(buf);
     drives_table[nb_drives].bdrv = bdrv;
     drives_table[nb_drives].type = type;
@@ -5133,8 +5152,12 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     }
     if (!file[0])
         return 0;
-    if (bdrv_open(bdrv, file, snapshot ? BDRV_O_SNAPSHOT : 0) < 0 ||
-        qemu_key_check(bdrv, file)) {
+    bdrv_flags = 0;
+    if (snapshot)
+        bdrv_flags |= BDRV_O_SNAPSHOT;
+    if (!cache)
+        bdrv_flags |= BDRV_O_DIRECT;
+    if (bdrv_open(bdrv, file, bdrv_flags) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
@@ -7482,7 +7505,8 @@ static void help(int exitcode)
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
 	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][index=i]\n"
-           "       [,cyls=c,heads=h,secs=s[,trans=t]][snapshot=on|off]\n"
+           "       [,cyls=c,heads=h,secs=s[,trans=t]][snapshot=on|off]"
+           "       [,cache=on|off]\n"
 	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"

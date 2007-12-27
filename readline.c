@@ -267,7 +267,7 @@ static void term_hist_add(const char *cmdline)
 	    new_entry = hist_entry;
 	    /* Put this entry at the end of history */
 	    memmove(&term_history[idx], &term_history[idx + 1],
-		    &term_history[TERM_MAX_CMDS] - &term_history[idx + 1]);
+		    (TERM_MAX_CMDS - idx + 1) * sizeof(char *));
 	    term_history[TERM_MAX_CMDS - 1] = NULL;
 	    for (; idx < TERM_MAX_CMDS; idx++) {
 		if (term_history[idx] == NULL)
@@ -280,7 +280,7 @@ static void term_hist_add(const char *cmdline)
 	/* Need to get one free slot */
 	free(term_history[0]);
 	memcpy(term_history, &term_history[1],
-	       &term_history[TERM_MAX_CMDS] - &term_history[1]);
+	       (TERM_MAX_CMDS - 1) * sizeof(char *));
 	term_history[TERM_MAX_CMDS - 1] = NULL;
 	idx = TERM_MAX_CMDS - 1;
     }

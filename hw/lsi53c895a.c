@@ -1236,6 +1236,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->sdid;
     case 0x07: /* GPREG0 */
         return 0x7f;
+    case 0x08: /* Revision ID */
+        return 0x00;
     case 0xa: /* SSID */
         return s->ssid;
     case 0xb: /* SBCL */
@@ -1281,6 +1283,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->ctest4;
     case 0x22: /* CTEST5 */
         return s->ctest5;
+    case 0x23: /* CTEST6 */
+         return 0;
     case 0x24: /* DBC[0:7] */
         return s->dbc & 0xff;
     case 0x25: /* DBC[8:15] */
@@ -1838,7 +1842,9 @@ void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id)
         s->scsi_dev[id]->destroy(s->scsi_dev[id]);
     }
     DPRINTF("Attaching block device %d\n", id);
-    s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
+    s->scsi_dev[id] = scsi_generic_init(bd, 1, lsi_command_complete, s);
+    if (s->scsi_dev[id] == NULL)
+        s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
 }
 
 void *lsi_scsi_init(PCIBus *bus, int devfn)

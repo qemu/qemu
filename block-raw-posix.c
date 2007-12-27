@@ -106,6 +106,10 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     }
     if (flags & BDRV_O_CREAT)
         open_flags |= O_CREAT | O_TRUNC;
+#ifdef O_DIRECT
+    if (flags & BDRV_O_DIRECT)
+        open_flags |= O_DIRECT;
+#endif
 
     s->type = FTYPE_FILE;
 
@@ -147,7 +151,7 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return ret;
 
-    if (lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
+    if (offset >= 0 && lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
         ++(s->lseek_err_cnt);
         if(s->lseek_err_cnt <= 10) {
             DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %" PRId64 ", %p, %d) [%" PRId64
@@ -200,7 +204,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return ret;
 
-    if (lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
+    if (offset >= 0 && lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
         ++(s->lseek_err_cnt);
         if(s->lseek_err_cnt) {
             DEBUG_BLOCK_PRINT("raw_pwrite(%d:%s, %" PRId64 ", %p, %d) [%"
@@ -272,8 +276,8 @@ void qemu_aio_init(void)
            seems to fix the problem. */
         struct aioinit ai;
         memset(&ai, 0, sizeof(ai));
-        ai.aio_threads = 1;
-        ai.aio_num = 1;
+        ai.aio_threads = 16;
+        ai.aio_num = 16;
         ai.aio_idle_time = 365 * 100000;
         aio_init(&ai);
     }
@@ -383,7 +387,10 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     acb->aiocb.aio_sigevent.sigev_signo = aio_sig_num;
     acb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
     acb->aiocb.aio_buf = buf;
-    acb->aiocb.aio_nbytes = nb_sectors * 512;
+    if (nb_sectors < 0)
+        acb->aiocb.aio_nbytes = -nb_sectors;
+    else
+        acb->aiocb.aio_nbytes = nb_sectors * 512;
     acb->aiocb.aio_offset = sector_num * 512;
     acb->next = first_aio;
     first_aio = acb;
@@ -659,6 +666,10 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
+#ifdef O_DIRECT
+    if (flags & BDRV_O_DIRECT)
+        open_flags |= O_DIRECT;
+#endif
 
     s->type = FTYPE_FILE;
 #if defined(__linux__)
@@ -671,6 +682,8 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
         open_flags |= O_NONBLOCK;
+    } else if (strstart(filename, "/dev/sg", NULL)) {
+        bs->sg = 1;
     }
 #endif
     fd = open(filename, open_flags, 0644);
@@ -850,6 +863,12 @@ static int raw_set_locked(BlockDriverState *bs, int locked)
     return 0;
 }
 
+static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+{
+    BDRVRawState *s = bs->opaque;
+
+    return ioctl(s->fd, req, buf);
+}
 #else
 
 static int raw_is_inserted(BlockDriverState *bs)
@@ -872,6 +891,10 @@ static int raw_set_locked(BlockDriverState *bs, int locked)
     return -ENOTSUP;
 }
 
+static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+{
+    return -ENOTSUP;
+}
 #endif /* !linux */
 
 BlockDriver bdrv_host_device = {
@@ -898,4 +921,6 @@ BlockDriver bdrv_host_device = {
     .bdrv_media_changed = raw_media_changed,
     .bdrv_eject = raw_eject,
     .bdrv_set_locked = raw_set_locked,
+    /* generic scsi device */
+    .bdrv_ioctl = raw_ioctl,
 };

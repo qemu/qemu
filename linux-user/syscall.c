@@ -906,7 +906,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
     default:
     unimplemented:
         gemu_log("Unsupported setsockopt level=%d optname=%d \n", level, optname);
-        ret = -TARGET_ENOSYS;
+        ret = -TARGET_ENOPROTOOPT;
     }
     return ret;
 }
@@ -996,14 +996,15 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
             }
             break;
         default:
-            goto unimplemented;
+            ret = -TARGET_ENOPROTOOPT;
+            break;
         }
         break;
     default:
     unimplemented:
         gemu_log("getsockopt level=%d optname=%d not yet supported\n",
                  level, optname);
-        ret = -TARGET_ENOSYS;
+        ret = -TARGET_EOPNOTSUPP;
         break;
     }
     return ret;

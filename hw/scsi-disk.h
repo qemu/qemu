@@ -26,6 +26,8 @@ struct SCSIDevice
 
 SCSIDevice *scsi_disk_init(BlockDriverState *bdrv, int tcq,
                            scsi_completionfn completion, void *opaque);
+SCSIDevice *scsi_generic_init(BlockDriverState *bdrv, int tcq,
+                           scsi_completionfn completion, void *opaque);
 
 /* cdrom.c */
 int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track);

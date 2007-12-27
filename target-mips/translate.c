@@ -215,6 +215,26 @@ enum {
     OPC_SPECIAL3D_RESERVED = 0x3D | OPC_SPECIAL,
 };
 
+/* Multiplication variants of the vr54xx. */
+#define MASK_MUL_VR54XX(op)   MASK_SPECIAL(op) | (op & (0x1F << 6))
+
+enum {
+    OPC_VR54XX_MULS    = (0x03 << 6) | OPC_MULT,
+    OPC_VR54XX_MULSU   = (0x03 << 6) | OPC_MULTU,
+    OPC_VR54XX_MACC    = (0x05 << 6) | OPC_MULT,
+    OPC_VR54XX_MACCU   = (0x05 << 6) | OPC_MULTU,
+    OPC_VR54XX_MSAC    = (0x07 << 6) | OPC_MULT,
+    OPC_VR54XX_MSACU   = (0x07 << 6) | OPC_MULTU,
+    OPC_VR54XX_MULHI   = (0x09 << 6) | OPC_MULT,
+    OPC_VR54XX_MULHIU  = (0x09 << 6) | OPC_MULTU,
+    OPC_VR54XX_MULSHI  = (0x0B << 6) | OPC_MULT,
+    OPC_VR54XX_MULSHIU = (0x0B << 6) | OPC_MULTU,
+    OPC_VR54XX_MACCHI  = (0x0D << 6) | OPC_MULT,
+    OPC_VR54XX_MACCHIU = (0x0D << 6) | OPC_MULTU,
+    OPC_VR54XX_MSACHI  = (0x0F << 6) | OPC_MULT,
+    OPC_VR54XX_MSACHIU = (0x0F << 6) | OPC_MULTU,
+};
+
 /* REGIMM (rt field) opcodes */
 #define MASK_REGIMM(op)    MASK_OP_MAJOR(op) | (op & (0x1F << 16))
 
@@ -1542,6 +1562,80 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         return;
     }
     MIPS_DEBUG("%s %s %s", opn, regnames[rs], regnames[rt]);
+}
+
+static void gen_mul_vr54xx (DisasContext *ctx, uint32_t opc,
+                            int rd, int rs, int rt)
+{
+    const char *opn = "mul vr54xx";
+
+    GEN_LOAD_REG_T0(rs);
+    GEN_LOAD_REG_T1(rt);
+
+    switch (opc) {
+    case OPC_VR54XX_MULS:
+        gen_op_muls();
+        opn = "muls";
+	break;
+    case OPC_VR54XX_MULSU:
+        gen_op_mulsu();
+        opn = "mulsu";
+	break;
+    case OPC_VR54XX_MACC:
+        gen_op_macc();
+        opn = "macc";
+	break;
+    case OPC_VR54XX_MACCU:
+        gen_op_maccu();
+        opn = "maccu";
+	break;
+    case OPC_VR54XX_MSAC:
+        gen_op_msac();
+        opn = "msac";
+	break;
+    case OPC_VR54XX_MSACU:
+        gen_op_msacu();
+        opn = "msacu";
+	break;
+    case OPC_VR54XX_MULHI:
+        gen_op_mulhi();
+        opn = "mulhi";
+	break;
+    case OPC_VR54XX_MULHIU:
+        gen_op_mulhiu();
+        opn = "mulhiu";
+	break;
+    case OPC_VR54XX_MULSHI:
+        gen_op_mulshi();
+        opn = "mulshi";
+	break;
+    case OPC_VR54XX_MULSHIU:
+        gen_op_mulshiu();
+        opn = "mulshiu";
+	break;
+    case OPC_VR54XX_MACCHI:
+        gen_op_macchi();
+        opn = "macchi";
+	break;
+    case OPC_VR54XX_MACCHIU:
+        gen_op_macchiu();
+        opn = "macchiu";
+	break;
+    case OPC_VR54XX_MSACHI:
+        gen_op_msachi();
+        opn = "msachi";
+	break;
+    case OPC_VR54XX_MSACHIU:
+        gen_op_msachiu();
+        opn = "msachiu";
+	break;
+    default:
+        MIPS_INVAL("mul vr54xx");
+        generate_exception(ctx, EXCP_RI);
+        return;
+    }
+    GEN_STORE_T0_REG(rd);
+    MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
 }
 
 static void gen_cl (DisasContext *ctx, uint32_t opc,
@@ -5987,7 +6081,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             gen_arith(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_MULT ... OPC_DIVU:
-            gen_muldiv(ctx, op1, rs, rt);
+            if (sa) {
+                check_insn(env, ctx, INSN_VR54XX);
+                op1 = MASK_MUL_VR54XX(ctx->opcode);
+                gen_mul_vr54xx(ctx, op1, rd, rs, rt);
+            } else
+                gen_muldiv(ctx, op1, rs, rt);
             break;
         case OPC_JR ... OPC_JALR:
             gen_compute_branch(ctx, op1, rs, rd, sa);
@@ -6738,10 +6837,10 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 
     if (!SIGN_EXT_P(env->PC[env->current_tc]))
         cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC[env->current_tc]);
-    if (!SIGN_EXT_P(env->HI[env->current_tc]))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[env->current_tc]);
-    if (!SIGN_EXT_P(env->LO[env->current_tc]))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[env->current_tc]);
+    if (!SIGN_EXT_P(env->HI[0][env->current_tc]))
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[0][env->current_tc]);
+    if (!SIGN_EXT_P(env->LO[0][env->current_tc]))
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[0][env->current_tc]);
     if (!SIGN_EXT_P(env->btarget))
         cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 

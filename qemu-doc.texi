@@ -250,6 +250,8 @@ This option defines the type of the media: disk or cdrom.
 These options have the same definition as they have in @option{-hdachs}.
 @item snapshot=@var{snapshot}
 @var{snapshot} is "on" or "off" and allows to enable snapshot for given drive (see @option{-snapshot}).
+@item cache=@var{cache}
+@var{cache} is "on" or "off" and allows to disable host cache to access data.
 @end table
 
 Instead of @option{-cdrom} you can use:

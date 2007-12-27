@@ -199,4 +199,4 @@ static always_inline int ctpop64 (uint64_t val)
     val = (val & 0x00000000ffffffffULL) + ((val >> 32) & 0x00000000ffffffffULL);
 
     return val;
- }
+}

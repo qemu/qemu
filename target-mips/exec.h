@@ -79,6 +79,20 @@ void do_madd (void);
 void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
+void do_muls (void);
+void do_mulsu (void);
+void do_macc (void);
+void do_macchi (void);
+void do_maccu (void);
+void do_macchiu (void);
+void do_msac (void);
+void do_msachi (void);
+void do_msacu (void);
+void do_msachiu (void);
+void do_mulhi (void);
+void do_mulhiu (void);
+void do_mulshi (void);
+void do_mulshiu (void);
 #endif
 #if defined(TARGET_MIPS64)
 void do_ddiv (void);

@@ -6,6 +6,11 @@
 
 #include "cpu.h"
 
+#undef DEBUG_REMAP
+#ifdef DEBUG_REMAP
+#include <stdlib.h>
+#endif /* DEBUG_REMAP */
+
 #ifdef TARGET_ABI32
 typedef uint32_t abi_ulong;
 typedef int32_t abi_long;
@@ -370,7 +375,7 @@ static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
     if (host_ptr == g2h(guest_addr))
         return;
     if (len > 0)
-        memcpy(g2h(guest_ptr), host_ptr, len);
+        memcpy(g2h(guest_addr), host_ptr, len);
     free(host_ptr);
 #endif
 }

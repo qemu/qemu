@@ -61,6 +61,10 @@ void *qemu_malloc(size_t size)
 }
 
 #if defined(_WIN32)
+void *qemu_memalign(size_t alignment, size_t size)
+{
+    return VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
+}
 
 void *qemu_vmalloc(size_t size)
 {
@@ -171,6 +175,22 @@ static void kqemu_vfree(void *ptr)
 }
 
 #endif
+
+void *qemu_memalign(size_t alignment, size_t size)
+{
+#if defined(_POSIX_C_SOURCE)
+    int ret;
+    void *ptr;
+    ret = posix_memalign(&ptr, alignment, size);
+    if (ret != 0)
+        return NULL;
+    return ptr;
+#elif defined(_BSD)
+    return valloc(size);
+#else
+    return memalign(alignment, size);
+#endif
+}
 
 /* alloc shared memory pages */
 void *qemu_vmalloc(size_t size)

@@ -615,7 +615,9 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
     }
     DPRINTF("Attaching block device %d\n", id);
     /* Command queueing is not implemented.  */
-    s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
+    s->scsi_dev[id] = scsi_generic_init(bd, 0, esp_command_complete, s);
+    if (s->scsi_dev[id] == NULL)
+        s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
 }
 
 void *esp_init(target_phys_addr_t espaddr,

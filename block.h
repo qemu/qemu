@@ -44,6 +44,7 @@ typedef struct QEMUSnapshotInfo {
                                      use a disk image format on top of
                                      it (default for
                                      bdrv_file_open()) */
+#define BDRV_O_DIRECT      0x0020
 
 #ifndef QEMU_IMG
 void bdrv_info(void);
@@ -118,6 +119,7 @@ int bdrv_get_type_hint(BlockDriverState *bs);
 int bdrv_get_translation_hint(BlockDriverState *bs);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
+int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 int bdrv_is_locked(BlockDriverState *bs);
@@ -147,6 +149,7 @@ int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
 int bdrv_snapshot_list(BlockDriverState *bs,
                        QEMUSnapshotInfo **psn_info);
 char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
+int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size);
 int path_is_absolute(const char *path);

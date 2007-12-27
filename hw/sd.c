@@ -49,6 +49,7 @@ typedef enum {
     sd_r2_s,      /* CSD register */
     sd_r3,        /* OCR register */
     sd_r6 = 6,    /* Published RCA response */
+    sd_r7,        /* Operating voltage */
     sd_r1b = -1,
 } sd_rsp_type_t;
 
@@ -77,6 +78,7 @@ struct SDState {
     uint16_t rca;
     uint32_t card_status;
     uint8_t sd_status[64];
+    uint32_t vhs;
     int wp_switch;
     int *wp_groups;
     uint32_t size;
@@ -96,6 +98,7 @@ struct SDState {
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
     BlockDriverState *bdrv;
+    uint8_t *buf;
 };
 
 static void sd_set_status(SDState *sd)
@@ -125,9 +128,9 @@ static void sd_set_status(SDState *sd)
     sd->card_status |= sd->state << 9;
 }
 
-const sd_cmd_type_t sd_cmd_type[64] = {
+static const sd_cmd_type_t sd_cmd_type[64] = {
     sd_bc,   sd_none, sd_bcr,  sd_bcr,  sd_none, sd_none, sd_none, sd_ac,
-    sd_none, sd_ac,   sd_ac,   sd_adtc, sd_ac,   sd_ac,   sd_none, sd_ac,
+    sd_bcr,  sd_ac,   sd_ac,   sd_adtc, sd_ac,   sd_ac,   sd_none, sd_ac,
     sd_ac,   sd_adtc, sd_adtc, sd_none, sd_none, sd_none, sd_none, sd_none,
     sd_adtc, sd_adtc, sd_adtc, sd_adtc, sd_ac,   sd_ac,   sd_adtc, sd_none,
     sd_ac,   sd_ac,   sd_none, sd_none, sd_none, sd_none, sd_ac,   sd_none,
@@ -136,7 +139,7 @@ const sd_cmd_type_t sd_cmd_type[64] = {
     sd_adtc, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none,
 };
 
-const sd_cmd_type_t sd_acmd_type[64] = {
+static const sd_cmd_type_t sd_acmd_type[64] = {
     sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_ac,   sd_none,
     sd_none, sd_none, sd_none, sd_none, sd_none, sd_adtc, sd_none, sd_none,
     sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_adtc, sd_ac,
@@ -189,6 +192,7 @@ static uint16_t sd_crc16(void *message, size_t width)
 
 static void sd_set_ocr(SDState *sd)
 {
+    /* All voltages OK, card power-up OK, Standard Capacity SD Memory Card */
     sd->ocr = 0x80ffff80;
 }
 
@@ -348,6 +352,14 @@ static void sd_response_r6_make(SDState *sd, uint8_t *response)
     response[3] = status & 0xff;
 }
 
+static void sd_response_r7_make(SDState *sd, uint8_t *response)
+{
+    response[0] = (sd->vhs >> 24) & 0xff;
+    response[1] = (sd->vhs >> 16) & 0xff;
+    response[2] = (sd->vhs >>  8) & 0xff;
+    response[3] = (sd->vhs >>  0) & 0xff;
+}
+
 static void sd_reset(SDState *sd, BlockDriverState *bdrv)
 {
     uint32_t size;
@@ -405,6 +417,7 @@ SDState *sd_init(BlockDriverState *bs, int is_spi)
     SDState *sd;
 
     sd = (SDState *) qemu_mallocz(sizeof(SDState));
+    sd->buf = qemu_memalign(512, 512);
     sd->spi = is_spi;
     sd_reset(sd, bs);
     bdrv_set_change_cb(sd->bdrv, sd_cardchange, sd);
@@ -677,6 +690,25 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
             sd->state = sd_disconnect_state;
             return sd_r1b;
+
+        default:
+            break;
+        }
+        break;
+
+    case 8:	/* CMD8:   SEND_IF_COND */
+        /* Physical Layer Specification Version 2.00 command */
+        switch (sd->state) {
+        case sd_idle_state:
+            sd->vhs = 0;
+
+            /* No response if not exactly one VHS bit is set.  */
+            if (!(req.arg >> 8) || (req.arg >> ffs(req.arg & ~0xff)))
+                return sd->spi ? sd_r7 : sd_r0;
+
+            /* Accept.  */
+            sd->vhs = req.arg;
+            return sd_r7;
 
         default:
             break;
@@ -1236,13 +1268,11 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
 
     case sd_r2_i:
         memcpy(response, sd->cid, sizeof(sd->cid));
-        response[7] |= 1;
         rsplen = 16;
         break;
 
     case sd_r2_s:
         memcpy(response, sd->csd, sizeof(sd->csd));
-        response[7] |= 1;
         rsplen = 16;
         break;
 
@@ -1253,6 +1283,11 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
 
     case sd_r6:
         sd_response_r6_make(sd, response);
+        rsplen = 4;
+        break;
+
+    case sd_r7:
+        sd_response_r7_make(sd, response);
         rsplen = 4;
         break;
 
@@ -1281,64 +1316,60 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
 }
 
 /* No real need for 64 bit addresses here */
-static void sd_blk_read(BlockDriverState *bdrv,
-                void *data, uint32_t addr, uint32_t len)
+static void sd_blk_read(SDState *sd, uint32_t addr, uint32_t len)
 {
-    uint8_t buf[512];
     uint32_t end = addr + len;
 
-    if (!bdrv || bdrv_read(bdrv, addr >> 9, buf, 1) == -1) {
+    if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
         printf("sd_blk_read: read error on host side\n");
         return;
     }
 
     if (end > (addr & ~511) + 512) {
-        memcpy(data, buf + (addr & 511), 512 - (addr & 511));
+        memcpy(sd->data, sd->buf + (addr & 511), 512 - (addr & 511));
 
-        if (bdrv_read(bdrv, end >> 9, buf, 1) == -1) {
+        if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_read: read error on host side\n");
             return;
         }
-        memcpy(data + 512 - (addr & 511), buf, end & 511);
+        memcpy(sd->data + 512 - (addr & 511), sd->buf, end & 511);
     } else
-        memcpy(data, buf + (addr & 511), len);
+        memcpy(sd->data, sd->buf + (addr & 511), len);
 }
 
-static void sd_blk_write(BlockDriverState *bdrv,
-                void *data, uint32_t addr, uint32_t len)
+static void sd_blk_write(SDState *sd, uint32_t addr, uint32_t len)
 {
-    uint8_t buf[512];
     uint32_t end = addr + len;
 
     if ((addr & 511) || len < 512)
-        if (!bdrv || bdrv_read(bdrv, addr >> 9, buf, 1) == -1) {
+        if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_write: read error on host side\n");
             return;
         }
 
     if (end > (addr & ~511) + 512) {
-        memcpy(buf + (addr & 511), data, 512 - (addr & 511));
-        if (bdrv_write(bdrv, addr >> 9, buf, 1) == -1) {
+        memcpy(sd->buf + (addr & 511), sd->data, 512 - (addr & 511));
+        if (bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_write: write error on host side\n");
             return;
         }
 
-        if (bdrv_read(bdrv, end >> 9, buf, 1) == -1) {
+        if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) == -1) {
             printf("sd_blk_write: read error on host side\n");
             return;
         }
-        memcpy(buf, data + 512 - (addr & 511), end & 511);
-        if (bdrv_write(bdrv, end >> 9, buf, 1) == -1)
+        memcpy(sd->buf, sd->data + 512 - (addr & 511), end & 511);
+        if (bdrv_write(sd->bdrv, end >> 9, sd->buf, 1) == -1)
             printf("sd_blk_write: write error on host side\n");
     } else {
-        memcpy(buf + (addr & 511), data, len);
-        if (!bdrv || bdrv_write(bdrv, addr >> 9, buf, 1) == -1)
+        memcpy(sd->buf + (addr & 511), sd->data, len);
+        if (!sd->bdrv || bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) == -1)
             printf("sd_blk_write: write error on host side\n");
     }
 }
 
-#define BLK_READ_BLOCK(a, len)	sd_blk_read(sd->bdrv, sd->data, a, len)
-#define BLK_WRITE_BLOCK(a, len)	sd_blk_write(sd->bdrv, sd->data, a, len)
+#define BLK_READ_BLOCK(a, len)	sd_blk_read(sd, a, len)
+#define BLK_WRITE_BLOCK(a, len)	sd_blk_write(sd, a, len)
 #define APP_READ_BLOCK(a, len)	memset(sd->data, 0xec, len)
 #define APP_WRITE_BLOCK(a, len)
 

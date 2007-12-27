@@ -172,6 +172,18 @@ static always_inline void set_HILO (uint64_t HILO)
     env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
 }
 
+static always_inline void set_HIT0_LO (uint64_t HILO)
+{
+    env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
+    T0 = env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+}
+
+static always_inline void set_HI_LOT0 (uint64_t HILO)
+{
+    T0 = env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+}
+
 void do_mult (void)
 {
     set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
@@ -213,7 +225,78 @@ void do_msubu (void)
     tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
     set_HILO(get_HILO() - tmp);
 }
-#endif
+
+/* Multiplication variants of the vr54xx. */
+void do_muls (void)
+{
+    set_HI_LOT0(0 - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+}
+
+void do_mulsu (void)
+{
+    set_HI_LOT0(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+}
+
+void do_macc (void)
+{
+    set_HI_LOT0(((int64_t)get_HILO()) + ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+}
+
+void do_macchi (void)
+{
+    set_HIT0_LO(((int64_t)get_HILO()) + ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+}
+
+void do_maccu (void)
+{
+    set_HI_LOT0(((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+}
+
+void do_macchiu (void)
+{
+    set_HIT0_LO(((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+}
+
+void do_msac (void)
+{
+    set_HI_LOT0(((int64_t)get_HILO()) - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+}
+
+void do_msachi (void)
+{
+    set_HIT0_LO(((int64_t)get_HILO()) - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+}
+
+void do_msacu (void)
+{
+    set_HI_LOT0(((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+}
+
+void do_msachiu (void)
+{
+    set_HIT0_LO(((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+}
+
+void do_mulhi (void)
+{
+    set_HIT0_LO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+}
+
+void do_mulhiu (void)
+{
+    set_HIT0_LO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+}
+
+void do_mulshi (void)
+{
+    set_HIT0_LO(0 - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+}
+
+void do_mulshiu (void)
+{
+    set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+}
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 #if HOST_LONG_BITS < 64
 void do_div (void)
@@ -230,9 +313,16 @@ void do_div (void)
 void do_ddiv (void)
 {
     if (T1 != 0) {
-        lldiv_t res = lldiv((int64_t)T0, (int64_t)T1);
-        env->LO[0][env->current_tc] = res.quot;
-        env->HI[0][env->current_tc] = res.rem;
+        int64_t arg0 = (int64_t)T0;
+        int64_t arg1 = (int64_t)T1;
+        if (arg0 == ((int64_t)-1 << 63) && arg1 == (int64_t)-1) {
+            env->LO[0][env->current_tc] = arg0;
+            env->HI[0][env->current_tc] = 0;
+        } else {
+            lldiv_t res = lldiv(arg0, arg1);
+            env->LO[0][env->current_tc] = res.quot;
+            env->HI[0][env->current_tc] = res.rem;
+        }
     }
 }
 

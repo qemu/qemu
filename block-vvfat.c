@@ -415,14 +415,16 @@ static void init_mbr(BDRVVVFATState* s)
 static inline int short2long_name(char* dest,const char* src)
 {
     int i;
+    int len;
     for(i=0;i<129 && src[i];i++) {
         dest[2*i]=src[i];
 	dest[2*i+1]=0;
     }
+    len=2*i;
     dest[2*i]=dest[2*i+1]=0;
     for(i=2*i+2;(i%26);i++)
 	dest[i]=0xff;
-    return i;
+    return len;
 }
 
 static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* filename)
@@ -439,7 +441,7 @@ static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* fil
 	entry->begin=0;
 	entry->name[0]=(number_of_entries-i)|(i==0?0x40:0);
     }
-    for(i=0;i<length;i++) {
+    for(i=0;i<26*number_of_entries;i++) {
 	int offset=(i%26);
 	if(offset<10) offset=1+offset;
 	else if(offset<22) offset=14+offset-10;

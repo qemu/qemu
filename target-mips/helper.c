@@ -157,10 +157,9 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         }
     } else if (address < 0xC000000000000000ULL) {
         /* xkphys */
-        /* XXX: Assumes PABITS = 36 (correct for MIPS64R1) */
         if (kernel_mode && KX &&
-            (address & 0x07FFFFFFFFFFFFFFULL) <= 0x0000000FFFFFFFFFULL) {
-            *physical = address & 0x0000000FFFFFFFFFULL;
+            (address & 0x07FFFFFFFFFFFFFFULL) <= env->PAMask) {
+            *physical = address & env->PAMask;
             *prot = PAGE_READ;
             if (rw) {
                 *prot |= PAGE_WRITE;
@@ -337,20 +336,62 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return ret;
 }
 
-#if defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
+static struct _excp_names {
+    int excp;
+    char *name;
+} excp_names[EXCP_LAST + 1] = {
+    { EXCP_RESET, "reset" },
+    { EXCP_SRESET, "soft reset" },
+    { EXCP_DSS, "debug single step" },
+    { EXCP_DINT, "debug interrupt" },
+    { EXCP_NMI, "non-maskable interrupt" },
+    { EXCP_MCHECK, "machine check" },
+    { EXCP_EXT_INTERRUPT, "interrupt" },
+    { EXCP_DFWATCH, "deferred watchpoint" },
+    { EXCP_DIB, "debug instruction breakpoint" },
+    { EXCP_IWATCH, "instruction fetch watchpoint" },
+    { EXCP_AdEL, "address error load" },
+    { EXCP_AdES, "address error store" },
+    { EXCP_TLBF, "TLB refill" },
+    { EXCP_IBE, "instruction bus error" },
+    { EXCP_DBp, "debug breakpoint" },
+    { EXCP_SYSCALL, "syscall" },
+    { EXCP_BREAK, "break" },
+    { EXCP_CpU, "coprocessor unusable" },
+    { EXCP_RI, "reserved instruction" },
+    { EXCP_OVERFLOW, "arithmetic overflow" },
+    { EXCP_TRAP, "trap" },
+    { EXCP_FPE, "floating point" },
+    { EXCP_DDBS, "debug data break store" },
+    { EXCP_DWATCH, "data watchpoint" },
+    { EXCP_LTLBL, "TLB modify" },
+    { EXCP_TLBL, "TLB load" },
+    { EXCP_TLBS, "TLB store" },
+    { EXCP_DBE, "data bus error" },
+    { EXCP_DDBL, "debug data break load" },
+    { EXCP_THREAD, "thread" },
+    { EXCP_MDMX, "MDMX" },
+    { EXCP_C2E, "precise coprocessor 2" },
+    { EXCP_CACHE, "cache error" },
+};
+#endif
+
 void do_interrupt (CPUState *env)
 {
-    env->exception_index = EXCP_NONE;
-}
-#else
-void do_interrupt (CPUState *env)
-{
+#if !defined(CONFIG_USER_ONLY)
     target_ulong offset;
     int cause = -1;
+    char *name;
 
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d excp %d\n",
-                __func__, env->PC[env->current_tc], env->CP0_EPC, cause, env->exception_index);
+        if (env->exception_index < 0 || env->exception_index > EXCP_LAST)
+            name = "unknown";
+        else
+            name = excp_names[env->exception_index].name;
+
+        fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
+                __func__, env->PC[env->current_tc], env->CP0_EPC, name);
     }
     if (env->exception_index == EXCP_EXT_INTERRUPT &&
         (env->hflags & MIPS_HFLAG_DM))
@@ -539,15 +580,15 @@ void do_interrupt (CPUState *env)
         exit(1);
     }
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d excp %d\n"
+        fprintf(logfile, "%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
-                __func__, env->PC[env->current_tc], env->CP0_EPC, cause, env->exception_index,
+                __func__, env->PC[env->current_tc], env->CP0_EPC, cause,
                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
                 env->CP0_DEPC);
     }
+#endif /* !defined(CONFIG_USER_ONLY) */
     env->exception_index = EXCP_NONE;
 }
-#endif /* !defined(CONFIG_USER_ONLY) */
 
 void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 {

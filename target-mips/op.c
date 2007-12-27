@@ -781,6 +781,90 @@ void op_msubu (void)
     FORCE_RET();
 }
 
+/* Multiplication variants of the vr54xx. */
+void op_muls (void)
+{
+    CALL_FROM_TB0(do_muls);
+    FORCE_RET();
+}
+
+void op_mulsu (void)
+{
+    CALL_FROM_TB0(do_mulsu);
+    FORCE_RET();
+}
+
+void op_macc (void)
+{
+    CALL_FROM_TB0(do_macc);
+    FORCE_RET();
+}
+
+void op_macchi (void)
+{
+    CALL_FROM_TB0(do_macchi);
+    FORCE_RET();
+}
+
+void op_maccu (void)
+{
+    CALL_FROM_TB0(do_maccu);
+    FORCE_RET();
+}
+void op_macchiu (void)
+{
+    CALL_FROM_TB0(do_macchiu);
+    FORCE_RET();
+}
+
+void op_msac (void)
+{
+    CALL_FROM_TB0(do_msac);
+    FORCE_RET();
+}
+
+void op_msachi (void)
+{
+    CALL_FROM_TB0(do_msachi);
+    FORCE_RET();
+}
+
+void op_msacu (void)
+{
+    CALL_FROM_TB0(do_msacu);
+    FORCE_RET();
+}
+
+void op_msachiu (void)
+{
+    CALL_FROM_TB0(do_msachiu);
+    FORCE_RET();
+}
+
+void op_mulhi (void)
+{
+    CALL_FROM_TB0(do_mulhi);
+    FORCE_RET();
+}
+
+void op_mulhiu (void)
+{
+    CALL_FROM_TB0(do_mulhiu);
+    FORCE_RET();
+}
+
+void op_mulshi (void)
+{
+    CALL_FROM_TB0(do_mulshi);
+    FORCE_RET();
+}
+
+void op_mulshiu (void)
+{
+    CALL_FROM_TB0(do_mulshiu);
+    FORCE_RET();
+}
+
 #else /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 static always_inline uint64_t get_HILO (void)
@@ -792,6 +876,18 @@ static always_inline uint64_t get_HILO (void)
 static always_inline void set_HILO (uint64_t HILO)
 {
     env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+}
+
+static always_inline void set_HIT0_LO (uint64_t HILO)
+{
+    env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
+    T0 = env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+}
+
+static always_inline void set_HI_LOT0 (uint64_t HILO)
+{
+    T0 = env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
     env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
 }
 
@@ -842,6 +938,92 @@ void op_msubu (void)
     set_HILO(get_HILO() - tmp);
     FORCE_RET();
 }
+
+/* Multiplication variants of the vr54xx. */
+void op_muls (void)
+{
+    set_HI_LOT0(0 - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+    FORCE_RET();
+}
+
+void op_mulsu (void)
+{
+    set_HI_LOT0(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+    FORCE_RET();
+}
+
+void op_macc (void)
+{
+    set_HI_LOT0(get_HILO() + ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+    FORCE_RET();
+}
+
+void op_macchi (void)
+{
+    set_HIT0_LO(get_HILO() + ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+    FORCE_RET();
+}
+
+void op_maccu (void)
+{
+    set_HI_LOT0(get_HILO() + ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+    FORCE_RET();
+}
+
+void op_macchiu (void)
+{
+    set_HIT0_LO(get_HILO() + ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+    FORCE_RET();
+}
+
+void op_msac (void)
+{
+    set_HI_LOT0(get_HILO() - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+    FORCE_RET();
+}
+
+void op_msachi (void)
+{
+    set_HIT0_LO(get_HILO() - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+    FORCE_RET();
+}
+
+void op_msacu (void)
+{
+    set_HI_LOT0(get_HILO() - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+    FORCE_RET();
+}
+
+void op_msachiu (void)
+{
+    set_HIT0_LO(get_HILO() - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+    FORCE_RET();
+}
+
+void op_mulhi (void)
+{
+    set_HIT0_LO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+    FORCE_RET();
+}
+
+void op_mulhiu (void)
+{
+    set_HIT0_LO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+    FORCE_RET();
+}
+
+void op_mulshi (void)
+{
+    set_HIT0_LO(0 - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
+    FORCE_RET();
+}
+
+void op_mulshiu (void)
+{
+    set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
+    FORCE_RET();
+}
+
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 #if defined(TARGET_MIPS64)
@@ -1563,7 +1745,7 @@ void op_mtc0_vpeopt (void)
 
 void op_mtc0_entrylo0 (void)
 {
-    /* Large physaddr not implemented */
+    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
     FORCE_RET();
@@ -1700,7 +1882,7 @@ void op_mttc0_tcschefback (void)
 
 void op_mtc0_entrylo1 (void)
 {
-    /* Large physaddr not implemented */
+    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
     FORCE_RET();
@@ -1722,7 +1904,7 @@ void op_mtc0_pagemask (void)
 void op_mtc0_pagegrain (void)
 {
     /* SmartMIPS not implemented */
-    /* Large physaddr not implemented */
+    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_PageGrain = 0;
     FORCE_RET();
