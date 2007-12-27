@@ -70,7 +70,7 @@ struct hwdef {
     target_phys_addr_t iommu_base, slavio_base;
     target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
     target_phys_addr_t serial_base, fd_base;
-    target_phys_addr_t dma_base, esp_base, le_base;
+    target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, cs_base, power_base;
     target_phys_addr_t ecc_base;
     uint32_t ecc_version;
@@ -397,6 +397,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
                 buf);
         exit(1);
     }
+    prom_offset += (ret + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 
     /* set up devices */
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version);
@@ -406,6 +407,13 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
                                        &slavio_irq, &slavio_cpu_irq,
                                        cpu_irqs,
                                        hwdef->clock_irq);
+
+    if (hwdef->idreg_base != (target_phys_addr_t)-1) {
+        stl_raw(phys_ram_base + prom_offset, 0xfe810103);
+
+        cpu_register_physical_memory(hwdef->idreg_base, sizeof(uint32_t),
+                                     prom_offset | IO_MEM_ROM);
+    }
 
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
                               iommu, &espdma_irq, &esp_reset);
@@ -499,6 +507,7 @@ static const struct hwdef hwdefs[] = {
         .fd_base      = 0x71400000,
         .counter_base = 0x71d00000,
         .intctl_base  = 0x71e00000,
+        .idreg_base   = 0x78000000,
         .dma_base     = 0x78400000,
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
@@ -536,6 +545,7 @@ static const struct hwdef hwdefs[] = {
         .fd_base      = 0xff1700000ULL,
         .counter_base = 0xff1300000ULL,
         .intctl_base  = 0xff1400000ULL,
+        .idreg_base   = 0xef0000000ULL,
         .dma_base     = 0xef0400000ULL,
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
@@ -574,6 +584,7 @@ static const struct hwdef hwdefs[] = {
         .fd_base      = -1,
         .counter_base = 0xff1300000ULL,
         .intctl_base  = 0xff1400000ULL,
+        .idreg_base   = -1,
         .dma_base     = 0xef0081000ULL,
         .esp_base     = 0xef0080000ULL,
         .le_base      = 0xef0060000ULL,
@@ -612,6 +623,7 @@ static const struct hwdef hwdefs[] = {
         .fd_base      = 0xff1700000ULL,
         .counter_base = 0xff1300000ULL,
         .intctl_base  = 0xff1400000ULL,
+        .idreg_base   = 0xef0000000ULL,
         .dma_base     = 0xef0400000ULL,
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
