@@ -6,6 +6,7 @@
 //#define DEBUG_MXCC
 //#define DEBUG_UNALIGNED
 //#define DEBUG_UNASSIGNED
+//#define DEBUG_ASI
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, args...) \
@@ -19,6 +20,13 @@ do { printf("MMU: " fmt , ##args); } while (0)
 do { printf("MXCC: " fmt , ##args); } while (0)
 #else
 #define DPRINTF_MXCC(fmt, args...)
+#endif
+
+#ifdef DEBUG_ASI
+#define DPRINTF_ASI(fmt, args...) \
+do { printf("ASI: " fmt , ##args); } while (0)
+#else
+#define DPRINTF_ASI(fmt, args...)
 #endif
 
 void raise_exception(int tt)
@@ -229,11 +237,34 @@ static void dump_mxcc(CPUState *env)
 }
 #endif
 
+#ifdef DEBUG_ASI
+static void dump_asi(const char * txt, uint32_t addr, int asi, int size,
+                     uint32_t r1, uint32_t r2)
+{
+    switch (size)
+    {
+    case 1:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %02x\n", txt, addr, asi, r1 & 0xff);
+        break;
+    case 2:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %04x\n", txt, addr, asi, r1 & 0xffff);
+        break;
+    case 4:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %08x\n", txt, addr, asi, r1);
+        break;
+    case 8:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %016llx\n", txt, addr, asi,
+                    r2 | ((uint64_t)r1 << 32));
+        break;
+    }
+}
+#endif
+
 void helper_ld_asi(int asi, int size, int sign)
 {
     uint32_t ret = 0;
     uint64_t tmp;
-#ifdef DEBUG_MXCC
+#if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
     uint32_t last_T0 = T0;
 #endif
 
@@ -416,7 +447,7 @@ void helper_ld_asi(int asi, int size, int sign)
         break;
     case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
-        do_unassigned_access(T0, 0, 0, 1);
+        do_unassigned_access(T0, 0, 0, asi);
         ret = 0;
         break;
     }
@@ -435,6 +466,9 @@ void helper_ld_asi(int asi, int size, int sign)
     }
     else
         T1 = ret;
+#ifdef DEBUG_ASI
+    dump_asi("read ", last_T0, asi, size, T1, T0);
+#endif
 }
 
 void helper_st_asi(int asi, int size)
@@ -542,8 +576,8 @@ void helper_st_asi(int asi, int size)
 #ifdef DEBUG_MMU
             dump_mmu(env);
 #endif
-            return;
         }
+        break;
     case 4: /* write MMU regs */
         {
             int reg = (T0 >> 8) & 0x1f;
@@ -587,8 +621,8 @@ void helper_st_asi(int asi, int size)
 #ifdef DEBUG_MMU
             dump_mmu(env);
 #endif
-            return;
         }
+        break;
     case 0xa: /* User data access */
         switch(size) {
         case 1:
@@ -646,7 +680,7 @@ void helper_st_asi(int asi, int size)
                 stl_kernel(dst, temp);
             }
         }
-        return;
+        break;
     case 0x1f: /* Block fill, stda access */
         {
             // value (T1, T2)
@@ -661,7 +695,7 @@ void helper_st_asi(int asi, int size)
             for (i = 0; i < 32; i += 8, dst += 8)
                 stq_kernel(dst, val);
         }
-        return;
+        break;
     case 0x20: /* MMU passthrough */
         {
             switch(size) {
@@ -680,7 +714,7 @@ void helper_st_asi(int asi, int size)
                 break;
             }
         }
-        return;
+        break;
     case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
     case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
         {
@@ -705,7 +739,7 @@ void helper_st_asi(int asi, int size)
                 break;
             }
         }
-        return;
+        break;
     case 0x30: /* store buffer tags */
     case 0x31: /* store buffer data or Ross RT620 I-cache flush */
     case 0x32: /* store buffer control */
@@ -717,9 +751,12 @@ void helper_st_asi(int asi, int size)
     case 9: /* Supervisor code access, XXX */
     case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
-        do_unassigned_access(T0, 1, 0, 1);
-        return;
+        do_unassigned_access(T0, 1, 0, asi);
+        break;
     }
+#ifdef DEBUG_ASI
+    dump_asi("write", T0, asi, size, T1, T2);
+#endif
 }
 
 #endif /* CONFIG_USER_ONLY */
@@ -1832,6 +1869,17 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
        generated code */
     saved_env = env;
     env = cpu_single_env;
+#ifdef DEBUG_UNASSIGNED
+    if (is_asi)
+        printf("Unassigned mem %s access to " TARGET_FMT_plx " asi 0x%02x from "
+               TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", addr, is_asi,
+               env->pc);
+    else
+        printf("Unassigned mem %s access to " TARGET_FMT_plx " from "
+               TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", addr, env->pc);
+#endif
     if (env->mmuregs[3]) /* Fault status register */
         env->mmuregs[3] = 1; /* overflow (not read before another fault) */
     if (is_asi)
@@ -1845,10 +1893,6 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     env->mmuregs[3] |= (5 << 2) | 2;
     env->mmuregs[4] = addr; /* Fault address register */
     if ((env->mmuregs[0] & MMU_E) && !(env->mmuregs[0] & MMU_NF)) {
-#ifdef DEBUG_UNASSIGNED
-        printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
-               "\n", addr, env->pc);
-#endif
         if (is_exec)
             raise_exception(TT_CODE_ACCESS);
         else
