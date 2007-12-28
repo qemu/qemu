@@ -68,7 +68,7 @@ typedef struct SLAVIO_INTCTLState {
 #define INTCTLM_MAXADDR 0x13
 #define INTCTLM_SIZE (INTCTLM_MAXADDR + 1)
 #define INTCTLM_MASK 0x1f
-#define MASTER_IRQ_MASK ~0x4fb2007f
+#define MASTER_IRQ_MASK ~0x0fa2007f
 #define MASTER_DISABLE 0x80000000
 #define CPU_IRQ_MASK 0xfffe0000
 #define CPU_IRQ_INT15_IN 0x0004000
@@ -151,7 +151,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = s->intregm_pending & ~MASTER_DISABLE;
         break;
     case 1:
-        ret = s->intregm_disabled;
+        ret = s->intregm_disabled & MASTER_IRQ_MASK;
         break;
     case 4:
         ret = s->target_cpu;
