@@ -145,7 +145,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr, ret;
 
-    saddr = (addr & INTCTLM_MAXADDR) >> 2;
+    saddr = (addr & INTCTLM_MASK) >> 2;
     switch (saddr) {
     case 0:
         ret = s->intregm_pending & ~MASTER_DISABLE;
