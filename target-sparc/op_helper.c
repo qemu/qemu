@@ -418,8 +418,7 @@ void helper_ld_asi(int asi, int size, int sign)
             break;
         }
         break;
-    case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
-    case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
+    case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         switch(size) {
         case 1:
             ret = ldub_phys((target_phys_addr_t)T0
@@ -445,7 +444,6 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x39: /* data cache diagnostic register */
         ret = 0;
         break;
-    case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 0, 0, asi);
         ret = 0;

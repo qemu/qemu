@@ -34,6 +34,10 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
 void slavio_pic_info(void *opaque);
 void slavio_irq_info(void *opaque);
 
+/* sbi.c */
+void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
+               qemu_irq **parent_irq);
+
 /* slavio_timer.c */
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,
                            qemu_irq *cpu_irqs, unsigned int num_cpus);
