@@ -88,8 +88,9 @@ struct hwdef {
     uint32_t ecc_version;
     target_phys_addr_t sun4c_intctl_base, sun4c_counter_base;
     long vram_size, nvram_size;
-    // IRQ numbers are not PIL ones, but master interrupt controller register
-    // bit numbers
+    // IRQ numbers are not PIL ones, but master interrupt controller
+    // register bit numbers except for clock_irq, which indexes cpu
+    // interrupt controller register
     int intctl_g_intr, esp_irq, le_irq, clock_irq, clock1_irq;
     int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq;
     int machine_id; // For NVRAM
@@ -691,7 +692,7 @@ static const struct hwdef hwdefs[] = {
         .nvram_size   = 0x2000,
         .esp_irq = 18,
         .le_irq = 16,
-        .clock_irq = 7,
+        .clock_irq = 14,
         .clock1_irq = 19,
         .ms_kb_irq = 14,
         .ser_irq = 15,
@@ -732,7 +733,7 @@ static const struct hwdef hwdefs[] = {
         .nvram_size   = 0x2000,
         .esp_irq = 18,
         .le_irq = 16,
-        .clock_irq = 7,
+        .clock_irq = 14,
         .clock1_irq = 19,
         .ms_kb_irq = 14,
         .ser_irq = 15,
@@ -773,7 +774,7 @@ static const struct hwdef hwdefs[] = {
         .nvram_size   = 0x2000,
         .esp_irq = 18,
         .le_irq = 16,
-        .clock_irq = 7,
+        .clock_irq = 14,
         .clock1_irq = 19,
         .ms_kb_irq = 14,
         .ser_irq = 15,
@@ -814,7 +815,7 @@ static const struct hwdef hwdefs[] = {
         .nvram_size   = 0x2000,
         .esp_irq = 18,
         .le_irq = 16,
-        .clock_irq = 7,
+        .clock_irq = 14,
         .clock1_irq = 19,
         .ms_kb_irq = 14,
         .ser_irq = 15,

@@ -70,7 +70,8 @@ typedef struct SLAVIO_INTCTLState {
 #define INTCTLM_MASK 0x1f
 #define MASTER_IRQ_MASK ~0x0fa2007f
 #define MASTER_DISABLE 0x80000000
-#define CPU_IRQ_MASK 0xfffe0000
+#define CPU_SOFTIRQ_MASK 0xfffe0000
+#define CPU_HARDIRQ_MASK 0x0000fffe
 #define CPU_IRQ_INT15_IN 0x0004000
 #define CPU_IRQ_INT15_MASK 0x80000000
 
@@ -111,13 +112,13 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
     case 1: // clear pending softints
         if (val & CPU_IRQ_INT15_IN)
             val |= CPU_IRQ_INT15_MASK;
-        val &= CPU_IRQ_MASK;
+        val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending[cpu] &= ~val;
         slavio_check_interrupts(s);
         DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
         break;
     case 2: // set softint
-        val &= CPU_IRQ_MASK;
+        val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending[cpu] |= val;
         slavio_check_interrupts(s);
         DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
@@ -256,8 +257,9 @@ static void slavio_check_interrupts(void *opaque)
                 if (pending & (1 << j))
                     pil_pending |= 1 << s->intbit_to_level[j];
             }
+            pil_pending |= s->intreg_pending[i] & CPU_HARDIRQ_MASK;
         }
-        pil_pending |= (s->intreg_pending[i] & CPU_IRQ_MASK) >> 16;
+        pil_pending |= (s->intreg_pending[i] & CPU_SOFTIRQ_MASK) >> 16;
 
         for (j = 0; j < MAX_PILS; j++) {
             if (pil_pending & (1 << j)) {
@@ -386,7 +388,7 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
 
     *cpu_irq = qemu_allocate_irqs(slavio_set_timer_irq_cpu, s, MAX_CPUS);
-    s->cputimer_bit = 1 << s->intbit_to_level[cputimer];
+    s->cputimer_bit = 1 << cputimer;
     slavio_intctl_reset(s);
     return s;
 }

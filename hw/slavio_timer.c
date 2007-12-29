@@ -253,6 +253,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                 if (val & (1 << i)) {
                     qemu_irq_lower(s->slave[i]->irq);
                     s->slave[i]->limit = -1ULL;
+                } else {
+                    ptimer_stop(s->slave[i]->timer);
                 }
                 if ((val & (1 << i)) != (s->slave_mode & (1 << i))) {
                     ptimer_stop(s->slave[i]->timer);
