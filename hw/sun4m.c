@@ -561,6 +561,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
     qemu_register_reset(main_cpu_reset, env);
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
+    env->prom_addr = hwdef->slavio_base;
 
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
