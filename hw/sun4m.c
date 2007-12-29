@@ -623,7 +623,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
     }
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
-                        hwdef->nvram_size, 8);
+                        hwdef->nvram_size, 2);
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[hwdef->ms_kb_irq],
                               nographic);
@@ -848,7 +848,7 @@ static const struct hwdef hwdefs[] = {
         .sun4c_intctl_base  = 0xf5000000,
         .sun4c_counter_base = 0xf3000000,
         .vram_size    = 0x00100000,
-        .nvram_size   = 0x2000, // XXX 0x800,
+        .nvram_size   = 0x800,
         .esp_irq = 2,
         .le_irq = 3,
         .clock_irq = 5,
