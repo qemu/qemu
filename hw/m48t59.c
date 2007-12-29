@@ -451,7 +451,7 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
         break;
     }
     if (addr > 0x1FF9 && addr < 0x2000)
-	NVRAM_PRINTF("0x%08x <= 0x%08x\n", addr, retval);
+       NVRAM_PRINTF("%s: 0x%08x <= 0x%08x\n", __func__, addr, retval);
 
     return retval;
 }
@@ -476,7 +476,7 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
     m48t59_t *NVRAM = opaque;
 
     addr -= NVRAM->io_base;
-    NVRAM_PRINTF("0x%08x => 0x%08x\n", addr, val);
+    NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, addr, val);
     switch (addr) {
     case 0:
         NVRAM->addr &= ~0x00FF;
@@ -509,7 +509,7 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
         retval = -1;
         break;
     }
-    NVRAM_PRINTF("0x%08x <= 0x%08x\n", addr, retval);
+    NVRAM_PRINTF("%s: 0x%08x <= 0x%08x\n", __func__, addr, retval);
 
     return retval;
 }
