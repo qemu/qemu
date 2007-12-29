@@ -698,7 +698,7 @@ static const struct hwdef hwdefs[] = {
         .me_irq = 30,
         .cs_irq = 5,
         .machine_id = 0x80,
-        .iommu_version = 0x04000000,
+        .iommu_version = 0x05000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
