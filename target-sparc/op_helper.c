@@ -1681,13 +1681,66 @@ void cpu_set_cwp(CPUState *env1, int new_cwp)
 }
 
 #ifdef TARGET_SPARC64
+#ifdef DEBUG_PCALL
+static const char * const excp_names[0x50] = {
+    [TT_TFAULT] = "Instruction Access Fault",
+    [TT_TMISS] = "Instruction Access MMU Miss",
+    [TT_CODE_ACCESS] = "Instruction Access Error",
+    [TT_ILL_INSN] = "Illegal Instruction",
+    [TT_PRIV_INSN] = "Privileged Instruction",
+    [TT_NFPU_INSN] = "FPU Disabled",
+    [TT_FP_EXCP] = "FPU Exception",
+    [TT_TOVF] = "Tag Overflow",
+    [TT_CLRWIN] = "Clean Windows",
+    [TT_DIV_ZERO] = "Division By Zero",
+    [TT_DFAULT] = "Data Access Fault",
+    [TT_DMISS] = "Data Access MMU Miss",
+    [TT_DATA_ACCESS] = "Data Access Error",
+    [TT_DPROT] = "Data Protection Error",
+    [TT_UNALIGNED] = "Unaligned Memory Access",
+    [TT_PRIV_ACT] = "Privileged Action",
+    [TT_EXTINT | 0x1] = "External Interrupt 1",
+    [TT_EXTINT | 0x2] = "External Interrupt 2",
+    [TT_EXTINT | 0x3] = "External Interrupt 3",
+    [TT_EXTINT | 0x4] = "External Interrupt 4",
+    [TT_EXTINT | 0x5] = "External Interrupt 5",
+    [TT_EXTINT | 0x6] = "External Interrupt 6",
+    [TT_EXTINT | 0x7] = "External Interrupt 7",
+    [TT_EXTINT | 0x8] = "External Interrupt 8",
+    [TT_EXTINT | 0x9] = "External Interrupt 9",
+    [TT_EXTINT | 0xa] = "External Interrupt 10",
+    [TT_EXTINT | 0xb] = "External Interrupt 11",
+    [TT_EXTINT | 0xc] = "External Interrupt 12",
+    [TT_EXTINT | 0xd] = "External Interrupt 13",
+    [TT_EXTINT | 0xe] = "External Interrupt 14",
+    [TT_EXTINT | 0xf] = "External Interrupt 15",
+};
+#endif
+
 void do_interrupt(int intno)
 {
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
         static int count;
-        fprintf(logfile, "%6d: v=%04x pc=%016" PRIx64 " npc=%016" PRIx64 " SP=%016" PRIx64 "\n",
-                count, intno,
+        const char *name;
+
+        if (intno < 0 || intno >= 0x180 || (intno > 0x4f && intno < 0x80))
+            name = "Unknown";
+        else if (intno >= 0x100)
+            name = "Trap Instruction";
+        else if (intno >= 0xc0)
+            name = "Window Fill";
+        else if (intno >= 0x80)
+            name = "Window Spill";
+        else {
+            name = excp_names[intno];
+            if (!name)
+                name = "Unknown";
+        }
+
+        fprintf(logfile, "%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
+                " SP=%016" PRIx64 "\n",
+                count, name, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
         cpu_dump_state(env, logfile, fprintf, 0);
@@ -1740,6 +1793,41 @@ void do_interrupt(int intno)
     env->exception_index = 0;
 }
 #else
+#ifdef DEBUG_PCALL
+static const char * const excp_names[0x80] = {
+    [TT_TFAULT] = "Instruction Access Fault",
+    [TT_ILL_INSN] = "Illegal Instruction",
+    [TT_PRIV_INSN] = "Privileged Instruction",
+    [TT_NFPU_INSN] = "FPU Disabled",
+    [TT_WIN_OVF] = "Window Overflow",
+    [TT_WIN_UNF] = "Window Underflow",
+    [TT_UNALIGNED] = "Unaligned Memory Access",
+    [TT_FP_EXCP] = "FPU Exception",
+    [TT_DFAULT] = "Data Access Fault",
+    [TT_TOVF] = "Tag Overflow",
+    [TT_EXTINT | 0x1] = "External Interrupt 1",
+    [TT_EXTINT | 0x2] = "External Interrupt 2",
+    [TT_EXTINT | 0x3] = "External Interrupt 3",
+    [TT_EXTINT | 0x4] = "External Interrupt 4",
+    [TT_EXTINT | 0x5] = "External Interrupt 5",
+    [TT_EXTINT | 0x6] = "External Interrupt 6",
+    [TT_EXTINT | 0x7] = "External Interrupt 7",
+    [TT_EXTINT | 0x8] = "External Interrupt 8",
+    [TT_EXTINT | 0x9] = "External Interrupt 9",
+    [TT_EXTINT | 0xa] = "External Interrupt 10",
+    [TT_EXTINT | 0xb] = "External Interrupt 11",
+    [TT_EXTINT | 0xc] = "External Interrupt 12",
+    [TT_EXTINT | 0xd] = "External Interrupt 13",
+    [TT_EXTINT | 0xe] = "External Interrupt 14",
+    [TT_EXTINT | 0xf] = "External Interrupt 15",
+    [TT_TOVF] = "Tag Overflow",
+    [TT_CODE_ACCESS] = "Instruction Access Error",
+    [TT_DATA_ACCESS] = "Data Access Error",
+    [TT_DIV_ZERO] = "Division By Zero",
+    [TT_NCP_INSN] = "Coprocessor Disabled",
+};
+#endif
+
 void do_interrupt(int intno)
 {
     int cwp;
@@ -1747,8 +1835,20 @@ void do_interrupt(int intno)
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
         static int count;
-        fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
-                count, intno,
+        const char *name;
+
+        if (intno < 0 || intno >= 0x100)
+            name = "Unknown";
+        else if (intno >= 0x80)
+            name = "Trap Instruction";
+        else {
+            name = excp_names[intno];
+            if (!name)
+                name = "Unknown";
+        }
+
+        fprintf(logfile, "%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
+                count, name, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
         cpu_dump_state(env, logfile, fprintf, 0);
