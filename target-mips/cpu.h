@@ -417,7 +417,7 @@ struct CPUMIPSState {
     int user_mode_only; /* user mode only simulation */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0x00FF
+#define MIPS_HFLAG_TMASK  0x01FF
 #define MIPS_HFLAG_MODE   0x0007 /* execution modes                    */
     /* The KSU flags must be the lowest bits in hflags. The flag order
        must be the same as defined for CP0 Status. This allows to use
@@ -431,16 +431,20 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_CP0    0x0010 /* CP0 enabled                        */
 #define MIPS_HFLAG_FPU    0x0020 /* FPU enabled                        */
 #define MIPS_HFLAG_F64    0x0040 /* 64-bit FPU enabled                 */
-#define MIPS_HFLAG_RE     0x0080 /* Reversed endianness                */
+    /* True if the MIPS IV COP1X instructions can be used.  This also
+       controls the non-COP1X instructions RECIP.S, RECIP.D, RSQRT.S
+       and RSQRT.D.  */
+#define MIPS_HFLAG_COP1X  0x0080 /* COP1X instructions enabled         */
+#define MIPS_HFLAG_RE     0x0100 /* Reversed endianness                */
     /* If translation is interrupted between the branch instruction and
      * the delay slot, record what type of branch it is so that we can
      * resume translation properly.  It might be possible to reduce
      * this from three bits to two.  */
-#define MIPS_HFLAG_BMASK  0x0700
-#define MIPS_HFLAG_B      0x0100 /* Unconditional branch               */
-#define MIPS_HFLAG_BC     0x0200 /* Conditional branch                 */
-#define MIPS_HFLAG_BL     0x0300 /* Likely branch                      */
-#define MIPS_HFLAG_BR     0x0400 /* branch to register (can't link TB) */
+#define MIPS_HFLAG_BMASK  0x0e00
+#define MIPS_HFLAG_B      0x0200 /* Unconditional branch               */
+#define MIPS_HFLAG_BC     0x0400 /* Conditional branch                 */
+#define MIPS_HFLAG_BL     0x0600 /* Likely branch                      */
+#define MIPS_HFLAG_BR     0x0800 /* branch to register (can't link TB) */
     target_ulong btarget;        /* Jump / branch target               */
     int bcond;                   /* Branch condition (if needed)       */
 
