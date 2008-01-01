@@ -59,7 +59,7 @@ typedef struct SLAVIO_INTCTLState {
 #endif
     qemu_irq *cpu_irqs[MAX_CPUS];
     const uint32_t *intbit_to_level;
-    uint32_t cputimer_bit;
+    uint32_t cputimer_lbit, cputimer_mbit;
     uint32_t pil_out[MAX_CPUS];
 } SLAVIO_INTCTLState;
 
@@ -257,7 +257,6 @@ static void slavio_check_interrupts(void *opaque)
                 if (pending & (1 << j))
                     pil_pending |= 1 << s->intbit_to_level[j];
             }
-            pil_pending |= s->intreg_pending[i] & CPU_HARDIRQ_MASK;
         }
         pil_pending |= (s->intreg_pending[i] & CPU_SOFTIRQ_MASK) >> 16;
 
@@ -307,10 +306,13 @@ static void slavio_set_timer_irq_cpu(void *opaque, int cpu, int level)
 
     DPRINTF("Set cpu %d local timer level %d\n", cpu, level);
 
-    if (level)
-        s->intreg_pending[cpu] |= s->cputimer_bit;
-    else
-        s->intreg_pending[cpu] &= ~s->cputimer_bit;
+    if (level) {
+        s->intregm_pending |= s->cputimer_mbit;
+        s->intreg_pending[cpu] |= s->cputimer_lbit;
+    } else {
+        s->intregm_pending &= ~s->cputimer_mbit;
+        s->intreg_pending[cpu] &= ~s->cputimer_lbit;
+    }
 
     slavio_check_interrupts(s);
 }
@@ -388,7 +390,8 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
 
     *cpu_irq = qemu_allocate_irqs(slavio_set_timer_irq_cpu, s, MAX_CPUS);
-    s->cputimer_bit = 1 << cputimer;
+    s->cputimer_mbit = 1 << cputimer;
+    s->cputimer_lbit = 1 << intbit_to_level[cputimer];
     slavio_intctl_reset(s);
     return s;
 }
