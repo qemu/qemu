@@ -198,14 +198,14 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 }
 
 static CPUReadMemoryFunc *dma_mem_read[3] = {
-    dma_mem_readl,
-    dma_mem_readl,
+    NULL,
+    NULL,
     dma_mem_readl,
 };
 
 static CPUWriteMemoryFunc *dma_mem_write[3] = {
-    dma_mem_writel,
-    dma_mem_writel,
+    NULL,
+    NULL,
     dma_mem_writel,
 };
 

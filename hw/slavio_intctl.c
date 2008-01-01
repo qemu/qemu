@@ -129,14 +129,14 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
 }
 
 static CPUReadMemoryFunc *slavio_intctl_mem_read[3] = {
-    slavio_intctl_mem_readl,
-    slavio_intctl_mem_readl,
+    NULL,
+    NULL,
     slavio_intctl_mem_readl,
 };
 
 static CPUWriteMemoryFunc *slavio_intctl_mem_write[3] = {
-    slavio_intctl_mem_writel,
-    slavio_intctl_mem_writel,
+    NULL,
+    NULL,
     slavio_intctl_mem_writel,
 };
 
@@ -200,14 +200,14 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
 }
 
 static CPUReadMemoryFunc *slavio_intctlm_mem_read[3] = {
-    slavio_intctlm_mem_readl,
-    slavio_intctlm_mem_readl,
+    NULL,
+    NULL,
     slavio_intctlm_mem_readl,
 };
 
 static CPUWriteMemoryFunc *slavio_intctlm_mem_write[3] = {
-    slavio_intctlm_mem_writel,
-    slavio_intctlm_mem_writel,
+    NULL,
+    NULL,
     slavio_intctlm_mem_writel,
 };
 

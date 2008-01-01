@@ -115,7 +115,7 @@ typedef struct IOMMUState {
     qemu_irq irq;
 } IOMMUState;
 
-static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     IOMMUState *s = opaque;
     target_phys_addr_t saddr;
@@ -136,7 +136,7 @@ static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void iommu_mem_writew(void *opaque, target_phys_addr_t addr,
+static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
     IOMMUState *s = opaque;
@@ -213,15 +213,15 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr,
 }
 
 static CPUReadMemoryFunc *iommu_mem_read[3] = {
-    iommu_mem_readw,
-    iommu_mem_readw,
-    iommu_mem_readw,
+    NULL,
+    NULL,
+    iommu_mem_readl,
 };
 
 static CPUWriteMemoryFunc *iommu_mem_write[3] = {
-    iommu_mem_writew,
-    iommu_mem_writew,
-    iommu_mem_writew,
+    NULL,
+    NULL,
+    iommu_mem_writel,
 };
 
 static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)

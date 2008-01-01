@@ -93,30 +93,6 @@ typedef struct ECCState {
     uint32_t regs[ECC_NREGS];
 } ECCState;
 
-static void ecc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    printf("ECC: Unsupported write 0x" TARGET_FMT_plx " %02x\n",
-           addr, val & 0xff);
-}
-
-static uint32_t ecc_mem_readb(void *opaque, target_phys_addr_t addr)
-{
-    printf("ECC: Unsupported read 0x" TARGET_FMT_plx " 00\n", addr);
-    return 0;
-}
-
-static void ecc_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    printf("ECC: Unsupported write 0x" TARGET_FMT_plx " %04x\n",
-           addr, val & 0xffff);
-}
-
-static uint32_t ecc_mem_readw(void *opaque, target_phys_addr_t addr)
-{
-    printf("ECC: Unsupported read 0x" TARGET_FMT_plx " 0000\n", addr);
-    return 0;
-}
-
 static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     ECCState *s = opaque;
@@ -201,14 +177,14 @@ static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static CPUReadMemoryFunc *ecc_mem_read[3] = {
-    ecc_mem_readb,
-    ecc_mem_readw,
+    NULL,
+    NULL,
     ecc_mem_readl,
 };
 
 static CPUWriteMemoryFunc *ecc_mem_write[3] = {
-    ecc_mem_writeb,
-    ecc_mem_writew,
+    NULL,
+    NULL,
     ecc_mem_writel,
 };
 

@@ -641,14 +641,14 @@ static void serial_event(void *opaque, int event)
 
 static CPUReadMemoryFunc *slavio_serial_mem_read[3] = {
     slavio_serial_mem_readb,
-    slavio_serial_mem_readb,
-    slavio_serial_mem_readb,
+    NULL,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *slavio_serial_mem_write[3] = {
     slavio_serial_mem_writeb,
-    slavio_serial_mem_writeb,
-    slavio_serial_mem_writeb,
+    NULL,
+    NULL,
 };
 
 static void slavio_serial_save_chn(QEMUFile *f, ChannelState *s)

@@ -276,14 +276,14 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
 }
 
 static CPUReadMemoryFunc *slavio_timer_mem_read[3] = {
-    slavio_timer_mem_readl,
-    slavio_timer_mem_readl,
+    NULL,
+    NULL,
     slavio_timer_mem_readl,
 };
 
 static CPUWriteMemoryFunc *slavio_timer_mem_write[3] = {
-    slavio_timer_mem_writel,
-    slavio_timer_mem_writel,
+    NULL,
+    NULL,
     slavio_timer_mem_writel,
 };
 

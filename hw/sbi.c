@@ -91,14 +91,14 @@ static void sbi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 }
 
 static CPUReadMemoryFunc *sbi_mem_read[3] = {
-    sbi_mem_readl,
-    sbi_mem_readl,
+    NULL,
+    NULL,
     sbi_mem_readl,
 };
 
 static CPUWriteMemoryFunc *sbi_mem_write[3] = {
-    sbi_mem_writel,
-    sbi_mem_writel,
+    NULL,
+    NULL,
     sbi_mem_writel,
 };
 

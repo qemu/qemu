@@ -191,14 +191,14 @@ static uint32_t slavio_misc_mem_readb(void *opaque, target_phys_addr_t addr)
 
 static CPUReadMemoryFunc *slavio_misc_mem_read[3] = {
     slavio_misc_mem_readb,
-    slavio_misc_mem_readb,
-    slavio_misc_mem_readb,
+    NULL,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *slavio_misc_mem_write[3] = {
     slavio_misc_mem_writeb,
-    slavio_misc_mem_writeb,
-    slavio_misc_mem_writeb,
+    NULL,
+    NULL,
 };
 
 static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -241,18 +241,18 @@ static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
 }
 
 static CPUReadMemoryFunc *slavio_sysctrl_mem_read[3] = {
-    slavio_sysctrl_mem_readl,
-    slavio_sysctrl_mem_readl,
+    NULL,
+    NULL,
     slavio_sysctrl_mem_readl,
 };
 
 static CPUWriteMemoryFunc *slavio_sysctrl_mem_write[3] = {
-    slavio_sysctrl_mem_writel,
-    slavio_sysctrl_mem_writel,
+    NULL,
+    NULL,
     slavio_sysctrl_mem_writel,
 };
 
-static uint32_t slavio_led_mem_reads(void *opaque, target_phys_addr_t addr)
+static uint32_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0, saddr;
@@ -270,7 +270,7 @@ static uint32_t slavio_led_mem_reads(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void slavio_led_mem_writes(void *opaque, target_phys_addr_t addr,
+static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
     MiscState *s = opaque;
@@ -289,15 +289,15 @@ static void slavio_led_mem_writes(void *opaque, target_phys_addr_t addr,
 }
 
 static CPUReadMemoryFunc *slavio_led_mem_read[3] = {
-    slavio_led_mem_reads,
-    slavio_led_mem_reads,
-    slavio_led_mem_reads,
+    NULL,
+    slavio_led_mem_readw,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *slavio_led_mem_write[3] = {
-    slavio_led_mem_writes,
-    slavio_led_mem_writes,
-    slavio_led_mem_writes,
+    NULL,
+    slavio_led_mem_writew,
+    NULL,
 };
 
 static void slavio_misc_save(QEMUFile *f, void *opaque)
