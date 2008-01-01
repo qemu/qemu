@@ -337,6 +337,10 @@ void helper_ld_asi(int asi, int size, int sign)
             DPRINTF_MMU("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
         }
         break;
+    case 5: // Turbosparc ITLB Diagnostic
+    case 6: // Turbosparc DTLB Diagnostic
+    case 7: // Turbosparc IOTLB Diagnostic
+        break;
     case 9: /* Supervisor code access */
         switch(size) {
         case 1:
@@ -441,9 +445,13 @@ void helper_ld_asi(int asi, int size, int sign)
             break;
         }
         break;
+    case 0x30: // Turbosparc secondary cache diagnostic
+    case 0x31: // Turbosparc RAM snoop
+    case 0x32: // Turbosparc page table descriptor diagnostic
     case 0x39: /* data cache diagnostic register */
         ret = 0;
         break;
+    case 8: /* User code access, XXX */
     default:
         do_unassigned_access(T0, 0, 0, asi);
         ret = 0;
@@ -621,6 +629,10 @@ void helper_st_asi(int asi, int size)
 #endif
         }
         break;
+    case 5: // Turbosparc ITLB Diagnostic
+    case 6: // Turbosparc DTLB Diagnostic
+    case 7: // Turbosparc IOTLB Diagnostic
+        break;
     case 0xa: /* User data access */
         switch(size) {
         case 1:
@@ -713,8 +725,7 @@ void helper_st_asi(int asi, int size)
             }
         }
         break;
-    case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
-    case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
+    case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         {
             switch(size) {
             case 1:
@@ -738,16 +749,17 @@ void helper_st_asi(int asi, int size)
             }
         }
         break;
-    case 0x30: /* store buffer tags */
-    case 0x31: /* store buffer data or Ross RT620 I-cache flush */
-    case 0x32: /* store buffer control */
+    case 0x30: // store buffer tags or Turbosparc secondary cache diagnostic
+    case 0x31: // store buffer data, Ross RT620 I-cache flush or
+               // Turbosparc snoop RAM
+    case 0x32: // store buffer control or Turbosparc page table descriptor diagnostic
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
     case 0x38: /* breakpoint diagnostics */
     case 0x4c: /* breakpoint action */
         break;
+    case 8: /* User code access, XXX */
     case 9: /* Supervisor code access, XXX */
-    case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
         do_unassigned_access(T0, 1, 0, asi);
         break;
