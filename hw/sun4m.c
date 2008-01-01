@@ -436,7 +436,6 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     prom_offset += (ret + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 
     /* set up devices */
-    iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version);
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000ULL,
                                        &hwdef->intbit_to_level[0],
@@ -450,6 +449,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
         cpu_register_physical_memory(hwdef->idreg_base, sizeof(uint32_t),
                                      prom_offset | IO_MEM_ROM);
     }
+
+    iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
+                       slavio_irq[hwdef->me_irq]);
 
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
                               iommu, &espdma_irq, &esp_reset);
@@ -597,7 +599,8 @@ static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
     slavio_intctl = sun4c_intctl_init(hwdef->sun4c_intctl_base,
                                       &slavio_irq, cpu_irqs);
 
-    iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version);
+    iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
+                       slavio_irq[hwdef->me_irq]);
 
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[hwdef->esp_irq],
                               iommu, &espdma_irq, &esp_reset);
@@ -1091,7 +1094,9 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, int RAM_size,
 
     for (i = 0; i < MAX_IOUNITS; i++)
         if (hwdef->iounit_bases[i] != (target_phys_addr_t)-1)
-            iounits[i] = iommu_init(hwdef->iounit_bases[i], hwdef->iounit_version);
+            iounits[i] = iommu_init(hwdef->iounit_bases[i],
+                                    hwdef->iounit_version,
+                                    sbi_irq[hwdef->me_irq]);
 
     espdma = sparc32_dma_init(hwdef->espdma_base, sbi_irq[hwdef->esp_irq],
                               iounits[0], &espdma_irq, &esp_reset);
