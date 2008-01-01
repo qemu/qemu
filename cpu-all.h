@@ -821,6 +821,7 @@ extern uint8_t *phys_ram_dirty;
    the physical address */
 #define IO_MEM_ROMD        (1)
 #define IO_MEM_SUBPAGE     (2)
+#define IO_MEM_SUBWIDTH    (4)
 
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
