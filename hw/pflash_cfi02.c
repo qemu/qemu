@@ -45,6 +45,7 @@
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
+static int traceflag;
 #define DPRINTF(fmt, args...)                      \
 do {                                               \
         printf("PFLASH: %s: " fmt , __func__, ##args);           \
@@ -527,6 +528,13 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
 {
     pflash_t *pfl;
     int32_t total_len;
+
+#ifdef PFLASH_DEBUG
+    if (getenv("DEBUG_FLASH")) {
+        traceflag = strtoul(getenv("DEBUG_FLASH"), 0, 0);
+    }
+    DPRINTF("Logging enabled for FLASH in %s\n", __func__);
+#endif
 
     total_len = sector_len * nb_blocs;
     /* XXX: to be fixed */

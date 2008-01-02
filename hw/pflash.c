@@ -22,6 +22,10 @@
 #include "block.h"
 #include "pflash.h"
 
+#ifdef PFLASH_DEBUG
+static int traceflag;
+#endif
+
 pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs, uint32_t size, int width,
                            uint16_t flash_manufacturer, uint16_t flash_type)
@@ -34,6 +38,14 @@ pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
     const uint16_t id2 = 0x33;
     const uint16_t id3 = 0x44;
     pflash_t *pf;
+
+#ifdef PFLASH_DEBUG
+    if (getenv("DEBUG_FLASH")) {
+        traceflag = strtoul(getenv("DEBUG_FLASH"), 0, 0);
+    }
+    //~ DPRINTF("Logging enabled for FLASH in %s\n", __func__);
+#endif
+
     switch (flash_manufacturer) {
         case MANUFACTURER_AMD:
         case MANUFACTURER_FUJITSU:

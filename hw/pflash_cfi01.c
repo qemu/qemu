@@ -550,7 +550,7 @@ pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
     if (getenv("DEBUG_FLASH")) {
         traceflag = strtoul(getenv("DEBUG_FLASH"), 0, 0);
     }
-    DPRINTF("Logging enabled for FLASH\n");
+    DPRINTF("Logging enabled for FLASH in %s\n", __func__);
 #endif
 
     /* Currently, only one flash chip is supported. */

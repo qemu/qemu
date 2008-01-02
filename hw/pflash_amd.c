@@ -46,8 +46,8 @@
 #include "qemu-timer.h"
 #include "exec-all.h"
 
-//~ #define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
+static int traceflag;
 #define loglevel 1
 #define logfile  stderr
 #define DPRINTF(fmt, args...) \
@@ -575,6 +575,13 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
 {
     pflash_t *pfl;
     target_long total_len;
+
+#ifdef PFLASH_DEBUG
+    if (getenv("DEBUG_FLASH")) {
+        traceflag = strtoul(getenv("DEBUG_FLASH"), 0, 0);
+    }
+    DPRINTF("Logging enabled for FLASH in %s\n", __func__);
+#endif
 
     total_len = sector_len * nb_blocs;
 

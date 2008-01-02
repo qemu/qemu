@@ -17,6 +17,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#if !defined(__pflash_h)
+#define __pflash_h
+
+#define PFLASH_DEBUG
+
 #define P_ID_NONE 0
 #define P_ID_INTEL_EXT 1
 #define P_ID_AMD_STD 2
@@ -251,4 +256,4 @@ pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs, uint32_t size, int width,
                            uint16_t flash_manufacturer, uint16_t flash_type);
 
-/* eof */
+#endif /* __pflash_h */
