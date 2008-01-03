@@ -319,43 +319,40 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static struct _excp_names {
-    int excp;
-    char *name;
-} excp_names[EXCP_LAST + 1] = {
-    { EXCP_RESET, "reset" },
-    { EXCP_SRESET, "soft reset" },
-    { EXCP_DSS, "debug single step" },
-    { EXCP_DINT, "debug interrupt" },
-    { EXCP_NMI, "non-maskable interrupt" },
-    { EXCP_MCHECK, "machine check" },
-    { EXCP_EXT_INTERRUPT, "interrupt" },
-    { EXCP_DFWATCH, "deferred watchpoint" },
-    { EXCP_DIB, "debug instruction breakpoint" },
-    { EXCP_IWATCH, "instruction fetch watchpoint" },
-    { EXCP_AdEL, "address error load" },
-    { EXCP_AdES, "address error store" },
-    { EXCP_TLBF, "TLB refill" },
-    { EXCP_IBE, "instruction bus error" },
-    { EXCP_DBp, "debug breakpoint" },
-    { EXCP_SYSCALL, "syscall" },
-    { EXCP_BREAK, "break" },
-    { EXCP_CpU, "coprocessor unusable" },
-    { EXCP_RI, "reserved instruction" },
-    { EXCP_OVERFLOW, "arithmetic overflow" },
-    { EXCP_TRAP, "trap" },
-    { EXCP_FPE, "floating point" },
-    { EXCP_DDBS, "debug data break store" },
-    { EXCP_DWATCH, "data watchpoint" },
-    { EXCP_LTLBL, "TLB modify" },
-    { EXCP_TLBL, "TLB load" },
-    { EXCP_TLBS, "TLB store" },
-    { EXCP_DBE, "data bus error" },
-    { EXCP_DDBL, "debug data break load" },
-    { EXCP_THREAD, "thread" },
-    { EXCP_MDMX, "MDMX" },
-    { EXCP_C2E, "precise coprocessor 2" },
-    { EXCP_CACHE, "cache error" },
+static const char * const excp_names[EXCP_LAST + 1] = {
+    [EXCP_RESET] = "reset",
+    [EXCP_SRESET] = "soft reset",
+    [EXCP_DSS] = "debug single step",
+    [EXCP_DINT] = "debug interrupt",
+    [EXCP_NMI] = "non-maskable interrupt",
+    [EXCP_MCHECK] = "machine check",
+    [EXCP_EXT_INTERRUPT] = "interrupt",
+    [EXCP_DFWATCH] = "deferred watchpoint",
+    [EXCP_DIB] = "debug instruction breakpoint",
+    [EXCP_IWATCH] = "instruction fetch watchpoint",
+    [EXCP_AdEL] = "address error load",
+    [EXCP_AdES] = "address error store",
+    [EXCP_TLBF] = "TLB refill",
+    [EXCP_IBE] = "instruction bus error",
+    [EXCP_DBp] = "debug breakpoint",
+    [EXCP_SYSCALL] = "syscall",
+    [EXCP_BREAK] = "break",
+    [EXCP_CpU] = "coprocessor unusable",
+    [EXCP_RI] = "reserved instruction",
+    [EXCP_OVERFLOW] = "arithmetic overflow",
+    [EXCP_TRAP] = "trap",
+    [EXCP_FPE] = "floating point",
+    [EXCP_DDBS] = "debug data break store",
+    [EXCP_DWATCH] = "data watchpoint",
+    [EXCP_LTLBL] = "TLB modify",
+    [EXCP_TLBL] = "TLB load",
+    [EXCP_TLBS] = "TLB store",
+    [EXCP_DBE] = "data bus error",
+    [EXCP_DDBL] = "debug data break load",
+    [EXCP_THREAD] = "thread",
+    [EXCP_MDMX] = "MDMX",
+    [EXCP_C2E] = "precise coprocessor 2",
+    [EXCP_CACHE] = "cache error",
 };
 #endif
 
@@ -364,13 +361,13 @@ void do_interrupt (CPUState *env)
 #if !defined(CONFIG_USER_ONLY)
     target_ulong offset;
     int cause = -1;
-    char *name;
+    const char *name;
 
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
         if (env->exception_index < 0 || env->exception_index > EXCP_LAST)
             name = "unknown";
         else
-            name = excp_names[env->exception_index].name;
+            name = excp_names[env->exception_index];
 
         fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
                 __func__, env->PC[env->current_tc], env->CP0_EPC, name);
