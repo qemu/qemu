@@ -397,6 +397,21 @@ module Adam2
   end
 end # Adam2
 
+# Extract bootloader from binary file.
+def extract(filename, destination)
+    data = Flashimage.read(filename)
+    offset = data.index("\x00\x90\x80\x40")
+    while offset
+        data = data[offset .. -1]
+        puts("Bootloader at offset #{offset}")
+        if destination
+          Flashimage.write(data[0 ... 0x10000], "#{destination}")
+        end
+        data = data[4 .. -1]
+        offset = data.index("\x00\x90\x80\x40")
+    end
+end
+
 # Extract squashfs from binary file.
 def getsquashfs(filename, destination)
     data = Flashimage.read(filename)
@@ -425,6 +440,8 @@ command = ARGV[0]
 
 if command == 'create'
 	createflashimage
+elsif command == 'extract-bootloader'
+	extract(ARGV[1], ARGV[2])
 elsif command == 'split'
 	# Split flash image in partitions.
 	splitflashimage(ARGV[1])
