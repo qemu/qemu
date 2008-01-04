@@ -470,6 +470,7 @@ VL_OBJS+= jazz_led.o
 VL_OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 VL_OBJS+= piix_pci.o parallel.o cirrus_vga.o $(SOUND_HW)
 VL_OBJS+= mipsnet.o
+VL_OBJS+= pflash_cfi01.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)

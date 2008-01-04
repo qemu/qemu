@@ -111,8 +111,8 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     else if (pfl->width == 4)
         boff = boff >> 2;
 
-    DPRINTF("%s: reading offset %08x under cmd %02x\n",
-                    __func__, boff, pfl->cmd);
+    DPRINTF("%s: reading offset " TARGET_FMT_lx " under cmd %02x\n",
+            __func__, boff, pfl->cmd);
 
     switch (pfl->cmd) {
     case 0x00:
@@ -121,7 +121,8 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
         switch (width) {
         case 1:
             ret = p[offset];
-            DPRINTF("%s: data offset %08x %02x\n", __func__, offset, ret);
+            DPRINTF("%s: data offset " TARGET_FMT_lx " %02x\n",
+                    __func__, offset, ret);
             break;
         case 2:
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -131,7 +132,8 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
             ret = p[offset];
             ret |= p[offset + 1] << 8;
 #endif
-            DPRINTF("%s: data offset %08x %04x\n", __func__, offset, ret);
+            DPRINTF("%s: data offset " TARGET_FMT_lx " %04x\n",
+                    __func__, offset, ret);
             break;
         case 4:
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -146,7 +148,8 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
             ret |= p[offset + 2] << 16;
             ret |= p[offset + 3] << 24;
 #endif
-            DPRINTF("%s: data offset %08x %08x\n", __func__, offset, ret);
+            DPRINTF("%s: data offset " TARGET_FMT_lx " %08x\n",
+                    __func__, offset, ret);
             break;
         default:
             DPRINTF("BUG in %s\n", __func__);
@@ -208,8 +211,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     else
         offset -= pfl->base;
 
-    DPRINTF("%s: offset %08x %08x %d wcycle 0x%x\n",
-                    __func__, offset, value, width, pfl->wcycle);
+    DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d wcycle 0x%x\n",
+            __func__, offset, value, width, pfl->wcycle);
 
     /* Set the device in I/O access mode */
     cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
@@ -230,8 +233,9 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
 
-            DPRINTF("%s: block erase at 0x%x bytes 0x%x\n", __func__,
-                            offset, pfl->sector_len);
+            DPRINTF("%s: block erase at " TARGET_FMT_lx " bytes "
+                    TARGET_FMT_lx "\n",
+                    __func__, offset, pfl->sector_len);
 
             memset(p + offset, 0xff, pfl->sector_len);
             pflash_update(pfl, offset, pfl->sector_len);
@@ -278,7 +282,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
             break;
         case 0xe8:
-            DPRINTF("%s: block write of 0x%x bytes\n", __func__, cmd);
+            DPRINTF("%s: block write of %x bytes\n", __func__, cmd);
             pfl->counter = cmd;
             pfl->wcycle++;
             break;
@@ -311,8 +315,9 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
             p = pfl->storage;
-            DPRINTF("%s: block write offset 0x%x value 0x%x counter 0x%x\n",
-                            __func__, offset, value, pfl->counter);
+            DPRINTF("%s: block write offset " TARGET_FMT_lx
+                    " value %x counter " TARGET_FMT_lx "\n",
+                    __func__, offset, value, pfl->counter);
             switch (width) {
             case 1:
                 p[offset] = value;
@@ -382,8 +387,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
  error_flash:
     printf("%s: Unimplemented flash cmd sequence "
-                    "(offset 0x%x, wcycle 0x%x cmd 0x%x value 0x%x\n",
-                    __func__, offset, pfl->wcycle, pfl->cmd, value);
+           "(offset " TARGET_FMT_lx ", wcycle 0x%x cmd 0x%x value 0x%x\n",
+           __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  reset_flash:
     cpu_register_physical_memory(pfl->base, pfl->total_len,
@@ -484,7 +489,7 @@ static int ctz32 (uint32_t n)
 }
 
 pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
-                                BlockDriverState *bs, target_ulong sector_len,
+                                BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3)
@@ -495,9 +500,11 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
     total_len = sector_len * nb_blocs;
 
     /* XXX: to be fixed */
+#if 0
     if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
         total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
         return NULL;
+#endif
 
     pfl = qemu_mallocz(sizeof(pflash_t));
 
