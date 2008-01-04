@@ -164,9 +164,9 @@ static int tb_phys_invalidate_count;
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
     target_phys_addr_t base;
-    CPUReadMemoryFunc **mem_read[TARGET_PAGE_SIZE];
-    CPUWriteMemoryFunc **mem_write[TARGET_PAGE_SIZE];
-    void *opaque[TARGET_PAGE_SIZE];
+    CPUReadMemoryFunc **mem_read[TARGET_PAGE_SIZE][4];
+    CPUWriteMemoryFunc **mem_write[TARGET_PAGE_SIZE][4];
+    void *opaque[TARGET_PAGE_SIZE][2][4];
 } subpage_t;
 
 static void page_init(void)
@@ -2035,7 +2035,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
 
             CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
                           need_subpage);
-            if (need_subpage) {
+            if (need_subpage || phys_offset & IO_MEM_SUBWIDTH) {
                 if (!(orig_memory & IO_MEM_SUBPAGE)) {
                     subpage = subpage_init((addr & TARGET_PAGE_MASK),
                                            &p->phys_offset, orig_memory);
@@ -2063,7 +2063,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
                 CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr,
                               end_addr2, need_subpage);
 
-                if (need_subpage) {
+                if (need_subpage || phys_offset & IO_MEM_SUBWIDTH) {
                     subpage = subpage_init((addr & TARGET_PAGE_MASK),
                                            &p->phys_offset, IO_MEM_UNASSIGNED);
                     subpage_register(subpage, start_addr2, end_addr2,
@@ -2349,7 +2349,6 @@ static CPUWriteMemoryFunc *watch_mem_write[3] = {
 static inline uint32_t subpage_readlen (subpage_t *mmio, target_phys_addr_t addr,
                                  unsigned int len)
 {
-    CPUReadMemoryFunc **mem_read;
     uint32_t ret;
     unsigned int idx;
 
@@ -2358,8 +2357,7 @@ static inline uint32_t subpage_readlen (subpage_t *mmio, target_phys_addr_t addr
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d\n", __func__,
            mmio, len, addr, idx);
 #endif
-    mem_read = mmio->mem_read[idx];
-    ret = (*mem_read[len])(mmio->opaque[idx], addr);
+    ret = (**mmio->mem_read[idx][len])(mmio->opaque[idx][0][len], addr);
 
     return ret;
 }
@@ -2367,7 +2365,6 @@ static inline uint32_t subpage_readlen (subpage_t *mmio, target_phys_addr_t addr
 static inline void subpage_writelen (subpage_t *mmio, target_phys_addr_t addr,
                               uint32_t value, unsigned int len)
 {
-    CPUWriteMemoryFunc **mem_write;
     unsigned int idx;
 
     idx = SUBPAGE_IDX(addr - mmio->base);
@@ -2375,8 +2372,7 @@ static inline void subpage_writelen (subpage_t *mmio, target_phys_addr_t addr,
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d value %08x\n", __func__,
            mmio, len, addr, idx, value);
 #endif
-    mem_write = mmio->mem_write[idx];
-    (*mem_write[len])(mmio->opaque[idx], addr, value);
+    (**mmio->mem_write[idx][len])(mmio->opaque[idx][1][len], addr, value);
 }
 
 static uint32_t subpage_readb (void *opaque, target_phys_addr_t addr)
@@ -2449,6 +2445,7 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              int memory)
 {
     int idx, eidx;
+    unsigned int i;
 
     if (start >= TARGET_PAGE_SIZE || end >= TARGET_PAGE_SIZE)
         return -1;
@@ -2460,9 +2457,16 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
 #endif
     memory >>= IO_MEM_SHIFT;
     for (; idx <= eidx; idx++) {
-        mmio->mem_read[idx] = io_mem_read[memory];
-        mmio->mem_write[idx] = io_mem_write[memory];
-        mmio->opaque[idx] = io_mem_opaque[memory];
+        for (i = 0; i < 4; i++) {
+            if (io_mem_read[memory][i]) {
+                mmio->mem_read[idx][i] = &io_mem_read[memory][i];
+                mmio->opaque[idx][0][i] = io_mem_opaque[memory];
+            }
+            if (io_mem_write[memory][i]) {
+                mmio->mem_write[idx][i] = &io_mem_write[memory][i];
+                mmio->opaque[idx][1][i] = io_mem_opaque[memory];
+            }
+        }
     }
 
     return 0;
@@ -2507,16 +2511,18 @@ static void io_mem_init(void)
 
 /* mem_read and mem_write are arrays of functions containing the
    function to access byte (index 0), word (index 1) and dword (index
-   2). All functions must be supplied. If io_index is non zero, the
-   corresponding io zone is modified. If it is zero, a new io zone is
-   allocated. The return value can be used with
-   cpu_register_physical_memory(). (-1) is returned if error. */
+   2). Functions can be omitted with a NULL function pointer. The
+   registered functions may be modified dynamically later.
+   If io_index is non zero, the corresponding io zone is
+   modified. If it is zero, a new io zone is allocated. The return
+   value can be used with cpu_register_physical_memory(). (-1) is
+   returned if error. */
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,
                            void *opaque)
 {
-    int i;
+    int i, subwidth = 0;
 
     if (io_index <= 0) {
         if (io_mem_nb >= IO_MEM_NB_ENTRIES)
@@ -2528,11 +2534,13 @@ int cpu_register_io_memory(int io_index,
     }
 
     for(i = 0;i < 3; i++) {
+        if (!mem_read[i] || !mem_write[i])
+            subwidth = IO_MEM_SUBWIDTH;
         io_mem_read[io_index][i] = mem_read[i];
         io_mem_write[io_index][i] = mem_write[i];
     }
     io_mem_opaque[io_index] = opaque;
-    return io_index << IO_MEM_SHIFT;
+    return (io_index << IO_MEM_SHIFT) | subwidth;
 }
 
 CPUWriteMemoryFunc **cpu_get_io_memory_write(int io_index)

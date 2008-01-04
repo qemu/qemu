@@ -543,14 +543,14 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 
 static CPUReadMemoryFunc *esp_mem_read[3] = {
     esp_mem_readb,
-    esp_mem_readb,
-    esp_mem_readb,
+    NULL,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *esp_mem_write[3] = {
     esp_mem_writeb,
-    esp_mem_writeb,
-    esp_mem_writeb,
+    NULL,
+    NULL,
 };
 
 static void esp_save(QEMUFile *f, void *opaque)

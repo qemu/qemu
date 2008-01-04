@@ -457,14 +457,14 @@ static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 }
 
 static CPUReadMemoryFunc *tcx_dac_read[3] = {
-    tcx_dac_readl,
-    tcx_dac_readl,
+    NULL,
+    NULL,
     tcx_dac_readl,
 };
 
 static CPUWriteMemoryFunc *tcx_dac_write[3] = {
-    tcx_dac_writel,
-    tcx_dac_writel,
+    NULL,
+    NULL,
     tcx_dac_writel,
 };
 
@@ -479,14 +479,14 @@ static void tcx_dummy_writel(void *opaque, target_phys_addr_t addr,
 }
 
 static CPUReadMemoryFunc *tcx_dummy_read[3] = {
-    tcx_dummy_readl,
-    tcx_dummy_readl,
+    NULL,
+    NULL,
     tcx_dummy_readl,
 };
 
 static CPUWriteMemoryFunc *tcx_dummy_write[3] = {
-    tcx_dummy_writel,
-    tcx_dummy_writel,
+    NULL,
+    NULL,
     tcx_dummy_writel,
 };
 

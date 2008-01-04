@@ -74,7 +74,7 @@ For system emulation, the following hardware targets are supported:
 @item PREP (PowerPC processor)
 @item G3 BW PowerMac (PowerPC processor)
 @item Mac99 PowerMac (PowerPC processor, in progress)
-@item Sun4m (32-bit Sparc processor)
+@item Sun4m/Sun4c/Sun4d (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
 @item Malta board (32-bit and 64-bit MIPS processors)
 @item ARM Integrator/CP (ARM)
@@ -2028,15 +2028,17 @@ More information is available at
 @section Sparc32 System emulator
 
 Use the executable @file{qemu-system-sparc} to simulate a SPARCstation
-5, SPARCstation 10, or SPARCserver 600MP (sun4m architecture). The
-emulation is somewhat complete.  SMP up to 16 CPUs is supported, but
-Linux limits the number of usable CPUs to 4.
+5, SPARCstation 10, SPARCstation 20, SPARCserver 600MP (sun4m
+architecture), SPARCstation 2 (sun4c architecture), SPARCserver 1000,
+or SPARCcenter 2000 (sun4d architecture). The emulation is somewhat
+complete.  SMP up to 16 CPUs is supported, but Linux limits the number
+of usable CPUs to 4.
 
-QEMU emulates the following sun4m peripherals:
+QEMU emulates the following sun4m/sun4d peripherals:
 
 @itemize @minus
 @item
-IOMMU
+IOMMU or IO-UNITs
 @item
 TCX Frame buffer
 @item
@@ -2056,7 +2058,7 @@ CS4231 sound device (only on SS-5, not working yet)
 
 The number of peripherals is fixed in the architecture.  Maximum
 memory size depends on the machine type, for SS-5 it is 256MB and for
-SS-10 and SS-600MP 2047MB.
+others 2047MB.
 
 Since version 0.8.2, QEMU uses OpenBIOS
 @url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
@@ -2087,7 +2089,7 @@ qemu-system-sparc -prom-env 'auto-boot?=false' \
  -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
 @end example
 
-@item -M [SS-5|SS-10|SS-600MP]
+@item -M [SS-5|SS-10|SS-20|SS-600MP|SS-2|SS-1000|SS-2000]
 
 Set the emulated machine type. Default is SS-5.
 

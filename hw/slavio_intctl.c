@@ -59,7 +59,7 @@ typedef struct SLAVIO_INTCTLState {
 #endif
     qemu_irq *cpu_irqs[MAX_CPUS];
     const uint32_t *intbit_to_level;
-    uint32_t cputimer_bit;
+    uint32_t cputimer_lbit, cputimer_mbit;
     uint32_t pil_out[MAX_CPUS];
 } SLAVIO_INTCTLState;
 
@@ -68,9 +68,10 @@ typedef struct SLAVIO_INTCTLState {
 #define INTCTLM_MAXADDR 0x13
 #define INTCTLM_SIZE (INTCTLM_MAXADDR + 1)
 #define INTCTLM_MASK 0x1f
-#define MASTER_IRQ_MASK ~0x4fb2007f
+#define MASTER_IRQ_MASK ~0x0fa2007f
 #define MASTER_DISABLE 0x80000000
-#define CPU_IRQ_MASK 0xfffe0000
+#define CPU_SOFTIRQ_MASK 0xfffe0000
+#define CPU_HARDIRQ_MASK 0x0000fffe
 #define CPU_IRQ_INT15_IN 0x0004000
 #define CPU_IRQ_INT15_MASK 0x80000000
 
@@ -111,13 +112,13 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
     case 1: // clear pending softints
         if (val & CPU_IRQ_INT15_IN)
             val |= CPU_IRQ_INT15_MASK;
-        val &= CPU_IRQ_MASK;
+        val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending[cpu] &= ~val;
         slavio_check_interrupts(s);
         DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
         break;
     case 2: // set softint
-        val &= CPU_IRQ_MASK;
+        val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending[cpu] |= val;
         slavio_check_interrupts(s);
         DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
@@ -128,14 +129,14 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
 }
 
 static CPUReadMemoryFunc *slavio_intctl_mem_read[3] = {
-    slavio_intctl_mem_readl,
-    slavio_intctl_mem_readl,
+    NULL,
+    NULL,
     slavio_intctl_mem_readl,
 };
 
 static CPUWriteMemoryFunc *slavio_intctl_mem_write[3] = {
-    slavio_intctl_mem_writel,
-    slavio_intctl_mem_writel,
+    NULL,
+    NULL,
     slavio_intctl_mem_writel,
 };
 
@@ -145,13 +146,13 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr, ret;
 
-    saddr = (addr & INTCTLM_MAXADDR) >> 2;
+    saddr = (addr & INTCTLM_MASK) >> 2;
     switch (saddr) {
     case 0:
         ret = s->intregm_pending & ~MASTER_DISABLE;
         break;
     case 1:
-        ret = s->intregm_disabled;
+        ret = s->intregm_disabled & MASTER_IRQ_MASK;
         break;
     case 4:
         ret = s->target_cpu;
@@ -199,14 +200,14 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
 }
 
 static CPUReadMemoryFunc *slavio_intctlm_mem_read[3] = {
-    slavio_intctlm_mem_readl,
-    slavio_intctlm_mem_readl,
+    NULL,
+    NULL,
     slavio_intctlm_mem_readl,
 };
 
 static CPUWriteMemoryFunc *slavio_intctlm_mem_write[3] = {
-    slavio_intctlm_mem_writel,
-    slavio_intctlm_mem_writel,
+    NULL,
+    NULL,
     slavio_intctlm_mem_writel,
 };
 
@@ -257,7 +258,7 @@ static void slavio_check_interrupts(void *opaque)
                     pil_pending |= 1 << s->intbit_to_level[j];
             }
         }
-        pil_pending |= (s->intreg_pending[i] & CPU_IRQ_MASK) >> 16;
+        pil_pending |= (s->intreg_pending[i] & CPU_SOFTIRQ_MASK) >> 16;
 
         for (j = 0; j < MAX_PILS; j++) {
             if (pil_pending & (1 << j)) {
@@ -305,10 +306,13 @@ static void slavio_set_timer_irq_cpu(void *opaque, int cpu, int level)
 
     DPRINTF("Set cpu %d local timer level %d\n", cpu, level);
 
-    if (level)
-        s->intreg_pending[cpu] |= s->cputimer_bit;
-    else
-        s->intreg_pending[cpu] &= ~s->cputimer_bit;
+    if (level) {
+        s->intregm_pending |= s->cputimer_mbit;
+        s->intreg_pending[cpu] |= s->cputimer_lbit;
+    } else {
+        s->intregm_pending &= ~s->cputimer_mbit;
+        s->intreg_pending[cpu] &= ~s->cputimer_lbit;
+    }
 
     slavio_check_interrupts(s);
 }
@@ -386,7 +390,8 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
 
     *cpu_irq = qemu_allocate_irqs(slavio_set_timer_irq_cpu, s, MAX_CPUS);
-    s->cputimer_bit = 1 << s->intbit_to_level[cputimer];
+    s->cputimer_mbit = 1 << cputimer;
+    s->cputimer_lbit = 1 << intbit_to_level[cputimer];
     slavio_intctl_reset(s);
     return s;
 }

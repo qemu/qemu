@@ -4,7 +4,7 @@
 /* Devices used by sparc32 system.  */
 
 /* iommu.c */
-void *iommu_init(target_phys_addr_t addr, uint32_t version);
+void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq);
 void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                                  uint8_t *buf, int len, int is_write);
 static inline void sparc_iommu_memory_read(void *opaque,
@@ -33,6 +33,14 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                          qemu_irq **parent_irq, unsigned int cputimer);
 void slavio_pic_info(void *opaque);
 void slavio_irq_info(void *opaque);
+
+/* sbi.c */
+void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
+               qemu_irq **parent_irq);
+
+/* sun4c_intctl.c */
+void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
+                        qemu_irq *parent_irq);
 
 /* slavio_timer.c */
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,

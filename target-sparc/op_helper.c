@@ -6,6 +6,7 @@
 //#define DEBUG_MXCC
 //#define DEBUG_UNALIGNED
 //#define DEBUG_UNASSIGNED
+//#define DEBUG_ASI
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, args...) \
@@ -19,6 +20,13 @@ do { printf("MMU: " fmt , ##args); } while (0)
 do { printf("MXCC: " fmt , ##args); } while (0)
 #else
 #define DPRINTF_MXCC(fmt, args...)
+#endif
+
+#ifdef DEBUG_ASI
+#define DPRINTF_ASI(fmt, args...) \
+do { printf("ASI: " fmt , ##args); } while (0)
+#else
+#define DPRINTF_ASI(fmt, args...)
 #endif
 
 void raise_exception(int tt)
@@ -229,11 +237,34 @@ static void dump_mxcc(CPUState *env)
 }
 #endif
 
+#ifdef DEBUG_ASI
+static void dump_asi(const char * txt, uint32_t addr, int asi, int size,
+                     uint32_t r1, uint32_t r2)
+{
+    switch (size)
+    {
+    case 1:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %02x\n", txt, addr, asi, r1 & 0xff);
+        break;
+    case 2:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %04x\n", txt, addr, asi, r1 & 0xffff);
+        break;
+    case 4:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %08x\n", txt, addr, asi, r1);
+        break;
+    case 8:
+        DPRINTF_ASI("%s %08x asi 0x%02x = %016llx\n", txt, addr, asi,
+                    r2 | ((uint64_t)r1 << 32));
+        break;
+    }
+}
+#endif
+
 void helper_ld_asi(int asi, int size, int sign)
 {
     uint32_t ret = 0;
     uint64_t tmp;
-#ifdef DEBUG_MXCC
+#if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
     uint32_t last_T0 = T0;
 #endif
 
@@ -305,6 +336,10 @@ void helper_ld_asi(int asi, int size, int sign)
                 ret = env->mmuregs[4];
             DPRINTF_MMU("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
         }
+        break;
+    case 5: // Turbosparc ITLB Diagnostic
+    case 6: // Turbosparc DTLB Diagnostic
+    case 7: // Turbosparc IOTLB Diagnostic
         break;
     case 9: /* Supervisor code access */
         switch(size) {
@@ -387,8 +422,7 @@ void helper_ld_asi(int asi, int size, int sign)
             break;
         }
         break;
-    case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
-    case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
+    case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         switch(size) {
         case 1:
             ret = ldub_phys((target_phys_addr_t)T0
@@ -411,12 +445,15 @@ void helper_ld_asi(int asi, int size, int sign)
             break;
         }
         break;
+    case 0x30: // Turbosparc secondary cache diagnostic
+    case 0x31: // Turbosparc RAM snoop
+    case 0x32: // Turbosparc page table descriptor diagnostic
     case 0x39: /* data cache diagnostic register */
         ret = 0;
         break;
-    case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
+    case 8: /* User code access, XXX */
     default:
-        do_unassigned_access(T0, 0, 0, 1);
+        do_unassigned_access(T0, 0, 0, asi);
         ret = 0;
         break;
     }
@@ -435,6 +472,9 @@ void helper_ld_asi(int asi, int size, int sign)
     }
     else
         T1 = ret;
+#ifdef DEBUG_ASI
+    dump_asi("read ", last_T0, asi, size, T1, T0);
+#endif
 }
 
 void helper_st_asi(int asi, int size)
@@ -542,8 +582,8 @@ void helper_st_asi(int asi, int size)
 #ifdef DEBUG_MMU
             dump_mmu(env);
 #endif
-            return;
         }
+        break;
     case 4: /* write MMU regs */
         {
             int reg = (T0 >> 8) & 0x1f;
@@ -587,8 +627,12 @@ void helper_st_asi(int asi, int size)
 #ifdef DEBUG_MMU
             dump_mmu(env);
 #endif
-            return;
         }
+        break;
+    case 5: // Turbosparc ITLB Diagnostic
+    case 6: // Turbosparc DTLB Diagnostic
+    case 7: // Turbosparc IOTLB Diagnostic
+        break;
     case 0xa: /* User data access */
         switch(size) {
         case 1:
@@ -646,7 +690,7 @@ void helper_st_asi(int asi, int size)
                 stl_kernel(dst, temp);
             }
         }
-        return;
+        break;
     case 0x1f: /* Block fill, stda access */
         {
             // value (T1, T2)
@@ -661,7 +705,7 @@ void helper_st_asi(int asi, int size)
             for (i = 0; i < 32; i += 8, dst += 8)
                 stq_kernel(dst, val);
         }
-        return;
+        break;
     case 0x20: /* MMU passthrough */
         {
             switch(size) {
@@ -680,9 +724,8 @@ void helper_st_asi(int asi, int size)
                 break;
             }
         }
-        return;
-    case 0x2e: /* MMU passthrough, 0xexxxxxxxx */
-    case 0x2f: /* MMU passthrough, 0xfxxxxxxxx */
+        break;
+    case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         {
             switch(size) {
             case 1:
@@ -705,21 +748,25 @@ void helper_st_asi(int asi, int size)
                 break;
             }
         }
-        return;
-    case 0x30: /* store buffer tags */
-    case 0x31: /* store buffer data or Ross RT620 I-cache flush */
-    case 0x32: /* store buffer control */
+        break;
+    case 0x30: // store buffer tags or Turbosparc secondary cache diagnostic
+    case 0x31: // store buffer data, Ross RT620 I-cache flush or
+               // Turbosparc snoop RAM
+    case 0x32: // store buffer control or Turbosparc page table descriptor diagnostic
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
     case 0x38: /* breakpoint diagnostics */
     case 0x4c: /* breakpoint action */
         break;
+    case 8: /* User code access, XXX */
     case 9: /* Supervisor code access, XXX */
-    case 0x21 ... 0x2d: /* MMU passthrough, unassigned */
     default:
-        do_unassigned_access(T0, 1, 0, 1);
-        return;
+        do_unassigned_access(T0, 1, 0, asi);
+        break;
     }
+#ifdef DEBUG_ASI
+    dump_asi("write", T0, asi, size, T1, T2);
+#endif
 }
 
 #endif /* CONFIG_USER_ONLY */
@@ -1646,13 +1693,66 @@ void cpu_set_cwp(CPUState *env1, int new_cwp)
 }
 
 #ifdef TARGET_SPARC64
+#ifdef DEBUG_PCALL
+static const char * const excp_names[0x50] = {
+    [TT_TFAULT] = "Instruction Access Fault",
+    [TT_TMISS] = "Instruction Access MMU Miss",
+    [TT_CODE_ACCESS] = "Instruction Access Error",
+    [TT_ILL_INSN] = "Illegal Instruction",
+    [TT_PRIV_INSN] = "Privileged Instruction",
+    [TT_NFPU_INSN] = "FPU Disabled",
+    [TT_FP_EXCP] = "FPU Exception",
+    [TT_TOVF] = "Tag Overflow",
+    [TT_CLRWIN] = "Clean Windows",
+    [TT_DIV_ZERO] = "Division By Zero",
+    [TT_DFAULT] = "Data Access Fault",
+    [TT_DMISS] = "Data Access MMU Miss",
+    [TT_DATA_ACCESS] = "Data Access Error",
+    [TT_DPROT] = "Data Protection Error",
+    [TT_UNALIGNED] = "Unaligned Memory Access",
+    [TT_PRIV_ACT] = "Privileged Action",
+    [TT_EXTINT | 0x1] = "External Interrupt 1",
+    [TT_EXTINT | 0x2] = "External Interrupt 2",
+    [TT_EXTINT | 0x3] = "External Interrupt 3",
+    [TT_EXTINT | 0x4] = "External Interrupt 4",
+    [TT_EXTINT | 0x5] = "External Interrupt 5",
+    [TT_EXTINT | 0x6] = "External Interrupt 6",
+    [TT_EXTINT | 0x7] = "External Interrupt 7",
+    [TT_EXTINT | 0x8] = "External Interrupt 8",
+    [TT_EXTINT | 0x9] = "External Interrupt 9",
+    [TT_EXTINT | 0xa] = "External Interrupt 10",
+    [TT_EXTINT | 0xb] = "External Interrupt 11",
+    [TT_EXTINT | 0xc] = "External Interrupt 12",
+    [TT_EXTINT | 0xd] = "External Interrupt 13",
+    [TT_EXTINT | 0xe] = "External Interrupt 14",
+    [TT_EXTINT | 0xf] = "External Interrupt 15",
+};
+#endif
+
 void do_interrupt(int intno)
 {
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
         static int count;
-        fprintf(logfile, "%6d: v=%04x pc=%016" PRIx64 " npc=%016" PRIx64 " SP=%016" PRIx64 "\n",
-                count, intno,
+        const char *name;
+
+        if (intno < 0 || intno >= 0x180 || (intno > 0x4f && intno < 0x80))
+            name = "Unknown";
+        else if (intno >= 0x100)
+            name = "Trap Instruction";
+        else if (intno >= 0xc0)
+            name = "Window Fill";
+        else if (intno >= 0x80)
+            name = "Window Spill";
+        else {
+            name = excp_names[intno];
+            if (!name)
+                name = "Unknown";
+        }
+
+        fprintf(logfile, "%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
+                " SP=%016" PRIx64 "\n",
+                count, name, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
         cpu_dump_state(env, logfile, fprintf, 0);
@@ -1705,6 +1805,41 @@ void do_interrupt(int intno)
     env->exception_index = 0;
 }
 #else
+#ifdef DEBUG_PCALL
+static const char * const excp_names[0x80] = {
+    [TT_TFAULT] = "Instruction Access Fault",
+    [TT_ILL_INSN] = "Illegal Instruction",
+    [TT_PRIV_INSN] = "Privileged Instruction",
+    [TT_NFPU_INSN] = "FPU Disabled",
+    [TT_WIN_OVF] = "Window Overflow",
+    [TT_WIN_UNF] = "Window Underflow",
+    [TT_UNALIGNED] = "Unaligned Memory Access",
+    [TT_FP_EXCP] = "FPU Exception",
+    [TT_DFAULT] = "Data Access Fault",
+    [TT_TOVF] = "Tag Overflow",
+    [TT_EXTINT | 0x1] = "External Interrupt 1",
+    [TT_EXTINT | 0x2] = "External Interrupt 2",
+    [TT_EXTINT | 0x3] = "External Interrupt 3",
+    [TT_EXTINT | 0x4] = "External Interrupt 4",
+    [TT_EXTINT | 0x5] = "External Interrupt 5",
+    [TT_EXTINT | 0x6] = "External Interrupt 6",
+    [TT_EXTINT | 0x7] = "External Interrupt 7",
+    [TT_EXTINT | 0x8] = "External Interrupt 8",
+    [TT_EXTINT | 0x9] = "External Interrupt 9",
+    [TT_EXTINT | 0xa] = "External Interrupt 10",
+    [TT_EXTINT | 0xb] = "External Interrupt 11",
+    [TT_EXTINT | 0xc] = "External Interrupt 12",
+    [TT_EXTINT | 0xd] = "External Interrupt 13",
+    [TT_EXTINT | 0xe] = "External Interrupt 14",
+    [TT_EXTINT | 0xf] = "External Interrupt 15",
+    [TT_TOVF] = "Tag Overflow",
+    [TT_CODE_ACCESS] = "Instruction Access Error",
+    [TT_DATA_ACCESS] = "Data Access Error",
+    [TT_DIV_ZERO] = "Division By Zero",
+    [TT_NCP_INSN] = "Coprocessor Disabled",
+};
+#endif
+
 void do_interrupt(int intno)
 {
     int cwp;
@@ -1712,8 +1847,20 @@ void do_interrupt(int intno)
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
         static int count;
-        fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
-                count, intno,
+        const char *name;
+
+        if (intno < 0 || intno >= 0x100)
+            name = "Unknown";
+        else if (intno >= 0x80)
+            name = "Trap Instruction";
+        else {
+            name = excp_names[intno];
+            if (!name)
+                name = "Unknown";
+        }
+
+        fprintf(logfile, "%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
+                count, name, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
         cpu_dump_state(env, logfile, fprintf, 0);
@@ -1832,6 +1979,17 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
        generated code */
     saved_env = env;
     env = cpu_single_env;
+#ifdef DEBUG_UNASSIGNED
+    if (is_asi)
+        printf("Unassigned mem %s access to " TARGET_FMT_plx " asi 0x%02x from "
+               TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", addr, is_asi,
+               env->pc);
+    else
+        printf("Unassigned mem %s access to " TARGET_FMT_plx " from "
+               TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", addr, env->pc);
+#endif
     if (env->mmuregs[3]) /* Fault status register */
         env->mmuregs[3] = 1; /* overflow (not read before another fault) */
     if (is_asi)
@@ -1845,10 +2003,6 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     env->mmuregs[3] |= (5 << 2) | 2;
     env->mmuregs[4] = addr; /* Fault address register */
     if ((env->mmuregs[0] & MMU_E) && !(env->mmuregs[0] & MMU_NF)) {
-#ifdef DEBUG_UNASSIGNED
-        printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
-               "\n", addr, env->pc);
-#endif
         if (is_exec)
             raise_exception(TT_CODE_ACCESS);
         else

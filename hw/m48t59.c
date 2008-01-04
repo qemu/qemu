@@ -36,13 +36,13 @@
 #endif
 
 /*
- * The M48T08 and M48T59 chips are very similar. The newer '59 has
+ * The M48T02, M48T08 and M48T59 chips are very similar. The newer '59 has
  * alarm and a watchdog timer and related control registers. In the
  * PPC platform there is also a nvram lock function.
  */
 struct m48t59_t {
     /* Model parameters */
-    int type; // 8 = m48t08, 59 = m48t59
+    int type; // 2 = m48t02, 8 = m48t08, 59 = m48t59
     /* Hardware parameters */
     qemu_irq IRQ;
     int mem_index;
@@ -196,9 +196,14 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 
     if (addr > 0x1FF8 && addr < 0x2000)
 	NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, addr, val);
-    if (NVRAM->type == 8 &&
-        (addr >= 0x1ff0 && addr <= 0x1ff7))
+
+    /* check for NVRAM access */
+    if ((NVRAM->type == 2 && addr < 0x7f8) ||
+        (NVRAM->type == 8 && addr < 0x1ff8) ||
+        (NVRAM->type == 59 && addr < 0x1ff0))
         goto do_write;
+
+    /* TOD access */
     switch (addr) {
     case 0x1FF0:
         /* flags register : read-only */
@@ -256,10 +261,12 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         set_up_watchdog(NVRAM, val);
         break;
     case 0x1FF8:
+    case 0x07F8:
         /* control */
-	NVRAM->buffer[0x1FF8] = (val & ~0xA0) | 0x90;
+       NVRAM->buffer[addr] = (val & ~0xA0) | 0x90;
         break;
     case 0x1FF9:
+    case 0x07F9:
         /* seconds (BCD) */
 	tmp = fromBCD(val & 0x7F);
 	if (tmp >= 0 && tmp <= 59) {
@@ -267,7 +274,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 	    tm.tm_sec = tmp;
 	    set_time(NVRAM, &tm);
 	}
-	if ((val & 0x80) ^ (NVRAM->buffer[0x1FF9] & 0x80)) {
+       if ((val & 0x80) ^ (NVRAM->buffer[addr] & 0x80)) {
 	    if (val & 0x80) {
 		NVRAM->stop_time = time(NULL);
 	    } else {
@@ -275,9 +282,10 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 		NVRAM->stop_time = 0;
 	    }
 	}
-	NVRAM->buffer[0x1FF9] = val & 0x80;
+       NVRAM->buffer[addr] = val & 0x80;
         break;
     case 0x1FFA:
+    case 0x07FA:
         /* minutes (BCD) */
 	tmp = fromBCD(val & 0x7F);
 	if (tmp >= 0 && tmp <= 59) {
@@ -287,6 +295,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 	}
         break;
     case 0x1FFB:
+    case 0x07FB:
         /* hours (BCD) */
 	tmp = fromBCD(val & 0x3F);
 	if (tmp >= 0 && tmp <= 23) {
@@ -296,14 +305,16 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 	}
         break;
     case 0x1FFC:
+    case 0x07FC:
         /* day of the week / century */
 	tmp = fromBCD(val & 0x07);
 	get_time(NVRAM, &tm);
 	tm.tm_wday = tmp;
 	set_time(NVRAM, &tm);
-        NVRAM->buffer[0x1FFC] = val & 0x40;
+        NVRAM->buffer[addr] = val & 0x40;
         break;
     case 0x1FFD:
+    case 0x07FD:
         /* date */
 	tmp = fromBCD(val & 0x1F);
 	if (tmp != 0) {
@@ -313,6 +324,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 	}
         break;
     case 0x1FFE:
+    case 0x07FE:
         /* month */
 	tmp = fromBCD(val & 0x1F);
 	if (tmp >= 1 && tmp <= 12) {
@@ -322,6 +334,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 	}
         break;
     case 0x1FFF:
+    case 0x07FF:
         /* year */
 	tmp = fromBCD(val);
 	if (tmp >= 0 && tmp <= 99) {
@@ -353,9 +366,13 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
     struct tm tm;
     uint32_t retval = 0xFF;
 
-    if (NVRAM->type == 8 &&
-        (addr >= 0x1ff0 && addr <= 0x1ff7))
+    /* check for NVRAM access */
+    if ((NVRAM->type == 2 && addr < 0x078f) ||
+        (NVRAM->type == 8 && addr < 0x1ff8) ||
+        (NVRAM->type == 59 && addr < 0x1ff0))
         goto do_read;
+
+    /* TOD access */
     switch (addr) {
     case 0x1FF0:
         /* flags register */
@@ -384,39 +401,47 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
 	set_up_watchdog(NVRAM, NVRAM->buffer[0x1FF7]);
 	goto do_read;
     case 0x1FF8:
+    case 0x07F8:
         /* control */
 	goto do_read;
     case 0x1FF9:
+    case 0x07F9:
         /* seconds (BCD) */
         get_time(NVRAM, &tm);
-        retval = (NVRAM->buffer[0x1FF9] & 0x80) | toBCD(tm.tm_sec);
+        retval = (NVRAM->buffer[addr] & 0x80) | toBCD(tm.tm_sec);
         break;
     case 0x1FFA:
+    case 0x07FA:
         /* minutes (BCD) */
         get_time(NVRAM, &tm);
         retval = toBCD(tm.tm_min);
         break;
     case 0x1FFB:
+    case 0x07FB:
         /* hours (BCD) */
         get_time(NVRAM, &tm);
         retval = toBCD(tm.tm_hour);
         break;
     case 0x1FFC:
+    case 0x07FC:
         /* day of the week / century */
         get_time(NVRAM, &tm);
-        retval = NVRAM->buffer[0x1FFC] | tm.tm_wday;
+        retval = NVRAM->buffer[addr] | tm.tm_wday;
         break;
     case 0x1FFD:
+    case 0x07FD:
         /* date */
         get_time(NVRAM, &tm);
         retval = toBCD(tm.tm_mday);
         break;
     case 0x1FFE:
+    case 0x07FE:
         /* month */
         get_time(NVRAM, &tm);
         retval = toBCD(tm.tm_mon + 1);
         break;
     case 0x1FFF:
+    case 0x07FF:
         /* year */
         get_time(NVRAM, &tm);
         if (NVRAM->type == 8)
@@ -437,7 +462,7 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
         break;
     }
     if (addr > 0x1FF9 && addr < 0x2000)
-	NVRAM_PRINTF("0x%08x <= 0x%08x\n", addr, retval);
+       NVRAM_PRINTF("%s: 0x%08x <= 0x%08x\n", __func__, addr, retval);
 
     return retval;
 }
@@ -462,7 +487,7 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
     m48t59_t *NVRAM = opaque;
 
     addr -= NVRAM->io_base;
-    NVRAM_PRINTF("0x%08x => 0x%08x\n", addr, val);
+    NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, addr, val);
     switch (addr) {
     case 0:
         NVRAM->addr &= ~0x00FF;
@@ -495,7 +520,7 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
         retval = -1;
         break;
     }
-    NVRAM_PRINTF("0x%08x <= 0x%08x\n", addr, retval);
+    NVRAM_PRINTF("%s: 0x%08x <= 0x%08x\n", __func__, addr, retval);
 
     return retval;
 }
@@ -636,7 +661,7 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     }
     if (mem_base != 0) {
         s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
-        cpu_register_physical_memory(mem_base, 0x4000, s->mem_index);
+        cpu_register_physical_memory(mem_base, size, s->mem_index);
     }
     if (type == 59) {
         s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);

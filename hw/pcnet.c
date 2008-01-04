@@ -2043,15 +2043,15 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
 }
 
 static CPUReadMemoryFunc *lance_mem_read[3] = {
+    NULL,
     lance_mem_readw,
-    lance_mem_readw,
-    lance_mem_readw,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *lance_mem_write[3] = {
+    NULL,
     lance_mem_writew,
-    lance_mem_writew,
-    lance_mem_writew,
+    NULL,
 };
 
 void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,

@@ -513,6 +513,7 @@ VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
 #~ VL_OBJS += serial_16550a.o
 VL_OBJS+= mipsnet.o
+VL_OBJS+= pflash_cfi01.o
 ifndef CONFIG_USER_ONLY
 CPPFLAGS += -DHAS_AUDIO
 endif
@@ -531,7 +532,7 @@ VL_OBJS+= cirrus_vga.o parallel.o ptimer.o
 else
 VL_OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
 VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o sparc32_dma.o
-VL_OBJS+= cs4231.o ptimer.o eccmemctl.o
+VL_OBJS+= cs4231.o ptimer.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 endif
 ifeq ($(TARGET_BASE_ARCH), arm)

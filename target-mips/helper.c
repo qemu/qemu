@@ -337,43 +337,40 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static struct _excp_names {
-    int excp;
-    char *name;
-} excp_names[EXCP_LAST + 1] = {
-    { EXCP_RESET, "reset" },
-    { EXCP_SRESET, "soft reset" },
-    { EXCP_DSS, "debug single step" },
-    { EXCP_DINT, "debug interrupt" },
-    { EXCP_NMI, "non-maskable interrupt" },
-    { EXCP_MCHECK, "machine check" },
-    { EXCP_EXT_INTERRUPT, "interrupt" },
-    { EXCP_DFWATCH, "deferred watchpoint" },
-    { EXCP_DIB, "debug instruction breakpoint" },
-    { EXCP_IWATCH, "instruction fetch watchpoint" },
-    { EXCP_AdEL, "address error load" },
-    { EXCP_AdES, "address error store" },
-    { EXCP_TLBF, "TLB refill" },
-    { EXCP_IBE, "instruction bus error" },
-    { EXCP_DBp, "debug breakpoint" },
-    { EXCP_SYSCALL, "syscall" },
-    { EXCP_BREAK, "break" },
-    { EXCP_CpU, "coprocessor unusable" },
-    { EXCP_RI, "reserved instruction" },
-    { EXCP_OVERFLOW, "arithmetic overflow" },
-    { EXCP_TRAP, "trap" },
-    { EXCP_FPE, "floating point" },
-    { EXCP_DDBS, "debug data break store" },
-    { EXCP_DWATCH, "data watchpoint" },
-    { EXCP_LTLBL, "TLB modify" },
-    { EXCP_TLBL, "TLB load" },
-    { EXCP_TLBS, "TLB store" },
-    { EXCP_DBE, "data bus error" },
-    { EXCP_DDBL, "debug data break load" },
-    { EXCP_THREAD, "thread" },
-    { EXCP_MDMX, "MDMX" },
-    { EXCP_C2E, "precise coprocessor 2" },
-    { EXCP_CACHE, "cache error" },
+static const char * const excp_names[EXCP_LAST + 1] = {
+    [EXCP_RESET] = "reset",
+    [EXCP_SRESET] = "soft reset",
+    [EXCP_DSS] = "debug single step",
+    [EXCP_DINT] = "debug interrupt",
+    [EXCP_NMI] = "non-maskable interrupt",
+    [EXCP_MCHECK] = "machine check",
+    [EXCP_EXT_INTERRUPT] = "interrupt",
+    [EXCP_DFWATCH] = "deferred watchpoint",
+    [EXCP_DIB] = "debug instruction breakpoint",
+    [EXCP_IWATCH] = "instruction fetch watchpoint",
+    [EXCP_AdEL] = "address error load",
+    [EXCP_AdES] = "address error store",
+    [EXCP_TLBF] = "TLB refill",
+    [EXCP_IBE] = "instruction bus error",
+    [EXCP_DBp] = "debug breakpoint",
+    [EXCP_SYSCALL] = "syscall",
+    [EXCP_BREAK] = "break",
+    [EXCP_CpU] = "coprocessor unusable",
+    [EXCP_RI] = "reserved instruction",
+    [EXCP_OVERFLOW] = "arithmetic overflow",
+    [EXCP_TRAP] = "trap",
+    [EXCP_FPE] = "floating point",
+    [EXCP_DDBS] = "debug data break store",
+    [EXCP_DWATCH] = "data watchpoint",
+    [EXCP_LTLBL] = "TLB modify",
+    [EXCP_TLBL] = "TLB load",
+    [EXCP_TLBS] = "TLB store",
+    [EXCP_DBE] = "data bus error",
+    [EXCP_DDBL] = "debug data break load",
+    [EXCP_THREAD] = "thread",
+    [EXCP_MDMX] = "MDMX",
+    [EXCP_C2E] = "precise coprocessor 2",
+    [EXCP_CACHE] = "cache error",
 };
 #endif
 
@@ -382,13 +379,13 @@ void do_interrupt (CPUState *env)
 #if !defined(CONFIG_USER_ONLY)
     target_ulong offset;
     int cause = -1;
-    char *name;
+    const char *name;
 
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
         if (env->exception_index < 0 || env->exception_index > EXCP_LAST)
             name = "unknown";
         else
-            name = excp_names[env->exception_index].name;
+            name = excp_names[env->exception_index];
 
         fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
                 __func__, env->PC[env->current_tc], env->CP0_EPC, name);
@@ -463,23 +460,13 @@ void do_interrupt (CPUState *env)
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->PC[env->current_tc] = (int32_t)0xBFC00000;
         break;
-    case EXCP_MCHECK:
-        cause = 24;
-        goto set_EPC;
     case EXCP_EXT_INTERRUPT:
         cause = 0;
         if (env->CP0_Cause & (1 << CP0Ca_IV))
             offset = 0x200;
         goto set_EPC;
-    case EXCP_DWATCH:
-        cause = 23;
-        /* XXX: TODO: manage defered watch exceptions */
-        goto set_EPC;
-    case EXCP_AdEL:
-        cause = 4;
-        goto set_EPC;
-    case EXCP_AdES:
-        cause = 5;
+    case EXCP_LTLBL:
+        cause = 1;
         goto set_EPC;
     case EXCP_TLBL:
         cause = 2;
@@ -496,6 +483,28 @@ void do_interrupt (CPUState *env)
 #endif
                 offset = 0x000;
         }
+        goto set_EPC;
+    case EXCP_TLBS:
+        cause = 3;
+        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
+#if defined(TARGET_MIPS64)
+            int R = env->CP0_BadVAddr >> 62;
+            int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
+            int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
+            int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
+
+            if ((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX))
+                offset = 0x080;
+            else
+#endif
+                offset = 0x000;
+        }
+        goto set_EPC;
+    case EXCP_AdEL:
+        cause = 4;
+        goto set_EPC;
+    case EXCP_AdES:
+        cause = 5;
         goto set_EPC;
     case EXCP_IBE:
         cause = 6;
@@ -526,27 +535,29 @@ void do_interrupt (CPUState *env)
     case EXCP_FPE:
         cause = 15;
         goto set_EPC;
-    case EXCP_LTLBL:
-        cause = 1;
+    case EXCP_C2E:
+        cause = 18;
         goto set_EPC;
-    case EXCP_TLBS:
-        cause = 3;
-        if (env->error_code == 1 && !(env->CP0_Status & (1 << CP0St_EXL))) {
-#if defined(TARGET_MIPS64)
-            int R = env->CP0_BadVAddr >> 62;
-            int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
-            int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
-            int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
-
-            if ((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX))
-                offset = 0x080;
-            else
-#endif
-                offset = 0x000;
-        }
+    case EXCP_MDMX:
+        cause = 22;
+        goto set_EPC;
+    case EXCP_DWATCH:
+        cause = 23;
+        /* XXX: TODO: manage defered watch exceptions */
+        goto set_EPC;
+    case EXCP_MCHECK:
+        cause = 24;
         goto set_EPC;
     case EXCP_THREAD:
         cause = 25;
+        goto set_EPC;
+    case EXCP_CACHE:
+        cause = 30;
+        if (env->CP0_Status & (1 << CP0St_BEV)) {
+            offset = 0x100;
+        } else {
+            offset = 0x20000100;
+        }
     set_EPC:
         if (!(env->CP0_Status & (1 << CP0St_EXL))) {
             if (env->hflags & MIPS_HFLAG_BMASK) {

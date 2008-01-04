@@ -493,6 +493,18 @@ static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
     fdctrl_write_mem,
 };
 
+static CPUReadMemoryFunc *fdctrl_mem_read_strict[3] = {
+    fdctrl_read_mem,
+    NULL,
+    NULL,
+};
+
+static CPUWriteMemoryFunc *fdctrl_mem_write_strict[3] = {
+    fdctrl_write_mem,
+    NULL,
+    NULL,
+};
+
 static void fd_save (QEMUFile *f, fdrive_t *fd)
 {
     uint8_t tmp;
@@ -586,12 +598,11 @@ static void fdctrl_external_reset(void *opaque)
     fdctrl_reset(s, 0);
 }
 
-fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
-                       target_phys_addr_t io_base,
-                       BlockDriverState **fds)
+static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
+                                     target_phys_addr_t io_base,
+                                     BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
-    int io_mem;
     int i;
 
     FLOPPY_DPRINTF("init controller\n");
@@ -611,7 +622,6 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
     fdctrl->config = 0x60; /* Implicit seek, polling & FIFO enabled */
-    fdctrl->sun4m = 0;
     if (fdctrl->dma_chann != -1) {
         fdctrl->dma_en = 1;
         DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
@@ -623,6 +633,25 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     }
     fdctrl_reset(fdctrl, 0);
     fdctrl->state = FD_CTRL_ACTIVE;
+    register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
+    qemu_register_reset(fdctrl_external_reset, fdctrl);
+    for (i = 0; i < 2; i++) {
+        fd_revalidate(&fdctrl->drives[i]);
+    }
+
+    return fdctrl;
+}
+
+fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
+                       target_phys_addr_t io_base,
+                       BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+    int io_mem;
+
+    fdctrl = fdctrl_init_common(irq, dma_chann, io_base, fds);
+
+    fdctrl->sun4m = 0;
     if (mem_mapped) {
         io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write,
                                         fdctrl);
@@ -637,11 +666,6 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
         register_ioport_write((uint32_t)io_base + 0x07, 1, 1, &fdctrl_write,
                               fdctrl);
     }
-    register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
-    qemu_register_reset(fdctrl_external_reset, fdctrl);
-    for (i = 0; i < 2; i++) {
-        fd_revalidate(&fdctrl->drives[i]);
-    }
 
     return fdctrl;
 }
@@ -650,9 +674,14 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
                              BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
+    int io_mem;
 
-    fdctrl = fdctrl_init(irq, 0, 1, io_base, fds);
+    fdctrl = fdctrl_init_common(irq, 0, io_base, fds);
     fdctrl->sun4m = 1;
+    io_mem = cpu_register_io_memory(0, fdctrl_mem_read_strict,
+                                    fdctrl_mem_write_strict,
+                                    fdctrl);
+    cpu_register_physical_memory(io_base, 0x08, io_mem);
 
     return fdctrl;
 }

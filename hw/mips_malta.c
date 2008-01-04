@@ -28,15 +28,18 @@
 #include "net.h"
 #include "boards.h"
 #include "smbus.h"
+#include "block.h"
+#include "flash.h"
 #include "mips.h"
 #include "pci.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "audio/audio.h"
 #include "boards.h"
-#include "pflash.h"
 
 #define BIOS_SIZE (16 * MiB)
+
+//#define DEBUG_BOARD_INIT
 
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
@@ -790,13 +793,13 @@ void mips_malta_init (int ram_size, int vga_ram_size,
 {
     char buf[1024];
     unsigned long bios_offset;
+    target_long bios_size;
     int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
     RTCState *rtc_state;
     fdctrl_t *floppy_controller;
     MaltaFPGAState *malta_fpga;
-    int ret;
     qemu_irq *i8259;
     int piix4_devfn;
     uint8_t *eeprom_buf;
@@ -805,6 +808,8 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
+    int fl_idx = 0;
+    int fl_sectors = 0;
 
     if (ram_size > 256 * MiB) {
         /* Larger RAM is not supported (collision with GT64120 memory). */
@@ -832,7 +837,7 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
 
-    /* Map the bios at two physical locations, as on the real board */
+    /* Map the bios at two physical locations, as on the real board. */
     bios_offset = ram_size + vga_ram_size;
     cpu_register_physical_memory(0x1e000000LL,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
@@ -842,38 +847,9 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     /* FPGA */
     malta_fpga = malta_fpga_init(0x1f000000LL, env);
 
-    /* Load a BIOS image unless a kernel image has been specified. */
-    if (!kernel_filename) {
-        if (bios_name == NULL)
-            bios_name = BIOS_FILENAME;
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-        ret = load_image(buf, phys_ram_base + bios_offset);
-        if (ret < 0 || ret > BIOS_SIZE) {
-            fprintf(stderr,
-                    "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
-                    buf);
-            exit(1);
-        }
-        /* In little endian mode the 32bit words in the bios are swapped,
-           a neat trick which allows bi-endian firmware. */
-#ifndef TARGET_WORDS_BIGENDIAN
-        {
-            uint32_t *addr;
-            for (addr = (uint32_t *)(phys_ram_base + bios_offset);
-                 addr < (uint32_t *)(phys_ram_base + bios_offset + ret);
-		 addr++) {
-                *addr = bswap32(*addr);
-            }
-        }
-#endif
-        pflash_t *pf;
-        pf = pflash_device_register(0x1fc00000, bios_offset, 0, 4 * MiB, 2,
-                             MANUFACTURER_INTEL, I28F160S5);
-    }
-
-    /* If a kernel image has been specified, write a small bootloader
-       to the flash location. */
+    /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
+        /* Write a small bootloader to the flash location. */
         loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
@@ -881,6 +857,47 @@ void mips_malta_init (int ram_size, int vga_ram_size,
         kernel_entry = load_kernel(env);
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
         write_bootloader(env, bios_offset, kernel_entry);
+    } else {
+        index = drive_get_index(IF_PFLASH, 0, fl_idx);
+        if (index != -1) {
+            /* Load firmware from flash. */
+            bios_size = 0x400000;
+            fl_sectors = bios_size >> 16;
+#ifdef DEBUG_BOARD_INIT
+            printf("Register parallel flash %d size " TARGET_FMT_lx " at "
+                   "offset %08lx addr %08llx '%s' %x\n",
+                   fl_idx, bios_size, bios_offset, 0x1e000000LL,
+                   bdrv_get_device_name(drives_table[index].bdrv), fl_sectors);
+#endif
+            pflash_cfi01_register(0x1e000000LL, bios_offset,
+                                  drives_table[index].bdrv, 65536, fl_sectors,
+                                  4, 0x0000, 0x0000, 0x0000, 0x0000);
+            fl_idx++;
+        } else {
+            /* Load a BIOS image. */
+            if (bios_name == NULL)
+                bios_name = BIOS_FILENAME;
+            snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
+            bios_size = load_image(buf, phys_ram_base + bios_offset);
+            if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
+                fprintf(stderr,
+                        "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
+                        buf);
+                exit(1);
+            }
+        }
+        /* In little endian mode the 32bit words in the bios are swapped,
+           a neat trick which allows bi-endian firmware. */
+#ifndef TARGET_WORDS_BIGENDIAN
+        {
+            uint32_t *addr;
+            for (addr = (uint32_t *)(phys_ram_base + bios_offset);
+                 addr < (uint32_t *)(phys_ram_base + bios_offset + bios_size);
+                 addr++) {
+                *addr = bswap32(*addr);
+            }
+        }
+#endif
     }
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
@@ -957,9 +974,6 @@ void mips_malta_init (int ram_size, int vga_ram_size,
 
     /* Network card */
     network_init(pci_bus);
-
-    /* Select 1st serial console as default (because we don't have VGA). */
-    //~ console_select(2);
 
     /* Optional PCI video card */
     pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size,

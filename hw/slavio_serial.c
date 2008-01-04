@@ -305,7 +305,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
             STATUS_CTS | STATUS_TXUNDRN;
     else
         s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
-    s->rregs[R_SPEC] = SPEC_BITS8;
+    s->rregs[R_SPEC] = SPEC_BITS8 | SPEC_ALLSENT;
 
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
@@ -641,14 +641,14 @@ static void serial_event(void *opaque, int event)
 
 static CPUReadMemoryFunc *slavio_serial_mem_read[3] = {
     slavio_serial_mem_readb,
-    slavio_serial_mem_readb,
-    slavio_serial_mem_readb,
+    NULL,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *slavio_serial_mem_write[3] = {
     slavio_serial_mem_writeb,
-    slavio_serial_mem_writeb,
-    slavio_serial_mem_writeb,
+    NULL,
+    NULL,
 };
 
 static void slavio_serial_save_chn(QEMUFile *f, ChannelState *s)
