@@ -19,7 +19,7 @@
   - OMAP310 MPU emulation plus Palm T|E machine (Andrzej Zaborowski)
   - ARM v6, v7, NEON SIMD and SMP emulation (Paul Brook/CodeSourcery)
   - Gumstix boards: connex and verdex emulation (Thorsten Zitterell)
-  - Intel mainstone board emulation (Armin Kuster)
+  - Intel mainstone II board emulation (Armin Kuster)
   - VMware SVGA II graphics card support (Andrzej Zaborowski)
 
 version 0.9.0:
