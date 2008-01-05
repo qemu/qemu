@@ -822,7 +822,7 @@ struct qemu_alarm_timer {
 };
 
 #define ALARM_FLAG_DYNTICKS  0x1
-#define ALARM_FLAG_MODIFIED  0x2
+#define ALARM_FLAG_EXPIRED   0x2
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
@@ -833,11 +833,6 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 {
     if (!alarm_has_dynticks(t))
         return;
-
-    if (!(t->flags & ALARM_FLAG_MODIFIED))
-        return;
-
-    t->flags &= ~(ALARM_FLAG_MODIFIED);
 
     t->rearm(t);
 }
@@ -1001,8 +996,6 @@ void qemu_del_timer(QEMUTimer *ts)
 {
     QEMUTimer **pt, *t;
 
-    alarm_timer->flags |= ALARM_FLAG_MODIFIED;
-
     /* NOTE: this code must be signal safe because
        qemu_timer_expired() can be called from a signal. */
     pt = &active_timers[ts->clock->type];
@@ -1041,6 +1034,11 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     ts->expire_time = expire_time;
     ts->next = *pt;
     *pt = ts;
+
+    /* Rearm if necessary  */
+    if ((alarm_timer->flags & ALARM_FLAG_EXPIRED) == 0 &&
+        pt == &active_timers[ts->clock->type])
+        qemu_rearm_alarm_timer(alarm_timer);
 }
 
 int qemu_timer_pending(QEMUTimer *ts)
@@ -1193,8 +1191,9 @@ static void host_alarm_handler(int host_signum)
 #endif
         CPUState *env = next_cpu;
 
+        alarm_timer->flags |= ALARM_FLAG_EXPIRED;
+
         if (env) {
-            alarm_timer->flags |= ALARM_FLAG_MODIFIED;
             /* stop the currently executing cpu because a timer occured */
             cpu_interrupt(env, CPU_INTERRUPT_EXIT);
 #ifdef USE_KQEMU
@@ -1379,7 +1378,7 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 
     if (!active_timers[QEMU_TIMER_REALTIME] &&
                 !active_timers[QEMU_TIMER_VIRTUAL])
-            return;
+        return;
 
     nearest_delta_us = qemu_next_deadline();
 
@@ -1506,7 +1505,7 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
     if (!active_timers[QEMU_TIMER_REALTIME] &&
                 !active_timers[QEMU_TIMER_VIRTUAL])
-            return;
+        return;
 
     nearest_delta_us = qemu_next_deadline();
     nearest_delta_us /= 1000;
@@ -7396,7 +7395,10 @@ void main_loop_wait(int timeout)
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
                     qemu_get_clock(rt_clock));
 
-    qemu_rearm_alarm_timer(alarm_timer);
+    if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {
+        alarm_timer->flags &= ~(ALARM_FLAG_EXPIRED);
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
 
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
