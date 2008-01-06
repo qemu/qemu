@@ -1073,6 +1073,7 @@ elif test "$target_cpu" = "sparc64" ; then
 elif test "$target_cpu" = "sparc32plus" ; then
   echo "TARGET_ARCH=sparc64" >> $config_mak
   echo "TARGET_ABI_DIR=sparc" >> $config_mak
+  echo "TARGET_ARCH2=sparc32plus" >> $config_mak
   echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
   echo "#define TARGET_SPARC 1" >> $config_h
   echo "#define TARGET_SPARC64 1" >> $config_h
@@ -1096,6 +1097,7 @@ elif test "$target_cpu" = "ppc64" ; then
 elif test "$target_cpu" = "ppc64abi32" ; then
   echo "TARGET_ARCH=ppc64" >> $config_mak
   echo "TARGET_ABI_DIR=ppc" >> $config_mak
+  echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
   echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPC64 1" >> $config_h
