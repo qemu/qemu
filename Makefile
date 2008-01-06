@@ -255,22 +255,24 @@ tarbin:
 	$(bindir)/qemu-system-m68k \
 	$(bindir)/qemu-system-sh4 \
 	$(bindir)/qemu-system-sh4eb \
+	$(bindir)/qemu-system-cris \
 	$(bindir)/qemu-i386 \
+	$(bindir)/qemu-x86_64 \
         $(bindir)/qemu-arm \
         $(bindir)/qemu-armeb \
         $(bindir)/qemu-sparc \
+        $(bindir)/qemu-sparc32plus \
+        $(bindir)/qemu-sparc64 \
         $(bindir)/qemu-ppc \
         $(bindir)/qemu-ppc64 \
+        $(bindir)/qemu-ppc64abi32 \
         $(bindir)/qemu-mips \
         $(bindir)/qemu-mipsel \
-        $(bindir)/qemu-mipsn32 \
-        $(bindir)/qemu-mipsn32el \
-        $(bindir)/qemu-mips64 \
-        $(bindir)/qemu-mips64el \
         $(bindir)/qemu-alpha \
         $(bindir)/qemu-m68k \
         $(bindir)/qemu-sh4 \
         $(bindir)/qemu-sh4eb \
+        $(bindir)/qemu-cris \
         $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
