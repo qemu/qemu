@@ -1,7 +1,7 @@
 /*
  *  qemu user main
  *
- *  Copyright (c) 2003 Fabrice Bellard
+ *  Copyright (c) 2003-2008 Fabrice Bellard
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1892,10 +1892,11 @@ void cpu_loop (CPUState *env)
 
 void usage(void)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [-h] [-g] [-d opts] [-L path] [-s size] [-cpu model] program [arguments...]\n"
+    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
+           "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
+           "Standard options:\n"
            "-h                print this help\n"
            "-g port           wait gdb connection to port\n"
            "-L path           set the elf interpreter prefix (default=%s)\n"
@@ -1903,12 +1904,12 @@ void usage(void)
            "-cpu model        select CPU (-cpu ? for list)\n"
            "-drop-ld-preload  drop LD_PRELOAD for target process\n"
            "\n"
-           "debug options:\n"
+           "Debug options:\n"
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n"
            "-strace      log system calls\n"
            "\n"
-           "environment variables:\n"
+           "Environment variables:\n"
            "QEMU_STRACE       Print system calls and arguments similar to the\n"
            "                  'strace' program.  Enable by setting to any value.\n"
            ,
