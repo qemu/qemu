@@ -151,6 +151,7 @@ darwin_user="yes"
 cocoa="yes"
 coreaudio="yes"
 OS_CFLAGS="-mdynamic-no-pic"
+OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
 ;;
 SunOS)
     solaris="yes"
