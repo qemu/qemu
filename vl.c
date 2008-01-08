@@ -8621,6 +8621,7 @@ int main(int argc, char **argv)
 #ifdef TARGET_ARM
             case QEMU_OPTION_old_param:
                 old_param = 1;
+                break;
 #endif
             case QEMU_OPTION_clock:
                 configure_alarms(optarg);
