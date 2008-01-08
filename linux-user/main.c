@@ -53,7 +53,8 @@ asm(".globl __preinit_array_start\n"
     "__init_array_end:\n"
     "__fini_array_start:\n"
     "__fini_array_end:\n"
-    ".long 0\n");
+    ".long 0\n"
+    ".previous\n");
 #endif
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
