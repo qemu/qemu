@@ -122,10 +122,7 @@ void pci_e100_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* eepro100.c */
 
-void pci_i82551_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pci_i82557a_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pci_i82557b_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pci_i82559er_init(PCIBus *bus, NICInfo *nd, int devfn);
+void pci_eepro100_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* ne2000.c */
 

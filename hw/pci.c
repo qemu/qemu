@@ -633,17 +633,15 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
     } else if (strcmp(nd->model, "dp83816") == 0) {
         pci_dp83816_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "e100") == 0) {
-      pci_e100_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82551") == 0) {
-      pci_i82551_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82557a") == 0) {
-      pci_i82557a_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82557b") == 0) {
-      pci_i82557b_init(bus, nd, devfn);
-    //~ } else if (strcmp(nd->model, "i82559") == 0) {
-        //~ pci_eepro100_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82559er") == 0) {
-        pci_i82559er_init(bus, nd, devfn);
+        pci_e100_init(bus, nd, devfn);
+    } else if ((strcmp(nd->model, "i82551") == 0) ||
+               (strcmp(nd->model, "i82557a") == 0) ||
+               (strcmp(nd->model, "i82557b") == 0) ||
+               (strcmp(nd->model, "i82557c") == 0) ||
+               (strcmp(nd->model, "i82558b") == 0) ||
+               (strcmp(nd->model, "i82559c") == 0) ||
+               (strcmp(nd->model, "i82559er") == 0)) {
+        pci_eepro100_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
         pci_rtl8139_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "pcnet") == 0) {
@@ -651,7 +649,8 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
     } else if (strcmp(nd->model, "tnetw1130") == 0) {
         pci_tnetw1130_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported PCI NICs: dp83816 i82551 i82557b i82559er"
+        fprintf(stderr, "qemu: Supported PCI NICs: dp83816 e100"
+                        " i82551 i82557a i82557b i82557c i82558b i82559c i82559er"
                         " ne2k_pci pcnet rtl8139 tnetw1130\n");
         exit (1);
     } else {

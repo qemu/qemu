@@ -598,7 +598,7 @@ static void pci_reset(EEPRO100State * s)
         PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
         break;
     //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1029);
-    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1030);       /* 82559 InBusiness 10/100 */
+    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1030);       /* 82559 InBusiness 10/100 !!! */
     default:
         logout("Device %X is undefined!\n", device);
     }
@@ -1947,15 +1947,14 @@ static void nic_save(QEMUFile * f, void *opaque)
     qemu_put_buffer(f, s->configuration, sizeof(s->configuration));
 }
 
-static void nic_init(PCIBus * bus, NICInfo * nd,
-                     const char *name, uint32_t device)
+static void nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
 {
     PCIEEPRO100State *d;
     EEPRO100State *s;
 
     TRACE(OTHER, logout("\n"));
 
-    d = (PCIEEPRO100State *) pci_register_device(bus, name,
+    d = (PCIEEPRO100State *) pci_register_device(bus, nd->model,
                                                  sizeof(PCIEEPRO100State), -1,
                                                  NULL, NULL);
 
@@ -1997,28 +1996,34 @@ static void nic_init(PCIBus * bus, NICInfo * nd,
     qemu_register_reset(nic_reset, s);
 
     /* XXX: instance number ? */
-    register_savevm(name, 0, 3, nic_save, nic_load, s);
+    register_savevm(nd->model, 0, 3, nic_save, nic_load, s);
 }
 
-void pci_i82551_init(PCIBus * bus, NICInfo * nd, int devfn)
-{
-    nic_init(bus, nd, "i82551", i82551);
-    //~ uint8_t *pci_conf = d->dev.config;
-}
+typedef struct {
+  const char *name;
+  unsigned value;
+} key_value_t;
 
-void pci_i82557a_init(PCIBus * bus, NICInfo * nd, int devfn)
-{
-    nic_init(bus, nd, "i82557a", i82557A);
-}
+const key_value_t devicetable[] = {
+  {"i82551", i82551},
+  {"i82557a", i82557A},
+  {"i82557b", i82557B},
+  {"i82557c", i82557C},
+  {"i82558b", i82558B},
+  {"i82559c", i82559C},
+  {"i82559er", i82559ER},
+};
 
-void pci_i82557b_init(PCIBus * bus, NICInfo * nd, int devfn)
+void pci_eepro100_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
-    nic_init(bus, nd, "i82557b", i82557B);
-}
-
-void pci_i82559er_init(PCIBus * bus, NICInfo * nd, int devfn)
-{
-    nic_init(bus, nd, "i82559er", i82559ER);
+  size_t i;
+  for (i = 0; i < sizeof(devicetable) / sizeof(*devicetable); i++) {
+    if (strcmp(devicetable[i].name, nd->model) == 0) {
+      nic_init(bus, nd, devicetable[i].value);
+      break;
+    }
+  }
 }
 
 /* eof */
+find /windows/C/WINDOWS/inf -name "*.inf" | xargs fgrep -li intel|xargs fgrep -li pro|xargs fgrep -l 100|xargs fgrep -li ndis|xargs less
