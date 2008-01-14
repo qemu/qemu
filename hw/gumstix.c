@@ -76,10 +76,8 @@ static void connex_init(int ram_size, int vga_ram_size,
 
     cpu->env->regs[15] = 0x00000000;
 
-    /* Interrupt lines of the NICs are connected to GPIO lines 36 and 27 */
+    /* Interrupt line of NIC is connected to GPIO line 36 */
     smc91c111_init(&nd_table[0], 0x04000300,
-                    pxa2xx_gpio_in_get(cpu->gpio)[36]);
-    smc91c111_init(&nd_table[1], 0x08000300,
                     pxa2xx_gpio_in_get(cpu->gpio)[36]);
 }
 
