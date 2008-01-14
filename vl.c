@@ -2240,45 +2240,33 @@ static void tty_serial_init(int fd, int speed,
 #endif
     tcgetattr (fd, &tty);
 
-    switch(speed) {
-    case 50:
+#define MARGIN 1.1
+    if (speed <= 50 * MARGIN)
         spd = B50;
-        break;
-    case 75:
+    else if (speed <= 75 * MARGIN)
         spd = B75;
-        break;
-    case 300:
+    else if (speed <= 300 * MARGIN)
         spd = B300;
-        break;
-    case 600:
+    else if (speed <= 600 * MARGIN)
         spd = B600;
-        break;
-    case 1200:
+    else if (speed <= 1200 * MARGIN)
         spd = B1200;
-        break;
-    case 2400:
+    else if (speed <= 2400 * MARGIN)
         spd = B2400;
-        break;
-    case 4800:
+    else if (speed <= 4800 * MARGIN)
         spd = B4800;
-        break;
-    case 9600:
+    else if (speed <= 9600 * MARGIN)
         spd = B9600;
-        break;
-    case 19200:
+    else if (speed <= 19200 * MARGIN)
         spd = B19200;
-        break;
-    case 38400:
+    else if (speed <= 38400 * MARGIN)
         spd = B38400;
-        break;
-    case 57600:
+    else if (speed <= 57600 * MARGIN)
         spd = B57600;
-        break;
-    default:
-    case 115200:
+    else if (speed <= 115200 * MARGIN)
         spd = B115200;
-        break;
-    }
+    else
+        spd = B115200;
 
     cfsetispeed(&tty, spd);
     cfsetospeed(&tty, spd);
@@ -5223,6 +5211,8 @@ static int usb_device_add(const char *devname)
         dev = usb_msd_init(p);
     } else if (!strcmp(devname, "wacom-tablet")) {
         dev = usb_wacom_init();
+    } else if (strstart(devname, "serial:", &p)) {
+        dev = usb_serial_init(p);
     } else {
         return -1;
     }

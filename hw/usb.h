@@ -217,6 +217,9 @@ USBDevice *usb_msd_init(const char *filename);
 /* usb-wacom.c */
 USBDevice *usb_wacom_init(void);
 
+/* usb-serial.c */
+USBDevice *usb_serial_init(const char *filename);
+
 /* usb ports of the VM */
 
 void qemu_register_usb_port(USBPort *port, void *opaque, int index,
