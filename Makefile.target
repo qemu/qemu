@@ -404,6 +404,9 @@ endif
 ifdef CONFIG_ALSA
 LIBS += -lasound
 endif
+ifdef CONFIG_ESD
+LIBS += -lesd
+endif
 ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid
 endif
@@ -412,6 +415,9 @@ LIBS += $(CONFIG_FMOD_LIB)
 endif
 
 SOUND_HW = sb16.o es1370.o
+ifdef CONFIG_AC97
+SOUND_HW += ac97.o
+endif
 ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
 endif
@@ -641,8 +647,9 @@ endif
 
 ifeq (1, 0)
 audio.o sdlaudio.o dsoundaudio.o ossaudio.o wavaudio.o noaudio.o \
-fmodaudio.o alsaaudio.o mixeng.o sb16.o es1370.o gus.o adlib.o: \
-CFLAGS := $(CFLAGS) -Wall -Werror -W -Wsign-compare
+fmodaudio.o alsaaudio.o mixeng.o sb16.o es1370.o ac97.o gus.o adlib.o \
+esdaudio.o audio_pt_int.o: \
+CFLAGS := $(CFLAGS) -O0 -g -Wall -Werror -W -Wsign-compare -Wno-unused
 endif
 
 # Include automatically generated dependency files

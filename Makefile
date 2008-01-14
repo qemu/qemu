@@ -73,6 +73,7 @@ AUDIO_OBJS += ossaudio.o
 endif
 ifdef CONFIG_COREAUDIO
 AUDIO_OBJS += coreaudio.o
+AUDIO_PT = yes
 endif
 ifdef CONFIG_ALSA
 AUDIO_OBJS += alsaaudio.o
@@ -83,6 +84,17 @@ endif
 ifdef CONFIG_FMOD
 AUDIO_OBJS += fmodaudio.o
 audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
+endif
+ifdef CONFIG_ESD
+AUDIO_PT = yes
+AUDIO_PT_INT = yes
+AUDIO_OBJS += esdaudio.o
+endif
+ifdef AUDIO_PT
+LDFLAGS += -pthread
+endif
+ifdef AUDIO_PT_INT
+AUDIO_OBJS += audio_pt_int.o
 endif
 AUDIO_OBJS+= wavcapture.o
 OBJS+=$(addprefix audio/, $(AUDIO_OBJS))

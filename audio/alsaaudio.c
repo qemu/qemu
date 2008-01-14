@@ -86,9 +86,9 @@ static struct {
 };
 
 struct alsa_params_req {
-    unsigned int freq;
-    audfmt_e fmt;
-    unsigned int nchannels;
+    int freq;
+    snd_pcm_format_t fmt;
+    int nchannels;
     unsigned int buffer_size;
     unsigned int period_size;
 };
@@ -96,6 +96,7 @@ struct alsa_params_req {
 struct alsa_params_obt {
     int freq;
     audfmt_e fmt;
+    int endianness;
     int nchannels;
     snd_pcm_uframes_t samples;
 };
@@ -143,7 +144,7 @@ static int alsa_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int aud_to_alsafmt (audfmt_e fmt)
+static snd_pcm_format_t aud_to_alsafmt (audfmt_e fmt)
 {
     switch (fmt) {
     case AUD_FMT_S8:
@@ -173,7 +174,8 @@ static int aud_to_alsafmt (audfmt_e fmt)
     }
 }
 
-static int alsa_to_audfmt (int alsafmt, audfmt_e *fmt, int *endianness)
+static int alsa_to_audfmt (snd_pcm_format_t alsafmt, audfmt_e *fmt,
+                           int *endianness)
 {
     switch (alsafmt) {
     case SND_PCM_FORMAT_S8:
@@ -234,7 +236,6 @@ static int alsa_to_audfmt (int alsafmt, audfmt_e *fmt, int *endianness)
     return 0;
 }
 
-#if defined DEBUG_MISMATCHES || defined DEBUG
 static void alsa_dump_info (struct alsa_params_req *req,
                             struct alsa_params_obt *obt)
 {
@@ -248,7 +249,6 @@ static void alsa_dump_info (struct alsa_params_req *req,
            req->buffer_size, req->period_size);
     dolog ("obtained: samples %ld\n", obt->samples);
 }
-#endif
 
 static void alsa_set_threshold (snd_pcm_t *handle, snd_pcm_uframes_t threshold)
 {
@@ -291,6 +291,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
     unsigned int period_size, buffer_size;
     snd_pcm_uframes_t obt_buffer_size;
     const char *typ = in ? "ADC" : "DAC";
+    snd_pcm_format_t obtfmt;
 
     freq = req->freq;
     period_size = req->period_size;
@@ -327,9 +328,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
     }
 
     err = snd_pcm_hw_params_set_format (handle, hw_params, req->fmt);
-    if (err < 0) {
+    if (err < 0 && conf.verbose) {
         alsa_logerr2 (err, typ, "Failed to set format %d\n", req->fmt);
-        goto err;
     }
 
     err = snd_pcm_hw_params_set_rate_near (handle, hw_params, &freq, 0);
@@ -494,6 +494,17 @@ static int alsa_open (int in, struct alsa_params_req *req,
         goto err;
     }
 
+    err = snd_pcm_hw_params_get_format (hw_params, &obtfmt);
+    if (err < 0) {
+        alsa_logerr2 (err, typ, "Failed to get format\n");
+        goto err;
+    }
+
+    if (alsa_to_audfmt (obtfmt, &obt->fmt, &obt->endianness)) {
+        dolog ("Invalid format was returned %d\n", obtfmt);
+        goto err;
+    }
+
     err = snd_pcm_prepare (handle);
     if (err < 0) {
         alsa_logerr2 (err, typ, "Could not prepare handle %p\n", handle);
@@ -504,28 +515,41 @@ static int alsa_open (int in, struct alsa_params_req *req,
         snd_pcm_uframes_t threshold;
         int bytes_per_sec;
 
-        bytes_per_sec = freq
-            << (nchannels == 2)
-            << (req->fmt == AUD_FMT_S16 || req->fmt == AUD_FMT_U16);
+        bytes_per_sec = freq << (nchannels == 2);
+
+        switch (obt->fmt) {
+        case AUD_FMT_S8:
+        case AUD_FMT_U8:
+            break;
+
+        case AUD_FMT_S16:
+        case AUD_FMT_U16:
+            bytes_per_sec <<= 1;
+            break;
+
+        case AUD_FMT_S32:
+        case AUD_FMT_U32:
+            bytes_per_sec <<= 2;
+            break;
+        }
 
         threshold = (conf.threshold * bytes_per_sec) / 1000;
         alsa_set_threshold (handle, threshold);
     }
 
-    obt->fmt = req->fmt;
     obt->nchannels = nchannels;
     obt->freq = freq;
     obt->samples = obt_buffer_size;
+
     *handlep = handle;
 
-#if defined DEBUG_MISMATCHES || defined DEBUG
-    if (obt->fmt != req->fmt ||
-        obt->nchannels != req->nchannels ||
-        obt->freq != req->freq) {
-        dolog ("Audio paramters mismatch for %s\n", typ);
+    if (conf.verbose &&
+        (obt->fmt != req->fmt ||
+         obt->nchannels != req->nchannels ||
+         obt->freq != req->freq)) {
+        dolog ("Audio paramters for %s\n", typ);
         alsa_dump_info (req, obt);
     }
-#endif
 
 #ifdef DEBUG
     alsa_dump_info (req, obt);
@@ -665,9 +689,6 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     struct alsa_params_req req;
     struct alsa_params_obt obt;
-    audfmt_e effective_fmt;
-    int endianness;
-    int err;
     snd_pcm_t *handle;
     audsettings_t obt_as;
 
@@ -681,16 +702,10 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
         return -1;
     }
 
-    err = alsa_to_audfmt (obt.fmt, &effective_fmt, &endianness);
-    if (err) {
-        alsa_anal_close (&handle);
-        return -1;
-    }
-
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
-    obt_as.fmt = effective_fmt;
-    obt_as.endianness = endianness;
+    obt_as.fmt = obt.fmt;
+    obt_as.endianness = obt.endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
@@ -751,9 +766,6 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     struct alsa_params_req req;
     struct alsa_params_obt obt;
-    int endianness;
-    int err;
-    audfmt_e effective_fmt;
     snd_pcm_t *handle;
     audsettings_t obt_as;
 
@@ -767,16 +779,10 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
         return -1;
     }
 
-    err = alsa_to_audfmt (obt.fmt, &effective_fmt, &endianness);
-    if (err) {
-        alsa_anal_close (&handle);
-        return -1;
-    }
-
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
-    obt_as.fmt = effective_fmt;
-    obt_as.endianness = endianness;
+    obt_as.fmt = obt.fmt;
+    obt_as.endianness = obt.endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;

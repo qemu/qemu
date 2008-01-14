@@ -150,7 +150,7 @@ static int oss_to_audfmt (int ossfmt, audfmt_e *fmt, int *endianness)
 {
     switch (ossfmt) {
     case AFMT_S8:
-        *endianness =0;
+        *endianness = 0;
         *fmt = AUD_FMT_S8;
         break;
 

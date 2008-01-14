@@ -56,6 +56,9 @@ static struct audio_driver *drvtab[] = {
 #ifdef CONFIG_SDL
     &sdl_audio_driver,
 #endif
+#ifdef CONFIG_ESD
+    &esd_audio_driver,
+#endif
     &no_audio_driver,
     &wav_audio_driver
 };
@@ -414,7 +417,7 @@ static void audio_print_options (const char *prefix,
             {
                 audfmt_e *fmtp = opt->valp;
                 printf (
-                    "format, %s = %s, (one of: U8 S8 U16 S16)\n",
+                    "format, %s = %s, (one of: U8 S8 U16 S16 U32 S32)\n",
                     state,
                     audio_audfmt_to_string (*fmtp)
                     );
