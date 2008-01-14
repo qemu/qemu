@@ -86,6 +86,7 @@ gdbstub="yes"
 slirp="yes"
 adlib="no"
 ac97="no"
+gus="no"
 oss="no"
 dsound="no"
 coreaudio="no"
@@ -283,6 +284,8 @@ for opt do
   ;;
   --enable-ac97) ac97="yes"
   ;;
+  --enable-gus) gus="yes"
+  ;;
   --disable-kqemu) kqemu="no"
   ;;
   --enable-profiler) profiler="yes"
@@ -410,6 +413,7 @@ echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --enable-adlib           enable Adlib emulation"
 echo "  --enable-ac97            enable AC97 emulation"
+echo "  --enable-gus             enable Gravis Ultrasound emulation"
 echo "  --enable-coreaudio       enable Coreaudio audio driver"
 echo "  --enable-alsa            enable ALSA audio driver"
 echo "  --enable-esd             enable EsoundD audio driver"
@@ -724,6 +728,7 @@ fi
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
 echo "AC97 support      $ac97"
+echo "GUS support       $gus"
 echo "CoreAudio support $coreaudio"
 echo "ALSA support      $alsa"
 echo "EsounD support    $esd"
@@ -903,6 +908,10 @@ fi
 if test "$ac97" = "yes" ; then
   echo "CONFIG_AC97=yes" >> $config_mak
   echo "#define CONFIG_AC97 1" >> $config_h
+fi
+if test "$gus" = "yes" ; then
+  echo "CONFIG_GUS=yes" >> $config_mak
+  echo "#define CONFIG_GUS 1" >> $config_h
 fi
 if test "$oss" = "yes" ; then
   echo "CONFIG_OSS=yes" >> $config_mak
