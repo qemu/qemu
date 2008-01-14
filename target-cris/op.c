@@ -205,6 +205,7 @@ void OPPROTO op_ccs_lshift (void)
 	ccs = env->pregs[SR_CCS];
 	ccs = (ccs & 0xc0000000) | ((ccs << 12) >> 2);
 	env->pregs[SR_CCS] = ccs;
+	RETURN();
 }
 void OPPROTO op_ccs_rshift (void)
 {
@@ -214,6 +215,7 @@ void OPPROTO op_ccs_rshift (void)
 	ccs = env->pregs[SR_CCS];
 	ccs = (ccs & 0xc0000000) | (ccs >> 10);
 	env->pregs[SR_CCS] = ccs;
+	RETURN();
 }
 
 void OPPROTO op_setf (void)
