@@ -341,6 +341,8 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
         p_name += sizeof("parentFileNameHint") + 1;
         if ((end_name = strchr(p_name,'\"')) == 0)
             return -1;
+        if ((end_name - p_name) > sizeof (s->hd->backing_file) - 1)
+            return -1;
 
         strncpy(s->hd->backing_file, p_name, end_name - p_name);
         if (stat(s->hd->backing_file, &file_buf) != 0) {
