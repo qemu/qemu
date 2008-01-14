@@ -1100,19 +1100,6 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
     cpu_register_physical_memory(SVGA_MEM_BASE, vga_ram_size,
                     iomemtype);
 
-    register_ioport_read(SVGA_IO_BASE + SVGA_IO_MUL * SVGA_INDEX_PORT,
-                    1, 4, vmsvga_index_read, s);
-    register_ioport_write(SVGA_IO_BASE + SVGA_IO_MUL * SVGA_INDEX_PORT,
-                    1, 4, vmsvga_index_write, s);
-    register_ioport_read(SVGA_IO_BASE + SVGA_IO_MUL * SVGA_VALUE_PORT,
-                    1, 4, vmsvga_value_read, s);
-    register_ioport_write(SVGA_IO_BASE + SVGA_IO_MUL * SVGA_VALUE_PORT,
-                    1, 4, vmsvga_value_write, s);
-    register_ioport_read(SVGA_IO_BASE + SVGA_IO_MUL * SVGA_BIOS_PORT,
-                    1, 4, vmsvga_bios_read, s);
-    register_ioport_write(SVGA_IO_BASE + SVGA_IO_MUL * SVGA_BIOS_PORT,
-                    1, 4, vmsvga_bios_write, s);
-
     graphic_console_init(ds, vmsvga_update_display,
                     vmsvga_invalidate_display, vmsvga_screen_dump, s);
 
@@ -1144,6 +1131,26 @@ static int pci_vmsvga_load(QEMUFile *f, void *opaque, int version_id)
         return ret;
 
     return 0;
+}
+
+static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
+                uint32_t addr, uint32_t size, int type)
+{
+    struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
+    struct vmsvga_state_s *s = &d->chip;
+
+    register_ioport_read(addr + SVGA_IO_MUL * SVGA_INDEX_PORT,
+                    1, 4, vmsvga_index_read, s);
+    register_ioport_write(addr + SVGA_IO_MUL * SVGA_INDEX_PORT,
+                    1, 4, vmsvga_index_write, s);
+    register_ioport_read(addr + SVGA_IO_MUL * SVGA_VALUE_PORT,
+                    1, 4, vmsvga_value_read, s);
+    register_ioport_write(addr + SVGA_IO_MUL * SVGA_VALUE_PORT,
+                    1, 4, vmsvga_value_write, s);
+    register_ioport_read(addr + SVGA_IO_MUL * SVGA_BIOS_PORT,
+                    1, 4, vmsvga_bios_read, s);
+    register_ioport_write(addr + SVGA_IO_MUL * SVGA_BIOS_PORT,
+                    1, 4, vmsvga_bios_write, s);
 }
 
 #define PCI_VENDOR_ID_VMWARE		0x15ad
@@ -1188,6 +1195,9 @@ void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     s->card.config[0x2e]		= SVGA_PCI_DEVICE_ID & 0xff;
     s->card.config[0x2f]		= SVGA_PCI_DEVICE_ID >> 8;
     s->card.config[0x3c]		= 0xff;		/* End */
+
+    pci_register_io_region(&s->card, 0, 0x10,
+                    PCI_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
 
     vmsvga_init(&s->chip, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
 
