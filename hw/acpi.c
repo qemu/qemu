@@ -482,7 +482,7 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
     pci_conf[0x03] = 0x71;
     pci_conf[0x06] = 0x80;
     pci_conf[0x07] = 0x02;
-    pci_conf[0x08] = 0x00; // revision number
+    pci_conf[0x08] = 0x03; // revision number
     pci_conf[0x09] = 0x00;
     pci_conf[0x0a] = 0x80; // other bridge device
     pci_conf[0x0b] = 0x06; // bridge device
