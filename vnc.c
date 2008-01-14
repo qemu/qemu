@@ -1904,6 +1904,9 @@ static void vnc_listen_read(void *opaque)
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
+    /* Catch-up */
+    vga_hw_update();
+
     vs->csock = accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (vs->csock != -1) {
 	VNC_DEBUG("New client on socket %d\n", vs->csock);
