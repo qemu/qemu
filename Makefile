@@ -146,6 +146,7 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) dyngen$(EXESUF) TAGS cscope.* *.pod *~ */*~
+	rm -rf dyngen.dSYM
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS); do \
