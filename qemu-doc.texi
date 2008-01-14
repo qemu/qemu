@@ -234,7 +234,8 @@ Define a new drive. Valid options are:
 @table @code
 @item file=@var{file}
 This option defines which disk image (@pxref{disk_images}) to use with
-this drive.
+this drive. If the filename contains comma, you must double it
+(for instance, "file=my,,file" to use file "my,file").
 @item if=@var{interface}
 This option defines on which type on interface the drive is connected.
 Available types are: ide, scsi, sd, mtd, floppy, pflash.

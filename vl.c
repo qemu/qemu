@@ -231,7 +231,10 @@ unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
 int nb_drives_opt;
-char drives_opt[MAX_DRIVES][1024];
+struct drive_opt {
+    const char *file;
+    char opt[1024];
+} drives_opt[MAX_DRIVES];
 
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
@@ -4581,24 +4584,33 @@ static int net_socket_mcast_init(VLANState *vlan, const char *host_str)
 
 }
 
-static const char *get_word(char *buf, int buf_size, const char *p)
+static const char *get_opt_name(char *buf, int buf_size, const char *p)
 {
     char *q;
-    int substring;
 
-    substring = 0;
+    q = buf;
+    while (*p != '\0' && *p != '=') {
+        if (q && (q - buf) < buf_size - 1)
+            *q++ = *p;
+        p++;
+    }
+    if (q)
+        *q = '\0';
+
+    return p;
+}
+
+static const char *get_opt_value(char *buf, int buf_size, const char *p)
+{
+    char *q;
+
     q = buf;
     while (*p != '\0') {
-        if (*p == '\\') {
-            p++;
-            if (*p == '\0')
+        if (*p == ',') {
+            if (*(p + 1) != ',')
                 break;
-        } else if (*p == '\"') {
-            substring = !substring;
             p++;
-            continue;
-        } else if (!substring && (*p == ',' || *p == '='))
-            break;
+        }
         if (q && (q - buf) < buf_size - 1)
             *q++ = *p;
         p++;
@@ -4617,15 +4629,15 @@ static int get_param_value(char *buf, int buf_size,
 
     p = str;
     for(;;) {
-        p = get_word(option, sizeof(option), p);
+        p = get_opt_name(option, sizeof(option), p);
         if (*p != '=')
             break;
         p++;
         if (!strcmp(tag, option)) {
-            (void)get_word(buf, buf_size, p);
+            (void)get_opt_value(buf, buf_size, p);
             return strlen(buf);
         } else {
-            p = get_word(NULL, 0, p);
+            p = get_opt_value(NULL, 0, p);
         }
         if (*p != ',')
             break;
@@ -4642,7 +4654,7 @@ static int check_params(char *buf, int buf_size,
 
     p = str;
     for(;;) {
-        p = get_word(buf, buf_size, p);
+        p = get_opt_name(buf, buf_size, p);
         if (*p != '=')
             return -1;
         p++;
@@ -4651,7 +4663,7 @@ static int check_params(char *buf, int buf_size,
                 break;
         if (params[i] == NULL)
             return -1;
-        p = get_word(NULL, 0, p);
+        p = get_opt_value(NULL, 0, p);
         if (*p != ',')
             break;
         p++;
@@ -4810,18 +4822,18 @@ void do_info_network(void)
     }
 }
 
-#define HD_ALIAS "file=\"%s\",index=%d,media=disk"
+#define HD_ALIAS "index=%d,media=disk"
 #ifdef TARGET_PPC
 #define CDROM_ALIAS "index=1,media=cdrom"
 #else
 #define CDROM_ALIAS "index=2,media=cdrom"
 #endif
 #define FD_ALIAS "index=%d,if=floppy"
-#define PFLASH_ALIAS "file=\"%s\",if=pflash"
-#define MTD_ALIAS "file=\"%s\",if=mtd"
+#define PFLASH_ALIAS "if=pflash"
+#define MTD_ALIAS "if=mtd"
 #define SD_ALIAS "index=0,if=sd"
 
-static int drive_add(const char *fmt, ...)
+static int drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
 
@@ -4830,8 +4842,10 @@ static int drive_add(const char *fmt, ...)
         exit(1);
     }
 
+    drives_opt[nb_drives_opt].file = file;
     va_start(ap, fmt);
-    vsnprintf(drives_opt[nb_drives_opt], sizeof(drives_opt[0]), fmt, ap);
+    vsnprintf(drives_opt[nb_drives_opt].opt,
+              sizeof(drives_opt[0].opt), fmt, ap);
     va_end(ap);
 
     return nb_drives_opt++;
@@ -4866,7 +4880,8 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
-static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
+static int drive_init(struct drive_opt *arg, int snapshot,
+                      QEMUMachine *machine)
 {
     char buf[128];
     char file[1024];
@@ -4881,6 +4896,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     int index;
     int cache;
     int bdrv_flags;
+    char *str = arg->opt;
     char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
                        "secs", "trans", "media", "snapshot", "file",
                        "cache", NULL };
@@ -5051,7 +5067,10 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
         }
     }
 
-    get_param_value(file, sizeof(file), "file", str);
+    if (arg->file == NULL)
+        get_param_value(file, sizeof(file), "file", str);
+    else
+        pstrcpy(file, sizeof(file), arg->file);
 
     /* compute bus and unit according index */
 
@@ -8163,7 +8182,7 @@ int main(int argc, char **argv)
             break;
         r = argv[optind];
         if (r[0] != '-') {
-	    hda_index = drive_add(HD_ALIAS, argv[optind++], 0);
+	    hda_index = drive_add(argv[optind++], HD_ALIAS, 0);
         } else {
             const QEMUOption *popt;
 
@@ -8224,11 +8243,11 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_hda:
                 if (cyls == 0)
-                    hda_index = drive_add(HD_ALIAS, optarg, 0);
+                    hda_index = drive_add(optarg, HD_ALIAS, 0);
                 else
-                    hda_index = drive_add(HD_ALIAS
+                    hda_index = drive_add(optarg, HD_ALIAS
 			     ",cyls=%d,heads=%d,secs=%d%s",
-                             optarg, 0, cyls, heads, secs,
+                             0, cyls, heads, secs,
                              translation == BIOS_ATA_TRANSLATION_LBA ?
                                  ",trans=lba" :
                              translation == BIOS_ATA_TRANSLATION_NONE ?
@@ -8237,19 +8256,19 @@ int main(int argc, char **argv)
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
-		drive_add(HD_ALIAS, optarg, popt->index - QEMU_OPTION_hda);
+                drive_add(optarg, HD_ALIAS, popt->index - QEMU_OPTION_hda);
                 break;
             case QEMU_OPTION_drive:
-                drive_add("%s", optarg);
+                drive_add(NULL, "%s", optarg);
 	        break;
             case QEMU_OPTION_mtdblock:
-	        drive_add(MTD_ALIAS, optarg);
+                drive_add(optarg, MTD_ALIAS);
                 break;
             case QEMU_OPTION_sd:
-                drive_add("file=\"%s\"," SD_ALIAS, optarg);
+                drive_add(optarg, SD_ALIAS);
                 break;
             case QEMU_OPTION_pflash:
-	        drive_add(PFLASH_ALIAS, optarg);
+                drive_add(optarg, PFLASH_ALIAS);
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -8289,12 +8308,10 @@ int main(int argc, char **argv)
                         exit(1);
                     }
 		    if (hda_index != -1)
-		        snprintf(drives_opt[hda_index] +
-			         strlen(drives_opt[hda_index]),
-			         sizeof(drives_opt[0]) -
-				 strlen(drives_opt[hda_index]),
-		                 ",cyls=%d,heads=%d,secs=%d%s",
-			         cyls, heads, secs,
+                        snprintf(drives_opt[hda_index].opt,
+                                 sizeof(drives_opt[hda_index].opt),
+                                 HD_ALIAS ",cyls=%d,heads=%d,secs=%d%s",
+                                 0, cyls, heads, secs,
 			         translation == BIOS_ATA_TRANSLATION_LBA ?
 			     	    ",trans=lba" :
 			         translation == BIOS_ATA_TRANSLATION_NONE ?
@@ -8317,7 +8334,7 @@ int main(int argc, char **argv)
                 kernel_cmdline = optarg;
                 break;
             case QEMU_OPTION_cdrom:
-		drive_add("file=\"%s\"," CDROM_ALIAS, optarg);
+                drive_add(optarg, CDROM_ALIAS);
                 break;
             case QEMU_OPTION_boot:
                 boot_devices = optarg;
@@ -8352,8 +8369,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_fda:
             case QEMU_OPTION_fdb:
-		drive_add("file=\"%s\"," FD_ALIAS, optarg,
-		          popt->index - QEMU_OPTION_fda);
+                drive_add(optarg, FD_ALIAS, popt->index - QEMU_OPTION_fda);
                 break;
 #ifdef TARGET_I386
             case QEMU_OPTION_no_fd_bootchk:
@@ -8822,22 +8838,22 @@ int main(int argc, char **argv)
     /* we always create the cdrom drive, even if no disk is there */
 
     if (nb_drives_opt < MAX_DRIVES)
-        drive_add(CDROM_ALIAS);
+        drive_add(NULL, CDROM_ALIAS);
 
     /* we always create at least one floppy */
 
     if (nb_drives_opt < MAX_DRIVES)
-        drive_add(FD_ALIAS, 0);
+        drive_add(NULL, FD_ALIAS, 0);
 
     /* we always create one sd slot, even if no card is in it */
 
     if (nb_drives_opt < MAX_DRIVES)
-        drive_add(SD_ALIAS);
+        drive_add(NULL, SD_ALIAS);
 
     /* open the virtual block devices */
 
     for(i = 0; i < nb_drives_opt; i++)
-        if (drive_init(drives_opt[i], snapshot, machine) == -1)
+        if (drive_init(&drives_opt[i], snapshot, machine) == -1)
 	    exit(1);
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
