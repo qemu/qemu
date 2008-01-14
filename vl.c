@@ -7990,6 +7990,16 @@ struct soundhw soundhw[] = {
     },
 #endif
 
+#ifdef CONFIG_AC97
+    {
+        "ac97",
+        "Intel 82801AA AC97 Audio",
+        0,
+        0,
+        { .init_pci = ac97_init }
+    },
+#endif
+
     {
         "es1370",
         "ENSONIQ AudioPCI ES1370",

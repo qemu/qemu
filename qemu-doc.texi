@@ -166,6 +166,8 @@ Creative SoundBlaster 16 sound card
 @item
 ENSONIQ AudioPCI ES1370 sound card
 @item
+Intel 82801AA AC97 Audio compatible sound card
+@item
 Adlib(OPL2) - Yamaha YM3812 compatible chip
 @item
 PCI UHCI USB controller and a virtual USB hub.
@@ -173,8 +175,8 @@ PCI UHCI USB controller and a virtual USB hub.
 
 SMP is supported with up to 255 CPUs.
 
-Note that adlib is only available when QEMU was configured with
--enable-adlib
+Note that adlib and ac97 are only available when QEMU was configured
+with --enable-adlib, --enable-ac97 respectively.
 
 QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
 VGA BIOS.
@@ -334,8 +336,16 @@ available sound hardware.
 @example
 qemu -soundhw sb16,adlib hda
 qemu -soundhw es1370 hda
+qemu -soundhw ac97 hda
 qemu -soundhw all hda
 qemu -soundhw ?
+@end example
+
+Note that Linux's i810_audio OSS kernel (for AC97) module might
+require manually specifying clocking.
+
+@example
+modprobe i810_audio clocking=48000
 @end example
 
 @item -localtime

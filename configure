@@ -85,6 +85,7 @@ EXESUF=""
 gdbstub="yes"
 slirp="yes"
 adlib="no"
+ac97="no"
 oss="no"
 dsound="no"
 coreaudio="no"
@@ -280,6 +281,8 @@ for opt do
   ;;
   --enable-adlib) adlib="yes"
   ;;
+  --enable-ac97) ac97="yes"
+  ;;
   --disable-kqemu) kqemu="no"
   ;;
   --enable-profiler) profiler="yes"
@@ -406,6 +409,7 @@ echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --enable-adlib           enable Adlib emulation"
+echo "  --enable-ac97            enable AC97 emulation"
 echo "  --enable-coreaudio       enable Coreaudio audio driver"
 echo "  --enable-alsa            enable ALSA audio driver"
 echo "  --enable-esd             enable EsoundD audio driver"
@@ -719,6 +723,7 @@ if test "$sdl" != "no" ; then
 fi
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
+echo "AC97 support      $ac97"
 echo "CoreAudio support $coreaudio"
 echo "ALSA support      $alsa"
 echo "EsounD support    $esd"
@@ -894,6 +899,10 @@ fi
 if test "$adlib" = "yes" ; then
   echo "CONFIG_ADLIB=yes" >> $config_mak
   echo "#define CONFIG_ADLIB 1" >> $config_h
+fi
+if test "$ac97" = "yes" ; then
+  echo "CONFIG_AC97=yes" >> $config_mak
+  echo "#define CONFIG_AC97 1" >> $config_h
 fi
 if test "$oss" = "yes" ; then
   echo "CONFIG_OSS=yes" >> $config_mak
