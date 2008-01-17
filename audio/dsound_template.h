@@ -197,7 +197,7 @@ static int dsound_init_out (HWVoiceOut *hw, audsettings_t *as)
 #endif
 
     if (!s->FIELD2) {
-        dolog ("Attempt to initialize voice without " NAME2 " object");
+        dolog ("Attempt to initialize voice without " NAME2 " object\n");
         return -1;
     }
 
