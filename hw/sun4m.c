@@ -91,7 +91,7 @@ struct hwdef {
     // IRQ numbers are not PIL ones, but master interrupt controller
     // register bit numbers
     int intctl_g_intr, esp_irq, le_irq, clock_irq, clock1_irq;
-    int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq;
+    int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq, ecc_irq;
     int machine_id; // For NVRAM
     uint32_t iommu_version;
     uint32_t intbit_to_level[32];
@@ -528,7 +528,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
                graphic_height, graphic_depth, hwdef->machine_id, "Sun4m");
 
     if (hwdef->ecc_base != (target_phys_addr_t)-1)
-        ecc_init(hwdef->ecc_base, hwdef->ecc_version);
+        ecc_init(hwdef->ecc_base, slavio_irq[hwdef->ecc_irq],
+                 hwdef->ecc_version);
 }
 
 static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
@@ -742,6 +743,7 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
+        .ecc_irq = 28,
         .machine_id = 0x72,
         .iommu_version = 0x03000000,
         .intbit_to_level = {
@@ -783,6 +785,7 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
+        .ecc_irq = 28,
         .machine_id = 0x71,
         .iommu_version = 0x01000000,
         .intbit_to_level = {
@@ -824,6 +827,7 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
+        .ecc_irq = 28,
         .machine_id = 0x72,
         .iommu_version = 0x13000000,
         .intbit_to_level = {

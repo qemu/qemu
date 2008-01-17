@@ -68,7 +68,7 @@
 #define ECC_FAR0_TYPE  0x000000f0      /* Transaction type */
 #define ECC_FAR0_SIZE  0x00000700      /* Transaction size */
 #define ECC_FAR0_CACHE 0x00000800      /* Mapped cacheable */
-#define ECC_FAR0_LOCK  0x00001000      /* Error occurred in attomic cycle */
+#define ECC_FAR0_LOCK  0x00001000      /* Error occurred in atomic cycle */
 #define ECC_FAR0_BMODE 0x00002000      /* Boot mode */
 #define ECC_FAR0_VADDR 0x003fc000      /* VA[12-19] (superset bits) */
 #define ECC_FAR0_S     0x08000000      /* Supervisor mode */
@@ -90,6 +90,7 @@
 #define ECC_ADDR_MASK  (ECC_SIZE - 1)
 
 typedef struct ECCState {
+    qemu_irq irq;
     uint32_t regs[ECC_NREGS];
 } ECCState;
 
@@ -222,7 +223,7 @@ static void ecc_reset(void *opaque)
         s->regs[i] = 0;
 }
 
-void * ecc_init(target_phys_addr_t base, uint32_t version)
+void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
 {
     int ecc_io_memory;
     ECCState *s;
@@ -232,6 +233,7 @@ void * ecc_init(target_phys_addr_t base, uint32_t version)
         return NULL;
 
     s->regs[0] = version;
+    s->irq = irq;
 
     ecc_io_memory = cpu_register_io_memory(0, ecc_mem_read, ecc_mem_write, s);
     cpu_register_physical_memory(base, ECC_SIZE, ecc_io_memory);
