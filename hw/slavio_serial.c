@@ -215,7 +215,6 @@ struct SerialState {
 static void handle_kbd_command(ChannelState *s, int val);
 static int serial_can_receive(void *opaque);
 static void serial_receive_byte(ChannelState *s, int ch);
-static inline void set_txint(ChannelState *s);
 
 static void clear_queue(void *opaque)
 {
@@ -321,28 +320,6 @@ static void slavio_serial_reset(void *opaque)
     slavio_serial_reset_chn(&s->chn[1]);
 }
 
-static inline void clr_rxint(ChannelState *s)
-{
-    s->rxint = 0;
-    s->rxint_under_svc = 0;
-    if (s->chn == chn_a) {
-        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
-            s->otherchn->rregs[R_IVEC] = IVEC_HINOINT;
-        else
-            s->otherchn->rregs[R_IVEC] = IVEC_LONOINT;
-        s->rregs[R_INTR] &= ~INTR_RXINTA;
-    } else {
-        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
-            s->rregs[R_IVEC] = IVEC_HINOINT;
-        else
-            s->rregs[R_IVEC] = IVEC_LONOINT;
-        s->otherchn->rregs[R_INTR] &= ~INTR_RXINTB;
-    }
-    if (s->txint)
-        set_txint(s);
-    slavio_serial_update_irq(s);
-}
-
 static inline void set_rxint(ChannelState *s)
 {
     s->rxint = 1;
@@ -367,6 +344,49 @@ static inline void set_rxint(ChannelState *s)
     slavio_serial_update_irq(s);
 }
 
+static inline void set_txint(ChannelState *s)
+{
+    s->txint = 1;
+    if (!s->rxint_under_svc) {
+        s->txint_under_svc = 1;
+        if (s->chn == chn_a) {
+            if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+                s->otherchn->rregs[R_IVEC] = IVEC_HITXINTA;
+            else
+                s->otherchn->rregs[R_IVEC] = IVEC_LOTXINTA;
+        } else {
+            s->rregs[R_IVEC] = IVEC_TXINTB;
+        }
+    }
+    if (s->chn == chn_a)
+        s->rregs[R_INTR] |= INTR_TXINTA;
+    else
+        s->otherchn->rregs[R_INTR] |= INTR_TXINTB;
+    slavio_serial_update_irq(s);
+}
+
+static inline void clr_rxint(ChannelState *s)
+{
+    s->rxint = 0;
+    s->rxint_under_svc = 0;
+    if (s->chn == chn_a) {
+        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+            s->otherchn->rregs[R_IVEC] = IVEC_HINOINT;
+        else
+            s->otherchn->rregs[R_IVEC] = IVEC_LONOINT;
+        s->rregs[R_INTR] &= ~INTR_RXINTA;
+    } else {
+        if (s->wregs[W_MINTR] & MINTR_STATUSHI)
+            s->rregs[R_IVEC] = IVEC_HINOINT;
+        else
+            s->rregs[R_IVEC] = IVEC_LONOINT;
+        s->otherchn->rregs[R_INTR] &= ~INTR_RXINTB;
+    }
+    if (s->txint)
+        set_txint(s);
+    slavio_serial_update_irq(s);
+}
+
 static inline void clr_txint(ChannelState *s)
 {
     s->txint = 0;
@@ -386,27 +406,6 @@ static inline void clr_txint(ChannelState *s)
     }
     if (s->rxint)
         set_rxint(s);
-    slavio_serial_update_irq(s);
-}
-
-static inline void set_txint(ChannelState *s)
-{
-    s->txint = 1;
-    if (!s->rxint_under_svc) {
-        s->txint_under_svc = 1;
-        if (s->chn == chn_a) {
-            if (s->wregs[W_MINTR] & MINTR_STATUSHI)
-                s->otherchn->rregs[R_IVEC] = IVEC_HITXINTA;
-            else
-                s->otherchn->rregs[R_IVEC] = IVEC_LOTXINTA;
-        } else {
-            s->rregs[R_IVEC] = IVEC_TXINTB;
-        }
-    }
-    if (s->chn == chn_a)
-        s->rregs[R_INTR] |= INTR_TXINTA;
-    else
-        s->otherchn->rregs[R_INTR] |= INTR_TXINTB;
     slavio_serial_update_irq(s);
 }
 
