@@ -2050,6 +2050,20 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
     }
 }
 
+static void fd_chr_close(struct CharDriverState *chr)
+{
+    FDCharDriver *s = chr->opaque;
+
+    if (s->fd_in >= 0) {
+        if (nographic && s->fd_in == 0) {
+        } else {
+            qemu_set_fd_handler2(s->fd_in, NULL, NULL, NULL, NULL);
+        }
+    }
+
+    qemu_free(s);
+}
+
 /* open a character device to a unix fd */
 static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
 {
@@ -2069,6 +2083,7 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     chr->opaque = s;
     chr->chr_write = fd_chr_write;
     chr->chr_update_read_handler = fd_chr_update_read_handler;
+    chr->chr_close = fd_chr_close;
 
     qemu_chr_reset(chr);
 
@@ -2155,6 +2170,7 @@ static void stdio_read(void *opaque)
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
+static int term_atexit_done;
 
 static void term_exit(void)
 {
@@ -2184,9 +2200,18 @@ static void term_init(void)
 
     tcsetattr (0, TCSANOW, &tty);
 
-    atexit(term_exit);
+    if (!term_atexit_done++)
+        atexit(term_exit);
 
     fcntl(0, F_SETFL, O_NONBLOCK);
+}
+
+static void qemu_chr_close_stdio(struct CharDriverState *chr)
+{
+    term_exit();
+    stdio_nb_clients--;
+    qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
+    fd_chr_close(chr);
 }
 
 static CharDriverState *qemu_chr_open_stdio(void)
@@ -2196,6 +2221,7 @@ static CharDriverState *qemu_chr_open_stdio(void)
     if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
         return NULL;
     chr = qemu_chr_open_fd(0, 1);
+    chr->chr_close = qemu_chr_close_stdio;
     qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
     stdio_nb_clients++;
     term_init();
@@ -3418,6 +3444,7 @@ void qemu_chr_close(CharDriverState *chr)
 {
     if (chr->chr_close)
         chr->chr_close(chr);
+    qemu_free(chr);
 }
 
 /***********************************************************/

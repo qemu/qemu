@@ -486,7 +486,7 @@ USBDevice *usb_serial_init(const char *filename)
 {
     USBSerialState *s;
     CharDriverState *cdrv;
-    unsigned short vendorid = 0x0403, productid = 0xFF00;
+    unsigned short vendorid = 0x0403, productid = 0x6001;
 
     while (*filename && *filename != ':') {
         const char *p;
