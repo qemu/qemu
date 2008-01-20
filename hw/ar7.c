@@ -3614,8 +3614,13 @@ static int64_t load_kernel (CPUState *env)
 
 static void ar7_mips_init(CPUState *env)
 {
-    /* CPU revision is 2.2. */
+#if !defined(UR8)
+    /* AR7 cpu revision is 2.2. */
     env->CP0_PRid |= 0x48;
+#else
+    /* UR8 cpu revision is 6.8. */
+    env->CP0_PRid |= 0x68;
+#endif
 
     /* Special configuration bits set by external hw inputs. */
     env->CP0_Config0 |= (0x2 << CP0C0_MM);
@@ -3634,10 +3639,12 @@ static void ar7_mips_init(CPUState *env)
     if (env->CP0_Config0 != 0x80240082) printf("CP0_Config0 = 0x%08x\n", env->CP0_Config0);
     if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
     if (env->CP0_Config2 != 0x80000000) printf("CP0_Config2 = 0x%08x\n", env->CP0_Config2);
+#if !defined(UR8)
 #if defined(TARGET_WORDS_BIGENDIAN)
     assert(env->CP0_Config0 == 0x80240082 + (1 << CP0C0_BE));
 #else
     assert(env->CP0_Config0 == 0x80240082);
+#endif
 #endif
     assert(env->CP0_Config1 == 0x9e9b4d8a);
     assert(env->CP0_Config2 == 0x80000000);
