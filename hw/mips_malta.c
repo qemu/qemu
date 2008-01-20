@@ -29,7 +29,7 @@
 #include "boards.h"
 #include "smbus.h"
 #include "block.h"
-#include "flash.h"
+#include "pflash.h"
 #include "mips.h"
 #include "pci.h"
 #include "qemu-char.h"
@@ -871,7 +871,7 @@ void mips_malta_init (int ram_size, int vga_ram_size,
 #endif
             pflash_cfi01_register(0x1e000000LL, bios_offset,
                                   drives_table[index].bdrv, 65536, fl_sectors,
-                                  4, 0x0000, 0x0000, 0x0000, 0x0000);
+                                  4, MANUFACTURER_INTEL, I28F160C3B, 0x0000, 0x0000);
             fl_idx++;
         } else {
             /* Load a BIOS image. */
@@ -888,12 +888,13 @@ void mips_malta_init (int ram_size, int vga_ram_size,
         }
         /* In little endian mode the 32bit words in the bios are swapped,
            a neat trick which allows bi-endian firmware. */
-#ifndef TARGET_WORDS_BIGENDIAN
+#if !defined(TARGET_WORDS_BIGENDIAN) && 0
         {
             uint32_t *addr;
             for (addr = (uint32_t *)(phys_ram_base + bios_offset);
                  addr < (uint32_t *)(phys_ram_base + bios_offset + bios_size);
                  addr++) {
+                   fprintf(stderr, "0x%08x\n", *addr);
                 *addr = bswap32(*addr);
             }
         }
