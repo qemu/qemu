@@ -1,7 +1,7 @@
 /*
  * QEMU System Emulator
  *
- * Copyright (c) 2003-2007 Fabrice Bellard
+ * Copyright (c) 2003-2008 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -237,7 +237,10 @@ unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
 int nb_drives_opt;
-char drives_opt[MAX_DRIVES][1024];
+struct drive_opt {
+    const char *file;
+    char opt[1024];
+} drives_opt[MAX_DRIVES];
 
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
@@ -828,7 +831,7 @@ struct qemu_alarm_timer {
 };
 
 #define ALARM_FLAG_DYNTICKS  0x1
-#define ALARM_FLAG_MODIFIED  0x2
+#define ALARM_FLAG_EXPIRED   0x2
 
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
@@ -839,11 +842,6 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 {
     if (!alarm_has_dynticks(t))
         return;
-
-    if (!(t->flags & ALARM_FLAG_MODIFIED))
-        return;
-
-    t->flags &= ~(ALARM_FLAG_MODIFIED);
 
     t->rearm(t);
 }
@@ -1007,8 +1005,6 @@ void qemu_del_timer(QEMUTimer *ts)
 {
     QEMUTimer **pt, *t;
 
-    alarm_timer->flags |= ALARM_FLAG_MODIFIED;
-
     /* NOTE: this code must be signal safe because
        qemu_timer_expired() can be called from a signal. */
     pt = &active_timers[ts->clock->type];
@@ -1047,6 +1043,11 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     ts->expire_time = expire_time;
     ts->next = *pt;
     *pt = ts;
+
+    /* Rearm if necessary  */
+    if ((alarm_timer->flags & ALARM_FLAG_EXPIRED) == 0 &&
+        pt == &active_timers[ts->clock->type])
+        qemu_rearm_alarm_timer(alarm_timer);
 }
 
 int qemu_timer_pending(QEMUTimer *ts)
@@ -1199,8 +1200,9 @@ static void host_alarm_handler(int host_signum)
 #endif
         CPUState *env = next_cpu;
 
+        alarm_timer->flags |= ALARM_FLAG_EXPIRED;
+
         if (env) {
-            alarm_timer->flags |= ALARM_FLAG_MODIFIED;
             /* stop the currently executing cpu because a timer occured */
             cpu_interrupt(env, CPU_INTERRUPT_EXIT);
 #ifdef USE_KQEMU
@@ -1385,7 +1387,7 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 
     if (!active_timers[QEMU_TIMER_REALTIME] &&
                 !active_timers[QEMU_TIMER_VIRTUAL])
-            return;
+        return;
 
     nearest_delta_us = qemu_next_deadline();
 
@@ -1512,7 +1514,7 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
     if (!active_timers[QEMU_TIMER_REALTIME] &&
                 !active_timers[QEMU_TIMER_VIRTUAL])
-            return;
+        return;
 
     nearest_delta_us = qemu_next_deadline();
     nearest_delta_us /= 1000;
@@ -2054,6 +2056,20 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
     }
 }
 
+static void fd_chr_close(struct CharDriverState *chr)
+{
+    FDCharDriver *s = chr->opaque;
+
+    if (s->fd_in >= 0) {
+        if (nographic && s->fd_in == 0) {
+        } else {
+            qemu_set_fd_handler2(s->fd_in, NULL, NULL, NULL, NULL);
+        }
+    }
+
+    qemu_free(s);
+}
+
 /* open a character device to a unix fd */
 static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
 {
@@ -2073,6 +2089,7 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     chr->opaque = s;
     chr->chr_write = fd_chr_write;
     chr->chr_update_read_handler = fd_chr_update_read_handler;
+    chr->chr_close = fd_chr_close;
 
     qemu_chr_reset(chr);
 
@@ -2159,6 +2176,7 @@ static void stdio_read(void *opaque)
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
+static int term_atexit_done;
 
 static void term_exit(void)
 {
@@ -2188,9 +2206,18 @@ static void term_init(void)
 
     tcsetattr (0, TCSANOW, &tty);
 
-    atexit(term_exit);
+    if (!term_atexit_done++)
+        atexit(term_exit);
 
     fcntl(0, F_SETFL, O_NONBLOCK);
+}
+
+static void qemu_chr_close_stdio(struct CharDriverState *chr)
+{
+    term_exit();
+    stdio_nb_clients--;
+    qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
+    fd_chr_close(chr);
 }
 
 static CharDriverState *qemu_chr_open_stdio(void)
@@ -2200,6 +2227,7 @@ static CharDriverState *qemu_chr_open_stdio(void)
     if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
         return NULL;
     chr = qemu_chr_open_fd(0, 1);
+    chr->chr_close = qemu_chr_close_stdio;
     qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
     stdio_nb_clients++;
     term_init();
@@ -2244,45 +2272,33 @@ static void tty_serial_init(int fd, int speed,
 #endif
     tcgetattr (fd, &tty);
 
-    switch(speed) {
-    case 50:
+#define MARGIN 1.1
+    if (speed <= 50 * MARGIN)
         spd = B50;
-        break;
-    case 75:
+    else if (speed <= 75 * MARGIN)
         spd = B75;
-        break;
-    case 300:
+    else if (speed <= 300 * MARGIN)
         spd = B300;
-        break;
-    case 600:
+    else if (speed <= 600 * MARGIN)
         spd = B600;
-        break;
-    case 1200:
+    else if (speed <= 1200 * MARGIN)
         spd = B1200;
-        break;
-    case 2400:
+    else if (speed <= 2400 * MARGIN)
         spd = B2400;
-        break;
-    case 4800:
+    else if (speed <= 4800 * MARGIN)
         spd = B4800;
-        break;
-    case 9600:
+    else if (speed <= 9600 * MARGIN)
         spd = B9600;
-        break;
-    case 19200:
+    else if (speed <= 19200 * MARGIN)
         spd = B19200;
-        break;
-    case 38400:
+    else if (speed <= 38400 * MARGIN)
         spd = B38400;
-        break;
-    case 57600:
+    else if (speed <= 57600 * MARGIN)
         spd = B57600;
-        break;
-    default:
-    case 115200:
+    else if (speed <= 115200 * MARGIN)
         spd = B115200;
-        break;
-    }
+    else
+        spd = B115200;
 
     cfsetispeed(&tty, spd);
     cfsetospeed(&tty, spd);
@@ -3434,6 +3450,7 @@ void qemu_chr_close(CharDriverState *chr)
 {
     if (chr->chr_close)
         chr->chr_close(chr);
+    qemu_free(chr);
 }
 
 /***********************************************************/
@@ -3779,27 +3796,35 @@ static void net_slirp_redir(const char *redir_str)
 
 char smb_dir[1024];
 
-static void smb_exit(void)
+static void erase_dir(char *dir_name)
 {
     DIR *d;
     struct dirent *de;
     char filename[1024];
 
     /* erase all the files in the directory */
-    d = opendir(smb_dir);
-    for(;;) {
-        de = readdir(d);
-        if (!de)
-            break;
-        if (strcmp(de->d_name, ".") != 0 &&
-            strcmp(de->d_name, "..") != 0) {
-            snprintf(filename, sizeof(filename), "%s/%s",
-                     smb_dir, de->d_name);
-            unlink(filename);
+    if ((d = opendir(dir_name)) != 0) {
+        for(;;) {
+            de = readdir(d);
+            if (!de)
+                break;
+            if (strcmp(de->d_name, ".") != 0 &&
+                strcmp(de->d_name, "..") != 0) {
+                snprintf(filename, sizeof(filename), "%s/%s",
+                         smb_dir, de->d_name);
+                if (unlink(filename) != 0)  /* is it a directory? */
+                    erase_dir(filename);
+            }
         }
+        closedir(d);
+        rmdir(dir_name);
     }
-    closedir(d);
-    rmdir(smb_dir);
+}
+
+/* automatic user mode samba server configuration */
+static void smb_exit(void)
+{
+    erase_dir(smb_dir);
 }
 
 /* automatic user mode samba server configuration */
@@ -4588,24 +4613,33 @@ static int net_socket_mcast_init(VLANState *vlan, const char *host_str)
 
 }
 
-static const char *get_word(char *buf, int buf_size, const char *p)
+static const char *get_opt_name(char *buf, int buf_size, const char *p)
 {
     char *q;
-    int substring;
 
-    substring = 0;
+    q = buf;
+    while (*p != '\0' && *p != '=') {
+        if (q && (q - buf) < buf_size - 1)
+            *q++ = *p;
+        p++;
+    }
+    if (q)
+        *q = '\0';
+
+    return p;
+}
+
+static const char *get_opt_value(char *buf, int buf_size, const char *p)
+{
+    char *q;
+
     q = buf;
     while (*p != '\0') {
-        if (*p == '\\') {
-            p++;
-            if (*p == '\0')
+        if (*p == ',') {
+            if (*(p + 1) != ',')
                 break;
-        } else if (*p == '\"') {
-            substring = !substring;
             p++;
-            continue;
-        } else if (!substring && (*p == ',' || *p == '='))
-            break;
+        }
         if (q && (q - buf) < buf_size - 1)
             *q++ = *p;
         p++;
@@ -4624,15 +4658,15 @@ static int get_param_value(char *buf, int buf_size,
 
     p = str;
     for(;;) {
-        p = get_word(option, sizeof(option), p);
+        p = get_opt_name(option, sizeof(option), p);
         if (*p != '=')
             break;
         p++;
         if (!strcmp(tag, option)) {
-            (void)get_word(buf, buf_size, p);
+            (void)get_opt_value(buf, buf_size, p);
             return strlen(buf);
         } else {
-            p = get_word(NULL, 0, p);
+            p = get_opt_value(NULL, 0, p);
         }
         if (*p != ',')
             break;
@@ -4649,7 +4683,7 @@ static int check_params(char *buf, int buf_size,
 
     p = str;
     for(;;) {
-        p = get_word(buf, buf_size, p);
+        p = get_opt_name(buf, buf_size, p);
         if (*p != '=')
             return -1;
         p++;
@@ -4658,7 +4692,7 @@ static int check_params(char *buf, int buf_size,
                 break;
         if (params[i] == NULL)
             return -1;
-        p = get_word(NULL, 0, p);
+        p = get_opt_value(NULL, 0, p);
         if (*p != ',')
             break;
         p++;
@@ -4817,18 +4851,18 @@ void do_info_network(void)
     }
 }
 
-#define HD_ALIAS "file=\"%s\",index=%d,media=disk"
+#define HD_ALIAS "index=%d,media=disk"
 #ifdef TARGET_PPC
 #define CDROM_ALIAS "index=1,media=cdrom"
 #else
 #define CDROM_ALIAS "index=2,media=cdrom"
 #endif
 #define FD_ALIAS "index=%d,if=floppy"
-#define PFLASH_ALIAS "file=\"%s\",if=pflash"
-#define MTD_ALIAS "file=\"%s\",if=mtd"
+#define PFLASH_ALIAS "if=pflash"
+#define MTD_ALIAS "if=mtd"
 #define SD_ALIAS "index=0,if=sd"
 
-static int drive_add(const char *fmt, ...)
+static int drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
 
@@ -4837,8 +4871,10 @@ static int drive_add(const char *fmt, ...)
         exit(1);
     }
 
+    drives_opt[nb_drives_opt].file = file;
     va_start(ap, fmt);
-    vsnprintf(drives_opt[nb_drives_opt], sizeof(drives_opt[0]), fmt, ap);
+    vsnprintf(drives_opt[nb_drives_opt].opt,
+              sizeof(drives_opt[0].opt), fmt, ap);
     va_end(ap);
 
     return nb_drives_opt++;
@@ -4873,7 +4909,8 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
-static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
+static int drive_init(struct drive_opt *arg, int snapshot,
+                      QEMUMachine *machine)
 {
     char buf[128];
     char file[1024];
@@ -4888,6 +4925,7 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
     int index;
     int cache;
     int bdrv_flags;
+    char *str = arg->opt;
     char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
                        "secs", "trans", "media", "snapshot", "file",
                        "cache", NULL };
@@ -5058,7 +5096,10 @@ static int drive_init(const char *str, int snapshot, QEMUMachine *machine)
         }
     }
 
-    get_param_value(file, sizeof(file), "file", str);
+    if (arg->file == NULL)
+        get_param_value(file, sizeof(file), "file", str);
+    else
+        pstrcpy(file, sizeof(file), arg->file);
 
     /* compute bus and unit according index */
 
@@ -5203,6 +5244,8 @@ static int usb_device_add(const char *devname)
         dev = usb_msd_init(p);
     } else if (!strcmp(devname, "wacom-tablet")) {
         dev = usb_wacom_init();
+    } else if (strstart(devname, "serial:", &p)) {
+        dev = usb_serial_init(p);
     } else {
         return -1;
     }
@@ -7402,7 +7445,10 @@ void main_loop_wait(int timeout)
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
                     qemu_get_clock(rt_clock));
 
-    qemu_rearm_alarm_timer(alarm_timer);
+    if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {
+        alarm_timer->flags &= ~(ALARM_FLAG_EXPIRED);
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
 
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
@@ -7492,7 +7538,7 @@ static int main_loop(void)
 
 static void help(int exitcode)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2007 Fabrice Bellard\n"
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
@@ -7981,6 +8027,16 @@ struct soundhw soundhw[] = {
     },
 #endif
 
+#ifdef CONFIG_AC97
+    {
+        "ac97",
+        "Intel 82801AA AC97 Audio",
+        0,
+        0,
+        { .init_pci = ac97_init }
+    },
+#endif
+
     {
         "es1370",
         "ENSONIQ AudioPCI ES1370",
@@ -8214,7 +8270,7 @@ int main(int argc, char **argv)
             break;
         r = argv[optind];
         if (r[0] != '-') {
-	    hda_index = drive_add(HD_ALIAS, argv[optind++], 0);
+	    hda_index = drive_add(argv[optind++], HD_ALIAS, 0);
         } else {
             const QEMUOption *popt;
 
@@ -8277,11 +8333,11 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_hda:
                 if (cyls == 0)
-                    hda_index = drive_add(HD_ALIAS, optarg, 0);
+                    hda_index = drive_add(optarg, HD_ALIAS, 0);
                 else
-                    hda_index = drive_add(HD_ALIAS
+                    hda_index = drive_add(optarg, HD_ALIAS
 			     ",cyls=%d,heads=%d,secs=%d%s",
-                             optarg, 0, cyls, heads, secs,
+                             0, cyls, heads, secs,
                              translation == BIOS_ATA_TRANSLATION_LBA ?
                                  ",trans=lba" :
                              translation == BIOS_ATA_TRANSLATION_NONE ?
@@ -8290,19 +8346,19 @@ int main(int argc, char **argv)
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
-		drive_add(HD_ALIAS, optarg, popt->index - QEMU_OPTION_hda);
+                drive_add(optarg, HD_ALIAS, popt->index - QEMU_OPTION_hda);
                 break;
             case QEMU_OPTION_drive:
-                drive_add("%s", optarg);
+                drive_add(NULL, "%s", optarg);
 	        break;
             case QEMU_OPTION_mtdblock:
-	        drive_add(MTD_ALIAS, optarg);
+                drive_add(optarg, MTD_ALIAS);
                 break;
             case QEMU_OPTION_sd:
-                drive_add("file=\"%s\"," SD_ALIAS, optarg);
+                drive_add(optarg, SD_ALIAS);
                 break;
             case QEMU_OPTION_pflash:
-	        drive_add(PFLASH_ALIAS, optarg);
+                drive_add(optarg, PFLASH_ALIAS);
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -8342,12 +8398,10 @@ int main(int argc, char **argv)
                         exit(1);
                     }
 		    if (hda_index != -1)
-		        snprintf(drives_opt[hda_index] +
-			         strlen(drives_opt[hda_index]),
-			         sizeof(drives_opt[0]) -
-				 strlen(drives_opt[hda_index]),
-		                 ",cyls=%d,heads=%d,secs=%d%s",
-			         cyls, heads, secs,
+                        snprintf(drives_opt[hda_index].opt,
+                                 sizeof(drives_opt[hda_index].opt),
+                                 HD_ALIAS ",cyls=%d,heads=%d,secs=%d%s",
+                                 0, cyls, heads, secs,
 			         translation == BIOS_ATA_TRANSLATION_LBA ?
 			     	    ",trans=lba" :
 			         translation == BIOS_ATA_TRANSLATION_NONE ?
@@ -8370,7 +8424,7 @@ int main(int argc, char **argv)
                 kernel_cmdline = optarg;
                 break;
             case QEMU_OPTION_cdrom:
-		drive_add("file=\"%s\"," CDROM_ALIAS, optarg);
+                drive_add(optarg, CDROM_ALIAS);
                 break;
             case QEMU_OPTION_boot:
                 boot_devices = optarg;
@@ -8405,8 +8459,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_fda:
             case QEMU_OPTION_fdb:
-		drive_add("file=\"%s\"," FD_ALIAS, optarg,
-		          popt->index - QEMU_OPTION_fda);
+                drive_add(optarg, FD_ALIAS, popt->index - QEMU_OPTION_fda);
                 break;
 #ifdef TARGET_I386
             case QEMU_OPTION_no_fd_bootchk:
@@ -8674,6 +8727,7 @@ int main(int argc, char **argv)
 #ifdef TARGET_ARM
             case QEMU_OPTION_old_param:
                 old_param = 1;
+                break;
 #endif
             case QEMU_OPTION_clock:
                 configure_alarms(optarg);
@@ -8877,22 +8931,22 @@ int main(int argc, char **argv)
     /* we always create the cdrom drive, even if no disk is there */
 
     if (nb_drives_opt < MAX_DRIVES)
-        drive_add(CDROM_ALIAS);
+        drive_add(NULL, CDROM_ALIAS);
 
     /* we always create at least one floppy */
 
     if (nb_drives_opt < MAX_DRIVES)
-        drive_add(FD_ALIAS, 0);
+        drive_add(NULL, FD_ALIAS, 0);
 
     /* we always create one sd slot, even if no card is in it */
 
     if (nb_drives_opt < MAX_DRIVES)
-        drive_add(SD_ALIAS);
+        drive_add(NULL, SD_ALIAS);
 
     /* open the virtual block devices */
 
     for(i = 0; i < nb_drives_opt; i++)
-        if (drive_init(drives_opt[i], snapshot, machine) == -1)
+        if (drive_init(&drives_opt[i], snapshot, machine) == -1)
 	    exit(1);
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);

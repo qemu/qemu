@@ -85,10 +85,13 @@ EXESUF=""
 gdbstub="yes"
 slirp="yes"
 adlib="no"
+ac97="no"
+gus="no"
 oss="no"
 dsound="no"
 coreaudio="no"
 alsa="no"
+esd="no"
 fmod="no"
 fmod_lib=""
 fmod_inc=""
@@ -151,6 +154,7 @@ darwin_user="yes"
 cocoa="yes"
 coreaudio="yes"
 OS_CFLAGS="-mdynamic-no-pic"
+OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
 ;;
 SunOS)
     solaris="yes"
@@ -260,6 +264,8 @@ for opt do
   ;;
   --enable-alsa) alsa="yes"
   ;;
+  --enable-esd) esd="yes"
+  ;;
   --enable-dsound) dsound="yes"
   ;;
   --enable-fmod) fmod="yes"
@@ -275,6 +281,10 @@ for opt do
   --disable-slirp) slirp="no"
   ;;
   --enable-adlib) adlib="yes"
+  ;;
+  --enable-ac97) ac97="yes"
+  ;;
+  --enable-gus) gus="yes"
   ;;
   --disable-kqemu) kqemu="no"
   ;;
@@ -402,8 +412,11 @@ echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --enable-adlib           enable Adlib emulation"
+echo "  --enable-ac97            enable AC97 emulation"
+echo "  --enable-gus             enable Gravis Ultrasound emulation"
 echo "  --enable-coreaudio       enable Coreaudio audio driver"
 echo "  --enable-alsa            enable ALSA audio driver"
+echo "  --enable-esd             enable EsoundD audio driver"
 echo "  --enable-fmod            enable FMOD audio driver"
 echo "  --enable-dsound          enable DirectSound audio driver"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
@@ -718,8 +731,11 @@ if test "$sdl" != "no" ; then
 fi
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
+echo "AC97 support      $ac97"
+echo "GUS support       $gus"
 echo "CoreAudio support $coreaudio"
 echo "ALSA support      $alsa"
+echo "EsounD support    $esd"
 echo "DSound support    $dsound"
 if test "$fmod" = "yes"; then
     if test -z $fmod_lib || test -z $fmod_inc; then
@@ -893,6 +909,14 @@ if test "$adlib" = "yes" ; then
   echo "CONFIG_ADLIB=yes" >> $config_mak
   echo "#define CONFIG_ADLIB 1" >> $config_h
 fi
+if test "$ac97" = "yes" ; then
+  echo "CONFIG_AC97=yes" >> $config_mak
+  echo "#define CONFIG_AC97 1" >> $config_h
+fi
+if test "$gus" = "yes" ; then
+  echo "CONFIG_GUS=yes" >> $config_mak
+  echo "#define CONFIG_GUS 1" >> $config_h
+fi
 if test "$oss" = "yes" ; then
   echo "CONFIG_OSS=yes" >> $config_mak
   echo "#define CONFIG_OSS 1" >> $config_h
@@ -904,6 +928,10 @@ fi
 if test "$alsa" = "yes" ; then
   echo "CONFIG_ALSA=yes" >> $config_mak
   echo "#define CONFIG_ALSA 1" >> $config_h
+fi
+if test "$esd" = "yes" ; then
+  echo "CONFIG_ESD=yes" >> $config_mak
+  echo "#define CONFIG_ESD 1" >> $config_h
 fi
 if test "$dsound" = "yes" ; then
   echo "CONFIG_DSOUND=yes" >> $config_mak
@@ -1077,6 +1105,7 @@ elif test "$target_cpu" = "sparc64" ; then
 elif test "$target_cpu" = "sparc32plus" ; then
   echo "TARGET_ARCH=sparc64" >> $config_mak
   echo "TARGET_ABI_DIR=sparc" >> $config_mak
+  echo "TARGET_ARCH2=sparc32plus" >> $config_mak
   echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
   echo "#define TARGET_SPARC 1" >> $config_h
   echo "#define TARGET_SPARC64 1" >> $config_h
@@ -1100,6 +1129,7 @@ elif test "$target_cpu" = "ppc64" ; then
 elif test "$target_cpu" = "ppc64abi32" ; then
   echo "TARGET_ARCH=ppc64" >> $config_mak
   echo "TARGET_ABI_DIR=ppc" >> $config_mak
+  echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
   echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
   echo "#define TARGET_PPC64 1" >> $config_h

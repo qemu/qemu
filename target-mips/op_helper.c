@@ -1274,8 +1274,8 @@ void do_cmp_d_ ## op (long cc)                 \
 void do_cmpabs_d_ ## op (long cc)              \
 {                                              \
     int c;                                     \
-    FDT0 = float64_chs(FDT0);                  \
-    FDT1 = float64_chs(FDT1);                  \
+    FDT0 = float64_abs(FDT0);                  \
+    FDT1 = float64_abs(FDT1);                  \
     c = cond;                                  \
     update_fcr31();                            \
     if (c)                                     \

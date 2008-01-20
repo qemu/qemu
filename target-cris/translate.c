@@ -111,15 +111,6 @@ typedef struct DisasContext {
 	unsigned int mode;
 	unsigned int postinc;
 
-
-	struct
-	{
-		int op;
-		int size;
-		unsigned int mask;
-	} cc_state[3];
-	int cc_i;
-
 	int update_cc;
 	int cc_op;
 	int cc_size;
@@ -184,6 +175,10 @@ static void gen_vr_read(void) {
 	gen_op_movl_T0_im(32);
 }
 
+static void gen_movl_T0_p0(void) {
+	gen_op_movl_T0_im(0);
+}
+
 static void gen_ccs_read(void) {
 	gen_op_movl_T0_p13();
 }
@@ -210,7 +205,7 @@ static GenOpFunc *gen_movl_preg_T0[16] =
 };
 static GenOpFunc *gen_movl_T0_preg[16] =
 {
-	gen_op_movl_T0_p0,
+	gen_movl_T0_p0,
 	gen_vr_read,
 	gen_op_movl_T0_p2, gen_op_movl_T0_p3,
 	gen_op_movl_T0_p4, gen_op_movl_T0_p5,
@@ -346,6 +341,8 @@ static void cris_cc_mask(DisasContext *dc, unsigned int mask)
 {
 	uint32_t ovl;
 
+	/* Check if we need to evaluate the condition codes due to 
+	   CC overlaying.  */
 	ovl = (dc->cc_mask ^ mask) & ~mask;
 	if (ovl) {
 		/* TODO: optimize this case. It trigs all the time.  */
@@ -988,7 +985,6 @@ static unsigned int dec_btstq(DisasContext *dc)
 {
 	dc->op1 = EXTRACT_FIELD(dc->ir, 0, 4);
 	DIS(fprintf (logfile, "btstq %u, $r%d\n", dc->op1, dc->op2));
-	cris_evaluate_flags(dc);
 	cris_cc_mask(dc, CC_MASK_NZ);
 	gen_movl_T0_reg[dc->op2]();
 	gen_op_movl_T1_im(dc->op1);
@@ -1334,7 +1330,6 @@ static unsigned int dec_btst_r(DisasContext *dc)
 {
 	DIS(fprintf (logfile, "btst $r%u, $r%u\n",
 		    dc->op1, dc->op2));
-	cris_evaluate_flags(dc);
 	cris_cc_mask(dc, CC_MASK_NZ);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, 4, 0);
 	crisv32_alu_op(dc, CC_OP_BTST, dc->op2, 4);
@@ -1519,8 +1514,14 @@ static unsigned int dec_move_pr(DisasContext *dc)
 {
 	DIS(fprintf (logfile, "move $p%u, $r%u\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, 0);
-	gen_movl_T0_preg[dc->op2]();
-	gen_op_movl_T1_T0();
+	/* Support register 0 is hardwired to zero. 
+	   Treat it specially. */
+	if (dc->op2 == 0)
+		gen_op_movl_T1_im(0);
+	else {
+		gen_movl_T0_preg[dc->op2]();
+		gen_op_movl_T1_T0();
+	}
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op1, preg_sizes[dc->op2]);
 	return 2;
 }
@@ -1847,13 +1848,21 @@ static unsigned int dec_move_pm(DisasContext *dc)
 
 	memsize = preg_sizes[dc->op2];
 
-	DIS(fprintf (logfile, "move.%d $p%u, [$r%u%s\n",
-		     memsize, dc->op2, dc->op1, dc->postinc ? "+]" : "]"));
+	DIS(fprintf (logfile, "move.%c $p%u, [$r%u%s\n",
+		     memsize_char(memsize), 
+		     dc->op2, dc->op1, dc->postinc ? "+]" : "]"));
 
 	cris_cc_mask(dc, 0);
-	/* prepare store.  */
-	gen_movl_T0_preg[dc->op2]();
-	gen_op_movl_T1_T0();
+	/* prepare store. Address in T0, value in T1.  */
+	/* Support register 0 is hardwired to zero. 
+	   Treat it specially. */
+	if (dc->op2 == 0)
+		gen_op_movl_T1_im(0);
+	else
+	{
+		gen_movl_T0_preg[dc->op2]();
+		gen_op_movl_T1_T0();
+	}
 	gen_movl_T0_reg[dc->op1]();
 	gen_store_T0_T1(dc, memsize);
 	if (dc->postinc)

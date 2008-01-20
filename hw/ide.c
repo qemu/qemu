@@ -1,5 +1,5 @@
 /*
- * QEMU IDE disk and CD-ROM Emulator
+ * QEMU IDE disk and CD/DVD-ROM Emulator
  *
  * Copyright (c) 2003 Fabrice Bellard
  * Copyright (c) 2006 Openedhand Ltd.
@@ -284,6 +284,58 @@
  * of MODE_SENSE_POWER_PAGE */
 #define GPMODE_CDROM_PAGE		0x0d
 
+/*
+ * Based on values from <linux/cdrom.h> but extending CD_MINS
+ * to the maximum common size allowed by the Orange's Book ATIP
+ *
+ * 90 and 99 min CDs are also available but using them as the
+ * upper limit reduces the effectiveness of the heuristic to
+ * detect DVDs burned to less than 25% of their maximum capacity
+ */
+
+/* Some generally useful CD-ROM information */
+#define CD_MINS                       80 /* max. minutes per CD */
+#define CD_SECS                       60 /* seconds per minute */
+#define CD_FRAMES                     75 /* frames per second */
+#define CD_FRAMESIZE                2048 /* bytes per frame, "cooked" mode */
+#define CD_MAX_BYTES       (CD_MINS * CD_SECS * CD_FRAMES * CD_FRAMESIZE)
+#define CD_MAX_SECTORS     (CD_MAX_BYTES / 512)
+
+/*
+ * The MMC values are not IDE specific and might need to be moved
+ * to a common header if they are also needed for the SCSI emulation
+ */
+
+/* Profile list from MMC-6 revision 1 table 91 */
+#define MMC_PROFILE_NONE                0x0000
+#define MMC_PROFILE_CD_ROM              0x0008
+#define MMC_PROFILE_CD_R                0x0009
+#define MMC_PROFILE_CD_RW               0x000A
+#define MMC_PROFILE_DVD_ROM             0x0010
+#define MMC_PROFILE_DVD_R_SR            0x0011
+#define MMC_PROFILE_DVD_RAM             0x0012
+#define MMC_PROFILE_DVD_RW_RO           0x0013
+#define MMC_PROFILE_DVD_RW_SR           0x0014
+#define MMC_PROFILE_DVD_R_DL_SR         0x0015
+#define MMC_PROFILE_DVD_R_DL_JR         0x0016
+#define MMC_PROFILE_DVD_RW_DL           0x0017
+#define MMC_PROFILE_DVD_DDR             0x0018
+#define MMC_PROFILE_DVD_PLUS_RW         0x001A
+#define MMC_PROFILE_DVD_PLUS_R          0x001B
+#define MMC_PROFILE_DVD_PLUS_RW_DL      0x002A
+#define MMC_PROFILE_DVD_PLUS_R_DL       0x002B
+#define MMC_PROFILE_BD_ROM              0x0040
+#define MMC_PROFILE_BD_R_SRM            0x0041
+#define MMC_PROFILE_BD_R_RRM            0x0042
+#define MMC_PROFILE_BD_RE               0x0043
+#define MMC_PROFILE_HDDVD_ROM           0x0050
+#define MMC_PROFILE_HDDVD_R             0x0051
+#define MMC_PROFILE_HDDVD_RAM           0x0052
+#define MMC_PROFILE_HDDVD_RW            0x0053
+#define MMC_PROFILE_HDDVD_R_DL          0x0058
+#define MMC_PROFILE_HDDVD_RW_DL         0x005A
+#define MMC_PROFILE_INVALID             0xFFFF
+
 #define ATAPI_INT_REASON_CD             0x01 /* 0 = data transfer */
 #define ATAPI_INT_REASON_IO             0x02 /* 1 = transfer to the host */
 #define ATAPI_INT_REASON_REL            0x04
@@ -540,7 +592,7 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((char *)(p + 23), QEMU_VERSION, 8); /* firmware version */
-    padstr((char *)(p + 27), "QEMU CD-ROM", 40); /* model */
+    padstr((char *)(p + 27), "QEMU DVD-ROM", 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
 #ifdef USE_DMA_CDROM
     put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
@@ -1290,6 +1342,22 @@ static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
     }
 }
 
+static inline uint8_t ide_atapi_set_profile(uint8_t *buf, uint8_t *index,
+                                            uint16_t profile)
+{
+    uint8_t *buf_profile = buf + 12; /* start of profiles */
+
+    buf_profile += ((*index) * 4); /* start of indexed profile */
+    cpu_to_ube16 (buf_profile, profile);
+    buf_profile[2] = ((buf_profile[0] == buf[6]) && (buf_profile[1] == buf[7]));
+
+    /* each profile adds 4 bytes to the response */
+    (*index)++;
+    buf[11] += 4; /* Additional Length */
+
+    return 4;
+}
+
 static void ide_atapi_cmd(IDEState *s)
 {
     const uint8_t *packet;
@@ -1634,13 +1702,13 @@ static void ide_atapi_cmd(IDEState *s)
         buf[6] = 0; /* reserved */
         buf[7] = 0; /* reserved */
         padstr8(buf + 8, 8, "QEMU");
-        padstr8(buf + 16, 16, "QEMU CD-ROM");
+        padstr8(buf + 16, 16, "QEMU DVD-ROM");
         padstr8(buf + 32, 4, QEMU_VERSION);
         ide_atapi_cmd_reply(s, 36, max_len);
         break;
     case GPCMD_GET_CONFIGURATION:
         {
-            uint64_t total_sectors;
+            uint32_t len;
 
             /* only feature 0 is supported */
             if (packet[2] != 0 || packet[3] != 0) {
@@ -1648,17 +1716,46 @@ static void ide_atapi_cmd(IDEState *s)
                                     ASC_INV_FIELD_IN_CMD_PACKET);
                 break;
             }
-            memset(buf, 0, 32);
-            bdrv_get_geometry(s->bs, &total_sectors);
-            buf[3] = 16;
-            buf[7] = total_sectors <= 1433600 ? 0x08 : 0x10; /* current profile */
-            buf[10] = 0x10 | 0x1;
-            buf[11] = 0x08; /* size of profile list */
-            buf[13] = 0x10; /* DVD-ROM profile */
-            buf[14] = buf[7] == 0x10; /* (in)active */
-            buf[17] = 0x08; /* CD-ROM profile */
-            buf[18] = buf[7] == 0x08; /* (in)active */
-            ide_atapi_cmd_reply(s, 32, 32);
+
+            /* XXX: could result in alignment problems in some architectures */
+            max_len = ube16_to_cpu(packet + 7);
+            /*
+             * XXX: avoid overflow for io_buffer if max_len is bigger than the
+             *      size of that buffer (dimensioned to max number of sectors
+             *      to transfer at once)
+             *
+             *      Only a problem if the feature/profiles grow exponentially.
+             */
+            if (max_len > 512) /* XXX: assume 1 sector */
+                max_len = 512;
+
+            memset(buf, 0, max_len);
+            /* 
+             * the number of sectors from the media tells us which profile
+             * to use as current.  0 means there is no media
+             *
+             * XXX: fails to detect correctly DVDs with less data burned
+             *      than what a CD can hold
+             */
+            if ((s -> nb_sectors)) {
+                if ((s -> nb_sectors > CD_MAX_SECTORS))
+                    cpu_to_ube16(buf + 6, MMC_PROFILE_DVD_ROM);
+                else
+                    cpu_to_ube16(buf + 6, MMC_PROFILE_CD_ROM);
+            }
+
+            len = 8; /* header completed */
+            if (max_len > len) {
+                uint8_t index = 0;
+
+                buf[10] = 0x02 | 0x01; /* persistent and current */
+                len += 4; /* header */
+                len += ide_atapi_set_profile(buf, &index, MMC_PROFILE_DVD_ROM);
+                len += ide_atapi_set_profile(buf, &index, MMC_PROFILE_CD_ROM);
+            }
+            cpu_to_ube32(buf, len - 4); /* data length */
+
+            ide_atapi_cmd_reply(s, len, max_len);
             break;
         }
     default:
@@ -2046,7 +2143,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case WIN_DIAGNOSE:
             ide_set_signature(s);
-            s->status = 0x00; /* NOTE: READY is _not_ set */
+            s->status = READY_STAT;
             s->error = 0x01;
             ide_set_irq(s);
             break;

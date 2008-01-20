@@ -439,6 +439,13 @@ static void dma_reset(void *opaque)
     write_cont (d, (0x0d << d->dshift), 0);
 }
 
+static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
+{
+    dolog ("unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d\n",
+           nchan, dma_pos, dma_len);
+    return dma_pos;
+}
+
 /* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
 static void dma_init2(struct dma_cont *d, int base, int dshift,
                       int page_base, int pageh_base)
@@ -471,6 +478,9 @@ static void dma_init2(struct dma_cont *d, int base, int dshift,
     }
     qemu_register_reset(dma_reset, d);
     dma_reset(d);
+    for (i = 0; i < LENOFA (d->regs); ++i) {
+        d->regs[i].transfer_handler = dma_phony_handler;
+    }
 }
 
 static void dma_save (QEMUFile *f, void *opaque)

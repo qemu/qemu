@@ -320,23 +320,22 @@ static int waveformat_from_audio_settings (WAVEFORMATEX *wfx, audsettings_t *as)
 
     switch (as->fmt) {
     case AUD_FMT_S8:
-        wfx->wBitsPerSample = 8;
-        break;
-
     case AUD_FMT_U8:
         wfx->wBitsPerSample = 8;
         break;
 
     case AUD_FMT_S16:
+    case AUD_FMT_U16:
         wfx->wBitsPerSample = 16;
         wfx->nAvgBytesPerSec <<= 1;
         wfx->nBlockAlign <<= 1;
         break;
 
-    case AUD_FMT_U16:
-        wfx->wBitsPerSample = 16;
-        wfx->nAvgBytesPerSec <<= 1;
-        wfx->nBlockAlign <<= 1;
+    case AUD_FMT_S32:
+    case AUD_FMT_U32:
+        wfx->wBitsPerSample = 32;
+        wfx->nAvgBytesPerSec <<= 2;
+        wfx->nBlockAlign <<= 2;
         break;
 
     default:
@@ -387,8 +386,13 @@ static int waveformat_to_audio_settings (WAVEFORMATEX *wfx, audsettings_t *as)
         as->fmt = AUD_FMT_S16;
         break;
 
+    case 32:
+        as->fmt = AUD_FMT_S32;
+        break;
+
     default:
-        dolog ("Invalid wave format, bits per sample is not 8 or 16, but %d\n",
+        dolog ("Invalid wave format, bits per sample is not "
+               "8, 16 or 32, but %d\n",
                wfx->wBitsPerSample);
         return -1;
     }

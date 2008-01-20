@@ -64,7 +64,7 @@ OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
 OBJS+=ssd0303.o ssd0323.o ads7846.o stellaris_input.o
 OBJS+=scsi-disk.o cdrom.o
 OBJS+=scsi-generic.o
-OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
+OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o usb-serial.o
 OBJS+=sd.o ssi-sd.o
 
 ifdef CONFIG_WIN32
@@ -80,6 +80,7 @@ AUDIO_OBJS += ossaudio.o
 endif
 ifdef CONFIG_COREAUDIO
 AUDIO_OBJS += coreaudio.o
+AUDIO_PT = yes
 endif
 ifdef CONFIG_ALSA
 AUDIO_OBJS += alsaaudio.o
@@ -90,6 +91,17 @@ endif
 ifdef CONFIG_FMOD
 AUDIO_OBJS += fmodaudio.o
 audio/audio.o audio/fmodaudio.o: CPPFLAGS := -I$(CONFIG_FMOD_INC) $(CPPFLAGS)
+endif
+ifdef CONFIG_ESD
+AUDIO_PT = yes
+AUDIO_PT_INT = yes
+AUDIO_OBJS += esdaudio.o
+endif
+ifdef AUDIO_PT
+LDFLAGS += -pthread
+endif
+ifdef AUDIO_PT_INT
+AUDIO_OBJS += audio_pt_int.o
 endif
 AUDIO_OBJS+= wavcapture.o
 OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
@@ -162,6 +174,7 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) dyngen$(EXESUF) TAGS cscope.* *.pod *~ */*~
+	rm -rf dyngen.dSYM
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS); do \
@@ -275,22 +288,24 @@ tarbin:
 	$(bindir)/qemu-system-m68k \
 	$(bindir)/qemu-system-sh4 \
 	$(bindir)/qemu-system-sh4eb \
+	$(bindir)/qemu-system-cris \
 	$(bindir)/qemu-i386 \
+	$(bindir)/qemu-x86_64 \
         $(bindir)/qemu-arm \
         $(bindir)/qemu-armeb \
         $(bindir)/qemu-sparc \
+        $(bindir)/qemu-sparc32plus \
+        $(bindir)/qemu-sparc64 \
         $(bindir)/qemu-ppc \
         $(bindir)/qemu-ppc64 \
+        $(bindir)/qemu-ppc64abi32 \
         $(bindir)/qemu-mips \
         $(bindir)/qemu-mipsel \
-        $(bindir)/qemu-mipsn32 \
-        $(bindir)/qemu-mipsn32el \
-        $(bindir)/qemu-mips64 \
-        $(bindir)/qemu-mips64el \
         $(bindir)/qemu-alpha \
         $(bindir)/qemu-m68k \
         $(bindir)/qemu-sh4 \
         $(bindir)/qemu-sh4eb \
+        $(bindir)/qemu-cris \
         $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \

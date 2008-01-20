@@ -10,3 +10,5 @@ int Adlib_init (AudioState *s, qemu_irq *pic);
 /* gus.c */
 int GUS_init (AudioState *s, qemu_irq *pic);
 
+/* ac97.c */
+int ac97_init (PCIBus *buf, AudioState *s);

@@ -44,7 +44,7 @@ static struct {
         44100,
         2,
         AUD_FMT_S16,
-        AUDIO_HOST_ENDIANNESS
+        0
     },
     "qemu.wav"
 };

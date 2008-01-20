@@ -1193,6 +1193,12 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     SB16State *s = opaque;
     int till, copy, written, free;
 
+    if (s->block_size <= 0) {
+        dolog ("invalid block size=%d nchan=%d dma_pos=%d dma_len=%d\n",
+               s->block_size, nchan, dma_pos, dma_len);
+        return dma_pos;
+    }
+
     if (s->left_till_irq < 0) {
         s->left_till_irq = s->block_size;
     }

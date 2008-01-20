@@ -44,7 +44,9 @@ LIBS=
 HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen$(EXESUF)
 # user emulator name
+ifndef TARGET_ARCH2
 TARGET_ARCH2=$(TARGET_ARCH)
+endif
 ifeq ($(TARGET_ARCH),arm)
   ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=armeb
@@ -68,11 +70,6 @@ endif
 ifeq ($(TARGET_ARCH),mips64)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mips64el
-  endif
-endif
-ifeq ($(TARGET_ARCH),sparc64)
-  ifeq ($(TARGET_ABI_DIR),sparc)
-    TARGET_ARCH2=sparc32plus
   endif
 endif
 QEMU_USER=qemu-$(TARGET_ARCH2)
@@ -436,6 +433,9 @@ endif
 ifdef CONFIG_ALSA
 LIBS += -lasound
 endif
+ifdef CONFIG_ESD
+LIBS += -lesd
+endif
 ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid
 endif
@@ -444,8 +444,14 @@ LIBS += $(CONFIG_FMOD_LIB)
 endif
 
 SOUND_HW = sb16.o es1370.o
+ifdef CONFIG_AC97
+SOUND_HW += ac97.o
+endif
 ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
+endif
+ifdef CONFIG_GUS
+SOUND_HW += gus.o gusemu_hal.o gusemu_mixer.o
 endif
 
 ifdef CONFIG_VNC_TLS
@@ -695,12 +701,6 @@ endif
 
 ifneq ($(wildcard .depend),)
 include .depend
-endif
-
-ifeq (1, 0)
-audio.o sdlaudio.o dsoundaudio.o ossaudio.o wavaudio.o noaudio.o \
-fmodaudio.o alsaaudio.o mixeng.o sb16.o es1370.o gus.o adlib.o: \
-CFLAGS := $(CFLAGS) -Wall -Wshadow -Werror -W -Wsign-compare
 endif
 
 # Include automatically generated dependency files

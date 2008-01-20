@@ -276,8 +276,8 @@ void qemu_aio_init(void)
            seems to fix the problem. */
         struct aioinit ai;
         memset(&ai, 0, sizeof(ai));
-        ai.aio_threads = 16;
-        ai.aio_num = 16;
+        ai.aio_threads = 1;
+        ai.aio_num = 1;
         ai.aio_idle_time = 365 * 100000;
         aio_init(&ai);
     }

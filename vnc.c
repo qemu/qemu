@@ -506,6 +506,8 @@ static void vnc_update_client(void *opaque)
 	int saved_offset;
 	int has_dirty = 0;
 
+        vga_hw_update();
+
         vnc_set_bits(width_mask, (vs->width / 16), VNC_DIRTY_WORDS);
 
 	/* Walk through the dirty map and eliminate tiles that
@@ -580,22 +582,11 @@ static void vnc_update_client(void *opaque)
 	vnc_flush(vs);
 
     }
-    qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
-}
 
-static void vnc_timer_init(VncState *vs)
-{
-    if (vs->timer == NULL) {
-	vs->timer = qemu_new_timer(rt_clock, vnc_update_client, vs);
-	qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock));
+    if (vs->csock != -1) {
+        qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
     }
-}
 
-static void vnc_dpy_refresh(DisplayState *ds)
-{
-    VncState *vs = ds->opaque;
-    vnc_timer_init(vs);
-    vga_hw_update();
 }
 
 static int vnc_listen_poll(void *opaque)
@@ -1913,6 +1904,9 @@ static void vnc_listen_read(void *opaque)
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
+    /* Catch-up */
+    vga_hw_update();
+
     vs->csock = accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (vs->csock != -1) {
 	VNC_DEBUG("New client on socket %d\n", vs->csock);
@@ -1926,6 +1920,7 @@ static void vnc_listen_read(void *opaque)
 	vs->has_resize = 0;
 	vs->has_hextile = 0;
 	vs->ds->dpy_copy = NULL;
+        vnc_update_client(vs);
     }
 }
 
@@ -1959,10 +1954,12 @@ void vnc_display_init(DisplayState *ds)
     if (!vs->kbd_layout)
 	exit(1);
 
+    vs->timer = qemu_new_timer(rt_clock, vnc_update_client, vs);
+
     vs->ds->data = NULL;
     vs->ds->dpy_update = vnc_dpy_update;
     vs->ds->dpy_resize = vnc_dpy_resize;
-    vs->ds->dpy_refresh = vnc_dpy_refresh;
+    vs->ds->dpy_refresh = NULL;
 
     memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
 
