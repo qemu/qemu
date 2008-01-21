@@ -207,9 +207,11 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
                   "2:\n"
                   :
                   : "r" (ptr),
-/* NOTE: 'q' would be needed as constraint, but we could not use it
-   with T1 ! */
+#if DATA_SIZE == 1
+                  "q" (v),
+#else
                   "r" (v),
+#endif
                   "i" ((CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS),
                   "i" (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS),
                   "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
