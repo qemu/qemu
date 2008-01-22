@@ -120,6 +120,10 @@ void pci_dp83816_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 void pci_e100_init(PCIBus *bus, NICInfo *nd, int devfn);
 
+/* e1000 */
+
+void pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
+
 /* eepro100.c */
 
 void pci_eepro100_init(PCIBus *bus, NICInfo *nd, int devfn);

@@ -471,6 +471,7 @@ VL_OBJS += eeprom93xx.o
 # PCI network cards
 VL_OBJS += dp8381x.o
 VL_OBJS += e100.o
+VL_OBJS += e1000.o
 VL_OBJS += eepro100.o
 VL_OBJS += ne2000.o
 VL_OBJS += pcnet.o

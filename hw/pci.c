@@ -634,6 +634,8 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
         pci_dp83816_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "e100") == 0) {
         pci_e100_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "e1000") == 0) {
+        pci_e1000_init(bus, nd, devfn);
     } else if ((strcmp(nd->model, "i82551") == 0) ||
                (strcmp(nd->model, "i82557a") == 0) ||
                (strcmp(nd->model, "i82557b") == 0) ||
@@ -649,7 +651,7 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
     } else if (strcmp(nd->model, "tnetw1130") == 0) {
         pci_tnetw1130_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported PCI NICs: dp83816 e100"
+        fprintf(stderr, "qemu: Supported PCI NICs: dp83816 e100 e1000"
                         " i82551 i82557a i82557b i82557c i82558b i82559c i82559er"
                         " ne2k_pci pcnet rtl8139 tnetw1130\n");
         exit (1);
