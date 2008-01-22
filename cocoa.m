@@ -1,8 +1,7 @@
 /*
- * QEMU Cocoa display driver
+ * QEMU Cocoa CG display driver
  *
- * Copyright (c) 2005 Pierre d'Herbemont
- *                    many code/inspiration from SDL 1.2 code (LGPL)
+ * Copyright (c) 2008 Mike Kronenberg
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,18 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-/*
-    Todo :    x  miniaturize window
-              x  center the window
-              -  save window position
-              -  handle keyboard event
-              -  handle mouse event
-              -  non 32 bpp support
-              -  full screen
-              -  mouse focus
-              x  simple graphical prompt to demo
-              -  better graphical prompt
-*/
 
 #import <Cocoa/Cocoa.h>
 
@@ -41,146 +28,41 @@
 #include "console.h"
 #include "sysemu.h"
 
-NSWindow *window = NULL;
-NSQuickDrawView *qd_view = NULL;
 
+//#define DEBUG
+
+#ifdef DEBUG
+#define COCOA_DEBUG(...)  { (void) fprintf (stdout, __VA_ARGS__); }
+#else
+#define COCOA_DEBUG(...)  ((void) 0)
+#endif
+
+#define cgrect(nsrect) (*(CGRect *)&(nsrect))
+#define COCOA_MOUSE_EVENT \
+        if (isTabletEnabled) { \
+            kbd_mouse_event((int)(p.x * 0x7FFF / screen.width), (int)((screen.height - p.y) * 0x7FFF / screen.height), 0, buttons); \
+        } else if (isMouseGrabed) { \
+            kbd_mouse_event((int)[event deltaX], (int)[event deltaY], 0, buttons); \
+        } else { \
+            [NSApp sendEvent:event]; \
+        }
+
+typedef struct {
+    int width;
+    int height;
+    int bitsPerComponent;
+    int bitsPerPixel;
+} QEMUScreen;
+
+int qemu_main(int argc, char **argv); // main defined in qemu/vl.c
+NSWindow *normalWindow;
+id cocoaView;
+static void *screenBuffer;
 
 int gArgc;
 char **gArgv;
-DisplayState current_ds;
 
-int grab = 0;
-int modifiers_state[256];
-
-/* main defined in qemu/vl.c */
-int qemu_main(int argc, char **argv);
-
-/* To deal with miniaturization */
-@interface QemuWindow : NSWindow
-{ }
-@end
-
-
-/*
- ------------------------------------------------------
-    Qemu Video Driver
- ------------------------------------------------------
-*/
-
-/*
- ------------------------------------------------------
-    cocoa_update
- ------------------------------------------------------
-*/
-static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
-{
-    //printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
-
-    /* Use QDFlushPortBuffer() to flush content to display */
-    RgnHandle dirty = NewRgn ();
-    RgnHandle temp  = NewRgn ();
-
-    SetEmptyRgn (dirty);
-
-    /* Build the region of dirty rectangles */
-    MacSetRectRgn (temp, x, y,
-                        x + w, y + h);
-    MacUnionRgn (dirty, temp, dirty);
-
-    /* Flush the dirty region */
-    QDFlushPortBuffer ( [ qd_view  qdPort ], dirty );
-    DisposeRgn (dirty);
-    DisposeRgn (temp);
-}
-
-/*
- ------------------------------------------------------
-    cocoa_resize
- ------------------------------------------------------
-*/
-static void cocoa_resize(DisplayState *ds, int w, int h)
-{
-    const int device_bpp = 32;
-    static void *screen_pixels;
-    static int  screen_pitch;
-    NSRect contentRect;
-
-    //printf("resizing to %d %d\n", w, h);
-
-    contentRect = NSMakeRect (0, 0, w, h);
-    if(window)
-    {
-        [window close];
-        [window release];
-    }
-    window = [ [ QemuWindow alloc ] initWithContentRect:contentRect
-                                  styleMask:NSTitledWindowMask|NSMiniaturizableWindowMask|NSClosableWindowMask
-                                  backing:NSBackingStoreBuffered defer:NO];
-    if(!window)
-    {
-        fprintf(stderr, "(cocoa) can't create window\n");
-        exit(1);
-    }
-
-    if(qd_view)
-        [qd_view release];
-
-    qd_view = [ [ NSQuickDrawView alloc ] initWithFrame:contentRect ];
-
-    if(!qd_view)
-    {
-         fprintf(stderr, "(cocoa) can't create qd_view\n");
-        exit(1);
-    }
-
-    [ window setAcceptsMouseMovedEvents:YES ];
-    [ window setTitle:@"Qemu" ];
-    [ window setReleasedWhenClosed:NO ];
-
-    /* Set screen to black */
-    [ window setBackgroundColor: [NSColor blackColor] ];
-
-    /* set window position */
-    [ window center ];
-
-    [ qd_view setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable ];
-    [ [ window contentView ] addSubview:qd_view ];
-    [ qd_view release ];
-    [ window makeKeyAndOrderFront:nil ];
-
-    /* Careful here, the window seems to have to be onscreen to do that */
-    LockPortBits ( [ qd_view qdPort ] );
-    screen_pixels = GetPixBaseAddr ( GetPortPixMap ( [ qd_view qdPort ] ) );
-    screen_pitch  = GetPixRowBytes ( GetPortPixMap ( [ qd_view qdPort ] ) );
-    UnlockPortBits ( [ qd_view qdPort ] );
-    {
-            int vOffset = [ window frame ].size.height -
-                [ qd_view frame ].size.height - [ qd_view frame ].origin.y;
-
-            int hOffset = [ qd_view frame ].origin.x;
-
-            screen_pixels += (vOffset * screen_pitch) + hOffset * (device_bpp/8);
-    }
-    ds->data = screen_pixels;
-    ds->linesize = screen_pitch;
-    ds->depth = device_bpp;
-    ds->width = w;
-    ds->height = h;
-#ifdef __LITTLE_ENDIAN__
-    ds->bgr = 1;
-#else
-    ds->bgr = 0;
-#endif
-
-    current_ds = *ds;
-}
-
-/*
- ------------------------------------------------------
-    keymap conversion
- ------------------------------------------------------
-*/
-
+// keymap conversion
 int keymap[] =
 {
 //  SdlI    macI    macH    SdlH    104xtH  104xtC  sdl
@@ -289,7 +171,7 @@ int keymap[] =
     0,  //  102     0x66    Undefined
     87, //  103     0x67    0x57            F11     QZ_F11
     0,  //  104     0x68    Undefined
-    183,//  105     0x69    0xb7            QZ_PRINT
+    183,//  105     0x69    0xb7                    QZ_PRINT
     0,  //  106     0x6A    Undefined
     70, //  107     0x6B    0x46            SCROLL  QZ_SCROLLOCK
     0,  //  108     0x6C    Undefined
@@ -357,430 +239,566 @@ int cocoa_keycode_to_qemu(int keycode)
     return keymap[keycode];
 }
 
+
+
 /*
  ------------------------------------------------------
-    cocoa_refresh
+    QemuCocoaView
  ------------------------------------------------------
 */
-static void cocoa_refresh(DisplayState *ds)
+@interface QemuCocoaView : NSView
 {
-    //printf("cocoa_refresh \n");
-    NSDate *distantPast;
-    NSEvent *event;
-    NSAutoreleasePool *pool;
+    QEMUScreen screen;
+    NSWindow *fullScreenWindow;
+    float cx,cy,cw,ch,cdx,cdy;
+    CGDataProviderRef dataProviderRef;
+    int modifiers_state[256];
+    BOOL isMouseGrabed;
+    BOOL isFullscreen;
+    BOOL isAbsoluteEnabled;
+    BOOL isTabletEnabled;
+}
+- (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds;
+- (void) grabMouse;
+- (void) ungrabMouse;
+- (void) toggleFullScreen:(id)sender;
+- (void) handleEvent:(NSEvent *)event;
+- (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
+- (BOOL) isMouseGrabed;
+- (BOOL) isAbsoluteEnabled;
+- (float) cdx;
+- (float) cdy;
+- (QEMUScreen) gscreen;
+@end
 
-    pool = [ [ NSAutoreleasePool alloc ] init ];
-    distantPast = [ NSDate distantPast ];
+@implementation QemuCocoaView
+- (id)initWithFrame:(NSRect)frameRect
+{
+    COCOA_DEBUG("QemuCocoaView: initWithFrame\n");
 
-    vga_hw_update();
+    self = [super initWithFrame:frameRect];
+    if (self) {
 
-    do {
-        event = [ NSApp nextEventMatchingMask:NSAnyEventMask untilDate:distantPast
-                        inMode: NSDefaultRunLoopMode dequeue:YES ];
-        if (event != nil) {
-            switch ([event type]) {
-                case NSFlagsChanged:
-                    {
-                        int keycode = cocoa_keycode_to_qemu([event keyCode]);
+        screen.bitsPerComponent = 8;
+        screen.bitsPerPixel = 32;
+        screen.width = frameRect.size.width;
+        screen.height = frameRect.size.height;
 
-                        if (keycode)
-                        {
-                            if (keycode == 58 || keycode == 69) {
-                                /* emulate caps lock and num lock keydown and keyup */
-                                kbd_put_keycode(keycode);
-                                kbd_put_keycode(keycode | 0x80);
-                            } else if (is_graphic_console()) {
-                                if (keycode & 0x80)
-                                    kbd_put_keycode(0xe0);
-                                if (modifiers_state[keycode] == 0) {
-                                    /* keydown */
-                                    kbd_put_keycode(keycode & 0x7f);
-                                    modifiers_state[keycode] = 1;
-                                } else {
-                                    /* keyup */
-                                    kbd_put_keycode(keycode | 0x80);
-                                    modifiers_state[keycode] = 0;
-                                }
-                            }
-                        }
+    }
+    return self;
+}
 
-                        /* release Mouse grab when pressing ctrl+alt */
-                        if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask))
-                        {
-                            [window setTitle: @"QEMU"];
-                            [NSCursor unhide];
-                            CGAssociateMouseAndMouseCursorPosition ( TRUE );
-                            grab = 0;
-                        }
-                    }
-                    break;
+- (void) dealloc
+{
+    COCOA_DEBUG("QemuCocoaView: dealloc\n");
 
-                case NSKeyDown:
-                    {
-                        int keycode = cocoa_keycode_to_qemu([event keyCode]);
+    if (screenBuffer)
+        free(screenBuffer);
 
-                        /* handle command Key Combos */
-                        if ([event modifierFlags] & NSCommandKeyMask) {
-                            switch ([event keyCode]) {
-                                /* quit */
-                                case 12: /* q key */
-                                    /* switch to windowed View */
-                                    exit(0);
-                                    return;
-                            }
-                        }
+    if (dataProviderRef)
+        CGDataProviderRelease(dataProviderRef);
 
-                        /* handle control + alt Key Combos */
-                        if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
-                            switch (keycode) {
-                                /* toggle Monitor */
-                                case 0x02 ... 0x0a: /* '1' to '9' keys */
-                                    console_select(keycode - 0x02);
-                                    break;
-                            }
-                        } else {
-                            /* handle standard key events */
-                            if (is_graphic_console()) {
-                                if (keycode & 0x80) //check bit for e0 in front
-                                    kbd_put_keycode(0xe0);
-                                kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
-                            /* handle monitor key events */
-                            } else {
-                                int keysym = 0;
+    [super dealloc];
+}
 
-                                switch([event keyCode]) {
-                                case 115:
-                                    keysym = QEMU_KEY_HOME;
-                                    break;
-                                case 117:
-                                    keysym = QEMU_KEY_DELETE;
-                                    break;
-                                case 119:
-                                    keysym = QEMU_KEY_END;
-                                    break;
-                                case 123:
-                                    keysym = QEMU_KEY_LEFT;
-                                    break;
-                                case 124:
-                                    keysym = QEMU_KEY_RIGHT;
-                                    break;
-                                case 125:
-                                    keysym = QEMU_KEY_DOWN;
-                                    break;
-                                case 126:
-                                    keysym = QEMU_KEY_UP;
-                                    break;
-                                default:
-                                    {
-                                        NSString *ks = [event characters];
+- (void) drawRect:(NSRect) rect
+{
+    COCOA_DEBUG("QemuCocoaView: drawRect\n");
 
-                                        if ([ks length] > 0)
-                                            keysym = [ks characterAtIndex:0];
-                                    }
-                                }
-                                if (keysym)
-                                    kbd_put_keysym(keysym);
-                            }
-                        }
-                    }
-                    break;
+    if ((int)screenBuffer == -1)
+        return;
 
-                case NSKeyUp:
-                    {
-                        int keycode = cocoa_keycode_to_qemu([event keyCode]);
-                        if (is_graphic_console()) {
-                            if (keycode & 0x80)
-                                kbd_put_keycode(0xe0);
-                            kbd_put_keycode(keycode | 0x80); //add 128 to signal release of key
-                        }
-                    }
-                    break;
+    // get CoreGraphic context
+    CGContextRef viewContextRef = [[NSGraphicsContext currentContext] graphicsPort];
+    CGContextSetInterpolationQuality (viewContextRef, kCGInterpolationNone);
+    CGContextSetShouldAntialias (viewContextRef, NO);
 
-                case NSMouseMoved:
-                    if (grab) {
-                        int dx = [event deltaX];
-                        int dy = [event deltaY];
-                        int dz = [event deltaZ];
-                        int buttons = 0;
-                        kbd_mouse_event(dx, dy, dz, buttons);
-                    }
-                    break;
+    // draw screen bitmap directly to Core Graphics context
+    if (dataProviderRef) {
+        CGImageRef imageRef = CGImageCreate(
+            screen.width, //width
+            screen.height, //height
+            screen.bitsPerComponent, //bitsPerComponent
+            screen.bitsPerPixel, //bitsPerPixel
+            (screen.width * 4), //bytesPerRow
+#if __LITTLE_ENDIAN__
+            CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
+            kCGImageAlphaNoneSkipLast,
+#else
+            CGColorSpaceCreateDeviceRGB(), //colorspace for OS X < 10.4 (actually ppc)
+            kCGImageAlphaNoneSkipFirst, //bitmapInfo
+#endif
+            dataProviderRef, //provider
+            NULL, //decode
+            0, //interpolate
+            kCGRenderingIntentDefault //intent
+        );
+// test if host support "CGImageCreateWithImageInRect" at compiletime
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+        if (CGImageCreateWithImageInRect == NULL) { // test if "CGImageCreateWithImageInRect" is supported on host at runtime
+#endif
+            // compatibility drawing code (draws everything) (OS X < 10.4)
+            CGContextDrawImage (viewContextRef, CGRectMake(0, 0, [self bounds].size.width, [self bounds].size.height), imageRef);
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+        } else {
+            // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
+            const NSRect *rectList;
+            int rectCount;
+            int i;
+            CGImageRef clipImageRef;
+            CGRect clipRect;
 
-                case NSLeftMouseDown:
-                    if (grab) {
-                        int buttons = 0;
-
-                        /* leftclick+command simulates rightclick */
-                        if ([event modifierFlags] & NSCommandKeyMask) {
-                            buttons |= MOUSE_EVENT_RBUTTON;
-                        } else {
-                            buttons |= MOUSE_EVENT_LBUTTON;
-                        }
-                        kbd_mouse_event(0, 0, 0, buttons);
-                    } else {
-                        [NSApp sendEvent: event];
-                    }
-                    break;
-
-                case NSLeftMouseDragged:
-                    if (grab) {
-                        int dx = [event deltaX];
-                        int dy = [event deltaY];
-                        int dz = [event deltaZ];
-                        int buttons = 0;
-                        if ([[NSApp currentEvent] modifierFlags] & NSCommandKeyMask) { //leftclick+command simulates rightclick
-                            buttons |= MOUSE_EVENT_RBUTTON;
-                        } else {
-                            buttons |= MOUSE_EVENT_LBUTTON;
-                        }
-                        kbd_mouse_event(dx, dy, dz, buttons);
-                    }
-                    break;
-
-                case NSLeftMouseUp:
-                    if (grab) {
-                        kbd_mouse_event(0, 0, 0, 0);
-                    } else {
-                        [window setTitle: @"QEMU (Press ctrl + alt to release Mouse)"];
-                        [NSCursor hide];
-                        CGAssociateMouseAndMouseCursorPosition ( FALSE );
-                        grab = 1;
-                        //[NSApp sendEvent: event];
-                    }
-                    break;
-
-                case NSRightMouseDown:
-                    if (grab) {
-                        int buttons = 0;
-
-                        buttons |= MOUSE_EVENT_RBUTTON;
-                        kbd_mouse_event(0, 0, 0, buttons);
-                    } else {
-                        [NSApp sendEvent: event];
-                    }
-                    break;
-
-                case NSRightMouseDragged:
-                    if (grab) {
-                        int dx = [event deltaX];
-                        int dy = [event deltaY];
-                        int dz = [event deltaZ];
-                        int buttons = 0;
-                        buttons |= MOUSE_EVENT_RBUTTON;
-                        kbd_mouse_event(dx, dy, dz, buttons);
-                    }
-                    break;
-
-                case NSRightMouseUp:
-                    if (grab) {
-                        kbd_mouse_event(0, 0, 0, 0);
-                    } else {
-                        [NSApp sendEvent: event];
-                    }
-                    break;
-
-                case NSOtherMouseDragged:
-                    if (grab) {
-                        int dx = [event deltaX];
-                        int dy = [event deltaY];
-                        int dz = [event deltaZ];
-                        int buttons = 0;
-                        buttons |= MOUSE_EVENT_MBUTTON;
-                        kbd_mouse_event(dx, dy, dz, buttons);
-                    }
-                    break;
-
-                case NSOtherMouseDown:
-                    if (grab) {
-                        int buttons = 0;
-                        buttons |= MOUSE_EVENT_MBUTTON;
-                        kbd_mouse_event(0, 0, 0, buttons);
-                    } else {
-                        [NSApp sendEvent:event];
-                    }
-                    break;
-
-                case NSOtherMouseUp:
-                    if (grab) {
-                        kbd_mouse_event(0, 0, 0, 0);
-                    } else {
-                        [NSApp sendEvent: event];
-                    }
-                    break;
-
-                case NSScrollWheel:
-                    if (grab) {
-                        int dz = [event deltaY];
-                        kbd_mouse_event(0, 0, -dz, 0);
-                    }
-                    break;
-
-                default: [NSApp sendEvent:event];
+            [self getRectsBeingDrawn:&rectList count:&rectCount];
+            for (i = 0; i < rectCount; i++) {
+                clipRect.origin.x = rectList[i].origin.x / cdx;
+                clipRect.origin.y = (float)screen.height - (rectList[i].origin.y + rectList[i].size.height) / cdy;
+                clipRect.size.width = rectList[i].size.width / cdx;
+                clipRect.size.height = rectList[i].size.height / cdy;
+                clipImageRef = CGImageCreateWithImageInRect(
+                    imageRef,
+                    clipRect
+                );
+                CGContextDrawImage (viewContextRef, cgrect(rectList[i]), clipImageRef);
+                CGImageRelease (clipImageRef);
             }
         }
-    } while(event != nil);
-}
-
-/*
- ------------------------------------------------------
-    cocoa_cleanup
- ------------------------------------------------------
-*/
-
-static void cocoa_cleanup(void)
-{
-
-}
-
-/*
- ------------------------------------------------------
-    cocoa_display_init
- ------------------------------------------------------
-*/
-
-void cocoa_display_init(DisplayState *ds, int full_screen)
-{
-    ds->dpy_update = cocoa_update;
-    ds->dpy_resize = cocoa_resize;
-    ds->dpy_refresh = cocoa_refresh;
-
-    cocoa_resize(ds, 640, 400);
-
-    atexit(cocoa_cleanup);
-}
-
-/*
- ------------------------------------------------------
-    Interface with Cocoa
- ------------------------------------------------------
-*/
-
-
-/*
- ------------------------------------------------------
-    QemuWindow
-    Some trick from SDL to use miniwindow
- ------------------------------------------------------
-*/
-static void QZ_SetPortAlphaOpaque ()
-{
-    /* Assume 32 bit if( bpp == 32 )*/
-    if ( 1 ) {
-
-        uint32_t    *pixels = (uint32_t*) current_ds.data;
-        uint32_t    rowPixels = current_ds.linesize / 4;
-        uint32_t    i, j;
-
-        for (i = 0; i < current_ds.height; i++)
-            for (j = 0; j < current_ds.width; j++) {
-
-                pixels[ (i * rowPixels) + j ] |= 0xFF000000;
-            }
+#endif
+        CGImageRelease (imageRef);
     }
 }
 
-@implementation QemuWindow
-- (void)miniaturize:(id)sender
+- (void) setContentDimensions
 {
+    COCOA_DEBUG("QemuCocoaView: setContentDimensions\n");
 
-    /* make the alpha channel opaque so anim won't have holes in it */
-    QZ_SetPortAlphaOpaque ();
-
-    [ super miniaturize:sender ];
-
-}
-- (void)display
-{
-    /*
-        This method fires just before the window deminaturizes from the Dock.
-
-        We'll save the current visible surface, let the window manager redraw any
-        UI elements, and restore the SDL surface. This way, no expose event
-        is required, and the deminiaturize works perfectly.
-    */
-
-    /* make sure pixels are fully opaque */
-    QZ_SetPortAlphaOpaque ();
-
-    /* save current visible SDL surface */
-    [ self cacheImageInRect:[ qd_view frame ] ];
-
-    /* let the window manager redraw controls, border, etc */
-    [ super display ];
-
-    /* restore visible SDL surface */
-    [ self restoreCachedImage ];
+    if (isFullscreen) {
+        cdx = [[NSScreen mainScreen] frame].size.width / (float)screen.width;
+        cdy = [[NSScreen mainScreen] frame].size.height / (float)screen.height;
+        cw = screen.width * cdx;
+        ch = screen.height * cdy;
+        cx = ([[NSScreen mainScreen] frame].size.width - cw) / 2.0;
+        cy = ([[NSScreen mainScreen] frame].size.height - ch) / 2.0;
+    } else {
+        cx = 0;
+        cy = 0;
+        cw = screen.width;
+        ch = screen.height;
+        cdx = 1.0;
+        cdy = 1.0;
+    }
 }
 
+- (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds
+{
+    COCOA_DEBUG("QemuCocoaView: resizeContent\n");
+
+    // update screenBuffer
+    if (dataProviderRef)
+        CGDataProviderRelease(dataProviderRef);
+    if (screenBuffer)
+        free(screenBuffer);
+    screenBuffer = malloc( w * 4 * h );
+
+    ds->data = screenBuffer;
+    ds->linesize =  (w * 4);
+    ds->depth = 32;
+    ds->width = w;
+    ds->height = h;
+#ifdef __LITTLE_ENDIAN__
+    ds->bgr = 1;
+#else
+    ds->bgr = 0;
+#endif
+
+    dataProviderRef = CGDataProviderCreateWithData(NULL, screenBuffer, w * 4 * h, NULL);
+
+    // update windows
+    if (isFullscreen) {
+        [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:NO animate:NO];
+    } else {
+        if (qemu_name)
+            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:YES animate:YES];
+    }
+    screen.width = w;
+    screen.height = h;
+    [self setContentDimensions];
+    [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+}
+
+- (void) toggleFullScreen:(id)sender
+{
+    COCOA_DEBUG("QemuCocoaView: toggleFullScreen\n");
+
+    if (isFullscreen) { // switch from fullscreen to desktop
+        isFullscreen = FALSE;
+        [self ungrabMouse];
+        [self setContentDimensions];
+// test if host support "enterFullScreenMode:withOptions" at compiletime
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+        if ([NSView respondsToSelector:@selector(exitFullScreenModeWithOptions:)]) { // test if "exitFullScreenModeWithOptions" is supported on host at runtime
+            [self exitFullScreenModeWithOptions:nil];
+        } else {
+#endif
+            [fullScreenWindow close];
+            [normalWindow setContentView: self];
+            [normalWindow makeKeyAndOrderFront: self];
+            [NSMenu setMenuBarVisible:YES];
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+        }
+#endif
+    } else { // switch from desktop to fullscreen
+        isFullscreen = TRUE;
+        [self grabMouse];
+        [self setContentDimensions];
+// test if host support "enterFullScreenMode:withOptions" at compiletime
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+        if ([NSView respondsToSelector:@selector(enterFullScreenMode:withOptions:)]) { // test if "enterFullScreenMode:withOptions" is supported on host at runtime
+            [self enterFullScreenMode:[NSScreen mainScreen] withOptions:[NSDictionary dictionaryWithObjectsAndKeys:
+                [NSNumber numberWithBool:NO], NSFullScreenModeAllScreens,
+                [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:NO], kCGDisplayModeIsStretched, nil], NSFullScreenModeSetting,
+                 nil]];
+        } else {
+#endif
+            [NSMenu setMenuBarVisible:NO];
+            fullScreenWindow = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame]
+                styleMask:NSBorderlessWindowMask
+                backing:NSBackingStoreBuffered
+                defer:NO];
+            [fullScreenWindow setHasShadow:NO];
+            [fullScreenWindow setContentView:self];
+            [fullScreenWindow makeKeyAndOrderFront:self];
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+        }
+#endif
+    }
+}
+
+- (void) handleEvent:(NSEvent *)event
+{
+    COCOA_DEBUG("QemuCocoaView: handleEvent\n");
+
+    int buttons = 0;
+    int keycode;
+    NSPoint p = [event locationInWindow];
+
+    switch ([event type]) {
+        case NSFlagsChanged:
+            keycode = cocoa_keycode_to_qemu([event keyCode]);
+            if (keycode) {
+                if (keycode == 58 || keycode == 69) { // emulate caps lock and num lock keydown and keyup
+                    kbd_put_keycode(keycode);
+                    kbd_put_keycode(keycode | 0x80);
+                } else if (is_graphic_console()) {
+                    if (keycode & 0x80)
+                        kbd_put_keycode(0xe0);
+                    if (modifiers_state[keycode] == 0) { // keydown
+                        kbd_put_keycode(keycode & 0x7f);
+                        modifiers_state[keycode] = 1;
+                    } else { // keyup
+                        kbd_put_keycode(keycode | 0x80);
+                        modifiers_state[keycode] = 0;
+                    }
+                }
+            }
+
+            // release Mouse grab when pressing ctrl+alt
+            if (!isFullscreen && ([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
+                [self ungrabMouse];
+            }
+            break;
+        case NSKeyDown:
+
+            // forward command Key Combos
+            if ([event modifierFlags] & NSCommandKeyMask) {
+                [NSApp sendEvent:event];
+                return;
+            }
+
+            // default
+            keycode = cocoa_keycode_to_qemu([event keyCode]);
+
+            // handle control + alt Key Combos (ctrl+alt is reserved for QEMU)
+            if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
+                switch (keycode) {
+
+                    // enable graphic console
+                    case 0x02 ... 0x0a: // '1' to '9' keys
+                        console_select(keycode - 0x02);
+                        break;
+                }
+
+            // handle keys for graphic console
+            } else if (is_graphic_console()) {
+                if (keycode & 0x80) //check bit for e0 in front
+                    kbd_put_keycode(0xe0);
+                kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
+
+            // handlekeys for Monitor
+            } else {
+                int keysym = 0;
+                switch([event keyCode]) {
+                case 115:
+                    keysym = QEMU_KEY_HOME;
+                    break;
+                case 117:
+                    keysym = QEMU_KEY_DELETE;
+                    break;
+                case 119:
+                    keysym = QEMU_KEY_END;
+                    break;
+                case 123:
+                    keysym = QEMU_KEY_LEFT;
+                    break;
+                case 124:
+                    keysym = QEMU_KEY_RIGHT;
+                    break;
+                case 125:
+                    keysym = QEMU_KEY_DOWN;
+                    break;
+                case 126:
+                    keysym = QEMU_KEY_UP;
+                    break;
+                default:
+                    {
+                        NSString *ks = [event characters];
+                        if ([ks length] > 0)
+                            keysym = [ks characterAtIndex:0];
+                    }
+                }
+                if (keysym)
+                    kbd_put_keysym(keysym);
+            }
+            break;
+        case NSKeyUp:
+            keycode = cocoa_keycode_to_qemu([event keyCode]);
+            if (is_graphic_console()) {
+                if (keycode & 0x80)
+                    kbd_put_keycode(0xe0);
+                kbd_put_keycode(keycode | 0x80); //add 128 to signal release of key
+            }
+            break;
+        case NSMouseMoved:
+            if (isAbsoluteEnabled) {
+                if (p.x < 0 || p.x > screen.width || p.y < 0 || p.y > screen.height || ![[self window] isKeyWindow]) {
+                    if (isTabletEnabled) { // if we leave the window, deactivate the tablet
+                        [NSCursor unhide];
+                        isTabletEnabled = FALSE;
+                    }
+                } else {
+                    if (!isTabletEnabled) { // if we enter the window, activate the tablet
+                        [NSCursor hide];
+                        isTabletEnabled = TRUE;
+                    }
+                }
+            }
+            COCOA_MOUSE_EVENT
+            break;
+        case NSLeftMouseDown:
+            if ([event modifierFlags] & NSCommandKeyMask) {
+                buttons |= MOUSE_EVENT_RBUTTON;
+            } else {
+                buttons |= MOUSE_EVENT_LBUTTON;
+            }
+            COCOA_MOUSE_EVENT
+            break;
+        case NSRightMouseDown:
+            buttons |= MOUSE_EVENT_RBUTTON;
+            COCOA_MOUSE_EVENT
+            break;
+        case NSOtherMouseDown:
+            buttons |= MOUSE_EVENT_MBUTTON;
+            COCOA_MOUSE_EVENT
+            break;
+        case NSLeftMouseDragged:
+            if ([event modifierFlags] & NSCommandKeyMask) {
+                buttons |= MOUSE_EVENT_RBUTTON;
+            } else {
+                buttons |= MOUSE_EVENT_LBUTTON;
+            }
+            COCOA_MOUSE_EVENT
+            break;
+        case NSRightMouseDragged:
+            buttons |= MOUSE_EVENT_RBUTTON;
+            COCOA_MOUSE_EVENT
+            break;
+        case NSOtherMouseDragged:
+            buttons |= MOUSE_EVENT_MBUTTON;
+            COCOA_MOUSE_EVENT
+            break;
+        case NSLeftMouseUp:
+            if (isTabletEnabled) {
+                    COCOA_MOUSE_EVENT
+            } else if (!isMouseGrabed) {
+                if (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height) {
+                    [self grabMouse];
+                } else {
+                    [NSApp sendEvent:event];
+                }
+            } else {
+                COCOA_MOUSE_EVENT
+            }
+            break;
+        case NSRightMouseUp:
+            COCOA_MOUSE_EVENT
+            break;
+        case NSOtherMouseUp:
+            COCOA_MOUSE_EVENT
+            break;
+        case NSScrollWheel:
+            if (isTabletEnabled || isMouseGrabed) {
+                kbd_mouse_event(0, 0, -[event deltaY], 0);
+            } else {
+                [NSApp sendEvent:event];
+            }
+            break;
+        default:
+            [NSApp sendEvent:event];
+    }
+}
+
+- (void) grabMouse
+{
+    COCOA_DEBUG("QemuCocoaView: grabMouse\n");
+
+    if (!isFullscreen) {
+        if (qemu_name)
+            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt to release Mouse)", qemu_name]];
+        else
+            [normalWindow setTitle:@"QEMU - (Press ctrl + alt to release Mouse)"];
+    }
+    [NSCursor hide];
+    CGAssociateMouseAndMouseCursorPosition(FALSE);
+    isMouseGrabed = TRUE; // while isMouseGrabed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
+}
+
+- (void) ungrabMouse
+{
+    COCOA_DEBUG("QemuCocoaView: ungrabMouse\n");
+
+    if (!isFullscreen) {
+        if (qemu_name)
+            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
+        else
+            [normalWindow setTitle:@"QEMU"];
+    }
+    [NSCursor unhide];
+    CGAssociateMouseAndMouseCursorPosition(TRUE);
+    isMouseGrabed = FALSE;
+}
+
+- (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {isAbsoluteEnabled = tIsAbsoluteEnabled;}
+- (BOOL) isMouseGrabed {return isMouseGrabed;}
+- (BOOL) isAbsoluteEnabled {return isAbsoluteEnabled;}
+- (float) cdx {return cdx;}
+- (float) cdy {return cdy;}
+- (QEMUScreen) gscreen {return screen;}
 @end
+
 
 
 /*
  ------------------------------------------------------
-    QemuCocoaGUIController
-    NSApp's delegate - indeed main object
+    QemuCocoaAppController
  ------------------------------------------------------
 */
-
-@interface QemuCocoaGUIController : NSObject
+@interface QemuCocoaAppController : NSObject
 {
 }
-- (void)applicationDidFinishLaunching: (NSNotification *) note;
-- (void)applicationWillTerminate:(NSNotification *)aNotification;
-
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
-
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv;
+- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void)toggleFullScreen:(id)sender;
+- (void)showQEMUDoc:(id)sender;
+- (void)showQEMUTec:(id)sender;
 @end
 
-@implementation QemuCocoaGUIController
-/* Called when the internal event loop has just started running */
+@implementation QemuCocoaAppController
+- (id) init
+{
+    COCOA_DEBUG("QemuCocoaAppController: init\n");
+
+    self = [super init];
+    if (self) {
+
+        // create a view and add it to the window
+        cocoaView = [[QemuCocoaView alloc] initWithFrame:NSMakeRect(0.0, 0.0, 640.0, 480.0)];
+        if(!cocoaView) {
+            fprintf(stderr, "(cocoa) can't create a view\n");
+            exit(1);
+        }
+
+        // create a window
+        normalWindow = [[NSWindow alloc] initWithContentRect:[cocoaView frame]
+            styleMask:NSTitledWindowMask|NSMiniaturizableWindowMask|NSClosableWindowMask
+            backing:NSBackingStoreBuffered defer:NO];
+        if(!normalWindow) {
+            fprintf(stderr, "(cocoa) can't create window\n");
+            exit(1);
+        }
+        [normalWindow setAcceptsMouseMovedEvents:YES];
+        [normalWindow setTitle:[NSString stringWithFormat:@"QEMU"]];
+        [normalWindow setContentView:cocoaView];
+        [normalWindow makeKeyAndOrderFront:self];
+
+    }
+    return self;
+}
+
+- (void) dealloc
+{
+    COCOA_DEBUG("QemuCocoaAppController: dealloc\n");
+
+    if (cocoaView)
+        [cocoaView release];
+    [super dealloc];
+}
+
 - (void)applicationDidFinishLaunching: (NSNotification *) note
 {
+    COCOA_DEBUG("QemuCocoaAppController: applicationDidFinishLaunching\n");
 
-    /* Display an open dialog box if no argument were passed or
-       if qemu was launched from the finder ( the Finder passes "-psn" ) */
-
-    if( gArgc <= 1 || strncmp (gArgv[1], "-psn", 4) == 0)
-    {
+    // Display an open dialog box if no argument were passed or
+    // if qemu was launched from the finder ( the Finder passes "-psn" )
+    if( gArgc <= 1 || strncmp ((char *)gArgv[1], "-psn", 4) == 0) {
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
-
-        cocoa_resize(&current_ds, 640, 400);
-
         [op setPrompt:@"Boot image"];
-
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
-
         [op beginSheetForDirectory:nil file:nil types:[NSArray arrayWithObjects:@"img",@"iso",@"dmg",@"qcow",@"cow",@"cloop",@"vmdk",nil]
-              modalForWindow:window modalDelegate:self
+              modalForWindow:normalWindow modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
-    }
-    else
-    {
-        /* or Launch Qemu, with the global args */
-        [self startEmulationWithArgc:gArgc argv:gArgv];
+    } else {
+        // or Launch Qemu, with the global args
+        [self startEmulationWithArgc:gArgc argv:(char **)gArgv];
     }
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
 {
-    printf("Application will terminate\n");
+    COCOA_DEBUG("QemuCocoaAppController: applicationWillTerminate\n");
+
     qemu_system_shutdown_request();
-    /* In order to avoid a crash */
     exit(0);
+}
+
+- (void)startEmulationWithArgc:(int)argc argv:(char**)argv
+{
+    COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
+
+    int status;
+    status = qemu_main(argc, argv);
+    exit(status);
 }
 
 - (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
 {
-    if(returnCode == NSCancelButton)
-    {
-        exit(0);
-    }
+    COCOA_DEBUG("QemuCocoaAppController: openPanelDidEnd\n");
 
-    if(returnCode == NSOKButton)
-    {
+    if(returnCode == NSCancelButton) {
+        exit(0);
+    } else if(returnCode == NSOKButton) {
         char *bin = "qemu";
-        char *img = (char*)[ [ sheet filename ] cString];
+        char *img = (char*)[ [ sheet filename ] cStringUsingEncoding:NSASCIIStringEncoding];
 
         char **argv = (char**)malloc( sizeof(char*)*3 );
 
@@ -793,24 +811,33 @@ static void QZ_SetPortAlphaOpaque ()
         [self startEmulationWithArgc:3 argv:(char**)argv];
     }
 }
-
-- (void)startEmulationWithArgc:(int)argc argv:(char**)argv
+- (void)toggleFullScreen:(id)sender
 {
-    int status;
-    /* Launch Qemu */
-    printf("starting qemu...\n");
-    status = qemu_main (argc, argv);
-    exit(status);
+    COCOA_DEBUG("QemuCocoaAppController: toggleFullScreen\n");
+
+    [cocoaView toggleFullScreen:sender];
+}
+
+- (void)showQEMUDoc:(id)sender
+{
+    COCOA_DEBUG("QemuCocoaAppController: showQEMUDoc\n");
+
+    [[NSWorkspace sharedWorkspace] openFile:[NSString stringWithFormat:@"%@/../doc/qemu/qemu-doc.html",
+        [[NSBundle mainBundle] resourcePath]] withApplication:@"Help Viewer"];
+}
+
+- (void)showQEMUTec:(id)sender
+{
+    COCOA_DEBUG("QemuCocoaAppController: showQEMUTec\n");
+
+    [[NSWorkspace sharedWorkspace] openFile:[NSString stringWithFormat:@"%@/../doc/qemu/qemu-tech.html",
+        [[NSBundle mainBundle] resourcePath]] withApplication:@"Help Viewer"];
 }
 @end
 
-/*
- ------------------------------------------------------
-    Application Creation
- ------------------------------------------------------
-*/
 
-/* Dock Connection */
+
+// Dock Connection
 typedef struct CPSProcessSerNum
 {
         UInt32                lo;
@@ -821,84 +848,13 @@ extern OSErr    CPSGetCurrentProcess( CPSProcessSerNum *psn);
 extern OSErr    CPSEnableForegroundOperation( CPSProcessSerNum *psn, UInt32 _arg2, UInt32 _arg3, UInt32 _arg4, UInt32 _arg5);
 extern OSErr    CPSSetFrontProcess( CPSProcessSerNum *psn);
 
-/* Menu Creation */
-static void setApplicationMenu(void)
-{
-    /* warning: this code is very odd */
-    NSMenu *appleMenu;
-    NSMenuItem *menuItem;
-    NSString *title;
-    NSString *appName;
+int main (int argc, const char * argv[]) {
 
-    appName = @"Qemu";
-    appleMenu = [[NSMenu alloc] initWithTitle:@""];
-
-    /* Add menu items */
-    title = [@"About " stringByAppendingString:appName];
-    [appleMenu addItemWithTitle:title action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
-
-    [appleMenu addItem:[NSMenuItem separatorItem]];
-
-    title = [@"Hide " stringByAppendingString:appName];
-    [appleMenu addItemWithTitle:title action:@selector(hide:) keyEquivalent:@"h"];
-
-    menuItem = (NSMenuItem *)[appleMenu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"];
-    [menuItem setKeyEquivalentModifierMask:(NSAlternateKeyMask|NSCommandKeyMask)];
-
-    [appleMenu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""];
-
-    [appleMenu addItem:[NSMenuItem separatorItem]];
-
-    title = [@"Quit " stringByAppendingString:appName];
-    [appleMenu addItemWithTitle:title action:@selector(terminate:) keyEquivalent:@"q"];
-
-
-    /* Put menu into the menubar */
-    menuItem = [[NSMenuItem alloc] initWithTitle:@"" action:nil keyEquivalent:@""];
-    [menuItem setSubmenu:appleMenu];
-    [[NSApp mainMenu] addItem:menuItem];
-
-    /* Tell the application object that this is now the application menu */
-    [NSApp setAppleMenu:appleMenu];
-
-    /* Finally give up our references to the objects */
-    [appleMenu release];
-    [menuItem release];
-}
-
-/* Create a window menu */
-static void setupWindowMenu(void)
-{
-    NSMenu      *windowMenu;
-    NSMenuItem  *windowMenuItem;
-    NSMenuItem  *menuItem;
-
-    windowMenu = [[NSMenu alloc] initWithTitle:@"Window"];
-
-    /* "Minimize" item */
-    menuItem = [[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
-    [windowMenu addItem:menuItem];
-    [menuItem release];
-
-    /* Put menu into the menubar */
-    windowMenuItem = [[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""];
-    [windowMenuItem setSubmenu:windowMenu];
-    [[NSApp mainMenu] addItem:windowMenuItem];
-
-    /* Tell the application object that this is now the window menu */
-    [NSApp setWindowsMenu:windowMenu];
-
-    /* Finally give up our references to the objects */
-    [windowMenu release];
-    [windowMenuItem release];
-}
-
-static void CustomApplicationMain(void)
-{
-    NSAutoreleasePool   *pool = [[NSAutoreleasePool alloc] init];
-    QemuCocoaGUIController *gui_controller;
+    gArgc = argc;
+    gArgv = (char **)argv;
     CPSProcessSerNum PSN;
 
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
 
     if (!CPSGetCurrentProcess(&PSN))
@@ -906,29 +862,134 @@ static void CustomApplicationMain(void)
             if (!CPSSetFrontProcess(&PSN))
                 [NSApplication sharedApplication];
 
-    /* Set up the menubar */
+    // Add menus
+    NSMenu      *menu;
+    NSMenuItem  *menuItem;
+
     [NSApp setMainMenu:[[NSMenu alloc] init]];
-    setApplicationMenu();
-    setupWindowMenu();
 
-    /* Create SDLMain and make it the app delegate */
-    gui_controller = [[QemuCocoaGUIController alloc] init];
-    [NSApp setDelegate:gui_controller];
+    // Application menu
+    menu = [[NSMenu alloc] initWithTitle:@""];
+    [menu addItemWithTitle:@"About QEMU" action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""]; // About QEMU
+    [menu addItem:[NSMenuItem separatorItem]]; //Separator
+    [menu addItemWithTitle:@"Hide QEMU" action:@selector(hide:) keyEquivalent:@"h"]; //Hide QEMU
+    menuItem = (NSMenuItem *)[menu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"]; // Hide Others
+    [menuItem setKeyEquivalentModifierMask:(NSAlternateKeyMask|NSCommandKeyMask)];
+    [menu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""]; // Show All
+    [menu addItem:[NSMenuItem separatorItem]]; //Separator
+    [menu addItemWithTitle:@"Quit QEMU" action:@selector(terminate:) keyEquivalent:@"q"];
+    menuItem = [[NSMenuItem alloc] initWithTitle:@"Apple" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+    [NSApp performSelector:@selector(setAppleMenu:) withObject:menu]; // Workaround (this method is private since 10.4+)
 
-    /* Start the main event loop */
+    // View menu
+    menu = [[NSMenu alloc] initWithTitle:@"View"];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(toggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+
+    // Window menu
+    menu = [[NSMenu alloc] initWithTitle:@"Window"];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"] autorelease]]; // Miniaturize
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""] autorelease];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+    [NSApp setWindowsMenu:menu];
+
+    // Help menu
+    menu = [[NSMenu alloc] initWithTitle:@"Help"];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"QEMU Documentation" action:@selector(showQEMUDoc:) keyEquivalent:@"?"] autorelease]]; // QEMU Help
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"QEMU Technology" action:@selector(showQEMUTec:) keyEquivalent:@""] autorelease]]; // QEMU Help
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""] autorelease];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+
+    // Create an Application controller
+    QemuCocoaAppController *appController = [[QemuCocoaAppController alloc] init];
+    [NSApp setDelegate:appController];
+
+    // Start the main event loop
     [NSApp run];
 
-    [gui_controller release];
+    [appController release];
     [pool release];
-}
-
-/* Real main of qemu-cocoa */
-int main(int argc, char **argv)
-{
-    gArgc = argc;
-    gArgv = argv;
-
-    CustomApplicationMain();
 
     return 0;
+}
+
+
+
+#pragma mark qemu
+static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
+{
+    COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
+
+    NSRect rect;
+    if ([cocoaView cdx] == 1.0) {
+        rect = NSMakeRect(x, [cocoaView gscreen].height - y - h, w, h);
+    } else {
+        rect = NSMakeRect(
+            x * [cocoaView cdx],
+            ([cocoaView gscreen].height - y - h) * [cocoaView cdy],
+            w * [cocoaView cdx],
+            h * [cocoaView cdy]);
+    }
+    [cocoaView displayRect:rect];
+}
+
+static void cocoa_resize(DisplayState *ds, int w, int h)
+{
+    COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
+
+    [cocoaView resizeContentToWidth:w height:h displayState:ds];
+}
+
+static void cocoa_refresh(DisplayState *ds)
+{
+    COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
+
+    if (kbd_mouse_is_absolute()) {
+        if (![cocoaView isAbsoluteEnabled]) {
+            if ([cocoaView isMouseGrabed]) {
+                [cocoaView ungrabMouse];
+            }
+        }
+        [cocoaView setAbsoluteEnabled:YES];
+    }
+
+    NSDate *distantPast;
+    NSEvent *event;
+    distantPast = [NSDate distantPast];
+    do {
+        event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:distantPast
+                        inMode: NSDefaultRunLoopMode dequeue:YES];
+        if (event != nil) {
+            [cocoaView handleEvent:event];
+        }
+    } while(event != nil);
+    vga_hw_update();
+}
+
+static void cocoa_cleanup(void)
+{
+    COCOA_DEBUG("qemu_cocoa: cocoa_cleanup\n");
+
+}
+
+void cocoa_display_init(DisplayState *ds, int full_screen)
+{
+    COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
+
+    // register vga outpu callbacks
+    ds->dpy_update = cocoa_update;
+    ds->dpy_resize = cocoa_resize;
+    ds->dpy_refresh = cocoa_refresh;
+
+    // give window a initial Size
+    cocoa_resize(ds, 640, 400);
+
+    // register cleanup function
+    atexit(cocoa_cleanup);
 }
