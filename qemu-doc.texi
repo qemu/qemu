@@ -363,6 +363,17 @@ Set the initial date of the real time clock. Valid format for
 @var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
 @code{2006-06-17}. The default value is @code{now}.
 
+@item -translation @var{setting1[,...]}
+Select dynamic translation options @var{setting}, @code{-translation ?}
+shows a list of settings. Valid settings are:
+
+@table @code
+@item @var{no-cache}
+This option disables caching of translated code. Is useful for low-level
+debugging of the emulated environment. This option incurs a massive
+slow-down in emulation speed.
+@end table
+
 @item -pidfile @var{file}
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
