@@ -122,10 +122,9 @@ static void slavio_timer_irq(void *opaque)
 
     slavio_timer_get_out(s);
     DPRINTF("callback: count %x%08x\n", s->counthigh, s->count);
-    if (!slavio_timer_is_user(s)) {
-        s->reached = TIMER_REACHED;
+    s->reached = TIMER_REACHED;
+    if (!slavio_timer_is_user(s))
         qemu_irq_raise(s->irq);
-    }
 }
 
 static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -141,7 +140,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
         if (slavio_timer_is_user(s)) {
             // read user timer MSW
             slavio_timer_get_out(s);
-            ret = s->counthigh;
+            ret = s->counthigh | s->reached;
         } else {
             // read limit
             // clear irq
@@ -155,7 +154,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
         // of counter (user mode)
         slavio_timer_get_out(s);
         if (slavio_timer_is_user(s)) // read user timer LSW
-            ret = s->count & TIMER_COUNT_MASK32;
+            ret = s->count & TIMER_MAX_COUNT64;
         else // read limit
             ret = (s->count & TIMER_MAX_COUNT32) | s->reached;
         break;
@@ -190,12 +189,20 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
     switch (saddr) {
     case TIMER_LIMIT:
         if (slavio_timer_is_user(s)) {
+            uint64_t count;
+
             // set user counter MSW, reset counter
             qemu_irq_lower(s->irq);
             s->limit = TIMER_MAX_COUNT64;
-            DPRINTF("processor %d user timer reset\n", s->slave_index);
-            if (s->timer)
-                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
+            s->counthigh = val & (TIMER_MAX_COUNT64 >> 32);
+            s->reached = 0;
+            count = ((uint64_t)s->counthigh << 32) | s->count;
+            DPRINTF("processor %d user timer set to %016llx\n", s->slave_index,
+                    count);
+            if (s->timer) {
+                ptimer_set_count(s->timer, LIMIT_TO_PERIODS(s->limit - count));
+                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 0);
+            }
         } else {
             // set limit, reset counter
             qemu_irq_lower(s->irq);
@@ -210,12 +217,20 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
         break;
     case TIMER_COUNTER:
         if (slavio_timer_is_user(s)) {
+            uint64_t count;
+
             // set user counter LSW, reset counter
             qemu_irq_lower(s->irq);
             s->limit = TIMER_MAX_COUNT64;
-            DPRINTF("processor %d user timer reset\n", s->slave_index);
-            if (s->timer)
-                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
+            s->count = val & TIMER_MAX_COUNT64;
+            s->reached = 0;
+            count = ((uint64_t)s->counthigh) << 32 | s->count;
+            DPRINTF("processor %d user timer set to %016llx\n", s->slave_index,
+                    count);
+            if (s->timer) {
+                ptimer_set_count(s->timer, LIMIT_TO_PERIODS(s->limit - count));
+                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 0);
+            }
         } else
             DPRINTF("not user timer\n");
         break;
