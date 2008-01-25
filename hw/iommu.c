@@ -34,7 +34,7 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...)
 #endif
 
-#define IOMMU_NREGS (3*4096/4)
+#define IOMMU_NREGS         (4*4096/4)
 #define IOMMU_CTRL          (0x0000 >> 2)
 #define IOMMU_CTRL_IMPL     0xf0000000 /* Implementation */
 #define IOMMU_CTRL_VERS     0x0f000000 /* Version */
@@ -94,6 +94,12 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_ARBEN         (0x2000 >> 2) /* SBUS arbitration enable */
 #define IOMMU_ARBEN_MASK    0x001f0000
 #define IOMMU_MID           0x00000008
+
+#define IOMMU_MASK_ID       (0x3018 >> 2) /* Mask ID */
+#define IOMMU_MASK_ID_MASK  0x00ffffff
+
+#define IOMMU_MSII_MASK     0x26000000 /* microSPARC II mask number */
+#define IOMMU_TS_MASK       0x23000000 /* turboSPARC mask number */
 
 /* The format of an iopte in the page tables */
 #define IOPTE_PAGE          0xffffff00 /* Physical page number (PA[35:12]) */
@@ -205,6 +211,9 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
         // XXX implement SBus probing: fault when reading unmapped
         // addresses, fault cause and address stored to MMU/IOMMU
         s->regs[saddr] = (val & IOMMU_ARBEN_MASK) | IOMMU_MID;
+        break;
+    case IOMMU_MASK_ID:
+        s->regs[saddr] |= val & IOMMU_MASK_ID_MASK;
         break;
     default:
         s->regs[saddr] = val;
@@ -337,6 +346,7 @@ static void iommu_reset(void *opaque)
     s->regs[IOMMU_CTRL] = s->version;
     s->regs[IOMMU_ARBEN] = IOMMU_MID;
     s->regs[IOMMU_AFSR] = IOMMU_AFSR_RESV;
+    s->regs[IOMMU_MASK_ID] = IOMMU_TS_MASK;
     qemu_irq_lower(s->irq);
 }
 
