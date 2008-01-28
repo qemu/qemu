@@ -286,6 +286,7 @@ typedef enum {
     eeprom_cnfg_mdix  = 0x03,
     eeprom_phy_id     = 0x06,
     eeprom_id         = 0x0a,
+    eeprom_vendor_id  = 0x0c,
     eeprom_config_asf = 0x0d,
     eeprom_smbus_addr = 0x90,
 } eeprom_offset_t;
@@ -623,8 +624,12 @@ static const uint8_t eeprom_i82559[] = {
     //~ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc374,
 };
     size_t i;
+    uint8_t *pci_conf = s->pci_dev->config;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
     //~ eeprom93xx_reset(s->eeprom);
+    memcpy(eeprom_contents, eeprom_i82559, EEPROM_SIZE * 2);
+    memcpy(eeprom_contents + eeprom_vendor_id, pci_conf + PCI_VENDOR_ID, 2);
+    memcpy(eeprom_contents + 0x23, pci_conf + PCI_DEVICE_ID, 2);
     memcpy(eeprom_contents, s->macaddr, 6);
     for (i = 0; i < 3; i++) {
       eeprom_contents[i] = le16_to_cpu(eeprom_contents[i]);
@@ -637,7 +642,6 @@ static const uint8_t eeprom_i82559[] = {
         sum += eeprom_contents[i];
     }
     eeprom_contents[EEPROM_SIZE - 1] = (0xbaba - sum);
-    memcpy(eeprom_contents, eeprom_i82559, EEPROM_SIZE * 2);
 #endif
 
     memset(s->mem, 0, sizeof(s->mem));
@@ -1373,14 +1377,14 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
     }
     val = le16_to_cpu(val);
 
-    TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
-
     switch (addr) {
     case SCBStatus:
         //~ val = eepro100_read_status(s);
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         break;
     case SCBeeprom:
         val = eepro100_read_eeprom(s);
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         break;
     default:
         logout("addr=%s val=0x%04x\n", regname(addr), val);
