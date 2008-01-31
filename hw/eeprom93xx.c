@@ -42,7 +42,7 @@
 #include "eeprom93xx.h"
 
 /* Debug EEPROM emulation. */
-//~ #define DEBUG_EEPROM
+#define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
 #define logout(fmt, args...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ##args)
@@ -171,33 +171,23 @@ void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
         if (tick == 0) {
             /* Wait for 1st start bit. */
             if (eedi == 0) {
-                logout("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
-                tick++;
+                logout("Got redundant bit (0), waiting for start bit (1)\n");
             } else {
-                logout("wrong 1st start bit (is 1, should be 0)\n");
-                tick = 2;
-                //~ assert(!"wrong start bit");
-            }
-        } else if (tick == 1) {
-            /* Wait for 2nd start bit. */
-            if (eedi != 0) {
-                logout("Got correct 2nd start bit, getting command + address\n");
+                logout("Got start bit (1), getting command + address\n");
                 tick++;
-            } else {
-                logout("1st start bit is longer than needed\n");
             }
-        } else if (tick < 2 + 2) {
-            /* Got 2 start bits, transfer 2 opcode bits. */
+        } else if (tick < 1 + 2) {
+            /* Got 1 start bit, transfer 2 opcode bits. */
             tick++;
             command <<= 1;
             if (eedi) {
                 command += 1;
             }
-        } else if (tick < 2 + 2 + eeprom->addrbits) {
+        } else if (tick < 1 + 2 + eeprom->addrbits) {
             /* Got 2 start bits and 2 opcode bits, transfer all address bits. */
             tick++;
             address = ((address << 1) | eedi);
-            if (tick == 2 + 2 + eeprom->addrbits) {
+            if (tick == 1 + 2 + eeprom->addrbits) {
                 logout("%s command, address = 0x%02x (value 0x%04x)\n",
                        opstring[command], address, eeprom->contents[address]);
                 if (command == 2) {
@@ -227,7 +217,7 @@ void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
                     eeprom->data = eeprom->contents[address];
                 }
             }
-        } else if (tick < 2 + 2 + eeprom->addrbits + 16) {
+        } else if (tick < 1 + 2 + eeprom->addrbits + 16) {
             /* Transfer 16 data bits. */
             tick++;
             if (command == 2) {

@@ -282,12 +282,14 @@ typedef struct {
     uint8_t mem[PCI_MEM_SIZE];
 } EEPRO100State;
 
+/* Word indices in EEPROM. */
 typedef enum {
     eeprom_cnfg_mdix  = 0x03,
     eeprom_phy_id     = 0x06,
-    eeprom_id         = 0x0a,
+    eeprom_id         = 0x05,
     eeprom_vendor_id  = 0x0c,
     eeprom_config_asf = 0x0d,
+    eeprom_device_id  = 0x23,
     eeprom_smbus_addr = 0x90,
 } eeprom_offset_t;
 
@@ -582,8 +584,8 @@ static void pci_reset(EEPRO100State * s)
     case i82559C:
         PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
-        //~ PCI_CONFIG_8(PCI_REVISION_ID, 0x0c);
+        //~ PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+        PCI_CONFIG_8(PCI_REVISION_ID, 0x0c);
 #if EEPROM_SIZE > 0
         PCI_CONFIG_16(PCI_SUBSYSTEM_ID, 0x8086);
         PCI_CONFIG_16(PCI_SUBSYSTEM_VENDOR, 0x0040);
@@ -617,26 +619,21 @@ static const uint8_t eeprom_i82559[] = {
     /* 0x0050 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     /* 0x0060 */ 0x2c, 0x00, 0x00, 0x40, 0x03, 0x30, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     /* 0x0070 */ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x58, 0x1f,
-    //~ 0x300, 0xe147, 0x2fa4, 0x203, 0x0, 0x201, 0x4701, 0x0, 0x7414, 0x6207,
-    //~ 0x4082, 0xb, 0x8086, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    //~ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    //~ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x128, 0x0, 0x0, 0x0, 0x0, 0x0,
-    //~ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc374,
 };
     size_t i;
     uint8_t *pci_conf = s->pci_dev->config;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
     //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, eeprom_i82559, EEPROM_SIZE * 2);
-    memcpy(eeprom_contents + eeprom_vendor_id, pci_conf + PCI_VENDOR_ID, 2);
-    memcpy(eeprom_contents + 0x23, pci_conf + PCI_DEVICE_ID, 2);
     memcpy(eeprom_contents, s->macaddr, 6);
+    memcpy(eeprom_contents + eeprom_vendor_id, pci_conf + PCI_VENDOR_ID, 2);
+    memcpy(eeprom_contents + eeprom_device_id, pci_conf + PCI_DEVICE_ID, 2);
     for (i = 0; i < 3; i++) {
       eeprom_contents[i] = le16_to_cpu(eeprom_contents[i]);
     }
-    eeprom_contents[eeprom_phy_id] = 1;
+    *(char *)(eeprom_contents + eeprom_phy_id) = 1;
     /* TODO: eeprom_id_alt for i82559 */
-    eeprom_contents[eeprom_id] = eeprom_id_valid;
+    eeprom_contents[eeprom_id] |= eeprom_id_valid;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
         sum += eeprom_contents[i];
