@@ -70,14 +70,12 @@
 #define ADDR_READ addr_read
 #endif
 
-DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
+DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                          int mmu_idx);
-void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, DATA_TYPE v, int mmu_idx);
+void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, DATA_TYPE v, int mmu_idx);
 
 #if (DATA_SIZE <= 4) && (TARGET_LONG_BITS == 32) && defined(__i386__) && \
     (ACCESS_TYPE < NB_MMU_MODES) && defined(ASM_SOFTMMU)
-
-#define CPU_TLB_ENTRY_BITS 4
 
 static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
@@ -92,9 +90,8 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
                   "cmpl (%%edx), %%eax\n"
                   "movl %1, %%eax\n"
                   "je 1f\n"
-                  "pushl %6\n"
+                  "movl %6, %%edx\n"
                   "call %7\n"
-                  "popl %%edx\n"
                   "movl %%eax, %0\n"
                   "jmp 2f\n"
                   "1:\n"
@@ -135,9 +132,8 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
                   "cmpl (%%edx), %%eax\n"
                   "movl %1, %%eax\n"
                   "je 1f\n"
-                  "pushl %6\n"
+                  "movl %6, %%edx\n"
                   "call %7\n"
-                  "popl %%edx\n"
 #if DATA_SIZE == 1
                   "movsbl %%al, %0\n"
 #elif DATA_SIZE == 2
@@ -189,9 +185,8 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
 #else
 #error unsupported size
 #endif
-                  "pushl %6\n"
+                  "movl %6, %%ecx\n"
                   "call %7\n"
-                  "popl %%eax\n"
                   "jmp 2f\n"
                   "1:\n"
                   "addl 8(%%edx), %%eax\n"
