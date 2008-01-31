@@ -1065,7 +1065,7 @@ void test_bcd(void)
     op1 = i2l(0xfbca7654);\
     asm(#op " %" size "0, %" size "1" \
         : "=q" (op0), opconst (op1) \
-        : "0" (op0), "1" (op1));\
+        : "0" (op0));\
     printf("%-10s A=" FMTLX " B=" FMTLX "\n",\
            #op, op0, op1);\
 }
@@ -1078,7 +1078,7 @@ void test_bcd(void)
     op2 = i2l(eax);\
     asm(#op " %" size "0, %" size "1" \
         : "=q" (op0), opconst (op1) \
-        : "0" (op0), "1" (op1), "a" (op2));\
+        : "0" (op0), "a" (op2));\
     printf("%-10s EAX=" FMTLX " A=" FMTLX " C=" FMTLX "\n",\
            #op, op2, op0, op1);\
 }
@@ -1086,25 +1086,25 @@ void test_bcd(void)
 void test_xchg(void)
 {
 #if defined(__x86_64__)
-    TEST_XCHG(xchgq, "", "=q");
+    TEST_XCHG(xchgq, "", "+q");
 #endif
-    TEST_XCHG(xchgl, "k", "=q");
-    TEST_XCHG(xchgw, "w", "=q");
-    TEST_XCHG(xchgb, "b", "=q");
+    TEST_XCHG(xchgl, "k", "+q");
+    TEST_XCHG(xchgw, "w", "+q");
+    TEST_XCHG(xchgb, "b", "+q");
 
 #if defined(__x86_64__)
     TEST_XCHG(xchgq, "", "=m");
 #endif
-    TEST_XCHG(xchgl, "k", "=m");
-    TEST_XCHG(xchgw, "w", "=m");
-    TEST_XCHG(xchgb, "b", "=m");
+    TEST_XCHG(xchgl, "k", "+m");
+    TEST_XCHG(xchgw, "w", "+m");
+    TEST_XCHG(xchgb, "b", "+m");
 
 #if defined(__x86_64__)
-    TEST_XCHG(xaddq, "", "=q");
+    TEST_XCHG(xaddq, "", "+q");
 #endif
-    TEST_XCHG(xaddl, "k", "=q");
-    TEST_XCHG(xaddw, "w", "=q");
-    TEST_XCHG(xaddb, "b", "=q");
+    TEST_XCHG(xaddl, "k", "+q");
+    TEST_XCHG(xaddw, "w", "+q");
+    TEST_XCHG(xaddb, "b", "+q");
 
     {
         int res;
@@ -1114,39 +1114,39 @@ void test_xchg(void)
     }
 
 #if defined(__x86_64__)
-    TEST_XCHG(xaddq, "", "=m");
+    TEST_XCHG(xaddq, "", "+m");
 #endif
-    TEST_XCHG(xaddl, "k", "=m");
-    TEST_XCHG(xaddw, "w", "=m");
-    TEST_XCHG(xaddb, "b", "=m");
+    TEST_XCHG(xaddl, "k", "+m");
+    TEST_XCHG(xaddw, "w", "+m");
+    TEST_XCHG(xaddb, "b", "+m");
 
 #if defined(__x86_64__)
-    TEST_CMPXCHG(cmpxchgq, "", "=q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgq, "", "+q", 0xfbca7654);
 #endif
-    TEST_CMPXCHG(cmpxchgl, "k", "=q", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgl, "k", "+q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgw, "w", "+q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgb, "b", "+q", 0xfbca7654);
 
 #if defined(__x86_64__)
-    TEST_CMPXCHG(cmpxchgq, "", "=q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgq, "", "+q", 0xfffefdfc);
 #endif
-    TEST_CMPXCHG(cmpxchgl, "k", "=q", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgl, "k", "+q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgw, "w", "+q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgb, "b", "+q", 0xfffefdfc);
 
 #if defined(__x86_64__)
-    TEST_CMPXCHG(cmpxchgq, "", "=m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgq, "", "+m", 0xfbca7654);
 #endif
-    TEST_CMPXCHG(cmpxchgl, "k", "=m", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgl, "k", "+m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgw, "w", "+m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgb, "b", "+m", 0xfbca7654);
 
 #if defined(__x86_64__)
-    TEST_CMPXCHG(cmpxchgq, "", "=m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgq, "", "+m", 0xfffefdfc);
 #endif
-    TEST_CMPXCHG(cmpxchgl, "k", "=m", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgl, "k", "+m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgw, "w", "+m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgb, "b", "+m", 0xfffefdfc);
 
     {
         uint64_t op0, op1, op2;
@@ -1369,9 +1369,13 @@ void test_misc(void)
     printf("xlat: EAX=" FMTLX "\n", res);
 
 #if defined(__x86_64__)
+#if 0
     {
+        /* XXX: see if Intel Core2 and AMD64 behavior really
+           differ. Here we implemented the Intel way which is not
+           compatible yet with QEMU. */
         static struct __attribute__((packed)) {
-            uint32_t offset;
+            uint64_t offset;
             uint16_t seg;
         } desc;
         long cs_sel;
@@ -1384,27 +1388,27 @@ void test_misc(void)
                       : "r" (cs_sel) : "memory", "cc");
         printf("func_lret=" FMTLX "\n", res);
 
-        /* NOTE: we assume that &func_lret < 4GB */
         desc.offset = (long)&func_lret;
         desc.seg = cs_sel;
 
         asm volatile ("xor %%rax, %%rax\n"
-                      "rex64 lcall %1\n"
+                      "rex64 lcall *(%%rcx)\n"
                       : "=a" (res)
-                      : "m" (desc)
+                      : "c" (&desc)
                       : "memory", "cc");
         printf("func_lret2=" FMTLX "\n", res);
 
         asm volatile ("push %2\n"
                       "mov $ 1f, %%rax\n"
                       "push %%rax\n"
-                      "ljmp %1\n"
+                      "rex64 ljmp *(%%rcx)\n"
                       "1:\n"
                       : "=a" (res)
-                      : "m" (desc), "b" (cs_sel)
+                      : "c" (&desc), "b" (cs_sel)
                       : "memory", "cc");
         printf("func_lret3=" FMTLX "\n", res);
     }
+#endif
 #else
     asm volatile ("push %%cs ; call %1"
                   : "=a" (res)
@@ -2029,7 +2033,7 @@ static void test_enter(void)
 #ifdef TEST_SSE
 
 typedef int __m64 __attribute__ ((__mode__ (__V2SI__)));
-typedef int __m128 __attribute__ ((__mode__(__V4SF__)));
+typedef float __m128 __attribute__ ((__mode__(__V4SF__)));
 
 typedef union {
     double d[2];
@@ -2619,6 +2623,21 @@ void test_conv(void)
 #if defined(__x86_64__)
     TEST_CONV_RAX_RDX(cqo);
 #endif
+
+    {
+        unsigned long a, r;
+        a = i2l(0x12345678);
+        asm volatile("bswapl %k0" : "=r" (r) : "0" (a));
+        printf("%-10s: A=" FMTLX " R=" FMTLX "\n", "bswapl", a, r);
+    }
+#if defined(__x86_64__)
+    {
+        unsigned long a, r;
+        a = i2l(0x12345678);
+        asm volatile("bswapq %0" : "=r" (r) : "0" (a));
+        printf("%-10s: A=" FMTLX " R=" FMTLX "\n", "bswapq", a, r);
+    }
+#endif
 }
 
 extern void *__start_initcall;
@@ -2653,8 +2672,8 @@ int main(int argc, char **argv)
 #ifdef TEST_VM86
     test_vm86();
 #endif
-    test_exceptions();
 #if !defined(__x86_64__)
+    test_exceptions();
     test_self_modifying_code();
     test_single_step();
 #endif
