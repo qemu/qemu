@@ -222,11 +222,6 @@ void OPPROTO op_debug (void)
     do_raise_exception(EXCP_DEBUG);
 }
 
-void OPPROTO op_exit_tb (void)
-{
-    EXIT_TB();
-}
-
 /* Load/store special registers */
 void OPPROTO op_load_cr (void)
 {
@@ -673,16 +668,6 @@ void OPPROTO op_setlr_64 (void)
     RETURN();
 }
 #endif
-
-void OPPROTO op_goto_tb0 (void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-}
-
-void OPPROTO op_goto_tb1 (void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
-}
 
 void OPPROTO op_b_T1 (void)
 {

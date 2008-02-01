@@ -151,23 +151,6 @@
 
 /* Microcode.  */
 
-void OPPROTO op_exit_tb (void)
-{
-	EXIT_TB();
-}
-
-void OPPROTO op_goto_tb0 (void)
-{
-	GOTO_TB(op_goto_tb0, PARAM1, 0);
-	RETURN();
-}
-
-void OPPROTO op_goto_tb1 (void)
-{
-	GOTO_TB(op_goto_tb1, PARAM1, 1);
-	RETURN();
-}
-
 void OPPROTO op_break_im(void)
 {
 	env->trapnr = PARAM1;
@@ -1268,7 +1251,7 @@ void OPPROTO op_movl_btarget_T0 (void)
 	RETURN();
 }
 
-void OPPROTO op_jmp (void)
+void OPPROTO op_jmp1 (void)
 {
 	env->pc = env->btarget;
 	RETURN();

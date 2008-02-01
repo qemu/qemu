@@ -1093,18 +1093,6 @@ OP_COND(lez, (target_long)T0 <= 0);
 OP_COND(ltz, (target_long)T0 < 0);
 
 /* Branches */
-void OPPROTO op_goto_tb0(void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-    FORCE_RET();
-}
-
-void OPPROTO op_goto_tb1(void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
-    FORCE_RET();
-}
-
 /* Branch to register */
 void op_save_breg_target (void)
 {
@@ -3249,12 +3237,6 @@ void op_raise_exception (void)
 void op_raise_exception_err (void)
 {
     CALL_FROM_TB2(do_raise_exception_err, PARAM1, PARAM2);
-    FORCE_RET();
-}
-
-void op_exit_tb (void)
-{
-    EXIT_TB();
     FORCE_RET();
 }
 

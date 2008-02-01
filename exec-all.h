@@ -36,10 +36,6 @@ struct TranslationBlock;
 
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * 3)
 
-extern uint16_t gen_opc_buf[OPC_BUF_SIZE];
-extern uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
-extern long gen_labels[OPC_BUF_SIZE];
-extern int nb_gen_labels;
 extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
 extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
@@ -63,8 +59,8 @@ extern int loglevel;
 
 int gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
 int gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
-void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
 unsigned long code_gen_max_block_size(void);
+void cpu_gen_init(void);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
@@ -120,6 +116,7 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 #elif defined(__powerpc__)
 #define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
 #else
+/* XXX: make it dynamic on x86 */
 #define CODE_GEN_BUFFER_SIZE     (16 * 1024 * 1024)
 #endif
 
@@ -136,7 +133,7 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 
 #define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
 
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__x86_64__)
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
@@ -169,7 +166,7 @@ typedef struct TranslationBlock {
 #ifdef USE_DIRECT_JUMP
     uint16_t tb_jmp_offset[4]; /* offset of jump instruction */
 #else
-    uint32_t tb_next[2]; /* address of jump generated code */
+    unsigned long tb_next[2]; /* address of jump generated code */
 #endif
     /* list of TBs jumping to this one. This is a circular list using
        the two least significant bits of the pointers to tell what is
@@ -228,7 +225,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
 }
-#elif defined(__i386__)
+#elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
     /* patch the branch destination */
@@ -293,48 +290,6 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
 #define ASM_OP_LABEL_NAME(n, opname) \
     ASM_NAME(__op_label) #n "." ASM_NAME(opname)
-
-#if defined(__powerpc__)
-
-/* we patch the jump instruction directly */
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    asm volatile (ASM_DATA_SECTION\
-		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
-		  ".long 1f\n"\
-		  ASM_PREVIOUS_SECTION \
-                  "b " ASM_NAME(__op_jmp) #n "\n"\
-		  "1:\n");\
-} while (0)
-
-#elif defined(__i386__) && defined(USE_DIRECT_JUMP)
-
-/* we patch the jump instruction directly */
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    asm volatile (".section .data\n"\
-		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
-		  ".long 1f\n"\
-		  ASM_PREVIOUS_SECTION \
-                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
-		  "1:\n");\
-} while (0)
-
-#else
-
-/* jump to next block operations (more portable code, does not need
-   cache flushing, but slower because of indirect jump) */
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    static void __attribute__((used)) *dummy ## n = &&dummy_label ## n;\
-    static void __attribute__((used)) *__op_label ## n \
-        __asm__(ASM_OP_LABEL_NAME(n, opname)) = &&label ## n;\
-    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
-label ## n: ;\
-dummy_label ## n: ;\
-} while (0)
-
-#endif
 
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];

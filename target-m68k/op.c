@@ -482,7 +482,7 @@ OP(set_sr)
     FORCE_RET();
 }
 
-OP(jmp)
+OP(jmp_im)
 {
     GOTO_LABEL_PARAM(1);
 }
@@ -521,22 +521,6 @@ OP(jmp_T0)
         GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
-
-void OPPROTO op_goto_tb0(void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-}
-
-void OPPROTO op_goto_tb1(void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
-}
-
-OP(exit_tb)
-{
-    EXIT_TB();
-}
-
 
 /* Floating point.  */
 OP(f64_to_i32)

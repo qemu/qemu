@@ -29,28 +29,11 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 
 //#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
 //#define MIPS_SINGLE_STEP
-
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
-#endif
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
-
-#include "gen-op.h"
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
@@ -1777,17 +1760,13 @@ static always_inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong des
     TranslationBlock *tb;
     tb = ctx->tb;
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-        if (n == 0)
-            gen_op_goto_tb0(TBPARAM(tb));
-        else
-            gen_op_goto_tb1(TBPARAM(tb));
+        tcg_gen_goto_tb(n);
         gen_save_pc(dest);
-        gen_op_set_T0((long)tb + n);
+        tcg_gen_exit_tb((long)tb + n);
     } else {
         gen_save_pc(dest);
-        gen_op_reset_T0();
+        tcg_gen_exit_tb(0);
     }
-    gen_op_exit_tb();
 }
 
 /* Branches (before delay slot) */
@@ -6642,8 +6621,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
             gen_op_breg();
-            gen_op_reset_T0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         default:
             MIPS_DEBUG("unknown branch");
@@ -6665,10 +6643,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf (logfile, "search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
-    nb_gen_labels = 0;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.tb = tb;
@@ -6748,8 +6723,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             break;
         case BS_EXCP:
             gen_op_interrupt_restart();
-            gen_op_reset_T0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         case BS_BRANCH:
         default:
@@ -6775,11 +6749,6 @@ done_generating:
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
-        fprintf(logfile, "\n");
-    }
-    if (loglevel & CPU_LOG_TB_OP) {
-        fprintf(logfile, "OP:\n");
-        dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
     }
     if (loglevel & CPU_LOG_TB_CPU) {

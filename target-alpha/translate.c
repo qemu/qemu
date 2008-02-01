@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 
 #define DO_SINGLE_STEP
 #define GENERATE_NOP
@@ -40,24 +41,6 @@ struct DisasContext {
 #endif
     uint32_t amask;
 };
-
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
-#endif
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
-
-#include "gen-op.h"
 
 static always_inline void gen_op_nop (void)
 {
@@ -1988,10 +1971,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     int ret;
 
     pc_start = tb->pc;
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
-    nb_gen_labels = 0;
     ctx.pc = pc_start;
     ctx.amask = env->amask;
 #if defined (CONFIG_USER_ONLY)
@@ -2051,12 +2031,11 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     if (ret != 1 && ret != 3) {
         gen_update_pc(&ctx);
     }
-    gen_op_reset_T0();
 #if defined (DO_TB_FLUSH)
     gen_op_tb_flush();
 #endif
     /* Generate the return instruction */
-    gen_op_exit_tb();
+    tcg_gen_exit_tb(0);
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = gen_opc_ptr - gen_opc_buf;
@@ -2073,11 +2052,6 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 	target_disas(logfile, pc_start, ctx.pc - pc_start, 1);
-        fprintf(logfile, "\n");
-    }
-    if (loglevel & CPU_LOG_TB_OP) {
-        fprintf(logfile, "OP:\n");
-        dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
     }
 #endif

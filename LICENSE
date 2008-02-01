@@ -10,6 +10,9 @@ In particular, the QEMU virtual CPU core library (libqemu.a) is
 released under the GNU Lesser General Public License. Many hardware
 device emulation sources are released under the BSD license.
 
-3) QEMU is a trademark of Fabrice Bellard.
+3) The Tiny Code Generator (TCG) is released under the BSD license
+   (see license headers in files).
+
+4) QEMU is a trademark of Fabrice Bellard.
 
 Fabrice Bellard.

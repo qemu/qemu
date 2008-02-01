@@ -354,7 +354,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #endif
     int ret, interrupt_request;
-    void (*gen_func)(void);
+    long (*gen_func)(void);
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
@@ -736,7 +736,7 @@ int cpu_exec(CPUState *env1)
 		fp.gp = code_gen_buffer + 2 * (1 << 20);
 		(*(void (*)(void)) &fp)();
 #else
-                gen_func();
+                T0 = gen_func();
 #endif
                 env->current_tb = NULL;
                 /* reset soft MMU for next block (it can currently

@@ -51,6 +51,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 #include "crisv32-decode.h"
 
 #define CRIS_STATS 0
@@ -67,12 +68,6 @@
 #define DIS(x)
 #endif
 
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
-#endif
-
 #define BUG() (gen_BUG(dc, __FILE__, __LINE__))
 #define BUG_ON(x) ({if (x) BUG();})
 
@@ -84,17 +79,6 @@
 #define CC_MASK_NZV 0xe
 #define CC_MASK_NZVC 0xf
 #define CC_MASK_RNZV 0x10e
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-#include "gen-op.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
@@ -264,15 +248,14 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 	TranslationBlock *tb;
 	tb = dc->tb;
 	if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-		if (n == 0)
-			gen_op_goto_tb0(TBPARAM(tb));
-		else
-			gen_op_goto_tb1(TBPARAM(tb));
-		gen_op_movl_T0_0();
+#if 0
+            /* XXX: this code is not finished */
+            tcg_gen_goto_tb(n);
+#endif
+            tcg_gen_exit_tb(0);
 	} else {
-		gen_op_movl_T0_0();
+            tcg_gen_exit_tb(0);
 	}
-	gen_op_exit_tb();
 }
 
 /* Sign extend at translation time.  */
@@ -2325,9 +2308,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	dc->env = env;
 	dc->tb = tb;
 
-	gen_opc_ptr = gen_opc_buf;
 	gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-	gen_opparam_ptr = gen_opparam_buf;
 
 	dc->is_jmp = DISAS_NEXT;
 	dc->pc = pc_start;
@@ -2374,7 +2355,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			if (dc->delayed_branch == 0)
 			{
 				if (dc->bcc == CC_A) {
-					gen_op_jmp ();
+					gen_op_jmp1 ();
 					dc->is_jmp = DISAS_UPDATE;
 				}
 				else {
@@ -2409,9 +2390,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			case DISAS_UPDATE:
 				/* indicate that the hash table must be used
 				   to find the next TB */
-				/* T0 is used to index the jmp tables.  */
-				gen_op_movl_T0_0();
-				gen_op_exit_tb();
+				tcg_gen_exit_tb(0);
 				break;
 			case DISAS_TB_JUMP:
 				/* nothing more to generate */
@@ -2434,11 +2413,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 		target_disas(logfile, pc_start, dc->pc + 4 - pc_start, 0);
 		fprintf(logfile, "\n");
-		if (loglevel & CPU_LOG_TB_OP) {
-			fprintf(logfile, "OP:\n");
-			dump_ops(gen_opc_buf, gen_opparam_buf);
-			fprintf(logfile, "\n");
-		}
 	}
 #endif
 	return 0;

@@ -1277,11 +1277,6 @@ void OPPROTO op_debug(void)
     helper_debug();
 }
 
-void OPPROTO op_exit_tb(void)
-{
-    EXIT_TB();
-}
-
 void OPPROTO op_eval_ba(void)
 {
     T2 = 1;
@@ -1540,16 +1535,6 @@ void OPPROTO op_next_insn(void)
 {
     env->pc = env->npc;
     env->npc = env->npc + 4;
-}
-
-void OPPROTO op_goto_tb0(void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-}
-
-void OPPROTO op_goto_tb1(void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
 }
 
 void OPPROTO op_jmp_label(void)

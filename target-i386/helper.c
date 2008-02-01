@@ -1608,13 +1608,13 @@ int32_t idiv32(int64_t *q_ptr, int64_t num, int32_t den)
 }
 #endif
 
-void helper_divl_EAX_T0(void)
+void helper_divl_EAX_T0(target_ulong t0)
 {
     unsigned int den, r;
     uint64_t num, q;
 
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
-    den = T0;
+    den = t0;
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
@@ -1630,13 +1630,13 @@ void helper_divl_EAX_T0(void)
     EDX = (uint32_t)r;
 }
 
-void helper_idivl_EAX_T0(void)
+void helper_idivl_EAX_T0(target_ulong t0)
 {
     int den, r;
     int64_t num, q;
 
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
-    den = T0;
+    den = t0;
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }

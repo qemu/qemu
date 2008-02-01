@@ -36,6 +36,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 
 #define DEBUG_DISAS
 
@@ -65,19 +66,8 @@ struct sparc_def_t {
 
 static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name);
 
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
 extern FILE *logfile;
 extern int loglevel;
-
-enum {
-#define DEF(s,n,copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS
-};
-
-#include "gen-op.h"
 
 // This function uses non-native bit order
 #define GET_FIELD(X, FROM, TO) \
@@ -96,12 +86,6 @@ enum {
 #else
 #define DFPREG(r) (r & 0x1e)
 #define QFPREG(r) (r & 0x1c)
-#endif
-
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
 #endif
 
 static int sign_extend(int x, int len)
@@ -699,20 +683,15 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
     if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) &&
         (npc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK))  {
         /* jump to same page: we can use a direct jump */
-        if (tb_num == 0)
-            gen_op_goto_tb0(TBPARAM(tb));
-        else
-            gen_op_goto_tb1(TBPARAM(tb));
+        tcg_gen_goto_tb(tb_num);
         gen_jmp_im(pc);
         gen_movl_npc_im(npc);
-        gen_op_movl_T0_im((long)tb + tb_num);
-        gen_op_exit_tb();
+        tcg_gen_exit_tb((long)tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         gen_jmp_im(pc);
         gen_movl_npc_im(npc);
-        gen_op_movl_T0_0();
-        gen_op_exit_tb();
+        tcg_gen_exit_tb(0);
     }
 }
 
@@ -1281,8 +1260,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_trapcc_T0();
                 }
                 gen_op_next_insn();
-                gen_op_movl_T0_0();
-                gen_op_exit_tb();
+                tcg_gen_exit_tb(0);
                 dc->is_br = 1;
                 goto jmp_insn;
             } else if (xop == 0x28) {
@@ -2341,8 +2319,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 gen_op_movl_env_T0(offsetof(CPUSPARCState, fprs));
                                 save_state(dc);
                                 gen_op_next_insn();
-                                gen_op_movl_T0_0();
-                                gen_op_exit_tb();
+                                tcg_gen_exit_tb(0);
                                 dc->is_br = 1;
                                 break;
                             case 0xf: /* V9 sir, nop if user */
@@ -2422,8 +2399,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             gen_op_wrpsr();
                             save_state(dc);
                             gen_op_next_insn();
-                            gen_op_movl_T0_0();
-                            gen_op_exit_tb();
+                            tcg_gen_exit_tb(0);
                             dc->is_br = 1;
 #endif
                         }
@@ -2457,8 +2433,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 gen_op_wrpstate();
                                 save_state(dc);
                                 gen_op_next_insn();
-                                gen_op_movl_T0_0();
-                                gen_op_exit_tb();
+                                tcg_gen_exit_tb(0);
                                 dc->is_br = 1;
                                 break;
                             case 7: // tl
@@ -2517,8 +2492,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 // XXX gen_op_wrhpstate();
                                 save_state(dc);
                                 gen_op_next_insn();
-                                gen_op_movl_T0_0();
-                                gen_op_exit_tb();
+                                tcg_gen_exit_tb(0);
                                 dc->is_br = 1;
                                 break;
                             case 1: // htstate
@@ -3635,10 +3609,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     dc->npc = (target_ulong) tb->cs_base;
     dc->mem_idx = cpu_mmu_index(env);
     dc->fpu_enabled = cpu_fpu_enabled(env);
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
-    nb_gen_labels = 0;
 
     do {
         if (env->nb_breakpoints > 0) {
@@ -3647,8 +3618,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
                     if (dc->pc != pc_start)
                         save_state(dc);
                     gen_op_debug();
-                    gen_op_movl_T0_0();
-                    gen_op_exit_tb();
+                    tcg_gen_exit_tb(0);
                     dc->is_br = 1;
                     goto exit_gen_loop;
                 }
@@ -3683,8 +3653,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
            generate an exception */
         if (env->singlestep_enabled) {
             gen_jmp_im(dc->pc);
-            gen_op_movl_T0_0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         }
     } while ((gen_opc_ptr < gen_opc_end) &&
@@ -3700,8 +3669,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
             if (dc->pc != DYNAMIC_PC)
                 gen_jmp_im(dc->pc);
             save_npc(dc);
-            gen_op_movl_T0_0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
         }
     }
     *gen_opc_ptr = INDEX_op_end;
@@ -3726,11 +3694,6 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, last_pc + 4 - pc_start, 0);
         fprintf(logfile, "\n");
-        if (loglevel & CPU_LOG_TB_OP) {
-            fprintf(logfile, "OP:\n");
-            dump_ops(gen_opc_buf, gen_opparam_buf);
-            fprintf(logfile, "\n");
-        }
     }
 #endif
     return 0;
@@ -3745,8 +3708,6 @@ int gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
 {
     return gen_intermediate_code_internal(tb, 1, env);
 }
-
-extern int ram_size;
 
 void cpu_reset(CPUSPARCState *env)
 {

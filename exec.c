@@ -312,6 +312,7 @@ void cpu_exec_init(CPUState *env)
     int cpu_index;
 
     if (!code_gen_ptr) {
+        cpu_gen_init();
         code_gen_ptr = code_gen_buffer;
         page_init();
         io_mem_init();
@@ -1238,10 +1239,10 @@ CPULogItem cpu_log_items[] = {
     { CPU_LOG_TB_IN_ASM, "in_asm",
       "show target assembly code for each compiled TB" },
     { CPU_LOG_TB_OP, "op",
-      "show micro ops for each compiled TB (only usable if 'in_asm' used)" },
+      "show micro ops for each compiled TB" },
 #ifdef TARGET_I386
     { CPU_LOG_TB_OP_OPT, "op_opt",
-      "show micro ops after optimization for each compiled TB" },
+      "show micro ops before eflags optimization" },
 #endif
     { CPU_LOG_INT, "int",
       "show interrupts/exceptions in short format" },
@@ -2935,6 +2936,7 @@ void dump_exec_info(FILE *f,
         }
     }
     /* XXX: avoid using doubles ? */
+    cpu_fprintf(f, "Translation buffer state:\n");
     cpu_fprintf(f, "TB count            %d\n", nb_tbs);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,
@@ -2950,9 +2952,49 @@ void dump_exec_info(FILE *f,
                 nb_tbs ? (direct_jmp_count * 100) / nb_tbs : 0,
                 direct_jmp2_count,
                 nb_tbs ? (direct_jmp2_count * 100) / nb_tbs : 0);
+    cpu_fprintf(f, "\nStatistics:\n");
     cpu_fprintf(f, "TB flush count      %d\n", tb_flush_count);
     cpu_fprintf(f, "TB invalidate count %d\n", tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
+#ifdef CONFIG_PROFILER
+    {
+        int64_t tot;
+        tot = dyngen_interm_time + dyngen_code_time;
+        cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
+                    tot, tot / 2.4e9);
+        cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n", 
+                    dyngen_tb_count, 
+                    dyngen_tb_count1 - dyngen_tb_count,
+                    dyngen_tb_count1 ? (double)(dyngen_tb_count1 - dyngen_tb_count) / dyngen_tb_count1 * 100.0 : 0);
+        cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n", 
+                    dyngen_tb_count ? (double)dyngen_op_count / dyngen_tb_count : 0, dyngen_op_count_max);
+        cpu_fprintf(f, "old ops/total ops   %0.1f%%\n", 
+                    dyngen_op_count ? (double)dyngen_old_op_count / dyngen_op_count * 100.0 : 0);
+        cpu_fprintf(f, "deleted ops/TB      %0.2f\n",
+                    dyngen_tb_count ? 
+                    (double)dyngen_tcg_del_op_count / dyngen_tb_count : 0);
+        cpu_fprintf(f, "cycles/op           %0.1f\n", 
+                    dyngen_op_count ? (double)tot / dyngen_op_count : 0);
+        cpu_fprintf(f, "cycles/in byte     %0.1f\n", 
+                    dyngen_code_in_len ? (double)tot / dyngen_code_in_len : 0);
+        cpu_fprintf(f, "cycles/out byte     %0.1f\n", 
+                    dyngen_code_out_len ? (double)tot / dyngen_code_out_len : 0);
+        if (tot == 0)
+            tot = 1;
+        cpu_fprintf(f, "  gen_interm time   %0.1f%%\n", 
+                    (double)dyngen_interm_time / tot * 100.0);
+        cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 
+                    (double)dyngen_code_time / tot * 100.0);
+        cpu_fprintf(f, "cpu_restore count   %" PRId64 "\n",
+                    dyngen_restore_count);
+        cpu_fprintf(f, "  avg cycles        %0.1f\n",
+                    dyngen_restore_count ? (double)dyngen_restore_time / dyngen_restore_count : 0);
+        {
+            extern void dump_op_count(void);
+            dump_op_count();
+        }
+    }
+#endif
 }
 
 #if !defined(CONFIG_USER_ONLY)

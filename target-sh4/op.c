@@ -161,12 +161,6 @@ void OPPROTO op_rts(void)
     RETURN();
 }
 
-void OPPROTO op_exit_tb(void)
-{
-    EXIT_TB();
-    RETURN();
-}
-
 void OPPROTO op_addl_imm_T0(void)
 {
     T0 += PARAM1;
@@ -944,18 +938,6 @@ void OPPROTO op_movl_fpul_FT0(void)
 void OPPROTO op_movl_FT0_fpul(void)
 {
     *(float32 *)&env->fpul = FT0;
-    RETURN();
-}
-
-void OPPROTO op_goto_tb0(void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-    RETURN();
-}
-
-void OPPROTO op_goto_tb1(void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
     RETURN();
 }
 

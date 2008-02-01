@@ -31,24 +31,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) ((long)(x))
-#endif
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
-
-#include "gen-op.h"
+#include "tcg-op.h"
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
@@ -172,18 +155,15 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
 	!ctx->singlestep_enabled) {
 	/* Use a direct jump if in same page and singlestep not enabled */
-	if (n == 0)
-	    gen_op_goto_tb0(TBPARAM(tb));
-	else
-	    gen_op_goto_tb1(TBPARAM(tb));
-	gen_op_movl_imm_T0((long) tb + n);
+        tcg_gen_goto_tb(n);
+        gen_op_movl_imm_PC(dest);
+        tcg_gen_exit_tb((long) tb + n);
     } else {
-	gen_op_movl_imm_T0(0);
+        gen_op_movl_imm_PC(dest);
+        if (ctx->singlestep_enabled)
+            gen_op_debug();
+        tcg_gen_exit_tb(0);
     }
-    gen_op_movl_imm_PC(dest);
-    if (ctx->singlestep_enabled)
-	gen_op_debug();
-    gen_op_exit_tb();
 }
 
 static void gen_jump(DisasContext * ctx)
@@ -192,10 +172,9 @@ static void gen_jump(DisasContext * ctx)
 	/* Target is not statically known, it comes necessarily from a
 	   delayed jump as immediate jump are conditinal jumps */
 	gen_op_movl_delayed_pc_PC();
-	gen_op_movl_imm_T0(0);
 	if (ctx->singlestep_enabled)
 	    gen_op_debug();
-	gen_op_exit_tb();
+	tcg_gen_exit_tb(0);
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);
     }
@@ -1176,9 +1155,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     int i, ii;
 
     pc_start = tb->pc;
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
     ctx.pc = pc_start;
     ctx.flags = (uint32_t)tb->flags;
     ctx.bstate = BS_NONE;
@@ -1190,7 +1167,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
-    nb_gen_labels = 0;
 
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
@@ -1254,8 +1230,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
             break;
         case BS_EXCP:
             /* gen_op_interrupt_restart(); */
-            gen_op_movl_imm_T0(0);
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         case BS_BRANCH:
         default:
@@ -1281,11 +1256,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
 	fprintf(logfile, "IN:\n");	/* , lookup_symbol(pc_start)); */
 	target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
-	fprintf(logfile, "\n");
-    }
-    if (loglevel & CPU_LOG_TB_OP) {
-	fprintf(logfile, "OP:\n");
-	dump_ops(gen_opc_buf, gen_opparam_buf);
 	fprintf(logfile, "\n");
     }
 #endif
