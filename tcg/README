@@ -17,7 +17,7 @@ from the host, although it is never the case for QEMU.
 A TCG "function" corresponds to a QEMU Translated Block (TB).
 
 A TCG "temporary" is a variable only live in a given
-function. Temporaries are allocated explicitely in each function.
+function. Temporaries are allocated explicitly in each function.
 
 A TCG "global" is a variable which is live in all the functions. They
 are defined before the functions defined. A TCG global can be a memory
@@ -103,7 +103,7 @@ optimizations:
   information is used to suppress moves from a dead temporary to
   another one. It is also used to remove instructions which compute
   dead results. The later is especially useful for condition code
-  optimisation in QEMU.
+  optimization in QEMU.
 
   In the following example:
 
@@ -118,7 +118,7 @@ optimizations:
   that some results of a computation are indeed not useful. With the
   macro system, the user can provide several alternative
   implementations which are used depending on the used results. It is
-  especially useful for condition code optimisation in QEMU.
+  especially useful for condition code optimization in QEMU.
 
   Here is an example:
 
@@ -413,7 +413,7 @@ register.
 TCG is backward compatible with QEMU "dyngen" operations. It means
 that TCG instructions can be freely mixed with dyngen operations. It
 is expected that QEMU targets will be progressively fully converted to
-TCG. Once a target is fully converted to dyngen, it will be possible
+TCG. Once a target is fully converted to TCG, it will be possible
 to apply more optimizations because more registers will be free for
 the generated code.
 
