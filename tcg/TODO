@@ -1,0 +1,32 @@
+- test macro system
+
+- test conditional jumps
+
+- test mul, div, ext8s, ext16s, bswap
+
+- generate a global TB prologue and epilogue to save/restore registers
+  to/from the CPU state and to reserve a stack frame to optimize
+  helper calls. Modify cpu-exec.c so that it does not use global
+  register variables (except maybe for 'env').
+
+- fully convert the x86 target. The minimal amount of work includes:
+  - add cc_src, cc_dst and cc_op as globals
+  - disable its eflags optimization (the liveness analysis should
+    suffice)
+  - move complicated operations to helpers (in particular FPU, SSE, MMX).
+
+- optimize the x86 target:
+  - move some or all the registers as globals
+  - use the TB prologue and epilogue to have QEMU target registers in
+    pre assigned host registers.
+
+Ideas:
+
+- Move the slow part of the qemu_ld/st ops after the end of the TB.
+
+- Experiment: change instruction storage to simplify macro handling
+  and to handle dynamic allocation and see if the translation speed is
+  OK.
+
+- change exception syntax to get closer to QOP system (exception
+  parameters given with a specific instruction).
