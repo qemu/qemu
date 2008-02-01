@@ -267,15 +267,21 @@ endif
 
 # libqemu
 
+OPC_H = gen-op.h dyngen-opc.h op.h
+
 libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
-translate.o: translate.c gen-op.h dyngen-opc.h cpu.h
+translate.o: translate.c cpu.h $(OPC_H)
 
-translate-all.o: translate-all.c dyngen-opc.h cpu.h
+translate-all.o: translate-all.c cpu.h $(OPC_H)
 
-tcg/tcg.o: op.h dyngen-opc.h cpu.h
+tcg/tcg.o: cpu.h $(OPC_H)
+
+tcg/tcg-dyngen.o: $(OPC_H)
+
+tcg/tcg-runtime.o: $(OPC_H)
 
 op.h: op.o $(DYNGEN)
 	$(DYNGEN) -o $@ $<
