@@ -75,8 +75,8 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
 }
 
 /* handle all cases except unaligned access which span two pages */
-DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
-                                                         int mmu_idx)
+DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
+                                                      int mmu_idx)
 {
     DATA_TYPE res;
     int index;
@@ -209,9 +209,9 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
 #endif
 }
 
-void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
-                                                    DATA_TYPE val,
-                                                    int mmu_idx)
+void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
+                                                 DATA_TYPE val,
+                                                 int mmu_idx)
 {
     target_phys_addr_t physaddr;
     target_ulong tlb_addr;

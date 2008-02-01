@@ -25,23 +25,9 @@ endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MP -DNEED_CPU_H
-ifdef CONFIG_DARWIN_USER
-VPATH+=:$(SRC_PATH)/darwin-user
-CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
-endif
-ifdef CONFIG_LINUX_USER
-VPATH+=:$(SRC_PATH)/linux-user
-ifndef TARGET_ABI_DIR
-  TARGET_ABI_DIR=$(TARGET_ARCH)
-endif
-CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
-endif
-BASE_CFLAGS=
-BASE_LDFLAGS=
 #CFLAGS+=-Werror
 BASE_LDFLAGS += -g
 LIBS=
-HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen$(EXESUF)
 # user emulator name
 ifndef TARGET_ARCH2
@@ -72,30 +58,20 @@ ifeq ($(TARGET_ARCH),mips64)
     TARGET_ARCH2=mips64el
   endif
 endif
-QEMU_USER=qemu-$(TARGET_ARCH2)
-# system emulator name
-ifdef CONFIG_SOFTMMU
-ifeq ($(TARGET_ARCH), i386)
-QEMU_SYSTEM=qemu$(EXESUF)
-else
-QEMU_SYSTEM=qemu-system-$(TARGET_ARCH2)$(EXESUF)
-endif
-else
-QEMU_SYSTEM=qemu-fast
-endif
 
 ifdef CONFIG_USER_ONLY
-PROGS=$(QEMU_USER)
+# user emulator name
+QEMU_PROG=qemu-$(TARGET_ARCH2)
 else
-PROGS+=$(QEMU_SYSTEM)
-ifndef CONFIG_SOFTMMU
-CONFIG_STATIC=y
+# system emulator name
+ifeq ($(TARGET_ARCH), i386)
+QEMU_PROG=qemu$(EXESUF)
+else
+QEMU_PROG=qemu-system-$(TARGET_ARCH2)$(EXESUF)
 endif
-endif # !CONFIG_USER_ONLY
+endif
 
-ifdef CONFIG_STATIC
-BASE_LDFLAGS+=-static
-endif
+PROGS=$(QEMU_PROG)
 
 ifndef CONFIG_LINUX_USER
 ifndef CONFIG_WIN32
@@ -134,61 +110,32 @@ OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
 OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
 OP_CFLAGS+=$(call cc-option, -fno-section-anchors, "")
 
+HELPER_CFLAGS=
+
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
-ifdef TARGET_GPROF
-USE_I386_LD=y
-endif
-ifdef CONFIG_STATIC
-USE_I386_LD=y
-endif
-ifdef USE_I386_LD
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-ifdef CONFIG_LINUX_USER
-# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
-# that the kernel ELF loader considers as an executable. I think this
-# is the simplest way to make it self virtualizable!
-BASE_LDFLAGS+=-Wl,-shared
-#BASE_LDFLAGS += -shared
-endif
-endif
-endif
-
-ifeq ($(ARCH),x86_64)
-  ifneq ($(CONFIG_SOLARIS),yes)
-    BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-  endif
 endif
 
 ifeq ($(ARCH),ppc)
 CPPFLAGS+= -D__powerpc__
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-endif
-
-ifeq ($(ARCH),s390)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),sparc)
-  BASE_CFLAGS+=-ffixed-g2 -ffixed-g3
+  CFLAGS+=-ffixed-g2 -ffixed-g3
   OP_CFLAGS+=-fno-delayed-branch -ffixed-i0
   ifeq ($(CONFIG_SOLARIS),yes)
     OP_CFLAGS+=-fno-omit-frame-pointer
   else
-    BASE_CFLAGS+=-ffixed-g1 -ffixed-g6
-    HELPER_CFLAGS=$(CFLAGS) -ffixed-i0
-    # -static is used to avoid g1/g3 usage by the dynamic linker
-    BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
+    CFLAGS+=-ffixed-g1 -ffixed-g6
+    HELPER_CFLAGS+=-ffixed-i0
   endif
 endif
 
 ifeq ($(ARCH),sparc64)
-  BASE_CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
+  CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   OP_CFLAGS+=-mcpu=ultrasparc -m64 -fno-delayed-branch -ffixed-i0
   ifneq ($(CONFIG_SOLARIS),yes)
-    BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
     OP_CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   endif
 endif
@@ -197,71 +144,39 @@ ifeq ($(ARCH),alpha)
 # -msmall-data is not used for OP_CFLAGS because we want two-instruction
 # relocations for the constant constructions
 # Ensure there's only a single GP
-BASE_CFLAGS+=-msmall-data
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+CFLAGS+=-msmall-data
 endif
 
 ifeq ($(ARCH),ia64)
-BASE_CFLAGS+=-mno-sdata
+CFLAGS+=-mno-sdata
 OP_CFLAGS+=-mno-sdata
-BASE_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),arm)
 OP_CFLAGS+=-mno-sched-prolog -fno-omit-frame-pointer
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),m68k)
 OP_CFLAGS+=-fomit-frame-pointer
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),mips)
-OP_CFLAGS += -G 0 -fomit-frame-pointer -fno-delayed-branch
-# At least one crosscompiler needs -Wa,-O0 or -Wa,-g:
-# mipsel-linux-gnu-gcc (GCC) 4.1.3 20070514 (prerelease) (Debian 4.1.2-7)
-OP_CFLAGS += -Wa,-O0
+OP_CFLAGS+=-mabi=32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
 # At least one compiler needs -Wa,-g:
 # gcc-3.4 (GCC) 3.4.6 (Debian 3.4.6-5) on mips
 OP_CFLAGS += -Wa,-g
-ifeq ($(WORDS_BIGENDIAN),yes)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
 endif
 
 ifeq ($(ARCH),mips64)
 OP_CFLAGS+=-mabi=n32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
-ifeq ($(WORDS_BIGENDIAN),yes)
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-else
-BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
-endif
 endif
 
-ifeq ($(CONFIG_DARWIN),yes)
-LIBS+=-lmx
-endif
-
-ifdef CONFIG_DARWIN_USER
-# Leave some space for the regular program loading zone
-BASE_LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
-endif
-
-BASE_CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
-BASE_LDFLAGS+=$(OS_LDFLAGS) $(ARCH_LDFLAGS)
+CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
+LDFLAGS+=$(OS_LDFLAGS) $(ARCH_LDFLAGS)
 OP_CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
-OP_LDFLAGS+=$(OS_LDFLAGS) $(ARCH_LDFLAGS)
-
-#########################################################
 
 CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LIBS+=-lm
-ifndef CONFIG_USER_ONLY
-LIBS+=-lz
-endif
 ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
@@ -271,48 +186,13 @@ ifdef NEEDS_LIBSUNMATH
 LIBS+=-lsunmath
 LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
 OP_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
-BASE_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
+CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 endif
 endif
 
-# profiling code
-ifdef TARGET_GPROF
-BASE_LDFLAGS+=-p
-main.o: BASE_CFLAGS+=-p
-endif
+all: $(PROGS)
 
-ifdef CONFIG_LINUX_USER
-OBJS= main.o syscall.o strace.o mmap.o signal.o path.o osdep.o thunk.o \
-      elfload.o linuxload.o uaccess.o
-LIBS+= $(AIOLIBS)
-ifdef TARGET_HAS_BFLT
-OBJS+= flatload.o
-endif
-ifdef TARGET_HAS_ELFLOAD32
-OBJS+= elfload32.o
-elfload32.o: elfload.c
-endif
-
-ifeq ($(TARGET_ARCH), i386)
-OBJS+= vm86.o
-endif
-ifeq ($(TARGET_ARCH), arm)
-OBJS+=nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
-nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
- nwfpe/double_cpdo.o nwfpe/extended_cpdo.o arm-semi.o
-endif
-ifeq ($(TARGET_ARCH), m68k)
-OBJS+= m68k-sim.o m68k-semi.o
-endif
-endif #CONFIG_LINUX_USER
-
-ifdef CONFIG_DARWIN_USER
-OBJS= main.o commpage.o machload.o mmap.o osdep.o signal.o syscall.o thunk.o
-endif
-
-SRCS:= $(OBJS:.o=.c)
-OBJS+= libqemu.a
-
+#########################################################
 # cpu emulator library
 LIBOBJS=exec.o kqemu.o translate-op.o translate-all.o cpu-exec.o\
         translate.o op.o host-utils.o
@@ -407,29 +287,216 @@ ifeq ($(findstring s390, $(TARGET_ARCH) $(ARCH)),s390)
 LIBOBJS+=s390-dis.o
 endif
 
+# libqemu
+
+libqemu.a: $(LIBOBJS)
+	rm -f $@
+	$(AR) rcs $@ $(LIBOBJS)
+
+translate.o: translate.c gen-op.h opc.h cpu.h
+
+translate-all.o: translate-all.c opc.h cpu.h
+
+translate-op.o: translate-all.c op.h opc.h cpu.h
+
+op.h: op.o $(DYNGEN)
+	$(DYNGEN) -o $@ $<
+
+opc.h: op.o $(DYNGEN)
+	$(DYNGEN) -c -o $@ $<
+
+gen-op.h: op.o $(DYNGEN)
+	$(DYNGEN) -g -o $@ $<
+
+op.o: op.c
+	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+# HELPER_CFLAGS is used for all the code compiled with static register
+# variables
+ifeq ($(TARGET_BASE_ARCH), i386)
+# XXX: rename helper.c to op_helper.c
+helper.o: helper.c
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+else
+op_helper.o: op_helper.c
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+endif
+
+cpu-exec.o: cpu-exec.c
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+#########################################################
+# Linux user emulator target
+
+ifdef CONFIG_LINUX_USER
+
+VPATH+=:$(SRC_PATH)/linux-user
+ifndef TARGET_ABI_DIR
+  TARGET_ABI_DIR=$(TARGET_ARCH)
+endif
+CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
+
+ifdef CONFIG_STATIC
+LDFLAGS+=-static
+endif
+
+ifeq ($(ARCH),i386)
+ifdef TARGET_GPROF
+USE_I386_LD=y
+endif
+ifdef CONFIG_STATIC
+USE_I386_LD=y
+endif
+ifdef USE_I386_LD
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
+# that the kernel ELF loader considers as an executable. I think this
+# is the simplest way to make it self virtualizable!
+LDFLAGS+=-Wl,-shared
+endif
+endif
+
+ifeq ($(ARCH),x86_64)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),ppc)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),s390)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),sparc)
+# -static is used to avoid g1/g3 usage by the dynamic linker	
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
+endif
+
+ifeq ($(ARCH),sparc64)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),alpha)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),ia64)
+LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),arm)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),m68k)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),mips)
+ifeq ($(WORDS_BIGENDIAN),yes)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
+endif
+endif
+
+ifeq ($(ARCH),mips64)
+ifeq ($(WORDS_BIGENDIAN),yes)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
+endif
+endif
+
+OBJS= main.o syscall.o strace.o mmap.o signal.o path.o osdep.o thunk.o \
+      elfload.o linuxload.o uaccess.o
+LIBS+= $(AIOLIBS)
+ifdef TARGET_HAS_BFLT
+OBJS+= flatload.o
+endif
+ifdef TARGET_HAS_ELFLOAD32
+OBJS+= elfload32.o
+elfload32.o: elfload.c
+endif
+
+ifeq ($(TARGET_ARCH), i386)
+OBJS+= vm86.o
+endif
+ifeq ($(TARGET_ARCH), arm)
+OBJS+=nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
+nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
+ nwfpe/double_cpdo.o nwfpe/extended_cpdo.o arm-semi.o
+endif
+ifeq ($(TARGET_ARCH), m68k)
+OBJS+= m68k-sim.o m68k-semi.o
+endif
+
 ifdef CONFIG_GDBSTUB
 OBJS+=gdbstub.o
 endif
 
-all: $(PROGS)
+OBJS+= libqemu.a
 
-$(QEMU_USER): $(OBJS)
-	$(CC) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^  $(LIBS)
+# Note: this is a workaround. The real fix is to avoid compiling
+# cpu_signal_handler() in cpu-exec.c.
+signal.o: signal.c
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(QEMU_PROG): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
 # the address space (31 bit so sign extending doesn't matter)
 	echo -ne '\001\000\000\000' | dd of=qemu bs=1 seek=48 count=4 conv=notrunc
 endif
 
-# must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o
-# XXX: suppress QEMU_TOOL tests
-ifdef CONFIG_WIN32
-VL_OBJS+=block-raw-win32.o
-else
-VL_OBJS+=block-raw-posix.o
+endif #CONFIG_LINUX_USER
+
+#########################################################
+# Darwin user emulator target
+
+ifdef CONFIG_DARWIN_USER
+
+VPATH+=:$(SRC_PATH)/darwin-user
+CPPFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
+
+# Leave some space for the regular program loading zone
+LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
+
+LIBS+=-lmx
+
+OBJS= main.o commpage.o machload.o mmap.o osdep.o signal.o syscall.o thunk.o
+
+OBJS+= libqemu.a
+
+ifdef CONFIG_GDBSTUB
+OBJS+=gdbstub.o
 endif
 
+# Note: this is a workaround. The real fix is to avoid compiling
+# cpu_signal_handler() in cpu-exec.c.
+signal.o: signal.c
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(QEMU_PROG): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+
+endif #CONFIG_DARWIN_USER
+
+#########################################################
+# System emulator target
+ifndef CONFIG_USER_ONLY
+
+OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o
+ifdef CONFIG_WIN32
+OBJS+=block-raw-win32.o
+else
+OBJS+=block-raw-posix.o
+endif
+
+LIBS+=-lz
 ifdef CONFIG_ALSA
 LIBS += -lasound
 endif
@@ -460,30 +527,30 @@ LIBS += $(CONFIG_VNC_TLS_LIBS)
 endif
 
 # SCSI layer
-VL_OBJS+= lsi53c895a.o
+OBJS+= lsi53c895a.o
 
 # USB layer
-VL_OBJS+= usb-ohci.o
+OBJS+= usb-ohci.o
 
 # EEPROM emulation
-VL_OBJS += eeprom93xx.o
+OBJS += eeprom93xx.o
 
 # PCI network cards
-VL_OBJS += dp8381x.o
-VL_OBJS += e100.o
-VL_OBJS += e1000.o
-VL_OBJS += eepro100.o
-VL_OBJS += ne2000.o
-VL_OBJS += pcnet.o
-VL_OBJS += rtl8139.o
-VL_OBJS += tnetw1130.o
+OBJS += dp8381x.o
+OBJS += e100.o
+OBJS += e1000.o
+OBJS += eepro100.o
+OBJS += ne2000.o
+OBJS += pcnet.o
+OBJS += rtl8139.o
+OBJS += tnetw1130.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
-VL_OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o
-VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
-VL_OBJS+= cirrus_vga.o apic.o parallel.o acpi.o piix_pci.o
-VL_OBJS+= usb-uhci.o vmmouse.o vmport.o vmware_vga.o
+OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o
+OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
+OBJS+= cirrus_vga.o apic.o parallel.o acpi.o piix_pci.o
+OBJS+= usb-uhci.o vmmouse.o vmport.o vmware_vga.o
 ifndef CONFIG_USER_ONLY
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
@@ -491,84 +558,83 @@ endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 # shared objects
-VL_OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
+OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
 # PREP target
-VL_OBJS+= pckbd.o ps2.o serial.o i8259.o i8254.o fdc.o m48t59.o mc146818rtc.o
-VL_OBJS+= prep_pci.o ppc_prep.o
+OBJS+= pckbd.o ps2.o serial.o i8259.o i8254.o fdc.o m48t59.o mc146818rtc.o
+OBJS+= prep_pci.o ppc_prep.o
 # Mac shared devices
-VL_OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
+OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
 # OldWorld PowerMac
-VL_OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
+OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
-VL_OBJS+= unin_pci.o ppc_chrp.o
+OBJS+= unin_pci.o ppc_chrp.o
 # PowerPC 4xx boards
-VL_OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
+OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
-VL_OBJS+= mips_r4k.o mips_malta.o mips_pica61.o mips_mipssim.o
-VL_OBJS+= mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o
-VL_OBJS+= jazz_led.o
-VL_OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
-VL_OBJS+= piix_pci.o parallel.o cirrus_vga.o $(SOUND_HW)
+OBJS+= mips_r4k.o mips_malta.o mips_pica61.o mips_mipssim.o
+OBJS+= mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o
+OBJS+= jazz_led.o
+OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
+OBJS+= piix_pci.o parallel.o cirrus_vga.o $(SOUND_HW)
 #ifeq ($(TARGET_ARCH), mips)
-VL_OBJS += ar7.o
-VL_OBJS += serial_16450.o
+OBJS += ar7.o
+OBJS += serial_16450.o
+#~ OBJS += serial_16550a.o
 #endif
-VL_OBJS += pflash.o
-VL_OBJS += pflash_amd.o
-VL_OBJS += pflash_cfi01.o
-VL_OBJS += pflash_cfi02.o
-#~ VL_OBJS += serial_16550a.o
-VL_OBJS+= mipsnet.o
-VL_OBJS+= pflash_cfi01.o
+OBJS += mipsnet.o
+OBJS += pflash.o
+OBJS += pflash_amd.o
+OBJS += pflash_cfi01.o
+OBJS += pflash_cfi02.o
 ifndef CONFIG_USER_ONLY
 CPPFLAGS += -DHAS_AUDIO
 endif
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
-VL_OBJS+= etraxfs.o
-VL_OBJS+= ptimer.o
-VL_OBJS+= etraxfs_timer.o
-VL_OBJS+= etraxfs_ser.o
+OBJS+= etraxfs.o
+OBJS+= ptimer.o
+OBJS+= etraxfs_timer.o
+OBJS+= etraxfs_ser.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
-VL_OBJS+= sun4u.o ide.o pckbd.o ps2.o vga.o apb_pci.o
-VL_OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
-VL_OBJS+= cirrus_vga.o parallel.o ptimer.o
+OBJS+= sun4u.o ide.o pckbd.o ps2.o vga.o apb_pci.o
+OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
+OBJS+= cirrus_vga.o parallel.o ptimer.o
 else
-VL_OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
-VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o sparc32_dma.o
-VL_OBJS+= cs4231.o ptimer.o eccmemctl.o sbi.o sun4c_intctl.o
+OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
+OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o sparc32_dma.o
+OBJS+= cs4231.o ptimer.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 endif
 ifeq ($(TARGET_BASE_ARCH), arm)
-VL_OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
-VL_OBJS+= arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
-VL_OBJS+= versatile_pci.o ptimer.o
-VL_OBJS+= realview_gic.o realview.o arm_sysctl.o mpcore.o
-VL_OBJS+= armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
-VL_OBJS+= pl061.o
-VL_OBJS+= arm-semi.o
-VL_OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
-VL_OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
-VL_OBJS+= pflash_cfi01.o gumstix.o
-VL_OBJS+= spitz.o ide.o serial.o nand.o ecc.o
-VL_OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o omap_i2c.o
-VL_OBJS+= palm.o tsc210x.o
-VL_OBJS+= mst_fpga.o mainstone.o
+OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
+OBJS+= arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
+OBJS+= versatile_pci.o ptimer.o
+OBJS+= realview_gic.o realview.o arm_sysctl.o mpcore.o
+OBJS+= armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
+OBJS+= pl061.o
+OBJS+= arm-semi.o
+OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
+OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
+OBJS+= pflash_cfi01.o gumstix.o
+OBJS+= spitz.o ide.o serial.o nand.o ecc.o
+OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o omap_i2c.o
+OBJS+= palm.o tsc210x.o
+OBJS+= mst_fpga.o mainstone.o
 CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
-VL_OBJS+= shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-VL_OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o
+OBJS+= shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
+OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
-VL_OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
-VL_OBJS+= m68k-semi.o dummy_m68k.o
+OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
+OBJS+= m68k-semi.o dummy_m68k.o
 endif
 ifdef CONFIG_GDBSTUB
-VL_OBJS+=gdbstub.o
+OBJS+=gdbstub.o
 endif
 ifdef CONFIG_COCOA
 COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa -framework IOKit
@@ -582,111 +648,49 @@ CPPFLAGS+=-I$(SRC_PATH)/slirp
 endif
 endif
 
-VL_LDFLAGS=$(VL_OS_LDFLAGS)
-VL_LIBS=$(AIOLIBS)
+LIBS+=$(AIOLIBS)
 # specific flags are needed for non soft mmu emulator
 ifdef CONFIG_STATIC
-VL_LDFLAGS+=-static
-endif
-ifndef CONFIG_SOFTMMU
-VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld
+LDFLAGS+=-static
 endif
 ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
 ifndef CONFIG_SOLARIS
-VL_LIBS+=-lutil
+LIBS+=-lutil
 endif
 endif
 endif
 ifdef TARGET_GPROF
-vl.o: BASE_CFLAGS+=-p
-VL_LDFLAGS+=-p
+vl.o: CFLAGS+=-p
+LDFLAGS+=-p
 endif
 
 ifeq ($(ARCH),ia64)
-VL_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
-endif
-
-ifeq ($(ARCH),sparc64)
-  VL_LDFLAGS+=-m64
-  ifneq ($(CONFIG_SOLARIS),yes)
-    VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-  endif
-endif
-
-ifeq ($(ARCH),x86_64)
-  VL_LDFLAGS+=-m64
-  ifneq ($(CONFIG_SOLARIS),yes)
-    VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
-  endif
+LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
 
 ifdef CONFIG_WIN32
 SDL_LIBS := $(filter-out -mwindows, $(SDL_LIBS)) -mconsole
 endif
 
-$(QEMU_SYSTEM): $(VL_OBJS) ../libqemu_common.a libqemu.a
-	$(CC) $(VL_LDFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
-
 ifdef CONFIG_RUBY
-$(QEMU_RUBY): $(VL_OBJS) libqemu.a
+$(QEMU_RUBY): $(OBJS) libqemu.a
 	$(CC) -shared $(VL_LDFLAGS) -o $(QEMU_RUBY) $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
 endif
 
-depend: $(SRCS)
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $^ 1>.depend
-
-vldepend: $(VL_OBJS:.o=.c)
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $^ 1>.depend
-
-# libqemu
-
-libqemu.a: $(LIBOBJS)
-	rm -f $@
-	$(AR) rcs $@ $(LIBOBJS)
-
-$(DYNGEN):
-	make -C .. dyngen$(EXESUF)
-
-translate.o: translate.c gen-op.h opc.h cpu.h
-
-translate-all.o: translate-all.c opc.h cpu.h
-
-translate-op.o: translate-all.c op.h opc.h cpu.h
-
-op.h: op.o $(DYNGEN)
-	$(DYNGEN) -o $@ $<
-
-opc.h: op.o $(DYNGEN)
-	$(DYNGEN) -c -o $@ $<
-
-gen-op.h: op.o $(DYNGEN)
-	$(DYNGEN) -g -o $@ $<
-
-op.o: op.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
-# HELPER_CFLAGS is used for all the code compiled with static register
-# variables
-ifeq ($(TARGET_BASE_ARCH), i386)
-# XXX: rename helper.c to op_helper.c
-helper.o: helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
-else
-op_helper.o: op_helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+# profiling code
+ifdef TARGET_GPROF
+LDFLAGS+=-p
+main.o: CFLAGS+=-p
 endif
 
-cpu-exec.o: cpu-exec.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+$(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS)
 
-# Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+endif # !CONFIG_USER_ONLY
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.o: %.S
 	$(CC) $(CPPFLAGS) -c -o $@ $<
@@ -698,10 +702,6 @@ clean:
 install: all
 ifneq ($(PROGS),)
 	$(INSTALL) -m 755 -s $(PROGS) "$(DESTDIR)$(bindir)"
-endif
-
-ifneq ($(wildcard .depend),)
-include .depend
 endif
 
 # Include automatically generated dependency files

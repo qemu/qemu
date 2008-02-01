@@ -83,7 +83,7 @@ struct hwdef {
     target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
-    target_phys_addr_t tcx_base, cs_base, power_base;
+    target_phys_addr_t tcx_base, cs_base, apc_base, aux1_base, aux2_base;
     target_phys_addr_t ecc_base;
     uint32_t ecc_version;
     target_phys_addr_t sun4c_intctl_base, sun4c_counter_base;
@@ -515,8 +515,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
         esp_scsi_attach(main_esp, drives_table[index].bdrv, i);
     }
 
-    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->power_base,
-                                   slavio_irq[hwdef->me_irq]);
+    slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->apc_base,
+                                   hwdef->aux1_base, hwdef->aux2_base,
+                                   slavio_irq[hwdef->me_irq], envs[0]);
     if (hwdef->cs_base != (target_phys_addr_t)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
 
@@ -662,6 +663,10 @@ static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
         esp_scsi_attach(main_esp, drives_table[index].bdrv, i);
     }
 
+    slavio_misc = slavio_misc_init(-1, hwdef->apc_base,
+                                   hwdef->aux1_base, hwdef->aux2_base,
+                                   slavio_irq[hwdef->me_irq], env);
+
     kernel_size = sun4m_load_kernel(kernel_filename, kernel_cmdline,
                                     initrd_filename);
 
@@ -687,7 +692,9 @@ static const struct hwdef hwdefs[] = {
         .dma_base     = 0x78400000,
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
-        .power_base   = 0x7a000000,
+        .apc_base     = 0x7a000000, // XXX 0x6a000000,
+        .aux1_base    = 0x71900000,
+        .aux2_base    = 0x71910000,
         .ecc_base     = -1,
         .sun4c_intctl_base  = -1,
         .sun4c_counter_base = -1,
@@ -727,7 +734,9 @@ static const struct hwdef hwdefs[] = {
         .dma_base     = 0xef0400000ULL,
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
-        .power_base   = 0xefa000000ULL,
+        .apc_base     = 0xefa000000ULL, // XXX should not exist
+        .aux1_base    = 0xff1900000ULL, // XXX 0xff1800000ULL,
+        .aux2_base    = 0xff1910000ULL, // XXX 0xff1a01000ULL,
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x10000000, // version 0, implementation 1
         .sun4c_intctl_base  = -1,
@@ -769,7 +778,9 @@ static const struct hwdef hwdefs[] = {
         .dma_base     = 0xef0081000ULL,
         .esp_base     = 0xef0080000ULL,
         .le_base      = 0xef0060000ULL,
-        .power_base   = 0xefa000000ULL,
+        .apc_base     = 0xefa000000ULL, // XXX should not exist
+        .aux1_base    = 0xff1900000ULL, // XXX 0xff1800000ULL,
+        .aux2_base    = 0xff1910000ULL, // XXX should not exist
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x00000000, // version 0, implementation 0
         .sun4c_intctl_base  = -1,
@@ -811,7 +822,9 @@ static const struct hwdef hwdefs[] = {
         .dma_base     = 0xef0400000ULL,
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
-        .power_base   = 0xefa000000ULL,
+        .apc_base     = 0xefa000000ULL, // XXX should not exist
+        .aux1_base    = 0xff1900000ULL, // XXX 0xff1800000ULL,
+        .aux2_base    = 0xff1910000ULL, // XXX 0xff1a01000ULL,
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x20000000, // version 0, implementation 2
         .sun4c_intctl_base  = -1,
@@ -852,7 +865,9 @@ static const struct hwdef hwdefs[] = {
         .dma_base     = 0xf8400000,
         .esp_base     = 0xf8800000,
         .le_base      = 0xf8c00000,
-        .power_base   = -1,
+        .apc_base     = -1,
+        .aux1_base    = 0xf7400003,
+        .aux2_base    = -1,
         .sun4c_intctl_base  = 0xf5000000,
         .sun4c_counter_base = 0xf3000000,
         .vram_size    = 0x00100000,

@@ -115,7 +115,6 @@ case $targetos in
 CYGWIN*)
 mingw32="yes"
 OS_CFLAGS="-mno-cygwin"
-VL_OS_LDFLAGS="-mno-cygwin"
 if [ "$cpu" = "i386" ] ; then
     kqemu="yes"
 fi
@@ -349,7 +348,7 @@ fi
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
 # ARCH_CFLAGS/ARCH_LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
 #
-case $cpu in
+case "$cpu" in
     sparc) if test -z "$sparc_cpu" ; then
                ARCH_CFLAGS="-m32 -mcpu=ultrasparc -D__sparc_v8plus__"
                ARCH_LDFLAGS="-m32"
@@ -369,18 +368,15 @@ case $cpu in
     s390)
            ARCH_CFLAGS="-march=z900"
            ;;
+    i386)
+           ARCH_CFLAGS="-m32"
+           ARCH_LDFLAGS="-m32"
+           ;;
+    x86_64)
+           ARCH_CFLAGS="-m64"
+           ARCH_LDFLAGS="-m64"
+           ;;
 esac
-
-if [ "$solaris" = "yes" -a  "$cpu" = "x86_64" ] ; then
-    CFLAGS="${CFLAGS} -m64"
-    OS_CFLAGS="${OS_CFLAGS} -m64"
-    OS_LDFLAGS="${OS_LDFLAGS} -m64"
-fi
-
-if [ "$solaris" = "yes" -a  "$cpu" = "i386" ] ; then
-    CFLAGS="${CFLAGS} -m32"
-    OS_CFLAGS="${OS_CFLAGS} -m32"
-fi
 
 if test x"$show_help" = x"yes" ; then
 cat << EOF
@@ -798,9 +794,11 @@ echo "CC=$cc" >> $config_mak
 echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
 echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak
+# XXX: only use CFLAGS and LDFLAGS ?  
+# XXX: should export HOST_CFLAGS and HOST_LDFLAGS for cross
+# compilation of dyngen tool (useful for win32 build on Linux host)
 echo "OS_CFLAGS=$OS_CFLAGS" >> $config_mak
 echo "OS_LDFLAGS=$OS_LDFLAGS" >> $config_mak
-echo "VL_OS_LDFLAGS=$VL_OS_LDFLAGS" >> $config_mak
 echo "ARCH_CFLAGS=$ARCH_CFLAGS" >> $config_mak
 echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak

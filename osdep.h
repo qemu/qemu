@@ -37,9 +37,9 @@
 #define inline always_inline
 
 #ifdef __i386__
-#define REGPARM(n) __attribute((regparm(n)))
+#define REGPARM __attribute((regparm(3)))
 #else
-#define REGPARM(n)
+#define REGPARM
 #endif
 
 #define qemu_printf printf

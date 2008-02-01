@@ -44,9 +44,9 @@ code16_func3 = . - code16_start
         ljmp $CS_SEG, $(myjmp1 - code16_start)
 myjmp1_next:
 
-        cs lcall myfunc2_addr - code16_start
+        cs lcall *myfunc2_addr - code16_start
 
-        cs ljmp myjmp2_addr - code16_start
+        cs ljmp *myjmp2_addr - code16_start
 myjmp2_next:
 
         data32 lret

@@ -246,6 +246,8 @@ static CPUState *cur_cpu;
 static CPUState *next_cpu;
 static int event_pending = 1;
 
+extern char *logfilename;
+
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 /***********************************************************/
@@ -7667,6 +7669,9 @@ static void help(int exitcode)
 #endif
            "-clock          force the use of the given methods for timer alarm.\n"
            "                To see what timers are available use -clock help\n"
+           "-startdate      select initial date of the Qemu clock\n"
+           "-translation setting1,... configures code translation\n"
+           "                (use -translation ? for a list of settings)\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -7682,7 +7687,7 @@ static void help(int exitcode)
            DEFAULT_NETWORK_DOWN_SCRIPT,
 #endif
            DEFAULT_GDBSTUB_PORT,
-           "/tmp/qemu.log");
+           logfilename);
     exit(exitcode);
 }
 
@@ -7769,6 +7774,7 @@ enum {
     QEMU_OPTION_old_param,
     QEMU_OPTION_clock,
     QEMU_OPTION_startdate,
+    QEMU_OPTION_translation,
 };
 
 typedef struct QEMUOption {
@@ -7877,6 +7883,7 @@ const QEMUOption qemu_options[] = {
 #endif
     { "clock", HAS_ARG, QEMU_OPTION_clock },
     { "startdate", HAS_ARG, QEMU_OPTION_startdate },
+    { "translation", HAS_ARG, QEMU_OPTION_translation },
     { NULL },
 };
 
@@ -8766,6 +8773,22 @@ int main(int argc, char **argv)
                             exit(1);
                         }
                     }
+                }
+                break;
+            case QEMU_OPTION_translation:
+                {
+                    int mask;
+                    CPUTranslationSetting *setting;
+
+                    mask = cpu_str_to_translation_mask(optarg);
+                    if (!mask) {
+                        printf("Translation settings (comma separated):\n");
+                        for(setting = cpu_translation_settings; setting->mask != 0; setting++) {
+                            printf("%-10s %s\n", setting->name, setting->help);
+                    }
+                    exit(1);
+                    }
+                    cpu_set_translation_settings(mask);
                 }
                 break;
             }

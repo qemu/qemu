@@ -14,17 +14,14 @@ VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
-BASE_CFLAGS=
-BASE_LDFLAGS=
-
-BASE_CFLAGS += $(OS_CFLAGS) $(ARCH_CFLAGS)
-BASE_LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
+CFLAGS += $(OS_CFLAGS) $(ARCH_CFLAGS)
+LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
 
 CPPFLAGS += -I. -I$(SRC_PATH) -MMD -MP
 CPPFLAGS += -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LIBS=
 ifdef CONFIG_STATIC
-BASE_LDFLAGS += -static
+LDFLAGS += -static
 endif
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1
@@ -124,16 +121,16 @@ OBJS+=$(addprefix slirp/, $(SLIRP_OBJS))
 endif
 
 cocoa.o: cocoa.m
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 sdl.o: sdl.c keymaps.c sdl_keysym.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
 
 audio/sdlaudio.o: audio/sdlaudio.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 libqemu_common.a: $(OBJS)
 	rm -f $@ 
@@ -149,17 +146,17 @@ endif
 ######################################################################
 
 qemu-img$(EXESUF): qemu-img.o qemu-img-block.o $(QEMU_IMG_BLOCK_OBJS)
-	$(CC) $(LDFLAGS) $(BASE_LDFLAGS) -o $@ $^ -lz $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 qemu-img-%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DQEMU_IMG $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DQEMU_IMG -c -o $@ $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 # dyngen host tool
 dyngen$(EXESUF): dyngen.c
-	$(HOST_CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -o $@ $^
+	$(HOST_CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^
 
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
@@ -319,10 +316,6 @@ tarbin:
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
 	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1 )
-
-ifneq ($(wildcard .depend),)
-include .depend
-endif
 
 # Include automatically generated dependency files
 -include $(wildcard *.d audio/*.d slirp/*.d)
