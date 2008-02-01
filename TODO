@@ -1,5 +1,10 @@
 short term:
 ----------
+- x86_64: fxsave/fxrestore bugs
+- x86_64: lcall/ljmp intel/amd differences
+- x86_64: cmpxchgl
+- x86_64: cmovl bug
+- x86: monitor invalid 
 - cycle counter for all archs
 - cpu_interrupt() win32/SMP fix
 - support variable tsc freq
