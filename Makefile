@@ -40,7 +40,7 @@ BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
 BLOCK_OBJS+=block-qcow2.o block-parallels.o
 
 ######################################################################
-# libqemu_common.a: Target indepedent part of system emulation. The
+# libqemu_common.a: Target independent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
