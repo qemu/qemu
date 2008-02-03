@@ -2718,6 +2718,7 @@ void helper_movl_crN_T0(int reg)
         break;
     case 8:
         cpu_set_apic_tpr(env, T0);
+        env->cr[8] = T0;
         break;
     default:
         env->cr[reg] = T0;
@@ -4065,6 +4066,7 @@ void helper_vmrun(target_ulong addr)
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     if (int_ctl & V_INTR_MASKING_MASK) {
         env->cr[8] = int_ctl & V_TPR_MASK;
+        cpu_set_apic_tpr(env, env->cr[8]);
         if (env->eflags & IF_MASK)
             env->hflags |= HF_HIF_MASK;
     }
@@ -4376,8 +4378,10 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
     cpu_x86_update_cr0(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr0)) | CR0_PE_MASK);
     cpu_x86_update_cr4(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr4)));
     cpu_x86_update_cr3(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr3)));
-    if (int_ctl & V_INTR_MASKING_MASK)
+    if (int_ctl & V_INTR_MASKING_MASK) {
         env->cr[8] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8));
+        cpu_set_apic_tpr(env, env->cr[8]);
+    }
     /* we need to set the efer after the crs so the hidden flags get set properly */
 #ifdef TARGET_X86_64
     env->efer  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer));
