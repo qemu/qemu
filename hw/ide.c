@@ -2474,22 +2474,17 @@ struct partition {
 static int guess_disk_lchs(IDEState *s,
                            int *pcylinders, int *pheads, int *psectors)
 {
-    uint8_t *buf;
+    uint8_t *buf = s->io_buffer;
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
 
-    buf = qemu_memalign(512, 512);
-    if (buf == NULL)
-        return -1;
     ret = bdrv_read(s->bs, 0, buf, 1);
     if (ret < 0) {
-        qemu_free(buf);
         return -1;
     }
     /* test msdos magic */
     if (buf[510] != 0x55 || buf[511] != 0xaa) {
-        qemu_free(buf);
         return -1;
     }
     for(i = 0; i < 4; i++) {
@@ -2512,11 +2507,9 @@ static int guess_disk_lchs(IDEState *s,
             printf("guessed geometry: LCHS=%d %d %d\n",
                    cylinders, heads, sectors);
 #endif
-            qemu_free(buf);
             return 0;
         }
     }
-    qemu_free(buf);
     return -1;
 }
 
