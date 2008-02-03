@@ -103,6 +103,41 @@ typedef int TCGType;
 
 typedef tcg_target_ulong TCGArg;
 
+/* Define a type and accessor macros for varables.  Using a struct is
+   nice because it gives some level of type safely.  Ideally the compiler
+   be able to see through all this.  However in practice this is not true,
+   expecially on targets with braindamaged ABIs (e.g. i386).
+   We use plain int by default to avoid this runtime overhead.
+   Users of tcg_gen_* don't need to know about any of this, and should
+   treat TCGv as an opaque type.  */
+
+//#define DEBUG_TCGV 1
+
+#ifdef DEBUG_TCGV
+
+typedef struct
+{
+    int n;
+} TCGv;
+
+#define MAKE_TCGV(i) __extension__ \
+  ({ TCGv make_tcgv_tmp = {i}; make_tcgv_tmp;})
+#define GET_TCGV(t) ((t).n)
+#if TCG_TARGET_REG_BITS == 32
+#define TCGV_HIGH(t) MAKE_TCGV(GET_TCGV(t) + 1)
+#endif
+
+#else /* !DEBUG_TCGV */
+
+typedef int TCGv;
+#define MAKE_TCGV(x) (x)
+#define GET_TCGV(t) (t)
+#if TCG_TARGET_REG_BITS == 32
+#define TCGV_HIGH(t) ((t) + 1)
+#endif
+
+#endif /* DEBUG_TCGV */
+
 /* call flags */
 #define TCG_CALL_TYPE_MASK      0x000f
 #define TCG_CALL_TYPE_STD       0x0000 /* standard C call */
@@ -228,11 +263,11 @@ int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf,
 void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);
 void tcg_set_macro_func(TCGContext *s, TCGMacroFunc *func);
-int tcg_global_reg_new(TCGType type, int reg, const char *name);
-int tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
-                       const char *name);
-int tcg_temp_new(TCGType type);
-char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGArg arg);
+TCGv tcg_global_reg_new(TCGType type, int reg, const char *name);
+TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
+                        const char *name);
+TCGv tcg_temp_new(TCGType type);
+char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg);
 
 #define TCG_CT_ALIAS  0x80
 #define TCG_CT_IALIAS 0x40
@@ -278,10 +313,10 @@ do {\
 
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
-void tcg_gen_call(TCGContext *s, TCGArg func, unsigned int flags,
-                  unsigned int nb_rets, const TCGArg *rets,
-                  unsigned int nb_params, const TCGArg *args1);
-void tcg_gen_shifti_i64(TCGArg ret, TCGArg arg1, 
+void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
+                  unsigned int nb_rets, const TCGv *rets,
+                  unsigned int nb_params, const TCGv *args1);
+void tcg_gen_shifti_i64(TCGv ret, TCGv arg1, 
                         int c, int right, int arith);
 
 /* only used for debugging purposes */
@@ -291,8 +326,8 @@ const char *tcg_helper_get_name(TCGContext *s, void *func);
 void tcg_dump_ops(TCGContext *s, FILE *outfile);
 
 void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
-int tcg_const_i32(int32_t val);
-int tcg_const_i64(int64_t val);
+TCGv tcg_const_i32(int32_t val);
+TCGv tcg_const_i64(int64_t val);
 
 #if TCG_TARGET_REG_BITS == 32
 #define tcg_const_ptr tcg_const_i32

@@ -122,9 +122,9 @@
 #endif
 
 /* global register indexes */
-static int cpu_env, cpu_T[2], cpu_A0;
+static TCGv cpu_env, cpu_T[2], cpu_A0;
 /* local register indexes (only used inside old micro ops) */
-static int cpu_tmp0;
+static TCGv cpu_tmp0;
 
 #ifdef TARGET_X86_64
 static int x86_64_hregs;
@@ -5592,7 +5592,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_op_mov_reg_T0(OT_QUAD, reg);
         } else
         {
-            int tmp0;
+            TCGv tmp0;
             gen_op_mov_TN_reg(OT_LONG, 0, reg);
             
             tmp0 = tcg_temp_new(TCG_TYPE_I32);
