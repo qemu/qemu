@@ -205,15 +205,17 @@ fi
 
 # find source path
 source_path=`dirname "$0"`
+source_path_used="no"
+workdir=`pwd`
+workdir=`readlink -f $workdir`
 if [ -z "$source_path" ]; then
-    source_path=`pwd`
+    source_path=$workdir
 else
     source_path=`cd "$source_path"; pwd`
-fi
-if test "$source_path" = `pwd` ; then
-    source_path_used="no"
-else
-    source_path_used="yes"
+    source_path=`readlink -f $source_path`
+    if test "$source_path" != "$workdir" ; then
+        source_path_used="yes"
+    fi
 fi
 
 werror="no"
