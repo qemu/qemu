@@ -4126,7 +4126,7 @@ void helper_vmrun(target_ulong addr)
         case SVM_EVTINJ_TYPE_INTR:
                 env->exception_index = vector;
                 env->error_code = event_inj_err;
-                env->exception_is_int = 1;
+                env->exception_is_int = 0;
                 env->exception_next_eip = -1;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "INTR");
@@ -4134,7 +4134,7 @@ void helper_vmrun(target_ulong addr)
         case SVM_EVTINJ_TYPE_NMI:
                 env->exception_index = vector;
                 env->error_code = event_inj_err;
-                env->exception_is_int = 1;
+                env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "NMI");
