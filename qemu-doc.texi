@@ -421,21 +421,21 @@ syntax for the @var{display} is
 
 @table @code
 
-@item @var{interface}:@var{d}
+@item @var{host}:@var{d}
 
-TCP connections will only be allowed from @var{interface} on display @var{d}.
-By convention the TCP port is 5900+@var{d}. Optionally, @var{interface} can
-be omitted in which case the server will bind to all interfaces.
+TCP connections will only be allowed from @var{host} on display @var{d}.
+By convention the TCP port is 5900+@var{d}. Optionally, @var{host} can
+be omitted in which case the server will accept connections from any host.
 
-@item @var{unix}:@var{path}
+@item @code{unix}:@var{path}
 
 Connections will be allowed over UNIX domain sockets where @var{path} is the
 location of a unix socket to listen for connections on.
 
 @item none
 
-VNC is initialized by not started. The monitor @code{change} command can be used
-to later start the VNC server.
+VNC is initialized but not started. The monitor @code{change} command
+can be used to later start the VNC server.
 
 @end table
 
@@ -443,6 +443,13 @@ Following the @var{display} value there may be one or more @var{option} flags
 separated by commas. Valid options are
 
 @table @code
+
+@item reverse
+
+Connect to a listening VNC client via a ``reverse'' connection. The
+client is specified by the @var{display}. For reverse network
+connections (@var{host}:@var{d},@code{reverse}), the @var{d} argument
+is a TCP port number, not a display number.
 
 @item password
 
