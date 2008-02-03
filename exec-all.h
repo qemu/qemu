@@ -31,10 +31,12 @@ struct TranslationBlock;
 
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 32
+/* A Call op needs up to 6 + 2N parameters (N = number of arguments).  */
+#define MAX_OPC_PARAM 10
 #define OPC_BUF_SIZE 512
 #define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
 
-#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * 3)
+#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
 extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
 extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
