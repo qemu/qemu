@@ -868,8 +868,8 @@ static void pc_init1(int ram_size, int vga_ram_size,
         }
     } else if (vmsvga_enabled) {
         if (pci_enabled)
-            pci_vmsvga_init(pci_bus, ds, phys_ram_base + ram_size,
-                            ram_size, vga_ram_size);
+            pci_vmsvga_init(pci_bus, ds, phys_ram_base + vga_ram_addr,
+                            vga_ram_addr, vga_ram_size);
         else
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else {
