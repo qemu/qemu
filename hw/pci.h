@@ -126,6 +126,9 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
+/* e1000.c */
+void pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
+
 /* pcnet.c */
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 

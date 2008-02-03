@@ -524,6 +524,7 @@ OBJS += eepro100.o
 OBJS += ne2000.o
 OBJS += pcnet.o
 OBJS += rtl8139.o
+OBJS += e1000.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
