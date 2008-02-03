@@ -332,7 +332,7 @@ static void tcg_out_brcond(TCGContext *s, int cond,
             /* use test */
             switch(cond) {
             case TCG_COND_EQ:
-                c = JCC_JNE;
+                c = JCC_JE;
                 break;
             case TCG_COND_NE:
                 c = JCC_JNE;
@@ -355,7 +355,7 @@ static void tcg_out_brcond(TCGContext *s, int cond,
             tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
         }
     } else {
-        tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3), arg1, arg2);
+        tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3), arg2, arg1);
         tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
     }
 }
@@ -374,7 +374,7 @@ static void tcg_out_brcond2(TCGContext *s,
         break;
     case TCG_COND_NE:
         tcg_out_brcond(s, TCG_COND_NE, args[0], args[2], const_args[2], args[5]);
-        tcg_out_brcond(s, TCG_COND_EQ, args[1], args[3], const_args[3], label_next);
+        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], args[5]);
         break;
     case TCG_COND_LT:
         tcg_out_brcond(s, TCG_COND_LT, args[1], args[3], const_args[3], args[5]);
