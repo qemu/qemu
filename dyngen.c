@@ -1914,17 +1914,37 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         }
                     }
                     type = rel->r_type;
-                    switch(type) {
-                    case DIR32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                reloc_offset, relname, addend);
-                        break;
-                    case DISP32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d -4;\n",
-                                reloc_offset, relname, reloc_offset, addend);
-                        break;
-                    default:
-                        error("unsupported i386 relocation (%d)", type);
+                    if (is_label) {
+/* TCG uses elf relocation constants */
+#define R_386_32	1
+#define R_386_PC32	2
+                        switch(type) {
+                        case DIR32:
+                            type = R_386_32;
+                            goto do_reloc;
+                        case DISP32:
+                            type = R_386_PC32;
+                            addend -= 4;
+                        do_reloc:
+                            fprintf(outfile, "    tcg_out_reloc(s, gen_code_ptr + %d, %d, %s, %d);\n",
+                                    reloc_offset, type, relname, addend);
+                            break;
+                        default:
+                            error("unsupported i386 relocation (%d)", type);
+                        }
+                    } else {
+                        switch(type) {
+                        case DIR32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
+                                    reloc_offset, relname, addend);
+                            break;
+                        case DISP32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d -4;\n",
+                                    reloc_offset, relname, reloc_offset, addend);
+                            break;
+                        default:
+                            error("unsupported i386 relocation (%d)", type);
+                        }
                     }
 #else
 #error unsupport object format
