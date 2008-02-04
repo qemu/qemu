@@ -1027,9 +1027,14 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
     for(i = 0;i < count; i++) {
         base = tswapl(target_vec[i].iov_base);
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
-        vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
-	if (!vec[i].iov_base) 
-            goto fail;
+        if (vec[i].iov_len != 0) {
+            vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
+            if (!vec[i].iov_base) 
+                goto fail;
+        } else {
+            /* zero length pointer is ignored */
+            vec[i].iov_base = NULL;
+        }
     }
     unlock_user (target_vec, target_addr, 0);
     return 0;
@@ -4723,7 +4728,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct iovec *vec;
 
             vec = alloca(count * sizeof(struct iovec));
-            lock_iovec(VERIFY_WRITE, vec, arg2, count, 0);
+            if (lock_iovec(VERIFY_WRITE, vec, arg2, count, 0) < 0)
+                goto efault;
             ret = get_errno(readv(arg1, vec, count));
             unlock_iovec(vec, arg2, count, 1);
         }
@@ -4734,7 +4740,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct iovec *vec;
 
             vec = alloca(count * sizeof(struct iovec));
-            lock_iovec(VERIFY_READ, vec, arg2, count, 1);
+            if (lock_iovec(VERIFY_READ, vec, arg2, count, 1) < 0)
+                goto efault;
             ret = get_errno(writev(arg1, vec, count));
             unlock_iovec(vec, arg2, count, 0);
         }
