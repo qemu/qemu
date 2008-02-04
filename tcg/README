@@ -280,6 +280,11 @@ to zero.
 
 64 bit byte swap
 
+* discard_i32/i64 t0
+
+Indicate that the value of t0 won't be used later. It is useful to
+force dead code elimination.
+
 ********* Type conversions
 
 * ext_i32_i64 t0, t1

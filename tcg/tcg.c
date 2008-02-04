@@ -401,6 +401,7 @@ TCGv tcg_temp_new(TCGType type)
         ts = &s->temps[s->nb_temps];
         ts->base_type = type;
         ts->type = TCG_TYPE_I32;
+        ts->fixed_reg = 0;
         ts->val_type = TEMP_VAL_DEAD;
         ts->mem_allocated = 0;
         ts->name = NULL;
@@ -408,6 +409,7 @@ TCGv tcg_temp_new(TCGType type)
         ts->base_type = TCG_TYPE_I32;
         ts->type = TCG_TYPE_I32;
         ts->val_type = TEMP_VAL_DEAD;
+        ts->fixed_reg = 0;
         ts->mem_allocated = 0;
         ts->name = NULL;
         s->nb_temps += 2;
@@ -418,6 +420,7 @@ TCGv tcg_temp_new(TCGType type)
         ts = &s->temps[s->nb_temps];
         ts->base_type = type;
         ts->type = type;
+        ts->fixed_reg = 0;
         ts->val_type = TEMP_VAL_DEAD;
         ts->mem_allocated = 0;
         ts->name = NULL;
@@ -805,11 +808,12 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
                 assert(oarg < def->nb_oargs);
                 assert(def->args_ct[oarg].ct & TCG_CT_REG);
                 /* TCG_CT_ALIAS is for the output arguments. The input
-                   argument is tagged with TCG_CT_IALIAS for
-                   informative purposes. */
+                   argument is tagged with TCG_CT_IALIAS. */
                 def->args_ct[i] = def->args_ct[oarg];
-                def->args_ct[oarg].ct = i | TCG_CT_ALIAS;
+                def->args_ct[oarg].ct = TCG_CT_ALIAS;
+                def->args_ct[oarg].alias_index = i;
                 def->args_ct[i].ct |= TCG_CT_IALIAS;
+                def->args_ct[i].alias_index = oarg;
             } else {
                 for(;;) {
                     if (*ct_str == '\0')
@@ -935,6 +939,11 @@ void tcg_liveness_analysis(TCGContext *s)
             nb_args = args[-1];
             args -= nb_args;
             break;
+        case INDEX_op_discard:
+            args--;
+            /* mark the temporary as dead */
+            dead_temps[args[0]] = 1;
+            break;
         case INDEX_op_macro_2:
             {
                 int dead_args[2], macro_id;
@@ -1015,12 +1024,9 @@ void tcg_liveness_analysis(TCGContext *s)
                 nb_oargs = def->nb_oargs;
 
                 /* Test if the operation can be removed because all
-                   its outputs are dead. We may add a flag to
-                   explicitely tell if the op has side
-                   effects. Currently we assume that if nb_oargs == 0
-                   or OPF_BB_END is set, the operation has side
-                   effects and cannot be removed */
-                if (nb_oargs != 0 && !(def->flags & TCG_OPF_BB_END)) {
+                   its outputs are dead. We assume that nb_oargs == 0
+                   implies side effects */
+                if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && nb_oargs != 0) {
                     for(i = 0; i < nb_oargs; i++) {
                         arg = args[i];
                         if (!dead_temps[arg])
@@ -1164,7 +1170,7 @@ static void temp_allocate_frame(TCGContext *s, int temp)
     ts = &s->temps[temp];
     s->current_frame_offset = (s->current_frame_offset + sizeof(tcg_target_long) - 1) & ~(sizeof(tcg_target_long) - 1);
     if (s->current_frame_offset + sizeof(tcg_target_long) > s->frame_end)
-        abort();
+        tcg_abort();
     ts->mem_offset = s->current_frame_offset;
     ts->mem_reg = s->frame_reg;
     ts->mem_allocated = 1;
@@ -1350,12 +1356,19 @@ static void tcg_reg_alloc_op(TCGContext *s,
             }
         }
         assert(ts->val_type == TEMP_VAL_REG);
-        if ((arg_ct->ct & TCG_CT_IALIAS) &&
-            !IS_DEAD_IARG(i - nb_oargs)) {
-            /* if the input is aliased to an output and if it is
-               not dead after the instruction, we must allocate
-               a new register and move it */
-            goto allocate_in_reg;
+        if (arg_ct->ct & TCG_CT_IALIAS) {
+            if (ts->fixed_reg) {
+                /* if fixed register, we must allocate a new register
+                   if the alias is not the same register */
+                if (arg != args[arg_ct->alias_index])
+                    goto allocate_in_reg;
+            } else {
+                /* if the input is aliased to an output and if it is
+                   not dead after the instruction, we must allocate
+                   a new register and move it */
+                if (!IS_DEAD_IARG(i - nb_oargs)) 
+                    goto allocate_in_reg;
+            }
         }
         reg = ts->reg;
         if (tcg_regset_test_reg(arg_ct->u.regs, reg)) {
@@ -1404,7 +1417,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
         arg_ct = &def->args_ct[i];
         ts = &s->temps[arg];
         if (arg_ct->ct & TCG_CT_ALIAS) {
-            reg = new_args[arg_ct->ct & ~TCG_CT_ALIAS];
+            reg = new_args[arg_ct->alias_index];
         } else {
             /* if fixed register, we try to use it */
             reg = ts->reg;
@@ -1694,6 +1707,18 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
         case INDEX_op_nopn:
             args += args[0];
             goto next;
+        case INDEX_op_discard:
+            {
+                TCGTemp *ts;
+                ts = &s->temps[args[0]];
+                /* mark the temporary as dead */
+                if (ts->val_type != TEMP_VAL_CONST && !ts->fixed_reg) {
+                    if (ts->val_type == TEMP_VAL_REG)
+                        s->reg_to_temp[ts->reg] = -1;
+                    ts->val_type = TEMP_VAL_DEAD;
+                }
+            }
+            break;
         case INDEX_op_macro_goto:
             macro_op_index = op_index; /* only used for exceptions */
             op_index = args[0] - 1;

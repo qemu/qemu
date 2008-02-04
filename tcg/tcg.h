@@ -275,7 +275,8 @@ char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg);
 #define TCG_CT_CONST  0x02 /* any constant of register size */
 
 typedef struct TCGArgConstraint {
-    uint32_t ct;
+    uint16_t ct;
+    uint8_t alias_index;
     union {
         TCGRegSet regs;
     } u;
@@ -286,6 +287,7 @@ typedef struct TCGArgConstraint {
 #define TCG_OPF_BB_END     0x01 /* instruction defines the end of a basic
                                    block */
 #define TCG_OPF_CALL_CLOBBER 0x02 /* instruction clobbers call registers */
+#define TCG_OPF_SIDE_EFFECTS 0x04 /* instruction has side effects */
 
 typedef struct TCGOpDef {
     const char *name;

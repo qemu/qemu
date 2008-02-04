@@ -865,7 +865,7 @@ static inline void tcg_gen_ext8s_i32(TCGv ret, TCGv arg)
     tcg_gen_op2(INDEX_op_ext8s_i32, ret, arg);
 #else
     tcg_gen_shli_i32(ret, arg, 24);
-    tcg_gen_sari_i32(ret, arg, 24);
+    tcg_gen_sari_i32(ret, ret, 24);
 #endif
 }
 
@@ -875,7 +875,7 @@ static inline void tcg_gen_ext16s_i32(TCGv ret, TCGv arg)
     tcg_gen_op2(INDEX_op_ext16s_i32, ret, arg);
 #else
     tcg_gen_shli_i32(ret, arg, 16);
-    tcg_gen_sari_i32(ret, arg, 16);
+    tcg_gen_sari_i32(ret, ret, 16);
 #endif
 }
 
@@ -975,7 +975,7 @@ static inline void tcg_gen_ext8s_i64(TCGv ret, TCGv arg)
     tcg_gen_op2(INDEX_op_ext8s_i64, ret, arg);
 #else
     tcg_gen_shli_i64(ret, arg, 56);
-    tcg_gen_sari_i64(ret, arg, 56);
+    tcg_gen_sari_i64(ret, ret, 56);
 #endif
 }
 
@@ -985,7 +985,7 @@ static inline void tcg_gen_ext16s_i64(TCGv ret, TCGv arg)
     tcg_gen_op2(INDEX_op_ext16s_i64, ret, arg);
 #else
     tcg_gen_shli_i64(ret, arg, 48);
-    tcg_gen_sari_i64(ret, arg, 48);
+    tcg_gen_sari_i64(ret, ret, 48);
 #endif
 }
 
@@ -995,7 +995,7 @@ static inline void tcg_gen_ext32s_i64(TCGv ret, TCGv arg)
     tcg_gen_op2(INDEX_op_ext32s_i64, ret, arg);
 #else
     tcg_gen_shli_i64(ret, arg, 32);
-    tcg_gen_sari_i64(ret, arg, 32);
+    tcg_gen_sari_i64(ret, ret, 32);
 #endif
 }
 
@@ -1060,6 +1060,25 @@ static inline void tcg_gen_bswap_i64(TCGv ret, TCGv arg)
 #endif
 }
 
+#endif
+
+
+static inline void tcg_gen_discard_i32(TCGv arg)
+{
+    tcg_gen_op1(INDEX_op_discard, arg);
+}
+
+#if TCG_TARGET_REG_BITS == 32
+static inline void tcg_gen_discard_i64(TCGv arg)
+{
+    tcg_gen_discard_i32(arg);
+    tcg_gen_discard_i32(TCGV_HIGH(arg));
+}
+#else
+static inline void tcg_gen_discard_i64(TCGv arg)
+{
+    tcg_gen_op1(INDEX_op_discard, arg);
+}
 #endif
 
 /***************************************/
