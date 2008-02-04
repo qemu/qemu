@@ -34,6 +34,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#ifdef _WIN32
+#include <malloc.h>
+#endif
 
 #include "config.h"
 #include "osdep.h"
