@@ -60,6 +60,10 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
                 unsigned long size, unsigned char nbanks,
                 qemu_irq parent_irq, qemu_irq parent_fiq, omap_clk clk);
 
+struct omap_target_agent_s;
+static inline target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta,
+                int region, int iotype) { return 0; }
+
 /*
  * Common IRQ numbers for level 1 interrupt handler
  * See /usr/include/asm-arm/arch-omap/irqs.h in Linux.
@@ -573,6 +577,8 @@ void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
 struct omap_i2c_s;
 struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
                 qemu_irq irq, qemu_irq *dma, omap_clk clk);
+struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
+                qemu_irq irq, qemu_irq *dma, omap_clk fclk, omap_clk iclk);
 void omap_i2c_reset(struct omap_i2c_s *s);
 i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
 
