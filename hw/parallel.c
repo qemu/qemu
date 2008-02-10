@@ -101,6 +101,7 @@ parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
         parallel_update_irq(s);
         break;
     case PARA_REG_CTR:
+        val |= 0xc0;
         if ((val & PARA_CTR_INIT) == 0 ) {
             s->status = PARA_STS_BUSY;
             s->status |= PARA_STS_ACK;
@@ -414,8 +415,10 @@ static void parallel_reset(ParallelState *s, qemu_irq irq, CharDriverState *chr)
     s->status |= PARA_STS_ACK;
     s->status |= PARA_STS_ONLINE;
     s->status |= PARA_STS_ERROR;
+    s->status |= PARA_STS_TMOUT;
     s->control = PARA_CTR_SELECT;
     s->control |= PARA_CTR_INIT;
+    s->control |= 0xc0;
     s->irq = irq;
     s->irq_pending = 0;
     s->chr = chr;

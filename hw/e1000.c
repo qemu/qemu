@@ -27,7 +27,6 @@
 #include "pci.h"
 #include "net.h"
 
-#define __iomem
 #include "e1000_hw.h"
 
 #define DEBUG
