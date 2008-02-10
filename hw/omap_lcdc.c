@@ -495,7 +495,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
     cpu_register_physical_memory(s->base, 0x100, iomemtype);
 
     graphic_console_init(ds, omap_update_display,
-                    omap_invalidate_display, omap_screen_dump, s);
+                    omap_invalidate_display, omap_screen_dump, NULL, s);
 
     return s;
 }

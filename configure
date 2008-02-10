@@ -108,6 +108,7 @@ linux_user="no"
 darwin_user="no"
 build_docs="no"
 uname_release=""
+curses="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -322,6 +323,8 @@ for opt do
   --enable-werror) werror="yes"
   ;;
   --disable-werror) werror="no"
+  ;;
+  --disable-curses) curses="no"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -669,6 +672,20 @@ EOF
   fi
 fi
 
+##########################################
+# curses probe
+
+if test "$curses" = "yes" ; then
+  curses=no
+  cat > $TMPC << EOF
+#include <curses.h>
+int main(void) { return curses_version(); }
+EOF
+  if $cc -o $TMPE $TMPC -lcurses 2> /dev/null ; then
+    curses=yes
+  fi
+fi # test "$curses"
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -720,6 +737,7 @@ echo "SDL support       $sdl"
 if test "$sdl" != "no" ; then
     echo "SDL static link   $sdl_static"
 fi
+echo "curses support    $curses"
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
 echo "AC97 support      $ac97"
@@ -974,8 +992,13 @@ if test "$sdl1" = "yes" ; then
   fi
 fi
 if test "$cocoa" = "yes" ; then
-    echo "#define CONFIG_COCOA 1" >> $config_h
-    echo "CONFIG_COCOA=yes" >> $config_mak
+  echo "#define CONFIG_COCOA 1" >> $config_h
+  echo "CONFIG_COCOA=yes" >> $config_mak
+fi
+if test "$curses" = "yes" ; then
+  echo "#define CONFIG_CURSES 1" >> $config_h
+  echo "CONFIG_CURSES=yes" >> $config_mak
+  echo "CURSES_LIBS=-lcurses" >> $config_mak
 fi
 
 # XXX: suppress that
@@ -1040,7 +1063,8 @@ if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
         -a "$sdl" = "no" -a "$cocoa" = "no" ; then
     echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
     echo "To build QEMU without graphical output configure with --disable-gfx-check"
-    echo "Note that this will disable all output from the virtual graphics card."
+    echo "Note that this will disable all output from the virtual graphics card"
+    echo "except through VNC or curses."
     exit 1;
 fi
 

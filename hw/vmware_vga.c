@@ -949,6 +949,14 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
     }
 }
 
+static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
+{
+    struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
+
+    if (s->text_update)
+        s->text_update(opaque, chardata);
+}
+
 #ifdef DIRECT_VRAM
 static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
 {
@@ -1101,7 +1109,8 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
                     iomemtype);
 
     graphic_console_init(ds, vmsvga_update_display,
-                    vmsvga_invalidate_display, vmsvga_screen_dump, s);
+                    vmsvga_invalidate_display, vmsvga_screen_dump,
+                    vmsvga_text_update, s);
 
 #ifdef EMBED_STDVGA
     vga_common_init((VGAState *) s, ds,

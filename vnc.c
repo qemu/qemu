@@ -945,6 +945,7 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
             return;
         }
         break;
+    case 0x3a:			/* CapsLock */
     case 0x45:			/* NumLock */
         if (!down)
             vs->modifiers_state[keycode] ^= 1;

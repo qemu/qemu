@@ -824,6 +824,8 @@ static const KeyDef key_defs[] = {
     { 0x31, "n" },
     { 0x32, "m" },
 
+    { 0x37, "asterisk" },
+
     { 0x39, "spc" },
     { 0x3a, "caps_lock" },
     { 0x3b, "f1" },

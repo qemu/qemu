@@ -99,6 +99,9 @@ OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
 ifdef CONFIG_SDL
 OBJS+=sdl.o x_keymap.o
 endif
+ifdef CONFIG_CURSES
+OBJS+=curses.o
+endif
 OBJS+=vnc.o d3des.o
 
 ifdef CONFIG_COCOA
@@ -121,6 +124,9 @@ sdl.o: sdl.c keymaps.c sdl_keysym.h
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
+
+curses.o: curses.c keymaps.c curses_keys.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 audio/sdlaudio.o: audio/sdlaudio.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<

@@ -172,6 +172,7 @@ BlockDriverState *bs_snapshots;
 int vga_ram_size;
 static DisplayState display_state;
 int nographic;
+int curses;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 int ram_size;
@@ -7652,6 +7653,9 @@ static void help(int exitcode)
            "                (default is CL-GD5446 PCI VGA)\n"
            "-no-acpi        disable ACPI\n"
 #endif
+#ifdef CONFIG_CURSES
+           "-curses         use a curses/ncurses interface instead of SDL\n"
+#endif
            "-no-reboot      exit instead of rebooting\n"
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
@@ -7757,6 +7761,7 @@ enum {
     QEMU_OPTION_smp,
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
+    QEMU_OPTION_curses,
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_show_cursor,
     QEMU_OPTION_daemonize,
@@ -7853,6 +7858,9 @@ const QEMUOption qemu_options[] = {
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
     { "smp", HAS_ARG, QEMU_OPTION_smp },
     { "vnc", HAS_ARG, QEMU_OPTION_vnc },
+#ifdef CONFIG_CURSES
+    { "curses", 0, QEMU_OPTION_curses },
+#endif
 
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
@@ -8189,6 +8197,7 @@ int main(int argc, char **argv)
 #endif
     snapshot = 0;
     nographic = 0;
+    curses = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
     cyls = heads = secs = 0;
@@ -8363,6 +8372,11 @@ int main(int argc, char **argv)
                 pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 nographic = 1;
                 break;
+#ifdef CONFIG_CURSES
+            case QEMU_OPTION_curses:
+                curses = 1;
+                break;
+#endif
             case QEMU_OPTION_portrait:
                 graphic_rotate = 1;
                 break;
@@ -8903,13 +8917,23 @@ int main(int argc, char **argv)
     /* terminal init */
     memset(&display_state, 0, sizeof(display_state));
     if (nographic) {
+        if (curses) {
+            fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
+            exit(1);
+        }
         /* nearly nothing to do */
         dumb_display_init(ds);
     } else if (vnc_display != NULL) {
         vnc_display_init(ds);
         if (vnc_display_open(ds, vnc_display) < 0)
             exit(1);
-    } else {
+    } else
+#if defined(CONFIG_CURSES)
+    if (curses) {
+        curses_display_init(ds, full_screen);
+    } else
+#endif
+    {
 #if defined(CONFIG_SDL)
         sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)

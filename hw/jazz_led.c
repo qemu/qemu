@@ -285,6 +285,22 @@ static void jazz_led_screen_dump(void *opaque, const char *filename)
     printf("jazz_led_screen_dump() not implemented\n");
 }
 
+static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
+{
+    LedState *s = opaque;
+    char buf[2];
+
+    dpy_cursor(s->ds, -1, -1);
+    dpy_resize(s->ds, 2, 1);
+
+    /* TODO: draw the segments */
+    snprintf(buf, 2, "%02hhx\n", s->segments);
+    console_write_ch(chardata++, 0x00200100 | buf[0]);
+    console_write_ch(chardata++, 0x00200100 | buf[1]);
+
+    dpy_update(s->ds, 0, 0, 2, 1);
+}
+
 void jazz_led_init(DisplayState *ds, target_phys_addr_t base)
 {
     LedState *s;
@@ -301,5 +317,7 @@ void jazz_led_init(DisplayState *ds, target_phys_addr_t base)
     io = cpu_register_io_memory(0, led_read, led_write, s);
     cpu_register_physical_memory(s->base, 1, io);
 
-    graphic_console_init(ds, jazz_led_update_display, jazz_led_invalidate_display, jazz_led_screen_dump, s);
+    graphic_console_init(ds, jazz_led_update_display,
+                         jazz_led_invalidate_display, jazz_led_screen_dump,
+                         jazz_led_text_update, s);
 }
