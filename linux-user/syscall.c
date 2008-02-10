@@ -1029,7 +1029,7 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
         if (vec[i].iov_len != 0) {
             vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
-            if (!vec[i].iov_base) 
+            if (!vec[i].iov_base && vec[i].iov_len) 
                 goto fail;
         } else {
             /* zero length pointer is ignored */
