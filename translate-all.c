@@ -187,8 +187,7 @@ int cpu_restore_state(TranslationBlock *tb,
     s->tb_jmp_offset = NULL;
     s->tb_next = tb->tb_next;
 #endif
-    j = dyngen_code_search_pc(s, (uint8_t *)tc_ptr, 
-                              (void *)searched_pc); 
+    j = dyngen_code_search_pc(s, searched_pc - tc_ptr);
     if (j < 0)
         return -1;
     /* now find start of instruction before */
