@@ -4928,7 +4928,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
                        "cache", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
-         fprintf(stderr, "qemu: unknowm parameter '%s' in '%s'\n",
+         fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
                          buf, str);
          return -1;
     }

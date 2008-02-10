@@ -28,7 +28,6 @@
 #include "net.h"
 
 #define __iomem
-typedef int boolean_t;
 #include "e1000_hw.h"
 
 #define DEBUG
