@@ -97,9 +97,9 @@ void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
 
     l = &s->labels[label_index];
     if (l->has_value) {
-        /* FIXME: This is wrong.  We can not resolve the relocation
-           immediately because the caller has not yet written the
-           initial value.  */
+        /* FIXME: This may break relocations on RISC targets that
+           modify instruction fields in place.  The caller may not have 
+           written the initial value.  */
         patch_reloc(code_ptr, type, l->u.value + addend);
     } else {
         /* add a new relocation entry */
@@ -1810,16 +1810,11 @@ int dyngen_code(TCGContext *s, uint8_t *gen_code_buf)
     return s->code_ptr -  gen_code_buf;
 }
 
-static uint8_t *dummy_code_buf;
-
 /* Return the index of the micro operation such as the pc after is <
-   offset bytes from the start of the TB.
-   We have to use a dummy code buffer here to avoid clobbering the
-   oringinal code.  Because we terminate code generation part way through
-   we can end up with unresolved relocations.  Return -1 if not found. */
-int dyngen_code_search_pc(TCGContext *s, long offset)
+   offset bytes from the start of the TB.  The contents of gen_code_buf must
+   not be changed, though writing the same values is ok.
+   Return -1 if not found. */
+int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset)
 {
-    if (!dummy_code_buf)
-        dummy_code_buf = qemu_malloc(code_gen_max_block_size());
-    return tcg_gen_code_common(s, dummy_code_buf, offset);
+    return tcg_gen_code_common(s, gen_code_buf, offset);
 }

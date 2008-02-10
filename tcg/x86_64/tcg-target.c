@@ -431,7 +431,7 @@ static void tcg_out_jxx(TCGContext *s, int opc, int label_index)
             tcg_out8(s, 0x80 + opc);
         }
         tcg_out_reloc(s, s->code_ptr, R_386_PC32, label_index, -4);
-        tcg_out32(s, -4);
+        s->code_ptr += 4;
     }
 }
 
