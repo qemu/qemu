@@ -30,9 +30,6 @@
 /* debug PC keyboard */
 //#define DEBUG_KBD
 
-/* debug PC keyboard : only mouse */
-//#define DEBUG_MOUSE
-
 /*	Keyboard Controller Commands */
 #define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */
 #define KBD_CCMD_WRITE_MODE	0x60	/* Write mode bits */
@@ -283,11 +280,17 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t kbd_read_data(void *opaque, uint32_t addr)
 {
     KBDState *s = opaque;
+    uint32_t val;
 
     if (s->pending == KBD_PENDING_AUX)
-        return ps2_read_data(s->mouse);
+        val = ps2_read_data(s->mouse);
+    else
+        val = ps2_read_data(s->kbd);
 
-    return ps2_read_data(s->kbd);
+#if defined(DEBUG_KBD)
+    printf("kbd: read data=0x%02x\n", val);
+#endif
+    return val;
 }
 
 static void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
@@ -439,7 +442,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
     s_io_memory = cpu_register_io_memory(0, kbd_mm_read, kbd_mm_write, s);
-    cpu_register_physical_memory(base, 8 << it_shift, s_io_memory);
+    cpu_register_physical_memory(base, 2 << it_shift, s_io_memory);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
