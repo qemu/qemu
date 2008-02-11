@@ -591,7 +591,7 @@ void helper_st_asi(int asi, int size)
 
             oldreg = env->mmuregs[reg];
             switch(reg) {
-            case 0:
+            case 0: // Control Register
                 env->mmuregs[reg] = (env->mmuregs[reg] & 0xff000000) |
                                     (T1 & 0x00ffffff);
                 // Mappings generated during no-fault mode or MMU
@@ -600,21 +600,27 @@ void helper_st_asi(int asi, int size)
                     (env->mmuregs[reg] & (MMU_E | MMU_NF | env->mmu_bm)))
                     tlb_flush(env, 1);
                 break;
-            case 2:
-                env->mmuregs[reg] = T1;
+            case 1: // Context Table Pointer Register
+                env->mmuregs[reg] = T1 & env->mmu_ctpr_mask;
+                break;
+            case 2: // Context Register
+                env->mmuregs[reg] = T1 & env->mmu_cxr_mask;
                 if (oldreg != env->mmuregs[reg]) {
                     /* we flush when the MMU context changes because
                        QEMU has no MMU context support */
                     tlb_flush(env, 1);
                 }
                 break;
-            case 3:
-            case 4:
+            case 3: // Synchronous Fault Status Register with Clear
+            case 4: // Synchronous Fault Address Register
                 break;
-            case 0x13:
-                env->mmuregs[3] = T1;
+            case 0x10: // TLB Replacement Control Register
+                env->mmuregs[reg] = T1 & env->mmu_trcr_mask;
                 break;
-            case 0x14:
+            case 0x13: // Synchronous Fault Status Register with Read and Clear
+                env->mmuregs[3] = T1 & env->mmu_sfsr_mask;
+                break;
+            case 0x14: // Synchronous Fault Address Register
                 env->mmuregs[4] = T1;
                 break;
             default:

@@ -129,7 +129,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
-    pde_ptr = ((env->mmuregs[1] & ~63)<< 4) + (env->mmuregs[2] << 2);
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
 
     /* Ctx pde */

@@ -62,6 +62,10 @@ struct sparc_def_t {
     uint32_t fpu_version;
     uint32_t mmu_version;
     uint32_t mmu_bm;
+    uint32_t mmu_ctpr_mask;
+    uint32_t mmu_cxr_mask;
+    uint32_t mmu_sfsr_mask;
+    uint32_t mmu_trcr_mask;
 };
 
 static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name);
@@ -3758,6 +3762,10 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
     env->fsr = def->fpu_version;
 #if !defined(TARGET_SPARC64)
     env->mmu_bm = def->mmu_bm;
+    env->mmu_ctpr_mask = def->mmu_ctpr_mask;
+    env->mmu_cxr_mask = def->mmu_cxr_mask;
+    env->mmu_sfsr_mask = def->mmu_sfsr_mask;
+    env->mmu_trcr_mask = def->mmu_trcr_mask;
     env->mmuregs[0] |= def->mmu_version;
     cpu_sparc_set_id(env, 0);
 #endif
@@ -3887,6 +3895,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x00 << 24, /* Impl 0, ver 0 */
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Fujitsu MB86904",
@@ -3894,6 +3906,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x04 << 24, /* Impl 0, ver 4 */
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x00ffffc0,
+        .mmu_cxr_mask = 0x000000ff,
+        .mmu_sfsr_mask = 0x00016fff,
+        .mmu_trcr_mask = 0x00ffffff,
     },
     {
         .name = "Fujitsu MB86907",
@@ -3901,6 +3917,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0x05 << 24, /* Impl 0, ver 5 */
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0xffffffc0,
+        .mmu_cxr_mask = 0x000000ff,
+        .mmu_sfsr_mask = 0x00016fff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "LSI L64811",
@@ -3908,6 +3928,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 1 << 17, /* FPU version 1 (LSI L64814) */
         .mmu_version = 0x10 << 24,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Cypress CY7C601",
@@ -3915,6 +3939,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 3 << 17, /* FPU version 3 (Cypress CY7C602) */
         .mmu_version = 0x10 << 24,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Cypress CY7C611",
@@ -3922,6 +3950,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 3 << 17, /* FPU version 3 (Cypress CY7C602) */
         .mmu_version = 0x10 << 24,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "TI SuperSparc II",
@@ -3929,6 +3961,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 0 << 17,
         .mmu_version = 0x04000000,
         .mmu_bm = 0x00002000,
+        .mmu_ctpr_mask = 0xffffffc0,
+        .mmu_cxr_mask = 0x0000ffff,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "TI MicroSparc I",
@@ -3936,6 +3972,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17,
         .mmu_version = 0x41000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0x00016fff,
+        .mmu_trcr_mask = 0x0000003f,
     },
     {
         .name = "TI MicroSparc II",
@@ -3943,6 +3983,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17,
         .mmu_version = 0x02000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x00ffffc0,
+        .mmu_cxr_mask = 0x000000ff,
+        .mmu_sfsr_mask = 0x00016bff,
+        .mmu_trcr_mask = 0x00ffffff,
     },
     {
         .name = "TI MicroSparc IIep",
@@ -3950,6 +3994,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17,
         .mmu_version = 0x04000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x00ffffc0,
+        .mmu_cxr_mask = 0x000000ff,
+        .mmu_sfsr_mask = 0x00016bff,
+        .mmu_trcr_mask = 0x00ffffff,
     },
     {
         .name = "TI SuperSparc 51",
@@ -3957,6 +4005,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 0 << 17,
         .mmu_version = 0x04000000,
         .mmu_bm = 0x00002000,
+        .mmu_ctpr_mask = 0xffffffc0,
+        .mmu_cxr_mask = 0x0000ffff,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "TI SuperSparc 61",
@@ -3964,6 +4016,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 0 << 17,
         .mmu_version = 0x04000000,
         .mmu_bm = 0x00002000,
+        .mmu_ctpr_mask = 0xffffffc0,
+        .mmu_cxr_mask = 0x0000ffff,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Ross RT625",
@@ -3971,6 +4027,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 1 << 17,
         .mmu_version = 0x1e000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Ross RT620",
@@ -3978,6 +4038,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 1 << 17,
         .mmu_version = 0x1f000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "BIT B5010",
@@ -3985,6 +4049,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 0 << 17, /* B5010/B5110/B5120/B5210 */
         .mmu_version = 0x20000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Matsushita MN10501",
@@ -3992,6 +4060,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 0 << 17,
         .mmu_version = 0x50000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "Weitek W8601",
@@ -3999,6 +4071,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 3 << 17, /* FPU version 3 (Weitek WTL3170/2) */
         .mmu_version = 0x10 << 24,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "LEON2",
@@ -4006,6 +4082,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0xf2000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
     {
         .name = "LEON3",
@@ -4013,6 +4093,10 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0xf3000000,
         .mmu_bm = 0x00004000,
+        .mmu_ctpr_mask = 0x007ffff0,
+        .mmu_cxr_mask = 0x0000003f,
+        .mmu_sfsr_mask = 0xffffffff,
+        .mmu_trcr_mask = 0xffffffff,
     },
 #endif
 };

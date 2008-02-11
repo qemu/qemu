@@ -198,6 +198,10 @@ typedef struct CPUSPARCState {
     int interrupt_request;
     int halted;
     uint32_t mmu_bm;
+    uint32_t mmu_ctpr_mask;
+    uint32_t mmu_cxr_mask;
+    uint32_t mmu_sfsr_mask;
+    uint32_t mmu_trcr_mask;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[NWINDOWS * 16 + 8];
 
