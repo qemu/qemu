@@ -1674,8 +1674,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     uint32_t *src;
     console_ch_t *dst, val;
     char msg_buffer[80];
-    int full_update;
-    full_update = 0;
+    int full_update = 0;
 
     if (!(s->ar_index & 0x20)) {
         graphic_mode = GMODE_BLANK;
@@ -1804,19 +1803,21 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     }
 
     /* Display a message */
+    s->last_width = 60;
+    s->last_height = height = 3;
     dpy_cursor(s->ds, -1, -1);
-    dpy_resize(s->ds, 60, 3);
+    dpy_resize(s->ds, s->last_width, height);
 
-    for (dst = chardata, i = 0; i < 60 * 3; i ++)
+    for (dst = chardata, i = 0; i < s->last_width * height; i ++)
         console_write_ch(dst ++, ' ');
 
     size = strlen(msg_buffer);
-    width = (60 - size) / 2;
-    dst = chardata + 60 + width;
+    width = (s->last_width - size) / 2;
+    dst = chardata + s->last_width + width;
     for (i = 0; i < size; i ++)
         console_write_ch(dst ++, 0x00200100 | msg_buffer[i]);
 
-    dpy_update(s->ds, 0, 0, 60, 3);
+    dpy_update(s->ds, 0, 0, s->last_width, height);
 }
 
 static CPUReadMemoryFunc *vga_mem_read[3] = {
