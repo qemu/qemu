@@ -6811,7 +6811,7 @@ void dump_fpu (CPUState *env)
 {
     if (loglevel) {
        fprintf(logfile, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-               env->PC[env->current_tc], env->HI[0][env->current_tc], env->LO[0][env->current_tc], env->hflags, env->btarget, env->bcond);
+               env->PC[env->current_tc], env->HI[env->current_tc][0], env->LO[env->current_tc][0], env->hflags, env->btarget, env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
 }
@@ -6830,16 +6830,16 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 
     if (!SIGN_EXT_P(env->PC[env->current_tc]))
         cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC[env->current_tc]);
-    if (!SIGN_EXT_P(env->HI[0][env->current_tc]))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[0][env->current_tc]);
-    if (!SIGN_EXT_P(env->LO[0][env->current_tc]))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[0][env->current_tc]);
+    if (!SIGN_EXT_P(env->HI[env->current_tc][0]))
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[env->current_tc][0]);
+    if (!SIGN_EXT_P(env->LO[env->current_tc][0]))
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[env->current_tc][0]);
     if (!SIGN_EXT_P(env->btarget))
         cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 
     for (i = 0; i < 32; i++) {
-        if (!SIGN_EXT_P(env->gpr[i][env->current_tc]))
-            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[i][env->current_tc]);
+        if (!SIGN_EXT_P(env->gpr[env->current_tc][i]))
+            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[env->current_tc][i]);
     }
 
     if (!SIGN_EXT_P(env->CP0_EPC))
@@ -6860,7 +6860,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[i][env->current_tc]);
+        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[env->current_tc][i]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }

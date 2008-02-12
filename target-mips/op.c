@@ -255,25 +255,25 @@ void op_dup_T0 (void)
 
 void op_load_HI (void)
 {
-    T0 = env->HI[PARAM1][env->current_tc];
+    T0 = env->HI[env->current_tc][PARAM1];
     FORCE_RET();
 }
 
 void op_store_HI (void)
 {
-    env->HI[PARAM1][env->current_tc] = T0;
+    env->HI[env->current_tc][PARAM1] = T0;
     FORCE_RET();
 }
 
 void op_load_LO (void)
 {
-    T0 = env->LO[PARAM1][env->current_tc];
+    T0 = env->LO[env->current_tc][PARAM1];
     FORCE_RET();
 }
 
 void op_store_LO (void)
 {
-    env->LO[PARAM1][env->current_tc] = T0;
+    env->LO[env->current_tc][PARAM1] = T0;
     FORCE_RET();
 }
 
@@ -368,8 +368,8 @@ void op_div (void)
 void op_div (void)
 {
     if (T1 != 0) {
-        env->LO[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
-        env->HI[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
+        env->LO[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
+        env->HI[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
     }
     FORCE_RET();
 }
@@ -378,8 +378,8 @@ void op_div (void)
 void op_divu (void)
 {
     if (T1 != 0) {
-        env->LO[0][env->current_tc] = (int32_t)((uint32_t)T0 / (uint32_t)T1);
-        env->HI[0][env->current_tc] = (int32_t)((uint32_t)T0 % (uint32_t)T1);
+        env->LO[env->current_tc][0] = (int32_t)((uint32_t)T0 / (uint32_t)T1);
+        env->HI[env->current_tc][0] = (int32_t)((uint32_t)T0 % (uint32_t)T1);
     }
     FORCE_RET();
 }
@@ -447,8 +447,8 @@ void op_ddivu (void)
 void op_ddivu (void)
 {
     if (T1 != 0) {
-        env->LO[0][env->current_tc] = T0 / T1;
-        env->HI[0][env->current_tc] = T0 % T1;
+        env->LO[env->current_tc][0] = T0 / T1;
+        env->HI[env->current_tc][0] = T0 % T1;
     }
     FORCE_RET();
 }
@@ -869,26 +869,26 @@ void op_mulshiu (void)
 
 static always_inline uint64_t get_HILO (void)
 {
-    return ((uint64_t)env->HI[0][env->current_tc] << 32) |
-            ((uint64_t)(uint32_t)env->LO[0][env->current_tc]);
+    return ((uint64_t)env->HI[env->current_tc][0] << 32) |
+            ((uint64_t)(uint32_t)env->LO[env->current_tc][0]);
 }
 
 static always_inline void set_HILO (uint64_t HILO)
 {
-    env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
-    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+    env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
 static always_inline void set_HIT0_LO (uint64_t HILO)
 {
-    env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
-    T0 = env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+    env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
+    T0 = env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
 static always_inline void set_HI_LOT0 (uint64_t HILO)
 {
-    T0 = env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
-    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+    T0 = env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
 void op_mult (void)
@@ -1029,13 +1029,13 @@ void op_mulshiu (void)
 #if defined(TARGET_MIPS64)
 void op_dmult (void)
 {
-    CALL_FROM_TB4(muls64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
+    CALL_FROM_TB4(muls64, &(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
     FORCE_RET();
 }
 
 void op_dmultu (void)
 {
-    CALL_FROM_TB4(mulu64, &(env->LO[0][env->current_tc]), &(env->HI[0][env->current_tc]), T0, T1);
+    CALL_FROM_TB4(mulu64, &(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
     FORCE_RET();
 }
 #endif
@@ -1044,14 +1044,14 @@ void op_dmultu (void)
 void op_movn (void)
 {
     if (T1 != 0)
-        env->gpr[PARAM1][env->current_tc] = T0;
+        env->gpr[env->current_tc][PARAM1] = T0;
     FORCE_RET();
 }
 
 void op_movz (void)
 {
     if (T1 == 0)
-        env->gpr[PARAM1][env->current_tc] = T0;
+        env->gpr[env->current_tc][PARAM1] = T0;
     FORCE_RET();
 }
 
