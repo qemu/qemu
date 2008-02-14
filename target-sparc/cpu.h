@@ -338,20 +338,23 @@ void cpu_check_irqs(CPUSPARCState *env);
 #ifdef TARGET_SPARC64
 #define MMU_MODE2_SUFFIX _hypv
 #endif
-#define MMU_USER_IDX 0
+#define MMU_USER_IDX   0
+#define MMU_KERNEL_IDX 1
+#define MMU_HYPV_IDX   2
+
 static inline int cpu_mmu_index (CPUState *env)
 {
 #if defined(CONFIG_USER_ONLY)
-    return 0;
+    return MMU_USER_IDX;
 #elif !defined(TARGET_SPARC64)
     return env->psrs;
 #else
     if (!env->psrs)
-        return 0;
+        return MMU_USER_IDX;
     else if ((env->hpstate & HS_PRIV) == 0)
-        return 1;
+        return MMU_KERNEL_IDX;
     else
-        return 2;
+        return MMU_HYPV_IDX;
 #endif
 }
 

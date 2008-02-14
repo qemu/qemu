@@ -4194,8 +4194,10 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     target_phys_addr_t phys_addr;
     int prot, access_index;
 
-    if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2, 0) != 0)
-        if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 0, 0) != 0)
+    if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,
+                             MMU_KERNEL_IDX) != 0)
+        if (get_physical_address(env, &phys_addr, &prot, &access_index, addr,
+                                 0, MMU_KERNEL_IDX) != 0)
             return -1;
     if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
         return -1;
