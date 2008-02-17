@@ -180,8 +180,8 @@ int pit_min_timer_count = 0;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
-int rtc_utc = 1;
-int rtc_start_date = -1; /* -1 means now */
+static int rtc_utc = 1;
+static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
 int vmsvga_enabled = 0;
 #ifdef TARGET_SPARC
@@ -1562,6 +1562,43 @@ static void quit_timers(void)
 {
     alarm_timer->stop(alarm_timer);
     alarm_timer = NULL;
+}
+
+/***********************************************************/
+/* host time/date access */
+void qemu_get_timedate(struct tm *tm, int offset)
+{
+    time_t ti;
+    struct tm *ret;
+
+    time(&ti);
+    ti += offset;
+    if (rtc_date_offset == -1) {
+        if (rtc_utc)
+            ret = gmtime(&ti);
+        else
+            ret = localtime(&ti);
+    } else {
+        ti -= rtc_date_offset;
+        ret = gmtime(&ti);
+    }
+
+    memcpy(tm, ret, sizeof(struct tm));
+}
+
+int qemu_timedate_diff(struct tm *tm)
+{
+    time_t seconds;
+
+    if (rtc_date_offset == -1)
+        if (rtc_utc)
+            seconds = mktimegm(tm);
+        else
+            seconds = mktime(tm);
+    else
+        seconds = mktimegm(tm) + rtc_date_offset;
+
+    return seconds - time(NULL);
 }
 
 /***********************************************************/
@@ -8698,8 +8735,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_startdate:
                 {
                     struct tm tm;
+                    time_t rtc_start_date;
                     if (!strcmp(optarg, "now")) {
-                        rtc_start_date = -1;
+                        rtc_date_offset = -1;
                     } else {
                         if (sscanf(optarg, "%d-%d-%dT%d:%d:%d",
                                &tm.tm_year,
@@ -8728,6 +8766,7 @@ int main(int argc, char **argv)
                                     "'now' or '2006-06-17T16:01:21' or '2006-06-17'\n");
                             exit(1);
                         }
+                        rtc_date_offset = time(NULL) - rtc_start_date;
                     }
                 }
                 break;

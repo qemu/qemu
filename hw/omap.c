@@ -4345,7 +4345,6 @@ struct omap_rtc_s {
     int pm_am;
     int auto_comp;
     int round;
-    struct tm *(*convert)(const time_t *timep, struct tm *result);
     struct tm alarm_tm;
     time_t alarm_ti;
 
@@ -4668,7 +4667,7 @@ static void omap_rtc_tick(void *opaque)
         s->round = 0;
     }
 
-    localtime_r(&s->ti, &s->current_tm);
+    memcpy(&s->current_tm, localtime(&s->ti), sizeof(s->current_tm));
 
     if ((s->interrupts & 0x08) && s->ti == s->alarm_ti) {
         s->status |= 0x40;
@@ -4719,6 +4718,8 @@ static void omap_rtc_tick(void *opaque)
 
 static void omap_rtc_reset(struct omap_rtc_s *s)
 {
+    struct tm tm;
+
     s->interrupts = 0;
     s->comp_reg = 0;
     s->running = 0;
@@ -4729,8 +4730,8 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     memset(&s->alarm_tm, 0, sizeof(s->alarm_tm));
     s->alarm_tm.tm_mday = 0x01;
     s->status = 1 << 7;
-    time(&s->ti);
-    s->ti = mktime(s->convert(&s->ti, &s->current_tm));
+    qemu_get_timedate(&tm, 0);
+    s->ti = mktime(&tm);
 
     omap_rtc_alarm_update(s);
     omap_rtc_tick(s);
@@ -4747,7 +4748,6 @@ struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
     s->irq = irq[0];
     s->alarm = irq[1];
     s->clk = qemu_new_timer(rt_clock, omap_rtc_tick, s);
-    s->convert = rtc_utc ? gmtime_r : localtime_r;
 
     omap_rtc_reset(s);
 
