@@ -578,7 +578,7 @@ void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
             args2[j++] = TCGV_HIGH(arg);
 #else
 #ifdef TCG_TARGET_WORDS_BIGENDIAN
-            args2[j++] = TCGV_HOGH(arg);
+            args2[j++] = TCGV_HIGH(arg);
             args2[j++] = arg;
 #else
             args2[j++] = arg;
