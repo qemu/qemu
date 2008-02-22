@@ -105,7 +105,7 @@ static void curses_resize(DisplayState *ds, int w, int h)
 }
 
 #ifndef _WIN32
-#ifdef SIGWINCH
+#if defined(SIGWINCH) && defined(KEY_RESIZE)
 static void curses_winch_handler(int signum)
 {
     struct winsize {
@@ -186,6 +186,7 @@ static void curses_refresh(DisplayState *ds)
         if (chr == ERR)
             break;
 
+#ifdef KEY_RESIZE
         /* this shouldn't occur when we use a custom SIGWINCH handler */
         if (chr == KEY_RESIZE) {
             clear();
@@ -196,6 +197,7 @@ static void curses_refresh(DisplayState *ds)
             ds->height = FONT_HEIGHT * height;
             continue;
         }
+#endif
 
         keycode = curses2keycode[chr];
         if (keycode == -1)
@@ -346,7 +348,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
 #ifndef _WIN32
     signal(SIGINT, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
-#ifdef SIGWINCH
+#if defined(SIGWINCH) && defined(KEY_RESIZE)
     /* some curses implementations provide a handler, but we
      * want to be sure this is handled regardless of the library */
     signal(SIGWINCH, curses_winch_handler);
