@@ -583,12 +583,13 @@ static void omap_dma_deactivate_channel(struct omap_dma_s *s,
     if (ch->pending_request && !ch->waiting_end_prog) {
         /* Don't deactivate the channel */
         ch->pending_request = 0;
-        return;
+        if (ch->enable)
+            return;
     }
 
     /* Don't deactive the channel if it is synchronized and the DMA request is
        active */
-    if (ch->sync && (s->drq & (1 << ch->sync)))
+    if (ch->sync && (s->drq & (1 << ch->sync)) && ch->enable)
         return;
 
     if (ch->active) {
