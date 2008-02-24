@@ -52,12 +52,6 @@ register uint32_t T2 asm(AREG3);
 void cpu_lock(void);
 void cpu_unlock(void);
 void cpu_loop_exit(void);
-void helper_flush(target_ulong addr);
-void helper_ld_asi(int asi, int size, int sign);
-void helper_st_asi(int asi, int size);
-void helper_ldf_asi(int asi, int size, int rd);
-void helper_stf_asi(int asi, int size, int rd);
-void helper_rett(void);
 void helper_ldfsr(void);
 void set_cwp(int new_cwp);
 void do_fitos(void);
@@ -101,23 +95,13 @@ void do_fcmpeq_fcc1(void);
 void do_fcmpeq_fcc2(void);
 void do_fcmpeq_fcc3(void);
 #endif
-void do_popc();
-void do_wrpstate();
-void do_done();
-void do_retry();
 #endif
-void do_ldd_kernel(target_ulong addr);
-void do_ldd_user(target_ulong addr);
-void do_ldd_raw(target_ulong addr);
 void do_interrupt(int intno);
 void raise_exception(int tt);
 void check_ieee_exceptions();
 void memcpy32(target_ulong *dst, const target_ulong *src);
 target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev);
 void dump_mmu(CPUState *env);
-void helper_debug();
-void do_wrpsr();
-void do_rdpsr();
 
 /* XXX: move that to a generic header */
 #if !defined(CONFIG_USER_ONLY)

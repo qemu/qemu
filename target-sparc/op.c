@@ -19,104 +19,7 @@
 */
 
 #include "exec.h"
-
- /*XXX*/
-#define REGNAME g0
-#define REG (env->gregs[0])
-#include "op_template.h"
-#define REGNAME g1
-#define REG (env->gregs[1])
-#include "op_template.h"
-#define REGNAME g2
-#define REG (env->gregs[2])
-#include "op_template.h"
-#define REGNAME g3
-#define REG (env->gregs[3])
-#include "op_template.h"
-#define REGNAME g4
-#define REG (env->gregs[4])
-#include "op_template.h"
-#define REGNAME g5
-#define REG (env->gregs[5])
-#include "op_template.h"
-#define REGNAME g6
-#define REG (env->gregs[6])
-#include "op_template.h"
-#define REGNAME g7
-#define REG (env->gregs[7])
-#include "op_template.h"
-#define REGNAME i0
-#define REG (REGWPTR[16])
-#include "op_template.h"
-#define REGNAME i1
-#define REG (REGWPTR[17])
-#include "op_template.h"
-#define REGNAME i2
-#define REG (REGWPTR[18])
-#include "op_template.h"
-#define REGNAME i3
-#define REG (REGWPTR[19])
-#include "op_template.h"
-#define REGNAME i4
-#define REG (REGWPTR[20])
-#include "op_template.h"
-#define REGNAME i5
-#define REG (REGWPTR[21])
-#include "op_template.h"
-#define REGNAME i6
-#define REG (REGWPTR[22])
-#include "op_template.h"
-#define REGNAME i7
-#define REG (REGWPTR[23])
-#include "op_template.h"
-#define REGNAME l0
-#define REG (REGWPTR[8])
-#include "op_template.h"
-#define REGNAME l1
-#define REG (REGWPTR[9])
-#include "op_template.h"
-#define REGNAME l2
-#define REG (REGWPTR[10])
-#include "op_template.h"
-#define REGNAME l3
-#define REG (REGWPTR[11])
-#include "op_template.h"
-#define REGNAME l4
-#define REG (REGWPTR[12])
-#include "op_template.h"
-#define REGNAME l5
-#define REG (REGWPTR[13])
-#include "op_template.h"
-#define REGNAME l6
-#define REG (REGWPTR[14])
-#include "op_template.h"
-#define REGNAME l7
-#define REG (REGWPTR[15])
-#include "op_template.h"
-#define REGNAME o0
-#define REG (REGWPTR[0])
-#include "op_template.h"
-#define REGNAME o1
-#define REG (REGWPTR[1])
-#include "op_template.h"
-#define REGNAME o2
-#define REG (REGWPTR[2])
-#include "op_template.h"
-#define REGNAME o3
-#define REG (REGWPTR[3])
-#include "op_template.h"
-#define REGNAME o4
-#define REG (REGWPTR[4])
-#include "op_template.h"
-#define REGNAME o5
-#define REG (REGWPTR[5])
-#include "op_template.h"
-#define REGNAME o6
-#define REG (REGWPTR[6])
-#include "op_template.h"
-#define REGNAME o7
-#define REG (REGWPTR[7])
-#include "op_template.h"
+#include "helper.h"
 
 #define REGNAME f0
 #define REG (env->fpr[0])
@@ -267,105 +170,10 @@
 #endif
 
 #ifdef TARGET_SPARC64
-#ifdef WORDS_BIGENDIAN
-typedef union UREG64 {
-    struct { uint16_t v3, v2, v1, v0; } w;
-    struct { uint32_t v1, v0; } l;
-    uint64_t q;
-} UREG64;
-#else
-typedef union UREG64 {
-    struct { uint16_t v0, v1, v2, v3; } w;
-    struct { uint32_t v0, v1; } l;
-    uint64_t q;
-} UREG64;
-#endif
-
-#define PARAMQ1 \
-({\
-    UREG64 __p;\
-    __p.l.v1 = PARAM1;\
-    __p.l.v0 = PARAM2;\
-    __p.q;\
-})
-
-void OPPROTO op_movq_T0_im64(void)
-{
-    T0 = PARAMQ1;
-}
-
-void OPPROTO op_movq_T1_im64(void)
-{
-    T1 = PARAMQ1;
-}
-
 #define XFLAG_SET(x) ((env->xcc&x)?1:0)
-
-#else
-#define EIP (env->pc)
 #endif
 
 #define FLAG_SET(x) ((env->psr&x)?1:0)
-
-void OPPROTO op_movl_T0_0(void)
-{
-    T0 = 0;
-}
-
-void OPPROTO op_movl_T0_im(void)
-{
-    T0 = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T1_im(void)
-{
-    T1 = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T2_im(void)
-{
-    T2 = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T0_sim(void)
-{
-    T0 = (int32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T1_sim(void)
-{
-    T1 = (int32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T2_sim(void)
-{
-    T2 = (int32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T0_env(void)
-{
-    T0 = *(uint32_t *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_movl_env_T0(void)
-{
-    *(uint32_t *)((char *)env + PARAM1) = T0;
-}
-
-void OPPROTO op_movtl_T0_env(void)
-{
-    T0 = *(target_ulong *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_movtl_env_T0(void)
-{
-    *(target_ulong *)((char *)env + PARAM1) = T0;
-}
-
-void OPPROTO op_add_T1_T0(void)
-{
-    T0 += T1;
-}
 
 void OPPROTO op_add_T1_T0_cc(void)
 {
@@ -565,11 +373,6 @@ void OPPROTO op_tadd_T1_T0_ccTV(void)
     FORCE_RET();
 }
 
-void OPPROTO op_sub_T1_T0(void)
-{
-    T0 -= T1;
-}
-
 void OPPROTO op_sub_T1_T0_cc(void)
 {
     target_ulong src1;
@@ -765,21 +568,6 @@ void OPPROTO op_tsub_T1_T0_ccTV(void)
     FORCE_RET();
 }
 
-void OPPROTO op_and_T1_T0(void)
-{
-    T0 &= T1;
-}
-
-void OPPROTO op_or_T1_T0(void)
-{
-    T0 |= T1;
-}
-
-void OPPROTO op_xor_T1_T0(void)
-{
-    T0 ^= T1;
-}
-
 void OPPROTO op_andn_T1_T0(void)
 {
     T0 &= ~T1;
@@ -921,12 +709,6 @@ void OPPROTO op_div_cc(void)
 }
 
 #ifdef TARGET_SPARC64
-void OPPROTO op_mulx_T1_T0(void)
-{
-    T0 *= T1;
-    FORCE_RET();
-}
-
 void OPPROTO op_udivx_T1_T0(void)
 {
     if (T1 == 0) {
@@ -972,48 +754,6 @@ void OPPROTO op_logic_T0_cc(void)
     FORCE_RET();
 }
 
-void OPPROTO op_sll(void)
-{
-    T0 <<= (T1 & 0x1f);
-}
-
-#ifdef TARGET_SPARC64
-void OPPROTO op_sllx(void)
-{
-    T0 <<= (T1 & 0x3f);
-}
-
-void OPPROTO op_srl(void)
-{
-    T0 = (T0 & 0xffffffff) >> (T1 & 0x1f);
-}
-
-void OPPROTO op_srlx(void)
-{
-    T0 >>= (T1 & 0x3f);
-}
-
-void OPPROTO op_sra(void)
-{
-    T0 = ((int32_t) (T0 & 0xffffffff)) >> (T1 & 0x1f);
-}
-
-void OPPROTO op_srax(void)
-{
-    T0 = ((int64_t) T0) >> (T1 & 0x3f);
-}
-#else
-void OPPROTO op_srl(void)
-{
-    T0 >>= (T1 & 0x1f);
-}
-
-void OPPROTO op_sra(void)
-{
-    T0 = ((int32_t) T0) >> (T1 & 0x1f);
-}
-#endif
-
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.h"
@@ -1042,32 +782,6 @@ void OPPROTO op_stfsr(void)
 }
 
 #ifndef TARGET_SPARC64
-void OPPROTO op_rdpsr(void)
-{
-    do_rdpsr();
-}
-
-void OPPROTO op_wrpsr(void)
-{
-    do_wrpsr();
-    FORCE_RET();
-}
-
-void OPPROTO op_wrwim(void)
-{
-#if NWINDOWS == 32
-    env->wim = T0;
-#else
-    env->wim = T0 & ((1 << NWINDOWS) - 1);
-#endif
-}
-
-void OPPROTO op_rett(void)
-{
-    helper_rett();
-    FORCE_RET();
-}
-
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
 void OPPROTO op_save(void)
@@ -1178,16 +892,6 @@ void OPPROTO op_wrtt(void)
     env->tt[env->tl] = T0;
 }
 
-void OPPROTO op_rdpstate(void)
-{
-    T0 = env->pstate;
-}
-
-void OPPROTO op_wrpstate(void)
-{
-    do_wrpstate();
-}
-
 // CWP handling is reversed in V9, but we still use the V8 register
 // order.
 void OPPROTO op_rdcwp(void)
@@ -1247,22 +951,6 @@ void OPPROTO op_exception(void)
     FORCE_RET();
 }
 
-void OPPROTO op_trap_T0(void)
-{
-    env->exception_index = TT_TRAP + (T0 & 0x7f);
-    cpu_loop_exit();
-    FORCE_RET();
-}
-
-void OPPROTO op_trapcc_T0(void)
-{
-    if (T2) {
-        env->exception_index = TT_TRAP + (T0 & 0x7f);
-        cpu_loop_exit();
-    }
-    FORCE_RET();
-}
-
 void OPPROTO op_fpexception_im(void)
 {
     env->exception_index = TT_FP_EXCP;
@@ -1270,11 +958,6 @@ void OPPROTO op_fpexception_im(void)
     env->fsr |= PARAM1;
     cpu_loop_exit();
     FORCE_RET();
-}
-
-void OPPROTO op_debug(void)
-{
-    helper_debug();
 }
 
 void OPPROTO op_eval_ba(void)
@@ -1499,32 +1182,7 @@ void OPPROTO op_eval_brgez(void)
 {
     T2 = ((int64_t)T0 >= 0);
 }
-
-void OPPROTO op_jmp_im64(void)
-{
-    env->pc = PARAMQ1;
-}
-
-void OPPROTO op_movq_npc_im64(void)
-{
-    env->npc = PARAMQ1;
-}
 #endif
-
-void OPPROTO op_jmp_im(void)
-{
-    env->pc = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_npc_im(void)
-{
-    env->npc = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_npc_T0(void)
-{
-    env->npc = T0;
-}
 
 void OPPROTO op_mov_pc_npc(void)
 {
@@ -1554,11 +1212,6 @@ void OPPROTO op_jz_T2_label(void)
     if (!T2)
         GOTO_LABEL_PARAM(1);
     FORCE_RET();
-}
-
-void OPPROTO op_flush_T0(void)
-{
-    helper_flush(T0);
 }
 
 void OPPROTO op_clear_ieee_excp_and_FTT(void)
@@ -1992,210 +1645,6 @@ void OPPROTO op_restored(void)
     else
         env->otherwin--;
     FORCE_RET();
-}
-
-void OPPROTO op_popc(void)
-{
-    do_popc();
-}
-
-void OPPROTO op_done(void)
-{
-    do_done();
-}
-
-void OPPROTO op_retry(void)
-{
-    do_retry();
-}
-
-void OPPROTO op_sir(void)
-{
-    T0 = 0;  // XXX
-}
-
-void OPPROTO op_ld_asi_reg()
-{
-    T0 += PARAM1;
-    helper_ld_asi(env->asi, PARAM2, PARAM3);
-}
-
-void OPPROTO op_st_asi_reg()
-{
-    T0 += PARAM1;
-    helper_st_asi(env->asi, PARAM2);
-}
-
-void OPPROTO op_ldf_asi_reg()
-{
-    T0 += PARAM1;
-    helper_ldf_asi(env->asi, PARAM2, PARAM3);
-}
-
-void OPPROTO op_stf_asi_reg()
-{
-    T0 += PARAM1;
-    helper_stf_asi(env->asi, PARAM2, PARAM3);
-}
-
-void OPPROTO op_ldf_asi()
-{
-    helper_ldf_asi(PARAM1, PARAM2, PARAM3);
-}
-
-void OPPROTO op_stf_asi()
-{
-    helper_stf_asi(PARAM1, PARAM2, PARAM3);
-}
-
-void OPPROTO op_ldstub_asi_reg()             /* XXX: should be atomically */
-{
-    target_ulong tmp;
-
-    T0 += PARAM1;
-    helper_ld_asi(env->asi, 1, 0);
-    tmp = T1;
-    T1 = 0xff;
-    helper_st_asi(env->asi, 1);
-    T1 = tmp;
-}
-
-void OPPROTO op_swap_asi_reg()               /* XXX: should be atomically */
-{
-    target_ulong tmp1, tmp2;
-
-    T0 += PARAM1;
-    tmp1 = T1;
-    helper_ld_asi(env->asi, 4, 0);
-    tmp2 = T1;
-    T1 = tmp1;
-    helper_st_asi(env->asi, 4);
-    T1 = tmp2;
-}
-
-void OPPROTO op_ldda_asi()
-{
-    helper_ld_asi(PARAM1, 8, 0);
-    T0 = T1 & 0xffffffffUL;
-    T1 >>= 32;
-}
-
-void OPPROTO op_ldda_asi_reg()
-{
-    T0 += PARAM1;
-    helper_ld_asi(env->asi, 8, 0);
-    T0 = T1 & 0xffffffffUL;
-    T1 >>= 32;
-}
-
-void OPPROTO op_stda_asi()
-{
-    T1 <<= 32;
-    T1 += T2 & 0xffffffffUL;
-    helper_st_asi(PARAM1, 8);
-}
-
-void OPPROTO op_stda_asi_reg()
-{
-    T0 += PARAM1;
-    T1 <<= 32;
-    T1 += T2 & 0xffffffffUL;
-    helper_st_asi(env->asi, 8);
-}
-
-void OPPROTO op_cas_asi()                    /* XXX: should be atomically */
-{
-    target_ulong tmp;
-
-    tmp = T1 & 0xffffffffUL;
-    helper_ld_asi(PARAM1, 4, 0);
-    if (tmp == T1) {
-        tmp = T1;
-        T1 = T2 & 0xffffffffUL;
-        helper_st_asi(PARAM1, 4);
-        T1 = tmp;
-    }
-    T1 &= 0xffffffffUL;
-}
-
-void OPPROTO op_cas_asi_reg()                /* XXX: should be atomically */
-{
-    target_ulong tmp;
-
-    T0 += PARAM1;
-    tmp = T1 & 0xffffffffUL;
-    helper_ld_asi(env->asi, 4, 0);
-    if (tmp == T1) {
-        tmp = T1;
-        T1 = T2 & 0xffffffffUL;
-        helper_st_asi(env->asi, 4);
-        T1 = tmp;
-    }
-    T1 &= 0xffffffffUL;
-}
-
-void OPPROTO op_casx_asi()                   /* XXX: should be atomically */
-{
-    target_ulong tmp;
-
-    tmp = T1;
-    helper_ld_asi(PARAM1, 8, 0);
-    if (tmp == T1) {
-        tmp = T1;
-        T1 = T2;
-        helper_st_asi(PARAM1, 8);
-        T1 = tmp;
-    }
-}
-
-void OPPROTO op_casx_asi_reg()               /* XXX: should be atomically */
-{
-    target_ulong tmp;
-
-    T0 += PARAM1;
-    tmp = T1;
-    helper_ld_asi(env->asi, 8, 0);
-    if (tmp == T1) {
-        tmp = T1;
-        T1 = T2;
-        helper_st_asi(env->asi, 8);
-        T1 = tmp;
-    }
-}
-#endif
-
-#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
-void OPPROTO op_ld_asi()
-{
-    helper_ld_asi(PARAM1, PARAM2, PARAM3);
-}
-
-void OPPROTO op_st_asi()
-{
-    helper_st_asi(PARAM1, PARAM2);
-}
-
-void OPPROTO op_ldstub_asi()                 /* XXX: should be atomically */
-{
-    target_ulong tmp;
-
-    helper_ld_asi(PARAM1, 1, 0);
-    tmp = T1;
-    T1 = 0xff;
-    helper_st_asi(PARAM1, 1);
-    T1 = tmp;
-}
-
-void OPPROTO op_swap_asi()                   /* XXX: should be atomically */
-{
-    target_ulong tmp1, tmp2;
-
-    tmp1 = T1;
-    helper_ld_asi(PARAM1, 4, 0);
-    tmp2 = T1;
-    T1 = tmp1;
-    helper_st_asi(PARAM1, 4);
-    T1 = tmp2;
 }
 #endif
 
