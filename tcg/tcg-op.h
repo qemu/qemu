@@ -192,6 +192,33 @@ static inline void tcg_gen_helper_0_2(void *func, TCGv arg1, TCGv arg2)
                  0, NULL, 2, args);
 }
 
+static inline void tcg_gen_helper_0_4(void *func, TCGv arg1, TCGv arg2,
+                                      TCGv arg3, TCGv arg4)
+{
+    TCGv args[4];
+    args[0] = arg1;
+    args[1] = arg2;
+    args[2] = arg3;
+    args[3] = arg4;
+    tcg_gen_call(&tcg_ctx,
+                 tcg_const_ptr((tcg_target_long)func), TCG_HELPER_CALL_FLAGS,
+                 0, NULL, 4, args);
+}
+
+static inline void tcg_gen_helper_1_0(void *func, TCGv ret)
+{
+    tcg_gen_call(&tcg_ctx,
+                 tcg_const_ptr((tcg_target_long)func), TCG_HELPER_CALL_FLAGS,
+                 1, &ret, 0, NULL);
+}
+
+static inline void tcg_gen_helper_1_1(void *func, TCGv ret, TCGv arg1)
+{
+    tcg_gen_call(&tcg_ctx,
+                 tcg_const_ptr((tcg_target_long)func), TCG_HELPER_CALL_FLAGS,
+                 1, &ret, 1, &arg1);
+}
+
 static inline void tcg_gen_helper_1_2(void *func, TCGv ret, 
                                       TCGv arg1, TCGv arg2)
 {
@@ -201,6 +228,20 @@ static inline void tcg_gen_helper_1_2(void *func, TCGv ret,
     tcg_gen_call(&tcg_ctx, 
                  tcg_const_ptr((tcg_target_long)func), TCG_HELPER_CALL_FLAGS,
                  1, &ret, 2, args);
+}
+
+static inline void tcg_gen_helper_1_4(void *func, TCGv ret,
+                                      TCGv arg1, TCGv arg2, TCGv arg3,
+                                      TCGv arg4)
+{
+    TCGv args[4];
+    args[0] = arg1;
+    args[1] = arg2;
+    args[2] = arg3;
+    args[3] = arg4;
+    tcg_gen_call(&tcg_ctx,
+                 tcg_const_ptr((tcg_target_long)func), TCG_HELPER_CALL_FLAGS,
+                 1, &ret, 4, args);
 }
 
 /* 32 bit ops */
@@ -1222,6 +1263,8 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #endif
 }
 
+#define tcg_gen_ld_ptr tcg_gen_ld_i64
+
 #else /* TCG_TARGET_REG_BITS == 32 */
 
 static inline void tcg_gen_qemu_ld8u(TCGv ret, TCGv addr, int mem_index)
@@ -1279,4 +1322,70 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
     tcg_gen_op3i(INDEX_op_qemu_st64, arg, addr, mem_index);
 }
 
+#define tcg_gen_ld_ptr tcg_gen_ld_i32
+
 #endif /* TCG_TARGET_REG_BITS != 32 */
+
+#if TARGET_LONG_BITS == 64
+#define TCG_TYPE_TL TCG_TYPE_I64
+#define tcg_gen_movi_tl tcg_gen_movi_i64
+#define tcg_gen_mov_tl tcg_gen_mov_i64
+#define tcg_gen_ld8u_tl tcg_gen_ld8u_i64
+#define tcg_gen_ld8s_tl tcg_gen_ld8s_i64
+#define tcg_gen_ld16u_tl tcg_gen_ld16u_i64
+#define tcg_gen_ld16s_tl tcg_gen_ld16s_i64
+#define tcg_gen_ld32u_tl tcg_gen_ld32u_i64
+#define tcg_gen_ld32s_tl tcg_gen_ld32s_i64
+#define tcg_gen_ld_tl tcg_gen_ld_i64
+#define tcg_gen_st8_tl tcg_gen_st8_i64
+#define tcg_gen_st16_tl tcg_gen_st16_i64
+#define tcg_gen_st32_tl tcg_gen_st32_i64
+#define tcg_gen_st_tl tcg_gen_st_i64
+#define tcg_gen_add_tl tcg_gen_add_i64
+#define tcg_gen_addi_tl tcg_gen_addi_i64
+#define tcg_gen_sub_tl tcg_gen_sub_i64
+#define tcg_gen_subi_tl tcg_gen_subi_i64
+#define tcg_gen_and_tl tcg_gen_and_i64
+#define tcg_gen_andi_tl tcg_gen_andi_i64
+#define tcg_gen_or_tl tcg_gen_or_i64
+#define tcg_gen_ori_tl tcg_gen_ori_i64
+#define tcg_gen_xor_tl tcg_gen_xor_i64
+#define tcg_gen_xori_tl tcg_gen_xori_i64
+#define tcg_gen_shl_tl tcg_gen_shl_i64
+#define tcg_gen_shli_tl tcg_gen_shli_i64
+#define tcg_gen_shr_tl tcg_gen_shr_i64
+#define tcg_gen_shri_tl tcg_gen_shri_i64
+#define tcg_gen_sar_tl tcg_gen_sar_i64
+#define tcg_gen_sari_tl tcg_gen_sari_i64
+#else
+#define TCG_TYPE_TL TCG_TYPE_I32
+#define tcg_gen_movi_tl tcg_gen_movi_i32
+#define tcg_gen_mov_tl tcg_gen_mov_i32
+#define tcg_gen_ld8u_tl tcg_gen_ld8u_i32
+#define tcg_gen_ld8s_tl tcg_gen_ld8s_i32
+#define tcg_gen_ld16u_tl tcg_gen_ld16u_i32
+#define tcg_gen_ld16s_tl tcg_gen_ld16s_i32
+#define tcg_gen_ld32u_tl tcg_gen_ld_i32
+#define tcg_gen_ld32s_tl tcg_gen_ld_i32
+#define tcg_gen_ld_tl tcg_gen_ld_i32
+#define tcg_gen_st8_tl tcg_gen_st8_i32
+#define tcg_gen_st16_tl tcg_gen_st16_i32
+#define tcg_gen_st32_tl tcg_gen_st_i32
+#define tcg_gen_st_tl tcg_gen_st_i32
+#define tcg_gen_add_tl tcg_gen_add_i32
+#define tcg_gen_addi_tl tcg_gen_addi_i32
+#define tcg_gen_sub_tl tcg_gen_sub_i32
+#define tcg_gen_subi_tl tcg_gen_subi_i32
+#define tcg_gen_and_tl tcg_gen_and_i32
+#define tcg_gen_andi_tl tcg_gen_andi_i32
+#define tcg_gen_or_tl tcg_gen_or_i32
+#define tcg_gen_ori_tl tcg_gen_ori_i32
+#define tcg_gen_xor_tl tcg_gen_xor_i32
+#define tcg_gen_xori_tl tcg_gen_xori_i32
+#define tcg_gen_shl_tl tcg_gen_shl_i32
+#define tcg_gen_shli_tl tcg_gen_shli_i32
+#define tcg_gen_shr_tl tcg_gen_shr_i32
+#define tcg_gen_shri_tl tcg_gen_shri_i32
+#define tcg_gen_sar_tl tcg_gen_sar_i32
+#define tcg_gen_sari_tl tcg_gen_sari_i32
+#endif
