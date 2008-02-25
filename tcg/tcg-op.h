@@ -1263,7 +1263,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #endif
 }
 
-#define tcg_gen_ld_ptr tcg_gen_ld_i64
+#define tcg_gen_ld_ptr tcg_gen_ld_i32
 
 #else /* TCG_TARGET_REG_BITS == 32 */
 
@@ -1322,7 +1322,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
     tcg_gen_op3i(INDEX_op_qemu_st64, arg, addr, mem_index);
 }
 
-#define tcg_gen_ld_ptr tcg_gen_ld_i32
+#define tcg_gen_ld_ptr tcg_gen_ld_i64
 
 #endif /* TCG_TARGET_REG_BITS != 32 */
 
