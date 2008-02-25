@@ -55,6 +55,7 @@ TESTCASES += check_cmpxm.tst
 TESTCASES += check_cmp-2.tst
 TESTCASES += check_clrjmp1.tst
 TESTCASES += check_dstep.tst
+TESTCASES += check_ftag.tst
 TESTCASES += check_int64.tst
 # check_jsr is broken.
 #TESTCASES += check_jsr.tst
