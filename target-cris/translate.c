@@ -2123,6 +2123,18 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 	return 2;
 }
 
+static unsigned int dec_ftag_fidx_d_m(DisasContext *dc)
+{
+	/* Ignore D-cache flushes.  */
+	return 2;
+}
+
+static unsigned int dec_ftag_fidx_i_m(DisasContext *dc)
+{
+	/* Ignore I-cache flushes.  */
+	return 2;
+}
+
 static unsigned int dec_null(DisasContext *dc)
 {
 	printf ("unknown insn pc=%x opc=%x op1=%x op2=%x\n",
@@ -2213,8 +2225,8 @@ struct decoder_info {
 	{DEC_NEG_R, dec_neg_r},
 	{DEC_MOVE_R, dec_move_r},
 
-	/* ftag_fidx_i_m.  */
-	/* ftag_fidx_d_m.  */
+	{DEC_FTAG_FIDX_I_M, dec_ftag_fidx_i_m},
+	{DEC_FTAG_FIDX_D_M, dec_ftag_fidx_d_m},
 
 	{DEC_MULS_R, dec_muls_r},
 	{DEC_MULU_R, dec_mulu_r},
