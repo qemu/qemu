@@ -1615,12 +1615,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             error("No save at the beginning of %s", name);
         }
 
+#if 0
         /* Skip a preceeding nop, if present.  */
         if (p > p_start) {
             skip_insn = get32((uint32_t *)(p - 0x4));
             if (skip_insn == 0x01000000)
                 p -= 4;
         }
+#endif
 
         copy_size = p - p_start;
     }
