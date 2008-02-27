@@ -4,6 +4,16 @@
 #define ADDR(x) (x)
 #endif
 
+#ifdef __i386__
+/***                              Integer store                            ***/
+void OPPROTO glue(op_std, MEMSUFFIX)(void)
+{
+    uint64_t tmp = ((uint64_t)T1 << 32) | (uint64_t)(T2 & 0xffffffff);
+
+    glue(stq, MEMSUFFIX)(ADDR(T0), tmp);
+}
+
+#endif /* __i386__ */
 /***                         Floating-point store                          ***/
 void OPPROTO glue(op_stf, MEMSUFFIX) (void)
 {

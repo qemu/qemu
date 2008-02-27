@@ -192,6 +192,9 @@ GEN32(gen_op_store_QT1_fpr, gen_op_store_QT1_fpr_fprf);
 #endif
 
 #ifndef CONFIG_USER_ONLY
+#ifdef __i386__
+OP_LD_TABLE(std);
+#endif /* __i386__ */
 OP_LD_TABLE(stf);
 OP_LD_TABLE(stdf);
 OP_LD_TABLE(ldf);
@@ -231,6 +234,13 @@ static inline void gen_movl_reg_T1(int reg)
     gen_movl_reg_TN(reg, cpu_T[1]);
 }
 
+#ifdef __i386__
+static inline void gen_movl_reg_T2(int reg)
+{
+    gen_movl_reg_TN(reg, cpu_T[2]);
+}
+
+#endif /* __i386__ */
 static inline void gen_movl_TN_reg(int reg, TCGv tn)
 {
     if (reg == 0)
@@ -3275,6 +3285,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x7: /* store double word */
                     if (rd & 1)
                         goto illegal_insn;
+#ifndef __i386__
                     else {
                         TCGv r_dword, r_low;
 
@@ -3286,6 +3297,12 @@ static void disas_sparc_insn(DisasContext * dc)
                                            r_low);
                         tcg_gen_qemu_st64(r_dword, cpu_T[0], dc->mem_idx);
                     }
+#else /* __i386__ */
+                    gen_op_check_align_T0_7();
+                    flush_T2(dc);
+                    gen_movl_reg_T2(rd + 1);
+                    gen_op_ldst(std);
+#endif /* __i386__ */
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x14: /* store word alternate */
