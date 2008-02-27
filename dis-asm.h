@@ -444,6 +444,7 @@ extern int generic_symbol_at_address
   (INFO).stream = (STREAM), \
   (INFO).symbols = NULL, \
   (INFO).num_symbols = 0, \
+  (INFO).private_data = NULL, \
   (INFO).buffer = NULL, \
   (INFO).buffer_vma = 0, \
   (INFO).buffer_length = 0, \
