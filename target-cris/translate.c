@@ -71,6 +71,8 @@
 #define BUG() (gen_BUG(dc, __FILE__, __LINE__))
 #define BUG_ON(x) ({if (x) BUG();})
 
+#define DISAS_SWI 5
+
 /* Used by the decoder.  */
 #define EXTRACT_FIELD(src, start, end) \
             (((src) >> start) & ((1 << (end - start + 1)) - 1))
@@ -2112,6 +2114,7 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 			gen_op_movl_pc_T0();
 			/* Breaks start at 16 in the exception vector.  */
 			gen_op_break_im(dc->op1 + 16);
+			dc->is_jmp = DISAS_SWI;
 			break;
 		default:
 			printf ("op2=%x\n", dc->op2);
@@ -2332,7 +2335,8 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	do
 	{
 		check_breakpoint(env, dc);
-		if (dc->is_jmp == DISAS_JUMP)
+		if (dc->is_jmp == DISAS_JUMP
+		    || dc->is_jmp == DISAS_SWI)
 			goto done;
 
 		if (search_pc) {
@@ -2404,6 +2408,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 				   to find the next TB */
 				tcg_gen_exit_tb(0);
 				break;
+			case DISAS_SWI:
 			case DISAS_TB_JUMP:
 				/* nothing more to generate */
 				break;
