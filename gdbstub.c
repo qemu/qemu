@@ -828,7 +828,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
   for (i = 0; i < 16; i++)
 	  ptr += cris_save_32 (ptr, env->regs[i]);
 
-  srs = env->pregs[SR_SRS];
+  srs = env->pregs[PR_SRS];
 
   ptr += cris_save_8 (ptr, env->pregs[0]);
   ptr += cris_save_8 (ptr, env->pregs[1]);

@@ -185,9 +185,9 @@ void OPPROTO op_ccs_lshift (void)
 	uint32_t ccs;
 
 	/* Apply the ccs shift.  */
-	ccs = env->pregs[SR_CCS];
+	ccs = env->pregs[PR_CCS];
 	ccs = (ccs & 0xc0000000) | ((ccs << 12) >> 2);
-	env->pregs[SR_CCS] = ccs;
+	env->pregs[PR_CCS] = ccs;
 	RETURN();
 }
 void OPPROTO op_ccs_rshift (void)
@@ -195,21 +195,21 @@ void OPPROTO op_ccs_rshift (void)
 	uint32_t ccs;
 
 	/* Apply the ccs shift.  */
-	ccs = env->pregs[SR_CCS];
+	ccs = env->pregs[PR_CCS];
 	ccs = (ccs & 0xc0000000) | (ccs >> 10);
-	env->pregs[SR_CCS] = ccs;
+	env->pregs[PR_CCS] = ccs;
 	RETURN();
 }
 
 void OPPROTO op_setf (void)
 {
-	env->pregs[SR_CCS] |= PARAM1;
+	env->pregs[PR_CCS] |= PARAM1;
 	RETURN();
 }
 
 void OPPROTO op_clrf (void)
 {
-	env->pregs[SR_CCS] &= ~PARAM1;
+	env->pregs[PR_CCS] &= ~PARAM1;
 	RETURN();
 }
 
@@ -254,25 +254,25 @@ void OPPROTO op_movl_debug3_im (void)
 }
 void OPPROTO op_movl_T0_flags (void)
 {
-	T0 = env->pregs[SR_CCS];
+	T0 = env->pregs[PR_CCS];
 	RETURN();
 }
 void OPPROTO op_movl_flags_T0 (void)
 {
-	env->pregs[SR_CCS] = T0;
+	env->pregs[PR_CCS] = T0;
 	RETURN();
 }
 
 void OPPROTO op_movl_sreg_T0 (void)
 {
-	env->sregs[env->pregs[SR_SRS]][PARAM1] = T0;
+	env->sregs[env->pregs[PR_SRS]][PARAM1] = T0;
 	RETURN();
 }
 
 void OPPROTO op_movl_tlb_lo_T0 (void)
 {
 	int srs;
-	srs = env->pregs[SR_SRS];
+	srs = env->pregs[PR_SRS];
 	if (srs == 1 || srs == 2)
 	{
 		int set;
@@ -296,7 +296,7 @@ void OPPROTO op_movl_tlb_lo_T0 (void)
 
 void OPPROTO op_movl_T0_sreg (void)
 {
-	T0 = env->sregs[env->pregs[SR_SRS]][PARAM1];
+	T0 = env->sregs[env->pregs[PR_SRS]][PARAM1];
 	RETURN();
 }
 
@@ -356,21 +356,21 @@ extern inline void evaluate_flags_writeback(uint32_t flags)
 	int x;
 
 	/* Extended arithmetics, leave the z flag alone.  */
-	env->debug3 = env->pregs[SR_CCS];
+	env->debug3 = env->pregs[PR_CCS];
 
 	if (env->cc_x_live)
 		x = env->cc_x;
 	else
-		x = env->pregs[SR_CCS] & X_FLAG;
+		x = env->pregs[PR_CCS] & X_FLAG;
 
 	if ((x || env->cc_op == CC_OP_ADDC)
 	    && flags & Z_FLAG)
 		env->cc_mask &= ~Z_FLAG;
 
 	/* all insn clear the x-flag except setf or clrf.  */
-	env->pregs[SR_CCS] &= ~(env->cc_mask | X_FLAG);
+	env->pregs[PR_CCS] &= ~(env->cc_mask | X_FLAG);
 	flags &= env->cc_mask;
-	env->pregs[SR_CCS] |= flags;
+	env->pregs[PR_CCS] |= flags;
 	RETURN();
 }
 
@@ -778,30 +778,30 @@ void OPPROTO op_subl_T0_im (void)
 
 void OPPROTO op_addxl_T0_C (void)
 {
-	if (env->pregs[SR_CCS] & X_FLAG)
-		T0 += !!(env->pregs[SR_CCS] & C_FLAG);
+	if (env->pregs[PR_CCS] & X_FLAG)
+		T0 += !!(env->pregs[PR_CCS] & C_FLAG);
 	RETURN();
 }
 void OPPROTO op_subxl_T0_C (void)
 {
-	if (env->pregs[SR_CCS] & X_FLAG)
-		T0 -= !!(env->pregs[SR_CCS] & C_FLAG);
+	if (env->pregs[PR_CCS] & X_FLAG)
+		T0 -= !!(env->pregs[PR_CCS] & C_FLAG);
 	RETURN();
 }
 void OPPROTO op_addl_T0_C (void)
 {
-	T0 += !!(env->pregs[SR_CCS] & C_FLAG);
+	T0 += !!(env->pregs[PR_CCS] & C_FLAG);
 	RETURN();
 }
 void OPPROTO op_addl_T0_R (void)
 {
-	T0 += !!(env->pregs[SR_CCS] & R_FLAG);
+	T0 += !!(env->pregs[PR_CCS] & R_FLAG);
 	RETURN();
 }
 
 void OPPROTO op_clr_R (void)
 {
-	env->pregs[SR_CCS] &= ~R_FLAG;
+	env->pregs[PR_CCS] &= ~R_FLAG;
 	RETURN();
 }
 
@@ -880,7 +880,7 @@ void OPPROTO op_muls_T0_T1 (void)
 
 	tmp = t0 * t1;
 	T0 = tmp & 0xffffffff;
-	env->pregs[REG_MOF] = tmp >> 32;
+	env->pregs[PR_MOF] = tmp >> 32;
 	RETURN();
 }
 
@@ -892,7 +892,7 @@ void OPPROTO op_mulu_T0_T1 (void)
 
 	tmp = t0 * t1;
 	T0 = tmp & 0xffffffff;
-	env->pregs[REG_MOF] = tmp >> 32;
+	env->pregs[PR_MOF] = tmp >> 32;
 	RETURN();
 }
 
@@ -1042,7 +1042,7 @@ void OPPROTO op_swapr_T0_T0 (void)
 }
 
 void OPPROTO op_tst_cc_eq (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int z_set;
 
 	z_set = !!(flags & Z_FLAG);
@@ -1056,7 +1056,7 @@ void OPPROTO op_tst_cc_eq_fast (void) {
 }
 
 void OPPROTO op_tst_cc_ne (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int z_set;
 
 	z_set = !!(flags & Z_FLAG);
@@ -1069,7 +1069,7 @@ void OPPROTO op_tst_cc_ne_fast (void) {
 }
 
 void OPPROTO op_tst_cc_cc (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int c_set;
 
 	c_set = !!(flags & C_FLAG);
@@ -1077,7 +1077,7 @@ void OPPROTO op_tst_cc_cc (void) {
 	RETURN();
 }
 void OPPROTO op_tst_cc_cs (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int c_set;
 
 	c_set = !!(flags & C_FLAG);
@@ -1086,7 +1086,7 @@ void OPPROTO op_tst_cc_cs (void) {
 }
 
 void OPPROTO op_tst_cc_vc (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int v_set;
 
 	v_set = !!(flags & V_FLAG);
@@ -1094,7 +1094,7 @@ void OPPROTO op_tst_cc_vc (void) {
 	RETURN();
 }
 void OPPROTO op_tst_cc_vs (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int v_set;
 
 	v_set = !!(flags & V_FLAG);
@@ -1102,7 +1102,7 @@ void OPPROTO op_tst_cc_vs (void) {
 	RETURN();
 }
 void OPPROTO op_tst_cc_pl (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int n_set;
 
 	n_set = !!(flags & N_FLAG);
@@ -1115,7 +1115,7 @@ void OPPROTO op_tst_cc_pl_fast (void) {
 }
 
 void OPPROTO op_tst_cc_mi (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int n_set;
 
 	n_set = !!(flags & N_FLAG);
@@ -1128,7 +1128,7 @@ void OPPROTO op_tst_cc_mi_fast (void) {
 }
 
 void OPPROTO op_tst_cc_ls (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int c_set;
 	int z_set;
 
@@ -1138,7 +1138,7 @@ void OPPROTO op_tst_cc_ls (void) {
 	RETURN();
 }
 void OPPROTO op_tst_cc_hi (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int z_set;
 	int c_set;
 
@@ -1150,7 +1150,7 @@ void OPPROTO op_tst_cc_hi (void) {
 }
 
 void OPPROTO op_tst_cc_ge (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int n_set;
 	int v_set;
 
@@ -1166,7 +1166,7 @@ void OPPROTO op_tst_cc_ge_fast (void) {
 }
 
 void OPPROTO op_tst_cc_lt (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int n_set;
 	int v_set;
 
@@ -1177,7 +1177,7 @@ void OPPROTO op_tst_cc_lt (void) {
 }
 
 void OPPROTO op_tst_cc_gt (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int n_set;
 	int v_set;
 	int z_set;
@@ -1191,7 +1191,7 @@ void OPPROTO op_tst_cc_gt (void) {
 }
 
 void OPPROTO op_tst_cc_le (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int n_set;
 	int v_set;
 	int z_set;
@@ -1204,7 +1204,7 @@ void OPPROTO op_tst_cc_le (void) {
 }
 
 void OPPROTO op_tst_cc_p (void) {
-	uint32_t flags = env->pregs[SR_CCS];
+	uint32_t flags = env->pregs[PR_CCS];
 	int p_set;
 
 	p_set = !!(flags & P_FLAG);
@@ -1224,7 +1224,7 @@ void OPPROTO op_evaluate_bcc (void)
 /* this one is used on every alu op, optimize it!.  */
 void OPPROTO op_goto_if_not_x (void)
 {
-	if (env->pregs[SR_CCS] & X_FLAG)
+	if (env->pregs[PR_CCS] & X_FLAG)
 		GOTO_LABEL_PARAM(1);
 	RETURN();
 }

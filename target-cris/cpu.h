@@ -239,19 +239,21 @@ static inline int cpu_mmu_index (CPUState *env)
 
 #include "cpu-all.h"
 
-/* Register aliases.  */
-#define REG_SP  14
-#define REG_ACR 15
-#define REG_MOF 7
+/* Register aliases. R0 - R15 */
+#define R_FP  8
+#define R_SP  14
+#define R_ACR 15
 
-/* Support regs.  */
-#define SR_PID 2
-#define SR_SRS 3
-#define SR_EBP 9
-#define SR_ERP 10
-#define SR_CCS 13
+/* Support regs, P0 - P15  */
+#define PR_PID 2
+#define PR_SRS 3
+#define PR_MOF 7
+#define PR_EBP 9
+#define PR_ERP 10
+#define PR_SRP 11
+#define PR_CCS 13
 
-/* Support func regs.  */
+/* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
 #define SFR_RW_MM_CFG      1][0
 #define SFR_RW_MM_KBASE_LO 1][1

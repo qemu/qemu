@@ -82,10 +82,9 @@ static void cris_shift_ccs(CPUState *env)
 {
 	uint32_t ccs;
 	/* Apply the ccs shift.  */
-	ccs = env->pregs[SR_CCS];
+	ccs = env->pregs[PR_CCS];
 	ccs = (ccs & 0xc0000000) | ((ccs << 12) >> 2);
-//	printf ("ccs=%x %x\n", env->pregs[SR_CCS], ccs);
-	env->pregs[SR_CCS] = ccs;
+	env->pregs[PR_CCS] = ccs;
 }
 
 void do_interrupt(CPUState *env)
@@ -104,11 +103,10 @@ void do_interrupt(CPUState *env)
 	switch (env->exception_index)
 	{
 		case EXCP_BREAK:
-//			printf ("BREAK! %d\n", env->trapnr);
 			irqnum = env->trapnr;
-			ebp = env->pregs[SR_EBP];
+			ebp = env->pregs[PR_EBP];
 			isr = ldl_code(ebp + irqnum * 4);
-			env->pregs[SR_ERP] = env->pc + 2;
+			env->pregs[PR_ERP] = env->pc + 2;
 			env->pc = isr;
 
 			cris_shift_ccs(env);
@@ -117,9 +115,9 @@ void do_interrupt(CPUState *env)
 		case EXCP_MMU_MISS:
 //			printf ("MMU miss\n");
 			irqnum = 4;
-			ebp = env->pregs[SR_EBP];
+			ebp = env->pregs[PR_EBP];
 			isr = ldl_code(ebp + irqnum * 4);
-			env->pregs[SR_ERP] = env->pc;
+			env->pregs[PR_ERP] = env->pc;
 			env->pc = isr;
 			cris_shift_ccs(env);
 			break;
@@ -131,15 +129,15 @@ void do_interrupt(CPUState *env)
 			if (env->interrupt_request & CPU_INTERRUPT_HARD) {
 				if (!env->pending_interrupts)
 					return;
-				if (!(env->pregs[SR_CCS] & I_FLAG)) {
+				if (!(env->pregs[PR_CCS] & I_FLAG)) {
 					return;
 				}
 
 				irqnum = 31 - clz32(env->pending_interrupts);
 				irqnum += 0x30;
-				ebp = env->pregs[SR_EBP];
+				ebp = env->pregs[PR_EBP];
 				isr = ldl_code(ebp + irqnum * 4);
-				env->pregs[SR_ERP] = env->pc;
+				env->pregs[PR_ERP] = env->pc;
 				env->pc = isr;
 
 				cris_shift_ccs(env);
@@ -161,7 +159,6 @@ void do_interrupt(CPUState *env)
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
-//	printf ("%s\n", __func__);
 	uint32_t phy = addr;
 	struct cris_mmu_result_t res;
 	int miss;

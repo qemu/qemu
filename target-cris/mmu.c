@@ -87,7 +87,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		pid = EXTRACT_FIELD(hi, 0, 7);
 
 		if (vpn == vpage
-		    && pid == env->pregs[SR_PID]) {
+		    && pid == env->pregs[PR_PID]) {
 			match = 1;
 			break;
 		}
@@ -104,7 +104,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 	printf ("%s match=%d vaddr=%x vpage=%x vpn=%x pfn=%x pid=%x %x\n",
 		__func__, match,
 		vaddr, vpage,
-		vpn, pfn, pid, env->pregs[SR_PID]);
+		vpn, pfn, pid, env->pregs[PR_PID]);
 	res->pfn = pfn;
 	return !match;
 }
