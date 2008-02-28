@@ -2706,6 +2706,178 @@ badframe:
     force_sig(TARGET_SIGSEGV);
     return 0;
 }
+#elif defined(TARGET_CRIS)
+
+struct target_sigcontext {
+        struct target_pt_regs regs;  /* needs to be first */
+        uint32_t oldmask;
+        uint32_t usp;    /* usp before stacking this gunk on it */
+};
+
+/* Signal frames. */
+struct target_signal_frame {
+        struct target_sigcontext sc;
+        uint32_t extramask[TARGET_NSIG_WORDS - 1];
+        uint8_t retcode[8];       /* Trampoline code. */
+};
+
+struct rt_signal_frame {
+        struct siginfo *pinfo;
+        void *puc;
+        struct siginfo info;
+        struct ucontext uc;
+        uint8_t retcode[8];       /* Trampoline code. */
+};
+
+static void setup_sigcontext(struct target_sigcontext *sc, CPUState *env)
+{
+	sc->regs.r0 = env->regs[0];
+	sc->regs.r1 = env->regs[1];
+	sc->regs.r2 = env->regs[2];
+	sc->regs.r3 = env->regs[3];
+	sc->regs.r4 = env->regs[4];
+	sc->regs.r5 = env->regs[5];
+	sc->regs.r6 = env->regs[6];
+	sc->regs.r7 = env->regs[7];
+	sc->regs.r8 = env->regs[8];
+	sc->regs.r9 = env->regs[9];
+	sc->regs.r10 = env->regs[10];
+	sc->regs.r11 = env->regs[11];
+	sc->regs.r12 = env->regs[12];
+	sc->regs.r13 = env->regs[13];
+	sc->usp      = env->regs[14];
+	sc->regs.acr = env->regs[15];
+	sc->regs.srp = env->pregs[PR_SRP];
+	sc->regs.erp = env->pc;
+
+	env->pregs[PR_ERP] = env->pc;
+}
+static void restore_sigcontext(struct target_sigcontext *sc, CPUState *env)
+{
+	env->regs[0] = sc->regs.r0;
+	env->regs[1] = sc->regs.r1;
+	env->regs[2] = sc->regs.r2;
+	env->regs[3] = sc->regs.r3;
+	env->regs[4] = sc->regs.r4;
+	env->regs[5] = sc->regs.r5;
+	env->regs[6] = sc->regs.r6;
+	env->regs[7] = sc->regs.r7;
+	env->regs[8] = sc->regs.r8;
+	env->regs[9] = sc->regs.r9;
+	env->regs[10] = sc->regs.r10;
+	env->regs[11] = sc->regs.r11;
+	env->regs[12] = sc->regs.r12;
+	env->regs[13] = sc->regs.r13;
+	env->regs[14] = sc->usp;
+	env->regs[15] = sc->regs.acr;
+}
+
+static struct target_signal_frame *get_sigframe(CPUState *env, int framesize)
+{
+	uint8_t *sp;
+	/* Align the stack downwards to 4.  */
+	sp = (uint8_t *) (env->regs[R_SP] & ~3);
+	return (void *)(sp - framesize);
+}
+
+static void setup_frame(int sig, struct emulated_sigaction *ka,
+			target_sigset_t *set, CPUState *env)
+{
+	struct target_signal_frame *frame;
+	int err = 0;
+	int i;
+	uint32_t old_usp;
+
+	old_usp = env->regs[R_SP];
+
+	frame = get_sigframe(env, sizeof *frame);
+	if (!lock_user_struct(VERIFY_WRITE, frame, (abi_ulong)frame, 1))
+		goto badframe;
+
+	/*
+	 * The CRIS signal return trampoline. A real linux/CRIS kernel doesn't
+	 * use this trampoline anymore but it sets it up for GDB.
+	 * In QEMU, using the trampoline simplifies things a bit so we use it.
+	 *
+	 * This is movu.w __NR_sigreturn, r9; break 13;
+	 */
+	err |= __put_user(0x9c5f, frame->retcode+0);
+	err |= __put_user(TARGET_NR_sigreturn, 
+			  frame->retcode+2);
+	err |= __put_user(0xe93d, frame->retcode+4);
+
+	/* Save the mask.  */
+	err |= __put_user(set->sig[0], &frame->sc.oldmask);
+	if (err)
+		goto badframe;
+
+	for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+		if (__put_user(set->sig[i], &frame->extramask[i - 1]))
+			goto badframe;
+	}
+
+	setup_sigcontext(&frame->sc, env);
+
+	/* Move the stack and setup the arguments for the handler.  */
+	env->regs[R_SP] = (uint32_t) frame;
+	env->regs[10] = sig;
+	env->pc = (unsigned long) ka->sa._sa_handler;
+	/* Link SRP so the guest returns through the trampoline.  */
+	env->pregs[PR_SRP] = (uint32_t) &frame->retcode[0];
+
+	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	return;
+  badframe:
+	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	force_sig(TARGET_SIGSEGV);
+}
+
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "CRIS setup_rt_frame: not implemented\n");
+}
+
+long do_sigreturn(CPUState *env)
+{
+	struct target_signal_frame *frame;
+	target_sigset_t target_set;
+	sigset_t set;
+	int i;
+
+	frame = (void *) env->regs[R_SP];
+	/* Make sure the guest isn't playing games.  */
+	if (!lock_user_struct(VERIFY_READ, frame, (abi_ulong)frame, 1))
+		goto badframe;
+
+	/* Restore blocked signals */
+	if (__get_user(target_set.sig[0], &frame->sc.oldmask))
+		goto badframe;
+	for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+		if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
+			goto badframe;
+	}
+	target_to_host_sigset_internal(&set, &target_set);
+	sigprocmask(SIG_SETMASK, &set, NULL);
+
+	restore_sigcontext(&frame->sc, env);
+	/* Compensate -2 for the syscall return path advancing brk.  */
+	env->pc = frame->sc.regs.erp - 2;
+	env->pregs[PR_SRP] = frame->sc.regs.srp;
+
+	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	return env->regs[10];
+  badframe:
+	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	force_sig(TARGET_SIGSEGV);
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "CRIS do_rt_sigreturn: not implemented\n");
+    return -TARGET_ENOSYS;
+}
 
 #else
 

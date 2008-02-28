@@ -1673,6 +1673,9 @@ void cpu_loop (CPUState *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+	case EXCP_INTERRUPT:
+	  /* just indicate that signals should be handled asap */
+	  break;
         case EXCP_BREAK:
             ret = do_syscall(env, 
                              env->regs[9], 
