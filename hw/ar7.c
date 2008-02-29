@@ -3717,7 +3717,7 @@ static void mips_ar7_common_init (int ram_size,
 
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
     ram_offset = qemu_ram_alloc(4 * KiB);
-    printf("ram_offset (internal RAM) = %x\n", (unsigned)ram_offset);
+    logout("ram_offset (internal RAM) = %x\n", (unsigned)ram_offset);
     cpu_register_physical_memory(0, 4 * KiB, ram_offset | IO_MEM_RAM);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
