@@ -492,7 +492,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
-        fd[1] = fd[0] = NULL;
+        memset(fd, 0, sizeof(fd));
         index = drive_get_index(IF_FLOPPY, 0, 0);
         if (index != -1)
             fd[0] = drives_table[index].bdrv;
