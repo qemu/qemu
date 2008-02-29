@@ -136,6 +136,9 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
+/* atheros_wlan.c */
+void pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn);
+
 /* pcnet.c */
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 
