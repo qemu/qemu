@@ -214,7 +214,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
                                 int ret, tcg_target_long arg)
 {
     if (arg == (arg & 0xfff))
-        tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS2(TCG_REG_G0) |
+        tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(TCG_REG_G0) |
                   INSN_IMM13(arg));
     else {
         tcg_out32(s, SETHI | INSN_RD(ret) | ((arg & 0xfffffc00) >> 10));
@@ -312,7 +312,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
             /* indirect jump method */
             tcg_out_ld_raw(s, TCG_REG_O7, (tcg_target_long)(s->tb_next + args[0]));
             tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_O7) |
-                      INSN_RD(TCG_REG_G0));
+                      INSN_RS2(TCG_REG_G0));
             tcg_out_nop(s);
         }
         s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
@@ -326,7 +326,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         } else {
             tcg_out_ld_raw(s, TCG_REG_O7, (tcg_target_long)(s->tb_next + args[0]));
             tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_O7) |
-                      INSN_RD(TCG_REG_G0));
+                      INSN_RS2(TCG_REG_G0));
             tcg_out_nop(s);
         }
         break;
