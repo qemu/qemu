@@ -543,6 +543,8 @@ OBJS += eepro100.o
 OBJS += ne2000.o
 OBJS += pcnet.o
 OBJS += rtl8139.o
+OBJS += atheros_wlan.o atheros_wlan_io.o atheros_wlan_ap.o
+OBJS += atheros_wlan_packet.o atheros_wlan_crc32.o
 OBJS += tnetw1130.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
