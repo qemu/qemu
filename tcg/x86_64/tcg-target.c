@@ -294,6 +294,7 @@ static inline void tcg_out_modrm_offset(TCGContext *s, int opc, int r, int rm,
     }
 }
 
+#if defined(CONFIG_SOFTMMU)
 /* XXX: incomplete. index must be different from ESP */
 static void tcg_out_modrm_offset2(TCGContext *s, int opc, int r, int rm, 
                                   int index, int shift,
@@ -330,6 +331,7 @@ static void tcg_out_modrm_offset2(TCGContext *s, int opc, int r, int rm,
         tcg_out32(s, offset);
     }
 }
+#endif
 
 static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
 {
