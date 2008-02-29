@@ -900,8 +900,6 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->npc = addr + 4;
 #elif defined (TARGET_ARM)
             env->regs[15] = addr;
-#elif defined (TARGET_MIPS)
-	    printf("%s:%u\n", __FILE__, __LINE__);
 #elif defined (TARGET_SH4)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
@@ -928,8 +926,6 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->npc = addr + 4;
 #elif defined (TARGET_ARM)
             env->regs[15] = addr;
-#elif defined (TARGET_MIPS)
-	    printf("%s:%u\n", __FILE__, __LINE__);
 #elif defined (TARGET_SH4)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
