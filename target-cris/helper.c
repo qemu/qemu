@@ -32,22 +32,23 @@
 
 void do_interrupt (CPUState *env)
 {
-  env->exception_index = -1;
+	env->exception_index = -1;
+	env->pregs[PR_ERP] = env->pc;
 }
 
 int cpu_cris_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
                              int mmu_idx, int is_softmmu)
 {
-    env->exception_index = 0xaa;
-    env->debug1 = address;
-    cpu_dump_state(env, stderr, fprintf, 0);
-    printf("%s addr=%x env->pc=%x\n", __func__, address, env->pc);
-    return 1;
+	env->exception_index = 0xaa;
+	env->debug1 = address;
+	cpu_dump_state(env, stderr, fprintf, 0);
+	env->pregs[PR_ERP] = env->pc;
+	return 1;
 }
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
-    return addr;
+	return addr;
 }
 
 #else /* !CONFIG_USER_ONLY */
@@ -61,7 +62,6 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 	address &= TARGET_PAGE_MASK;
 	prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-//	printf ("%s pc=%x %x w=%d smmu=%d\n", __func__, env->pc, address, rw, is_softmmu);
 	miss = cris_mmu_translate(&res, env, address, rw, mmu_idx);
 	if (miss)
 	{
@@ -73,7 +73,6 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	{
 		phy = res.phy;
 	}
-//	printf ("a=%x phy=%x\n", address, phy);
 	return tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
 }
 
@@ -113,7 +112,6 @@ void do_interrupt(CPUState *env)
 
 			break;
 		case EXCP_MMU_MISS:
-//			printf ("MMU miss\n");
 			irqnum = 4;
 			ebp = env->pregs[PR_EBP];
 			isr = ldl_code(ebp + irqnum * 4);

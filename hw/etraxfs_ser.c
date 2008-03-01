@@ -26,23 +26,28 @@
 #include <ctype.h>
 #include "hw.h"
 
-#define RW_TR_DMA_EN 0xb0026004
-#define RW_DOUT 0xb002601c
-#define RW_STAT_DIN 0xb0026020
-#define R_STAT_DIN 0xb0026024
+#define D(x)
+
+#define RW_TR_DMA_EN 0x04
+#define RW_DOUT 0x1c
+#define RW_STAT_DIN 0x20
+#define R_STAT_DIN 0x24
 
 static uint32_t ser_readb (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
+	CPUState *env;
 	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
+
+	env = opaque;
+	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
 	return r;
 }
 static uint32_t ser_readw (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
+	CPUState *env;
 	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
+	env = opaque;
+	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
 	return r;
 }
 
@@ -51,7 +56,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 	CPUState *env = opaque;
 	uint32_t r = 0;
 
-	switch (addr)
+	switch (addr & 0xfff)
 	{
 		case RW_TR_DMA_EN:
 			break;
@@ -70,21 +75,23 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 static void
 ser_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
+	CPUState *env;
+	env = opaque;
+ 	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
 }
 static void
 ser_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
+	CPUState *env;
+	env = opaque;
+	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
 }
 static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	CPUState *env = opaque;
 
-	switch (addr)
+	switch (addr & 0xfff)
 	{
 		case RW_TR_DMA_EN:
 			break;
@@ -119,4 +126,7 @@ void etraxfs_ser_init(CPUState *env, qemu_irq *irqs)
 
 	ser_regs = cpu_register_io_memory(0, ser_read, ser_write, env);
 	cpu_register_physical_memory (0xb0026000, 0x3c, ser_regs);
+	cpu_register_physical_memory (0xb0028000, 0x3c, ser_regs);
+	cpu_register_physical_memory (0xb002a000, 0x3c, ser_regs);
+	cpu_register_physical_memory (0xb002c000, 0x3c, ser_regs);
 }

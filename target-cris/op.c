@@ -967,6 +967,8 @@ void OPPROTO op_btst_T0_T1 (void)
 	   The N flag is set according to the selected bit in the dest reg.
 	   The Z flag is set if the selected bit and all bits to the right are
 	   zero.
+	   The X flag is cleared.
+	   Other flags are left untouched.
 	   The destination reg is not affected.*/
 	unsigned int fz, sbit, bset, mask, masked_t0;
 
@@ -975,8 +977,11 @@ void OPPROTO op_btst_T0_T1 (void)
 	mask = sbit == 31 ? -1 : (1 << (sbit + 1)) - 1;
 	masked_t0 = T0 & mask;
 	fz = !(masked_t0 | bset);
+
+	/* Clear the X, N and Z flags.  */
+	T0 = env->pregs[PR_CCS] & ~(X_FLAG | N_FLAG | Z_FLAG);
 	/* Set the N and Z flags accordingly.  */
-	T0 = (bset << 3) | (fz << 2);
+	T0 |= (bset << 3) | (fz << 2);
 	RETURN();
 }
 
