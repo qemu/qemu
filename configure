@@ -1244,6 +1244,7 @@ if test "$source_path_used" = "yes" ; then
     DIRS="tests tests/cris slirp audio"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
+    FILES="$FILES tests/test-mmap.c"
     for dir in $DIRS ; do
             mkdir -p $dir
     done
