@@ -412,14 +412,24 @@ static inline void gen_mov_pc_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
         gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
-        gen_op_mov_pc_npc();
+        tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
+        tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, pc));
         dc->pc = DYNAMIC_PC;
     } else if (dc->npc == DYNAMIC_PC) {
-        gen_op_mov_pc_npc();
+        tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
+        tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, pc));
         dc->pc = DYNAMIC_PC;
     } else {
         dc->pc = dc->npc;
     }
+}
+
+static inline void gen_op_next_insn(void)
+{
+    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
+    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, pc));
+    tcg_gen_addi_tl(cpu_tmp0, cpu_tmp0, 4);
+    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
 }
 
 static GenOpFunc * const gen_cond[2][16] = {
@@ -990,6 +1000,13 @@ static inline void gen_ldstub_asi(int insn)
     tcg_gen_helper_0_4(helper_st_asi, cpu_T[0], r_dword, r_asi, r_size);
 }
 #endif
+
+static inline void gen_mov_reg_C(TCGv reg)
+{
+    tcg_gen_ld_i32(reg, cpu_env, offsetof(CPUSPARCState, psr));
+    tcg_gen_shri_i32(reg, reg, 20);
+    tcg_gen_andi_i32(reg, reg, 0x1);
+}
 
 /* before an instruction, dc->pc must be static */
 static void disas_sparc_insn(DisasContext * dc)
@@ -2111,8 +2128,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     case 0x8:
                         if (xop & 0x10)
                             gen_op_addx_T1_T0_cc();
-                        else
-                            gen_op_addx_T1_T0();
+                        else {
+                            gen_mov_reg_C(cpu_tmp0);
+                            tcg_gen_add_tl(cpu_T[1], cpu_T[1], cpu_tmp0);
+                            tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+                        }
                         break;
 #ifdef TARGET_SPARC64
                     case 0x9: /* V9 mulx */
@@ -2132,8 +2152,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     case 0xc:
                         if (xop & 0x10)
                             gen_op_subx_T1_T0_cc();
-                        else
-                            gen_op_subx_T1_T0();
+                        else {
+                            gen_mov_reg_C(cpu_tmp0);
+                            tcg_gen_add_tl(cpu_T[1], cpu_T[1], cpu_tmp0);
+                            tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+                        }
                         break;
 #ifdef TARGET_SPARC64
                     case 0xd: /* V9 udivx */

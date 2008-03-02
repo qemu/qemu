@@ -215,11 +215,6 @@ void OPPROTO op_add_T1_T0_cc(void)
     FORCE_RET();
 }
 
-void OPPROTO op_addx_T1_T0(void)
-{
-    T0 += T1 + FLAG_SET(PSR_CARRY);
-}
-
 void OPPROTO op_addx_T1_T0_cc(void)
 {
     target_ulong src1;
@@ -411,11 +406,6 @@ void OPPROTO op_sub_T1_T0_cc(void)
         env->psr |= PSR_OVF;
 #endif
     FORCE_RET();
-}
-
-void OPPROTO op_subx_T1_T0(void)
-{
-    T0 -= T1 + FLAG_SET(PSR_CARRY);
 }
 
 void OPPROTO op_subx_T1_T0_cc(void)
@@ -1183,17 +1173,6 @@ void OPPROTO op_eval_brgez(void)
     T2 = ((int64_t)T0 >= 0);
 }
 #endif
-
-void OPPROTO op_mov_pc_npc(void)
-{
-    env->pc = env->npc;
-}
-
-void OPPROTO op_next_insn(void)
-{
-    env->pc = env->npc;
-    env->npc = env->npc + 4;
-}
 
 void OPPROTO op_jmp_label(void)
 {
