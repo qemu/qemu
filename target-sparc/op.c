@@ -1589,12 +1589,6 @@ void OPPROTO op_fmovq_cc(void)
 }
 #endif
 
-void OPPROTO op_mov_cc(void)
-{
-    if (T2)
-        T0 = T1;
-}
-
 void OPPROTO op_flushw(void)
 {
     if (env->cansave != NWINDOWS - 2) {

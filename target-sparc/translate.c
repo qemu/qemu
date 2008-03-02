@@ -577,6 +577,18 @@ static void gen_cond_reg(int cond)
             break;
         }
 }
+
+// Inverted logic
+static const int gen_tcg_cond_reg[8] = {
+    -1,
+    TCG_COND_NE,
+    TCG_COND_GT,
+    TCG_COND_GE,
+    -1,
+    TCG_COND_EQ,
+    TCG_COND_LE,
+    TCG_COND_LT,
+};
 #endif
 
 /* XXX: potentially incorrect if dynamic npc */
@@ -2452,15 +2464,9 @@ static void disas_sparc_insn(DisasContext * dc)
                         {
                             int cc = GET_FIELD_SP(insn, 11, 12);
                             int cond = GET_FIELD_SP(insn, 14, 17);
-                            if (IS_IMM) {       /* immediate */
-                                rs2 = GET_FIELD_SPs(insn, 0, 10);
-                                gen_movl_simm_T1(rs2);
-                            }
-                            else {
-                                rs2 = GET_FIELD_SP(insn, 0, 4);
-                                gen_movl_reg_T1(rs2);
-                            }
-                            gen_movl_reg_T0(rd);
+                            TCGv r_zero;
+                            int l1;
+
                             flush_T2(dc);
                             if (insn & (1 << 18)) {
                                 if (cc == 0)
@@ -2472,8 +2478,21 @@ static void disas_sparc_insn(DisasContext * dc)
                             } else {
                                 gen_fcond[cc][cond]();
                             }
-                            gen_op_mov_cc();
-                            gen_movl_T0_reg(rd);
+
+                            l1 = gen_new_label();
+
+                            r_zero = tcg_temp_new(TCG_TYPE_TL);
+                            tcg_gen_movi_tl(r_zero, 0);
+                            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[2], r_zero, l1);
+                            if (IS_IMM) {       /* immediate */
+                                rs2 = GET_FIELD_SPs(insn, 0, 10);
+                                gen_movl_simm_T1(rs2);
+                            } else {
+                                rs2 = GET_FIELD_SP(insn, 0, 4);
+                                gen_movl_reg_T1(rs2);
+                            }
+                            gen_movl_T1_reg(rd);
+                            gen_set_label(l1);
                             break;
                         }
                     case 0x2d: /* V9 sdivx */
@@ -2498,21 +2517,26 @@ static void disas_sparc_insn(DisasContext * dc)
                     case 0x2f: /* V9 movr */
                         {
                             int cond = GET_FIELD_SP(insn, 10, 12);
+                            TCGv r_zero;
+                            int l1;
+
                             rs1 = GET_FIELD(insn, 13, 17);
-                            flush_T2(dc);
                             gen_movl_reg_T0(rs1);
-                            gen_cond_reg(cond);
+
+                            l1 = gen_new_label();
+
+                            r_zero = tcg_temp_new(TCG_TYPE_TL);
+                            tcg_gen_movi_tl(r_zero, 0);
+                            tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
                             if (IS_IMM) {       /* immediate */
                                 rs2 = GET_FIELD_SPs(insn, 0, 9);
                                 gen_movl_simm_T1(rs2);
-                            }
-                            else {
+                            } else {
                                 rs2 = GET_FIELD_SP(insn, 0, 4);
                                 gen_movl_reg_T1(rs2);
                             }
-                            gen_movl_reg_T0(rd);
-                            gen_op_mov_cc();
-                            gen_movl_T0_reg(rd);
+                            gen_movl_T1_reg(rd);
+                            gen_set_label(l1);
                             break;
                         }
 #endif
