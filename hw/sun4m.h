@@ -59,12 +59,6 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
                        CPUState *env);
 void slavio_set_power_fail(void *opaque, int power_failing);
 
-/* esp.c */
-#define ESP_MAX_DEVS 7
-void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id);
-void *esp_init(target_phys_addr_t espaddr,
-               void *dma_opaque, qemu_irq irq, qemu_irq *reset);
-
 /* cs4231.c */
 void cs_init(target_phys_addr_t base, int irq, void *intctl);
 

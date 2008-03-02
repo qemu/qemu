@@ -24,9 +24,7 @@
 #include "hw.h"
 #include "block.h"
 #include "scsi-disk.h"
-#include "sun4m.h"
-/* FIXME: Only needed for MAX_DISKS, which is probably wrong.  */
-#include "sysemu.h"
+#include "scsi.h"
 
 /* debug ESP card */
 //#define DEBUG_ESP
@@ -75,6 +73,9 @@ struct ESPState {
     uint32_t dma_counter;
     uint8_t *async_buf;
     uint32_t async_len;
+
+    espdma_memory_read_write dma_memory_read;
+    espdma_memory_read_write dma_memory_write;
     void *dma_opaque;
 };
 
@@ -152,7 +153,7 @@ static int get_cmd(ESPState *s, uint8_t *buf)
     target = s->wregs[ESP_WBUSID] & 7;
     DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
     if (s->dma) {
-        espdma_memory_read(s->dma_opaque, buf, dmalen);
+        s->dma_memory_read(s->dma_opaque, buf, dmalen);
     } else {
         buf[0] = 0;
         memcpy(&buf[1], s->ti_buf, dmalen);
@@ -236,7 +237,7 @@ static void write_response(ESPState *s)
     s->ti_buf[0] = s->sense;
     s->ti_buf[1] = 0;
     if (s->dma) {
-        espdma_memory_write(s->dma_opaque, s->ti_buf, 2);
+        s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
         s->rregs[ESP_RSTAT] = STAT_IN | STAT_TC | STAT_ST;
         s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -269,7 +270,7 @@ static void esp_do_dma(ESPState *s)
     len = s->dma_left;
     if (s->do_cmd) {
         DPRINTF("command len %d + %d\n", s->cmdlen, len);
-        espdma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
+        s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
@@ -284,9 +285,9 @@ static void esp_do_dma(ESPState *s)
         len = s->async_len;
     }
     if (to_device) {
-        espdma_memory_read(s->dma_opaque, s->async_buf, len);
+        s->dma_memory_read(s->dma_opaque, s->async_buf, len);
     } else {
-        espdma_memory_write(s->dma_opaque, s->async_buf, len);
+        s->dma_memory_write(s->dma_opaque, s->async_buf, len);
     }
     s->dma_left -= len;
     s->async_buf += len;
@@ -621,6 +622,8 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
 }
 
 void *esp_init(target_phys_addr_t espaddr,
+               espdma_memory_read_write dma_memory_read,
+               espdma_memory_read_write dma_memory_write,
                void *dma_opaque, qemu_irq irq, qemu_irq *reset)
 {
     ESPState *s;
@@ -631,6 +634,8 @@ void *esp_init(target_phys_addr_t espaddr,
         return NULL;
 
     s->irq = irq;
+    s->dma_memory_read = dma_memory_read;
+    s->dma_memory_write = dma_memory_write;
     s->dma_opaque = dma_opaque;
 
     esp_io_memory = cpu_register_io_memory(0, esp_mem_read, esp_mem_write, s);
