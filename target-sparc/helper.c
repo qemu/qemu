@@ -612,14 +612,14 @@ void memcpy32(target_ulong *dst, const target_ulong *src)
 #include "qemu-timer.h"
 #endif
 
-void do_tick_set_count(void *opaque, uint64_t count)
+void helper_tick_set_count(void *opaque, uint64_t count)
 {
 #if !defined(CONFIG_USER_ONLY)
     ptimer_set_count(opaque, -count);
 #endif
 }
 
-uint64_t do_tick_get_count(void *opaque)
+uint64_t helper_tick_get_count(void *opaque)
 {
 #if !defined(CONFIG_USER_ONLY)
     return -ptimer_get_count(opaque);
@@ -628,7 +628,7 @@ uint64_t do_tick_get_count(void *opaque)
 #endif
 }
 
-void do_tick_set_limit(void *opaque, uint64_t limit)
+void helper_tick_set_limit(void *opaque, uint64_t limit)
 {
 #if !defined(CONFIG_USER_ONLY)
     ptimer_set_limit(opaque, -limit, 0);

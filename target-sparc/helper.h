@@ -19,6 +19,9 @@ helper_cas_asi(target_ulong addr, target_ulong val1,
 target_ulong  TCG_HELPER_PROTO
 helper_casx_asi(target_ulong addr, target_ulong val1,
                 target_ulong val2, uint32_t asi);
+void TCG_HELPER_PROTO helper_tick_set_count(void *opaque, uint64_t count);
+uint64_t TCG_HELPER_PROTO helper_tick_get_count(void *opaque);
+void TCG_HELPER_PROTO helper_tick_set_limit(void *opaque, uint64_t limit);
 #endif
 void TCG_HELPER_PROTO helper_trap(target_ulong nb_trap);
 void TCG_HELPER_PROTO helper_trapcc(target_ulong nb_trap,
