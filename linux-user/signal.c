@@ -2731,67 +2731,68 @@ struct rt_signal_frame {
 
 static void setup_sigcontext(struct target_sigcontext *sc, CPUState *env)
 {
-	sc->regs.r0 = env->regs[0];
-	sc->regs.r1 = env->regs[1];
-	sc->regs.r2 = env->regs[2];
-	sc->regs.r3 = env->regs[3];
-	sc->regs.r4 = env->regs[4];
-	sc->regs.r5 = env->regs[5];
-	sc->regs.r6 = env->regs[6];
-	sc->regs.r7 = env->regs[7];
-	sc->regs.r8 = env->regs[8];
-	sc->regs.r9 = env->regs[9];
-	sc->regs.r10 = env->regs[10];
-	sc->regs.r11 = env->regs[11];
-	sc->regs.r12 = env->regs[12];
-	sc->regs.r13 = env->regs[13];
-	sc->usp      = env->regs[14];
-	sc->regs.acr = env->regs[15];
-	sc->regs.srp = env->pregs[PR_SRP];
-	sc->regs.erp = env->pc;
-
-	env->pregs[PR_ERP] = env->pc;
+	__put_user(env->regs[0], &sc->regs.r0);
+	__put_user(env->regs[1], &sc->regs.r1);
+	__put_user(env->regs[2], &sc->regs.r2);
+	__put_user(env->regs[3], &sc->regs.r3);
+	__put_user(env->regs[4], &sc->regs.r4);
+	__put_user(env->regs[5], &sc->regs.r5);
+	__put_user(env->regs[6], &sc->regs.r6);
+	__put_user(env->regs[7], &sc->regs.r7);
+	__put_user(env->regs[8], &sc->regs.r8);
+	__put_user(env->regs[9], &sc->regs.r9);
+	__put_user(env->regs[10], &sc->regs.r10);
+	__put_user(env->regs[11], &sc->regs.r11);
+	__put_user(env->regs[12], &sc->regs.r12);
+	__put_user(env->regs[13], &sc->regs.r13);
+	__put_user(env->regs[14], &sc->usp);
+	__put_user(env->regs[15], &sc->regs.acr);
+	__put_user(env->pregs[PR_MOF], &sc->regs.mof);
+	__put_user(env->pregs[PR_SRP], &sc->regs.srp);
+	__put_user(env->pc, &sc->regs.erp);
 }
+
 static void restore_sigcontext(struct target_sigcontext *sc, CPUState *env)
 {
-	env->regs[0] = sc->regs.r0;
-	env->regs[1] = sc->regs.r1;
-	env->regs[2] = sc->regs.r2;
-	env->regs[3] = sc->regs.r3;
-	env->regs[4] = sc->regs.r4;
-	env->regs[5] = sc->regs.r5;
-	env->regs[6] = sc->regs.r6;
-	env->regs[7] = sc->regs.r7;
-	env->regs[8] = sc->regs.r8;
-	env->regs[9] = sc->regs.r9;
-	env->regs[10] = sc->regs.r10;
-	env->regs[11] = sc->regs.r11;
-	env->regs[12] = sc->regs.r12;
-	env->regs[13] = sc->regs.r13;
-	env->regs[14] = sc->usp;
-	env->regs[15] = sc->regs.acr;
+	__get_user(env->regs[0], &sc->regs.r0);
+	__get_user(env->regs[1], &sc->regs.r1);
+	__get_user(env->regs[2], &sc->regs.r2);
+	__get_user(env->regs[3], &sc->regs.r3);
+	__get_user(env->regs[4], &sc->regs.r4);
+	__get_user(env->regs[5], &sc->regs.r5);
+	__get_user(env->regs[6], &sc->regs.r6);
+	__get_user(env->regs[7], &sc->regs.r7);
+	__get_user(env->regs[8], &sc->regs.r8);
+	__get_user(env->regs[9], &sc->regs.r9);
+	__get_user(env->regs[10], &sc->regs.r10);
+	__get_user(env->regs[11], &sc->regs.r11);
+	__get_user(env->regs[12], &sc->regs.r12);
+	__get_user(env->regs[13], &sc->regs.r13);
+	__get_user(env->regs[14], &sc->usp);
+	__get_user(env->regs[15], &sc->regs.acr);
+	__get_user(env->pregs[PR_MOF], &sc->regs.mof);
+	__get_user(env->pregs[PR_SRP], &sc->regs.srp);
+	__get_user(env->pc, &sc->regs.erp);
 }
 
-static struct target_signal_frame *get_sigframe(CPUState *env, int framesize)
+static abi_ulong get_sigframe(CPUState *env, int framesize)
 {
-	uint8_t *sp;
+	abi_ulong sp;
 	/* Align the stack downwards to 4.  */
-	sp = (uint8_t *) (env->regs[R_SP] & ~3);
-	return (void *)(sp - framesize);
+	sp = (env->regs[R_SP] & ~3);
+	return sp - framesize;
 }
 
 static void setup_frame(int sig, struct emulated_sigaction *ka,
 			target_sigset_t *set, CPUState *env)
 {
 	struct target_signal_frame *frame;
+	abi_ulong frame_addr;
 	int err = 0;
 	int i;
-	uint32_t old_usp;
 
-	old_usp = env->regs[R_SP];
-
-	frame = get_sigframe(env, sizeof *frame);
-	if (!lock_user_struct(VERIFY_WRITE, frame, (abi_ulong)frame, 1))
+	frame_addr = get_sigframe(env, sizeof *frame);
+	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
 		goto badframe;
 
 	/*
@@ -2825,10 +2826,10 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	/* Link SRP so the guest returns through the trampoline.  */
 	env->pregs[PR_SRP] = (uint32_t) &frame->retcode[0];
 
-	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	unlock_user_struct(frame, frame_addr, 1);
 	return;
   badframe:
-	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	unlock_user_struct(frame, frame_addr, 1);
 	force_sig(TARGET_SIGSEGV);
 }
 
@@ -2842,13 +2843,14 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 long do_sigreturn(CPUState *env)
 {
 	struct target_signal_frame *frame;
+	abi_ulong frame_addr;
 	target_sigset_t target_set;
 	sigset_t set;
 	int i;
 
-	frame = (void *) env->regs[R_SP];
+	frame_addr = env->regs[R_SP];
 	/* Make sure the guest isn't playing games.  */
-	if (!lock_user_struct(VERIFY_READ, frame, (abi_ulong)frame, 1))
+	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 1))
 		goto badframe;
 
 	/* Restore blocked signals */
@@ -2862,14 +2864,13 @@ long do_sigreturn(CPUState *env)
 	sigprocmask(SIG_SETMASK, &set, NULL);
 
 	restore_sigcontext(&frame->sc, env);
-	/* Compensate -2 for the syscall return path advancing brk.  */
-	env->pc = frame->sc.regs.erp - 2;
-	env->pregs[PR_SRP] = frame->sc.regs.srp;
+	/* Compensate for the syscall return path advancing brk.  */
+	env->pc -= 2;
 
-	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	unlock_user_struct(frame, frame_addr, 0);
 	return env->regs[10];
   badframe:
-	unlock_user_struct(frame, (abi_ulong)frame, 0);
+	unlock_user_struct(frame, frame_addr, 0);
 	force_sig(TARGET_SIGSEGV);
 }
 
