@@ -1711,38 +1711,50 @@ static void disas_sparc_insn(DisasContext * dc)
                 xop = GET_FIELD(insn, 18, 26);
 #ifdef TARGET_SPARC64
                 if ((xop & 0x11f) == 0x005) { // V9 fmovsr
+                    TCGv r_zero;
+                    int l1;
+
+                    l1 = gen_new_label();
+                    r_zero = tcg_temp_new(TCG_TYPE_TL);
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    gen_op_load_fpr_FT0(rd);
-                    gen_op_load_fpr_FT1(rs2);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
-                    flush_T2(dc);
-                    gen_cond_reg(cond);
-                    gen_op_fmovs_cc();
+                    tcg_gen_movi_tl(r_zero, 0);
+                    tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
+                    gen_op_load_fpr_FT1(rs2);
                     gen_op_store_FT0_fpr(rd);
+                    gen_set_label(l1);
                     break;
                 } else if ((xop & 0x11f) == 0x006) { // V9 fmovdr
+                    TCGv r_zero;
+                    int l1;
+
+                    l1 = gen_new_label();
+                    r_zero = tcg_temp_new(TCG_TYPE_TL);
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    gen_op_load_fpr_DT0(DFPREG(rd));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    flush_T2(dc);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
-                    gen_cond_reg(cond);
-                    gen_op_fmovs_cc();
+                    tcg_gen_movi_tl(r_zero, 0);
+                    tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
+                    gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_set_label(l1);
                     break;
                 } else if ((xop & 0x11f) == 0x007) { // V9 fmovqr
 #if defined(CONFIG_USER_ONLY)
+                    TCGv r_zero;
+                    int l1;
+
+                    l1 = gen_new_label();
+                    r_zero = tcg_temp_new(TCG_TYPE_TL);
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    gen_op_load_fpr_QT0(QFPREG(rd));
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    flush_T2(dc);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
-                    gen_cond_reg(cond);
-                    gen_op_fmovq_cc();
+                    tcg_gen_movi_tl(r_zero, 0);
+                    tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
+                    gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_op_store_QT0_fpr(QFPREG(rd));
+                    gen_set_label(l1);
                     break;
 #else
                     goto nfpu_insn;
