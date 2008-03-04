@@ -722,8 +722,11 @@ e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     E1000State *s = opaque;
     unsigned int index = ((addr - s->mmio_base) & 0x1ffff) >> 2;
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
     if (index < NWRITEOPS && macreg_writeops[index])
-        macreg_writeops[index](s, index, le32_to_cpu(val));
+        macreg_writeops[index](s, index, val);
     else if (index < NREADOPS && macreg_readops[index])
         DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04x\n", index<<2, val);
     else
@@ -736,7 +739,7 @@ e1000_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     // emulate hw without byte enables: no RMW
     e1000_mmio_writel(opaque, addr & ~3,
-                      cpu_to_le32(le16_to_cpu(val & 0xffff) << (8*(addr & 3))));
+                      (val & 0xffff) << (8*(addr & 3)));
 }
 
 static void
@@ -744,7 +747,7 @@ e1000_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     // emulate hw without byte enables: no RMW
     e1000_mmio_writel(opaque, addr & ~3,
-                      cpu_to_le32((val & 0xff)  << (8*(addr & 3))));
+                      (val & 0xff) << (8*(addr & 3)));
 }
 
 static uint32_t
@@ -754,7 +757,13 @@ e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
     unsigned int index = ((addr - s->mmio_base) & 0x1ffff) >> 2;
 
     if (index < NREADOPS && macreg_readops[index])
-        return cpu_to_le32(macreg_readops[index](s, index));
+    {
+        uint32_t val = macreg_readops[index](s, index);
+#ifdef TARGET_WORDS_BIGENDIAN
+        val = bswap32(val);
+#endif
+        return val;
+    }
     DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
     return 0;
 }
@@ -762,15 +771,15 @@ e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
 static uint32_t
 e1000_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
-    return (le32_to_cpu(e1000_mmio_readl(opaque, addr & ~3)) >>
+    return ((e1000_mmio_readl(opaque, addr & ~3)) >>
             (8 * (addr & 3))) & 0xff;
 }
 
 static uint32_t
 e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
-    return cpu_to_le16((le32_to_cpu(e1000_mmio_readl(opaque, addr & ~3)) >>
-                        (8 * (addr & 3))) & 0xffff);
+    return ((e1000_mmio_readl(opaque, addr & ~3)) >>
+            (8 * (addr & 3))) & 0xffff;
 }
 
 int mac_regtosave[] = {

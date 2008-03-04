@@ -319,7 +319,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     GT64120State *s = opaque;
     uint32_t saddr;
 
-    if (!(s->regs[GT_PCI0_CMD] & 1))
+    if (!(s->regs[GT_CPU] & 0x00001000))
         val = bswap32(val);
 
     saddr = (addr & 0xfff) >> 2;
@@ -542,7 +542,10 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         s->pci->config_reg = val & 0x80fffffc;
         break;
     case GT_PCI0_CFGDATA:
-        pci_host_data_writel(s->pci, 0, val);
+        if (!(s->regs[GT_PCI0_CMD] & 1) && (s->pci->config_reg & 0x00fff800))
+            val = bswap32(val);
+        if (s->pci->config_reg & (1u << 31))
+            pci_data_write(s->pci->bus, s->pci->config_reg, val, 4);
         break;
 
     /* Interrupts */
@@ -779,7 +782,12 @@ static uint32_t gt64120_readl (void *opaque,
         val = s->pci->config_reg;
         break;
     case GT_PCI0_CFGDATA:
-        val = pci_host_data_readl(s->pci, 0);
+        if (!(s->pci->config_reg & (1 << 31)))
+            val = 0xffffffff;
+        else
+            val = pci_data_read(s->pci->bus, s->pci->config_reg, 4);
+        if (!(s->regs[GT_PCI0_CMD] & 1) && (s->pci->config_reg & 0x00fff800))
+            val = bswap32(val);
         break;
 
     case GT_PCI0_CMD:
@@ -852,7 +860,7 @@ static uint32_t gt64120_readl (void *opaque,
         break;
     }
 
-    if (!(s->regs[GT_PCI0_CMD] & 1))
+    if (!(s->regs[GT_CPU] & 0x00001000))
         val = bswap32(val);
 
     return val;
@@ -1081,7 +1089,6 @@ static void gt64120_reset(void *opaque)
     s->regs[GT_PCI1_CFGADDR]  = 0x00000000;
     s->regs[GT_PCI1_CFGDATA]  = 0x00000000;
     s->regs[GT_PCI0_CFGADDR]  = 0x00000000;
-    s->regs[GT_PCI0_CFGDATA]  = 0x00000000;
 
     /* Interrupt registers are all zeroed at reset */
 
@@ -1126,8 +1133,10 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
 
     (void)&pci_host_data_writeb; /* avoid warning */
     (void)&pci_host_data_writew; /* avoid warning */
+    (void)&pci_host_data_writel; /* avoid warning */
     (void)&pci_host_data_readb; /* avoid warning */
     (void)&pci_host_data_readw; /* avoid warning */
+    (void)&pci_host_data_readl; /* avoid warning */
 
     s = qemu_mallocz(sizeof(GT64120State));
     s->pci = qemu_mallocz(sizeof(GT64120PCIState));
