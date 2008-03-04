@@ -192,7 +192,6 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             uint64_t count;
 
             // set user counter MSW, reset counter
-            qemu_irq_lower(s->irq);
             s->limit = TIMER_MAX_COUNT64;
             s->counthigh = val & (TIMER_MAX_COUNT64 >> 32);
             s->reached = 0;
@@ -218,7 +217,6 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             uint64_t count;
 
             // set user counter LSW, reset counter
-            qemu_irq_lower(s->irq);
             s->limit = TIMER_MAX_COUNT64;
             s->count = val & TIMER_MAX_COUNT64;
             s->reached = 0;
