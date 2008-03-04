@@ -50,7 +50,7 @@ void helper_trapcc(target_ulong nb_trap, target_ulong do_trap)
     }
 }
 
-void check_ieee_exceptions(void)
+void helper_check_ieee_exceptions(void)
 {
     target_ulong status;
 
@@ -79,12 +79,15 @@ void check_ieee_exceptions(void)
     }
 }
 
+void helper_clear_float_exceptions(void)
+{
+    set_float_exception_flags(0, &env->fp_status);
+}
+
 #ifdef USE_INT_TO_FLOAT_HELPERS
 void do_fitos(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void do_fitod(void)
@@ -102,73 +105,61 @@ void do_fitoq(void)
 #ifdef TARGET_SPARC64
 void do_fxtos(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void do_fxtod(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
 void do_fxtoq(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = int64_to_float128(*((int32_t *)&DT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 #endif
 #endif
 
-void do_fabss(void)
+void helper_fabss(void)
 {
     FT0 = float32_abs(FT1);
 }
 
 #ifdef TARGET_SPARC64
-void do_fabsd(void)
+void helper_fabsd(void)
 {
     DT0 = float64_abs(DT1);
 }
 
 #if defined(CONFIG_USER_ONLY)
-void do_fabsq(void)
+void helper_fabsq(void)
 {
     QT0 = float128_abs(QT1);
 }
 #endif
 #endif
 
-void do_fsqrts(void)
+void helper_fsqrts(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = float32_sqrt(FT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
-void do_fsqrtd(void)
+void helper_fsqrtd(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = float64_sqrt(DT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
-void do_fsqrtq(void)
+void helper_fsqrtq(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = float128_sqrt(QT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, TRAP)                      \
-    void glue(do_, name) (void)                                         \
+    void glue(helper_, name) (void)                                     \
     {                                                                   \
         target_ulong new_fsr;                                           \
                                                                         \

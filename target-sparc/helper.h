@@ -33,3 +33,42 @@ uint64_t TCG_HELPER_PROTO helper_ld_asi(target_ulong addr, int asi,
                                         int size, int sign);
 void TCG_HELPER_PROTO helper_st_asi(target_ulong addr, uint64_t val, int asi,
                                     int size);
+void TCG_HELPER_PROTO helper_ldfsr(void);
+void TCG_HELPER_PROTO helper_check_ieee_exceptions(void);
+void TCG_HELPER_PROTO helper_clear_float_exceptions(void);
+void TCG_HELPER_PROTO helper_fabss(void);
+void TCG_HELPER_PROTO helper_fsqrts(void);
+void TCG_HELPER_PROTO helper_fsqrtd(void);
+void TCG_HELPER_PROTO helper_fcmps(void);
+void TCG_HELPER_PROTO helper_fcmpd(void);
+void TCG_HELPER_PROTO helper_fcmpes(void);
+void TCG_HELPER_PROTO helper_fcmped(void);
+#if defined(CONFIG_USER_ONLY)
+void TCG_HELPER_PROTO helper_fsqrtq(void);
+void TCG_HELPER_PROTO helper_fcmpq(void);
+void TCG_HELPER_PROTO helper_fcmpeq(void);
+#endif
+#ifdef TARGET_SPARC64
+void TCG_HELPER_PROTO helper_fabsd(void);
+void TCG_HELPER_PROTO helper_fcmps_fcc1(void);
+void TCG_HELPER_PROTO helper_fcmpd_fcc1(void);
+void TCG_HELPER_PROTO helper_fcmps_fcc2(void);
+void TCG_HELPER_PROTO helper_fcmpd_fcc2(void);
+void TCG_HELPER_PROTO helper_fcmps_fcc3(void);
+void TCG_HELPER_PROTO helper_fcmpd_fcc3(void);
+void TCG_HELPER_PROTO helper_fcmpes_fcc1(void);
+void TCG_HELPER_PROTO helper_fcmped_fcc1(void);
+void TCG_HELPER_PROTO helper_fcmpes_fcc2(void);
+void TCG_HELPER_PROTO helper_fcmped_fcc2(void);
+void TCG_HELPER_PROTO helper_fcmpes_fcc3(void);
+void TCG_HELPER_PROTO helper_fcmped_fcc3(void);
+#if defined(CONFIG_USER_ONLY)
+void TCG_HELPER_PROTO helper_fabsq(void);
+void TCG_HELPER_PROTO helper_fcmpq_fcc1(void);
+void TCG_HELPER_PROTO helper_fcmpq_fcc2(void);
+void TCG_HELPER_PROTO helper_fcmpq_fcc3(void);
+void TCG_HELPER_PROTO helper_fcmpeq_fcc1(void);
+void TCG_HELPER_PROTO helper_fcmpeq_fcc2(void);
+void TCG_HELPER_PROTO helper_fcmpeq_fcc3(void);
+#endif
+#endif

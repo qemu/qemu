@@ -763,7 +763,6 @@ void OPPROTO op_logic_T0_cc(void)
 void OPPROTO op_ldfsr(void)
 {
     PUT_FSR32(env, *((uint32_t *) &FT0));
-    helper_ldfsr();
 }
 
 void OPPROTO op_stfsr(void)
@@ -1157,46 +1156,31 @@ void OPPROTO op_jz_T2_label(void)
     FORCE_RET();
 }
 
-void OPPROTO op_clear_ieee_excp_and_FTT(void)
-{
-    env->fsr &= ~(FSR_FTT_MASK | FSR_CEXC_MASK);;
-}
-
 #define F_OP(name, p) void OPPROTO op_f##name##p(void)
 
 #if defined(CONFIG_USER_ONLY)
 #define F_BINOP(name)                                           \
     F_OP(name, s)                                               \
     {                                                           \
-        set_float_exception_flags(0, &env->fp_status);          \
         FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
-        check_ieee_exceptions();                                \
     }                                                           \
     F_OP(name, d)                                               \
     {                                                           \
-        set_float_exception_flags(0, &env->fp_status);          \
         DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
-        check_ieee_exceptions();                                \
     }                                                           \
     F_OP(name, q)                                               \
     {                                                           \
-        set_float_exception_flags(0, &env->fp_status);          \
         QT0 = float128_ ## name (QT0, QT1, &env->fp_status);    \
-        check_ieee_exceptions();                                \
     }
 #else
 #define F_BINOP(name)                                           \
     F_OP(name, s)                                               \
     {                                                           \
-        set_float_exception_flags(0, &env->fp_status);          \
         FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
-        check_ieee_exceptions();                                \
     }                                                           \
     F_OP(name, d)                                               \
     {                                                           \
-        set_float_exception_flags(0, &env->fp_status);          \
         DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
-        check_ieee_exceptions();                                \
     }
 #endif
 
@@ -1208,21 +1192,17 @@ F_BINOP(div);
 
 void OPPROTO op_fsmuld(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = float64_mul(float32_to_float64(FT0, &env->fp_status),
                       float32_to_float64(FT1, &env->fp_status),
                       &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
 void OPPROTO op_fdmulq(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = float128_mul(float64_to_float128(DT0, &env->fp_status),
                        float64_to_float128(DT1, &env->fp_status),
                        &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 
@@ -1252,30 +1232,15 @@ void OPPROTO op_fdmulq(void)
     }
 #endif
 
-F_HELPER(sqrt);
-
 F_OP(neg, s)
 {
     FT0 = float32_chs(FT1);
 }
 
-F_OP(abs, s)
-{
-    do_fabss();
-}
-
-F_HELPER(cmp);
-F_HELPER(cmpe);
-
 #ifdef TARGET_SPARC64
 F_OP(neg, d)
 {
     DT0 = float64_chs(DT1);
-}
-
-F_OP(abs, d)
-{
-    do_fabsd();
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -1284,102 +1249,6 @@ F_OP(neg, q)
     QT0 = float128_chs(QT1);
 }
 
-F_OP(abs, q)
-{
-    do_fabsd();
-}
-#endif
-
-void OPPROTO op_fcmps_fcc1(void)
-{
-    do_fcmps_fcc1();
-}
-
-void OPPROTO op_fcmpd_fcc1(void)
-{
-    do_fcmpd_fcc1();
-}
-
-void OPPROTO op_fcmps_fcc2(void)
-{
-    do_fcmps_fcc2();
-}
-
-void OPPROTO op_fcmpd_fcc2(void)
-{
-    do_fcmpd_fcc2();
-}
-
-void OPPROTO op_fcmps_fcc3(void)
-{
-    do_fcmps_fcc3();
-}
-
-void OPPROTO op_fcmpd_fcc3(void)
-{
-    do_fcmpd_fcc3();
-}
-
-void OPPROTO op_fcmpes_fcc1(void)
-{
-    do_fcmpes_fcc1();
-}
-
-void OPPROTO op_fcmped_fcc1(void)
-{
-    do_fcmped_fcc1();
-}
-
-void OPPROTO op_fcmpes_fcc2(void)
-{
-    do_fcmpes_fcc2();
-}
-
-void OPPROTO op_fcmped_fcc2(void)
-{
-    do_fcmped_fcc2();
-}
-
-void OPPROTO op_fcmpes_fcc3(void)
-{
-    do_fcmpes_fcc3();
-}
-
-void OPPROTO op_fcmped_fcc3(void)
-{
-    do_fcmped_fcc3();
-}
-
-#if defined(CONFIG_USER_ONLY)
-void OPPROTO op_fcmpq_fcc1(void)
-{
-    do_fcmpq_fcc1();
-}
-
-void OPPROTO op_fcmpq_fcc2(void)
-{
-    do_fcmpq_fcc2();
-}
-
-void OPPROTO op_fcmpq_fcc3(void)
-{
-    do_fcmpq_fcc3();
-}
-
-void OPPROTO op_fcmpeq_fcc1(void)
-{
-    do_fcmpeq_fcc1();
-}
-
-void OPPROTO op_fcmpeq_fcc2(void)
-{
-    do_fcmpeq_fcc2();
-}
-
-void OPPROTO op_fcmpeq_fcc3(void)
-{
-    do_fcmpeq_fcc3();
-}
 #endif
 
 #endif
@@ -1393,47 +1262,35 @@ F_HELPER(xto);
 #else
 F_OP(ito, s)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 
 F_OP(ito, d)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
 F_OP(ito, q)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = int32_to_float128(*((int32_t *)&FT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 
 #ifdef TARGET_SPARC64
 F_OP(xto, s)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 
 F_OP(xto, d)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 #if defined(CONFIG_USER_ONLY)
 F_OP(xto, q)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = int64_to_float128(*((int64_t *)&DT1), &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 #endif
@@ -1443,93 +1300,69 @@ F_OP(xto, q)
 /* floating point conversion */
 void OPPROTO op_fdtos(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = float64_to_float32(DT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void OPPROTO op_fstod(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = float32_to_float64(FT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
 void OPPROTO op_fqtos(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     FT0 = float128_to_float32(QT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void OPPROTO op_fstoq(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = float32_to_float128(FT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void OPPROTO op_fqtod(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     DT0 = float128_to_float64(QT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void OPPROTO op_fdtoq(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     QT0 = float64_to_float128(DT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 
 /* Float to integer conversion.  */
 void OPPROTO op_fstoi(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     *((int32_t *)&FT0) = float32_to_int32_round_to_zero(FT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void OPPROTO op_fdtoi(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
 void OPPROTO op_fqtoi(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     *((int32_t *)&FT0) = float128_to_int32_round_to_zero(QT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 
 #ifdef TARGET_SPARC64
 void OPPROTO op_fstox(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     *((int64_t *)&DT0) = float32_to_int64_round_to_zero(FT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 void OPPROTO op_fdtox(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     *((int64_t *)&DT0) = float64_to_int64_round_to_zero(DT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 
 #if defined(CONFIG_USER_ONLY)
 void OPPROTO op_fqtox(void)
 {
-    set_float_exception_flags(0, &env->fp_status);
     *((int64_t *)&DT0) = float128_to_int64_round_to_zero(QT1, &env->fp_status);
-    check_ieee_exceptions();
 }
 #endif
 
