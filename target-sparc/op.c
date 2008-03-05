@@ -805,46 +805,6 @@ void OPPROTO op_wrccr(void)
     PUT_CCR(env, T0);
 }
 
-void OPPROTO op_rdtpc(void)
-{
-    T0 = env->tpc[env->tl];
-}
-
-void OPPROTO op_wrtpc(void)
-{
-    env->tpc[env->tl] = T0;
-}
-
-void OPPROTO op_rdtnpc(void)
-{
-    T0 = env->tnpc[env->tl];
-}
-
-void OPPROTO op_wrtnpc(void)
-{
-    env->tnpc[env->tl] = T0;
-}
-
-void OPPROTO op_rdtstate(void)
-{
-    T0 = env->tstate[env->tl];
-}
-
-void OPPROTO op_wrtstate(void)
-{
-    env->tstate[env->tl] = T0;
-}
-
-void OPPROTO op_rdtt(void)
-{
-    T0 = env->tt[env->tl];
-}
-
-void OPPROTO op_wrtt(void)
-{
-    env->tt[env->tl] = T0;
-}
-
 // CWP handling is reversed in V9, but we still use the V8 register
 // order.
 void OPPROTO op_rdcwp(void)

@@ -1675,23 +1675,25 @@ void helper_wrpstate(target_ulong new_state)
 void helper_done(void)
 {
     env->tl--;
-    env->pc = env->tnpc[env->tl];
-    env->npc = env->tnpc[env->tl] + 4;
-    PUT_CCR(env, env->tstate[env->tl] >> 32);
-    env->asi = (env->tstate[env->tl] >> 24) & 0xff;
-    change_pstate((env->tstate[env->tl] >> 8) & 0xf3f);
-    PUT_CWP64(env, env->tstate[env->tl] & 0xff);
+    env->tsptr = &env->ts[env->tl];
+    env->pc = env->tsptr->tpc;
+    env->npc = env->tsptr->tnpc + 4;
+    PUT_CCR(env, env->tsptr->tstate >> 32);
+    env->asi = (env->tsptr->tstate >> 24) & 0xff;
+    change_pstate((env->tsptr->tstate >> 8) & 0xf3f);
+    PUT_CWP64(env, env->tsptr->tstate & 0xff);
 }
 
 void helper_retry(void)
 {
     env->tl--;
-    env->pc = env->tpc[env->tl];
-    env->npc = env->tnpc[env->tl];
-    PUT_CCR(env, env->tstate[env->tl] >> 32);
-    env->asi = (env->tstate[env->tl] >> 24) & 0xff;
-    change_pstate((env->tstate[env->tl] >> 8) & 0xf3f);
-    PUT_CWP64(env, env->tstate[env->tl] & 0xff);
+    env->tsptr = &env->ts[env->tl];
+    env->pc = env->tsptr->tpc;
+    env->npc = env->tsptr->tnpc;
+    PUT_CCR(env, env->tsptr->tstate >> 32);
+    env->asi = (env->tsptr->tstate >> 24) & 0xff;
+    change_pstate((env->tsptr->tstate >> 8) & 0xf3f);
+    PUT_CWP64(env, env->tsptr->tstate & 0xff);
 }
 #endif
 
@@ -1813,11 +1815,12 @@ void do_interrupt(int intno)
         return;
     }
 #endif
-    env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
-        ((env->pstate & 0xf3f) << 8) | GET_CWP64(env);
-    env->tpc[env->tl] = env->pc;
-    env->tnpc[env->tl] = env->npc;
-    env->tt[env->tl] = intno;
+    env->tsptr->tstate = ((uint64_t)GET_CCR(env) << 32) |
+        ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
+        GET_CWP64(env);
+    env->tsptr->tpc = env->pc;
+    env->tsptr->tnpc = env->npc;
+    env->tsptr->tt = intno;
     change_pstate(PS_PEF | PS_PRIV | PS_AG);
 
     if (intno == TT_CLRWIN)
@@ -1835,6 +1838,7 @@ void do_interrupt(int intno)
         if (env->tl != MAXTL)
             env->tl++;
     }
+    env->tsptr = &env->ts[env->tl];
     env->pc = env->tbr;
     env->npc = env->pc + 4;
     env->exception_index = 0;

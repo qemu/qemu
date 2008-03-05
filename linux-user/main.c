@@ -680,7 +680,7 @@ void cpu_loop (CPUSPARCState *env)
                 if (trapnr == TT_DFAULT)
                     info._sifields._sigfault._addr = env->dmmuregs[4];
                 else
-                    info._sifields._sigfault._addr = env->tpc[env->tl];
+                    info._sifields._sigfault._addr = env->tsptr->tpc;
                 queue_signal(info.si_signo, &info);
             }
             break;

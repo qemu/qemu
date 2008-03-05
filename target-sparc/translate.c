@@ -1386,16 +1386,48 @@ static void disas_sparc_insn(DisasContext * dc)
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch (rs1) {
                 case 0: // tpc
-                    gen_op_rdtpc();
+                    {
+                        TCGv r_tsptr;
+
+                        r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                        tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                       offsetof(CPUState, tsptr));
+                        tcg_gen_ld_tl(cpu_T[0], r_tsptr,
+                                      offsetof(trap_state, tpc));
+                    }
                     break;
                 case 1: // tnpc
-                    gen_op_rdtnpc();
+                    {
+                        TCGv r_tsptr;
+
+                        r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                        tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                       offsetof(CPUState, tsptr));
+                        tcg_gen_ld_tl(cpu_T[0], r_tsptr,
+                                      offsetof(trap_state, tnpc));
+                    }
                     break;
                 case 2: // tstate
-                    gen_op_rdtstate();
+                    {
+                        TCGv r_tsptr;
+
+                        r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                        tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                       offsetof(CPUState, tsptr));
+                        tcg_gen_ld_tl(cpu_T[0], r_tsptr,
+                                      offsetof(trap_state, tstate));
+                    }
                     break;
                 case 3: // tt
-                    gen_op_rdtt();
+                    {
+                        TCGv r_tsptr;
+
+                        r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                        tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                       offsetof(CPUState, tsptr));
+                        tcg_gen_ld_i32(cpu_T[0], r_tsptr,
+                                       offsetof(trap_state, tt));
+                    }
                     break;
                 case 4: // tick
                     {
@@ -2536,16 +2568,48 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef TARGET_SPARC64
                             switch (rd) {
                             case 0: // tpc
-                                gen_op_wrtpc();
+                                {
+                                    TCGv r_tsptr;
+
+                                    r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                                    tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                                   offsetof(CPUState, tsptr));
+                                    tcg_gen_st_tl(cpu_T[0], r_tsptr,
+                                                  offsetof(trap_state, tpc));
+                                }
                                 break;
                             case 1: // tnpc
-                                gen_op_wrtnpc();
+                                {
+                                    TCGv r_tsptr;
+
+                                    r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                                    tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                                   offsetof(CPUState, tsptr));
+                                    tcg_gen_st_tl(cpu_T[0], r_tsptr,
+                                                  offsetof(trap_state, tnpc));
+                                }
                                 break;
                             case 2: // tstate
-                                gen_op_wrtstate();
+                                {
+                                    TCGv r_tsptr;
+
+                                    r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                                    tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                                   offsetof(CPUState, tsptr));
+                                    tcg_gen_st_tl(cpu_T[0], r_tsptr,
+                                                  offsetof(trap_state, tstate));
+                                }
                                 break;
                             case 3: // tt
-                                gen_op_wrtt();
+                                {
+                                    TCGv r_tsptr;
+
+                                    r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
+                                    tcg_gen_ld_ptr(r_tsptr, cpu_env,
+                                                   offsetof(CPUState, tsptr));
+                                    tcg_gen_st_i32(cpu_T[0], r_tsptr,
+                                                   offsetof(trap_state, tt));
+                                }
                                 break;
                             case 4: // tick
                                 {
@@ -3921,6 +3985,7 @@ void cpu_reset(CPUSPARCState *env)
     env->pstate = PS_PRIV;
     env->hpstate = HS_PRIV;
     env->pc = 0x1fff0000000ULL;
+    env->tsptr = &env->ts[env->tl];
 #else
     env->pc = 0;
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);

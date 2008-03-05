@@ -169,6 +169,12 @@
 #define NB_MMU_MODES 2
 #else
 #define NB_MMU_MODES 3
+typedef struct trap_state {
+    uint64_t tpc;
+    uint64_t tnpc;
+    uint64_t tstate;
+    uint32_t tt;
+} trap_state;
 #endif
 
 typedef struct CPUSPARCState {
@@ -234,10 +240,8 @@ typedef struct CPUSPARCState {
 #if defined(TARGET_SPARC64)
 #define MAXTL 4
     uint64_t t0, t1, t2;
-    uint64_t tpc[MAXTL];
-    uint64_t tnpc[MAXTL];
-    uint64_t tstate[MAXTL];
-    uint32_t tt[MAXTL];
+    trap_state *tsptr;
+    trap_state ts[MAXTL];
     uint32_t xcc;               /* Extended integer condition codes */
     uint32_t asi;
     uint32_t pstate;
