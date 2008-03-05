@@ -891,6 +891,216 @@ static const struct hwdef hwdefs[] = {
         .max_mem = 0x10000000,
         .default_cpu_model = "Cypress CY7C601",
     },
+    /* Voyager */
+    {
+        .iommu_base   = 0x10000000,
+        .tcx_base     = 0x50000000,
+        .cs_base      = -1,
+        .slavio_base  = 0x70000000,
+        .ms_kb_base   = 0x71000000,
+        .serial_base  = 0x71100000,
+        .nvram_base   = 0x71200000,
+        .fd_base      = 0x71400000,
+        .counter_base = 0x71d00000,
+        .intctl_base  = 0x71e00000,
+        .idreg_base   = 0x78000000,
+        .dma_base     = 0x78400000,
+        .esp_base     = 0x78800000,
+        .le_base      = 0x78c00000,
+        .apc_base     = 0x71300000, // pmc
+        .aux1_base    = 0x71900000,
+        .aux2_base    = 0x71910000,
+        .ecc_base     = -1,
+        .sun4c_intctl_base  = -1,
+        .sun4c_counter_base = -1,
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = -1,
+        .machine_id = 0x80,
+        .iommu_version = 0x05000000,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+        .max_mem = 0x10000000,
+        .default_cpu_model = "Fujitsu MB86904",
+    },
+    /* LX */
+    {
+        .iommu_base   = 0x10000000,
+        .tcx_base     = 0x50000000,
+        .cs_base      = -1,
+        .slavio_base  = 0x70000000,
+        .ms_kb_base   = 0x71000000,
+        .serial_base  = 0x71100000,
+        .nvram_base   = 0x71200000,
+        .fd_base      = 0x71400000,
+        .counter_base = 0x71d00000,
+        .intctl_base  = 0x71e00000,
+        .idreg_base   = 0x78000000,
+        .dma_base     = 0x78400000,
+        .esp_base     = 0x78800000,
+        .le_base      = 0x78c00000,
+        .apc_base     = -1,
+        .aux1_base    = 0x71900000,
+        .aux2_base    = 0x71910000,
+        .ecc_base     = -1,
+        .sun4c_intctl_base  = -1,
+        .sun4c_counter_base = -1,
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = -1,
+        .machine_id = 0x80,
+        .iommu_version = 0x04000000,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+        .max_mem = 0x10000000,
+        .default_cpu_model = "TI MicroSparc I",
+    },
+    /* SS-4 */
+    {
+        .iommu_base   = 0x10000000,
+        .tcx_base     = 0x50000000,
+        .cs_base      = 0x6c000000,
+        .slavio_base  = 0x70000000,
+        .ms_kb_base   = 0x71000000,
+        .serial_base  = 0x71100000,
+        .nvram_base   = 0x71200000,
+        .fd_base      = 0x71400000,
+        .counter_base = 0x71d00000,
+        .intctl_base  = 0x71e00000,
+        .idreg_base   = 0x78000000,
+        .dma_base     = 0x78400000,
+        .esp_base     = 0x78800000,
+        .le_base      = 0x78c00000,
+        .apc_base     = 0x6a000000,
+        .aux1_base    = 0x71900000,
+        .aux2_base    = 0x71910000,
+        .ecc_base     = -1,
+        .sun4c_intctl_base  = -1,
+        .sun4c_counter_base = -1,
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = 5,
+        .machine_id = 0x80,
+        .iommu_version = 0x05000000,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+        .max_mem = 0x10000000,
+        .default_cpu_model = "Fujitsu MB86904",
+    },
+    /* SPARCClassic */
+    {
+        .iommu_base   = 0x10000000,
+        .tcx_base     = 0x50000000,
+        .cs_base      = -1,
+        .slavio_base  = 0x70000000,
+        .ms_kb_base   = 0x71000000,
+        .serial_base  = 0x71100000,
+        .nvram_base   = 0x71200000,
+        .fd_base      = 0x71400000,
+        .counter_base = 0x71d00000,
+        .intctl_base  = 0x71e00000,
+        .idreg_base   = 0x78000000,
+        .dma_base     = 0x78400000,
+        .esp_base     = 0x78800000,
+        .le_base      = 0x78c00000,
+        .apc_base     = 0x6a000000,
+        .aux1_base    = 0x71900000,
+        .aux2_base    = 0x71910000,
+        .ecc_base     = -1,
+        .sun4c_intctl_base  = -1,
+        .sun4c_counter_base = -1,
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = -1,
+        .machine_id = 0x80,
+        .iommu_version = 0x05000000,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+        .max_mem = 0x10000000,
+        .default_cpu_model = "TI MicroSparc I",
+    },
+    /* SPARCbook */
+    {
+        .iommu_base   = 0x10000000,
+        .tcx_base     = 0x50000000, // XXX
+        .cs_base      = -1,
+        .slavio_base  = 0x70000000,
+        .ms_kb_base   = 0x71000000,
+        .serial_base  = 0x71100000,
+        .nvram_base   = 0x71200000,
+        .fd_base      = 0x71400000,
+        .counter_base = 0x71d00000,
+        .intctl_base  = 0x71e00000,
+        .idreg_base   = 0x78000000,
+        .dma_base     = 0x78400000,
+        .esp_base     = 0x78800000,
+        .le_base      = 0x78c00000,
+        .apc_base     = 0x6a000000,
+        .aux1_base    = 0x71900000,
+        .aux2_base    = 0x71910000,
+        .ecc_base     = -1,
+        .sun4c_intctl_base  = -1,
+        .sun4c_counter_base = -1,
+        .vram_size    = 0x00100000,
+        .nvram_size   = 0x2000,
+        .esp_irq = 18,
+        .le_irq = 16,
+        .clock_irq = 7,
+        .clock1_irq = 19,
+        .ms_kb_irq = 14,
+        .ser_irq = 15,
+        .fd_irq = 22,
+        .me_irq = 30,
+        .cs_irq = -1,
+        .machine_id = 0x80,
+        .iommu_version = 0x05000000,
+        .intbit_to_level = {
+            2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
+            6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
+        },
+        .max_mem = 0x10000000,
+        .default_cpu_model = "TI MicroSparc I",
+    },
 };
 
 /* SPARCstation 5 hardware initialisation */
@@ -943,6 +1153,56 @@ static void ss2_init(int RAM_size, int vga_ram_size,
                   kernel_cmdline, initrd_filename, cpu_model);
 }
 
+/* SPARCstation Voyager hardware initialisation */
+static void vger_init(int RAM_size, int vga_ram_size,
+                      const char *boot_device, DisplayState *ds,
+                      const char *kernel_filename, const char *kernel_cmdline,
+                      const char *initrd_filename, const char *cpu_model)
+{
+    sun4m_hw_init(&hwdefs[5], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
+}
+
+/* SPARCstation LX hardware initialisation */
+static void ss_lx_init(int RAM_size, int vga_ram_size,
+                       const char *boot_device, DisplayState *ds,
+                       const char *kernel_filename, const char *kernel_cmdline,
+                       const char *initrd_filename, const char *cpu_model)
+{
+    sun4m_hw_init(&hwdefs[6], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
+}
+
+/* SPARCstation 4 hardware initialisation */
+static void ss4_init(int RAM_size, int vga_ram_size,
+                     const char *boot_device, DisplayState *ds,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    sun4m_hw_init(&hwdefs[7], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
+}
+
+/* SPARCClassic hardware initialisation */
+static void scls_init(int RAM_size, int vga_ram_size,
+                      const char *boot_device, DisplayState *ds,
+                      const char *kernel_filename, const char *kernel_cmdline,
+                      const char *initrd_filename, const char *cpu_model)
+{
+    sun4m_hw_init(&hwdefs[8], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
+}
+
+/* SPARCbook hardware initialisation */
+static void sbook_init(int RAM_size, int vga_ram_size,
+                       const char *boot_device, DisplayState *ds,
+                       const char *kernel_filename, const char *kernel_cmdline,
+                       const char *initrd_filename, const char *cpu_model)
+{
+    sun4m_hw_init(&hwdefs[9], RAM_size, boot_device, ds, kernel_filename,
+                  kernel_cmdline, initrd_filename, cpu_model);
+}
+
 QEMUMachine ss5_machine = {
     "SS-5",
     "Sun4m platform, SPARCstation 5",
@@ -971,6 +1231,36 @@ QEMUMachine ss2_machine = {
     "SS-2",
     "Sun4c platform, SPARCstation 2",
     ss2_init,
+};
+
+QEMUMachine voyager_machine = {
+    "Voyager",
+    "Sun4m platform, SPARCstation Voyager",
+    vger_init,
+};
+
+QEMUMachine ss_lx_machine = {
+    "LX",
+    "Sun4m platform, SPARCstation LX",
+    ss_lx_init,
+};
+
+QEMUMachine ss4_machine = {
+    "SS-4",
+    "Sun4m platform, SPARCstation 4",
+    ss4_init,
+};
+
+QEMUMachine scls_machine = {
+    "SPARCClassic",
+    "Sun4m platform, SPARCClassic",
+    scls_init,
+};
+
+QEMUMachine sbook_machine = {
+    "SPARCbook",
+    "Sun4m platform, SPARCbook",
+    sbook_init,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {

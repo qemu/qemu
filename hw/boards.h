@@ -53,6 +53,8 @@ extern QEMUMachine r2d_machine;
 
 /* sun4m.c */
 extern QEMUMachine ss5_machine, ss10_machine, ss600mp_machine, ss20_machine;
+extern QEMUMachine voyager_machine, ss_lx_machine, ss4_machine, scls_machine;
+extern QEMUMachine sbook_machine;
 extern QEMUMachine ss2_machine;
 extern QEMUMachine ss1000_machine, ss2000_machine;
 
