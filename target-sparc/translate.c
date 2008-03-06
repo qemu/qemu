@@ -4259,7 +4259,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_bm = 0x00004000,
         .mmu_ctpr_mask = 0x00ffffc0,
         .mmu_cxr_mask = 0x000000ff,
-        .mmu_sfsr_mask = 0x00016bff,
+        .mmu_sfsr_mask = 0x00016fff,
         .mmu_trcr_mask = 0x00ffffff,
     },
     {
