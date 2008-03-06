@@ -321,7 +321,6 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 #endif
 
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
-void raise_exception(int tt);
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi);
 void cpu_check_irqs(CPUSPARCState *env);

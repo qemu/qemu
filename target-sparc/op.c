@@ -857,22 +857,6 @@ void OPPROTO op_restore(void)
 }
 #endif
 
-void OPPROTO op_exception(void)
-{
-    env->exception_index = PARAM1;
-    cpu_loop_exit();
-    FORCE_RET();
-}
-
-void OPPROTO op_fpexception_im(void)
-{
-    env->exception_index = TT_FP_EXCP;
-    env->fsr &= ~FSR_FTT_MASK;
-    env->fsr |= PARAM1;
-    cpu_loop_exit();
-    FORCE_RET();
-}
-
 void OPPROTO op_eval_ba(void)
 {
     T2 = 1;

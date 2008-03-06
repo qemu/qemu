@@ -807,6 +807,24 @@ static inline void gen_op_fcmpeq(int fccno)
 
 #endif
 
+static inline void gen_op_exception(int exception)
+{
+    TCGv r_except;
+
+    r_except = tcg_temp_new(TCG_TYPE_I32);
+    tcg_gen_movi_i32(r_except, exception);
+    tcg_gen_helper_0_1(raise_exception, r_except);
+}
+
+static inline void gen_op_fpexception_im(int fsr_flags)
+{
+    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fsr));
+    tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, ~FSR_FTT_MASK);
+    tcg_gen_ori_tl(cpu_tmp0, cpu_tmp0, fsr_flags);
+    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fsr));
+    gen_op_exception(TT_FP_EXCP);
+}
+
 static int gen_trap_ifnofpu(DisasContext * dc)
 {
 #if !defined(CONFIG_USER_ONLY)

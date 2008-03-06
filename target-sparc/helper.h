@@ -72,3 +72,4 @@ void TCG_HELPER_PROTO helper_fcmpeq_fcc2(void);
 void TCG_HELPER_PROTO helper_fcmpeq_fcc3(void);
 #endif
 #endif
+void TCG_HELPER_PROTO raise_exception(int tt);
