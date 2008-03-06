@@ -1,7 +1,7 @@
 /*
  * Texas Instruments OMAP processors.
  *
- * Copyright (C) 2006-2007 Andrzej Zaborowski  <balrog@zabor.org>
+ * Copyright (C) 2006-2008 Andrzej Zaborowski  <balrog@zabor.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -54,7 +54,7 @@ void omap_clk_setrate(omap_clk clk, int divide, int multiply);
 int64_t omap_clk_getrate(omap_clk clk);
 void omap_clk_reparent(omap_clk clk, omap_clk parent);
 
-/* omap.c */
+/* omap[123].c */
 struct omap_intr_handler_s;
 struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
                 unsigned long size, unsigned char nbanks,
@@ -340,16 +340,26 @@ static inline target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta,
 # define OMAP_INT_243X_HS_USB_DMA	93
 # define OMAP_INT_243X_CARKIT		94
 
+/* omap_dma.c */
 enum omap_dma_model {
-    omap_dma_3_1 = 0,
-    omap_dma_3_2
+    omap_dma_3_0,
+    omap_dma_3_1,
+    omap_dma_3_2,
+    omap_dma_4,
 };
 
 struct omap_dma_s;
 struct omap_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
                 qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
                 enum omap_dma_model model);
+void omap_dma_reset(struct omap_dma_s *s);
 
+struct dma_irq_map {
+    int ih;
+    int intr;
+};
+
+/* Only used in OMAP DMA 3.x gigacells */
 enum omap_dma_port {
     emiff = 0,
     emifs,
@@ -367,6 +377,7 @@ typedef enum {
     double_index,
 } omap_dma_addressing_t;
 
+/* Only used in OMAP DMA 3.x gigacells */
 struct omap_dma_lcd_channel_s {
     enum omap_dma_port src;
     target_phys_addr_t src_f1_top;
@@ -411,7 +422,7 @@ struct omap_dma_lcd_channel_s {
     ram_addr_t phys_framebuffer[2];
     qemu_irq irq;
     struct omap_mpu_state_s *mpu;
-};
+} *omap_dma_get_lcdch(struct omap_dma_s *s);
 
 /*
  * DMA request numbers for OMAP1
@@ -477,6 +488,7 @@ struct omap_dma_lcd_channel_s {
 # define OMAP_DMA_MMC2_RX		55
 # define OMAP_DMA_CRYPTO_DES_OUT	56
 
+/* omap[123].c */
 struct omap_mpu_timer_s;
 struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk);
