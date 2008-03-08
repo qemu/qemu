@@ -75,9 +75,17 @@ enum {
 #define TCG_REG_CALL_STACK TCG_REG_O6
 #define TCG_TARGET_STACK_ALIGN 16
 
+#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+#define TCG_TARGET_STACK_MINFRAME 176
+#else
+#define TCG_TARGET_STACK_MINFRAME 92
+#endif
+
 /* optional instructions */
 //#define TCG_TARGET_HAS_bswap_i32
 //#define TCG_TARGET_HAS_bswap_i64
+
+#define TCG_TARGET_NEEDS_PROLOGUE 1
 
 /* Note: must be synced with dyngen-exec.h */
 #ifdef HOST_SOLARIS

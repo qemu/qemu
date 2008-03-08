@@ -1685,6 +1685,11 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     macro_op_index = -1;
     args = gen_opparam_buf;
     op_index = 0;
+
+#ifdef TCG_TARGET_NEEDS_PROLOGUE
+    tcg_target_prologue(s);
+#endif
+
     for(;;) {
         opc = gen_opc_buf[op_index];
 #ifdef CONFIG_PROFILER
