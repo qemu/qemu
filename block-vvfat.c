@@ -53,7 +53,7 @@
 #define stderr STDERR
 FILE* stderr = NULL;
 
-static void checkpoint();
+static void checkpoint(void);
 
 #ifdef __MINGW32__
 void nonono(const char* file, int line, const char* msg) {
@@ -2813,7 +2813,7 @@ BlockDriver bdrv_vvfat = {
 };
 
 #ifdef DEBUG
-static void checkpoint() {
+static void checkpoint(void) {
     assert(((mapping_t*)array_get(&(vvv->mapping), 0))->end == 2);
     check1(vvv);
     check2(vvv);

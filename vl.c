@@ -899,7 +899,7 @@ static struct qemu_alarm_timer alarm_timers[] = {
     {NULL, }
 };
 
-static void show_available_alarms()
+static void show_available_alarms(void)
 {
     int i;
 
