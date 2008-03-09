@@ -2613,17 +2613,20 @@ static void disas_sparc_insn(DisasContext * dc)
                             tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
                         break;
                     case 0x5:
-                        gen_op_andn_T1_T0();
+                        tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
+                        tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
                         if (xop & 0x10)
                             gen_op_logic_T0_cc();
                         break;
                     case 0x6:
-                        gen_op_orn_T1_T0();
+                        tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
+                        tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
                         if (xop & 0x10)
                             gen_op_logic_T0_cc();
                         break;
                     case 0x7:
-                        gen_op_xnor_T1_T0();
+                        tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
+                        tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
                         if (xop & 0x10)
                             gen_op_logic_T0_cc();
                         break;

@@ -554,21 +554,6 @@ void OPPROTO op_tsub_T1_T0_ccTV(void)
     FORCE_RET();
 }
 
-void OPPROTO op_andn_T1_T0(void)
-{
-    T0 &= ~T1;
-}
-
-void OPPROTO op_orn_T1_T0(void)
-{
-    T0 |= ~T1;
-}
-
-void OPPROTO op_xnor_T1_T0(void)
-{
-    T0 ^= ~T1;
-}
-
 void OPPROTO op_umul_T1_T0(void)
 {
     uint64_t res;
