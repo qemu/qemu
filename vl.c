@@ -916,7 +916,7 @@ static void configure_alarms(char const *opt)
     char *arg;
     char *name;
 
-    if (!strcmp(opt, "help")) {
+    if (!strcmp(opt, "?")) {
         show_available_alarms();
         exit(0);
     }
@@ -958,10 +958,10 @@ next:
 	/* Disable remaining timers */
         for (i = cur; i < count; i++)
             alarm_timers[i].name = NULL;
+    } else {
+        show_available_alarms();
+        exit(1);
     }
-
-    /* debug */
-    show_available_alarms();
 }
 
 QEMUClock *rt_clock;
@@ -7704,7 +7704,7 @@ static void help(int exitcode)
            "-prom-env variable=value  set OpenBIOS nvram variables\n"
 #endif
            "-clock          force the use of the given methods for timer alarm.\n"
-           "                To see what timers are available use -clock help\n"
+           "                To see what timers are available use -clock ?\n"
            "-startdate      select initial date of the clock\n"
            "\n"
            "During emulation, the following keys are useful:\n"
