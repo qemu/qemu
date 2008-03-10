@@ -588,7 +588,7 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
             if (qemu_put_mouse_event_current->qemu_put_mouse_event_absolute)
                 width = 0x7fff;
             else
-                width = graphic_width;
+                width = graphic_width - 1;
             mouse_event(mouse_event_opaque,
                                  width - dy, dx, dz, buttons_state);
         } else

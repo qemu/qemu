@@ -40,7 +40,7 @@
 #define cgrect(nsrect) (*(CGRect *)&(nsrect))
 #define COCOA_MOUSE_EVENT \
         if (isTabletEnabled) { \
-            kbd_mouse_event((int)(p.x * 0x7FFF / screen.width), (int)((screen.height - p.y) * 0x7FFF / screen.height), 0, buttons); \
+            kbd_mouse_event((int)(p.x * 0x7FFF / (screen.width - 1)), (int)((screen.height - p.y) * 0x7FFF / (screen.height - 1)), 0, buttons); \
         } else if (isMouseGrabed) { \
             kbd_mouse_event((int)[event deltaX], (int)[event deltaY], 0, buttons); \
         } else { \

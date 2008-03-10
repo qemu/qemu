@@ -879,8 +879,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
 	dz = 1;
 
     if (vs->absolute) {
-	kbd_mouse_event(x * 0x7FFF / vs->ds->width,
-			y * 0x7FFF / vs->ds->height,
+	kbd_mouse_event(x * 0x7FFF / (vs->ds->width - 1),
+			y * 0x7FFF / (vs->ds->height - 1),
 			dz, buttons);
     } else if (vs->has_pointer_type_change) {
 	x -= 0x7FFF;
