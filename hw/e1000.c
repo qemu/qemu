@@ -50,7 +50,7 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 #endif
 
 #define IOPORT_SIZE       0x40
-#define PNPMMIO_SIZE      0x60000
+#define PNPMMIO_SIZE      0x20000
 
 /*
  * HW models:
