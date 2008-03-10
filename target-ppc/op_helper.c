@@ -888,12 +888,16 @@ void do_store_fpscr (uint32_t mask)
     /* Update VX and FEX */
     if (fpscr_ix != 0)
         env->fpscr |= 1 << FPSCR_VX;
+    else
+        env->fpscr &= ~(1 << FPSCR_VX);
     if ((fpscr_ex & fpscr_eex) != 0) {
         env->fpscr |= 1 << FPSCR_FEX;
         env->exception_index = POWERPC_EXCP_PROGRAM;
         /* XXX: we should compute it properly */
         env->error_code = POWERPC_EXCP_FP;
     }
+    else
+        env->fpscr &= ~(1 << FPSCR_FEX);
     fpscr_set_rounding_mode();
 }
 #undef WORD0
