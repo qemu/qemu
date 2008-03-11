@@ -3514,6 +3514,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 CPUMIPSState *env = (CPUMIPSState*)cpu_env;
 		env->gpr[env->current_tc][3] = host_pipe[1];
 		ret = host_pipe[0];
+#elif defined(TARGET_SH4)
+		((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
+		ret = host_pipe[0];
 #else
                 if (put_user_s32(host_pipe[0], arg1)
                     || put_user_s32(host_pipe[1], arg1 + sizeof(host_pipe[0])))

@@ -97,7 +97,6 @@ struct BlockDriverState {
     int locked;    /* if true, the media cannot temporarily be ejected */
     int encrypted; /* if true, the media is encrypted */
     int sg;        /* if true, the device is a /dev/sg* */
-    int autogrow;  /* if true, the backing store can auto-extend to allocate new extents */
     /* event callback when inserting/removing */
     void (*change_cb)(void *opaque);
     void *change_opaque;
