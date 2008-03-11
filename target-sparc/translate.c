@@ -221,7 +221,6 @@ static inline void gen_movl_reg_TN(int reg, TCGv tn)
     else if (reg < 8)
         tcg_gen_ld_tl(tn, cpu_env, offsetof(CPUState, gregs[reg]));
     else {
-        tcg_gen_ld_ptr(cpu_regwptr, cpu_env, offsetof(CPUState, regwptr)); // XXX
         tcg_gen_ld_tl(tn, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
     }
 }
@@ -250,7 +249,6 @@ static inline void gen_movl_TN_reg(int reg, TCGv tn)
     else if (reg < 8)
         tcg_gen_st_tl(tn, cpu_env, offsetof(CPUState, gregs[reg]));
     else {
-        tcg_gen_ld_ptr(cpu_regwptr, cpu_env, offsetof(CPUState, regwptr)); // XXX
         tcg_gen_st_tl(tn, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
     }
 }
@@ -4172,7 +4170,6 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
 
     cpu_tmp0 = tcg_temp_new(TCG_TYPE_TL);
-    cpu_regwptr = tcg_temp_new(TCG_TYPE_PTR); // XXX
 
     do {
         if (env->nb_breakpoints > 0) {
@@ -4337,6 +4334,9 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
 
         tcg_set_macro_func(&tcg_ctx, tcg_macro_func);
         cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+        cpu_regwptr = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+                                         offsetof(CPUState, regwptr),
+                                         "regwptr");
         //#if TARGET_LONG_BITS > HOST_LONG_BITS
 #ifdef TARGET_SPARC64
         cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
