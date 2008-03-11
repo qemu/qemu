@@ -45,6 +45,7 @@ typedef struct QEMUSnapshotInfo {
                                      it (default for
                                      bdrv_file_open()) */
 #define BDRV_O_DIRECT      0x0020
+#define BDRV_O_AUTOGROW    0x0040 /* Allow backing file to extend when writing past end of file */
 
 #ifndef QEMU_IMG
 void bdrv_info(void);

@@ -123,6 +123,60 @@ void path_combine(char *dest, int dest_size,
     }
 }
 
+static int bdrv_rd_badreq_sectors(BlockDriverState *bs,
+                                  int64_t sector_num, int nb_sectors)
+{
+    return
+        nb_sectors < 0 ||
+        sector_num < 0 ||
+        nb_sectors > bs->total_sectors ||
+        sector_num > bs->total_sectors - nb_sectors;
+}
+
+static int bdrv_rd_badreq_bytes(BlockDriverState *bs,
+                                int64_t offset, int count)
+{
+    int64_t size = bs->total_sectors << SECTOR_BITS;
+    return
+        count < 0 ||
+        size < 0 ||
+        count > size ||
+        offset > size - count;
+}
+
+static int bdrv_wr_badreq_sectors(BlockDriverState *bs,
+                                  int64_t sector_num, int nb_sectors)
+{
+    if (sector_num < 0 ||
+        nb_sectors < 0)
+        return 1;
+
+    if (sector_num > bs->total_sectors - nb_sectors) {
+        if (bs->autogrow)
+            bs->total_sectors = sector_num + nb_sectors;
+        else
+            return 1;
+    }
+    return 0;
+}
+
+static int bdrv_wr_badreq_bytes(BlockDriverState *bs,
+                                int64_t offset, int count)
+{
+    int64_t size = bs->total_sectors << SECTOR_BITS;
+    if (count < 0 ||
+        offset < 0)
+        return 1;
+
+    if (offset > size - count) {
+        if (bs->autogrow)
+            bs->total_sectors = (offset + count + SECTOR_SIZE - 1) >> SECTOR_BITS;
+        else
+            return 1;
+    }
+    return 0;
+}
+
 
 static void bdrv_register(BlockDriver *bdrv)
 {
@@ -335,6 +389,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     bs->read_only = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
+    bs->autogrow = 0;
+
+    if (flags & BDRV_O_AUTOGROW)
+        bs->autogrow = 1;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -379,6 +437,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     }
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
+    bs->total_sectors = 0; /* driver will set if it does not do getlength */
     if (bs->opaque == NULL && drv->instance_size > 0)
         return -1;
     /* Note: for compatibility, we open disk image files as RDWR, and
@@ -444,6 +503,7 @@ void bdrv_close(BlockDriverState *bs)
         bs->drv = NULL;
 
         /* call the change callback */
+        bs->total_sectors = 0;
         bs->media_changed = 1;
         if (bs->change_cb)
             bs->change_cb(bs->change_opaque);
@@ -509,6 +569,8 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     if (!drv)
         return -ENOMEDIUM;
 
+    if (bdrv_rd_badreq_sectors(bs, sector_num, nb_sectors))
+        return -EDOM;
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
             memcpy(buf, bs->boot_sector_data, 512);
         sector_num++;
@@ -549,6 +611,8 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
         return -ENOMEDIUM;
     if (bs->read_only)
         return -EACCES;
+    if (bdrv_wr_badreq_sectors(bs, sector_num, nb_sectors))
+        return -EDOM;
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
         memcpy(bs->boot_sector_data, buf, 512);
     }
@@ -674,6 +738,8 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset,
         return -ENOMEDIUM;
     if (!drv->bdrv_pread)
         return bdrv_pread_em(bs, offset, buf1, count1);
+    if (bdrv_rd_badreq_bytes(bs, offset, count1))
+        return -EDOM;
     return drv->bdrv_pread(bs, offset, buf1, count1);
 }
 
@@ -689,6 +755,8 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
         return -ENOMEDIUM;
     if (!drv->bdrv_pwrite)
         return bdrv_pwrite_em(bs, offset, buf1, count1);
+    if (bdrv_wr_badreq_bytes(bs, offset, count1))
+        return -EDOM;
     return drv->bdrv_pwrite(bs, offset, buf1, count1);
 }
 
@@ -955,6 +1023,8 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
         return -ENOMEDIUM;
     if (!drv->bdrv_write_compressed)
         return -ENOTSUP;
+    if (bdrv_wr_badreq_sectors(bs, sector_num, nb_sectors))
+        return -EDOM;
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
 
@@ -1101,6 +1171,8 @@ BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
 
     if (!drv)
         return NULL;
+    if (bdrv_rd_badreq_sectors(bs, sector_num, nb_sectors))
+        return NULL;
 
     /* XXX: we assume that nb_sectors == 0 is suppored by the async read */
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
@@ -1131,6 +1203,8 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
     if (!drv)
         return NULL;
     if (bs->read_only)
+        return NULL;
+    if (bdrv_wr_badreq_sectors(bs, sector_num, nb_sectors))
         return NULL;
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
         memcpy(bs->boot_sector_data, buf, 512);
