@@ -32,7 +32,7 @@ const char *tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%edi",
 };
 
-int tcg_target_reg_alloc_order[TCG_TARGET_NB_REGS] = {
+int tcg_target_reg_alloc_order[] = {
     TCG_REG_EAX,
     TCG_REG_EDX,
     TCG_REG_ECX,

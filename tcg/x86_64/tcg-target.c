@@ -40,7 +40,7 @@ const char *tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r15",
 };
 
-int tcg_target_reg_alloc_order[TCG_TARGET_NB_REGS] = {
+int tcg_target_reg_alloc_order[] = {
     TCG_REG_RDI,
     TCG_REG_RSI,
     TCG_REG_RDX,

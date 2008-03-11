@@ -57,7 +57,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%i7",
 };
 
-static const int tcg_target_reg_alloc_order[TCG_TARGET_NB_REGS] = {
+static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_L0,
     TCG_REG_L1,
     TCG_REG_L2,

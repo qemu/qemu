@@ -26,6 +26,10 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #ifndef always_inline
 #if (__GNUC__ < 3) || defined(__APPLE__)
 #define always_inline inline

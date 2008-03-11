@@ -1212,14 +1212,14 @@ static int tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
     tcg_regset_andnot(reg_ct, reg1, reg2);
 
     /* first try free registers */
-    for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
+    for(i = 0; i < ARRAY_SIZE(tcg_target_reg_alloc_order); i++) {
         reg = tcg_target_reg_alloc_order[i];
         if (tcg_regset_test_reg(reg_ct, reg) && s->reg_to_temp[reg] == -1)
             return reg;
     }
 
     /* XXX: do better spill choice */
-    for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
+    for(i = 0; i < ARRAY_SIZE(tcg_target_reg_alloc_order); i++) {
         reg = tcg_target_reg_alloc_order[i];
         if (tcg_regset_test_reg(reg_ct, reg)) {
             tcg_reg_free(s, reg);
