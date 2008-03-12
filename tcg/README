@@ -223,9 +223,9 @@ t0=t1%t2 (signed). Undefined behavior if division by zero or overflow.
 
 t0=t1%t2 (unsigned). Undefined behavior if division by zero.
 
-* and_i32/i64 t0, t1, t2
-
 ********* Logical
+
+* and_i32/i64 t0, t1, t2
 
 t0=t1&t2
 
@@ -236,8 +236,6 @@ t0=t1|t2
 * xor_i32/i64 t0, t1, t2
 
 t0=t1^t2
-
-* shl_i32/i64 t0, t1, t2
 
 ********* Shifts
 
