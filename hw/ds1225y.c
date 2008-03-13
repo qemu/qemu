@@ -1,8 +1,8 @@
 /*
  * QEMU NVRAM emulation for DS1225Y chip
- * 
- * Copyright (c) 2007 Hervé Poussineau
- * 
+ *
+ * Copyright (c) 2007-2008 Hervé Poussineau
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -26,98 +26,169 @@
 #include "mips.h"
 #include "nvram.h"
 
-typedef enum
-{
-    none = 0,
-    readmode,
-    writemode,
-} nvram_open_mode;
+//#define DEBUG_NVRAM
 
-struct ds1225y_t
+typedef struct ds1225y_t
 {
     target_phys_addr_t mem_base;
-    uint32_t capacity;
-    const char *filename;
+    uint32_t chip_size;
     QEMUFile *file;
-    nvram_open_mode open_mode;
-};
+    uint8_t *contents;
+    uint8_t protection;
+} ds1225y_t;
 
-static int ds1225y_set_to_mode(ds1225y_t *NVRAM, nvram_open_mode mode, const char *filemode)
-{
-    if (NVRAM->open_mode != mode)
-    {
-        if (NVRAM->file)
-            qemu_fclose(NVRAM->file);
-        NVRAM->file = qemu_fopen(NVRAM->filename, filemode);
-        NVRAM->open_mode = mode;
-    }
-    return (NVRAM->file != NULL);
-}
 
 static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
 {
-    ds1225y_t *NVRAM = opaque;
+    ds1225y_t *s = opaque;
     int64_t pos;
+    uint32_t val;
 
-    pos = addr - NVRAM->mem_base;
-    if (addr >= NVRAM->capacity)
-        addr -= NVRAM->capacity;
+    pos = addr - s->mem_base;
+    if (pos >= s->chip_size)
+        pos -= s->chip_size;
 
-    if (!ds1225y_set_to_mode(NVRAM, readmode, "rb"))
-        return 0;
-    qemu_fseek(NVRAM->file, pos, SEEK_SET);
-    return (uint32_t)qemu_get_byte(NVRAM->file);
+    val = s->contents[pos];
+
+#ifdef DEBUG_NVRAM
+    printf("nvram: read 0x%x at " TARGET_FMT_lx "\n", val, addr);
+#endif
+    return val;
 }
 
-static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
 {
-    ds1225y_t *NVRAM = opaque;
+    uint32_t v;
+    v = nvram_readb(opaque, addr);
+    v |= nvram_readb(opaque, addr + 1) << 8;
+    return v;
+}
+
+static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
+{
+    uint32_t v;
+    v = nvram_readb(opaque, addr);
+    v |= nvram_readb(opaque, addr + 1) << 8;
+    v |= nvram_readb(opaque, addr + 2) << 16;
+    v |= nvram_readb(opaque, addr + 3) << 24;
+    return v;
+}
+
+static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    ds1225y_t *s = opaque;
     int64_t pos;
 
-    pos = addr - NVRAM->mem_base;
-    if (ds1225y_set_to_mode(NVRAM, writemode, "wb"))
-    {
-        qemu_fseek(NVRAM->file, pos, SEEK_SET);
-        qemu_put_byte(NVRAM->file, (int)value);
+#ifdef DEBUG_NVRAM
+    printf("nvram: write 0x%x at " TARGET_FMT_lx "\n", val, addr);
+#endif
+
+    pos = addr - s->mem_base;
+    s->contents[pos] = val & 0xff;
+    if (s->file) {
+        qemu_fseek(s->file, pos, SEEK_SET);
+        qemu_put_byte(s->file, (int)val);
+        qemu_fflush(s->file);
     }
+}
+
+static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    nvram_writeb(opaque, addr, val & 0xff);
+    nvram_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+}
+
+static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    nvram_writeb(opaque, addr, val & 0xff);
+    nvram_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+    nvram_writeb(opaque, addr + 2, (val >> 16) & 0xff);
+    nvram_writeb(opaque, addr + 3, (val >> 24) & 0xff);
+}
+
+static void nvram_writeb_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    ds1225y_t *s = opaque;
+
+    if (s->protection != 7) {
+#ifdef DEBUG_NVRAM
+    printf("nvram: prevent write of 0x%x at " TARGET_FMT_lx "\n", val, addr);
+#endif
+        return;
+    }
+
+    nvram_writeb(opaque, addr - s->chip_size, val);
+}
+
+static void nvram_writew_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    nvram_writeb_protected(opaque, addr, val & 0xff);
+    nvram_writeb_protected(opaque, addr + 1, (val >> 8) & 0xff);
+}
+
+static void nvram_writel_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    nvram_writeb_protected(opaque, addr, val & 0xff);
+    nvram_writeb_protected(opaque, addr + 1, (val >> 8) & 0xff);
+    nvram_writeb_protected(opaque, addr + 2, (val >> 16) & 0xff);
+    nvram_writeb_protected(opaque, addr + 3, (val >> 24) & 0xff);
 }
 
 static CPUReadMemoryFunc *nvram_read[] = {
     &nvram_readb,
-    NULL,
-    NULL,
+    &nvram_readw,
+    &nvram_readl,
 };
 
 static CPUWriteMemoryFunc *nvram_write[] = {
     &nvram_writeb,
-    NULL,
-    NULL,
+    &nvram_writew,
+    &nvram_writel,
 };
 
-static CPUWriteMemoryFunc *nvram_none[] = {
-    NULL,
-    NULL,
-    NULL,
+static CPUWriteMemoryFunc *nvram_write_protected[] = {
+    &nvram_writeb_protected,
+    &nvram_writew_protected,
+    &nvram_writel_protected,
 };
 
 /* Initialisation routine */
-ds1225y_t *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
+void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
 {
     ds1225y_t *s;
-    int mem_index1, mem_index2;
+    int mem_indexRW, mem_indexRP;
+    QEMUFile *file;
 
     s = qemu_mallocz(sizeof(ds1225y_t));
     if (!s)
         return NULL;
+    s->chip_size = 0x2000; /* Fixed for ds1225y chip: 8 KiB */
+    s->contents = qemu_mallocz(s->chip_size);
+    if (!s->contents) {
+        return NULL;
+    }
     s->mem_base = mem_base;
-    s->capacity = 0x2000; /* Fixed for ds1225y chip: 8K */
-    s->filename = filename;
+    s->protection = 7;
+
+    /* Read current file */
+    file = qemu_fopen(filename, "rb");
+    if (file) {
+        /* Read nvram contents */
+        qemu_get_buffer(file, s->contents, s->chip_size);
+        qemu_fclose(file);
+    }
+    s->file = qemu_fopen(filename, "wb");
+    if (s->file) {
+        /* Write back contents, as 'wb' mode cleaned the file */
+        qemu_put_buffer(s->file, s->contents, s->chip_size);
+        qemu_fflush(s->file);
+    }
 
     /* Read/write memory */
-    mem_index1 = cpu_register_io_memory(0, nvram_read, nvram_write, s);
-    cpu_register_physical_memory(mem_base, s->capacity, mem_index1);
-    /* Read-only memory */
-    mem_index2 = cpu_register_io_memory(0, nvram_read, nvram_none, s);
-    cpu_register_physical_memory(mem_base + s->capacity, s->capacity, mem_index2);
+    mem_indexRW = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+    cpu_register_physical_memory(mem_base, s->chip_size, mem_indexRW);
+    /* Read/write protected memory */
+    mem_indexRP = cpu_register_io_memory(0, nvram_read, nvram_write_protected, s);
+    cpu_register_physical_memory(mem_base + s->chip_size, s->chip_size, mem_indexRP);
     return s;
 }
