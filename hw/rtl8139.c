@@ -2735,13 +2735,8 @@ static void rtl8139_io_writew(void *opaque, uint8_t addr, uint32_t val)
         default:
             DEBUG_PRINT(("RTL8139: ioport write(w) addr=0x%x val=0x%04x via write(b)\n", addr, val));
 
-#ifdef TARGET_WORDS_BIGENDIAN
-            rtl8139_io_writeb(opaque, addr, (val >> 8) & 0xff);
-            rtl8139_io_writeb(opaque, addr + 1, val & 0xff);
-#else
             rtl8139_io_writeb(opaque, addr, val & 0xff);
             rtl8139_io_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
             break;
     }
 }
@@ -2802,17 +2797,10 @@ static void rtl8139_io_writel(void *opaque, uint8_t addr, uint32_t val)
 
         default:
             DEBUG_PRINT(("RTL8139: ioport write(l) addr=0x%x val=0x%08x via write(b)\n", addr, val));
-#ifdef TARGET_WORDS_BIGENDIAN
-            rtl8139_io_writeb(opaque, addr, (val >> 24) & 0xff);
-            rtl8139_io_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-            rtl8139_io_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-            rtl8139_io_writeb(opaque, addr + 3, val & 0xff);
-#else
             rtl8139_io_writeb(opaque, addr, val & 0xff);
             rtl8139_io_writeb(opaque, addr + 1, (val >> 8) & 0xff);
             rtl8139_io_writeb(opaque, addr + 2, (val >> 16) & 0xff);
             rtl8139_io_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
             break;
     }
 }
@@ -2958,13 +2946,8 @@ static uint32_t rtl8139_io_readw(void *opaque, uint8_t addr)
         default:
             DEBUG_PRINT(("RTL8139: ioport read(w) addr=0x%x via read(b)\n", addr));
 
-#ifdef TARGET_WORDS_BIGENDIAN
-            ret  = rtl8139_io_readb(opaque, addr) << 8;
-            ret |= rtl8139_io_readb(opaque, addr + 1);
-#else
             ret  = rtl8139_io_readb(opaque, addr);
             ret |= rtl8139_io_readb(opaque, addr + 1) << 8;
-#endif
 
             DEBUG_PRINT(("RTL8139: ioport read(w) addr=0x%x val=0x%04x\n", addr, ret));
             break;
@@ -3031,17 +3014,10 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
         default:
             DEBUG_PRINT(("RTL8139: ioport read(l) addr=0x%x via read(b)\n", addr));
 
-#ifdef TARGET_WORDS_BIGENDIAN
-            ret  = rtl8139_io_readb(opaque, addr) << 24;
-            ret |= rtl8139_io_readb(opaque, addr + 1) << 16;
-            ret |= rtl8139_io_readb(opaque, addr + 2) << 8;
-            ret |= rtl8139_io_readb(opaque, addr + 3);
-#else
             ret  = rtl8139_io_readb(opaque, addr);
             ret |= rtl8139_io_readb(opaque, addr + 1) << 8;
             ret |= rtl8139_io_readb(opaque, addr + 2) << 16;
             ret |= rtl8139_io_readb(opaque, addr + 3) << 24;
-#endif
 
             DEBUG_PRINT(("RTL8139: read(l) addr=0x%x val=%08x\n", addr, ret));
             break;
@@ -3091,11 +3067,17 @@ static void rtl8139_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t 
 
 static void rtl8139_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
     rtl8139_io_writew(opaque, addr & 0xFF, val);
 }
 
 static void rtl8139_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
     rtl8139_io_writel(opaque, addr & 0xFF, val);
 }
 
@@ -3106,12 +3088,20 @@ static uint32_t rtl8139_mmio_readb(void *opaque, target_phys_addr_t addr)
 
 static uint32_t rtl8139_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
-    return rtl8139_io_readw(opaque, addr & 0xFF);
+    uint32_t val = rtl8139_io_readw(opaque, addr & 0xFF);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    return val;
 }
 
 static uint32_t rtl8139_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
-    return rtl8139_io_readl(opaque, addr & 0xFF);
+    uint32_t val = rtl8139_io_readl(opaque, addr & 0xFF);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
 }
 
 /* */
