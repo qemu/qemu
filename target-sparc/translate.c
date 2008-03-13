@@ -389,8 +389,7 @@ static inline void gen_cc_NZ(TCGv dst)
 
     l1 = gen_new_label();
     l2 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_brcond_i32(TCG_COND_NE, dst, r_zero, l1);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_ZERO);
     gen_set_label(l1);
@@ -451,8 +450,7 @@ static inline void gen_cc_V_add(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_TL);
     r_temp2 = tcg_temp_new(TCG_TYPE_TL);
     r_temp3 = tcg_temp_new(TCG_TYPE_TL);
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_xor_tl(r_temp, src1, src2);
     tcg_gen_xori_tl(r_temp, r_temp, -1);
     tcg_gen_xor_tl(r_temp2, src1, dst);
@@ -466,7 +464,6 @@ static inline void gen_cc_V_add(TCGv dst, TCGv src1, TCGv src2)
         int l2;
 
         l2 = gen_new_label();
-        tcg_gen_movi_tl(r_zero, 0);
         tcg_gen_xor_tl(r_temp, src1, src2);
         tcg_gen_xori_tl(r_temp, r_temp, -1);
         tcg_gen_xor_tl(r_temp2, src1, dst);
@@ -489,8 +486,7 @@ static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_TL);
     r_temp2 = tcg_temp_new(TCG_TYPE_TL);
     r_temp3 = tcg_temp_new(TCG_TYPE_TL);
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_xor_tl(r_temp, src1, src2);
     tcg_gen_xori_tl(r_temp, r_temp, -1);
     tcg_gen_xor_tl(r_temp2, src1, dst);
@@ -504,7 +500,6 @@ static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
         int l2;
 
         l2 = gen_new_label();
-        tcg_gen_movi_tl(r_zero, 0);
         tcg_gen_xor_tl(r_temp, src1, src2);
         tcg_gen_xori_tl(r_temp, r_temp, -1);
         tcg_gen_xor_tl(r_temp2, src1, dst);
@@ -523,9 +518,8 @@ static inline void gen_cc_V_tag(TCGv src1, TCGv src2)
     TCGv r_zero, r_temp;
 
     l1 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
+    r_zero = tcg_const_tl(0);
     r_temp = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
     tcg_gen_or_tl(r_temp, src1, src2);
     tcg_gen_andi_tl(r_temp, r_temp, 0x3);
     tcg_gen_brcond_tl(TCG_COND_EQ, r_temp, r_zero, l1);
@@ -539,9 +533,8 @@ static inline void gen_tag_tv(TCGv src1, TCGv src2)
     TCGv r_zero, r_temp;
 
     l1 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
+    r_zero = tcg_const_tl(0);
     r_temp = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
     tcg_gen_or_tl(r_temp, src1, src2);
     tcg_gen_andi_tl(r_temp, r_temp, 0x3);
     tcg_gen_brcond_tl(TCG_COND_EQ, r_temp, r_zero, l1);
@@ -632,8 +625,7 @@ static inline void gen_cc_V_sub(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_TL);
     r_temp2 = tcg_temp_new(TCG_TYPE_TL);
     r_temp3 = tcg_temp_new(TCG_TYPE_TL);
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_xor_tl(r_temp, src1, src2);
     tcg_gen_xor_tl(r_temp2, src1, dst);
     tcg_gen_and_tl(r_temp, r_temp, r_temp2);
@@ -646,7 +638,6 @@ static inline void gen_cc_V_sub(TCGv dst, TCGv src1, TCGv src2)
         int l2;
 
         l2 = gen_new_label();
-        tcg_gen_movi_tl(r_zero, 0);
         tcg_gen_xor_tl(r_temp, src1, src2);
         tcg_gen_xor_tl(r_temp2, src1, dst);
         tcg_gen_and_tl(r_temp, r_temp, r_temp2);
@@ -668,8 +659,7 @@ static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_TL);
     r_temp2 = tcg_temp_new(TCG_TYPE_TL);
     r_temp3 = tcg_temp_new(TCG_TYPE_TL);
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_xor_tl(r_temp, src1, src2);
     tcg_gen_xor_tl(r_temp2, src1, dst);
     tcg_gen_and_tl(r_temp, r_temp, r_temp2);
@@ -682,7 +672,6 @@ static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
         int l2;
 
         l2 = gen_new_label();
-        tcg_gen_movi_tl(r_zero, 0);
         tcg_gen_xor_tl(r_temp, src1, src2);
         tcg_gen_xor_tl(r_temp2, src1, dst);
         tcg_gen_and_tl(r_temp, r_temp, r_temp2);
@@ -747,8 +736,7 @@ static inline void gen_op_div_cc(void)
     gen_cc_clear();
     gen_cc_NZ(cpu_T[0]);
     l1 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_brcond_i32(TCG_COND_EQ, cpu_T[1], r_zero, l1);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_OVF);
     gen_set_label(l1);
@@ -1084,8 +1072,7 @@ static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
     int l1;
 
     l1 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
 
     tcg_gen_brcond_tl(TCG_COND_EQ, r_cond, r_zero, l1);
 
@@ -1102,8 +1089,7 @@ static inline void gen_branch_a(DisasContext *dc, target_ulong pc1,
     int l1;
 
     l1 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
 
     tcg_gen_brcond_tl(TCG_COND_EQ, r_cond, r_zero, l1);
 
@@ -1127,8 +1113,7 @@ static inline void gen_generic_branch(target_ulong npc1, target_ulong npc2,
 
     l1 = gen_new_label();
     l2 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
 
     tcg_gen_brcond_tl(TCG_COND_EQ, r_cond, r_zero, l1);
 
@@ -1348,8 +1333,7 @@ static inline void gen_cond_reg(TCGv r_dst, int cond)
     int l1;
 
     l1 = gen_new_label();
-    r_zero = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_movi_tl(r_zero, 0);
+    r_zero = tcg_const_tl(0);
     tcg_gen_mov_tl(r_dst, r_zero);
     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
     tcg_gen_movi_tl(r_dst, 1);
@@ -2658,11 +2642,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     int l1;
 
                     l1 = gen_new_label();
-                    r_zero = tcg_temp_new(TCG_TYPE_TL);
+                    r_zero = tcg_const_tl(0);
                     cond = GET_FIELD_SP(insn, 14, 17);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
-                    tcg_gen_movi_tl(r_zero, 0);
                     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
                     gen_op_load_fpr_FT0(rs2);
                     gen_op_store_FT0_fpr(rd);
@@ -2673,11 +2656,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     int l1;
 
                     l1 = gen_new_label();
-                    r_zero = tcg_temp_new(TCG_TYPE_TL);
+                    r_zero = tcg_const_tl(0);
                     cond = GET_FIELD_SP(insn, 14, 17);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
-                    tcg_gen_movi_tl(r_zero, 0);
                     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
                     gen_op_load_fpr_DT0(DFPREG(rs2));
                     gen_op_store_DT0_fpr(DFPREG(rd));
@@ -2689,11 +2671,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     int l1;
 
                     l1 = gen_new_label();
-                    r_zero = tcg_temp_new(TCG_TYPE_TL);
+                    r_zero = tcg_const_tl(0);
                     cond = GET_FIELD_SP(insn, 14, 17);
                     rs1 = GET_FIELD(insn, 13, 17);
                     gen_movl_reg_T0(rs1);
-                    tcg_gen_movi_tl(r_zero, 0);
                     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
                     gen_op_load_fpr_QT0(QFPREG(rs2));
                     gen_op_store_QT0_fpr(QFPREG(rd));
@@ -2712,9 +2693,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         int l1;                                         \
                                                                         \
                         l1 = gen_new_label();                           \
-                        r_zero = tcg_temp_new(TCG_TYPE_TL);             \
+                        r_zero = tcg_const_tl(0);                       \
                         r_cond = tcg_temp_new(TCG_TYPE_TL);             \
-                        tcg_gen_movi_tl(r_zero, 0);                     \
                         cond = GET_FIELD_SP(insn, 14, 17);              \
                         gen_fcond(r_cond, fcc, cond);                   \
                         tcg_gen_brcond_tl(TCG_COND_EQ, r_cond, r_zero, l1); \
@@ -2781,9 +2761,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         int l1;                                         \
                                                                         \
                         l1 = gen_new_label();                           \
-                        r_zero = tcg_temp_new(TCG_TYPE_TL);             \
+                        r_zero = tcg_const_tl(0);                       \
                         r_cond = tcg_temp_new(TCG_TYPE_TL);             \
-                        tcg_gen_movi_tl(r_zero, 0);                     \
                         cond = GET_FIELD_SP(insn, 14, 17);              \
                         gen_cond(r_cond, icc, cond);                    \
                         tcg_gen_brcond_tl(TCG_COND_EQ, r_cond, r_zero, l1); \
@@ -3441,8 +3420,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                             l1 = gen_new_label();
 
-                            r_zero = tcg_temp_new(TCG_TYPE_TL);
-                            tcg_gen_movi_tl(r_zero, 0);
+                            r_zero = tcg_const_tl(0);
                             tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[2], r_zero, l1);
                             if (IS_IMM) {       /* immediate */
                                 rs2 = GET_FIELD_SPs(insn, 0, 10);
@@ -3485,8 +3463,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                             l1 = gen_new_label();
 
-                            r_zero = tcg_temp_new(TCG_TYPE_TL);
-                            tcg_gen_movi_tl(r_zero, 0);
+                            r_zero = tcg_const_tl(0);
                             tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_T[0], r_zero, l1);
                             if (IS_IMM) {       /* immediate */
                                 rs2 = GET_FIELD_SPs(insn, 0, 9);
