@@ -116,6 +116,11 @@ static inline void tswap64s(uint64_t *s)
 #define bswaptls(s) bswap64s(s)
 #endif
 
+typedef union {
+    float32 f;
+    uint32_t l;
+} CPU_FloatU;
+
 /* NOTE: arm FPA is horrible as double 32 bit words are stored in big
    endian ! */
 typedef union {

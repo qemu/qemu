@@ -296,108 +296,78 @@ static always_inline uint32_t _do_efsneg (uint32_t val)
 }
 static always_inline uint32_t _do_efsadd (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     u1.f = float32_add(u1.f, u2.f, &env->spe_status);
-    return u1.u;
+    return u1.l;
 }
 static always_inline uint32_t _do_efssub (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     u1.f = float32_sub(u1.f, u2.f, &env->spe_status);
-    return u1.u;
+    return u1.l;
 }
 static always_inline uint32_t _do_efsmul (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     u1.f = float32_mul(u1.f, u2.f, &env->spe_status);
-    return u1.u;
+    return u1.l;
 }
 static always_inline uint32_t _do_efsdiv (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     u1.f = float32_div(u1.f, u2.f, &env->spe_status);
-    return u1.u;
+    return u1.l;
 }
 
 static always_inline int _do_efststlt (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     return float32_lt(u1.f, u2.f, &env->spe_status) ? 1 : 0;
 }
 static always_inline int _do_efststgt (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     return float32_le(u1.f, u2.f, &env->spe_status) ? 0 : 1;
 }
 static always_inline int _do_efststeq (uint32_t op1, uint32_t op2)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
+    CPU_FloatU u1, u2;
+    u1.l = op1;
+    u2.l = op2;
     return float32_eq(u1.f, u2.f, &env->spe_status) ? 1 : 0;
 }
 /* Double precision floating-point helpers */
 static always_inline int _do_efdtstlt (uint64_t op1, uint64_t op2)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
-    return float64_lt(u1.f, u2.f, &env->spe_status) ? 1 : 0;
+    CPU_DoubleU u1, u2;
+    u1.ll = op1;
+    u2.ll = op2;
+    return float64_lt(u1.d, u2.d, &env->spe_status) ? 1 : 0;
 }
 static always_inline int _do_efdtstgt (uint64_t op1, uint64_t op2)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
-    return float64_le(u1.f, u2.f, &env->spe_status) ? 0 : 1;
+    CPU_DoubleU u1, u2;
+    u1.ll = op1;
+    u2.ll = op2;
+    return float64_le(u1.d, u2.d, &env->spe_status) ? 0 : 1;
 }
 static always_inline int _do_efdtsteq (uint64_t op1, uint64_t op2)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = op1;
-    u2.u = op2;
-    return float64_eq(u1.f, u2.f, &env->spe_status) ? 1 : 0;
+    CPU_DoubleU u1, u2;
+    u1.ll = op1;
+    u2.ll = op2;
+    return float64_eq(u1.d, u2.d, &env->spe_status) ? 1 : 0;
 }
 #endif

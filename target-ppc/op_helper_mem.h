@@ -316,15 +316,12 @@ void glue(do_POWER2_lfq, MEMSUFFIX) (void)
     FT1 = glue(ldfq, MEMSUFFIX)((uint32_t)(T0 + 4));
 }
 
-static always_inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
+static always_inline float64 glue(ldfqr, MEMSUFFIX) (target_ulong EA)
 {
-    union {
-        double d;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
     u.d = glue(ldfq, MEMSUFFIX)(EA);
-    u.u = bswap64(u.u);
+    u.ll = bswap64(u.ll);
 
     return u.d;
 }
@@ -341,15 +338,12 @@ void glue(do_POWER2_stfq, MEMSUFFIX) (void)
     glue(stfq, MEMSUFFIX)((uint32_t)(T0 + 4), FT1);
 }
 
-static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, float64 d)
 {
-    union {
-        double d;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
     u.d = d;
-    u.u = bswap64(u.u);
+    u.ll = bswap64(u.ll);
     glue(stfq, MEMSUFFIX)(EA, u.d);
 }
 

@@ -267,31 +267,19 @@ void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
 }
 #endif
 
-static always_inline void glue(stfs, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfs, MEMSUFFIX) (target_ulong EA, float64 d)
 {
     glue(stfl, MEMSUFFIX)(EA, float64_to_float32(d, &env->fp_status));
 }
 
-#if defined(WORDS_BIGENDIAN)
-#define WORD0 0
-#define WORD1 1
-#else
-#define WORD0 1
-#define WORD1 0
-#endif
-static always_inline void glue(stfiw, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiw, MEMSUFFIX) (target_ulong EA, float64 d)
 {
-    union {
-        double d;
-        uint32_t u[2];
-    } u;
+    CPU_DoubleU u;
 
     /* Store the low order 32 bits without any conversion */
     u.d = d;
-    glue(st32, MEMSUFFIX)(EA, u.u[WORD0]);
+    glue(st32, MEMSUFFIX)(EA, u.l.lower);
 }
-#undef WORD0
-#undef WORD1
 
 PPC_STF_OP(fd, stfq);
 PPC_STF_OP(fs, stfs);
@@ -302,41 +290,32 @@ PPC_STF_OP_64(fs, stfs);
 PPC_STF_OP_64(fiw, stfiw);
 #endif
 
-static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, float64 d)
 {
-    union {
-        double d;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
     u.d = d;
-    u.u = bswap64(u.u);
+    u.ll = bswap64(u.ll);
     glue(stfq, MEMSUFFIX)(EA, u.d);
 }
 
-static always_inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfsr, MEMSUFFIX) (target_ulong EA, float64 d)
 {
-    union {
-        float f;
-        uint32_t u;
-    } u;
+    CPU_FloatU u;
 
     u.f = float64_to_float32(d, &env->fp_status);
-    u.u = bswap32(u.u);
+    u.l = bswap32(u.l);
     glue(stfl, MEMSUFFIX)(EA, u.f);
 }
 
-static always_inline void glue(stfiwr, MEMSUFFIX) (target_ulong EA, double d)
+static always_inline void glue(stfiwr, MEMSUFFIX) (target_ulong EA, float64 d)
 {
-    union {
-        double d;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
     /* Store the low order 32 bits without any conversion */
     u.d = d;
-    u.u = bswap32(u.u);
-    glue(st32, MEMSUFFIX)(EA, u.u);
+    u.l.lower = bswap32(u.l.lower);
+    glue(st32, MEMSUFFIX)(EA, u.l.lower);
 }
 
 PPC_STF_OP(fd_le, stfqr);
@@ -365,7 +344,7 @@ void OPPROTO glue(glue(glue(op_l, name), _64), MEMSUFFIX) (void)              \
 }
 #endif
 
-static always_inline double glue(ldfs, MEMSUFFIX) (target_ulong EA)
+static always_inline float64 glue(ldfs, MEMSUFFIX) (target_ulong EA)
 {
     return float32_to_float64(glue(ldfl, MEMSUFFIX)(EA), &env->fp_status);
 }
@@ -377,28 +356,22 @@ PPC_LDF_OP_64(fd, ldfq);
 PPC_LDF_OP_64(fs, ldfs);
 #endif
 
-static always_inline double glue(ldfqr, MEMSUFFIX) (target_ulong EA)
+static always_inline float64 glue(ldfqr, MEMSUFFIX) (target_ulong EA)
 {
-    union {
-        double d;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
     u.d = glue(ldfq, MEMSUFFIX)(EA);
-    u.u = bswap64(u.u);
+    u.ll = bswap64(u.ll);
 
     return u.d;
 }
 
-static always_inline double glue(ldfsr, MEMSUFFIX) (target_ulong EA)
+static always_inline float64 glue(ldfsr, MEMSUFFIX) (target_ulong EA)
 {
-    union {
-        float f;
-        uint32_t u;
-    } u;
+    CPU_FloatU u;
 
     u.f = glue(ldfl, MEMSUFFIX)(EA);
-    u.u = bswap32(u.u);
+    u.l = bswap32(u.l);
 
     return float32_to_float64(u.f, &env->fp_status);
 }
