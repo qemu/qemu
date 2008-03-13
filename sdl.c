@@ -510,6 +510,15 @@ static void sdl_refresh(DisplayState *ds)
                 !ev->active.gain && !gui_fullscreen_initial_grab) {
                 sdl_grab_end();
             }
+            if (ev->active.state & SDL_APPACTIVE) {
+                if (ev->active.gain) {
+                    /* Back to default interval */
+                    ds->gui_timer_interval = 0;
+                } else {
+                    /* Sleeping interval */
+                    ds->gui_timer_interval = 500;
+                }
+            }
             break;
         default:
             break;

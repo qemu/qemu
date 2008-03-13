@@ -7208,7 +7208,11 @@ static void gui_update(void *opaque)
 {
     DisplayState *ds = opaque;
     ds->dpy_refresh(ds);
-    qemu_mod_timer(ds->gui_timer, GUI_REFRESH_INTERVAL + qemu_get_clock(rt_clock));
+    qemu_mod_timer(ds->gui_timer,
+        (ds->gui_timer_interval ?
+	    ds->gui_timer_interval :
+	    GUI_REFRESH_INTERVAL)
+	+ qemu_get_clock(rt_clock));
 }
 
 struct vm_change_state_entry {
