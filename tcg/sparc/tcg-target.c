@@ -262,13 +262,13 @@ static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, in
         fprintf(stderr, "unimplemented %s with offset %d\n", __func__, offset);
 }
 
-static inline void tcg_out_ld(TCGContext *s, int ret,
+static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
                               int arg1, tcg_target_long arg2)
 {
     fprintf(stderr, "unimplemented %s\n", __func__);
 }
 
-static inline void tcg_out_st(TCGContext *s, int arg,
+static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
                               int arg1, tcg_target_long arg2)
 {
     fprintf(stderr, "unimplemented %s\n", __func__);

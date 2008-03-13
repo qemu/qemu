@@ -255,15 +255,15 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
-static inline void tcg_out_ld(TCGContext *s, int ret, 
-                              int arg1, int32_t arg2)
+static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
+                              int arg1, tcg_target_long arg2)
 {
     /* movl */
     tcg_out_modrm_offset(s, 0x8b, ret, arg1, arg2);
 }
 
-static inline void tcg_out_st(TCGContext *s, int arg, 
-                              int arg1, int32_t arg2)
+static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
+                              int arg1, tcg_target_long arg2)
 {
     /* movl */
     tcg_out_modrm_offset(s, 0x89, arg, arg1, arg2);

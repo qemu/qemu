@@ -356,16 +356,22 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
-static inline void tcg_out_ld(TCGContext *s, int ret, 
+static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
                               int arg1, tcg_target_long arg2)
 {
-    tcg_out_modrm_offset(s, 0x8b | P_REXW, ret, arg1, arg2); /* movq */
+    if (type == TCG_TYPE_I32)
+        tcg_out_modrm_offset(s, 0x8b, ret, arg1, arg2); /* movl */
+    else
+        tcg_out_modrm_offset(s, 0x8b | P_REXW, ret, arg1, arg2); /* movq */
 }
 
-static inline void tcg_out_st(TCGContext *s, int arg, 
+static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
                               int arg1, tcg_target_long arg2)
 {
-    tcg_out_modrm_offset(s, 0x89 | P_REXW, arg, arg1, arg2); /* movq */
+    if (type == TCG_TYPE_I32)
+        tcg_out_modrm_offset(s, 0x89, arg, arg1, arg2); /* movl */
+    else
+        tcg_out_modrm_offset(s, 0x89 | P_REXW, arg, arg1, arg2); /* movq */
 }
 
 static inline void tgen_arithi32(TCGContext *s, int c, int r0, int32_t val)
