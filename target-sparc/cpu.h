@@ -184,6 +184,11 @@ typedef struct CPUSPARCState {
     target_ulong pc;       /* program counter */
     target_ulong npc;      /* next program counter */
     target_ulong y;        /* multiply/divide register */
+
+    /* emulator internal flags handling */
+    target_ulong cc_src;
+    target_ulong cc_dst;
+
     uint32_t psr;      /* processor state register */
     target_ulong fsr;      /* FPU state register */
     uint32_t cwp;      /* index of current register window (extracted
