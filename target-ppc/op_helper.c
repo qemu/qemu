@@ -492,6 +492,27 @@ static always_inline int isinfinity (float64 d)
         (u.ll & 0x000FFFFFFFFFFFFFULL) == 0;
 }
 
+#ifdef CONFIG_SOFTFLOAT
+static always_inline int isfinite (float64 d)
+{
+    CPU_DoubleU u;
+
+    u.d = d;
+
+    return (((u.ll >> 52) & 0x7FF) != 0x7FF);
+}
+
+static always_inline int isnormal (float64 d)
+{
+    CPU_DoubleU u;
+
+    u.d = d;
+
+    uint32_t exp = (u.ll >> 52) & 0x7FF;
+    return ((0 < exp) && (exp < 0x7FF));
+}
+#endif
+
 void do_compute_fprf (int set_fprf)
 {
     int isneg;
