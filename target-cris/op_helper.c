@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include "exec.h"
+#include "mmu.h"
 
 #define MMUSUFFIX _mmu
 #ifdef __s390__
@@ -40,6 +41,8 @@
 
 #define SHIFT 3
 #include "softmmu_template.h"
+
+#define D(x)
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
@@ -73,8 +76,20 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
+void helper_tlb_update(uint32_t T0)
+{
+#if !defined(CONFIG_USER_ONLY)
+	uint32_t vaddr;
+
+	vaddr = cris_mmu_tlb_latest_update(env, T0);
+	D(printf("flush vaddr %x\n", vaddr));
+	tlb_flush_page(env, vaddr);
+#endif
+}
+
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi)
 {
-
+	D(printf("%s addr=%x w=%d ex=%d asi=%d\n", 
+		__func__, addr, is_write, is_exec, is_asi));
 }

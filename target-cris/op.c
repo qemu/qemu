@@ -153,7 +153,7 @@
 
 void OPPROTO op_break_im(void)
 {
-	env->trapnr = PARAM1;
+	env->trap_vector = PARAM1;
 	env->exception_index = EXCP_BREAK;
 	cpu_loop_exit();
 }
@@ -196,7 +196,7 @@ void OPPROTO op_ccs_rshift (void)
 
 	/* Apply the ccs shift.  */
 	ccs = env->pregs[PR_CCS];
-	ccs = (ccs & 0xc0000000) | (ccs >> 10);
+	ccs = (ccs & 0xc0000000) | ((ccs & 0x0fffffff) >> 10);
 	env->pregs[PR_CCS] = ccs;
 	RETURN();
 }
@@ -269,28 +269,41 @@ void OPPROTO op_movl_sreg_T0 (void)
 	RETURN();
 }
 
-void OPPROTO op_movl_tlb_lo_T0 (void)
+void OPPROTO op_movl_tlb_hi_T0 (void)
 {
-	int srs;
+	uint32_t srs;
 	srs = env->pregs[PR_SRS];
 	if (srs == 1 || srs == 2)
 	{
-		int set;
-		int idx;
+		/* Writes to tlb-hi write to mm_cause as a side effect.  */
+		env->sregs[SFR_RW_MM_TLB_HI] = T0;
+		env->sregs[SFR_R_MM_CAUSE] = T0;
+	}
+	RETURN();
+}
+
+void OPPROTO op_movl_tlb_lo_T0 (void)
+{
+	uint32_t srs;
+	srs = env->pregs[PR_SRS];
+	if (srs == 1 || srs == 2)
+	{
+		uint32_t set;
+		uint32_t idx;
 		uint32_t lo, hi;
 
 		idx = set = env->sregs[SFR_RW_MM_TLB_SEL];
 		set >>= 4;
 		set &= 3;
 
-		idx &= 31;
+		idx &= 15;
 		/* We've just made a write to tlb_lo.  */
 		lo = env->sregs[SFR_RW_MM_TLB_LO];
-		hi = env->sregs[SFR_RW_MM_TLB_HI];
+		/* Writes are done via r_mm_cause.  */
+		hi = env->sregs[SFR_R_MM_CAUSE];
 		env->tlbsets[srs - 1][set][idx].lo = lo;
 		env->tlbsets[srs - 1][set][idx].hi = hi;
 	}
-
 	RETURN();
 }
 

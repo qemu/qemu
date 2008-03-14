@@ -35,7 +35,7 @@
 #define EXCP_MMU_READ    1
 #define EXCP_MMU_WRITE   2
 #define EXCP_MMU_FLUSH   3
-#define EXCP_MMU_MISS    4
+#define EXCP_MMU_FAULT   4
 #define EXCP_BREAK      16 /* trap.  */
 
 /* CPU flags.  */
@@ -110,9 +110,6 @@ typedef struct CPUCRISState {
 	uint32_t btarget;
 	int btaken;
 
-	/* for traps.  */
-	int trapnr;
-
 	/* Condition flag tracking.  */
 	uint32_t cc_op;
 	uint32_t cc_mask;
@@ -129,9 +126,12 @@ typedef struct CPUCRISState {
 
 	int features;
 
-        uint64_t pending_interrupts;
-	int interrupt_request;
 	int exception_index;
+	int interrupt_request;
+	int interrupt_vector;
+	int fault_vector;
+	int trap_vector;
+
 	int user_mode_only;
 	int halted;
 
@@ -245,9 +245,13 @@ static inline int cpu_mmu_index (CPUState *env)
 #define R_ACR 15
 
 /* Support regs, P0 - P15  */
+#define PR_BZ  0
+#define PR_VR  1
 #define PR_PID 2
 #define PR_SRS 3
+#define PR_WZ  4
 #define PR_MOF 7
+#define PR_DZ  8
 #define PR_EBP 9
 #define PR_ERP 10
 #define PR_SRP 11
@@ -255,12 +259,12 @@ static inline int cpu_mmu_index (CPUState *env)
 
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
-#define SFR_RW_MM_CFG      1][0
-#define SFR_RW_MM_KBASE_LO 1][1
-#define SFR_RW_MM_KBASE_HI 1][2
-#define SFR_R_MM_CAUSE     1][3
-#define SFR_RW_MM_TLB_SEL  1][4
-#define SFR_RW_MM_TLB_LO   1][5
-#define SFR_RW_MM_TLB_HI   1][6
+#define SFR_RW_MM_CFG      2][0
+#define SFR_RW_MM_KBASE_LO 2][1
+#define SFR_RW_MM_KBASE_HI 2][2
+#define SFR_R_MM_CAUSE     2][3
+#define SFR_RW_MM_TLB_SEL  2][4
+#define SFR_RW_MM_TLB_LO   2][5
+#define SFR_RW_MM_TLB_HI   2][6
 
 #endif
