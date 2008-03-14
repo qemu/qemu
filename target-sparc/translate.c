@@ -47,6 +47,7 @@
 
 /* global register indexes */
 static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_dst, cpu_psr;
+static TCGv cpu_gregs[8];
 #ifdef TARGET_SPARC64
 static TCGv cpu_xcc;
 #endif
@@ -222,7 +223,7 @@ static inline void gen_movl_reg_TN(int reg, TCGv tn)
     if (reg == 0)
         tcg_gen_movi_tl(tn, 0);
     else if (reg < 8)
-        tcg_gen_ld_tl(tn, cpu_env, offsetof(CPUState, gregs[reg]));
+        tcg_gen_mov_tl(tn, cpu_gregs[reg]);
     else {
         tcg_gen_ld_tl(tn, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
     }
@@ -250,7 +251,7 @@ static inline void gen_movl_TN_reg(int reg, TCGv tn)
     if (reg == 0)
         return;
     else if (reg < 8)
-        tcg_gen_st_tl(tn, cpu_env, offsetof(CPUState, gregs[reg]));
+        tcg_gen_mov_tl(cpu_gregs[reg], tn);
     else {
         tcg_gen_st_tl(tn, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
     }
@@ -4673,6 +4674,17 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
     CPUSPARCState *env;
     const sparc_def_t *def;
     static int inited;
+    unsigned int i;
+    static const char * const gregnames[8] = {
+        NULL, // g0 not used
+        "g1",
+        "g2",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+        "g7",
+    };
 
     def = cpu_sparc_find_by_name(cpu_model);
     if (!def)
@@ -4729,6 +4741,10 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
         cpu_psr = tcg_global_mem_new(TCG_TYPE_I32,
                                      TCG_AREG0, offsetof(CPUState, psr),
                                      "psr");
+        for (i = 1; i < 8; i++)
+            cpu_gregs[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                              offsetof(CPUState, gregs[i]),
+                                              gregnames[i]);
     }
 
     cpu_reset(env);
