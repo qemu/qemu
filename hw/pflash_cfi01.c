@@ -275,7 +275,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             if (cmd == 0xd0) { /* confirm */
                 pfl->wcycle = 1;
                 pfl->status |= 0x80;
-            } if (cmd == 0xff) { /* read array mode */
+            } else if (cmd == 0xff) { /* read array mode */
                 goto reset_flash;
             } else
                 goto error_flash;
