@@ -30,7 +30,7 @@
 struct fs_pic_state_t
 {
 	CPUState *env;
-	target_ulong base;
+	target_phys_addr_t base;
 
 	uint32_t rw_mask;
 	/* Active interrupt lines.  */
@@ -186,7 +186,7 @@ static void etraxfs_pic_handler(void *opaque, int irq, int level)
 	}
 }
 
-qemu_irq *etraxfs_pic_init(CPUState *env, target_ulong base)
+qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 {
 	struct fs_pic_state_t *fs;
 	qemu_irq *pic;

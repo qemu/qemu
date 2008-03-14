@@ -35,10 +35,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 /* Init functions for different blocks.  */
-extern qemu_irq *etraxfs_pic_init(CPUState *env, target_ulong base);
-/* TODO: Make these blocks relocate:able.  */
-extern void etraxfs_timer_init(CPUState *env, qemu_irq *irqs);
-extern void etraxfs_ser_init(CPUState *env, qemu_irq *irqs);
+extern qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base);
+void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, 
+			target_phys_addr_t base);
+void etraxfs_ser_init(CPUState *env, qemu_irq *irqs, target_phys_addr_t base);
 
 static
 void bareetraxfs_init (int ram_size, int vga_ram_size,
@@ -84,8 +84,14 @@ void bareetraxfs_init (int ram_size, int vga_ram_size,
 			  4, 0x0000, 0x0000, 0x0000, 0x0000);
 
     pic = etraxfs_pic_init(env, 0xb001c000);
-    etraxfs_timer_init(env, pic);
-    etraxfs_ser_init(env, pic);
+    /* 2 timers.  */
+    etraxfs_timer_init(env, pic, 0xb001e000);
+    etraxfs_timer_init(env, pic, 0xb005e000);
+    /* 4 serial ports.  */
+    etraxfs_ser_init(env, pic, 0xb0026000);
+    etraxfs_ser_init(env, pic, 0xb0028000);
+    etraxfs_ser_init(env, pic, 0xb002a000);
+    etraxfs_ser_init(env, pic, 0xb002c000);
 
     kernel_size = load_image(kernel_filename, phys_ram_base + 0x4000);
     /* magic for boot.  */

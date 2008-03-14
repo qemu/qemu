@@ -35,25 +35,20 @@
 
 static uint32_t ser_readb (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env;
-	uint32_t r = 0;
-
-	env = opaque;
+	D(CPUState *env = opaque);
 	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
-	return r;
+	return 0;
 }
 static uint32_t ser_readw (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env;
-	uint32_t r = 0;
-	env = opaque;
+	D(CPUState *env = opaque);
 	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
-	return r;
+	return 0;
 }
 
 static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
+	D(CPUState *env = opaque);
 	uint32_t r = 0;
 
 	switch (addr & 0xfff)
@@ -75,21 +70,19 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 static void
 ser_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env;
-	env = opaque;
+	D(CPUState *env = opaque);
  	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
 }
 static void
 ser_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env;
-	env = opaque;
+	D(CPUState *env = opaque);
 	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
 }
 static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
+	D(CPUState *env = opaque);
 
 	switch (addr & 0xfff)
 	{
@@ -110,24 +103,20 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 }
 
 static CPUReadMemoryFunc *ser_read[] = {
-    &ser_readb,
-    &ser_readw,
-    &ser_readl,
+	&ser_readb,
+	&ser_readw,
+	&ser_readl,
 };
 
 static CPUWriteMemoryFunc *ser_write[] = {
-    &ser_writeb,
-    &ser_writew,
-    &ser_writel,
+	&ser_writeb,
+	&ser_writew,
+	&ser_writel,
 };
 
-void etraxfs_ser_init(CPUState *env, qemu_irq *irqs)
+void etraxfs_ser_init(CPUState *env, qemu_irq *irqs, target_phys_addr_t base)
 {
 	int ser_regs;
-
 	ser_regs = cpu_register_io_memory(0, ser_read, ser_write, env);
-	cpu_register_physical_memory (0xb0026000, 0x3c, ser_regs);
-	cpu_register_physical_memory (0xb0028000, 0x3c, ser_regs);
-	cpu_register_physical_memory (0xb002a000, 0x3c, ser_regs);
-	cpu_register_physical_memory (0xb002c000, 0x3c, ser_regs);
+	cpu_register_physical_memory (base, 0x3c, ser_regs);
 }
