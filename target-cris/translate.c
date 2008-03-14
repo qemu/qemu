@@ -1,7 +1,7 @@
 /*
  *  CRIS emulation for qemu: main translation routines.
  *
- *  Copyright (c) 2007 AXIS Communications AB
+ *  Copyright (c) 2008 AXIS Communications AB
  *  Written by Edgar E. Iglesias.
  *
  * This library is free software; you can redistribute it and/or
@@ -19,28 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/*
- * This file implements a CRIS decoder-stage in SW. The decoder translates the
- * guest (CRIS) machine-code into host machine code via dyngen using the
- * micro-operations described in op.c
- *
- * The micro-operations for CRIS translation implement a RISC style ISA.
- * Note that the micro-operations typically order their operands
- * starting with the dst. CRIS asm, does the opposite.
- *
- * For example the following CRIS code:
- * add.d [$r0], $r1
- *
- * translates into:
- *
- * gen_movl_T0_reg(0);   // Fetch $r0 into T0
- * gen_load_T0_T0();     // Load T0, @T0
- * gen_movl_reg_T0(1);   // Writeback T0 into $r1
- *
- * The actual names for the micro-code generators vary but the example
- * illustrates the point.
- */
-
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -52,6 +30,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+#include "helper.h"
 #include "crisv32-decode.h"
 
 #define CRIS_STATS 0
@@ -81,6 +60,8 @@
 #define CC_MASK_NZV 0xe
 #define CC_MASK_NZVC 0xf
 #define CC_MASK_RNZV 0x10e
+
+TCGv cpu_env, cpu_T[2];
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
@@ -128,92 +109,6 @@ static void gen_BUG(DisasContext *dc, char *file, int line)
 	cris_prepare_jmp (dc, 0x70000000 + line);
 }
 
-/* Table to generate quick moves from T0 onto any register.  */
-static GenOpFunc *gen_movl_reg_T0[16] =
-{
-	gen_op_movl_r0_T0, gen_op_movl_r1_T0,
-	gen_op_movl_r2_T0, gen_op_movl_r3_T0,
-	gen_op_movl_r4_T0, gen_op_movl_r5_T0,
-	gen_op_movl_r6_T0, gen_op_movl_r7_T0,
-	gen_op_movl_r8_T0, gen_op_movl_r9_T0,
-	gen_op_movl_r10_T0, gen_op_movl_r11_T0,
-	gen_op_movl_r12_T0, gen_op_movl_r13_T0,
-	gen_op_movl_r14_T0, gen_op_movl_r15_T0,
-};
-static GenOpFunc *gen_movl_T0_reg[16] =
-{
-	gen_op_movl_T0_r0, gen_op_movl_T0_r1,
-	gen_op_movl_T0_r2, gen_op_movl_T0_r3,
-	gen_op_movl_T0_r4, gen_op_movl_T0_r5,
-	gen_op_movl_T0_r6, gen_op_movl_T0_r7,
-	gen_op_movl_T0_r8, gen_op_movl_T0_r9,
-	gen_op_movl_T0_r10, gen_op_movl_T0_r11,
-	gen_op_movl_T0_r12, gen_op_movl_T0_r13,
-	gen_op_movl_T0_r14, gen_op_movl_T0_r15,
-};
-
-static void noop_write(void) {
-	/* nop.  */
-}
-
-static void gen_vr_read(void) {
-	gen_op_movl_T0_im(32);
-}
-
-static void gen_movl_T0_p0(void) {
-	gen_op_movl_T0_im(0);
-}
-
-static void gen_ccs_read(void) {
-	gen_op_movl_T0_p13();
-}
-
-static void gen_ccs_write(void) {
-	gen_op_movl_p13_T0();
-}
-
-/* Table to generate quick moves from T0 onto any register.  */
-static GenOpFunc *gen_movl_preg_T0[16] =
-{
-	noop_write,  /* bz, not writeable.  */
-	noop_write,  /* vr, not writeable.  */
-	gen_op_movl_p2_T0, gen_op_movl_p3_T0,
-	noop_write,  /* wz, not writeable.  */
-	gen_op_movl_p5_T0,
-	gen_op_movl_p6_T0, gen_op_movl_p7_T0,
-	noop_write,  /* dz, not writeable.  */
-	gen_op_movl_p9_T0,
-	gen_op_movl_p10_T0, gen_op_movl_p11_T0,
-	gen_op_movl_p12_T0,
-	gen_ccs_write, /* ccs needs special treatment.  */
-	gen_op_movl_p14_T0, gen_op_movl_p15_T0,
-};
-static GenOpFunc *gen_movl_T0_preg[16] =
-{
-	gen_movl_T0_p0,
-	gen_vr_read,
-	gen_op_movl_T0_p2, gen_op_movl_T0_p3,
-	gen_op_movl_T0_p4, gen_op_movl_T0_p5,
-	gen_op_movl_T0_p6, gen_op_movl_T0_p7,
-	gen_op_movl_T0_p8, gen_op_movl_T0_p9,
-	gen_op_movl_T0_p10, gen_op_movl_T0_p11,
-	gen_op_movl_T0_p12,
-	gen_ccs_read, /* ccs needs special treatment.  */
-	gen_op_movl_T0_p14, gen_op_movl_T0_p15,
-};
-
-/* We need this table to handle moves with implicit width.  */
-int preg_sizes[] = {
-	1, /* bz.  */
-	1, /* vr.  */
-	4, /* pid.  */
-	1, /* srs.  */
-	2, /* wz.  */
-	4, 4, 4,
-	4, 4, 4, 4,
-	4, 4, 4, 4,
-};
-
 #ifdef CONFIG_USER_ONLY
 #define GEN_OP_LD(width, reg) \
   void gen_op_ld##width##_T0_##reg (DisasContext *dc) { \
@@ -245,18 +140,112 @@ GEN_OP_ST(w, T0)
 GEN_OP_LD(l, T0)
 GEN_OP_ST(l, T0)
 
+/* We need this table to handle preg-moves with implicit width.  */
+int preg_sizes[] = {
+	1, /* bz.  */
+	1, /* vr.  */
+	4, /* pid.  */
+	1, /* srs.  */
+	2, /* wz.  */
+	4, 4, 4,
+	4, 4, 4, 4,
+	4, 4, 4, 4,
+};
+
+#define t_gen_mov_TN_env(tn, member) \
+ _t_gen_mov_TN_env((tn), offsetof(CPUState, (member)))
+#define t_gen_mov_env_TN(member, tn) \
+ _t_gen_mov_env_TN(offsetof(CPUState, (member)), (tn))
+
+#define t_gen_mov_TN_reg(tn, regno) \
+ _t_gen_mov_TN_env((tn), offsetof(CPUState, regs[regno]))
+#define t_gen_mov_reg_TN(regno, tn) \
+ _t_gen_mov_env_TN(offsetof(CPUState, regs[regno]), (tn))
+
+static inline void _t_gen_mov_TN_env(TCGv tn, int offset)
+{
+	tcg_gen_ld_tl(tn, cpu_env, offset);
+}
+static inline void _t_gen_mov_env_TN(int offset, TCGv tn)
+{
+	tcg_gen_st_tl(tn, cpu_env, offset);
+}
+
+static inline void t_gen_mov_TN_preg(TCGv tn, int r)
+{
+	if (r == PR_BZ || r == PR_WZ || r == PR_DZ)
+		tcg_gen_mov_tl(tn, tcg_const_i32(0));
+	else if (r == PR_VR)
+		tcg_gen_mov_tl(tn, tcg_const_i32(32));
+	else
+		tcg_gen_ld_tl(tn, cpu_env, offsetof(CPUState, pregs[r]));
+}
+static inline void t_gen_mov_preg_TN(int r, TCGv tn)
+{
+	if (r == PR_BZ || r == PR_WZ || r == PR_DZ)
+		return;
+	else
+		tcg_gen_st_tl(tn, cpu_env, offsetof(CPUState, pregs[r]));
+}
+
+static inline void t_gen_mov_TN_im(TCGv tn, int32_t val)
+{
+	tcg_gen_movi_tl(tn, val);
+}
+
+static void t_gen_lsl(TCGv d, TCGv a, TCGv b)
+{
+	int l1;
+
+	l1 = gen_new_label();
+	/* Speculative shift. */
+	tcg_gen_shl_tl(d, a, b);
+	tcg_gen_brcond_tl(TCG_COND_LE, b, tcg_const_i32(31), l1);
+	/* Clear dst if shift operands were to large.  */
+	tcg_gen_movi_tl(d, 0);
+	gen_set_label(l1);
+}
+
+static void t_gen_lsr(TCGv d, TCGv a, TCGv b)
+{
+	int l1;
+
+	l1 = gen_new_label();
+	/* Speculative shift. */
+	tcg_gen_shr_tl(d, a, b);
+	tcg_gen_brcond_tl(TCG_COND_LE, b, tcg_const_i32(31), l1);
+	/* Clear dst if shift operands were to large.  */
+	tcg_gen_movi_tl(d, 0);
+	gen_set_label(l1);
+}
+
+static void t_gen_asr(TCGv d, TCGv a, TCGv b)
+{
+	int l1;
+
+	l1 = gen_new_label();
+	/* Speculative shift. */
+	tcg_gen_sar_tl(d, a, b);
+	tcg_gen_brcond_tl(TCG_COND_LE, b, tcg_const_i32(31), l1);
+	/* Clear dst if shift operands were to large.  */
+	tcg_gen_movi_tl(d, 0);
+	tcg_gen_brcond_tl(TCG_COND_LT, b, tcg_const_i32(0x80000000), l1);
+	tcg_gen_movi_tl(d, 0xffffffff);
+	gen_set_label(l1);
+}
+
 static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 {
 	TranslationBlock *tb;
 	tb = dc->tb;
 	if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-#if 0
-            /* XXX: this code is not finished */
-            tcg_gen_goto_tb(n);
-#endif
-            tcg_gen_exit_tb(0);
+		tcg_gen_goto_tb(n);
+		tcg_gen_movi_tl(cpu_T[0], dest);
+		gen_op_movl_pc_T0();
+		tcg_gen_exit_tb((long)tb + n);
 	} else {
-            tcg_gen_exit_tb(0);
+		gen_op_movl_pc_T0();
+		tcg_gen_exit_tb(0);
 	}
 }
 
@@ -273,10 +262,22 @@ static int sign_extend(unsigned int val, unsigned int width)
 	return sval;
 }
 
+static inline void cris_clear_x_flag(DisasContext *dc)
+{
+	TCGv ccs;
+
+	ccs = tcg_temp_new(TCG_TYPE_TL);
+
+	t_gen_mov_TN_preg(ccs, PR_CCS);
+	tcg_gen_andi_i32(ccs, ccs, ~X_FLAG);
+	t_gen_mov_preg_TN(PR_CCS, ccs);
+	dc->flagx_live = 1;
+	dc->flags_x = 0;
+}
+
 static void cris_evaluate_flags(DisasContext *dc)
 {
 	if (!dc->flags_live) {
-
 		switch (dc->cc_op)
 		{
 			case CC_OP_MCP:
@@ -373,7 +374,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 	switch (op)
 	{
 		case CC_OP_ADD:
-			gen_op_addl_T0_T1();
+			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* Extended arithmetics.  */
 			if (!dc->flagx_live)
 				gen_op_addxl_T0_C();
@@ -381,18 +382,18 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 				gen_op_addxl_T0_C();
 			break;
 		case CC_OP_ADDC:
-			gen_op_addl_T0_T1();
+			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			gen_op_addl_T0_C();
 			break;
 		case CC_OP_MCP:
-			gen_op_addl_T0_T1();
+			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			gen_op_addl_T0_R();
 			break;
 		case CC_OP_SUB:
-			gen_op_negl_T1_T1();
-			gen_op_addl_T0_T1();
+			tcg_gen_sub_tl(cpu_T[1], tcg_const_i32(0), cpu_T[1]);
+			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			gen_op_negl_T1_T1();
+			tcg_gen_sub_tl(cpu_T[1], tcg_const_i32(0), cpu_T[1]);
 			gen_op_not_T1_T1();
 
 			/* Extended arithmetics.  */
@@ -402,28 +403,30 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 				gen_op_subxl_T0_C();
 			break;
 		case CC_OP_MOVE:
-			gen_op_movl_T0_T1();
+			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_OR:
-			gen_op_orl_T0_T1();
+			tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_AND:
-			gen_op_andl_T0_T1();
+			tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_XOR:
-			gen_op_xorl_T0_T1();
+			tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_LSL:
-			gen_op_lsll_T0_T1();
+			t_gen_lsl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_LSR:
-			gen_op_lsrl_T0_T1();
+			t_gen_lsr(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_ASR:
-			gen_op_asrl_T0_T1();
+			t_gen_asr(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_NEG:
-			gen_op_negl_T0_T1();
+			/* TCG-FIXME: this is not optimal. Many archs have
+			   fast neg insns.  */
+			tcg_gen_sub_tl(cpu_T[0], tcg_const_i32(0), cpu_T[1]);
 			/* Extended arithmetics.  */
 			gen_op_subxl_T0_C();
 			break;
@@ -447,10 +450,11 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			gen_op_bound_T0_T1();
 			break;
 		case CC_OP_CMP:
-			gen_op_negl_T1_T1();
-			gen_op_addl_T0_T1();
+			tcg_gen_sub_tl(cpu_T[1], tcg_const_i32(0), cpu_T[1]);
+			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			gen_op_negl_T1_T1();
+			tcg_gen_sub_tl(cpu_T[1], tcg_const_i32(0), cpu_T[1]);
+			/* CRIS flag evaluation needs ~src.  */
 			gen_op_not_T1_T1();
 
 			/* Extended arithmetics.  */
@@ -467,23 +471,24 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		gen_op_update_cc_src_T1();
 
 	if (size == 1)
-		gen_op_andl_T0_im(0xff);
+		tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
 	else if (size == 2)
-		gen_op_andl_T0_im(0xffff);
+		tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+
 	/* Writeback.  */
 	if (writeback) {
 		if (size == 4)
-			gen_movl_reg_T0[rd]();
+			t_gen_mov_reg_TN(rd, cpu_T[0]);
 		else {
-			gen_op_movl_T1_T0();
-			gen_movl_T0_reg[rd]();
+			tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
+			t_gen_mov_TN_reg(cpu_T[0], rd);
 			if (size == 1)
-				gen_op_andl_T0_im(~0xff);
+				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0xff);
 			else
-				gen_op_andl_T0_im(~0xffff);
-			gen_op_orl_T0_T1();
-			gen_movl_reg_T0[rd]();
-			gen_op_movl_T0_T1();
+				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0xffff);
+			tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+			t_gen_mov_reg_TN(rd, cpu_T[0]);
+			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 		}
 	}
 	if (dc->update_cc)
@@ -674,53 +679,21 @@ void gen_store_T0_T1 (DisasContext *dc, unsigned int size)
 		gen_op_stl_T0_T1(dc);
 }
 
-/* sign extend T1 according to size.  */
-static void gen_sext_T1_T0(int size)
+static inline void t_gen_sext(TCGv d, TCGv s, int size)
 {
 	if (size == 1)
-		gen_op_extb_T1_T0();
+		tcg_gen_ext8s_i32(d, s);
 	else if (size == 2)
-		gen_op_extw_T1_T0();
+		tcg_gen_ext16s_i32(d, s);
 }
 
-static void gen_sext_T1_T1(int size)
+static inline void t_gen_zext(TCGv d, TCGv s, int size)
 {
+	/* TCG-FIXME: this is not optimal. Many archs have fast zext insns.  */
 	if (size == 1)
-		gen_op_extb_T1_T1();
+		tcg_gen_andi_i32(d, s, 0xff);
 	else if (size == 2)
-		gen_op_extw_T1_T1();
-}
-
-static void gen_sext_T0_T0(int size)
-{
-	if (size == 1)
-		gen_op_extb_T0_T0();
-	else if (size == 2)
-		gen_op_extw_T0_T0();
-}
-
-static void gen_zext_T0_T0(int size)
-{
-	if (size == 1)
-		gen_op_zextb_T0_T0();
-	else if (size == 2)
-		gen_op_zextw_T0_T0();
-}
-
-static void gen_zext_T1_T0(int size)
-{
-	if (size == 1)
-		gen_op_zextb_T1_T0();
-	else if (size == 2)
-		gen_op_zextw_T1_T0();
-}
-
-static void gen_zext_T1_T1(int size)
-{
-	if (size == 1)
-		gen_op_zextb_T1_T1();
-	else if (size == 2)
-		gen_op_zextw_T1_T1();
+		tcg_gen_andi_i32(d, s, 0xffff);
 }
 
 #if DISAS_CRIS
@@ -758,21 +731,20 @@ static void do_postinc (DisasContext *dc, int size)
 {
 	if (!dc->postinc)
 		return;
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	gen_op_addl_T0_im(size);
-	gen_movl_reg_T0[dc->op1]();
+	t_gen_mov_reg_TN(dc->op1, cpu_T[0]);
 }
 
 
 static void dec_prep_move_r(DisasContext *dc, int rs, int rd,
 			    int size, int s_ext)
 {
-	gen_movl_T0_reg[rs]();
-	gen_op_movl_T1_T0();
+	t_gen_mov_TN_reg(cpu_T[1], rs);
 	if (s_ext)
-		gen_sext_T1_T1(size);
+		t_gen_sext(cpu_T[1], cpu_T[1], size);
 	else
-		gen_zext_T1_T1(size);
+		t_gen_zext(cpu_T[1], cpu_T[1], size);
 }
 
 /* Prepare T0 and T1 for a register alu operation.
@@ -783,11 +755,11 @@ static void dec_prep_alu_r(DisasContext *dc, int rs, int rd,
 {
 	dec_prep_move_r(dc, rs, rd, size, s_ext);
 
-	gen_movl_T0_reg[rd]();
+	t_gen_mov_TN_reg(cpu_T[0], rd);
 	if (s_ext)
-		gen_sext_T0_T0(size);
+		t_gen_sext(cpu_T[0], cpu_T[0], size);
 	else
-		gen_zext_T0_T0(size);
+		t_gen_zext(cpu_T[0], cpu_T[0], size);
 }
 
 /* Prepare T0 and T1 for a memory + alu operation.
@@ -823,20 +795,20 @@ static int dec_prep_alu_m(DisasContext *dc, int s_ext, int memsize)
 		}
 		DIS(fprintf (logfile, "imm=%x rd=%d sext=%d ms=%d\n",
 			    imm, rd, s_ext, memsize));
-		gen_op_movl_T1_im (imm);
+		tcg_gen_movi_tl(cpu_T[1], imm);
 		dc->postinc = 0;
 	} else {
-		gen_movl_T0_reg[rs]();
+		t_gen_mov_TN_reg(cpu_T[0], rs);
 		gen_load_T0_T0(dc, memsize, 0);
-		gen_op_movl_T1_T0();
+		tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
 		if (s_ext)
-			gen_sext_T1_T1(memsize);
+			t_gen_sext(cpu_T[1], cpu_T[1], memsize);
 		else
-			gen_zext_T1_T1(memsize);
+			t_gen_zext(cpu_T[1], cpu_T[1], memsize);
 	}
 
 	/* put dest in T0.  */
-	gen_movl_T0_reg[rd]();
+	t_gen_mov_TN_reg(cpu_T[0], rd);
 	return insn_len;
 }
 
@@ -882,8 +854,8 @@ static unsigned int dec_addoq(DisasContext *dc)
 	DIS(fprintf (logfile, "addoq %d, $r%u\n", imm, dc->op2));
 	cris_cc_mask(dc, 0);
 	/* Fetch register operand,  */
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(imm);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	tcg_gen_movi_tl(cpu_T[1], imm);
 	crisv32_alu_op(dc, CC_OP_ADD, R_ACR, 4);
 	return 2;
 }
@@ -895,8 +867,8 @@ static unsigned int dec_addq(DisasContext *dc)
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
 	/* Fetch register operand,  */
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	tcg_gen_movi_tl(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_ADD, dc->op2, 4);
 	return 2;
 }
@@ -908,10 +880,9 @@ static unsigned int dec_moveq(DisasContext *dc)
 	imm = sign_extend(dc->op1, 5);
 	DIS(fprintf (logfile, "moveq %d, $r%u\n", imm, dc->op2));
 
-	cris_cc_mask(dc, 0);
-	gen_op_movl_T1_im(imm);
-	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);
-
+	t_gen_mov_reg_TN(dc->op2, tcg_const_i32(imm));
+	if (!dc->flagx_live || dc->flags_x)
+		cris_clear_x_flag(dc);
 	return 2;
 }
 static unsigned int dec_subq(DisasContext *dc)
@@ -922,8 +893,8 @@ static unsigned int dec_subq(DisasContext *dc)
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
 	/* Fetch register operand,  */
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_SUB, dc->op2, 4);
 	return 2;
 }
@@ -935,8 +906,8 @@ static unsigned int dec_cmpq(DisasContext *dc)
 
 	DIS(fprintf (logfile, "cmpq %d, $r%d\n", imm, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZVC);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(imm);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], imm);
 	crisv32_alu_op(dc, CC_OP_CMP, dc->op2, 4);
 	return 2;
 }
@@ -948,8 +919,8 @@ static unsigned int dec_andq(DisasContext *dc)
 
 	DIS(fprintf (logfile, "andq %d, $r%d\n", imm, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(imm);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], imm);
 	crisv32_alu_op(dc, CC_OP_AND, dc->op2, 4);
 	return 2;
 }
@@ -960,8 +931,8 @@ static unsigned int dec_orq(DisasContext *dc)
 	imm = sign_extend(dc->op1, 5);
 	DIS(fprintf (logfile, "orq %d, $r%d\n", imm, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(imm);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], imm);
 	crisv32_alu_op(dc, CC_OP_OR, dc->op2, 4);
 	return 2;
 }
@@ -970,8 +941,8 @@ static unsigned int dec_btstq(DisasContext *dc)
 	dc->op1 = EXTRACT_FIELD(dc->ir, 0, 4);
 	DIS(fprintf (logfile, "btstq %u, $r%d\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_BTST, dc->op2, 4);
 
 	cris_update_cc_op(dc, CC_OP_FLAGS);
@@ -984,8 +955,8 @@ static unsigned int dec_asrq(DisasContext *dc)
 	dc->op1 = EXTRACT_FIELD(dc->ir, 0, 4);
 	DIS(fprintf (logfile, "asrq %u, $r%d\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_ASR, dc->op2, 4);
 	return 2;
 }
@@ -995,8 +966,8 @@ static unsigned int dec_lslq(DisasContext *dc)
 	DIS(fprintf (logfile, "lslq %u, $r%d\n", dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_LSL, dc->op2, 4);
 	return 2;
 }
@@ -1006,8 +977,8 @@ static unsigned int dec_lsrq(DisasContext *dc)
 	DIS(fprintf (logfile, "lsrq %u, $r%d\n", dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_im(dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	t_gen_mov_TN_im(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_LSR, dc->op2, 4);
 	return 2;
 }
@@ -1075,7 +1046,7 @@ static unsigned int dec_lsl_r(DisasContext *dc)
 		    memsize_char(size), dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, size, 0);
-	gen_op_andl_T1_im(63);
+	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 63);
 	crisv32_alu_op(dc, CC_OP_LSL, dc->op2, size);
 	return 2;
 }
@@ -1088,7 +1059,7 @@ static unsigned int dec_lsr_r(DisasContext *dc)
 		    memsize_char(size), dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, size, 0);
-	gen_op_andl_T1_im(63);
+	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 63);
 	crisv32_alu_op(dc, CC_OP_LSR, dc->op2, size);
 	return 2;
 }
@@ -1101,7 +1072,7 @@ static unsigned int dec_asr_r(DisasContext *dc)
 		    memsize_char(size), dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, size, 1);
-	gen_op_andl_T1_im(63);
+	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 63);
 	crisv32_alu_op(dc, CC_OP_ASR, dc->op2, size);
 	return 2;
 }
@@ -1114,7 +1085,7 @@ static unsigned int dec_muls_r(DisasContext *dc)
 		    memsize_char(size), dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZV);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, size, 1);
-	gen_sext_T0_T0(size);
+	t_gen_sext(cpu_T[0], cpu_T[0], size);
 	crisv32_alu_op(dc, CC_OP_MULS, dc->op2, 4);
 	return 2;
 }
@@ -1127,7 +1098,7 @@ static unsigned int dec_mulu_r(DisasContext *dc)
 		    memsize_char(size), dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZV);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, size, 0);
-	gen_zext_T0_T0(size);
+	t_gen_zext(cpu_T[0], cpu_T[0], size);
 	crisv32_alu_op(dc, CC_OP_MULU, dc->op2, 4);
 	return 2;
 }
@@ -1137,9 +1108,8 @@ static unsigned int dec_dstep_r(DisasContext *dc)
 {
 	DIS(fprintf (logfile, "dstep $r%u, $r%u\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op1]();
-	gen_op_movl_T1_T0();
-	gen_movl_T0_reg[dc->op2]();
+	t_gen_mov_TN_reg(cpu_T[1], dc->op1);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
 	crisv32_alu_op(dc, CC_OP_DSTEP, dc->op2, 4);
 	return 2;
 }
@@ -1165,7 +1135,7 @@ static unsigned int dec_bound_r(DisasContext *dc)
 	/* TODO: needs optmimization.  */
 	dec_prep_alu_r(dc, dc->op1, dc->op2, size, 0);
 	/* rd should be 4.  */
-	gen_movl_T0_reg[dc->op2]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
 	crisv32_alu_op(dc, CC_OP_BOUND, dc->op2, 4);
 	return 2;
 }
@@ -1220,9 +1190,8 @@ static unsigned int dec_mcp_r(DisasContext *dc)
 		     dc->op2, dc->op1));
 	cris_evaluate_flags(dc);
 	cris_cc_mask(dc, CC_MASK_RNZV);
-	gen_movl_T0_preg[dc->op2]();
-	gen_op_movl_T1_T0();
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
+	t_gen_mov_TN_preg(cpu_T[1], dc->op2);
 	crisv32_alu_op(dc, CC_OP_MCP, dc->op1, 4);
 	return 2;
 }
@@ -1250,7 +1219,7 @@ static unsigned int dec_swap_r(DisasContext *dc)
 		     swapmode_name(dc->op2, modename), dc->op1));
 
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	if (dc->op2 & 8)
 		gen_op_not_T0_T0();
 	if (dc->op2 & 4)
@@ -1281,9 +1250,9 @@ static unsigned int dec_addi_r(DisasContext *dc)
 		    memsize_char(memsize_zz(dc)), dc->op2, dc->op1));
 	cris_cc_mask(dc, 0);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, 4, 0);
-	gen_op_lsll_T0_im(dc->zzsize);
-	gen_op_addl_T0_T1();
-	gen_movl_reg_T0[dc->op1]();
+	t_gen_lsl(cpu_T[0], cpu_T[0], tcg_const_i32(dc->zzsize));
+	tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+	t_gen_mov_reg_TN(dc->op1, cpu_T[0]);
 	return 2;
 }
 
@@ -1293,9 +1262,10 @@ static unsigned int dec_addi_acr(DisasContext *dc)
 		    memsize_char(memsize_zz(dc)), dc->op2, dc->op1));
 	cris_cc_mask(dc, 0);
 	dec_prep_alu_r(dc, dc->op1, dc->op2, 4, 0);
-	gen_op_lsll_T0_im(dc->zzsize);
-	gen_op_addl_T0_T1();
-	gen_movl_reg_T0[R_ACR]();
+	t_gen_lsl(cpu_T[0], cpu_T[0], tcg_const_i32(dc->zzsize));
+
+	tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+	t_gen_mov_reg_TN(R_ACR, cpu_T[0]);
 	return 2;
 }
 
@@ -1358,9 +1328,9 @@ static unsigned int dec_movs_r(DisasContext *dc)
 		    dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZ);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	/* Size can only be qi or hi.  */
-	gen_sext_T1_T0(size);
+	t_gen_sext(cpu_T[1], cpu_T[0], size);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);
 	return 2;
 }
@@ -1374,13 +1344,14 @@ static unsigned int dec_addu_r(DisasContext *dc)
 		    dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[1], dc->op1);
 	/* Size can only be qi or hi.  */
-	gen_zext_T1_T0(size);
-	gen_movl_T0_reg[dc->op2]();
+	t_gen_zext(cpu_T[1], cpu_T[1], size);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
 	crisv32_alu_op(dc, CC_OP_ADD, dc->op2, 4);
 	return 2;
 }
+
 /* Sign extension. From size to dword.  */
 static unsigned int dec_adds_r(DisasContext *dc)
 {
@@ -1390,10 +1361,11 @@ static unsigned int dec_adds_r(DisasContext *dc)
 		    dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[1], dc->op1);
 	/* Size can only be qi or hi.  */
-	gen_sext_T1_T0(size);
-	gen_movl_T0_reg[dc->op2]();
+	t_gen_sext(cpu_T[1], cpu_T[1], size);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+
 	crisv32_alu_op(dc, CC_OP_ADD, dc->op2, 4);
 	return 2;
 }
@@ -1407,10 +1379,10 @@ static unsigned int dec_subu_r(DisasContext *dc)
 		    dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[1], dc->op1);
 	/* Size can only be qi or hi.  */
-	gen_zext_T1_T0(size);
-	gen_movl_T0_reg[dc->op2]();
+	t_gen_zext(cpu_T[1], cpu_T[1], size);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
 	crisv32_alu_op(dc, CC_OP_SUB, dc->op2, 4);
 	return 2;
 }
@@ -1424,10 +1396,10 @@ static unsigned int dec_subs_r(DisasContext *dc)
 		    dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[1], dc->op1);
 	/* Size can only be qi or hi.  */
-	gen_sext_T1_T0(size);
-	gen_movl_T0_reg[dc->op2]();
+	t_gen_sext(cpu_T[1], cpu_T[1], size);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
 	crisv32_alu_op(dc, CC_OP_SUB, dc->op2, 4);
 	return 2;
 }
@@ -1469,29 +1441,34 @@ static unsigned int dec_move_rs(DisasContext *dc)
 {
 	DIS(fprintf (logfile, "move $r%u, $s%u\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, 0);
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	gen_op_movl_sreg_T0(dc->op2);
 
-	if (dc->op2 == 5) /* srs is checked at runtime.  */
+#if !defined(CONFIG_USER_ONLY)
+	if (dc->op2 == 6)
+		gen_op_movl_tlb_hi_T0();
+	else if (dc->op2 == 5) { /* srs is checked at runtime.  */
+		tcg_gen_helper_0_1(helper_tlb_update, cpu_T[0]);
 		gen_op_movl_tlb_lo_T0();
+	}
+#endif
 	return 2;
 }
 static unsigned int dec_move_sr(DisasContext *dc)
 {
-	DIS(fprintf (logfile, "move $s%u, $r%u\n", dc->op1, dc->op2));
+	DIS(fprintf (logfile, "move $s%u, $r%u\n", dc->op2, dc->op1));
 	cris_cc_mask(dc, 0);
-	gen_op_movl_T0_sreg(dc->op1);
-	gen_op_movl_T1_T0();
-	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);
+	gen_op_movl_T0_sreg(dc->op2);
+	tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
+	crisv32_alu_op(dc, CC_OP_MOVE, dc->op1, 4);
 	return 2;
 }
 static unsigned int dec_move_rp(DisasContext *dc)
 {
 	DIS(fprintf (logfile, "move $r%u, $p%u\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, 0);
-	gen_movl_T0_reg[dc->op1]();
-	gen_op_movl_T1_T0();
-	gen_movl_preg_T0[dc->op2]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	return 2;
 }
 static unsigned int dec_move_pr(DisasContext *dc)
@@ -1501,11 +1478,9 @@ static unsigned int dec_move_pr(DisasContext *dc)
 	/* Support register 0 is hardwired to zero. 
 	   Treat it specially. */
 	if (dc->op2 == 0)
-		gen_op_movl_T1_im(0);
-	else {
-		gen_movl_T0_preg[dc->op2]();
-		gen_op_movl_T1_T0();
-	}
+		tcg_gen_movi_tl(cpu_T[1], 0);
+	else
+		t_gen_mov_TN_preg(cpu_T[1], dc->op2);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op1, preg_sizes[dc->op2]);
 	return 2;
 }
@@ -1688,8 +1663,8 @@ static unsigned int dec_test_m(DisasContext *dc)
 	cris_cc_mask(dc, CC_MASK_NZ);
 	gen_op_clrf(3);
 	insn_len = dec_prep_alu_m(dc, 0, memsize);
-	gen_op_swp_T0_T1();
-	gen_op_movl_T1_im(0);
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_movi_tl(cpu_T[1], 0);
 	crisv32_alu_op(dc, CC_OP_CMP, dc->op2, memsize_zz(dc));
 	do_postinc(dc, memsize);
 	return insn_len;
@@ -1819,8 +1794,7 @@ static unsigned int dec_move_mp(DisasContext *dc)
 
 	cris_cc_mask(dc, 0);
 	insn_len = dec_prep_alu_m(dc, 0, memsize);
-	gen_op_movl_T0_T1();
-	gen_movl_preg_T0[dc->op2]();
+	t_gen_mov_preg_TN(dc->op2, cpu_T[1]);
 
 	do_postinc(dc, memsize);
 	return insn_len;
@@ -1838,21 +1812,13 @@ static unsigned int dec_move_pm(DisasContext *dc)
 
 	cris_cc_mask(dc, 0);
 	/* prepare store. Address in T0, value in T1.  */
-	/* Support register 0 is hardwired to zero. 
-	   Treat it specially. */
-	if (dc->op2 == 0)
-		gen_op_movl_T1_im(0);
-	else
-	{
-		gen_movl_T0_preg[dc->op2]();
-		gen_op_movl_T1_T0();
-	}
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_preg(cpu_T[1], dc->op2);
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	gen_store_T0_T1(dc, memsize);
 	if (dc->postinc)
 	{
-		gen_op_addl_T0_im(memsize);
-		gen_movl_reg_T0[dc->op1]();
+		tcg_gen_addi_tl(cpu_T[0], cpu_T[0], memsize);
+		t_gen_mov_reg_TN(dc->op1, cpu_T[0]);
 	}
 	return 2;
 }
@@ -1865,21 +1831,18 @@ static unsigned int dec_movem_mr(DisasContext *dc)
 		    dc->postinc ? "+]" : "]", dc->op2));
 
 	cris_cc_mask(dc, 0);
-	/* fetch the address into T1.  */
-	gen_movl_T0_reg[dc->op1]();
-	gen_op_movl_T1_T0();
+	/* fetch the address into T0 and T1.  */
+	t_gen_mov_TN_reg(cpu_T[1], dc->op1);
 	for (i = 0; i <= dc->op2; i++) {
 		/* Perform the load onto regnum i. Always dword wide.  */
+		tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 		gen_load_T0_T0(dc, 4, 0);
-		gen_movl_reg_T0[i]();
-		/* Update the address.  */
-		gen_op_addl_T1_im(4);
-		gen_op_movl_T0_T1();
+		t_gen_mov_reg_TN(i, cpu_T[0]);
+		tcg_gen_addi_tl(cpu_T[1], cpu_T[1], 4);
 	}
-	if (dc->postinc) {
-		/* writeback the updated pointer value.  */
-		gen_movl_reg_T0[dc->op1]();
-	}
+	/* writeback the updated pointer value.  */
+	if (dc->postinc)
+		t_gen_mov_reg_TN(dc->op1, cpu_T[1]);
 	return 2;
 }
 
@@ -1893,22 +1856,20 @@ static unsigned int dec_movem_rm(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 	for (i = 0; i <= dc->op2; i++) {
 		/* Fetch register i into T1.  */
-		gen_movl_T0_reg[i]();
-		gen_op_movl_T1_T0();
-
+		t_gen_mov_TN_reg(cpu_T[1], i);
 		/* Fetch the address into T0.  */
-		gen_movl_T0_reg[dc->op1]();
+		t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 		/* Displace it.  */
-		gen_op_addl_T0_im(i * 4);
-
+		tcg_gen_addi_tl(cpu_T[0], cpu_T[0], i * 4);
 		/* Perform the store.  */
 		gen_store_T0_T1(dc, 4);
 	}
 	if (dc->postinc) {
-		/* Update the address.  */
-		gen_op_addl_T0_im(4);
+		/* T0 should point to the last written addr, advance one more
+		   step. */
+		tcg_gen_addi_tl(cpu_T[0], cpu_T[0], 4);
 		/* writeback the updated pointer value.  */
-		gen_movl_reg_T0[dc->op1]();
+		t_gen_mov_reg_TN(dc->op1, cpu_T[0]);
 	}
 	return 2;
 }
@@ -1924,25 +1885,23 @@ static unsigned int dec_move_rm(DisasContext *dc)
 
 	cris_cc_mask(dc, 0);
 	/* prepare store.  */
-	gen_movl_T0_reg[dc->op2]();
-	gen_op_movl_T1_T0();
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
+	t_gen_mov_TN_reg(cpu_T[1], dc->op2);
 	gen_store_T0_T1(dc, memsize);
 	if (dc->postinc)
 	{
-		gen_op_addl_T0_im(memsize);
-		gen_movl_reg_T0[dc->op1]();
+		tcg_gen_addi_tl(cpu_T[0], cpu_T[0], memsize);
+		t_gen_mov_reg_TN(dc->op1, cpu_T[0]);
 	}
 	return 2;
 }
-
 
 static unsigned int dec_lapcq(DisasContext *dc)
 {
 	DIS(fprintf (logfile, "lapcq %x, $r%u\n",
 		    dc->pc + dc->op1*2, dc->op2));
 	cris_cc_mask(dc, 0);
-	gen_op_movl_T1_im(dc->pc + dc->op1*2);
+	tcg_gen_movi_tl(cpu_T[1], dc->pc + dc->op1 * 2);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);
 	return 2;
 }
@@ -1951,16 +1910,14 @@ static unsigned int dec_lapc_im(DisasContext *dc)
 {
 	unsigned int rd;
 	int32_t imm;
-	int insn_len = 6;
 
 	rd = dc->op2;
 
 	cris_cc_mask(dc, 0);
 	imm = ldl_code(dc->pc + 2);
 	DIS(fprintf (logfile, "lapc 0x%x, $r%u\n", imm + dc->pc, dc->op2));
-	gen_op_movl_T0_im (dc->pc + imm);
-	gen_movl_reg_T0[rd] ();
-	return insn_len;
+	t_gen_mov_reg_TN(rd, tcg_const_i32(dc->pc + imm));
+	return 6;
 }
 
 /* Jump to special reg.  */
@@ -1969,7 +1926,7 @@ static unsigned int dec_jump_p(DisasContext *dc)
 	DIS(fprintf (logfile, "jump $p%u\n", dc->op2));
 	cris_cc_mask(dc, 0);
 	/* Store the return address in Pd.  */
-	gen_movl_T0_preg[dc->op2]();
+	t_gen_mov_TN_preg(cpu_T[0], dc->op2);
 	gen_op_movl_btarget_T0();
 	cris_prepare_dyn_jmp(dc);
 	return 2;
@@ -1981,10 +1938,10 @@ static unsigned int dec_jas_r(DisasContext *dc)
 	DIS(fprintf (logfile, "jas $r%u, $p%u\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	gen_op_movl_btarget_T0();
-	gen_op_movl_T0_im(dc->pc + 4);
-	gen_movl_preg_T0[dc->op2]();
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + 4);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 2;
 }
@@ -1998,10 +1955,10 @@ static unsigned int dec_jas_im(DisasContext *dc)
 	DIS(fprintf (logfile, "jas 0x%x\n", imm));
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
-	gen_op_movl_T0_im(imm);
+	tcg_gen_movi_tl(cpu_T[0], imm);
 	gen_op_movl_btarget_T0();
-	gen_op_movl_T0_im(dc->pc + 8);
-	gen_movl_preg_T0[dc->op2]();
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2015,10 +1972,10 @@ static unsigned int dec_jasc_im(DisasContext *dc)
 	DIS(fprintf (logfile, "jasc 0x%x\n", imm));
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
-	gen_op_movl_T0_im(imm);
+	tcg_gen_movi_tl(cpu_T[0], imm);
 	gen_op_movl_btarget_T0();
-	gen_op_movl_T0_im(dc->pc + 8 + 4);
-	gen_movl_preg_T0[dc->op2]();
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8 + 4);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2028,10 +1985,10 @@ static unsigned int dec_jasc_r(DisasContext *dc)
 	DIS(fprintf (logfile, "jasc_r $r%u, $p%u\n", dc->op1, dc->op2));
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
-	gen_movl_T0_reg[dc->op1]();
+	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	gen_op_movl_btarget_T0();
-	gen_op_movl_T0_im(dc->pc + 4 + 4);
-	gen_movl_preg_T0[dc->op2]();
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + 4 + 4);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 2;
 }
@@ -2064,10 +2021,10 @@ static unsigned int dec_bas_im(DisasContext *dc)
 	DIS(fprintf (logfile, "bas 0x%x, $p%u\n", dc->pc + simm, dc->op2));
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
-	gen_op_movl_T0_im(dc->pc + simm);
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + simm);
 	gen_op_movl_btarget_T0();
-	gen_op_movl_T0_im(dc->pc + 8);
-	gen_movl_preg_T0[dc->op2]();
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2080,10 +2037,10 @@ static unsigned int dec_basc_im(DisasContext *dc)
 	DIS(fprintf (logfile, "basc 0x%x, $p%u\n", dc->pc + simm, dc->op2));
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
-	gen_op_movl_T0_im(dc->pc + simm);
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + simm);
 	gen_op_movl_btarget_T0();
-	gen_op_movl_T0_im(dc->pc + 12);
-	gen_movl_preg_T0[dc->op2]();
+	tcg_gen_movi_tl(cpu_T[0], dc->pc + 12);
+	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2096,7 +2053,7 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 
 	if (dc->op2 == 15) /* ignore halt.  */
-		goto done;
+		return 2;
 
 	switch (dc->op2 & 7) {
 		case 2:
@@ -2110,7 +2067,7 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 			break;
 		case 6:
 			/* break.  */
-			gen_op_movl_T0_im(dc->pc);
+			tcg_gen_movi_tl(cpu_T[0], dc->pc);
 			gen_op_movl_pc_T0();
 			/* Breaks start at 16 in the exception vector.  */
 			gen_op_break_im(dc->op1 + 16);
@@ -2122,7 +2079,6 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 			break;
 
 	}
-  done:
 	return 2;
 }
 
@@ -2296,7 +2252,7 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
 		for(j = 0; j < env->nb_breakpoints; j++) {
 			if (env->breakpoints[j] == dc->pc) {
 				cris_evaluate_flags (dc);
-				gen_op_movl_T0_im((long)dc->pc);
+				tcg_gen_movi_tl(cpu_T[0], dc->pc);
 				gen_op_movl_pc_T0();
 				gen_op_debug();
 				dc->is_jmp = DISAS_UPDATE;
@@ -2304,7 +2260,6 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
 		}
 	}
 }
-
 
 /* generate intermediate code for basic block 'tb'.  */
 struct DisasContext ctx;
@@ -2356,11 +2311,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		if (!dc->flagx_live
 		    || (dc->flagx_live &&
 			!(dc->cc_op == CC_OP_FLAGS && dc->flags_x))) {
-			gen_movl_T0_preg[PR_CCS]();
-			gen_op_andl_T0_im(~X_FLAG);
-			gen_movl_preg_T0[PR_CCS]();
-			dc->flagx_live = 1;
-			dc->flags_x = 0;
+			cris_clear_x_flag(dc);
 		}
 
 		/* Check for delayed branches here. If we do it before
@@ -2488,6 +2439,10 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
 }
 
+static void tcg_macro_func(TCGContext *s, int macro_id, const int *dead_args)
+{
+}
+
 CPUCRISState *cpu_cris_init (const char *cpu_model)
 {
 	CPUCRISState *env;
@@ -2496,6 +2451,19 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	if (!env)
 		return NULL;
 	cpu_exec_init(env);
+
+	tcg_set_macro_func(&tcg_ctx, tcg_macro_func);
+	cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+	cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL, 
+				      TCG_AREG0, offsetof(CPUState, t0), "T0");
+	cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
+				      TCG_AREG0, offsetof(CPUState, t1), "T1");
+#else
+	cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
+	cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
+#endif
+
 	cpu_reset(env);
 	return env;
 }
