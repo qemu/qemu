@@ -1240,10 +1240,12 @@ CPULogItem cpu_log_items[] = {
       "show target assembly code for each compiled TB" },
     { CPU_LOG_TB_OP, "op",
       "show micro ops for each compiled TB" },
-#ifdef TARGET_I386
     { CPU_LOG_TB_OP_OPT, "op_opt",
-      "show micro ops before eflags optimization" },
+      "show micro ops "
+#ifdef TARGET_I386
+      "before eflags optimization and "
 #endif
+      "after liveness analysis" },
     { CPU_LOG_INT, "int",
       "show interrupts/exceptions in short format" },
     { CPU_LOG_EXEC, "exec",
