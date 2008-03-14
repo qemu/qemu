@@ -66,7 +66,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 			break;
 
 		default:
-			printf ("%s %x p=%x\n", __func__, addr, env->pc);
+			D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
 			break;
 	}
 	return r;
@@ -100,10 +100,11 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 				putchar(value);
 			else
 				putchar('.');
+			fflush(stdout);
 			break;
 		default:
-			printf ("%s %x %x pc=%x\n",
-				__func__, addr, value, env->pc);
+			D(printf ("%s %x %x pc=%x\n",
+				  __func__, addr, value, env->pc));
 			break;
 	}
 }

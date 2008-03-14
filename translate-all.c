@@ -286,6 +286,8 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_SH4)
     env->pc = gen_opc_pc[j];
     env->flags = gen_opc_hflags[j];
+#elif defined(TARGET_CRIS)
+    env->pregs[PR_ERP] = gen_opc_pc[j];
 #endif
 
 #ifdef CONFIG_PROFILER

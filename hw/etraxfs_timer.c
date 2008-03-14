@@ -1,5 +1,5 @@
 /*
- * QEMU ETRAX System Emulator
+ * QEMU ETRAX Timers
  *
  * Copyright (c) 2007 Edgar E. Iglesias, Axis Communications AB.
  *
@@ -28,8 +28,6 @@
 
 #define D(x)
 
-void etrax_ack_irq(CPUState *env, uint32_t mask);
-
 #define R_TIME 0xb001e038
 #define RW_TMR0_DIV 0xb001e000
 #define R_TMR0_DATA 0xb001e004
@@ -38,15 +36,11 @@ void etrax_ack_irq(CPUState *env, uint32_t mask);
 #define R_TMR1_DATA 0xb001e014
 #define RW_TMR1_CTRL 0xb001e018
 
+#define RW_WD_CTRL 0xb001e040
 #define RW_INTR_MASK 0xb001e048
 #define RW_ACK_INTR 0xb001e04c
 #define R_INTR 0xb001e050
 #define R_MASKED_INTR 0xb001e054
-
-
-uint32_t rw_intr_mask;
-uint32_t rw_ack_intr;
-uint32_t r_intr;
 
 struct fs_timer_t {
 	QEMUBH *bh;
@@ -57,6 +51,10 @@ struct fs_timer_t {
 	qemu_irq *irq;
 	uint32_t mask;
 	struct timeval last;
+
+	uint32_t rw_intr_mask;
+	uint32_t rw_ack_intr;
+	uint32_t r_intr;
 };
 
 static struct fs_timer_t timer[2];
@@ -126,13 +124,13 @@ static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
 	}
 
 	case RW_INTR_MASK:
-		r = rw_intr_mask;
+		r = timer[t].rw_intr_mask;
 		break;
 	case R_MASKED_INTR:
-		r = r_intr & rw_intr_mask;
+		r = timer[t].r_intr & timer[t].rw_intr_mask;
 		break;
 	default:
-		printf ("%s %x p=%x\n", __func__, addr, env->pc);
+		D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
 		break;
 	}
 	return r;
@@ -167,7 +165,7 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 	{
 	case 0:
 	case 1:
-		printf ("extern or disabled timer clock?\n");
+		D(printf ("extern or disabled timer clock?\n"));
 		break;
 	case 4: freq_hz =  29493000; break;
 	case 5: freq_hz =  32000000; break;
@@ -178,7 +176,7 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 		break;
 	}
 
-	printf ("freq_hz=%d limit=%d\n", freq_hz, t->limit);
+	D(printf ("freq_hz=%d limit=%d\n", freq_hz, t->limit));
 	t->scale = 0;
 	if (t->limit > 2048)
 	{
@@ -186,11 +184,11 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 		ptimer_set_period(t->ptimer, freq_hz / t->scale);
 	}
 
-	printf ("op=%d\n", op);
 	switch (op)
 	{
 		case 0:
-			printf ("limit=%d %d\n", t->limit, t->limit/t->scale);
+			D(printf ("limit=%d %d\n", 
+				  t->limit, t->limit/t->scale));
 			ptimer_set_limit(t->ptimer, t->limit / t->scale, 1);
 			break;
 		case 1:
@@ -207,10 +205,8 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 
 static void timer_ack_irq(struct fs_timer_t *t)
 {
-	if (!(r_intr & t->mask & rw_intr_mask)) {
+	if (!(t->r_intr & t->mask & t->rw_intr_mask))
 		qemu_irq_lower(t->irq[0]);
-		etrax_ack_irq(t->env, 1 << 0x1b);
-	}
 }
 
 static void
@@ -239,10 +235,13 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 			break;
 		case RW_INTR_MASK:
 			D(printf ("RW_INTR_MASK=%x\n", value));
-			rw_intr_mask = value;
+			timer[t].rw_intr_mask = value;
+			break;
+		case RW_WD_CTRL:
+			D(printf ("RW_WD_CTRL=%x\n", value));
 			break;
 		case RW_ACK_INTR:
-			r_intr &= ~value;
+			timer[t].r_intr &= ~value;
 			timer_ack_irq(&timer[t]);
 			break;
 		default:
@@ -267,8 +266,9 @@ static CPUWriteMemoryFunc *timer_write[] = {
 static void timer_irq(void *opaque)
 {
 	struct fs_timer_t *t = opaque;
-	r_intr |= t->mask;
-	if (t->mask & rw_intr_mask) {
+	t->r_intr |= t->mask;
+	if (t->mask & t->rw_intr_mask) {
+		D(printf("%s raise\n", __func__));
 		qemu_irq_raise(t->irq[0]);
 	}
 }
@@ -279,13 +279,13 @@ void etraxfs_timer_init(CPUState *env, qemu_irq *irqs)
 
 	timer[0].bh = qemu_bh_new(timer_irq, &timer[0]);
 	timer[0].ptimer = ptimer_init(timer[0].bh);
-	timer[0].irq = irqs + 0x1b;
+	timer[0].irq = irqs + 26;
 	timer[0].mask = 1;
 	timer[0].env = env;
 
 	timer[1].bh = qemu_bh_new(timer_irq, &timer[1]);
 	timer[1].ptimer = ptimer_init(timer[1].bh);
-	timer[1].irq = irqs + 0x1b;
+	timer[1].irq = irqs + 26;
 	timer[1].mask = 1;
 	timer[1].env = env;
 

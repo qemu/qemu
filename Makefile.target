@@ -565,9 +565,12 @@ CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
 OBJS+= etraxfs.o
-OBJS+= ptimer.o
+OBJS+= etraxfs_pic.o
 OBJS+= etraxfs_timer.o
 OBJS+= etraxfs_ser.o
+
+OBJS+= ptimer.o
+OBJS+= pflash_cfi01.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

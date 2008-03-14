@@ -556,7 +556,6 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
-			env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                         BREAK_CHAIN;
                     }
 #elif defined(TARGET_M68K)
@@ -1181,10 +1180,6 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            a virtual CPU fault */
         cpu_restore_state(tb, env, pc, puc);
     }
-#if 0
-        printf("PF exception: NIP=0x%08x error=0x%x %p\n",
-               env->nip, env->error_code, tb);
-#endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
