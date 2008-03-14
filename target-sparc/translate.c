@@ -2019,23 +2019,23 @@ static void disas_sparc_insn(DisasContext * dc)
                     save_state(dc);
                     tcg_gen_helper_0_1(helper_trap, cpu_T[0]);
                 } else if (cond != 0) {
+                    TCGv r_cond = tcg_temp_new(TCG_TYPE_TL);
 #ifdef TARGET_SPARC64
                     /* V9 icc/xcc */
                     int cc = GET_FIELD_SP(insn, 11, 12);
-                    flush_T2(dc);
+
                     save_state(dc);
                     if (cc == 0)
-                        gen_cond(cpu_T[2], 0, cond);
+                        gen_cond(r_cond, 0, cond);
                     else if (cc == 2)
-                        gen_cond(cpu_T[2], 1, cond);
+                        gen_cond(r_cond, 1, cond);
                     else
                         goto illegal_insn;
 #else
-                    flush_T2(dc);
                     save_state(dc);
-                    gen_cond(cpu_T[2], 0, cond);
+                    gen_cond(r_cond, 0, cond);
 #endif
-                    tcg_gen_helper_0_2(helper_trapcc, cpu_T[0], cpu_T[2]);
+                    tcg_gen_helper_0_2(helper_trapcc, cpu_T[0], r_cond);
                 }
                 gen_op_next_insn();
                 tcg_gen_exit_tb(0);
@@ -3433,25 +3433,25 @@ static void disas_sparc_insn(DisasContext * dc)
                         {
                             int cc = GET_FIELD_SP(insn, 11, 12);
                             int cond = GET_FIELD_SP(insn, 14, 17);
-                            TCGv r_zero;
+                            TCGv r_cond;
                             int l1;
 
-                            flush_T2(dc);
+                            r_cond = tcg_temp_new(TCG_TYPE_TL);
                             if (insn & (1 << 18)) {
                                 if (cc == 0)
-                                    gen_cond(cpu_T[2], 0, cond);
+                                    gen_cond(r_cond, 0, cond);
                                 else if (cc == 2)
-                                    gen_cond(cpu_T[2], 1, cond);
+                                    gen_cond(r_cond, 1, cond);
                                 else
                                     goto illegal_insn;
                             } else {
-                                gen_fcond(cpu_T[2], cc, cond);
+                                gen_fcond(r_cond, cc, cond);
                             }
 
                             l1 = gen_new_label();
 
-                            r_zero = tcg_const_tl(0);
-                            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[2], r_zero, l1);
+                            tcg_gen_brcond_tl(TCG_COND_EQ, r_cond,
+                                              tcg_const_tl(0), l1);
                             if (IS_IMM) {       /* immediate */
                                 rs2 = GET_FIELD_SPs(insn, 0, 10);
                                 gen_movl_simm_T1(rs2);
