@@ -729,6 +729,34 @@ static inline void gen_op_tsub_T1_T0_ccTV(void)
     gen_cc_C_sub(cpu_cc_src, cpu_T[1]);
 }
 
+#ifdef TARGET_SPARC64
+static inline void gen_trap_ifdivzero_i64(TCGv divisor)
+{
+    int l1;
+
+    l1 = gen_new_label();
+    tcg_gen_brcond_i64(TCG_COND_NE, divisor, tcg_const_tl(0), l1);
+    gen_op_exception(TT_DIV_ZERO);
+    gen_set_label(l1);
+}
+
+static inline void gen_op_sdivx_T1_T0(void)
+{
+    int l1, l2;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    gen_trap_ifdivzero_i64(cpu_T[1]);
+    tcg_gen_brcond_i64(TCG_COND_NE, cpu_T[0], tcg_const_i64(INT64_MIN), l1);
+    tcg_gen_brcond_i64(TCG_COND_NE, cpu_T[1], tcg_const_i64(-1), l1);
+    tcg_gen_movi_i64(cpu_T[0], INT64_MIN);
+    gen_op_jmp_label(l2);
+    gen_set_label(l1);
+    tcg_gen_div_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
+    gen_set_label(l2);
+}
+#endif
+
 static inline void gen_op_div_cc(void)
 {
     int l1;
@@ -3037,7 +3065,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
 #ifdef TARGET_SPARC64
                     case 0xd: /* V9 udivx */
-                        gen_op_udivx_T1_T0();
+                        gen_trap_ifdivzero_i64(cpu_T[1]);
+                        tcg_gen_divu_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
                         break;
 #endif
                     case 0xe:

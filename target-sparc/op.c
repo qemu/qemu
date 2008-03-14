@@ -269,29 +269,6 @@ void OPPROTO op_sdiv_T1_T0(void)
     FORCE_RET();
 }
 
-#ifdef TARGET_SPARC64
-void OPPROTO op_udivx_T1_T0(void)
-{
-    if (T1 == 0) {
-        raise_exception(TT_DIV_ZERO);
-    }
-    T0 /= T1;
-    FORCE_RET();
-}
-
-void OPPROTO op_sdivx_T1_T0(void)
-{
-    if (T1 == 0) {
-        raise_exception(TT_DIV_ZERO);
-    }
-    if (T0 == INT64_MIN && T1 == -1)
-        T0 = INT64_MIN;
-    else
-        T0 /= (target_long) T1;
-    FORCE_RET();
-}
-#endif
-
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.h"
