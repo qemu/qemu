@@ -376,10 +376,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		case CC_OP_ADD:
 			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* Extended arithmetics.  */
-			if (!dc->flagx_live)
-				gen_op_addxl_T0_C();
-			else if (dc->flags_x)
-				gen_op_addxl_T0_C();
+			gen_op_addxl_T0_C();
 			break;
 		case CC_OP_ADDC:
 			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
@@ -397,10 +394,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			gen_op_not_T1_T1();
 
 			/* Extended arithmetics.  */
-			if (!dc->flagx_live)
-				gen_op_subxl_T0_C();
-			else if (dc->flags_x)
-				gen_op_subxl_T0_C();
+			gen_op_subxl_T0_C();
 			break;
 		case CC_OP_MOVE:
 			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
