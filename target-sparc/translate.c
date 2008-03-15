@@ -46,8 +46,8 @@
                          according to jump_pc[T2] */
 
 /* global register indexes */
-static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_dst, cpu_psr;
-static TCGv cpu_gregs[8];
+static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_dst;
+static TCGv cpu_psr, cpu_fsr, cpu_gregs[8];
 #ifdef TARGET_SPARC64
 static TCGv cpu_xcc;
 #endif
@@ -1269,11 +1269,7 @@ static inline void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond)
 
 static inline void gen_fcond(TCGv r_dst, unsigned int cc, unsigned int cond)
 {
-    TCGv r_src;
     unsigned int offset;
-
-    r_src = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_ld_tl(r_src, cpu_env, offsetof(CPUSPARCState, fsr));
 
     switch (cc) {
     default:
@@ -1296,49 +1292,49 @@ static inline void gen_fcond(TCGv r_dst, unsigned int cc, unsigned int cond)
         gen_op_eval_bn(r_dst);
         break;
     case 0x1:
-        gen_op_eval_fbne(r_dst, r_src, offset);
+        gen_op_eval_fbne(r_dst, cpu_fsr, offset);
         break;
     case 0x2:
-        gen_op_eval_fblg(r_dst, r_src, offset);
+        gen_op_eval_fblg(r_dst, cpu_fsr, offset);
         break;
     case 0x3:
-        gen_op_eval_fbul(r_dst, r_src, offset);
+        gen_op_eval_fbul(r_dst, cpu_fsr, offset);
         break;
     case 0x4:
-        gen_op_eval_fbl(r_dst, r_src, offset);
+        gen_op_eval_fbl(r_dst, cpu_fsr, offset);
         break;
     case 0x5:
-        gen_op_eval_fbug(r_dst, r_src, offset);
+        gen_op_eval_fbug(r_dst, cpu_fsr, offset);
         break;
     case 0x6:
-        gen_op_eval_fbg(r_dst, r_src, offset);
+        gen_op_eval_fbg(r_dst, cpu_fsr, offset);
         break;
     case 0x7:
-        gen_op_eval_fbu(r_dst, r_src, offset);
+        gen_op_eval_fbu(r_dst, cpu_fsr, offset);
         break;
     case 0x8:
         gen_op_eval_ba(r_dst);
         break;
     case 0x9:
-        gen_op_eval_fbe(r_dst, r_src, offset);
+        gen_op_eval_fbe(r_dst, cpu_fsr, offset);
         break;
     case 0xa:
-        gen_op_eval_fbue(r_dst, r_src, offset);
+        gen_op_eval_fbue(r_dst, cpu_fsr, offset);
         break;
     case 0xb:
-        gen_op_eval_fbge(r_dst, r_src, offset);
+        gen_op_eval_fbge(r_dst, cpu_fsr, offset);
         break;
     case 0xc:
-        gen_op_eval_fbuge(r_dst, r_src, offset);
+        gen_op_eval_fbuge(r_dst, cpu_fsr, offset);
         break;
     case 0xd:
-        gen_op_eval_fble(r_dst, r_src, offset);
+        gen_op_eval_fble(r_dst, cpu_fsr, offset);
         break;
     case 0xe:
-        gen_op_eval_fbule(r_dst, r_src, offset);
+        gen_op_eval_fbule(r_dst, cpu_fsr, offset);
         break;
     case 0xf:
-        gen_op_eval_fbo(r_dst, r_src, offset);
+        gen_op_eval_fbo(r_dst, cpu_fsr, offset);
         break;
     }
 }
@@ -1588,10 +1584,8 @@ static inline void gen_op_fcmpeq(int fccno)
 
 static inline void gen_op_fpexception_im(int fsr_flags)
 {
-    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fsr));
-    tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, ~FSR_FTT_MASK);
-    tcg_gen_ori_tl(cpu_tmp0, cpu_tmp0, fsr_flags);
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fsr));
+    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, ~FSR_FTT_MASK);
+    tcg_gen_ori_tl(cpu_fsr, cpu_fsr, fsr_flags);
     gen_op_exception(TT_FP_EXCP);
 }
 
@@ -1610,9 +1604,7 @@ static int gen_trap_ifnofpu(DisasContext * dc)
 
 static inline void gen_op_clear_ieee_excp_and_FTT(void)
 {
-    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fsr));
-    tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, ~(FSR_FTT_MASK | FSR_CEXC_MASK));
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fsr));
+    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, ~(FSR_FTT_MASK | FSR_CEXC_MASK));
 }
 
 static inline void gen_clear_float_exceptions(void)
@@ -4769,6 +4761,9 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
         cpu_psr = tcg_global_mem_new(TCG_TYPE_I32,
                                      TCG_AREG0, offsetof(CPUState, psr),
                                      "psr");
+        cpu_fsr = tcg_global_mem_new(TCG_TYPE_TL,
+                                     TCG_AREG0, offsetof(CPUState, fsr),
+                                     "fsr");
         for (i = 1; i < 8; i++)
             cpu_gregs[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
                                               offsetof(CPUState, gregs[i]),
