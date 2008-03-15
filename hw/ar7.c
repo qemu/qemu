@@ -3094,6 +3094,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     if (0) {
+#if !defined(TARGET_WORDS_BIGENDIAN)
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4) ||
                INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         uint32_t oldvalue = ar7_io_memread(opaque, addr & ~3);
@@ -3109,6 +3110,7 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
         ar7_io_memwrite(opaque, addr, value);
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
         ar7_io_memwrite(opaque, addr, value);
+#endif
     } else {
         ar7_io_memwrite(opaque, addr, value);
         logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
@@ -3121,6 +3123,7 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
+#if !defined(TARGET_WORDS_BIGENDIAN)
     } else if (INRANGE(AVALANCHE_BBIF_BASE, av.bbif)) {
         value >>= (addr & 3) * 8;
         value &= 0xff;
@@ -3129,14 +3132,17 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
         value >>= ((addr & 3) * 8);
         value &= 0xff;
         //~ logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+    } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
+        value = clock_read((addr & ~3) - AVALANCHE_CLOCK_BASE);
+        value >>= ((addr & 3) * 8);
+        value &= 0xff;
     } else if (addr & 3) {
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
         UNEXPECTED();
-    } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
-        //~ value = clock_read(addr - AVALANCHE_CLOCK_BASE);
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
+#endif
     } else {
         logout("addr=0x%08x, val=0x%02x\n", addr, value & 0xff);
         UNEXPECTED();
@@ -3151,6 +3157,7 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
     } else {
         logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
         switch (addr & 3) {
+#if !defined(TARGET_WORDS_BIGENDIAN)
         case 0:
             ar7_io_memwrite(opaque, addr, value);
             break;
@@ -3159,6 +3166,7 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
             //~ UNEXPECTED();
             ar7_io_memwrite(opaque, addr - 2, value);
             break;
+#endif
         default:
             assert(0);
         }
@@ -3167,17 +3175,18 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 
 static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
 {
-    uint32_t value = 0;
+    uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
     } else {
-      value = ar7_io_memread(opaque, addr & ~3);
       switch (addr & 3) {
+#if !defined(TARGET_WORDS_BIGENDIAN)
       case 0:
           value &= 0xffff;
           break;
       case 2:
           value >>= 16;
           break;
+#endif
       default:
           assert(0);
       }
