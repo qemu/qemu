@@ -1590,6 +1590,8 @@ uint64_t helper_pack64(target_ulong high, target_ulong low)
 void helper_ldfsr(void)
 {
     int rnd_mode;
+
+    PUT_FSR32(env, *((uint32_t *) &FT0));
     switch (env->fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
         rnd_mode = float_round_nearest_even;
@@ -1608,7 +1610,12 @@ void helper_ldfsr(void)
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
-void helper_debug()
+void helper_stfsr(void)
+{
+    *((uint32_t *) &FT0) = GET_FSR32(env);
+}
+
+void helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit();

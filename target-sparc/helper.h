@@ -34,6 +34,7 @@ uint64_t TCG_HELPER_PROTO helper_ld_asi(target_ulong addr, int asi,
 void TCG_HELPER_PROTO helper_st_asi(target_ulong addr, uint64_t val, int asi,
                                     int size);
 void TCG_HELPER_PROTO helper_ldfsr(void);
+void TCG_HELPER_PROTO helper_stfsr(void);
 void TCG_HELPER_PROTO helper_check_ieee_exceptions(void);
 void TCG_HELPER_PROTO helper_clear_float_exceptions(void);
 void TCG_HELPER_PROTO helper_fabss(void);

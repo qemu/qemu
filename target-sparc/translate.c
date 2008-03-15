@@ -4259,7 +4259,6 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x21:      /* load fsr */
                     gen_op_check_align_T0_3();
                     gen_op_ldst(ldf);
-                    gen_op_ldfsr();
                     tcg_gen_helper_0_0(helper_ldfsr);
                     break;
                 case 0x22:      /* load quad fpreg */
@@ -4415,7 +4414,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
-                    gen_op_stfsr();
+                    tcg_gen_helper_0_0(helper_stfsr);
                     gen_op_ldst(stf);
                     break;
                 case 0x26:

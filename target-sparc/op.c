@@ -285,16 +285,6 @@ void OPPROTO op_sdiv_T1_T0(void)
 #endif
 #endif
 
-void OPPROTO op_ldfsr(void)
-{
-    PUT_FSR32(env, *((uint32_t *) &FT0));
-}
-
-void OPPROTO op_stfsr(void)
-{
-    *((uint32_t *) &FT0) = GET_FSR32(env);
-}
-
 #ifndef TARGET_SPARC64
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
