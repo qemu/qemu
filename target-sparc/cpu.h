@@ -186,7 +186,7 @@ typedef struct CPUSPARCState {
     target_ulong y;        /* multiply/divide register */
 
     /* emulator internal flags handling */
-    target_ulong cc_src;
+    target_ulong cc_src, cc_src2;
     target_ulong cc_dst;
 
     uint32_t psr;      /* processor state register */

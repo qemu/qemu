@@ -46,7 +46,7 @@
                          according to jump_pc[T2] */
 
 /* global register indexes */
-static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_dst;
+static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
 static TCGv cpu_psr, cpu_fsr, cpu_gregs[8];
 #ifdef TARGET_SPARC64
 static TCGv cpu_xcc;
@@ -708,6 +708,57 @@ static inline void gen_op_tsub_T1_T0_ccTV(void)
     gen_cc_clear();
     gen_cc_NZ(cpu_T[0]);
     gen_cc_C_sub(cpu_cc_src, cpu_T[1]);
+}
+
+static inline void gen_op_mulscc_T1_T0(void)
+{
+    TCGv r_temp;
+    int l1, l2;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    r_temp = tcg_temp_new(TCG_TYPE_TL);
+
+    /* old op:
+    if (!(env->y & 1))
+        T1 = 0;
+    */
+    tcg_gen_ld_i32(r_temp, cpu_env, offsetof(CPUSPARCState, y));
+    tcg_gen_andi_i32(r_temp, r_temp, 0x1);
+    tcg_gen_brcond_i32(TCG_COND_EQ, r_temp, tcg_const_tl(0), l1);
+    tcg_gen_mov_tl(cpu_cc_src2, cpu_T[1]);
+    gen_op_jmp_label(l2);
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_cc_src2, 0);
+    gen_set_label(l2);
+
+    // b2 = T0 & 1;
+    // env->y = (b2 << 31) | (env->y >> 1);
+    tcg_gen_shli_i32(r_temp, cpu_T[0], 31);
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, y));
+    tcg_gen_shri_i32(cpu_tmp0, cpu_tmp0, 1);
+    tcg_gen_or_i32(cpu_tmp0, cpu_tmp0, r_temp);
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, y));
+
+    // b1 = N ^ V;
+    gen_mov_reg_N(cpu_tmp0, cpu_psr);
+    gen_mov_reg_V(r_temp, cpu_psr);
+    tcg_gen_xor_tl(cpu_tmp0, cpu_tmp0, r_temp);
+
+    // T0 = (b1 << 31) | (T0 >> 1);
+    // src1 = T0;
+    tcg_gen_shli_tl(cpu_tmp0, cpu_tmp0, 31);
+    tcg_gen_shri_tl(cpu_cc_src, cpu_T[0], 1);
+    tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_tmp0);
+
+    /* do addition and update flags */
+    tcg_gen_add_tl(cpu_T[0], cpu_cc_src, cpu_cc_src2);
+    tcg_gen_discard_tl(r_temp);
+
+    gen_cc_clear();
+    gen_cc_NZ(cpu_T[0]);
+    gen_cc_V_add(cpu_T[0], cpu_cc_src, cpu_cc_src2);
+    gen_cc_C_add(cpu_T[0], cpu_cc_src);
 }
 
 #ifdef TARGET_SPARC64
@@ -4627,6 +4678,9 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
         cpu_cc_src = tcg_global_mem_new(TCG_TYPE_TL,
                                         TCG_AREG0, offsetof(CPUState, cc_src),
                                         "cc_src");
+        cpu_cc_src2 = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                         offsetof(CPUState, cc_src2),
+                                         "cc_src2");
         cpu_cc_dst = tcg_global_mem_new(TCG_TYPE_TL,
                                         TCG_AREG0, offsetof(CPUState, cc_dst),
                                         "cc_dst");
