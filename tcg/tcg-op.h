@@ -1264,6 +1264,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 }
 
 #define tcg_gen_ld_ptr tcg_gen_ld_i32
+#define tcg_gen_discard_ptr tcg_gen_discard_i32
 
 #else /* TCG_TARGET_REG_BITS == 32 */
 
@@ -1323,6 +1324,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 }
 
 #define tcg_gen_ld_ptr tcg_gen_ld_i64
+#define tcg_gen_discard_ptr tcg_gen_discard_i64
 
 #endif /* TCG_TARGET_REG_BITS != 32 */
 
@@ -1358,6 +1360,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_sar_tl tcg_gen_sar_i64
 #define tcg_gen_sari_tl tcg_gen_sari_i64
 #define tcg_gen_brcond_tl tcg_gen_brcond_i64
+#define tcg_gen_discard_tl tcg_gen_discard_i64
 #define tcg_const_tl tcg_const_i64
 #else
 #define TCG_TYPE_TL TCG_TYPE_I32
@@ -1391,5 +1394,6 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_sar_tl tcg_gen_sar_i32
 #define tcg_gen_sari_tl tcg_gen_sari_i32
 #define tcg_gen_brcond_tl tcg_gen_brcond_i32
+#define tcg_gen_discard_tl tcg_gen_discard_i32
 #define tcg_const_tl tcg_const_i32
 #endif
