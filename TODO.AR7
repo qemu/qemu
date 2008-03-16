@@ -1,7 +1,101 @@
 TODO list for AR7 / QEMU
 
+2008-03-16
+
+* Absturz CPMAC unter hoher Dauerlast
+
+94139fd0:       8c450000        lw      a1,0(v0)
+94139fd4:       26100004        addiu   s0,s0,4
+94139fd8:       0d00927f        jal     940249fc <printk>
+94139fdc:       24842f24        addiu   a0,a0,12068
+94139fe0:       2a020680        slti    v0,s0,1664
+94139fe4:       3203000f        andi    v1,s0,0xf
+94139fe8:       1440ffe9        bnez    v0,94139f90 <cpmac_irq+0x4c0>
+94139fec:       02009021        move    s2,s0
+94139ff0:       3c049425        lui     a0,0x9425
+94139ff4:       0d00927f        jal     940249fc <printk>
+94139ff8:       2484d7a4        addiu   a0,a0,-10332
+94139ffc:       8e620060        lw      v0,96(s3)
+9413a000:       26650058        addiu   a1,s3,88
+9413a004:       38420001        xori    v0,v0,0x1
+9413a008:       30420001        andi    v0,v0,0x1
+9413a00c:       00028036        tne     zero,v0,0x200                   <= BUG_ON
+9413a010:       3c029429        lui     v0,0x9429
+9413a014:       8c427528        lw      v0,29992(v0)
+9413a018:       3c030001        lui     v1,0x1
+9413a01c:       00431024        and     v0,v0,v1
+9413a020:       10400009        beqz    v0,9413a048 <cpmac_irq+0x578>
+9413a024:       00000000        nop
+9413a028:       c0a20008        ll      v0,8(a1)
+9413a02c:       2401fffe        li      at,-2
+9413a030:       00411024        and     v0,v0,at
+9413a034:       e0a20008        sc      v0,8(a1)
+
+Cpu 0
+$ 0   : 00000000 10008401 00000001 a8610000
+$ 4   : 0000001b 9435c3d8 00000001 94307b2c
+$ 8   : 10008400 1000001f 94a47194 0000006c
+$12   : 94b3f8cc 00000000 00000000 00000000
+$16   : 00000000 9435c000 00000000 9435c380
+$20   : 00000000 00010000 0000000f 94307b2c
+$24   : 00000000 94000b5c
+$28   : 94918000 94919848 0003017a 94051400
+Hi    : 00007bda
+Lo    : e1481a74
+epc   : 9413a00c cpmac_irq+0x53c/0x5f8     Not tainted
+ra    : 94051400 handle_IRQ_event+0x64/0xd4
+Status: 10008403    KERNEL EXL IE
+Cause : 30800034
+PrId  : 00018448 (MIPS 4KEc)
+Modules linked in:
+Process dd (pid: 362, threadinfo=94918000, task=94329908)
+Stack : 00000000 943bdd60 94d1bd80 94191ef4 94d1bd80 943bdd60 9438e900 00000000
+        00000000 0000001b 00000010 94315560 94051400 0000006c 94e0ea8c 00000000
+        9435c000 94191dc0 94268eb8 0000001b 0000000a 9438d81c 9405339c 943bdd60
+        94d1a824 943bdee4 941b580c 00000010 00000013 94919ab0 94000af4 00000000
+        0102a8c0 00000000 943bdd60 00000000 949199e0 94001b84 0102a8c0 941b6c90
+        ...
+Call Trace:
+[<9413a00c>] cpmac_irq+0x53c/0x5f8
+[<94051400>] handle_IRQ_event+0x64/0xd4
+[<9405339c>] handle_level_irq+0xa4/0x118
+[<94000af4>] plat_irq_dispatch+0x98/0x100
+[<94001b84>] ret_from_irq+0x0/0x4
+[<9402a4c0>] __do_softirq+0x44/0x100
+[<9402a5d8>] do_softirq+0x5c/0x94
+[<9402ab54>] irq_exit+0x40/0x8c
+[<94001b84>] ret_from_irq+0x0/0x4
+[<941e7b00>] xs_send_kvec+0x6c/0xd0
+[<941e7c84>] xs_sendpages+0x120/0x2c8
+[<941ea130>] xs_udp_send_request+0x50/0x134
+[<941e6878>] xprt_transmit+0xc8/0x208
+[<941e3284>] call_transmit+0x278/0x2e4
+[<941ebf00>] __rpc_execute+0x94/0x4a4
+[<940e8264>] nfs_execute_read+0x40/0x64
+[<940e8500>] nfs_pagein_one+0x148/0x224
+[<940e5a14>] nfs_pageio_doio+0x44/0x88
+[<940e5b6c>] nfs_pageio_add_request+0x114/0x138
+[<940e8cb8>] readpage_async_filler+0x1a4/0x264
+[<9405fec0>] read_cache_pages+0xa0/0xf0
+[<940e8e94>] nfs_readpages+0x11c/0x190
+[<9405fca4>] __do_page_cache_readahead+0x1f4/0x2b8
+[<94060298>] page_cache_sync_readahead+0x28/0x34
+[<94055ae0>] do_generic_mapping_read+0x120/0x604
+[<94058244>] generic_file_aio_read+0x16c/0x1e0
+[<94080de0>] do_sync_read+0xc4/0x128
+[<94081bf4>] sys_read+0x54/0x98
+[<9400a390>] stack_done+0x20/0x3c
+
+
+Code: 26650058  38420001  30420001 <00028036> 3c029429  8c427528  3c030001  00431024  10400009
+Kernel panic - not syncing: Fatal exception in interrupt
+
+* arch/mips/ar7/prom.c:205 psp_env=afb10084 Zugriff führt auf HW zum Absturz!!!
+
+* cache_parity_error in Vektortabelle mit 0x8400xxxx (falsch) statt 0x9400xxxx
+
 2007-10-30
-cmos rtc register a is constant when emulating mips in mips.
+* cmos rtc register a is constant when emulating mips in mips.
 
 2006-08-29
 * Wanted: network emulation for more chipsets:
