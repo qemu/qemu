@@ -759,6 +759,54 @@ static inline void gen_op_mulscc_T1_T0(void)
     gen_cc_C_add(cpu_T[0], cpu_cc_src);
 }
 
+static inline void gen_op_umul_T1_T0(void)
+{
+    TCGv r_temp, r_temp2;
+
+    r_temp = tcg_temp_new(TCG_TYPE_I64);
+    r_temp2 = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_extu_i32_i64(r_temp, cpu_T[1]);
+    tcg_gen_extu_i32_i64(r_temp2, cpu_T[0]);
+    tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
+
+    tcg_gen_shri_i64(r_temp, r_temp2, 32);
+    tcg_gen_trunc_i64_i32(r_temp, r_temp);
+    tcg_gen_st_i32(r_temp, cpu_env, offsetof(CPUSPARCState, y));
+#ifdef TARGET_SPARC64
+    tcg_gen_mov_i64(cpu_T[0], r_temp2);
+#else
+    tcg_gen_trunc_i64_i32(cpu_T[0], r_temp2);
+#endif
+
+    tcg_gen_discard_i64(r_temp);
+    tcg_gen_discard_i64(r_temp2);
+}
+
+static inline void gen_op_smul_T1_T0(void)
+{
+    TCGv r_temp, r_temp2;
+
+    r_temp = tcg_temp_new(TCG_TYPE_I64);
+    r_temp2 = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_ext32s_i64(r_temp, cpu_T[1]);
+    tcg_gen_ext32s_i64(r_temp2, cpu_T[0]);
+    tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
+
+    tcg_gen_shri_i64(r_temp, r_temp2, 32);
+    tcg_gen_trunc_i64_i32(r_temp, r_temp);
+    tcg_gen_st_i32(r_temp, cpu_env, offsetof(CPUSPARCState, y));
+#ifdef TARGET_SPARC64
+    tcg_gen_mov_i64(cpu_T[0], r_temp2);
+#else
+    tcg_gen_trunc_i64_i32(cpu_T[0], r_temp2);
+#endif
+
+    tcg_gen_discard_i64(r_temp);
+    tcg_gen_discard_i64(r_temp2);
+}
+
 #ifdef TARGET_SPARC64
 static inline void gen_trap_ifdivzero_i64(TCGv divisor)
 {

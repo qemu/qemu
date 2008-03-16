@@ -171,30 +171,6 @@
 
 #define FLAG_SET(x) ((env->psr&x)?1:0)
 
-void OPPROTO op_umul_T1_T0(void)
-{
-    uint64_t res;
-    res = (uint64_t) T0 * (uint64_t) T1;
-#ifdef TARGET_SPARC64
-    T0 = res;
-#else
-    T0 = res & 0xffffffff;
-#endif
-    env->y = res >> 32;
-}
-
-void OPPROTO op_smul_T1_T0(void)
-{
-    uint64_t res;
-    res = (int64_t) ((int32_t) T0) * (int64_t) ((int32_t) T1);
-#ifdef TARGET_SPARC64
-    T0 = res;
-#else
-    T0 = res & 0xffffffff;
-#endif
-    env->y = res >> 32;
-}
-
 void OPPROTO op_udiv_T1_T0(void)
 {
     uint64_t x0;
