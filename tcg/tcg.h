@@ -88,7 +88,7 @@ typedef struct TCGPool {
 
 #define TCG_MAX_LABELS 512
 
-#define TCG_MAX_TEMPS 256
+#define TCG_MAX_TEMPS 512
 
 typedef int TCGType;
 
