@@ -97,12 +97,6 @@ typedef struct CPUCRISState {
 	uint32_t regs[16];
 	uint32_t pregs[16];
 	uint32_t pc;
-	uint32_t sr;
-	uint32_t flag_mask; /* Per insn mask of affected flags.  */
-
-	/* SSP and USP.  */
-	int current_sp;
-	uint32_t sp[2];
 
 	/* These are setup up by the guest code just before transfering the
 	   control back to the host.  */
@@ -141,7 +135,6 @@ typedef struct CPUCRISState {
 		int exec_loads;
 		int exec_stores;
 	} stats;
-
 
 	jmp_buf jmp_env;
 	CPU_COMMON
