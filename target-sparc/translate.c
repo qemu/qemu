@@ -47,7 +47,7 @@
 
 /* global register indexes */
 static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
-static TCGv cpu_psr, cpu_fsr, cpu_gregs[8];
+static TCGv cpu_psr, cpu_fsr, cpu_pc, cpu_npc, cpu_gregs[8];
 #ifdef TARGET_SPARC64
 static TCGv cpu_xcc;
 #endif
@@ -304,14 +304,12 @@ static inline void gen_op_xor_T1_T0(void)
 
 static inline void gen_jmp_im(target_ulong pc)
 {
-    tcg_gen_movi_tl(cpu_tmp0, pc);
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUState, pc));
+    tcg_gen_movi_tl(cpu_pc, pc);
 }
 
 static inline void gen_movl_npc_im(target_ulong npc)
 {
-    tcg_gen_movi_tl(cpu_tmp0, npc);
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUState, npc));
+    tcg_gen_movi_tl(cpu_npc, npc);
 }
 
 static inline void gen_goto_tb(DisasContext *s, int tb_num,
@@ -1159,12 +1157,10 @@ static inline void gen_mov_pc_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
         gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_T[2]);
-        tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
-        tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, pc));
+        tcg_gen_mov_tl(cpu_pc, cpu_npc);
         dc->pc = DYNAMIC_PC;
     } else if (dc->npc == DYNAMIC_PC) {
-        tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
-        tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, pc));
+        tcg_gen_mov_tl(cpu_pc, cpu_npc);
         dc->pc = DYNAMIC_PC;
     } else {
         dc->pc = dc->npc;
@@ -1173,10 +1169,8 @@ static inline void gen_mov_pc_npc(DisasContext * dc)
 
 static inline void gen_op_next_insn(void)
 {
-    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, pc));
-    tcg_gen_addi_tl(cpu_tmp0, cpu_tmp0, 4);
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, npc));
+    tcg_gen_mov_tl(cpu_pc, cpu_npc);
+    tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
 }
 
 static inline void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond)
@@ -1906,8 +1900,7 @@ static void disas_sparc_insn(DisasContext * dc)
         /*CALL*/ {
             target_long target = GET_FIELDs(insn, 2, 31) << 2;
 
-            tcg_gen_movi_tl(cpu_T[0], dc->pc);
-            gen_movl_T0_reg(15);
+            gen_movl_TN_reg(15, tcg_const_tl(dc->pc));
             target += dc->pc;
             gen_mov_pc_npc(dc);
             dc->npc = target;
@@ -3874,7 +3867,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 gen_op_restore();
                 gen_mov_pc_npc(dc);
                 gen_op_check_align_T0_3();
-                tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUSPARCState, npc));
+                tcg_gen_mov_tl(cpu_npc, cpu_T[0]);
                 dc->npc = DYNAMIC_PC;
                 goto jmp_insn;
 #endif
@@ -3904,7 +3897,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         }
                         gen_mov_pc_npc(dc);
                         gen_op_check_align_T0_3();
-                        tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUSPARCState, npc));
+                        tcg_gen_mov_tl(cpu_npc, cpu_T[0]);
                         dc->npc = DYNAMIC_PC;
                     }
                     goto jmp_insn;
@@ -3915,7 +3908,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             goto priv_insn;
                         gen_mov_pc_npc(dc);
                         gen_op_check_align_T0_3();
-                        tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUSPARCState, npc));
+                        tcg_gen_mov_tl(cpu_npc, cpu_T[0]);
                         dc->npc = DYNAMIC_PC;
                         tcg_gen_helper_0_0(helper_rett);
                     }
@@ -4690,6 +4683,12 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
         cpu_fsr = tcg_global_mem_new(TCG_TYPE_TL,
                                      TCG_AREG0, offsetof(CPUState, fsr),
                                      "fsr");
+        cpu_pc = tcg_global_mem_new(TCG_TYPE_TL,
+                                    TCG_AREG0, offsetof(CPUState, pc),
+                                    "pc");
+        cpu_npc = tcg_global_mem_new(TCG_TYPE_TL,
+                                    TCG_AREG0, offsetof(CPUState, npc),
+                                    "npc");
         for (i = 1; i < 8; i++)
             cpu_gregs[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
                                               offsetof(CPUState, gregs[i]),
