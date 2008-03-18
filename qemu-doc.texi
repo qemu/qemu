@@ -1073,7 +1073,7 @@ Change the configuration of a device.
 Change the medium for a removable disk device to point to @var{filename}. eg
 
 @example
-(qemu) change cdrom /path/to/some.iso
+(qemu) change ide1-cd0 /path/to/some.iso
 @end example
 
 @item change vnc @var{display},@var{options}
