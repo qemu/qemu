@@ -198,7 +198,7 @@ int curses2keycode[CURSES_KEYS] = {
 
     [0x001] = 30 | CNTRL, /* Control + a */
     [0x013] = 31 | CNTRL, /* Control + s */
-    [0x014] = 32 | CNTRL, /* Control + d */
+    [0x004] = 32 | CNTRL, /* Control + d */
     [0x006] = 33 | CNTRL, /* Control + f */
     [0x007] = 34 | CNTRL, /* Control + g */
     [0x008] = 35 | CNTRL, /* Control + h */
