@@ -1,6 +1,5 @@
 /* fdc.c */
 #define MAX_FD 2
-extern BlockDriverState *fd_table[MAX_FD];
 
 typedef struct fdctrl_t fdctrl_t;
 
