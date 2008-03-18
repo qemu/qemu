@@ -981,7 +981,7 @@ static void pc_init1(int ram_size, int vga_ram_size,
         i2c_bus *smbus;
 
         /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100);
+        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, i8259[9]);
         for (i = 0; i < 8; i++) {
             smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
         }

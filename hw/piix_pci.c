@@ -220,7 +220,6 @@ static void piix3_set_irq(qemu_irq *pic, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
 
-    piix3_dev->config[0x60 + irq_num] &= ~0x80;   // enable bit
     pci_irq_levels[irq_num] = level;
 
     /* now we change the pic irq level according to the piix irq mappings */
