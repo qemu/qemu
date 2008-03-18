@@ -790,8 +790,8 @@ static inline void gen_op_smul_T1_T0(void)
     r_temp = tcg_temp_new(TCG_TYPE_I64);
     r_temp2 = tcg_temp_new(TCG_TYPE_I64);
 
-    tcg_gen_ext32s_i64(r_temp, cpu_T[1]);
-    tcg_gen_ext32s_i64(r_temp2, cpu_T[0]);
+    tcg_gen_ext_i32_i64(r_temp, cpu_T[1]);
+    tcg_gen_ext_i32_i64(r_temp2, cpu_T[0]);
     tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
 
     tcg_gen_shri_i64(r_temp, r_temp2, 32);
