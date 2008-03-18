@@ -2023,7 +2023,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 rdccr */
-                    gen_op_rdccr();
+                    tcg_gen_helper_1_0(helper_rdccr, cpu_T[0]);
                     gen_movl_T0_reg(rd);
                     break;
                 case 0x3: /* V9 rdasi */
@@ -2205,7 +2205,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_movl_T0_env(offsetof(CPUSPARCState, psrpil));
                     break;
                 case 9: // cwp
-                    gen_op_rdcwp();
+                    tcg_gen_helper_1_0(helper_rdcwp, cpu_T[0]);
                     break;
                 case 10: // cansave
                     gen_op_movl_T0_env(offsetof(CPUSPARCState, cansave));
@@ -3113,7 +3113,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #else
                             case 0x2: /* V9 wrccr */
                                 gen_op_xor_T1_T0();
-                                gen_op_wrccr();
+                                tcg_gen_helper_0_1(helper_wrccr, cpu_T[0]);
                                 break;
                             case 0x3: /* V9 wrasi */
                                 gen_op_xor_T1_T0();
@@ -3322,7 +3322,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 gen_op_movl_env_T0(offsetof(CPUSPARCState, psrpil));
                                 break;
                             case 9: // cwp
-                                gen_op_wrcwp();
+                                tcg_gen_helper_0_1(helper_wrcwp, cpu_T[0]);
                                 break;
                             case 10: // cansave
                                 gen_op_movl_env_T0(offsetof(CPUSPARCState, cansave));

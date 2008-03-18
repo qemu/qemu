@@ -8,6 +8,10 @@ target_ulong TCG_HELPER_PROTO helper_rdpsr(void);
 void TCG_HELPER_PROTO helper_wrpstate(target_ulong new_state);
 void TCG_HELPER_PROTO helper_done(void);
 void TCG_HELPER_PROTO helper_retry(void);
+target_ulong TCG_HELPER_PROTO helper_rdccr(void);
+void TCG_HELPER_PROTO helper_wrccr(target_ulong new_ccr);
+target_ulong TCG_HELPER_PROTO helper_rdcwp(void);
+void TCG_HELPER_PROTO helper_wrcwp(target_ulong new_cwp);
 target_ulong TCG_HELPER_PROTO helper_array8(target_ulong pixel_addr,
                                             target_ulong cubesize);
 target_ulong TCG_HELPER_PROTO helper_alignaddr(target_ulong addr,

@@ -1636,6 +1636,27 @@ target_ulong helper_rdpsr(void)
 }
 
 #else
+target_ulong helper_rdccr(void)
+{
+    return GET_CCR(env);
+}
+
+void helper_wrccr(target_ulong new_ccr)
+{
+    PUT_CCR(env, new_ccr);
+}
+
+// CWP handling is reversed in V9, but we still use the V8 register
+// order.
+target_ulong helper_rdcwp(void)
+{
+    return GET_CWP64(env);
+}
+
+void helper_wrcwp(target_ulong new_cwp)
+{
+    PUT_CWP64(env, new_cwp);
+}
 
 // This function uses non-native bit order
 #define GET_FIELD(X, FROM, TO)                                  \

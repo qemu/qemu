@@ -258,28 +258,6 @@ void OPPROTO op_restore(void)
     FORCE_RET();
 }
 #else
-void OPPROTO op_rdccr(void)
-{
-    T0 = GET_CCR(env);
-}
-
-void OPPROTO op_wrccr(void)
-{
-    PUT_CCR(env, T0);
-}
-
-// CWP handling is reversed in V9, but we still use the V8 register
-// order.
-void OPPROTO op_rdcwp(void)
-{
-    T0 = GET_CWP64(env);
-}
-
-void OPPROTO op_wrcwp(void)
-{
-    PUT_CWP64(env, T0);
-}
-
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
 void OPPROTO op_save(void)
