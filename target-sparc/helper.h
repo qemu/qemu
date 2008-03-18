@@ -36,6 +36,8 @@ void TCG_HELPER_PROTO helper_trapcc(target_ulong nb_trap,
                                     target_ulong do_trap);
 void TCG_HELPER_PROTO helper_debug(void);
 void TCG_HELPER_PROTO helper_flush(target_ulong addr);
+target_ulong TCG_HELPER_PROTO helper_udiv(target_ulong a, target_ulong b);
+target_ulong TCG_HELPER_PROTO helper_sdiv(target_ulong a, target_ulong b);
 uint64_t TCG_HELPER_PROTO helper_pack64(target_ulong high, target_ulong low);
 uint64_t TCG_HELPER_PROTO helper_ld_asi(target_ulong addr, int asi,
                                         int size, int sign);

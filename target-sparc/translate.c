@@ -807,6 +807,16 @@ static inline void gen_op_smul_T1_T0(void)
     tcg_gen_discard_i64(r_temp2);
 }
 
+static inline void gen_op_udiv_T1_T0(void)
+{
+    tcg_gen_helper_1_2(helper_udiv, cpu_T[0], cpu_T[0], cpu_T[1]);
+}
+
+static inline void gen_op_sdiv_T1_T0(void)
+{
+    tcg_gen_helper_1_2(helper_sdiv, cpu_T[0], cpu_T[0], cpu_T[1]);
+}
+
 #ifdef TARGET_SPARC64
 static inline void gen_trap_ifdivzero_i64(TCGv divisor)
 {
@@ -842,7 +852,8 @@ static inline void gen_op_div_cc(void)
     gen_cc_clear();
     gen_cc_NZ(cpu_T[0]);
     l1 = gen_new_label();
-    tcg_gen_brcond_i32(TCG_COND_EQ, cpu_T[1], tcg_const_i32(0), l1);
+    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, cc_src2));
+    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_tmp0, tcg_const_tl(0), l1);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_OVF);
     gen_set_label(l1);
 }

@@ -169,54 +169,6 @@
 #include "fop_template.h"
 #endif
 
-#define FLAG_SET(x) ((env->psr&x)?1:0)
-
-void OPPROTO op_udiv_T1_T0(void)
-{
-    uint64_t x0;
-    uint32_t x1;
-
-    x0 = T0 | ((uint64_t) (env->y) << 32);
-    x1 = T1;
-
-    if (x1 == 0) {
-        raise_exception(TT_DIV_ZERO);
-    }
-
-    x0 = x0 / x1;
-    if (x0 > 0xffffffff) {
-        T0 = 0xffffffff;
-        T1 = 1;
-    } else {
-        T0 = x0;
-        T1 = 0;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_sdiv_T1_T0(void)
-{
-    int64_t x0;
-    int32_t x1;
-
-    x0 = T0 | ((int64_t) (env->y) << 32);
-    x1 = T1;
-
-    if (x1 == 0) {
-        raise_exception(TT_DIV_ZERO);
-    }
-
-    x0 = x0 / x1;
-    if ((int32_t) x0 != x0) {
-        T0 = x0 < 0? 0x80000000: 0x7fffffff;
-        T1 = 1;
-    } else {
-        T0 = x0;
-        T1 = 0;
-    }
-    FORCE_RET();
-}
-
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.h"

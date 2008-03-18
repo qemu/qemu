@@ -1582,6 +1582,50 @@ void helper_rett(void)
 }
 #endif
 
+target_ulong helper_udiv(target_ulong a, target_ulong b)
+{
+    uint64_t x0;
+    uint32_t x1;
+
+    x0 = a | ((uint64_t) (env->y) << 32);
+    x1 = b;
+
+    if (x1 == 0) {
+        raise_exception(TT_DIV_ZERO);
+    }
+
+    x0 = x0 / x1;
+    if (x0 > 0xffffffff) {
+        env->cc_src2 = 1;
+        return 0xffffffff;
+    } else {
+        env->cc_src2 = 0;
+        return x0;
+    }
+}
+
+target_ulong helper_sdiv(target_ulong a, target_ulong b)
+{
+    int64_t x0;
+    int32_t x1;
+
+    x0 = a | ((int64_t) (env->y) << 32);
+    x1 = b;
+
+    if (x1 == 0) {
+        raise_exception(TT_DIV_ZERO);
+    }
+
+    x0 = x0 / x1;
+    if ((int32_t) x0 != x0) {
+        env->cc_src2 = 1;
+        return x0 < 0? 0x80000000: 0x7fffffff;
+    } else {
+        env->cc_src2 = 0;
+        return x0;
+    }
+}
+
 uint64_t helper_pack64(target_ulong high, target_ulong low)
 {
     return ((uint64_t)high << 32) | (uint64_t)(low & 0xffffffff);
