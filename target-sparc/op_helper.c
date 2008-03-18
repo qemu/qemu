@@ -1637,6 +1637,37 @@ target_ulong helper_rdpsr(void)
 
 #else
 
+// This function uses non-native bit order
+#define GET_FIELD(X, FROM, TO)                                  \
+    ((X) >> (63 - (TO)) & ((1ULL << ((TO) - (FROM) + 1)) - 1))
+
+// This function uses the order in the manuals, i.e. bit 0 is 2^0
+#define GET_FIELD_SP(X, FROM, TO)               \
+    GET_FIELD(X, 63 - (TO), 63 - (FROM))
+
+target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
+{
+    return (GET_FIELD_SP(pixel_addr, 60, 63) << (17 + 2 * cubesize)) |
+        (GET_FIELD_SP(pixel_addr, 39, 39 + cubesize - 1) << (17 + cubesize)) |
+        (GET_FIELD_SP(pixel_addr, 17 + cubesize - 1, 17) << 17) |
+        (GET_FIELD_SP(pixel_addr, 56, 59) << 13) |
+        (GET_FIELD_SP(pixel_addr, 35, 38) << 9) |
+        (GET_FIELD_SP(pixel_addr, 13, 16) << 5) |
+        (((pixel_addr >> 55) & 1) << 4) |
+        (GET_FIELD_SP(pixel_addr, 33, 34) << 2) |
+        GET_FIELD_SP(pixel_addr, 11, 12);
+}
+
+target_ulong helper_alignaddr(target_ulong addr, target_ulong offset)
+{
+    uint64_t tmp;
+
+    tmp = addr + offset;
+    env->gsr &= ~7ULL;
+    env->gsr |= tmp & 7ULL;
+    return tmp & ~7ULL;
+}
+
 target_ulong helper_popc(target_ulong val)
 {
     return ctpop64(val);

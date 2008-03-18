@@ -568,54 +568,6 @@ void OPPROTO op_restored(void)
 #endif
 
 #ifdef TARGET_SPARC64
-// This function uses non-native bit order
-#define GET_FIELD(X, FROM, TO)                                  \
-    ((X) >> (63 - (TO)) & ((1ULL << ((TO) - (FROM) + 1)) - 1))
-
-// This function uses the order in the manuals, i.e. bit 0 is 2^0
-#define GET_FIELD_SP(X, FROM, TO)               \
-    GET_FIELD(X, 63 - (TO), 63 - (FROM))
-
-void OPPROTO op_array8()
-{
-    T0 = (GET_FIELD_SP(T0, 60, 63) << (17 + 2 * T1)) |
-        (GET_FIELD_SP(T0, 39, 39 + T1 - 1) << (17 + T1)) |
-        (GET_FIELD_SP(T0, 17 + T1 - 1, 17) << 17) |
-        (GET_FIELD_SP(T0, 56, 59) << 13) | (GET_FIELD_SP(T0, 35, 38) << 9) |
-        (GET_FIELD_SP(T0, 13, 16) << 5) | (((T0 >> 55) & 1) << 4) |
-        (GET_FIELD_SP(T0, 33, 34) << 2) | GET_FIELD_SP(T0, 11, 12);
-}
-
-void OPPROTO op_array16()
-{
-    T0 = ((GET_FIELD_SP(T0, 60, 63) << (17 + 2 * T1)) |
-          (GET_FIELD_SP(T0, 39, 39 + T1 - 1) << (17 + T1)) |
-          (GET_FIELD_SP(T0, 17 + T1 - 1, 17) << 17) |
-          (GET_FIELD_SP(T0, 56, 59) << 13) | (GET_FIELD_SP(T0, 35, 38) << 9) |
-          (GET_FIELD_SP(T0, 13, 16) << 5) | (((T0 >> 55) & 1) << 4) |
-          (GET_FIELD_SP(T0, 33, 34) << 2) | GET_FIELD_SP(T0, 11, 12)) << 1;
-}
-
-void OPPROTO op_array32()
-{
-    T0 = ((GET_FIELD_SP(T0, 60, 63) << (17 + 2 * T1)) |
-          (GET_FIELD_SP(T0, 39, 39 + T1 - 1) << (17 + T1)) |
-          (GET_FIELD_SP(T0, 17 + T1 - 1, 17) << 17) |
-          (GET_FIELD_SP(T0, 56, 59) << 13) | (GET_FIELD_SP(T0, 35, 38) << 9) |
-          (GET_FIELD_SP(T0, 13, 16) << 5) | (((T0 >> 55) & 1) << 4) |
-          (GET_FIELD_SP(T0, 33, 34) << 2) | GET_FIELD_SP(T0, 11, 12)) << 2;
-}
-
-void OPPROTO op_alignaddr()
-{
-    uint64_t tmp;
-
-    tmp = T0 + T1;
-    env->gsr &= ~7ULL;
-    env->gsr |= tmp & 7ULL;
-    T0 = tmp & ~7ULL;
-}
-
 void OPPROTO op_faligndata()
 {
     uint64_t tmp;

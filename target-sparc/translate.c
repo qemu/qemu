@@ -3515,25 +3515,31 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x010: /* VIS I array8 */
                     gen_movl_reg_T0(rs1);
                     gen_movl_reg_T1(rs2);
-                    gen_op_array8();
+                    tcg_gen_helper_1_2(helper_array8, cpu_T[0], cpu_T[0],
+                                       cpu_T[1]);
                     gen_movl_T0_reg(rd);
                     break;
                 case 0x012: /* VIS I array16 */
                     gen_movl_reg_T0(rs1);
                     gen_movl_reg_T1(rs2);
-                    gen_op_array16();
+                    tcg_gen_helper_1_2(helper_array8, cpu_T[0], cpu_T[0],
+                                       cpu_T[1]);
+                    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 1);
                     gen_movl_T0_reg(rd);
                     break;
                 case 0x014: /* VIS I array32 */
                     gen_movl_reg_T0(rs1);
                     gen_movl_reg_T1(rs2);
-                    gen_op_array32();
+                    tcg_gen_helper_1_2(helper_array8, cpu_T[0], cpu_T[0],
+                                       cpu_T[1]);
+                    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
                     gen_movl_T0_reg(rd);
                     break;
                 case 0x018: /* VIS I alignaddr */
                     gen_movl_reg_T0(rs1);
                     gen_movl_reg_T1(rs2);
-                    gen_op_alignaddr();
+                    tcg_gen_helper_1_2(helper_alignaddr, cpu_T[0], cpu_T[0],
+                                       cpu_T[1]);
                     gen_movl_T0_reg(rd);
                     break;
                 case 0x019: /* VIS II bmask */

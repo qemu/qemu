@@ -8,6 +8,10 @@ target_ulong TCG_HELPER_PROTO helper_rdpsr(void);
 void TCG_HELPER_PROTO helper_wrpstate(target_ulong new_state);
 void TCG_HELPER_PROTO helper_done(void);
 void TCG_HELPER_PROTO helper_retry(void);
+target_ulong TCG_HELPER_PROTO helper_array8(target_ulong pixel_addr,
+                                            target_ulong cubesize);
+target_ulong TCG_HELPER_PROTO helper_alignaddr(target_ulong addr,
+                                               target_ulong offset);
 target_ulong TCG_HELPER_PROTO helper_popc(target_ulong val);
 void TCG_HELPER_PROTO helper_ldf_asi(target_ulong addr, int asi, int size,
                                      int rd);
