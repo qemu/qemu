@@ -34,6 +34,7 @@
 /* Keyboard Commands */
 #define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
 #define KBD_CMD_ECHO     	0xEE
+#define KBD_CMD_SCANCODE	0xF0	/* Get/set scancode set */
 #define KBD_CMD_GET_ID 	        0xF2	/* get keyboard ID */
 #define KBD_CMD_SET_RATE	0xF3	/* Set typematic rate */
 #define KBD_CMD_ENABLE		0xF4	/* Enable scanning */
@@ -89,6 +90,7 @@ typedef struct {
        conversions we do the translation (if any) in the PS/2 emulation
        not the keyboard controller.  */
     int translate;
+    int scancode_set; /* 1=XT, 2=AT, 3=PS/2 */
 } PS2KbdState;
 
 typedef struct {
@@ -131,10 +133,13 @@ void ps2_queue(void *opaque, int b)
     s->update_irq(s->update_arg, 1);
 }
 
+/* keycode is expressed in scancode set 2 */
 static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
-    if (!s->translate && keycode < 0xe0)
+
+    /* XXX: add support for scancode sets 1 and 3 */
+    if (!s->translate && keycode < 0xe0 && s->scancode_set == 2)
       {
         if (keycode & 0x80)
             ps2_queue(&s->common, 0xf0);
@@ -174,6 +179,7 @@ uint32_t ps2_read_data(void *opaque)
 static void ps2_reset_keyboard(PS2KbdState *s)
 {
     s->scan_enabled = 1;
+    s->scancode_set = 2;
 }
 
 void ps2_write_keyboard(void *opaque, int val)
@@ -192,8 +198,9 @@ void ps2_write_keyboard(void *opaque, int val)
             break;
         case KBD_CMD_GET_ID:
             ps2_queue(&s->common, KBD_REPLY_ACK);
-            ps2_queue(&s->common, 0xab);
-            ps2_queue(&s->common, 0x83);
+            /* We emulate a MF2 AT keyboard here */
+            ps2_put_keycode(s, 0xab);
+            ps2_put_keycode(s, 0x83);
             break;
         case KBD_CMD_ECHO:
             ps2_queue(&s->common, KBD_CMD_ECHO);
@@ -202,6 +209,7 @@ void ps2_write_keyboard(void *opaque, int val)
             s->scan_enabled = 1;
             ps2_queue(&s->common, KBD_REPLY_ACK);
             break;
+        case KBD_CMD_SCANCODE:
         case KBD_CMD_SET_LEDS:
         case KBD_CMD_SET_RATE:
             s->common.write_cmd = val;
@@ -226,6 +234,21 @@ void ps2_write_keyboard(void *opaque, int val)
             ps2_queue(&s->common, KBD_REPLY_ACK);
             break;
         }
+        break;
+    case KBD_CMD_SCANCODE:
+        if (val == 0) {
+            if (s->scancode_set == 1)
+                ps2_put_keycode(s, 0x43);
+            else if (s->scancode_set == 2)
+                ps2_put_keycode(s, 0x41);
+            else if (s->scancode_set == 3)
+                ps2_put_keycode(s, 0x3f);
+        } else {
+            if (val >= 1 && val <= 3)
+                s->scancode_set = val;
+            ps2_queue(&s->common, KBD_REPLY_ACK);
+        }
+        s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_LEDS:
         ps2_queue(&s->common, KBD_REPLY_ACK);
@@ -493,6 +516,7 @@ static void ps2_kbd_save(QEMUFile* f, void* opaque)
     ps2_common_save (f, &s->common);
     qemu_put_be32(f, s->scan_enabled);
     qemu_put_be32(f, s->translate);
+    qemu_put_be32(f, s->scancode_set);
 }
 
 static void ps2_mouse_save(QEMUFile* f, void* opaque)
@@ -516,12 +540,16 @@ static int ps2_kbd_load(QEMUFile* f, void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
 
-    if (version_id != 2)
+    if (version_id != 2 && version_id != 3)
         return -EINVAL;
 
     ps2_common_load (f, &s->common);
     s->scan_enabled=qemu_get_be32(f);
     s->translate=qemu_get_be32(f);
+    if (version_id == 3)
+        s->scancode_set=qemu_get_be32(f);
+    else
+        s->scancode_set=2;
     return 0;
 }
 
@@ -552,8 +580,9 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
+    s->scancode_set = 2;
     ps2_reset(&s->common);
-    register_savevm("ps2kbd", 0, 2, ps2_kbd_save, ps2_kbd_load, s);
+    register_savevm("ps2kbd", 0, 3, ps2_kbd_save, ps2_kbd_load, s);
     qemu_add_kbd_event_handler(ps2_put_keycode, s);
     qemu_register_reset(ps2_reset, &s->common);
     return s;
