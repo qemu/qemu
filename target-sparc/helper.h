@@ -84,3 +84,99 @@ void TCG_HELPER_PROTO helper_fcmpeq_fcc3(void);
 #endif
 #endif
 void TCG_HELPER_PROTO raise_exception(int tt);
+#define F_HELPER_0_0(name) void TCG_HELPER_PROTO helper_f ## name(void)
+#if defined(CONFIG_USER_ONLY)
+#define F_HELPER_SDQ_0_0(name)                  \
+    F_HELPER_0_0(name ## s);                    \
+    F_HELPER_0_0(name ## d);                    \
+    F_HELPER_0_0(name ## q)
+#else
+#define F_HELPER_SDQ_0_0(name)                  \
+    F_HELPER_0_0(name ## s);                    \
+    F_HELPER_0_0(name ## d);
+#endif
+
+F_HELPER_SDQ_0_0(add);
+F_HELPER_SDQ_0_0(sub);
+F_HELPER_SDQ_0_0(mul);
+F_HELPER_SDQ_0_0(div);
+
+F_HELPER_0_0(smuld);
+F_HELPER_0_0(dmulq);
+
+F_HELPER_SDQ_0_0(neg);
+F_HELPER_SDQ_0_0(ito);
+#ifdef TARGET_SPARC64
+F_HELPER_SDQ_0_0(xto);
+#endif
+F_HELPER_0_0(dtos);
+F_HELPER_0_0(stod);
+#if defined(CONFIG_USER_ONLY)
+F_HELPER_0_0(qtos);
+F_HELPER_0_0(stoq);
+F_HELPER_0_0(qtod);
+F_HELPER_0_0(dtoq);
+#endif
+F_HELPER_0_0(stoi);
+F_HELPER_0_0(dtoi);
+#if defined(CONFIG_USER_ONLY)
+F_HELPER_0_0(qtoi);
+#endif
+#ifdef TARGET_SPARC64
+F_HELPER_0_0(stox);
+F_HELPER_0_0(dtox);
+#if defined(CONFIG_USER_ONLY)
+F_HELPER_0_0(qtox);
+#endif
+F_HELPER_0_0(aligndata);
+void TCG_HELPER_PROTO helper_movl_FT0_0(void);
+void TCG_HELPER_PROTO helper_movl_DT0_0(void);
+void TCG_HELPER_PROTO helper_movl_FT0_1(void);
+void TCG_HELPER_PROTO helper_movl_DT0_1(void);
+F_HELPER_0_0(not);
+F_HELPER_0_0(nots);
+F_HELPER_0_0(nor);
+F_HELPER_0_0(nors);
+F_HELPER_0_0(or);
+F_HELPER_0_0(ors);
+F_HELPER_0_0(xor);
+F_HELPER_0_0(xors);
+F_HELPER_0_0(and);
+F_HELPER_0_0(ands);
+F_HELPER_0_0(ornot);
+F_HELPER_0_0(ornots);
+F_HELPER_0_0(andnot);
+F_HELPER_0_0(andnots);
+F_HELPER_0_0(nand);
+F_HELPER_0_0(nands);
+F_HELPER_0_0(xnor);
+F_HELPER_0_0(xnors);
+F_HELPER_0_0(pmerge);
+F_HELPER_0_0(mul8x16);
+F_HELPER_0_0(mul8x16al);
+F_HELPER_0_0(mul8x16au);
+F_HELPER_0_0(mul8sux16);
+F_HELPER_0_0(mul8ulx16);
+F_HELPER_0_0(muld8sux16);
+F_HELPER_0_0(muld8ulx16);
+F_HELPER_0_0(expand);
+#define VIS_HELPER(name)                                 \
+    F_HELPER_0_0(name##16);                              \
+    F_HELPER_0_0(name##16s);                             \
+    F_HELPER_0_0(name##32);                              \
+    F_HELPER_0_0(name##32s)
+
+VIS_HELPER(padd);
+VIS_HELPER(psub);
+#define VIS_CMPHELPER(name)                              \
+    F_HELPER_0_0(name##16);                              \
+    F_HELPER_0_0(name##32)
+VIS_CMPHELPER(cmpgt);
+VIS_CMPHELPER(cmpeq);
+VIS_CMPHELPER(cmple);
+VIS_CMPHELPER(cmpne);
+#endif
+#undef F_HELPER_0_0
+#undef F_HELPER_SDQ_0_0
+#undef VIS_HELPER
+#undef VIS_CMPHELPER

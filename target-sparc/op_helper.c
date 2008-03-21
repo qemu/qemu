@@ -50,6 +50,624 @@ void helper_trapcc(target_ulong nb_trap, target_ulong do_trap)
     }
 }
 
+#define F_HELPER(name, p) void helper_f##name##p(void)
+
+#if defined(CONFIG_USER_ONLY)
+#define F_BINOP(name)                                           \
+    F_HELPER(name, s)                                           \
+    {                                                           \
+        FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
+    }                                                           \
+    F_HELPER(name, d)                                           \
+    {                                                           \
+        DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
+    }                                                           \
+    F_HELPER(name, q)                                           \
+    {                                                           \
+        QT0 = float128_ ## name (QT0, QT1, &env->fp_status);    \
+    }
+#else
+#define F_BINOP(name)                                           \
+    F_HELPER(name, s)                                           \
+    {                                                           \
+        FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
+    }                                                           \
+    F_HELPER(name, d)                                           \
+    {                                                           \
+        DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
+    }
+#endif
+
+F_BINOP(add);
+F_BINOP(sub);
+F_BINOP(mul);
+F_BINOP(div);
+#undef F_BINOP
+
+void helper_fsmuld(void)
+{
+    DT0 = float64_mul(float32_to_float64(FT0, &env->fp_status),
+                      float32_to_float64(FT1, &env->fp_status),
+                      &env->fp_status);
+}
+
+#if defined(CONFIG_USER_ONLY)
+void helper_fdmulq(void)
+{
+    QT0 = float128_mul(float64_to_float128(DT0, &env->fp_status),
+                       float64_to_float128(DT1, &env->fp_status),
+                       &env->fp_status);
+}
+#endif
+
+F_HELPER(neg, s)
+{
+    FT0 = float32_chs(FT1);
+}
+
+#ifdef TARGET_SPARC64
+F_HELPER(neg, d)
+{
+    DT0 = float64_chs(DT1);
+}
+
+#if defined(CONFIG_USER_ONLY)
+F_HELPER(neg, q)
+{
+    QT0 = float128_chs(QT1);
+}
+#endif
+#endif
+
+/* Integer to float conversion.  */
+F_HELPER(ito, s)
+{
+    FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
+}
+
+F_HELPER(ito, d)
+{
+    DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
+}
+
+#if defined(CONFIG_USER_ONLY)
+F_HELPER(ito, q)
+{
+    QT0 = int32_to_float128(*((int32_t *)&FT1), &env->fp_status);
+}
+#endif
+
+#ifdef TARGET_SPARC64
+F_HELPER(xto, s)
+{
+    FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
+}
+
+F_HELPER(xto, d)
+{
+    DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
+}
+#if defined(CONFIG_USER_ONLY)
+F_HELPER(xto, q)
+{
+    QT0 = int64_to_float128(*((int64_t *)&DT1), &env->fp_status);
+}
+#endif
+#endif
+#undef F_HELPER
+
+/* floating point conversion */
+void helper_fdtos(void)
+{
+    FT0 = float64_to_float32(DT1, &env->fp_status);
+}
+
+void helper_fstod(void)
+{
+    DT0 = float32_to_float64(FT1, &env->fp_status);
+}
+
+#if defined(CONFIG_USER_ONLY)
+void helper_fqtos(void)
+{
+    FT0 = float128_to_float32(QT1, &env->fp_status);
+}
+
+void helper_fstoq(void)
+{
+    QT0 = float32_to_float128(FT1, &env->fp_status);
+}
+
+void helper_fqtod(void)
+{
+    DT0 = float128_to_float64(QT1, &env->fp_status);
+}
+
+void helper_fdtoq(void)
+{
+    QT0 = float64_to_float128(DT1, &env->fp_status);
+}
+#endif
+
+/* Float to integer conversion.  */
+void helper_fstoi(void)
+{
+    *((int32_t *)&FT0) = float32_to_int32_round_to_zero(FT1, &env->fp_status);
+}
+
+void helper_fdtoi(void)
+{
+    *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
+}
+
+#if defined(CONFIG_USER_ONLY)
+void helper_fqtoi(void)
+{
+    *((int32_t *)&FT0) = float128_to_int32_round_to_zero(QT1, &env->fp_status);
+}
+#endif
+
+#ifdef TARGET_SPARC64
+void helper_fstox(void)
+{
+    *((int64_t *)&DT0) = float32_to_int64_round_to_zero(FT1, &env->fp_status);
+}
+
+void helper_fdtox(void)
+{
+    *((int64_t *)&DT0) = float64_to_int64_round_to_zero(DT1, &env->fp_status);
+}
+
+#if defined(CONFIG_USER_ONLY)
+void helper_fqtox(void)
+{
+    *((int64_t *)&DT0) = float128_to_int64_round_to_zero(QT1, &env->fp_status);
+}
+#endif
+
+void helper_faligndata(void)
+{
+    uint64_t tmp;
+
+    tmp = (*((uint64_t *)&DT0)) << ((env->gsr & 7) * 8);
+    tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+    *((uint64_t *)&DT0) = tmp;
+}
+
+void helper_movl_FT0_0(void)
+{
+    *((uint32_t *)&FT0) = 0;
+}
+
+void helper_movl_DT0_0(void)
+{
+    *((uint64_t *)&DT0) = 0;
+}
+
+void helper_movl_FT0_1(void)
+{
+    *((uint32_t *)&FT0) = 0xffffffff;
+}
+
+void helper_movl_DT0_1(void)
+{
+    *((uint64_t *)&DT0) = 0xffffffffffffffffULL;
+}
+
+void helper_fnot(void)
+{
+    *(uint64_t *)&DT0 = ~*(uint64_t *)&DT1;
+}
+
+void helper_fnots(void)
+{
+    *(uint32_t *)&FT0 = ~*(uint32_t *)&FT1;
+}
+
+void helper_fnor(void)
+{
+    *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 | *(uint64_t *)&DT1);
+}
+
+void helper_fnors(void)
+{
+    *(uint32_t *)&FT0 = ~(*(uint32_t *)&FT0 | *(uint32_t *)&FT1);
+}
+
+void helper_for(void)
+{
+    *(uint64_t *)&DT0 |= *(uint64_t *)&DT1;
+}
+
+void helper_fors(void)
+{
+    *(uint32_t *)&FT0 |= *(uint32_t *)&FT1;
+}
+
+void helper_fxor(void)
+{
+    *(uint64_t *)&DT0 ^= *(uint64_t *)&DT1;
+}
+
+void helper_fxors(void)
+{
+    *(uint32_t *)&FT0 ^= *(uint32_t *)&FT1;
+}
+
+void helper_fand(void)
+{
+    *(uint64_t *)&DT0 &= *(uint64_t *)&DT1;
+}
+
+void helper_fands(void)
+{
+    *(uint32_t *)&FT0 &= *(uint32_t *)&FT1;
+}
+
+void helper_fornot(void)
+{
+    *(uint64_t *)&DT0 = *(uint64_t *)&DT0 | ~*(uint64_t *)&DT1;
+}
+
+void helper_fornots(void)
+{
+    *(uint32_t *)&FT0 = *(uint32_t *)&FT0 | ~*(uint32_t *)&FT1;
+}
+
+void helper_fandnot(void)
+{
+    *(uint64_t *)&DT0 = *(uint64_t *)&DT0 & ~*(uint64_t *)&DT1;
+}
+
+void helper_fandnots(void)
+{
+    *(uint32_t *)&FT0 = *(uint32_t *)&FT0 & ~*(uint32_t *)&FT1;
+}
+
+void helper_fnand(void)
+{
+    *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 & *(uint64_t *)&DT1);
+}
+
+void helper_fnands(void)
+{
+    *(uint32_t *)&FT0 = ~(*(uint32_t *)&FT0 & *(uint32_t *)&FT1);
+}
+
+void helper_fxnor(void)
+{
+    *(uint64_t *)&DT0 ^= ~*(uint64_t *)&DT1;
+}
+
+void helper_fxnors(void)
+{
+    *(uint32_t *)&FT0 ^= ~*(uint32_t *)&FT1;
+}
+
+#ifdef WORDS_BIGENDIAN
+#define VIS_B64(n) b[7 - (n)]
+#define VIS_W64(n) w[3 - (n)]
+#define VIS_SW64(n) sw[3 - (n)]
+#define VIS_L64(n) l[1 - (n)]
+#define VIS_B32(n) b[3 - (n)]
+#define VIS_W32(n) w[1 - (n)]
+#else
+#define VIS_B64(n) b[n]
+#define VIS_W64(n) w[n]
+#define VIS_SW64(n) sw[n]
+#define VIS_L64(n) l[n]
+#define VIS_B32(n) b[n]
+#define VIS_W32(n) w[n]
+#endif
+
+typedef union {
+    uint8_t b[8];
+    uint16_t w[4];
+    int16_t sw[4];
+    uint32_t l[2];
+    float64 d;
+} vis64;
+
+typedef union {
+    uint8_t b[4];
+    uint16_t w[2];
+    uint32_t l;
+    float32 f;
+} vis32;
+
+void helper_fpmerge(void)
+{
+    vis64 s, d;
+
+    s.d = DT0;
+    d.d = DT1;
+
+    // Reverse calculation order to handle overlap
+    d.VIS_B64(7) = s.VIS_B64(3);
+    d.VIS_B64(6) = d.VIS_B64(3);
+    d.VIS_B64(5) = s.VIS_B64(2);
+    d.VIS_B64(4) = d.VIS_B64(2);
+    d.VIS_B64(3) = s.VIS_B64(1);
+    d.VIS_B64(2) = d.VIS_B64(1);
+    d.VIS_B64(1) = s.VIS_B64(0);
+    //d.VIS_B64(0) = d.VIS_B64(0);
+
+    DT0 = d.d;
+}
+
+void helper_fmul8x16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                 \
+    tmp = (int32_t)d.VIS_SW64(r) * (int32_t)s.VIS_B64(r);       \
+    if ((tmp & 0xff) > 0x7f)                                    \
+        tmp += 0x100;                                           \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fmul8x16al(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                 \
+    tmp = (int32_t)d.VIS_SW64(1) * (int32_t)s.VIS_B64(r);       \
+    if ((tmp & 0xff) > 0x7f)                                    \
+        tmp += 0x100;                                           \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fmul8x16au(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                 \
+    tmp = (int32_t)d.VIS_SW64(0) * (int32_t)s.VIS_B64(r);       \
+    if ((tmp & 0xff) > 0x7f)                                    \
+        tmp += 0x100;                                           \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fmul8sux16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fmul8ulx16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_W64(r) = tmp >> 8;
+
+    PMUL(0);
+    PMUL(1);
+    PMUL(2);
+    PMUL(3);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fmuld8sux16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_L64(r) = tmp;
+
+    // Reverse calculation order to handle overlap
+    PMUL(1);
+    PMUL(0);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fmuld8ulx16(void)
+{
+    vis64 s, d;
+    uint32_t tmp;
+
+    s.d = DT0;
+    d.d = DT1;
+
+#define PMUL(r)                                                         \
+    tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
+    if ((tmp & 0xff) > 0x7f)                                            \
+        tmp += 0x100;                                                   \
+    d.VIS_L64(r) = tmp;
+
+    // Reverse calculation order to handle overlap
+    PMUL(1);
+    PMUL(0);
+#undef PMUL
+
+    DT0 = d.d;
+}
+
+void helper_fexpand(void)
+{
+    vis32 s;
+    vis64 d;
+
+    s.l = (uint32_t)(*(uint64_t *)&DT0 & 0xffffffff);
+    d.d = DT1;
+    d.VIS_L64(0) = s.VIS_W32(0) << 4;
+    d.VIS_L64(1) = s.VIS_W32(1) << 4;
+    d.VIS_L64(2) = s.VIS_W32(2) << 4;
+    d.VIS_L64(3) = s.VIS_W32(3) << 4;
+
+    DT0 = d.d;
+}
+
+#define VIS_HELPER(name, F)                             \
+    void name##16(void)                                 \
+    {                                                   \
+        vis64 s, d;                                     \
+                                                        \
+        s.d = DT0;                                      \
+        d.d = DT1;                                      \
+                                                        \
+        d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0));   \
+        d.VIS_W64(1) = F(d.VIS_W64(1), s.VIS_W64(1));   \
+        d.VIS_W64(2) = F(d.VIS_W64(2), s.VIS_W64(2));   \
+        d.VIS_W64(3) = F(d.VIS_W64(3), s.VIS_W64(3));   \
+                                                        \
+        DT0 = d.d;                                      \
+    }                                                   \
+                                                        \
+    void name##16s(void)                                \
+    {                                                   \
+        vis32 s, d;                                     \
+                                                        \
+        s.f = FT0;                                      \
+        d.f = FT1;                                      \
+                                                        \
+        d.VIS_W32(0) = F(d.VIS_W32(0), s.VIS_W32(0));   \
+        d.VIS_W32(1) = F(d.VIS_W32(1), s.VIS_W32(1));   \
+                                                        \
+        FT0 = d.f;                                      \
+    }                                                   \
+                                                        \
+    void name##32(void)                                 \
+    {                                                   \
+        vis64 s, d;                                     \
+                                                        \
+        s.d = DT0;                                      \
+        d.d = DT1;                                      \
+                                                        \
+        d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0));   \
+        d.VIS_L64(1) = F(d.VIS_L64(1), s.VIS_L64(1));   \
+                                                        \
+        DT0 = d.d;                                      \
+    }                                                   \
+                                                        \
+    void name##32s(void)                                \
+    {                                                   \
+        vis32 s, d;                                     \
+                                                        \
+        s.f = FT0;                                      \
+        d.f = FT1;                                      \
+                                                        \
+        d.l = F(d.l, s.l);                              \
+                                                        \
+        FT0 = d.f;                                      \
+    }
+
+#define FADD(a, b) ((a) + (b))
+#define FSUB(a, b) ((a) - (b))
+VIS_HELPER(helper_fpadd, FADD)
+VIS_HELPER(helper_fpsub, FSUB)
+
+#define VIS_CMPHELPER(name, F)                                        \
+    void name##16(void)                                           \
+    {                                                             \
+        vis64 s, d;                                               \
+                                                                  \
+        s.d = DT0;                                                \
+        d.d = DT1;                                                \
+                                                                  \
+        d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0))? 1: 0;       \
+        d.VIS_W64(0) |= F(d.VIS_W64(1), s.VIS_W64(1))? 2: 0;      \
+        d.VIS_W64(0) |= F(d.VIS_W64(2), s.VIS_W64(2))? 4: 0;      \
+        d.VIS_W64(0) |= F(d.VIS_W64(3), s.VIS_W64(3))? 8: 0;      \
+                                                                  \
+        DT0 = d.d;                                                \
+    }                                                             \
+                                                                  \
+    void name##32(void)                                           \
+    {                                                             \
+        vis64 s, d;                                               \
+                                                                  \
+        s.d = DT0;                                                \
+        d.d = DT1;                                                \
+                                                                  \
+        d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0))? 1: 0;       \
+        d.VIS_L64(0) |= F(d.VIS_L64(1), s.VIS_L64(1))? 2: 0;      \
+                                                                  \
+        DT0 = d.d;                                                \
+    }
+
+#define FCMPGT(a, b) ((a) > (b))
+#define FCMPEQ(a, b) ((a) == (b))
+#define FCMPLE(a, b) ((a) <= (b))
+#define FCMPNE(a, b) ((a) != (b))
+
+VIS_CMPHELPER(helper_fcmpgt, FCMPGT)
+VIS_CMPHELPER(helper_fcmpeq, FCMPEQ)
+VIS_CMPHELPER(helper_fcmple, FCMPLE)
+VIS_CMPHELPER(helper_fcmpne, FCMPNE)
+#endif
+
 void helper_check_ieee_exceptions(void)
 {
     target_ulong status;
@@ -83,44 +701,6 @@ void helper_clear_float_exceptions(void)
 {
     set_float_exception_flags(0, &env->fp_status);
 }
-
-#ifdef USE_INT_TO_FLOAT_HELPERS
-void do_fitos(void)
-{
-    FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
-}
-
-void do_fitod(void)
-{
-    DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
-}
-
-#if defined(CONFIG_USER_ONLY)
-void do_fitoq(void)
-{
-    QT0 = int32_to_float128(*((int32_t *)&FT1), &env->fp_status);
-}
-#endif
-
-#ifdef TARGET_SPARC64
-void do_fxtos(void)
-{
-    FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
-}
-
-void do_fxtod(void)
-{
-    DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
-}
-
-#if defined(CONFIG_USER_ONLY)
-void do_fxtoq(void)
-{
-    QT0 = int64_to_float128(*((int32_t *)&DT1), &env->fp_status);
-}
-#endif
-#endif
-#endif
 
 void helper_fabss(void)
 {
