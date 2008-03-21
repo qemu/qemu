@@ -1664,6 +1664,26 @@ static inline void gen_clear_float_exceptions(void)
     tcg_gen_helper_0_0(helper_clear_float_exceptions);
 }
 
+static inline void gen_check_align(TCGv r_addr, int align)
+{
+    tcg_gen_helper_0_2(helper_check_align, r_addr, tcg_const_i32(align));
+}
+
+static inline void gen_op_check_align_T0_1(void)
+{
+    gen_check_align(cpu_T[0], 1);
+}
+
+static inline void gen_op_check_align_T0_3(void)
+{
+    gen_check_align(cpu_T[0], 3);
+}
+
+static inline void gen_op_check_align_T0_7(void)
+{
+    gen_check_align(cpu_T[0], 7);
+}
+
 /* asi moves */
 #ifdef TARGET_SPARC64
 static inline TCGv gen_get_asi(int insn, TCGv r_addr)

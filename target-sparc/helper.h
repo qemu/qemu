@@ -37,6 +37,7 @@ void TCG_HELPER_PROTO helper_tick_set_limit(void *opaque, uint64_t limit);
 void TCG_HELPER_PROTO helper_trap(target_ulong nb_trap);
 void TCG_HELPER_PROTO helper_trapcc(target_ulong nb_trap,
                                     target_ulong do_trap);
+void TCG_HELPER_PROTO helper_check_align(target_ulong addr, uint32_t align);
 void TCG_HELPER_PROTO helper_debug(void);
 void TCG_HELPER_PROTO helper_save(void);
 void TCG_HELPER_PROTO helper_restore(void);

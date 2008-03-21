@@ -50,6 +50,12 @@ void helper_trapcc(target_ulong nb_trap, target_ulong do_trap)
     }
 }
 
+void helper_check_align(target_ulong addr, uint32_t align)
+{
+    if (addr & align)
+        raise_exception(TT_UNALIGNED);
+}
+
 #define F_HELPER(name, p) void helper_f##name##p(void)
 
 #if defined(CONFIG_USER_ONLY)

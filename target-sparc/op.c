@@ -36,15 +36,3 @@
 #include "op_mem.h"
 #endif
 #endif
-
-#define CHECK_ALIGN_OP(align)                           \
-    void OPPROTO op_check_align_T0_ ## align (void)     \
-    {                                                   \
-        if (T0 & align)                                 \
-            raise_exception(TT_UNALIGNED);              \
-        FORCE_RET();                                    \
-    }
-
-CHECK_ALIGN_OP(1)
-CHECK_ALIGN_OP(3)
-CHECK_ALIGN_OP(7)
