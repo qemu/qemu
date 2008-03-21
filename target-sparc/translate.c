@@ -114,60 +114,85 @@ static int sign_extend(int x, int len)
 
 static void disas_sparc_insn(DisasContext * dc);
 
-#ifdef TARGET_SPARC64
-#define GEN32(func, NAME) \
-static GenOpFunc * const NAME ## _table [64] = {                              \
-NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
-NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
-NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
-NAME ## 32, 0, NAME ## 34, 0, NAME ## 36, 0, NAME ## 38, 0,                   \
-NAME ## 40, 0, NAME ## 42, 0, NAME ## 44, 0, NAME ## 46, 0,                   \
-NAME ## 48, 0, NAME ## 50, 0, NAME ## 52, 0, NAME ## 54, 0,                   \
-NAME ## 56, 0, NAME ## 58, 0, NAME ## 60, 0, NAME ## 62, 0,                   \
-};                                                                            \
-static inline void func(int n)                                                \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
-}
-#else
-#define GEN32(func, NAME) \
-static GenOpFunc *const NAME ## _table [32] = {                               \
-NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
-NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
-NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
-};                                                                            \
-static inline void func(int n)                                                \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
-}
-#endif
-
 /* floating point registers moves */
-GEN32(gen_op_load_fpr_FT0, gen_op_load_fpr_FT0_fprf);
-GEN32(gen_op_load_fpr_FT1, gen_op_load_fpr_FT1_fprf);
-GEN32(gen_op_store_FT0_fpr, gen_op_store_FT0_fpr_fprf);
-GEN32(gen_op_store_FT1_fpr, gen_op_store_FT1_fpr_fprf);
+static void gen_op_load_fpr_FT0(unsigned int src)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, ft0));
+}
 
-GEN32(gen_op_load_fpr_DT0, gen_op_load_fpr_DT0_fprf);
-GEN32(gen_op_load_fpr_DT1, gen_op_load_fpr_DT1_fprf);
-GEN32(gen_op_store_DT0_fpr, gen_op_store_DT0_fpr_fprf);
-GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
+static void gen_op_load_fpr_FT1(unsigned int src)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, ft1));
+}
 
-#if defined(CONFIG_USER_ONLY)
-GEN32(gen_op_load_fpr_QT0, gen_op_load_fpr_QT0_fprf);
-GEN32(gen_op_load_fpr_QT1, gen_op_load_fpr_QT1_fprf);
-GEN32(gen_op_store_QT0_fpr, gen_op_store_QT0_fpr_fprf);
-GEN32(gen_op_store_QT1_fpr, gen_op_store_QT1_fpr_fprf);
+static void gen_op_store_FT0_fpr(unsigned int dst)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, ft0));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst]));
+}
+
+static void gen_op_load_fpr_DT0(unsigned int src)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, dt0) + offsetof(CPU_DoubleU, l.upper));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 1]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, dt0) + offsetof(CPU_DoubleU, l.lower));
+}
+
+static void gen_op_load_fpr_DT1(unsigned int src)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, dt1) + offsetof(CPU_DoubleU, l.upper));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 1]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, dt1) + offsetof(CPU_DoubleU, l.lower));
+}
+
+static void gen_op_store_DT0_fpr(unsigned int dst)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, dt0) + offsetof(CPU_DoubleU, l.upper));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst]));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, dt0) + offsetof(CPU_DoubleU, l.lower));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst + 1]));
+}
+
+#ifdef CONFIG_USER_ONLY
+static void gen_op_load_fpr_QT0(unsigned int src)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.upmost));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 1]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.upper));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 2]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.lower));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 3]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.lowest));
+}
+
+static void gen_op_load_fpr_QT1(unsigned int src)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt1) + offsetof(CPU_QuadU, l.upmost));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 1]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt1) + offsetof(CPU_QuadU, l.upper));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 2]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt1) + offsetof(CPU_QuadU, l.lower));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[src + 3]));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt1) + offsetof(CPU_QuadU, l.lowest));
+}
+
+static void gen_op_store_QT0_fpr(unsigned int dst)
+{
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.upmost));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst]));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.upper));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst + 1]));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.lower));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst + 2]));
+    tcg_gen_ld_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, qt0) + offsetof(CPU_QuadU, l.lowest));
+    tcg_gen_st_i32(cpu_tmp0, cpu_env, offsetof(CPUSPARCState, fpr[dst + 3]));
+}
 #endif
 
 /* moves */
