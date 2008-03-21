@@ -155,6 +155,11 @@ static inline void gen_set_label(int n)
     tcg_gen_op1i(INDEX_op_set_label, n);
 }
 
+static inline void tcg_gen_br(int label)
+{
+    tcg_gen_op1i(INDEX_op_br, label);
+}
+
 static inline void tcg_gen_mov_i32(TCGv ret, TCGv arg)
 {
     tcg_gen_op2(INDEX_op_mov_i32, ret, arg);
