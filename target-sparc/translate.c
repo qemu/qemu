@@ -2280,7 +2280,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 break;
             } else if (xop == 0x2b) { /* rdtbr / V9 flushw */
 #ifdef TARGET_SPARC64
-                gen_op_flushw();
+                tcg_gen_helper_0_0(helper_flushw);
 #else
                 if (!supervisor(dc))
                     goto priv_insn;
@@ -3251,10 +3251,10 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef TARGET_SPARC64
                             switch (rd) {
                             case 0:
-                                gen_op_saved();
+                                tcg_gen_helper_0_0(helper_saved);
                                 break;
                             case 1:
-                                gen_op_restored();
+                                tcg_gen_helper_0_0(helper_restored);
                                 break;
                             case 2: /* UA2005 allclean */
                             case 3: /* UA2005 otherw */
@@ -3954,7 +3954,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     }
 #endif
                 }
-                gen_op_restore();
+                tcg_gen_helper_0_0(helper_restore);
                 gen_mov_pc_npc(dc);
                 gen_op_check_align_T0_3();
                 tcg_gen_mov_tl(cpu_npc, cpu_T[0]);
@@ -4009,12 +4009,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x3c:      /* save */
                     save_state(dc);
-                    gen_op_save();
+                    tcg_gen_helper_0_0(helper_save);
                     gen_movl_T0_reg(rd);
                     break;
                 case 0x3d:      /* restore */
                     save_state(dc);
-                    gen_op_restore();
+                    tcg_gen_helper_0_0(helper_restore);
                     gen_movl_T0_reg(rd);
                     break;
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)

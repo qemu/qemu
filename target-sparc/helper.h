@@ -8,6 +8,9 @@ target_ulong TCG_HELPER_PROTO helper_rdpsr(void);
 void TCG_HELPER_PROTO helper_wrpstate(target_ulong new_state);
 void TCG_HELPER_PROTO helper_done(void);
 void TCG_HELPER_PROTO helper_retry(void);
+void TCG_HELPER_PROTO helper_flushw(void);
+void TCG_HELPER_PROTO helper_saved(void);
+void TCG_HELPER_PROTO helper_restored(void);
 target_ulong TCG_HELPER_PROTO helper_rdccr(void);
 void TCG_HELPER_PROTO helper_wrccr(target_ulong new_ccr);
 target_ulong TCG_HELPER_PROTO helper_rdcwp(void);
@@ -35,6 +38,8 @@ void TCG_HELPER_PROTO helper_trap(target_ulong nb_trap);
 void TCG_HELPER_PROTO helper_trapcc(target_ulong nb_trap,
                                     target_ulong do_trap);
 void TCG_HELPER_PROTO helper_debug(void);
+void TCG_HELPER_PROTO helper_save(void);
+void TCG_HELPER_PROTO helper_restore(void);
 void TCG_HELPER_PROTO helper_flush(target_ulong addr);
 target_ulong TCG_HELPER_PROTO helper_udiv(target_ulong a, target_ulong b);
 target_ulong TCG_HELPER_PROTO helper_sdiv(target_ulong a, target_ulong b);

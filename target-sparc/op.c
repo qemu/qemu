@@ -37,108 +37,10 @@
 #endif
 #endif
 
-#ifndef TARGET_SPARC64
-/* XXX: use another pointer for %iN registers to avoid slow wrapping
-   handling ? */
-void OPPROTO op_save(void)
-{
-    uint32_t cwp;
-    cwp = (env->cwp - 1) & (NWINDOWS - 1);
-    if (env->wim & (1 << cwp)) {
-        raise_exception(TT_WIN_OVF);
-    }
-    set_cwp(cwp);
-    FORCE_RET();
-}
-
-void OPPROTO op_restore(void)
-{
-    uint32_t cwp;
-    cwp = (env->cwp + 1) & (NWINDOWS - 1);
-    if (env->wim & (1 << cwp)) {
-        raise_exception(TT_WIN_UNF);
-    }
-    set_cwp(cwp);
-    FORCE_RET();
-}
-#else
-/* XXX: use another pointer for %iN registers to avoid slow wrapping
-   handling ? */
-void OPPROTO op_save(void)
-{
-    uint32_t cwp;
-    cwp = (env->cwp - 1) & (NWINDOWS - 1);
-    if (env->cansave == 0) {
-        raise_exception(TT_SPILL | (env->otherwin != 0 ?
-                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-                                    ((env->wstate & 0x7) << 2)));
-    } else {
-        if (env->cleanwin - env->canrestore == 0) {
-            // XXX Clean windows without trap
-            raise_exception(TT_CLRWIN);
-        } else {
-            env->cansave--;
-            env->canrestore++;
-            set_cwp(cwp);
-        }
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_restore(void)
-{
-    uint32_t cwp;
-    cwp = (env->cwp + 1) & (NWINDOWS - 1);
-    if (env->canrestore == 0) {
-        raise_exception(TT_FILL | (env->otherwin != 0 ?
-                                   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-                                   ((env->wstate & 0x7) << 2)));
-    } else {
-        env->cansave++;
-        env->canrestore--;
-        set_cwp(cwp);
-    }
-    FORCE_RET();
-}
-#endif
-
 void OPPROTO op_jmp_label(void)
 {
     GOTO_LABEL_PARAM(1);
 }
-
-#ifdef TARGET_SPARC64
-void OPPROTO op_flushw(void)
-{
-    if (env->cansave != NWINDOWS - 2) {
-        raise_exception(TT_SPILL | (env->otherwin != 0 ?
-                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-                                    ((env->wstate & 0x7) << 2)));
-    }
-}
-
-void OPPROTO op_saved(void)
-{
-    env->cansave++;
-    if (env->otherwin == 0)
-        env->canrestore--;
-    else
-        env->otherwin--;
-    FORCE_RET();
-}
-
-void OPPROTO op_restored(void)
-{
-    env->canrestore++;
-    if (env->cleanwin < NWINDOWS - 1)
-        env->cleanwin++;
-    if (env->otherwin == 0)
-        env->cansave--;
-    else
-        env->otherwin--;
-    FORCE_RET();
-}
-#endif
 
 #define CHECK_ALIGN_OP(align)                           \
     void OPPROTO op_check_align_T0_ ## align (void)     \

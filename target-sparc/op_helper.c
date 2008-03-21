@@ -2246,6 +2246,30 @@ void helper_debug(void)
 }
 
 #ifndef TARGET_SPARC64
+/* XXX: use another pointer for %iN registers to avoid slow wrapping
+   handling ? */
+void helper_save(void)
+{
+    uint32_t cwp;
+
+    cwp = (env->cwp - 1) & (NWINDOWS - 1);
+    if (env->wim & (1 << cwp)) {
+        raise_exception(TT_WIN_OVF);
+    }
+    set_cwp(cwp);
+}
+
+void helper_restore(void)
+{
+    uint32_t cwp;
+
+    cwp = (env->cwp + 1) & (NWINDOWS - 1);
+    if (env->wim & (1 << cwp)) {
+        raise_exception(TT_WIN_UNF);
+    }
+    set_cwp(cwp);
+}
+
 void helper_wrpsr(target_ulong new_psr)
 {
     if ((new_psr & PSR_CWP) >= NWINDOWS)
@@ -2260,6 +2284,74 @@ target_ulong helper_rdpsr(void)
 }
 
 #else
+/* XXX: use another pointer for %iN registers to avoid slow wrapping
+   handling ? */
+void helper_save(void)
+{
+    uint32_t cwp;
+
+    cwp = (env->cwp - 1) & (NWINDOWS - 1);
+    if (env->cansave == 0) {
+        raise_exception(TT_SPILL | (env->otherwin != 0 ?
+                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+                                    ((env->wstate & 0x7) << 2)));
+    } else {
+        if (env->cleanwin - env->canrestore == 0) {
+            // XXX Clean windows without trap
+            raise_exception(TT_CLRWIN);
+        } else {
+            env->cansave--;
+            env->canrestore++;
+            set_cwp(cwp);
+        }
+    }
+}
+
+void helper_restore(void)
+{
+    uint32_t cwp;
+
+    cwp = (env->cwp + 1) & (NWINDOWS - 1);
+    if (env->canrestore == 0) {
+        raise_exception(TT_FILL | (env->otherwin != 0 ?
+                                   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+                                   ((env->wstate & 0x7) << 2)));
+    } else {
+        env->cansave++;
+        env->canrestore--;
+        set_cwp(cwp);
+    }
+}
+
+void helper_flushw(void)
+{
+    if (env->cansave != NWINDOWS - 2) {
+        raise_exception(TT_SPILL | (env->otherwin != 0 ?
+                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+                                    ((env->wstate & 0x7) << 2)));
+    }
+}
+
+void helper_saved(void)
+{
+    env->cansave++;
+    if (env->otherwin == 0)
+        env->canrestore--;
+    else
+        env->otherwin--;
+}
+
+void helper_restored(void)
+{
+    env->canrestore++;
+    if (env->cleanwin < NWINDOWS - 1)
+        env->cleanwin++;
+    if (env->otherwin == 0)
+        env->cansave--;
+    else
+        env->otherwin--;
+}
+
 target_ulong helper_rdccr(void)
 {
     return GET_CCR(env);
