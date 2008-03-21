@@ -766,8 +766,18 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     return fdctrl;
 }
 
+static void fdctrl_handle_tc(void *opaque, int irq, int level)
+{
+    //fdctrl_t *s = opaque;
+
+    if (level) {
+        // XXX
+        FLOPPY_DPRINTF("TC pulsed\n");
+    }
+}
+
 fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
-                             BlockDriverState **fds)
+                             BlockDriverState **fds, qemu_irq *fdc_tc)
 {
     fdctrl_t *fdctrl;
     int io_mem;
@@ -778,6 +788,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
                                     fdctrl_mem_write_strict,
                                     fdctrl);
     cpu_register_physical_memory(io_base, 0x08, io_mem);
+    *fdc_tc = *qemu_allocate_irqs(fdctrl_handle_tc, fdctrl, 1);
 
     return fdctrl;
 }
