@@ -53,18 +53,6 @@ void cpu_lock(void);
 void cpu_unlock(void);
 void cpu_loop_exit(void);
 void set_cwp(int new_cwp);
-void do_fitos(void);
-void do_fitod(void);
-#if defined(CONFIG_USER_ONLY)
-void do_fitoq(void);
-#endif
-#ifdef TARGET_SPARC64
-void do_fxtos(void);
-void do_fxtod(void);
-#if defined(CONFIG_USER_ONLY)
-void do_fxtoq(void);
-#endif
-#endif
 void do_interrupt(int intno);
 void memcpy32(target_ulong *dst, const target_ulong *src);
 target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev);
