@@ -750,7 +750,7 @@ static inline void gen_op_mulscc_T1_T0(void)
     tcg_gen_andi_i32(r_temp, r_temp, 0x1);
     tcg_gen_brcond_i32(TCG_COND_EQ, r_temp, tcg_const_tl(0), l1);
     tcg_gen_mov_tl(cpu_cc_src2, cpu_T[1]);
-    gen_op_jmp_label(l2);
+    tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_movi_tl(cpu_cc_src2, 0);
     gen_set_label(l2);
@@ -863,7 +863,7 @@ static inline void gen_op_sdivx_T1_T0(void)
     tcg_gen_brcond_i64(TCG_COND_NE, cpu_T[0], tcg_const_i64(INT64_MIN), l1);
     tcg_gen_brcond_i64(TCG_COND_NE, cpu_T[1], tcg_const_i64(-1), l1);
     tcg_gen_movi_i64(cpu_T[0], INT64_MIN);
-    gen_op_jmp_label(l2);
+    tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_div_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_set_label(l2);
@@ -1205,7 +1205,7 @@ static inline void gen_generic_branch(target_ulong npc1, target_ulong npc2,
     tcg_gen_brcond_tl(TCG_COND_EQ, r_cond, tcg_const_tl(0), l1);
 
     gen_movl_npc_im(npc1);
-    gen_op_jmp_label(l2);
+    tcg_gen_br(l2);
 
     gen_set_label(l1);
     gen_movl_npc_im(npc2);

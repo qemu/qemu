@@ -37,11 +37,6 @@
 #endif
 #endif
 
-void OPPROTO op_jmp_label(void)
-{
-    GOTO_LABEL_PARAM(1);
-}
-
 #define CHECK_ALIGN_OP(align)                           \
     void OPPROTO op_check_align_T0_ ## align (void)     \
     {                                                   \
