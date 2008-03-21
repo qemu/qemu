@@ -464,6 +464,7 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 #endif
 #endif
 
+#ifndef CONFIG_NO_DYNGEN_OP
 const TCGArg *dyngen_op(TCGContext *s, int opc, const TCGArg *opparam_ptr)
 {
     uint8_t *gen_code_ptr;
@@ -480,3 +481,4 @@ const TCGArg *dyngen_op(TCGContext *s, int opc, const TCGArg *opparam_ptr)
     s->code_ptr = gen_code_ptr;
     return opparam_ptr;
 }
+#endif

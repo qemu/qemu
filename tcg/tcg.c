@@ -1752,6 +1752,8 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
             goto next;
         case INDEX_op_end:
             goto the_end;
+
+#ifndef CONFIG_NO_DYNGEN_OP
         case 0 ... INDEX_op_end - 1:
             /* legacy dyngen ops */
 #ifdef CONFIG_PROFILER
@@ -1768,6 +1770,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
                 args = dyngen_op(s, opc, args);
             }
             goto next;
+#endif
         default:
             /* Note: in order to speed up the code, it would be much
                faster to have specialized register allocator functions for

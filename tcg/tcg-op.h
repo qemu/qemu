@@ -23,8 +23,10 @@
  */
 #include "tcg.h"
 
+#ifndef CONFIG_NO_DYNGEN_OP
 /* legacy dyngen operations */
 #include "gen-op.h"
+#endif
 
 int gen_new_label(void);
 
