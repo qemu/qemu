@@ -15,22 +15,12 @@ void OPPROTO glue(op_std, MEMSUFFIX)(void)
 
 #endif /* __i386__ */
 /***                         Floating-point store                          ***/
-void OPPROTO glue(op_stf, MEMSUFFIX) (void)
-{
-    glue(stfl, MEMSUFFIX)(ADDR(T0), FT0);
-}
-
 void OPPROTO glue(op_stdf, MEMSUFFIX) (void)
 {
     glue(stfq, MEMSUFFIX)(ADDR(T0), DT0);
 }
 
 /***                         Floating-point load                           ***/
-void OPPROTO glue(op_ldf, MEMSUFFIX) (void)
-{
-    FT0 = glue(ldfl, MEMSUFFIX)(ADDR(T0));
-}
-
 void OPPROTO glue(op_lddf, MEMSUFFIX) (void)
 {
     DT0 = glue(ldfq, MEMSUFFIX)(ADDR(T0));

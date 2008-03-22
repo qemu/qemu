@@ -226,9 +226,7 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
 #ifdef __i386__
 OP_LD_TABLE(std);
 #endif /* __i386__ */
-OP_LD_TABLE(stf);
 OP_LD_TABLE(stdf);
-OP_LD_TABLE(ldf);
 OP_LD_TABLE(lddf);
 #endif
 
@@ -4295,12 +4293,15 @@ static void disas_sparc_insn(DisasContext * dc)
                 switch (xop) {
                 case 0x20:      /* load fpreg */
                     gen_op_check_align_T0_3();
-                    gen_op_ldst(ldf);
-                    gen_op_store_FT0_fpr(rd);
+                    tcg_gen_qemu_ld32u(cpu_tmp32, cpu_T[0], dc->mem_idx);
+                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
+                                   offsetof(CPUState, fpr[rd]));
                     break;
                 case 0x21:      /* load fsr */
                     gen_op_check_align_T0_3();
-                    gen_op_ldst(ldf);
+                    tcg_gen_qemu_ld32u(cpu_tmp32, cpu_T[0], dc->mem_idx);
+                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
+                                   offsetof(CPUState, ft0));
                     tcg_gen_helper_0_0(helper_ldfsr);
                     break;
                 case 0x22:      /* load quad fpreg */
@@ -4422,17 +4423,20 @@ static void disas_sparc_insn(DisasContext * dc)
                 if (gen_trap_ifnofpu(dc))
                     goto jmp_insn;
                 switch (xop) {
-                case 0x24:
+                case 0x24: /* store fpreg */
                     gen_op_check_align_T0_3();
-                    gen_op_load_fpr_FT0(rd);
-                    gen_op_ldst(stf);
+                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
+                                   offsetof(CPUState, fpr[rd]));
+                    tcg_gen_qemu_st32(cpu_tmp32, cpu_T[0], dc->mem_idx);
                     break;
                 case 0x25: /* stfsr, V9 stxfsr */
 #ifdef CONFIG_USER_ONLY
                     gen_op_check_align_T0_3();
 #endif
                     tcg_gen_helper_0_0(helper_stfsr);
-                    gen_op_ldst(stf);
+                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
+                                   offsetof(CPUState, ft0));
+                    tcg_gen_qemu_st32(cpu_tmp32, cpu_T[0], dc->mem_idx);
                     break;
                 case 0x26:
 #ifdef TARGET_SPARC64
