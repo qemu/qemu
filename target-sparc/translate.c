@@ -751,21 +751,22 @@ static inline void gen_op_tsub_T1_T0_ccTV(void)
 
 static inline void gen_op_mulscc_T1_T0(void)
 {
-    TCGv r_temp;
+    TCGv r_temp, r_temp2;
     int l1, l2;
 
     l1 = gen_new_label();
     l2 = gen_new_label();
     r_temp = tcg_temp_new(TCG_TYPE_TL);
+    r_temp2 = tcg_temp_new(TCG_TYPE_I32);
 
     /* old op:
     if (!(env->y & 1))
         T1 = 0;
     */
-    tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUSPARCState, y));
-    tcg_gen_extu_i32_tl(r_temp, cpu_tmp32);
-    tcg_gen_andi_tl(r_temp, r_temp, 0x1);
-    tcg_gen_brcond_tl(TCG_COND_EQ, r_temp, tcg_const_tl(0), l1);
+    tcg_gen_ld32u_tl(r_temp, cpu_env, offsetof(CPUSPARCState, y));
+    tcg_gen_trunc_tl_i32(r_temp2, r_temp);
+    tcg_gen_andi_i32(r_temp2, r_temp2, 0x1);
+    tcg_gen_brcond_i32(TCG_COND_EQ, r_temp2, tcg_const_i32(0), l1);
     tcg_gen_mov_tl(cpu_cc_src2, cpu_T[1]);
     tcg_gen_br(l2);
     gen_set_label(l1);
@@ -774,10 +775,12 @@ static inline void gen_op_mulscc_T1_T0(void)
 
     // b2 = T0 & 1;
     // env->y = (b2 << 31) | (env->y >> 1);
-    tcg_gen_shli_tl(r_temp, cpu_T[0], 31);
+    tcg_gen_trunc_tl_i32(r_temp2, cpu_T[0]);
+    tcg_gen_andi_i32(r_temp2, r_temp2, 0x1);
+    tcg_gen_shli_i32(r_temp2, r_temp2, 31);
     tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUSPARCState, y));
     tcg_gen_shri_i32(cpu_tmp32, cpu_tmp32, 1);
-    tcg_gen_or_i32(cpu_tmp32, cpu_tmp32, r_temp);
+    tcg_gen_or_i32(cpu_tmp32, cpu_tmp32, r_temp2);
     tcg_gen_st_i32(cpu_tmp32, cpu_env, offsetof(CPUSPARCState, y));
 
     // b1 = N ^ V;
