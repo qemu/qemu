@@ -417,6 +417,7 @@ echo "  --enable-esd             enable EsoundD audio driver"
 echo "  --enable-fmod            enable FMOD audio driver"
 echo "  --enable-dsound          enable DirectSound audio driver"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
+echo "  --disable-curses         disable curses output"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
 echo "  --enable-linux-user      enable all linux usermode emulation targets"
@@ -681,7 +682,7 @@ if test "$curses" = "yes" ; then
 #include <curses.h>
 int main(void) { return curses_version(); }
 EOF
-  if $cc -o $TMPE $TMPC -lcurses 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses 2> /dev/null ; then
     curses=yes
   fi
 fi # test "$curses"
