@@ -4827,6 +4827,7 @@ static int net_client_init(const char *str)
         vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             fd = strtol(buf, NULL, 0);
+            fcntl(fd, F_SETFL, O_NONBLOCK);
             ret = -1;
             if (net_tap_fd_init(vlan, fd))
                 ret = 0;
