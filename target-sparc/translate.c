@@ -419,7 +419,7 @@ static inline void gen_cc_NZ(TCGv dst)
     tcg_gen_brcond_tl(TCG_COND_NE, r_temp, tcg_const_tl(0), l1);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_ZERO);
     gen_set_label(l1);
-    tcg_gen_andi_tl(r_temp, dst, 0xffffffffULL);
+    tcg_gen_ext_i32_tl(r_temp, dst);
     tcg_gen_brcond_tl(TCG_COND_GE, r_temp, tcg_const_tl(0), l2);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_NEG);
     gen_set_label(l2);
