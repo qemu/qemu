@@ -4086,10 +4086,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_mmap2
     case TARGET_NR_mmap2:
-#if defined(TARGET_SPARC) || defined(TARGET_MIPS)
+#ifndef MMAP_SHIFT
 #define MMAP_SHIFT 12
-#else
-#define MMAP_SHIFT TARGET_PAGE_BITS
 #endif
         ret = get_errno(target_mmap(arg1, arg2, arg3,
                                     target_to_host_bitmask(arg4, mmap_flags_tbl),

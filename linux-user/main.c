@@ -1763,7 +1763,7 @@ void cpu_loop(CPUM68KState *env)
                                           env->dregs[3],
                                           env->dregs[4],
                                           env->dregs[5],
-                                          env->dregs[6]);
+                                          env->aregs[0]);
             }
             break;
         case EXCP_INTERRUPT:

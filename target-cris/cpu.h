@@ -213,6 +213,7 @@ void register_cris_insns (CPUCRISState *env);
 
 /* CRIS uses 8k pages.  */
 #define TARGET_PAGE_BITS 13
+#define MMAP_SHIFT TARGET_PAGE_BITS
 
 #define CPUState CPUCRISState
 #define cpu_init cpu_cris_init
