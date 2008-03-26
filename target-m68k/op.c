@@ -504,7 +504,7 @@ OP(set_T0_nz32)
 OP(set_T0_s32)
 {
     int32_t arg = get_op(PARAM1);
-    T0 = (arg > 0);
+    T0 = (arg < 0);
     FORCE_RET();
 }
 
