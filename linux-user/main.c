@@ -1945,7 +1945,7 @@ int main(int argc, char **argv)
     char **target_environ, **wrk, **dst;
 
     if (argc <= 1)
-        usage(1);
+        usage();
 
     /* init debug */
     cpu_set_log_filename(DEBUG_LOGFILE);
@@ -1983,7 +1983,7 @@ int main(int argc, char **argv)
             r = argv[optind++];
             x86_stack_size = strtol(r, (char **)&r, 0);
             if (x86_stack_size <= 0)
-                usage(1);
+                usage();
             if (*r == 'M')
                 x86_stack_size *= 1024 * 1024;
             else if (*r == 'k' || *r == 'K')
