@@ -8202,21 +8202,21 @@ int main(int argc, char **argv)
     const char *boot_devices = "";
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
-    char net_clients[MAX_NET_CLIENTS][256];
+    const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
     int hda_index;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd;
-    char monitor_device[128];
-    char serial_devices[MAX_SERIAL_PORTS][128];
+    const char *monitor_device;
+    const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
-    char parallel_devices[MAX_PARALLEL_PORTS][128];
+    const char *parallel_devices[MAX_PARALLEL_PORTS];
     int parallel_device_index;
     const char *loadvm = NULL;
     QEMUMachine *machine;
     const char *cpu_model;
-    char usb_devices[MAX_USB_CMDLINE][128];
+    const char *usb_devices[MAX_USB_CMDLINE];
     int usb_devices_index;
     int fds[2];
     const char *pid_file = NULL;
@@ -8270,16 +8270,16 @@ int main(int argc, char **argv)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    pstrcpy(monitor_device, sizeof(monitor_device), "vc");
+    monitor_device = "vc";
 
-    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc");
+    serial_devices[0] = "vc";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
-        serial_devices[i][0] = '\0';
+        serial_devices[i] = NULL;
     serial_device_index = 0;
 
-    pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc");
+    parallel_devices[0] = "vc";
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
-        parallel_devices[i][0] = '\0';
+        parallel_devices[i] = NULL;
     parallel_device_index = 0;
 
     usb_devices_index = 0;
@@ -8435,9 +8435,9 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_nographic:
-                pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "stdio");
-                pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "null");
-                pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
+                serial_devices[0] = "stdio";
+                parallel_devices[0] = "null";
+                monitor_device = "stdio";
                 nographic = 1;
                 break;
 #ifdef CONFIG_CURSES
@@ -8505,9 +8505,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "qemu: too many network clients\n");
                     exit(1);
                 }
-                pstrcpy(net_clients[nb_net_clients],
-                        sizeof(net_clients[0]),
-                        optarg);
+                net_clients[nb_net_clients] = optarg;
                 nb_net_clients++;
                 break;
 #ifdef CONFIG_SLIRP
@@ -8642,15 +8640,14 @@ int main(int argc, char **argv)
                     break;
                 }
             case QEMU_OPTION_monitor:
-                pstrcpy(monitor_device, sizeof(monitor_device), optarg);
+                monitor_device = optarg;
                 break;
             case QEMU_OPTION_serial:
                 if (serial_device_index >= MAX_SERIAL_PORTS) {
                     fprintf(stderr, "qemu: too many serial ports\n");
                     exit(1);
                 }
-                pstrcpy(serial_devices[serial_device_index],
-                        sizeof(serial_devices[0]), optarg);
+                serial_devices[serial_device_index] = optarg;
                 serial_device_index++;
                 break;
             case QEMU_OPTION_parallel:
@@ -8658,8 +8655,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "qemu: too many parallel ports\n");
                     exit(1);
                 }
-                pstrcpy(parallel_devices[parallel_device_index],
-                        sizeof(parallel_devices[0]), optarg);
+                parallel_devices[parallel_device_index] = optarg;
                 parallel_device_index++;
                 break;
 	    case QEMU_OPTION_loadvm:
@@ -8704,9 +8700,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "Too many USB devices\n");
                     exit(1);
                 }
-                pstrcpy(usb_devices[usb_devices_index],
-                        sizeof(usb_devices[usb_devices_index]),
-                        optarg);
+                usb_devices[usb_devices_index] = optarg;
                 usb_devices_index++;
                 break;
             case QEMU_OPTION_smp:
@@ -8894,10 +8888,8 @@ int main(int argc, char **argv)
     /* init network clients */
     if (nb_net_clients == 0) {
         /* if no clients, we use a default config */
-        pstrcpy(net_clients[0], sizeof(net_clients[0]),
-                "nic");
-        pstrcpy(net_clients[1], sizeof(net_clients[0]),
-                "user");
+        net_clients[0] = "nic";
+        net_clients[1] = "user";
         nb_net_clients = 2;
     }
 
@@ -9016,17 +9008,18 @@ int main(int argc, char **argv)
     /* Maintain compatibility with multiple stdio monitors */
     if (!strcmp(monitor_device,"stdio")) {
         for (i = 0; i < MAX_SERIAL_PORTS; i++) {
-            if (!strcmp(serial_devices[i],"mon:stdio")) {
-                monitor_device[0] = '\0';
+            const char *devname = serial_devices[i];
+            if (devname && !strcmp(devname,"mon:stdio")) {
+                monitor_device = NULL;
                 break;
-            } else if (!strcmp(serial_devices[i],"stdio")) {
-                monitor_device[0] = '\0';
-                pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "mon:stdio");
+            } else if (devname && !strcmp(devname,"stdio")) {
+                monitor_device = NULL;
+                serial_devices[i] = "mon:stdio";
                 break;
             }
         }
     }
-    if (monitor_device[0] != '\0') {
+    if (monitor_device) {
         monitor_hd = qemu_chr_open(monitor_device);
         if (!monitor_hd) {
             fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
@@ -9037,7 +9030,7 @@ int main(int argc, char **argv)
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];
-        if (devname[0] != '\0' && strcmp(devname, "none")) {
+        if (devname && strcmp(devname, "none")) {
             serial_hds[i] = qemu_chr_open(devname);
             if (!serial_hds[i]) {
                 fprintf(stderr, "qemu: could not open serial device '%s'\n",
@@ -9051,7 +9044,7 @@ int main(int argc, char **argv)
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         const char *devname = parallel_devices[i];
-        if (devname[0] != '\0' && strcmp(devname, "none")) {
+        if (devname && strcmp(devname, "none")) {
             parallel_hds[i] = qemu_chr_open(devname);
             if (!parallel_hds[i]) {
                 fprintf(stderr, "qemu: could not open parallel device '%s'\n",
