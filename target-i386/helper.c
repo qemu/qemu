@@ -1008,6 +1008,7 @@ void helper_syscall(int next_eip_addend)
                                DESC_S_MASK |
                                DESC_W_MASK | DESC_A_MASK);
         env->eflags &= ~env->fmask;
+        load_eflags(env->eflags, 0);
         if (code64)
             env->eip = env->lstar;
         else
