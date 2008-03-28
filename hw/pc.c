@@ -213,6 +213,9 @@ static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
 
+    /* set the number of CPU */
+    rtc_set_memory(s, 0x5f, smp_cpus - 1);
+
     /* set boot devices, and disable floppy signature check if requested */
 #define PC_MAX_BOOT_DEVICES 3
     nbds = strlen(boot_device);
