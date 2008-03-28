@@ -326,7 +326,7 @@ xmit_seg(E1000State *s)
         if (tp->tcp) {
             sofar = frames * tp->mss;
             cpu_to_be32wu((uint32_t *)(tp->data+css+4),	// seq
-                be32_to_cpup((uint32_t *)(tp->data+css+4))+sofar);
+                be32_to_cpupu((uint32_t *)(tp->data+css+4))+sofar);
             if (tp->paylen - sofar > tp->mss)
                 tp->data[css + 13] &= ~9;		// PSH, FIN
         } else	// UDP
