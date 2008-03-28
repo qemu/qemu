@@ -1752,6 +1752,9 @@ struct target_flock {
 struct target_flock64 {
 	short  l_type;
 	short  l_whence;
+#if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) || defined(TARGET_SPARC) || defined(TARGET_HPPA)
+        int __pad;
+#endif
 	unsigned long long l_start;
 	unsigned long long l_len;
 	int  l_pid;
