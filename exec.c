@@ -1215,7 +1215,7 @@ void cpu_set_log_filename(const char *filename)
 void cpu_interrupt(CPUState *env, int mask)
 {
     TranslationBlock *tb;
-    static int interrupt_lock;
+    static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
 
     env->interrupt_request |= mask;
     /* if the cpu is currently executing code, we must unlink it and
@@ -1224,7 +1224,7 @@ void cpu_interrupt(CPUState *env, int mask)
     if (tb && !testandset(&interrupt_lock)) {
         env->current_tb = NULL;
         tb_reset_jump_recursive(tb);
-        interrupt_lock = 0;
+        resetlock(&interrupt_lock);
     }
 }
 

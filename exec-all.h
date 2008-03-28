@@ -297,6 +297,30 @@ extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
+#if defined(__hppa__)
+
+typedef int spinlock_t[4];
+
+#define SPIN_LOCK_UNLOCKED { 1, 1, 1, 1 }
+
+static inline void resetlock (spinlock_t *p)
+{
+    (*p)[0] = (*p)[1] = (*p)[2] = (*p)[3] = 1;
+}
+
+#else
+
+typedef int spinlock_t;
+
+#define SPIN_LOCK_UNLOCKED 0
+
+static inline void resetlock (spinlock_t *p)
+{
+    *p = SPIN_LOCK_UNLOCKED;
+}
+
+#endif
+
 #if defined(__powerpc__)
 static inline int testandset (int *p)
 {
@@ -396,6 +420,33 @@ static inline int testandset (int *p)
                          : "cc","memory");
     return ret;
 }
+#elif defined(__hppa__)
+
+/* Because malloc only guarantees 8-byte alignment for malloc'd data,
+   and GCC only guarantees 8-byte alignment for stack locals, we can't
+   be assured of 16-byte alignment for atomic lock data even if we
+   specify "__attribute ((aligned(16)))" in the type declaration.  So,
+   we use a struct containing an array of four ints for the atomic lock
+   type and dynamically select the 16-byte aligned int from the array
+   for the semaphore.  */
+#define __PA_LDCW_ALIGNMENT 16
+static inline void *ldcw_align (void *p) {
+    unsigned long a = (unsigned long)p;
+    a = (a + __PA_LDCW_ALIGNMENT - 1) & ~(__PA_LDCW_ALIGNMENT - 1);
+    return (void *)a;
+}
+
+static inline int testandset (spinlock_t *p)
+{
+    unsigned int ret;
+    p = ldcw_align(p);
+    __asm__ __volatile__("ldcw 0(%1),%0"
+                         : "=r" (ret)
+                         : "r" (p)
+                         : "memory" );
+    return !ret;
+}
+
 #elif defined(__ia64)
 
 #include <ia64intrin.h>
@@ -428,10 +479,6 @@ static inline int testandset (int *p)
 #error unimplemented CPU support
 #endif
 
-typedef int spinlock_t;
-
-#define SPIN_LOCK_UNLOCKED 0
-
 #if defined(CONFIG_USER_ONLY)
 static inline void spin_lock(spinlock_t *lock)
 {
@@ -440,7 +487,7 @@ static inline void spin_lock(spinlock_t *lock)
 
 static inline void spin_unlock(spinlock_t *lock)
 {
-    *lock = 0;
+    resetlock(lock);
 }
 
 static inline int spin_trylock(spinlock_t *lock)
