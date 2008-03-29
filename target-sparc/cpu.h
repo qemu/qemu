@@ -286,6 +286,7 @@ typedef struct CPUSPARCState {
 #endif
 
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
+void gen_intermediate_code_init(CPUSPARCState *env);
 int cpu_sparc_exec(CPUSPARCState *s);
 int cpu_sparc_close(CPUSPARCState *s);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
