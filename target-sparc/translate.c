@@ -1685,8 +1685,8 @@ static inline void gen_stf_asi(TCGv addr, int insn, int size, int rd)
 {
     TCGv r_asi;
 
-    r_asi = gen_get_asi(insn, cpu_T[0]);
-    tcg_gen_helper_0_4(helper_stf_asi, cpu_T[0], r_asi, tcg_const_i32(size),
+    r_asi = gen_get_asi(insn, addr);
+    tcg_gen_helper_0_4(helper_stf_asi, addr, r_asi, tcg_const_i32(size),
                        tcg_const_i32(rd));
     tcg_gen_discard_i32(r_asi);
 }
