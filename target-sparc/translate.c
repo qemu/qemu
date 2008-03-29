@@ -1817,6 +1817,23 @@ static inline void gen_ldstub_asi(TCGv dst, TCGv addr, int insn)
 }
 #endif
 
+static inline TCGv get_src1(unsigned int insn, TCGv def)
+{
+    TCGv r_rs1 = def;
+    unsigned int rs1;
+
+    rs1 = GET_FIELD(insn, 13, 17);
+    if (rs1 == 0)
+        //r_rs1 = tcg_const_tl(0);
+        tcg_gen_movi_tl(def, 0);
+    else if (rs1 < 8)
+        //r_rs1 = cpu_gregs[rs1];
+        tcg_gen_mov_tl(def, cpu_gregs[rs1]);
+    else
+        tcg_gen_ld_tl(def, cpu_regwptr, (rs1 - 8) * sizeof(target_ulong));
+    return r_rs1;
+}
+
 /* before an instruction, dc->pc must be static */
 static void disas_sparc_insn(DisasContext * dc)
 {
@@ -1864,8 +1881,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         (GET_FIELD_SP(insn, 20, 21) << 14);
                     target = sign_extend(target, 16);
                     target <<= 2;
-                    rs1 = GET_FIELD(insn, 13, 17);
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     do_branch_reg(dc, target, insn, cpu_cond, cpu_src1);
                     goto jmp_insn;
                 }
@@ -1939,8 +1955,7 @@ static void disas_sparc_insn(DisasContext * dc)
             if (xop == 0x3a) {  /* generate trap */
                 int cond;
 
-                rs1 = GET_FIELD(insn, 13, 17);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {
                     rs2 = GET_FIELD(insn, 25, 31);
                     tcg_gen_addi_tl(cpu_dst, cpu_src1, rs2);
@@ -2637,8 +2652,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                     l1 = gen_new_label();
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    rs1 = GET_FIELD(insn, 13, 17);
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_src1,
                                       tcg_const_tl(0), l1);
                     gen_op_load_fpr_FT0(rs2);
@@ -2650,8 +2664,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                     l1 = gen_new_label();
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    rs1 = GET_FIELD(insn, 13, 17);
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_src1,
                                       tcg_const_tl(0), l1);
                     gen_op_load_fpr_DT0(DFPREG(rs2));
@@ -2664,8 +2677,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                     l1 = gen_new_label();
                     cond = GET_FIELD_SP(insn, 14, 17);
-                    rs1 = GET_FIELD(insn, 13, 17);
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     tcg_gen_brcond_tl(gen_tcg_cond_reg[cond], cpu_src1,
                                       tcg_const_tl(0), l1);
                     gen_op_load_fpr_QT0(QFPREG(rs2));
@@ -2848,7 +2860,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_movl_reg_TN(rs2, cpu_dst);
                     }
                 } else {
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     if (IS_IMM) {       /* immediate */
                         rs2 = GET_FIELDs(insn, 19, 31);
                         tcg_gen_ori_tl(cpu_dst, cpu_src1, (int)rs2);
@@ -2865,8 +2877,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 #ifdef TARGET_SPARC64
             } else if (xop == 0x25) { /* sll, V9 sllx */
-                rs1 = GET_FIELD(insn, 13, 17);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     rs2 = GET_FIELDs(insn, 20, 31);
                     if (insn & (1 << 12)) {
@@ -2889,8 +2900,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 }
                 gen_movl_TN_reg(rd, cpu_dst);
             } else if (xop == 0x26) { /* srl, V9 srlx */
-                rs1 = GET_FIELD(insn, 13, 17);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     rs2 = GET_FIELDs(insn, 20, 31);
                     if (insn & (1 << 12)) {
@@ -2913,8 +2923,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 }
                 gen_movl_TN_reg(rd, cpu_dst);
             } else if (xop == 0x27) { /* sra, V9 srax */
-                rs1 = GET_FIELD(insn, 13, 17);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     rs2 = GET_FIELDs(insn, 20, 31);
                     if (insn & (1 << 12)) {
@@ -2939,8 +2948,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 gen_movl_TN_reg(rd, cpu_dst);
 #endif
             } else if (xop < 0x36) {
-                rs1 = GET_FIELD(insn, 13, 17);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     rs2 = GET_FIELDs(insn, 19, 31);
                     tcg_gen_movi_tl(cpu_src2, (int)rs2);
@@ -3479,8 +3487,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             int cond = GET_FIELD_SP(insn, 10, 12);
                             int l1;
 
-                            rs1 = GET_FIELD(insn, 13, 17);
-                            gen_movl_reg_TN(rs1, cpu_src1);
+                            cpu_src1 = get_src1(insn, cpu_src1);
 
                             l1 = gen_new_label();
 
@@ -3526,14 +3533,14 @@ static void disas_sparc_insn(DisasContext * dc)
                     // XXX
                     goto illegal_insn;
                 case 0x010: /* VIS I array8 */
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
                     tcg_gen_helper_1_2(helper_array8, cpu_dst, cpu_src1,
                                        cpu_src2);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x012: /* VIS I array16 */
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
                     tcg_gen_helper_1_2(helper_array8, cpu_dst, cpu_src1,
                                        cpu_src2);
@@ -3541,7 +3548,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x014: /* VIS I array32 */
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
                     tcg_gen_helper_1_2(helper_array8, cpu_dst, cpu_src1,
                                        cpu_src2);
@@ -3549,7 +3556,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x018: /* VIS I alignaddr */
-                    gen_movl_reg_TN(rs1, cpu_src1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
                     tcg_gen_helper_1_2(helper_alignaddr, cpu_dst, cpu_src1,
                                        cpu_src2);
@@ -3914,9 +3921,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 #ifdef TARGET_SPARC64
             } else if (xop == 0x39) { /* V9 return */
-                rs1 = GET_FIELD(insn, 13, 17);
                 save_state(dc, cpu_cond);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     rs2 = GET_FIELDs(insn, 19, 31);
                     tcg_gen_addi_tl(cpu_dst, cpu_src1, (int)rs2);
@@ -3939,8 +3945,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 goto jmp_insn;
 #endif
             } else {
-                rs1 = GET_FIELD(insn, 13, 17);
-                gen_movl_reg_TN(rs1, cpu_src1);
+                cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     rs2 = GET_FIELDs(insn, 19, 31);
                     tcg_gen_addi_tl(cpu_dst, cpu_src1, (int)rs2);
@@ -4028,9 +4033,9 @@ static void disas_sparc_insn(DisasContext * dc)
     case 3:                     /* load/store instructions */
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
-            rs1 = GET_FIELD(insn, 13, 17);
+
             save_state(dc, cpu_cond);
-            gen_movl_reg_TN(rs1, cpu_src1);
+            cpu_src1 = get_src1(insn, cpu_src1);
             if (xop == 0x3c || xop == 0x3e)
             {
                 rs2 = GET_FIELD(insn, 27, 31);
