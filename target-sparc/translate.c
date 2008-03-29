@@ -1834,6 +1834,26 @@ static inline TCGv get_src1(unsigned int insn, TCGv def)
     return r_rs1;
 }
 
+static inline TCGv get_src2(unsigned int insn, TCGv def)
+{
+    TCGv r_rs2 = def;
+    unsigned int rs2;
+
+    if (IS_IMM) { /* immediate */
+        rs2 = GET_FIELDs(insn, 19, 31);
+        r_rs2 = tcg_const_tl((int)rs2);
+    } else { /* register */
+        rs2 = GET_FIELD(insn, 27, 31);
+        if (rs2 == 0)
+            r_rs2 = tcg_const_tl(0);
+        else if (rs2 < 8)
+            r_rs2 = cpu_gregs[rs2];
+        else
+            tcg_gen_ld_tl(def, cpu_regwptr, (rs2 - 8) * sizeof(target_ulong));
+    }
+    return r_rs2;
+}
+
 /* before an instruction, dc->pc must be static */
 static void disas_sparc_insn(DisasContext * dc)
 {
@@ -2949,13 +2969,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
             } else if (xop < 0x36) {
                 cpu_src1 = get_src1(insn, cpu_src1);
-                if (IS_IMM) {   /* immediate */
-                    rs2 = GET_FIELDs(insn, 19, 31);
-                    tcg_gen_movi_tl(cpu_src2, (int)rs2);
-                } else {                /* register */
-                    rs2 = GET_FIELD(insn, 27, 31);
-                    gen_movl_reg_TN(rs2, cpu_src2);
-                }
+                cpu_src2 = get_src2(insn, cpu_src2);
                 if (xop < 0x20) {
                     switch (xop & ~0x10) {
                     case 0x0:
@@ -3469,15 +3483,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x2e: /* V9 popc */
                         {
-                            if (IS_IMM) {       /* immediate */
-                                rs2 = GET_FIELD_SPs(insn, 0, 12);
-                                tcg_gen_movi_tl(cpu_src2, (int)rs2);
-                                // XXX optimize: popc(constant)
-                            }
-                            else {
-                                rs2 = GET_FIELD_SP(insn, 0, 4);
-                                gen_movl_reg_TN(rs2, cpu_src2);
-                            }
+                            cpu_src2 = get_src2(insn, cpu_src2);
                             tcg_gen_helper_1_1(helper_popc, cpu_dst,
                                                cpu_src2);
                             gen_movl_TN_reg(rd, cpu_dst);
