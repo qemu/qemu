@@ -168,9 +168,6 @@ typedef struct CPUARMState {
         int vec_len;
         int vec_stride;
 
-        /* Temporary variables if we don't have spare fp regs.  */
-        float32 tmp0s, tmp1s;
-        float64 tmp0d, tmp1d;
         /* scratch space when Tn are not sufficient.  */
         uint32_t scratch[8];
 

@@ -14,6 +14,29 @@
 #define NFS &env->vfp.fp_status
 #define NEON_OP(name) void OPPROTO op_neon_##name (void)
 
+/* Helper routines to perform bitwise copies between float and int.  */
+static inline float32 vfp_itos(uint32_t i)
+{
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+
+    v.i = i;
+    return v.s;
+}
+
+static inline uint32_t vfp_stoi(float32 s)
+{
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+
+    v.s = s;
+    return v.i;
+}
+
 NEON_OP(getreg_T0)
 {
     T0 = *(uint32_t *)((char *) env + PARAM1);
@@ -753,18 +776,6 @@ NEON_VOP(qdmulh_s32, neon_s32, 1)
 NEON_VOP(qrdmulh_s32, neon_s32, 1)
 #undef NEON_FN
 #undef NEON_QDMULH32
-
-NEON_OP(recps_f32)
-{
-    T0 = vfp_stoi(helper_recps_f32(vfp_itos(T0), vfp_itos(T1)));
-    FORCE_RET();
-}
-
-NEON_OP(rsqrts_f32)
-{
-    T0 = vfp_stoi(helper_rsqrts_f32(vfp_itos(T0), vfp_itos(T1)));
-    FORCE_RET();
-}
 
 /* Floating point comparisons produce an integer result.  */
 #define NEON_VOP_FCMP(name, cmp) \
@@ -1700,27 +1711,6 @@ NEON_OP(zip_u16)
     T1 = (T1 & 0xffff0000) | (T0 >> 16);
     T0 = tmp;
     FORCE_RET();
-}
-
-/* Reciprocal/root estimate.  */
-NEON_OP(recpe_u32)
-{
-    T0 = helper_recpe_u32(T0);
-}
-
-NEON_OP(rsqrte_u32)
-{
-    T0 = helper_rsqrte_u32(T0);
-}
-
-NEON_OP(recpe_f32)
-{
-    FT0s = helper_recpe_f32(FT0s);
-}
-
-NEON_OP(rsqrte_f32)
-{
-    FT0s = helper_rsqrte_f32(FT0s);
 }
 
 /* Table lookup.  This accessed the register file directly.  */

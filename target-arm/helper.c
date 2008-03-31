@@ -2167,3 +2167,366 @@ uint32_t HELPER(sel_flags)(uint32_t flags, uint32_t a, uint32_t b)
     return (a & mask) | (b & ~mask);
 }
 
+
+/* VFP support.  We follow the convention used for VFP instrunctions:
+   Single precition routines have a "s" suffix, double precision a
+   "d" suffix.  */
+
+/* Convert host exception flags to vfp form.  */
+static inline int vfp_exceptbits_from_host(int host_bits)
+{
+    int target_bits = 0;
+
+    if (host_bits & float_flag_invalid)
+        target_bits |= 1;
+    if (host_bits & float_flag_divbyzero)
+        target_bits |= 2;
+    if (host_bits & float_flag_overflow)
+        target_bits |= 4;
+    if (host_bits & float_flag_underflow)
+        target_bits |= 8;
+    if (host_bits & float_flag_inexact)
+        target_bits |= 0x10;
+    return target_bits;
+}
+
+uint32_t HELPER(vfp_get_fpscr)(CPUState *env)
+{
+    int i;
+    uint32_t fpscr;
+
+    fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
+            | (env->vfp.vec_len << 16)
+            | (env->vfp.vec_stride << 20);
+    i = get_float_exception_flags(&env->vfp.fp_status);
+    fpscr |= vfp_exceptbits_from_host(i);
+    return fpscr;
+}
+
+/* Convert vfp exception flags to target form.  */
+static inline int vfp_exceptbits_to_host(int target_bits)
+{
+    int host_bits = 0;
+
+    if (target_bits & 1)
+        host_bits |= float_flag_invalid;
+    if (target_bits & 2)
+        host_bits |= float_flag_divbyzero;
+    if (target_bits & 4)
+        host_bits |= float_flag_overflow;
+    if (target_bits & 8)
+        host_bits |= float_flag_underflow;
+    if (target_bits & 0x10)
+        host_bits |= float_flag_inexact;
+    return host_bits;
+}
+
+void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
+{
+    int i;
+    uint32_t changed;
+
+    changed = env->vfp.xregs[ARM_VFP_FPSCR];
+    env->vfp.xregs[ARM_VFP_FPSCR] = (val & 0xffc8ffff);
+    env->vfp.vec_len = (val >> 16) & 7;
+    env->vfp.vec_stride = (val >> 20) & 3;
+
+    changed ^= val;
+    if (changed & (3 << 22)) {
+        i = (val >> 22) & 3;
+        switch (i) {
+        case 0:
+            i = float_round_nearest_even;
+            break;
+        case 1:
+            i = float_round_up;
+            break;
+        case 2:
+            i = float_round_down;
+            break;
+        case 3:
+            i = float_round_to_zero;
+            break;
+        }
+        set_float_rounding_mode(i, &env->vfp.fp_status);
+    }
+
+    i = vfp_exceptbits_to_host((val >> 8) & 0x1f);
+    set_float_exception_flags(i, &env->vfp.fp_status);
+    /* XXX: FZ and DN are not implemented.  */
+}
+
+#define VFP_HELPER(name, p) HELPER(glue(glue(vfp_,name),p))
+
+#define VFP_BINOP(name) \
+float32 VFP_HELPER(name, s)(float32 a, float32 b, CPUState *env) \
+{ \
+    return float32_ ## name (a, b, &env->vfp.fp_status); \
+} \
+float64 VFP_HELPER(name, d)(float64 a, float64 b, CPUState *env) \
+{ \
+    return float64_ ## name (a, b, &env->vfp.fp_status); \
+}
+VFP_BINOP(add)
+VFP_BINOP(sub)
+VFP_BINOP(mul)
+VFP_BINOP(div)
+#undef VFP_BINOP
+
+float32 VFP_HELPER(neg, s)(float32 a)
+{
+    return float32_chs(a);
+}
+
+float64 VFP_HELPER(neg, d)(float64 a)
+{
+    return float32_chs(a);
+}
+
+float32 VFP_HELPER(abs, s)(float32 a)
+{
+    return float32_abs(a);
+}
+
+float64 VFP_HELPER(abs, d)(float64 a)
+{
+    return float32_abs(a);
+}
+
+float32 VFP_HELPER(sqrt, s)(float32 a, CPUState *env)
+{
+    return float32_sqrt(a, &env->vfp.fp_status);
+}
+
+float64 VFP_HELPER(sqrt, d)(float64 a, CPUState *env)
+{
+    return float64_sqrt(a, &env->vfp.fp_status);
+}
+
+/* XXX: check quiet/signaling case */
+#define DO_VFP_cmp(p, type) \
+void VFP_HELPER(cmp, p)(type a, type b, CPUState *env)  \
+{ \
+    uint32_t flags; \
+    switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
+    case 0: flags = 0x6; break; \
+    case -1: flags = 0x8; break; \
+    case 1: flags = 0x2; break; \
+    default: case 2: flags = 0x3; break; \
+    } \
+    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
+        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+} \
+void VFP_HELPER(cmpe, p)(type a, type b, CPUState *env) \
+{ \
+    uint32_t flags; \
+    switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
+    case 0: flags = 0x6; break; \
+    case -1: flags = 0x8; break; \
+    case 1: flags = 0x2; break; \
+    default: case 2: flags = 0x3; break; \
+    } \
+    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
+        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+}
+DO_VFP_cmp(s, float32)
+DO_VFP_cmp(d, float64)
+#undef DO_VFP_cmp
+
+/* Helper routines to perform bitwise copies between float and int.  */
+static inline float32 vfp_itos(uint32_t i)
+{
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+
+    v.i = i;
+    return v.s;
+}
+
+static inline uint32_t vfp_stoi(float32 s)
+{
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+
+    v.s = s;
+    return v.i;
+}
+
+static inline float64 vfp_itod(uint64_t i)
+{
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+
+    v.i = i;
+    return v.d;
+}
+
+static inline uint64_t vfp_dtoi(float64 d)
+{
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+
+    v.d = d;
+    return v.i;
+}
+
+/* Integer to float conversion.  */
+float32 VFP_HELPER(uito, s)(float32 x, CPUState *env)
+{
+    return uint32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+float64 VFP_HELPER(uito, d)(float32 x, CPUState *env)
+{
+    return uint32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+float32 VFP_HELPER(sito, s)(float32 x, CPUState *env)
+{
+    return int32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+float64 VFP_HELPER(sito, d)(float32 x, CPUState *env)
+{
+    return int32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+/* Float to integer conversion.  */
+float32 VFP_HELPER(toui, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_uint32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(toui, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_uint32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosi, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_int32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosi, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_int32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(touiz, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(touiz, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_int32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_int32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+/* floating point conversion */
+float64 VFP_HELPER(fcvtd, s)(float32 x, CPUState *env)
+{
+    return float32_to_float64(x, &env->vfp.fp_status);
+}
+
+float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
+{
+    return float64_to_float32(x, &env->vfp.fp_status);
+}
+
+/* VFP3 fixed point conversion.  */
+#define VFP_CONV_FIX(name, p, ftype, itype, sign) \
+ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
+{ \
+    ftype tmp; \
+    tmp = sign##int32_to_##ftype ((itype)vfp_##p##toi(x), \
+                                  &env->vfp.fp_status); \
+    return ftype##_scalbn(tmp, shift, &env->vfp.fp_status); \
+} \
+ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
+{ \
+    ftype tmp; \
+    tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
+    return vfp_ito##p((itype)ftype##_to_##sign##int32_round_to_zero(tmp, \
+        &env->vfp.fp_status)); \
+}
+
+VFP_CONV_FIX(sh, d, float64, int16, )
+VFP_CONV_FIX(sl, d, float64, int32, )
+VFP_CONV_FIX(uh, d, float64, uint16, u)
+VFP_CONV_FIX(ul, d, float64, uint32, u)
+VFP_CONV_FIX(sh, s, float32, int16, )
+VFP_CONV_FIX(sl, s, float32, int32, )
+VFP_CONV_FIX(uh, s, float32, uint16, u)
+VFP_CONV_FIX(ul, s, float32, uint32, u)
+#undef VFP_CONV_FIX
+
+float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 two = int32_to_float32(2, s);
+    return float32_sub(two, float32_mul(a, b, s), s);
+}
+
+float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 three = int32_to_float32(3, s);
+    return float32_sub(three, float32_mul(a, b, s), s);
+}
+
+/* TODO: The architecture specifies the value that the estimate functions
+   should return.  We return the exact reciprocal/root instead.  */
+float32 HELPER(recpe_f32)(float32 a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 one = int32_to_float32(1, s);
+    return float32_div(one, a, s);
+}
+
+float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 one = int32_to_float32(1, s);
+    return float32_div(one, float32_sqrt(a, s), s);
+}
+
+uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 tmp;
+    tmp = int32_to_float32(a, s);
+    tmp = float32_scalbn(tmp, -32, s);
+    tmp = helper_recpe_f32(tmp, env);
+    tmp = float32_scalbn(tmp, 31, s);
+    return float32_to_int32(tmp, s);
+}
+
+uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 tmp;
+    tmp = int32_to_float32(a, s);
+    tmp = float32_scalbn(tmp, -32, s);
+    tmp = helper_rsqrte_f32(tmp, env);
+    tmp = float32_scalbn(tmp, 31, s);
+    return float32_to_int32(tmp, s);
+}
+

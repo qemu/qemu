@@ -79,6 +79,7 @@ extern int loglevel;
 static TCGv cpu_env;
 /* FIXME:  These should be removed.  */
 static TCGv cpu_T[3];
+static TCGv cpu_F0s, cpu_F1s, cpu_F0d, cpu_F1d;
 
 /* initialize TCG globals.  */
 void arm_translate_init(void)
@@ -959,16 +960,16 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
     }
 }
 
-#define VFP_OP(name)                      \
-static inline void gen_vfp_##name(int dp) \
-{                                         \
-    if (dp)                               \
-        gen_op_vfp_##name##d();           \
-    else                                  \
-        gen_op_vfp_##name##s();           \
+#define VFP_OP2(name)                                                 \
+static inline void gen_vfp_##name(int dp)                             \
+{                                                                     \
+    if (dp)                                                           \
+        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, cpu_F1d, cpu_env); \
+    else                                                              \
+        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, cpu_F1s, cpu_env); \
 }
 
-#define VFP_OP1(name)                               \
+#define VFP_OP1i(name)                               \
 static inline void gen_vfp_##name(int dp, int arg)  \
 {                                                   \
     if (dp)                                         \
@@ -977,55 +978,141 @@ static inline void gen_vfp_##name(int dp, int arg)  \
         gen_op_vfp_##name##s(arg);                  \
 }
 
-VFP_OP(add)
-VFP_OP(sub)
-VFP_OP(mul)
-VFP_OP(div)
-VFP_OP(neg)
-VFP_OP(abs)
-VFP_OP(sqrt)
-VFP_OP(cmp)
-VFP_OP(cmpe)
-VFP_OP(F1_ld0)
-VFP_OP(uito)
-VFP_OP(sito)
-VFP_OP(toui)
-VFP_OP(touiz)
-VFP_OP(tosi)
-VFP_OP(tosiz)
-VFP_OP1(tosh)
-VFP_OP1(tosl)
-VFP_OP1(touh)
-VFP_OP1(toul)
-VFP_OP1(shto)
-VFP_OP1(slto)
-VFP_OP1(uhto)
-VFP_OP1(ulto)
+VFP_OP2(add)
+VFP_OP2(sub)
+VFP_OP2(mul)
+VFP_OP2(div)
 
-#undef VFP_OP
+#undef VFP_OP2
 
-static inline void gen_vfp_fconst(int dp, uint32_t val)
+static inline void gen_vfp_abs(int dp)
 {
     if (dp)
-        gen_op_vfp_fconstd(val);
+        gen_helper_vfp_absd(cpu_F0d, cpu_F0d);
     else
-        gen_op_vfp_fconsts(val);
+        gen_helper_vfp_abss(cpu_F0s, cpu_F0s);
 }
+
+static inline void gen_vfp_neg(int dp)
+{
+    if (dp)
+        gen_helper_vfp_negd(cpu_F0d, cpu_F0d);
+    else
+        gen_helper_vfp_negs(cpu_F0s, cpu_F0s);
+}
+
+static inline void gen_vfp_sqrt(int dp)
+{
+    if (dp)
+        gen_helper_vfp_sqrtd(cpu_F0d, cpu_F0d, cpu_env);
+    else
+        gen_helper_vfp_sqrts(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+static inline void gen_vfp_cmp(int dp)
+{
+    if (dp)
+        gen_helper_vfp_cmpd(cpu_F0d, cpu_F1d, cpu_env);
+    else
+        gen_helper_vfp_cmps(cpu_F0s, cpu_F1s, cpu_env);
+}
+
+static inline void gen_vfp_cmpe(int dp)
+{
+    if (dp)
+        gen_helper_vfp_cmped(cpu_F0d, cpu_F1d, cpu_env);
+    else
+        gen_helper_vfp_cmpes(cpu_F0s, cpu_F1s, cpu_env);
+}
+
+static inline void gen_vfp_F1_ld0(int dp)
+{
+    if (dp)
+        tcg_gen_movi_i64(cpu_F0d, 0);
+    else
+        tcg_gen_movi_i32(cpu_F0s, 0);
+}
+
+static inline void gen_vfp_uito(int dp)
+{
+    if (dp)
+        gen_helper_vfp_uitod(cpu_F0d, cpu_F0s, cpu_env);
+    else
+        gen_helper_vfp_uitos(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+static inline void gen_vfp_sito(int dp)
+{
+    if (dp)
+        gen_helper_vfp_uitod(cpu_F0d, cpu_F0s, cpu_env);
+    else
+        gen_helper_vfp_uitos(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+static inline void gen_vfp_toui(int dp)
+{
+    if (dp)
+        gen_helper_vfp_touid(cpu_F0s, cpu_F0d, cpu_env);
+    else
+        gen_helper_vfp_touis(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+static inline void gen_vfp_touiz(int dp)
+{
+    if (dp)
+        gen_helper_vfp_touizd(cpu_F0s, cpu_F0d, cpu_env);
+    else
+        gen_helper_vfp_touizs(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+static inline void gen_vfp_tosi(int dp)
+{
+    if (dp)
+        gen_helper_vfp_tosid(cpu_F0s, cpu_F0d, cpu_env);
+    else
+        gen_helper_vfp_tosis(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+static inline void gen_vfp_tosiz(int dp)
+{
+    if (dp)
+        gen_helper_vfp_tosizd(cpu_F0s, cpu_F0d, cpu_env);
+    else
+        gen_helper_vfp_tosizs(cpu_F0s, cpu_F0s, cpu_env);
+}
+
+#define VFP_GEN_FIX(name) \
+static inline void gen_vfp_##name(int dp, int shift) \
+{ \
+    if (dp) \
+        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tcg_const_i32(shift), cpu_env);\
+    else \
+        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, tcg_const_i32(shift), cpu_env);\
+}
+VFP_GEN_FIX(tosh)
+VFP_GEN_FIX(tosl)
+VFP_GEN_FIX(touh)
+VFP_GEN_FIX(toul)
+VFP_GEN_FIX(shto)
+VFP_GEN_FIX(slto)
+VFP_GEN_FIX(uhto)
+VFP_GEN_FIX(ulto)
+#undef VFP_GEN_FIX
 
 static inline void gen_vfp_ld(DisasContext *s, int dp)
 {
     if (dp)
-        gen_ldst(vfp_ldd, s);
+        tcg_gen_qemu_ld64(cpu_F0d, cpu_T[1], IS_USER(s));
     else
-        gen_ldst(vfp_lds, s);
+        tcg_gen_qemu_ld32u(cpu_F0s, cpu_T[1], IS_USER(s));
 }
 
 static inline void gen_vfp_st(DisasContext *s, int dp)
 {
     if (dp)
-        gen_ldst(vfp_std, s);
+        tcg_gen_qemu_st64(cpu_F0d, cpu_T[1], IS_USER(s));
     else
-        gen_ldst(vfp_sts, s);
+        tcg_gen_qemu_st32(cpu_F0s, cpu_T[1], IS_USER(s));
 }
 
 static inline long
@@ -1055,28 +1142,33 @@ neon_reg_offset (int reg, int n)
 #define NEON_GET_REG(T, reg, n) gen_op_neon_getreg_##T(neon_reg_offset(reg, n))
 #define NEON_SET_REG(T, reg, n) gen_op_neon_setreg_##T(neon_reg_offset(reg, n))
 
+#define tcg_gen_ld_f32 tcg_gen_ld_i32
+#define tcg_gen_ld_f64 tcg_gen_ld_i64
+#define tcg_gen_st_f32 tcg_gen_st_i32
+#define tcg_gen_st_f64 tcg_gen_st_i64
+
 static inline void gen_mov_F0_vreg(int dp, int reg)
 {
     if (dp)
-        gen_op_vfp_getreg_F0d(vfp_reg_offset(dp, reg));
+        tcg_gen_ld_f64(cpu_F0d, cpu_env, vfp_reg_offset(dp, reg));
     else
-        gen_op_vfp_getreg_F0s(vfp_reg_offset(dp, reg));
+        tcg_gen_ld_f32(cpu_F0s, cpu_env, vfp_reg_offset(dp, reg));
 }
 
 static inline void gen_mov_F1_vreg(int dp, int reg)
 {
     if (dp)
-        gen_op_vfp_getreg_F1d(vfp_reg_offset(dp, reg));
+        tcg_gen_ld_f64(cpu_F1d, cpu_env, vfp_reg_offset(dp, reg));
     else
-        gen_op_vfp_getreg_F1s(vfp_reg_offset(dp, reg));
+        tcg_gen_ld_f32(cpu_F1s, cpu_env, vfp_reg_offset(dp, reg));
 }
 
 static inline void gen_mov_vreg_F0(int dp, int reg)
 {
     if (dp)
-        gen_op_vfp_setreg_F0d(vfp_reg_offset(dp, reg));
+        tcg_gen_st_f64(cpu_F0d, cpu_env, vfp_reg_offset(dp, reg));
     else
-        gen_op_vfp_setreg_F0s(vfp_reg_offset(dp, reg));
+        tcg_gen_st_f32(cpu_F0s, cpu_env, vfp_reg_offset(dp, reg));
 }
 
 #define ARM_CP_RW_BIT	(1 << 20)
@@ -2262,6 +2354,20 @@ static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
 #define VFP_SREG_M(insn) VFP_SREG(insn,  0,  5)
 #define VFP_DREG_M(reg, insn) VFP_DREG(reg, insn,  0,  5)
 
+/* Move between integer and VFP cores.  */
+static TCGv gen_vfp_mrs(void)
+{
+    TCGv tmp = new_tmp();
+    tcg_gen_mov_i32(tmp, cpu_F0s);
+    return tmp;
+}
+
+static void gen_vfp_msr(TCGv tmp)
+{
+    tcg_gen_mov_i32(cpu_F0s, tmp);
+    dead_tmp(tmp);
+}
+
 static inline int
 vfp_enabled(CPUState * env)
 {
@@ -2274,6 +2380,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, op, i, n, offset, delta_d, delta_m, bank_mask;
     int dp, veclen;
+    TCGv tmp;
 
     if (!arm_feature(env, ARM_FEATURE_VFP))
         return 1;
@@ -2396,18 +2503,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
 
                         switch (rn) {
                         case ARM_VFP_FPSID:
-                            /* VFP2 allows access for FSID from userspace.
+                            /* VFP2 allows access to FSID from userspace.
                                VFP3 restricts all id registers to privileged
                                accesses.  */
                             if (IS_USER(s)
                                 && arm_feature(env, ARM_FEATURE_VFP3))
                                 return 1;
-                            gen_op_vfp_movl_T0_xreg(rn);
+                            tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         case ARM_VFP_FPEXC:
                             if (IS_USER(s))
                                 return 1;
-                            gen_op_vfp_movl_T0_xreg(rn);
+                            tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         case ARM_VFP_FPINST:
                         case ARM_VFP_FPINST2:
@@ -2415,36 +2522,41 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             if (IS_USER(s)
                                 || arm_feature(env, ARM_FEATURE_VFP3))
                                 return 1;
-                            gen_op_vfp_movl_T0_xreg(rn);
+                            tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         case ARM_VFP_FPSCR:
-			    if (rd == 15)
-				gen_op_vfp_movl_T0_fpscr_flags();
-			    else
-				gen_op_vfp_movl_T0_fpscr();
+			    if (rd == 15) {
+                                tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+                                tcg_gen_andi_i32(tmp, tmp, 0xf0000000);
+                            } else {
+                                tmp = new_tmp();
+                                gen_helper_vfp_get_fpscr(tmp, cpu_env);
+                            }
                             break;
                         case ARM_VFP_MVFR0:
                         case ARM_VFP_MVFR1:
                             if (IS_USER(s)
                                 || !arm_feature(env, ARM_FEATURE_VFP3))
                                 return 1;
-                            gen_op_vfp_movl_T0_xreg(rn);
+                            tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         default:
                             return 1;
                         }
                     } else {
                         gen_mov_F0_vreg(0, rn);
-                        gen_op_vfp_mrs();
+                        tmp = gen_vfp_mrs();
                     }
                     if (rd == 15) {
                         /* Set the 4 flag bits in the CPSR.  */
-                        gen_set_nzcv(cpu_T[0]);
-                    } else
-                        gen_movl_reg_T0(s, rd);
+                        gen_set_nzcv(tmp);
+                        dead_tmp(tmp);
+                    } else {
+                        store_reg(s, rd, tmp);
+                    }
                 } else {
                     /* arm->vfp */
-                    gen_movl_T0_reg(s, rd);
+                    tmp = load_reg(s, rd);
                     if (insn & (1 << 21)) {
                         rn >>= 1;
                         /* system register */
@@ -2455,24 +2567,25 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             /* Writes are ignored.  */
                             break;
                         case ARM_VFP_FPSCR:
-                            gen_op_vfp_movl_fpscr_T0();
+                            gen_helper_vfp_set_fpscr(cpu_env, tmp);
+                            dead_tmp(tmp);
                             gen_lookup_tb(s);
                             break;
                         case ARM_VFP_FPEXC:
                             if (IS_USER(s))
                                 return 1;
-                            gen_op_vfp_movl_xreg_T0(rn);
+                            store_cpu_field(tmp, vfp.xregs[rn]);
                             gen_lookup_tb(s);
                             break;
                         case ARM_VFP_FPINST:
                         case ARM_VFP_FPINST2:
-                            gen_op_vfp_movl_xreg_T0(rn);
+                            store_cpu_field(tmp, vfp.xregs[rn]);
                             break;
                         default:
                             return 1;
                         }
                     } else {
-                        gen_op_vfp_msr();
+                        gen_vfp_msr(tmp);
                         gen_mov_vreg_F0(0, rn);
                     }
                 }
@@ -2640,14 +2753,15 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         else
                             i |= 0x4000;
                         n |= i << 16;
+                        tcg_gen_movi_i64(cpu_F0d, ((uint64_t)n) << 32);
                     } else {
                         if (i & 0x40)
                             i |= 0x780;
                         else
                             i |= 0x800;
                         n |= i << 19;
+                        tcg_gen_movi_i32(cpu_F0d, ((uint64_t)n) << 32);
                     }
-                    gen_vfp_fconst(dp, n);
                     break;
                 case 15: /* extension space */
                     switch (rn) {
@@ -2678,9 +2792,9 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         break;
                     case 15: /* single<->double conversion */
                         if (dp)
-                            gen_op_vfp_fcvtsd();
+                            gen_helper_vfp_fcvtsd(cpu_F0s, cpu_F0d, cpu_env);
                         else
-                            gen_op_vfp_fcvtds();
+                            gen_helper_vfp_fcvtds(cpu_F0d, cpu_F0s, cpu_env);
                         break;
                     case 16: /* fuito */
                         gen_vfp_uito(dp);
@@ -2814,31 +2928,35 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
             if (insn & ARM_CP_RW_BIT) {
                 /* vfp->arm */
                 if (dp) {
-                    gen_mov_F0_vreg(1, rm);
-                    gen_op_vfp_mrrd();
-                    gen_movl_reg_T0(s, rd);
-                    gen_movl_reg_T1(s, rn);
+                    gen_mov_F0_vreg(0, rm * 2);
+                    tmp = gen_vfp_mrs();
+                    store_reg(s, rd, tmp);
+                    gen_mov_F0_vreg(0, rm * 2 + 1);
+                    tmp = gen_vfp_mrs();
+                    store_reg(s, rn, tmp);
                 } else {
                     gen_mov_F0_vreg(0, rm);
-                    gen_op_vfp_mrs();
-                    gen_movl_reg_T0(s, rn);
+                    tmp = gen_vfp_mrs();
+                    store_reg(s, rn, tmp);
                     gen_mov_F0_vreg(0, rm + 1);
-                    gen_op_vfp_mrs();
-                    gen_movl_reg_T0(s, rd);
+                    tmp = gen_vfp_mrs();
+                    store_reg(s, rd, tmp);
                 }
             } else {
                 /* arm->vfp */
                 if (dp) {
-                    gen_movl_T0_reg(s, rd);
-                    gen_movl_T1_reg(s, rn);
-                    gen_op_vfp_mdrr();
-                    gen_mov_vreg_F0(1, rm);
+                    tmp = load_reg(s, rd);
+                    gen_vfp_msr(tmp);
+                    gen_mov_vreg_F0(0, rm * 2);
+                    tmp = load_reg(s, rn);
+                    gen_vfp_msr(tmp);
+                    gen_mov_vreg_F0(0, rm * 2 + 1);
                 } else {
-                    gen_movl_T0_reg(s, rn);
-                    gen_op_vfp_msr();
+                    tmp = load_reg(s, rn);
+                    gen_vfp_msr(tmp);
                     gen_mov_vreg_F0(0, rm);
-                    gen_movl_T0_reg(s, rd);
-                    gen_op_vfp_msr();
+                    tmp = load_reg(s, rd);
+                    gen_vfp_msr(tmp);
                     gen_mov_vreg_F0(0, rm + 1);
                 }
             }
@@ -3993,9 +4111,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             break;
         case 31:
             if (size == 0)
-                gen_op_neon_recps_f32();
+                gen_helper_recps_f32(cpu_T[0], cpu_T[0], cpu_T[1], cpu_env);
             else
-                gen_op_neon_rsqrts_f32();
+                gen_helper_rsqrts_f32(cpu_T[0], cpu_T[0], cpu_T[1], cpu_env);
             break;
         default:
             abort();
@@ -4242,19 +4360,19 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             } else if (op == 15 || op == 16) {
                 /* VCVT fixed-point.  */
                 for (pass = 0; pass < (q ? 4 : 2); pass++) {
-                    gen_op_vfp_getreg_F0s(neon_reg_offset(rm, pass));
+                    tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, pass));
                     if (op & 1) {
                         if (u)
-                            gen_op_vfp_ultos(shift);
+                            gen_vfp_ulto(0, shift);
                         else
-                            gen_op_vfp_sltos(shift);
+                            gen_vfp_slto(0, shift);
                     } else {
                         if (u)
-                            gen_op_vfp_touls(shift);
+                            gen_vfp_toul(0, shift);
                         else
-                            gen_op_vfp_tosls(shift);
+                            gen_vfp_tosl(0, shift);
                     }
-                    gen_op_vfp_setreg_F0s(neon_reg_offset(rd, pass));
+                    tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, pass));
                 }
             } else {
                 return 1;
@@ -4898,7 +5016,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 elementwise:
                     for (pass = 0; pass < (q ? 4 : 2); pass++) {
                         if (op == 30 || op == 31 || op >= 58) {
-                            gen_op_vfp_getreg_F0s(neon_reg_offset(rm, pass));
+                            tcg_gen_ld_f32(cpu_F0s, cpu_env,
+                                           neon_reg_offset(rm, pass));
                         } else {
                             NEON_GET_REG(T0, rm, pass);
                         }
@@ -5041,10 +5160,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_op_neon_ceq_f32();
                             break;
                         case 30: /* Float VABS */
-                            gen_op_vfp_abss();
+                            gen_vfp_abs(0);
                             break;
                         case 31: /* Float VNEG */
-                            gen_op_vfp_negs();
+                            gen_vfp_neg(0);
                             break;
                         case 32: /* VSWP */
                             NEON_GET_REG(T1, rd, pass);
@@ -5061,35 +5180,36 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             NEON_SET_REG(T1, rm, pass);
                             break;
                         case 56: /* Integer VRECPE */
-                            gen_op_neon_recpe_u32();
+                            gen_helper_recpe_u32(cpu_T[0], cpu_T[0], cpu_env);
                             break;
                         case 57: /* Integer VRSQRTE */
-                            gen_op_neon_rsqrte_u32();
+                            gen_helper_rsqrte_u32(cpu_T[0], cpu_T[0], cpu_env);
                             break;
                         case 58: /* Float VRECPE */
-                            gen_op_neon_recpe_f32();
+                            gen_helper_recpe_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
                         case 59: /* Float VRSQRTE */
-                            gen_op_neon_rsqrte_f32();
+                            gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
                         case 60: /* VCVT.F32.S32 */
-                            gen_op_vfp_tosizs();
+                            gen_vfp_tosiz(0);
                             break;
                         case 61: /* VCVT.F32.U32 */
-                            gen_op_vfp_touizs();
+                            gen_vfp_touiz(0);
                             break;
                         case 62: /* VCVT.S32.F32 */
-                            gen_op_vfp_sitos();
+                            gen_vfp_sito(0);
                             break;
                         case 63: /* VCVT.U32.F32 */
-                            gen_op_vfp_uitos();
+                            gen_vfp_uito(0);
                             break;
                         default:
                             /* Reserved: 21, 29, 39-56 */
                             return 1;
                         }
                         if (op == 30 || op == 31 || op >= 58) {
-                            gen_op_vfp_setreg_F0s(neon_reg_offset(rm, pass));
+                            tcg_gen_st_f32(cpu_F0s, cpu_env,
+                                           neon_reg_offset(rd, pass));
                         } else {
                             NEON_SET_REG(T0, rd, pass);
                         }
@@ -8062,6 +8182,10 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         dc->user = (env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR;
     }
 #endif
+    cpu_F0s = tcg_temp_new(TCG_TYPE_I32);
+    cpu_F1s = tcg_temp_new(TCG_TYPE_I32);
+    cpu_F0d = tcg_temp_new(TCG_TYPE_I64);
+    cpu_F1d = tcg_temp_new(TCG_TYPE_I64);
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     lj = -1;
     /* Reset the conditional execution bits immediately. This avoids

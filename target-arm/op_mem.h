@@ -77,24 +77,6 @@ void OPPROTO glue(op_stqex,MEMSUFFIX)(void)
     FORCE_RET();
 }
 
-/* Floating point load/store.  Address is in T1 */
-#define VFP_MEM_OP(p, w) \
-void OPPROTO glue(op_vfp_ld##p,MEMSUFFIX)(void) \
-{ \
-    FT0##p = glue(ldf##w,MEMSUFFIX)(T1); \
-    FORCE_RET(); \
-} \
-void OPPROTO glue(op_vfp_st##p,MEMSUFFIX)(void) \
-{ \
-    glue(stf##w,MEMSUFFIX)(T1, FT0##p); \
-    FORCE_RET(); \
-}
-
-VFP_MEM_OP(s,l)
-VFP_MEM_OP(d,q)
-
-#undef VFP_MEM_OP
-
 /* iwMMXt load/store.  Address is in T1 */
 #define MMX_MEM_OP(name, ldname) \
 void OPPROTO glue(op_iwmmxt_ld##name,MEMSUFFIX)(void) \
