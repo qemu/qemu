@@ -367,6 +367,9 @@ void tb_flush(CPUState *env1)
            nb_tbs, nb_tbs > 0 ?
            ((unsigned long)(code_gen_ptr - code_gen_buffer)) / nb_tbs : 0);
 #endif
+    if ((unsigned long)(code_gen_ptr - code_gen_buffer) > CODE_GEN_BUFFER_SIZE)
+        cpu_abort(env1, "Internal error: code buffer overflow\n");
+
     nb_tbs = 0;
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {

@@ -71,6 +71,7 @@ unsigned long code_gen_max_block_size(void)
     static unsigned long max;
 
     if (max == 0) {
+        max = TCG_MAX_OP_SIZE;
 #define DEF(s, n, copy_size) max = copy_size > max? copy_size : max;
 #include "tcg-opc.h"
 #undef DEF
