@@ -32,7 +32,5 @@
 #include "op_mem.h"
 #endif
 
-#include "op_neon.h"
-
 /* iwMMXt support */
 #include "op_iwmmxt.c"

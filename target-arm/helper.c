@@ -256,30 +256,6 @@ void cpu_arm_close(CPUARMState *env)
     free(env);
 }
 
-/* Polynomial multiplication is like integer multiplcation except the
-   partial products are XORed, not added.  */
-uint32_t helper_neon_mul_p8(uint32_t op1, uint32_t op2)
-{
-    uint32_t mask;
-    uint32_t result;
-    result = 0;
-    while (op1) {
-        mask = 0;
-        if (op1 & 1)
-            mask |= 0xff;
-        if (op1 & (1 << 8))
-            mask |= (0xff << 8);
-        if (op1 & (1 << 16))
-            mask |= (0xff << 16);
-        if (op1 & (1 << 24))
-            mask |= (0xff << 24);
-        result ^= op2 & mask;
-        op1 = (op1 >> 1) & 0x7f7f7f7f;
-        op2 = (op2 << 1) & 0xfefefefe;
-    }
-    return result;
-}
-
 uint32_t cpsr_read(CPUARMState *env)
 {
     int ZF;
@@ -374,6 +350,11 @@ uint32_t HELPER(rbit)(uint32_t x)
        | ((x & 0x22222222) << 1)
        | ((x & 0x11111111) << 3);
     return x;
+}
+
+uint32_t HELPER(abs)(uint32_t x)
+{
+    return ((int32_t)x < 0) ? -x : x;
 }
 
 #if defined(CONFIG_USER_ONLY)

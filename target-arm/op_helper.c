@@ -20,6 +20,9 @@
 #include "exec.h"
 #include "helpers.h"
 
+#define SIGNBIT (uint32_t)0x80000000
+#define SIGNBIT64 ((uint64_t)1 << 63)
+
 void raise_exception(int tt)
 {
     env->exception_index = tt;
@@ -116,7 +119,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 }
 #endif
 
-#define SIGNBIT (uint32_t)0x80000000
+/* FIXME: Pass an axplicit pointer to QF to CPUState, and move saturating
+   instructions into helper.c  */
 uint32_t HELPER(add_setq)(uint32_t a, uint32_t b)
 {
     uint32_t res = a + b;
@@ -451,3 +455,114 @@ uint32_t HELPER(ror_cc)(uint32_t x, uint32_t i)
     }
 }
 
+uint64_t HELPER(neon_add_saturate_s64)(uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    res = src1 + src2;
+    if (((res ^ src1) & SIGNBIT64) && !((src1 ^ src2) & SIGNBIT64)) {
+        env->QF = 1;
+        res = ((int64_t)src1 >> 63) ^ ~SIGNBIT64;
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_add_saturate_u64)(uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    res = src1 + src2;
+    if (res < src1) {
+        env->QF = 1;
+        res = ~(uint64_t)0;
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_sub_saturate_s64)(uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    res = src1 - src2;
+    if (((res ^ src1) & SIGNBIT64) && ((src1 ^ src2) & SIGNBIT64)) {
+        env->QF = 1;
+        res = ((int64_t)src1 >> 63) ^ ~SIGNBIT64;
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_sub_saturate_u64)(uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    if (src1 < src2) {
+        env->QF = 1;
+        res = 0;
+    } else {
+        res = src1 - src2;
+    }
+    return res;
+}
+
+/* These need to return a pair of value, so still use T0/T1.  */
+/* Transpose.  Argument order is rather strange to avoid special casing
+   the tranlation code.
+   On input T0 = rm, T1 = rd.  On output T0 = rd, T1 = rm  */
+void HELPER(neon_trn_u8)(void)
+{
+    uint32_t rd;
+    uint32_t rm;
+    rd = ((T0 & 0x00ff00ff) << 8) | (T1 & 0x00ff00ff);
+    rm = ((T1 & 0xff00ff00) >> 8) | (T0 & 0xff00ff00);
+    T0 = rd;
+    T1 = rm;
+    FORCE_RET();
+}
+
+void HELPER(neon_trn_u16)(void)
+{
+    uint32_t rd;
+    uint32_t rm;
+    rd = (T0 << 16) | (T1 & 0xffff);
+    rm = (T1 >> 16) | (T0 & 0xffff0000);
+    T0 = rd;
+    T1 = rm;
+    FORCE_RET();
+}
+
+/* Worker routines for zip and unzip.  */
+void HELPER(neon_unzip_u8)(void)
+{
+    uint32_t rd;
+    uint32_t rm;
+    rd = (T0 & 0xff) | ((T0 >> 8) & 0xff00)
+         | ((T1 << 16) & 0xff0000) | ((T1 << 8) & 0xff000000);
+    rm = ((T0 >> 8) & 0xff) | ((T0 >> 16) & 0xff00)
+         | ((T1 << 8) & 0xff0000) | (T1 & 0xff000000);
+    T0 = rd;
+    T1 = rm;
+    FORCE_RET();
+}
+
+void HELPER(neon_zip_u8)(void)
+{
+    uint32_t rd;
+    uint32_t rm;
+    rd = (T0 & 0xff) | ((T1 << 8) & 0xff00)
+         | ((T0 << 16) & 0xff0000) | ((T1 << 24) & 0xff000000);
+    rm = ((T0 >> 16) & 0xff) | ((T1 >> 8) & 0xff00)
+         | ((T0 >> 8) & 0xff0000) | (T1 & 0xff000000);
+    T0 = rd;
+    T1 = rm;
+    FORCE_RET();
+}
+
+void HELPER(neon_zip_u16)(void)
+{
+    uint32_t tmp;
+
+    tmp = (T0 & 0xffff) | (T1 << 16);
+    T1 = (T1 & 0xffff0000) | (T0 >> 16);
+    T0 = tmp;
+    FORCE_RET();
+}

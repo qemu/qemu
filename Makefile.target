@@ -211,7 +211,7 @@ LIBOBJS+= op_helper.o helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), arm)
-LIBOBJS+= op_helper.o helper.o
+LIBOBJS+= op_helper.o helper.o neon_helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), sh4)
