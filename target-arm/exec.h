@@ -72,8 +72,6 @@ void helper_set_cp(CPUState *, uint32_t, uint32_t);
 uint32_t helper_get_cp(CPUState *, uint32_t);
 void helper_set_cp15(CPUState *, uint32_t, uint32_t);
 uint32_t helper_get_cp15(CPUState *, uint32_t);
-void helper_set_r13_banked(CPUState *env, int mode, uint32_t val);
-uint32_t helper_get_r13_banked(CPUState *env, int mode);
 uint32_t helper_v7m_mrs(CPUState *env, int reg);
 void helper_v7m_msr(CPUState *env, int reg, uint32_t val);
 

@@ -513,12 +513,12 @@ void switch_mode(CPUState *env, int mode)
         cpu_abort(env, "Tried to switch out of user mode\n");
 }
 
-void helper_set_r13_banked(CPUState *env, int mode, uint32_t val)
+void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
 {
     cpu_abort(env, "banked r13 write\n");
 }
 
-uint32_t helper_get_r13_banked(CPUState *env, int mode)
+uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 {
     cpu_abort(env, "banked r13 read\n");
     return 0;
@@ -1793,12 +1793,12 @@ bad_reg:
     return 0;
 }
 
-void helper_set_r13_banked(CPUState *env, int mode, uint32_t val)
+void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
 {
     env->banked_r13[bank_number(mode)] = val;
 }
 
-uint32_t helper_get_r13_banked(CPUState *env, int mode)
+uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 {
     return env->banked_r13[bank_number(mode)];
 }

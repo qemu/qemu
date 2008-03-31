@@ -199,6 +199,18 @@ static inline void tcg_gen_helper_0_2(void *func, TCGv arg1, TCGv arg2)
                  0, NULL, 2, args);
 }
 
+static inline void tcg_gen_helper_0_3(void *func,
+                                      TCGv arg1, TCGv arg2, TCGv arg3)
+{
+    TCGv args[3];
+    args[0] = arg1;
+    args[1] = arg2;
+    args[2] = arg3;
+    tcg_gen_call(&tcg_ctx,
+                 tcg_const_ptr((tcg_target_long)func), TCG_HELPER_CALL_FLAGS,
+                 0, NULL, 3, args);
+}
+
 static inline void tcg_gen_helper_0_4(void *func, TCGv arg1, TCGv arg2,
                                       TCGv arg3, TCGv arg4)
 {

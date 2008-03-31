@@ -589,48 +589,6 @@ void OPPROTO op_movl_T0_cp15(void)
     FORCE_RET();
 }
 
-/* Access to user mode registers from privileged modes.  */
-void OPPROTO op_movl_T0_user(void)
-{
-    int regno = PARAM1;
-    if (regno == 13) {
-        T0 = env->banked_r13[0];
-    } else if (regno == 14) {
-        T0 = env->banked_r14[0];
-    } else if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_FIQ) {
-        T0 = env->usr_regs[regno - 8];
-    } else {
-        T0 = env->regs[regno];
-    }
-    FORCE_RET();
-}
-
-
-void OPPROTO op_movl_user_T0(void)
-{
-    int regno = PARAM1;
-    if (regno == 13) {
-        env->banked_r13[0] = T0;
-    } else if (regno == 14) {
-        env->banked_r14[0] = T0;
-    } else if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_FIQ) {
-        env->usr_regs[regno - 8] = T0;
-    } else {
-        env->regs[regno] = T0;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_movl_T1_r13_banked(void)
-{
-    T1 = helper_get_r13_banked(env, PARAM1);
-}
-
-void OPPROTO op_movl_r13_T1_banked(void)
-{
-    helper_set_r13_banked(env, PARAM1, T1);
-}
-
 void OPPROTO op_v7m_mrs_T0(void)
 {
     T0 = helper_v7m_mrs(env, PARAM1);

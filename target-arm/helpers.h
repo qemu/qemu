@@ -19,6 +19,13 @@ static inline void gen_helper_##name(TCGv arg1, TCGv arg2) \
 { \
     tcg_gen_helper_0_2(helper_##name, arg1, arg2); \
 }
+#define DEF_HELPER_0_3(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name( \
+    TCGv arg1, TCGv arg2, TCGv arg3) \
+{ \
+    tcg_gen_helper_0_3(helper_##name, arg1, arg2, arg3); \
+}
 #define DEF_HELPER_1_0(name, ret, args) \
 DEF_HELPER(name, ret, args) \
 static inline void gen_helper_##name(TCGv ret) \
@@ -48,6 +55,7 @@ static inline void gen_helper_##name(TCGv ret, \
 #define DEF_HELPER_0_0 DEF_HELPER
 #define DEF_HELPER_0_1 DEF_HELPER
 #define DEF_HELPER_0_2 DEF_HELPER
+#define DEF_HELPER_0_3 DEF_HELPER
 #define DEF_HELPER_1_0 DEF_HELPER
 #define DEF_HELPER_1_1 DEF_HELPER
 #define DEF_HELPER_1_2 DEF_HELPER
@@ -107,6 +115,12 @@ DEF_HELPER_0_0(wfi, void, (void))
 
 DEF_HELPER_0_2(cpsr_write, void, (uint32_t, uint32_t))
 DEF_HELPER_1_0(cpsr_read, uint32_t, (void))
+
+DEF_HELPER_1_2(get_r13_banked, uint32_t, (CPUState *, uint32_t))
+DEF_HELPER_0_3(set_r13_banked, void, (CPUState *, uint32_t, uint32_t))
+
+DEF_HELPER_1_1(get_user_reg, uint32_t, (uint32_t))
+DEF_HELPER_0_2(set_user_reg, void, (uint32_t, uint32_t))
 
 #undef DEF_HELPER
 #undef DEF_HELPER_0_0

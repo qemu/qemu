@@ -1,36 +1,5 @@
 /* ARM memory operations.  */
 
-void helper_ld(uint32_t);
-/* Load from address T1 into T0.  */
-#define MEM_LD_OP(name) \
-void OPPROTO glue(op_ld##name,MEMSUFFIX)(void) \
-{ \
-    T0 = glue(ld##name,MEMSUFFIX)(T1); \
-    FORCE_RET(); \
-}
-
-MEM_LD_OP(ub)
-MEM_LD_OP(sb)
-MEM_LD_OP(uw)
-MEM_LD_OP(sw)
-MEM_LD_OP(l)
-
-#undef MEM_LD_OP
-
-/* Store T0 to address T1.  */
-#define MEM_ST_OP(name) \
-void OPPROTO glue(op_st##name,MEMSUFFIX)(void) \
-{ \
-    glue(st##name,MEMSUFFIX)(T1, T0); \
-    FORCE_RET(); \
-}
-
-MEM_ST_OP(b)
-MEM_ST_OP(w)
-MEM_ST_OP(l)
-
-#undef MEM_ST_OP
-
 /* Swap T0 with memory at address T1.  */
 /* ??? Is this exception safe?  */
 #define MEM_SWP_OP(name, lname) \
