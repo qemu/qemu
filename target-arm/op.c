@@ -475,15 +475,6 @@ void OPPROTO op_rorl_T1_T0_cc(void)
 }
 
 /* misc */
-void OPPROTO op_clz_T0(void)
-{
-    int count;
-    for (count = 32; T0 > 0; count--)
-        T0 = T0 >> 1;
-    T0 = count;
-    FORCE_RET();
-}
-
 #define SIGNBIT (uint32_t)0x80000000
 /* saturating arithmetic  */
 void OPPROTO op_addl_T0_T1_setq(void)

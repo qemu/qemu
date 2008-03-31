@@ -205,6 +205,9 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define gen_sxtb16(var) tcg_gen_helper_1_1(HELPER_ADDR(sxtb16), var, var)
 #define gen_uxtb16(var) tcg_gen_helper_1_1(HELPER_ADDR(uxtb16), var, var)
 
+#define gen_op_clz_T0(var) \
+    tcg_gen_helper_1_1(HELPER_ADDR(clz), cpu_T[0], cpu_T[0])
+
 /* Dual 16-bit add.  Result placed in t0 and t1 is marked as dead.
     tmp = (t0 ^ t1) & 0x8000;
     t0 &= ~0x8000;
