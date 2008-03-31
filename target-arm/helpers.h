@@ -1,6 +1,30 @@
 #define DEF_HELPER(name, ret, args) ret glue(helper_,name) args;
 
 #ifdef GEN_HELPER
+#define DEF_HELPER_0_0(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name(void) \
+{ \
+    tcg_gen_helper_0_0(helper_##name); \
+}
+#define DEF_HELPER_0_1(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name(TCGv arg1) \
+{ \
+    tcg_gen_helper_0_1(helper_##name, arg1); \
+}
+#define DEF_HELPER_0_2(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name(TCGv arg1, TCGv arg2) \
+{ \
+    tcg_gen_helper_0_2(helper_##name, arg1, arg2); \
+}
+#define DEF_HELPER_1_0(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name(TCGv ret) \
+{ \
+    tcg_gen_helper_1_0(helper_##name, ret); \
+}
 #define DEF_HELPER_1_1(name, ret, args) \
 DEF_HELPER(name, ret, args) \
 static inline void gen_helper_##name(TCGv ret, TCGv arg1) \
@@ -21,6 +45,10 @@ static inline void gen_helper_##name(TCGv ret, \
     tcg_gen_helper_1_3(helper_##name, ret, arg1, arg2, arg3); \
 }
 #else /* !GEN_HELPER */
+#define DEF_HELPER_0_0 DEF_HELPER
+#define DEF_HELPER_0_1 DEF_HELPER
+#define DEF_HELPER_0_2 DEF_HELPER
+#define DEF_HELPER_1_0 DEF_HELPER
 #define DEF_HELPER_1_1 DEF_HELPER
 #define DEF_HELPER_1_2 DEF_HELPER
 #define DEF_HELPER_1_3 DEF_HELPER
@@ -74,8 +102,18 @@ DEF_HELPER_1_2(usat16, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_2(usad8, uint32_t, (uint32_t, uint32_t))
 
 DEF_HELPER_1_3(sel_flags, uint32_t, (uint32_t, uint32_t, uint32_t))
+DEF_HELPER_0_1(exception, void, (uint32_t))
+DEF_HELPER_0_0(wfi, void, (void))
+
+DEF_HELPER_0_2(cpsr_write, void, (uint32_t, uint32_t))
+DEF_HELPER_1_0(cpsr_read, uint32_t, (void))
 
 #undef DEF_HELPER
+#undef DEF_HELPER_0_0
+#undef DEF_HELPER_0_1
+#undef DEF_HELPER_0_2
+#undef DEF_HELPER_1_0
 #undef DEF_HELPER_1_1
 #undef DEF_HELPER_1_2
+#undef DEF_HELPER_1_3
 #undef GEN_HELPER

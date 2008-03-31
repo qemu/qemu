@@ -436,3 +436,26 @@ uint32_t HELPER(usat16)(uint32_t x, uint32_t shift)
     res |= do_usat(((int32_t)x) >> 16, shift) << 16;
     return res;
 }
+
+void HELPER(wfi)(void)
+{
+    env->exception_index = EXCP_HLT;
+    env->halted = 1;
+    cpu_loop_exit();
+}
+
+void HELPER(exception)(uint32_t excp)
+{
+    env->exception_index = excp;
+    cpu_loop_exit();
+}
+
+uint32_t HELPER(cpsr_read)(void)
+{
+    return cpsr_read(env) & ~CPSR_EXEC;
+}
+
+void HELPER(cpsr_write)(uint32_t val, uint32_t mask)
+{
+    cpsr_write(env, val, mask);
+}
