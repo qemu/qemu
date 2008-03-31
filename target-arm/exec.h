@@ -23,7 +23,6 @@
 register struct CPUARMState *env asm(AREG0);
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
-register uint32_t T2 asm(AREG3);
 
 #define M0   env->iwmmxt.val
 
@@ -59,15 +58,8 @@ static inline int cpu_halted(CPUState *env) {
 #include "softmmu_exec.h"
 #endif
 
-/* In op_helper.c */
-
-void helper_mark_exclusive(CPUARMState *, uint32_t addr);
-int helper_test_exclusive(CPUARMState *, uint32_t addr);
-void helper_clrex(CPUARMState *env);
-
 void cpu_loop_exit(void);
 
 void raise_exception(int);
 
-void helper_neon_tbl(int rn, int maxindex);
 uint32_t helper_neon_mul_p8(uint32_t op1, uint32_t op2);

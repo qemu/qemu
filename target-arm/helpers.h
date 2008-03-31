@@ -51,6 +51,13 @@ static inline void gen_helper_##name(TCGv ret, \
 { \
     tcg_gen_helper_1_3(helper_##name, ret, arg1, arg2, arg3); \
 }
+#define DEF_HELPER_1_4(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name(TCGv ret, \
+    TCGv arg1, TCGv arg2, TCGv arg3, TCGv arg4) \
+{ \
+    tcg_gen_helper_1_4(helper_##name, ret, arg1, arg2, arg3, arg4); \
+}
 #else /* !GEN_HELPER */
 #define DEF_HELPER_0_0 DEF_HELPER
 #define DEF_HELPER_0_1 DEF_HELPER
@@ -60,6 +67,7 @@ static inline void gen_helper_##name(TCGv ret, \
 #define DEF_HELPER_1_1 DEF_HELPER
 #define DEF_HELPER_1_2 DEF_HELPER
 #define DEF_HELPER_1_3 DEF_HELPER
+#define DEF_HELPER_1_4 DEF_HELPER
 #define HELPER(x) glue(helper_,x)
 #endif
 
@@ -130,6 +138,10 @@ DEF_HELPER_1_2(get_cp, uint32_t, (CPUState *, uint32_t))
 DEF_HELPER_1_2(get_r13_banked, uint32_t, (CPUState *, uint32_t))
 DEF_HELPER_0_3(set_r13_banked, void, (CPUState *, uint32_t, uint32_t))
 
+DEF_HELPER_0_2(mark_exclusive, void, (CPUState *, uint32_t))
+DEF_HELPER_1_2(test_exclusive, uint32_t, (CPUState *, uint32_t))
+DEF_HELPER_0_1(clrex, void, (CPUState *))
+
 DEF_HELPER_1_1(get_user_reg, uint32_t, (uint32_t))
 DEF_HELPER_0_2(set_user_reg, void, (uint32_t, uint32_t))
 
@@ -195,6 +207,7 @@ DEF_HELPER_1_2(recpe_f32, float32, (float32, CPUState *))
 DEF_HELPER_1_2(rsqrte_f32, float32, (float32, CPUState *))
 DEF_HELPER_1_2(recpe_u32, uint32_t, (uint32_t, CPUState *))
 DEF_HELPER_1_2(rsqrte_u32, uint32_t, (uint32_t, CPUState *))
+DEF_HELPER_1_4(neon_tbl, uint32_t, (uint32_t, uint32_t, uint32_t, uint32_t))
 
 DEF_HELPER_1_2(add_cc, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_2(adc_cc, uint32_t, (uint32_t, uint32_t))

@@ -432,7 +432,7 @@ static void flush_mmon(uint32_t addr)
 }
 
 /* Mark an address for exclusive access.  */
-void helper_mark_exclusive(CPUState *env, uint32_t addr)
+void HELPER(mark_exclusive)(CPUState *env, uint32_t addr)
 {
     if (!env->mmon_entry)
         allocate_mmon_state(env);
@@ -443,7 +443,7 @@ void helper_mark_exclusive(CPUState *env, uint32_t addr)
 
 /* Test if an exclusive address is still exclusive.  Returns zero
    if the address is still exclusive.   */
-int helper_test_exclusive(CPUState *env, uint32_t addr)
+uint32_t HELPER(test_exclusive)(CPUState *env, uint32_t addr)
 {
     int res;
 
@@ -457,7 +457,7 @@ int helper_test_exclusive(CPUState *env, uint32_t addr)
     return res;
 }
 
-void helper_clrex(CPUState *env)
+void HELPER(clrex)(CPUState *env)
 {
     if (!(env->mmon_entry && env->mmon_entry->addr))
         return;
@@ -1176,17 +1176,17 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 /* Not really implemented.  Need to figure out a sane way of doing this.
    Maybe add generic watchpoint support and use that.  */
 
-void helper_mark_exclusive(CPUState *env, uint32_t addr)
+void HELPER(mark_exclusive)(CPUState *env, uint32_t addr)
 {
     env->mmon_addr = addr;
 }
 
-int helper_test_exclusive(CPUState *env, uint32_t addr)
+uint32_t HELPER(test_exclusive)(CPUState *env, uint32_t addr)
 {
     return (env->mmon_addr != addr);
 }
 
-void helper_clrex(CPUState *env)
+void HELPER(clrex)(CPUState *env)
 {
     env->mmon_addr = -1;
 }
@@ -2495,6 +2495,8 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
     float32 three = int32_to_float32(3, s);
     return float32_sub(three, float32_mul(a, b, s), s);
 }
+
+/* NEON helpers.  */
 
 /* TODO: The architecture specifies the value that the estimate functions
    should return.  We return the exact reciprocal/root instead.  */

@@ -47,11 +47,6 @@ NEON_OP(getreg_T1)
     T1 = *(uint32_t *)((char *) env + PARAM1);
 }
 
-NEON_OP(getreg_T2)
-{
-    T2 = *(uint32_t *)((char *) env + PARAM1);
-}
-
 NEON_OP(setreg_T0)
 {
     *(uint32_t *)((char *) env + PARAM1) = T0;
@@ -60,11 +55,6 @@ NEON_OP(setreg_T0)
 NEON_OP(setreg_T1)
 {
     *(uint32_t *)((char *) env + PARAM1) = T1;
-}
-
-NEON_OP(setreg_T2)
-{
-    *(uint32_t *)((char *) env + PARAM1) = T2;
 }
 
 #define NEON_TYPE1(name, type) \
@@ -293,28 +283,6 @@ NEON_OP(hsub_u32)
     FORCE_RET();
 }
 
-/* ??? bsl, bif and bit are all the same op, just with the oparands in a
-   differnet order.  It's currently easier to have 3 differnt ops than
-   rearange the operands.  */
-
-/* Bitwise Select.  */
-NEON_OP(bsl)
-{
-    T0 = (T0 & T2) | (T1 & ~T2);
-}
-
-/* Bitwise Insert If True.  */
-NEON_OP(bit)
-{
-    T0 = (T0 & T1) | (T2 & ~T1);
-}
-
-/* Bitwise Insert If False.  */
-NEON_OP(bif)
-{
-    T0 = (T2 & T1) | (T0 & ~T1);
-}
-
 #define NEON_USAT(dest, src1, src2, type) do { \
     uint32_t tmp = (uint32_t)src1 + (uint32_t)src2; \
     if (tmp != (type)tmp) { \
@@ -423,7 +391,7 @@ NEON_VOP(shl_u32, neon_u32, 1)
 
 NEON_OP(shl_u64)
 {
-    int8_t shift = T2;
+    int8_t shift = env->vfp.scratch[0];
     uint64_t val = T0 | ((uint64_t)T1 << 32);
     if (shift < 0) {
         val >>= -shift;
@@ -437,7 +405,7 @@ NEON_OP(shl_u64)
 
 NEON_OP(shl_s64)
 {
-    int8_t shift = T2;
+    int8_t shift = env->vfp.scratch[0];
     int64_t val = T0 | ((uint64_t)T1 << 32);
     if (shift < 0) {
         val >>= -shift;
@@ -468,7 +436,7 @@ NEON_VOP(rshl_u32, neon_u32, 1)
 
 NEON_OP(rshl_u64)
 {
-    int8_t shift = T2;
+    int8_t shift = env->vfp.scratch[0];
     uint64_t val = T0 | ((uint64_t)T1 << 32);
     if (shift < 0) {
         val = (val + ((uint64_t)1 << (-1 - shift))) >> -shift;
@@ -483,7 +451,7 @@ NEON_OP(rshl_u64)
 
 NEON_OP(rshl_s64)
 {
-    int8_t shift = T2;
+    int8_t shift = env->vfp.scratch[0];
     int64_t val = T0 | ((uint64_t)T1 << 32);
     if (shift < 0) {
         val = (val + ((int64_t)1 << (-1 - shift))) >> -shift;
@@ -514,7 +482,7 @@ NEON_VOP(qshl_s32, neon_s32, 1)
 
 NEON_OP(qshl_s64)
 {
-    int8_t shift = T2;
+    int8_t shift = env->vfp.scratch[0];
     int64_t val = T0 | ((uint64_t)T1 << 32);
     if (shift < 0) {
         val >>= -shift;
@@ -550,7 +518,7 @@ NEON_VOP(qshl_u32, neon_u32, 1)
 
 NEON_OP(qshl_u64)
 {
-    int8_t shift = T2;
+    int8_t shift = env->vfp.scratch[0];
     uint64_t val = T0 | ((uint64_t)T1 << 32);
     if (shift < 0) {
         val >>= -shift;
@@ -1713,33 +1681,10 @@ NEON_OP(zip_u16)
     FORCE_RET();
 }
 
-/* Table lookup.  This accessed the register file directly.  */
-NEON_OP(tbl)
-{
-    helper_neon_tbl(PARAM1, PARAM2);
-}
-
 NEON_OP(dup_u8)
 {
     T0 = (T0 >> PARAM1) & 0xff;
     T0 |= T0 << 8;
     T0 |= T0 << 16;
-    FORCE_RET();
-}
-
-/* Helpers for element load/store.  */
-NEON_OP(insert_elt)
-{
-    int shift = PARAM1;
-    uint32_t mask = PARAM2;
-    T2 = (T2 & mask) | (T0 << shift);
-    FORCE_RET();
-}
-
-NEON_OP(extract_elt)
-{
-    int shift = PARAM1;
-    uint32_t mask = PARAM2;
-    T0 = (T2 & mask) >> shift;
     FORCE_RET();
 }
