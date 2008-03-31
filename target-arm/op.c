@@ -59,11 +59,6 @@ void OPPROTO op_ ## sub ## l_T0_T1_cc(void)     \
     res = T0;                                   \
 }                                               \
                                                 \
-void OPPROTO op_ ## sbc ## l_T0_T1(void)        \
-{                                               \
-    res = T0 - T1 + env->CF - 1;                \
-}                                               \
-                                                \
 void OPPROTO op_ ## sbc ## l_T0_T1_cc(void)     \
 {                                               \
     unsigned int src1;                          \
@@ -754,12 +749,6 @@ void OPPROTO op_vfp_fconsts(void)
     FT0s = vfp_itos(PARAM1);
 }
 
-/* Copy the most significant bit of T0 to all bits of T1.  */
-void OPPROTO op_signbit_T1_T0(void)
-{
-    T1 = (int32_t)T0 >> 31;
-}
-
 void OPPROTO op_movl_cp_T0(void)
 {
     helper_set_cp(env, PARAM1, T0);
@@ -1026,55 +1015,6 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
 
 #include "op_addsub.h"
 
-void OPPROTO op_pkhtb_T0_T1(void)
-{
-    T0 = (T0 & 0xffff0000) | (T1 & 0xffff);
-}
-
-void OPPROTO op_pkhbt_T0_T1(void)
-{
-    T0 = (T0 & 0xffff) | (T1 & 0xffff0000);
-}
-
-void OPPROTO op_rev16_T0(void)
-{
-    T0 =  ((T0 & 0xff000000) >> 8)
-        | ((T0 & 0x00ff0000) << 8)
-        | ((T0 & 0x0000ff00) >> 8)
-        | ((T0 & 0x000000ff) << 8);
-}
-
-void OPPROTO op_revsh_T0(void)
-{
-    T0 = (int16_t)(  ((T0 & 0x0000ff00) >> 8)
-                   | ((T0 & 0x000000ff) << 8));
-}
-
-void OPPROTO op_rbit_T0(void)
-{
-    T0 =  ((T0 & 0xff000000) >> 24)
-        | ((T0 & 0x00ff0000) >> 8)
-        | ((T0 & 0x0000ff00) << 8)
-        | ((T0 & 0x000000ff) << 24);
-    T0 =  ((T0 & 0xf0f0f0f0) >> 4)
-        | ((T0 & 0x0f0f0f0f) << 4);
-    T0 =  ((T0 & 0x88888888) >> 3)
-        | ((T0 & 0x44444444) >> 1)
-        | ((T0 & 0x22222222) << 1)
-        | ((T0 & 0x11111111) << 3);
-}
-
-/* Dual 16-bit signed multiply.  */
-void OPPROTO op_mul_dual_T0_T1(void)
-{
-    int32_t low;
-    int32_t high;
-    low = (int32_t)(int16_t)T0 * (int32_t)(int16_t)T1;
-    high = (((int32_t)T0) >> 16) * (((int32_t)T1) >> 16);
-    T0 = low;
-    T1 = high;
-}
-
 void OPPROTO op_sel_T0_T1(void)
 {
     uint32_t mask;
@@ -1092,11 +1032,6 @@ void OPPROTO op_sel_T0_T1(void)
         mask |= 0xff000000;
     T0 = (T0 & mask) | (T1 & ~mask);
     FORCE_RET();
-}
-
-void OPPROTO op_roundqd_T0_T1(void)
-{
-    T0 = T1 + ((uint32_t)T0 >> 31);
 }
 
 /* Signed saturation.  */
@@ -1189,66 +1124,6 @@ void OPPROTO op_usad8_T0_T1(void)
     sum += do_usad(T0 >> 16, T1 >>16);
     sum += do_usad(T0 >> 24, T1 >> 24);
     T0 = sum;
-}
-
-/* Thumb-2 instructions.  */
-
-/* Insert T1 into T0.  Result goes in T1.  */
-void OPPROTO op_bfi_T1_T0(void)
-{
-    int shift = PARAM1;
-    uint32_t mask = PARAM2;
-    uint32_t bits;
-
-    bits = (T1 << shift) & mask;
-    T1 = (T0 & ~mask) | bits;
-}
-
-/* Unsigned bitfield extract.  */
-void OPPROTO op_ubfx_T1(void)
-{
-    uint32_t shift = PARAM1;
-    uint32_t mask = PARAM2;
-
-    T1 >>= shift;
-    T1 &= mask;
-}
-
-/* Signed bitfield extract.  */
-void OPPROTO op_sbfx_T1(void)
-{
-    uint32_t shift = PARAM1;
-    uint32_t width = PARAM2;
-    int32_t val;
-
-    val = T1 << (32 - (shift + width));
-    T1 = val >> (32 - width);
-}
-
-void OPPROTO op_sdivl_T0_T1(void)
-{
-  int32_t num;
-  int32_t den;
-  num = T0;
-  den = T1;
-  if (den == 0)
-    T0 = 0;
-  else
-    T0 = num / den;
-  FORCE_RET();
-}
-
-void OPPROTO op_udivl_T0_T1(void)
-{
-  uint32_t num;
-  uint32_t den;
-  num = T0;
-  den = T1;
-  if (den == 0)
-    T0 = 0;
-  else
-    T0 = num / den;
-  FORCE_RET();
 }
 
 void OPPROTO op_movl_T1_r13_banked(void)

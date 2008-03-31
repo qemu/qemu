@@ -29,6 +29,9 @@ DEF_HELPER_1_2(sub_saturate, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_2(add_usaturate, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_2(sub_usaturate, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_1(double_saturate, uint32_t, (int32_t))
+DEF_HELPER_1_2(sdiv, int32_t, (int32_t, int32_t))
+DEF_HELPER_1_2(udiv, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_1(rbit, uint32_t, (uint32_t))
 
 #undef DEF_HELPER
 #undef DEF_HELPER_1_1
