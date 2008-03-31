@@ -470,38 +470,38 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     return;
 }
 
-uint32_t helper_get_cp(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     return 0;
 }
 
-void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
 }
 
-uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
     return 0;
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void helper_v7m_msr(CPUState *env, int reg, uint32_t val)
+void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
 }
 
-uint32_t helper_v7m_mrs(CPUState *env, int reg)
+uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
     return 0;
@@ -1191,7 +1191,7 @@ void helper_clrex(CPUState *env)
     env->mmon_addr = -1;
 }
 
-void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int cp_num = (insn >> 8) & 0xf;
     int cp_info = (insn >> 5) & 7;
@@ -1203,7 +1203,7 @@ void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
                                  cp_info, src, operand, val);
 }
 
-uint32_t helper_get_cp(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
 {
     int cp_num = (insn >> 8) & 0xf;
     int cp_info = (insn >> 5) & 7;
@@ -1246,7 +1246,7 @@ static uint32_t extended_mpu_ap_bits(uint32_t val)
     return ret;
 }
 
-void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int op1;
     int op2;
@@ -1530,7 +1530,7 @@ bad_reg:
               (insn >> 16) & 0xf, crm, op1, op2);
 }
 
-uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
 {
     int op1;
     int op2;
@@ -1803,7 +1803,7 @@ uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
     return env->banked_r13[bank_number(mode)];
 }
 
-uint32_t helper_v7m_mrs(CPUState *env, int reg)
+uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
 {
     switch (reg) {
     case 0: /* APSR */
@@ -1840,7 +1840,7 @@ uint32_t helper_v7m_mrs(CPUState *env, int reg)
     }
 }
 
-void helper_v7m_msr(CPUState *env, int reg, uint32_t val)
+void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
 {
     switch (reg) {
     case 0: /* APSR */

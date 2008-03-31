@@ -61,13 +61,6 @@ static inline int cpu_halted(CPUState *env) {
 
 /* In op_helper.c */
 
-void helper_set_cp(CPUState *, uint32_t, uint32_t);
-uint32_t helper_get_cp(CPUState *, uint32_t);
-void helper_set_cp15(CPUState *, uint32_t, uint32_t);
-uint32_t helper_get_cp15(CPUState *, uint32_t);
-uint32_t helper_v7m_mrs(CPUState *env, int reg);
-void helper_v7m_msr(CPUState *env, int reg, uint32_t val);
-
 void helper_mark_exclusive(CPUARMState *, uint32_t addr);
 int helper_test_exclusive(CPUARMState *, uint32_t addr);
 void helper_clrex(CPUARMState *env);

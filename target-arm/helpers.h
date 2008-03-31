@@ -118,6 +118,15 @@ DEF_HELPER_0_0(wfi, void, (void))
 DEF_HELPER_0_2(cpsr_write, void, (uint32_t, uint32_t))
 DEF_HELPER_1_0(cpsr_read, uint32_t, (void))
 
+DEF_HELPER_0_3(v7m_msr, void, (CPUState *, uint32_t, uint32_t))
+DEF_HELPER_1_2(v7m_mrs, uint32_t, (CPUState *, uint32_t))
+
+DEF_HELPER_0_3(set_cp15, void, (CPUState *, uint32_t, uint32_t))
+DEF_HELPER_1_2(get_cp15, uint32_t, (CPUState *, uint32_t))
+
+DEF_HELPER_0_3(set_cp, void, (CPUState *, uint32_t, uint32_t))
+DEF_HELPER_1_2(get_cp, uint32_t, (CPUState *, uint32_t))
+
 DEF_HELPER_1_2(get_r13_banked, uint32_t, (CPUState *, uint32_t))
 DEF_HELPER_0_3(set_r13_banked, void, (CPUState *, uint32_t, uint32_t))
 
@@ -186,6 +195,20 @@ DEF_HELPER_1_2(recpe_f32, float32, (float32, CPUState *))
 DEF_HELPER_1_2(rsqrte_f32, float32, (float32, CPUState *))
 DEF_HELPER_1_2(recpe_u32, uint32_t, (uint32_t, CPUState *))
 DEF_HELPER_1_2(rsqrte_u32, uint32_t, (uint32_t, CPUState *))
+
+DEF_HELPER_1_2(add_cc, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(adc_cc, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(sub_cc, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(sbc_cc, uint32_t, (uint32_t, uint32_t))
+
+DEF_HELPER_1_2(shl, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(shr, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(sar, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(ror, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(shl_cc, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(shr_cc, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(sar_cc, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(ror_cc, uint32_t, (uint32_t, uint32_t))
 
 #undef DEF_HELPER
 #undef DEF_HELPER_0_0
