@@ -228,12 +228,14 @@ static void gen_add16(TCGv t0, TCGv t1)
     dead_tmp(t1);
 }
 
+#define gen_set_CF(var) tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, CF))
+
 /* Set CF to the top bit of var.  */
 static void gen_set_CF_bit31(TCGv var)
 {
     TCGv tmp = new_tmp();
     tcg_gen_shri_i32(tmp, var, 31);
-    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, CF));
+    gen_set_CF(var);
     dead_tmp(tmp);
 }
 
@@ -282,31 +284,67 @@ static void tcg_gen_rori_i32(TCGv t0, TCGv t1, int i)
     dead_tmp(tmp);
 }
 
-/* Shift by immediate.  Includes special handling for shift == 0.  */
-static inline void gen_arm_shift_im(TCGv var, int shiftop, int shift)
+static void shifter_out_im(TCGv var, int shift)
 {
-    if (shift != 0) {
-        switch (shiftop) {
-        case 0: tcg_gen_shli_i32(var, var, shift); break;
-        case 1: tcg_gen_shri_i32(var, var, shift); break;
-        case 2: tcg_gen_sari_i32(var, var, shift); break;
-        case 3: tcg_gen_rori_i32(var, var, shift); break;
-        }
+    TCGv tmp = new_tmp();
+    if (shift == 0) {
+        tcg_gen_andi_i32(tmp, var, 1);
     } else {
-        TCGv tmp;
+        tcg_gen_shri_i32(tmp, var, shift);
+        if (shift != 31);
+            tcg_gen_andi_i32(tmp, tmp, 1);
+    }
+    gen_set_CF(tmp);
+    dead_tmp(tmp);
+}
 
-        switch (shiftop) {
-        case 0: break;
-        case 1: tcg_gen_movi_i32(var, 0); break;
-        case 2: tcg_gen_sari_i32(var, var, 31); break;
-        case 3: /* rrx */
-            tcg_gen_shri_i32(var, var, 1);
-            tmp = new_tmp();
+/* Shift by immediate.  Includes special handling for shift == 0.  */
+static inline void gen_arm_shift_im(TCGv var, int shiftop, int shift, int flags)
+{
+    switch (shiftop) {
+    case 0: /* LSL */
+        if (shift != 0) {
+            if (flags)
+                shifter_out_im(var, 32 - shift);
+            tcg_gen_shli_i32(var, var, shift);
+        }
+        break;
+    case 1: /* LSR */
+        if (shift == 0) {
+            if (flags) {
+                tcg_gen_shri_i32(var, var, 31);
+                gen_set_CF(var);
+            }
+            tcg_gen_movi_i32(var, 0);
+        } else {
+            if (flags)
+                shifter_out_im(var, shift - 1);
+            tcg_gen_shri_i32(var, var, shift);
+        }
+        break;
+    case 2: /* ASR */
+        if (shift == 0)
+            shift = 32;
+        if (flags)
+            shifter_out_im(var, shift - 1);
+        if (shift == 32)
+          shift = 31;
+        tcg_gen_sari_i32(var, var, shift);
+        break;
+    case 3: /* ROR/RRX */
+        if (shift != 0) {
+            if (flags)
+                shifter_out_im(var, shift - 1);
+            tcg_gen_rori_i32(var, var, shift); break;
+        } else {
+            TCGv tmp = new_tmp();
             tcg_gen_ld_i32(tmp, cpu_env, offsetof(CPUState, CF));
+            if (flags)
+                shifter_out_im(var, 0);
+            tcg_gen_shri_i32(var, var, 1);
             tcg_gen_shli_i32(tmp, tmp, 31);
             tcg_gen_or_i32(var, var, tmp);
             dead_tmp(tmp);
-            break;
         }
     }
 };
@@ -392,20 +430,6 @@ const uint8_t table_logic_cc[16] = {
     1, /* mvn */
 };
 
-static GenOpFunc1 *gen_shift_T1_im_cc[4] = {
-    gen_op_shll_T1_im_cc,
-    gen_op_shrl_T1_im_cc,
-    gen_op_sarl_T1_im_cc,
-    gen_op_rorl_T1_im_cc,
-};
-
-static GenOpFunc *gen_shift_T1_0_cc[4] = {
-    NULL,
-    gen_op_shrl_T1_0_cc,
-    gen_op_sarl_T1_0_cc,
-    gen_op_rrxl_T1_cc,
-};
-
 static GenOpFunc *gen_shift_T1_T0[4] = {
     gen_op_shll_T1_T0,
     gen_op_shrl_T1_T0,
@@ -418,18 +442,6 @@ static GenOpFunc *gen_shift_T1_T0_cc[4] = {
     gen_op_shrl_T1_T0_cc,
     gen_op_sarl_T1_T0_cc,
     gen_op_rorl_T1_T0_cc,
-};
-
-static GenOpFunc1 *gen_shift_T0_im_thumb_cc[3] = {
-    gen_op_shll_T0_im_thumb_cc,
-    gen_op_shrl_T0_im_thumb_cc,
-    gen_op_sarl_T0_im_thumb_cc,
-};
-
-static GenOpFunc1 *gen_shift_T0_im_thumb[3] = {
-    gen_op_shll_T0_im_thumb,
-    gen_op_shrl_T0_im_thumb,
-    gen_op_sarl_T0_im_thumb,
 };
 
 /* Set PC and thumb state from T0.  Clobbers T0.  */
@@ -530,7 +542,7 @@ static inline void gen_add_data_offset(DisasContext *s, unsigned int insn)
         shift = (insn >> 7) & 0x1f;
         shiftop = (insn >> 5) & 3;
         offset = load_reg(s, rm);
-        gen_arm_shift_im(offset, shiftop, shift);
+        gen_arm_shift_im(offset, shiftop, shift, 0);
         if (!(insn & (1 << 23)))
             tcg_gen_sub_i32(cpu_T[1], cpu_T[1], offset);
         else
@@ -5126,15 +5138,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             shiftop = (insn >> 5) & 3;
             if (!(insn & (1 << 4))) {
                 shift = (insn >> 7) & 0x1f;
-                if (logic_cc) {
-                    if (shift != 0) {
-                        gen_shift_T1_im_cc[shiftop](shift);
-                    } else if (shiftop != 0) {
-                        gen_shift_T1_0_cc[shiftop]();
-                    }
-                } else {
-                    gen_arm_shift_im(cpu_T[1], shiftop, shift);
-                }
+                gen_arm_shift_im(cpu_T[1], shiftop, shift, logic_cc);
             } else {
                 rs = (insn >> 8) & 0xf;
                 gen_movl_T0_reg(s, rs);
@@ -6243,15 +6247,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
         shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
         conds = (insn & (1 << 20)) != 0;
         logic_cc = (conds && thumb2_logic_op(op));
-        if (logic_cc) {
-            if (shift != 0) {
-                gen_shift_T1_im_cc[shiftop](shift);
-            } else if (shiftop != 0) {
-                gen_shift_T1_0_cc[shiftop]();
-            }
-        } else {
-            gen_arm_shift_im(cpu_T[1], shiftop, shift);
-        }
+        gen_arm_shift_im(cpu_T[1], shiftop, shift, logic_cc);
         if (gen_thumb2_data_op(s, op, conds, 0))
             goto illegal_op;
         if (rd != 15)
@@ -6960,12 +6956,11 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             /* shift immediate */
             rm = (insn >> 3) & 7;
             shift = (insn >> 6) & 0x1f;
-            gen_movl_T0_reg(s, rm);
-            if (s->condexec_mask)
-                gen_shift_T0_im_thumb[op](shift);
-            else
-                gen_shift_T0_im_thumb_cc[op](shift);
-            gen_movl_reg_T0(s, rd);
+            tmp = load_reg(s, rm);
+            gen_arm_shift_im(tmp, op, shift, s->condexec_mask == 0);
+            if (!s->condexec_mask)
+                gen_logic_CC(tmp);
+            store_reg(s, rd, tmp);
         }
         break;
     case 2: case 3:

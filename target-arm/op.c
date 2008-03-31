@@ -317,55 +317,6 @@ void OPPROTO op_clrex(void)
     cpu_unlock();
 }
 
-/* shifts */
-
-/* T1 based, set C flag */
-void OPPROTO op_shll_T1_im_cc(void)
-{
-    env->CF = (T1 >> (32 - PARAM1)) & 1;
-    T1 = T1 << PARAM1;
-}
-
-void OPPROTO op_shrl_T1_im_cc(void)
-{
-    env->CF = (T1 >> (PARAM1 - 1)) & 1;
-    T1 = (uint32_t)T1 >> PARAM1;
-}
-
-void OPPROTO op_shrl_T1_0_cc(void)
-{
-    env->CF = (T1 >> 31) & 1;
-    T1 = 0;
-}
-
-void OPPROTO op_sarl_T1_im_cc(void)
-{
-    env->CF = (T1 >> (PARAM1 - 1)) & 1;
-    T1 = (int32_t)T1 >> PARAM1;
-}
-
-void OPPROTO op_sarl_T1_0_cc(void)
-{
-    env->CF = (T1 >> 31) & 1;
-    T1 = (int32_t)T1 >> 31;
-}
-
-void OPPROTO op_rorl_T1_im_cc(void)
-{
-    int shift;
-    shift = PARAM1;
-    env->CF = (T1 >> (shift - 1)) & 1;
-    T1 = ((uint32_t)T1 >> shift) | (T1 << (32 - shift));
-}
-
-void OPPROTO op_rrxl_T1_cc(void)
-{
-    uint32_t c;
-    c = T1 & 1;
-    T1 = ((uint32_t)T1 >> 1) | ((uint32_t)env->CF << 31);
-    env->CF = c;
-}
-
 /* T1 based, use T0 as shift count */
 
 void OPPROTO op_shll_T1_T0(void)
@@ -571,83 +522,6 @@ void OPPROTO op_subl_T0_T1_usaturate(void)
   }
 
   FORCE_RET();
-}
-
-/* Thumb shift by immediate */
-void OPPROTO op_shll_T0_im_thumb_cc(void)
-{
-    int shift;
-    shift = PARAM1;
-    if (shift != 0) {
-	env->CF = (T0 >> (32 - shift)) & 1;
-	T0 = T0 << shift;
-    }
-    env->NZF = T0;
-    FORCE_RET();
-}
-
-void OPPROTO op_shll_T0_im_thumb(void)
-{
-    T0 = T0 << PARAM1;
-    FORCE_RET();
-}
-
-void OPPROTO op_shrl_T0_im_thumb_cc(void)
-{
-    int shift;
-
-    shift = PARAM1;
-    if (shift == 0) {
-	env->CF = ((uint32_t)T0) >> 31;
-	T0 = 0;
-    } else {
-	env->CF = (T0 >> (shift - 1)) & 1;
-	T0 = T0 >> shift;
-    }
-    env->NZF = T0;
-    FORCE_RET();
-}
-
-void OPPROTO op_shrl_T0_im_thumb(void)
-{
-    int shift;
-
-    shift = PARAM1;
-    if (shift == 0) {
-	T0 = 0;
-    } else {
-	T0 = T0 >> shift;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_sarl_T0_im_thumb_cc(void)
-{
-    int shift;
-
-    shift = PARAM1;
-    if (shift == 0) {
-	T0 = ((int32_t)T0) >> 31;
-	env->CF = T0 & 1;
-    } else {
-	env->CF = (T0 >> (shift - 1)) & 1;
-	T0 = ((int32_t)T0) >> shift;
-    }
-    env->NZF = T0;
-    FORCE_RET();
-}
-
-void OPPROTO op_sarl_T0_im_thumb(void)
-{
-    int shift;
-
-    shift = PARAM1;
-    if (shift == 0) {
-	env->CF = T0 & 1;
-    } else {
-	T0 = ((int32_t)T0) >> shift;
-    }
-    FORCE_RET();
 }
 
 /* exceptions */
