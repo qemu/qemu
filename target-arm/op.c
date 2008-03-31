@@ -20,122 +20,6 @@
  */
 #include "exec.h"
 
-#define REGNAME r0
-#define REG (env->regs[0])
-#include "op_template.h"
-
-#define REGNAME r1
-#define REG (env->regs[1])
-#include "op_template.h"
-
-#define REGNAME r2
-#define REG (env->regs[2])
-#include "op_template.h"
-
-#define REGNAME r3
-#define REG (env->regs[3])
-#include "op_template.h"
-
-#define REGNAME r4
-#define REG (env->regs[4])
-#include "op_template.h"
-
-#define REGNAME r5
-#define REG (env->regs[5])
-#include "op_template.h"
-
-#define REGNAME r6
-#define REG (env->regs[6])
-#include "op_template.h"
-
-#define REGNAME r7
-#define REG (env->regs[7])
-#include "op_template.h"
-
-#define REGNAME r8
-#define REG (env->regs[8])
-#include "op_template.h"
-
-#define REGNAME r9
-#define REG (env->regs[9])
-#include "op_template.h"
-
-#define REGNAME r10
-#define REG (env->regs[10])
-#include "op_template.h"
-
-#define REGNAME r11
-#define REG (env->regs[11])
-#include "op_template.h"
-
-#define REGNAME r12
-#define REG (env->regs[12])
-#include "op_template.h"
-
-#define REGNAME r13
-#define REG (env->regs[13])
-#include "op_template.h"
-
-#define REGNAME r14
-#define REG (env->regs[14])
-#include "op_template.h"
-
-#define REGNAME r15
-#define REG (env->regs[15])
-#define SET_REG(x) REG = x & ~(uint32_t)1
-#include "op_template.h"
-
-void OPPROTO op_bx_T0(void)
-{
-  env->regs[15] = T0 & ~(uint32_t)1;
-  env->thumb = (T0 & 1) != 0;
-}
-
-void OPPROTO op_movl_T0_0(void)
-{
-    T0 = 0;
-}
-
-void OPPROTO op_movl_T0_im(void)
-{
-    T0 = PARAM1;
-}
-
-void OPPROTO op_movl_T1_im(void)
-{
-    T1 = PARAM1;
-}
-
-void OPPROTO op_mov_CF_T1(void)
-{
-    env->CF = ((uint32_t)T1) >> 31;
-}
-
-void OPPROTO op_movl_T2_im(void)
-{
-    T2 = PARAM1;
-}
-
-void OPPROTO op_addl_T1_im(void)
-{
-    T1 += PARAM1;
-}
-
-void OPPROTO op_addl_T1_T2(void)
-{
-    T1 += T2;
-}
-
-void OPPROTO op_subl_T1_T2(void)
-{
-    T1 -= T2;
-}
-
-void OPPROTO op_addl_T0_T1(void)
-{
-    T0 += T1;
-}
-
 void OPPROTO op_addl_T0_T1_cc(void)
 {
     unsigned int src1;
@@ -144,11 +28,6 @@ void OPPROTO op_addl_T0_T1_cc(void)
     env->NZF = T0;
     env->CF = T0 < src1;
     env->VF = (src1 ^ T1 ^ -1) & (src1 ^ T0);
-}
-
-void OPPROTO op_adcl_T0_T1(void)
-{
-    T0 += T1 + env->CF;
 }
 
 void OPPROTO op_adcl_T0_T1_cc(void)
@@ -168,11 +47,6 @@ void OPPROTO op_adcl_T0_T1_cc(void)
 }
 
 #define OPSUB(sub, sbc, res, T0, T1)            \
-                                                \
-void OPPROTO op_ ## sub ## l_T0_T1(void)        \
-{                                               \
-    res = T0 - T1;                              \
-}                                               \
                                                 \
 void OPPROTO op_ ## sub ## l_T0_T1_cc(void)     \
 {                                               \
@@ -210,46 +84,6 @@ void OPPROTO op_ ## sbc ## l_T0_T1_cc(void)     \
 OPSUB(sub, sbc, T0, T0, T1)
 
 OPSUB(rsb, rsc, T0, T1, T0)
-
-void OPPROTO op_andl_T0_T1(void)
-{
-    T0 &= T1;
-}
-
-void OPPROTO op_xorl_T0_T1(void)
-{
-    T0 ^= T1;
-}
-
-void OPPROTO op_orl_T0_T1(void)
-{
-    T0 |= T1;
-}
-
-void OPPROTO op_bicl_T0_T1(void)
-{
-    T0 &= ~T1;
-}
-
-void OPPROTO op_notl_T0(void)
-{
-    T0 = ~T0;
-}
-
-void OPPROTO op_notl_T1(void)
-{
-    T1 = ~T1;
-}
-
-void OPPROTO op_logic_T0_cc(void)
-{
-    env->NZF = T0;
-}
-
-void OPPROTO op_logic_T1_cc(void)
-{
-    env->NZF = T1;
-}
 
 #define EIP (env->regs[15])
 
@@ -485,51 +319,6 @@ void OPPROTO op_clrex(void)
 
 /* shifts */
 
-/* Used by NEON.  */
-void OPPROTO op_shll_T0_im(void)
-{
-    T1 = T1 << PARAM1;
-}
-
-/* T1 based */
-
-void OPPROTO op_shll_T1_im(void)
-{
-    T1 = T1 << PARAM1;
-}
-
-void OPPROTO op_shrl_T1_im(void)
-{
-    T1 = (uint32_t)T1 >> PARAM1;
-}
-
-void OPPROTO op_shrl_T1_0(void)
-{
-    T1 = 0;
-}
-
-void OPPROTO op_sarl_T1_im(void)
-{
-    T1 = (int32_t)T1 >> PARAM1;
-}
-
-void OPPROTO op_sarl_T1_0(void)
-{
-    T1 = (int32_t)T1 >> 31;
-}
-
-void OPPROTO op_rorl_T1_im(void)
-{
-    int shift;
-    shift = PARAM1;
-    T1 = ((uint32_t)T1 >> shift) | (T1 << (32 - shift));
-}
-
-void OPPROTO op_rrxl_T1(void)
-{
-    T1 = ((uint32_t)T1 >> 1) | ((uint32_t)env->CF << 31);
-}
-
 /* T1 based, set C flag */
 void OPPROTO op_shll_T1_im_cc(void)
 {
@@ -575,44 +364,6 @@ void OPPROTO op_rrxl_T1_cc(void)
     c = T1 & 1;
     T1 = ((uint32_t)T1 >> 1) | ((uint32_t)env->CF << 31);
     env->CF = c;
-}
-
-/* T2 based */
-void OPPROTO op_shll_T2_im(void)
-{
-    T2 = T2 << PARAM1;
-}
-
-void OPPROTO op_shrl_T2_im(void)
-{
-    T2 = (uint32_t)T2 >> PARAM1;
-}
-
-void OPPROTO op_shrl_T2_0(void)
-{
-    T2 = 0;
-}
-
-void OPPROTO op_sarl_T2_im(void)
-{
-    T2 = (int32_t)T2 >> PARAM1;
-}
-
-void OPPROTO op_sarl_T2_0(void)
-{
-    T2 = (int32_t)T2 >> 31;
-}
-
-void OPPROTO op_rorl_T2_im(void)
-{
-    int shift;
-    shift = PARAM1;
-    T2 = ((uint32_t)T2 >> shift) | (T2 << (32 - shift));
-}
-
-void OPPROTO op_rrxl_T2(void)
-{
-    T2 = ((uint32_t)T2 >> 1) | ((uint32_t)env->CF << 31);
 }
 
 /* T1 based, use T0 as shift count */
@@ -731,53 +482,6 @@ void OPPROTO op_clz_T0(void)
         T0 = T0 >> 1;
     T0 = count;
     FORCE_RET();
-}
-
-void OPPROTO op_sarl_T0_im(void)
-{
-    T0 = (int32_t)T0 >> PARAM1;
-}
-
-/* Sign/zero extend */
-void OPPROTO op_sxth_T0(void)
-{
-  T0 = (int16_t)T0;
-}
-
-void OPPROTO op_sxth_T1(void)
-{
-  T1 = (int16_t)T1;
-}
-
-void OPPROTO op_sxtb_T1(void)
-{
-    T1 = (int8_t)T1;
-}
-
-void OPPROTO op_uxtb_T1(void)
-{
-    T1 = (uint8_t)T1;
-}
-
-void OPPROTO op_uxth_T1(void)
-{
-    T1 = (uint16_t)T1;
-}
-
-void OPPROTO op_sxtb16_T1(void)
-{
-    uint32_t res;
-    res = (uint16_t)(int8_t)T1;
-    res |= (uint32_t)(int8_t)(T1 >> 16) << 16;
-    T1 = res;
-}
-
-void OPPROTO op_uxtb16_T1(void)
-{
-    uint32_t res;
-    res = (uint16_t)(uint8_t)T1;
-    res |= (uint32_t)(uint8_t)(T1 >> 16) << 16;
-    T1 = res;
 }
 
 #define SIGNBIT (uint32_t)0x80000000
@@ -1369,31 +1073,6 @@ void OPPROTO op_movl_user_T0(void)
     FORCE_RET();
 }
 
-void OPPROTO op_movl_T0_T1(void)
-{
-    T0 = T1;
-}
-
-void OPPROTO op_movl_T0_T2(void)
-{
-    T0 = T2;
-}
-
-void OPPROTO op_movl_T1_T0(void)
-{
-    T1 = T0;
-}
-
-void OPPROTO op_movl_T1_T2(void)
-{
-    T1 = T2;
-}
-
-void OPPROTO op_movl_T2_T0(void)
-{
-    T2 = T0;
-}
-
 /* ARMv6 Media instructions.  */
 
 /* Note that signed overflow is undefined in C.  The following routines are
@@ -1769,15 +1448,6 @@ void OPPROTO op_usat16_T1(void)
 }
 
 /* Dual 16-bit add.  */
-void OPPROTO op_add16_T1_T2(void)
-{
-    uint32_t mask;
-    mask = (T0 & T1) & 0x8000;
-    T0 ^= ~0x8000;
-    T1 ^= ~0x8000;
-    T0 = (T0 + T1) ^ mask;
-}
-
 static inline uint8_t do_usad(uint8_t a, uint8_t b)
 {
     if (a > b)

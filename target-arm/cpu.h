@@ -89,7 +89,7 @@ typedef struct CPUARMState {
     uint32_t NZF; /* N is bit 31. Z is computed from NZF */
     uint32_t QF; /* 0 or 1 */
     uint32_t GE; /* cpsr[19:16] */
-    int thumb; /* cprs[5]. 0 = arm mode, 1 = thumb mode. */
+    uint32_t thumb; /* cpsr[5]. 0 = arm mode, 1 = thumb mode. */
     uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
 
     /* System control coprocessor (cp15) */
@@ -207,6 +207,7 @@ typedef struct CPUARMState {
 } CPUARMState;
 
 CPUARMState *cpu_arm_init(const char *cpu_model);
+void arm_translate_init(void);
 int cpu_arm_exec(CPUARMState *s);
 void cpu_arm_close(CPUARMState *s);
 void do_interrupt(CPUARMState *);

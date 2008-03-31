@@ -5,6 +5,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "gdbstub.h"
+#include "helpers.h"
 
 static uint32_t cortexa8_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x400, 0, 0x31100003, 0x20000000, 0x01202000, 0x11 };
@@ -174,6 +175,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
 {
     CPUARMState *env;
     uint32_t id;
+    static int inited = 0;
 
     id = cpu_arm_find_by_name(cpu_model);
     if (id == 0)
@@ -182,6 +184,11 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    if (!inited) {
+        inited = 1;
+        arm_translate_init();
+    }
+
     env->cpu_model_str = cpu_model;
     env->cp15.c0_cpuid = id;
     cpu_reset(env);
@@ -313,6 +320,24 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     }
     mask &= ~CACHED_CPSR_BITS;
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
+}
+
+#define HELPER(x) helper_##x
+/* Sign/zero extend */
+uint32_t HELPER(sxtb16)(uint32_t x)
+{
+    uint32_t res;
+    res = (uint16_t)(int8_t)x;
+    res |= (uint32_t)(int8_t)(x >> 16) << 16;
+    return res;
+}
+
+uint32_t HELPER(uxtb16)(uint32_t x)
+{
+    uint32_t res;
+    res = (uint16_t)(uint8_t)x;
+    res |= (uint32_t)(uint8_t)(x >> 16) << 16;
+    return res;
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -1861,3 +1886,4 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 }
 
 #endif
+
