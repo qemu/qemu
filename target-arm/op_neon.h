@@ -9,6 +9,7 @@
 /* Note that for NEON an "l" prefix means it is a wide operation, unlike
    scalar arm ops where it means a word size operation.  */
 
+#define SIGNBIT (uint32_t)0x80000000
 /* ??? NEON ops should probably have their own float status.  */
 #define NFS &env->vfp.fp_status
 #define NEON_OP(name) void OPPROTO op_neon_##name (void)

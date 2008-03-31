@@ -322,7 +322,6 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
 }
 
-#define HELPER(x) helper_##x
 /* Sign/zero extend */
 uint32_t HELPER(sxtb16)(uint32_t x)
 {
@@ -1894,4 +1893,3 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 }
 
 #endif
-

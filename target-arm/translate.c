@@ -29,6 +29,8 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+
+#define GEN_HELPER 1
 #include "helpers.h"
 
 #define ENABLE_ARCH_5J    0
@@ -200,13 +202,19 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define gen_sxtb(var) tcg_gen_ext8s_i32(var, var)
 #define gen_sxth(var) tcg_gen_ext16s_i32(var, var)
 
-#define HELPER_ADDR(x) helper_##x
+#define gen_sxtb16(var) gen_helper_sxtb16(var, var)
+#define gen_uxtb16(var) gen_helper_uxtb16(var, var)
 
-#define gen_sxtb16(var) tcg_gen_helper_1_1(HELPER_ADDR(sxtb16), var, var)
-#define gen_uxtb16(var) tcg_gen_helper_1_1(HELPER_ADDR(uxtb16), var, var)
-
-#define gen_op_clz_T0(var) \
-    tcg_gen_helper_1_1(HELPER_ADDR(clz), cpu_T[0], cpu_T[0])
+#define gen_op_addl_T0_T1_setq() \
+    gen_helper_add_setq(cpu_T[0], cpu_T[0], cpu_T[1])
+#define gen_op_addl_T0_T1_saturate() \
+    gen_helper_add_saturate(cpu_T[0], cpu_T[0], cpu_T[1])
+#define gen_op_subl_T0_T1_saturate() \
+    gen_helper_sub_saturate(cpu_T[0], cpu_T[0], cpu_T[1])
+#define gen_op_addl_T0_T1_usaturate() \
+    gen_helper_add_usaturate(cpu_T[0], cpu_T[0], cpu_T[1])
+#define gen_op_subl_T0_T1_usaturate() \
+    gen_helper_sub_usaturate(cpu_T[0], cpu_T[0], cpu_T[1])
 
 /* Dual 16-bit add.  Result placed in t0 and t1 is marked as dead.
     tmp = (t0 ^ t1) & 0x8000;
@@ -4526,7 +4534,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             switch (size) {
                             case 0: gen_op_neon_clz_u8(); break;
                             case 1: gen_op_neon_clz_u16(); break;
-                            case 2: gen_op_clz_T0(); break;
+                            case 2: gen_helper_clz(cpu_T[0], cpu_T[0]); break;
                             default: return 1;
                             }
                             break;
@@ -5021,9 +5029,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else if (op1 == 3) {
                 /* clz */
                 rd = (insn >> 12) & 0xf;
-                gen_movl_T0_reg(s, rm);
-                gen_op_clz_T0();
-                gen_movl_reg_T0(s, rd);
+                tmp = load_reg(s, rm);
+                gen_helper_clz(tmp, tmp);
+                store_reg(s, rd, tmp);
             } else {
                 goto illegal_op;
             }
@@ -5055,7 +5063,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             gen_movl_T0_reg(s, rm);
             gen_movl_T1_reg(s, rn);
             if (op1 & 2)
-                gen_op_double_T1_saturate();
+                gen_helper_double_saturate(cpu_T[1], cpu_T[1]);
             if (op1 & 1)
                 gen_op_subl_T0_T1_saturate();
             else
@@ -6317,7 +6325,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 gen_movl_T0_reg(s, rm);
                 gen_movl_T1_reg(s, rn);
                 if (op & 2)
-                    gen_op_double_T1_saturate();
+                    gen_helper_double_saturate(cpu_T[1], cpu_T[1]);
                 if (op & 1)
                     gen_op_subl_T0_T1_saturate();
                 else
@@ -6342,7 +6350,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     gen_op_sel_T0_T1();
                     break;
                 case 0x18: /* clz */
-                    gen_op_clz_T0();
+                    gen_helper_clz(cpu_T[0], cpu_T[0]);
                     break;
                 default:
                     goto illegal_op;

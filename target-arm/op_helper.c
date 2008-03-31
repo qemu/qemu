@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "exec.h"
+#include "helpers.h"
 
 void raise_exception(int tt)
 {
@@ -303,3 +304,68 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 #endif
+
+#define SIGNBIT (uint32_t)0x80000000
+uint32_t HELPER(add_setq)(uint32_t a, uint32_t b)
+{
+    uint32_t res = a + b;
+    if (((res ^ a) & SIGNBIT) && !((a ^ b) & SIGNBIT))
+        env->QF = 1;
+    return res;
+}
+
+uint32_t HELPER(add_saturate)(uint32_t a, uint32_t b)
+{
+    uint32_t res = a + b;
+    if (((res ^ a) & SIGNBIT) && !((a ^ b) & SIGNBIT)) {
+        env->QF = 1;
+        res = ~(((int32_t)a >> 31) ^ SIGNBIT);
+    }
+    return res;
+}
+
+uint32_t HELPER(sub_saturate)(uint32_t a, uint32_t b)
+{
+    uint32_t res = a - b;
+    if (((res ^ a) & SIGNBIT) && ((a ^ b) & SIGNBIT)) {
+        env->QF = 1;
+        res = ~(((int32_t)a >> 31) ^ SIGNBIT);
+    }
+    return res;
+}
+
+uint32_t HELPER(double_saturate)(int32_t val)
+{
+    uint32_t res;
+    if (val >= 0x40000000) {
+        res = ~SIGNBIT;
+        env->QF = 1;
+    } else if (val <= (int32_t)0xc0000000) {
+        res = SIGNBIT;
+        env->QF = 1;
+    } else {
+        res = val << 1;
+    }
+    return res;
+}
+
+uint32_t HELPER(add_usaturate)(uint32_t a, uint32_t b)
+{
+    uint32_t res = a + b;
+    if (res < a) {
+        env->QF = 1;
+        res = ~0;
+    }
+    return res;
+}
+
+uint32_t HELPER(sub_usaturate)(uint32_t a, uint32_t b)
+{
+    uint32_t res = a - b;
+    if (res > a) {
+        env->QF = 1;
+        res = 0;
+    }
+    return res;
+}
+
