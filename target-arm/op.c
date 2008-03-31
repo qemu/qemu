@@ -222,29 +222,6 @@ void OPPROTO op_movl_cpsr_T0(void)
     FORCE_RET();
 }
 
-void OPPROTO op_mul_T0_T1(void)
-{
-    T0 = T0 * T1;
-}
-
-/* 64 bit unsigned mul */
-void OPPROTO op_mull_T0_T1(void)
-{
-    uint64_t res;
-    res = (uint64_t)T0 * (uint64_t)T1;
-    T1 = res >> 32;
-    T0 = res;
-}
-
-/* 64 bit signed mul */
-void OPPROTO op_imull_T0_T1(void)
-{
-    uint64_t res;
-    res = (int64_t)((int32_t)T0) * (int64_t)((int32_t)T1);
-    T1 = res >> 32;
-    T0 = res;
-}
-
 /* 48 bit signed mul, top 32 bits */
 void OPPROTO op_imulw_T0_T1(void)
 {
@@ -1058,18 +1035,6 @@ void OPPROTO op_pkhbt_T0_T1(void)
 {
     T0 = (T0 & 0xffff) | (T1 & 0xffff0000);
 }
-void OPPROTO op_rev_T0(void)
-{
-    T0 =  ((T0 & 0xff000000) >> 24)
-        | ((T0 & 0x00ff0000) >> 8)
-        | ((T0 & 0x0000ff00) << 8)
-        | ((T0 & 0x000000ff) << 24);
-}
-
-void OPPROTO op_revh_T0(void)
-{
-    T0 = (T0 >> 16) | (T0 << 16);
-}
 
 void OPPROTO op_rev16_T0(void)
 {
@@ -1097,13 +1062,6 @@ void OPPROTO op_rbit_T0(void)
         | ((T0 & 0x44444444) >> 1)
         | ((T0 & 0x22222222) << 1)
         | ((T0 & 0x11111111) << 3);
-}
-
-/* Swap low and high halfwords.  */
-void OPPROTO op_swap_half_T1(void)
-{
-    T1 = (T1 >> 16) | (T1 << 16);
-    FORCE_RET();
 }
 
 /* Dual 16-bit signed multiply.  */
@@ -1265,22 +1223,6 @@ void OPPROTO op_sbfx_T1(void)
 
     val = T1 << (32 - (shift + width));
     T1 = val >> (32 - width);
-}
-
-void OPPROTO op_movtop_T0_im(void)
-{
-    T0 = (T0 & 0xffff) | PARAM1;
-}
-
-/* Used by table branch instructions.  */
-void OPPROTO op_jmp_T0_im(void)
-{
-    env->regs[15] = PARAM1 + (T0 << 1);
-}
-
-void OPPROTO op_set_condexec(void)
-{
-    env->condexec_bits = PARAM1;
 }
 
 void OPPROTO op_sdivl_T0_T1(void)

@@ -204,6 +204,9 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 
 #define gen_sxtb16(var) gen_helper_sxtb16(var, var)
 #define gen_uxtb16(var) gen_helper_uxtb16(var, var)
+#define gen_op_rev_T0() tcg_gen_bswap_i32(cpu_T[0], cpu_T[0])
+
+#define gen_op_mul_T0_T1() tcg_gen_mul_i32(cpu_T[0], cpu_T[0], cpu_T[1])
 
 #define gen_op_addl_T0_T1_setq() \
     gen_helper_add_setq(cpu_T[0], cpu_T[0], cpu_T[1])
@@ -215,6 +218,45 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
     gen_helper_add_usaturate(cpu_T[0], cpu_T[0], cpu_T[1])
 #define gen_op_subl_T0_T1_usaturate() \
     gen_helper_sub_usaturate(cpu_T[0], cpu_T[0], cpu_T[1])
+
+/* FIXME: Most targets have native widening multiplication.
+   It would be good to use that instead of a full wide multiply.  */
+/* Unsigned 32x32->64 multiply.  */
+static void gen_op_mull_T0_T1(void)
+{
+    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_extu_i32_i64(tmp1, cpu_T[0]);
+    tcg_gen_extu_i32_i64(tmp2, cpu_T[1]);
+    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
+    tcg_gen_trunc_i64_i32(cpu_T[0], tmp1);
+    tcg_gen_shri_i64(tmp1, tmp1, 32);
+    tcg_gen_trunc_i64_i32(cpu_T[1], tmp1);
+}
+
+/* Signed 32x32->64 multiply.  */
+static void gen_op_imull_T0_T1(void)
+{
+    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_ext_i32_i64(tmp1, cpu_T[0]);
+    tcg_gen_ext_i32_i64(tmp2, cpu_T[1]);
+    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
+    tcg_gen_trunc_i64_i32(cpu_T[0], tmp1);
+    tcg_gen_shri_i64(tmp1, tmp1, 32);
+    tcg_gen_trunc_i64_i32(cpu_T[1], tmp1);
+}
+
+/* Swap low and high halfwords.  */
+static void gen_swap_half(TCGv var)
+{
+    TCGv tmp = new_tmp();
+    tcg_gen_shri_i32(tmp, var, 16);
+    tcg_gen_shli_i32(var, var, 16);
+    tcg_gen_or_i32(var, var, tmp);
+}
 
 /* Dual 16-bit add.  Result placed in t0 and t1 is marked as dead.
     tmp = (t0 ^ t1) & 0x8000;
@@ -2652,7 +2694,11 @@ static inline void
 gen_set_condexec (DisasContext *s)
 {
     if (s->condexec_mask) {
-        gen_op_set_condexec((s->condexec_cond << 4) | (s->condexec_mask >> 1));
+        uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
+        TCGv tmp = new_tmp();
+        tcg_gen_movi_i32(tmp, val);
+        tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, condexec_bits));
+        dead_tmp(tmp);
     }
 }
 
@@ -4314,7 +4360,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         NEON_GET_REG(T1, rm, pass * 2 + 1);
                         switch (size) {
                         case 0: gen_op_rev_T0(); break;
-                        case 1: gen_op_revh_T0(); break;
+                        case 1: gen_swap_half(cpu_T[0]); break;
                         case 2: /* no-op */ break;
                         default: abort();
                         }
@@ -4325,7 +4371,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_op_movl_T0_T1();
                             switch (size) {
                             case 0: gen_op_rev_T0(); break;
-                            case 1: gen_op_revh_T0(); break;
+                            case 1: gen_swap_half(cpu_T[0]); break;
                             default: abort();
                             }
                             NEON_SET_REG(T0, rd, pass * 2);
@@ -4494,7 +4540,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         case 1: /* VREV32 */
                             switch (size) {
                             case 0: gen_op_rev_T0(); break;
-                            case 1: gen_op_revh_T0(); break;
+                            case 1: gen_swap_half(cpu_T[0]); break;
                             default: return 1;
                             }
                             break;
@@ -5574,7 +5620,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_movl_reg_T0(s, rd);
                     } else {
                         if (insn & (1 << 5))
-                            gen_op_swap_half_T1();
+                            gen_swap_half(cpu_T[1]);
                         gen_op_mul_dual_T0_T1();
                         if (insn & (1 << 22)) {
                             if (insn & (1 << 6)) {
@@ -6104,8 +6150,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     dead_tmp(tmp);
                     gen_ldst(ldub, s);
                 }
-                gen_op_jmp_T0_im(s->pc);
-                s->is_jmp = DISAS_JUMP;
+                tcg_gen_shli_i32(cpu_T[0], cpu_T[0], 1);
+                tcg_gen_addi_i32(cpu_T[0], cpu_T[0], s->pc);
+                gen_movl_reg_T0(s, 15);
             } else {
                 /* Load/store exclusive byte/halfword/doubleword.  */
                 op = (insn >> 4) & 0x3;
@@ -6385,7 +6432,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             case 2: /* Dual multiply add.  */
             case 4: /* Dual multiply subtract.  */
                 if (op)
-                    gen_op_swap_half_T1();
+                    gen_swap_half(cpu_T[1]);
                 gen_op_mul_dual_T0_T1();
                 /* This addition cannot overflow.  */
                 if (insn & (1 << 22)) {
@@ -6455,7 +6502,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             } else if ((op & 0xe) == 0xc) {
                 /* Dual multiply accumulate long.  */
                 if (op & 1)
-                    gen_op_swap_half_T1();
+                    gen_swap_half(cpu_T[1]);
                 gen_op_mul_dual_T0_T1();
                 if (op & 0x10) {
                     gen_op_subl_T0_T1();
@@ -6735,7 +6782,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         if (insn & (1 << 23)) {
                             /* movt */
                             gen_movl_T0_reg(s, rd);
-                            gen_op_movtop_T0_im(imm << 16);
+                            tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xffff);
+                            tcg_gen_ori_i32(cpu_T[0], cpu_T[0], imm << 16);
                         } else {
                             /* movw */
                             gen_op_movl_T0_im(imm);
@@ -7600,7 +7648,12 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     /* Reset the conditional execution bits immediately. This avoids
        complications trying to do it at the end of the block.  */
     if (env->condexec_bits)
-      gen_op_set_condexec(0);
+      {
+        TCGv tmp = new_tmp();
+        tcg_gen_movi_i32(tmp, 0);
+        tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, condexec_bits));
+        dead_tmp(tmp);
+      }
     do {
 #ifndef CONFIG_USER_ONLY
         if (dc->pc >= 0xfffffff0 && IS_M(env)) {
