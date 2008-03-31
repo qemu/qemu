@@ -1108,8 +1108,10 @@ if test "$target_cpu" = "i386" ; then
   fi
 elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
   echo "TARGET_ARCH=arm" >> $config_mak
+  echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
   echo "#define TARGET_ARCH \"arm\"" >> $config_h
   echo "#define TARGET_ARM 1" >> $config_h
+  echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
   bflt="yes"
 elif test "$target_cpu" = "sparc" ; then
   echo "TARGET_ARCH=sparc" >> $config_mak
