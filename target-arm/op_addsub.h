@@ -8,9 +8,11 @@
  */
 
 #ifdef ARITH_GE
+#define GE_ARG , uint32_t *gep
 #define DECLARE_GE uint32_t ge = 0
-#define SET_GE env->GE = ge
+#define SET_GE *gep = ge
 #else
+#define GE_ARG
 #define DECLARE_GE do{}while(0)
 #define SET_GE do{}while(0)
 #endif
@@ -18,82 +20,77 @@
 #define RESULT(val, n, width) \
     res |= ((uint32_t)(glue(glue(uint,width),_t))(val)) << (n * width)
 
-void OPPROTO glue(glue(op_,PFX),add16_T0_T1)(void)
+uint32_t HELPER(glue(PFX,add16))(uint32_t a, uint32_t b GE_ARG)
 {
     uint32_t res = 0;
     DECLARE_GE;
 
-    ADD16(T0, T1, 0);
-    ADD16(T0 >> 16, T1 >> 16, 1);
+    ADD16(a, b, 0);
+    ADD16(a >> 16, b >> 16, 1);
     SET_GE;
-    T0 = res;
-    FORCE_RET();
+    return res;
 }
 
-void OPPROTO glue(glue(op_,PFX),add8_T0_T1)(void)
+uint32_t HELPER(glue(PFX,add8))(uint32_t a, uint32_t b GE_ARG)
 {
     uint32_t res = 0;
     DECLARE_GE;
 
-    ADD8(T0, T1, 0);
-    ADD8(T0 >> 8, T1 >> 8, 1);
-    ADD8(T0 >> 16, T1 >> 16, 2);
-    ADD8(T0 >> 24, T1 >> 24, 3);
+    ADD8(a, b, 0);
+    ADD8(a >> 8, b >> 8, 1);
+    ADD8(a >> 16, b >> 16, 2);
+    ADD8(a >> 24, b >> 24, 3);
     SET_GE;
-    T0 = res;
-    FORCE_RET();
+    return res;
 }
 
-void OPPROTO glue(glue(op_,PFX),sub16_T0_T1)(void)
+uint32_t HELPER(glue(PFX,sub16))(uint32_t a, uint32_t b GE_ARG)
 {
     uint32_t res = 0;
     DECLARE_GE;
 
-    SUB16(T0, T1, 0);
-    SUB16(T0 >> 16, T1 >> 16, 1);
+    SUB16(a, b, 0);
+    SUB16(a >> 16, b >> 16, 1);
     SET_GE;
-    T0 = res;
-    FORCE_RET();
+    return res;
 }
 
-void OPPROTO glue(glue(op_,PFX),sub8_T0_T1)(void)
+uint32_t HELPER(glue(PFX,sub8))(uint32_t a, uint32_t b GE_ARG)
 {
     uint32_t res = 0;
     DECLARE_GE;
 
-    SUB8(T0, T1, 0);
-    SUB8(T0 >> 8, T1 >> 8, 1);
-    SUB8(T0 >> 16, T1 >> 16, 2);
-    SUB8(T0 >> 24, T1 >> 24, 3);
+    SUB8(a, b, 0);
+    SUB8(a >> 8, b >> 8, 1);
+    SUB8(a >> 16, b >> 16, 2);
+    SUB8(a >> 24, b >> 24, 3);
     SET_GE;
-    T0 = res;
-    FORCE_RET();
+    return res;
 }
 
-void OPPROTO glue(glue(op_,PFX),subaddx_T0_T1)(void)
+uint32_t HELPER(glue(PFX,subaddx))(uint32_t a, uint32_t b GE_ARG)
 {
     uint32_t res = 0;
     DECLARE_GE;
 
-    ADD16(T0, T1, 0);
-    SUB16(T0 >> 16, T1 >> 16, 1);
+    ADD16(a, b, 0);
+    SUB16(a >> 16, b >> 16, 1);
     SET_GE;
-    T0 = res;
-    FORCE_RET();
+    return res;
 }
 
-void OPPROTO glue(glue(op_,PFX),addsubx_T0_T1)(void)
+uint32_t HELPER(glue(PFX,addsubx))(uint32_t a, uint32_t b GE_ARG)
 {
     uint32_t res = 0;
     DECLARE_GE;
 
-    SUB16(T0, T1, 0);
-    ADD16(T0 >> 16, T1 >> 16, 1);
+    SUB16(a, b, 0);
+    ADD16(a >> 16, b >> 16, 1);
     SET_GE;
-    T0 = res;
-    FORCE_RET();
+    return res;
 }
 
+#undef GE_ARG
 #undef DECLARE_GE
 #undef SET_GE
 #undef RESULT

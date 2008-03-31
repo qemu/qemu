@@ -1,4 +1,4 @@
-#define DEF_HELPER(name, ret, args) ret helper_##name args;
+#define DEF_HELPER(name, ret, args) ret glue(helper_,name) args;
 
 #ifdef GEN_HELPER
 #define DEF_HELPER_1_1(name, ret, args) \
@@ -13,10 +13,18 @@ static inline void gen_helper_##name(TCGv ret, TCGv arg1, TCGv arg2) \
 { \
     tcg_gen_helper_1_2(helper_##name, ret, arg1, arg2); \
 }
+#define DEF_HELPER_1_3(name, ret, args) \
+DEF_HELPER(name, ret, args) \
+static inline void gen_helper_##name(TCGv ret, \
+    TCGv arg1, TCGv arg2, TCGv arg3) \
+{ \
+    tcg_gen_helper_1_3(helper_##name, ret, arg1, arg2, arg3); \
+}
 #else /* !GEN_HELPER */
 #define DEF_HELPER_1_1 DEF_HELPER
 #define DEF_HELPER_1_2 DEF_HELPER
-#define HELPER(x) helper_##x
+#define DEF_HELPER_1_3 DEF_HELPER
+#define HELPER(x) glue(helper_,x)
 #endif
 
 DEF_HELPER_1_1(clz, uint32_t, (uint32_t))
@@ -32,6 +40,40 @@ DEF_HELPER_1_1(double_saturate, uint32_t, (int32_t))
 DEF_HELPER_1_2(sdiv, int32_t, (int32_t, int32_t))
 DEF_HELPER_1_2(udiv, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_1(rbit, uint32_t, (uint32_t))
+
+#define PAS_OP(pfx)  \
+    DEF_HELPER_1_3(pfx ## add8, uint32_t, (uint32_t, uint32_t, uint32_t *)) \
+    DEF_HELPER_1_3(pfx ## sub8, uint32_t, (uint32_t, uint32_t, uint32_t *)) \
+    DEF_HELPER_1_3(pfx ## sub16, uint32_t, (uint32_t, uint32_t, uint32_t *)) \
+    DEF_HELPER_1_3(pfx ## add16, uint32_t, (uint32_t, uint32_t, uint32_t *)) \
+    DEF_HELPER_1_3(pfx ## addsubx, uint32_t, (uint32_t, uint32_t, uint32_t *)) \
+    DEF_HELPER_1_3(pfx ## subaddx, uint32_t, (uint32_t, uint32_t, uint32_t *))
+
+PAS_OP(s)
+PAS_OP(u)
+#undef PAS_OP
+
+#define PAS_OP(pfx)  \
+    DEF_HELPER_1_2(pfx ## add8, uint32_t, (uint32_t, uint32_t)) \
+    DEF_HELPER_1_2(pfx ## sub8, uint32_t, (uint32_t, uint32_t)) \
+    DEF_HELPER_1_2(pfx ## sub16, uint32_t, (uint32_t, uint32_t)) \
+    DEF_HELPER_1_2(pfx ## add16, uint32_t, (uint32_t, uint32_t)) \
+    DEF_HELPER_1_2(pfx ## addsubx, uint32_t, (uint32_t, uint32_t)) \
+    DEF_HELPER_1_2(pfx ## subaddx, uint32_t, (uint32_t, uint32_t))
+PAS_OP(q)
+PAS_OP(sh)
+PAS_OP(uq)
+PAS_OP(uh)
+#undef PAS_OP
+
+DEF_HELPER_1_2(ssat, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(usat, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(ssat16, uint32_t, (uint32_t, uint32_t))
+DEF_HELPER_1_2(usat16, uint32_t, (uint32_t, uint32_t))
+
+DEF_HELPER_1_2(usad8, uint32_t, (uint32_t, uint32_t))
+
+DEF_HELPER_1_3(sel_flags, uint32_t, (uint32_t, uint32_t, uint32_t))
 
 #undef DEF_HELPER
 #undef DEF_HELPER_1_1

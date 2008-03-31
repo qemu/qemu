@@ -369,3 +369,70 @@ uint32_t HELPER(sub_usaturate)(uint32_t a, uint32_t b)
     return res;
 }
 
+/* Signed saturation.  */
+static inline uint32_t do_ssat(int32_t val, int shift)
+{
+    int32_t top;
+    uint32_t mask;
+
+    shift = PARAM1;
+    top = val >> shift;
+    mask = (1u << shift) - 1;
+    if (top > 0) {
+        env->QF = 1;
+        return mask;
+    } else if (top < -1) {
+        env->QF = 1;
+        return ~mask;
+    }
+    return val;
+}
+
+/* Unsigned saturation.  */
+static inline uint32_t do_usat(int32_t val, int shift)
+{
+    uint32_t max;
+
+    shift = PARAM1;
+    max = (1u << shift) - 1;
+    if (val < 0) {
+        env->QF = 1;
+        return 0;
+    } else if (val > max) {
+        env->QF = 1;
+        return max;
+    }
+    return val;
+}
+
+/* Signed saturate.  */
+uint32_t HELPER(ssat)(uint32_t x, uint32_t shift)
+{
+    return do_ssat(x, shift);
+}
+
+/* Dual halfword signed saturate.  */
+uint32_t HELPER(ssat16)(uint32_t x, uint32_t shift)
+{
+    uint32_t res;
+
+    res = (uint16_t)do_ssat((int16_t)x, shift);
+    res |= do_ssat(((int32_t)x) >> 16, shift) << 16;
+    return res;
+}
+
+/* Unsigned saturate.  */
+uint32_t HELPER(usat)(uint32_t x, uint32_t shift)
+{
+    return do_usat(x, shift);
+}
+
+/* Dual halfword unsigned saturate.  */
+uint32_t HELPER(usat16)(uint32_t x, uint32_t shift)
+{
+    uint32_t res;
+
+    res = (uint16_t)do_usat((int16_t)x, shift);
+    res |= do_usat(((int32_t)x) >> 16, shift) << 16;
+    return res;
+}
