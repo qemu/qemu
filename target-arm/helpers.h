@@ -109,6 +109,8 @@ DEF_HELPER_1_2(usat16, uint32_t, (uint32_t, uint32_t))
 
 DEF_HELPER_1_2(usad8, uint32_t, (uint32_t, uint32_t))
 
+DEF_HELPER_1_1(logicq_cc, uint32_t, (uint64_t))
+
 DEF_HELPER_1_3(sel_flags, uint32_t, (uint32_t, uint32_t, uint32_t))
 DEF_HELPER_0_1(exception, void, (uint32_t))
 DEF_HELPER_0_0(wfi, void, (void))

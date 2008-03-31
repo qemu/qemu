@@ -80,51 +80,6 @@ OPSUB(sub, sbc, T0, T0, T1)
 
 OPSUB(rsb, rsc, T0, T1, T0)
 
-void OPPROTO op_addq_T0_T1(void)
-{
-    uint64_t res;
-    res = ((uint64_t)T1 << 32) | T0;
-    res += ((uint64_t)(env->regs[PARAM2]) << 32) | (env->regs[PARAM1]);
-    T1 = res >> 32;
-    T0 = res;
-}
-
-void OPPROTO op_addq_lo_T0_T1(void)
-{
-    uint64_t res;
-    res = ((uint64_t)T1 << 32) | T0;
-    res += (uint64_t)(env->regs[PARAM1]);
-    T1 = res >> 32;
-    T0 = res;
-}
-
-/* Dual 16-bit accumulate.  */
-void OPPROTO op_addq_T0_T1_dual(void)
-{
-  uint64_t res;
-  res = ((uint64_t)(env->regs[PARAM2]) << 32) | (env->regs[PARAM1]);
-  res += (int32_t)T0;
-  res += (int32_t)T1;
-  env->regs[PARAM1] = (uint32_t)res;
-  env->regs[PARAM2] = res >> 32;
-}
-
-/* Dual 16-bit subtract accumulate.  */
-void OPPROTO op_subq_T0_T1_dual(void)
-{
-  uint64_t res;
-  res = ((uint64_t)(env->regs[PARAM2]) << 32) | (env->regs[PARAM1]);
-  res += (int32_t)T0;
-  res -= (int32_t)T1;
-  env->regs[PARAM1] = (uint32_t)res;
-  env->regs[PARAM2] = res >> 32;
-}
-
-void OPPROTO op_logicq_cc(void)
-{
-    env->NZF = (T1 & 0x80000000) | ((T0 | T1) != 0);
-}
-
 /* memory access */
 
 #define MEMSUFFIX _raw

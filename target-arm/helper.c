@@ -2167,6 +2167,10 @@ uint32_t HELPER(sel_flags)(uint32_t flags, uint32_t a, uint32_t b)
     return (a & mask) | (b & ~mask);
 }
 
+uint32_t HELPER(logicq_cc)(uint64_t val)
+{
+    return (val >> 32) | (val != 0);
+}
 
 /* VFP support.  We follow the convention used for VFP instrunctions:
    Single precition routines have a "s" suffix, double precision a
@@ -2529,4 +2533,3 @@ uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
     tmp = float32_scalbn(tmp, 31, s);
     return float32_to_int32(tmp, s);
 }
-
