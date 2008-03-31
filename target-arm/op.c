@@ -20,17 +20,6 @@
  */
 #include "exec.h"
 
-/* memory access */
-
-#define MEMSUFFIX _raw
-#include "op_mem.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_mem.h"
-#define MEMSUFFIX _kernel
-#include "op_mem.h"
-#endif
-
-/* iwMMXt support */
-#include "op_iwmmxt.c"
+void OPPROTO op_dummy(void)
+{
+}

@@ -1,3 +1,11 @@
+/*
+ * ARM NEON vector operations.
+ *
+ * Copyright (c) 2007, 2008 CodeSourcery.
+ * Written by Paul Brook
+ *
+ * This code is licenced under the GNU GPL v2.
+ */
 #include <stdlib.h>
 #include <stdio.h>
 

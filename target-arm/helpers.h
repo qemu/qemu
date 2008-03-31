@@ -431,6 +431,103 @@ DEF_HELPER_1_2(neon_cgt_f32, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_2(neon_acge_f32, uint32_t, (uint32_t, uint32_t))
 DEF_HELPER_1_2(neon_acgt_f32, uint32_t, (uint32_t, uint32_t))
 
+/* iwmmxt_helper.c */
+DEF_HELPER_1_2(iwmmxt_maddsq, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_madduq, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_sadb, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_sadw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_mulslw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_mulshw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_mululw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_muluhw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_macsw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_2(iwmmxt_macuw, uint64_t, (uint64_t, uint64_t))
+DEF_HELPER_1_1(iwmmxt_setpsr_nz, uint32_t, (uint64_t))
+
+#define DEF_IWMMXT_HELPER_SIZE_ENV(name) \
+DEF_HELPER_1_3(iwmmxt_##name##b, uint64_t, (CPUState *, uint64_t, uint64_t)) \
+DEF_HELPER_1_3(iwmmxt_##name##w, uint64_t, (CPUState *, uint64_t, uint64_t)) \
+DEF_HELPER_1_3(iwmmxt_##name##l, uint64_t, (CPUState *, uint64_t, uint64_t)) \
+
+DEF_IWMMXT_HELPER_SIZE_ENV(unpackl)
+DEF_IWMMXT_HELPER_SIZE_ENV(unpackh)
+
+DEF_HELPER_1_2(iwmmxt_unpacklub, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackluw, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpacklul, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackhub, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackhuw, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackhul, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpacklsb, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpacklsw, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpacklsl, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackhsb, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackhsw, uint64_t, (CPUState *, uint64_t))
+DEF_HELPER_1_2(iwmmxt_unpackhsl, uint64_t, (CPUState *, uint64_t))
+
+DEF_IWMMXT_HELPER_SIZE_ENV(cmpeq)
+DEF_IWMMXT_HELPER_SIZE_ENV(cmpgtu)
+DEF_IWMMXT_HELPER_SIZE_ENV(cmpgts)
+
+DEF_IWMMXT_HELPER_SIZE_ENV(mins)
+DEF_IWMMXT_HELPER_SIZE_ENV(minu)
+DEF_IWMMXT_HELPER_SIZE_ENV(maxs)
+DEF_IWMMXT_HELPER_SIZE_ENV(maxu)
+
+DEF_IWMMXT_HELPER_SIZE_ENV(subn)
+DEF_IWMMXT_HELPER_SIZE_ENV(addn)
+DEF_IWMMXT_HELPER_SIZE_ENV(subu)
+DEF_IWMMXT_HELPER_SIZE_ENV(addu)
+DEF_IWMMXT_HELPER_SIZE_ENV(subs)
+DEF_IWMMXT_HELPER_SIZE_ENV(adds)
+
+DEF_HELPER_1_3(iwmmxt_avgb0, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_avgb1, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_avgw0, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_avgw1, uint64_t, (CPUState *, uint64_t, uint64_t))
+
+DEF_HELPER_1_2(iwmmxt_msadb, uint64_t, (uint64_t, uint64_t))
+
+DEF_HELPER_1_3(iwmmxt_align, uint64_t, (uint64_t, uint64_t, uint32_t))
+DEF_HELPER_1_4(iwmmxt_insr, uint64_t, (uint64_t, uint32_t, uint32_t, uint32_t))
+
+DEF_HELPER_1_1(iwmmxt_bcstb, uint64_t, (uint32_t))
+DEF_HELPER_1_1(iwmmxt_bcstw, uint64_t, (uint32_t))
+DEF_HELPER_1_1(iwmmxt_bcstl, uint64_t, (uint32_t))
+
+DEF_HELPER_1_1(iwmmxt_addcb, uint64_t, (uint64_t))
+DEF_HELPER_1_1(iwmmxt_addcw, uint64_t, (uint64_t))
+DEF_HELPER_1_1(iwmmxt_addcl, uint64_t, (uint64_t))
+
+DEF_HELPER_1_1(iwmmxt_msbb, uint32_t, (uint64_t))
+DEF_HELPER_1_1(iwmmxt_msbw, uint32_t, (uint64_t))
+DEF_HELPER_1_1(iwmmxt_msbl, uint32_t, (uint64_t))
+
+DEF_HELPER_1_3(iwmmxt_srlw, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_srll, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_srlq, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_sllw, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_slll, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_sllq, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_sraw, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_sral, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_sraq, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_rorw, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_rorl, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_rorq, uint64_t, (CPUState *, uint64_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_shufh, uint64_t, (CPUState *, uint64_t, uint32_t))
+
+DEF_HELPER_1_3(iwmmxt_packuw, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_packul, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_packuq, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_packsw, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_packsl, uint64_t, (CPUState *, uint64_t, uint64_t))
+DEF_HELPER_1_3(iwmmxt_packsq, uint64_t, (CPUState *, uint64_t, uint64_t))
+
+DEF_HELPER_1_3(iwmmxt_muladdsl, uint64_t, (uint64_t, uint32_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_muladdsw, uint64_t, (uint64_t, uint32_t, uint32_t))
+DEF_HELPER_1_3(iwmmxt_muladdswl, uint64_t, (uint64_t, uint32_t, uint32_t))
+
 #undef DEF_HELPER
 #undef DEF_HELPER_0_0
 #undef DEF_HELPER_0_1
