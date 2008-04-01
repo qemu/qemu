@@ -2,6 +2,8 @@ TODO list for AR7 / QEMU
 
 2008-03-16
 
+* USB Treiber für TNETV115PAP
+
 * Absturz CPMAC unter hoher Dauerlast
 
 94139fd0:       8c450000        lw      a1,0(v0)
